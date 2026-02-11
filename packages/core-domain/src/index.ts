@@ -27,6 +27,18 @@ export interface Ed25519PrivateJwk extends Ed25519PublicJwk {
   d: string;
 }
 
+export interface P256PublicJwk {
+  kty: 'EC';
+  crv: 'P-256';
+  x: string;
+  y: string;
+  kid?: string;
+}
+
+export interface P256PrivateJwk extends P256PublicJwk {
+  d: string;
+}
+
 export interface TenantDidSigningMaterial {
   did: string;
   keyId: string;
@@ -72,8 +84,27 @@ export interface Ed25519Signature2020Proof extends JsonObject {
   proofValue: string;
 }
 
+export type DataIntegrityCryptosuite = 'eddsa-rdfc-2022' | 'ecdsa-sd-2023';
+
+export interface DataIntegrityProof extends JsonObject {
+  type: 'DataIntegrityProof';
+  cryptosuite: DataIntegrityCryptosuite;
+  created: string;
+  proofPurpose: 'assertionMethod';
+  verificationMethod: string;
+  proofValue: string;
+}
+
 interface SigningProofOptions extends JsonObject {
   type: 'Ed25519Signature2020';
+  created: string;
+  proofPurpose: 'assertionMethod';
+  verificationMethod: string;
+}
+
+interface DataIntegritySigningProofOptions extends JsonObject {
+  type: 'DataIntegrityProof';
+  cryptosuite: DataIntegrityCryptosuite;
   created: string;
   proofPurpose: 'assertionMethod';
   verificationMethod: string;
@@ -83,6 +114,10 @@ export type SignedCredential = JsonObject & {
   proof: Ed25519Signature2020Proof;
 };
 
+export type DataIntegritySignedCredential = JsonObject & {
+  proof: DataIntegrityProof;
+};
+
 export interface SignCredentialInput {
   credential: JsonObject;
   privateJwk: Ed25519PrivateJwk;
@@ -90,9 +125,22 @@ export interface SignCredentialInput {
   createdAt?: string;
 }
 
+export interface SignCredentialWithDataIntegrityProofInput {
+  credential: JsonObject;
+  privateJwk: Ed25519PrivateJwk | P256PrivateJwk;
+  verificationMethod: string;
+  cryptosuite: DataIntegrityCryptosuite;
+  createdAt?: string;
+}
+
 export interface VerifyCredentialInput {
   credential: SignedCredential;
   publicJwk: Ed25519PublicJwk;
+}
+
+export interface VerifyCredentialWithDataIntegrityProofInput {
+  credential: DataIntegritySignedCredential;
+  publicJwk: Ed25519PublicJwk | P256PublicJwk;
 }
 
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
@@ -278,6 +326,60 @@ const importEd25519PublicKey = async (publicJwk: Ed25519PublicJwk): Promise<Cryp
   return crypto.subtle.importKey('jwk', publicJwk, { name: 'Ed25519' }, false, ['verify']);
 };
 
+const importP256PrivateKey = async (privateJwk: P256PrivateJwk): Promise<CryptoKey> => {
+  return crypto.subtle.importKey(
+    'jwk',
+    privateJwk,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign'],
+  );
+};
+
+const importP256PublicKey = async (publicJwk: P256PublicJwk): Promise<CryptoKey> => {
+  return crypto.subtle.importKey(
+    'jwk',
+    publicJwk,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['verify'],
+  );
+};
+
+const isEd25519PublicJwk = (value: unknown): value is Ed25519PublicJwk => {
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+
+  const jwk = value as Record<string, unknown>;
+  return jwk.kty === 'OKP' && jwk.crv === 'Ed25519' && typeof jwk.x === 'string';
+};
+
+const isEd25519PrivateJwk = (value: unknown): value is Ed25519PrivateJwk => {
+  if (!isEd25519PublicJwk(value)) {
+    return false;
+  }
+
+  return typeof (value as { d?: unknown }).d === 'string';
+};
+
+const isP256PublicJwk = (value: unknown): value is P256PublicJwk => {
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+
+  const jwk = value as Record<string, unknown>;
+  return jwk.kty === 'EC' && jwk.crv === 'P-256' && typeof jwk.x === 'string' && typeof jwk.y === 'string';
+};
+
+const isP256PrivateJwk = (value: unknown): value is P256PrivateJwk => {
+  if (!isP256PublicJwk(value)) {
+    return false;
+  }
+
+  return typeof (value as { d?: unknown }).d === 'string';
+};
+
 const normalizePublicJwk = (jwk: JsonWebKey, keyId?: string): Ed25519PublicJwk => {
   if (jwk.kty !== 'OKP' || jwk.crv !== 'Ed25519' || typeof jwk.x !== 'string' || jwk.x.length === 0) {
     throw new Error('Generated public key is not an Ed25519 JWK');
@@ -348,9 +450,23 @@ const proofEnvelope = (
   };
 };
 
+const dataIntegrityProofEnvelope = (
+  created: string,
+  verificationMethod: string,
+  cryptosuite: DataIntegrityCryptosuite,
+): DataIntegritySigningProofOptions => {
+  return {
+    type: 'DataIntegrityProof',
+    cryptosuite,
+    created,
+    proofPurpose: 'assertionMethod',
+    verificationMethod,
+  };
+};
+
 const signingPayload = (
   credential: JsonObject,
-  proof: SigningProofOptions,
+  proof: JsonObject,
 ): Uint8Array => {
   const canonicalCredential = canonicalizeJson(unsignedCredential(credential));
   const canonicalProof = canonicalizeJson(proof);
@@ -497,6 +613,103 @@ export const verifyCredentialProofWithEd25519Signature2020 = async (
     toArrayBuffer(signature),
     toArrayBuffer(payload),
   );
+};
+
+export const signCredentialWithDataIntegrityProof = async (
+  input: SignCredentialWithDataIntegrityProofInput,
+): Promise<DataIntegritySignedCredential> => {
+  const created = input.createdAt ?? new Date().toISOString();
+  const proof = dataIntegrityProofEnvelope(created, input.verificationMethod, input.cryptosuite);
+  const payload = signingPayload(input.credential, proof);
+
+  switch (input.cryptosuite) {
+    case 'eddsa-rdfc-2022': {
+      if (!isEd25519PrivateJwk(input.privateJwk)) {
+        throw new Error('eddsa-rdfc-2022 requires an Ed25519 private JWK');
+      }
+
+      const privateKey = await importEd25519PrivateKey(input.privateJwk);
+      const signatureBuffer = await crypto.subtle.sign({ name: 'Ed25519' }, privateKey, toArrayBuffer(payload));
+      const signature = new Uint8Array(signatureBuffer);
+
+      return {
+        ...unsignedCredential(input.credential),
+        proof: {
+          ...proof,
+          proofValue: `z${base58Encode(signature)}`,
+        },
+      };
+    }
+    case 'ecdsa-sd-2023': {
+      if (!isP256PrivateJwk(input.privateJwk)) {
+        throw new Error('ecdsa-sd-2023 requires a P-256 private JWK');
+      }
+
+      const privateKey = await importP256PrivateKey(input.privateJwk);
+      const signatureBuffer = await crypto.subtle.sign(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        privateKey,
+        toArrayBuffer(payload),
+      );
+      const signature = new Uint8Array(signatureBuffer);
+
+      return {
+        ...unsignedCredential(input.credential),
+        proof: {
+          ...proof,
+          proofValue: `z${base58Encode(signature)}`,
+        },
+      };
+    }
+  }
+};
+
+export const verifyCredentialProofWithDataIntegrity = async (
+  input: VerifyCredentialWithDataIntegrityProofInput,
+): Promise<boolean> => {
+  const proof = input.credential.proof;
+
+  if (!proof.proofValue.startsWith('z')) {
+    return false;
+  }
+
+  const payload = signingPayload(input.credential, {
+    type: proof.type,
+    cryptosuite: proof.cryptosuite,
+    created: proof.created,
+    proofPurpose: proof.proofPurpose,
+    verificationMethod: proof.verificationMethod,
+  });
+  const signature = base58Decode(proof.proofValue.slice(1));
+
+  switch (proof.cryptosuite) {
+    case 'eddsa-rdfc-2022': {
+      if (!isEd25519PublicJwk(input.publicJwk)) {
+        return false;
+      }
+
+      const publicKey = await importEd25519PublicKey(input.publicJwk);
+      return crypto.subtle.verify(
+        { name: 'Ed25519' },
+        publicKey,
+        toArrayBuffer(signature),
+        toArrayBuffer(payload),
+      );
+    }
+    case 'ecdsa-sd-2023': {
+      if (!isP256PublicJwk(input.publicJwk)) {
+        return false;
+      }
+
+      const publicKey = await importP256PublicKey(input.publicJwk);
+      return crypto.subtle.verify(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        publicKey,
+        toArrayBuffer(signature),
+        toArrayBuffer(payload),
+      );
+    }
+  }
 };
 
 export const encodeJwkPublicKeyMultibase = (publicJwk: Ed25519PublicJwk): string => {

@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  type JsonObject,
   createDidDocument,
   createDidWeb,
   decodeJwkPublicKeyMultibase,
   didWebDocumentPath,
   encodeJwkPublicKeyMultibase,
   generateTenantDidSigningMaterial,
+  signCredentialWithDataIntegrityProof,
   signCredentialWithEd25519Signature2020,
+  verifyCredentialProofWithDataIntegrity,
   verifyCredentialProofWithEd25519Signature2020,
 } from './index';
 
@@ -26,6 +29,31 @@ describe('did:web helpers', () => {
 });
 
 describe('credential signing', () => {
+  const sampleCredential = (did: string, id: string): JsonObject => {
+    return {
+      '@context': ['https://www.w3.org/ns/credentials/v2'],
+      id,
+      type: ['VerifiableCredential', 'OpenBadgeCredential'],
+      issuer: did,
+      credentialSubject: {
+        id: 'mailto:learner@example.edu',
+        achievement: {
+          id: 'urn:uuid:badge-123',
+          type: ['Achievement'],
+          name: 'TypeScript Fundamentals',
+        },
+      },
+    };
+  };
+
+  const requireJwkString = (value: unknown, field: string): string => {
+    if (typeof value !== 'string' || value.length === 0) {
+      throw new Error(`Expected non-empty string for JWK field "${field}"`);
+    }
+
+    return value;
+  };
+
   it('generates keys, signs credentials, and verifies proof', async () => {
     const did = createDidWeb({
       host: 'issuers.credtrail.org',
@@ -41,20 +69,7 @@ describe('credential signing', () => {
       publicJwk: signingMaterial.publicJwk,
     });
     const signedCredential = await signCredentialWithEd25519Signature2020({
-      credential: {
-        '@context': ['https://www.w3.org/ns/credentials/v2'],
-        id: 'urn:uuid:vc-123',
-        type: ['VerifiableCredential', 'OpenBadgeCredential'],
-        issuer: did,
-        credentialSubject: {
-          id: 'mailto:learner@example.edu',
-          achievement: {
-            id: 'urn:uuid:badge-123',
-            type: ['Achievement'],
-            name: 'TypeScript Fundamentals',
-          },
-        },
-      },
+      credential: sampleCredential(did, 'urn:uuid:vc-123'),
       privateJwk: signingMaterial.privateJwk,
       verificationMethod: `${did}#${signingMaterial.keyId}`,
     });
@@ -85,20 +100,7 @@ describe('credential signing', () => {
       did,
     });
     const signedCredential = await signCredentialWithEd25519Signature2020({
-      credential: {
-        '@context': ['https://www.w3.org/ns/credentials/v2'],
-        id: 'urn:uuid:vc-456',
-        type: ['VerifiableCredential', 'OpenBadgeCredential'],
-        issuer: did,
-        credentialSubject: {
-          id: 'mailto:learner@example.edu',
-          achievement: {
-            id: 'urn:uuid:badge-456',
-            type: ['Achievement'],
-            name: 'Cloudflare Workers Basics',
-          },
-        },
-      },
+      credential: sampleCredential(did, 'urn:uuid:vc-456'),
       privateJwk: signingMaterial.privateJwk,
       verificationMethod: `${did}#${signingMaterial.keyId}`,
     });
@@ -141,5 +143,112 @@ describe('credential signing', () => {
     expect(signingMaterial.publicJwk.kid).toBe(expectedKeyId);
     expect(signingMaterial.privateJwk.kid).toBe(expectedKeyId);
     expect(didDocument.verificationMethod[0].id).toBe(`${did}#${expectedKeyId}`);
+  });
+
+  it('signs and verifies DataIntegrityProof with eddsa-rdfc-2022', async () => {
+    const did = createDidWeb({
+      host: 'issuers.credtrail.org',
+      pathSegments: ['tenant-d'],
+    });
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did,
+    });
+    const signedCredential = await signCredentialWithDataIntegrityProof({
+      credential: sampleCredential(did, 'urn:uuid:vc-789'),
+      privateJwk: signingMaterial.privateJwk,
+      verificationMethod: `${did}#${signingMaterial.keyId}`,
+      cryptosuite: 'eddsa-rdfc-2022',
+    });
+
+    expect(signedCredential.proof.type).toBe('DataIntegrityProof');
+    expect(signedCredential.proof.cryptosuite).toBe('eddsa-rdfc-2022');
+
+    const isValid = await verifyCredentialProofWithDataIntegrity({
+      credential: signedCredential,
+      publicJwk: signingMaterial.publicJwk,
+    });
+
+    expect(isValid).toBe(true);
+  });
+
+  it('signs and verifies DataIntegrityProof with ecdsa-sd-2023', async () => {
+    const did = createDidWeb({
+      host: 'issuers.credtrail.org',
+      pathSegments: ['tenant-e'],
+    });
+    const generated = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const exportedPublicJwk = await crypto.subtle.exportKey('jwk', generated.publicKey);
+    const exportedPrivateJwk = await crypto.subtle.exportKey('jwk', generated.privateKey);
+    const publicJwk: {
+      kty: 'EC';
+      crv: 'P-256';
+      x: string;
+      y: string;
+      kid: string;
+    } = {
+      kty: 'EC',
+      crv: 'P-256',
+      x: requireJwkString(exportedPublicJwk.x, 'x'),
+      y: requireJwkString(exportedPublicJwk.y, 'y'),
+      kid: 'key-p256',
+    };
+    const privateJwk = {
+      ...publicJwk,
+      d: requireJwkString(exportedPrivateJwk.d, 'd'),
+    };
+    const signedCredential = await signCredentialWithDataIntegrityProof({
+      credential: sampleCredential(did, 'urn:uuid:vc-790'),
+      privateJwk,
+      verificationMethod: `${did}#${publicJwk.kid}`,
+      cryptosuite: 'ecdsa-sd-2023',
+    });
+
+    expect(signedCredential.proof.type).toBe('DataIntegrityProof');
+    expect(signedCredential.proof.cryptosuite).toBe('ecdsa-sd-2023');
+
+    const isValid = await verifyCredentialProofWithDataIntegrity({
+      credential: signedCredential,
+      publicJwk,
+    });
+
+    expect(isValid).toBe(true);
+  });
+
+  it('fails DataIntegrityProof verification with mismatched key type', async () => {
+    const did = createDidWeb({
+      host: 'issuers.credtrail.org',
+      pathSegments: ['tenant-f'],
+    });
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did,
+    });
+    const signedCredential = await signCredentialWithDataIntegrityProof({
+      credential: sampleCredential(did, 'urn:uuid:vc-791'),
+      privateJwk: signingMaterial.privateJwk,
+      verificationMethod: `${did}#${signingMaterial.keyId}`,
+      cryptosuite: 'eddsa-rdfc-2022',
+    });
+    const generated = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const exportedPublicJwk = await crypto.subtle.exportKey('jwk', generated.publicKey);
+    const wrongPublicJwk: {
+      kty: 'EC';
+      crv: 'P-256';
+      x: string;
+      y: string;
+      kid: string;
+    } = {
+      kty: 'EC',
+      crv: 'P-256',
+      x: requireJwkString(exportedPublicJwk.x, 'x'),
+      y: requireJwkString(exportedPublicJwk.y, 'y'),
+      kid: 'wrong-key',
+    };
+
+    const isValid = await verifyCredentialProofWithDataIntegrity({
+      credential: signedCredential,
+      publicJwk: wrongPublicJwk,
+    });
+
+    expect(isValid).toBe(false);
   });
 });
