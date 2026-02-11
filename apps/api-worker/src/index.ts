@@ -2924,6 +2924,28 @@ const verifyCredentialSubjectSummary = (credential: JsonObject): CredentialVerif
     };
   }
 
+  const credentialTypes = normalizedStringValues(credential.type);
+
+  if (credentialTypes.includes('OpenBadgeCredential')) {
+    const achievement = asJsonObject(credentialSubject.achievement);
+
+    if (achievement === null) {
+      return {
+        status: 'invalid',
+        reason: 'credentialSubject.achievement must be an object for OpenBadgeCredential',
+      };
+    }
+
+    const achievementTypes = normalizedStringValues(achievement.type);
+
+    if (!achievementTypes.includes('Achievement')) {
+      return {
+        status: 'invalid',
+        reason: 'credentialSubject.achievement.type must include Achievement for OpenBadgeCredential',
+      };
+    }
+  }
+
   return {
     status: 'valid',
     reason: null,

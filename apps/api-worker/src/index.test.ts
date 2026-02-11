@@ -2537,6 +2537,11 @@ describe('GET /credentials/v1/:credentialId', () => {
       validFrom: '2026-02-10T22:00:00.000Z',
       credentialSubject: {
         id: 'mailto:learner@example.edu',
+        achievement: {
+          id: 'urn:credtrail:badge:001',
+          type: ['Achievement'],
+          name: 'Sakai Contributor',
+        },
       },
       credentialStatus: {
         id: 'http://localhost/credentials/v1/status-lists/tenant_123/revocation#0',
@@ -2925,6 +2930,36 @@ describe('GET /credentials/v1/:credentialId', () => {
     expect(body.verification.checks.credentialSubject.reason).toContain('id or at least one identifier');
   });
 
+  it('marks credentialSubject as invalid when OpenBadgeCredential omits achievement details', async () => {
+    const env = createEnv();
+    const credential: JsonObject = {
+      '@context': ['https://www.w3.org/ns/credentials/v2'],
+      id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+      type: ['VerifiableCredential', 'OpenBadgeCredential'],
+      issuer: 'did:web:credtrail.test:tenant_123',
+      validFrom: '2026-02-10T22:00:00.000Z',
+      credentialSubject: {
+        id: 'mailto:learner@example.edu',
+      },
+    };
+
+    mockedFindAssertionById.mockResolvedValue(
+      sampleAssertion({
+        statusListIndex: null,
+      }),
+    );
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+
+    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.checks.credentialSubject.status).toBe('invalid');
+    expect(body.verification.checks.credentialSubject.reason).toBe(
+      'credentialSubject.achievement must be an object for OpenBadgeCredential',
+    );
+  });
+
   it('marks dates as invalid when validFrom is in the future', async () => {
     const env = createEnv();
     const credential: JsonObject = {
@@ -3162,6 +3197,99 @@ describe('GET /credentials/v1/:credentialId', () => {
     expect(body.verification.proof.format).toBe('DataIntegrityProof');
     expect(body.verification.proof.cryptosuite).toBe('eddsa-rdfc-2022');
     expect(body.verification.proof.verificationMethod).toBe('did:web:credtrail.test:tenant_123#key-1');
+  });
+
+  it('verifies DataIntegrityProof credentials with both EdDSA and ECDSA cryptosuites through the same endpoint', async () => {
+    const env = createEnv();
+    const assertDataIntegrityVerification = async (input: {
+      credential: JsonObject;
+      registration: TenantSigningRegistrationRecord;
+      cryptosuite: 'eddsa-rdfc-2022' | 'ecdsa-sd-2023';
+    }): Promise<void> => {
+      mockedFindAssertionById.mockResolvedValue(sampleAssertion());
+      mockedGetImmutableCredentialObject.mockResolvedValue(input.credential);
+      mockedFindTenantSigningRegistrationByDid.mockResolvedValue(input.registration);
+
+      const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+      const body = await response.json<VerificationResponse>();
+
+      expect(response.status).toBe(200);
+      expect(body.verification.proof.status).toBe('valid');
+      expect(body.verification.proof.format).toBe('DataIntegrityProof');
+      expect(body.verification.proof.cryptosuite).toBe(input.cryptosuite);
+    };
+
+    const did = 'did:web:credtrail.test:tenant_123';
+    const ecdsaSigningMaterial = await generateP256SigningMaterial('key-p256-interchangeable');
+    const ecdsaCredential = await signCredentialWithDataIntegrityProof({
+      credential: {
+        '@context': ['https://www.w3.org/ns/credentials/v2'],
+        id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+        type: ['VerifiableCredential', 'OpenBadgeCredential'],
+        issuer: did,
+        credentialSubject: {
+          id: 'mailto:learner@example.edu',
+          achievement: {
+            id: 'urn:credtrail:badge:001',
+            type: ['Achievement'],
+            name: 'Sakai Contributor',
+          },
+        },
+      },
+      privateJwk: ecdsaSigningMaterial.privateJwk,
+      verificationMethod: `${did}#${ecdsaSigningMaterial.publicJwk.kid ?? 'key-p256-interchangeable'}`,
+      cryptosuite: 'ecdsa-sd-2023',
+      createdAt: '2026-02-11T00:00:00.000Z',
+    });
+
+    await assertDataIntegrityVerification({
+      credential: ecdsaCredential,
+      registration: sampleTenantSigningRegistration({
+        tenantId: 'tenant_123',
+        did,
+        keyId: ecdsaSigningMaterial.publicJwk.kid ?? 'key-p256-interchangeable',
+        publicJwkJson: JSON.stringify(ecdsaSigningMaterial.publicJwk),
+        privateJwkJson: JSON.stringify(ecdsaSigningMaterial.privateJwk),
+      }),
+      cryptosuite: 'ecdsa-sd-2023',
+    });
+
+    const eddsaSigningMaterial = await generateTenantDidSigningMaterial({
+      did,
+      keyId: 'key-ed25519-interchangeable',
+    });
+    const eddsaCredential = await signCredentialWithDataIntegrityProof({
+      credential: {
+        '@context': ['https://www.w3.org/ns/credentials/v2'],
+        id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+        type: ['VerifiableCredential', 'OpenBadgeCredential'],
+        issuer: did,
+        credentialSubject: {
+          id: 'mailto:learner@example.edu',
+          achievement: {
+            id: 'urn:credtrail:badge:001',
+            type: ['Achievement'],
+            name: 'Sakai Contributor',
+          },
+        },
+      },
+      privateJwk: eddsaSigningMaterial.privateJwk,
+      verificationMethod: `${did}#${eddsaSigningMaterial.keyId}`,
+      cryptosuite: 'eddsa-rdfc-2022',
+      createdAt: '2026-02-11T00:00:00.000Z',
+    });
+
+    await assertDataIntegrityVerification({
+      credential: eddsaCredential,
+      registration: sampleTenantSigningRegistration({
+        tenantId: 'tenant_123',
+        did,
+        keyId: eddsaSigningMaterial.keyId,
+        publicJwkJson: JSON.stringify(eddsaSigningMaterial.publicJwk),
+        privateJwkJson: JSON.stringify(eddsaSigningMaterial.privateJwk),
+      }),
+      cryptosuite: 'eddsa-rdfc-2022',
+    });
   });
 
   it('returns invalid when proof verificationMethod DID does not match issuer DID', async () => {
