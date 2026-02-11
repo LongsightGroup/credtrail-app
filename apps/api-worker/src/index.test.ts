@@ -154,7 +154,10 @@ interface VerificationResponse {
   tenantId: string;
   issuedAt: string;
   verification: {
-    status: 'valid' | 'revoked';
+    status: 'active' | 'expired' | 'revoked';
+    reason: string | null;
+    checkedAt: string;
+    expiresAt: string | null;
     revokedAt: string | null;
     statusList: {
       id: string;
@@ -2491,7 +2494,10 @@ describe('GET /credentials/v1/:credentialId', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('no-store');
-    expect(body.verification.status).toBe('valid');
+    expect(body.verification.status).toBe('active');
+    expect(body.verification.reason).toBeNull();
+    expect(body.verification.checkedAt.length).toBeGreaterThan(0);
+    expect(body.verification.expiresAt).toBeNull();
     expect(body.verification.revokedAt).toBeNull();
     expect(body.verification.statusList?.statusPurpose).toBe('revocation');
     expect(body.verification.statusList?.statusListIndex).toBe('0');
@@ -2530,6 +2536,7 @@ describe('GET /credentials/v1/:credentialId', () => {
 
     expect(response.status).toBe(200);
     expect(body.verification.status).toBe('revoked');
+    expect(body.verification.reason).toBe('credential has been revoked by issuer');
     expect(body.verification.revokedAt).toBe('2026-02-11T01:00:00.000Z');
     expect(body.verification.proof.status).toBe('unchecked');
   });
@@ -2552,8 +2559,34 @@ describe('GET /credentials/v1/:credentialId', () => {
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
+    expect(body.verification.status).toBe('active');
     expect(body.verification.statusList).toBeNull();
     expect(body.verification.proof.status).toBe('unchecked');
+  });
+
+  it('marks credential status as expired when validUntil has passed', async () => {
+    const env = createEnv();
+    const credential: JsonObject = {
+      '@context': ['https://www.w3.org/ns/credentials/v2'],
+      id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+      type: ['VerifiableCredential', 'OpenBadgeCredential'],
+      validUntil: '2025-01-01T00:00:00.000Z',
+      credentialSubject: {
+        id: 'mailto:learner@example.edu',
+      },
+    };
+
+    mockedFindAssertionById.mockResolvedValue(sampleAssertion());
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+
+    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.status).toBe('expired');
+    expect(body.verification.reason).toBe('credential validUntil/expirationDate has passed');
+    expect(body.verification.expiresAt).toBe('2025-01-01T00:00:00.000Z');
+    expect(body.verification.revokedAt).toBeNull();
   });
 
   it('verifies Ed25519Signature2020 proofs when issuer signing keys are resolvable', async () => {

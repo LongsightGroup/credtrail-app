@@ -2130,6 +2130,64 @@ interface CredentialProofVerificationSummary {
   reason: string | null;
 }
 
+interface CredentialLifecycleVerificationSummary {
+  state: 'active' | 'expired' | 'revoked';
+  reason: string | null;
+  checkedAt: string;
+  expiresAt: string | null;
+  revokedAt: string | null;
+}
+
+const parseTimestampMilliseconds = (value: string): number | null => {
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const expirationTimestampFromCredential = (credential: JsonObject): string | null => {
+  return asNonEmptyString(credential.validUntil) ?? asNonEmptyString(credential.expirationDate);
+};
+
+const summarizeCredentialLifecycleVerification = (
+  credential: JsonObject,
+  revokedAt: string | null,
+  checkedAt: string,
+): CredentialLifecycleVerificationSummary => {
+  const expiresAt = expirationTimestampFromCredential(credential);
+  const checkedAtMilliseconds = parseTimestampMilliseconds(checkedAt) ?? Date.now();
+
+  if (revokedAt !== null) {
+    return {
+      state: 'revoked',
+      reason: 'credential has been revoked by issuer',
+      checkedAt,
+      expiresAt,
+      revokedAt,
+    };
+  }
+
+  if (expiresAt !== null) {
+    const expiresAtMilliseconds = parseTimestampMilliseconds(expiresAt);
+
+    if (expiresAtMilliseconds !== null && expiresAtMilliseconds <= checkedAtMilliseconds) {
+      return {
+        state: 'expired',
+        reason: 'credential validUntil/expirationDate has passed',
+        checkedAt,
+        expiresAt,
+        revokedAt: null,
+      };
+    }
+  }
+
+  return {
+    state: 'active',
+    reason: null,
+    checkedAt,
+    expiresAt,
+    revokedAt: null,
+  };
+};
+
 const verifyCredentialProofSummary = async (
   c: AppContext,
   credential: JsonObject,
@@ -4737,6 +4795,12 @@ app.get('/credentials/v1/:credentialId', async (c) => {
           revocationStatusListUrlForTenant(c.req.url, result.value.assertion.tenantId),
           result.value.assertion.statusListIndex,
         );
+  const checkedAt = new Date().toISOString();
+  const lifecycle = summarizeCredentialLifecycleVerification(
+    result.value.credential,
+    result.value.assertion.revokedAt,
+    checkedAt,
+  );
   const proof = await verifyCredentialProofSummary(c, result.value.credential);
 
   return c.json({
@@ -4744,8 +4808,11 @@ app.get('/credentials/v1/:credentialId', async (c) => {
     tenantId: result.value.assertion.tenantId,
     issuedAt: result.value.assertion.issuedAt,
     verification: {
-      status: result.value.assertion.revokedAt === null ? 'valid' : 'revoked',
-      revokedAt: result.value.assertion.revokedAt,
+      status: lifecycle.state,
+      reason: lifecycle.reason,
+      checkedAt: lifecycle.checkedAt,
+      expiresAt: lifecycle.expiresAt,
+      revokedAt: lifecycle.revokedAt,
       statusList,
       proof,
     },
