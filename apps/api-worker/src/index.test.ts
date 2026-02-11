@@ -2652,6 +2652,55 @@ describe('GET /credentials/v1/:credentialId', () => {
     expect(body.verification.proof.verificationMethod).toBe('did:web:credtrail.test:tenant_123#key-p256');
   });
 
+  it('verifies DataIntegrityProof eddsa-rdfc-2022 proofs when issuer signing keys are resolvable', async () => {
+    const env = createEnv();
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: 'did:web:credtrail.test:tenant_123',
+      keyId: 'key-1',
+    });
+    const credential = await signCredentialWithDataIntegrityProof({
+      credential: {
+        '@context': ['https://www.w3.org/ns/credentials/v2'],
+        id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+        type: ['VerifiableCredential', 'OpenBadgeCredential'],
+        issuer: signingMaterial.did,
+        credentialSubject: {
+          id: 'mailto:learner@example.edu',
+          achievement: {
+            id: 'urn:credtrail:badge:001',
+            type: ['Achievement'],
+            name: 'Sakai Contributor',
+          },
+        },
+      },
+      privateJwk: signingMaterial.privateJwk,
+      verificationMethod: `${signingMaterial.did}#${signingMaterial.keyId}`,
+      cryptosuite: 'eddsa-rdfc-2022',
+      createdAt: '2026-02-11T00:00:00.000Z',
+    });
+
+    mockedFindAssertionById.mockResolvedValue(sampleAssertion());
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+    mockedFindTenantSigningRegistrationByDid.mockResolvedValue(
+      sampleTenantSigningRegistration({
+        tenantId: 'tenant_123',
+        did: signingMaterial.did,
+        keyId: signingMaterial.keyId,
+        publicJwkJson: JSON.stringify(signingMaterial.publicJwk),
+        privateJwkJson: JSON.stringify(signingMaterial.privateJwk),
+      }),
+    );
+
+    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.proof.status).toBe('valid');
+    expect(body.verification.proof.format).toBe('DataIntegrityProof');
+    expect(body.verification.proof.cryptosuite).toBe('eddsa-rdfc-2022');
+    expect(body.verification.proof.verificationMethod).toBe('did:web:credtrail.test:tenant_123#key-1');
+  });
+
   it('returns invalid when proof verificationMethod DID does not match issuer DID', async () => {
     const env = createEnv();
     const signingMaterial = await generateTenantDidSigningMaterial({
@@ -3025,6 +3074,55 @@ describe('POST /v1/signing/credentials', () => {
     expect(response.status).toBe(201);
     expect(asString(proof?.type)).toBe('DataIntegrityProof');
     expect(asString(proof?.cryptosuite)).toBe('ecdsa-sd-2023');
+  });
+
+  it('signs DataIntegrity credentials with eddsa-rdfc-2022 when DID has Ed25519 key material', async () => {
+    const env = createEnv();
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: 'did:web:credtrail.test:sakai',
+      keyId: 'key-db-sign',
+    });
+
+    mockedFindTenantSigningRegistrationByDid.mockResolvedValue(
+      sampleTenantSigningRegistration({
+        tenantId: 'sakai',
+        did: signingMaterial.did,
+        keyId: signingMaterial.keyId,
+        publicJwkJson: JSON.stringify(signingMaterial.publicJwk),
+        privateJwkJson: JSON.stringify(signingMaterial.privateJwk),
+      }),
+    );
+
+    const response = await app.request(
+      '/v1/signing/credentials',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          did: signingMaterial.did,
+          proofType: 'DataIntegrityProof',
+          cryptosuite: 'eddsa-rdfc-2022',
+          credential: {
+            '@context': ['https://www.w3.org/ns/credentials/v2'],
+            type: ['VerifiableCredential'],
+            issuer: signingMaterial.did,
+            credentialSubject: {
+              id: 'urn:credtrail:subject:test',
+            },
+          },
+        }),
+      },
+      env,
+    );
+    const body = await response.json<JsonObject>();
+    const signedCredential = asJsonObject(body.credential);
+    const proof = asJsonObject(signedCredential?.proof);
+
+    expect(response.status).toBe(201);
+    expect(asString(proof?.type)).toBe('DataIntegrityProof');
+    expect(asString(proof?.cryptosuite)).toBe('eddsa-rdfc-2022');
   });
 
   it('returns 422 when DataIntegrity cryptosuite and key type do not match', async () => {
