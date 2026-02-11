@@ -2126,6 +2126,7 @@ const verifyCredentialProofSummary = async (
           return didPart === undefined || didPart.length === 0 ? null : didPart;
         })();
   const issuerIdentifier = issuerIdentifierFromCredential(credential);
+  const issuerDidFromCredential = issuerIdentifier?.startsWith('did:') ? issuerIdentifier : null;
   const issuerDid = methodDid ?? issuerIdentifier;
 
   if (proofType === null || proofValue === null || proofPurpose === null || verificationMethod === null) {
@@ -2145,6 +2146,16 @@ const verifyCredentialProofSummary = async (
       cryptosuite: asNonEmptyString(proof.cryptosuite),
       verificationMethod,
       reason: 'proofPurpose must be assertionMethod',
+    };
+  }
+
+  if (methodDid !== null && issuerDidFromCredential !== null && methodDid !== issuerDidFromCredential) {
+    return {
+      status: 'invalid',
+      format: proofType,
+      cryptosuite: asNonEmptyString(proof.cryptosuite),
+      verificationMethod,
+      reason: 'verificationMethod DID must match credential issuer DID',
     };
   }
 
