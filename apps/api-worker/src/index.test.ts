@@ -13,6 +13,7 @@ vi.mock('@credtrail/db', async () => {
     createOAuthAccessToken: vi.fn(),
     createOAuthAuthorizationCode: vi.fn(),
     createOAuthClient: vi.fn(),
+    createOAuthRefreshToken: vi.fn(),
     enqueueJobQueueMessage: vi.fn(),
     failJobQueueMessage: vi.fn(),
     findOAuthClientById: vi.fn(),
@@ -35,7 +36,10 @@ vi.mock('@credtrail/db', async () => {
     markLearnerIdentityLinkProofUsed: vi.fn(),
     nextAssertionStatusListIndex: vi.fn(),
     consumeOAuthAuthorizationCode: vi.fn(),
+    consumeOAuthRefreshToken: vi.fn(),
     recordAssertionRevocation: vi.fn(),
+    revokeOAuthAccessTokenByHash: vi.fn(),
+    revokeOAuthRefreshTokenByHash: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
     upsertBadgeTemplateById: vi.fn(),
     upsertTenantMembershipRole: vi.fn(),
@@ -77,6 +81,7 @@ import {
   type OAuthAccessTokenRecord,
   type OAuthAuthorizationCodeRecord,
   type OAuthClientRecord,
+  type OAuthRefreshTokenRecord,
   type TenantRecord,
   type TenantSigningRegistrationRecord,
   type SqlDatabase,
@@ -89,7 +94,9 @@ import {
   createOAuthAccessToken,
   createOAuthAuthorizationCode,
   createOAuthClient,
+  createOAuthRefreshToken,
   consumeOAuthAuthorizationCode,
+  consumeOAuthRefreshToken,
   enqueueJobQueueMessage,
   failJobQueueMessage,
   findActiveSessionByHash,
@@ -111,6 +118,8 @@ import {
   markLearnerIdentityLinkProofUsed,
   nextAssertionStatusListIndex,
   recordAssertionRevocation,
+  revokeOAuthAccessTokenByHash,
+  revokeOAuthRefreshTokenByHash,
   resolveLearnerProfileForIdentity,
   touchSession,
   type JobQueueMessageRecord,
@@ -202,6 +211,10 @@ const mockedCreateOAuthClient = vi.mocked(createOAuthClient);
 const mockedCreateOAuthAuthorizationCode = vi.mocked(createOAuthAuthorizationCode);
 const mockedConsumeOAuthAuthorizationCode = vi.mocked(consumeOAuthAuthorizationCode);
 const mockedCreateOAuthAccessToken = vi.mocked(createOAuthAccessToken);
+const mockedCreateOAuthRefreshToken = vi.mocked(createOAuthRefreshToken);
+const mockedConsumeOAuthRefreshToken = vi.mocked(consumeOAuthRefreshToken);
+const mockedRevokeOAuthAccessTokenByHash = vi.mocked(revokeOAuthAccessTokenByHash);
+const mockedRevokeOAuthRefreshTokenByHash = vi.mocked(revokeOAuthRefreshTokenByHash);
 const mockedEnqueueJobQueueMessage = vi.mocked(enqueueJobQueueMessage);
 const mockedLeaseJobQueueMessages = vi.mocked(leaseJobQueueMessages);
 const mockedCompleteJobQueueMessage = vi.mocked(completeJobQueueMessage);
@@ -244,6 +257,10 @@ beforeEach(() => {
   mockedCreateOAuthAuthorizationCode.mockReset();
   mockedConsumeOAuthAuthorizationCode.mockReset();
   mockedCreateOAuthAccessToken.mockReset();
+  mockedCreateOAuthRefreshToken.mockReset();
+  mockedConsumeOAuthRefreshToken.mockReset();
+  mockedRevokeOAuthAccessTokenByHash.mockReset();
+  mockedRevokeOAuthRefreshTokenByHash.mockReset();
   mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
 });
 
@@ -413,6 +430,24 @@ const sampleOAuthAccessTokenRecord = (
     scope:
       'https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.readonly https://purl.imsglobal.org/spec/ob/v3p0/scope/profile.readonly',
     expiresAt: '2026-02-11T23:00:00.000Z',
+    revokedAt: null,
+    createdAt: '2026-02-11T22:00:00.000Z',
+    ...overrides,
+  };
+};
+
+const sampleOAuthRefreshTokenRecord = (
+  overrides?: Partial<OAuthRefreshTokenRecord>,
+): OAuthRefreshTokenRecord => {
+  return {
+    id: 'ort_123',
+    clientId: 'oc_client_123',
+    userId: 'usr_123',
+    tenantId: 'tenant_123',
+    refreshTokenHash: 'refresh-token-hash',
+    scope:
+      'https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.readonly https://purl.imsglobal.org/spec/ob/v3p0/scope/profile.readonly',
+    expiresAt: '2026-03-11T22:00:00.000Z',
     revokedAt: null,
     createdAt: '2026-02-11T22:00:00.000Z',
     ...overrides,
@@ -922,6 +957,7 @@ describe('OB3 OAuth2 endpoints', () => {
       }),
     );
     mockedCreateOAuthAccessToken.mockResolvedValue(sampleOAuthAccessTokenRecord());
+    mockedCreateOAuthRefreshToken.mockResolvedValue(sampleOAuthRefreshTokenRecord());
 
     const response = await app.request(
       '/ims/ob/v3p0/oauth/token',
@@ -942,6 +978,7 @@ describe('OB3 OAuth2 endpoints', () => {
     expect(response.headers.get('pragma')).toBe('no-cache');
     expect(body.token_type).toBe('Bearer');
     expect(typeof body.access_token).toBe('string');
+    expect(typeof body.refresh_token).toBe('string');
     expect(body.expires_in).toBe(3600);
     expect(typeof body.scope).toBe('string');
 
@@ -954,6 +991,8 @@ describe('OB3 OAuth2 endpoints', () => {
 
     const createAccessTokenCall = mockedCreateOAuthAccessToken.mock.calls[0];
     expect(createAccessTokenCall?.[0]).toBe(fakeDb);
+    const createRefreshTokenCall = mockedCreateOAuthRefreshToken.mock.calls[0];
+    expect(createRefreshTokenCall?.[0]).toBe(fakeDb);
   });
 
   it('accepts case-insensitive basic auth scheme at token endpoint', async () => {
@@ -974,6 +1013,7 @@ describe('OB3 OAuth2 endpoints', () => {
       }),
     );
     mockedCreateOAuthAccessToken.mockResolvedValue(sampleOAuthAccessTokenRecord());
+    mockedCreateOAuthRefreshToken.mockResolvedValue(sampleOAuthRefreshTokenRecord());
 
     const response = await app.request(
       '/ims/ob/v3p0/oauth/token',
@@ -990,6 +1030,7 @@ describe('OB3 OAuth2 endpoints', () => {
 
     expect(response.status).toBe(200);
     expect(mockedCreateOAuthAccessToken).toHaveBeenCalledTimes(1);
+    expect(mockedCreateOAuthRefreshToken).toHaveBeenCalledTimes(1);
   });
 
   it('returns invalid_client when token endpoint request omits client_secret_basic auth', async () => {
@@ -1105,6 +1146,207 @@ describe('OB3 OAuth2 endpoints', () => {
     expect(response.status).toBe(400);
     expect(body.error).toBe('invalid_grant');
     expect(mockedCreateOAuthAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('supports refresh_token grant at token endpoint with scope constraints', async () => {
+    const clientSecret = 'oauth-secret';
+    const refreshToken = 'refresh-token-123';
+    const clientSecretHash = await sha256HexForTest(clientSecret);
+    mockedFindOAuthClientById.mockResolvedValue(
+      sampleOAuthClientRecord({
+        clientId: 'oc_client_123',
+        clientSecretHash,
+      }),
+    );
+    mockedConsumeOAuthRefreshToken.mockResolvedValue(sampleOAuthRefreshTokenRecord());
+    mockedCreateOAuthAccessToken.mockResolvedValue(sampleOAuthAccessTokenRecord());
+    mockedCreateOAuthRefreshToken.mockResolvedValue(sampleOAuthRefreshTokenRecord());
+
+    const response = await app.request(
+      '/ims/ob/v3p0/oauth/token',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          authorization: `Basic ${btoa(`oc_client_123:${clientSecret}`)}`,
+        },
+        body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}&scope=${encodeURIComponent('https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.readonly')}`,
+      },
+      createEnv(),
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.token_type).toBe('Bearer');
+    expect(typeof body.access_token).toBe('string');
+    expect(typeof body.refresh_token).toBe('string');
+    expect(body.expires_in).toBe(3600);
+    expect(body.scope).toBe('https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.readonly');
+
+    const consumeCall = mockedConsumeOAuthRefreshToken.mock.calls[0];
+    const consumeInput = consumeCall?.[1];
+    expect(consumeCall?.[0]).toBe(fakeDb);
+    expect(consumeInput?.clientId).toBe('oc_client_123');
+    expect(consumeInput?.refreshTokenHash).toBe(await sha256HexForTest(refreshToken));
+  });
+
+  it('rejects refresh_token grant when requested scope exceeds original grant', async () => {
+    const clientSecret = 'oauth-secret';
+    const clientSecretHash = await sha256HexForTest(clientSecret);
+    mockedFindOAuthClientById.mockResolvedValue(
+      sampleOAuthClientRecord({
+        clientId: 'oc_client_123',
+        clientSecretHash,
+      }),
+    );
+    mockedConsumeOAuthRefreshToken.mockResolvedValue(
+      sampleOAuthRefreshTokenRecord({
+        scope: 'https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.readonly',
+      }),
+    );
+
+    const response = await app.request(
+      '/ims/ob/v3p0/oauth/token',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          authorization: `Basic ${btoa(`oc_client_123:${clientSecret}`)}`,
+        },
+        body: `grant_type=refresh_token&refresh_token=${encodeURIComponent('refresh-token-123')}&scope=${encodeURIComponent('https://purl.imsglobal.org/spec/ob/v3p0/scope/profile.update')}`,
+      },
+      createEnv(),
+    );
+    const body = await response.json<OAuthErrorResponse>();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe('invalid_scope');
+    expect(mockedCreateOAuthAccessToken).not.toHaveBeenCalled();
+    expect(mockedCreateOAuthRefreshToken).not.toHaveBeenCalled();
+  });
+
+  it('supports dedicated refresh endpoint with implicit refresh_token grant', async () => {
+    const clientSecret = 'oauth-secret';
+    const clientSecretHash = await sha256HexForTest(clientSecret);
+    mockedFindOAuthClientById.mockResolvedValue(
+      sampleOAuthClientRecord({
+        clientId: 'oc_client_123',
+        clientSecretHash,
+      }),
+    );
+    mockedConsumeOAuthRefreshToken.mockResolvedValue(sampleOAuthRefreshTokenRecord());
+    mockedCreateOAuthAccessToken.mockResolvedValue(sampleOAuthAccessTokenRecord());
+    mockedCreateOAuthRefreshToken.mockResolvedValue(sampleOAuthRefreshTokenRecord());
+
+    const response = await app.request(
+      '/ims/ob/v3p0/oauth/refresh',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          authorization: `Basic ${btoa(`oc_client_123:${clientSecret}`)}`,
+        },
+        body: `refresh_token=${encodeURIComponent('refresh-token-123')}&scope=${encodeURIComponent('https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.readonly')}`,
+      },
+      createEnv(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedConsumeOAuthRefreshToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('revokes refresh tokens through oauth/revoke endpoint', async () => {
+    const clientSecret = 'oauth-secret';
+    const token = 'refresh-token-123';
+    const clientSecretHash = await sha256HexForTest(clientSecret);
+    mockedFindOAuthClientById.mockResolvedValue(
+      sampleOAuthClientRecord({
+        clientId: 'oc_client_123',
+        clientSecretHash,
+      }),
+    );
+
+    const response = await app.request(
+      '/ims/ob/v3p0/oauth/revoke',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          authorization: `Basic ${btoa(`oc_client_123:${clientSecret}`)}`,
+        },
+        body: `token=${encodeURIComponent(token)}&token_type_hint=refresh_token`,
+      },
+      createEnv(),
+    );
+
+    expect(response.status).toBe(200);
+    const revokeCall = mockedRevokeOAuthRefreshTokenByHash.mock.calls[0];
+    const revokeInput = revokeCall?.[1];
+    expect(revokeCall?.[0]).toBe(fakeDb);
+    expect(revokeInput?.clientId).toBe('oc_client_123');
+    expect(revokeInput?.refreshTokenHash).toBe(await sha256HexForTest(token));
+  });
+
+  it('revokes access tokens through oauth/revoke endpoint', async () => {
+    const clientSecret = 'oauth-secret';
+    const token = 'access-token-123';
+    const clientSecretHash = await sha256HexForTest(clientSecret);
+    mockedFindOAuthClientById.mockResolvedValue(
+      sampleOAuthClientRecord({
+        clientId: 'oc_client_123',
+        clientSecretHash,
+      }),
+    );
+
+    const response = await app.request(
+      '/ims/ob/v3p0/oauth/revoke',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          authorization: `Basic ${btoa(`oc_client_123:${clientSecret}`)}`,
+        },
+        body: `token=${encodeURIComponent(token)}&token_type_hint=access_token`,
+      },
+      createEnv(),
+    );
+
+    expect(response.status).toBe(200);
+    const revokeCall = mockedRevokeOAuthAccessTokenByHash.mock.calls[0];
+    const revokeInput = revokeCall?.[1];
+    expect(revokeCall?.[0]).toBe(fakeDb);
+    expect(revokeInput?.clientId).toBe('oc_client_123');
+    expect(revokeInput?.accessTokenHash).toBe(await sha256HexForTest(token));
+  });
+
+  it('returns unsupported_token_type when token_type_hint is invalid', async () => {
+    const clientSecret = 'oauth-secret';
+    const clientSecretHash = await sha256HexForTest(clientSecret);
+    mockedFindOAuthClientById.mockResolvedValue(
+      sampleOAuthClientRecord({
+        clientId: 'oc_client_123',
+        clientSecretHash,
+      }),
+    );
+
+    const response = await app.request(
+      '/ims/ob/v3p0/oauth/revoke',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          authorization: `Basic ${btoa(`oc_client_123:${clientSecret}`)}`,
+        },
+        body: `token=${encodeURIComponent('token-123')}&token_type_hint=${encodeURIComponent('id_token')}`,
+      },
+      createEnv(),
+    );
+    const body = await response.json<OAuthErrorResponse>();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe('unsupported_token_type');
+    expect(mockedRevokeOAuthAccessTokenByHash).not.toHaveBeenCalled();
+    expect(mockedRevokeOAuthRefreshTokenByHash).not.toHaveBeenCalled();
   });
 });
 

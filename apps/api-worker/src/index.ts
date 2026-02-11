@@ -27,7 +27,9 @@ import {
   createOAuthAccessToken,
   createOAuthAuthorizationCode,
   createOAuthClient,
+  createOAuthRefreshToken,
   createSession,
+  consumeOAuthRefreshToken,
   consumeOAuthAuthorizationCode,
   enqueueJobQueueMessage,
   failJobQueueMessage,
@@ -58,6 +60,8 @@ import {
   resolveLearnerProfileForIdentity,
   recordAssertionRevocation,
   revokeSessionByHash,
+  revokeOAuthAccessTokenByHash,
+  revokeOAuthRefreshTokenByHash,
   setBadgeTemplateArchivedState,
   touchSession,
   upsertBadgeTemplateById,
@@ -153,6 +157,7 @@ const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 const LEARNER_IDENTITY_LINK_TTL_SECONDS = 10 * 60;
 const OAUTH_AUTHORIZATION_CODE_TTL_SECONDS = 5 * 60;
 const OAUTH_ACCESS_TOKEN_TTL_SECONDS = 60 * 60;
+const OAUTH_REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 const SESSION_COOKIE_NAME = 'credtrail_session';
 const LANDING_ASSET_PATH_PREFIX = '/_astro/';
 const LANDING_STATIC_PATHS = new Set(['/credtrail-logo.png', '/favicon.svg']);
@@ -184,8 +189,11 @@ const OB3_OAUTH_SUPPORTED_SCOPE_URIS = [
 ] as const;
 const OB3_OAUTH_SUPPORTED_SCOPE_SET = new Set<string>(OB3_OAUTH_SUPPORTED_SCOPE_URIS);
 const OAUTH_GRANT_TYPE_AUTHORIZATION_CODE = 'authorization_code';
+const OAUTH_GRANT_TYPE_REFRESH_TOKEN = 'refresh_token';
 const OAUTH_RESPONSE_TYPE_CODE = 'code';
 const OAUTH_TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_BASIC = 'client_secret_basic';
+const OAUTH_TOKEN_TYPE_HINT_ACCESS_TOKEN = 'access_token';
+const OAUTH_TOKEN_TYPE_HINT_REFRESH_TOKEN = 'refresh_token';
 const OAUTH_PKCE_CODE_CHALLENGE_METHOD_S256 = 'S256';
 const OAUTH_PKCE_CODE_CHALLENGE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const OAUTH_PKCE_CODE_VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
@@ -767,6 +775,21 @@ const oauthTokenErrorJson = (
   return oauthErrorJson(c, status, error, errorDescription);
 };
 
+const oauthTokenSuccessJson = (
+  c: AppContext,
+  payload: {
+    access_token: string;
+    token_type: 'Bearer';
+    expires_in: number;
+    scope: string;
+    refresh_token?: string | undefined;
+  },
+): Response => {
+  c.header('Cache-Control', 'no-store');
+  c.header('Pragma', 'no-cache');
+  return c.json(payload);
+};
+
 const splitSpaceDelimited = (value: string): string[] => {
   const tokens = value
     .trim()
@@ -956,6 +979,85 @@ const parseBasicAuthorizationHeader = (
   return {
     clientId,
     clientSecret,
+  };
+};
+
+const authenticateOAuthClient = async (
+  c: AppContext,
+  db: SqlDatabase,
+): Promise<{ clientMetadata: OAuthClientMetadata } | Response> => {
+  const basicAuth = parseBasicAuthorizationHeader(c.req.header('authorization'));
+
+  if (basicAuth === null) {
+    return oauthTokenErrorJson(
+      c,
+      401,
+      'invalid_client',
+      'Client authentication with client_secret_basic is required',
+      true,
+    );
+  }
+
+  const registeredClient = await findOAuthClientById(db, basicAuth.clientId);
+
+  if (registeredClient === null) {
+    return oauthTokenErrorJson(c, 401, 'invalid_client', 'Unknown client_id', true);
+  }
+
+  const providedSecretHash = await sha256Hex(basicAuth.clientSecret);
+
+  if (providedSecretHash !== registeredClient.clientSecretHash) {
+    return oauthTokenErrorJson(c, 401, 'invalid_client', 'Client authentication failed', true);
+  }
+
+  const clientMetadata = parseOAuthClientMetadata(registeredClient);
+
+  if (clientMetadata === null) {
+    return oauthTokenErrorJson(c, 401, 'invalid_client', 'Invalid client registration', true);
+  }
+
+  return {
+    clientMetadata,
+  };
+};
+
+const issueOAuthAccessAndRefreshTokens = async (input: {
+  db: SqlDatabase;
+  clientMetadata: OAuthClientMetadata;
+  userId: string;
+  tenantId: string;
+  scopeTokens: string[];
+  nowIso: string;
+}): Promise<{
+  accessToken: string;
+  refreshToken: string;
+}> => {
+  const accessToken = generateOpaqueToken();
+  const refreshToken = generateOpaqueToken();
+  const accessTokenHash = await sha256Hex(accessToken);
+  const refreshTokenHash = await sha256Hex(refreshToken);
+
+  await createOAuthAccessToken(input.db, {
+    clientId: input.clientMetadata.clientId,
+    userId: input.userId,
+    tenantId: input.tenantId,
+    accessTokenHash,
+    scope: input.scopeTokens.join(' '),
+    expiresAt: addSecondsToIso(input.nowIso, OAUTH_ACCESS_TOKEN_TTL_SECONDS),
+  });
+
+  await createOAuthRefreshToken(input.db, {
+    clientId: input.clientMetadata.clientId,
+    userId: input.userId,
+    tenantId: input.tenantId,
+    refreshTokenHash,
+    scope: input.scopeTokens.join(' '),
+    expiresAt: addSecondsToIso(input.nowIso, OAUTH_REFRESH_TOKEN_TTL_SECONDS),
+  });
+
+  return {
+    accessToken,
+    refreshToken,
   };
 };
 
@@ -3441,131 +3543,235 @@ app.get(`${OB3_BASE_PATH}/oauth/authorize`, async (c) => {
   );
 });
 
-app.post(`${OB3_BASE_PATH}/oauth/token`, async (c) => {
+const handleOAuthTokenRequest = async (
+  c: AppContext,
+  options?: {
+    forceRefreshGrant?: boolean;
+  },
+): Promise<Response> => {
   const db = resolveDatabase(c.env);
-  const basicAuth = parseBasicAuthorizationHeader(c.req.header('authorization'));
+  const authResult = await authenticateOAuthClient(c, db);
 
-  if (basicAuth === null) {
-    return oauthTokenErrorJson(
-      c,
-      401,
-      'invalid_client',
-      'Client authentication with client_secret_basic is required',
-      true,
-    );
+  if (authResult instanceof Response) {
+    return authResult;
   }
 
-  const registeredClient = await findOAuthClientById(db, basicAuth.clientId);
-
-  if (registeredClient === null) {
-    return oauthTokenErrorJson(c, 401, 'invalid_client', 'Unknown client_id', true);
-  }
-
-  const providedSecretHash = await sha256Hex(basicAuth.clientSecret);
-
-  if (providedSecretHash !== registeredClient.clientSecretHash) {
-    return oauthTokenErrorJson(c, 401, 'invalid_client', 'Client authentication failed', true);
-  }
-
-  const clientMetadata = parseOAuthClientMetadata(registeredClient);
-
-  if (clientMetadata === null) {
-    return oauthTokenErrorJson(c, 401, 'invalid_client', 'Invalid client registration', true);
-  }
-
+  const { clientMetadata } = authResult;
   const rawBody = await c.req.text();
   const formData = new URLSearchParams(rawBody);
-  const grantType = asNonEmptyString(formData.get('grant_type'));
+  const requestedGrantType = asNonEmptyString(formData.get('grant_type'));
+  const forceRefreshGrant = options?.forceRefreshGrant === true;
+  const grantType = forceRefreshGrant
+    ? (requestedGrantType ?? OAUTH_GRANT_TYPE_REFRESH_TOKEN)
+    : requestedGrantType;
 
-  if (grantType !== OAUTH_GRANT_TYPE_AUTHORIZATION_CODE) {
-    return oauthTokenErrorJson(c, 400, 'unsupported_grant_type', 'Only authorization_code is supported');
+  if (grantType === OAUTH_GRANT_TYPE_AUTHORIZATION_CODE) {
+    const code = asNonEmptyString(formData.get('code'));
+    const redirectUri = asNonEmptyString(formData.get('redirect_uri'));
+    const codeVerifier = formData.get('code_verifier');
+    const requestedScope = asNonEmptyString(formData.get('scope'));
+
+    if (code === null || redirectUri === null || codeVerifier === null || codeVerifier.length === 0) {
+      return oauthTokenErrorJson(
+        c,
+        400,
+        'invalid_request',
+        'code, redirect_uri, and code_verifier are required',
+      );
+    }
+
+    if (!isPkceCodeVerifier(codeVerifier)) {
+      return oauthTokenErrorJson(c, 400, 'invalid_request', 'code_verifier is invalid');
+    }
+
+    const nowIso = new Date().toISOString();
+    const consumedAuthorizationCode = await consumeOAuthAuthorizationCode(db, {
+      clientId: clientMetadata.clientId,
+      codeHash: await sha256Hex(code),
+      redirectUri,
+      nowIso,
+    });
+
+    if (consumedAuthorizationCode === null) {
+      return oauthTokenErrorJson(c, 400, 'invalid_grant', 'Authorization code is invalid or expired');
+    }
+
+    if (
+      consumedAuthorizationCode.codeChallenge === null ||
+      consumedAuthorizationCode.codeChallengeMethod !== OAUTH_PKCE_CODE_CHALLENGE_METHOD_S256
+    ) {
+      return oauthTokenErrorJson(c, 400, 'invalid_grant', 'Authorization code is missing PKCE binding');
+    }
+
+    const computedCodeChallenge = await sha256Base64Url(codeVerifier);
+
+    if (computedCodeChallenge !== consumedAuthorizationCode.codeChallenge) {
+      return oauthTokenErrorJson(c, 400, 'invalid_grant', 'PKCE verification failed');
+    }
+
+    if (requestedScope === null) {
+      return oauthTokenErrorJson(c, 400, 'invalid_request', 'scope is required');
+    }
+
+    const originalScopeTokens = splitSpaceDelimited(consumedAuthorizationCode.scope);
+    const requestedScopeTokens = splitSpaceDelimited(requestedScope);
+
+    if (
+      requestedScopeTokens.length === 0 ||
+      !allScopesSupported(requestedScopeTokens) ||
+      !isSubset(requestedScopeTokens, originalScopeTokens)
+    ) {
+      return oauthTokenErrorJson(
+        c,
+        400,
+        'invalid_scope',
+        'Requested scope exceeds authorization grant',
+      );
+    }
+
+    const issuedTokens = await issueOAuthAccessAndRefreshTokens({
+      db,
+      clientMetadata,
+      userId: consumedAuthorizationCode.userId,
+      tenantId: consumedAuthorizationCode.tenantId,
+      scopeTokens: requestedScopeTokens,
+      nowIso,
+    });
+
+    return oauthTokenSuccessJson(c, {
+      access_token: issuedTokens.accessToken,
+      refresh_token: issuedTokens.refreshToken,
+      token_type: 'Bearer',
+      expires_in: OAUTH_ACCESS_TOKEN_TTL_SECONDS,
+      scope: requestedScopeTokens.join(' '),
+    });
   }
 
-  const code = asNonEmptyString(formData.get('code'));
-  const redirectUri = asNonEmptyString(formData.get('redirect_uri'));
-  const codeVerifier = formData.get('code_verifier');
-  const requestedScope = asNonEmptyString(formData.get('scope'));
+  if (grantType === OAUTH_GRANT_TYPE_REFRESH_TOKEN) {
+    const refreshToken = asNonEmptyString(formData.get('refresh_token'));
+    const requestedScope = asNonEmptyString(formData.get('scope'));
 
-  if (code === null || redirectUri === null || codeVerifier === null || codeVerifier.length === 0) {
+    if (refreshToken === null) {
+      return oauthTokenErrorJson(c, 400, 'invalid_request', 'refresh_token is required');
+    }
+
+    const nowIso = new Date().toISOString();
+    const consumedRefreshToken = await consumeOAuthRefreshToken(db, {
+      clientId: clientMetadata.clientId,
+      refreshTokenHash: await sha256Hex(refreshToken),
+      nowIso,
+    });
+
+    if (consumedRefreshToken === null) {
+      return oauthTokenErrorJson(c, 400, 'invalid_grant', 'Refresh token is invalid or expired');
+    }
+
+    const originallyGrantedScopeTokens = splitSpaceDelimited(consumedRefreshToken.scope);
+    const grantedScopeTokens =
+      requestedScope === null ? originallyGrantedScopeTokens : splitSpaceDelimited(requestedScope);
+
+    if (
+      grantedScopeTokens.length === 0 ||
+      !allScopesSupported(grantedScopeTokens) ||
+      !isSubset(grantedScopeTokens, originallyGrantedScopeTokens)
+    ) {
+      return oauthTokenErrorJson(
+        c,
+        400,
+        'invalid_scope',
+        'Requested scope exceeds refresh token grant',
+      );
+    }
+
+    const issuedTokens = await issueOAuthAccessAndRefreshTokens({
+      db,
+      clientMetadata,
+      userId: consumedRefreshToken.userId,
+      tenantId: consumedRefreshToken.tenantId,
+      scopeTokens: grantedScopeTokens,
+      nowIso,
+    });
+
+    return oauthTokenSuccessJson(c, {
+      access_token: issuedTokens.accessToken,
+      refresh_token: issuedTokens.refreshToken,
+      token_type: 'Bearer',
+      expires_in: OAUTH_ACCESS_TOKEN_TTL_SECONDS,
+      scope: grantedScopeTokens.join(' '),
+    });
+  }
+
+  if (forceRefreshGrant && requestedGrantType !== null && requestedGrantType !== OAUTH_GRANT_TYPE_REFRESH_TOKEN) {
     return oauthTokenErrorJson(
       c,
       400,
       'invalid_request',
-      'code, redirect_uri, and code_verifier are required',
+      'grant_type must be refresh_token for this endpoint',
     );
   }
 
-  if (!isPkceCodeVerifier(codeVerifier)) {
-    return oauthTokenErrorJson(c, 400, 'invalid_request', 'code_verifier is invalid');
-  }
+  return oauthTokenErrorJson(
+    c,
+    400,
+    'unsupported_grant_type',
+    'Supported grant_type values are authorization_code and refresh_token',
+  );
+};
 
-  const consumedAuthorizationCode = await consumeOAuthAuthorizationCode(db, {
-    clientId: clientMetadata.clientId,
-    codeHash: await sha256Hex(code),
-    redirectUri,
-    nowIso: new Date().toISOString(),
+app.post(`${OB3_BASE_PATH}/oauth/token`, async (c) => {
+  return handleOAuthTokenRequest(c);
+});
+
+app.post(`${OB3_BASE_PATH}/oauth/refresh`, async (c) => {
+  return handleOAuthTokenRequest(c, {
+    forceRefreshGrant: true,
   });
+});
 
-  if (consumedAuthorizationCode === null) {
-    return oauthTokenErrorJson(c, 400, 'invalid_grant', 'Authorization code is invalid or expired');
+app.post(`${OB3_BASE_PATH}/oauth/revoke`, async (c) => {
+  const db = resolveDatabase(c.env);
+  const authResult = await authenticateOAuthClient(c, db);
+
+  if (authResult instanceof Response) {
+    return authResult;
   }
 
-  if (
-    consumedAuthorizationCode.codeChallenge === null ||
-    consumedAuthorizationCode.codeChallengeMethod !== OAUTH_PKCE_CODE_CHALLENGE_METHOD_S256
-  ) {
-    return oauthTokenErrorJson(c, 400, 'invalid_grant', 'Authorization code is missing PKCE binding');
+  const { clientMetadata } = authResult;
+  const formData = new URLSearchParams(await c.req.text());
+  const token = asNonEmptyString(formData.get('token'));
+  const tokenTypeHint = asNonEmptyString(formData.get('token_type_hint'));
+
+  if (token === null || tokenTypeHint === null) {
+    return oauthTokenErrorJson(c, 400, 'invalid_request', 'token and token_type_hint are required');
   }
 
-  const computedCodeChallenge = await sha256Base64Url(codeVerifier);
+  const tokenHash = await sha256Hex(token);
+  const revokedAt = new Date().toISOString();
 
-  if (computedCodeChallenge !== consumedAuthorizationCode.codeChallenge) {
-    return oauthTokenErrorJson(c, 400, 'invalid_grant', 'PKCE verification failed');
+  if (tokenTypeHint === OAUTH_TOKEN_TYPE_HINT_REFRESH_TOKEN) {
+    await revokeOAuthRefreshTokenByHash(db, {
+      clientId: clientMetadata.clientId,
+      refreshTokenHash: tokenHash,
+      revokedAt,
+    });
+    return c.body(null, 200);
   }
 
-  if (requestedScope === null) {
-    return oauthTokenErrorJson(c, 400, 'invalid_request', 'scope is required');
+  if (tokenTypeHint === OAUTH_TOKEN_TYPE_HINT_ACCESS_TOKEN) {
+    await revokeOAuthAccessTokenByHash(db, {
+      clientId: clientMetadata.clientId,
+      accessTokenHash: tokenHash,
+      revokedAt,
+    });
+    return c.body(null, 200);
   }
 
-  let grantedScopeTokens = splitSpaceDelimited(consumedAuthorizationCode.scope);
-  const requestedScopeTokens = splitSpaceDelimited(requestedScope);
-
-  if (
-    requestedScopeTokens.length === 0 ||
-    !allScopesSupported(requestedScopeTokens) ||
-    !isSubset(requestedScopeTokens, grantedScopeTokens)
-  ) {
-    return oauthTokenErrorJson(
-      c,
-      400,
-      'invalid_scope',
-      'Requested scope exceeds authorization grant',
-    );
-  }
-
-  grantedScopeTokens = requestedScopeTokens;
-
-  const accessToken = generateOpaqueToken();
-  const accessTokenHash = await sha256Hex(accessToken);
-
-  await createOAuthAccessToken(db, {
-    clientId: clientMetadata.clientId,
-    userId: consumedAuthorizationCode.userId,
-    tenantId: consumedAuthorizationCode.tenantId,
-    accessTokenHash,
-    scope: grantedScopeTokens.join(' '),
-    expiresAt: addSecondsToIso(new Date().toISOString(), OAUTH_ACCESS_TOKEN_TTL_SECONDS),
-  });
-
-  c.header('Cache-Control', 'no-store');
-  c.header('Pragma', 'no-cache');
-
-  return c.json({
-    access_token: accessToken,
-    token_type: 'Bearer',
-    expires_in: OAUTH_ACCESS_TOKEN_TTL_SECONDS,
-    scope: grantedScopeTokens.join(' '),
-  });
+  return oauthTokenErrorJson(
+    c,
+    400,
+    'unsupported_token_type',
+    'token_type_hint must be access_token or refresh_token',
+  );
 });
 
 app.get('/.well-known/did.json', async (c) => {

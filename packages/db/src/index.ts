@@ -258,6 +258,45 @@ export interface CreateOAuthAccessTokenInput {
   expiresAt: string;
 }
 
+export interface OAuthRefreshTokenRecord {
+  id: string;
+  clientId: string;
+  userId: string;
+  tenantId: string;
+  refreshTokenHash: string;
+  scope: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+export interface CreateOAuthRefreshTokenInput {
+  clientId: string;
+  userId: string;
+  tenantId: string;
+  refreshTokenHash: string;
+  scope: string;
+  expiresAt: string;
+}
+
+export interface ConsumeOAuthRefreshTokenInput {
+  clientId: string;
+  refreshTokenHash: string;
+  nowIso: string;
+}
+
+export interface RevokeOAuthAccessTokenByHashInput {
+  clientId: string;
+  accessTokenHash: string;
+  revokedAt: string;
+}
+
+export interface RevokeOAuthRefreshTokenByHashInput {
+  clientId: string;
+  refreshTokenHash: string;
+  revokedAt: string;
+}
+
 export interface LearnerIdentityLinkProofRecord {
   id: string;
   tenantId: string;
@@ -653,6 +692,18 @@ interface OAuthAccessTokenRow {
   createdAt: string;
 }
 
+interface OAuthRefreshTokenRow {
+  id: string;
+  clientId: string;
+  userId: string;
+  tenantId: string;
+  refreshTokenHash: string;
+  scope: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
 const isMissingTenantSigningRegistrationsTableError = (error: unknown): boolean => {
   if (!(error instanceof Error)) {
     return false;
@@ -687,7 +738,8 @@ const isMissingOAuthTablesError = (error: unknown): boolean => {
   const tableMissing =
     error.message.includes('oauth_clients') ||
     error.message.includes('oauth_authorization_codes') ||
-    error.message.includes('oauth_access_tokens');
+    error.message.includes('oauth_access_tokens') ||
+    error.message.includes('oauth_refresh_tokens');
 
   if (!tableMissing) {
     return false;
@@ -836,6 +888,27 @@ const ensureOAuthTables = async (db: SqlDatabase): Promise<void> => {
   await db
     .prepare(
       `
+      CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
+        id TEXT PRIMARY KEY,
+        client_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        refresh_token_hash TEXT NOT NULL UNIQUE,
+        scope TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        revoked_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (client_id) REFERENCES oauth_clients (client_id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE
+      )
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
       CREATE INDEX IF NOT EXISTS idx_oauth_authorization_codes_lookup
         ON oauth_authorization_codes (client_id, code_hash)
     `,
@@ -856,6 +929,24 @@ const ensureOAuthTables = async (db: SqlDatabase): Promise<void> => {
       `
       CREATE INDEX IF NOT EXISTS idx_oauth_access_tokens_lookup
         ON oauth_access_tokens (client_id, access_token_hash)
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_oauth_refresh_tokens_lookup
+        ON oauth_refresh_tokens (client_id, refresh_token_hash)
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_oauth_refresh_tokens_expires_at
+        ON oauth_refresh_tokens (expires_at)
     `,
     )
     .run();
@@ -1956,6 +2047,20 @@ const mapOAuthAccessTokenRow = (row: OAuthAccessTokenRow): OAuthAccessTokenRecor
   };
 };
 
+const mapOAuthRefreshTokenRow = (row: OAuthRefreshTokenRow): OAuthRefreshTokenRecord => {
+  return {
+    id: row.id,
+    clientId: row.clientId,
+    userId: row.userId,
+    tenantId: row.tenantId,
+    refreshTokenHash: row.refreshTokenHash,
+    scope: row.scope,
+    expiresAt: row.expiresAt,
+    revokedAt: row.revokedAt,
+    createdAt: row.createdAt,
+  };
+};
+
 export const createOAuthClient = async (
   db: SqlDatabase,
   input: CreateOAuthClientInput,
@@ -2277,6 +2382,188 @@ export const createOAuthAccessToken = async (
   }
 
   return mapOAuthAccessTokenRow(row);
+};
+
+export const createOAuthRefreshToken = async (
+  db: SqlDatabase,
+  input: CreateOAuthRefreshTokenInput,
+): Promise<OAuthRefreshTokenRecord> => {
+  const id = createPrefixedId('ort');
+  const createdAt = new Date().toISOString();
+
+  const insertStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        INSERT INTO oauth_refresh_tokens (
+          id,
+          client_id,
+          user_id,
+          tenant_id,
+          refresh_token_hash,
+          scope,
+          expires_at,
+          created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      )
+      .bind(
+        id,
+        input.clientId,
+        input.userId,
+        input.tenantId,
+        input.refreshTokenHash,
+        input.scope,
+        input.expiresAt,
+        createdAt,
+      )
+      .run();
+
+  try {
+    await insertStatement();
+  } catch (error: unknown) {
+    if (!isMissingOAuthTablesError(error)) {
+      throw error;
+    }
+
+    await ensureOAuthTables(db);
+    await insertStatement();
+  }
+
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        id,
+        client_id AS clientId,
+        user_id AS userId,
+        tenant_id AS tenantId,
+        refresh_token_hash AS refreshTokenHash,
+        scope,
+        expires_at AS expiresAt,
+        revoked_at AS revokedAt,
+        created_at AS createdAt
+      FROM oauth_refresh_tokens
+      WHERE id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(id)
+    .first<OAuthRefreshTokenRow>();
+
+  if (row === null) {
+    throw new Error(`Unable to create OAuth refresh token "${id}"`);
+  }
+
+  return mapOAuthRefreshTokenRow(row);
+};
+
+export const consumeOAuthRefreshToken = async (
+  db: SqlDatabase,
+  input: ConsumeOAuthRefreshTokenInput,
+): Promise<OAuthRefreshTokenRecord | null> => {
+  const consumeStatement = (): Promise<OAuthRefreshTokenRow | null> =>
+    db
+      .prepare(
+        `
+        UPDATE oauth_refresh_tokens
+        SET revoked_at = ?
+        WHERE client_id = ?
+          AND refresh_token_hash = ?
+          AND revoked_at IS NULL
+          AND expires_at > ?
+        RETURNING
+          id,
+          client_id AS clientId,
+          user_id AS userId,
+          tenant_id AS tenantId,
+          refresh_token_hash AS refreshTokenHash,
+          scope,
+          expires_at AS expiresAt,
+          revoked_at AS revokedAt,
+          created_at AS createdAt
+      `,
+      )
+      .bind(input.nowIso, input.clientId, input.refreshTokenHash, input.nowIso)
+      .first<OAuthRefreshTokenRow>();
+
+  let row: OAuthRefreshTokenRow | null;
+
+  try {
+    row = await consumeStatement();
+  } catch (error: unknown) {
+    if (!isMissingOAuthTablesError(error)) {
+      throw error;
+    }
+
+    await ensureOAuthTables(db);
+    row = await consumeStatement();
+  }
+
+  if (row === null) {
+    return null;
+  }
+
+  return mapOAuthRefreshTokenRow(row);
+};
+
+export const revokeOAuthAccessTokenByHash = async (
+  db: SqlDatabase,
+  input: RevokeOAuthAccessTokenByHashInput,
+): Promise<void> => {
+  const revokeStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        UPDATE oauth_access_tokens
+        SET revoked_at = COALESCE(revoked_at, ?)
+        WHERE client_id = ?
+          AND access_token_hash = ?
+      `,
+      )
+      .bind(input.revokedAt, input.clientId, input.accessTokenHash)
+      .run();
+
+  try {
+    await revokeStatement();
+  } catch (error: unknown) {
+    if (!isMissingOAuthTablesError(error)) {
+      throw error;
+    }
+
+    await ensureOAuthTables(db);
+    await revokeStatement();
+  }
+};
+
+export const revokeOAuthRefreshTokenByHash = async (
+  db: SqlDatabase,
+  input: RevokeOAuthRefreshTokenByHashInput,
+): Promise<void> => {
+  const revokeStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        UPDATE oauth_refresh_tokens
+        SET revoked_at = COALESCE(revoked_at, ?)
+        WHERE client_id = ?
+          AND refresh_token_hash = ?
+      `,
+      )
+      .bind(input.revokedAt, input.clientId, input.refreshTokenHash)
+      .run();
+
+  try {
+    await revokeStatement();
+  } catch (error: unknown) {
+    if (!isMissingOAuthTablesError(error)) {
+      throw error;
+    }
+
+    await ensureOAuthTables(db);
+    await revokeStatement();
+  }
 };
 
 const mapTenantRow = (row: TenantRow): TenantRecord => {
