@@ -125,6 +125,14 @@ interface AppBindings {
   GITHUB_TOKEN?: string;
   JOB_PROCESSOR_TOKEN?: string;
   BOOTSTRAP_ADMIN_TOKEN?: string;
+  OB3_DISCOVERY_TITLE?: string;
+  OB3_TERMS_OF_SERVICE_URL?: string;
+  OB3_PRIVACY_POLICY_URL?: string;
+  OB3_IMAGE_URL?: string;
+  OB3_OAUTH_REGISTRATION_URL?: string;
+  OB3_OAUTH_AUTHORIZATION_URL?: string;
+  OB3_OAUTH_TOKEN_URL?: string;
+  OB3_OAUTH_REFRESH_URL?: string;
 }
 
 interface AppEnv {
@@ -152,6 +160,24 @@ const DEFAULT_JOB_PROCESS_LIMIT = 10;
 const DEFAULT_JOB_PROCESS_LEASE_SECONDS = 30;
 const DEFAULT_JOB_PROCESS_RETRY_DELAY_SECONDS = 30;
 const IMS_GLOBAL_OB2_VALIDATOR_BASE_URL = 'https://openbadgesvalidator.imsglobal.org/';
+const OB3_BASE_PATH = '/ims/ob/v3p0';
+const OB3_DISCOVERY_PATH = `${OB3_BASE_PATH}/discovery`;
+const OB3_OAUTH_SCOPE_CREDENTIAL_READONLY =
+  'https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.readonly';
+const OB3_OAUTH_SCOPE_CREDENTIAL_UPSERT =
+  'https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.upsert';
+const OB3_OAUTH_SCOPE_PROFILE_READONLY =
+  'https://purl.imsglobal.org/spec/ob/v3p0/scope/profile.readonly';
+const OB3_OAUTH_SCOPE_PROFILE_UPDATE = 'https://purl.imsglobal.org/spec/ob/v3p0/scope/profile.update';
+const OB3_OAUTH_SCOPE_DESCRIPTIONS: Record<string, string> = {
+  [OB3_OAUTH_SCOPE_CREDENTIAL_READONLY]:
+    'Permission to read AchievementCredentials for the authenticated entity.',
+  [OB3_OAUTH_SCOPE_CREDENTIAL_UPSERT]:
+    'Permission to create or update AchievementCredentials for the authenticated entity.',
+  [OB3_OAUTH_SCOPE_PROFILE_READONLY]: 'Permission to read the profile for the authenticated entity.',
+  [OB3_OAUTH_SCOPE_PROFILE_UPDATE]: 'Permission to update the profile for the authenticated entity.',
+};
+const OB3_DISCOVERY_CACHE_CONTROL = 'public, max-age=300';
 const databasesByUrl = new Map<string, SqlDatabase>();
 
 const resolveDatabase = (bindings: AppBindings): SqlDatabase => {
@@ -473,6 +499,191 @@ const didForWellKnownRequest = (requestUrl: string): string => {
 const didForTenantPathRequest = (requestUrl: string, tenantSlug: string): string => {
   const request = new URL(requestUrl);
   return createDidWeb({ host: request.host, pathSegments: [tenantSlug] });
+};
+
+const resolveAbsoluteUrl = (requestUrl: string, configuredValue: string): string => {
+  const trimmedValue = configuredValue.trim();
+
+  if (trimmedValue.length === 0) {
+    throw new Error('Expected non-empty URL value');
+  }
+
+  return new URL(trimmedValue, requestUrl).toString();
+};
+
+const ob3ServiceDescriptionDocument = (c: AppContext): JsonObject => {
+  const requestUrl = c.req.url;
+  const serverUrl = resolveAbsoluteUrl(requestUrl, OB3_BASE_PATH);
+  const configuredTitle = c.env.OB3_DISCOVERY_TITLE?.trim();
+  const title =
+    configuredTitle === undefined || configuredTitle.length === 0
+      ? 'CredTrail Open Badges API'
+      : configuredTitle;
+  const termsOfService = resolveAbsoluteUrl(
+    requestUrl,
+    c.env.OB3_TERMS_OF_SERVICE_URL ?? '/terms',
+  );
+  const privacyPolicyUrl = resolveAbsoluteUrl(
+    requestUrl,
+    c.env.OB3_PRIVACY_POLICY_URL ?? '/privacy',
+  );
+  const imageUrl = resolveAbsoluteUrl(requestUrl, c.env.OB3_IMAGE_URL ?? '/credtrail-logo.png');
+  const registrationUrl = resolveAbsoluteUrl(
+    requestUrl,
+    c.env.OB3_OAUTH_REGISTRATION_URL ?? `${OB3_BASE_PATH}/oauth/register`,
+  );
+  const authorizationUrl = resolveAbsoluteUrl(
+    requestUrl,
+    c.env.OB3_OAUTH_AUTHORIZATION_URL ?? `${OB3_BASE_PATH}/oauth/authorize`,
+  );
+  const tokenUrl = resolveAbsoluteUrl(
+    requestUrl,
+    c.env.OB3_OAUTH_TOKEN_URL ?? `${OB3_BASE_PATH}/oauth/token`,
+  );
+  const refreshUrl = resolveAbsoluteUrl(
+    requestUrl,
+    c.env.OB3_OAUTH_REFRESH_URL ?? `${OB3_BASE_PATH}/oauth/refresh`,
+  );
+
+  return {
+    openapi: '3.0.1',
+    info: {
+      title,
+      description: 'Open Badges v3.0 Service Description Document',
+      version: '3.0',
+      termsOfService,
+      'x-imssf-privacyPolicyUrl': privacyPolicyUrl,
+      'x-imssf-image': imageUrl,
+    },
+    servers: [
+      {
+        url: serverUrl,
+        description: 'Open Badges v3.0 service endpoint',
+      },
+    ],
+    tags: [
+      {
+        name: 'OpenBadgeCredentials',
+        description: 'Exchange OpenBadgeCredentials and Profile resources.',
+      },
+      {
+        name: 'Discovery',
+        description: 'Service Description Document metadata endpoint.',
+      },
+    ],
+    paths: {
+      '/credentials': {
+        get: {
+          tags: ['OpenBadgeCredentials'],
+          summary: 'Get credentials for the authenticated entity.',
+          operationId: 'getCredentials',
+          responses: {
+            200: {
+              description: 'Credentials returned.',
+            },
+            default: {
+              description: 'Request was invalid or cannot be served.',
+            },
+          },
+          security: [
+            {
+              OAuth2ACG: [OB3_OAUTH_SCOPE_CREDENTIAL_READONLY],
+            },
+          ],
+        },
+        post: {
+          tags: ['OpenBadgeCredentials'],
+          summary: 'Create or update a credential for the authenticated entity.',
+          operationId: 'upsertCredential',
+          responses: {
+            200: {
+              description: 'Credential replaced.',
+            },
+            201: {
+              description: 'Credential created.',
+            },
+            default: {
+              description: 'Request was invalid or cannot be served.',
+            },
+          },
+          security: [
+            {
+              OAuth2ACG: [OB3_OAUTH_SCOPE_CREDENTIAL_UPSERT],
+            },
+          ],
+        },
+      },
+      '/profile': {
+        get: {
+          tags: ['OpenBadgeCredentials'],
+          summary: 'Get profile for the authenticated entity.',
+          operationId: 'getProfile',
+          responses: {
+            200: {
+              description: 'Profile returned.',
+            },
+            default: {
+              description: 'Request was invalid or cannot be served.',
+            },
+          },
+          security: [
+            {
+              OAuth2ACG: [OB3_OAUTH_SCOPE_PROFILE_READONLY],
+            },
+          ],
+        },
+        put: {
+          tags: ['OpenBadgeCredentials'],
+          summary: 'Update profile for the authenticated entity.',
+          operationId: 'putProfile',
+          responses: {
+            200: {
+              description: 'Profile updated.',
+            },
+            default: {
+              description: 'Request was invalid or cannot be served.',
+            },
+          },
+          security: [
+            {
+              OAuth2ACG: [OB3_OAUTH_SCOPE_PROFILE_UPDATE],
+            },
+          ],
+        },
+      },
+      '/discovery': {
+        get: {
+          tags: ['Discovery'],
+          summary: 'Get the service description document.',
+          operationId: 'getServiceDescription',
+          responses: {
+            200: {
+              description: 'Service description document returned.',
+            },
+            default: {
+              description: 'Request was invalid or cannot be served.',
+            },
+          },
+        },
+      },
+    },
+    components: {
+      securitySchemes: {
+        OAuth2ACG: {
+          type: 'oauth2',
+          'x-imssf-registrationUrl': registrationUrl,
+          flows: {
+            authorizationCode: {
+              authorizationUrl,
+              tokenUrl,
+              refreshUrl,
+              scopes: OB3_OAUTH_SCOPE_DESCRIPTIONS,
+            },
+          },
+        },
+      },
+    },
+  };
 };
 
 const BITSTRING_STATUS_LIST_CONTEXT = 'https://w3id.org/vc/status-list/bsl/v1';
@@ -2674,6 +2885,11 @@ app.put('/v1/admin/tenants/:tenantId/users/:userId/role', async (c) => {
     },
     201,
   );
+});
+
+app.get(OB3_DISCOVERY_PATH, (c) => {
+  c.header('Cache-Control', OB3_DISCOVERY_CACHE_CONTROL);
+  return c.json(ob3ServiceDescriptionDocument(c));
 });
 
 app.get('/.well-known/did.json', async (c) => {
