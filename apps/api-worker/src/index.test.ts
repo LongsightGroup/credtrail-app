@@ -956,6 +956,42 @@ describe('OB3 OAuth2 endpoints', () => {
     expect(createAccessTokenCall?.[0]).toBe(fakeDb);
   });
 
+  it('accepts case-insensitive basic auth scheme at token endpoint', async () => {
+    const clientSecret = 'oauth-secret';
+    const codeVerifier = 'test-pkce-code-verifier-abcdefghijklmnopqrstuvwxyz0123456789AB';
+    const codeChallenge = await pkceS256CodeChallengeForTest(codeVerifier);
+    const clientSecretHash = await sha256HexForTest(clientSecret);
+    mockedFindOAuthClientById.mockResolvedValue(
+      sampleOAuthClientRecord({
+        clientId: 'oc_client_123',
+        clientSecretHash,
+      }),
+    );
+    mockedConsumeOAuthAuthorizationCode.mockResolvedValue(
+      sampleOAuthAuthorizationCodeRecord({
+        codeChallenge,
+        codeChallengeMethod: 'S256',
+      }),
+    );
+    mockedCreateOAuthAccessToken.mockResolvedValue(sampleOAuthAccessTokenRecord());
+
+    const response = await app.request(
+      '/ims/ob/v3p0/oauth/token',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          authorization: `basic ${btoa(`oc_client_123:${clientSecret}`)}`,
+        },
+        body: `grant_type=authorization_code&code=code-123&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&scope=${encodeURIComponent('https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.readonly')}&code_verifier=${encodeURIComponent(codeVerifier)}`,
+      },
+      createEnv(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateOAuthAccessToken).toHaveBeenCalledTimes(1);
+  });
+
   it('returns invalid_client when token endpoint request omits client_secret_basic auth', async () => {
     const response = await app.request(
       '/ims/ob/v3p0/oauth/token',

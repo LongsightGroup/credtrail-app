@@ -2155,11 +2155,18 @@ export const consumeOAuthAuthorizationCode = async (
   db: SqlDatabase,
   input: ConsumeOAuthAuthorizationCodeInput,
 ): Promise<OAuthAuthorizationCodeRecord | null> => {
-  const selectStatement = (): Promise<OAuthAuthorizationCodeRow | null> =>
+  const consumeStatement = (): Promise<OAuthAuthorizationCodeRow | null> =>
     db
       .prepare(
         `
-        SELECT
+        UPDATE oauth_authorization_codes
+        SET used_at = ?
+        WHERE client_id = ?
+          AND code_hash = ?
+          AND redirect_uri = ?
+          AND used_at IS NULL
+          AND expires_at > ?
+        RETURNING
           id,
           client_id AS clientId,
           user_id AS userId,
@@ -2172,51 +2179,29 @@ export const consumeOAuthAuthorizationCode = async (
           expires_at AS expiresAt,
           used_at AS usedAt,
           created_at AS createdAt
-        FROM oauth_authorization_codes
-        WHERE client_id = ?
-          AND code_hash = ?
-          AND redirect_uri = ?
-          AND used_at IS NULL
-          AND expires_at > ?
-        LIMIT 1
       `,
       )
-      .bind(input.clientId, input.codeHash, input.redirectUri, input.nowIso)
+      .bind(input.nowIso, input.clientId, input.codeHash, input.redirectUri, input.nowIso)
       .first<OAuthAuthorizationCodeRow>();
 
   let row: OAuthAuthorizationCodeRow | null;
 
   try {
-    row = await selectStatement();
+    row = await consumeStatement();
   } catch (error: unknown) {
     if (!isMissingOAuthTablesError(error)) {
       throw error;
     }
 
     await ensureOAuthTables(db);
-    row = await selectStatement();
+    row = await consumeStatement();
   }
 
   if (row === null) {
     return null;
   }
 
-  await db
-    .prepare(
-      `
-      UPDATE oauth_authorization_codes
-      SET used_at = ?
-      WHERE id = ?
-        AND used_at IS NULL
-    `,
-    )
-    .bind(input.nowIso, row.id)
-    .run();
-
-  return mapOAuthAuthorizationCodeRow({
-    ...row,
-    usedAt: input.nowIso,
-  });
+  return mapOAuthAuthorizationCodeRow(row);
 };
 
 export const createOAuthAccessToken = async (

@@ -832,6 +832,24 @@ const parseStringArray = (value: unknown): string[] | null => {
   return parsed;
 };
 
+type RedirectUriValidationError = 'invalid_url' | 'invalid_scheme';
+
+const validateRedirectUri = (redirectUri: string): RedirectUriValidationError | null => {
+  let parsedRedirectUri: URL;
+
+  try {
+    parsedRedirectUri = new URL(redirectUri);
+  } catch {
+    return 'invalid_url';
+  }
+
+  if (parsedRedirectUri.protocol !== 'https:' && parsedRedirectUri.protocol !== 'http:') {
+    return 'invalid_scheme';
+  }
+
+  return null;
+};
+
 const parseOAuthClientMetadata = (record: {
   clientId: string;
   clientSecretHash: string;
@@ -863,13 +881,7 @@ const parseOAuthClientMetadata = (record: {
   }
 
   for (const redirectUri of redirectUris) {
-    try {
-      const parsedRedirectUri = new URL(redirectUri);
-
-      if (parsedRedirectUri.protocol !== 'https:' && parsedRedirectUri.protocol !== 'http:') {
-        return null;
-      }
-    } catch {
+    if (validateRedirectUri(redirectUri) !== null) {
       return null;
     }
   }
@@ -916,7 +928,7 @@ const parseBasicAuthorizationHeader = (
 
   const [scheme, credentials] = authorizationHeader.split(/\s+/, 2);
 
-  if (scheme !== 'Basic' || credentials === undefined) {
+  if (scheme?.toLowerCase() !== 'basic' || credentials === undefined) {
     return null;
   }
 
@@ -3188,13 +3200,13 @@ app.post(`${OB3_BASE_PATH}/oauth/register`, async (c) => {
   }
 
   for (const redirectUri of redirectUris) {
-    try {
-      const parsedRedirectUri = new URL(redirectUri);
+    const validationError = validateRedirectUri(redirectUri);
 
-      if (parsedRedirectUri.protocol !== 'https:' && parsedRedirectUri.protocol !== 'http:') {
-        return oauthErrorJson(c, 400, 'invalid_redirect_uri', 'redirect_uris must use http or https');
-      }
-    } catch {
+    if (validationError === 'invalid_scheme') {
+      return oauthErrorJson(c, 400, 'invalid_redirect_uri', 'redirect_uris must use http or https');
+    }
+
+    if (validationError === 'invalid_url') {
       return oauthErrorJson(c, 400, 'invalid_redirect_uri', 'redirect_uris must contain valid URLs');
     }
   }
