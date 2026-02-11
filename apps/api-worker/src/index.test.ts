@@ -345,6 +345,15 @@ const bytesToBase64UrlForTest = (bytes: Uint8Array): string => {
   return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 };
 
+const compactJwsForTest = (input: {
+  header: Record<string, unknown>;
+  payload: Record<string, unknown>;
+}): string => {
+  const headerSegment = bytesToBase64UrlForTest(new TextEncoder().encode(JSON.stringify(input.header)));
+  const payloadSegment = bytesToBase64UrlForTest(new TextEncoder().encode(JSON.stringify(input.payload)));
+  return `${headerSegment}.${payloadSegment}.signature`;
+};
+
 const sha256HexForTest = async (value: string): Promise<string> => {
   const encoded = new TextEncoder().encode(value);
   const digest = await crypto.subtle.digest('SHA-256', encoded);
@@ -1618,11 +1627,24 @@ describe('OB3 secure REST resource endpoints', () => {
         scope: 'https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.upsert',
       }),
     );
+    const compactJws = compactJwsForTest({
+      header: {
+        alg: 'RS256',
+        kid: 'https://issuer.example.edu/keys#key-1',
+        typ: 'JWT',
+      },
+      payload: {
+        iss: 'https://issuer.example.edu',
+        jti: 'urn:credtrail:credential:jws',
+        nbf: 1762894800,
+        sub: 'mailto:learner@example.edu',
+      },
+    });
     mockedUpsertOb3SubjectCredential.mockResolvedValue({
       status: 'updated',
       credential: sampleOb3SubjectCredentialRecord({
         payloadJson: null,
-        compactJws: 'eyJhbGciOiJIUzI1NiJ9.e30.signature',
+        compactJws,
       }),
     });
 
@@ -1634,7 +1656,7 @@ describe('OB3 secure REST resource endpoints', () => {
           'content-type': 'text/plain',
           authorization: 'Bearer access-token-upsert',
         },
-        body: 'eyJhbGciOiJIUzI1NiJ9.e30.signature',
+        body: compactJws,
       },
       createEnv(),
     );
@@ -1642,7 +1664,51 @@ describe('OB3 secure REST resource endpoints', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('text/plain');
-    expect(body).toBe('eyJhbGciOiJIUzI1NiJ9.e30.signature');
+    expect(body).toBe(compactJws);
+    expect(mockedUpsertOb3SubjectCredential).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        credentialId: 'urn:credtrail:credential:jws',
+      }),
+    );
+  });
+
+  it('rejects compact JWS payloads that miss required VC-JWT claims', async () => {
+    mockedFindActiveOAuthAccessTokenByHash.mockResolvedValue(
+      sampleOAuthAccessTokenRecord({
+        scope: 'https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.upsert',
+      }),
+    );
+    const compactJws = compactJwsForTest({
+      header: {
+        alg: 'RS256',
+        kid: 'https://issuer.example.edu/keys#key-1',
+        typ: 'JWT',
+      },
+      payload: {
+        iss: 'https://issuer.example.edu',
+        nbf: 1762894800,
+        sub: 'mailto:learner@example.edu',
+      },
+    });
+
+    const response = await app.request(
+      '/ims/ob/v3p0/credentials',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'text/plain',
+          authorization: 'Bearer access-token-upsert',
+        },
+        body: compactJws,
+      },
+      createEnv(),
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(400);
+    expect(body.imsx_description).toContain('jti');
+    expect(mockedUpsertOb3SubjectCredential).not.toHaveBeenCalled();
   });
 
   it('rejects unsupported credential upsert content types', async () => {

@@ -934,6 +934,22 @@ const defaultOb3Profile = (input: {
   };
 };
 
+const parseCompactJwsSegmentObject = (segment: string): JsonObject | null => {
+  if (segment.length === 0) {
+    return null;
+  }
+
+  const normalizedBase64 = segment.replace(/-/g, '+').replace(/_/g, '/');
+  const paddedBase64 = `${normalizedBase64}${'='.repeat((4 - (normalizedBase64.length % 4)) % 4)}`;
+
+  try {
+    const segmentRaw = atob(paddedBase64);
+    return asJsonObject(JSON.parse(segmentRaw) as unknown);
+  } catch {
+    return null;
+  }
+};
+
 const parseCompactJwsPayloadObject = (compactJws: string): JsonObject | null => {
   const segments = compactJws.split('.');
 
@@ -943,43 +959,97 @@ const parseCompactJwsPayloadObject = (compactJws: string): JsonObject | null => 
 
   const payloadSegment = segments[1];
 
-  if (payloadSegment === undefined || payloadSegment.length === 0) {
+  if (payloadSegment === undefined) {
     return null;
   }
 
-  const normalizedBase64 = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
-  const paddedBase64 = `${normalizedBase64}${'='.repeat((4 - (normalizedBase64.length % 4)) % 4)}`;
-
-  try {
-    const payloadRaw = atob(paddedBase64);
-    return asJsonObject(JSON.parse(payloadRaw) as unknown);
-  } catch {
-    return null;
-  }
+  return parseCompactJwsSegmentObject(payloadSegment);
 };
 
-const resolveOb3CredentialIdFromCompactJws = async (compactJws: string): Promise<string> => {
+const parseCompactJwsHeaderObject = (compactJws: string): JsonObject | null => {
+  const segments = compactJws.split('.');
+
+  if (segments.length !== 3) {
+    return null;
+  }
+
+  const headerSegment = segments[0];
+
+  if (headerSegment === undefined) {
+    return null;
+  }
+
+  return parseCompactJwsSegmentObject(headerSegment);
+};
+
+const resolveOb3CredentialIdFromCompactJws = (compactJws: string): string => {
+  const header = parseCompactJwsHeaderObject(compactJws);
   const payload = parseCompactJwsPayloadObject(compactJws);
-  const jti = asNonEmptyString(payload?.jti);
 
-  if (jti !== null) {
-    return jti;
+  if (header === null || payload === null) {
+    throw new Error('Compact JWS must contain JSON JOSE header and payload objects');
   }
 
-  const vcObject = asJsonObject(payload?.vc);
-  const vcId = asNonEmptyString(vcObject?.id);
+  const allowedJoseHeaders = new Set(['alg', 'kid', 'jwk', 'typ']);
 
-  if (vcId !== null) {
-    return vcId;
+  for (const headerName of Object.keys(header)) {
+    if (!allowedJoseHeaders.has(headerName)) {
+      throw new Error(`JOSE header property "${headerName}" is not supported`);
+    }
   }
 
-  const payloadId = asNonEmptyString(payload?.id);
+  const alg = asNonEmptyString(header.alg);
+  const typ = asNonEmptyString(header.typ);
+  const kid = asNonEmptyString(header.kid);
+  const jwk = asJsonObject(header.jwk);
 
-  if (payloadId !== null) {
-    return payloadId;
+  if (alg === null) {
+    throw new Error('JOSE header must include a non-empty alg value');
   }
 
-  return `urn:credtrail:ob3:jws:${await sha256Hex(compactJws)}`;
+  if (alg.toLowerCase() === 'none') {
+    throw new Error('JOSE header alg must not be "none"');
+  }
+
+  if (typ !== null && typ !== 'JWT') {
+    throw new Error('JOSE header typ must be "JWT" when provided');
+  }
+
+  if (kid === null && jwk === null) {
+    throw new Error('JOSE header must include kid or jwk');
+  }
+
+  if (jwk !== null && asNonEmptyString(jwk.d) !== null) {
+    throw new Error('JOSE header jwk must not include private key material');
+  }
+
+  const iss = asNonEmptyString(payload.iss);
+  const jti = asNonEmptyString(payload.jti);
+  const sub = asNonEmptyString(payload.sub);
+  const nbf = payload.nbf;
+  const exp = payload.exp;
+
+  if (iss === null) {
+    throw new Error('JWT payload must include a non-empty iss claim');
+  }
+
+  if (jti === null) {
+    throw new Error('JWT payload must include a non-empty jti claim');
+  }
+
+  if (typeof nbf !== 'number' || !Number.isFinite(nbf)) {
+    throw new Error('JWT payload must include a numeric nbf claim');
+  }
+
+  if (sub === null) {
+    throw new Error('JWT payload must include a non-empty sub claim');
+  }
+
+  if (exp !== undefined && (typeof exp !== 'number' || !Number.isFinite(exp))) {
+    throw new Error('JWT payload exp must be numeric when provided');
+  }
+
+  return jti;
 };
 
 const parsePositiveIntegerQueryParam = (
@@ -4202,7 +4272,18 @@ app.post(`${OB3_BASE_PATH}/credentials`, async (c) => {
       return ob3ErrorJson(c, 400, 'Request body must be a compact JWS string');
     }
 
-    const credentialId = await resolveOb3CredentialIdFromCompactJws(compactJws);
+    let credentialId: string;
+
+    try {
+      credentialId = resolveOb3CredentialIdFromCompactJws(compactJws);
+    } catch (error: unknown) {
+      return ob3ErrorJson(
+        c,
+        400,
+        error instanceof Error ? error.message : 'Request body must contain a valid compact JWS payload',
+      );
+    }
+
     const upsertResult = await upsertOb3SubjectCredential(db, {
       tenantId: accessTokenContext.tenantId,
       userId: accessTokenContext.userId,
