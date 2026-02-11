@@ -3034,11 +3034,20 @@ const verifyCredentialProofSummary = async (
   const proofValue = asNonEmptyString(proof.proofValue);
   const proofPurpose = asNonEmptyString(proof.proofPurpose);
   const verificationMethod = asNonEmptyString(proof.verificationMethod);
-  const methodDid =
-    verificationMethod === null
+  const verificationMethodParts =
+    verificationMethod === null ? null : verificationMethod.split('#', 2);
+  const verificationMethodKeyId =
+    verificationMethodParts === null
       ? null
       : (() => {
-          const [didPart] = verificationMethod.split('#', 2);
+          const [, keyId] = verificationMethodParts;
+          return keyId === undefined || keyId.length === 0 ? null : keyId;
+        })();
+  const methodDid =
+    verificationMethodParts === null
+      ? null
+      : (() => {
+          const [didPart] = verificationMethodParts;
           return didPart === undefined || didPart.length === 0 ? null : didPart;
         })();
   const issuerIdentifier = issuerIdentifierFromCredential(credential);
@@ -3062,6 +3071,16 @@ const verifyCredentialProofSummary = async (
       cryptosuite: asNonEmptyString(proof.cryptosuite),
       verificationMethod,
       reason: 'proofPurpose must be assertionMethod',
+    };
+  }
+
+  if (verificationMethodKeyId === null) {
+    return {
+      status: 'invalid',
+      format: proofType,
+      cryptosuite: asNonEmptyString(proof.cryptosuite),
+      verificationMethod,
+      reason: 'verificationMethod must include a key fragment',
     };
   }
 
@@ -3094,6 +3113,16 @@ const verifyCredentialProofSummary = async (
       cryptosuite: asNonEmptyString(proof.cryptosuite),
       verificationMethod,
       reason: `no signing configuration for issuer DID ${issuerDid}`,
+    };
+  }
+
+  if (verificationMethodKeyId !== signingEntry.keyId) {
+    return {
+      status: 'invalid',
+      format: proofType,
+      cryptosuite: asNonEmptyString(proof.cryptosuite),
+      verificationMethod,
+      reason: 'verificationMethod key fragment must match resolved signing key id',
     };
   }
 

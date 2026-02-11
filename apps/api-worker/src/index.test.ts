@@ -3130,6 +3130,100 @@ describe('GET /credentials/v1/:credentialId', () => {
     expect(body.verification.proof.reason).toBe('verificationMethod DID must match credential issuer DID');
   });
 
+  it('returns invalid when proof verificationMethod key fragment does not match resolved signing key id', async () => {
+    const env = createEnv();
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: 'did:web:credtrail.test:tenant_123',
+      keyId: 'key-1',
+    });
+    const credential = await signCredentialWithEd25519Signature2020({
+      credential: {
+        '@context': ['https://www.w3.org/ns/credentials/v2'],
+        id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+        type: ['VerifiableCredential', 'OpenBadgeCredential'],
+        issuer: signingMaterial.did,
+        credentialSubject: {
+          id: 'mailto:learner@example.edu',
+          achievement: {
+            id: 'urn:credtrail:badge:001',
+            type: ['Achievement'],
+            name: 'Sakai Contributor',
+          },
+        },
+      },
+      privateJwk: signingMaterial.privateJwk,
+      verificationMethod: `${signingMaterial.did}#key-2`,
+      createdAt: '2026-02-11T00:00:00.000Z',
+    });
+
+    mockedFindAssertionById.mockResolvedValue(sampleAssertion());
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+    mockedFindTenantSigningRegistrationByDid.mockResolvedValue(
+      sampleTenantSigningRegistration({
+        tenantId: 'tenant_123',
+        did: signingMaterial.did,
+        keyId: signingMaterial.keyId,
+        publicJwkJson: JSON.stringify(signingMaterial.publicJwk),
+        privateJwkJson: JSON.stringify(signingMaterial.privateJwk),
+      }),
+    );
+
+    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.proof.status).toBe('invalid');
+    expect(body.verification.proof.reason).toBe(
+      'verificationMethod key fragment must match resolved signing key id',
+    );
+  });
+
+  it('returns invalid when proof verificationMethod omits key fragment', async () => {
+    const env = createEnv();
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: 'did:web:credtrail.test:tenant_123',
+      keyId: 'key-1',
+    });
+    const credential = await signCredentialWithEd25519Signature2020({
+      credential: {
+        '@context': ['https://www.w3.org/ns/credentials/v2'],
+        id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+        type: ['VerifiableCredential', 'OpenBadgeCredential'],
+        issuer: signingMaterial.did,
+        credentialSubject: {
+          id: 'mailto:learner@example.edu',
+          achievement: {
+            id: 'urn:credtrail:badge:001',
+            type: ['Achievement'],
+            name: 'Sakai Contributor',
+          },
+        },
+      },
+      privateJwk: signingMaterial.privateJwk,
+      verificationMethod: signingMaterial.did,
+      createdAt: '2026-02-11T00:00:00.000Z',
+    });
+
+    mockedFindAssertionById.mockResolvedValue(sampleAssertion());
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+    mockedFindTenantSigningRegistrationByDid.mockResolvedValue(
+      sampleTenantSigningRegistration({
+        tenantId: 'tenant_123',
+        did: signingMaterial.did,
+        keyId: signingMaterial.keyId,
+        publicJwkJson: JSON.stringify(signingMaterial.publicJwk),
+        privateJwkJson: JSON.stringify(signingMaterial.privateJwk),
+      }),
+    );
+
+    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.proof.status).toBe('invalid');
+    expect(body.verification.proof.reason).toBe('verificationMethod must include a key fragment');
+  });
+
   it('returns 400 for non-tenant-scoped credential identifiers', async () => {
     const env = createEnv();
     const response = await app.request('/credentials/v1/assertion_456', undefined, env);
