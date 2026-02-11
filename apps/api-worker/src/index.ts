@@ -613,6 +613,41 @@ const didForTenantPathRequest = (requestUrl: string, tenantSlug: string): string
   return createDidWeb({ host: request.host, pathSegments: [tenantSlug] });
 };
 
+const didDocumentForSigningEntry = (input: {
+  did: string;
+  signingEntry: TenantSigningRegistryEntry;
+}): JsonObject | null => {
+  const verificationMethodId = `${input.did}#${input.signingEntry.keyId}`;
+
+  if (isEd25519SigningPublicJwk(input.signingEntry.publicJwk)) {
+    return createDidDocument({
+      did: input.did,
+      keyId: input.signingEntry.keyId,
+      publicJwk: toEd25519PublicJwk(input.signingEntry.publicJwk),
+    }) as unknown as JsonObject;
+  }
+
+  if (isP256SigningPublicJwk(input.signingEntry.publicJwk)) {
+    const didDocument: JsonObject = {
+      '@context': ['https://www.w3.org/ns/did/v1', 'https://w3id.org/security/suites/jws-2020/v1'],
+      id: input.did,
+      verificationMethod: [
+        {
+          id: verificationMethodId,
+          type: 'JsonWebKey2020',
+          controller: input.did,
+          publicKeyJwk: toP256PublicJwk(input.signingEntry.publicJwk) as unknown as JsonObject,
+        },
+      ],
+      assertionMethod: [verificationMethodId],
+    };
+
+    return didDocument;
+  }
+
+  return null;
+};
+
 const resolveAbsoluteUrl = (requestUrl: string, configuredValue: string): string => {
   const trimmedValue = configuredValue.trim();
 
@@ -5571,7 +5606,7 @@ app.put(`${OB3_BASE_PATH}/profile`, async (c) => {
   return c.json(normalizedProfile);
 });
 
-app.get('/.well-known/did.json', async (c) => {
+app.get('/.well-known/did.json', async (c): Promise<Response> => {
   const did = didForWellKnownRequest(c.req.url);
   const signingEntry = await resolveSigningEntryForDid(c, did);
 
@@ -5585,26 +5620,25 @@ app.get('/.well-known/did.json', async (c) => {
     );
   }
 
-  if (!isEd25519SigningPublicJwk(signingEntry.publicJwk)) {
+  const didDocument = didDocumentForSigningEntry({
+    did,
+    signingEntry,
+  });
+
+  if (didDocument === null) {
     return c.json(
       {
-        error: 'DID document generation requires an Ed25519 public key',
+        error: 'DID document generation requires an Ed25519 or P-256 public key',
         did,
       },
       422,
     );
   }
 
-  return c.json(
-    createDidDocument({
-      did,
-      keyId: signingEntry.keyId,
-      publicJwk: toEd25519PublicJwk(signingEntry.publicJwk),
-    }),
-  );
+  return c.json(didDocument);
 });
 
-app.get('/:tenantSlug/did.json', async (c) => {
+app.get('/:tenantSlug/did.json', async (c): Promise<Response> => {
   const tenantSlug = c.req.param('tenantSlug');
   const did = didForTenantPathRequest(c.req.url, tenantSlug);
   const signingEntry = await resolveSigningEntryForDid(c, did);
@@ -5619,23 +5653,22 @@ app.get('/:tenantSlug/did.json', async (c) => {
     );
   }
 
-  if (!isEd25519SigningPublicJwk(signingEntry.publicJwk)) {
+  const didDocument = didDocumentForSigningEntry({
+    did,
+    signingEntry,
+  });
+
+  if (didDocument === null) {
     return c.json(
       {
-        error: 'DID document generation requires an Ed25519 public key',
+        error: 'DID document generation requires an Ed25519 or P-256 public key',
         did,
       },
       422,
     );
   }
 
-  return c.json(
-    createDidDocument({
-      did,
-      keyId: signingEntry.keyId,
-      publicJwk: toEd25519PublicJwk(signingEntry.publicJwk),
-    }),
-  );
+  return c.json(didDocument);
 });
 
 app.get('/credentials/v1/:credentialId', async (c) => {

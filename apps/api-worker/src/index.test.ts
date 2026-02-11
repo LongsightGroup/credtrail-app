@@ -3351,7 +3351,7 @@ describe('DID signing resolution from Postgres registration', () => {
     expect(mockedFindTenantSigningRegistrationByDid).toHaveBeenCalledWith(fakeDb, 'did:web:localhost');
   });
 
-  it('returns 422 when registration public key is not Ed25519', async () => {
+  it('serves did.json with JsonWebKey2020 verificationMethod when registration public key is P-256', async () => {
     const env = createEnv();
     const signingMaterial = await generateP256SigningMaterial('key-p256');
 
@@ -3366,10 +3366,20 @@ describe('DID signing resolution from Postgres registration', () => {
     );
 
     const response = await app.request('/.well-known/did.json', undefined, env);
-    const body = await response.json<ErrorResponse>();
+    const body = await response.json<JsonObject>();
+    const verificationMethods = Array.isArray(body.verificationMethod) ? body.verificationMethod : [];
+    const firstVerificationMethod =
+      verificationMethods.length > 0 ? asJsonObject(verificationMethods[0]) : null;
+    const publicKeyJwk = asJsonObject(firstVerificationMethod?.publicKeyJwk);
 
-    expect(response.status).toBe(422);
-    expect(body.error).toBe('DID document generation requires an Ed25519 public key');
+    expect(response.status).toBe(200);
+    expect(asString(body.id)).toBe('did:web:localhost');
+    expect(asString(firstVerificationMethod?.type)).toBe('JsonWebKey2020');
+    expect(asString(firstVerificationMethod?.id)).toBe('did:web:localhost#key-p256');
+    expect(asString(publicKeyJwk?.kty)).toBe('EC');
+    expect(asString(publicKeyJwk?.crv)).toBe('P-256');
+    expect(asString(publicKeyJwk?.x)).toBe(signingMaterial.publicJwk.x);
+    expect(asString(publicKeyJwk?.y)).toBe(signingMaterial.publicJwk.y);
   });
 });
 
