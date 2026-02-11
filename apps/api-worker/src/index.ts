@@ -4,6 +4,7 @@ import {
   createDidWeb,
   createTenantScopedId,
   splitTenantScopedId,
+  type DataIntegrityCryptosuite,
   type Ed25519PrivateJwk,
   type Ed25519PublicJwk,
   type P256PrivateJwk,
@@ -136,6 +137,8 @@ interface AppBindings {
   MARKETING_SITE_ORIGIN?: string;
   SENTRY_DSN?: string;
   TENANT_SIGNING_REGISTRY_JSON?: string;
+  TENANT_SIGNING_KEY_HISTORY_JSON?: string;
+  TENANT_REMOTE_SIGNER_REGISTRY_JSON?: string;
   MAILTRAP_API_TOKEN?: string;
   MAILTRAP_INBOX_ID?: string;
   MAILTRAP_API_BASE_URL?: string;
@@ -435,6 +438,26 @@ const toP256PrivateJwk = (jwk: P256SigningPrivateJwk): P256PrivateJwk => {
   };
 };
 
+type SigningPublicJwk = TenantSigningRegistryEntry['publicJwk'];
+
+interface HistoricalSigningKeyEntry {
+  keyId: string;
+  publicJwk: SigningPublicJwk;
+}
+
+type SigningKeyHistoryRegistry = Record<string, HistoricalSigningKeyEntry[]>;
+
+interface RemoteSignerRegistryEntry {
+  url: string;
+  authorizationHeader: string | null;
+  timeoutMs: number;
+}
+
+type RemoteSignerRegistry = Record<string, RemoteSignerRegistryEntry>;
+
+const DEFAULT_REMOTE_SIGNER_TIMEOUT_MS = 10_000;
+const MAX_REMOTE_SIGNER_TIMEOUT_MS = 60_000;
+
 const parseSigningRegistryFromEnv = (rawRegistry: string | undefined): TenantSigningRegistry => {
   if (rawRegistry === undefined || rawRegistry.trim().length === 0) {
     return {};
@@ -449,6 +472,138 @@ const parseSigningRegistryFromEnv = (rawRegistry: string | undefined): TenantSig
   }
 
   return parseTenantSigningRegistry(parsedRegistry);
+};
+
+const parseSigningKeyHistoryRegistryFromEnv = (rawRegistry: string | undefined): SigningKeyHistoryRegistry => {
+  if (rawRegistry === undefined || rawRegistry.trim().length === 0) {
+    return {};
+  }
+
+  let parsedRegistry: unknown;
+
+  try {
+    parsedRegistry = JSON.parse(rawRegistry) as unknown;
+  } catch {
+    throw new Error('TENANT_SIGNING_KEY_HISTORY_JSON is not valid JSON');
+  }
+
+  if (parsedRegistry === null || typeof parsedRegistry !== 'object' || Array.isArray(parsedRegistry)) {
+    throw new Error('TENANT_SIGNING_KEY_HISTORY_JSON must be an object keyed by DID');
+  }
+
+  const output: SigningKeyHistoryRegistry = {};
+
+  for (const [did, registryValue] of Object.entries(parsedRegistry as Record<string, unknown>)) {
+    if (!Array.isArray(registryValue)) {
+      throw new Error(`TENANT_SIGNING_KEY_HISTORY_JSON["${did}"] must be an array`);
+    }
+
+    const parsedEntries: HistoricalSigningKeyEntry[] = [];
+
+    for (const [index, entry] of registryValue.entries()) {
+      if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+        throw new Error(
+          `TENANT_SIGNING_KEY_HISTORY_JSON["${did}"][${String(index)}] must be an object`,
+        );
+      }
+
+      const keyId = (entry as Record<string, unknown>).keyId;
+      const publicJwk = (entry as Record<string, unknown>).publicJwk;
+
+      if (typeof keyId !== 'string' || keyId.trim().length === 0) {
+        throw new Error(
+          `TENANT_SIGNING_KEY_HISTORY_JSON["${did}"][${String(index)}].keyId must be a non-empty string`,
+        );
+      }
+
+      const parsedSigningEntry = parseTenantSigningRegistryEntry({
+        tenantId: did,
+        keyId,
+        publicJwk,
+      });
+
+      parsedEntries.push({
+        keyId: parsedSigningEntry.keyId,
+        publicJwk: parsedSigningEntry.publicJwk,
+      });
+    }
+
+    output[did] = parsedEntries;
+  }
+
+  return output;
+};
+
+const parseRemoteSignerRegistryFromEnv = (rawRegistry: string | undefined): RemoteSignerRegistry => {
+  if (rawRegistry === undefined || rawRegistry.trim().length === 0) {
+    return {};
+  }
+
+  let parsedRegistry: unknown;
+
+  try {
+    parsedRegistry = JSON.parse(rawRegistry) as unknown;
+  } catch {
+    throw new Error('TENANT_REMOTE_SIGNER_REGISTRY_JSON is not valid JSON');
+  }
+
+  if (parsedRegistry === null || typeof parsedRegistry !== 'object' || Array.isArray(parsedRegistry)) {
+    throw new Error('TENANT_REMOTE_SIGNER_REGISTRY_JSON must be an object keyed by DID');
+  }
+
+  const output: RemoteSignerRegistry = {};
+
+  for (const [did, entry] of Object.entries(parsedRegistry as Record<string, unknown>)) {
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new Error(`TENANT_REMOTE_SIGNER_REGISTRY_JSON["${did}"] must be an object`);
+    }
+
+    const entryObject = entry as Record<string, unknown>;
+    const url = entryObject.url;
+    const authorizationHeader = entryObject.authorizationHeader;
+    const timeoutMs = entryObject.timeoutMs;
+
+    if (typeof url !== 'string' || url.trim().length === 0) {
+      throw new Error(`TENANT_REMOTE_SIGNER_REGISTRY_JSON["${did}"].url must be a non-empty string`);
+    }
+
+    let normalizedAuthorizationHeader: string | null = null;
+
+    if (authorizationHeader !== undefined) {
+      if (typeof authorizationHeader !== 'string' || authorizationHeader.trim().length === 0) {
+        throw new Error(
+          `TENANT_REMOTE_SIGNER_REGISTRY_JSON["${did}"].authorizationHeader must be a non-empty string`,
+        );
+      }
+
+      normalizedAuthorizationHeader = authorizationHeader.trim();
+    }
+
+    let normalizedTimeoutMs = DEFAULT_REMOTE_SIGNER_TIMEOUT_MS;
+
+    if (timeoutMs !== undefined) {
+      if (
+        typeof timeoutMs !== 'number' ||
+        !Number.isInteger(timeoutMs) ||
+        timeoutMs <= 0 ||
+        timeoutMs > MAX_REMOTE_SIGNER_TIMEOUT_MS
+      ) {
+        throw new Error(
+          `TENANT_REMOTE_SIGNER_REGISTRY_JSON["${did}"].timeoutMs must be an integer between 1 and ${String(MAX_REMOTE_SIGNER_TIMEOUT_MS)}`,
+        );
+      }
+
+      normalizedTimeoutMs = timeoutMs;
+    }
+
+    output[did] = {
+      url: url.trim(),
+      authorizationHeader: normalizedAuthorizationHeader,
+      timeoutMs: normalizedTimeoutMs,
+    };
+  }
+
+  return output;
 };
 
 const parseSigningEntryFromStoredJson = (
@@ -499,6 +654,22 @@ const resolveSigningEntryForDid = async (
 
   const envRegistry = parseSigningRegistryFromEnv(c.env.TENANT_SIGNING_REGISTRY_JSON);
   return envRegistry[did] ?? null;
+};
+
+const resolveHistoricalSigningKeysForDid = (
+  c: AppContext,
+  did: string,
+): readonly HistoricalSigningKeyEntry[] => {
+  const historyRegistry = parseSigningKeyHistoryRegistryFromEnv(c.env.TENANT_SIGNING_KEY_HISTORY_JSON);
+  return historyRegistry[did] ?? [];
+};
+
+const resolveRemoteSignerRegistryEntryForDid = (
+  c: AppContext,
+  did: string,
+): RemoteSignerRegistryEntry | null => {
+  const remoteSignerRegistry = parseRemoteSignerRegistryFromEnv(c.env.TENANT_REMOTE_SIGNER_REGISTRY_JSON);
+  return remoteSignerRegistry[did] ?? null;
 };
 
 const requireBootstrapAdmin = (c: AppContext): Response | null => {
@@ -648,15 +819,35 @@ const didDocumentForSigningEntry = (input: {
   return null;
 };
 
-const jwksDocumentForSigningEntry = (signingEntry: TenantSigningRegistryEntry): JsonObject => {
-  const publicJwk = isEd25519SigningPublicJwk(signingEntry.publicJwk)
-    ? toEd25519PublicJwk(signingEntry.publicJwk)
-    : isP256SigningPublicJwk(signingEntry.publicJwk)
-      ? toP256PublicJwk(signingEntry.publicJwk)
-      : signingEntry.publicJwk;
+const publicJwkFromSigningPublicJwk = (publicJwk: SigningPublicJwk): JsonObject => {
+  if (isEd25519SigningPublicJwk(publicJwk)) {
+    return toEd25519PublicJwk(publicJwk) as unknown as JsonObject;
+  }
+
+  if (isP256SigningPublicJwk(publicJwk)) {
+    return toP256PublicJwk(publicJwk) as unknown as JsonObject;
+  }
+
+  return publicJwk as unknown as JsonObject;
+};
+
+const jwksDocumentForSigningEntry = (input: {
+  signingEntry: TenantSigningRegistryEntry;
+  historicalKeys?: readonly HistoricalSigningKeyEntry[];
+}): JsonObject => {
+  const keys: JsonObject[] = [publicJwkFromSigningPublicJwk(input.signingEntry.publicJwk)];
+  const activeKeyId = input.signingEntry.keyId;
+
+  for (const historicalEntry of input.historicalKeys ?? []) {
+    if (historicalEntry.keyId === activeKeyId) {
+      continue;
+    }
+
+    keys.push(publicJwkFromSigningPublicJwk(historicalEntry.publicJwk));
+  }
 
   return {
-    keys: [publicJwk as unknown as JsonObject],
+    keys,
   };
 };
 
@@ -1671,19 +1862,21 @@ interface BuildRevocationStatusListCredentialInput {
   requestUrl: string;
   tenantId: string;
   issuerDid: string;
-  privateJwk: Ed25519PrivateJwk;
-  verificationMethod: string;
   statusEntries: readonly RevocationStatusBitEntry[];
 }
 
 const buildRevocationStatusListCredential = async (
   input: BuildRevocationStatusListCredentialInput,
-): Promise<JsonObject> => {
+): Promise<{
+  credential: JsonObject;
+  issuedAt: string;
+}> => {
   const statusListCredentialUrl = revocationStatusListUrlForTenant(input.requestUrl, input.tenantId);
   const encodedList = await encodeRevocationBitstring(input.statusEntries);
   const issuedAt = new Date().toISOString();
 
-  return signCredentialWithEd25519Signature2020({
+  return {
+    issuedAt,
     credential: {
       '@context': ['https://www.w3.org/ns/credentials/v2', BITSTRING_STATUS_LIST_CONTEXT],
       id: statusListCredentialUrl,
@@ -1697,10 +1890,7 @@ const buildRevocationStatusListCredential = async (
         encodedList,
       },
     },
-    privateJwk: input.privateJwk,
-    verificationMethod: input.verificationMethod,
-    createdAt: issuedAt,
-  });
+  };
 };
 
 const issueBadgeQueueJobFromRequest = (
@@ -3061,25 +3251,48 @@ const summarizeCredentialVerificationChecks = async (input: {
   };
 };
 
+const selectCredentialProofObject = (credential: JsonObject): JsonObject | null => {
+  const credentialProofValue = credential.proof;
+  const singleProof = asJsonObject(credentialProofValue);
+
+  if (singleProof !== null) {
+    return singleProof;
+  }
+
+  if (!Array.isArray(credentialProofValue)) {
+    return null;
+  }
+
+  const proofEntries = credentialProofValue.map((entry) => asJsonObject(entry)).filter((entry) => entry !== null);
+  const assertionMethodEntry = proofEntries.find((entry) => {
+    return asNonEmptyString(entry.proofPurpose) === 'assertionMethod';
+  });
+
+  return assertionMethodEntry ?? proofEntries[0] ?? null;
+};
+
+const resolveVerificationPublicJwkForDidKeyId = (input: {
+  context: AppContext;
+  did: string;
+  keyId: string;
+  activeSigningEntry: TenantSigningRegistryEntry;
+}): SigningPublicJwk | null => {
+  if (input.keyId === input.activeSigningEntry.keyId) {
+    return input.activeSigningEntry.publicJwk;
+  }
+
+  const historicalEntry = resolveHistoricalSigningKeysForDid(input.context, input.did).find((entry) => {
+    return entry.keyId === input.keyId;
+  });
+
+  return historicalEntry?.publicJwk ?? null;
+};
+
 const verifyCredentialProofSummary = async (
   c: AppContext,
   credential: JsonObject,
 ): Promise<CredentialProofVerificationSummary> => {
-  const credentialProofValue = credential.proof;
-  const singleProof = asJsonObject(credentialProofValue);
-  const proof =
-    singleProof ??
-    (Array.isArray(credentialProofValue)
-      ? (() => {
-          const proofEntries = credentialProofValue
-            .map((entry) => asJsonObject(entry))
-            .filter((entry) => entry !== null);
-          const assertionMethodEntry = proofEntries.find((entry) => {
-            return asNonEmptyString(entry.proofPurpose) === 'assertionMethod';
-          });
-          return assertionMethodEntry ?? proofEntries[0] ?? null;
-        })()
-      : null);
+  const proof = selectCredentialProofObject(credential);
 
   if (proof === null) {
     return {
@@ -3178,12 +3391,128 @@ const verifyCredentialProofSummary = async (
   }
 
   if (verificationMethodKeyId !== signingEntry.keyId) {
+    const historicalPublicJwk = resolveVerificationPublicJwkForDidKeyId({
+      context: c,
+      did: issuerDid,
+      keyId: verificationMethodKeyId,
+      activeSigningEntry: signingEntry,
+    });
+
+    if (historicalPublicJwk === null) {
+      return {
+        status: 'invalid',
+        format: proofType,
+        cryptosuite: asNonEmptyString(proof.cryptosuite),
+        verificationMethod,
+        reason: 'verificationMethod key fragment must match an active or historical signing key id',
+      };
+    }
+
+    if (proofType === 'Ed25519Signature2020') {
+      if (!isEd25519SigningPublicJwk(historicalPublicJwk)) {
+        return {
+          status: 'invalid',
+          format: proofType,
+          cryptosuite: null,
+          verificationMethod,
+          reason: 'Ed25519Signature2020 requires an Ed25519 public key',
+        };
+      }
+
+      const isValid = await verifyCredentialProofWithEd25519Signature2020({
+        credential: {
+          ...credential,
+          proof: {
+            type: 'Ed25519Signature2020',
+            created: asString(proof.created) ?? '',
+            proofPurpose: 'assertionMethod',
+            verificationMethod,
+            proofValue,
+          },
+        },
+        publicJwk: toEd25519PublicJwk(historicalPublicJwk),
+      });
+
+      return {
+        status: isValid ? 'valid' : 'invalid',
+        format: proofType,
+        cryptosuite: null,
+        verificationMethod,
+        reason: isValid ? null : 'signature verification failed',
+      };
+    }
+
+    if (proofType === 'DataIntegrityProof') {
+      const cryptosuite = asNonEmptyString(proof.cryptosuite);
+
+      if (cryptosuite !== 'eddsa-rdfc-2022' && cryptosuite !== 'ecdsa-sd-2023') {
+        return {
+          status: 'invalid',
+          format: proofType,
+          cryptosuite,
+          verificationMethod,
+          reason: 'unsupported Data Integrity cryptosuite',
+        };
+      }
+
+      let verificationPublicJwk: Ed25519PublicJwk | P256PublicJwk;
+
+      if (cryptosuite === 'eddsa-rdfc-2022') {
+        if (!isEd25519SigningPublicJwk(historicalPublicJwk)) {
+          return {
+            status: 'invalid',
+            format: proofType,
+            cryptosuite,
+            verificationMethod,
+            reason: 'eddsa-rdfc-2022 requires an Ed25519 public key',
+          };
+        }
+
+        verificationPublicJwk = toEd25519PublicJwk(historicalPublicJwk);
+      } else {
+        if (!isP256SigningPublicJwk(historicalPublicJwk)) {
+          return {
+            status: 'invalid',
+            format: proofType,
+            cryptosuite,
+            verificationMethod,
+            reason: 'ecdsa-sd-2023 requires a P-256 public key',
+          };
+        }
+
+        verificationPublicJwk = toP256PublicJwk(historicalPublicJwk);
+      }
+
+      const isValid = await verifyCredentialProofWithDataIntegrity({
+        credential: {
+          ...credential,
+          proof: {
+            type: 'DataIntegrityProof',
+            cryptosuite,
+            created: asString(proof.created) ?? '',
+            proofPurpose: 'assertionMethod',
+            verificationMethod,
+            proofValue,
+          },
+        },
+        publicJwk: verificationPublicJwk,
+      });
+
+      return {
+        status: isValid ? 'valid' : 'invalid',
+        format: proofType,
+        cryptosuite,
+        verificationMethod,
+        reason: isValid ? null : 'signature verification failed',
+      };
+    }
+
     return {
-      status: 'invalid',
+      status: 'unchecked',
       format: proofType,
       cryptosuite: asNonEmptyString(proof.cryptosuite),
       verificationMethod,
-      reason: 'verificationMethod key fragment must match resolved signing key id',
+      reason: 'proof format is not currently supported',
     };
   }
 
@@ -3296,6 +3625,288 @@ const verifyCredentialProofSummary = async (
     cryptosuite: asNonEmptyString(proof.cryptosuite),
     verificationMethod,
     reason: 'proof format is not currently supported',
+  };
+};
+
+type SupportedCredentialProofType = 'Ed25519Signature2020' | 'DataIntegrityProof';
+
+interface SignCredentialForDidInput {
+  context: AppContext;
+  did: string;
+  credential: JsonObject;
+  proofType: SupportedCredentialProofType;
+  cryptosuite?: DataIntegrityCryptosuite;
+  createdAt?: string;
+  missingPrivateKeyError?: string;
+  ed25519KeyRequirementError?: string;
+}
+
+type SignCredentialErrorStatusCode = 400 | 404 | 422 | 500 | 502;
+
+type SignCredentialForDidResult =
+  | {
+      status: 'ok';
+      keyId: string;
+      verificationMethod: string;
+      credential: JsonObject;
+    }
+  | {
+      status: 'error';
+      statusCode: SignCredentialErrorStatusCode;
+      error: string;
+      did: string;
+    };
+
+const signCredentialWithRemoteSigner = async (input: {
+  did: string;
+  keyId: string;
+  verificationMethod: string;
+  credential: JsonObject;
+  proofType: SupportedCredentialProofType;
+  cryptosuite?: DataIntegrityCryptosuite;
+  createdAt?: string;
+  remoteSigner: RemoteSignerRegistryEntry;
+}): Promise<
+  | {
+      status: 'ok';
+      credential: JsonObject;
+    }
+  | {
+      status: 'error';
+      reason: string;
+    }
+> => {
+  const abortController = new AbortController();
+  const timeoutHandle: ReturnType<typeof setTimeout> = setTimeout(() => {
+    abortController.abort('remote-signer-timeout');
+  }, input.remoteSigner.timeoutMs);
+
+  let response: Response;
+
+  try {
+    const headers: Record<string, string> = {
+      'content-type': 'application/json',
+      accept: 'application/json',
+    };
+
+    if (input.remoteSigner.authorizationHeader !== null) {
+      headers.authorization = input.remoteSigner.authorizationHeader;
+    }
+
+    response = await fetch(input.remoteSigner.url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        did: input.did,
+        keyId: input.keyId,
+        verificationMethod: input.verificationMethod,
+        proofType: input.proofType,
+        ...(input.cryptosuite === undefined ? {} : { cryptosuite: input.cryptosuite }),
+        ...(input.createdAt === undefined ? {} : { createdAt: input.createdAt }),
+        credential: input.credential,
+      }),
+      signal: abortController.signal,
+    });
+  } catch {
+    return {
+      status: 'error',
+      reason: 'request to remote signer failed',
+    };
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+
+  if (!response.ok) {
+    return {
+      status: 'error',
+      reason: `remote signer returned HTTP ${String(response.status)}`,
+    };
+  }
+
+  const responseBody = await response.json<unknown>().catch(() => null);
+  const responseObject = asJsonObject(responseBody);
+  const signedCredential = asJsonObject(responseObject?.credential);
+
+  if (signedCredential === null) {
+    return {
+      status: 'error',
+      reason: 'remote signer response is missing a JSON credential object',
+    };
+  }
+
+  const signedProof = selectCredentialProofObject(signedCredential);
+
+  if (signedProof === null) {
+    return {
+      status: 'error',
+      reason: 'remote signer credential is missing a proof object',
+    };
+  }
+
+  const signedProofType = asNonEmptyString(signedProof.type);
+  const signedVerificationMethod = asNonEmptyString(signedProof.verificationMethod);
+
+  if (signedProofType !== input.proofType || signedVerificationMethod !== input.verificationMethod) {
+    return {
+      status: 'error',
+      reason: 'remote signer proof metadata does not match requested proof parameters',
+    };
+  }
+
+  if (input.proofType === 'DataIntegrityProof' && input.cryptosuite !== undefined) {
+    const signedCryptosuite = asNonEmptyString(signedProof.cryptosuite);
+
+    if (signedCryptosuite !== input.cryptosuite) {
+      return {
+        status: 'error',
+        reason: 'remote signer proof cryptosuite does not match requested cryptosuite',
+      };
+    }
+  }
+
+  return {
+    status: 'ok',
+    credential: signedCredential,
+  };
+};
+
+const signCredentialForDid = async (input: SignCredentialForDidInput): Promise<SignCredentialForDidResult> => {
+  const signingEntry = await resolveSigningEntryForDid(input.context, input.did);
+
+  if (signingEntry === null) {
+    return {
+      status: 'error',
+      statusCode: 404,
+      error: 'No signing configuration for requested DID',
+      did: input.did,
+    };
+  }
+
+  const verificationMethod = `${input.did}#${signingEntry.keyId}`;
+
+  if (input.proofType === 'DataIntegrityProof' && input.cryptosuite === undefined) {
+    return {
+      status: 'error',
+      statusCode: 400,
+      error: 'DataIntegrityProof signing requires a cryptosuite value',
+      did: input.did,
+    };
+  }
+
+  if (signingEntry.privateJwk !== undefined) {
+    let signedCredential: JsonObject;
+
+    if (input.proofType === 'DataIntegrityProof') {
+      const cryptosuite = input.cryptosuite;
+
+      if (cryptosuite === undefined) {
+        return {
+          status: 'error',
+          statusCode: 400,
+          error: 'DataIntegrityProof signing requires a cryptosuite value',
+          did: input.did,
+        };
+      }
+
+      if (cryptosuite === 'eddsa-rdfc-2022') {
+        if (!isEd25519SigningPrivateJwk(signingEntry.privateJwk)) {
+          return {
+            status: 'error',
+            statusCode: 422,
+            error: 'DataIntegrity eddsa-rdfc-2022 signing requires an Ed25519 private key',
+            did: input.did,
+          };
+        }
+
+        signedCredential = await signCredentialWithDataIntegrityProof({
+          credential: input.credential,
+          privateJwk: toEd25519PrivateJwk(signingEntry.privateJwk),
+          verificationMethod,
+          cryptosuite,
+          ...(input.createdAt === undefined ? {} : { createdAt: input.createdAt }),
+        });
+      } else {
+        if (!isP256SigningPrivateJwk(signingEntry.privateJwk)) {
+          return {
+            status: 'error',
+            statusCode: 422,
+            error: 'DataIntegrity ecdsa-sd-2023 signing requires a P-256 private key',
+            did: input.did,
+          };
+        }
+
+        signedCredential = await signCredentialWithDataIntegrityProof({
+          credential: input.credential,
+          privateJwk: toP256PrivateJwk(signingEntry.privateJwk),
+          verificationMethod,
+          cryptosuite,
+          ...(input.createdAt === undefined ? {} : { createdAt: input.createdAt }),
+        });
+      }
+    } else {
+      if (!isEd25519SigningPrivateJwk(signingEntry.privateJwk)) {
+        return {
+          status: 'error',
+          statusCode: 422,
+          error: input.ed25519KeyRequirementError ?? 'Credential signing endpoint requires an Ed25519 private key',
+          did: input.did,
+        };
+      }
+
+      signedCredential = await signCredentialWithEd25519Signature2020({
+        credential: input.credential,
+        privateJwk: toEd25519PrivateJwk(signingEntry.privateJwk),
+        verificationMethod,
+        ...(input.createdAt === undefined ? {} : { createdAt: input.createdAt }),
+      });
+    }
+
+    return {
+      status: 'ok',
+      keyId: signingEntry.keyId,
+      verificationMethod,
+      credential: signedCredential,
+    };
+  }
+
+  const remoteSigner = resolveRemoteSignerRegistryEntryForDid(input.context, input.did);
+
+  if (remoteSigner === null) {
+    return {
+      status: 'error',
+      statusCode: 500,
+      error:
+        input.missingPrivateKeyError ??
+        'DID is missing private signing key material and no remote signer is configured',
+      did: input.did,
+    };
+  }
+
+  const remoteSignerResult = await signCredentialWithRemoteSigner({
+    did: input.did,
+    keyId: signingEntry.keyId,
+    verificationMethod,
+    credential: input.credential,
+    proofType: input.proofType,
+    ...(input.cryptosuite === undefined ? {} : { cryptosuite: input.cryptosuite }),
+    ...(input.createdAt === undefined ? {} : { createdAt: input.createdAt }),
+    remoteSigner,
+  });
+
+  if (remoteSignerResult.status !== 'ok') {
+    return {
+      status: 'error',
+      statusCode: 502,
+      error: `Remote signer request failed: ${remoteSignerResult.reason}`,
+      did: input.did,
+    };
+  }
+
+  return {
+    status: 'ok',
+    keyId: signingEntry.keyId,
+    verificationMethod,
+    credential: remoteSignerResult.credential,
   };
 };
 
@@ -3460,7 +4071,7 @@ const fetchSakaiCommitCountForUsername = async (
 };
 
 class HttpErrorResponse extends Error {
-  public readonly statusCode: 404 | 409 | 500;
+  public readonly statusCode: 400 | 404 | 409 | 422 | 500 | 502;
 
   public readonly payload: {
     error: string;
@@ -3468,7 +4079,7 @@ class HttpErrorResponse extends Error {
   };
 
   public constructor(
-    statusCode: 404 | 409 | 500,
+    statusCode: 400 | 404 | 409 | 422 | 500 | 502,
     payload: {
       error: string;
       did?: string | undefined;
@@ -5697,7 +6308,12 @@ app.get('/.well-known/jwks.json', async (c): Promise<Response> => {
     );
   }
 
-  return c.json(jwksDocumentForSigningEntry(signingEntry));
+  return c.json(
+    jwksDocumentForSigningEntry({
+      signingEntry,
+      historicalKeys: resolveHistoricalSigningKeysForDid(c, did),
+    }),
+  );
 });
 
 app.get('/:tenantSlug/jwks.json', async (c): Promise<Response> => {
@@ -5715,7 +6331,12 @@ app.get('/:tenantSlug/jwks.json', async (c): Promise<Response> => {
     );
   }
 
-  return c.json(jwksDocumentForSigningEntry(signingEntry));
+  return c.json(
+    jwksDocumentForSigningEntry({
+      signingEntry,
+      historicalKeys: resolveHistoricalSigningKeysForDid(c, did),
+    }),
+  );
 });
 
 app.get('/credentials/v1/:credentialId', async (c) => {
@@ -5800,23 +6421,23 @@ app.get('/credentials/v1/status-lists/:tenantId/revocation', async (c) => {
     );
   }
 
-  if (signingEntry.privateJwk === undefined) {
-    return c.json(
-      {
-        error: 'Tenant DID is missing private signing key material',
-        did: issuerDid,
-      },
-      500,
-    );
-  }
-
-  if (!isEd25519SigningPrivateJwk(signingEntry.privateJwk)) {
+  if (signingEntry.privateJwk !== undefined && !isEd25519SigningPrivateJwk(signingEntry.privateJwk)) {
     return c.json(
       {
         error: 'Revocation status list signing requires an Ed25519 private key',
         did: issuerDid,
       },
       422,
+    );
+  }
+
+  if (signingEntry.privateJwk === undefined && resolveRemoteSignerRegistryEntryForDid(c, issuerDid) === null) {
+    return c.json(
+      {
+        error: 'Tenant DID is missing private signing key material and no remote signer is configured',
+        did: issuerDid,
+      },
+      500,
     );
   }
 
@@ -5827,18 +6448,35 @@ app.get('/credentials/v1/status-lists/:tenantId/revocation', async (c) => {
       revoked: assertion.revokedAt !== null,
     };
   });
-  const statusListCredential = await buildRevocationStatusListCredential({
+  const statusListCredentialInput = await buildRevocationStatusListCredential({
     requestUrl: c.req.url,
     tenantId: pathParams.tenantId,
     issuerDid,
-    privateJwk: toEd25519PrivateJwk(signingEntry.privateJwk),
-    verificationMethod: `${issuerDid}#${signingEntry.keyId}`,
     statusEntries,
   });
+  const signedStatusListCredential = await signCredentialForDid({
+    context: c,
+    did: issuerDid,
+    credential: statusListCredentialInput.credential,
+    proofType: 'Ed25519Signature2020',
+    createdAt: statusListCredentialInput.issuedAt,
+    missingPrivateKeyError: 'Tenant DID is missing private signing key material and no remote signer is configured',
+    ed25519KeyRequirementError: 'Revocation status list signing requires an Ed25519 private key',
+  });
+
+  if (signedStatusListCredential.status !== 'ok') {
+    return c.json(
+      {
+        error: signedStatusListCredential.error,
+        did: issuerDid,
+      },
+      signedStatusListCredential.statusCode,
+    );
+  }
 
   c.header('Cache-Control', 'no-store');
   c.header('Content-Type', 'application/ld+json; charset=utf-8');
-  return c.body(JSON.stringify(statusListCredential, null, 2));
+  return c.body(JSON.stringify(signedStatusListCredential.credential, null, 2));
 });
 
 app.get('/credentials/v1/:credentialId/jsonld', async (c) => {
@@ -6648,28 +7286,6 @@ const issueBadgeForTenant = async (
     host: c.env.PLATFORM_DOMAIN,
     pathSegments: [tenantId],
   });
-  const signingEntry = await resolveSigningEntryForDid(c, issuerDid);
-
-  if (signingEntry === null) {
-    throw new HttpErrorResponse(404, {
-      error: 'No signing configuration for tenant DID',
-      did: issuerDid,
-    });
-  }
-
-  if (signingEntry.privateJwk === undefined) {
-    throw new HttpErrorResponse(500, {
-      error: 'Tenant DID is missing private signing key material',
-      did: issuerDid,
-    });
-  }
-
-  if (!isEd25519SigningPrivateJwk(signingEntry.privateJwk)) {
-    throw new HttpErrorResponse(500, {
-      error: 'Tenant issuance requires an Ed25519 private key',
-      did: issuerDid,
-    });
-  }
 
   const requestBaseUrl = new URL(c.req.url);
   const learnerProfile = await resolveLearnerProfileForIdentity(resolveDatabase(c.env), {
@@ -6692,7 +7308,13 @@ const issueBadgeForTenant = async (
           name: options.issuerName,
           ...(options.issuerUrl === undefined ? {} : { url: options.issuerUrl }),
         };
-  const signedCredential = await signCredentialWithEd25519Signature2020({
+  const signedCredentialResult = await signCredentialForDid({
+    context: c,
+    did: issuerDid,
+    proofType: 'Ed25519Signature2020',
+    createdAt: issuedAt,
+    missingPrivateKeyError: 'Tenant DID is missing private signing key material and no remote signer is configured',
+    ed25519KeyRequirementError: 'Tenant issuance requires an Ed25519 private key',
     credential: {
       '@context': ['https://www.w3.org/ns/credentials/v2'],
       id: `urn:credtrail:assertion:${encodeURIComponent(assertionId)}`,
@@ -6726,9 +7348,16 @@ const issueBadgeForTenant = async (
         },
       },
     },
-    privateJwk: toEd25519PrivateJwk(signingEntry.privateJwk),
-    verificationMethod: `${issuerDid}#${signingEntry.keyId}`,
   });
+
+  if (signedCredentialResult.status !== 'ok') {
+    throw new HttpErrorResponse(signedCredentialResult.statusCode, {
+      error: signedCredentialResult.error,
+      did: issuerDid,
+    });
+  }
+
+  const signedCredential = signedCredentialResult.credential;
 
   const stored = await storeImmutableCredentialObject(c.env.BADGE_OBJECTS, {
     tenantId,
@@ -6954,101 +7583,29 @@ app.post('/v1/signing/keys/generate', async (c) => {
 app.post('/v1/signing/credentials', async (c) => {
   const payload = await c.req.json<unknown>();
   const request = parseSignCredentialRequest(payload);
-  const signingEntry = await resolveSigningEntryForDid(c, request.did);
-
-  if (signingEntry === null) {
-    return c.json(
-      {
-        error: 'No signing configuration for requested DID',
-        did: request.did,
-      },
-      404,
-    );
-  }
-
-  if (signingEntry.privateJwk === undefined) {
-    return c.json(
-      {
-        error: 'DID is missing private signing key material',
-        did: request.did,
-      },
-      500,
-    );
-  }
-
   const proofType = request.proofType ?? 'Ed25519Signature2020';
-  const verificationMethod = `${request.did}#${signingEntry.keyId}`;
-  let signedCredential: JsonObject;
+  const signingResult = await signCredentialForDid({
+    context: c,
+    did: request.did,
+    credential: request.credential,
+    proofType,
+    ...(request.cryptosuite === undefined ? {} : { cryptosuite: request.cryptosuite }),
+  });
 
-  if (proofType === 'DataIntegrityProof') {
-    const cryptosuite = request.cryptosuite;
-
-    if (cryptosuite === undefined) {
-      return c.json(
-        {
-          error: 'DataIntegrityProof signing requires a cryptosuite value',
-        },
-        400,
-      );
-    }
-
-    if (cryptosuite === 'eddsa-rdfc-2022') {
-      if (!isEd25519SigningPrivateJwk(signingEntry.privateJwk)) {
-        return c.json(
-          {
-            error: 'DataIntegrity eddsa-rdfc-2022 signing requires an Ed25519 private key',
-            did: request.did,
-          },
-          422,
-        );
-      }
-
-      signedCredential = await signCredentialWithDataIntegrityProof({
-        credential: request.credential,
-        privateJwk: toEd25519PrivateJwk(signingEntry.privateJwk),
-        verificationMethod,
-        cryptosuite,
-      });
-    } else {
-      if (!isP256SigningPrivateJwk(signingEntry.privateJwk)) {
-        return c.json(
-          {
-            error: 'DataIntegrity ecdsa-sd-2023 signing requires a P-256 private key',
-            did: request.did,
-          },
-          422,
-        );
-      }
-
-      signedCredential = await signCredentialWithDataIntegrityProof({
-        credential: request.credential,
-        privateJwk: toP256PrivateJwk(signingEntry.privateJwk),
-        verificationMethod,
-        cryptosuite,
-      });
-    }
-  } else {
-    if (!isEd25519SigningPrivateJwk(signingEntry.privateJwk)) {
-      return c.json(
-        {
-          error: 'Credential signing endpoint requires an Ed25519 private key',
-          did: request.did,
-        },
-        422,
-      );
-    }
-
-    signedCredential = await signCredentialWithEd25519Signature2020({
-      credential: request.credential,
-      privateJwk: toEd25519PrivateJwk(signingEntry.privateJwk),
-      verificationMethod,
-    });
+  if (signingResult.status !== 'ok') {
+    return c.json(
+      {
+        error: signingResult.error,
+        did: request.did,
+      },
+      signingResult.statusCode,
+    );
   }
 
   return c.json(
     {
       did: request.did,
-      credential: signedCredential,
+      credential: signingResult.credential,
     },
     201,
   );

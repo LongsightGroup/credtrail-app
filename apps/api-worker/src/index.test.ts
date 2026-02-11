@@ -297,6 +297,8 @@ const createEnv = (): {
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
   MARKETING_SITE_ORIGIN?: string;
+  TENANT_SIGNING_KEY_HISTORY_JSON?: string;
+  TENANT_REMOTE_SIGNER_REGISTRY_JSON?: string;
   JOB_PROCESSOR_TOKEN?: string;
   BOOTSTRAP_ADMIN_TOKEN?: string;
 } => {
@@ -363,6 +365,19 @@ const asJsonObject = (value: unknown): JsonObject | null => {
 
 const asString = (value: unknown): string | null => {
   return typeof value === 'string' ? value : null;
+};
+
+const jsonObjectFromRequestInitBody = (init: RequestInit | undefined): JsonObject => {
+  if (typeof init?.body !== 'string') {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(init.body) as unknown;
+    return asJsonObject(parsed) ?? {};
+  } catch {
+    return {};
+  }
 };
 
 const base64UrlToBytes = (value: string): Uint8Array => {
@@ -3239,7 +3254,69 @@ describe('GET /credentials/v1/:credentialId', () => {
     expect(response.status).toBe(200);
     expect(body.verification.proof.status).toBe('invalid');
     expect(body.verification.proof.reason).toBe(
-      'verificationMethod key fragment must match resolved signing key id',
+      'verificationMethod key fragment must match an active or historical signing key id',
+    );
+  });
+
+  it('verifies proofs signed with historical key ids when key rotation history is configured', async () => {
+    const oldSigningMaterial = await generateTenantDidSigningMaterial({
+      did: 'did:web:credtrail.test:tenant_123',
+      keyId: 'key-old',
+    });
+    const newSigningMaterial = await generateTenantDidSigningMaterial({
+      did: 'did:web:credtrail.test:tenant_123',
+      keyId: 'key-new',
+    });
+    const env = {
+      ...createEnv(),
+      TENANT_SIGNING_KEY_HISTORY_JSON: JSON.stringify({
+        'did:web:credtrail.test:tenant_123': [
+          {
+            keyId: oldSigningMaterial.keyId,
+            publicJwk: oldSigningMaterial.publicJwk,
+          },
+        ],
+      }),
+    };
+    const credential = await signCredentialWithEd25519Signature2020({
+      credential: {
+        '@context': ['https://www.w3.org/ns/credentials/v2'],
+        id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+        type: ['VerifiableCredential', 'OpenBadgeCredential'],
+        issuer: oldSigningMaterial.did,
+        credentialSubject: {
+          id: 'mailto:learner@example.edu',
+          achievement: {
+            id: 'urn:credtrail:badge:001',
+            type: ['Achievement'],
+            name: 'Sakai Contributor',
+          },
+        },
+      },
+      privateJwk: oldSigningMaterial.privateJwk,
+      verificationMethod: `${oldSigningMaterial.did}#${oldSigningMaterial.keyId}`,
+      createdAt: '2026-02-11T00:00:00.000Z',
+    });
+
+    mockedFindAssertionById.mockResolvedValue(sampleAssertion());
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+    mockedFindTenantSigningRegistrationByDid.mockResolvedValue(
+      sampleTenantSigningRegistration({
+        tenantId: 'tenant_123',
+        did: newSigningMaterial.did,
+        keyId: newSigningMaterial.keyId,
+        publicJwkJson: JSON.stringify(newSigningMaterial.publicJwk),
+        privateJwkJson: JSON.stringify(newSigningMaterial.privateJwk),
+      }),
+    );
+
+    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.proof.status).toBe('valid');
+    expect(body.verification.proof.verificationMethod).toBe(
+      'did:web:credtrail.test:tenant_123#key-old',
     );
   });
 
@@ -3440,6 +3517,50 @@ describe('DID signing resolution from Postgres registration', () => {
       'did:web:localhost:sakai',
     );
   });
+
+  it('includes historical public keys in JWKS output to preserve verification continuity after rotation', async () => {
+    const activeSigningMaterial = await generateTenantDidSigningMaterial({
+      did: 'did:web:localhost',
+      keyId: 'key-new',
+    });
+    const historicalSigningMaterial = await generateTenantDidSigningMaterial({
+      did: 'did:web:localhost',
+      keyId: 'key-old',
+    });
+    const env = {
+      ...createEnv(),
+      TENANT_SIGNING_KEY_HISTORY_JSON: JSON.stringify({
+        'did:web:localhost': [
+          {
+            keyId: historicalSigningMaterial.keyId,
+            publicJwk: historicalSigningMaterial.publicJwk,
+          },
+        ],
+      }),
+    };
+
+    mockedFindTenantSigningRegistrationByDid.mockResolvedValue(
+      sampleTenantSigningRegistration({
+        tenantId: 'platform',
+        did: activeSigningMaterial.did,
+        keyId: activeSigningMaterial.keyId,
+        publicJwkJson: JSON.stringify(activeSigningMaterial.publicJwk),
+        privateJwkJson: JSON.stringify(activeSigningMaterial.privateJwk),
+      }),
+    );
+
+    const response = await app.request('/.well-known/jwks.json', undefined, env);
+    const body = await response.json<JsonObject>();
+    const keys = Array.isArray(body.keys) ? body.keys : [];
+    const keyIds = keys
+      .map((entry) => asJsonObject(entry))
+      .map((entry) => asString(entry?.kid))
+      .filter((entry): entry is string => entry !== null);
+
+    expect(response.status).toBe(200);
+    expect(keyIds).toContain('key-new');
+    expect(keyIds).toContain('key-old');
+  });
 });
 
 describe('GET /credentials/v1/status-lists/:tenantId/revocation', () => {
@@ -3561,6 +3682,92 @@ describe('GET /credentials/v1/status-lists/:tenantId/revocation', () => {
     );
   });
 
+  it('signs status list credentials through configured remote signers when private keys are externalized', async () => {
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: 'did:web:credtrail.test:tenant_123',
+      keyId: 'key-remote',
+    });
+    const env = {
+      ...createEnv(),
+      TENANT_REMOTE_SIGNER_REGISTRY_JSON: JSON.stringify({
+        'did:web:credtrail.test:tenant_123': {
+          url: 'https://kms.credtrail.test/sign',
+          authorizationHeader: 'Bearer test-remote-signer-token',
+        },
+      }),
+    };
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const request = jsonObjectFromRequestInitBody(init);
+      const unsignedCredential = asJsonObject(request.credential);
+      const verificationMethod = asString(request.verificationMethod);
+      const createdAt = asString(request.createdAt);
+
+      if (unsignedCredential === null || verificationMethod === null) {
+        return new Response(
+          JSON.stringify({
+            error: 'invalid signer request',
+          }),
+          {
+            status: 400,
+            headers: {
+              'content-type': 'application/json',
+            },
+          },
+        );
+      }
+
+      const signedCredential = await signCredentialWithEd25519Signature2020({
+        credential: unsignedCredential,
+        privateJwk: signingMaterial.privateJwk,
+        verificationMethod,
+        ...(createdAt === null ? {} : { createdAt }),
+      });
+
+      return new Response(
+        JSON.stringify({
+          credential: signedCredential,
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+        },
+      );
+    });
+
+    mockedFindTenantSigningRegistrationByDid.mockResolvedValue(
+      sampleTenantSigningRegistration({
+        tenantId: 'tenant_123',
+        did: signingMaterial.did,
+        keyId: signingMaterial.keyId,
+        publicJwkJson: JSON.stringify(signingMaterial.publicJwk),
+        privateJwkJson: null,
+      }),
+    );
+    mockedListAssertionStatusListEntries.mockResolvedValue([]);
+
+    const response = await app.request(
+      '/credentials/v1/status-lists/tenant_123/revocation',
+      undefined,
+      env,
+    );
+    const body = await response.json<JsonObject>();
+
+    expect(response.status).toBe(200);
+    expect(asJsonObject(body.proof)).not.toBeNull();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('https://kms.credtrail.test/sign');
+    expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test-remote-signer-token',
+      },
+    });
+
+    fetchSpy.mockRestore();
+  });
+
   it('returns 422 when tenant signing key is not Ed25519', async () => {
     const env = createEnv();
     const signingMaterial = await generateP256SigningMaterial('key-p256');
@@ -3638,6 +3845,99 @@ describe('POST /v1/signing/credentials', () => {
     expect(asString(body.did)).toBe(signingMaterial.did);
     expect(asJsonObject(signedCredential?.proof)).not.toBeNull();
     expect(mockedFindTenantSigningRegistrationByDid).toHaveBeenCalledWith(fakeDb, signingMaterial.did);
+  });
+
+  it('signs credentials through configured remote signers when DID private keys are externalized', async () => {
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: 'did:web:credtrail.test:sakai',
+      keyId: 'key-remote',
+    });
+    const env = {
+      ...createEnv(),
+      TENANT_REMOTE_SIGNER_REGISTRY_JSON: JSON.stringify({
+        'did:web:credtrail.test:sakai': {
+          url: 'https://kms.credtrail.test/sign',
+        },
+      }),
+    };
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const request = jsonObjectFromRequestInitBody(init);
+      const unsignedCredential = asJsonObject(request.credential);
+      const verificationMethod = asString(request.verificationMethod);
+
+      if (unsignedCredential === null || verificationMethod === null) {
+        return new Response(
+          JSON.stringify({
+            error: 'invalid signer request',
+          }),
+          {
+            status: 400,
+            headers: {
+              'content-type': 'application/json',
+            },
+          },
+        );
+      }
+
+      const signedCredential = await signCredentialWithEd25519Signature2020({
+        credential: unsignedCredential,
+        privateJwk: signingMaterial.privateJwk,
+        verificationMethod,
+      });
+
+      return new Response(
+        JSON.stringify({
+          credential: signedCredential,
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+        },
+      );
+    });
+
+    mockedFindTenantSigningRegistrationByDid.mockResolvedValue(
+      sampleTenantSigningRegistration({
+        tenantId: 'sakai',
+        did: signingMaterial.did,
+        keyId: signingMaterial.keyId,
+        publicJwkJson: JSON.stringify(signingMaterial.publicJwk),
+        privateJwkJson: null,
+      }),
+    );
+
+    const response = await app.request(
+      '/v1/signing/credentials',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          did: signingMaterial.did,
+          credential: {
+            '@context': ['https://www.w3.org/ns/credentials/v2'],
+            type: ['VerifiableCredential'],
+            issuer: signingMaterial.did,
+            credentialSubject: {
+              id: 'urn:credtrail:subject:test',
+            },
+          },
+        }),
+      },
+      env,
+    );
+    const body = await response.json<JsonObject>();
+
+    expect(response.status).toBe(201);
+    expect(asString(body.did)).toBe(signingMaterial.did);
+    expect(asJsonObject(asJsonObject(body.credential)?.proof)).not.toBeNull();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('https://kms.credtrail.test/sign');
+
+    fetchSpy.mockRestore();
   });
 
   it('signs DataIntegrity credentials with ecdsa-sd-2023 when DID has P-256 key material', async () => {
@@ -4400,6 +4700,102 @@ describe('POST /v1/tenants/:tenantId/assertions/manual-issue', () => {
         targetType: 'assertion',
       }),
     );
+  });
+
+  it('issues badges with remote signer custody when tenant private keys are not present in runtime', async () => {
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: 'did:web:credtrail.test:tenant_123',
+      keyId: 'key-remote',
+    });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const request = jsonObjectFromRequestInitBody(init);
+      const unsignedCredential = asJsonObject(request.credential);
+      const verificationMethod = asString(request.verificationMethod);
+      const createdAt = asString(request.createdAt);
+
+      if (unsignedCredential === null || verificationMethod === null) {
+        return new Response(
+          JSON.stringify({
+            error: 'invalid signer request',
+          }),
+          {
+            status: 400,
+            headers: {
+              'content-type': 'application/json',
+            },
+          },
+        );
+      }
+
+      const signedCredential = await signCredentialWithEd25519Signature2020({
+        credential: unsignedCredential,
+        privateJwk: signingMaterial.privateJwk,
+        verificationMethod,
+        ...(createdAt === null ? {} : { createdAt }),
+      });
+
+      return new Response(
+        JSON.stringify({
+          credential: signedCredential,
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+        },
+      );
+    });
+    const env = {
+      ...createEnv(),
+      BADGE_OBJECTS: createInMemoryBadgeObjects(),
+      TENANT_SIGNING_REGISTRY_JSON: JSON.stringify({
+        'did:web:credtrail.test:tenant_123': {
+          tenantId: 'tenant_123',
+          keyId: signingMaterial.keyId,
+          publicJwk: signingMaterial.publicJwk,
+        },
+      }),
+      TENANT_REMOTE_SIGNER_REGISTRY_JSON: JSON.stringify({
+        'did:web:credtrail.test:tenant_123': {
+          url: 'https://kms.credtrail.test/sign',
+        },
+      }),
+    };
+
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue();
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
+    mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
+    mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
+    mockedNextAssertionStatusListIndex.mockResolvedValue(0);
+    mockedCreateAssertion.mockResolvedValue(sampleAssertion());
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/assertions/manual-issue',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: 'credtrail_session=session-token',
+        },
+        body: JSON.stringify({
+          badgeTemplateId: 'badge_template_001',
+          recipientIdentity: 'student@umich.edu',
+          recipientIdentityType: 'email',
+          idempotencyKey: 'idem-remote-signer',
+        }),
+      },
+      env,
+    );
+    const body = await response.json<ManualIssueResponse>();
+
+    expect(response.status).toBe(201);
+    expect(asJsonObject(body.credential.proof)).not.toBeNull();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('https://kms.credtrail.test/sign');
+
+    fetchSpy.mockRestore();
   });
 
   it('returns 403 when role is viewer for manual issuance', async () => {
