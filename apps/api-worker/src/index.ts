@@ -2467,7 +2467,92 @@ const normalizedStringValues = (value: unknown): string[] => {
     .filter((entry): entry is string => entry !== null);
 };
 
-const verifyCredentialSchemaSummary = (credential: JsonObject): CredentialVerificationCheckSummary => {
+const loadJsonObjectFromUrl = async (
+  c: AppContext,
+  resourceUrl: string,
+  acceptHeader: string,
+): Promise<{ status: 'ok'; value: JsonObject } | { status: 'error'; reason: string }> => {
+  let parsedResourceUrl: URL;
+
+  try {
+    parsedResourceUrl = new URL(resourceUrl);
+  } catch {
+    return {
+      status: 'error',
+      reason: 'URL is invalid',
+    };
+  }
+
+  let response: Response;
+
+  try {
+    const requestUrl = new URL(c.req.url);
+
+    if (parsedResourceUrl.origin === requestUrl.origin) {
+      const pathWithQuery = `${parsedResourceUrl.pathname}${parsedResourceUrl.search}`;
+      response = await app.request(
+        pathWithQuery,
+        {
+          method: 'GET',
+          headers: {
+            accept: acceptHeader,
+          },
+        },
+        c.env,
+      );
+    } else {
+      response = await fetch(resourceUrl, {
+        headers: {
+          accept: acceptHeader,
+        },
+      });
+    }
+  } catch {
+    return {
+      status: 'error',
+      reason: 'request failed',
+    };
+  }
+
+  if (!response.ok) {
+    return {
+      status: 'error',
+      reason: `HTTP ${String(response.status)}`,
+    };
+  }
+
+  const responseBody = await response.json<unknown>().catch(() => null);
+  const responseObject = asJsonObject(responseBody);
+
+  if (responseObject === null) {
+    return {
+      status: 'error',
+      reason: 'response is not a JSON object',
+    };
+  }
+
+  return {
+    status: 'ok',
+    value: responseObject,
+  };
+};
+
+const schemaRequiredPropertyNames = (schemaObject: JsonObject): string[] => {
+  const requiredValue = schemaObject.required;
+
+  if (!Array.isArray(requiredValue)) {
+    return [];
+  }
+
+  return requiredValue
+    .map((entry) => asNonEmptyString(entry))
+    .filter((entry): entry is string => entry !== null);
+};
+
+const verifyCredentialSchemaSummary = async (
+  c: AppContext,
+  credential: JsonObject,
+): Promise<CredentialVerificationCheckSummary> => {
   const credentialSchemaValue = credential.credentialSchema;
 
   if (credentialSchemaValue === undefined) {
@@ -2519,6 +2604,29 @@ const verifyCredentialSchemaSummary = (credential: JsonObject): CredentialVerifi
 
     if (schemaTypes.includes('1EdTechJsonSchemaValidator2019')) {
       has1EdTechJsonSchemaValidator = true;
+
+      const loadedSchema = await loadJsonObjectFromUrl(c, schemaId, 'application/schema+json, application/json');
+
+      if (loadedSchema.status !== 'ok') {
+        return {
+          status: 'invalid',
+          reason: `credentialSchema[${String(index)}] schema could not be loaded (${loadedSchema.reason})`,
+        };
+      }
+
+      const requiredPropertyNames = schemaRequiredPropertyNames(loadedSchema.value);
+      const missingRequiredProperties = requiredPropertyNames.filter((propertyName) => {
+        return !(propertyName in credential);
+      });
+
+      if (missingRequiredProperties.length > 0) {
+        return {
+          status: 'invalid',
+          reason: `credential does not satisfy credentialSchema[${String(index)}] required properties (${missingRequiredProperties
+            .slice(0, 3)
+            .join(', ')})`,
+        };
+      }
     }
   }
 
@@ -2696,68 +2804,22 @@ const loadStatusListCredentialForVerification = async (
   c: AppContext,
   statusListCredentialUrl: string,
 ): Promise<{ status: 'ok'; credential: JsonObject } | { status: 'error'; reason: string }> => {
-  let parsedStatusListCredentialUrl: URL;
+  const loadedCredential = await loadJsonObjectFromUrl(
+    c,
+    statusListCredentialUrl,
+    'application/ld+json, application/json',
+  );
 
-  try {
-    parsedStatusListCredentialUrl = new URL(statusListCredentialUrl);
-  } catch {
+  if (loadedCredential.status !== 'ok') {
     return {
       status: 'error',
-      reason: 'credentialStatus statusListCredential must be a valid URL',
-    };
-  }
-
-  let statusListResponse: Response;
-
-  try {
-    const requestUrl = new URL(c.req.url);
-
-    if (parsedStatusListCredentialUrl.origin === requestUrl.origin) {
-      const pathWithQuery = `${parsedStatusListCredentialUrl.pathname}${parsedStatusListCredentialUrl.search}`;
-      statusListResponse = await app.request(
-        pathWithQuery,
-        {
-          method: 'GET',
-          headers: {
-            accept: 'application/ld+json, application/json',
-          },
-        },
-        c.env,
-      );
-    } else {
-      statusListResponse = await fetch(statusListCredentialUrl, {
-        headers: {
-          accept: 'application/ld+json, application/json',
-        },
-      });
-    }
-  } catch {
-    return {
-      status: 'error',
-      reason: 'credential status list could not be retrieved',
-    };
-  }
-
-  if (!statusListResponse.ok) {
-    return {
-      status: 'error',
-      reason: `credential status list request failed with HTTP ${String(statusListResponse.status)}`,
-    };
-  }
-
-  const statusListCredential = await statusListResponse.json<unknown>().catch(() => null);
-  const statusListCredentialObject = asJsonObject(statusListCredential);
-
-  if (statusListCredentialObject === null) {
-    return {
-      status: 'error',
-      reason: 'credential status list response must be a JSON object',
+      reason: `credential status list could not be retrieved (${loadedCredential.reason})`,
     };
   }
 
   return {
     status: 'ok',
-    credential: statusListCredentialObject,
+    credential: loadedCredential.value,
   };
 };
 
@@ -2941,7 +3003,7 @@ const summarizeCredentialVerificationChecks = async (input: {
 }): Promise<CredentialVerificationChecksSummary> => {
   return {
     jsonLdSafeMode: verifyCredentialJsonLdSafeModeSummary(input.credential),
-    credentialSchema: verifyCredentialSchemaSummary(input.credential),
+    credentialSchema: await verifyCredentialSchemaSummary(input.context, input.credential),
     credentialSubject: verifyCredentialSubjectSummary(input.credential),
     dates: verifyCredentialDatesSummary(input.credential, input.checkedAt),
     credentialStatus: await verifyCredentialStatusSummary(

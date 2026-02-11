@@ -2781,6 +2781,103 @@ describe('GET /credentials/v1/:credentialId', () => {
     expect(body.verification.checks.credentialSchema.reason).toContain('1EdTechJsonSchemaValidator2019');
   });
 
+  it('validates credentialSchema required properties when schema is loadable', async () => {
+    const env = createEnv();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          required: ['issuer', 'credentialSubject'],
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/schema+json',
+          },
+        },
+      ),
+    );
+    const credential: JsonObject = {
+      '@context': ['https://www.w3.org/ns/credentials/v2'],
+      id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+      type: ['VerifiableCredential', 'OpenBadgeCredential'],
+      issuer: 'did:web:credtrail.test:tenant_123',
+      validFrom: '2026-02-10T22:00:00.000Z',
+      credentialSubject: {
+        id: 'mailto:learner@example.edu',
+      },
+      credentialSchema: [
+        {
+          id: 'https://schema.credtrail.test/achievement-credential.schema.json',
+          type: '1EdTechJsonSchemaValidator2019',
+        },
+      ],
+    };
+
+    mockedFindAssertionById.mockResolvedValue(
+      sampleAssertion({
+        statusListIndex: null,
+      }),
+    );
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+
+    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.checks.credentialSchema.status).toBe('valid');
+
+    fetchSpy.mockRestore();
+  });
+
+  it('marks credentialSchema invalid when required schema fields are missing from credential', async () => {
+    const env = createEnv();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          required: ['customEvidence'],
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/schema+json',
+          },
+        },
+      ),
+    );
+    const credential: JsonObject = {
+      '@context': ['https://www.w3.org/ns/credentials/v2'],
+      id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+      type: ['VerifiableCredential', 'OpenBadgeCredential'],
+      issuer: 'did:web:credtrail.test:tenant_123',
+      validFrom: '2026-02-10T22:00:00.000Z',
+      credentialSubject: {
+        id: 'mailto:learner@example.edu',
+      },
+      credentialSchema: [
+        {
+          id: 'https://schema.credtrail.test/achievement-credential.schema.json',
+          type: '1EdTechJsonSchemaValidator2019',
+        },
+      ],
+    };
+
+    mockedFindAssertionById.mockResolvedValue(
+      sampleAssertion({
+        statusListIndex: null,
+      }),
+    );
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+
+    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.checks.credentialSchema.status).toBe('invalid');
+    expect(body.verification.checks.credentialSchema.reason).toContain('customEvidence');
+
+    fetchSpy.mockRestore();
+  });
+
   it('marks credentialSubject as invalid when id and identifier are missing', async () => {
     const env = createEnv();
     const credential: JsonObject = {
