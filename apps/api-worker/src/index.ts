@@ -4156,8 +4156,12 @@ app.post(`${OB3_BASE_PATH}/credentials`, async (c) => {
 
   const contentType = c.req.header('content-type')?.toLowerCase() ?? '';
   const db = resolveDatabase(c.env);
+  const isCredentialJsonContentType =
+    contentType.includes('application/json') ||
+    contentType.includes('application/ld+json') ||
+    contentType.includes('application/vc+ld+json');
 
-  if (contentType.includes('application/json')) {
+  if (isCredentialJsonContentType) {
     const requestPayload = await c.req.json<unknown>().catch(() => null);
     const credentialPayload = asJsonObject(requestPayload);
 
@@ -4182,7 +4186,13 @@ app.post(`${OB3_BASE_PATH}/credentials`, async (c) => {
         undefined,
     });
 
-    return c.json(credentialPayload, upsertResult.status === 'created' ? 201 : 200);
+    const responseContentType = contentType.includes('application/vc+ld+json')
+      ? 'application/vc+ld+json; charset=utf-8'
+      : contentType.includes('application/ld+json')
+        ? 'application/ld+json; charset=utf-8'
+        : 'application/json; charset=utf-8';
+    c.header('Content-Type', responseContentType);
+    return c.body(JSON.stringify(credentialPayload), upsertResult.status === 'created' ? 201 : 200);
   }
 
   if (contentType.includes('text/plain')) {
@@ -4204,7 +4214,11 @@ app.post(`${OB3_BASE_PATH}/credentials`, async (c) => {
     return c.body(compactJws, upsertResult.status === 'created' ? 201 : 200);
   }
 
-  return ob3ErrorJson(c, 400, 'content-type must be application/json or text/plain');
+  return ob3ErrorJson(
+    c,
+    400,
+    'content-type must be application/json, application/ld+json, application/vc+ld+json, or text/plain',
+  );
 });
 
 app.get(`${OB3_BASE_PATH}/profile`, async (c) => {

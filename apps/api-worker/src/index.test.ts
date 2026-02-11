@@ -1533,6 +1533,7 @@ describe('OB3 secure REST resource endpoints', () => {
     const body = await response.json<Record<string, unknown>>();
 
     expect(response.status).toBe(201);
+    expect(response.headers.get('content-type')).toContain('application/json');
     expect(body.id).toBe('urn:credtrail:credential:created');
     expect(mockedUpsertOb3SubjectCredential).toHaveBeenCalledWith(
       fakeDb,
@@ -1542,6 +1543,72 @@ describe('OB3 secure REST resource endpoints', () => {
         credentialId: 'urn:credtrail:credential:created',
       }),
     );
+  });
+
+  it('supports JSON-LD credential upserts and mirrors application/ld+json responses', async () => {
+    mockedFindActiveOAuthAccessTokenByHash.mockResolvedValue(
+      sampleOAuthAccessTokenRecord({
+        scope: 'https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.upsert',
+      }),
+    );
+    mockedUpsertOb3SubjectCredential.mockResolvedValue({
+      status: 'updated',
+      credential: sampleOb3SubjectCredentialRecord(),
+    });
+
+    const response = await app.request(
+      '/ims/ob/v3p0/credentials',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/ld+json',
+          authorization: 'Bearer access-token-upsert',
+        },
+        body: JSON.stringify({
+          id: 'urn:credtrail:credential:jsonld',
+          type: ['VerifiableCredential', 'OpenBadgeCredential'],
+        }),
+      },
+      createEnv(),
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('application/ld+json');
+    expect(body.id).toBe('urn:credtrail:credential:jsonld');
+  });
+
+  it('supports VC JSON-LD credential upserts and mirrors application/vc+ld+json responses', async () => {
+    mockedFindActiveOAuthAccessTokenByHash.mockResolvedValue(
+      sampleOAuthAccessTokenRecord({
+        scope: 'https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.upsert',
+      }),
+    );
+    mockedUpsertOb3SubjectCredential.mockResolvedValue({
+      status: 'created',
+      credential: sampleOb3SubjectCredentialRecord(),
+    });
+
+    const response = await app.request(
+      '/ims/ob/v3p0/credentials',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/vc+ld+json',
+          authorization: 'Bearer access-token-upsert',
+        },
+        body: JSON.stringify({
+          id: 'urn:credtrail:credential:vc-jsonld',
+          type: ['VerifiableCredential', 'OpenBadgeCredential'],
+        }),
+      },
+      createEnv(),
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(201);
+    expect(response.headers.get('content-type')).toContain('application/vc+ld+json');
+    expect(body.id).toBe('urn:credtrail:credential:vc-jsonld');
   });
 
   it('supports compact JWS credential upsert responses', async () => {
@@ -1575,6 +1642,32 @@ describe('OB3 secure REST resource endpoints', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('text/plain');
     expect(body).toBe('eyJhbGciOiJIUzI1NiJ9.e30.signature');
+  });
+
+  it('rejects unsupported credential upsert content types', async () => {
+    mockedFindActiveOAuthAccessTokenByHash.mockResolvedValue(
+      sampleOAuthAccessTokenRecord({
+        scope: 'https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.upsert',
+      }),
+    );
+
+    const response = await app.request(
+      '/ims/ob/v3p0/credentials',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/xml',
+          authorization: 'Bearer access-token-upsert',
+        },
+        body: '<credential/>',
+      },
+      createEnv(),
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(400);
+    expect(body.imsx_description).toContain('application/vc+ld+json');
+    expect(mockedUpsertOb3SubjectCredential).not.toHaveBeenCalled();
   });
 
   it('returns and updates profile with scope-based authz', async () => {
