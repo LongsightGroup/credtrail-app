@@ -166,6 +166,34 @@ interface VerificationResponse {
       statusListIndex: string;
       statusListCredential: string;
     } | null;
+    checks: {
+      jsonLdSafeMode: {
+        status: 'valid' | 'invalid' | 'unchecked';
+        reason: string | null;
+      };
+      credentialSchema: {
+        status: 'valid' | 'invalid' | 'unchecked';
+        reason: string | null;
+      };
+      credentialSubject: {
+        status: 'valid' | 'invalid' | 'unchecked';
+        reason: string | null;
+      };
+      dates: {
+        status: 'valid' | 'invalid' | 'unchecked';
+        reason: string | null;
+        validFrom: string | null;
+        validUntil: string | null;
+      };
+      credentialStatus: {
+        status: 'valid' | 'invalid' | 'unchecked';
+        reason: string | null;
+        type: string | null;
+        statusPurpose: string | null;
+        statusListIndex: string | null;
+        statusListCredential: string | null;
+      };
+    };
     proof: {
       status: 'valid' | 'invalid' | 'unchecked';
       format: string | null;
@@ -2484,6 +2512,18 @@ describe('GET /credentials/v1/:credentialId', () => {
       '@context': ['https://www.w3.org/ns/credentials/v2'],
       id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
       type: ['VerifiableCredential', 'OpenBadgeCredential'],
+      issuer: 'did:web:credtrail.test:tenant_123',
+      validFrom: '2026-02-10T22:00:00.000Z',
+      credentialSubject: {
+        id: 'mailto:learner@example.edu',
+      },
+      credentialStatus: {
+        id: 'http://localhost/credentials/v1/status-lists/tenant_123/revocation#0',
+        type: 'BitstringStatusListEntry',
+        statusPurpose: 'revocation',
+        statusListIndex: '0',
+        statusListCredential: 'http://localhost/credentials/v1/status-lists/tenant_123/revocation',
+      },
     };
 
     mockedFindAssertionById.mockResolvedValue(sampleAssertion());
@@ -2504,6 +2544,12 @@ describe('GET /credentials/v1/:credentialId', () => {
     expect(body.verification.statusList?.statusListCredential).toBe(
       'http://localhost/credentials/v1/status-lists/tenant_123/revocation',
     );
+    expect(body.verification.checks.jsonLdSafeMode.status).toBe('valid');
+    expect(body.verification.checks.credentialSchema.status).toBe('unchecked');
+    expect(body.verification.checks.credentialSubject.status).toBe('valid');
+    expect(body.verification.checks.dates.status).toBe('valid');
+    expect(body.verification.checks.dates.validFrom).toBe('2026-02-10T22:00:00.000Z');
+    expect(body.verification.checks.credentialStatus.status).toBe('valid');
     expect(body.verification.proof.status).toBe('unchecked');
     expect(body.credential).toEqual(credential);
     expect(mockedFindAssertionById).toHaveBeenCalledWith(
@@ -2587,6 +2633,130 @@ describe('GET /credentials/v1/:credentialId', () => {
     expect(body.verification.reason).toBe('credential validUntil/expirationDate has passed');
     expect(body.verification.expiresAt).toBe('2025-01-01T00:00:00.000Z');
     expect(body.verification.revokedAt).toBeNull();
+  });
+
+  it('marks jsonLdSafeMode as invalid when unknown terms are present', async () => {
+    const env = createEnv();
+    const credential: JsonObject = {
+      '@context': ['https://www.w3.org/ns/credentials/v2'],
+      id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+      type: ['VerifiableCredential', 'OpenBadgeCredential'],
+      issuer: 'did:web:credtrail.test:tenant_123',
+      validFrom: '2026-02-10T22:00:00.000Z',
+      credentialSubject: {
+        id: 'mailto:learner@example.edu',
+      },
+      unknownTerm: 'should-fail-safe-mode',
+    };
+
+    mockedFindAssertionById.mockResolvedValue(
+      sampleAssertion({
+        statusListIndex: null,
+      }),
+    );
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+
+    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.checks.jsonLdSafeMode.status).toBe('invalid');
+    expect(body.verification.checks.jsonLdSafeMode.reason).toContain('unknownTerm');
+  });
+
+  it('marks credentialSchema as invalid when 1EdTech validator type is missing', async () => {
+    const env = createEnv();
+    const credential: JsonObject = {
+      '@context': ['https://www.w3.org/ns/credentials/v2'],
+      id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+      type: ['VerifiableCredential', 'OpenBadgeCredential'],
+      issuer: 'did:web:credtrail.test:tenant_123',
+      validFrom: '2026-02-10T22:00:00.000Z',
+      credentialSubject: {
+        id: 'mailto:learner@example.edu',
+      },
+      credentialSchema: [
+        {
+          id: 'https://credtrail.test/schemas/badge-credential.json',
+          type: 'JsonSchemaValidator2018',
+        },
+      ],
+    };
+
+    mockedFindAssertionById.mockResolvedValue(
+      sampleAssertion({
+        statusListIndex: null,
+      }),
+    );
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+
+    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.checks.credentialSchema.status).toBe('invalid');
+    expect(body.verification.checks.credentialSchema.reason).toContain('1EdTechJsonSchemaValidator2019');
+  });
+
+  it('marks credentialSubject as invalid when id and identifier are missing', async () => {
+    const env = createEnv();
+    const credential: JsonObject = {
+      '@context': ['https://www.w3.org/ns/credentials/v2'],
+      id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+      type: ['VerifiableCredential', 'OpenBadgeCredential'],
+      issuer: 'did:web:credtrail.test:tenant_123',
+      validFrom: '2026-02-10T22:00:00.000Z',
+      credentialSubject: {
+        achievement: {
+          id: 'urn:credtrail:badge:001',
+          type: ['Achievement'],
+          name: 'Sakai Contributor',
+        },
+      },
+    };
+
+    mockedFindAssertionById.mockResolvedValue(
+      sampleAssertion({
+        statusListIndex: null,
+      }),
+    );
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+
+    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.checks.credentialSubject.status).toBe('invalid');
+    expect(body.verification.checks.credentialSubject.reason).toContain('id or at least one identifier');
+  });
+
+  it('marks dates as invalid when validFrom is in the future', async () => {
+    const env = createEnv();
+    const credential: JsonObject = {
+      '@context': ['https://www.w3.org/ns/credentials/v2'],
+      id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+      type: ['VerifiableCredential', 'OpenBadgeCredential'],
+      issuer: 'did:web:credtrail.test:tenant_123',
+      validFrom: '2999-01-01T00:00:00.000Z',
+      credentialSubject: {
+        id: 'mailto:learner@example.edu',
+      },
+    };
+
+    mockedFindAssertionById.mockResolvedValue(
+      sampleAssertion({
+        statusListIndex: null,
+      }),
+    );
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+
+    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.checks.dates.status).toBe('invalid');
+    expect(body.verification.checks.dates.reason).toBe('credential validFrom/issuanceDate is in the future');
+    expect(body.verification.checks.dates.validFrom).toBe('2999-01-01T00:00:00.000Z');
   });
 
   it('verifies Ed25519Signature2020 proofs when issuer signing keys are resolvable', async () => {

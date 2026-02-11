@@ -1520,7 +1520,7 @@ const revocationStatusListUrlForTenant = (requestUrl: string, tenantId: string):
 const credentialStatusForAssertion = (
   statusListCredentialUrl: string,
   statusListIndex: number,
-): JsonObject => {
+): CredentialStatusListReference => {
   const statusListIndexString = String(statusListIndex);
 
   return {
@@ -2138,6 +2138,39 @@ interface CredentialLifecycleVerificationSummary {
   revokedAt: string | null;
 }
 
+interface CredentialStatusListReference extends JsonObject {
+  id: string;
+  type: string;
+  statusPurpose: 'revocation';
+  statusListIndex: string;
+  statusListCredential: string;
+}
+
+interface CredentialVerificationCheckSummary {
+  status: 'valid' | 'invalid' | 'unchecked';
+  reason: string | null;
+}
+
+interface CredentialDateVerificationCheckSummary extends CredentialVerificationCheckSummary {
+  validFrom: string | null;
+  validUntil: string | null;
+}
+
+interface CredentialStatusVerificationCheckSummary extends CredentialVerificationCheckSummary {
+  type: string | null;
+  statusPurpose: string | null;
+  statusListIndex: string | null;
+  statusListCredential: string | null;
+}
+
+interface CredentialVerificationChecksSummary {
+  jsonLdSafeMode: CredentialVerificationCheckSummary;
+  credentialSchema: CredentialVerificationCheckSummary;
+  credentialSubject: CredentialVerificationCheckSummary;
+  dates: CredentialDateVerificationCheckSummary;
+  credentialStatus: CredentialStatusVerificationCheckSummary;
+}
+
 const parseTimestampMilliseconds = (value: string): number | null => {
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? null : parsed;
@@ -2185,6 +2218,520 @@ const summarizeCredentialLifecycleVerification = (
     checkedAt,
     expiresAt,
     revokedAt: null,
+  };
+};
+
+const VC_DATA_MODEL_CONTEXT_URL = 'https://www.w3.org/ns/credentials/v2';
+
+const JSON_LD_KEYWORDS = new Set([
+  '@base',
+  '@container',
+  '@context',
+  '@direction',
+  '@graph',
+  '@id',
+  '@import',
+  '@included',
+  '@index',
+  '@json',
+  '@language',
+  '@list',
+  '@nest',
+  '@none',
+  '@prefix',
+  '@propagate',
+  '@protected',
+  '@reverse',
+  '@set',
+  '@type',
+  '@value',
+  '@version',
+  '@vocab',
+]);
+
+const OB3_SAFE_MODE_KNOWN_TERMS = new Set([
+  'id',
+  'type',
+  'name',
+  'description',
+  'issuer',
+  'image',
+  'narrative',
+  'criteria',
+  'alignment',
+  'achievement',
+  'achievementType',
+  'awardedDate',
+  'validFrom',
+  'validUntil',
+  'issuanceDate',
+  'expirationDate',
+  'credentialSubject',
+  'credentialStatus',
+  'credentialSchema',
+  'proof',
+  'proofPurpose',
+  'proofValue',
+  'verificationMethod',
+  'cryptosuite',
+  'created',
+  'nonce',
+  'challenge',
+  'domain',
+  'statusPurpose',
+  'statusListIndex',
+  'statusListCredential',
+  'encodedList',
+  'identifier',
+  'identifierType',
+  'result',
+  'resultDescription',
+  'resultType',
+  'evidence',
+  'url',
+  'endorsement',
+  'endorsementJwt',
+  'subject',
+]);
+
+const collectContextUrls = (value: unknown, output: string[]): void => {
+  const stringValue = asNonEmptyString(value);
+
+  if (stringValue !== null) {
+    output.push(stringValue);
+    return;
+  }
+
+  if (!Array.isArray(value)) {
+    return;
+  }
+
+  for (const entry of value) {
+    collectContextUrls(entry, output);
+  }
+};
+
+const collectInlineContextTerms = (value: unknown, terms: Set<string>): void => {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectInlineContextTerms(entry, terms);
+    }
+    return;
+  }
+
+  const contextObject = asJsonObject(value);
+
+  if (contextObject === null) {
+    return;
+  }
+
+  for (const key of Object.keys(contextObject)) {
+    if (key.startsWith('@')) {
+      continue;
+    }
+
+    const normalizedKey = key.trim();
+
+    if (normalizedKey.length > 0) {
+      terms.add(normalizedKey);
+    }
+  }
+};
+
+const collectUnknownJsonLdTerms = (
+  value: unknown,
+  path: string,
+  knownTerms: ReadonlySet<string>,
+  unknownTermPaths: string[],
+): void => {
+  if (Array.isArray(value)) {
+    for (const [index, entry] of value.entries()) {
+      collectUnknownJsonLdTerms(entry, `${path}[${String(index)}]`, knownTerms, unknownTermPaths);
+    }
+    return;
+  }
+
+  const valueObject = asJsonObject(value);
+
+  if (valueObject === null) {
+    return;
+  }
+
+  for (const [key, entryValue] of Object.entries(valueObject)) {
+    if (key.startsWith('@')) {
+      if (!JSON_LD_KEYWORDS.has(key)) {
+        unknownTermPaths.push(`${path}.${key}`);
+      }
+    } else if (!key.includes(':') && !knownTerms.has(key)) {
+      unknownTermPaths.push(`${path}.${key}`);
+    }
+
+    collectUnknownJsonLdTerms(entryValue, `${path}.${key}`, knownTerms, unknownTermPaths);
+  }
+};
+
+const verifyCredentialJsonLdSafeModeSummary = (credential: JsonObject): CredentialVerificationCheckSummary => {
+  const context = credential['@context'];
+
+  if (context === undefined) {
+    return {
+      status: 'invalid',
+      reason: 'credential is missing @context',
+    };
+  }
+
+  const contextUrls: string[] = [];
+  collectContextUrls(context, contextUrls);
+
+  if (!contextUrls.includes(VC_DATA_MODEL_CONTEXT_URL)) {
+    return {
+      status: 'invalid',
+      reason: 'credential @context must include https://www.w3.org/ns/credentials/v2',
+    };
+  }
+
+  const knownTerms = new Set<string>(OB3_SAFE_MODE_KNOWN_TERMS);
+  collectInlineContextTerms(context, knownTerms);
+
+  const unknownTermPaths: string[] = [];
+  collectUnknownJsonLdTerms(credential, '$', knownTerms, unknownTermPaths);
+
+  if (unknownTermPaths.length > 0) {
+    return {
+      status: 'invalid',
+      reason: `credential contains terms not defined by known JSON-LD context entries (${unknownTermPaths
+        .slice(0, 3)
+        .join(', ')})`,
+    };
+  }
+
+  return {
+    status: 'valid',
+    reason: null,
+  };
+};
+
+const normalizedStringValues = (value: unknown): string[] => {
+  const singular = asNonEmptyString(value);
+
+  if (singular !== null) {
+    return [singular];
+  }
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry) => asNonEmptyString(entry))
+    .filter((entry): entry is string => entry !== null);
+};
+
+const verifyCredentialSchemaSummary = (credential: JsonObject): CredentialVerificationCheckSummary => {
+  const credentialSchemaValue = credential.credentialSchema;
+
+  if (credentialSchemaValue === undefined) {
+    return {
+      status: 'unchecked',
+      reason: null,
+    };
+  }
+
+  const entries = Array.isArray(credentialSchemaValue)
+    ? credentialSchemaValue
+    : [credentialSchemaValue];
+
+  if (entries.length === 0) {
+    return {
+      status: 'invalid',
+      reason: 'credentialSchema must include at least one schema entry when present',
+    };
+  }
+
+  let has1EdTechJsonSchemaValidator = false;
+
+  for (const [index, entry] of entries.entries()) {
+    const schemaEntry = asJsonObject(entry);
+
+    if (schemaEntry === null) {
+      return {
+        status: 'invalid',
+        reason: `credentialSchema[${String(index)}] must be a JSON object`,
+      };
+    }
+
+    const schemaId = asNonEmptyString(schemaEntry.id);
+    const schemaTypes = normalizedStringValues(schemaEntry.type);
+
+    if (schemaId === null) {
+      return {
+        status: 'invalid',
+        reason: `credentialSchema[${String(index)}] is missing a non-empty id`,
+      };
+    }
+
+    if (schemaTypes.length === 0) {
+      return {
+        status: 'invalid',
+        reason: `credentialSchema[${String(index)}] is missing a non-empty type`,
+      };
+    }
+
+    if (schemaTypes.includes('1EdTechJsonSchemaValidator2019')) {
+      has1EdTechJsonSchemaValidator = true;
+    }
+  }
+
+  if (!has1EdTechJsonSchemaValidator) {
+    return {
+      status: 'invalid',
+      reason: "credentialSchema must include a schema with type '1EdTechJsonSchemaValidator2019'",
+    };
+  }
+
+  return {
+    status: 'valid',
+    reason: null,
+  };
+};
+
+const hasCredentialSubjectIdentifier = (credentialSubject: JsonObject): boolean => {
+  const identifierValue = credentialSubject.identifier;
+
+  if (asNonEmptyString(identifierValue) !== null) {
+    return true;
+  }
+
+  if (Array.isArray(identifierValue)) {
+    return identifierValue.some((entry) => {
+      const identifierEntryAsString = asNonEmptyString(entry);
+
+      if (identifierEntryAsString !== null) {
+        return true;
+      }
+
+      const identifierEntryAsObject = asJsonObject(entry);
+      return asNonEmptyString(identifierEntryAsObject?.identifier) !== null;
+    });
+  }
+
+  const identifierEntryAsObject = asJsonObject(identifierValue);
+  return asNonEmptyString(identifierEntryAsObject?.identifier) !== null;
+};
+
+const verifyCredentialSubjectSummary = (credential: JsonObject): CredentialVerificationCheckSummary => {
+  const credentialSubject = asJsonObject(credential.credentialSubject);
+
+  if (credentialSubject === null) {
+    return {
+      status: 'invalid',
+      reason: 'credentialSubject must be an object',
+    };
+  }
+
+  const subjectId = asNonEmptyString(credentialSubject.id);
+  const hasIdentifier = hasCredentialSubjectIdentifier(credentialSubject);
+
+  if (subjectId === null && !hasIdentifier) {
+    return {
+      status: 'invalid',
+      reason: 'credentialSubject must include id or at least one identifier',
+    };
+  }
+
+  return {
+    status: 'valid',
+    reason: null,
+  };
+};
+
+const validFromTimestampFromCredential = (credential: JsonObject): string | null => {
+  return asNonEmptyString(credential.validFrom) ?? asNonEmptyString(credential.issuanceDate);
+};
+
+const verifyCredentialDatesSummary = (
+  credential: JsonObject,
+  checkedAt: string,
+): CredentialDateVerificationCheckSummary => {
+  const validFrom = validFromTimestampFromCredential(credential);
+  const validUntil = expirationTimestampFromCredential(credential);
+
+  if (validFrom === null) {
+    return {
+      status: 'invalid',
+      reason: 'credential must include validFrom or issuanceDate',
+      validFrom,
+      validUntil,
+    };
+  }
+
+  const validFromMilliseconds = parseTimestampMilliseconds(validFrom);
+
+  if (validFromMilliseconds === null) {
+    return {
+      status: 'invalid',
+      reason: 'credential validFrom/issuanceDate must be a valid ISO timestamp',
+      validFrom,
+      validUntil,
+    };
+  }
+
+  const validUntilMilliseconds = validUntil === null ? null : parseTimestampMilliseconds(validUntil);
+
+  if (validUntil !== null && validUntilMilliseconds === null) {
+    return {
+      status: 'invalid',
+      reason: 'credential validUntil/expirationDate must be a valid ISO timestamp',
+      validFrom,
+      validUntil,
+    };
+  }
+
+  if (validUntilMilliseconds !== null && validUntilMilliseconds < validFromMilliseconds) {
+    return {
+      status: 'invalid',
+      reason: 'credential validUntil/expirationDate must not be earlier than validFrom/issuanceDate',
+      validFrom,
+      validUntil,
+    };
+  }
+
+  const checkedAtMilliseconds = parseTimestampMilliseconds(checkedAt) ?? Date.now();
+
+  if (validFromMilliseconds > checkedAtMilliseconds) {
+    return {
+      status: 'invalid',
+      reason: 'credential validFrom/issuanceDate is in the future',
+      validFrom,
+      validUntil,
+    };
+  }
+
+  return {
+    status: 'valid',
+    reason: null,
+    validFrom,
+    validUntil,
+  };
+};
+
+const verifyCredentialStatusSummary = (
+  credential: JsonObject,
+  expectedStatusList: CredentialStatusListReference | null,
+): CredentialStatusVerificationCheckSummary => {
+  const credentialStatus = credential.credentialStatus;
+
+  if (credentialStatus === undefined) {
+    return {
+      status: expectedStatusList === null ? 'unchecked' : 'invalid',
+      reason:
+        expectedStatusList === null ? null : 'credentialStatus is required when revocation metadata is configured',
+      type: null,
+      statusPurpose: null,
+      statusListIndex: null,
+      statusListCredential: null,
+    };
+  }
+
+  const credentialStatusObject = asJsonObject(credentialStatus);
+
+  if (credentialStatusObject === null) {
+    return {
+      status: 'invalid',
+      reason: 'credentialStatus must be a JSON object',
+      type: null,
+      statusPurpose: null,
+      statusListIndex: null,
+      statusListCredential: null,
+    };
+  }
+
+  const statusType = asNonEmptyString(credentialStatusObject.type);
+  const statusPurpose = asNonEmptyString(credentialStatusObject.statusPurpose);
+  const statusListIndex = asNonEmptyString(credentialStatusObject.statusListIndex);
+  const statusListCredential = asNonEmptyString(credentialStatusObject.statusListCredential);
+
+  if (expectedStatusList === null) {
+    return {
+      status: 'invalid',
+      reason: 'credentialStatus is present but no revocation metadata exists for this credential',
+      type: statusType,
+      statusPurpose,
+      statusListIndex,
+      statusListCredential,
+    };
+  }
+
+  if (
+    statusType === null ||
+    statusListIndex === null ||
+    statusListCredential === null ||
+    (statusPurpose !== null && statusPurpose !== 'revocation')
+  ) {
+    return {
+      status: 'invalid',
+      reason: 'credentialStatus is missing required Bitstring status list fields',
+      type: statusType,
+      statusPurpose,
+      statusListIndex,
+      statusListCredential,
+    };
+  }
+
+  if (statusType !== 'BitstringStatusListEntry' && statusType !== '1EdTechRevocationList') {
+    return {
+      status: 'invalid',
+      reason: 'credentialStatus type must be BitstringStatusListEntry or 1EdTechRevocationList',
+      type: statusType,
+      statusPurpose,
+      statusListIndex,
+      statusListCredential,
+    };
+  }
+
+  if (statusListIndex !== expectedStatusList.statusListIndex) {
+    return {
+      status: 'invalid',
+      reason: 'credentialStatus statusListIndex does not match the expected credential revocation index',
+      type: statusType,
+      statusPurpose,
+      statusListIndex,
+      statusListCredential,
+    };
+  }
+
+  if (statusListCredential !== expectedStatusList.statusListCredential) {
+    return {
+      status: 'invalid',
+      reason: 'credentialStatus statusListCredential does not match the expected revocation list URL',
+      type: statusType,
+      statusPurpose,
+      statusListIndex,
+      statusListCredential,
+    };
+  }
+
+  return {
+    status: 'valid',
+    reason: null,
+    type: statusType,
+    statusPurpose: statusPurpose ?? 'revocation',
+    statusListIndex,
+    statusListCredential,
+  };
+};
+
+const summarizeCredentialVerificationChecks = (input: {
+  credential: JsonObject;
+  checkedAt: string;
+  expectedStatusList: CredentialStatusListReference | null;
+}): CredentialVerificationChecksSummary => {
+  return {
+    jsonLdSafeMode: verifyCredentialJsonLdSafeModeSummary(input.credential),
+    credentialSchema: verifyCredentialSchemaSummary(input.credential),
+    credentialSubject: verifyCredentialSubjectSummary(input.credential),
+    dates: verifyCredentialDatesSummary(input.credential, input.checkedAt),
+    credentialStatus: verifyCredentialStatusSummary(input.credential, input.expectedStatusList),
   };
 };
 
@@ -4788,7 +5335,7 @@ app.get('/credentials/v1/:credentialId', async (c) => {
 
   c.header('Cache-Control', 'no-store');
 
-  const statusList =
+  const statusList: CredentialStatusListReference | null =
     result.value.assertion.statusListIndex === null
       ? null
       : credentialStatusForAssertion(
@@ -4801,6 +5348,11 @@ app.get('/credentials/v1/:credentialId', async (c) => {
     result.value.assertion.revokedAt,
     checkedAt,
   );
+  const checks = summarizeCredentialVerificationChecks({
+    credential: result.value.credential,
+    checkedAt,
+    expectedStatusList: statusList,
+  });
   const proof = await verifyCredentialProofSummary(c, result.value.credential);
 
   return c.json({
@@ -4814,6 +5366,7 @@ app.get('/credentials/v1/:credentialId', async (c) => {
       expiresAt: lifecycle.expiresAt,
       revokedAt: lifecycle.revokedAt,
       statusList,
+      checks,
       proof,
     },
     credential: result.value.credential,
