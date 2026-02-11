@@ -17,6 +17,7 @@ vi.mock('@credtrail/db', async () => {
     enqueueJobQueueMessage: vi.fn(),
     failJobQueueMessage: vi.fn(),
     findOAuthClientById: vi.fn(),
+    findActiveOAuthAccessTokenByHash: vi.fn(),
     findAssertionById: vi.fn(),
     findAssertionByPublicId: vi.fn(),
     findAssertionByIdempotencyKey: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock('@credtrail/db', async () => {
     listPublicBadgeWallEntries: vi.fn(),
     touchSession: vi.fn(),
     listLearnerBadgeSummaries: vi.fn(),
+    listOb3SubjectCredentials: vi.fn(),
     leaseJobQueueMessages: vi.fn(),
     markLearnerIdentityLinkProofUsed: vi.fn(),
     nextAssertionStatusListIndex: vi.fn(),
@@ -45,6 +47,9 @@ vi.mock('@credtrail/db', async () => {
     upsertTenantMembershipRole: vi.fn(),
     upsertTenant: vi.fn(),
     upsertTenantSigningRegistration: vi.fn(),
+    upsertOb3SubjectCredential: vi.fn(),
+    findOb3SubjectProfile: vi.fn(),
+    upsertOb3SubjectProfile: vi.fn(),
   };
 });
 
@@ -82,6 +87,8 @@ import {
   type OAuthAuthorizationCodeRecord,
   type OAuthClientRecord,
   type OAuthRefreshTokenRecord,
+  type Ob3SubjectCredentialRecord,
+  type Ob3SubjectProfileRecord,
   type TenantRecord,
   type TenantSigningRegistrationRecord,
   type SqlDatabase,
@@ -99,6 +106,7 @@ import {
   consumeOAuthRefreshToken,
   enqueueJobQueueMessage,
   failJobQueueMessage,
+  findActiveOAuthAccessTokenByHash,
   findActiveSessionByHash,
   findAssertionById,
   findAssertionByPublicId,
@@ -110,10 +118,12 @@ import {
   findLearnerProfileById,
   findLearnerProfileByIdentity,
   findOAuthClientById,
+  findOb3SubjectProfile,
   findUserById,
   listAssertionStatusListEntries,
   listPublicBadgeWallEntries,
   listLearnerBadgeSummaries,
+  listOb3SubjectCredentials,
   leaseJobQueueMessages,
   markLearnerIdentityLinkProofUsed,
   nextAssertionStatusListIndex,
@@ -124,6 +134,8 @@ import {
   touchSession,
   type JobQueueMessageRecord,
   upsertBadgeTemplateById,
+  upsertOb3SubjectCredential,
+  upsertOb3SubjectProfile,
   upsertTenantMembershipRole,
   upsertTenant,
   upsertTenantSigningRegistration,
@@ -215,6 +227,11 @@ const mockedCreateOAuthRefreshToken = vi.mocked(createOAuthRefreshToken);
 const mockedConsumeOAuthRefreshToken = vi.mocked(consumeOAuthRefreshToken);
 const mockedRevokeOAuthAccessTokenByHash = vi.mocked(revokeOAuthAccessTokenByHash);
 const mockedRevokeOAuthRefreshTokenByHash = vi.mocked(revokeOAuthRefreshTokenByHash);
+const mockedFindActiveOAuthAccessTokenByHash = vi.mocked(findActiveOAuthAccessTokenByHash);
+const mockedListOb3SubjectCredentials = vi.mocked(listOb3SubjectCredentials);
+const mockedUpsertOb3SubjectCredential = vi.mocked(upsertOb3SubjectCredential);
+const mockedFindOb3SubjectProfile = vi.mocked(findOb3SubjectProfile);
+const mockedUpsertOb3SubjectProfile = vi.mocked(upsertOb3SubjectProfile);
 const mockedEnqueueJobQueueMessage = vi.mocked(enqueueJobQueueMessage);
 const mockedLeaseJobQueueMessages = vi.mocked(leaseJobQueueMessages);
 const mockedCompleteJobQueueMessage = vi.mocked(completeJobQueueMessage);
@@ -261,6 +278,11 @@ beforeEach(() => {
   mockedConsumeOAuthRefreshToken.mockReset();
   mockedRevokeOAuthAccessTokenByHash.mockReset();
   mockedRevokeOAuthRefreshTokenByHash.mockReset();
+  mockedFindActiveOAuthAccessTokenByHash.mockReset();
+  mockedListOb3SubjectCredentials.mockReset();
+  mockedUpsertOb3SubjectCredential.mockReset();
+  mockedFindOb3SubjectProfile.mockReset();
+  mockedUpsertOb3SubjectProfile.mockReset();
   mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
 });
 
@@ -432,6 +454,44 @@ const sampleOAuthAccessTokenRecord = (
     expiresAt: '2026-02-11T23:00:00.000Z',
     revokedAt: null,
     createdAt: '2026-02-11T22:00:00.000Z',
+    ...overrides,
+  };
+};
+
+const sampleOb3SubjectCredentialRecord = (
+  overrides?: Partial<Ob3SubjectCredentialRecord>,
+): Ob3SubjectCredentialRecord => {
+  return {
+    id: 'ob3c_123',
+    tenantId: 'tenant_123',
+    userId: 'usr_123',
+    credentialId: 'urn:credtrail:credential:123',
+    payloadJson: JSON.stringify({
+      id: 'urn:credtrail:credential:123',
+      type: ['VerifiableCredential', 'OpenBadgeCredential'],
+    }),
+    compactJws: null,
+    issuedAt: '2026-02-11T22:00:00.000Z',
+    createdAt: '2026-02-11T22:00:00.000Z',
+    updatedAt: '2026-02-11T22:00:00.000Z',
+    ...overrides,
+  };
+};
+
+const sampleOb3SubjectProfileRecord = (
+  overrides?: Partial<Ob3SubjectProfileRecord>,
+): Ob3SubjectProfileRecord => {
+  return {
+    tenantId: 'tenant_123',
+    userId: 'usr_123',
+    profileJson: JSON.stringify({
+      id: 'urn:credtrail:profile:tenant_123:usr_123',
+      type: ['Profile'],
+      name: 'Learner One',
+      email: 'learner@example.edu',
+    }),
+    createdAt: '2026-02-11T22:00:00.000Z',
+    updatedAt: '2026-02-11T22:00:00.000Z',
     ...overrides,
   };
 };
@@ -1347,6 +1407,239 @@ describe('OB3 OAuth2 endpoints', () => {
     expect(body.error).toBe('unsupported_token_type');
     expect(mockedRevokeOAuthAccessTokenByHash).not.toHaveBeenCalled();
     expect(mockedRevokeOAuthRefreshTokenByHash).not.toHaveBeenCalled();
+  });
+});
+
+describe('OB3 secure REST resource endpoints', () => {
+  beforeEach(() => {
+    mockedFindActiveOAuthAccessTokenByHash.mockReset();
+    mockedListOb3SubjectCredentials.mockReset();
+    mockedUpsertOb3SubjectCredential.mockReset();
+    mockedFindOb3SubjectProfile.mockReset();
+    mockedUpsertOb3SubjectProfile.mockReset();
+  });
+
+  it('requires bearer tokens for GET /ims/ob/v3p0/credentials', async () => {
+    const response = await app.request('/ims/ob/v3p0/credentials', undefined, createEnv());
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(401);
+    expect(body.imsx_codeMajor).toBe('failure');
+    expect(response.headers.get('www-authenticate')).toContain('Bearer');
+    expect(mockedFindActiveOAuthAccessTokenByHash).not.toHaveBeenCalled();
+  });
+
+  it('enforces credential.readonly scope for GET /ims/ob/v3p0/credentials', async () => {
+    mockedFindActiveOAuthAccessTokenByHash.mockResolvedValue(
+      sampleOAuthAccessTokenRecord({
+        scope: 'https://purl.imsglobal.org/spec/ob/v3p0/scope/profile.readonly',
+      }),
+    );
+
+    const response = await app.request(
+      '/ims/ob/v3p0/credentials',
+      {
+        headers: {
+          authorization: 'Bearer access-token-read',
+        },
+      },
+      createEnv(),
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(403);
+    expect(body.imsx_codeMajor).toBe('failure');
+    expect(mockedListOb3SubjectCredentials).not.toHaveBeenCalled();
+  });
+
+  it('returns paginated credential payloads with X-Total-Count and Link headers', async () => {
+    mockedFindActiveOAuthAccessTokenByHash.mockResolvedValue(
+      sampleOAuthAccessTokenRecord({
+        scope: 'https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.readonly',
+      }),
+    );
+    mockedListOb3SubjectCredentials.mockResolvedValue({
+      totalCount: 3,
+      credentials: [
+        sampleOb3SubjectCredentialRecord({
+          id: 'ob3c_json',
+          credentialId: 'urn:credtrail:credential:json',
+        }),
+        sampleOb3SubjectCredentialRecord({
+          id: 'ob3c_jws',
+          credentialId: 'urn:credtrail:credential:jws',
+          payloadJson: null,
+          compactJws: 'eyJhbGciOiJIUzI1NiJ9.e30.signature',
+        }),
+      ],
+    });
+
+    const response = await app.request(
+      '/ims/ob/v3p0/credentials?limit=1&offset=1&since=2026-02-10T00:00:00.000Z',
+      {
+        headers: {
+          authorization: 'Bearer access-token-read',
+        },
+      },
+      createEnv(),
+    );
+    const body = await response.json<Record<string, unknown>>();
+    const credentials = Array.isArray(body.credential) ? body.credential : [];
+    const compactJwsStrings = Array.isArray(body.compactJwsString) ? body.compactJwsString : [];
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-total-count')).toBe('3');
+    expect(response.headers.get('link')).toContain('rel="next"');
+    expect(response.headers.get('link')).toContain('rel="last"');
+    expect(response.headers.get('link')).toContain('rel="first"');
+    expect(response.headers.get('link')).toContain('rel="prev"');
+    expect(credentials).toHaveLength(1);
+    expect(compactJwsStrings).toHaveLength(1);
+    expect(mockedListOb3SubjectCredentials).toHaveBeenCalledWith(fakeDb, {
+      tenantId: 'tenant_123',
+      userId: 'usr_123',
+      limit: 1,
+      offset: 1,
+      since: '2026-02-10T00:00:00.000Z',
+    });
+  });
+
+  it('supports JSON credential upsert with 201/200 semantics', async () => {
+    mockedFindActiveOAuthAccessTokenByHash.mockResolvedValue(
+      sampleOAuthAccessTokenRecord({
+        scope: 'https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.upsert',
+      }),
+    );
+    mockedUpsertOb3SubjectCredential.mockResolvedValue({
+      status: 'created',
+      credential: sampleOb3SubjectCredentialRecord(),
+    });
+
+    const response = await app.request(
+      '/ims/ob/v3p0/credentials',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: 'Bearer access-token-upsert',
+        },
+        body: JSON.stringify({
+          id: 'urn:credtrail:credential:created',
+          type: ['VerifiableCredential', 'OpenBadgeCredential'],
+        }),
+      },
+      createEnv(),
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(201);
+    expect(body.id).toBe('urn:credtrail:credential:created');
+    expect(mockedUpsertOb3SubjectCredential).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: 'tenant_123',
+        userId: 'usr_123',
+        credentialId: 'urn:credtrail:credential:created',
+      }),
+    );
+  });
+
+  it('supports compact JWS credential upsert responses', async () => {
+    mockedFindActiveOAuthAccessTokenByHash.mockResolvedValue(
+      sampleOAuthAccessTokenRecord({
+        scope: 'https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.upsert',
+      }),
+    );
+    mockedUpsertOb3SubjectCredential.mockResolvedValue({
+      status: 'updated',
+      credential: sampleOb3SubjectCredentialRecord({
+        payloadJson: null,
+        compactJws: 'eyJhbGciOiJIUzI1NiJ9.e30.signature',
+      }),
+    });
+
+    const response = await app.request(
+      '/ims/ob/v3p0/credentials',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'text/plain',
+          authorization: 'Bearer access-token-upsert',
+        },
+        body: 'eyJhbGciOiJIUzI1NiJ9.e30.signature',
+      },
+      createEnv(),
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/plain');
+    expect(body).toBe('eyJhbGciOiJIUzI1NiJ9.e30.signature');
+  });
+
+  it('returns and updates profile with scope-based authz', async () => {
+    mockedFindActiveOAuthAccessTokenByHash
+      .mockResolvedValueOnce(
+        sampleOAuthAccessTokenRecord({
+          scope: 'https://purl.imsglobal.org/spec/ob/v3p0/scope/profile.readonly',
+        }),
+      )
+      .mockResolvedValueOnce(
+        sampleOAuthAccessTokenRecord({
+          scope: 'https://purl.imsglobal.org/spec/ob/v3p0/scope/profile.update',
+        }),
+      );
+    mockedFindOb3SubjectProfile.mockResolvedValue(sampleOb3SubjectProfileRecord());
+    mockedUpsertOb3SubjectProfile.mockResolvedValue(
+      sampleOb3SubjectProfileRecord({
+        profileJson: JSON.stringify({
+          id: 'urn:credtrail:profile:tenant_123:usr_123',
+          type: ['Profile'],
+          name: 'Updated Learner',
+        }),
+      }),
+    );
+
+    const getResponse = await app.request(
+      '/ims/ob/v3p0/profile',
+      {
+        headers: {
+          authorization: 'Bearer access-token-profile-read',
+        },
+      },
+      createEnv(),
+    );
+    const getBody = await getResponse.json<Record<string, unknown>>();
+
+    expect(getResponse.status).toBe(200);
+    expect(getBody.id).toBe('urn:credtrail:profile:tenant_123:usr_123');
+
+    const putResponse = await app.request(
+      '/ims/ob/v3p0/profile',
+      {
+        method: 'PUT',
+        headers: {
+          'content-type': 'application/json',
+          authorization: 'Bearer access-token-profile-update',
+        },
+        body: JSON.stringify({
+          name: 'Updated Learner',
+        }),
+      },
+      createEnv(),
+    );
+    const putBody = await putResponse.json<Record<string, unknown>>();
+
+    expect(putResponse.status).toBe(200);
+    expect(Array.isArray(putBody.type)).toBe(true);
+    expect(putBody.id).toBe('urn:credtrail:profile:tenant_123:usr_123');
+    expect(mockedUpsertOb3SubjectProfile).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: 'tenant_123',
+        userId: 'usr_123',
+      }),
+    );
   });
 });
 

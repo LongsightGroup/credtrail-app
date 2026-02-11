@@ -50,9 +50,12 @@ import {
   listLearnerBadgeSummaries,
   leaseJobQueueMessages,
   findMagicLinkTokenByHash,
+  findOb3SubjectProfile,
+  findActiveOAuthAccessTokenByHash,
   findOAuthClientById,
   isMagicLinkTokenValid,
   listBadgeTemplates,
+  listOb3SubjectCredentials,
   listPublicBadgeWallEntries,
   markLearnerIdentityLinkProofUsed,
   markMagicLinkTokenUsed,
@@ -68,6 +71,8 @@ import {
   upsertTenantMembershipRole,
   upsertTenant,
   upsertTenantSigningRegistration,
+  upsertOb3SubjectCredential,
+  upsertOb3SubjectProfile,
   updateBadgeTemplate,
   type AssertionRecord,
   type LearnerBadgeSummaryRecord,
@@ -788,6 +793,297 @@ const oauthTokenSuccessJson = (
   c.header('Cache-Control', 'no-store');
   c.header('Pragma', 'no-cache');
   return c.json(payload);
+};
+
+const ob3ErrorJson = (
+  c: AppContext,
+  status: 400 | 401 | 403 | 404 | 500,
+  description: string,
+  options?: {
+    includeWwwAuthenticate?: boolean;
+  },
+): Response => {
+  if (options?.includeWwwAuthenticate === true) {
+    c.header('WWW-Authenticate', 'Bearer realm="Open Badges API"');
+  }
+
+  return c.json(
+    {
+      imsx_codeMajor: 'failure',
+      imsx_severity: 'error',
+      imsx_description: description,
+    },
+    status,
+  );
+};
+
+const parseBearerAuthorizationHeader = (authorizationHeader: string | undefined): string | null => {
+  if (authorizationHeader === undefined) {
+    return null;
+  }
+
+  const [scheme, token] = authorizationHeader.split(/\s+/, 2);
+
+  if (scheme?.toLowerCase() !== 'bearer') {
+    return null;
+  }
+
+  const normalizedToken = token?.trim();
+  return normalizedToken === undefined || normalizedToken.length === 0 ? null : normalizedToken;
+};
+
+interface Ob3AccessTokenContext {
+  userId: string;
+  tenantId: string;
+}
+
+const authenticateOb3AccessToken = async (
+  c: AppContext,
+  requiredScope: string,
+): Promise<Ob3AccessTokenContext | Response> => {
+  const bearerToken = parseBearerAuthorizationHeader(c.req.header('authorization'));
+
+  if (bearerToken === null) {
+    return ob3ErrorJson(c, 401, 'Bearer access token is required', {
+      includeWwwAuthenticate: true,
+    });
+  }
+
+  const accessTokenHash = await sha256Hex(bearerToken);
+  const accessToken = await findActiveOAuthAccessTokenByHash(resolveDatabase(c.env), {
+    accessTokenHash,
+    nowIso: new Date().toISOString(),
+  });
+
+  if (accessToken === null) {
+    return ob3ErrorJson(c, 401, 'Access token is invalid or expired', {
+      includeWwwAuthenticate: true,
+    });
+  }
+
+  const scopes = splitSpaceDelimited(accessToken.scope);
+
+  if (!scopes.includes(requiredScope)) {
+    return ob3ErrorJson(c, 403, 'Access token does not grant the required scope');
+  }
+
+  return {
+    userId: accessToken.userId,
+    tenantId: accessToken.tenantId,
+  };
+};
+
+const normalizeOb3ProfileType = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    const normalized = value
+      .map((entry) => asNonEmptyString(entry))
+      .filter((entry): entry is string => entry !== null);
+    const deduplicated = Array.from(new Set<string>(normalized));
+
+    if (!deduplicated.includes('Profile')) {
+      deduplicated.push('Profile');
+    }
+
+    return deduplicated.length === 0 ? ['Profile'] : deduplicated;
+  }
+
+  const singularType = asNonEmptyString(value);
+
+  if (singularType === null) {
+    return ['Profile'];
+  }
+
+  return singularType === 'Profile' ? ['Profile'] : [singularType, 'Profile'];
+};
+
+const ob3ProfileIdForAccessToken = (input: { tenantId: string; userId: string }): string => {
+  return `urn:credtrail:profile:${encodeURIComponent(input.tenantId)}:${encodeURIComponent(input.userId)}`;
+};
+
+const normalizeOb3Profile = (
+  input: {
+    profile: JsonObject;
+    tenantId: string;
+    userId: string;
+  },
+): JsonObject => {
+  const normalizedProfile: JsonObject = {
+    ...input.profile,
+  };
+  const fallbackId = ob3ProfileIdForAccessToken({
+    tenantId: input.tenantId,
+    userId: input.userId,
+  });
+  normalizedProfile.id = asNonEmptyString(normalizedProfile.id) ?? fallbackId;
+  normalizedProfile.type = normalizeOb3ProfileType(normalizedProfile.type);
+  return normalizedProfile;
+};
+
+const defaultOb3Profile = (input: {
+  tenantId: string;
+  userId: string;
+  email?: string | undefined;
+}): JsonObject => {
+  return {
+    id: ob3ProfileIdForAccessToken({
+      tenantId: input.tenantId,
+      userId: input.userId,
+    }),
+    type: ['Profile'],
+    ...(input.email === undefined ? {} : { email: input.email, name: input.email }),
+  };
+};
+
+const parseCompactJwsPayloadObject = (compactJws: string): JsonObject | null => {
+  const segments = compactJws.split('.');
+
+  if (segments.length !== 3) {
+    return null;
+  }
+
+  const payloadSegment = segments[1];
+
+  if (payloadSegment === undefined || payloadSegment.length === 0) {
+    return null;
+  }
+
+  const normalizedBase64 = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
+  const paddedBase64 = `${normalizedBase64}${'='.repeat((4 - (normalizedBase64.length % 4)) % 4)}`;
+
+  try {
+    const payloadRaw = atob(paddedBase64);
+    return asJsonObject(JSON.parse(payloadRaw) as unknown);
+  } catch {
+    return null;
+  }
+};
+
+const resolveOb3CredentialIdFromCompactJws = async (compactJws: string): Promise<string> => {
+  const payload = parseCompactJwsPayloadObject(compactJws);
+  const jti = asNonEmptyString(payload?.jti);
+
+  if (jti !== null) {
+    return jti;
+  }
+
+  const vcObject = asJsonObject(payload?.vc);
+  const vcId = asNonEmptyString(vcObject?.id);
+
+  if (vcId !== null) {
+    return vcId;
+  }
+
+  const payloadId = asNonEmptyString(payload?.id);
+
+  if (payloadId !== null) {
+    return payloadId;
+  }
+
+  return `urn:credtrail:ob3:jws:${await sha256Hex(compactJws)}`;
+};
+
+const parsePositiveIntegerQueryParam = (
+  value: string | undefined,
+  options: {
+    minimum: number;
+    fallback: number;
+  },
+): number | null => {
+  if (value === undefined) {
+    return options.fallback;
+  }
+
+  const normalized = Number(value);
+
+  if (!Number.isFinite(normalized) || !Number.isInteger(normalized) || normalized < options.minimum) {
+    return null;
+  }
+
+  return normalized;
+};
+
+const normalizeSinceQueryParam = (rawSince: string | undefined): string | null | undefined => {
+  if (rawSince === undefined) {
+    return undefined;
+  }
+
+  const parsedSince = Date.parse(rawSince);
+
+  if (!Number.isFinite(parsedSince)) {
+    return null;
+  }
+
+  return new Date(parsedSince).toISOString();
+};
+
+const ob3CredentialsPageUrl = (input: {
+  requestUrl: string;
+  limit: number;
+  offset: number;
+  since: string | undefined;
+}): string => {
+  const url = new URL(`${OB3_BASE_PATH}/credentials`, input.requestUrl);
+  url.searchParams.set('limit', String(input.limit));
+  url.searchParams.set('offset', String(input.offset));
+
+  if (input.since !== undefined) {
+    url.searchParams.set('since', input.since);
+  }
+
+  return url.toString();
+};
+
+const ob3CredentialsLinkHeader = (input: {
+  requestUrl: string;
+  limit: number;
+  offset: number;
+  totalCount: number;
+  since: string | undefined;
+}): string => {
+  const normalizedLastOffset =
+    input.totalCount <= 0 ? 0 : Math.floor((Math.max(1, input.totalCount) - 1) / input.limit) * input.limit;
+  const links: string[] = [];
+
+  if (input.offset + input.limit < input.totalCount) {
+    links.push(
+      `<${ob3CredentialsPageUrl({
+        requestUrl: input.requestUrl,
+        limit: input.limit,
+        offset: input.offset + input.limit,
+        since: input.since,
+      })}>; rel="next"`,
+    );
+  }
+
+  links.push(
+    `<${ob3CredentialsPageUrl({
+      requestUrl: input.requestUrl,
+      limit: input.limit,
+      offset: normalizedLastOffset,
+      since: input.since,
+    })}>; rel="last"`,
+  );
+  links.push(
+    `<${ob3CredentialsPageUrl({
+      requestUrl: input.requestUrl,
+      limit: input.limit,
+      offset: 0,
+      since: input.since,
+    })}>; rel="first"`,
+  );
+
+  if (input.offset > 0) {
+    links.push(
+      `<${ob3CredentialsPageUrl({
+        requestUrl: input.requestUrl,
+        limit: input.limit,
+        offset: Math.max(input.offset - input.limit, 0),
+        since: input.since,
+      })}>; rel="prev"`,
+    );
+  }
+
+  return links.join(', ');
 };
 
 const splitSpaceDelimited = (value: string): string[] => {
@@ -3772,6 +4068,217 @@ app.post(`${OB3_BASE_PATH}/oauth/revoke`, async (c) => {
     'unsupported_token_type',
     'token_type_hint must be access_token or refresh_token',
   );
+});
+
+app.get(`${OB3_BASE_PATH}/credentials`, async (c) => {
+  const accessTokenContext = await authenticateOb3AccessToken(c, OB3_OAUTH_SCOPE_CREDENTIAL_READONLY);
+
+  if (accessTokenContext instanceof Response) {
+    return accessTokenContext;
+  }
+
+  const parsedLimit = parsePositiveIntegerQueryParam(c.req.query('limit'), {
+    minimum: 1,
+    fallback: 50,
+  });
+  const parsedOffset = parsePositiveIntegerQueryParam(c.req.query('offset'), {
+    minimum: 0,
+    fallback: 0,
+  });
+
+  if (parsedLimit === null || parsedOffset === null) {
+    return ob3ErrorJson(c, 400, 'limit and offset query parameters must be valid integers');
+  }
+
+  const since = normalizeSinceQueryParam(c.req.query('since'));
+
+  if (since === null) {
+    return ob3ErrorJson(c, 400, 'since query parameter must be a valid ISO8601 timestamp');
+  }
+
+  const limit = Math.min(parsedLimit, 200);
+  const offset = parsedOffset;
+  const credentialsResult = await listOb3SubjectCredentials(resolveDatabase(c.env), {
+    tenantId: accessTokenContext.tenantId,
+    userId: accessTokenContext.userId,
+    limit,
+    offset,
+    ...(since === undefined ? {} : { since }),
+  });
+  const credential: JsonObject[] = [];
+  const compactJwsString: string[] = [];
+
+  for (const entry of credentialsResult.credentials) {
+    if (entry.payloadJson !== null) {
+      try {
+        const parsedPayload = asJsonObject(JSON.parse(entry.payloadJson) as unknown);
+
+        if (parsedPayload !== null) {
+          credential.push(parsedPayload);
+        }
+      } catch {
+        logWarn(observabilityContext(c.env), 'ob3_credentials_payload_parse_failed', {
+          credentialId: entry.credentialId,
+        });
+      }
+      continue;
+    }
+
+    if (entry.compactJws !== null) {
+      compactJwsString.push(entry.compactJws);
+    }
+  }
+
+  c.header('X-Total-Count', String(credentialsResult.totalCount));
+  c.header(
+    'Link',
+    ob3CredentialsLinkHeader({
+      requestUrl: c.req.url,
+      limit,
+      offset,
+      totalCount: credentialsResult.totalCount,
+      since,
+    }),
+  );
+
+  return c.json({
+    credential,
+    compactJwsString,
+  });
+});
+
+app.post(`${OB3_BASE_PATH}/credentials`, async (c) => {
+  const accessTokenContext = await authenticateOb3AccessToken(c, OB3_OAUTH_SCOPE_CREDENTIAL_UPSERT);
+
+  if (accessTokenContext instanceof Response) {
+    return accessTokenContext;
+  }
+
+  const contentType = c.req.header('content-type')?.toLowerCase() ?? '';
+  const db = resolveDatabase(c.env);
+
+  if (contentType.includes('application/json')) {
+    const requestPayload = await c.req.json<unknown>().catch(() => null);
+    const credentialPayload = asJsonObject(requestPayload);
+
+    if (credentialPayload === null) {
+      return ob3ErrorJson(c, 400, 'Request body must be a JSON object');
+    }
+
+    const credentialId = asNonEmptyString(credentialPayload.id);
+
+    if (credentialId === null) {
+      return ob3ErrorJson(c, 400, 'Credential payload must include a non-empty id');
+    }
+
+    const upsertResult = await upsertOb3SubjectCredential(db, {
+      tenantId: accessTokenContext.tenantId,
+      userId: accessTokenContext.userId,
+      credentialId,
+      payloadJson: JSON.stringify(credentialPayload),
+      issuedAt:
+        asNonEmptyString(credentialPayload.validFrom) ??
+        asNonEmptyString(credentialPayload.awardedDate) ??
+        undefined,
+    });
+
+    return c.json(credentialPayload, upsertResult.status === 'created' ? 201 : 200);
+  }
+
+  if (contentType.includes('text/plain')) {
+    const compactJws = (await c.req.text()).trim();
+
+    if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+$/.test(compactJws)) {
+      return ob3ErrorJson(c, 400, 'Request body must be a compact JWS string');
+    }
+
+    const credentialId = await resolveOb3CredentialIdFromCompactJws(compactJws);
+    const upsertResult = await upsertOb3SubjectCredential(db, {
+      tenantId: accessTokenContext.tenantId,
+      userId: accessTokenContext.userId,
+      credentialId,
+      compactJws,
+    });
+
+    c.header('Content-Type', 'text/plain; charset=utf-8');
+    return c.body(compactJws, upsertResult.status === 'created' ? 201 : 200);
+  }
+
+  return ob3ErrorJson(c, 400, 'content-type must be application/json or text/plain');
+});
+
+app.get(`${OB3_BASE_PATH}/profile`, async (c) => {
+  const accessTokenContext = await authenticateOb3AccessToken(c, OB3_OAUTH_SCOPE_PROFILE_READONLY);
+
+  if (accessTokenContext instanceof Response) {
+    return accessTokenContext;
+  }
+
+  const storedProfile = await findOb3SubjectProfile(resolveDatabase(c.env), {
+    tenantId: accessTokenContext.tenantId,
+    userId: accessTokenContext.userId,
+  });
+  const user = await findUserById(resolveDatabase(c.env), accessTokenContext.userId);
+  let parsedStoredProfile: JsonObject | null = null;
+
+  if (storedProfile !== null) {
+    try {
+      parsedStoredProfile = asJsonObject(JSON.parse(storedProfile.profileJson) as unknown);
+    } catch {
+      parsedStoredProfile = null;
+    }
+  }
+
+  const baseProfile =
+    storedProfile === null
+      ? defaultOb3Profile({
+          tenantId: accessTokenContext.tenantId,
+          userId: accessTokenContext.userId,
+          ...(user === null ? {} : { email: user.email }),
+        })
+      : parsedStoredProfile ??
+        defaultOb3Profile({
+          tenantId: accessTokenContext.tenantId,
+          userId: accessTokenContext.userId,
+          ...(user === null ? {} : { email: user.email }),
+        });
+
+  return c.json(
+    normalizeOb3Profile({
+      profile: baseProfile,
+      tenantId: accessTokenContext.tenantId,
+      userId: accessTokenContext.userId,
+    }),
+  );
+});
+
+app.put(`${OB3_BASE_PATH}/profile`, async (c) => {
+  const accessTokenContext = await authenticateOb3AccessToken(c, OB3_OAUTH_SCOPE_PROFILE_UPDATE);
+
+  if (accessTokenContext instanceof Response) {
+    return accessTokenContext;
+  }
+
+  const requestPayload = await c.req.json<unknown>().catch(() => null);
+  const requestProfile = asJsonObject(requestPayload);
+
+  if (requestProfile === null) {
+    return ob3ErrorJson(c, 400, 'Request body must be a JSON object');
+  }
+
+  const normalizedProfile = normalizeOb3Profile({
+    profile: requestProfile,
+    tenantId: accessTokenContext.tenantId,
+    userId: accessTokenContext.userId,
+  });
+
+  await upsertOb3SubjectProfile(resolveDatabase(c.env), {
+    tenantId: accessTokenContext.tenantId,
+    userId: accessTokenContext.userId,
+    profileJson: JSON.stringify(normalizedProfile),
+  });
+
+  return c.json(normalizedProfile);
 });
 
 app.get('/.well-known/did.json', async (c) => {
