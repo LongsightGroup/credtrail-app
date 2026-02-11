@@ -465,6 +465,47 @@ interface TenantSigningRegistrationRow {
   updatedAt: string;
 }
 
+const isMissingTenantSigningRegistrationsTableError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    (error.message.includes('no such table') ||
+      error.message.includes('relation') ||
+      error.message.includes('does not exist')) &&
+    error.message.includes('tenant_signing_registrations')
+  );
+};
+
+const ensureTenantSigningRegistrationsTable = async (db: SqlDatabase): Promise<void> => {
+  await db
+    .prepare(
+      `
+      CREATE TABLE IF NOT EXISTS tenant_signing_registrations (
+        tenant_id TEXT PRIMARY KEY,
+        did TEXT NOT NULL UNIQUE,
+        key_id TEXT NOT NULL,
+        public_jwk_json TEXT NOT NULL,
+        private_jwk_json TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE
+      )
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_tenant_signing_registrations_did
+        ON tenant_signing_registrations (did)
+    `,
+    )
+    .run();
+};
+
 interface AssertionRow {
   id: string;
   tenantId: string;
@@ -1549,38 +1590,50 @@ export const upsertTenantSigningRegistration = async (
 ): Promise<TenantSigningRegistrationRecord> => {
   const nowIso = new Date().toISOString();
 
-  await db
-    .prepare(
-      `
-      INSERT INTO tenant_signing_registrations (
-        tenant_id,
-        did,
-        key_id,
-        public_jwk_json,
-        private_jwk_json,
-        created_at,
-        updated_at
+  const upsertStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        INSERT INTO tenant_signing_registrations (
+          tenant_id,
+          did,
+          key_id,
+          public_jwk_json,
+          private_jwk_json,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (tenant_id)
+        DO UPDATE SET
+          did = excluded.did,
+          key_id = excluded.key_id,
+          public_jwk_json = excluded.public_jwk_json,
+          private_jwk_json = excluded.private_jwk_json,
+          updated_at = excluded.updated_at
+      `,
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (tenant_id)
-      DO UPDATE SET
-        did = excluded.did,
-        key_id = excluded.key_id,
-        public_jwk_json = excluded.public_jwk_json,
-        private_jwk_json = excluded.private_jwk_json,
-        updated_at = excluded.updated_at
-    `,
-    )
-    .bind(
-      input.tenantId,
-      input.did,
-      input.keyId,
-      input.publicJwkJson,
-      input.privateJwkJson ?? null,
-      nowIso,
-      nowIso,
-    )
-    .run();
+      .bind(
+        input.tenantId,
+        input.did,
+        input.keyId,
+        input.publicJwkJson,
+        input.privateJwkJson ?? null,
+        nowIso,
+        nowIso,
+      )
+      .run();
+
+  try {
+    await upsertStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantSigningRegistrationsTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantSigningRegistrationsTable(db);
+    await upsertStatement();
+  }
 
   const row = await db
     .prepare(
@@ -1612,24 +1665,38 @@ export const findTenantSigningRegistrationByDid = async (
   db: SqlDatabase,
   did: string,
 ): Promise<TenantSigningRegistrationRecord | null> => {
-  const row = await db
-    .prepare(
-      `
-      SELECT
-        tenant_id AS tenantId,
-        did,
-        key_id AS keyId,
-        public_jwk_json AS publicJwkJson,
-        private_jwk_json AS privateJwkJson,
-        created_at AS createdAt,
-        updated_at AS updatedAt
-      FROM tenant_signing_registrations
-      WHERE did = ?
-      LIMIT 1
-    `,
-    )
-    .bind(did)
-    .first<TenantSigningRegistrationRow>();
+  const findStatement = (): Promise<TenantSigningRegistrationRow | null> =>
+    db
+      .prepare(
+        `
+        SELECT
+          tenant_id AS tenantId,
+          did,
+          key_id AS keyId,
+          public_jwk_json AS publicJwkJson,
+          private_jwk_json AS privateJwkJson,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM tenant_signing_registrations
+        WHERE did = ?
+        LIMIT 1
+      `,
+      )
+      .bind(did)
+      .first<TenantSigningRegistrationRow>();
+
+  let row: TenantSigningRegistrationRow | null;
+
+  try {
+    row = await findStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantSigningRegistrationsTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantSigningRegistrationsTable(db);
+    row = await findStatement();
+  }
 
   if (row === null) {
     return null;
