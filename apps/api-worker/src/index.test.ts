@@ -2988,6 +2988,71 @@ describe('GET /credentials/v1/:credentialId', () => {
     );
   });
 
+  it('verifies proof arrays by selecting the assertionMethod proof entry', async () => {
+    const env = createEnv();
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: 'did:web:credtrail.test:tenant_123',
+      keyId: 'key-1',
+    });
+    const signedCredential = await signCredentialWithEd25519Signature2020({
+      credential: {
+        '@context': ['https://www.w3.org/ns/credentials/v2'],
+        id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+        type: ['VerifiableCredential', 'OpenBadgeCredential'],
+        issuer: signingMaterial.did,
+        credentialSubject: {
+          id: 'mailto:learner@example.edu',
+          achievement: {
+            id: 'urn:credtrail:badge:001',
+            type: ['Achievement'],
+            name: 'Sakai Contributor',
+          },
+        },
+      },
+      privateJwk: signingMaterial.privateJwk,
+      verificationMethod: `${signingMaterial.did}#${signingMaterial.keyId}`,
+      createdAt: '2026-02-11T00:00:00.000Z',
+    });
+    const signedProof = asJsonObject(signedCredential.proof);
+
+    if (signedProof === null) {
+      throw new Error('Signed credential proof object was unexpectedly null');
+    }
+
+    const credential: JsonObject = {
+      ...signedCredential,
+      proof: [
+        {
+          ...signedProof,
+          proofPurpose: 'authentication',
+        },
+        signedProof,
+      ],
+    };
+
+    mockedFindAssertionById.mockResolvedValue(sampleAssertion());
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+    mockedFindTenantSigningRegistrationByDid.mockResolvedValue(
+      sampleTenantSigningRegistration({
+        tenantId: 'tenant_123',
+        did: signingMaterial.did,
+        keyId: signingMaterial.keyId,
+        publicJwkJson: JSON.stringify(signingMaterial.publicJwk),
+        privateJwkJson: JSON.stringify(signingMaterial.privateJwk),
+      }),
+    );
+
+    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.proof.status).toBe('valid');
+    expect(body.verification.proof.format).toBe('Ed25519Signature2020');
+    expect(body.verification.proof.verificationMethod).toBe(
+      'did:web:credtrail.test:tenant_123#key-1',
+    );
+  });
+
   it('verifies DataIntegrityProof ecdsa-sd-2023 proofs when issuer signing keys are resolvable', async () => {
     const env = createEnv();
     const signingMaterial = await generateP256SigningMaterial('key-p256');

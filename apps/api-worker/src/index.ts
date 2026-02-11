@@ -3018,7 +3018,21 @@ const verifyCredentialProofSummary = async (
   c: AppContext,
   credential: JsonObject,
 ): Promise<CredentialProofVerificationSummary> => {
-  const proof = asJsonObject(credential.proof);
+  const credentialProofValue = credential.proof;
+  const singleProof = asJsonObject(credentialProofValue);
+  const proof =
+    singleProof ??
+    (Array.isArray(credentialProofValue)
+      ? (() => {
+          const proofEntries = credentialProofValue
+            .map((entry) => asJsonObject(entry))
+            .filter((entry) => entry !== null);
+          const assertionMethodEntry = proofEntries.find((entry) => {
+            return asNonEmptyString(entry.proofPurpose) === 'assertionMethod';
+          });
+          return assertionMethodEntry ?? proofEntries[0] ?? null;
+        })()
+      : null);
 
   if (proof === null) {
     return {
