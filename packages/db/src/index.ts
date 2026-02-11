@@ -244,6 +244,76 @@ export interface AssertionStatusListEntryRecord {
   revokedAt: string | null;
 }
 
+export type JobQueueMessageType =
+  | 'issue_badge'
+  | 'revoke_badge'
+  | 'rebuild_verification_cache'
+  | 'import_migration_batch';
+
+export type JobQueueMessageStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+export interface JobQueueMessageRecord {
+  id: string;
+  tenantId: string;
+  jobType: JobQueueMessageType;
+  payloadJson: string;
+  idempotencyKey: string;
+  attemptCount: number;
+  maxAttempts: number;
+  availableAt: string;
+  leasedUntil: string | null;
+  leaseToken: string | null;
+  lastError: string | null;
+  completedAt: string | null;
+  failedAt: string | null;
+  status: JobQueueMessageStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EnqueueJobQueueMessageInput {
+  tenantId: string;
+  jobType: JobQueueMessageType;
+  payload: unknown;
+  idempotencyKey: string;
+  maxAttempts?: number | undefined;
+}
+
+export interface LeaseJobQueueMessagesInput {
+  limit: number;
+  leaseSeconds: number;
+  nowIso: string;
+}
+
+export interface CompleteJobQueueMessageInput {
+  id: string;
+  leaseToken: string;
+  nowIso: string;
+}
+
+export interface FailJobQueueMessageInput {
+  id: string;
+  leaseToken: string;
+  nowIso: string;
+  error: string;
+  retryDelaySeconds: number;
+}
+
+export interface RecordAssertionRevocationInput {
+  tenantId: string;
+  assertionId: string;
+  revocationId: string;
+  reason: string;
+  idempotencyKey: string;
+  revokedByUserId?: string | undefined;
+  revokedAt: string;
+}
+
+export interface RecordAssertionRevocationResult {
+  status: 'revoked' | 'already_revoked';
+  revokedAt: string;
+}
+
 export interface ListLearnerBadgeSummariesInput {
   tenantId: string;
   userId: string;
@@ -326,12 +396,41 @@ interface LearnerIdentityLinkProofRow {
   createdAt: string;
 }
 
+interface JobQueueMessageRow {
+  id: string;
+  tenantId: string;
+  jobType: JobQueueMessageType;
+  payloadJson: string;
+  idempotencyKey: string;
+  attemptCount: number;
+  maxAttempts: number;
+  availableAt: string;
+  leasedUntil: string | null;
+  leaseToken: string | null;
+  lastError: string | null;
+  completedAt: string | null;
+  failedAt: string | null;
+  status: JobQueueMessageStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const createPrefixedId = (prefix: string): string => {
   return `${prefix}_${crypto.randomUUID()}`;
 };
 
 const defaultLearnerSubjectId = (tenantId: string, learnerProfileId: string): string => {
   return `urn:credtrail:learner:${encodeURIComponent(tenantId)}:${encodeURIComponent(learnerProfileId)}`;
+};
+
+const addSecondsToIso = (fromIso: string, seconds: number): string => {
+  const fromMs = Date.parse(fromIso);
+
+  if (!Number.isFinite(fromMs)) {
+    throw new Error('Invalid ISO timestamp');
+  }
+
+  return new Date(fromMs + seconds * 1000).toISOString();
 };
 
 export const normalizeEmail = (email: string): string => {
@@ -1711,4 +1810,300 @@ export const listAssertionStatusListEntries = async (
     .all<AssertionStatusListEntryRecord>();
 
   return result.results;
+};
+
+const serializeQueuePayload = (payload: unknown): string => {
+  if (payload === undefined) {
+    throw new Error('Queue payload is not JSON serializable');
+  }
+
+  return JSON.stringify(payload);
+};
+
+const mapJobQueueMessageRow = (row: JobQueueMessageRow): JobQueueMessageRecord => {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    jobType: row.jobType,
+    payloadJson: row.payloadJson,
+    idempotencyKey: row.idempotencyKey,
+    attemptCount: row.attemptCount,
+    maxAttempts: row.maxAttempts,
+    availableAt: row.availableAt,
+    leasedUntil: row.leasedUntil,
+    leaseToken: row.leaseToken,
+    lastError: row.lastError,
+    completedAt: row.completedAt,
+    failedAt: row.failedAt,
+    status: row.status,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+};
+
+export const enqueueJobQueueMessage = async (
+  db: D1Database,
+  input: EnqueueJobQueueMessageInput,
+): Promise<JobQueueMessageRecord> => {
+  const messageId = createPrefixedId('job');
+  const nowIso = new Date().toISOString();
+  const payloadJson = serializeQueuePayload(input.payload);
+  const maxAttempts = input.maxAttempts ?? 8;
+
+  await db
+    .prepare(
+      `
+      INSERT INTO job_queue_messages (
+        id,
+        tenant_id,
+        job_type,
+        payload_json,
+        idempotency_key,
+        attempt_count,
+        max_attempts,
+        available_at,
+        leased_until,
+        lease_token,
+        last_error,
+        completed_at,
+        failed_at,
+        status,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?, NULL, NULL, NULL, NULL, NULL, 'pending', ?, ?)
+    `,
+    )
+    .bind(
+      messageId,
+      input.tenantId,
+      input.jobType,
+      payloadJson,
+      input.idempotencyKey,
+      maxAttempts,
+      nowIso,
+      nowIso,
+      nowIso,
+    )
+    .run();
+
+  return {
+    id: messageId,
+    tenantId: input.tenantId,
+    jobType: input.jobType,
+    payloadJson,
+    idempotencyKey: input.idempotencyKey,
+    attemptCount: 0,
+    maxAttempts,
+    availableAt: nowIso,
+    leasedUntil: null,
+    leaseToken: null,
+    lastError: null,
+    completedAt: null,
+    failedAt: null,
+    status: 'pending',
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  };
+};
+
+export const leaseJobQueueMessages = async (
+  db: D1Database,
+  input: LeaseJobQueueMessagesInput,
+): Promise<JobQueueMessageRecord[]> => {
+  const leaseToken = createPrefixedId('lease');
+  const leaseExpiresAt = addSecondsToIso(input.nowIso, input.leaseSeconds);
+  const candidateResult = await db
+    .prepare(
+      `
+      SELECT id
+      FROM job_queue_messages
+      WHERE status IN ('pending', 'processing')
+        AND available_at <= ?
+        AND (leased_until IS NULL OR leased_until <= ?)
+        AND attempt_count < max_attempts
+      ORDER BY created_at ASC
+      LIMIT ?
+    `,
+    )
+    .bind(input.nowIso, input.nowIso, input.limit)
+    .all<{ id: string }>();
+
+  for (const candidate of candidateResult.results) {
+    await db
+      .prepare(
+        `
+        UPDATE job_queue_messages
+        SET status = 'processing',
+            attempt_count = attempt_count + 1,
+            leased_until = ?,
+            lease_token = ?,
+            updated_at = ?
+        WHERE id = ?
+          AND available_at <= ?
+          AND (leased_until IS NULL OR leased_until <= ?)
+          AND attempt_count < max_attempts
+      `,
+      )
+      .bind(leaseExpiresAt, leaseToken, input.nowIso, candidate.id, input.nowIso, input.nowIso)
+      .run();
+  }
+
+  const leasedResult = await db
+    .prepare(
+      `
+      SELECT
+        id,
+        tenant_id AS tenantId,
+        job_type AS jobType,
+        payload_json AS payloadJson,
+        idempotency_key AS idempotencyKey,
+        attempt_count AS attemptCount,
+        max_attempts AS maxAttempts,
+        available_at AS availableAt,
+        leased_until AS leasedUntil,
+        lease_token AS leaseToken,
+        last_error AS lastError,
+        completed_at AS completedAt,
+        failed_at AS failedAt,
+        status,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM job_queue_messages
+      WHERE lease_token = ?
+      ORDER BY created_at ASC
+    `,
+    )
+    .bind(leaseToken)
+    .all<JobQueueMessageRow>();
+
+  return leasedResult.results.map((row) => mapJobQueueMessageRow(row));
+};
+
+export const completeJobQueueMessage = async (
+  db: D1Database,
+  input: CompleteJobQueueMessageInput,
+): Promise<void> => {
+  await db
+    .prepare(
+      `
+      UPDATE job_queue_messages
+      SET status = 'completed',
+          leased_until = NULL,
+          lease_token = NULL,
+          last_error = NULL,
+          completed_at = ?,
+          updated_at = ?
+      WHERE id = ?
+        AND lease_token = ?
+    `,
+    )
+    .bind(input.nowIso, input.nowIso, input.id, input.leaseToken)
+    .run();
+};
+
+export const failJobQueueMessage = async (
+  db: D1Database,
+  input: FailJobQueueMessageInput,
+): Promise<JobQueueMessageStatus | null> => {
+  const retryAt = addSecondsToIso(input.nowIso, input.retryDelaySeconds);
+
+  await db
+    .prepare(
+      `
+      UPDATE job_queue_messages
+      SET status = CASE WHEN attempt_count >= max_attempts THEN 'failed' ELSE 'pending' END,
+          available_at = CASE WHEN attempt_count >= max_attempts THEN available_at ELSE ? END,
+          leased_until = NULL,
+          lease_token = NULL,
+          last_error = ?,
+          failed_at = CASE WHEN attempt_count >= max_attempts THEN ? ELSE NULL END,
+          updated_at = ?
+      WHERE id = ?
+        AND lease_token = ?
+    `,
+    )
+    .bind(retryAt, input.error, input.nowIso, input.nowIso, input.id, input.leaseToken)
+    .run();
+
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        status,
+        lease_token AS leaseToken
+      FROM job_queue_messages
+      WHERE id = ?
+    `,
+    )
+    .bind(input.id)
+    .first<{ status: JobQueueMessageStatus; leaseToken: string | null }>();
+
+  if (row?.leaseToken !== null) {
+    return null;
+  }
+
+  return row.status;
+};
+
+export const recordAssertionRevocation = async (
+  db: D1Database,
+  input: RecordAssertionRevocationInput,
+): Promise<RecordAssertionRevocationResult> => {
+  const assertion = await findAssertionById(db, input.tenantId, input.assertionId);
+
+  if (assertion === null) {
+    throw new Error(`Assertion "${input.assertionId}" not found for tenant "${input.tenantId}"`);
+  }
+
+  const effectiveRevokedAt = assertion.revokedAt ?? input.revokedAt;
+
+  if (assertion.revokedAt === null) {
+    await db
+      .prepare(
+        `
+        UPDATE assertions
+        SET revoked_at = ?,
+            updated_at = ?
+        WHERE tenant_id = ?
+          AND id = ?
+          AND revoked_at IS NULL
+      `,
+      )
+      .bind(effectiveRevokedAt, input.revokedAt, input.tenantId, input.assertionId)
+      .run();
+  }
+
+  await db
+    .prepare(
+      `
+      INSERT OR IGNORE INTO revocations (
+        id,
+        tenant_id,
+        assertion_id,
+        reason,
+        idempotency_key,
+        revoked_by_user_id,
+        revoked_at,
+        created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    )
+    .bind(
+      input.revocationId,
+      input.tenantId,
+      input.assertionId,
+      input.reason,
+      input.idempotencyKey,
+      input.revokedByUserId ?? null,
+      effectiveRevokedAt,
+      input.revokedAt,
+    )
+    .run();
+
+  return {
+    status: assertion.revokedAt === null ? 'revoked' : 'already_revoked',
+    revokedAt: effectiveRevokedAt,
+  };
 };

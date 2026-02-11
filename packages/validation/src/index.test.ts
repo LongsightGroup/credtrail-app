@@ -12,6 +12,7 @@ import {
   parseLearnerIdentityLinkVerifyRequest,
   parseMagicLinkRequest,
   parseMagicLinkVerifyRequest,
+  parseProcessQueueRequest,
   parseQueueJob,
   parseRevokeBadgeRequest,
   parseSignCredentialRequest,
@@ -118,6 +119,33 @@ describe('issue/revoke request parsers', () => {
       parseIssueSakaiCommitBadgeRequest({
         badgeTemplateId: 'badge_template_001',
         githubUsername: '-invalid-',
+      });
+    }).toThrowError();
+  });
+});
+
+describe('process queue request parser', () => {
+  it('accepts an empty payload', () => {
+    const request = parseProcessQueueRequest({});
+    expect(request.limit).toBeUndefined();
+  });
+
+  it('accepts bounded queue processor settings', () => {
+    const request = parseProcessQueueRequest({
+      limit: 25,
+      leaseSeconds: 30,
+      retryDelaySeconds: 120,
+    });
+
+    expect(request.limit).toBe(25);
+    expect(request.leaseSeconds).toBe(30);
+    expect(request.retryDelaySeconds).toBe(120);
+  });
+
+  it('rejects invalid queue processor settings', () => {
+    expect(() => {
+      parseProcessQueueRequest({
+        limit: 0,
       });
     }).toThrowError();
   });

@@ -4,7 +4,7 @@ This repository emits structured JSON logs and supports optional Sentry error ca
 
 ## Structured Logging (Logpush-ready)
 
-- API Worker and queue consumer emit JSON log lines with:
+- API Worker emits JSON log lines with:
   - `timestamp`
   - `level`
   - `service`
@@ -22,9 +22,7 @@ Sentry capture is optional and controlled by environment variable.
 
 Enabled behavior:
 - API Worker captures unhandled request errors.
-- Queue consumer captures queue-processing failures.
 
 ## Services
 
 - API Worker service name: `api-worker`
-- Queue consumer service name: `queue-consumer`

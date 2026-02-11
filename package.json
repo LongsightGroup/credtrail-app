@@ -5,7 +5,7 @@
   "packageManager": "pnpm@10.6.5",
   "scripts": {
     "check:public-docs": "node scripts/check-public-docs.mjs",
-    "lint": "eslint --max-warnings=0 \"apps/**/*.ts\" \"workers/**/*.ts\" \"packages/**/*.ts\" \"vitest.config.ts\"",
+    "lint": "eslint --max-warnings=0 \"apps/**/*.ts\" \"packages/**/*.ts\" \"vitest.config.ts\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "pnpm check:public-docs && pnpm lint && pnpm typecheck && pnpm test"

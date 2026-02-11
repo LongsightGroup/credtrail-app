@@ -18,11 +18,14 @@ import {
 } from '@credtrail/core-domain';
 import {
   addLearnerIdentityAlias,
+  completeJobQueueMessage,
   createAssertion,
   createBadgeTemplate,
   createLearnerIdentityLinkProof,
   createMagicLinkToken,
   createSession,
+  enqueueJobQueueMessage,
+  failJobQueueMessage,
   ensureTenantMembership,
   findLearnerIdentityLinkProofByHash,
   findLearnerProfileById,
@@ -36,6 +39,7 @@ import {
   isLearnerIdentityLinkProofValid,
   listAssertionStatusListEntries,
   listLearnerBadgeSummaries,
+  leaseJobQueueMessages,
   findMagicLinkTokenByHash,
   isMagicLinkTokenValid,
   listBadgeTemplates,
@@ -43,6 +47,7 @@ import {
   markMagicLinkTokenUsed,
   nextAssertionStatusListIndex,
   resolveLearnerProfileForIdentity,
+  recordAssertionRevocation,
   revokeSessionByHash,
   setBadgeTemplateArchivedState,
   touchSession,
@@ -56,10 +61,14 @@ import { renderPageShell } from '@credtrail/ui-components';
 import {
   parseBadgeTemplateListQuery,
   parseBadgeTemplatePathParams,
+  parseProcessQueueRequest,
+  parseQueueJob,
   parseCredentialPathParams,
   parseCreateBadgeTemplateRequest,
   type IssueBadgeQueueJob,
   type IssueBadgeRequest,
+  type ProcessQueueRequest,
+  type QueueJob,
   parseIssueBadgeRequest,
   parseKeyGenerationRequest,
   parseLearnerIdentityLinkRequest,
@@ -86,7 +95,6 @@ interface AppBindings {
   DB: D1Database;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
-  ISSUANCE_QUEUE: Queue;
   MARKETING_SITE_ORIGIN?: string;
   SENTRY_DSN?: string;
   TENANT_SIGNING_REGISTRY_JSON?: string;
@@ -96,6 +104,7 @@ interface AppBindings {
   MAILTRAP_FROM_EMAIL?: string;
   MAILTRAP_FROM_NAME?: string;
   GITHUB_TOKEN?: string;
+  JOB_PROCESSOR_TOKEN?: string;
 }
 
 interface AppEnv {
@@ -104,7 +113,7 @@ interface AppEnv {
 
 type AppContext = Context<AppEnv>;
 
-const app = new Hono<AppEnv>();
+export const app = new Hono<AppEnv>();
 const API_SERVICE_NAME = 'api-worker';
 const MAGIC_LINK_TTL_SECONDS = 10 * 60;
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -117,6 +126,9 @@ const SAKAI_REPO_NAME = 'sakai';
 const SAKAI_MIN_COMMIT_COUNT = 1000;
 const SAKAI_ISSUER_NAME = 'Sakai Project';
 const SAKAI_ISSUER_URL = 'https://www.sakaiproject.org/';
+const DEFAULT_JOB_PROCESS_LIMIT = 10;
+const DEFAULT_JOB_PROCESS_LEASE_SECONDS = 30;
+const DEFAULT_JOB_PROCESS_RETRY_DELAY_SECONDS = 30;
 
 const addSecondsToIso = (fromIso: string, seconds: number): string => {
   const fromMs = Date.parse(fromIso);
@@ -430,6 +442,202 @@ const revokeBadgeQueueJobFromRequest = (
     revocationId,
     job,
   };
+};
+
+interface ProcessQueueRunResult {
+  leased: number;
+  processed: number;
+  succeeded: number;
+  retried: number;
+  deadLettered: number;
+  failedToFinalize: number;
+}
+
+interface ProcessQueueConfig {
+  limit: number;
+  leaseSeconds: number;
+  retryDelaySeconds: number;
+}
+
+const processQueueInputWithDefaults = (input: ProcessQueueRequest): ProcessQueueConfig => {
+  return {
+    limit: input.limit ?? DEFAULT_JOB_PROCESS_LIMIT,
+    leaseSeconds: input.leaseSeconds ?? DEFAULT_JOB_PROCESS_LEASE_SECONDS,
+    retryDelaySeconds: input.retryDelaySeconds ?? DEFAULT_JOB_PROCESS_RETRY_DELAY_SECONDS,
+  };
+};
+
+const readJsonBodyOrEmptyObject = async (c: AppContext): Promise<unknown> => {
+  const contentLengthHeader = c.req.header('content-length');
+
+  if (contentLengthHeader === undefined || contentLengthHeader === '0') {
+    return {};
+  }
+
+  return c.req.json<unknown>();
+};
+
+const queueJobFromMessage = (message: {
+  tenantId: string;
+  jobType: QueueJob['jobType'];
+  payloadJson: string;
+  idempotencyKey: string;
+}): QueueJob => {
+  let payload: unknown;
+
+  try {
+    payload = JSON.parse(message.payloadJson) as unknown;
+  } catch {
+    throw new Error(`Invalid queue payload JSON for message type "${message.jobType}"`);
+  }
+
+  return parseQueueJob({
+    jobType: message.jobType,
+    tenantId: message.tenantId,
+    payload,
+    idempotencyKey: message.idempotencyKey,
+  });
+};
+
+const processQueuedJob = async (c: AppContext, job: QueueJob): Promise<void> => {
+  switch (job.jobType) {
+    case 'issue_badge':
+      await issueBadgeForTenant(
+        c,
+        job.tenantId,
+        {
+          badgeTemplateId: job.payload.badgeTemplateId,
+          recipientIdentity: job.payload.recipientIdentity,
+          recipientIdentityType: job.payload.recipientIdentityType,
+          idempotencyKey: job.idempotencyKey,
+        },
+        job.payload.requestedByUserId,
+      );
+      return;
+    case 'revoke_badge':
+      await recordAssertionRevocation(c.env.DB, {
+        tenantId: job.tenantId,
+        assertionId: job.payload.assertionId,
+        revocationId: job.payload.revocationId,
+        reason: job.payload.reason,
+        idempotencyKey: job.idempotencyKey,
+        revokedByUserId: job.payload.requestedByUserId,
+        revokedAt: new Date().toISOString(),
+      });
+      return;
+    case 'rebuild_verification_cache':
+    case 'import_migration_batch':
+      logInfo(observabilityContext(c.env), 'queue_job_received', {
+        jobType: job.jobType,
+        tenantId: job.tenantId,
+        idempotencyKey: job.idempotencyKey,
+      });
+      return;
+  }
+};
+
+const processQueuedJobs = async (
+  c: AppContext,
+  requestInput: ProcessQueueConfig,
+): Promise<ProcessQueueRunResult> => {
+  const nowIso = new Date().toISOString();
+  const leasedMessages = await leaseJobQueueMessages(c.env.DB, {
+    limit: requestInput.limit,
+    leaseSeconds: requestInput.leaseSeconds,
+    nowIso,
+  });
+  const result: ProcessQueueRunResult = {
+    leased: leasedMessages.length,
+    processed: 0,
+    succeeded: 0,
+    retried: 0,
+    deadLettered: 0,
+    failedToFinalize: 0,
+  };
+
+  for (const leasedMessage of leasedMessages) {
+    const leaseToken = leasedMessage.leaseToken;
+
+    if (leaseToken === null) {
+      result.failedToFinalize += 1;
+      continue;
+    }
+
+    try {
+      const job = queueJobFromMessage(leasedMessage);
+      await processQueuedJob(c, job);
+      await completeJobQueueMessage(c.env.DB, {
+        id: leasedMessage.id,
+        leaseToken,
+        nowIso: new Date().toISOString(),
+      });
+
+      result.processed += 1;
+      result.succeeded += 1;
+    } catch (error: unknown) {
+      const detail = error instanceof Error ? error.message : 'Unknown queue processing error';
+
+      await captureSentryException({
+        context: observabilityContext(c.env),
+        dsn: c.env.SENTRY_DSN,
+        error,
+        message: 'DB queue job processing failed',
+        extra: {
+          messageId: leasedMessage.id,
+          jobType: leasedMessage.jobType,
+          tenantId: leasedMessage.tenantId,
+        },
+      });
+
+      logError(observabilityContext(c.env), 'queue_job_failed', {
+        messageId: leasedMessage.id,
+        jobType: leasedMessage.jobType,
+        tenantId: leasedMessage.tenantId,
+        detail,
+      });
+
+      const status = await failJobQueueMessage(c.env.DB, {
+        id: leasedMessage.id,
+        leaseToken,
+        nowIso: new Date().toISOString(),
+        error: detail,
+        retryDelaySeconds: requestInput.retryDelaySeconds,
+      });
+
+      result.processed += 1;
+
+      if (status === 'failed') {
+        result.deadLettered += 1;
+      } else if (status === 'pending') {
+        result.retried += 1;
+      } else {
+        result.failedToFinalize += 1;
+      }
+    }
+  }
+
+  return result;
+};
+
+const queueProcessorUrl = (platformDomain: string): string => {
+  return `https://${platformDomain}/v1/jobs/process`;
+};
+
+const queueProcessorRequestFromSchedule = (env: AppBindings): Request => {
+  const headers = new Headers({
+    'content-type': 'application/json',
+  });
+  const processorToken = env.JOB_PROCESSOR_TOKEN?.trim();
+
+  if (processorToken !== undefined && processorToken.length > 0) {
+    headers.set('authorization', `Bearer ${processorToken}`);
+  }
+
+  return new Request(queueProcessorUrl(env.PLATFORM_DOMAIN), {
+    method: 'POST',
+    headers,
+    body: '{}',
+  });
 };
 
 const escapeHtml = (value: string): string => {
@@ -2574,7 +2782,7 @@ const issueBadgeForTenant = async (
   c: AppContext,
   tenantId: string,
   request: DirectIssueBadgeRequest,
-  issuedByUserId: string,
+  issuedByUserId?: string,
   options?: DirectIssueBadgeOptions,
 ): Promise<DirectIssueBadgeResult> => {
   const badgeTemplate = await findBadgeTemplateById(c.env.DB, tenantId, request.badgeTemplateId);
@@ -2713,7 +2921,7 @@ const issueBadgeForTenant = async (
     statusListIndex,
     idempotencyKey,
     issuedAt,
-    issuedByUserId,
+    ...(issuedByUserId === undefined ? {} : { issuedByUserId }),
   });
 
   if (request.recipientIdentityType === 'email') {
@@ -2967,12 +3175,46 @@ app.post('/v1/signing/credentials', async (c) => {
   );
 });
 
+app.post('/v1/jobs/process', async (c) => {
+  const configuredToken = c.env.JOB_PROCESSOR_TOKEN?.trim();
+
+  if (configuredToken !== undefined && configuredToken.length > 0) {
+    const authorizationHeader = c.req.header('authorization');
+    const expectedAuthorization = `Bearer ${configuredToken}`;
+
+    if (authorizationHeader !== expectedAuthorization) {
+      return c.json(
+        {
+          error: 'Unauthorized',
+        },
+        401,
+      );
+    }
+  }
+
+  const request = parseProcessQueueRequest(await readJsonBodyOrEmptyObject(c));
+  const result = await processQueuedJobs(c, processQueueInputWithDefaults(request));
+
+  return c.json(
+    {
+      status: 'ok',
+      ...result,
+    },
+    200,
+  );
+});
+
 app.post('/v1/issue', async (c) => {
   const payload = await c.req.json<unknown>();
   const request = parseIssueBadgeRequest(payload);
   const queued = issueBadgeQueueJobFromRequest(request);
 
-  await c.env.ISSUANCE_QUEUE.send(queued.job);
+  await enqueueJobQueueMessage(c.env.DB, {
+    tenantId: queued.job.tenantId,
+    jobType: queued.job.jobType,
+    payload: queued.job.payload,
+    idempotencyKey: queued.job.idempotencyKey,
+  });
 
   return c.json(
     {
@@ -2990,7 +3232,12 @@ app.post('/v1/revoke', async (c) => {
   const request = parseRevokeBadgeRequest(payload);
   const queued = revokeBadgeQueueJobFromRequest(request);
 
-  await c.env.ISSUANCE_QUEUE.send(queued.job);
+  await enqueueJobQueueMessage(c.env.DB, {
+    tenantId: queued.job.tenantId,
+    jobType: queued.job.jobType,
+    payload: queued.job.payload,
+    idempotencyKey: queued.job.idempotencyKey,
+  });
 
   return c.json(
     {
@@ -3004,4 +3251,42 @@ app.post('/v1/revoke', async (c) => {
   );
 });
 
-export default app;
+const worker: ExportedHandler<AppBindings> = {
+  fetch(request, env, executionCtx): Promise<Response> {
+    return Promise.resolve(app.fetch(request, env, executionCtx));
+  },
+  async scheduled(event, env, executionCtx): Promise<void> {
+    const request = queueProcessorRequestFromSchedule(env);
+    const response = await app.fetch(request, env, executionCtx);
+    const responseBody = await response.text();
+
+    if (!response.ok) {
+      await captureSentryException({
+        context: observabilityContext(env),
+        dsn: env.SENTRY_DSN,
+        error: new Error('Scheduled queue processing failed'),
+        message: 'Scheduled queue processing failed',
+        extra: {
+          cron: event.cron,
+          status: response.status,
+          responseBody,
+        },
+      });
+
+      logError(observabilityContext(env), 'scheduled_queue_processing_failed', {
+        cron: event.cron,
+        status: response.status,
+        responseBody,
+      });
+      return;
+    }
+
+    logInfo(observabilityContext(env), 'scheduled_queue_processing_succeeded', {
+      cron: event.cron,
+      status: response.status,
+      responseBody,
+    });
+  },
+};
+
+export default worker;

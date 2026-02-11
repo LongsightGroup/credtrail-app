@@ -6,8 +6,11 @@ vi.mock('@credtrail/db', async () => {
   return {
     ...actual,
     addLearnerIdentityAlias: vi.fn(),
+    completeJobQueueMessage: vi.fn(),
     createAssertion: vi.fn(),
     createLearnerIdentityLinkProof: vi.fn(),
+    enqueueJobQueueMessage: vi.fn(),
+    failJobQueueMessage: vi.fn(),
     findAssertionById: vi.fn(),
     findAssertionByPublicId: vi.fn(),
     findAssertionByIdempotencyKey: vi.fn(),
@@ -20,8 +23,10 @@ vi.mock('@credtrail/db', async () => {
     listAssertionStatusListEntries: vi.fn(),
     touchSession: vi.fn(),
     listLearnerBadgeSummaries: vi.fn(),
+    leaseJobQueueMessages: vi.fn(),
     markLearnerIdentityLinkProofUsed: vi.fn(),
     nextAssertionStatusListIndex: vi.fn(),
+    recordAssertionRevocation: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
   };
 });
@@ -49,8 +54,11 @@ import {
   type LearnerProfileRecord,
   type SessionRecord,
   addLearnerIdentityAlias,
+  completeJobQueueMessage,
   createAssertion,
   createLearnerIdentityLinkProof,
+  enqueueJobQueueMessage,
+  failJobQueueMessage,
   findActiveSessionByHash,
   findAssertionById,
   findAssertionByPublicId,
@@ -62,13 +70,16 @@ import {
   findUserById,
   listAssertionStatusListEntries,
   listLearnerBadgeSummaries,
+  leaseJobQueueMessages,
   markLearnerIdentityLinkProofUsed,
   nextAssertionStatusListIndex,
+  recordAssertionRevocation,
   resolveLearnerProfileForIdentity,
   touchSession,
+  type JobQueueMessageRecord,
 } from '@credtrail/db';
 
-import app, { sendIssuanceEmailNotification } from './index';
+import worker, { app, sendIssuanceEmailNotification } from './index';
 
 interface VerificationResponse {
   assertionId: string;
@@ -136,23 +147,25 @@ const mockedCreateLearnerIdentityLinkProof = vi.mocked(createLearnerIdentityLink
 const mockedFindLearnerIdentityLinkProofByHash = vi.mocked(findLearnerIdentityLinkProofByHash);
 const mockedAddLearnerIdentityAlias = vi.mocked(addLearnerIdentityAlias);
 const mockedMarkLearnerIdentityLinkProofUsed = vi.mocked(markLearnerIdentityLinkProofUsed);
+const mockedEnqueueJobQueueMessage = vi.mocked(enqueueJobQueueMessage);
+const mockedLeaseJobQueueMessages = vi.mocked(leaseJobQueueMessages);
+const mockedCompleteJobQueueMessage = vi.mocked(completeJobQueueMessage);
+const mockedFailJobQueueMessage = vi.mocked(failJobQueueMessage);
+const mockedRecordAssertionRevocation = vi.mocked(recordAssertionRevocation);
 
 const createEnv = (): {
   APP_ENV: string;
   DB: D1Database;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
-  ISSUANCE_QUEUE: Queue;
   MARKETING_SITE_ORIGIN?: string;
+  JOB_PROCESSOR_TOKEN?: string;
 } => {
   return {
     APP_ENV: 'test',
     DB: {} as D1Database,
     BADGE_OBJECTS: {} as R2Bucket,
     PLATFORM_DOMAIN: 'credtrail.test',
-    ISSUANCE_QUEUE: {
-      send: vi.fn(() => Promise.resolve()),
-    } as unknown as Queue,
   };
 };
 
@@ -305,6 +318,30 @@ const sampleIdentityLinkProof = (
   };
 };
 
+const sampleLeasedQueueMessage = (
+  overrides?: Partial<JobQueueMessageRecord>,
+): JobQueueMessageRecord => {
+  return {
+    id: 'job_123',
+    tenantId: 'tenant_123',
+    jobType: 'rebuild_verification_cache',
+    payloadJson: '{}',
+    idempotencyKey: 'idem_job_123',
+    attemptCount: 1,
+    maxAttempts: 8,
+    availableAt: '2026-02-10T22:00:00.000Z',
+    leasedUntil: '2026-02-10T22:00:30.000Z',
+    leaseToken: 'lease_123',
+    lastError: null,
+    completedAt: null,
+    failedAt: null,
+    status: 'processing',
+    createdAt: '2026-02-10T22:00:00.000Z',
+    updatedAt: '2026-02-10T22:00:00.000Z',
+    ...overrides,
+  };
+};
+
 const createInMemoryBadgeObjects = (): R2Bucket => {
   const objects = new Map<string, string>();
 
@@ -398,6 +435,203 @@ describe('canonical host redirects', () => {
 
     expect(response.status).toBe(308);
     expect(response.headers.get('location')).toBe('https://credtrail.test/healthz');
+  });
+});
+
+describe('POST /v1/issue and /v1/revoke', () => {
+  beforeEach(() => {
+    mockedEnqueueJobQueueMessage.mockReset();
+  });
+
+  it('stores issue requests as DB-backed queue messages', async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      '/v1/issue',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          tenantId: 'tenant_123',
+          badgeTemplateId: 'badge_template_001',
+          recipientIdentity: 'learner@example.edu',
+          recipientIdentityType: 'email',
+          requestedByUserId: 'usr_issuer',
+        }),
+      },
+      env,
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(202);
+    expect(body.status).toBe('queued');
+    expect(body.jobType).toBe('issue_badge');
+    expect(typeof body.assertionId).toBe('string');
+    expect(mockedEnqueueJobQueueMessage).toHaveBeenCalledTimes(1);
+    expect(mockedEnqueueJobQueueMessage).toHaveBeenCalledWith(
+      env.DB,
+      expect.objectContaining({
+        tenantId: 'tenant_123',
+        jobType: 'issue_badge',
+      }),
+    );
+  });
+
+  it('stores revoke requests as DB-backed queue messages', async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      '/v1/revoke',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          tenantId: 'tenant_123',
+          assertionId: 'tenant_123:assertion_456',
+          reason: 'Requested by issuer',
+          requestedByUserId: 'usr_issuer',
+        }),
+      },
+      env,
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(202);
+    expect(body.status).toBe('queued');
+    expect(body.jobType).toBe('revoke_badge');
+    expect(typeof body.revocationId).toBe('string');
+    expect(mockedEnqueueJobQueueMessage).toHaveBeenCalledTimes(1);
+    expect(mockedEnqueueJobQueueMessage).toHaveBeenCalledWith(
+      env.DB,
+      expect.objectContaining({
+        tenantId: 'tenant_123',
+        jobType: 'revoke_badge',
+      }),
+    );
+  });
+});
+
+describe('POST /v1/jobs/process', () => {
+  beforeEach(() => {
+    mockedLeaseJobQueueMessages.mockReset();
+    mockedCompleteJobQueueMessage.mockReset();
+    mockedFailJobQueueMessage.mockReset();
+    mockedRecordAssertionRevocation.mockReset();
+  });
+
+  it('processes leased jobs and marks them completed', async () => {
+    const env = createEnv();
+
+    mockedLeaseJobQueueMessages.mockResolvedValue([sampleLeasedQueueMessage()]);
+
+    const response = await app.request(
+      '/v1/jobs/process',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      },
+      env,
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe('ok');
+    expect(body.leased).toBe(1);
+    expect(body.succeeded).toBe(1);
+    expect(mockedCompleteJobQueueMessage).toHaveBeenCalledTimes(1);
+    expect(mockedFailJobQueueMessage).not.toHaveBeenCalled();
+  });
+
+  it('requires bearer auth when JOB_PROCESSOR_TOKEN is configured', async () => {
+    const env = {
+      ...createEnv(),
+      JOB_PROCESSOR_TOKEN: 'processor-secret',
+    };
+
+    const response = await app.request(
+      '/v1/jobs/process',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      },
+      env,
+    );
+    const body = await response.json<ErrorResponse>();
+
+    expect(response.status).toBe(401);
+    expect(body.error).toBe('Unauthorized');
+    expect(mockedLeaseJobQueueMessages).not.toHaveBeenCalled();
+  });
+
+  it('requeues failed jobs when fail handler marks pending', async () => {
+    const env = createEnv();
+
+    mockedLeaseJobQueueMessages.mockResolvedValue([
+      sampleLeasedQueueMessage({
+        jobType: 'issue_badge',
+        payloadJson: '{"invalid-json"',
+      }),
+    ]);
+    mockedFailJobQueueMessage.mockResolvedValue('pending');
+
+    const response = await app.request(
+      '/v1/jobs/process',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      },
+      env,
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.retried).toBe(1);
+    expect(body.deadLettered).toBe(0);
+    expect(mockedCompleteJobQueueMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('scheduled queue processor trigger', () => {
+  beforeEach(() => {
+    mockedLeaseJobQueueMessages.mockReset();
+  });
+
+  it('invokes queue processing endpoint on schedule', async () => {
+    const env = {
+      ...createEnv(),
+      JOB_PROCESSOR_TOKEN: 'processor-secret',
+    };
+
+    mockedLeaseJobQueueMessages.mockResolvedValue([]);
+
+    await worker.scheduled?.(
+      {
+        cron: '* * * * *',
+        scheduledTime: Date.now(),
+        type: 'scheduled',
+        noRetry: vi.fn(),
+      } as unknown as ScheduledController,
+      env,
+      {
+        waitUntil: vi.fn(),
+        passThroughOnException: vi.fn(),
+      } as unknown as ExecutionContext,
+    );
+
+    expect(mockedLeaseJobQueueMessages).toHaveBeenCalledTimes(1);
   });
 });
 

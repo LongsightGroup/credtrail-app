@@ -72,15 +72,6 @@ importers:
         specifier: ^3.24.2
         version: 3.25.76
 
-  workers/queue-consumer:
-    dependencies:
-      '@credtrail/core-domain':
-        specifier: workspace:*
-        version: link:../../packages/core-domain
-      '@credtrail/validation':
-        specifier: workspace:*
-        version: link:../../packages/validation
-
 packages:
 
   '@cloudflare/kv-asset-handler@0.4.2':

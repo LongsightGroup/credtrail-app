@@ -9,7 +9,7 @@ This file defines execution standards for humans and coding agents working in th
 - Framework: Hono.
 - Data: Cloudflare D1.
 - Object storage: Cloudflare R2.
-- Async jobs: Cloudflare Queues.
+- Async jobs: DB-backed job messages in D1.
 - UI: server-rendered HTML + htmx + Shoelace.
 - React is out of scope for v1.
 - Standards scope: Open Badges 3.0 only.

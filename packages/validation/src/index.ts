@@ -179,6 +179,12 @@ export const revokeBadgeRequestSchema = z.object({
   idempotencyKey: idempotencyKeySchema.optional(),
 });
 
+export const processQueueRequestSchema = z.object({
+  limit: z.number().int().min(1).max(100).optional(),
+  leaseSeconds: z.number().int().min(1).max(300).optional(),
+  retryDelaySeconds: z.number().int().min(1).max(3600).optional(),
+});
+
 export const issueBadgeJobPayloadSchema = z.object({
   assertionId: resourceIdSchema,
   badgeTemplateId: resourceIdSchema,
@@ -248,6 +254,7 @@ export type LearnerIdentityLinkRequest = z.infer<typeof learnerIdentityLinkReque
 export type LearnerIdentityLinkVerifyRequest = z.infer<typeof learnerIdentityLinkVerifyRequestSchema>;
 export type IssueBadgeRequest = z.infer<typeof issueBadgeRequestSchema>;
 export type RevokeBadgeRequest = z.infer<typeof revokeBadgeRequestSchema>;
+export type ProcessQueueRequest = z.infer<typeof processQueueRequestSchema>;
 export type IssueBadgeQueueJob = z.infer<typeof issueBadgeQueueJobSchema>;
 export type RevokeBadgeQueueJob = z.infer<typeof revokeBadgeQueueJobSchema>;
 export type ManualIssueBadgeRequest = z.infer<typeof manualIssueBadgeRequestSchema>;
@@ -299,6 +306,10 @@ export const parseIssueBadgeRequest = (input: unknown): IssueBadgeRequest => {
 
 export const parseRevokeBadgeRequest = (input: unknown): RevokeBadgeRequest => {
   return revokeBadgeRequestSchema.parse(input);
+};
+
+export const parseProcessQueueRequest = (input: unknown): ProcessQueueRequest => {
+  return processQueueRequestSchema.parse(input);
 };
 
 export const parseManualIssueBadgeRequest = (input: unknown): ManualIssueBadgeRequest => {
