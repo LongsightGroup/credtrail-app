@@ -33,7 +33,7 @@ Open-source Open Badges 3.0 platform built on Cloudflare Workers + Hono.
 
 ### ✅ Authentication & Access Control
 - **Magic link authentication** - Passwordless email-based login
-- **SAML SSO integration** - SAML-first learner identity linking for institutional deployments
+- **Institutional SSO integration** - Learner identity linking for institution-managed sign-in flows
 - **Multi-tenant RBAC** - Tenant-scoped roles: owner, admin, issuer
 - **Session management** - Server-side sessions with secure cookie handling
 - **Guided onboarding** - New tenant setup flow with first badge template and issuance walkthrough
