@@ -4365,6 +4365,65 @@ describe('GET /credentials/v1/:credentialId/download', () => {
   });
 });
 
+describe('GET /credentials/v1/:credentialId/download.pdf', () => {
+  beforeEach(() => {
+    mockedFindAssertionById.mockReset();
+    mockedGetImmutableCredentialObject.mockReset();
+  });
+
+  it('returns downloadable PDF for a credential', async () => {
+    const env = createEnv();
+    const credential: JsonObject = {
+      '@context': ['https://www.w3.org/ns/credentials/v2'],
+      id: 'urn:credtrail:assertion:tenant_123%3Aassertion_456',
+      type: ['VerifiableCredential', 'OpenBadgeCredential'],
+    };
+
+    mockedFindAssertionById.mockResolvedValue(sampleAssertion());
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456/download.pdf',
+      undefined,
+      env,
+    );
+    const bodyBuffer = await response.arrayBuffer();
+    const bodyText = new TextDecoder().decode(bodyBuffer.slice(0, 8));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('content-type')).toContain('application/pdf');
+    expect(response.headers.get('content-disposition')).toContain('attachment; filename=');
+    expect(response.headers.get('content-disposition')).toContain('.pdf');
+    expect(bodyText).toContain('%PDF-1.4');
+  });
+
+  it('returns 400 for invalid credential identifier', async () => {
+    const env = createEnv();
+    const response = await app.request('/credentials/v1/assertion_456/download.pdf', undefined, env);
+    const body = await response.json<ErrorResponse>();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe('Invalid credential identifier');
+    expect(mockedFindAssertionById).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when credential does not exist', async () => {
+    const env = createEnv();
+    mockedFindAssertionById.mockResolvedValue(null);
+
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456/download.pdf',
+      undefined,
+      env,
+    );
+    const body = await response.json<ErrorResponse>();
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe('Credential not found');
+  });
+});
+
 describe('GET /credentials/v1/:credentialId/jsonld', () => {
   beforeEach(() => {
     mockedFindAssertionById.mockReset();
@@ -4476,7 +4535,9 @@ describe('GET /badges/:badgeIdentifier', () => {
     expect(body).toContain('/credentials/v1/tenant_123%3Aassertion_456');
     expect(body).toContain('Copy URL');
     expect(body).toContain('/credentials/v1/tenant_123%3Aassertion_456/download');
+    expect(body).toContain('/credentials/v1/tenant_123%3Aassertion_456/download.pdf');
     expect(body).toContain('/credentials/v1/tenant_123%3Aassertion_456/jsonld');
+    expect(body).toContain('Download PDF');
     expect(body).toContain('Add to LinkedIn Profile');
     expect(body).toContain('linkedin.com/profile/add');
     expect(body).toContain('startTask=CERTIFICATION_NAME');

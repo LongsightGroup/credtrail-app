@@ -4444,6 +4444,8 @@ const publicBadgePage = (requestUrl: string, model: VerificationViewModel): stri
   const ob3JsonUrl = new URL(ob3JsonPath, requestUrl).toString();
   const credentialDownloadPath = `/credentials/v1/${encodeURIComponent(model.assertion.id)}/download`;
   const credentialDownloadUrl = new URL(credentialDownloadPath, requestUrl).toString();
+  const credentialPdfDownloadPath = `/credentials/v1/${encodeURIComponent(model.assertion.id)}/download.pdf`;
+  const credentialPdfDownloadUrl = new URL(credentialPdfDownloadPath, requestUrl).toString();
   const assertionValidationTargetUrl = ob3JsonUrl;
   const badgeClassValidationTargetUrl = achievementDetails.badgeClassUri ?? publicBadgeUrl;
   const issuerValidationTargetUrl =
@@ -4805,6 +4807,7 @@ const publicBadgePage = (requestUrl: string, model: VerificationViewModel): stri
           </button>
           <a class="public-badge__button" href="${escapeHtml(ob3JsonPath)}">Open Badges 3.0 JSON</a>
           <a class="public-badge__button" href="${escapeHtml(credentialDownloadPath)}">Download VC</a>
+          <a class="public-badge__button" href="${escapeHtml(credentialPdfDownloadPath)}">Download PDF</a>
           <a
             class="public-badge__button public-badge__button--accent"
             href="${escapeHtml(linkedInAddProfileUrl)}"
@@ -4884,6 +4887,8 @@ const publicBadgePage = (requestUrl: string, model: VerificationViewModel): stri
           <dd><a href="${escapeHtml(ob3JsonPath)}">${escapeHtml(ob3JsonUrl)}</a></dd>
           <dt>Credential download</dt>
           <dd><a href="${escapeHtml(credentialDownloadPath)}">${escapeHtml(credentialDownloadUrl)}</a></dd>
+          <dt>Credential PDF download</dt>
+          <dd><a href="${escapeHtml(credentialPdfDownloadPath)}">${escapeHtml(credentialPdfDownloadUrl)}</a></dd>
           <dt>IMS assertion validation</dt>
           <dd><a href="${escapeHtml(assertionValidatorUrl)}">${escapeHtml(assertionValidatorUrl)}</a></dd>
           <dt>IMS badge class validation</dt>
@@ -4930,6 +4935,149 @@ const credentialDownloadFilename = (assertionId: string): string => {
   const fallback = trimmed.length === 0 ? 'badge' : trimmed;
 
   return `${fallback}.jsonld`;
+};
+
+const credentialPdfDownloadFilename = (assertionId: string): string => {
+  const safeAssertionId = assertionId.replaceAll(/[^a-zA-Z0-9_-]+/g, '-').replaceAll(/-+/g, '-');
+  const trimmed = safeAssertionId.replaceAll(/^-|-$/g, '');
+  const fallback = trimmed.length === 0 ? 'badge' : trimmed;
+
+  return `${fallback}.pdf`;
+};
+
+interface BadgePdfDocumentInput {
+  badgeName: string;
+  recipientName: string;
+  recipientIdentifier: string;
+  issuerName: string;
+  issuedAt: string;
+  status: string;
+  assertionId: string;
+  credentialId: string;
+  publicBadgeUrl: string;
+  verificationUrl: string;
+  ob3JsonUrl: string;
+  revokedAt?: string;
+}
+
+const normalizePdfText = (value: string): string => {
+  return value
+    .normalize('NFKD')
+    .replaceAll(/[^\x20-\x7E]/g, '?')
+    .replaceAll('\\', '\\\\')
+    .replaceAll('(', '\\(')
+    .replaceAll(')', '\\)');
+};
+
+const wrapPdfText = (value: string, maxChars: number): string[] => {
+  if (value.length <= maxChars) {
+    return [value];
+  }
+
+  const words = value.split(/\s+/).filter((word) => word.length > 0);
+
+  if (words.length === 0) {
+    return [value.slice(0, maxChars)];
+  }
+
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    let remainingWord = word;
+
+    while (remainingWord.length > maxChars) {
+      if (currentLine.length > 0) {
+        lines.push(currentLine);
+        currentLine = '';
+      }
+
+      lines.push(remainingWord.slice(0, maxChars));
+      remainingWord = remainingWord.slice(maxChars);
+    }
+
+    if (remainingWord.length === 0) {
+      continue;
+    }
+
+    const nextLine =
+      currentLine.length === 0 ? remainingWord : `${currentLine} ${remainingWord}`;
+    if (nextLine.length <= maxChars) {
+      currentLine = nextLine;
+      continue;
+    }
+
+    lines.push(currentLine);
+    currentLine = remainingWord;
+  }
+
+  if (currentLine.length > 0) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+};
+
+const renderBadgePdfDocument = (input: BadgePdfDocumentInput): Uint8Array => {
+  const rawLines: string[] = [
+    'CredTrail Badge Credential',
+    '',
+    `Badge: ${input.badgeName}`,
+    `Recipient: ${input.recipientName}`,
+    `Recipient identifier: ${input.recipientIdentifier}`,
+    `Issuer: ${input.issuerName}`,
+    `Issued at: ${input.issuedAt}`,
+    `Status: ${input.status}`,
+    ...(input.revokedAt === undefined ? [] : [`Revoked at: ${input.revokedAt}`]),
+    '',
+    `Assertion ID: ${input.assertionId}`,
+    `Credential ID: ${input.credentialId}`,
+    '',
+    `Public badge URL: ${input.publicBadgeUrl}`,
+    `Verification JSON: ${input.verificationUrl}`,
+    `Open Badges 3.0 JSON: ${input.ob3JsonUrl}`,
+  ];
+  const lines = rawLines.flatMap((line) => wrapPdfText(line, 95));
+  const contentEntries: string[] = ['BT', '/F1 12 Tf', '56 764 Td'];
+
+  for (const [index, line] of lines.entries()) {
+    const safeLine = normalizePdfText(line);
+    if (index > 0) {
+      contentEntries.push('0 -16 Td');
+    }
+    contentEntries.push(`(${safeLine}) Tj`);
+  }
+
+  contentEntries.push('ET');
+  const contentStream = contentEntries.join('\n');
+  const pdfObjects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n',
+    '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+    `5 0 obj\n<< /Length ${String(contentStream.length)} >>\nstream\n${contentStream}\nendstream\nendobj\n`,
+  ];
+
+  let document = '%PDF-1.4\n';
+  const offsets = [0];
+
+  for (const object of pdfObjects) {
+    offsets.push(document.length);
+    document += object;
+  }
+
+  const xrefOffset = document.length;
+  document += `xref\n0 ${String(pdfObjects.length + 1)}\n`;
+  document += '0000000000 65535 f \n';
+
+  for (const offset of offsets.slice(1)) {
+    document += `${offset.toString().padStart(10, '0')} 00000 n \n`;
+  }
+
+  document += `trailer\n<< /Size ${String(pdfObjects.length + 1)} /Root 1 0 R >>\n`;
+  document += `startxref\n${String(xrefOffset)}\n%%EOF\n`;
+
+  return new TextEncoder().encode(document);
 };
 
 export interface SendIssuanceEmailNotificationInput {
@@ -6549,6 +6697,61 @@ app.get('/credentials/v1/:credentialId/download', async (c) => {
   );
 
   return c.body(JSON.stringify(result.value.credential, null, 2));
+});
+
+app.get('/credentials/v1/:credentialId/download.pdf', async (c) => {
+  const pathParams = parseCredentialPathParams(c.req.param());
+  const result = await loadVerificationViewModel(resolveDatabase(c.env), c.env.BADGE_OBJECTS, pathParams.credentialId);
+
+  if (result.status !== 'ok') {
+    const statusCode = result.status === 'invalid_id' ? 400 : 404;
+    const errorMessage =
+      result.status === 'invalid_id' ? 'Invalid credential identifier' : 'Credential not found';
+
+    return c.json(
+      {
+        error: errorMessage,
+      },
+      statusCode,
+    );
+  }
+
+  const publicBadgePath = publicBadgePathForAssertion(result.value.assertion);
+  const verificationPath = `/credentials/v1/${encodeURIComponent(result.value.assertion.id)}`;
+  const ob3JsonPath = `${verificationPath}/jsonld`;
+  const credentialId = asString(result.value.credential.id) ?? result.value.assertion.id;
+  const recipientName =
+    result.value.recipientDisplayName ??
+    recipientDisplayNameFromAssertion(result.value.assertion) ??
+    'Badge recipient';
+  const pdfDocument = renderBadgePdfDocument({
+    badgeName: badgeNameFromCredential(result.value.credential),
+    recipientName,
+    recipientIdentifier: recipientFromCredential(result.value.credential),
+    issuerName: issuerNameFromCredential(result.value.credential),
+    issuedAt: `${formatIsoTimestamp(result.value.assertion.issuedAt)} UTC`,
+    status: result.value.assertion.revokedAt === null ? 'Verified' : 'Revoked',
+    assertionId: result.value.assertion.id,
+    credentialId,
+    publicBadgeUrl: new URL(publicBadgePath, c.req.url).toString(),
+    verificationUrl: new URL(verificationPath, c.req.url).toString(),
+    ob3JsonUrl: new URL(ob3JsonPath, c.req.url).toString(),
+    ...(result.value.assertion.revokedAt === null
+      ? {}
+      : {
+          revokedAt: `${formatIsoTimestamp(result.value.assertion.revokedAt)} UTC`,
+        }),
+  });
+  const pdfBody = Uint8Array.from(pdfDocument).buffer;
+
+  return new Response(pdfBody, {
+    status: 200,
+    headers: {
+      'Cache-Control': 'no-store',
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${credentialPdfDownloadFilename(result.value.assertion.id)}"`,
+    },
+  });
 });
 
 app.get('/badges/:badgeIdentifier/public_url', (c) => {
