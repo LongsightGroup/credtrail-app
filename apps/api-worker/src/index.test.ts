@@ -9,12 +9,14 @@ vi.mock('@credtrail/db', async () => {
     completeJobQueueMessage: vi.fn(),
     createAuditLog: vi.fn(),
     createAssertion: vi.fn(),
+    createSession: vi.fn(),
     createLearnerIdentityLinkProof: vi.fn(),
     createOAuthAccessToken: vi.fn(),
     createOAuthAuthorizationCode: vi.fn(),
     createOAuthClient: vi.fn(),
     createOAuthRefreshToken: vi.fn(),
     enqueueJobQueueMessage: vi.fn(),
+    ensureTenantMembership: vi.fn(),
     failJobQueueMessage: vi.fn(),
     findOAuthClientById: vi.fn(),
     findActiveOAuthAccessTokenByHash: vi.fn(),
@@ -44,6 +46,7 @@ vi.mock('@credtrail/db', async () => {
     revokeOAuthRefreshTokenByHash: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
     upsertBadgeTemplateById: vi.fn(),
+    upsertUserByEmail: vi.fn(),
     upsertTenantMembershipRole: vi.fn(),
     upsertTenant: vi.fn(),
     upsertTenantSigningRegistration: vi.fn(),
@@ -102,6 +105,7 @@ import {
   completeJobQueueMessage,
   createAuditLog,
   createAssertion,
+  createSession,
   createLearnerIdentityLinkProof,
   createOAuthAccessToken,
   createOAuthAuthorizationCode,
@@ -110,6 +114,7 @@ import {
   consumeOAuthAuthorizationCode,
   consumeOAuthRefreshToken,
   enqueueJobQueueMessage,
+  ensureTenantMembership,
   failJobQueueMessage,
   findActiveOAuthAccessTokenByHash,
   findActiveSessionByHash,
@@ -141,6 +146,7 @@ import {
   upsertBadgeTemplateById,
   upsertOb3SubjectCredential,
   upsertOb3SubjectProfile,
+  upsertUserByEmail,
   upsertTenantMembershipRole,
   upsertTenant,
   upsertTenantSigningRegistration,
@@ -254,6 +260,7 @@ const mockedFindLearnerProfileByIdentity = vi.mocked(findLearnerProfileByIdentit
 const mockedResolveLearnerProfileForIdentity = vi.mocked(resolveLearnerProfileForIdentity);
 const mockedListPublicBadgeWallEntries = vi.mocked(listPublicBadgeWallEntries);
 const mockedCreateAssertion = vi.mocked(createAssertion);
+const mockedCreateSession = vi.mocked(createSession);
 const mockedNextAssertionStatusListIndex = vi.mocked(nextAssertionStatusListIndex);
 const mockedListAssertionStatusListEntries = vi.mocked(listAssertionStatusListEntries);
 const mockedTouchSession = vi.mocked(touchSession);
@@ -277,6 +284,7 @@ const mockedUpsertOb3SubjectCredential = vi.mocked(upsertOb3SubjectCredential);
 const mockedFindOb3SubjectProfile = vi.mocked(findOb3SubjectProfile);
 const mockedUpsertOb3SubjectProfile = vi.mocked(upsertOb3SubjectProfile);
 const mockedEnqueueJobQueueMessage = vi.mocked(enqueueJobQueueMessage);
+const mockedEnsureTenantMembership = vi.mocked(ensureTenantMembership);
 const mockedLeaseJobQueueMessages = vi.mocked(leaseJobQueueMessages);
 const mockedCompleteJobQueueMessage = vi.mocked(completeJobQueueMessage);
 const mockedFailJobQueueMessage = vi.mocked(failJobQueueMessage);
@@ -285,6 +293,7 @@ const mockedCreateAuditLog = vi.mocked(createAuditLog);
 const mockedUpsertTenant = vi.mocked(upsertTenant);
 const mockedUpsertTenantSigningRegistration = vi.mocked(upsertTenantSigningRegistration);
 const mockedUpsertBadgeTemplateById = vi.mocked(upsertBadgeTemplateById);
+const mockedUpsertUserByEmail = vi.mocked(upsertUserByEmail);
 const mockedUpsertTenantMembershipRole = vi.mocked(upsertTenantMembershipRole);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const fakeDb = {
@@ -457,11 +466,11 @@ const isBitSet = (bytes: Uint8Array, bitIndex: number): boolean => {
   return (byte & (1 << bitOffset)) !== 0;
 };
 
-const sampleSession = (overrides?: { tenantId?: string }): SessionRecord => {
+const sampleSession = (overrides?: { tenantId?: string; userId?: string }): SessionRecord => {
   return {
     id: 'ses_123',
     tenantId: overrides?.tenantId ?? 'tenant_123',
-    userId: 'usr_123',
+    userId: overrides?.userId ?? 'usr_123',
     sessionTokenHash: 'session-hash',
     expiresAt: '2026-02-11T22:00:00.000Z',
     lastSeenAt: '2026-02-10T22:00:00.000Z',
@@ -718,6 +727,13 @@ const sampleTenantMembership = (
     createdAt: '2026-02-10T22:00:00.000Z',
     updatedAt: '2026-02-10T22:00:00.000Z',
     ...overrides,
+  };
+};
+
+const sampleUserRecord = (overrides?: { id?: string; email?: string }): { id: string; email: string } => {
+  return {
+    id: overrides?.id ?? 'usr_123',
+    email: overrides?.email ?? 'learner@example.edu',
   };
 };
 
@@ -4666,8 +4682,49 @@ describe('LTI 1.3 core launch flow', () => {
   const issuer = 'https://canvas.example.edu';
   const authorizationEndpoint = 'https://canvas.example.edu/api/lti/authorize_redirect';
   const clientId = 'canvas-client-123';
+  const tenantId = 'tenant_123';
   const targetLinkUri = 'https://tool.example.edu/v1/lti/launch';
   const deploymentId = 'deployment-123';
+  const linkedUserId = 'usr_lti_123';
+
+  beforeEach(() => {
+    mockedResolveLearnerProfileForIdentity.mockReset();
+    mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
+    mockedUpsertUserByEmail.mockReset();
+    mockedUpsertUserByEmail.mockResolvedValue(
+      sampleUserRecord({
+        id: linkedUserId,
+      }),
+    );
+    mockedEnsureTenantMembership.mockReset();
+    mockedEnsureTenantMembership.mockResolvedValue({
+      membership: sampleTenantMembership({
+        tenantId,
+        userId: linkedUserId,
+        role: 'viewer',
+      }),
+      created: true,
+    });
+    mockedUpsertTenantMembershipRole.mockReset();
+    mockedUpsertTenantMembershipRole.mockResolvedValue({
+      membership: sampleTenantMembership({
+        tenantId,
+        userId: linkedUserId,
+        role: 'issuer',
+      }),
+      previousRole: 'viewer',
+      changed: true,
+    });
+    mockedCreateSession.mockReset();
+    mockedCreateSession.mockImplementation((_db, input) => {
+      return Promise.resolve(
+        sampleSession({
+          tenantId: input.tenantId,
+          userId: input.userId,
+        }),
+      );
+    });
+  });
 
   const createLtiEnv = (
     options?: { allowUnsignedIdToken?: boolean },
@@ -4677,6 +4734,7 @@ describe('LTI 1.3 core launch flow', () => {
       [issuer]: {
         authorizationEndpoint,
         clientId,
+        tenantId,
         allowUnsignedIdToken: options?.allowUnsignedIdToken ?? true,
       },
     });
@@ -4771,12 +4829,34 @@ describe('LTI 1.3 core launch flow', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('set-cookie')).toContain('credtrail_session=');
     expect(body).toContain('LTI 1.3 launch complete');
     expect(body).toContain('Instructor');
+    expect(body).toContain('issuer');
     expect(body).toContain('LtiResourceLinkRequest');
+    expect(body).toContain('/tenants/tenant_123/learner/dashboard');
+    expect(mockedResolveLearnerProfileForIdentity).toHaveBeenCalledWith(fakeDb, {
+      tenantId,
+      identityType: 'saml_subject',
+      identityValue: 'https://canvas.example.edu::user-123',
+    });
+    expect(mockedUpsertUserByEmail).toHaveBeenCalledWith(fakeDb, expect.stringContaining('@credtrail-lti.local'));
+    expect(mockedEnsureTenantMembership).toHaveBeenCalledWith(fakeDb, tenantId, linkedUserId);
+    expect(mockedUpsertTenantMembershipRole).toHaveBeenCalledWith(fakeDb, {
+      tenantId,
+      userId: linkedUserId,
+      role: 'issuer',
+    });
+    expect(mockedCreateSession).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId,
+        userId: linkedUserId,
+      }),
+    );
   });
 
-  it('accepts a learner launch and renders learner role', async () => {
+  it('accepts a learner launch and links local account session with email claim', async () => {
     const env = createLtiEnv();
     const loginResponse = await app.request(
       `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
@@ -4802,6 +4882,7 @@ describe('LTI 1.3 core launch flow', () => {
         exp: nowEpochSeconds + 300,
         iat: nowEpochSeconds - 10,
         nonce,
+        email: 'Learner@Example.edu',
         'https://purl.imsglobal.org/spec/lti/claim/deployment_id': deploymentId,
         'https://purl.imsglobal.org/spec/lti/claim/message_type': 'LtiResourceLinkRequest',
         'https://purl.imsglobal.org/spec/lti/claim/version': '1.3.0',
@@ -4833,6 +4914,9 @@ describe('LTI 1.3 core launch flow', () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain('Learner');
+    expect(body).toContain('viewer');
+    expect(mockedUpsertUserByEmail).toHaveBeenCalledWith(fakeDb, 'Learner@Example.edu');
+    expect(mockedUpsertTenantMembershipRole).not.toHaveBeenCalled();
   });
 
   it('rejects launch when unsigned-id-token mode is disabled for issuer config', async () => {

@@ -357,6 +357,7 @@ const resolveSessionFromCookie = async (c: AppContext): Promise<SessionRecord | 
 interface LtiIssuerRegistryEntry {
   authorizationEndpoint: string;
   clientId: string;
+  tenantId: string;
   allowUnsignedIdToken: boolean;
 }
 
@@ -506,6 +507,7 @@ const parseLtiIssuerRegistryFromEnv = (rawRegistry: string | undefined): LtiIssu
 
     const authorizationEndpoint = asNonEmptyString(entryObject.authorizationEndpoint);
     const clientId = asNonEmptyString(entryObject.clientId);
+    const tenantId = asNonEmptyString(entryObject.tenantId);
     const allowUnsignedIdToken = entryObject.allowUnsignedIdToken;
 
     if (authorizationEndpoint === null || !isAbsoluteHttpUrl(authorizationEndpoint)) {
@@ -518,6 +520,10 @@ const parseLtiIssuerRegistryFromEnv = (rawRegistry: string | undefined): LtiIssu
       throw new Error(`LTI_ISSUER_REGISTRY_JSON["${issuer}"].clientId must be a non-empty string`);
     }
 
+    if (tenantId === null) {
+      throw new Error(`LTI_ISSUER_REGISTRY_JSON["${issuer}"].tenantId must be a non-empty string`);
+    }
+
     if (allowUnsignedIdToken !== undefined && typeof allowUnsignedIdToken !== 'boolean') {
       throw new Error(
         `LTI_ISSUER_REGISTRY_JSON["${issuer}"].allowUnsignedIdToken must be a boolean when provided`,
@@ -527,6 +533,7 @@ const parseLtiIssuerRegistryFromEnv = (rawRegistry: string | undefined): LtiIssu
     registry[normalizeLtiIssuer(issuer)] = {
       authorizationEndpoint,
       clientId,
+      tenantId,
       allowUnsignedIdToken: allowUnsignedIdToken ?? false,
     };
   }
@@ -668,13 +675,66 @@ const ltiRoleLabel = (roleKind: LtiRoleKind): string => {
   return 'Unknown role';
 };
 
+const ltiMembershipRoleFromRoleKind = (roleKind: LtiRoleKind): TenantMembershipRole => {
+  return roleKind === 'instructor' ? 'issuer' : 'viewer';
+};
+
+const ltiFederatedSubjectIdentity = (issuer: string, subjectId: string): string => {
+  return `${normalizeLtiIssuer(issuer)}::${subjectId}`;
+};
+
+const ltiDisplayNameFromClaims = (claims: LtiLaunchClaims): string | undefined => {
+  const fullName = asNonEmptyString(claims.name);
+
+  if (fullName !== null) {
+    return fullName;
+  }
+
+  const givenName = asNonEmptyString(claims.given_name);
+  const familyName = asNonEmptyString(claims.family_name);
+
+  if (givenName !== null && familyName !== null) {
+    return `${givenName} ${familyName}`;
+  }
+
+  return givenName ?? familyName ?? undefined;
+};
+
+const isLikelyEmailAddress = (value: string): boolean => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+};
+
+const ltiEmailFromClaims = (claims: LtiLaunchClaims): string | null => {
+  const emailClaim = asNonEmptyString(claims.email);
+
+  if (emailClaim === null || !isLikelyEmailAddress(emailClaim)) {
+    return null;
+  }
+
+  return emailClaim;
+};
+
+const ltiSyntheticEmail = async (tenantId: string, federatedSubject: string): Promise<string> => {
+  const digest = await sha256Hex(`${tenantId}:${federatedSubject}`);
+  return `lti-${digest.slice(0, 24)}@credtrail-lti.local`;
+};
+
+const ltiLearnerDashboardPath = (tenantId: string): string => {
+  return `/tenants/${encodeURIComponent(tenantId)}/learner/dashboard`;
+};
+
 const ltiLaunchResultPage = (input: {
   roleKind: LtiRoleKind;
+  tenantId: string;
+  userId: string;
+  membershipRole: TenantMembershipRole;
+  learnerProfileId: string;
   issuer: string;
   deploymentId: string;
   subjectId: string;
   targetLinkUri: string;
   messageType: string;
+  dashboardPath: string;
 }): string => {
   return renderPageShell(
     'LTI Launch Complete | CredTrail',
@@ -688,6 +748,14 @@ const ltiLaunchResultPage = (input: {
         <dd style="margin:0;overflow-wrap:anywhere;">${escapeHtml(input.issuer)}</dd>
         <dt style="font-weight:600;">Deployment ID</dt>
         <dd style="margin:0;overflow-wrap:anywhere;">${escapeHtml(input.deploymentId)}</dd>
+        <dt style="font-weight:600;">Tenant</dt>
+        <dd style="margin:0;overflow-wrap:anywhere;">${escapeHtml(input.tenantId)}</dd>
+        <dt style="font-weight:600;">User ID</dt>
+        <dd style="margin:0;overflow-wrap:anywhere;">${escapeHtml(input.userId)}</dd>
+        <dt style="font-weight:600;">Membership role</dt>
+        <dd style="margin:0;overflow-wrap:anywhere;">${escapeHtml(input.membershipRole)}</dd>
+        <dt style="font-weight:600;">Learner profile</dt>
+        <dd style="margin:0;overflow-wrap:anywhere;">${escapeHtml(input.learnerProfileId)}</dd>
         <dt style="font-weight:600;">LTI subject</dt>
         <dd style="margin:0;overflow-wrap:anywhere;">${escapeHtml(input.subjectId)}</dd>
         <dt style="font-weight:600;">Message type</dt>
@@ -696,7 +764,10 @@ const ltiLaunchResultPage = (input: {
         <dd style="margin:0;overflow-wrap:anywhere;">${escapeHtml(input.targetLinkUri)}</dd>
       </dl>
       <p style="margin:0;color:#475569;">
-        Next step: link LTI identity to a CredTrail user/session in the upcoming session-linking flow.
+        LTI identity is linked and this browser is now signed into CredTrail.
+      </p>
+      <p style="margin:0;">
+        <a href="${escapeHtml(input.dashboardPath)}">Open learner dashboard</a>
       </p>
     </section>`,
   );
@@ -8204,16 +8275,101 @@ app.post(LTI_LAUNCH_PATH, async (c): Promise<Response> => {
   }
 
   const roleKind = resolveLtiRoleKind(launchClaims);
+  const db = resolveDatabase(c.env);
+  const tenantId = issuerEntry.tenantId;
+  const federatedSubject = ltiFederatedSubjectIdentity(launchClaims.iss, launchClaims.sub);
+  const displayName = ltiDisplayNameFromClaims(launchClaims);
+
+  let linkedLearnerProfileId: string;
+  let linkedUserId: string;
+  let linkedMembershipRole: TenantMembershipRole;
+
+  try {
+    const learnerProfile = await resolveLearnerProfileForIdentity(db, {
+      tenantId,
+      identityType: 'saml_subject',
+      identityValue: federatedSubject,
+      ...(displayName === undefined ? {} : { displayName }),
+    });
+    linkedLearnerProfileId = learnerProfile.id;
+
+    const claimedEmail = ltiEmailFromClaims(launchClaims);
+    const user = await upsertUserByEmail(
+      db,
+      claimedEmail ?? (await ltiSyntheticEmail(tenantId, federatedSubject)),
+    );
+    linkedUserId = user.id;
+
+    const membershipResult = await ensureTenantMembership(db, tenantId, user.id);
+    linkedMembershipRole = membershipResult.membership.role;
+
+    const desiredRole = ltiMembershipRoleFromRoleKind(roleKind);
+
+    if (desiredRole === 'issuer' && linkedMembershipRole === 'viewer') {
+      const promotedMembership = await upsertTenantMembershipRole(db, {
+        tenantId,
+        userId: user.id,
+        role: desiredRole,
+      });
+      linkedMembershipRole = promotedMembership.membership.role;
+    }
+  } catch (error) {
+    await captureSentryException({
+      context: observabilityContext(c.env),
+      dsn: c.env.SENTRY_DSN,
+      error,
+      message: 'LTI launch could not be linked to a local user/session',
+      tags: {
+        path: LTI_LAUNCH_PATH,
+        method: c.req.method,
+      },
+      extra: {
+        issuer: launchClaims.iss,
+        deploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
+        subjectId: launchClaims.sub,
+      },
+    });
+    return c.json(
+      {
+        error: 'Unable to link LTI launch to local account',
+      },
+      500,
+    );
+  }
+
+  const sessionToken = generateOpaqueToken();
+  const sessionTokenHash = await sha256Hex(sessionToken);
+  const session = await createSession(db, {
+    tenantId,
+    userId: linkedUserId,
+    sessionTokenHash,
+    expiresAt: addSecondsToIso(nowIso, SESSION_TTL_SECONDS),
+  });
+
+  setCookie(c, SESSION_COOKIE_NAME, sessionToken, {
+    httpOnly: true,
+    secure: sessionCookieSecure(c.env.APP_ENV),
+    sameSite: 'Lax',
+    path: '/',
+    maxAge: SESSION_TTL_SECONDS,
+  });
+
+  const dashboardPath = ltiLearnerDashboardPath(session.tenantId);
   c.header('Cache-Control', 'no-store');
 
   return c.html(
     ltiLaunchResultPage({
       roleKind,
+      tenantId: session.tenantId,
+      userId: session.userId,
+      membershipRole: linkedMembershipRole,
+      learnerProfileId: linkedLearnerProfileId,
       issuer: launchClaims.iss,
       deploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
       subjectId: launchClaims.sub,
       targetLinkUri: launchClaims[LTI_CLAIM_TARGET_LINK_URI] ?? validatedState.payload.targetLinkUri,
       messageType: launchClaims[LTI_CLAIM_MESSAGE_TYPE],
+      dashboardPath,
     }),
   );
 });
