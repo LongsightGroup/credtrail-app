@@ -36,6 +36,7 @@ vi.mock('@credtrail/db', async () => {
     listPublicBadgeWallEntries: vi.fn(),
     touchSession: vi.fn(),
     listLearnerBadgeSummaries: vi.fn(),
+    listLearnerIdentitiesByProfile: vi.fn(),
     listOb3SubjectCredentials: vi.fn(),
     leaseJobQueueMessages: vi.fn(),
     markLearnerIdentityLinkProofUsed: vi.fn(),
@@ -138,6 +139,7 @@ import {
   listLtiIssuerRegistrations,
   listPublicBadgeWallEntries,
   listLearnerBadgeSummaries,
+  listLearnerIdentitiesByProfile,
   listOb3SubjectCredentials,
   leaseJobQueueMessages,
   markLearnerIdentityLinkProofUsed,
@@ -273,6 +275,7 @@ const mockedListAssertionStatusListEntries = vi.mocked(listAssertionStatusListEn
 const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
 const mockedTouchSession = vi.mocked(touchSession);
 const mockedListLearnerBadgeSummaries = vi.mocked(listLearnerBadgeSummaries);
+const mockedListLearnerIdentitiesByProfile = vi.mocked(listLearnerIdentitiesByProfile);
 const mockedCreateLearnerIdentityLinkProof = vi.mocked(createLearnerIdentityLinkProof);
 const mockedFindLearnerIdentityLinkProofByHash = vi.mocked(findLearnerIdentityLinkProofByHash);
 const mockedFindOAuthClientById = vi.mocked(findOAuthClientById);
@@ -348,6 +351,8 @@ beforeEach(() => {
   mockedFindActiveOAuthAccessTokenByHash.mockReset();
   mockedListLtiIssuerRegistrations.mockReset();
   mockedListLtiIssuerRegistrations.mockResolvedValue([]);
+  mockedListLearnerIdentitiesByProfile.mockReset();
+  mockedListLearnerIdentitiesByProfile.mockResolvedValue([]);
   mockedUpsertLtiIssuerRegistration.mockReset();
   mockedDeleteLtiIssuerRegistrationByIssuer.mockReset();
   mockedListOb3SubjectCredentials.mockReset();
@@ -2496,6 +2501,12 @@ describe('POST /v1/issue and /v1/revoke', () => {
           badgeTemplateId: 'badge_template_001',
           recipientIdentity: 'learner@example.edu',
           recipientIdentityType: 'email',
+          recipientIdentifiers: [
+            {
+              identifierType: 'studentId',
+              identifier: 'student-123',
+            },
+          ],
           requestedByUserId: 'usr_issuer',
         }),
       },
@@ -2515,6 +2526,16 @@ describe('POST /v1/issue and /v1/revoke', () => {
         jobType: 'issue_badge',
       }),
     );
+    expect(mockedEnqueueJobQueueMessage.mock.calls[0]?.[1]).toMatchObject({
+      payload: {
+        recipientIdentifiers: [
+          {
+            identifierType: 'studentId',
+            identifier: 'student-123',
+          },
+        ],
+      },
+    });
   });
 
   it('stores revoke requests as DB-backed queue messages', async () => {
@@ -4878,6 +4899,9 @@ describe('LTI 1.3 core launch flow', () => {
   beforeEach(() => {
     mockedResolveLearnerProfileForIdentity.mockReset();
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
+    mockedFindLearnerProfileByIdentity.mockReset();
+    mockedFindLearnerProfileByIdentity.mockResolvedValue(null);
+    mockedAddLearnerIdentityAlias.mockReset();
     mockedUpsertUserByEmail.mockReset();
     mockedUpsertUserByEmail.mockResolvedValue(
       sampleUserRecord({
@@ -5140,6 +5164,9 @@ describe('LTI 1.3 core launch flow', () => {
         iat: nowEpochSeconds - 10,
         nonce,
         email: 'Learner@Example.edu',
+        'https://purl.imsglobal.org/spec/lti/claim/lis': {
+          person_sourcedid: 'sourced-learner-456',
+        },
         'https://purl.imsglobal.org/spec/lti/claim/deployment_id': deploymentId,
         'https://purl.imsglobal.org/spec/lti/claim/message_type': 'LtiResourceLinkRequest',
         'https://purl.imsglobal.org/spec/lti/claim/version': '1.3.0',
@@ -5173,6 +5200,15 @@ describe('LTI 1.3 core launch flow', () => {
     expect(body).toContain('Learner');
     expect(body).toContain('viewer');
     expect(mockedUpsertUserByEmail).toHaveBeenCalledWith(fakeDb, 'Learner@Example.edu');
+    expect(mockedAddLearnerIdentityAlias).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId,
+        learnerProfileId: 'lpr_123',
+        identityType: 'sourced_id',
+        identityValue: 'sourced-learner-456',
+      }),
+    );
     expect(mockedUpsertTenantMembershipRole).not.toHaveBeenCalled();
   });
 
@@ -5422,11 +5458,25 @@ describe('POST /v1/tenants/:tenantId/assertions/manual-issue', () => {
 
     const firstSubjectId = asString(asJsonObject(firstBody.credential.credentialSubject)?.id);
     const secondSubjectId = asString(asJsonObject(secondBody.credential.credentialSubject)?.id);
+    const firstIdentifierEntries = asJsonObject(firstBody.credential.credentialSubject)?.identifier;
 
     expect(firstIssueResponse.status).toBe(201);
     expect(secondIssueResponse.status).toBe(201);
     expect(firstSubjectId).toBe('urn:credtrail:learner:tenant_123:lpr_123');
     expect(secondSubjectId).toBe('urn:credtrail:learner:tenant_123:lpr_123');
+    expect(Array.isArray(firstIdentifierEntries)).toBe(true);
+    expect(firstIdentifierEntries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'studentId',
+          identifier: 'lpr_123',
+        }),
+        expect.objectContaining({
+          type: 'emailAddress',
+          identifier: 'student@umich.edu',
+        }),
+      ]),
+    );
     expect(mockedResolveLearnerProfileForIdentity).toHaveBeenNthCalledWith(1, fakeDb, {
       tenantId: 'tenant_123',
       identityType: 'email',
@@ -5445,6 +5495,27 @@ describe('POST /v1/tenants/:tenantId/assertions/manual-issue', () => {
         learnerProfileId: 'lpr_123',
         recipientIdentity: 'student@umich.edu',
       }),
+    );
+    const firstCreateAssertionCall = mockedCreateAssertion.mock.calls.at(0);
+
+    if (firstCreateAssertionCall === undefined) {
+      throw new Error('Expected first createAssertion call');
+    }
+
+    const firstCreateAssertionInput = firstCreateAssertionCall[1] as { recipientIdentifiers?: unknown };
+
+    expect(Array.isArray(firstCreateAssertionInput.recipientIdentifiers)).toBe(true);
+    expect(firstCreateAssertionInput.recipientIdentifiers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          identifierType: 'studentId',
+          identifierValue: 'lpr_123',
+        }),
+        expect.objectContaining({
+          identifierType: 'emailAddress',
+          identifierValue: 'student@umich.edu',
+        }),
+      ]),
     );
     expect(mockedCreateAssertion).toHaveBeenNthCalledWith(
       2,

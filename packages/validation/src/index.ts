@@ -103,6 +103,17 @@ export const isoTimestampSchema = z.string().datetime();
 export const tenantPlanTierSchema = z.enum(['free', 'team', 'institution', 'enterprise']);
 export const tenantMembershipRoleSchema = z.enum(['owner', 'admin', 'issuer', 'viewer']);
 export const recipientIdentityTypeSchema = z.enum(['email', 'email_sha256', 'did', 'url']);
+export const recipientIdentifierTypeSchema = z.enum([
+  'emailAddress',
+  'sourcedId',
+  'did',
+  'nationalIdentityNumber',
+  'studentId',
+]);
+export const recipientIdentifierSchema = z.object({
+  identifierType: recipientIdentifierTypeSchema,
+  identifier: z.string().trim().min(1).max(512),
+});
 export const badgeTemplateSlugSchema = z
   .string()
   .trim()
@@ -245,6 +256,7 @@ export const issueBadgeRequestSchema = z.object({
   badgeTemplateId: resourceIdSchema,
   recipientIdentity: z.string().min(1),
   recipientIdentityType: recipientIdentityTypeSchema,
+  recipientIdentifiers: z.array(recipientIdentifierSchema).max(10).optional(),
   requestedByUserId: userIdSchema.optional(),
   idempotencyKey: idempotencyKeySchema.optional(),
 });
@@ -286,6 +298,7 @@ export const issueBadgeJobPayloadSchema = z.object({
   badgeTemplateId: resourceIdSchema,
   recipientIdentity: z.string().min(1),
   recipientIdentityType: recipientIdentityTypeSchema,
+  recipientIdentifiers: z.array(recipientIdentifierSchema).max(10).optional(),
   requestedAt: isoTimestampSchema,
   requestedByUserId: userIdSchema.optional(),
 });

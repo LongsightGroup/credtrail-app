@@ -43,6 +43,39 @@ describe('parseQueueJob', () => {
     expect(job.jobType).toBe('issue_badge');
   });
 
+  it('accepts issue_badge queue payload with recipient identifiers', () => {
+    const job = parseQueueJob({
+      jobType: 'issue_badge',
+      tenantId: 'tenant_123',
+      payload: {
+        assertionId: 'assertion_456',
+        badgeTemplateId: 'badge_template_001',
+        recipientIdentity: 'learner@example.edu',
+        recipientIdentityType: 'email',
+        recipientIdentifiers: [
+          {
+            identifierType: 'emailAddress',
+            identifier: 'learner@example.edu',
+          },
+          {
+            identifierType: 'studentId',
+            identifier: 'student-123',
+          },
+        ],
+        requestedAt: '2026-02-10T15:00:00.000Z',
+      },
+      idempotencyKey: 'idem_abc',
+    });
+
+    expect(job.jobType).toBe('issue_badge');
+
+    if (job.jobType !== 'issue_badge') {
+      throw new Error('Expected issue_badge queue payload');
+    }
+
+    expect(job.payload.recipientIdentifiers).toHaveLength(2);
+  });
+
   it('accepts a valid revoke_badge queue payload', () => {
     const job = parseQueueJob({
       jobType: 'revoke_badge',
@@ -78,6 +111,44 @@ describe('issue/revoke request parsers', () => {
     });
 
     expect(request.tenantId).toBe('tenant_123');
+  });
+
+  it('accepts a valid issue request with recipient identifiers', () => {
+    const request = parseIssueBadgeRequest({
+      tenantId: 'tenant_123',
+      badgeTemplateId: 'badge_template_001',
+      recipientIdentity: 'learner@example.edu',
+      recipientIdentityType: 'email',
+      recipientIdentifiers: [
+        {
+          identifierType: 'emailAddress',
+          identifier: 'learner@example.edu',
+        },
+        {
+          identifierType: 'sourcedId',
+          identifier: 'canvas-user-44',
+        },
+      ],
+    });
+
+    expect(request.recipientIdentifiers).toHaveLength(2);
+  });
+
+  it('rejects invalid recipient identifier entries', () => {
+    expect(() => {
+      parseIssueBadgeRequest({
+        tenantId: 'tenant_123',
+        badgeTemplateId: 'badge_template_001',
+        recipientIdentity: 'learner@example.edu',
+        recipientIdentityType: 'email',
+        recipientIdentifiers: [
+          {
+            identifierType: 'emailAddress',
+            identifier: '',
+          },
+        ],
+      });
+    }).toThrowError();
   });
 
   it('accepts a valid revoke request', () => {

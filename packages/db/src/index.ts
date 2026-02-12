@@ -391,7 +391,27 @@ export type LearnerIdentityType =
   | 'email_sha256'
   | 'did'
   | 'url'
-  | 'saml_subject';
+  | 'saml_subject'
+  | 'sourced_id';
+
+export type RecipientIdentifierType =
+  | 'emailAddress'
+  | 'sourcedId'
+  | 'did'
+  | 'nationalIdentityNumber'
+  | 'studentId';
+
+export interface RecipientIdentifierRecord {
+  assertionId: string;
+  identifierType: RecipientIdentifierType;
+  identifierValue: string;
+  createdAt: string;
+}
+
+export interface RecipientIdentifierInput {
+  identifierType: RecipientIdentifierType;
+  identifierValue: string;
+}
 
 export interface LearnerProfileRecord {
   id: string;
@@ -584,6 +604,7 @@ export interface CreateAssertionInput {
   idempotencyKey: string;
   issuedAt: string;
   issuedByUserId?: string | undefined;
+  recipientIdentifiers?: readonly RecipientIdentifierInput[];
 }
 
 export interface AssertionStatusListEntryRecord {
@@ -840,6 +861,19 @@ const isMissingLtiIssuerRegistrationsTableError = (error: unknown): boolean => {
   );
 };
 
+const isMissingRecipientIdentifiersTableError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    (error.message.includes('no such table') ||
+      error.message.includes('relation') ||
+      error.message.includes('does not exist')) &&
+    error.message.includes('recipient_identifiers')
+  );
+};
+
 const isMissingAuditLogsTableError = (error: unknown): boolean => {
   if (!(error instanceof Error)) {
     return false;
@@ -945,6 +979,33 @@ const ensureLtiIssuerRegistrationsTable = async (db: SqlDatabase): Promise<void>
       `
       CREATE INDEX IF NOT EXISTS idx_lti_issuer_registrations_tenant
         ON lti_issuer_registrations (tenant_id)
+    `,
+    )
+    .run();
+};
+
+const ensureRecipientIdentifiersTable = async (db: SqlDatabase): Promise<void> => {
+  await db
+    .prepare(
+      `
+      CREATE TABLE IF NOT EXISTS recipient_identifiers (
+        assertion_id TEXT NOT NULL,
+        identifier_type TEXT NOT NULL
+          CHECK (identifier_type IN ('emailAddress', 'sourcedId', 'did', 'nationalIdentityNumber', 'studentId')),
+        identifier_value TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (assertion_id, identifier_type, identifier_value),
+        FOREIGN KEY (assertion_id) REFERENCES assertions (id) ON DELETE CASCADE
+      )
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_recipient_identifiers_assertion
+        ON recipient_identifiers (assertion_id)
     `,
     )
     .run();
@@ -1214,6 +1275,13 @@ interface PublicBadgeWallEntryRow {
   revokedAt: string | null;
 }
 
+interface RecipientIdentifierRow {
+  assertionId: string;
+  identifierType: RecipientIdentifierType;
+  identifierValue: string;
+  createdAt: string;
+}
+
 interface LearnerProfileRow {
   id: string;
   tenantId: string;
@@ -1352,6 +1420,7 @@ export const normalizeLearnerIdentityValue = (
     case 'did':
     case 'url':
     case 'saml_subject':
+    case 'sourced_id':
       return trimmed;
   }
 };
@@ -3254,6 +3323,15 @@ const mapAssertionRow = (row: AssertionRow): AssertionRecord => {
   };
 };
 
+const mapRecipientIdentifierRow = (row: RecipientIdentifierRow): RecipientIdentifierRecord => {
+  return {
+    assertionId: row.assertionId,
+    identifierType: row.identifierType,
+    identifierValue: row.identifierValue,
+    createdAt: row.createdAt,
+  };
+};
+
 const mapLearnerBadgeSummaryRow = (row: LearnerBadgeSummaryRow): LearnerBadgeSummaryRecord => {
   return {
     assertionId: row.assertionId,
@@ -4181,12 +4259,132 @@ export const listPublicBadgeWallEntries = async (
   return result.results.map((row) => mapPublicBadgeWallEntryRow(row));
 };
 
+const normalizeRecipientIdentifierValue = (
+  identifierType: RecipientIdentifierType,
+  identifierValue: string,
+): string => {
+  const trimmedValue = identifierValue.trim();
+
+  if (identifierType === 'emailAddress') {
+    return normalizeEmail(trimmedValue);
+  }
+
+  return trimmedValue;
+};
+
+const uniqueRecipientIdentifiers = (
+  input: readonly RecipientIdentifierInput[],
+): RecipientIdentifierInput[] => {
+  const seen = new Set<string>();
+  const unique: RecipientIdentifierInput[] = [];
+
+  for (const entry of input) {
+    const normalizedValue = normalizeRecipientIdentifierValue(entry.identifierType, entry.identifierValue);
+
+    if (normalizedValue.length === 0) {
+      continue;
+    }
+
+    const dedupeKey = `${entry.identifierType}::${normalizedValue}`;
+
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
+
+    seen.add(dedupeKey);
+    unique.push({
+      identifierType: entry.identifierType,
+      identifierValue: normalizedValue,
+    });
+  }
+
+  return unique;
+};
+
+const insertAssertionRecipientIdentifiers = async (
+  db: SqlDatabase,
+  assertionId: string,
+  recipientIdentifiers: readonly RecipientIdentifierInput[],
+): Promise<void> => {
+  if (recipientIdentifiers.length === 0) {
+    return;
+  }
+
+  const insertStatement = async (): Promise<void> => {
+    for (const entry of recipientIdentifiers) {
+      await db
+        .prepare(
+          `
+          INSERT OR IGNORE INTO recipient_identifiers (
+            assertion_id,
+            identifier_type,
+            identifier_value,
+            created_at
+          )
+          VALUES (?, ?, ?, ?)
+        `,
+        )
+        .bind(assertionId, entry.identifierType, entry.identifierValue, new Date().toISOString())
+        .run();
+    }
+  };
+
+  try {
+    await insertStatement();
+  } catch (error: unknown) {
+    if (!isMissingRecipientIdentifiersTableError(error)) {
+      throw error;
+    }
+
+    await ensureRecipientIdentifiersTable(db);
+    await insertStatement();
+  }
+};
+
+export const listRecipientIdentifiersForAssertion = async (
+  db: SqlDatabase,
+  assertionId: string,
+): Promise<RecipientIdentifierRecord[]> => {
+  const listStatement = (): Promise<SqlQueryResult<RecipientIdentifierRow>> =>
+    db
+      .prepare(
+        `
+        SELECT
+          assertion_id AS assertionId,
+          identifier_type AS identifierType,
+          identifier_value AS identifierValue,
+          created_at AS createdAt
+        FROM recipient_identifiers
+        WHERE assertion_id = ?
+        ORDER BY created_at ASC
+      `,
+      )
+      .bind(assertionId)
+      .all<RecipientIdentifierRow>();
+
+  let result: SqlQueryResult<RecipientIdentifierRow>;
+
+  try {
+    result = await listStatement();
+  } catch (error: unknown) {
+    if (!isMissingRecipientIdentifiersTableError(error)) {
+      throw error;
+    }
+
+    await ensureRecipientIdentifiersTable(db);
+    result = await listStatement();
+  }
+
+  return result.results.map((row) => mapRecipientIdentifierRow(row));
+};
+
 export const createAssertion = async (
   db: SqlDatabase,
   input: CreateAssertionInput,
 ): Promise<AssertionRecord> => {
   const nowIso = new Date().toISOString();
   const assertionPublicId = input.publicId ?? crypto.randomUUID();
+  const recipientIdentifiers = uniqueRecipientIdentifiers(input.recipientIdentifiers ?? []);
 
   await db
     .prepare(
@@ -4227,6 +4425,8 @@ export const createAssertion = async (
       nowIso,
     )
     .run();
+
+  await insertAssertionRecipientIdentifiers(db, input.id, recipientIdentifiers);
 
   return {
     id: input.id,

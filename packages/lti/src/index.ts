@@ -7,6 +7,7 @@ export const LTI_CLAIM_TARGET_LINK_URI = 'https://purl.imsglobal.org/spec/lti/cl
 export const LTI_CLAIM_ROLES = 'https://purl.imsglobal.org/spec/lti/claim/roles';
 export const LTI_CLAIM_RESOURCE_LINK = 'https://purl.imsglobal.org/spec/lti/claim/resource_link';
 export const LTI_CLAIM_CONTEXT = 'https://purl.imsglobal.org/spec/lti/claim/context';
+export const LTI_CLAIM_LIS = 'https://purl.imsglobal.org/spec/lti/claim/lis';
 
 export const LTI_MESSAGE_TYPE_RESOURCE_LINK_REQUEST = 'LtiResourceLinkRequest';
 export const LTI_MESSAGE_TYPE_DEEP_LINKING_REQUEST = 'LtiDeepLinkingRequest';
@@ -38,6 +39,13 @@ const ltiContextClaimSchema = z
   })
   .passthrough();
 
+const ltiLisClaimSchema = z
+  .object({
+    person_sourcedid: z.string().min(1).optional(),
+    course_section_sourcedid: z.string().min(1).optional(),
+  })
+  .passthrough();
+
 export const ltiLaunchClaimsSchema = z
   .object({
     iss: z.string().url(),
@@ -53,6 +61,7 @@ export const ltiLaunchClaimsSchema = z
     [LTI_CLAIM_ROLES]: z.array(z.string().min(1)).default([]),
     [LTI_CLAIM_RESOURCE_LINK]: ltiResourceLinkClaimSchema.optional(),
     [LTI_CLAIM_CONTEXT]: ltiContextClaimSchema.optional(),
+    [LTI_CLAIM_LIS]: ltiLisClaimSchema.optional(),
   })
   .passthrough();
 

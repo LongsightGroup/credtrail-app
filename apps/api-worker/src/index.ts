@@ -56,6 +56,7 @@ import {
   listAssertionStatusListEntries,
   listLtiIssuerRegistrations,
   listLearnerBadgeSummaries,
+  listLearnerIdentitiesByProfile,
   leaseJobQueueMessages,
   findMagicLinkTokenByHash,
   findOb3SubjectProfile,
@@ -85,6 +86,8 @@ import {
   type AssertionRecord,
   type LtiIssuerRegistrationRecord,
   type LearnerBadgeSummaryRecord,
+  type RecipientIdentifierInput,
+  type RecipientIdentifierType,
   type PublicBadgeWallEntryRecord,
   type SessionRecord,
   type SqlDatabase,
@@ -96,6 +99,7 @@ import { createPostgresDatabase } from '@credtrail/db/postgres';
 import { renderPageShell } from '@credtrail/ui-components';
 import {
   LTI_CLAIM_DEPLOYMENT_ID,
+  LTI_CLAIM_LIS,
   LTI_CLAIM_MESSAGE_TYPE,
   LTI_CLAIM_RESOURCE_LINK,
   LTI_CLAIM_TARGET_LINK_URI,
@@ -769,6 +773,11 @@ const ltiEmailFromClaims = (claims: LtiLaunchClaims): string | null => {
 
   return emailClaim;
 };
+const ltiSourcedIdFromClaims = (claims: LtiLaunchClaims): string | null => {
+  const lisClaim = asJsonObject(claims[LTI_CLAIM_LIS]);
+  return asNonEmptyString(lisClaim?.person_sourcedid);
+};
+
 
 const ltiSyntheticEmail = async (tenantId: string, federatedSubject: string): Promise<string> => {
   const digest = await sha256Hex(`${tenantId}:${federatedSubject}`);
@@ -2616,6 +2625,11 @@ const issueBadgeQueueJobFromRequest = (
       badgeTemplateId: request.badgeTemplateId,
       recipientIdentity: request.recipientIdentity,
       recipientIdentityType: request.recipientIdentityType,
+      ...(request.recipientIdentifiers === undefined
+        ? {}
+        : {
+            recipientIdentifiers: request.recipientIdentifiers,
+          }),
       requestedAt: new Date().toISOString(),
       ...(request.requestedByUserId === undefined
         ? {}
@@ -2726,6 +2740,7 @@ const processQueuedJob = async (c: AppContext, job: QueueJob): Promise<void> => 
           badgeTemplateId: job.payload.badgeTemplateId,
           recipientIdentity: job.payload.recipientIdentity,
           recipientIdentityType: job.payload.recipientIdentityType,
+          recipientIdentifiers: job.payload.recipientIdentifiers,
           idempotencyKey: job.idempotencyKey,
         },
         job.payload.requestedByUserId,
@@ -8762,6 +8777,55 @@ app.post(LTI_LAUNCH_PATH, async (c): Promise<Response> => {
     linkedLearnerProfileId = learnerProfile.id;
 
     const claimedEmail = ltiEmailFromClaims(launchClaims);
+
+    if (claimedEmail !== null) {
+      const existingEmailProfile = await findLearnerProfileByIdentity(db, {
+        tenantId,
+        identityType: 'email',
+        identityValue: claimedEmail,
+      });
+
+      if (existingEmailProfile !== null && existingEmailProfile.id !== learnerProfile.id) {
+        throw new Error('LTI email claim is already linked to a different learner profile');
+      }
+
+      if (existingEmailProfile === null) {
+        await addLearnerIdentityAlias(db, {
+          tenantId,
+          learnerProfileId: learnerProfile.id,
+          identityType: 'email',
+          identityValue: claimedEmail,
+          isPrimary: false,
+          isVerified: true,
+        });
+      }
+    }
+
+    const sourcedId = ltiSourcedIdFromClaims(launchClaims);
+
+    if (sourcedId !== null) {
+      const existingSourcedIdProfile = await findLearnerProfileByIdentity(db, {
+        tenantId,
+        identityType: 'sourced_id',
+        identityValue: sourcedId,
+      });
+
+      if (existingSourcedIdProfile !== null && existingSourcedIdProfile.id !== learnerProfile.id) {
+        throw new Error('LTI sourcedId claim is already linked to a different learner profile');
+      }
+
+      if (existingSourcedIdProfile === null) {
+        await addLearnerIdentityAlias(db, {
+          tenantId,
+          learnerProfileId: learnerProfile.id,
+          identityType: 'sourced_id',
+          identityValue: sourcedId,
+          isPrimary: false,
+          isVerified: true,
+        });
+      }
+    }
+
     const user = await upsertUserByEmail(
       db,
       claimedEmail ?? (await ltiSyntheticEmail(tenantId, federatedSubject)),
@@ -9270,7 +9334,7 @@ app.post('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/unarchive', asy
 
 type DirectIssueBadgeRequest = Pick<
   ManualIssueBadgeRequest,
-  'badgeTemplateId' | 'recipientIdentity' | 'recipientIdentityType' | 'idempotencyKey'
+  'badgeTemplateId' | 'recipientIdentity' | 'recipientIdentityType' | 'recipientIdentifiers' | 'idempotencyKey'
 >;
 
 interface DirectIssueBadgeOptions {
@@ -9288,6 +9352,150 @@ interface DirectIssueBadgeResult {
   credential: JsonObject;
 }
 
+const normalizeRecipientIdentifierValue = (
+  identifierType: RecipientIdentifierType,
+  identifierValue: string,
+): string => {
+  const trimmedValue = identifierValue.trim();
+
+  if (identifierType === 'emailAddress') {
+    return trimmedValue.toLowerCase();
+  }
+
+  return trimmedValue;
+};
+
+const toDbRecipientIdentifierInput = (entry: {
+  identifierType: RecipientIdentifierType;
+  identifier: string;
+}): RecipientIdentifierInput | null => {
+  const normalizedValue = normalizeRecipientIdentifierValue(entry.identifierType, entry.identifier);
+
+  if (normalizedValue.length === 0) {
+    return null;
+  }
+
+  return {
+    identifierType: entry.identifierType,
+    identifierValue: normalizedValue,
+  };
+};
+
+const uniqueRecipientIdentifierInputs = (
+  entries: readonly RecipientIdentifierInput[],
+): RecipientIdentifierInput[] => {
+  const seen = new Set<string>();
+  const uniqueEntries: RecipientIdentifierInput[] = [];
+
+  for (const entry of entries) {
+    const normalizedValue = normalizeRecipientIdentifierValue(entry.identifierType, entry.identifierValue);
+
+    if (normalizedValue.length === 0) {
+      continue;
+    }
+
+    const dedupeKey = entry.identifierType + '::' + normalizedValue;
+
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
+
+    seen.add(dedupeKey);
+    uniqueEntries.push({
+      identifierType: entry.identifierType,
+      identifierValue: normalizedValue,
+    });
+  }
+
+  return uniqueEntries;
+};
+
+const recipientIdentifiersFromIdentityAliases = (
+  identityType: 'email' | 'email_sha256' | 'did' | 'url' | 'saml_subject' | 'sourced_id',
+  identityValue: string,
+): RecipientIdentifierInput | null => {
+  switch (identityType) {
+    case 'email':
+      return toDbRecipientIdentifierInput({
+        identifierType: 'emailAddress',
+        identifier: identityValue,
+      });
+    case 'did':
+      return toDbRecipientIdentifierInput({
+        identifierType: 'did',
+        identifier: identityValue,
+      });
+    case 'sourced_id':
+      return toDbRecipientIdentifierInput({
+        identifierType: 'sourcedId',
+        identifier: identityValue,
+      });
+    case 'email_sha256':
+    case 'url':
+    case 'saml_subject':
+      return null;
+  }
+};
+
+const recipientIdentifiersForIssueRequest = (
+  request: DirectIssueBadgeRequest,
+  learnerProfileId: string,
+  learnerIdentities: readonly {
+    identityType: 'email' | 'email_sha256' | 'did' | 'url' | 'saml_subject' | 'sourced_id';
+    identityValue: string;
+  }[],
+): RecipientIdentifierInput[] => {
+  const entries: RecipientIdentifierInput[] = [];
+
+  const stableLearnerIdentifier = toDbRecipientIdentifierInput({
+    identifierType: 'studentId',
+    identifier: learnerProfileId,
+  });
+
+  if (stableLearnerIdentifier !== null) {
+    entries.push(stableLearnerIdentifier);
+  }
+
+  const requestPrimaryIdentifierType =
+    request.recipientIdentityType === 'email'
+      ? 'emailAddress'
+      : request.recipientIdentityType === 'did'
+        ? 'did'
+        : null;
+
+  if (requestPrimaryIdentifierType !== null) {
+    const requestPrimaryIdentifier = toDbRecipientIdentifierInput({
+      identifierType: requestPrimaryIdentifierType,
+      identifier: request.recipientIdentity,
+    });
+
+    if (requestPrimaryIdentifier !== null) {
+      entries.push(requestPrimaryIdentifier);
+    }
+  }
+
+  for (const identity of learnerIdentities) {
+    const mappedIdentifier = recipientIdentifiersFromIdentityAliases(identity.identityType, identity.identityValue);
+
+    if (mappedIdentifier !== null) {
+      entries.push(mappedIdentifier);
+    }
+  }
+
+  for (const requestIdentifier of request.recipientIdentifiers ?? []) {
+    const mappedRequestIdentifier = toDbRecipientIdentifierInput({
+      identifierType: requestIdentifier.identifierType,
+      identifier: requestIdentifier.identifier,
+    });
+
+    if (mappedRequestIdentifier !== null) {
+      entries.push(mappedRequestIdentifier);
+    }
+  }
+
+  return uniqueRecipientIdentifierInputs(entries);
+};
+
 const issueBadgeForTenant = async (
   c: AppContext,
   tenantId: string,
@@ -9295,7 +9503,8 @@ const issueBadgeForTenant = async (
   issuedByUserId?: string,
   options?: DirectIssueBadgeOptions,
 ): Promise<DirectIssueBadgeResult> => {
-  const badgeTemplate = await findBadgeTemplateById(resolveDatabase(c.env), tenantId, request.badgeTemplateId);
+  const db = resolveDatabase(c.env);
+  const badgeTemplate = await findBadgeTemplateById(db, tenantId, request.badgeTemplateId);
 
   if (badgeTemplate === null) {
     throw new HttpErrorResponse(404, {
@@ -9310,7 +9519,7 @@ const issueBadgeForTenant = async (
   }
 
   const idempotencyKey = request.idempotencyKey ?? crypto.randomUUID();
-  const existingAssertion = await findAssertionByIdempotencyKey(resolveDatabase(c.env), tenantId, idempotencyKey);
+  const existingAssertion = await findAssertionByIdempotencyKey(db, tenantId, idempotencyKey);
 
   if (existingAssertion !== null) {
     const existingCredential = await getImmutableCredentialObject(c.env.BADGE_OBJECTS, {
@@ -9340,7 +9549,7 @@ const issueBadgeForTenant = async (
   });
 
   const requestBaseUrl = new URL(c.req.url);
-  const learnerProfile = await resolveLearnerProfileForIdentity(resolveDatabase(c.env), {
+  const learnerProfile = await resolveLearnerProfileForIdentity(db, {
     tenantId,
     identityType: request.recipientIdentityType,
     identityValue: request.recipientIdentity,
@@ -9350,8 +9559,16 @@ const issueBadgeForTenant = async (
   });
   const issuedAt = new Date().toISOString();
   const assertionId = createTenantScopedId(tenantId);
-  const statusListIndex = await nextAssertionStatusListIndex(resolveDatabase(c.env), tenantId);
+  const statusListIndex = await nextAssertionStatusListIndex(db, tenantId);
   const statusListCredentialUrl = revocationStatusListUrlForTenant(requestBaseUrl.toString(), tenantId);
+  const learnerIdentities = await listLearnerIdentitiesByProfile(db, tenantId, learnerProfile.id);
+  const recipientIdentifiers = recipientIdentifiersForIssueRequest(request, learnerProfile.id, learnerIdentities);
+  const credentialSubjectIdentifiers: JsonObject[] = recipientIdentifiers.map((entry) => {
+    return {
+      type: entry.identifierType,
+      identifier: entry.identifierValue,
+    };
+  });
   const issuer =
     options?.issuerName === undefined
       ? issuerDid
@@ -9376,6 +9593,7 @@ const issueBadgeForTenant = async (
       credentialStatus: credentialStatusForAssertion(statusListCredentialUrl, statusListIndex),
       credentialSubject: {
         id: learnerProfile.subjectId,
+        identifier: credentialSubjectIdentifiers,
         achievement: {
           id: `urn:credtrail:badge-template:${encodeURIComponent(badgeTemplate.id)}`,
           type: ['Achievement'],
@@ -9417,7 +9635,7 @@ const issueBadgeForTenant = async (
     credential: signedCredential,
   });
 
-  const createdAssertion = await createAssertion(resolveDatabase(c.env), {
+  const createdAssertion = await createAssertion(db, {
     id: assertionId,
     tenantId,
     learnerProfileId: learnerProfile.id,
@@ -9428,10 +9646,11 @@ const issueBadgeForTenant = async (
     statusListIndex,
     idempotencyKey,
     issuedAt,
+    recipientIdentifiers,
     ...(issuedByUserId === undefined ? {} : { issuedByUserId }),
   });
 
-  await createAuditLog(resolveDatabase(c.env), {
+  await createAuditLog(db, {
     tenantId,
     ...(issuedByUserId === undefined ? {} : { actorUserId: issuedByUserId }),
     action: 'assertion.issued',

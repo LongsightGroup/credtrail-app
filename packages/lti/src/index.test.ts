@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   LTI_CLAIM_DEPLOYMENT_ID,
+  LTI_CLAIM_LIS,
   LTI_CLAIM_MESSAGE_TYPE,
   LTI_CLAIM_ROLES,
   LTI_CLAIM_VERSION,
@@ -47,11 +48,15 @@ describe('parseLtiLaunchClaims', () => {
       [LTI_CLAIM_MESSAGE_TYPE]: LTI_MESSAGE_TYPE_RESOURCE_LINK_REQUEST,
       [LTI_CLAIM_VERSION]: '1.3.0',
       [LTI_CLAIM_ROLES]: ['http://purl.imsglobal.org/vocab/lis/v2/membership#Learner'],
+      [LTI_CLAIM_LIS]: {
+        person_sourcedid: 'student-sourced-id-123',
+      },
     });
 
     expect(parsed[LTI_CLAIM_DEPLOYMENT_ID]).toBe('deployment-123');
     expect(parsed[LTI_CLAIM_MESSAGE_TYPE]).toBe('LtiResourceLinkRequest');
     expect(parsed[LTI_CLAIM_VERSION]).toBe('1.3.0');
+    expect(parsed[LTI_CLAIM_LIS]?.person_sourcedid).toBe('student-sourced-id-123');
   });
 
   it('rejects unsupported LTI version values', () => {
