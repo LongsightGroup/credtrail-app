@@ -4388,14 +4388,14 @@ describe('GET /credentials/v1/:credentialId/download.pdf', () => {
       env,
     );
     const bodyBuffer = await response.arrayBuffer();
-    const bodyText = new TextDecoder().decode(bodyBuffer.slice(0, 8));
+    const bodyText = new TextDecoder().decode(bodyBuffer.slice(0, 5));
 
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('no-store');
     expect(response.headers.get('content-type')).toContain('application/pdf');
     expect(response.headers.get('content-disposition')).toContain('attachment; filename=');
     expect(response.headers.get('content-disposition')).toContain('.pdf');
-    expect(bodyText).toContain('%PDF-1.4');
+    expect(bodyText).toBe('%PDF-');
   });
 
   it('returns 400 for invalid credential identifier', async () => {

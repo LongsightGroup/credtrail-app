@@ -128,6 +128,7 @@ import {
 } from '@credtrail/validation';
 import { Hono, type Context } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+import { PDFDocument, StandardFonts, rgb, type PDFImage, type PDFPage } from 'pdf-lib';
 
 interface AppBindings {
   APP_ENV: string;
@@ -4957,16 +4958,142 @@ interface BadgePdfDocumentInput {
   publicBadgeUrl: string;
   verificationUrl: string;
   ob3JsonUrl: string;
+  badgeImageUrl: string | null;
   revokedAt?: string;
 }
 
-const normalizePdfText = (value: string): string => {
-  return value
-    .normalize('NFKD')
-    .replaceAll(/[^\x20-\x7E]/g, '?')
-    .replaceAll('\\', '\\\\')
-    .replaceAll('(', '\\(')
-    .replaceAll(')', '\\)');
+interface BadgePdfImageAsset {
+  bytes: Uint8Array;
+  mimeType: 'image/png' | 'image/jpeg';
+}
+
+const BADGE_PDF_IMAGE_FETCH_TIMEOUT_MS = 2_500;
+const BADGE_PDF_MAX_IMAGE_BYTES = 2_500_000;
+
+const parseBadgePdfDataUrl = (imageUrl: string): BadgePdfImageAsset | null => {
+  const match = /^data:(image\/(?:png|jpeg|jpg));base64,([A-Za-z0-9+/=\s]+)$/i.exec(imageUrl.trim());
+
+  if (match === null) {
+    return null;
+  }
+
+  const mimeType = match[1]?.toLowerCase();
+  const base64Payload = match[2]?.replaceAll(/\s+/g, '');
+
+  if (base64Payload === undefined || base64Payload.length === 0) {
+    return null;
+  }
+
+  try {
+    const binary = atob(base64Payload);
+
+    if (binary.length === 0 || binary.length > BADGE_PDF_MAX_IMAGE_BYTES) {
+      return null;
+    }
+
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+
+    if (mimeType === 'image/png') {
+      return {
+        bytes,
+        mimeType: 'image/png',
+      };
+    }
+
+    return {
+      bytes,
+      mimeType: 'image/jpeg',
+    };
+  } catch {
+    return null;
+  }
+};
+
+const inferBadgePdfImageMimeType = (
+  imageUrl: URL,
+  contentTypeHeader: string | null,
+): BadgePdfImageAsset['mimeType'] | null => {
+  const contentType = contentTypeHeader?.split(';')[0]?.trim().toLowerCase() ?? null;
+
+  if (contentType === 'image/png') {
+    return 'image/png';
+  }
+
+  if (contentType === 'image/jpeg' || contentType === 'image/jpg') {
+    return 'image/jpeg';
+  }
+
+  const pathname = imageUrl.pathname.toLowerCase();
+
+  if (pathname.endsWith('.png')) {
+    return 'image/png';
+  }
+
+  if (pathname.endsWith('.jpg') || pathname.endsWith('.jpeg')) {
+    return 'image/jpeg';
+  }
+
+  return null;
+};
+
+const loadBadgePdfImageAsset = async (imageUrl: string): Promise<BadgePdfImageAsset | null> => {
+  const dataUrlAsset = parseBadgePdfDataUrl(imageUrl);
+
+  if (dataUrlAsset !== null) {
+    return dataUrlAsset;
+  }
+
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(imageUrl);
+  } catch {
+    return null;
+  }
+
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    return null;
+  }
+
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(() => {
+    abortController.abort();
+  }, BADGE_PDF_IMAGE_FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(parsedUrl.toString(), {
+      method: 'GET',
+      headers: {
+        Accept: 'image/png,image/jpeg,image/*;q=0.8,*/*;q=0.5',
+      },
+      signal: abortController.signal,
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const mimeType = inferBadgePdfImageMimeType(parsedUrl, response.headers.get('content-type'));
+
+    if (mimeType === null) {
+      return null;
+    }
+
+    const imageBuffer = await response.arrayBuffer();
+
+    if (imageBuffer.byteLength === 0 || imageBuffer.byteLength > BADGE_PDF_MAX_IMAGE_BYTES) {
+      return null;
+    }
+
+    return {
+      bytes: new Uint8Array(imageBuffer),
+      mimeType,
+    };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 };
 
 const wrapPdfText = (value: string, maxChars: number): string[] => {
@@ -5018,66 +5145,369 @@ const wrapPdfText = (value: string, maxChars: number): string[] => {
   return lines;
 };
 
-const renderBadgePdfDocument = (input: BadgePdfDocumentInput): Uint8Array => {
-  const rawLines: string[] = [
-    'CredTrail Badge Credential',
-    '',
-    `Badge: ${input.badgeName}`,
-    `Recipient: ${input.recipientName}`,
-    `Recipient identifier: ${input.recipientIdentifier}`,
-    `Issuer: ${input.issuerName}`,
-    `Issued at: ${input.issuedAt}`,
-    `Status: ${input.status}`,
-    ...(input.revokedAt === undefined ? [] : [`Revoked at: ${input.revokedAt}`]),
-    '',
-    `Assertion ID: ${input.assertionId}`,
-    `Credential ID: ${input.credentialId}`,
-    '',
-    `Public badge URL: ${input.publicBadgeUrl}`,
-    `Verification JSON: ${input.verificationUrl}`,
-    `Open Badges 3.0 JSON: ${input.ob3JsonUrl}`,
-  ];
-  const lines = rawLines.flatMap((line) => wrapPdfText(line, 95));
-  const contentEntries: string[] = ['BT', '/F1 12 Tf', '56 764 Td'];
-
-  for (const [index, line] of lines.entries()) {
-    const safeLine = normalizePdfText(line);
-    if (index > 0) {
-      contentEntries.push('0 -16 Td');
+const embedBadgePdfImage = async (
+  pdfDocument: PDFDocument,
+  asset: BadgePdfImageAsset,
+): Promise<PDFImage | null> => {
+  try {
+    if (asset.mimeType === 'image/png') {
+      return await pdfDocument.embedPng(asset.bytes);
     }
-    contentEntries.push(`(${safeLine}) Tj`);
+
+    return await pdfDocument.embedJpg(asset.bytes);
+  } catch {
+    return null;
+  }
+};
+
+const drawBadgePdfPlaceholder = (
+  page: PDFPage,
+  badgeName: string,
+  frame: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  },
+): void => {
+  const initials = badgeInitialsFromName(badgeName);
+
+  page.drawRectangle({
+    x: frame.x,
+    y: frame.y,
+    width: frame.width,
+    height: frame.height,
+    color: rgb(0.09, 0.31, 0.18),
+  });
+  page.drawCircle({
+    x: frame.x + frame.width - 36,
+    y: frame.y + frame.height - 34,
+    size: 24,
+    color: rgb(0.96, 0.76, 0.14),
+    opacity: 0.28,
+  });
+  page.drawCircle({
+    x: frame.x + 34,
+    y: frame.y + 34,
+    size: 30,
+    color: rgb(0.96, 0.76, 0.14),
+    opacity: 0.2,
+  });
+  page.drawText(initials, {
+    x: frame.x + frame.width / 2 - 26,
+    y: frame.y + frame.height / 2 - 14,
+    size: 28,
+    color: rgb(0.96, 0.98, 1),
+  });
+};
+
+const drawPdfTextLines = (
+  page: PDFPage,
+  lines: readonly string[],
+  x: number,
+  startY: number,
+  options: {
+    size: number;
+    color: ReturnType<typeof rgb>;
+    lineHeight: number;
+  },
+): number => {
+  let currentY = startY;
+
+  for (const line of lines) {
+    page.drawText(line, {
+      x,
+      y: currentY,
+      size: options.size,
+      color: options.color,
+    });
+    currentY -= options.lineHeight;
   }
 
-  contentEntries.push('ET');
-  const contentStream = contentEntries.join('\n');
-  const pdfObjects = [
-    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
-    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
-    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n',
-    '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
-    `5 0 obj\n<< /Length ${String(contentStream.length)} >>\nstream\n${contentStream}\nendstream\nendobj\n`,
-  ];
+  return currentY;
+};
 
-  let document = '%PDF-1.4\n';
-  const offsets = [0];
+const drawPdfField = (
+  page: PDFPage,
+  label: string,
+  value: string,
+  x: number,
+  startY: number,
+): number => {
+  page.drawText(label, {
+    x,
+    y: startY,
+    size: 10,
+    color: rgb(0.36, 0.42, 0.49),
+  });
+  const wrappedValueLines = wrapPdfText(value, 45);
+  const nextY = drawPdfTextLines(page, wrappedValueLines, x, startY - 14, {
+    size: 12,
+    color: rgb(0.08, 0.11, 0.17),
+    lineHeight: 14,
+  });
 
-  for (const object of pdfObjects) {
-    offsets.push(document.length);
-    document += object;
+  return nextY - 8;
+};
+
+const drawPdfLinkBlock = (
+  page: PDFPage,
+  label: string,
+  value: string,
+  x: number,
+  startY: number,
+): number => {
+  page.drawText(label, {
+    x,
+    y: startY,
+    size: 10,
+    color: rgb(0.36, 0.42, 0.49),
+  });
+  const wrappedValueLines = wrapPdfText(value, 88);
+
+  return drawPdfTextLines(page, wrappedValueLines, x, startY - 13, {
+    size: 10.5,
+    color: rgb(0.08, 0.11, 0.17),
+    lineHeight: 13,
+  });
+};
+
+const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Promise<Uint8Array> => {
+  const pdfDocument = await PDFDocument.create();
+  const page = pdfDocument.addPage([612, 792]);
+  const regularFont = await pdfDocument.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDocument.embedFont(StandardFonts.HelveticaBold);
+
+  const pageWidth = page.getWidth();
+  const pageHeight = page.getHeight();
+  const margin = 30;
+
+  page.drawRectangle({
+    x: 0,
+    y: 0,
+    width: pageWidth,
+    height: pageHeight,
+    color: rgb(0.97, 0.98, 0.99),
+  });
+  page.drawRectangle({
+    x: margin - 6,
+    y: margin - 6,
+    width: pageWidth - (margin - 6) * 2,
+    height: pageHeight - (margin - 6) * 2,
+    borderWidth: 1,
+    borderColor: rgb(0.76, 0.81, 0.87),
+  });
+
+  const headerY = pageHeight - 96;
+  page.drawRectangle({
+    x: margin,
+    y: headerY,
+    width: pageWidth - margin * 2,
+    height: 58,
+    color: rgb(0.09, 0.35, 0.21),
+  });
+  page.drawRectangle({
+    x: margin + 10,
+    y: headerY + 8,
+    width: 7,
+    height: 42,
+    color: rgb(0.96, 0.76, 0.14),
+  });
+  page.drawText('OFFICIAL BADGE CREDENTIAL', {
+    x: margin + 26,
+    y: headerY + 33,
+    size: 18,
+    color: rgb(0.97, 0.98, 1),
+    font: boldFont,
+  });
+  page.drawText('Issued by CredTrail - Open Badges 3.0 Verification Record', {
+    x: margin + 26,
+    y: headerY + 15,
+    size: 10.5,
+    color: rgb(0.89, 0.95, 0.92),
+    font: regularFont,
+  });
+
+  const imageFrame = {
+    x: margin + 14,
+    y: 408,
+    width: 212,
+    height: 222,
+  };
+  page.drawRectangle({
+    x: imageFrame.x - 1,
+    y: imageFrame.y - 1,
+    width: imageFrame.width + 2,
+    height: imageFrame.height + 2,
+    borderWidth: 1,
+    borderColor: rgb(0.72, 0.79, 0.86),
+    color: rgb(1, 1, 1),
+  });
+
+  let embeddedBadgeImage: PDFImage | null = null;
+
+  if (input.badgeImageUrl !== null) {
+    const imageAsset = await loadBadgePdfImageAsset(input.badgeImageUrl);
+    embeddedBadgeImage = imageAsset === null ? null : await embedBadgePdfImage(pdfDocument, imageAsset);
   }
 
-  const xrefOffset = document.length;
-  document += `xref\n0 ${String(pdfObjects.length + 1)}\n`;
-  document += '0000000000 65535 f \n';
+  if (embeddedBadgeImage === null) {
+    drawBadgePdfPlaceholder(page, input.badgeName, imageFrame);
+  } else {
+    const imageScale = Math.min(
+      (imageFrame.width - 10) / embeddedBadgeImage.width,
+      (imageFrame.height - 10) / embeddedBadgeImage.height,
+    );
+    const imageWidth = embeddedBadgeImage.width * imageScale;
+    const imageHeight = embeddedBadgeImage.height * imageScale;
 
-  for (const offset of offsets.slice(1)) {
-    document += `${offset.toString().padStart(10, '0')} 00000 n \n`;
+    page.drawImage(embeddedBadgeImage, {
+      x: imageFrame.x + (imageFrame.width - imageWidth) / 2,
+      y: imageFrame.y + (imageFrame.height - imageHeight) / 2,
+      width: imageWidth,
+      height: imageHeight,
+    });
   }
 
-  document += `trailer\n<< /Size ${String(pdfObjects.length + 1)} /Root 1 0 R >>\n`;
-  document += `startxref\n${String(xrefOffset)}\n%%EOF\n`;
+  page.drawText('Badge Artwork', {
+    x: imageFrame.x + 4,
+    y: imageFrame.y - 16,
+    size: 9.5,
+    color: rgb(0.36, 0.42, 0.49),
+    font: regularFont,
+  });
 
-  return new TextEncoder().encode(document);
+  const statusColor = input.status.toLowerCase() === 'revoked' ? rgb(0.66, 0.14, 0.09) : rgb(0.1, 0.41, 0.24);
+  page.drawRectangle({
+    x: 446,
+    y: 618,
+    width: 136,
+    height: 28,
+    color: statusColor,
+  });
+  page.drawText(input.status.toUpperCase(), {
+    x: 474,
+    y: 628,
+    size: 10.5,
+    color: rgb(0.98, 0.99, 1),
+    font: boldFont,
+  });
+
+  const badgeNameLines = wrapPdfText(input.badgeName, 34);
+  let detailY = drawPdfTextLines(page, badgeNameLines, 276, 588, {
+    size: 21,
+    color: rgb(0.08, 0.11, 0.17),
+    lineHeight: 24,
+  });
+  detailY -= 6;
+
+  detailY = drawPdfField(page, 'Recipient', input.recipientName, 276, detailY);
+  detailY = drawPdfField(page, 'Recipient identifier', input.recipientIdentifier, 276, detailY);
+  detailY = drawPdfField(page, 'Issuing organization', input.issuerName, 276, detailY);
+  detailY = drawPdfField(page, 'Issued at', input.issuedAt, 276, detailY);
+  detailY = drawPdfField(page, 'Assertion ID', input.assertionId, 276, detailY);
+  detailY = drawPdfField(page, 'Credential ID', input.credentialId, 276, detailY);
+
+  if (input.revokedAt !== undefined) {
+    drawPdfField(page, 'Revoked at', input.revokedAt, 276, detailY);
+  }
+
+  page.drawLine({
+    start: {
+      x: margin + 2,
+      y: 365,
+    },
+    end: {
+      x: pageWidth - margin - 2,
+      y: 365,
+    },
+    thickness: 1,
+    color: rgb(0.79, 0.83, 0.89),
+  });
+
+  page.drawText('Verification References', {
+    x: margin + 14,
+    y: 344,
+    size: 14.5,
+    color: rgb(0.09, 0.35, 0.21),
+    font: boldFont,
+  });
+
+  let verificationY = 324;
+  verificationY = drawPdfLinkBlock(page, 'Public badge page', input.publicBadgeUrl, margin + 14, verificationY);
+  verificationY -= 6;
+  verificationY = drawPdfLinkBlock(page, 'Verification JSON endpoint', input.verificationUrl, margin + 14, verificationY);
+  verificationY -= 6;
+  drawPdfLinkBlock(page, 'Open Badges 3.0 JSON-LD', input.ob3JsonUrl, margin + 14, verificationY);
+
+  page.drawRectangle({
+    x: margin + 14,
+    y: 90,
+    width: pageWidth - (margin + 14) * 2,
+    height: 66,
+    borderWidth: 1,
+    borderColor: rgb(0.8, 0.84, 0.89),
+    color: rgb(1, 1, 1),
+  });
+  page.drawText(
+    'This credential record is issued as an official verification document for institutional and hiring workflows.',
+    {
+      x: margin + 24,
+      y: 130,
+      size: 10.5,
+      color: rgb(0.26, 0.31, 0.38),
+      font: regularFont,
+    },
+  );
+  page.drawText('Authenticity can be confirmed using the verification references above.', {
+    x: margin + 24,
+    y: 114,
+    size: 10.5,
+    color: rgb(0.26, 0.31, 0.38),
+    font: regularFont,
+  });
+
+  page.drawLine({
+    start: {
+      x: margin + 28,
+      y: 68,
+    },
+    end: {
+      x: margin + 222,
+      y: 68,
+    },
+    thickness: 1,
+    color: rgb(0.64, 0.69, 0.75),
+  });
+  page.drawLine({
+    start: {
+      x: pageWidth - margin - 222,
+      y: 68,
+    },
+    end: {
+      x: pageWidth - margin - 28,
+      y: 68,
+    },
+    thickness: 1,
+    color: rgb(0.64, 0.69, 0.75),
+  });
+  page.drawText('Issuer signature reference', {
+    x: margin + 28,
+    y: 55,
+    size: 9,
+    color: rgb(0.4, 0.46, 0.53),
+    font: regularFont,
+  });
+  page.drawText('Recipient copy', {
+    x: pageWidth - margin - 130,
+    y: 55,
+    size: 9,
+    color: rgb(0.4, 0.46, 0.53),
+    font: regularFont,
+  });
+
+  const pdfBytes = await pdfDocument.save();
+  return Uint8Array.from(pdfBytes);
 };
 
 export interface SendIssuanceEmailNotificationInput {
@@ -6720,11 +7150,12 @@ app.get('/credentials/v1/:credentialId/download.pdf', async (c) => {
   const verificationPath = `/credentials/v1/${encodeURIComponent(result.value.assertion.id)}`;
   const ob3JsonPath = `${verificationPath}/jsonld`;
   const credentialId = asString(result.value.credential.id) ?? result.value.assertion.id;
+  const achievementDetails = achievementDetailsFromCredential(result.value.credential);
   const recipientName =
     result.value.recipientDisplayName ??
     recipientDisplayNameFromAssertion(result.value.assertion) ??
     'Badge recipient';
-  const pdfDocument = renderBadgePdfDocument({
+  const pdfDocument = await renderBadgePdfDocument({
     badgeName: badgeNameFromCredential(result.value.credential),
     recipientName,
     recipientIdentifier: recipientFromCredential(result.value.credential),
@@ -6736,6 +7167,7 @@ app.get('/credentials/v1/:credentialId/download.pdf', async (c) => {
     publicBadgeUrl: new URL(publicBadgePath, c.req.url).toString(),
     verificationUrl: new URL(verificationPath, c.req.url).toString(),
     ob3JsonUrl: new URL(ob3JsonPath, c.req.url).toString(),
+    badgeImageUrl: achievementDetails.imageUri,
     ...(result.value.assertion.revokedAt === null
       ? {}
       : {

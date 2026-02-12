@@ -8,6 +8,7 @@
     "@credtrail/db": "workspace:*",
     "@credtrail/ui-components": "workspace:*",
     "@credtrail/validation": "workspace:*",
-    "hono": "^4.7.2"
+    "hono": "^4.7.2",
+    "pdf-lib": "^1.17.1"
   }
 }
