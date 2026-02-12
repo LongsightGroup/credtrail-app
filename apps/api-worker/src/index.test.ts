@@ -32,6 +32,7 @@ vi.mock('@credtrail/db', async () => {
     findLearnerProfileByIdentity: vi.fn(),
     findUserById: vi.fn(),
     listAssertionStatusListEntries: vi.fn(),
+    listLtiIssuerRegistrations: vi.fn(),
     listPublicBadgeWallEntries: vi.fn(),
     touchSession: vi.fn(),
     listLearnerBadgeSummaries: vi.fn(),
@@ -45,7 +46,9 @@ vi.mock('@credtrail/db', async () => {
     revokeOAuthAccessTokenByHash: vi.fn(),
     revokeOAuthRefreshTokenByHash: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
+    deleteLtiIssuerRegistrationByIssuer: vi.fn(),
     upsertBadgeTemplateById: vi.fn(),
+    upsertLtiIssuerRegistration: vi.fn(),
     upsertUserByEmail: vi.fn(),
     upsertTenantMembershipRole: vi.fn(),
     upsertTenant: vi.fn(),
@@ -88,6 +91,7 @@ import {
   type BadgeTemplateRecord,
   type LearnerIdentityLinkProofRecord,
   type LearnerBadgeSummaryRecord,
+  type LtiIssuerRegistrationRecord,
   type LearnerProfileRecord,
   type PublicBadgeWallEntryRecord,
   type SessionRecord,
@@ -131,6 +135,7 @@ import {
   findOb3SubjectProfile,
   findUserById,
   listAssertionStatusListEntries,
+  listLtiIssuerRegistrations,
   listPublicBadgeWallEntries,
   listLearnerBadgeSummaries,
   listOb3SubjectCredentials,
@@ -141,9 +146,11 @@ import {
   revokeOAuthAccessTokenByHash,
   revokeOAuthRefreshTokenByHash,
   resolveLearnerProfileForIdentity,
+  deleteLtiIssuerRegistrationByIssuer,
   touchSession,
   type JobQueueMessageRecord,
   upsertBadgeTemplateById,
+  upsertLtiIssuerRegistration,
   upsertOb3SubjectCredential,
   upsertOb3SubjectProfile,
   upsertUserByEmail,
@@ -263,6 +270,7 @@ const mockedCreateAssertion = vi.mocked(createAssertion);
 const mockedCreateSession = vi.mocked(createSession);
 const mockedNextAssertionStatusListIndex = vi.mocked(nextAssertionStatusListIndex);
 const mockedListAssertionStatusListEntries = vi.mocked(listAssertionStatusListEntries);
+const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
 const mockedTouchSession = vi.mocked(touchSession);
 const mockedListLearnerBadgeSummaries = vi.mocked(listLearnerBadgeSummaries);
 const mockedCreateLearnerIdentityLinkProof = vi.mocked(createLearnerIdentityLinkProof);
@@ -292,7 +300,9 @@ const mockedRecordAssertionRevocation = vi.mocked(recordAssertionRevocation);
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
 const mockedUpsertTenant = vi.mocked(upsertTenant);
 const mockedUpsertTenantSigningRegistration = vi.mocked(upsertTenantSigningRegistration);
+const mockedDeleteLtiIssuerRegistrationByIssuer = vi.mocked(deleteLtiIssuerRegistrationByIssuer);
 const mockedUpsertBadgeTemplateById = vi.mocked(upsertBadgeTemplateById);
+const mockedUpsertLtiIssuerRegistration = vi.mocked(upsertLtiIssuerRegistration);
 const mockedUpsertUserByEmail = vi.mocked(upsertUserByEmail);
 const mockedUpsertTenantMembershipRole = vi.mocked(upsertTenantMembershipRole);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
@@ -336,6 +346,10 @@ beforeEach(() => {
   mockedRevokeOAuthAccessTokenByHash.mockReset();
   mockedRevokeOAuthRefreshTokenByHash.mockReset();
   mockedFindActiveOAuthAccessTokenByHash.mockReset();
+  mockedListLtiIssuerRegistrations.mockReset();
+  mockedListLtiIssuerRegistrations.mockResolvedValue([]);
+  mockedUpsertLtiIssuerRegistration.mockReset();
+  mockedDeleteLtiIssuerRegistrationByIssuer.mockReset();
   mockedListOb3SubjectCredentials.mockReset();
   mockedUpsertOb3SubjectCredential.mockReset();
   mockedFindOb3SubjectProfile.mockReset();
@@ -734,6 +748,21 @@ const sampleUserRecord = (overrides?: { id?: string; email?: string }): { id: st
   return {
     id: overrides?.id ?? 'usr_123',
     email: overrides?.email ?? 'learner@example.edu',
+  };
+};
+
+const sampleLtiIssuerRegistration = (
+  overrides?: Partial<LtiIssuerRegistrationRecord>,
+): LtiIssuerRegistrationRecord => {
+  return {
+    issuer: 'https://canvas.example.edu',
+    tenantId: 'tenant_123',
+    authorizationEndpoint: 'https://canvas.example.edu/api/lti/authorize_redirect',
+    clientId: 'canvas-client-123',
+    allowUnsignedIdToken: false,
+    createdAt: '2026-02-10T22:00:00.000Z',
+    updatedAt: '2026-02-10T22:00:00.000Z',
+    ...overrides,
   };
 };
 
@@ -2216,6 +2245,165 @@ describe('PUT /v1/admin/tenants/:tenantId/users/:userId/role', () => {
         targetType: 'membership',
         targetId: 'sakai:usr_admin',
       }),
+    );
+  });
+});
+
+describe('admin LTI issuer registration configuration', () => {
+  beforeEach(() => {
+    mockedListLtiIssuerRegistrations.mockReset();
+    mockedListLtiIssuerRegistrations.mockResolvedValue([]);
+    mockedUpsertLtiIssuerRegistration.mockReset();
+    mockedDeleteLtiIssuerRegistrationByIssuer.mockReset();
+    mockedCreateAuditLog.mockReset();
+    mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
+  });
+
+  it('lists LTI issuer registrations via bootstrap admin API', async () => {
+    const env = {
+      ...createEnv(),
+      BOOTSTRAP_ADMIN_TOKEN: 'bootstrap-secret',
+    };
+    mockedListLtiIssuerRegistrations.mockResolvedValue([sampleLtiIssuerRegistration()]);
+
+    const response = await app.request(
+      '/v1/admin/lti/issuer-registrations',
+      {
+        headers: {
+          authorization: 'Bearer bootstrap-secret',
+        },
+      },
+      env,
+    );
+    const body = await response.json<{
+      registrations: LtiIssuerRegistrationRecord[];
+    }>();
+
+    expect(response.status).toBe(200);
+    expect(body.registrations[0]?.issuer).toBe('https://canvas.example.edu');
+    expect(mockedListLtiIssuerRegistrations).toHaveBeenCalledWith(fakeDb);
+  });
+
+  it('upserts LTI issuer registrations via bootstrap admin API', async () => {
+    const env = {
+      ...createEnv(),
+      BOOTSTRAP_ADMIN_TOKEN: 'bootstrap-secret',
+    };
+    mockedUpsertLtiIssuerRegistration.mockResolvedValue(
+      sampleLtiIssuerRegistration({
+        allowUnsignedIdToken: true,
+      }),
+    );
+
+    const response = await app.request(
+      '/v1/admin/lti/issuer-registrations',
+      {
+        method: 'PUT',
+        headers: {
+          'content-type': 'application/json',
+          authorization: 'Bearer bootstrap-secret',
+        },
+        body: JSON.stringify({
+          issuer: 'https://canvas.example.edu',
+          tenantId: 'tenant_123',
+          authorizationEndpoint: 'https://canvas.example.edu/api/lti/authorize_redirect',
+          clientId: 'canvas-client-123',
+          allowUnsignedIdToken: true,
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{
+      registration: LtiIssuerRegistrationRecord;
+    }>();
+
+    expect(response.status).toBe(201);
+    expect(body.registration.allowUnsignedIdToken).toBe(true);
+    expect(mockedUpsertLtiIssuerRegistration).toHaveBeenCalledWith(fakeDb, {
+      issuer: 'https://canvas.example.edu',
+      tenantId: 'tenant_123',
+      authorizationEndpoint: 'https://canvas.example.edu/api/lti/authorize_redirect',
+      clientId: 'canvas-client-123',
+      allowUnsignedIdToken: true,
+    });
+  });
+
+  it('renders manual LTI registration UI and accepts form upserts', async () => {
+    const env = {
+      ...createEnv(),
+      BOOTSTRAP_ADMIN_TOKEN: 'bootstrap-secret',
+    };
+    mockedUpsertLtiIssuerRegistration.mockResolvedValue(sampleLtiIssuerRegistration());
+
+    const pageResponse = await app.request(
+      '/admin/lti/issuer-registrations?token=bootstrap-secret',
+      undefined,
+      env,
+    );
+    const pageBody = await pageResponse.text();
+
+    expect(pageResponse.status).toBe(200);
+    expect(pageBody).toContain('Manual LTI issuer registration configuration');
+
+    const postResponse = await app.request(
+      '/admin/lti/issuer-registrations',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          token: 'bootstrap-secret',
+          issuer: 'https://canvas.example.edu',
+          tenantId: 'tenant_123',
+          authorizationEndpoint: 'https://canvas.example.edu/api/lti/authorize_redirect',
+          clientId: 'canvas-client-123',
+          allowUnsignedIdToken: 'on',
+        }).toString(),
+      },
+      env,
+    );
+
+    expect(postResponse.status).toBe(303);
+    expect(postResponse.headers.get('location')).toBe(
+      '/admin/lti/issuer-registrations?token=bootstrap-secret',
+    );
+    expect(mockedUpsertLtiIssuerRegistration).toHaveBeenCalledWith(fakeDb, {
+      issuer: 'https://canvas.example.edu',
+      tenantId: 'tenant_123',
+      authorizationEndpoint: 'https://canvas.example.edu/api/lti/authorize_redirect',
+      clientId: 'canvas-client-123',
+      allowUnsignedIdToken: true,
+    });
+  });
+
+  it('deletes LTI issuer registrations via admin UI form', async () => {
+    const env = {
+      ...createEnv(),
+      BOOTSTRAP_ADMIN_TOKEN: 'bootstrap-secret',
+    };
+    mockedListLtiIssuerRegistrations.mockResolvedValue([sampleLtiIssuerRegistration()]);
+    mockedDeleteLtiIssuerRegistrationByIssuer.mockResolvedValue(true);
+
+    const response = await app.request(
+      '/admin/lti/issuer-registrations/delete',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          token: 'bootstrap-secret',
+          issuer: 'https://canvas.example.edu',
+        }).toString(),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(mockedDeleteLtiIssuerRegistrationByIssuer).toHaveBeenCalledWith(
+      fakeDb,
+      'https://canvas.example.edu',
     );
   });
 });
@@ -4768,6 +4956,75 @@ describe('LTI 1.3 core launch flow', () => {
     expect(redirectUrl.searchParams.get('redirect_uri')).toBe('http://localhost/v1/lti/launch');
     expect(redirectUrl.searchParams.get('state')).toBeTruthy();
     expect(redirectUrl.searchParams.get('nonce')).toBeTruthy();
+  });
+
+  it('uses DB-backed issuer registrations when env registry is not configured', async () => {
+    const env = createEnv();
+    env.LTI_STATE_SIGNING_SECRET = 'test-lti-state-secret';
+    mockedListLtiIssuerRegistrations.mockResolvedValue([
+      sampleLtiIssuerRegistration({
+        issuer,
+        tenantId,
+        clientId,
+        authorizationEndpoint,
+        allowUnsignedIdToken: true,
+      }),
+    ]);
+
+    const response = await app.request(
+      `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
+        'opaque-login-hint',
+      )}&target_link_uri=${encodeURIComponent(targetLinkUri)}`,
+      undefined,
+      env,
+    );
+
+    expect(response.status).toBe(302);
+    const location = response.headers.get('location');
+    expect(location).not.toBeNull();
+
+    const redirectUrl = new URL(location ?? '');
+    expect(`${redirectUrl.origin}${redirectUrl.pathname}`).toBe(authorizationEndpoint);
+    expect(redirectUrl.searchParams.get('client_id')).toBe(clientId);
+  });
+
+  it('prefers DB issuer registrations over env defaults for the same issuer', async () => {
+    const dbClientId = 'db-client-777';
+    const dbAuthorizationEndpoint = 'https://canvas.example.edu/db/authorize_redirect';
+    const env = createLtiEnv();
+    env.LTI_ISSUER_REGISTRY_JSON = JSON.stringify({
+      [issuer]: {
+        authorizationEndpoint: 'https://canvas.example.edu/env/authorize_redirect',
+        clientId: 'env-client-123',
+        tenantId,
+        allowUnsignedIdToken: true,
+      },
+    });
+    mockedListLtiIssuerRegistrations.mockResolvedValue([
+      sampleLtiIssuerRegistration({
+        issuer,
+        tenantId,
+        clientId: dbClientId,
+        authorizationEndpoint: dbAuthorizationEndpoint,
+        allowUnsignedIdToken: true,
+      }),
+    ]);
+
+    const response = await app.request(
+      `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
+        'opaque-login-hint',
+      )}&target_link_uri=${encodeURIComponent(targetLinkUri)}&client_id=${encodeURIComponent(dbClientId)}`,
+      undefined,
+      env,
+    );
+
+    expect(response.status).toBe(302);
+    const location = response.headers.get('location');
+    expect(location).not.toBeNull();
+
+    const redirectUrl = new URL(location ?? '');
+    expect(`${redirectUrl.origin}${redirectUrl.pathname}`).toBe(dbAuthorizationEndpoint);
+    expect(redirectUrl.searchParams.get('client_id')).toBe(dbClientId);
   });
 
   it('accepts an instructor launch and renders launch completion page', async () => {

@@ -211,6 +211,18 @@ export const adminUpsertTenantMembershipRoleRequestSchema = z.object({
   role: tenantMembershipRoleSchema,
 });
 
+export const adminUpsertLtiIssuerRegistrationRequestSchema = z.object({
+  issuer: z.string().url(),
+  tenantId: tenantIdSchema,
+  authorizationEndpoint: z.string().url(),
+  clientId: z.string().trim().min(1).max(255),
+  allowUnsignedIdToken: z.boolean().optional(),
+});
+
+export const adminDeleteLtiIssuerRegistrationRequestSchema = z.object({
+  issuer: z.string().url(),
+});
+
 export const magicLinkRequestSchema = z.object({
   tenantId: tenantIdSchema,
   email: z.string().email(),
@@ -359,6 +371,12 @@ export type AdminUpsertBadgeTemplateByIdRequest = z.infer<typeof adminUpsertBadg
 export type AdminUpsertTenantMembershipRoleRequest = z.infer<
   typeof adminUpsertTenantMembershipRoleRequestSchema
 >;
+export type AdminUpsertLtiIssuerRegistrationRequest = z.infer<
+  typeof adminUpsertLtiIssuerRegistrationRequestSchema
+>;
+export type AdminDeleteLtiIssuerRegistrationRequest = z.infer<
+  typeof adminDeleteLtiIssuerRegistrationRequestSchema
+>;
 
 export const parseQueueJob = (input: unknown): QueueJob => {
   return queueJobSchema.parse(input);
@@ -466,4 +484,16 @@ export const parseAdminUpsertTenantMembershipRoleRequest = (
   input: unknown,
 ): AdminUpsertTenantMembershipRoleRequest => {
   return adminUpsertTenantMembershipRoleRequestSchema.parse(input);
+};
+
+export const parseAdminUpsertLtiIssuerRegistrationRequest = (
+  input: unknown,
+): AdminUpsertLtiIssuerRegistrationRequest => {
+  return adminUpsertLtiIssuerRegistrationRequestSchema.parse(input);
+};
+
+export const parseAdminDeleteLtiIssuerRegistrationRequest = (
+  input: unknown,
+): AdminDeleteLtiIssuerRegistrationRequest => {
+  return adminDeleteLtiIssuerRegistrationRequestSchema.parse(input);
 };

@@ -104,6 +104,24 @@ export interface UpsertTenantSigningRegistrationInput {
   privateJwkJson?: string | undefined;
 }
 
+export interface LtiIssuerRegistrationRecord {
+  issuer: string;
+  tenantId: string;
+  authorizationEndpoint: string;
+  clientId: string;
+  allowUnsignedIdToken: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertLtiIssuerRegistrationInput {
+  issuer: string;
+  tenantId: string;
+  authorizationEndpoint: string;
+  clientId: string;
+  allowUnsignedIdToken?: boolean | undefined;
+}
+
 export interface UserRecord {
   id: string;
   email: string;
@@ -690,6 +708,16 @@ interface TenantSigningRegistrationRow {
   updatedAt: string;
 }
 
+interface LtiIssuerRegistrationRow {
+  issuer: string;
+  tenantId: string;
+  authorizationEndpoint: string;
+  clientId: string;
+  allowUnsignedIdToken: number | boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface TenantMembershipRow {
   tenantId: string;
   userId: string;
@@ -799,6 +827,19 @@ const isMissingTenantSigningRegistrationsTableError = (error: unknown): boolean 
   );
 };
 
+const isMissingLtiIssuerRegistrationsTableError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    (error.message.includes('no such table') ||
+      error.message.includes('relation') ||
+      error.message.includes('does not exist')) &&
+    error.message.includes('lti_issuer_registrations')
+  );
+};
+
 const isMissingAuditLogsTableError = (error: unknown): boolean => {
   if (!(error instanceof Error)) {
     return false;
@@ -876,6 +917,34 @@ const ensureTenantSigningRegistrationsTable = async (db: SqlDatabase): Promise<v
       `
       CREATE INDEX IF NOT EXISTS idx_tenant_signing_registrations_did
         ON tenant_signing_registrations (did)
+    `,
+    )
+    .run();
+};
+
+const ensureLtiIssuerRegistrationsTable = async (db: SqlDatabase): Promise<void> => {
+  await db
+    .prepare(
+      `
+      CREATE TABLE IF NOT EXISTS lti_issuer_registrations (
+        issuer TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        authorization_endpoint TEXT NOT NULL,
+        client_id TEXT NOT NULL,
+        allow_unsigned_id_token INTEGER NOT NULL DEFAULT 0 CHECK (allow_unsigned_id_token IN (0, 1)),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE
+      )
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_lti_issuer_registrations_tenant
+        ON lti_issuer_registrations (tenant_id)
     `,
     )
     .run();
@@ -3086,6 +3155,20 @@ const mapTenantSigningRegistrationRow = (
   };
 };
 
+const mapLtiIssuerRegistrationRow = (
+  row: LtiIssuerRegistrationRow,
+): LtiIssuerRegistrationRecord => {
+  return {
+    issuer: row.issuer,
+    tenantId: row.tenantId,
+    authorizationEndpoint: row.authorizationEndpoint,
+    clientId: row.clientId,
+    allowUnsignedIdToken: row.allowUnsignedIdToken === 1 || row.allowUnsignedIdToken === true,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+};
+
 const mapTenantMembershipRow = (row: TenantMembershipRow): TenantMembershipRecord => {
   return {
     tenantId: row.tenantId,
@@ -3393,6 +3476,162 @@ export const findTenantSigningRegistrationByDid = async (
   }
 
   return mapTenantSigningRegistrationRow(row);
+};
+
+const normalizeLtiIssuer = (issuer: string): string => {
+  return issuer.trim().replace(/\/+$/g, '');
+};
+
+export const upsertLtiIssuerRegistration = async (
+  db: SqlDatabase,
+  input: UpsertLtiIssuerRegistrationInput,
+): Promise<LtiIssuerRegistrationRecord> => {
+  const nowIso = new Date().toISOString();
+  const normalizedIssuer = normalizeLtiIssuer(input.issuer);
+  const allowUnsignedIdToken = input.allowUnsignedIdToken ?? false;
+
+  const upsertStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        INSERT INTO lti_issuer_registrations (
+          issuer,
+          tenant_id,
+          authorization_endpoint,
+          client_id,
+          allow_unsigned_id_token,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (issuer)
+        DO UPDATE SET
+          tenant_id = excluded.tenant_id,
+          authorization_endpoint = excluded.authorization_endpoint,
+          client_id = excluded.client_id,
+          allow_unsigned_id_token = excluded.allow_unsigned_id_token,
+          updated_at = excluded.updated_at
+      `,
+      )
+      .bind(
+        normalizedIssuer,
+        input.tenantId,
+        input.authorizationEndpoint,
+        input.clientId,
+        allowUnsignedIdToken ? 1 : 0,
+        nowIso,
+        nowIso,
+      )
+      .run();
+
+  const findStatement = (): Promise<LtiIssuerRegistrationRow | null> =>
+    db
+      .prepare(
+        `
+        SELECT
+          issuer,
+          tenant_id AS tenantId,
+          authorization_endpoint AS authorizationEndpoint,
+          client_id AS clientId,
+          allow_unsigned_id_token AS allowUnsignedIdToken,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM lti_issuer_registrations
+        WHERE issuer = ?
+        LIMIT 1
+      `,
+      )
+      .bind(normalizedIssuer)
+      .first<LtiIssuerRegistrationRow>();
+
+  try {
+    await upsertStatement();
+  } catch (error: unknown) {
+    if (!isMissingLtiIssuerRegistrationsTableError(error)) {
+      throw error;
+    }
+
+    await ensureLtiIssuerRegistrationsTable(db);
+    await upsertStatement();
+  }
+
+  const row = await findStatement();
+
+  if (row === null) {
+    throw new Error(`Unable to upsert LTI issuer registration "${normalizedIssuer}"`);
+  }
+
+  return mapLtiIssuerRegistrationRow(row);
+};
+
+export const listLtiIssuerRegistrations = async (
+  db: SqlDatabase,
+): Promise<LtiIssuerRegistrationRecord[]> => {
+  const listStatement = (): Promise<SqlQueryResult<LtiIssuerRegistrationRow>> =>
+    db
+      .prepare(
+        `
+        SELECT
+          issuer,
+          tenant_id AS tenantId,
+          authorization_endpoint AS authorizationEndpoint,
+          client_id AS clientId,
+          allow_unsigned_id_token AS allowUnsignedIdToken,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM lti_issuer_registrations
+        ORDER BY issuer ASC
+      `,
+      )
+      .all<LtiIssuerRegistrationRow>();
+
+  let result: SqlQueryResult<LtiIssuerRegistrationRow>;
+
+  try {
+    result = await listStatement();
+  } catch (error: unknown) {
+    if (!isMissingLtiIssuerRegistrationsTableError(error)) {
+      throw error;
+    }
+
+    await ensureLtiIssuerRegistrationsTable(db);
+    result = await listStatement();
+  }
+
+  return result.results.map((row) => mapLtiIssuerRegistrationRow(row));
+};
+
+export const deleteLtiIssuerRegistrationByIssuer = async (
+  db: SqlDatabase,
+  issuer: string,
+): Promise<boolean> => {
+  const normalizedIssuer = normalizeLtiIssuer(issuer);
+
+  const deleteStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        DELETE FROM lti_issuer_registrations
+        WHERE issuer = ?
+      `,
+      )
+      .bind(normalizedIssuer)
+      .run();
+
+  let result: SqlRunResult;
+
+  try {
+    result = await deleteStatement();
+  } catch (error: unknown) {
+    if (!isMissingLtiIssuerRegistrationsTableError(error)) {
+      throw error;
+    }
+
+    await ensureLtiIssuerRegistrationsTable(db);
+    result = await deleteStatement();
+  }
+
+  return (result.meta.rowsWritten ?? 0) > 0;
 };
 
 export const upsertBadgeTemplateById = async (

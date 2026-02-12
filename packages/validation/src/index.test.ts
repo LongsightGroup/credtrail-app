@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  parseAdminDeleteLtiIssuerRegistrationRequest,
+  parseAdminUpsertLtiIssuerRegistrationRequest,
   parseAdminUpsertTenantSigningRegistrationRequest,
   parseAdminUpsertTenantMembershipRoleRequest,
   parseBadgeTemplateListQuery,
@@ -203,6 +205,41 @@ describe('learner identity link parsers', () => {
     expect(() => {
       parseLearnerIdentityLinkRequest({
         email: 'invalid',
+      });
+    }).toThrowError();
+  });
+});
+
+describe('admin LTI issuer registration parsers', () => {
+  it('accepts a valid upsert payload', () => {
+    const request = parseAdminUpsertLtiIssuerRegistrationRequest({
+      issuer: 'https://canvas.example.edu',
+      tenantId: 'tenant_123',
+      authorizationEndpoint: 'https://canvas.example.edu/api/lti/authorize_redirect',
+      clientId: 'canvas-client-123',
+      allowUnsignedIdToken: true,
+    });
+
+    expect(request.issuer).toBe('https://canvas.example.edu');
+    expect(request.tenantId).toBe('tenant_123');
+    expect(request.allowUnsignedIdToken).toBe(true);
+  });
+
+  it('accepts a valid delete payload', () => {
+    const request = parseAdminDeleteLtiIssuerRegistrationRequest({
+      issuer: 'https://canvas.example.edu',
+    });
+
+    expect(request.issuer).toBe('https://canvas.example.edu');
+  });
+
+  it('rejects invalid issuer URLs', () => {
+    expect(() => {
+      parseAdminUpsertLtiIssuerRegistrationRequest({
+        issuer: 'not-a-url',
+        tenantId: 'tenant_123',
+        authorizationEndpoint: 'https://canvas.example.edu/api/lti/authorize_redirect',
+        clientId: 'canvas-client-123',
       });
     }).toThrowError();
   });

@@ -38,11 +38,12 @@ import {
   consumeOAuthRefreshToken,
   consumeOAuthAuthorizationCode,
   enqueueJobQueueMessage,
-  failJobQueueMessage,
   ensureTenantMembership,
+  failJobQueueMessage,
   findLearnerIdentityLinkProofByHash,
   findLearnerProfileById,
   findLearnerProfileByIdentity,
+  deleteLtiIssuerRegistrationByIssuer,
   findTenantMembership,
   findUserById,
   findAssertionById,
@@ -53,6 +54,7 @@ import {
   findActiveSessionByHash,
   isLearnerIdentityLinkProofValid,
   listAssertionStatusListEntries,
+  listLtiIssuerRegistrations,
   listLearnerBadgeSummaries,
   leaseJobQueueMessages,
   findMagicLinkTokenByHash,
@@ -81,11 +83,13 @@ import {
   upsertOb3SubjectProfile,
   updateBadgeTemplate,
   type AssertionRecord,
+  type LtiIssuerRegistrationRecord,
   type LearnerBadgeSummaryRecord,
   type PublicBadgeWallEntryRecord,
   type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
+  upsertLtiIssuerRegistration,
   upsertUserByEmail,
 } from '@credtrail/db';
 import { createPostgresDatabase } from '@credtrail/db/postgres';
@@ -112,6 +116,8 @@ import {
   parseCreateBadgeTemplateRequest,
   parseAdminUpsertBadgeTemplateByIdRequest,
   parseAdminUpsertTenantMembershipRoleRequest,
+  parseAdminDeleteLtiIssuerRegistrationRequest,
+  parseAdminUpsertLtiIssuerRegistrationRequest,
   parseAdminUpsertTenantRequest,
   parseAdminUpsertTenantSigningRegistrationRequest,
   type IssueBadgeQueueJob,
@@ -541,6 +547,56 @@ const parseLtiIssuerRegistryFromEnv = (rawRegistry: string | undefined): LtiIssu
   return registry;
 };
 
+const ltiIssuerRegistryFromStoredRows = (
+  rows: readonly LtiIssuerRegistrationRecord[],
+): LtiIssuerRegistry => {
+  const registry: LtiIssuerRegistry = {};
+
+  for (const row of rows) {
+    const issuer = normalizeLtiIssuer(row.issuer);
+
+    if (!isAbsoluteHttpUrl(issuer)) {
+      throw new Error(`Stored LTI issuer "${row.issuer}" is not a valid absolute http(s) URL`);
+    }
+
+    if (!isAbsoluteHttpUrl(row.authorizationEndpoint)) {
+      throw new Error(
+        `Stored LTI issuer "${row.issuer}" has invalid authorization endpoint URL`,
+      );
+    }
+
+    const clientId = row.clientId.trim();
+    const tenantId = row.tenantId.trim();
+
+    if (clientId.length === 0) {
+      throw new Error(`Stored LTI issuer "${row.issuer}" has empty clientId`);
+    }
+
+    if (tenantId.length === 0) {
+      throw new Error(`Stored LTI issuer "${row.issuer}" has empty tenantId`);
+    }
+
+    registry[issuer] = {
+      authorizationEndpoint: row.authorizationEndpoint,
+      clientId,
+      tenantId,
+      allowUnsignedIdToken: row.allowUnsignedIdToken,
+    };
+  }
+
+  return registry;
+};
+
+const resolveLtiIssuerRegistry = async (c: AppContext): Promise<LtiIssuerRegistry> => {
+  const envRegistry = parseLtiIssuerRegistryFromEnv(c.env.LTI_ISSUER_REGISTRY_JSON);
+  const dbRows = await listLtiIssuerRegistrations(resolveDatabase(c.env));
+  const dbRegistry = ltiIssuerRegistryFromStoredRows(dbRows);
+  return {
+    ...envRegistry,
+    ...dbRegistry,
+  };
+};
+
 const ltiStateSigningSecret = (env: AppBindings): string => {
   const configuredSecret = env.LTI_STATE_SIGNING_SECRET?.trim();
   return configuredSecret === undefined || configuredSecret.length === 0
@@ -770,6 +826,127 @@ const ltiLaunchResultPage = (input: {
         <a href="${escapeHtml(input.dashboardPath)}">Open learner dashboard</a>
       </p>
     </section>`,
+  );
+};
+
+interface LtiIssuerRegistrationFormState {
+  issuer?: string;
+  tenantId?: string;
+  authorizationEndpoint?: string;
+  clientId?: string;
+  allowUnsignedIdToken?: boolean;
+}
+
+const ltiIssuerRegistrationAdminPage = (input: {
+  token: string;
+  registrations: readonly LtiIssuerRegistrationRecord[];
+  submissionError?: string;
+  formState?: LtiIssuerRegistrationFormState;
+}): string => {
+  const registrationRows =
+    input.registrations.length === 0
+      ? '<tr><td colspan="6" style="padding:0.75rem;">No LTI issuer registrations configured.</td></tr>'
+      : input.registrations
+          .map((registration) => {
+            return `<tr>
+      <td style="padding:0.5rem;vertical-align:top;word-break:break-word;">${escapeHtml(registration.issuer)}</td>
+      <td style="padding:0.5rem;vertical-align:top;">${escapeHtml(registration.tenantId)}</td>
+      <td style="padding:0.5rem;vertical-align:top;word-break:break-word;">${escapeHtml(registration.clientId)}</td>
+      <td style="padding:0.5rem;vertical-align:top;word-break:break-word;">${escapeHtml(registration.authorizationEndpoint)}</td>
+      <td style="padding:0.5rem;vertical-align:top;">${registration.allowUnsignedIdToken ? 'true' : 'false'}</td>
+      <td style="padding:0.5rem;vertical-align:top;">
+        <form method="post" action="/admin/lti/issuer-registrations/delete">
+          <input type="hidden" name="token" value="${escapeHtml(input.token)}" />
+          <input type="hidden" name="issuer" value="${escapeHtml(registration.issuer)}" />
+          <button type="submit">Delete</button>
+        </form>
+      </td>
+    </tr>`;
+          })
+          .join('\n');
+
+  return renderPageShell(
+    'LTI Issuer Registrations | CredTrail',
+    `<section style="display:grid;gap:1rem;max-width:64rem;">
+      <h1 style="margin:0;">Manual LTI issuer registration configuration</h1>
+      <p style="margin:0;color:#334155;">
+        Configure issuer mappings used by LTI 1.3 OIDC login and launch. Stored registrations override env-based defaults.
+      </p>
+      ${
+        input.submissionError === undefined
+          ? ''
+          : `<p style="margin:0;padding:0.75rem;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;">
+              ${escapeHtml(input.submissionError)}
+            </p>`
+      }
+      <form method="post" action="/admin/lti/issuer-registrations" style="display:grid;gap:0.75rem;padding:1rem;border:1px solid #cbd5e1;border-radius:0.5rem;">
+        <input type="hidden" name="token" value="${escapeHtml(input.token)}" />
+        <label style="display:grid;gap:0.35rem;">
+          <span>Issuer URL</span>
+          <input name="issuer" type="url" required value="${escapeHtml(input.formState?.issuer ?? '')}" />
+        </label>
+        <label style="display:grid;gap:0.35rem;">
+          <span>Tenant ID</span>
+          <input name="tenantId" type="text" required value="${escapeHtml(input.formState?.tenantId ?? '')}" />
+        </label>
+        <label style="display:grid;gap:0.35rem;">
+          <span>Client ID</span>
+          <input name="clientId" type="text" required value="${escapeHtml(input.formState?.clientId ?? '')}" />
+        </label>
+        <label style="display:grid;gap:0.35rem;">
+          <span>Authorization endpoint</span>
+          <input name="authorizationEndpoint" type="url" required value="${escapeHtml(input.formState?.authorizationEndpoint ?? '')}" />
+        </label>
+        <label style="display:flex;gap:0.5rem;align-items:center;">
+          <input name="allowUnsignedIdToken" type="checkbox" ${
+            input.formState?.allowUnsignedIdToken === true ? 'checked' : ''
+          } />
+          <span>Allow unsigned id_token (test-mode only)</span>
+        </label>
+        <div>
+          <button type="submit">Save registration</button>
+        </div>
+      </form>
+      <div style="overflow:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #cbd5e1;">Issuer</th>
+              <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #cbd5e1;">Tenant</th>
+              <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #cbd5e1;">Client ID</th>
+              <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #cbd5e1;">Authorization endpoint</th>
+              <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #cbd5e1;">Unsigned test mode</th>
+              <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #cbd5e1;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${registrationRows}
+          </tbody>
+        </table>
+      </div>
+    </section>`,
+  );
+};
+
+const ltiIssuerRegistrationAdminPageResponse = async (
+  c: AppContext,
+  input: {
+    token: string;
+    submissionError?: string;
+    formState?: LtiIssuerRegistrationFormState;
+    status?: 200 | 400;
+  },
+): Promise<Response> => {
+  const registrations = await listLtiIssuerRegistrations(resolveDatabase(c.env));
+  const pageHtml = ltiIssuerRegistrationAdminPage({
+    token: input.token,
+    registrations,
+    ...(input.submissionError === undefined ? {} : { submissionError: input.submissionError }),
+    ...(input.formState === undefined ? {} : { formState: input.formState }),
+  });
+  return c.html(
+    pageHtml,
+    input.status ?? 200,
   );
 };
 
@@ -1196,6 +1373,30 @@ const requireBootstrapAdmin = (c: AppContext): Response | null => {
   const expectedAuthorization = `Bearer ${configuredToken}`;
 
   if (authorizationHeader !== expectedAuthorization) {
+    return c.json(
+      {
+        error: 'Unauthorized',
+      },
+      401,
+    );
+  }
+
+  return null;
+};
+
+const requireBootstrapAdminUiToken = (c: AppContext, token: string | null): Response | null => {
+  const configuredToken = c.env.BOOTSTRAP_ADMIN_TOKEN?.trim();
+
+  if (configuredToken === undefined || configuredToken.length === 0) {
+    return c.json(
+      {
+        error: 'Bootstrap admin API is not configured',
+      },
+      503,
+    );
+  }
+
+  if (token === null || token !== configuredToken) {
     return c.json(
       {
         error: 'Unauthorized',
@@ -6603,6 +6804,273 @@ app.put('/v1/admin/tenants/:tenantId/users/:userId/role', async (c) => {
   );
 });
 
+app.get('/v1/admin/lti/issuer-registrations', async (c) => {
+  const unauthorizedResponse = requireBootstrapAdmin(c);
+
+  if (unauthorizedResponse !== null) {
+    return unauthorizedResponse;
+  }
+
+  const registrations = await listLtiIssuerRegistrations(resolveDatabase(c.env));
+
+  return c.json({
+    registrations,
+  });
+});
+
+app.put('/v1/admin/lti/issuer-registrations', async (c) => {
+  const unauthorizedResponse = requireBootstrapAdmin(c);
+
+  if (unauthorizedResponse !== null) {
+    return unauthorizedResponse;
+  }
+
+  const payload = await c.req.json<unknown>();
+  const request = parseAdminUpsertLtiIssuerRegistrationRequest(payload);
+  const registration = await upsertLtiIssuerRegistration(resolveDatabase(c.env), {
+    issuer: request.issuer,
+    tenantId: request.tenantId,
+    authorizationEndpoint: request.authorizationEndpoint,
+    clientId: request.clientId,
+    allowUnsignedIdToken: request.allowUnsignedIdToken,
+  });
+
+  await createAuditLog(resolveDatabase(c.env), {
+    tenantId: registration.tenantId,
+    action: 'lti.issuer_registration_upserted',
+    targetType: 'lti_issuer_registration',
+    targetId: registration.issuer,
+    metadata: {
+      issuer: registration.issuer,
+      tenantId: registration.tenantId,
+      clientId: registration.clientId,
+      authorizationEndpoint: registration.authorizationEndpoint,
+      allowUnsignedIdToken: registration.allowUnsignedIdToken,
+    },
+  });
+
+  return c.json(
+    {
+      registration,
+    },
+    201,
+  );
+});
+
+app.delete('/v1/admin/lti/issuer-registrations', async (c) => {
+  const unauthorizedResponse = requireBootstrapAdmin(c);
+
+  if (unauthorizedResponse !== null) {
+    return unauthorizedResponse;
+  }
+
+  const payload = await c.req.json<unknown>();
+  const request = parseAdminDeleteLtiIssuerRegistrationRequest(payload);
+  const normalizedIssuer = normalizeLtiIssuer(request.issuer);
+  const registrations = await listLtiIssuerRegistrations(resolveDatabase(c.env));
+  const existingRegistration =
+    registrations.find((registration) => normalizeLtiIssuer(registration.issuer) === normalizedIssuer) ?? null;
+  const deleted = await deleteLtiIssuerRegistrationByIssuer(resolveDatabase(c.env), request.issuer);
+
+  if (deleted && existingRegistration !== null) {
+    await createAuditLog(resolveDatabase(c.env), {
+      tenantId: existingRegistration.tenantId,
+      action: 'lti.issuer_registration_deleted',
+      targetType: 'lti_issuer_registration',
+      targetId: normalizedIssuer,
+      metadata: {
+        issuer: normalizedIssuer,
+        tenantId: existingRegistration.tenantId,
+      },
+    });
+  }
+
+  return c.json({
+    status: deleted ? 'deleted' : 'not_found',
+    issuer: normalizedIssuer,
+  });
+});
+
+app.get('/admin/lti/issuer-registrations', async (c) => {
+  const token = c.req.query('token') ?? null;
+  const unauthorizedResponse = requireBootstrapAdminUiToken(c, token);
+
+  if (unauthorizedResponse !== null) {
+    return unauthorizedResponse;
+  }
+
+  if (token === null) {
+    return c.json(
+      {
+        error: 'Unauthorized',
+      },
+      401,
+    );
+  }
+
+  return ltiIssuerRegistrationAdminPageResponse(c, {
+    token,
+  });
+});
+
+app.post('/admin/lti/issuer-registrations', async (c) => {
+  const contentType = c.req.header('content-type') ?? '';
+
+  if (!contentType.toLowerCase().includes('application/x-www-form-urlencoded')) {
+    return c.json(
+      {
+        error: 'Content-Type must be application/x-www-form-urlencoded',
+      },
+      400,
+    );
+  }
+
+  const rawBody = await c.req.text();
+  const formData = new URLSearchParams(rawBody);
+  const token = formData.get('token');
+  const unauthorizedResponse = requireBootstrapAdminUiToken(c, token);
+
+  if (unauthorizedResponse !== null) {
+    return unauthorizedResponse;
+  }
+
+  if (token === null) {
+    return c.json(
+      {
+        error: 'Unauthorized',
+      },
+      401,
+    );
+  }
+
+  const formState: LtiIssuerRegistrationFormState = {
+    issuer: formData.get('issuer') ?? '',
+    tenantId: formData.get('tenantId') ?? '',
+    authorizationEndpoint: formData.get('authorizationEndpoint') ?? '',
+    clientId: formData.get('clientId') ?? '',
+    allowUnsignedIdToken: formData.get('allowUnsignedIdToken') !== null,
+  };
+
+  let request;
+
+  try {
+    request = parseAdminUpsertLtiIssuerRegistrationRequest({
+      issuer: formState.issuer,
+      tenantId: formState.tenantId,
+      authorizationEndpoint: formState.authorizationEndpoint,
+      clientId: formState.clientId,
+      allowUnsignedIdToken: formState.allowUnsignedIdToken,
+    });
+  } catch (error) {
+    return ltiIssuerRegistrationAdminPageResponse(c, {
+      token,
+      status: 400,
+      submissionError: error instanceof Error ? error.message : 'Invalid LTI registration payload',
+      formState,
+    });
+  }
+
+  const registration = await upsertLtiIssuerRegistration(resolveDatabase(c.env), {
+    issuer: request.issuer,
+    tenantId: request.tenantId,
+    authorizationEndpoint: request.authorizationEndpoint,
+    clientId: request.clientId,
+    allowUnsignedIdToken: request.allowUnsignedIdToken,
+  });
+
+  await createAuditLog(resolveDatabase(c.env), {
+    tenantId: registration.tenantId,
+    action: 'lti.issuer_registration_upserted',
+    targetType: 'lti_issuer_registration',
+    targetId: registration.issuer,
+    metadata: {
+      issuer: registration.issuer,
+      tenantId: registration.tenantId,
+      clientId: registration.clientId,
+      authorizationEndpoint: registration.authorizationEndpoint,
+      allowUnsignedIdToken: registration.allowUnsignedIdToken,
+    },
+  });
+
+  return c.redirect(`/admin/lti/issuer-registrations?token=${encodeURIComponent(token)}`, 303);
+});
+
+app.post('/admin/lti/issuer-registrations/delete', async (c) => {
+  const contentType = c.req.header('content-type') ?? '';
+
+  if (!contentType.toLowerCase().includes('application/x-www-form-urlencoded')) {
+    return c.json(
+      {
+        error: 'Content-Type must be application/x-www-form-urlencoded',
+      },
+      400,
+    );
+  }
+
+  const rawBody = await c.req.text();
+  const formData = new URLSearchParams(rawBody);
+  const token = formData.get('token');
+  const unauthorizedResponse = requireBootstrapAdminUiToken(c, token);
+
+  if (unauthorizedResponse !== null) {
+    return unauthorizedResponse;
+  }
+
+  if (token === null) {
+    return c.json(
+      {
+        error: 'Unauthorized',
+      },
+      401,
+    );
+  }
+
+  const issuerCandidate = formData.get('issuer');
+
+  if (issuerCandidate === null) {
+    return ltiIssuerRegistrationAdminPageResponse(c, {
+      token,
+      status: 400,
+      submissionError: 'issuer is required',
+    });
+  }
+
+  let request;
+
+  try {
+    request = parseAdminDeleteLtiIssuerRegistrationRequest({
+      issuer: issuerCandidate,
+    });
+  } catch (error) {
+    return ltiIssuerRegistrationAdminPageResponse(c, {
+      token,
+      status: 400,
+      submissionError: error instanceof Error ? error.message : 'Invalid issuer value',
+    });
+  }
+
+  const normalizedIssuer = normalizeLtiIssuer(request.issuer);
+  const registrations = await listLtiIssuerRegistrations(resolveDatabase(c.env));
+  const existingRegistration =
+    registrations.find((registration) => normalizeLtiIssuer(registration.issuer) === normalizedIssuer) ?? null;
+  const deleted = await deleteLtiIssuerRegistrationByIssuer(resolveDatabase(c.env), request.issuer);
+
+  if (deleted && existingRegistration !== null) {
+    await createAuditLog(resolveDatabase(c.env), {
+      tenantId: existingRegistration.tenantId,
+      action: 'lti.issuer_registration_deleted',
+      targetType: 'lti_issuer_registration',
+      targetId: normalizedIssuer,
+      metadata: {
+        issuer: normalizedIssuer,
+        tenantId: existingRegistration.tenantId,
+      },
+    });
+  }
+
+  return c.redirect(`/admin/lti/issuer-registrations?token=${encodeURIComponent(token)}`, 303);
+});
+
 app.get(OB3_DISCOVERY_PATH, (c) => {
   c.header('Cache-Control', OB3_DISCOVERY_CACHE_CONTROL);
   return c.json(ob3ServiceDescriptionDocument(c));
@@ -7958,7 +8426,7 @@ const ltiOidcLoginHandler = async (c: AppContext): Promise<Response> => {
   let registry: LtiIssuerRegistry;
 
   try {
-    registry = parseLtiIssuerRegistryFromEnv(c.env.LTI_ISSUER_REGISTRY_JSON);
+    registry = await resolveLtiIssuerRegistry(c);
   } catch (error) {
     await captureSentryException({
       context: observabilityContext(c.env),
@@ -8084,7 +8552,7 @@ app.post(LTI_LAUNCH_PATH, async (c): Promise<Response> => {
   let registry: LtiIssuerRegistry;
 
   try {
-    registry = parseLtiIssuerRegistryFromEnv(c.env.LTI_ISSUER_REGISTRY_JSON);
+    registry = await resolveLtiIssuerRegistry(c);
   } catch (error) {
     await captureSentryException({
       context: observabilityContext(c.env),
