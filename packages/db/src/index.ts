@@ -73,6 +73,8 @@ export interface UpsertBadgeTemplateByIdInput {
   criteriaUri?: string | undefined;
   imageUri?: string | undefined;
   createdByUserId?: string | undefined;
+  ownerOrgUnitId?: string | undefined;
+  governanceMetadataJson?: string | undefined;
 }
 
 export interface Ed25519PublicJwkRecord {
@@ -518,6 +520,8 @@ export interface BadgeTemplateRecord {
   criteriaUri: string | null;
   imageUri: string | null;
   createdByUserId: string | null;
+  ownerOrgUnitId: string;
+  governanceMetadataJson: string | null;
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -531,6 +535,8 @@ export interface CreateBadgeTemplateInput {
   criteriaUri?: string | undefined;
   imageUri?: string | undefined;
   createdByUserId?: string | undefined;
+  ownerOrgUnitId?: string | undefined;
+  governanceMetadataJson?: string | undefined;
 }
 
 export interface ListBadgeTemplatesInput {
@@ -552,6 +558,79 @@ export interface SetBadgeTemplateArchiveStateInput {
   tenantId: string;
   id: string;
   isArchived: boolean;
+}
+
+export type OrgUnitType = 'institution' | 'college' | 'department' | 'program';
+
+export interface TenantOrgUnitRecord {
+  id: string;
+  tenantId: string;
+  unitType: OrgUnitType;
+  slug: string;
+  displayName: string;
+  parentOrgUnitId: string | null;
+  createdByUserId: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTenantOrgUnitInput {
+  tenantId: string;
+  unitType: OrgUnitType;
+  slug: string;
+  displayName: string;
+  parentOrgUnitId?: string | undefined;
+  createdByUserId?: string | undefined;
+}
+
+export interface ListTenantOrgUnitsInput {
+  tenantId: string;
+  includeInactive?: boolean | undefined;
+}
+
+export type BadgeTemplateOwnershipReasonCode =
+  | 'initial_assignment'
+  | 'administrative_transfer'
+  | 'reorganization'
+  | 'governance_policy_update'
+  | 'other';
+
+export interface BadgeTemplateOwnershipEventRecord {
+  id: string;
+  tenantId: string;
+  badgeTemplateId: string;
+  fromOrgUnitId: string | null;
+  toOrgUnitId: string;
+  reasonCode: BadgeTemplateOwnershipReasonCode;
+  reason: string | null;
+  governanceMetadataJson: string | null;
+  transferredByUserId: string | null;
+  transferredAt: string;
+  createdAt: string;
+}
+
+export interface ListBadgeTemplateOwnershipEventsInput {
+  tenantId: string;
+  badgeTemplateId: string;
+  limit?: number | undefined;
+}
+
+export interface TransferBadgeTemplateOwnershipInput {
+  tenantId: string;
+  badgeTemplateId: string;
+  toOrgUnitId: string;
+  reasonCode: Exclude<BadgeTemplateOwnershipReasonCode, 'initial_assignment'>;
+  reason?: string | undefined;
+  governanceMetadataJson?: string | undefined;
+  transferredByUserId?: string | undefined;
+  transferredAt: string;
+}
+
+export interface TransferBadgeTemplateOwnershipResult {
+  status: 'transferred' | 'already_owned';
+  template: BadgeTemplateRecord;
+  event: BadgeTemplateOwnershipEventRecord | null;
 }
 
 export interface AssertionRecord {
@@ -770,9 +849,38 @@ interface BadgeTemplateRow {
   criteriaUri: string | null;
   imageUri: string | null;
   createdByUserId: string | null;
-  isArchived: number;
+  ownerOrgUnitId: string;
+  governanceMetadataJson: string | null;
+  isArchived: number | boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+interface TenantOrgUnitRow {
+  id: string;
+  tenantId: string;
+  unitType: OrgUnitType;
+  slug: string;
+  displayName: string;
+  parentOrgUnitId: string | null;
+  createdByUserId: string | null;
+  isActive: number | boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface BadgeTemplateOwnershipEventRow {
+  id: string;
+  tenantId: string;
+  badgeTemplateId: string;
+  fromOrgUnitId: string | null;
+  toOrgUnitId: string;
+  reasonCode: BadgeTemplateOwnershipReasonCode;
+  reason: string | null;
+  governanceMetadataJson: string | null;
+  transferredByUserId: string | null;
+  transferredAt: string;
+  createdAt: string;
 }
 
 interface TenantRow {
@@ -965,6 +1073,32 @@ const isMissingAssertionLifecycleEventsTableError = (error: unknown): boolean =>
       error.message.includes('relation') ||
       error.message.includes('does not exist')) &&
     error.message.includes('assertion_lifecycle_events')
+  );
+};
+
+const isMissingTenantOrgUnitsTableError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    (error.message.includes('no such table') ||
+      error.message.includes('relation') ||
+      error.message.includes('does not exist')) &&
+    error.message.includes('tenant_org_units')
+  );
+};
+
+const isMissingBadgeTemplateOwnershipEventsTableError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    (error.message.includes('no such table') ||
+      error.message.includes('relation') ||
+      error.message.includes('does not exist')) &&
+    error.message.includes('badge_template_ownership_events')
   );
 };
 
@@ -1179,6 +1313,103 @@ const ensureAssertionLifecycleEventsTable = async (db: SqlDatabase): Promise<voi
       `
       CREATE INDEX IF NOT EXISTS idx_assertion_lifecycle_events_tenant_state
         ON assertion_lifecycle_events (tenant_id, to_state)
+    `,
+    )
+    .run();
+};
+
+const ensureTenantOrgUnitsTable = async (db: SqlDatabase): Promise<void> => {
+  await db
+    .prepare(
+      `
+      CREATE TABLE IF NOT EXISTS tenant_org_units (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        unit_type TEXT NOT NULL CHECK (unit_type IN ('institution', 'college', 'department', 'program')),
+        slug TEXT NOT NULL,
+        display_name TEXT NOT NULL,
+        parent_org_unit_id TEXT,
+        created_by_user_id TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (tenant_id, id),
+        UNIQUE (tenant_id, slug),
+        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE,
+        FOREIGN KEY (parent_org_unit_id) REFERENCES tenant_org_units (id) ON DELETE SET NULL,
+        FOREIGN KEY (created_by_user_id) REFERENCES users (id) ON DELETE SET NULL
+      )
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_tenant_org_units_tenant_type
+        ON tenant_org_units (tenant_id, unit_type, is_active)
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_tenant_org_units_tenant_parent
+        ON tenant_org_units (tenant_id, parent_org_unit_id)
+    `,
+    )
+    .run();
+};
+
+const ensureBadgeTemplateOwnershipEventsTable = async (db: SqlDatabase): Promise<void> => {
+  await db
+    .prepare(
+      `
+      CREATE TABLE IF NOT EXISTS badge_template_ownership_events (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        badge_template_id TEXT NOT NULL,
+        from_org_unit_id TEXT,
+        to_org_unit_id TEXT NOT NULL,
+        reason_code TEXT NOT NULL CHECK (
+          reason_code IN (
+            'initial_assignment',
+            'administrative_transfer',
+            'reorganization',
+            'governance_policy_update',
+            'other'
+          )
+        ),
+        reason TEXT,
+        governance_metadata_json TEXT,
+        transferred_by_user_id TEXT,
+        transferred_at TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id, badge_template_id)
+          REFERENCES badge_templates (tenant_id, id) ON DELETE CASCADE,
+        FOREIGN KEY (from_org_unit_id) REFERENCES tenant_org_units (id) ON DELETE SET NULL,
+        FOREIGN KEY (to_org_unit_id) REFERENCES tenant_org_units (id) ON DELETE RESTRICT,
+        FOREIGN KEY (transferred_by_user_id) REFERENCES users (id) ON DELETE SET NULL
+      )
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_badge_template_ownership_events_template
+        ON badge_template_ownership_events (tenant_id, badge_template_id, transferred_at DESC)
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_badge_template_ownership_events_to_org
+        ON badge_template_ownership_events (tenant_id, to_org_unit_id, transferred_at DESC)
     `,
     )
     .run();
@@ -1499,6 +1730,18 @@ const addSecondsToIso = (fromIso: string, seconds: number): string => {
 
   return new Date(fromMs + seconds * 1000).toISOString();
 };
+
+const institutionOrgUnitIdForTenant = (tenantId: string): string => {
+  return `${tenantId}:org:institution`;
+};
+
+const BADGE_TEMPLATE_OWNERSHIP_REASON_CODES = new Set<BadgeTemplateOwnershipReasonCode>([
+  'initial_assignment',
+  'administrative_transfer',
+  'reorganization',
+  'governance_policy_update',
+  'other',
+]);
 
 const ASSERTION_LIFECYCLE_REASON_CODES = new Set<AssertionLifecycleReasonCode>([
   'administrative_hold',
@@ -3498,9 +3741,44 @@ const mapBadgeTemplateRow = (row: BadgeTemplateRow): BadgeTemplateRecord => {
     criteriaUri: row.criteriaUri,
     imageUri: row.imageUri,
     createdByUserId: row.createdByUserId,
-    isArchived: row.isArchived === 1,
+    ownerOrgUnitId: row.ownerOrgUnitId,
+    governanceMetadataJson: row.governanceMetadataJson,
+    isArchived: row.isArchived === 1 || row.isArchived === true,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+  };
+};
+
+const mapTenantOrgUnitRow = (row: TenantOrgUnitRow): TenantOrgUnitRecord => {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    unitType: row.unitType,
+    slug: row.slug,
+    displayName: row.displayName,
+    parentOrgUnitId: row.parentOrgUnitId,
+    createdByUserId: row.createdByUserId,
+    isActive: row.isActive === 1 || row.isActive === true,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+};
+
+const mapBadgeTemplateOwnershipEventRow = (
+  row: BadgeTemplateOwnershipEventRow,
+): BadgeTemplateOwnershipEventRecord => {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    badgeTemplateId: row.badgeTemplateId,
+    fromOrgUnitId: row.fromOrgUnitId,
+    toOrgUnitId: row.toOrgUnitId,
+    reasonCode: row.reasonCode,
+    reason: row.reason,
+    governanceMetadataJson: row.governanceMetadataJson,
+    transferredByUserId: row.transferredByUserId,
+    transferredAt: row.transferredAt,
+    createdAt: row.createdAt,
   };
 };
 
@@ -3956,11 +4234,332 @@ export const deleteLtiIssuerRegistrationByIssuer = async (
   return (result.meta.rowsWritten ?? 0) > 0;
 };
 
+const findTenantOrgUnitById = async (
+  db: SqlDatabase,
+  tenantId: string,
+  orgUnitId: string,
+): Promise<TenantOrgUnitRecord | null> => {
+  const findStatement = (): Promise<TenantOrgUnitRow | null> =>
+    db
+      .prepare(
+        `
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          unit_type AS unitType,
+          slug,
+          display_name AS displayName,
+          parent_org_unit_id AS parentOrgUnitId,
+          created_by_user_id AS createdByUserId,
+          is_active AS isActive,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM tenant_org_units
+        WHERE tenant_id = ?
+          AND id = ?
+        LIMIT 1
+      `,
+      )
+      .bind(tenantId, orgUnitId)
+      .first<TenantOrgUnitRow>();
+
+  let row: TenantOrgUnitRow | null;
+
+  try {
+    row = await findStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantOrgUnitsTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantOrgUnitsTable(db);
+    row = await findStatement();
+  }
+
+  return row === null ? null : mapTenantOrgUnitRow(row);
+};
+
+const ensureInstitutionOrgUnitForTenant = async (db: SqlDatabase, tenantId: string): Promise<string> => {
+  const institutionId = institutionOrgUnitIdForTenant(tenantId);
+  const nowIso = new Date().toISOString();
+  const seedStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        INSERT OR IGNORE INTO tenant_org_units (
+          id,
+          tenant_id,
+          unit_type,
+          slug,
+          display_name,
+          parent_org_unit_id,
+          created_by_user_id,
+          is_active,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, 'institution', 'institution', ?, NULL, NULL, 1, ?, ?)
+      `,
+      )
+      .bind(institutionId, tenantId, `${tenantId} Institution`, nowIso, nowIso)
+      .run();
+
+  try {
+    await seedStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantOrgUnitsTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantOrgUnitsTable(db);
+    await seedStatement();
+  }
+
+  return institutionId;
+};
+
+interface CreateBadgeTemplateOwnershipEventInput {
+  tenantId: string;
+  badgeTemplateId: string;
+  fromOrgUnitId: string | null;
+  toOrgUnitId: string;
+  reasonCode: BadgeTemplateOwnershipReasonCode;
+  reason: string | null;
+  governanceMetadataJson: string | null;
+  transferredByUserId: string | null;
+  transferredAt: string;
+}
+
+const createBadgeTemplateOwnershipEvent = async (
+  db: SqlDatabase,
+  input: CreateBadgeTemplateOwnershipEventInput,
+): Promise<BadgeTemplateOwnershipEventRecord> => {
+  const eventId = createPrefixedId('btoe');
+  const insertStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        INSERT INTO badge_template_ownership_events (
+          id,
+          tenant_id,
+          badge_template_id,
+          from_org_unit_id,
+          to_org_unit_id,
+          reason_code,
+          reason,
+          governance_metadata_json,
+          transferred_by_user_id,
+          transferred_at,
+          created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      )
+      .bind(
+        eventId,
+        input.tenantId,
+        input.badgeTemplateId,
+        input.fromOrgUnitId,
+        input.toOrgUnitId,
+        input.reasonCode,
+        input.reason,
+        input.governanceMetadataJson,
+        input.transferredByUserId,
+        input.transferredAt,
+        input.transferredAt,
+      )
+      .run();
+
+  const findStatement = (): Promise<BadgeTemplateOwnershipEventRow | null> =>
+    db
+      .prepare(
+        `
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          badge_template_id AS badgeTemplateId,
+          from_org_unit_id AS fromOrgUnitId,
+          to_org_unit_id AS toOrgUnitId,
+          reason_code AS reasonCode,
+          reason,
+          governance_metadata_json AS governanceMetadataJson,
+          transferred_by_user_id AS transferredByUserId,
+          transferred_at AS transferredAt,
+          created_at AS createdAt
+        FROM badge_template_ownership_events
+        WHERE id = ?
+        LIMIT 1
+      `,
+      )
+      .bind(eventId)
+      .first<BadgeTemplateOwnershipEventRow>();
+
+  try {
+    await insertStatement();
+  } catch (error: unknown) {
+    if (!isMissingBadgeTemplateOwnershipEventsTableError(error)) {
+      throw error;
+    }
+
+    await ensureBadgeTemplateOwnershipEventsTable(db);
+    await insertStatement();
+  }
+
+  const eventRow = await findStatement();
+
+  if (eventRow === null) {
+    throw new Error(`Unable to load badge template ownership event ${eventId} after insert`);
+  }
+
+  return mapBadgeTemplateOwnershipEventRow(eventRow);
+};
+
+export const createTenantOrgUnit = async (
+  db: SqlDatabase,
+  input: CreateTenantOrgUnitInput,
+): Promise<TenantOrgUnitRecord> => {
+  if (input.parentOrgUnitId !== undefined) {
+    const parent = await findTenantOrgUnitById(db, input.tenantId, input.parentOrgUnitId);
+
+    if (parent === null) {
+      throw new Error(`Parent org unit ${input.parentOrgUnitId} not found for tenant ${input.tenantId}`);
+    }
+  }
+
+  const id = createPrefixedId('ou');
+  const nowIso = new Date().toISOString();
+  const insertStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        INSERT INTO tenant_org_units (
+          id,
+          tenant_id,
+          unit_type,
+          slug,
+          display_name,
+          parent_org_unit_id,
+          created_by_user_id,
+          is_active,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+      `,
+      )
+      .bind(
+        id,
+        input.tenantId,
+        input.unitType,
+        input.slug,
+        input.displayName,
+        input.parentOrgUnitId ?? null,
+        input.createdByUserId ?? null,
+        nowIso,
+        nowIso,
+      )
+      .run();
+
+  try {
+    await insertStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantOrgUnitsTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantOrgUnitsTable(db);
+    await insertStatement();
+  }
+
+  const orgUnit = await findTenantOrgUnitById(db, input.tenantId, id);
+
+  if (orgUnit === null) {
+    throw new Error(`Unable to create org unit ${id} for tenant ${input.tenantId}`);
+  }
+
+  return orgUnit;
+};
+
+export const listTenantOrgUnits = async (
+  db: SqlDatabase,
+  input: ListTenantOrgUnitsInput,
+): Promise<TenantOrgUnitRecord[]> => {
+  const listStatement = (): Promise<SqlQueryResult<TenantOrgUnitRow>> =>
+    db
+      .prepare(
+        `
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          unit_type AS unitType,
+          slug,
+          display_name AS displayName,
+          parent_org_unit_id AS parentOrgUnitId,
+          created_by_user_id AS createdByUserId,
+          is_active AS isActive,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM tenant_org_units
+        WHERE tenant_id = ?
+          AND (? = 1 OR is_active = 1)
+        ORDER BY
+          CASE unit_type
+            WHEN 'institution' THEN 1
+            WHEN 'college' THEN 2
+            WHEN 'department' THEN 3
+            WHEN 'program' THEN 4
+            ELSE 5
+          END,
+          display_name ASC,
+          created_at ASC
+      `,
+      )
+      .bind(input.tenantId, input.includeInactive === true ? 1 : 0)
+      .all<TenantOrgUnitRow>();
+
+  let result: SqlQueryResult<TenantOrgUnitRow>;
+
+  try {
+    result = await listStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantOrgUnitsTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantOrgUnitsTable(db);
+    await ensureInstitutionOrgUnitForTenant(db, input.tenantId);
+    result = await listStatement();
+  }
+
+  if (result.results.length === 0) {
+    await ensureInstitutionOrgUnitForTenant(db, input.tenantId);
+    result = await listStatement();
+  }
+
+  return result.results.map((row) => mapTenantOrgUnitRow(row));
+};
+
 export const upsertBadgeTemplateById = async (
   db: SqlDatabase,
   input: UpsertBadgeTemplateByIdInput,
 ): Promise<BadgeTemplateRecord> => {
   const nowIso = new Date().toISOString();
+  const previous = await findBadgeTemplateById(db, input.tenantId, input.id);
+
+  if (previous !== null && input.ownerOrgUnitId !== undefined && input.ownerOrgUnitId !== previous.ownerOrgUnitId) {
+    throw new Error('Badge template ownership changes must use transferBadgeTemplateOwnership');
+  }
+
+  const fallbackOwnerOrgUnitId = await ensureInstitutionOrgUnitForTenant(db, input.tenantId);
+  const ownerOrgUnitId = previous?.ownerOrgUnitId ?? input.ownerOrgUnitId ?? fallbackOwnerOrgUnitId;
+  const ownerOrgUnit = await findTenantOrgUnitById(db, input.tenantId, ownerOrgUnitId);
+
+  if (ownerOrgUnit === null) {
+    throw new Error(`Org unit ${ownerOrgUnitId} not found for tenant ${input.tenantId}`);
+  }
+
+  const governanceMetadataJson =
+    previous?.governanceMetadataJson ?? input.governanceMetadataJson ?? '{"stability":"institution_registry"}';
 
   await db
     .prepare(
@@ -3974,11 +4573,13 @@ export const upsertBadgeTemplateById = async (
         criteria_uri,
         image_uri,
         created_by_user_id,
+        owner_org_unit_id,
+        governance_metadata_json,
         is_archived,
         created_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
       ON CONFLICT (id)
       DO UPDATE SET
         tenant_id = excluded.tenant_id,
@@ -3988,6 +4589,8 @@ export const upsertBadgeTemplateById = async (
         criteria_uri = excluded.criteria_uri,
         image_uri = excluded.image_uri,
         created_by_user_id = excluded.created_by_user_id,
+        owner_org_unit_id = badge_templates.owner_org_unit_id,
+        governance_metadata_json = badge_templates.governance_metadata_json,
         is_archived = 0,
         updated_at = excluded.updated_at
     `,
@@ -4001,6 +4604,8 @@ export const upsertBadgeTemplateById = async (
       input.criteriaUri ?? null,
       input.imageUri ?? null,
       input.createdByUserId ?? null,
+      ownerOrgUnitId,
+      governanceMetadataJson,
       nowIso,
       nowIso,
     )
@@ -4012,6 +4617,20 @@ export const upsertBadgeTemplateById = async (
     throw new Error(`Unable to upsert badge template "${input.id}"`);
   }
 
+  if (previous === null) {
+    await createBadgeTemplateOwnershipEvent(db, {
+      tenantId: input.tenantId,
+      badgeTemplateId: template.id,
+      fromOrgUnitId: null,
+      toOrgUnitId: template.ownerOrgUnitId,
+      reasonCode: 'initial_assignment',
+      reason: 'Badge template ownership assigned at creation',
+      governanceMetadataJson: template.governanceMetadataJson,
+      transferredByUserId: template.createdByUserId,
+      transferredAt: template.createdAt,
+    });
+  }
+
   return template;
 };
 
@@ -4021,6 +4640,15 @@ export const createBadgeTemplate = async (
 ): Promise<BadgeTemplateRecord> => {
   const id = createPrefixedId('bt');
   const nowIso = new Date().toISOString();
+  const fallbackOwnerOrgUnitId = await ensureInstitutionOrgUnitForTenant(db, input.tenantId);
+  const ownerOrgUnitId = input.ownerOrgUnitId ?? fallbackOwnerOrgUnitId;
+  const ownerOrgUnit = await findTenantOrgUnitById(db, input.tenantId, ownerOrgUnitId);
+
+  if (ownerOrgUnit === null) {
+    throw new Error(`Org unit ${ownerOrgUnitId} not found for tenant ${input.tenantId}`);
+  }
+
+  const governanceMetadataJson = input.governanceMetadataJson ?? '{"stability":"institution_registry"}';
 
   await db
     .prepare(
@@ -4034,11 +4662,13 @@ export const createBadgeTemplate = async (
         criteria_uri,
         image_uri,
         created_by_user_id,
+        owner_org_unit_id,
+        governance_metadata_json,
         is_archived,
         created_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
     `,
     )
     .bind(
@@ -4050,12 +4680,14 @@ export const createBadgeTemplate = async (
       input.criteriaUri ?? null,
       input.imageUri ?? null,
       input.createdByUserId ?? null,
+      ownerOrgUnitId,
+      governanceMetadataJson,
       nowIso,
       nowIso,
     )
     .run();
 
-  return {
+  const template: BadgeTemplateRecord = {
     id,
     tenantId: input.tenantId,
     slug: input.slug,
@@ -4064,10 +4696,26 @@ export const createBadgeTemplate = async (
     criteriaUri: input.criteriaUri ?? null,
     imageUri: input.imageUri ?? null,
     createdByUserId: input.createdByUserId ?? null,
+    ownerOrgUnitId,
+    governanceMetadataJson,
     isArchived: false,
     createdAt: nowIso,
     updatedAt: nowIso,
   };
+
+  await createBadgeTemplateOwnershipEvent(db, {
+    tenantId: input.tenantId,
+    badgeTemplateId: template.id,
+    fromOrgUnitId: null,
+    toOrgUnitId: template.ownerOrgUnitId,
+    reasonCode: 'initial_assignment',
+    reason: 'Badge template ownership assigned at creation',
+    governanceMetadataJson: template.governanceMetadataJson,
+    transferredByUserId: template.createdByUserId,
+    transferredAt: template.createdAt,
+  });
+
+  return template;
 };
 
 export const listBadgeTemplates = async (
@@ -4085,6 +4733,8 @@ export const listBadgeTemplates = async (
         criteria_uri AS criteriaUri,
         image_uri AS imageUri,
         created_by_user_id AS createdByUserId,
+        owner_org_unit_id AS ownerOrgUnitId,
+        governance_metadata_json AS governanceMetadataJson,
         is_archived AS isArchived,
         created_at AS createdAt,
         updated_at AS updatedAt
@@ -4102,6 +4752,8 @@ export const listBadgeTemplates = async (
         criteria_uri AS criteriaUri,
         image_uri AS imageUri,
         created_by_user_id AS createdByUserId,
+        owner_org_unit_id AS ownerOrgUnitId,
+        governance_metadata_json AS governanceMetadataJson,
         is_archived AS isArchived,
         created_at AS createdAt,
         updated_at AS updatedAt
@@ -4134,6 +4786,8 @@ export const findBadgeTemplateById = async (
         criteria_uri AS criteriaUri,
         image_uri AS imageUri,
         created_by_user_id AS createdByUserId,
+        owner_org_unit_id AS ownerOrgUnitId,
+        governance_metadata_json AS governanceMetadataJson,
         is_archived AS isArchived,
         created_at AS createdAt,
         updated_at AS updatedAt
@@ -4226,6 +4880,136 @@ export const setBadgeTemplateArchivedState = async (
     .run();
 
   return findBadgeTemplateById(db, input.tenantId, input.id);
+};
+
+export const listBadgeTemplateOwnershipEvents = async (
+  db: SqlDatabase,
+  input: ListBadgeTemplateOwnershipEventsInput,
+): Promise<BadgeTemplateOwnershipEventRecord[]> => {
+  const queryLimit = Math.max(1, Math.min(input.limit ?? 100, 500));
+  const listStatement = (): Promise<SqlQueryResult<BadgeTemplateOwnershipEventRow>> =>
+    db
+      .prepare(
+        `
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          badge_template_id AS badgeTemplateId,
+          from_org_unit_id AS fromOrgUnitId,
+          to_org_unit_id AS toOrgUnitId,
+          reason_code AS reasonCode,
+          reason,
+          governance_metadata_json AS governanceMetadataJson,
+          transferred_by_user_id AS transferredByUserId,
+          transferred_at AS transferredAt,
+          created_at AS createdAt
+        FROM badge_template_ownership_events
+        WHERE tenant_id = ?
+          AND badge_template_id = ?
+        ORDER BY transferred_at DESC, created_at DESC, id DESC
+        LIMIT ?
+      `,
+      )
+      .bind(input.tenantId, input.badgeTemplateId, queryLimit)
+      .all<BadgeTemplateOwnershipEventRow>();
+
+  let result: SqlQueryResult<BadgeTemplateOwnershipEventRow>;
+
+  try {
+    result = await listStatement();
+  } catch (error: unknown) {
+    if (!isMissingBadgeTemplateOwnershipEventsTableError(error)) {
+      throw error;
+    }
+
+    await ensureBadgeTemplateOwnershipEventsTable(db);
+    result = await listStatement();
+  }
+
+  return result.results.map((row) => mapBadgeTemplateOwnershipEventRow(row));
+};
+
+export const transferBadgeTemplateOwnership = async (
+  db: SqlDatabase,
+  input: TransferBadgeTemplateOwnershipInput,
+): Promise<TransferBadgeTemplateOwnershipResult> => {
+  const transferredAtMs = Date.parse(input.transferredAt);
+
+  if (!Number.isFinite(transferredAtMs)) {
+    throw new Error('transferredAt must be a valid ISO timestamp');
+  }
+
+  if (!BADGE_TEMPLATE_OWNERSHIP_REASON_CODES.has(input.reasonCode)) {
+    throw new Error(`Unsupported badge template ownership reason code: ${input.reasonCode}`);
+  }
+
+  const template = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
+
+  if (template === null) {
+    throw new Error(`Badge template ${input.badgeTemplateId} not found for tenant ${input.tenantId}`);
+  }
+
+  const toOrgUnit = await findTenantOrgUnitById(db, input.tenantId, input.toOrgUnitId);
+
+  if (toOrgUnit === null) {
+    throw new Error(`Org unit ${input.toOrgUnitId} not found for tenant ${input.tenantId}`);
+  }
+
+  if (template.ownerOrgUnitId === input.toOrgUnitId) {
+    return {
+      status: 'already_owned',
+      template,
+      event: null,
+    };
+  }
+
+  const normalizedReason = input.reason?.trim();
+  const reason = normalizedReason === undefined || normalizedReason.length === 0 ? null : normalizedReason;
+  const governanceMetadataJson = input.governanceMetadataJson ?? template.governanceMetadataJson;
+
+  await db
+    .prepare(
+      `
+      UPDATE badge_templates
+      SET owner_org_unit_id = ?,
+          governance_metadata_json = ?,
+          updated_at = ?
+      WHERE tenant_id = ?
+        AND id = ?
+    `,
+    )
+    .bind(
+      input.toOrgUnitId,
+      governanceMetadataJson,
+      input.transferredAt,
+      input.tenantId,
+      input.badgeTemplateId,
+    )
+    .run();
+
+  const updatedTemplate = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
+
+  if (updatedTemplate === null) {
+    throw new Error(`Unable to load badge template ${input.badgeTemplateId} after ownership transfer`);
+  }
+
+  const event = await createBadgeTemplateOwnershipEvent(db, {
+    tenantId: input.tenantId,
+    badgeTemplateId: input.badgeTemplateId,
+    fromOrgUnitId: template.ownerOrgUnitId,
+    toOrgUnitId: input.toOrgUnitId,
+    reasonCode: input.reasonCode,
+    reason,
+    governanceMetadataJson,
+    transferredByUserId: input.transferredByUserId ?? null,
+    transferredAt: input.transferredAt,
+  });
+
+  return {
+    status: 'transferred',
+    template: updatedTemplate,
+    event,
+  };
 };
 
 export const findAssertionById = async (

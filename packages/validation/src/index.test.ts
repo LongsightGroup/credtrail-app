@@ -6,9 +6,11 @@ import {
   parseAdminUpsertTenantSigningRegistrationRequest,
   parseAdminUpsertTenantMembershipRoleRequest,
   parseBadgeTemplateListQuery,
+  parseTenantOrgUnitListQuery,
   parseBadgeTemplatePathParams,
   parseCredentialPathParams,
   parseCreateBadgeTemplateRequest,
+  parseCreateTenantOrgUnitRequest,
   parseIssueBadgeRequest,
   parseIssueSakaiCommitBadgeRequest,
   parseManualIssueBadgeRequest,
@@ -28,6 +30,7 @@ import {
   parseTenantUserPathParams,
   parseTenantSigningRegistry,
   parseUpdateBadgeTemplateRequest,
+  parseTransferBadgeTemplateOwnershipRequest,
 } from './index';
 
 describe('parseQueueJob', () => {
@@ -636,6 +639,56 @@ describe('badge template parsers', () => {
     const query = parseBadgeTemplateListQuery({});
 
     expect(query.includeArchived).toBe(false);
+  });
+
+  it('accepts create payloads that include owner org unit', () => {
+    const payload = parseCreateBadgeTemplateRequest({
+      slug: 'intro-to-ts',
+      title: 'Intro to TypeScript',
+      ownerOrgUnitId: 'tenant_123:org:institution',
+    });
+
+    expect(payload.ownerOrgUnitId).toBe('tenant_123:org:institution');
+  });
+
+  it('parses tenant org unit list query defaults and booleans', () => {
+    const defaultQuery = parseTenantOrgUnitListQuery({});
+    const explicitQuery = parseTenantOrgUnitListQuery({ includeInactive: 'true' });
+
+    expect(defaultQuery.includeInactive).toBe(false);
+    expect(explicitQuery.includeInactive).toBe(true);
+  });
+
+  it('parses create tenant org unit request payload', () => {
+    const payload = parseCreateTenantOrgUnitRequest({
+      unitType: 'department',
+      slug: 'school-of-information',
+      displayName: 'School of Information',
+      parentOrgUnitId: 'tenant_123:org:college-engineering',
+    });
+
+    expect(payload.unitType).toBe('department');
+    expect(payload.slug).toBe('school-of-information');
+  });
+
+  it('parses ownership transfer payloads and rejects initial_assignment reason', () => {
+    const payload = parseTransferBadgeTemplateOwnershipRequest({
+      toOrgUnitId: 'tenant_123:org:department-math',
+      reasonCode: 'administrative_transfer',
+      reason: 'Moved under Math governance',
+      governanceMetadata: {
+        governancePolicyVersion: '2026-02-13',
+      },
+    });
+
+    expect(payload.reasonCode).toBe('administrative_transfer');
+
+    expect(() => {
+      parseTransferBadgeTemplateOwnershipRequest({
+        toOrgUnitId: 'tenant_123:org:department-math',
+        reasonCode: 'initial_assignment',
+      });
+    }).toThrowError();
   });
 });
 

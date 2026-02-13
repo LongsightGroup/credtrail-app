@@ -29,6 +29,7 @@ import {
   createAuditLog,
   createAssertion,
   createBadgeTemplate,
+  createTenantOrgUnit,
   createLearnerIdentityLinkProof,
   createMagicLinkToken,
   createOAuthAccessToken,
@@ -69,6 +70,8 @@ import {
   findOAuthClientById,
   isMagicLinkTokenValid,
   listBadgeTemplates,
+  listBadgeTemplateOwnershipEvents,
+  listTenantOrgUnits,
   listOb3SubjectCredentials,
   listPublicBadgeWallEntries,
   markLearnerIdentityLinkProofUsed,
@@ -87,6 +90,7 @@ import {
   upsertTenantSigningRegistration,
   upsertOb3SubjectCredential,
   upsertOb3SubjectProfile,
+  transferBadgeTemplateOwnership,
   updateBadgeTemplate,
   type AssertionRecord,
   type LtiIssuerRegistrationRecord,
@@ -118,6 +122,7 @@ import {
 } from '@credtrail/lti';
 import {
   parseBadgeTemplateListQuery,
+  parseTenantOrgUnitListQuery,
   parseBadgeTemplatePathParams,
   parseAssertionPathParams,
   parseAssertionLifecycleTransitionRequest,
@@ -125,6 +130,7 @@ import {
   parseQueueJob,
   parseCredentialPathParams,
   parseCreateBadgeTemplateRequest,
+  parseCreateTenantOrgUnitRequest,
   parseAdminUpsertBadgeTemplateByIdRequest,
   parseAdminUpsertTenantMembershipRoleRequest,
   parseAdminDeleteLtiIssuerRegistrationRequest,
@@ -155,6 +161,7 @@ import {
   parseSignCredentialRequest,
   parseTenantSigningRegistry,
   parseTenantSigningRegistryEntry,
+  parseTransferBadgeTemplateOwnershipRequest,
   parseUpdateBadgeTemplateRequest,
   type TenantSigningRegistryEntry,
   type TenantSigningRegistry,
@@ -7121,6 +7128,7 @@ app.put('/v1/admin/tenants/:tenantId/badge-templates/:badgeTemplateId', async (c
       description: request.description,
       criteriaUri: request.criteriaUri,
       imageUri: request.imageUri,
+      ownerOrgUnitId: request.ownerOrgUnitId,
     });
 
     await createAuditLog(resolveDatabase(c.env), {
@@ -7134,6 +7142,7 @@ app.put('/v1/admin/tenants/:tenantId/badge-templates/:badgeTemplateId', async (c
         description: template.description,
         criteriaUri: template.criteriaUri,
         imageUri: template.imageUri,
+        ownerOrgUnitId: template.ownerOrgUnitId,
       },
     });
 
@@ -7151,6 +7160,19 @@ app.put('/v1/admin/tenants/:tenantId/badge-templates/:badgeTemplateId', async (c
           error: 'Badge template slug already exists for tenant',
         },
         409,
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      ((error.message.includes('Org unit') && error.message.includes('not found for tenant')) ||
+        error.message.includes('ownership changes must use transferBadgeTemplateOwnership'))
+    ) {
+      return c.json(
+        {
+          error: error.message,
+        },
+        422,
       );
     }
 
@@ -9782,6 +9804,107 @@ app.post('/v1/auth/logout', async (c) => {
   });
 });
 
+app.get('/v1/tenants/:tenantId/org-units', async (c) => {
+  const pathParams = parseTenantPathParams(c.req.param());
+  const query = parseTenantOrgUnitListQuery({
+    includeInactive: c.req.query('includeInactive'),
+  });
+  const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+
+  if (roleCheck instanceof Response) {
+    return roleCheck;
+  }
+
+  const orgUnits = await listTenantOrgUnits(resolveDatabase(c.env), {
+    tenantId: pathParams.tenantId,
+    includeInactive: query.includeInactive,
+  });
+
+  return c.json({
+    tenantId: pathParams.tenantId,
+    orgUnits,
+  });
+});
+
+app.post('/v1/tenants/:tenantId/org-units', async (c) => {
+  const pathParams = parseTenantPathParams(c.req.param());
+  let request: ReturnType<typeof parseCreateTenantOrgUnitRequest>;
+
+  try {
+    request = parseCreateTenantOrgUnitRequest(await c.req.json<unknown>());
+  } catch {
+    return c.json(
+      {
+        error: 'Invalid org unit request payload',
+      },
+      400,
+    );
+  }
+
+  const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+  if (roleCheck instanceof Response) {
+    return roleCheck;
+  }
+
+  const { session, membershipRole } = roleCheck;
+
+  try {
+    const orgUnit = await createTenantOrgUnit(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      unitType: request.unitType,
+      slug: request.slug,
+      displayName: request.displayName,
+      parentOrgUnitId: request.parentOrgUnitId,
+      createdByUserId: session.userId,
+    });
+
+    await createAuditLog(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action: 'tenant.org_unit_created',
+      targetType: 'org_unit',
+      targetId: orgUnit.id,
+      metadata: {
+        role: membershipRole,
+        unitType: orgUnit.unitType,
+        slug: orgUnit.slug,
+        parentOrgUnitId: orgUnit.parentOrgUnitId,
+      },
+    });
+
+    return c.json(
+      {
+        tenantId: pathParams.tenantId,
+        orgUnit,
+      },
+      201,
+    );
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      if (error.message.includes('UNIQUE constraint failed')) {
+        return c.json(
+          {
+            error: 'Org unit slug already exists for tenant',
+          },
+          409,
+        );
+      }
+
+      if (error.message.includes('Parent org unit') && error.message.includes('not found for tenant')) {
+        return c.json(
+          {
+            error: error.message,
+          },
+          422,
+        );
+      }
+    }
+
+    throw error;
+  }
+});
+
 app.get('/v1/tenants/:tenantId/badge-templates', async (c) => {
   const pathParams = parseTenantPathParams(c.req.param());
   const query = parseBadgeTemplateListQuery({
@@ -9838,6 +9961,7 @@ app.post('/v1/tenants/:tenantId/badge-templates', async (c) => {
       description: request.description,
       criteriaUri: request.criteriaUri,
       imageUri: request.imageUri,
+      ownerOrgUnitId: request.ownerOrgUnitId,
       createdByUserId: session.userId,
     });
 
@@ -9851,6 +9975,7 @@ app.post('/v1/tenants/:tenantId/badge-templates', async (c) => {
         role: membershipRole,
         slug: template.slug,
         title: template.title,
+        ownerOrgUnitId: template.ownerOrgUnitId,
       },
     });
 
@@ -9861,13 +9986,22 @@ app.post('/v1/tenants/:tenantId/badge-templates', async (c) => {
       },
       201,
     );
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
       return c.json(
         {
           error: 'Badge template slug already exists for tenant',
         },
         409,
+      );
+    }
+
+    if (error instanceof Error && error.message.includes('Org unit') && error.message.includes('not found for tenant')) {
+      return c.json(
+        {
+          error: error.message,
+        },
+        422,
       );
     }
 
@@ -9912,6 +10046,126 @@ app.get('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId', async (c) => {
     tenantId: pathParams.tenantId,
     template,
   });
+});
+
+app.get('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/ownership-history', async (c) => {
+  const pathParams = parseBadgeTemplatePathParams(c.req.param());
+  const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+
+  if (roleCheck instanceof Response) {
+    return roleCheck;
+  }
+
+  const template = await findBadgeTemplateById(resolveDatabase(c.env), pathParams.tenantId, pathParams.badgeTemplateId);
+
+  if (template === null) {
+    return c.json(
+      {
+        error: 'Badge template not found',
+      },
+      404,
+    );
+  }
+
+  const events = await listBadgeTemplateOwnershipEvents(resolveDatabase(c.env), {
+    tenantId: pathParams.tenantId,
+    badgeTemplateId: pathParams.badgeTemplateId,
+  });
+
+  return c.json({
+    tenantId: pathParams.tenantId,
+    template,
+    events,
+  });
+});
+
+app.post('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/ownership-transfer', async (c) => {
+  const pathParams = parseBadgeTemplatePathParams(c.req.param());
+  let request: ReturnType<typeof parseTransferBadgeTemplateOwnershipRequest>;
+
+  try {
+    request = parseTransferBadgeTemplateOwnershipRequest(await c.req.json<unknown>());
+  } catch {
+    return c.json(
+      {
+        error: 'Invalid ownership transfer request payload',
+      },
+      400,
+    );
+  }
+
+  const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+  if (roleCheck instanceof Response) {
+    return roleCheck;
+  }
+
+  const { session, membershipRole } = roleCheck;
+
+  try {
+    const transition = await transferBadgeTemplateOwnership(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      badgeTemplateId: pathParams.badgeTemplateId,
+      toOrgUnitId: request.toOrgUnitId,
+      reasonCode: request.reasonCode,
+      reason: request.reason,
+      governanceMetadataJson:
+        request.governanceMetadata === undefined ? undefined : JSON.stringify(request.governanceMetadata),
+      transferredByUserId: session.userId,
+      transferredAt: request.transferredAt ?? new Date().toISOString(),
+    });
+
+    await createAuditLog(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action: 'badge_template.ownership_transferred',
+      targetType: 'badge_template',
+      targetId: pathParams.badgeTemplateId,
+      metadata: {
+        role: membershipRole,
+        status: transition.status,
+        fromOrgUnitId: transition.event?.fromOrgUnitId ?? transition.template.ownerOrgUnitId,
+        toOrgUnitId: transition.template.ownerOrgUnitId,
+        reasonCode: request.reasonCode,
+        reason: request.reason,
+        eventId: transition.event?.id ?? null,
+      },
+    });
+
+    return c.json({
+      tenantId: pathParams.tenantId,
+      status: transition.status,
+      template: transition.template,
+      event: transition.event,
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      if (error.message.includes('not found for tenant') && error.message.includes('Badge template')) {
+        return c.json(
+          {
+            error: 'Badge template not found',
+          },
+          404,
+        );
+      }
+
+      if (
+        error.message.includes('transferredAt must be a valid ISO timestamp') ||
+        error.message.includes('Unsupported badge template ownership reason code') ||
+        error.message.includes('initial_assignment is reserved') ||
+        (error.message.includes('Org unit') && error.message.includes('not found for tenant'))
+      ) {
+        return c.json(
+          {
+            error: error.message,
+          },
+          422,
+        );
+      }
+    }
+
+    throw error;
+  }
 });
 
 app.patch('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId', async (c) => {

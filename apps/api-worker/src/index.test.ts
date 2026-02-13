@@ -9,6 +9,7 @@ vi.mock('@credtrail/db', async () => {
     completeJobQueueMessage: vi.fn(),
     createAuditLog: vi.fn(),
     createAssertion: vi.fn(),
+    createTenantOrgUnit: vi.fn(),
     createSession: vi.fn(),
     createLearnerIdentityLinkProof: vi.fn(),
     createOAuthAccessToken: vi.fn(),
@@ -36,6 +37,8 @@ vi.mock('@credtrail/db', async () => {
     resolveAssertionLifecycleState: vi.fn(),
     recordAssertionLifecycleTransition: vi.fn(),
     listLtiIssuerRegistrations: vi.fn(),
+    listBadgeTemplateOwnershipEvents: vi.fn(),
+    listTenantOrgUnits: vi.fn(),
     listPublicBadgeWallEntries: vi.fn(),
     touchSession: vi.fn(),
     listLearnerBadgeSummaries: vi.fn(),
@@ -52,6 +55,7 @@ vi.mock('@credtrail/db', async () => {
     revokeOAuthRefreshTokenByHash: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
     deleteLtiIssuerRegistrationByIssuer: vi.fn(),
+    transferBadgeTemplateOwnership: vi.fn(),
     upsertBadgeTemplateById: vi.fn(),
     upsertLtiIssuerRegistration: vi.fn(),
     upsertUserByEmail: vi.fn(),
@@ -93,10 +97,12 @@ import {
   type AuditLogRecord,
   type AssertionRecord,
   type AssertionStatusListEntryRecord,
+  type BadgeTemplateOwnershipEventRecord,
   type BadgeTemplateRecord,
   type LearnerIdentityLinkProofRecord,
   type LearnerBadgeSummaryRecord,
   type LtiIssuerRegistrationRecord,
+  type TenantOrgUnitRecord,
   type LearnerProfileRecord,
   type PublicBadgeWallEntryRecord,
   type SessionRecord,
@@ -114,6 +120,7 @@ import {
   completeJobQueueMessage,
   createAuditLog,
   createAssertion,
+  createTenantOrgUnit,
   createSession,
   createLearnerIdentityLinkProof,
   createOAuthAccessToken,
@@ -144,6 +151,8 @@ import {
   resolveAssertionLifecycleState,
   recordAssertionLifecycleTransition,
   listLtiIssuerRegistrations,
+  listBadgeTemplateOwnershipEvents,
+  listTenantOrgUnits,
   listPublicBadgeWallEntries,
   listLearnerBadgeSummaries,
   listLearnerIdentitiesByProfile,
@@ -158,6 +167,7 @@ import {
   resolveLearnerProfileForIdentity,
   deleteLtiIssuerRegistrationByIssuer,
   touchSession,
+  transferBadgeTemplateOwnership,
   type JobQueueMessageRecord,
   upsertBadgeTemplateById,
   upsertLtiIssuerRegistration,
@@ -277,6 +287,7 @@ const mockedFindLearnerProfileByIdentity = vi.mocked(findLearnerProfileByIdentit
 const mockedResolveLearnerProfileForIdentity = vi.mocked(resolveLearnerProfileForIdentity);
 const mockedListPublicBadgeWallEntries = vi.mocked(listPublicBadgeWallEntries);
 const mockedCreateAssertion = vi.mocked(createAssertion);
+const mockedCreateTenantOrgUnit = vi.mocked(createTenantOrgUnit);
 const mockedCreateSession = vi.mocked(createSession);
 const mockedNextAssertionStatusListIndex = vi.mocked(nextAssertionStatusListIndex);
 const mockedListAssertionStatusListEntries = vi.mocked(listAssertionStatusListEntries);
@@ -284,6 +295,8 @@ const mockedListAssertionLifecycleEvents = vi.mocked(listAssertionLifecycleEvent
 const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
 const mockedRecordAssertionLifecycleTransition = vi.mocked(recordAssertionLifecycleTransition);
 const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
+const mockedListBadgeTemplateOwnershipEvents = vi.mocked(listBadgeTemplateOwnershipEvents);
+const mockedListTenantOrgUnits = vi.mocked(listTenantOrgUnits);
 const mockedTouchSession = vi.mocked(touchSession);
 const mockedListLearnerBadgeSummaries = vi.mocked(listLearnerBadgeSummaries);
 const mockedListLearnerIdentitiesByProfile = vi.mocked(listLearnerIdentitiesByProfile);
@@ -316,6 +329,7 @@ const mockedCreateAuditLog = vi.mocked(createAuditLog);
 const mockedUpsertTenant = vi.mocked(upsertTenant);
 const mockedUpsertTenantSigningRegistration = vi.mocked(upsertTenantSigningRegistration);
 const mockedDeleteLtiIssuerRegistrationByIssuer = vi.mocked(deleteLtiIssuerRegistrationByIssuer);
+const mockedTransferBadgeTemplateOwnership = vi.mocked(transferBadgeTemplateOwnership);
 const mockedUpsertBadgeTemplateById = vi.mocked(upsertBadgeTemplateById);
 const mockedUpsertLtiIssuerRegistration = vi.mocked(upsertLtiIssuerRegistration);
 const mockedUpsertUserByEmail = vi.mocked(upsertUserByEmail);
@@ -363,6 +377,12 @@ beforeEach(() => {
   mockedFindActiveOAuthAccessTokenByHash.mockReset();
   mockedListLtiIssuerRegistrations.mockReset();
   mockedListLtiIssuerRegistrations.mockResolvedValue([]);
+  mockedListBadgeTemplateOwnershipEvents.mockReset();
+  mockedListBadgeTemplateOwnershipEvents.mockResolvedValue([]);
+  mockedListTenantOrgUnits.mockReset();
+  mockedListTenantOrgUnits.mockResolvedValue([]);
+  mockedCreateTenantOrgUnit.mockReset();
+  mockedTransferBadgeTemplateOwnership.mockReset();
   mockedListAssertionLifecycleEvents.mockReset();
   mockedListAssertionLifecycleEvents.mockResolvedValue([]);
   mockedResolveAssertionLifecycleState.mockReset();
@@ -683,9 +703,46 @@ const sampleBadgeTemplate = (overrides?: Partial<BadgeTemplateRecord>): BadgeTem
     criteriaUri: null,
     imageUri: null,
     createdByUserId: 'usr_issuer',
+    ownerOrgUnitId: 'tenant_123:org:institution',
+    governanceMetadataJson: '{"stability":"institution_registry"}',
     isArchived: false,
     createdAt: '2026-02-10T22:00:00.000Z',
     updatedAt: '2026-02-10T22:00:00.000Z',
+    ...overrides,
+  };
+};
+
+const sampleTenantOrgUnit = (overrides?: Partial<TenantOrgUnitRecord>): TenantOrgUnitRecord => {
+  return {
+    id: 'tenant_123:org:institution',
+    tenantId: 'tenant_123',
+    unitType: 'institution',
+    slug: 'institution',
+    displayName: 'Tenant 123 Institution',
+    parentOrgUnitId: null,
+    createdByUserId: 'usr_123',
+    isActive: true,
+    createdAt: '2026-02-10T22:00:00.000Z',
+    updatedAt: '2026-02-10T22:00:00.000Z',
+    ...overrides,
+  };
+};
+
+const sampleBadgeTemplateOwnershipEvent = (
+  overrides?: Partial<BadgeTemplateOwnershipEventRecord>,
+): BadgeTemplateOwnershipEventRecord => {
+  return {
+    id: 'btoe_123',
+    tenantId: 'tenant_123',
+    badgeTemplateId: 'badge_template_001',
+    fromOrgUnitId: 'tenant_123:org:institution',
+    toOrgUnitId: 'tenant_123:org:department-math',
+    reasonCode: 'administrative_transfer',
+    reason: 'Moved to Math governance',
+    governanceMetadataJson: '{"governancePolicyVersion":"2026-02-13"}',
+    transferredByUserId: 'usr_123',
+    transferredAt: '2026-02-13T00:00:00.000Z',
+    createdAt: '2026-02-13T00:00:00.000Z',
     ...overrides,
   };
 };
@@ -2224,15 +2281,208 @@ describe('PUT /v1/admin/tenants/:tenantId/badge-templates/:badgeTemplateId', () 
     expect(response.status).toBe(201);
     expect(body.tenantId).toBe('sakai');
     expect(body.template.id).toBe('badge_template_sakai_1000');
-    expect(mockedUpsertBadgeTemplateById).toHaveBeenCalledWith(fakeDb, {
-      id: 'badge_template_sakai_1000',
-      tenantId: 'sakai',
-      slug: 'sakai-1000-commits-contributor',
-      title: 'Sakai 1000+ Commits Contributor',
-      description: 'Awarded for contributing 1000+ commits to Sakai.',
-      criteriaUri: 'https://github.com/sakaiproject/sakai',
-      imageUri: 'https://avatars.githubusercontent.com/u/429529?s=200&v=4',
+    expect(mockedUpsertBadgeTemplateById).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        id: 'badge_template_sakai_1000',
+        tenantId: 'sakai',
+        slug: 'sakai-1000-commits-contributor',
+        title: 'Sakai 1000+ Commits Contributor',
+        description: 'Awarded for contributing 1000+ commits to Sakai.',
+        criteriaUri: 'https://github.com/sakaiproject/sakai',
+        imageUri: 'https://avatars.githubusercontent.com/u/429529?s=200&v=4',
+      }),
+    );
+  });
+});
+
+describe('org unit and badge ownership governance endpoints', () => {
+  beforeEach(() => {
+    mockedFindActiveSessionByHash.mockReset();
+    mockedTouchSession.mockReset();
+    mockedCreateTenantOrgUnit.mockReset();
+    mockedListTenantOrgUnits.mockReset();
+    mockedListBadgeTemplateOwnershipEvents.mockReset();
+    mockedTransferBadgeTemplateOwnership.mockReset();
+    mockedFindBadgeTemplateById.mockReset();
+    mockedCreateAuditLog.mockClear();
+  });
+
+  it('lists tenant org units for issuer roles', async () => {
+    const env = createEnv();
+
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue();
+    mockedListTenantOrgUnits.mockResolvedValue([
+      sampleTenantOrgUnit(),
+      sampleTenantOrgUnit({
+        id: 'tenant_123:org:department-math',
+        unitType: 'department',
+        slug: 'math',
+        displayName: 'Department of Mathematics',
+      }),
+    ]);
+
+    const response = await app.request('/v1/tenants/tenant_123/org-units', {
+      method: 'GET',
+      headers: {
+        Cookie: 'credtrail_session=session-token',
+      },
+    }, env);
+
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.tenantId).toBe('tenant_123');
+    expect(Array.isArray(body.orgUnits)).toBe(true);
+    expect(mockedListTenantOrgUnits).toHaveBeenCalledWith(fakeDb, {
+      tenantId: 'tenant_123',
+      includeInactive: false,
     });
+  });
+
+  it('creates a tenant org unit for admin roles and writes audit log', async () => {
+    const env = createEnv();
+
+    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: 'admin' }));
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue();
+    mockedCreateTenantOrgUnit.mockResolvedValue(
+      sampleTenantOrgUnit({
+        id: 'ou_department_math',
+        unitType: 'department',
+        slug: 'math',
+        displayName: 'Department of Mathematics',
+      }),
+    );
+
+    const response = await app.request('/v1/tenants/tenant_123/org-units', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: 'credtrail_session=session-token',
+      },
+      body: JSON.stringify({
+        unitType: 'department',
+        slug: 'math',
+        displayName: 'Department of Mathematics',
+        parentOrgUnitId: 'tenant_123:org:institution',
+      }),
+    }, env);
+
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(201);
+    expect(body.tenantId).toBe('tenant_123');
+    expect(mockedCreateTenantOrgUnit).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: 'tenant_123',
+        unitType: 'department',
+        slug: 'math',
+        displayName: 'Department of Mathematics',
+        parentOrgUnitId: 'tenant_123:org:institution',
+        createdByUserId: 'usr_123',
+      }),
+    );
+    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: 'tenant_123',
+        action: 'tenant.org_unit_created',
+        targetType: 'org_unit',
+      }),
+    );
+  });
+
+  it('returns badge template ownership history', async () => {
+    const env = createEnv();
+
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue();
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
+    mockedListBadgeTemplateOwnershipEvents.mockResolvedValue([
+      sampleBadgeTemplateOwnershipEvent(),
+    ]);
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/badge-templates/badge_template_001/ownership-history',
+      {
+        method: 'GET',
+        headers: {
+          Cookie: 'credtrail_session=session-token',
+        },
+      },
+      env,
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.tenantId).toBe('tenant_123');
+    expect(Array.isArray(body.events)).toBe(true);
+    expect(mockedListBadgeTemplateOwnershipEvents).toHaveBeenCalledWith(fakeDb, {
+      tenantId: 'tenant_123',
+      badgeTemplateId: 'badge_template_001',
+    });
+  });
+
+  it('transfers badge template ownership and writes audit log', async () => {
+    const env = createEnv();
+
+    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: 'admin' }));
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue();
+    mockedTransferBadgeTemplateOwnership.mockResolvedValue({
+      status: 'transferred',
+      template: sampleBadgeTemplate({
+        ownerOrgUnitId: 'tenant_123:org:department-math',
+        governanceMetadataJson: '{"governancePolicyVersion":"2026-02-13"}',
+      }),
+      event: sampleBadgeTemplateOwnershipEvent(),
+    });
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/badge-templates/badge_template_001/ownership-transfer',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: 'credtrail_session=session-token',
+        },
+        body: JSON.stringify({
+          toOrgUnitId: 'tenant_123:org:department-math',
+          reasonCode: 'administrative_transfer',
+          reason: 'Moved to Math governance',
+          governanceMetadata: {
+            governancePolicyVersion: '2026-02-13',
+          },
+        }),
+      },
+      env,
+    );
+
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe('transferred');
+    expect(mockedTransferBadgeTemplateOwnership).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: 'tenant_123',
+        badgeTemplateId: 'badge_template_001',
+        toOrgUnitId: 'tenant_123:org:department-math',
+        reasonCode: 'administrative_transfer',
+        transferredByUserId: 'usr_123',
+      }),
+    );
+    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: 'tenant_123',
+        action: 'badge_template.ownership_transferred',
+        targetType: 'badge_template',
+      }),
+    );
   });
 });
 

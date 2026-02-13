@@ -123,6 +123,27 @@ export const badgeTemplateSlugSchema = z
 export const badgeTemplateTitleSchema = z.string().trim().min(1).max(200);
 export const badgeTemplateDescriptionSchema = z.string().trim().min(1).max(2000);
 export const badgeTemplateUriSchema = z.string().url().max(2048);
+export const orgUnitTypeSchema = z.enum(['institution', 'college', 'department', 'program']);
+export const orgUnitSlugSchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(96)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+export const orgUnitDisplayNameSchema = z.string().trim().min(1).max(200);
+export const badgeTemplateOwnershipReasonCodeSchema = z.enum([
+  'initial_assignment',
+  'administrative_transfer',
+  'reorganization',
+  'governance_policy_update',
+  'other',
+]);
+export const badgeTemplateOwnershipTransferReasonCodeSchema = z.enum([
+  'administrative_transfer',
+  'reorganization',
+  'governance_policy_update',
+  'other',
+]);
 
 export const tenantPathParamsSchema = z.object({
   tenantId: tenantIdSchema,
@@ -176,12 +197,31 @@ export const badgeTemplateListQuerySchema = z.object({
   }, z.boolean()),
 });
 
+export const tenantOrgUnitListQuerySchema = z.object({
+  includeInactive: z.preprocess((input) => {
+    if (input === undefined) {
+      return false;
+    }
+
+    if (input === 'true') {
+      return true;
+    }
+
+    if (input === 'false') {
+      return false;
+    }
+
+    return input;
+  }, z.boolean()),
+});
+
 export const createBadgeTemplateRequestSchema = z.object({
   slug: badgeTemplateSlugSchema,
   title: badgeTemplateTitleSchema,
   description: badgeTemplateDescriptionSchema.optional(),
   criteriaUri: badgeTemplateUriSchema.optional(),
   imageUri: badgeTemplateUriSchema.optional(),
+  ownerOrgUnitId: resourceIdSchema.optional(),
 });
 
 export const updateBadgeTemplateRequestSchema = z
@@ -203,6 +243,21 @@ export const updateBadgeTemplateRequestSchema = z
       message: 'At least one badge template field must be provided',
     },
   );
+
+export const createTenantOrgUnitRequestSchema = z.object({
+  unitType: orgUnitTypeSchema,
+  slug: orgUnitSlugSchema,
+  displayName: orgUnitDisplayNameSchema,
+  parentOrgUnitId: resourceIdSchema.optional(),
+});
+
+export const transferBadgeTemplateOwnershipRequestSchema = z.object({
+  toOrgUnitId: resourceIdSchema,
+  reasonCode: badgeTemplateOwnershipTransferReasonCodeSchema,
+  reason: z.string().trim().min(1).max(512).optional(),
+  governanceMetadata: jsonObjectSchema.optional(),
+  transferredAt: isoTimestampSchema.optional(),
+});
 
 export const adminUpsertTenantRequestSchema = z.object({
   slug: z
@@ -445,8 +500,16 @@ export type BadgeTemplatePathParams = z.infer<typeof badgeTemplatePathParamsSche
 export type CredentialPathParams = z.infer<typeof credentialPathParamsSchema>;
 export type TenantUserPathParams = z.infer<typeof tenantUserPathParamsSchema>;
 export type BadgeTemplateListQuery = z.infer<typeof badgeTemplateListQuerySchema>;
+export type TenantOrgUnitListQuery = z.infer<typeof tenantOrgUnitListQuerySchema>;
 export type CreateBadgeTemplateRequest = z.infer<typeof createBadgeTemplateRequestSchema>;
 export type UpdateBadgeTemplateRequest = z.infer<typeof updateBadgeTemplateRequestSchema>;
+export type CreateTenantOrgUnitRequest = z.infer<typeof createTenantOrgUnitRequestSchema>;
+export type TransferBadgeTemplateOwnershipRequest = z.infer<typeof transferBadgeTemplateOwnershipRequestSchema>;
+export type OrgUnitType = z.infer<typeof orgUnitTypeSchema>;
+export type BadgeTemplateOwnershipReasonCode = z.infer<typeof badgeTemplateOwnershipReasonCodeSchema>;
+export type BadgeTemplateOwnershipTransferReasonCode = z.infer<
+  typeof badgeTemplateOwnershipTransferReasonCodeSchema
+>;
 export type AdminUpsertTenantRequest = z.infer<typeof adminUpsertTenantRequestSchema>;
 export type AdminUpsertTenantSigningRegistrationRequest = z.infer<
   typeof adminUpsertTenantSigningRegistrationRequestSchema
@@ -562,8 +625,22 @@ export const parseBadgeTemplateListQuery = (input: unknown): BadgeTemplateListQu
   return badgeTemplateListQuerySchema.parse(input);
 };
 
+export const parseTenantOrgUnitListQuery = (input: unknown): TenantOrgUnitListQuery => {
+  return tenantOrgUnitListQuerySchema.parse(input);
+};
+
 export const parseCreateBadgeTemplateRequest = (input: unknown): CreateBadgeTemplateRequest => {
   return createBadgeTemplateRequestSchema.parse(input);
+};
+
+export const parseCreateTenantOrgUnitRequest = (input: unknown): CreateTenantOrgUnitRequest => {
+  return createTenantOrgUnitRequestSchema.parse(input);
+};
+
+export const parseTransferBadgeTemplateOwnershipRequest = (
+  input: unknown,
+): TransferBadgeTemplateOwnershipRequest => {
+  return transferBadgeTemplateOwnershipRequestSchema.parse(input);
 };
 
 export const parseUpdateBadgeTemplateRequest = (input: unknown): UpdateBadgeTemplateRequest => {
