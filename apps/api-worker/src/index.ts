@@ -68,9 +68,12 @@ import {
   findOb3SubjectProfile,
   findActiveOAuthAccessTokenByHash,
   findOAuthClientById,
+  hasTenantMembershipOrgUnitAccess,
+  hasTenantMembershipOrgUnitScopeAssignments,
   isMagicLinkTokenValid,
   listBadgeTemplates,
   listBadgeTemplateOwnershipEvents,
+  listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
   listOb3SubjectCredentials,
   listPublicBadgeWallEntries,
@@ -79,12 +82,14 @@ import {
   nextAssertionStatusListIndex,
   resolveLearnerProfileForIdentity,
   recordAssertionRevocation,
+  removeTenantMembershipOrgUnitScope,
   revokeSessionByHash,
   revokeOAuthAccessTokenByHash,
   revokeOAuthRefreshTokenByHash,
   setBadgeTemplateArchivedState,
   touchSession,
   upsertBadgeTemplateById,
+  upsertTenantMembershipOrgUnitScope,
   upsertTenantMembershipRole,
   upsertTenant,
   upsertTenantSigningRegistration,
@@ -100,6 +105,7 @@ import {
   type PublicBadgeWallEntryRecord,
   type SessionRecord,
   type SqlDatabase,
+  type TenantMembershipOrgUnitScopeRole,
   type TenantMembershipRole,
   upsertLtiIssuerRegistration,
   upsertUserByEmail,
@@ -153,6 +159,7 @@ import {
   parseMagicLinkRequest,
   parseMagicLinkVerifyRequest,
   parseTenantPathParams,
+  parseTenantUserOrgUnitPathParams,
   parseTenantUserPathParams,
   type RevokeBadgeQueueJob,
   type RevokeBadgeRequest,
@@ -162,6 +169,7 @@ import {
   parseTenantSigningRegistry,
   parseTenantSigningRegistryEntry,
   parseTransferBadgeTemplateOwnershipRequest,
+  parseUpsertTenantMembershipOrgUnitScopeRequest,
   parseUpdateBadgeTemplateRequest,
   type TenantSigningRegistryEntry,
   type TenantSigningRegistry,
@@ -1507,6 +1515,83 @@ const requireTenantRole = async (
     session,
     membershipRole: membership.role,
   };
+};
+
+const defaultInstitutionOrgUnitId = (tenantId: string): string => {
+  return `${tenantId}:org:institution`;
+};
+
+const canBypassOrgScopeChecks = (membershipRole: TenantMembershipRole): boolean => {
+  return membershipRole === 'owner' || membershipRole === 'admin';
+};
+
+const hasScopedOrgUnitPermission = async (input: {
+  db: SqlDatabase;
+  tenantId: string;
+  userId: string;
+  membershipRole: TenantMembershipRole;
+  orgUnitId: string;
+  requiredRole: TenantMembershipOrgUnitScopeRole;
+  allowWhenNoScopes: boolean;
+}): Promise<boolean> => {
+  if (canBypassOrgScopeChecks(input.membershipRole)) {
+    return true;
+  }
+
+  if (input.membershipRole !== 'issuer') {
+    return false;
+  }
+
+  const hasScopedAssignments = await hasTenantMembershipOrgUnitScopeAssignments(
+    input.db,
+    input.tenantId,
+    input.userId,
+  );
+
+  if (!hasScopedAssignments) {
+    return input.allowWhenNoScopes;
+  }
+
+  return hasTenantMembershipOrgUnitAccess(input.db, {
+    tenantId: input.tenantId,
+    userId: input.userId,
+    orgUnitId: input.orgUnitId,
+    requiredRole: input.requiredRole,
+  });
+};
+
+const requireScopedOrgUnitPermission = async (
+  c: AppContext,
+  input: {
+    db: SqlDatabase;
+    tenantId: string;
+    userId: string;
+    membershipRole: TenantMembershipRole;
+    orgUnitId: string;
+    requiredRole: TenantMembershipOrgUnitScopeRole;
+    allowWhenNoScopes?: boolean;
+  },
+): Promise<Response | null> => {
+  const allowed = await hasScopedOrgUnitPermission({
+    db: input.db,
+    tenantId: input.tenantId,
+    userId: input.userId,
+    membershipRole: input.membershipRole,
+    orgUnitId: input.orgUnitId,
+    requiredRole: input.requiredRole,
+    allowWhenNoScopes: input.allowWhenNoScopes === true,
+  });
+
+  if (allowed) {
+    return null;
+  }
+
+  return c.json(
+    {
+      error: 'Insufficient org-unit scope for requested action',
+    },
+    403,
+  );
 };
 
 const didForWellKnownRequest = (requestUrl: string): string => {
@@ -9891,7 +9976,12 @@ app.post('/v1/tenants/:tenantId/org-units', async (c) => {
         );
       }
 
-      if (error.message.includes('Parent org unit') && error.message.includes('not found for tenant')) {
+      if (
+        (error.message.includes('Parent org unit') && error.message.includes('not found for tenant')) ||
+        error.message.includes('cannot have a parent org unit') ||
+        error.message.includes('requires parent org unit type') ||
+        error.message.includes('is inactive for tenant')
+      ) {
         return c.json(
           {
             error: error.message,
@@ -9903,6 +9993,155 @@ app.post('/v1/tenants/:tenantId/org-units', async (c) => {
 
     throw error;
   }
+});
+
+app.get('/v1/tenants/:tenantId/users/:userId/org-unit-scopes', async (c) => {
+  const pathParams = parseTenantUserPathParams(c.req.param());
+  const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+  if (roleCheck instanceof Response) {
+    return roleCheck;
+  }
+
+  const scopes = await listTenantMembershipOrgUnitScopes(resolveDatabase(c.env), {
+    tenantId: pathParams.tenantId,
+    userId: pathParams.userId,
+  });
+
+  return c.json({
+    tenantId: pathParams.tenantId,
+    userId: pathParams.userId,
+    scopes,
+  });
+});
+
+app.put('/v1/tenants/:tenantId/users/:userId/org-unit-scopes/:orgUnitId', async (c) => {
+  const pathParams = parseTenantUserOrgUnitPathParams(c.req.param());
+  let request: ReturnType<typeof parseUpsertTenantMembershipOrgUnitScopeRequest>;
+
+  try {
+    request = parseUpsertTenantMembershipOrgUnitScopeRequest(await c.req.json<unknown>());
+  } catch {
+    return c.json(
+      {
+        error: 'Invalid org-unit scope payload',
+      },
+      400,
+    );
+  }
+
+  const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+  if (roleCheck instanceof Response) {
+    return roleCheck;
+  }
+
+  const { session, membershipRole } = roleCheck;
+
+  try {
+    const result = await upsertTenantMembershipOrgUnitScope(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      userId: pathParams.userId,
+      orgUnitId: pathParams.orgUnitId,
+      role: request.role,
+      createdByUserId: session.userId,
+    });
+
+    const action =
+      result.previousRole === null
+        ? 'membership.org_scope_assigned'
+        : result.previousRole === result.scope.role
+          ? 'membership.org_scope_reasserted'
+          : 'membership.org_scope_changed';
+
+    await createAuditLog(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action,
+      targetType: 'membership_org_scope',
+      targetId: `${pathParams.tenantId}:${pathParams.userId}:${pathParams.orgUnitId}`,
+      metadata: {
+        role: membershipRole,
+        userId: pathParams.userId,
+        orgUnitId: pathParams.orgUnitId,
+        previousRole: result.previousRole,
+        scopeRole: result.scope.role,
+        changed: result.changed,
+      },
+    });
+
+    return c.json(
+      {
+        tenantId: pathParams.tenantId,
+        userId: pathParams.userId,
+        orgUnitId: pathParams.orgUnitId,
+        scope: result.scope,
+        previousRole: result.previousRole,
+        changed: result.changed,
+      },
+      result.previousRole === null ? 201 : 200,
+    );
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      if (error.message.includes('Membership not found for tenant')) {
+        return c.json(
+          {
+            error: error.message,
+          },
+          422,
+        );
+      }
+
+      if (error.message.includes('Org unit') && error.message.includes('not found for tenant')) {
+        return c.json(
+          {
+            error: error.message,
+          },
+          422,
+        );
+      }
+    }
+
+    throw error;
+  }
+});
+
+app.delete('/v1/tenants/:tenantId/users/:userId/org-unit-scopes/:orgUnitId', async (c) => {
+  const pathParams = parseTenantUserOrgUnitPathParams(c.req.param());
+  const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+  if (roleCheck instanceof Response) {
+    return roleCheck;
+  }
+
+  const { session, membershipRole } = roleCheck;
+  const removed = await removeTenantMembershipOrgUnitScope(resolveDatabase(c.env), {
+    tenantId: pathParams.tenantId,
+    userId: pathParams.userId,
+    orgUnitId: pathParams.orgUnitId,
+  });
+
+  if (removed) {
+    await createAuditLog(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action: 'membership.org_scope_removed',
+      targetType: 'membership_org_scope',
+      targetId: `${pathParams.tenantId}:${pathParams.userId}:${pathParams.orgUnitId}`,
+      metadata: {
+        role: membershipRole,
+        userId: pathParams.userId,
+        orgUnitId: pathParams.orgUnitId,
+      },
+    });
+  }
+
+  return c.json({
+    tenantId: pathParams.tenantId,
+    userId: pathParams.userId,
+    orgUnitId: pathParams.orgUnitId,
+    removed,
+  });
 });
 
 app.get('/v1/tenants/:tenantId/badge-templates', async (c) => {
@@ -9930,10 +10169,49 @@ app.get('/v1/tenants/:tenantId/badge-templates', async (c) => {
     );
   }
 
-  const templates = await listBadgeTemplates(resolveDatabase(c.env), {
+  const db = resolveDatabase(c.env);
+  const membership = await findTenantMembership(db, pathParams.tenantId, session.userId);
+
+  if (membership === null) {
+    return c.json(
+      {
+        error: 'Membership not found for requested tenant',
+      },
+      403,
+    );
+  }
+
+  let templates = await listBadgeTemplates(db, {
     tenantId: pathParams.tenantId,
     includeArchived: query.includeArchived,
   });
+
+  if (membership.role === 'issuer') {
+    const hasScopedAssignments = await hasTenantMembershipOrgUnitScopeAssignments(
+      db,
+      pathParams.tenantId,
+      session.userId,
+    );
+
+    if (hasScopedAssignments) {
+      const scopedTemplates: typeof templates = [];
+
+      for (const template of templates) {
+        const canViewTemplate = await hasTenantMembershipOrgUnitAccess(db, {
+          tenantId: pathParams.tenantId,
+          userId: session.userId,
+          orgUnitId: template.ownerOrgUnitId,
+          requiredRole: 'viewer',
+        });
+
+        if (canViewTemplate) {
+          scopedTemplates.push(template);
+        }
+      }
+
+      templates = scopedTemplates;
+    }
+  }
 
   return c.json({
     tenantId: pathParams.tenantId,
@@ -9952,9 +10230,25 @@ app.post('/v1/tenants/:tenantId/badge-templates', async (c) => {
   }
 
   const { session, membershipRole } = roleCheck;
+  const db = resolveDatabase(c.env);
+  const targetOwnerOrgUnitId = request.ownerOrgUnitId ?? defaultInstitutionOrgUnitId(pathParams.tenantId);
+
+  const scopeCheck = await requireScopedOrgUnitPermission(c, {
+    db,
+    tenantId: pathParams.tenantId,
+    userId: session.userId,
+    membershipRole,
+    orgUnitId: targetOwnerOrgUnitId,
+    requiredRole: 'issuer',
+    allowWhenNoScopes: true,
+  });
+
+  if (scopeCheck !== null) {
+    return scopeCheck;
+  }
 
   try {
-    const template = await createBadgeTemplate(resolveDatabase(c.env), {
+    const template = await createBadgeTemplate(db, {
       tenantId: pathParams.tenantId,
       slug: request.slug,
       title: request.title,
@@ -9965,7 +10259,7 @@ app.post('/v1/tenants/:tenantId/badge-templates', async (c) => {
       createdByUserId: session.userId,
     });
 
-    await createAuditLog(resolveDatabase(c.env), {
+    await createAuditLog(db, {
       tenantId: pathParams.tenantId,
       actorUserId: session.userId,
       action: 'badge_template.created',
@@ -10031,7 +10325,19 @@ app.get('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId', async (c) => {
     );
   }
 
-  const template = await findBadgeTemplateById(resolveDatabase(c.env), pathParams.tenantId, pathParams.badgeTemplateId);
+  const db = resolveDatabase(c.env);
+  const membership = await findTenantMembership(db, pathParams.tenantId, session.userId);
+
+  if (membership === null) {
+    return c.json(
+      {
+        error: 'Membership not found for requested tenant',
+      },
+      403,
+    );
+  }
+
+  const template = await findBadgeTemplateById(db, pathParams.tenantId, pathParams.badgeTemplateId);
 
   if (template === null) {
     return c.json(
@@ -10040,6 +10346,32 @@ app.get('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId', async (c) => {
       },
       404,
     );
+  }
+
+  if (membership.role === 'issuer') {
+    const hasScopedAssignments = await hasTenantMembershipOrgUnitScopeAssignments(
+      db,
+      pathParams.tenantId,
+      session.userId,
+    );
+
+    if (hasScopedAssignments) {
+      const canViewTemplate = await hasTenantMembershipOrgUnitAccess(db, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        orgUnitId: template.ownerOrgUnitId,
+        requiredRole: 'viewer',
+      });
+
+      if (!canViewTemplate) {
+        return c.json(
+          {
+            error: 'Insufficient org-unit scope for requested action',
+          },
+          403,
+        );
+      }
+    }
   }
 
   return c.json({
@@ -10056,7 +10388,9 @@ app.get('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/ownership-histor
     return roleCheck;
   }
 
-  const template = await findBadgeTemplateById(resolveDatabase(c.env), pathParams.tenantId, pathParams.badgeTemplateId);
+  const { session, membershipRole } = roleCheck;
+  const db = resolveDatabase(c.env);
+  const template = await findBadgeTemplateById(db, pathParams.tenantId, pathParams.badgeTemplateId);
 
   if (template === null) {
     return c.json(
@@ -10067,7 +10401,21 @@ app.get('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/ownership-histor
     );
   }
 
-  const events = await listBadgeTemplateOwnershipEvents(resolveDatabase(c.env), {
+  const scopeCheck = await requireScopedOrgUnitPermission(c, {
+    db,
+    tenantId: pathParams.tenantId,
+    userId: session.userId,
+    membershipRole,
+    orgUnitId: template.ownerOrgUnitId,
+    requiredRole: 'viewer',
+    allowWhenNoScopes: true,
+  });
+
+  if (scopeCheck !== null) {
+    return scopeCheck;
+  }
+
+  const events = await listBadgeTemplateOwnershipEvents(db, {
     tenantId: pathParams.tenantId,
     badgeTemplateId: pathParams.badgeTemplateId,
   });
@@ -10179,9 +10527,34 @@ app.patch('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId', async (c) =>
   }
 
   const { session, membershipRole } = roleCheck;
+  const db = resolveDatabase(c.env);
+  const existingTemplate = await findBadgeTemplateById(db, pathParams.tenantId, pathParams.badgeTemplateId);
+
+  if (existingTemplate === null) {
+    return c.json(
+      {
+        error: 'Badge template not found',
+      },
+      404,
+    );
+  }
+
+  const scopeCheck = await requireScopedOrgUnitPermission(c, {
+    db,
+    tenantId: pathParams.tenantId,
+    userId: session.userId,
+    membershipRole,
+    orgUnitId: existingTemplate.ownerOrgUnitId,
+    requiredRole: 'issuer',
+    allowWhenNoScopes: true,
+  });
+
+  if (scopeCheck !== null) {
+    return scopeCheck;
+  }
 
   try {
-    const template = await updateBadgeTemplate(resolveDatabase(c.env), {
+    const template = await updateBadgeTemplate(db, {
       tenantId: pathParams.tenantId,
       id: pathParams.badgeTemplateId,
       slug: request.slug,
@@ -10200,7 +10573,7 @@ app.patch('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId', async (c) =>
       );
     }
 
-    await createAuditLog(resolveDatabase(c.env), {
+    await createAuditLog(db, {
       tenantId: pathParams.tenantId,
       actorUserId: session.userId,
       action: 'badge_template.updated',

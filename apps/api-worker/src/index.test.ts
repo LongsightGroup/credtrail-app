@@ -37,7 +37,10 @@ vi.mock('@credtrail/db', async () => {
     resolveAssertionLifecycleState: vi.fn(),
     recordAssertionLifecycleTransition: vi.fn(),
     listLtiIssuerRegistrations: vi.fn(),
+    hasTenantMembershipOrgUnitAccess: vi.fn(),
+    hasTenantMembershipOrgUnitScopeAssignments: vi.fn(),
     listBadgeTemplateOwnershipEvents: vi.fn(),
+    listTenantMembershipOrgUnitScopes: vi.fn(),
     listTenantOrgUnits: vi.fn(),
     listPublicBadgeWallEntries: vi.fn(),
     touchSession: vi.fn(),
@@ -51,6 +54,7 @@ vi.mock('@credtrail/db', async () => {
     consumeOAuthRefreshToken: vi.fn(),
     recordAssertionRevocation: vi.fn(),
     removeLearnerIdentityAliasesByType: vi.fn(),
+    removeTenantMembershipOrgUnitScope: vi.fn(),
     revokeOAuthAccessTokenByHash: vi.fn(),
     revokeOAuthRefreshTokenByHash: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
@@ -58,6 +62,7 @@ vi.mock('@credtrail/db', async () => {
     transferBadgeTemplateOwnership: vi.fn(),
     upsertBadgeTemplateById: vi.fn(),
     upsertLtiIssuerRegistration: vi.fn(),
+    upsertTenantMembershipOrgUnitScope: vi.fn(),
     upsertUserByEmail: vi.fn(),
     upsertTenantMembershipRole: vi.fn(),
     upsertTenant: vi.fn(),
@@ -102,6 +107,7 @@ import {
   type LearnerIdentityLinkProofRecord,
   type LearnerBadgeSummaryRecord,
   type LtiIssuerRegistrationRecord,
+  type TenantMembershipOrgUnitScopeRecord,
   type TenantOrgUnitRecord,
   type LearnerProfileRecord,
   type PublicBadgeWallEntryRecord,
@@ -145,6 +151,8 @@ import {
   findLearnerProfileByIdentity,
   findOAuthClientById,
   findOb3SubjectProfile,
+  hasTenantMembershipOrgUnitAccess,
+  hasTenantMembershipOrgUnitScopeAssignments,
   findUserById,
   listAssertionStatusListEntries,
   listAssertionLifecycleEvents,
@@ -152,6 +160,7 @@ import {
   recordAssertionLifecycleTransition,
   listLtiIssuerRegistrations,
   listBadgeTemplateOwnershipEvents,
+  listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
   listPublicBadgeWallEntries,
   listLearnerBadgeSummaries,
@@ -162,6 +171,7 @@ import {
   nextAssertionStatusListIndex,
   recordAssertionRevocation,
   removeLearnerIdentityAliasesByType,
+  removeTenantMembershipOrgUnitScope,
   revokeOAuthAccessTokenByHash,
   revokeOAuthRefreshTokenByHash,
   resolveLearnerProfileForIdentity,
@@ -171,6 +181,7 @@ import {
   type JobQueueMessageRecord,
   upsertBadgeTemplateById,
   upsertLtiIssuerRegistration,
+  upsertTenantMembershipOrgUnitScope,
   upsertOb3SubjectCredential,
   upsertOb3SubjectProfile,
   upsertUserByEmail,
@@ -295,7 +306,10 @@ const mockedListAssertionLifecycleEvents = vi.mocked(listAssertionLifecycleEvent
 const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
 const mockedRecordAssertionLifecycleTransition = vi.mocked(recordAssertionLifecycleTransition);
 const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
+const mockedHasTenantMembershipOrgUnitAccess = vi.mocked(hasTenantMembershipOrgUnitAccess);
+const mockedHasTenantMembershipOrgUnitScopeAssignments = vi.mocked(hasTenantMembershipOrgUnitScopeAssignments);
 const mockedListBadgeTemplateOwnershipEvents = vi.mocked(listBadgeTemplateOwnershipEvents);
+const mockedListTenantMembershipOrgUnitScopes = vi.mocked(listTenantMembershipOrgUnitScopes);
 const mockedListTenantOrgUnits = vi.mocked(listTenantOrgUnits);
 const mockedTouchSession = vi.mocked(touchSession);
 const mockedListLearnerBadgeSummaries = vi.mocked(listLearnerBadgeSummaries);
@@ -305,6 +319,7 @@ const mockedFindLearnerIdentityLinkProofByHash = vi.mocked(findLearnerIdentityLi
 const mockedFindOAuthClientById = vi.mocked(findOAuthClientById);
 const mockedAddLearnerIdentityAlias = vi.mocked(addLearnerIdentityAlias);
 const mockedRemoveLearnerIdentityAliasesByType = vi.mocked(removeLearnerIdentityAliasesByType);
+const mockedRemoveTenantMembershipOrgUnitScope = vi.mocked(removeTenantMembershipOrgUnitScope);
 const mockedMarkLearnerIdentityLinkProofUsed = vi.mocked(markLearnerIdentityLinkProofUsed);
 const mockedCreateOAuthClient = vi.mocked(createOAuthClient);
 const mockedCreateOAuthAuthorizationCode = vi.mocked(createOAuthAuthorizationCode);
@@ -332,6 +347,7 @@ const mockedDeleteLtiIssuerRegistrationByIssuer = vi.mocked(deleteLtiIssuerRegis
 const mockedTransferBadgeTemplateOwnership = vi.mocked(transferBadgeTemplateOwnership);
 const mockedUpsertBadgeTemplateById = vi.mocked(upsertBadgeTemplateById);
 const mockedUpsertLtiIssuerRegistration = vi.mocked(upsertLtiIssuerRegistration);
+const mockedUpsertTenantMembershipOrgUnitScope = vi.mocked(upsertTenantMembershipOrgUnitScope);
 const mockedUpsertUserByEmail = vi.mocked(upsertUserByEmail);
 const mockedUpsertTenantMembershipRole = vi.mocked(upsertTenantMembershipRole);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
@@ -377,8 +393,14 @@ beforeEach(() => {
   mockedFindActiveOAuthAccessTokenByHash.mockReset();
   mockedListLtiIssuerRegistrations.mockReset();
   mockedListLtiIssuerRegistrations.mockResolvedValue([]);
+  mockedHasTenantMembershipOrgUnitAccess.mockReset();
+  mockedHasTenantMembershipOrgUnitAccess.mockResolvedValue(false);
+  mockedHasTenantMembershipOrgUnitScopeAssignments.mockReset();
+  mockedHasTenantMembershipOrgUnitScopeAssignments.mockResolvedValue(false);
   mockedListBadgeTemplateOwnershipEvents.mockReset();
   mockedListBadgeTemplateOwnershipEvents.mockResolvedValue([]);
+  mockedListTenantMembershipOrgUnitScopes.mockReset();
+  mockedListTenantMembershipOrgUnitScopes.mockResolvedValue([]);
   mockedListTenantOrgUnits.mockReset();
   mockedListTenantOrgUnits.mockResolvedValue([]);
   mockedCreateTenantOrgUnit.mockReset();
@@ -399,7 +421,10 @@ beforeEach(() => {
   mockedListLearnerIdentitiesByProfile.mockResolvedValue([]);
   mockedRemoveLearnerIdentityAliasesByType.mockReset();
   mockedRemoveLearnerIdentityAliasesByType.mockResolvedValue(0);
+  mockedRemoveTenantMembershipOrgUnitScope.mockReset();
+  mockedRemoveTenantMembershipOrgUnitScope.mockResolvedValue(false);
   mockedUpsertLtiIssuerRegistration.mockReset();
+  mockedUpsertTenantMembershipOrgUnitScope.mockReset();
   mockedDeleteLtiIssuerRegistrationByIssuer.mockReset();
   mockedListOb3SubjectCredentials.mockReset();
   mockedUpsertOb3SubjectCredential.mockReset();
@@ -724,6 +749,21 @@ const sampleTenantOrgUnit = (overrides?: Partial<TenantOrgUnitRecord>): TenantOr
     isActive: true,
     createdAt: '2026-02-10T22:00:00.000Z',
     updatedAt: '2026-02-10T22:00:00.000Z',
+    ...overrides,
+  };
+};
+
+const sampleTenantMembershipOrgUnitScope = (
+  overrides?: Partial<TenantMembershipOrgUnitScopeRecord>,
+): TenantMembershipOrgUnitScopeRecord => {
+  return {
+    tenantId: 'tenant_123',
+    userId: 'usr_123',
+    orgUnitId: 'tenant_123:org:department-math',
+    role: 'issuer',
+    createdByUserId: 'usr_admin',
+    createdAt: '2026-02-13T00:00:00.000Z',
+    updatedAt: '2026-02-13T00:00:00.000Z',
     ...overrides,
   };
 };
@@ -2483,6 +2523,155 @@ describe('org unit and badge ownership governance endpoints', () => {
         targetType: 'badge_template',
       }),
     );
+  });
+
+
+  it('lists scoped org-unit grants for a tenant user', async () => {
+    const env = createEnv();
+
+    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: 'admin' }));
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue();
+    mockedListTenantMembershipOrgUnitScopes.mockResolvedValue([
+      sampleTenantMembershipOrgUnitScope({ userId: 'usr_issuer' }),
+    ]);
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/users/usr_issuer/org-unit-scopes',
+      {
+        method: 'GET',
+        headers: {
+          Cookie: 'credtrail_session=session-token',
+        },
+      },
+      env,
+    );
+
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.userId).toBe('usr_issuer');
+    expect(Array.isArray(body.scopes)).toBe(true);
+    expect(mockedListTenantMembershipOrgUnitScopes).toHaveBeenCalledWith(fakeDb, {
+      tenantId: 'tenant_123',
+      userId: 'usr_issuer',
+    });
+  });
+
+  it('upserts scoped org-unit grants for a tenant user', async () => {
+    const env = createEnv();
+
+    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: 'admin' }));
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue();
+    mockedUpsertTenantMembershipOrgUnitScope.mockResolvedValue({
+      scope: sampleTenantMembershipOrgUnitScope({
+        userId: 'usr_issuer',
+        orgUnitId: 'tenant_123:org:department-math',
+        role: 'issuer',
+      }),
+      previousRole: null,
+      changed: true,
+    });
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/users/usr_issuer/org-unit-scopes/tenant_123:org:department-math',
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: 'credtrail_session=session-token',
+        },
+        body: JSON.stringify({
+          role: 'issuer',
+        }),
+      },
+      env,
+    );
+
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(201);
+    expect(body.changed).toBe(true);
+    expect(mockedUpsertTenantMembershipOrgUnitScope).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: 'tenant_123',
+        userId: 'usr_issuer',
+        orgUnitId: 'tenant_123:org:department-math',
+        role: 'issuer',
+        createdByUserId: 'usr_123',
+      }),
+    );
+    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        action: 'membership.org_scope_assigned',
+        targetType: 'membership_org_scope',
+      }),
+    );
+  });
+
+  it('deletes scoped org-unit grants for a tenant user', async () => {
+    const env = createEnv();
+
+    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: 'admin' }));
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue();
+    mockedRemoveTenantMembershipOrgUnitScope.mockResolvedValue(true);
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/users/usr_issuer/org-unit-scopes/tenant_123:org:department-math',
+      {
+        method: 'DELETE',
+        headers: {
+          Cookie: 'credtrail_session=session-token',
+        },
+      },
+      env,
+    );
+
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.removed).toBe(true);
+    expect(mockedRemoveTenantMembershipOrgUnitScope).toHaveBeenCalledWith(fakeDb, {
+      tenantId: 'tenant_123',
+      userId: 'usr_issuer',
+      orgUnitId: 'tenant_123:org:department-math',
+    });
+    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        action: 'membership.org_scope_removed',
+        targetType: 'membership_org_scope',
+      }),
+    );
+  });
+
+  it('rejects ownership history when issuer lacks scoped viewer access', async () => {
+    const env = createEnv();
+
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue();
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
+    mockedHasTenantMembershipOrgUnitScopeAssignments.mockResolvedValue(true);
+    mockedHasTenantMembershipOrgUnitAccess.mockResolvedValue(false);
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/badge-templates/badge_template_001/ownership-history',
+      {
+        method: 'GET',
+        headers: {
+          Cookie: 'credtrail_session=session-token',
+        },
+      },
+      env,
+    );
+    const body = await response.json<ErrorResponse>();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toContain('Insufficient org-unit scope');
   });
 });
 

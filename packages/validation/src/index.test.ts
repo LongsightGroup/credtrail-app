@@ -11,6 +11,7 @@ import {
   parseCredentialPathParams,
   parseCreateBadgeTemplateRequest,
   parseCreateTenantOrgUnitRequest,
+  parseUpsertTenantMembershipOrgUnitScopeRequest,
   parseIssueBadgeRequest,
   parseIssueSakaiCommitBadgeRequest,
   parseManualIssueBadgeRequest,
@@ -28,6 +29,7 @@ import {
   parseRevokeBadgeRequest,
   parseSignCredentialRequest,
   parseTenantUserPathParams,
+  parseTenantUserOrgUnitPathParams,
   parseTenantSigningRegistry,
   parseUpdateBadgeTemplateRequest,
   parseTransferBadgeTemplateOwnershipRequest,
@@ -635,6 +637,18 @@ describe('badge template parsers', () => {
     expect(params.userId).toBe('usr_456');
   });
 
+  it('parses tenant/user/org-unit path params for scoped membership routes', () => {
+    const params = parseTenantUserOrgUnitPathParams({
+      tenantId: 'tenant_123',
+      userId: 'usr_456',
+      orgUnitId: 'tenant_123:org:department-math',
+    });
+
+    expect(params.tenantId).toBe('tenant_123');
+    expect(params.userId).toBe('usr_456');
+    expect(params.orgUnitId).toBe('tenant_123:org:department-math');
+  });
+
   it('defaults includeArchived to false in list query', () => {
     const query = parseBadgeTemplateListQuery({});
 
@@ -669,6 +683,20 @@ describe('badge template parsers', () => {
 
     expect(payload.unitType).toBe('department');
     expect(payload.slug).toBe('school-of-information');
+  });
+
+  it('parses org-unit scope upsert payloads', () => {
+    const payload = parseUpsertTenantMembershipOrgUnitScopeRequest({
+      role: 'issuer',
+    });
+
+    expect(payload.role).toBe('issuer');
+
+    expect(() => {
+      parseUpsertTenantMembershipOrgUnitScopeRequest({
+        role: 'owner',
+      });
+    }).toThrowError();
   });
 
   it('parses ownership transfer payloads and rejects initial_assignment reason', () => {

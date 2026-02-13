@@ -124,6 +124,7 @@ export const badgeTemplateTitleSchema = z.string().trim().min(1).max(200);
 export const badgeTemplateDescriptionSchema = z.string().trim().min(1).max(2000);
 export const badgeTemplateUriSchema = z.string().url().max(2048);
 export const orgUnitTypeSchema = z.enum(['institution', 'college', 'department', 'program']);
+export const tenantMembershipOrgUnitScopeRoleSchema = z.enum(['admin', 'issuer', 'viewer']);
 export const orgUnitSlugSchema = z
   .string()
   .trim()
@@ -155,6 +156,10 @@ export const badgeTemplatePathParamsSchema = tenantPathParamsSchema.extend({
 
 export const tenantUserPathParamsSchema = tenantPathParamsSchema.extend({
   userId: userIdSchema,
+});
+
+export const tenantUserOrgUnitPathParamsSchema = tenantUserPathParamsSchema.extend({
+  orgUnitId: resourceIdSchema,
 });
 
 export const credentialPathParamsSchema = z.object({
@@ -249,6 +254,10 @@ export const createTenantOrgUnitRequestSchema = z.object({
   slug: orgUnitSlugSchema,
   displayName: orgUnitDisplayNameSchema,
   parentOrgUnitId: resourceIdSchema.optional(),
+});
+
+export const upsertTenantMembershipOrgUnitScopeRequestSchema = z.object({
+  role: tenantMembershipOrgUnitScopeRoleSchema,
 });
 
 export const transferBadgeTemplateOwnershipRequestSchema = z.object({
@@ -499,13 +508,18 @@ export type TenantPathParams = z.infer<typeof tenantPathParamsSchema>;
 export type BadgeTemplatePathParams = z.infer<typeof badgeTemplatePathParamsSchema>;
 export type CredentialPathParams = z.infer<typeof credentialPathParamsSchema>;
 export type TenantUserPathParams = z.infer<typeof tenantUserPathParamsSchema>;
+export type TenantUserOrgUnitPathParams = z.infer<typeof tenantUserOrgUnitPathParamsSchema>;
 export type BadgeTemplateListQuery = z.infer<typeof badgeTemplateListQuerySchema>;
 export type TenantOrgUnitListQuery = z.infer<typeof tenantOrgUnitListQuerySchema>;
 export type CreateBadgeTemplateRequest = z.infer<typeof createBadgeTemplateRequestSchema>;
 export type UpdateBadgeTemplateRequest = z.infer<typeof updateBadgeTemplateRequestSchema>;
 export type CreateTenantOrgUnitRequest = z.infer<typeof createTenantOrgUnitRequestSchema>;
+export type UpsertTenantMembershipOrgUnitScopeRequest = z.infer<
+  typeof upsertTenantMembershipOrgUnitScopeRequestSchema
+>;
 export type TransferBadgeTemplateOwnershipRequest = z.infer<typeof transferBadgeTemplateOwnershipRequestSchema>;
 export type OrgUnitType = z.infer<typeof orgUnitTypeSchema>;
+export type TenantMembershipOrgUnitScopeRole = z.infer<typeof tenantMembershipOrgUnitScopeRoleSchema>;
 export type BadgeTemplateOwnershipReasonCode = z.infer<typeof badgeTemplateOwnershipReasonCodeSchema>;
 export type BadgeTemplateOwnershipTransferReasonCode = z.infer<
   typeof badgeTemplateOwnershipTransferReasonCodeSchema
@@ -621,6 +635,10 @@ export const parseTenantUserPathParams = (input: unknown): TenantUserPathParams 
   return tenantUserPathParamsSchema.parse(input);
 };
 
+export const parseTenantUserOrgUnitPathParams = (input: unknown): TenantUserOrgUnitPathParams => {
+  return tenantUserOrgUnitPathParamsSchema.parse(input);
+};
+
 export const parseBadgeTemplateListQuery = (input: unknown): BadgeTemplateListQuery => {
   return badgeTemplateListQuerySchema.parse(input);
 };
@@ -635,6 +653,12 @@ export const parseCreateBadgeTemplateRequest = (input: unknown): CreateBadgeTemp
 
 export const parseCreateTenantOrgUnitRequest = (input: unknown): CreateTenantOrgUnitRequest => {
   return createTenantOrgUnitRequestSchema.parse(input);
+};
+
+export const parseUpsertTenantMembershipOrgUnitScopeRequest = (
+  input: unknown,
+): UpsertTenantMembershipOrgUnitScopeRequest => {
+  return upsertTenantMembershipOrgUnitScopeRequestSchema.parse(input);
 };
 
 export const parseTransferBadgeTemplateOwnershipRequest = (

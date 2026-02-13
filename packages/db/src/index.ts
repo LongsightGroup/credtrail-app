@@ -156,6 +156,50 @@ export interface EnsureTenantMembershipResult {
   created: boolean;
 }
 
+export type TenantMembershipOrgUnitScopeRole = 'admin' | 'issuer' | 'viewer';
+
+export interface TenantMembershipOrgUnitScopeRecord {
+  tenantId: string;
+  userId: string;
+  orgUnitId: string;
+  role: TenantMembershipOrgUnitScopeRole;
+  createdByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertTenantMembershipOrgUnitScopeInput {
+  tenantId: string;
+  userId: string;
+  orgUnitId: string;
+  role: TenantMembershipOrgUnitScopeRole;
+  createdByUserId?: string | undefined;
+}
+
+export interface UpsertTenantMembershipOrgUnitScopeResult {
+  scope: TenantMembershipOrgUnitScopeRecord;
+  previousRole: TenantMembershipOrgUnitScopeRole | null;
+  changed: boolean;
+}
+
+export interface ListTenantMembershipOrgUnitScopesInput {
+  tenantId: string;
+  userId?: string | undefined;
+}
+
+export interface RemoveTenantMembershipOrgUnitScopeInput {
+  tenantId: string;
+  userId: string;
+  orgUnitId: string;
+}
+
+export interface CheckTenantMembershipOrgUnitAccessInput {
+  tenantId: string;
+  userId: string;
+  orgUnitId: string;
+  requiredRole: TenantMembershipOrgUnitScopeRole;
+}
+
 export interface AuditLogRecord {
   id: string;
   tenantId: string;
@@ -923,6 +967,16 @@ interface TenantMembershipRow {
   updatedAt: string;
 }
 
+interface TenantMembershipOrgUnitScopeRow {
+  tenantId: string;
+  userId: string;
+  orgUnitId: string;
+  role: TenantMembershipOrgUnitScopeRole;
+  createdByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface AuditLogRow {
   id: string;
   tenantId: string;
@@ -1086,6 +1140,19 @@ const isMissingTenantOrgUnitsTableError = (error: unknown): boolean => {
       error.message.includes('relation') ||
       error.message.includes('does not exist')) &&
     error.message.includes('tenant_org_units')
+  );
+};
+
+const isMissingTenantMembershipOrgUnitScopesTableError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    (error.message.includes('no such table') ||
+      error.message.includes('relation') ||
+      error.message.includes('does not exist')) &&
+    error.message.includes('tenant_membership_org_unit_scopes')
   );
 };
 
@@ -1362,6 +1429,45 @@ const ensureTenantOrgUnitsTable = async (db: SqlDatabase): Promise<void> => {
     .run();
 };
 
+const ensureTenantMembershipOrgUnitScopesTable = async (db: SqlDatabase): Promise<void> => {
+  await db
+    .prepare(
+      `
+      CREATE TABLE IF NOT EXISTS tenant_membership_org_unit_scopes (
+        tenant_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        org_unit_id TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('admin', 'issuer', 'viewer')),
+        created_by_user_id TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (tenant_id, user_id, org_unit_id),
+        FOREIGN KEY (tenant_id, user_id) REFERENCES memberships (tenant_id, user_id) ON DELETE CASCADE,
+        FOREIGN KEY (tenant_id, org_unit_id) REFERENCES tenant_org_units (tenant_id, id) ON DELETE CASCADE,
+        FOREIGN KEY (created_by_user_id) REFERENCES users (id) ON DELETE SET NULL
+      )
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_membership_org_scopes_tenant_user_role
+        ON tenant_membership_org_unit_scopes (tenant_id, user_id, role)
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_membership_org_scopes_tenant_org_unit
+        ON tenant_membership_org_unit_scopes (tenant_id, org_unit_id)
+    `,
+    )
+    .run();
+};
 const ensureBadgeTemplateOwnershipEventsTable = async (db: SqlDatabase): Promise<void> => {
   await db
     .prepare(
@@ -1733,6 +1839,19 @@ const addSecondsToIso = (fromIso: string, seconds: number): string => {
 
 const institutionOrgUnitIdForTenant = (tenantId: string): string => {
   return `${tenantId}:org:institution`;
+};
+
+const TENANT_MEMBERSHIP_ORG_UNIT_SCOPE_ROLE_PRIORITY: Record<TenantMembershipOrgUnitScopeRole, number> = {
+  viewer: 1,
+  issuer: 2,
+  admin: 3,
+};
+
+const REQUIRED_PARENT_ORG_UNIT_TYPE: Record<OrgUnitType, OrgUnitType | null> = {
+  institution: null,
+  college: 'institution',
+  department: 'college',
+  program: 'department',
 };
 
 const BADGE_TEMPLATE_OWNERSHIP_REASON_CODES = new Set<BadgeTemplateOwnershipReasonCode>([
@@ -3717,6 +3836,20 @@ const mapTenantMembershipRow = (row: TenantMembershipRow): TenantMembershipRecor
   };
 };
 
+const mapTenantMembershipOrgUnitScopeRow = (
+  row: TenantMembershipOrgUnitScopeRow,
+): TenantMembershipOrgUnitScopeRecord => {
+  return {
+    tenantId: row.tenantId,
+    userId: row.userId,
+    orgUnitId: row.orgUnitId,
+    role: row.role,
+    createdByUserId: row.createdByUserId,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+};
+
 const mapAuditLogRow = (row: AuditLogRow): AuditLogRecord => {
   return {
     id: row.id,
@@ -4318,6 +4451,330 @@ const ensureInstitutionOrgUnitForTenant = async (db: SqlDatabase, tenantId: stri
   return institutionId;
 };
 
+const findTenantMembershipOrgUnitScope = async (
+  db: SqlDatabase,
+  tenantId: string,
+  userId: string,
+  orgUnitId: string,
+): Promise<TenantMembershipOrgUnitScopeRecord | null> => {
+  const findStatement = (): Promise<TenantMembershipOrgUnitScopeRow | null> =>
+    db
+      .prepare(
+        `
+        SELECT
+          tenant_id AS tenantId,
+          user_id AS userId,
+          org_unit_id AS orgUnitId,
+          role,
+          created_by_user_id AS createdByUserId,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM tenant_membership_org_unit_scopes
+        WHERE tenant_id = ?
+          AND user_id = ?
+          AND org_unit_id = ?
+        LIMIT 1
+      `,
+      )
+      .bind(tenantId, userId, orgUnitId)
+      .first<TenantMembershipOrgUnitScopeRow>();
+
+  let row: TenantMembershipOrgUnitScopeRow | null;
+
+  try {
+    row = await findStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantMembershipOrgUnitScopesTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantMembershipOrgUnitScopesTable(db);
+    row = await findStatement();
+  }
+
+  return row === null ? null : mapTenantMembershipOrgUnitScopeRow(row);
+};
+
+export const upsertTenantMembershipOrgUnitScope = async (
+  db: SqlDatabase,
+  input: UpsertTenantMembershipOrgUnitScopeInput,
+): Promise<UpsertTenantMembershipOrgUnitScopeResult> => {
+  const membership = await findTenantMembership(db, input.tenantId, input.userId);
+
+  if (membership === null) {
+    throw new Error(`Membership not found for tenant ${input.tenantId} and user ${input.userId}`);
+  }
+
+  const orgUnit = await findTenantOrgUnitById(db, input.tenantId, input.orgUnitId);
+
+  if (orgUnit === null) {
+    throw new Error(`Org unit ${input.orgUnitId} not found for tenant ${input.tenantId}`);
+  }
+
+  const previous = await findTenantMembershipOrgUnitScope(db, input.tenantId, input.userId, input.orgUnitId);
+  const nowIso = new Date().toISOString();
+
+  const upsertStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        INSERT INTO tenant_membership_org_unit_scopes (
+          tenant_id,
+          user_id,
+          org_unit_id,
+          role,
+          created_by_user_id,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (tenant_id, user_id, org_unit_id)
+        DO UPDATE SET
+          role = excluded.role,
+          updated_at = excluded.updated_at
+      `,
+      )
+      .bind(
+        input.tenantId,
+        input.userId,
+        input.orgUnitId,
+        input.role,
+        input.createdByUserId ?? null,
+        nowIso,
+        nowIso,
+      )
+      .run();
+
+  try {
+    await upsertStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantMembershipOrgUnitScopesTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantMembershipOrgUnitScopesTable(db);
+    await upsertStatement();
+  }
+
+  const scope = await findTenantMembershipOrgUnitScope(db, input.tenantId, input.userId, input.orgUnitId);
+
+  if (scope === null) {
+    throw new Error(
+      `Unable to upsert org-unit scope for tenant ${input.tenantId}, user ${input.userId}, org unit ${input.orgUnitId}`,
+    );
+  }
+
+  return {
+    scope,
+    previousRole: previous?.role ?? null,
+    changed: previous?.role !== scope.role,
+  };
+};
+
+export const listTenantMembershipOrgUnitScopes = async (
+  db: SqlDatabase,
+  input: ListTenantMembershipOrgUnitScopesInput,
+): Promise<TenantMembershipOrgUnitScopeRecord[]> => {
+  const query =
+    input.userId === undefined
+      ? `
+        SELECT
+          tenant_id AS tenantId,
+          user_id AS userId,
+          org_unit_id AS orgUnitId,
+          role,
+          created_by_user_id AS createdByUserId,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM tenant_membership_org_unit_scopes
+        WHERE tenant_id = ?
+        ORDER BY user_id ASC, org_unit_id ASC
+      `
+      : `
+        SELECT
+          tenant_id AS tenantId,
+          user_id AS userId,
+          org_unit_id AS orgUnitId,
+          role,
+          created_by_user_id AS createdByUserId,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM tenant_membership_org_unit_scopes
+        WHERE tenant_id = ?
+          AND user_id = ?
+        ORDER BY org_unit_id ASC
+      `;
+
+  const listStatement = (): Promise<SqlQueryResult<TenantMembershipOrgUnitScopeRow>> =>
+    input.userId === undefined
+      ? db.prepare(query).bind(input.tenantId).all<TenantMembershipOrgUnitScopeRow>()
+      : db.prepare(query).bind(input.tenantId, input.userId).all<TenantMembershipOrgUnitScopeRow>();
+
+  let result: SqlQueryResult<TenantMembershipOrgUnitScopeRow>;
+
+  try {
+    result = await listStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantMembershipOrgUnitScopesTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantMembershipOrgUnitScopesTable(db);
+    result = await listStatement();
+  }
+
+  return result.results.map((row) => mapTenantMembershipOrgUnitScopeRow(row));
+};
+
+export const removeTenantMembershipOrgUnitScope = async (
+  db: SqlDatabase,
+  input: RemoveTenantMembershipOrgUnitScopeInput,
+): Promise<boolean> => {
+  const deleteStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        DELETE FROM tenant_membership_org_unit_scopes
+        WHERE tenant_id = ?
+          AND user_id = ?
+          AND org_unit_id = ?
+      `,
+      )
+      .bind(input.tenantId, input.userId, input.orgUnitId)
+      .run();
+
+  let result: SqlRunResult;
+
+  try {
+    result = await deleteStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantMembershipOrgUnitScopesTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantMembershipOrgUnitScopesTable(db);
+    result = await deleteStatement();
+  }
+
+  return (result.meta.rowsWritten ?? 0) > 0;
+};
+
+export const hasTenantMembershipOrgUnitScopeAssignments = async (
+  db: SqlDatabase,
+  tenantId: string,
+  userId: string,
+): Promise<boolean> => {
+  const countStatement = (): Promise<{ totalCount: number | string } | null> =>
+    db
+      .prepare(
+        `
+        SELECT COUNT(*) AS totalCount
+        FROM tenant_membership_org_unit_scopes
+        WHERE tenant_id = ?
+          AND user_id = ?
+      `,
+      )
+      .bind(tenantId, userId)
+      .first<{ totalCount: number | string }>();
+
+  let row: { totalCount: number | string } | null;
+
+  try {
+    row = await countStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantMembershipOrgUnitScopesTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantMembershipOrgUnitScopesTable(db);
+    row = await countStatement();
+  }
+
+  const totalCount = Number.parseInt(String(row?.totalCount ?? 0), 10);
+  return Number.isFinite(totalCount) && totalCount > 0;
+};
+
+export const hasTenantMembershipOrgUnitAccess = async (
+  db: SqlDatabase,
+  input: CheckTenantMembershipOrgUnitAccessInput,
+): Promise<boolean> => {
+  const requiredRolePriority = TENANT_MEMBERSHIP_ORG_UNIT_SCOPE_ROLE_PRIORITY[input.requiredRole];
+  const accessStatement = (): Promise<{ orgUnitId: string } | null> =>
+    db
+      .prepare(
+        `
+        WITH RECURSIVE org_ancestors AS (
+          SELECT id, parent_org_unit_id AS parentOrgUnitId, 0 AS depth
+          FROM tenant_org_units
+          WHERE tenant_id = ?
+            AND id = ?
+
+          UNION ALL
+
+          SELECT parent.id, parent.parent_org_unit_id AS parentOrgUnitId, org_ancestors.depth + 1
+          FROM tenant_org_units parent
+          INNER JOIN org_ancestors
+            ON org_ancestors.parentOrgUnitId = parent.id
+          WHERE parent.tenant_id = ?
+        )
+        SELECT
+          scopes.org_unit_id AS orgUnitId
+        FROM tenant_membership_org_unit_scopes scopes
+        INNER JOIN org_ancestors
+          ON org_ancestors.id = scopes.org_unit_id
+        WHERE scopes.tenant_id = ?
+          AND scopes.user_id = ?
+          AND CASE scopes.role
+                WHEN 'admin' THEN 3
+                WHEN 'issuer' THEN 2
+                ELSE 1
+              END >= ?
+        ORDER BY
+          CASE scopes.role
+            WHEN 'admin' THEN 3
+            WHEN 'issuer' THEN 2
+            ELSE 1
+          END DESC,
+          org_ancestors.depth ASC
+        LIMIT 1
+      `,
+      )
+      .bind(
+        input.tenantId,
+        input.orgUnitId,
+        input.tenantId,
+        input.tenantId,
+        input.userId,
+        requiredRolePriority,
+      )
+      .first<{ orgUnitId: string }>();
+
+  let row: { orgUnitId: string } | null;
+
+  try {
+    row = await accessStatement();
+  } catch (error: unknown) {
+    if (
+      !isMissingTenantMembershipOrgUnitScopesTableError(error) &&
+      !isMissingTenantOrgUnitsTableError(error)
+    ) {
+      throw error;
+    }
+
+    if (isMissingTenantOrgUnitsTableError(error)) {
+      await ensureTenantOrgUnitsTable(db);
+    }
+
+    if (isMissingTenantMembershipOrgUnitScopesTableError(error)) {
+      await ensureTenantMembershipOrgUnitScopesTable(db);
+    }
+
+    row = await accessStatement();
+  }
+
+  return row !== null;
+};
+
 interface CreateBadgeTemplateOwnershipEventInput {
   tenantId: string;
   badgeTemplateId: string;
@@ -4418,11 +4875,31 @@ export const createTenantOrgUnit = async (
   db: SqlDatabase,
   input: CreateTenantOrgUnitInput,
 ): Promise<TenantOrgUnitRecord> => {
+  const requiredParentType = REQUIRED_PARENT_ORG_UNIT_TYPE[input.unitType];
+
+  if (requiredParentType === null && input.parentOrgUnitId !== undefined) {
+    throw new Error(`Org unit type ${input.unitType} cannot have a parent org unit`);
+  }
+
+  if (requiredParentType !== null && input.parentOrgUnitId === undefined) {
+    throw new Error(`Org unit type ${input.unitType} requires parent org unit type ${requiredParentType}`);
+  }
+
   if (input.parentOrgUnitId !== undefined) {
     const parent = await findTenantOrgUnitById(db, input.tenantId, input.parentOrgUnitId);
 
     if (parent === null) {
       throw new Error(`Parent org unit ${input.parentOrgUnitId} not found for tenant ${input.tenantId}`);
+    }
+
+    const expectedParentType = requiredParentType ?? 'institution';
+
+    if (parent.unitType !== expectedParentType) {
+      throw new Error(`Org unit type ${input.unitType} requires parent org unit type ${expectedParentType}`);
+    }
+
+    if (!parent.isActive) {
+      throw new Error(`Parent org unit ${input.parentOrgUnitId} is inactive for tenant ${input.tenantId}`);
     }
   }
 
