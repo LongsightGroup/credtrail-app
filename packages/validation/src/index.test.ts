@@ -30,6 +30,10 @@ import {
   parseSignCredentialRequest,
   parseTenantUserPathParams,
   parseTenantUserOrgUnitPathParams,
+  parseTenantUserDelegatedGrantPathParams,
+  parseDelegatedIssuingAuthorityGrantListQuery,
+  parseCreateDelegatedIssuingAuthorityGrantRequest,
+  parseRevokeDelegatedIssuingAuthorityGrantRequest,
   parseTenantSigningRegistry,
   parseUpdateBadgeTemplateRequest,
   parseTransferBadgeTemplateOwnershipRequest,
@@ -293,7 +297,9 @@ describe('learner identity link parsers', () => {
 
 describe('learner DID settings parser', () => {
   it('accepts supported DID methods and empty clear value', () => {
-    const keyDid = parseLearnerDidSettingsRequest({ did: 'did:key:z6MkhY1pD8x7Jk9hN8YvKQxN5f3qU8d9sF4A2B3C4D5E6F7' });
+    const keyDid = parseLearnerDidSettingsRequest({
+      did: 'did:key:z6MkhY1pD8x7Jk9hN8YvKQxN5f3qU8d9sF4A2B3C4D5E6F7',
+    });
     const webDid = parseLearnerDidSettingsRequest({ did: 'did:web:wallet.example.edu:alice' });
     const ionDid = parseLearnerDidSettingsRequest({ did: 'did:ion:EiAxyz123' });
     const clearDid = parseLearnerDidSettingsRequest({ did: '' });
@@ -697,6 +703,72 @@ describe('badge template parsers', () => {
         role: 'owner',
       });
     }).toThrowError();
+  });
+
+  it('parses tenant/user/grant path params for delegated authority routes', () => {
+    const params = parseTenantUserDelegatedGrantPathParams({
+      tenantId: 'tenant_123',
+      userId: 'usr_456',
+      grantId: 'dag_789',
+    });
+
+    expect(params.tenantId).toBe('tenant_123');
+    expect(params.userId).toBe('usr_456');
+    expect(params.grantId).toBe('dag_789');
+  });
+
+  it('parses delegated authority grant list query defaults and booleans', () => {
+    const defaultQuery = parseDelegatedIssuingAuthorityGrantListQuery({});
+    const explicitQuery = parseDelegatedIssuingAuthorityGrantListQuery({
+      includeRevoked: 'true',
+      includeExpired: 'true',
+    });
+
+    expect(defaultQuery.includeRevoked).toBe(false);
+    expect(defaultQuery.includeExpired).toBe(false);
+    expect(explicitQuery.includeRevoked).toBe(true);
+    expect(explicitQuery.includeExpired).toBe(true);
+  });
+
+  it('parses delegated authority grant creation payloads', () => {
+    const payload = parseCreateDelegatedIssuingAuthorityGrantRequest({
+      orgUnitId: 'tenant_123:org:department-math',
+      badgeTemplateIds: ['badge_template_001', 'badge_template_002'],
+      allowedActions: ['issue_badge', 'revoke_badge'],
+      startsAt: '2026-02-13T12:00:00.000Z',
+      endsAt: '2026-03-13T12:00:00.000Z',
+      reason: 'Spring term delegation',
+    });
+
+    expect(payload.allowedActions).toEqual(['issue_badge', 'revoke_badge']);
+    expect(payload.badgeTemplateIds).toEqual(['badge_template_001', 'badge_template_002']);
+
+    expect(() => {
+      parseCreateDelegatedIssuingAuthorityGrantRequest({
+        orgUnitId: 'tenant_123:org:department-math',
+        allowedActions: ['issue_badge', 'issue_badge'],
+        endsAt: '2026-03-13T12:00:00.000Z',
+      });
+    }).toThrowError();
+
+    expect(() => {
+      parseCreateDelegatedIssuingAuthorityGrantRequest({
+        orgUnitId: 'tenant_123:org:department-math',
+        allowedActions: ['issue_badge'],
+        startsAt: '2026-03-13T12:00:00.000Z',
+        endsAt: '2026-02-13T12:00:00.000Z',
+      });
+    }).toThrowError();
+  });
+
+  it('parses delegated authority grant revoke payloads', () => {
+    const payload = parseRevokeDelegatedIssuingAuthorityGrantRequest({
+      reason: 'Policy update',
+      revokedAt: '2026-02-20T09:30:00.000Z',
+    });
+
+    expect(payload.reason).toBe('Policy update');
+    expect(payload.revokedAt).toBe('2026-02-20T09:30:00.000Z');
   });
 
   it('parses ownership transfer payloads and rejects initial_assignment reason', () => {

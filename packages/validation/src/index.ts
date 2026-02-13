@@ -17,7 +17,14 @@ export const queueJobTypeSchema = z.enum([
 export const idempotencyKeySchema = z.string().min(1).max(128);
 
 export const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
-  z.union([z.string(), z.number().finite(), z.boolean(), z.null(), z.array(jsonValueSchema), z.record(jsonValueSchema)]),
+  z.union([
+    z.string(),
+    z.number().finite(),
+    z.boolean(),
+    z.null(),
+    z.array(jsonValueSchema),
+    z.record(jsonValueSchema),
+  ]),
 );
 
 export const jsonObjectSchema: z.ZodType<JsonObject> = z.record(jsonValueSchema);
@@ -66,35 +73,40 @@ export const tenantSigningRegistryEntrySchema = z.union([
   tenantSigningRegistryEntryP256Schema,
 ]);
 
-export const tenantSigningRegistrySchema = z.record(z.string().min(1), tenantSigningRegistryEntrySchema);
+export const tenantSigningRegistrySchema = z.record(
+  z.string().min(1),
+  tenantSigningRegistryEntrySchema,
+);
 
 export const keyGenerationRequestSchema = z.object({
   did: didWebSchema,
   keyId: z.string().min(1).max(128).optional(),
 });
 
-export const signCredentialRequestSchema = z.object({
-  did: didWebSchema,
-  credential: jsonObjectSchema,
-  proofType: z.enum(['Ed25519Signature2020', 'DataIntegrityProof']).optional(),
-  cryptosuite: z.enum(['eddsa-rdfc-2022', 'ecdsa-sd-2023']).optional(),
-}).superRefine((value, ctx) => {
-  if (value.proofType === 'DataIntegrityProof' && value.cryptosuite === undefined) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['cryptosuite'],
-      message: 'cryptosuite is required when proofType is DataIntegrityProof',
-    });
-  }
+export const signCredentialRequestSchema = z
+  .object({
+    did: didWebSchema,
+    credential: jsonObjectSchema,
+    proofType: z.enum(['Ed25519Signature2020', 'DataIntegrityProof']).optional(),
+    cryptosuite: z.enum(['eddsa-rdfc-2022', 'ecdsa-sd-2023']).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.proofType === 'DataIntegrityProof' && value.cryptosuite === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['cryptosuite'],
+        message: 'cryptosuite is required when proofType is DataIntegrityProof',
+      });
+    }
 
-  if (value.proofType !== 'DataIntegrityProof' && value.cryptosuite !== undefined) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['cryptosuite'],
-      message: 'cryptosuite is only allowed when proofType is DataIntegrityProof',
-    });
-  }
-});
+    if (value.proofType !== 'DataIntegrityProof' && value.cryptosuite !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['cryptosuite'],
+        message: 'cryptosuite is only allowed when proofType is DataIntegrityProof',
+      });
+    }
+  });
 
 export const tenantIdSchema = z.string().min(1);
 export const resourceIdSchema = z.string().min(1);
@@ -125,6 +137,11 @@ export const badgeTemplateDescriptionSchema = z.string().trim().min(1).max(2000)
 export const badgeTemplateUriSchema = z.string().url().max(2048);
 export const orgUnitTypeSchema = z.enum(['institution', 'college', 'department', 'program']);
 export const tenantMembershipOrgUnitScopeRoleSchema = z.enum(['admin', 'issuer', 'viewer']);
+export const delegatedIssuingAuthorityActionSchema = z.enum([
+  'issue_badge',
+  'revoke_badge',
+  'manage_lifecycle',
+]);
 export const orgUnitSlugSchema = z
   .string()
   .trim()
@@ -160,6 +177,10 @@ export const tenantUserPathParamsSchema = tenantPathParamsSchema.extend({
 
 export const tenantUserOrgUnitPathParamsSchema = tenantUserPathParamsSchema.extend({
   orgUnitId: resourceIdSchema,
+});
+
+export const tenantUserDelegatedGrantPathParamsSchema = tenantUserPathParamsSchema.extend({
+  grantId: resourceIdSchema,
 });
 
 export const credentialPathParamsSchema = z.object({
@@ -220,6 +241,39 @@ export const tenantOrgUnitListQuerySchema = z.object({
   }, z.boolean()),
 });
 
+export const delegatedIssuingAuthorityGrantListQuerySchema = z.object({
+  includeRevoked: z.preprocess((input) => {
+    if (input === undefined) {
+      return false;
+    }
+
+    if (input === 'true') {
+      return true;
+    }
+
+    if (input === 'false') {
+      return false;
+    }
+
+    return input;
+  }, z.boolean()),
+  includeExpired: z.preprocess((input) => {
+    if (input === undefined) {
+      return false;
+    }
+
+    if (input === 'true') {
+      return true;
+    }
+
+    if (input === 'false') {
+      return false;
+    }
+
+    return input;
+  }, z.boolean()),
+});
+
 export const createBadgeTemplateRequestSchema = z.object({
   slug: badgeTemplateSlugSchema,
   title: badgeTemplateTitleSchema,
@@ -258,6 +312,57 @@ export const createTenantOrgUnitRequestSchema = z.object({
 
 export const upsertTenantMembershipOrgUnitScopeRequestSchema = z.object({
   role: tenantMembershipOrgUnitScopeRoleSchema,
+});
+
+export const createDelegatedIssuingAuthorityGrantRequestSchema = z
+  .object({
+    orgUnitId: resourceIdSchema,
+    badgeTemplateIds: z.array(resourceIdSchema).min(1).max(100).optional(),
+    allowedActions: z.array(delegatedIssuingAuthorityActionSchema).min(1).max(10),
+    startsAt: isoTimestampSchema.optional(),
+    endsAt: isoTimestampSchema,
+    reason: z.string().trim().min(1).max(512).optional(),
+  })
+  .superRefine((value, ctx) => {
+    const uniqueActions = new Set(value.allowedActions);
+
+    if (uniqueActions.size !== value.allowedActions.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['allowedActions'],
+        message: 'allowedActions must not contain duplicates',
+      });
+    }
+
+    if (value.badgeTemplateIds !== undefined) {
+      const uniqueTemplateIds = new Set(value.badgeTemplateIds);
+
+      if (uniqueTemplateIds.size !== value.badgeTemplateIds.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['badgeTemplateIds'],
+          message: 'badgeTemplateIds must not contain duplicates',
+        });
+      }
+    }
+
+    if (value.startsAt !== undefined) {
+      const startsAtMs = Date.parse(value.startsAt);
+      const endsAtMs = Date.parse(value.endsAt);
+
+      if (Number.isFinite(startsAtMs) && Number.isFinite(endsAtMs) && endsAtMs <= startsAtMs) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['endsAt'],
+          message: 'endsAt must be after startsAt',
+        });
+      }
+    }
+  });
+
+export const revokeDelegatedIssuingAuthorityGrantRequestSchema = z.object({
+  reason: z.string().trim().min(1).max(512).optional(),
+  revokedAt: isoTimestampSchema.optional(),
 });
 
 export const transferBadgeTemplateOwnershipRequestSchema = z.object({
@@ -334,7 +439,9 @@ export const learnerIdentityLinkVerifyRequestSchema = z.object({
 });
 
 const isSupportedLearnerDidMethod = (value: string): boolean => {
-  return value.startsWith('did:key:') || value.startsWith('did:web:') || value.startsWith('did:ion:');
+  return (
+    value.startsWith('did:key:') || value.startsWith('did:web:') || value.startsWith('did:ion:')
+  );
 };
 
 export const learnerDidSettingsRequestSchema = z.object({
@@ -343,9 +450,12 @@ export const learnerDidSettingsRequestSchema = z.object({
     .trim()
     .max(2048)
     .optional()
-    .refine((value) => value === undefined || value.length === 0 || isSupportedLearnerDidMethod(value), {
-      message: 'did must use did:key, did:web, or did:ion',
-    }),
+    .refine(
+      (value) => value === undefined || value.length === 0 || isSupportedLearnerDidMethod(value),
+      {
+        message: 'did must use did:key, did:web, or did:ion',
+      },
+    ),
 });
 
 export const presentationCreateRequestSchema = z
@@ -488,15 +598,21 @@ export type TenantSigningRegistryEntry = z.infer<typeof tenantSigningRegistryEnt
 export type MagicLinkRequest = z.infer<typeof magicLinkRequestSchema>;
 export type MagicLinkVerifyRequest = z.infer<typeof magicLinkVerifyRequestSchema>;
 export type LearnerIdentityLinkRequest = z.infer<typeof learnerIdentityLinkRequestSchema>;
-export type LearnerIdentityLinkVerifyRequest = z.infer<typeof learnerIdentityLinkVerifyRequestSchema>;
+export type LearnerIdentityLinkVerifyRequest = z.infer<
+  typeof learnerIdentityLinkVerifyRequestSchema
+>;
 export type LearnerDidSettingsRequest = z.infer<typeof learnerDidSettingsRequestSchema>;
 export type PresentationCreateRequest = z.infer<typeof presentationCreateRequestSchema>;
 export type PresentationVerifyRequest = z.infer<typeof presentationVerifyRequestSchema>;
-export type AssertionLifecycleTransitionRequest = z.infer<typeof assertionLifecycleTransitionRequestSchema>;
+export type AssertionLifecycleTransitionRequest = z.infer<
+  typeof assertionLifecycleTransitionRequestSchema
+>;
 export type AssertionPathParams = z.infer<typeof assertionPathParamsSchema>;
 export type AssertionLifecycleState = z.infer<typeof assertionLifecycleStateSchema>;
 export type AssertionLifecycleReasonCode = z.infer<typeof assertionLifecycleReasonCodeSchema>;
-export type AssertionLifecycleTransitionSource = z.infer<typeof assertionLifecycleTransitionSourceSchema>;
+export type AssertionLifecycleTransitionSource = z.infer<
+  typeof assertionLifecycleTransitionSourceSchema
+>;
 export type IssueBadgeRequest = z.infer<typeof issueBadgeRequestSchema>;
 export type RevokeBadgeRequest = z.infer<typeof revokeBadgeRequestSchema>;
 export type ProcessQueueRequest = z.infer<typeof processQueueRequestSchema>;
@@ -509,18 +625,37 @@ export type BadgeTemplatePathParams = z.infer<typeof badgeTemplatePathParamsSche
 export type CredentialPathParams = z.infer<typeof credentialPathParamsSchema>;
 export type TenantUserPathParams = z.infer<typeof tenantUserPathParamsSchema>;
 export type TenantUserOrgUnitPathParams = z.infer<typeof tenantUserOrgUnitPathParamsSchema>;
+export type TenantUserDelegatedGrantPathParams = z.infer<
+  typeof tenantUserDelegatedGrantPathParamsSchema
+>;
 export type BadgeTemplateListQuery = z.infer<typeof badgeTemplateListQuerySchema>;
 export type TenantOrgUnitListQuery = z.infer<typeof tenantOrgUnitListQuerySchema>;
+export type DelegatedIssuingAuthorityGrantListQuery = z.infer<
+  typeof delegatedIssuingAuthorityGrantListQuerySchema
+>;
 export type CreateBadgeTemplateRequest = z.infer<typeof createBadgeTemplateRequestSchema>;
 export type UpdateBadgeTemplateRequest = z.infer<typeof updateBadgeTemplateRequestSchema>;
 export type CreateTenantOrgUnitRequest = z.infer<typeof createTenantOrgUnitRequestSchema>;
 export type UpsertTenantMembershipOrgUnitScopeRequest = z.infer<
   typeof upsertTenantMembershipOrgUnitScopeRequestSchema
 >;
-export type TransferBadgeTemplateOwnershipRequest = z.infer<typeof transferBadgeTemplateOwnershipRequestSchema>;
+export type CreateDelegatedIssuingAuthorityGrantRequest = z.infer<
+  typeof createDelegatedIssuingAuthorityGrantRequestSchema
+>;
+export type RevokeDelegatedIssuingAuthorityGrantRequest = z.infer<
+  typeof revokeDelegatedIssuingAuthorityGrantRequestSchema
+>;
+export type TransferBadgeTemplateOwnershipRequest = z.infer<
+  typeof transferBadgeTemplateOwnershipRequestSchema
+>;
 export type OrgUnitType = z.infer<typeof orgUnitTypeSchema>;
-export type TenantMembershipOrgUnitScopeRole = z.infer<typeof tenantMembershipOrgUnitScopeRoleSchema>;
-export type BadgeTemplateOwnershipReasonCode = z.infer<typeof badgeTemplateOwnershipReasonCodeSchema>;
+export type TenantMembershipOrgUnitScopeRole = z.infer<
+  typeof tenantMembershipOrgUnitScopeRoleSchema
+>;
+export type DelegatedIssuingAuthorityAction = z.infer<typeof delegatedIssuingAuthorityActionSchema>;
+export type BadgeTemplateOwnershipReasonCode = z.infer<
+  typeof badgeTemplateOwnershipReasonCodeSchema
+>;
 export type BadgeTemplateOwnershipTransferReasonCode = z.infer<
   typeof badgeTemplateOwnershipTransferReasonCodeSchema
 >;
@@ -528,7 +663,9 @@ export type AdminUpsertTenantRequest = z.infer<typeof adminUpsertTenantRequestSc
 export type AdminUpsertTenantSigningRegistrationRequest = z.infer<
   typeof adminUpsertTenantSigningRegistrationRequestSchema
 >;
-export type AdminUpsertBadgeTemplateByIdRequest = z.infer<typeof adminUpsertBadgeTemplateByIdRequestSchema>;
+export type AdminUpsertBadgeTemplateByIdRequest = z.infer<
+  typeof adminUpsertBadgeTemplateByIdRequestSchema
+>;
 export type AdminUpsertTenantMembershipRoleRequest = z.infer<
   typeof adminUpsertTenantMembershipRoleRequestSchema
 >;
@@ -639,12 +776,24 @@ export const parseTenantUserOrgUnitPathParams = (input: unknown): TenantUserOrgU
   return tenantUserOrgUnitPathParamsSchema.parse(input);
 };
 
+export const parseTenantUserDelegatedGrantPathParams = (
+  input: unknown,
+): TenantUserDelegatedGrantPathParams => {
+  return tenantUserDelegatedGrantPathParamsSchema.parse(input);
+};
+
 export const parseBadgeTemplateListQuery = (input: unknown): BadgeTemplateListQuery => {
   return badgeTemplateListQuerySchema.parse(input);
 };
 
 export const parseTenantOrgUnitListQuery = (input: unknown): TenantOrgUnitListQuery => {
   return tenantOrgUnitListQuerySchema.parse(input);
+};
+
+export const parseDelegatedIssuingAuthorityGrantListQuery = (
+  input: unknown,
+): DelegatedIssuingAuthorityGrantListQuery => {
+  return delegatedIssuingAuthorityGrantListQuerySchema.parse(input);
 };
 
 export const parseCreateBadgeTemplateRequest = (input: unknown): CreateBadgeTemplateRequest => {
@@ -659,6 +808,18 @@ export const parseUpsertTenantMembershipOrgUnitScopeRequest = (
   input: unknown,
 ): UpsertTenantMembershipOrgUnitScopeRequest => {
   return upsertTenantMembershipOrgUnitScopeRequestSchema.parse(input);
+};
+
+export const parseCreateDelegatedIssuingAuthorityGrantRequest = (
+  input: unknown,
+): CreateDelegatedIssuingAuthorityGrantRequest => {
+  return createDelegatedIssuingAuthorityGrantRequestSchema.parse(input);
+};
+
+export const parseRevokeDelegatedIssuingAuthorityGrantRequest = (
+  input: unknown,
+): RevokeDelegatedIssuingAuthorityGrantRequest => {
+  return revokeDelegatedIssuingAuthorityGrantRequestSchema.parse(input);
 };
 
 export const parseTransferBadgeTemplateOwnershipRequest = (

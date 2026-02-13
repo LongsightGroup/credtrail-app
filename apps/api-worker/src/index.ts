@@ -27,6 +27,7 @@ import {
   addLearnerIdentityAlias,
   completeJobQueueMessage,
   createAuditLog,
+  createDelegatedIssuingAuthorityGrant,
   createAssertion,
   createBadgeTemplate,
   createTenantOrgUnit,
@@ -52,6 +53,8 @@ import {
   findAssertionByPublicId,
   findAssertionByIdempotencyKey,
   findBadgeTemplateById,
+  findDelegatedIssuingAuthorityGrantById,
+  findActiveDelegatedIssuingAuthorityGrantForAction,
   findTenantSigningRegistrationByDid,
   findActiveSessionByHash,
   isLearnerIdentityLinkProofValid,
@@ -60,6 +63,8 @@ import {
   resolveAssertionLifecycleState,
   recordAssertionLifecycleTransition,
   listLtiIssuerRegistrations,
+  listDelegatedIssuingAuthorityGrantEvents,
+  listDelegatedIssuingAuthorityGrants,
   listLearnerBadgeSummaries,
   listLearnerIdentitiesByProfile,
   removeLearnerIdentityAliasesByType,
@@ -82,6 +87,7 @@ import {
   nextAssertionStatusListIndex,
   resolveLearnerProfileForIdentity,
   recordAssertionRevocation,
+  revokeDelegatedIssuingAuthorityGrant,
   removeTenantMembershipOrgUnitScope,
   revokeSessionByHash,
   revokeOAuthAccessTokenByHash,
@@ -98,6 +104,7 @@ import {
   transferBadgeTemplateOwnership,
   updateBadgeTemplate,
   type AssertionRecord,
+  type DelegatedIssuingAuthorityAction,
   type LtiIssuerRegistrationRecord,
   type LearnerBadgeSummaryRecord,
   type RecipientIdentifierInput,
@@ -129,6 +136,7 @@ import {
 import {
   parseBadgeTemplateListQuery,
   parseTenantOrgUnitListQuery,
+  parseDelegatedIssuingAuthorityGrantListQuery,
   parseBadgeTemplatePathParams,
   parseAssertionPathParams,
   parseAssertionLifecycleTransitionRequest,
@@ -160,6 +168,7 @@ import {
   parseMagicLinkVerifyRequest,
   parseTenantPathParams,
   parseTenantUserOrgUnitPathParams,
+  parseTenantUserDelegatedGrantPathParams,
   parseTenantUserPathParams,
   type RevokeBadgeQueueJob,
   type RevokeBadgeRequest,
@@ -169,6 +178,8 @@ import {
   parseTenantSigningRegistry,
   parseTenantSigningRegistryEntry,
   parseTransferBadgeTemplateOwnershipRequest,
+  parseCreateDelegatedIssuingAuthorityGrantRequest,
+  parseRevokeDelegatedIssuingAuthorityGrantRequest,
   parseUpsertTenantMembershipOrgUnitScopeRequest,
   parseUpdateBadgeTemplateRequest,
   type TenantSigningRegistryEntry,
@@ -251,7 +262,8 @@ const OB3_OAUTH_SCOPE_CREDENTIAL_UPSERT =
   'https://purl.imsglobal.org/spec/ob/v3p0/scope/credential.upsert';
 const OB3_OAUTH_SCOPE_PROFILE_READONLY =
   'https://purl.imsglobal.org/spec/ob/v3p0/scope/profile.readonly';
-const OB3_OAUTH_SCOPE_PROFILE_UPDATE = 'https://purl.imsglobal.org/spec/ob/v3p0/scope/profile.update';
+const OB3_OAUTH_SCOPE_PROFILE_UPDATE =
+  'https://purl.imsglobal.org/spec/ob/v3p0/scope/profile.update';
 const OB3_OAUTH_SUPPORTED_SCOPE_URIS = [
   OB3_OAUTH_SCOPE_CREDENTIAL_READONLY,
   OB3_OAUTH_SCOPE_CREDENTIAL_UPSERT,
@@ -273,8 +285,10 @@ const OB3_OAUTH_SCOPE_DESCRIPTIONS: Record<string, string> = {
     'Permission to read AchievementCredentials for the authenticated entity.',
   [OB3_OAUTH_SCOPE_CREDENTIAL_UPSERT]:
     'Permission to create or update AchievementCredentials for the authenticated entity.',
-  [OB3_OAUTH_SCOPE_PROFILE_READONLY]: 'Permission to read the profile for the authenticated entity.',
-  [OB3_OAUTH_SCOPE_PROFILE_UPDATE]: 'Permission to update the profile for the authenticated entity.',
+  [OB3_OAUTH_SCOPE_PROFILE_READONLY]:
+    'Permission to read the profile for the authenticated entity.',
+  [OB3_OAUTH_SCOPE_PROFILE_UPDATE]:
+    'Permission to update the profile for the authenticated entity.',
 };
 const OB3_DISCOVERY_CACHE_CONTROL = 'public, max-age=300';
 const databasesByUrl = new Map<string, SqlDatabase>();
@@ -589,9 +603,7 @@ const ltiIssuerRegistryFromStoredRows = (
     }
 
     if (!isAbsoluteHttpUrl(row.authorizationEndpoint)) {
-      throw new Error(
-        `Stored LTI issuer "${row.issuer}" has invalid authorization endpoint URL`,
-      );
+      throw new Error(`Stored LTI issuer "${row.issuer}" has invalid authorization endpoint URL`);
     }
 
     const clientId = row.clientId.trim();
@@ -803,7 +815,6 @@ const ltiSourcedIdFromClaims = (claims: LtiLaunchClaims): string | null => {
   return asNonEmptyString(lisClaim?.person_sourcedid);
 };
 
-
 const ltiSyntheticEmail = async (tenantId: string, federatedSubject: string): Promise<string> => {
   const digest = await sha256Hex(`${tenantId}:${federatedSubject}`);
   return `lti-${digest.slice(0, 24)}@credtrail-lti.local`;
@@ -978,10 +989,7 @@ const ltiIssuerRegistrationAdminPageResponse = async (
     ...(input.submissionError === undefined ? {} : { submissionError: input.submissionError }),
     ...(input.formState === undefined ? {} : { formState: input.formState }),
   });
-  return c.html(
-    pageHtml,
-    input.status ?? 200,
-  );
+  return c.html(pageHtml, input.status ?? 200);
 };
 
 const ltiLoginInputFromRequest = async (c: AppContext): Promise<Record<string, string>> => {
@@ -990,7 +998,9 @@ const ltiLoginInputFromRequest = async (c: AppContext): Promise<Record<string, s
       iss: c.req.query('iss') ?? '',
       login_hint: c.req.query('login_hint') ?? '',
       target_link_uri: c.req.query('target_link_uri') ?? '',
-      ...(c.req.query('client_id') === undefined ? {} : { client_id: c.req.query('client_id') ?? '' }),
+      ...(c.req.query('client_id') === undefined
+        ? {}
+        : { client_id: c.req.query('client_id') ?? '' }),
       ...(c.req.query('lti_message_hint') === undefined
         ? {}
         : {
@@ -1031,7 +1041,9 @@ const ltiLoginInputFromRequest = async (c: AppContext): Promise<Record<string, s
   };
 };
 
-const ltiLaunchFormInputFromRequest = async (c: AppContext): Promise<{ idToken: string | null; state: string | null }> => {
+const ltiLaunchFormInputFromRequest = async (
+  c: AppContext,
+): Promise<{ idToken: string | null; state: string | null }> => {
   const contentType = c.req.header('content-type') ?? '';
 
   if (!contentType.toLowerCase().includes('application/x-www-form-urlencoded')) {
@@ -1050,8 +1062,14 @@ const ltiLaunchFormInputFromRequest = async (c: AppContext): Promise<{ idToken: 
   };
 };
 
-type Ed25519SigningPublicJwk = Extract<TenantSigningRegistryEntry['publicJwk'], { kty: 'OKP'; crv: 'Ed25519' }>;
-type P256SigningPublicJwk = Extract<TenantSigningRegistryEntry['publicJwk'], { kty: 'EC'; crv: 'P-256' }>;
+type Ed25519SigningPublicJwk = Extract<
+  TenantSigningRegistryEntry['publicJwk'],
+  { kty: 'OKP'; crv: 'Ed25519' }
+>;
+type P256SigningPublicJwk = Extract<
+  TenantSigningRegistryEntry['publicJwk'],
+  { kty: 'EC'; crv: 'P-256' }
+>;
 type Ed25519SigningPrivateJwk = NonNullable<
   Extract<TenantSigningRegistryEntry['privateJwk'], { kty: 'OKP'; crv: 'Ed25519' }>
 >;
@@ -1065,7 +1083,9 @@ const isEd25519SigningPublicJwk = (
   return jwk.kty === 'OKP';
 };
 
-const isP256SigningPublicJwk = (jwk: TenantSigningRegistryEntry['publicJwk']): jwk is P256SigningPublicJwk => {
+const isP256SigningPublicJwk = (
+  jwk: TenantSigningRegistryEntry['publicJwk'],
+): jwk is P256SigningPublicJwk => {
   return jwk.kty === 'EC';
 };
 
@@ -1193,7 +1213,9 @@ const parseSigningRegistryFromEnv = (rawRegistry: string | undefined): TenantSig
   return parseTenantSigningRegistry(parsedRegistry);
 };
 
-const parseSigningKeyHistoryRegistryFromEnv = (rawRegistry: string | undefined): SigningKeyHistoryRegistry => {
+const parseSigningKeyHistoryRegistryFromEnv = (
+  rawRegistry: string | undefined,
+): SigningKeyHistoryRegistry => {
   if (rawRegistry === undefined || rawRegistry.trim().length === 0) {
     return {};
   }
@@ -1206,7 +1228,11 @@ const parseSigningKeyHistoryRegistryFromEnv = (rawRegistry: string | undefined):
     throw new Error('TENANT_SIGNING_KEY_HISTORY_JSON is not valid JSON');
   }
 
-  if (parsedRegistry === null || typeof parsedRegistry !== 'object' || Array.isArray(parsedRegistry)) {
+  if (
+    parsedRegistry === null ||
+    typeof parsedRegistry !== 'object' ||
+    Array.isArray(parsedRegistry)
+  ) {
     throw new Error('TENANT_SIGNING_KEY_HISTORY_JSON must be an object keyed by DID');
   }
 
@@ -1253,7 +1279,9 @@ const parseSigningKeyHistoryRegistryFromEnv = (rawRegistry: string | undefined):
   return output;
 };
 
-const parseRemoteSignerRegistryFromEnv = (rawRegistry: string | undefined): RemoteSignerRegistry => {
+const parseRemoteSignerRegistryFromEnv = (
+  rawRegistry: string | undefined,
+): RemoteSignerRegistry => {
   if (rawRegistry === undefined || rawRegistry.trim().length === 0) {
     return {};
   }
@@ -1266,7 +1294,11 @@ const parseRemoteSignerRegistryFromEnv = (rawRegistry: string | undefined): Remo
     throw new Error('TENANT_REMOTE_SIGNER_REGISTRY_JSON is not valid JSON');
   }
 
-  if (parsedRegistry === null || typeof parsedRegistry !== 'object' || Array.isArray(parsedRegistry)) {
+  if (
+    parsedRegistry === null ||
+    typeof parsedRegistry !== 'object' ||
+    Array.isArray(parsedRegistry)
+  ) {
     throw new Error('TENANT_REMOTE_SIGNER_REGISTRY_JSON must be an object keyed by DID');
   }
 
@@ -1283,7 +1315,9 @@ const parseRemoteSignerRegistryFromEnv = (rawRegistry: string | undefined): Remo
     const timeoutMs = entryObject.timeoutMs;
 
     if (typeof url !== 'string' || url.trim().length === 0) {
-      throw new Error(`TENANT_REMOTE_SIGNER_REGISTRY_JSON["${did}"].url must be a non-empty string`);
+      throw new Error(
+        `TENANT_REMOTE_SIGNER_REGISTRY_JSON["${did}"].url must be a non-empty string`,
+      );
     }
 
     let normalizedAuthorizationHeader: string | null = null;
@@ -1360,7 +1394,10 @@ const resolveSigningEntryForDid = async (
   c: AppContext,
   did: string,
 ): Promise<TenantSigningRegistryEntry | null> => {
-  const dbSigningRegistration = await findTenantSigningRegistrationByDid(resolveDatabase(c.env), did);
+  const dbSigningRegistration = await findTenantSigningRegistrationByDid(
+    resolveDatabase(c.env),
+    did,
+  );
 
   if (dbSigningRegistration !== null) {
     return parseSigningEntryFromStoredJson(
@@ -1379,7 +1416,9 @@ const resolveHistoricalSigningKeysForDid = (
   c: AppContext,
   did: string,
 ): readonly HistoricalSigningKeyEntry[] => {
-  const historyRegistry = parseSigningKeyHistoryRegistryFromEnv(c.env.TENANT_SIGNING_KEY_HISTORY_JSON);
+  const historyRegistry = parseSigningKeyHistoryRegistryFromEnv(
+    c.env.TENANT_SIGNING_KEY_HISTORY_JSON,
+  );
   return historyRegistry[did] ?? [];
 };
 
@@ -1387,7 +1426,9 @@ const resolveRemoteSignerRegistryEntryForDid = (
   c: AppContext,
   did: string,
 ): RemoteSignerRegistryEntry | null => {
-  const remoteSignerRegistry = parseRemoteSignerRegistryFromEnv(c.env.TENANT_REMOTE_SIGNER_REGISTRY_JSON);
+  const remoteSignerRegistry = parseRemoteSignerRegistryFromEnv(
+    c.env.TENANT_REMOTE_SIGNER_REGISTRY_JSON,
+  );
   return remoteSignerRegistry[did] ?? null;
 };
 
@@ -1451,6 +1492,7 @@ const isUniqueConstraintError = (error: unknown): boolean => {
 };
 
 const ISSUER_ROLES: TenantMembershipRole[] = ['owner', 'admin', 'issuer'];
+const TENANT_MEMBER_ROLES: TenantMembershipRole[] = ['owner', 'admin', 'issuer', 'viewer'];
 const ADMIN_ROLES: TenantMembershipRole[] = ['owner', 'admin'];
 
 const hasRequiredRole = (
@@ -1594,6 +1636,54 @@ const requireScopedOrgUnitPermission = async (
   );
 };
 
+const requireDelegatedIssuingAuthorityPermission = async (
+  c: AppContext,
+  input: {
+    db: SqlDatabase;
+    tenantId: string;
+    userId: string;
+    membershipRole: TenantMembershipRole;
+    ownerOrgUnitId: string;
+    badgeTemplateId: string;
+    requiredAction: DelegatedIssuingAuthorityAction;
+  },
+): Promise<Response | null> => {
+  if (canBypassOrgScopeChecks(input.membershipRole)) {
+    return null;
+  }
+
+  const delegatedGrant = await findActiveDelegatedIssuingAuthorityGrantForAction(input.db, {
+    tenantId: input.tenantId,
+    userId: input.userId,
+    orgUnitId: input.ownerOrgUnitId,
+    badgeTemplateId: input.badgeTemplateId,
+    requiredAction: input.requiredAction,
+  });
+
+  if (delegatedGrant !== null) {
+    return null;
+  }
+
+  if (input.membershipRole === 'issuer') {
+    return requireScopedOrgUnitPermission(c, {
+      db: input.db,
+      tenantId: input.tenantId,
+      userId: input.userId,
+      membershipRole: input.membershipRole,
+      orgUnitId: input.ownerOrgUnitId,
+      requiredRole: 'issuer',
+      allowWhenNoScopes: true,
+    });
+  }
+
+  return c.json(
+    {
+      error: 'Insufficient role for requested action',
+    },
+    403,
+  );
+};
+
 const didForWellKnownRequest = (requestUrl: string): string => {
   const request = new URL(requestUrl);
   return createDidWeb({ host: request.host });
@@ -1689,10 +1779,7 @@ const ob3ServiceDescriptionDocument = (c: AppContext): JsonObject => {
     configuredTitle === undefined || configuredTitle.length === 0
       ? 'CredTrail Open Badges API'
       : configuredTitle;
-  const termsOfService = resolveAbsoluteUrl(
-    requestUrl,
-    c.env.OB3_TERMS_OF_SERVICE_URL ?? '/terms',
-  );
+  const termsOfService = resolveAbsoluteUrl(requestUrl, c.env.OB3_TERMS_OF_SERVICE_URL ?? '/terms');
   const privacyPolicyUrl = resolveAbsoluteUrl(
     requestUrl,
     c.env.OB3_PRIVACY_POLICY_URL ?? '/privacy',
@@ -2023,13 +2110,11 @@ const ob3ProfileIdForAccessToken = (input: { tenantId: string; userId: string })
   return `urn:credtrail:profile:${encodeURIComponent(input.tenantId)}:${encodeURIComponent(input.userId)}`;
 };
 
-const normalizeOb3Profile = (
-  input: {
-    profile: JsonObject;
-    tenantId: string;
-    userId: string;
-  },
-): JsonObject => {
+const normalizeOb3Profile = (input: {
+  profile: JsonObject;
+  tenantId: string;
+  userId: string;
+}): JsonObject => {
   const normalizedProfile: JsonObject = {
     ...input.profile,
   };
@@ -2188,7 +2273,11 @@ const parsePositiveIntegerQueryParam = (
 
   const normalized = Number(value);
 
-  if (!Number.isFinite(normalized) || !Number.isInteger(normalized) || normalized < options.minimum) {
+  if (
+    !Number.isFinite(normalized) ||
+    !Number.isInteger(normalized) ||
+    normalized < options.minimum
+  ) {
     return null;
   }
 
@@ -2234,7 +2323,9 @@ const ob3CredentialsLinkHeader = (input: {
   since: string | undefined;
 }): string => {
   const normalizedLastOffset =
-    input.totalCount <= 0 ? 0 : Math.floor((Math.max(1, input.totalCount) - 1) / input.limit) * input.limit;
+    input.totalCount <= 0
+      ? 0
+      : Math.floor((Math.max(1, input.totalCount) - 1) / input.limit) * input.limit;
   const links: string[] = [];
 
   if (input.offset + input.limit < input.totalCount) {
@@ -2398,17 +2489,11 @@ const parseOAuthClientMetadata = (record: {
     }
   }
 
-  if (
-    grantTypes?.length !== 1 ||
-    grantTypes[0] !== OAUTH_GRANT_TYPE_AUTHORIZATION_CODE
-  ) {
+  if (grantTypes?.length !== 1 || grantTypes[0] !== OAUTH_GRANT_TYPE_AUTHORIZATION_CODE) {
     return null;
   }
 
-  if (
-    responseTypes?.length !== 1 ||
-    responseTypes[0] !== OAUTH_RESPONSE_TYPE_CODE
-  ) {
+  if (responseTypes?.length !== 1 || responseTypes[0] !== OAUTH_RESPONSE_TYPE_CODE) {
     return null;
   }
 
@@ -2691,7 +2776,10 @@ const buildRevocationStatusListCredential = async (
   credential: JsonObject;
   issuedAt: string;
 }> => {
-  const statusListCredentialUrl = revocationStatusListUrlForTenant(input.requestUrl, input.tenantId);
+  const statusListCredentialUrl = revocationStatusListUrlForTenant(
+    input.requestUrl,
+    input.tenantId,
+  );
   const encodedList = await encodeRevocationBitstring(input.statusEntries);
   const issuedAt = new Date().toISOString();
 
@@ -3473,7 +3561,9 @@ const collectUnknownJsonLdTerms = (
   }
 };
 
-const verifyCredentialJsonLdSafeModeSummary = (credential: JsonObject): CredentialVerificationCheckSummary => {
+const verifyCredentialJsonLdSafeModeSummary = (
+  credential: JsonObject,
+): CredentialVerificationCheckSummary => {
   const context = credential['@context'];
 
   if (context === undefined) {
@@ -3668,7 +3758,11 @@ const verifyCredentialSchemaSummary = async (
     if (schemaTypes.includes('1EdTechJsonSchemaValidator2019')) {
       has1EdTechJsonSchemaValidator = true;
 
-      const loadedSchema = await loadJsonObjectFromUrl(c, schemaId, 'application/schema+json, application/json');
+      const loadedSchema = await loadJsonObjectFromUrl(
+        c,
+        schemaId,
+        'application/schema+json, application/json',
+      );
 
       if (loadedSchema.status !== 'ok') {
         return {
@@ -3730,7 +3824,9 @@ const hasCredentialSubjectIdentifier = (credentialSubject: JsonObject): boolean 
   return asNonEmptyString(identifierEntryAsObject?.identifier) !== null;
 };
 
-const verifyCredentialSubjectSummary = (credential: JsonObject): CredentialVerificationCheckSummary => {
+const verifyCredentialSubjectSummary = (
+  credential: JsonObject,
+): CredentialVerificationCheckSummary => {
   const credentialSubject = asJsonObject(credential.credentialSubject);
 
   if (credentialSubject === null) {
@@ -3767,7 +3863,8 @@ const verifyCredentialSubjectSummary = (credential: JsonObject): CredentialVerif
     if (!achievementTypes.includes('Achievement')) {
       return {
         status: 'invalid',
-        reason: 'credentialSubject.achievement.type must include Achievement for OpenBadgeCredential',
+        reason:
+          'credentialSubject.achievement.type must include Achievement for OpenBadgeCredential',
       };
     }
   }
@@ -3809,7 +3906,8 @@ const verifyCredentialDatesSummary = (
     };
   }
 
-  const validUntilMilliseconds = validUntil === null ? null : parseTimestampMilliseconds(validUntil);
+  const validUntilMilliseconds =
+    validUntil === null ? null : parseTimestampMilliseconds(validUntil);
 
   if (validUntil !== null && validUntilMilliseconds === null) {
     return {
@@ -3823,7 +3921,8 @@ const verifyCredentialDatesSummary = (
   if (validUntilMilliseconds !== null && validUntilMilliseconds < validFromMilliseconds) {
     return {
       status: 'invalid',
-      reason: 'credential validUntil/expirationDate must not be earlier than validFrom/issuanceDate',
+      reason:
+        'credential validUntil/expirationDate must not be earlier than validFrom/issuanceDate',
       validFrom,
       validUntil,
     };
@@ -3857,7 +3956,10 @@ const parseStatusListIndex = (value: string): number | null => {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 };
 
-const decodedRevocationStatusBit = async (encodedList: string, statusListIndex: number): Promise<boolean | null> => {
+const decodedRevocationStatusBit = async (
+  encodedList: string,
+  statusListIndex: number,
+): Promise<boolean | null> => {
   if (!encodedList.startsWith('u')) {
     return null;
   }
@@ -3919,7 +4021,9 @@ const verifyCredentialStatusSummary = async (
     return {
       status: expectedStatusList === null ? 'unchecked' : 'invalid',
       reason:
-        expectedStatusList === null ? null : 'credentialStatus is required when revocation metadata is configured',
+        expectedStatusList === null
+          ? null
+          : 'credentialStatus is required when revocation metadata is configured',
       type: null,
       statusPurpose: null,
       statusListIndex: null,
@@ -3991,7 +4095,8 @@ const verifyCredentialStatusSummary = async (
   if (statusListIndex !== expectedStatusList.statusListIndex) {
     return {
       status: 'invalid',
-      reason: 'credentialStatus statusListIndex does not match the expected credential revocation index',
+      reason:
+        'credentialStatus statusListIndex does not match the expected credential revocation index',
       type: statusType,
       statusPurpose,
       statusListIndex,
@@ -4003,7 +4108,8 @@ const verifyCredentialStatusSummary = async (
   if (statusListCredential !== expectedStatusList.statusListCredential) {
     return {
       status: 'invalid',
-      reason: 'credentialStatus statusListCredential does not match the expected revocation list URL',
+      reason:
+        'credentialStatus statusListCredential does not match the expected revocation list URL',
       type: statusType,
       statusPurpose,
       statusListIndex,
@@ -4026,7 +4132,10 @@ const verifyCredentialStatusSummary = async (
     };
   }
 
-  const statusListCredentialResult = await loadStatusListCredentialForVerification(c, statusListCredential);
+  const statusListCredentialResult = await loadStatusListCredentialForVerification(
+    c,
+    statusListCredential,
+  );
 
   if (statusListCredentialResult.status !== 'ok') {
     return {
@@ -4040,7 +4149,9 @@ const verifyCredentialStatusSummary = async (
     };
   }
 
-  const statusListCredentialSubject = asJsonObject(statusListCredentialResult.credential.credentialSubject);
+  const statusListCredentialSubject = asJsonObject(
+    statusListCredentialResult.credential.credentialSubject,
+  );
   const encodedList = asNonEmptyString(statusListCredentialSubject?.encodedList);
 
   if (encodedList === null) {
@@ -4060,7 +4171,8 @@ const verifyCredentialStatusSummary = async (
   if (revoked === null) {
     return {
       status: 'invalid',
-      reason: 'credential status list encodedList could not be decoded for the specified statusListIndex',
+      reason:
+        'credential status list encodedList could not be decoded for the specified statusListIndex',
       type: statusType,
       statusPurpose,
       statusListIndex,
@@ -4111,7 +4223,9 @@ const selectCredentialProofObject = (credential: JsonObject): JsonObject | null 
     return null;
   }
 
-  const proofEntries = credentialProofValue.map((entry) => asJsonObject(entry)).filter((entry) => entry !== null);
+  const proofEntries = credentialProofValue
+    .map((entry) => asJsonObject(entry))
+    .filter((entry) => entry !== null);
   const assertionMethodEntry = proofEntries.find((entry) => {
     return asNonEmptyString(entry.proofPurpose) === 'assertionMethod';
   });
@@ -4129,9 +4243,11 @@ const resolveVerificationPublicJwkForDidKeyId = (input: {
     return input.activeSigningEntry.publicJwk;
   }
 
-  const historicalEntry = resolveHistoricalSigningKeysForDid(input.context, input.did).find((entry) => {
-    return entry.keyId === input.keyId;
-  });
+  const historicalEntry = resolveHistoricalSigningKeysForDid(input.context, input.did).find(
+    (entry) => {
+      return entry.keyId === input.keyId;
+    },
+  );
 
   return historicalEntry?.publicJwk ?? null;
 };
@@ -4176,7 +4292,12 @@ const verifyCredentialProofSummary = async (
   const issuerDidFromCredential = issuerIdentifier?.startsWith('did:') ? issuerIdentifier : null;
   const issuerDid = methodDid ?? issuerIdentifier;
 
-  if (proofType === null || proofValue === null || proofPurpose === null || verificationMethod === null) {
+  if (
+    proofType === null ||
+    proofValue === null ||
+    proofPurpose === null ||
+    verificationMethod === null
+  ) {
     return {
       status: 'invalid',
       format: proofType,
@@ -4206,7 +4327,11 @@ const verifyCredentialProofSummary = async (
     };
   }
 
-  if (methodDid !== null && issuerDidFromCredential !== null && methodDid !== issuerDidFromCredential) {
+  if (
+    methodDid !== null &&
+    issuerDidFromCredential !== null &&
+    methodDid !== issuerDidFromCredential
+  ) {
     return {
       status: 'invalid',
       format: proofType,
@@ -4594,7 +4719,10 @@ const signCredentialWithRemoteSigner = async (input: {
   const signedProofType = asNonEmptyString(signedProof.type);
   const signedVerificationMethod = asNonEmptyString(signedProof.verificationMethod);
 
-  if (signedProofType !== input.proofType || signedVerificationMethod !== input.verificationMethod) {
+  if (
+    signedProofType !== input.proofType ||
+    signedVerificationMethod !== input.verificationMethod
+  ) {
     return {
       status: 'error',
       reason: 'remote signer proof metadata does not match requested proof parameters',
@@ -4618,7 +4746,9 @@ const signCredentialWithRemoteSigner = async (input: {
   };
 };
 
-const signCredentialForDid = async (input: SignCredentialForDidInput): Promise<SignCredentialForDidResult> => {
+const signCredentialForDid = async (
+  input: SignCredentialForDidInput,
+): Promise<SignCredentialForDidResult> => {
   const signingEntry = await resolveSigningEntryForDid(input.context, input.did);
 
   if (signingEntry === null) {
@@ -4696,7 +4826,9 @@ const signCredentialForDid = async (input: SignCredentialForDidInput): Promise<S
         return {
           status: 'error',
           statusCode: 422,
-          error: input.ed25519KeyRequirementError ?? 'Credential signing endpoint requires an Ed25519 private key',
+          error:
+            input.ed25519KeyRequirementError ??
+            'Credential signing endpoint requires an Ed25519 private key',
           did: input.did,
         };
       }
@@ -4805,7 +4937,9 @@ const ed25519PublicJwkFromDidKey = (did: string): Ed25519PublicJwk | null => {
   }
 };
 
-const verifiableCredentialObjectsFromPresentation = (presentation: JsonObject): JsonObject[] | null => {
+const verifiableCredentialObjectsFromPresentation = (
+  presentation: JsonObject,
+): JsonObject[] | null => {
   const verifiableCredentialValue = presentation.verifiableCredential;
 
   if (!Array.isArray(verifiableCredentialValue)) {
@@ -4841,7 +4975,12 @@ const statusListReferenceFromCredentialForPresentation = (
   const statusListIndex = asNonEmptyString(credentialStatus.statusListIndex);
   const statusListCredential = asNonEmptyString(credentialStatus.statusListCredential);
 
-  if (type === null || statusListIndex === null || statusListCredential === null || statusPurpose !== 'revocation') {
+  if (
+    type === null ||
+    statusListIndex === null ||
+    statusListCredential === null ||
+    statusPurpose !== 'revocation'
+  ) {
     return null;
   }
 
@@ -4854,7 +4993,9 @@ const statusListReferenceFromCredentialForPresentation = (
   };
 };
 
-const credentialChecksPassPresentationPolicy = (checks: CredentialVerificationChecksSummary): boolean => {
+const credentialChecksPassPresentationPolicy = (
+  checks: CredentialVerificationChecksSummary,
+): boolean => {
   return (
     checks.jsonLdSafeMode.status === 'valid' &&
     checks.credentialSchema.status !== 'invalid' &&
@@ -4886,7 +5027,12 @@ const verifyDidKeyHolderProofSummary = async (
   const verificationMethod = asNonEmptyString(proof.verificationMethod);
   const expectedVerificationMethod = didKeyVerificationMethod(holderDid);
 
-  if (proofType === null || proofValue === null || proofPurpose === null || verificationMethod === null) {
+  if (
+    proofType === null ||
+    proofValue === null ||
+    proofPurpose === null ||
+    verificationMethod === null
+  ) {
     return {
       status: 'invalid',
       format: proofType,
@@ -5049,7 +5195,11 @@ const verifyCredentialInPresentation = async (input: {
         ? input.checkedAt
         : null
       : null;
-  const lifecycle = summarizeCredentialLifecycleVerification(input.credential, resolvedRevokedAt, input.checkedAt);
+  const lifecycle = summarizeCredentialLifecycleVerification(
+    input.credential,
+    resolvedRevokedAt,
+    input.checkedAt,
+  );
   const proof = await verifyCredentialProofSummary(input.context, input.credential);
   const status: 'valid' | 'invalid' =
     binding.status === 'valid' &&
@@ -5504,7 +5654,10 @@ const loadPublicBadgeViewModel = async (
 
   if (assertionByPublicId !== null) {
     const credential = await loadCredentialForAssertion(store, assertionByPublicId);
-    const recipientDisplayName = await loadRecipientDisplayNameForAssertion(db, assertionByPublicId);
+    const recipientDisplayName = await loadRecipientDisplayNameForAssertion(
+      db,
+      assertionByPublicId,
+    );
 
     return {
       status: 'ok',
@@ -5524,7 +5677,11 @@ const loadPublicBadgeViewModel = async (
     };
   }
 
-  const assertion = await findAssertionById(db, tenantScopedCredentialId.tenantId, trimmedIdentifier);
+  const assertion = await findAssertionById(
+    db,
+    tenantScopedCredentialId.tenantId,
+    trimmedIdentifier,
+  );
 
   if (assertion === null) {
     return {
@@ -6113,7 +6270,9 @@ const BADGE_PDF_IMAGE_FETCH_TIMEOUT_MS = 2_500;
 const BADGE_PDF_MAX_IMAGE_BYTES = 2_500_000;
 
 const parseBadgePdfDataUrl = (imageUrl: string): BadgePdfImageAsset | null => {
-  const match = /^data:(image\/(?:png|jpeg|jpg));base64,([A-Za-z0-9+/=\s]+)$/i.exec(imageUrl.trim());
+  const match = /^data:(image\/(?:png|jpeg|jpg));base64,([A-Za-z0-9+/=\s]+)$/i.exec(
+    imageUrl.trim(),
+  );
 
   if (match === null) {
     return null;
@@ -6269,8 +6428,7 @@ const wrapPdfText = (value: string, maxChars: number): string[] => {
       continue;
     }
 
-    const nextLine =
-      currentLine.length === 0 ? remainingWord : `${currentLine} ${remainingWord}`;
+    const nextLine = currentLine.length === 0 ? remainingWord : `${currentLine} ${remainingWord}`;
     if (nextLine.length <= maxChars) {
       currentLine = nextLine;
       continue;
@@ -6490,7 +6648,8 @@ const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Promise<Uin
 
   if (input.badgeImageUrl !== null) {
     const imageAsset = await loadBadgePdfImageAsset(input.badgeImageUrl);
-    embeddedBadgeImage = imageAsset === null ? null : await embedBadgePdfImage(pdfDocument, imageAsset);
+    embeddedBadgeImage =
+      imageAsset === null ? null : await embedBadgePdfImage(pdfDocument, imageAsset);
   }
 
   if (embeddedBadgeImage === null) {
@@ -6519,7 +6678,8 @@ const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Promise<Uin
     font: regularFont,
   });
 
-  const statusColor = input.status.toLowerCase() === 'revoked' ? rgb(0.66, 0.14, 0.09) : rgb(0.1, 0.41, 0.24);
+  const statusColor =
+    input.status.toLowerCase() === 'revoked' ? rgb(0.66, 0.14, 0.09) : rgb(0.1, 0.41, 0.24);
   page.drawRectangle({
     x: 446,
     y: 618,
@@ -6576,9 +6736,21 @@ const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Promise<Uin
   });
 
   let verificationY = 324;
-  verificationY = drawPdfLinkBlock(page, 'Public badge page', input.publicBadgeUrl, margin + 14, verificationY);
+  verificationY = drawPdfLinkBlock(
+    page,
+    'Public badge page',
+    input.publicBadgeUrl,
+    margin + 14,
+    verificationY,
+  );
   verificationY -= 6;
-  verificationY = drawPdfLinkBlock(page, 'Verification JSON endpoint', input.verificationUrl, margin + 14, verificationY);
+  verificationY = drawPdfLinkBlock(
+    page,
+    'Verification JSON endpoint',
+    input.verificationUrl,
+    margin + 14,
+    verificationY,
+  );
   verificationY -= 6;
   drawPdfLinkBlock(page, 'Open Badges 3.0 JSON-LD', input.ob3JsonUrl, margin + 14, verificationY);
 
@@ -6727,7 +6899,9 @@ export const sendIssuanceEmailNotification = async (
 
 type LearnerDidSettingsNotice = 'updated' | 'cleared' | 'conflict' | 'invalid';
 
-const learnerDidSettingsNoticeFromQuery = (value: string | undefined): LearnerDidSettingsNotice | null => {
+const learnerDidSettingsNoticeFromQuery = (
+  value: string | undefined,
+): LearnerDidSettingsNotice | null => {
   switch (value) {
     case 'updated':
     case 'cleared':
@@ -6846,7 +7020,8 @@ const tenantBadgeWallPage = (
   entries: readonly PublicBadgeWallEntryRecord[],
   filterBadgeTemplateId: string | null,
 ): string => {
-  const title = filterBadgeTemplateId === null ? `Badge Wall · ${tenantId}` : `Badge Wall · ${tenantId}`;
+  const title =
+    filterBadgeTemplateId === null ? `Badge Wall · ${tenantId}` : `Badge Wall · ${tenantId}`;
   const subtitle =
     filterBadgeTemplateId === null
       ? `Public badge URLs issued under tenant "${tenantId}".`
@@ -7011,7 +7186,10 @@ app.use('*', async (c, next) => {
       LANDING_STATIC_PATHS.has(requestUrl.pathname);
 
     if (isLandingRequest) {
-      const marketingUrl = new URL(`${requestUrl.pathname}${requestUrl.search}`, c.env.MARKETING_SITE_ORIGIN);
+      const marketingUrl = new URL(
+        `${requestUrl.pathname}${requestUrl.search}`,
+        c.env.MARKETING_SITE_ORIGIN,
+      );
       return fetch(new Request(marketingUrl.toString(), c.req.raw));
     }
   }
@@ -7376,7 +7554,9 @@ app.delete('/v1/admin/lti/issuer-registrations', async (c) => {
   const normalizedIssuer = normalizeLtiIssuer(request.issuer);
   const registrations = await listLtiIssuerRegistrations(resolveDatabase(c.env));
   const existingRegistration =
-    registrations.find((registration) => normalizeLtiIssuer(registration.issuer) === normalizedIssuer) ?? null;
+    registrations.find(
+      (registration) => normalizeLtiIssuer(registration.issuer) === normalizedIssuer,
+    ) ?? null;
   const deleted = await deleteLtiIssuerRegistrationByIssuer(resolveDatabase(c.env), request.issuer);
 
   if (deleted && existingRegistration !== null) {
@@ -7559,7 +7739,9 @@ app.post('/admin/lti/issuer-registrations/delete', async (c) => {
   const normalizedIssuer = normalizeLtiIssuer(request.issuer);
   const registrations = await listLtiIssuerRegistrations(resolveDatabase(c.env));
   const existingRegistration =
-    registrations.find((registration) => normalizeLtiIssuer(registration.issuer) === normalizedIssuer) ?? null;
+    registrations.find(
+      (registration) => normalizeLtiIssuer(registration.issuer) === normalizedIssuer,
+    ) ?? null;
   const deleted = await deleteLtiIssuerRegistrationByIssuer(resolveDatabase(c.env), request.issuer);
 
   if (deleted && existingRegistration !== null) {
@@ -7610,16 +7792,21 @@ app.post(`${OB3_BASE_PATH}/oauth/register`, async (c) => {
     }
 
     if (validationError === 'invalid_url') {
-      return oauthErrorJson(c, 400, 'invalid_redirect_uri', 'redirect_uris must contain valid URLs');
+      return oauthErrorJson(
+        c,
+        400,
+        'invalid_redirect_uri',
+        'redirect_uris must contain valid URLs',
+      );
     }
   }
 
-  const grantTypes = body.grant_types === undefined ? [OAUTH_GRANT_TYPE_AUTHORIZATION_CODE] : parseStringArray(body.grant_types);
+  const grantTypes =
+    body.grant_types === undefined
+      ? [OAUTH_GRANT_TYPE_AUTHORIZATION_CODE]
+      : parseStringArray(body.grant_types);
 
-  if (
-    grantTypes?.length !== 1 ||
-    grantTypes[0] !== OAUTH_GRANT_TYPE_AUTHORIZATION_CODE
-  ) {
+  if (grantTypes?.length !== 1 || grantTypes[0] !== OAUTH_GRANT_TYPE_AUTHORIZATION_CODE) {
     return oauthErrorJson(
       c,
       400,
@@ -7629,17 +7816,22 @@ app.post(`${OB3_BASE_PATH}/oauth/register`, async (c) => {
   }
 
   const responseTypes =
-    body.response_types === undefined ? [OAUTH_RESPONSE_TYPE_CODE] : parseStringArray(body.response_types);
+    body.response_types === undefined
+      ? [OAUTH_RESPONSE_TYPE_CODE]
+      : parseStringArray(body.response_types);
 
-  if (
-    responseTypes?.length !== 1 ||
-    responseTypes[0] !== OAUTH_RESPONSE_TYPE_CODE
-  ) {
-    return oauthErrorJson(c, 400, 'invalid_client_metadata', 'Only response_type "code" is currently supported');
+  if (responseTypes?.length !== 1 || responseTypes[0] !== OAUTH_RESPONSE_TYPE_CODE) {
+    return oauthErrorJson(
+      c,
+      400,
+      'invalid_client_metadata',
+      'Only response_type "code" is currently supported',
+    );
   }
 
   const tokenEndpointAuthMethod =
-    asNonEmptyString(body.token_endpoint_auth_method) ?? OAUTH_TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_BASIC;
+    asNonEmptyString(body.token_endpoint_auth_method) ??
+    OAUTH_TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_BASIC;
 
   if (tokenEndpointAuthMethod !== OAUTH_TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_BASIC) {
     return oauthErrorJson(
@@ -7652,7 +7844,9 @@ app.post(`${OB3_BASE_PATH}/oauth/register`, async (c) => {
 
   const scopeFromRequest = asNonEmptyString(body.scope);
   const scopeTokens =
-    scopeFromRequest === null ? [...OB3_OAUTH_SUPPORTED_SCOPE_URIS] : splitSpaceDelimited(scopeFromRequest);
+    scopeFromRequest === null
+      ? [...OB3_OAUTH_SUPPORTED_SCOPE_URIS]
+      : splitSpaceDelimited(scopeFromRequest);
 
   if (scopeTokens.length === 0 || !allScopesSupported(scopeTokens)) {
     return oauthErrorJson(c, 400, 'invalid_scope', 'Requested scope contains unsupported values');
@@ -7872,7 +8066,12 @@ const handleOAuthTokenRequest = async (
     const codeVerifier = formData.get('code_verifier');
     const requestedScope = asNonEmptyString(formData.get('scope'));
 
-    if (code === null || redirectUri === null || codeVerifier === null || codeVerifier.length === 0) {
+    if (
+      code === null ||
+      redirectUri === null ||
+      codeVerifier === null ||
+      codeVerifier.length === 0
+    ) {
       return oauthTokenErrorJson(
         c,
         400,
@@ -7894,14 +8093,24 @@ const handleOAuthTokenRequest = async (
     });
 
     if (consumedAuthorizationCode === null) {
-      return oauthTokenErrorJson(c, 400, 'invalid_grant', 'Authorization code is invalid or expired');
+      return oauthTokenErrorJson(
+        c,
+        400,
+        'invalid_grant',
+        'Authorization code is invalid or expired',
+      );
     }
 
     if (
       consumedAuthorizationCode.codeChallenge === null ||
       consumedAuthorizationCode.codeChallengeMethod !== OAUTH_PKCE_CODE_CHALLENGE_METHOD_S256
     ) {
-      return oauthTokenErrorJson(c, 400, 'invalid_grant', 'Authorization code is missing PKCE binding');
+      return oauthTokenErrorJson(
+        c,
+        400,
+        'invalid_grant',
+        'Authorization code is missing PKCE binding',
+      );
     }
 
     const computedCodeChallenge = await sha256Base64Url(codeVerifier);
@@ -8002,7 +8211,11 @@ const handleOAuthTokenRequest = async (
     });
   }
 
-  if (forceRefreshGrant && requestedGrantType !== null && requestedGrantType !== OAUTH_GRANT_TYPE_REFRESH_TOKEN) {
+  if (
+    forceRefreshGrant &&
+    requestedGrantType !== null &&
+    requestedGrantType !== OAUTH_GRANT_TYPE_REFRESH_TOKEN
+  ) {
     return oauthTokenErrorJson(
       c,
       400,
@@ -8076,7 +8289,10 @@ app.post(`${OB3_BASE_PATH}/oauth/revoke`, async (c) => {
 });
 
 app.get(`${OB3_BASE_PATH}/credentials`, async (c) => {
-  const accessTokenContext = await authenticateOb3AccessToken(c, OB3_OAUTH_SCOPE_CREDENTIAL_READONLY);
+  const accessTokenContext = await authenticateOb3AccessToken(
+    c,
+    OB3_OAUTH_SCOPE_CREDENTIAL_READONLY,
+  );
 
   if (accessTokenContext instanceof Response) {
     return accessTokenContext;
@@ -8215,7 +8431,9 @@ app.post(`${OB3_BASE_PATH}/credentials`, async (c) => {
       return ob3ErrorJson(
         c,
         400,
-        error instanceof Error ? error.message : 'Request body must contain a valid compact JWS payload',
+        error instanceof Error
+          ? error.message
+          : 'Request body must contain a valid compact JWS payload',
       );
     }
 
@@ -8266,12 +8484,12 @@ app.get(`${OB3_BASE_PATH}/profile`, async (c) => {
           userId: accessTokenContext.userId,
           ...(user === null ? {} : { email: user.email }),
         })
-      : parsedStoredProfile ??
+      : (parsedStoredProfile ??
         defaultOb3Profile({
           tenantId: accessTokenContext.tenantId,
           userId: accessTokenContext.userId,
           ...(user === null ? {} : { email: user.email }),
-        });
+        }));
 
   return c.json(
     normalizeOb3Profile({
@@ -8423,7 +8641,11 @@ app.get('/:tenantSlug/jwks.json', async (c): Promise<Response> => {
 
 app.get('/credentials/v1/:credentialId', async (c) => {
   const pathParams = parseCredentialPathParams(c.req.param());
-  const result = await loadVerificationViewModel(resolveDatabase(c.env), c.env.BADGE_OBJECTS, pathParams.credentialId);
+  const result = await loadVerificationViewModel(
+    resolveDatabase(c.env),
+    c.env.BADGE_OBJECTS,
+    pathParams.credentialId,
+  );
 
   if (result.status !== 'ok') {
     const statusCode = result.status === 'invalid_id' ? 400 : 404;
@@ -8560,7 +8782,8 @@ app.post('/v1/presentations/create', async (c): Promise<Response> => {
     if (tenantScopedCredentialId?.tenantId !== session.tenantId) {
       return c.json(
         {
-          error: 'credentialIds must contain tenant-scoped assertion identifiers for the active session tenant',
+          error:
+            'credentialIds must contain tenant-scoped assertion identifiers for the active session tenant',
           credentialId,
         },
         422,
@@ -8669,7 +8892,8 @@ app.post('/v1/presentations/verify', async (c): Promise<Response> => {
   ) {
     return c.json(
       {
-        error: 'Payload must be a VerifiablePresentation with holder DID and at least one verifiableCredential',
+        error:
+          'Payload must be a VerifiablePresentation with holder DID and at least one verifiableCredential',
       },
       400,
     );
@@ -8727,7 +8951,10 @@ app.get('/credentials/v1/status-lists/:tenantId/revocation', async (c) => {
     );
   }
 
-  if (signingEntry.privateJwk !== undefined && !isEd25519SigningPrivateJwk(signingEntry.privateJwk)) {
+  if (
+    signingEntry.privateJwk !== undefined &&
+    !isEd25519SigningPrivateJwk(signingEntry.privateJwk)
+  ) {
     return c.json(
       {
         error: 'Revocation status list signing requires an Ed25519 private key',
@@ -8737,17 +8964,24 @@ app.get('/credentials/v1/status-lists/:tenantId/revocation', async (c) => {
     );
   }
 
-  if (signingEntry.privateJwk === undefined && resolveRemoteSignerRegistryEntryForDid(c, issuerDid) === null) {
+  if (
+    signingEntry.privateJwk === undefined &&
+    resolveRemoteSignerRegistryEntryForDid(c, issuerDid) === null
+  ) {
     return c.json(
       {
-        error: 'Tenant DID is missing private signing key material and no remote signer is configured',
+        error:
+          'Tenant DID is missing private signing key material and no remote signer is configured',
         did: issuerDid,
       },
       500,
     );
   }
 
-  const assertions = await listAssertionStatusListEntries(resolveDatabase(c.env), pathParams.tenantId);
+  const assertions = await listAssertionStatusListEntries(
+    resolveDatabase(c.env),
+    pathParams.tenantId,
+  );
   const statusEntries = assertions.map((assertion) => {
     return {
       statusListIndex: assertion.statusListIndex,
@@ -8766,7 +9000,8 @@ app.get('/credentials/v1/status-lists/:tenantId/revocation', async (c) => {
     credential: statusListCredentialInput.credential,
     proofType: 'Ed25519Signature2020',
     createdAt: statusListCredentialInput.issuedAt,
-    missingPrivateKeyError: 'Tenant DID is missing private signing key material and no remote signer is configured',
+    missingPrivateKeyError:
+      'Tenant DID is missing private signing key material and no remote signer is configured',
     ed25519KeyRequirementError: 'Revocation status list signing requires an Ed25519 private key',
   });
 
@@ -8787,7 +9022,11 @@ app.get('/credentials/v1/status-lists/:tenantId/revocation', async (c) => {
 
 app.get('/credentials/v1/:credentialId/jsonld', async (c) => {
   const pathParams = parseCredentialPathParams(c.req.param());
-  const result = await loadVerificationViewModel(resolveDatabase(c.env), c.env.BADGE_OBJECTS, pathParams.credentialId);
+  const result = await loadVerificationViewModel(
+    resolveDatabase(c.env),
+    c.env.BADGE_OBJECTS,
+    pathParams.credentialId,
+  );
 
   if (result.status !== 'ok') {
     const statusCode = result.status === 'invalid_id' ? 400 : 404;
@@ -8810,7 +9049,11 @@ app.get('/credentials/v1/:credentialId/jsonld', async (c) => {
 
 app.get('/credentials/v1/:credentialId/download', async (c) => {
   const pathParams = parseCredentialPathParams(c.req.param());
-  const result = await loadVerificationViewModel(resolveDatabase(c.env), c.env.BADGE_OBJECTS, pathParams.credentialId);
+  const result = await loadVerificationViewModel(
+    resolveDatabase(c.env),
+    c.env.BADGE_OBJECTS,
+    pathParams.credentialId,
+  );
 
   if (result.status !== 'ok') {
     const statusCode = result.status === 'invalid_id' ? 400 : 404;
@@ -8837,7 +9080,11 @@ app.get('/credentials/v1/:credentialId/download', async (c) => {
 
 app.get('/credentials/v1/:credentialId/download.pdf', async (c) => {
   const pathParams = parseCredentialPathParams(c.req.param());
-  const result = await loadVerificationViewModel(resolveDatabase(c.env), c.env.BADGE_OBJECTS, pathParams.credentialId);
+  const result = await loadVerificationViewModel(
+    resolveDatabase(c.env),
+    c.env.BADGE_OBJECTS,
+    pathParams.credentialId,
+  );
 
   if (result.status !== 'ok') {
     const statusCode = result.status === 'invalid_id' ? 400 : 404;
@@ -8904,7 +9151,11 @@ app.get('/badges/:badgeIdentifier/public_url', (c) => {
 
 app.get('/badges/:badgeIdentifier', async (c) => {
   const badgeIdentifier = c.req.param('badgeIdentifier');
-  const result = await loadPublicBadgeViewModel(resolveDatabase(c.env), c.env.BADGE_OBJECTS, badgeIdentifier);
+  const result = await loadPublicBadgeViewModel(
+    resolveDatabase(c.env),
+    c.env.BADGE_OBJECTS,
+    badgeIdentifier,
+  );
 
   c.header('Cache-Control', 'no-store');
 
@@ -8972,8 +9223,13 @@ app.get('/tenants/:tenantId/learner/dashboard', async (c) => {
     identityType: 'email',
     identityValue: user.email,
   });
-  const learnerIdentities = await listLearnerIdentitiesByProfile(db, pathParams.tenantId, learnerProfile.id);
-  const learnerDid = learnerIdentities.find((identity) => identity.identityType === 'did')?.identityValue ?? null;
+  const learnerIdentities = await listLearnerIdentitiesByProfile(
+    db,
+    pathParams.tenantId,
+    learnerProfile.id,
+  );
+  const learnerDid =
+    learnerIdentities.find((identity) => identity.identityType === 'did')?.identityValue ?? null;
   const badges = await listLearnerBadgeSummaries(db, {
     tenantId: pathParams.tenantId,
     userId: session.userId,
@@ -8981,7 +9237,9 @@ app.get('/tenants/:tenantId/learner/dashboard', async (c) => {
   const didNotice = learnerDidSettingsNoticeFromQuery(c.req.query('didStatus'));
 
   c.header('Cache-Control', 'no-store');
-  return c.html(learnerDashboardPage(c.req.url, pathParams.tenantId, badges, learnerDid, didNotice));
+  return c.html(
+    learnerDashboardPage(c.req.url, pathParams.tenantId, badges, learnerDid, didNotice),
+  );
 });
 
 app.post('/tenants/:tenantId/learner/settings/did', async (c): Promise<Response> => {
@@ -9006,7 +9264,10 @@ app.post('/tenants/:tenantId/learner/settings/did', async (c): Promise<Response>
     );
   }
 
-  const dashboardUrl = new URL(`/tenants/${encodeURIComponent(pathParams.tenantId)}/learner/dashboard`, c.req.url);
+  const dashboardUrl = new URL(
+    `/tenants/${encodeURIComponent(pathParams.tenantId)}/learner/dashboard`,
+    c.req.url,
+  );
   const contentType = c.req.header('content-type') ?? '';
 
   if (!contentType.toLowerCase().includes('application/x-www-form-urlencoded')) {
@@ -9218,7 +9479,10 @@ app.post('/v1/tenants/:tenantId/learner/identity-links/email/verify', async (c) 
   }
 
   const nowIso = new Date().toISOString();
-  const proof = await findLearnerIdentityLinkProofByHash(resolveDatabase(c.env), await sha256Hex(request.token));
+  const proof = await findLearnerIdentityLinkProofByHash(
+    resolveDatabase(c.env),
+    await sha256Hex(request.token),
+  );
 
   if (proof === null || !isLearnerIdentityLinkProofValid(proof, nowIso)) {
     return c.json(
@@ -9362,7 +9626,10 @@ const ltiOidcLoginHandler = async (c: AppContext): Promise<Response> => {
   authorizationRequestUrl.searchParams.set('response_mode', LTI_OIDC_RESPONSE_MODE);
   authorizationRequestUrl.searchParams.set('prompt', LTI_OIDC_PROMPT);
   authorizationRequestUrl.searchParams.set('client_id', clientId);
-  authorizationRequestUrl.searchParams.set('redirect_uri', new URL(LTI_LAUNCH_PATH, c.req.url).toString());
+  authorizationRequestUrl.searchParams.set(
+    'redirect_uri',
+    new URL(LTI_LAUNCH_PATH, c.req.url).toString(),
+  );
   authorizationRequestUrl.searchParams.set('login_hint', loginRequest.login_hint);
   authorizationRequestUrl.searchParams.set('state', stateToken);
   authorizationRequestUrl.searchParams.set('nonce', nonce);
@@ -9567,7 +9834,9 @@ app.post(LTI_LAUNCH_PATH, async (c): Promise<Response> => {
   }
 
   const targetLinkUriClaim = launchClaims[LTI_CLAIM_TARGET_LINK_URI];
-  const normalizedStateTargetLinkUri = normalizeAbsoluteUrlForComparison(validatedState.payload.targetLinkUri);
+  const normalizedStateTargetLinkUri = normalizeAbsoluteUrlForComparison(
+    validatedState.payload.targetLinkUri,
+  );
   const normalizedClaimTargetLinkUri =
     targetLinkUriClaim === undefined ? null : normalizeAbsoluteUrlForComparison(targetLinkUriClaim);
 
@@ -9737,7 +10006,8 @@ app.post(LTI_LAUNCH_PATH, async (c): Promise<Response> => {
       issuer: launchClaims.iss,
       deploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
       subjectId: launchClaims.sub,
-      targetLinkUri: launchClaims[LTI_CLAIM_TARGET_LINK_URI] ?? validatedState.payload.targetLinkUri,
+      targetLinkUri:
+        launchClaims[LTI_CLAIM_TARGET_LINK_URI] ?? validatedState.payload.targetLinkUri,
       messageType: launchClaims[LTI_CLAIM_MESSAGE_TYPE],
       dashboardPath,
     }),
@@ -9759,7 +10029,11 @@ app.post('/v1/auth/magic-link/request', async (c) => {
   const nowIso = new Date().toISOString();
   const expiresAt = addSecondsToIso(nowIso, MAGIC_LINK_TTL_SECONDS);
   const user = await upsertUserByEmail(resolveDatabase(c.env), request.email);
-  const membershipResult = await ensureTenantMembership(resolveDatabase(c.env), request.tenantId, user.id);
+  const membershipResult = await ensureTenantMembership(
+    resolveDatabase(c.env),
+    request.tenantId,
+    user.id,
+  );
 
   if (membershipResult.created) {
     await createAuditLog(resolveDatabase(c.env), {
@@ -9977,7 +10251,8 @@ app.post('/v1/tenants/:tenantId/org-units', async (c) => {
       }
 
       if (
-        (error.message.includes('Parent org unit') && error.message.includes('not found for tenant')) ||
+        (error.message.includes('Parent org unit') &&
+          error.message.includes('not found for tenant')) ||
         error.message.includes('cannot have a parent org unit') ||
         error.message.includes('requires parent org unit type') ||
         error.message.includes('is inactive for tenant')
@@ -10144,6 +10419,288 @@ app.delete('/v1/tenants/:tenantId/users/:userId/org-unit-scopes/:orgUnitId', asy
   });
 });
 
+app.get('/v1/tenants/:tenantId/users/:userId/issuing-authority-grants', async (c) => {
+  const pathParams = parseTenantUserPathParams(c.req.param());
+  const query = parseDelegatedIssuingAuthorityGrantListQuery({
+    includeRevoked: c.req.query('includeRevoked'),
+    includeExpired: c.req.query('includeExpired'),
+  });
+  const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+  if (roleCheck instanceof Response) {
+    return roleCheck;
+  }
+
+  const grants = await listDelegatedIssuingAuthorityGrants(resolveDatabase(c.env), {
+    tenantId: pathParams.tenantId,
+    delegateUserId: pathParams.userId,
+    includeRevoked: query.includeRevoked,
+    includeExpired: query.includeExpired,
+  });
+
+  return c.json({
+    tenantId: pathParams.tenantId,
+    userId: pathParams.userId,
+    grants,
+  });
+});
+
+app.post('/v1/tenants/:tenantId/users/:userId/issuing-authority-grants', async (c) => {
+  const pathParams = parseTenantUserPathParams(c.req.param());
+  let request: ReturnType<typeof parseCreateDelegatedIssuingAuthorityGrantRequest>;
+
+  try {
+    request = parseCreateDelegatedIssuingAuthorityGrantRequest(await c.req.json<unknown>());
+  } catch {
+    return c.json(
+      {
+        error: 'Invalid delegated authority grant payload',
+      },
+      400,
+    );
+  }
+
+  const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+  if (roleCheck instanceof Response) {
+    return roleCheck;
+  }
+
+  const { session, membershipRole } = roleCheck;
+  const startsAt = request.startsAt ?? new Date().toISOString();
+
+  try {
+    const grant = await createDelegatedIssuingAuthorityGrant(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      delegateUserId: pathParams.userId,
+      delegatedByUserId: session.userId,
+      orgUnitId: request.orgUnitId,
+      allowedActions: request.allowedActions,
+      badgeTemplateIds: request.badgeTemplateIds,
+      startsAt,
+      endsAt: request.endsAt,
+      reason: request.reason,
+    });
+
+    await createAuditLog(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action: 'delegated_issuing_authority.granted',
+      targetType: 'delegated_issuing_authority_grant',
+      targetId: grant.id,
+      metadata: {
+        role: membershipRole,
+        delegateUserId: pathParams.userId,
+        orgUnitId: request.orgUnitId,
+        allowedActions: request.allowedActions,
+        badgeTemplateIds: request.badgeTemplateIds ?? [],
+        startsAt,
+        endsAt: request.endsAt,
+      },
+    });
+
+    return c.json(
+      {
+        tenantId: pathParams.tenantId,
+        userId: pathParams.userId,
+        grant,
+      },
+      201,
+    );
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      if (error.message.includes('conflicts with existing grant')) {
+        return c.json(
+          {
+            error: error.message,
+          },
+          409,
+        );
+      }
+
+      if (
+        error.message.includes('Membership not found for tenant') ||
+        (error.message.includes('Org unit') && error.message.includes('not found for tenant')) ||
+        (error.message.includes('Badge template') &&
+          error.message.includes('not found for tenant')) ||
+        error.message.includes('outside delegated org-unit scope') ||
+        error.message.includes('is inactive for tenant') ||
+        error.message.includes('must be after') ||
+        error.message.includes('must be a valid ISO timestamp')
+      ) {
+        return c.json(
+          {
+            error: error.message,
+          },
+          422,
+        );
+      }
+    }
+
+    throw error;
+  }
+});
+
+app.post(
+  '/v1/tenants/:tenantId/users/:userId/issuing-authority-grants/:grantId/revoke',
+  async (c) => {
+    const pathParams = parseTenantUserDelegatedGrantPathParams(c.req.param());
+    let request: ReturnType<typeof parseRevokeDelegatedIssuingAuthorityGrantRequest>;
+
+    try {
+      let payload: unknown = {};
+
+      try {
+        payload = await c.req.json<unknown>();
+      } catch {
+        payload = {};
+      }
+
+      request = parseRevokeDelegatedIssuingAuthorityGrantRequest(payload);
+    } catch {
+      return c.json(
+        {
+          error: 'Invalid delegated authority revoke payload',
+        },
+        400,
+      );
+    }
+
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const db = resolveDatabase(c.env);
+    const existingGrant = await findDelegatedIssuingAuthorityGrantById(
+      db,
+      pathParams.tenantId,
+      pathParams.grantId,
+    );
+
+    if (existingGrant?.delegateUserId !== pathParams.userId) {
+      return c.json(
+        {
+          error: 'Delegated issuing authority grant not found',
+        },
+        404,
+      );
+    }
+
+    const revokedAt = request.revokedAt ?? new Date().toISOString();
+
+    try {
+      const result = await revokeDelegatedIssuingAuthorityGrant(db, {
+        tenantId: pathParams.tenantId,
+        grantId: pathParams.grantId,
+        revokedByUserId: session.userId,
+        revokedReason: request.reason,
+        revokedAt,
+      });
+
+      if (result.status === 'revoked') {
+        await createAuditLog(db, {
+          tenantId: pathParams.tenantId,
+          actorUserId: session.userId,
+          action: 'delegated_issuing_authority.revoked',
+          targetType: 'delegated_issuing_authority_grant',
+          targetId: pathParams.grantId,
+          metadata: {
+            role: membershipRole,
+            delegateUserId: pathParams.userId,
+            revokedAt,
+            reason: request.reason,
+          },
+        });
+      }
+
+      return c.json({
+        tenantId: pathParams.tenantId,
+        userId: pathParams.userId,
+        status: result.status,
+        grant: result.grant,
+      });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        if (
+          error.message.includes('not found for tenant') ||
+          error.message.includes('must be a valid ISO timestamp')
+        ) {
+          return c.json(
+            {
+              error: error.message,
+            },
+            422,
+          );
+        }
+      }
+
+      throw error;
+    }
+  },
+);
+
+app.get(
+  '/v1/tenants/:tenantId/users/:userId/issuing-authority-grants/:grantId/events',
+  async (c) => {
+    const pathParams = parseTenantUserDelegatedGrantPathParams(c.req.param());
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const limitRaw = c.req.query('limit');
+    let limit: number | undefined;
+
+    if (limitRaw !== undefined) {
+      const parsed = Number.parseInt(limitRaw, 10);
+
+      if (!Number.isFinite(parsed) || parsed < 1) {
+        return c.json(
+          {
+            error: 'limit must be a positive integer',
+          },
+          400,
+        );
+      }
+
+      limit = parsed;
+    }
+
+    const db = resolveDatabase(c.env);
+    const grant = await findDelegatedIssuingAuthorityGrantById(
+      db,
+      pathParams.tenantId,
+      pathParams.grantId,
+    );
+
+    if (grant?.delegateUserId !== pathParams.userId) {
+      return c.json(
+        {
+          error: 'Delegated issuing authority grant not found',
+        },
+        404,
+      );
+    }
+
+    const events = await listDelegatedIssuingAuthorityGrantEvents(db, {
+      tenantId: pathParams.tenantId,
+      grantId: pathParams.grantId,
+      ...(limit === undefined ? {} : { limit }),
+    });
+
+    return c.json({
+      tenantId: pathParams.tenantId,
+      userId: pathParams.userId,
+      grant,
+      events,
+    });
+  },
+);
+
 app.get('/v1/tenants/:tenantId/badge-templates', async (c) => {
   const pathParams = parseTenantPathParams(c.req.param());
   const query = parseBadgeTemplateListQuery({
@@ -10231,7 +10788,8 @@ app.post('/v1/tenants/:tenantId/badge-templates', async (c) => {
 
   const { session, membershipRole } = roleCheck;
   const db = resolveDatabase(c.env);
-  const targetOwnerOrgUnitId = request.ownerOrgUnitId ?? defaultInstitutionOrgUnitId(pathParams.tenantId);
+  const targetOwnerOrgUnitId =
+    request.ownerOrgUnitId ?? defaultInstitutionOrgUnitId(pathParams.tenantId);
 
   const scopeCheck = await requireScopedOrgUnitPermission(c, {
     db,
@@ -10290,7 +10848,11 @@ app.post('/v1/tenants/:tenantId/badge-templates', async (c) => {
       );
     }
 
-    if (error instanceof Error && error.message.includes('Org unit') && error.message.includes('not found for tenant')) {
+    if (
+      error instanceof Error &&
+      error.message.includes('Org unit') &&
+      error.message.includes('not found for tenant')
+    ) {
       return c.json(
         {
           error: error.message,
@@ -10458,7 +11020,9 @@ app.post('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/ownership-trans
       reasonCode: request.reasonCode,
       reason: request.reason,
       governanceMetadataJson:
-        request.governanceMetadata === undefined ? undefined : JSON.stringify(request.governanceMetadata),
+        request.governanceMetadata === undefined
+          ? undefined
+          : JSON.stringify(request.governanceMetadata),
       transferredByUserId: session.userId,
       transferredAt: request.transferredAt ?? new Date().toISOString(),
     });
@@ -10488,7 +11052,10 @@ app.post('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/ownership-trans
     });
   } catch (error: unknown) {
     if (error instanceof Error) {
-      if (error.message.includes('not found for tenant') && error.message.includes('Badge template')) {
+      if (
+        error.message.includes('not found for tenant') &&
+        error.message.includes('Badge template')
+      ) {
         return c.json(
           {
             error: 'Badge template not found',
@@ -10528,7 +11095,11 @@ app.patch('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId', async (c) =>
 
   const { session, membershipRole } = roleCheck;
   const db = resolveDatabase(c.env);
-  const existingTemplate = await findBadgeTemplateById(db, pathParams.tenantId, pathParams.badgeTemplateId);
+  const existingTemplate = await findBadgeTemplateById(
+    db,
+    pathParams.tenantId,
+    pathParams.badgeTemplateId,
+  );
 
   if (existingTemplate === null) {
     return c.json(
@@ -10692,7 +11263,11 @@ app.post('/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/unarchive', asy
 
 type DirectIssueBadgeRequest = Pick<
   ManualIssueBadgeRequest,
-  'badgeTemplateId' | 'recipientIdentity' | 'recipientIdentityType' | 'recipientIdentifiers' | 'idempotencyKey'
+  | 'badgeTemplateId'
+  | 'recipientIdentity'
+  | 'recipientIdentityType'
+  | 'recipientIdentifiers'
+  | 'idempotencyKey'
 >;
 
 interface DirectIssueBadgeOptions {
@@ -10746,7 +11321,10 @@ const uniqueRecipientIdentifierInputs = (
   const uniqueEntries: RecipientIdentifierInput[] = [];
 
   for (const entry of entries) {
-    const normalizedValue = normalizeRecipientIdentifierValue(entry.identifierType, entry.identifierValue);
+    const normalizedValue = normalizeRecipientIdentifierValue(
+      entry.identifierType,
+      entry.identifierValue,
+    );
 
     if (normalizedValue.length === 0) {
       continue;
@@ -10833,7 +11411,10 @@ const recipientIdentifiersForIssueRequest = (
   }
 
   for (const identity of learnerIdentities) {
-    const mappedIdentifier = recipientIdentifiersFromIdentityAliases(identity.identityType, identity.identityValue);
+    const mappedIdentifier = recipientIdentifiersFromIdentityAliases(
+      identity.identityType,
+      identity.identityValue,
+    );
 
     if (mappedIdentifier !== null) {
       entries.push(mappedIdentifier);
@@ -10918,11 +11499,19 @@ const issueBadgeForTenant = async (
   const issuedAt = new Date().toISOString();
   const assertionId = createTenantScopedId(tenantId);
   const statusListIndex = await nextAssertionStatusListIndex(db, tenantId);
-  const statusListCredentialUrl = revocationStatusListUrlForTenant(requestBaseUrl.toString(), tenantId);
+  const statusListCredentialUrl = revocationStatusListUrlForTenant(
+    requestBaseUrl.toString(),
+    tenantId,
+  );
   const learnerIdentities = await listLearnerIdentitiesByProfile(db, tenantId, learnerProfile.id);
   const learnerDidSubjectId =
-    learnerIdentities.find((identity) => identity.identityType === 'did')?.identityValue ?? learnerProfile.subjectId;
-  const recipientIdentifiers = recipientIdentifiersForIssueRequest(request, learnerProfile.id, learnerIdentities);
+    learnerIdentities.find((identity) => identity.identityType === 'did')?.identityValue ??
+    learnerProfile.subjectId;
+  const recipientIdentifiers = recipientIdentifiersForIssueRequest(
+    request,
+    learnerProfile.id,
+    learnerIdentities,
+  );
   const credentialSubjectIdentifiers: JsonObject[] = recipientIdentifiers.map((entry) => {
     return {
       type: entry.identifierType,
@@ -10942,7 +11531,8 @@ const issueBadgeForTenant = async (
     did: issuerDid,
     proofType: 'Ed25519Signature2020',
     createdAt: issuedAt,
-    missingPrivateKeyError: 'Tenant DID is missing private signing key material and no remote signer is configured',
+    missingPrivateKeyError:
+      'Tenant DID is missing private signing key material and no remote signer is configured',
     ed25519KeyRequirementError: 'Tenant issuance requires an Ed25519 private key',
     credential: {
       '@context': ['https://www.w3.org/ns/credentials/v2'],
@@ -11075,13 +11665,38 @@ app.post('/v1/tenants/:tenantId/assertions/manual-issue', async (c): Promise<Res
   const pathParams = parseTenantPathParams(c.req.param());
   const payload = await c.req.json<unknown>();
   const request = parseManualIssueBadgeRequest(payload);
-  const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+  const roleCheck = await requireTenantRole(c, pathParams.tenantId, TENANT_MEMBER_ROLES);
 
   if (roleCheck instanceof Response) {
     return roleCheck;
   }
 
-  const { session } = roleCheck;
+  const { session, membershipRole } = roleCheck;
+  const db = resolveDatabase(c.env);
+  const template = await findBadgeTemplateById(db, pathParams.tenantId, request.badgeTemplateId);
+
+  if (template === null) {
+    return c.json(
+      {
+        error: 'Badge template not found',
+      },
+      404,
+    );
+  }
+
+  const delegatedPermission = await requireDelegatedIssuingAuthorityPermission(c, {
+    db,
+    tenantId: pathParams.tenantId,
+    userId: session.userId,
+    membershipRole,
+    ownerOrgUnitId: template.ownerOrgUnitId,
+    badgeTemplateId: template.id,
+    requiredAction: 'issue_badge',
+  });
+
+  if (delegatedPermission !== null) {
+    return delegatedPermission;
+  }
 
   try {
     const result = await issueBadgeForTenant(c, pathParams.tenantId, request, session.userId);
@@ -11124,7 +11739,11 @@ app.get('/v1/tenants/:tenantId/assertions/:assertionId/lifecycle', async (c): Pr
     );
   }
 
-  const lifecycle = await resolveAssertionLifecycleState(db, pathParams.tenantId, pathParams.assertionId);
+  const lifecycle = await resolveAssertionLifecycleState(
+    db,
+    pathParams.tenantId,
+    pathParams.assertionId,
+  );
 
   if (lifecycle === null) {
     return c.json(
@@ -11155,75 +11774,152 @@ app.get('/v1/tenants/:tenantId/assertions/:assertionId/lifecycle', async (c): Pr
   });
 });
 
-app.post('/v1/tenants/:tenantId/assertions/:assertionId/lifecycle/transition', async (c): Promise<Response> => {
-  const pathParams = parseAssertionPathParams(c.req.param());
-  const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+app.post(
+  '/v1/tenants/:tenantId/assertions/:assertionId/lifecycle/transition',
+  async (c): Promise<Response> => {
+    const pathParams = parseAssertionPathParams(c.req.param());
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, TENANT_MEMBER_ROLES);
 
-  if (roleCheck instanceof Response) {
-    return roleCheck;
-  }
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
 
-  const { session } = roleCheck;
+    const { session, membershipRole } = roleCheck;
 
-  if (!assertionBelongsToTenant(pathParams.tenantId, pathParams.assertionId)) {
-    return c.json(
-      {
-        error: 'assertionId must be a tenant-scoped identifier for the active tenant',
-      },
-      422,
-    );
-  }
-
-  let request: ReturnType<typeof parseAssertionLifecycleTransitionRequest>;
-
-  try {
-    request = parseAssertionLifecycleTransitionRequest(await c.req.json<unknown>());
-  } catch {
-    return c.json(
-      {
-        error: 'Invalid lifecycle transition request payload',
-      },
-      400,
-    );
-  }
-
-  if (request.transitionSource === 'automation') {
-    return c.json(
-      {
-        error: 'Automation lifecycle transitions are only allowed via trusted internal jobs',
-      },
-      422,
-    );
-  }
-
-  const db = resolveDatabase(c.env);
-
-  try {
-    const transitionResult = await recordAssertionLifecycleTransition(db, {
-      tenantId: pathParams.tenantId,
-      assertionId: pathParams.assertionId,
-      toState: request.toState,
-      reasonCode: request.reasonCode,
-      ...(request.reason === undefined ? {} : { reason: request.reason }),
-      transitionSource: 'manual',
-      actorUserId: session.userId,
-      transitionedAt: request.transitionedAt ?? new Date().toISOString(),
-    });
-
-    if (transitionResult.status === 'invalid_transition') {
+    if (!assertionBelongsToTenant(pathParams.tenantId, pathParams.assertionId)) {
       return c.json(
         {
-          error: 'Lifecycle transition not allowed',
+          error: 'assertionId must be a tenant-scoped identifier for the active tenant',
+        },
+        422,
+      );
+    }
+
+    let request: ReturnType<typeof parseAssertionLifecycleTransitionRequest>;
+
+    try {
+      request = parseAssertionLifecycleTransitionRequest(await c.req.json<unknown>());
+    } catch {
+      return c.json(
+        {
+          error: 'Invalid lifecycle transition request payload',
+        },
+        400,
+      );
+    }
+
+    if (request.transitionSource === 'automation') {
+      return c.json(
+        {
+          error: 'Automation lifecycle transitions are only allowed via trusted internal jobs',
+        },
+        422,
+      );
+    }
+
+    const db = resolveDatabase(c.env);
+    const assertion = await findAssertionById(db, pathParams.tenantId, pathParams.assertionId);
+
+    if (assertion === null) {
+      return c.json(
+        {
+          error: 'Assertion not found',
+        },
+        404,
+      );
+    }
+
+    const badgeTemplate = await findBadgeTemplateById(
+      db,
+      pathParams.tenantId,
+      assertion.badgeTemplateId,
+    );
+
+    if (badgeTemplate === null) {
+      return c.json(
+        {
+          error: 'Badge template not found',
+        },
+        404,
+      );
+    }
+
+    const requiredAction: DelegatedIssuingAuthorityAction =
+      request.toState === 'revoked' ? 'revoke_badge' : 'manage_lifecycle';
+    const delegatedPermission = await requireDelegatedIssuingAuthorityPermission(c, {
+      db,
+      tenantId: pathParams.tenantId,
+      userId: session.userId,
+      membershipRole,
+      ownerOrgUnitId: badgeTemplate.ownerOrgUnitId,
+      badgeTemplateId: badgeTemplate.id,
+      requiredAction,
+    });
+
+    if (delegatedPermission !== null) {
+      return delegatedPermission;
+    }
+
+    try {
+      const transitionResult = await recordAssertionLifecycleTransition(db, {
+        tenantId: pathParams.tenantId,
+        assertionId: pathParams.assertionId,
+        toState: request.toState,
+        reasonCode: request.reasonCode,
+        ...(request.reason === undefined ? {} : { reason: request.reason }),
+        transitionSource: 'manual',
+        actorUserId: session.userId,
+        transitionedAt: request.transitionedAt ?? new Date().toISOString(),
+      });
+
+      if (transitionResult.status === 'invalid_transition') {
+        return c.json(
+          {
+            error: 'Lifecycle transition not allowed',
+            fromState: transitionResult.fromState,
+            toState: transitionResult.toState,
+            currentState: transitionResult.currentState,
+            message: transitionResult.message,
+          },
+          409,
+        );
+      }
+
+      if (transitionResult.status === 'already_in_state') {
+        c.header('Cache-Control', 'no-store');
+
+        return c.json({
+          status: transitionResult.status,
           fromState: transitionResult.fromState,
           toState: transitionResult.toState,
           currentState: transitionResult.currentState,
           message: transitionResult.message,
-        },
-        409,
-      );
-    }
+        });
+      }
 
-    if (transitionResult.status === 'already_in_state') {
+      const event = transitionResult.event;
+
+      if (event === null) {
+        throw new Error('Lifecycle transition result is missing event details');
+      }
+
+      await createAuditLog(db, {
+        tenantId: pathParams.tenantId,
+        actorUserId: session.userId,
+        action: 'assertion.lifecycle_transitioned',
+        targetType: 'assertion',
+        targetId: pathParams.assertionId,
+        metadata: {
+          eventId: event.id,
+          fromState: event.fromState,
+          toState: event.toState,
+          reasonCode: event.reasonCode,
+          reason: event.reason,
+          transitionSource: event.transitionSource,
+          transitionedAt: event.transitionedAt,
+        },
+      });
+
       c.header('Cache-Control', 'no-store');
 
       return c.json({
@@ -11232,86 +11928,81 @@ app.post('/v1/tenants/:tenantId/assertions/:assertionId/lifecycle/transition', a
         toState: transitionResult.toState,
         currentState: transitionResult.currentState,
         message: transitionResult.message,
+        event,
       });
-    }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        if (error.message.includes('not found for tenant')) {
+          return c.json(
+            {
+              error: 'Assertion not found',
+            },
+            404,
+          );
+        }
 
-    const event = transitionResult.event;
-
-    if (event === null) {
-      throw new Error('Lifecycle transition result is missing event details');
-    }
-
-    await createAuditLog(db, {
-      tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
-      action: 'assertion.lifecycle_transitioned',
-      targetType: 'assertion',
-      targetId: pathParams.assertionId,
-      metadata: {
-        eventId: event.id,
-        fromState: event.fromState,
-        toState: event.toState,
-        reasonCode: event.reasonCode,
-        reason: event.reason,
-        transitionSource: event.transitionSource,
-        transitionedAt: event.transitionedAt,
-      },
-    });
-
-    c.header('Cache-Control', 'no-store');
-
-    return c.json({
-      status: transitionResult.status,
-      fromState: transitionResult.fromState,
-      toState: transitionResult.toState,
-      currentState: transitionResult.currentState,
-      message: transitionResult.message,
-      event,
-    });
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      if (error.message.includes('not found for tenant')) {
-        return c.json(
-          {
-            error: 'Assertion not found',
-          },
-          404,
-        );
+        if (
+          error.message.includes('Manual lifecycle transitions require actorUserId') ||
+          error.message.includes('Automated lifecycle transitions must not set actorUserId') ||
+          error.message.includes('transitionedAt must be a valid ISO timestamp')
+        ) {
+          return c.json(
+            {
+              error: error.message,
+            },
+            422,
+          );
+        }
       }
 
-      if (
-        error.message.includes('Manual lifecycle transitions require actorUserId') ||
-        error.message.includes('Automated lifecycle transitions must not set actorUserId') ||
-        error.message.includes('transitionedAt must be a valid ISO timestamp')
-      ) {
-        return c.json(
-          {
-            error: error.message,
-          },
-          422,
-        );
-      }
+      throw error;
     }
-
-    throw error;
-  }
-});
+  },
+);
 app.post('/v1/tenants/:tenantId/assertions/sakai-commit-issue', async (c): Promise<Response> => {
   const pathParams = parseTenantPathParams(c.req.param());
   const payload = await c.req.json<unknown>();
   const request = parseIssueSakaiCommitBadgeRequest(payload);
-  const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+  const roleCheck = await requireTenantRole(c, pathParams.tenantId, TENANT_MEMBER_ROLES);
 
   if (roleCheck instanceof Response) {
     return roleCheck;
   }
 
-  const { session } = roleCheck;
+  const { session, membershipRole } = roleCheck;
+  const db = resolveDatabase(c.env);
+  const template = await findBadgeTemplateById(db, pathParams.tenantId, request.badgeTemplateId);
+
+  if (template === null) {
+    return c.json(
+      {
+        error: 'Badge template not found',
+      },
+      404,
+    );
+  }
+
+  const delegatedPermission = await requireDelegatedIssuingAuthorityPermission(c, {
+    db,
+    tenantId: pathParams.tenantId,
+    userId: session.userId,
+    membershipRole,
+    ownerOrgUnitId: template.ownerOrgUnitId,
+    badgeTemplateId: template.id,
+    requiredAction: 'issue_badge',
+  });
+
+  if (delegatedPermission !== null) {
+    return delegatedPermission;
+  }
 
   let commitCount: number;
 
   try {
-    commitCount = await fetchSakaiCommitCountForUsername(request.githubUsername, c.env.GITHUB_TOKEN);
+    commitCount = await fetchSakaiCommitCountForUsername(
+      request.githubUsername,
+      c.env.GITHUB_TOKEN,
+    );
   } catch (error: unknown) {
     logWarn(observabilityContext(c.env), 'github_commit_verification_failed', {
       tenantId: pathParams.tenantId,

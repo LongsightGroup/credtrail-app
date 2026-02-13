@@ -8,6 +8,7 @@ vi.mock('@credtrail/db', async () => {
     addLearnerIdentityAlias: vi.fn(),
     completeJobQueueMessage: vi.fn(),
     createAuditLog: vi.fn(),
+    createDelegatedIssuingAuthorityGrant: vi.fn(),
     createAssertion: vi.fn(),
     createTenantOrgUnit: vi.fn(),
     createSession: vi.fn(),
@@ -25,6 +26,8 @@ vi.mock('@credtrail/db', async () => {
     findAssertionByPublicId: vi.fn(),
     findAssertionByIdempotencyKey: vi.fn(),
     findBadgeTemplateById: vi.fn(),
+    findDelegatedIssuingAuthorityGrantById: vi.fn(),
+    findActiveDelegatedIssuingAuthorityGrantForAction: vi.fn(),
     findTenantMembership: vi.fn(),
     findTenantSigningRegistrationByDid: vi.fn(),
     findActiveSessionByHash: vi.fn(),
@@ -37,6 +40,8 @@ vi.mock('@credtrail/db', async () => {
     resolveAssertionLifecycleState: vi.fn(),
     recordAssertionLifecycleTransition: vi.fn(),
     listLtiIssuerRegistrations: vi.fn(),
+    listDelegatedIssuingAuthorityGrantEvents: vi.fn(),
+    listDelegatedIssuingAuthorityGrants: vi.fn(),
     hasTenantMembershipOrgUnitAccess: vi.fn(),
     hasTenantMembershipOrgUnitScopeAssignments: vi.fn(),
     listBadgeTemplateOwnershipEvents: vi.fn(),
@@ -53,6 +58,7 @@ vi.mock('@credtrail/db', async () => {
     consumeOAuthAuthorizationCode: vi.fn(),
     consumeOAuthRefreshToken: vi.fn(),
     recordAssertionRevocation: vi.fn(),
+    revokeDelegatedIssuingAuthorityGrant: vi.fn(),
     removeLearnerIdentityAliasesByType: vi.fn(),
     removeTenantMembershipOrgUnitScope: vi.fn(),
     revokeOAuthAccessTokenByHash: vi.fn(),
@@ -74,7 +80,8 @@ vi.mock('@credtrail/db', async () => {
 });
 
 vi.mock('@credtrail/core-domain', async () => {
-  const actual = await vi.importActual<typeof import('@credtrail/core-domain')>('@credtrail/core-domain');
+  const actual =
+    await vi.importActual<typeof import('@credtrail/core-domain')>('@credtrail/core-domain');
 
   return {
     ...actual,
@@ -104,6 +111,8 @@ import {
   type AssertionStatusListEntryRecord,
   type BadgeTemplateOwnershipEventRecord,
   type BadgeTemplateRecord,
+  type DelegatedIssuingAuthorityGrantEventRecord,
+  type DelegatedIssuingAuthorityGrantRecord,
   type LearnerIdentityLinkProofRecord,
   type LearnerBadgeSummaryRecord,
   type LtiIssuerRegistrationRecord,
@@ -125,6 +134,7 @@ import {
   addLearnerIdentityAlias,
   completeJobQueueMessage,
   createAuditLog,
+  createDelegatedIssuingAuthorityGrant,
   createAssertion,
   createTenantOrgUnit,
   createSession,
@@ -144,6 +154,8 @@ import {
   findAssertionByPublicId,
   findAssertionByIdempotencyKey,
   findBadgeTemplateById,
+  findDelegatedIssuingAuthorityGrantById,
+  findActiveDelegatedIssuingAuthorityGrantForAction,
   findTenantMembership,
   findTenantSigningRegistrationByDid,
   findLearnerIdentityLinkProofByHash,
@@ -159,6 +171,8 @@ import {
   resolveAssertionLifecycleState,
   recordAssertionLifecycleTransition,
   listLtiIssuerRegistrations,
+  listDelegatedIssuingAuthorityGrantEvents,
+  listDelegatedIssuingAuthorityGrants,
   listBadgeTemplateOwnershipEvents,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
@@ -170,6 +184,7 @@ import {
   markLearnerIdentityLinkProofUsed,
   nextAssertionStatusListIndex,
   recordAssertionRevocation,
+  revokeDelegatedIssuingAuthorityGrant,
   removeLearnerIdentityAliasesByType,
   removeTenantMembershipOrgUnitScope,
   revokeOAuthAccessTokenByHash,
@@ -288,6 +303,12 @@ const mockedFindAssertionById = vi.mocked(findAssertionById);
 const mockedFindAssertionByPublicId = vi.mocked(findAssertionByPublicId);
 const mockedFindAssertionByIdempotencyKey = vi.mocked(findAssertionByIdempotencyKey);
 const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
+const mockedFindDelegatedIssuingAuthorityGrantById = vi.mocked(
+  findDelegatedIssuingAuthorityGrantById,
+);
+const mockedFindActiveDelegatedIssuingAuthorityGrantForAction = vi.mocked(
+  findActiveDelegatedIssuingAuthorityGrantForAction,
+);
 const mockedFindTenantMembership = vi.mocked(findTenantMembership);
 const mockedFindTenantSigningRegistrationByDid = vi.mocked(findTenantSigningRegistrationByDid);
 const mockedGetImmutableCredentialObject = vi.mocked(getImmutableCredentialObject);
@@ -306,8 +327,14 @@ const mockedListAssertionLifecycleEvents = vi.mocked(listAssertionLifecycleEvent
 const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
 const mockedRecordAssertionLifecycleTransition = vi.mocked(recordAssertionLifecycleTransition);
 const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
+const mockedListDelegatedIssuingAuthorityGrantEvents = vi.mocked(
+  listDelegatedIssuingAuthorityGrantEvents,
+);
+const mockedListDelegatedIssuingAuthorityGrants = vi.mocked(listDelegatedIssuingAuthorityGrants);
 const mockedHasTenantMembershipOrgUnitAccess = vi.mocked(hasTenantMembershipOrgUnitAccess);
-const mockedHasTenantMembershipOrgUnitScopeAssignments = vi.mocked(hasTenantMembershipOrgUnitScopeAssignments);
+const mockedHasTenantMembershipOrgUnitScopeAssignments = vi.mocked(
+  hasTenantMembershipOrgUnitScopeAssignments,
+);
 const mockedListBadgeTemplateOwnershipEvents = vi.mocked(listBadgeTemplateOwnershipEvents);
 const mockedListTenantMembershipOrgUnitScopes = vi.mocked(listTenantMembershipOrgUnitScopes);
 const mockedListTenantOrgUnits = vi.mocked(listTenantOrgUnits);
@@ -340,7 +367,9 @@ const mockedLeaseJobQueueMessages = vi.mocked(leaseJobQueueMessages);
 const mockedCompleteJobQueueMessage = vi.mocked(completeJobQueueMessage);
 const mockedFailJobQueueMessage = vi.mocked(failJobQueueMessage);
 const mockedRecordAssertionRevocation = vi.mocked(recordAssertionRevocation);
+const mockedRevokeDelegatedIssuingAuthorityGrant = vi.mocked(revokeDelegatedIssuingAuthorityGrant);
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
+const mockedCreateDelegatedIssuingAuthorityGrant = vi.mocked(createDelegatedIssuingAuthorityGrant);
 const mockedUpsertTenant = vi.mocked(upsertTenant);
 const mockedUpsertTenantSigningRegistration = vi.mocked(upsertTenantSigningRegistration);
 const mockedDeleteLtiIssuerRegistrationByIssuer = vi.mocked(deleteLtiIssuerRegistrationByIssuer);
@@ -393,6 +422,14 @@ beforeEach(() => {
   mockedFindActiveOAuthAccessTokenByHash.mockReset();
   mockedListLtiIssuerRegistrations.mockReset();
   mockedListLtiIssuerRegistrations.mockResolvedValue([]);
+  mockedListDelegatedIssuingAuthorityGrants.mockReset();
+  mockedListDelegatedIssuingAuthorityGrants.mockResolvedValue([]);
+  mockedListDelegatedIssuingAuthorityGrantEvents.mockReset();
+  mockedListDelegatedIssuingAuthorityGrantEvents.mockResolvedValue([]);
+  mockedFindDelegatedIssuingAuthorityGrantById.mockReset();
+  mockedFindDelegatedIssuingAuthorityGrantById.mockResolvedValue(null);
+  mockedFindActiveDelegatedIssuingAuthorityGrantForAction.mockReset();
+  mockedFindActiveDelegatedIssuingAuthorityGrantForAction.mockResolvedValue(null);
   mockedHasTenantMembershipOrgUnitAccess.mockReset();
   mockedHasTenantMembershipOrgUnitAccess.mockResolvedValue(false);
   mockedHasTenantMembershipOrgUnitScopeAssignments.mockReset();
@@ -417,6 +454,8 @@ beforeEach(() => {
     revokedAt: null,
   });
   mockedRecordAssertionLifecycleTransition.mockReset();
+  mockedCreateDelegatedIssuingAuthorityGrant.mockReset();
+  mockedRevokeDelegatedIssuingAuthorityGrant.mockReset();
   mockedListLearnerIdentitiesByProfile.mockReset();
   mockedListLearnerIdentitiesByProfile.mockResolvedValue([]);
   mockedRemoveLearnerIdentityAliasesByType.mockReset();
@@ -508,8 +547,12 @@ const compactJwsForTest = (input: {
   header: Record<string, unknown>;
   payload: Record<string, unknown>;
 }): string => {
-  const headerSegment = bytesToBase64UrlForTest(new TextEncoder().encode(JSON.stringify(input.header)));
-  const payloadSegment = bytesToBase64UrlForTest(new TextEncoder().encode(JSON.stringify(input.payload)));
+  const headerSegment = bytesToBase64UrlForTest(
+    new TextEncoder().encode(JSON.stringify(input.header)),
+  );
+  const payloadSegment = bytesToBase64UrlForTest(
+    new TextEncoder().encode(JSON.stringify(input.payload)),
+  );
   return `${headerSegment}.${payloadSegment}.signature`;
 };
 
@@ -569,9 +612,7 @@ const sampleSession = (overrides?: { tenantId?: string; userId?: string }): Sess
   };
 };
 
-const sampleOAuthClientRecord = (
-  overrides?: Partial<OAuthClientRecord>,
-): OAuthClientRecord => {
+const sampleOAuthClientRecord = (overrides?: Partial<OAuthClientRecord>): OAuthClientRecord => {
   return {
     clientId: 'oc_client_123',
     clientSecretHash: 'secret-hash',
@@ -768,6 +809,45 @@ const sampleTenantMembershipOrgUnitScope = (
   };
 };
 
+const sampleDelegatedIssuingAuthorityGrant = (
+  overrides?: Partial<DelegatedIssuingAuthorityGrantRecord>,
+): DelegatedIssuingAuthorityGrantRecord => {
+  return {
+    id: 'dag_123',
+    tenantId: 'tenant_123',
+    delegateUserId: 'usr_delegate',
+    delegatedByUserId: 'usr_admin',
+    orgUnitId: 'tenant_123:org:department-math',
+    allowedActions: ['issue_badge'],
+    badgeTemplateIds: ['badge_template_001'],
+    startsAt: '2026-02-13T00:00:00.000Z',
+    endsAt: '2026-03-13T00:00:00.000Z',
+    revokedAt: null,
+    revokedByUserId: null,
+    revokedReason: null,
+    status: 'active',
+    createdAt: '2026-02-13T00:00:00.000Z',
+    updatedAt: '2026-02-13T00:00:00.000Z',
+    ...overrides,
+  };
+};
+
+const sampleDelegatedIssuingAuthorityGrantEvent = (
+  overrides?: Partial<DelegatedIssuingAuthorityGrantEventRecord>,
+): DelegatedIssuingAuthorityGrantEventRecord => {
+  return {
+    id: 'dage_123',
+    tenantId: 'tenant_123',
+    grantId: 'dag_123',
+    eventType: 'granted',
+    actorUserId: 'usr_admin',
+    detailsJson: '{"reason":"Spring delegation"}',
+    occurredAt: '2026-02-13T00:00:00.000Z',
+    createdAt: '2026-02-13T00:00:00.000Z',
+    ...overrides,
+  };
+};
+
 const sampleBadgeTemplateOwnershipEvent = (
   overrides?: Partial<BadgeTemplateOwnershipEventRecord>,
 ): BadgeTemplateOwnershipEventRecord => {
@@ -813,7 +893,10 @@ const requireJwkString = (value: string | undefined, field: string): string => {
 const generateP256SigningMaterial = async (
   kid = 'key-p256',
 ): Promise<{ publicJwk: P256PublicJwk; privateJwk: P256PrivateJwk }> => {
-  const generated = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const generated = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, [
+    'sign',
+    'verify',
+  ]);
   const exportedPublicJwk = await crypto.subtle.exportKey('jwk', generated.publicKey);
   const exportedPrivateJwk = await crypto.subtle.exportKey('jwk', generated.privateKey);
 
@@ -896,7 +979,10 @@ const sampleTenantMembership = (
   };
 };
 
-const sampleUserRecord = (overrides?: { id?: string; email?: string }): { id: string; email: string } => {
+const sampleUserRecord = (overrides?: {
+  id?: string;
+  email?: string;
+}): { id: string; email: string } => {
   return {
     id: overrides?.id ?? 'usr_123',
     email: overrides?.email ?? 'learner@example.edu',
@@ -1064,7 +1150,9 @@ describe('canonical host redirects', () => {
   it('redirects www host requests to the canonical platform domain', async () => {
     const env = createEnv();
     const response = await app.fetch(
-      new Request('https://www.credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22?utm=test'),
+      new Request(
+        'https://www.credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22?utm=test',
+      ),
       env,
     );
 
@@ -1086,7 +1174,10 @@ describe('canonical host redirects', () => {
 describe('GET /ims/ob/v3p0/discovery', () => {
   it('returns a public OB3 service description document with OAuth metadata', async () => {
     const env = createEnv();
-    const response = await app.fetch(new Request('https://credtrail.test/ims/ob/v3p0/discovery'), env);
+    const response = await app.fetch(
+      new Request('https://credtrail.test/ims/ob/v3p0/discovery'),
+      env,
+    );
     const body = await response.json<JsonObject>();
 
     expect(response.status).toBe(200);
@@ -1126,7 +1217,9 @@ describe('GET /ims/ob/v3p0/discovery', () => {
     expect(asString(authorizationCode?.authorizationUrl)).toBe(
       'https://credtrail.test/ims/ob/v3p0/oauth/authorize',
     );
-    expect(asString(authorizationCode?.tokenUrl)).toBe('https://credtrail.test/ims/ob/v3p0/oauth/token');
+    expect(asString(authorizationCode?.tokenUrl)).toBe(
+      'https://credtrail.test/ims/ob/v3p0/oauth/token',
+    );
     expect(asString(authorizationCode?.refreshUrl)).toBe(
       'https://credtrail.test/ims/ob/v3p0/oauth/refresh',
     );
@@ -1141,9 +1234,9 @@ describe('GET /ims/ob/v3p0/discovery', () => {
     expect(
       asString(scopes?.['https://purl.imsglobal.org/spec/ob/v3p0/scope/profile.readonly']),
     ).toContain('Permission');
-    expect(asString(scopes?.['https://purl.imsglobal.org/spec/ob/v3p0/scope/profile.update'])).toContain(
-      'Permission',
-    );
+    expect(
+      asString(scopes?.['https://purl.imsglobal.org/spec/ob/v3p0/scope/profile.update']),
+    ).toContain('Permission');
   });
 });
 
@@ -2345,6 +2438,10 @@ describe('org unit and badge ownership governance endpoints', () => {
     mockedListBadgeTemplateOwnershipEvents.mockReset();
     mockedTransferBadgeTemplateOwnership.mockReset();
     mockedFindBadgeTemplateById.mockReset();
+    mockedFindDelegatedIssuingAuthorityGrantById.mockReset();
+    mockedFindDelegatedIssuingAuthorityGrantById.mockResolvedValue(null);
+    mockedFindActiveDelegatedIssuingAuthorityGrantForAction.mockReset();
+    mockedFindActiveDelegatedIssuingAuthorityGrantForAction.mockResolvedValue(null);
     mockedCreateAuditLog.mockClear();
   });
 
@@ -2363,12 +2460,16 @@ describe('org unit and badge ownership governance endpoints', () => {
       }),
     ]);
 
-    const response = await app.request('/v1/tenants/tenant_123/org-units', {
-      method: 'GET',
-      headers: {
-        Cookie: 'credtrail_session=session-token',
+    const response = await app.request(
+      '/v1/tenants/tenant_123/org-units',
+      {
+        method: 'GET',
+        headers: {
+          Cookie: 'credtrail_session=session-token',
+        },
       },
-    }, env);
+      env,
+    );
 
     const body = await response.json<Record<string, unknown>>();
 
@@ -2396,19 +2497,23 @@ describe('org unit and badge ownership governance endpoints', () => {
       }),
     );
 
-    const response = await app.request('/v1/tenants/tenant_123/org-units', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: 'credtrail_session=session-token',
+    const response = await app.request(
+      '/v1/tenants/tenant_123/org-units',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: 'credtrail_session=session-token',
+        },
+        body: JSON.stringify({
+          unitType: 'department',
+          slug: 'math',
+          displayName: 'Department of Mathematics',
+          parentOrgUnitId: 'tenant_123:org:institution',
+        }),
       },
-      body: JSON.stringify({
-        unitType: 'department',
-        slug: 'math',
-        displayName: 'Department of Mathematics',
-        parentOrgUnitId: 'tenant_123:org:institution',
-      }),
-    }, env);
+      env,
+    );
 
     const body = await response.json<Record<string, unknown>>();
 
@@ -2441,9 +2546,7 @@ describe('org unit and badge ownership governance endpoints', () => {
     mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
     mockedTouchSession.mockResolvedValue();
     mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
-    mockedListBadgeTemplateOwnershipEvents.mockResolvedValue([
-      sampleBadgeTemplateOwnershipEvent(),
-    ]);
+    mockedListBadgeTemplateOwnershipEvents.mockResolvedValue([sampleBadgeTemplateOwnershipEvent()]);
 
     const response = await app.request(
       '/v1/tenants/tenant_123/badge-templates/badge_template_001/ownership-history',
@@ -2524,7 +2627,6 @@ describe('org unit and badge ownership governance endpoints', () => {
       }),
     );
   });
-
 
   it('lists scoped org-unit grants for a tenant user', async () => {
     const env = createEnv();
@@ -2647,6 +2749,201 @@ describe('org unit and badge ownership governance endpoints', () => {
         targetType: 'membership_org_scope',
       }),
     );
+  });
+
+  it('lists delegated issuing authority grants for a tenant user', async () => {
+    const env = createEnv();
+
+    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: 'admin' }));
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue();
+    mockedListDelegatedIssuingAuthorityGrants.mockResolvedValue([
+      sampleDelegatedIssuingAuthorityGrant({ delegateUserId: 'usr_issuer' }),
+    ]);
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/users/usr_issuer/issuing-authority-grants?includeRevoked=true',
+      {
+        method: 'GET',
+        headers: {
+          Cookie: 'credtrail_session=session-token',
+        },
+      },
+      env,
+    );
+
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.userId).toBe('usr_issuer');
+    expect(Array.isArray(body.grants)).toBe(true);
+    expect(mockedListDelegatedIssuingAuthorityGrants).toHaveBeenCalledWith(fakeDb, {
+      tenantId: 'tenant_123',
+      delegateUserId: 'usr_issuer',
+      includeRevoked: true,
+      includeExpired: false,
+    });
+  });
+
+  it('creates delegated issuing authority grants and writes audit logs', async () => {
+    const env = createEnv();
+
+    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: 'admin' }));
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue();
+    mockedCreateDelegatedIssuingAuthorityGrant.mockResolvedValue(
+      sampleDelegatedIssuingAuthorityGrant({
+        id: 'dag_new',
+        delegateUserId: 'usr_issuer',
+        allowedActions: ['issue_badge', 'revoke_badge'],
+      }),
+    );
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/users/usr_issuer/issuing-authority-grants',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: 'credtrail_session=session-token',
+        },
+        body: JSON.stringify({
+          orgUnitId: 'tenant_123:org:department-math',
+          badgeTemplateIds: ['badge_template_001'],
+          allowedActions: ['issue_badge', 'revoke_badge'],
+          endsAt: '2026-03-13T00:00:00.000Z',
+          reason: 'Spring term authority',
+        }),
+      },
+      env,
+    );
+
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(201);
+    expect(body.userId).toBe('usr_issuer');
+    expect(mockedCreateDelegatedIssuingAuthorityGrant).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: 'tenant_123',
+        delegateUserId: 'usr_issuer',
+        delegatedByUserId: 'usr_123',
+        orgUnitId: 'tenant_123:org:department-math',
+        allowedActions: ['issue_badge', 'revoke_badge'],
+        badgeTemplateIds: ['badge_template_001'],
+        endsAt: '2026-03-13T00:00:00.000Z',
+      }),
+    );
+    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        action: 'delegated_issuing_authority.granted',
+        targetType: 'delegated_issuing_authority_grant',
+      }),
+    );
+  });
+
+  it('revokes delegated issuing authority grants and writes audit logs', async () => {
+    const env = createEnv();
+
+    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: 'admin' }));
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue();
+    mockedFindDelegatedIssuingAuthorityGrantById.mockResolvedValue(
+      sampleDelegatedIssuingAuthorityGrant({
+        id: 'dag_123',
+        delegateUserId: 'usr_issuer',
+      }),
+    );
+    mockedRevokeDelegatedIssuingAuthorityGrant.mockResolvedValue({
+      status: 'revoked',
+      grant: sampleDelegatedIssuingAuthorityGrant({
+        id: 'dag_123',
+        delegateUserId: 'usr_issuer',
+        revokedAt: '2026-02-20T00:00:00.000Z',
+        revokedByUserId: 'usr_123',
+        revokedReason: 'Policy update',
+        status: 'revoked',
+      }),
+    });
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/users/usr_issuer/issuing-authority-grants/dag_123/revoke',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: 'credtrail_session=session-token',
+        },
+        body: JSON.stringify({
+          reason: 'Policy update',
+          revokedAt: '2026-02-20T00:00:00.000Z',
+        }),
+      },
+      env,
+    );
+
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe('revoked');
+    expect(mockedRevokeDelegatedIssuingAuthorityGrant).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: 'tenant_123',
+        grantId: 'dag_123',
+        revokedByUserId: 'usr_123',
+        revokedReason: 'Policy update',
+        revokedAt: '2026-02-20T00:00:00.000Z',
+      }),
+    );
+    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        action: 'delegated_issuing_authority.revoked',
+        targetType: 'delegated_issuing_authority_grant',
+      }),
+    );
+  });
+
+  it('returns delegated issuing authority grant lifecycle events', async () => {
+    const env = createEnv();
+
+    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: 'admin' }));
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue();
+    mockedFindDelegatedIssuingAuthorityGrantById.mockResolvedValue(
+      sampleDelegatedIssuingAuthorityGrant({
+        id: 'dag_123',
+        delegateUserId: 'usr_issuer',
+      }),
+    );
+    mockedListDelegatedIssuingAuthorityGrantEvents.mockResolvedValue([
+      sampleDelegatedIssuingAuthorityGrantEvent({
+        grantId: 'dag_123',
+      }),
+    ]);
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/users/usr_issuer/issuing-authority-grants/dag_123/events?limit=25',
+      {
+        method: 'GET',
+        headers: {
+          Cookie: 'credtrail_session=session-token',
+        },
+      },
+      env,
+    );
+
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(body.events)).toBe(true);
+    expect(mockedListDelegatedIssuingAuthorityGrantEvents).toHaveBeenCalledWith(fakeDb, {
+      tenantId: 'tenant_123',
+      grantId: 'dag_123',
+      limit: 25,
+    });
   });
 
   it('rejects ownership history when issuer lacks scoped viewer access', async () => {
@@ -3068,6 +3365,9 @@ describe('assertion lifecycle endpoints', () => {
     mockedFindActiveSessionByHash.mockReset();
     mockedTouchSession.mockReset();
     mockedFindAssertionById.mockReset();
+    mockedFindAssertionById.mockResolvedValue(sampleAssertion());
+    mockedFindBadgeTemplateById.mockReset();
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
     mockedResolveAssertionLifecycleState.mockReset();
     mockedListAssertionLifecycleEvents.mockReset();
     mockedRecordAssertionLifecycleTransition.mockReset();
@@ -3197,6 +3497,76 @@ describe('assertion lifecycle endpoints', () => {
     );
   });
 
+  it('allows viewer lifecycle revocation when delegated authority grant is active', async () => {
+    const env = createEnv();
+
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedFindTenantMembership.mockResolvedValue(
+      sampleTenantMembership({
+        role: 'viewer',
+      }),
+    );
+    mockedTouchSession.mockResolvedValue();
+    mockedFindAssertionById.mockResolvedValue(sampleAssertion());
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
+    mockedFindActiveDelegatedIssuingAuthorityGrantForAction.mockResolvedValue(
+      sampleDelegatedIssuingAuthorityGrant({
+        delegateUserId: 'usr_123',
+        allowedActions: ['revoke_badge'],
+        badgeTemplateIds: ['badge_template_001'],
+      }),
+    );
+    mockedRecordAssertionLifecycleTransition.mockResolvedValue({
+      status: 'transitioned',
+      fromState: 'active',
+      toState: 'revoked',
+      currentState: 'revoked',
+      message: null,
+      event: {
+        id: 'ale_rev_123',
+        tenantId: 'tenant_123',
+        assertionId: 'tenant_123:assertion_456',
+        fromState: 'active',
+        toState: 'revoked',
+        reasonCode: 'policy_violation',
+        reason: 'Integrity failure',
+        transitionSource: 'manual',
+        actorUserId: 'usr_123',
+        transitionedAt: '2026-02-12T23:15:00.000Z',
+        createdAt: '2026-02-12T23:15:00.000Z',
+      },
+    });
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/assertions/tenant_123%3Aassertion_456/lifecycle/transition',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: 'credtrail_session=session-token',
+        },
+        body: JSON.stringify({
+          toState: 'revoked',
+          reasonCode: 'policy_violation',
+          reason: 'Integrity failure',
+        }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedFindActiveDelegatedIssuingAuthorityGrantForAction).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: 'tenant_123',
+        userId: 'usr_123',
+        badgeTemplateId: 'badge_template_001',
+        requiredAction: 'revoke_badge',
+      }),
+    );
+    expect(mockedRecordAssertionLifecycleTransition).toHaveBeenCalledTimes(1);
+  });
+
   it('returns 422 when caller attempts automation transition source', async () => {
     const env = createEnv();
 
@@ -3222,7 +3592,9 @@ describe('assertion lifecycle endpoints', () => {
     const body = await response.json<Record<string, unknown>>();
 
     expect(response.status).toBe(422);
-    expect(body.error).toBe('Automation lifecycle transitions are only allowed via trusted internal jobs');
+    expect(body.error).toBe(
+      'Automation lifecycle transitions are only allowed via trusted internal jobs',
+    );
     expect(mockedRecordAssertionLifecycleTransition).not.toHaveBeenCalled();
     expect(mockedCreateAuditLog).not.toHaveBeenCalled();
   });
@@ -3487,7 +3859,11 @@ describe('GET /credentials/v1/:credentialId', () => {
       },
     ]);
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
@@ -3536,7 +3912,11 @@ describe('GET /credentials/v1/:credentialId', () => {
     );
     mockedGetImmutableCredentialObject.mockResolvedValue(credential);
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
@@ -3597,7 +3977,11 @@ describe('GET /credentials/v1/:credentialId', () => {
       },
     ]);
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
@@ -3621,7 +4005,11 @@ describe('GET /credentials/v1/:credentialId', () => {
     );
     mockedGetImmutableCredentialObject.mockResolvedValue(credential);
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
@@ -3645,7 +4033,11 @@ describe('GET /credentials/v1/:credentialId', () => {
     mockedFindAssertionById.mockResolvedValue(sampleAssertion());
     mockedGetImmutableCredentialObject.mockResolvedValue(credential);
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
@@ -3676,7 +4068,11 @@ describe('GET /credentials/v1/:credentialId', () => {
     );
     mockedGetImmutableCredentialObject.mockResolvedValue(credential);
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
@@ -3710,12 +4106,18 @@ describe('GET /credentials/v1/:credentialId', () => {
     );
     mockedGetImmutableCredentialObject.mockResolvedValue(credential);
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
     expect(body.verification.checks.credentialSchema.status).toBe('invalid');
-    expect(body.verification.checks.credentialSchema.reason).toContain('1EdTechJsonSchemaValidator2019');
+    expect(body.verification.checks.credentialSchema.reason).toContain(
+      '1EdTechJsonSchemaValidator2019',
+    );
   });
 
   it('validates credentialSchema required properties when schema is loadable', async () => {
@@ -3757,7 +4159,11 @@ describe('GET /credentials/v1/:credentialId', () => {
     );
     mockedGetImmutableCredentialObject.mockResolvedValue(credential);
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
@@ -3805,7 +4211,11 @@ describe('GET /credentials/v1/:credentialId', () => {
     );
     mockedGetImmutableCredentialObject.mockResolvedValue(credential);
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
@@ -3839,12 +4249,18 @@ describe('GET /credentials/v1/:credentialId', () => {
     );
     mockedGetImmutableCredentialObject.mockResolvedValue(credential);
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
     expect(body.verification.checks.credentialSubject.status).toBe('invalid');
-    expect(body.verification.checks.credentialSubject.reason).toContain('id or at least one identifier');
+    expect(body.verification.checks.credentialSubject.reason).toContain(
+      'id or at least one identifier',
+    );
   });
 
   it('marks credentialSubject as invalid when OpenBadgeCredential omits achievement details', async () => {
@@ -3867,7 +4283,11 @@ describe('GET /credentials/v1/:credentialId', () => {
     );
     mockedGetImmutableCredentialObject.mockResolvedValue(credential);
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
@@ -3897,12 +4317,18 @@ describe('GET /credentials/v1/:credentialId', () => {
     );
     mockedGetImmutableCredentialObject.mockResolvedValue(credential);
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
     expect(body.verification.checks.dates.status).toBe('invalid');
-    expect(body.verification.checks.dates.reason).toBe('credential validFrom/issuanceDate is in the future');
+    expect(body.verification.checks.dates.reason).toBe(
+      'credential validFrom/issuanceDate is in the future',
+    );
     expect(body.verification.checks.dates.validFrom).toBe('2999-01-01T00:00:00.000Z');
   });
 
@@ -3944,7 +4370,11 @@ describe('GET /credentials/v1/:credentialId', () => {
       }),
     );
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
@@ -4009,7 +4439,11 @@ describe('GET /credentials/v1/:credentialId', () => {
       }),
     );
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
@@ -4057,14 +4491,20 @@ describe('GET /credentials/v1/:credentialId', () => {
       }),
     );
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
     expect(body.verification.proof.status).toBe('valid');
     expect(body.verification.proof.format).toBe('DataIntegrityProof');
     expect(body.verification.proof.cryptosuite).toBe('ecdsa-sd-2023');
-    expect(body.verification.proof.verificationMethod).toBe('did:web:credtrail.test:tenant_123#key-p256');
+    expect(body.verification.proof.verificationMethod).toBe(
+      'did:web:credtrail.test:tenant_123#key-p256',
+    );
   });
 
   it('verifies DataIntegrityProof eddsa-rdfc-2022 proofs when issuer signing keys are resolvable', async () => {
@@ -4106,14 +4546,20 @@ describe('GET /credentials/v1/:credentialId', () => {
       }),
     );
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
     expect(body.verification.proof.status).toBe('valid');
     expect(body.verification.proof.format).toBe('DataIntegrityProof');
     expect(body.verification.proof.cryptosuite).toBe('eddsa-rdfc-2022');
-    expect(body.verification.proof.verificationMethod).toBe('did:web:credtrail.test:tenant_123#key-1');
+    expect(body.verification.proof.verificationMethod).toBe(
+      'did:web:credtrail.test:tenant_123#key-1',
+    );
   });
 
   it('verifies DataIntegrityProof credentials with both EdDSA and ECDSA cryptosuites through the same endpoint', async () => {
@@ -4127,7 +4573,11 @@ describe('GET /credentials/v1/:credentialId', () => {
       mockedGetImmutableCredentialObject.mockResolvedValue(input.credential);
       mockedFindTenantSigningRegistrationByDid.mockResolvedValue(input.registration);
 
-      const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+      const response = await app.request(
+        '/credentials/v1/tenant_123%3Aassertion_456',
+        undefined,
+        env,
+      );
       const body = await response.json<VerificationResponse>();
 
       expect(response.status).toBe(200);
@@ -4247,12 +4697,18 @@ describe('GET /credentials/v1/:credentialId', () => {
       }),
     );
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
     expect(body.verification.proof.status).toBe('invalid');
-    expect(body.verification.proof.reason).toBe('verificationMethod DID must match credential issuer DID');
+    expect(body.verification.proof.reason).toBe(
+      'verificationMethod DID must match credential issuer DID',
+    );
   });
 
   it('returns invalid when proof verificationMethod key fragment does not match resolved signing key id', async () => {
@@ -4293,7 +4749,11 @@ describe('GET /credentials/v1/:credentialId', () => {
       }),
     );
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
@@ -4355,7 +4815,11 @@ describe('GET /credentials/v1/:credentialId', () => {
       }),
     );
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
@@ -4403,7 +4867,11 @@ describe('GET /credentials/v1/:credentialId', () => {
       }),
     );
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<VerificationResponse>();
 
     expect(response.status).toBe(200);
@@ -4426,7 +4894,11 @@ describe('GET /credentials/v1/:credentialId', () => {
 
     mockedFindAssertionById.mockResolvedValue(null);
 
-    const response = await app.request('/credentials/v1/tenant_123%3Aassertion_456', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/tenant_123%3Aassertion_456',
+      undefined,
+      env,
+    );
     const body = await response.json<ErrorResponse>();
 
     expect(response.status).toBe(404);
@@ -4612,7 +5084,9 @@ describe('Verifiable Presentation endpoints', () => {
       env,
     );
     const body = await response.json<Record<string, unknown>>();
-    const credentials = Array.isArray(body.credentials) ? body.credentials.map((entry) => asJsonObject(entry)) : [];
+    const credentials = Array.isArray(body.credentials)
+      ? body.credentials.map((entry) => asJsonObject(entry))
+      : [];
     const proofFormats = credentials
       .map((entry) => asJsonObject(entry?.proof))
       .map((proof) => asString(proof?.format))
@@ -4622,7 +5096,9 @@ describe('Verifiable Presentation endpoints', () => {
     expect(body.status).toBe('valid');
     expect(body.credentialCount).toBe(2);
     expect(asString(asJsonObject(asJsonObject(body.holder)?.proof)?.status)).toBe('valid');
-    expect(proofFormats).toEqual(expect.arrayContaining(['Ed25519Signature2020', 'DataIntegrityProof']));
+    expect(proofFormats).toEqual(
+      expect.arrayContaining(['Ed25519Signature2020', 'DataIntegrityProof']),
+    );
     expect(credentials.every((entry) => asString(entry?.status) === 'valid')).toBe(true);
   });
 
@@ -4687,7 +5163,9 @@ describe('Verifiable Presentation endpoints', () => {
       env,
     );
     const body = await response.json<Record<string, unknown>>();
-    const credentials = Array.isArray(body.credentials) ? body.credentials.map((entry) => asJsonObject(entry)) : [];
+    const credentials = Array.isArray(body.credentials)
+      ? body.credentials.map((entry) => asJsonObject(entry))
+      : [];
     const firstBindingStatus = asString(asJsonObject(credentials[0]?.binding)?.status);
 
     expect(response.status).toBe(200);
@@ -4720,7 +5198,9 @@ describe('DID signing resolution from Postgres registration', () => {
 
     const response = await app.request('/.well-known/did.json', undefined, env);
     const body = await response.json<JsonObject>();
-    const verificationMethods = Array.isArray(body.verificationMethod) ? body.verificationMethod : [];
+    const verificationMethods = Array.isArray(body.verificationMethod)
+      ? body.verificationMethod
+      : [];
     const firstVerificationMethod =
       verificationMethods.length > 0 ? asJsonObject(verificationMethods[0]) : null;
 
@@ -4731,7 +5211,10 @@ describe('DID signing resolution from Postgres registration', () => {
       encodeJwkPublicKeyMultibase(signingMaterial.publicJwk),
     );
     expect(firstVerificationMethod?.publicKeyJwk).toBeUndefined();
-    expect(mockedFindTenantSigningRegistrationByDid).toHaveBeenCalledWith(fakeDb, 'did:web:localhost');
+    expect(mockedFindTenantSigningRegistrationByDid).toHaveBeenCalledWith(
+      fakeDb,
+      'did:web:localhost',
+    );
   });
 
   it('serves did.json with JsonWebKey2020 verificationMethod when registration public key is P-256', async () => {
@@ -4750,7 +5233,9 @@ describe('DID signing resolution from Postgres registration', () => {
 
     const response = await app.request('/.well-known/did.json', undefined, env);
     const body = await response.json<JsonObject>();
-    const verificationMethods = Array.isArray(body.verificationMethod) ? body.verificationMethod : [];
+    const verificationMethods = Array.isArray(body.verificationMethod)
+      ? body.verificationMethod
+      : [];
     const firstVerificationMethod =
       verificationMethods.length > 0 ? asJsonObject(verificationMethods[0]) : null;
     const publicKeyJwk = asJsonObject(firstVerificationMethod?.publicKeyJwk);
@@ -5150,7 +5635,10 @@ describe('POST /v1/signing/credentials', () => {
     expect(response.status).toBe(201);
     expect(asString(body.did)).toBe(signingMaterial.did);
     expect(asJsonObject(signedCredential?.proof)).not.toBeNull();
-    expect(mockedFindTenantSigningRegistrationByDid).toHaveBeenCalledWith(fakeDb, signingMaterial.did);
+    expect(mockedFindTenantSigningRegistrationByDid).toHaveBeenCalledWith(
+      fakeDb,
+      signingMaterial.did,
+    );
   });
 
   it('signs credentials through configured remote signers when DID private keys are externalized', async () => {
@@ -5383,7 +5871,9 @@ describe('POST /v1/signing/credentials', () => {
     const body = await response.json<ErrorResponse>();
 
     expect(response.status).toBe(422);
-    expect(body.error).toBe('DataIntegrity eddsa-rdfc-2022 signing requires an Ed25519 private key');
+    expect(body.error).toBe(
+      'DataIntegrity eddsa-rdfc-2022 signing requires an Ed25519 private key',
+    );
   });
 
   it('returns 422 when signing key is not Ed25519', async () => {
@@ -5578,7 +6068,11 @@ describe('GET /credentials/v1/:credentialId/download.pdf', () => {
 
   it('returns 400 for invalid credential identifier', async () => {
     const env = createEnv();
-    const response = await app.request('/credentials/v1/assertion_456/download.pdf', undefined, env);
+    const response = await app.request(
+      '/credentials/v1/assertion_456/download.pdf',
+      undefined,
+      env,
+    );
     const body = await response.json<ErrorResponse>();
 
     expect(response.status).toBe(400);
@@ -5723,7 +6217,9 @@ describe('GET /badges/:badgeIdentifier', () => {
     expect(body).toContain('organizationName=Example+University');
     expect(body).toContain('issueYear=2026');
     expect(body).toContain('issueMonth=2');
-    expect(body).toContain('certUrl=http%3A%2F%2Flocalhost%2Fbadges%2F40a6dc92-85ec-4cb0-8a50-afb2ae700e22');
+    expect(body).toContain(
+      'certUrl=http%3A%2F%2Flocalhost%2Fbadges%2F40a6dc92-85ec-4cb0-8a50-afb2ae700e22',
+    );
     expect(body).toContain('certId=urn%3Acredtrail%3Aassertion%3Atenant_123%253Aassertion_456');
     expect(body).toContain('Share on LinkedIn Feed');
     expect(body).toContain('linkedin.com/sharing/share-offsite');
@@ -5743,7 +6239,9 @@ describe('GET /badges/:badgeIdentifier', () => {
     expect(body).toContain('Capstone Submission');
     expect(body).toContain('https://example.edu/evidence/gradebook/123');
     expect(body).toContain('/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22');
-    expect(body).toContain('<link rel="canonical" href="http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22"');
+    expect(body).toContain(
+      '<link rel="canonical" href="http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22"',
+    );
   });
 
   it('redirects legacy tenant-scoped badge URLs to canonical public permalink', async () => {
@@ -5889,9 +6387,9 @@ describe('LTI 1.3 core launch flow', () => {
     });
   });
 
-  const createLtiEnv = (
-    options?: { allowUnsignedIdToken?: boolean },
-  ): ReturnType<typeof createEnv> => {
+  const createLtiEnv = (options?: {
+    allowUnsignedIdToken?: boolean;
+  }): ReturnType<typeof createEnv> => {
     const env = createEnv();
     env.LTI_ISSUER_REGISTRY_JSON = JSON.stringify({
       [issuer]: {
@@ -6072,7 +6570,10 @@ describe('LTI 1.3 core launch flow', () => {
       identityType: 'saml_subject',
       identityValue: 'https://canvas.example.edu::user-123',
     });
-    expect(mockedUpsertUserByEmail).toHaveBeenCalledWith(fakeDb, expect.stringContaining('@credtrail-lti.local'));
+    expect(mockedUpsertUserByEmail).toHaveBeenCalledWith(
+      fakeDb,
+      expect.stringContaining('@credtrail-lti.local'),
+    );
     expect(mockedEnsureTenantMembership).toHaveBeenCalledWith(fakeDb, tenantId, linkedUserId);
     expect(mockedUpsertTenantMembershipRole).toHaveBeenCalledWith(fakeDb, {
       tenantId,
@@ -6308,7 +6809,11 @@ describe('GET /tenants/:tenantId/learner/dashboard', () => {
     expect(body).toContain('Revoked');
     expect(body).toContain('Profile settings');
     expect(body).toContain('No learner DID is currently configured.');
-    expect(mockedListLearnerIdentitiesByProfile).toHaveBeenCalledWith(fakeDb, 'tenant_123', 'lpr_123');
+    expect(mockedListLearnerIdentitiesByProfile).toHaveBeenCalledWith(
+      fakeDb,
+      'tenant_123',
+      'lpr_123',
+    );
     expect(mockedListLearnerBadgeSummaries).toHaveBeenCalledWith(fakeDb, {
       tenantId: 'tenant_123',
       userId: 'usr_123',
@@ -6347,7 +6852,9 @@ describe('GET /tenants/:tenantId/learner/dashboard', () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain('Learner DID updated. Newly issued badges will use this DID as credentialSubject.id.');
+    expect(body).toContain(
+      'Learner DID updated. Newly issued badges will use this DID as credentialSubject.id.',
+    );
     expect(body).toContain('Current DID:');
     expect(body).toContain('did:key:z6MkhLearnerDidExample');
   });
@@ -6388,15 +6895,19 @@ describe('POST /tenants/:tenantId/learner/settings/did', () => {
 
   it('returns 401 when no learner session is present', async () => {
     const env = createEnv();
-    const response = await app.request('/tenants/tenant_123/learner/settings/did', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded',
+    const response = await app.request(
+      '/tenants/tenant_123/learner/settings/did',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          did: 'did:key:z6MkhLearnerDidExample',
+        }).toString(),
       },
-      body: new URLSearchParams({
-        did: 'did:key:z6MkhLearnerDidExample',
-      }).toString(),
-    }, env);
+      env,
+    );
     const body = await response.json<ErrorResponse>();
 
     expect(response.status).toBe(401);
@@ -6570,6 +7081,7 @@ describe('POST /v1/tenants/:tenantId/assertions/manual-issue', () => {
     mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership());
     mockedTouchSession.mockReset();
     mockedFindBadgeTemplateById.mockReset();
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
     mockedFindAssertionByIdempotencyKey.mockReset();
     mockedResolveLearnerProfileForIdentity.mockReset();
     mockedNextAssertionStatusListIndex.mockReset();
@@ -6687,7 +7199,9 @@ describe('POST /v1/tenants/:tenantId/assertions/manual-issue', () => {
       throw new Error('Expected first createAssertion call');
     }
 
-    const firstCreateAssertionInput = firstCreateAssertionCall[1] as { recipientIdentifiers?: unknown };
+    const firstCreateAssertionInput = firstCreateAssertionCall[1] as {
+      recipientIdentifiers?: unknown;
+    };
 
     expect(Array.isArray(firstCreateAssertionInput.recipientIdentifiers)).toBe(true);
     expect(firstCreateAssertionInput.recipientIdentifiers).toEqual(
@@ -6879,6 +7393,74 @@ describe('POST /v1/tenants/:tenantId/assertions/manual-issue', () => {
     fetchSpy.mockRestore();
   });
 
+  it('allows viewer role manual issuance when delegated authority grant is active', async () => {
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: 'did:web:credtrail.test:tenant_123',
+    });
+    const env = {
+      ...createEnv(),
+      BADGE_OBJECTS: createInMemoryBadgeObjects(),
+      TENANT_SIGNING_REGISTRY_JSON: JSON.stringify({
+        'did:web:credtrail.test:tenant_123': {
+          tenantId: 'tenant_123',
+          keyId: signingMaterial.keyId,
+          publicJwk: signingMaterial.publicJwk,
+          privateJwk: signingMaterial.privateJwk,
+        },
+      }),
+    };
+
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedFindTenantMembership.mockResolvedValue(
+      sampleTenantMembership({
+        role: 'viewer',
+      }),
+    );
+    mockedTouchSession.mockResolvedValue();
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
+    mockedFindActiveDelegatedIssuingAuthorityGrantForAction.mockResolvedValue(
+      sampleDelegatedIssuingAuthorityGrant({
+        delegateUserId: 'usr_123',
+        allowedActions: ['issue_badge'],
+        badgeTemplateIds: ['badge_template_001'],
+      }),
+    );
+    mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
+    mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
+    mockedNextAssertionStatusListIndex.mockResolvedValue(0);
+    mockedCreateAssertion.mockResolvedValue(sampleAssertion());
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/assertions/manual-issue',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: 'credtrail_session=session-token',
+        },
+        body: JSON.stringify({
+          badgeTemplateId: 'badge_template_001',
+          recipientIdentity: 'student@umich.edu',
+          recipientIdentityType: 'email',
+          idempotencyKey: 'idem-viewer-grant',
+        }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(201);
+    expect(mockedFindActiveDelegatedIssuingAuthorityGrantForAction).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: 'tenant_123',
+        userId: 'usr_123',
+        requiredAction: 'issue_badge',
+        badgeTemplateId: 'badge_template_001',
+      }),
+    );
+    expect(mockedCreateAssertion).toHaveBeenCalledTimes(1);
+  });
+
   it('returns 403 when role is viewer for manual issuance', async () => {
     const env = createEnv();
 
@@ -6922,6 +7504,7 @@ describe('POST /v1/tenants/:tenantId/assertions/sakai-commit-issue', () => {
     mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership());
     mockedTouchSession.mockReset();
     mockedFindBadgeTemplateById.mockReset();
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
     mockedFindAssertionByIdempotencyKey.mockReset();
     mockedResolveLearnerProfileForIdentity.mockReset();
     mockedNextAssertionStatusListIndex.mockReset();
@@ -6975,14 +7558,18 @@ describe('POST /v1/tenants/:tenantId/assertions/sakai-commit-issue', () => {
       },
       env,
     );
-    const body = await response.json<ManualIssueResponse & { commitCount: number; repository: string }>();
+    const body = await response.json<
+      ManualIssueResponse & { commitCount: number; repository: string }
+    >();
 
     expect(response.status).toBe(201);
     expect(body.status).toBe('issued');
     expect(body.commitCount).toBe(1201);
     expect(body.repository).toBe('sakaiproject/sakai');
     expect(asString(asJsonObject(body.credential.issuer)?.name)).toBe('Sakai Project');
-    expect(asString(asJsonObject(body.credential.issuer)?.url)).toBe('https://www.sakaiproject.org/');
+    expect(asString(asJsonObject(body.credential.issuer)?.url)).toBe(
+      'https://www.sakaiproject.org/',
+    );
     expect(mockedResolveLearnerProfileForIdentity).toHaveBeenCalledWith(fakeDb, {
       tenantId: 'tenant_123',
       identityType: 'url',
@@ -7050,7 +7637,11 @@ describe('POST /v1/tenants/:tenantId/assertions/sakai-commit-issue', () => {
     expect(body.repository).toBe('sakaiproject/sakai');
     expect(body.commitCount).toBe(42);
     expect(body.requiredCommitCount).toBe(1000);
-    expect(mockedFindBadgeTemplateById).not.toHaveBeenCalled();
+    expect(mockedFindBadgeTemplateById).toHaveBeenCalledWith(
+      fakeDb,
+      'tenant_123',
+      'badge_template_001',
+    );
     expect(mockedCreateAssertion).not.toHaveBeenCalled();
 
     fetchSpy.mockRestore();
