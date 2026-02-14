@@ -8,6 +8,8 @@
 
 `POST /v1/tenants/:tenantId/migrations/ob2/dry-run`
 
+`POST /v1/tenants/:tenantId/migrations/ob2/batch-upload?dryRun=true|false`
+
 Auth: tenant session with issuer role (`owner`, `admin`, or `issuer`).
 
 ## Request
@@ -21,6 +23,15 @@ Optional companion objects for URL-referenced OB2 data:
 
 - `ob2BadgeClass`
 - `ob2Issuer`
+
+Batch upload endpoint (`/batch-upload`):
+
+- Content type: `multipart/form-data`
+- File field name: `file`
+- Supported file types: `.json`, `.csv`
+- Query param:
+- `dryRun=true` (default) validates and previews only
+- `dryRun=false` enqueues valid rows as `import_migration_batch` jobs
 
 ## Response
 
@@ -60,3 +71,14 @@ The converter extracts Open Badges payloads from PNG text chunks:
 - `zTXt`
 
 Accepted keywords: `openbadges`, `openbadge`.
+
+## CSV Columns
+
+Batch CSV files support these columns (case/format-insensitive):
+
+- `ob2Assertion` (or `assertion`)
+- `ob2BadgeClass` (or `badgeClass` / `badge`)
+- `ob2Issuer` (or `issuer`)
+- `bakedBadgeImage` (or `bakedBadge`)
+
+`ob2Assertion`, `ob2BadgeClass`, and `ob2Issuer` columns should contain JSON objects encoded as CSV string values.

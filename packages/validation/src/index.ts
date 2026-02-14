@@ -620,6 +620,24 @@ export const processQueueRequestSchema = z.object({
   retryDelaySeconds: z.number().int().min(1).max(3600).optional(),
 });
 
+export const migrationBatchUploadQuerySchema = z.object({
+  dryRun: z.preprocess((input) => {
+    if (input === undefined) {
+      return true;
+    }
+
+    if (input === 'true') {
+      return true;
+    }
+
+    if (input === 'false') {
+      return false;
+    }
+
+    return input;
+  }, z.boolean()),
+});
+
 export const ob2ImportConversionRequestSchema = z
   .object({
     ob2Assertion: jsonObjectSchema.optional(),
@@ -724,6 +742,7 @@ export type RecipientIdentityType = z.infer<typeof recipientIdentityTypeSchema>;
 export type IssueBadgeRequest = z.infer<typeof issueBadgeRequestSchema>;
 export type RevokeBadgeRequest = z.infer<typeof revokeBadgeRequestSchema>;
 export type ProcessQueueRequest = z.infer<typeof processQueueRequestSchema>;
+export type MigrationBatchUploadQuery = z.infer<typeof migrationBatchUploadQuerySchema>;
 export type Ob2ImportConversionRequest = z.infer<typeof ob2ImportConversionRequestSchema>;
 export type IssueBadgeQueueJob = z.infer<typeof issueBadgeQueueJobSchema>;
 export type RevokeBadgeQueueJob = z.infer<typeof revokeBadgeQueueJobSchema>;
@@ -871,6 +890,10 @@ export const parseRevokeBadgeRequest = (input: unknown): RevokeBadgeRequest => {
 
 export const parseProcessQueueRequest = (input: unknown): ProcessQueueRequest => {
   return processQueueRequestSchema.parse(input);
+};
+
+export const parseMigrationBatchUploadQuery = (input: unknown): MigrationBatchUploadQuery => {
+  return migrationBatchUploadQuerySchema.parse(input);
 };
 
 export const parseOb2ImportConversionRequest = (input: unknown): Ob2ImportConversionRequest => {

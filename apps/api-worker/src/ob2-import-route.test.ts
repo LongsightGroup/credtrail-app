@@ -5,6 +5,7 @@ vi.mock('@credtrail/db', async () => {
 
   return {
     ...actual,
+    enqueueJobQueueMessage: vi.fn(),
     findActiveSessionByHash: vi.fn(),
     findLearnerProfileByIdentity: vi.fn(),
     findTenantMembership: vi.fn(),
@@ -20,6 +21,7 @@ vi.mock('@credtrail/db/postgres', () => {
 });
 
 import {
+  enqueueJobQueueMessage,
   findLearnerProfileByIdentity,
   findActiveSessionByHash,
   findTenantMembership,
@@ -36,6 +38,7 @@ import { createPostgresDatabase } from '@credtrail/db/postgres';
 import { app } from './index';
 
 const mockedFindActiveSessionByHash = vi.mocked(findActiveSessionByHash);
+const mockedEnqueueJobQueueMessage = vi.mocked(enqueueJobQueueMessage);
 const mockedFindLearnerProfileByIdentity = vi.mocked(findLearnerProfileByIdentity);
 const mockedFindTenantMembership = vi.mocked(findTenantMembership);
 const mockedListBadgeTemplates = vi.mocked(listBadgeTemplates);
@@ -115,6 +118,25 @@ const sampleLearnerProfile = (): LearnerProfileRecord => {
 beforeEach(() => {
   mockedCreatePostgresDatabase.mockReset();
   mockedCreatePostgresDatabase.mockReturnValue(fakeDb);
+  mockedEnqueueJobQueueMessage.mockReset();
+  mockedEnqueueJobQueueMessage.mockResolvedValue({
+    id: 'job_123',
+    tenantId: 'tenant_123',
+    jobType: 'import_migration_batch',
+    payloadJson: '{}',
+    idempotencyKey: 'idem_123',
+    attemptCount: 0,
+    maxAttempts: 8,
+    availableAt: '2026-02-14T12:00:00.000Z',
+    leasedUntil: null,
+    leaseToken: null,
+    lastError: null,
+    completedAt: null,
+    failedAt: null,
+    status: 'pending',
+    createdAt: '2026-02-14T12:00:00.000Z',
+    updatedAt: '2026-02-14T12:00:00.000Z',
+  });
   mockedFindActiveSessionByHash.mockReset();
   mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
   mockedFindLearnerProfileByIdentity.mockReset();
@@ -303,5 +325,151 @@ describe('POST /v1/tenants/:tenantId/migrations/ob2/dry-run', () => {
     const validationReport = body.validationReport as Record<string, unknown>;
     expect((validationReport.errors as unknown[]).length).toBeGreaterThan(0);
     expect(validationReport.diffPreview).toBeNull();
+  });
+});
+
+describe('POST /v1/tenants/:tenantId/migrations/ob2/batch-upload', () => {
+  it('parses uploaded JSON file and returns row validation summaries in dry-run mode', async () => {
+    const env = createEnv();
+    const formData = new FormData();
+    formData.append(
+      'file',
+      new Blob(
+        [
+          JSON.stringify([
+            {
+              ob2Assertion: {
+                '@context': 'https://w3id.org/openbadges/v2',
+                type: 'Assertion',
+                recipient: {
+                  type: 'email',
+                  identity: 'learner@example.edu',
+                },
+                badge: {
+                  type: 'BadgeClass',
+                  name: 'Batch JSON Badge',
+                  issuer: {
+                    id: 'https://issuer.test/issuers/1',
+                    name: 'Issuer Test',
+                    url: 'https://issuer.test',
+                  },
+                },
+                issuedOn: '2025-10-01T12:00:00Z',
+              },
+            },
+            {
+              ob2Assertion: {
+                type: 'Assertion',
+              },
+            },
+          ]),
+        ],
+        {
+          type: 'application/json',
+        },
+      ),
+      'migration.json',
+    );
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/migrations/ob2/batch-upload?dryRun=true',
+      {
+        method: 'POST',
+        headers: {
+          cookie: 'credtrail_session=test-session-token',
+        },
+        body: formData,
+      },
+      env,
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.dryRun).toBe(true);
+    expect(body.totalRows).toBe(2);
+    expect(body.validRows).toBe(1);
+    expect(body.invalidRows).toBe(1);
+    expect(body.queuedRows).toBe(0);
+    expect(mockedEnqueueJobQueueMessage).not.toHaveBeenCalled();
+
+    const rows = body.rows as Record<string, unknown>[];
+    expect(rows[0]?.status).toBe('valid');
+    expect(rows[1]?.status).toBe('invalid');
+  });
+
+  it('queues valid rows when dryRun=false for CSV upload', async () => {
+    const env = createEnv();
+    const formData = new FormData();
+    const csvCell = (value: string): string => {
+      return `"${value.replaceAll('"', '""')}"`;
+    };
+    const csvRow = [
+      csvCell(
+        JSON.stringify({
+          type: 'Assertion',
+          recipient: {
+            type: 'email',
+            identity: 'learner@example.edu',
+          },
+          badge: 'https://issuer.test/badges/1',
+          issuedOn: '2025-10-01T12:00:00Z',
+        }),
+      ),
+      csvCell(
+        JSON.stringify({
+          type: 'BadgeClass',
+          id: 'https://issuer.test/badges/1',
+          name: 'Batch CSV Badge',
+          issuer: 'https://issuer.test/issuers/1',
+        }),
+      ),
+      csvCell(
+        JSON.stringify({
+          type: 'Issuer',
+          id: 'https://issuer.test/issuers/1',
+          name: 'Issuer Test',
+          url: 'https://issuer.test',
+        }),
+      ),
+    ].join(',');
+    const csv = [
+      'ob2Assertion,ob2BadgeClass,ob2Issuer',
+      csvRow,
+    ].join('\n');
+    formData.append(
+      'file',
+      new Blob([csv], {
+        type: 'text/csv',
+      }),
+      'migration.csv',
+    );
+
+    const response = await app.request(
+      '/v1/tenants/tenant_123/migrations/ob2/batch-upload?dryRun=false',
+      {
+        method: 'POST',
+        headers: {
+          cookie: 'credtrail_session=test-session-token',
+        },
+        body: formData,
+      },
+      env,
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.dryRun).toBe(false);
+    expect(body.totalRows).toBe(1);
+    expect(body.validRows).toBe(1);
+    expect(body.invalidRows).toBe(0);
+    expect(body.queuedRows).toBe(1);
+    expect(mockedEnqueueJobQueueMessage).toHaveBeenCalledTimes(1);
+    expect(mockedEnqueueJobQueueMessage).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: 'tenant_123',
+        jobType: 'import_migration_batch',
+      }),
+    );
   });
 });

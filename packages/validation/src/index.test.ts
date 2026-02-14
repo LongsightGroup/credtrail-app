@@ -32,6 +32,7 @@ import {
   parseAssertionPathParams,
   parseMagicLinkRequest,
   parseMagicLinkVerifyRequest,
+  parseMigrationBatchUploadQuery,
   parseOb2ImportConversionRequest,
   parseProcessQueueRequest,
   parseQueueJob,
@@ -264,6 +265,28 @@ describe('OB2 import conversion parser', () => {
   it('rejects payloads without an assertion source', () => {
     expect(() => {
       parseOb2ImportConversionRequest({});
+    }).toThrowError();
+  });
+});
+
+describe('migration batch upload query parser', () => {
+  it('defaults dryRun to true', () => {
+    const query = parseMigrationBatchUploadQuery({});
+    expect(query.dryRun).toBe(true);
+  });
+
+  it('parses explicit dryRun false', () => {
+    const query = parseMigrationBatchUploadQuery({
+      dryRun: 'false',
+    });
+    expect(query.dryRun).toBe(false);
+  });
+
+  it('rejects invalid dryRun values', () => {
+    expect(() => {
+      parseMigrationBatchUploadQuery({
+        dryRun: 'nope',
+      });
     }).toThrowError();
   });
 });

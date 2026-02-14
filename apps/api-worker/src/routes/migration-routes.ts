@@ -1,4 +1,5 @@
 import {
+  enqueueJobQueueMessage,
   findLearnerProfileByIdentity,
   listBadgeTemplates,
   type LearnerIdentityType,
@@ -9,6 +10,7 @@ import {
 import type { Hono } from 'hono';
 import {
   ob2ImportConversionRequestSchema,
+  parseMigrationBatchUploadQuery,
   parseOb2ImportConversionRequest,
   parseTenantPathParams,
 } from '@credtrail/validation';
@@ -18,6 +20,11 @@ import {
   Ob2ImportError,
   prepareOb2ImportConversion,
 } from '../migrations/ob2-import';
+import {
+  MigrationBatchFileParseError,
+  parseMigrationBatchUploadFile,
+  type MigrationBatchFileFormat,
+} from '../migrations/batch-upload';
 
 interface RegisterMigrationRoutesInput {
   app: Hono<AppEnv>;
@@ -60,6 +67,14 @@ interface DryRunDiffPreview {
   };
 }
 
+interface BatchUploadRowValidationResult {
+  rowNumber: number;
+  status: 'valid' | 'invalid';
+  errors: string[];
+  warnings: string[];
+  diffPreview: DryRunDiffPreview | null;
+}
+
 const learnerIdentityTypeFromRecipientIdentityType = (
   identityType: Ob2ImportConversionResult['manualIssueRequest']['recipientIdentityType'],
 ): LearnerIdentityType => {
@@ -76,6 +91,18 @@ const learnerIdentityTypeFromRecipientIdentityType = (
   }
 
   return 'url';
+};
+
+const zodIssueMessages = (
+  issues: readonly {
+    path: (string | number)[];
+    message: string;
+  }[],
+): string[] => {
+  return issues.map((issue) => {
+    const path = issue.path.length > 0 ? issue.path.join('.') : 'request';
+    return `${path}: ${issue.message}`;
+  });
 };
 
 const dryRunDiffPreview = async (input: {
@@ -155,6 +182,115 @@ const dryRunDiffPreview = async (input: {
   };
 };
 
+const runBatchRowValidation = async (input: {
+  db: SqlDatabase;
+  tenantId: string;
+  dryRun: boolean;
+  fileName: string;
+  format: MigrationBatchFileFormat;
+  batchId: string;
+  rows: {
+    rowNumber: number;
+    candidate: Record<string, unknown>;
+  }[];
+}): Promise<{
+  reports: BatchUploadRowValidationResult[];
+  queuedRows: number;
+}> => {
+  const reports: BatchUploadRowValidationResult[] = [];
+  let queuedRows = 0;
+
+  for (const row of input.rows) {
+    const parsedRequest = ob2ImportConversionRequestSchema.safeParse(row.candidate);
+
+    if (!parsedRequest.success) {
+      reports.push({
+        rowNumber: row.rowNumber,
+        status: 'invalid',
+        errors: zodIssueMessages(parsedRequest.error.issues),
+        warnings: [],
+        diffPreview: null,
+      });
+      continue;
+    }
+
+    const request = parsedRequest.data;
+    let conversionResult;
+
+    try {
+      conversionResult = await prepareOb2ImportConversion({
+        ...(request.ob2Assertion === undefined ? {} : { ob2Assertion: request.ob2Assertion }),
+        ...(request.ob2BadgeClass === undefined ? {} : { ob2BadgeClass: request.ob2BadgeClass }),
+        ...(request.ob2Issuer === undefined ? {} : { ob2Issuer: request.ob2Issuer }),
+        ...(request.bakedBadgeImage === undefined
+          ? {}
+          : { bakedBadgeImage: request.bakedBadgeImage }),
+      });
+    } catch (error: unknown) {
+      if (error instanceof Ob2ImportError) {
+        reports.push({
+          rowNumber: row.rowNumber,
+          status: 'invalid',
+          errors: [error.message],
+          warnings: [],
+          diffPreview: null,
+        });
+        continue;
+      }
+
+      throw error;
+    }
+
+    if (conversionResult.conversion === null) {
+      reports.push({
+        rowNumber: row.rowNumber,
+        status: 'invalid',
+        errors: ['Conversion could not be completed from supplied payload'],
+        warnings: conversionResult.warnings,
+        diffPreview: null,
+      });
+      continue;
+    }
+
+    if (!input.dryRun) {
+      await enqueueJobQueueMessage(input.db, {
+        tenantId: input.tenantId,
+        jobType: 'import_migration_batch',
+        payload: {
+          source: 'file_upload',
+          batchId: input.batchId,
+          rowNumber: row.rowNumber,
+          fileName: input.fileName,
+          format: input.format,
+          request,
+          conversion: conversionResult.conversion,
+        },
+        idempotencyKey: `migration-batch:${input.batchId}:${String(row.rowNumber)}`,
+      });
+      queuedRows += 1;
+    }
+
+    reports.push({
+      rowNumber: row.rowNumber,
+      status: 'valid',
+      errors: [],
+      warnings: conversionResult.warnings,
+      diffPreview: input.dryRun
+        ? await dryRunDiffPreview({
+            db: input.db,
+            tenantId: input.tenantId,
+            conversion: conversionResult.conversion,
+          })
+        : null,
+    });
+  }
+
+  return {
+    reports,
+    queuedRows,
+  };
+};
+
 export const registerMigrationRoutes = (input: RegisterMigrationRoutesInput): void => {
   const { app, resolveDatabase, requireTenantRole, ISSUER_ROLES } = input;
 
@@ -226,10 +362,7 @@ export const registerMigrationRoutes = (input: RegisterMigrationRoutesInput): vo
           tenantId: pathParams.tenantId,
           status: 'invalid',
           validationReport: {
-            errors: parsedRequest.error.issues.map((issue) => {
-              const path = issue.path.length > 0 ? issue.path.join('.') : 'request';
-              return `${path}: ${issue.message}`;
-            }),
+            errors: zodIssueMessages(parsedRequest.error.issues),
             warnings: [],
             diffPreview: null,
           },
@@ -293,5 +426,114 @@ export const registerMigrationRoutes = (input: RegisterMigrationRoutesInput): vo
 
       throw error;
     }
+  });
+
+  app.post('/v1/tenants/:tenantId/migrations/ob2/batch-upload', async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    let query;
+
+    try {
+      query = parseMigrationBatchUploadQuery({
+        dryRun: c.req.query('dryRun'),
+      });
+    } catch {
+      return c.json(
+        {
+          error: 'Invalid batch upload query parameters',
+        },
+        400,
+      );
+    }
+
+    const contentType = c.req.header('content-type')?.toLowerCase() ?? '';
+
+    if (!contentType.includes('multipart/form-data')) {
+      return c.json(
+        {
+          error: 'Batch upload requires multipart/form-data with a file field named "file"',
+        },
+        415,
+      );
+    }
+
+    const formData = await c.req.formData();
+    const upload = formData.get('file');
+
+    if (!(upload instanceof File)) {
+      return c.json(
+        {
+          error: 'Batch upload file is required in form field "file"',
+        },
+        400,
+      );
+    }
+
+    const fileContent = await upload.text();
+
+    if (fileContent.trim().length === 0) {
+      return c.json(
+        {
+          error: 'Uploaded file is empty',
+        },
+        422,
+      );
+    }
+
+    let parsedFile;
+
+    try {
+      parsedFile = parseMigrationBatchUploadFile({
+        fileName: upload.name,
+        mimeType: upload.type,
+        content: fileContent,
+      });
+    } catch (error: unknown) {
+      if (error instanceof MigrationBatchFileParseError) {
+        return c.json(
+          {
+            error: error.message,
+          },
+          422,
+        );
+      }
+
+      throw error;
+    }
+
+    const batchId = crypto.randomUUID();
+    const db = resolveDatabase(c.env);
+    const { reports, queuedRows } = await runBatchRowValidation({
+      db,
+      tenantId: pathParams.tenantId,
+      dryRun: query.dryRun,
+      fileName: upload.name,
+      format: parsedFile.format,
+      batchId,
+      rows: parsedFile.rows,
+    });
+    const validRows = reports.filter((report) => report.status === 'valid').length;
+    const invalidRows = reports.length - validRows;
+
+    return c.json(
+      {
+        tenantId: pathParams.tenantId,
+        batchId,
+        fileName: upload.name,
+        format: parsedFile.format,
+        dryRun: query.dryRun,
+        totalRows: reports.length,
+        validRows,
+        invalidRows,
+        queuedRows,
+        rows: reports,
+      },
+      200,
+    );
   });
 };
