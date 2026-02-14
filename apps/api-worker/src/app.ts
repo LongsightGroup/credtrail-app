@@ -556,6 +556,8 @@ registerAuthRoutes({
 registerTenantGovernanceRoutes({
   app,
   resolveDatabase,
+  generateOpaqueToken,
+  sha256Hex,
   requireTenantRole,
   ADMIN_ROLES,
   ISSUER_ROLES,
@@ -607,6 +609,7 @@ const processQueuedJobs = createProcessQueuedJobs({
 registerQueueRoutes({
   app,
   resolveDatabase,
+  sha256Hex,
   readJsonBodyOrEmptyObject,
   processQueuedJobs,
   processQueueInputWithDefaults,

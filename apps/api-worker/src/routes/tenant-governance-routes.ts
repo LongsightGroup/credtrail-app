@@ -1,14 +1,21 @@
 import {
+  createTenantApiKey,
   createAuditLog,
   createDelegatedIssuingAuthorityGrant,
   createTenantOrgUnit,
+  deleteTenantSsoSamlConfiguration,
   findDelegatedIssuingAuthorityGrantById,
+  findTenantById,
+  findTenantSsoSamlConfiguration,
+  listTenantApiKeys,
   listDelegatedIssuingAuthorityGrantEvents,
   listDelegatedIssuingAuthorityGrants,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
   removeTenantMembershipOrgUnitScope,
+  revokeTenantApiKey,
   revokeDelegatedIssuingAuthorityGrant,
+  upsertTenantSsoSamlConfiguration,
   upsertTenantMembershipOrgUnitScope,
   type SessionRecord,
   type SqlDatabase,
@@ -16,10 +23,15 @@ import {
 } from '@credtrail/db';
 import type { Hono } from 'hono';
 import {
+  parseCreateTenantApiKeyRequest,
   parseCreateDelegatedIssuingAuthorityGrantRequest,
+  parseRevokeTenantApiKeyRequest,
   parseCreateTenantOrgUnitRequest,
   parseDelegatedIssuingAuthorityGrantListQuery,
+  parseTenantApiKeyListQuery,
+  parseTenantApiKeyPathParams,
   parseRevokeDelegatedIssuingAuthorityGrantRequest,
+  parseUpsertTenantSsoSamlConfigurationRequest,
   parseTenantOrgUnitListQuery,
   parseTenantPathParams,
   parseTenantUserDelegatedGrantPathParams,
@@ -32,6 +44,8 @@ import type { AppBindings, AppContext, AppEnv } from '../app';
 interface RegisterTenantGovernanceRoutesInput {
   app: Hono<AppEnv>;
   resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  generateOpaqueToken: () => string;
+  sha256Hex: (value: string) => Promise<string>;
   requireTenantRole: (
     c: AppContext,
     tenantId: string,
@@ -50,7 +64,345 @@ interface RegisterTenantGovernanceRoutesInput {
 export const registerTenantGovernanceRoutes = (
   input: RegisterTenantGovernanceRoutesInput,
 ): void => {
-  const { app, resolveDatabase, requireTenantRole, ADMIN_ROLES, ISSUER_ROLES } = input;
+  const {
+    app,
+    resolveDatabase,
+    generateOpaqueToken,
+    sha256Hex,
+    requireTenantRole,
+    ADMIN_ROLES,
+    ISSUER_ROLES,
+  } = input;
+
+  const requireEnterpriseTenant = async (
+    c: AppContext,
+    tenantId: string,
+    db: SqlDatabase,
+  ): Promise<Response | null> => {
+    const tenant = await findTenantById(db, tenantId);
+
+    if (tenant === null) {
+      return c.json(
+        {
+          error: 'Tenant not found',
+        },
+        404,
+      );
+    }
+
+    if (tenant.planTier !== 'enterprise') {
+      return c.json(
+        {
+          error: 'Feature requires enterprise tenant plan',
+        },
+        403,
+      );
+    }
+
+    return null;
+  };
+
+  app.get('/v1/tenants/:tenantId/sso/saml', async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const db = resolveDatabase(c.env);
+    const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
+
+    if (enterpriseCheck !== null) {
+      return enterpriseCheck;
+    }
+
+    const configuration = await findTenantSsoSamlConfiguration(db, pathParams.tenantId);
+
+    if (configuration === null) {
+      return c.json(
+        {
+          error: 'SAML SSO configuration not found',
+        },
+        404,
+      );
+    }
+
+    return c.json({
+      tenantId: pathParams.tenantId,
+      configuration,
+    });
+  });
+
+  app.put('/v1/tenants/:tenantId/sso/saml', async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    let request: ReturnType<typeof parseUpsertTenantSsoSamlConfigurationRequest>;
+
+    try {
+      request = parseUpsertTenantSsoSamlConfigurationRequest(await c.req.json<unknown>());
+    } catch {
+      return c.json(
+        {
+          error: 'Invalid SAML SSO configuration payload',
+        },
+        400,
+      );
+    }
+
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const db = resolveDatabase(c.env);
+    const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
+
+    if (enterpriseCheck !== null) {
+      return enterpriseCheck;
+    }
+
+    const configuration = await upsertTenantSsoSamlConfiguration(db, {
+      tenantId: pathParams.tenantId,
+      idpEntityId: request.idpEntityId,
+      ssoLoginUrl: request.ssoLoginUrl,
+      idpCertificatePem: request.idpCertificatePem,
+      idpMetadataUrl: request.idpMetadataUrl,
+      spEntityId: request.spEntityId,
+      assertionConsumerServiceUrl: request.assertionConsumerServiceUrl,
+      nameIdFormat: request.nameIdFormat,
+      enforced: request.enforced,
+    });
+
+    await createAuditLog(db, {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action: 'tenant.sso_saml_configuration_upserted',
+      targetType: 'tenant_sso_saml_configuration',
+      targetId: pathParams.tenantId,
+      metadata: {
+        role: membershipRole,
+        idpEntityId: configuration.idpEntityId,
+        ssoLoginUrl: configuration.ssoLoginUrl,
+        idpMetadataUrl: configuration.idpMetadataUrl,
+        spEntityId: configuration.spEntityId,
+        assertionConsumerServiceUrl: configuration.assertionConsumerServiceUrl,
+        nameIdFormat: configuration.nameIdFormat,
+        enforced: configuration.enforced,
+      },
+    });
+
+    return c.json(
+      {
+        tenantId: pathParams.tenantId,
+        configuration,
+      },
+      201,
+    );
+  });
+
+  app.delete('/v1/tenants/:tenantId/sso/saml', async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const db = resolveDatabase(c.env);
+    const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
+
+    if (enterpriseCheck !== null) {
+      return enterpriseCheck;
+    }
+
+    const removed = await deleteTenantSsoSamlConfiguration(db, pathParams.tenantId);
+
+    if (removed) {
+      await createAuditLog(db, {
+        tenantId: pathParams.tenantId,
+        actorUserId: session.userId,
+        action: 'tenant.sso_saml_configuration_deleted',
+        targetType: 'tenant_sso_saml_configuration',
+        targetId: pathParams.tenantId,
+        metadata: {
+          role: membershipRole,
+        },
+      });
+    }
+
+    return c.json({
+      tenantId: pathParams.tenantId,
+      removed,
+    });
+  });
+
+  app.get('/v1/tenants/:tenantId/api-keys', async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    const query = parseTenantApiKeyListQuery({
+      includeRevoked: c.req.query('includeRevoked'),
+    });
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const keys = await listTenantApiKeys(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      includeRevoked: query.includeRevoked,
+    });
+
+    return c.json({
+      tenantId: pathParams.tenantId,
+      keys: keys.map((key) => ({
+        id: key.id,
+        tenantId: key.tenantId,
+        label: key.label,
+        keyPrefix: key.keyPrefix,
+        scopesJson: key.scopesJson,
+        createdByUserId: key.createdByUserId,
+        expiresAt: key.expiresAt,
+        lastUsedAt: key.lastUsedAt,
+        revokedAt: key.revokedAt,
+        createdAt: key.createdAt,
+        updatedAt: key.updatedAt,
+      })),
+    });
+  });
+
+  app.post('/v1/tenants/:tenantId/api-keys', async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    let request: ReturnType<typeof parseCreateTenantApiKeyRequest>;
+
+    try {
+      request = parseCreateTenantApiKeyRequest(await c.req.json<unknown>());
+    } catch {
+      return c.json(
+        {
+          error: 'Invalid API key payload',
+        },
+        400,
+      );
+    }
+
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const rawApiKey = `ctak_${generateOpaqueToken()}${generateOpaqueToken()}`;
+    const keyHash = await sha256Hex(rawApiKey);
+    const keyPrefix = rawApiKey.slice(0, 12);
+    const scopes =
+      request.scopes === undefined || request.scopes.length === 0
+        ? ['queue.issue', 'queue.revoke']
+        : request.scopes;
+    const keyRecord = await createTenantApiKey(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      label: request.label,
+      keyPrefix,
+      keyHash,
+      scopesJson: JSON.stringify(scopes),
+      createdByUserId: session.userId,
+      expiresAt: request.expiresAt,
+    });
+
+    await createAuditLog(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action: 'tenant.api_key_created',
+      targetType: 'tenant_api_key',
+      targetId: keyRecord.id,
+      metadata: {
+        role: membershipRole,
+        label: keyRecord.label,
+        keyPrefix: keyRecord.keyPrefix,
+        scopes,
+        expiresAt: keyRecord.expiresAt,
+      },
+    });
+
+    return c.json(
+      {
+        tenantId: pathParams.tenantId,
+        apiKey: rawApiKey,
+        key: {
+          id: keyRecord.id,
+          label: keyRecord.label,
+          keyPrefix: keyRecord.keyPrefix,
+          scopesJson: keyRecord.scopesJson,
+          createdByUserId: keyRecord.createdByUserId,
+          expiresAt: keyRecord.expiresAt,
+          revokedAt: keyRecord.revokedAt,
+          createdAt: keyRecord.createdAt,
+        },
+      },
+      201,
+    );
+  });
+
+  app.post('/v1/tenants/:tenantId/api-keys/:apiKeyId/revoke', async (c) => {
+    const pathParams = parseTenantApiKeyPathParams(c.req.param());
+    let request: ReturnType<typeof parseRevokeTenantApiKeyRequest>;
+
+    try {
+      let payload: unknown = {};
+
+      try {
+        payload = await c.req.json<unknown>();
+      } catch {
+        payload = {};
+      }
+
+      request = parseRevokeTenantApiKeyRequest(payload);
+    } catch {
+      return c.json(
+        {
+          error: 'Invalid API key revoke payload',
+        },
+        400,
+      );
+    }
+
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const revokedAt = request.revokedAt ?? new Date().toISOString();
+    const revoked = await revokeTenantApiKey(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      apiKeyId: pathParams.apiKeyId,
+      revokedAt,
+    });
+
+    if (revoked) {
+      await createAuditLog(resolveDatabase(c.env), {
+        tenantId: pathParams.tenantId,
+        actorUserId: session.userId,
+        action: 'tenant.api_key_revoked',
+        targetType: 'tenant_api_key',
+        targetId: pathParams.apiKeyId,
+        metadata: {
+          role: membershipRole,
+          revokedAt,
+        },
+      });
+    }
+
+    return c.json({
+      tenantId: pathParams.tenantId,
+      apiKeyId: pathParams.apiKeyId,
+      revoked,
+    });
+  });
 
   app.get('/v1/tenants/:tenantId/org-units', async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());

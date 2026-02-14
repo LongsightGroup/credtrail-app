@@ -311,6 +311,115 @@ export interface ListAuditLogsInput {
   limit?: number | undefined;
 }
 
+export interface TenantApiKeyRecord {
+  id: string;
+  tenantId: string;
+  label: string;
+  keyPrefix: string;
+  keyHash: string;
+  scopesJson: string;
+  createdByUserId: string | null;
+  expiresAt: string | null;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTenantApiKeyInput {
+  tenantId: string;
+  label: string;
+  keyPrefix: string;
+  keyHash: string;
+  scopesJson: string;
+  createdByUserId?: string | undefined;
+  expiresAt?: string | undefined;
+}
+
+export interface ListTenantApiKeysInput {
+  tenantId: string;
+  includeRevoked?: boolean | undefined;
+}
+
+export interface RevokeTenantApiKeyInput {
+  tenantId: string;
+  apiKeyId: string;
+  revokedAt: string;
+}
+
+export interface FindActiveTenantApiKeyByHashInput {
+  keyHash: string;
+  nowIso: string;
+}
+
+export interface TenantSsoSamlConfigurationRecord {
+  tenantId: string;
+  idpEntityId: string;
+  ssoLoginUrl: string;
+  idpCertificatePem: string;
+  idpMetadataUrl: string | null;
+  spEntityId: string;
+  assertionConsumerServiceUrl: string;
+  nameIdFormat: string | null;
+  enforced: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertTenantSsoSamlConfigurationInput {
+  tenantId: string;
+  idpEntityId: string;
+  ssoLoginUrl: string;
+  idpCertificatePem: string;
+  idpMetadataUrl?: string | undefined;
+  spEntityId: string;
+  assertionConsumerServiceUrl: string;
+  nameIdFormat?: string | undefined;
+  enforced?: boolean | undefined;
+}
+
+export interface DedicatedDbProvisioningRequestStatusInput {
+  status: 'pending' | 'provisioned' | 'failed' | 'canceled';
+}
+
+export type DedicatedDbProvisioningRequestStatus = DedicatedDbProvisioningRequestStatusInput['status'];
+
+export interface DedicatedDbProvisioningRequestRecord {
+  id: string;
+  tenantId: string;
+  requestedByUserId: string | null;
+  targetRegion: string;
+  status: DedicatedDbProvisioningRequestStatus;
+  dedicatedDatabaseUrl: string | null;
+  notes: string | null;
+  requestedAt: string;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDedicatedDbProvisioningRequestInput {
+  tenantId: string;
+  requestedByUserId?: string | undefined;
+  targetRegion: string;
+  notes?: string | undefined;
+  requestedAt?: string | undefined;
+}
+
+export interface ListDedicatedDbProvisioningRequestsInput {
+  tenantId: string;
+  status?: DedicatedDbProvisioningRequestStatus | undefined;
+}
+
+export interface ResolveDedicatedDbProvisioningRequestInput {
+  tenantId: string;
+  requestId: string;
+  status: Exclude<DedicatedDbProvisioningRequestStatus, 'pending'>;
+  dedicatedDatabaseUrl?: string | undefined;
+  notes?: string | undefined;
+  resolvedAt?: string | undefined;
+}
+
 export interface MagicLinkTokenRecord {
   id: string;
   tenantId: string;
@@ -1110,6 +1219,49 @@ interface AuditLogRow {
   createdAt: string;
 }
 
+interface TenantApiKeyRow {
+  id: string;
+  tenantId: string;
+  label: string;
+  keyPrefix: string;
+  keyHash: string;
+  scopesJson: string;
+  createdByUserId: string | null;
+  expiresAt: string | null;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface TenantSsoSamlConfigurationRow {
+  tenantId: string;
+  idpEntityId: string;
+  ssoLoginUrl: string;
+  idpCertificatePem: string;
+  idpMetadataUrl: string | null;
+  spEntityId: string;
+  assertionConsumerServiceUrl: string;
+  nameIdFormat: string | null;
+  enforced: number | boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface DedicatedDbProvisioningRequestRow {
+  id: string;
+  tenantId: string;
+  requestedByUserId: string | null;
+  targetRegion: string;
+  status: DedicatedDbProvisioningRequestStatus;
+  dedicatedDatabaseUrl: string | null;
+  notes: string | null;
+  requestedAt: string;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface OAuthClientRow {
   clientId: string;
   clientSecretHash: string;
@@ -1235,6 +1387,45 @@ const isMissingAuditLogsTableError = (error: unknown): boolean => {
       error.message.includes('relation') ||
       error.message.includes('does not exist')) &&
     error.message.includes('audit_logs')
+  );
+};
+
+const isMissingTenantApiKeysTableError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    (error.message.includes('no such table') ||
+      error.message.includes('relation') ||
+      error.message.includes('does not exist')) &&
+    error.message.includes('tenant_api_keys')
+  );
+};
+
+const isMissingTenantSsoSamlConfigurationsTableError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    (error.message.includes('no such table') ||
+      error.message.includes('relation') ||
+      error.message.includes('does not exist')) &&
+    error.message.includes('tenant_sso_saml_configurations')
+  );
+};
+
+const isMissingDedicatedDbProvisioningRequestsTableError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    (error.message.includes('no such table') ||
+      error.message.includes('relation') ||
+      error.message.includes('does not exist')) &&
+    error.message.includes('tenant_dedicated_db_provisioning_requests')
   );
 };
 
@@ -1471,6 +1662,96 @@ const ensureAuditLogsTable = async (db: SqlDatabase): Promise<void> => {
       `
       CREATE INDEX IF NOT EXISTS idx_audit_logs_action
         ON audit_logs (action)
+    `,
+    )
+    .run();
+};
+
+const ensureTenantApiKeysTable = async (db: SqlDatabase): Promise<void> => {
+  await db
+    .prepare(
+      `
+      CREATE TABLE IF NOT EXISTS tenant_api_keys (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        label TEXT NOT NULL,
+        key_prefix TEXT NOT NULL,
+        key_hash TEXT NOT NULL UNIQUE,
+        scopes_json TEXT NOT NULL,
+        created_by_user_id TEXT,
+        expires_at TEXT,
+        last_used_at TEXT,
+        revoked_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE,
+        FOREIGN KEY (created_by_user_id) REFERENCES users (id) ON DELETE SET NULL
+      )
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_tenant_api_keys_tenant_active
+        ON tenant_api_keys (tenant_id, revoked_at, expires_at, created_at DESC)
+    `,
+    )
+    .run();
+};
+
+const ensureTenantSsoSamlConfigurationsTable = async (db: SqlDatabase): Promise<void> => {
+  await db
+    .prepare(
+      `
+      CREATE TABLE IF NOT EXISTS tenant_sso_saml_configurations (
+        tenant_id TEXT PRIMARY KEY,
+        idp_entity_id TEXT NOT NULL,
+        sso_login_url TEXT NOT NULL,
+        idp_certificate_pem TEXT NOT NULL,
+        idp_metadata_url TEXT,
+        sp_entity_id TEXT NOT NULL,
+        assertion_consumer_service_url TEXT NOT NULL,
+        name_id_format TEXT,
+        enforced INTEGER NOT NULL DEFAULT 0 CHECK (enforced IN (0, 1)),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE
+      )
+    `,
+    )
+    .run();
+};
+
+const ensureDedicatedDbProvisioningRequestsTable = async (db: SqlDatabase): Promise<void> => {
+  await db
+    .prepare(
+      `
+      CREATE TABLE IF NOT EXISTS tenant_dedicated_db_provisioning_requests (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        requested_by_user_id TEXT,
+        target_region TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('pending', 'provisioned', 'failed', 'canceled')),
+        dedicated_database_url TEXT,
+        notes TEXT,
+        requested_at TEXT NOT NULL,
+        resolved_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE,
+        FOREIGN KEY (requested_by_user_id) REFERENCES users (id) ON DELETE SET NULL
+      )
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_dedicated_db_provisioning_tenant_status
+        ON tenant_dedicated_db_provisioning_requests (tenant_id, status, requested_at DESC)
     `,
     )
     .run();
@@ -2990,6 +3271,262 @@ export const listAuditLogs = async (
   return result.results.map((row) => mapAuditLogRow(row));
 };
 
+export const createTenantApiKey = async (
+  db: SqlDatabase,
+  input: CreateTenantApiKeyInput,
+): Promise<TenantApiKeyRecord> => {
+  const id = createPrefixedId('tak');
+  const nowIso = new Date().toISOString();
+  const insertStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        INSERT INTO tenant_api_keys (
+          id,
+          tenant_id,
+          label,
+          key_prefix,
+          key_hash,
+          scopes_json,
+          created_by_user_id,
+          expires_at,
+          last_used_at,
+          revoked_at,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)
+      `,
+      )
+      .bind(
+        id,
+        input.tenantId,
+        input.label,
+        input.keyPrefix,
+        input.keyHash,
+        input.scopesJson,
+        input.createdByUserId ?? null,
+        input.expiresAt ?? null,
+        nowIso,
+        nowIso,
+      )
+      .run();
+
+  try {
+    await insertStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantApiKeysTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantApiKeysTable(db);
+    await insertStatement();
+  }
+
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        id,
+        tenant_id AS tenantId,
+        label,
+        key_prefix AS keyPrefix,
+        key_hash AS keyHash,
+        scopes_json AS scopesJson,
+        created_by_user_id AS createdByUserId,
+        expires_at AS expiresAt,
+        last_used_at AS lastUsedAt,
+        revoked_at AS revokedAt,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM tenant_api_keys
+      WHERE id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(id)
+    .first<TenantApiKeyRow>();
+
+  if (row === null) {
+    throw new Error(`Unable to create tenant API key "${id}"`);
+  }
+
+  return mapTenantApiKeyRow(row);
+};
+
+export const listTenantApiKeys = async (
+  db: SqlDatabase,
+  input: ListTenantApiKeysInput,
+): Promise<TenantApiKeyRecord[]> => {
+  const query = input.includeRevoked
+    ? `
+      SELECT
+        id,
+        tenant_id AS tenantId,
+        label,
+        key_prefix AS keyPrefix,
+        key_hash AS keyHash,
+        scopes_json AS scopesJson,
+        created_by_user_id AS createdByUserId,
+        expires_at AS expiresAt,
+        last_used_at AS lastUsedAt,
+        revoked_at AS revokedAt,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM tenant_api_keys
+      WHERE tenant_id = ?
+      ORDER BY created_at DESC
+    `
+    : `
+      SELECT
+        id,
+        tenant_id AS tenantId,
+        label,
+        key_prefix AS keyPrefix,
+        key_hash AS keyHash,
+        scopes_json AS scopesJson,
+        created_by_user_id AS createdByUserId,
+        expires_at AS expiresAt,
+        last_used_at AS lastUsedAt,
+        revoked_at AS revokedAt,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM tenant_api_keys
+      WHERE tenant_id = ?
+        AND revoked_at IS NULL
+      ORDER BY created_at DESC
+    `;
+
+  let result: SqlQueryResult<TenantApiKeyRow>;
+
+  try {
+    result = await db.prepare(query).bind(input.tenantId).all<TenantApiKeyRow>();
+  } catch (error: unknown) {
+    if (!isMissingTenantApiKeysTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantApiKeysTable(db);
+    result = await db.prepare(query).bind(input.tenantId).all<TenantApiKeyRow>();
+  }
+
+  return result.results.map((row) => mapTenantApiKeyRow(row));
+};
+
+export const findActiveTenantApiKeyByHash = async (
+  db: SqlDatabase,
+  input: FindActiveTenantApiKeyByHashInput,
+): Promise<TenantApiKeyRecord | null> => {
+  const lookupStatement = (): Promise<TenantApiKeyRow | null> =>
+    db
+      .prepare(
+        `
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          label,
+          key_prefix AS keyPrefix,
+          key_hash AS keyHash,
+          scopes_json AS scopesJson,
+          created_by_user_id AS createdByUserId,
+          expires_at AS expiresAt,
+          last_used_at AS lastUsedAt,
+          revoked_at AS revokedAt,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM tenant_api_keys
+        WHERE key_hash = ?
+          AND revoked_at IS NULL
+          AND (expires_at IS NULL OR expires_at > ?)
+        LIMIT 1
+      `,
+      )
+      .bind(input.keyHash, input.nowIso)
+      .first<TenantApiKeyRow>();
+
+  let row: TenantApiKeyRow | null;
+
+  try {
+    row = await lookupStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantApiKeysTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantApiKeysTable(db);
+    row = await lookupStatement();
+  }
+
+  return row === null ? null : mapTenantApiKeyRow(row);
+};
+
+export const touchTenantApiKeyLastUsedAt = async (
+  db: SqlDatabase,
+  id: string,
+  lastUsedAt: string,
+): Promise<void> => {
+  const touchStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        UPDATE tenant_api_keys
+        SET
+          last_used_at = ?,
+          updated_at = ?
+        WHERE id = ?
+      `,
+      )
+      .bind(lastUsedAt, lastUsedAt, id)
+      .run();
+
+  try {
+    await touchStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantApiKeysTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantApiKeysTable(db);
+    await touchStatement();
+  }
+};
+
+export const revokeTenantApiKey = async (
+  db: SqlDatabase,
+  input: RevokeTenantApiKeyInput,
+): Promise<boolean> => {
+  const updateStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        UPDATE tenant_api_keys
+        SET
+          revoked_at = ?,
+          updated_at = ?
+        WHERE tenant_id = ?
+          AND id = ?
+          AND revoked_at IS NULL
+      `,
+      )
+      .bind(input.revokedAt, input.revokedAt, input.tenantId, input.apiKeyId)
+      .run();
+
+  let result: SqlRunResult;
+
+  try {
+    result = await updateStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantApiKeysTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantApiKeysTable(db);
+    result = await updateStatement();
+  }
+
+  return (result.meta.rowsWritten ?? 0) > 0;
+};
+
 export const createMagicLinkToken = async (
   db: SqlDatabase,
   input: CreateMagicLinkTokenInput,
@@ -4316,6 +4853,59 @@ const mapAuditLogRow = (row: AuditLogRow): AuditLogRecord => {
   };
 };
 
+const mapTenantApiKeyRow = (row: TenantApiKeyRow): TenantApiKeyRecord => {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    label: row.label,
+    keyPrefix: row.keyPrefix,
+    keyHash: row.keyHash,
+    scopesJson: row.scopesJson,
+    createdByUserId: row.createdByUserId,
+    expiresAt: row.expiresAt,
+    lastUsedAt: row.lastUsedAt,
+    revokedAt: row.revokedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+};
+
+const mapTenantSsoSamlConfigurationRow = (
+  row: TenantSsoSamlConfigurationRow,
+): TenantSsoSamlConfigurationRecord => {
+  return {
+    tenantId: row.tenantId,
+    idpEntityId: row.idpEntityId,
+    ssoLoginUrl: row.ssoLoginUrl,
+    idpCertificatePem: row.idpCertificatePem,
+    idpMetadataUrl: row.idpMetadataUrl,
+    spEntityId: row.spEntityId,
+    assertionConsumerServiceUrl: row.assertionConsumerServiceUrl,
+    nameIdFormat: row.nameIdFormat,
+    enforced: row.enforced === 1 || row.enforced === true,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+};
+
+const mapDedicatedDbProvisioningRequestRow = (
+  row: DedicatedDbProvisioningRequestRow,
+): DedicatedDbProvisioningRequestRecord => {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    requestedByUserId: row.requestedByUserId,
+    targetRegion: row.targetRegion,
+    status: row.status,
+    dedicatedDatabaseUrl: row.dedicatedDatabaseUrl,
+    notes: row.notes,
+    requestedAt: row.requestedAt,
+    resolvedAt: row.resolvedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+};
+
 const mapBadgeTemplateRow = (row: BadgeTemplateRow): BadgeTemplateRecord => {
   return {
     id: row.id,
@@ -4540,6 +5130,386 @@ export const upsertTenant = async (
   }
 
   return mapTenantRow(row);
+};
+
+export const findTenantById = async (
+  db: SqlDatabase,
+  tenantId: string,
+): Promise<TenantRecord | null> => {
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        id,
+        slug,
+        display_name AS displayName,
+        plan_tier AS planTier,
+        issuer_domain AS issuerDomain,
+        did_web AS didWeb,
+        is_active AS isActive,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM tenants
+      WHERE id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(tenantId)
+    .first<TenantRow>();
+
+  return row === null ? null : mapTenantRow(row);
+};
+
+export const findTenantSsoSamlConfiguration = async (
+  db: SqlDatabase,
+  tenantId: string,
+): Promise<TenantSsoSamlConfigurationRecord | null> => {
+  const lookupStatement = (): Promise<TenantSsoSamlConfigurationRow | null> =>
+    db
+      .prepare(
+        `
+        SELECT
+          tenant_id AS tenantId,
+          idp_entity_id AS idpEntityId,
+          sso_login_url AS ssoLoginUrl,
+          idp_certificate_pem AS idpCertificatePem,
+          idp_metadata_url AS idpMetadataUrl,
+          sp_entity_id AS spEntityId,
+          assertion_consumer_service_url AS assertionConsumerServiceUrl,
+          name_id_format AS nameIdFormat,
+          enforced,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM tenant_sso_saml_configurations
+        WHERE tenant_id = ?
+        LIMIT 1
+      `,
+      )
+      .bind(tenantId)
+      .first<TenantSsoSamlConfigurationRow>();
+
+  let row: TenantSsoSamlConfigurationRow | null;
+
+  try {
+    row = await lookupStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantSsoSamlConfigurationsTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantSsoSamlConfigurationsTable(db);
+    row = await lookupStatement();
+  }
+
+  return row === null ? null : mapTenantSsoSamlConfigurationRow(row);
+};
+
+export const upsertTenantSsoSamlConfiguration = async (
+  db: SqlDatabase,
+  input: UpsertTenantSsoSamlConfigurationInput,
+): Promise<TenantSsoSamlConfigurationRecord> => {
+  const nowIso = new Date().toISOString();
+  const upsertStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        INSERT INTO tenant_sso_saml_configurations (
+          tenant_id,
+          idp_entity_id,
+          sso_login_url,
+          idp_certificate_pem,
+          idp_metadata_url,
+          sp_entity_id,
+          assertion_consumer_service_url,
+          name_id_format,
+          enforced,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (tenant_id)
+        DO UPDATE SET
+          idp_entity_id = excluded.idp_entity_id,
+          sso_login_url = excluded.sso_login_url,
+          idp_certificate_pem = excluded.idp_certificate_pem,
+          idp_metadata_url = excluded.idp_metadata_url,
+          sp_entity_id = excluded.sp_entity_id,
+          assertion_consumer_service_url = excluded.assertion_consumer_service_url,
+          name_id_format = excluded.name_id_format,
+          enforced = excluded.enforced,
+          updated_at = excluded.updated_at
+      `,
+      )
+      .bind(
+        input.tenantId,
+        input.idpEntityId,
+        input.ssoLoginUrl,
+        input.idpCertificatePem,
+        input.idpMetadataUrl ?? null,
+        input.spEntityId,
+        input.assertionConsumerServiceUrl,
+        input.nameIdFormat ?? null,
+        input.enforced === true ? 1 : 0,
+        nowIso,
+        nowIso,
+      )
+      .run();
+
+  try {
+    await upsertStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantSsoSamlConfigurationsTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantSsoSamlConfigurationsTable(db);
+    await upsertStatement();
+  }
+
+  const configuration = await findTenantSsoSamlConfiguration(db, input.tenantId);
+
+  if (configuration === null) {
+    throw new Error(`Unable to upsert SAML SSO configuration for tenant "${input.tenantId}"`);
+  }
+
+  return configuration;
+};
+
+export const deleteTenantSsoSamlConfiguration = async (
+  db: SqlDatabase,
+  tenantId: string,
+): Promise<boolean> => {
+  const deleteStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        DELETE FROM tenant_sso_saml_configurations
+        WHERE tenant_id = ?
+      `,
+      )
+      .bind(tenantId)
+      .run();
+
+  let result: SqlRunResult;
+
+  try {
+    result = await deleteStatement();
+  } catch (error: unknown) {
+    if (!isMissingTenantSsoSamlConfigurationsTableError(error)) {
+      throw error;
+    }
+
+    await ensureTenantSsoSamlConfigurationsTable(db);
+    result = await deleteStatement();
+  }
+
+  return (result.meta.rowsWritten ?? 0) > 0;
+};
+
+export const createDedicatedDbProvisioningRequest = async (
+  db: SqlDatabase,
+  input: CreateDedicatedDbProvisioningRequestInput,
+): Promise<DedicatedDbProvisioningRequestRecord> => {
+  const id = createPrefixedId('dpr');
+  const requestedAt = input.requestedAt ?? new Date().toISOString();
+  const insertStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        INSERT INTO tenant_dedicated_db_provisioning_requests (
+          id,
+          tenant_id,
+          requested_by_user_id,
+          target_region,
+          status,
+          dedicated_database_url,
+          notes,
+          requested_at,
+          resolved_at,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, 'pending', NULL, ?, ?, NULL, ?, ?)
+      `,
+      )
+      .bind(
+        id,
+        input.tenantId,
+        input.requestedByUserId ?? null,
+        input.targetRegion,
+        input.notes ?? null,
+        requestedAt,
+        requestedAt,
+        requestedAt,
+      )
+      .run();
+
+  try {
+    await insertStatement();
+  } catch (error: unknown) {
+    if (!isMissingDedicatedDbProvisioningRequestsTableError(error)) {
+      throw error;
+    }
+
+    await ensureDedicatedDbProvisioningRequestsTable(db);
+    await insertStatement();
+  }
+
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        id,
+        tenant_id AS tenantId,
+        requested_by_user_id AS requestedByUserId,
+        target_region AS targetRegion,
+        status,
+        dedicated_database_url AS dedicatedDatabaseUrl,
+        notes,
+        requested_at AS requestedAt,
+        resolved_at AS resolvedAt,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM tenant_dedicated_db_provisioning_requests
+      WHERE id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(id)
+    .first<DedicatedDbProvisioningRequestRow>();
+
+  if (row === null) {
+    throw new Error(`Unable to create dedicated DB provisioning request "${id}"`);
+  }
+
+  return mapDedicatedDbProvisioningRequestRow(row);
+};
+
+export const listDedicatedDbProvisioningRequests = async (
+  db: SqlDatabase,
+  input: ListDedicatedDbProvisioningRequestsInput,
+): Promise<DedicatedDbProvisioningRequestRecord[]> => {
+  const whereClauses = ['tenant_id = ?'];
+  const queryParams: unknown[] = [input.tenantId];
+
+  if (input.status !== undefined) {
+    whereClauses.push('status = ?');
+    queryParams.push(input.status);
+  }
+
+  const listStatement = (): Promise<SqlQueryResult<DedicatedDbProvisioningRequestRow>> =>
+    db
+      .prepare(
+        `
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          requested_by_user_id AS requestedByUserId,
+          target_region AS targetRegion,
+          status,
+          dedicated_database_url AS dedicatedDatabaseUrl,
+          notes,
+          requested_at AS requestedAt,
+          resolved_at AS resolvedAt,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM tenant_dedicated_db_provisioning_requests
+        WHERE ${whereClauses.join('\n          AND ')}
+        ORDER BY requested_at DESC, created_at DESC
+      `,
+      )
+      .bind(...queryParams)
+      .all<DedicatedDbProvisioningRequestRow>();
+
+  let result: SqlQueryResult<DedicatedDbProvisioningRequestRow>;
+
+  try {
+    result = await listStatement();
+  } catch (error: unknown) {
+    if (!isMissingDedicatedDbProvisioningRequestsTableError(error)) {
+      throw error;
+    }
+
+    await ensureDedicatedDbProvisioningRequestsTable(db);
+    result = await listStatement();
+  }
+
+  return result.results.map((row) => mapDedicatedDbProvisioningRequestRow(row));
+};
+
+export const resolveDedicatedDbProvisioningRequest = async (
+  db: SqlDatabase,
+  input: ResolveDedicatedDbProvisioningRequestInput,
+): Promise<DedicatedDbProvisioningRequestRecord | null> => {
+  const resolvedAt = input.resolvedAt ?? new Date().toISOString();
+  let result: SqlRunResult;
+  const updateStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        UPDATE tenant_dedicated_db_provisioning_requests
+        SET
+          status = ?,
+          dedicated_database_url = ?,
+          notes = ?,
+          resolved_at = ?,
+          updated_at = ?
+        WHERE tenant_id = ?
+          AND id = ?
+          AND status = 'pending'
+      `,
+      )
+      .bind(
+        input.status,
+        input.dedicatedDatabaseUrl ?? null,
+        input.notes ?? null,
+        resolvedAt,
+        resolvedAt,
+        input.tenantId,
+        input.requestId,
+      )
+      .run();
+
+  try {
+    result = await updateStatement();
+  } catch (error: unknown) {
+    if (!isMissingDedicatedDbProvisioningRequestsTableError(error)) {
+      throw error;
+    }
+
+    await ensureDedicatedDbProvisioningRequestsTable(db);
+    result = await updateStatement();
+  }
+
+  if ((result.meta.rowsWritten ?? 0) === 0) {
+    return null;
+  }
+
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        id,
+        tenant_id AS tenantId,
+        requested_by_user_id AS requestedByUserId,
+        target_region AS targetRegion,
+        status,
+        dedicated_database_url AS dedicatedDatabaseUrl,
+        notes,
+        requested_at AS requestedAt,
+        resolved_at AS resolvedAt,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM tenant_dedicated_db_provisioning_requests
+      WHERE tenant_id = ?
+        AND id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(input.tenantId, input.requestId)
+    .first<DedicatedDbProvisioningRequestRow>();
+
+  return row === null ? null : mapDedicatedDbProvisioningRequestRow(row);
 };
 
 export const upsertTenantSigningRegistration = async (

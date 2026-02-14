@@ -1,9 +1,12 @@
 import { createDidWeb } from '@credtrail/core-domain';
 import {
+  createDedicatedDbProvisioningRequest,
   createAuditLog,
   deleteLtiIssuerRegistrationByIssuer,
   listAuditLogs,
+  listDedicatedDbProvisioningRequests,
   listLtiIssuerRegistrations,
+  resolveDedicatedDbProvisioningRequest,
   upsertBadgeTemplateById,
   upsertLtiIssuerRegistration,
   upsertTenant,
@@ -15,6 +18,7 @@ import {
 import type { Hono } from 'hono';
 import {
   type AdminAuditLogListQuery,
+  parseCreateDedicatedDbProvisioningRequest,
   parseAdminAuditLogListQuery,
   parseAdminDeleteLtiIssuerRegistrationRequest,
   parseAdminUpsertBadgeTemplateByIdRequest,
@@ -22,7 +26,9 @@ import {
   parseAdminUpsertTenantMembershipRoleRequest,
   parseAdminUpsertTenantRequest,
   parseAdminUpsertTenantSigningRegistrationRequest,
+  parseResolveDedicatedDbProvisioningRequest,
   parseBadgeTemplatePathParams,
+  parseTenantDedicatedDbProvisioningRequestPathParams,
   parseTenantPathParams,
   parseTenantUserPathParams,
 } from '@credtrail/validation';
@@ -379,6 +385,152 @@ export const registerAdminRoutes = (input: RegisterAdminRoutesInput): void => {
       logs,
     });
   });
+
+  app.get('/v1/admin/tenants/:tenantId/dedicated-db/provisioning-requests', async (c) => {
+    const unauthorizedResponse = requireBootstrapAdmin(c);
+
+    if (unauthorizedResponse !== null) {
+      return unauthorizedResponse;
+    }
+
+    const pathParams = parseTenantPathParams(c.req.param());
+    const statusCandidate = c.req.query('status');
+    const status =
+      statusCandidate === 'pending' ||
+      statusCandidate === 'provisioned' ||
+      statusCandidate === 'failed' ||
+      statusCandidate === 'canceled'
+        ? statusCandidate
+        : undefined;
+
+    if (statusCandidate !== undefined && status === undefined) {
+      return c.json(
+        {
+          error: 'status must be one of pending, provisioned, failed, canceled',
+        },
+        400,
+      );
+    }
+
+    const requests = await listDedicatedDbProvisioningRequests(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      ...(status === undefined ? {} : { status }),
+    });
+
+    return c.json({
+      tenantId: pathParams.tenantId,
+      requests,
+    });
+  });
+
+  app.post('/v1/admin/tenants/:tenantId/dedicated-db/provisioning-requests', async (c) => {
+    const unauthorizedResponse = requireBootstrapAdmin(c);
+
+    if (unauthorizedResponse !== null) {
+      return unauthorizedResponse;
+    }
+
+    const pathParams = parseTenantPathParams(c.req.param());
+    let request;
+
+    try {
+      request = parseCreateDedicatedDbProvisioningRequest(await c.req.json<unknown>());
+    } catch (error) {
+      return c.json(
+        {
+          error: error instanceof Error ? error.message : 'Invalid provisioning request payload',
+        },
+        400,
+      );
+    }
+
+    const provisioningRequest = await createDedicatedDbProvisioningRequest(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      targetRegion: request.targetRegion,
+      notes: request.notes,
+    });
+
+    await createAuditLog(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      action: 'tenant.dedicated_db_provisioning_requested',
+      targetType: 'tenant_dedicated_db_provisioning_request',
+      targetId: provisioningRequest.id,
+      metadata: {
+        targetRegion: provisioningRequest.targetRegion,
+        notes: provisioningRequest.notes,
+      },
+    });
+
+    return c.json(
+      {
+        tenantId: pathParams.tenantId,
+        request: provisioningRequest,
+      },
+      201,
+    );
+  });
+
+  app.post(
+    '/v1/admin/tenants/:tenantId/dedicated-db/provisioning-requests/:requestId/resolve',
+    async (c) => {
+      const unauthorizedResponse = requireBootstrapAdmin(c);
+
+      if (unauthorizedResponse !== null) {
+        return unauthorizedResponse;
+      }
+
+      const pathParams = parseTenantDedicatedDbProvisioningRequestPathParams(c.req.param());
+      let request;
+
+      try {
+        request = parseResolveDedicatedDbProvisioningRequest(await c.req.json<unknown>());
+      } catch (error) {
+        return c.json(
+          {
+            error: error instanceof Error ? error.message : 'Invalid provisioning resolve payload',
+          },
+          400,
+        );
+      }
+
+      const resolved = await resolveDedicatedDbProvisioningRequest(resolveDatabase(c.env), {
+        tenantId: pathParams.tenantId,
+        requestId: pathParams.requestId,
+        status: request.status,
+        dedicatedDatabaseUrl: request.dedicatedDatabaseUrl,
+        notes: request.notes,
+        resolvedAt: request.resolvedAt,
+      });
+
+      if (resolved === null) {
+        return c.json(
+          {
+            error: 'Provisioning request not found',
+          },
+          404,
+        );
+      }
+
+      await createAuditLog(resolveDatabase(c.env), {
+        tenantId: pathParams.tenantId,
+        action: 'tenant.dedicated_db_provisioning_resolved',
+        targetType: 'tenant_dedicated_db_provisioning_request',
+        targetId: resolved.id,
+        metadata: {
+          status: resolved.status,
+          targetRegion: resolved.targetRegion,
+          dedicatedDatabaseUrl: resolved.dedicatedDatabaseUrl,
+          resolvedAt: resolved.resolvedAt,
+          notes: resolved.notes,
+        },
+      });
+
+      return c.json({
+        tenantId: pathParams.tenantId,
+        request: resolved,
+      });
+    },
+  );
 
   app.get('/admin/audit-logs', async (c) => {
     const token = c.req.query('token') ?? null;

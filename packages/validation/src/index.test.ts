@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  parseCreateDedicatedDbProvisioningRequest,
+  parseCreateTenantApiKeyRequest,
+  parseRevokeTenantApiKeyRequest,
+  parseResolveDedicatedDbProvisioningRequest,
+  parseTenantApiKeyListQuery,
+  parseTenantApiKeyPathParams,
+  parseTenantDedicatedDbProvisioningRequestPathParams,
+  parseUpsertTenantSsoSamlConfigurationRequest,
   parseAdminAuditLogListQuery,
   parseAdminDeleteLtiIssuerRegistrationRequest,
   parseAdminUpsertLtiIssuerRegistrationRequest,
@@ -862,5 +870,74 @@ describe('admin request parsers', () => {
         limit: '0',
       });
     }).toThrowError();
+  });
+});
+
+describe('enterprise governance request parsers', () => {
+  it('parses tenant API key path params and list query', () => {
+    const pathParams = parseTenantApiKeyPathParams({
+      tenantId: 'tenant_123',
+      apiKeyId: 'tak_123',
+    });
+    const defaultQuery = parseTenantApiKeyListQuery({});
+    const explicitQuery = parseTenantApiKeyListQuery({
+      includeRevoked: 'true',
+    });
+
+    expect(pathParams.apiKeyId).toBe('tak_123');
+    expect(defaultQuery.includeRevoked).toBe(false);
+    expect(explicitQuery.includeRevoked).toBe(true);
+  });
+
+  it('parses tenant API key create and revoke payloads', () => {
+    const createPayload = parseCreateTenantApiKeyRequest({
+      label: 'Integration key',
+      scopes: ['queue.issue', 'queue.revoke'],
+      expiresAt: '2026-03-15T00:00:00.000Z',
+    });
+    const revokePayload = parseRevokeTenantApiKeyRequest({
+      revokedAt: '2026-03-16T00:00:00.000Z',
+    });
+
+    expect(createPayload.label).toBe('Integration key');
+    expect(createPayload.scopes).toEqual(['queue.issue', 'queue.revoke']);
+    expect(revokePayload.revokedAt).toBe('2026-03-16T00:00:00.000Z');
+  });
+
+  it('parses tenant SAML SSO configuration payload', () => {
+    const payload = parseUpsertTenantSsoSamlConfigurationRequest({
+      idpEntityId: 'https://idp.example.edu/entity',
+      ssoLoginUrl: 'https://idp.example.edu/sso/login',
+      idpCertificatePem: '-----BEGIN CERTIFICATE-----\\nabc\\n-----END CERTIFICATE-----',
+      idpMetadataUrl: 'https://idp.example.edu/metadata',
+      spEntityId: 'https://credtrail.example.edu/saml/sp',
+      assertionConsumerServiceUrl: 'https://credtrail.example.edu/saml/acs',
+      nameIdFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
+      enforced: true,
+    });
+
+    expect(payload.enforced).toBe(true);
+    expect(payload.spEntityId).toContain('/saml/sp');
+  });
+
+  it('parses dedicated DB provisioning create/resolve payloads and path params', () => {
+    const pathParams = parseTenantDedicatedDbProvisioningRequestPathParams({
+      tenantId: 'tenant_123',
+      requestId: 'dpr_123',
+    });
+    const createPayload = parseCreateDedicatedDbProvisioningRequest({
+      targetRegion: 'us-east-1',
+      notes: 'Enterprise migration window approved',
+    });
+    const resolvePayload = parseResolveDedicatedDbProvisioningRequest({
+      status: 'provisioned',
+      dedicatedDatabaseUrl: 'postgres://dedicated.example/db',
+      notes: 'Provisioned and smoke tested',
+      resolvedAt: '2026-03-16T00:00:00.000Z',
+    });
+
+    expect(pathParams.requestId).toBe('dpr_123');
+    expect(createPayload.targetRegion).toBe('us-east-1');
+    expect(resolvePayload.status).toBe('provisioned');
   });
 });

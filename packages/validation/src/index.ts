@@ -183,6 +183,14 @@ export const tenantUserDelegatedGrantPathParamsSchema = tenantUserPathParamsSche
   grantId: resourceIdSchema,
 });
 
+export const tenantApiKeyPathParamsSchema = tenantPathParamsSchema.extend({
+  apiKeyId: resourceIdSchema,
+});
+
+export const tenantDedicatedDbProvisioningRequestPathParamsSchema = tenantPathParamsSchema.extend({
+  requestId: resourceIdSchema,
+});
+
 export const credentialPathParamsSchema = z.object({
   credentialId: resourceIdSchema,
 });
@@ -258,6 +266,24 @@ export const delegatedIssuingAuthorityGrantListQuerySchema = z.object({
     return input;
   }, z.boolean()),
   includeExpired: z.preprocess((input) => {
+    if (input === undefined) {
+      return false;
+    }
+
+    if (input === 'true') {
+      return true;
+    }
+
+    if (input === 'false') {
+      return false;
+    }
+
+    return input;
+  }, z.boolean()),
+});
+
+export const tenantApiKeyListQuerySchema = z.object({
+  includeRevoked: z.preprocess((input) => {
     if (input === undefined) {
       return false;
     }
@@ -371,6 +397,44 @@ export const transferBadgeTemplateOwnershipRequestSchema = z.object({
   reason: z.string().trim().min(1).max(512).optional(),
   governanceMetadata: jsonObjectSchema.optional(),
   transferredAt: isoTimestampSchema.optional(),
+});
+
+export const createTenantApiKeyRequestSchema = z.object({
+  label: z.string().trim().min(1).max(120),
+  scopes: z.array(z.string().trim().min(1).max(120)).min(1).max(20).optional(),
+  expiresAt: isoTimestampSchema.optional(),
+});
+
+export const revokeTenantApiKeyRequestSchema = z.object({
+  revokedAt: isoTimestampSchema.optional(),
+});
+
+export const upsertTenantSsoSamlConfigurationRequestSchema = z.object({
+  idpEntityId: z.string().trim().min(1).max(512),
+  ssoLoginUrl: z.string().url().max(2048),
+  idpCertificatePem: z.string().trim().min(1).max(32000),
+  idpMetadataUrl: z.string().url().max(2048).optional(),
+  spEntityId: z.string().trim().min(1).max(512),
+  assertionConsumerServiceUrl: z.string().url().max(2048),
+  nameIdFormat: z.string().trim().min(1).max(255).optional(),
+  enforced: z.boolean().optional(),
+});
+
+export const createDedicatedDbProvisioningRequestSchema = z.object({
+  targetRegion: z
+    .string()
+    .trim()
+    .min(2)
+    .max(64)
+    .regex(/^[a-z0-9-]+$/),
+  notes: z.string().trim().min(1).max(2000).optional(),
+});
+
+export const resolveDedicatedDbProvisioningRequestSchema = z.object({
+  status: z.enum(['provisioned', 'failed', 'canceled']),
+  dedicatedDatabaseUrl: z.string().url().max(4096).optional(),
+  notes: z.string().trim().min(1).max(2000).optional(),
+  resolvedAt: isoTimestampSchema.optional(),
 });
 
 export const adminUpsertTenantRequestSchema = z.object({
@@ -653,11 +717,16 @@ export type TenantUserOrgUnitPathParams = z.infer<typeof tenantUserOrgUnitPathPa
 export type TenantUserDelegatedGrantPathParams = z.infer<
   typeof tenantUserDelegatedGrantPathParamsSchema
 >;
+export type TenantApiKeyPathParams = z.infer<typeof tenantApiKeyPathParamsSchema>;
+export type TenantDedicatedDbProvisioningRequestPathParams = z.infer<
+  typeof tenantDedicatedDbProvisioningRequestPathParamsSchema
+>;
 export type BadgeTemplateListQuery = z.infer<typeof badgeTemplateListQuerySchema>;
 export type TenantOrgUnitListQuery = z.infer<typeof tenantOrgUnitListQuerySchema>;
 export type DelegatedIssuingAuthorityGrantListQuery = z.infer<
   typeof delegatedIssuingAuthorityGrantListQuerySchema
 >;
+export type TenantApiKeyListQuery = z.infer<typeof tenantApiKeyListQuerySchema>;
 export type CreateBadgeTemplateRequest = z.infer<typeof createBadgeTemplateRequestSchema>;
 export type UpdateBadgeTemplateRequest = z.infer<typeof updateBadgeTemplateRequestSchema>;
 export type CreateTenantOrgUnitRequest = z.infer<typeof createTenantOrgUnitRequestSchema>;
@@ -672,6 +741,17 @@ export type RevokeDelegatedIssuingAuthorityGrantRequest = z.infer<
 >;
 export type TransferBadgeTemplateOwnershipRequest = z.infer<
   typeof transferBadgeTemplateOwnershipRequestSchema
+>;
+export type CreateTenantApiKeyRequest = z.infer<typeof createTenantApiKeyRequestSchema>;
+export type RevokeTenantApiKeyRequest = z.infer<typeof revokeTenantApiKeyRequestSchema>;
+export type UpsertTenantSsoSamlConfigurationRequest = z.infer<
+  typeof upsertTenantSsoSamlConfigurationRequestSchema
+>;
+export type CreateDedicatedDbProvisioningRequest = z.infer<
+  typeof createDedicatedDbProvisioningRequestSchema
+>;
+export type ResolveDedicatedDbProvisioningRequest = z.infer<
+  typeof resolveDedicatedDbProvisioningRequestSchema
 >;
 export type OrgUnitType = z.infer<typeof orgUnitTypeSchema>;
 export type TenantMembershipOrgUnitScopeRole = z.infer<
@@ -804,6 +884,16 @@ export const parseTenantUserDelegatedGrantPathParams = (
   return tenantUserDelegatedGrantPathParamsSchema.parse(input);
 };
 
+export const parseTenantApiKeyPathParams = (input: unknown): TenantApiKeyPathParams => {
+  return tenantApiKeyPathParamsSchema.parse(input);
+};
+
+export const parseTenantDedicatedDbProvisioningRequestPathParams = (
+  input: unknown,
+): TenantDedicatedDbProvisioningRequestPathParams => {
+  return tenantDedicatedDbProvisioningRequestPathParamsSchema.parse(input);
+};
+
 export const parseBadgeTemplateListQuery = (input: unknown): BadgeTemplateListQuery => {
   return badgeTemplateListQuerySchema.parse(input);
 };
@@ -816,6 +906,10 @@ export const parseDelegatedIssuingAuthorityGrantListQuery = (
   input: unknown,
 ): DelegatedIssuingAuthorityGrantListQuery => {
   return delegatedIssuingAuthorityGrantListQuerySchema.parse(input);
+};
+
+export const parseTenantApiKeyListQuery = (input: unknown): TenantApiKeyListQuery => {
+  return tenantApiKeyListQuerySchema.parse(input);
 };
 
 export const parseCreateBadgeTemplateRequest = (input: unknown): CreateBadgeTemplateRequest => {
@@ -848,6 +942,32 @@ export const parseTransferBadgeTemplateOwnershipRequest = (
   input: unknown,
 ): TransferBadgeTemplateOwnershipRequest => {
   return transferBadgeTemplateOwnershipRequestSchema.parse(input);
+};
+
+export const parseCreateTenantApiKeyRequest = (input: unknown): CreateTenantApiKeyRequest => {
+  return createTenantApiKeyRequestSchema.parse(input);
+};
+
+export const parseRevokeTenantApiKeyRequest = (input: unknown): RevokeTenantApiKeyRequest => {
+  return revokeTenantApiKeyRequestSchema.parse(input);
+};
+
+export const parseUpsertTenantSsoSamlConfigurationRequest = (
+  input: unknown,
+): UpsertTenantSsoSamlConfigurationRequest => {
+  return upsertTenantSsoSamlConfigurationRequestSchema.parse(input);
+};
+
+export const parseCreateDedicatedDbProvisioningRequest = (
+  input: unknown,
+): CreateDedicatedDbProvisioningRequest => {
+  return createDedicatedDbProvisioningRequestSchema.parse(input);
+};
+
+export const parseResolveDedicatedDbProvisioningRequest = (
+  input: unknown,
+): ResolveDedicatedDbProvisioningRequest => {
+  return resolveDedicatedDbProvisioningRequestSchema.parse(input);
 };
 
 export const parseUpdateBadgeTemplateRequest = (input: unknown): UpdateBadgeTemplateRequest => {
