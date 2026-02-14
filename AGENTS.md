@@ -17,6 +17,28 @@ This file defines execution standards for humans and coding agents working in th
 
 If a proposed change conflicts with these guardrails, open an ADR before implementation.
 
+## 1.1) `apps/api-worker/src` Ownership Boundaries
+
+Keep file ownership explicit so `app.ts` does not grow into a monolith again.
+
+- `app.ts` is the composition root only:
+- wire dependencies/factories
+- register routes
+- export the worker
+- avoid embedding feature/business logic here
+- `routes/`: HTTP endpoint handlers and request/response shaping.
+- `auth/`: tenant/session/permission guard helpers.
+- `badges/`: badge issuance, public badge page/view models, revocation metadata, recipient identifier logic.
+- `credentials/`: credential verification checks and proof verification logic.
+- `signing/`: signing key material, signing registries, DID/JWKS docs, credential signing helpers.
+- `ob3/`: Open Badges 3.0 OAuth/discovery/auth helpers and error response shaping.
+- `http/`: generic transport concerns shared across routes (middleware, shared request helpers).
+- `queue/`: queue payload parsing, processing orchestration, and schedule-trigger utilities.
+- `lti/`, `learner/`, `presentation/`, `notifications/`: domain-focused helpers per capability.
+
+Refactor rule of thumb:
+- if new behavior needs more than a small helper in `app.ts`, create/extend a feature module and inject it from `app.ts` rather than implementing inline.
+
 ## 2) TypeScript Quality Bar (Non-Negotiable)
 
 Use a strict TypeScript config and keep it green at all times.

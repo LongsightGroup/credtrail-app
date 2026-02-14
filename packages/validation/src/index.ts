@@ -510,12 +510,6 @@ export const githubUsernameSchema = z
   .max(39)
   .regex(/^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/);
 
-export const issueSakaiCommitBadgeRequestSchema = z.object({
-  badgeTemplateId: resourceIdSchema,
-  githubUsername: githubUsernameSchema,
-  idempotencyKey: idempotencyKeySchema.optional(),
-});
-
 export const revokeBadgeRequestSchema = z.object({
   tenantId: tenantIdSchema,
   assertionId: resourceIdSchema,
@@ -619,7 +613,6 @@ export type ProcessQueueRequest = z.infer<typeof processQueueRequestSchema>;
 export type IssueBadgeQueueJob = z.infer<typeof issueBadgeQueueJobSchema>;
 export type RevokeBadgeQueueJob = z.infer<typeof revokeBadgeQueueJobSchema>;
 export type ManualIssueBadgeRequest = z.infer<typeof manualIssueBadgeRequestSchema>;
-export type IssueSakaiCommitBadgeRequest = z.infer<typeof issueSakaiCommitBadgeRequestSchema>;
 export type TenantPathParams = z.infer<typeof tenantPathParamsSchema>;
 export type BadgeTemplatePathParams = z.infer<typeof badgeTemplatePathParamsSchema>;
 export type CredentialPathParams = z.infer<typeof credentialPathParamsSchema>;
@@ -750,10 +743,6 @@ export const parseProcessQueueRequest = (input: unknown): ProcessQueueRequest =>
 
 export const parseManualIssueBadgeRequest = (input: unknown): ManualIssueBadgeRequest => {
   return manualIssueBadgeRequestSchema.parse(input);
-};
-
-export const parseIssueSakaiCommitBadgeRequest = (input: unknown): IssueSakaiCommitBadgeRequest => {
-  return issueSakaiCommitBadgeRequestSchema.parse(input);
 };
 
 export const parseTenantPathParams = (input: unknown): TenantPathParams => {

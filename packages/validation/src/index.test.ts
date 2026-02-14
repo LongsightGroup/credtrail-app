@@ -13,7 +13,6 @@ import {
   parseCreateTenantOrgUnitRequest,
   parseUpsertTenantMembershipOrgUnitScopeRequest,
   parseIssueBadgeRequest,
-  parseIssueSakaiCommitBadgeRequest,
   parseManualIssueBadgeRequest,
   parseLearnerIdentityLinkRequest,
   parseLearnerIdentityLinkVerifyRequest,
@@ -195,23 +194,6 @@ describe('issue/revoke request parsers', () => {
     expect(request.badgeTemplateId).toBe('badge_template_001');
   });
 
-  it('accepts a valid Sakai commit issue request', () => {
-    const request = parseIssueSakaiCommitBadgeRequest({
-      badgeTemplateId: 'badge_template_001',
-      githubUsername: 'sakai-dev',
-    });
-
-    expect(request.githubUsername).toBe('sakai-dev');
-  });
-
-  it('rejects invalid GitHub usernames for Sakai commit issue request', () => {
-    expect(() => {
-      parseIssueSakaiCommitBadgeRequest({
-        badgeTemplateId: 'badge_template_001',
-        githubUsername: '-invalid-',
-      });
-    }).toThrowError();
-  });
 });
 
 describe('process queue request parser', () => {

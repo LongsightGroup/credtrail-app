@@ -35,7 +35,14 @@ export default tseslint.config(
           allowTypedFunctionExpressions: true,
         },
       ],
-      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-floating-promises': [
+        'error',
+        {
+          ignoreVoid: false,
+        },
+      ],
+      '@typescript-eslint/no-misused-promises': 'error',
+      '@typescript-eslint/unbound-method': 'error',
       '@typescript-eslint/no-unused-vars': [
         'error',
         {

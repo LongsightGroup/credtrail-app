@@ -72,6 +72,18 @@ Open-source Open Badges 3.0 platform built on Cloudflare Workers + Hono.
 - `packages/ui-components`: Server-rendered HTML helper components.
 - `docs`: Implementation docs and ADRs (including `docs/LEARNER_DID_SETUP.md`, `docs/VERIFIABLE_PRESENTATIONS.md`, and `docs/LMS_INDEPENDENCE_MIGRATION_RUNBOOK.md`).
 
+### API worker module layout (`apps/api-worker/src`)
+
+- `app.ts`: Composition root only (dependency wiring + route registration).
+- `routes/`: Route handlers by feature area.
+- `auth/`: Tenant/session permission helpers.
+- `badges/`: Issuance flow, public badge rendering/view models, revocation helpers.
+- `credentials/`: Verification checks and proof verification helpers.
+- `signing/`: Signing key/registry resolution, DID/JWKS docs, credential signer helpers.
+- `ob3/`: Open Badges 3.0 OAuth/discovery/access-token helpers.
+- `http/`: Common middleware and shared HTTP utility helpers.
+- `queue/`: Queue job payload/building/processing/scheduled trigger helpers.
+
 ## Async jobs
 
 - Queue messages are stored in Postgres table `job_queue_messages`.
