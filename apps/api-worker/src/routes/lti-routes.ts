@@ -474,10 +474,19 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
             path: LTI_LAUNCH_PATH,
             method: c.req.method,
           },
+          extra: {
+            detail: error.detail,
+          },
         });
       }
 
-      return c.json({ error: error.message }, error.status);
+      return c.json(
+        {
+          error: error.message,
+          ...(error.detail === undefined ? {} : { detail: error.detail }),
+        },
+        error.status,
+      );
     });
 
     if (resolvedLaunch instanceof Response) {

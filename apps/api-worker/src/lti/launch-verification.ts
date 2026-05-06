@@ -28,13 +28,26 @@ export interface LtiLaunchState {
 
 export class LtiLaunchVerificationError extends Error {
   readonly status: 400 | 401 | 501;
+  readonly detail: string | undefined;
 
-  constructor(status: 400 | 401 | 501, message: string) {
+  constructor(status: 400 | 401 | 501, message: string, detail?: string) {
     super(message);
     this.name = "LtiLaunchVerificationError";
     this.status = status;
+    this.detail = detail;
   }
 }
+
+const verificationErrorDetail = (error: unknown): string => {
+  if (!(error instanceof Error)) {
+    return "unknown verification error";
+  }
+
+  return error.message
+    .replace(/id_token=[^,\s)]+/gi, "id_token=[redacted]")
+    .replace(/state=[^,\s)]+/gi, "state=[redacted]")
+    .slice(0, 500);
+};
 
 export interface ResolvedLtiLaunch {
   issuer: string;
@@ -122,8 +135,12 @@ export const resolveLtiLaunch = async (input: {
         clientId: issuerEntry.clientId,
       },
     };
-  } catch {
-    throw new LtiLaunchVerificationError(401, "LTI launch signature verification failed");
+  } catch (error) {
+    throw new LtiLaunchVerificationError(
+      401,
+      "LTI launch verification failed",
+      verificationErrorDetail(error),
+    );
   }
 
   const signedTargetLinkUri = launchClaims[LTI_CLAIM_TARGET_LINK_URI];
