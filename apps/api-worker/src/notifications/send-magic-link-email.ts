@@ -1,3 +1,5 @@
+import { buildMailtrapSendEndpoint, mailtrapConfigured } from "./mailtrap";
+
 export interface SendMagicLinkEmailNotificationInput {
   mailtrapApiToken?: string | undefined;
   mailtrapInboxId?: string | undefined;
@@ -13,17 +15,11 @@ export interface SendMagicLinkEmailNotificationInput {
 export const sendMagicLinkEmailNotification = async (
   input: SendMagicLinkEmailNotificationInput,
 ): Promise<void> => {
-  if (
-    input.mailtrapApiToken === undefined ||
-    input.mailtrapInboxId === undefined ||
-    input.mailtrapApiToken.trim().length === 0 ||
-    input.mailtrapInboxId.trim().length === 0
-  ) {
+  if (!mailtrapConfigured(input)) {
     return;
   }
 
-  const baseUrl = input.mailtrapApiBaseUrl ?? "https://sandbox.api.mailtrap.io/api/send";
-  const endpoint = `${baseUrl.replaceAll(/\/+$/g, "")}/${encodeURIComponent(input.mailtrapInboxId)}`;
+  const endpoint = buildMailtrapSendEndpoint(input);
   const subject = `Sign in to CredTrail (${input.tenantId})`;
   const textBody = [
     "Use the link below to sign in to CredTrail:",

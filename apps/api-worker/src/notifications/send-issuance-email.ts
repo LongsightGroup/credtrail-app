@@ -1,3 +1,5 @@
+import { buildMailtrapSendEndpoint, mailtrapConfigured } from "./mailtrap";
+
 export interface SendIssuanceEmailNotificationInput {
   mailtrapApiToken?: string | undefined;
   mailtrapInboxId?: string | undefined;
@@ -17,17 +19,11 @@ export interface SendIssuanceEmailNotificationInput {
 export const sendIssuanceEmailNotification = async (
   input: SendIssuanceEmailNotificationInput,
 ): Promise<void> => {
-  if (
-    input.mailtrapApiToken === undefined ||
-    input.mailtrapInboxId === undefined ||
-    input.mailtrapApiToken.trim().length === 0 ||
-    input.mailtrapInboxId.trim().length === 0
-  ) {
+  if (!mailtrapConfigured(input)) {
     return;
   }
 
-  const baseUrl = input.mailtrapApiBaseUrl ?? "https://sandbox.api.mailtrap.io/api/send";
-  const endpoint = `${baseUrl.replaceAll(/\/+$/g, "")}/${encodeURIComponent(input.mailtrapInboxId)}`;
+  const endpoint = buildMailtrapSendEndpoint(input);
   const subject = `You've earned a new badge: ${input.badgeTitle}`;
   const textBody = [
     `You have earned the "${input.badgeTitle}" badge.`,
