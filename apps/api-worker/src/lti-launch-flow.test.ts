@@ -307,7 +307,8 @@ const loadAppWithMockedAuthProviders = async (
       (context: Parameters<typeof setCookie>[0], input: { tenantId: string; userId: string }) => {
         setCookie(context, "better-auth.session_token", "better-lti-session", {
           httpOnly: true,
-          sameSite: "Lax",
+          sameSite: "None",
+          secure: true,
           path: "/",
         });
         return Promise.resolve({
@@ -777,6 +778,8 @@ describe("LTI 1.3 core launch flow", () => {
     expect(response.headers.get("set-cookie") ?? "").toContain(
       "better-auth.session_token=better-lti-session",
     );
+    expect(response.headers.get("set-cookie") ?? "").toContain("SameSite=None");
+    expect(response.headers.get("set-cookie") ?? "").toContain("Secure");
     expect(betterAuthProvider.createLtiSession).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({

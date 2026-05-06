@@ -285,6 +285,27 @@ const rememberRequestedTenant = (context: AppContext, tenantId: string): Request
   return requestedTenant;
 };
 
+const rememberRequestedTenantForEmbeddedLaunch = (
+  context: AppContext,
+  tenantId: string,
+): RequestedTenantContext => {
+  const requestedTenant: RequestedTenantContext = {
+    tenantId,
+    source: "route",
+    authoritative: true,
+  };
+
+  setCookie(context, REQUESTED_TENANT_COOKIE_NAME, tenantId, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "None",
+    path: "/",
+    maxAge: SESSION_TTL_SECONDS,
+  });
+  context.set("requestedTenantContext", requestedTenant);
+  return requestedTenant;
+};
+
 const clearRequestedTenant = (context: AppContext): void => {
   deleteCookie(context, REQUESTED_TENANT_COOKIE_NAME, {
     path: "/",
@@ -549,12 +570,12 @@ const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindings>({
 
     setCookie(context, runtimeConfig.session.cookieName, sessionToken, {
       httpOnly: true,
-      sameSite: "Lax",
-      secure: runtimeConfig.baseURL.startsWith("https://"),
+      sameSite: "None",
+      secure: true,
       path: "/",
       maxAge: runtimeConfig.session.expiresInSeconds,
     });
-    rememberRequestedTenant(context, input.tenantId);
+    rememberRequestedTenantForEmbeddedLaunch(context, input.tenantId);
 
     return {
       sessionId: session.sessionId,
