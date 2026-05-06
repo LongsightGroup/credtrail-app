@@ -12948,7 +12948,7 @@ export const consumeLtiLaunchNonce = async (
   nonce: string,
   nowIso: string,
 ): Promise<boolean> => {
-  const updateStatement = (): Promise<SqlRunResult> =>
+  const updateStatement = (): Promise<SqlQueryResult<{ nonce: string }>> =>
     db
       .prepare(
         `
@@ -12957,12 +12957,13 @@ export const consumeLtiLaunchNonce = async (
         WHERE nonce = ?
           AND consumed_at IS NULL
           AND expires_at > ?
+        RETURNING nonce
       `,
       )
       .bind(nowIso, nonce, nowIso)
-      .run();
+      .all<{ nonce: string }>();
 
-  let result: SqlRunResult;
+  let result: SqlQueryResult<{ nonce: string }>;
 
   try {
     result = await updateStatement();
@@ -12975,7 +12976,7 @@ export const consumeLtiLaunchNonce = async (
     result = await updateStatement();
   }
 
-  return (result.meta.rowsWritten ?? 0) > 0;
+  return result.results.length > 0;
 };
 
 export const upsertLtiLaunchSession = async (
