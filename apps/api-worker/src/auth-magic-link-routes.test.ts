@@ -34,10 +34,9 @@ vi.mock("@credtrail/db", async () => {
 
   return {
     ...actual,
-    createAuditLog: vi.fn(),
-    ensureTenantMembership: vi.fn(),
+    findTenantMembership: vi.fn(),
+    findUserByEmail: vi.fn(),
     listAccessibleTenantContextsForUser: mockedListAccessibleTenantContextsForUserFn,
-    upsertUserByEmail: vi.fn(),
   };
 });
 
@@ -77,20 +76,18 @@ vi.mock("./auth/break-glass-policy", async () => {
 });
 
 import {
-  createAuditLog,
-  ensureTenantMembership,
+  findTenantMembership,
+  findUserByEmail,
   listAccessibleTenantContextsForUser,
-  upsertUserByEmail,
   type SqlDatabase,
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
 
-const mockedCreateAuditLog = vi.mocked(createAuditLog);
-const mockedEnsureTenantMembership = vi.mocked(ensureTenantMembership);
+const mockedFindTenantMembership = vi.mocked(findTenantMembership);
+const mockedFindUserByEmail = vi.mocked(findUserByEmail);
 const mockedListAccessibleTenantContextsForUser = vi.mocked(listAccessibleTenantContextsForUser);
-const mockedUpsertUserByEmail = vi.mocked(upsertUserByEmail);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 
 const fakeDb = {
@@ -226,28 +223,18 @@ const loadAppWithMockedHostedAuthProviders = async (options?: {
 beforeEach(() => {
   mockedCreatePostgresDatabase.mockReset();
   mockedCreatePostgresDatabase.mockReturnValue(fakeDb);
-  mockedCreateAuditLog.mockReset();
-  mockedCreateAuditLog.mockResolvedValue({
-    id: "audit_123",
-    tenantId: "tenant_123",
-    actorUserId: "usr_123",
-    action: "membership.role_assigned",
-    targetType: "membership",
-    targetId: "tenant_123:usr_123",
-    metadataJson: null,
-    occurredAt: "2026-02-18T12:00:00.000Z",
-    createdAt: "2026-02-18T12:00:00.000Z",
+  mockedFindUserByEmail.mockReset();
+  mockedFindUserByEmail.mockResolvedValue({
+    id: "usr_123",
+    email: "learner@example.edu",
   });
-  mockedEnsureTenantMembership.mockReset();
-  mockedEnsureTenantMembership.mockResolvedValue({
-    membership: {
-      tenantId: "tenant_123",
-      userId: "usr_123",
-      role: "viewer",
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:00:00.000Z",
-    },
-    created: false,
+  mockedFindTenantMembership.mockReset();
+  mockedFindTenantMembership.mockResolvedValue({
+    tenantId: "tenant_123",
+    userId: "usr_123",
+    role: "viewer",
+    createdAt: "2026-02-18T12:00:00.000Z",
+    updatedAt: "2026-02-18T12:00:00.000Z",
   });
   mockedListAccessibleTenantContextsForUser.mockReset();
   mockedListAccessibleTenantContextsForUser.mockResolvedValue([
@@ -259,11 +246,6 @@ beforeEach(() => {
       membershipRole: "viewer",
     },
   ]);
-  mockedUpsertUserByEmail.mockReset();
-  mockedUpsertUserByEmail.mockResolvedValue({
-    id: "usr_123",
-    email: "learner@example.edu",
-  });
   mockedBreakGlassRequestPasswordReset.mockReset();
   mockedBreakGlassRequestPasswordReset.mockResolvedValue("sent");
   mockedBreakGlassSignIn.mockReset();
@@ -641,22 +623,11 @@ describe("magic-link auth routes", () => {
 
     expect(response.status).toBe(403);
     expect(body.error).toContain("Enterprise SSO is required");
-    expect(mockedUpsertUserByEmail).not.toHaveBeenCalled();
+    expect(mockedFindUserByEmail).not.toHaveBeenCalled();
     expect(betterAuthProvider.requestMagicLink).not.toHaveBeenCalled();
   });
 
-  it("delegates hosted magic-link requests to Better Auth while preserving user and membership upserts", async () => {
-    mockedEnsureTenantMembership.mockResolvedValue({
-      membership: {
-        tenantId: "tenant_123",
-        userId: "usr_123",
-        role: "viewer",
-        createdAt: "2026-02-18T12:00:00.000Z",
-        updatedAt: "2026-02-18T12:00:00.000Z",
-      },
-      created: true,
-    });
-
+  it("delegates hosted magic-link requests to Better Auth for existing tenant members", async () => {
     const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
 
     const response = await isolatedApp.request(
@@ -694,9 +665,8 @@ describe("magic-link auth routes", () => {
       magicLinkUrl:
         "https://credtrail.test/auth/magic-link/verify?token=better-token-1234567890&next=%2Fauth%2Fresolve",
     });
-    expect(mockedUpsertUserByEmail).toHaveBeenCalledWith(fakeDb, "learner@example.edu");
-    expect(mockedEnsureTenantMembership).toHaveBeenCalledWith(fakeDb, "tenant_123", "usr_123");
-    expect(mockedCreateAuditLog).toHaveBeenCalledTimes(1);
+    expect(mockedFindUserByEmail).toHaveBeenCalledWith(fakeDb, "learner@example.edu");
+    expect(mockedFindTenantMembership).toHaveBeenCalledWith(fakeDb, "tenant_123", "usr_123");
     expect(betterAuthProvider.requestMagicLink).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -704,6 +674,78 @@ describe("magic-link auth routes", () => {
         email: "learner@example.edu",
       }),
     );
+  });
+
+  it("accepts unknown magic-link emails without sending or creating accounts", async () => {
+    mockedFindUserByEmail.mockResolvedValue(null);
+    const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
+
+    const response = await isolatedApp.request(
+      "/v1/auth/magic-link/request",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          tenantId: "tenant_123",
+          email: "stranger@example.edu",
+        }),
+      },
+      createEnv("production"),
+    );
+    const body = await response.json<{
+      status: string;
+      deliveryStatus: string;
+      tenantId: string;
+      email: string;
+    }>();
+
+    expect(response.status).toBe(202);
+    expect(body).toEqual({
+      status: "sent",
+      deliveryStatus: "sent",
+      tenantId: "tenant_123",
+      email: "stranger@example.edu",
+    });
+    expect(mockedFindTenantMembership).not.toHaveBeenCalled();
+    expect(betterAuthProvider.requestMagicLink).not.toHaveBeenCalled();
+  });
+
+  it("accepts non-member magic-link requests without sending", async () => {
+    mockedFindTenantMembership.mockResolvedValue(null);
+    const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
+
+    const response = await isolatedApp.request(
+      "/v1/auth/magic-link/request",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          tenantId: "tenant_123",
+          email: "learner@example.edu",
+        }),
+      },
+      createEnv("production"),
+    );
+    const body = await response.json<{
+      status: string;
+      deliveryStatus: string;
+      tenantId: string;
+      email: string;
+    }>();
+
+    expect(response.status).toBe(202);
+    expect(body).toEqual({
+      status: "sent",
+      deliveryStatus: "sent",
+      tenantId: "tenant_123",
+      email: "learner@example.edu",
+    });
+    expect(mockedFindTenantMembership).toHaveBeenCalledWith(fakeDb, "tenant_123", "usr_123");
+    expect(betterAuthProvider.requestMagicLink).not.toHaveBeenCalled();
   });
 
   it("delegates JSON verify to Better Auth-backed session creation instead of legacy token tables", async () => {

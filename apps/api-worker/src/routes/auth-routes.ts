@@ -1,8 +1,7 @@
 import {
   listAccessibleTenantContextsForUser,
-  createAuditLog,
-  ensureTenantMembership,
-  upsertUserByEmail,
+  findTenantMembership,
+  findUserByEmail,
   type SqlDatabase,
 } from "@credtrail/db";
 import { renderPageShell } from "@credtrail/ui-components";
@@ -401,25 +400,33 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
       return localLoginBlocked;
     }
 
-    const user = await upsertUserByEmail(resolveDatabase(c.env), request.email);
-    const membershipResult = await ensureTenantMembership(
-      resolveDatabase(c.env),
-      request.tenantId,
-      user.id,
-    );
+    const db = resolveDatabase(c.env);
+    const user = await findUserByEmail(db, request.email);
 
-    if (membershipResult.created) {
-      await createAuditLog(resolveDatabase(c.env), {
-        tenantId: request.tenantId,
-        actorUserId: user.id,
-        action: "membership.role_assigned",
-        targetType: "membership",
-        targetId: `${request.tenantId}:${user.id}`,
-        metadata: {
-          userId: user.id,
-          role: membershipResult.membership.role,
+    if (user === null) {
+      return c.json(
+        {
+          status: "sent",
+          deliveryStatus: "sent",
+          tenantId: request.tenantId,
+          email: request.email,
         },
-      });
+        202,
+      );
+    }
+
+    const membership = await findTenantMembership(db, request.tenantId, user.id);
+
+    if (membership === null) {
+      return c.json(
+        {
+          status: "sent",
+          deliveryStatus: "sent",
+          tenantId: request.tenantId,
+          email: request.email,
+        },
+        202,
+      );
     }
 
     const magicLinkResult = await requestMagicLink(c, {
