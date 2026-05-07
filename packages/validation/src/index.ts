@@ -1386,6 +1386,7 @@ export const adminAuditLogListQuerySchema = z.object({
 export const magicLinkRequestSchema = z.object({
   tenantId: tenantIdSchema,
   email: z.string().email(),
+  turnstileToken: z.string().trim().min(1).max(2048).optional(),
 });
 
 export const magicLinkVerifyRequestSchema = z.object({

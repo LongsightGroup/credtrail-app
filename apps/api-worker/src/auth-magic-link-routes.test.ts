@@ -34,9 +34,12 @@ vi.mock("@credtrail/db", async () => {
 
   return {
     ...actual,
+    countAuthMagicLinkRateLimitAttempts: vi.fn(),
     findTenantMembership: vi.fn(),
     findUserByEmail: vi.fn(),
     listAccessibleTenantContextsForUser: mockedListAccessibleTenantContextsForUserFn,
+    pruneAuthMagicLinkRateLimitAttempts: vi.fn(),
+    recordAuthMagicLinkRateLimitAttempt: vi.fn(),
   };
 });
 
@@ -76,18 +79,24 @@ vi.mock("./auth/break-glass-policy", async () => {
 });
 
 import {
+  countAuthMagicLinkRateLimitAttempts,
   findTenantMembership,
   findUserByEmail,
   listAccessibleTenantContextsForUser,
+  pruneAuthMagicLinkRateLimitAttempts,
+  recordAuthMagicLinkRateLimitAttempt,
   type SqlDatabase,
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
 
+const mockedCountAuthMagicLinkRateLimitAttempts = vi.mocked(countAuthMagicLinkRateLimitAttempts);
 const mockedFindTenantMembership = vi.mocked(findTenantMembership);
 const mockedFindUserByEmail = vi.mocked(findUserByEmail);
 const mockedListAccessibleTenantContextsForUser = vi.mocked(listAccessibleTenantContextsForUser);
+const mockedPruneAuthMagicLinkRateLimitAttempts = vi.mocked(pruneAuthMagicLinkRateLimitAttempts);
+const mockedRecordAuthMagicLinkRateLimitAttempt = vi.mocked(recordAuthMagicLinkRateLimitAttempt);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 
 const fakeDb = {
@@ -101,6 +110,8 @@ const createEnv = (
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  TURNSTILE_SITE_KEY?: string;
+  TURNSTILE_SECRET_KEY?: string;
 } => {
   return {
     APP_ENV: appEnv,
@@ -223,6 +234,8 @@ const loadAppWithMockedHostedAuthProviders = async (options?: {
 beforeEach(() => {
   mockedCreatePostgresDatabase.mockReset();
   mockedCreatePostgresDatabase.mockReturnValue(fakeDb);
+  mockedCountAuthMagicLinkRateLimitAttempts.mockReset();
+  mockedCountAuthMagicLinkRateLimitAttempts.mockResolvedValue(0);
   mockedFindUserByEmail.mockReset();
   mockedFindUserByEmail.mockResolvedValue({
     id: "usr_123",
@@ -236,6 +249,10 @@ beforeEach(() => {
     createdAt: "2026-02-18T12:00:00.000Z",
     updatedAt: "2026-02-18T12:00:00.000Z",
   });
+  mockedPruneAuthMagicLinkRateLimitAttempts.mockReset();
+  mockedPruneAuthMagicLinkRateLimitAttempts.mockResolvedValue();
+  mockedRecordAuthMagicLinkRateLimitAttempt.mockReset();
+  mockedRecordAuthMagicLinkRateLimitAttempt.mockResolvedValue();
   mockedListAccessibleTenantContextsForUser.mockReset();
   mockedListAccessibleTenantContextsForUser.mockResolvedValue([
     {
@@ -306,6 +323,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.doUnmock("./auth/better-auth-adapter");
+  vi.restoreAllMocks();
 });
 
 describe("magic-link auth routes", () => {
@@ -746,6 +764,92 @@ describe("magic-link auth routes", () => {
     });
     expect(mockedFindTenantMembership).toHaveBeenCalledWith(fakeDb, "tenant_123", "usr_123");
     expect(betterAuthProvider.requestMagicLink).not.toHaveBeenCalled();
+  });
+
+  it("requires Turnstile after low magic-link rate thresholds", async () => {
+    mockedCountAuthMagicLinkRateLimitAttempts.mockResolvedValue(3);
+    const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
+
+    const response = await isolatedApp.request(
+      "/v1/auth/magic-link/request",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "cf-connecting-ip": "203.0.113.10",
+        },
+        body: JSON.stringify({
+          tenantId: "tenant_123",
+          email: "learner@example.edu",
+        }),
+      },
+      {
+        ...createEnv("production"),
+        TURNSTILE_SITE_KEY: "turnstile-site-key",
+        TURNSTILE_SECRET_KEY: "turnstile-secret-key",
+      },
+    );
+    const body = await response.json<{
+      error: string;
+      turnstileRequired: boolean;
+      turnstileSiteKey: string;
+    }>();
+
+    expect(response.status).toBe(428);
+    expect(body).toMatchObject({
+      turnstileRequired: true,
+      turnstileSiteKey: "turnstile-site-key",
+    });
+    expect(body.error).toContain("Human verification");
+    expect(mockedRecordAuthMagicLinkRateLimitAttempt).toHaveBeenCalledTimes(4);
+    expect(betterAuthProvider.requestMagicLink).not.toHaveBeenCalled();
+  });
+
+  it("accepts valid Turnstile tokens after rate thresholds are exceeded", async () => {
+    mockedCountAuthMagicLinkRateLimitAttempts.mockResolvedValue(3);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        success: true,
+      }),
+    );
+    const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
+
+    const response = await isolatedApp.request(
+      "/v1/auth/magic-link/request",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "cf-connecting-ip": "203.0.113.10",
+        },
+        body: JSON.stringify({
+          tenantId: "tenant_123",
+          email: "learner@example.edu",
+          turnstileToken: "valid-turnstile-token",
+        }),
+      },
+      {
+        ...createEnv("production"),
+        TURNSTILE_SITE_KEY: "turnstile-site-key",
+        TURNSTILE_SECRET_KEY: "turnstile-secret-key",
+      },
+    );
+
+    expect(response.status).toBe(202);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    expect(mockedRecordAuthMagicLinkRateLimitAttempt).toHaveBeenCalledTimes(4);
+    expect(betterAuthProvider.requestMagicLink).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        email: "learner@example.edu",
+      }),
+    );
   });
 
   it("delegates JSON verify to Better Auth-backed session creation instead of legacy token tables", async () => {

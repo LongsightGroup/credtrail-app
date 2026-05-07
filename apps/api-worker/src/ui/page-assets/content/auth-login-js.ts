@@ -3,6 +3,8 @@ export const AUTH_LOGIN_JS = `
   const form = document.getElementById('magic-link-login-form');
   const statusEl = document.getElementById('magic-link-login-status');
   const devLinkEl = document.getElementById('magic-link-dev-link');
+  const turnstileEl = document.getElementById('magic-link-turnstile');
+  let turnstileWidgetId = null;
 
   if (!(form instanceof HTMLFormElement) || !(statusEl instanceof HTMLElement) || !(devLinkEl instanceof HTMLElement)) {
     return;
@@ -14,6 +16,22 @@ export const AUTH_LOGIN_JS = `
     statusEl.dataset.tone = tone;
   };
 
+  const ensureTurnstile = () => {
+    if (!(turnstileEl instanceof HTMLElement)) {
+      return;
+    }
+
+    turnstileEl.hidden = false;
+
+    if (turnstileWidgetId !== null || !window.turnstile || typeof window.turnstile.render !== 'function') {
+      return;
+    }
+
+    turnstileWidgetId = window.turnstile.render(turnstileEl, {
+      sitekey: turnstileEl.dataset.sitekey,
+    });
+  };
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     setStatus('Sending your sign-in link...', 'info');
@@ -22,9 +40,11 @@ export const AUTH_LOGIN_JS = `
     const tenantIdRaw = data.get('tenantId');
     const emailRaw = data.get('email');
     const nextRaw = data.get('next');
+    const turnstileRaw = data.get('cf-turnstile-response');
     const tenantId = typeof tenantIdRaw === 'string' ? tenantIdRaw.trim() : '';
     const email = typeof emailRaw === 'string' ? emailRaw.trim().toLowerCase() : '';
     const next = typeof nextRaw === 'string' ? nextRaw.trim() : '';
+    const turnstileToken = typeof turnstileRaw === 'string' ? turnstileRaw.trim() : '';
 
     if (tenantId.length === 0 || email.length === 0) {
       setStatus('Enter both your tenant ID and institution email.', 'error');
@@ -40,11 +60,15 @@ export const AUTH_LOGIN_JS = `
         body: JSON.stringify({
           tenantId,
           email,
+          ...(turnstileToken.length === 0 ? {} : { turnstileToken }),
         }),
       });
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
+        if (payload && payload.turnstileRequired === true) {
+          ensureTurnstile();
+        }
         const detail = payload && typeof payload.error === 'string' ? payload.error : 'Request failed';
         setStatus(detail, 'error');
         return;
