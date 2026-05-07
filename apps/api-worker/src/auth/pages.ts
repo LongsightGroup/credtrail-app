@@ -17,6 +17,7 @@ export const magicLinkLoginPage = (input: {
     startPath: string;
   }[];
   notice?: string;
+  turnstileSiteKey?: string | undefined;
 }): string => {
   const adminPathMatch = /^\/tenants\/([^/]+)\/admin(?:$|[/?#])/.exec(input.nextPath);
   let adminTenantLabel = input.tenantId.trim();
@@ -51,6 +52,20 @@ export const magicLinkLoginPage = (input: {
   const localLoginAllowed = input.localLoginAllowed ?? true;
   const explicitLocalLoginPath = input.explicitLocalLoginPath ?? null;
   const hasExplicitNotice = (input.notice ?? "").trim().length > 0;
+  const turnstileSiteKey = input.turnstileSiteKey?.trim();
+  const turnstileMarkup =
+    turnstileSiteKey === undefined || turnstileSiteKey.length === 0
+      ? ""
+      : `<div
+              id="magic-link-turnstile"
+              class="cf-turnstile"
+              data-sitekey="${escapeHtml(turnstileSiteKey)}"
+              hidden
+            ></div>`;
+  const turnstileScript =
+    turnstileSiteKey === undefined || turnstileSiteKey.length === 0
+      ? ""
+      : '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>';
   const loginReasonNotice =
     input.reason === "sso_failed"
       ? '<p class="ct-login__context">Institution sign-in did not complete. Try again or contact your CredTrail administrator.</p>'
@@ -96,6 +111,7 @@ export const magicLinkLoginPage = (input: {
               <input name="email" type="email" required placeholder="name@institution.edu" />
             </label>
             <input name="next" type="hidden" value="${escapeHtml(input.nextPath)}" />
+            ${turnstileMarkup}
             <button type="submit" class="ct-login__submit">Send sign-in link</button>
           </form>
           <p class="ct-login__help">
@@ -139,7 +155,8 @@ export const magicLinkLoginPage = (input: {
         </div>
       </div>
     </section>`,
-    renderPageAssetTags(["foundationCss", "authLoginCss", "authLoginJs"]),
+    `${renderPageAssetTags(["foundationCss", "authLoginCss", "authLoginJs"])}
+    ${turnstileScript}`,
   );
 };
 

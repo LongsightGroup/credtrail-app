@@ -183,6 +183,8 @@ export interface AppBindings {
   MAILTRAP_API_BASE_URL?: string;
   MAILTRAP_FROM_EMAIL?: string;
   MAILTRAP_FROM_NAME?: string;
+  TURNSTILE_SITE_KEY?: string;
+  TURNSTILE_SECRET_KEY?: string;
   BETTER_AUTH_SECRET?: string;
   BETTER_AUTH_TRUSTED_ORIGINS?: string;
   GITHUB_TOKEN?: string;

@@ -1,8 +1,11 @@
 import {
+  countAuthMagicLinkRateLimitAttempts,
   listAccessibleTenantContextsForUser,
-  createAuditLog,
-  ensureTenantMembership,
-  upsertUserByEmail,
+  findTenantMembership,
+  findUserByEmail,
+  pruneAuthMagicLinkRateLimitAttempts,
+  recordAuthMagicLinkRateLimitAttempt,
+  type AuthMagicLinkRateLimitDimension,
   type SqlDatabase,
 } from "@credtrail/db";
 import { renderPageShell } from "@credtrail/ui-components";
@@ -20,6 +23,7 @@ import {
 } from "../auth/break-glass-policy";
 import type { EnterpriseSsoAdapter } from "../auth/enterprise-sso-adapter";
 import type { RequestMagicLinkInput, RequestMagicLinkResult } from "../auth/auth-provider";
+import { turnstileConfigured, verifyTurnstileToken } from "../auth/turnstile";
 import {
   localBreakGlassLoginPage,
   localResetPasswordPage,
@@ -32,7 +36,20 @@ import {
   resolveTenantContextSelection,
   toAccessibleTenantContextViews,
 } from "../auth/tenant-context-selection";
-import { sessionCookieSecure } from "../utils/crypto";
+import { sessionCookieSecure, sha256Hex } from "../utils/crypto";
+
+const MAGIC_LINK_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const MAGIC_LINK_RATE_LIMIT_PRUNE_MS = 24 * 60 * 60 * 1000;
+
+const MAGIC_LINK_RATE_LIMITS: Record<
+  AuthMagicLinkRateLimitDimension,
+  { challengeAt: number; blockAt: number }
+> = {
+  ip: { challengeAt: 3, blockAt: 20 },
+  tenant: { challengeAt: 12, blockAt: 60 },
+  email: { challengeAt: 3, blockAt: 10 },
+  tenant_email: { challengeAt: 3, blockAt: 10 },
+};
 
 interface RegisterAuthRoutesInput {
   app: Hono<AppEnv>;
@@ -53,6 +70,70 @@ interface RegisterAuthRoutesInput {
 const getFormValue = (formData: FormData, name: string): string => {
   const raw = formData.get(name);
   return typeof raw === "string" ? raw.trim() : "";
+};
+
+const clientIpFromRequest = (c: AppContext): string => {
+  const cloudflareIp = c.req.header("cf-connecting-ip")?.trim();
+
+  if (cloudflareIp !== undefined && cloudflareIp.length > 0) {
+    return cloudflareIp;
+  }
+
+  const forwardedFor = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
+
+  if (forwardedFor !== undefined && forwardedFor.length > 0) {
+    return forwardedFor;
+  }
+
+  return "unknown";
+};
+
+const magicLinkRateLimitDimensions = async (input: {
+  tenantId: string;
+  email: string;
+  clientIp: string;
+}): Promise<
+  readonly {
+    dimensionType: AuthMagicLinkRateLimitDimension;
+    dimensionHash: string;
+  }[]
+> => {
+  const normalizedEmail = input.email.trim().toLowerCase();
+  return [
+    {
+      dimensionType: "ip",
+      dimensionHash: await sha256Hex(`magic-link:ip:${input.clientIp}`),
+    },
+    {
+      dimensionType: "tenant",
+      dimensionHash: await sha256Hex(`magic-link:tenant:${input.tenantId}`),
+    },
+    {
+      dimensionType: "email",
+      dimensionHash: await sha256Hex(`magic-link:email:${normalizedEmail}`),
+    },
+    {
+      dimensionType: "tenant_email",
+      dimensionHash: await sha256Hex(
+        `magic-link:tenant-email:${input.tenantId}:${normalizedEmail}`,
+      ),
+    },
+  ];
+};
+
+const recordMagicLinkAttempts = async (
+  db: SqlDatabase,
+  dimensions: Awaited<ReturnType<typeof magicLinkRateLimitDimensions>>,
+  nowIso: string,
+): Promise<void> => {
+  await Promise.all(
+    dimensions.map((dimension) =>
+      recordAuthMagicLinkRateLimitAttempt(db, {
+        ...dimension,
+        occurredAt: nowIso,
+      }),
+    ),
+  );
 };
 
 export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
@@ -112,6 +193,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
         magicLinkLoginPage({
           tenantId,
           nextPath,
+          turnstileSiteKey: c.env.TURNSTILE_SITE_KEY,
           ...(reason.length === 0 ? {} : { reason }),
           localLoginAllowed: loginExperience.localLoginAllowed,
           explicitLocalLoginPath: loginExperience.explicitLocalLoginPath,
@@ -125,6 +207,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
       magicLinkLoginPage({
         tenantId,
         nextPath,
+        turnstileSiteKey: c.env.TURNSTILE_SITE_KEY,
         ...(reason.length === 0 ? {} : { reason }),
       }),
     );
@@ -393,6 +476,17 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
   app.post("/v1/auth/magic-link/request", async (c) => {
     const payload = await c.req.json<unknown>();
     const request = parseMagicLinkRequest(payload);
+    const db = resolveDatabase(c.env);
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const windowStartIso = new Date(now.getTime() - MAGIC_LINK_RATE_LIMIT_WINDOW_MS).toISOString();
+    const pruneBeforeIso = new Date(now.getTime() - MAGIC_LINK_RATE_LIMIT_PRUNE_MS).toISOString();
+    const clientIp = clientIpFromRequest(c);
+    const dimensions = await magicLinkRateLimitDimensions({
+      tenantId: request.tenantId,
+      email: request.email,
+      clientIp,
+    });
     const localLoginBlocked = await enterpriseSso?.enforceLocalMagicLinkRequest(c, {
       tenantId: request.tenantId,
     });
@@ -401,25 +495,86 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
       return localLoginBlocked;
     }
 
-    const user = await upsertUserByEmail(resolveDatabase(c.env), request.email);
-    const membershipResult = await ensureTenantMembership(
-      resolveDatabase(c.env),
-      request.tenantId,
-      user.id,
-    );
+    await pruneAuthMagicLinkRateLimitAttempts(db, pruneBeforeIso);
 
-    if (membershipResult.created) {
-      await createAuditLog(resolveDatabase(c.env), {
-        tenantId: request.tenantId,
-        actorUserId: user.id,
-        action: "membership.role_assigned",
-        targetType: "membership",
-        targetId: `${request.tenantId}:${user.id}`,
-        metadata: {
-          userId: user.id,
-          role: membershipResult.membership.role,
+    const counts = await Promise.all(
+      dimensions.map(async (dimension) => {
+        return {
+          ...dimension,
+          count: await countAuthMagicLinkRateLimitAttempts(db, {
+            ...dimension,
+            sinceIso: windowStartIso,
+          }),
+        };
+      }),
+    );
+    const hardLimitExceeded = counts.some((entry) => {
+      return entry.count >= MAGIC_LINK_RATE_LIMITS[entry.dimensionType].blockAt;
+    });
+
+    if (hardLimitExceeded) {
+      return c.json(
+        {
+          error: "Too many sign-in link requests. Try again later.",
         },
+        429,
+      );
+    }
+
+    const turnstileRequired = counts.some((entry) => {
+      return entry.count >= MAGIC_LINK_RATE_LIMITS[entry.dimensionType].challengeAt;
+    });
+
+    if (turnstileRequired) {
+      const turnstileAccepted = await verifyTurnstileToken({
+        secretKey: c.env.TURNSTILE_SECRET_KEY,
+        token: request.turnstileToken,
+        remoteIp: clientIp === "unknown" ? undefined : clientIp,
+        idempotencyKey: crypto.randomUUID(),
       });
+
+      if (!turnstileAccepted) {
+        await recordMagicLinkAttempts(db, dimensions, nowIso);
+        return c.json(
+          {
+            error: "Human verification is required before requesting another sign-in link.",
+            turnstileRequired: true,
+            turnstileSiteKey: c.env.TURNSTILE_SITE_KEY,
+            turnstileConfigured: turnstileConfigured(c.env.TURNSTILE_SECRET_KEY),
+          },
+          428,
+        );
+      }
+    }
+
+    await recordMagicLinkAttempts(db, dimensions, nowIso);
+
+    const user = await findUserByEmail(db, request.email);
+
+    if (user === null) {
+      return c.json(
+        {
+          status: "sent",
+          deliveryStatus: "sent",
+          tenantId: request.tenantId,
+          email: request.email,
+        },
+        202,
+      );
+    }
+
+    const membership = await findTenantMembership(db, request.tenantId, user.id);
+
+    if (membership === null) {
+      return c.json(
+        {
+          status: "sent",
+          deliveryStatus: "sent",
+          tenantId: request.tenantId,
+          email: request.email,
+        },
+        202,
+      );
     }
 
     const magicLinkResult = await requestMagicLink(c, {
