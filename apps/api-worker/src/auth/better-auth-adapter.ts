@@ -8,6 +8,7 @@ import {
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "./auth-context";
 import type {
   InternalAuthProvider,
+  LtiAuthenticatedPrincipal,
   LtiSessionInput,
   RequestMagicLinkInput,
   RequestMagicLinkResult,
@@ -21,6 +22,7 @@ export interface BetterAuthResolvedUser {
 
 export interface BetterAuthResolvedSession {
   sessionId: string;
+  sessionToken?: string | undefined;
   accountId: string | null;
   expiresAt: string;
   user: BetterAuthResolvedUser | null;
@@ -243,7 +245,7 @@ export const createLtiSession = async <
   context: ContextType,
   sessionInput: LtiSessionInput,
   input: BetterAuthAdapterInput<ContextType, BindingsType>,
-): Promise<AuthenticatedPrincipal> => {
+): Promise<LtiAuthenticatedPrincipal> => {
   if (input.createLtiSession === undefined) {
     throw new Error("Better Auth LTI session creation is not wired yet");
   }
@@ -260,8 +262,13 @@ export const createLtiSession = async <
     throw new Error("Better Auth LTI session could not be linked to a CredTrail user");
   }
 
-  input.cacheAuthenticatedPrincipal?.(context, principal);
-  return principal;
+  const ltiPrincipal: LtiAuthenticatedPrincipal = {
+    ...principal,
+    ...(session.sessionToken === undefined ? {} : { browserSessionToken: session.sessionToken }),
+  };
+
+  input.cacheAuthenticatedPrincipal?.(context, ltiPrincipal);
+  return ltiPrincipal;
 };
 
 export const createBetterAuthProvider = <

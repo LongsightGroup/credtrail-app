@@ -16,6 +16,7 @@ import {
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
+import { setCookie } from "hono/cookie";
 import type { Hono } from "hono";
 import {
   parseAssertionPathParams,
@@ -26,7 +27,11 @@ import {
 } from "@credtrail/validation";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "../auth/auth-context";
+import { createBetterAuthRuntimeConfig } from "../auth/better-auth-config";
+import { resolveAuthenticatedPrincipalFromSession } from "../auth/better-auth-adapter";
+import { findBetterAuthSessionByToken } from "../auth/better-auth-runtime";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";
+import { verifyLtiSessionHandoffToken } from "../lti/session-handoff";
 import type { LearnerDashboardBadge } from "../learner/pages";
 import { loadLearnerRecordExportBundle } from "../learner-record/learner-record-export";
 import { createLearnerRecordPresentation } from "../learner-record/learner-record-presentation";
@@ -70,6 +75,92 @@ interface RegisterLearnerRoutesInput<DidNotice> {
     },
   ) => string;
 }
+
+const LTI_SESSION_HANDOFF_QUERY_PARAM = "lti_session_handoff";
+
+const consumeLtiSessionHandoff = async (input: {
+  context: AppContext;
+  tenantId: string;
+  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+}): Promise<{
+  sanitizedRequestUrl: string;
+  consumed: boolean;
+}> => {
+  const requestUrl = new URL(input.context.req.url);
+  const handoffToken = requestUrl.searchParams.get(LTI_SESSION_HANDOFF_QUERY_PARAM)?.trim();
+
+  requestUrl.searchParams.delete(LTI_SESSION_HANDOFF_QUERY_PARAM);
+
+  if (handoffToken === undefined || handoffToken.length === 0) {
+    return {
+      sanitizedRequestUrl: requestUrl.toString(),
+      consumed: false,
+    };
+  }
+
+  const handoff = await verifyLtiSessionHandoffToken(input.context.env, handoffToken);
+
+  if (handoff === null || handoff.tenantId !== input.tenantId) {
+    return {
+      sanitizedRequestUrl: requestUrl.toString(),
+      consumed: false,
+    };
+  }
+
+  const runtimeConfig = createBetterAuthRuntimeConfig(input.context.env);
+  const session = await findBetterAuthSessionByToken(
+    input.resolveDatabase(input.context.env),
+    handoff.sessionToken,
+  );
+
+  if (session === null) {
+    return {
+      sanitizedRequestUrl: requestUrl.toString(),
+      consumed: false,
+    };
+  }
+
+  const principal = await resolveAuthenticatedPrincipalFromSession({
+    db: input.resolveDatabase(input.context.env),
+    session: {
+      sessionId: session.sessionId,
+      sessionToken: session.sessionToken,
+      accountId: null,
+      expiresAt: session.expiresAt,
+      user: {
+        id: session.userId,
+        email: session.userEmail,
+        emailVerified: session.userEmailVerified,
+      },
+    },
+  });
+
+  if (principal === null) {
+    return {
+      sanitizedRequestUrl: requestUrl.toString(),
+      consumed: false,
+    };
+  }
+
+  setCookie(input.context, runtimeConfig.session.cookieName, session.sessionToken, {
+    httpOnly: true,
+    sameSite: "None",
+    secure: true,
+    path: "/",
+    maxAge: runtimeConfig.session.expiresInSeconds,
+  });
+  input.context.set("authenticatedPrincipal", principal);
+  input.context.set("requestedTenantContext", {
+    tenantId: input.tenantId,
+    source: "route",
+    authoritative: true,
+  });
+
+  return {
+    sanitizedRequestUrl: requestUrl.toString(),
+    consumed: true,
+  };
+};
 
 const learnerClaimStatusNoticeFromQuery = (
   value: string | undefined,
@@ -117,10 +208,19 @@ export const registerLearnerRoutes = <DidNotice>(
 
   app.get("/tenants/:tenantId/learner/dashboard", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
+    const handoff = await consumeLtiSessionHandoff({
+      context: c,
+      tenantId: pathParams.tenantId,
+      resolveDatabase,
+    });
     const roleCheck = await requireTenantRole(c, pathParams.tenantId, TENANT_MEMBER_ROLES);
 
     if (roleCheck instanceof Response) {
       return roleCheck;
+    }
+
+    if (handoff.consumed) {
+      c.header("Cache-Control", "no-store");
     }
 
     const db = resolveDatabase(c.env);
@@ -180,7 +280,7 @@ export const registerLearnerRoutes = <DidNotice>(
     c.header("Cache-Control", "no-store");
     return c.html(
       learnerDashboardPage(
-        c.req.url,
+        handoff.sanitizedRequestUrl,
         pathParams.tenantId,
         dashboardBadges,
         learnerDid,
@@ -243,13 +343,9 @@ export const registerLearnerRoutes = <DidNotice>(
 
     c.header("Cache-Control", "no-store");
     return c.html(
-      learnerRecordPage(
-        pathParams.tenantId,
-        createLearnerRecordPresentation(bundle),
-        {
-          switchOrganizationPath,
-        },
-      ),
+      learnerRecordPage(pathParams.tenantId, createLearnerRecordPresentation(bundle), {
+        switchOrganizationPath,
+      }),
     );
   });
 

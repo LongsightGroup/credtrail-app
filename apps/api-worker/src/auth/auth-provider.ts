@@ -5,6 +5,10 @@ export interface LtiSessionInput {
   userId: string;
 }
 
+export interface LtiAuthenticatedPrincipal extends AuthenticatedPrincipal {
+  browserSessionToken?: string | undefined;
+}
+
 export interface RequestMagicLinkInput {
   tenantId: string;
   email: string;
@@ -29,7 +33,10 @@ export interface InternalAuthProvider<ContextType> {
     context: ContextType,
     token: string,
   ): Promise<AuthenticatedPrincipal | null>;
-  createLtiSession(context: ContextType, input: LtiSessionInput): Promise<AuthenticatedPrincipal>;
+  createLtiSession(
+    context: ContextType,
+    input: LtiSessionInput,
+  ): Promise<LtiAuthenticatedPrincipal>;
   resolveAuthenticatedPrincipal(context: ContextType): Promise<AuthenticatedPrincipal | null>;
   resolveRequestedTenantContext(context: ContextType): Promise<RequestedTenantContext | null>;
   revokeCurrentSession(context: ContextType): Promise<void>;

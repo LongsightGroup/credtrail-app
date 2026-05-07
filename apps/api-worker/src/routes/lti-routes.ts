@@ -15,8 +15,7 @@ import {
 } from "@credtrail/lti";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
-import type { AuthenticatedPrincipal } from "../auth/auth-context";
-import type { LtiSessionInput } from "../auth/auth-provider";
+import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
 import { LTI_LAUNCH_PATH, LTI_OIDC_LOGIN_PATH } from "../lti/constants";
 import {
   ltiLaunchFormInputFromRequest,
@@ -38,6 +37,7 @@ import {
   ltiIssuerHasSignedLaunchConfig,
   resolveLtiLaunch,
 } from "../lti/launch-verification";
+import { createLtiSessionHandoffToken } from "../lti/session-handoff";
 import {
   type LtiNrpsRoster,
   ltiNrpsRosterFromCoreMembers,
@@ -73,10 +73,11 @@ interface RegisterLtiRoutesInput {
   createLtiSession: (
     context: AppContext,
     input: LtiSessionInput,
-  ) => Promise<AuthenticatedPrincipal>;
+  ) => Promise<LtiAuthenticatedPrincipal>;
 }
 
 const LTI_DEEP_LINKING_SELECT_PATH = "/v1/lti/deep-linking/select";
+const LTI_SESSION_HANDOFF_TTL_SECONDS = 60;
 
 const ltiPostMessageStorageRedirectInput = (input: {
   authorizationRedirectUrl: string;
@@ -606,7 +607,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       );
     }
 
-    await createLtiSession(c, {
+    const createdSession = await createLtiSession(c, {
       tenantId,
       userId: linkedAccount.userId,
     });
@@ -644,7 +645,24 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       }
     }
 
-    const dashboardPath = ltiLearnerDashboardPath(tenantId);
+    const dashboardPath = await (async (): Promise<string> => {
+      const basePath = ltiLearnerDashboardPath(tenantId);
+
+      if (createdSession.browserSessionToken === undefined) {
+        return basePath;
+      }
+
+      const dashboardUrl = new URL(basePath, c.req.url);
+      dashboardUrl.searchParams.set(
+        "lti_session_handoff",
+        await createLtiSessionHandoffToken(c.env, {
+          tenantId,
+          sessionToken: createdSession.browserSessionToken,
+          ttlSeconds: LTI_SESSION_HANDOFF_TTL_SECONDS,
+        }),
+      );
+      return `${dashboardUrl.pathname}${dashboardUrl.search}`;
+    })();
     c.header("Cache-Control", "no-store");
     let bulkIssuanceView: LtiBulkIssuanceView | null = null;
 

@@ -110,10 +110,7 @@ import {
   parseLtiIssuerRegistryFromEnv,
   type LtiIssuerRegistry,
 } from "./lti/lti-helpers";
-import {
-  createLearnerDashboardPage,
-  learnerDidSettingsNoticeFromQuery,
-} from "./learner/pages";
+import { createLearnerDashboardPage, learnerDidSettingsNoticeFromQuery } from "./learner/pages";
 import { createLearnerRecordPage } from "./learner/learner-record-page";
 import {
   sendIssuanceEmailNotification,
@@ -551,6 +548,7 @@ const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindings>({
     }
 
     return {
+      sessionToken,
       sessionId: session.sessionId,
       accountId: null,
       expiresAt: session.expiresAt,
