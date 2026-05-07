@@ -578,6 +578,7 @@ const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindings>({
     rememberRequestedTenantForEmbeddedLaunch(context, input.tenantId);
 
     return {
+      sessionToken,
       sessionId: session.sessionId,
       accountId: null,
       expiresAt: session.expiresAt,

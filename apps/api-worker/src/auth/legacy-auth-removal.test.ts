@@ -73,6 +73,7 @@ const sampleBetterAuthSession = (
 ): BetterAuthResolvedSession => {
   return {
     sessionId: "ba_ses_lti_123",
+    sessionToken: "lti-browser-session-token",
     accountId: null,
     expiresAt: "2026-03-25T18:00:00.000Z",
     user: {
@@ -164,12 +165,14 @@ describe("legacy auth removal cleanup contract", () => {
       authSessionId: "ba_ses_lti_123",
       authMethod: "better_auth",
       expiresAt: "2026-03-25T18:00:00.000Z",
+      browserSessionToken: "lti-browser-session-token",
     });
     expect(cacheAuthenticatedPrincipal).toHaveBeenCalledWith(context, {
       userId: "usr_123",
       authSessionId: "ba_ses_lti_123",
       authMethod: "better_auth",
       expiresAt: "2026-03-25T18:00:00.000Z",
+      browserSessionToken: "lti-browser-session-token",
     });
   });
 });
