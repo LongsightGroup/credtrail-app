@@ -47,19 +47,15 @@ services:
       "
 
   migrate:
-    image: postgres:16-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      - ./packages/db/migrations:/migrations:ro
-    entrypoint: >
-      /bin/sh -c "
-      set -eu;
-      for migration in /migrations/*.sql; do
-        psql postgresql://credtrail:credtrail@postgres:5432/credtrail -v ON_ERROR_STOP=1 -f $$migration;
-      done
-      "
+    environment:
+      DATABASE_URL: postgres://credtrail:credtrail@postgres:5432/credtrail
+    command: ["pnpm", "db:migrate:postgres"]
 
   app:
     build:

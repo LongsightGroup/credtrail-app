@@ -4758,4 +4758,15 @@ describe("better auth core migration", () => {
     expect(breakGlassSql).toContain("last_enrollment_email_sent_at");
     expect(breakGlassSql).toContain("idx_tenant_break_glass_accounts_tenant_active");
   });
+
+  it("adds LTI issuer NRPS credential columns through a forward migration", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0039_lti_issuer_registration_nrps_credentials.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("ALTER TABLE lti_issuer_registrations");
+    expect(sql).toContain("ADD COLUMN IF NOT EXISTS token_endpoint TEXT");
+    expect(sql).toContain("ADD COLUMN IF NOT EXISTS client_secret TEXT");
+  });
 });

@@ -88,12 +88,8 @@ jobs:
           docker run --rm \
             --network credtrail-ci-net \
             -e DATABASE_URL="$DATABASE_URL" \
-            -v "$PWD/packages/db/migrations:/migrations:ro" \
-            postgres:16-alpine sh -ceu '
-              for migration in /migrations/*.sql; do
-                psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
-              done
-            '
+            credtrail-ci:${{ github.sha }} \
+            pnpm db:migrate:postgres
 
           docker run -d \
             --name credtrail-ci-minio \

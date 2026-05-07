@@ -7,6 +7,7 @@
     "check:public-docs": "node scripts/check-public-docs.mjs",
     "export:ob3-openapi": "pnpm exec tsx scripts/export-ob3-openapi.mjs",
     "check:ob3-openapi": "pnpm exec tsx scripts/check-ob3-openapi.mjs",
+    "db:migrate:postgres": "node packages/db/scripts/migrate-postgres.mjs",
     "cert:preflight": "node scripts/ob3-cert-preflight.mjs",
     "lint": "node scripts/run-oxlint.mjs --deny-warnings",
     "lint:fix": "node scripts/run-oxlint.mjs --fix --fix-suggestions --deny-warnings",
