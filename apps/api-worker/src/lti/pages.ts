@@ -26,6 +26,111 @@ const ltiRoleLabel = (roleKind: LtiRoleKind): string => {
 
 const LTI_PAGE_HEAD_TAGS = renderPageAssetTags(["foundationCss", "ltiPagesCss"]);
 
+export const ltiPostMessageStorageRedirectPage = (input: {
+  authorizationRedirectUrl: string;
+  platformOrigin: string;
+  storageTarget: string;
+  state: string;
+  nonce: string;
+}): string => {
+  return renderPageShell(
+    "LTI Launch Redirect | CredTrail",
+    `<section class="lti-launch">
+      <header class="lti-launch__hero">
+        <h1>Continuing LTI launch</h1>
+      </header>
+    </section>
+    <script>
+      (() => {
+        const authorizationRedirectUrl = ${JSON.stringify(input.authorizationRedirectUrl)};
+        const platformOrigin = ${JSON.stringify(input.platformOrigin)};
+        const storageTarget = ${JSON.stringify(input.storageTarget)};
+        const entries = [
+          {
+            key: ${JSON.stringify(`state_${input.state}`)},
+            value: ${JSON.stringify(input.state)}
+          },
+          {
+            key: ${JSON.stringify(`nonce_${input.nonce}`)},
+            value: ${JSON.stringify(input.nonce)}
+          }
+        ];
+
+        const redirect = () => {
+          window.location.replace(authorizationRedirectUrl);
+        };
+
+        const parentWindow = window.parent !== window ? window.parent : window.opener;
+        if (!parentWindow) {
+          redirect();
+          return;
+        }
+
+        const targetFrame =
+          storageTarget === "_parent" ? parentWindow : parentWindow.frames[storageTarget];
+
+        if (!targetFrame) {
+          redirect();
+          return;
+        }
+
+        const pending = new Set(entries.map((entry) => entry.key));
+        const createMessageId = () => {
+          if (crypto.randomUUID) {
+            return crypto.randomUUID();
+          }
+
+          return \`credtrail-lti-\${Date.now()}-\${Math.random().toString(16).slice(2)}\`;
+        };
+        const messageIds = new Map(entries.map((entry) => [createMessageId(), entry.key]));
+        const timeout = window.setTimeout(redirect, 1500);
+
+        window.addEventListener("message", (event) => {
+          if (event.origin !== platformOrigin || typeof event.data !== "object" || event.data === null) {
+            return;
+          }
+
+          if (event.data.subject !== "lti.put_data.response") {
+            return;
+          }
+
+          const key = messageIds.get(event.data.message_id);
+          if (key === undefined) {
+            return;
+          }
+
+          if (event.data.error === undefined) {
+            pending.delete(key);
+          }
+
+          if (pending.size === 0) {
+            window.clearTimeout(timeout);
+            redirect();
+          }
+        });
+
+        for (const [messageId, key] of messageIds.entries()) {
+          const entry = entries.find((candidate) => candidate.key === key);
+          if (entry === undefined) {
+            continue;
+          }
+
+          targetFrame.postMessage(
+            {
+              subject: "lti.put_data",
+              message_id: messageId,
+              key: entry.key,
+              value: entry.value
+            },
+            platformOrigin
+          );
+        }
+      })();
+    </script>`,
+    LTI_PAGE_HEAD_TAGS,
+  );
+};
+
 export interface LtiBulkIssuanceRosterMember {
   userId: string;
   sourcedId: string | null;
@@ -64,13 +169,12 @@ interface LtiDeepLinkSelectionOption {
   launchUrl: string;
 }
 
-export type LtiDeepLinkSelectionPageInput =
-  LtiDeepLinkSelectionBaseInput & {
-    mode: "signed";
-    signedSelectionActionUrl: string;
-    ltiSessionId: string;
-    options: readonly LtiDeepLinkSelectionOption[];
-  };
+export type LtiDeepLinkSelectionPageInput = LtiDeepLinkSelectionBaseInput & {
+  mode: "signed";
+  signedSelectionActionUrl: string;
+  ltiSessionId: string;
+  options: readonly LtiDeepLinkSelectionOption[];
+};
 
 export const ltiLaunchResultPage = (input: {
   roleKind: LtiRoleKind;

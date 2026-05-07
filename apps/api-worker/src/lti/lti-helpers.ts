@@ -100,10 +100,7 @@ export const parseLtiIssuerRegistryFromEnv = (
     if (platformJwksEndpointRaw !== undefined) {
       const parsedPlatformJwksEndpoint = asNonEmptyString(platformJwksEndpointRaw);
 
-      if (
-        parsedPlatformJwksEndpoint === null ||
-        !isAbsoluteHttpUrl(parsedPlatformJwksEndpoint)
-      ) {
+      if (parsedPlatformJwksEndpoint === null || !isAbsoluteHttpUrl(parsedPlatformJwksEndpoint)) {
         throw new Error(
           `LTI_ISSUER_REGISTRY_JSON["${issuer}"].platformJwksEndpoint must be an absolute http(s) URL when provided`,
         );
@@ -275,6 +272,11 @@ export const ltiLoginInputFromRequest = async (c: AppContext): Promise<Record<st
         : {
             lti_deployment_id: c.req.query("lti_deployment_id") ?? "",
           }),
+      ...(c.req.query("lti_storage_target") === undefined
+        ? {}
+        : {
+            lti_storage_target: c.req.query("lti_storage_target") ?? "",
+          }),
     };
   }
 
@@ -301,6 +303,11 @@ export const ltiLoginInputFromRequest = async (c: AppContext): Promise<Record<st
       ? {}
       : {
           lti_deployment_id: formData.get("lti_deployment_id") ?? "",
+        }),
+    ...(formData.get("lti_storage_target") === null
+      ? {}
+      : {
+          lti_storage_target: formData.get("lti_storage_target") ?? "",
         }),
   };
 };

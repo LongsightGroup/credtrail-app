@@ -46,6 +46,7 @@ import {
 import {
   ltiDeepLinkSelectionPage,
   ltiLaunchResultPage,
+  ltiPostMessageStorageRedirectPage,
   type LtiBulkIssuanceView,
   type LtiDeepLinkSelectionPageInput,
 } from "../lti/pages";
@@ -76,6 +77,37 @@ interface RegisterLtiRoutesInput {
 }
 
 const LTI_DEEP_LINKING_SELECT_PATH = "/v1/lti/deep-linking/select";
+
+const ltiPostMessageStorageRedirectInput = (input: {
+  authorizationRedirectUrl: string;
+  storageTarget: string | undefined;
+}): {
+  authorizationRedirectUrl: string;
+  platformOrigin: string;
+  storageTarget: string;
+  state: string;
+  nonce: string;
+} | null => {
+  if (input.storageTarget === undefined || input.storageTarget.trim().length === 0) {
+    return null;
+  }
+
+  const redirectUrl = new URL(input.authorizationRedirectUrl);
+  const state = redirectUrl.searchParams.get("state");
+  const nonce = redirectUrl.searchParams.get("nonce");
+
+  if (state === null || nonce === null) {
+    return null;
+  }
+
+  return {
+    authorizationRedirectUrl: redirectUrl.toString(),
+    platformOrigin: redirectUrl.origin,
+    storageTarget: input.storageTarget,
+    state,
+    nonce,
+  };
+};
 
 const ltiBulkIssuanceViewFromRoster = (input: {
   roster: LtiNrpsRoster;
@@ -315,6 +347,15 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
         ? {}
         : { lti_message_hint: loginRequest.lti_message_hint }),
     });
+    const postMessageStorageInput = ltiPostMessageStorageRedirectInput({
+      authorizationRedirectUrl: authRedirectUrl,
+      storageTarget: loginRequest.lti_storage_target,
+    });
+
+    if (postMessageStorageInput !== null) {
+      c.header("Cache-Control", "no-store");
+      return c.html(ltiPostMessageStorageRedirectPage(postMessageStorageInput));
+    }
 
     return c.redirect(authRedirectUrl, 302);
   };
@@ -613,9 +654,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       const courseContextTitle =
         asNonEmptyString(contextClaim?.title) ?? asNonEmptyString(contextClaim?.label) ?? null;
       const courseContextId = asNonEmptyString(contextClaim?.id);
-      const badgeTemplateId = badgeTemplateIdFromTargetLinkUri(
-        launchMessage.resolvedTargetLinkUri,
-      );
+      const badgeTemplateId = badgeTemplateIdFromTargetLinkUri(launchMessage.resolvedTargetLinkUri);
 
       if (nrpsClaim === null) {
         bulkIssuanceView = ltiEmptyBulkIssuanceView({

@@ -588,9 +588,7 @@ describe("LTI 1.3 core launch flow", () => {
 
   const ltiSessionFromClaims = (claims: Record<string, unknown>): LTISession => {
     const context = claims[ltiClaim.context] as Record<string, unknown> | undefined;
-    const roles = Array.isArray(claims[ltiClaim.roles])
-      ? (claims[ltiClaim.roles] as string[])
-      : [];
+    const roles = Array.isArray(claims[ltiClaim.roles]) ? (claims[ltiClaim.roles] as string[]) : [];
     const normalizedRoles = roles.map((role) => role.toLowerCase());
     const isInstructor = normalizedRoles.some((role) => role.includes("#instructor"));
     const isStudent = normalizedRoles.some(
@@ -816,6 +814,31 @@ describe("LTI 1.3 core launch flow", () => {
     expect(redirectUrl.searchParams.get("redirect_uri")).toBe("http://localhost/v1/lti/launch");
     expect(redirectUrl.searchParams.get("state")).toBeTruthy();
     expect(redirectUrl.searchParams.get("nonce")).toBeTruthy();
+  });
+
+  it("uses LTI postMessage storage before OIDC redirect when the platform advertises storage support", async () => {
+    const env = createLtiEnv();
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool();
+    const response = await isolatedApp.request(
+      `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
+        "opaque-login-hint",
+      )}&target_link_uri=${encodeURIComponent(targetLinkUri)}&lti_deployment_id=${encodeURIComponent(
+        deploymentId,
+      )}&lti_storage_target=${encodeURIComponent("_parent")}`,
+      undefined,
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("location")).toBeNull();
+
+    const body = await response.text();
+    expect(body).toContain("lti.put_data");
+    expect(body).toContain("state_mock-lti-state");
+    expect(body).toContain("nonce_mock-lti-nonce");
+    expect(body).toContain(JSON.stringify(new URL(authorizationEndpoint).origin));
+    expect(body).toContain(JSON.stringify("_parent"));
   });
 
   it("uses DB-backed issuer registrations when env registry is not configured", async () => {
@@ -1128,8 +1151,7 @@ describe("LTI 1.3 core launch flow", () => {
           "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor",
         ],
         "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice": {
-          context_memberships_url:
-            "https://canvas.example.edu/api/lti/courses/42/names_and_roles",
+          context_memberships_url: "https://canvas.example.edu/api/lti/courses/42/names_and_roles",
           service_versions: ["2.0"],
         },
       },

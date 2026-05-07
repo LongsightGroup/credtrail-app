@@ -18,11 +18,13 @@ describe("parseLtiOidcLoginInitiationRequest", () => {
       iss: "https://canvas.example.edu",
       login_hint: "opaque-login-hint",
       target_link_uri: "https://tool.example.edu/v1/lti/launch",
+      lti_storage_target: "_parent",
     });
 
     expect(parsed.iss).toBe("https://canvas.example.edu");
     expect(parsed.login_hint).toBe("opaque-login-hint");
     expect(parsed.target_link_uri).toBe("https://tool.example.edu/v1/lti/launch");
+    expect(parsed.lti_storage_target).toBe("_parent");
   });
 
   it("rejects payloads that omit required fields", () => {

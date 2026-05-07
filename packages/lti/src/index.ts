@@ -30,6 +30,7 @@ export const ltiOidcLoginInitiationRequestSchema = z.object({
   client_id: z.string().min(1).optional(),
   lti_message_hint: z.string().min(1).optional(),
   lti_deployment_id: z.string().min(1).optional(),
+  lti_storage_target: z.string().min(1).optional(),
 });
 
 const ltiResourceLinkClaimSchema = z
