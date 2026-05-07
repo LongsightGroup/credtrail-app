@@ -74,6 +74,9 @@ export const ltiPostMessageStorageRedirectPage = (input: {
           return;
         }
 
+        const postToStorageFrame = (message) => {
+          targetFrame.postMessage(JSON.stringify(message), platformOrigin);
+        };
         const pending = new Set(entries.map((entry) => entry.key));
         const createMessageId = () => {
           if (crypto.randomUUID) {
@@ -84,22 +87,63 @@ export const ltiPostMessageStorageRedirectPage = (input: {
         };
         const messageIds = new Map(entries.map((entry) => [createMessageId(), entry.key]));
         const timeout = window.setTimeout(redirect, 1500);
+        let storageMessagesPosted = false;
+
+        const postStorageMessages = () => {
+          if (storageMessagesPosted) {
+            return;
+          }
+
+          storageMessagesPosted = true;
+
+          for (const [messageId, key] of messageIds.entries()) {
+            const entry = entries.find((candidate) => candidate.key === key);
+            if (entry === undefined) {
+              continue;
+            }
+
+            postToStorageFrame({
+              subject: "lti.put_data",
+              message_id: messageId,
+              key: entry.key,
+              value: entry.value
+            });
+          }
+        };
 
         window.addEventListener("message", (event) => {
-          if (event.origin !== platformOrigin || typeof event.data !== "object" || event.data === null) {
+          if (event.origin !== platformOrigin) {
             return;
           }
 
-          if (event.data.subject !== "lti.put_data.response") {
+          let message = event.data;
+          if (typeof message === "string") {
+            try {
+              message = JSON.parse(message);
+            } catch {
+              return;
+            }
+          }
+
+          if (typeof message !== "object" || message === null) {
             return;
           }
 
-          const key = messageIds.get(event.data.message_id);
+          if (message.subject === "org.sakailms.lti.prelaunch.response") {
+            postStorageMessages();
+            return;
+          }
+
+          if (message.subject !== "lti.put_data.response") {
+            return;
+          }
+
+          const key = messageIds.get(message.message_id);
           if (key === undefined) {
             return;
           }
 
-          if (event.data.error === undefined) {
+          if (message.error === undefined) {
             pending.delete(key);
           }
 
@@ -109,22 +153,8 @@ export const ltiPostMessageStorageRedirectPage = (input: {
           }
         });
 
-        for (const [messageId, key] of messageIds.entries()) {
-          const entry = entries.find((candidate) => candidate.key === key);
-          if (entry === undefined) {
-            continue;
-          }
-
-          targetFrame.postMessage(
-            {
-              subject: "lti.put_data",
-              message_id: messageId,
-              key: entry.key,
-              value: entry.value
-            },
-            platformOrigin
-          );
-        }
+        postToStorageFrame({ subject: "org.sakailms.lti.prelaunch" });
+        window.setTimeout(postStorageMessages, 250);
       })();
     </script>`,
     LTI_PAGE_HEAD_TAGS,

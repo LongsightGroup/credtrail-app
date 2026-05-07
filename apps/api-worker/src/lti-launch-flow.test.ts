@@ -837,6 +837,9 @@ describe("LTI 1.3 core launch flow", () => {
 
     const body = await response.text();
     expect(body).toContain("lti.put_data");
+    expect(body).toContain("org.sakailms.lti.prelaunch");
+    expect(body).toContain("JSON.stringify(message)");
+    expect(body).toContain("JSON.parse(message)");
     expect(body).toContain("state_mock-lti-state");
     expect(body).toContain("nonce_mock-lti-nonce");
     expect(body).toContain(JSON.stringify(new URL(authorizationEndpoint).origin));
