@@ -1160,6 +1160,15 @@ registerLearnerRecordExportRoutes({
   ADMIN_ROLES,
 });
 
+const issueBadgeForTenant = createIssueBadgeForTenant<AppContext, AppBindings>({
+  resolveDatabase,
+  signCredentialForDid,
+  sendIssuanceEmailNotification,
+  observabilityContext,
+  publicBadgePathForAssertion,
+  HttpErrorResponseClass: HttpErrorResponse,
+});
+
 registerLtiRoutes({
   app,
   resolveLtiIssuerRegistry,
@@ -1170,6 +1179,7 @@ registerLtiRoutes({
   createLtiSession: (context, input) => {
     return betterAuthProvider.createLtiSession(context, input);
   },
+  issueBadgeForTenant,
 });
 
 registerMigrationRoutes({
@@ -1242,15 +1252,6 @@ registerBadgeTemplateRoutes({
   ADMIN_ROLES,
   ISSUER_ROLES,
   TENANT_MEMBER_ROLES,
-});
-
-const issueBadgeForTenant = createIssueBadgeForTenant<AppContext, AppBindings>({
-  resolveDatabase,
-  signCredentialForDid,
-  sendIssuanceEmailNotification,
-  observabilityContext,
-  publicBadgePathForAssertion,
-  HttpErrorResponseClass: HttpErrorResponse,
 });
 
 registerBadgeRuleRoutes({

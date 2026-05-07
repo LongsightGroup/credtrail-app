@@ -16,6 +16,8 @@ import {
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
+import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
+import type { DirectIssueBadgeResult } from "../badges/direct-issue";
 import { LTI_LAUNCH_PATH, LTI_OIDC_LOGIN_PATH } from "../lti/constants";
 import {
   ltiLaunchFormInputFromRequest,
@@ -39,15 +41,23 @@ import {
 } from "../lti/launch-verification";
 import { createLtiSessionHandoffToken } from "../lti/session-handoff";
 import {
+  createLtiIssuanceActionToken,
+  verifyLtiIssuanceActionToken,
+  type LtiIssuanceActionPayload,
+} from "../lti/issuance-action-token";
+import {
   type LtiNrpsRoster,
+  type LtiNrpsMember,
   ltiNrpsRosterFromCoreMembers,
   parseLtiNrpsNamesRoleServiceClaim,
 } from "../lti/nrps";
 import {
   ltiDeepLinkSelectionPage,
   ltiLaunchResultPage,
+  ltiRosterIssuanceResultPage,
   ltiPostMessageStorageRedirectPage,
   type LtiBulkIssuanceView,
+  type LtiRosterIssuanceResultEntry,
   type LtiDeepLinkSelectionPageInput,
 } from "../lti/pages";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
@@ -74,9 +84,21 @@ interface RegisterLtiRoutesInput {
     context: AppContext,
     input: LtiSessionInput,
   ) => Promise<LtiAuthenticatedPrincipal>;
+  issueBadgeForTenant: (
+    c: AppContext,
+    tenantId: string,
+    request: DirectIssueBadgeRequest,
+    issuedByUserId?: string,
+    options?: {
+      recipientDisplayName?: string;
+      issuerName?: string;
+      issuerUrl?: string;
+    },
+  ) => Promise<DirectIssueBadgeResult>;
 }
 
 const LTI_DEEP_LINKING_SELECT_PATH = "/v1/lti/deep-linking/select";
+const LTI_RESOURCE_LINK_ISSUE_PATH = "/v1/lti/resource-link/issue";
 const LTI_SESSION_HANDOFF_TTL_SECONDS = 10 * 60;
 
 const ltiPostMessageStorageRedirectInput = (input: {
@@ -138,6 +160,8 @@ const ltiBulkIssuanceViewFromRoster = (input: {
     contextMembershipsUrl: input.contextMembershipsUrl,
     learnerCount: learnerMembers.length,
     totalCount: input.roster.members.length,
+    issuanceActionPath: null,
+    issuanceActionToken: null,
     members: learnerMembers,
   };
 };
@@ -159,7 +183,22 @@ const ltiEmptyBulkIssuanceView = (input: {
     contextMembershipsUrl: input.contextMembershipsUrl,
     learnerCount: 0,
     totalCount: 0,
+    issuanceActionPath: null,
+    issuanceActionToken: null,
     members: [],
+  };
+};
+
+const ltiBulkIssuanceViewWithAction = (
+  view: LtiBulkIssuanceView,
+  input: {
+    issuanceActionToken: string;
+  },
+): LtiBulkIssuanceView => {
+  return {
+    ...view,
+    issuanceActionPath: LTI_RESOURCE_LINK_ISSUE_PATH,
+    issuanceActionToken: input.issuanceActionToken,
   };
 };
 
@@ -245,6 +284,63 @@ const ltiDeepLinkSelectionInput = (input: {
   };
 };
 
+const selectedLearnerUserIdsFromForm = (form: FormData): string[] => {
+  const selected = form
+    .getAll("learner_user_id")
+    .map((entry) => asNonEmptyString(entry))
+    .filter((entry): entry is string => entry !== null);
+
+  return Array.from(new Set(selected));
+};
+
+const ltiSessionMatchesIssuanceAction = (
+  ltiSession: LTISession,
+  action: LtiIssuanceActionPayload,
+): boolean => {
+  return (
+    ltiSession.id === action.ltiSessionId &&
+    ltiSession.platform.issuer === action.issuer &&
+    ltiSession.platform.clientId === action.clientId &&
+    ltiSession.platform.deploymentId === action.deploymentId &&
+    ltiSession.context.id === action.contextId &&
+    ltiSession.resourceLink?.id === action.resourceLinkId
+  );
+};
+
+const ltiIssuanceIdempotencyKey = async (
+  sha256Hex: (value: string) => Promise<string>,
+  action: LtiIssuanceActionPayload,
+  learnerUserId: string,
+): Promise<string> => {
+  const digest = await sha256Hex(
+    [
+      action.issuer,
+      action.clientId,
+      action.deploymentId,
+      action.contextId,
+      action.resourceLinkId,
+      action.badgeTemplateId,
+      learnerUserId,
+    ].join("|"),
+  );
+
+  return `lti:${digest}`;
+};
+
+const skippedLtiIssuanceResult = (
+  member: Pick<LtiNrpsMember, "userId" | "displayName" | "email">,
+  message: string,
+): LtiRosterIssuanceResultEntry => {
+  return {
+    userId: member.userId,
+    displayName: member.displayName,
+    email: member.email,
+    status: "skipped",
+    message,
+    assertionId: null,
+  };
+};
+
 export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
   const {
     app,
@@ -254,6 +350,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     upsertTenantMembershipRole: upsertTenantMembershipRoleWithInput,
     sha256Hex,
     createLtiSession,
+    issueBadgeForTenant,
   } = input;
 
   const ltiOidcLoginHandler = async (c: AppContext): Promise<Response> => {
@@ -446,6 +543,203 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
 
     c.header("Cache-Control", "no-store");
     return c.html(responseHtml);
+  });
+
+  app.post(LTI_RESOURCE_LINK_ISSUE_PATH, async (c): Promise<Response> => {
+    const form = await c.req.formData();
+    const actionToken = asNonEmptyString(form.get("issuance_action_token"));
+    const selectedLearnerUserIds = selectedLearnerUserIdsFromForm(form);
+
+    if (actionToken === null) {
+      return c.json(
+        {
+          error: "issuance_action_token is required",
+        },
+        400,
+      );
+    }
+
+    const issuanceAction = await verifyLtiIssuanceActionToken(c.env, actionToken);
+
+    if (issuanceAction === null) {
+      return c.json(
+        {
+          error: "LTI issuance action token is invalid or expired",
+        },
+        403,
+      );
+    }
+
+    const db = resolveDatabase(c.env);
+    const ltiTool = await createCredTrailLtiTool({
+      db,
+      env: c.env,
+    });
+    const ltiSession = await ltiTool.getSession(issuanceAction.ltiSessionId);
+
+    if (ltiSession === undefined) {
+      return c.json(
+        {
+          error: "LTI launch session was not found or is no longer active",
+        },
+        404,
+      );
+    }
+
+    if (!ltiSessionMatchesIssuanceAction(ltiSession, issuanceAction)) {
+      return c.json(
+        {
+          error: "LTI launch session does not match issuance action",
+        },
+        403,
+      );
+    }
+
+    if (!ltiSession.isInstructor) {
+      return c.json(
+        {
+          error: "LTI roster badge issuance requires an instructor launch",
+        },
+        403,
+      );
+    }
+
+    const badgeTemplate = await findBadgeTemplateById(
+      db,
+      issuanceAction.tenantId,
+      issuanceAction.badgeTemplateId,
+    );
+
+    if (badgeTemplate === null || badgeTemplate.isArchived) {
+      return c.json(
+        {
+          error: "LTI resource-link badge template is not available for this tenant",
+        },
+        404,
+      );
+    }
+
+    let roster: LtiNrpsRoster;
+
+    try {
+      const members = await ltiTool.getMembers(ltiSession);
+      roster = ltiNrpsRosterFromCoreMembers({
+        contextId: ltiSession.context.id,
+        members,
+      });
+    } catch (error) {
+      await captureSentryException({
+        context: observabilityContext(c.env),
+        dsn: c.env.SENTRY_DSN,
+        error,
+        message: "NRPS roster pull failed for LTI badge issuance",
+        tags: {
+          path: LTI_RESOURCE_LINK_ISSUE_PATH,
+          method: c.req.method,
+        },
+        extra: {
+          issuer: issuanceAction.issuer,
+          tenantId: issuanceAction.tenantId,
+          deploymentId: issuanceAction.deploymentId,
+          contextId: issuanceAction.contextId,
+          resourceLinkId: issuanceAction.resourceLinkId,
+        },
+      });
+
+      return c.json(
+        {
+          error: "NRPS roster request failed for this launch. Check issuer token settings.",
+        },
+        502,
+      );
+    }
+
+    const learnersByUserId = new Map(
+      roster.learnerMembers.map((member): [string, LtiNrpsMember] => [member.userId, member]),
+    );
+    const results: LtiRosterIssuanceResultEntry[] = [];
+
+    for (const learnerUserId of selectedLearnerUserIds) {
+      const member = learnersByUserId.get(learnerUserId);
+
+      if (member === undefined) {
+        results.push({
+          userId: learnerUserId,
+          displayName: null,
+          email: null,
+          status: "skipped",
+          message: "Learner is not present in the current Sakai learner roster.",
+          assertionId: null,
+        });
+        continue;
+      }
+
+      if (member.email === null) {
+        results.push(skippedLtiIssuanceResult(member, "Sakai did not provide an email address."));
+        continue;
+      }
+
+      const request: DirectIssueBadgeRequest = {
+        badgeTemplateId: issuanceAction.badgeTemplateId,
+        recipientIdentity: member.email,
+        recipientIdentityType: "email",
+        ...(member.sourcedId === null
+          ? {}
+          : {
+              recipientIdentifiers: [
+                {
+                  identifierType: "sourcedId",
+                  identifier: member.sourcedId,
+                },
+              ],
+            }),
+        idempotencyKey: await ltiIssuanceIdempotencyKey(sha256Hex, issuanceAction, member.userId),
+      };
+      const issueOptions =
+        member.displayName === null ? {} : { recipientDisplayName: member.displayName };
+
+      try {
+        const issuance = await issueBadgeForTenant(
+          c,
+          issuanceAction.tenantId,
+          request,
+          issuanceAction.issuedByUserId,
+          issueOptions,
+        );
+
+        results.push({
+          userId: member.userId,
+          displayName: member.displayName,
+          email: member.email,
+          status: issuance.status,
+          message:
+            issuance.status === "issued"
+              ? "Badge issued."
+              : "Badge was already issued for this Sakai learner.",
+          assertionId: issuance.assertionId,
+        });
+      } catch (error) {
+        results.push({
+          userId: member.userId,
+          displayName: member.displayName,
+          email: member.email,
+          status: "failed",
+          message: error instanceof Error ? error.message : "Badge issuance failed.",
+          assertionId: null,
+        });
+      }
+    }
+
+    c.header("Cache-Control", "no-store");
+    return c.html(
+      ltiRosterIssuanceResultPage({
+        tenantId: issuanceAction.tenantId,
+        badgeTemplateId: issuanceAction.badgeTemplateId,
+        courseContextTitle: ltiSession.context.title.length === 0 ? null : ltiSession.context.title,
+        selectedCount: selectedLearnerUserIds.length,
+        results,
+      }),
+    );
   });
 
   app.post(LTI_LAUNCH_PATH, async (c): Promise<Response> => {
@@ -698,6 +992,23 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
             courseContextId,
             contextMembershipsUrl: nrpsClaim.contextMembershipsUrl,
           });
+          const issuanceActionContextId = courseContextId ?? ltiLaunchSession.context.id;
+          if (launchMessage.badgeTemplateId !== null && issuanceActionContextId.length > 0) {
+            bulkIssuanceView = ltiBulkIssuanceViewWithAction(bulkIssuanceView, {
+              issuanceActionToken: await createLtiIssuanceActionToken(c.env, {
+                tenantId,
+                ltiSessionId: ltiLaunchSession.id,
+                issuer: launchClaims.iss,
+                clientId: issuerEntry.clientId,
+                deploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
+                contextId: issuanceActionContextId,
+                resourceLinkId: launchMessage.resourceLinkId,
+                badgeTemplateId: launchMessage.badgeTemplateId,
+                issuedByUserId: linkedAccount.userId,
+                ttlSeconds: LTI_SESSION_HANDOFF_TTL_SECONDS,
+              }),
+            });
+          }
         } catch (error) {
           await captureSentryException({
             context: observabilityContext(c.env),

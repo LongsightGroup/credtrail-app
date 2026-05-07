@@ -441,6 +441,7 @@ const stringClaimForTest = (value: unknown, fallback: string): string => {
 
 afterEach(() => {
   vi.doUnmock("./auth/better-auth-adapter");
+  vi.doUnmock("./badges/direct-issue");
   vi.doUnmock("./lti/credtrail-lti-tool");
 });
 
@@ -604,6 +605,10 @@ describe("LTI 1.3 core launch flow", () => {
     const contextId = typeof context?.id === "string" ? context.id : undefined;
     const contextLabel = typeof context?.label === "string" ? context.label : undefined;
     const contextTitle = typeof context?.title === "string" ? context.title : undefined;
+    const resourceLink = claims[ltiClaim.resourceLink] as Record<string, unknown> | undefined;
+    const resourceLinkId = typeof resourceLink?.id === "string" ? resourceLink.id : undefined;
+    const resourceLinkTitle =
+      typeof resourceLink?.title === "string" ? resourceLink.title : undefined;
     const deepLinkingData =
       typeof deepLinkingSettings?.data === "string" ? deepLinkingSettings.data : undefined;
 
@@ -630,6 +635,14 @@ describe("LTI 1.3 core launch flow", () => {
       launch: {
         target: stringClaimForTest(claims[ltiClaim.targetLinkUri], targetLinkUri),
       },
+      ...(resourceLinkId === undefined
+        ? {}
+        : {
+            resourceLink: {
+              id: resourceLinkId,
+              ...(resourceLinkTitle === undefined ? {} : { title: resourceLinkTitle }),
+            },
+          }),
       services: {
         ...(nrpsClaim === undefined
           ? {}
@@ -669,16 +682,20 @@ describe("LTI 1.3 core launch flow", () => {
   const loadAppWithMockedSignedLtiTool = async (options?: {
     authorizationEndpoint?: string;
     getMembers?: ReturnType<typeof vi.fn>;
+    getSession?: ReturnType<typeof vi.fn>;
+    issueBadgeForTenant?: ReturnType<typeof vi.fn>;
   }): Promise<
     Awaited<ReturnType<typeof loadAppWithMockedAuthProviders>> & {
       ltiTool: {
         handleLogin: ReturnType<typeof vi.fn>;
         verifyLaunch: ReturnType<typeof vi.fn>;
         createSession: ReturnType<typeof vi.fn>;
+        getSession: ReturnType<typeof vi.fn>;
         getMembers: ReturnType<typeof vi.fn>;
       };
     }
   > => {
+    let latestSession: LTISession | null = null;
     const ltiTool = {
       handleLogin: vi.fn(async (input: Record<string, unknown>) => {
         const redirectUrl = new URL(options?.authorizationEndpoint ?? authorizationEndpoint);
@@ -693,10 +710,30 @@ describe("LTI 1.3 core launch flow", () => {
         return redirectUrl.toString();
       }),
       verifyLaunch: vi.fn(async (idToken: string) => parseCompactJwtPayloadForTest(idToken)),
-      createSession: vi.fn(async (claims: Record<string, unknown>) => ltiSessionFromClaims(claims)),
+      createSession: vi.fn(async (claims: Record<string, unknown>) => {
+        latestSession = ltiSessionFromClaims(claims);
+        return latestSession;
+      }),
+      getSession:
+        options?.getSession ??
+        vi.fn(async (sessionId: string) =>
+          latestSession !== null && latestSession.id === sessionId ? latestSession : undefined,
+        ),
       getMembers: options?.getMembers ?? vi.fn().mockResolvedValue([]),
     };
     const result = await loadAppWithMockedAuthProviders(() => {
+      if (options?.issueBadgeForTenant !== undefined) {
+        vi.doMock("./badges/direct-issue", async () => {
+          const actual =
+            await vi.importActual<typeof import("./badges/direct-issue")>("./badges/direct-issue");
+
+          return {
+            ...actual,
+            createIssueBadgeForTenant: vi.fn(() => options.issueBadgeForTenant),
+          };
+        });
+      }
+
       vi.doMock("./lti/credtrail-lti-tool", () => {
         return {
           createCredTrailLtiTool: vi.fn(async () => ltiTool),
@@ -1183,11 +1220,179 @@ describe("LTI 1.3 core launch flow", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Bulk issuance view");
+    expect(body).toContain("Issue badges from Sakai roster");
     expect(body).toContain("Loaded 1 learner members from LMS NRPS roster.");
     expect(body).toContain("badge_template_001");
     expect(body).toContain("learner-one@example.edu");
+    expect(body).toContain('action="/v1/lti/resource-link/issue"');
+    expect(body).toContain('name="issuance_action_token"');
+    expect(body).toContain('name="learner_user_id"');
+    expect(body).toContain("Issue selected badges");
     expect(getMembers).toHaveBeenCalledTimes(1);
+  });
+
+  it("issues selected Sakai roster learners through the LTI resource-link action", async () => {
+    const env = createLtiEnv();
+    const rosterTargetLinkUri = `${targetLinkUri}?badgeTemplateId=badge_template_001`;
+    const getMembers = vi.fn().mockResolvedValue([
+      {
+        userId: "learner-001",
+        name: "Learner One",
+        email: "learner-one@example.edu",
+        lisPersonSourcedId: "sourced-learner-001",
+        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+        status: "Active",
+      },
+      {
+        userId: "learner-no-email",
+        name: "Learner No Email",
+        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+        status: "Active",
+      },
+    ]);
+    const issueBadgeForTenant = vi.fn(async () => ({
+      status: "issued" as const,
+      tenantId,
+      assertionId: "assertion_lti_001",
+      idempotencyKey: "lti:digest",
+      vcR2Key: "tenant_123/assertion_lti_001.json",
+      credential: {},
+    }));
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({
+      getMembers,
+      issueBadgeForTenant,
+    });
+    const loginResponse = await isolatedApp.request(
+      `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
+        "opaque-login-hint",
+      )}&target_link_uri=${encodeURIComponent(rosterTargetLinkUri)}&lti_deployment_id=${encodeURIComponent(
+        deploymentId,
+      )}`,
+      undefined,
+      env,
+    );
+    const loginUrl = new URL(loginResponse.headers.get("location") ?? "");
+    const nowEpochSeconds = Math.floor(Date.now() / 1000);
+    const idToken = compactJwsForTest({
+      header: {
+        alg: "RS256",
+        typ: "JWT",
+      },
+      payload: {
+        iss: issuer,
+        sub: "instructor-001",
+        aud: clientId,
+        exp: nowEpochSeconds + 300,
+        iat: nowEpochSeconds - 10,
+        nonce: loginUrl.searchParams.get("nonce") ?? "",
+        "https://purl.imsglobal.org/spec/lti/claim/deployment_id": deploymentId,
+        "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiResourceLinkRequest",
+        "https://purl.imsglobal.org/spec/lti/claim/version": "1.3.0",
+        "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": rosterTargetLinkUri,
+        "https://purl.imsglobal.org/spec/lti/claim/resource_link": {
+          id: "resource-link-nrps-1",
+        },
+        "https://purl.imsglobal.org/spec/lti/claim/context": {
+          id: "course-42",
+          title: "Course 42",
+        },
+        "https://purl.imsglobal.org/spec/lti/claim/roles": [
+          "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor",
+        ],
+        "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice": {
+          context_memberships_url: "https://canvas.example.edu/api/lti/courses/42/names_and_roles",
+          service_versions: ["2.0"],
+        },
+        email: "instructor@example.edu",
+      },
+    });
+    const launchResponse = await isolatedApp.request(
+      "/v1/lti/launch",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          id_token: idToken,
+          state: loginUrl.searchParams.get("state") ?? "",
+        }).toString(),
+      },
+      env,
+    );
+    const launchBody = await launchResponse.text();
+    const actionToken = /name="issuance_action_token" value="([^"]+)"/.exec(launchBody)?.[1];
+
+    expect(actionToken).toBeTruthy();
+
+    const issueResponse = await isolatedApp.request(
+      "/v1/lti/resource-link/issue",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams([
+          ["issuance_action_token", actionToken ?? ""],
+          ["learner_user_id", "learner-001"],
+          ["learner_user_id", "learner-no-email"],
+          ["learner_user_id", "forged-learner"],
+        ]).toString(),
+      },
+      env,
+    );
+    const issueBody = await issueResponse.text();
+
+    expect(issueResponse.status).toBe(200);
+    expect(issueBody).toContain("Badge issuance complete");
+    expect(issueBody).toContain("Badge issued.");
+    expect(issueBody).toContain("Sakai did not provide an email address.");
+    expect(issueBody).toContain("Learner is not present in the current Sakai learner roster.");
+    expect(issueBadgeForTenant).toHaveBeenCalledTimes(1);
+    expect(issueBadgeForTenant).toHaveBeenCalledWith(
+      expect.anything(),
+      tenantId,
+      expect.objectContaining({
+        badgeTemplateId: "badge_template_001",
+        recipientIdentity: "learner-one@example.edu",
+        recipientIdentityType: "email",
+        recipientIdentifiers: [
+          {
+            identifierType: "sourcedId",
+            identifier: "sourced-learner-001",
+          },
+        ],
+        idempotencyKey: expect.stringMatching(/^lti:[a-f0-9]{64}$/),
+      }),
+      linkedUserId,
+      {
+        recipientDisplayName: "Learner One",
+      },
+    );
+    expect(getMembers).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects LTI roster issuance without a valid action token", async () => {
+    const env = createLtiEnv();
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool();
+    const response = await isolatedApp.request(
+      "/v1/lti/resource-link/issue",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          issuance_action_token: "invalid-token",
+          learner_user_id: "learner-001",
+        }).toString(),
+      },
+      env,
+    );
+    const body = await response.json<ErrorResponse>();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toContain("invalid or expired");
   });
 
   it("accepts signed launch payloads with multiple audiences and normalizes service session client id", async () => {
@@ -1376,7 +1581,7 @@ describe("LTI 1.3 core launch flow", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Bulk issuance view");
+    expect(body).toContain("Issue badges from Sakai roster");
     expect(body).toContain("LMS launch did not include NRPS names/roles service claim details.");
   });
 

@@ -179,7 +179,18 @@ export interface LtiBulkIssuanceView {
   contextMembershipsUrl: string | null;
   learnerCount: number;
   totalCount: number;
+  issuanceActionPath: string | null;
+  issuanceActionToken: string | null;
   members: readonly LtiBulkIssuanceRosterMember[];
+}
+
+export interface LtiRosterIssuanceResultEntry {
+  userId: string;
+  displayName: string | null;
+  email: string | null;
+  status: "issued" | "already_issued" | "skipped" | "failed";
+  message: string;
+  assertionId: string | null;
 }
 
 interface LtiDeepLinkSelectionBaseInput {
@@ -225,9 +236,14 @@ export const ltiLaunchResultPage = (input: {
       ? ""
       : (() => {
           const view = input.bulkIssuanceView;
+          const canIssue =
+            view.status === "ready" &&
+            view.badgeTemplateId !== null &&
+            view.issuanceActionPath !== null &&
+            view.issuanceActionToken !== null;
           const rosterRows =
             view.members.length === 0
-              ? '<tr><td colspan="5" class="lti-launch__bulk-empty">No learner members returned by LMS roster for this launch.</td></tr>'
+              ? `<tr><td colspan="${canIssue ? "6" : "5"}" class="lti-launch__bulk-empty">No learner members returned by LMS roster for this launch.</td></tr>`
               : view.members
                   .map((member) => {
                     const displayName = member.displayName ?? member.userId;
@@ -236,8 +252,16 @@ export const ltiLaunchResultPage = (input: {
                     const roles =
                       member.roleSummary.length === 0 ? "Not provided" : member.roleSummary;
                     const status = member.status ?? "Not provided";
+                    const selectionCell = canIssue
+                      ? `<td>
+                <input type="checkbox" name="learner_user_id" value="${escapeHtml(member.userId)}"${
+                  member.email === null ? " disabled" : ""
+                } />
+              </td>`
+                      : "";
 
                     return `<tr>
+              ${selectionCell}
               <td>${escapeHtml(displayName)}</td>
               <td>${escapeHtml(email)}</td>
               <td>${escapeHtml(sourcedId)}</td>
@@ -258,10 +282,32 @@ export const ltiLaunchResultPage = (input: {
             view.contextMembershipsUrl === null
               ? "Not provided"
               : escapeHtml(view.contextMembershipsUrl);
+          const missingEmailCount = view.members.filter((member) => member.email === null).length;
+          const issueFormStart = canIssue
+            ? `<form method="post" action="${escapeHtml(view.issuanceActionPath ?? "")}" class="lti-launch__bulk-form">
+                <input type="hidden" name="issuance_action_token" value="${escapeHtml(
+                  view.issuanceActionToken ?? "",
+                )}" />`
+            : "";
+          const issueFormEnd = canIssue
+            ? `<div class="lti-launch__bulk-actions">
+                ${
+                  missingEmailCount === 0
+                    ? ""
+                    : `<p class="lti-launch__hint">${escapeHtml(
+                        `${String(missingEmailCount)} learner member${
+                          missingEmailCount === 1 ? "" : "s"
+                        } cannot be selected because Sakai did not provide an email address.`,
+                      )}</p>`
+                }
+                <button type="submit">Issue selected badges</button>
+              </div>
+            </form>`
+            : "";
 
           return `<article class="lti-launch__card lti-launch__card--stack">
-        <h2 class="lti-launch__bulk-title">Bulk issuance view</h2>
-        <p class="lti-launch__hint">NRPS roster pull for instructor launch context.</p>
+        <h2 class="lti-launch__bulk-title">Issue badges from Sakai roster</h2>
+        <p class="lti-launch__hint">Select learner members from the Sakai roster and issue the placed badge.</p>
         <p class="lti-launch__bulk-status lti-launch__bulk-status--${escapeHtml(view.status)}">${escapeHtml(
           view.message,
         )}</p>
@@ -277,10 +323,12 @@ export const ltiLaunchResultPage = (input: {
           <dt>Learner members</dt>
           <dd>${escapeHtml(String(view.learnerCount))} of ${escapeHtml(String(view.totalCount))}</dd>
         </dl>
+        ${issueFormStart}
         <div class="lti-launch__bulk-table-wrap">
           <table class="lti-launch__bulk-table">
             <thead>
               <tr>
+                ${canIssue ? "<th>Select</th>" : ""}
                 <th>Learner</th>
                 <th>Email</th>
                 <th>Sourced ID</th>
@@ -293,6 +341,7 @@ export const ltiLaunchResultPage = (input: {
             </tbody>
           </table>
         </div>
+        ${issueFormEnd}
       </article>`;
         })();
 
@@ -332,6 +381,82 @@ export const ltiLaunchResultPage = (input: {
         </p>
       </article>
       ${bulkIssuanceSection}
+    </section>`,
+    LTI_PAGE_HEAD_TAGS,
+  );
+};
+
+export const ltiRosterIssuanceResultPage = (input: {
+  tenantId: string;
+  badgeTemplateId: string;
+  courseContextTitle: string | null;
+  selectedCount: number;
+  results: readonly LtiRosterIssuanceResultEntry[];
+}): string => {
+  const issuedCount = input.results.filter((entry) => entry.status === "issued").length;
+  const alreadyIssuedCount = input.results.filter(
+    (entry) => entry.status === "already_issued",
+  ).length;
+  const skippedCount = input.results.filter((entry) => entry.status === "skipped").length;
+  const failedCount = input.results.filter((entry) => entry.status === "failed").length;
+  const rows =
+    input.results.length === 0
+      ? '<tr><td colspan="5" class="lti-launch__bulk-empty">No learners were selected.</td></tr>'
+      : input.results
+          .map((entry) => {
+            return `<tr>
+              <td>${escapeHtml(entry.displayName ?? entry.userId)}</td>
+              <td>${escapeHtml(entry.email ?? "Not provided")}</td>
+              <td>${escapeHtml(entry.status)}</td>
+              <td>${escapeHtml(entry.message)}</td>
+              <td>${escapeHtml(entry.assertionId ?? "Not created")}</td>
+            </tr>`;
+          })
+          .join("\n");
+
+  return renderPageShell(
+    "LTI Badge Issuance | CredTrail",
+    `<section class="lti-launch">
+      <header class="lti-launch__hero">
+        <h1>Badge issuance complete</h1>
+        <p>Processed selected Sakai roster members for the placed badge.</p>
+      </header>
+      <article class="lti-launch__card lti-launch__card--stack">
+        <dl class="lti-launch__details">
+          <dt>Tenant</dt>
+          <dd>${escapeHtml(input.tenantId)}</dd>
+          <dt>Badge template</dt>
+          <dd>${escapeHtml(input.badgeTemplateId)}</dd>
+          <dt>Course context</dt>
+          <dd>${escapeHtml(input.courseContextTitle ?? "Not provided")}</dd>
+          <dt>Selected learners</dt>
+          <dd>${escapeHtml(String(input.selectedCount))}</dd>
+          <dt>Issued</dt>
+          <dd>${escapeHtml(String(issuedCount))}</dd>
+          <dt>Already issued</dt>
+          <dd>${escapeHtml(String(alreadyIssuedCount))}</dd>
+          <dt>Skipped</dt>
+          <dd>${escapeHtml(String(skippedCount))}</dd>
+          <dt>Failed</dt>
+          <dd>${escapeHtml(String(failedCount))}</dd>
+        </dl>
+        <div class="lti-launch__bulk-table-wrap">
+          <table class="lti-launch__bulk-table">
+            <thead>
+              <tr>
+                <th>Learner</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Message</th>
+                <th>Assertion</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        </div>
+      </article>
     </section>`,
     LTI_PAGE_HEAD_TAGS,
   );

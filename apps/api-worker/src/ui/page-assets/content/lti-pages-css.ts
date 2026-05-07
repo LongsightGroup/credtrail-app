@@ -123,6 +123,19 @@ export const LTI_PAGES_CSS = `
   overflow: auto;
 }
 
+.lti-launch__bulk-form {
+  display: grid;
+  gap: var(--ct-space-3);
+}
+
+.lti-launch__bulk-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ct-space-3);
+  flex-wrap: wrap;
+}
+
 .lti-launch__bulk-table {
   width: 100%;
   border-collapse: collapse;
