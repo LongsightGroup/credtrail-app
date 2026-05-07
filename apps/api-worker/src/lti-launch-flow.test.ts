@@ -779,7 +779,9 @@ describe("LTI 1.3 core launch flow", () => {
     );
     expect(response.headers.get("set-cookie") ?? "").toContain("SameSite=None");
     expect(response.headers.get("set-cookie") ?? "").toContain("Secure");
-    expect(await response.text()).toContain("lti_session_handoff=");
+    const body = await response.text();
+    expect(body).toContain("lti_session_handoff=");
+    expect(body).toContain('target="_blank"');
     expect(betterAuthProvider.createLtiSession).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -996,6 +998,7 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain("LtiResourceLinkRequest");
     expect(body).toContain("/tenants/tenant_123/learner/dashboard");
     expect(body).toContain("lti_session_handoff=");
+    expect(body).toContain('target="_blank"');
     expect(body).toContain("/assets/ui/foundation.");
     expect(body).toContain("/assets/ui/lti-pages.");
     expect(body).not.toContain(".lti-launch__hero {");

@@ -77,7 +77,7 @@ interface RegisterLtiRoutesInput {
 }
 
 const LTI_DEEP_LINKING_SELECT_PATH = "/v1/lti/deep-linking/select";
-const LTI_SESSION_HANDOFF_TTL_SECONDS = 60;
+const LTI_SESSION_HANDOFF_TTL_SECONDS = 10 * 60;
 
 const ltiPostMessageStorageRedirectInput = (input: {
   authorizationRedirectUrl: string;

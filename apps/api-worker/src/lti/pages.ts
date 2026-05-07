@@ -328,7 +328,7 @@ export const ltiLaunchResultPage = (input: {
       <article class="lti-launch__card lti-launch__card--stack">
         <p class="lti-launch__hint">LTI identity is linked and this browser is now signed into CredTrail.</p>
         <p class="lti-launch__link-row">
-          <a href="${escapeHtml(input.dashboardPath)}">Open learner dashboard</a>
+          <a href="${escapeHtml(input.dashboardPath)}" target="_blank" rel="noopener noreferrer">Open learner dashboard</a>
         </p>
       </article>
       ${bulkIssuanceSection}
