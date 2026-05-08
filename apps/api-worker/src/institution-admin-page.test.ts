@@ -903,6 +903,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain("Open reporting");
     expect(body).toContain("Open rules");
     expect(body).toContain("Open access");
+    expect(body).toContain("Manage members");
     expect(body).not.toContain("Enterprise Auth");
     expect(body).not.toContain("Manual Issue Badge");
     expect(body).not.toContain("Create Tenant API Key");
@@ -2404,6 +2405,8 @@ describe("GET /tenants/:tenantId/admin/access", () => {
     expect(body).toContain(">Access<");
     expect(body).toContain("Members");
     expect(body).toContain('href="/tenants/tenant_123/admin/access/members"');
+    expect(body).toContain("Manage members");
+    expect(body).toContain("Access pages");
     expect(body).toContain("Governance");
     expect(body).toContain('href="/tenants/tenant_123/admin/access/governance"');
     expect(body).toContain("API Keys");

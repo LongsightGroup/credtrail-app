@@ -347,6 +347,7 @@ const renderInstitutionAdminPage = (
   const ruleCount = String(input.badgeRules.length);
   const tenantMemberCount = String(input.tenantMembers.length);
   const scopedRoleCount = String(input.membershipOrgUnitScopes.length);
+  const delegatedAuthorityGrantCount = String(input.delegatedIssuingAuthorityGrants.length);
   const userLabel = input.userEmail ?? input.userId;
   const switchOrganizationPath = input.switchOrganizationPath?.trim() ?? "";
   const learnerRecordReview = input.learnerRecordReview ?? {
@@ -2687,11 +2688,13 @@ const renderInstitutionAdminPage = (
       <h2>Access</h2>
       <p>Manage permissions and enterprise auth here, with separate pages for API keys and org structure.</p>
       <div class="ct-admin__workspace-stats ct-cluster">
+        <span class="ct-admin__status-pill">${tenantMemberCount} members</span>
         <span class="ct-admin__status-pill">${activeApiKeyCount} active keys</span>
         <span class="ct-admin__status-pill">${orgUnitCount} org units</span>
       </div>
       <div class="ct-admin__workspace-actions ct-cluster">
         <a class="ct-admin__cta-link" href="${escapeHtml(accessPath)}">Open access</a>
+        <a class="ct-admin__cta-link" href="${escapeHtml(accessMembersPath)}">Manage members</a>
       </div>
     </article>
   </section>`;
@@ -2856,6 +2859,55 @@ const renderInstitutionAdminPage = (
     </div>
     <p id="tenant-member-list-status" class="ct-admin__status"></p>
   </article>`;
+
+  const accessOverviewPanelMarkup = `<section class="ct-admin__workspace-grid ct-grid" aria-label="Access pages">
+    <article class="ct-admin__workspace-card ct-stack">
+      <p class="ct-admin__eyebrow">People</p>
+      <h2>Members</h2>
+      <p>Add colleagues by email, assign tenant roles, resend invites, and remove tenant access.</p>
+      <div class="ct-admin__workspace-stats ct-cluster">
+        <span class="ct-admin__status-pill">${tenantMemberCount} members</span>
+      </div>
+      <div class="ct-admin__workspace-actions ct-cluster">
+        <a class="ct-admin__cta-link" href="${escapeHtml(accessMembersPath)}">Manage members</a>
+      </div>
+    </article>
+    <article class="ct-admin__workspace-card ct-stack">
+      <p class="ct-admin__eyebrow">Delegation</p>
+      <h2>Governance</h2>
+      <p>Grant org-unit scoped roles and time-boxed badge authority.</p>
+      <div class="ct-admin__workspace-stats ct-cluster">
+        <span class="ct-admin__status-pill">${scopedRoleCount} scoped roles</span>
+        <span class="ct-admin__status-pill">${delegatedAuthorityGrantCount} delegations</span>
+      </div>
+      <div class="ct-admin__workspace-actions ct-cluster">
+        <a class="ct-admin__cta-link" href="${escapeHtml(accessGovernancePath)}">Open governance</a>
+      </div>
+    </article>
+    <article class="ct-admin__workspace-card ct-stack">
+      <p class="ct-admin__eyebrow">Integrations</p>
+      <h2>API Keys</h2>
+      <p>Create and revoke tenant API keys for trusted integrations.</p>
+      <div class="ct-admin__workspace-stats ct-cluster">
+        <span class="ct-admin__status-pill">${activeApiKeyCount} active</span>
+        <span class="ct-admin__status-pill">${revokedApiKeyCount} revoked</span>
+      </div>
+      <div class="ct-admin__workspace-actions ct-cluster">
+        <a class="ct-admin__cta-link" href="${escapeHtml(accessApiKeysPath)}">Manage API keys</a>
+      </div>
+    </article>
+    <article class="ct-admin__workspace-card ct-stack">
+      <p class="ct-admin__eyebrow">Structure</p>
+      <h2>Org Units</h2>
+      <p>Maintain institution, college, department, and program hierarchy.</p>
+      <div class="ct-admin__workspace-stats ct-cluster">
+        <span class="ct-admin__status-pill">${orgUnitCount} org units</span>
+      </div>
+      <div class="ct-admin__workspace-actions ct-cluster">
+        <a class="ct-admin__cta-link" href="${escapeHtml(accessOrgUnitsPath)}">Manage org units</a>
+      </div>
+    </article>
+  </section>`;
 
   const membershipScopePanelMarkup = `<article class="ct-admin__panel ct-stack">
     <h2>Scoped Roles</h2>
@@ -4169,9 +4221,10 @@ const renderInstitutionAdminPage = (
                       : view === "access"
                         ? `${renderPageHeader(
                             "Access",
-                            "Members, governance, API keys, and org units are accessible from the sidebar.",
+                            "Manage members, governance delegation, API keys, and org units from one workspace.",
                           )}
                     <section class="ct-admin ct-stack">
+                      ${accessOverviewPanelMarkup}
                       ${enterpriseAuthPanelMarkup}
                     </section>`
                         : view === "accessMembers"
