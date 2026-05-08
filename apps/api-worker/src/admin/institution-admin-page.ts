@@ -2815,10 +2815,18 @@ const renderInstitutionAdminPage = (
   const tenantMemberRoleSelectOptions = assignableTenantRoles
     .map((role) => `<option value="${escapeHtml(role)}">${escapeHtml(role)}</option>`)
     .join("\n");
-  const tenantMembersPanelMarkup = `<article class="ct-admin__panel ct-stack">
-    <h2>Add Member</h2>
-    <p>Add colleagues by institution email and assign their tenant-level role.</p>
-    <form id="tenant-member-form" class="ct-admin__form ct-stack">
+  const tenantMembersPanelMarkup = `<details class="ct-admin__panel ct-admin__member-add">
+    <summary class="ct-admin__member-add-summary">
+      <span>
+        <strong>Add member</strong>
+        <small>Add a colleague by institution email and assign their tenant-level role.</small>
+      </span>
+      <span class="ct-admin__member-add-control">
+        <span class="ct-admin__member-add-control-open">Open form</span>
+        <span class="ct-admin__member-add-control-close">Hide form</span>
+      </span>
+    </summary>
+    <form id="tenant-member-form" class="ct-admin__form ct-admin__member-add-form ct-grid">
       <label>
         Institution email
         <input name="email" type="email" required placeholder="colleague@institution.edu" />
@@ -2833,12 +2841,12 @@ const renderInstitutionAdminPage = (
         <input name="sendInvite" type="checkbox" checked />
         Email sign-in invite now
       </label>
-      <button type="submit">Add member</button>
+      <button type="submit">Save member</button>
     </form>
     <p id="tenant-member-status" class="ct-admin__status"></p>
-  </article>`;
+  </details>`;
 
-  const tenantMembersTableMarkup = `<article class="ct-admin__panel ct-admin__panel--table ct-stack">
+  const tenantMembersTableMarkup = `<article class="ct-admin__panel ct-admin__panel--table ct-admin__members-table ct-stack">
     <h2>Current Members (${tenantMemberCount})</h2>
     <p>Review tenant-level access, resend invites, and remove members who no longer need this organization.</p>
     <div class="ct-admin__table-wrap">
@@ -4238,14 +4246,8 @@ const renderInstitutionAdminPage = (
                         </aside>`,
                             )}
                       <section class="ct-admin ct-stack">
-                        <section class="ct-admin__layout ct-grid ct-grid--sidebar">
-                          <div class="ct-admin__grid ct-stack">
-                            ${tenantMembersPanelMarkup}
-                          </div>
-                          <div class="ct-admin__grid ct-stack">
-                            ${tenantMembersTableMarkup}
-                          </div>
-                        </section>
+                        ${tenantMembersPanelMarkup}
+                        ${tenantMembersTableMarkup}
                       </section>`
                           : view === "accessGovernance"
                             ? `${renderPageHeader(

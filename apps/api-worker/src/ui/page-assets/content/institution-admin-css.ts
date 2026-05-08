@@ -1261,6 +1261,77 @@ export const INSTITUTION_ADMIN_CSS = `
   grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
   align-items: end;
 }
+.ct-admin__member-add {
+  padding: 0;
+  overflow: hidden;
+}
+.ct-admin__member-add-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ct-space-3);
+  padding: var(--ct-space-4);
+  cursor: pointer;
+  list-style: none;
+}
+.ct-admin__member-add-summary::-webkit-details-marker {
+  display: none;
+}
+.ct-admin__member-add-summary strong,
+.ct-admin__member-add-summary small {
+  display: block;
+}
+.ct-admin__member-add-summary strong {
+  color: var(--ct-theme-text-title);
+  font-family: var(--ct-font-display);
+  font-size: 1rem;
+}
+.ct-admin__member-add-summary small {
+  max-width: 68ch;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+.ct-admin__member-add-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--ct-border-strong);
+  border-radius: var(--ct-radius-pill);
+  background: var(--ct-theme-surface-info);
+  color: var(--ct-theme-text-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.ct-admin__member-add[open] .ct-admin__member-add-control {
+  background: var(--ct-theme-surface-soft);
+}
+.ct-admin__member-add-control-close {
+  display: none;
+}
+.ct-admin__member-add[open] .ct-admin__member-add-control-open {
+  display: none;
+}
+.ct-admin__member-add[open] .ct-admin__member-add-control-close {
+  display: inline;
+}
+.ct-admin__member-add-form.ct-grid {
+  --ct-grid-gap: var(--ct-space-3);
+  grid-template-columns: minmax(16rem, 2fr) minmax(10rem, 0.9fr) minmax(12rem, max-content) auto;
+  align-items: end;
+  padding: 0 var(--ct-space-4) var(--ct-space-4);
+}
+.ct-admin__member-add-form .ct-admin__checkbox-row {
+  min-height: 2.75rem;
+  align-items: center;
+}
+.ct-admin__member-add > .ct-admin__status {
+  margin: 0;
+  padding: 0 var(--ct-space-4) var(--ct-space-4);
+}
 .ct-admin__form label {
   --ct-stack-gap: 0.28rem;
   display: grid;
@@ -1966,6 +2037,20 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__panel--table {
   padding: 0.9rem;
 }
+.ct-admin__members-table .ct-admin__table {
+  min-width: 980px;
+}
+.ct-admin__members-table .ct-admin__table th:first-child,
+.ct-admin__members-table .ct-admin__table td:first-child {
+  width: 32%;
+}
+.ct-admin__members-table .ct-admin__table th:last-child,
+.ct-admin__members-table .ct-admin__table td:last-child {
+  width: 13rem;
+}
+.ct-admin__members-table select {
+  min-width: 6.8rem;
+}
 .ct-admin__panel--table > h2,
 .ct-admin__panel--table > p,
 .ct-admin__panel--table > .ct-admin__status {
@@ -2162,6 +2247,7 @@ export const INSTITUTION_ADMIN_CSS = `
 /* ── Responsive breakpoints ── */
 @media (max-width: 780px) {
   .ct-admin__form--inline.ct-grid,
+  .ct-admin__member-add-form.ct-grid,
   .ct-admin__builder-grid.ct-grid,
   .ct-admin__condition-fields.ct-grid,
   .ct-admin__condition-header-fields.ct-grid,
@@ -2182,6 +2268,15 @@ export const INSTITUTION_ADMIN_CSS = `
 
   .ct-admin__builder-step-nav {
     justify-items: stretch;
+  }
+
+  .ct-admin__member-add-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ct-admin__member-add-control {
+    width: 100%;
   }
 
   .ct-admin__builder-inline > .ct-admin__button,

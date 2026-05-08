@@ -2520,10 +2520,15 @@ describe("GET /tenants/:tenantId/admin/access/members", () => {
     expect(response.status).toBe(200);
     expect(body).toContain("Members");
     expect(body).toContain("Add colleagues");
+    expect(body).toContain('<details class="ct-admin__panel ct-admin__member-add">');
+    expect(body).toContain("Open form");
     expect(body).toContain('id="tenant-member-form"');
     expect(body).toContain('name="email"');
     expect(body).toContain('name="role"');
     expect(body).toContain('name="sendInvite"');
+    expect(body).toContain("Hide form");
+    expect(body).toContain("Save member");
+    expect(body).toContain('class="ct-admin__panel ct-admin__panel--table ct-admin__members-table ct-stack"');
     expect(body).toContain("/v1/tenants/tenant_123/members");
     expect(body).toContain("admin@tenant-123.edu");
     expect(body).toContain("issuer@tenant-123.edu");
