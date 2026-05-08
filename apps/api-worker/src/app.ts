@@ -170,17 +170,15 @@ export interface AppBindings {
   APP_ENV: string;
   DATABASE_URL?: string;
   BADGE_OBJECTS: ImmutableCredentialStore;
+  EMAIL?: SendEmail;
   PLATFORM_DOMAIN: string;
   SENTRY_DSN?: string;
   TENANT_SIGNING_REGISTRY_JSON?: string;
   TENANT_SIGNING_KEY_HISTORY_JSON?: string;
   TENANT_REMOTE_SIGNER_REGISTRY_JSON?: string;
   ISSUANCE_EMAIL_NOTIFICATIONS_ENABLED?: string;
-  MAILTRAP_API_TOKEN?: string;
-  MAILTRAP_INBOX_ID?: string;
-  MAILTRAP_API_BASE_URL?: string;
-  MAILTRAP_FROM_EMAIL?: string;
-  MAILTRAP_FROM_NAME?: string;
+  TRANSACTIONAL_EMAIL_FROM_ADDRESS?: string;
+  TRANSACTIONAL_EMAIL_FROM_NAME?: string;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
   BETTER_AUTH_SECRET?: string;
@@ -452,11 +450,9 @@ const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindings>({
 
         try {
           await sendMagicLinkEmailNotification({
-            mailtrapApiToken: context.env.MAILTRAP_API_TOKEN,
-            mailtrapInboxId: context.env.MAILTRAP_INBOX_ID,
-            mailtrapApiBaseUrl: context.env.MAILTRAP_API_BASE_URL,
-            mailtrapFromEmail: context.env.MAILTRAP_FROM_EMAIL,
-            mailtrapFromName: context.env.MAILTRAP_FROM_NAME,
+            emailBinding: context.env.EMAIL,
+            fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
+            fromName: context.env.TRANSACTIONAL_EMAIL_FROM_NAME,
             recipientEmail: email,
             tenantId: input.tenantId,
             magicLinkUrl: debugMagicLinkUrl,
@@ -469,11 +465,9 @@ const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindings>({
       },
       sendResetPassword: async ({ email, url }) => {
         await sendPasswordResetEmailNotification({
-          mailtrapApiToken: context.env.MAILTRAP_API_TOKEN,
-          mailtrapInboxId: context.env.MAILTRAP_INBOX_ID,
-          mailtrapApiBaseUrl: context.env.MAILTRAP_API_BASE_URL,
-          mailtrapFromEmail: context.env.MAILTRAP_FROM_EMAIL,
-          mailtrapFromName: context.env.MAILTRAP_FROM_NAME,
+          emailBinding: context.env.EMAIL,
+          fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
+          fromName: context.env.TRANSACTIONAL_EMAIL_FROM_NAME,
           recipientEmail: email,
           tenantId: input.tenantId,
           resetUrl: url,

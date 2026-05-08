@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { sendMagicLinkEmailNotification } from "./send-magic-link-email";
+import { sendPasswordResetEmailNotification } from "./send-password-reset-email";
 
 const createEmailBinding = (): { emailBinding: SendEmail; send: ReturnType<typeof vi.fn> } => {
   const send = vi.fn(async () => {
@@ -13,18 +13,17 @@ const createEmailBinding = (): { emailBinding: SendEmail; send: ReturnType<typeo
   };
 };
 
-describe("sendMagicLinkEmailNotification", () => {
+describe("sendPasswordResetEmailNotification", () => {
   it("sends notification through Cloudflare Email Service when configured", async () => {
     const { emailBinding, send } = createEmailBinding();
 
-    await sendMagicLinkEmailNotification({
+    await sendPasswordResetEmailNotification({
       emailBinding,
       fromEmail: "no-reply@credtrail.org",
       fromName: "CredTrail",
-      recipientEmail: "learner@example.edu",
+      recipientEmail: "admin@example.edu",
       tenantId: "tenant_123",
-      magicLinkUrl: "https://credtrail.test/auth/magic-link/verify?token=test-token",
-      expiresAtIso: "2026-02-18T01:00:00.000Z",
+      resetUrl: "https://credtrail.test/auth/reset-password?token=test-token",
     });
 
     expect(send).toHaveBeenCalledWith(
@@ -33,30 +32,25 @@ describe("sendMagicLinkEmailNotification", () => {
           email: "no-reply@credtrail.org",
           name: "CredTrail",
         },
-        to: "learner@example.edu",
-        subject: "Sign in to CredTrail (tenant_123)",
+        to: "admin@example.edu",
+        subject: "Set up local CredTrail access (tenant_123)",
         text: expect.stringContaining(
-          "https://credtrail.test/auth/magic-link/verify?token=test-token",
+          "https://credtrail.test/auth/reset-password?token=test-token",
         ),
         headers: {
-          "X-CredTrail-Email-Category": "Auth Magic Link",
+          "X-CredTrail-Email-Category": "Auth Password Reset",
         },
       }),
     );
   });
 
   it("skips sending when the Cloudflare Email binding is missing", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
-
-    await sendMagicLinkEmailNotification({
-      recipientEmail: "learner@example.edu",
-      tenantId: "tenant_123",
-      magicLinkUrl: "https://credtrail.test/auth/magic-link/verify?token=test-token",
-      expiresAtIso: "2026-02-18T01:00:00.000Z",
-    });
-
-    expect(fetchSpy).not.toHaveBeenCalled();
-
-    fetchSpy.mockRestore();
+    await expect(
+      sendPasswordResetEmailNotification({
+        recipientEmail: "admin@example.edu",
+        tenantId: "tenant_123",
+        resetUrl: "https://credtrail.test/auth/reset-password?token=test-token",
+      }),
+    ).resolves.toBeUndefined();
   });
 });

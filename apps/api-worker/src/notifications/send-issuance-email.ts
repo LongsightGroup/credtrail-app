@@ -1,11 +1,9 @@
-import { buildMailtrapSendEndpoint, mailtrapConfigured } from "./mailtrap";
+import { sendTransactionalEmail } from "./transactional-email";
 
 export interface SendIssuanceEmailNotificationInput {
-  mailtrapApiToken?: string | undefined;
-  mailtrapInboxId?: string | undefined;
-  mailtrapApiBaseUrl?: string | undefined;
-  mailtrapFromEmail?: string | undefined;
-  mailtrapFromName?: string | undefined;
+  emailBinding?: SendEmail | undefined;
+  fromEmail?: string | undefined;
+  fromName?: string | undefined;
   recipientEmail: string;
   badgeTitle: string;
   assertionId: string;
@@ -19,11 +17,6 @@ export interface SendIssuanceEmailNotificationInput {
 export const sendIssuanceEmailNotification = async (
   input: SendIssuanceEmailNotificationInput,
 ): Promise<void> => {
-  if (!mailtrapConfigured(input)) {
-    return;
-  }
-
-  const endpoint = buildMailtrapSendEndpoint(input);
   const subject = `You've earned a new badge: ${input.badgeTitle}`;
   const textBody = [
     `You have earned the "${input.badgeTitle}" badge.`,
@@ -37,32 +30,13 @@ export const sendIssuanceEmailNotification = async (
     `Download VC: ${input.credentialDownloadUrl}`,
   ].join("\n");
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${input.mailtrapApiToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: {
-        email: input.mailtrapFromEmail ?? "no-reply@credtrail.org",
-        name: input.mailtrapFromName ?? "CredTrail",
-      },
-      to: [
-        {
-          email: input.recipientEmail,
-        },
-      ],
-      subject,
-      text: textBody,
-      category: "Issuance Notification",
-    }),
+  await sendTransactionalEmail({
+    emailBinding: input.emailBinding,
+    fromEmail: input.fromEmail,
+    fromName: input.fromName,
+    recipientEmail: input.recipientEmail,
+    subject,
+    text: textBody,
+    category: "Issuance Notification",
   });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(
-      `Mailtrap API request failed: ${String(response.status)} ${response.statusText} ${errorBody}`,
-    );
-  }
 };

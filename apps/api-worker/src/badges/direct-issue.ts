@@ -40,12 +40,10 @@ import {
 interface IssueBadgeBindings {
   BADGE_OBJECTS: ImmutableCredentialStore;
   PLATFORM_DOMAIN: string;
+  EMAIL?: SendEmail | undefined;
   ISSUANCE_EMAIL_NOTIFICATIONS_ENABLED?: string | undefined;
-  MAILTRAP_API_TOKEN?: string | undefined;
-  MAILTRAP_INBOX_ID?: string | undefined;
-  MAILTRAP_API_BASE_URL?: string | undefined;
-  MAILTRAP_FROM_EMAIL?: string | undefined;
-  MAILTRAP_FROM_NAME?: string | undefined;
+  TRANSACTIONAL_EMAIL_FROM_ADDRESS?: string | undefined;
+  TRANSACTIONAL_EMAIL_FROM_NAME?: string | undefined;
 }
 
 interface IssueBadgeHttpErrorPayload {
@@ -353,11 +351,9 @@ export const createIssueBadgeForTenant = <
 
       try {
         await input.sendIssuanceEmailNotification({
-          mailtrapApiToken: context.env.MAILTRAP_API_TOKEN,
-          mailtrapInboxId: context.env.MAILTRAP_INBOX_ID,
-          mailtrapApiBaseUrl: context.env.MAILTRAP_API_BASE_URL,
-          mailtrapFromEmail: context.env.MAILTRAP_FROM_EMAIL,
-          mailtrapFromName: context.env.MAILTRAP_FROM_NAME,
+          emailBinding: context.env.EMAIL,
+          fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
+          fromName: context.env.TRANSACTIONAL_EMAIL_FROM_NAME,
           recipientEmail,
           badgeTitle: badgeTemplate.title,
           assertionId,
