@@ -5,12 +5,14 @@ const {
   mockedResolveBetterAuthRequestedTenant,
   mockedFindActiveSessionByHash,
   mockedTouchSession,
+  mockedSendIssuanceEmailNotification,
 } = vi.hoisted(() => {
   return {
     mockedResolveBetterAuthPrincipal: vi.fn(),
     mockedResolveBetterAuthRequestedTenant: vi.fn(),
     mockedFindActiveSessionByHash: vi.fn(),
     mockedTouchSession: vi.fn(),
+    mockedSendIssuanceEmailNotification: vi.fn(),
   };
 });
 
@@ -59,6 +61,12 @@ vi.mock("./auth/better-auth-adapter", async () => {
       resolveRequestedTenantContext: mockedResolveBetterAuthRequestedTenant,
       revokeCurrentSession: vi.fn(async () => {}),
     })),
+  };
+});
+
+vi.mock("./notifications/send-issuance-email", () => {
+  return {
+    sendIssuanceEmailNotification: mockedSendIssuanceEmailNotification,
   };
 });
 
@@ -137,6 +145,7 @@ const createEnv = (): {
   PLATFORM_DOMAIN: string;
   TENANT_SIGNING_KEY_HISTORY_JSON?: string;
   TENANT_REMOTE_SIGNER_REGISTRY_JSON?: string;
+  ISSUANCE_EMAIL_NOTIFICATIONS_ENABLED?: string;
   JOB_PROCESSOR_TOKEN?: string;
   BOOTSTRAP_ADMIN_TOKEN?: string;
   LTI_ISSUER_REGISTRY_JSON?: string;
@@ -201,6 +210,8 @@ beforeEach(() => {
   mockedCreateAssertion.mockReset();
   mockedCreateAuditLog.mockReset();
   mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
+  mockedSendIssuanceEmailNotification.mockReset();
+  mockedSendIssuanceEmailNotification.mockResolvedValue(undefined);
 });
 
 const sampleAssertion = (overrides?: {
@@ -687,6 +698,60 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
         tenantId: "tenant_123",
         action: "assertion.issued",
         targetType: "assertion",
+      }),
+    );
+    expect(mockedSendIssuanceEmailNotification).not.toHaveBeenCalled();
+  });
+
+  it("only sends issuance emails when the delivery feature flag is explicitly enabled", async () => {
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: "did:web:credtrail.test:tenant_123",
+    });
+    const env = {
+      ...createEnv(),
+      BADGE_OBJECTS: createInMemoryBadgeObjects(),
+      ISSUANCE_EMAIL_NOTIFICATIONS_ENABLED: "true",
+      TENANT_SIGNING_REGISTRY_JSON: JSON.stringify({
+        "did:web:credtrail.test:tenant_123": {
+          tenantId: "tenant_123",
+          keyId: signingMaterial.keyId,
+          publicJwk: signingMaterial.publicJwk,
+          privateJwk: signingMaterial.privateJwk,
+        },
+      }),
+    };
+
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue(undefined);
+    mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
+    mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
+    mockedNextAssertionStatusListIndex.mockResolvedValue(0);
+    mockedCreateAssertion.mockResolvedValue(sampleAssertion());
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/assertions/manual-issue",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: JSON.stringify({
+          badgeTemplateId: "badge_template_001",
+          recipientIdentity: "Student@UMich.edu",
+          recipientIdentityType: "email",
+          idempotencyKey: "idem-email-delivery-enabled",
+        }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(201);
+    expect(mockedSendIssuanceEmailNotification).toHaveBeenCalledTimes(1);
+    expect(mockedSendIssuanceEmailNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientEmail: "student@umich.edu",
+        tenantId: "tenant_123",
       }),
     );
   });

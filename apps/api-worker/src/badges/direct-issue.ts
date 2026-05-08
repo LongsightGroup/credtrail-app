@@ -40,6 +40,7 @@ import {
 interface IssueBadgeBindings {
   BADGE_OBJECTS: ImmutableCredentialStore;
   PLATFORM_DOMAIN: string;
+  ISSUANCE_EMAIL_NOTIFICATIONS_ENABLED?: string | undefined;
   MAILTRAP_API_TOKEN?: string | undefined;
   MAILTRAP_INBOX_ID?: string | undefined;
   MAILTRAP_API_BASE_URL?: string | undefined;
@@ -102,6 +103,10 @@ const assertionLifecycleBlockMessage = (
 
 const isIssuableAssertionLifecycleState = (state: AssertionLifecycleState): boolean => {
   return state === "active";
+};
+
+const issuanceEmailNotificationsEnabled = (bindings: IssueBadgeBindings): boolean => {
+  return bindings.ISSUANCE_EMAIL_NOTIFICATIONS_ENABLED?.trim().toLowerCase() === "true";
 };
 
 const VC_DATA_MODEL_V2_CONTEXT_URL = "https://www.w3.org/ns/credentials/v2";
@@ -337,7 +342,10 @@ export const createIssueBadgeForTenant = <
       },
     });
 
-    if (request.recipientIdentityType === "email") {
+    if (
+      request.recipientIdentityType === "email" &&
+      issuanceEmailNotificationsEnabled(context.env)
+    ) {
       const recipientEmail = request.recipientIdentity.trim().toLowerCase();
       const publicBadgePath = input.publicBadgePathForAssertion(createdAssertion);
       const verificationPath = `${publicBadgePath}/verification`;
