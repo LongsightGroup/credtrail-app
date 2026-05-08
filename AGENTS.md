@@ -10,7 +10,8 @@ This file defines execution standards for humans and coding agents working in th
 - Data: Postgres.
 - Object storage: Cloudflare R2.
 - Async jobs: DB-backed job messages in Postgres.
-- UI: server-rendered HTML with minimal feature-local JavaScript.
+- UI: server-rendered Hono JSX (`.tsx`) with htmx-compatible markup and minimal
+  feature-local JavaScript.
 - React is out of scope for v1.
 - Standards scope: Open Badges 3.0 only.
 - Architecture policy: single-path implementation in v1. No dual runtimes, no parallel frameworks, no "either/or" code paths for the same capability.
@@ -38,6 +39,24 @@ Keep file ownership explicit so `app.ts` does not grow into a monolith again.
 
 Refactor rule of thumb:
 - if new behavior needs more than a small helper in `app.ts`, create/extend a feature module and inject it from `app.ts` rather than implementing inline.
+
+## 1.2) Server-rendered UI Rules
+
+- Author server-rendered app pages in Hono JSX using `hono/jsx` and the renderer
+  in `apps/api-worker/src/ui/render-page.tsx`.
+- Page modules return `AppPage` via `appPage`; route handlers render with
+  `renderAppPage(c, page, status?)`.
+- Use JSX asset components and page asset keys for CSS and feature-local
+  JavaScript. CSS and client script source strings are asset payloads, not server
+  page templates.
+- Do not introduce React, Kiwa, Tailwind, client components, hydration,
+  `hono/html`, `raw()`, `dangerouslySetInnerHTML`, or interpolated
+  full-document HTML strings.
+- Let JSX own text and attribute escaping for page markup. Keep `escapeHtml` out
+  of page modules.
+- Preserve route paths, form field names, element IDs, `data-*` attributes,
+  asset URLs, cache headers, and visible copy unless a deliberate product change
+  requires otherwise.
 
 ## 2) TypeScript Quality Bar (Non-Negotiable)
 
@@ -96,8 +115,10 @@ Type safety is a release gate:
 
 ## 6) Simplicity Rules (K.I.S.S.)
 
-- Prefer server-rendered pages and HTML forms over client-heavy abstractions.
-- Prefer plain HTML forms and small feature-local scripts over SPA complexity.
+- Prefer server-rendered Hono JSX pages and HTML forms over client-heavy
+  abstractions.
+- Prefer plain HTML forms, htmx-compatible markup, and small feature-local
+  scripts over SPA complexity.
 - Keep client JavaScript minimal and local to the feature.
 - Choose straightforward code over clever code.
 - Implement one clear way to do each thing in v1; defer alternatives.

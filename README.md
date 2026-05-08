@@ -64,12 +64,12 @@ Open-source Open Badges 3.0 platform with Cloudflare SaaS and Docker self-host r
 
 ## App layout
 
-- `apps/api-worker`: Primary Worker serving API + server-rendered UI.
+- `apps/api-worker`: Primary Worker serving API + server-rendered Hono JSX UI.
 - `packages/core-domain`: Shared domain models, VC signing, and cryptographic helpers.
 - `packages/db`: Postgres query helpers, tenant scoping utilities, and DB-backed job queue storage.
 - `packages/validation`: Zod schemas for HTTP and queue boundaries.
 - `packages/lti`: LTI 1.3 parsing/validation primitives.
-- `packages/ui-components`: Server-rendered HTML helper components.
+- `packages/ui-components`: Shared Hono JSX page layout components.
 - `docs`: Implementation docs and ADRs (including `docs/LEARNER_DID_SETUP.md`, `docs/LEARNER_WALLET_IMPORT.md`, `docs/DCC_LCW_COMPATIBILITY.md`, `docs/OB3_CERTIFICATION_RUNBOOK.md`, `docs/VERIFIABLE_PRESENTATIONS.md`, `docs/LMS_INDEPENDENCE_MIGRATION_RUNBOOK.md`, and `docs/SAKAI_REAL_INSTANCE_E2E.md`).
 
 ### API worker module layout (`apps/api-worker/src`)
@@ -83,6 +83,19 @@ Open-source Open Badges 3.0 platform with Cloudflare SaaS and Docker self-host r
 - `ob3/`: Open Badges 3.0 OAuth/discovery/access-token helpers.
 - `http/`: Common middleware and shared HTTP utility helpers.
 - `queue/`: Queue job payload/building/processing/scheduled trigger helpers.
+
+### Server-rendered UI
+
+- Server-rendered app pages are authored in Hono JSX (`.tsx`) and rendered through
+  `appPage` / `renderAppPage` from `apps/api-worker/src/ui/render-page.tsx`.
+- Page modules return `AppPage`; route handlers render them with
+  `renderAppPage(c, page, status?)`.
+- Use page asset keys and `PageAssets` for CSS and feature-local JavaScript. CSS
+  and client script source strings live under `apps/api-worker/src/ui/page-assets/content`.
+- Do not add React, Kiwa, Tailwind, client components, hydration, `hono/html`,
+  `raw()`, `dangerouslySetInnerHTML`, or interpolated full-document HTML strings.
+- JSX owns text and attribute escaping for page markup. Validate boundary input
+  with Zod and keep manual HTML escaping out of page modules.
 
 ## Async jobs
 
