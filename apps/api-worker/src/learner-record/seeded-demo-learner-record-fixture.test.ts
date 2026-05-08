@@ -54,9 +54,9 @@ describe("seeded demo learner record fixture", () => {
     await loadFixtureModule();
 
     const runtimeSources = [
-      "../learner/learner-record-page.ts",
+      "../learner/learner-record-page.tsx",
       "../routes/learner-routes.ts",
-      "../routes/tenant-governance-routes.ts",
+      "../routes/tenant-governance-routes.tsx",
       "../routes/learner-record-export-routes.ts",
     ].map(readRuntimeSource);
 

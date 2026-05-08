@@ -44,9 +44,9 @@ describe("seeded demo reporting fixture", () => {
     await loadFixtureModule();
 
     const runtimeSources = [
-      "../admin/institution-admin-page.ts",
+      "../admin/institution-admin-page.tsx",
       "../routes/reporting-routes.ts",
-      "../routes/tenant-governance-routes.ts",
+      "../routes/tenant-governance-routes.tsx",
     ].map(readRuntimeSource);
 
     for (const source of runtimeSources) {

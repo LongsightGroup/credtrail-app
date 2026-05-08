@@ -338,7 +338,7 @@ describe("magic-link auth routes", () => {
     const stylesheetMatch =
       /<link rel="stylesheet" href="([^"]*\/assets\/ui\/auth-login\.[^"]+\.css)"/.exec(body);
     const scriptMatch =
-      /<script defer src="([^"]*\/assets\/ui\/auth-login\.[^"]+\.js)"><\/script>/.exec(body);
+      /<script[^>]*src="([^"]*\/assets\/ui\/auth-login\.[^"]+\.js)"[^>]*><\/script>/.exec(body);
     const stylesheetPath = stylesheetMatch?.[1] ?? null;
     const scriptPath = scriptMatch?.[1] ?? null;
 

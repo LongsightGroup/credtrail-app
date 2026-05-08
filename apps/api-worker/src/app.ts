@@ -22,7 +22,6 @@ import {
 } from "./badges/pdf";
 import {
   achievementDetailsFromCredential,
-  badgeHeroImageMarkup,
   githubAvatarUrlForUsername,
   githubUsernameFromUrl,
   imsOb3ValidatorUrl,
@@ -64,6 +63,7 @@ import { createCredentialProofVerificationHelpers } from "./credentials/proof-ve
 import { registerCommonMiddleware } from "./http/common-middleware";
 import { createLoadJsonObjectFromUrl } from "./http/json-object-loader";
 import { registerPageAssetRoutes } from "./ui/page-assets";
+import { registerAppPageRenderer } from "./ui/render-page";
 import { createSignCredentialForDid } from "./signing/credential-signer";
 import {
   didDocumentForSigningEntry,
@@ -149,7 +149,7 @@ import {
   sha256Base64Url,
   sha256Hex,
 } from "./utils/crypto";
-import { escapeHtml, formatIsoTimestamp, linkedInAddToProfileUrl } from "./utils/display-format";
+import { formatIsoTimestamp, linkedInAddToProfileUrl } from "./utils/display-format";
 import { asJsonObject, asNonEmptyString, asString } from "./utils/value-parsers";
 import { createApiWorker } from "./worker/create-worker";
 import {
@@ -874,10 +874,8 @@ const {
 } = createPublicBadgePageRenderers({
   asString,
   achievementDetailsFromCredential,
-  badgeHeroImageMarkup,
   badgeNameFromCredential,
   evidenceDetailsFromCredential,
-  escapeHtml,
   formatIsoTimestamp,
   githubAvatarUrlForUsername,
   githubUsernameFromUrl,
@@ -894,12 +892,10 @@ const {
 });
 
 const learnerDashboardPage = createLearnerDashboardPage({
-  escapeHtml,
   formatIsoTimestamp,
 });
 
 const learnerRecordPage = createLearnerRecordPage({
-  escapeHtml,
   formatIsoTimestamp,
 });
 
@@ -1049,6 +1045,8 @@ registerCommonMiddleware({
   app,
   observabilityContext,
 });
+
+registerAppPageRenderer(app);
 
 registerPageAssetRoutes({
   app,

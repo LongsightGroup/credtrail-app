@@ -16,6 +16,7 @@ import type { Hono } from "hono";
 import { parseTenantPathParams } from "@credtrail/validation";
 import { badgeNameFromCredential, issuerNameFromCredential } from "../badges/credential-display";
 import type { AppBindings, AppEnv } from "../app";
+import { renderAppPage, type AppPage } from "../ui/render-page";
 import type {
   PublicBadgeCriteriaRegistryViewModel,
   PublicBadgeCriteriaRuleViewRecord,
@@ -54,8 +55,8 @@ interface RegisterPublicBadgeRoutesInput<PublicBadgeValue extends PublicBadgeRou
         value: PublicBadgeValue;
       }
   >;
-  publicBadgeNotFoundPage: (requestUrl: string) => string;
-  publicBadgePage: (requestUrl: string, value: PublicBadgeValue) => string;
+  publicBadgeNotFoundPage: (requestUrl: string) => AppPage;
+  publicBadgePage: (requestUrl: string, value: PublicBadgeValue) => AppPage;
   publicBadgeSummaryPayload: (
     requestUrl: string,
     value: PublicBadgeValue,
@@ -65,13 +66,13 @@ interface RegisterPublicBadgeRoutesInput<PublicBadgeValue extends PublicBadgeRou
     tenantId: string,
     entries: readonly PublicBadgeWallEntryViewRecord[],
     badgeTemplateId: string | null,
-  ) => string;
+  ) => AppPage;
   tenantBadgeCriteriaRegistryPage: (
     requestUrl: string,
     tenantId: string,
     model: PublicBadgeCriteriaRegistryViewModel,
     badgeTemplateId: string | null,
-  ) => string;
+  ) => AppPage;
   asNonEmptyString: (value: unknown) => string | null;
   SAKAI_SHOWCASE_TENANT_ID: string;
   SAKAI_SHOWCASE_TEMPLATE_ID: string;
@@ -239,7 +240,7 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     const badgeIdentifier = c.req.param("badgeIdentifier").trim();
 
     if (badgeIdentifier.length === 0) {
-      return c.html(publicBadgeNotFoundPage(c.req.url), 404);
+      return renderAppPage(c, publicBadgeNotFoundPage(c.req.url), 404);
     }
 
     return c.redirect(`/badges/${encodeURIComponent(badgeIdentifier)}`, 308);
@@ -256,7 +257,7 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     c.header("Cache-Control", "no-store");
 
     if (result.status === "not_found") {
-      return c.html(publicBadgeNotFoundPage(c.req.url), 404);
+      return renderAppPage(c, publicBadgeNotFoundPage(c.req.url), 404);
     }
 
     if (result.status === "redirect") {
@@ -264,7 +265,7 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     }
 
     await recordPublicEngagement(resolveDatabase(c.env), result.value, "public_badge_view");
-    return c.html(publicBadgePage(c.req.url, result.value));
+    return renderAppPage(c, publicBadgePage(c.req.url, result.value));
   });
 
   app.get("/badges/:badgeIdentifier/share/:channel", async (c) => {
@@ -276,7 +277,7 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     c.header("Cache-Control", "no-store");
 
     if (result.status === "not_found") {
-      return c.html(publicBadgeNotFoundPage(c.req.url), 404);
+      return renderAppPage(c, publicBadgeNotFoundPage(c.req.url), 404);
     }
 
     if (result.status === "redirect") {
@@ -362,7 +363,8 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
       }),
     );
     c.header("Cache-Control", "no-store");
-    return c.html(
+    return renderAppPage(
+      c,
       tenantBadgeWallPage(c.req.url, pathParams.tenantId, entriesWithLifecycle, badgeTemplateId),
     );
   });
@@ -381,7 +383,8 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     );
 
     c.header("Cache-Control", "no-store");
-    return c.html(
+    return renderAppPage(
+      c,
       tenantBadgeCriteriaRegistryPage(c.req.url, pathParams.tenantId, model, badgeTemplateId),
     );
   });

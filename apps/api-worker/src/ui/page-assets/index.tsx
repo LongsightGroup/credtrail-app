@@ -1,4 +1,5 @@
 import type { Hono } from "hono";
+import type { HtmlEscapedString } from "hono/utils/html";
 import type { AppEnv } from "../../app";
 import { AUTH_LOGIN_CSS } from "./content/auth-login-css";
 import { AUTH_LOGIN_JS } from "./content/auth-login-js";
@@ -6,8 +7,12 @@ import { EXECUTIVE_DASHBOARD_CSS } from "./content/executive-dashboard-css";
 import { FOUNDATION_CSS } from "./content/foundation-css";
 import { INSTITUTION_ADMIN_CSS } from "./content/institution-admin-css";
 import { INSTITUTION_ADMIN_JS } from "./content/institution-admin-js";
+import { LEARNER_DASHBOARD_CSS } from "./content/learner-dashboard-css";
 import { LEARNER_RECORD_CSS } from "./content/learner-record-css";
 import { LTI_PAGES_CSS } from "./content/lti-pages-css";
+import { LTI_POST_MESSAGE_STORAGE_JS } from "./content/lti-post-message-storage-js";
+import { PUBLIC_BADGE_CSS } from "./content/public-badge-css";
+import { PUBLIC_BADGE_JS } from "./content/public-badge-js";
 
 type PageAssetKind = "style" | "script";
 
@@ -64,11 +69,35 @@ const PAGE_ASSET_SOURCES = {
     body: LEARNER_RECORD_CSS,
     contentType: "text/css; charset=utf-8",
   },
+  learnerDashboardCss: {
+    kind: "style",
+    stem: "learner-dashboard",
+    body: LEARNER_DASHBOARD_CSS,
+    contentType: "text/css; charset=utf-8",
+  },
   ltiPagesCss: {
     kind: "style",
     stem: "lti-pages",
     body: LTI_PAGES_CSS,
     contentType: "text/css; charset=utf-8",
+  },
+  ltiPostMessageStorageJs: {
+    kind: "script",
+    stem: "lti-post-message-storage",
+    body: LTI_POST_MESSAGE_STORAGE_JS,
+    contentType: "text/javascript; charset=utf-8",
+  },
+  publicBadgeCss: {
+    kind: "style",
+    stem: "public-badge",
+    body: PUBLIC_BADGE_CSS,
+    contentType: "text/css; charset=utf-8",
+  },
+  publicBadgeJs: {
+    kind: "script",
+    stem: "public-badge",
+    body: PUBLIC_BADGE_JS,
+    contentType: "text/javascript; charset=utf-8",
   },
 } as const satisfies Record<string, PageAssetSource>;
 
@@ -126,26 +155,20 @@ export const pageAssetPath = (key: PageAssetKey): string => {
   return PAGE_ASSETS[key].path;
 };
 
-export const pageStylesheetTag = (key: PageStylesheetAssetKey): string => {
-  return `<link rel="stylesheet" href="${pageAssetPath(key)}" />`;
-};
+export const PageAssets = (input: { keys: readonly PageAssetKey[] }): HonoElement => {
+  return (
+    <>
+      {input.keys.map((key) => {
+        const asset = PAGE_ASSETS[key];
 
-export const pageScriptTag = (key: PageScriptAssetKey): string => {
-  return `<script defer src="${pageAssetPath(key)}"></script>`;
-};
+        if (asset.kind === "style") {
+          return <link rel="stylesheet" href={asset.path} />;
+        }
 
-export const renderPageAssetTags = (keys: readonly PageAssetKey[]): string => {
-  return keys
-    .map((key) => {
-      const asset = PAGE_ASSETS[key];
-
-      if (asset.kind === "style") {
-        return `<link rel="stylesheet" href="${asset.path}" />`;
-      }
-
-      return `<script defer src="${asset.path}"></script>`;
-    })
-    .join("\n");
+        return <script defer src={asset.path}></script>;
+      })}
+    </>
+  );
 };
 
 export const registerPageAssetRoutes = (input: { app: Hono<AppEnv> }): void => {
@@ -166,3 +189,4 @@ export const registerPageAssetRoutes = (input: { app: Hono<AppEnv> }): void => {
     return c.body(asset.body);
   });
 };
+type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;

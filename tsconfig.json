@@ -3,6 +3,8 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx",
     "strict": true,
     "noImplicitAny": true,
     "exactOptionalPropertyTypes": true,
@@ -18,5 +20,13 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["apps/**/*.ts", "workers/**/*.ts", "packages/**/*.ts", "vitest.config.ts"]
+  "include": [
+    "apps/**/*.ts",
+    "apps/**/*.tsx",
+    "workers/**/*.ts",
+    "workers/**/*.tsx",
+    "packages/**/*.ts",
+    "packages/**/*.tsx",
+    "vitest.config.ts"
+  ]
 }

@@ -40,6 +40,7 @@ import {
   parseTenantUserPathParams,
 } from "@credtrail/validation";
 import type { AppBindings, AppContext, AppEnv } from "../app";
+import { renderAppPage } from "../ui/render-page";
 import { auditLogAdminPage, type AuditLogAdminPageFilterState } from "../admin/pages";
 import { createGradebookProvider } from "../lms/gradebook-provider";
 import {
@@ -79,13 +80,13 @@ export const registerAdminRoutes = (input: RegisterAdminRoutesInput): void => {
     },
   ): Promise<Response> => {
     const registrations = await listLtiIssuerRegistrations(resolveDatabase(c.env));
-    const pageHtml = ltiIssuerRegistrationAdminPage({
+    const page = ltiIssuerRegistrationAdminPage({
       token: input.token,
       registrations,
       ...(input.submissionError === undefined ? {} : { submissionError: input.submissionError }),
       ...(input.formState === undefined ? {} : { formState: input.formState }),
     });
-    return c.html(pageHtml, input.status ?? 200);
+    return renderAppPage(c, page, input.status ?? 200);
   };
 
   const auditLogAdminPageResponse = (
@@ -97,14 +98,14 @@ export const registerAdminRoutes = (input: RegisterAdminRoutesInput): void => {
       status?: 200 | 400;
       submissionError?: string;
     },
-  ): Response => {
-    const pageHtml = auditLogAdminPage({
+  ): Response | Promise<Response> => {
+    const page = auditLogAdminPage({
       token: input.token,
       filterState: input.filterState,
       logs: input.logs,
       ...(input.submissionError === undefined ? {} : { submissionError: input.submissionError }),
     });
-    return c.html(pageHtml, input.status ?? 200);
+    return renderAppPage(c, page, input.status ?? 200);
   };
 
   const addSecondsToIso = (fromIso: string, seconds: number): string => {

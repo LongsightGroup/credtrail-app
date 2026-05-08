@@ -576,7 +576,7 @@ describe("GET /tenants/:tenantId/learner/dashboard", () => {
     expect(body).toContain(
       "Learner DID updated. Newly issued badges will use this DID as credentialSubject.id.",
     );
-    expect(body).toContain('<details class="learner-dashboard__profile-details" open>');
+    expect(body).toContain('<details class="learner-dashboard__profile-details" open');
     expect(body).toContain("Current DID:");
     expect(body).toContain("did:key:z6MkhLearnerDidExample");
   });

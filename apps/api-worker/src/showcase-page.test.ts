@@ -27,6 +27,7 @@ import {
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
+import { PUBLIC_BADGE_CSS } from "./ui/page-assets/content/public-badge-css";
 
 const mockedListPublicBadgeWallEntries = vi.mocked(listPublicBadgeWallEntries);
 const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
@@ -133,8 +134,9 @@ describe("GET /showcase/:tenantId", () => {
     expect(body).toContain("github.com/ottenhoff.png");
     expect(body).toContain("View credential");
     expect(body).toContain("Copy link");
-    expect(body).toContain(".badge-wall__hero-link:hover");
-    expect(body).toContain(".badge-wall__button--primary:hover");
+    expect(body).toContain('rel="stylesheet" href="/assets/ui/public-badge.');
+    expect(PUBLIC_BADGE_CSS).toContain(".badge-wall__hero-link:hover");
+    expect(PUBLIC_BADGE_CSS).toContain(".badge-wall__button--primary:hover");
     expect(mockedListPublicBadgeWallEntries).toHaveBeenCalledWith(fakeDb, {
       tenantId: "sakai",
       badgeTemplateId: "badge_template_sakai_1000",

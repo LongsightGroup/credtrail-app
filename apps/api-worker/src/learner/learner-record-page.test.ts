@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import type { LearnerRecordPresentationModel } from "../learner-record/learner-record-presentation";
 import { getSeededDemoLearnerRecordFixture } from "../learner-record/seeded-demo-learner-record-fixture";
 import { pageAssetPath } from "../ui/page-assets";
+import { renderAppPageToString } from "../ui/render-page";
 import { createLearnerRecordPage } from "./learner-record-page";
 
 const learnerRecordPage = createLearnerRecordPage({
-  escapeHtml: (value) => value,
   formatIsoTimestamp: (value) => value,
 });
 
@@ -16,10 +16,12 @@ const samplePresentation = (): LearnerRecordPresentationModel => {
 
 describe("createLearnerRecordPage", () => {
   it("renders the unified learner record without admin-only export affordances", () => {
-    const html = learnerRecordPage("tenant_123", samplePresentation(), {
-      switchOrganizationPath:
-        "/account/organizations?next=%2Ftenants%2Ftenant_123%2Flearner%2Frecord",
-    });
+    const html = renderAppPageToString(
+      learnerRecordPage("tenant_123", samplePresentation(), {
+        switchOrganizationPath:
+          "/account/organizations?next=%2Ftenants%2Ftenant_123%2Flearner%2Frecord",
+      }),
+    );
 
     expect(html).toContain("Unified learner record");
     expect(html).toContain("Institution-verified record");
@@ -38,19 +40,21 @@ describe("createLearnerRecordPage", () => {
   });
 
   it("renders a truthful empty state when the learner record has no items yet", () => {
-    const html = learnerRecordPage("tenant_123", {
-      ...samplePresentation(),
-      summary: {
-        total: 0,
-        issuerVerified: 0,
-        supplemental: 0,
-        active: 0,
-        historical: 0,
-        badgeAssertions: 0,
-        recordEntries: 0,
-      },
-      sections: [],
-    });
+    const html = renderAppPageToString(
+      learnerRecordPage("tenant_123", {
+        ...samplePresentation(),
+        summary: {
+          total: 0,
+          issuerVerified: 0,
+          supplemental: 0,
+          active: 0,
+          historical: 0,
+          badgeAssertions: 0,
+          recordEntries: 0,
+        },
+        sections: [],
+      }),
+    );
 
     expect(html).toContain("Nothing has been added yet");
     expect(html).toContain(

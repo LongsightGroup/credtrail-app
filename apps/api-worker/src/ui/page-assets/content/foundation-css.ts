@@ -155,6 +155,111 @@ export const FOUNDATION_CSS = `
   --ct-max-content-width: 1080px;
 }
 
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ct-theme-text-body);
+  background:
+    radial-gradient(circle at 8% 5%, var(--ct-theme-accent-glow-1), transparent 36%),
+    radial-gradient(circle at 88% 12%, var(--ct-theme-accent-glow-2), transparent 34%),
+    radial-gradient(circle at 52% 96%, var(--ct-theme-accent-glow-3), transparent 32%),
+    var(--ct-theme-gradient-canvas);
+  font-family: var(--ct-font-sans);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin-top: 0;
+  color: var(--ct-theme-text-title);
+  font-family: var(--ct-font-display);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+p {
+  line-height: 1.6;
+}
+
+main {
+  max-width: var(--ct-max-content-width);
+  margin: clamp(0.85rem, 2.4vw, 2rem) auto;
+  padding: clamp(1rem, 2.5vw, 2rem);
+  border: 1px solid var(--ct-theme-border-default);
+  border-radius: 1.3rem;
+  background: var(--ct-theme-surface-shell);
+  backdrop-filter: blur(7px);
+  box-shadow: var(--ct-theme-shadow-shell);
+  animation: ct-shell-enter 440ms ease-out both;
+}
+
+a {
+  color: var(--ct-theme-link);
+  text-underline-offset: 0.15em;
+}
+
+a:hover {
+  color: var(--ct-theme-link-hover);
+}
+
+@keyframes ct-shell-enter {
+  from {
+    opacity: 0;
+    transform: translateY(9px) scale(0.995);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 640px) {
+  main {
+    margin: 0.4rem;
+    border-radius: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main {
+    animation: none;
+  }
+}
+
+body[data-variant='open'] {
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+body[data-variant='open'] main {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+  animation: none;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 3vw, 3rem) clamp(1rem, 2.5vw, 2rem);
+  max-width: 1120px;
+}
+
+body[data-variant='admin'] {
+  background: #f7f9fc;
+}
+
+body[data-variant='admin'] main {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+  animation: none;
+}
+
 .ct-container {
   width: min(100%, var(--ct-max-content-width));
   margin-inline: auto;

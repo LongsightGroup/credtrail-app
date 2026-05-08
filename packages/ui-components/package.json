@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.tsx"
+  },
+  "dependencies": {
+    "hono": "^4.12.18"
   }
 }

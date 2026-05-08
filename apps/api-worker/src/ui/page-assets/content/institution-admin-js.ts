@@ -2,14 +2,19 @@ export const INSTITUTION_ADMIN_JS = `
 (() => {
   const contextElement = document.getElementById('ct-admin-context');
 
-  if (!(contextElement instanceof HTMLScriptElement)) {
+  if (!(contextElement instanceof HTMLElement)) {
     return;
   }
+
+  const contextJson =
+    contextElement.dataset.contextJson ??
+    (contextElement instanceof HTMLScriptElement ? contextElement.textContent : null) ??
+    '{}';
 
   let parsedContext;
 
   try {
-    parsedContext = JSON.parse(contextElement.textContent ?? '{}');
+    parsedContext = JSON.parse(contextJson);
   } catch {
     return;
   }

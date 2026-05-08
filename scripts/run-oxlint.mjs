@@ -27,7 +27,7 @@ const collectTsFiles = (directory) => {
       continue;
     }
 
-    if (entry.isFile() && entry.name.endsWith('.ts')) {
+    if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))) {
       lintFiles.push(entryPath);
     }
   }

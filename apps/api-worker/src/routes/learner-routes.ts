@@ -26,6 +26,7 @@ import {
   parseTenantPathParams,
 } from "@credtrail/validation";
 import type { AppBindings, AppContext, AppEnv } from "../app";
+import { renderAppPage, type AppPage } from "../ui/render-page";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "../auth/auth-context";
 import { createBetterAuthRuntimeConfig } from "../auth/better-auth-config";
 import { resolveAuthenticatedPrincipalFromSession } from "../auth/better-auth-adapter";
@@ -66,14 +67,14 @@ interface RegisterLearnerRoutesInput<DidNotice> {
     claimNotice: string | null,
     switchOrganizationPath?: string | null,
     learnerRecordPath?: string | null,
-  ) => string;
+  ) => AppPage;
   learnerRecordPage: (
     tenantId: string,
     presentation: ReturnType<typeof createLearnerRecordPresentation>,
     options?: {
       switchOrganizationPath?: string | null;
     },
-  ) => string;
+  ) => AppPage;
 }
 
 const LTI_SESSION_HANDOFF_QUERY_PARAM = "lti_session_handoff";
@@ -278,7 +279,8 @@ export const registerLearnerRoutes = <DidNotice>(
     const learnerRecordPath = `/tenants/${encodeURIComponent(pathParams.tenantId)}/learner/record`;
 
     c.header("Cache-Control", "no-store");
-    return c.html(
+    return renderAppPage(
+      c,
       learnerDashboardPage(
         handoff.sanitizedRequestUrl,
         pathParams.tenantId,
@@ -342,7 +344,8 @@ export const registerLearnerRoutes = <DidNotice>(
         : null;
 
     c.header("Cache-Control", "no-store");
-    return c.html(
+    return renderAppPage(
+      c,
       learnerRecordPage(pathParams.tenantId, createLearnerRecordPresentation(bundle), {
         switchOrganizationPath,
       }),

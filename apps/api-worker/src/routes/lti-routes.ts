@@ -15,6 +15,7 @@ import {
 } from "@credtrail/lti";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
+import { renderAppPage } from "../ui/render-page";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
 import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
 import type { DirectIssueBadgeResult } from "../badges/direct-issue";
@@ -452,7 +453,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
 
     if (postMessageStorageInput !== null) {
       c.header("Cache-Control", "no-store");
-      return c.html(ltiPostMessageStorageRedirectPage(postMessageStorageInput));
+      return renderAppPage(c, ltiPostMessageStorageRedirectPage(postMessageStorageInput));
     }
 
     return c.redirect(authRedirectUrl, 302);
@@ -542,7 +543,9 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     ]);
 
     c.header("Cache-Control", "no-store");
-    return c.html(responseHtml);
+    return c.body(responseHtml, 200, {
+      "Content-Type": "text/html; charset=UTF-8",
+    });
   });
 
   app.post(LTI_RESOURCE_LINK_ISSUE_PATH, async (c): Promise<Response> => {
@@ -731,7 +734,8 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     }
 
     c.header("Cache-Control", "no-store");
-    return c.html(
+    return renderAppPage(
+      c,
       ltiRosterIssuanceResultPage({
         tenantId: issuanceAction.tenantId,
         badgeTemplateId: issuanceAction.badgeTemplateId,
@@ -1044,7 +1048,8 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
         includeArchived: false,
       });
 
-      return c.html(
+      return renderAppPage(
+        c,
         ltiDeepLinkSelectionPage(
           ltiDeepLinkSelectionInput({
             requestUrl: c.req.url,
@@ -1062,7 +1067,8 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       );
     }
 
-    return c.html(
+    return renderAppPage(
+      c,
       ltiLaunchResultPage({
         roleKind: launchMessage.roleKind,
         tenantId,

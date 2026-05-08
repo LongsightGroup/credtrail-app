@@ -40,6 +40,7 @@ import {
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 import { app } from "./index";
+import { PUBLIC_BADGE_CSS } from "./ui/page-assets/content/public-badge-css";
 
 const mockedListBadgeTemplates = vi.mocked(listBadgeTemplates);
 const mockedListTenantOrgUnits = vi.mocked(listTenantOrgUnits);
@@ -270,7 +271,8 @@ describe("GET /showcase/:tenantId/criteria", () => {
     expect(body).toContain(
       '<meta name="description" content="Public criteria and governance metadata for tenant &quot;sakai&quot; badge template &quot;badge_template_sakai_1000&quot;."',
     );
-    expect(body).toContain(".criteria-registry__hero-link:hover");
+    expect(body).toContain('rel="stylesheet" href="/assets/ui/public-badge.');
+    expect(PUBLIC_BADGE_CSS).toContain(".criteria-registry__hero-link:hover");
 
     expect(mockedListBadgeTemplates).toHaveBeenCalledWith(fakeDb, {
       tenantId: "sakai",

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { renderAppPageToString } from "../ui/render-page";
 import { pageAssetPath } from "../ui/page-assets";
 import {
   renderExecutiveDashboardPage,
@@ -9,7 +10,9 @@ import { createSeededDemoExecutiveDashboardSlice } from "./seeded-demo-executive
 
 describe("renderExecutiveDashboardPage", () => {
   it("renders a dedicated executive shell with linked assets instead of inline route-local styles", () => {
-    const html = renderExecutiveDashboardPage(createSeededDemoExecutiveDashboardSlice("scoped"));
+    const html = renderAppPageToString(
+      renderExecutiveDashboardPage(createSeededDemoExecutiveDashboardSlice("scoped")),
+    );
 
     expect(html).toContain("Executive Dashboard</p>");
     expect(html).toContain("College of Engineering credential momentum");
@@ -23,7 +26,9 @@ describe("renderExecutiveDashboardPage", () => {
   });
 
   it("keeps the first screen KPI-first and preserves the executive JSON handoff", () => {
-    const html = renderExecutiveDashboardPage(createSeededDemoExecutiveDashboardSlice("scoped"));
+    const html = renderAppPageToString(
+      renderExecutiveDashboardPage(createSeededDemoExecutiveDashboardSlice("scoped")),
+    );
 
     expect(html).toContain('data-executive-audience="college"');
     expect(html).toContain("College executive view");
@@ -66,8 +71,8 @@ describe("renderExecutiveDashboardPage", () => {
       },
     ];
 
-    const systemHtml = renderExecutiveDashboardPage(systemDashboard);
-    const sparseHtml = renderExecutiveDashboardPage(sparseDashboard);
+    const systemHtml = renderAppPageToString(renderExecutiveDashboardPage(systemDashboard));
+    const sparseHtml = renderAppPageToString(renderExecutiveDashboardPage(sparseDashboard));
 
     expect(systemHtml).toContain("System-level executive view");
     expect(systemHtml).toContain("System credential momentum");
@@ -79,7 +84,9 @@ describe("renderExecutiveDashboardPage", () => {
   });
 
   it("renders breadcrumbed drilldown links that stay on the executive route family", () => {
-    const html = renderExecutiveDashboardPage(createSeededDemoExecutiveDashboardSlice("focused"));
+    const html = renderAppPageToString(
+      renderExecutiveDashboardPage(createSeededDemoExecutiveDashboardSlice("focused")),
+    );
 
     expect(html).toContain('aria-label="Executive drilldown path"');
     expect(html).toContain(">Tenant 123 Institution<");
@@ -95,7 +102,9 @@ describe("renderExecutiveDashboardPage", () => {
   });
 
   it("keeps scoped executive breadcrumbs rooted in the visible subtree", () => {
-    const html = renderExecutiveDashboardPage(createSeededDemoExecutiveDashboardSlice("scoped"));
+    const html = renderAppPageToString(
+      renderExecutiveDashboardPage(createSeededDemoExecutiveDashboardSlice("scoped")),
+    );
 
     expect(html).toContain('aria-label="Executive drilldown path"');
     expect(html).toContain(">College of Engineering<");
@@ -132,7 +141,7 @@ describe("renderExecutiveDashboardPage", () => {
       },
     ];
 
-    const html = renderExecutiveDashboardPage(sparseDashboard);
+    const html = renderAppPageToString(renderExecutiveDashboardPage(sparseDashboard));
 
     expect(html).toContain("This slice stays centered on College of Engineering");
     expect(html).toContain("Visible rows");
@@ -143,7 +152,7 @@ describe("renderExecutiveDashboardPage", () => {
   });
 
   it("renders the unavailable state through the same dedicated executive asset shell", () => {
-    const html = renderExecutiveUnavailablePage();
+    const html = renderAppPageToString(renderExecutiveUnavailablePage());
 
     expect(html).toContain("Executive dashboard unavailable");
     expect(html).toContain(pageAssetPath("executiveDashboardCss"));

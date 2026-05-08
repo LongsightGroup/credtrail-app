@@ -50,7 +50,7 @@ describe("seeded demo executive fixture", () => {
 
     const runtimeSources = [
       "./executive-rollup-loader.ts",
-      "./executive-dashboard-page.ts",
+      "./executive-dashboard-page.tsx",
       "../routes/executive-routes.ts",
     ].map(readRuntimeSource);
 

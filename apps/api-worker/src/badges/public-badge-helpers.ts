@@ -1,7 +1,5 @@
 import type { JsonObject } from "@credtrail/core-domain";
 import type { AssertionRecord } from "@credtrail/db";
-import { badgeInitialsFromName } from "./pdf";
-import { escapeHtml } from "../utils/display-format";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
 
 const IMS_GLOBAL_OB3_VALIDATOR_BASE_URL = "https://vc.1ed.tech/upload";
@@ -136,51 +134,4 @@ export const evidenceDetailsFromCredential = (credential: JsonObject): EvidenceD
 
   const singularEvidence = evidenceDetailsFromValue(evidence);
   return singularEvidence === null ? [] : [singularEvidence];
-};
-
-export const badgeHeroImageMarkup = (
-  badgeName: string,
-  imageUri: string | null,
-  fallbackImageUri: string | null = null,
-): string => {
-  if (imageUri !== null) {
-    const initials = badgeInitialsFromName(badgeName);
-    const fallbackAttribute =
-      fallbackImageUri === null || fallbackImageUri === imageUri
-        ? ""
-        : ` data-fallback-src="${escapeHtml(fallbackImageUri)}"`;
-
-    return `<div class="public-badge__hero-image-frame">
-      <img
-        class="public-badge__hero-image"
-        src="${escapeHtml(imageUri)}"
-        alt="${escapeHtml(`${badgeName} image`)}"
-        loading="lazy"
-        ${fallbackAttribute}
-        onerror="const fallback=this.getAttribute('data-fallback-src');if(typeof fallback==='string'&&fallback.length>0&&this.src!==fallback){this.src=fallback;this.removeAttribute('data-fallback-src');return;}this.hidden=true;this.parentElement?.setAttribute('data-fallback','true')"
-      />
-      <span class="public-badge__hero-image-fallback" aria-hidden="true">${escapeHtml(initials)}</span>
-    </div>`;
-  }
-
-  const initials = badgeInitialsFromName(badgeName);
-
-  return `<svg
-    class="public-badge__hero-image public-badge__hero-image--placeholder"
-    viewBox="0 0 420 320"
-    role="img"
-    aria-label="${escapeHtml(`Placeholder image for ${badgeName}`)}"
-  >
-    <defs>
-      <linearGradient id="badge-placeholder-gradient" x1="0" x2="1" y1="0" y2="1">
-        <stop offset="0%" stop-color="#166534" />
-        <stop offset="100%" stop-color="#14532d" />
-      </linearGradient>
-    </defs>
-    <rect x="0" y="0" width="420" height="320" rx="28" fill="url(#badge-placeholder-gradient)" />
-    <circle cx="338" cy="80" r="42" fill="#fbbf24" fill-opacity="0.22" />
-    <circle cx="86" cy="232" r="56" fill="#fbbf24" fill-opacity="0.16" />
-    <path d="M116 168l42 42 106-106" fill="none" stroke="#fbbf24" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="210" y="148" text-anchor="middle" dominant-baseline="middle" font-size="54" fill="#f8fafc" font-weight="700">${escapeHtml(initials)}</text>
-  </svg>`;
 };

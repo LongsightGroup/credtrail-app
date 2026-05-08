@@ -8,7 +8,7 @@ import {
   type AuthMagicLinkRateLimitDimension,
   type SqlDatabase,
 } from "@credtrail/db";
-import { renderPageShell } from "@credtrail/ui-components";
+import { appPage, renderAppPage } from "../ui/render-page";
 import type { Hono } from "hono";
 import { deleteCookie, setCookie } from "hono/cookie";
 import { parseMagicLinkRequest, parseMagicLinkVerifyRequest } from "@credtrail/validation";
@@ -185,16 +185,24 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
   } = input;
 
   const renderNoAccessibleOrganizationsPage = (
+    c: AppContext,
     title: string,
     message: string,
-    status: number,
-  ): Response => {
-    return new Response(renderPageShell(title, `<h1>${title}</h1><p>${message}</p>`), {
+    status: 403,
+  ): Response | Promise<Response> => {
+    return renderAppPage(
+      c,
+      appPage({
+        title,
+        body: (
+          <>
+            <h1>{title}</h1>
+            <p>{message}</p>
+          </>
+        ),
+      }),
       status,
-      headers: {
-        "content-type": "text/html; charset=utf-8",
-      },
-    });
+    );
   };
 
   const loadAccessibleTenantContextViews = async (c: AppContext, userId: string) => {
@@ -223,7 +231,8 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
         return c.redirect(loginExperience.autoStartPath, 302);
       }
 
-      return c.html(
+      return renderAppPage(
+        c,
         magicLinkLoginPage({
           tenantId,
           nextPath,
@@ -237,7 +246,8 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
       );
     }
 
-    return c.html(
+    return renderAppPage(
+      c,
       magicLinkLoginPage({
         tenantId,
         nextPath,
@@ -264,7 +274,8 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
       return c.redirect(`${loginUrl.pathname}${loginUrl.search}`, 302);
     }
 
-    return c.html(
+    return renderAppPage(
+      c,
       localBreakGlassLoginPage({
         tenantId,
         nextPath,
@@ -364,16 +375,23 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     const reason = (c.req.query("reason") ?? "").trim();
 
     if (tenantId.length === 0 || token.length === 0) {
-      return c.html(
-        renderPageShell(
-          "Invalid Reset Link",
-          "<h1>Invalid reset link</h1><p>Request a new local setup link from the break-glass sign-in page.</p>",
-        ),
+      return renderAppPage(
+        c,
+        appPage({
+          title: "Invalid Reset Link",
+          body: (
+            <>
+              <h1>Invalid reset link</h1>
+              <p>Request a new local setup link from the break-glass sign-in page.</p>
+            </>
+          ),
+        }),
         400,
       );
     }
 
-    return c.html(
+    return renderAppPage(
+      c,
       localResetPasswordPage({
         tenantId,
         nextPath,
@@ -414,7 +432,8 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     const nextPath = (c.req.query("next") ?? "").trim();
     const reason = (c.req.query("reason") ?? "").trim();
 
-    return c.html(
+    return renderAppPage(
+      c,
       localTwoFactorPage({
         tenantId,
         nextPath,
@@ -428,7 +447,8 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     const nextPath = (c.req.query("next") ?? "").trim();
     const reason = (c.req.query("reason") ?? "").trim();
 
-    return c.html(
+    return renderAppPage(
+      c,
       localTwoFactorPage({
         tenantId,
         nextPath,
@@ -463,7 +483,8 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
       );
     }
 
-    return c.html(
+    return renderAppPage(
+      c,
       localTwoFactorPage({
         tenantId,
         nextPath,
@@ -735,11 +756,17 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     const tokenRaw = c.req.query("token");
 
     if (tokenRaw === undefined || tokenRaw.trim().length === 0) {
-      return c.html(
-        renderPageShell(
-          "Invalid Magic Link",
-          "<h1>Invalid magic link</h1><p>Missing token. Request a new sign-in link.</p>",
-        ),
+      return renderAppPage(
+        c,
+        appPage({
+          title: "Invalid Magic Link",
+          body: (
+            <>
+              <h1>Invalid magic link</h1>
+              <p>Missing token. Request a new sign-in link.</p>
+            </>
+          ),
+        }),
         400,
       );
     }
@@ -747,11 +774,17 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     const principal = await createMagicLinkSession(c, tokenRaw.trim());
 
     if (principal === null) {
-      return c.html(
-        renderPageShell(
-          "Expired Magic Link",
-          "<h1>Magic link expired</h1><p>The link is invalid or expired. Request a new sign-in link.</p>",
-        ),
+      return renderAppPage(
+        c,
+        appPage({
+          title: "Expired Magic Link",
+          body: (
+            <>
+              <h1>Magic link expired</h1>
+              <p>The link is invalid or expired. Request a new sign-in link.</p>
+            </>
+          ),
+        }),
         400,
       );
     }
@@ -759,11 +792,17 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     const requestedTenant = await resolveRequestedTenantContext(c);
 
     if (requestedTenant === null) {
-      return c.html(
-        renderPageShell(
-          "Sign-in Error",
-          "<h1>Unable to complete sign-in</h1><p>Please request a new sign-in link.</p>",
-        ),
+      return renderAppPage(
+        c,
+        appPage({
+          title: "Sign-in Error",
+          body: (
+            <>
+              <h1>Unable to complete sign-in</h1>
+              <p>Please request a new sign-in link.</p>
+            </>
+          ),
+        }),
         500,
       );
     }
@@ -805,7 +844,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
         ? "Your account does not have access to the requested tenant route."
         : "No active CredTrail organizations are currently available for this account.";
 
-    return renderNoAccessibleOrganizationsPage("Organization Access Required", message, 403);
+    return renderNoAccessibleOrganizationsPage(c, "Organization Access Required", message, 403);
   });
 
   app.get("/account/organizations", async (c) => {
@@ -819,6 +858,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
 
     if (contexts.length === 0) {
       return renderNoAccessibleOrganizationsPage(
+        c,
         "Organization Access Required",
         "No active CredTrail organizations are currently available for this account.",
         403,
@@ -830,6 +870,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
 
       if (context === undefined) {
         return renderNoAccessibleOrganizationsPage(
+          c,
           "Organization Access Required",
           "No active CredTrail organizations are currently available for this account.",
           403,
@@ -843,7 +884,8 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     const requestedTenant = await resolveRequestedTenantContext(c);
     const nextPath = (c.req.query("next") ?? "").trim();
 
-    return c.html(
+    return renderAppPage(
+      c,
       organizationChooserPage({
         organizations: contexts,
         nextPath,
@@ -871,6 +913,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
 
     if (location === null) {
       return renderNoAccessibleOrganizationsPage(
+        c,
         "Organization Access Required",
         "Your account does not have access to the selected tenant.",
         403,

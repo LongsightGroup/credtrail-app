@@ -117,7 +117,11 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
 
-  packages/ui-components: {}
+  packages/ui-components:
+    dependencies:
+      hono:
+        specifier: ^4.12.18
+        version: 4.12.18
 
   packages/validation:
     dependencies:

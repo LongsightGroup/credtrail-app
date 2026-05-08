@@ -3,6 +3,7 @@ import { parseTenantExecutiveDashboardQuery, parseTenantPathParams } from "@cred
 import type { Hono } from "hono";
 
 import type { AppBindings, AppContext, AppEnv } from "../app";
+import { renderAppPage } from "../ui/render-page";
 import {
   renderExecutiveDashboardPage,
   renderExecutiveUnavailablePage,
@@ -108,13 +109,13 @@ export const registerExecutiveRoutes = (input: RegisterExecutiveRoutesInput): vo
         return result;
       }
 
-      return c.html(renderInvalidExecutiveDashboardRequestPage(), 400);
+      return renderAppPage(c, renderInvalidExecutiveDashboardRequestPage(), 400);
     }
 
     if (result.dashboard === null) {
-      return c.html(renderExecutiveUnavailablePage(), 403);
+      return renderAppPage(c, renderExecutiveUnavailablePage(), 403);
     }
 
-    return c.html(renderExecutiveDashboardPage(result.dashboard));
+    return renderAppPage(c, renderExecutiveDashboardPage(result.dashboard));
   });
 };

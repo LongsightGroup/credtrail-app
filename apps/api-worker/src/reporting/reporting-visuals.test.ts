@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import { INSTITUTION_ADMIN_CSS } from "../ui/page-assets/content/institution-admin-css";
 import { renderReporting } from "./reporting-visuals";
 
+const renderReportingString = (input: Parameters<typeof renderReporting>[0]): string => {
+  return (renderReporting(input) as { toString(): string }).toString();
+};
+
 describe("renderReporting", () => {
   it.each([
     {
@@ -21,7 +25,7 @@ describe("renderReporting", () => {
       description: "Issued badges by week.",
     },
   ])("renders %s visuals with visible labels and numeric values", (input) => {
-    const html = renderReporting({
+    const html = renderReportingString({
       ...input,
       series: [
         { label: "Engineering", value: 12 },
@@ -42,7 +46,7 @@ describe("renderReporting", () => {
   });
 
   it("renders legends and text summaries so the visual is understandable without color alone", () => {
-    const html = renderReporting({
+    const html = renderReportingString({
       kind: "stacked-summary",
       title: "Recipient engagement",
       description: "Breakdown of post-issuance engagement.",
@@ -61,7 +65,7 @@ describe("renderReporting", () => {
   });
 
   it("renders trend visuals with visible time anchors and chart callouts for chart-first reading", () => {
-    const html = renderReporting({
+    const html = renderReportingString({
       kind: "trend-series",
       title: "Issued over time",
       description: "Issued badges by day.",
@@ -81,7 +85,7 @@ describe("renderReporting", () => {
   });
 
   it("renders comparison-ranked visuals with top-five emphasis and adjacent rate detail", () => {
-    const html = renderReporting({
+    const html = renderReportingString({
       kind: "comparison-ranked" as unknown as Parameters<typeof renderReporting>[0]["kind"],
       title: "Compare by badge template",
       description: "Issued volume stays primary while rate detail remains visible beside each row.",
@@ -130,7 +134,7 @@ describe("renderReporting", () => {
   });
 
   it("renders an honesty-focused summary override when comparison context must stay explicit", () => {
-    const html = renderReporting({
+    const html = renderReportingString({
       kind: "comparison-ranked" as unknown as Parameters<typeof renderReporting>[0]["kind"],
       title: "Highest claim rate",
       description:
@@ -158,7 +162,7 @@ describe("renderReporting", () => {
   });
 
   it("renders a dedicated sparse-state wrapper when only one comparison row is visible", () => {
-    const html = renderReporting({
+    const html = renderReportingString({
       kind: "comparison-ranked" as unknown as Parameters<typeof renderReporting>[0]["kind"],
       title: "Compare by badge template",
       description: "Thin-data slices should stay honest about how much comparison context exists.",
@@ -181,7 +185,7 @@ describe("renderReporting", () => {
   });
 
   it("emits stable reporting-visual hooks for the chart surface, legend, and visible values", () => {
-    const html = renderReporting({
+    const html = renderReportingString({
       kind: "comparison-bars",
       title: "Program performance",
       description: "Issued badges by program.",
@@ -217,7 +221,7 @@ describe("renderReporting", () => {
   });
 
   it("renders a deliberate fallback for empty or zero-data visuals", () => {
-    const html = renderReporting({
+    const html = renderReportingString({
       kind: "trend-series",
       title: "Credential activity",
       description: "This visual should explain when there is no data to chart yet.",
