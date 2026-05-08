@@ -10,7 +10,7 @@ This file defines execution standards for humans and coding agents working in th
 - Data: Postgres.
 - Object storage: Cloudflare R2.
 - Async jobs: DB-backed job messages in Postgres.
-- UI: server-rendered HTML + htmx.
+- UI: server-rendered HTML with minimal feature-local JavaScript.
 - React is out of scope for v1.
 - Standards scope: Open Badges 3.0 only.
 - Architecture policy: single-path implementation in v1. No dual runtimes, no parallel frameworks, no "either/or" code paths for the same capability.
@@ -97,7 +97,7 @@ Type safety is a release gate:
 ## 6) Simplicity Rules (K.I.S.S.)
 
 - Prefer server-rendered pages and HTML forms over client-heavy abstractions.
-- Use htmx for partial updates instead of introducing SPA complexity.
+- Prefer plain HTML forms and small feature-local scripts over SPA complexity.
 - Keep client JavaScript minimal and local to the feature.
 - Choose straightforward code over clever code.
 - Implement one clear way to do each thing in v1; defer alternatives.
