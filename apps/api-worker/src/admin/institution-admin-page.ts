@@ -2621,7 +2621,7 @@ const renderInstitutionAdminPage = (
 
   const manualIssuePanelMarkup = `<article id="manual-issue-panel" class="ct-admin__panel ct-stack">
     <h2>Manual Issue Badge</h2>
-    <p>Issue a badge now from this page without curl.</p>
+    <p>Issue a badge for a learner using this form.</p>
     <form id="manual-issue-form" class="ct-admin__form ct-stack">
       <label>
         Badge template
