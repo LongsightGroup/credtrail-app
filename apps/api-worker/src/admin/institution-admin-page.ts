@@ -850,7 +850,10 @@ const renderInstitutionAdminPage = (
                 }</span>`;
 
             return `<tr>
-              <td><strong>${escapeHtml(member.email)}</strong><div class="ct-admin__meta">${escapeHtml(member.userId)}</div></td>
+              <td>
+                <span class="ct-admin__member-identity">${escapeHtml(member.email)}</span>
+                <div class="ct-admin__meta">${escapeHtml(member.userId)}</div>
+              </td>
               <td>${roleControl}</td>
               <td>${escapeHtml(formatIsoTimestamp(member.createdAt))}</td>
               <td>${escapeHtml(formatIsoTimestamp(member.updatedAt))}</td>
