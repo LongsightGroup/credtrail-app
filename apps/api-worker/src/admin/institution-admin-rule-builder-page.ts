@@ -27,6 +27,7 @@ export const institutionAdminRuleBuilderPage = (input: {
   badgeRules: readonly BadgeIssuanceRuleRecord[];
   badgeRuleVersions: readonly BadgeIssuanceRuleVersionRecord[];
   ruleBuilderTutorialEmbedUrl?: string;
+  switchOrganizationPath?: string | null;
 }): string => {
   const versionsByRuleId = new Map<string, BadgeIssuanceRuleVersionRecord[]>();
 
@@ -58,6 +59,8 @@ export const institutionAdminRuleBuilderPage = (input: {
   const assertionsApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions`;
   const tenantUsersApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/users`;
   const showcasePath = `/showcase/${encodeURIComponent(input.tenant.id)}`;
+  const adminAuditLogPath = `/admin/audit-logs?tenantId=${encodeURIComponent(input.tenant.id)}`;
+  const switchOrganizationPath = input.switchOrganizationPath?.trim() ?? "";
   const userLabel = input.userEmail ?? input.userId;
   const tutorialEmbedUrl = input.ruleBuilderTutorialEmbedUrl?.trim() ?? "";
 
@@ -126,6 +129,22 @@ export const institutionAdminRuleBuilderPage = (input: {
         </div>`;
 
   const rulesWorkspacePath = `${tenantAdminPath}/rules`;
+  const operationsPath = `${tenantAdminPath}/operations`;
+  const operationsLearnerRecordsPath = `${operationsPath}/learner-records`;
+  const operationsLearnerRecordImportsPath = `${operationsPath}/learner-record-imports`;
+  const operationsReviewQueuePath = `${operationsPath}/review-queue`;
+  const operationsIssuedBadgesPath = `${operationsPath}/issued-badges`;
+  const operationsBadgeStatusPath = `${operationsPath}/badge-status`;
+  const reportingPath = `${tenantAdminPath}/reporting`;
+  const accessPath = `${tenantAdminPath}/access`;
+  const accessMembersPath = `${accessPath}/members`;
+  const accessGovernancePath = `${accessPath}/governance`;
+  const accessApiKeysPath = `${accessPath}/api-keys`;
+  const accessOrgUnitsPath = `${accessPath}/org-units`;
+  const sidebarLink = (href: string, label: string, isCurrent: boolean, extra = ""): string => {
+    const cls = extra.length > 0 ? `ct-admin-sidebar__link ${extra}` : "ct-admin-sidebar__link";
+    return `<a class="${cls}" href="${escapeHtml(href)}"${isCurrent ? ' aria-current="page"' : ""}>${escapeHtml(label)}</a>`;
+  };
 
   return renderPageShell(
     `Rule Builder · ${input.tenant.displayName}`,
@@ -133,16 +152,34 @@ export const institutionAdminRuleBuilderPage = (input: {
       <aside class="ct-admin-sidebar">
         <a class="ct-admin-sidebar__brand" href="${escapeHtml(tenantAdminPath)}">CredTrail</a>
         <nav class="ct-admin-sidebar__nav" aria-label="Admin navigation">
-          <a class="ct-admin-sidebar__link" href="${escapeHtml(tenantAdminPath)}">Home</a>
+          ${sidebarLink(tenantAdminPath, "Home", false)}
+
           <p class="ct-admin-sidebar__section-label">Operations</p>
-          <a class="ct-admin-sidebar__link" href="${escapeHtml(tenantAdminPath)}/operations">Overview</a>
+          ${sidebarLink(operationsPath, "Overview", false)}
+          ${sidebarLink(operationsLearnerRecordsPath, "Learner Records", false, "ct-admin-sidebar__link--sub")}
+          ${sidebarLink(operationsLearnerRecordImportsPath, "Learner Record Imports", false, "ct-admin-sidebar__link--sub")}
+          ${sidebarLink(operationsReviewQueuePath, "Review Queue", false, "ct-admin-sidebar__link--sub")}
+          ${sidebarLink(operationsIssuedBadgesPath, "Issued Badges", false, "ct-admin-sidebar__link--sub")}
+          ${sidebarLink(operationsBadgeStatusPath, "Badge Status", false, "ct-admin-sidebar__link--sub")}
+
+          <p class="ct-admin-sidebar__section-label">Reporting</p>
+          ${sidebarLink(reportingPath, "Overview", false)}
+
           <p class="ct-admin-sidebar__section-label">Configuration</p>
-          <a class="ct-admin-sidebar__link" href="${escapeHtml(rulesWorkspacePath)}" aria-current="page">Rules</a>
+          ${sidebarLink(rulesWorkspacePath, "Rules", false)}
+          ${sidebarLink(ruleBuilderPath, "Rule Builder", true, "ct-admin-sidebar__link--sub")}
+
           <p class="ct-admin-sidebar__section-label">Access</p>
-          <a class="ct-admin-sidebar__link" href="${escapeHtml(tenantAdminPath)}/access">Overview</a>
+          ${sidebarLink(accessPath, "Overview", false)}
+          ${sidebarLink(accessMembersPath, "Members", false, "ct-admin-sidebar__link--sub")}
+          ${sidebarLink(accessGovernancePath, "Governance", false, "ct-admin-sidebar__link--sub")}
+          ${sidebarLink(accessApiKeysPath, "API Keys", false, "ct-admin-sidebar__link--sub")}
+          ${sidebarLink(accessOrgUnitsPath, "Org Units", false, "ct-admin-sidebar__link--sub")}
         </nav>
         <div class="ct-admin-sidebar__footer">
+          <a class="ct-admin-sidebar__footer-link ct-admin-sidebar__link--external" href="${escapeHtml(adminAuditLogPath)}">Audit logs</a>
           <a class="ct-admin-sidebar__footer-link ct-admin-sidebar__link--external" href="${escapeHtml(showcasePath)}" target="_blank" rel="noopener noreferrer">Public showcase</a>
+          ${switchOrganizationPath.length > 0 ? `<a class="ct-admin-sidebar__footer-link" href="${escapeHtml(switchOrganizationPath)}">Switch organization</a>` : ""}
         </div>
       </aside>
       <div class="ct-admin-main">

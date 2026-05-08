@@ -911,6 +911,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/operations"');
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/rules/new"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access"');
     expect(body).toContain('href="/admin/audit-logs?tenantId=tenant_123"');
     expect(body).toContain('href="/showcase/tenant_123"');
@@ -2371,6 +2372,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).toContain(">Rules<");
     expect(body).toContain("Rule Builder Workspace");
     expect(body).toContain("Open rule builder");
+    expect(body).toContain('href="/tenants/tenant_123/admin/rules/new"');
     expect(body).toContain("Upload Badge Template Image");
     expect(body).toContain('id="badge-template-image-upload-form"');
     expect(body).toContain("Rule Value Lists");
@@ -2638,6 +2640,15 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("Condition help");
     expect(body).toContain("RULE_BUILDER_TUTORIAL_EMBED_URL");
     expect(body).toContain('href="/tenants/tenant_123/admin"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/operations/learner-records"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/rules"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/rules/new" aria-current="page"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/access/members"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/access/governance"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/access/api-keys"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/access/org-units"');
+    expect(body).toContain('href="/admin/audit-logs?tenantId=tenant_123"');
   });
 
   it("renders walkthrough embed when tutorial env URL is configured", async () => {
@@ -2661,5 +2672,42 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('id="rule-builder-tutorial-embed"');
     expect(body).toContain('src="https://videos.example.edu/embed/rule-builder"');
     expect(body).not.toContain("RULE_BUILDER_TUTORIAL_EMBED_URL");
+  });
+
+  it("keeps the switch-organization sidebar link on the dedicated rule-builder page", async () => {
+    const env = createEnv();
+    mockedListAccessibleTenantContextsForUser.mockResolvedValue([
+      {
+        tenantId: "tenant_123",
+        tenantSlug: "tenant-123",
+        tenantDisplayName: "Tenant 123",
+        tenantPlanTier: "team",
+        membershipRole: "admin",
+      },
+      {
+        tenantId: "tenant_456",
+        tenantSlug: "tenant-456",
+        tenantDisplayName: "Tenant 456",
+        tenantPlanTier: "enterprise",
+        membershipRole: "admin",
+      },
+    ]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/new",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Switch organization");
+    expect(body).toContain(
+      "/account/organizations?next=%2Ftenants%2Ftenant_123%2Fadmin%2Frules%2Fnew",
+    );
   });
 });

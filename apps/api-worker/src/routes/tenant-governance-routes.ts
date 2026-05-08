@@ -1666,7 +1666,7 @@ export const registerTenantGovernanceRoutes = (
       );
     }
 
-    const [currentUser, badgeTemplates, badgeRules] = await Promise.all([
+    const [currentUser, badgeTemplates, badgeRules, accessibleTenantContexts] = await Promise.all([
       findUserById(db, session.userId),
       listBadgeTemplates(db, {
         tenantId: pathParams.tenantId,
@@ -1675,6 +1675,7 @@ export const registerTenantGovernanceRoutes = (
       listBadgeIssuanceRules(db, {
         tenantId: pathParams.tenantId,
       }),
+      listAccessibleTenantContextsForUser(db, session.userId),
     ]);
     const badgeRuleVersionLists = await Promise.all(
       badgeRules.map(async (rule) =>
@@ -1685,6 +1686,11 @@ export const registerTenantGovernanceRoutes = (
       ),
     );
     const badgeRuleVersions = badgeRuleVersionLists.flat();
+    const requestUrl = new URL(c.req.url);
+    const switchOrganizationPath =
+      accessibleTenantContexts.length > 1
+        ? buildOrganizationsPath(`${requestUrl.pathname}${requestUrl.search}`)
+        : null;
 
     c.header("Cache-Control", "no-store");
 
@@ -1697,6 +1703,7 @@ export const registerTenantGovernanceRoutes = (
         badgeTemplates,
         badgeRules,
         badgeRuleVersions,
+        switchOrganizationPath,
         ...(c.env.RULE_BUILDER_TUTORIAL_EMBED_URL === undefined
           ? {}
           : { ruleBuilderTutorialEmbedUrl: c.env.RULE_BUILDER_TUTORIAL_EMBED_URL }),

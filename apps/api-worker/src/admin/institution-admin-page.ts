@@ -2603,6 +2603,7 @@ const renderInstitutionAdminPage = (
 
         <p class="ct-admin-sidebar__section-label">Configuration</p>
         ${sidebarLink(rulesWorkspacePath, "Rules", view === "rules")}
+        ${sidebarLink(ruleBuilderPath, "Rule Builder", false, "ct-admin-sidebar__link--sub")}
 
         <p class="ct-admin-sidebar__section-label">Access</p>
         ${sidebarLink(accessPath, "Overview", view === "access")}
