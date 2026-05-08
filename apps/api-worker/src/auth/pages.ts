@@ -96,15 +96,11 @@ export const magicLinkLoginPage = (input: {
     ? ""
     : `<section class="ct-stack" aria-labelledby="magic-link-login-title">
           <h2 id="magic-link-login-title" class="ct-login__form-title">Email sign-in</h2>
-          <p class="ct-login__form-text">
-            Use the email your institution already has on file.
-          </p>
           ${accessContextNotice}
           <form id="magic-link-login-form" class="ct-login__form ct-stack">
             <input id="magic-link-login-tenant" name="tenantId" type="hidden" value="${escapeHtml(effectiveTenantId)}" />
             <label class="ct-login__field ct-stack">
               <span>Institution email</span>
-              <span class="ct-login__field-help">Use the email your institution already uses for CredTrail access.</span>
               <input name="email" type="email" required placeholder="name@institution.edu" />
             </label>
             <div id="magic-link-tenant-selection" class="ct-login__tenant-selection ct-stack" hidden>

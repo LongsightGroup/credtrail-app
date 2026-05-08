@@ -195,13 +195,6 @@ export const AUTH_LOGIN_CSS = `
   font-weight: 600;
 }
 
-.ct-login__field-help {
-  font-size: 0.78rem;
-  line-height: 1.35;
-  color: var(--ct-theme-text-muted);
-  font-weight: 400;
-}
-
 .ct-login__field input {
   border: 1px solid var(--ct-theme-border-default);
   border-radius: var(--ct-radius-md);
