@@ -628,8 +628,8 @@ const learnerRecordImportRowBaseSchema = z.object({
   evidenceLinks: z.array(z.string().url().max(2048)).max(20).optional(),
 });
 
-export const learnerRecordImportRowSchema = learnerRecordImportRowBaseSchema
-  .superRefine((value, ctx) => {
+export const learnerRecordImportRowSchema = learnerRecordImportRowBaseSchema.superRefine(
+  (value, ctx) => {
     if (
       value.recordType === "supplemental_artifact" &&
       value.trustLevel !== undefined &&
@@ -641,7 +641,8 @@ export const learnerRecordImportRowSchema = learnerRecordImportRowBaseSchema
         message: "supplemental_artifact import rows must use learner_supplemental trust",
       });
     }
-  });
+  },
+);
 
 export const learnerRecordImportBatchDefaultsSchema = z.object({
   defaultTrustLevel: learnerRecordTrustLevelSchema.default("issuer_verified"),
@@ -1738,9 +1739,7 @@ export type LearnerRecordImportProgressQuery = z.infer<
   typeof learnerRecordImportProgressQuerySchema
 >;
 export type MigrationBatchRetryRequest = z.infer<typeof migrationBatchRetryRequestSchema>;
-export type LearnerRecordImportRetryRequest = z.infer<
-  typeof learnerRecordImportRetryRequestSchema
->;
+export type LearnerRecordImportRetryRequest = z.infer<typeof learnerRecordImportRetryRequestSchema>;
 export type Ob2ImportConversionRequest = z.infer<typeof ob2ImportConversionRequestSchema>;
 export type IssueBadgeQueueJob = z.infer<typeof issueBadgeQueueJobSchema>;
 export type RevokeBadgeQueueJob = z.infer<typeof revokeBadgeQueueJobSchema>;
@@ -2153,9 +2152,7 @@ export const parseAdminLearnerRecordReviewQuery = (
   return adminLearnerRecordReviewQuerySchema.parse(input);
 };
 
-export const parseLearnerRecordEntryPathParams = (
-  input: unknown,
-): LearnerRecordEntryPathParams => {
+export const parseLearnerRecordEntryPathParams = (input: unknown): LearnerRecordEntryPathParams => {
   return learnerRecordEntryPathParamsSchema.parse(input);
 };
 
