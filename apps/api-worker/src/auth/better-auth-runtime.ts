@@ -273,6 +273,7 @@ const attachJoinedRows = async (
           operator: "in",
           value: joinValues,
           connector: "AND",
+          mode: "sensitive",
         },
       ],
       limit:

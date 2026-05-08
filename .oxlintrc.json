@@ -4,6 +4,9 @@
     "typeAware": true
   },
   "plugins": ["unicorn", "typescript", "oxc", "jest", "vitest"],
+  "rules": {
+    "vitest/require-mock-type-parameters": "off"
+  },
   "ignorePatterns": [
     ".github/**",
     ".wrangler/**",
@@ -16,7 +19,8 @@
     {
       "files": ["packages/lti/src/index.test.ts", "packages/validation/src/index.test.ts"],
       "rules": {
-        "jest/require-to-throw-message": "off"
+        "jest/require-to-throw-message": "off",
+        "vitest/require-to-throw-message": "off"
       }
     }
   ]
