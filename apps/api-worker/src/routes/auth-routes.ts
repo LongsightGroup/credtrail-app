@@ -669,6 +669,8 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
       tenantId,
       email: request.email,
       nextPath: request.nextPath,
+      preferredLocale: request.preferredLocale,
+      preferredTimeZone: request.preferredTimeZone,
     });
 
     if (c.env.APP_ENV === "development") {

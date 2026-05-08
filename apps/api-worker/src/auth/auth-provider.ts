@@ -13,6 +13,8 @@ export interface RequestMagicLinkInput {
   tenantId: string;
   email: string;
   nextPath?: string | undefined;
+  preferredLocale?: string | undefined;
+  preferredTimeZone?: string | undefined;
 }
 
 export interface RequestMagicLinkResult {

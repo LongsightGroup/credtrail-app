@@ -529,6 +529,18 @@ describe("magic link request parsers", () => {
     expect(request.nextPath).toBe("/auth/resolve");
   });
 
+  it("accepts browser date-time preferences for magic link email formatting", () => {
+    const request = parseMagicLinkRequest({
+      tenantId: "tenant_123",
+      email: "learner@example.edu",
+      preferredLocale: "en-US",
+      preferredTimeZone: "America/New_York",
+    });
+
+    expect(request.preferredLocale).toBe("en-US");
+    expect(request.preferredTimeZone).toBe("America/New_York");
+  });
+
   it("accepts email-only magic link requests for tenant discovery", () => {
     const request = parseMagicLinkRequest({
       email: "learner@example.edu",

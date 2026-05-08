@@ -602,6 +602,8 @@ describe("magic-link auth routes", () => {
         body: JSON.stringify({
           tenantId: "tenant_123",
           email: "learner@example.edu",
+          preferredLocale: "en-US",
+          preferredTimeZone: "America/New_York",
         }),
       },
       createEnv("development"),
@@ -644,6 +646,8 @@ describe("magic-link auth routes", () => {
         body: JSON.stringify({
           tenantId: "tenant_123",
           email: "learner@example.edu",
+          preferredLocale: "en-US",
+          preferredTimeZone: "America/New_York",
         }),
       },
       createEnv("production"),
@@ -661,6 +665,12 @@ describe("magic-link auth routes", () => {
   it("delegates hosted magic-link requests to Better Auth for existing tenant members", async () => {
     const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
 
+    const requestBody = {
+      tenantId: "tenant_123",
+      email: "learner@example.edu",
+      preferredLocale: "en-US",
+      preferredTimeZone: "America/New_York",
+    };
     const response = await isolatedApp.request(
       "/v1/auth/magic-link/request",
       {
@@ -668,10 +678,7 @@ describe("magic-link auth routes", () => {
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({
-          tenantId: "tenant_123",
-          email: "learner@example.edu",
-        }),
+        body: JSON.stringify(requestBody),
       },
       createEnv("development"),
     );
@@ -703,6 +710,8 @@ describe("magic-link auth routes", () => {
       expect.objectContaining({
         tenantId: "tenant_123",
         email: "learner@example.edu",
+        preferredLocale: "en-US",
+        preferredTimeZone: "America/New_York",
       }),
     );
   });

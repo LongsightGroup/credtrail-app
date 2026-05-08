@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { sendMagicLinkEmailNotification } from "./send-magic-link-email";
+import { formatMagicLinkExpiry, sendMagicLinkEmailNotification } from "./send-magic-link-email";
 
 const createEmailBinding = (): { emailBinding: SendEmail; send: ReturnType<typeof vi.fn> } => {
   const send = vi.fn(async () => {
@@ -25,6 +25,8 @@ describe("sendMagicLinkEmailNotification", () => {
       tenantId: "tenant_123",
       magicLinkUrl: "https://credtrail.test/auth/magic-link/verify?token=test-token",
       expiresAtIso: "2026-02-18T01:00:00.000Z",
+      preferredLocale: "en-US",
+      preferredTimeZone: "America/New_York",
     });
 
     expect(send).toHaveBeenCalledWith(
@@ -43,6 +45,31 @@ describe("sendMagicLinkEmailNotification", () => {
         },
       }),
     );
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining("Organization: tenant_123"),
+      }),
+    );
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining("Expires: Feb 17, 2026, 8:00 PM EST"),
+      }),
+    );
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.not.stringContaining("Expires at: 2026-02-18T01:00:00.000Z"),
+      }),
+    );
+  });
+
+  it("formats expiry timestamps with a UTC fallback when preferences are invalid", () => {
+    expect(
+      formatMagicLinkExpiry({
+        expiresAtIso: "2026-02-18T01:00:00.000Z",
+        preferredLocale: "not a locale",
+        preferredTimeZone: "not/a-zone",
+      }),
+    ).toBe("Feb 18, 2026, 1:00 AM UTC");
   });
 
   it("skips sending when the Cloudflare Email binding is missing", async () => {

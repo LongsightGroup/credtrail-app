@@ -1387,6 +1387,8 @@ export const adminAuditLogListQuerySchema = z.object({
 export const magicLinkRequestSchema = z.object({
   tenantId: tenantIdSchema.optional(),
   email: z.string().email(),
+  preferredLocale: z.string().trim().min(1).max(64).optional(),
+  preferredTimeZone: z.string().trim().min(1).max(128).optional(),
   nextPath: z
     .string()
     .trim()

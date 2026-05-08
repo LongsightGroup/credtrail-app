@@ -457,6 +457,8 @@ const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindings>({
             tenantId: input.tenantId,
             magicLinkUrl: debugMagicLinkUrl,
             expiresAtIso: expiresAt,
+            preferredLocale: input.preferredLocale,
+            preferredTimeZone: input.preferredTimeZone,
           });
           deliveryStatus = "sent";
         } catch {

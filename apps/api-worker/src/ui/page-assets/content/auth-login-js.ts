@@ -42,6 +42,34 @@ export const AUTH_LOGIN_JS = `
     }
   };
 
+  const browserDateTimePreference = () => {
+    let preferredLocale = '';
+    let preferredTimeZone = '';
+
+    if (Array.isArray(navigator.languages) && typeof navigator.languages[0] === 'string') {
+      preferredLocale = navigator.languages[0];
+    } else if (typeof navigator.language === 'string') {
+      preferredLocale = navigator.language;
+    }
+
+    try {
+      if (typeof Intl === 'object' && typeof Intl.DateTimeFormat === 'function') {
+        const resolved = Intl.DateTimeFormat().resolvedOptions();
+
+        if (typeof resolved.timeZone === 'string') {
+          preferredTimeZone = resolved.timeZone;
+        }
+      }
+    } catch {
+      preferredTimeZone = '';
+    }
+
+    return {
+      preferredLocale,
+      preferredTimeZone,
+    };
+  };
+
   const clearTenantSelection = () => {
     if (tenantOptionsEl instanceof HTMLElement) {
       tenantOptionsEl.replaceChildren();
@@ -116,6 +144,7 @@ export const AUTH_LOGIN_JS = `
     const email = typeof emailRaw === 'string' ? emailRaw.trim().toLowerCase() : '';
     const next = typeof nextRaw === 'string' ? nextRaw.trim() : '';
     const turnstileToken = typeof turnstileRaw === 'string' ? turnstileRaw.trim() : '';
+    const { preferredLocale, preferredTimeZone } = browserDateTimePreference();
 
     if (email.length === 0) {
       setStatus('Enter your institution email.', 'error');
@@ -134,6 +163,8 @@ export const AUTH_LOGIN_JS = `
           ...(tenantId.length === 0 ? {} : { tenantId }),
           ...(next.length > 0 && next.startsWith('/') ? { nextPath: next } : {}),
           ...(turnstileToken.length === 0 ? {} : { turnstileToken }),
+          ...(preferredLocale.length === 0 ? {} : { preferredLocale }),
+          ...(preferredTimeZone.length === 0 ? {} : { preferredTimeZone }),
         }),
       });
       const payload = await response.json().catch(() => null);
