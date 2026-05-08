@@ -161,7 +161,7 @@ Migration sequence for each page:
 
 1. Replace hard-coded colors with semantic tokens.
 2. Replace custom spacing/radius values with scale tokens where possible.
-3. Ensure Shoelace theme vars still map correctly.
+3. Ensure shared theme variables still map correctly.
 4. Capture before/after screenshots for visual regression review.
 
 This keeps shipping velocity while converging on a cohesive design language.

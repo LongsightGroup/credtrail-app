@@ -10,7 +10,7 @@ This file defines execution standards for humans and coding agents working in th
 - Data: Postgres.
 - Object storage: Cloudflare R2.
 - Async jobs: DB-backed job messages in Postgres.
-- UI: server-rendered HTML + htmx + Shoelace.
+- UI: server-rendered HTML + htmx.
 - React is out of scope for v1.
 - Standards scope: Open Badges 3.0 only.
 - Architecture policy: single-path implementation in v1. No dual runtimes, no parallel frameworks, no "either/or" code paths for the same capability.

@@ -41,7 +41,7 @@ Example pages using this pattern:
 
 Shared foundation asset:
 
-- `foundationCss` provides design tokens, Shoelace theme variable mapping, and layout utility classes:
+- `foundationCss` provides design tokens and layout utility classes:
   - `.ct-stack`
   - `.ct-cluster`
   - `.ct-grid`
