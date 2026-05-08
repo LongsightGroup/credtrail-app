@@ -1267,11 +1267,11 @@ export const INSTITUTION_ADMIN_CSS = `
   grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
   align-items: end;
 }
-.ct-admin__member-add {
+.ct-admin__add-disclosure {
   padding: 0;
   overflow: hidden;
 }
-.ct-admin__member-add-summary {
+.ct-admin__add-disclosure-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1280,27 +1280,27 @@ export const INSTITUTION_ADMIN_CSS = `
   cursor: pointer;
   list-style: none;
 }
-.ct-admin__member-add-summary::-webkit-details-marker {
+.ct-admin__add-disclosure-summary::-webkit-details-marker {
   display: none;
 }
-.ct-admin__member-add-summary strong,
-.ct-admin__member-add-summary small {
+.ct-admin__add-disclosure-summary strong,
+.ct-admin__add-disclosure-summary small {
   display: block;
 }
-.ct-admin__member-add-summary strong {
+.ct-admin__add-disclosure-summary strong {
   color: var(--ct-theme-text-title);
   font-family: var(--ct-font-sans);
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: 0;
 }
-.ct-admin__member-add-summary small {
+.ct-admin__add-disclosure-summary small {
   max-width: 68ch;
   color: var(--ct-theme-text-muted);
   font-size: 0.86rem;
   line-height: 1.45;
 }
-.ct-admin__member-add-control {
+.ct-admin__add-disclosure-control {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1319,33 +1319,47 @@ export const INSTITUTION_ADMIN_CSS = `
     border-color var(--ct-duration-fast) var(--ct-ease-standard),
     color var(--ct-duration-fast) var(--ct-ease-standard);
 }
-.ct-admin__member-add[open] .ct-admin__member-add-control {
+.ct-admin__add-disclosure[open] .ct-admin__add-disclosure-control {
   background: var(--ct-theme-surface-soft);
 }
-.ct-admin__member-add-summary:hover .ct-admin__member-add-control {
+.ct-admin__add-disclosure-summary:hover .ct-admin__add-disclosure-control {
   border-color: var(--ct-border-strong);
   color: var(--ct-theme-text-title);
 }
-.ct-admin__member-add-control-close {
+.ct-admin__add-disclosure-control-close {
   display: none;
 }
-.ct-admin__member-add[open] .ct-admin__member-add-control-open {
+.ct-admin__add-disclosure[open] .ct-admin__add-disclosure-control-open {
   display: none;
 }
-.ct-admin__member-add[open] .ct-admin__member-add-control-close {
+.ct-admin__add-disclosure[open] .ct-admin__add-disclosure-control-close {
   display: inline;
 }
-.ct-admin__member-add-form.ct-grid {
+.ct-admin__add-disclosure-form.ct-grid {
   --ct-grid-gap: var(--ct-space-3);
-  grid-template-columns: minmax(16rem, 2fr) minmax(10rem, 0.9fr) minmax(12rem, max-content) auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
   align-items: end;
   padding: 0 var(--ct-space-4) var(--ct-space-4);
 }
-.ct-admin__member-add-form .ct-admin__checkbox-row {
+.ct-admin__add-disclosure-form--member.ct-grid {
+  grid-template-columns: minmax(16rem, 2fr) minmax(10rem, 0.9fr) minmax(12rem, max-content) auto;
+}
+.ct-admin__add-disclosure-form--api-key.ct-grid {
+  grid-template-columns: minmax(14rem, 1fr) minmax(18rem, 1.4fr) auto;
+}
+.ct-admin__add-disclosure-form--org-unit.ct-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+}
+.ct-admin__add-disclosure-form .ct-admin__checkbox-row {
   min-height: 2.75rem;
   align-items: center;
 }
-.ct-admin__member-add > .ct-admin__status {
+.ct-admin__add-disclosure > .ct-admin__hint {
+  margin: 0;
+  padding: 0 var(--ct-space-4) var(--ct-space-3);
+}
+.ct-admin__add-disclosure > .ct-admin__status,
+.ct-admin__add-disclosure > .ct-admin__secret {
   margin: 0;
   padding: 0 var(--ct-space-4) var(--ct-space-4);
 }
@@ -2121,13 +2135,29 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__members-table .ct-admin__table {
   min-width: 980px;
 }
+.ct-admin__api-keys-table .ct-admin__table,
+.ct-admin__org-units-table .ct-admin__table {
+  min-width: 760px;
+}
 .ct-admin__members-table .ct-admin__table th:first-child,
 .ct-admin__members-table .ct-admin__table td:first-child {
   width: 32%;
 }
+.ct-admin__api-keys-table .ct-admin__table th:first-child,
+.ct-admin__api-keys-table .ct-admin__table td:first-child {
+  width: 28%;
+}
+.ct-admin__org-units-table .ct-admin__table th:nth-child(3),
+.ct-admin__org-units-table .ct-admin__table td:nth-child(3) {
+  width: 42%;
+}
 .ct-admin__members-table .ct-admin__table th:last-child,
 .ct-admin__members-table .ct-admin__table td:last-child {
   width: 13rem;
+}
+.ct-admin__api-keys-table .ct-admin__table th:last-child,
+.ct-admin__api-keys-table .ct-admin__table td:last-child {
+  width: 9rem;
 }
 .ct-admin__members-table select {
   min-width: 6.8rem;
@@ -2338,7 +2368,7 @@ export const INSTITUTION_ADMIN_CSS = `
 /* ── Responsive breakpoints ── */
 @media (max-width: 780px) {
   .ct-admin__form--inline.ct-grid,
-  .ct-admin__member-add-form.ct-grid,
+  .ct-admin__add-disclosure-form.ct-grid,
   .ct-admin__builder-grid.ct-grid,
   .ct-admin__condition-fields.ct-grid,
   .ct-admin__condition-header-fields.ct-grid,
@@ -2361,16 +2391,16 @@ export const INSTITUTION_ADMIN_CSS = `
     justify-items: stretch;
   }
 
-  .ct-admin__member-add-summary {
+  .ct-admin__add-disclosure-summary {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .ct-admin__member-add-control {
+  .ct-admin__add-disclosure-control {
     width: 100%;
   }
 
-  .ct-admin__member-add-control,
+  .ct-admin__add-disclosure-control,
   .ct-admin__form button,
   .ct-admin__button,
   .ct-admin__button--tiny,

@@ -2520,7 +2520,7 @@ describe("GET /tenants/:tenantId/admin/access/members", () => {
     expect(response.status).toBe(200);
     expect(body).toContain("Members");
     expect(body).toContain("Add colleagues");
-    expect(body).toContain('<details class="ct-admin__panel ct-admin__member-add">');
+    expect(body).toContain('<details class="ct-admin__panel ct-admin__add-disclosure">');
     expect(body).toContain("Open form");
     expect(body).toContain('id="tenant-member-form"');
     expect(body).toContain('name="email"');
@@ -2561,8 +2561,17 @@ describe("GET /tenants/:tenantId/admin/access/api-keys", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("API Keys");
+    expect(body).toContain(
+      '<details id="api-key-panel" class="ct-admin__panel ct-admin__add-disclosure">',
+    );
+    expect(body).toContain("Open form");
+    expect(body).toContain("Hide form");
     expect(body).toContain('id="api-key-form"');
+    expect(body).toContain("Create API key");
     expect(body).toContain("Active API Keys (1)");
+    expect(body).toContain(
+      'class="ct-admin__panel ct-admin__panel--table ct-admin__api-keys-table ct-stack"',
+    );
     expect(body).not.toContain('id="org-unit-form"');
     expect(body).not.toContain('id="membership-scope-form"');
   });
@@ -2585,8 +2594,17 @@ describe("GET /tenants/:tenantId/admin/access/org-units", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("Org Units");
+    expect(body).toContain(
+      '<details id="org-unit-panel" class="ct-admin__panel ct-admin__add-disclosure">',
+    );
+    expect(body).toContain("Open form");
+    expect(body).toContain("Hide form");
     expect(body).toContain('id="org-unit-form"');
+    expect(body).toContain("Create org unit");
     expect(body).toContain("Org Units (");
+    expect(body).toContain(
+      'class="ct-admin__panel ct-admin__panel--table ct-admin__org-units-table ct-stack"',
+    );
     expect(body).not.toContain('id="api-key-form"');
     expect(body).not.toContain('id="membership-scope-form"');
   });

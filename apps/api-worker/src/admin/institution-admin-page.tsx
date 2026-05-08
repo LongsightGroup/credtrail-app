@@ -3184,11 +3184,26 @@ const renderInstitutionAdminPage = (
     </article>
   );
 
+  const addDisclosureControlMarkup = (
+    <span class="ct-admin__add-disclosure-control">
+      <span class="ct-admin__add-disclosure-control-open">Open form</span>
+      <span class="ct-admin__add-disclosure-control-close">Hide form</span>
+    </span>
+  );
+
   const apiKeyPanelMarkup = (
-    <article id="api-key-panel" class="ct-admin__panel ct-stack">
-      <h2>Create Tenant API Key</h2>
-      <p>Create a scoped key and reveal the secret once.</p>
-      <form id="api-key-form" class="ct-admin__form ct-stack">
+    <details id="api-key-panel" class="ct-admin__panel ct-admin__add-disclosure">
+      <summary class="ct-admin__add-disclosure-summary">
+        <span>
+          <strong>Create API key</strong>
+          <small>Create a scoped key and reveal the secret once.</small>
+        </span>
+        {addDisclosureControlMarkup}
+      </summary>
+      <form
+        id="api-key-form"
+        class="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--api-key ct-grid"
+      >
         <label>
           Label
           <input name="label" type="text" required value="Institution integration key" />
@@ -3201,17 +3216,25 @@ const renderInstitutionAdminPage = (
       </form>
       <p id="api-key-status" class="ct-admin__status"></p>
       <pre id="api-key-secret" class="ct-admin__secret" hidden></pre>
-    </article>
+    </details>
   );
 
   const orgUnitPanelMarkup = (
-    <article id="org-unit-panel" class="ct-admin__panel ct-stack">
-      <h2>Create Org Unit</h2>
-      <p>Add college, department, program, or institution hierarchy from this workspace.</p>
+    <details id="org-unit-panel" class="ct-admin__panel ct-admin__add-disclosure">
+      <summary class="ct-admin__add-disclosure-summary">
+        <span>
+          <strong>Create org unit</strong>
+          <small>Add college, department, program, or institution hierarchy.</small>
+        </span>
+        {addDisclosureControlMarkup}
+      </summary>
       <p class="ct-admin__hint">
         Hierarchy: college → institution, department → college, program → department.
       </p>
-      <form id="org-unit-form" class="ct-admin__form ct-stack">
+      <form
+        id="org-unit-form"
+        class="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--org-unit ct-grid"
+      >
         <label>
           Unit type
           <select name="unitType" required>
@@ -3239,7 +3262,7 @@ const renderInstitutionAdminPage = (
         <button type="submit">Create org unit</button>
       </form>
       <p id="org-unit-status" class="ct-admin__status"></p>
-    </article>
+    </details>
   );
 
   const governanceGuidePanelMarkup = (
@@ -3267,18 +3290,18 @@ const renderInstitutionAdminPage = (
     <option value={role}>{role}</option>
   ));
   const tenantMembersPanelMarkup = (
-    <details class="ct-admin__panel ct-admin__member-add">
-      <summary class="ct-admin__member-add-summary">
+    <details class="ct-admin__panel ct-admin__add-disclosure">
+      <summary class="ct-admin__add-disclosure-summary">
         <span>
           <strong>Add member</strong>
           <small>Add a colleague by institution email and assign their tenant-level role.</small>
         </span>
-        <span class="ct-admin__member-add-control">
-          <span class="ct-admin__member-add-control-open">Open form</span>
-          <span class="ct-admin__member-add-control-close">Hide form</span>
-        </span>
+        {addDisclosureControlMarkup}
       </summary>
-      <form id="tenant-member-form" class="ct-admin__form ct-admin__member-add-form ct-grid">
+      <form
+        id="tenant-member-form"
+        class="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--member ct-grid"
+      >
         <label>
           Institution email
           <input name="email" type="email" required placeholder="colleague@institution.edu" />
@@ -4225,7 +4248,7 @@ const renderInstitutionAdminPage = (
   );
 
   const orgUnitsTableMarkup = (
-    <article class="ct-admin__panel ct-admin__panel--table ct-stack">
+    <article class="ct-admin__panel ct-admin__panel--table ct-admin__org-units-table ct-stack">
       <h2>Org Units ({orgUnitCount})</h2>
       <div class="ct-admin__table-wrap">
         <table class="ct-admin__table">
@@ -4244,7 +4267,7 @@ const renderInstitutionAdminPage = (
   );
 
   const apiKeysTableMarkup = (
-    <article class="ct-admin__panel ct-admin__panel--table ct-stack">
+    <article class="ct-admin__panel ct-admin__panel--table ct-admin__api-keys-table ct-stack">
       <h2>Active API Keys ({activeApiKeyCount})</h2>
       <p>Revoked keys: {revokedApiKeyCount}</p>
       <div class="ct-admin__table-wrap">
@@ -5000,10 +5023,8 @@ const renderInstitutionAdminPage = (
           <>
             {renderPageHeader("API Keys", "Create, review, and revoke tenant API keys.")}
             <section class="ct-admin ct-stack">
-              <section class="ct-admin__layout ct-grid ct-grid--sidebar">
-                <div class="ct-admin__grid ct-stack">{apiKeyPanelMarkup}</div>
-                <div class="ct-admin__grid ct-stack">{apiKeysTableMarkup}</div>
-              </section>
+              {apiKeyPanelMarkup}
+              {apiKeysTableMarkup}
             </section>
           </>
         );
@@ -5012,10 +5033,8 @@ const renderInstitutionAdminPage = (
           <>
             {renderPageHeader("Org Units", "Create and review org structure.")}
             <section class="ct-admin ct-stack">
-              <section class="ct-admin__layout ct-grid ct-grid--sidebar">
-                <div class="ct-admin__grid ct-stack">{orgUnitPanelMarkup}</div>
-                <div class="ct-admin__grid ct-stack">{orgUnitsTableMarkup}</div>
-              </section>
+              {orgUnitPanelMarkup}
+              {orgUnitsTableMarkup}
             </section>
           </>
         );
