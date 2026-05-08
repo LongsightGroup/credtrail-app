@@ -344,12 +344,13 @@ describe("magic-link auth routes", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/html");
-    expect(body).toContain("Sign in to your institution");
-    expect(body).toContain("Email me a sign-in link");
-    expect(body).toContain("The link expires in 10 minutes and returns you to this tenant flow.");
+    expect(body).toContain("Sign in with your institution email");
+    expect(body).toContain("Email sign-in");
+    expect(body).toContain("Sign-in links expire in 10 minutes.");
     expect(body).toContain('id="magic-link-login-form"');
     expect(body).toContain('name="tenantId"');
     expect(body).toContain('value="sakai"');
+    expect(body).not.toContain("Tenant ID");
     expect(body).toContain("ct-login__context");
     expect(body).toContain("/assets/ui/foundation.");
     expect(body).not.toContain(".ct-login__hero {");
@@ -365,6 +366,18 @@ describe("magic-link auth routes", () => {
     expect(scriptResponse.status).toBe(200);
     expect(scriptResponse.headers.get("content-type")).toContain("text/javascript");
     expect(scriptResponse.headers.get("cache-control")).toContain("immutable");
+  });
+
+  it("renders email-first login without a visible tenant field", async () => {
+    const response = await app.request("/login", undefined, createEnv("production"));
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Sign in with your institution email");
+    expect(body).toContain('id="magic-link-login-tenant"');
+    expect(body).toContain('type="hidden"');
+    expect(body).not.toContain("Tenant ID");
+    expect(body).not.toContain('placeholder="sakai"');
   });
 
   it("redirects sso_required tenant login pages into the default enterprise provider flow", async () => {
@@ -692,6 +705,106 @@ describe("magic-link auth routes", () => {
         email: "learner@example.edu",
       }),
     );
+  });
+
+  it("infers the organization for email-only magic-link requests when the user has one membership", async () => {
+    const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
+
+    const response = await isolatedApp.request(
+      "/v1/auth/magic-link/request",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "learner@example.edu",
+          nextPath: "/auth/resolve",
+        }),
+      },
+      createEnv("development"),
+    );
+    const body = await response.json<{
+      status: string;
+      tenantId: string;
+      email: string;
+    }>();
+
+    expect(response.status).toBe(202);
+    expect(body.status).toBe("sent");
+    expect(body.tenantId).toBe("tenant_123");
+    expect(body.email).toBe("learner@example.edu");
+    expect(mockedFindTenantMembership).not.toHaveBeenCalled();
+    expect(mockedListAccessibleTenantContextsForUser).toHaveBeenCalledWith(fakeDb, "usr_123");
+    expect(betterAuthProvider.requestMagicLink).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        email: "learner@example.edu",
+        nextPath: "/auth/resolve",
+      }),
+    );
+  });
+
+  it("asks email-only users to choose an organization when multiple memberships exist", async () => {
+    mockedListAccessibleTenantContextsForUser.mockResolvedValue([
+      {
+        tenantId: "tenant_123",
+        tenantSlug: "tenant-123",
+        tenantDisplayName: "Tenant 123",
+        tenantPlanTier: "team",
+        membershipRole: "viewer",
+      },
+      {
+        tenantId: "tenant_456",
+        tenantSlug: "tenant-456",
+        tenantDisplayName: "Tenant 456",
+        tenantPlanTier: "enterprise",
+        membershipRole: "admin",
+      },
+    ]);
+    const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
+
+    const response = await isolatedApp.request(
+      "/v1/auth/magic-link/request",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "learner@example.edu",
+        }),
+      },
+      createEnv("production"),
+    );
+    const body = await response.json<{
+      status: string;
+      organizations: {
+        tenantId: string;
+        label: string;
+        roleLabel: string;
+      }[];
+    }>();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      status: "tenant_selection_required",
+      email: "learner@example.edu",
+      organizations: [
+        {
+          tenantId: "tenant_123",
+          label: "Tenant 123",
+          roleLabel: "Viewer",
+        },
+        {
+          tenantId: "tenant_456",
+          label: "Tenant 456",
+          roleLabel: "Admin",
+        },
+      ],
+    });
+    expect(betterAuthProvider.requestMagicLink).not.toHaveBeenCalled();
   });
 
   it("accepts unknown magic-link emails without sending or creating accounts", async () => {
@@ -1102,7 +1215,7 @@ describe("magic-link auth routes", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Choose an organization");
+    expect(body).toContain("Choose your institution");
     expect(body).toContain("Tenant 123");
     expect(body).toContain("Tenant 456");
     expect(body).toContain("Current");

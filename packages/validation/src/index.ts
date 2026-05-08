@@ -1384,8 +1384,17 @@ export const adminAuditLogListQuerySchema = z.object({
 });
 
 export const magicLinkRequestSchema = z.object({
-  tenantId: tenantIdSchema,
+  tenantId: tenantIdSchema.optional(),
   email: z.string().email(),
+  nextPath: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2048)
+    .refine((value) => value.startsWith("/"), {
+      message: "nextPath must be a site-relative path",
+    })
+    .optional(),
   turnstileToken: z.string().trim().min(1).max(2048).optional(),
 });
 

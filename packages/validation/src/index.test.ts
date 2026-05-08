@@ -521,8 +521,20 @@ describe("magic link request parsers", () => {
     const request = parseMagicLinkRequest({
       tenantId: "tenant_123",
       email: "learner@example.edu",
+      nextPath: "/auth/resolve",
     });
 
+    expect(request.tenantId).toBe("tenant_123");
+    expect(request.email).toBe("learner@example.edu");
+    expect(request.nextPath).toBe("/auth/resolve");
+  });
+
+  it("accepts email-only magic link requests for tenant discovery", () => {
+    const request = parseMagicLinkRequest({
+      email: "learner@example.edu",
+    });
+
+    expect(request.tenantId).toBeUndefined();
     expect(request.email).toBe("learner@example.edu");
   });
 

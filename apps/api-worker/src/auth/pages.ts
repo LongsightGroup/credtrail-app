@@ -40,7 +40,7 @@ export const magicLinkLoginPage = (input: {
       ? ""
       : `<p class="ct-login__context">
           ${input.reason === "auth_required" ? "Sign in required." : "Continue sign-in."}
-          You are opening <strong>${escapeHtml(adminTenantLabel)}</strong> institution admin. Use an email that already has access to this tenant.
+          You are opening <strong>${escapeHtml(adminTenantLabel)}</strong> institution admin. Use an email that already has access.
         </p>`;
   const tenantLinkHref =
     effectiveTenantId.length === 0 ? "/" : `/showcase/${encodeURIComponent(effectiveTenantId)}`;
@@ -80,7 +80,7 @@ export const magicLinkLoginPage = (input: {
       : `<section class="ct-stack" aria-labelledby="enterprise-sso-title">
           <h2 id="enterprise-sso-title" class="ct-login__form-title">Institution sign-in</h2>
           <p class="ct-login__form-text">
-            Continue through your institution identity provider. Your tenant administrator manages the hosted enterprise connection for this sign-in path.
+            Continue through your institution identity provider. Your administrator manages this hosted enterprise connection.
           </p>
           <div id="enterprise-sso-options" class="ct-stack">
             ${enterpriseProviders
@@ -95,27 +95,28 @@ export const magicLinkLoginPage = (input: {
   const localLoginMarkup = !localLoginAllowed
     ? ""
     : `<section class="ct-stack" aria-labelledby="magic-link-login-title">
-          <h2 id="magic-link-login-title" class="ct-login__form-title">Email me a sign-in link</h2>
+          <h2 id="magic-link-login-title" class="ct-login__form-title">Email sign-in</h2>
           <p class="ct-login__form-text">
-            Enter your tenant ID and institution email. We will send a one-time link from CredTrail.
+            Use the email your institution already has on file. CredTrail will send one secure link.
           </p>
           ${accessContextNotice}
           <form id="magic-link-login-form" class="ct-login__form ct-stack">
-            <label class="ct-login__field ct-stack">
-              <span>Tenant ID</span>
-              <input name="tenantId" type="text" required value="${escapeHtml(effectiveTenantId)}" placeholder="sakai" />
-            </label>
+            <input id="magic-link-login-tenant" name="tenantId" type="hidden" value="${escapeHtml(effectiveTenantId)}" />
             <label class="ct-login__field ct-stack">
               <span>Institution email</span>
               <span class="ct-login__field-help">Use the email your institution already uses for CredTrail access.</span>
               <input name="email" type="email" required placeholder="name@institution.edu" />
             </label>
+            <div id="magic-link-tenant-selection" class="ct-login__tenant-selection ct-stack" hidden>
+              <p class="ct-login__tenant-selection-title">Choose your institution</p>
+              <div id="magic-link-tenant-options" class="ct-login__tenant-options"></div>
+            </div>
             <input name="next" type="hidden" value="${escapeHtml(input.nextPath)}" />
             ${turnstileMarkup}
-            <button type="submit" class="ct-login__submit">Send sign-in link</button>
+            <button type="submit" class="ct-login__submit">Continue</button>
           </form>
           <p class="ct-login__help">
-            The link expires in 10 minutes and returns you to this tenant flow.
+            Sign-in links expire in 10 minutes.
           </p>
           <p id="magic-link-login-status" class="ct-login__status" hidden></p>
           <p id="magic-link-dev-link" class="ct-login__dev"></p>
@@ -125,22 +126,34 @@ export const magicLinkLoginPage = (input: {
       ? ""
       : `<p class="ct-login__help">
           Institution SSO is required for normal access.
-          If your tenant administrator designated your account for emergency fallback access, use
+          If your institution administrator designated your account for emergency fallback access, use
           <a href="${escapeHtml(explicitLocalLoginPath)}">break-glass local sign-in</a>.
         </p>`;
   const loginIntroText =
     enterpriseProviders.length > 0
       ? localLoginAllowed
         ? "Choose your institution sign-in or request a hosted CredTrail sign-in link."
-        : "Continue with your institution sign-in to open this CredTrail tenant."
-      : "Enter your tenant ID and institution email. CredTrail will email you a secure sign-in link.";
+        : "Continue with your institution sign-in to open CredTrail."
+      : "Sign in with your institution email. CredTrail will route you to the right organization.";
   return renderPageShell(
     "Sign In · CredTrail",
     `<section class="ct-login ct-stack">
-      <div class="ct-login__card">
+      <div class="ct-login__card ct-login__card--split">
+        <div class="ct-login__record-panel" aria-hidden="true">
+          <p class="ct-login__record-kicker">Verified access</p>
+          <div class="ct-login__record-mark">
+            <span></span>
+          </div>
+          <div class="ct-login__record-lines">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <p class="ct-login__record-caption">Open Badges 3.0 credential infrastructure</p>
+        </div>
         <div class="ct-login__header">
           <p class="ct-login__brand">CredTrail</p>
-          <h1 class="ct-login__title">Sign in to your institution</h1>
+          <h1 class="ct-login__title">Sign in with your institution email</h1>
           <p class="ct-login__lede">${loginIntroText}</p>
         </div>
         <div class="ct-login__form-wrap ct-stack">
@@ -157,6 +170,7 @@ export const magicLinkLoginPage = (input: {
     </section>`,
     `${renderPageAssetTags(["foundationCss", "authLoginCss", "authLoginJs"])}
     ${turnstileScript}`,
+    "open",
   );
 };
 
@@ -178,13 +192,13 @@ export const organizationChooserPage = (input: {
             ${isCurrent ? '<span class="ct-login__organization-current">Current</span>' : ""}
           </p>
           <p class="ct-login__organization-meta">
-            ${escapeHtml(organization.tenantId)} · ${escapeHtml(roleLabel)} · ${escapeHtml(organization.tenantPlanTier)}
+            ${escapeHtml(roleLabel)} access · ${escapeHtml(organization.tenantPlanTier)}
           </p>
         </div>
         <form method="post" action="/account/organizations/select">
           <input type="hidden" name="tenantId" value="${escapeHtml(organization.tenantId)}" />
           <input type="hidden" name="next" value="${escapeHtml(input.nextPath)}" />
-          <button type="submit" class="ct-login__submit">${isCurrent ? "Reopen tenant" : "Open tenant"}</button>
+          <button type="submit" class="ct-login__submit">${isCurrent ? "Reopen" : "Continue"}</button>
         </form>
       </li>`;
     })
@@ -196,8 +210,8 @@ export const organizationChooserPage = (input: {
       <div class="ct-login__card">
         <div class="ct-login__header">
           <p class="ct-login__brand">CredTrail</p>
-          <h1 class="ct-login__title">Choose an organization</h1>
-          <p class="ct-login__lede">Your account has access to more than one tenant. Select the organization to open.</p>
+          <h1 class="ct-login__title">Choose your institution</h1>
+          <p class="ct-login__lede">Your account has access to more than one organization. Select where to continue.</p>
         </div>
         <div class="ct-login__form-wrap ct-stack">
           <section class="ct-stack" aria-labelledby="organization-chooser-title">
@@ -207,12 +221,13 @@ export const organizationChooserPage = (input: {
             </ul>
           </section>
           <p class="ct-login__help">
-            Need a different organization? Ask a tenant owner or administrator to grant your account access.
+            Need a different organization? Ask an owner or administrator to grant your account access.
           </p>
         </div>
       </div>
     </section>`,
     renderPageAssetTags(["foundationCss", "authLoginCss"]),
+    "open",
   );
 };
 
