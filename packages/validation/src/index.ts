@@ -17,18 +17,22 @@ export const queueJobTypeSchema = z.enum([
 
 export const idempotencyKeySchema = z.string().min(1).max(128);
 
-export const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
-  z.union([
-    z.string(),
-    z.number().finite(),
-    z.boolean(),
-    z.null(),
-    z.array(jsonValueSchema),
-    z.record(jsonValueSchema),
-  ]),
+export const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(
+  () =>
+    z.union([
+      z.string(),
+      z.number().finite(),
+      z.boolean(),
+      z.null(),
+      z.array(jsonValueSchema),
+      z.record(z.string(), jsonValueSchema),
+    ]) as z.ZodType<JsonValue>,
 );
 
-export const jsonObjectSchema: z.ZodType<JsonObject> = z.record(jsonValueSchema);
+export const jsonObjectSchema: z.ZodType<JsonObject> = z.record(
+  z.string(),
+  jsonValueSchema,
+) as z.ZodType<JsonObject>;
 
 export const didWebSchema = z.string().startsWith("did:web:");
 
@@ -485,11 +489,16 @@ export const tenantReportingOverviewQuerySchema = z
 
 const tenantReportingEngagementQueryRangeSchema = <T extends z.ZodRawShape>(shape: T) => {
   return z.object(shape).superRefine((value, ctx) => {
-    if (value.from === undefined || value.to === undefined) {
+    const range = value as {
+      from?: string | undefined;
+      to?: string | undefined;
+    };
+
+    if (range.from === undefined || range.to === undefined) {
       return;
     }
 
-    if (value.from > value.to) {
+    if (range.from > range.to) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["to"],

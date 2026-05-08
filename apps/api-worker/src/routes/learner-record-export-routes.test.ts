@@ -74,9 +74,7 @@ const createEnv = () => {
   };
 };
 
-const sampleLearnerProfile = (
-  overrides?: Partial<LearnerProfileRecord>,
-): LearnerProfileRecord => {
+const sampleLearnerProfile = (overrides?: Partial<LearnerProfileRecord>): LearnerProfileRecord => {
   return {
     id: "lpr_123",
     tenantId: "tenant_123",
@@ -135,8 +133,7 @@ const sampleLearnerRecordEntry = (
     issuedAt: "2026-03-23T15:00:00.000Z",
     revisedAt: null,
     revokedAt: null,
-    evidenceLinksJson:
-      '["https://credtrail.example.edu/evidence/clinical-placement-seminar"]',
+    evidenceLinksJson: '["https://credtrail.example.edu/evidence/clinical-placement-seminar"]',
     detailsJson: '{"grade":"A"}',
     createdAt: "2026-03-23T15:00:00.000Z",
     updatedAt: "2026-03-23T15:00:00.000Z",

@@ -20,7 +20,11 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import { createBetterAuthRuntimeConfig } from "./better-auth-config";
-import { createBetterAuthProvider, resolveAuthenticatedPrincipal } from "./better-auth-adapter";
+import {
+  type BetterAuthAdapterInput,
+  createBetterAuthProvider,
+  resolveAuthenticatedPrincipal,
+} from "./better-auth-adapter";
 
 interface FakeBindings {
   APP_ENV?: string;
@@ -79,25 +83,11 @@ const createInput = (sessionOverride?: {
   authUserId?: string;
   email?: string | null;
   emailVerified?: boolean;
-}): {
-  resolveDatabase: () => SqlDatabase;
-  requestMagicLink: ReturnType<typeof vi.fn>;
-  resolveSession: () => Promise<{
-    sessionId: string;
-    accountId: string | null;
-    expiresAt: string;
-    user: {
-      id: string;
-      email: string | null;
-      emailVerified: boolean;
-    } | null;
-  }>;
-  revokeSession: ReturnType<typeof vi.fn>;
-} => {
+}): BetterAuthAdapterInput<FakeContext, FakeBindings> => {
   return {
     resolveDatabase: () => fakeDb,
-    requestMagicLink: vi.fn(() =>
-      Promise.resolve({
+    requestMagicLink: vi.fn<BetterAuthAdapterInput<FakeContext, FakeBindings>["requestMagicLink"]>(
+      async () => ({
         tenantId: "tenant_123",
         email: "student@example.edu",
         deliveryStatus: "sent" as const,
@@ -115,7 +105,9 @@ const createInput = (sessionOverride?: {
           emailVerified: sessionOverride?.emailVerified ?? true,
         },
       }),
-    revokeSession: vi.fn(() => Promise.resolve()),
+    revokeSession: vi.fn<BetterAuthAdapterInput<FakeContext, FakeBindings>["revokeSession"]>(
+      async () => {},
+    ),
   };
 };
 

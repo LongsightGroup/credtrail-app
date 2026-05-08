@@ -154,7 +154,9 @@ describe("admin learner-record import route", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("Learner-record import preview ready");
-    expect(body).toContain('action="/tenants/tenant_123/admin/operations/learner-record-imports/preview"');
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/operations/learner-record-imports/preview"',
+    );
     expect(body).not.toContain("/v1/tenants/tenant_123/learner-record-imports/csv");
   });
 });
@@ -564,8 +566,7 @@ beforeEach(() => {
       issuedAt: "2026-03-23T15:00:00.000Z",
       revisedAt: null,
       revokedAt: null,
-      evidenceLinksJson:
-        '["https://credtrail.example.edu/evidence/clinical-placement-seminar"]',
+      evidenceLinksJson: '["https://credtrail.example.edu/evidence/clinical-placement-seminar"]',
       detailsJson: '{"grade":"A"}',
       createdAt: "2026-03-23T15:00:00.000Z",
       updatedAt: "2026-03-23T15:00:00.000Z",
@@ -1365,14 +1366,11 @@ describe("tenant member management endpoints", () => {
       deliveryStatus: "sent",
       inviteKind: "magic_link",
     });
-    expect(betterAuthProvider.requestMagicLink).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        tenantId: "tenant_123",
-        email: "colleague@example.edu",
-        nextPath: "/auth/resolve",
-      },
-    );
+    expect(betterAuthProvider.requestMagicLink).toHaveBeenCalledWith(expect.anything(), {
+      tenantId: "tenant_123",
+      email: "colleague@example.edu",
+      nextPath: "/auth/resolve",
+    });
   });
 
   it("delivers member invites through SSO sign-in notices for SSO-required tenants", async () => {
@@ -1767,16 +1765,20 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(html).toContain("Issued totals stay visible beside each ranked rate row.");
     expect(html).toContain('class="ct-reporting-visual"');
     expect(html).toContain('data-reporting-visual-kind="comparison-bars"');
-    expect((html.match(/data-reporting-visual-kind="comparison-ranked"/g) ?? []).length).toBeGreaterThanOrEqual(
-      2,
-    );
+    expect(
+      (html.match(/data-reporting-visual-kind="comparison-ranked"/g) ?? []).length,
+    ).toBeGreaterThanOrEqual(2);
     expect(html).toContain('class="ct-reporting-visual__comparison-ranked-list"');
     expect(html).toContain('class="ct-reporting-visual__legend"');
     expect(html).toContain('class="ct-admin__reporting-panel-media"');
     expect(html).toContain("Current badge-state mix");
     expect(html).toContain("TypeScript Foundations");
     expect(html).toContain("14 public views · 40.0% claim · 20.0% share");
-    expect(html.match(/The table below keeps the full row set with exact counts and rate definitions\./g)).toHaveLength(2);
+    expect(
+      html.match(
+        /The table below keeps the full row set with exact counts and rate definitions\./g,
+      ),
+    ).toHaveLength(2);
     expect(html).toContain('data-reporting-bar-group="template-comparisons"');
     expect(html).toContain('data-reporting-bar-group="org-comparisons"');
     expect(html).toContain(
@@ -1787,7 +1789,9 @@ describe("org unit and badge ownership governance endpoints", () => {
     );
     expect(html.indexOf("Executive Summary")).toBeLessThan(html.indexOf("Export CSV"));
     expect(html.indexOf("Trend lines")).toBeLessThan(html.indexOf("Export CSV"));
-    expect(html.indexOf("Compare by badge template")).toBeLessThan(html.indexOf("Hierarchy drilldown"));
+    expect(html.indexOf("Compare by badge template")).toBeLessThan(
+      html.indexOf("Hierarchy drilldown"),
+    );
     expect(html.indexOf("Hierarchy drilldown")).toBeLessThan(html.indexOf("Performer panels"));
     expect(html.indexOf("Performer panels")).toBeLessThan(html.indexOf("Compare by org unit"));
     expect(html).not.toContain("Phase 10 product data");

@@ -169,9 +169,7 @@ const isHistoricalItem = (item: CanonicalLearnerRecordItem): boolean => {
   return item.status !== "active";
 };
 
-const mapPresentationItem = (
-  item: CanonicalLearnerRecordItem,
-): LearnerRecordPresentationItem => {
+const mapPresentationItem = (item: CanonicalLearnerRecordItem): LearnerRecordPresentationItem => {
   return {
     id: item.id,
     kind: item.kind,

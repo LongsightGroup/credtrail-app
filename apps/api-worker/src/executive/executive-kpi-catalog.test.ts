@@ -146,9 +146,7 @@ describe("buildExecutiveKpiCatalog", () => {
       comparisonLevel: "program",
     });
     expect(
-      catalog.modules.some(
-        (module) => module.kind === "top_movers" || module.kind === "laggards",
-      ),
+      catalog.modules.some((module) => module.kind === "top_movers" || module.kind === "laggards"),
     ).toBe(false);
   });
 });

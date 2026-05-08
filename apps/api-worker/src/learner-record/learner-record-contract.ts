@@ -76,7 +76,9 @@ export const learnerRecordDisplayTypeLabel = (recordType: LearnerRecordType): st
   return displayTypeLabelByType[recordType];
 };
 
-const parseLearnerRecordDetailsJson = (detailsJson: string | null): Record<string, unknown> | null => {
+const parseLearnerRecordDetailsJson = (
+  detailsJson: string | null,
+): Record<string, unknown> | null => {
   if (detailsJson === null) {
     return null;
   }

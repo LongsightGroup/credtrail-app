@@ -87,9 +87,7 @@ const sampleAuditLogRecord = (overrides?: Partial<AuditLogRecord>): AuditLogReco
   };
 };
 
-const sampleLearnerProfile = (
-  overrides?: Partial<LearnerProfileRecord>,
-): LearnerProfileRecord => {
+const sampleLearnerProfile = (overrides?: Partial<LearnerProfileRecord>): LearnerProfileRecord => {
   return {
     id: "lpr_123",
     tenantId: "tenant_123",

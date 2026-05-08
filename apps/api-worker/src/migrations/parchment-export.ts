@@ -427,15 +427,13 @@ const canonicalParchmentRowFromJson = (row: Record<string, unknown>): CanonicalP
   ]);
   const issuedAt = pickString(row, [["issued_on"], ["issued_at"], ["awarded_at"], ["issue_date"]]);
   const badgeClassId =
-    (badgeClass === undefined ? undefined : (asNonEmptyString(badgeClass.id) ?? undefined)) ??
+    (badgeClass === undefined ? undefined : asNonEmptyString(badgeClass.id)) ??
     pickString(row, [["badge_class_id"], ["badgeClassId"], ["badge_template_id"]]);
   const badgeClassName =
-    (badgeClass === undefined ? undefined : (asNonEmptyString(badgeClass.name) ?? undefined)) ??
+    (badgeClass === undefined ? undefined : asNonEmptyString(badgeClass.name)) ??
     pickString(row, [["badge_class_name"], ["badgeClassName"], ["badge_name"]]);
   const badgeClassDescription =
-    (badgeClass === undefined
-      ? undefined
-      : (asNonEmptyString(badgeClass.description) ?? undefined)) ??
+    (badgeClass === undefined ? undefined : asNonEmptyString(badgeClass.description)) ??
     pickString(row, [
       ["badge_class_description"],
       ["badgeClassDescription"],
@@ -456,13 +454,13 @@ const canonicalParchmentRowFromJson = (row: Record<string, unknown>): CanonicalP
       ["badge_criteria_url"],
     ]);
   const issuerId =
-    (issuerObject === undefined ? undefined : (asNonEmptyString(issuerObject.id) ?? undefined)) ??
+    (issuerObject === undefined ? undefined : asNonEmptyString(issuerObject.id)) ??
     pickString(row, [["issuer_id"], ["issuerId"]]);
   const issuerName =
-    (issuerObject === undefined ? undefined : (asNonEmptyString(issuerObject.name) ?? undefined)) ??
+    (issuerObject === undefined ? undefined : asNonEmptyString(issuerObject.name)) ??
     pickString(row, [["issuer_name"], ["issuerName"]]);
   const issuerUrl =
-    (issuerObject === undefined ? undefined : (asNonEmptyString(issuerObject.url) ?? undefined)) ??
+    (issuerObject === undefined ? undefined : asNonEmptyString(issuerObject.url)) ??
     pickString(row, [["issuer_url"], ["issuerUrl"]]);
   const assertionId = pickString(row, [["id"], ["assertion_id"], ["credential_id"]]);
   const evidenceUrl =

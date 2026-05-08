@@ -28,9 +28,9 @@ describe("seeded demo learner record fixture", () => {
     expect(seededDemoLearnerRecordFixture.routeFamily.standardsMapping).toContain(
       "profile=clr_alignment_json",
     );
-    expect(seededDemoLearnerRecordFixture.presentation.sections.map((section) => section.key)).toEqual(
-      ["issuerVerifiedActive", "supplementalActive", "historical"],
-    );
+    expect(
+      seededDemoLearnerRecordFixture.presentation.sections.map((section) => section.key),
+    ).toEqual(["issuerVerifiedActive", "supplementalActive", "historical"]);
     expect(seededDemoLearnerRecordFixture.nativePortableExport.counts).toEqual({
       totalItems: 4,
       badgeAssertions: 1,
@@ -74,22 +74,26 @@ describe("seeded demo learner record fixture", () => {
       expect(path).not.toContain("/showcase");
     }
 
-    expect(seededDemoLearnerRecordFixture.exportBundle.items.map((item) => item.trustLevel)).toEqual([
-      "issuer_verified",
-      "issuer_verified",
-      "learner_supplemental",
-      "issuer_verified",
-    ]);
+    expect(
+      seededDemoLearnerRecordFixture.exportBundle.items.map((item) => item.trustLevel),
+    ).toEqual(["issuer_verified", "issuer_verified", "learner_supplemental", "issuer_verified"]);
     expect(
       seededDemoLearnerRecordFixture.exportBundle.items.map((item) => item.provenance.sourceSystem),
     ).toEqual(
-      expect.arrayContaining(["badge_assertion", "credtrail_admin", "learner_self_reported", "csv_import"]),
+      expect.arrayContaining([
+        "badge_assertion",
+        "credtrail_admin",
+        "learner_self_reported",
+        "csv_import",
+      ]),
     );
     expect(seededDemoLearnerRecordFixture.standardsMappingResponse.itemCounts).toEqual(
       seededDemoLearnerRecordFixture.nativePortableExport.counts,
     );
-    expect(seededDemoLearnerRecordFixture.clrAlignedExport.records.every((record) => record.alignment.clr === "mapped")).toBe(
-      true,
-    );
+    expect(
+      seededDemoLearnerRecordFixture.clrAlignedExport.records.every(
+        (record) => record.alignment.clr === "mapped",
+      ),
+    ).toBe(true);
   });
 });

@@ -1,8 +1,4 @@
-import type {
-  AssertionRecord,
-  LearnerProfileRecord,
-  SqlDatabase,
-} from "@credtrail/db";
+import type { AssertionRecord, LearnerProfileRecord, SqlDatabase } from "@credtrail/db";
 import {
   findLearnerProfileById,
   listLearnerRecordAssertionExports,
@@ -125,15 +121,19 @@ export const LEARNER_RECORD_STANDARDS_MAPPING_CATALOG: LearnerRecordStandardsMap
     {
       framework: "ob3",
       label: "Open Badges 3.0",
-      summary: "Badge assertions are native where CredTrail already issues and verifies OB3 credentials.",
+      summary:
+        "Badge assertions are native where CredTrail already issues and verifies OB3 credentials.",
       fields: [
         createFieldSupport("id", "credential.id", "native", ["badge_assertion"]),
         createFieldSupport("title", "credential.credentialSubject.achievement.name", "native", [
           "badge_assertion",
         ]),
-        createFieldSupport("description", "credential.credentialSubject.achievement.description", "native", [
-          "badge_assertion",
-        ]),
+        createFieldSupport(
+          "description",
+          "credential.credentialSubject.achievement.description",
+          "native",
+          ["badge_assertion"],
+        ),
         createFieldSupport("publicBadgeId", "credential.credentialSubject.id", "native", [
           "badge_assertion",
         ]),
@@ -149,7 +149,8 @@ export const LEARNER_RECORD_STANDARDS_MAPPING_CATALOG: LearnerRecordStandardsMap
     {
       framework: "vc_did",
       label: "VC / DID",
-      summary: "Badge assertions already sit on VC-style and DID-backed product seams; non-badge entries remain mapped or unavailable.",
+      summary:
+        "Badge assertions already sit on VC-style and DID-backed product seams; non-badge entries remain mapped or unavailable.",
       fields: [
         createFieldSupport("id", "verifiableCredential.id", "native", ["badge_assertion"]),
         createFieldSupport("provenance.issuedAt", "issuanceDate", "native", ["badge_assertion"]),
@@ -166,31 +167,29 @@ export const LEARNER_RECORD_STANDARDS_MAPPING_CATALOG: LearnerRecordStandardsMap
     {
       framework: "clr",
       label: "CLR-aligned",
-      summary: "CredTrail can emit a structured CLR-aligned preview without claiming full CLR conformance.",
+      summary:
+        "CredTrail can emit a structured CLR-aligned preview without claiming full CLR conformance.",
       fields: [
         createFieldSupport("learnerProfileId", "learner.identifier", "mapped", [
           "badge_assertion",
           "record_entry",
         ]),
         createFieldSupport("title", "records.title", "mapped", ["badge_assertion", "record_entry"]),
-        createFieldSupport(
-          "provenance.issuedAt",
-          "records.awardedOn",
-          "mapped",
-          ["badge_assertion", "record_entry"],
-        ),
-        createFieldSupport(
-          "provenance.evidenceLinks",
-          "records.evidence",
-          "mapped",
-          ["badge_assertion", "record_entry"],
-        ),
+        createFieldSupport("provenance.issuedAt", "records.awardedOn", "mapped", [
+          "badge_assertion",
+          "record_entry",
+        ]),
+        createFieldSupport("provenance.evidenceLinks", "records.evidence", "mapped", [
+          "badge_assertion",
+          "record_entry",
+        ]),
       ],
     },
     {
       framework: "pesc",
       label: "PESC-aligned",
-      summary: "Initial field-level mapping only; no registrar-grade PESC exchange claim is made in Phase 27.",
+      summary:
+        "Initial field-level mapping only; no registrar-grade PESC exchange claim is made in Phase 27.",
       fields: [
         createFieldSupport("title", "academicRecord.recordTitle", "mapped", [
           "badge_assertion",
@@ -412,7 +411,9 @@ export const loadLearnerRecordExportBundle = async (
       },
     );
   });
-  const entryItems = entries.map((entry) => mapLearnerRecordEntryToCanonicalLearnerRecordItem(entry));
+  const entryItems = entries.map((entry) =>
+    mapLearnerRecordEntryToCanonicalLearnerRecordItem(entry),
+  );
 
   return {
     tenantId: input.tenantId,

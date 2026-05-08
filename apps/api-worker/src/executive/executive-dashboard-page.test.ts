@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { pageAssetPath } from "../ui/page-assets";
-import { renderExecutiveDashboardPage, renderExecutiveUnavailablePage } from "./executive-dashboard-page";
+import {
+  renderExecutiveDashboardPage,
+  renderExecutiveUnavailablePage,
+} from "./executive-dashboard-page";
 import { createSeededDemoExecutiveDashboardSlice } from "./seeded-demo-executive-fixture";
 
 describe("renderExecutiveDashboardPage", () => {
@@ -121,7 +124,8 @@ describe("renderExecutiveDashboardPage", () => {
         id: "drilldown",
         kind: "drilldown",
         title: "Review college detail",
-        description: "Stay with the current executive slice when there is no deeper visible comparison to open.",
+        description:
+          "Stay with the current executive slice when there is no deeper visible comparison to open.",
         audience: "college",
         focusOrgUnitId: "tenant_123:org:college-eng",
         comparisonLevel: "department",

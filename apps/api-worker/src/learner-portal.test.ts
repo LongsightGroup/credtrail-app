@@ -278,8 +278,7 @@ const sampleLearnerRecordEntry = (
     issuedAt: "2026-03-23T15:00:00.000Z",
     revisedAt: null,
     revokedAt: null,
-    evidenceLinksJson:
-      '["https://credtrail.example.edu/evidence/clinical-placement-seminar"]',
+    evidenceLinksJson: '["https://credtrail.example.edu/evidence/clinical-placement-seminar"]',
     detailsJson: '{"grade":"A"}',
     createdAt: "2026-03-23T15:00:00.000Z",
     updatedAt: "2026-03-23T15:00:00.000Z",
@@ -320,9 +319,7 @@ beforeEach(() => {
     },
   ]);
   mockedListLearnerRecordAssertionExports.mockReset();
-  mockedListLearnerRecordAssertionExports.mockResolvedValue([
-    sampleLearnerRecordAssertionExport(),
-  ]);
+  mockedListLearnerRecordAssertionExports.mockResolvedValue([sampleLearnerRecordAssertionExport()]);
   mockedListLearnerRecordEntries.mockReset();
   mockedListLearnerRecordEntries.mockResolvedValue([sampleLearnerRecordEntry()]);
   mockedResolveBetterAuthPrincipal.mockReset();

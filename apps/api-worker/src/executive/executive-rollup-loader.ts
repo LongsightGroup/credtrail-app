@@ -20,10 +20,7 @@ import {
   toReportingOverviewFilters,
   toReportingTrendFilters,
 } from "../reporting/reporting-page-filters";
-import {
-  buildExecutiveKpiCatalog,
-  type ExecutiveKpiCatalog,
-} from "./executive-kpi-catalog";
+import { buildExecutiveKpiCatalog, type ExecutiveKpiCatalog } from "./executive-kpi-catalog";
 import {
   inferExecutiveDashboardDefaults,
   resolveExecutiveComparisonLevel,
@@ -84,7 +81,8 @@ const buildExecutiveNavigationLink = (input: {
   orgUnitsById: ReadonlyMap<string, TenantOrgUnitRecord>;
   hasVisibleRows?: boolean | undefined;
 }): ExecutiveDashboardNavigationLink => {
-  const focusUnitType = input.orgUnitsById.get(input.focusOrgUnitId)?.unitType ?? input.comparisonLevel;
+  const focusUnitType =
+    input.orgUnitsById.get(input.focusOrgUnitId)?.unitType ?? input.comparisonLevel;
 
   return {
     kind:
@@ -231,8 +229,7 @@ export const loadTenantExecutiveDashboard = async (
       state: defaults.reportingFilters.state,
       focusOrgUnitId: defaults.focusOrgUnitId,
       comparisonLevel: defaults.comparisonLevel,
-      scopedRootOrgUnitIds:
-        access.visibility === "scoped" ? access.scopedOrgUnitIds : undefined,
+      scopedRootOrgUnitIds: access.visibility === "scoped" ? access.scopedOrgUnitIds : undefined,
     }),
   ]);
   const navigation = buildExecutiveDashboardNavigation({

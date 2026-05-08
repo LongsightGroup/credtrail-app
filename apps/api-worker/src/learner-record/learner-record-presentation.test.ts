@@ -52,9 +52,7 @@ const sampleItem = (
   };
 };
 
-const sampleBundle = (
-  items: readonly CanonicalLearnerRecordItem[],
-): LearnerRecordExportBundle => {
+const sampleBundle = (items: readonly CanonicalLearnerRecordItem[]): LearnerRecordExportBundle => {
   return {
     tenantId: "tenant_123",
     learnerProfile: sampleLearnerProfile(),

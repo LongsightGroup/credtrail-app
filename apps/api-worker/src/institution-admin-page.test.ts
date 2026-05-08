@@ -194,9 +194,7 @@ const sampleTenantMember = (overrides?: Partial<TenantMemberRecord>): TenantMemb
   };
 };
 
-const sampleLearnerProfile = (
-  overrides?: Partial<LearnerProfileRecord>,
-): LearnerProfileRecord => {
+const sampleLearnerProfile = (overrides?: Partial<LearnerProfileRecord>): LearnerProfileRecord => {
   return {
     id: "lpr_123",
     tenantId: "tenant_123",
@@ -255,8 +253,7 @@ const sampleLearnerRecordEntry = (
     issuedAt: "2026-03-23T15:00:00.000Z",
     revisedAt: null,
     revokedAt: null,
-    evidenceLinksJson:
-      '["https://credtrail.example.edu/evidence/clinical-placement-seminar"]',
+    evidenceLinksJson: '["https://credtrail.example.edu/evidence/clinical-placement-seminar"]',
     detailsJson: '{"grade":"A"}',
     createdAt: "2026-03-23T15:00:00.000Z",
     updatedAt: "2026-03-23T15:00:00.000Z",
@@ -1112,7 +1109,9 @@ describe("GET /tenants/:tenantId/admin/operations/learner-records", () => {
     const seededDemo = getSeededDemoLearnerRecordFixture();
 
     mockedFindLearnerProfileByIdDb.mockResolvedValueOnce(seededDemo.learnerProfile);
-    mockedListLearnerRecordAssertionExportsDb.mockResolvedValueOnce([...seededDemo.assertionExports]);
+    mockedListLearnerRecordAssertionExportsDb.mockResolvedValueOnce([
+      ...seededDemo.assertionExports,
+    ]);
     mockedListLearnerRecordEntriesDb.mockResolvedValueOnce([...seededDemo.recordEntries]);
 
     const response = await app.request(
@@ -1175,8 +1174,12 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
     expect(response.status).toBe(200);
     expect(body).toContain("Learner Record Imports");
     expect(body).toContain("Download CSV template");
-    expect(body).toContain('action="/tenants/tenant_123/admin/operations/learner-record-imports/preview"');
-    expect(body).toContain('formaction="/tenants/tenant_123/admin/operations/learner-record-imports/apply"');
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/operations/learner-record-imports/preview"',
+    );
+    expect(body).toContain(
+      'formaction="/tenants/tenant_123/admin/operations/learner-record-imports/apply"',
+    );
     expect(body).toContain("Current import progress");
     expect(body).toContain("No learner-record import batches have been queued");
   });
@@ -1218,7 +1221,9 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
     expect(body).toContain("Learner-record import preview ready");
     expect(body).toContain("Clinical Placement Seminar");
     expect(body).toContain("Pathway hint: Clinical readiness");
-    expect(body).toContain("Review trust classification, smart defaults, and warnings below before queueing the import.");
+    expect(body).toContain(
+      "Review trust classification, smart defaults, and warnings below before queueing the import.",
+    );
     expect(body).toContain('data-learner-record-import-state="preview"');
   });
 });
@@ -1540,8 +1545,12 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('class="ct-admin__reporting-lower-story"');
     expect(body).toContain("Metric Definitions");
     expect(body.indexOf("Current tenant view")).toBeLessThan(body.indexOf("Executive Summary"));
-    expect(body.indexOf('class="ct-admin__reporting-first-screen')).toBeLessThan(body.indexOf("Trend lines"));
-    expect(body.indexOf("Trend lines")).toBeLessThan(body.indexOf('class="ct-admin__reporting-supporting-grid'));
+    expect(body.indexOf('class="ct-admin__reporting-first-screen')).toBeLessThan(
+      body.indexOf("Trend lines"),
+    );
+    expect(body.indexOf("Trend lines")).toBeLessThan(
+      body.indexOf('class="ct-admin__reporting-supporting-grid'),
+    );
     expect(body.indexOf('class="ct-admin__reporting-supporting-grid')).toBeLessThan(
       body.indexOf('class="ct-admin__reporting-secondary-story'),
     );
@@ -1590,7 +1599,9 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(INSTITUTION_ADMIN_CSS).toContain(
       ".ct-admin__reporting-supporting-grid,\n  .ct-admin__reporting-panel-media,\n  .ct-admin__reporting-focus-summary-grid {\n    grid-template-columns: minmax(0, 1fr);",
     );
-    expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__reporting-presentation-note {\n    gap: 0.6rem;");
+    expect(INSTITUTION_ADMIN_CSS).toContain(
+      ".ct-admin__reporting-presentation-note {\n    gap: 0.6rem;",
+    );
   });
 
   it("renders a chart-first trend hero while keeping the detailed trend table in the response", async () => {
@@ -1686,7 +1697,9 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
 
     expect(response.status).toBe(200);
     expect(trendPanel).toContain('data-reporting-state="empty"');
-    expect(trendPanel).toContain("This reporting slice does not have enough activity to chart yet.");
+    expect(trendPanel).toContain(
+      "This reporting slice does not have enough activity to chart yet.",
+    );
     expect(templatePanel).toContain('data-reporting-state="empty"');
     expect(templatePanel).toContain("No badge-template rows are visible for this slice yet.");
     expect(orgUnitPanel).toContain('data-reporting-state="empty"');
@@ -1820,7 +1833,9 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     );
     expect(orgUnitPanel).not.toContain("Start with the ranked visual");
     expect(hierarchyPanel).toContain('data-reporting-state="sparse"');
-    expect(hierarchyPanel).toContain("This slice currently resolves to one visible reporting path.");
+    expect(hierarchyPanel).toContain(
+      "This slice currently resolves to one visible reporting path.",
+    );
     expect(performerPanel).toContain('data-reporting-state="sparse"');
     expect(performerPanel).toContain(
       "Rankings stay paused until this slice has more than one comparable hierarchy row.",
@@ -1846,12 +1861,14 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(overviewPanel).toContain('id="reporting-filters-form"');
     expect(overviewPanel).toContain('data-reporting-submit-state="idle"');
     expect(overviewPanel).toContain('id="reporting-filters-status"');
-    expect(overviewPanel).toContain('data-reporting-submit-status');
+    expect(overviewPanel).toContain("data-reporting-submit-status");
     expect(overviewPanel).toContain(
       "Applying filters refreshes this page with the selected reporting slice.",
     );
     expect(INSTITUTION_ADMIN_JS).toContain("reporting-filters-form");
-    expect(INSTITUTION_ADMIN_JS).toContain("reportingFiltersForm.dataset.reportingSubmitState = 'pending'");
+    expect(INSTITUTION_ADMIN_JS).toContain(
+      "reportingFiltersForm.dataset.reportingSubmitState = 'pending'",
+    );
     expect(INSTITUTION_ADMIN_JS).toContain(
       "Refreshing this page with the selected reporting slice...",
     );
@@ -2193,8 +2210,12 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(orgUnitPanel).toContain(
       "The table below keeps the full row set with exact counts and rate definitions.",
     );
-    expect(templateVisual).toContain("Top 5 shown here. The exact table below keeps all 6 visible rows.");
-    expect(orgUnitVisual).toContain("Top 5 shown here. The exact table below keeps all 6 visible rows.");
+    expect(templateVisual).toContain(
+      "Top 5 shown here. The exact table below keeps all 6 visible rows.",
+    );
+    expect(orgUnitVisual).toContain(
+      "Top 5 shown here. The exact table below keeps all 6 visible rows.",
+    );
     expect(templateVisual).toContain("51 public views · 45.8% claim · 33.3% share");
     expect(orgUnitVisual).toContain("42 public views · 47.1% claim · 41.2% share");
     expect(templateVisual.indexOf("Applied Analytics")).toBeLessThan(
@@ -2321,7 +2342,9 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
       'Design Foundations</strong><div class="ct-admin__meta">Below the minimum sample',
     );
     expect(body).toContain('class="ct-admin__reporting-lower-story"');
-    expect(body.indexOf("Compare by badge template")).toBeLessThan(body.indexOf("Hierarchy drilldown"));
+    expect(body.indexOf("Compare by badge template")).toBeLessThan(
+      body.indexOf("Hierarchy drilldown"),
+    );
     expect(body.indexOf("Hierarchy drilldown")).toBeLessThan(body.indexOf("Performer panels"));
     expect(body.indexOf("Performer panels")).toBeLessThan(body.indexOf("Compare by org unit"));
   });

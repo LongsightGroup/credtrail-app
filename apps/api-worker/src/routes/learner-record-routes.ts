@@ -122,7 +122,8 @@ export const registerLearnerRecordRoutes = (input: RegisterLearnerRecordRoutesIn
     if (!contentType.includes("multipart/form-data")) {
       return c.json(
         {
-          error: 'Learner-record import requires multipart/form-data with a file field named "file"',
+          error:
+            'Learner-record import requires multipart/form-data with a file field named "file"',
         },
         415,
       );
@@ -352,10 +353,13 @@ export const registerLearnerRecordRoutes = (input: RegisterLearnerRecordRoutesIn
       );
     }
 
-    const refreshedMessages = await listImportLearnerRecordBatchQueueMessages(resolveDatabase(c.env), {
-      tenantId: pathParams.tenantId,
-      limit: 1000,
-    });
+    const refreshedMessages = await listImportLearnerRecordBatchQueueMessages(
+      resolveDatabase(c.env),
+      {
+        tenantId: pathParams.tenantId,
+        limit: 1000,
+      },
+    );
     const refreshedProgress = summarizeLearnerRecordImportProgress(
       refreshedMessages.filter((message) => message.batchId === pathParams.batchId),
     );

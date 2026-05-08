@@ -163,7 +163,9 @@ const normalizeHeader = (value: string): string => {
     .replace(/[^a-z0-9]/g, "");
 };
 
-const canonicalFieldForHeader = (header: string): (typeof LEARNER_RECORD_IMPORT_TEMPLATE_HEADERS)[number] | null => {
+const canonicalFieldForHeader = (
+  header: string,
+): (typeof LEARNER_RECORD_IMPORT_TEMPLATE_HEADERS)[number] | null => {
   switch (header) {
     case "learneremail":
     case "email":
@@ -388,12 +390,12 @@ export const parseLearnerRecordImportFile = (input: {
 
 const zodIssueMessages = (
   issues: readonly {
-    path: (string | number)[];
+    path: readonly PropertyKey[];
     message: string;
   }[],
 ): string[] => {
   return issues.map((issue) => {
-    const path = issue.path.length > 0 ? issue.path.join(".") : "row";
+    const path = issue.path.length > 0 ? issue.path.map(String).join(".") : "row";
     return `${path}: ${issue.message}`;
   });
 };
@@ -424,11 +426,13 @@ const resolveExplicitOrgUnit = (
 } => {
   const warnings: string[] = [];
   const orgUnitById =
-    row.orgUnitId === undefined ? null : orgUnits.find((orgUnit) => orgUnit.id === row.orgUnitId) ?? null;
+    row.orgUnitId === undefined
+      ? null
+      : (orgUnits.find((orgUnit) => orgUnit.id === row.orgUnitId) ?? null);
   const orgUnitBySlug =
     row.orgUnitSlug === undefined
       ? null
-      : orgUnits.find((orgUnit) => orgUnit.slug === row.orgUnitSlug) ?? null;
+      : (orgUnits.find((orgUnit) => orgUnit.slug === row.orgUnitSlug) ?? null);
 
   if (orgUnitById !== null && orgUnitBySlug !== null && orgUnitById.id !== orgUnitBySlug.id) {
     return {
@@ -468,18 +472,14 @@ const resolveBadgeTemplate = (
   const templateById =
     row.badgeTemplateId === undefined
       ? null
-      : badgeTemplates.find((badgeTemplate) => badgeTemplate.id === row.badgeTemplateId) ?? null;
+      : (badgeTemplates.find((badgeTemplate) => badgeTemplate.id === row.badgeTemplateId) ?? null);
   const templateBySlug =
     row.badgeTemplateSlug === undefined
       ? null
-      : badgeTemplates.find((badgeTemplate) => badgeTemplate.slug === row.badgeTemplateSlug) ??
-        null;
+      : (badgeTemplates.find((badgeTemplate) => badgeTemplate.slug === row.badgeTemplateSlug) ??
+        null);
 
-  if (
-    templateById !== null &&
-    templateBySlug !== null &&
-    templateById.id !== templateBySlug.id
-  ) {
+  if (templateById !== null && templateBySlug !== null && templateById.id !== templateBySlug.id) {
     return {
       badgeTemplate: null,
       errors: ["badgeTemplateId and badgeTemplateSlug refer to different badge templates"],
@@ -542,7 +542,10 @@ const prepareLearnerRecordImportRow = (input: {
   const warnings: string[] = [];
   const effectiveTrustLevel = row.trustLevel ?? input.defaults.defaultTrustLevel;
 
-  if (row.recordType === "supplemental_artifact" && effectiveTrustLevel !== "learner_supplemental") {
+  if (
+    row.recordType === "supplemental_artifact" &&
+    effectiveTrustLevel !== "learner_supplemental"
+  ) {
     errors.push("supplemental_artifact rows must import as learner_supplemental");
   }
 
@@ -620,7 +623,9 @@ const prepareLearnerRecordImportRow = (input: {
     fileName: input.fileName,
     format: "csv",
     requestedAt: input.requestedAt,
-    ...(input.requestedByUserId === undefined ? {} : { requestedByUserId: input.requestedByUserId }),
+    ...(input.requestedByUserId === undefined
+      ? {}
+      : { requestedByUserId: input.requestedByUserId }),
     row: {
       learnerEmail: row.learnerEmail,
       learnerDisplayName: normalizeOptionalText(row.learnerDisplayName),
@@ -696,7 +701,9 @@ export const prepareLearnerRecordImportBatch = (input: {
       fileName: input.fileName,
       batchId: input.batchId,
       requestedAt: input.requestedAt,
-      ...(input.requestedByUserId === undefined ? {} : { requestedByUserId: input.requestedByUserId }),
+      ...(input.requestedByUserId === undefined
+        ? {}
+        : { requestedByUserId: input.requestedByUserId }),
     });
 
     reports.push(prepared.report);
@@ -791,9 +798,7 @@ export const enqueueLearnerRecordImportBatch = async (
   return queuedRows;
 };
 
-const buildImportDetailsJson = (
-  payload: LearnerRecordImportQueuePayload,
-): string | undefined => {
+const buildImportDetailsJson = (payload: LearnerRecordImportQueuePayload): string | undefined => {
   const details: Record<string, unknown> = {};
 
   if (payload.row.smartContext.pathwayLabel !== null) {
@@ -891,24 +896,22 @@ export const summarizeLearnerRecordImportProgress = (
 
   for (const message of messages) {
     const existing = summaries.get(message.batchId);
-    const summary =
-      existing ??
-      {
-        batchId: message.batchId,
-        fileName: message.fileName,
-        format: message.format,
-        totalRows: 0,
-        pendingRows: 0,
-        processingRows: 0,
-        completedRows: 0,
-        failedRows: 0,
-        retryableRows: 0,
-        failedRowNumbers: [],
-        latestError: null,
-        defaultTrustLevel: message.defaultTrustLevel,
-        firstQueuedAt: message.createdAt,
-        lastUpdatedAt: message.updatedAt,
-      };
+    const summary = existing ?? {
+      batchId: message.batchId,
+      fileName: message.fileName,
+      format: message.format,
+      totalRows: 0,
+      pendingRows: 0,
+      processingRows: 0,
+      completedRows: 0,
+      failedRows: 0,
+      retryableRows: 0,
+      failedRowNumbers: [],
+      latestError: null,
+      defaultTrustLevel: message.defaultTrustLevel,
+      firstQueuedAt: message.createdAt,
+      lastUpdatedAt: message.updatedAt,
+    };
 
     summary.totalRows += 1;
 

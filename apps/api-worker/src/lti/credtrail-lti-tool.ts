@@ -1,9 +1,5 @@
 import { LTITool } from "@lti-tool/core";
-import {
-  createLtiToolKey,
-  findActiveLtiToolKey,
-  type SqlDatabase,
-} from "@credtrail/db";
+import { createLtiToolKey, findActiveLtiToolKey, type SqlDatabase } from "@credtrail/db";
 import { ltiStateSigningSecret } from "./lti-helpers";
 import { CredTrailLtiStorage } from "./credtrail-lti-storage";
 import type { AppBindings } from "../app";
@@ -45,12 +41,8 @@ const importStoredKeyPair = async (input: {
 }): Promise<CryptoKeyPair> => {
   const publicJwk = JSON.parse(input.publicJwkJson) as JsonWebKey;
   const privateJwk = JSON.parse(input.privateJwkJson) as JsonWebKey;
-  const publicKey = await crypto.subtle.importKey("jwk", publicJwk, rsaAlgorithm, true, [
-    "verify",
-  ]);
-  const privateKey = await crypto.subtle.importKey("jwk", privateJwk, rsaAlgorithm, true, [
-    "sign",
-  ]);
+  const publicKey = await crypto.subtle.importKey("jwk", publicJwk, rsaAlgorithm, true, ["verify"]);
+  const privateKey = await crypto.subtle.importKey("jwk", privateJwk, rsaAlgorithm, true, ["sign"]);
 
   return {
     publicKey,

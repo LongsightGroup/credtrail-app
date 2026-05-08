@@ -323,7 +323,10 @@ class FakeStatement {
       return Promise.resolve(this.selectLearnerProfileByIdentity() as T | null);
     }
 
-    if (normalizedSql.includes("FROM learner_record_entries WHERE tenant_id = ?") && normalizedSql.includes("AND id = ?")) {
+    if (
+      normalizedSql.includes("FROM learner_record_entries WHERE tenant_id = ?") &&
+      normalizedSql.includes("AND id = ?")
+    ) {
       return Promise.resolve(this.selectLearnerRecordEntryById() as T | null);
     }
 
@@ -996,10 +999,7 @@ class FakeStatement {
 
     return this.db.learnerRecordEntries
       .filter((candidate) => {
-        if (
-          candidate.tenant_id !== tenantId ||
-          candidate.learner_profile_id !== learnerProfileId
-        ) {
+        if (candidate.tenant_id !== tenantId || candidate.learner_profile_id !== learnerProfileId) {
           return false;
         }
 
@@ -1035,8 +1035,7 @@ class FakeStatement {
     return this.db.jobQueueMessages
       .filter((candidate) => {
         return (
-          candidate.tenant_id === tenantId &&
-          candidate.job_type === "import_learner_record_batch"
+          candidate.tenant_id === tenantId && candidate.job_type === "import_learner_record_batch"
         );
       })
       .sort((left, right) => right.created_at.localeCompare(left.created_at))
@@ -1103,9 +1102,7 @@ class FakeStatement {
       })
       .map((row) => {
         const badgeTemplate = this.db.badgeTemplates.find((candidate) => {
-          return (
-            candidate.tenant_id === row.tenant_id && candidate.id === row.badge_template_id
-          );
+          return candidate.tenant_id === row.tenant_id && candidate.id === row.badge_template_id;
         });
         const tenant = this.db.tenants.find((candidate) => candidate.id === row.tenant_id);
 
@@ -1170,9 +1167,7 @@ class FakeStatement {
     );
   }
 
-  private isLearnerRecordSourceSystem(
-    value: unknown,
-  ): value is dbModule.LearnerRecordSourceSystem {
+  private isLearnerRecordSourceSystem(value: unknown): value is dbModule.LearnerRecordSourceSystem {
     return (
       value === "credtrail_admin" ||
       value === "csv_import" ||

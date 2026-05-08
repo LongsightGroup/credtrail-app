@@ -73,8 +73,12 @@ describe("seeded demo reporting fixture", () => {
     }, 0);
 
     expect(trendIssuedTotal).toBe(seededDemoReportingFixture.overview.counts.issued);
-    expect(seededDemoReportingFixture.templateComparisons.some((row) => row.issuedCount >= 5)).toBe(true);
-    expect(seededDemoReportingFixture.orgUnitComparisons.some((row) => row.issuedCount >= 5)).toBe(true);
+    expect(seededDemoReportingFixture.templateComparisons.some((row) => row.issuedCount >= 5)).toBe(
+      true,
+    );
+    expect(seededDemoReportingFixture.orgUnitComparisons.some((row) => row.issuedCount >= 5)).toBe(
+      true,
+    );
 
     for (const row of [
       ...seededDemoReportingFixture.templateComparisons,

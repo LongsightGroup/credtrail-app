@@ -353,36 +353,30 @@ const canonicalCredlyRowFromJson = (row: Record<string, unknown>): CanonicalCred
   ]);
   const issuedAt = pickString(row, [["issued_at"], ["issued_on"], ["awarded_at"], ["issuedOn"]]);
   const badgeTemplateId =
-    (badgeTemplate === undefined ? undefined : (asNonEmptyString(badgeTemplate.id) ?? undefined)) ??
+    (badgeTemplate === undefined ? undefined : asNonEmptyString(badgeTemplate.id)) ??
     pickString(row, [["badge_template_id"], ["badgeTemplateId"]]);
   const badgeTemplateName =
-    (badgeTemplate === undefined
-      ? undefined
-      : (asNonEmptyString(badgeTemplate.name) ?? undefined)) ??
+    (badgeTemplate === undefined ? undefined : asNonEmptyString(badgeTemplate.name)) ??
     pickString(row, [["badge_name"], ["badgeTemplateName"]]);
   const badgeTemplateDescription =
-    (badgeTemplate === undefined
-      ? undefined
-      : (asNonEmptyString(badgeTemplate.description) ?? undefined)) ??
+    (badgeTemplate === undefined ? undefined : asNonEmptyString(badgeTemplate.description)) ??
     pickString(row, [["badge_description"], ["badgeTemplateDescription"]]);
   const badgeTemplateImageUrl =
-    (badgeTemplate === undefined
-      ? undefined
-      : (asNonEmptyString(badgeTemplate.image_url) ?? undefined)) ??
+    (badgeTemplate === undefined ? undefined : asNonEmptyString(badgeTemplate.image_url)) ??
     pickString(row, [["badge_image_url"], ["badgeTemplateImageUrl"]]);
   const badgeTemplateCriteriaUrl =
     (badgeTemplate === undefined
       ? undefined
-      : (asNonEmptyString(badgeTemplate.global_activity_url) ?? undefined)) ??
+      : asNonEmptyString(badgeTemplate.global_activity_url)) ??
     pickString(row, [["badge_criteria_url"], ["badgeTemplateCriteriaUrl"]]);
   const issuerId =
-    (issuerEntity === undefined ? undefined : (asNonEmptyString(issuerEntity.id) ?? undefined)) ??
+    (issuerEntity === undefined ? undefined : asNonEmptyString(issuerEntity.id)) ??
     pickString(row, [["issuer_id"], ["issuerId"]]);
   const issuerName =
-    (issuerEntity === undefined ? undefined : (asNonEmptyString(issuerEntity.name) ?? undefined)) ??
+    (issuerEntity === undefined ? undefined : asNonEmptyString(issuerEntity.name)) ??
     pickString(row, [["issuer_name"], ["issuerName"]]);
   const issuerUrl =
-    (issuerEntity === undefined ? undefined : (asNonEmptyString(issuerEntity.url) ?? undefined)) ??
+    (issuerEntity === undefined ? undefined : asNonEmptyString(issuerEntity.url)) ??
     pickString(row, [["issuer_url"], ["issuerUrl"]]);
   const assertionId = pickString(row, [["id"], ["assertion_id"], ["credential_id"]]);
   const evidenceUrl = pickString(row, [["evidence_url"], ["artifact_url"]]);

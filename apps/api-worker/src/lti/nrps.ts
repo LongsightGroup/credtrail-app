@@ -1,7 +1,4 @@
-import {
-  LTI_CLAIM_NRPS_NAMES_ROLE_SERVICE,
-  type LtiLaunchClaims,
-} from "@credtrail/lti";
+import { LTI_CLAIM_NRPS_NAMES_ROLE_SERVICE, type LtiLaunchClaims } from "@credtrail/lti";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
 
 const NRPS_LEARNER_ROLE_MARKERS = ["#learner", "#student"];

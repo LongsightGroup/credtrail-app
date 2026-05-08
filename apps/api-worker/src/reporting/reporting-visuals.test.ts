@@ -133,7 +133,8 @@ describe("renderReporting", () => {
     const html = renderReporting({
       kind: "comparison-ranked" as unknown as Parameters<typeof renderReporting>[0]["kind"],
       title: "Highest claim rate",
-      description: "Rate leaders should still state the compare level and keep issued totals visible.",
+      description:
+        "Rate leaders should still state the compare level and keep issued totals visible.",
       summaryOverride:
         "Comparing department rows by claim rate. Issued totals stay visible beside each ranked rate row.",
       series: [
@@ -208,9 +209,7 @@ describe("renderReporting", () => {
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__trend-callouts");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__comparison-ranked-list");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__comparison-ranked-detail");
-    expect(INSTITUTION_ADMIN_CSS).toContain(
-      "data-reporting-visual-kind='comparison-ranked'",
-    );
+    expect(INSTITUTION_ADMIN_CSS).toContain("data-reporting-visual-kind='comparison-ranked'");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__reporting-trend-hero");
     expect(INSTITUTION_ADMIN_CSS).toContain("data-reporting-visual-kind");
     expect(INSTITUTION_ADMIN_CSS).toContain("@media (max-width: 960px)");

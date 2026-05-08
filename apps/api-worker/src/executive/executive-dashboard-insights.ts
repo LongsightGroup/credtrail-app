@@ -63,7 +63,9 @@ const formatBucketLabel = (value: string): string => {
   }).format(parsed);
 };
 
-const buildIssuedDetail = (row: TenantExecutiveDashboardRecord["rollup"]["rows"][number]): string => {
+const buildIssuedDetail = (
+  row: TenantExecutiveDashboardRecord["rollup"]["rows"][number],
+): string => {
   return `${formatCount(row.publicBadgeViewCount)} public views · ${formatPercent(
     row.claimRate,
   )}% claim · ${formatPercent(row.shareRate)}% share`;
@@ -79,7 +81,9 @@ const buildRateDetail = (
   return `${formatCount(row.issuedCount)} issued · ${formatPercent(companionValue)}% ${companionLabel}`;
 };
 
-const buildTrendInsight = (dashboard: TenantExecutiveDashboardRecord): ExecutiveDashboardInsight => {
+const buildTrendInsight = (
+  dashboard: TenantExecutiveDashboardRecord,
+): ExecutiveDashboardInsight => {
   const latestBucket = dashboard.trends.series.at(-1) ?? null;
   const previousBucket = dashboard.trends.series.at(-2) ?? null;
   const deltaIssued =
@@ -368,6 +372,8 @@ export const buildExecutiveDashboardInsights = (
 ): ExecutiveDashboardInsights => {
   return {
     trend: buildTrendInsight(dashboard),
-    modules: dashboard.kpiCatalog.modules.map((module) => buildInsightFromModule(dashboard, module)),
+    modules: dashboard.kpiCatalog.modules.map((module) =>
+      buildInsightFromModule(dashboard, module),
+    ),
   };
 };

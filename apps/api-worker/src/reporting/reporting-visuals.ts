@@ -139,7 +139,8 @@ const buildSummaryText = (
   }
 
   if (input.kind === "comparison-ranked") {
-    const highestRankedPoint = sortComparisonRankedSeries(input, normalizedSeries)[0] ?? highestPoint;
+    const highestRankedPoint =
+      sortComparisonRankedSeries(input, normalizedSeries)[0] ?? highestPoint;
 
     return `${highestRankedPoint.label} leads at ${formatValue(highestRankedPoint.value)} across ${normalizedSeries.length} comparison rows.`;
   }
@@ -326,9 +327,7 @@ const renderTrendGraphic = (
   </svg>`;
 };
 
-const renderTrendContext = (
-  normalizedSeries: readonly ReportingVisualSeriesPoint[],
-): string => {
+const renderTrendContext = (normalizedSeries: readonly ReportingVisualSeriesPoint[]): string => {
   const startPoint = normalizedSeries[0];
   const latestPoint = normalizedSeries[normalizedSeries.length - 1] ?? startPoint;
   const peakPoint =
@@ -338,10 +337,7 @@ const renderTrendContext = (
     return "";
   }
 
-  const renderAxisItem = (
-    label: "Start" | "Latest",
-    point: ReportingVisualSeriesPoint,
-  ): string => {
+  const renderAxisItem = (label: "Start" | "Latest", point: ReportingVisualSeriesPoint): string => {
     return `<div class="ct-reporting-visual__trend-axis-item" data-reporting-trend-point="${slugify(label)}">
       <span class="ct-reporting-visual__trend-axis-label">${escapeHtml(label)}</span>
       <strong class="ct-reporting-visual__trend-axis-value">${escapeHtml(point.label)}</strong>
@@ -349,10 +345,7 @@ const renderTrendContext = (
     </div>`;
   };
 
-  const renderCallout = (
-    label: "Peak" | "Latest",
-    point: ReportingVisualSeriesPoint,
-  ): string => {
+  const renderCallout = (label: "Peak" | "Latest", point: ReportingVisualSeriesPoint): string => {
     const detailMarkup =
       point.detail === undefined || point.detail.trim().length === 0
         ? ""

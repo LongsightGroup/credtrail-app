@@ -5,7 +5,8 @@ import type { TenantOrgUnitRecord } from "@credtrail/db";
 import { inferExecutiveDashboardDefaults } from "./executive-dashboard-contract";
 
 const createOrgUnit = (
-  overrides: Partial<TenantOrgUnitRecord> & Pick<TenantOrgUnitRecord, "id" | "unitType" | "displayName">,
+  overrides: Partial<TenantOrgUnitRecord> &
+    Pick<TenantOrgUnitRecord, "id" | "unitType" | "displayName">,
 ): TenantOrgUnitRecord => {
   return {
     id: overrides.id,

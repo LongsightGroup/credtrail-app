@@ -4,21 +4,24 @@ import type {
   TenantOrgUnitRecord,
   TenantReportingOverviewRecord,
   TenantReportingTrendRecord,
-} from '@credtrail/db';
+} from "@credtrail/db";
 
-import { createReportingHierarchyPageFilters } from '../reporting/reporting-page-filters';
-import { buildExecutiveDrilldownPath, buildExecutiveDashboardPath } from './executive-dashboard-paths';
-import { buildExecutiveKpiCatalog } from './executive-kpi-catalog';
-import type { TenantExecutiveDashboardRecord } from './executive-rollup-loader';
+import { createReportingHierarchyPageFilters } from "../reporting/reporting-page-filters";
+import {
+  buildExecutiveDrilldownPath,
+  buildExecutiveDashboardPath,
+} from "./executive-dashboard-paths";
+import { buildExecutiveKpiCatalog } from "./executive-kpi-catalog";
+import type { TenantExecutiveDashboardRecord } from "./executive-rollup-loader";
 
-const GENERATED_AT = '2026-03-22T12:00:00.000Z';
-const TENANT_ID = 'tenant_123';
+const GENERATED_AT = "2026-03-22T12:00:00.000Z";
+const TENANT_ID = "tenant_123";
 export const SEEDED_DEMO_EXECUTIVE_VERIFY_COMMAND =
-  'pnpm exec vitest run apps/api-worker/src/executive/seeded-demo-executive-fixture.test.ts apps/api-worker/src/executive/executive-rollup-loader.test.ts apps/api-worker/src/executive/executive-dashboard-page.test.ts apps/api-worker/src/routes/executive-routes.test.ts';
+  "pnpm exec vitest run apps/api-worker/src/executive/seeded-demo-executive-fixture.test.ts apps/api-worker/src/executive/executive-rollup-loader.test.ts apps/api-worker/src/executive/executive-dashboard-page.test.ts apps/api-worker/src/routes/executive-routes.test.ts";
 
 const createOrgUnit = (input: {
   id: string;
-  unitType: TenantOrgUnitRecord['unitType'];
+  unitType: TenantOrgUnitRecord["unitType"];
   slug: string;
   displayName: string;
   parentOrgUnitId: string | null;
@@ -30,10 +33,10 @@ const createOrgUnit = (input: {
     slug: input.slug,
     displayName: input.displayName,
     parentOrgUnitId: input.parentOrgUnitId,
-    createdByUserId: 'usr_admin',
+    createdByUserId: "usr_admin",
     isActive: true,
-    createdAt: '2026-03-21T12:00:00.000Z',
-    updatedAt: '2026-03-21T12:00:00.000Z',
+    createdAt: "2026-03-21T12:00:00.000Z",
+    updatedAt: "2026-03-21T12:00:00.000Z",
   };
 };
 
@@ -42,76 +45,76 @@ const createScope = (
 ): TenantMembershipOrgUnitScopeRecord => {
   return {
     tenantId: TENANT_ID,
-    userId: 'usr_exec',
-    orgUnitId: 'tenant_123:org:college-eng',
-    role: 'issuer',
-    createdByUserId: 'usr_admin',
-    createdAt: '2026-03-21T12:00:00.000Z',
-    updatedAt: '2026-03-21T12:00:00.000Z',
+    userId: "usr_exec",
+    orgUnitId: "tenant_123:org:college-eng",
+    role: "issuer",
+    createdByUserId: "usr_admin",
+    createdAt: "2026-03-21T12:00:00.000Z",
+    updatedAt: "2026-03-21T12:00:00.000Z",
     ...overrides,
   };
 };
 
 const orgUnits = [
   createOrgUnit({
-    id: 'tenant_123:org:institution',
-    unitType: 'institution',
-    slug: 'institution',
-    displayName: 'Tenant 123 Institution',
+    id: "tenant_123:org:institution",
+    unitType: "institution",
+    slug: "institution",
+    displayName: "Tenant 123 Institution",
     parentOrgUnitId: null,
   }),
   createOrgUnit({
-    id: 'tenant_123:org:college-eng',
-    unitType: 'college',
-    slug: 'college-eng',
-    displayName: 'College of Engineering',
-    parentOrgUnitId: 'tenant_123:org:institution',
+    id: "tenant_123:org:college-eng",
+    unitType: "college",
+    slug: "college-eng",
+    displayName: "College of Engineering",
+    parentOrgUnitId: "tenant_123:org:institution",
   }),
   createOrgUnit({
-    id: 'tenant_123:org:college-arts',
-    unitType: 'college',
-    slug: 'college-arts',
-    displayName: 'College of Arts',
-    parentOrgUnitId: 'tenant_123:org:institution',
+    id: "tenant_123:org:college-arts",
+    unitType: "college",
+    slug: "college-arts",
+    displayName: "College of Arts",
+    parentOrgUnitId: "tenant_123:org:institution",
   }),
   createOrgUnit({
-    id: 'tenant_123:org:department-cs',
-    unitType: 'department',
-    slug: 'department-cs',
-    displayName: 'Computer Science',
-    parentOrgUnitId: 'tenant_123:org:college-eng',
+    id: "tenant_123:org:department-cs",
+    unitType: "department",
+    slug: "department-cs",
+    displayName: "Computer Science",
+    parentOrgUnitId: "tenant_123:org:college-eng",
   }),
   createOrgUnit({
-    id: 'tenant_123:org:department-math',
-    unitType: 'department',
-    slug: 'department-math',
-    displayName: 'Mathematics',
-    parentOrgUnitId: 'tenant_123:org:college-eng',
+    id: "tenant_123:org:department-math",
+    unitType: "department",
+    slug: "department-math",
+    displayName: "Mathematics",
+    parentOrgUnitId: "tenant_123:org:college-eng",
   }),
   createOrgUnit({
-    id: 'tenant_123:org:department-history',
-    unitType: 'department',
-    slug: 'department-history',
-    displayName: 'History',
-    parentOrgUnitId: 'tenant_123:org:college-arts',
+    id: "tenant_123:org:department-history",
+    unitType: "department",
+    slug: "department-history",
+    displayName: "History",
+    parentOrgUnitId: "tenant_123:org:college-arts",
   }),
   createOrgUnit({
-    id: 'tenant_123:org:program-cs',
-    unitType: 'program',
-    slug: 'program-cs',
-    displayName: 'Computer Science Program',
-    parentOrgUnitId: 'tenant_123:org:department-cs',
+    id: "tenant_123:org:program-cs",
+    unitType: "program",
+    slug: "program-cs",
+    displayName: "Computer Science Program",
+    parentOrgUnitId: "tenant_123:org:department-cs",
   }),
 ] as const satisfies readonly TenantOrgUnitRecord[];
 
 const overview: TenantReportingOverviewRecord = {
   tenantId: TENANT_ID,
   filters: {
-    issuedFrom: '2025-12-23',
-    issuedTo: '2026-03-22',
+    issuedFrom: "2025-12-23",
+    issuedTo: "2026-03-22",
     badgeTemplateId: null,
     orgUnitId: null,
-    state: 'active',
+    state: "active",
   },
   counts: {
     issued: 18,
@@ -128,16 +131,16 @@ const overview: TenantReportingOverviewRecord = {
 const trends: TenantReportingTrendRecord = {
   tenantId: TENANT_ID,
   filters: {
-    from: '2025-12-23',
-    to: '2026-03-22',
+    from: "2025-12-23",
+    to: "2026-03-22",
     badgeTemplateId: null,
     orgUnitId: null,
-    state: 'active',
+    state: "active",
   },
-  bucket: 'day',
+  bucket: "day",
   series: [
     {
-      bucketStart: '2026-03-20',
+      bucketStart: "2026-03-20",
       issuedCount: 4,
       publicBadgeViewCount: 6,
       verificationViewCount: 3,
@@ -146,7 +149,7 @@ const trends: TenantReportingTrendRecord = {
       walletAcceptCount: 1,
     },
     {
-      bucketStart: '2026-03-21',
+      bucketStart: "2026-03-21",
       issuedCount: 6,
       publicBadgeViewCount: 9,
       verificationViewCount: 5,
@@ -155,7 +158,7 @@ const trends: TenantReportingTrendRecord = {
       walletAcceptCount: 2,
     },
     {
-      bucketStart: '2026-03-22',
+      bucketStart: "2026-03-22",
       issuedCount: 8,
       publicBadgeViewCount: 11,
       verificationViewCount: 6,
@@ -170,25 +173,25 @@ const trends: TenantReportingTrendRecord = {
 const rollups = {
   system: {
     tenantId: TENANT_ID,
-    focusOrgUnitId: 'tenant_123:org:institution',
-    focusDisplayName: 'Tenant 123 Institution',
+    focusOrgUnitId: "tenant_123:org:institution",
+    focusDisplayName: "Tenant 123 Institution",
     focusParentOrgUnitId: null,
-    focusUnitType: 'institution',
-    comparisonLevel: 'college',
-    focusLineageOrgUnitIds: ['tenant_123:org:institution'],
+    focusUnitType: "institution",
+    comparisonLevel: "college",
+    focusLineageOrgUnitIds: ["tenant_123:org:institution"],
     filters: {
-      from: '2025-12-23',
-      to: '2026-03-22',
+      from: "2025-12-23",
+      to: "2026-03-22",
       badgeTemplateId: null,
       orgUnitId: null,
-      state: 'active',
+      state: "active",
     },
     rows: [
       {
-        level: 'college',
-        orgUnitId: 'tenant_123:org:college-eng',
-        displayName: 'College of Engineering',
-        parentOrgUnitId: 'tenant_123:org:institution',
+        level: "college",
+        orgUnitId: "tenant_123:org:college-eng",
+        displayName: "College of Engineering",
+        parentOrgUnitId: "tenant_123:org:institution",
         issuedCount: 12,
         publicBadgeViewCount: 19,
         verificationViewCount: 10,
@@ -199,10 +202,10 @@ const rollups = {
         shareRate: 33.3,
       },
       {
-        level: 'college',
-        orgUnitId: 'tenant_123:org:college-arts',
-        displayName: 'College of Arts',
-        parentOrgUnitId: 'tenant_123:org:institution',
+        level: "college",
+        orgUnitId: "tenant_123:org:college-arts",
+        displayName: "College of Arts",
+        parentOrgUnitId: "tenant_123:org:institution",
         issuedCount: 6,
         publicBadgeViewCount: 8,
         verificationViewCount: 4,
@@ -217,25 +220,25 @@ const rollups = {
   },
   focused: {
     tenantId: TENANT_ID,
-    focusOrgUnitId: 'tenant_123:org:college-eng',
-    focusDisplayName: 'College of Engineering',
-    focusParentOrgUnitId: 'tenant_123:org:institution',
-    focusUnitType: 'college',
-    comparisonLevel: 'department',
-    focusLineageOrgUnitIds: ['tenant_123:org:institution', 'tenant_123:org:college-eng'],
+    focusOrgUnitId: "tenant_123:org:college-eng",
+    focusDisplayName: "College of Engineering",
+    focusParentOrgUnitId: "tenant_123:org:institution",
+    focusUnitType: "college",
+    comparisonLevel: "department",
+    focusLineageOrgUnitIds: ["tenant_123:org:institution", "tenant_123:org:college-eng"],
     filters: {
-      from: '2025-12-23',
-      to: '2026-03-22',
-      badgeTemplateId: 'badge_template_science',
+      from: "2025-12-23",
+      to: "2026-03-22",
+      badgeTemplateId: "badge_template_science",
       orgUnitId: null,
-      state: 'active',
+      state: "active",
     },
     rows: [
       {
-        level: 'department',
-        orgUnitId: 'tenant_123:org:department-cs',
-        displayName: 'Computer Science',
-        parentOrgUnitId: 'tenant_123:org:college-eng',
+        level: "department",
+        orgUnitId: "tenant_123:org:department-cs",
+        displayName: "Computer Science",
+        parentOrgUnitId: "tenant_123:org:college-eng",
         issuedCount: 10,
         publicBadgeViewCount: 16,
         verificationViewCount: 8,
@@ -246,10 +249,10 @@ const rollups = {
         shareRate: 30,
       },
       {
-        level: 'department',
-        orgUnitId: 'tenant_123:org:department-math',
-        displayName: 'Mathematics',
-        parentOrgUnitId: 'tenant_123:org:college-eng',
+        level: "department",
+        orgUnitId: "tenant_123:org:department-math",
+        displayName: "Mathematics",
+        parentOrgUnitId: "tenant_123:org:college-eng",
         issuedCount: 8,
         publicBadgeViewCount: 10,
         verificationViewCount: 4,
@@ -264,25 +267,25 @@ const rollups = {
   },
   scoped: {
     tenantId: TENANT_ID,
-    focusOrgUnitId: 'tenant_123:org:college-eng',
-    focusDisplayName: 'College of Engineering',
-    focusParentOrgUnitId: 'tenant_123:org:institution',
-    focusUnitType: 'college',
-    comparisonLevel: 'department',
-    focusLineageOrgUnitIds: ['tenant_123:org:institution', 'tenant_123:org:college-eng'],
+    focusOrgUnitId: "tenant_123:org:college-eng",
+    focusDisplayName: "College of Engineering",
+    focusParentOrgUnitId: "tenant_123:org:institution",
+    focusUnitType: "college",
+    comparisonLevel: "department",
+    focusLineageOrgUnitIds: ["tenant_123:org:institution", "tenant_123:org:college-eng"],
     filters: {
-      from: '2025-12-23',
-      to: '2026-03-22',
+      from: "2025-12-23",
+      to: "2026-03-22",
       badgeTemplateId: null,
       orgUnitId: null,
       state: null,
     },
     rows: [
       {
-        level: 'department',
-        orgUnitId: 'tenant_123:org:department-cs',
-        displayName: 'Computer Science',
-        parentOrgUnitId: 'tenant_123:org:college-eng',
+        level: "department",
+        orgUnitId: "tenant_123:org:department-cs",
+        displayName: "Computer Science",
+        parentOrgUnitId: "tenant_123:org:college-eng",
         issuedCount: 10,
         publicBadgeViewCount: 16,
         verificationViewCount: 8,
@@ -293,10 +296,10 @@ const rollups = {
         shareRate: 30,
       },
       {
-        level: 'department',
-        orgUnitId: 'tenant_123:org:department-math',
-        displayName: 'Mathematics',
-        parentOrgUnitId: 'tenant_123:org:college-eng',
+        level: "department",
+        orgUnitId: "tenant_123:org:department-math",
+        displayName: "Mathematics",
+        parentOrgUnitId: "tenant_123:org:college-eng",
         issuedCount: 8,
         publicBadgeViewCount: 10,
         verificationViewCount: 4,
@@ -311,20 +314,20 @@ const rollups = {
   },
   terminal: {
     tenantId: TENANT_ID,
-    focusOrgUnitId: 'tenant_123:org:program-cs',
-    focusDisplayName: 'Computer Science Program',
-    focusParentOrgUnitId: 'tenant_123:org:department-cs',
-    focusUnitType: 'program',
-    comparisonLevel: 'program',
+    focusOrgUnitId: "tenant_123:org:program-cs",
+    focusDisplayName: "Computer Science Program",
+    focusParentOrgUnitId: "tenant_123:org:department-cs",
+    focusUnitType: "program",
+    comparisonLevel: "program",
     focusLineageOrgUnitIds: [
-      'tenant_123:org:institution',
-      'tenant_123:org:college-eng',
-      'tenant_123:org:department-cs',
-      'tenant_123:org:program-cs',
+      "tenant_123:org:institution",
+      "tenant_123:org:college-eng",
+      "tenant_123:org:department-cs",
+      "tenant_123:org:program-cs",
     ],
     filters: {
-      from: '2025-12-23',
-      to: '2026-03-22',
+      from: "2025-12-23",
+      to: "2026-03-22",
       badgeTemplateId: null,
       orgUnitId: null,
       state: null,
@@ -336,12 +339,12 @@ const rollups = {
 
 const createNavigationLink = (
   input: Pick<
-    TenantExecutiveDashboardRecord['navigation']['current'],
-    'kind' | 'label' | 'focusOrgUnitId' | 'comparisonLevel'
+    TenantExecutiveDashboardRecord["navigation"]["current"],
+    "kind" | "label" | "focusOrgUnitId" | "comparisonLevel"
   > & {
-    pathState: TenantExecutiveDashboardRecord['defaults']['pathState'];
+    pathState: TenantExecutiveDashboardRecord["defaults"]["pathState"];
   },
-): TenantExecutiveDashboardRecord['navigation']['current'] => {
+): TenantExecutiveDashboardRecord["navigation"]["current"] => {
   return {
     kind: input.kind,
     label: input.label,
@@ -354,112 +357,112 @@ const createNavigationLink = (
   };
 };
 
-const systemDefaults: TenantExecutiveDashboardRecord['defaults'] = {
-  audience: 'system',
-  window: 'last-90-days',
-  focusOrgUnitId: 'tenant_123:org:institution',
-  focusUnitType: 'institution',
-  comparisonLevel: 'college',
-  comparisonGroupBy: 'orgUnit',
+const systemDefaults: TenantExecutiveDashboardRecord["defaults"] = {
+  audience: "system",
+  window: "last-90-days",
+  focusOrgUnitId: "tenant_123:org:institution",
+  focusUnitType: "institution",
+  comparisonLevel: "college",
+  comparisonGroupBy: "orgUnit",
   reportingFilters: {
-    issuedFrom: '2025-12-23',
-    issuedTo: '2026-03-22',
+    issuedFrom: "2025-12-23",
+    issuedTo: "2026-03-22",
     badgeTemplateId: undefined,
     orgUnitId: undefined,
-    state: 'active',
+    state: "active",
   },
   hierarchyFilters: createReportingHierarchyPageFilters(
     {
-      issuedFrom: '2025-12-23',
-      issuedTo: '2026-03-22',
+      issuedFrom: "2025-12-23",
+      issuedTo: "2026-03-22",
       badgeTemplateId: undefined,
       orgUnitId: undefined,
-      state: 'active',
+      state: "active",
     },
     {
-      focusOrgUnitId: 'tenant_123:org:institution',
-      level: 'college',
+      focusOrgUnitId: "tenant_123:org:institution",
+      level: "college",
     },
   ),
   pathState: {
-    audience: 'system',
-    window: 'last-90-days',
-    state: 'active',
-    focusOrgUnitId: 'tenant_123:org:institution',
-    comparisonLevel: 'college',
+    audience: "system",
+    window: "last-90-days",
+    state: "active",
+    focusOrgUnitId: "tenant_123:org:institution",
+    comparisonLevel: "college",
   },
 };
 
-const focusedDefaults: TenantExecutiveDashboardRecord['defaults'] = {
-  audience: 'system',
-  window: 'last-90-days',
-  focusOrgUnitId: 'tenant_123:org:college-eng',
-  focusUnitType: 'college',
-  comparisonLevel: 'department',
-  comparisonGroupBy: 'orgUnit',
+const focusedDefaults: TenantExecutiveDashboardRecord["defaults"] = {
+  audience: "system",
+  window: "last-90-days",
+  focusOrgUnitId: "tenant_123:org:college-eng",
+  focusUnitType: "college",
+  comparisonLevel: "department",
+  comparisonGroupBy: "orgUnit",
   reportingFilters: {
-    issuedFrom: '2025-12-23',
-    issuedTo: '2026-03-22',
-    badgeTemplateId: 'badge_template_science',
+    issuedFrom: "2025-12-23",
+    issuedTo: "2026-03-22",
+    badgeTemplateId: "badge_template_science",
     orgUnitId: undefined,
-    state: 'active',
+    state: "active",
   },
   hierarchyFilters: createReportingHierarchyPageFilters(
     {
-      issuedFrom: '2025-12-23',
-      issuedTo: '2026-03-22',
-      badgeTemplateId: 'badge_template_science',
+      issuedFrom: "2025-12-23",
+      issuedTo: "2026-03-22",
+      badgeTemplateId: "badge_template_science",
       orgUnitId: undefined,
-      state: 'active',
+      state: "active",
     },
     {
-      focusOrgUnitId: 'tenant_123:org:college-eng',
-      level: 'department',
+      focusOrgUnitId: "tenant_123:org:college-eng",
+      level: "department",
     },
   ),
   pathState: {
-    audience: 'system',
-    window: 'last-90-days',
-    badgeTemplateId: 'badge_template_science',
-    state: 'active',
-    focusOrgUnitId: 'tenant_123:org:college-eng',
-    comparisonLevel: 'department',
+    audience: "system",
+    window: "last-90-days",
+    badgeTemplateId: "badge_template_science",
+    state: "active",
+    focusOrgUnitId: "tenant_123:org:college-eng",
+    comparisonLevel: "department",
   },
 };
 
-const scopedDefaults: TenantExecutiveDashboardRecord['defaults'] = {
-  audience: 'college',
-  window: 'last-90-days',
-  focusOrgUnitId: 'tenant_123:org:college-eng',
-  focusUnitType: 'college',
-  comparisonLevel: 'department',
-  comparisonGroupBy: 'orgUnit',
+const scopedDefaults: TenantExecutiveDashboardRecord["defaults"] = {
+  audience: "college",
+  window: "last-90-days",
+  focusOrgUnitId: "tenant_123:org:college-eng",
+  focusUnitType: "college",
+  comparisonLevel: "department",
+  comparisonGroupBy: "orgUnit",
   reportingFilters: {
-    issuedFrom: '2025-12-23',
-    issuedTo: '2026-03-22',
+    issuedFrom: "2025-12-23",
+    issuedTo: "2026-03-22",
     badgeTemplateId: undefined,
     orgUnitId: undefined,
-    state: 'active',
+    state: "active",
   },
   hierarchyFilters: createReportingHierarchyPageFilters(
     {
-      issuedFrom: '2025-12-23',
-      issuedTo: '2026-03-22',
+      issuedFrom: "2025-12-23",
+      issuedTo: "2026-03-22",
       badgeTemplateId: undefined,
       orgUnitId: undefined,
-      state: 'active',
+      state: "active",
     },
     {
-      focusOrgUnitId: 'tenant_123:org:college-eng',
-      level: 'department',
+      focusOrgUnitId: "tenant_123:org:college-eng",
+      level: "department",
     },
   ),
   pathState: {
-    audience: 'college',
-    window: 'last-90-days',
-    state: 'active',
-    focusOrgUnitId: 'tenant_123:org:college-eng',
-    comparisonLevel: 'department',
+    audience: "college",
+    window: "last-90-days",
+    state: "active",
+    focusOrgUnitId: "tenant_123:org:college-eng",
+    comparisonLevel: "department",
   },
 };
 
@@ -467,25 +470,25 @@ const systemSlice: TenantExecutiveDashboardRecord = {
   tenantId: TENANT_ID,
   access: {
     tenantId: TENANT_ID,
-    membershipRole: 'admin',
-    visibility: 'tenant',
+    membershipRole: "admin",
+    visibility: "tenant",
     scopedOrgUnitIds: [],
   },
   defaults: systemDefaults,
   navigation: {
     current: createNavigationLink({
-      kind: 'drilldown',
-      label: 'Tenant 123 Institution',
-      focusOrgUnitId: 'tenant_123:org:institution',
-      comparisonLevel: 'college',
+      kind: "drilldown",
+      label: "Tenant 123 Institution",
+      focusOrgUnitId: "tenant_123:org:institution",
+      comparisonLevel: "college",
       pathState: systemDefaults.pathState,
     }),
     breadcrumbs: [
       createNavigationLink({
-        kind: 'drilldown',
-        label: 'Tenant 123 Institution',
-        focusOrgUnitId: 'tenant_123:org:institution',
-        comparisonLevel: 'college',
+        kind: "drilldown",
+        label: "Tenant 123 Institution",
+        focusOrgUnitId: "tenant_123:org:institution",
+        comparisonLevel: "college",
         pathState: systemDefaults.pathState,
       }),
     ],
@@ -493,17 +496,17 @@ const systemSlice: TenantExecutiveDashboardRecord = {
     back: null,
     drilldowns: [
       createNavigationLink({
-        kind: 'drilldown',
-        label: 'College of Engineering',
-        focusOrgUnitId: 'tenant_123:org:college-eng',
-        comparisonLevel: 'department',
+        kind: "drilldown",
+        label: "College of Engineering",
+        focusOrgUnitId: "tenant_123:org:college-eng",
+        comparisonLevel: "department",
         pathState: systemDefaults.pathState,
       }),
       createNavigationLink({
-        kind: 'drilldown',
-        label: 'College of Arts',
-        focusOrgUnitId: 'tenant_123:org:college-arts',
-        comparisonLevel: 'department',
+        kind: "drilldown",
+        label: "College of Arts",
+        focusOrgUnitId: "tenant_123:org:college-arts",
+        comparisonLevel: "department",
         pathState: systemDefaults.pathState,
       }),
     ],
@@ -521,62 +524,62 @@ const focusedSlice: TenantExecutiveDashboardRecord = {
   tenantId: TENANT_ID,
   access: {
     tenantId: TENANT_ID,
-    membershipRole: 'admin',
-    visibility: 'tenant',
+    membershipRole: "admin",
+    visibility: "tenant",
     scopedOrgUnitIds: [],
   },
   defaults: focusedDefaults,
   navigation: {
     current: createNavigationLink({
-      kind: 'drilldown',
-      label: 'College of Engineering',
-      focusOrgUnitId: 'tenant_123:org:college-eng',
-      comparisonLevel: 'department',
+      kind: "drilldown",
+      label: "College of Engineering",
+      focusOrgUnitId: "tenant_123:org:college-eng",
+      comparisonLevel: "department",
       pathState: focusedDefaults.pathState,
     }),
     breadcrumbs: [
       createNavigationLink({
-        kind: 'drilldown',
-        label: 'Tenant 123 Institution',
-        focusOrgUnitId: 'tenant_123:org:institution',
-        comparisonLevel: 'college',
+        kind: "drilldown",
+        label: "Tenant 123 Institution",
+        focusOrgUnitId: "tenant_123:org:institution",
+        comparisonLevel: "college",
         pathState: focusedDefaults.pathState,
       }),
       createNavigationLink({
-        kind: 'drilldown',
-        label: 'College of Engineering',
-        focusOrgUnitId: 'tenant_123:org:college-eng',
-        comparisonLevel: 'department',
+        kind: "drilldown",
+        label: "College of Engineering",
+        focusOrgUnitId: "tenant_123:org:college-eng",
+        comparisonLevel: "department",
         pathState: focusedDefaults.pathState,
       }),
     ],
     parent: createNavigationLink({
-      kind: 'drilldown',
-      label: 'Tenant 123 Institution',
-      focusOrgUnitId: 'tenant_123:org:institution',
-      comparisonLevel: 'college',
+      kind: "drilldown",
+      label: "Tenant 123 Institution",
+      focusOrgUnitId: "tenant_123:org:institution",
+      comparisonLevel: "college",
       pathState: focusedDefaults.pathState,
     }),
     back: createNavigationLink({
-      kind: 'drilldown',
-      label: 'Tenant 123 Institution',
-      focusOrgUnitId: 'tenant_123:org:institution',
-      comparisonLevel: 'college',
+      kind: "drilldown",
+      label: "Tenant 123 Institution",
+      focusOrgUnitId: "tenant_123:org:institution",
+      comparisonLevel: "college",
       pathState: focusedDefaults.pathState,
     }),
     drilldowns: [
       createNavigationLink({
-        kind: 'drilldown',
-        label: 'Computer Science',
-        focusOrgUnitId: 'tenant_123:org:department-cs',
-        comparisonLevel: 'program',
+        kind: "drilldown",
+        label: "Computer Science",
+        focusOrgUnitId: "tenant_123:org:department-cs",
+        comparisonLevel: "program",
         pathState: focusedDefaults.pathState,
       }),
       createNavigationLink({
-        kind: 'focus-summary',
-        label: 'Mathematics',
-        focusOrgUnitId: 'tenant_123:org:department-math',
-        comparisonLevel: 'department',
+        kind: "focus-summary",
+        label: "Mathematics",
+        focusOrgUnitId: "tenant_123:org:department-math",
+        comparisonLevel: "department",
         pathState: focusedDefaults.pathState,
       }),
     ],
@@ -594,25 +597,25 @@ const scopedSlice: TenantExecutiveDashboardRecord = {
   tenantId: TENANT_ID,
   access: {
     tenantId: TENANT_ID,
-    membershipRole: 'viewer',
-    visibility: 'scoped',
-    scopedOrgUnitIds: ['tenant_123:org:college-eng'],
+    membershipRole: "viewer",
+    visibility: "scoped",
+    scopedOrgUnitIds: ["tenant_123:org:college-eng"],
   },
   defaults: scopedDefaults,
   navigation: {
     current: createNavigationLink({
-      kind: 'drilldown',
-      label: 'College of Engineering',
-      focusOrgUnitId: 'tenant_123:org:college-eng',
-      comparisonLevel: 'department',
+      kind: "drilldown",
+      label: "College of Engineering",
+      focusOrgUnitId: "tenant_123:org:college-eng",
+      comparisonLevel: "department",
       pathState: scopedDefaults.pathState,
     }),
     breadcrumbs: [
       createNavigationLink({
-        kind: 'drilldown',
-        label: 'College of Engineering',
-        focusOrgUnitId: 'tenant_123:org:college-eng',
-        comparisonLevel: 'department',
+        kind: "drilldown",
+        label: "College of Engineering",
+        focusOrgUnitId: "tenant_123:org:college-eng",
+        comparisonLevel: "department",
         pathState: scopedDefaults.pathState,
       }),
     ],
@@ -620,17 +623,17 @@ const scopedSlice: TenantExecutiveDashboardRecord = {
     back: null,
     drilldowns: [
       createNavigationLink({
-        kind: 'drilldown',
-        label: 'Computer Science',
-        focusOrgUnitId: 'tenant_123:org:department-cs',
-        comparisonLevel: 'program',
+        kind: "drilldown",
+        label: "Computer Science",
+        focusOrgUnitId: "tenant_123:org:department-cs",
+        comparisonLevel: "program",
         pathState: scopedDefaults.pathState,
       }),
       createNavigationLink({
-        kind: 'focus-summary',
-        label: 'Mathematics',
-        focusOrgUnitId: 'tenant_123:org:department-math',
-        comparisonLevel: 'department',
+        kind: "focus-summary",
+        label: "Mathematics",
+        focusOrgUnitId: "tenant_123:org:department-math",
+        comparisonLevel: "department",
         pathState: scopedDefaults.pathState,
       }),
     ],
@@ -683,8 +686,8 @@ export const seededDemoExecutiveFixture: SeededDemoExecutiveFixture = {
   scopes: {
     collegeIssuer: createScope({}),
     programViewer: createScope({
-      orgUnitId: 'tenant_123:org:program-cs',
-      role: 'viewer',
+      orgUnitId: "tenant_123:org:program-cs",
+      role: "viewer",
     }),
   },
   overview,
@@ -703,9 +706,9 @@ export const seededDemoExecutiveFixture: SeededDemoExecutiveFixture = {
   verificationCommand: SEEDED_DEMO_EXECUTIVE_VERIFY_COMMAND,
 };
 
-export type SeededDemoExecutiveSliceName = keyof SeededDemoExecutiveFixture['slices'];
-export type SeededDemoExecutiveRollupName = keyof SeededDemoExecutiveFixture['rollups'];
-export type SeededDemoExecutiveScopeName = keyof SeededDemoExecutiveFixture['scopes'];
+export type SeededDemoExecutiveSliceName = keyof SeededDemoExecutiveFixture["slices"];
+export type SeededDemoExecutiveRollupName = keyof SeededDemoExecutiveFixture["rollups"];
+export type SeededDemoExecutiveScopeName = keyof SeededDemoExecutiveFixture["scopes"];
 
 const cloneValue = <T>(value: T): T => {
   return structuredClone(value);

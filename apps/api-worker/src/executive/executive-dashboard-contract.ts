@@ -46,21 +46,20 @@ export interface ExecutiveDashboardDefaults {
   pathState: ExecutiveDashboardPathState;
 }
 
-export interface ExecutiveDashboardPathState
-  extends Partial<
-    Pick<
-      TenantExecutiveDashboardQuery,
-      | "window"
-      | "audience"
-      | "issuedFrom"
-      | "issuedTo"
-      | "badgeTemplateId"
-      | "orgUnitId"
-      | "state"
-      | "focusOrgUnitId"
-      | "comparisonLevel"
-    >
-  > {
+export interface ExecutiveDashboardPathState extends Partial<
+  Pick<
+    TenantExecutiveDashboardQuery,
+    | "window"
+    | "audience"
+    | "issuedFrom"
+    | "issuedTo"
+    | "badgeTemplateId"
+    | "orgUnitId"
+    | "state"
+    | "focusOrgUnitId"
+    | "comparisonLevel"
+  >
+> {
   audience: ExecutiveDashboardAudience;
   focusOrgUnitId: string;
   comparisonLevel: OrgUnitType;
@@ -70,9 +69,7 @@ export const toExecutiveOrgUnitsById = (
   orgUnits: readonly TenantOrgUnitRecord[],
 ): ReadonlyMap<string, TenantOrgUnitRecord> => {
   return new Map(
-    orgUnits
-      .filter((orgUnit) => orgUnit.isActive)
-      .map((orgUnit) => [orgUnit.id, orgUnit] as const),
+    orgUnits.filter((orgUnit) => orgUnit.isActive).map((orgUnit) => [orgUnit.id, orgUnit] as const),
   );
 };
 

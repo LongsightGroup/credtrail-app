@@ -72,41 +72,44 @@ export const registerLearnerRecordExportRoutes = (
     return c.json(serializeLearnerRecordExport(bundle, query.profile));
   });
 
-  app.get("/v1/tenants/:tenantId/learner-records/:learnerProfileId/standards-mapping", async (c) => {
-    let pathParams;
-    let query;
+  app.get(
+    "/v1/tenants/:tenantId/learner-records/:learnerProfileId/standards-mapping",
+    async (c) => {
+      let pathParams;
+      let query;
 
-    try {
-      pathParams = parseLearnerRecordExportPathParams(c.req.param());
-      query = parseLearnerRecordStandardsMappingQuery(c.req.query());
-    } catch {
-      return c.json(
-        {
-          error: "Invalid learner-record standards mapping request",
-        },
-        400,
-      );
-    }
+      try {
+        pathParams = parseLearnerRecordExportPathParams(c.req.param());
+        query = parseLearnerRecordStandardsMappingQuery(c.req.query());
+      } catch {
+        return c.json(
+          {
+            error: "Invalid learner-record standards mapping request",
+          },
+          400,
+        );
+      }
 
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+      const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
 
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
+      if (roleCheck instanceof Response) {
+        return roleCheck;
+      }
 
-    const bundle = await loadLearnerRecordExportBundle(resolveDatabase(c.env), pathParams);
+      const bundle = await loadLearnerRecordExportBundle(resolveDatabase(c.env), pathParams);
 
-    if (bundle === null) {
-      return c.json(
-        {
-          error: "Learner profile not found",
-        },
-        404,
-      );
-    }
+      if (bundle === null) {
+        return c.json(
+          {
+            error: "Learner profile not found",
+          },
+          404,
+        );
+      }
 
-    c.header("Cache-Control", "no-store");
+      c.header("Cache-Control", "no-store");
 
-    return c.json(buildLearnerRecordStandardsMappingResponse(bundle, query.profile));
-  });
+      return c.json(buildLearnerRecordStandardsMappingResponse(bundle, query.profile));
+    },
+  );
 };

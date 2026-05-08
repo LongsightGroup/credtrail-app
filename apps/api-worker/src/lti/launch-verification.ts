@@ -161,10 +161,7 @@ export const resolveLtiLaunch = async (input: {
   };
 
   if (!ltiAudienceIncludesClientId(launchClaims.aud, launchState.clientId)) {
-    throw new LtiLaunchVerificationError(
-      400,
-      "id_token aud does not include configured client_id",
-    );
+    throw new LtiLaunchVerificationError(400, "id_token aud does not include configured client_id");
   }
 
   if (launchClaims.nonce !== launchState.nonce) {
@@ -192,13 +189,9 @@ export const resolveLtiLaunch = async (input: {
   }
 
   const targetLinkUriClaim = launchClaims[LTI_CLAIM_TARGET_LINK_URI];
-  const normalizedStateTargetLinkUri = normalizeAbsoluteUrlForComparison(
-    launchState.targetLinkUri,
-  );
+  const normalizedStateTargetLinkUri = normalizeAbsoluteUrlForComparison(launchState.targetLinkUri);
   const normalizedClaimTargetLinkUri =
-    targetLinkUriClaim === undefined
-      ? null
-      : normalizeAbsoluteUrlForComparison(targetLinkUriClaim);
+    targetLinkUriClaim === undefined ? null : normalizeAbsoluteUrlForComparison(targetLinkUriClaim);
 
   if (
     targetLinkUriClaim !== undefined &&

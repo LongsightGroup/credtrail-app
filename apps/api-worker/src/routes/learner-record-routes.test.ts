@@ -109,8 +109,7 @@ const sampleLearnerRecordEntry = () => {
     issuedAt: "2026-03-24T15:00:00.000Z",
     revisedAt: null,
     revokedAt: null,
-    evidenceLinksJson:
-      '["https://credtrail.example.edu/evidence/intro-cybersecurity/project"]',
+    evidenceLinksJson: '["https://credtrail.example.edu/evidence/intro-cybersecurity/project"]',
     detailsJson: '{"grade":"A"}',
     createdAt: "2026-03-24T15:00:00.000Z",
     updatedAt: "2026-03-24T15:00:00.000Z",
@@ -173,7 +172,8 @@ const sampleImportQueueMessage = (
     id: "job_lr_123",
     tenantId: "tenant_123",
     jobType: "import_learner_record_batch",
-    payloadJson: '{"batchId":"batch_123","rowNumber":1,"fileName":"learner-records.csv","format":"csv"}',
+    payloadJson:
+      '{"batchId":"batch_123","rowNumber":1,"fileName":"learner-records.csv","format":"csv"}',
     idempotencyKey: "learner-record-import:batch_123:1",
     attemptCount: 0,
     maxAttempts: 8,
@@ -328,9 +328,7 @@ describe("learner-record routes", () => {
           issuedAt: "2026-03-24T15:00:00.000Z",
           revisedAt: null,
           revokedAt: null,
-          evidenceLinks: [
-            "https://credtrail.example.edu/evidence/intro-cybersecurity/project",
-          ],
+          evidenceLinks: ["https://credtrail.example.edu/evidence/intro-cybersecurity/project"],
         },
       },
     });
@@ -386,9 +384,7 @@ describe("learner-record routes", () => {
             issuedAt: "2026-03-24T15:00:00.000Z",
             revisedAt: null,
             revokedAt: null,
-            evidenceLinks: [
-              "https://credtrail.example.edu/evidence/intro-cybersecurity/project",
-            ],
+            evidenceLinks: ["https://credtrail.example.edu/evidence/intro-cybersecurity/project"],
           },
         },
       ],
@@ -476,9 +472,7 @@ describe("learner-record routes", () => {
           issuedAt: "2026-03-24T15:00:00.000Z",
           revisedAt: null,
           revokedAt: null,
-          evidenceLinks: [
-            "https://credtrail.example.edu/evidence/intro-cybersecurity/project",
-          ],
+          evidenceLinks: ["https://credtrail.example.edu/evidence/intro-cybersecurity/project"],
         },
       },
     });
@@ -516,7 +510,9 @@ describe("learner-record import routes", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/csv");
-    expect(await response.text()).toContain("learnerEmail,learnerDisplayName,title,recordType,issuedAt");
+    expect(await response.text()).toContain(
+      "learnerEmail,learnerDisplayName,title,recordType,issuedAt",
+    );
   });
 
   it("supports dry-run CSV preview without mutating queue state", async () => {

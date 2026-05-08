@@ -10,7 +10,7 @@
     "@credtrail/lti": "workspace:*",
     "@credtrail/ui-components": "workspace:*",
     "@credtrail/validation": "workspace:*",
-    "@hono/node-server": "^1.19.9",
+    "@hono/node-server": "^2.0.2",
     "@lti-tool/core": "1.1.0",
     "csv-stringify": "^6.7.0",
     "hono": "^4.12.18",

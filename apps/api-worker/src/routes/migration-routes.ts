@@ -123,12 +123,12 @@ const learnerIdentityTypeFromRecipientIdentityType = (
 
 const zodIssueMessages = (
   issues: readonly {
-    path: (string | number)[];
+    path: readonly PropertyKey[];
     message: string;
   }[],
 ): string[] => {
   return issues.map((issue) => {
-    const path = issue.path.length > 0 ? issue.path.join(".") : "request";
+    const path = issue.path.length > 0 ? issue.path.map(String).join(".") : "request";
     return `${path}: ${issue.message}`;
   });
 };

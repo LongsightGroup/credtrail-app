@@ -4878,7 +4878,9 @@ const normalizeLearnerRecordEvidenceLinksJson = (evidenceLinks: readonly string[
   return JSON.stringify(Array.from(new Set(evidenceLinks)));
 };
 
-const normalizeLearnerRecordDetailsJson = (detailsJson: string | null | undefined): string | null => {
+const normalizeLearnerRecordDetailsJson = (
+  detailsJson: string | null | undefined,
+): string | null => {
   if (detailsJson === undefined || detailsJson === null) {
     return null;
   }
@@ -4908,12 +4910,7 @@ const normalizeLearnerRecordImportInferredFromJson = (
   }
 
   for (const entry of normalized) {
-    if (
-      entry !== "row" &&
-      entry !== "badge_template" &&
-      entry !== "org_unit" &&
-      entry !== "none"
-    ) {
+    if (entry !== "row" && entry !== "badge_template" && entry !== "org_unit" && entry !== "none") {
       throw new Error("Unsupported learner-record import inference source");
     }
   }
@@ -4938,18 +4935,14 @@ const assertLearnerRecordEntrySemantics = (input: {
   sourceSystem: LearnerRecordSourceSystem;
   revokedAt: string | null;
 }): void => {
-  if (
-    input.trustLevel === "issuer_verified" &&
-    input.sourceSystem === "learner_self_reported"
-  ) {
+  if (input.trustLevel === "issuer_verified" && input.sourceSystem === "learner_self_reported") {
     throw new Error("issuer-verified learner-record entries cannot be learner_self_reported");
   }
 
-  if (
-    input.recordType === "supplemental_artifact" &&
-    input.trustLevel !== "learner_supplemental"
-  ) {
-    throw new Error("supplemental_artifact learner-record entries must use learner_supplemental trust");
+  if (input.recordType === "supplemental_artifact" && input.trustLevel !== "learner_supplemental") {
+    throw new Error(
+      "supplemental_artifact learner-record entries must use learner_supplemental trust",
+    );
   }
 
   if (input.status === "revoked" && input.revokedAt === null) {
@@ -5769,8 +5762,14 @@ export const summarizeTenantExecutiveRollup = (input: {
       return [orgUnit.id, orgUnit] as const;
     }),
   );
-  const focusOrgUnit = getReportingHierarchyOrgUnitOrThrow(orgUnitsById, input.query.focusOrgUnitId);
-  const focusLineageOrgUnitIds = listReportingHierarchyLineage(orgUnitsById, input.query.focusOrgUnitId)
+  const focusOrgUnit = getReportingHierarchyOrgUnitOrThrow(
+    orgUnitsById,
+    input.query.focusOrgUnitId,
+  );
+  const focusLineageOrgUnitIds = listReportingHierarchyLineage(
+    orgUnitsById,
+    input.query.focusOrgUnitId,
+  )
     .map((orgUnit) => orgUnit.id)
     .reverse();
 
@@ -6539,10 +6538,7 @@ export const listLearnerRecordEntries = async (
   input: ListLearnerRecordEntriesInput,
 ): Promise<LearnerRecordEntryRecord[]> => {
   const params: unknown[] = [input.tenantId, input.learnerProfileId];
-  const conditions = [
-    "tenant_id = ?",
-    "learner_profile_id = ?",
-  ];
+  const conditions = ["tenant_id = ?", "learner_profile_id = ?"];
 
   if (input.trustLevel !== undefined) {
     conditions.push("trust_level = ?");
@@ -6615,8 +6611,9 @@ export const patchLearnerRecordEntry = async (
       ? existing.issuerName
       : normalizeRequiredLearnerRecordText(input.issuerName, "issuerName");
   const issuerUserId =
-    input.issuerUserId === undefined ? existing.issuerUserId : input.issuerUserId ?? null;
-  const sourceSystem = input.sourceSystem === undefined ? existing.sourceSystem : input.sourceSystem;
+    input.issuerUserId === undefined ? existing.issuerUserId : (input.issuerUserId ?? null);
+  const sourceSystem =
+    input.sourceSystem === undefined ? existing.sourceSystem : input.sourceSystem;
   const sourceRecordId =
     input.sourceRecordId === undefined
       ? existing.sourceRecordId
@@ -12999,9 +12996,7 @@ export const createLtiToolKey = async (
   return key;
 };
 
-export const findActiveLtiToolKey = async (
-  db: SqlDatabase,
-): Promise<LtiToolKeyRecord | null> => {
+export const findActiveLtiToolKey = async (db: SqlDatabase): Promise<LtiToolKeyRecord | null> => {
   const findStatement = (): Promise<LtiToolKeyRow | null> =>
     db
       .prepare(
@@ -16018,7 +16013,11 @@ export const listLearnerRecordAssertionExports = async (
   db: SqlDatabase,
   input: ListLearnerRecordAssertionExportsInput,
 ): Promise<LearnerRecordAssertionExportRecord[]> => {
-  const identities = await listLearnerIdentitiesByProfile(db, input.tenantId, input.learnerProfileId);
+  const identities = await listLearnerIdentitiesByProfile(
+    db,
+    input.tenantId,
+    input.learnerProfileId,
+  );
   const emailAliases = Array.from(
     new Set(
       identities

@@ -730,12 +730,10 @@ export const registerTenantGovernanceRoutes = (
         templatePath: `/v1/tenants/${encodeURIComponent(input.tenantId)}/learner-record-imports/template.csv`,
         previewPath: `/tenants/${encodeURIComponent(input.tenantId)}/admin/operations/learner-record-imports/preview`,
         applyPath: `/tenants/${encodeURIComponent(input.tenantId)}/admin/operations/learner-record-imports/apply`,
-        defaults:
-          input.workflow?.defaults ??
-          ({
-            defaultTrustLevel: "issuer_verified" as LearnerRecordTrustLevel,
-            defaultIssuerName: "",
-          }),
+        defaults: input.workflow?.defaults ?? {
+          defaultTrustLevel: "issuer_verified" as LearnerRecordTrustLevel,
+          defaultIssuerName: "",
+        },
         submission: input.workflow?.submission ?? null,
         feedback: input.workflow?.feedback ?? null,
         progress,
@@ -1075,7 +1073,8 @@ export const registerTenantGovernanceRoutes = (
           feedback: {
             tone: "warning",
             title: "CSV file is required",
-            detail: 'Attach a CSV file in the "file" field to preview or queue learner-record imports.',
+            detail:
+              'Attach a CSV file in the "file" field to preview or queue learner-record imports.',
           },
         },
       );
@@ -1133,7 +1132,9 @@ export const registerTenantGovernanceRoutes = (
             tone: "warning",
             title: "Import file could not be prepared",
             detail:
-              error instanceof Error ? error.message : "CredTrail could not parse this learner-record CSV.",
+              error instanceof Error
+                ? error.message
+                : "CredTrail could not parse this learner-record CSV.",
           },
         },
       );
@@ -1169,7 +1170,9 @@ export const registerTenantGovernanceRoutes = (
         feedback: {
           tone: input.mode === "apply" ? "success" : "warning",
           title:
-            input.mode === "apply" ? "Learner-record import batch queued" : "Learner-record import preview ready",
+            input.mode === "apply"
+              ? "Learner-record import batch queued"
+              : "Learner-record import preview ready",
           detail:
             input.mode === "apply"
               ? `Queued ${String(queuedRows)} valid rows from ${prepared.fileName}. Invalid rows were kept out of the queue.`
@@ -1288,73 +1291,76 @@ export const registerTenantGovernanceRoutes = (
     });
   });
 
-  app.post("/tenants/:tenantId/admin/operations/learner-record-imports/:batchId/retry", async (c) => {
-    let pathParams;
+  app.post(
+    "/tenants/:tenantId/admin/operations/learner-record-imports/:batchId/retry",
+    async (c) => {
+      let pathParams;
 
-    try {
-      pathParams = parseLearnerRecordImportBatchPathParams(c.req.param());
-    } catch {
-      return c.json(
-        {
-          error: "Invalid learner-record import batch path",
-        },
-        400,
-      );
-    }
-
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      if (roleCheck.status === 401) {
-        return redirectToTenantLogin(
-          c,
-          pathParams.tenantId,
-          `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/learner-record-imports`,
+      try {
+        pathParams = parseLearnerRecordImportBatchPathParams(c.req.param());
+      } catch {
+        return c.json(
+          {
+            error: "Invalid learner-record import batch path",
+          },
+          400,
         );
       }
 
-      if (roleCheck.status === 403) {
-        c.header("Cache-Control", "no-store");
-        return c.html(adminRoleRequiredPage(pathParams.tenantId), 403);
+      const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+      if (roleCheck instanceof Response) {
+        if (roleCheck.status === 401) {
+          return redirectToTenantLogin(
+            c,
+            pathParams.tenantId,
+            `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/learner-record-imports`,
+          );
+        }
+
+        if (roleCheck.status === 403) {
+          c.header("Cache-Control", "no-store");
+          return c.html(adminRoleRequiredPage(pathParams.tenantId), 403);
+        }
+
+        return roleCheck;
       }
 
-      return roleCheck;
-    }
-
-    const retryResult = await retryFailedImportLearnerRecordBatchQueueMessages(
-      resolveDatabase(c.env),
-      {
-        tenantId: pathParams.tenantId,
-        batchId: pathParams.batchId,
-      },
-    );
-
-    return renderLearnerRecordImportWorkspace(
-      c,
-      pathParams.tenantId,
-      roleCheck.session.userId,
-      roleCheck.membershipRole,
-      {
-        defaults: {
-          defaultTrustLevel: "issuer_verified",
-          defaultIssuerName: "",
+      const retryResult = await retryFailedImportLearnerRecordBatchQueueMessages(
+        resolveDatabase(c.env),
+        {
+          tenantId: pathParams.tenantId,
+          batchId: pathParams.batchId,
         },
-        submission: null,
-        feedback:
-          retryResult.matched === 0
-            ? {
-                tone: "warning",
-                title: "Import batch not found",
-                detail: `Batch ${pathParams.batchId} is not available for retry in this tenant.`,
-              }
-            : {
-                tone: "success",
-                title: "Failed rows retried",
-                detail: `Retried ${String(retryResult.retried)} failed rows from batch ${pathParams.batchId}.`,
-              },
-      },
-    );
-  });
+      );
+
+      return renderLearnerRecordImportWorkspace(
+        c,
+        pathParams.tenantId,
+        roleCheck.session.userId,
+        roleCheck.membershipRole,
+        {
+          defaults: {
+            defaultTrustLevel: "issuer_verified",
+            defaultIssuerName: "",
+          },
+          submission: null,
+          feedback:
+            retryResult.matched === 0
+              ? {
+                  tone: "warning",
+                  title: "Import batch not found",
+                  detail: `Batch ${pathParams.batchId} is not available for retry in this tenant.`,
+                }
+              : {
+                  tone: "success",
+                  title: "Failed rows retried",
+                  detail: `Retried ${String(retryResult.retried)} failed rows from batch ${pathParams.batchId}.`,
+                },
+        },
+      );
+    },
+  );
 
   app.get("/tenants/:tenantId/admin/operations/learner-records", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
@@ -1395,9 +1401,7 @@ export const registerTenantGovernanceRoutes = (
       tenantId: pathParams.tenantId,
       sessionUserId: roleCheck.session.userId,
       membershipRole: roleCheck.membershipRole,
-      ...(reviewQuery.learnerProfileId
-        ? { learnerProfileId: reviewQuery.learnerProfileId }
-        : {}),
+      ...(reviewQuery.learnerProfileId ? { learnerProfileId: reviewQuery.learnerProfileId } : {}),
       ...(reviewQuery.email ? { email: reviewQuery.email } : {}),
     });
 
@@ -2299,7 +2303,11 @@ export const registerTenantGovernanceRoutes = (
 
     const { session, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
-    const existingMembership = await findTenantMembership(db, pathParams.tenantId, pathParams.userId);
+    const existingMembership = await findTenantMembership(
+      db,
+      pathParams.tenantId,
+      pathParams.userId,
+    );
 
     if (existingMembership === null) {
       return c.json(

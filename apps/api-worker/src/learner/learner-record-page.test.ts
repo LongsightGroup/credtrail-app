@@ -17,7 +17,8 @@ const samplePresentation = (): LearnerRecordPresentationModel => {
 describe("createLearnerRecordPage", () => {
   it("renders the unified learner record without admin-only export affordances", () => {
     const html = learnerRecordPage("tenant_123", samplePresentation(), {
-      switchOrganizationPath: "/account/organizations?next=%2Ftenants%2Ftenant_123%2Flearner%2Frecord",
+      switchOrganizationPath:
+        "/account/organizations?next=%2Ftenants%2Ftenant_123%2Flearner%2Frecord",
     });
 
     expect(html).toContain("Unified learner record");

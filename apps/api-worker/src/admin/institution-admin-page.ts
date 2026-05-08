@@ -24,10 +24,7 @@ import {
   buildReportingHierarchyQueryEntries,
   buildReportingPageQueryEntries,
 } from "../reporting/reporting-page-filters";
-import {
-  renderReporting,
-  type ReportingVisualSeriesPoint,
-} from "../reporting/reporting-visuals";
+import { renderReporting, type ReportingVisualSeriesPoint } from "../reporting/reporting-visuals";
 import type {
   LearnerRecordImportBatchProgressSummary,
   LearnerRecordImportRowReport,
@@ -1210,7 +1207,8 @@ const renderInstitutionAdminPage = (
       label: "Badge template",
       value:
         reportingBadgeTemplateIdValue.length > 0
-          ? (templateById.get(reportingBadgeTemplateIdValue)?.title ?? reportingBadgeTemplateIdValue)
+          ? (templateById.get(reportingBadgeTemplateIdValue)?.title ??
+            reportingBadgeTemplateIdValue)
           : "All templates",
     },
     {
@@ -1232,7 +1230,9 @@ const renderInstitutionAdminPage = (
     {
       key: "issued",
       label: "Issued badges",
-      value: formatReportingCount(reportingOverview?.counts.issued ?? reportingEngagementCounts?.issuedCount ?? 0),
+      value: formatReportingCount(
+        reportingOverview?.counts.issued ?? reportingEngagementCounts?.issuedCount ?? 0,
+      ),
       detail: "Current issued volume for the selected reporting slice.",
     },
     {
@@ -1266,7 +1266,9 @@ const renderInstitutionAdminPage = (
             <span class="ct-admin__status-pill">KPI-first</span>
           </div>
           <p class="ct-admin__reporting-summary-copy">Current reporting slice shows ${escapeHtml(
-            formatReportingCount(reportingOverview?.counts.issued ?? reportingEngagementCounts?.issuedCount ?? 0),
+            formatReportingCount(
+              reportingOverview?.counts.issued ?? reportingEngagementCounts?.issuedCount ?? 0,
+            ),
           )} issued badges, ${escapeHtml(formatReportingRate(reportingEngagementCounts?.claimRate ?? 0))} claim rate, ${escapeHtml(
             formatReportingRate(reportingEngagementCounts?.shareRate ?? 0),
           )} share rate, and ${escapeHtml(
@@ -1559,19 +1561,19 @@ const renderInstitutionAdminPage = (
             description:
               "Use the exact table below to review the current counts behind this slice before drawing a broader trend story.",
           })
-      : (() => {
-          const startRow = reportingTrendSeries[0];
+        : (() => {
+            const startRow = reportingTrendSeries[0];
 
-          if (startRow === undefined) {
-            return '<div class="ct-admin__empty">No trend data available for the selected filters.</div>';
-          }
+            if (startRow === undefined) {
+              return '<div class="ct-admin__empty">No trend data available for the selected filters.</div>';
+            }
 
-          const latestRow = reportingTrendSeries[reportingTrendSeries.length - 1] ?? startRow;
-          const peakRow = reportingTrendSeries.reduce((highestRow, row) => {
-            return row.issuedCount > highestRow.issuedCount ? row : highestRow;
-          }, startRow);
+            const latestRow = reportingTrendSeries[reportingTrendSeries.length - 1] ?? startRow;
+            const peakRow = reportingTrendSeries.reduce((highestRow, row) => {
+              return row.issuedCount > highestRow.issuedCount ? row : highestRow;
+            }, startRow);
 
-          return `<div class="ct-admin__reporting-trend-hero">
+            return `<div class="ct-admin__reporting-trend-hero">
             <div class="ct-admin__reporting-trend-intro ct-stack">
               <p class="ct-admin__eyebrow">Chart-first read</p>
               <h3>Read issued badge momentum first</h3>
@@ -1591,7 +1593,7 @@ const renderInstitutionAdminPage = (
             </div>
             ${reportingTrendVisualMarkup}
           </div>`;
-        })();
+          })();
   const reportingTrendIntroCopy =
     reportingTrendState === "rich"
       ? "Use the chart first to read issuance momentum for the selected reporting slice. The detailed table remains below so each supporting engagement count stays visible and reviewable."
@@ -1695,9 +1697,7 @@ const renderInstitutionAdminPage = (
     0,
     ...REPORTING_HIERARCHY_LEVELS.map(
       (level) =>
-        reportingHierarchyRowsByLevel
-          .get(level)
-          ?.filter((row) => hasReportingActivity(row))
+        reportingHierarchyRowsByLevel.get(level)?.filter((row) => hasReportingActivity(row))
           .length ?? 0,
     ),
   );
@@ -1726,7 +1726,9 @@ const renderInstitutionAdminPage = (
     const rootSectionId = buildReportingHierarchyFocusId((breadcrumb[0] ?? focusOrgUnit).id);
     const currentLevelLabel = formatReportingHierarchyLevelLabel(focusOrgUnit.unitType);
     const childLevelLabel =
-      childLevel === null ? "Deepest reporting level" : formatReportingHierarchyLevelLabel(childLevel);
+      childLevel === null
+        ? "Deepest reporting level"
+        : formatReportingHierarchyLevelLabel(childLevel);
     const rows =
       childLevel === null
         ? []
@@ -1887,7 +1889,8 @@ const renderInstitutionAdminPage = (
         : renderReportingStateShell({
             state: "empty",
             eyebrow: "No hierarchy rows yet",
-            title: "Hierarchy drilldowns appear here once visible org-unit rows exist for this slice.",
+            title:
+              "Hierarchy drilldowns appear here once visible org-unit rows exist for this slice.",
             description:
               "The reporting route stays the same; this panel fills in as soon as the current slice exposes hierarchy rows.",
           });
@@ -1953,7 +1956,9 @@ const renderInstitutionAdminPage = (
   }): string => {
     const compareLevelLabel = reportingPerformerCompareLevelLabel ?? "visible";
     const rankingCopy =
-      input.rankingIntent === "highest" ? "Highest values appear first." : "Lowest values appear first.";
+      input.rankingIntent === "highest"
+        ? "Highest values appear first."
+        : "Lowest values appear first.";
 
     if (input.summaryKind === "rate") {
       return `Comparing ${compareLevelLabel} rows by ${input.metricLabel}. Issued totals stay visible beside each ranked rate row. ${rankingCopy}`;
@@ -3607,7 +3612,9 @@ const renderInstitutionAdminPage = (
   };
 
   const renderLearnerRecordReviewItem = (
-    item: NonNullable<InstitutionAdminLearnerRecordReview["presentation"]>["sections"][number]["items"][number],
+    item: NonNullable<
+      InstitutionAdminLearnerRecordReview["presentation"]
+    >["sections"][number]["items"][number],
   ): string => {
     const descriptionMarkup =
       item.description === null ? "" : `<p>${escapeHtml(item.description)}</p>`;
@@ -3791,9 +3798,7 @@ const renderInstitutionAdminPage = (
     </form>
   </article>`;
 
-  const renderLearnerRecordImportRowReport = (
-    report: LearnerRecordImportRowReport,
-  ): string => {
+  const renderLearnerRecordImportRowReport = (report: LearnerRecordImportRowReport): string => {
     const preview = report.preview;
     const contextSummary =
       preview === null
@@ -3820,9 +3825,7 @@ const renderInstitutionAdminPage = (
           : `${preview.learner.email} · ${preview.record.title}`,
       )}</td>
       <td>${escapeHtml(
-        preview === null
-          ? "Unavailable"
-          : `${preview.trustLevel} · ${preview.issuerName}`,
+        preview === null ? "Unavailable" : `${preview.trustLevel} · ${preview.issuerName}`,
       )}</td>
       <td>${escapeHtml(contextSummary)}</td>
       <td>${escapeHtml(notes.length === 0 ? "Ready to apply." : notes.join(" "))}</td>
@@ -4024,27 +4027,27 @@ const renderInstitutionAdminPage = (
         ? `Operations · Institution Admin · ${input.tenant.displayName}`
         : view === "operationsLearnerRecords"
           ? `Learner Records · Institution Admin · ${input.tenant.displayName}`
-        : view === "operationsLearnerRecordImports"
-          ? `Learner Record Imports · Institution Admin · ${input.tenant.displayName}`
-        : view === "operationsReviewQueue"
-          ? `Rule Review Queue · Institution Admin · ${input.tenant.displayName}`
-          : view === "operationsIssuedBadges"
-            ? `Issued Badges · Institution Admin · ${input.tenant.displayName}`
-            : view === "operationsBadgeStatus"
-              ? `Badge Status · Institution Admin · ${input.tenant.displayName}`
-              : view === "reporting"
-                ? `Reporting · Institution Admin · ${input.tenant.displayName}`
-                : view === "rules"
-                  ? `Rules · Institution Admin · ${input.tenant.displayName}`
-                  : view === "access"
-                    ? `Access · Institution Admin · ${input.tenant.displayName}`
-                    : view === "accessMembers"
-                      ? `Members · Institution Admin · ${input.tenant.displayName}`
-                      : view === "accessGovernance"
-                        ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
-                        : view === "accessApiKeys"
-                          ? `API Keys · Institution Admin · ${input.tenant.displayName}`
-                          : `Org Units · Institution Admin · ${input.tenant.displayName}`;
+          : view === "operationsLearnerRecordImports"
+            ? `Learner Record Imports · Institution Admin · ${input.tenant.displayName}`
+            : view === "operationsReviewQueue"
+              ? `Rule Review Queue · Institution Admin · ${input.tenant.displayName}`
+              : view === "operationsIssuedBadges"
+                ? `Issued Badges · Institution Admin · ${input.tenant.displayName}`
+                : view === "operationsBadgeStatus"
+                  ? `Badge Status · Institution Admin · ${input.tenant.displayName}`
+                  : view === "reporting"
+                    ? `Reporting · Institution Admin · ${input.tenant.displayName}`
+                    : view === "rules"
+                      ? `Rules · Institution Admin · ${input.tenant.displayName}`
+                      : view === "access"
+                        ? `Access · Institution Admin · ${input.tenant.displayName}`
+                        : view === "accessMembers"
+                          ? `Members · Institution Admin · ${input.tenant.displayName}`
+                          : view === "accessGovernance"
+                            ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
+                            : view === "accessApiKeys"
+                              ? `API Keys · Institution Admin · ${input.tenant.displayName}`
+                              : `Org Units · Institution Admin · ${input.tenant.displayName}`;
 
   const viewContent =
     view === "home"
@@ -4076,50 +4079,50 @@ const renderInstitutionAdminPage = (
               ${learnerRecordReviewPanelMarkup}
               ${renderLearnerRecordReviewSections()}
             </section>`
-        : view === "operationsLearnerRecordImports"
-          ? `${renderPageHeader(
-              "Learner Record Imports",
-              "Import learner-record CSVs with one trust default, honest smart defaults, and queue-backed progress.",
-            )}
+          : view === "operationsLearnerRecordImports"
+            ? `${renderPageHeader(
+                "Learner Record Imports",
+                "Import learner-record CSVs with one trust default, honest smart defaults, and queue-backed progress.",
+              )}
             <section class="ct-admin ct-stack">
               ${learnerRecordImportPanelMarkup}
               ${learnerRecordImportFeedbackMarkup}
               ${learnerRecordImportSubmissionMarkup}
               ${learnerRecordImportProgressMarkup}
             </section>`
-        : view === "operationsReviewQueue"
-          ? `${renderPageHeader(
-              "Rule Review Queue",
-              "Review pending badge decisions without mixing them into the rest of operations.",
-            )}
+            : view === "operationsReviewQueue"
+              ? `${renderPageHeader(
+                  "Rule Review Queue",
+                  "Review pending badge decisions without mixing them into the rest of operations.",
+                )}
             <section class="ct-admin ct-stack">
               ${ruleReviewQueuePanelMarkup}
             </section>`
-          : view === "operationsIssuedBadges"
-            ? `${renderPageHeader(
-                "Issued Badges",
-                "Search issued badges and take audit or revocation actions from one page.",
-              )}
+              : view === "operationsIssuedBadges"
+                ? `${renderPageHeader(
+                    "Issued Badges",
+                    "Search issued badges and take audit or revocation actions from one page.",
+                  )}
               <section class="ct-admin ct-stack">
                 ${issuedBadgesPanelMarkup}
               </section>`
-            : view === "operationsBadgeStatus"
-              ? `${renderPageHeader(
-                  "Badge Status",
-                  "Look up a badge, inspect its current state, and apply status changes with a reason.",
-                )}
+                : view === "operationsBadgeStatus"
+                  ? `${renderPageHeader(
+                      "Badge Status",
+                      "Look up a badge, inspect its current state, and apply status changes with a reason.",
+                    )}
                 <section class="ct-admin ct-stack">
                   ${badgeStatusPanelMarkup}
                 </section>`
-              : view === "reporting"
-                ? `${renderPageHeader(
-                    "Reporting",
-                    "Read the current slice, program health, and momentum first, then move into exports, comparisons, and drilldowns.",
-                    `<aside class="ct-admin-page-header__note">
+                  : view === "reporting"
+                    ? `${renderPageHeader(
+                        "Reporting",
+                        "Read the current slice, program health, and momentum first, then move into exports, comparisons, and drilldowns.",
+                        `<aside class="ct-admin-page-header__note">
                       <h2>First read</h2>
                       <p>Confirm the current slice, use the executive summary for program health, and read the trend module before dropping into exports or deeper reporting detail.</p>
                     </aside>`,
-                  )}
+                      )}
                   <section class="ct-admin ct-stack">
                     <section class="ct-admin__reporting-presentation-shell ct-stack">
                       ${reportingPresentationNoteMarkup}
@@ -4143,11 +4146,11 @@ const renderInstitutionAdminPage = (
                       ${reportingDeferredPanelMarkup}
                     </section>
                   </section>`
-                : view === "rules"
-                  ? `${renderPageHeader(
-                      "Rules",
-                      "Keep authoring, template maintenance, and governance context together in one focused workspace.",
-                    )}
+                    : view === "rules"
+                      ? `${renderPageHeader(
+                          "Rules",
+                          "Keep authoring, template maintenance, and governance context together in one focused workspace.",
+                        )}
                   <section class="ct-admin ct-stack">
                     <section class="ct-admin__layout ct-grid ct-grid--sidebar">
                       <div class="ct-admin__grid ct-stack">
@@ -4163,23 +4166,23 @@ const renderInstitutionAdminPage = (
                       </div>
                     </section>
                   </section>`
-                  : view === "access"
-                    ? `${renderPageHeader(
-                        "Access",
-                        "Members, governance, API keys, and org units are accessible from the sidebar.",
-                      )}
+                      : view === "access"
+                        ? `${renderPageHeader(
+                            "Access",
+                            "Members, governance, API keys, and org units are accessible from the sidebar.",
+                          )}
                     <section class="ct-admin ct-stack">
                       ${enterpriseAuthPanelMarkup}
                     </section>`
-                    : view === "accessMembers"
-                      ? `${renderPageHeader(
-                          "Members",
-                          "Add colleagues, assign tenant roles, resend invites, and remove tenant access.",
-                          `<aside class="ct-admin-page-header__note">
+                        : view === "accessMembers"
+                          ? `${renderPageHeader(
+                              "Members",
+                              "Add colleagues, assign tenant roles, resend invites, and remove tenant access.",
+                              `<aside class="ct-admin-page-header__note">
                           <h2>Tenant-level access</h2>
                           <p>Use owner/admin roles for administration. Use issuer/viewer roles when someone does not need full tenant control.</p>
                         </aside>`,
-                        )}
+                            )}
                       <section class="ct-admin ct-stack">
                         <section class="ct-admin__layout ct-grid ct-grid--sidebar">
                           <div class="ct-admin__grid ct-stack">
@@ -4190,15 +4193,15 @@ const renderInstitutionAdminPage = (
                           </div>
                         </section>
                       </section>`
-                      : view === "accessGovernance"
-                        ? `${renderPageHeader(
-                            "Governance Delegation",
-                            "Grant org-unit access and time-boxed badge authority with direct removal from the current assignments list.",
-                            `<aside class="ct-admin-page-header__note">
+                          : view === "accessGovernance"
+                            ? `${renderPageHeader(
+                                "Governance Delegation",
+                                "Grant org-unit access and time-boxed badge authority with direct removal from the current assignments list.",
+                                `<aside class="ct-admin-page-header__note">
                           <h2>Choose The Smallest Access</h2>
                           <p>Use scoped roles for standing access. Use delegated authority when someone only needs temporary badge operations.</p>
                         </aside>`,
-                          )}
+                              )}
                       <section class="ct-admin ct-stack">
                         ${governanceGuidePanelMarkup}
                         ${membershipScopePanelMarkup}
@@ -4206,11 +4209,11 @@ const renderInstitutionAdminPage = (
                         ${delegatedGrantPanelMarkup}
                         ${delegatedGrantTableMarkup}
                       </section>`
-                      : view === "accessApiKeys"
-                        ? `${renderPageHeader(
-                            "API Keys",
-                            "Create, review, and revoke tenant API keys.",
-                          )}
+                            : view === "accessApiKeys"
+                              ? `${renderPageHeader(
+                                  "API Keys",
+                                  "Create, review, and revoke tenant API keys.",
+                                )}
                         <section class="ct-admin ct-stack">
                           <section class="ct-admin__layout ct-grid ct-grid--sidebar">
                             <div class="ct-admin__grid ct-stack">
@@ -4221,7 +4224,7 @@ const renderInstitutionAdminPage = (
                             </div>
                           </section>
                         </section>`
-                        : `${renderPageHeader("Org Units", "Create and review org structure.")}
+                              : `${renderPageHeader("Org Units", "Create and review org structure.")}
                         <section class="ct-admin ct-stack">
                           <section class="ct-admin__layout ct-grid ct-grid--sidebar">
                             <div class="ct-admin__grid ct-stack">

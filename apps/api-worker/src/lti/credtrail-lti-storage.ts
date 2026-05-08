@@ -171,10 +171,7 @@ export class CredTrailLtiStorage implements LTIStorage {
     }));
   }
 
-  async getDeployment(
-    clientId: string,
-    deploymentId: string,
-  ): Promise<LTIDeployment | undefined> {
+  async getDeployment(clientId: string, deploymentId: string): Promise<LTIDeployment | undefined> {
     const client = await this.getClientById(clientId);
 
     if (client === undefined) {
@@ -199,10 +196,7 @@ export class CredTrailLtiStorage implements LTIStorage {
     };
   }
 
-  async addDeployment(
-    clientId: string,
-    deployment: Omit<LTIDeployment, "id">,
-  ): Promise<string> {
+  async addDeployment(clientId: string, deployment: Omit<LTIDeployment, "id">): Promise<string> {
     const client = await this.getClientById(clientId);
 
     if (client === undefined) {

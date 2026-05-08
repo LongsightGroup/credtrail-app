@@ -49,8 +49,7 @@ const sampleLearnerRecordEntry = (
     issuedAt: "2026-03-24T15:00:00.000Z",
     revisedAt: null,
     revokedAt: null,
-    evidenceLinksJson:
-      '["https://credtrail.example.edu/evidence/applied-analytics/practicum"]',
+    evidenceLinksJson: '["https://credtrail.example.edu/evidence/applied-analytics/practicum"]',
     detailsJson: '{"grade":"A","credits":3}',
     createdAt: "2026-03-24T15:00:00.000Z",
     updatedAt: "2026-03-24T15:00:00.000Z",

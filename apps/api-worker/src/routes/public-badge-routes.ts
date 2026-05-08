@@ -112,7 +112,7 @@ const buildPublicBadgeCriteriaRegistryViewModel = async (
       const activeVersion =
         (rule.activeVersionId === null
           ? null
-          : (versions.find((version) => version.id === rule.activeVersionId) ?? null)) ??
+          : versions.find((version) => version.id === rule.activeVersionId)) ??
         versions.find((version) => version.status === "active") ??
         null;
       const governanceVersion = activeVersion ?? latestVersion;

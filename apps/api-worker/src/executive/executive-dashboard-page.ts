@@ -38,9 +38,7 @@ const titleCase = (value: string): string => {
 };
 
 const isSystemAudience = (dashboard: TenantExecutiveDashboardRecord): boolean => {
-  return (
-    dashboard.defaults.audience === "system" || dashboard.defaults.audience === "institution"
-  );
+  return dashboard.defaults.audience === "system" || dashboard.defaults.audience === "institution";
 };
 
 const buildHeroTitle = (dashboard: TenantExecutiveDashboardRecord): string => {
@@ -77,7 +75,10 @@ const buildExecutiveApiPath = (
   tenantId: string,
   query: Parameters<typeof buildExecutiveDashboardQueryEntries>[0],
 ): string => {
-  const url = new URL(`/v1/tenants/${encodeURIComponent(tenantId)}/executive`, "https://credtrail.local");
+  const url = new URL(
+    `/v1/tenants/${encodeURIComponent(tenantId)}/executive`,
+    "https://credtrail.local",
+  );
 
   for (const [key, value] of buildExecutiveDashboardQueryEntries(query)) {
     if (value === undefined || value === null || value === "") {
@@ -136,7 +137,8 @@ const renderExecutiveMetrics = (dashboard: TenantExecutiveDashboardRecord): stri
   return dashboard.kpiCatalog.kpis
     .map((kpi, index) => {
       const value = metricValues.get(kpi.key) ?? "Tracked";
-      const cardClass = index === 0 ? "executive-kpi-card executive-kpi-card--primary" : "executive-kpi-card";
+      const cardClass =
+        index === 0 ? "executive-kpi-card executive-kpi-card--primary" : "executive-kpi-card";
 
       return `<article class="${cardClass}">
         <p class="executive-kpi-label">${escapeHtml(kpi.label)}</p>
@@ -184,7 +186,8 @@ const renderInsightPanel = (
   insight: ExecutiveDashboardInsight,
   input: { fullWidth?: boolean } = {},
 ): string => {
-  const panelClass = input.fullWidth === true ? "executive-section executive-panel--full" : "executive-section";
+  const panelClass =
+    input.fullWidth === true ? "executive-section executive-panel--full" : "executive-section";
   const visualMarkup = insight.visual === undefined ? "" : renderReporting(insight.visual);
   const noteMarkup =
     insight.note === undefined ? "" : `<p class="executive-note">${escapeHtml(insight.note)}</p>`;

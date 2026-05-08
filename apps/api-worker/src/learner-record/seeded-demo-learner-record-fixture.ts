@@ -53,9 +53,7 @@ export interface SeededDemoLearnerRecordFixture {
   standardsMappingResponse: ReturnType<typeof buildLearnerRecordStandardsMappingResponse>;
 }
 
-const createLearnerProfile = (
-  overrides?: Partial<LearnerProfileRecord>,
-): LearnerProfileRecord => {
+const createLearnerProfile = (overrides?: Partial<LearnerProfileRecord>): LearnerProfileRecord => {
   return {
     id: LEARNER_PROFILE_ID,
     tenantId: TENANT_ID,
@@ -114,8 +112,7 @@ const createRecordEntry = (
     issuedAt: "2026-03-23T15:00:00.000Z",
     revisedAt: null,
     revokedAt: null,
-    evidenceLinksJson:
-      '["https://credtrail.example.edu/evidence/clinical-placement-seminar"]',
+    evidenceLinksJson: '["https://credtrail.example.edu/evidence/clinical-placement-seminar"]',
     detailsJson: '{"grade":"A","term":"Spring 2026"}',
     createdAt: "2026-03-23T15:00:00.000Z",
     updatedAt: "2026-03-23T15:00:00.000Z",
