@@ -1,16 +1,96 @@
 export const AUTH_LOGIN_CSS = `
 .ct-login {
   --ct-stack-gap: var(--ct-space-4);
-  width: min(100%, 28rem);
+  width: min(100%, 54rem);
   margin-inline: auto;
 }
 
 .ct-login__card {
   border: 1px solid var(--ct-theme-border-soft);
-  border-radius: 1rem;
+  border-radius: var(--ct-radius-md);
   overflow: hidden;
   box-shadow: var(--ct-theme-shadow-soft);
   background: var(--ct-theme-surface-card-strong);
+}
+
+.ct-login__card:not(.ct-login__card--split) {
+  max-width: 28rem;
+  margin-inline: auto;
+}
+
+.ct-login__card--split {
+  display: grid;
+  grid-template-columns: minmax(15rem, 0.82fr) minmax(21rem, 1fr);
+}
+
+.ct-login__record-panel {
+  grid-row: 1 / span 2;
+  display: grid;
+  align-content: space-between;
+  min-height: 30rem;
+  padding: 1.6rem;
+  border-right: 1px solid var(--ct-theme-border-soft);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 38%),
+    var(--ct-brand-midnight-900);
+  color: var(--ct-theme-text-inverse);
+}
+
+.ct-login__record-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: rgba(247, 252, 255, 0.78);
+}
+
+.ct-login__record-mark {
+  align-self: center;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  width: 5rem;
+  aspect-ratio: 1;
+  border: 1px solid rgba(247, 252, 255, 0.42);
+  border-radius: 0.45rem;
+  background: rgba(247, 252, 255, 0.08);
+}
+
+.ct-login__record-mark span {
+  display: block;
+  width: 2.35rem;
+  aspect-ratio: 1;
+  border: 2px solid var(--ct-brand-sun-400);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 0.45rem rgba(240, 194, 81, 0.16);
+}
+
+.ct-login__record-lines {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.ct-login__record-lines span {
+  display: block;
+  height: 1px;
+  background: rgba(247, 252, 255, 0.24);
+}
+
+.ct-login__record-lines span:nth-child(2) {
+  width: 74%;
+}
+
+.ct-login__record-lines span:nth-child(3) {
+  width: 46%;
+}
+
+.ct-login__record-caption {
+  margin: 1.8rem 0 0;
+  max-width: 13rem;
+  color: rgba(247, 252, 255, 0.78);
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .ct-login__header {
@@ -19,18 +99,22 @@ export const AUTH_LOGIN_CSS = `
   padding: 1.5rem 1.5rem 0;
 }
 
+.ct-login__card--split .ct-login__header {
+  padding: clamp(1.5rem, 3vw, 2rem) clamp(1.4rem, 3vw, 2rem) 0;
+}
+
 .ct-login__brand {
   margin: 0;
   font-family: var(--ct-font-display);
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--ct-theme-text-title);
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .ct-login__title {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.8rem;
   line-height: 1.2;
   color: var(--ct-theme-text-title);
   text-wrap: balance;
@@ -47,6 +131,10 @@ export const AUTH_LOGIN_CSS = `
   --ct-stack-gap: 0.9rem;
   padding: 1.25rem 1.5rem 1.5rem;
   align-content: start;
+}
+
+.ct-login__card--split .ct-login__form-wrap {
+  padding: 1.25rem clamp(1.4rem, 3vw, 2rem) clamp(1.5rem, 3vw, 2rem);
 }
 
 .ct-login__form-wrap > section {
@@ -130,6 +218,85 @@ export const AUTH_LOGIN_CSS = `
   box-shadow: var(--ct-focus-ring);
 }
 
+.ct-login__tenant-selection {
+  --ct-stack-gap: 0.6rem;
+  border: 1px solid var(--ct-theme-border-info);
+  border-radius: var(--ct-radius-md);
+  padding: 0.75rem;
+  background: var(--ct-theme-surface-info);
+}
+
+.ct-login__tenant-selection[hidden] {
+  display: none;
+}
+
+.ct-login__tenant-selection-title {
+  margin: 0;
+  color: var(--ct-theme-text-title);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.ct-login__tenant-options {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ct-login__tenant-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 3rem;
+  border: 1px solid var(--ct-theme-border-soft);
+  border-radius: var(--ct-radius-sm);
+  padding: 0.65rem 0.75rem;
+  background: var(--ct-theme-surface-card-strong);
+  color: var(--ct-theme-text-body);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition:
+    border-color var(--ct-duration-fast) var(--ct-ease-standard),
+    box-shadow var(--ct-duration-fast) var(--ct-ease-standard),
+    transform var(--ct-duration-fast) var(--ct-ease-standard);
+}
+
+.ct-login__tenant-choice:hover {
+  border-color: var(--ct-theme-border-strong);
+  box-shadow: var(--ct-theme-shadow-soft);
+  transform: translateY(-1px);
+}
+
+.ct-login__tenant-choice:focus-visible {
+  outline: none;
+  box-shadow: var(--ct-focus-ring);
+}
+
+.ct-login__tenant-choice-name {
+  display: block;
+  color: var(--ct-theme-text-title);
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.ct-login__tenant-choice-meta {
+  display: block;
+  margin-top: 0.18rem;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.ct-login__tenant-choice-action {
+  flex: 0 0 auto;
+  color: var(--ct-theme-link);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .ct-login__submit {
   display: inline-flex;
   align-items: center;
@@ -150,10 +317,15 @@ export const AUTH_LOGIN_CSS = `
     background var(--ct-duration-fast) var(--ct-ease-standard);
 }
 
-.ct-login__submit:hover {
+.ct-login__submit:hover:not(:disabled) {
   transform: translateY(-1px);
   background: var(--ct-theme-gradient-action-hover);
   box-shadow: var(--ct-theme-shadow-soft);
+}
+
+.ct-login__submit:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
 }
 
 .ct-login__submit:focus-visible {
@@ -282,9 +454,30 @@ export const AUTH_LOGIN_CSS = `
   line-height: 1.4;
 }
 
-@media (min-width: 900px) {
-  .ct-login {
-    width: min(100%, 30rem);
+@media (max-width: 760px) {
+  .ct-login__card--split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-login__record-panel {
+    grid-row: auto;
+    min-height: 9rem;
+    border-right: none;
+    border-bottom: 1px solid var(--ct-theme-border-soft);
+  }
+
+  .ct-login__record-mark,
+  .ct-login__record-lines {
+    display: none;
+  }
+
+  .ct-login__record-caption {
+    margin-top: 1rem;
+    max-width: none;
+  }
+
+  .ct-login__title {
+    font-size: 1.45rem;
   }
 }
 `;
