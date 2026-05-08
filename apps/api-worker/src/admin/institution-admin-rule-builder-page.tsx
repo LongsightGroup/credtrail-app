@@ -254,25 +254,30 @@ export const institutionAdminRuleBuilderPage = (input: {
               <span title={`User ID: ${input.userId}`}>{userLabel}</span>
             </div>
           </header>
-          <div class="ct-admin-content">
-            <div class="ct-admin-page-header">
-              <h1>Visual Rule Builder</h1>
-              <p>
-                Design issuance logic the way operations teams actually work: start from a known
-                pattern, tighten conditions, run a dry run, and only then create a governance draft.
-              </p>
-              <aside class="ct-admin-page-header__note">
-                <h2>Model, test, then release</h2>
+          <div class="ct-admin-content ct-admin-content--rule-builder">
+            <div class="ct-admin-page-header ct-admin-page-header--compact">
+              <h1>Rule Builder</h1>
+              <p>Create one badge issuance rule at a time. Draft, test, then submit for review.</p>
+              <div class="ct-admin__builder-page-links ct-cluster" aria-label="Related rule pages">
+                <a class="ct-admin__cta-link" href={rulesWorkspacePath}>
+                  Rule library and templates
+                </a>
+                <a class="ct-admin__cta-link" href={operationsReviewQueuePath}>
+                  Review queue
+                </a>
+              </div>
+              <details class="ct-admin__builder-guide">
+                <summary>How rule drafts work</summary>
                 <p>
-                  Strong rule builders keep setup, logic, validation, and approval distinct so bad
-                  drafts do not slip into governance review.
+                  Set the rule identity, model the conditions, run a dry run, then create a draft
+                  for governance review.
                 </p>
-              </aside>
+              </details>
             </div>
 
-            <section class="ct-admin__builder-shell ct-grid">
-              <aside class="ct-admin__builder-sidebar ct-stack">
-                <section class="ct-admin__panel ct-stack">
+            <section class="ct-admin__builder-shell ct-stack">
+              <section class="ct-admin__builder-sidebar ct-stack" aria-label="Rule builder setup">
+                <section class="ct-admin__panel ct-admin__builder-stepper-panel ct-stack">
                   <p class="ct-admin__eyebrow">Workflow</p>
                   <h2>Build in four passes</h2>
                   <ol
@@ -346,13 +351,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                   </p>
                 </section>
 
-                <section class="ct-admin__panel ct-stack">
-                  <p class="ct-admin__eyebrow">Start point</p>
-                  <h2>Reuse proven patterns</h2>
-                  <p class="ct-admin__hint">
-                    Teams usually clone the last working rule or start from a preset. Both options
-                    stay outside the main canvas so the authoring flow remains calm.
-                  </p>
+                <details class="ct-admin__panel ct-admin__builder-guide">
+                  <summary>Start from template or clone</summary>
                   <label>
                     Quick-start template
                     <div class="ct-admin__builder-inline ct-cluster">
@@ -401,7 +401,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                       </button>
                     </div>
                   </label>
-                </section>
+                </details>
 
                 <details class="ct-admin__panel ct-admin__builder-tools ct-stack">
                   <summary>Draft tools</summary>
@@ -447,9 +447,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                   </p>
                 </details>
 
-                <article class="ct-admin__panel ct-stack">
-                  <p class="ct-admin__eyebrow">Reusable lists</p>
-                  <h2>Current list library</h2>
+                <details class="ct-admin__panel ct-admin__builder-guide">
+                  <summary>Reusable lists</summary>
                   <p class="ct-admin__hint">
                     Course and badge-template lists appear here and can be used inside condition
                     cards.
@@ -472,10 +471,10 @@ export const institutionAdminRuleBuilderPage = (input: {
                       </tbody>
                     </table>
                   </div>
-                </article>
+                </details>
 
-                <article class="ct-admin__panel ct-stack">
-                  <h2>Five-minute walkthrough</h2>
+                <details class="ct-admin__panel ct-admin__builder-guide">
+                  <summary>Five-minute walkthrough</summary>
                   <p>
                     Use this video to orient first-time issuers before building or testing draft
                     rules.
@@ -498,13 +497,12 @@ export const institutionAdminRuleBuilderPage = (input: {
                       ></iframe>
                     </div>
                   )}
-                </article>
-              </aside>
+                </details>
+              </section>
 
               <div class="ct-admin__builder-main ct-stack">
-                <article id="rule-builder-panel" class="ct-admin__panel ct-stack">
-                  <p class="ct-admin__eyebrow">Builder approach</p>
-                  <h2>Keep the authoring surface focused</h2>
+                <details id="rule-builder-panel" class="ct-admin__builder-guide">
+                  <summary>Authoring approach</summary>
                   <div class="ct-admin__builder-intro-grid ct-grid">
                     <section class="ct-admin__builder-intro-card ct-stack">
                       <h3>Define scope first</h3>
@@ -528,7 +526,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                       </p>
                     </section>
                   </div>
-                </article>
+                </details>
 
                 <form id="rule-create-form" class="ct-admin__form ct-stack">
                   <section
@@ -602,7 +600,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                         cases and transport.
                       </p>
                     </header>
-                    <div class="ct-admin__builder-workbench ct-grid">
+                    <div class="ct-admin__builder-workbench ct-stack">
                       <div class="ct-admin__builder-workbench-main ct-stack">
                         <div class="ct-admin__builder-toolbar ct-cluster">
                           <label class="ct-admin__inline-control">
@@ -650,10 +648,9 @@ export const institutionAdminRuleBuilderPage = (input: {
                         </section>
                       </div>
 
-                      <aside class="ct-admin__builder-patterns ct-stack">
+                      <details class="ct-admin__builder-guide">
+                        <summary>Condition types</summary>
                         <div class="ct-admin__builder-patterns-head ct-stack">
-                          <p class="ct-admin__eyebrow">Condition help</p>
-                          <h4>Use familiar rule blocks</h4>
                           <p class="ct-admin__hint">
                             Good builders keep the available rule types visible so authors do not
                             hunt through raw JSON.
@@ -698,7 +695,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                             </dd>
                           </div>
                         </dl>
-                      </aside>
+                      </details>
                     </div>
 
                     <details class="ct-admin__builder-advanced ct-stack">
@@ -866,11 +863,11 @@ export const institutionAdminRuleBuilderPage = (input: {
                         </label>
                       </div>
 
-                      <aside
+                      <details
                         id="rule-builder-review-surface"
-                        class="ct-admin__builder-checklist-panel ct-stack"
+                        class="ct-admin__builder-guide"
                       >
-                        <h4>Release checklist</h4>
+                        <summary>Release checklist</summary>
                         <ul class="ct-admin__builder-checklist">
                           <li>Rule name, badge template, and LMS source are finalized.</li>
                           <li>Condition canvas reflects the JSON you intend to submit.</li>
@@ -881,12 +878,12 @@ export const institutionAdminRuleBuilderPage = (input: {
                           Create the draft only when the last test summary and readiness rail are
                           both clean.
                         </p>
-                      </aside>
+                      </details>
                     </div>
 
-                    <section class="ct-admin__builder-simulation ct-stack">
+                    <details class="ct-admin__builder-simulation ct-stack">
+                      <summary>Historical simulation</summary>
                       <header class="ct-admin__step-head ct-stack">
-                        <p class="ct-admin__step-kicker">Historical simulation</p>
                         <h4>Project impact before activation</h4>
                         <p>
                           Replay this draft against recent rule evaluations for the same badge
@@ -921,12 +918,12 @@ export const institutionAdminRuleBuilderPage = (input: {
                         class="ct-admin__code-output"
                         hidden
                       ></pre>
-                    </section>
+                    </details>
                   </section>
                 </form>
               </div>
 
-              <aside class="ct-admin__panel ct-admin__builder-rail ct-stack" aria-live="polite">
+              <section class="ct-admin__panel ct-admin__builder-rail ct-stack" aria-live="polite">
                 <p class="ct-admin__eyebrow">Readiness</p>
                 <h2>Draft summary</h2>
                 <p class="ct-admin__hint">
@@ -974,23 +971,23 @@ export const institutionAdminRuleBuilderPage = (input: {
                   Build at least one condition card to create a draft.
                 </p>
 
-                <section class="ct-admin__builder-rail-card ct-stack">
-                  <h3>Submission path</h3>
+                <details class="ct-admin__builder-rail-card ct-stack">
+                  <summary>Submission path</summary>
                   <ul class="ct-admin__builder-checklist">
                     <li>Prepare the draft in the main workspace.</li>
                     <li>Run at least one dry run in test mode.</li>
                     <li>Set approval roles and issuance timing.</li>
                     <li>Create the rule draft for review.</li>
                   </ul>
-                </section>
+                </details>
 
-                <section class="ct-admin__builder-rail-card ct-stack">
-                  <h3>Local draft storage</h3>
+                <details class="ct-admin__builder-rail-card ct-stack">
+                  <summary>Local draft storage</summary>
                   <p class="ct-admin__hint">
                     Saved drafts are stored in this browser and scoped to{" "}
                     <strong>{ruleBuilderPath}</strong>.
                   </p>
-                </section>
+                </details>
 
                 <div class="ct-admin__builder-step-nav ct-cluster">
                   <button
@@ -1012,7 +1009,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                   </button>
                 </div>
                 <p id="rule-create-status" class="ct-admin__status"></p>
-              </aside>
+              </section>
             </section>
 
             <div id="ct-admin-context" hidden data-context-json={adminPageContextJson}></div>

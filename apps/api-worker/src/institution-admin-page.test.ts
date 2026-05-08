@@ -2638,7 +2638,11 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(body).toContain("Visual Rule Builder");
+    expect(body).toContain("Rule Builder");
+    expect(body).toContain("Create one badge issuance rule at a time.");
+    expect(body).toContain('class="ct-admin-content ct-admin-content--rule-builder"');
+    expect(body).toContain('class="ct-admin__builder-shell ct-stack"');
+    expect(body).not.toContain('class="ct-admin__builder-shell ct-grid"');
     expect(body).toContain('id="rule-create-form"');
     expect(body).toContain('data-rule-step-target="metadata"');
     expect(body).toContain('data-rule-step-target="conditions"');
@@ -2659,11 +2663,13 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('id="rule-builder-simulate"');
     expect(body).toContain('id="rule-builder-simulate-output"');
     expect(body).toContain("Build in four passes");
-    expect(body).toContain("Reuse proven patterns");
+    expect(body).toContain("Start from template or clone");
     expect(body).toContain("Draft summary");
+    expect(body).toContain("Authoring approach");
     expect(body).toContain("Five-minute walkthrough");
-    expect(body).toContain("Condition help");
+    expect(body).toContain("Condition types");
     expect(body).toContain("RULE_BUILDER_TUTORIAL_EMBED_URL");
+    expect(body).not.toContain("Model, test, then release");
     expect(body).toContain('href="/tenants/tenant_123/admin"');
     expect(body).toContain('href="/tenants/tenant_123/admin/operations/learner-records"');
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');

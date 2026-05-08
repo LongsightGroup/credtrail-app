@@ -1445,22 +1445,52 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__builder-grid.ct-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+.ct-admin-content--rule-builder {
+  max-width: none;
+}
+.ct-admin-page-header--compact {
+  max-width: 76rem;
+}
+.ct-admin__builder-page-links {
+  margin-top: 0.75rem;
+}
 .ct-admin__builder-shell {
   --ct-grid-gap: var(--ct-space-4);
-  grid-template-columns: minmax(16rem, 18rem) minmax(0, 1fr) minmax(17rem, 20rem);
-  align-items: start;
+  --ct-stack-gap: var(--ct-space-4);
+  max-width: 86rem;
 }
 .ct-admin__builder-shell > * {
   min-width: 0;
 }
 .ct-admin__builder-sidebar,
 .ct-admin__builder-rail {
-  position: sticky;
-  top: 1rem;
-  align-self: start;
+  position: static;
 }
 .ct-admin__builder-main {
   min-width: 0;
+}
+.ct-admin__builder-stepper-panel {
+  --ct-stack-gap: 0.7rem;
+}
+.ct-admin__builder-stepper-panel h2 {
+  display: none;
+}
+.ct-admin__builder-stepper-panel .ct-admin__eyebrow {
+  display: none;
+}
+.ct-admin__builder-stepper-panel .ct-admin__builder-steps {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.ct-admin__builder-stepper-panel .ct-admin__step-button {
+  align-items: center;
+  min-height: 2.6rem;
+  padding: 0.5rem 0.58rem;
+}
+.ct-admin__builder-stepper-panel .ct-admin__step-copy small {
+  display: none;
+}
+.ct-admin__builder-stepper-panel .ct-admin__builder-progress {
+  margin: 0;
 }
 .ct-admin__builder-intro-grid.ct-grid {
   --ct-grid-gap: 0.7rem;
@@ -1484,8 +1514,11 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin__builder-workbench.ct-grid {
   --ct-grid-gap: 0.8rem;
-  grid-template-columns: minmax(0, 1.7fr) minmax(15rem, 0.95fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
+}
+.ct-admin__builder-workbench.ct-stack {
+  --ct-stack-gap: 0.8rem;
 }
 .ct-admin__builder-workbench-main {
   min-width: 0;
@@ -1568,7 +1601,7 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__builder-test-layout.ct-grid,
 .ct-admin__builder-review-layout.ct-grid {
   --ct-grid-gap: 0.8rem;
-  grid-template-columns: minmax(0, 1.45fr) minmax(15rem, 0.95fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
 }
 .ct-admin__builder-simulation {
@@ -1588,6 +1621,18 @@ export const INSTITUTION_ADMIN_CSS = `
   border-radius: var(--ct-radius-md);
   border: 1px solid var(--ct-border-soft);
   background: var(--ct-theme-surface-soft);
+}
+.ct-admin__builder-rail-card > summary,
+.ct-admin__builder-simulation > summary {
+  display: flex;
+  align-items: center;
+  min-height: 2.4rem;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--ct-color-ink);
+}
+.ct-admin__builder-summary-list {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 .ct-admin__builder-checklist {
   margin: 0;
@@ -2398,6 +2443,11 @@ export const INSTITUTION_ADMIN_CSS = `
 
   .ct-admin__add-disclosure-control {
     width: 100%;
+  }
+
+  .ct-admin__builder-stepper-panel .ct-admin__builder-steps,
+  .ct-admin__builder-summary-list {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .ct-admin__add-disclosure-control,
