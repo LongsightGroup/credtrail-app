@@ -164,6 +164,7 @@ vi.mock("@credtrail/db", async () => {
 
   return {
     ...actual,
+    countTenantMembershipsByRole: vi.fn(),
     createAuditLog: vi.fn(),
     createDelegatedIssuingAuthorityGrant: vi.fn(),
     createTenantApiKey: vi.fn(),
@@ -173,6 +174,7 @@ vi.mock("@credtrail/db", async () => {
     findActiveSessionByHash: mockedFindActiveSessionByHash,
     findBadgeTemplateById: vi.fn(),
     findDelegatedIssuingAuthorityGrantById: vi.fn(),
+    findActiveTenantBreakGlassAccountByUserId: vi.fn(),
     findLearnerProfileById: hoistedFindLearnerProfileById,
     findLearnerProfileByIdentity: hoistedFindLearnerProfileByIdentity,
     findTenantAuthPolicy: vi.fn(),
@@ -200,14 +202,19 @@ vi.mock("@credtrail/db", async () => {
     listTenantOrgUnits: vi.fn(),
     listTenantApiKeys: vi.fn(),
     listTenantBreakGlassAccounts: vi.fn(),
+    listTenantMembers: vi.fn(),
     listTenantReportingComparisons: vi.fn(),
+    removeTenantMembership: vi.fn(),
     removeTenantMembershipOrgUnitScope: vi.fn(),
     revokeTenantApiKey: vi.fn(),
+    revokeTenantBreakGlassAccount: vi.fn(),
     revokeDelegatedIssuingAuthorityGrant: vi.fn(),
     touchSession: mockedTouchSession,
     transferBadgeTemplateOwnership: vi.fn(),
     upsertTenantSsoSamlConfiguration: vi.fn(),
+    upsertTenantMembershipRole: vi.fn(),
     upsertTenantMembershipOrgUnitScope: vi.fn(),
+    upsertUserByEmail: vi.fn(),
   };
 });
 
@@ -236,12 +243,14 @@ vi.mock("./auth/better-auth-adapter", async () => {
 });
 
 import {
+  countTenantMembershipsByRole,
   createAuditLog,
   createDelegatedIssuingAuthorityGrant,
   createTenantApiKey,
   createTenantOrgUnit,
   deleteTenantSsoSamlConfiguration,
   findActiveDelegatedIssuingAuthorityGrantForAction,
+  findActiveTenantBreakGlassAccountByUserId,
   findBadgeTemplateById,
   findDelegatedIssuingAuthorityGrantById,
   findLearnerProfileById,
@@ -269,15 +278,20 @@ import {
   listTenantAuthProviders,
   listTenantApiKeys,
   listTenantBreakGlassAccounts,
+  listTenantMembers,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
   listTenantReportingComparisons,
+  removeTenantMembership,
   removeTenantMembershipOrgUnitScope,
   revokeTenantApiKey,
+  revokeTenantBreakGlassAccount,
   revokeDelegatedIssuingAuthorityGrant,
   transferBadgeTemplateOwnership,
   upsertTenantSsoSamlConfiguration,
+  upsertTenantMembershipRole,
   upsertTenantMembershipOrgUnitScope,
+  upsertUserByEmail,
   type TenantApiKeyRecord,
   type AuditLogRecord,
   type BadgeTemplateOwnershipEventRecord,
@@ -289,6 +303,7 @@ import {
   type TenantRecord,
   type TenantMembershipOrgUnitScopeRecord,
   type TenantMembershipRecord,
+  type TenantMemberRecord,
   type TenantOrgUnitRecord,
   type TenantSsoSamlConfigurationRecord,
 } from "@credtrail/db";
@@ -303,12 +318,16 @@ interface ErrorResponse {
 }
 
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
+const mockedCountTenantMembershipsByRole = vi.mocked(countTenantMembershipsByRole);
 const mockedCreateDelegatedIssuingAuthorityGrant = vi.mocked(createDelegatedIssuingAuthorityGrant);
 const mockedCreateTenantApiKey = vi.mocked(createTenantApiKey);
 const mockedCreateTenantOrgUnit = vi.mocked(createTenantOrgUnit);
 const mockedDeleteTenantSsoSamlConfiguration = vi.mocked(deleteTenantSsoSamlConfiguration);
 const mockedFindActiveDelegatedIssuingAuthorityGrantForAction = vi.mocked(
   findActiveDelegatedIssuingAuthorityGrantForAction,
+);
+const mockedFindActiveTenantBreakGlassAccountByUserId = vi.mocked(
+  findActiveTenantBreakGlassAccountByUserId,
 );
 const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
 const mockedFindDelegatedIssuingAuthorityGrantById = vi.mocked(
@@ -345,15 +364,20 @@ const mockedListLearnerRecordEntries = vi.mocked(listLearnerRecordEntries);
 const mockedListTenantAuthProviders = vi.mocked(listTenantAuthProviders);
 const mockedListTenantApiKeys = vi.mocked(listTenantApiKeys);
 const mockedListTenantBreakGlassAccounts = vi.mocked(listTenantBreakGlassAccounts);
+const mockedListTenantMembers = vi.mocked(listTenantMembers);
 const mockedListTenantMembershipOrgUnitScopes = vi.mocked(listTenantMembershipOrgUnitScopes);
 const mockedListTenantOrgUnits = vi.mocked(listTenantOrgUnits);
 const mockedListTenantReportingComparisons = vi.mocked(listTenantReportingComparisons);
+const mockedRemoveTenantMembership = vi.mocked(removeTenantMembership);
 const mockedRemoveTenantMembershipOrgUnitScope = vi.mocked(removeTenantMembershipOrgUnitScope);
 const mockedRevokeTenantApiKey = vi.mocked(revokeTenantApiKey);
+const mockedRevokeTenantBreakGlassAccount = vi.mocked(revokeTenantBreakGlassAccount);
 const mockedRevokeDelegatedIssuingAuthorityGrant = vi.mocked(revokeDelegatedIssuingAuthorityGrant);
 const mockedTransferBadgeTemplateOwnership = vi.mocked(transferBadgeTemplateOwnership);
 const mockedUpsertTenantSsoSamlConfiguration = vi.mocked(upsertTenantSsoSamlConfiguration);
+const mockedUpsertTenantMembershipRole = vi.mocked(upsertTenantMembershipRole);
 const mockedUpsertTenantMembershipOrgUnitScope = vi.mocked(upsertTenantMembershipOrgUnitScope);
+const mockedUpsertUserByEmail = vi.mocked(upsertUserByEmail);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const fakeDb = {
   prepare: vi.fn(),
@@ -471,6 +495,8 @@ beforeEach(() => {
   mockedFindDelegatedIssuingAuthorityGrantById.mockResolvedValue(null);
   mockedFindActiveDelegatedIssuingAuthorityGrantForAction.mockReset();
   mockedFindActiveDelegatedIssuingAuthorityGrantForAction.mockResolvedValue(null);
+  mockedFindActiveTenantBreakGlassAccountByUserId.mockReset();
+  mockedFindActiveTenantBreakGlassAccountByUserId.mockResolvedValue(null);
   mockedHasTenantMembershipOrgUnitAccess.mockReset();
   mockedHasTenantMembershipOrgUnitAccess.mockResolvedValue(false);
   mockedHasTenantMembershipOrgUnitScopeAssignments.mockReset();
@@ -642,6 +668,14 @@ beforeEach(() => {
   mockedListTenantApiKeys.mockResolvedValue([]);
   mockedListTenantBreakGlassAccounts.mockReset();
   mockedListTenantBreakGlassAccounts.mockResolvedValue([]);
+  mockedListTenantMembers.mockReset();
+  mockedListTenantMembers.mockResolvedValue([
+    sampleTenantMember({
+      userId: "usr_123",
+      email: "learner@example.edu",
+      role: "admin",
+    }),
+  ]);
   mockedListTenantMembershipOrgUnitScopes.mockReset();
   mockedListTenantMembershipOrgUnitScopes.mockResolvedValue([]);
   mockedListTenantOrgUnits.mockReset();
@@ -693,10 +727,38 @@ beforeEach(() => {
   mockedUpsertTenantMembershipOrgUnitScope.mockReset();
   mockedRemoveTenantMembershipOrgUnitScope.mockReset();
   mockedRemoveTenantMembershipOrgUnitScope.mockResolvedValue(false);
+  mockedRemoveTenantMembership.mockReset();
+  mockedRemoveTenantMembership.mockResolvedValue(true);
   mockedRevokeTenantApiKey.mockReset();
   mockedRevokeTenantApiKey.mockResolvedValue(false);
+  mockedRevokeTenantBreakGlassAccount.mockReset();
+  mockedRevokeTenantBreakGlassAccount.mockResolvedValue(false);
   mockedCreateDelegatedIssuingAuthorityGrant.mockReset();
   mockedRevokeDelegatedIssuingAuthorityGrant.mockReset();
+  mockedCountTenantMembershipsByRole.mockReset();
+  mockedCountTenantMembershipsByRole.mockResolvedValue({
+    owner: 1,
+    admin: 1,
+    issuer: 0,
+    viewer: 0,
+  });
+  mockedUpsertTenantMembershipRole.mockReset();
+  mockedUpsertTenantMembershipRole.mockImplementation(async (_db, input) => {
+    return {
+      membership: sampleTenantMembership({
+        tenantId: input.tenantId,
+        userId: input.userId,
+        role: input.role,
+      }),
+      previousRole: null,
+      changed: true,
+    };
+  });
+  mockedUpsertUserByEmail.mockReset();
+  mockedUpsertUserByEmail.mockResolvedValue({
+    id: "usr_colleague",
+    email: "colleague@example.edu",
+  });
   mockedCreateAuditLog.mockReset();
   mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
 });
@@ -891,6 +953,14 @@ const sampleTenantMembership = (
   };
 };
 
+const sampleTenantMember = (overrides?: Partial<TenantMemberRecord>): TenantMemberRecord => {
+  return {
+    ...sampleTenantMembership(),
+    email: "member@example.edu",
+    ...overrides,
+  };
+};
+
 const sampleAuditLogRecord = (overrides?: Partial<AuditLogRecord>): AuditLogRecord => {
   return {
     id: "aud_123",
@@ -905,6 +975,464 @@ const sampleAuditLogRecord = (overrides?: Partial<AuditLogRecord>): AuditLogReco
     ...overrides,
   };
 };
+
+describe("tenant member management endpoints", () => {
+  const cookieHeaders = {
+    Cookie: "better-auth.session_token=session-token",
+  };
+
+  const mockTenantMembershipLookup = (
+    actorRole: TenantMembershipRecord["role"],
+    targetMembership: TenantMembershipRecord | null,
+  ): void => {
+    mockedFindTenantMembership.mockImplementation(async (_db, tenantId, userId) => {
+      if (userId === "usr_123") {
+        return sampleTenantMembership({
+          tenantId,
+          userId,
+          role: actorRole,
+        });
+      }
+
+      return targetMembership === null
+        ? null
+        : sampleTenantMembership({
+            ...targetMembership,
+            tenantId,
+            userId,
+          });
+    });
+  };
+
+  it("lets an admin add a new colleague by email as admin", async () => {
+    const env = createEnv();
+    mockTenantMembershipLookup("admin", null);
+    mockedUpsertTenantMembershipRole.mockResolvedValueOnce({
+      membership: sampleTenantMembership({
+        userId: "usr_colleague",
+        role: "admin",
+      }),
+      previousRole: null,
+      changed: true,
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/members",
+      {
+        method: "POST",
+        headers: {
+          ...cookieHeaders,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "colleague@example.edu",
+          role: "admin",
+          sendInvite: false,
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{
+      member: { userId: string; email: string; role: string };
+      invite: { deliveryStatus: string };
+    }>();
+
+    expect(response.status).toBe(201);
+    expect(body.member).toEqual(
+      expect.objectContaining({
+        userId: "usr_colleague",
+        email: "colleague@example.edu",
+        role: "admin",
+      }),
+    );
+    expect(body.invite.deliveryStatus).toBe("skipped");
+    expect(mockedUpsertUserByEmail).toHaveBeenCalledWith(fakeDb, "colleague@example.edu");
+    expect(mockedUpsertTenantMembershipRole).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      userId: "usr_colleague",
+      role: "admin",
+    });
+    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        action: "membership.role_assigned",
+        targetId: "tenant_123:usr_colleague",
+      }),
+    );
+  });
+
+  it.each(["issuer", "viewer", "admin"] as const)(
+    "lets an admin update an existing member role to %s",
+    async (nextRole) => {
+      const env = createEnv();
+      const previousRole = nextRole === "admin" ? "viewer" : "admin";
+      mockTenantMembershipLookup(
+        "admin",
+        sampleTenantMembership({
+          userId: "usr_colleague",
+          role: previousRole,
+        }),
+      );
+      mockedUpsertTenantMembershipRole.mockResolvedValueOnce({
+        membership: sampleTenantMembership({
+          userId: "usr_colleague",
+          role: nextRole,
+        }),
+        previousRole,
+        changed: true,
+      });
+      mockedFindUserById.mockResolvedValueOnce({
+        id: "usr_colleague",
+        email: "colleague@example.edu",
+      });
+
+      const response = await app.request(
+        "/v1/tenants/tenant_123/members/usr_colleague/role",
+        {
+          method: "PATCH",
+          headers: {
+            ...cookieHeaders,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            role: nextRole,
+          }),
+        },
+        env,
+      );
+      const body = await response.json<{ member: { role: string }; previousRole: string }>();
+
+      expect(response.status).toBe(200);
+      expect(body.member.role).toBe(nextRole);
+      expect(body.previousRole).toBe(previousRole);
+      expect(mockedCreateAuditLog).toHaveBeenCalledWith(
+        fakeDb,
+        expect.objectContaining({
+          action: "membership.role_changed",
+        }),
+      );
+    },
+  );
+
+  it("rejects admin attempts to assign owner", async () => {
+    const env = createEnv();
+    mockTenantMembershipLookup("admin", null);
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/members",
+      {
+        method: "POST",
+        headers: {
+          ...cookieHeaders,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "owner@example.edu",
+          role: "owner",
+          sendInvite: false,
+        }),
+      },
+      env,
+    );
+    const body = await response.json<ErrorResponse>();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toBe("Only tenant owners can assign the owner role.");
+    expect(mockedUpsertTenantMembershipRole).not.toHaveBeenCalled();
+  });
+
+  it("lets an owner assign owner", async () => {
+    const env = createEnv();
+    mockTenantMembershipLookup("owner", null);
+    mockedUpsertTenantMembershipRole.mockResolvedValueOnce({
+      membership: sampleTenantMembership({
+        userId: "usr_colleague",
+        role: "owner",
+      }),
+      previousRole: null,
+      changed: true,
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/members",
+      {
+        method: "POST",
+        headers: {
+          ...cookieHeaders,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "colleague@example.edu",
+          role: "owner",
+          sendInvite: false,
+        }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(201);
+    expect(mockedUpsertTenantMembershipRole).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      userId: "usr_colleague",
+      role: "owner",
+    });
+  });
+
+  it("blocks demoting the last owner", async () => {
+    const env = createEnv();
+    mockTenantMembershipLookup(
+      "owner",
+      sampleTenantMembership({
+        userId: "usr_owner_target",
+        role: "owner",
+      }),
+    );
+    mockedCountTenantMembershipsByRole.mockResolvedValueOnce({
+      owner: 1,
+      admin: 1,
+      issuer: 0,
+      viewer: 0,
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/members/usr_owner_target/role",
+      {
+        method: "PATCH",
+        headers: {
+          ...cookieHeaders,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          role: "admin",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<ErrorResponse>();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toBe("At least one tenant owner must remain.");
+    expect(mockedUpsertTenantMembershipRole).not.toHaveBeenCalled();
+  });
+
+  it("rejects self-removal and self-demotion", async () => {
+    const env = createEnv();
+    mockedFindTenantMembership.mockResolvedValue(
+      sampleTenantMembership({
+        userId: "usr_123",
+        role: "admin",
+      }),
+    );
+
+    const demoteResponse = await app.request(
+      "/v1/tenants/tenant_123/members/usr_123/role",
+      {
+        method: "PATCH",
+        headers: {
+          ...cookieHeaders,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          role: "viewer",
+        }),
+      },
+      env,
+    );
+    const removeResponse = await app.request(
+      "/v1/tenants/tenant_123/members/usr_123",
+      {
+        method: "DELETE",
+        headers: cookieHeaders,
+      },
+      env,
+    );
+
+    expect(demoteResponse.status).toBe(409);
+    expect(removeResponse.status).toBe(409);
+    expect(mockedUpsertTenantMembershipRole).not.toHaveBeenCalled();
+    expect(mockedRemoveTenantMembership).not.toHaveBeenCalled();
+  });
+
+  it("removes tenant membership and revokes active break-glass access", async () => {
+    const env = createEnv();
+    mockTenantMembershipLookup(
+      "admin",
+      sampleTenantMembership({
+        userId: "usr_colleague",
+        role: "issuer",
+      }),
+    );
+    mockedFindUserById.mockResolvedValueOnce({
+      id: "usr_colleague",
+      email: "colleague@example.edu",
+    });
+    mockedRevokeTenantBreakGlassAccount.mockResolvedValueOnce(true);
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/members/usr_colleague",
+      {
+        method: "DELETE",
+        headers: cookieHeaders,
+      },
+      env,
+    );
+    const body = await response.json<{ removed: boolean; revokedBreakGlass: boolean }>();
+
+    expect(response.status).toBe(200);
+    expect(body.removed).toBe(true);
+    expect(body.revokedBreakGlass).toBe(true);
+    expect(mockedRemoveTenantMembership).toHaveBeenCalledWith(
+      fakeDb,
+      "tenant_123",
+      "usr_colleague",
+    );
+    expect(mockedRevokeTenantBreakGlassAccount).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        userId: "usr_colleague",
+      }),
+    );
+    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        action: "membership.removed",
+      }),
+    );
+  });
+
+  it("blocks unauthorized roles from the workflow", async () => {
+    const env = createEnv();
+    mockedFindTenantMembership.mockResolvedValue(
+      sampleTenantMembership({
+        userId: "usr_123",
+        role: "viewer",
+      }),
+    );
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/members",
+      {
+        headers: cookieHeaders,
+      },
+      env,
+    );
+
+    expect(response.status).toBe(403);
+  });
+
+  it("delivers member invites through magic links for local and hybrid tenants", async () => {
+    const env = createEnv();
+    const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedAuthProviders({
+      betterAuthPrincipal: {
+        userId: "usr_123",
+        authSessionId: "ba_ses_123",
+        authMethod: "better_auth",
+        expiresAt: "2026-03-17T22:00:00.000Z",
+      },
+    });
+    betterAuthProvider.requestMagicLink.mockResolvedValue({
+      deliveryStatus: "sent",
+    });
+    mockTenantMembershipLookup(
+      "admin",
+      sampleTenantMembership({
+        userId: "usr_colleague",
+        role: "admin",
+      }),
+    );
+    mockedFindUserById.mockResolvedValueOnce({
+      id: "usr_colleague",
+      email: "colleague@example.edu",
+    });
+    mockedFindTenantById.mockResolvedValue(sampleTenant({ planTier: "team" }));
+    mockedFindTenantAuthPolicy.mockResolvedValue(null);
+
+    const response = await isolatedApp.request(
+      "/v1/tenants/tenant_123/members/usr_colleague/invite",
+      {
+        method: "POST",
+        headers: cookieHeaders,
+      },
+      env,
+    );
+    const body = await response.json<{
+      invite: { deliveryStatus: string; inviteKind: string };
+    }>();
+
+    expect(response.status).toBe(200);
+    expect(body.invite).toEqual({
+      deliveryStatus: "sent",
+      inviteKind: "magic_link",
+    });
+    expect(betterAuthProvider.requestMagicLink).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        tenantId: "tenant_123",
+        email: "colleague@example.edu",
+        nextPath: "/auth/resolve",
+      },
+    );
+  });
+
+  it("delivers member invites through SSO sign-in notices for SSO-required tenants", async () => {
+    const env = createEnv();
+    const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedAuthProviders({
+      betterAuthPrincipal: {
+        userId: "usr_123",
+        authSessionId: "ba_ses_123",
+        authMethod: "better_auth",
+        expiresAt: "2026-03-17T22:00:00.000Z",
+      },
+    });
+    mockTenantMembershipLookup(
+      "admin",
+      sampleTenantMembership({
+        userId: "usr_colleague",
+        role: "admin",
+      }),
+    );
+    mockedFindUserById.mockResolvedValueOnce({
+      id: "usr_colleague",
+      email: "colleague@example.edu",
+    });
+    mockedFindTenantById.mockResolvedValue(
+      sampleTenant({
+        planTier: "enterprise",
+        displayName: "Sakai University",
+      }),
+    );
+    mockedFindTenantAuthPolicy.mockResolvedValue({
+      tenantId: "tenant_123",
+      loginMode: "sso_required",
+      breakGlassEnabled: false,
+      localMfaRequired: false,
+      defaultProviderId: "tap_oidc",
+      enforceForRoles: "all_users",
+      createdAt: "2026-03-17T22:00:00.000Z",
+      updatedAt: "2026-03-17T22:00:00.000Z",
+    });
+
+    const response = await isolatedApp.request(
+      "/v1/tenants/tenant_123/members/usr_colleague/invite",
+      {
+        method: "POST",
+        headers: cookieHeaders,
+      },
+      env,
+    );
+    const body = await response.json<{
+      invite: { deliveryStatus: string; inviteKind: string };
+    }>();
+
+    expect(response.status).toBe(200);
+    expect(body.invite).toEqual({
+      deliveryStatus: "sent",
+      inviteKind: "sso_notice",
+    });
+    expect(betterAuthProvider.requestMagicLink).not.toHaveBeenCalled();
+  });
+});
 
 describe("org unit and badge ownership governance endpoints", () => {
   beforeEach(() => {

@@ -37,6 +37,7 @@ import {
   parseAdminUpsertLtiIssuerRegistrationRequest,
   parseAdminUpsertTenantSigningRegistrationRequest,
   parseAdminUpsertTenantMembershipRoleRequest,
+  parseCreateTenantMemberRequest,
   parseBadgeTemplateListQuery,
   parseTenantOrgUnitListQuery,
   parseBadgeTemplatePathParams,
@@ -79,8 +80,10 @@ import {
   parseRevokeBadgeRequest,
   parseSignCredentialRequest,
   parseTenantUserPathParams,
+  parseTenantMemberPathParams,
   parseTenantUserOrgUnitPathParams,
   parseTenantUserDelegatedGrantPathParams,
+  parseUpdateTenantMemberRoleRequest,
   parseDelegatedIssuingAuthorityGrantListQuery,
   parseCreateDelegatedIssuingAuthorityGrantRequest,
   parseRevokeDelegatedIssuingAuthorityGrantRequest,
@@ -1439,6 +1442,22 @@ describe("badge template parsers", () => {
     expect(params.userId).toBe("usr_456");
   });
 
+  it("parses tenant member path params for member routes", () => {
+    const params = parseTenantMemberPathParams({
+      tenantId: "tenant_123",
+      userId: "usr_456",
+    });
+
+    expect(params.tenantId).toBe("tenant_123");
+    expect(params.userId).toBe("usr_456");
+
+    expect(() => {
+      parseTenantMemberPathParams({
+        tenantId: "tenant_123",
+      });
+    }).toThrowError();
+  });
+
   it("parses tenant/user/org-unit path params for scoped membership routes", () => {
     const params = parseTenantUserOrgUnitPathParams({
       tenantId: "tenant_123",
@@ -1497,6 +1516,46 @@ describe("badge template parsers", () => {
     expect(() => {
       parseUpsertTenantMembershipOrgUnitScopeRequest({
         role: "owner",
+      });
+    }).toThrowError();
+  });
+
+  it("parses tenant member create and role update payloads", () => {
+    const createPayload = parseCreateTenantMemberRequest({
+      email: " Colleague@Example.edu ",
+      role: "admin",
+      sendInvite: true,
+    });
+    const rolePayload = parseUpdateTenantMemberRoleRequest({
+      role: "viewer",
+    });
+
+    expect(createPayload).toEqual({
+      email: "Colleague@Example.edu",
+      role: "admin",
+      sendInvite: true,
+    });
+    expect(rolePayload.role).toBe("viewer");
+  });
+
+  it("rejects invalid tenant member payloads", () => {
+    expect(() => {
+      parseCreateTenantMemberRequest({
+        email: "not-an-email",
+        role: "admin",
+      });
+    }).toThrowError();
+
+    expect(() => {
+      parseCreateTenantMemberRequest({
+        email: "colleague@example.edu",
+        role: "superadmin",
+      });
+    }).toThrowError();
+
+    expect(() => {
+      parseUpdateTenantMemberRoleRequest({
+        role: "superadmin",
       });
     }).toThrowError();
   });

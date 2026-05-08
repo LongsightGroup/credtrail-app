@@ -8,6 +8,7 @@ const {
   mockedGetTenantReportingEngagementCounts,
   mockedListTenantAuthProviders,
   mockedListTenantBreakGlassAccounts,
+  mockedListTenantMembers,
   mockedListImportLearnerRecordBatchQueueMessages,
   mockedListAccessibleTenantContextsForUser,
   mockedListLearnerRecordAssertionExports,
@@ -25,6 +26,7 @@ const {
     mockedGetTenantReportingEngagementCounts: vi.fn(),
     mockedListTenantAuthProviders: vi.fn(),
     mockedListTenantBreakGlassAccounts: vi.fn(),
+    mockedListTenantMembers: vi.fn(),
     mockedListImportLearnerRecordBatchQueueMessages: vi.fn(),
     mockedListAccessibleTenantContextsForUser: vi.fn(),
     mockedListLearnerRecordAssertionExports: vi.fn(),
@@ -59,6 +61,7 @@ vi.mock("@credtrail/db", async () => {
     listBadgeIssuanceRuleVersions: vi.fn(),
     listTenantReportingComparisons: mockedGetTenantReportingComparisons,
     listTenantBreakGlassAccounts: mockedListTenantBreakGlassAccounts,
+    listTenantMembers: mockedListTenantMembers,
     listTenantMembershipOrgUnitScopes: vi.fn(),
     listTenantAuthProviders: mockedListTenantAuthProviders,
     listBadgeTemplates: vi.fn(),
@@ -104,6 +107,7 @@ import {
   listBadgeTemplates,
   listImportLearnerRecordBatchQueueMessages,
   listTenantApiKeys,
+  listTenantMembers,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
   getTenantReportingOverview,
@@ -116,6 +120,7 @@ import {
   type LearnerRecordEntryRecord,
   type SqlDatabase,
   type TenantMembershipRecord,
+  type TenantMemberRecord,
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
@@ -139,6 +144,7 @@ const mockedListImportLearnerRecordBatchQueueMessagesDb = vi.mocked(
 );
 const mockedListTenantOrgUnits = vi.mocked(listTenantOrgUnits);
 const mockedListTenantApiKeys = vi.mocked(listTenantApiKeys);
+const mockedListTenantMembersDb = vi.mocked(listTenantMembers);
 const mockedListTenantMembershipOrgUnitScopes = vi.mocked(listTenantMembershipOrgUnitScopes);
 const mockedGetTenantReportingComparisonsDb = vi.mocked(listTenantReportingComparisons);
 const mockedGetTenantReportingEngagementCountsDb = vi.mocked(getTenantReportingEngagementCounts);
@@ -173,6 +179,18 @@ const sampleMembership = (role: TenantMembershipRecord["role"]): TenantMembershi
     role,
     createdAt: "2026-02-18T12:00:00.000Z",
     updatedAt: "2026-02-18T12:00:00.000Z",
+  };
+};
+
+const sampleTenantMember = (overrides?: Partial<TenantMemberRecord>): TenantMemberRecord => {
+  return {
+    tenantId: "tenant_123",
+    userId: "usr_member",
+    email: "member@tenant-123.edu",
+    role: "issuer",
+    createdAt: "2026-02-18T12:00:00.000Z",
+    updatedAt: "2026-02-18T12:30:00.000Z",
+    ...overrides,
   };
 };
 
@@ -590,6 +608,19 @@ beforeEach(() => {
       localCredentialEnabled: true,
       twoFactorEnabled: true,
     },
+  ]);
+  mockedListTenantMembersDb.mockReset();
+  mockedListTenantMembersDb.mockResolvedValue([
+    sampleTenantMember({
+      userId: "usr_admin",
+      email: "admin@tenant-123.edu",
+      role: "admin",
+    }),
+    sampleTenantMember({
+      userId: "usr_issuer",
+      email: "issuer@tenant-123.edu",
+      role: "issuer",
+    }),
   ]);
   mockedListAccessibleTenantContextsForUser.mockReset();
   mockedListAccessibleTenantContextsForUser.mockResolvedValue([
@@ -2348,6 +2379,8 @@ describe("GET /tenants/:tenantId/admin/access", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain(">Access<");
+    expect(body).toContain("Members");
+    expect(body).toContain('href="/tenants/tenant_123/admin/access/members"');
     expect(body).toContain("Governance");
     expect(body).toContain('href="/tenants/tenant_123/admin/access/governance"');
     expect(body).toContain("API Keys");
@@ -2355,6 +2388,7 @@ describe("GET /tenants/:tenantId/admin/access", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/access/api-keys"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/org-units"');
     expect(body).not.toContain("Save scoped role");
+    expect(body).not.toContain('id="tenant-member-form"');
     expect(body).not.toContain('id="membership-scope-form"');
     expect(body).not.toContain('id="api-key-form"');
     expect(body).not.toContain('id="org-unit-form"');
@@ -2393,6 +2427,7 @@ describe("GET /tenants/:tenantId/admin/access", () => {
     expect(body).toContain("Campus OIDC");
     expect(body).toContain("Hosted enterprise sign-in supports OIDC providers.");
     expect(body).toContain("Legacy SAML compatibility");
+    expect(body).toContain("Members");
     expect(body).toContain("Governance");
     expect(body).toContain("API Keys");
     expect(body).toContain("Org Units");
@@ -2434,6 +2469,41 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
     expect(body).toContain("Current Delegations (1)");
     expect(body).toContain('data-delegated-grant-remove-id="dag_123"');
     expect(body).toContain("Issue badges");
+    expect(body).not.toContain('id="api-key-form"');
+    expect(body).not.toContain('id="org-unit-form"');
+  });
+});
+
+describe("GET /tenants/:tenantId/admin/access/members", () => {
+  it("renders tenant members on a dedicated page", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/members",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Members");
+    expect(body).toContain("Add colleagues");
+    expect(body).toContain('id="tenant-member-form"');
+    expect(body).toContain('name="email"');
+    expect(body).toContain('name="role"');
+    expect(body).toContain('name="sendInvite"');
+    expect(body).toContain("/v1/tenants/tenant_123/members");
+    expect(body).toContain("admin@tenant-123.edu");
+    expect(body).toContain("issuer@tenant-123.edu");
+    expect(body).toContain('data-tenant-member-role-user-id="usr_issuer"');
+    expect(body).toContain('data-tenant-member-invite-user-id="usr_issuer"');
+    expect(body).toContain('data-tenant-member-remove-user-id="usr_issuer"');
+    expect(body).toContain("Current user");
+    expect(body).not.toContain('id="membership-scope-form"');
     expect(body).not.toContain('id="api-key-form"');
     expect(body).not.toContain('id="org-unit-form"');
   });

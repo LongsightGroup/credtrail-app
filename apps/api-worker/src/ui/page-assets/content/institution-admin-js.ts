@@ -58,6 +58,10 @@ export const INSTITUTION_ADMIN_JS = `
     parsedContext && typeof parsedContext.tenantUsersApiPathPrefix === 'string'
       ? parsedContext.tenantUsersApiPathPrefix
       : '';
+  const tenantMembersApiPath =
+    parsedContext && typeof parsedContext.tenantMembersApiPath === 'string'
+      ? parsedContext.tenantMembersApiPath
+      : '';
   const authPolicyApiPath =
     parsedContext && typeof parsedContext.authPolicyApiPath === 'string'
       ? parsedContext.authPolicyApiPath
@@ -82,6 +86,7 @@ export const INSTITUTION_ADMIN_JS = `
     badgeRulePreviewSimulationApiPath.length === 0 ||
     badgeRuleReviewQueueApiPath.length === 0 ||
     assertionsApiPathPrefix.length === 0 ||
+    tenantMembersApiPath.length === 0 ||
     tenantUsersApiPathPrefix.length === 0
   ) {
     return;
@@ -160,6 +165,10 @@ export const INSTITUTION_ADMIN_JS = `
   const membershipScopeStatus = document.getElementById('membership-scope-status');
   const membershipScopeBody = document.getElementById('membership-scope-body');
   const membershipScopeListStatus = document.getElementById('membership-scope-list-status');
+  const tenantMemberForm = document.getElementById('tenant-member-form');
+  const tenantMemberStatus = document.getElementById('tenant-member-status');
+  const tenantMemberBody = document.getElementById('tenant-member-body');
+  const tenantMemberListStatus = document.getElementById('tenant-member-list-status');
   const delegatedGrantForm = document.getElementById('delegated-grant-form');
   const delegatedGrantStatus = document.getElementById('delegated-grant-status');
   const delegatedGrantBody = document.getElementById('delegated-grant-body');
@@ -1508,6 +1517,238 @@ export const INSTITUTION_ADMIN_JS = `
         setStatus(
           badgeTemplateImageUploadStatus,
           'Unable to upload template image from this browser session.',
+          true,
+        );
+      }
+    });
+  }
+
+  if (tenantMemberForm instanceof HTMLFormElement && tenantMemberStatus instanceof HTMLElement) {
+    tenantMemberForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      setStatus(tenantMemberStatus, 'Adding member...', false);
+
+      const data = new FormData(tenantMemberForm);
+      const emailRaw = data.get('email');
+      const roleRaw = data.get('role');
+      const email = typeof emailRaw === 'string' ? emailRaw.trim() : '';
+      const role = typeof roleRaw === 'string' ? roleRaw.trim() : '';
+      const validRoles = new Set(['owner', 'admin', 'issuer', 'viewer']);
+
+      if (email.length === 0 || role.length === 0) {
+        setStatus(tenantMemberStatus, 'Email and tenant role are required.', true);
+        return;
+      }
+
+      if (!validRoles.has(role)) {
+        setStatus(tenantMemberStatus, 'Invalid tenant role.', true);
+        return;
+      }
+
+      try {
+        const response = await fetch(tenantMembersApiPath, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            email,
+            role,
+            sendInvite: data.get('sendInvite') !== null,
+          }),
+        });
+        const payload = await parseJsonBody(response);
+
+        if (!response.ok) {
+          setStatus(tenantMemberStatus, errorDetailFromPayload(payload), true);
+          return;
+        }
+
+        setStatus(tenantMemberStatus, 'Member saved.', false, 'success');
+        setTimeout(() => {
+          reloadCurrentPage();
+        }, 700);
+      } catch {
+        setStatus(tenantMemberStatus, 'Unable to add the member from this browser session.', true);
+      }
+    });
+  }
+
+  if (tenantMemberBody instanceof HTMLElement && tenantMemberListStatus instanceof HTMLElement) {
+    tenantMemberBody.addEventListener('change', async (event) => {
+      const target = event.target;
+
+      if (!(target instanceof HTMLSelectElement)) {
+        return;
+      }
+
+      const userId = target.dataset.tenantMemberRoleUserId ?? '';
+      const currentRole = target.dataset.tenantMemberCurrentRole ?? '';
+      const nextRole = target.value.trim();
+      const validRoles = new Set(['owner', 'admin', 'issuer', 'viewer']);
+
+      if (userId.length === 0) {
+        setStatus(tenantMemberListStatus, 'Member user ID is missing from this role control.', true);
+        target.value = currentRole;
+        return;
+      }
+
+      if (nextRole === currentRole) {
+        return;
+      }
+
+      if (!validRoles.has(nextRole)) {
+        setStatus(tenantMemberListStatus, 'Invalid tenant role.', true);
+        target.value = currentRole;
+        return;
+      }
+
+      setStatus(tenantMemberListStatus, 'Updating member role...', false);
+      target.disabled = true;
+
+      try {
+        const response = await fetch(
+          tenantMembersApiPath + '/' + encodeURIComponent(userId) + '/role',
+          {
+            method: 'PATCH',
+            headers: {
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              role: nextRole,
+            }),
+          },
+        );
+        const payload = await parseJsonBody(response);
+
+        if (!response.ok) {
+          setStatus(tenantMemberListStatus, errorDetailFromPayload(payload), true);
+          target.value = currentRole;
+          target.disabled = false;
+          return;
+        }
+
+        setStatus(tenantMemberListStatus, 'Member role updated.', false, 'success');
+        setTimeout(() => {
+          reloadCurrentPage();
+        }, 700);
+      } catch {
+        setStatus(
+          tenantMemberListStatus,
+          'Unable to update the member role from this browser session.',
+          true,
+        );
+        target.value = currentRole;
+        target.disabled = false;
+      }
+    });
+
+    tenantMemberBody.addEventListener('click', async (event) => {
+      const target = event.target;
+
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+
+      const inviteButton = target.closest('[data-tenant-member-invite-user-id]');
+
+      if (inviteButton instanceof HTMLElement) {
+        const userId = inviteButton.dataset.tenantMemberInviteUserId ?? '';
+        const email = inviteButton.dataset.tenantMemberEmail ?? 'this member';
+
+        if (userId.length === 0) {
+          setStatus(tenantMemberListStatus, 'Member user ID is missing from invite action.', true);
+          return;
+        }
+
+        setStatus(tenantMemberListStatus, 'Sending member invite...', false);
+
+        try {
+          const response = await fetch(
+            tenantMembersApiPath + '/' + encodeURIComponent(userId) + '/invite',
+            {
+              method: 'POST',
+            },
+          );
+          const payload = await parseJsonBody(response);
+
+          if (!response.ok) {
+            setStatus(tenantMemberListStatus, errorDetailFromPayload(payload), true);
+            return;
+          }
+
+          const deliveryStatus =
+            payload &&
+            payload.invite &&
+            typeof payload.invite.deliveryStatus === 'string'
+              ? payload.invite.deliveryStatus
+              : 'sent';
+          setStatus(
+            tenantMemberListStatus,
+            'Invite processed for ' + email + ' (' + deliveryStatus + ').',
+            false,
+            deliveryStatus === 'failed' ? 'warning' : 'success',
+          );
+        } catch {
+          setStatus(
+            tenantMemberListStatus,
+            'Unable to send the member invite from this browser session.',
+            true,
+          );
+        }
+
+        return;
+      }
+
+      const removeButton = target.closest('[data-tenant-member-remove-user-id]');
+
+      if (!(removeButton instanceof HTMLElement)) {
+        return;
+      }
+
+      const userId = removeButton.dataset.tenantMemberRemoveUserId ?? '';
+      const email = removeButton.dataset.tenantMemberEmail ?? 'this member';
+
+      if (userId.length === 0) {
+        setStatus(tenantMemberListStatus, 'Member user ID is missing from remove action.', true);
+        return;
+      }
+
+      if (!window.confirm('Remove tenant access for ' + email + '?')) {
+        return;
+      }
+
+      setStatus(tenantMemberListStatus, 'Removing tenant member...', false);
+
+      try {
+        const response = await fetch(
+          tenantMembersApiPath + '/' + encodeURIComponent(userId),
+          {
+            method: 'DELETE',
+          },
+        );
+        const payload = await parseJsonBody(response);
+
+        if (!response.ok) {
+          setStatus(tenantMemberListStatus, errorDetailFromPayload(payload), true);
+          return;
+        }
+
+        const removed = payload && typeof payload.removed === 'boolean' ? payload.removed : false;
+
+        if (!removed) {
+          setStatus(tenantMemberListStatus, 'No matching tenant membership was found.', true);
+          return;
+        }
+
+        setStatus(tenantMemberListStatus, 'Tenant member removed.', false, 'success');
+        setTimeout(() => {
+          reloadCurrentPage();
+        }, 700);
+      } catch {
+        setStatus(
+          tenantMemberListStatus,
+          'Unable to remove the tenant member from this browser session.',
           true,
         );
       }

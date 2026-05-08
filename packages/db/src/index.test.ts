@@ -8,6 +8,7 @@ import {
   ASSERTION_ENGAGEMENT_EVENT_TYPES,
   addLearnerIdentityAlias,
   type AccessibleTenantContextRecord,
+  countTenantMembershipsByRole,
   createLearnerRecordImportContext,
   createLearnerRecordEntry,
   createTenantAuthProvider,
@@ -21,6 +22,7 @@ import {
   findTenantAuthPolicy,
   listAccessibleTenantContextsForUser,
   listTenantAuthProviders,
+  listTenantMembers,
   findLearnerProfileByIdentity,
   findTenantAuthProviderById,
   findAuthIdentityLinkByAuthUserId,
@@ -32,6 +34,7 @@ import {
   markTenantBreakGlassEnrollmentEmailSent,
   normalizeLearnerIdentityValue,
   patchLearnerRecordEntry,
+  removeTenantMembership,
   retryFailedImportLearnerRecordBatchQueueMessages,
   revokeTenantBreakGlassAccount,
   resolveTenantAuthPolicy,
@@ -43,6 +46,7 @@ import {
   summarizeTenantReportingOverviewRows,
   summarizeTenantReportingTrendRows,
   updateTenantAuthProvider,
+  upsertTenantMembershipRole,
   upsertTenantBreakGlassAccount,
   upsertTenantAuthPolicy,
   upsertUserByEmail,
@@ -211,6 +215,8 @@ interface FakeMembershipRow {
   tenant_id: string;
   user_id: string;
   role: "owner" | "admin" | "issuer" | "viewer";
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface FakeJobQueueMessageRow {
@@ -1488,6 +1494,14 @@ class FakeTenantAuthStatement {
       return Promise.resolve(this.successResult(1));
     }
 
+    if (normalizedSql.includes("INSERT INTO memberships")) {
+      return Promise.resolve(this.upsertTenantMembership());
+    }
+
+    if (normalizedSql.includes("DELETE FROM memberships")) {
+      return Promise.resolve(this.deleteTenantMembership());
+    }
+
     if (normalizedSql.includes("INSERT INTO tenant_auth_policies")) {
       return Promise.resolve(this.upsertTenantAuthPolicy());
     }
@@ -1568,6 +1582,10 @@ class FakeTenantAuthStatement {
       return Promise.resolve(this.selectUserById() as T | null);
     }
 
+    if (normalizedSql.includes("FROM memberships WHERE tenant_id = ? AND user_id = ?")) {
+      return Promise.resolve(this.selectTenantMembership() as T | null);
+    }
+
     if (normalizedSql.includes("FROM tenant_auth_policies")) {
       return Promise.resolve(this.selectTenantAuthPolicy() as T | null);
     }
@@ -1618,6 +1636,26 @@ class FakeTenantAuthStatement {
     }
 
     if (
+      normalizedSql.includes("FROM memberships INNER JOIN users") &&
+      normalizedSql.includes("users.id = memberships.user_id")
+    ) {
+      return Promise.resolve({
+        ...this.successResult(),
+        results: this.selectTenantMembers() as T[],
+      });
+    }
+
+    if (
+      normalizedSql.includes("SELECT role, COUNT(*) AS totalCount FROM memberships") &&
+      normalizedSql.includes("GROUP BY role")
+    ) {
+      return Promise.resolve({
+        ...this.successResult(),
+        results: this.countTenantMembershipsByRole() as T[],
+      });
+    }
+
+    if (
       normalizedSql.includes("FROM memberships") &&
       normalizedSql.includes("INNER JOIN tenants") &&
       normalizedSql.includes("tenants.is_active = 1")
@@ -1650,6 +1688,54 @@ class FakeTenantAuthStatement {
         email,
       });
     }
+  }
+
+  private upsertTenantMembership(): SqlRunResult {
+    const [tenantId, userId, role, createdAt, updatedAt] = this.boundParams;
+
+    if (
+      typeof tenantId !== "string" ||
+      typeof userId !== "string" ||
+      (role !== "owner" && role !== "admin" && role !== "issuer" && role !== "viewer") ||
+      typeof createdAt !== "string" ||
+      typeof updatedAt !== "string"
+    ) {
+      throw new Error("Invalid bound parameters for tenant membership upsert");
+    }
+
+    const existing = this.db.memberships.find((row) => {
+      return row.tenant_id === tenantId && row.user_id === userId;
+    });
+
+    if (existing === undefined) {
+      this.db.memberships.push({
+        tenant_id: tenantId,
+        user_id: userId,
+        role,
+        created_at: createdAt,
+        updated_at: updatedAt,
+      });
+      return this.successResult(1);
+    }
+
+    existing.role = role;
+    existing.updated_at = updatedAt;
+    return this.successResult(1);
+  }
+
+  private deleteTenantMembership(): SqlRunResult {
+    const [tenantId, userId] = this.boundParams;
+
+    if (typeof tenantId !== "string" || typeof userId !== "string") {
+      throw new Error("Invalid bound parameters for tenant membership delete");
+    }
+
+    const beforeCount = this.db.memberships.length;
+    this.db.memberships = this.db.memberships.filter((row) => {
+      return !(row.tenant_id === tenantId && row.user_id === userId);
+    });
+
+    return this.successResult(beforeCount - this.db.memberships.length);
   }
 
   private upsertTenantAuthPolicy(): SqlRunResult {
@@ -2007,6 +2093,99 @@ class FakeTenantAuthStatement {
         };
   }
 
+  private selectTenantMembership(): Record<string, unknown> | null {
+    const [tenantId, userId] = this.boundParams;
+
+    if (typeof tenantId !== "string" || typeof userId !== "string") {
+      throw new Error("Invalid bound parameters for tenant membership lookup");
+    }
+
+    const row = this.db.memberships.find((candidate) => {
+      return candidate.tenant_id === tenantId && candidate.user_id === userId;
+    });
+
+    return row === undefined ? null : this.mapTenantMembership(row);
+  }
+
+  private selectTenantMembers(): Record<string, unknown>[] {
+    const [tenantId] = this.boundParams;
+
+    if (typeof tenantId !== "string") {
+      throw new Error("Invalid bound parameters for tenant member list");
+    }
+
+    const roleRank = {
+      owner: 0,
+      admin: 1,
+      issuer: 2,
+      viewer: 3,
+    };
+
+    const rows: Record<string, unknown>[] = [];
+
+    for (const membership of this.db.memberships) {
+      if (membership.tenant_id !== tenantId) {
+        continue;
+      }
+
+      const user = this.db.users.find((candidate) => candidate.id === membership.user_id);
+
+      if (user === undefined) {
+        continue;
+      }
+
+      rows.push({
+        tenantId: membership.tenant_id,
+        userId: membership.user_id,
+        email: user.email,
+        role: membership.role,
+        createdAt: membership.created_at ?? "2026-02-10T22:00:00.000Z",
+        updatedAt: membership.updated_at ?? "2026-02-10T22:00:00.000Z",
+      });
+    }
+
+    return rows.sort((left, right) => {
+      const leftRole = left.role as FakeMembershipRow["role"];
+      const rightRole = right.role as FakeMembershipRow["role"];
+      const byRole = roleRank[leftRole] - roleRank[rightRole];
+
+      if (byRole !== 0) {
+        return byRole;
+      }
+
+      const byEmail = String(left.email).localeCompare(String(right.email));
+
+      if (byEmail !== 0) {
+        return byEmail;
+      }
+
+      return String(left.userId).localeCompare(String(right.userId));
+    });
+  }
+
+  private countTenantMembershipsByRole(): Record<string, unknown>[] {
+    const [tenantId] = this.boundParams;
+
+    if (typeof tenantId !== "string") {
+      throw new Error("Invalid bound parameters for tenant membership counts");
+    }
+
+    const counts = new Map<FakeMembershipRow["role"], number>();
+
+    for (const membership of this.db.memberships) {
+      if (membership.tenant_id !== tenantId) {
+        continue;
+      }
+
+      counts.set(membership.role, (counts.get(membership.role) ?? 0) + 1);
+    }
+
+    return Array.from(counts.entries()).map(([role, totalCount]) => ({
+      role,
+      totalCount,
+    }));
+  }
+
   private selectTenantAuthPolicy(): Record<string, unknown> | null {
     const [tenantId] = this.boundParams;
 
@@ -2092,6 +2271,16 @@ class FakeTenantAuthStatement {
       enforced: row.enforced,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+    };
+  }
+
+  private mapTenantMembership(row: FakeMembershipRow): Record<string, unknown> {
+    return {
+      tenantId: row.tenant_id,
+      userId: row.user_id,
+      role: row.role,
+      createdAt: row.created_at ?? "2026-02-10T22:00:00.000Z",
+      updatedAt: row.updated_at ?? "2026-02-10T22:00:00.000Z",
     };
   }
 
@@ -3129,6 +3318,60 @@ describe("tenant auth policy and provider helpers", () => {
 
     expect(removed).toBe(true);
     expect(resolvedAfterRevoke).toBeNull();
+  });
+
+  it("lists tenant members, counts roles, and removes only tenant membership", async () => {
+    const db = createFakeTenantAuthDb();
+    const tenantAuthDb = db as unknown as FakeTenantAuthSqlDatabase;
+    const owner = await upsertUserByEmail(db, "Owner@Example.edu");
+    const admin = await upsertUserByEmail(db, "Admin@Example.edu");
+    const otherTenantUser = await upsertUserByEmail(db, "Other@Example.edu");
+
+    await upsertTenantMembershipRole(db, {
+      tenantId: "tenant_123",
+      userId: owner.id,
+      role: "owner",
+    });
+    await upsertTenantMembershipRole(db, {
+      tenantId: "tenant_123",
+      userId: admin.id,
+      role: "admin",
+    });
+    await upsertTenantMembershipRole(db, {
+      tenantId: "tenant_other",
+      userId: otherTenantUser.id,
+      role: "owner",
+    });
+
+    const listed = await listTenantMembers(db, "tenant_123");
+    const counts = await countTenantMembershipsByRole(db, "tenant_123");
+    const removed = await removeTenantMembership(db, "tenant_123", admin.id);
+    const listedAfterRemoval = await listTenantMembers(db, "tenant_123");
+
+    expect(listed).toEqual([
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        userId: owner.id,
+        email: "owner@example.edu",
+        role: "owner",
+      }),
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        userId: admin.id,
+        email: "admin@example.edu",
+        role: "admin",
+      }),
+    ]);
+    expect(counts).toEqual({
+      owner: 1,
+      admin: 1,
+      issuer: 0,
+      viewer: 0,
+    });
+    expect(removed).toBe(true);
+    expect(listedAfterRemoval.map((member) => member.userId)).toEqual([owner.id]);
+    expect(tenantAuthDb.users.some((user) => user.id === admin.id)).toBe(true);
+    expect(tenantAuthDb.memberships.some((row) => row.user_id === otherTenantUser.id)).toBe(true);
   });
 
   it("lists accessible tenant contexts for a user from active memberships", async () => {

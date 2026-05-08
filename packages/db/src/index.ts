@@ -259,6 +259,17 @@ export interface TenantMembershipRecord {
   updatedAt: string;
 }
 
+export interface TenantMemberRecord extends TenantMembershipRecord {
+  email: string;
+}
+
+export interface TenantMembershipRoleCounts {
+  owner: number;
+  admin: number;
+  issuer: number;
+  viewer: number;
+}
+
 export interface AccessibleTenantContextRecord {
   tenantId: string;
   tenantSlug: string;
@@ -2394,6 +2405,15 @@ interface TenantMembershipRow {
   role: TenantMembershipRole;
   createdAt: string;
   updatedAt: string;
+}
+
+interface TenantMemberRow extends TenantMembershipRow {
+  email: string;
+}
+
+interface TenantMembershipRoleCountRow {
+  role: TenantMembershipRole;
+  totalCount: number | string;
 }
 
 interface AccessibleTenantContextRow {
@@ -6818,6 +6838,93 @@ export const findTenantMembership = async (
   return mapTenantMembershipRow(row);
 };
 
+export const listTenantMembers = async (
+  db: SqlDatabase,
+  tenantId: string,
+): Promise<TenantMemberRecord[]> => {
+  const result = await db
+    .prepare(
+      `
+      SELECT
+        memberships.tenant_id AS tenantId,
+        memberships.user_id AS userId,
+        users.email AS email,
+        memberships.role AS role,
+        memberships.created_at AS createdAt,
+        memberships.updated_at AS updatedAt
+      FROM memberships
+      INNER JOIN users
+        ON users.id = memberships.user_id
+      WHERE memberships.tenant_id = ?
+      ORDER BY
+        CASE memberships.role
+          WHEN 'owner' THEN 0
+          WHEN 'admin' THEN 1
+          WHEN 'issuer' THEN 2
+          ELSE 3
+        END,
+        lower(users.email),
+        memberships.user_id
+    `,
+    )
+    .bind(tenantId)
+    .all<TenantMemberRow>();
+
+  return result.results.map(mapTenantMemberRow);
+};
+
+export const countTenantMembershipsByRole = async (
+  db: SqlDatabase,
+  tenantId: string,
+): Promise<TenantMembershipRoleCounts> => {
+  const result = await db
+    .prepare(
+      `
+      SELECT
+        role,
+        COUNT(*) AS totalCount
+      FROM memberships
+      WHERE tenant_id = ?
+      GROUP BY role
+    `,
+    )
+    .bind(tenantId)
+    .all<TenantMembershipRoleCountRow>();
+
+  const counts: TenantMembershipRoleCounts = {
+    owner: 0,
+    admin: 0,
+    issuer: 0,
+    viewer: 0,
+  };
+
+  for (const row of result.results) {
+    const totalCount = Number.parseInt(String(row.totalCount), 10);
+    counts[row.role] = Number.isFinite(totalCount) ? totalCount : 0;
+  }
+
+  return counts;
+};
+
+export const removeTenantMembership = async (
+  db: SqlDatabase,
+  tenantId: string,
+  userId: string,
+): Promise<boolean> => {
+  const result = await db
+    .prepare(
+      `
+      DELETE FROM memberships
+      WHERE tenant_id = ?
+        AND user_id = ?
+    `,
+    )
+    .bind(tenantId, userId)
+    .run();
+
+  return (result.meta.rowsWritten ?? 0) > 0;
+};
+
 export const listAccessibleTenantContextsForUser = async (
   db: SqlDatabase,
   userId: string,
@@ -8645,6 +8752,13 @@ const mapTenantMembershipRow = (row: TenantMembershipRow): TenantMembershipRecor
     role: row.role,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+  };
+};
+
+const mapTenantMemberRow = (row: TenantMemberRow): TenantMemberRecord => {
+  return {
+    ...mapTenantMembershipRow(row),
+    email: row.email,
   };
 };
 

@@ -1,4 +1,5 @@
 import {
+  countTenantMembershipsByRole,
   createTenantAuthProvider,
   createTenantApiKey,
   createAuditLog,
@@ -14,6 +15,7 @@ import {
   findTenantAuthPolicy,
   findTenantAuthProviderById,
   findTenantById,
+  findTenantMembership,
   getTenantReportingEngagementCounts,
   getTenantReportingOverview,
   getTenantReportingTrends,
@@ -30,8 +32,10 @@ import {
   listDelegatedIssuingAuthorityGrantEvents,
   listDelegatedIssuingAuthorityGrants,
   listTenantBreakGlassAccounts,
+  listTenantMembers,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
+  removeTenantMembership,
   removeTenantMembershipOrgUnitScope,
   revokeTenantApiKey,
   revokeTenantBreakGlassAccount,
@@ -43,6 +47,7 @@ import {
   updateTenantAuthProvider,
   upsertTenantBreakGlassAccount,
   upsertTenantAuthPolicy,
+  upsertTenantMembershipRole,
   upsertTenantMembershipOrgUnitScope,
   upsertUserByEmail,
   type LearnerRecordTrustLevel,
@@ -56,8 +61,10 @@ import {
   parseAdminLearnerRecordReviewQuery,
   parseCreateTenantApiKeyRequest,
   parseCreateTenantBreakGlassAccountRequest,
+  parseCreateTenantMemberRequest,
   parseLearnerRecordImportBatchPathParams,
   parseLearnerRecordImportBatchDefaults,
+  parseTenantMemberPathParams,
   parseTenantAuthProviderPathParams,
   parseCreateDelegatedIssuingAuthorityGrantRequest,
   parseRevokeTenantApiKeyRequest,
@@ -75,6 +82,7 @@ import {
   parseTenantUserDelegatedGrantPathParams,
   parseTenantUserOrgUnitPathParams,
   parseTenantUserPathParams,
+  parseUpdateTenantMemberRoleRequest,
   parseUpsertTenantMembershipOrgUnitScopeRequest,
 } from "@credtrail/validation";
 import { renderPageShell } from "@credtrail/ui-components";
@@ -88,6 +96,7 @@ import {
   institutionAdminIssuedBadgesPage,
   institutionAdminLearnerRecordImportsPage,
   institutionAdminLearnerRecordsPage,
+  institutionAdminMembersPage,
   institutionAdminOperationsReviewQueuePage,
   institutionAdminOperationsPage,
   institutionAdminOrgUnitsPage,
@@ -116,6 +125,17 @@ import { buildOrganizationsPath } from "../auth/tenant-context-selection";
 interface RegisterTenantGovernanceRoutesInput {
   app: Hono<AppEnv>;
   resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  requestTenantMemberInvite?: (
+    c: AppContext,
+    input: {
+      tenantId: string;
+      email: string;
+      role: TenantMembershipRole;
+    },
+  ) => Promise<{
+    deliveryStatus: "sent" | "skipped" | "failed";
+    inviteKind: "magic_link" | "sso_notice";
+  }>;
   requestBreakGlassPasswordReset?: (
     c: AppContext,
     input: {
@@ -146,6 +166,7 @@ export const registerTenantGovernanceRoutes = (
   const {
     app,
     resolveDatabase,
+    requestTenantMemberInvite,
     requestBreakGlassPasswordReset,
     generateOpaqueToken,
     sha256Hex,
@@ -198,6 +219,111 @@ export const registerTenantGovernanceRoutes = (
     "Legacy SAML compatibility entries are not editable from the supported enterprise auth workflow. Configure a new OIDC provider instead or delete the legacy entry.";
   const LEGACY_SAML_DEFAULT_PROVIDER_ERROR =
     "Default enterprise provider must be an OIDC provider. Legacy SAML compatibility entries cannot be selected.";
+
+  const canManageTenantRole = (
+    actorRole: TenantMembershipRole,
+    targetRole: TenantMembershipRole,
+  ): boolean => {
+    return actorRole === "owner" || targetRole !== "owner";
+  };
+
+  const memberInviteSkipped = {
+    deliveryStatus: "skipped" as const,
+    inviteKind: "magic_link" as const,
+  };
+
+  const requestInviteForTenantMember = async (
+    c: AppContext,
+    input: {
+      tenantId: string;
+      email: string;
+      role: TenantMembershipRole;
+      sendInvite: boolean;
+    },
+  ): Promise<{
+    deliveryStatus: "sent" | "skipped" | "failed";
+    inviteKind: "magic_link" | "sso_notice";
+  }> => {
+    if (!input.sendInvite || requestTenantMemberInvite === undefined) {
+      return memberInviteSkipped;
+    }
+
+    return requestTenantMemberInvite(c, {
+      tenantId: input.tenantId,
+      email: input.email,
+      role: input.role,
+    });
+  };
+
+  const assertRoleChangeAllowed = async (
+    c: AppContext,
+    input: {
+      db: SqlDatabase;
+      tenantId: string;
+      actorUserId: string;
+      actorRole: TenantMembershipRole;
+      targetUserId: string;
+      previousRole: TenantMembershipRole | null;
+      nextRole: TenantMembershipRole;
+    },
+  ): Promise<Response | null> => {
+    if (!canManageTenantRole(input.actorRole, input.nextRole)) {
+      return c.json(
+        {
+          error: "Only tenant owners can assign the owner role.",
+        },
+        403,
+      );
+    }
+
+    if (input.previousRole === "owner" && input.actorRole !== "owner") {
+      return c.json(
+        {
+          error: "Only tenant owners can change an owner membership.",
+        },
+        403,
+      );
+    }
+
+    if (
+      input.targetUserId === input.actorUserId &&
+      (input.previousRole === "owner" || input.previousRole === "admin") &&
+      input.nextRole !== input.previousRole
+    ) {
+      return c.json(
+        {
+          error: "You cannot change your own tenant admin role.",
+        },
+        409,
+      );
+    }
+
+    if (input.previousRole === "owner" && input.nextRole !== "owner") {
+      const counts = await countTenantMembershipsByRole(input.db, input.tenantId);
+
+      if (counts.owner <= 1) {
+        return c.json(
+          {
+            error: "At least one tenant owner must remain.",
+          },
+          409,
+        );
+      }
+    }
+
+    return null;
+  };
+
+  const membershipAuditAction = (
+    previousRole: TenantMembershipRole | null,
+    nextRole: TenantMembershipRole,
+  ): "membership.role_assigned" | "membership.role_changed" | "membership.role_reasserted" => {
+    if (previousRole === null) {
+      return "membership.role_assigned";
+    }
+
+    return previousRole === nextRole ? "membership.role_reasserted" : "membership.role_changed";
+  };
 
   const serializeTenantAuthPolicy = (
     policy: Awaited<ReturnType<typeof resolveTenantAuthPolicy>>,
@@ -382,6 +508,7 @@ export const registerTenantGovernanceRoutes = (
       badgeTemplates,
       orgUnits,
       membershipOrgUnitScopes,
+      tenantMembers,
       delegatedIssuingAuthorityGrants,
       apiKeys,
       badgeRules,
@@ -401,6 +528,7 @@ export const registerTenantGovernanceRoutes = (
       listTenantMembershipOrgUnitScopes(db, {
         tenantId,
       }),
+      listTenantMembers(db, tenantId),
       listDelegatedIssuingAuthorityGrants(db, {
         tenantId,
         includeRevoked: true,
@@ -448,6 +576,7 @@ export const registerTenantGovernanceRoutes = (
       badgeTemplates,
       orgUnits,
       membershipOrgUnitScopes,
+      tenantMembers,
       delegatedIssuingAuthorityGrants,
       activeApiKeys,
       revokedApiKeyCount,
@@ -778,6 +907,7 @@ export const registerTenantGovernanceRoutes = (
       badgeTemplates: visibleBadgeTemplates,
       orgUnits: visibleOrgUnits,
       membershipOrgUnitScopes,
+      tenantMembers: [],
       delegatedIssuingAuthorityGrants: [],
       activeApiKeys: [],
       revokedApiKeyCount: 0,
@@ -1446,6 +1576,16 @@ export const registerTenantGovernanceRoutes = (
     );
   });
 
+  app.get("/tenants/:tenantId/admin/access/members", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    return renderInstitutionAdminWorkspace(
+      c,
+      pathParams.tenantId,
+      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access/members`,
+      institutionAdminMembersPage,
+    );
+  });
+
   app.get("/tenants/:tenantId/admin/access/governance", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
     return renderInstitutionAdminWorkspace(
@@ -2013,6 +2153,364 @@ export const registerTenantGovernanceRoutes = (
     }
 
     return c.json({ removed });
+  });
+
+  app.get("/v1/tenants/:tenantId/members", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const members = await listTenantMembers(resolveDatabase(c.env), pathParams.tenantId);
+
+    return c.json({
+      tenantId: pathParams.tenantId,
+      members,
+    });
+  });
+
+  app.post("/v1/tenants/:tenantId/members", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    let request: ReturnType<typeof parseCreateTenantMemberRequest>;
+
+    try {
+      request = parseCreateTenantMemberRequest(await c.req.json<unknown>());
+    } catch {
+      return c.json(
+        {
+          error: "Invalid tenant member payload",
+        },
+        400,
+      );
+    }
+
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const db = resolveDatabase(c.env);
+    const user = await upsertUserByEmail(db, request.email);
+    const existingMembership = await findTenantMembership(db, pathParams.tenantId, user.id);
+    const rolePolicyResponse = await assertRoleChangeAllowed(c, {
+      db,
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      actorRole: membershipRole,
+      targetUserId: user.id,
+      previousRole: existingMembership?.role ?? null,
+      nextRole: request.role,
+    });
+
+    if (rolePolicyResponse !== null) {
+      return rolePolicyResponse;
+    }
+
+    const roleResult = await upsertTenantMembershipRole(db, {
+      tenantId: pathParams.tenantId,
+      userId: user.id,
+      role: request.role,
+    });
+    const invite = await requestInviteForTenantMember(c, {
+      tenantId: pathParams.tenantId,
+      email: user.email,
+      role: roleResult.membership.role,
+      sendInvite: request.sendInvite !== false,
+    });
+    const action = membershipAuditAction(roleResult.previousRole, roleResult.membership.role);
+
+    await createAuditLog(db, {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action,
+      targetType: "membership",
+      targetId: `${pathParams.tenantId}:${user.id}`,
+      metadata: {
+        actorRole: membershipRole,
+        userId: user.id,
+        email: user.email,
+        previousRole: roleResult.previousRole,
+        newRole: roleResult.membership.role,
+        role: roleResult.membership.role,
+        changed: roleResult.changed,
+        inviteDeliveryStatus: invite.deliveryStatus,
+        inviteKind: invite.inviteKind,
+      },
+    });
+
+    if (invite.deliveryStatus !== "skipped") {
+      await createAuditLog(db, {
+        tenantId: pathParams.tenantId,
+        actorUserId: session.userId,
+        action: "membership.invite_sent",
+        targetType: "membership",
+        targetId: `${pathParams.tenantId}:${user.id}`,
+        metadata: {
+          actorRole: membershipRole,
+          userId: user.id,
+          email: user.email,
+          newRole: roleResult.membership.role,
+          role: roleResult.membership.role,
+          inviteDeliveryStatus: invite.deliveryStatus,
+          inviteKind: invite.inviteKind,
+        },
+      });
+    }
+
+    return c.json(
+      {
+        tenantId: pathParams.tenantId,
+        member: {
+          ...roleResult.membership,
+          email: user.email,
+        },
+        previousRole: roleResult.previousRole,
+        changed: roleResult.changed,
+        invite,
+      },
+      roleResult.previousRole === null ? 201 : 200,
+    );
+  });
+
+  app.patch("/v1/tenants/:tenantId/members/:userId/role", async (c) => {
+    const pathParams = parseTenantMemberPathParams(c.req.param());
+    let request: ReturnType<typeof parseUpdateTenantMemberRoleRequest>;
+
+    try {
+      request = parseUpdateTenantMemberRoleRequest(await c.req.json<unknown>());
+    } catch {
+      return c.json(
+        {
+          error: "Invalid tenant member role payload",
+        },
+        400,
+      );
+    }
+
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const db = resolveDatabase(c.env);
+    const existingMembership = await findTenantMembership(db, pathParams.tenantId, pathParams.userId);
+
+    if (existingMembership === null) {
+      return c.json(
+        {
+          error: "Tenant member not found",
+        },
+        404,
+      );
+    }
+
+    const rolePolicyResponse = await assertRoleChangeAllowed(c, {
+      db,
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      actorRole: membershipRole,
+      targetUserId: pathParams.userId,
+      previousRole: existingMembership.role,
+      nextRole: request.role,
+    });
+
+    if (rolePolicyResponse !== null) {
+      return rolePolicyResponse;
+    }
+
+    const [roleResult, user] = await Promise.all([
+      upsertTenantMembershipRole(db, {
+        tenantId: pathParams.tenantId,
+        userId: pathParams.userId,
+        role: request.role,
+      }),
+      findUserById(db, pathParams.userId),
+    ]);
+    const action = membershipAuditAction(roleResult.previousRole, roleResult.membership.role);
+
+    await createAuditLog(db, {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action,
+      targetType: "membership",
+      targetId: `${pathParams.tenantId}:${pathParams.userId}`,
+      metadata: {
+        actorRole: membershipRole,
+        userId: pathParams.userId,
+        email: user?.email ?? null,
+        previousRole: roleResult.previousRole,
+        newRole: roleResult.membership.role,
+        role: roleResult.membership.role,
+        changed: roleResult.changed,
+      },
+    });
+
+    return c.json({
+      tenantId: pathParams.tenantId,
+      member: {
+        ...roleResult.membership,
+        email: user?.email ?? "",
+      },
+      previousRole: roleResult.previousRole,
+      changed: roleResult.changed,
+    });
+  });
+
+  app.post("/v1/tenants/:tenantId/members/:userId/invite", async (c) => {
+    const pathParams = parseTenantMemberPathParams(c.req.param());
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const db = resolveDatabase(c.env);
+    const [membership, user] = await Promise.all([
+      findTenantMembership(db, pathParams.tenantId, pathParams.userId),
+      findUserById(db, pathParams.userId),
+    ]);
+
+    if (membership === null || user === null) {
+      return c.json(
+        {
+          error: "Tenant member not found",
+        },
+        404,
+      );
+    }
+
+    if (!canManageTenantRole(membershipRole, membership.role)) {
+      return c.json(
+        {
+          error: "Only tenant owners can invite owner members.",
+        },
+        403,
+      );
+    }
+
+    const invite = await requestInviteForTenantMember(c, {
+      tenantId: pathParams.tenantId,
+      email: user.email,
+      role: membership.role,
+      sendInvite: true,
+    });
+
+    await createAuditLog(db, {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action: "membership.invite_sent",
+      targetType: "membership",
+      targetId: `${pathParams.tenantId}:${pathParams.userId}`,
+      metadata: {
+        actorRole: membershipRole,
+        userId: pathParams.userId,
+        email: user.email,
+        newRole: membership.role,
+        role: membership.role,
+        inviteDeliveryStatus: invite.deliveryStatus,
+        inviteKind: invite.inviteKind,
+      },
+    });
+
+    return c.json({
+      tenantId: pathParams.tenantId,
+      userId: pathParams.userId,
+      invite,
+    });
+  });
+
+  app.delete("/v1/tenants/:tenantId/members/:userId", async (c) => {
+    const pathParams = parseTenantMemberPathParams(c.req.param());
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const db = resolveDatabase(c.env);
+    const [membership, user] = await Promise.all([
+      findTenantMembership(db, pathParams.tenantId, pathParams.userId),
+      findUserById(db, pathParams.userId),
+    ]);
+
+    if (membership === null) {
+      return c.json(
+        {
+          error: "Tenant member not found",
+        },
+        404,
+      );
+    }
+
+    if (pathParams.userId === session.userId) {
+      return c.json(
+        {
+          error: "You cannot remove your own tenant membership.",
+        },
+        409,
+      );
+    }
+
+    if (membership.role === "owner" && membershipRole !== "owner") {
+      return c.json(
+        {
+          error: "Only tenant owners can remove an owner membership.",
+        },
+        403,
+      );
+    }
+
+    if (membership.role === "owner") {
+      const counts = await countTenantMembershipsByRole(db, pathParams.tenantId);
+
+      if (counts.owner <= 1) {
+        return c.json(
+          {
+            error: "At least one tenant owner must remain.",
+          },
+          409,
+        );
+      }
+    }
+
+    const removed = await removeTenantMembership(db, pathParams.tenantId, pathParams.userId);
+    const revokedBreakGlass = await revokeTenantBreakGlassAccount(db, {
+      tenantId: pathParams.tenantId,
+      userId: pathParams.userId,
+      revokedAt: new Date().toISOString(),
+    });
+
+    if (removed) {
+      await createAuditLog(db, {
+        tenantId: pathParams.tenantId,
+        actorUserId: session.userId,
+        action: "membership.removed",
+        targetType: "membership",
+        targetId: `${pathParams.tenantId}:${pathParams.userId}`,
+        metadata: {
+          actorRole: membershipRole,
+          userId: pathParams.userId,
+          email: user?.email ?? null,
+          previousRole: membership.role,
+          revokedBreakGlass,
+        },
+      });
+    }
+
+    return c.json({
+      tenantId: pathParams.tenantId,
+      userId: pathParams.userId,
+      removed,
+      revokedBreakGlass,
+    });
   });
 
   app.get("/v1/tenants/:tenantId/break-glass-accounts", async (c) => {

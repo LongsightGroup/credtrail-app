@@ -5,6 +5,8 @@ import {
   type ObservabilityContext,
 } from "@credtrail/core-domain";
 import {
+  findTenantAuthPolicy,
+  findTenantById,
   findTenantSigningRegistrationByDid,
   listLtiIssuerRegistrations,
   upsertTenantMembershipRole,
@@ -117,6 +119,7 @@ import {
   type SendIssuanceEmailNotificationInput,
 } from "./notifications/send-issuance-email";
 import { sendMagicLinkEmailNotification } from "./notifications/send-magic-link-email";
+import { sendMemberInviteEmailNotification } from "./notifications/send-member-invite-email";
 import { sendPasswordResetEmailNotification } from "./notifications/send-password-reset-email";
 import { registerAdminRoutes } from "./routes/admin-routes";
 import { registerAssertionRoutes } from "./routes/assertion-routes";
@@ -619,6 +622,68 @@ const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindings>({
     context.set("requestedTenantContext", requestedTenant);
   },
 });
+
+const tenantMemberInviteLoginUrl = (context: AppContext, tenantId: string): string => {
+  const loginUrl = new URL("/login", context.req.url);
+  loginUrl.searchParams.set("tenantId", tenantId);
+  loginUrl.searchParams.set("next", "/auth/resolve");
+  loginUrl.searchParams.set("reason", "sso_required");
+  return loginUrl.toString();
+};
+
+const requestTenantMemberInvite = async (
+  context: AppContext,
+  input: {
+    tenantId: string;
+    email: string;
+    role: "owner" | "admin" | "issuer" | "viewer";
+  },
+): Promise<{
+  deliveryStatus: "sent" | "skipped" | "failed";
+  inviteKind: "magic_link" | "sso_notice";
+}> => {
+  const db = resolveDatabase(context.env);
+  const [tenant, policy] = await Promise.all([
+    findTenantById(db, input.tenantId),
+    findTenantAuthPolicy(db, input.tenantId),
+  ]);
+
+  if (tenant?.planTier === "enterprise" && policy?.loginMode === "sso_required") {
+    try {
+      await sendMemberInviteEmailNotification({
+        emailBinding: context.env.EMAIL,
+        fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
+        fromName: context.env.TRANSACTIONAL_EMAIL_FROM_NAME,
+        recipientEmail: input.email,
+        tenantId: input.tenantId,
+        tenantDisplayName: tenant.displayName,
+        role: input.role,
+        signInUrl: tenantMemberInviteLoginUrl(context, input.tenantId),
+      });
+
+      return {
+        deliveryStatus: "sent",
+        inviteKind: "sso_notice",
+      };
+    } catch {
+      return {
+        deliveryStatus: "failed",
+        inviteKind: "sso_notice",
+      };
+    }
+  }
+
+  const result = await betterAuthProvider.requestMagicLink(context, {
+    tenantId: input.tenantId,
+    email: input.email,
+    nextPath: "/auth/resolve",
+  });
+
+  return {
+    deliveryStatus: result.deliveryStatus,
+    inviteKind: "magic_link",
+  };
+};
 
 const resolveAuthenticatedPrincipal = async (
   c: AppContext,
@@ -1226,6 +1291,7 @@ registerExecutiveRoutes({
 registerTenantGovernanceRoutes({
   app,
   resolveDatabase,
+  requestTenantMemberInvite,
   requestBreakGlassPasswordReset: (context, request) => {
     return breakGlassPolicyAdapter.requestPasswordReset(context, {
       tenantId: request.tenantId,

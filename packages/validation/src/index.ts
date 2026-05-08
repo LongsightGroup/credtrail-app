@@ -212,6 +212,8 @@ export const tenantUserPathParamsSchema = tenantPathParamsSchema.extend({
   userId: userIdSchema,
 });
 
+export const tenantMemberPathParamsSchema = tenantUserPathParamsSchema;
+
 export const tenantUserOrgUnitPathParamsSchema = tenantUserPathParamsSchema.extend({
   orgUnitId: resourceIdSchema,
 });
@@ -792,6 +794,16 @@ export const patchLearnerRecordEntryRequestSchema = z
 
 export const upsertTenantMembershipOrgUnitScopeRequestSchema = z.object({
   role: tenantMembershipOrgUnitScopeRoleSchema,
+});
+
+export const createTenantMemberRequestSchema = z.object({
+  email: z.string().trim().email().max(320),
+  role: tenantMembershipRoleSchema,
+  sendInvite: z.boolean().optional(),
+});
+
+export const updateTenantMemberRoleRequestSchema = z.object({
+  role: tenantMembershipRoleSchema,
 });
 
 export const createDelegatedIssuingAuthorityGrantRequestSchema = z
@@ -1757,6 +1769,7 @@ export type MigrationBatchPathParams = z.infer<typeof migrationBatchPathParamsSc
 export type BadgeTemplatePathParams = z.infer<typeof badgeTemplatePathParamsSchema>;
 export type CredentialPathParams = z.infer<typeof credentialPathParamsSchema>;
 export type TenantUserPathParams = z.infer<typeof tenantUserPathParamsSchema>;
+export type TenantMemberPathParams = z.infer<typeof tenantMemberPathParamsSchema>;
 export type TenantUserOrgUnitPathParams = z.infer<typeof tenantUserOrgUnitPathParamsSchema>;
 export type TenantUserDelegatedGrantPathParams = z.infer<
   typeof tenantUserDelegatedGrantPathParamsSchema
@@ -1819,6 +1832,8 @@ export type CreateTenantOrgUnitRequest = z.infer<typeof createTenantOrgUnitReque
 export type UpsertTenantMembershipOrgUnitScopeRequest = z.infer<
   typeof upsertTenantMembershipOrgUnitScopeRequestSchema
 >;
+export type CreateTenantMemberRequest = z.infer<typeof createTenantMemberRequestSchema>;
+export type UpdateTenantMemberRoleRequest = z.infer<typeof updateTenantMemberRoleRequestSchema>;
 export type CreateDelegatedIssuingAuthorityGrantRequest = z.infer<
   typeof createDelegatedIssuingAuthorityGrantRequestSchema
 >;
@@ -2038,6 +2053,10 @@ export const parseTenantUserPathParams = (input: unknown): TenantUserPathParams 
   return tenantUserPathParamsSchema.parse(input);
 };
 
+export const parseTenantMemberPathParams = (input: unknown): TenantMemberPathParams => {
+  return tenantMemberPathParamsSchema.parse(input);
+};
+
 export const parseTenantUserOrgUnitPathParams = (input: unknown): TenantUserOrgUnitPathParams => {
   return tenantUserOrgUnitPathParamsSchema.parse(input);
 };
@@ -2214,6 +2233,16 @@ export const parseUpsertTenantMembershipOrgUnitScopeRequest = (
   input: unknown,
 ): UpsertTenantMembershipOrgUnitScopeRequest => {
   return upsertTenantMembershipOrgUnitScopeRequestSchema.parse(input);
+};
+
+export const parseCreateTenantMemberRequest = (input: unknown): CreateTenantMemberRequest => {
+  return createTenantMemberRequestSchema.parse(input);
+};
+
+export const parseUpdateTenantMemberRoleRequest = (
+  input: unknown,
+): UpdateTenantMemberRoleRequest => {
+  return updateTenantMemberRoleRequestSchema.parse(input);
 };
 
 export const parseCreateDelegatedIssuingAuthorityGrantRequest = (

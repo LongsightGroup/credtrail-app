@@ -8,6 +8,7 @@ import type {
   TenantApiKeyRecord,
   TenantAuthPolicyRecord,
   TenantAuthProviderRecord,
+  TenantMemberRecord,
   TenantMembershipOrgUnitScopeRecord,
   TenantMembershipRole,
   TenantOrgUnitRecord,
@@ -235,6 +236,7 @@ type InstitutionAdminView =
   | "reporting"
   | "rules"
   | "access"
+  | "accessMembers"
   | "accessGovernance"
   | "accessApiKeys"
   | "accessOrgUnits";
@@ -298,6 +300,7 @@ interface InstitutionAdminPageInput {
   membershipRole: TenantMembershipRole;
   badgeTemplates: readonly BadgeTemplateRecord[];
   orgUnits: readonly TenantOrgUnitRecord[];
+  tenantMembers: readonly TenantMemberRecord[];
   membershipOrgUnitScopes: readonly TenantMembershipOrgUnitScopeRecord[];
   delegatedIssuingAuthorityGrants: readonly DelegatedIssuingAuthorityGrantRecord[];
   activeApiKeys: readonly TenantApiKeyRecord[];
@@ -335,6 +338,7 @@ const renderInstitutionAdminPage = (
   const reportingPath = `${tenantAdminPath}/reporting`;
   const rulesWorkspacePath = `${tenantAdminPath}/rules`;
   const accessPath = `${tenantAdminPath}/access`;
+  const accessMembersPath = `${accessPath}/members`;
   const accessGovernancePath = `${accessPath}/governance`;
   const accessApiKeysPath = `${accessPath}/api-keys`;
   const accessOrgUnitsPath = `${accessPath}/org-units`;
@@ -344,6 +348,7 @@ const renderInstitutionAdminPage = (
   const activeApiKeyCount = String(input.activeApiKeys.length);
   const revokedApiKeyCount = String(input.revokedApiKeyCount);
   const ruleCount = String(input.badgeRules.length);
+  const tenantMemberCount = String(input.tenantMembers.length);
   const scopedRoleCount = String(input.membershipOrgUnitScopes.length);
   const userLabel = input.userEmail ?? input.userId;
   const switchOrganizationPath = input.switchOrganizationPath?.trim() ?? "";
@@ -788,6 +793,71 @@ const renderInstitutionAdminPage = (
                   Revoke
                 </button>
               </td>
+            </tr>`;
+          })
+          .join("\n");
+
+  const assignableTenantRoles: TenantMembershipRole[] =
+    input.membershipRole === "owner"
+      ? ["owner", "admin", "issuer", "viewer"]
+      : ["admin", "issuer", "viewer"];
+  const tenantMemberRoleOptions = (selectedRole: TenantMembershipRole): string => {
+    const roles: readonly TenantMembershipRole[] =
+      input.membershipRole === "owner" ? assignableTenantRoles : ["admin", "issuer", "viewer"];
+
+    return roles
+      .map((role) => {
+        return `<option value="${escapeHtml(role)}"${role === selectedRole ? " selected" : ""}>${escapeHtml(role)}</option>`;
+      })
+      .join("\n");
+  };
+  const tenantMemberRows =
+    input.tenantMembers.length === 0
+      ? `<tr><td colspan="6" class="ct-admin__empty">No tenant members found.</td></tr>`
+      : input.tenantMembers
+          .map((member) => {
+            const canManageMember =
+              member.userId !== input.userId &&
+              (input.membershipRole === "owner" || member.role !== "owner");
+            const roleControl = canManageMember
+              ? `<select
+                  aria-label="Tenant role for ${escapeHtml(member.email)}"
+                  data-tenant-member-role-user-id="${escapeHtml(member.userId)}"
+                  data-tenant-member-current-role="${escapeHtml(member.role)}"
+                >
+                  ${tenantMemberRoleOptions(member.role)}
+                </select>`
+              : `<span class="ct-admin__status-pill">${escapeHtml(member.role)}</span>`;
+            const actionMarkup = canManageMember
+              ? `<div class="ct-admin__actions">
+                  <button
+                    type="button"
+                    class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
+                    data-tenant-member-invite-user-id="${escapeHtml(member.userId)}"
+                    data-tenant-member-email="${escapeHtml(member.email)}"
+                  >
+                    Resend invite
+                  </button>
+                  <button
+                    type="button"
+                    class="ct-admin__button ct-admin__button--tiny ct-admin__button--danger"
+                    data-tenant-member-remove-user-id="${escapeHtml(member.userId)}"
+                    data-tenant-member-email="${escapeHtml(member.email)}"
+                  >
+                    Remove
+                  </button>
+                </div>`
+              : `<span class="ct-admin__meta">${
+                  member.userId === input.userId ? "Current user" : "Owner action"
+                }</span>`;
+
+            return `<tr>
+              <td><strong>${escapeHtml(member.email)}</strong><div class="ct-admin__meta">${escapeHtml(member.userId)}</div></td>
+              <td>${roleControl}</td>
+              <td>${escapeHtml(formatIsoTimestamp(member.createdAt))}</td>
+              <td>${escapeHtml(formatIsoTimestamp(member.updatedAt))}</td>
+              <td>${escapeHtml(member.userId === input.userId ? "You" : "Member")}</td>
+              <td>${actionMarkup}</td>
             </tr>`;
           })
           .join("\n");
@@ -2489,6 +2559,7 @@ const renderInstitutionAdminPage = (
     badgeRulePreviewSimulationApiPath,
     badgeRuleReviewQueueApiPath,
     assertionsApiPathPrefix,
+    tenantMembersApiPath: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/members`,
     tenantUsersApiPathPrefix,
     reportingComparisonsApiPath: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/comparisons`,
     reportingEngagementApiPath: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/engagement`,
@@ -2529,6 +2600,7 @@ const renderInstitutionAdminPage = (
 
         <p class="ct-admin-sidebar__section-label">Access</p>
         ${sidebarLink(accessPath, "Overview", view === "access")}
+        ${sidebarLink(accessMembersPath, "Members", view === "accessMembers", "ct-admin-sidebar__link--sub")}
         ${sidebarLink(accessGovernancePath, "Governance", view === "accessGovernance", "ct-admin-sidebar__link--sub")}
         ${sidebarLink(accessApiKeysPath, "API Keys", view === "accessApiKeys", "ct-admin-sidebar__link--sub")}
         ${sidebarLink(accessOrgUnitsPath, "Org Units", view === "accessOrgUnits", "ct-admin-sidebar__link--sub")}
@@ -2729,6 +2801,55 @@ const renderInstitutionAdminPage = (
       <li>Use delegated authority for temporary badge actions with an end date.</li>
       <li>Leave badge template IDs blank when the delegation should cover every template in scope.</li>
     </ul>
+  </article>`;
+
+  const tenantMemberRoleSelectOptions = assignableTenantRoles
+    .map((role) => `<option value="${escapeHtml(role)}">${escapeHtml(role)}</option>`)
+    .join("\n");
+  const tenantMembersPanelMarkup = `<article class="ct-admin__panel ct-stack">
+    <h2>Add Member</h2>
+    <p>Add colleagues by institution email and assign their tenant-level role.</p>
+    <form id="tenant-member-form" class="ct-admin__form ct-stack">
+      <label>
+        Institution email
+        <input name="email" type="email" required placeholder="colleague@institution.edu" />
+      </label>
+      <label>
+        Tenant role
+        <select name="role" required>
+          ${tenantMemberRoleSelectOptions}
+        </select>
+      </label>
+      <label class="ct-admin__checkbox-row ct-checkbox-row">
+        <input name="sendInvite" type="checkbox" checked />
+        Email sign-in invite now
+      </label>
+      <button type="submit">Add member</button>
+    </form>
+    <p id="tenant-member-status" class="ct-admin__status"></p>
+  </article>`;
+
+  const tenantMembersTableMarkup = `<article class="ct-admin__panel ct-admin__panel--table ct-stack">
+    <h2>Current Members (${tenantMemberCount})</h2>
+    <p>Review tenant-level access, resend invites, and remove members who no longer need this organization.</p>
+    <div class="ct-admin__table-wrap">
+      <table class="ct-admin__table">
+        <thead>
+          <tr>
+            <th>Member</th>
+            <th>Tenant role</th>
+            <th>Joined</th>
+            <th>Updated</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tenant-member-body">
+          ${tenantMemberRows}
+        </tbody>
+      </table>
+    </div>
+    <p id="tenant-member-list-status" class="ct-admin__status"></p>
   </article>`;
 
   const membershipScopePanelMarkup = `<article class="ct-admin__panel ct-stack">
@@ -3917,11 +4038,13 @@ const renderInstitutionAdminPage = (
                   ? `Rules · Institution Admin · ${input.tenant.displayName}`
                   : view === "access"
                     ? `Access · Institution Admin · ${input.tenant.displayName}`
-                    : view === "accessGovernance"
-                      ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
-                      : view === "accessApiKeys"
-                        ? `API Keys · Institution Admin · ${input.tenant.displayName}`
-                        : `Org Units · Institution Admin · ${input.tenant.displayName}`;
+                    : view === "accessMembers"
+                      ? `Members · Institution Admin · ${input.tenant.displayName}`
+                      : view === "accessGovernance"
+                        ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
+                        : view === "accessApiKeys"
+                          ? `API Keys · Institution Admin · ${input.tenant.displayName}`
+                          : `Org Units · Institution Admin · ${input.tenant.displayName}`;
 
   const viewContent =
     view === "home"
@@ -4043,20 +4166,39 @@ const renderInstitutionAdminPage = (
                   : view === "access"
                     ? `${renderPageHeader(
                         "Access",
-                        "Governance, API keys, and org units are accessible from the sidebar.",
+                        "Members, governance, API keys, and org units are accessible from the sidebar.",
                       )}
                     <section class="ct-admin ct-stack">
                       ${enterpriseAuthPanelMarkup}
                     </section>`
-                    : view === "accessGovernance"
+                    : view === "accessMembers"
                       ? `${renderPageHeader(
-                          "Governance Delegation",
-                          "Grant org-unit access and time-boxed badge authority with direct removal from the current assignments list.",
+                          "Members",
+                          "Add colleagues, assign tenant roles, resend invites, and remove tenant access.",
                           `<aside class="ct-admin-page-header__note">
+                          <h2>Tenant-level access</h2>
+                          <p>Use owner/admin roles for administration. Use issuer/viewer roles when someone does not need full tenant control.</p>
+                        </aside>`,
+                        )}
+                      <section class="ct-admin ct-stack">
+                        <section class="ct-admin__layout ct-grid ct-grid--sidebar">
+                          <div class="ct-admin__grid ct-stack">
+                            ${tenantMembersPanelMarkup}
+                          </div>
+                          <div class="ct-admin__grid ct-stack">
+                            ${tenantMembersTableMarkup}
+                          </div>
+                        </section>
+                      </section>`
+                      : view === "accessGovernance"
+                        ? `${renderPageHeader(
+                            "Governance Delegation",
+                            "Grant org-unit access and time-boxed badge authority with direct removal from the current assignments list.",
+                            `<aside class="ct-admin-page-header__note">
                           <h2>Choose The Smallest Access</h2>
                           <p>Use scoped roles for standing access. Use delegated authority when someone only needs temporary badge operations.</p>
                         </aside>`,
-                        )}
+                          )}
                       <section class="ct-admin ct-stack">
                         ${governanceGuidePanelMarkup}
                         ${membershipScopePanelMarkup}
@@ -4152,6 +4294,10 @@ export const institutionAdminRulesPage = (input: InstitutionAdminPageInput): str
 
 export const institutionAdminAccessPage = (input: InstitutionAdminPageInput): string => {
   return renderInstitutionAdminPage(input, "access");
+};
+
+export const institutionAdminMembersPage = (input: InstitutionAdminPageInput): string => {
+  return renderInstitutionAdminPage(input, "accessMembers");
 };
 
 export const institutionAdminGovernancePage = (input: InstitutionAdminPageInput): string => {
