@@ -45,44 +45,51 @@ export const AUTH_LOGIN_CSS = `
   color: rgba(247, 252, 255, 0.78);
 }
 
-.ct-login__record-mark {
+.ct-login__record-seal {
   align-self: center;
   justify-self: center;
   display: grid;
+  gap: 0.3rem;
   place-items: center;
-  width: 5rem;
-  aspect-ratio: 1;
+  width: 6.25rem;
+  min-height: 6.25rem;
   border: 1px solid rgba(247, 252, 255, 0.42);
   border-radius: 0.45rem;
   background: rgba(247, 252, 255, 0.08);
+  text-align: center;
 }
 
-.ct-login__record-mark span {
+.ct-login__record-seal span {
   display: block;
-  width: 2.35rem;
-  aspect-ratio: 1;
-  border: 2px solid var(--ct-brand-sun-400);
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 0.45rem rgba(240, 194, 81, 0.16);
+  color: var(--ct-brand-sun-400);
+  font-family: var(--ct-font-display);
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
-.ct-login__record-lines {
+.ct-login__record-seal strong {
+  display: block;
+  color: rgba(247, 252, 255, 0.78);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ct-login__record-summary {
   display: grid;
-  gap: 0.65rem;
+  gap: 0.55rem;
 }
 
-.ct-login__record-lines span {
+.ct-login__record-summary span {
   display: block;
-  height: 1px;
-  background: rgba(247, 252, 255, 0.24);
-}
-
-.ct-login__record-lines span:nth-child(2) {
-  width: 74%;
-}
-
-.ct-login__record-lines span:nth-child(3) {
-  width: 46%;
+  padding-block: 0.48rem;
+  border-block: 1px solid rgba(247, 252, 255, 0.18);
+  color: rgba(247, 252, 255, 0.78);
+  font-size: 0.76rem;
+  line-height: 1.25;
 }
 
 .ct-login__record-caption {
@@ -466,8 +473,8 @@ export const AUTH_LOGIN_CSS = `
     border-bottom: 1px solid var(--ct-theme-border-soft);
   }
 
-  .ct-login__record-mark,
-  .ct-login__record-lines {
+  .ct-login__record-seal,
+  .ct-login__record-summary {
     display: none;
   }
 

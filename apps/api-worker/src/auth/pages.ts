@@ -97,7 +97,7 @@ export const magicLinkLoginPage = (input: {
     : `<section class="ct-stack" aria-labelledby="magic-link-login-title">
           <h2 id="magic-link-login-title" class="ct-login__form-title">Email sign-in</h2>
           <p class="ct-login__form-text">
-            Use the email your institution already has on file. CredTrail will send one secure link.
+            Use the email your institution already has on file.
           </p>
           ${accessContextNotice}
           <form id="magic-link-login-form" class="ct-login__form ct-stack">
@@ -134,20 +134,21 @@ export const magicLinkLoginPage = (input: {
       ? localLoginAllowed
         ? "Choose your institution sign-in or request a hosted CredTrail sign-in link."
         : "Continue with your institution sign-in to open CredTrail."
-      : "Sign in with your institution email. CredTrail will route you to the right organization.";
+      : "Enter your email to receive a secure sign-in link.";
   return renderPageShell(
     "Sign In · CredTrail",
     `<section class="ct-login ct-stack">
       <div class="ct-login__card ct-login__card--split">
         <div class="ct-login__record-panel" aria-hidden="true">
           <p class="ct-login__record-kicker">Verified access</p>
-          <div class="ct-login__record-mark">
-            <span></span>
+          <div class="ct-login__record-seal">
+            <span>OB3</span>
+            <strong>Verified</strong>
           </div>
-          <div class="ct-login__record-lines">
-            <span></span>
-            <span></span>
-            <span></span>
+          <div class="ct-login__record-summary">
+            <span>Institution credential access</span>
+            <span>Secure sign-in link</span>
+            <span>Open Badges 3.0</span>
           </div>
           <p class="ct-login__record-caption">Open Badges 3.0 credential infrastructure</p>
         </div>
