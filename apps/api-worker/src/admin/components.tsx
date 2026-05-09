@@ -36,26 +36,32 @@ export const adminButtonClass = (input?: {
 };
 
 export const AdminButton = ({
+  id,
   type = "button",
   variant,
   size,
   disabled,
+  form,
   className,
   ariaLabel,
   dataAttributes,
   children,
 }: PropsWithChildren<{
+  id?: string;
   type?: ButtonType;
   variant?: AdminButtonVariant;
   size?: AdminButtonSize;
   disabled?: boolean;
+  form?: string;
   className?: string;
   ariaLabel?: string;
   dataAttributes?: DataAttributes;
 }>): HonoElement => {
   return (
     <button
+      id={id}
       type={type}
+      form={form}
       class={adminButtonClass({ variant, size, extraClass: className })}
       disabled={disabled}
       aria-label={ariaLabel}

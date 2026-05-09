@@ -6,6 +6,7 @@ import type {
   TenantRecord,
 } from "@credtrail/db";
 import { appPage, type AppPage } from "../ui/render-page";
+import { AdminButton } from "./components";
 
 const serializeJsonScriptContent = (value: unknown): string => {
   return JSON.stringify(value)
@@ -424,13 +425,9 @@ export const institutionAdminRuleBuilderPage = (input: {
                               <option value="any">OR (any condition can pass)</option>
                             </select>
                           </label>
-                          <button
-                            type="button"
-                            id="rule-builder-add-condition"
-                            class="ct-admin__button ct-admin__button--tiny"
-                          >
+                          <AdminButton type="button" id="rule-builder-add-condition" size="tiny">
                             Add condition card
-                          </button>
+                          </AdminButton>
                         </div>
                         <section class="ct-admin__builder-canvas ct-stack">
                           <header class="ct-admin__builder-canvas-header ct-cluster">
@@ -522,13 +519,9 @@ export const institutionAdminRuleBuilderPage = (input: {
                         ></textarea>
                       </label>
                       <div class="ct-admin__builder-inline ct-cluster">
-                        <button
-                          id="rule-builder-apply-json"
-                          type="button"
-                          class="ct-admin__button ct-admin__button--tiny"
-                        >
+                        <AdminButton id="rule-builder-apply-json" type="button" size="tiny">
                           Apply JSON to builder
-                        </button>
+                        </AdminButton>
                       </div>
                     </details>
                   </section>
@@ -598,21 +591,18 @@ export const institutionAdminRuleBuilderPage = (input: {
                                 <option value="prerequisite_badge">Prerequisite badge</option>
                               </select>
                             </label>
-                            <button
+                            <AdminButton
                               id="rule-builder-apply-test-preset"
                               type="button"
-                              class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
+                              size="tiny"
+                              variant="secondary"
                             >
                               Apply preset
-                            </button>
+                            </AdminButton>
                           </div>
-                          <button
-                            id="rule-builder-test"
-                            type="button"
-                            class="ct-admin__button ct-admin__button--tiny"
-                          >
+                          <AdminButton id="rule-builder-test" type="button" size="tiny">
                             Test rule
-                          </button>
+                          </AdminButton>
                         </fieldset>
 
                         <details class="ct-admin__builder-advanced ct-stack">
@@ -711,13 +701,14 @@ export const institutionAdminRuleBuilderPage = (input: {
                             value="25"
                           />
                         </label>
-                        <button
+                        <AdminButton
                           id="rule-builder-simulate"
                           type="button"
-                          class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
+                          size="tiny"
+                          variant="secondary"
                         >
                           Run simulation
-                        </button>
+                        </AdminButton>
                       </div>
                       <p id="rule-builder-simulate-status" class="ct-admin__status">
                         No historical simulation has been run yet.
@@ -799,23 +790,25 @@ export const institutionAdminRuleBuilderPage = (input: {
                 </details>
 
                 <div class="ct-admin__builder-step-nav ct-cluster">
-                  <button
+                  <AdminButton
                     id="rule-builder-step-prev"
                     type="button"
-                    class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
+                    size="tiny"
+                    variant="secondary"
                   >
                     Previous step
-                  </button>
-                  <button
+                  </AdminButton>
+                  <AdminButton
                     id="rule-builder-step-next"
                     type="button"
-                    class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
+                    size="tiny"
+                    variant="secondary"
                   >
                     Next step
-                  </button>
-                  <button id="rule-builder-submit" type="submit" form="rule-create-form">
+                  </AdminButton>
+                  <AdminButton id="rule-builder-submit" type="submit" form="rule-create-form">
                     Create rule draft
-                  </button>
+                  </AdminButton>
                 </div>
                 <p id="rule-create-status" class="ct-admin__status"></p>
               </section>
@@ -838,13 +831,9 @@ export const institutionAdminRuleBuilderPage = (input: {
                           <option value="prerequisite_chain">Prerequisite badge chain</option>
                           <option value="blank">Blank</option>
                         </select>
-                        <button
-                          id="rule-builder-apply-template"
-                          type="button"
-                          class="ct-admin__button ct-admin__button--tiny"
-                        >
+                        <AdminButton id="rule-builder-apply-template" type="button" size="tiny">
                           Apply
-                        </button>
+                        </AdminButton>
                       </div>
                     </label>
                     <label>
@@ -864,13 +853,14 @@ export const institutionAdminRuleBuilderPage = (input: {
                             </>
                           )}
                         </select>
-                        <button
+                        <AdminButton
                           id="rule-builder-clone-load"
                           type="button"
-                          class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
+                          size="tiny"
+                          variant="secondary"
                         >
                           Load rule
-                        </button>
+                        </AdminButton>
                       </div>
                     </label>
                   </section>
@@ -878,34 +868,33 @@ export const institutionAdminRuleBuilderPage = (input: {
                   <section class="ct-admin__builder-support-section ct-stack">
                     <h3>Draft tools</h3>
                     <div class="ct-admin__builder-toolbar ct-cluster">
-                      <button
-                        type="button"
-                        id="rule-builder-save-draft"
-                        class="ct-admin__button ct-admin__button--tiny"
-                      >
+                      <AdminButton type="button" id="rule-builder-save-draft" size="tiny">
                         Save local draft
-                      </button>
-                      <button
+                      </AdminButton>
+                      <AdminButton
                         type="button"
                         id="rule-builder-load-draft"
-                        class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
+                        size="tiny"
+                        variant="secondary"
                       >
                         Load local draft
-                      </button>
-                      <button
+                      </AdminButton>
+                      <AdminButton
                         type="button"
                         id="rule-builder-export-json"
-                        class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
+                        size="tiny"
+                        variant="secondary"
                       >
                         Export JSON
-                      </button>
-                      <button
+                      </AdminButton>
+                      <AdminButton
                         type="button"
                         id="rule-builder-import-json"
-                        class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
+                        size="tiny"
+                        variant="secondary"
                       >
                         Import JSON
-                      </button>
+                      </AdminButton>
                       <input
                         id="rule-builder-import-file"
                         type="file"

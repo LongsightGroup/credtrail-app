@@ -2707,6 +2707,15 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('id="rule-builder-step-prev"');
     expect(body).toContain('id="rule-builder-step-next"');
     expect(body).toContain('id="rule-builder-submit"');
+    expect(body).toMatch(
+      /id="rule-builder-add-condition"[^>]*class="ct-admin__button ct-admin__button--tiny"/,
+    );
+    expect(body).toMatch(
+      /id="rule-builder-step-next"[^>]*class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"/,
+    );
+    expect(body).toMatch(
+      /id="rule-builder-submit"[^>]*form="rule-create-form"[^>]*class="ct-admin__button"/,
+    );
     expect(body).toContain('id="rule-builder-test-preset"');
     expect(body).toContain('id="rule-builder-apply-test-preset"');
     expect(body).toContain('id="rule-builder-test-output"');
