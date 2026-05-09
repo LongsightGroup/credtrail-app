@@ -261,6 +261,21 @@ export const INSTITUTION_ADMIN_JS = `
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#39;');
   };
+  const renderAdminButton = (className, label, attributes) => {
+    const attributeMarkup = Object.entries(attributes || {})
+      .map(([name, value]) => ' ' + name + '="' + escapeHtml(value) + '"')
+      .join('');
+
+    return (
+      '<button type="button" class="' +
+      escapeHtml(className) +
+      '"' +
+      attributeMarkup +
+      '>' +
+      escapeHtml(label) +
+      '</button>'
+    );
+  };
   const formatTimestamp = (value) => {
     if (typeof value !== 'string' || value.length === 0) {
       return 'n/a';
@@ -621,20 +636,16 @@ export const INSTITUTION_ADMIN_JS = `
           '</td>' +
           '<td><div class="ct-admin__actions">' +
           (canResolve
-            ? '<button type="button" class="' +
-              adminButtonTinyClass +
-              '" data-review-queue-action="issue" data-evaluation-id="' +
-              escapeHtml(evaluationId) +
-              '" data-recipient-identity="' +
-              escapeHtml(recipientIdentity) +
-              '">Issue badge</button>' +
-              '<button type="button" class="' +
-              adminButtonTinySecondaryClass +
-              '" data-review-queue-action="dismiss" data-evaluation-id="' +
-              escapeHtml(evaluationId) +
-              '" data-recipient-identity="' +
-              escapeHtml(recipientIdentity) +
-              '">Dismiss</button>'
+            ? renderAdminButton(adminButtonTinyClass, 'Issue badge', {
+                'data-review-queue-action': 'issue',
+                'data-evaluation-id': evaluationId,
+                'data-recipient-identity': recipientIdentity,
+              }) +
+              renderAdminButton(adminButtonTinySecondaryClass, 'Dismiss', {
+                'data-review-queue-action': 'dismiss',
+                'data-evaluation-id': evaluationId,
+                'data-recipient-identity': recipientIdentity,
+              })
             : '<span class="ct-admin__meta">Resolved</span>') +
           '</div></td>' +
           '</tr>'
@@ -3609,15 +3620,15 @@ export const INSTITUTION_ADMIN_JS = `
         '<span class="ct-admin__condition-index" data-condition-index>Condition</span>' +
         '<span class="ct-admin__condition-drag" title="Drag to reorder" aria-hidden="true">::</span>' +
         '<div class="ct-admin__condition-actions ct-cluster">' +
-        '<button type="button" class="' +
-        adminButtonTinyGhostClass +
-        '" data-condition-move="up" aria-label="Move condition up">Up</button>' +
-        '<button type="button" class="' +
-        adminButtonTinyGhostClass +
-        '" data-condition-move="down" aria-label="Move condition down">Down</button>' +
-        '<button type="button" class="' +
-        adminButtonTinyDangerClass +
-        ' ct-admin__condition-remove">Remove</button>' +
+        renderAdminButton(adminButtonTinyGhostClass, 'Up', {
+          'data-condition-move': 'up',
+          'aria-label': 'Move condition up',
+        }) +
+        renderAdminButton(adminButtonTinyGhostClass, 'Down', {
+          'data-condition-move': 'down',
+          'aria-label': 'Move condition down',
+        }) +
+        renderAdminButton(adminButtonTinyDangerClass + ' ct-admin__condition-remove', 'Remove') +
         '</div>' +
         '</div>' +
         '<div class="ct-admin__condition-header-fields ct-admin__builder-grid ct-grid">' +

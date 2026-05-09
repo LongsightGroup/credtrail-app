@@ -99,6 +99,7 @@ export const institutionAdminRuleBuilderPage = (input: {
   const badgeRulePreviewSimulationApiPath = `${badgeRuleApiPath}/preview-simulate`;
   const badgeRuleReviewQueueApiPath = `${badgeRuleApiPath}/review-queue`;
   const assertionsApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions`;
+  const tenantMembersApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/members`;
   const tenantUsersApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/users`;
   const showcasePath = `/showcase/${encodeURIComponent(input.tenant.id)}`;
   const adminAuditLogPath = `/admin/audit-logs?tenantId=${encodeURIComponent(input.tenant.id)}`;
@@ -135,6 +136,7 @@ export const institutionAdminRuleBuilderPage = (input: {
     badgeRulePreviewSimulationApiPath,
     badgeRuleReviewQueueApiPath,
     assertionsApiPathPrefix,
+    tenantMembersApiPath,
     tenantUsersApiPathPrefix,
   });
 

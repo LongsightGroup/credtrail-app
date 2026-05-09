@@ -2728,6 +2728,7 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('class="ct-admin__builder-shell ct-stack"');
     expect(body).not.toContain('class="ct-admin__builder-shell ct-grid"');
     expect(body).toContain('id="rule-create-form"');
+    expect(body).toContain("tenantMembersApiPath");
     expect(body).toContain('data-rule-step-target="metadata"');
     expect(body).toContain('data-rule-step-target="conditions"');
     expect(body).toContain('data-rule-step-target="test"');

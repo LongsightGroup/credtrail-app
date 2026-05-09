@@ -156,6 +156,20 @@ describe("CredTrail UI styleguide", () => {
     expect(DESIGN_SYSTEM_CSS).toContain(".ct-design-system__action-demo");
   });
 
+  it("keeps client-generated admin buttons on the shared JS helper", () => {
+    expect(INSTITUTION_ADMIN_JS).toContain(
+      "const renderAdminButton = (className, label, attributes) =>",
+    );
+    expect(INSTITUTION_ADMIN_JS).toContain("renderAdminButton(adminButtonTinyClass, 'Issue badge'");
+    expect(INSTITUTION_ADMIN_JS).toContain(
+      "renderAdminButton(adminButtonTinySecondaryClass, 'Dismiss'",
+    );
+    expect(INSTITUTION_ADMIN_JS).toContain("renderAdminButton(adminButtonTinyGhostClass, 'Up'");
+    expect(INSTITUTION_ADMIN_JS).toContain(
+      "renderAdminButton(adminButtonTinyDangerClass + ' ct-admin__condition-remove', 'Remove')",
+    );
+  });
+
   it("keeps admin button links and native buttons on the same sizing model", () => {
     expect(INSTITUTION_ADMIN_CSS).toMatch(/\.ct-admin__button \{[\s\S]*box-sizing: border-box;/);
     expect(INSTITUTION_ADMIN_CSS).toMatch(
