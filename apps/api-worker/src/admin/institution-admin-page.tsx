@@ -3956,13 +3956,16 @@ const renderInstitutionAdminPage = (
     </article>
   );
 
-  const renderReportingFiltersForm = (actionPath: string): HonoElement => (
+  const renderReportingFiltersForm = (
+    actionPath: string,
+    formClass = "ct-admin__form ct-admin__form--inline ct-grid",
+  ): HonoElement => (
     <>
       <form
         id="reporting-filters-form"
         method="get"
         action={actionPath}
-        class="ct-admin__form ct-admin__form--inline ct-grid"
+        class={formClass}
         data-reporting-submit-state="idle"
       >
         <label>
@@ -4051,16 +4054,22 @@ const renderInstitutionAdminPage = (
   );
 
   const reportingTrendFiltersPanelMarkup = (
-    <article id="reporting-trend-filters-panel" class="ct-admin__panel ct-stack">
-      <div class="ct-cluster">
-        <h2>Trend filters</h2>
-      </div>
-      <p>
-        Use this page for the daily trend table and exact engagement counts behind the overview
-        trend chart.
-      </p>
-      {renderReportingFiltersForm(reportingTrendsPath)}
-    </article>
+    <details id="reporting-trend-filters-panel" class="ct-admin__panel ct-admin__add-disclosure">
+      <summary class="ct-admin__add-disclosure-summary">
+        <span>
+          <strong>Filter trend data</strong>
+          <small>Change date, badge, org unit, or state only when you need a narrower view.</small>
+        </span>
+        <span class="ct-admin__add-disclosure-control">
+          <span class="ct-admin__add-disclosure-control-open">Show filters</span>
+          <span class="ct-admin__add-disclosure-control-close">Hide filters</span>
+        </span>
+      </summary>
+      {renderReportingFiltersForm(
+        reportingTrendsPath,
+        "ct-admin__form ct-admin__add-disclosure-form ct-grid",
+      )}
+    </details>
   );
 
   const reportingExportFiltersPanelMarkup = (
