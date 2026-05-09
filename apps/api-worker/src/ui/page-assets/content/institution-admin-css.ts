@@ -266,11 +266,15 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin__workspace-actions {
   --ct-cluster-gap: 0.45rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
 }
 .ct-admin__workspace-actions .ct-admin__button,
 .ct-admin__workspace-actions .ct-admin__cta-link {
-  min-height: 2.75rem;
-  border-radius: var(--ct-radius-pill);
+  min-height: 2.4rem;
+  border-radius: var(--ct-radius-sm);
 }
 .ct-admin__metric-grid {
   display: grid;
@@ -1195,14 +1199,43 @@ export const INSTITUTION_ADMIN_CSS = `
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--ct-radius-pill);
-  border: 1px solid var(--ct-border-strong);
-  min-height: 2.75rem;
-  padding: 0.5rem 0.9rem;
-  font-weight: 700;
+  border-radius: var(--ct-radius-sm);
+  border: 1px solid var(--ct-border-soft);
+  min-height: 2.4rem;
+  padding: 0.46rem 0.72rem;
+  font-family: var(--ct-font-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ct-theme-text-body);
   text-decoration: none;
-  background: var(--ct-theme-surface-info);
-  font-size: 0.88rem;
+  background: linear-gradient(
+    180deg,
+    var(--ct-theme-surface-card-strong),
+    var(--ct-theme-surface-shell)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  transition:
+    background var(--ct-duration-fast) var(--ct-ease-standard),
+    border-color var(--ct-duration-fast) var(--ct-ease-standard),
+    color var(--ct-duration-fast) var(--ct-ease-standard),
+    transform var(--ct-duration-fast) var(--ct-ease-standard);
+}
+@media (hover: hover) {
+  .ct-admin__cta-link:hover {
+    transform: translateY(-1px);
+    border-color: var(--ct-border-strong);
+    color: var(--ct-theme-text-title);
+    background: var(--ct-theme-surface-info);
+  }
+}
+.ct-admin__cta-link:focus-visible {
+  outline: 2px solid var(--ct-theme-border-focus);
+  outline-offset: 3px;
+  box-shadow: var(--ct-shadow-soft);
+}
+.ct-admin__cta-link:active {
+  transform: translateY(0);
 }
 .ct-admin__layout {
   --ct-grid-gap: var(--ct-space-4);
@@ -1450,9 +1483,6 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin-page-header--compact {
   max-width: 76rem;
-}
-.ct-admin__builder-page-links {
-  margin-top: 0.75rem;
 }
 .ct-admin__builder-shell {
   --ct-grid-gap: var(--ct-space-4);

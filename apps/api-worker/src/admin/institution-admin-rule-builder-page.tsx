@@ -256,14 +256,6 @@ export const institutionAdminRuleBuilderPage = (input: {
             <div class="ct-admin-page-header ct-admin-page-header--compact">
               <h1>Rule Builder</h1>
               <p>Create one badge issuance rule at a time. Draft, test, then submit for review.</p>
-              <div class="ct-admin__builder-page-links ct-cluster" aria-label="Related rule pages">
-                <a class="ct-admin__cta-link" href={rulesWorkspacePath}>
-                  Rule library and templates
-                </a>
-                <a class="ct-admin__cta-link" href={operationsReviewQueuePath}>
-                  Review queue
-                </a>
-              </div>
               <details class="ct-admin__builder-guide">
                 <summary>How rule drafts work</summary>
                 <p>
@@ -278,77 +270,73 @@ export const institutionAdminRuleBuilderPage = (input: {
                 class="ct-admin__panel ct-admin__builder-stepper-panel ct-stack"
                 aria-label="Rule builder workflow"
               >
-                  <p class="ct-admin__eyebrow">Workflow</p>
-                  <h2>Build in four passes</h2>
-                  <ol
-                    id="rule-builder-stepper"
-                    class="ct-admin__builder-steps"
-                    aria-label="Rule builder steps"
-                  >
-                    <li>
-                      <button
-                        type="button"
-                        class="ct-admin__step-button"
-                        data-rule-step-target="metadata"
-                      >
-                        <span class="ct-admin__step-number">1</span>
-                        <span class="ct-admin__step-copy">
-                          <strong>Metadata</strong>
-                          <small>Name the rule and bind it to the right badge and LMS.</small>
-                        </span>
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        type="button"
-                        class="ct-admin__step-button"
-                        data-rule-step-target="conditions"
-                      >
-                        <span class="ct-admin__step-number">2</span>
-                        <span class="ct-admin__step-copy">
-                          <strong>Conditions</strong>
-                          <small>Shape the qualification logic and keep the JSON in sync.</small>
-                        </span>
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        type="button"
-                        class="ct-admin__step-button"
-                        data-rule-step-target="test"
-                      >
-                        <span class="ct-admin__step-number">3</span>
-                        <span class="ct-admin__step-copy">
-                          <strong>Test</strong>
-                          <small>
-                            Dry-run with representative learner facts before publishing.
-                          </small>
-                        </span>
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        type="button"
-                        class="ct-admin__step-button"
-                        data-rule-step-target="review"
-                      >
-                        <span class="ct-admin__step-number">4</span>
-                        <span class="ct-admin__step-copy">
-                          <strong>Review</strong>
-                          <small>
-                            Set governance and create the draft that reviewers will see.
-                          </small>
-                        </span>
-                      </button>
-                    </li>
-                  </ol>
-                  <p
-                    id="rule-builder-step-progress"
-                    class="ct-admin__meta ct-admin__builder-progress"
-                    aria-live="polite"
-                  >
-                    Step 1 of 4 · Metadata
-                  </p>
+                <p class="ct-admin__eyebrow">Workflow</p>
+                <h2>Build in four passes</h2>
+                <ol
+                  id="rule-builder-stepper"
+                  class="ct-admin__builder-steps"
+                  aria-label="Rule builder steps"
+                >
+                  <li>
+                    <button
+                      type="button"
+                      class="ct-admin__step-button"
+                      data-rule-step-target="metadata"
+                    >
+                      <span class="ct-admin__step-number">1</span>
+                      <span class="ct-admin__step-copy">
+                        <strong>Metadata</strong>
+                        <small>Name the rule and bind it to the right badge and LMS.</small>
+                      </span>
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      class="ct-admin__step-button"
+                      data-rule-step-target="conditions"
+                    >
+                      <span class="ct-admin__step-number">2</span>
+                      <span class="ct-admin__step-copy">
+                        <strong>Conditions</strong>
+                        <small>Shape the qualification logic and keep the JSON in sync.</small>
+                      </span>
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      class="ct-admin__step-button"
+                      data-rule-step-target="test"
+                    >
+                      <span class="ct-admin__step-number">3</span>
+                      <span class="ct-admin__step-copy">
+                        <strong>Test</strong>
+                        <small>Dry-run with representative learner facts before publishing.</small>
+                      </span>
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      class="ct-admin__step-button"
+                      data-rule-step-target="review"
+                    >
+                      <span class="ct-admin__step-number">4</span>
+                      <span class="ct-admin__step-copy">
+                        <strong>Review</strong>
+                        <small>Set governance and create the draft that reviewers will see.</small>
+                      </span>
+                    </button>
+                  </li>
+                </ol>
+                <p
+                  id="rule-builder-step-progress"
+                  class="ct-admin__meta ct-admin__builder-progress"
+                  aria-live="polite"
+                >
+                  Step 1 of 4 · Metadata
+                </p>
               </section>
 
               <div class="ct-admin__builder-main ct-stack">
@@ -687,10 +675,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                         </label>
                       </div>
 
-                      <details
-                        id="rule-builder-review-surface"
-                        class="ct-admin__builder-guide"
-                      >
+                      <details id="rule-builder-review-surface" class="ct-admin__builder-guide">
                         <summary>Release checklist</summary>
                         <ul class="ct-admin__builder-checklist">
                           <li>Rule name, badge template, and LMS source are finalized.</li>
@@ -989,7 +974,6 @@ export const institutionAdminRuleBuilderPage = (input: {
                       </section>
                     </div>
                   </section>
-
                 </div>
               </details>
             </section>
