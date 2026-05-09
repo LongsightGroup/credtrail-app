@@ -41,6 +41,7 @@ import {
 } from "@credtrail/validation";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import { renderAppPage } from "../ui/render-page";
+import { designSystemAdminPage } from "../admin/design-system-page";
 import { auditLogAdminPage, type AuditLogAdminPageFilterState } from "../admin/pages";
 import { createGradebookProvider } from "../lms/gradebook-provider";
 import {
@@ -1079,6 +1080,26 @@ export const registerAdminRoutes = (input: RegisterAdminRoutesInput): void => {
       });
     },
   );
+
+  app.get("/admin/styleguide", (c) => {
+    const token = c.req.query("token") ?? null;
+    const unauthorizedResponse = requireBootstrapAdminUiToken(c, token);
+
+    if (unauthorizedResponse !== null) {
+      return unauthorizedResponse;
+    }
+
+    if (token === null) {
+      return c.json(
+        {
+          error: "Unauthorized",
+        },
+        401,
+      );
+    }
+
+    return renderAppPage(c, designSystemAdminPage());
+  });
 
   app.get("/admin/audit-logs", async (c) => {
     const token = c.req.query("token") ?? null;

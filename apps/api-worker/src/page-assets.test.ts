@@ -23,6 +23,7 @@ describe("GET /assets/ui/:assetFilename", () => {
       "foundationCss",
       "authLoginCss",
       "authLoginJs",
+      "designSystemCss",
       "executiveDashboardCss",
       "institutionAdminCss",
       "institutionAdminJs",

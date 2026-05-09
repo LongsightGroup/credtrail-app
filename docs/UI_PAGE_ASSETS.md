@@ -41,12 +41,20 @@ Example pages using this pattern:
 
 Shared foundation asset:
 
-- `foundationCss` provides design tokens and layout utility classes:
+- `foundationCss` loads generated design tokens and layout utility classes:
   - `.ct-stack`
   - `.ct-cluster`
   - `.ct-grid`
   - `.ct-grid--sidebar`
   - `.ct-card`
+
+Design-token source:
+
+- Edit `design/tokens/credtrail.tokens.json` when a shared color, type, spacing, radius, motion, or elevation value changes.
+- Run `pnpm build:design-tokens` after token edits. This regenerates:
+  - `apps/api-worker/src/ui/page-assets/content/generated/design-tokens.css`
+  - `apps/api-worker/src/ui/page-assets/content/generated/design-tokens-css.ts`
+- The internal visual catalog is available at `/admin/styleguide?token=<BOOTSTRAP_ADMIN_TOKEN>` and uses `designSystemCss`.
 
 ## Inline CSS/JS Policy
 

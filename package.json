@@ -5,6 +5,8 @@
   "packageManager": "pnpm@10.6.5",
   "scripts": {
     "check:public-docs": "node scripts/check-public-docs.mjs",
+    "build:design-tokens": "style-dictionary build --config style-dictionary.config.mjs && node scripts/wrap-design-tokens.mjs",
+    "check:design-tokens": "pnpm build:design-tokens && git diff --exit-code -- apps/api-worker/src/ui/page-assets/content/generated/design-tokens.css apps/api-worker/src/ui/page-assets/content/generated/design-tokens-css.ts",
     "export:ob3-openapi": "pnpm exec tsx scripts/export-ob3-openapi.mjs",
     "check:ob3-openapi": "pnpm exec tsx scripts/check-ob3-openapi.mjs",
     "db:migrate:postgres": "node packages/db/scripts/migrate-postgres.mjs",
@@ -18,7 +20,7 @@
     "test:e2e": "playwright test",
     "test:e2e:canvas-real": "playwright test --grep @real-canvas",
     "test:e2e:sakai-real": "playwright test --grep @real-sakai",
-    "check": "pnpm check:public-docs && pnpm check:ob3-openapi && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
+    "check": "pnpm check:public-docs && pnpm check:design-tokens && pnpm check:ob3-openapi && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
     "@animo-id/oid4vci": "^0.1.4",
@@ -30,6 +32,7 @@
     "oxfmt": "0.48.0",
     "oxlint": "1.63.0",
     "oxlint-tsgolint": "0.22.1",
+    "style-dictionary": "^5.4.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.5",

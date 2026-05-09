@@ -1,0 +1,437 @@
+{
+  "ct": {
+    "font": {
+      "sans": {
+        "$type": "fontFamily",
+        "$value": "'Space Grotesk', 'Avenir Next', 'Segoe UI', sans-serif"
+      },
+      "display": {
+        "$type": "fontFamily",
+        "$value": "'Newsreader', Georgia, serif"
+      },
+      "mono": {
+        "$type": "fontFamily",
+        "$value": "ui-monospace, SFMono-Regular, Menlo, monospace"
+      }
+    },
+    "brand": {
+      "midnight": {
+        "950": {
+          "$type": "color",
+          "$value": "#071a31"
+        },
+        "900": {
+          "$type": "color",
+          "$value": "#0b2748"
+        },
+        "800": {
+          "$type": "color",
+          "$value": "#153a63"
+        }
+      },
+      "lake": {
+        "700": {
+          "$type": "color",
+          "$value": "#0f5fa6"
+        },
+        "600": {
+          "$type": "color",
+          "$value": "#1f74bb"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "#3a8fcb"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#61a8d8"
+        }
+      },
+      "sun": {
+        "500": {
+          "$type": "color",
+          "$value": "#d4a443"
+        },
+        "400": {
+          "$type": "color",
+          "$value": "#f0c251"
+        },
+        "300": {
+          "$type": "color",
+          "$value": "#f4d58c"
+        }
+      },
+      "mint": {
+        "600": {
+          "$type": "color",
+          "$value": "#166b46"
+        }
+      },
+      "amber": {
+        "600": {
+          "$type": "color",
+          "$value": "#7a4700"
+        }
+      },
+      "rose": {
+        "600": {
+          "$type": "color",
+          "$value": "#ad3d31"
+        }
+      }
+    },
+    "theme": {
+      "text": {
+        "title": {
+          "$type": "color",
+          "$value": "#0d2543"
+        },
+        "body": {
+          "$type": "color",
+          "$value": "#173a5c"
+        },
+        "muted": {
+          "$type": "color",
+          "$value": "#4c6784"
+        },
+        "subtle": {
+          "$type": "color",
+          "$value": "#6c829b"
+        },
+        "inverse": {
+          "$type": "color",
+          "$value": "#f5fbff"
+        },
+        "on-brand": {
+          "$type": "color",
+          "$value": "#f7fcff"
+        }
+      },
+      "link": {
+        "$type": "color",
+        "$value": "{ct.brand.lake.700}"
+      },
+      "link-hover": {
+        "$type": "color",
+        "$value": "#0b4e89"
+      },
+      "surface": {
+        "canvas": {
+          "$type": "color",
+          "$value": "#edf3fb"
+        },
+        "shell": {
+          "$type": "color",
+          "$value": "rgba(255, 255, 255, 0.84)"
+        },
+        "soft": {
+          "$type": "color",
+          "$value": "#f4f8fd"
+        },
+        "card": {
+          "$type": "color",
+          "$value": "rgba(255, 255, 255, 0.95)"
+        },
+        "card-strong": {
+          "$type": "color",
+          "$value": "#ffffff"
+        },
+        "info": {
+          "$type": "color",
+          "$value": "#eef6ff"
+        },
+        "success": {
+          "$type": "color",
+          "$value": "#edf9f1"
+        },
+        "warning": {
+          "$type": "color",
+          "$value": "#fff5e6"
+        },
+        "danger": {
+          "$type": "color",
+          "$value": "#fff2f0"
+        },
+        "brand-chip": {
+          "$type": "color",
+          "$value": "rgba(255, 255, 255, 0.14)"
+        },
+        "brand-chip-strong": {
+          "$type": "color",
+          "$value": "rgba(255, 255, 255, 0.22)"
+        }
+      },
+      "border": {
+        "soft": {
+          "$type": "color",
+          "$value": "rgba(23, 60, 102, 0.14)"
+        },
+        "default": {
+          "$type": "color",
+          "$value": "rgba(13, 46, 84, 0.2)"
+        },
+        "strong": {
+          "$type": "color",
+          "$value": "rgba(8, 39, 77, 0.3)"
+        },
+        "focus": {
+          "$type": "color",
+          "$value": "rgba(15, 95, 166, 0.34)"
+        },
+        "info": {
+          "$type": "color",
+          "$value": "rgba(15, 95, 166, 0.24)"
+        },
+        "success": {
+          "$type": "color",
+          "$value": "rgba(31, 138, 90, 0.3)"
+        },
+        "warning": {
+          "$type": "color",
+          "$value": "rgba(163, 100, 18, 0.28)"
+        },
+        "danger": {
+          "$type": "color",
+          "$value": "rgba(173, 61, 49, 0.28)"
+        }
+      },
+      "gradient": {
+        "hero": {
+          "$value": "linear-gradient(132deg, {ct.brand.midnight.900} 0%, {ct.brand.lake.700} 68%, {ct.brand.lake.500} 100%)"
+        },
+        "action": {
+          "$value": "linear-gradient(115deg, {ct.brand.midnight.900} 0%, {ct.brand.lake.700} 78%)"
+        },
+        "action-hover": {
+          "$value": "linear-gradient(115deg, {ct.brand.midnight.800} 0%, {ct.brand.lake.600} 78%)"
+        },
+        "success": {
+          "$value": "linear-gradient(120deg, #0f7f4f 0%, #005b4f 64%, #003d5c 100%)"
+        },
+        "danger": {
+          "$value": "linear-gradient(120deg, #bd2f1b 0%, #8f1c13 64%, #5b1212 100%)"
+        },
+        "warning": {
+          "$value": "linear-gradient(120deg, #a66a00 0%, #7f4b00 64%, #5b3300 100%)"
+        },
+        "neutral": {
+          "$value": "linear-gradient(120deg, #4b5d75 0%, #36475d 64%, #233246 100%)"
+        },
+        "canvas": {
+          "$value": "linear-gradient(165deg, #eef5ff 0%, #f8fbff 44%, #ffffff 100%)"
+        }
+      },
+      "accent": {
+        "glow": {
+          "1": {
+            "$type": "color",
+            "$value": "rgba(255, 203, 5, 0.32)"
+          },
+          "2": {
+            "$type": "color",
+            "$value": "rgba(0, 39, 76, 0.2)"
+          },
+          "3": {
+            "$type": "color",
+            "$value": "rgba(0, 94, 184, 0.15)"
+          }
+        }
+      },
+      "shadow": {
+        "card": {
+          "$value": "0 16px 32px rgba(7, 27, 51, 0.2)"
+        },
+        "soft": {
+          "$value": "0 10px 22px rgba(8, 45, 86, 0.12)"
+        },
+        "shell": {
+          "$value": "0 28px 48px rgba(13, 32, 58, 0.17)"
+        },
+        "focus": {
+          "$value": "0 0 0 3px rgba(15, 95, 166, 0.24)"
+        }
+      },
+      "state": {
+        "success": {
+          "$type": "color",
+          "$value": "{ct.brand.mint.600}"
+        },
+        "danger": {
+          "$type": "color",
+          "$value": "{ct.brand.rose.600}"
+        },
+        "warning": {
+          "$type": "color",
+          "$value": "{ct.brand.amber.600}"
+        }
+      }
+    },
+    "color": {
+      "ink-strong": {
+        "$type": "color",
+        "$value": "{ct.theme.text.title}"
+      },
+      "ink": {
+        "$type": "color",
+        "$value": "{ct.theme.text.body}"
+      },
+      "ink-soft": {
+        "$type": "color",
+        "$value": "{ct.theme.text.muted}"
+      },
+      "link": {
+        "$type": "color",
+        "$value": "{ct.theme.link}"
+      },
+      "link-hover": {
+        "$type": "color",
+        "$value": "{ct.theme.link-hover}"
+      },
+      "primary": {
+        "900": {
+          "$type": "color",
+          "$value": "{ct.brand.midnight.900}"
+        },
+        "700": {
+          "$type": "color",
+          "$value": "{ct.brand.lake.700}"
+        },
+        "500": {
+          "$type": "color",
+          "$value": "{ct.brand.lake.500}"
+        }
+      },
+      "success": {
+        "$type": "color",
+        "$value": "{ct.theme.state.success}"
+      },
+      "danger": {
+        "$type": "color",
+        "$value": "{ct.theme.state.danger}"
+      },
+      "warning": {
+        "$type": "color",
+        "$value": "{ct.theme.state.warning}"
+      }
+    },
+    "surface": {
+      "base": {
+        "$type": "color",
+        "$value": "{ct.theme.surface.card-strong}"
+      },
+      "soft": {
+        "$type": "color",
+        "$value": "{ct.theme.surface.soft}"
+      },
+      "elevated": {
+        "$type": "color",
+        "$value": "{ct.theme.surface.card}"
+      },
+      "shell": {
+        "$type": "color",
+        "$value": "{ct.theme.surface.shell}"
+      }
+    },
+    "border": {
+      "soft": {
+        "$type": "color",
+        "$value": "{ct.theme.border.soft}"
+      },
+      "strong": {
+        "$type": "color",
+        "$value": "{ct.theme.border.default}"
+      },
+      "focus": {
+        "$type": "color",
+        "$value": "{ct.theme.border.focus}"
+      }
+    },
+    "space": {
+      "1": {
+        "$type": "dimension",
+        "$value": "0.25rem"
+      },
+      "2": {
+        "$type": "dimension",
+        "$value": "0.5rem"
+      },
+      "3": {
+        "$type": "dimension",
+        "$value": "0.75rem"
+      },
+      "4": {
+        "$type": "dimension",
+        "$value": "1rem"
+      },
+      "5": {
+        "$type": "dimension",
+        "$value": "1.25rem"
+      },
+      "6": {
+        "$type": "dimension",
+        "$value": "1.5rem"
+      }
+    },
+    "radius": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "0.5rem"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "0.75rem"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "1rem"
+      },
+      "xl": {
+        "$type": "dimension",
+        "$value": "1.25rem"
+      },
+      "pill": {
+        "$type": "dimension",
+        "$value": "999px"
+      }
+    },
+    "shadow": {
+      "card": {
+        "$value": "{ct.theme.shadow.card}"
+      },
+      "soft": {
+        "$value": "{ct.theme.shadow.soft}"
+      },
+      "shell": {
+        "$value": "{ct.theme.shadow.shell}"
+      }
+    },
+    "focus": {
+      "ring": {
+        "$value": "{ct.theme.shadow.focus}"
+      }
+    },
+    "duration": {
+      "fast": {
+        "$type": "duration",
+        "$value": "120ms"
+      },
+      "standard": {
+        "$type": "duration",
+        "$value": "220ms"
+      }
+    },
+    "ease": {
+      "standard": {
+        "$value": "cubic-bezier(0.2, 0.7, 0.2, 1)"
+      }
+    },
+    "max": {
+      "content": {
+        "width": {
+          "$type": "dimension",
+          "$value": "1080px"
+        }
+      }
+    }
+  }
+}

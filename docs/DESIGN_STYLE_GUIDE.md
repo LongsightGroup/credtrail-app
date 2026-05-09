@@ -32,6 +32,12 @@ Design consequence:
 
 ## 3) Token Architecture
 
+Token source lives in `design/tokens/credtrail.tokens.json` and is built with Style Dictionary:
+
+- `pnpm build:design-tokens` generates the CSS consumed by `foundationCss`.
+- `pnpm check:design-tokens` rebuilds the generated files and fails if they drift.
+- Do not edit files under `apps/api-worker/src/ui/page-assets/content/generated/` manually.
+
 Use two layers of variables:
 
 1. Raw palette tokens (`--ct-brand-*`) for fixed colors.
@@ -147,6 +153,7 @@ Prefer shared primitives from `foundationCss`:
 
 - Keep page-level CSS in `apps/api-worker/src/ui/page-assets/content/*`.
 - Keep route handlers free from inline styles/scripts.
+- Use `/admin/styleguide?token=<BOOTSTRAP_ADMIN_TOKEN>` as the internal visual reference for tokens, typography, admin buttons, major secondary link rows, and table action groups.
 - Use semantic tokens first; keep legacy aliases (`--ct-color-*`, `--ct-surface-*`) only for migration.
 - New CSS should avoid hard-coded hex values unless:
   - it is a one-off brand asset treatment, and

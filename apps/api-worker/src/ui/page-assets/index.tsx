@@ -3,6 +3,7 @@ import type { HtmlEscapedString } from "hono/utils/html";
 import type { AppEnv } from "../../app";
 import { AUTH_LOGIN_CSS } from "./content/auth-login-css";
 import { AUTH_LOGIN_JS } from "./content/auth-login-js";
+import { DESIGN_SYSTEM_CSS } from "./content/design-system-css";
 import { EXECUTIVE_DASHBOARD_CSS } from "./content/executive-dashboard-css";
 import { FOUNDATION_CSS } from "./content/foundation-css";
 import { INSTITUTION_ADMIN_CSS } from "./content/institution-admin-css";
@@ -49,6 +50,12 @@ const PAGE_ASSET_SOURCES = {
     kind: "style",
     stem: "executive-dashboard",
     body: EXECUTIVE_DASHBOARD_CSS,
+    contentType: "text/css; charset=utf-8",
+  },
+  designSystemCss: {
+    kind: "style",
+    stem: "design-system",
+    body: DESIGN_SYSTEM_CSS,
     contentType: "text/css; charset=utf-8",
   },
   institutionAdminCss: {

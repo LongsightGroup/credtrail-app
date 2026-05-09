@@ -1504,9 +1504,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(response.status).toBe(200);
     expect(body).toContain("Reporting Exports");
     expect(body).toContain("Export filters");
-    expect(body).toContain(
-      'method="get" action="/tenants/tenant_123/admin/reporting/exports"',
-    );
+    expect(body).toContain('method="get" action="/tenants/tenant_123/admin/reporting/exports"');
     expect(body).toContain("Export CSV");
     expect(body).not.toContain("Executive Summary");
     expect(body).toContain(
@@ -1752,9 +1750,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
 
     expect(response.status).toBe(200);
     expect(trendPanel).toContain('data-reporting-state="empty"');
-    expect(trendPanel).toContain(
-      "The selected filters do not have enough activity to chart yet.",
-    );
+    expect(trendPanel).toContain("The selected filters do not have enough activity to chart yet.");
     expect(templatePanel).toContain('data-reporting-state="empty"');
     expect(templatePanel).toContain("No badge-template rows are visible for this slice yet.");
     expect(orgUnitPanel).toContain('data-reporting-state="empty"');
