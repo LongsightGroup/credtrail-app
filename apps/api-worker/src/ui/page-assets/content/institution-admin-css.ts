@@ -2102,9 +2102,15 @@ export const INSTITUTION_ADMIN_CSS = `
   gap: 0.32rem;
 }
 .ct-admin__issued-actions .ct-admin__button {
-  min-height: 2.24rem;
-  padding: 0.4rem 0.66rem;
-  font-size: 0.77rem;
+  box-sizing: border-box;
+  min-height: 1.9rem;
+  height: 1.9rem;
+  max-height: 1.9rem;
+  padding: 0.28rem 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1;
+  box-shadow: none;
+  user-select: none;
 }
 .ct-admin__issued-actions .ct-admin__button--secondary {
   color: var(--ct-color-ink);
@@ -2116,8 +2122,13 @@ export const INSTITUTION_ADMIN_CSS = `
   );
 }
 .ct-admin__action-menu-trigger {
-  min-width: 2.24rem;
-  padding-inline: 0.62rem;
+  min-width: 1.9rem;
+  width: 1.9rem;
+  padding-inline: 0;
+}
+.ct-admin__issued-actions .ct-admin__button:focus-visible {
+  outline-offset: 1px;
+  box-shadow: none;
 }
 .ct-admin__action-menu {
   position: relative;
