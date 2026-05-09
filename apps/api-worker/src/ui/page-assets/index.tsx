@@ -5,6 +5,12 @@ import { AUTH_LOGIN_CSS } from "./content/auth-login-css";
 import { AUTH_LOGIN_JS } from "./content/auth-login-js";
 import { DESIGN_SYSTEM_CSS } from "./content/design-system-css";
 import { EXECUTIVE_DASHBOARD_CSS } from "./content/executive-dashboard-css";
+import {
+  decodeFontAssetBody,
+  FONT_ASSET_BASE_PATH,
+  FONT_ASSET_SOURCES,
+  type FontAssetSource,
+} from "./content/font-assets";
 import { FOUNDATION_CSS } from "./content/foundation-css";
 import { INSTITUTION_ADMIN_CSS } from "./content/institution-admin-css";
 import { INSTITUTION_ADMIN_JS } from "./content/institution-admin-js";
@@ -148,6 +154,9 @@ const PAGE_ASSETS = buildPageAssets(PAGE_ASSET_SOURCES);
 const PAGE_ASSETS_BY_FILENAME = new Map<string, BuiltPageAsset>(
   Object.values(PAGE_ASSETS).map((asset) => [asset.filename, asset]),
 );
+const FONT_ASSETS_BY_FILENAME = new Map<string, FontAssetSource>(
+  Object.values(FONT_ASSET_SOURCES).map((asset) => [asset.filename, asset]),
+);
 
 export type PageAssetKey = keyof typeof PAGE_ASSETS;
 
@@ -194,6 +203,27 @@ export const registerPageAssetRoutes = (input: { app: Hono<AppEnv> }): void => {
     c.header("X-Content-Type-Options", "nosniff");
 
     return c.body(asset.body);
+  });
+
+  app.get(`${FONT_ASSET_BASE_PATH}/:assetFilename`, (c) => {
+    const assetFilename = c.req.param("assetFilename");
+    const asset = FONT_ASSETS_BY_FILENAME.get(assetFilename);
+
+    if (asset === undefined) {
+      return c.notFound();
+    }
+
+    const decodedBody = decodeFontAssetBody(asset.bodyBase64);
+    const body = new ArrayBuffer(decodedBody.byteLength);
+    new Uint8Array(body).set(decodedBody);
+
+    return new Response(body, {
+      headers: {
+        "Cache-Control": PAGE_ASSET_CACHE_CONTROL,
+        "Content-Type": asset.contentType,
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
   });
 };
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;

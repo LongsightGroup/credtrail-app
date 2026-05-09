@@ -9,9 +9,7 @@ export const LTI_PAGES_CSS = `
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-lg);
   padding: var(--ct-space-4);
-  background:
-    radial-gradient(circle at 90% 12%, var(--ct-theme-accent-glow-1), transparent 43%),
-    var(--ct-theme-gradient-hero);
+  background: var(--ct-theme-gradient-hero);
   color: var(--ct-theme-text-on-brand);
 }
 
@@ -29,11 +27,7 @@ export const LTI_PAGES_CSS = `
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-lg);
   padding: var(--ct-space-4);
-  background: linear-gradient(
-    165deg,
-    var(--ct-theme-surface-card-strong),
-    var(--ct-theme-surface-soft)
-  );
+  background: var(--ct-theme-surface-card-strong);
   box-shadow: var(--ct-shadow-soft);
 }
 
@@ -170,9 +164,7 @@ export const LTI_PAGES_CSS = `
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-lg);
   padding: var(--ct-space-4);
-  background:
-    radial-gradient(circle at 88% 14%, var(--ct-theme-accent-glow-1), transparent 42%),
-    var(--ct-theme-gradient-hero);
+  background: var(--ct-theme-gradient-hero);
   color: var(--ct-theme-text-on-brand);
 }
 
@@ -218,11 +210,7 @@ export const LTI_PAGES_CSS = `
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-md);
   padding: 0.9rem;
-  background: linear-gradient(
-    165deg,
-    var(--ct-theme-surface-card-strong),
-    var(--ct-theme-surface-soft)
-  );
+  background: var(--ct-theme-surface-card-strong);
   box-shadow: var(--ct-shadow-soft);
   display: grid;
   gap: 0.4rem;

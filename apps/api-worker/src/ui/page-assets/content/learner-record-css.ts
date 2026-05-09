@@ -1,7 +1,7 @@
 export const LEARNER_RECORD_CSS = String.raw`
 .learner-record {
   --ct-learner-record-border: rgba(10, 44, 79, 0.12);
-  --ct-learner-record-shadow: 0 18px 36px rgba(10, 35, 62, 0.1);
+  --ct-learner-record-shadow: 0 10px 24px rgba(10, 35, 62, 0.08);
   --ct-learner-record-surface: rgba(255, 255, 255, 0.95);
   --ct-learner-record-surface-strong: rgba(255, 252, 246, 0.98);
   --ct-learner-record-accent: #114f86;
@@ -17,7 +17,7 @@ export const LEARNER_RECORD_CSS = String.raw`
 .learner-record__metric-card,
 .learner-record__empty-state {
   border: 1px solid var(--ct-learner-record-border);
-  border-radius: 1.35rem;
+  border-radius: var(--ct-radius-lg);
   background: var(--ct-learner-record-surface);
   box-shadow: var(--ct-learner-record-shadow);
 }
@@ -25,10 +25,7 @@ export const LEARNER_RECORD_CSS = String.raw`
   display: grid;
   gap: 1rem;
   padding: clamp(1.25rem, 2vw, 1.8rem);
-  background:
-    radial-gradient(circle at 90% 12%, rgba(251, 203, 92, 0.32), transparent 28%),
-    linear-gradient(140deg, rgba(7, 30, 53, 0.98), rgba(19, 81, 132, 0.94)),
-    var(--ct-learner-record-surface);
+  background: linear-gradient(140deg, rgba(7, 30, 53, 0.98), rgba(19, 81, 132, 0.94));
   color: #f8fbff;
 }
 @media (min-width: 52rem) {
@@ -56,8 +53,8 @@ export const LEARNER_RECORD_CSS = String.raw`
   max-width: 12ch;
   color: #fff;
   font-family: var(--ct-font-display);
-  font-size: clamp(2.2rem, 5vw, 4rem);
-  line-height: 0.98;
+  font-size: clamp(2rem, 4.6vw, 3.6rem);
+  line-height: 1.02;
 }
 .learner-record__hero-lead {
   margin: 0.75rem 0 0;
@@ -103,9 +100,7 @@ export const LEARNER_RECORD_CSS = String.raw`
 }
 .learner-record__metric-card {
   padding: 1rem 1.05rem;
-  background:
-    linear-gradient(180deg, rgba(255, 252, 245, 0.98), rgba(240, 247, 255, 0.94)),
-    var(--ct-learner-record-surface-strong);
+  background: var(--ct-learner-record-surface-strong);
   color: #143452;
 }
 .learner-record__metric-label {

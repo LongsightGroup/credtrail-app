@@ -305,6 +305,7 @@ export const AUTH_LOGIN_CSS = `
   border-radius: var(--ct-radius-md);
   min-height: 2.75rem;
   padding: 0.6rem 1rem;
+  font-family: var(--ct-font-sans);
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--ct-theme-text-on-brand);
@@ -461,7 +462,10 @@ export const AUTH_LOGIN_CSS = `
 
   .ct-login__record-panel {
     grid-row: auto;
-    min-height: 9rem;
+    align-content: start;
+    gap: 0.8rem;
+    min-height: auto;
+    padding: 1.2rem 1.35rem;
     border-right: none;
     border-bottom: 1px solid var(--ct-theme-border-soft);
   }
@@ -472,7 +476,7 @@ export const AUTH_LOGIN_CSS = `
   }
 
   .ct-login__record-caption {
-    margin-top: 1rem;
+    margin-top: 0;
     max-width: none;
   }
 
