@@ -2,10 +2,15 @@ import type { HtmlEscapedString } from "hono/utils/html";
 import {
   AdminButton,
   AdminButtonLink,
+  AdminCheckboxRow,
   AdminCtaLink,
   AdminEmptyTableRow,
+  AdminField,
+  AdminFieldset,
+  AdminForm,
   AdminMeta,
   AdminSidebarToggle,
+  AdminStatus,
   AdminStatusPill,
   AdminTable,
   IssuedBadgeActions,
@@ -227,6 +232,37 @@ const componentDocs: readonly ComponentDoc[] = [
     usage: "Use for table state, role labels, and small quantitative chips.",
   },
   {
+    name: "AdminForm",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Owns the standard admin form class and preserves native form attributes.",
+    usage: "Use before hand-writing ct-admin__form class combinations.",
+  },
+  {
+    name: "AdminField",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Wraps a label and its control without changing native input or select semantics.",
+    usage: "Use for text inputs, selects, textareas, and inline-control label variants.",
+  },
+  {
+    name: "AdminCheckboxRow",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Owns the checkbox-row label class used by admin forms and the rule builder.",
+    usage: "Use for checkbox labels instead of repeating ct-admin__checkbox-row ct-checkbox-row.",
+  },
+  {
+    name: "AdminFieldset / AdminStatus",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Centralize grouped form controls and form status message markup.",
+    usage:
+      "Use fieldsets for related controls and AdminStatus for live form feedback placeholders.",
+  },
+  {
+    name: "AdminActions",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Owns compact action grouping for admin forms, rows, and panel controls.",
+    usage: "Use instead of repeating ct-admin__actions wrappers.",
+  },
+  {
     name: "AdminSidebarToggle",
     source: "apps/api-worker/src/admin/components.tsx",
     purpose: "Owns the responsive admin sidebar toggle markup and accessibility label.",
@@ -408,6 +444,26 @@ const SidebarTogglePreview = (): HonoElement => {
   );
 };
 
+const FormPreview = (): HonoElement => {
+  return (
+    <AdminForm id="styleguide-admin-form-demo">
+      <AdminField label="Badge template">
+        <select name="badgeTemplateId">
+          <option value="badge_template_sakai_1000">Sakai 1000+ Commits Contributor</option>
+        </select>
+      </AdminField>
+      <AdminFieldset legend="Options">
+        <AdminCheckboxRow>
+          <input name="dryRun" type="checkbox" checked />
+          Dry run first
+        </AdminCheckboxRow>
+      </AdminFieldset>
+      <AdminButton type="submit">Preview issue</AdminButton>
+      <AdminStatus id="styleguide-admin-form-status">Ready for input.</AdminStatus>
+    </AdminForm>
+  );
+};
+
 const DataPreview = (): HonoElement => {
   return (
     <div class="ct-design-system__table-demo">
@@ -457,6 +513,7 @@ export const designSystemAdminPage = (): AppPage => {
           <a href="#style-dictionary">Style Dictionary</a>
           <a href="#colors">Colors</a>
           <a href="#actions">Actions</a>
+          <a href="#forms">Forms</a>
           <a href="#data">Data rows</a>
           <a href="#classes">Approved classes</a>
         </nav>
@@ -563,6 +620,20 @@ export const designSystemAdminPage = (): AppPage => {
               <p class="ct-design-system__example-note">
                 Sidebar toggles share one accessible component and button reset.
               </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="ct-design-system__section" id="forms">
+          <h2>Forms</h2>
+          <p class="ct-design-system__section-copy">
+            Admin forms keep native controls visible while shared JSX owns repeated labels, checkbox
+            rows, fieldsets, and status placeholders.
+          </p>
+          <div class="ct-design-system__grid">
+            <article class="ct-design-system__example">
+              <h3>Admin form primitives</h3>
+              <FormPreview />
             </article>
           </div>
         </section>

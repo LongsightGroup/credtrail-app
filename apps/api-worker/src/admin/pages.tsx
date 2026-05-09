@@ -1,7 +1,14 @@
 import type { AuditLogRecord } from "@credtrail/db";
 import { appPage, type AppPage } from "../ui/render-page";
 import { formatIsoTimestamp } from "../utils/display-format";
-import { AdminButton } from "./components";
+import {
+  AdminButton,
+  AdminEmptyTableRow,
+  AdminField,
+  AdminForm,
+  AdminStatus,
+  AdminTable,
+} from "./components";
 
 export interface AuditLogAdminPageFilterState {
   tenantId?: string;
@@ -44,78 +51,58 @@ export const auditLogAdminPage = (input: {
         </header>
         <section class="ct-admin ct-stack">
           {input.submissionError === undefined ? null : (
-            <p class="ct-admin__status" data-tone="error">
-              {input.submissionError}
-            </p>
+            <AdminStatus tone="error">{input.submissionError}</AdminStatus>
           )}
           <article class="ct-admin__panel ct-stack">
-            <form
+            <AdminForm
               method="get"
               action="/admin/audit-logs"
-              class="ct-admin__form ct-admin__form--inline ct-grid"
+              className="ct-admin__form ct-admin__form--inline ct-grid"
             >
               <input type="hidden" name="token" value={input.token} />
-              <label>
-                Tenant ID
+              <AdminField label="Tenant ID">
                 <input name="tenantId" type="text" required value={filterTenantId} />
-              </label>
-              <label>
-                Action (optional exact match)
+              </AdminField>
+              <AdminField label="Action (optional exact match)">
                 <input name="action" type="text" value={filterAction} />
-              </label>
-              <label>
-                Limit
+              </AdminField>
+              <AdminField label="Limit">
                 <input name="limit" type="number" min="1" max="200" value={filterLimit} />
-              </label>
+              </AdminField>
               <AdminButton type="submit">Load audit logs</AdminButton>
-            </form>
+            </AdminForm>
           </article>
           <article class="ct-admin__panel ct-admin__panel--table ct-stack">
-            <div class="ct-admin__table-wrap">
-              <table class="ct-admin__table">
-                <thead>
-                  <tr>
-                    <th>Occurred (UTC)</th>
-                    <th>Action</th>
-                    <th>Actor</th>
-                    <th>Target</th>
-                    <th>Metadata</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {input.logs.length === 0 ? (
-                    <tr>
-                      <td colspan={5} class="ct-admin__empty">
-                        {filterTenantId.trim().length === 0
-                          ? "Enter a tenant ID to load audit logs."
-                          : "No audit logs matched the current filters."}
+            <AdminTable headers={["Occurred (UTC)", "Action", "Actor", "Target", "Metadata"]}>
+              {input.logs.length === 0 ? (
+                <AdminEmptyTableRow colSpan={5}>
+                  {filterTenantId.trim().length === 0
+                    ? "Enter a tenant ID to load audit logs."
+                    : "No audit logs matched the current filters."}
+                </AdminEmptyTableRow>
+              ) : (
+                input.logs.map((log) => {
+                  const metadataText = metadataSummaryText(log.metadataJson);
+
+                  return (
+                    <tr key={`${log.occurredAt}:${log.action}:${log.targetId}`}>
+                      <td>{formatIsoTimestamp(log.occurredAt)}</td>
+                      <td>{log.action}</td>
+                      <td>{log.actorUserId ?? "system"}</td>
+                      <td>
+                        {log.targetType}:{log.targetId}
+                      </td>
+                      <td>
+                        <details>
+                          <summary>View metadata</summary>
+                          <pre class="ct-admin__code-output">{metadataText}</pre>
+                        </details>
                       </td>
                     </tr>
-                  ) : (
-                    input.logs.map((log) => {
-                      const metadataText = metadataSummaryText(log.metadataJson);
-
-                      return (
-                        <tr key={`${log.occurredAt}:${log.action}:${log.targetId}`}>
-                          <td>{formatIsoTimestamp(log.occurredAt)}</td>
-                          <td>{log.action}</td>
-                          <td>{log.actorUserId ?? "system"}</td>
-                          <td>
-                            {log.targetType}:{log.targetId}
-                          </td>
-                          <td>
-                            <details>
-                              <summary>View metadata</summary>
-                              <pre class="ct-admin__code-output">{metadataText}</pre>
-                            </details>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  );
+                })
+              )}
+            </AdminTable>
           </article>
         </section>
       </section>

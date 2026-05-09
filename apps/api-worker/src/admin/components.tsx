@@ -9,6 +9,7 @@ export type AdminButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type AdminButtonSize = "default" | "tiny";
 
 type ButtonType = "button" | "submit" | "reset";
+type FormMethod = "get" | "post";
 type DataAttributes = Partial<Record<`data-${string}`, string>>;
 
 export interface AdminSidebarLinkItem {
@@ -378,6 +379,89 @@ export const AdminTable = ({
         </tbody>
       </table>
     </div>
+  );
+};
+
+export const AdminForm = ({
+  id,
+  method,
+  action,
+  encType,
+  className = "ct-admin__form ct-stack",
+  dataAttributes,
+  children,
+}: PropsWithChildren<{
+  id?: string;
+  method?: FormMethod;
+  action?: string;
+  encType?: "multipart/form-data";
+  className?: string;
+  dataAttributes?: DataAttributes;
+}>): HonoElement => {
+  return (
+    <form
+      id={id}
+      method={method}
+      action={action}
+      enctype={encType}
+      class={className}
+      {...(dataAttributes ?? {})}
+    >
+      {children}
+    </form>
+  );
+};
+
+export const AdminField = ({
+  label,
+  className,
+  children,
+}: PropsWithChildren<{
+  label: string;
+  className?: string;
+}>): HonoElement => {
+  return (
+    <label class={className}>
+      {label}
+      {children}
+    </label>
+  );
+};
+
+export const AdminCheckboxRow = ({ children }: PropsWithChildren): HonoElement => {
+  return <label class="ct-admin__checkbox-row ct-checkbox-row">{children}</label>;
+};
+
+export const AdminFieldset = ({
+  legend,
+  children,
+}: PropsWithChildren<{
+  legend: string;
+}>): HonoElement => {
+  return (
+    <fieldset class="ct-admin__fieldset ct-stack">
+      <legend>{legend}</legend>
+      {children}
+    </fieldset>
+  );
+};
+
+export const AdminActions = ({ children }: PropsWithChildren): HonoElement => {
+  return <div class="ct-admin__actions">{children}</div>;
+};
+
+export const AdminStatus = ({
+  id,
+  tone,
+  children,
+}: PropsWithChildren<{
+  id?: string;
+  tone?: "info" | "success" | "warning" | "error";
+}>): HonoElement => {
+  return (
+    <p id={id} class="ct-admin__status" data-tone={tone}>
+      {children}
+    </p>
   );
 };
 

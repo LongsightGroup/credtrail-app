@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  AdminActions,
+  AdminCheckboxRow,
   AdminEmptyTableRow,
+  AdminField,
+  AdminFieldset,
+  AdminForm,
   AdminMeta,
   AdminShell,
   AdminSidebar,
   IssuedBadgeActions,
   AdminSidebarToggle,
+  AdminStatus,
   AdminStatusPill,
   AdminTable,
   AdminTopbar,
@@ -149,6 +155,48 @@ describe("CredTrail UI styleguide", () => {
     expect(emptyRowHtml).toContain('class="ct-admin__empty"');
   });
 
+  it("renders shared admin form primitives", () => {
+    const fieldHtml = (
+      AdminField({ label: "Label", children: "Control" }) as {
+        toString(): string;
+      }
+    ).toString();
+    const checkboxHtml = (
+      AdminCheckboxRow({ children: "Checkbox" }) as {
+        toString(): string;
+      }
+    ).toString();
+    const fieldsetHtml = (
+      AdminFieldset({ legend: "Group", children: "Fields" }) as {
+        toString(): string;
+      }
+    ).toString();
+    const statusHtml = (
+      AdminStatus({ id: "demo-status", tone: "warning", children: "Ready" }) as {
+        toString(): string;
+      }
+    ).toString();
+    const actionsHtml = (
+      AdminActions({ children: "Actions" }) as {
+        toString(): string;
+      }
+    ).toString();
+    const formHtml = (
+      AdminForm({ id: "demo-form", children: "Fields" }) as {
+        toString(): string;
+      }
+    ).toString();
+
+    expect(formHtml).toContain('class="ct-admin__form ct-stack"');
+    expect(fieldHtml).toContain("<label");
+    expect(fieldHtml).toContain("Label");
+    expect(checkboxHtml).toContain('class="ct-admin__checkbox-row ct-checkbox-row"');
+    expect(fieldsetHtml).toContain('class="ct-admin__fieldset ct-stack"');
+    expect(statusHtml).toContain('class="ct-admin__status"');
+    expect(statusHtml).toContain('data-tone="warning"');
+    expect(actionsHtml).toContain('class="ct-admin__actions"');
+  });
+
   it("renders issued badge table rows through the shared admin components", () => {
     const html = renderIssuedBadgeRowsToString([
       {
@@ -200,6 +248,11 @@ describe("CredTrail UI styleguide", () => {
     expect(html).toContain("AdminEmptyTableRow");
     expect(html).toContain("AdminMeta");
     expect(html).toContain("AdminStatusPill");
+    expect(html).toContain("AdminForm");
+    expect(html).toContain("AdminField");
+    expect(html).toContain("AdminCheckboxRow");
+    expect(html).toContain("AdminFieldset / AdminStatus");
+    expect(html).toContain("AdminActions");
     expect(html).toContain("AdminSidebarToggle");
     expect(html).toContain("RuleBuilderConditionCardTemplate");
     expect(html).toContain("PublicBadgeButtonLink / PublicBadgeButton");

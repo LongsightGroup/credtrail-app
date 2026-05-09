@@ -35,11 +35,17 @@ import { formatIsoTimestamp } from "../utils/display-format";
 import {
   AdminButton,
   AdminButtonLink,
+  AdminActions,
+  AdminCheckboxRow,
   AdminCtaLink,
   AdminEmptyTableRow,
+  AdminField,
+  AdminFieldset,
+  AdminForm,
   AdminMeta,
   AdminShell,
   AdminSidebar,
+  AdminStatus,
   AdminStatusPill,
   AdminTable,
   AdminTopbar,
@@ -928,7 +934,7 @@ const renderInstitutionAdminPage = (
             <td>{member.userId === input.userId ? "You" : "Member"}</td>
             <td>
               {canManageMember ? (
-                <div class="ct-admin__actions">
+                <AdminActions>
                   <AdminButton
                     type="button"
                     size="tiny"
@@ -951,7 +957,7 @@ const renderInstitutionAdminPage = (
                   >
                     Remove
                   </AdminButton>
-                </div>
+                </AdminActions>
               ) : (
                 <AdminMeta as="span">
                   {member.userId === input.userId ? "Current user" : "Owner action"}
@@ -1173,7 +1179,7 @@ const renderInstitutionAdminPage = (
             <td>{formatIsoTimestamp(rule.updatedAt)}</td>
             <td>
               {actionButtons.length > 0 ? (
-                <div class="ct-admin__actions">{actionButtons}</div>
+                <AdminActions>{actionButtons}</AdminActions>
               ) : (
                 <AdminMeta as="span">No actions</AdminMeta>
               )}
@@ -2636,9 +2642,8 @@ const renderInstitutionAdminPage = (
           Hosted enterprise sign-in supports OIDC providers. Legacy SAML compatibility stays visible
           for cleanup only.
         </p>
-        <form id="enterprise-auth-policy-form" class="ct-admin__form ct-stack">
-          <label>
-            Login mode
+        <AdminForm id="enterprise-auth-policy-form">
+          <AdminField label="Login mode">
             <select name="loginMode" required>
               <option value="local" selected={enterpriseAuthPolicy.loginMode === "local"}>
                 Local only
@@ -2653,14 +2658,13 @@ const renderInstitutionAdminPage = (
                 SSO required
               </option>
             </select>
-          </label>
-          <label>
-            Default provider
+          </AdminField>
+          <AdminField label="Default provider">
             <select name="defaultProviderId">
               <option value="">No default provider</option>
               {enterpriseAuthProviderOptions}
             </select>
-          </label>
+          </AdminField>
           <p class="ct-admin__hint">
             SSO enforcement applies to the tenant login experience. Role-specific enforcement is not
             configurable in the hosted runtime.
@@ -2671,38 +2675,36 @@ const renderInstitutionAdminPage = (
               legacy default. Choose an OIDC provider before requiring institution sign-in.
             </p>
           )}
-          <label class="ct-admin__checkbox-row ct-checkbox-row">
+          <AdminCheckboxRow>
             <input
               name="breakGlassEnabled"
               type="checkbox"
               checked={enterpriseAuthPolicy.breakGlassEnabled}
             />
             Break-glass local access enabled
-          </label>
-          <label class="ct-admin__checkbox-row ct-checkbox-row">
+          </AdminCheckboxRow>
+          <AdminCheckboxRow>
             <input
               name="localMfaRequired"
               type="checkbox"
               checked={enterpriseAuthPolicy.localMfaRequired}
             />
             Require MFA for local access
-          </label>
+          </AdminCheckboxRow>
           <AdminButton type="submit">Save auth policy</AdminButton>
-        </form>
-        <p id="enterprise-auth-policy-status" class="ct-admin__status"></p>
-        <form id="enterprise-auth-provider-form" class="ct-admin__form ct-stack">
+        </AdminForm>
+        <AdminStatus id="enterprise-auth-policy-status"></AdminStatus>
+        <AdminForm id="enterprise-auth-provider-form">
           <input type="hidden" name="providerId" value="" />
           <input type="hidden" name="protocol" value="oidc" />
           <p class="ct-admin__hint">
             Add or edit hosted OIDC providers here. Use a new OIDC connection instead of modifying
             legacy SAML settings.
           </p>
-          <label>
-            OIDC provider label
+          <AdminField label="OIDC provider label">
             <input name="label" type="text" required placeholder="Campus OIDC" />
-          </label>
-          <label>
-            OIDC discovery or connection JSON
+          </AdminField>
+          <AdminField label="OIDC discovery or connection JSON">
             <textarea
               id="enterprise-auth-provider-config-json"
               name="configJson"
@@ -2711,23 +2713,23 @@ const renderInstitutionAdminPage = (
               spellcheck={false}
               placeholder='{"issuer":"https://idp.example.edu","clientId":"credtrail"}'
             ></textarea>
-          </label>
-          <label class="ct-admin__checkbox-row ct-checkbox-row">
+          </AdminField>
+          <AdminCheckboxRow>
             <input name="enabled" type="checkbox" checked />
             Provider enabled
-          </label>
-          <label class="ct-admin__checkbox-row ct-checkbox-row">
+          </AdminCheckboxRow>
+          <AdminCheckboxRow>
             <input name="isDefault" type="checkbox" />
             Set as default provider
-          </label>
+          </AdminCheckboxRow>
           <div class="ct-cluster">
             <AdminButton type="submit">Save provider</AdminButton>
             <AdminButton id="enterprise-auth-provider-reset" type="button" variant="secondary">
               Clear form
             </AdminButton>
           </div>
-        </form>
-        <p id="enterprise-auth-provider-status" class="ct-admin__status"></p>
+        </AdminForm>
+        <AdminStatus id="enterprise-auth-provider-status"></AdminStatus>
         <AdminTable
           headers={["Provider", "Protocol", "Role", "Status", "Updated", "Actions"]}
           tbodyId="enterprise-auth-provider-body"
@@ -2752,18 +2754,17 @@ const renderInstitutionAdminPage = (
             Limit local fallback access to explicit accounts only. CredTrail emails setup links and
             records recent fallback usage.
           </p>
-          <form id="break-glass-account-form" class="ct-admin__form ct-stack">
-            <label>
-              Institution email
+          <AdminForm id="break-glass-account-form">
+            <AdminField label="Institution email">
               <input name="email" type="email" required placeholder="admin@institution.edu" />
-            </label>
-            <label class="ct-admin__checkbox-row ct-checkbox-row">
+            </AdminField>
+            <AdminCheckboxRow>
               <input name="sendEnrollmentEmail" type="checkbox" checked />
               Email setup or password-reset link now
-            </label>
+            </AdminCheckboxRow>
             <AdminButton type="submit">Add break-glass account</AdminButton>
-          </form>
-          <p id="break-glass-account-status" class="ct-admin__status"></p>
+          </AdminForm>
+          <AdminStatus id="break-glass-account-status"></AdminStatus>
           <AdminTable
             headers={["Email", "Local status", "Last used", "Enrollment email", "Actions"]}
             tbodyId="break-glass-account-body"
@@ -3037,20 +3038,18 @@ const renderInstitutionAdminPage = (
     <article id="manual-issue-panel" class="ct-admin__panel ct-stack">
       <h2>Manual Issue Badge</h2>
       <p>Issue a badge for a learner using this form.</p>
-      <form id="manual-issue-form" class="ct-admin__form ct-stack">
-        <label>
-          Badge template
+      <AdminForm id="manual-issue-form">
+        <AdminField label="Badge template">
           <select name="badgeTemplateId" required>
             {templateSelectOptions}
           </select>
-        </label>
-        <label>
-          Recipient email
+        </AdminField>
+        <AdminField label="Recipient email">
           <input name="recipientIdentity" type="email" required placeholder="csev@umich.edu" />
-        </label>
+        </AdminField>
         <AdminButton type="submit">Issue badge</AdminButton>
-      </form>
-      <p id="manual-issue-status" class="ct-admin__status"></p>
+      </AdminForm>
+      <AdminStatus id="manual-issue-status"></AdminStatus>
     </article>
   );
 
@@ -3058,20 +3057,18 @@ const renderInstitutionAdminPage = (
     <article id="template-image-panel" class="ct-admin__panel ct-stack">
       <h2>Upload Badge Template Image</h2>
       <p>Upload template artwork (PNG, JPEG, or WebP, max 2 MB).</p>
-      <form id="badge-template-image-upload-form" class="ct-admin__form ct-stack">
-        <label>
-          Badge template
+      <AdminForm id="badge-template-image-upload-form">
+        <AdminField label="Badge template">
           <select name="badgeTemplateId" required>
             {templateSelectOptions}
           </select>
-        </label>
-        <label>
-          Image file
+        </AdminField>
+        <AdminField label="Image file">
           <input name="file" type="file" required accept="image/png,image/jpeg,image/webp" />
-        </label>
+        </AdminField>
         <AdminButton type="submit">Upload image</AdminButton>
-      </form>
-      <p id="badge-template-image-upload-status" class="ct-admin__status"></p>
+      </AdminForm>
+      <AdminStatus id="badge-template-image-upload-status"></AdminStatus>
     </article>
   );
 
@@ -3091,21 +3088,19 @@ const renderInstitutionAdminPage = (
         </span>
         {addDisclosureControlMarkup}
       </summary>
-      <form
+      <AdminForm
         id="api-key-form"
-        class="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--api-key ct-grid"
+        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--api-key ct-grid"
       >
-        <label>
-          Label
+        <AdminField label="Label">
           <input name="label" type="text" required value="Institution integration key" />
-        </label>
-        <label>
-          Scopes (comma separated)
+        </AdminField>
+        <AdminField label="Scopes (comma separated)">
           <input name="scopes" type="text" value="queue.issue, queue.revoke" />
-        </label>
+        </AdminField>
         <AdminButton type="submit">Create API key</AdminButton>
-      </form>
-      <p id="api-key-status" class="ct-admin__status"></p>
+      </AdminForm>
+      <AdminStatus id="api-key-status"></AdminStatus>
       <pre id="api-key-secret" class="ct-admin__secret" hidden></pre>
     </details>
   );
@@ -3122,37 +3117,33 @@ const renderInstitutionAdminPage = (
       <p class="ct-admin__hint">
         Hierarchy: college → institution, department → college, program → department.
       </p>
-      <form
+      <AdminForm
         id="org-unit-form"
-        class="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--org-unit ct-grid"
+        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--org-unit ct-grid"
       >
-        <label>
-          Unit type
+        <AdminField label="Unit type">
           <select name="unitType" required>
             <option value="college">College</option>
             <option value="department">Department</option>
             <option value="program">Program</option>
             <option value="institution">Institution</option>
           </select>
-        </label>
-        <label>
-          Slug
+        </AdminField>
+        <AdminField label="Slug">
           <input name="slug" type="text" required placeholder="engineering-college" />
-        </label>
-        <label>
-          Display name
+        </AdminField>
+        <AdminField label="Display name">
           <input name="displayName" type="text" required placeholder="College of Engineering" />
-        </label>
-        <label>
-          Parent org unit
+        </AdminField>
+        <AdminField label="Parent org unit">
           <select name="parentOrgUnitId">
             <option value="">None</option>
             {orgUnitParentOptions}
           </select>
-        </label>
+        </AdminField>
         <AdminButton type="submit">Create org unit</AdminButton>
-      </form>
-      <p id="org-unit-status" class="ct-admin__status"></p>
+      </AdminForm>
+      <AdminStatus id="org-unit-status"></AdminStatus>
     </details>
   );
 
@@ -3189,27 +3180,25 @@ const renderInstitutionAdminPage = (
         </span>
         {addDisclosureControlMarkup}
       </summary>
-      <form
+      <AdminForm
         id="tenant-member-form"
-        class="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--member ct-grid"
+        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--member ct-grid"
       >
-        <label>
-          Institution email
+        <AdminField label="Institution email">
           <input name="email" type="email" required placeholder="colleague@institution.edu" />
-        </label>
-        <label>
-          Tenant role
+        </AdminField>
+        <AdminField label="Tenant role">
           <select name="role" required>
             {tenantMemberRoleSelectOptions}
           </select>
-        </label>
-        <label class="ct-admin__checkbox-row ct-checkbox-row">
+        </AdminField>
+        <AdminCheckboxRow>
           <input name="sendInvite" type="checkbox" checked />
           Email sign-in invite now
-        </label>
+        </AdminCheckboxRow>
         <AdminButton type="submit">Save member</AdminButton>
-      </form>
-      <p id="tenant-member-status" class="ct-admin__status"></p>
+      </AdminForm>
+      <AdminStatus id="tenant-member-status"></AdminStatus>
     </details>
   );
 
@@ -3226,7 +3215,7 @@ const renderInstitutionAdminPage = (
       >
         {tenantMemberRows}
       </AdminTable>
-      <p id="tenant-member-list-status" class="ct-admin__status"></p>
+      <AdminStatus id="tenant-member-list-status"></AdminStatus>
     </article>
   );
 
@@ -3275,28 +3264,25 @@ const renderInstitutionAdminPage = (
     <article class="ct-admin__panel ct-stack">
       <h2>Scoped Roles</h2>
       <p>Assign the smallest org-unit role that matches the person’s ongoing responsibilities.</p>
-      <form id="membership-scope-form" class="ct-admin__form ct-stack">
-        <label>
-          Tenant member user ID
+      <AdminForm id="membership-scope-form">
+        <AdminField label="Tenant member user ID">
           <input name="userId" type="text" required placeholder="usr_issuer" />
-        </label>
+        </AdminField>
         <p class="ct-admin__hint">
           This is the person receiving access. They must already belong to this tenant.
         </p>
-        <label>
-          Org unit
+        <AdminField label="Org unit">
           <select name="orgUnitId" required>
             {activeOrgUnitSelectOptions}
           </select>
-        </label>
-        <label>
-          Scoped role
+        </AdminField>
+        <AdminField label="Scoped role">
           <select name="role" required>
             <option value="viewer">viewer</option>
             <option value="issuer">issuer</option>
             <option value="admin">admin</option>
           </select>
-        </label>
+        </AdminField>
         <ul>
           <li>
             <strong>viewer</strong> can view in-scope templates and governance context.
@@ -3310,8 +3296,8 @@ const renderInstitutionAdminPage = (
           </li>
         </ul>
         <AdminButton type="submit">Save scoped role</AdminButton>
-      </form>
-      <p id="membership-scope-status" class="ct-admin__status"></p>
+      </AdminForm>
+      <AdminStatus id="membership-scope-status"></AdminStatus>
     </article>
   );
 
@@ -3325,7 +3311,7 @@ const renderInstitutionAdminPage = (
       >
         {membershipScopeRows}
       </AdminTable>
-      <p id="membership-scope-list-status" class="ct-admin__status"></p>
+      <AdminStatus id="membership-scope-list-status"></AdminStatus>
     </article>
   );
 
@@ -3333,62 +3319,56 @@ const renderInstitutionAdminPage = (
     <article class="ct-admin__panel ct-stack">
       <h2>Delegated Authority</h2>
       <p>Grant time-boxed badge authority without changing the person’s standing org-unit role.</p>
-      <form id="delegated-grant-form" class="ct-admin__form ct-stack">
-        <label>
-          Delegate user ID
+      <AdminForm id="delegated-grant-form">
+        <AdminField label="Delegate user ID">
           <input name="delegateUserId" type="text" required placeholder="usr_issuer" />
-        </label>
+        </AdminField>
         <p class="ct-admin__hint">This is the tenant member receiving the delegation.</p>
-        <label>
-          Org unit
+        <AdminField label="Org unit">
           <select name="orgUnitId" required>
             {activeOrgUnitSelectOptions}
           </select>
-        </label>
-        <fieldset class="ct-admin__fieldset ct-stack">
-          <legend>Allowed badge actions</legend>
-          <label class="ct-admin__checkbox-row ct-checkbox-row">
+        </AdminField>
+        <AdminFieldset legend="Allowed badge actions">
+          <AdminCheckboxRow>
             <input name="allowedAction" type="checkbox" value="issue_badge" checked />
             Issue badges
-          </label>
-          <label class="ct-admin__checkbox-row ct-checkbox-row">
+          </AdminCheckboxRow>
+          <AdminCheckboxRow>
             <input name="allowedAction" type="checkbox" value="revoke_badge" />
             Revoke badges
-          </label>
-          <label class="ct-admin__checkbox-row ct-checkbox-row">
+          </AdminCheckboxRow>
+          <AdminCheckboxRow>
             <input name="allowedAction" type="checkbox" value="manage_lifecycle" />
             Change badge status
-          </label>
-        </fieldset>
+          </AdminCheckboxRow>
+        </AdminFieldset>
         <p class="ct-admin__hint">
           “Change badge status” covers non-revocation lifecycle changes such as suspend, expire, or
           restore.
         </p>
-        <label>
-          Limit to badge template IDs (optional)
+        <AdminField label="Limit to badge template IDs (optional)">
           <input
             name="badgeTemplateIds"
             type="text"
             placeholder="badge_template_001,badge_template_002"
           />
-        </label>
+        </AdminField>
         <p class="ct-admin__hint">
           Leave blank to allow all badge templates inside the selected org-unit scope.
         </p>
-        <label>
-          Ends at
+        <AdminField label="Ends at">
           <input name="endsAt" type="datetime-local" required />
-        </label>
+        </AdminField>
         <p class="ct-admin__hint">
           Delegations are time-boxed. Choose when this authority should expire.
         </p>
-        <label>
-          Reason (optional)
+        <AdminField label="Reason (optional)">
           <input name="reason" type="text" placeholder="Coverage for spring term operations." />
-        </label>
+        </AdminField>
         <AdminButton type="submit">Save delegation</AdminButton>
-      </form>
-      <p id="delegated-grant-status" class="ct-admin__status"></p>
+      </AdminForm>
+      <AdminStatus id="delegated-grant-status"></AdminStatus>
     </article>
   );
 
@@ -3402,7 +3382,7 @@ const renderInstitutionAdminPage = (
       >
         {delegatedGrantRows}
       </AdminTable>
-      <p id="delegated-grant-list-status" class="ct-admin__status"></p>
+      <AdminStatus id="delegated-grant-list-status"></AdminStatus>
     </article>
   );
 
@@ -3413,20 +3393,17 @@ const renderInstitutionAdminPage = (
         Create reusable course and badge-template lists so authors stop copying long IDs into every
         rule.
       </p>
-      <form id="rule-value-list-form" class="ct-admin__form ct-stack">
-        <label>
-          Label
+      <AdminForm id="rule-value-list-form">
+        <AdminField label="Label">
           <input name="label" type="text" required placeholder="Core CS sequence" />
-        </label>
-        <label>
-          List kind
+        </AdminField>
+        <AdminField label="List kind">
           <select name="kind" required>
             <option value="course_ids">Course IDs</option>
             <option value="badge_template_ids">Badge template IDs</option>
           </select>
-        </label>
-        <label>
-          Values (comma separated)
+        </AdminField>
+        <AdminField label="Values (comma separated)">
           <textarea
             name="values"
             rows={4}
@@ -3434,10 +3411,10 @@ const renderInstitutionAdminPage = (
             spellcheck={false}
             placeholder="CS101, CS102, CS103"
           ></textarea>
-        </label>
+        </AdminField>
         <AdminButton type="submit">Create value list</AdminButton>
-      </form>
-      <p id="rule-value-list-status" class="ct-admin__status"></p>
+      </AdminForm>
+      <AdminStatus id="rule-value-list-status"></AdminStatus>
       <AdminTable headers={["Label", "Kind", "Values"]} tbodyId="rule-value-list-body">
         <AdminEmptyTableRow colSpan={3}>No rule value lists loaded yet.</AdminEmptyTableRow>
       </AdminTable>
@@ -3448,27 +3425,22 @@ const renderInstitutionAdminPage = (
     <article class="ct-admin__panel ct-stack">
       <h2>Evaluate Rule</h2>
       <p>Run rule evaluation in dry run mode before issuing for real.</p>
-      <form id="rule-evaluate-form" class="ct-admin__form ct-stack">
-        <label>
-          Rule
+      <AdminForm id="rule-evaluate-form">
+        <AdminField label="Rule">
           <select name="ruleId" required>
             {ruleSelectOptions}
           </select>
-        </label>
-        <label>
-          Learner ID
+        </AdminField>
+        <AdminField label="Learner ID">
           <input name="learnerId" type="text" required placeholder="canvas:12345" />
-        </label>
-        <label>
-          Recipient email
+        </AdminField>
+        <AdminField label="Recipient email">
           <input name="recipientIdentity" type="email" required placeholder="learner@example.edu" />
-        </label>
-        <label>
-          Course ID for provided facts
+        </AdminField>
+        <AdminField label="Course ID for provided facts">
           <input name="courseId" type="text" required placeholder="CS101" />
-        </label>
-        <label>
-          Final score for provided facts
+        </AdminField>
+        <AdminField label="Final score for provided facts">
           <input
             name="finalScore"
             type="number"
@@ -3478,18 +3450,18 @@ const renderInstitutionAdminPage = (
             required
             value="92"
           />
-        </label>
-        <label class="ct-admin__checkbox-row ct-checkbox-row">
+        </AdminField>
+        <AdminCheckboxRow>
           <input name="completed" type="checkbox" checked />
           Learner completed course
-        </label>
-        <label class="ct-admin__checkbox-row ct-checkbox-row">
+        </AdminCheckboxRow>
+        <AdminCheckboxRow>
           <input name="dryRun" type="checkbox" checked />
           Dry run (don’t issue badge)
-        </label>
+        </AdminCheckboxRow>
         <AdminButton type="submit">Evaluate rule</AdminButton>
-      </form>
-      <p id="rule-evaluate-status" class="ct-admin__status"></p>
+      </AdminForm>
+      <AdminStatus id="rule-evaluate-status"></AdminStatus>
     </article>
   );
 
@@ -3500,31 +3472,27 @@ const renderInstitutionAdminPage = (
         Look up a badge, review its current status, and apply state changes with institutional
         reason codes.
       </p>
-      <form id="assertion-lifecycle-view-form" class="ct-admin__form ct-stack">
-        <label>
-          Assertion ID
+      <AdminForm id="assertion-lifecycle-view-form">
+        <AdminField label="Assertion ID">
           <input name="assertionId" type="text" required placeholder="tenant_123:assertion_456" />
-        </label>
+        </AdminField>
         <AdminButton type="submit">Load lifecycle</AdminButton>
-      </form>
-      <p id="assertion-lifecycle-view-status" class="ct-admin__status"></p>
+      </AdminForm>
+      <AdminStatus id="assertion-lifecycle-view-status"></AdminStatus>
       <pre id="assertion-lifecycle-output" class="ct-admin__code-output" hidden></pre>
-      <form id="assertion-lifecycle-transition-form" class="ct-admin__form ct-stack">
-        <label>
-          Assertion ID
+      <AdminForm id="assertion-lifecycle-transition-form">
+        <AdminField label="Assertion ID">
           <input name="assertionId" type="text" required placeholder="tenant_123:assertion_456" />
-        </label>
-        <label>
-          Transition to
+        </AdminField>
+        <AdminField label="Transition to">
           <select name="toState" required>
             <option value="active">active</option>
             <option value="suspended">suspended</option>
             <option value="revoked">revoked</option>
             <option value="expired">expired</option>
           </select>
-        </label>
-        <label>
-          Reason code
+        </AdminField>
+        <AdminField label="Reason code">
           <select name="reasonCode" required>
             <option value="administrative_hold">administrative_hold</option>
             <option value="policy_violation">policy_violation</option>
@@ -3534,18 +3502,17 @@ const renderInstitutionAdminPage = (
             <option value="issuer_requested">issuer_requested</option>
             <option value="other">other</option>
           </select>
-        </label>
-        <label>
-          Reason details (optional)
+        </AdminField>
+        <AdminField label="Reason details (optional)">
           <input
             name="reason"
             type="text"
             placeholder="Explain why this transition is being applied."
           />
-        </label>
+        </AdminField>
         <AdminButton type="submit">Apply transition</AdminButton>
-      </form>
-      <p id="assertion-lifecycle-transition-status" class="ct-admin__status"></p>
+      </AdminForm>
+      <AdminStatus id="assertion-lifecycle-transition-status"></AdminStatus>
     </article>
   );
 
@@ -3553,20 +3520,18 @@ const renderInstitutionAdminPage = (
     <article class="ct-admin__panel ct-stack">
       <h2>Rule Governance Context</h2>
       <p>Inspect latest approval chain and rule audit events for operator drill-down.</p>
-      <form id="rule-governance-form" class="ct-admin__form ct-stack">
-        <label>
-          Rule
+      <AdminForm id="rule-governance-form">
+        <AdminField label="Rule">
           <select name="ruleId" required>
             {ruleSelectOptions}
           </select>
-        </label>
-        <label>
-          Audit log limit
+        </AdminField>
+        <AdminField label="Audit log limit">
           <input name="auditLimit" type="number" min="1" max="100" step="1" value="20" />
-        </label>
+        </AdminField>
         <AdminButton type="submit">Load governance context</AdminButton>
-      </form>
-      <p id="rule-governance-status" class="ct-admin__status"></p>
+      </AdminForm>
+      <AdminStatus id="rule-governance-status"></AdminStatus>
       <pre id="rule-governance-output" class="ct-admin__code-output" hidden></pre>
     </article>
   );
@@ -3578,14 +3543,12 @@ const renderInstitutionAdminPage = (
         Missing-data evaluations that require a human issue-or-dismiss decision before a badge is
         created.
       </p>
-      <div class="ct-admin__actions">
+      <AdminActions>
         <AdminButton id="rule-review-queue-refresh" type="button" size="tiny" variant="secondary">
           Refresh review queue
         </AdminButton>
-      </div>
-      <p id="rule-review-queue-status" class="ct-admin__status">
-        No review queue entries loaded yet.
-      </p>
+      </AdminActions>
+      <AdminStatus id="rule-review-queue-status">No review queue entries loaded yet.</AdminStatus>
       <AdminTable
         headers={["Evaluated", "Recipient", "Rule", "Summary", "Actions"]}
         tbodyId="rule-review-queue-body"
@@ -3599,24 +3562,24 @@ const renderInstitutionAdminPage = (
     <article id="issued-badges-panel" class="ct-admin__panel ct-admin__panel--table ct-stack">
       <h2>Issued Badges Ledger</h2>
       <p>Tenant-wide assertion log with direct audit and revocation actions.</p>
-      <form id="issued-badges-filter-form" class="ct-admin__form ct-admin__form--inline ct-grid">
-        <label>
-          Recipient / assertion search
+      <AdminForm
+        id="issued-badges-filter-form"
+        className="ct-admin__form ct-admin__form--inline ct-grid"
+      >
+        <AdminField label="Recipient / assertion search">
           <input
             name="recipientQuery"
             type="text"
             placeholder="csev@umich.edu or tenant_123:assertion_456"
           />
-        </label>
-        <label>
-          Badge template
+        </AdminField>
+        <AdminField label="Badge template">
           <select name="badgeTemplateId">
             <option value="">All templates</option>
             {templateFilterOptions}
           </select>
-        </label>
-        <label>
-          Lifecycle state
+        </AdminField>
+        <AdminField label="Lifecycle state">
           <select name="state">
             <option value="">All states</option>
             <option value="active">active</option>
@@ -3624,13 +3587,12 @@ const renderInstitutionAdminPage = (
             <option value="revoked">revoked</option>
             <option value="expired">expired</option>
           </select>
-        </label>
-        <label>
-          Limit
+        </AdminField>
+        <AdminField label="Limit">
           <input name="limit" type="number" min="1" max="500" step="1" value="100" />
-        </label>
+        </AdminField>
         <AdminButton type="submit">Load issued badges</AdminButton>
-      </form>
+      </AdminForm>
       <section class="ct-admin__panel ct-admin__panel--nested ct-stack">
         <div class="ct-cluster">
           <h3>Ledger export</h3>
@@ -3641,36 +3603,31 @@ const renderInstitutionAdminPage = (
           separate from the browser-loaded ledger list and runs as a plain server-side attachment
           response.
         </p>
-        <form
+        <AdminForm
           id="issued-badges-export-form"
           method="get"
           action={`/v1/tenants/${input.tenant.id}/assertions/ledger-export.csv`}
-          class="ct-admin__form ct-admin__form--inline ct-grid"
+          className="ct-admin__form ct-admin__form--inline ct-grid"
         >
-          <label>
-            Issued from
+          <AdminField label="Issued from">
             <input name="issuedFrom" type="date" />
-          </label>
-          <label>
-            Issued to
+          </AdminField>
+          <AdminField label="Issued to">
             <input name="issuedTo" type="date" />
-          </label>
-          <label>
-            Badge template
+          </AdminField>
+          <AdminField label="Badge template">
             <select name="badgeTemplateId">
               <option value="">All templates</option>
               {templateFilterOptions}
             </select>
-          </label>
-          <label>
-            Org unit
+          </AdminField>
+          <AdminField label="Org unit">
             <select name="orgUnitId">
               <option value="">All org units</option>
               {activeOrgUnitOptions}
             </select>
-          </label>
-          <label>
-            Lifecycle state
+          </AdminField>
+          <AdminField label="Lifecycle state">
             <select name="state">
               <option value="">All current states</option>
               <option value="active">active</option>
@@ -3679,17 +3636,16 @@ const renderInstitutionAdminPage = (
               <option value="expired">expired</option>
               <option value="pending_review">pending review</option>
             </select>
-          </label>
-          <label>
-            Recipient / assertion search
+          </AdminField>
+          <AdminField label="Recipient / assertion search">
             <input
               name="recipientQuery"
               type="text"
               placeholder="Filter by recipient, identifier, or assertion ID"
             />
-          </label>
+          </AdminField>
           <AdminButton type="submit">Export ledger CSV</AdminButton>
-        </form>
+        </AdminForm>
         <p class="ct-admin__hint">
           Synchronous CSV export is capped at 5000 rows. Narrow the filters above if the export is
           too large for direct download.
@@ -3699,16 +3655,14 @@ const renderInstitutionAdminPage = (
           remains the historical contract for audit use.
         </p>
       </section>
-      <p id="issued-badges-status" class="ct-admin__status">
-        Load tenant assertions from the browser.
-      </p>
+      <AdminStatus id="issued-badges-status">Load tenant assertions from the browser.</AdminStatus>
       <AdminTable
         headers={["Issued", "Recipient", "Template", "State", "Assertion", "Actions"]}
         tbodyId="issued-badges-body"
       >
         <AdminEmptyTableRow colSpan={6}>No assertions loaded yet.</AdminEmptyTableRow>
       </AdminTable>
-      <p id="issued-badges-action-status" class="ct-admin__status"></p>
+      <AdminStatus id="issued-badges-action-status"></AdminStatus>
     </article>
   );
 
@@ -3717,37 +3671,34 @@ const renderInstitutionAdminPage = (
     formClass = "ct-admin__form ct-admin__form--inline ct-grid",
   ): HonoElement => (
     <>
-      <form
+      <AdminForm
         id="reporting-filters-form"
         method="get"
         action={actionPath}
-        class={formClass}
-        data-reporting-submit-state="idle"
+        className={formClass}
+        dataAttributes={{
+          "data-reporting-submit-state": "idle",
+        }}
       >
-        <label>
-          Issued from
+        <AdminField label="Issued from">
           <input name="issuedFrom" type="date" value={reportingIssuedFromValue} />
-        </label>
-        <label>
-          Issued to
+        </AdminField>
+        <AdminField label="Issued to">
           <input name="issuedTo" type="date" value={reportingIssuedToValue} />
-        </label>
-        <label>
-          Badge template
+        </AdminField>
+        <AdminField label="Badge template">
           <select name="badgeTemplateId">
             <option value="">All templates</option>
             {reportingTemplateFilterOptions}
           </select>
-        </label>
-        <label>
-          Org unit
+        </AdminField>
+        <AdminField label="Org unit">
           <select name="orgUnitId">
             <option value="">All org units</option>
             {reportingOrgUnitOptions}
           </select>
-        </label>
-        <label>
-          Lifecycle state
+        </AdminField>
+        <AdminField label="Lifecycle state">
           <select name="state">
             <option value="">All current states</option>
             <option value="active" selected={reportingState === "active"}>
@@ -3766,14 +3717,14 @@ const renderInstitutionAdminPage = (
               pending review
             </option>
           </select>
-        </label>
+        </AdminField>
         <div class="ct-cluster">
           <AdminButton type="submit">Apply filters</AdminButton>
           <AdminButtonLink href={reportingPath} variant="secondary">
             Reset
           </AdminButtonLink>
         </div>
-      </form>
+      </AdminForm>
       <p
         id="reporting-filters-status"
         class="ct-admin__hint"
@@ -4030,7 +3981,7 @@ const renderInstitutionAdminPage = (
       >
         {ruleRows}
       </AdminTable>
-      <p id="rule-action-status" class="ct-admin__status"></p>
+      <AdminStatus id="rule-action-status"></AdminStatus>
     </article>
   );
 
@@ -4057,7 +4008,7 @@ const renderInstitutionAdminPage = (
       <AdminTable headers={["Label", "Prefix", "Scopes", "Expires", "Action"]}>
         {apiKeyRows}
       </AdminTable>
-      <p id="api-key-revoke-status" class="ct-admin__status"></p>
+      <AdminStatus id="api-key-revoke-status"></AdminStatus>
     </article>
   );
 
@@ -4163,10 +4114,10 @@ const renderInstitutionAdminPage = (
       return (
         <article class="ct-admin__panel ct-stack">
           <h2>No learner record found</h2>
-          <p class="ct-admin__status" data-tone="warning">
+          <AdminStatus tone="warning">
             No learner profile matched this lookup. Check the learner profile ID or email and try
             again.
-          </p>
+          </AdminStatus>
         </article>
       );
     }
@@ -4255,32 +4206,30 @@ const renderInstitutionAdminPage = (
         with this tenant. This page is review-only and intentionally stops short of broader ingest
         or transcript workflow claims.
       </p>
-      <form method="get" action={operationsLearnerRecordsPath} class="ct-admin__form ct-stack">
-        <label>
-          Learner profile ID
+      <AdminForm method="get" action={operationsLearnerRecordsPath}>
+        <AdminField label="Learner profile ID">
           <input
             name="learnerProfileId"
             type="text"
             value={learnerRecordReview.lookup.learnerProfileId ?? ""}
             placeholder="lpr_123"
           />
-        </label>
-        <label>
-          Learner email
+        </AdminField>
+        <AdminField label="Learner email">
           <input
             name="email"
             type="email"
             value={learnerRecordReview.lookup.email ?? ""}
             placeholder="learner@example.edu"
           />
-        </label>
+        </AdminField>
         <div class="ct-admin__workspace-actions">
           <AdminButton type="submit">Load learner record</AdminButton>
           <AdminButtonLink href={operationsLearnerRecordsPath} variant="secondary">
             Clear lookup
           </AdminButtonLink>
         </div>
-      </form>
+      </AdminForm>
     </article>
   );
 
@@ -4384,25 +4333,14 @@ const renderInstitutionAdminPage = (
             </p>
           </article>
         </section>
-        <div class="ct-admin__table-shell">
-          <table class="ct-admin__table">
-            <thead>
-              <tr>
-                <th>Row</th>
-                <th>Status</th>
-                <th>Learner and record</th>
-                <th>Trust</th>
-                <th>Smart defaults</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {learnerRecordImportWorkflow.submission.rows.map((report) =>
-                renderLearnerRecordImportRowReport(report),
-              )}
-            </tbody>
-          </table>
-        </div>
+        <AdminTable
+          headers={["Row", "Status", "Learner and record", "Trust", "Smart defaults", "Notes"]}
+          wrapperClassName="ct-admin__table-shell"
+        >
+          {learnerRecordImportWorkflow.submission.rows.map((report) =>
+            renderLearnerRecordImportRowReport(report),
+          )}
+        </AdminTable>
       </article>
     );
 
@@ -4448,13 +4386,13 @@ const renderInstitutionAdminPage = (
           {learnerRecordImportWorkflow.progress.batches.map((batch) => {
             const retryMarkup =
               batch.failedRows === 0 ? null : (
-                <form
+                <AdminForm
                   method="post"
                   action={`${operationsLearnerRecordImportsPath}/${encodeURIComponent(batch.batchId)}/retry`}
-                  class="ct-stack"
+                  className="ct-stack"
                 >
                   <AdminButton type="submit">Retry failed rows</AdminButton>
-                </form>
+                </AdminForm>
               );
 
             return (
@@ -4473,9 +4411,7 @@ const renderInstitutionAdminPage = (
                   </p>
                   <p class="ct-admin__meta">Updated {formatIsoTimestamp(batch.lastUpdatedAt)}</p>
                   {batch.latestError === null ? null : (
-                    <p class="ct-admin__status" data-tone="warning">
-                      {batch.latestError}
-                    </p>
+                    <AdminStatus tone="warning">{batch.latestError}</AdminStatus>
                   )}
                 </div>
                 {retryMarkup}
@@ -4500,14 +4436,13 @@ const renderInstitutionAdminPage = (
           Download CSV template
         </AdminCtaLink>
       </div>
-      <form
+      <AdminForm
         method="post"
-        enctype="multipart/form-data"
+        encType="multipart/form-data"
         action={learnerRecordImportWorkflow.previewPath}
-        class="ct-admin__form ct-stack"
+        className="ct-admin__form ct-stack"
       >
-        <label>
-          Batch default trust level
+        <AdminField label="Batch default trust level">
           <select name="defaultTrustLevel">
             <option
               value="issuer_verified"
@@ -4526,20 +4461,18 @@ const renderInstitutionAdminPage = (
               learner supplemental
             </option>
           </select>
-        </label>
-        <label>
-          Default issuer name
+        </AdminField>
+        <AdminField label="Default issuer name">
           <input
             name="defaultIssuerName"
             type="text"
             value={learnerRecordImportWorkflow.defaults.defaultIssuerName}
             placeholder={input.tenant.displayName}
           />
-        </label>
-        <label>
-          CSV file
+        </AdminField>
+        <AdminField label="CSV file">
           <input name="file" type="file" accept=".csv,text/csv" />
-        </label>
+        </AdminField>
         <p class="ct-admin__hint">
           Smart defaults only infer from the current org-unit tree and live badge-template
           ownership. Missing context stays explicit instead of being fabricated.
@@ -4550,7 +4483,7 @@ const renderInstitutionAdminPage = (
             Queue import
           </AdminButton>
         </div>
-      </form>
+      </AdminForm>
     </article>
   );
 

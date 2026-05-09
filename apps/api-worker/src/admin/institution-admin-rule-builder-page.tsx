@@ -9,9 +9,14 @@ import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../ui/render-page";
 import {
   AdminButton,
+  AdminCheckboxRow,
   AdminEmptyTableRow,
+  AdminField,
+  AdminFieldset,
+  AdminForm,
   AdminShell,
   AdminSidebar,
+  AdminStatus,
   AdminTable,
   AdminTopbar,
   type AdminSidebarFooterLink,
@@ -99,18 +104,17 @@ const RuleBuilderConditionCardTemplate = (): HonoElement => {
             </div>
           </div>
           <div class="ct-admin__condition-header-fields ct-admin__builder-grid ct-grid">
-            <label>
-              Type
+            <AdminField label="Type">
               <select class="ct-admin__condition-type">
                 {ruleBuilderConditionTypes.map((conditionType) => (
                   <option value={conditionType.value}>{conditionType.label}</option>
                 ))}
               </select>
-            </label>
-            <label class="ct-admin__checkbox-row ct-checkbox-row">
+            </AdminField>
+            <AdminCheckboxRow>
               <input type="checkbox" data-field="negate" />
               Invert (NOT)
-            </label>
+            </AdminCheckboxRow>
           </div>
         </header>
         <p class="ct-admin__condition-help"></p>
@@ -370,7 +374,7 @@ export const institutionAdminRuleBuilderPage = (input: {
           </section>
 
           <div class="ct-admin__builder-main ct-stack">
-            <form id="rule-create-form" class="ct-admin__form ct-stack">
+            <AdminForm id="rule-create-form">
               <section
                 id="builder-step-metadata"
                 class="ct-admin__builder-step"
@@ -382,20 +386,17 @@ export const institutionAdminRuleBuilderPage = (input: {
                   <p>Set the permanent rule identity before you work on conditions or testing.</p>
                 </header>
                 <div class="ct-admin__builder-grid ct-grid">
-                  <label>
-                    Rule name
+                  <AdminField label="Rule name">
                     <input name="name" type="text" required placeholder="CS101 Excellence Rule" />
-                  </label>
-                  <label>
-                    Description (optional)
+                  </AdminField>
+                  <AdminField label="Description (optional)">
                     <input
                       name="description"
                       type="text"
                       placeholder="Award when learner completes CS101 with strong performance."
                     />
-                  </label>
-                  <label>
-                    Badge template
+                  </AdminField>
+                  <AdminField label="Badge template">
                     <select name="badgeTemplateId" required>
                       {templateOptions.length === 0 ? (
                         <option value="">No badge templates available</option>
@@ -407,9 +408,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                         ))
                       )}
                     </select>
-                  </label>
-                  <label>
-                    LMS provider
+                  </AdminField>
+                  <AdminField label="LMS provider">
                     <select name="lmsProviderKind" required>
                       <option value="canvas">Canvas</option>
                       <option value="sakai">Sakai</option>
@@ -417,7 +417,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                       <option value="blackboard_ultra">Blackboard Ultra</option>
                       <option value="d2l_brightspace">D2L Brightspace</option>
                     </select>
-                  </label>
+                  </AdminField>
                 </div>
               </section>
 
@@ -438,15 +438,14 @@ export const institutionAdminRuleBuilderPage = (input: {
                 <div class="ct-admin__builder-workbench ct-stack">
                   <div class="ct-admin__builder-workbench-main ct-stack">
                     <div class="ct-admin__builder-toolbar ct-cluster">
-                      <label class="ct-admin__inline-control">
-                        Root logic
+                      <AdminField label="Root logic" className="ct-admin__inline-control">
                         <select id="rule-builder-root-logic" name="rootLogic">
                           <option value="all" selected>
                             AND (all conditions must pass)
                           </option>
                           <option value="any">OR (any condition can pass)</option>
                         </select>
-                      </label>
+                      </AdminField>
                       <AdminButton type="button" id="rule-builder-add-condition" size="tiny">
                         Add condition card
                       </AdminButton>
@@ -527,15 +526,14 @@ export const institutionAdminRuleBuilderPage = (input: {
 
                 <details class="ct-admin__builder-advanced ct-stack">
                   <summary>Advanced JSON editor</summary>
-                  <label>
-                    Rule JSON (advanced)
+                  <AdminField label="Rule JSON (advanced)">
                     <textarea
                       id="rule-builder-definition-json"
                       name="definitionJson"
                       rows={12}
                       spellcheck={false}
                     ></textarea>
-                  </label>
+                  </AdminField>
                   <div class="ct-admin__builder-inline ct-cluster">
                     <AdminButton id="rule-builder-apply-json" type="button" size="tiny">
                       Apply JSON to builder
@@ -559,26 +557,21 @@ export const institutionAdminRuleBuilderPage = (input: {
                   </p>
                 </header>
                 <div class="ct-admin__builder-test-layout ct-grid">
-                  <fieldset class="ct-admin__fieldset ct-stack">
-                    <legend>Representative learner facts</legend>
-                    <label>
-                      Learner ID
+                  <AdminFieldset legend="Representative learner facts">
+                    <AdminField label="Learner ID">
                       <input name="testLearnerId" type="text" value="canvas:12345" />
-                    </label>
-                    <label>
-                      Recipient email
+                    </AdminField>
+                    <AdminField label="Recipient email">
                       <input
                         name="testRecipientIdentity"
                         type="email"
                         value="learner@example.edu"
                       />
-                    </label>
-                    <label>
-                      Sample course ID
+                    </AdminField>
+                    <AdminField label="Sample course ID">
                       <input name="testCourseId" type="text" value="CS101" />
-                    </label>
-                    <label>
-                      Sample final score
+                    </AdminField>
+                    <AdminField label="Sample final score">
                       <input
                         name="testFinalScore"
                         type="number"
@@ -587,19 +580,17 @@ export const institutionAdminRuleBuilderPage = (input: {
                         step="0.01"
                         value="92"
                       />
-                    </label>
-                    <label class="ct-admin__checkbox-row ct-checkbox-row">
+                    </AdminField>
+                    <AdminCheckboxRow>
                       <input name="testCompleted" type="checkbox" checked />
                       Learner completed course
-                    </label>
-                  </fieldset>
+                    </AdminCheckboxRow>
+                  </AdminFieldset>
 
                   <div class="ct-admin__builder-test-rail ct-stack">
-                    <fieldset class="ct-admin__fieldset ct-stack">
-                      <legend>Test presets</legend>
+                    <AdminFieldset legend="Test presets">
                       <div class="ct-admin__builder-inline ct-cluster">
-                        <label class="ct-admin__inline-control">
-                          Test fact preset
+                        <AdminField label="Test fact preset" className="ct-admin__inline-control">
                           <select id="rule-builder-test-preset" name="testPreset">
                             <option value="canvas_course_grade" selected>
                               Canvas course + grade
@@ -608,7 +599,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                             <option value="assignment_submission">Assignment submission</option>
                             <option value="prerequisite_badge">Prerequisite badge</option>
                           </select>
-                        </label>
+                        </AdminField>
                         <AdminButton
                           id="rule-builder-apply-test-preset"
                           type="button"
@@ -621,19 +612,18 @@ export const institutionAdminRuleBuilderPage = (input: {
                       <AdminButton id="rule-builder-test" type="button" size="tiny">
                         Test rule
                       </AdminButton>
-                    </fieldset>
+                    </AdminFieldset>
 
                     <details class="ct-admin__builder-advanced ct-stack">
                       <summary>Advanced facts JSON</summary>
-                      <label>
-                        Advanced facts JSON (optional)
+                      <AdminField label="Advanced facts JSON (optional)">
                         <textarea
                           name="testFactsJson"
                           rows={6}
                           spellcheck={false}
                           placeholder='{"grades":[{"courseId":"CS101","learnerId":"canvas:12345","finalScore":92}]}'
                         ></textarea>
-                      </label>
+                      </AdminField>
                     </details>
                   </div>
                 </div>
@@ -656,31 +646,28 @@ export const institutionAdminRuleBuilderPage = (input: {
                 </header>
                 <div class="ct-admin__builder-review-layout ct-grid">
                   <div class="ct-stack">
-                    <label>
-                      Approval roles (comma separated)
+                    <AdminField label="Approval roles (comma separated)">
                       <input name="approvalRoles" type="text" value="admin,owner" />
-                    </label>
-                    <label>
-                      Issuance timing
+                    </AdminField>
+                    <AdminField label="Issuance timing">
                       <select name="issuanceTiming">
                         <option value="immediate">Immediate</option>
                         <option value="manual">Manual review trigger</option>
                         <option value="end_of_term">End of term batch</option>
                       </select>
-                    </label>
-                    <label>
-                      Change summary (optional)
+                    </AdminField>
+                    <AdminField label="Change summary (optional)">
                       <input
                         name="changeSummary"
                         type="text"
                         placeholder="Initial draft for committee review."
                       />
-                    </label>
-                    <label class="ct-admin__checkbox-row ct-checkbox-row">
+                    </AdminField>
+                    <AdminCheckboxRow>
                       <input name="reviewOnMissingFacts" type="checkbox" />
                       Route missing-data cases to human review instead of treating them as a simple
                       no-match
-                    </label>
+                    </AdminCheckboxRow>
                   </div>
 
                   <details id="rule-builder-review-surface" class="ct-admin__builder-guide">
@@ -707,8 +694,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                     </p>
                   </header>
                   <div class="ct-admin__builder-inline ct-cluster">
-                    <label class="ct-admin__inline-control">
-                      Sample limit
+                    <AdminField label="Sample limit" className="ct-admin__inline-control">
                       <input
                         id="rule-builder-simulate-limit"
                         type="number"
@@ -717,7 +703,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                         step={1}
                         value="25"
                       />
-                    </label>
+                    </AdminField>
                     <AdminButton
                       id="rule-builder-simulate"
                       type="button"
@@ -727,13 +713,13 @@ export const institutionAdminRuleBuilderPage = (input: {
                       Run simulation
                     </AdminButton>
                   </div>
-                  <p id="rule-builder-simulate-status" class="ct-admin__status">
+                  <AdminStatus id="rule-builder-simulate-status">
                     No historical simulation has been run yet.
-                  </p>
+                  </AdminStatus>
                   <pre id="rule-builder-simulate-output" class="ct-admin__code-output" hidden></pre>
                 </details>
               </section>
-            </form>
+            </AdminForm>
           </div>
 
           <section class="ct-admin__panel ct-admin__builder-rail ct-stack" aria-live="polite">
@@ -777,9 +763,9 @@ export const institutionAdminRuleBuilderPage = (input: {
                 </dd>
               </div>
             </dl>
-            <p id="rule-builder-summary-message" class="ct-admin__status">
+            <AdminStatus id="rule-builder-summary-message">
               Build at least one condition card to create a draft.
-            </p>
+            </AdminStatus>
 
             <details class="ct-admin__builder-rail-card ct-stack">
               <summary>Submission path</summary>
@@ -820,7 +806,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                 Create rule draft
               </AdminButton>
             </div>
-            <p id="rule-create-status" class="ct-admin__status"></p>
+            <AdminStatus id="rule-create-status"></AdminStatus>
           </section>
 
           <details class="ct-admin__panel ct-admin__builder-guide ct-admin__builder-support">
@@ -828,8 +814,7 @@ export const institutionAdminRuleBuilderPage = (input: {
             <div class="ct-admin__builder-support-grid ct-grid">
               <section class="ct-admin__builder-support-section ct-stack">
                 <h3>Start from template or clone</h3>
-                <label>
-                  Quick-start template
+                <AdminField label="Quick-start template">
                   <div class="ct-admin__builder-inline ct-cluster">
                     <select id="rule-builder-template-preset" name="templatePreset">
                       <option value="course_completion">Course completion</option>
@@ -845,9 +830,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                       Apply
                     </AdminButton>
                   </div>
-                </label>
-                <label>
-                  Clone existing rule (optional)
+                </AdminField>
+                <AdminField label="Clone existing rule (optional)">
                   <div class="ct-admin__builder-inline ct-cluster">
                     <select id="rule-builder-clone-rule" name="cloneRuleId">
                       {ruleCloneOptions.length === 0 ? (
@@ -872,7 +856,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                       Load rule
                     </AdminButton>
                   </div>
-                </label>
+                </AdminField>
               </section>
 
               <section class="ct-admin__builder-support-section ct-stack">
