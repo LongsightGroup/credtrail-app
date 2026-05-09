@@ -162,7 +162,6 @@ const createEnv = (): {
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
-  RULE_BUILDER_TUTORIAL_EMBED_URL?: string;
 } => {
   return {
     APP_ENV: "test",
@@ -2667,9 +2666,9 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("Start from template or clone");
     expect(body).toContain("Draft summary");
     expect(body).toContain("Authoring approach");
-    expect(body).toContain("Five-minute walkthrough");
     expect(body).toContain("Condition types");
-    expect(body).toContain("RULE_BUILDER_TUTORIAL_EMBED_URL");
+    expect(body).not.toContain("Five-minute walkthrough");
+    expect(body).not.toContain("RULE_BUILDER_TUTORIAL_EMBED_URL");
     expect(body).not.toContain("Model, test, then release");
     expect(body).not.toContain('aria-label="Rule builder setup"');
     expect(body).toContain('href="/tenants/tenant_123/admin"');
@@ -2682,29 +2681,6 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/access/api-keys"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/org-units"');
     expect(body).toContain('href="/admin/audit-logs?tenantId=tenant_123"');
-  });
-
-  it("renders walkthrough embed when tutorial env URL is configured", async () => {
-    const env = {
-      ...createEnv(),
-      RULE_BUILDER_TUTORIAL_EMBED_URL: "https://videos.example.edu/embed/rule-builder",
-    };
-
-    const response = await app.request(
-      "/tenants/tenant_123/admin/rules/new",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const body = await response.text();
-
-    expect(response.status).toBe(200);
-    expect(body).toContain('id="rule-builder-tutorial-embed"');
-    expect(body).toContain('src="https://videos.example.edu/embed/rule-builder"');
-    expect(body).not.toContain("RULE_BUILDER_TUTORIAL_EMBED_URL");
   });
 
   it("keeps the switch-organization sidebar link on the dedicated rule-builder page", async () => {

@@ -200,7 +200,6 @@ export interface AppBindings {
   OB3_OAUTH_AUTHORIZATION_URL?: string;
   OB3_OAUTH_TOKEN_URL?: string;
   OB3_OAUTH_REFRESH_URL?: string;
-  RULE_BUILDER_TUTORIAL_EMBED_URL?: string;
 }
 
 export interface AppEnv {

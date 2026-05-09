@@ -42,7 +42,6 @@ export const institutionAdminRuleBuilderPage = (input: {
   badgeTemplates: readonly BadgeTemplateRecord[];
   badgeRules: readonly BadgeIssuanceRuleRecord[];
   badgeRuleVersions: readonly BadgeIssuanceRuleVersionRecord[];
-  ruleBuilderTutorialEmbedUrl?: string;
   switchOrganizationPath?: string | null;
 }): AppPage => {
   const versionsByRuleId = new Map<string, BadgeIssuanceRuleVersionRecord[]>();
@@ -82,7 +81,6 @@ export const institutionAdminRuleBuilderPage = (input: {
   const adminAuditLogPath = `/admin/audit-logs?tenantId=${encodeURIComponent(input.tenant.id)}`;
   const switchOrganizationPath = input.switchOrganizationPath?.trim() ?? "";
   const userLabel = input.userEmail ?? input.userId;
-  const tutorialEmbedUrl = input.ruleBuilderTutorialEmbedUrl?.trim() ?? "";
 
   const templateOptions = input.badgeTemplates.map((template, index) => ({
     template,
@@ -992,31 +990,6 @@ export const institutionAdminRuleBuilderPage = (input: {
                     </div>
                   </section>
 
-                  <section class="ct-admin__builder-support-section ct-admin__builder-support-section--wide ct-stack">
-                    <h3>Five-minute walkthrough</h3>
-                    <p>
-                      Use this video to orient first-time issuers before building or testing draft
-                      rules.
-                    </p>
-                    {tutorialEmbedUrl.length === 0 ? (
-                      <p class="ct-admin__hint">
-                        Tutorial video embed is not configured. Set{" "}
-                        <code>RULE_BUILDER_TUTORIAL_EMBED_URL</code> to surface an in-page
-                        walkthrough.
-                      </p>
-                    ) : (
-                      <div class="ct-admin__video-frame">
-                        <iframe
-                          id="rule-builder-tutorial-embed"
-                          src={tutorialEmbedUrl}
-                          title="Rule builder tutorial video"
-                          loading="lazy"
-                          referrerpolicy="strict-origin-when-cross-origin"
-                          allowfullscreen
-                        ></iframe>
-                      </div>
-                    )}
-                  </section>
                 </div>
               </details>
             </section>

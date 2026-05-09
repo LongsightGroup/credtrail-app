@@ -1713,9 +1713,6 @@ export const registerTenantGovernanceRoutes = (
         badgeRules,
         badgeRuleVersions,
         switchOrganizationPath,
-        ...(c.env.RULE_BUILDER_TUTORIAL_EMBED_URL === undefined
-          ? {}
-          : { ruleBuilderTutorialEmbedUrl: c.env.RULE_BUILDER_TUTORIAL_EMBED_URL }),
       }),
     );
   });
