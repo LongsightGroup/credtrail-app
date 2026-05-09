@@ -1887,20 +1887,8 @@ export const INSTITUTION_ADMIN_CSS = `
     filter: brightness(1.03);
   }
 
-  .ct-admin__table .ct-admin__action-pill:hover,
   .ct-admin__action-menu-item:hover {
     transform: translateY(-1px);
-  }
-
-  .ct-admin__table .ct-admin__action-pill--primary:hover {
-    box-shadow: var(--ct-shadow-soft);
-    filter: brightness(1.03);
-  }
-
-  .ct-admin__table .ct-admin__action-pill:not(.ct-admin__action-pill--primary):hover {
-    border-color: var(--ct-border-strong);
-    color: var(--ct-theme-text-title);
-    background: var(--ct-theme-surface-info);
   }
 
   .ct-admin__action-menu-item:hover {
@@ -1925,7 +1913,6 @@ export const INSTITUTION_ADMIN_CSS = `
   outline-offset: 3px;
   box-shadow: var(--ct-shadow-soft);
 }
-.ct-admin__table .ct-admin__action-pill:focus-visible,
 .ct-admin__action-menu-item:focus-visible {
   outline: 2px solid var(--ct-theme-border-focus);
   outline-offset: 2px;
@@ -1936,7 +1923,6 @@ export const INSTITUTION_ADMIN_CSS = `
   box-shadow: none;
   filter: none;
 }
-.ct-admin__table .ct-admin__action-pill:active,
 .ct-admin__action-menu-item:active {
   transform: translateY(0);
 }
@@ -2115,46 +2101,22 @@ export const INSTITUTION_ADMIN_CSS = `
   flex-wrap: nowrap;
   gap: 0.32rem;
 }
-.ct-admin__table .ct-admin__action-pill,
-.ct-admin__table button.ct-admin__action-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.4rem;
-  padding: 0.46rem 0.72rem;
-  border: 1px solid var(--ct-border-soft);
-  border-radius: var(--ct-radius-sm);
+.ct-admin__issued-actions .ct-admin__button {
+  min-height: 2.24rem;
+  padding: 0.4rem 0.66rem;
+  font-size: 0.77rem;
+}
+.ct-admin__issued-actions .ct-admin__button--secondary {
+  color: var(--ct-color-ink);
+  border: 1px solid var(--ct-border-strong);
   background: linear-gradient(
     180deg,
     var(--ct-theme-surface-card-strong),
-    var(--ct-theme-surface-shell)
+    var(--ct-theme-surface-info)
   );
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
-  color: var(--ct-theme-text-body);
-  font-family: var(--ct-font-sans);
-  font-size: 0.8rem;
-  font-weight: 600;
-  line-height: 1.1;
-  text-decoration: none;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background var(--ct-duration-fast) var(--ct-ease-standard),
-    color var(--ct-duration-fast) var(--ct-ease-standard),
-    box-shadow var(--ct-duration-fast) var(--ct-ease-standard),
-    transform var(--ct-duration-fast) var(--ct-ease-standard);
 }
-.ct-admin__table button.ct-admin__action-pill {
-  font-family: var(--ct-font-sans);
-}
-.ct-admin__table .ct-admin__action-pill--primary {
-  color: var(--ct-theme-text-on-brand);
-  border-color: transparent;
-  background: var(--ct-theme-gradient-action);
-  box-shadow: var(--ct-shadow-soft);
-}
-.ct-admin__action-pill--menu {
-  min-width: 2.4rem;
+.ct-admin__action-menu-trigger {
+  min-width: 2.24rem;
   padding-inline: 0.62rem;
 }
 .ct-admin__action-menu {
@@ -2167,7 +2129,7 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__action-menu > summary::-webkit-details-marker {
   display: none;
 }
-.ct-admin__action-menu[open] > .ct-admin__action-pill--menu {
+.ct-admin__action-menu[open] > .ct-admin__action-menu-trigger {
   background: var(--ct-theme-surface-info);
 }
 .ct-admin__action-menu-popover {

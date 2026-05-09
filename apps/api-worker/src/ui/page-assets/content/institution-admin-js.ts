@@ -2212,14 +2212,14 @@ export const INSTITUTION_ADMIN_JS = `
             '<div class="ct-admin__action-bar" role="group" aria-label="Actions for assertion ' +
             escapeHtml(assertionId) +
             '">' +
-            '<a class="ct-admin__action-pill ct-admin__action-pill--primary" href="' +
+            '<a class="ct-admin__button ct-admin__button--tiny" href="' +
             escapeHtml(viewBadgeHref) +
             '" target="_blank" rel="noopener noreferrer">Open</a>' +
-            '<button type="button" class="ct-admin__action-pill" data-issued-action="audit" data-assertion-id="' +
+            '<button type="button" class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary" data-issued-action="audit" data-assertion-id="' +
             escapeHtml(assertionId) +
             '">Audit</button>' +
             '<details class="ct-admin__action-menu">' +
-            '<summary class="ct-admin__action-pill ct-admin__action-pill--menu" aria-label="More actions for assertion ' +
+            '<summary class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary ct-admin__action-menu-trigger" aria-label="More actions for assertion ' +
             escapeHtml(assertionId) +
             '">...</summary>' +
             '<div class="ct-admin__action-menu-popover">' +
@@ -2380,7 +2380,7 @@ export const INSTITUTION_ADMIN_JS = `
         return;
       }
 
-      const menuTrigger = target.closest('summary.ct-admin__action-pill--menu');
+      const menuTrigger = target.closest('summary.ct-admin__action-menu-trigger');
 
       if (menuTrigger instanceof HTMLElement) {
         const menu = menuTrigger.parentElement;
