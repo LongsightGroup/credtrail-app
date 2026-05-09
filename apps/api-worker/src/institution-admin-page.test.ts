@@ -2663,6 +2663,7 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('id="rule-builder-simulate"');
     expect(body).toContain('id="rule-builder-simulate-output"');
     expect(body).toContain("Build in four passes");
+    expect(body).toContain("Templates, imports, and help");
     expect(body).toContain("Start from template or clone");
     expect(body).toContain("Draft summary");
     expect(body).toContain("Authoring approach");
@@ -2670,6 +2671,7 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("Condition types");
     expect(body).toContain("RULE_BUILDER_TUTORIAL_EMBED_URL");
     expect(body).not.toContain("Model, test, then release");
+    expect(body).not.toContain('aria-label="Rule builder setup"');
     expect(body).toContain('href="/tenants/tenant_123/admin"');
     expect(body).toContain('href="/tenants/tenant_123/admin/operations/learner-records"');
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');

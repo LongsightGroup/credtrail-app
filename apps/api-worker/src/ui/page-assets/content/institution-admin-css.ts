@@ -1457,7 +1457,8 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__builder-shell {
   --ct-grid-gap: var(--ct-space-4);
   --ct-stack-gap: var(--ct-space-4);
-  max-width: 86rem;
+  width: 100%;
+  max-width: none;
 }
 .ct-admin__builder-shell > * {
   min-width: 0;
@@ -1468,6 +1469,7 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin__builder-main {
   min-width: 0;
+  width: 100%;
 }
 .ct-admin__builder-stepper-panel {
   --ct-stack-gap: 0.7rem;
@@ -1502,6 +1504,31 @@ export const INSTITUTION_ADMIN_CSS = `
   border-radius: var(--ct-radius-md);
   border: 1px solid var(--ct-border-soft);
   background: var(--ct-theme-surface-soft);
+}
+.ct-admin__builder-support {
+  --ct-stack-gap: 0.85rem;
+}
+.ct-admin__builder-support-grid.ct-grid {
+  --ct-grid-gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  align-items: start;
+}
+.ct-admin__builder-support-section {
+  --ct-stack-gap: 0.55rem;
+  min-width: 0;
+}
+.ct-admin__builder-support-section--wide {
+  grid-column: 1 / -1;
+}
+.ct-admin__builder-support-section h3,
+.ct-admin__builder-support-section h4 {
+  margin: 0;
+}
+.ct-admin__builder-support-section h3 {
+  font-size: 0.98rem;
+}
+.ct-admin__builder-support-section h4 {
+  font-size: 0.92rem;
 }
 .ct-admin__builder-inline {
   --ct-cluster-gap: 0.5rem;

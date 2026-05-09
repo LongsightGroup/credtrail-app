@@ -276,8 +276,10 @@ export const institutionAdminRuleBuilderPage = (input: {
             </div>
 
             <section class="ct-admin__builder-shell ct-stack">
-              <section class="ct-admin__builder-sidebar ct-stack" aria-label="Rule builder setup">
-                <section class="ct-admin__panel ct-admin__builder-stepper-panel ct-stack">
+              <section
+                class="ct-admin__panel ct-admin__builder-stepper-panel ct-stack"
+                aria-label="Rule builder workflow"
+              >
                   <p class="ct-admin__eyebrow">Workflow</p>
                   <h2>Build in four passes</h2>
                   <ol
@@ -349,185 +351,9 @@ export const institutionAdminRuleBuilderPage = (input: {
                   >
                     Step 1 of 4 · Metadata
                   </p>
-                </section>
-
-                <details class="ct-admin__panel ct-admin__builder-guide">
-                  <summary>Start from template or clone</summary>
-                  <label>
-                    Quick-start template
-                    <div class="ct-admin__builder-inline ct-cluster">
-                      <select id="rule-builder-template-preset" name="templatePreset">
-                        <option value="course_completion">Course completion</option>
-                        <option value="course_and_grade" selected>
-                          Course + grade threshold
-                        </option>
-                        <option value="program_completion">Program completion</option>
-                        <option value="time_limited">Time-limited achievement</option>
-                        <option value="prerequisite_chain">Prerequisite badge chain</option>
-                        <option value="blank">Blank</option>
-                      </select>
-                      <button
-                        id="rule-builder-apply-template"
-                        type="button"
-                        class="ct-admin__button ct-admin__button--tiny"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                  </label>
-                  <label>
-                    Clone existing rule (optional)
-                    <div class="ct-admin__builder-inline ct-cluster">
-                      <select id="rule-builder-clone-rule" name="cloneRuleId">
-                        {ruleCloneOptions.length === 0 ? (
-                          <option value="">No rules available</option>
-                        ) : (
-                          <>
-                            <option value="">Select rule to clone</option>
-                            {ruleCloneOptions.map((option) => (
-                              <option key={option.rule.id} value={option.rule.id}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </>
-                        )}
-                      </select>
-                      <button
-                        id="rule-builder-clone-load"
-                        type="button"
-                        class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
-                      >
-                        Load rule
-                      </button>
-                    </div>
-                  </label>
-                </details>
-
-                <details class="ct-admin__panel ct-admin__builder-tools ct-stack">
-                  <summary>Draft tools</summary>
-                  <div class="ct-admin__builder-toolbar ct-cluster">
-                    <button
-                      type="button"
-                      id="rule-builder-save-draft"
-                      class="ct-admin__button ct-admin__button--tiny"
-                    >
-                      Save local draft
-                    </button>
-                    <button
-                      type="button"
-                      id="rule-builder-load-draft"
-                      class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
-                    >
-                      Load local draft
-                    </button>
-                    <button
-                      type="button"
-                      id="rule-builder-export-json"
-                      class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
-                    >
-                      Export JSON
-                    </button>
-                    <button
-                      type="button"
-                      id="rule-builder-import-json"
-                      class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
-                    >
-                      Import JSON
-                    </button>
-                    <input
-                      id="rule-builder-import-file"
-                      type="file"
-                      accept="application/json"
-                      hidden
-                    />
-                  </div>
-                  <p class="ct-admin__hint">
-                    Local drafts stay in this browser. Use export/import when you want a portable
-                    review artifact.
-                  </p>
-                </details>
-
-                <details class="ct-admin__panel ct-admin__builder-guide">
-                  <summary>Reusable lists</summary>
-                  <p class="ct-admin__hint">
-                    Course and badge-template lists appear here and can be used inside condition
-                    cards.
-                  </p>
-                  <div class="ct-admin__table-wrap">
-                    <table class="ct-admin__table">
-                      <thead>
-                        <tr>
-                          <th>Label</th>
-                          <th>Kind</th>
-                          <th>Values</th>
-                        </tr>
-                      </thead>
-                      <tbody id="rule-builder-value-list-body">
-                        <tr>
-                          <td colspan={3} class="ct-admin__empty">
-                            No reusable lists loaded yet.
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </details>
-
-                <details class="ct-admin__panel ct-admin__builder-guide">
-                  <summary>Five-minute walkthrough</summary>
-                  <p>
-                    Use this video to orient first-time issuers before building or testing draft
-                    rules.
-                  </p>
-                  {tutorialEmbedUrl.length === 0 ? (
-                    <p class="ct-admin__hint">
-                      Tutorial video embed is not configured. Set{" "}
-                      <code>RULE_BUILDER_TUTORIAL_EMBED_URL</code> to surface an in-page
-                      walkthrough.
-                    </p>
-                  ) : (
-                    <div class="ct-admin__video-frame">
-                      <iframe
-                        id="rule-builder-tutorial-embed"
-                        src={tutorialEmbedUrl}
-                        title="Rule builder tutorial video"
-                        loading="lazy"
-                        referrerpolicy="strict-origin-when-cross-origin"
-                        allowfullscreen
-                      ></iframe>
-                    </div>
-                  )}
-                </details>
               </section>
 
               <div class="ct-admin__builder-main ct-stack">
-                <details id="rule-builder-panel" class="ct-admin__builder-guide">
-                  <summary>Authoring approach</summary>
-                  <div class="ct-admin__builder-intro-grid ct-grid">
-                    <section class="ct-admin__builder-intro-card ct-stack">
-                      <h3>Define scope first</h3>
-                      <p>
-                        Lock the badge template, LMS source, and rule identity before touching
-                        logic.
-                      </p>
-                    </section>
-                    <section class="ct-admin__builder-intro-card ct-stack">
-                      <h3>Model the rule visibly</h3>
-                      <p>
-                        Condition cards stay front and center. JSON only appears when you need to
-                        import or inspect.
-                      </p>
-                    </section>
-                    <section class="ct-admin__builder-intro-card ct-stack">
-                      <h3>Test before governance</h3>
-                      <p>
-                        Dry-run against representative facts so approvers receive cleaner, more
-                        trustworthy drafts.
-                      </p>
-                    </section>
-                  </div>
-                </details>
-
                 <form id="rule-create-form" class="ct-admin__form ct-stack">
                   <section
                     id="builder-step-metadata"
@@ -1010,6 +836,189 @@ export const institutionAdminRuleBuilderPage = (input: {
                 </div>
                 <p id="rule-create-status" class="ct-admin__status"></p>
               </section>
+
+              <details class="ct-admin__panel ct-admin__builder-guide ct-admin__builder-support">
+                <summary>Templates, imports, and help</summary>
+                <div class="ct-admin__builder-support-grid ct-grid">
+                  <section class="ct-admin__builder-support-section ct-stack">
+                    <h3>Start from template or clone</h3>
+                    <label>
+                      Quick-start template
+                      <div class="ct-admin__builder-inline ct-cluster">
+                        <select id="rule-builder-template-preset" name="templatePreset">
+                          <option value="course_completion">Course completion</option>
+                          <option value="course_and_grade" selected>
+                            Course + grade threshold
+                          </option>
+                          <option value="program_completion">Program completion</option>
+                          <option value="time_limited">Time-limited achievement</option>
+                          <option value="prerequisite_chain">Prerequisite badge chain</option>
+                          <option value="blank">Blank</option>
+                        </select>
+                        <button
+                          id="rule-builder-apply-template"
+                          type="button"
+                          class="ct-admin__button ct-admin__button--tiny"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    </label>
+                    <label>
+                      Clone existing rule (optional)
+                      <div class="ct-admin__builder-inline ct-cluster">
+                        <select id="rule-builder-clone-rule" name="cloneRuleId">
+                          {ruleCloneOptions.length === 0 ? (
+                            <option value="">No rules available</option>
+                          ) : (
+                            <>
+                              <option value="">Select rule to clone</option>
+                              {ruleCloneOptions.map((option) => (
+                                <option key={option.rule.id} value={option.rule.id}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </>
+                          )}
+                        </select>
+                        <button
+                          id="rule-builder-clone-load"
+                          type="button"
+                          class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
+                        >
+                          Load rule
+                        </button>
+                      </div>
+                    </label>
+                  </section>
+
+                  <section class="ct-admin__builder-support-section ct-stack">
+                    <h3>Draft tools</h3>
+                    <div class="ct-admin__builder-toolbar ct-cluster">
+                      <button
+                        type="button"
+                        id="rule-builder-save-draft"
+                        class="ct-admin__button ct-admin__button--tiny"
+                      >
+                        Save local draft
+                      </button>
+                      <button
+                        type="button"
+                        id="rule-builder-load-draft"
+                        class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
+                      >
+                        Load local draft
+                      </button>
+                      <button
+                        type="button"
+                        id="rule-builder-export-json"
+                        class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
+                      >
+                        Export JSON
+                      </button>
+                      <button
+                        type="button"
+                        id="rule-builder-import-json"
+                        class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
+                      >
+                        Import JSON
+                      </button>
+                      <input
+                        id="rule-builder-import-file"
+                        type="file"
+                        accept="application/json"
+                        hidden
+                      />
+                    </div>
+                    <p class="ct-admin__hint">
+                      Local drafts stay in this browser. Use export/import when you want a portable
+                      review artifact.
+                    </p>
+                  </section>
+
+                  <section class="ct-admin__builder-support-section ct-stack">
+                    <h3>Reusable lists</h3>
+                    <p class="ct-admin__hint">
+                      Course and badge-template lists appear here and can be used inside condition
+                      cards.
+                    </p>
+                    <div class="ct-admin__table-wrap">
+                      <table class="ct-admin__table">
+                        <thead>
+                          <tr>
+                            <th>Label</th>
+                            <th>Kind</th>
+                            <th>Values</th>
+                          </tr>
+                        </thead>
+                        <tbody id="rule-builder-value-list-body">
+                          <tr>
+                            <td colspan={3} class="ct-admin__empty">
+                              No reusable lists loaded yet.
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+
+                  <section
+                    id="rule-builder-panel"
+                    class="ct-admin__builder-support-section ct-admin__builder-support-section--wide ct-stack"
+                  >
+                    <h3>Authoring approach</h3>
+                    <div class="ct-admin__builder-intro-grid ct-grid">
+                      <section class="ct-admin__builder-intro-card ct-stack">
+                        <h4>Define scope first</h4>
+                        <p>
+                          Lock the badge template, LMS source, and rule identity before touching
+                          logic.
+                        </p>
+                      </section>
+                      <section class="ct-admin__builder-intro-card ct-stack">
+                        <h4>Model the rule visibly</h4>
+                        <p>
+                          Condition cards stay front and center. JSON only appears when you need to
+                          import or inspect.
+                        </p>
+                      </section>
+                      <section class="ct-admin__builder-intro-card ct-stack">
+                        <h4>Test before governance</h4>
+                        <p>
+                          Dry-run against representative facts so approvers receive cleaner, more
+                          trustworthy drafts.
+                        </p>
+                      </section>
+                    </div>
+                  </section>
+
+                  <section class="ct-admin__builder-support-section ct-admin__builder-support-section--wide ct-stack">
+                    <h3>Five-minute walkthrough</h3>
+                    <p>
+                      Use this video to orient first-time issuers before building or testing draft
+                      rules.
+                    </p>
+                    {tutorialEmbedUrl.length === 0 ? (
+                      <p class="ct-admin__hint">
+                        Tutorial video embed is not configured. Set{" "}
+                        <code>RULE_BUILDER_TUTORIAL_EMBED_URL</code> to surface an in-page
+                        walkthrough.
+                      </p>
+                    ) : (
+                      <div class="ct-admin__video-frame">
+                        <iframe
+                          id="rule-builder-tutorial-embed"
+                          src={tutorialEmbedUrl}
+                          title="Rule builder tutorial video"
+                          loading="lazy"
+                          referrerpolicy="strict-origin-when-cross-origin"
+                          allowfullscreen
+                        ></iframe>
+                      </div>
+                    )}
+                  </section>
+                </div>
+              </details>
             </section>
 
             <div id="ct-admin-context" hidden data-context-json={adminPageContextJson}></div>
