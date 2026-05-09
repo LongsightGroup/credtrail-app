@@ -273,7 +273,7 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin__workspace-actions .ct-admin__button,
 .ct-admin__workspace-actions .ct-admin__cta-link {
-  min-height: 2.4rem;
+  min-height: 2.24rem;
   border-radius: var(--ct-radius-sm);
 }
 .ct-admin__metric-grid {
@@ -1200,21 +1200,20 @@ export const INSTITUTION_ADMIN_CSS = `
   align-items: center;
   justify-content: center;
   border-radius: var(--ct-radius-sm);
-  border: 1px solid var(--ct-border-soft);
-  min-height: 2.4rem;
-  padding: 0.46rem 0.72rem;
+  border: 1px solid var(--ct-border-strong);
+  min-height: 2.24rem;
+  padding: 0.4rem 0.66rem;
   font-family: var(--ct-font-sans);
-  font-size: 0.8rem;
+  font-size: 0.77rem;
   font-weight: 600;
   line-height: 1.1;
-  color: var(--ct-theme-text-body);
+  color: var(--ct-color-ink);
   text-decoration: none;
   background: linear-gradient(
     180deg,
     var(--ct-theme-surface-card-strong),
-    var(--ct-theme-surface-shell)
+    var(--ct-theme-surface-info)
   );
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
   transition:
     background var(--ct-duration-fast) var(--ct-ease-standard),
     border-color var(--ct-duration-fast) var(--ct-ease-standard),
