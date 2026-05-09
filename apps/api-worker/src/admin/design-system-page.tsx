@@ -9,10 +9,14 @@ import {
   AdminFieldset,
   AdminForm,
   AdminMeta,
+  AdminMetricCard,
+  AdminPageHeader,
+  AdminPanel,
   AdminSidebarToggle,
   AdminStatus,
   AdminStatusPill,
   AdminTable,
+  AdminWorkspaceCard,
   IssuedBadgeActions,
 } from "./components";
 import { appPage, type AppPage } from "../ui/render-page";
@@ -175,6 +179,30 @@ const componentDocs: readonly ComponentDoc[] = [
     source: "apps/api-worker/src/admin/components.tsx",
     purpose: "Owns the standard admin page grid with shared sidebar, topbar, main, and content.",
     usage: "Use for institution admin pages instead of recreating ct-admin-shell markup.",
+  },
+  {
+    name: "AdminPageHeader",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Owns admin page title, description, compact variant, and optional note content.",
+    usage: "Use before hand-writing ct-admin-page-header divs or headers.",
+  },
+  {
+    name: "AdminPanel",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Owns standard admin surface classes for default, table, and nested panels.",
+    usage: "Use for repeated ct-admin__panel wrappers instead of composing panel classes inline.",
+  },
+  {
+    name: "AdminMetricCard",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Owns compact metric and record-card class composition across admin grids.",
+    usage: "Use for metric cards and learner-record item cards that share ct-admin__metric-card.",
+  },
+  {
+    name: "AdminWorkspaceCard",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Owns workspace navigation card structure used by admin overview pages.",
+    usage: "Use for major admin workspace cards instead of repeating ct-admin__workspace-card.",
   },
   {
     name: "AdminSidebar",
@@ -444,6 +472,33 @@ const SidebarTogglePreview = (): HonoElement => {
   );
 };
 
+const SurfacePreview = (): HonoElement => {
+  return (
+    <div class="ct-stack">
+      <AdminPageHeader
+        compact
+        title="Operations"
+        description="Focused admin workspaces keep hierarchy and secondary notes predictable."
+      />
+      <AdminPanel>
+        <h3>Panel surface</h3>
+        <p>Panels hold bounded operational work without repeating surface classes.</p>
+      </AdminPanel>
+      <section class="ct-admin__metric-grid">
+        <AdminMetricCard>
+          <AdminMeta as="p">Issued</AdminMeta>
+          <p class="ct-admin__metric-value">42</p>
+        </AdminMetricCard>
+        <AdminWorkspaceCard>
+          <p class="ct-admin__eyebrow">Setup</p>
+          <h3>Access</h3>
+          <p>Workspace cards keep the overview page language consistent.</p>
+        </AdminWorkspaceCard>
+      </section>
+    </div>
+  );
+};
+
 const FormPreview = (): HonoElement => {
   return (
     <AdminForm id="styleguide-admin-form-demo">
@@ -499,13 +554,12 @@ export const designSystemAdminPage = (): AppPage => {
     assets: ["institutionAdminCss", "designSystemCss"],
     body: (
       <section class="ct-design-system">
-        <header class="ct-admin-page-header ct-design-system__header">
-          <h1>CredTrail UI Styleguide</h1>
-          <p>
-            Internal catalog for JSX page components, the Style Dictionary token pipeline, admin
-            typography, button hierarchy, secondary link rows, and table actions.
-          </p>
-        </header>
+        <AdminPageHeader
+          as="header"
+          className="ct-design-system__header"
+          title="CredTrail UI Styleguide"
+          description="Internal catalog for JSX page components, the Style Dictionary token pipeline, admin typography, button hierarchy, secondary link rows, and table actions."
+        />
 
         <nav class="ct-design-system__nav" aria-label="Styleguide sections">
           <a href="#foundations">Foundations</a>
@@ -513,6 +567,7 @@ export const designSystemAdminPage = (): AppPage => {
           <a href="#style-dictionary">Style Dictionary</a>
           <a href="#colors">Colors</a>
           <a href="#actions">Actions</a>
+          <a href="#surfaces">Surfaces</a>
           <a href="#forms">Forms</a>
           <a href="#data">Data rows</a>
           <a href="#classes">Approved classes</a>
@@ -620,6 +675,20 @@ export const designSystemAdminPage = (): AppPage => {
               <p class="ct-design-system__example-note">
                 Sidebar toggles share one accessible component and button reset.
               </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="ct-design-system__section" id="surfaces">
+          <h2>Surfaces</h2>
+          <p class="ct-design-system__section-copy">
+            Admin page headers, panels, metric cards, and workspace cards use typed JSX wrappers so
+            repeated surface classes do not drift.
+          </p>
+          <div class="ct-design-system__grid">
+            <article class="ct-design-system__example">
+              <h3>Admin surface primitives</h3>
+              <SurfacePreview />
             </article>
           </div>
         </section>

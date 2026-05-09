@@ -42,6 +42,8 @@ export interface AdminTableHeader {
   scope?: "col" | "row";
 }
 
+export type AdminPanelVariant = "default" | "table" | "nested";
+
 export const adminButtonClass = (input?: {
   variant?: AdminButtonVariant | undefined;
   size?: AdminButtonSize | undefined;
@@ -61,6 +63,59 @@ export const adminButtonClass = (input?: {
 
   if (input?.extraClass !== undefined && input.extraClass.trim().length > 0) {
     classNames.push(input.extraClass.trim());
+  }
+
+  return classNames.join(" ");
+};
+
+const normalizedExtraClass = (className: string | undefined): string | undefined => {
+  const normalizedClassName = className?.trim();
+
+  return normalizedClassName === undefined || normalizedClassName.length === 0
+    ? undefined
+    : normalizedClassName;
+};
+
+export const adminPanelClass = (input?: {
+  variant?: AdminPanelVariant | undefined;
+  stack?: boolean | undefined;
+  extraClass?: string | undefined;
+}): string => {
+  const variant = input?.variant ?? "default";
+  const stack = input?.stack ?? true;
+  const classNames = ["ct-admin__panel"];
+
+  if (variant !== "default") {
+    classNames.push(`ct-admin__panel--${variant}`);
+  }
+
+  const extraClass = normalizedExtraClass(input?.extraClass);
+
+  if (extraClass !== undefined) {
+    classNames.push(extraClass);
+  }
+
+  if (stack) {
+    classNames.push("ct-stack");
+  }
+
+  return classNames.join(" ");
+};
+
+export const adminMetricCardClass = (input?: {
+  stack?: boolean | undefined;
+  extraClass?: string | undefined;
+}): string => {
+  const classNames = ["ct-admin__metric-card"];
+
+  if (input?.stack === true) {
+    classNames.push("ct-stack");
+  }
+
+  const extraClass = normalizedExtraClass(input?.extraClass);
+
+  if (extraClass !== undefined) {
+    classNames.push(extraClass);
   }
 
   return classNames.join(" ");
@@ -138,6 +193,41 @@ export const AdminButtonLink = ({
       {children}
     </a>
   );
+};
+
+export const AdminPageHeader = ({
+  as = "div",
+  title,
+  description,
+  compact = false,
+  className,
+  note,
+}: {
+  as?: "div" | "header";
+  title: string;
+  description: string | HonoElement;
+  compact?: boolean;
+  className?: string;
+  note?: HonoElement | null;
+}): HonoElement => {
+  const classNames = [
+    "ct-admin-page-header",
+    compact ? "ct-admin-page-header--compact" : "",
+    normalizedExtraClass(className) ?? "",
+  ].filter((entry) => entry.length > 0);
+  const content = (
+    <>
+      <h1>{title}</h1>
+      <p>{description}</p>
+      {note ?? null}
+    </>
+  );
+
+  if (as === "header") {
+    return <header class={classNames.join(" ")}>{content}</header>;
+  }
+
+  return <div class={classNames.join(" ")}>{content}</div>;
 };
 
 export const AdminSidebarToggle = (): HonoElement => {
@@ -247,6 +337,63 @@ export const AdminShell = ({
       </div>
     </div>
   );
+};
+
+export const AdminPanel = ({
+  as = "article",
+  id,
+  variant,
+  stack,
+  className,
+  dataAttributes,
+  children,
+}: PropsWithChildren<{
+  as?: "article" | "section";
+  id?: string;
+  variant?: AdminPanelVariant;
+  stack?: boolean;
+  className?: string;
+  dataAttributes?: DataAttributes;
+}>): HonoElement => {
+  const panelClass = adminPanelClass({ variant, stack, extraClass: className });
+
+  if (as === "section") {
+    return (
+      <section id={id} class={panelClass} {...(dataAttributes ?? {})}>
+        {children}
+      </section>
+    );
+  }
+
+  return (
+    <article id={id} class={panelClass} {...(dataAttributes ?? {})}>
+      {children}
+    </article>
+  );
+};
+
+export const AdminMetricCard = ({
+  stack,
+  className,
+  dataAttributes,
+  children,
+}: PropsWithChildren<{
+  stack?: boolean;
+  className?: string;
+  dataAttributes?: DataAttributes;
+}>): HonoElement => {
+  return (
+    <article
+      class={adminMetricCardClass({ stack, extraClass: className })}
+      {...(dataAttributes ?? {})}
+    >
+      {children}
+    </article>
+  );
+};
+
+export const AdminWorkspaceCard = ({ children }: PropsWithChildren): HonoElement => {
+  return <article class="ct-admin__workspace-card ct-stack">{children}</article>;
 };
 
 export const AdminCtaLink = ({

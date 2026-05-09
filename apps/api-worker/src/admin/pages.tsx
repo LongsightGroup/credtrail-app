@@ -6,6 +6,8 @@ import {
   AdminEmptyTableRow,
   AdminField,
   AdminForm,
+  AdminPageHeader,
+  AdminPanel,
   AdminStatus,
   AdminTable,
 } from "./components";
@@ -45,15 +47,16 @@ export const auditLogAdminPage = (input: {
     variant: "admin",
     body: (
       <section class="ct-admin-content">
-        <header class="ct-admin-page-header">
-          <h1>Audit log viewer</h1>
-          <p>Review recent tenant-scoped audit events for sensitive operations.</p>
-        </header>
+        <AdminPageHeader
+          as="header"
+          title="Audit log viewer"
+          description="Review recent tenant-scoped audit events for sensitive operations."
+        />
         <section class="ct-admin ct-stack">
           {input.submissionError === undefined ? null : (
             <AdminStatus tone="error">{input.submissionError}</AdminStatus>
           )}
-          <article class="ct-admin__panel ct-stack">
+          <AdminPanel>
             <AdminForm
               method="get"
               action="/admin/audit-logs"
@@ -71,8 +74,8 @@ export const auditLogAdminPage = (input: {
               </AdminField>
               <AdminButton type="submit">Load audit logs</AdminButton>
             </AdminForm>
-          </article>
-          <article class="ct-admin__panel ct-admin__panel--table ct-stack">
+          </AdminPanel>
+          <AdminPanel variant="table">
             <AdminTable headers={["Occurred (UTC)", "Action", "Actor", "Target", "Metadata"]}>
               {input.logs.length === 0 ? (
                 <AdminEmptyTableRow colSpan={5}>
@@ -103,7 +106,7 @@ export const auditLogAdminPage = (input: {
                 })
               )}
             </AdminTable>
-          </article>
+          </AdminPanel>
         </section>
       </section>
     ),
