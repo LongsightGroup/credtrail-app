@@ -1894,11 +1894,13 @@ export const INSTITUTION_ADMIN_CSS = `
   }
 
   .ct-admin__table .ct-admin__action-pill--primary:hover {
-    box-shadow: var(--ct-shadow-card);
+    box-shadow: var(--ct-shadow-soft);
     filter: brightness(1.03);
   }
 
   .ct-admin__table .ct-admin__action-pill:not(.ct-admin__action-pill--primary):hover {
+    border-color: var(--ct-border-strong);
+    color: var(--ct-theme-text-title);
     background: var(--ct-theme-surface-info);
   }
 
@@ -2111,31 +2113,29 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__action-bar {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.18rem;
-  border: 1px solid var(--ct-border-soft);
-  border-radius: var(--ct-radius-pill);
-  background: linear-gradient(
-    180deg,
-    var(--ct-theme-surface-card-strong),
-    var(--ct-theme-surface-shell)
-  );
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  flex-wrap: nowrap;
+  gap: 0.32rem;
 }
 .ct-admin__table .ct-admin__action-pill,
 .ct-admin__table button.ct-admin__action-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.1rem;
-  padding: 0.45rem 0.78rem;
-  border: none;
-  border-radius: var(--ct-radius-pill);
-  background: transparent;
+  min-height: 2.4rem;
+  padding: 0.46rem 0.72rem;
+  border: 1px solid var(--ct-border-soft);
+  border-radius: var(--ct-radius-sm);
+  background: linear-gradient(
+    180deg,
+    var(--ct-theme-surface-card-strong),
+    var(--ct-theme-surface-shell)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
   color: var(--ct-theme-text-body);
-  font-size: 0.78rem;
-  font-weight: 700;
-  line-height: 1;
+  font-family: var(--ct-font-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.1;
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
@@ -2146,16 +2146,21 @@ export const INSTITUTION_ADMIN_CSS = `
     transform var(--ct-duration-fast) var(--ct-ease-standard);
 }
 .ct-admin__table button.ct-admin__action-pill {
-  font: inherit;
+  font-family: var(--ct-font-sans);
 }
 .ct-admin__table .ct-admin__action-pill--primary {
   color: var(--ct-theme-text-on-brand);
+  border-color: transparent;
   background: var(--ct-theme-gradient-action);
   box-shadow: var(--ct-shadow-soft);
 }
 .ct-admin__action-pill--menu {
-  min-width: 2.1rem;
+  min-width: 2.4rem;
   padding-inline: 0.62rem;
+}
+.ct-admin__action-menu {
+  position: relative;
+  display: inline-flex;
 }
 .ct-admin__action-menu > summary {
   list-style: none;
@@ -2170,10 +2175,13 @@ export const INSTITUTION_ADMIN_CSS = `
   display: none;
 }
 .ct-admin__action-menu[open] .ct-admin__action-menu-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.32rem);
+  right: 0;
   display: grid;
   gap: 0.18rem;
   min-width: 11rem;
-  margin-top: 0.42rem;
   padding: 0.32rem;
   border: 1px solid var(--ct-border-strong);
   border-radius: var(--ct-radius-md);
@@ -2203,7 +2211,7 @@ export const INSTITUTION_ADMIN_CSS = `
   cursor: pointer;
 }
 .ct-admin__table button.ct-admin__action-menu-item {
-  font: inherit;
+  font-family: var(--ct-font-sans);
 }
 .ct-admin__action-menu-item--danger {
   color: var(--ct-theme-state-danger);
