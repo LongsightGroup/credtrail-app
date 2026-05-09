@@ -123,6 +123,9 @@ export const INSTITUTION_ADMIN_JS = `
   const ruleCreateForm = document.getElementById('rule-create-form');
   const ruleCreateStatus = document.getElementById('rule-create-status');
   const ruleBuilderConditionList = document.getElementById('rule-builder-condition-list');
+  const ruleBuilderConditionCardTemplate = document.getElementById(
+    'rule-builder-condition-card-template',
+  );
   const ruleBuilderRootLogic = document.getElementById('rule-builder-root-logic');
   const ruleBuilderDefinitionJson = document.getElementById('rule-builder-definition-json');
   const ruleBuilderTemplatePreset = document.getElementById('rule-builder-template-preset');
@@ -261,20 +264,17 @@ export const INSTITUTION_ADMIN_JS = `
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#39;');
   };
-  const renderAdminButton = (className, label, attributes) => {
-    const attributeMarkup = Object.entries(attributes || {})
-      .map(([name, value]) => ' ' + name + '="' + escapeHtml(value) + '"')
-      .join('');
+  const createAdminButtonElement = (className, label, attributes) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = className;
+    button.textContent = label;
 
-    return (
-      '<button type="button" class="' +
-      escapeHtml(className) +
-      '"' +
-      attributeMarkup +
-      '>' +
-      escapeHtml(label) +
-      '</button>'
-    );
+    Object.entries(attributes || {}).forEach(([name, value]) => {
+      button.setAttribute(name, String(value));
+    });
+
+    return button;
   };
   const formatTimestamp = (value) => {
     if (typeof value !== 'string' || value.length === 0) {
@@ -415,68 +415,89 @@ export const INSTITUTION_ADMIN_JS = `
     return 'Unknown';
   }
 
+  function createEmptyTableRow(colspan, message) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = colspan;
+    cell.className = 'ct-admin__empty';
+    cell.textContent = message;
+    row.appendChild(cell);
+
+    return row;
+  }
+
+  function replaceTableBodyRows(body, rows) {
+    if (!(body instanceof HTMLElement)) {
+      return;
+    }
+
+    body.replaceChildren(...rows);
+  }
+
   function setRuleValueListEmptyState(message) {
-    const markup =
-      '<tr><td colspan="3" class="ct-admin__empty">' + escapeHtml(message) + '</td></tr>';
+    const row = createEmptyTableRow(3, message);
 
     if (ruleValueListBody instanceof HTMLElement) {
-      ruleValueListBody.innerHTML = markup;
+      replaceTableBodyRows(ruleValueListBody, [row]);
     }
 
     if (ruleBuilderValueListBody instanceof HTMLElement) {
-      ruleBuilderValueListBody.innerHTML = markup;
+      replaceTableBodyRows(ruleBuilderValueListBody, [row.cloneNode(true)]);
     }
   }
 
-  function renderRuleValueListRows() {
-    const markup =
-      !Array.isArray(ruleValueLists) || ruleValueLists.length === 0
-        ? '<tr><td colspan="3" class="ct-admin__empty">No reusable lists available yet.</td></tr>'
-        : ruleValueLists
-            .map((valueList) => {
-              const label =
-                valueList && typeof valueList.label === 'string'
-                  ? valueList.label
-                  : 'Untitled list';
-              const kind =
-                valueList && typeof valueList.kind === 'string'
-                  ? valueList.kind
-                  : 'unknown';
-              const values =
-                valueList && Array.isArray(valueList.values) ? valueList.values : [];
-              const valueCount = values.length;
-              const valueSummary = valueCount === 0 ? 'No values' : values.join(', ');
+  function createRuleValueListRow(valueList) {
+    const label =
+      valueList && typeof valueList.label === 'string'
+        ? valueList.label
+        : 'Untitled list';
+    const kind =
+      valueList && typeof valueList.kind === 'string'
+        ? valueList.kind
+        : 'unknown';
+    const values =
+      valueList && Array.isArray(valueList.values) ? valueList.values : [];
+    const valueCount = values.length;
+    const valueSummary = valueCount === 0 ? 'No values' : values.join(', ');
+    const row = document.createElement('tr');
+    const labelCell = document.createElement('td');
+    const labelStrong = document.createElement('strong');
+    const idMeta = document.createElement('div');
+    const kindCell = document.createElement('td');
+    const valuesCell = document.createElement('td');
+    const valuesMeta = document.createElement('div');
 
-              return (
-                '<tr>' +
-                '<td><strong>' +
-                escapeHtml(label) +
-                '</strong><div class="ct-admin__meta">' +
-                escapeHtml(
-                  valueList && typeof valueList.id === 'string' ? valueList.id : 'unknown',
-                ) +
-                '</div></td>' +
-                '<td>' +
-                escapeHtml(formatRuleValueListKind(kind)) +
-                '</td>' +
-                '<td>' +
-                escapeHtml(valueSummary) +
-                '<div class="ct-admin__meta">' +
-                escapeHtml(String(valueCount)) +
-                ' value' +
-                (valueCount === 1 ? '' : 's') +
-                '</div></td>' +
-                '</tr>'
-              );
-            })
-            .join('');
+    labelStrong.textContent = label;
+    idMeta.className = 'ct-admin__meta';
+    idMeta.textContent =
+      valueList && typeof valueList.id === 'string' ? valueList.id : 'unknown';
+    labelCell.append(labelStrong, idMeta);
+    kindCell.textContent = formatRuleValueListKind(kind);
+    valuesCell.append(document.createTextNode(valueSummary));
+    valuesMeta.className = 'ct-admin__meta';
+    valuesMeta.textContent =
+      String(valueCount) + ' value' + (valueCount === 1 ? '' : 's');
+    valuesCell.appendChild(valuesMeta);
+    row.append(labelCell, kindCell, valuesCell);
+
+    return row;
+  }
+
+  function renderRuleValueListRows() {
+    const rows =
+      !Array.isArray(ruleValueLists) || ruleValueLists.length === 0
+        ? [createEmptyTableRow(3, 'No reusable lists available yet.')]
+        : ruleValueLists.map((valueList) => createRuleValueListRow(valueList));
 
     if (ruleValueListBody instanceof HTMLElement) {
-      ruleValueListBody.innerHTML = markup;
+      replaceTableBodyRows(ruleValueListBody, rows);
     }
 
     if (ruleBuilderValueListBody instanceof HTMLElement) {
-      ruleBuilderValueListBody.innerHTML = markup;
+      replaceTableBodyRows(
+        ruleBuilderValueListBody,
+        rows.map((row) => row.cloneNode(true)),
+      );
     }
   }
 
@@ -571,8 +592,84 @@ export const INSTITUTION_ADMIN_JS = `
       return;
     }
 
-    ruleReviewQueueBody.innerHTML =
-      '<tr><td colspan="5" class="ct-admin__empty">' + escapeHtml(message) + '</td></tr>';
+    replaceTableBodyRows(ruleReviewQueueBody, [createEmptyTableRow(5, message)]);
+  }
+
+  function createReviewQueueRow(entry) {
+    const evaluationId =
+      entry && typeof entry.id === 'string' ? entry.id : '';
+    const evaluatedAt =
+      entry && typeof entry.evaluatedAt === 'string' ? entry.evaluatedAt : '';
+    const recipientIdentity =
+      entry && typeof entry.recipientIdentity === 'string'
+        ? entry.recipientIdentity
+        : 'unknown';
+    const learnerId =
+      entry && typeof entry.learnerId === 'string' ? entry.learnerId : 'unknown';
+    const ruleId =
+      entry && typeof entry.ruleId === 'string' ? entry.ruleId : 'unknown rule';
+    const ruleName =
+      entry && typeof entry.ruleName === 'string' && entry.ruleName.length > 0
+        ? entry.ruleName
+        : ruleId;
+    const versionId =
+      entry && typeof entry.versionId === 'string' ? entry.versionId : '';
+    const badgeTemplateId =
+      entry && typeof entry.badgeTemplateId === 'string' ? entry.badgeTemplateId : '';
+    const reviewStatus =
+      entry && typeof entry.reviewStatus === 'string' ? entry.reviewStatus : 'pending';
+    const canResolve = reviewStatus === 'pending' && evaluationId.length > 0;
+    const row = document.createElement('tr');
+    const evaluatedAtCell = document.createElement('td');
+    const recipientCell = document.createElement('td');
+    const recipientStrong = document.createElement('strong');
+    const learnerMeta = document.createElement('div');
+    const ruleCell = document.createElement('td');
+    const ruleStrong = document.createElement('strong');
+    const ruleMeta = document.createElement('div');
+    const summaryCell = document.createElement('td');
+    const actionsCell = document.createElement('td');
+    const actions = document.createElement('div');
+
+    evaluatedAtCell.textContent = formatTimestamp(evaluatedAt);
+    recipientStrong.textContent = recipientIdentity;
+    learnerMeta.className = 'ct-admin__meta';
+    learnerMeta.textContent = learnerId;
+    recipientCell.append(recipientStrong, learnerMeta);
+    ruleStrong.textContent = ruleName;
+    ruleMeta.className = 'ct-admin__meta';
+    ruleMeta.textContent =
+      ruleId +
+      (badgeTemplateId.length > 0 ? ' · template ' + badgeTemplateId : '') +
+      (versionId.length > 0 ? ' · ' + versionId : '');
+    ruleCell.append(ruleStrong, ruleMeta);
+    summaryCell.textContent = summarizeReviewQueueEntry(entry);
+    actions.className = 'ct-admin__actions';
+
+    if (canResolve) {
+      actions.append(
+        createAdminButtonElement(adminButtonTinyClass, 'Issue badge', {
+          'data-review-queue-action': 'issue',
+          'data-evaluation-id': evaluationId,
+          'data-recipient-identity': recipientIdentity,
+        }),
+        createAdminButtonElement(adminButtonTinySecondaryClass, 'Dismiss', {
+          'data-review-queue-action': 'dismiss',
+          'data-evaluation-id': evaluationId,
+          'data-recipient-identity': recipientIdentity,
+        }),
+      );
+    } else {
+      const resolved = document.createElement('span');
+      resolved.className = 'ct-admin__meta';
+      resolved.textContent = 'Resolved';
+      actions.appendChild(resolved);
+    }
+
+    actionsCell.appendChild(actions);
+    row.append(evaluatedAtCell, recipientCell, ruleCell, summaryCell, actionsCell);
+
+    return row;
   }
 
   function renderRuleReviewQueueRows(queue) {
@@ -585,73 +682,10 @@ export const INSTITUTION_ADMIN_JS = `
       return;
     }
 
-    ruleReviewQueueBody.innerHTML = queue
-      .map((entry) => {
-        const evaluationId =
-          entry && typeof entry.id === 'string' ? entry.id : '';
-        const evaluatedAt =
-          entry && typeof entry.evaluatedAt === 'string' ? entry.evaluatedAt : '';
-        const recipientIdentity =
-          entry && typeof entry.recipientIdentity === 'string'
-            ? entry.recipientIdentity
-            : 'unknown';
-        const learnerId =
-          entry && typeof entry.learnerId === 'string' ? entry.learnerId : 'unknown';
-        const ruleId =
-          entry && typeof entry.ruleId === 'string' ? entry.ruleId : 'unknown rule';
-        const ruleName =
-          entry && typeof entry.ruleName === 'string' && entry.ruleName.length > 0
-            ? entry.ruleName
-            : ruleId;
-        const versionId =
-          entry && typeof entry.versionId === 'string' ? entry.versionId : '';
-        const badgeTemplateId =
-          entry && typeof entry.badgeTemplateId === 'string' ? entry.badgeTemplateId : '';
-        const summary = summarizeReviewQueueEntry(entry);
-        const reviewStatus =
-          entry && typeof entry.reviewStatus === 'string' ? entry.reviewStatus : 'pending';
-        const canResolve = reviewStatus === 'pending' && evaluationId.length > 0;
-
-        return (
-          '<tr>' +
-          '<td>' +
-          escapeHtml(formatTimestamp(evaluatedAt)) +
-          '</td>' +
-          '<td><strong>' +
-          escapeHtml(recipientIdentity) +
-          '</strong><div class="ct-admin__meta">' +
-          escapeHtml(learnerId) +
-          '</div></td>' +
-          '<td><strong>' +
-          escapeHtml(ruleName) +
-          '</strong><div class="ct-admin__meta">' +
-          escapeHtml(ruleId) +
-          (badgeTemplateId.length > 0
-            ? ' · template ' + escapeHtml(badgeTemplateId)
-            : '') +
-          (versionId.length > 0 ? ' · ' + escapeHtml(versionId) : '') +
-          '</div></td>' +
-          '<td>' +
-          escapeHtml(summary) +
-          '</td>' +
-          '<td><div class="ct-admin__actions">' +
-          (canResolve
-            ? renderAdminButton(adminButtonTinyClass, 'Issue badge', {
-                'data-review-queue-action': 'issue',
-                'data-evaluation-id': evaluationId,
-                'data-recipient-identity': recipientIdentity,
-              }) +
-              renderAdminButton(adminButtonTinySecondaryClass, 'Dismiss', {
-                'data-review-queue-action': 'dismiss',
-                'data-evaluation-id': evaluationId,
-                'data-recipient-identity': recipientIdentity,
-              })
-            : '<span class="ct-admin__meta">Resolved</span>') +
-          '</div></td>' +
-          '</tr>'
-        );
-      })
-      .join('');
+    replaceTableBodyRows(
+      ruleReviewQueueBody,
+      queue.map((entry) => createReviewQueueRow(entry)),
+    );
   }
 
   async function loadRuleReviewQueue() {
@@ -2906,13 +2940,21 @@ export const INSTITUTION_ADMIN_JS = `
       return new Date(parsed).toISOString();
     };
 
-    const conditionTypeOptionsMarkup = Object.entries(conditionTypeLabels)
-      .map((entry) => {
-        return (
-          '<option value="' + entry[0] + '">' + entry[1] + '</option>'
-        );
-      })
-      .join('');
+    const cloneRuleBuilderConditionCard = () => {
+      if (!(ruleBuilderConditionCardTemplate instanceof HTMLTemplateElement)) {
+        return null;
+      }
+
+      const firstElement = ruleBuilderConditionCardTemplate.content.firstElementChild;
+
+      if (!(firstElement instanceof HTMLElement)) {
+        return null;
+      }
+
+      const clone = firstElement.cloneNode(true);
+
+      return clone instanceof HTMLElement ? clone : null;
+    };
 
     const updateConditionCardClass = (card, conditionType) => {
       card.classList.remove(
@@ -3611,36 +3653,11 @@ export const INSTITUTION_ADMIN_JS = `
     };
 
     const createConditionCard = (seed) => {
-      const card = document.createElement('article');
-      card.className = 'ct-admin__condition-card ct-stack';
-      card.draggable = true;
-      card.innerHTML =
-        '<header class="ct-admin__condition-header ct-stack">' +
-        '<div class="ct-admin__condition-header-row ct-cluster">' +
-        '<span class="ct-admin__condition-index" data-condition-index>Condition</span>' +
-        '<span class="ct-admin__condition-drag" title="Drag to reorder" aria-hidden="true">::</span>' +
-        '<div class="ct-admin__condition-actions ct-cluster">' +
-        renderAdminButton(adminButtonTinyGhostClass, 'Up', {
-          'data-condition-move': 'up',
-          'aria-label': 'Move condition up',
-        }) +
-        renderAdminButton(adminButtonTinyGhostClass, 'Down', {
-          'data-condition-move': 'down',
-          'aria-label': 'Move condition down',
-        }) +
-        renderAdminButton(adminButtonTinyDangerClass + ' ct-admin__condition-remove', 'Remove') +
-        '</div>' +
-        '</div>' +
-        '<div class="ct-admin__condition-header-fields ct-admin__builder-grid ct-grid">' +
-        '<label>Type<select class="ct-admin__condition-type">' +
-        conditionTypeOptionsMarkup +
-        '</select></label>' +
-        '<label class="ct-admin__checkbox-row ct-checkbox-row"><input type="checkbox" data-field="negate" />Invert (NOT)</label>' +
-        '</div>' +
-        '</header>' +
-        '<p class="ct-admin__condition-help"></p>' +
-        '<div class="ct-admin__condition-fields ct-admin__builder-grid ct-grid"></div>' +
-        '<p class="ct-admin__condition-result" data-state="idle" aria-live="polite">Not evaluated yet.</p>';
+      const card = cloneRuleBuilderConditionCard();
+
+      if (!(card instanceof HTMLElement)) {
+        return null;
+      }
 
       const typeSelect = card.querySelector('.ct-admin__condition-type');
 
@@ -3759,7 +3776,14 @@ export const INSTITUTION_ADMIN_JS = `
     };
 
     const addConditionToCanvas = (seed) => {
-      ruleBuilderConditionList.appendChild(createConditionCard(seed));
+      const card = createConditionCard(seed);
+
+      if (!(card instanceof HTMLElement)) {
+        setStatus(ruleCreateStatus, 'Unable to add condition card template.', true);
+        return;
+      }
+
+      ruleBuilderConditionList.appendChild(card);
       syncDefinitionJsonFromBuilder();
     };
 

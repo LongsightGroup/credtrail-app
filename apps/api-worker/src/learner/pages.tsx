@@ -1,4 +1,5 @@
 import type { LearnerBadgeSummaryRecord } from "@credtrail/db";
+import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../ui/render-page";
 
@@ -11,6 +12,35 @@ export type LearnerBadgeClaimState = "claimable" | "claimed" | "accepted";
 export interface LearnerDashboardBadge extends LearnerBadgeSummaryRecord {
   claimState: LearnerBadgeClaimState;
 }
+
+type LearnerButtonVariant = "primary" | "secondary" | "ghost";
+
+const learnerButtonClass = (variant: LearnerButtonVariant): string => {
+  return `learner-dashboard__button learner-dashboard__button--${variant}`;
+};
+
+const LearnerButton = ({
+  type = "button",
+  variant,
+  name,
+  value,
+  children,
+}: PropsWithChildren<{
+  type?: "button" | "submit";
+  variant: LearnerButtonVariant;
+  name?: string;
+  value?: string;
+}>): HonoElement => {
+  return (
+    <button type={type} name={name} value={value} class={learnerButtonClass(variant)}>
+      {children}
+    </button>
+  );
+};
+
+const LearnerButtonRow = ({ children }: PropsWithChildren): HonoElement => {
+  return <div class="learner-dashboard__button-row">{children}</div>;
+};
 
 export const learnerDidSettingsNoticeFromQuery = (
   value: string | undefined,
@@ -174,22 +204,14 @@ const LearnerDidSettings = (input: {
                 class="learner-dashboard__did-input"
               />
             </label>
-            <div class="learner-dashboard__button-row">
-              <button
-                type="submit"
-                class="learner-dashboard__button learner-dashboard__button--primary"
-              >
+            <LearnerButtonRow>
+              <LearnerButton type="submit" variant="primary">
                 Save DID
-              </button>
-              <button
-                type="submit"
-                name="did"
-                value=""
-                class="learner-dashboard__button learner-dashboard__button--ghost"
-              >
+              </LearnerButton>
+              <LearnerButton type="submit" name="did" value="" variant="ghost">
                 Clear DID
-              </button>
-            </div>
+              </LearnerButton>
+            </LearnerButtonRow>
           </form>
         </div>
       </details>
@@ -290,12 +312,9 @@ const BadgeCard = (input: {
           )}/claim`}
           class="learner-dashboard__claim-form"
         >
-          <button
-            type="submit"
-            class="learner-dashboard__button learner-dashboard__button--secondary"
-          >
+          <LearnerButton type="submit" variant="secondary">
             Claim from dashboard
-          </button>
+          </LearnerButton>
         </form>
       )}
       <p class="learner-dashboard__badge-url">{publicBadgeUrl}</p>

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  AdminShell,
+  AdminSidebar,
   IssuedBadgeActions,
   AdminSidebarToggle,
+  AdminTopbar,
   adminButtonClass,
   renderIssuedBadgeRowsToString,
 } from "./admin/components";
@@ -74,6 +77,45 @@ describe("CredTrail UI styleguide", () => {
     expect(html).toContain('aria-hidden="true"');
   });
 
+  it("renders the shared admin shell, sidebar, and topbar from typed components", () => {
+    const renderable = AdminShell({
+      sidebar: AdminSidebar({
+        brandHref: "/tenants/sakai/admin",
+        sections: [
+          {
+            links: [{ href: "/tenants/sakai/admin", label: "Home", isCurrent: true }],
+          },
+          {
+            label: "Operations",
+            links: [
+              {
+                href: "/tenants/sakai/admin/operations/issued-badges",
+                label: "Issued Badges",
+                isSub: true,
+              },
+            ],
+          },
+        ],
+        footerLinks: [{ href: "/admin/audit-logs", label: "Audit logs", isExternal: true }],
+      }),
+      topbar: AdminTopbar({
+        title: "Sakai",
+        chips: [{ label: "admin" }],
+        userLabel: "admin@example.edu",
+        userTitle: "User ID: usr_admin",
+      }),
+      children: "Admin content",
+    }) as { toString(): string };
+    const html = renderable.toString();
+
+    expect(html).toContain('class="ct-admin-shell"');
+    expect(html).toContain('class="ct-admin-sidebar"');
+    expect(html).toContain('aria-current="page"');
+    expect(html).toContain("Issued Badges");
+    expect(html).toContain('class="ct-admin-topbar"');
+    expect(html).toContain("admin@example.edu");
+  });
+
   it("renders issued badge table rows through the shared admin components", () => {
     const html = renderIssuedBadgeRowsToString([
       {
@@ -118,7 +160,15 @@ describe("CredTrail UI styleguide", () => {
     expect(html).toContain("JSX components");
     expect(html).toContain("PageLayout");
     expect(html).toContain("appPage");
+    expect(html).toContain("AdminShell");
+    expect(html).toContain("AdminSidebar");
+    expect(html).toContain("AdminTopbar");
     expect(html).toContain("AdminSidebarToggle");
+    expect(html).toContain("RuleBuilderConditionCardTemplate");
+    expect(html).toContain("PublicBadgeButtonLink / PublicBadgeButton");
+    expect(html).toContain("LoginSubmitButton / LoginActionLink");
+    expect(html).toContain("LtiLaunchCard / LtiSubmitButton");
+    expect(html).toContain("LearnerButton / LearnerButtonRow");
     expect(html).toContain("Style Dictionary");
     expect(html).toContain("design/tokens/credtrail.tokens.json");
     expect(html).toContain("pnpm build:design-tokens");
@@ -156,18 +206,19 @@ describe("CredTrail UI styleguide", () => {
     expect(DESIGN_SYSTEM_CSS).toContain(".ct-design-system__action-demo");
   });
 
-  it("keeps client-generated admin buttons on the shared JS helper", () => {
+  it("keeps client-generated admin buttons and condition cards on shared templates", () => {
     expect(INSTITUTION_ADMIN_JS).toContain(
-      "const renderAdminButton = (className, label, attributes) =>",
+      "const createAdminButtonElement = (className, label, attributes) =>",
     );
-    expect(INSTITUTION_ADMIN_JS).toContain("renderAdminButton(adminButtonTinyClass, 'Issue badge'");
     expect(INSTITUTION_ADMIN_JS).toContain(
-      "renderAdminButton(adminButtonTinySecondaryClass, 'Dismiss'",
+      "createAdminButtonElement(adminButtonTinyClass, 'Issue badge'",
     );
-    expect(INSTITUTION_ADMIN_JS).toContain("renderAdminButton(adminButtonTinyGhostClass, 'Up'");
     expect(INSTITUTION_ADMIN_JS).toContain(
-      "renderAdminButton(adminButtonTinyDangerClass + ' ct-admin__condition-remove', 'Remove')",
+      "createAdminButtonElement(adminButtonTinySecondaryClass, 'Dismiss'",
     );
+    expect(INSTITUTION_ADMIN_JS).toContain("rule-builder-condition-card-template");
+    expect(INSTITUTION_ADMIN_JS).toContain("cloneRuleBuilderConditionCard");
+    expect(INSTITUTION_ADMIN_JS).not.toContain("const renderAdminButton");
   });
 
   it("keeps admin button links and native buttons on the same sizing model", () => {

@@ -1,5 +1,6 @@
 import type { LtiIssuerRegistrationRecord, TenantMembershipRole } from "@credtrail/db";
 import type { LtiRoleKind } from "@credtrail/lti";
+import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../ui/render-page";
 
@@ -15,6 +16,48 @@ const ltiPage = (input: {
     body: input.body,
     assets: input.scripts === undefined ? ["ltiPagesCss"] : ["ltiPagesCss", ...input.scripts],
   });
+};
+
+const LtiLaunchCard = ({
+  stack,
+  children,
+}: PropsWithChildren<{
+  stack?: boolean;
+}>): HonoElement => {
+  const className =
+    stack === true ? "lti-launch__card lti-launch__card--stack" : "lti-launch__card";
+
+  return <article class={className}>{children}</article>;
+};
+
+const LtiSubmitButton = ({ children }: PropsWithChildren): HonoElement => {
+  return <button type="submit">{children}</button>;
+};
+
+const LtiDeepLinkForm = ({
+  action,
+  children,
+}: PropsWithChildren<{
+  action: string;
+}>): HonoElement => {
+  return (
+    <form method="post" action={action} class="lti-deep-link__form">
+      {children}
+    </form>
+  );
+};
+
+const LtiRegistrationForm = ({
+  action,
+  children,
+}: PropsWithChildren<{
+  action: string;
+}>): HonoElement => {
+  return (
+    <form method="post" action={action} class="lti-registration__form">
+      {children}
+    </form>
+  );
 };
 
 const ltiRoleLabel = (roleKind: LtiRoleKind): string => {
@@ -190,7 +233,7 @@ const BulkIssuanceSection = (input: { view: LtiBulkIssuanceView | null }): HonoE
   );
 
   return (
-    <article class="lti-launch__card lti-launch__card--stack">
+    <LtiLaunchCard stack={true}>
       <h2 class="lti-launch__bulk-title">Issue badges from Sakai roster</h2>
       <p class="lti-launch__hint">
         Select learner members from the Sakai roster and issue the placed badge.
@@ -239,13 +282,13 @@ const BulkIssuanceSection = (input: { view: LtiBulkIssuanceView | null }): HonoE
                 cannot be selected because Sakai did not provide an email address.
               </p>
             )}
-            <button type="submit">Issue selected badges</button>
+            <LtiSubmitButton>Issue selected badges</LtiSubmitButton>
           </div>
         </form>
       ) : (
         table
       )}
-    </article>
+    </LtiLaunchCard>
   );
 };
 
@@ -273,7 +316,7 @@ export const ltiLaunchResultPage = (input: {
             Launch accepted for <strong>{ltiRoleLabel(input.roleKind)}</strong>.
           </p>
         </header>
-        <article class="lti-launch__card">
+        <LtiLaunchCard>
           <dl class="lti-launch__details">
             <DetailRows
               rows={[
@@ -289,8 +332,8 @@ export const ltiLaunchResultPage = (input: {
               ]}
             />
           </dl>
-        </article>
-        <article class="lti-launch__card lti-launch__card--stack">
+        </LtiLaunchCard>
+        <LtiLaunchCard stack={true}>
           <p class="lti-launch__hint">
             LTI identity is linked and this browser is now signed into CredTrail.
           </p>
@@ -299,7 +342,7 @@ export const ltiLaunchResultPage = (input: {
               Open learner dashboard
             </a>
           </p>
-        </article>
+        </LtiLaunchCard>
         <BulkIssuanceSection view={input.bulkIssuanceView} />
       </section>
     ),
@@ -328,7 +371,7 @@ export const ltiRosterIssuanceResultPage = (input: {
           <h1>Badge issuance complete</h1>
           <p>Processed selected Sakai roster members for the placed badge.</p>
         </header>
-        <article class="lti-launch__card lti-launch__card--stack">
+        <LtiLaunchCard stack={true}>
           <dl class="lti-launch__details">
             <DetailRows
               rows={[
@@ -375,7 +418,7 @@ export const ltiRosterIssuanceResultPage = (input: {
               </tbody>
             </table>
           </div>
-        </article>
+        </LtiLaunchCard>
       </section>
     ),
   });
@@ -401,11 +444,11 @@ const DeepLinkOption = (input: {
           {input.option.launchUrl}
         </a>
       </p>
-      <form method="post" action={input.signedSelectionActionUrl} class="lti-deep-link__form">
+      <LtiDeepLinkForm action={input.signedSelectionActionUrl}>
         <input type="hidden" name="lti_session_id" value={input.ltiSessionId} />
         <input type="hidden" name="badge_template_id" value={input.option.badgeTemplateId} />
-        <button type="submit">Place Template in LMS</button>
-      </form>
+        <LtiSubmitButton>Place Template in LMS</LtiSubmitButton>
+      </LtiDeepLinkForm>
     </article>
   );
 };
@@ -482,7 +525,7 @@ export const ltiIssuerRegistrationAdminPage = (input: {
         {input.submissionError === undefined ? null : (
           <p class="lti-registration__error">{input.submissionError}</p>
         )}
-        <form method="post" action="/admin/lti/issuer-registrations" class="lti-registration__form">
+        <LtiRegistrationForm action="/admin/lti/issuer-registrations">
           <input type="hidden" name="token" value={input.token} />
           <label class="lti-registration__field">
             <span>Issuer URL</span>
@@ -518,9 +561,9 @@ export const ltiIssuerRegistrationAdminPage = (input: {
             <input name="tokenEndpoint" type="url" value={input.formState?.tokenEndpoint ?? ""} />
           </label>
           <div class="lti-registration__actions">
-            <button type="submit">Save registration</button>
+            <LtiSubmitButton>Save registration</LtiSubmitButton>
           </div>
-        </form>
+        </LtiRegistrationForm>
         <div class="lti-registration__table-wrap">
           <table class="lti-registration__table">
             <thead>
@@ -560,7 +603,7 @@ export const ltiIssuerRegistrationAdminPage = (input: {
                       <form method="post" action="/admin/lti/issuer-registrations/delete">
                         <input type="hidden" name="token" value={input.token} />
                         <input type="hidden" name="issuer" value={registration.issuer} />
-                        <button type="submit">Delete</button>
+                        <LtiSubmitButton>Delete</LtiSubmitButton>
                       </form>
                     </td>
                   </tr>

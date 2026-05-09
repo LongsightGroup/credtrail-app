@@ -15,6 +15,7 @@ import type {
   ResolveAssertionLifecycleStateResult,
   TenantOrgUnitRecord,
 } from "@credtrail/db";
+import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../ui/render-page";
 import type { VerificationViewModel } from "./public-badge-model";
@@ -77,6 +78,86 @@ interface PublicBadgePageRenderers {
     filterBadgeTemplateId: string | null,
   ) => AppPage;
 }
+
+type PublicBadgeButtonVariant = "primary" | "secondary";
+
+const publicBadgeButtonClass = (variant: PublicBadgeButtonVariant = "secondary"): string => {
+  return variant === "primary"
+    ? "public-badge__button public-badge__button--primary"
+    : "public-badge__button";
+};
+
+const PublicBadgeButtonLink = ({
+  href,
+  variant,
+  target,
+  rel,
+  children,
+}: PropsWithChildren<{
+  href: string;
+  variant?: PublicBadgeButtonVariant;
+  target?: "_blank";
+  rel?: string;
+}>): HonoElement => {
+  return (
+    <a class={publicBadgeButtonClass(variant)} href={href} target={target} rel={rel}>
+      {children}
+    </a>
+  );
+};
+
+const PublicBadgeButton = ({
+  id,
+  type = "button",
+  variant,
+  dataCopyValue,
+  dataCredentialJsonUrl,
+  children,
+}: PropsWithChildren<{
+  id?: string;
+  type?: "button" | "submit";
+  variant?: PublicBadgeButtonVariant;
+  dataCopyValue?: string;
+  dataCredentialJsonUrl?: string;
+}>): HonoElement => {
+  return (
+    <button
+      id={id}
+      class={publicBadgeButtonClass(variant)}
+      type={type}
+      data-copy-value={dataCopyValue}
+      data-credential-json-url={dataCredentialJsonUrl}
+    >
+      {children}
+    </button>
+  );
+};
+
+const BadgeWallButtonLink = ({
+  href,
+  variant,
+  children,
+}: PropsWithChildren<{
+  href: string;
+  variant?: PublicBadgeButtonVariant;
+}>): HonoElement => {
+  const className =
+    variant === "primary" ? "badge-wall__button badge-wall__button--primary" : "badge-wall__button";
+
+  return (
+    <a class={className} href={href}>
+      {children}
+    </a>
+  );
+};
+
+const BadgeWallCopyButton = (input: { value: string }): HonoElement => {
+  return (
+    <button class="badge-wall__button" type="button" data-copy-value={input.value}>
+      Copy link
+    </button>
+  );
+};
 
 export interface PublicBadgeWallEntryViewRecord extends PublicBadgeWallEntryRecord {
   lifecycle: ResolveAssertionLifecycleStateResult;
@@ -507,33 +588,30 @@ export const createPublicBadgePageRenderers = (
     const validatorLinks =
       assertionValidatorUrl === null ? null : (
         <>
-          <a
-            class="public-badge__button"
+          <PublicBadgeButtonLink
             href={assertionValidatorUrl}
             target="_blank"
             rel="noopener noreferrer"
           >
             Validate Assertion (IMS)
-          </a>
+          </PublicBadgeButtonLink>
           {badgeClassValidatorUrl === null ? null : (
-            <a
-              class="public-badge__button"
+            <PublicBadgeButtonLink
               href={badgeClassValidatorUrl}
               target="_blank"
               rel="noopener noreferrer"
             >
               Validate Badge Class (IMS)
-            </a>
+            </PublicBadgeButtonLink>
           )}
           {issuerValidatorUrl === null ? null : (
-            <a
-              class="public-badge__button"
+            <PublicBadgeButtonLink
               href={issuerValidatorUrl}
               target="_blank"
               rel="noopener noreferrer"
             >
               Validate Issuer (IMS)
-            </a>
+            </PublicBadgeButtonLink>
           )}
         </>
       );
@@ -590,43 +668,35 @@ export const createPublicBadgePageRenderers = (
       <details class="public-badge__actions-details">
         <summary>Wallet, downloads, and advanced tools</summary>
         <div class="public-badge__actions public-badge__actions--secondary">
-          <a class="public-badge__button" href={walletDeepLinkUrl.toString()}>
+          <PublicBadgeButtonLink href={walletDeepLinkUrl.toString()}>
             Claim in Wallet
-          </a>
-          <a class="public-badge__button" href={dccWalletDeepLinkUrl.toString()}>
+          </PublicBadgeButtonLink>
+          <PublicBadgeButtonLink href={dccWalletDeepLinkUrl.toString()}>
             Open in DCC Learner Wallet
-          </a>
-          <a
-            class="public-badge__button"
+          </PublicBadgeButtonLink>
+          <PublicBadgeButtonLink
             href={linkedInFeedSharePath}
             target="_blank"
             rel="noopener noreferrer"
           >
             Share on LinkedIn Feed
-          </a>
-          <a class="public-badge__button" href={ob3JsonPath}>
-            Open Badges 3.0 JSON
-          </a>
-          <a class="public-badge__button" href={summaryPath}>
-            Summary JSON
-          </a>
-          <a class="public-badge__button" href={credentialDownloadPath}>
+          </PublicBadgeButtonLink>
+          <PublicBadgeButtonLink href={ob3JsonPath}>Open Badges 3.0 JSON</PublicBadgeButtonLink>
+          <PublicBadgeButtonLink href={summaryPath}>Summary JSON</PublicBadgeButtonLink>
+          <PublicBadgeButtonLink href={credentialDownloadPath}>
             Download .jsonld VC
-          </a>
-          <a class="public-badge__button" href={credentialPdfDownloadPath}>
+          </PublicBadgeButtonLink>
+          <PublicBadgeButtonLink href={credentialPdfDownloadPath}>
             Download PDF
-          </a>
-          <a class="public-badge__button" href={walletOfferPath}>
-            OpenID4VCI Offer
-          </a>
-          <button
+          </PublicBadgeButtonLink>
+          <PublicBadgeButtonLink href={walletOfferPath}>OpenID4VCI Offer</PublicBadgeButtonLink>
+          <PublicBadgeButton
             id="chapi-store-button"
-            class="public-badge__button"
             type="button"
-            data-credential-json-url={ob3JsonPath}
+            dataCredentialJsonUrl={ob3JsonPath}
           >
             Add to Browser Wallet
-          </button>
+          </PublicBadgeButton>
         </div>
         {validatorToolsMarkup}
       </details>
@@ -797,20 +867,16 @@ export const createPublicBadgePageRenderers = (
                 reviewers can verify the issuer, evidence, and technical details on this page.
               </p>
               <div class="public-badge__actions public-badge__actions--primary">
-                <a
-                  class="public-badge__button public-badge__button--primary"
-                  href={linkedInProfileSharePath}
-                >
+                <PublicBadgeButtonLink href={linkedInProfileSharePath} variant="primary">
                   Add to LinkedIn Profile
-                </a>
-                <button
+                </PublicBadgeButtonLink>
+                <PublicBadgeButton
                   id="copy-badge-url-button"
-                  class="public-badge__button"
                   type="button"
-                  data-copy-value={publicBadgeUrl}
+                  dataCopyValue={publicBadgeUrl}
                 >
                   Copy public URL
-                </button>
+                </PublicBadgeButton>
               </div>
               <p class="public-badge__achievement-copy">
                 Prefer a wallet? Scan the QR code or use the wallet tools below.
@@ -1014,12 +1080,10 @@ export const createPublicBadgePageRenderers = (
                         </div>
                       </div>
                       <div class="badge-wall__actions">
-                        <a class="badge-wall__button badge-wall__button--primary" href={badgePath}>
+                        <BadgeWallButtonLink href={badgePath} variant="primary">
                           View credential
-                        </a>
-                        <button class="badge-wall__button" type="button" data-copy-value={badgeUrl}>
-                          Copy link
-                        </button>
+                        </BadgeWallButtonLink>
+                        <BadgeWallCopyButton value={badgeUrl} />
                         <p class="badge-wall__copy-status" aria-live="polite"></p>
                       </div>
                     </div>

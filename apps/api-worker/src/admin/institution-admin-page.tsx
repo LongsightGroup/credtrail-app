@@ -32,7 +32,16 @@ import type {
 } from "../learner-record/learner-record-import";
 import type { LearnerRecordPresentationModel } from "../learner-record/learner-record-presentation";
 import { formatIsoTimestamp } from "../utils/display-format";
-import { AdminButton, AdminButtonLink, AdminCtaLink, AdminSidebarToggle } from "./components";
+import {
+  AdminButton,
+  AdminButtonLink,
+  AdminCtaLink,
+  AdminShell,
+  AdminSidebar,
+  AdminTopbar,
+  type AdminSidebarFooterLink,
+  type AdminSidebarSection,
+} from "./components";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -2945,146 +2954,115 @@ const renderInstitutionAdminPage = (
         ? `/v1/tenants/${encodeURIComponent(input.tenant.id)}/break-glass-accounts`
         : "",
   });
-  const sidebarLink = (
-    href: string,
-    label: string,
-    isCurrent: boolean,
-    extra = "",
-  ): HonoElement => {
-    const cls = extra.length > 0 ? `ct-admin-sidebar__link ${extra}` : "ct-admin-sidebar__link";
-    return (
-      <a class={cls} href={href} aria-current={isCurrent ? "page" : undefined}>
-        {label}
-      </a>
-    );
-  };
-
-  const renderSidebar = (): HonoElement => {
-    return (
-      <aside class="ct-admin-sidebar">
-        <a class="ct-admin-sidebar__brand" href={tenantAdminPath}>
-          CredTrail
-        </a>
-        <nav class="ct-admin-sidebar__nav" aria-label="Admin navigation">
-          {sidebarLink(tenantAdminPath, "Home", view === "home")}
-
-          <p class="ct-admin-sidebar__section-label">Operations</p>
-          {sidebarLink(operationsPath, "Overview", view === "operations")}
-          {sidebarLink(
-            operationsLearnerRecordsPath,
-            "Learner Records",
-            view === "operationsLearnerRecords",
-            "ct-admin-sidebar__link--sub",
-          )}
-          {sidebarLink(
-            operationsLearnerRecordImportsPath,
-            "Learner Record Imports",
-            view === "operationsLearnerRecordImports",
-            "ct-admin-sidebar__link--sub",
-          )}
-          {sidebarLink(
-            operationsReviewQueuePath,
-            "Review Queue",
-            view === "operationsReviewQueue",
-            "ct-admin-sidebar__link--sub",
-          )}
-          {sidebarLink(
-            operationsIssuedBadgesPath,
-            "Issued Badges",
-            view === "operationsIssuedBadges",
-            "ct-admin-sidebar__link--sub",
-          )}
-          {sidebarLink(
-            operationsBadgeStatusPath,
-            "Badge Status",
-            view === "operationsBadgeStatus",
-            "ct-admin-sidebar__link--sub",
-          )}
-
-          <p class="ct-admin-sidebar__section-label">Reporting</p>
-          {sidebarLink(reportingPath, "Overview", view === "reporting")}
-          {sidebarLink(
-            reportingTrendsPath,
-            "Trends",
-            view === "reportingTrends",
-            "ct-admin-sidebar__link--sub",
-          )}
-          {sidebarLink(
-            reportingExportsPath,
-            "Exports",
-            view === "reportingExports",
-            "ct-admin-sidebar__link--sub",
-          )}
-
-          <p class="ct-admin-sidebar__section-label">Configuration</p>
-          {sidebarLink(rulesWorkspacePath, "Rules", view === "rules")}
-          {sidebarLink(ruleBuilderPath, "Rule Builder", false, "ct-admin-sidebar__link--sub")}
-
-          <p class="ct-admin-sidebar__section-label">Access</p>
-          {sidebarLink(accessPath, "Overview", view === "access")}
-          {sidebarLink(
-            accessMembersPath,
-            "Members",
-            view === "accessMembers",
-            "ct-admin-sidebar__link--sub",
-          )}
-          {sidebarLink(
-            accessGovernancePath,
-            "Governance",
-            view === "accessGovernance",
-            "ct-admin-sidebar__link--sub",
-          )}
-          {sidebarLink(
-            accessApiKeysPath,
-            "API Keys",
-            view === "accessApiKeys",
-            "ct-admin-sidebar__link--sub",
-          )}
-          {sidebarLink(
-            accessOrgUnitsPath,
-            "Org Units",
-            view === "accessOrgUnits",
-            "ct-admin-sidebar__link--sub",
-          )}
-        </nav>
-        <div class="ct-admin-sidebar__footer">
-          <a
-            class="ct-admin-sidebar__footer-link ct-admin-sidebar__link--external"
-            href={adminAuditLogPath}
-          >
-            Audit logs
-          </a>
-          <a
-            class="ct-admin-sidebar__footer-link ct-admin-sidebar__link--external"
-            href={showcasePath}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Public showcase
-          </a>
-          {switchOrganizationPath.length > 0 ? (
-            <a class="ct-admin-sidebar__footer-link" href={switchOrganizationPath}>
-              Switch organization
-            </a>
-          ) : null}
-        </div>
-      </aside>
-    );
-  };
-
-  const renderTopbar = (): HonoElement => {
-    return (
-      <header class="ct-admin-topbar">
-        <AdminSidebarToggle />
-        <p class="ct-admin-topbar__title">{input.tenant.displayName}</p>
-        <div class="ct-admin-topbar__user">
-          <span class="ct-admin-topbar__chip">{input.membershipRole}</span>
-          <span class="ct-admin-topbar__chip">{input.tenant.planTier}</span>
-          <span title={`User ID: ${input.userId}`}>{userLabel}</span>
-        </div>
-      </header>
-    );
-  };
+  const sidebarSections: readonly AdminSidebarSection[] = [
+    {
+      links: [{ href: tenantAdminPath, label: "Home", isCurrent: view === "home" }],
+    },
+    {
+      label: "Operations",
+      links: [
+        { href: operationsPath, label: "Overview", isCurrent: view === "operations" },
+        {
+          href: operationsLearnerRecordsPath,
+          label: "Learner Records",
+          isCurrent: view === "operationsLearnerRecords",
+          isSub: true,
+        },
+        {
+          href: operationsLearnerRecordImportsPath,
+          label: "Learner Record Imports",
+          isCurrent: view === "operationsLearnerRecordImports",
+          isSub: true,
+        },
+        {
+          href: operationsReviewQueuePath,
+          label: "Review Queue",
+          isCurrent: view === "operationsReviewQueue",
+          isSub: true,
+        },
+        {
+          href: operationsIssuedBadgesPath,
+          label: "Issued Badges",
+          isCurrent: view === "operationsIssuedBadges",
+          isSub: true,
+        },
+        {
+          href: operationsBadgeStatusPath,
+          label: "Badge Status",
+          isCurrent: view === "operationsBadgeStatus",
+          isSub: true,
+        },
+      ],
+    },
+    {
+      label: "Reporting",
+      links: [
+        { href: reportingPath, label: "Overview", isCurrent: view === "reporting" },
+        {
+          href: reportingTrendsPath,
+          label: "Trends",
+          isCurrent: view === "reportingTrends",
+          isSub: true,
+        },
+        {
+          href: reportingExportsPath,
+          label: "Exports",
+          isCurrent: view === "reportingExports",
+          isSub: true,
+        },
+      ],
+    },
+    {
+      label: "Configuration",
+      links: [
+        { href: rulesWorkspacePath, label: "Rules", isCurrent: view === "rules" },
+        { href: ruleBuilderPath, label: "Rule Builder", isSub: true },
+      ],
+    },
+    {
+      label: "Access",
+      links: [
+        { href: accessPath, label: "Overview", isCurrent: view === "access" },
+        {
+          href: accessMembersPath,
+          label: "Members",
+          isCurrent: view === "accessMembers",
+          isSub: true,
+        },
+        {
+          href: accessGovernancePath,
+          label: "Governance",
+          isCurrent: view === "accessGovernance",
+          isSub: true,
+        },
+        {
+          href: accessApiKeysPath,
+          label: "API Keys",
+          isCurrent: view === "accessApiKeys",
+          isSub: true,
+        },
+        {
+          href: accessOrgUnitsPath,
+          label: "Org Units",
+          isCurrent: view === "accessOrgUnits",
+          isSub: true,
+        },
+      ],
+    },
+  ];
+  const sidebarFooterLinks: readonly AdminSidebarFooterLink[] = [
+    { href: adminAuditLogPath, label: "Audit logs", isExternal: true },
+    {
+      href: showcasePath,
+      label: "Public showcase",
+      isExternal: true,
+      target: "_blank",
+      rel: "noopener noreferrer",
+    },
+    ...(switchOrganizationPath.length > 0
+      ? [{ href: switchOrganizationPath, label: "Switch organization" }]
+      : []),
+  ];
 
   const renderPageHeader = (
     title: string,
@@ -5092,16 +5070,26 @@ const renderInstitutionAdminPage = (
     assets: ["institutionAdminCss", "institutionAdminJs"],
     variant: "admin",
     body: (
-      <div class="ct-admin-shell">
-        {renderSidebar()}
-        <div class="ct-admin-main">
-          {renderTopbar()}
-          <div class="ct-admin-content">
-            {viewContent}
-            <div id="ct-admin-context" hidden data-context-json={adminPageContextJson}></div>
-          </div>
-        </div>
-      </div>
+      <AdminShell
+        sidebar={
+          <AdminSidebar
+            brandHref={tenantAdminPath}
+            sections={sidebarSections}
+            footerLinks={sidebarFooterLinks}
+          />
+        }
+        topbar={
+          <AdminTopbar
+            title={input.tenant.displayName}
+            chips={[{ label: input.membershipRole }, { label: input.tenant.planTier }]}
+            userLabel={userLabel}
+            userTitle={`User ID: ${input.userId}`}
+          />
+        }
+      >
+        {viewContent}
+        <div id="ct-admin-context" hidden data-context-json={adminPageContextJson}></div>
+      </AdminShell>
     ),
   });
 };

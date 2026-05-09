@@ -11,6 +11,31 @@ export type AdminButtonSize = "default" | "tiny";
 type ButtonType = "button" | "submit" | "reset";
 type DataAttributes = Partial<Record<`data-${string}`, string>>;
 
+export interface AdminSidebarLinkItem {
+  href: string;
+  label: string;
+  isCurrent?: boolean;
+  isSub?: boolean;
+}
+
+export interface AdminSidebarSection {
+  label?: string;
+  links: readonly AdminSidebarLinkItem[];
+}
+
+export interface AdminSidebarFooterLink {
+  href: string;
+  label: string;
+  isExternal?: boolean;
+  target?: "_blank";
+  rel?: string;
+}
+
+export interface AdminTopbarChip {
+  label: string;
+  title?: string;
+}
+
 export const adminButtonClass = (input?: {
   variant?: AdminButtonVariant | undefined;
   size?: AdminButtonSize | undefined;
@@ -119,6 +144,102 @@ export const AdminSidebarToggle = (): HonoElement => {
     >
       <span aria-hidden="true">☰</span>
     </button>
+  );
+};
+
+export const AdminSidebar = (input: {
+  brandHref: string;
+  sections: readonly AdminSidebarSection[];
+  footerLinks: readonly AdminSidebarFooterLink[];
+}): HonoElement => {
+  return (
+    <aside class="ct-admin-sidebar">
+      <a class="ct-admin-sidebar__brand" href={input.brandHref}>
+        CredTrail
+      </a>
+      <nav class="ct-admin-sidebar__nav" aria-label="Admin navigation">
+        {input.sections.map((section) => (
+          <>
+            {section.label === undefined ? null : (
+              <p class="ct-admin-sidebar__section-label">{section.label}</p>
+            )}
+            {section.links.map((link) => {
+              const className =
+                link.isSub === true
+                  ? "ct-admin-sidebar__link ct-admin-sidebar__link--sub"
+                  : "ct-admin-sidebar__link";
+
+              return (
+                <a
+                  class={className}
+                  href={link.href}
+                  aria-current={link.isCurrent === true ? "page" : undefined}
+                >
+                  {link.label}
+                </a>
+              );
+            })}
+          </>
+        ))}
+      </nav>
+      <div class="ct-admin-sidebar__footer">
+        {input.footerLinks.map((link) => {
+          const className =
+            link.isExternal === true
+              ? "ct-admin-sidebar__footer-link ct-admin-sidebar__link--external"
+              : "ct-admin-sidebar__footer-link";
+
+          return (
+            <a class={className} href={link.href} target={link.target} rel={link.rel}>
+              {link.label}
+            </a>
+          );
+        })}
+      </div>
+    </aside>
+  );
+};
+
+export const AdminTopbar = (input: {
+  title: string;
+  chips: readonly AdminTopbarChip[];
+  userLabel: string;
+  userTitle: string;
+}): HonoElement => {
+  return (
+    <header class="ct-admin-topbar">
+      <AdminSidebarToggle />
+      <p class="ct-admin-topbar__title">{input.title}</p>
+      <div class="ct-admin-topbar__user">
+        {input.chips.map((chip) => (
+          <span class="ct-admin-topbar__chip" title={chip.title}>
+            {chip.label}
+          </span>
+        ))}
+        <span title={input.userTitle}>{input.userLabel}</span>
+      </div>
+    </header>
+  );
+};
+
+export const AdminShell = ({
+  sidebar,
+  topbar,
+  contentClassName = "ct-admin-content",
+  children,
+}: PropsWithChildren<{
+  sidebar: HonoElement;
+  topbar: HonoElement;
+  contentClassName?: string;
+}>): HonoElement => {
+  return (
+    <div class="ct-admin-shell">
+      {sidebar}
+      <div class="ct-admin-main">
+        {topbar}
+        <div class={contentClassName}>{children}</div>
+      </div>
+    </div>
   );
 };
 

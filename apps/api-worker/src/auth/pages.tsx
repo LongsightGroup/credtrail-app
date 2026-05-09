@@ -1,4 +1,5 @@
 import { appPage, type AppPage } from "../ui/render-page";
+import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
 import type { AccessibleTenantContextView } from "./tenant-context-selection";
 
@@ -25,6 +26,27 @@ const authPage = (input: {
     ...(input.head === undefined ? {} : { head: input.head }),
     variant: "open",
   });
+};
+
+const LoginSubmitButton = ({ children }: PropsWithChildren): HonoElement => {
+  return (
+    <button type="submit" class="ct-login__submit">
+      {children}
+    </button>
+  );
+};
+
+const LoginActionLink = ({
+  href,
+  children,
+}: PropsWithChildren<{
+  href: string;
+}>): HonoElement => {
+  return (
+    <a class="ct-login__submit" href={href}>
+      {children}
+    </a>
+  );
 };
 
 const adminTenantLabelFromNextPath = (tenantId: string, nextPath: string): string => {
@@ -111,9 +133,9 @@ const EnterpriseSignIn = (input: {
       <div id="enterprise-sso-options" class="ct-stack">
         {input.providers.map((provider) => {
           return (
-            <a key={provider.id} class="ct-login__submit" href={provider.startPath}>
+            <LoginActionLink href={provider.startPath}>
               Continue with {provider.label}
-            </a>
+            </LoginActionLink>
           );
         })}
       </div>
@@ -185,9 +207,7 @@ const MagicLinkEmailSignIn = (input: {
         </div>
         <input name="next" type="hidden" value={input.nextPath} />
         <MagicLinkTurnstile siteKey={input.turnstileSiteKey} />
-        <button type="submit" class="ct-login__submit">
-          Continue
-        </button>
+        <LoginSubmitButton>Continue</LoginSubmitButton>
       </form>
       <p class="ct-login__help">Sign-in links expire in 10 minutes.</p>
       <p id="magic-link-login-status" class="ct-login__status" hidden></p>
@@ -351,9 +371,7 @@ export const organizationChooserPage = (input: {
                       <form method="post" action="/account/organizations/select">
                         <input type="hidden" name="tenantId" value={organization.tenantId} />
                         <input type="hidden" name="next" value={input.nextPath} />
-                        <button type="submit" class="ct-login__submit">
-                          {isCurrent ? "Reopen" : "Continue"}
-                        </button>
+                        <LoginSubmitButton>{isCurrent ? "Reopen" : "Continue"}</LoginSubmitButton>
                       </form>
                     </li>
                   );
@@ -441,9 +459,7 @@ export const localBreakGlassLoginPage = (input: {
                     placeholder="Your local break-glass password"
                   />
                 </label>
-                <button type="submit" class="ct-login__submit">
-                  Continue with local access
-                </button>
+                <LoginSubmitButton>Continue with local access</LoginSubmitButton>
               </form>
             </section>
             <section class="ct-stack" aria-labelledby="break-glass-reset-title">
@@ -465,9 +481,7 @@ export const localBreakGlassLoginPage = (input: {
                   <span>Institution email</span>
                   <input name="email" type="email" required placeholder="name@institution.edu" />
                 </label>
-                <button type="submit" class="ct-login__submit">
-                  Email setup link
-                </button>
+                <LoginSubmitButton>Email setup link</LoginSubmitButton>
               </form>
             </section>
             <p class="ct-login__back">
@@ -512,9 +526,7 @@ export const localResetPasswordPage = (input: {
                 <span>New password</span>
                 <input name="newPassword" type="password" required minlength={8} />
               </label>
-              <button type="submit" class="ct-login__submit">
-                Save password
-              </button>
+              <LoginSubmitButton>Save password</LoginSubmitButton>
             </form>
           </div>
         </div>
@@ -543,9 +555,7 @@ const LocalTwoFactorEnrollment = (input: {
           <span>Current password</span>
           <input name="password" type="password" required />
         </label>
-        <button type="submit" class="ct-login__submit">
-          Generate authenticator setup
-        </button>
+        <LoginSubmitButton>Generate authenticator setup</LoginSubmitButton>
       </form>
     );
   }
@@ -614,9 +624,7 @@ export const localTwoFactorPage = (input: {
                   required
                 />
               </label>
-              <button type="submit" class="ct-login__submit">
-                Verify and continue
-              </button>
+              <LoginSubmitButton>Verify and continue</LoginSubmitButton>
             </form>
           </div>
         </div>

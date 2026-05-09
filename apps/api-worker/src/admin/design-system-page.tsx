@@ -162,6 +162,24 @@ const componentDocs: readonly ComponentDoc[] = [
     usage: "Use variant, size, and native form props instead of hand-writing button classes.",
   },
   {
+    name: "AdminShell",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Owns the standard admin page grid with shared sidebar, topbar, main, and content.",
+    usage: "Use for institution admin pages instead of recreating ct-admin-shell markup.",
+  },
+  {
+    name: "AdminSidebar",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Renders sidebar sections, sublinks, current-page state, and footer links from data.",
+    usage: "Use a typed nav model so admin pages do not hand-write duplicate sidebar markup.",
+  },
+  {
+    name: "AdminTopbar",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Renders the responsive sidebar toggle, tenant title, role chips, and signed-in user.",
+    usage: "Use in AdminShell topbar slots instead of recreating topbar structure per page.",
+  },
+  {
     name: "AdminButtonLink",
     source: "apps/api-worker/src/admin/components.tsx",
     purpose: "Renders anchor actions with the same variants and sizes as admin buttons.",
@@ -191,6 +209,37 @@ const componentDocs: readonly ComponentDoc[] = [
     source: "apps/api-worker/src/admin/components.tsx",
     purpose: "Owns the issued-badge Open, Audit, JSON-LD, and revoke action pattern.",
     usage: "Use this instead of recreating issued-badge action markup in server-rendered JSX.",
+  },
+  {
+    name: "RuleBuilderConditionCardTemplate",
+    source: "apps/api-worker/src/admin/institution-admin-rule-builder-page.tsx",
+    purpose: "Keeps client-added condition card structure in server-rendered JSX.",
+    usage: "Client JavaScript clones this template, then only fills dynamic field values.",
+  },
+  {
+    name: "PublicBadgeButtonLink / PublicBadgeButton",
+    source: "apps/api-worker/src/badges/public-badge-pages.tsx",
+    purpose: "Own the public credential action button classes for links and native buttons.",
+    usage: "Use for wallet, download, validator, LinkedIn, and copy actions on public pages.",
+  },
+  {
+    name: "LoginSubmitButton / LoginActionLink",
+    source: "apps/api-worker/src/auth/pages.tsx",
+    purpose: "Own the login CTA class for submit buttons and enterprise sign-in links.",
+    usage: "Use on auth pages instead of hand-writing ct-login__submit.",
+  },
+  {
+    name: "LtiLaunchCard / LtiSubmitButton",
+    source: "apps/api-worker/src/lti/pages.tsx",
+    purpose:
+      "Centralize LTI card and submit action markup across launch, deep-link, and admin pages.",
+    usage: "Use for LTI launch cards, roster issuance actions, and registration forms.",
+  },
+  {
+    name: "LearnerButton / LearnerButtonRow",
+    source: "apps/api-worker/src/learner/pages.tsx",
+    purpose: "Own learner dashboard button variants and grouped action rows.",
+    usage: "Use for learner DID settings and badge claim actions.",
   },
 ];
 
