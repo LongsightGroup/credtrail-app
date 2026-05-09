@@ -34,7 +34,7 @@ const serializeJsonScriptContent = (value: unknown): string => {
     .replaceAll("\u2029", "\\u2029");
 };
 
-type RuleBuilderStepTarget = "metadata" | "conditions" | "test" | "review";
+type RuleBuilderStepTarget = "metadata" | "conditions" | "test";
 
 const ruleBuilderConditionTypes = [
   { value: "course_completion", label: "Course completion" },
@@ -69,17 +69,17 @@ const RuleBuilderConditionCardTemplate = (): HonoElement => {
         <header class="ct-admin__condition-header ct-stack">
           <div class="ct-admin__condition-header-row ct-cluster">
             <span class="ct-admin__condition-index" data-condition-index="">
-              Condition
+              Requirement
             </span>
             <span class="ct-admin__condition-drag" title="Drag to reorder" aria-hidden="true">
-              ::
+              Move
             </span>
             <div class="ct-admin__condition-actions ct-cluster">
               <AdminButton
                 type="button"
                 size="tiny"
                 variant="ghost"
-                ariaLabel="Move condition up"
+                ariaLabel="Move requirement up"
                 dataAttributes={{ "data-condition-move": "up" }}
               >
                 Up
@@ -88,7 +88,7 @@ const RuleBuilderConditionCardTemplate = (): HonoElement => {
                 type="button"
                 size="tiny"
                 variant="ghost"
-                ariaLabel="Move condition down"
+                ariaLabel="Move requirement down"
                 dataAttributes={{ "data-condition-move": "down" }}
               >
                 Down
@@ -104,17 +104,20 @@ const RuleBuilderConditionCardTemplate = (): HonoElement => {
             </div>
           </div>
           <div class="ct-admin__condition-header-fields ct-admin__builder-grid ct-grid">
-            <AdminField label="Type">
+            <AdminField label="Requirement">
               <select class="ct-admin__condition-type">
                 {ruleBuilderConditionTypes.map((conditionType) => (
                   <option value={conditionType.value}>{conditionType.label}</option>
                 ))}
               </select>
             </AdminField>
-            <AdminCheckboxRow>
-              <input type="checkbox" data-field="negate" />
-              Invert (NOT)
-            </AdminCheckboxRow>
+            <details class="ct-admin__condition-advanced">
+              <summary>Advanced</summary>
+              <AdminCheckboxRow>
+                <input type="checkbox" data-field="negate" />
+                Exclude learners who match this requirement
+              </AdminCheckboxRow>
+            </details>
           </div>
         </header>
         <p class="ct-admin__condition-help"></p>
@@ -308,13 +311,16 @@ export const institutionAdminRuleBuilderPage = (input: {
         contentClassName="ct-admin-content ct-admin-content--rule-builder"
       >
         <div class="ct-admin-page-header ct-admin-page-header--compact">
-          <h1>Rule Builder</h1>
-          <p>Create one badge issuance rule at a time. Draft, test, then submit for review.</p>
+          <h1>Badge Awarding Rule</h1>
+          <p>
+            Choose an awarding pattern, define requirements, test with a learner, then create a
+            draft for review.
+          </p>
           <details class="ct-admin__builder-guide">
-            <summary>How rule drafts work</summary>
+            <summary>How awarding rules work</summary>
             <p>
-              Set the rule identity, model the conditions, run a dry run, then create a draft for
-              governance review.
+              CredTrail keeps the rule engine complete, but most authors should start from a guided
+              pattern and only open expert controls for exceptions.
             </p>
           </details>
         </div>
@@ -325,7 +331,7 @@ export const institutionAdminRuleBuilderPage = (input: {
             aria-label="Rule builder workflow"
           >
             <p class="ct-admin__eyebrow">Workflow</p>
-            <h2>Build in four passes</h2>
+            <h2>Build in three passes</h2>
             <ol
               id="rule-builder-stepper"
               class="ct-admin__builder-steps"
@@ -335,32 +341,24 @@ export const institutionAdminRuleBuilderPage = (input: {
                 <RuleBuilderStepButton
                   stepNumber={1}
                   target="metadata"
-                  title="Metadata"
-                  description="Name the rule and bind it to the right badge and LMS."
+                  title="Awarding pattern"
+                  description="Pick the badge, LMS, and starting pattern."
                 />
               </li>
               <li>
                 <RuleBuilderStepButton
                   stepNumber={2}
                   target="conditions"
-                  title="Conditions"
-                  description="Shape the qualification logic and keep the JSON in sync."
+                  title="Requirements"
+                  description="List the learner requirements for this badge."
                 />
               </li>
               <li>
                 <RuleBuilderStepButton
                   stepNumber={3}
                   target="test"
-                  title="Test"
-                  description="Dry-run with representative learner facts before publishing."
-                />
-              </li>
-              <li>
-                <RuleBuilderStepButton
-                  stepNumber={4}
-                  target="review"
-                  title="Review"
-                  description="Set governance and create the draft that reviewers will see."
+                  title="Test & submit"
+                  description="Dry-run with a learner, then prepare the draft."
                 />
               </li>
             </ol>
@@ -369,7 +367,7 @@ export const institutionAdminRuleBuilderPage = (input: {
               class="ct-admin__meta ct-admin__builder-progress"
               aria-live="polite"
             >
-              Step 1 of 4 · Metadata
+              Step 1 of 3 · Awarding pattern
             </p>
           </section>
 
@@ -382,12 +380,49 @@ export const institutionAdminRuleBuilderPage = (input: {
               >
                 <header class="ct-admin__step-head ct-stack">
                   <p class="ct-admin__step-kicker">Step 1</p>
-                  <h3>Rule metadata</h3>
-                  <p>Set the permanent rule identity before you work on conditions or testing.</p>
+                  <h3>Awarding pattern</h3>
+                  <p>
+                    Start with the common way a learner earns this badge. Advanced logic stays
+                    available after the pattern is in place.
+                  </p>
                 </header>
+                <section class="ct-admin__pattern-panel ct-stack">
+                  <div class="ct-stack">
+                    <h4>Start from a proven pattern</h4>
+                    <p>
+                      Patterns create the first set of requirements. You can edit every generated
+                      row before testing.
+                    </p>
+                  </div>
+                  <div class="ct-admin__builder-inline ct-cluster">
+                    <AdminField label="Awarding pattern" className="ct-admin__inline-control">
+                      <select id="rule-builder-template-preset" name="templatePreset">
+                        <option value="course_completion">Course completed</option>
+                        <option value="course_and_grade" selected>
+                          Course completed + minimum score
+                        </option>
+                        <option value="program_completion">Program or pathway completed</option>
+                        <option value="assignment_submission">
+                          Assignment or evidence submitted
+                        </option>
+                        <option value="prerequisite_chain">Prerequisite badge required</option>
+                        <option value="time_limited">Date-limited earning window</option>
+                        <option value="blank">Blank requirements</option>
+                      </select>
+                    </AdminField>
+                    <AdminButton id="rule-builder-apply-template" type="button" size="tiny">
+                      Use pattern
+                    </AdminButton>
+                  </div>
+                </section>
                 <div class="ct-admin__builder-grid ct-grid">
-                  <AdminField label="Rule name">
-                    <input name="name" type="text" required placeholder="CS101 Excellence Rule" />
+                  <AdminField label="Internal rule name">
+                    <input
+                      name="name"
+                      type="text"
+                      required
+                      placeholder="CS101 completion with distinction"
+                    />
                   </AdminField>
                   <AdminField label="Description (optional)">
                     <input
@@ -429,44 +464,61 @@ export const institutionAdminRuleBuilderPage = (input: {
               >
                 <header class="ct-admin__step-head ct-stack">
                   <p class="ct-admin__step-kicker">Step 2</p>
-                  <h3>Condition canvas</h3>
-                  <p>
-                    Compose the qualification logic on the canvas, then use JSON only for edge cases
-                    and transport.
-                  </p>
+                  <h3>Awarding requirements</h3>
+                  <p>Keep the default rule as a simple list: every requirement below must pass.</p>
                 </header>
                 <div class="ct-admin__builder-workbench ct-stack">
                   <div class="ct-admin__builder-workbench-main ct-stack">
+                    <section class="ct-admin__builder-principle ct-stack">
+                      <strong>Default earning path</strong>
+                      <p>
+                        The learner earns the badge when all listed requirements are met. Add
+                        alternatives only for true exception paths.
+                      </p>
+                    </section>
                     <div class="ct-admin__builder-toolbar ct-cluster">
-                      <AdminField label="Root logic" className="ct-admin__inline-control">
-                        <select id="rule-builder-root-logic" name="rootLogic">
-                          <option value="all" selected>
-                            AND (all conditions must pass)
-                          </option>
-                          <option value="any">OR (any condition can pass)</option>
-                        </select>
-                      </AdminField>
                       <AdminButton type="button" id="rule-builder-add-condition" size="tiny">
-                        Add condition card
+                        Add requirement
                       </AdminButton>
+                      <details class="ct-admin__builder-advanced ct-admin__builder-advanced--inline">
+                        <summary>Advanced logic</summary>
+                        <div class="ct-admin__builder-inline ct-cluster">
+                          <AdminField label="Earning path" className="ct-admin__inline-control">
+                            <select id="rule-builder-root-logic" name="rootLogic">
+                              <option value="all" selected>
+                                All requirements must pass
+                              </option>
+                              <option value="any">Any requirement can pass</option>
+                            </select>
+                          </AdminField>
+                          <AdminButton
+                            type="button"
+                            id="rule-builder-add-alternative-path"
+                            size="tiny"
+                            variant="secondary"
+                          >
+                            Add alternative way
+                          </AdminButton>
+                        </div>
+                      </details>
                     </div>
                     <section class="ct-admin__builder-canvas ct-stack">
                       <header class="ct-admin__builder-canvas-header ct-cluster">
-                        <strong>Condition Canvas</strong>
+                        <strong>Requirements</strong>
                         <span class="ct-admin__meta">
-                          Drag cards to reorder. Use Invert for NOT logic.
+                          Each row describes one fact CredTrail checks.
                         </span>
                       </header>
                       <div class="ct-admin__builder-canvas-meta ct-cluster">
                         <span id="rule-builder-canvas-count" class="ct-admin__status-pill">
-                          0 cards
+                          0 requirements
                         </span>
                         <span id="rule-builder-canvas-logic" class="ct-admin__status-pill">
-                          AND logic
+                          All requirements
                         </span>
                       </div>
                       <p id="rule-builder-condition-empty" class="ct-admin__builder-canvas-empty">
-                        No conditions yet. Apply a template or add your first condition card.
+                        No requirements yet. Choose a pattern or add one requirement.
                       </p>
                       <div
                         id="rule-builder-condition-list"
@@ -476,11 +528,10 @@ export const institutionAdminRuleBuilderPage = (input: {
                   </div>
 
                   <details class="ct-admin__builder-guide">
-                    <summary>Condition types</summary>
+                    <summary>Requirement catalog</summary>
                     <div class="ct-admin__builder-patterns-head ct-stack">
                       <p class="ct-admin__hint">
-                        Good builders keep the available rule types visible so authors do not hunt
-                        through raw JSON.
+                        These are the requirement rows available in the visual builder.
                       </p>
                     </div>
                     <dl class="ct-admin__builder-guide-list">
@@ -525,8 +576,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                 </div>
 
                 <details class="ct-admin__builder-advanced ct-stack">
-                  <summary>Advanced JSON editor</summary>
-                  <AdminField label="Rule JSON (advanced)">
+                  <summary>Generated rule JSON</summary>
+                  <AdminField label="Rule JSON (expert override)">
                     <textarea
                       id="rule-builder-definition-json"
                       name="definitionJson"
@@ -536,7 +587,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                   </AdminField>
                   <div class="ct-admin__builder-inline ct-cluster">
                     <AdminButton id="rule-builder-apply-json" type="button" size="tiny">
-                      Apply JSON to builder
+                      Apply JSON
                     </AdminButton>
                   </div>
                 </details>
@@ -550,14 +601,11 @@ export const institutionAdminRuleBuilderPage = (input: {
               >
                 <header class="ct-admin__step-head ct-stack">
                   <p class="ct-admin__step-kicker">Step 3</p>
-                  <h3>Test against sample learner facts</h3>
-                  <p>
-                    Use one representative learner case, then layer advanced fact JSON only when the
-                    simple path is insufficient.
-                  </p>
+                  <h3>Test and submit</h3>
+                  <p>Run a learner case before sending the draft to governance.</p>
                 </header>
                 <div class="ct-admin__builder-test-layout ct-grid">
-                  <AdminFieldset legend="Representative learner facts">
+                  <AdminFieldset legend="Test with learner">
                     <AdminField label="Learner ID">
                       <input name="testLearnerId" type="text" value="canvas:12345" />
                     </AdminField>
@@ -588,9 +636,9 @@ export const institutionAdminRuleBuilderPage = (input: {
                   </AdminFieldset>
 
                   <div class="ct-admin__builder-test-rail ct-stack">
-                    <AdminFieldset legend="Test presets">
+                    <AdminFieldset legend="Sample case">
                       <div class="ct-admin__builder-inline ct-cluster">
-                        <AdminField label="Test fact preset" className="ct-admin__inline-control">
+                        <AdminField label="Fact preset" className="ct-admin__inline-control">
                           <select id="rule-builder-test-preset" name="testPreset">
                             <option value="canvas_course_grade" selected>
                               Canvas course + grade
@@ -609,9 +657,11 @@ export const institutionAdminRuleBuilderPage = (input: {
                           Apply preset
                         </AdminButton>
                       </div>
-                      <AdminButton id="rule-builder-test" type="button" size="tiny">
-                        Test rule
-                      </AdminButton>
+                      <div class="ct-admin__builder-test-actions">
+                        <AdminButton id="rule-builder-test" type="button" size="tiny">
+                          Test with learner
+                        </AdminButton>
+                      </div>
                     </AdminFieldset>
 
                     <details class="ct-admin__builder-advanced ct-stack">
@@ -628,62 +678,55 @@ export const institutionAdminRuleBuilderPage = (input: {
                   </div>
                 </div>
                 <pre id="rule-builder-test-output" class="ct-admin__code-output" hidden></pre>
-              </section>
 
-              <section
-                id="builder-step-review"
-                class="ct-admin__builder-step"
-                data-rule-step="review"
-                hidden
-              >
-                <header class="ct-admin__step-head ct-stack">
-                  <p class="ct-admin__step-kicker">Step 4</p>
-                  <h3>Governance and release settings</h3>
-                  <p>
-                    Package the rule the way approvers expect to see it: timing, approval chain, and
-                    one short change summary.
-                  </p>
-                </header>
-                <div class="ct-admin__builder-review-layout ct-grid">
-                  <div class="ct-stack">
-                    <AdminField label="Approval roles (comma separated)">
-                      <input name="approvalRoles" type="text" value="admin,owner" />
-                    </AdminField>
-                    <AdminField label="Issuance timing">
-                      <select name="issuanceTiming">
-                        <option value="immediate">Immediate</option>
-                        <option value="manual">Manual review trigger</option>
-                        <option value="end_of_term">End of term batch</option>
-                      </select>
-                    </AdminField>
-                    <AdminField label="Change summary (optional)">
-                      <input
-                        name="changeSummary"
-                        type="text"
-                        placeholder="Initial draft for committee review."
-                      />
-                    </AdminField>
-                    <AdminCheckboxRow>
-                      <input name="reviewOnMissingFacts" type="checkbox" />
-                      Route missing-data cases to human review instead of treating them as a simple
-                      no-match
-                    </AdminCheckboxRow>
-                  </div>
-
-                  <details id="rule-builder-review-surface" class="ct-admin__builder-guide">
-                    <summary>Release checklist</summary>
-                    <ul class="ct-admin__builder-checklist">
-                      <li>Rule name, badge template, and LMS source are finalized.</li>
-                      <li>Condition canvas reflects the JSON you intend to submit.</li>
-                      <li>Latest dry run reflects representative learner facts.</li>
-                      <li>Approval roles match the governance path reviewers expect.</li>
-                    </ul>
-                    <p class="ct-admin__hint">
-                      Create the draft only when the last test summary and readiness rail are both
-                      clean.
+                <section class="ct-admin__builder-governance ct-stack">
+                  <header class="ct-admin__step-head ct-stack">
+                    <h4>Governance and release settings</h4>
+                    <p>
+                      Package the rule the way approvers expect to see it: timing, approval chain,
+                      and one short change summary.
                     </p>
-                  </details>
-                </div>
+                  </header>
+                  <div class="ct-admin__builder-review-layout ct-grid">
+                    <div class="ct-stack">
+                      <AdminField label="Approval roles (comma separated)">
+                        <input name="approvalRoles" type="text" value="admin,owner" />
+                      </AdminField>
+                      <AdminField label="Issuance timing">
+                        <select name="issuanceTiming">
+                          <option value="immediate">Immediate</option>
+                          <option value="manual">Manual review trigger</option>
+                          <option value="end_of_term">End of term batch</option>
+                        </select>
+                      </AdminField>
+                      <AdminField label="Change summary (optional)">
+                        <input
+                          name="changeSummary"
+                          type="text"
+                          placeholder="Initial draft for committee review."
+                        />
+                      </AdminField>
+                      <AdminCheckboxRow>
+                        <input name="reviewOnMissingFacts" type="checkbox" />
+                        Send missing-data cases to human review
+                      </AdminCheckboxRow>
+                    </div>
+
+                    <details id="rule-builder-review-surface" class="ct-admin__builder-guide">
+                      <summary>Release checklist</summary>
+                      <ul class="ct-admin__builder-checklist">
+                        <li>Rule name, badge template, and LMS source are finalized.</li>
+                        <li>Requirements match the earning policy reviewers expect.</li>
+                        <li>Latest test reflects a representative learner case.</li>
+                        <li>Approval roles match the governance path.</li>
+                      </ul>
+                      <p class="ct-admin__hint">
+                        Create the draft only when the latest test and readiness rail are both
+                        clean.
+                      </p>
+                    </details>
+                  </div>
+                </section>
 
                 <details class="ct-admin__builder-simulation ct-stack">
                   <summary>Historical simulation</summary>
@@ -724,19 +767,19 @@ export const institutionAdminRuleBuilderPage = (input: {
 
           <section class="ct-admin__panel ct-admin__builder-rail ct-stack" aria-live="polite">
             <p class="ct-admin__eyebrow">Readiness</p>
-            <h2>Draft summary</h2>
+            <h2>Draft readiness</h2>
             <p class="ct-admin__hint">
-              Keep this rail clean before you submit the rule into governance review.
+              Use this rail to see whether the draft is ready for governance review.
             </p>
             <dl class="ct-admin__builder-summary-list">
               <div>
-                <dt>Rule name</dt>
+                <dt>Name</dt>
                 <dd id="rule-builder-summary-rule-name" class="ct-admin__builder-summary-value">
                   -
                 </dd>
               </div>
               <div>
-                <dt>Condition cards</dt>
+                <dt>Requirements</dt>
                 <dd
                   id="rule-builder-summary-condition-count"
                   class="ct-admin__builder-summary-value"
@@ -745,13 +788,13 @@ export const institutionAdminRuleBuilderPage = (input: {
                 </dd>
               </div>
               <div>
-                <dt>Root logic</dt>
+                <dt>Earning path</dt>
                 <dd id="rule-builder-summary-root-logic" class="ct-admin__builder-summary-value">
-                  AND
+                  All requirements
                 </dd>
               </div>
               <div>
-                <dt>Definition</dt>
+                <dt>Rule definition</dt>
                 <dd id="rule-builder-summary-validity" class="ct-admin__builder-summary-value">
                   Drafting
                 </dd>
@@ -764,16 +807,16 @@ export const institutionAdminRuleBuilderPage = (input: {
               </div>
             </dl>
             <AdminStatus id="rule-builder-summary-message">
-              Build at least one condition card to create a draft.
+              Add at least one requirement to create a draft.
             </AdminStatus>
 
             <details class="ct-admin__builder-rail-card ct-stack">
               <summary>Submission path</summary>
               <ul class="ct-admin__builder-checklist">
-                <li>Prepare the draft in the main workspace.</li>
-                <li>Run at least one dry run in test mode.</li>
+                <li>Choose an awarding pattern and badge template.</li>
+                <li>Confirm the requirements match the earning policy.</li>
+                <li>Run at least one learner test.</li>
                 <li>Set approval roles and issuance timing.</li>
-                <li>Create the rule draft for review.</li>
               </ul>
             </details>
 
@@ -810,27 +853,10 @@ export const institutionAdminRuleBuilderPage = (input: {
           </section>
 
           <details class="ct-admin__panel ct-admin__builder-guide ct-admin__builder-support">
-            <summary>Templates, imports, and help</summary>
+            <summary>Advanced tools and reusable lists</summary>
             <div class="ct-admin__builder-support-grid ct-grid">
               <section class="ct-admin__builder-support-section ct-stack">
-                <h3>Start from template or clone</h3>
-                <AdminField label="Quick-start template">
-                  <div class="ct-admin__builder-inline ct-cluster">
-                    <select id="rule-builder-template-preset" name="templatePreset">
-                      <option value="course_completion">Course completion</option>
-                      <option value="course_and_grade" selected>
-                        Course + grade threshold
-                      </option>
-                      <option value="program_completion">Program completion</option>
-                      <option value="time_limited">Time-limited achievement</option>
-                      <option value="prerequisite_chain">Prerequisite badge chain</option>
-                      <option value="blank">Blank</option>
-                    </select>
-                    <AdminButton id="rule-builder-apply-template" type="button" size="tiny">
-                      Apply
-                    </AdminButton>
-                  </div>
-                </AdminField>
+                <h3>Start from existing rule</h3>
                 <AdminField label="Clone existing rule (optional)">
                   <div class="ct-admin__builder-inline ct-cluster">
                     <select id="rule-builder-clone-rule" name="cloneRuleId">
@@ -905,8 +931,8 @@ export const institutionAdminRuleBuilderPage = (input: {
               <section class="ct-admin__builder-support-section ct-stack">
                 <h3>Reusable lists</h3>
                 <p class="ct-admin__hint">
-                  Course and badge-template lists appear here and can be used inside condition
-                  cards.
+                  Course and badge-template lists appear here and can be used inside requirement
+                  rows.
                 </p>
                 <AdminTable
                   headers={["Label", "Kind", "Values"]}
@@ -925,20 +951,21 @@ export const institutionAdminRuleBuilderPage = (input: {
                   <section class="ct-admin__builder-intro-card ct-stack">
                     <h4>Define scope first</h4>
                     <p>
-                      Lock the badge template, LMS source, and rule identity before touching logic.
+                      Choose the badge template, LMS source, and awarding pattern before editing
+                      requirements.
                     </p>
                   </section>
                   <section class="ct-admin__builder-intro-card ct-stack">
-                    <h4>Model the rule visibly</h4>
+                    <h4>Keep requirements visible</h4>
                     <p>
-                      Condition cards stay front and center. JSON only appears when you need to
-                      import or inspect.
+                      Requirement rows stay front and center. JSON only appears when you need to
+                      import, export, or inspect.
                     </p>
                   </section>
                   <section class="ct-admin__builder-intro-card ct-stack">
                     <h4>Test before governance</h4>
                     <p>
-                      Dry-run against representative facts so approvers receive cleaner, more
+                      Test against representative learner facts so approvers receive cleaner, more
                       trustworthy drafts.
                     </p>
                   </section>

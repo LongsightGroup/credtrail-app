@@ -1507,7 +1507,7 @@ export const INSTITUTION_ADMIN_CSS = `
   display: none;
 }
 .ct-admin__builder-stepper-panel .ct-admin__builder-steps {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .ct-admin__builder-stepper-panel .ct-admin__step-button {
   align-items: center;
@@ -1555,6 +1555,25 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin__builder-support-section h4 {
   font-size: 0.92rem;
+}
+.ct-admin__pattern-panel {
+  --ct-stack-gap: 0.7rem;
+  padding: 0.82rem;
+  border-radius: var(--ct-radius-md);
+  border: 1px solid var(--ct-theme-border-info);
+  background: var(--ct-theme-surface-info);
+}
+.ct-admin__pattern-panel h4,
+.ct-admin__pattern-panel p {
+  margin: 0;
+}
+.ct-admin__pattern-panel h4 {
+  font-size: 0.98rem;
+}
+.ct-admin__pattern-panel p {
+  max-width: 65ch;
+  font-size: 0.86rem;
+  color: var(--ct-theme-text-muted);
 }
 .ct-admin__builder-inline {
   --ct-cluster-gap: 0.5rem;
@@ -1621,6 +1640,26 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__builder-toolbar {
   --ct-cluster-gap: 0.45rem;
 }
+.ct-admin__builder-principle {
+  --ct-stack-gap: 0.22rem;
+  padding: 0.68rem 0.72rem;
+  border-radius: var(--ct-radius-md);
+  border: 1px solid var(--ct-theme-border-info);
+  background: var(--ct-theme-surface-info);
+}
+.ct-admin__builder-principle strong,
+.ct-admin__builder-principle p {
+  margin: 0;
+}
+.ct-admin__builder-principle strong {
+  color: var(--ct-color-ink);
+  font-size: 0.9rem;
+}
+.ct-admin__builder-principle p {
+  max-width: 70ch;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.84rem;
+}
 .ct-admin__inline-control {
   display: grid;
   gap: 0.25rem;
@@ -1656,6 +1695,14 @@ export const INSTITUTION_ADMIN_CSS = `
   --ct-grid-gap: 0.8rem;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
+}
+.ct-admin__builder-test-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+.ct-admin__builder-governance {
+  --ct-stack-gap: 0.75rem;
+  margin-top: 0.9rem;
 }
 .ct-admin__builder-simulation {
   padding: 0.82rem;
@@ -1712,7 +1759,7 @@ export const INSTITUTION_ADMIN_CSS = `
   border-color: var(--ct-theme-border-success);
 }
 .ct-admin__condition-card--grade_threshold {
-  border-color: var(--ct-theme-border-info);
+  border-color: var(--ct-theme-border-focus);
 }
 .ct-admin__condition-card--program_completion {
   border-color: var(--ct-theme-border-info);
@@ -1721,25 +1768,25 @@ export const INSTITUTION_ADMIN_CSS = `
   border-color: var(--ct-theme-border-warning);
 }
 .ct-admin__condition-card--time_window {
-  border-color: var(--ct-theme-border-default);
+  border-color: var(--ct-border-strong);
 }
 .ct-admin__condition-card--prerequisite_badge {
   border-color: var(--ct-theme-border-danger);
 }
 .ct-admin__condition-card--result-idle {
-  box-shadow: inset 0 0 0 1px var(--ct-border-soft);
+  box-shadow: none;
 }
 .ct-admin__condition-card--result-pass {
+  border-color: var(--ct-theme-border-success);
   background: var(--ct-theme-surface-success);
-  box-shadow: inset 0 0 0 1px var(--ct-theme-border-success);
 }
 .ct-admin__condition-card--result-fail {
+  border-color: var(--ct-theme-border-danger);
   background: var(--ct-theme-surface-danger);
-  box-shadow: inset 0 0 0 1px var(--ct-theme-border-danger);
 }
 .ct-admin__condition-card--result-review {
+  border-color: var(--ct-theme-border-warning);
   background: var(--ct-theme-surface-warning);
-  box-shadow: inset 0 0 0 1px var(--ct-theme-border-warning);
 }
 .ct-admin__condition-header {
   --ct-cluster-gap: 0.5rem;
@@ -1766,15 +1813,16 @@ export const INSTITUTION_ADMIN_CSS = `
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.7rem;
+  width: auto;
   height: 1.7rem;
   border-radius: var(--ct-radius-sm);
   border: 1px solid var(--ct-border-soft);
   background: var(--ct-theme-surface-info);
   color: var(--ct-theme-text-muted);
-  font-size: 0.92rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  padding: 0 0.42rem;
   cursor: grab;
   user-select: none;
 }
@@ -1783,11 +1831,27 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin__condition-header-fields.ct-grid {
   --ct-grid-gap: 0.5rem;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(10rem, auto);
   align-items: end;
 }
 .ct-admin__condition-header-fields label {
   min-width: 0;
+}
+.ct-admin__condition-advanced {
+  align-self: end;
+  border: 1px solid var(--ct-border-soft);
+  border-radius: var(--ct-radius-sm);
+  background: var(--ct-theme-surface-soft);
+  padding: 0.22rem 0.42rem;
+}
+.ct-admin__condition-advanced > summary {
+  cursor: pointer;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.ct-admin__condition-advanced[open] > summary {
+  margin-bottom: 0.36rem;
 }
 .ct-admin__condition-fields.ct-grid {
   --ct-grid-gap: 0.5rem;
@@ -2368,6 +2432,13 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin__builder-advanced[open] > summary {
   margin-bottom: 0.45rem;
+}
+.ct-admin__builder-advanced--inline {
+  min-width: min(100%, 22rem);
+  padding-block: 0.36rem;
+}
+.ct-admin__builder-advanced--inline > summary {
+  min-height: 2.15rem;
 }
 .ct-admin__builder-guide {
   border: 1px solid var(--ct-border-soft);

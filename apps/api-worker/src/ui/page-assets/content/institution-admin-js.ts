@@ -131,6 +131,9 @@ export const INSTITUTION_ADMIN_JS = `
   const ruleBuilderTemplatePreset = document.getElementById('rule-builder-template-preset');
   const ruleBuilderApplyTemplateButton = document.getElementById('rule-builder-apply-template');
   const ruleBuilderAddConditionButton = document.getElementById('rule-builder-add-condition');
+  const ruleBuilderAddAlternativePathButton = document.getElementById(
+    'rule-builder-add-alternative-path',
+  );
   const ruleBuilderSaveDraftButton = document.getElementById('rule-builder-save-draft');
   const ruleBuilderLoadDraftButton = document.getElementById('rule-builder-load-draft');
   const ruleBuilderExportJsonButton = document.getElementById('rule-builder-export-json');
@@ -2574,17 +2577,17 @@ export const INSTITUTION_ADMIN_JS = `
     };
     const conditionTypeHelpText = {
       course_completion:
-        'Requires completion facts for a course and optional minimum completion percent.',
+        'Learner must have completed a course, with an optional minimum completion percent.',
       grade_threshold:
-        'Checks current/final score against minimum and/or maximum thresholds.',
+        'Learner score must meet the configured minimum and/or maximum threshold.',
       program_completion:
-        'Counts completions across required courses and compares with minimum completed.',
+        'Learner must complete enough courses in a program or pathway.',
       assignment_submission:
-        'Requires submission facts for a specific assignment, with optional score/workflow constraints.',
+        'Learner must submit an assignment or evidence, with optional score constraints.',
       time_window:
-        'Limits rule execution to a date-time window using optional not-before and not-after values.',
+        'Badge can only be earned inside the configured date-time window.',
       prerequisite_badge:
-        'Requires the learner to already hold a specific badge template.',
+        'Learner must already hold a specific prerequisite badge.',
     };
 
     function listOptionsMarkup(kind, selectedValue, emptyLabel) {
@@ -2721,6 +2724,18 @@ export const INSTITUTION_ADMIN_JS = `
           ],
         },
       },
+      assignment_submission: {
+        conditions: {
+          all: [
+            {
+              type: 'assignment_submission',
+              courseId: 'CS101',
+              assignmentId: 'assignment_1',
+              requireSubmitted: true,
+            },
+          ],
+        },
+      },
       time_limited: {
         conditions: {
           all: [
@@ -2795,10 +2810,9 @@ export const INSTITUTION_ADMIN_JS = `
       .map((candidate) => candidate.dataset.ruleStep ?? '')
       .filter((stepName) => stepName.length > 0);
     const ruleBuilderStepLabels = {
-      metadata: 'Metadata',
-      conditions: 'Conditions',
-      test: 'Test',
-      review: 'Review',
+      metadata: 'Awarding pattern',
+      conditions: 'Requirements',
+      test: 'Test & submit',
     };
     let activeRuleBuilderStepIndex = 0;
 
@@ -3156,7 +3170,7 @@ export const INSTITUTION_ADMIN_JS = `
       const negate = readCheckboxFromCard(card, 'negate');
 
       if (!(typeSelect instanceof HTMLSelectElement)) {
-        throw new Error('Condition card is missing type selection.');
+        throw new Error('Requirement row is missing a type selection.');
       }
 
       const conditionType = typeSelect.value;
@@ -3168,11 +3182,11 @@ export const INSTITUTION_ADMIN_JS = `
         const minCompletionPercent = parseNumberInput(readFieldFromCard(card, 'minCompletionPercent'));
 
         if (strict && courseId.length === 0 && courseListId.length === 0) {
-          throw new Error('Course completion condition requires course ID or reusable course list.');
+          throw new Error('Course completion requirement needs a course ID or reusable course list.');
         }
 
         if (strict && courseId.length > 0 && courseListId.length > 0) {
-          throw new Error('Course completion condition can use course ID or reusable course list, not both.');
+          throw new Error('Course completion requirement can use course ID or reusable course list, not both.');
         }
 
         condition = {
@@ -3195,11 +3209,11 @@ export const INSTITUTION_ADMIN_JS = `
         const maxScore = parseNumberInput(readFieldFromCard(card, 'maxScore'));
 
         if (strict && courseId.length === 0 && courseListId.length === 0) {
-          throw new Error('Grade threshold condition requires course ID or reusable course list.');
+          throw new Error('Grade threshold requirement needs a course ID or reusable course list.');
         }
 
         if (strict && courseId.length > 0 && courseListId.length > 0) {
-          throw new Error('Grade threshold condition can use course ID or reusable course list, not both.');
+          throw new Error('Grade threshold requirement can use course ID or reusable course list, not both.');
         }
 
         if (strict && minScore === null && maxScore === null) {
@@ -3255,11 +3269,11 @@ export const INSTITUTION_ADMIN_JS = `
         const workflowStates = parseCsv(readFieldFromCard(card, 'workflowStates'));
 
         if (strict && courseId.length === 0) {
-          throw new Error('Assignment submission condition requires course ID.');
+          throw new Error('Assignment submission requirement needs a course ID.');
         }
 
         if (strict && assignmentId.length === 0) {
-          throw new Error('Assignment submission condition requires assignment ID.');
+          throw new Error('Assignment submission requirement needs an assignment ID.');
         }
 
         condition = {
@@ -3304,11 +3318,11 @@ export const INSTITUTION_ADMIN_JS = `
         const badgeTemplateListId = readFieldFromCard(card, 'badgeTemplateListId');
 
         if (strict && badgeTemplateId.length === 0 && badgeTemplateListId.length === 0) {
-          throw new Error('Prerequisite badge condition requires badge template ID or reusable badge list.');
+          throw new Error('Prerequisite badge requirement needs a badge template ID or reusable badge list.');
         }
 
         if (strict && badgeTemplateId.length > 0 && badgeTemplateListId.length > 0) {
-          throw new Error('Prerequisite badge condition can use badge template ID or reusable badge list, not both.');
+          throw new Error('Prerequisite badge requirement can use badge template ID or reusable badge list, not both.');
         }
 
         condition = {
@@ -3329,7 +3343,7 @@ export const INSTITUTION_ADMIN_JS = `
       const cards = getConditionCards();
 
       if (cards.length === 0) {
-        throw new Error('Add at least one condition block to the canvas.');
+        throw new Error('Add at least one requirement before creating a draft.');
       }
 
       const conditions = cards.map((card) => readConditionFromCard(card, strict));
@@ -3473,7 +3487,7 @@ export const INSTITUTION_ADMIN_JS = `
         const indexElement = card.querySelector('[data-condition-index]');
 
         if (indexElement instanceof HTMLElement) {
-          indexElement.textContent = 'Condition ' + String(index + 1);
+          indexElement.textContent = 'Requirement ' + String(index + 1);
         }
 
         const moveUpButton = card.querySelector('button[data-condition-move="up"]');
@@ -3494,12 +3508,12 @@ export const INSTITUTION_ADMIN_JS = `
 
       if (ruleBuilderCanvasCount instanceof HTMLElement) {
         ruleBuilderCanvasCount.textContent =
-          String(cards.length) + (cards.length === 1 ? ' card' : ' cards');
+          String(cards.length) + (cards.length === 1 ? ' requirement' : ' requirements');
       }
 
       if (ruleBuilderCanvasLogic instanceof HTMLElement) {
         ruleBuilderCanvasLogic.textContent =
-          (ruleBuilderRootLogic.value === 'any' ? 'OR' : 'AND') + ' logic';
+          ruleBuilderRootLogic.value === 'any' ? 'Alternative paths' : 'All requirements';
         ruleBuilderCanvasLogic.dataset.tone = ruleBuilderRootLogic.value === 'any' ? 'warning' : 'success';
       }
     };
@@ -3524,8 +3538,7 @@ export const INSTITUTION_ADMIN_JS = `
       const completionByStep = {
         metadata: metadataReady,
         conditions: definitionReady,
-        test: testReady,
-        review: reviewReady,
+        test: testReady && reviewReady,
       };
 
       ruleBuilderStepButtons.forEach((candidate) => {
@@ -3561,38 +3574,44 @@ export const INSTITUTION_ADMIN_JS = `
     const syncRuleBuilderSummary = (statusOverride) => {
       const ruleName = getTextFieldValue('name');
       const cardCount = getConditionCards().length;
-      const rootLogicLabel = ruleBuilderRootLogic.value === 'any' ? 'OR (any)' : 'AND (all)';
+      const rootLogicLabel =
+        ruleBuilderRootLogic.value === 'any' ? 'Alternative paths' : 'All requirements';
       let definitionStatus = 'Drafting';
       let definitionTone = 'warning';
-      let summaryMessage = 'Build at least one condition card to create a draft.';
+      let summaryMessage = 'Add at least one requirement to create a draft.';
 
-      try {
-        const definition = readDefinitionFromBuilder(false);
-        const rootConditions =
-          definition &&
-          typeof definition === 'object' &&
-          definition.conditions &&
-          typeof definition.conditions === 'object'
-            ? definition.conditions
-            : null;
-        const childCount =
-          rootConditions !== null && Array.isArray(rootConditions.all)
-            ? rootConditions.all.length
-            : rootConditions !== null && Array.isArray(rootConditions.any)
-              ? rootConditions.any.length
-              : cardCount;
+      if (cardCount === 0) {
+        definitionStatus = 'Needs requirements';
+        definitionTone = 'warning';
+      } else {
+        try {
+          const definition = readDefinitionFromBuilder(false);
+          const rootConditions =
+            definition &&
+            typeof definition === 'object' &&
+            definition.conditions &&
+            typeof definition.conditions === 'object'
+              ? definition.conditions
+              : null;
+          const childCount =
+            rootConditions !== null && Array.isArray(rootConditions.all)
+              ? rootConditions.all.length
+              : rootConditions !== null && Array.isArray(rootConditions.any)
+                ? rootConditions.any.length
+                : cardCount;
 
-        definitionStatus = childCount > 0 ? 'Ready for review' : 'Needs conditions';
-        definitionTone = childCount > 0 ? 'success' : 'warning';
-        summaryMessage =
-          childCount > 0
-            ? 'Definition JSON is synchronized with the condition canvas.'
-            : 'Add one or more condition cards to continue.';
-      } catch (error) {
-        definitionStatus = 'Needs attention';
-        definitionTone = 'error';
-        summaryMessage =
-          error instanceof Error ? error.message : 'Definition is not ready for submission.';
+          definitionStatus = childCount > 0 ? 'Ready for review' : 'Needs requirements';
+          definitionTone = childCount > 0 ? 'success' : 'warning';
+          summaryMessage =
+            childCount > 0
+              ? 'Requirements are synchronized with the generated rule JSON.'
+              : 'Add one or more requirements to continue.';
+        } catch (error) {
+          definitionStatus = 'Needs attention';
+          definitionTone = 'error';
+          summaryMessage =
+            error instanceof Error ? error.message : 'Definition is not ready for submission.';
+        }
       }
 
       let lastTestTone = 'info';
@@ -3779,7 +3798,7 @@ export const INSTITUTION_ADMIN_JS = `
       const card = createConditionCard(seed);
 
       if (!(card instanceof HTMLElement)) {
-        setStatus(ruleCreateStatus, 'Unable to add condition card template.', true);
+        setStatus(ruleCreateStatus, 'Unable to add requirement row.', true);
         return;
       }
 
@@ -3875,12 +3894,13 @@ export const INSTITUTION_ADMIN_JS = `
       if (normalizedChildren.length !== rawChildren.length) {
         setStatus(
           ruleCreateStatus,
-          sourceLabel + ' includes nested condition groups not editable as cards. JSON mode remains active.',
+          sourceLabel +
+            ' includes nested requirement groups not editable as rows. JSON mode remains active.',
           true,
         );
         syncRuleBuilderSummary(
           sourceLabel +
-            ' includes nested condition groups not editable as cards. Adjust JSON manually.',
+            ' includes nested requirement groups not editable as rows. Adjust JSON manually.',
         );
         return;
       }
@@ -3933,6 +3953,19 @@ export const INSTITUTION_ADMIN_JS = `
         ruleBuilderTemplatePreset instanceof HTMLSelectElement
           ? ruleBuilderTemplatePreset.value.trim()
           : 'course_and_grade';
+
+      if (presetKey === 'blank') {
+        clearConditionCanvas();
+        ruleBuilderRootLogic.value = 'all';
+        ruleBuilderDefinitionJson.value = '';
+        ruleBuilderLastTestSummary = 'Not run';
+        syncConditionCanvasMeta();
+        resetConditionEvaluationResults();
+        setStatus(ruleCreateStatus, 'Blank requirements started.', false, 'success');
+        syncRuleBuilderSummary('Blank requirements started.');
+        return;
+      }
+
       const selectedTemplate = defaultTemplateDefinitions[presetKey] ?? defaultTemplateDefinitions.course_and_grade;
       ruleBuilderDefinitionJson.value = JSON.stringify(selectedTemplate, null, 2);
       applyDefinitionToBuilder(selectedTemplate, 'Template');
@@ -4104,12 +4137,25 @@ export const INSTITUTION_ADMIN_JS = `
     if (ruleBuilderAddConditionButton instanceof HTMLButtonElement) {
       ruleBuilderAddConditionButton.addEventListener('click', () => {
         addConditionToCanvas({
+          type: 'course_completion',
+          courseId: 'CS101',
+          requireCompleted: true,
+          negate: false,
+        });
+      });
+    }
+
+    if (ruleBuilderAddAlternativePathButton instanceof HTMLButtonElement) {
+      ruleBuilderAddAlternativePathButton.addEventListener('click', () => {
+        ruleBuilderRootLogic.value = 'any';
+        addConditionToCanvas({
           type: 'grade_threshold',
           courseId: 'CS101',
           scoreField: 'final_score',
           minScore: 80,
           negate: false,
         });
+        syncRuleBuilderSummary('Alternative earning path added.');
       });
     }
 
@@ -4553,7 +4599,7 @@ export const INSTITUTION_ADMIN_JS = `
           const conditionSummaryText =
             conditionSummary.total === 0
               ? ''
-              : ' Conditions passed: ' +
+              : ' Requirements passed: ' +
                 String(conditionSummary.matched) +
                 '/' +
                 String(conditionSummary.total) +
@@ -4585,7 +4631,7 @@ export const INSTITUTION_ADMIN_JS = `
               String(conditionSummary.matched) +
               '/' +
               String(conditionSummary.total) +
-              ' matched)';
+              ' requirements matched)';
           } else {
             ruleBuilderLastTestSummary =
               (matched ? 'Matched' : 'No match') +
@@ -4593,7 +4639,7 @@ export const INSTITUTION_ADMIN_JS = `
               String(conditionSummary.matched) +
               '/' +
               String(conditionSummary.total) +
-              ' conditions)';
+              ' requirements)';
           }
           syncRuleBuilderSummary(
             'Test evaluation complete. outcome=' +
