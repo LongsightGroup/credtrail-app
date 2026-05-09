@@ -127,6 +127,7 @@ import { createPostgresDatabase } from "@credtrail/db/postgres";
 import { app } from "./index";
 import { getSeededDemoLearnerRecordFixture } from "./learner-record/seeded-demo-learner-record-fixture";
 import { getSeededDemoReportingRouteFixture } from "./reporting/seeded-demo-reporting-fixture";
+import { pageAssetPath } from "./ui/page-assets";
 import { INSTITUTION_ADMIN_CSS } from "./ui/page-assets/content/institution-admin-css";
 import { INSTITUTION_ADMIN_JS } from "./ui/page-assets/content/institution-admin-js";
 
@@ -850,6 +851,12 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(body).toContain("Admin role required");
     expect(body).toContain("institution admin access");
+    expect(body).toContain(pageAssetPath("institutionAdminCss"));
+    expect(body).toContain('class="ct-admin-content"');
+    expect(body).toContain('class="ct-admin-page-header"');
+    expect(body).toContain('class="ct-admin__panel ct-stack"');
+    expect(body).toContain('class="ct-admin__button ct-admin__button--secondary"');
+    expect(body).not.toContain('style="');
   });
 
   it("shows empty-state rule guidance when no rules exist", async () => {
@@ -1337,6 +1344,31 @@ describe("GET /tenants/:tenantId/admin/operations/badge-status", () => {
 });
 
 describe("GET /tenants/:tenantId/admin/reporting", () => {
+  it("returns a normalized 403 page when reporting access is missing", async () => {
+    const env = createEnv();
+    mockedFindTenantMembership.mockResolvedValue(sampleMembership("viewer"));
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/reporting",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(body).toContain("Reporting access required");
+    expect(body).toContain(pageAssetPath("institutionAdminCss"));
+    expect(body).toContain('class="ct-admin-content"');
+    expect(body).toContain('class="ct-admin-page-header"');
+    expect(body).toContain('class="ct-admin__panel ct-stack"');
+    expect(body).not.toContain('style="');
+  });
+
   it("renders an executive summary band before the deeper reporting sections", async () => {
     const env = createEnv();
 

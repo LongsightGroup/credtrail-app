@@ -143,4 +143,11 @@ describe("CredTrail UI styleguide", () => {
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__issued-actions .ct-admin__button");
     expect(DESIGN_SYSTEM_CSS).toContain(".ct-design-system__action-demo");
   });
+
+  it("keeps admin button links and native buttons on the same sizing model", () => {
+    expect(INSTITUTION_ADMIN_CSS).toMatch(/\.ct-admin__button \{[\s\S]*box-sizing: border-box;/);
+    expect(INSTITUTION_ADMIN_CSS).toMatch(
+      /\.ct-admin__form button \{[\s\S]*box-sizing: border-box;/,
+    );
+  });
 });

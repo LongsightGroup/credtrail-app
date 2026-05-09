@@ -105,6 +105,7 @@ import {
   institutionAdminReportingTrendsPage,
   institutionAdminRulesPage,
 } from "../admin/institution-admin-page";
+import { AdminButtonLink } from "../admin/components";
 import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
 import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
 import { resolveTenantReportingAccess } from "../auth/tenant-access";
@@ -161,6 +162,68 @@ interface RegisterTenantGovernanceRoutesInput {
   ADMIN_ROLES: readonly TenantMembershipRole[];
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }
+
+export const adminRoleRequiredPage = (tenantId: string): AppPage => {
+  return appPage({
+    title: "Admin access required",
+    assets: ["institutionAdminCss"],
+    variant: "admin",
+    body: (
+      <section class="ct-admin-content">
+        <header class="ct-admin-page-header">
+          <h1>Admin role required</h1>
+          <p>
+            Your current organization membership role does not allow institution admin access for{" "}
+            <strong>{tenantId}</strong>.
+          </p>
+        </header>
+        <section class="ct-admin ct-stack">
+          <article class="ct-admin__panel ct-stack">
+            <p class="ct-admin__eyebrow">Institution Admin</p>
+            <p>
+              Ask an existing tenant admin/owner to grant your account an admin role, then retry.
+            </p>
+            <div class="ct-admin__actions">
+              <AdminButtonLink
+                href={`/showcase/${encodeURIComponent(tenantId)}`}
+                variant="secondary"
+              >
+                View public badge showcase
+              </AdminButtonLink>
+            </div>
+          </article>
+        </section>
+      </section>
+    ),
+  });
+};
+
+export const reportingAccessRequiredPage = (tenantId: string): AppPage => {
+  return appPage({
+    title: "Reporting access required",
+    assets: ["institutionAdminCss"],
+    variant: "admin",
+    body: (
+      <section class="ct-admin-content">
+        <header class="ct-admin-page-header">
+          <h1>Reporting access required</h1>
+          <p>
+            Your current organization membership does not allow reporting access for{" "}
+            <strong>{tenantId}</strong>.
+          </p>
+        </header>
+        <section class="ct-admin ct-stack">
+          <article class="ct-admin__panel ct-stack">
+            <p class="ct-admin__eyebrow">Reporting</p>
+            <p>
+              Ask a tenant admin to grant reporting scope or a broader reporting role, then retry.
+            </p>
+          </article>
+        </section>
+      </section>
+    ),
+  });
+};
 
 export const registerTenantGovernanceRoutes = (
   input: RegisterTenantGovernanceRoutesInput,
@@ -360,55 +423,6 @@ export const registerTenantGovernanceRoutes = (
       compatibilityOnly,
       ...(compatibilityOnly ? { notice: LEGACY_SAML_COMPATIBILITY_NOTICE } : {}),
     };
-  };
-
-  const adminRoleRequiredPage = (tenantId: string): AppPage => {
-    return appPage({
-      title: "Admin access required",
-      body: (
-        <section style="display:grid;gap:0.9rem;max-width:44rem;">
-          <article style="display:grid;gap:0.6rem;padding:1.15rem;border:1px solid rgba(0,39,76,0.17);border-radius:1rem;background:linear-gradient(165deg,rgba(255,255,255,0.96),rgba(248,252,255,0.93));box-shadow:0 14px 24px rgba(0,39,76,0.14);">
-            <p style="margin:0;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:#0a4c8f;font-weight:700;">
-              Institution Admin
-            </p>
-            <h1 style="margin:0;">Admin role required</h1>
-            <p style="margin:0;color:#355577;">
-              Your current organization membership role does not allow institution admin access for{" "}
-              <strong>{tenantId}</strong>.
-            </p>
-            <p style="margin:0;color:#355577;">
-              Ask an existing tenant admin/owner to grant your account an admin role, then retry.
-            </p>
-            <p style="margin:0;">
-              <a href={`/showcase/${encodeURIComponent(tenantId)}`}>View public badge showcase</a>
-            </p>
-          </article>
-        </section>
-      ),
-    });
-  };
-
-  const reportingAccessRequiredPage = (tenantId: string): AppPage => {
-    return appPage({
-      title: "Reporting access required",
-      body: (
-        <section style="display:grid;gap:0.9rem;max-width:44rem;">
-          <article style="display:grid;gap:0.6rem;padding:1.15rem;border:1px solid rgba(0,39,76,0.17);border-radius:1rem;background:linear-gradient(165deg,rgba(255,255,255,0.96),rgba(248,252,255,0.93));box-shadow:0 14px 24px rgba(0,39,76,0.14);">
-            <p style="margin:0;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:#0a4c8f;font-weight:700;">
-              Reporting
-            </p>
-            <h1 style="margin:0;">Reporting access required</h1>
-            <p style="margin:0;color:#355577;">
-              Your current organization membership does not allow reporting access for{" "}
-              <strong>{tenantId}</strong>.
-            </p>
-            <p style="margin:0;color:#355577;">
-              Ask a tenant admin to grant reporting scope or a broader reporting role, then retry.
-            </p>
-          </article>
-        </section>
-      ),
-    });
   };
 
   const getOptionalFormValue = (formData: FormData, name: string): string | undefined => {

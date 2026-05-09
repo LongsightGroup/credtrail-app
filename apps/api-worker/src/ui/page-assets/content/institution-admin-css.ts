@@ -1839,6 +1839,8 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin__form button {
   display: inline-flex;
+  box-sizing: border-box;
+  appearance: none;
   align-items: center;
   justify-content: center;
   justify-self: start;
@@ -1860,6 +1862,8 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin__button {
   display: inline-flex;
+  box-sizing: border-box;
+  appearance: none;
   align-items: center;
   justify-content: center;
   border: none;
