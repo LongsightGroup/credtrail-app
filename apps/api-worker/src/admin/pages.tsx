@@ -1,6 +1,7 @@
 import type { AuditLogRecord } from "@credtrail/db";
 import { appPage, type AppPage } from "../ui/render-page";
 import { formatIsoTimestamp } from "../utils/display-format";
+import { AdminButton } from "./components";
 
 export interface AuditLogAdminPageFilterState {
   tenantId?: string;
@@ -33,102 +34,90 @@ export const auditLogAdminPage = (input: {
 
   return appPage({
     title: "Audit Logs | CredTrail",
+    assets: ["institutionAdminCss"],
+    variant: "admin",
     body: (
-      <section style="display:grid;gap:1rem;max-width:72rem;">
-        <h1 style="margin:0;">Audit log viewer</h1>
-        <p style="margin:0;color:#334155;">
-          Review recent tenant-scoped audit events for sensitive operations.
-        </p>
-        {input.submissionError === undefined ? null : (
-          <p style="margin:0;padding:0.75rem;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;">
-            {input.submissionError}
-          </p>
-        )}
-        <form
-          method="get"
-          action="/admin/audit-logs"
-          style="display:grid;gap:0.75rem;padding:1rem;border:1px solid #cbd5e1;border-radius:0.5rem;"
-        >
-          <input type="hidden" name="token" value={input.token} />
-          <label style="display:grid;gap:0.35rem;">
-            <span>Tenant ID</span>
-            <input name="tenantId" type="text" required value={filterTenantId} />
-          </label>
-          <label style="display:grid;gap:0.35rem;">
-            <span>Action (optional exact match)</span>
-            <input name="action" type="text" value={filterAction} />
-          </label>
-          <label style="display:grid;gap:0.35rem;max-width:12rem;">
-            <span>Limit</span>
-            <input name="limit" type="number" min="1" max="200" value={filterLimit} />
-          </label>
-          <div>
-            <button type="submit">Load audit logs</button>
-          </div>
-        </form>
-        <div style="overflow:auto;">
-          <table style="width:100%;border-collapse:collapse;">
-            <thead>
-              <tr>
-                <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #cbd5e1;">
-                  Occurred (UTC)
-                </th>
-                <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #cbd5e1;">
-                  Action
-                </th>
-                <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #cbd5e1;">
-                  Actor
-                </th>
-                <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #cbd5e1;">
-                  Target
-                </th>
-                <th style="text-align:left;padding:0.5rem;border-bottom:1px solid #cbd5e1;">
-                  Metadata
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {input.logs.length === 0 ? (
-                <tr>
-                  <td colspan={5} style="padding:0.75rem;">
-                    {filterTenantId.trim().length === 0
-                      ? "Enter a tenant ID to load audit logs."
-                      : "No audit logs matched the current filters."}
-                  </td>
-                </tr>
-              ) : (
-                input.logs.map((log) => {
-                  const metadataText = metadataSummaryText(log.metadataJson);
-
-                  return (
-                    <tr key={`${log.occurredAt}:${log.action}:${log.targetId}`}>
-                      <td style="padding:0.5rem;vertical-align:top;white-space:nowrap;">
-                        {formatIsoTimestamp(log.occurredAt)}
-                      </td>
-                      <td style="padding:0.5rem;vertical-align:top;word-break:break-word;">
-                        {log.action}
-                      </td>
-                      <td style="padding:0.5rem;vertical-align:top;word-break:break-word;">
-                        {log.actorUserId ?? "system"}
-                      </td>
-                      <td style="padding:0.5rem;vertical-align:top;word-break:break-word;">
-                        {log.targetType}:{log.targetId}
-                      </td>
-                      <td style="padding:0.5rem;vertical-align:top;">
-                        <details>
-                          <summary>View metadata</summary>
-                          <pre style="margin:0.5rem 0 0;white-space:pre-wrap;word-break:break-word;">
-                            {metadataText}
-                          </pre>
-                        </details>
+      <section class="ct-admin-content">
+        <header class="ct-admin-page-header">
+          <h1>Audit log viewer</h1>
+          <p>Review recent tenant-scoped audit events for sensitive operations.</p>
+        </header>
+        <section class="ct-admin ct-stack">
+          {input.submissionError === undefined ? null : (
+            <p class="ct-admin__status" data-tone="error">
+              {input.submissionError}
+            </p>
+          )}
+          <article class="ct-admin__panel ct-stack">
+            <form
+              method="get"
+              action="/admin/audit-logs"
+              class="ct-admin__form ct-admin__form--inline ct-grid"
+            >
+              <input type="hidden" name="token" value={input.token} />
+              <label>
+                Tenant ID
+                <input name="tenantId" type="text" required value={filterTenantId} />
+              </label>
+              <label>
+                Action (optional exact match)
+                <input name="action" type="text" value={filterAction} />
+              </label>
+              <label>
+                Limit
+                <input name="limit" type="number" min="1" max="200" value={filterLimit} />
+              </label>
+              <AdminButton type="submit">Load audit logs</AdminButton>
+            </form>
+          </article>
+          <article class="ct-admin__panel ct-admin__panel--table ct-stack">
+            <div class="ct-admin__table-wrap">
+              <table class="ct-admin__table">
+                <thead>
+                  <tr>
+                    <th>Occurred (UTC)</th>
+                    <th>Action</th>
+                    <th>Actor</th>
+                    <th>Target</th>
+                    <th>Metadata</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {input.logs.length === 0 ? (
+                    <tr>
+                      <td colspan={5} class="ct-admin__empty">
+                        {filterTenantId.trim().length === 0
+                          ? "Enter a tenant ID to load audit logs."
+                          : "No audit logs matched the current filters."}
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                  ) : (
+                    input.logs.map((log) => {
+                      const metadataText = metadataSummaryText(log.metadataJson);
+
+                      return (
+                        <tr key={`${log.occurredAt}:${log.action}:${log.targetId}`}>
+                          <td>{formatIsoTimestamp(log.occurredAt)}</td>
+                          <td>{log.action}</td>
+                          <td>{log.actorUserId ?? "system"}</td>
+                          <td>
+                            {log.targetType}:{log.targetId}
+                          </td>
+                          <td>
+                            <details>
+                              <summary>View metadata</summary>
+                              <pre class="ct-admin__code-output">{metadataText}</pre>
+                            </details>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </section>
       </section>
     ),
   });

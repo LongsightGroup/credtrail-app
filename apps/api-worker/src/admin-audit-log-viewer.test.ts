@@ -19,6 +19,7 @@ import { listAuditLogs, type AuditLogRecord, type SqlDatabase } from "@credtrail
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
+import { pageAssetPath } from "./ui/page-assets";
 
 const mockedListAuditLogs = vi.mocked(listAuditLogs);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
@@ -137,6 +138,13 @@ describe("admin audit log viewer", () => {
     expect(response.status).toBe(200);
     expect(body).toContain("Audit log viewer");
     expect(body).toContain("membership.role_changed");
+    expect(body).toContain(pageAssetPath("institutionAdminCss"));
+    expect(body).toContain('class="ct-admin-content"');
+    expect(body).toContain('class="ct-admin-page-header"');
+    expect(body).toContain('class="ct-admin__form ct-admin__form--inline ct-grid"');
+    expect(body).toContain('class="ct-admin__button"');
+    expect(body).toContain('class="ct-admin__table"');
+    expect(body).not.toContain('style="');
     expect(mockedListAuditLogs).toHaveBeenCalledWith(fakeDb, {
       tenantId: "tenant_123",
       action: "membership.role_changed",
