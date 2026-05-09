@@ -1662,6 +1662,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("Detailed trend table");
     expect(body).not.toContain("Executive Summary");
     expect(body).not.toContain("Selected reporting slice");
+    expect(body).not.toContain("Back to overview");
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
   });
 

@@ -1288,7 +1288,6 @@ const renderInstitutionAdminPage = (
     state: reportingState ?? undefined,
   });
   const reportingAggregateExportEntries = [...reportingPageQueryEntries] as const;
-  const reportingOverviewHref = buildPathWithQuery(reportingPath, reportingPageQueryEntries);
   const reportingTrendsHref = buildPathWithQuery(reportingTrendsPath, reportingPageQueryEntries);
   const reportingOverviewExportHref = buildPathWithQuery(
     `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/overview/export.csv`,
@@ -4039,9 +4038,6 @@ const renderInstitutionAdminPage = (
     <article id="reporting-trend-filters-panel" class="ct-admin__panel ct-stack">
       <div class="ct-cluster">
         <h2>Trend filters</h2>
-        <a class="ct-admin__cta-link" href={reportingOverviewHref}>
-          Back to overview
-        </a>
       </div>
       <p>
         Use this page for the daily trend table and exact engagement counts behind the overview
