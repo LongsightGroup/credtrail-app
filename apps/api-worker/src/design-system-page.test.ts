@@ -40,6 +40,12 @@ describe("CredTrail UI styleguide", () => {
     const html = renderAppPageToString(designSystemAdminPage());
 
     expect(html).toContain("CredTrail UI Styleguide");
+    expect(html).toContain("JSX components");
+    expect(html).toContain("PageLayout");
+    expect(html).toContain("appPage");
+    expect(html).toContain("Style Dictionary");
+    expect(html).toContain("design/tokens/credtrail.tokens.json");
+    expect(html).toContain("pnpm build:design-tokens");
     expect(html).toContain(pageAssetPath("designSystemCss"));
     expect(html).toContain(pageAssetPath("institutionAdminCss"));
     expect(html).toContain("ct-admin__button ct-admin__button--secondary");

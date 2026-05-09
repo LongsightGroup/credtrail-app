@@ -15,6 +15,35 @@ interface CodeToken {
   value: string;
 }
 
+interface ComponentDoc {
+  name: string;
+  source: string;
+  purpose: string;
+  usage: string;
+}
+
+interface TokenPipelineDoc {
+  label: string;
+  value: string;
+  detail: string;
+}
+
+const appPageExample = `return appPage({
+  title: "Operations | CredTrail",
+  variant: "admin",
+  assets: ["institutionAdminCss"],
+  body: <section class="ct-admin-content">...</section>,
+});`;
+
+const styleDictionaryExample = `pnpm build:design-tokens
+
+# Source
+design/tokens/credtrail.tokens.json
+
+# Generated app assets
+apps/api-worker/src/ui/page-assets/content/generated/design-tokens.css
+apps/api-worker/src/ui/page-assets/content/generated/design-tokens-css.ts`;
+
 const colorTokens: readonly ColorToken[] = [
   {
     name: "Midnight 900",
@@ -93,6 +122,71 @@ const approvedActionClasses: readonly CodeToken[] = [
   },
 ];
 
+const componentDocs: readonly ComponentDoc[] = [
+  {
+    name: "PageLayout",
+    source: "packages/ui-components/src/index.tsx",
+    purpose: "Owns the HTML document shell, font loading, favicon tags, and body variant.",
+    usage:
+      "Used by renderAppPage and renderAppPageToString; page modules should not render full-document HTML.",
+  },
+  {
+    name: "appPage",
+    source: "apps/api-worker/src/ui/render-page.tsx",
+    purpose: "Creates the typed AppPage contract used by server-rendered Hono JSX pages.",
+    usage: "Page modules return appPage with title, variant, assets, and body.",
+  },
+  {
+    name: "renderAppPage",
+    source: "apps/api-worker/src/ui/render-page.tsx",
+    purpose: "Renders an AppPage from route handlers through the registered Hono JSX renderer.",
+    usage: "Routes call renderAppPage after auth, validation, and data loading.",
+  },
+  {
+    name: "PageAssets",
+    source: "apps/api-worker/src/ui/page-assets/index.tsx",
+    purpose: "Emits content-hashed stylesheet and script tags from the typed page asset registry.",
+    usage: "Use appPage assets instead of hand-writing stylesheet or script URLs.",
+  },
+  {
+    name: "Admin patterns",
+    source: "apps/api-worker/src/admin/*.tsx",
+    purpose: "Feature-local Hono JSX functions compose admin views from shared classes and assets.",
+    usage:
+      "Prefer small typed functions for repeated admin structures before adding new CSS patterns.",
+  },
+];
+
+const tokenPipelineDocs: readonly TokenPipelineDoc[] = [
+  {
+    label: "Token source",
+    value: "design/tokens/credtrail.tokens.json",
+    detail:
+      "Edit this JSON when a shared color, font, spacing, radius, motion, or elevation value changes.",
+  },
+  {
+    label: "Build config",
+    value: "style-dictionary.config.mjs",
+    detail: "Style Dictionary transforms the token JSON into CSS custom properties.",
+  },
+  {
+    label: "Generated CSS",
+    value: "apps/api-worker/src/ui/page-assets/content/generated/design-tokens.css",
+    detail: "Canonical generated CSS output. Do not edit by hand.",
+  },
+  {
+    label: "Generated TS wrapper",
+    value: "apps/api-worker/src/ui/page-assets/content/generated/design-tokens-css.ts",
+    detail:
+      "Imported by foundationCss so the Worker serves generated tokens through the existing asset system.",
+  },
+  {
+    label: "Drift check",
+    value: "pnpm check:design-tokens",
+    detail: "Rebuilds generated files and fails if checked-in generated assets are stale.",
+  },
+];
+
 const ColorTokenCard = (input: { token: ColorToken }): HonoElement => {
   return (
     <article class="ct-design-system__token">
@@ -105,6 +199,42 @@ const ColorTokenCard = (input: { token: ColorToken }): HonoElement => {
       </div>
       <p class="ct-design-system__meta-text">{input.token.usage}</p>
     </article>
+  );
+};
+
+const ComponentDocCard = (input: { doc: ComponentDoc }): HonoElement => {
+  return (
+    <article class="ct-design-system__doc-card">
+      <div class="ct-design-system__doc-card-head">
+        <h3>{input.doc.name}</h3>
+        <code>{input.doc.source}</code>
+      </div>
+      <p class="ct-design-system__body-text">{input.doc.purpose}</p>
+      <p class="ct-design-system__meta-text">{input.doc.usage}</p>
+    </article>
+  );
+};
+
+const PipelineDocRow = (input: { doc: TokenPipelineDoc }): HonoElement => {
+  return (
+    <article class="ct-design-system__pipeline-row">
+      <div>
+        <h3>{input.doc.label}</h3>
+        <code>{input.doc.value}</code>
+      </div>
+      <p>{input.doc.detail}</p>
+    </article>
+  );
+};
+
+const CodeBlock = (input: { label: string; code: string }): HonoElement => {
+  return (
+    <figure class="ct-design-system__code-block">
+      <figcaption>{input.label}</figcaption>
+      <pre>
+        <code>{input.code}</code>
+      </pre>
+    </figure>
   );
 };
 
@@ -244,13 +374,15 @@ export const designSystemAdminPage = (): AppPage => {
         <header class="ct-admin-page-header ct-design-system__header">
           <h1>CredTrail UI Styleguide</h1>
           <p>
-            Internal catalog for the current token source, admin typography, button hierarchy,
-            secondary link rows, and table actions.
+            Internal catalog for JSX page components, the Style Dictionary token pipeline, admin
+            typography, button hierarchy, secondary link rows, and table actions.
           </p>
         </header>
 
         <nav class="ct-design-system__nav" aria-label="Styleguide sections">
           <a href="#foundations">Foundations</a>
+          <a href="#jsx-components">JSX components</a>
+          <a href="#style-dictionary">Style Dictionary</a>
           <a href="#colors">Colors</a>
           <a href="#actions">Actions</a>
           <a href="#data">Data rows</a>
@@ -286,6 +418,34 @@ export const designSystemAdminPage = (): AppPage => {
               </p>
             </article>
           </div>
+        </section>
+
+        <section class="ct-design-system__section" id="jsx-components">
+          <h2>JSX components</h2>
+          <p class="ct-design-system__section-copy">
+            CredTrail app pages are server-rendered Hono JSX. Shared page structure belongs in typed
+            components and app page helpers, not route handlers or full-document strings.
+          </p>
+          <div class="ct-design-system__doc-grid">
+            {componentDocs.map((doc) => (
+              <ComponentDocCard doc={doc} />
+            ))}
+          </div>
+          <CodeBlock label="Page module pattern" code={appPageExample} />
+        </section>
+
+        <section class="ct-design-system__section" id="style-dictionary">
+          <h2>Style Dictionary</h2>
+          <p class="ct-design-system__section-copy">
+            Style Dictionary is the source-to-asset bridge. Edit token JSON first, rebuild generated
+            assets, and let foundationCss distribute the resulting custom properties.
+          </p>
+          <div class="ct-design-system__pipeline">
+            {tokenPipelineDocs.map((doc) => (
+              <PipelineDocRow doc={doc} />
+            ))}
+          </div>
+          <CodeBlock label="Token build flow" code={styleDictionaryExample} />
         </section>
 
         <section class="ct-design-system__section" id="colors">
