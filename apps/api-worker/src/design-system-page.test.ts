@@ -7,6 +7,9 @@ import {
   AdminFieldset,
   AdminForm,
   AdminMeta,
+  AdminMetricCard,
+  AdminPageHeader,
+  AdminPanel,
   AdminShell,
   AdminSidebar,
   IssuedBadgeActions,
@@ -15,7 +18,10 @@ import {
   AdminStatusPill,
   AdminTable,
   AdminTopbar,
+  AdminWorkspaceCard,
+  adminMetricCardClass,
   adminButtonClass,
+  adminPanelClass,
   renderIssuedBadgeRowsToString,
 } from "./admin/components";
 import { designSystemAdminPage } from "./admin/design-system-page";
@@ -124,6 +130,43 @@ describe("CredTrail UI styleguide", () => {
     expect(html).toContain("Issued Badges");
     expect(html).toContain('class="ct-admin-topbar"');
     expect(html).toContain("admin@example.edu");
+  });
+
+  it("renders shared admin surface primitives", () => {
+    const headerHtml = (
+      AdminPageHeader({
+        title: "Operations",
+        description: "Focused admin workspace.",
+        compact: true,
+      }) as { toString(): string }
+    ).toString();
+    const panelHtml = (
+      AdminPanel({
+        variant: "table",
+        dataAttributes: { "data-reporting-state": "rich" },
+        children: "Panel body",
+      }) as { toString(): string }
+    ).toString();
+    const metricHtml = (
+      AdminMetricCard({ stack: true, children: "Metric body" }) as {
+        toString(): string;
+      }
+    ).toString();
+    const workspaceHtml = (
+      AdminWorkspaceCard({ children: "Workspace body" }) as {
+        toString(): string;
+      }
+    ).toString();
+
+    expect(adminPanelClass({ variant: "table" })).toBe(
+      "ct-admin__panel ct-admin__panel--table ct-stack",
+    );
+    expect(adminMetricCardClass({ stack: true })).toBe("ct-admin__metric-card ct-stack");
+    expect(headerHtml).toContain("ct-admin-page-header--compact");
+    expect(panelHtml).toContain('class="ct-admin__panel ct-admin__panel--table ct-stack"');
+    expect(panelHtml).toContain('data-reporting-state="rich"');
+    expect(metricHtml).toContain('class="ct-admin__metric-card ct-stack"');
+    expect(workspaceHtml).toContain('class="ct-admin__workspace-card ct-stack"');
   });
 
   it("renders shared admin table primitives", () => {
@@ -242,6 +285,10 @@ describe("CredTrail UI styleguide", () => {
     expect(html).toContain("PageLayout");
     expect(html).toContain("appPage");
     expect(html).toContain("AdminShell");
+    expect(html).toContain("AdminPageHeader");
+    expect(html).toContain("AdminPanel");
+    expect(html).toContain("AdminMetricCard");
+    expect(html).toContain("AdminWorkspaceCard");
     expect(html).toContain("AdminSidebar");
     expect(html).toContain("AdminTopbar");
     expect(html).toContain("AdminTable");
@@ -267,6 +314,7 @@ describe("CredTrail UI styleguide", () => {
     expect(html).toContain("ct-admin__button ct-admin__button--secondary");
     expect(html).toContain("ct-admin__cta-link");
     expect(html).toContain("ct-admin__action-bar");
+    expect(html).toContain("Surfaces");
     expect(html).not.toContain("ct-admin__action-pill");
   });
 

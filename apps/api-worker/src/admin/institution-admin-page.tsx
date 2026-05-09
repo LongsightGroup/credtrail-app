@@ -43,12 +43,16 @@ import {
   AdminFieldset,
   AdminForm,
   AdminMeta,
+  AdminMetricCard,
+  AdminPageHeader,
+  AdminPanel,
   AdminShell,
   AdminSidebar,
   AdminStatus,
   AdminStatusPill,
   AdminTable,
   AdminTopbar,
+  AdminWorkspaceCard,
   type AdminSidebarFooterLink,
   type AdminSidebarSection,
 } from "./components";
@@ -2968,18 +2972,12 @@ const renderInstitutionAdminPage = (
     description: string,
     noteMarkup: HonoElement | null = null,
   ): HonoElement => {
-    return (
-      <div class="ct-admin-page-header">
-        <h1>{title}</h1>
-        <p>{description}</p>
-        {noteMarkup}
-      </div>
-    );
+    return <AdminPageHeader title={title} description={description} note={noteMarkup} />;
   };
 
   const workspaceCardsMarkup = (
     <section class="ct-admin__workspace-grid ct-grid" aria-label="Institution admin workspaces">
-      <article class="ct-admin__workspace-card ct-stack">
+      <AdminWorkspaceCard>
         <p class="ct-admin__eyebrow">Daily work</p>
         <h2>Operations</h2>
         <p>
@@ -2987,24 +2985,24 @@ const renderInstitutionAdminPage = (
           focused pages.
         </p>
         <div class="ct-admin__workspace-stats ct-cluster">
-          <span class="ct-admin__status-pill">{badgeTemplateCount} templates</span>
-          <span class="ct-admin__status-pill">{ruleCount} rules</span>
+          <AdminStatusPill>{badgeTemplateCount} templates</AdminStatusPill>
+          <AdminStatusPill>{ruleCount} rules</AdminStatusPill>
         </div>
-      </article>
-      <article class="ct-admin__workspace-card ct-stack">
+      </AdminWorkspaceCard>
+      <AdminWorkspaceCard>
         <p class="ct-admin__eyebrow">Analytics</p>
         <h2>Reporting</h2>
         <p>
           Track issuance volume and badge status with filters, definitions, and clear source notes.
         </p>
         <div class="ct-admin__workspace-stats ct-cluster">
-          <span class="ct-admin__status-pill">Issued {reportingOverview?.counts.issued ?? 0}</span>
-          <span class="ct-admin__status-pill">
+          <AdminStatusPill>Issued {reportingOverview?.counts.issued ?? 0}</AdminStatusPill>
+          <AdminStatusPill>
             Pending review {reportingOverview?.counts.pendingReview ?? 0}
-          </span>
+          </AdminStatusPill>
         </div>
-      </article>
-      <article class="ct-admin__workspace-card ct-stack">
+      </AdminWorkspaceCard>
+      <AdminWorkspaceCard>
         <p class="ct-admin__eyebrow">Authoring</p>
         <h2>Rules</h2>
         <p>
@@ -3014,11 +3012,11 @@ const renderInstitutionAdminPage = (
           <p class="ct-admin__hint">No badge rules found. Create your first rule.</p>
         ) : null}
         <div class="ct-admin__workspace-stats ct-cluster">
-          <span class="ct-admin__status-pill">{ruleCount} active rule records</span>
-          <span class="ct-admin__status-pill">{badgeTemplateCount} templates</span>
+          <AdminStatusPill>{ruleCount} active rule records</AdminStatusPill>
+          <AdminStatusPill>{badgeTemplateCount} templates</AdminStatusPill>
         </div>
-      </article>
-      <article class="ct-admin__workspace-card ct-stack">
+      </AdminWorkspaceCard>
+      <AdminWorkspaceCard>
         <p class="ct-admin__eyebrow">Setup</p>
         <h2>Access</h2>
         <p>
@@ -3026,16 +3024,16 @@ const renderInstitutionAdminPage = (
           structure.
         </p>
         <div class="ct-admin__workspace-stats ct-cluster">
-          <span class="ct-admin__status-pill">{tenantMemberCount} members</span>
-          <span class="ct-admin__status-pill">{activeApiKeyCount} active keys</span>
-          <span class="ct-admin__status-pill">{orgUnitCount} org units</span>
+          <AdminStatusPill>{tenantMemberCount} members</AdminStatusPill>
+          <AdminStatusPill>{activeApiKeyCount} active keys</AdminStatusPill>
+          <AdminStatusPill>{orgUnitCount} org units</AdminStatusPill>
         </div>
-      </article>
+      </AdminWorkspaceCard>
     </section>
   );
 
   const manualIssuePanelMarkup = (
-    <article id="manual-issue-panel" class="ct-admin__panel ct-stack">
+    <AdminPanel id="manual-issue-panel">
       <h2>Manual Issue Badge</h2>
       <p>Issue a badge for a learner using this form.</p>
       <AdminForm id="manual-issue-form">
@@ -3050,11 +3048,11 @@ const renderInstitutionAdminPage = (
         <AdminButton type="submit">Issue badge</AdminButton>
       </AdminForm>
       <AdminStatus id="manual-issue-status"></AdminStatus>
-    </article>
+    </AdminPanel>
   );
 
   const templateImagePanelMarkup = (
-    <article id="template-image-panel" class="ct-admin__panel ct-stack">
+    <AdminPanel id="template-image-panel">
       <h2>Upload Badge Template Image</h2>
       <p>Upload template artwork (PNG, JPEG, or WebP, max 2 MB).</p>
       <AdminForm id="badge-template-image-upload-form">
@@ -3069,7 +3067,7 @@ const renderInstitutionAdminPage = (
         <AdminButton type="submit">Upload image</AdminButton>
       </AdminForm>
       <AdminStatus id="badge-template-image-upload-status"></AdminStatus>
-    </article>
+    </AdminPanel>
   );
 
   const addDisclosureControlMarkup = (
@@ -3148,7 +3146,7 @@ const renderInstitutionAdminPage = (
   );
 
   const governanceGuidePanelMarkup = (
-    <article id="governance-panel" class="ct-admin__panel ct-stack">
+    <AdminPanel id="governance-panel">
       <h2>Before you delegate</h2>
       <p>
         Use this page to give an existing tenant member limited access inside a selected org unit.
@@ -3165,7 +3163,7 @@ const renderInstitutionAdminPage = (
           Leave badge template IDs blank when the delegation should cover every template in scope.
         </li>
       </ul>
-    </article>
+    </AdminPanel>
   );
 
   const tenantMemberRoleSelectOptions = assignableTenantRoles.map((role) => (
@@ -3203,7 +3201,7 @@ const renderInstitutionAdminPage = (
   );
 
   const tenantMembersTableMarkup = (
-    <article class="ct-admin__panel ct-admin__panel--table ct-admin__members-table ct-stack">
+    <AdminPanel variant="table" className="ct-admin__members-table">
       <h2>Current Members ({tenantMemberCount})</h2>
       <p>
         Review tenant-level access, resend invites, and remove members who no longer need this
@@ -3216,52 +3214,52 @@ const renderInstitutionAdminPage = (
         {tenantMemberRows}
       </AdminTable>
       <AdminStatus id="tenant-member-list-status"></AdminStatus>
-    </article>
+    </AdminPanel>
   );
 
   const accessOverviewPanelMarkup = (
     <section class="ct-admin__workspace-grid ct-grid" aria-label="Access pages">
-      <article class="ct-admin__workspace-card ct-stack">
+      <AdminWorkspaceCard>
         <p class="ct-admin__eyebrow">People</p>
         <h2>Members</h2>
         <p>
           Add colleagues by email, assign tenant roles, resend invites, and remove tenant access.
         </p>
         <div class="ct-admin__workspace-stats ct-cluster">
-          <span class="ct-admin__status-pill">{tenantMemberCount} members</span>
+          <AdminStatusPill>{tenantMemberCount} members</AdminStatusPill>
         </div>
-      </article>
-      <article class="ct-admin__workspace-card ct-stack">
+      </AdminWorkspaceCard>
+      <AdminWorkspaceCard>
         <p class="ct-admin__eyebrow">Delegation</p>
         <h2>Governance</h2>
         <p>Grant org-unit scoped roles and time-boxed badge authority.</p>
         <div class="ct-admin__workspace-stats ct-cluster">
-          <span class="ct-admin__status-pill">{scopedRoleCount} scoped roles</span>
-          <span class="ct-admin__status-pill">{delegatedAuthorityGrantCount} delegations</span>
+          <AdminStatusPill>{scopedRoleCount} scoped roles</AdminStatusPill>
+          <AdminStatusPill>{delegatedAuthorityGrantCount} delegations</AdminStatusPill>
         </div>
-      </article>
-      <article class="ct-admin__workspace-card ct-stack">
+      </AdminWorkspaceCard>
+      <AdminWorkspaceCard>
         <p class="ct-admin__eyebrow">Integrations</p>
         <h2>API Keys</h2>
         <p>Create and revoke tenant API keys for trusted integrations.</p>
         <div class="ct-admin__workspace-stats ct-cluster">
-          <span class="ct-admin__status-pill">{activeApiKeyCount} active</span>
-          <span class="ct-admin__status-pill">{revokedApiKeyCount} revoked</span>
+          <AdminStatusPill>{activeApiKeyCount} active</AdminStatusPill>
+          <AdminStatusPill>{revokedApiKeyCount} revoked</AdminStatusPill>
         </div>
-      </article>
-      <article class="ct-admin__workspace-card ct-stack">
+      </AdminWorkspaceCard>
+      <AdminWorkspaceCard>
         <p class="ct-admin__eyebrow">Structure</p>
         <h2>Org Units</h2>
         <p>Maintain institution, college, department, and program hierarchy.</p>
         <div class="ct-admin__workspace-stats ct-cluster">
-          <span class="ct-admin__status-pill">{orgUnitCount} org units</span>
+          <AdminStatusPill>{orgUnitCount} org units</AdminStatusPill>
         </div>
-      </article>
+      </AdminWorkspaceCard>
     </section>
   );
 
   const membershipScopePanelMarkup = (
-    <article class="ct-admin__panel ct-stack">
+    <AdminPanel>
       <h2>Scoped Roles</h2>
       <p>Assign the smallest org-unit role that matches the person’s ongoing responsibilities.</p>
       <AdminForm id="membership-scope-form">
@@ -3298,11 +3296,11 @@ const renderInstitutionAdminPage = (
         <AdminButton type="submit">Save scoped role</AdminButton>
       </AdminForm>
       <AdminStatus id="membership-scope-status"></AdminStatus>
-    </article>
+    </AdminPanel>
   );
 
   const membershipScopeTableMarkup = (
-    <article class="ct-admin__panel ct-admin__panel--table ct-stack">
+    <AdminPanel variant="table">
       <h2>Current Scoped Roles ({scopedRoleCount})</h2>
       <p>Remove access directly from the list instead of re-entering the same identifiers.</p>
       <AdminTable
@@ -3312,11 +3310,11 @@ const renderInstitutionAdminPage = (
         {membershipScopeRows}
       </AdminTable>
       <AdminStatus id="membership-scope-list-status"></AdminStatus>
-    </article>
+    </AdminPanel>
   );
 
   const delegatedGrantPanelMarkup = (
-    <article class="ct-admin__panel ct-stack">
+    <AdminPanel>
       <h2>Delegated Authority</h2>
       <p>Grant time-boxed badge authority without changing the person’s standing org-unit role.</p>
       <AdminForm id="delegated-grant-form">
@@ -3369,11 +3367,11 @@ const renderInstitutionAdminPage = (
         <AdminButton type="submit">Save delegation</AdminButton>
       </AdminForm>
       <AdminStatus id="delegated-grant-status"></AdminStatus>
-    </article>
+    </AdminPanel>
   );
 
   const delegatedGrantTableMarkup = (
-    <article class="ct-admin__panel ct-admin__panel--table ct-stack">
+    <AdminPanel variant="table">
       <h2>Current Delegations ({String(input.delegatedIssuingAuthorityGrants.length)})</h2>
       <p>Remove active or scheduled delegations directly from the list.</p>
       <AdminTable
@@ -3383,11 +3381,11 @@ const renderInstitutionAdminPage = (
         {delegatedGrantRows}
       </AdminTable>
       <AdminStatus id="delegated-grant-list-status"></AdminStatus>
-    </article>
+    </AdminPanel>
   );
 
   const ruleValueListsPanelMarkup = (
-    <article id="rule-value-lists-panel" class="ct-admin__panel ct-stack">
+    <AdminPanel id="rule-value-lists-panel">
       <h2>Rule Value Lists</h2>
       <p>
         Create reusable course and badge-template lists so authors stop copying long IDs into every
@@ -3418,11 +3416,11 @@ const renderInstitutionAdminPage = (
       <AdminTable headers={["Label", "Kind", "Values"]} tbodyId="rule-value-list-body">
         <AdminEmptyTableRow colSpan={3}>No rule value lists loaded yet.</AdminEmptyTableRow>
       </AdminTable>
-    </article>
+    </AdminPanel>
   );
 
   const evaluateRulePanelMarkup = (
-    <article class="ct-admin__panel ct-stack">
+    <AdminPanel>
       <h2>Evaluate Rule</h2>
       <p>Run rule evaluation in dry run mode before issuing for real.</p>
       <AdminForm id="rule-evaluate-form">
@@ -3462,11 +3460,11 @@ const renderInstitutionAdminPage = (
         <AdminButton type="submit">Evaluate rule</AdminButton>
       </AdminForm>
       <AdminStatus id="rule-evaluate-status"></AdminStatus>
-    </article>
+    </AdminPanel>
   );
 
   const badgeStatusPanelMarkup = (
-    <article id="lifecycle-panel" class="ct-admin__panel ct-stack">
+    <AdminPanel id="lifecycle-panel">
       <h2>Badge Status</h2>
       <p>
         Look up a badge, review its current status, and apply state changes with institutional
@@ -3513,11 +3511,11 @@ const renderInstitutionAdminPage = (
         <AdminButton type="submit">Apply transition</AdminButton>
       </AdminForm>
       <AdminStatus id="assertion-lifecycle-transition-status"></AdminStatus>
-    </article>
+    </AdminPanel>
   );
 
   const ruleGovernancePanelMarkup = (
-    <article class="ct-admin__panel ct-stack">
+    <AdminPanel>
       <h2>Rule Governance Context</h2>
       <p>Inspect latest approval chain and rule audit events for operator drill-down.</p>
       <AdminForm id="rule-governance-form">
@@ -3533,11 +3531,11 @@ const renderInstitutionAdminPage = (
       </AdminForm>
       <AdminStatus id="rule-governance-status"></AdminStatus>
       <pre id="rule-governance-output" class="ct-admin__code-output" hidden></pre>
-    </article>
+    </AdminPanel>
   );
 
   const ruleReviewQueuePanelMarkup = (
-    <article id="rule-review-queue-panel" class="ct-admin__panel ct-admin__panel--table ct-stack">
+    <AdminPanel id="rule-review-queue-panel" variant="table">
       <h2>Rule Review Queue</h2>
       <p>
         Missing-data evaluations that require a human issue-or-dismiss decision before a badge is
@@ -3555,11 +3553,11 @@ const renderInstitutionAdminPage = (
       >
         <AdminEmptyTableRow colSpan={5}>No review queue entries loaded yet.</AdminEmptyTableRow>
       </AdminTable>
-    </article>
+    </AdminPanel>
   );
 
   const issuedBadgesPanelMarkup = (
-    <article id="issued-badges-panel" class="ct-admin__panel ct-admin__panel--table ct-stack">
+    <AdminPanel id="issued-badges-panel" variant="table">
       <h2>Issued Badges Ledger</h2>
       <p>Tenant-wide assertion log with direct audit and revocation actions.</p>
       <AdminForm
@@ -3593,10 +3591,10 @@ const renderInstitutionAdminPage = (
         </AdminField>
         <AdminButton type="submit">Load issued badges</AdminButton>
       </AdminForm>
-      <section class="ct-admin__panel ct-admin__panel--nested ct-stack">
+      <AdminPanel as="section" variant="nested">
         <div class="ct-cluster">
           <h3>Ledger export</h3>
-          <span class="ct-admin__status-pill">Owner/admin only</span>
+          <AdminStatusPill>Owner/admin only</AdminStatusPill>
         </div>
         <p>
           Download an audit-focused CSV directly from the operations workspace. This export stays
@@ -3654,7 +3652,7 @@ const renderInstitutionAdminPage = (
           Ancestor lineage columns reflect the current org tree only, while stable leaf attribution
           remains the historical contract for audit use.
         </p>
-      </section>
+      </AdminPanel>
       <AdminStatus id="issued-badges-status">Load tenant assertions from the browser.</AdminStatus>
       <AdminTable
         headers={["Issued", "Recipient", "Template", "State", "Assertion", "Actions"]}
@@ -3663,7 +3661,7 @@ const renderInstitutionAdminPage = (
         <AdminEmptyTableRow colSpan={6}>No assertions loaded yet.</AdminEmptyTableRow>
       </AdminTable>
       <AdminStatus id="issued-badges-action-status"></AdminStatus>
-    </article>
+    </AdminPanel>
   );
 
   const renderReportingFiltersForm = (
@@ -3737,10 +3735,10 @@ const renderInstitutionAdminPage = (
   );
 
   const reportingOverviewPanelMarkup = (
-    <article id="reporting-overview-panel" class="ct-admin__panel ct-stack">
+    <AdminPanel id="reporting-overview-panel">
       <div class="ct-cluster">
         <h2>Reporting Overview</h2>
-        <span class="ct-admin__status-pill">Supporting detail</span>
+        <AdminStatusPill>Supporting detail</AdminStatusPill>
       </div>
       <p>
         Filter by issue date, template, org unit, or current badge state. Counts reflect
@@ -3757,7 +3755,7 @@ const renderInstitutionAdminPage = (
           ? "just now"
           : formatIsoTimestamp(reportingOverview.generatedAt)}
       </p>
-    </article>
+    </AdminPanel>
   );
 
   const reportingTrendFiltersPanelMarkup = (
@@ -3780,20 +3778,20 @@ const renderInstitutionAdminPage = (
   );
 
   const reportingExportFiltersPanelMarkup = (
-    <article id="reporting-export-filters-panel" class="ct-admin__panel ct-stack">
+    <AdminPanel id="reporting-export-filters-panel">
       <div class="ct-cluster">
         <h2>Export filters</h2>
       </div>
       <p>Choose filters before downloading CSV files.</p>
       {renderReportingFiltersForm(reportingExportsPath)}
-    </article>
+    </AdminPanel>
   );
 
   const reportingEngagementPanelMarkup = (
-    <article class="ct-admin__panel ct-stack">
+    <AdminPanel>
       <div class="ct-cluster">
         <h2>Engagement Counts</h2>
-        <span class="ct-admin__status-pill">Product-owned events</span>
+        <AdminStatusPill>Product-owned events</AdminStatusPill>
       </div>
       <p>
         Raw counts show event totals. Rates use distinct engaged assertions over issued badges, so
@@ -3806,16 +3804,13 @@ const renderInstitutionAdminPage = (
           {reportingRateCardsMarkup}
         </div>
       )}
-    </article>
+    </AdminPanel>
   );
 
   const renderReportingTrendPanelMarkup = (input: {
     includeDetailedTable: boolean;
   }): HonoElement => (
-    <article
-      class="ct-admin__panel ct-admin__panel--table ct-stack"
-      data-reporting-state={reportingTrendState}
-    >
+    <AdminPanel variant="table" dataAttributes={{ "data-reporting-state": reportingTrendState }}>
       <h2>Trend lines</h2>
       <p>{getReportingTrendIntroCopy(input.includeDetailedTable)}</p>
       {renderReportingTrendHeroMarkup(input.includeDetailedTable)}
@@ -3842,13 +3837,13 @@ const renderInstitutionAdminPage = (
           Need exact daily counts? <a href={reportingTrendsHref}>Open trend detail</a>.
         </p>
       )}
-    </article>
+    </AdminPanel>
   );
 
   const reportingTemplateComparisonPanelMarkup = (
-    <article
-      class="ct-admin__panel ct-admin__panel--table ct-stack"
-      data-reporting-state={reportingTemplateComparisonState}
+    <AdminPanel
+      variant="table"
+      dataAttributes={{ "data-reporting-state": reportingTemplateComparisonState }}
     >
       <h2>Compare by badge template</h2>
       <p>
@@ -3877,13 +3872,13 @@ const renderInstitutionAdminPage = (
           {reportingTemplateComparisonRowsMarkup}
         </AdminTable>
       </div>
-    </article>
+    </AdminPanel>
   );
 
   const reportingOrgUnitComparisonPanelMarkup = (
-    <article
-      class="ct-admin__panel ct-admin__panel--table ct-stack"
-      data-reporting-state={reportingOrgUnitComparisonState}
+    <AdminPanel
+      variant="table"
+      dataAttributes={{ "data-reporting-state": reportingOrgUnitComparisonState }}
     >
       <h2>Compare by org unit</h2>
       <p>
@@ -3912,11 +3907,11 @@ const renderInstitutionAdminPage = (
           {reportingOrgUnitComparisonRowsMarkup}
         </AdminTable>
       </div>
-    </article>
+    </AdminPanel>
   );
 
   const reportingDefinitionsPanelMarkup = (
-    <article class="ct-admin__panel ct-admin__panel--table ct-stack">
+    <AdminPanel variant="table">
       <h2>Metric Definitions</h2>
       <p>
         Every number in this page lists its source so institution admins can tell the difference
@@ -3925,7 +3920,7 @@ const renderInstitutionAdminPage = (
       <AdminTable headers={["Metric", "Source", "Status", "Notes"]}>
         {reportingDefinitionRows}
       </AdminTable>
-    </article>
+    </AdminPanel>
   );
 
   const reportingDeferredPanelMarkup =
@@ -3964,7 +3959,7 @@ const renderInstitutionAdminPage = (
   );
 
   const badgeRulesTableMarkup = (
-    <article class="ct-admin__panel ct-admin__panel--table ct-stack">
+    <AdminPanel variant="table">
       <h2>Badge Rules ({ruleCount})</h2>
       <p>Lifecycle actions operate on each rule’s latest version.</p>
       <AdminTable
@@ -3982,34 +3977,34 @@ const renderInstitutionAdminPage = (
         {ruleRows}
       </AdminTable>
       <AdminStatus id="rule-action-status"></AdminStatus>
-    </article>
+    </AdminPanel>
   );
 
   const badgeTemplatesTableMarkup = (
-    <article class="ct-admin__panel ct-admin__panel--table ct-stack">
+    <AdminPanel variant="table">
       <h2>Badge Templates ({badgeTemplateCount})</h2>
       <AdminTable headers={["Image", "Template", "Slug", "Updated", "Links"]}>
         {templateRows}
       </AdminTable>
-    </article>
+    </AdminPanel>
   );
 
   const orgUnitsTableMarkup = (
-    <article class="ct-admin__panel ct-admin__panel--table ct-admin__org-units-table ct-stack">
+    <AdminPanel variant="table" className="ct-admin__org-units-table">
       <h2>Org Units ({orgUnitCount})</h2>
       <AdminTable headers={["Name", "Type", "ID", "Status"]}>{orgUnitRows}</AdminTable>
-    </article>
+    </AdminPanel>
   );
 
   const apiKeysTableMarkup = (
-    <article class="ct-admin__panel ct-admin__panel--table ct-admin__api-keys-table ct-stack">
+    <AdminPanel variant="table" className="ct-admin__api-keys-table">
       <h2>Active API Keys ({activeApiKeyCount})</h2>
       <p>Revoked keys: {revokedApiKeyCount}</p>
       <AdminTable headers={["Label", "Prefix", "Scopes", "Expires", "Action"]}>
         {apiKeyRows}
       </AdminTable>
       <AdminStatus id="api-key-revoke-status"></AdminStatus>
-    </article>
+    </AdminPanel>
   );
 
   const formatLearnerRecordReviewDetailValue = (label: string, value: string): string => {
@@ -4070,7 +4065,7 @@ const renderInstitutionAdminPage = (
       );
 
     return (
-      <article class="ct-admin__metric-card ct-stack">
+      <AdminMetricCard stack>
         <div class="ct-stack">
           <p class="ct-admin__meta">{item.recordTypeLabel}</p>
           <h3>{item.title}</h3>
@@ -4092,33 +4087,33 @@ const renderInstitutionAdminPage = (
           {evidenceMarkup}
         </div>
         {publicBadgeMarkup}
-      </article>
+      </AdminMetricCard>
     );
   };
 
   const renderLearnerRecordReviewSections = (): HonoElement => {
     if (learnerRecordReview.lookupState === "idle") {
       return (
-        <article class="ct-admin__panel ct-stack">
+        <AdminPanel>
           <h2>Choose one learner</h2>
           <p>
             Use a learner profile ID or learner email already associated with this tenant to review
             one unified learner record. This page is intentionally bounded and does not try to be a
             full learner-search or ingest workspace.
           </p>
-        </article>
+        </AdminPanel>
       );
     }
 
     if (learnerRecordReview.lookupState === "unresolved") {
       return (
-        <article class="ct-admin__panel ct-stack">
+        <AdminPanel>
           <h2>No learner record found</h2>
           <AdminStatus tone="warning">
             No learner profile matched this lookup. Check the learner profile ID or email and try
             again.
           </AdminStatus>
-        </article>
+        </AdminPanel>
       );
     }
 
@@ -4129,7 +4124,7 @@ const renderInstitutionAdminPage = (
     }
 
     const exportLinksMarkup = (
-      <article class="ct-admin__panel ct-stack">
+      <AdminPanel>
         <h2>Export and standards mapping</h2>
         <p>
           These links point to the real Phase 27 runtime endpoints for the selected learner. They do
@@ -4147,12 +4142,12 @@ const renderInstitutionAdminPage = (
             </AdminCtaLink>
           )}
         </div>
-      </article>
+      </AdminPanel>
     );
 
     return (
       <section class="ct-stack">
-        <article class="ct-admin__panel ct-stack">
+        <AdminPanel>
           <h2>Learner overview</h2>
           <p>
             Reviewing{" "}
@@ -4165,41 +4160,41 @@ const renderInstitutionAdminPage = (
           <p class="ct-admin__meta">Learner profile ID: {learnerRecordReview.learnerProfile.id}</p>
           <p class="ct-admin__meta">Subject ID: {learnerRecordReview.learnerProfile.subjectId}</p>
           <section class="ct-admin__metric-grid">
-            <article class="ct-admin__metric-card">
+            <AdminMetricCard>
               <p class="ct-admin__meta">Total items</p>
               <p class="ct-admin__metric-value">{presentation.summary.total}</p>
-            </article>
-            <article class="ct-admin__metric-card">
+            </AdminMetricCard>
+            <AdminMetricCard>
               <p class="ct-admin__meta">Issuer verified</p>
               <p class="ct-admin__metric-value">{presentation.summary.issuerVerified}</p>
-            </article>
-            <article class="ct-admin__metric-card">
+            </AdminMetricCard>
+            <AdminMetricCard>
               <p class="ct-admin__meta">Learner supplemental</p>
               <p class="ct-admin__metric-value">{presentation.summary.supplemental}</p>
-            </article>
-            <article class="ct-admin__metric-card">
+            </AdminMetricCard>
+            <AdminMetricCard>
               <p class="ct-admin__meta">Historical</p>
               <p class="ct-admin__metric-value">{presentation.summary.historical}</p>
-            </article>
+            </AdminMetricCard>
           </section>
-        </article>
+        </AdminPanel>
         {exportLinksMarkup}
         {presentation.sections.map((section) => (
-          <article class="ct-admin__panel ct-stack">
+          <AdminPanel>
             <h2>{section.title}</h2>
             <p>{section.description}</p>
             <p class="ct-admin__meta">{section.itemCountLabel}</p>
             <section class="ct-admin__metric-grid">
               {section.items.map((item) => renderLearnerRecordReviewItem(item))}
             </section>
-          </article>
+          </AdminPanel>
         ))}
       </section>
     );
   };
 
   const learnerRecordReviewPanelMarkup = (
-    <article class="ct-admin__panel ct-stack">
+    <AdminPanel>
       <h2>Learner record review</h2>
       <p>
         Open one learner’s unified record by learner profile ID or learner email already associated
@@ -4230,7 +4225,7 @@ const renderInstitutionAdminPage = (
           </AdminButtonLink>
         </div>
       </AdminForm>
-    </article>
+    </AdminPanel>
   );
 
   const renderLearnerRecordImportRowReport = (
@@ -4275,28 +4270,30 @@ const renderInstitutionAdminPage = (
 
   const learnerRecordImportFeedbackMarkup =
     learnerRecordImportWorkflow.feedback === null ? null : (
-      <article
-        class="ct-admin__panel ct-stack"
-        data-learner-record-import-feedback={learnerRecordImportWorkflow.feedback.tone}
+      <AdminPanel
+        dataAttributes={{
+          "data-learner-record-import-feedback": learnerRecordImportWorkflow.feedback.tone,
+        }}
       >
         <h2>{learnerRecordImportWorkflow.feedback.title}</h2>
         <p>{learnerRecordImportWorkflow.feedback.detail}</p>
-      </article>
+      </AdminPanel>
     );
 
   const learnerRecordImportSubmissionMarkup =
     learnerRecordImportWorkflow.submission === null ? (
-      <article class="ct-admin__panel ct-stack" data-learner-record-import-state="idle">
+      <AdminPanel dataAttributes={{ "data-learner-record-import-state": "idle" }}>
         <h2>No batch loaded yet</h2>
         <p>
           Upload a CSV to preview trust classification, inferred org-unit or badge-template context,
           and any pathway hints before you queue the batch.
         </p>
-      </article>
+      </AdminPanel>
     ) : (
-      <article
-        class="ct-admin__panel ct-stack"
-        data-learner-record-import-state={learnerRecordImportWorkflow.submission.mode}
+      <AdminPanel
+        dataAttributes={{
+          "data-learner-record-import-state": learnerRecordImportWorkflow.submission.mode,
+        }}
       >
         <h2>
           {learnerRecordImportWorkflow.submission.mode === "apply"
@@ -4308,30 +4305,30 @@ const renderInstitutionAdminPage = (
           {learnerRecordImportWorkflow.submission.batchId}
         </p>
         <section class="ct-admin__metric-grid">
-          <article class="ct-admin__metric-card">
+          <AdminMetricCard>
             <p class="ct-admin__meta">Total rows</p>
             <p class="ct-admin__metric-value">
               {formatReportingCount(learnerRecordImportWorkflow.submission.totalRows)}
             </p>
-          </article>
-          <article class="ct-admin__metric-card">
+          </AdminMetricCard>
+          <AdminMetricCard>
             <p class="ct-admin__meta">Valid rows</p>
             <p class="ct-admin__metric-value">
               {formatReportingCount(learnerRecordImportWorkflow.submission.validRows)}
             </p>
-          </article>
-          <article class="ct-admin__metric-card">
+          </AdminMetricCard>
+          <AdminMetricCard>
             <p class="ct-admin__meta">Invalid rows</p>
             <p class="ct-admin__metric-value">
               {formatReportingCount(learnerRecordImportWorkflow.submission.invalidRows)}
             </p>
-          </article>
-          <article class="ct-admin__metric-card">
+          </AdminMetricCard>
+          <AdminMetricCard>
             <p class="ct-admin__meta">Queued rows</p>
             <p class="ct-admin__metric-value">
               {formatReportingCount(learnerRecordImportWorkflow.submission.queuedRows)}
             </p>
-          </article>
+          </AdminMetricCard>
         </section>
         <AdminTable
           headers={["Row", "Status", "Learner and record", "Trust", "Smart defaults", "Notes"]}
@@ -4341,41 +4338,41 @@ const renderInstitutionAdminPage = (
             renderLearnerRecordImportRowReport(report),
           )}
         </AdminTable>
-      </article>
+      </AdminPanel>
     );
 
   const learnerRecordImportProgressMarkup = (
-    <article class="ct-admin__panel ct-stack">
+    <AdminPanel>
       <h2>Current import progress</h2>
       <p>
         These batch states come from the real learner-record import queue. Failed rows can be
         retried without replaying the whole upload.
       </p>
       <section class="ct-admin__metric-grid">
-        <article class="ct-admin__metric-card">
+        <AdminMetricCard>
           <p class="ct-admin__meta">Batches</p>
           <p class="ct-admin__metric-value">
             {formatReportingCount(learnerRecordImportWorkflow.progress.totals.batches)}
           </p>
-        </article>
-        <article class="ct-admin__metric-card">
+        </AdminMetricCard>
+        <AdminMetricCard>
           <p class="ct-admin__meta">Pending rows</p>
           <p class="ct-admin__metric-value">
             {formatReportingCount(learnerRecordImportWorkflow.progress.totals.pendingRows)}
           </p>
-        </article>
-        <article class="ct-admin__metric-card">
+        </AdminMetricCard>
+        <AdminMetricCard>
           <p class="ct-admin__meta">Completed rows</p>
           <p class="ct-admin__metric-value">
             {formatReportingCount(learnerRecordImportWorkflow.progress.totals.completedRows)}
           </p>
-        </article>
-        <article class="ct-admin__metric-card">
+        </AdminMetricCard>
+        <AdminMetricCard>
           <p class="ct-admin__meta">Failed rows</p>
           <p class="ct-admin__metric-value">
             {formatReportingCount(learnerRecordImportWorkflow.progress.totals.failedRows)}
           </p>
-        </article>
+        </AdminMetricCard>
       </section>
       {learnerRecordImportWorkflow.progress.batches.length === 0 ? (
         <p class="ct-admin__hint">
@@ -4396,9 +4393,9 @@ const renderInstitutionAdminPage = (
               );
 
             return (
-              <article
-                class="ct-admin__metric-card ct-stack"
-                data-learner-record-import-batch={batch.batchId}
+              <AdminMetricCard
+                stack
+                dataAttributes={{ "data-learner-record-import-batch": batch.batchId }}
               >
                 <div class="ct-stack">
                   <p class="ct-admin__meta">{batch.fileName ?? "CSV import"}</p>
@@ -4415,16 +4412,16 @@ const renderInstitutionAdminPage = (
                   )}
                 </div>
                 {retryMarkup}
-              </article>
+              </AdminMetricCard>
             );
           })}
         </section>
       )}
-    </article>
+    </AdminPanel>
   );
 
   const learnerRecordImportPanelMarkup = (
-    <article class="ct-admin__panel ct-stack">
+    <AdminPanel>
       <h2>Learner record import</h2>
       <p>
         Upload one CSV, choose the default trust classification once, and let CredTrail infer
@@ -4484,7 +4481,7 @@ const renderInstitutionAdminPage = (
           </AdminButton>
         </div>
       </AdminForm>
-    </article>
+    </AdminPanel>
   );
 
   const pageTitle =

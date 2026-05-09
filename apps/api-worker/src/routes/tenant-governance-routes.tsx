@@ -105,7 +105,7 @@ import {
   institutionAdminReportingTrendsPage,
   institutionAdminRulesPage,
 } from "../admin/institution-admin-page";
-import { AdminButtonLink } from "../admin/components";
+import { AdminActions, AdminButtonLink, AdminPageHeader, AdminPanel } from "../admin/components";
 import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
 import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
 import { resolveTenantReportingAccess } from "../auth/tenant-access";
@@ -170,28 +170,31 @@ export const adminRoleRequiredPage = (tenantId: string): AppPage => {
     variant: "admin",
     body: (
       <section class="ct-admin-content">
-        <header class="ct-admin-page-header">
-          <h1>Admin role required</h1>
-          <p>
-            Your current organization membership role does not allow institution admin access for{" "}
-            <strong>{tenantId}</strong>.
-          </p>
-        </header>
+        <AdminPageHeader
+          as="header"
+          title="Admin role required"
+          description={
+            <>
+              Your current organization membership role does not allow institution admin access for{" "}
+              <strong>{tenantId}</strong>.
+            </>
+          }
+        />
         <section class="ct-admin ct-stack">
-          <article class="ct-admin__panel ct-stack">
+          <AdminPanel>
             <p class="ct-admin__eyebrow">Institution Admin</p>
             <p>
               Ask an existing tenant admin/owner to grant your account an admin role, then retry.
             </p>
-            <div class="ct-admin__actions">
+            <AdminActions>
               <AdminButtonLink
                 href={`/showcase/${encodeURIComponent(tenantId)}`}
                 variant="secondary"
               >
                 View public badge showcase
               </AdminButtonLink>
-            </div>
-          </article>
+            </AdminActions>
+          </AdminPanel>
         </section>
       </section>
     ),
@@ -205,20 +208,23 @@ export const reportingAccessRequiredPage = (tenantId: string): AppPage => {
     variant: "admin",
     body: (
       <section class="ct-admin-content">
-        <header class="ct-admin-page-header">
-          <h1>Reporting access required</h1>
-          <p>
-            Your current organization membership does not allow reporting access for{" "}
-            <strong>{tenantId}</strong>.
-          </p>
-        </header>
+        <AdminPageHeader
+          as="header"
+          title="Reporting access required"
+          description={
+            <>
+              Your current organization membership does not allow reporting access for{" "}
+              <strong>{tenantId}</strong>.
+            </>
+          }
+        />
         <section class="ct-admin ct-stack">
-          <article class="ct-admin__panel ct-stack">
+          <AdminPanel>
             <p class="ct-admin__eyebrow">Reporting</p>
             <p>
               Ask a tenant admin to grant reporting scope or a broader reporting role, then retry.
             </p>
-          </article>
+          </AdminPanel>
         </section>
       </section>
     ),
