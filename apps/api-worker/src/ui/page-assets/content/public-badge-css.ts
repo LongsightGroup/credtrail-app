@@ -16,7 +16,7 @@ export const PUBLIC_BADGE_CSS = `
     var(--ct-theme-surface-card-strong),
     var(--ct-theme-surface-soft)
   );
-  box-shadow: var(--ct-theme-shadow-card);
+  box-shadow: var(--ct-theme-shadow-soft);
 }
 
 .public-badge-not-found__eyebrow {
@@ -41,7 +41,7 @@ export const PUBLIC_BADGE_CSS = `
   display: grid;
   gap: 1rem;
   color: var(--ct-theme-text-title);
-  --public-badge-card-radius: 1.45rem;
+  --public-badge-card-radius: var(--ct-radius-lg);
   --public-badge-card-padding: 1.1rem;
   --public-badge-status-radius: 1.35rem;
   --public-badge-frame-padding: 0.72rem;
@@ -95,18 +95,11 @@ export const PUBLIC_BADGE_CSS = `
   
 .public-badge__status--verified {
   border-color: color-mix(in srgb, var(--ct-brand-lake-500) 26%, var(--ct-theme-border-soft));
-  background:
-    radial-gradient(
-      circle at 88% 18%,
-      color-mix(in srgb, var(--ct-brand-sun-400) 32%, transparent),
-      transparent 34%
-    ),
-    linear-gradient(
-      118deg,
-      var(--ct-brand-midnight-900) 0%,
-      var(--ct-brand-lake-700) 74%,
-      var(--ct-brand-lake-500) 100%
-    );
+  background: linear-gradient(
+    118deg,
+    var(--ct-brand-midnight-900) 0%,
+    var(--ct-brand-lake-700) 84%
+  );
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
     0 10px 20px rgba(8, 38, 74, 0.12);
@@ -190,9 +183,7 @@ export const PUBLIC_BADGE_CSS = `
   align-items: center;
   justify-content: center;
   border-radius: var(--public-badge-frame-inner-radius);
-  background:
-    radial-gradient(circle at 88% 12%, var(--ct-theme-accent-glow-1), transparent 45%),
-    var(--ct-theme-gradient-hero);
+  background: var(--ct-theme-gradient-hero);
   color: var(--ct-theme-text-on-brand);
   font-size: clamp(2rem, 5vw, 3.5rem);
   font-weight: 700;
@@ -661,9 +652,7 @@ export const PUBLIC_BADGE_CSS = `
   font-weight: 700;
   font-size: 1.3rem;
   text-transform: uppercase;
-  background:
-    radial-gradient(circle at 82% 10%, var(--ct-theme-accent-glow-1), transparent 42%),
-    var(--ct-theme-gradient-hero);
+  background: var(--ct-theme-gradient-hero);
 }
   
 .badge-wall__avatar {
@@ -923,9 +912,7 @@ export const PUBLIC_BADGE_CSS = `
   color: var(--ct-theme-text-on-brand);
   font-weight: 700;
   font-size: 1.2rem;
-  background:
-    radial-gradient(circle at 82% 10%, var(--ct-theme-accent-glow-1), transparent 42%),
-    var(--ct-theme-gradient-hero);
+  background: var(--ct-theme-gradient-hero);
 }
 
 .criteria-registry__template-meta {

@@ -2,6 +2,8 @@
 
 This guide defines the visual system for CredTrail product surfaces (admin, public badges, auth, and LTI pages). Use it to keep the interface coherent as we add features.
 
+Last updated: 2026-05-09
+
 ## 1) Audience and UX Priorities
 
 Primary audience: institution admins and LMS operators
@@ -21,7 +23,7 @@ Tertiary audience: institutional leadership/procurement
 
 Design consequence:
 
-- Visual tone is "scholarly + operational": credible serif headlines, clean geometric sans UI, restrained but distinct Great Lakes palette.
+- Visual tone is "scholarly + operational": clean geometric sans UI, controlled serif record moments, restrained Great Lakes palette, and stable official surfaces.
 
 ## 2) Brand Language
 
@@ -115,9 +117,10 @@ Elevation and motion:
 
 Rules:
 
-- Headings use display font with tight tracking (-0.02em).
-- Dense operational tables/forms use sans for legibility.
-- Admin page headers use restrained sizes: h1 at `clamp(1.25rem, 2.5vw, 1.6rem)`.
+- Letter spacing defaults to `0`. Do not use negative tracking for SaaS-style compression.
+- Admin and dense operational headings use the sans font for legibility.
+- Admin page headers use restrained sizes: h1 at `clamp(1.2rem, 2.2vw, 1.5rem)`.
+- Newsreader is a signature accent in the app, not the routine voice.
 - Avoid mixing additional font families.
 - Newsreader replaces the previous Fraunces pairing for stronger editorial authority without decorative softness.
 
@@ -139,6 +142,10 @@ Prefer shared primitives from `foundationCss`:
 - `.ct-grid`
 - `.ct-grid--sidebar`
 - `.ct-card`
+
+Surfaces should prefer solid or softly tinted fills, clear borders, lower-radius
+cards, and subtle shadows. Avoid radial glow layers, glass blur, colored side
+stripes, and nested card stacks on routine admin pages.
 
 ## 6) Accessibility and Interaction
 

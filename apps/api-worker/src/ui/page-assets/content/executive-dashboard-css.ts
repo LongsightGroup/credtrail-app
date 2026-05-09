@@ -3,7 +3,7 @@ export const EXECUTIVE_DASHBOARD_CSS = String.raw`
   --ct-executive-shell: rgba(255, 255, 255, 0.92);
   --ct-executive-shell-strong: rgba(255, 255, 255, 0.97);
   --ct-executive-border: rgba(13, 46, 84, 0.12);
-  --ct-executive-shadow: 0 18px 44px rgba(7, 27, 51, 0.1);
+  --ct-executive-shadow: 0 10px 24px rgba(7, 27, 51, 0.08);
   --ct-executive-accent: rgba(17, 93, 159, 0.96);
   display: grid;
   gap: 1.35rem;
@@ -17,7 +17,7 @@ export const EXECUTIVE_DASHBOARD_CSS = String.raw`
 .executive-kpi-card,
 .executive-section {
   border: 1px solid var(--ct-executive-border);
-  border-radius: 1.35rem;
+  border-radius: var(--ct-radius-lg);
   background: var(--ct-executive-shell);
   box-shadow: var(--ct-executive-shadow);
 }
@@ -25,20 +25,11 @@ export const EXECUTIVE_DASHBOARD_CSS = String.raw`
   position: relative;
   overflow: hidden;
   padding: clamp(1.35rem, 3vw, 2rem);
-  background:
-    linear-gradient(135deg, rgba(11, 39, 72, 0.98), rgba(18, 86, 146, 0.95) 58%, rgba(219, 169, 60, 0.9)),
-    var(--ct-executive-shell);
+  background: linear-gradient(135deg, rgba(11, 39, 72, 0.98), rgba(18, 86, 146, 0.95));
   color: #f8fbff;
 }
 .executive-hero::after {
-  content: "";
-  position: absolute;
-  inset: auto -6rem -5rem auto;
-  width: 18rem;
-  height: 18rem;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.22), transparent 70%);
-  pointer-events: none;
+  content: none;
 }
 .executive-eyebrow {
   margin: 0 0 0.75rem;
@@ -51,10 +42,10 @@ export const EXECUTIVE_DASHBOARD_CSS = String.raw`
 .executive-hero h1 {
   margin: 0;
   max-width: 12ch;
-  font-family: var(--ct-font-display);
-  font-size: clamp(2.3rem, 5vw, 4.5rem);
-  line-height: 0.98;
-  letter-spacing: -0.03em;
+  font-family: var(--ct-font-sans);
+  font-size: clamp(2.05rem, 4.6vw, 4rem);
+  line-height: 1;
+  letter-spacing: 0;
 }
 .executive-hero-title-context {
   margin: 0 0 0.55rem;
@@ -80,7 +71,6 @@ export const EXECUTIVE_DASHBOARD_CSS = String.raw`
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.11);
-  backdrop-filter: blur(16px);
 }
 .executive-context-label {
   margin: 0;
@@ -199,9 +189,9 @@ export const EXECUTIVE_DASHBOARD_CSS = String.raw`
 }
 .executive-story-card {
   padding: 0.95rem 1rem;
-  border-radius: 1rem;
+  border-radius: var(--ct-radius-md);
   border: 1px solid rgba(15, 95, 166, 0.12);
-  background: linear-gradient(180deg, rgba(237, 244, 252, 0.78), rgba(255, 255, 255, 0.92));
+  background: var(--ct-theme-surface-card-strong);
 }
 .executive-story-card-label {
   margin: 0;
@@ -252,9 +242,7 @@ export const EXECUTIVE_DASHBOARD_CSS = String.raw`
   line-height: 1.45;
 }
 .executive-kpi-card--primary {
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.99), rgba(234, 245, 255, 0.94)),
-    var(--ct-executive-shell-strong);
+  background: var(--ct-theme-surface-info);
 }
 .executive-grid {
   display: grid;
@@ -506,11 +494,11 @@ export const EXECUTIVE_DASHBOARD_CSS = String.raw`
   color: var(--ct-theme-text-muted);
 }
 .executive-dashboard[data-executive-audience='system'] .ct-reporting-visual__title {
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 .executive-dashboard .ct-reporting-visual[data-reporting-visual-kind='comparison-ranked'] .ct-reporting-visual__surface {
   padding: 0.8rem;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(242, 248, 255, 0.92));
+  background: rgba(255, 255, 255, 0.96);
 }
 .executive-dashboard .ct-reporting-visual__comparison-ranked {
   display: grid;

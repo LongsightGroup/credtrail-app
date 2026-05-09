@@ -1,6 +1,8 @@
 import { GENERATED_DESIGN_TOKENS_CSS } from "./generated/design-tokens-css";
+import { FONT_FACE_CSS } from "./font-assets";
 
 export const FOUNDATION_CSS = `
+${FONT_FACE_CSS}
 ${GENERATED_DESIGN_TOKENS_CSS}
 
 :root {
@@ -11,12 +13,10 @@ body {
   margin: 0;
   min-height: 100vh;
   color: var(--ct-theme-text-body);
-  background:
-    radial-gradient(circle at 8% 5%, var(--ct-theme-accent-glow-1), transparent 36%),
-    radial-gradient(circle at 88% 12%, var(--ct-theme-accent-glow-2), transparent 34%),
-    radial-gradient(circle at 52% 96%, var(--ct-theme-accent-glow-3), transparent 32%),
-    var(--ct-theme-gradient-canvas);
+  background: var(--ct-theme-gradient-canvas);
   font-family: var(--ct-font-sans);
+  font-size: 1rem;
+  font-kerning: normal;
 }
 
 h1,
@@ -26,8 +26,15 @@ h4 {
   margin-top: 0;
   color: var(--ct-theme-text-title);
   font-family: var(--ct-font-display);
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   text-wrap: balance;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
 p {
@@ -39,9 +46,8 @@ main {
   margin: clamp(0.85rem, 2.4vw, 2rem) auto;
   padding: clamp(1rem, 2.5vw, 2rem);
   border: 1px solid var(--ct-theme-border-default);
-  border-radius: 1.3rem;
+  border-radius: var(--ct-radius-lg);
   background: var(--ct-theme-surface-shell);
-  backdrop-filter: blur(7px);
   box-shadow: var(--ct-theme-shadow-shell);
   animation: ct-shell-enter 440ms ease-out both;
 }
@@ -98,6 +104,14 @@ body[data-variant='open'] main {
 
 body[data-variant='admin'] {
   background: #f7f9fc;
+}
+
+body[data-variant='admin'] h1,
+body[data-variant='admin'] h2,
+body[data-variant='admin'] h3,
+body[data-variant='admin'] h4 {
+  font-family: var(--ct-font-sans);
+  letter-spacing: 0;
 }
 
 body[data-variant='admin'] main {

@@ -3,8 +3,8 @@ export const LEARNER_DASHBOARD_CSS = `.learner-dashboard {
   --learner-ink-soft: #47627d;
   --learner-line: rgba(0, 39, 76, 0.14);
   --learner-line-strong: rgba(0, 39, 76, 0.2);
-  --learner-surface: linear-gradient(180deg, rgba(255, 252, 244, 0.98), rgba(244, 249, 255, 0.96));
-  --learner-shadow: 0 16px 32px rgba(0, 39, 76, 0.1);
+  --learner-surface: #f8fbff;
+  --learner-shadow: 0 10px 24px rgba(0, 39, 76, 0.08);
   display: grid;
   gap: clamp(1.4rem, 1.15rem + 0.95vw, 2.2rem);
   max-width: 70rem;
@@ -14,13 +14,11 @@ export const LEARNER_DASHBOARD_CSS = `.learner-dashboard {
   display: grid;
   gap: 1.2rem;
   border: 1px solid rgba(0, 39, 76, 0.18);
-  border-radius: 1.4rem;
+  border-radius: var(--ct-radius-lg);
   padding: clamp(1.25rem, 1rem + 1vw, 2rem);
-  background:
-    radial-gradient(circle at 88% 16%, rgba(255, 210, 82, 0.33), transparent 34%),
-    linear-gradient(144deg, rgba(8, 32, 53, 0.97), rgba(14, 70, 112, 0.94));
+  background: linear-gradient(144deg, rgba(8, 32, 53, 0.97), rgba(14, 70, 112, 0.94));
   color: #f8fcff;
-  box-shadow: 0 24px 40px rgba(0, 39, 76, 0.2);
+  box-shadow: 0 16px 30px rgba(0, 39, 76, 0.14);
 }
 
 @media (min-width: 48rem) {
@@ -129,7 +127,7 @@ export const LEARNER_DASHBOARD_CSS = `.learner-dashboard {
   border: 1px solid rgba(245, 198, 75, 0.34);
   border-radius: 1.15rem;
   padding: 1rem;
-  background: linear-gradient(180deg, rgba(255, 248, 224, 0.97), rgba(241, 247, 255, 0.93));
+  background: rgba(255, 252, 244, 0.96);
   color: var(--learner-ink);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
@@ -206,7 +204,7 @@ export const LEARNER_DASHBOARD_CSS = `.learner-dashboard {
   border: 1px dashed rgba(0, 39, 76, 0.18);
   border-radius: 1.15rem;
   padding: 1.15rem;
-  background: linear-gradient(180deg, rgba(255, 252, 244, 0.86), rgba(247, 250, 255, 0.92));
+  background: var(--learner-surface);
 }
 
 .learner-dashboard__notice {
@@ -242,7 +240,7 @@ export const LEARNER_DASHBOARD_CSS = `.learner-dashboard {
 .learner-dashboard__profile-details {
   border: 1px solid var(--learner-line);
   border-radius: 1.15rem;
-  background: linear-gradient(180deg, rgba(251, 252, 255, 0.98), rgba(244, 248, 252, 0.96));
+  background: var(--ct-theme-surface-card-strong);
   box-shadow: var(--learner-shadow);
 }
 
@@ -362,7 +360,7 @@ export const LEARNER_DASHBOARD_CSS = `.learner-dashboard {
   display: grid;
   gap: 0.8rem;
   border: 1px solid var(--learner-line);
-  border-radius: 1.2rem;
+  border-radius: var(--ct-radius-lg);
   padding: 1.15rem;
   background: var(--learner-surface);
   box-shadow: var(--learner-shadow);

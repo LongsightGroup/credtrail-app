@@ -18,11 +18,11 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin-sidebar__brand {
   padding: 1.25rem 1.25rem 1rem;
-  font-family: var(--ct-font-display);
+  font-family: var(--ct-font-sans);
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--ct-theme-text-title);
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   text-decoration: none;
   display: block;
   border-bottom: 1px solid var(--ct-border-soft);
@@ -46,12 +46,14 @@ export const INSTITUTION_ADMIN_CSS = `
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1.25rem;
+  margin: 0 0.6rem;
+  padding: 0.52rem 0.65rem;
   font-size: 0.86rem;
   font-weight: 500;
   color: var(--ct-theme-text-body);
   text-decoration: none;
-  border-left: 3px solid transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ct-radius-sm);
   transition:
     background var(--ct-duration-fast) var(--ct-ease-standard),
     color var(--ct-duration-fast) var(--ct-ease-standard),
@@ -63,12 +65,12 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin-sidebar__link[aria-current='page'] {
   background: var(--ct-theme-surface-info);
+  border-color: var(--ct-theme-border-info);
   color: var(--ct-brand-lake-700);
   font-weight: 600;
-  border-left-color: var(--ct-brand-lake-700);
 }
 .ct-admin-sidebar__link--sub {
-  padding-left: 2.25rem;
+  padding-left: 1.45rem;
   font-size: 0.83rem;
 }
 .ct-admin-sidebar__link--external::after {
@@ -164,7 +166,8 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin-page-header h1 {
   margin: 0 0 0.35rem;
-  font-size: clamp(1.25rem, 2.5vw, 1.6rem);
+  font-size: clamp(1.2rem, 2.2vw, 1.5rem);
+  font-weight: 700;
   color: var(--ct-theme-text-title);
   line-height: 1.25;
 }
@@ -209,7 +212,7 @@ export const INSTITUTION_ADMIN_CSS = `
     z-index: 100;
     transform: translateX(-100%);
     transition: transform var(--ct-duration-standard) var(--ct-ease-standard);
-    box-shadow: var(--ct-shadow-shell);
+    box-shadow: var(--ct-shadow-soft);
   }
   .ct-admin-sidebar--open {
     transform: translateX(0);
@@ -253,11 +256,7 @@ export const INSTITUTION_ADMIN_CSS = `
   padding: 1rem;
   border-radius: var(--ct-radius-lg);
   border: 1px solid var(--ct-border-soft);
-  background: linear-gradient(
-    165deg,
-    var(--ct-theme-surface-card-strong),
-    var(--ct-theme-surface-soft)
-  );
+  background: var(--ct-theme-surface-card-strong);
   box-shadow: var(--ct-shadow-soft);
 }
 .ct-admin__workspace-card h2 {
@@ -300,11 +299,7 @@ export const INSTITUTION_ADMIN_CSS = `
   box-shadow: var(--ct-shadow-soft);
 }
 .ct-admin__metric-card--rate {
-  background: linear-gradient(
-    165deg,
-    rgba(238, 246, 255, 0.95),
-    rgba(255, 255, 255, 0.98)
-  );
+  background: var(--ct-theme-surface-info);
 }
 .ct-admin__metric-value {
   font-size: 2rem;
@@ -836,7 +831,7 @@ export const INSTITUTION_ADMIN_CSS = `
   padding: 0.9rem 1rem;
   border: 1px solid rgba(15, 95, 166, 0.12);
   border-radius: var(--ct-radius-lg);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(238, 246, 255, 0.8));
+  background: var(--ct-theme-surface-info);
 }
 .ct-admin__reporting-trend-callouts {
   display: grid;
@@ -869,8 +864,10 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin__reporting-visual-note {
   margin: 0;
-  padding-inline-start: 0.8rem;
-  border-left: 3px solid rgba(15, 95, 166, 0.18);
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(15, 95, 166, 0.16);
+  border-radius: var(--ct-radius-sm);
+  background: var(--ct-theme-surface-info);
   font-size: 0.82rem;
   line-height: 1.45;
   color: var(--ct-theme-text-muted);
@@ -880,9 +877,7 @@ export const INSTITUTION_ADMIN_CSS = `
   border-color: rgba(15, 95, 166, 0.16);
 }
 .ct-admin__panel[data-reporting-state='sparse'] {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(245, 249, 255, 0.9)),
-    rgba(255, 255, 255, 0.92);
+  background: var(--ct-theme-surface-card);
 }
 .ct-admin__reporting-state-shell {
   display: grid;
@@ -890,13 +885,11 @@ export const INSTITUTION_ADMIN_CSS = `
   padding: 1rem;
   border-radius: var(--ct-radius-md);
   border: 1px dashed rgba(15, 95, 166, 0.22);
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.94), rgba(249, 251, 253, 0.92)),
-    rgba(255, 255, 255, 0.9);
+  background: var(--ct-theme-surface-card-strong);
 }
 .ct-admin__reporting-state-shell h3 {
   margin: 0;
-  font-family: var(--ct-font-display);
+  font-family: var(--ct-font-sans);
   font-size: 1.05rem;
   line-height: 1.2;
   color: var(--ct-theme-text-title);
@@ -904,9 +897,7 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__reporting-state-shell[data-reporting-panel-state='sparse'] {
   border-style: solid;
   border-color: rgba(15, 95, 166, 0.16);
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(238, 246, 255, 0.88)),
-    rgba(255, 255, 255, 0.94);
+  background: var(--ct-theme-surface-info);
 }
 [data-reporting-submit-status] {
   margin: 0;
@@ -1043,13 +1034,11 @@ export const INSTITUTION_ADMIN_CSS = `
   padding: 0.9rem 1rem;
   border-radius: var(--ct-radius-md);
   border: 1px solid rgba(15, 95, 166, 0.14);
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.96), rgba(244, 248, 252, 0.92)),
-    rgba(255, 255, 255, 0.92);
+  background: var(--ct-theme-surface-card-strong);
 }
 .ct-admin__reporting-focus-summary-title {
   margin: 0;
-  font-family: var(--ct-font-display);
+  font-family: var(--ct-font-sans);
   font-size: 1.08rem;
   line-height: 1.2;
   color: var(--ct-theme-text-title);
@@ -1711,7 +1700,6 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__condition-card {
   --ct-stack-gap: 0.5rem;
   border: 1px solid var(--ct-theme-border-info);
-  border-left: 4px solid var(--ct-brand-lake-600);
   border-radius: var(--ct-radius-md);
   background: var(--ct-theme-surface-card-strong);
   padding: 0.58rem;
@@ -1721,49 +1709,37 @@ export const INSTITUTION_ADMIN_CSS = `
   box-shadow: var(--ct-focus-ring);
 }
 .ct-admin__condition-card--course_completion {
-  border-left-color: var(--ct-theme-state-success);
+  border-color: var(--ct-theme-border-success);
 }
 .ct-admin__condition-card--grade_threshold {
-  border-left-color: var(--ct-brand-lake-700);
+  border-color: var(--ct-theme-border-info);
 }
 .ct-admin__condition-card--program_completion {
-  border-left-color: var(--ct-brand-lake-500);
+  border-color: var(--ct-theme-border-info);
 }
 .ct-admin__condition-card--assignment_submission {
-  border-left-color: var(--ct-theme-state-warning);
+  border-color: var(--ct-theme-border-warning);
 }
 .ct-admin__condition-card--time_window {
-  border-left-color: var(--ct-theme-text-muted);
+  border-color: var(--ct-theme-border-default);
 }
 .ct-admin__condition-card--prerequisite_badge {
-  border-left-color: var(--ct-theme-state-danger);
+  border-color: var(--ct-theme-border-danger);
 }
 .ct-admin__condition-card--result-idle {
-  border-right: 3px solid var(--ct-border-soft);
+  box-shadow: inset 0 0 0 1px var(--ct-border-soft);
 }
 .ct-admin__condition-card--result-pass {
-  border-right: 3px solid var(--ct-theme-state-success);
-  background: linear-gradient(
-    160deg,
-    var(--ct-theme-surface-success),
-    var(--ct-theme-surface-card-strong)
-  );
+  background: var(--ct-theme-surface-success);
+  box-shadow: inset 0 0 0 1px var(--ct-theme-border-success);
 }
 .ct-admin__condition-card--result-fail {
-  border-right: 3px solid var(--ct-theme-state-danger);
-  background: linear-gradient(
-    160deg,
-    var(--ct-theme-surface-danger),
-    var(--ct-theme-surface-card-strong)
-  );
+  background: var(--ct-theme-surface-danger);
+  box-shadow: inset 0 0 0 1px var(--ct-theme-border-danger);
 }
 .ct-admin__condition-card--result-review {
-  border-right: 3px solid var(--ct-theme-state-warning);
-  background: linear-gradient(
-    160deg,
-    var(--ct-theme-surface-warning),
-    var(--ct-theme-surface-card-strong)
-  );
+  background: var(--ct-theme-surface-warning);
+  box-shadow: inset 0 0 0 1px var(--ct-theme-border-warning);
 }
 .ct-admin__condition-header {
   --ct-cluster-gap: 0.5rem;
@@ -2169,12 +2145,8 @@ export const INSTITUTION_ADMIN_CSS = `
   padding: 0.32rem;
   border: 1px solid var(--ct-border-strong);
   border-radius: var(--ct-radius-md);
-  background: linear-gradient(
-    180deg,
-    var(--ct-theme-surface-card-strong),
-    var(--ct-theme-surface-soft)
-  );
-  box-shadow: var(--ct-shadow-card);
+  background: var(--ct-theme-surface-card-strong);
+  box-shadow: var(--ct-shadow-soft);
 }
 .ct-admin__table .ct-admin__action-menu-item,
 .ct-admin__table button.ct-admin__action-menu-item {
