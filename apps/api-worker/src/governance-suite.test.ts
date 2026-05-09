@@ -1782,13 +1782,9 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(html).toContain('data-reporting-bar-group="template-comparisons"');
     expect(html).toContain('data-reporting-bar-group="org-comparisons"');
     expect(html).toContain(
-      'href="/v1/tenants/tenant_123/reporting/overview/export.csv?orgUnitId=tenant_123%3Aorg%3Aprogram-cs"',
+      'href="/tenants/tenant_123/admin/reporting/exports?orgUnitId=tenant_123%3Aorg%3Aprogram-cs"',
     );
-    expect(html).toContain(
-      'href="/v1/tenants/tenant_123/reporting/comparisons/export.csv?orgUnitId=tenant_123%3Aorg%3Aprogram-cs&amp;groupBy=badgeTemplate"',
-    );
-    expect(html.indexOf("Executive Summary")).toBeLessThan(html.indexOf("Export CSV"));
-    expect(html.indexOf("Trend lines")).toBeLessThan(html.indexOf("Export CSV"));
+    expect(html).not.toContain("<h2>Export CSV</h2>");
     expect(html.indexOf("Compare by badge template")).toBeLessThan(
       html.indexOf("Hierarchy drilldown"),
     );

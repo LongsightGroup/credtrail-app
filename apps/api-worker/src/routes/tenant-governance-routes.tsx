@@ -100,6 +100,7 @@ import {
   institutionAdminOperationsReviewQueuePage,
   institutionAdminOperationsPage,
   institutionAdminOrgUnitsPage,
+  institutionAdminReportingExportsPage,
   institutionAdminReportingPage,
   institutionAdminReportingTrendsPage,
   institutionAdminRulesPage,
@@ -1586,6 +1587,16 @@ export const registerTenantGovernanceRoutes = (
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/trends`,
       institutionAdminReportingTrendsPage,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/reporting/exports", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    return renderReportingWorkspace(
+      c,
+      pathParams.tenantId,
+      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/exports`,
+      institutionAdminReportingExportsPage,
     );
   });
 

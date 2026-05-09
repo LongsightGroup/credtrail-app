@@ -234,6 +234,7 @@ type InstitutionAdminView =
   | "operationsBadgeStatus"
   | "reporting"
   | "reportingTrends"
+  | "reportingExports"
   | "rules"
   | "access"
   | "accessMembers"
@@ -337,6 +338,7 @@ const renderInstitutionAdminPage = (
   const operationsBadgeStatusPath = `${operationsPath}/badge-status`;
   const reportingPath = `${tenantAdminPath}/reporting`;
   const reportingTrendsPath = `${reportingPath}/trends`;
+  const reportingExportsPath = `${reportingPath}/exports`;
   const rulesWorkspacePath = `${tenantAdminPath}/rules`;
   const accessPath = `${tenantAdminPath}/access`;
   const accessMembersPath = `${accessPath}/members`;
@@ -1289,6 +1291,7 @@ const renderInstitutionAdminPage = (
   });
   const reportingAggregateExportEntries = [...reportingPageQueryEntries] as const;
   const reportingTrendsHref = buildPathWithQuery(reportingTrendsPath, reportingPageQueryEntries);
+  const reportingExportsHref = buildPathWithQuery(reportingExportsPath, reportingPageQueryEntries);
   const reportingOverviewExportHref = buildPathWithQuery(
     `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/overview/export.csv`,
     reportingAggregateExportEntries,
@@ -1333,9 +1336,8 @@ const renderInstitutionAdminPage = (
         <span class="ct-admin__status-pill">Supporting operations</span>
       </div>
       <p>
-        Download the current reporting slices directly from this workspace after you have read the
-        summary, trend, and supporting detail above. These links preserve the visible filter state
-        and stay scope-safe for reporting users.
+        Download CSV files for the selected filters. These links preserve issue date, badge,
+        organization, and lifecycle state selections.
       </p>
       <div class="ct-cluster">
         <a class="ct-admin__button ct-admin__button--secondary" href={reportingOverviewExportHref}>
@@ -2983,6 +2985,12 @@ const renderInstitutionAdminPage = (
             view === "reportingTrends",
             "ct-admin-sidebar__link--sub",
           )}
+          {sidebarLink(
+            reportingExportsPath,
+            "Exports",
+            view === "reportingExports",
+            "ct-admin-sidebar__link--sub",
+          )}
 
           <p class="ct-admin-sidebar__section-label">Configuration</p>
           {sidebarLink(rulesWorkspacePath, "Rules", view === "rules")}
@@ -4055,18 +4063,29 @@ const renderInstitutionAdminPage = (
     </article>
   );
 
+  const reportingExportFiltersPanelMarkup = (
+    <article id="reporting-export-filters-panel" class="ct-admin__panel ct-stack">
+      <div class="ct-cluster">
+        <h2>Export filters</h2>
+      </div>
+      <p>Choose filters before downloading CSV files.</p>
+      {renderReportingFiltersForm(reportingExportsPath)}
+    </article>
+  );
+
   const reportingDetailNavigationMarkup = (
     <article class="ct-admin__panel ct-stack">
       <div class="ct-cluster">
-        <h2>Reporting detail</h2>
+        <h2>Reporting pages</h2>
         <span class="ct-admin__status-pill">Sub-pages</span>
       </div>
-      <p>
-        Keep the overview focused. Open detailed pages when you need the full supporting tables.
-      </p>
+      <p>Open focused pages for detailed tables or CSV downloads.</p>
       <div class="ct-admin__workspace-actions">
         <a class="ct-admin__cta-link" href={reportingTrendsHref}>
           Trend detail
+        </a>
+        <a class="ct-admin__cta-link" href={reportingExportsHref}>
+          CSV exports
         </a>
       </div>
     </article>
@@ -4861,17 +4880,19 @@ const renderInstitutionAdminPage = (
                     ? `Reporting Overview · Institution Admin · ${input.tenant.displayName}`
                     : view === "reportingTrends"
                       ? `Trend Detail · Reporting · Institution Admin · ${input.tenant.displayName}`
-                      : view === "rules"
-                        ? `Rules · Institution Admin · ${input.tenant.displayName}`
-                        : view === "access"
-                          ? `Access · Institution Admin · ${input.tenant.displayName}`
-                          : view === "accessMembers"
-                            ? `Members · Institution Admin · ${input.tenant.displayName}`
-                            : view === "accessGovernance"
-                              ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
-                              : view === "accessApiKeys"
-                                ? `API Keys · Institution Admin · ${input.tenant.displayName}`
-                                : `Org Units · Institution Admin · ${input.tenant.displayName}`;
+                      : view === "reportingExports"
+                        ? `Reporting Exports · Institution Admin · ${input.tenant.displayName}`
+                        : view === "rules"
+                          ? `Rules · Institution Admin · ${input.tenant.displayName}`
+                          : view === "access"
+                            ? `Access · Institution Admin · ${input.tenant.displayName}`
+                            : view === "accessMembers"
+                              ? `Members · Institution Admin · ${input.tenant.displayName}`
+                              : view === "accessGovernance"
+                                ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
+                                : view === "accessApiKeys"
+                                  ? `API Keys · Institution Admin · ${input.tenant.displayName}`
+                                  : `Org Units · Institution Admin · ${input.tenant.displayName}`;
 
   const viewContent = (() => {
     switch (view) {
@@ -4987,7 +5008,6 @@ const renderInstitutionAdminPage = (
                     {reportingEngagementPanelMarkup}
                     <aside class="ct-admin__reporting-supporting-rail">
                       {reportingDetailNavigationMarkup}
-                      {reportingExportsPanelMarkup}
                     </aside>
                   </section>
                 </section>
@@ -5010,6 +5030,18 @@ const renderInstitutionAdminPage = (
             <section class="ct-admin ct-stack">
               {reportingTrendFiltersPanelMarkup}
               {renderReportingTrendPanelMarkup({ includeDetailedTable: true })}
+            </section>
+          </>
+        );
+      case "reportingExports":
+        return (
+          <>
+            {renderPageHeader(
+              "Reporting Exports",
+              "Download CSV files for the selected reporting filters.",
+            )}
+            <section class="ct-admin ct-stack">
+              {reportingExportFiltersPanelMarkup}
               {reportingExportsPanelMarkup}
             </section>
           </>
@@ -5174,6 +5206,10 @@ export const institutionAdminReportingPage = (input: InstitutionAdminPageInput):
 
 export const institutionAdminReportingTrendsPage = (input: InstitutionAdminPageInput): AppPage => {
   return renderInstitutionAdminPage(input, "reportingTrends");
+};
+
+export const institutionAdminReportingExportsPage = (input: InstitutionAdminPageInput): AppPage => {
+  return renderInstitutionAdminPage(input, "reportingExports");
 };
 
 export const institutionAdminRulesPage = (input: InstitutionAdminPageInput): AppPage => {

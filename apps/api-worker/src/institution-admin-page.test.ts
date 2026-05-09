@@ -1369,6 +1369,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("35.7");
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting/trends');
+    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/exports');
     expect(body).toContain("14");
     expect(body.indexOf('data-reporting-summary-metric="issued"')).toBeLessThan(
       body.indexOf("<h2>Reporting Overview</h2>"),
@@ -1376,7 +1377,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body.indexOf('data-reporting-summary-metric="issued"')).toBeLessThan(
       body.indexOf("Engagement Counts"),
     );
-    expect(body.indexOf("Trend lines")).toBeLessThan(body.indexOf("Export CSV"));
+    expect(body).not.toContain("<h2>Export CSV</h2>");
     expect(body).not.toContain("Phase 11 Scope");
     expect(body).not.toContain("Manual Issue Badge");
     expect(body).not.toContain('id="issued-badges-filter-form"');
@@ -1490,7 +1491,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     });
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/reporting?issuedFrom=2026-03-01&issuedTo=2026-03-31&badgeTemplateId=badge_template_001&orgUnitId=tenant_123%3Aorg%3Adepartment-cs&state=active",
+      "/tenants/tenant_123/admin/reporting/exports?issuedFrom=2026-03-01&issuedTo=2026-03-31&badgeTemplateId=badge_template_001&orgUnitId=tenant_123%3Aorg%3Adepartment-cs&state=active",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -1501,7 +1502,13 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
+    expect(body).toContain("Reporting Exports");
+    expect(body).toContain("Export filters");
+    expect(body).toContain(
+      'method="get" action="/tenants/tenant_123/admin/reporting/exports"',
+    );
     expect(body).toContain("Export CSV");
+    expect(body).not.toContain("Executive Summary");
     expect(body).toContain(
       'href="/v1/tenants/tenant_123/reporting/overview/export.csv?issuedFrom=2026-03-01&amp;issuedTo=2026-03-31&amp;badgeTemplateId=badge_template_001&amp;orgUnitId=tenant_123%3Aorg%3Adepartment-cs&amp;state=active"',
     );
@@ -1516,9 +1523,6 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     );
     expect(body).toContain(
       'href="/v1/tenants/tenant_123/reporting/comparisons/export.csv?issuedFrom=2026-03-01&amp;issuedTo=2026-03-31&amp;badgeTemplateId=badge_template_001&amp;orgUnitId=tenant_123%3Aorg%3Adepartment-cs&amp;state=active&amp;groupBy=orgUnit"',
-    );
-    expect(body).toContain(
-      'href="/v1/tenants/tenant_123/reporting/hierarchy/export.csv?issuedFrom=2026-03-01&amp;issuedTo=2026-03-31&amp;badgeTemplateId=badge_template_001&amp;orgUnitId=tenant_123%3Aorg%3Adepartment-cs&amp;state=active&amp;focusOrgUnitId=tenant_123%3Aorg%3Acollege-eng&amp;level=department"',
     );
     expect(body).not.toContain('href="/v1/tenants/tenant_123/assertions/ledger-export.csv"');
   });
@@ -1596,7 +1600,8 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("Claim rate");
     expect(body).toContain('id="reporting-filters-form"');
     expect(body).toContain('method="get" action="/tenants/tenant_123/admin/reporting"');
-    expect(body).toContain("Overview CSV");
+    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/exports');
+    expect(body).not.toContain("Overview CSV");
   });
 
   it("ships a mid-width reporting breakpoint for walkthrough layouts", () => {
@@ -1642,7 +1647,8 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).not.toContain("Detailed trend table");
     expect(body).toContain("Public badge views");
     expect(body).toContain("Wallet accepts");
-    expect(body.indexOf("Trend lines")).toBeLessThan(body.indexOf("Export CSV"));
+    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/exports');
+    expect(body).not.toContain("<h2>Export CSV</h2>");
   });
 
   it("renders the detailed trend table on the trend detail sub-page", async () => {
@@ -1672,6 +1678,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).not.toContain("Executive Summary");
     expect(body).not.toContain("Selected reporting slice");
     expect(body).not.toContain("Back to overview");
+    expect(body).not.toContain("Export CSV");
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
   });
 
