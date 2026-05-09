@@ -2852,6 +2852,37 @@ const isMissingBadgeIssuanceRulesTablesError = (error: unknown): boolean => {
   );
 };
 
+const isMissingBadgeIssuanceRuleEvaluationReviewColumnsError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  const missingColumn =
+    message.includes("does not exist") ||
+    message.includes("no such column") ||
+    message.includes("unknown column");
+
+  if (!missingColumn) {
+    return false;
+  }
+
+  return [
+    "review_status",
+    "review_decision",
+    "review_comment",
+    "reviewed_by_user_id",
+    "reviewed_at",
+  ].some((columnName) => message.includes(columnName));
+};
+
+const isMissingBadgeIssuanceRulesSchemaError = (error: unknown): boolean => {
+  return (
+    isMissingBadgeIssuanceRulesTablesError(error) ||
+    isMissingBadgeIssuanceRuleEvaluationReviewColumnsError(error)
+  );
+};
+
 const isMissingDedicatedDbProvisioningRequestsTableError = (error: unknown): boolean => {
   if (!(error instanceof Error)) {
     return false;
@@ -10757,7 +10788,7 @@ export const findBadgeIssuanceRuleById = async (
   try {
     row = await lookupStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -10800,7 +10831,7 @@ export const listBadgeIssuanceRules = async (
   try {
     result = await listStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -10875,7 +10906,7 @@ export const createBadgeIssuanceRuleValueList = async (
   try {
     await insertStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -10926,7 +10957,7 @@ export const listBadgeIssuanceRuleValueLists = async (
   try {
     result = await listStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -10974,7 +11005,7 @@ export const listBadgeIssuanceRuleVersions = async (
   try {
     result = await listStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -11026,7 +11057,7 @@ export const listBadgeIssuanceRuleVersionApprovalSteps = async (
   try {
     result = await listStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -11076,7 +11107,7 @@ export const listBadgeIssuanceRuleVersionApprovalEvents = async (
   try {
     result = await listStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -11131,7 +11162,7 @@ export const findBadgeIssuanceRuleVersionById = async (
   try {
     row = await lookupStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -11191,7 +11222,7 @@ export const findActiveBadgeIssuanceRuleVersion = async (
   try {
     row = await lookupStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -11282,7 +11313,7 @@ const insertBadgeIssuanceRuleApprovalSteps = async (
   try {
     await insertSteps();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -11340,7 +11371,7 @@ const insertBadgeIssuanceRuleApprovalEvent = async (
   try {
     await insertEventStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -11452,7 +11483,7 @@ export const createBadgeIssuanceRule = async (
     await insertRuleStatement();
     await insertVersionStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -11545,7 +11576,7 @@ export const createBadgeIssuanceRuleVersion = async (
   try {
     maxRow = await nextVersionStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -11666,7 +11697,7 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
     await activateFirstApprovalStepStatement();
     await submitVersionStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -11841,7 +11872,7 @@ export const decideBadgeIssuanceRuleVersion = async (
       }
     }
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -11946,7 +11977,7 @@ export const activateBadgeIssuanceRuleVersion = async (
     activated = await activateStatement();
     await updateRuleActiveVersionStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -12055,7 +12086,7 @@ export const createBadgeIssuanceRuleEvaluation = async (
   try {
     await insertStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -12116,7 +12147,7 @@ export const findBadgeIssuanceRuleEvaluationById = async (
   try {
     row = await lookupStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -12190,7 +12221,7 @@ export const listBadgeIssuanceRuleEvaluations = async (
   try {
     result = await listStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
@@ -12241,7 +12272,7 @@ export const resolveBadgeIssuanceRuleEvaluationReview = async (
   try {
     updated = await updateStatement();
   } catch (error: unknown) {
-    if (!isMissingBadgeIssuanceRulesTablesError(error)) {
+    if (!isMissingBadgeIssuanceRulesSchemaError(error)) {
       throw error;
     }
 
