@@ -1,5 +1,7 @@
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
+import type { TenantAssertionSummaryRecord } from "@credtrail/db";
+import { formatIsoTimestamp } from "../utils/display-format";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -228,4 +230,76 @@ export const IssuedBadgeActions = (input: {
       </AdminActionMenu>
     </AdminActionBar>
   );
+};
+
+export const IssuedBadgeRow = (input: { assertion: TenantAssertionSummaryRecord }): HonoElement => {
+  const assertion = input.assertion;
+  const viewBadgeHref = `/badges/${encodeURIComponent(assertion.assertionId)}`;
+  const rawJsonHref = `/credentials/v1/${encodeURIComponent(assertion.assertionId)}/jsonld`;
+
+  return (
+    <tr data-issued-badge-row="true">
+      <td>{formatIsoTimestamp(assertion.issuedAt)}</td>
+      <td>
+        <strong>{assertion.recipientIdentity}</strong>
+      </td>
+      <td>
+        <strong>{assertion.badgeTitle}</strong>
+        <div class="ct-admin__meta">{assertion.badgeTemplateId}</div>
+      </td>
+      <td>
+        <span class={`ct-admin__status-pill ct-admin__status-pill--${assertion.state}`}>
+          {assertion.state}
+        </span>
+        <div class="ct-admin__meta">{assertion.source}</div>
+      </td>
+      <td>
+        <div class="ct-admin__assertion-id">{assertion.assertionId}</div>
+        {assertion.publicId === null ? null : (
+          <div class="ct-admin__meta">public: {assertion.publicId}</div>
+        )}
+      </td>
+      <td class="ct-admin__issued-actions-cell">
+        <div class="ct-admin__issued-actions">
+          <IssuedBadgeActions
+            assertionId={assertion.assertionId}
+            viewBadgeHref={viewBadgeHref}
+            rawJsonHref={rawJsonHref}
+            canRevoke={assertion.state !== "revoked"}
+          />
+        </div>
+      </td>
+    </tr>
+  );
+};
+
+export const IssuedBadgeRows = (input: {
+  assertions: readonly TenantAssertionSummaryRecord[];
+  emptyMessage?: string;
+}): HonoElement => {
+  if (input.assertions.length === 0) {
+    return (
+      <tr>
+        <td colspan={6} class="ct-admin__empty">
+          {input.emptyMessage ?? "No assertions matched the selected filters."}
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <>
+      {input.assertions.map((assertion) => (
+        <IssuedBadgeRow assertion={assertion} />
+      ))}
+    </>
+  );
+};
+
+export const renderIssuedBadgeRowsToString = (
+  assertions: readonly TenantAssertionSummaryRecord[],
+): string => {
+  const renderable = (<IssuedBadgeRows assertions={assertions} />) as { toString(): string };
+
+  return renderable.toString();
 };

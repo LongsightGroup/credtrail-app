@@ -59,6 +59,12 @@ export const INSTITUTION_ADMIN_JS = `
     parsedContext && typeof parsedContext.assertionsApiPathPrefix === 'string'
       ? parsedContext.assertionsApiPathPrefix
       : '';
+  const issuedBadgeRowsPath =
+    parsedContext && typeof parsedContext.issuedBadgeRowsPath === 'string'
+      ? parsedContext.issuedBadgeRowsPath
+      : assertionsApiPathPrefix.length === 0
+        ? ''
+        : assertionsApiPathPrefix + '/table-rows';
   const tenantUsersApiPathPrefix =
     parsedContext && typeof parsedContext.tenantUsersApiPathPrefix === 'string'
       ? parsedContext.tenantUsersApiPathPrefix
@@ -261,75 +267,6 @@ export const INSTITUTION_ADMIN_JS = `
     }
 
     return new Date(parsed).toLocaleString();
-  };
-  const adminButtonClass = (options) => {
-    const variant = options && typeof options.variant === 'string' ? options.variant : 'primary';
-    const size = options && options.size === 'tiny' ? 'tiny' : 'default';
-    const extraClass =
-      options && typeof options.extraClass === 'string' ? options.extraClass.trim() : '';
-    const classNames = ['ct-admin__button'];
-
-    if (size === 'tiny') {
-      classNames.push('ct-admin__button--tiny');
-    }
-
-    if (variant !== 'primary') {
-      classNames.push('ct-admin__button--' + variant);
-    }
-
-    if (extraClass.length > 0) {
-      classNames.push(extraClass);
-    }
-
-    return classNames.join(' ');
-  };
-  const renderIssuedBadgeActionsMarkup = (input) => {
-    const assertionId =
-      input && typeof input.assertionId === 'string' ? input.assertionId : '';
-    const viewBadgeHref =
-      input && typeof input.viewBadgeHref === 'string' ? input.viewBadgeHref : '#';
-    const rawJsonHref =
-      input && typeof input.rawJsonHref === 'string' ? input.rawJsonHref : '#';
-    const canRevoke = input && input.canRevoke === true;
-    const escapedAssertionId = escapeHtml(assertionId);
-
-    return (
-      '<div class="ct-admin__action-bar" role="group" aria-label="Actions for assertion ' +
-      escapedAssertionId +
-      '">' +
-      '<a class="' +
-      adminButtonClass({ size: 'tiny' }) +
-      '" href="' +
-      escapeHtml(viewBadgeHref) +
-      '" target="_blank" rel="noopener noreferrer">Open</a>' +
-      '<button type="button" class="' +
-      adminButtonClass({ variant: 'secondary', size: 'tiny' }) +
-      '" data-issued-action="audit" data-assertion-id="' +
-      escapedAssertionId +
-      '">Audit</button>' +
-      '<details class="ct-admin__action-menu">' +
-      '<summary class="' +
-      adminButtonClass({
-        variant: 'secondary',
-        size: 'tiny',
-        extraClass: 'ct-admin__action-menu-trigger',
-      }) +
-      '" aria-label="More actions for assertion ' +
-      escapedAssertionId +
-      '">...</summary>' +
-      '<div class="ct-admin__action-menu-popover">' +
-      '<a class="ct-admin__action-menu-item" href="' +
-      escapeHtml(rawJsonHref) +
-      '" target="_blank" rel="noopener noreferrer">Open JSON-LD</a>' +
-      (canRevoke
-        ? '<button type="button" class="ct-admin__action-menu-item ct-admin__action-menu-item--danger" data-issued-action="revoke" data-assertion-id="' +
-          escapedAssertionId +
-          '">Revoke badge</button>'
-        : '') +
-      '</div>' +
-      '</details>' +
-      '</div>'
-    );
   };
   const parseIssuedBadgesLimit = (rawValue) => {
     const fallbackLimit = 100;
@@ -2222,75 +2159,6 @@ export const INSTITUTION_ADMIN_JS = `
     issuedBadgesBody instanceof HTMLElement &&
     issuedBadgesActionStatus instanceof HTMLElement
   ) {
-    const renderIssuedBadgeRows = (assertions) => {
-      if (!Array.isArray(assertions) || assertions.length === 0) {
-        setIssuedBadgesEmptyState('No assertions matched the selected filters.');
-        return;
-      }
-
-      issuedBadgesBody.innerHTML = assertions
-        .map((entry) => {
-          const assertionId =
-            entry && typeof entry.assertionId === 'string' ? entry.assertionId : '';
-          const recipientIdentity =
-            entry && typeof entry.recipientIdentity === 'string' ? entry.recipientIdentity : 'unknown';
-          const badgeTitle =
-            entry && typeof entry.badgeTitle === 'string' ? entry.badgeTitle : 'Unknown template';
-          const badgeTemplateId =
-            entry && typeof entry.badgeTemplateId === 'string' ? entry.badgeTemplateId : '';
-          const issuedAt = entry && typeof entry.issuedAt === 'string' ? entry.issuedAt : '';
-          const state = entry && typeof entry.state === 'string' ? entry.state : 'active';
-          const source = entry && typeof entry.source === 'string' ? entry.source : 'default_active';
-          const publicId = entry && typeof entry.publicId === 'string' ? entry.publicId : null;
-          const stateClass = ['active', 'suspended', 'revoked', 'expired'].includes(state)
-            ? state
-            : 'none';
-          const canRevoke = state !== 'revoked';
-          const viewBadgeHref = '/badges/' + encodeURIComponent(assertionId);
-          const rawJsonHref =
-            '/credentials/v1/' + encodeURIComponent(assertionId) + '/jsonld';
-
-          return (
-            '<tr>' +
-            '<td>' +
-            escapeHtml(formatTimestamp(issuedAt)) +
-            '</td>' +
-            '<td><strong>' +
-            escapeHtml(recipientIdentity) +
-            '</strong></td>' +
-            '<td><strong>' +
-            escapeHtml(badgeTitle) +
-            '</strong><div class="ct-admin__meta">' +
-            escapeHtml(badgeTemplateId) +
-            '</div></td>' +
-            '<td><span class="ct-admin__status-pill ct-admin__status-pill--' +
-            escapeHtml(stateClass) +
-            '">' +
-            escapeHtml(state) +
-            '</span><div class="ct-admin__meta">' +
-            escapeHtml(source) +
-            '</div></td>' +
-            '<td><div class="ct-admin__assertion-id">' +
-            escapeHtml(assertionId) +
-            '</div>' +
-            (publicId === null
-              ? ''
-              : '<div class="ct-admin__meta">public: ' + escapeHtml(publicId) + '</div>') +
-            '</td>' +
-            '<td class="ct-admin__issued-actions-cell"><div class="ct-admin__issued-actions">' +
-            renderIssuedBadgeActionsMarkup({
-              assertionId,
-              viewBadgeHref,
-              rawJsonHref,
-              canRevoke,
-            }) +
-            '</div></td>' +
-            '</tr>'
-          );
-        })
-        .join('');
-    };
-
     const loadIssuedBadges = async () => {
       setStatus(issuedBadgesStatus, 'Loading issued badges...', false);
       setIssuedBadgesEmptyState('Loading assertions...');
@@ -2321,20 +2189,27 @@ export const INSTITUTION_ADMIN_JS = `
       }
 
       try {
-        const response = await fetch(assertionsApiPathPrefix + '?' + query.toString());
-        const payload = await parseJsonBody(response);
+        const response = await fetch(issuedBadgeRowsPath + '?' + query.toString(), {
+          headers: {
+            accept: 'text/html',
+          },
+        });
 
         if (!response.ok) {
+          const payload = await parseJsonBody(response);
           setStatus(issuedBadgesStatus, errorDetailFromPayload(payload), true);
           setIssuedBadgesEmptyState('Unable to load assertions.');
           return;
         }
 
-        const assertions = payload && Array.isArray(payload.assertions) ? payload.assertions : [];
-        renderIssuedBadgeRows(assertions);
+        const html = await response.text();
+        const countRaw = response.headers.get('x-credtrail-assertion-count');
+        const count = countRaw === null ? 0 : Number.parseInt(countRaw, 10);
+        const loadedCount = Number.isFinite(count) ? count : 0;
+        issuedBadgesBody.innerHTML = html;
         setStatus(
           issuedBadgesStatus,
-          'Loaded ' + String(assertions.length) + ' assertion' + (assertions.length === 1 ? '' : 's') + '.',
+          'Loaded ' + String(loadedCount) + ' assertion' + (loadedCount === 1 ? '' : 's') + '.',
           false,
         );
       } catch {

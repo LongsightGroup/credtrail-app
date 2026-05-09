@@ -22,8 +22,10 @@ import {
   parseTenantAssertionListQuery,
   parseTenantPathParams,
   type ManualIssueBadgeRequest,
+  type TenantAssertionListQuery,
 } from "@credtrail/validation";
 import type { AppBindings, AppContext, AppEnv } from "../app";
+import { renderIssuedBadgeRowsToString } from "../admin/components";
 import { buildTenantAssertionLedgerCsvExport } from "../reporting/ledger-export";
 
 type DirectIssueBadgeRequest = Pick<
@@ -117,6 +119,29 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
     HttpErrorResponseClass,
   } = input;
 
+  const parseAssertionListQuery = (c: AppContext): TenantAssertionListQuery => {
+    return parseTenantAssertionListQuery({
+      badgeTemplateId: c.req.query("badgeTemplateId"),
+      recipientQuery: c.req.query("recipientQuery"),
+      state: c.req.query("state"),
+      limit: c.req.query("limit"),
+    });
+  };
+
+  const listAssertionsForTenant = (
+    c: AppContext,
+    tenantId: string,
+    query: TenantAssertionListQuery,
+  ): ReturnType<typeof listTenantAssertions> => {
+    return listTenantAssertions(resolveDatabase(c.env), {
+      tenantId,
+      ...(query.badgeTemplateId === undefined ? {} : { badgeTemplateId: query.badgeTemplateId }),
+      ...(query.recipientQuery === undefined ? {} : { recipientQuery: query.recipientQuery }),
+      ...(query.state === undefined ? {} : { state: query.state }),
+      ...(query.limit === undefined ? {} : { limit: query.limit }),
+    });
+  };
+
   app.post("/v1/tenants/:tenantId/assertions/manual-issue", async (c): Promise<Response> => {
     const pathParams = parseTenantPathParams(c.req.param());
     const payload = await c.req.json<unknown>();
@@ -171,12 +196,7 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
     let query;
 
     try {
-      query = parseTenantAssertionListQuery({
-        badgeTemplateId: c.req.query("badgeTemplateId"),
-        recipientQuery: c.req.query("recipientQuery"),
-        state: c.req.query("state"),
-        limit: c.req.query("limit"),
-      });
+      query = parseAssertionListQuery(c);
     } catch {
       return c.json(
         {
@@ -192,13 +212,7 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
       return roleCheck;
     }
 
-    const assertions = await listTenantAssertions(resolveDatabase(c.env), {
-      tenantId: pathParams.tenantId,
-      ...(query.badgeTemplateId === undefined ? {} : { badgeTemplateId: query.badgeTemplateId }),
-      ...(query.recipientQuery === undefined ? {} : { recipientQuery: query.recipientQuery }),
-      ...(query.state === undefined ? {} : { state: query.state }),
-      ...(query.limit === undefined ? {} : { limit: query.limit }),
-    });
+    const assertions = await listAssertionsForTenant(c, pathParams.tenantId, query);
 
     c.header("Cache-Control", "no-store");
 
@@ -206,6 +220,40 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
       tenantId: pathParams.tenantId,
       count: assertions.length,
       assertions,
+    });
+  });
+
+  app.get("/v1/tenants/:tenantId/assertions/table-rows", async (c): Promise<Response> => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    let query;
+
+    try {
+      query = parseAssertionListQuery(c);
+    } catch {
+      return c.json(
+        {
+          error: "Invalid assertion list query parameters",
+        },
+        400,
+      );
+    }
+
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const assertions = await listAssertionsForTenant(c, pathParams.tenantId, query);
+    const html = renderIssuedBadgeRowsToString(assertions);
+
+    return new Response(html, {
+      status: 200,
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Type": "text/html; charset=utf-8",
+        "X-CredTrail-Assertion-Count": String(assertions.length),
+      },
     });
   });
 

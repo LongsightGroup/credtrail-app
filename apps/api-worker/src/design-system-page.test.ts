@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { IssuedBadgeActions, adminButtonClass } from "./admin/components";
+import {
+  IssuedBadgeActions,
+  adminButtonClass,
+  renderIssuedBadgeRowsToString,
+} from "./admin/components";
 import { designSystemAdminPage } from "./admin/design-system-page";
 import { app } from "./index";
 import { pageAssetPath } from "./ui/page-assets";
@@ -59,6 +63,43 @@ describe("CredTrail UI styleguide", () => {
     expect(html).not.toContain("ct-admin__action-pill");
   });
 
+  it("renders issued badge table rows through the shared admin components", () => {
+    const html = renderIssuedBadgeRowsToString([
+      {
+        assertionId: "sakai:abc-123",
+        tenantId: "tenant_123",
+        publicId: "public_abc",
+        badgeTemplateId: "badge_template_001",
+        badgeTitle: "Sakai 1000+ Commits Contributor",
+        badgeImageUri: null,
+        recipientIdentity: "learner@example.edu",
+        recipientIdentityType: "email",
+        issuedAt: "2026-03-04T17:49:18.000Z",
+        issuedByUserId: "usr_issuer",
+        revokedAt: null,
+        state: "active",
+        source: "default_active",
+        reasonCode: null,
+        reason: null,
+        transitionedAt: null,
+      },
+    ]);
+
+    expect(html).toContain('data-issued-badge-row="true"');
+    expect(html).toContain("Sakai 1000+ Commits Contributor");
+    expect(html).toContain("learner@example.edu");
+    expect(html).toContain('data-issued-action="audit"');
+    expect(html).toContain("Open JSON-LD");
+    expect(html).not.toContain("ct-admin__action-pill");
+  });
+
+  it("renders an empty issued badge table row when no assertions match", () => {
+    const html = renderIssuedBadgeRowsToString([]);
+
+    expect(html).toContain('colspan="6"');
+    expect(html).toContain("No assertions matched the selected filters.");
+  });
+
   it("renders the internal styleguide with the registered design-system asset", () => {
     const html = renderAppPageToString(designSystemAdminPage());
 
@@ -95,8 +136,8 @@ describe("CredTrail UI styleguide", () => {
 
     expect(INSTITUTION_ADMIN_CSS).not.toContain(legacyClass);
     expect(INSTITUTION_ADMIN_JS).not.toContain(legacyClass);
-    expect(INSTITUTION_ADMIN_JS).toContain("const renderIssuedBadgeActionsMarkup");
-    expect(INSTITUTION_ADMIN_JS).toContain("const adminButtonClass");
+    expect(INSTITUTION_ADMIN_JS).toContain("issuedBadgeRowsPath");
+    expect(INSTITUTION_ADMIN_JS).toContain("accept: 'text/html'");
     expect(DESIGN_SYSTEM_CSS).not.toContain(legacyClass);
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__button");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__issued-actions .ct-admin__button");

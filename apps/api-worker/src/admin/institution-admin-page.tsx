@@ -1195,6 +1195,7 @@ const renderInstitutionAdminPage = (
   const badgeRulePreviewSimulationApiPath = `${badgeRuleApiPath}/preview-simulate`;
   const badgeRuleReviewQueueApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules/review-queue`;
   const assertionsApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions`;
+  const issuedBadgeRowsPath = `${assertionsApiPathPrefix}/table-rows`;
   const tenantUsersApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/users`;
   const adminAuditLogPath = `/admin/audit-logs?tenantId=${encodeURIComponent(input.tenant.id)}`;
   const showcasePath = `/showcase/${encodeURIComponent(input.tenant.id)}`;
@@ -2907,6 +2908,7 @@ const renderInstitutionAdminPage = (
     badgeRulePreviewSimulationApiPath,
     badgeRuleReviewQueueApiPath,
     assertionsApiPathPrefix,
+    issuedBadgeRowsPath,
     tenantMembersApiPath: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/members`,
     tenantUsersApiPathPrefix,
     reportingComparisonsApiPath: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/comparisons`,

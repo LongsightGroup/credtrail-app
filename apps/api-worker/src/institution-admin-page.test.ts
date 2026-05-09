@@ -1272,6 +1272,9 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     expect(response.status).toBe(200);
     expect(body).toContain("Issued Badges");
     expect(body).toContain('id="issued-badges-filter-form"');
+    expect(body).toContain(
+      "&quot;issuedBadgeRowsPath&quot;:&quot;/v1/tenants/tenant_123/assertions/table-rows&quot;",
+    );
     expect(body).not.toContain('id="manual-issue-form"');
     expect(body).not.toContain('id="rule-review-queue-refresh"');
     expect(body).not.toContain('id="assertion-lifecycle-view-form"');
