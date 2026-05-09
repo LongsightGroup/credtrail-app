@@ -42,6 +42,7 @@ export const AdminButton = ({
   size,
   disabled,
   form,
+  formAction,
   className,
   ariaLabel,
   dataAttributes,
@@ -53,6 +54,7 @@ export const AdminButton = ({
   size?: AdminButtonSize;
   disabled?: boolean;
   form?: string;
+  formAction?: string;
   className?: string;
   ariaLabel?: string;
   dataAttributes?: DataAttributes;
@@ -62,6 +64,7 @@ export const AdminButton = ({
       id={id}
       type={type}
       form={form}
+      formaction={formAction}
       class={adminButtonClass({ variant, size, extraClass: className })}
       disabled={disabled}
       aria-label={ariaLabel}
@@ -95,6 +98,42 @@ export const AdminButtonLink = ({
   return (
     <a
       class={adminButtonClass({ variant, size, extraClass: className })}
+      href={href}
+      target={target}
+      rel={rel}
+      aria-label={ariaLabel}
+      {...(dataAttributes ?? {})}
+    >
+      {children}
+    </a>
+  );
+};
+
+export const AdminCtaLink = ({
+  href,
+  target,
+  rel,
+  className,
+  ariaLabel,
+  dataAttributes,
+  children,
+}: PropsWithChildren<{
+  href: string;
+  target?: "_blank";
+  rel?: string;
+  className?: string;
+  ariaLabel?: string;
+  dataAttributes?: DataAttributes;
+}>): HonoElement => {
+  const classNames = ["ct-admin__cta-link"];
+
+  if (className !== undefined && className.trim().length > 0) {
+    classNames.push(className.trim());
+  }
+
+  return (
+    <a
+      class={classNames.join(" ")}
       href={href}
       target={target}
       rel={rel}

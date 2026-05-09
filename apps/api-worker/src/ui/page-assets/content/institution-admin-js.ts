@@ -102,6 +102,12 @@ export const INSTITUTION_ADMIN_JS = `
   ) {
     return;
   }
+
+  const adminButtonTinyClass = 'ct-admin__button ct-admin__button--tiny';
+  const adminButtonTinySecondaryClass = adminButtonTinyClass + ' ct-admin__button--secondary';
+  const adminButtonTinyGhostClass = adminButtonTinyClass + ' ct-admin__button--ghost';
+  const adminButtonTinyDangerClass = adminButtonTinyClass + ' ct-admin__button--danger';
+
   const manualIssueForm = document.getElementById('manual-issue-form');
   const manualIssueStatus = document.getElementById('manual-issue-status');
   const apiKeyForm = document.getElementById('api-key-form');
@@ -615,12 +621,16 @@ export const INSTITUTION_ADMIN_JS = `
           '</td>' +
           '<td><div class="ct-admin__actions">' +
           (canResolve
-            ? '<button type="button" class="ct-admin__button ct-admin__button--tiny" data-review-queue-action="issue" data-evaluation-id="' +
+            ? '<button type="button" class="' +
+              adminButtonTinyClass +
+              '" data-review-queue-action="issue" data-evaluation-id="' +
               escapeHtml(evaluationId) +
               '" data-recipient-identity="' +
               escapeHtml(recipientIdentity) +
               '">Issue badge</button>' +
-              '<button type="button" class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary" data-review-queue-action="dismiss" data-evaluation-id="' +
+              '<button type="button" class="' +
+              adminButtonTinySecondaryClass +
+              '" data-review-queue-action="dismiss" data-evaluation-id="' +
               escapeHtml(evaluationId) +
               '" data-recipient-identity="' +
               escapeHtml(recipientIdentity) +
@@ -3599,9 +3609,15 @@ export const INSTITUTION_ADMIN_JS = `
         '<span class="ct-admin__condition-index" data-condition-index>Condition</span>' +
         '<span class="ct-admin__condition-drag" title="Drag to reorder" aria-hidden="true">::</span>' +
         '<div class="ct-admin__condition-actions ct-cluster">' +
-        '<button type="button" class="ct-admin__button ct-admin__button--tiny ct-admin__button--ghost" data-condition-move="up" aria-label="Move condition up">Up</button>' +
-        '<button type="button" class="ct-admin__button ct-admin__button--tiny ct-admin__button--ghost" data-condition-move="down" aria-label="Move condition down">Down</button>' +
-        '<button type="button" class="ct-admin__button ct-admin__button--tiny ct-admin__button--danger ct-admin__condition-remove">Remove</button>' +
+        '<button type="button" class="' +
+        adminButtonTinyGhostClass +
+        '" data-condition-move="up" aria-label="Move condition up">Up</button>' +
+        '<button type="button" class="' +
+        adminButtonTinyGhostClass +
+        '" data-condition-move="down" aria-label="Move condition down">Down</button>' +
+        '<button type="button" class="' +
+        adminButtonTinyDangerClass +
+        ' ct-admin__condition-remove">Remove</button>' +
         '</div>' +
         '</div>' +
         '<div class="ct-admin__condition-header-fields ct-admin__builder-grid ct-grid">' +

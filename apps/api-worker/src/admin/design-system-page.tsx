@@ -1,5 +1,5 @@
 import type { HtmlEscapedString } from "hono/utils/html";
-import { AdminButton, AdminButtonLink, IssuedBadgeActions } from "./components";
+import { AdminButton, AdminButtonLink, AdminCtaLink, IssuedBadgeActions } from "./components";
 import { appPage, type AppPage } from "../ui/render-page";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -152,8 +152,21 @@ const componentDocs: readonly ComponentDoc[] = [
   {
     name: "AdminButton",
     source: "apps/api-worker/src/admin/components.tsx",
-    purpose: "Centralizes admin button class composition for links and button elements.",
-    usage: "Use variant and size props instead of hand-writing button class combinations.",
+    purpose: "Centralizes admin button class composition for native button elements.",
+    usage: "Use variant, size, and native form props instead of hand-writing button classes.",
+  },
+  {
+    name: "AdminButtonLink",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Renders anchor actions with the same variants and sizes as admin buttons.",
+    usage: "Use for reset, export, and route links that behave like secondary or primary actions.",
+  },
+  {
+    name: "AdminCtaLink",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Renders the lower-radius major-link row item for true cross-surface resources.",
+    usage:
+      "Use for links like public badge, standards mapping, and CSV template downloads; avoid it for destinations already in the sidebar.",
   },
   {
     name: "AdminActionBar",
@@ -278,15 +291,9 @@ const ActionPreview = (): HonoElement => {
 const MajorLinkPreview = (): HonoElement => {
   return (
     <div class="ct-design-system__example-row">
-      <a class="ct-admin__cta-link" href="#actions">
-        Rule library and templates
-      </a>
-      <a class="ct-admin__cta-link" href="#actions">
-        Review queue
-      </a>
-      <a class="ct-admin__cta-link" href="#actions">
-        Download CSV template
-      </a>
+      <AdminCtaLink href="#actions">Rule library and templates</AdminCtaLink>
+      <AdminCtaLink href="#actions">Review queue</AdminCtaLink>
+      <AdminCtaLink href="#actions">Download CSV template</AdminCtaLink>
     </div>
   );
 };

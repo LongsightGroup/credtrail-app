@@ -852,7 +852,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain("institution admin access");
   });
 
-  it("shows empty-state CTA when no rules exist", async () => {
+  it("shows empty-state rule guidance when no rules exist", async () => {
     const env = createEnv();
     mockedListBadgeIssuanceRules.mockResolvedValue([]);
     mockedListBadgeIssuanceRuleVersions.mockResolvedValue([]);
@@ -871,7 +871,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(response.status).toBe(200);
     expect(body).toContain("No badge rules found.");
     expect(body).toContain("/tenants/tenant_123/admin/rules/new");
-    expect(body).toContain("Create first rule");
+    expect(body).toContain("Create your first rule.");
   });
 
   it("renders institution admin dashboard for admin membership", async () => {
@@ -898,11 +898,11 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain("Reporting");
     expect(body).toContain("Rules");
     expect(body).toContain("Access");
-    expect(body).toContain("Open operations");
-    expect(body).toContain("Open reporting");
-    expect(body).toContain("Open rules");
-    expect(body).toContain("Open access");
-    expect(body).toContain("Manage members");
+    expect(body).not.toMatch(/>\s*Open operations\s*<\/a>/);
+    expect(body).not.toMatch(/>\s*Open reporting\s*<\/a>/);
+    expect(body).not.toMatch(/>\s*Open rules\s*<\/a>/);
+    expect(body).not.toMatch(/>\s*Open access\s*<\/a>/);
+    expect(body).not.toMatch(/>\s*Manage members\s*<\/a>/);
     expect(body).not.toContain("Enterprise Auth");
     expect(body).not.toContain("Manual Issue Badge");
     expect(body).not.toContain("Create Tenant API Key");
@@ -2422,8 +2422,8 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain(">Rules<");
-    expect(body).toContain("Rule Builder Workspace");
-    expect(body).toContain("Open rule builder");
+    expect(body).not.toContain("Rule Builder Workspace");
+    expect(body).not.toMatch(/>\s*Open rule builder\s*<\/a>/);
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new"');
     expect(body).toContain("Upload Badge Template Image");
     expect(body).toContain('id="badge-template-image-upload-form"');
@@ -2459,7 +2459,7 @@ describe("GET /tenants/:tenantId/admin/access", () => {
     expect(body).toContain(">Access<");
     expect(body).toContain("Members");
     expect(body).toContain('href="/tenants/tenant_123/admin/access/members"');
-    expect(body).toContain("Manage members");
+    expect(body).not.toMatch(/>\s*Manage members\s*<\/a>/);
     expect(body).toContain("Access pages");
     expect(body).toContain("Governance");
     expect(body).toContain('href="/tenants/tenant_123/admin/access/governance"');

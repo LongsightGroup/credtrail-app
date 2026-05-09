@@ -32,6 +32,7 @@ import type {
 } from "../learner-record/learner-record-import";
 import type { LearnerRecordPresentationModel } from "../learner-record/learner-record-presentation";
 import { formatIsoTimestamp } from "../utils/display-format";
+import { AdminButton, AdminButtonLink, AdminCtaLink } from "./components";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -865,14 +866,16 @@ const renderInstitutionAdminPage = (
             <td>{formatScopesSummary(apiKey.scopesJson)}</td>
             <td>{apiKey.expiresAt === null ? "Never" : formatIsoTimestamp(apiKey.expiresAt)}</td>
             <td>
-              <button
+              <AdminButton
                 type="button"
-                class="ct-admin__button ct-admin__button--danger"
-                data-revoke-api-key-path={revokeApiKeyPath}
-                data-api-key-label={apiKey.label}
+                variant="danger"
+                dataAttributes={{
+                  "data-revoke-api-key-path": revokeApiKeyPath,
+                  "data-api-key-label": apiKey.label,
+                }}
               >
                 Revoke
-              </button>
+              </AdminButton>
             </td>
           </tr>
         );
@@ -935,22 +938,28 @@ const renderInstitutionAdminPage = (
             <td>
               {canManageMember ? (
                 <div class="ct-admin__actions">
-                  <button
+                  <AdminButton
                     type="button"
-                    class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
-                    data-tenant-member-invite-user-id={member.userId}
-                    data-tenant-member-email={member.email}
+                    size="tiny"
+                    variant="secondary"
+                    dataAttributes={{
+                      "data-tenant-member-invite-user-id": member.userId,
+                      "data-tenant-member-email": member.email,
+                    }}
                   >
                     Resend invite
-                  </button>
-                  <button
+                  </AdminButton>
+                  <AdminButton
                     type="button"
-                    class="ct-admin__button ct-admin__button--tiny ct-admin__button--danger"
-                    data-tenant-member-remove-user-id={member.userId}
-                    data-tenant-member-email={member.email}
+                    size="tiny"
+                    variant="danger"
+                    dataAttributes={{
+                      "data-tenant-member-remove-user-id": member.userId,
+                      "data-tenant-member-email": member.email,
+                    }}
                   >
                     Remove
-                  </button>
+                  </AdminButton>
                 </div>
               ) : (
                 <span class="ct-admin__meta">
@@ -985,15 +994,18 @@ const renderInstitutionAdminPage = (
             </td>
             <td>{formatIsoTimestamp(scope.updatedAt)}</td>
             <td>
-              <button
+              <AdminButton
                 type="button"
-                class="ct-admin__button ct-admin__button--tiny ct-admin__button--danger"
-                data-membership-scope-remove-user-id={scope.userId}
-                data-membership-scope-remove-org-unit-id={scope.orgUnitId}
-                data-membership-scope-remove-label={`${scope.userId} · ${scopeLabel}`}
+                size="tiny"
+                variant="danger"
+                dataAttributes={{
+                  "data-membership-scope-remove-user-id": scope.userId,
+                  "data-membership-scope-remove-org-unit-id": scope.orgUnitId,
+                  "data-membership-scope-remove-label": `${scope.userId} · ${scopeLabel}`,
+                }}
               >
                 Remove
-              </button>
+              </AdminButton>
             </td>
           </tr>
         );
@@ -1047,15 +1059,18 @@ const renderInstitutionAdminPage = (
             </td>
             <td>
               {canRemove ? (
-                <button
+                <AdminButton
                   type="button"
-                  class="ct-admin__button ct-admin__button--tiny ct-admin__button--danger"
-                  data-delegated-grant-remove-user-id={grant.delegateUserId}
-                  data-delegated-grant-remove-id={grant.id}
-                  data-delegated-grant-remove-label={`${grant.delegateUserId} · ${grant.id}`}
+                  size="tiny"
+                  variant="danger"
+                  dataAttributes={{
+                    "data-delegated-grant-remove-user-id": grant.delegateUserId,
+                    "data-delegated-grant-remove-id": grant.id,
+                    "data-delegated-grant-remove-label": `${grant.delegateUserId} · ${grant.id}`,
+                  }}
                 >
                   Remove
-                </button>
+                </AdminButton>
               ) : (
                 <span class="ct-admin__meta">No action</span>
               )}
@@ -1100,52 +1115,61 @@ const renderInstitutionAdminPage = (
         if (latestVersion !== null) {
           if (latestVersion.status === "draft" || latestVersion.status === "rejected") {
             actionButtons.push(
-              <button
+              <AdminButton
                 type="button"
-                class="ct-admin__button ct-admin__button--tiny"
-                data-rule-submit-path={submitApprovalPath ?? ""}
-                data-rule-label={rule.name}
+                size="tiny"
+                dataAttributes={{
+                  "data-rule-submit-path": submitApprovalPath ?? "",
+                  "data-rule-label": rule.name,
+                }}
               >
                 Submit
-              </button>,
+              </AdminButton>,
             );
           }
 
           if (latestVersion.status === "pending_approval") {
             actionButtons.push(
-              <button
+              <AdminButton
                 type="button"
-                class="ct-admin__button ct-admin__button--tiny"
-                data-rule-decision-path={approvePath ?? ""}
-                data-rule-decision="approved"
-                data-rule-label={rule.name}
+                size="tiny"
+                dataAttributes={{
+                  "data-rule-decision-path": approvePath ?? "",
+                  "data-rule-decision": "approved",
+                  "data-rule-label": rule.name,
+                }}
               >
                 Approve
-              </button>,
+              </AdminButton>,
             );
             actionButtons.push(
-              <button
+              <AdminButton
                 type="button"
-                class="ct-admin__button ct-admin__button--tiny ct-admin__button--danger"
-                data-rule-decision-path={approvePath ?? ""}
-                data-rule-decision="rejected"
-                data-rule-label={rule.name}
+                size="tiny"
+                variant="danger"
+                dataAttributes={{
+                  "data-rule-decision-path": approvePath ?? "",
+                  "data-rule-decision": "rejected",
+                  "data-rule-label": rule.name,
+                }}
               >
                 Reject
-              </button>,
+              </AdminButton>,
             );
           }
 
           if (latestVersion.status === "approved" || latestVersion.status === "active") {
             actionButtons.push(
-              <button
+              <AdminButton
                 type="button"
-                class="ct-admin__button ct-admin__button--tiny"
-                data-rule-activate-path={activatePath ?? ""}
-                data-rule-label={rule.name}
+                size="tiny"
+                dataAttributes={{
+                  "data-rule-activate-path": activatePath ?? "",
+                  "data-rule-label": rule.name,
+                }}
               >
                 Activate
-              </button>,
+              </AdminButton>,
             );
           }
         }
@@ -1341,30 +1365,21 @@ const renderInstitutionAdminPage = (
         organization, and lifecycle state selections.
       </p>
       <div class="ct-cluster">
-        <a class="ct-admin__button ct-admin__button--secondary" href={reportingOverviewExportHref}>
+        <AdminButtonLink href={reportingOverviewExportHref} variant="secondary">
           Overview CSV
-        </a>
-        <a
-          class="ct-admin__button ct-admin__button--secondary"
-          href={reportingEngagementExportHref}
-        >
+        </AdminButtonLink>
+        <AdminButtonLink href={reportingEngagementExportHref} variant="secondary">
           Engagement CSV
-        </a>
-        <a class="ct-admin__button ct-admin__button--secondary" href={reportingTrendsExportHref}>
+        </AdminButtonLink>
+        <AdminButtonLink href={reportingTrendsExportHref} variant="secondary">
           Trends CSV
-        </a>
-        <a
-          class="ct-admin__button ct-admin__button--secondary"
-          href={reportingTemplateComparisonExportHref}
-        >
+        </AdminButtonLink>
+        <AdminButtonLink href={reportingTemplateComparisonExportHref} variant="secondary">
           Template comparisons CSV
-        </a>
-        <a
-          class="ct-admin__button ct-admin__button--secondary"
-          href={reportingOrgUnitComparisonExportHref}
-        >
+        </AdminButtonLink>
+        <AdminButtonLink href={reportingOrgUnitComparisonExportHref} variant="secondary">
           Org-unit comparisons CSV
-        </a>
+        </AdminButtonLink>
       </div>
       <p class="ct-admin__hint">
         Recipient-level ledger export stays in Operations for owner/admin users and does not appear
@@ -2142,15 +2157,15 @@ const renderInstitutionAdminPage = (
                 : `Shows ${formatReportingHierarchyLevelLabel(childLevel).toLowerCase()} rows`}
             </span>
             {childLevel === null ? null : (
-              <a
-                class="ct-admin__button ct-admin__button--secondary"
+              <AdminButtonLink
+                variant="secondary"
                 href={buildReportingHierarchyExportHref({
                   focusOrgUnitId: focusOrgUnit.id,
                   level: childLevel,
                 })}
               >
                 Export CSV
-              </a>
+              </AdminButtonLink>
             )}
           </div>
         </div>
@@ -2608,27 +2623,32 @@ const renderInstitutionAdminPage = (
             <td>{provider.enabled ? "Enabled" : "Disabled"}</td>
             <td>{formatIsoTimestamp(provider.updatedAt)}</td>
             <td>
-              <button
+              <AdminButton
                 type="button"
-                class="ct-admin__button ct-admin__button--tiny"
-                data-enterprise-auth-edit-provider="true"
-                data-provider-id={provider.id}
-                data-provider-protocol={provider.protocol}
-                data-provider-label={provider.label}
-                data-provider-enabled={provider.enabled ? "true" : "false"}
-                data-provider-is-default={provider.isDefault ? "true" : "false"}
-                data-provider-config-json={provider.configJson}
+                size="tiny"
+                dataAttributes={{
+                  "data-enterprise-auth-edit-provider": "true",
+                  "data-provider-id": provider.id,
+                  "data-provider-protocol": provider.protocol,
+                  "data-provider-label": provider.label,
+                  "data-provider-enabled": provider.enabled ? "true" : "false",
+                  "data-provider-is-default": provider.isDefault ? "true" : "false",
+                  "data-provider-config-json": provider.configJson,
+                }}
               >
                 Edit
-              </button>
-              <button
+              </AdminButton>
+              <AdminButton
                 type="button"
-                class="ct-admin__button ct-admin__button--tiny ct-admin__button--danger"
-                data-enterprise-auth-delete-provider-id={provider.id}
-                data-provider-label={provider.label}
+                size="tiny"
+                variant="danger"
+                dataAttributes={{
+                  "data-enterprise-auth-delete-provider-id": provider.id,
+                  "data-provider-label": provider.label,
+                }}
               >
                 Delete
-              </button>
+              </AdminButton>
             </td>
           </tr>
         );
@@ -2653,14 +2673,17 @@ const renderInstitutionAdminPage = (
             <td>{provider.enabled ? "Enabled" : "Disabled"}</td>
             <td>{formatIsoTimestamp(provider.updatedAt)}</td>
             <td>
-              <button
+              <AdminButton
                 type="button"
-                class="ct-admin__button ct-admin__button--tiny ct-admin__button--danger"
-                data-enterprise-auth-delete-provider-id={provider.id}
-                data-provider-label={provider.label}
+                size="tiny"
+                variant="danger"
+                dataAttributes={{
+                  "data-enterprise-auth-delete-provider-id": provider.id,
+                  "data-provider-label": provider.label,
+                }}
               >
                 Delete
-              </button>
+              </AdminButton>
             </td>
           </tr>
         );
@@ -2725,7 +2748,7 @@ const renderInstitutionAdminPage = (
             />
             Require MFA for local access
           </label>
-          <button type="submit">Save auth policy</button>
+          <AdminButton type="submit">Save auth policy</AdminButton>
         </form>
         <p id="enterprise-auth-policy-status" class="ct-admin__status"></p>
         <form id="enterprise-auth-provider-form" class="ct-admin__form ct-stack">
@@ -2759,14 +2782,10 @@ const renderInstitutionAdminPage = (
             Set as default provider
           </label>
           <div class="ct-cluster">
-            <button type="submit">Save provider</button>
-            <button
-              id="enterprise-auth-provider-reset"
-              type="button"
-              class="ct-admin__button ct-admin__button--secondary"
-            >
+            <AdminButton type="submit">Save provider</AdminButton>
+            <AdminButton id="enterprise-auth-provider-reset" type="button" variant="secondary">
               Clear form
-            </button>
+            </AdminButton>
           </div>
         </form>
         <p id="enterprise-auth-provider-status" class="ct-admin__status"></p>
@@ -2823,7 +2842,7 @@ const renderInstitutionAdminPage = (
               <input name="sendEnrollmentEmail" type="checkbox" checked />
               Email setup or password-reset link now
             </label>
-            <button type="submit">Add break-glass account</button>
+            <AdminButton type="submit">Add break-glass account</AdminButton>
           </form>
           <p id="break-glass-account-status" class="ct-admin__status"></p>
           <div class="ct-admin__table-wrap">
@@ -2870,14 +2889,17 @@ const renderInstitutionAdminPage = (
                             : formatIsoTimestamp(account.lastEnrollmentEmailSentAt)}
                         </td>
                         <td>
-                          <button
+                          <AdminButton
                             type="button"
-                            class="ct-admin__button ct-admin__button--tiny ct-admin__button--danger"
-                            data-break-glass-delete-user-id={account.userId}
-                            data-break-glass-email={account.email}
+                            size="tiny"
+                            variant="danger"
+                            dataAttributes={{
+                              "data-break-glass-delete-user-id": account.userId,
+                              "data-break-glass-email": account.email,
+                            }}
                           >
                             Revoke
-                          </button>
+                          </AdminButton>
                         </td>
                       </tr>
                     );
@@ -3098,11 +3120,6 @@ const renderInstitutionAdminPage = (
           <span class="ct-admin__status-pill">{badgeTemplateCount} templates</span>
           <span class="ct-admin__status-pill">{ruleCount} rules</span>
         </div>
-        <div class="ct-admin__workspace-actions ct-cluster">
-          <a class="ct-admin__cta-link" href={operationsPath}>
-            Open operations
-          </a>
-        </div>
       </article>
       <article class="ct-admin__workspace-card ct-stack">
         <p class="ct-admin__eyebrow">Analytics</p>
@@ -3115,11 +3132,6 @@ const renderInstitutionAdminPage = (
           <span class="ct-admin__status-pill">
             Pending review {reportingOverview?.counts.pendingReview ?? 0}
           </span>
-        </div>
-        <div class="ct-admin__workspace-actions ct-cluster">
-          <a class="ct-admin__cta-link" href={reportingPath}>
-            Open reporting
-          </a>
         </div>
       </article>
       <article class="ct-admin__workspace-card ct-stack">
@@ -3135,14 +3147,6 @@ const renderInstitutionAdminPage = (
           <span class="ct-admin__status-pill">{ruleCount} active rule records</span>
           <span class="ct-admin__status-pill">{badgeTemplateCount} templates</span>
         </div>
-        <div class="ct-admin__workspace-actions ct-cluster">
-          <a
-            class="ct-admin__cta-link"
-            href={input.badgeRules.length === 0 ? ruleBuilderPath : rulesWorkspacePath}
-          >
-            {input.badgeRules.length === 0 ? "Create first rule" : "Open rules"}
-          </a>
-        </div>
       </article>
       <article class="ct-admin__workspace-card ct-stack">
         <p class="ct-admin__eyebrow">Setup</p>
@@ -3155,14 +3159,6 @@ const renderInstitutionAdminPage = (
           <span class="ct-admin__status-pill">{tenantMemberCount} members</span>
           <span class="ct-admin__status-pill">{activeApiKeyCount} active keys</span>
           <span class="ct-admin__status-pill">{orgUnitCount} org units</span>
-        </div>
-        <div class="ct-admin__workspace-actions ct-cluster">
-          <a class="ct-admin__cta-link" href={accessPath}>
-            Open access
-          </a>
-          <a class="ct-admin__cta-link" href={accessMembersPath}>
-            Manage members
-          </a>
         </div>
       </article>
     </section>
@@ -3183,7 +3179,7 @@ const renderInstitutionAdminPage = (
           Recipient email
           <input name="recipientIdentity" type="email" required placeholder="csev@umich.edu" />
         </label>
-        <button type="submit">Issue badge</button>
+        <AdminButton type="submit">Issue badge</AdminButton>
       </form>
       <p id="manual-issue-status" class="ct-admin__status"></p>
     </article>
@@ -3204,7 +3200,7 @@ const renderInstitutionAdminPage = (
           Image file
           <input name="file" type="file" required accept="image/png,image/jpeg,image/webp" />
         </label>
-        <button type="submit">Upload image</button>
+        <AdminButton type="submit">Upload image</AdminButton>
       </form>
       <p id="badge-template-image-upload-status" class="ct-admin__status"></p>
     </article>
@@ -3238,7 +3234,7 @@ const renderInstitutionAdminPage = (
           Scopes (comma separated)
           <input name="scopes" type="text" value="queue.issue, queue.revoke" />
         </label>
-        <button type="submit">Create API key</button>
+        <AdminButton type="submit">Create API key</AdminButton>
       </form>
       <p id="api-key-status" class="ct-admin__status"></p>
       <pre id="api-key-secret" class="ct-admin__secret" hidden></pre>
@@ -3285,7 +3281,7 @@ const renderInstitutionAdminPage = (
             {orgUnitParentOptions}
           </select>
         </label>
-        <button type="submit">Create org unit</button>
+        <AdminButton type="submit">Create org unit</AdminButton>
       </form>
       <p id="org-unit-status" class="ct-admin__status"></p>
     </details>
@@ -3342,7 +3338,7 @@ const renderInstitutionAdminPage = (
           <input name="sendInvite" type="checkbox" checked />
           Email sign-in invite now
         </label>
-        <button type="submit">Save member</button>
+        <AdminButton type="submit">Save member</AdminButton>
       </form>
       <p id="tenant-member-status" class="ct-admin__status"></p>
     </details>
@@ -3385,11 +3381,6 @@ const renderInstitutionAdminPage = (
         <div class="ct-admin__workspace-stats ct-cluster">
           <span class="ct-admin__status-pill">{tenantMemberCount} members</span>
         </div>
-        <div class="ct-admin__workspace-actions ct-cluster">
-          <a class="ct-admin__cta-link" href={accessMembersPath}>
-            Manage members
-          </a>
-        </div>
       </article>
       <article class="ct-admin__workspace-card ct-stack">
         <p class="ct-admin__eyebrow">Delegation</p>
@@ -3398,11 +3389,6 @@ const renderInstitutionAdminPage = (
         <div class="ct-admin__workspace-stats ct-cluster">
           <span class="ct-admin__status-pill">{scopedRoleCount} scoped roles</span>
           <span class="ct-admin__status-pill">{delegatedAuthorityGrantCount} delegations</span>
-        </div>
-        <div class="ct-admin__workspace-actions ct-cluster">
-          <a class="ct-admin__cta-link" href={accessGovernancePath}>
-            Open governance
-          </a>
         </div>
       </article>
       <article class="ct-admin__workspace-card ct-stack">
@@ -3413,11 +3399,6 @@ const renderInstitutionAdminPage = (
           <span class="ct-admin__status-pill">{activeApiKeyCount} active</span>
           <span class="ct-admin__status-pill">{revokedApiKeyCount} revoked</span>
         </div>
-        <div class="ct-admin__workspace-actions ct-cluster">
-          <a class="ct-admin__cta-link" href={accessApiKeysPath}>
-            Manage API keys
-          </a>
-        </div>
       </article>
       <article class="ct-admin__workspace-card ct-stack">
         <p class="ct-admin__eyebrow">Structure</p>
@@ -3425,11 +3406,6 @@ const renderInstitutionAdminPage = (
         <p>Maintain institution, college, department, and program hierarchy.</p>
         <div class="ct-admin__workspace-stats ct-cluster">
           <span class="ct-admin__status-pill">{orgUnitCount} org units</span>
-        </div>
-        <div class="ct-admin__workspace-actions ct-cluster">
-          <a class="ct-admin__cta-link" href={accessOrgUnitsPath}>
-            Manage org units
-          </a>
         </div>
       </article>
     </section>
@@ -3473,7 +3449,7 @@ const renderInstitutionAdminPage = (
             <strong>admin</strong> is the highest org-unit role and covers issuer and viewer checks.
           </li>
         </ul>
-        <button type="submit">Save scoped role</button>
+        <AdminButton type="submit">Save scoped role</AdminButton>
       </form>
       <p id="membership-scope-status" class="ct-admin__status"></p>
     </article>
@@ -3558,7 +3534,7 @@ const renderInstitutionAdminPage = (
           Reason (optional)
           <input name="reason" type="text" placeholder="Coverage for spring term operations." />
         </label>
-        <button type="submit">Save delegation</button>
+        <AdminButton type="submit">Save delegation</AdminButton>
       </form>
       <p id="delegated-grant-status" class="ct-admin__status"></p>
     </article>
@@ -3584,23 +3560,6 @@ const renderInstitutionAdminPage = (
         </table>
       </div>
       <p id="delegated-grant-list-status" class="ct-admin__status"></p>
-    </article>
-  );
-
-  const ruleBuilderPanelMarkup = (
-    <article id="rule-builder-panel" class="ct-admin__panel ct-stack">
-      <h2>Rule Builder Workspace</h2>
-      <p>
-        Open the dedicated full-width builder for step-based rule authoring, test mode, and review.
-      </p>
-      <p>
-        <a class="ct-admin__cta-link" href={ruleBuilderPath}>
-          Open rule builder
-        </a>
-      </p>
-      <p class="ct-admin__hint">
-        Includes condition cards, JSON import/export, local draft save/load, and dry-run evaluation.
-      </p>
     </article>
   );
 
@@ -3633,7 +3592,7 @@ const renderInstitutionAdminPage = (
             placeholder="CS101, CS102, CS103"
           ></textarea>
         </label>
-        <button type="submit">Create value list</button>
+        <AdminButton type="submit">Create value list</AdminButton>
       </form>
       <p id="rule-value-list-status" class="ct-admin__status"></p>
       <div class="ct-admin__table-wrap">
@@ -3700,7 +3659,7 @@ const renderInstitutionAdminPage = (
           <input name="dryRun" type="checkbox" checked />
           Dry run (don’t issue badge)
         </label>
-        <button type="submit">Evaluate rule</button>
+        <AdminButton type="submit">Evaluate rule</AdminButton>
       </form>
       <p id="rule-evaluate-status" class="ct-admin__status"></p>
     </article>
@@ -3718,7 +3677,7 @@ const renderInstitutionAdminPage = (
           Assertion ID
           <input name="assertionId" type="text" required placeholder="tenant_123:assertion_456" />
         </label>
-        <button type="submit">Load lifecycle</button>
+        <AdminButton type="submit">Load lifecycle</AdminButton>
       </form>
       <p id="assertion-lifecycle-view-status" class="ct-admin__status"></p>
       <pre id="assertion-lifecycle-output" class="ct-admin__code-output" hidden></pre>
@@ -3756,7 +3715,7 @@ const renderInstitutionAdminPage = (
             placeholder="Explain why this transition is being applied."
           />
         </label>
-        <button type="submit">Apply transition</button>
+        <AdminButton type="submit">Apply transition</AdminButton>
       </form>
       <p id="assertion-lifecycle-transition-status" class="ct-admin__status"></p>
     </article>
@@ -3777,7 +3736,7 @@ const renderInstitutionAdminPage = (
           Audit log limit
           <input name="auditLimit" type="number" min="1" max="100" step="1" value="20" />
         </label>
-        <button type="submit">Load governance context</button>
+        <AdminButton type="submit">Load governance context</AdminButton>
       </form>
       <p id="rule-governance-status" class="ct-admin__status"></p>
       <pre id="rule-governance-output" class="ct-admin__code-output" hidden></pre>
@@ -3792,13 +3751,9 @@ const renderInstitutionAdminPage = (
         created.
       </p>
       <div class="ct-admin__actions">
-        <button
-          id="rule-review-queue-refresh"
-          type="button"
-          class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
-        >
+        <AdminButton id="rule-review-queue-refresh" type="button" size="tiny" variant="secondary">
           Refresh review queue
-        </button>
+        </AdminButton>
       </div>
       <p id="rule-review-queue-status" class="ct-admin__status">
         No review queue entries loaded yet.
@@ -3860,7 +3815,7 @@ const renderInstitutionAdminPage = (
           Limit
           <input name="limit" type="number" min="1" max="500" step="1" value="100" />
         </label>
-        <button type="submit">Load issued badges</button>
+        <AdminButton type="submit">Load issued badges</AdminButton>
       </form>
       <section class="ct-admin__panel ct-admin__panel--nested ct-stack">
         <div class="ct-cluster">
@@ -3919,7 +3874,7 @@ const renderInstitutionAdminPage = (
               placeholder="Filter by recipient, identifier, or assertion ID"
             />
           </label>
-          <button type="submit">Export ledger CSV</button>
+          <AdminButton type="submit">Export ledger CSV</AdminButton>
         </form>
         <p class="ct-admin__hint">
           Synchronous CSV export is capped at 5000 rows. Narrow the filters above if the export is
@@ -4014,10 +3969,10 @@ const renderInstitutionAdminPage = (
           </select>
         </label>
         <div class="ct-cluster">
-          <button type="submit">Apply filters</button>
-          <a class="ct-admin__button ct-admin__button--secondary" href={reportingPath}>
+          <AdminButton type="submit">Apply filters</AdminButton>
+          <AdminButtonLink href={reportingPath} variant="secondary">
             Reset
-          </a>
+          </AdminButtonLink>
         </div>
       </form>
       <p
@@ -4081,24 +4036,6 @@ const renderInstitutionAdminPage = (
       </div>
       <p>Choose filters before downloading CSV files.</p>
       {renderReportingFiltersForm(reportingExportsPath)}
-    </article>
-  );
-
-  const reportingDetailNavigationMarkup = (
-    <article class="ct-admin__panel ct-stack">
-      <div class="ct-cluster">
-        <h2>Reporting pages</h2>
-        <span class="ct-admin__status-pill">Sub-pages</span>
-      </div>
-      <p>Open focused pages for detailed tables or CSV downloads.</p>
-      <div class="ct-admin__workspace-actions">
-        <a class="ct-admin__cta-link" href={reportingTrendsHref}>
-          Trend detail
-        </a>
-        <a class="ct-admin__cta-link" href={reportingExportsHref}>
-          CSV exports
-        </a>
-      </div>
     </article>
   );
 
@@ -4273,6 +4210,9 @@ const renderInstitutionAdminPage = (
         Filters, exports, and drilldown links stay aligned with the visible issue-date, badge,
         organization, and lifecycle selections.
       </p>
+      <p class="ct-admin__hint">
+        Need CSV files for this slice? <a href={reportingExportsHref}>Open exports</a>.
+      </p>
     </aside>
   );
   const reportingLowerStoryMarkup = (
@@ -4431,9 +4371,7 @@ const renderInstitutionAdminPage = (
       );
     const publicBadgeMarkup =
       item.publicBadgePath === null ? null : (
-        <a class="ct-admin__cta-link" href={item.publicBadgePath}>
-          Open public badge
-        </a>
+        <AdminCtaLink href={item.publicBadgePath}>Open public badge</AdminCtaLink>
       );
 
     return (
@@ -4504,14 +4442,14 @@ const renderInstitutionAdminPage = (
         </p>
         <div class="ct-admin__workspace-actions">
           {learnerRecordReview.exportPath === null ? null : (
-            <a class="ct-admin__cta-link" href={learnerRecordReview.exportPath}>
+            <AdminCtaLink href={learnerRecordReview.exportPath}>
               Download native portable export
-            </a>
+            </AdminCtaLink>
           )}
           {learnerRecordReview.standardsMappingPath === null ? null : (
-            <a class="ct-admin__cta-link" href={learnerRecordReview.standardsMappingPath}>
+            <AdminCtaLink href={learnerRecordReview.standardsMappingPath}>
               Open standards mapping
-            </a>
+            </AdminCtaLink>
           )}
         </div>
       </article>
@@ -4593,10 +4531,10 @@ const renderInstitutionAdminPage = (
           />
         </label>
         <div class="ct-admin__workspace-actions">
-          <button type="submit">Load learner record</button>
-          <a class="ct-admin__cta-link" href={operationsLearnerRecordsPath}>
+          <AdminButton type="submit">Load learner record</AdminButton>
+          <AdminButtonLink href={operationsLearnerRecordsPath} variant="secondary">
             Clear lookup
-          </a>
+          </AdminButtonLink>
         </div>
       </form>
     </article>
@@ -4771,7 +4709,7 @@ const renderInstitutionAdminPage = (
                   action={`${operationsLearnerRecordImportsPath}/${encodeURIComponent(batch.batchId)}/retry`}
                   class="ct-stack"
                 >
-                  <button type="submit">Retry failed rows</button>
+                  <AdminButton type="submit">Retry failed rows</AdminButton>
                 </form>
               );
 
@@ -4814,9 +4752,9 @@ const renderInstitutionAdminPage = (
         Pathway labels stay explicit imported metadata.
       </p>
       <div class="ct-admin__workspace-actions">
-        <a class="ct-admin__cta-link" href={learnerRecordImportWorkflow.templatePath}>
+        <AdminCtaLink href={learnerRecordImportWorkflow.templatePath}>
           Download CSV template
-        </a>
+        </AdminCtaLink>
       </div>
       <form
         method="post"
@@ -4863,10 +4801,10 @@ const renderInstitutionAdminPage = (
           ownership. Missing context stays explicit instead of being fabricated.
         </p>
         <div class="ct-admin__workspace-actions">
-          <button type="submit">Preview import</button>
-          <button type="submit" formaction={learnerRecordImportWorkflow.applyPath}>
+          <AdminButton type="submit">Preview import</AdminButton>
+          <AdminButton type="submit" formAction={learnerRecordImportWorkflow.applyPath}>
             Queue import
-          </button>
+          </AdminButton>
         </div>
       </form>
     </article>
@@ -5017,9 +4955,6 @@ const renderInstitutionAdminPage = (
                   {renderReportingTrendPanelMarkup({ includeDetailedTable: false })}
                   <section class="ct-admin__reporting-supporting-grid">
                     {reportingEngagementPanelMarkup}
-                    <aside class="ct-admin__reporting-supporting-rail">
-                      {reportingDetailNavigationMarkup}
-                    </aside>
                   </section>
                 </section>
               </section>
@@ -5067,7 +5002,6 @@ const renderInstitutionAdminPage = (
             <section class="ct-admin ct-stack">
               <section class="ct-admin__layout ct-grid ct-grid--sidebar">
                 <div class="ct-admin__grid ct-stack">
-                  {ruleBuilderPanelMarkup}
                   {templateImagePanelMarkup}
                   {ruleValueListsPanelMarkup}
                   {evaluateRulePanelMarkup}

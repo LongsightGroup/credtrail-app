@@ -1729,7 +1729,7 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(html).toContain('class="ct-admin__reporting-summary-band"');
     expect(html).toContain('class="ct-admin__reporting-summary-context"');
     expect(html).toContain('class="ct-admin__reporting-supporting-grid"');
-    expect(html).toContain('class="ct-admin__reporting-supporting-rail"');
+    expect(html).not.toContain('class="ct-admin__reporting-supporting-rail"');
     expect(html).toContain("Current slice");
     expect(html).toContain("Compare by badge template");
     expect(html).toContain("Hierarchy drilldown");
