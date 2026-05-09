@@ -109,6 +109,19 @@ export const AdminButtonLink = ({
   );
 };
 
+export const AdminSidebarToggle = (): HonoElement => {
+  return (
+    <button
+      type="button"
+      class="ct-admin-topbar__toggle"
+      aria-label="Toggle navigation"
+      data-sidebar-toggle=""
+    >
+      <span aria-hidden="true">☰</span>
+    </button>
+  );
+};
+
 export const AdminCtaLink = ({
   href,
   target,

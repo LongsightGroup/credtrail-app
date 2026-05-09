@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   IssuedBadgeActions,
+  AdminSidebarToggle,
   adminButtonClass,
   renderIssuedBadgeRowsToString,
 } from "./admin/components";
@@ -63,6 +64,16 @@ describe("CredTrail UI styleguide", () => {
     expect(html).not.toContain("ct-admin__action-pill");
   });
 
+  it("renders the shared admin sidebar toggle with one accessible label", () => {
+    const renderable = AdminSidebarToggle() as { toString(): string };
+    const html = renderable.toString();
+
+    expect(html).toContain('class="ct-admin-topbar__toggle"');
+    expect(html).toContain('aria-label="Toggle navigation"');
+    expect(html).toContain("data-sidebar-toggle");
+    expect(html).toContain('aria-hidden="true"');
+  });
+
   it("renders issued badge table rows through the shared admin components", () => {
     const html = renderIssuedBadgeRowsToString([
       {
@@ -107,6 +118,7 @@ describe("CredTrail UI styleguide", () => {
     expect(html).toContain("JSX components");
     expect(html).toContain("PageLayout");
     expect(html).toContain("appPage");
+    expect(html).toContain("AdminSidebarToggle");
     expect(html).toContain("Style Dictionary");
     expect(html).toContain("design/tokens/credtrail.tokens.json");
     expect(html).toContain("pnpm build:design-tokens");
@@ -149,5 +161,7 @@ describe("CredTrail UI styleguide", () => {
     expect(INSTITUTION_ADMIN_CSS).toMatch(
       /\.ct-admin__form button \{[\s\S]*box-sizing: border-box;/,
     );
+    expect(INSTITUTION_ADMIN_CSS).toMatch(/\.ct-admin-topbar__toggle \{[\s\S]*appearance: none;/);
+    expect(INSTITUTION_ADMIN_CSS).toMatch(/\.ct-admin__step-button \{[\s\S]*appearance: none;/);
   });
 });

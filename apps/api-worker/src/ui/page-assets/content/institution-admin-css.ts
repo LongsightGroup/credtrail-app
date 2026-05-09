@@ -136,6 +136,8 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin-topbar__toggle {
   display: none;
+  box-sizing: border-box;
+  appearance: none;
   align-items: center;
   justify-content: center;
   width: 2.25rem;
@@ -144,8 +146,14 @@ export const INSTITUTION_ADMIN_CSS = `
   border-radius: var(--ct-radius-sm);
   background: transparent;
   cursor: pointer;
+  font-family: var(--ct-font-sans);
   font-size: 1.1rem;
+  line-height: 1;
   color: var(--ct-theme-text-body);
+}
+.ct-admin-topbar__toggle:focus-visible {
+  outline: 2px solid var(--ct-theme-border-focus);
+  outline-offset: 3px;
 }
 .ct-admin-content {
   padding: 1.75rem 2rem;
@@ -2293,6 +2301,8 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__step-button {
   width: 100%;
   display: grid;
+  box-sizing: border-box;
+  appearance: none;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
   gap: 0.65rem;
@@ -2302,8 +2312,10 @@ export const INSTITUTION_ADMIN_CSS = `
   background: var(--ct-theme-surface-info);
   color: var(--ct-theme-text-body);
   min-height: 2.75rem;
+  font-family: var(--ct-font-sans);
   font-size: 0.82rem;
   font-weight: 700;
+  line-height: 1.2;
   padding: 0.7rem 0.8rem;
   cursor: pointer;
   transition:

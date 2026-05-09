@@ -1,5 +1,11 @@
 import type { HtmlEscapedString } from "hono/utils/html";
-import { AdminButton, AdminButtonLink, AdminCtaLink, IssuedBadgeActions } from "./components";
+import {
+  AdminButton,
+  AdminButtonLink,
+  AdminCtaLink,
+  AdminSidebarToggle,
+  IssuedBadgeActions,
+} from "./components";
 import { appPage, type AppPage } from "../ui/render-page";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -175,6 +181,12 @@ const componentDocs: readonly ComponentDoc[] = [
     usage: "Use for dense table and record actions where several commands sit together.",
   },
   {
+    name: "AdminSidebarToggle",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Owns the responsive admin sidebar toggle markup and accessibility label.",
+    usage: "Use in admin topbars instead of recreating hamburger button markup in page JSX.",
+  },
+  {
     name: "IssuedBadgeActions",
     source: "apps/api-worker/src/admin/components.tsx",
     purpose: "Owns the issued-badge Open, Audit, JSON-LD, and revoke action pattern.",
@@ -307,6 +319,14 @@ const TableActionPreview = (): HonoElement => {
         rawJsonHref="#actions"
         canRevoke={true}
       />
+    </div>
+  );
+};
+
+const SidebarTogglePreview = (): HonoElement => {
+  return (
+    <div class="ct-design-system__example-row ct-design-system__sidebar-toggle-demo">
+      <AdminSidebarToggle />
     </div>
   );
 };
@@ -468,6 +488,13 @@ export const designSystemAdminPage = (): AppPage => {
               <TableActionPreview />
               <p class="ct-design-system__example-note">
                 Issued badge rows use the shared button class with the table action wrapper.
+              </p>
+            </article>
+            <article class="ct-design-system__example">
+              <h3>Responsive topbar toggle</h3>
+              <SidebarTogglePreview />
+              <p class="ct-design-system__example-note">
+                Sidebar toggles share one accessible component and button reset.
               </p>
             </article>
           </div>

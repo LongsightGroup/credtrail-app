@@ -278,6 +278,10 @@ export const DESIGN_SYSTEM_CSS = `
   gap: 0.45rem;
 }
 
+.ct-design-system__sidebar-toggle-demo .ct-admin-topbar__toggle {
+  display: inline-flex;
+}
+
 .ct-design-system__example-note {
   margin: 0;
   color: var(--ct-theme-text-muted);

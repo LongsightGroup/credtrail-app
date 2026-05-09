@@ -5,8 +5,11 @@ import type {
   TenantMembershipRole,
   TenantRecord,
 } from "@credtrail/db";
+import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../ui/render-page";
-import { AdminButton } from "./components";
+import { AdminButton, AdminSidebarToggle } from "./components";
+
+type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
 const serializeJsonScriptContent = (value: unknown): string => {
   return JSON.stringify(value)
@@ -32,6 +35,25 @@ const SidebarLink = (props: {
     <a class={className} href={props.href} aria-current={props.isCurrent ? "page" : undefined}>
       {props.label}
     </a>
+  );
+};
+
+type RuleBuilderStepTarget = "metadata" | "conditions" | "test" | "review";
+
+const RuleBuilderStepButton = (props: {
+  stepNumber: number;
+  target: RuleBuilderStepTarget;
+  title: string;
+  description: string;
+}): HonoElement => {
+  return (
+    <button type="button" class="ct-admin__step-button" data-rule-step-target={props.target}>
+      <span class="ct-admin__step-number">{props.stepNumber}</span>
+      <span class="ct-admin__step-copy">
+        <strong>{props.title}</strong>
+        <small>{props.description}</small>
+      </span>
+    </button>
   );
 };
 
@@ -239,14 +261,7 @@ export const institutionAdminRuleBuilderPage = (input: {
         </aside>
         <div class="ct-admin-main">
           <header class="ct-admin-topbar">
-            <button
-              type="button"
-              class="ct-admin-topbar__toggle"
-              aria-label="Toggle navigation"
-              data-sidebar-toggle=""
-            >
-              ☰
-            </button>
+            <AdminSidebarToggle />
             <p class="ct-admin-topbar__title">{input.tenant.displayName}</p>
             <div class="ct-admin-topbar__user">
               <span class="ct-admin-topbar__chip">{input.membershipRole}</span>
@@ -279,56 +294,36 @@ export const institutionAdminRuleBuilderPage = (input: {
                   aria-label="Rule builder steps"
                 >
                   <li>
-                    <button
-                      type="button"
-                      class="ct-admin__step-button"
-                      data-rule-step-target="metadata"
-                    >
-                      <span class="ct-admin__step-number">1</span>
-                      <span class="ct-admin__step-copy">
-                        <strong>Metadata</strong>
-                        <small>Name the rule and bind it to the right badge and LMS.</small>
-                      </span>
-                    </button>
+                    <RuleBuilderStepButton
+                      stepNumber={1}
+                      target="metadata"
+                      title="Metadata"
+                      description="Name the rule and bind it to the right badge and LMS."
+                    />
                   </li>
                   <li>
-                    <button
-                      type="button"
-                      class="ct-admin__step-button"
-                      data-rule-step-target="conditions"
-                    >
-                      <span class="ct-admin__step-number">2</span>
-                      <span class="ct-admin__step-copy">
-                        <strong>Conditions</strong>
-                        <small>Shape the qualification logic and keep the JSON in sync.</small>
-                      </span>
-                    </button>
+                    <RuleBuilderStepButton
+                      stepNumber={2}
+                      target="conditions"
+                      title="Conditions"
+                      description="Shape the qualification logic and keep the JSON in sync."
+                    />
                   </li>
                   <li>
-                    <button
-                      type="button"
-                      class="ct-admin__step-button"
-                      data-rule-step-target="test"
-                    >
-                      <span class="ct-admin__step-number">3</span>
-                      <span class="ct-admin__step-copy">
-                        <strong>Test</strong>
-                        <small>Dry-run with representative learner facts before publishing.</small>
-                      </span>
-                    </button>
+                    <RuleBuilderStepButton
+                      stepNumber={3}
+                      target="test"
+                      title="Test"
+                      description="Dry-run with representative learner facts before publishing."
+                    />
                   </li>
                   <li>
-                    <button
-                      type="button"
-                      class="ct-admin__step-button"
-                      data-rule-step-target="review"
-                    >
-                      <span class="ct-admin__step-number">4</span>
-                      <span class="ct-admin__step-copy">
-                        <strong>Review</strong>
-                        <small>Set governance and create the draft that reviewers will see.</small>
-                      </span>
-                    </button>
+                    <RuleBuilderStepButton
+                      stepNumber={4}
+                      target="review"
+                      title="Review"
+                      description="Set governance and create the draft that reviewers will see."
+                    />
                   </li>
                 </ol>
                 <p

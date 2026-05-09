@@ -32,7 +32,7 @@ import type {
 } from "../learner-record/learner-record-import";
 import type { LearnerRecordPresentationModel } from "../learner-record/learner-record-presentation";
 import { formatIsoTimestamp } from "../utils/display-format";
-import { AdminButton, AdminButtonLink, AdminCtaLink } from "./components";
+import { AdminButton, AdminButtonLink, AdminCtaLink, AdminSidebarToggle } from "./components";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -3075,14 +3075,7 @@ const renderInstitutionAdminPage = (
   const renderTopbar = (): HonoElement => {
     return (
       <header class="ct-admin-topbar">
-        <button
-          type="button"
-          class="ct-admin-topbar__toggle"
-          aria-label="Toggle navigation"
-          data-sidebar-toggle
-        >
-          ☰
-        </button>
+        <AdminSidebarToggle />
         <p class="ct-admin-topbar__title">{input.tenant.displayName}</p>
         <div class="ct-admin-topbar__user">
           <span class="ct-admin-topbar__chip">{input.membershipRole}</span>
