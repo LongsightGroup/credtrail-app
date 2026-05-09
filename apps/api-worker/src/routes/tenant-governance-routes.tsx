@@ -101,6 +101,7 @@ import {
   institutionAdminOperationsPage,
   institutionAdminOrgUnitsPage,
   institutionAdminReportingPage,
+  institutionAdminReportingTrendsPage,
   institutionAdminRulesPage,
 } from "../admin/institution-admin-page";
 import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
@@ -371,7 +372,7 @@ export const registerTenantGovernanceRoutes = (
             </p>
             <h1 style="margin:0;">Admin role required</h1>
             <p style="margin:0;color:#355577;">
-              Your current tenant membership role does not allow institution admin access for{" "}
+              Your current organization membership role does not allow institution admin access for{" "}
               <strong>{tenantId}</strong>.
             </p>
             <p style="margin:0;color:#355577;">
@@ -397,7 +398,7 @@ export const registerTenantGovernanceRoutes = (
             </p>
             <h1 style="margin:0;">Reporting access required</h1>
             <p style="margin:0;color:#355577;">
-              Your current tenant membership does not allow reporting access for{" "}
+              Your current organization membership does not allow reporting access for{" "}
               <strong>{tenantId}</strong>.
             </p>
             <p style="margin:0;color:#355577;">
@@ -1451,24 +1452,24 @@ export const registerTenantGovernanceRoutes = (
     );
   });
 
-  app.get("/tenants/:tenantId/admin/reporting", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+  const renderReportingWorkspace = async (
+    c: AppContext,
+    tenantId: string,
+    pagePath: string,
+    renderPage: (pageData: InstitutionAdminPageData) => AppPage,
+  ): Promise<Response> => {
+    const roleCheck = await requireTenantRole(c, tenantId, ISSUER_ROLES);
 
     if (roleCheck instanceof Response) {
       if (roleCheck.status === 401) {
-        return redirectToTenantLogin(
-          c,
-          pathParams.tenantId,
-          `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting`,
-        );
+        return redirectToTenantLogin(c, tenantId, pagePath);
       }
 
       if (roleCheck.status === 423) {
         return c.redirect(
           buildLocalTwoFactorPath({
-            tenantId: pathParams.tenantId,
-            nextPath: `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting`,
+            tenantId,
+            nextPath: pagePath,
             setup: true,
             reason: "break_glass_mfa_setup_pending",
           }),
@@ -1478,7 +1479,7 @@ export const registerTenantGovernanceRoutes = (
 
       if (roleCheck.status === 403) {
         c.header("Cache-Control", "no-store");
-        return renderAppPage(c, reportingAccessRequiredPage(pathParams.tenantId), 403);
+        return renderAppPage(c, reportingAccessRequiredPage(tenantId), 403);
       }
 
       return roleCheck;
@@ -1500,7 +1501,7 @@ export const registerTenantGovernanceRoutes = (
     const { session, membershipRole } = roleCheck;
     let pageData = await loadReportingPageData({
       c,
-      tenantId: pathParams.tenantId,
+      tenantId,
       sessionUserId: session.userId,
       membershipRole,
       issuedFrom: reportingQuery.issuedFrom,
@@ -1531,23 +1532,23 @@ export const registerTenantGovernanceRoutes = (
         reportingOrgUnitComparisons,
       ] = await Promise.all([
         getTenantReportingOverview(db, {
-          tenantId: pathParams.tenantId,
+          tenantId,
           ...toReportingOverviewFilters(reportingPageFilters),
         }),
         getTenantReportingEngagementCounts(db, {
-          tenantId: pathParams.tenantId,
+          tenantId,
           ...toReportingEngagementFilters(reportingPageFilters),
         }),
         getTenantReportingTrends(db, {
-          tenantId: pathParams.tenantId,
+          tenantId,
           ...toReportingTrendFilters(reportingPageFilters),
         }),
         listTenantReportingComparisons(db, {
-          tenantId: pathParams.tenantId,
+          tenantId,
           ...toReportingComparisonFilters(reportingPageFilters, "badgeTemplate"),
         }),
         listTenantReportingComparisons(db, {
-          tenantId: pathParams.tenantId,
+          tenantId,
           ...toReportingComparisonFilters(reportingPageFilters, "orgUnit"),
         }),
       ]);
@@ -1565,7 +1566,27 @@ export const registerTenantGovernanceRoutes = (
 
     c.header("Cache-Control", "no-store");
 
-    return renderAppPage(c, institutionAdminReportingPage(pageData));
+    return renderAppPage(c, renderPage(pageData));
+  };
+
+  app.get("/tenants/:tenantId/admin/reporting", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    return renderReportingWorkspace(
+      c,
+      pathParams.tenantId,
+      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting`,
+      institutionAdminReportingPage,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/reporting/trends", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    return renderReportingWorkspace(
+      c,
+      pathParams.tenantId,
+      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/trends`,
+      institutionAdminReportingTrendsPage,
+    );
   });
 
   app.get("/tenants/:tenantId/admin/rules", async (c) => {

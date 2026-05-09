@@ -2207,13 +2207,15 @@ describe("org unit and badge ownership governance endpoints", () => {
 
     expect(response.status).toBe(200);
     expect(html).toContain('class="ct-admin__reporting-presentation-note');
-    expect(html).toContain("Current tenant view");
+    expect(html).toContain("Selected reporting slice");
     expect(html).toContain(
-      "This walkthrough stays on the current tenant and selected filters. Keep the first screen, export rail, and exact tables visible so screenshots and live walkthroughs stay honest to the real reporting slice.",
+      "Filters, exports, and drilldown links stay aligned with the visible issue-date, badge, organization, and lifecycle selections.",
     );
     expect(html).toContain('class="ct-admin__reporting-primary-story');
     expect(html).toContain('class="ct-admin__reporting-secondary-story');
-    expect(html.indexOf("Current tenant view")).toBeLessThan(html.indexOf("Executive Summary"));
+    expect(html.indexOf("Selected reporting slice")).toBeLessThan(
+      html.indexOf("Executive Summary"),
+    );
     expect(html.indexOf('class="ct-admin__reporting-supporting-grid')).toBeLessThan(
       html.indexOf('class="ct-admin__reporting-secondary-story'),
     );

@@ -233,6 +233,7 @@ type InstitutionAdminView =
   | "operationsIssuedBadges"
   | "operationsBadgeStatus"
   | "reporting"
+  | "reportingTrends"
   | "rules"
   | "access"
   | "accessMembers"
@@ -335,6 +336,7 @@ const renderInstitutionAdminPage = (
   const operationsIssuedBadgesPath = `${operationsPath}/issued-badges`;
   const operationsBadgeStatusPath = `${operationsPath}/badge-status`;
   const reportingPath = `${tenantAdminPath}/reporting`;
+  const reportingTrendsPath = `${reportingPath}/trends`;
   const rulesWorkspacePath = `${tenantAdminPath}/rules`;
   const accessPath = `${tenantAdminPath}/access`;
   const accessMembersPath = `${accessPath}/members`;
@@ -1278,15 +1280,16 @@ const renderInstitutionAdminPage = (
         </option>
       );
     });
-  const reportingAggregateExportEntries = [
-    ...buildReportingPageQueryEntries({
-      issuedFrom: reportingIssuedFromValue,
-      issuedTo: reportingIssuedToValue,
-      badgeTemplateId: reportingBadgeTemplateIdValue,
-      orgUnitId: reportingOrgUnitIdValue,
-      state: reportingState ?? undefined,
-    }),
-  ] as const;
+  const reportingPageQueryEntries = buildReportingPageQueryEntries({
+    issuedFrom: reportingIssuedFromValue,
+    issuedTo: reportingIssuedToValue,
+    badgeTemplateId: reportingBadgeTemplateIdValue,
+    orgUnitId: reportingOrgUnitIdValue,
+    state: reportingState ?? undefined,
+  });
+  const reportingAggregateExportEntries = [...reportingPageQueryEntries] as const;
+  const reportingOverviewHref = buildPathWithQuery(reportingPath, reportingPageQueryEntries);
+  const reportingTrendsHref = buildPathWithQuery(reportingTrendsPath, reportingPageQueryEntries);
   const reportingOverviewExportHref = buildPathWithQuery(
     `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/overview/export.csv`,
     reportingAggregateExportEntries,
@@ -2967,6 +2970,12 @@ const renderInstitutionAdminPage = (
 
           <p class="ct-admin-sidebar__section-label">Reporting</p>
           {sidebarLink(reportingPath, "Overview", view === "reporting")}
+          {sidebarLink(
+            reportingTrendsPath,
+            "Trends",
+            view === "reportingTrends",
+            "ct-admin-sidebar__link--sub",
+          )}
 
           <p class="ct-admin-sidebar__section-label">Configuration</p>
           {sidebarLink(rulesWorkspacePath, "Rules", view === "rules")}
@@ -3932,20 +3941,12 @@ const renderInstitutionAdminPage = (
     </article>
   );
 
-  const reportingOverviewPanelMarkup = (
-    <article id="reporting-overview-panel" class="ct-admin__panel ct-stack">
-      <div class="ct-cluster">
-        <h2>Reporting Overview</h2>
-        <span class="ct-admin__status-pill">Supporting detail</span>
-      </div>
-      <p>
-        Filter by issue date, template, org unit, or current badge state. Counts reflect
-        product-owned data only, and analytics stay in this reporting workspace.
-      </p>
+  const renderReportingFiltersForm = (actionPath: string): HonoElement => (
+    <>
       <form
         id="reporting-filters-form"
         method="get"
-        action={reportingPath}
+        action={actionPath}
         class="ct-admin__form ct-admin__form--inline ct-grid"
         data-reporting-submit-state="idle"
       >
@@ -4007,6 +4008,20 @@ const renderInstitutionAdminPage = (
       >
         Applying filters refreshes this page with the selected reporting slice.
       </p>
+    </>
+  );
+
+  const reportingOverviewPanelMarkup = (
+    <article id="reporting-overview-panel" class="ct-admin__panel ct-stack">
+      <div class="ct-cluster">
+        <h2>Reporting Overview</h2>
+        <span class="ct-admin__status-pill">Supporting detail</span>
+      </div>
+      <p>
+        Filter by issue date, template, org unit, or current badge state. Counts reflect
+        product-owned data only, and analytics stay in this reporting workspace.
+      </p>
+      {renderReportingFiltersForm(reportingPath)}
       <div class="ct-admin__reporting-panel-media">
         {reportingOverviewVisualMarkup}
         <div class="ct-admin__metric-grid">{reportingMetricCardsMarkup}</div>
@@ -4017,6 +4032,39 @@ const renderInstitutionAdminPage = (
           ? "just now"
           : formatIsoTimestamp(reportingOverview.generatedAt)}
       </p>
+    </article>
+  );
+
+  const reportingTrendFiltersPanelMarkup = (
+    <article id="reporting-trend-filters-panel" class="ct-admin__panel ct-stack">
+      <div class="ct-cluster">
+        <h2>Trend filters</h2>
+        <a class="ct-admin__cta-link" href={reportingOverviewHref}>
+          Back to overview
+        </a>
+      </div>
+      <p>
+        Use this page for the daily trend table and exact engagement counts behind the overview
+        trend chart.
+      </p>
+      {renderReportingFiltersForm(reportingTrendsPath)}
+    </article>
+  );
+
+  const reportingDetailNavigationMarkup = (
+    <article class="ct-admin__panel ct-stack">
+      <div class="ct-cluster">
+        <h2>Reporting detail</h2>
+        <span class="ct-admin__status-pill">Sub-pages</span>
+      </div>
+      <p>
+        Keep the overview focused. Open detailed pages when you need the full supporting tables.
+      </p>
+      <div class="ct-admin__workspace-actions">
+        <a class="ct-admin__cta-link" href={reportingTrendsHref}>
+          Trend detail
+        </a>
+      </div>
     </article>
   );
 
@@ -4040,7 +4088,9 @@ const renderInstitutionAdminPage = (
     </article>
   );
 
-  const reportingTrendPanelMarkup = (
+  const renderReportingTrendPanelMarkup = (input: {
+    includeDetailedTable: boolean;
+  }): HonoElement => (
     <article
       class="ct-admin__panel ct-admin__panel--table ct-stack"
       data-reporting-state={reportingTrendState}
@@ -4048,23 +4098,29 @@ const renderInstitutionAdminPage = (
       <h2>Trend lines</h2>
       <p>{reportingTrendIntroCopy}</p>
       {reportingTrendHeroMarkup}
-      <div class="ct-admin__table-wrap">
-        <h3>Detailed trend table</h3>
-        <table class="ct-admin__table">
-          <thead>
-            <tr>
-              <th>Day</th>
-              <th>Issued</th>
-              <th>Public badge views</th>
-              <th>Verification views</th>
-              <th>Share clicks</th>
-              <th>Claim actions</th>
-              <th>Wallet accepts</th>
-            </tr>
-          </thead>
-          <tbody data-reporting-bar-group="trends">{reportingTrendRowsMarkup}</tbody>
-        </table>
-      </div>
+      {input.includeDetailedTable ? (
+        <div class="ct-admin__table-wrap">
+          <h3>Detailed trend table</h3>
+          <table class="ct-admin__table">
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Issued</th>
+                <th>Public badge views</th>
+                <th>Verification views</th>
+                <th>Share clicks</th>
+                <th>Claim actions</th>
+                <th>Wallet accepts</th>
+              </tr>
+            </thead>
+            <tbody data-reporting-bar-group="trends">{reportingTrendRowsMarkup}</tbody>
+          </table>
+        </div>
+      ) : (
+        <p class="ct-admin__hint">
+          Need exact daily counts? <a href={reportingTrendsHref}>Open trend detail</a>.
+        </p>
+      )}
     </article>
   );
 
@@ -4176,13 +4232,12 @@ const renderInstitutionAdminPage = (
   const reportingPresentationNoteMarkup = (
     <aside
       class="ct-admin__reporting-presentation-note ct-stack"
-      aria-label="Current tenant reporting note"
+      aria-label="Selected reporting slice note"
     >
-      <p class="ct-admin__eyebrow">Current tenant view</p>
+      <p class="ct-admin__eyebrow">Selected reporting slice</p>
       <p>
-        This walkthrough stays on the current tenant and selected filters. Keep the first screen,
-        export rail, and exact tables visible so screenshots and live walkthroughs stay honest to
-        the real reporting slice.
+        Filters, exports, and drilldown links stay aligned with the visible issue-date, badge,
+        organization, and lifecycle selections.
       </p>
     </aside>
   );
@@ -4721,7 +4776,7 @@ const renderInstitutionAdminPage = (
       <h2>Learner record import</h2>
       <p>
         Upload one CSV, choose the default trust classification once, and let CredTrail infer
-        matching org-unit and badge-template context when the current tenant data supports it.
+        matching org-unit and badge-template context when current organization data supports it.
         Pathway labels stay explicit imported metadata.
       </p>
       <div class="ct-admin__workspace-actions">
@@ -4799,18 +4854,20 @@ const renderInstitutionAdminPage = (
                 : view === "operationsBadgeStatus"
                   ? `Badge Status · Institution Admin · ${input.tenant.displayName}`
                   : view === "reporting"
-                    ? `Reporting · Institution Admin · ${input.tenant.displayName}`
-                    : view === "rules"
-                      ? `Rules · Institution Admin · ${input.tenant.displayName}`
-                      : view === "access"
-                        ? `Access · Institution Admin · ${input.tenant.displayName}`
-                        : view === "accessMembers"
-                          ? `Members · Institution Admin · ${input.tenant.displayName}`
-                          : view === "accessGovernance"
-                            ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
-                            : view === "accessApiKeys"
-                              ? `API Keys · Institution Admin · ${input.tenant.displayName}`
-                              : `Org Units · Institution Admin · ${input.tenant.displayName}`;
+                    ? `Reporting Overview · Institution Admin · ${input.tenant.displayName}`
+                    : view === "reportingTrends"
+                      ? `Trend Detail · Reporting · Institution Admin · ${input.tenant.displayName}`
+                      : view === "rules"
+                        ? `Rules · Institution Admin · ${input.tenant.displayName}`
+                        : view === "access"
+                          ? `Access · Institution Admin · ${input.tenant.displayName}`
+                          : view === "accessMembers"
+                            ? `Members · Institution Admin · ${input.tenant.displayName}`
+                            : view === "accessGovernance"
+                              ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
+                              : view === "accessApiKeys"
+                                ? `API Keys · Institution Admin · ${input.tenant.displayName}`
+                                : `Org Units · Institution Admin · ${input.tenant.displayName}`;
 
   const viewContent = (() => {
     switch (view) {
@@ -4903,13 +4960,13 @@ const renderInstitutionAdminPage = (
         return (
           <>
             {renderPageHeader(
-              "Reporting",
-              "Read the current slice, program health, and momentum first, then move into exports, comparisons, and drilldowns.",
+              "Reporting Overview",
+              "Start with the executive summary, selected filters, and high-level engagement before opening detailed reporting pages.",
               <aside class="ct-admin-page-header__note">
                 <h2>First read</h2>
                 <p>
-                  Confirm the current slice, use the executive summary for program health, and read
-                  the trend module before dropping into exports or deeper reporting detail.
+                  Confirm the selected slice and use the executive summary before moving into trend
+                  detail or supporting tables.
                 </p>
               </aside>,
             )}
@@ -4921,10 +4978,11 @@ const renderInstitutionAdminPage = (
                     {reportingExecutiveSummaryMarkup}
                     {reportingOverviewPanelMarkup}
                   </section>
-                  {reportingTrendPanelMarkup}
+                  {renderReportingTrendPanelMarkup({ includeDetailedTable: false })}
                   <section class="ct-admin__reporting-supporting-grid">
                     {reportingEngagementPanelMarkup}
                     <aside class="ct-admin__reporting-supporting-rail">
+                      {reportingDetailNavigationMarkup}
                       {reportingExportsPanelMarkup}
                     </aside>
                   </section>
@@ -4935,6 +4993,20 @@ const renderInstitutionAdminPage = (
                 {reportingDefinitionsPanelMarkup}
                 {reportingDeferredPanelMarkup}
               </section>
+            </section>
+          </>
+        );
+      case "reportingTrends":
+        return (
+          <>
+            {renderPageHeader(
+              "Trend Detail",
+              "Use the focused trend page for exact daily counts behind the overview chart.",
+            )}
+            <section class="ct-admin ct-stack">
+              {reportingTrendFiltersPanelMarkup}
+              {renderReportingTrendPanelMarkup({ includeDetailedTable: true })}
+              {reportingExportsPanelMarkup}
             </section>
           </>
         );
@@ -5094,6 +5166,10 @@ export const institutionAdminBadgeStatusPage = (input: InstitutionAdminPageInput
 
 export const institutionAdminReportingPage = (input: InstitutionAdminPageInput): AppPage => {
   return renderInstitutionAdminPage(input, "reporting");
+};
+
+export const institutionAdminReportingTrendsPage = (input: InstitutionAdminPageInput): AppPage => {
+  return renderInstitutionAdminPage(input, "reportingTrends");
 };
 
 export const institutionAdminRulesPage = (input: InstitutionAdminPageInput): AppPage => {

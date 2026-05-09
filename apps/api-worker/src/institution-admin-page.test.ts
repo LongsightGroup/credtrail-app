@@ -1368,9 +1368,14 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("Public badge views");
     expect(body).toContain("35.7");
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/trends');
     expect(body).toContain("14");
-    expect(body.indexOf("Executive Summary")).toBeLessThan(body.indexOf("Reporting Overview"));
-    expect(body.indexOf("Executive Summary")).toBeLessThan(body.indexOf("Engagement Counts"));
+    expect(body.indexOf('data-reporting-summary-metric="issued"')).toBeLessThan(
+      body.indexOf("<h2>Reporting Overview</h2>"),
+    );
+    expect(body.indexOf('data-reporting-summary-metric="issued"')).toBeLessThan(
+      body.indexOf("Engagement Counts"),
+    );
     expect(body.indexOf("Trend lines")).toBeLessThan(body.indexOf("Export CSV"));
     expect(body).not.toContain("Phase 11 Scope");
     expect(body).not.toContain("Manual Issue Badge");
@@ -1535,9 +1540,9 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(response.status).toBe(200);
     expect(body).toContain('class="ct-admin__reporting-presentation-shell');
     expect(body).toContain('class="ct-admin__reporting-presentation-note');
-    expect(body).toContain("Current tenant view");
+    expect(body).toContain("Selected reporting slice");
     expect(body).toContain(
-      "This walkthrough stays on the current tenant and selected filters. Keep the first screen, export rail, and exact tables visible so screenshots and live walkthroughs stay honest to the real reporting slice.",
+      "Filters, exports, and drilldown links stay aligned with the visible issue-date, badge, organization, and lifecycle selections.",
     );
     expect(body).toContain('class="ct-admin__reporting-primary-story');
     expect(body).toContain('class="ct-admin__reporting-secondary-story');
@@ -1545,7 +1550,9 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('class="ct-admin__reporting-supporting-grid');
     expect(body).toContain('class="ct-admin__reporting-lower-story"');
     expect(body).toContain("Metric Definitions");
-    expect(body.indexOf("Current tenant view")).toBeLessThan(body.indexOf("Executive Summary"));
+    expect(body.indexOf("Selected reporting slice")).toBeLessThan(
+      body.indexOf("Executive Summary"),
+    );
     expect(body.indexOf('class="ct-admin__reporting-first-screen')).toBeLessThan(
       body.indexOf("Trend lines"),
     );
@@ -1605,7 +1612,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     );
   });
 
-  it("renders a chart-first trend hero while keeping the detailed trend table in the response", async () => {
+  it("renders a chart-first trend preview and links the detailed trend table to a sub-page", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -1625,13 +1632,37 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('class="ct-admin__reporting-trend-callouts"');
     expect(body).toContain("Peak day");
     expect(body).toContain("Latest day");
-    expect(body).toContain("Detailed trend table");
+    expect(body).toContain("Open trend detail");
+    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/trends');
+    expect(body).not.toContain("Detailed trend table");
     expect(body).toContain("Public badge views");
     expect(body).toContain("Wallet accepts");
-    expect(body.indexOf('class="ct-admin__reporting-trend-hero"')).toBeLessThan(
-      body.indexOf("Detailed trend table"),
-    );
     expect(body.indexOf("Trend lines")).toBeLessThan(body.indexOf("Export CSV"));
+  });
+
+  it("renders the detailed trend table on the trend detail sub-page", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/reporting/trends?issuedFrom=2026-03-01&issuedTo=2026-03-31",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Trend Detail");
+    expect(body).toContain("Trend filters");
+    expect(body).toContain('method="get" action="/tenants/tenant_123/admin/reporting/trends"');
+    expect(body).toContain("Trend lines");
+    expect(body).toContain("Detailed trend table");
+    expect(body).not.toContain("Executive Summary");
+    expect(body).not.toContain("Selected reporting slice");
+    expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
   });
 
   it("renders deliberate empty shells for trend, comparison, hierarchy, and performer panels", async () => {
