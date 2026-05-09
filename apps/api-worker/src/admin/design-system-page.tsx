@@ -3,7 +3,11 @@ import {
   AdminButton,
   AdminButtonLink,
   AdminCtaLink,
+  AdminEmptyTableRow,
+  AdminMeta,
   AdminSidebarToggle,
+  AdminStatusPill,
+  AdminTable,
   IssuedBadgeActions,
 } from "./components";
 import { appPage, type AppPage } from "../ui/render-page";
@@ -199,6 +203,30 @@ const componentDocs: readonly ComponentDoc[] = [
     usage: "Use for dense table and record actions where several commands sit together.",
   },
   {
+    name: "AdminTable",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Owns standard admin table wrapper, header, compact mode, and typed tbody hooks.",
+    usage: "Use for admin tables before hand-writing ct-admin__table-wrap and table headers.",
+  },
+  {
+    name: "AdminEmptyTableRow",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Renders consistent empty-state rows with the approved ct-admin__empty class.",
+    usage: "Use inside AdminTable or existing admin tables whenever a collection has no rows.",
+  },
+  {
+    name: "AdminMeta",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Centralizes subdued admin metadata text across div, span, paragraph, and dt tags.",
+    usage: "Use for IDs, source notes, secondary timestamps, and no-action labels.",
+  },
+  {
+    name: "AdminStatusPill",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Owns status pill class composition and optional tone modifiers.",
+    usage: "Use for table state, role labels, and small quantitative chips.",
+  },
+  {
     name: "AdminSidebarToggle",
     source: "apps/api-worker/src/admin/components.tsx",
     purpose: "Owns the responsive admin sidebar toggle markup and accessibility label.",
@@ -383,37 +411,27 @@ const SidebarTogglePreview = (): HonoElement => {
 const DataPreview = (): HonoElement => {
   return (
     <div class="ct-design-system__table-demo">
-      <table class="ct-admin__table">
-        <thead>
-          <tr>
-            <th>Issued</th>
-            <th>Recipient</th>
-            <th>State</th>
-            <th>Assertion</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>5/8/2026</td>
-            <td>
-              <span class="ct-admin__member-identity">ern@umich.edu</span>
-              <span class="ct-admin__meta">Sakai roster import</span>
-            </td>
-            <td>
-              <span class="ct-admin__status-pill ct-admin__status-pill--active">active</span>
-            </td>
-            <td>
-              <span class="ct-admin__assertion-id">sakai:1df79bc6-6a08-42a2</span>
-            </td>
-            <td class="ct-admin__issued-actions-cell">
-              <div class="ct-admin__issued-actions">
-                <TableActionPreview />
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <AdminTable headers={["Issued", "Recipient", "State", "Assertion", "Actions"]}>
+        <tr>
+          <td>5/8/2026</td>
+          <td>
+            <span class="ct-admin__member-identity">ern@umich.edu</span>
+            <AdminMeta as="span">Sakai roster import</AdminMeta>
+          </td>
+          <td>
+            <AdminStatusPill tone="active">active</AdminStatusPill>
+          </td>
+          <td>
+            <span class="ct-admin__assertion-id">sakai:1df79bc6-6a08-42a2</span>
+          </td>
+          <td class="ct-admin__issued-actions-cell">
+            <div class="ct-admin__issued-actions">
+              <TableActionPreview />
+            </div>
+          </td>
+        </tr>
+        <AdminEmptyTableRow colSpan={5}>Empty rows use the same table language.</AdminEmptyTableRow>
+      </AdminTable>
     </div>
   );
 };

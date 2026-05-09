@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  AdminEmptyTableRow,
+  AdminMeta,
   AdminShell,
   AdminSidebar,
   IssuedBadgeActions,
   AdminSidebarToggle,
+  AdminStatusPill,
+  AdminTable,
   AdminTopbar,
   adminButtonClass,
   renderIssuedBadgeRowsToString,
@@ -116,6 +120,35 @@ describe("CredTrail UI styleguide", () => {
     expect(html).toContain("admin@example.edu");
   });
 
+  it("renders shared admin table primitives", () => {
+    const renderable = AdminTable({
+      headers: ["Name", "State"],
+      compact: true,
+      tbodyId: "demo-body",
+      tbodyDataAttributes: { "data-reporting-bar-group": "demo" },
+      children: "Table body",
+    }) as { toString(): string };
+    const html = renderable.toString();
+    const metaHtml = (AdminMeta({ children: "example_id" }) as { toString(): string }).toString();
+    const pillHtml = (
+      AdminStatusPill({ tone: "active", children: "active" }) as {
+        toString(): string;
+      }
+    ).toString();
+    const emptyRowHtml = (
+      AdminEmptyTableRow({ colSpan: 2, children: "No rows." }) as {
+        toString(): string;
+      }
+    ).toString();
+
+    expect(html).toContain('class="ct-admin__table ct-admin__table--compact"');
+    expect(html).toContain('id="demo-body"');
+    expect(html).toContain('data-reporting-bar-group="demo"');
+    expect(metaHtml).toContain('class="ct-admin__meta"');
+    expect(pillHtml).toContain('class="ct-admin__status-pill ct-admin__status-pill--active"');
+    expect(emptyRowHtml).toContain('class="ct-admin__empty"');
+  });
+
   it("renders issued badge table rows through the shared admin components", () => {
     const html = renderIssuedBadgeRowsToString([
       {
@@ -163,6 +196,10 @@ describe("CredTrail UI styleguide", () => {
     expect(html).toContain("AdminShell");
     expect(html).toContain("AdminSidebar");
     expect(html).toContain("AdminTopbar");
+    expect(html).toContain("AdminTable");
+    expect(html).toContain("AdminEmptyTableRow");
+    expect(html).toContain("AdminMeta");
+    expect(html).toContain("AdminStatusPill");
     expect(html).toContain("AdminSidebarToggle");
     expect(html).toContain("RuleBuilderConditionCardTemplate");
     expect(html).toContain("PublicBadgeButtonLink / PublicBadgeButton");

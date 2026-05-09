@@ -36,8 +36,12 @@ import {
   AdminButton,
   AdminButtonLink,
   AdminCtaLink,
+  AdminEmptyTableRow,
+  AdminMeta,
   AdminShell,
   AdminSidebar,
+  AdminStatusPill,
+  AdminTable,
   AdminTopbar,
   type AdminSidebarFooterLink,
   type AdminSidebarSection,
@@ -721,13 +725,7 @@ const renderInstitutionAdminPage = (
     emptyLabel: string,
   ): HonoElement => {
     if (rows.length === 0) {
-      return (
-        <tr>
-          <td colspan={9} class="ct-admin__empty">
-            {emptyLabel}
-          </td>
-        </tr>
-      );
+      return <AdminEmptyTableRow colSpan={9}>{emptyLabel}</AdminEmptyTableRow>;
     }
 
     return (
@@ -790,11 +788,7 @@ const renderInstitutionAdminPage = (
 
   const templateRows =
     input.badgeTemplates.length === 0 ? (
-      <tr>
-        <td colspan={5} class="ct-admin__empty">
-          No badge templates found.
-        </td>
-      </tr>
+      <AdminEmptyTableRow colSpan={5}>No badge templates found.</AdminEmptyTableRow>
     ) : (
       input.badgeTemplates.map((template) => {
         const showcaseHref = `/showcase/${encodeURIComponent(
@@ -819,7 +813,7 @@ const renderInstitutionAdminPage = (
             </td>
             <td>
               <strong>{template.title}</strong>
-              <div class="ct-admin__meta">{template.id}</div>
+              <AdminMeta>{template.id}</AdminMeta>
             </td>
             <td>{template.slug}</td>
             <td>{formatIsoTimestamp(template.updatedAt)}</td>
@@ -839,11 +833,7 @@ const renderInstitutionAdminPage = (
 
   const orgUnitRows =
     input.orgUnits.length === 0 ? (
-      <tr>
-        <td colspan={4} class="ct-admin__empty">
-          No org units found.
-        </td>
-      </tr>
+      <AdminEmptyTableRow colSpan={4}>No org units found.</AdminEmptyTableRow>
     ) : (
       input.orgUnits.map((orgUnit) => (
         <tr>
@@ -857,11 +847,7 @@ const renderInstitutionAdminPage = (
 
   const apiKeyRows =
     input.activeApiKeys.length === 0 ? (
-      <tr>
-        <td colspan={5} class="ct-admin__empty">
-          No active API keys found.
-        </td>
-      </tr>
+      <AdminEmptyTableRow colSpan={5}>No active API keys found.</AdminEmptyTableRow>
     ) : (
       input.activeApiKeys.map((apiKey) => {
         const revokeApiKeyPath = `/v1/tenants/${encodeURIComponent(
@@ -911,11 +897,7 @@ const renderInstitutionAdminPage = (
   };
   const tenantMemberRows =
     input.tenantMembers.length === 0 ? (
-      <tr>
-        <td colspan={6} class="ct-admin__empty">
-          No tenant members found.
-        </td>
-      </tr>
+      <AdminEmptyTableRow colSpan={6}>No tenant members found.</AdminEmptyTableRow>
     ) : (
       input.tenantMembers.map((member) => {
         const canManageMember =
@@ -926,7 +908,7 @@ const renderInstitutionAdminPage = (
           <tr>
             <td>
               <span class="ct-admin__member-identity">{member.email}</span>
-              <div class="ct-admin__meta">{member.userId}</div>
+              <AdminMeta>{member.userId}</AdminMeta>
             </td>
             <td>
               {canManageMember ? (
@@ -938,7 +920,7 @@ const renderInstitutionAdminPage = (
                   {tenantMemberRoleOptions(member.role)}
                 </select>
               ) : (
-                <span class="ct-admin__status-pill">{member.role}</span>
+                <AdminStatusPill>{member.role}</AdminStatusPill>
               )}
             </td>
             <td>{formatIsoTimestamp(member.createdAt)}</td>
@@ -971,9 +953,9 @@ const renderInstitutionAdminPage = (
                   </AdminButton>
                 </div>
               ) : (
-                <span class="ct-admin__meta">
+                <AdminMeta as="span">
                   {member.userId === input.userId ? "Current user" : "Owner action"}
-                </span>
+                </AdminMeta>
               )}
             </td>
           </tr>
@@ -983,11 +965,7 @@ const renderInstitutionAdminPage = (
 
   const membershipScopeRows =
     input.membershipOrgUnitScopes.length === 0 ? (
-      <tr>
-        <td colspan={5} class="ct-admin__empty">
-          No scoped roles assigned yet.
-        </td>
-      </tr>
+      <AdminEmptyTableRow colSpan={5}>No scoped roles assigned yet.</AdminEmptyTableRow>
     ) : (
       input.membershipOrgUnitScopes.map((scope) => {
         const scopeLabel = orgUnitById.get(scope.orgUnitId)?.displayName ?? scope.orgUnitId;
@@ -999,7 +977,7 @@ const renderInstitutionAdminPage = (
             </td>
             <td>{renderOrgUnitSummary(scope.orgUnitId)}</td>
             <td>
-              <span class="ct-admin__status-pill">{scope.role}</span>
+              <AdminStatusPill>{scope.role}</AdminStatusPill>
             </td>
             <td>{formatIsoTimestamp(scope.updatedAt)}</td>
             <td>
@@ -1023,11 +1001,7 @@ const renderInstitutionAdminPage = (
 
   const delegatedGrantRows =
     input.delegatedIssuingAuthorityGrants.length === 0 ? (
-      <tr>
-        <td colspan={6} class="ct-admin__empty">
-          No delegated authority grants exist yet.
-        </td>
-      </tr>
+      <AdminEmptyTableRow colSpan={6}>No delegated authority grants exist yet.</AdminEmptyTableRow>
     ) : (
       input.delegatedIssuingAuthorityGrants.map((grant) => {
         const canRemove = grant.status === "active" || grant.status === "scheduled";
@@ -1041,29 +1015,25 @@ const renderInstitutionAdminPage = (
           <tr>
             <td>
               <strong>{grant.delegateUserId}</strong>
-              <div class="ct-admin__meta">{grant.id}</div>
+              <AdminMeta>{grant.id}</AdminMeta>
             </td>
             <td>{renderOrgUnitSummary(grant.orgUnitId)}</td>
             <td>
               {grant.allowedActions
                 .map((action) => formatDelegatedIssuingActionLabel(action))
                 .join(", ")}
-              <div class="ct-admin__meta">
-                {renderBadgeTemplateScopeSummary(grant.badgeTemplateIds)}
-              </div>
+              <AdminMeta>{renderBadgeTemplateScopeSummary(grant.badgeTemplateIds)}</AdminMeta>
             </td>
             <td>
               <strong>{formatIsoTimestamp(grant.startsAt)}</strong>
-              <div class="ct-admin__meta">Starts</div>
-              <div class="ct-admin__meta">Granted by {grant.delegatedByUserId ?? "system"}</div>
+              <AdminMeta>Starts</AdminMeta>
+              <AdminMeta>Granted by {grant.delegatedByUserId ?? "system"}</AdminMeta>
             </td>
             <td>
-              <span class={`ct-admin__status-pill ct-admin__status-pill--${grant.status}`}>
-                {grant.status}
-              </span>
-              <div class="ct-admin__meta">{statusMeta}</div>
+              <AdminStatusPill tone={grant.status}>{grant.status}</AdminStatusPill>
+              <AdminMeta>{statusMeta}</AdminMeta>
               {grant.revokedReason === null ? null : (
-                <div class="ct-admin__meta">Reason: {grant.revokedReason}</div>
+                <AdminMeta>Reason: {grant.revokedReason}</AdminMeta>
               )}
             </td>
             <td>
@@ -1081,7 +1051,7 @@ const renderInstitutionAdminPage = (
                   Remove
                 </AdminButton>
               ) : (
-                <span class="ct-admin__meta">No action</span>
+                <AdminMeta as="span">No action</AdminMeta>
               )}
             </td>
           </tr>
@@ -1091,11 +1061,9 @@ const renderInstitutionAdminPage = (
 
   const ruleRows =
     input.badgeRules.length === 0 ? (
-      <tr>
-        <td colspan={8} class="ct-admin__empty">
-          No badge rules found. <a href={ruleBuilderPath}>Create your first rule</a>.
-        </td>
-      </tr>
+      <AdminEmptyTableRow colSpan={8}>
+        No badge rules found. <a href={ruleBuilderPath}>Create your first rule</a>.
+      </AdminEmptyTableRow>
     ) : (
       input.badgeRules.map((rule) => {
         const templateTitle = templateById.get(rule.badgeTemplateId)?.title ?? rule.badgeTemplateId;
@@ -1187,7 +1155,7 @@ const renderInstitutionAdminPage = (
           <tr>
             <td>
               <strong>{rule.name}</strong>
-              <div class="ct-admin__meta">{rule.id}</div>
+              <AdminMeta>{rule.id}</AdminMeta>
             </td>
             <td>{templateTitle}</td>
             <td>{rule.lmsProviderKind}</td>
@@ -1198,20 +1166,16 @@ const renderInstitutionAdminPage = (
                 : `v${String(latestVersion.versionNumber)} (${latestVersion.id})`}
             </td>
             <td>
-              <span
-                class={`ct-admin__status-pill ct-admin__status-pill--${
-                  latestVersion?.status ?? "none"
-                }`}
-              >
+              <AdminStatusPill tone={latestVersion?.status ?? "none"}>
                 {latestVersion?.status ?? "none"}
-              </span>
+              </AdminStatusPill>
             </td>
             <td>{formatIsoTimestamp(rule.updatedAt)}</td>
             <td>
               {actionButtons.length > 0 ? (
                 <div class="ct-admin__actions">{actionButtons}</div>
               ) : (
-                <span class="ct-admin__meta">No actions</span>
+                <AdminMeta as="span">No actions</AdminMeta>
               )}
             </td>
           </tr>
@@ -1553,11 +1517,7 @@ const renderInstitutionAdminPage = (
   });
   const reportingDefinitionRows =
     reportingMetrics.length === 0 ? (
-      <tr>
-        <td colspan={4} class="ct-admin__empty">
-          No reporting definitions loaded yet.
-        </td>
-      </tr>
+      <AdminEmptyTableRow colSpan={4}>No reporting definitions loaded yet.</AdminEmptyTableRow>
     ) : (
       reportingMetrics.map((metric) => {
         return (
@@ -1743,11 +1703,9 @@ const renderInstitutionAdminPage = (
         });
   const reportingTrendRowsMarkup =
     reportingTrendSeries.length === 0 ? (
-      <tr>
-        <td colspan={7} class="ct-admin__empty">
-          No trend data available for the selected filters.
-        </td>
-      </tr>
+      <AdminEmptyTableRow colSpan={7}>
+        No trend data available for the selected filters.
+      </AdminEmptyTableRow>
     ) : (
       reportingTrendSeries.map((row) => (
         <tr>
@@ -1865,13 +1823,7 @@ const renderInstitutionAdminPage = (
     emptyLabel: string,
   ): HonoElement => {
     if (rows.length === 0) {
-      return (
-        <tr>
-          <td colspan={9} class="ct-admin__empty">
-            {emptyLabel}
-          </td>
-        </tr>
-      );
+      return <AdminEmptyTableRow colSpan={9}>{emptyLabel}</AdminEmptyTableRow>;
     }
 
     return (
@@ -2114,29 +2066,25 @@ const renderInstitutionAdminPage = (
       ) : (
         <div class="ct-admin__reporting-panel-media">
           {visualMarkup}
-          <div class="ct-admin__table-wrap">
-            <table class="ct-admin__table">
-              <thead>
-                <tr>
-                  <th>{formatReportingHierarchyLevelLabel(childLevel)}</th>
-                  <th>Issued</th>
-                  <th>Public badge views</th>
-                  <th>Verification views</th>
-                  <th>Share clicks</th>
-                  <th>Claim actions</th>
-                  <th>Wallet accepts</th>
-                  <th>Claim rate</th>
-                  <th>Share rate</th>
-                </tr>
-              </thead>
-              <tbody data-reporting-bar-group={sectionId}>
-                {renderReportingHierarchyRows(
-                  rows,
-                  `No ${formatReportingHierarchyLevelLabel(childLevel).toLowerCase()} rows available for this focus.`,
-                )}
-              </tbody>
-            </table>
-          </div>
+          <AdminTable
+            headers={[
+              formatReportingHierarchyLevelLabel(childLevel),
+              "Issued",
+              "Public badge views",
+              "Verification views",
+              "Share clicks",
+              "Claim actions",
+              "Wallet accepts",
+              "Claim rate",
+              "Share rate",
+            ]}
+            tbodyDataAttributes={{ "data-reporting-bar-group": sectionId }}
+          >
+            {renderReportingHierarchyRows(
+              rows,
+              `No ${formatReportingHierarchyLevelLabel(childLevel).toLowerCase()} rows available for this focus.`,
+            )}
+          </AdminTable>
         </div>
       );
     const descendantMarkup = rows.map((row) => {
@@ -2288,13 +2236,7 @@ const renderInstitutionAdminPage = (
     emptyLabel: string,
   ): HonoElement => {
     if (rows.length === 0) {
-      return (
-        <tr>
-          <td colspan={4} class="ct-admin__empty">
-            {emptyLabel}
-          </td>
-        </tr>
-      );
+      return <AdminEmptyTableRow colSpan={4}>{emptyLabel}</AdminEmptyTableRow>;
     }
 
     return (
@@ -2370,21 +2312,13 @@ const renderInstitutionAdminPage = (
       <article class="ct-admin__panel ct-admin__panel--nested ct-stack">
         <h3>{input.title}</h3>
         {visualMarkup}
-        <div class="ct-admin__table-wrap">
-          <table class="ct-admin__table ct-admin__table--compact">
-            <thead>
-              <tr>
-                <th>Org unit</th>
-                <th>Issued</th>
-                <th>Claim rate</th>
-                <th>Share rate</th>
-              </tr>
-            </thead>
-            <tbody data-reporting-bar-group={input.barGroup}>
-              {renderPerformerTableRows(input.rows, input.emptyLabel)}
-            </tbody>
-          </table>
-        </div>
+        <AdminTable
+          headers={["Org unit", "Issued", "Claim rate", "Share rate"]}
+          compact={true}
+          tbodyDataAttributes={{ "data-reporting-bar-group": input.barGroup }}
+        >
+          {renderPerformerTableRows(input.rows, input.emptyLabel)}
+        </AdminTable>
       </article>
     );
   };
@@ -2614,18 +2548,16 @@ const renderInstitutionAdminPage = (
   });
   const enterpriseAuthProviderRows =
     supportedEnterpriseAuthProviders.length === 0 ? (
-      <tr>
-        <td colspan={6} class="ct-admin__empty">
-          No OIDC enterprise providers configured yet.
-        </td>
-      </tr>
+      <AdminEmptyTableRow colSpan={6}>
+        No OIDC enterprise providers configured yet.
+      </AdminEmptyTableRow>
     ) : (
       supportedEnterpriseAuthProviders.map((provider) => {
         return (
           <tr>
             <td>
               <strong>{provider.label}</strong>
-              <div class="ct-admin__meta">{provider.id}</div>
+              <AdminMeta>{provider.id}</AdminMeta>
             </td>
             <td>{provider.protocol}</td>
             <td>{provider.isDefault ? "Default" : "Secondary"}</td>
@@ -2665,18 +2597,16 @@ const renderInstitutionAdminPage = (
     );
   const legacySamlRows =
     legacySamlProviders.length === 0 ? (
-      <tr>
-        <td colspan={5} class="ct-admin__empty">
-          No legacy SAML compatibility entries detected.
-        </td>
-      </tr>
+      <AdminEmptyTableRow colSpan={5}>
+        No legacy SAML compatibility entries detected.
+      </AdminEmptyTableRow>
     ) : (
       legacySamlProviders.map((provider) => {
         return (
           <tr>
             <td>
               <strong>{provider.label}</strong>
-              <div class="ct-admin__meta">{provider.id}</div>
+              <AdminMeta>{provider.id}</AdminMeta>
             </td>
             <td>{provider.isDefault ? "Default" : "Secondary"}</td>
             <td>{provider.enabled ? "Enabled" : "Disabled"}</td>
@@ -2798,21 +2728,12 @@ const renderInstitutionAdminPage = (
           </div>
         </form>
         <p id="enterprise-auth-provider-status" class="ct-admin__status"></p>
-        <div class="ct-admin__table-wrap">
-          <table class="ct-admin__table">
-            <thead>
-              <tr>
-                <th>Provider</th>
-                <th>Protocol</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Updated</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="enterprise-auth-provider-body">{enterpriseAuthProviderRows}</tbody>
-          </table>
-        </div>
+        <AdminTable
+          headers={["Provider", "Protocol", "Role", "Status", "Updated", "Actions"]}
+          tbodyId="enterprise-auth-provider-body"
+        >
+          {enterpriseAuthProviderRows}
+        </AdminTable>
         {legacySamlProviders.length === 0 ? null : (
           <section class="ct-stack" aria-labelledby="legacy-saml-title">
             <h3 id="legacy-saml-title">Legacy SAML compatibility</h3>
@@ -2820,20 +2741,9 @@ const renderInstitutionAdminPage = (
               These entries remain visible so you can audit or remove older SAML setup after an OIDC
               cutover. They are not editable from the hosted provider workflow.
             </p>
-            <div class="ct-admin__table-wrap">
-              <table class="ct-admin__table">
-                <thead>
-                  <tr>
-                    <th>Legacy entry</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Updated</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>{legacySamlRows}</tbody>
-              </table>
-            </div>
+            <AdminTable headers={["Legacy entry", "Role", "Status", "Updated", "Actions"]}>
+              {legacySamlRows}
+            </AdminTable>
           </section>
         )}
         <section class="ct-stack" aria-labelledby="break-glass-accounts-title">
@@ -2854,69 +2764,57 @@ const renderInstitutionAdminPage = (
             <AdminButton type="submit">Add break-glass account</AdminButton>
           </form>
           <p id="break-glass-account-status" class="ct-admin__status"></p>
-          <div class="ct-admin__table-wrap">
-            <table class="ct-admin__table">
-              <thead>
-                <tr>
-                  <th>Email</th>
-                  <th>Local status</th>
-                  <th>Last used</th>
-                  <th>Enrollment email</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="break-glass-account-body">
-                {breakGlassAccounts.length === 0 ? (
+          <AdminTable
+            headers={["Email", "Local status", "Last used", "Enrollment email", "Actions"]}
+            tbodyId="break-glass-account-body"
+          >
+            {breakGlassAccounts.length === 0 ? (
+              <AdminEmptyTableRow colSpan={5}>
+                No break-glass accounts configured yet.
+              </AdminEmptyTableRow>
+            ) : (
+              breakGlassAccounts.map((account) => {
+                const localStatus = account.twoFactorEnabled
+                  ? "MFA ready"
+                  : account.localCredentialEnabled
+                    ? "Password ready"
+                    : "Setup pending";
+
+                return (
                   <tr>
-                    <td colspan={5} class="ct-admin__empty">
-                      No break-glass accounts configured yet.
+                    <td>
+                      <strong>{account.email}</strong>
+                      <AdminMeta>{account.userId}</AdminMeta>
+                    </td>
+                    <td>{localStatus}</td>
+                    <td>
+                      {account.lastUsedAt === null
+                        ? "Never"
+                        : formatIsoTimestamp(account.lastUsedAt)}
+                    </td>
+                    <td>
+                      {account.lastEnrollmentEmailSentAt === null
+                        ? "Not sent"
+                        : formatIsoTimestamp(account.lastEnrollmentEmailSentAt)}
+                    </td>
+                    <td>
+                      <AdminButton
+                        type="button"
+                        size="tiny"
+                        variant="danger"
+                        dataAttributes={{
+                          "data-break-glass-delete-user-id": account.userId,
+                          "data-break-glass-email": account.email,
+                        }}
+                      >
+                        Revoke
+                      </AdminButton>
                     </td>
                   </tr>
-                ) : (
-                  breakGlassAccounts.map((account) => {
-                    const localStatus = account.twoFactorEnabled
-                      ? "MFA ready"
-                      : account.localCredentialEnabled
-                        ? "Password ready"
-                        : "Setup pending";
-
-                    return (
-                      <tr>
-                        <td>
-                          <strong>{account.email}</strong>
-                          <div class="ct-admin__meta">{account.userId}</div>
-                        </td>
-                        <td>{localStatus}</td>
-                        <td>
-                          {account.lastUsedAt === null
-                            ? "Never"
-                            : formatIsoTimestamp(account.lastUsedAt)}
-                        </td>
-                        <td>
-                          {account.lastEnrollmentEmailSentAt === null
-                            ? "Not sent"
-                            : formatIsoTimestamp(account.lastEnrollmentEmailSentAt)}
-                        </td>
-                        <td>
-                          <AdminButton
-                            type="button"
-                            size="tiny"
-                            variant="danger"
-                            dataAttributes={{
-                              "data-break-glass-delete-user-id": account.userId,
-                              "data-break-glass-email": account.email,
-                            }}
-                          >
-                            Revoke
-                          </AdminButton>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                );
+              })
+            )}
+          </AdminTable>
         </section>
         {enterpriseAuthProviders.length > 0 ? (
           <details class="ct-admin__panel ct-admin__panel--nested">
@@ -3322,21 +3220,12 @@ const renderInstitutionAdminPage = (
         Review tenant-level access, resend invites, and remove members who no longer need this
         organization.
       </p>
-      <div class="ct-admin__table-wrap">
-        <table class="ct-admin__table">
-          <thead>
-            <tr>
-              <th>Member</th>
-              <th>Tenant role</th>
-              <th>Joined</th>
-              <th>Updated</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="tenant-member-body">{tenantMemberRows}</tbody>
-        </table>
-      </div>
+      <AdminTable
+        headers={["Member", "Tenant role", "Joined", "Updated", "Status", "Actions"]}
+        tbodyId="tenant-member-body"
+      >
+        {tenantMemberRows}
+      </AdminTable>
       <p id="tenant-member-list-status" class="ct-admin__status"></p>
     </article>
   );
@@ -3430,20 +3319,12 @@ const renderInstitutionAdminPage = (
     <article class="ct-admin__panel ct-admin__panel--table ct-stack">
       <h2>Current Scoped Roles ({scopedRoleCount})</h2>
       <p>Remove access directly from the list instead of re-entering the same identifiers.</p>
-      <div class="ct-admin__table-wrap">
-        <table class="ct-admin__table">
-          <thead>
-            <tr>
-              <th>Member</th>
-              <th>Org unit</th>
-              <th>Role</th>
-              <th>Updated</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="membership-scope-body">{membershipScopeRows}</tbody>
-        </table>
-      </div>
+      <AdminTable
+        headers={["Member", "Org unit", "Role", "Updated", "Action"]}
+        tbodyId="membership-scope-body"
+      >
+        {membershipScopeRows}
+      </AdminTable>
       <p id="membership-scope-list-status" class="ct-admin__status"></p>
     </article>
   );
@@ -3515,21 +3396,12 @@ const renderInstitutionAdminPage = (
     <article class="ct-admin__panel ct-admin__panel--table ct-stack">
       <h2>Current Delegations ({String(input.delegatedIssuingAuthorityGrants.length)})</h2>
       <p>Remove active or scheduled delegations directly from the list.</p>
-      <div class="ct-admin__table-wrap">
-        <table class="ct-admin__table">
-          <thead>
-            <tr>
-              <th>Delegate</th>
-              <th>Org unit</th>
-              <th>Allowed actions</th>
-              <th>Granted</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="delegated-grant-body">{delegatedGrantRows}</tbody>
-        </table>
-      </div>
+      <AdminTable
+        headers={["Delegate", "Org unit", "Allowed actions", "Granted", "Status", "Action"]}
+        tbodyId="delegated-grant-body"
+      >
+        {delegatedGrantRows}
+      </AdminTable>
       <p id="delegated-grant-list-status" class="ct-admin__status"></p>
     </article>
   );
@@ -3566,24 +3438,9 @@ const renderInstitutionAdminPage = (
         <AdminButton type="submit">Create value list</AdminButton>
       </form>
       <p id="rule-value-list-status" class="ct-admin__status"></p>
-      <div class="ct-admin__table-wrap">
-        <table class="ct-admin__table">
-          <thead>
-            <tr>
-              <th>Label</th>
-              <th>Kind</th>
-              <th>Values</th>
-            </tr>
-          </thead>
-          <tbody id="rule-value-list-body">
-            <tr>
-              <td colspan={3} class="ct-admin__empty">
-                No rule value lists loaded yet.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <AdminTable headers={["Label", "Kind", "Values"]} tbodyId="rule-value-list-body">
+        <AdminEmptyTableRow colSpan={3}>No rule value lists loaded yet.</AdminEmptyTableRow>
+      </AdminTable>
     </article>
   );
 
@@ -3729,26 +3586,12 @@ const renderInstitutionAdminPage = (
       <p id="rule-review-queue-status" class="ct-admin__status">
         No review queue entries loaded yet.
       </p>
-      <div class="ct-admin__table-wrap">
-        <table class="ct-admin__table">
-          <thead>
-            <tr>
-              <th>Evaluated</th>
-              <th>Recipient</th>
-              <th>Rule</th>
-              <th>Summary</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="rule-review-queue-body">
-            <tr>
-              <td colspan={5} class="ct-admin__empty">
-                No review queue entries loaded yet.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <AdminTable
+        headers={["Evaluated", "Recipient", "Rule", "Summary", "Actions"]}
+        tbodyId="rule-review-queue-body"
+      >
+        <AdminEmptyTableRow colSpan={5}>No review queue entries loaded yet.</AdminEmptyTableRow>
+      </AdminTable>
     </article>
   );
 
@@ -3859,27 +3702,12 @@ const renderInstitutionAdminPage = (
       <p id="issued-badges-status" class="ct-admin__status">
         Load tenant assertions from the browser.
       </p>
-      <div class="ct-admin__table-wrap">
-        <table class="ct-admin__table">
-          <thead>
-            <tr>
-              <th>Issued</th>
-              <th>Recipient</th>
-              <th>Template</th>
-              <th>State</th>
-              <th>Assertion</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="issued-badges-body">
-            <tr>
-              <td colspan={6} class="ct-admin__empty">
-                No assertions loaded yet.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <AdminTable
+        headers={["Issued", "Recipient", "Template", "State", "Assertion", "Actions"]}
+        tbodyId="issued-badges-body"
+      >
+        <AdminEmptyTableRow colSpan={6}>No assertions loaded yet.</AdminEmptyTableRow>
+      </AdminTable>
       <p id="issued-badges-action-status" class="ct-admin__status"></p>
     </article>
   );
@@ -4041,22 +3869,22 @@ const renderInstitutionAdminPage = (
       <p>{getReportingTrendIntroCopy(input.includeDetailedTable)}</p>
       {renderReportingTrendHeroMarkup(input.includeDetailedTable)}
       {input.includeDetailedTable ? (
-        <div class="ct-admin__table-wrap">
+        <div>
           <h3>Detailed trend table</h3>
-          <table class="ct-admin__table">
-            <thead>
-              <tr>
-                <th>Day</th>
-                <th>Issued</th>
-                <th>Public badge views</th>
-                <th>Verification views</th>
-                <th>Share clicks</th>
-                <th>Claim actions</th>
-                <th>Wallet accepts</th>
-              </tr>
-            </thead>
-            <tbody data-reporting-bar-group="trends">{reportingTrendRowsMarkup}</tbody>
-          </table>
+          <AdminTable
+            headers={[
+              "Day",
+              "Issued",
+              "Public badge views",
+              "Verification views",
+              "Share clicks",
+              "Claim actions",
+              "Wallet accepts",
+            ]}
+            tbodyDataAttributes={{ "data-reporting-bar-group": "trends" }}
+          >
+            {reportingTrendRowsMarkup}
+          </AdminTable>
         </div>
       ) : (
         <p class="ct-admin__hint">
@@ -4081,26 +3909,22 @@ const renderInstitutionAdminPage = (
       </p>
       <div class="ct-admin__reporting-panel-media">
         {reportingTemplateComparisonVisualMarkup}
-        <div class="ct-admin__table-wrap">
-          <table class="ct-admin__table">
-            <thead>
-              <tr>
-                <th>Badge template</th>
-                <th>Issued</th>
-                <th>Public badge views</th>
-                <th>Verification views</th>
-                <th>Share clicks</th>
-                <th>Claim actions</th>
-                <th>Wallet accepts</th>
-                <th>Claim rate</th>
-                <th>Share rate</th>
-              </tr>
-            </thead>
-            <tbody data-reporting-bar-group="template-comparisons">
-              {reportingTemplateComparisonRowsMarkup}
-            </tbody>
-          </table>
-        </div>
+        <AdminTable
+          headers={[
+            "Badge template",
+            "Issued",
+            "Public badge views",
+            "Verification views",
+            "Share clicks",
+            "Claim actions",
+            "Wallet accepts",
+            "Claim rate",
+            "Share rate",
+          ]}
+          tbodyDataAttributes={{ "data-reporting-bar-group": "template-comparisons" }}
+        >
+          {reportingTemplateComparisonRowsMarkup}
+        </AdminTable>
       </div>
     </article>
   );
@@ -4120,26 +3944,22 @@ const renderInstitutionAdminPage = (
       </p>
       <div class="ct-admin__reporting-panel-media">
         {reportingOrgUnitComparisonVisualMarkup}
-        <div class="ct-admin__table-wrap">
-          <table class="ct-admin__table">
-            <thead>
-              <tr>
-                <th>Org unit</th>
-                <th>Issued</th>
-                <th>Public badge views</th>
-                <th>Verification views</th>
-                <th>Share clicks</th>
-                <th>Claim actions</th>
-                <th>Wallet accepts</th>
-                <th>Claim rate</th>
-                <th>Share rate</th>
-              </tr>
-            </thead>
-            <tbody data-reporting-bar-group="org-comparisons">
-              {reportingOrgUnitComparisonRowsMarkup}
-            </tbody>
-          </table>
-        </div>
+        <AdminTable
+          headers={[
+            "Org unit",
+            "Issued",
+            "Public badge views",
+            "Verification views",
+            "Share clicks",
+            "Claim actions",
+            "Wallet accepts",
+            "Claim rate",
+            "Share rate",
+          ]}
+          tbodyDataAttributes={{ "data-reporting-bar-group": "org-comparisons" }}
+        >
+          {reportingOrgUnitComparisonRowsMarkup}
+        </AdminTable>
       </div>
     </article>
   );
@@ -4151,19 +3971,9 @@ const renderInstitutionAdminPage = (
         Every number in this page lists its source so institution admins can tell the difference
         between event totals and rate-style comparisons.
       </p>
-      <div class="ct-admin__table-wrap">
-        <table class="ct-admin__table">
-          <thead>
-            <tr>
-              <th>Metric</th>
-              <th>Source</th>
-              <th>Status</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>{reportingDefinitionRows}</tbody>
-        </table>
-      </div>
+      <AdminTable headers={["Metric", "Source", "Status", "Notes"]}>
+        {reportingDefinitionRows}
+      </AdminTable>
     </article>
   );
 
@@ -4206,23 +4016,20 @@ const renderInstitutionAdminPage = (
     <article class="ct-admin__panel ct-admin__panel--table ct-stack">
       <h2>Badge Rules ({ruleCount})</h2>
       <p>Lifecycle actions operate on each rule’s latest version.</p>
-      <div class="ct-admin__table-wrap">
-        <table class="ct-admin__table">
-          <thead>
-            <tr>
-              <th>Rule</th>
-              <th>Template</th>
-              <th>LMS</th>
-              <th>Active Version</th>
-              <th>Latest Version</th>
-              <th>Status</th>
-              <th>Updated</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>{ruleRows}</tbody>
-        </table>
-      </div>
+      <AdminTable
+        headers={[
+          "Rule",
+          "Template",
+          "LMS",
+          "Active Version",
+          "Latest Version",
+          "Status",
+          "Updated",
+          "Actions",
+        ]}
+      >
+        {ruleRows}
+      </AdminTable>
       <p id="rule-action-status" class="ct-admin__status"></p>
     </article>
   );
@@ -4230,39 +4037,16 @@ const renderInstitutionAdminPage = (
   const badgeTemplatesTableMarkup = (
     <article class="ct-admin__panel ct-admin__panel--table ct-stack">
       <h2>Badge Templates ({badgeTemplateCount})</h2>
-      <div class="ct-admin__table-wrap">
-        <table class="ct-admin__table">
-          <thead>
-            <tr>
-              <th>Image</th>
-              <th>Template</th>
-              <th>Slug</th>
-              <th>Updated</th>
-              <th>Links</th>
-            </tr>
-          </thead>
-          <tbody>{templateRows}</tbody>
-        </table>
-      </div>
+      <AdminTable headers={["Image", "Template", "Slug", "Updated", "Links"]}>
+        {templateRows}
+      </AdminTable>
     </article>
   );
 
   const orgUnitsTableMarkup = (
     <article class="ct-admin__panel ct-admin__panel--table ct-admin__org-units-table ct-stack">
       <h2>Org Units ({orgUnitCount})</h2>
-      <div class="ct-admin__table-wrap">
-        <table class="ct-admin__table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>ID</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>{orgUnitRows}</tbody>
-        </table>
-      </div>
+      <AdminTable headers={["Name", "Type", "ID", "Status"]}>{orgUnitRows}</AdminTable>
     </article>
   );
 
@@ -4270,20 +4054,9 @@ const renderInstitutionAdminPage = (
     <article class="ct-admin__panel ct-admin__panel--table ct-admin__api-keys-table ct-stack">
       <h2>Active API Keys ({activeApiKeyCount})</h2>
       <p>Revoked keys: {revokedApiKeyCount}</p>
-      <div class="ct-admin__table-wrap">
-        <table class="ct-admin__table">
-          <thead>
-            <tr>
-              <th>Label</th>
-              <th>Prefix</th>
-              <th>Scopes</th>
-              <th>Expires</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>{apiKeyRows}</tbody>
-        </table>
-      </div>
+      <AdminTable headers={["Label", "Prefix", "Scopes", "Expires", "Action"]}>
+        {apiKeyRows}
+      </AdminTable>
       <p id="api-key-revoke-status" class="ct-admin__status"></p>
     </article>
   );

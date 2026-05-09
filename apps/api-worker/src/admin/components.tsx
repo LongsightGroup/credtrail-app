@@ -36,6 +36,11 @@ export interface AdminTopbarChip {
   title?: string;
 }
 
+export interface AdminTableHeader {
+  label: string;
+  scope?: "col" | "row";
+}
+
 export const adminButtonClass = (input?: {
   variant?: AdminButtonVariant | undefined;
   size?: AdminButtonSize | undefined;
@@ -279,6 +284,103 @@ export const AdminCtaLink = ({
   );
 };
 
+export const AdminMeta = ({
+  as = "div",
+  children,
+}: PropsWithChildren<{
+  as?: "div" | "span" | "p" | "dt";
+}>): HonoElement => {
+  switch (as) {
+    case "span":
+      return <span class="ct-admin__meta">{children}</span>;
+    case "p":
+      return <p class="ct-admin__meta">{children}</p>;
+    case "dt":
+      return <dt class="ct-admin__meta">{children}</dt>;
+    case "div":
+      return <div class="ct-admin__meta">{children}</div>;
+  }
+};
+
+export const AdminStatusPill = ({
+  tone,
+  children,
+}: PropsWithChildren<{
+  tone?: string | null;
+}>): HonoElement => {
+  const normalizedTone = tone?.trim();
+  const className =
+    normalizedTone === undefined || normalizedTone.length === 0
+      ? "ct-admin__status-pill"
+      : `ct-admin__status-pill ct-admin__status-pill--${normalizedTone}`;
+
+  return <span class={className}>{children}</span>;
+};
+
+export const AdminEmptyTableRow = ({
+  colSpan,
+  children,
+}: PropsWithChildren<{
+  colSpan: number;
+}>): HonoElement => {
+  return (
+    <tr>
+      <td colspan={colSpan} class="ct-admin__empty">
+        {children}
+      </td>
+    </tr>
+  );
+};
+
+export const AdminTable = ({
+  headers,
+  id,
+  tbodyId,
+  compact = false,
+  wrapperClassName,
+  tableClassName,
+  tbodyDataAttributes,
+  children,
+}: PropsWithChildren<{
+  headers: readonly (string | AdminTableHeader)[];
+  id?: string;
+  tbodyId?: string;
+  compact?: boolean;
+  wrapperClassName?: string;
+  tableClassName?: string;
+  tbodyDataAttributes?: DataAttributes;
+}>): HonoElement => {
+  const wrapperClass =
+    wrapperClassName === undefined || wrapperClassName.trim().length === 0
+      ? "ct-admin__table-wrap"
+      : wrapperClassName.trim();
+  const tableClasses = [
+    "ct-admin__table",
+    compact ? "ct-admin__table--compact" : "",
+    tableClassName?.trim() ?? "",
+  ].filter((className) => className.length > 0);
+
+  return (
+    <div class={wrapperClass}>
+      <table id={id} class={tableClasses.join(" ")}>
+        <thead>
+          <tr>
+            {headers.map((header) => {
+              const label = typeof header === "string" ? header : header.label;
+              const scope = typeof header === "string" ? "col" : (header.scope ?? "col");
+
+              return <th scope={scope}>{label}</th>;
+            })}
+          </tr>
+        </thead>
+        <tbody id={tbodyId} {...(tbodyDataAttributes ?? {})}>
+          {children}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 export const AdminActionBar = ({
   ariaLabel,
   children,
@@ -424,19 +526,15 @@ export const IssuedBadgeRow = (input: { assertion: TenantAssertionSummaryRecord 
       </td>
       <td>
         <strong>{assertion.badgeTitle}</strong>
-        <div class="ct-admin__meta">{assertion.badgeTemplateId}</div>
+        <AdminMeta>{assertion.badgeTemplateId}</AdminMeta>
       </td>
       <td>
-        <span class={`ct-admin__status-pill ct-admin__status-pill--${assertion.state}`}>
-          {assertion.state}
-        </span>
-        <div class="ct-admin__meta">{assertion.source}</div>
+        <AdminStatusPill tone={assertion.state}>{assertion.state}</AdminStatusPill>
+        <AdminMeta>{assertion.source}</AdminMeta>
       </td>
       <td>
         <div class="ct-admin__assertion-id">{assertion.assertionId}</div>
-        {assertion.publicId === null ? null : (
-          <div class="ct-admin__meta">public: {assertion.publicId}</div>
-        )}
+        {assertion.publicId === null ? null : <AdminMeta>public: {assertion.publicId}</AdminMeta>}
       </td>
       <td class="ct-admin__issued-actions-cell">
         <div class="ct-admin__issued-actions">
@@ -458,11 +556,9 @@ export const IssuedBadgeRows = (input: {
 }): HonoElement => {
   if (input.assertions.length === 0) {
     return (
-      <tr>
-        <td colspan={6} class="ct-admin__empty">
-          {input.emptyMessage ?? "No assertions matched the selected filters."}
-        </td>
-      </tr>
+      <AdminEmptyTableRow colSpan={6}>
+        {input.emptyMessage ?? "No assertions matched the selected filters."}
+      </AdminEmptyTableRow>
     );
   }
 

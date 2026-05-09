@@ -9,8 +9,10 @@ import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../ui/render-page";
 import {
   AdminButton,
+  AdminEmptyTableRow,
   AdminShell,
   AdminSidebar,
+  AdminTable,
   AdminTopbar,
   type AdminSidebarFooterLink,
   type AdminSidebarSection,
@@ -922,24 +924,12 @@ export const institutionAdminRuleBuilderPage = (input: {
                   Course and badge-template lists appear here and can be used inside condition
                   cards.
                 </p>
-                <div class="ct-admin__table-wrap">
-                  <table class="ct-admin__table">
-                    <thead>
-                      <tr>
-                        <th>Label</th>
-                        <th>Kind</th>
-                        <th>Values</th>
-                      </tr>
-                    </thead>
-                    <tbody id="rule-builder-value-list-body">
-                      <tr>
-                        <td colspan={3} class="ct-admin__empty">
-                          No reusable lists loaded yet.
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                <AdminTable
+                  headers={["Label", "Kind", "Values"]}
+                  tbodyId="rule-builder-value-list-body"
+                >
+                  <AdminEmptyTableRow colSpan={3}>No reusable lists loaded yet.</AdminEmptyTableRow>
+                </AdminTable>
               </section>
 
               <section
