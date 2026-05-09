@@ -1612,7 +1612,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     );
   });
 
-  it("renders a chart-first trend preview and links the detailed trend table to a sub-page", async () => {
+  it("renders a trend preview and links the detailed trend table to a sub-page", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -1629,6 +1629,11 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(response.status).toBe(200);
     expect(body).toContain("Trend lines");
     expect(body).toContain('class="ct-admin__reporting-trend-hero"');
+    expect(body).toContain("Issuance over time");
+    expect(body).toContain("Daily issued badge counts for the selected filters.");
+    expect(body).toContain("Open trend detail for exact engagement counts.");
+    expect(body).not.toContain("Chart-first read");
+    expect(body).not.toContain("Read issued badge momentum first");
     expect(body).toContain('class="ct-admin__reporting-trend-callouts"');
     expect(body).toContain("Peak day");
     expect(body).toContain("Latest day");
@@ -1659,6 +1664,10 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("Trend filters");
     expect(body).toContain('method="get" action="/tenants/tenant_123/admin/reporting/trends"');
     expect(body).toContain("Trend lines");
+    expect(body).toContain(
+      "Daily issued badge counts for the selected filters, with exact engagement counts in the table below.",
+    );
+    expect(body).toContain("The table below lists the exact engagement counts for each day.");
     expect(body).toContain("Detailed trend table");
     expect(body).not.toContain("Executive Summary");
     expect(body).not.toContain("Selected reporting slice");
@@ -1731,7 +1740,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(response.status).toBe(200);
     expect(trendPanel).toContain('data-reporting-state="empty"');
     expect(trendPanel).toContain(
-      "This reporting slice does not have enough activity to chart yet.",
+      "The selected filters do not have enough activity to chart yet.",
     );
     expect(templatePanel).toContain('data-reporting-state="empty"');
     expect(templatePanel).toContain("No badge-template rows are visible for this slice yet.");
@@ -1747,7 +1756,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     );
   });
 
-  it("marks thin-data reporting slices as sparse and drops momentum or ranking language", async () => {
+  it("marks limited reporting slices as sparse and drops momentum or ranking language", async () => {
     const env = createEnv();
     mockedGetTenantReportingOverviewDb.mockResolvedValueOnce({
       tenantId: "tenant_123",
@@ -1851,9 +1860,9 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
 
     expect(response.status).toBe(200);
     expect(trendPanel).toContain('data-reporting-state="sparse"');
-    expect(trendPanel).toContain(
-      "Only one visible time bucket matches this reporting slice, so treat it as a current snapshot rather than a momentum read.",
-    );
+    expect(trendPanel).toContain("Only one day matches the selected filters.");
+    expect(trendPanel).toContain("Open trend detail to review the exact counts for that day.");
+    expect(trendPanel).not.toContain("momentum read");
     expect(trendPanel).not.toContain("Read issued badge momentum first");
     expect(templatePanel).toContain('data-reporting-state="sparse"');
     expect(templatePanel).toContain(

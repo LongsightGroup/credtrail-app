@@ -2401,7 +2401,7 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(orgUnitPanel).toContain('data-reporting-state="empty"');
     expect(hierarchyPanel).toContain('data-reporting-state="empty"');
     expect(performerPanel).toContain('data-reporting-state="empty"');
-    expect(html).toContain("This reporting slice does not have enough activity to chart yet.");
+    expect(html).toContain("The selected filters do not have enough activity to chart yet.");
     expect(html).toContain("No badge-template rows are visible for this slice yet.");
     expect(html).toContain("No org-unit rows are visible for this slice yet.");
     expect(html).toContain(

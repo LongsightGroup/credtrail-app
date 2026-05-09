@@ -1760,23 +1760,36 @@ const renderInstitutionAdminPage = (
         </tr>
       ))
     );
-  const reportingTrendHeroMarkup =
+  const getReportingTrendIntroCopy = (includeDetailedTable: boolean): string => {
+    if (reportingTrendState === "rich") {
+      return includeDetailedTable
+        ? "Daily issued badge counts for the selected filters, with exact engagement counts in the table below."
+        : "Daily issued badge counts for the selected filters. Open trend detail for exact engagement counts.";
+    }
+
+    if (reportingTrendState === "sparse") {
+      return "The selected filters return one day of trend data.";
+    }
+
+    return "No trend data is available for the selected filters yet.";
+  };
+  const renderReportingTrendHeroMarkup = (includeDetailedTable: boolean): HonoElement =>
     reportingTrendState === "empty"
       ? renderReportingStateShell({
           state: "empty",
           eyebrow: "No trend line yet",
-          title: "This reporting slice does not have enough activity to chart yet.",
+          title: "The selected filters do not have enough activity to chart yet.",
           description:
-            "Expand the date range or remove a filter to see how issuance changes over time for this reporting slice.",
+            "Expand the date range or remove a filter to see how issuance changes over time.",
         })
       : reportingTrendState === "sparse"
         ? renderReportingStateShell({
             state: "sparse",
-            eyebrow: "Thin-data slice",
-            title:
-              "Only one visible time bucket matches this reporting slice, so treat it as a current snapshot rather than a momentum read.",
-            description:
-              "Use the exact table below to review the current counts behind this slice before drawing a broader trend story.",
+            eyebrow: "Limited trend data",
+            title: "Only one day matches the selected filters.",
+            description: includeDetailedTable
+              ? "Use the table below for the exact counts for that day."
+              : "Open trend detail to review the exact counts for that day.",
           })
         : (() => {
             const startRow = reportingTrendSeries[0];
@@ -1795,12 +1808,13 @@ const renderInstitutionAdminPage = (
             return (
               <div class="ct-admin__reporting-trend-hero">
                 <div class="ct-admin__reporting-trend-intro ct-stack">
-                  <p class="ct-admin__eyebrow">Chart-first read</p>
-                  <h3>Read issued badge momentum first</h3>
+                  <p class="ct-admin__eyebrow">Issued badges</p>
+                  <h3>Issuance over time</h3>
                   <p>
-                    Start with the chart to see how issuance moved across the selected reporting
-                    slice, then use the detailed table below for the exact engagement counts behind
-                    each day.
+                    Use the chart to compare daily issued badge counts for the selected filters.{" "}
+                    {includeDetailedTable
+                      ? "The table below lists the exact engagement counts for each day."
+                      : "Open trend detail for the exact engagement counts behind each day."}
                   </p>
                   <div class="ct-admin__reporting-trend-callouts">
                     {renderReportingTrendCallout({
@@ -1819,12 +1833,6 @@ const renderInstitutionAdminPage = (
               </div>
             );
           })();
-  const reportingTrendIntroCopy =
-    reportingTrendState === "rich"
-      ? "Use the chart first to read issuance momentum for the selected reporting slice. The detailed table remains below so each supporting engagement count stays visible and reviewable."
-      : reportingTrendState === "sparse"
-        ? "Only one visible time bucket matches this reporting slice, so the exact table below provides the honest current-state read."
-        : "The detailed table remains available even when the selected reporting slice has not produced enough activity to draw a trend line yet.";
   const renderReportingComparisonRows = (
     rows: readonly TenantReportingComparisonRowRecord[],
     emptyLabel: string,
@@ -4092,8 +4100,8 @@ const renderInstitutionAdminPage = (
       data-reporting-state={reportingTrendState}
     >
       <h2>Trend lines</h2>
-      <p>{reportingTrendIntroCopy}</p>
-      {reportingTrendHeroMarkup}
+      <p>{getReportingTrendIntroCopy(input.includeDetailedTable)}</p>
+      {renderReportingTrendHeroMarkup(input.includeDetailedTable)}
       {input.includeDetailedTable ? (
         <div class="ct-admin__table-wrap">
           <h3>Detailed trend table</h3>
