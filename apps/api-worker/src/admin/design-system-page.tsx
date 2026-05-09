@@ -1,4 +1,5 @@
 import type { HtmlEscapedString } from "hono/utils/html";
+import { AdminButton, AdminButtonLink, IssuedBadgeActions } from "./components";
 import { appPage, type AppPage } from "../ui/render-page";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -149,11 +150,22 @@ const componentDocs: readonly ComponentDoc[] = [
     usage: "Use appPage assets instead of hand-writing stylesheet or script URLs.",
   },
   {
-    name: "Admin patterns",
-    source: "apps/api-worker/src/admin/*.tsx",
-    purpose: "Feature-local Hono JSX functions compose admin views from shared classes and assets.",
-    usage:
-      "Prefer small typed functions for repeated admin structures before adding new CSS patterns.",
+    name: "AdminButton",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Centralizes admin button class composition for links and button elements.",
+    usage: "Use variant and size props instead of hand-writing button class combinations.",
+  },
+  {
+    name: "AdminActionBar",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Groups row-level actions with the correct role, label, and compact spacing class.",
+    usage: "Use for dense table and record actions where several commands sit together.",
+  },
+  {
+    name: "IssuedBadgeActions",
+    source: "apps/api-worker/src/admin/components.tsx",
+    purpose: "Owns the issued-badge Open, Audit, JSON-LD, and revoke action pattern.",
+    usage: "Use this instead of recreating issued-badge action markup in server-rendered JSX.",
   },
 ];
 
@@ -254,21 +266,11 @@ const ApprovedClasses = (): HonoElement => {
 const ActionPreview = (): HonoElement => {
   return (
     <div class="ct-design-system__example-row">
-      <a class="ct-admin__button" href="#actions">
-        Primary
-      </a>
-      <button type="button" class="ct-admin__button ct-admin__button--secondary">
-        Secondary
-      </button>
-      <button type="button" class="ct-admin__button ct-admin__button--ghost">
-        Tertiary
-      </button>
-      <button type="button" class="ct-admin__button ct-admin__button--danger">
-        Danger
-      </button>
-      <button type="button" class="ct-admin__button" disabled>
-        Working
-      </button>
+      <AdminButtonLink href="#actions">Primary</AdminButtonLink>
+      <AdminButton variant="secondary">Secondary</AdminButton>
+      <AdminButton variant="ghost">Tertiary</AdminButton>
+      <AdminButton variant="danger">Danger</AdminButton>
+      <AdminButton disabled={true}>Working</AdminButton>
     </div>
   );
 };
@@ -292,36 +294,12 @@ const MajorLinkPreview = (): HonoElement => {
 const TableActionPreview = (): HonoElement => {
   return (
     <div class="ct-design-system__action-demo">
-      <div class="ct-admin__action-bar" role="group" aria-label="Example issued badge actions">
-        <a class="ct-admin__button ct-admin__button--tiny" href="#actions">
-          Open
-        </a>
-        <button
-          type="button"
-          class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"
-        >
-          Audit
-        </button>
-        <details class="ct-admin__action-menu">
-          <summary
-            class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary ct-admin__action-menu-trigger"
-            aria-label="More example actions"
-          >
-            ...
-          </summary>
-          <div class="ct-admin__action-menu-popover">
-            <a class="ct-admin__action-menu-item" href="#actions">
-              Open JSON-LD
-            </a>
-            <button
-              type="button"
-              class="ct-admin__action-menu-item ct-admin__action-menu-item--danger"
-            >
-              Revoke badge
-            </button>
-          </div>
-        </details>
-      </div>
+      <IssuedBadgeActions
+        assertionId="sakai:1df79bc6-6a08-42a2"
+        viewBadgeHref="#actions"
+        rawJsonHref="#actions"
+        canRevoke={true}
+      />
     </div>
   );
 };

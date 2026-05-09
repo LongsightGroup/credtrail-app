@@ -262,6 +262,75 @@ export const INSTITUTION_ADMIN_JS = `
 
     return new Date(parsed).toLocaleString();
   };
+  const adminButtonClass = (options) => {
+    const variant = options && typeof options.variant === 'string' ? options.variant : 'primary';
+    const size = options && options.size === 'tiny' ? 'tiny' : 'default';
+    const extraClass =
+      options && typeof options.extraClass === 'string' ? options.extraClass.trim() : '';
+    const classNames = ['ct-admin__button'];
+
+    if (size === 'tiny') {
+      classNames.push('ct-admin__button--tiny');
+    }
+
+    if (variant !== 'primary') {
+      classNames.push('ct-admin__button--' + variant);
+    }
+
+    if (extraClass.length > 0) {
+      classNames.push(extraClass);
+    }
+
+    return classNames.join(' ');
+  };
+  const renderIssuedBadgeActionsMarkup = (input) => {
+    const assertionId =
+      input && typeof input.assertionId === 'string' ? input.assertionId : '';
+    const viewBadgeHref =
+      input && typeof input.viewBadgeHref === 'string' ? input.viewBadgeHref : '#';
+    const rawJsonHref =
+      input && typeof input.rawJsonHref === 'string' ? input.rawJsonHref : '#';
+    const canRevoke = input && input.canRevoke === true;
+    const escapedAssertionId = escapeHtml(assertionId);
+
+    return (
+      '<div class="ct-admin__action-bar" role="group" aria-label="Actions for assertion ' +
+      escapedAssertionId +
+      '">' +
+      '<a class="' +
+      adminButtonClass({ size: 'tiny' }) +
+      '" href="' +
+      escapeHtml(viewBadgeHref) +
+      '" target="_blank" rel="noopener noreferrer">Open</a>' +
+      '<button type="button" class="' +
+      adminButtonClass({ variant: 'secondary', size: 'tiny' }) +
+      '" data-issued-action="audit" data-assertion-id="' +
+      escapedAssertionId +
+      '">Audit</button>' +
+      '<details class="ct-admin__action-menu">' +
+      '<summary class="' +
+      adminButtonClass({
+        variant: 'secondary',
+        size: 'tiny',
+        extraClass: 'ct-admin__action-menu-trigger',
+      }) +
+      '" aria-label="More actions for assertion ' +
+      escapedAssertionId +
+      '">...</summary>' +
+      '<div class="ct-admin__action-menu-popover">' +
+      '<a class="ct-admin__action-menu-item" href="' +
+      escapeHtml(rawJsonHref) +
+      '" target="_blank" rel="noopener noreferrer">Open JSON-LD</a>' +
+      (canRevoke
+        ? '<button type="button" class="ct-admin__action-menu-item ct-admin__action-menu-item--danger" data-issued-action="revoke" data-assertion-id="' +
+          escapedAssertionId +
+          '">Revoke badge</button>'
+        : '') +
+      '</div>' +
+      '</details>' +
+      '</div>'
+    );
+  };
   const parseIssuedBadgesLimit = (rawValue) => {
     const fallbackLimit = 100;
 
@@ -2209,31 +2278,12 @@ export const INSTITUTION_ADMIN_JS = `
               : '<div class="ct-admin__meta">public: ' + escapeHtml(publicId) + '</div>') +
             '</td>' +
             '<td class="ct-admin__issued-actions-cell"><div class="ct-admin__issued-actions">' +
-            '<div class="ct-admin__action-bar" role="group" aria-label="Actions for assertion ' +
-            escapeHtml(assertionId) +
-            '">' +
-            '<a class="ct-admin__button ct-admin__button--tiny" href="' +
-            escapeHtml(viewBadgeHref) +
-            '" target="_blank" rel="noopener noreferrer">Open</a>' +
-            '<button type="button" class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary" data-issued-action="audit" data-assertion-id="' +
-            escapeHtml(assertionId) +
-            '">Audit</button>' +
-            '<details class="ct-admin__action-menu">' +
-            '<summary class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary ct-admin__action-menu-trigger" aria-label="More actions for assertion ' +
-            escapeHtml(assertionId) +
-            '">...</summary>' +
-            '<div class="ct-admin__action-menu-popover">' +
-            '<a class="ct-admin__action-menu-item" href="' +
-            escapeHtml(rawJsonHref) +
-            '" target="_blank" rel="noopener noreferrer">Open JSON-LD</a>' +
-            (canRevoke
-              ? '<button type="button" class="ct-admin__action-menu-item ct-admin__action-menu-item--danger" data-issued-action="revoke" data-assertion-id="' +
-                escapeHtml(assertionId) +
-                '">Revoke badge</button>'
-              : '') +
-            '</div>' +
-            '</details>' +
-            '</div>' +
+            renderIssuedBadgeActionsMarkup({
+              assertionId,
+              viewBadgeHref,
+              rawJsonHref,
+              canRevoke,
+            }) +
             '</div></td>' +
             '</tr>'
           );

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { IssuedBadgeActions, adminButtonClass } from "./admin/components";
 import { designSystemAdminPage } from "./admin/design-system-page";
 import { app } from "./index";
 import { pageAssetPath } from "./ui/page-assets";
@@ -36,6 +37,28 @@ describe("design token asset generation", () => {
 });
 
 describe("CredTrail UI styleguide", () => {
+  it("renders issued badge actions through the shared admin components", () => {
+    const renderable = IssuedBadgeActions({
+      assertionId: "sakai:abc-123",
+      viewBadgeHref: "/badges/sakai%3Aabc-123",
+      rawJsonHref: "/credentials/v1/sakai%3Aabc-123/jsonld",
+      canRevoke: true,
+    }) as { toString(): string };
+    const html = renderable.toString();
+
+    expect(adminButtonClass({ size: "tiny" })).toBe("ct-admin__button ct-admin__button--tiny");
+    expect(adminButtonClass({ variant: "secondary", size: "tiny" })).toBe(
+      "ct-admin__button ct-admin__button--tiny ct-admin__button--secondary",
+    );
+    expect(html).toContain('class="ct-admin__action-bar"');
+    expect(html).toContain('aria-label="Actions for assertion sakai:abc-123"');
+    expect(html).toContain('href="/badges/sakai%3Aabc-123"');
+    expect(html).toContain('data-issued-action="audit"');
+    expect(html).toContain("Open JSON-LD");
+    expect(html).toContain("Revoke badge");
+    expect(html).not.toContain("ct-admin__action-pill");
+  });
+
   it("renders the internal styleguide with the registered design-system asset", () => {
     const html = renderAppPageToString(designSystemAdminPage());
 
@@ -72,6 +95,8 @@ describe("CredTrail UI styleguide", () => {
 
     expect(INSTITUTION_ADMIN_CSS).not.toContain(legacyClass);
     expect(INSTITUTION_ADMIN_JS).not.toContain(legacyClass);
+    expect(INSTITUTION_ADMIN_JS).toContain("const renderIssuedBadgeActionsMarkup");
+    expect(INSTITUTION_ADMIN_JS).toContain("const adminButtonClass");
     expect(DESIGN_SYSTEM_CSS).not.toContain(legacyClass);
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__button");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__issued-actions .ct-admin__button");

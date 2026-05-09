@@ -1,0 +1,231 @@
+import type { PropsWithChildren } from "hono/jsx";
+import type { HtmlEscapedString } from "hono/utils/html";
+
+type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
+
+export type AdminButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type AdminButtonSize = "default" | "tiny";
+
+type ButtonType = "button" | "submit" | "reset";
+type DataAttributes = Partial<Record<`data-${string}`, string>>;
+
+export const adminButtonClass = (input?: {
+  variant?: AdminButtonVariant | undefined;
+  size?: AdminButtonSize | undefined;
+  extraClass?: string | undefined;
+}): string => {
+  const variant = input?.variant ?? "primary";
+  const size = input?.size ?? "default";
+  const classNames = ["ct-admin__button"];
+
+  if (size === "tiny") {
+    classNames.push("ct-admin__button--tiny");
+  }
+
+  if (variant !== "primary") {
+    classNames.push(`ct-admin__button--${variant}`);
+  }
+
+  if (input?.extraClass !== undefined && input.extraClass.trim().length > 0) {
+    classNames.push(input.extraClass.trim());
+  }
+
+  return classNames.join(" ");
+};
+
+export const AdminButton = ({
+  type = "button",
+  variant,
+  size,
+  disabled,
+  className,
+  ariaLabel,
+  dataAttributes,
+  children,
+}: PropsWithChildren<{
+  type?: ButtonType;
+  variant?: AdminButtonVariant;
+  size?: AdminButtonSize;
+  disabled?: boolean;
+  className?: string;
+  ariaLabel?: string;
+  dataAttributes?: DataAttributes;
+}>): HonoElement => {
+  return (
+    <button
+      type={type}
+      class={adminButtonClass({ variant, size, extraClass: className })}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      {...(dataAttributes ?? {})}
+    >
+      {children}
+    </button>
+  );
+};
+
+export const AdminButtonLink = ({
+  href,
+  variant,
+  size,
+  target,
+  rel,
+  className,
+  ariaLabel,
+  dataAttributes,
+  children,
+}: PropsWithChildren<{
+  href: string;
+  variant?: AdminButtonVariant;
+  size?: AdminButtonSize;
+  target?: "_blank";
+  rel?: string;
+  className?: string;
+  ariaLabel?: string;
+  dataAttributes?: DataAttributes;
+}>): HonoElement => {
+  return (
+    <a
+      class={adminButtonClass({ variant, size, extraClass: className })}
+      href={href}
+      target={target}
+      rel={rel}
+      aria-label={ariaLabel}
+      {...(dataAttributes ?? {})}
+    >
+      {children}
+    </a>
+  );
+};
+
+export const AdminActionBar = ({
+  ariaLabel,
+  children,
+}: PropsWithChildren<{
+  ariaLabel: string;
+}>): HonoElement => {
+  return (
+    <div class="ct-admin__action-bar" role="group" aria-label={ariaLabel}>
+      {children}
+    </div>
+  );
+};
+
+export const AdminActionMenu = ({
+  ariaLabel,
+  triggerLabel = "...",
+  children,
+}: PropsWithChildren<{
+  ariaLabel: string;
+  triggerLabel?: string;
+}>): HonoElement => {
+  return (
+    <details class="ct-admin__action-menu">
+      <summary
+        class={adminButtonClass({
+          variant: "secondary",
+          size: "tiny",
+          extraClass: "ct-admin__action-menu-trigger",
+        })}
+        aria-label={ariaLabel}
+      >
+        {triggerLabel}
+      </summary>
+      <div class="ct-admin__action-menu-popover">{children}</div>
+    </details>
+  );
+};
+
+export const AdminActionMenuLink = ({
+  href,
+  target,
+  rel,
+  tone,
+  dataAttributes,
+  children,
+}: PropsWithChildren<{
+  href: string;
+  target?: "_blank";
+  rel?: string;
+  tone?: "danger";
+  dataAttributes?: DataAttributes;
+}>): HonoElement => {
+  const className =
+    tone === "danger"
+      ? "ct-admin__action-menu-item ct-admin__action-menu-item--danger"
+      : "ct-admin__action-menu-item";
+
+  return (
+    <a class={className} href={href} target={target} rel={rel} {...(dataAttributes ?? {})}>
+      {children}
+    </a>
+  );
+};
+
+export const AdminActionMenuButton = ({
+  type = "button",
+  tone,
+  dataAttributes,
+  children,
+}: PropsWithChildren<{
+  type?: ButtonType;
+  tone?: "danger";
+  dataAttributes?: DataAttributes;
+}>): HonoElement => {
+  const className =
+    tone === "danger"
+      ? "ct-admin__action-menu-item ct-admin__action-menu-item--danger"
+      : "ct-admin__action-menu-item";
+
+  return (
+    <button type={type} class={className} {...(dataAttributes ?? {})}>
+      {children}
+    </button>
+  );
+};
+
+export const IssuedBadgeActions = (input: {
+  assertionId: string;
+  viewBadgeHref: string;
+  rawJsonHref: string;
+  canRevoke: boolean;
+}): HonoElement => {
+  return (
+    <AdminActionBar ariaLabel={`Actions for assertion ${input.assertionId}`}>
+      <AdminButtonLink
+        href={input.viewBadgeHref}
+        size="tiny"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Open
+      </AdminButtonLink>
+      <AdminButton
+        variant="secondary"
+        size="tiny"
+        dataAttributes={{
+          "data-issued-action": "audit",
+          "data-assertion-id": input.assertionId,
+        }}
+      >
+        Audit
+      </AdminButton>
+      <AdminActionMenu ariaLabel={`More actions for assertion ${input.assertionId}`}>
+        <AdminActionMenuLink href={input.rawJsonHref} target="_blank" rel="noopener noreferrer">
+          Open JSON-LD
+        </AdminActionMenuLink>
+        {input.canRevoke ? (
+          <AdminActionMenuButton
+            tone="danger"
+            dataAttributes={{
+              "data-issued-action": "revoke",
+              "data-assertion-id": input.assertionId,
+            }}
+          >
+            Revoke badge
+          </AdminActionMenuButton>
+        ) : null}
+      </AdminActionMenu>
+    </AdminActionBar>
+  );
+};
