@@ -2202,17 +2202,13 @@ describe("org unit and badge ownership governance endpoints", () => {
 
     expect(response.status).toBe(200);
     expect(html).toContain('class="ct-admin__reporting-presentation-note');
-    expect(html).toContain("Selected reporting slice");
-    expect(html).toContain(
-      "Highlights use smart defaults for the current reporting slice while preserving the same issue-date, badge, organization, and lifecycle selections behind every deep link.",
-    );
+    expect(html).toContain("Smart defaults active.");
+    expect(html).toContain("Current slice, visible org scope, and deep links stay aligned.");
     expect(html).toContain('class="ct-admin__reporting-primary-story');
     expect(html).toContain('class="ct-admin__reporting-highlight-grid');
     expect(html).toContain('class="ct-admin__reporting-deep-links');
-    expect(html.indexOf("Selected reporting slice")).toBeLessThan(
-      html.indexOf("Executive Summary"),
-    );
-    expect(html.indexOf("Trend lines")).toBeLessThan(
+    expect(html.indexOf("Smart defaults active.")).toBeLessThan(html.indexOf("Executive Summary"));
+    expect(html.indexOf("What happens after issuance")).toBeLessThan(
       html.indexOf('class="ct-admin__reporting-highlight-grid'),
     );
     expect(html).toContain("Computer Science Program");

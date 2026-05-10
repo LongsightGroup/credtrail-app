@@ -1647,38 +1647,41 @@ const renderInstitutionAdminPage = (
     <article class="ct-admin__panel ct-stack">
       <div class="ct-admin__reporting-summary-band">
         <div class="ct-admin__reporting-summary-layout">
-          <div class="ct-stack">
-            <div class="ct-cluster">
-              <div class="ct-stack">
-                <p class="ct-admin__eyebrow">Executive Summary</p>
-                <h2>Executive Summary</h2>
+          <div class="ct-admin__reporting-summary-main">
+            <div class="ct-stack">
+              <div class="ct-cluster">
+                <div class="ct-stack">
+                  <p class="ct-admin__eyebrow">KPI readout</p>
+                  <h2>Executive Summary</h2>
+                </div>
+                <span class="ct-admin__status-pill">KPI-first</span>
               </div>
-              <span class="ct-admin__status-pill">KPI-first</span>
+              <p class="ct-admin__reporting-summary-copy">
+                Current reporting slice shows{" "}
+                {formatReportingCount(
+                  reportingOverview?.counts.issued ?? reportingEngagementCounts?.issuedCount ?? 0,
+                )}{" "}
+                issued badges, {formatReportingRate(reportingEngagementCounts?.claimRate ?? 0)}{" "}
+                claim rate, {formatReportingRate(reportingEngagementCounts?.shareRate ?? 0)} share
+                rate, and{" "}
+                {formatReportingCount(reportingEngagementCounts?.publicBadgeViewCount ?? 0)} public
+                badge views.
+              </p>
             </div>
-            <p class="ct-admin__reporting-summary-copy">
-              Current reporting slice shows{" "}
-              {formatReportingCount(
-                reportingOverview?.counts.issued ?? reportingEngagementCounts?.issuedCount ?? 0,
-              )}{" "}
-              issued badges, {formatReportingRate(reportingEngagementCounts?.claimRate ?? 0)} claim
-              rate, {formatReportingRate(reportingEngagementCounts?.shareRate ?? 0)} share rate, and{" "}
-              {formatReportingCount(reportingEngagementCounts?.publicBadgeViewCount ?? 0)} public
-              badge views.
-            </p>
+            <div class="ct-admin__reporting-summary-metrics">
+              {reportingExecutiveSummaryMetrics.map((metric) => (
+                <article
+                  class="ct-admin__metric-card ct-admin__metric-card--reporting-summary ct-stack"
+                  data-reporting-summary-metric={metric.key}
+                >
+                  <p class="ct-admin__eyebrow">{metric.label}</p>
+                  <strong class="ct-admin__metric-value">{metric.value}</strong>
+                  <p class="ct-admin__hint">{metric.detail}</p>
+                </article>
+              ))}
+            </div>
           </div>
           {reportingSummaryMomentumMarkup}
-          <div class="ct-admin__reporting-summary-metrics">
-            {reportingExecutiveSummaryMetrics.map((metric) => (
-              <article
-                class="ct-admin__metric-card ct-admin__metric-card--reporting-summary ct-stack"
-                data-reporting-summary-metric={metric.key}
-              >
-                <p class="ct-admin__eyebrow">{metric.label}</p>
-                <strong class="ct-admin__metric-value">{metric.value}</strong>
-                <p class="ct-admin__hint">{metric.detail}</p>
-              </article>
-            ))}
-          </div>
         </div>
       </div>
       {reportingInsightCalloutsMarkup}
@@ -4284,14 +4287,13 @@ const renderInstitutionAdminPage = (
       class="ct-admin__reporting-presentation-note ct-stack"
       aria-label="Selected reporting slice note"
     >
-      <p class="ct-admin__eyebrow">Selected reporting slice</p>
       <p>
-        Highlights use smart defaults for the current reporting slice while preserving the same
-        issue-date, badge, organization, and lifecycle selections behind every deep link.
+        <strong>Smart defaults active.</strong> Current slice, visible org scope, and deep links
+        stay aligned.
       </p>
       <p class="ct-admin__hint">
-        Need all controls? <a href={reportingExploreHref}>Open Explore</a>. Need CSV files?{" "}
-        <a href={reportingExportsHref}>Open exports</a>.
+        <a href={reportingExploreHref}>Explore filters</a> ·{" "}
+        <a href={reportingTrendsHref}>Trend detail</a> · <a href={reportingExportsHref}>Exports</a>
       </p>
     </aside>
   );
@@ -5117,13 +5119,6 @@ const renderInstitutionAdminPage = (
             {renderPageHeader(
               "Reporting Highlights",
               "Start with smart-default rollups, current-scope drilldowns, and visually curated report modules before opening detailed reporting pages.",
-              <aside class="ct-admin-page-header__note">
-                <h2>Smart defaults</h2>
-                <p>
-                  The default report uses the current reporting window and visible org scope.
-                  Explore keeps the full filter and table workspace one level deeper.
-                </p>
-              </aside>,
             )}
             <section class="ct-admin ct-stack">
               <section class="ct-admin__reporting-presentation-shell ct-admin__reporting-presentation-shell--highlights ct-stack">
@@ -5132,10 +5127,8 @@ const renderInstitutionAdminPage = (
                   <section class="ct-admin__reporting-first-screen ct-stack">
                     {reportingExecutiveSummaryMarkup}
                   </section>
-                  {renderReportingTrendPanelMarkup({ includeDetailedTable: false })}
                   {reportingJourneyPanelMarkup}
                   <section class="ct-admin__reporting-highlight-grid">
-                    {reportingEngagementPanelMarkup}
                     {reportingTemplateHighlightsPanelMarkup}
                     {reportingOrgUnitHighlightsPanelMarkup}
                   </section>

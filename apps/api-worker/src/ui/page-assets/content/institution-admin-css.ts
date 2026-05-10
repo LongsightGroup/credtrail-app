@@ -934,6 +934,11 @@ export const INSTITUTION_ADMIN_CSS = `
   align-items: start;
   grid-template-columns: minmax(0, 0.95fr) minmax(20rem, 0.82fr);
 }
+.ct-admin__reporting-summary-main {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
 .ct-admin__reporting-summary-copy {
   margin: 0;
   max-width: 48rem;
@@ -999,11 +1004,9 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__reporting-summary-metrics {
   display: grid;
   gap: 0.75rem;
-  grid-column: 1 / -1;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .ct-admin__metric-card--reporting-summary {
-  min-height: 100%;
   border-color: rgba(15, 95, 166, 0.12);
   background: rgba(255, 255, 255, 0.84);
   box-shadow: none;
@@ -1062,23 +1065,27 @@ export const INSTITUTION_ADMIN_CSS = `
     rgba(255, 255, 255, 0.96);
 }
 .ct-admin__reporting-presentation-note {
-  display: grid;
-  gap: 0.65rem 1rem;
-  align-items: start;
-  grid-template-columns: minmax(11rem, 13rem) minmax(0, 1fr);
-  padding: 0.95rem 1rem;
-  border-radius: var(--ct-radius-lg);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.68rem 0.8rem;
+  border-radius: var(--ct-radius-md);
   border: 1px solid rgba(15, 95, 166, 0.12);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(246, 250, 255, 0.82)),
-    rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.78);
 }
-.ct-admin__reporting-presentation-note .ct-admin__eyebrow {
-  margin-bottom: 0;
-}
+.ct-admin__reporting-presentation-note p,
 .ct-admin__reporting-presentation-note p:last-child {
-  max-width: 60rem;
+  margin: 0;
+  max-width: none;
+  font-size: 0.84rem;
+  line-height: 1.4;
   color: var(--ct-theme-text-body);
+}
+.ct-admin__reporting-presentation-note .ct-admin__hint {
+  flex-shrink: 0;
+  color: var(--ct-theme-text-muted);
 }
 .ct-admin__reporting-primary-story,
 .ct-admin__reporting-secondary-story {
@@ -1125,7 +1132,7 @@ export const INSTITUTION_ADMIN_CSS = `
   display: grid;
   gap: 1rem;
   align-items: stretch;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .ct-admin__reporting-highlight-grid > * {
   min-width: 0;
@@ -1558,6 +1565,11 @@ export const INSTITUTION_ADMIN_CSS = `
   }
   .ct-admin__reporting-supporting-rail .ct-admin__panel {
     position: static;
+  }
+  .ct-admin__reporting-summary-feature,
+  .ct-admin__reporting-summary-metrics {
+    grid-column: auto;
+    grid-row: auto;
   }
   .ct-admin__reporting-summary-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));

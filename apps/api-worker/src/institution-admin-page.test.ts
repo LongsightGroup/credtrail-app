@@ -1400,8 +1400,6 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('data-reporting-visual-kind="journey-funnel"');
     expect(body).toContain('class="ct-admin__reporting-insight-grid"');
     expect(body).toContain("Smart defaults");
-    expect(body).toContain("Engagement Counts");
-    expect(body).toContain("Trend lines");
     expect(body).toContain("Top badge templates");
     expect(body).toContain("Top org units");
     expect(body).toContain("Open a visible reporting path");
@@ -1418,12 +1416,11 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting/exports');
     expect(body).toContain("14");
     expect(body.indexOf('data-reporting-summary-metric="issued"')).toBeLessThan(
-      body.indexOf("Trend lines"),
-    );
-    expect(body.indexOf('data-reporting-summary-metric="issued"')).toBeLessThan(
-      body.indexOf("Engagement Counts"),
+      body.indexOf("What happens after issuance"),
     );
     expect(body).not.toContain("Reporting Overview");
+    expect(body).not.toContain("Engagement Counts");
+    expect(body).not.toContain("Trend lines");
     expect(body).not.toContain("Metric Definitions");
     expect(body).not.toContain("<h2>Export CSV</h2>");
     expect(body).not.toContain("Phase 11 Scope");
@@ -1702,12 +1699,10 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('class="ct-admin__reporting-presentation-shell');
     expect(body).toContain("ct-admin__reporting-presentation-shell--highlights");
     expect(body).toContain('class="ct-admin__reporting-presentation-note');
-    expect(body).toContain("Selected reporting slice");
     expect(body).toContain('class="ct-admin__reporting-summary-feature"');
     expect(body).toContain("ct-admin__reporting-journey-panel");
-    expect(body).toContain(
-      "Highlights use smart defaults for the current reporting slice while preserving the same issue-date, badge, organization, and lifecycle selections behind every deep link.",
-    );
+    expect(body).toContain("Smart defaults active.");
+    expect(body).toContain("Current slice, visible org scope, and deep links stay aligned.");
     expect(body).toContain('class="ct-admin__reporting-primary-story');
     expect(body).toContain('class="ct-admin__reporting-first-screen');
     expect(body).toContain('class="ct-admin__reporting-highlight-grid');
@@ -1715,13 +1710,11 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("Top badge templates");
     expect(body).toContain("Top org units");
     expect(body).toContain("Open a visible reporting path");
-    expect(body.indexOf("Selected reporting slice")).toBeLessThan(
-      body.indexOf("Executive Summary"),
-    );
+    expect(body.indexOf("Smart defaults active.")).toBeLessThan(body.indexOf("Executive Summary"));
     expect(body.indexOf('class="ct-admin__reporting-first-screen')).toBeLessThan(
-      body.indexOf("Trend lines"),
+      body.indexOf("What happens after issuance"),
     );
-    expect(body.indexOf("Trend lines")).toBeLessThan(
+    expect(body.indexOf("What happens after issuance")).toBeLessThan(
       body.indexOf('class="ct-admin__reporting-highlight-grid'),
     );
     expect(body).not.toContain("demo mode");
@@ -1776,7 +1769,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     );
   });
 
-  it("renders a trend preview and links the detailed trend table to a sub-page", async () => {
+  it("keeps the trend preview embedded in Highlights and links detail through the compact scope bar", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -1791,21 +1784,19 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Trend lines");
-    expect(body).toContain('class="ct-admin__reporting-trend-hero"');
-    expect(body).toContain("Issuance over time");
-    expect(body).toContain("Daily issued badge counts for the selected filters.");
-    expect(body).toContain("Open trend detail for exact engagement counts.");
+    expect(body).toContain("90-day issuance momentum");
+    expect(body).toContain('data-reporting-visual-kind="trend-area"');
+    expect(body).toContain("Trend detail");
     expect(body).not.toContain("Chart-first read");
     expect(body).not.toContain("Read issued badge momentum first");
-    expect(body).toContain('class="ct-admin__reporting-trend-callouts"');
     expect(body).toContain("Peak day");
     expect(body).toContain("Latest day");
-    expect(body).toContain("Open trend detail");
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting/trends');
+    expect(body).not.toContain('class="ct-admin__reporting-trend-hero"');
+    expect(body).not.toContain("Open trend detail for exact engagement counts.");
     expect(body).not.toContain("Detailed trend table");
     expect(body).toContain("Public badge views");
-    expect(body).toContain("Wallet accepts");
+    expect(body).toContain("wallet accepts");
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting/exports');
     expect(body).not.toContain("<h2>Export CSV</h2>");
   });
