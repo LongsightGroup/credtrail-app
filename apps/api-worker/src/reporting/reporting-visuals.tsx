@@ -1,3 +1,5 @@
+import { scaleLinear } from "d3-scale";
+import { curveMonotoneX, line } from "d3-shape";
 import type { HtmlEscapedString } from "hono/utils/html";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -26,6 +28,14 @@ export interface ReportingVisualProps {
   headingLevel?: ReportingVisualHeadingLevel;
   summaryOverride?: string;
   seriesOrder?: "input" | "value-desc";
+}
+
+interface ReportingTrendPoint {
+  index: number;
+  x: number;
+  y: number;
+  label: string;
+  value: number;
 }
 
 const REPORTING_VISUAL_EMPTY_MESSAGE = "No reporting data available for this view yet.";
@@ -394,20 +404,26 @@ const renderTrendGraphic = (
   const chartWidth = REPORTING_VISUAL_WIDTH;
   const baseline = chartHeight - REPORTING_VISUAL_PADDING;
   const usableHeight = chartHeight - REPORTING_VISUAL_PADDING * 3;
-  const usableWidth = chartWidth - REPORTING_VISUAL_PADDING * 2;
-  const xStep = normalizedSeries.length === 1 ? 0 : usableWidth / (normalizedSeries.length - 1);
-  const points = normalizedSeries.map((point, index) => {
-    const x = REPORTING_VISUAL_PADDING + index * xStep;
-    const y = baseline - (normalizeValue(point.value) / maxValue) * usableHeight;
+  const maxIndex = Math.max(normalizedSeries.length - 1, 1);
+  const xScale = scaleLinear()
+    .domain([0, maxIndex])
+    .range([REPORTING_VISUAL_PADDING, chartWidth - REPORTING_VISUAL_PADDING]);
+  const yScale = scaleLinear()
+    .domain([0, maxValue])
+    .range([baseline, baseline - usableHeight]);
 
-    return {
-      index,
-      x,
-      y,
-      label: point.label,
-    };
-  });
-  const polyline = points.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ");
+  const points: ReportingTrendPoint[] = normalizedSeries.map((point, index) => ({
+    index,
+    x: normalizedSeries.length === 1 ? chartWidth / 2 : xScale(index),
+    y: yScale(normalizeValue(point.value)),
+    label: point.label,
+    value: normalizeValue(point.value),
+  }));
+  const trendPath =
+    line<ReportingTrendPoint>()
+      .x((point) => point.x)
+      .y((point) => point.y)
+      .curve(curveMonotoneX)(points) ?? "";
 
   return (
     <svg
@@ -425,7 +441,7 @@ const renderTrendGraphic = (
         x2={String(chartWidth - REPORTING_VISUAL_PADDING)}
         y2={String(baseline)}
       ></line>
-      <polyline class="ct-reporting-visual__trend-line" points={polyline}></polyline>
+      <path class="ct-reporting-visual__trend-line" d={trendPath}></path>
       {points.map((point) => (
         <g key={`${point.label}:${String(point.index)}`} class="ct-reporting-visual__point-group">
           <circle
