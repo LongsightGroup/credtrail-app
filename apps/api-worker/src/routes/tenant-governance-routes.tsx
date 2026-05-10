@@ -100,8 +100,11 @@ import {
   institutionAdminOperationsReviewQueuePage,
   institutionAdminOperationsPage,
   institutionAdminOrgUnitsPage,
+  institutionAdminReportingCustomPage,
   institutionAdminReportingExportsPage,
+  institutionAdminReportingExplorePage,
   institutionAdminReportingPage,
+  institutionAdminReportingSavedPage,
   institutionAdminReportingTrendsPage,
   institutionAdminRulesPage,
 } from "../admin/institution-admin-page";
@@ -123,6 +126,7 @@ import {
   toReportingOverviewFilters,
   toReportingTrendFilters,
 } from "../reporting/reporting-page-filters";
+import { applySmartReportingDefaults } from "../reporting/reporting-defaults";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";
 
 interface RegisterTenantGovernanceRoutesInput {
@@ -878,10 +882,7 @@ export const registerTenantGovernanceRoutes = (
             scopedRootOrgUnitIds,
           );
     const selectedOrgUnitId =
-      input.orgUnitId ??
-      (scopedRootOrgUnitIds.length === 0
-        ? undefined
-        : (reportingOrgUnitComparisons[0]?.groupId ?? scopedRootOrgUnitIds[0]));
+      input.orgUnitId ?? (scopedRootOrgUnitIds.length === 0 ? undefined : scopedRootOrgUnitIds[0]);
     const reportingPageFilters = {
       issuedFrom: input.issuedFrom,
       issuedTo: input.issuedTo,
@@ -1506,10 +1507,12 @@ export const registerTenantGovernanceRoutes = (
       return roleCheck;
     }
 
-    let reportingQuery;
+    let reportingQuery: ReturnType<typeof parseTenantReportingOverviewQuery>;
 
     try {
-      reportingQuery = parseTenantReportingOverviewQuery(c.req.query());
+      reportingQuery = applySmartReportingDefaults({
+        query: parseTenantReportingOverviewQuery(c.req.query()),
+      });
     } catch {
       return c.json(
         {
@@ -1600,6 +1603,16 @@ export const registerTenantGovernanceRoutes = (
     );
   });
 
+  app.get("/tenants/:tenantId/admin/reporting/explore", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    return renderReportingWorkspace(
+      c,
+      pathParams.tenantId,
+      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/explore`,
+      institutionAdminReportingExplorePage,
+    );
+  });
+
   app.get("/tenants/:tenantId/admin/reporting/trends", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
     return renderReportingWorkspace(
@@ -1607,6 +1620,26 @@ export const registerTenantGovernanceRoutes = (
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/trends`,
       institutionAdminReportingTrendsPage,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/reporting/saved", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    return renderReportingWorkspace(
+      c,
+      pathParams.tenantId,
+      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/saved`,
+      institutionAdminReportingSavedPage,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/reporting/custom", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    return renderReportingWorkspace(
+      c,
+      pathParams.tenantId,
+      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/custom`,
+      institutionAdminReportingCustomPage,
     );
   });
 

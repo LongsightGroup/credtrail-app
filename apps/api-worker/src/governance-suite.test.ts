@@ -1712,7 +1712,7 @@ describe("org unit and badge ownership governance endpoints", () => {
     });
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/reporting",
+      "/tenants/tenant_123/admin/reporting/explore?orgUnitId=tenant_123%3Aorg%3Aprogram-cs",
       {
         method: "GET",
         headers: {
@@ -1724,8 +1724,8 @@ describe("org unit and badge ownership governance endpoints", () => {
     const html = await response.text();
 
     expect(response.status).toBe(200);
+    expect(html).toContain("Reporting Explore");
     expect(html).toContain("Executive Summary");
-    expect(html).toContain("First read");
     expect(html).toContain('class="ct-admin__reporting-summary-band"');
     expect(html).toContain('class="ct-admin__reporting-summary-context"');
     expect(html).toContain('class="ct-admin__reporting-supporting-grid"');
@@ -1748,7 +1748,7 @@ describe("org unit and badge ownership governance endpoints", () => {
       'data-reporting-focus-root="reporting-hierarchy-focus-tenant_123%3Aorg%3Acollege-eng"',
     );
     expect(html).toContain(
-      'href="/tenants/tenant_123/admin/reporting#reporting-hierarchy-focus-tenant_123%3Aorg%3Acollege-eng"',
+      'href="/tenants/tenant_123/admin/reporting/explore#reporting-hierarchy-focus-tenant_123%3Aorg%3Acollege-eng"',
     );
     expect(html).toContain('aria-current="page">Computer Science</span>');
     expect(html).toContain('class="ct-admin__reporting-lower-story"');
@@ -1781,9 +1781,8 @@ describe("org unit and badge ownership governance endpoints", () => {
     ).toHaveLength(2);
     expect(html).toContain('data-reporting-bar-group="template-comparisons"');
     expect(html).toContain('data-reporting-bar-group="org-comparisons"');
-    expect(html).toContain(
-      'href="/tenants/tenant_123/admin/reporting/exports?orgUnitId=tenant_123%3Aorg%3Aprogram-cs"',
-    );
+    expect(html).toContain('href="/tenants/tenant_123/admin/reporting/exports?');
+    expect(html).toContain("orgUnitId=tenant_123%3Aorg%3Aprogram-cs");
     expect(html).not.toContain("<h2>Export CSV</h2>");
     expect(html.indexOf("Compare by badge template")).toBeLessThan(
       html.indexOf("Hierarchy drilldown"),
@@ -1800,7 +1799,7 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(html).not.toContain("6 public views · 33.3% claim · 16.7% share");
     expect(html).not.toContain('aria-current="page">History</span>');
     expect(html).not.toContain(
-      'href="/tenants/tenant_123/admin/reporting#reporting-hierarchy-focus-tenant_123%3Aorg%3Adepartment-history"',
+      'href="/tenants/tenant_123/admin/reporting/explore#reporting-hierarchy-focus-tenant_123%3Aorg%3Adepartment-history"',
     );
     expect(mockedListDelegatedIssuingAuthorityGrants).not.toHaveBeenCalled();
     expect(mockedListTenantApiKeys).not.toHaveBeenCalled();
@@ -2055,7 +2054,7 @@ describe("org unit and badge ownership governance endpoints", () => {
     });
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/reporting",
+      "/tenants/tenant_123/admin/reporting/explore?orgUnitId=tenant_123%3Aorg%3Aprogram-cs",
       {
         method: "GET",
         headers: {
@@ -2190,7 +2189,7 @@ describe("org unit and badge ownership governance endpoints", () => {
     });
 
     const response = await app.request(
-      seededDemo.routePath,
+      `${seededDemo.routePath}?orgUnitId=${encodeURIComponent(scopedSlice.orgUnitId)}`,
       {
         method: "GET",
         headers: {
@@ -2205,21 +2204,22 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(html).toContain('class="ct-admin__reporting-presentation-note');
     expect(html).toContain("Selected reporting slice");
     expect(html).toContain(
-      "Filters, exports, and drilldown links stay aligned with the visible issue-date, badge, organization, and lifecycle selections.",
+      "Highlights use smart defaults for the current reporting slice while preserving the same issue-date, badge, organization, and lifecycle selections behind every deep link.",
     );
     expect(html).toContain('class="ct-admin__reporting-primary-story');
-    expect(html).toContain('class="ct-admin__reporting-secondary-story');
+    expect(html).toContain('class="ct-admin__reporting-highlight-grid');
+    expect(html).toContain('class="ct-admin__reporting-deep-links');
     expect(html.indexOf("Selected reporting slice")).toBeLessThan(
       html.indexOf("Executive Summary"),
     );
-    expect(html.indexOf('class="ct-admin__reporting-supporting-grid')).toBeLessThan(
-      html.indexOf('class="ct-admin__reporting-secondary-story'),
+    expect(html.indexOf("Trend lines")).toBeLessThan(
+      html.indexOf('class="ct-admin__reporting-highlight-grid'),
     );
     expect(html).toContain("Computer Science Program");
     expect(html).toContain("TypeScript Foundations");
     expect(html).toContain("14 public views · 40.0% claim · 20.0% share");
     expect(html).toContain(
-      'href="/tenants/tenant_123/admin/reporting#reporting-hierarchy-focus-tenant_123%3Aorg%3Acollege-eng"',
+      'href="/tenants/tenant_123/admin/reporting/explore#reporting-hierarchy-focus-tenant_123%3Aorg%3Acollege-eng"',
     );
     expect(html).not.toContain("Chemistry Lab");
     expect(html).not.toContain("History");
@@ -2375,7 +2375,7 @@ describe("org unit and badge ownership governance endpoints", () => {
     });
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/reporting",
+      "/tenants/tenant_123/admin/reporting/explore",
       {
         method: "GET",
         headers: {

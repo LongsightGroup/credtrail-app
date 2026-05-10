@@ -21,6 +21,7 @@ import type {
 import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../ui/render-page";
 import type { ReportingMetricEntry } from "../reporting/metric-definitions";
+import { selectReportingHighlightRows } from "../reporting/reporting-highlights";
 import {
   buildReportingHierarchyQueryEntries,
   buildReportingPageQueryEntries,
@@ -257,7 +258,10 @@ type InstitutionAdminView =
   | "operationsIssuedBadges"
   | "operationsBadgeStatus"
   | "reporting"
+  | "reportingExplore"
   | "reportingTrends"
+  | "reportingSaved"
+  | "reportingCustom"
   | "reportingExports"
   | "rules"
   | "access"
@@ -361,7 +365,10 @@ const renderInstitutionAdminPage = (
   const operationsIssuedBadgesPath = `${operationsPath}/issued-badges`;
   const operationsBadgeStatusPath = `${operationsPath}/badge-status`;
   const reportingPath = `${tenantAdminPath}/reporting`;
+  const reportingExplorePath = `${reportingPath}/explore`;
   const reportingTrendsPath = `${reportingPath}/trends`;
+  const reportingSavedPath = `${reportingPath}/saved`;
+  const reportingCustomPath = `${reportingPath}/custom`;
   const reportingExportsPath = `${reportingPath}/exports`;
   const rulesWorkspacePath = `${tenantAdminPath}/rules`;
   const accessPath = `${tenantAdminPath}/access`;
@@ -699,7 +706,7 @@ const renderInstitutionAdminPage = (
       });
   };
   const buildReportingHierarchyDrillHref = (orgUnitId: string): string => {
-    return `${reportingPath}#${buildReportingHierarchyFocusId(orgUnitId)}`;
+    return `${reportingExplorePath}#${buildReportingHierarchyFocusId(orgUnitId)}`;
   };
   const renderReportingHierarchyRowLabel = (row: ReportingHierarchyRow): HonoElement => {
     const orgUnit = orgUnitById.get(row.orgUnitId);
@@ -1298,7 +1305,10 @@ const renderInstitutionAdminPage = (
     state: reportingState ?? undefined,
   });
   const reportingAggregateExportEntries = [...reportingPageQueryEntries] as const;
+  const reportingExploreHref = buildPathWithQuery(reportingExplorePath, reportingPageQueryEntries);
   const reportingTrendsHref = buildPathWithQuery(reportingTrendsPath, reportingPageQueryEntries);
+  const reportingSavedHref = buildPathWithQuery(reportingSavedPath, reportingPageQueryEntries);
+  const reportingCustomHref = buildPathWithQuery(reportingCustomPath, reportingPageQueryEntries);
   const reportingExportsHref = buildPathWithQuery(reportingExportsPath, reportingPageQueryEntries);
   const reportingOverviewExportHref = buildPathWithQuery(
     `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/overview/export.csv`,
@@ -1938,6 +1948,66 @@ const renderInstitutionAdminPage = (
             : {}),
           note: "The table below keeps the full row set with exact counts and rate definitions.",
         });
+  const reportingTemplateHighlightRows = selectReportingHighlightRows(reportingTemplateComparisons);
+  const reportingOrgUnitHighlightRows = selectReportingHighlightRows(reportingOrgUnitComparisons);
+  const renderReportingHighlightComparisonPanel = (input: {
+    actionHref: string;
+    exportHref: string;
+    emptyDescription: string;
+    emptyTitle: string;
+    eyebrow: string;
+    rows: readonly TenantReportingComparisonRowRecord[];
+    title: string;
+    totalRowCount: number;
+    visualDescription: string;
+    visualId: string;
+  }): HonoElement => {
+    const activeRowCount = input.rows.filter((row) => hasReportingActivity(row)).length;
+    const state = classifyReportingPanelState(activeRowCount);
+    const visualMarkup =
+      state === "empty"
+        ? renderReportingStateShell({
+            state: "empty",
+            eyebrow: input.eyebrow,
+            title: input.emptyTitle,
+            description: input.emptyDescription,
+          })
+        : renderReportingVisualModule({
+            kind: "comparison-ranked",
+            id: input.visualId,
+            title: input.title,
+            description: input.visualDescription,
+            series: buildReportingComparisonSeries(input.rows),
+            seriesOrder: "input",
+            note: `Top ${formatReportingCount(input.rows.length)} of ${formatReportingCount(
+              input.totalRowCount,
+            )} visible rows shown. Open Explore for the complete table and hierarchy context.`,
+          });
+
+    return (
+      <AdminPanel
+        className="ct-admin__reporting-highlight-panel"
+        dataAttributes={{ "data-reporting-state": state }}
+      >
+        <div class="ct-cluster">
+          <div class="ct-stack">
+            <p class="ct-admin__eyebrow">{input.eyebrow}</p>
+            <h2>{input.title}</h2>
+          </div>
+          <AdminStatusPill>{state === "rich" ? "Top rows" : "Current slice"}</AdminStatusPill>
+        </div>
+        {visualMarkup}
+        <div class="ct-admin__reporting-highlight-actions">
+          <AdminButtonLink href={input.actionHref} variant="secondary">
+            Open Explore
+          </AdminButtonLink>
+          <AdminButtonLink href={input.exportHref} variant="ghost">
+            Export CSV
+          </AdminButtonLink>
+        </div>
+      </AdminPanel>
+    );
+  };
   const reportingHierarchyRowsByLevel = new Map(
     REPORTING_HIERARCHY_LEVELS.map((level) => [
       level,
@@ -2900,11 +2970,29 @@ const renderInstitutionAdminPage = (
     {
       label: "Reporting",
       links: [
-        { href: reportingPath, label: "Overview", isCurrent: view === "reporting" },
+        { href: reportingPath, label: "Highlights", isCurrent: view === "reporting" },
+        {
+          href: reportingExplorePath,
+          label: "Explore",
+          isCurrent: view === "reportingExplore",
+          isSub: true,
+        },
         {
           href: reportingTrendsPath,
           label: "Trends",
           isCurrent: view === "reportingTrends",
+          isSub: true,
+        },
+        {
+          href: reportingSavedPath,
+          label: "Saved",
+          isCurrent: view === "reportingSaved",
+          isSub: true,
+        },
+        {
+          href: reportingCustomPath,
+          label: "Custom",
+          isCurrent: view === "reportingCustom",
           isSub: true,
         },
         {
@@ -3667,6 +3755,7 @@ const renderInstitutionAdminPage = (
   const renderReportingFiltersForm = (
     actionPath: string,
     formClass = "ct-admin__form ct-admin__form--inline ct-grid",
+    resetPath = actionPath,
   ): HonoElement => (
     <>
       <AdminForm
@@ -3718,7 +3807,7 @@ const renderInstitutionAdminPage = (
         </AdminField>
         <div class="ct-cluster">
           <AdminButton type="submit">Apply filters</AdminButton>
-          <AdminButtonLink href={reportingPath} variant="secondary">
+          <AdminButtonLink href={resetPath} variant="secondary">
             Reset
           </AdminButtonLink>
         </div>
@@ -3744,7 +3833,10 @@ const renderInstitutionAdminPage = (
         Filter by issue date, template, org unit, or current badge state. Counts reflect
         product-owned data only, and analytics stay in this reporting workspace.
       </p>
-      {renderReportingFiltersForm(reportingPath)}
+      {renderReportingFiltersForm(reportingExplorePath)}
+      <p class="ct-admin__hint">
+        Need CSV downloads for this slice? <a href={reportingExportsHref}>Open Exports</a>.
+      </p>
       <div class="ct-admin__reporting-panel-media">
         {reportingOverviewVisualMarkup}
         <div class="ct-admin__metric-grid">{reportingMetricCardsMarkup}</div>
@@ -3934,13 +4026,162 @@ const renderInstitutionAdminPage = (
     >
       <p class="ct-admin__eyebrow">Selected reporting slice</p>
       <p>
-        Filters, exports, and drilldown links stay aligned with the visible issue-date, badge,
-        organization, and lifecycle selections.
+        Highlights use smart defaults for the current reporting slice while preserving the same
+        issue-date, badge, organization, and lifecycle selections behind every deep link.
       </p>
       <p class="ct-admin__hint">
-        Need CSV files for this slice? <a href={reportingExportsHref}>Open exports</a>.
+        Need all controls? <a href={reportingExploreHref}>Open Explore</a>. Need CSV files?{" "}
+        <a href={reportingExportsHref}>Open exports</a>.
       </p>
     </aside>
+  );
+  const reportingTemplateHighlightsPanelMarkup = renderReportingHighlightComparisonPanel({
+    eyebrow: "Template performance",
+    title: "Top badge templates",
+    visualId: "reporting-highlights-templates",
+    visualDescription:
+      "Top issued badge templates for the selected reporting slice, with public views plus claim and share context carried beside each row.",
+    rows: reportingTemplateHighlightRows,
+    totalRowCount: reportingTemplateComparisons.length,
+    emptyTitle: "No template highlights are available for this slice yet.",
+    emptyDescription:
+      "Widen the date window or remove a filter in Explore to review badge-template performance.",
+    actionHref: reportingExploreHref,
+    exportHref: reportingTemplateComparisonExportHref,
+  });
+  const reportingOrgUnitHighlightsPanelMarkup = renderReportingHighlightComparisonPanel({
+    eyebrow: "Org performance",
+    title: "Top org units",
+    visualId: "reporting-highlights-org-units",
+    visualDescription:
+      "Top issued organization units for the selected reporting slice, scoped to the rows this user can see.",
+    rows: reportingOrgUnitHighlightRows,
+    totalRowCount: reportingOrgUnitComparisons.length,
+    emptyTitle: "No org-unit highlights are available for this slice yet.",
+    emptyDescription:
+      "Widen the date window or remove a filter in Explore to review org-unit performance.",
+    actionHref: reportingExploreHref,
+    exportHref: reportingOrgUnitComparisonExportHref,
+  });
+  const reportingDrilldownHighlightsPanelMarkup = (
+    <AdminPanel
+      className="ct-admin__reporting-highlight-panel"
+      dataAttributes={{ "data-reporting-state": reportingHierarchyState }}
+    >
+      <div class="ct-cluster">
+        <div class="ct-stack">
+          <p class="ct-admin__eyebrow">Scoped drilldowns</p>
+          <h2>Open a visible reporting path</h2>
+        </div>
+        <AdminStatusPill>{reportingVisibleRoots.length} roots</AdminStatusPill>
+      </div>
+      {reportingVisibleRoots.length === 0 ? (
+        renderReportingStateShell({
+          state: reportingHierarchyState === "empty" ? "empty" : "sparse",
+          eyebrow: "No drilldown path yet",
+          title: "Drilldowns appear when visible org-unit rows exist.",
+          description:
+            "The Highlights home keeps the selected slice stable; Explore will show hierarchy tables once comparable rows exist.",
+        })
+      ) : (
+        <>
+          <p>
+            Start from the highest visible reporting roots, then continue through Explore for exact
+            hierarchy tables and CSV context.
+          </p>
+          <div class="ct-admin__reporting-root-links">
+            {reportingVisibleRoots.map((rootOrgUnit) => (
+              <a
+                class="ct-admin__reporting-root-link"
+                href={buildReportingHierarchyDrillHref(rootOrgUnit.id)}
+                data-reporting-focus-link
+                data-reporting-root-link
+                data-reporting-focus-target={buildReportingHierarchyFocusId(rootOrgUnit.id)}
+              >
+                {rootOrgUnit.displayName}
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+      <div class="ct-admin__reporting-highlight-actions">
+        <AdminButtonLink href={reportingExploreHref} variant="secondary">
+          Open hierarchy
+        </AdminButtonLink>
+      </div>
+    </AdminPanel>
+  );
+  const reportingDeepLinksMarkup = (
+    <section class="ct-admin__reporting-deep-links" aria-label="Advanced reporting links">
+      <a href={reportingExploreHref}>
+        <span>Explore</span>
+        <strong>Filters, tables, and hierarchy</strong>
+      </a>
+      <a href={reportingTrendsHref}>
+        <span>Trends</span>
+        <strong>Daily counts behind the chart</strong>
+      </a>
+      <a href={reportingSavedHref}>
+        <span>Saved</span>
+        <strong>Curated report shortcuts</strong>
+      </a>
+      <a href={reportingCustomHref}>
+        <span>Custom</span>
+        <strong>Custom report builder path</strong>
+      </a>
+      <a href={reportingExportsHref}>
+        <span>Exports</span>
+        <strong>CSV downloads for this slice</strong>
+      </a>
+    </section>
+  );
+  const reportingSavedReportsPanelMarkup = (
+    <AdminPanel className="ct-admin__reporting-placeholder-panel">
+      <div class="ct-cluster">
+        <div class="ct-stack">
+          <p class="ct-admin__eyebrow">Saved reports</p>
+          <h2>Saved reports will keep curated shortcuts here.</h2>
+        </div>
+        <AdminStatusPill>Planned</AdminStatusPill>
+      </div>
+      <p>
+        This route is reserved for named reports that preserve a reporting slice, audience, and
+        export intent. For now, use Highlights for the default read and Explore for the exact table
+        workspace.
+      </p>
+      <div class="ct-admin__reporting-highlight-actions">
+        <AdminButtonLink href={reportingPath} variant="secondary">
+          Open Highlights
+        </AdminButtonLink>
+        <AdminButtonLink href={reportingExploreHref} variant="ghost">
+          Open Explore
+        </AdminButtonLink>
+      </div>
+    </AdminPanel>
+  );
+  const reportingCustomReportsPanelMarkup = (
+    <AdminPanel className="ct-admin__reporting-placeholder-panel">
+      <div class="ct-cluster">
+        <div class="ct-stack">
+          <p class="ct-admin__eyebrow">Custom reports</p>
+          <h2>Custom reports will live behind this deeper path.</h2>
+        </div>
+        <AdminStatusPill>Planned</AdminStatusPill>
+      </div>
+      <p>
+        This route keeps custom reporting out of the default home until report builders and custom
+        export profiles are persisted. Current filters still travel through Explore, Trends, and
+        Exports.
+      </p>
+      <div class="ct-admin__reporting-highlight-actions">
+        <AdminButtonLink href={reportingExploreHref} variant="secondary">
+          Build from Explore
+        </AdminButtonLink>
+        <AdminButtonLink href={reportingExportsHref} variant="ghost">
+          Open Exports
+        </AdminButtonLink>
+      </div>
+    </AdminPanel>
   );
   const reportingLowerStoryMarkup = (
     <section class="ct-admin__reporting-lower-story" aria-label="Reporting lower-page story">
@@ -4500,22 +4741,28 @@ const renderInstitutionAdminPage = (
                 : view === "operationsBadgeStatus"
                   ? `Badge Status · Institution Admin · ${input.tenant.displayName}`
                   : view === "reporting"
-                    ? `Reporting Overview · Institution Admin · ${input.tenant.displayName}`
-                    : view === "reportingTrends"
-                      ? `Trend Detail · Reporting · Institution Admin · ${input.tenant.displayName}`
-                      : view === "reportingExports"
-                        ? `Reporting Exports · Institution Admin · ${input.tenant.displayName}`
-                        : view === "rules"
-                          ? `Rules · Institution Admin · ${input.tenant.displayName}`
-                          : view === "access"
-                            ? `Access · Institution Admin · ${input.tenant.displayName}`
-                            : view === "accessMembers"
-                              ? `Members · Institution Admin · ${input.tenant.displayName}`
-                              : view === "accessGovernance"
-                                ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
-                                : view === "accessApiKeys"
-                                  ? `API Keys · Institution Admin · ${input.tenant.displayName}`
-                                  : `Org Units · Institution Admin · ${input.tenant.displayName}`;
+                    ? `Reporting Highlights · Institution Admin · ${input.tenant.displayName}`
+                    : view === "reportingExplore"
+                      ? `Reporting Explore · Institution Admin · ${input.tenant.displayName}`
+                      : view === "reportingTrends"
+                        ? `Trend Detail · Reporting · Institution Admin · ${input.tenant.displayName}`
+                        : view === "reportingSaved"
+                          ? `Saved Reports · Reporting · Institution Admin · ${input.tenant.displayName}`
+                          : view === "reportingCustom"
+                            ? `Custom Reports · Reporting · Institution Admin · ${input.tenant.displayName}`
+                            : view === "reportingExports"
+                              ? `Reporting Exports · Institution Admin · ${input.tenant.displayName}`
+                              : view === "rules"
+                                ? `Rules · Institution Admin · ${input.tenant.displayName}`
+                                : view === "access"
+                                  ? `Access · Institution Admin · ${input.tenant.displayName}`
+                                  : view === "accessMembers"
+                                    ? `Members · Institution Admin · ${input.tenant.displayName}`
+                                    : view === "accessGovernance"
+                                      ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
+                                      : view === "accessApiKeys"
+                                        ? `API Keys · Institution Admin · ${input.tenant.displayName}`
+                                        : `Org Units · Institution Admin · ${input.tenant.displayName}`;
 
   const viewContent = (() => {
     switch (view) {
@@ -4608,19 +4855,45 @@ const renderInstitutionAdminPage = (
         return (
           <>
             {renderPageHeader(
-              "Reporting Overview",
-              "Start with the executive summary, selected filters, and high-level engagement before opening detailed reporting pages.",
+              "Reporting Highlights",
+              "Start with smart-default rollups, current-scope drilldowns, and visually curated report modules before opening detailed reporting pages.",
               <aside class="ct-admin-page-header__note">
-                <h2>First read</h2>
+                <h2>Smart defaults</h2>
                 <p>
-                  Confirm the selected slice and use the executive summary before moving into trend
-                  detail or supporting tables.
+                  The default report uses the current reporting window and visible org scope.
+                  Explore keeps the full filter and table workspace one level deeper.
                 </p>
               </aside>,
             )}
             <section class="ct-admin ct-stack">
-              <section class="ct-admin__reporting-presentation-shell ct-stack">
+              <section class="ct-admin__reporting-presentation-shell ct-admin__reporting-presentation-shell--highlights ct-stack">
                 {reportingPresentationNoteMarkup}
+                <section class="ct-admin__reporting-primary-story ct-stack">
+                  <section class="ct-admin__reporting-first-screen ct-stack">
+                    {reportingExecutiveSummaryMarkup}
+                  </section>
+                  {renderReportingTrendPanelMarkup({ includeDetailedTable: false })}
+                  <section class="ct-admin__reporting-highlight-grid">
+                    {reportingEngagementPanelMarkup}
+                    {reportingTemplateHighlightsPanelMarkup}
+                    {reportingOrgUnitHighlightsPanelMarkup}
+                  </section>
+                  {reportingDrilldownHighlightsPanelMarkup}
+                  {reportingDeepLinksMarkup}
+                </section>
+              </section>
+            </section>
+          </>
+        );
+      case "reportingExplore":
+        return (
+          <>
+            {renderPageHeader(
+              "Reporting Explore",
+              "Use the full reporting workspace for exact filters, supporting tables, hierarchy drilldowns, and metric definitions.",
+            )}
+            <section class="ct-admin ct-stack">
+              <section class="ct-admin__reporting-presentation-shell ct-stack">
                 <section class="ct-admin__reporting-primary-story ct-stack">
                   <section class="ct-admin__reporting-first-screen ct-stack">
                     {reportingExecutiveSummaryMarkup}
@@ -4651,6 +4924,26 @@ const renderInstitutionAdminPage = (
               {reportingTrendFiltersPanelMarkup}
               {renderReportingTrendPanelMarkup({ includeDetailedTable: true })}
             </section>
+          </>
+        );
+      case "reportingSaved":
+        return (
+          <>
+            {renderPageHeader(
+              "Saved Reports",
+              "Keep saved reporting shortcuts behind a deeper route so Highlights stays simple by default.",
+            )}
+            <section class="ct-admin ct-stack">{reportingSavedReportsPanelMarkup}</section>
+          </>
+        );
+      case "reportingCustom":
+        return (
+          <>
+            {renderPageHeader(
+              "Custom Reports",
+              "Custom report and export builders stay one level deeper than the default reporting home.",
+            )}
+            <section class="ct-admin ct-stack">{reportingCustomReportsPanelMarkup}</section>
           </>
         );
       case "reportingExports":
@@ -4833,8 +5126,20 @@ export const institutionAdminReportingPage = (input: InstitutionAdminPageInput):
   return renderInstitutionAdminPage(input, "reporting");
 };
 
+export const institutionAdminReportingExplorePage = (input: InstitutionAdminPageInput): AppPage => {
+  return renderInstitutionAdminPage(input, "reportingExplore");
+};
+
 export const institutionAdminReportingTrendsPage = (input: InstitutionAdminPageInput): AppPage => {
   return renderInstitutionAdminPage(input, "reportingTrends");
+};
+
+export const institutionAdminReportingSavedPage = (input: InstitutionAdminPageInput): AppPage => {
+  return renderInstitutionAdminPage(input, "reportingSaved");
+};
+
+export const institutionAdminReportingCustomPage = (input: InstitutionAdminPageInput): AppPage => {
+  return renderInstitutionAdminPage(input, "reportingCustom");
 };
 
 export const institutionAdminReportingExportsPage = (input: InstitutionAdminPageInput): AppPage => {

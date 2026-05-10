@@ -696,13 +696,13 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__reporting-summary-band {
   display: grid;
   gap: 1rem;
-  padding: 1.2rem;
+  padding: clamp(1.1rem, 2vw, 1.55rem);
   border-radius: var(--ct-radius-lg);
-  border: 1px solid rgba(15, 95, 166, 0.14);
+  border: 1px solid rgba(15, 95, 166, 0.2);
   background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(238, 246, 255, 0.94)),
+    linear-gradient(142deg, rgba(255, 255, 255, 0.98), rgba(232, 243, 255, 0.94) 54%, rgba(246, 240, 222, 0.86)),
     rgba(255, 255, 255, 0.96);
-  box-shadow: var(--ct-shadow-soft);
+  box-shadow: 0 18px 42px rgba(7, 26, 49, 0.1);
 }
 .ct-admin__reporting-summary-layout {
   display: grid;
@@ -745,6 +745,13 @@ export const INSTITUTION_ADMIN_CSS = `
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 247, 255, 0.92)),
     rgba(255, 255, 255, 0.96);
   box-shadow: var(--ct-shadow-soft);
+}
+.ct-admin__reporting-presentation-shell--highlights {
+  gap: 1.15rem;
+  border-color: rgba(15, 95, 166, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(239, 247, 255, 0.94) 42%, rgba(247, 250, 253, 0.98)),
+    rgba(255, 255, 255, 0.96);
 }
 .ct-admin__reporting-presentation-note {
   display: grid;
@@ -805,6 +812,76 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin__reporting-supporting-grid > * {
   min-width: 0;
+}
+.ct-admin__reporting-highlight-grid {
+  display: grid;
+  gap: 1rem;
+  align-items: stretch;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.ct-admin__reporting-highlight-grid > * {
+  min-width: 0;
+}
+.ct-admin__reporting-highlight-panel {
+  border-color: rgba(15, 95, 166, 0.16);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(244, 249, 255, 0.9)),
+    var(--ct-theme-surface-card-strong);
+}
+.ct-admin__reporting-highlight-panel .ct-reporting-visual {
+  border-color: rgba(15, 95, 166, 0.14);
+}
+.ct-admin__reporting-highlight-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+.ct-admin__reporting-deep-links {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.ct-admin__reporting-deep-links a {
+  display: grid;
+  gap: 0.28rem;
+  min-height: 5.25rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: var(--ct-radius-md);
+  border: 1px solid rgba(15, 95, 166, 0.14);
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--ct-theme-text-title);
+  text-decoration: none;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+.ct-admin__reporting-deep-links a:hover {
+  border-color: rgba(15, 95, 166, 0.28);
+  background: rgba(238, 246, 255, 0.92);
+  box-shadow: 0 10px 24px rgba(7, 26, 49, 0.08);
+  transform: translateY(-1px);
+}
+.ct-admin__reporting-deep-links a:focus-visible {
+  outline: 2px solid rgba(15, 95, 166, 0.36);
+  outline-offset: 3px;
+}
+.ct-admin__reporting-deep-links span {
+  color: var(--ct-theme-text-subtle);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ct-admin__reporting-deep-links strong {
+  color: var(--ct-theme-text-title);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+.ct-admin__reporting-placeholder-panel {
+  max-width: 52rem;
 }
 .ct-admin__reporting-supporting-rail {
   display: grid;
@@ -1127,6 +1204,7 @@ export const INSTITUTION_ADMIN_CSS = `
     gap: 0.6rem;
   }
   .ct-admin__reporting-supporting-grid,
+  .ct-admin__reporting-highlight-grid,
   .ct-admin__reporting-panel-media,
   .ct-admin__reporting-focus-summary-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -1142,9 +1220,11 @@ export const INSTITUTION_ADMIN_CSS = `
   .ct-admin__reporting-trend-hero,
   .ct-admin__reporting-summary-layout,
   .ct-admin__reporting-supporting-grid,
+  .ct-admin__reporting-highlight-grid,
   .ct-admin__reporting-panel-media,
   .ct-admin__reporting-visual-grid,
-  .ct-admin__reporting-performer-grid {
+  .ct-admin__reporting-performer-grid,
+  .ct-admin__reporting-deep-links {
     grid-template-columns: minmax(0, 1fr);
   }
   .ct-admin__reporting-supporting-rail .ct-admin__panel {

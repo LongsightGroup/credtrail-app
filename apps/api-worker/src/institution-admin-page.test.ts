@@ -1369,7 +1369,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).not.toContain('style="');
   });
 
-  it("renders an executive summary band before the deeper reporting sections", async () => {
+  it("renders a curated Highlights home before deeper reporting sections", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -1384,34 +1384,42 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Reporting");
+    expect(body).toContain("Reporting Highlights");
     expect(body).toContain("Executive Summary");
     expect(body).toContain('class="ct-admin__reporting-summary-band"');
+    expect(body).toContain(
+      'class="ct-admin__reporting-presentation-shell ct-admin__reporting-presentation-shell--highlights',
+    );
     expect(body).toContain('data-reporting-summary-metric="issued"');
     expect(body).toContain('data-reporting-summary-metric="claim-rate"');
     expect(body).toContain('data-reporting-summary-metric="share-rate"');
     expect(body).toContain('data-reporting-summary-metric="public-badge-views"');
-    expect(body).toContain("First read");
-    expect(body).toContain("Reporting Overview");
+    expect(body).toContain("Smart defaults");
     expect(body).toContain("Engagement Counts");
     expect(body).toContain("Trend lines");
-    expect(body).toContain("Compare by badge template");
-    expect(body).toContain("Compare by org unit");
-    expect(body).toContain("Metric Definitions");
-    expect(body).toContain("Raw counts show event totals");
-    expect(body).toContain("Rates use distinct engaged assertions");
+    expect(body).toContain("Top badge templates");
+    expect(body).toContain("Top org units");
+    expect(body).toContain("Open a visible reporting path");
+    expect(body).toContain("Explore");
+    expect(body).toContain("Saved");
+    expect(body).toContain("Custom");
     expect(body).toContain("Public badge views");
     expect(body).toContain("35.7");
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/explore');
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting/trends');
+    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/saved');
+    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/custom');
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting/exports');
     expect(body).toContain("14");
     expect(body.indexOf('data-reporting-summary-metric="issued"')).toBeLessThan(
-      body.indexOf("<h2>Reporting Overview</h2>"),
+      body.indexOf("Trend lines"),
     );
     expect(body.indexOf('data-reporting-summary-metric="issued"')).toBeLessThan(
       body.indexOf("Engagement Counts"),
     );
+    expect(body).not.toContain("Reporting Overview");
+    expect(body).not.toContain("Metric Definitions");
     expect(body).not.toContain("<h2>Export CSV</h2>");
     expect(body).not.toContain("Phase 11 Scope");
     expect(body).not.toContain("Manual Issue Badge");
@@ -1502,6 +1510,79 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("Generated Mar 21, 2026, 12:00 PM");
   });
 
+  it("applies smart last-90-day and scoped-root defaults when reporting query params are absent", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-10T12:00:00.000Z"));
+
+    try {
+      const env = createEnv();
+      mockedFindTenantMembership.mockResolvedValue(sampleMembership("issuer"));
+      mockedListTenantMembershipOrgUnitScopes.mockResolvedValue([
+        {
+          tenantId: "tenant_123",
+          userId: "usr_admin",
+          orgUnitId: "tenant_123:org:college-eng",
+          role: "issuer",
+          createdByUserId: "usr_admin",
+          createdAt: "2026-02-18T12:00:00.000Z",
+          updatedAt: "2026-02-18T12:30:00.000Z",
+        },
+      ]);
+      mockedGetTenantReportingOverviewDb.mockImplementationOnce(async (_db, input) => {
+        return {
+          tenantId: "tenant_123",
+          filters: {
+            issuedFrom: input.issuedFrom ?? null,
+            issuedTo: input.issuedTo ?? null,
+            badgeTemplateId: input.badgeTemplateId ?? null,
+            orgUnitId: input.orgUnitId ?? null,
+            state: input.state ?? null,
+          },
+          counts: {
+            issued: 14,
+            active: 12,
+            suspended: 1,
+            revoked: 1,
+            pendingReview: 1,
+          },
+          generatedAt: "2026-03-21T12:00:00.000Z",
+        };
+      });
+
+      const response = await app.request(
+        "/tenants/tenant_123/admin/reporting",
+        {
+          headers: {
+            Cookie: "better-auth.session_token=session-token",
+          },
+        },
+        env,
+      );
+      const body = await response.text();
+
+      expect(response.status).toBe(200);
+      expect(body).toContain("Feb 10 to May 10");
+      expect(body).toContain("College of Engineering");
+      expect(mockedGetTenantReportingOverviewDb).toHaveBeenCalledWith(fakeDb, {
+        tenantId: "tenant_123",
+        issuedFrom: "2026-02-10",
+        issuedTo: "2026-05-10",
+        badgeTemplateId: undefined,
+        orgUnitId: "tenant_123:org:college-eng",
+        state: undefined,
+      });
+      expect(mockedGetTenantReportingEngagementCountsDb).toHaveBeenCalledWith(fakeDb, {
+        tenantId: "tenant_123",
+        from: "2026-02-10",
+        to: "2026-05-10",
+        badgeTemplateId: undefined,
+        orgUnitId: "tenant_123:org:college-eng",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("renders aggregate export links that preserve the current reporting filters", async () => {
     const env = createEnv();
     mockedGetTenantReportingOverviewDb.mockImplementationOnce(async (_db, input) => {
@@ -1560,7 +1641,45 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).not.toContain('href="/v1/tenants/tenant_123/assertions/ledger-export.csv"');
   });
 
-  it("adds presentation-fit reporting wrappers without changing the real reporting story", async () => {
+  it("renders saved and custom reporting placeholders behind deeper routes", async () => {
+    const env = createEnv();
+
+    const savedResponse = await app.request(
+      "/tenants/tenant_123/admin/reporting/saved?issuedFrom=2026-03-01&issuedTo=2026-03-31",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const savedBody = await savedResponse.text();
+    const customResponse = await app.request(
+      "/tenants/tenant_123/admin/reporting/custom?issuedFrom=2026-03-01&issuedTo=2026-03-31",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const customBody = await customResponse.text();
+
+    expect(savedResponse.status).toBe(200);
+    expect(savedBody).toContain("Saved Reports");
+    expect(savedBody).toContain("Saved reports will keep curated shortcuts here.");
+    expect(savedBody).toContain("Planned");
+    expect(savedBody).toContain('href="/tenants/tenant_123/admin/reporting/explore');
+    expect(savedBody).not.toContain("Reporting Overview");
+    expect(customResponse.status).toBe(200);
+    expect(customBody).toContain("Custom Reports");
+    expect(customBody).toContain("Custom reports will live behind this deeper path.");
+    expect(customBody).toContain("Planned");
+    expect(customBody).toContain('href="/tenants/tenant_123/admin/reporting/exports');
+    expect(customBody).not.toContain("Reporting Overview");
+  });
+
+  it("adds presentation-fit reporting wrappers around the Highlights story", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -1576,17 +1695,19 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain('class="ct-admin__reporting-presentation-shell');
+    expect(body).toContain("ct-admin__reporting-presentation-shell--highlights");
     expect(body).toContain('class="ct-admin__reporting-presentation-note');
     expect(body).toContain("Selected reporting slice");
     expect(body).toContain(
-      "Filters, exports, and drilldown links stay aligned with the visible issue-date, badge, organization, and lifecycle selections.",
+      "Highlights use smart defaults for the current reporting slice while preserving the same issue-date, badge, organization, and lifecycle selections behind every deep link.",
     );
     expect(body).toContain('class="ct-admin__reporting-primary-story');
-    expect(body).toContain('class="ct-admin__reporting-secondary-story');
     expect(body).toContain('class="ct-admin__reporting-first-screen');
-    expect(body).toContain('class="ct-admin__reporting-supporting-grid');
-    expect(body).toContain('class="ct-admin__reporting-lower-story"');
-    expect(body).toContain("Metric Definitions");
+    expect(body).toContain('class="ct-admin__reporting-highlight-grid');
+    expect(body).toContain('class="ct-admin__reporting-deep-links');
+    expect(body).toContain("Top badge templates");
+    expect(body).toContain("Top org units");
+    expect(body).toContain("Open a visible reporting path");
     expect(body.indexOf("Selected reporting slice")).toBeLessThan(
       body.indexOf("Executive Summary"),
     );
@@ -1594,13 +1715,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
       body.indexOf("Trend lines"),
     );
     expect(body.indexOf("Trend lines")).toBeLessThan(
-      body.indexOf('class="ct-admin__reporting-supporting-grid'),
-    );
-    expect(body.indexOf('class="ct-admin__reporting-supporting-grid')).toBeLessThan(
-      body.indexOf('class="ct-admin__reporting-secondary-story'),
-    );
-    expect(body.indexOf('class="ct-admin__reporting-secondary-story')).toBeLessThan(
-      body.indexOf("Metric Definitions"),
+      body.indexOf('class="ct-admin__reporting-highlight-grid'),
     );
     expect(body).not.toContain("demo mode");
     expect(body).not.toContain("presentation-only");
@@ -1610,7 +1725,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     const env = createEnv();
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/reporting?issuedFrom=2026-03-01&issuedTo=2026-03-31",
+      "/tenants/tenant_123/admin/reporting/explore?issuedFrom=2026-03-01&issuedTo=2026-03-31",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -1632,7 +1747,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("Public badge views");
     expect(body).toContain("Claim rate");
     expect(body).toContain('id="reporting-filters-form"');
-    expect(body).toContain('method="get" action="/tenants/tenant_123/admin/reporting"');
+    expect(body).toContain('method="get" action="/tenants/tenant_123/admin/reporting/explore"');
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting/exports');
     expect(body).not.toContain("Overview CSV");
   });
@@ -1643,7 +1758,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
       ".ct-admin__reporting-presentation-shell,\n  .ct-admin__reporting-secondary-story {\n    gap: 0.9rem;",
     );
     expect(INSTITUTION_ADMIN_CSS).toContain(
-      ".ct-admin__reporting-supporting-grid,\n  .ct-admin__reporting-panel-media,\n  .ct-admin__reporting-focus-summary-grid {\n    grid-template-columns: minmax(0, 1fr);",
+      ".ct-admin__reporting-supporting-grid,\n  .ct-admin__reporting-highlight-grid,\n  .ct-admin__reporting-panel-media,\n  .ct-admin__reporting-focus-summary-grid {\n    grid-template-columns: minmax(0, 1fr);",
     );
     expect(INSTITUTION_ADMIN_CSS).toContain(
       ".ct-admin__reporting-presentation-note {\n    gap: 0.6rem;",
@@ -1768,7 +1883,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     mockedGetTenantReportingComparisonsDb.mockResolvedValueOnce([]);
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/reporting?issuedFrom=2026-03-01&issuedTo=2026-03-31",
+      "/tenants/tenant_123/admin/reporting/explore?issuedFrom=2026-03-01&issuedTo=2026-03-31",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -1887,7 +2002,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     });
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/reporting?issuedFrom=2026-03-01&issuedTo=2026-03-31",
+      "/tenants/tenant_123/admin/reporting/explore?issuedFrom=2026-03-01&issuedTo=2026-03-31",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -1932,7 +2047,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     const env = createEnv();
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/reporting",
+      "/tenants/tenant_123/admin/reporting/explore",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -1965,7 +2080,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     const env = createEnv();
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/reporting",
+      "/tenants/tenant_123/admin/reporting/explore",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -2273,7 +2388,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     );
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/reporting?issuedFrom=2026-03-01&issuedTo=2026-03-31",
+      "/tenants/tenant_123/admin/reporting/explore?issuedFrom=2026-03-01&issuedTo=2026-03-31",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -2340,7 +2455,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     });
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/reporting?issuedFrom=2026-03-01&issuedTo=2026-03-31",
+      "/tenants/tenant_123/admin/reporting/explore?issuedFrom=2026-03-01&issuedTo=2026-03-31",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -2361,7 +2476,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('aria-label="Reporting hierarchy breadcrumb"');
     expect(body).toContain('class="ct-admin__reporting-breadcrumb-list"');
     expect(body).toContain(
-      'href="/tenants/tenant_123/admin/reporting#reporting-hierarchy-focus-tenant_123%3Aorg%3Ainstitution"',
+      'href="/tenants/tenant_123/admin/reporting/explore#reporting-hierarchy-focus-tenant_123%3Aorg%3Ainstitution"',
     );
     expect(body).toContain('aria-current="page">College of Engineering</span>');
     expect(body).toContain('aria-current="page">Computer Science</span>');
@@ -2380,10 +2495,10 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     );
     expect(body).not.toContain("Institution / College of Engineering");
     expect(body).toContain(
-      'href="/tenants/tenant_123/admin/reporting#reporting-hierarchy-focus-tenant_123%3Aorg%3Acollege-eng"',
+      'href="/tenants/tenant_123/admin/reporting/explore#reporting-hierarchy-focus-tenant_123%3Aorg%3Acollege-eng"',
     );
     expect(body).toContain(
-      'href="/tenants/tenant_123/admin/reporting#reporting-hierarchy-focus-tenant_123%3Aorg%3Adepartment-cs"',
+      'href="/tenants/tenant_123/admin/reporting/explore#reporting-hierarchy-focus-tenant_123%3Aorg%3Adepartment-cs"',
     );
     expect(body).toContain(
       'href="/v1/tenants/tenant_123/reporting/hierarchy/export.csv?issuedFrom=2026-03-01&amp;issuedTo=2026-03-31&amp;focusOrgUnitId=tenant_123%3Aorg%3Acollege-eng&amp;level=department"',
@@ -2397,7 +2512,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     const env = createEnv();
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/reporting",
+      "/tenants/tenant_123/admin/reporting/explore",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
