@@ -1,5 +1,5 @@
 import { scaleLinear } from "d3-scale";
-import { curveMonotoneX, line } from "d3-shape";
+import { area, curveMonotoneX, line } from "d3-shape";
 import type { HtmlEscapedString } from "hono/utils/html";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -7,7 +7,9 @@ type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 export type ReportingVisualKind =
   | "comparison-bars"
   | "comparison-ranked"
+  | "journey-funnel"
   | "stacked-summary"
+  | "trend-area"
   | "trend-series";
 export type ReportingVisualHeadingLevel = "h3" | "h4";
 
@@ -125,6 +127,10 @@ const buildLegendDetail = (
     return `${((normalizeValue(point.value) / maxValue) * 100).toFixed(1)}% of max`;
   }
 
+  if (input.kind === "journey-funnel" && totalValue > 0) {
+    return `${((normalizeValue(point.value) / totalValue) * 100).toFixed(1)}% of listed signals`;
+  }
+
   return null;
 };
 
@@ -148,6 +154,24 @@ const buildSummaryText = (
     const lowestPoint = sortedSeries[sortedSeries.length - 1] ?? highestPoint;
 
     return `${highestPoint.label} peaks at ${formatValue(highestPoint.value)} while ${lowestPoint.label} sits at ${formatValue(lowestPoint.value)}.`;
+  }
+
+  if (input.kind === "trend-area") {
+    const startPoint = normalizedSeries[0] ?? highestPoint;
+    const latestPoint = normalizedSeries[normalizedSeries.length - 1] ?? highestPoint;
+
+    return `${startPoint.label} starts at ${formatValue(startPoint.value)}; ${latestPoint.label} is now ${formatValue(latestPoint.value)} with a peak of ${formatValue(highestPoint.value)}.`;
+  }
+
+  if (input.kind === "journey-funnel") {
+    const firstPoint = normalizedSeries[0] ?? highestPoint;
+    const finalPoint = normalizedSeries[normalizedSeries.length - 1] ?? highestPoint;
+    const finalShare =
+      firstPoint.value > 0
+        ? ` (${((finalPoint.value / firstPoint.value) * 100).toFixed(1)}% of the first signal)`
+        : "";
+
+    return `${firstPoint.label} records ${formatValue(firstPoint.value)}; ${finalPoint.label} records ${formatValue(finalPoint.value)}${finalShare}.`;
   }
 
   if (input.kind === "comparison-ranked") {
@@ -201,7 +225,11 @@ const renderLegend = (
   totalValue: number,
   maxValue: number,
 ): HonoElement | null => {
-  if (input.kind === "comparison-ranked") {
+  if (
+    input.kind === "comparison-ranked" ||
+    input.kind === "journey-funnel" ||
+    input.kind === "trend-area"
+  ) {
     return null;
   }
 
@@ -266,6 +294,7 @@ const renderComparisonRankedGraphic = (
               data-reporting-visual-index={String(index)}
             >
               <div class="ct-reporting-visual__comparison-ranked-head">
+                <span class="ct-reporting-visual__comparison-ranked-rank">{String(index + 1)}</span>
                 <span class="ct-reporting-visual__comparison-ranked-label">{point.label}</span>
                 <strong class="ct-reporting-visual__comparison-ranked-value">
                   {formatValue(point.value)}
@@ -394,31 +423,43 @@ const renderStackedGraphic = (
   );
 };
 
+const buildTrendPoints = (input: {
+  chartHeight: number;
+  chartWidth: number;
+  normalizedSeries: readonly ReportingVisualSeriesPoint[];
+}): { baseline: number; points: ReportingTrendPoint[]; usableHeight: number } => {
+  const maxValue = Math.max(
+    ...input.normalizedSeries.map((point) => normalizeValue(point.value)),
+    1,
+  );
+  const baseline = input.chartHeight - REPORTING_VISUAL_PADDING;
+  const usableHeight = input.chartHeight - REPORTING_VISUAL_PADDING * 3;
+  const maxIndex = Math.max(input.normalizedSeries.length - 1, 1);
+  const xScale = scaleLinear()
+    .domain([0, maxIndex])
+    .range([REPORTING_VISUAL_PADDING, input.chartWidth - REPORTING_VISUAL_PADDING]);
+  const yScale = scaleLinear()
+    .domain([0, maxValue])
+    .range([baseline, baseline - usableHeight]);
+  const points = input.normalizedSeries.map((point, index) => ({
+    index,
+    x: input.normalizedSeries.length === 1 ? input.chartWidth / 2 : xScale(index),
+    y: yScale(normalizeValue(point.value)),
+    label: point.label,
+    value: normalizeValue(point.value),
+  }));
+
+  return { baseline, points, usableHeight };
+};
+
 const renderTrendGraphic = (
   normalizedSeries: readonly ReportingVisualSeriesPoint[],
   titleId: string,
   descriptionIds: string,
 ): HonoElement => {
-  const maxValue = Math.max(...normalizedSeries.map((point) => normalizeValue(point.value)), 1);
   const chartHeight = 160;
   const chartWidth = REPORTING_VISUAL_WIDTH;
-  const baseline = chartHeight - REPORTING_VISUAL_PADDING;
-  const usableHeight = chartHeight - REPORTING_VISUAL_PADDING * 3;
-  const maxIndex = Math.max(normalizedSeries.length - 1, 1);
-  const xScale = scaleLinear()
-    .domain([0, maxIndex])
-    .range([REPORTING_VISUAL_PADDING, chartWidth - REPORTING_VISUAL_PADDING]);
-  const yScale = scaleLinear()
-    .domain([0, maxValue])
-    .range([baseline, baseline - usableHeight]);
-
-  const points: ReportingTrendPoint[] = normalizedSeries.map((point, index) => ({
-    index,
-    x: normalizedSeries.length === 1 ? chartWidth / 2 : xScale(index),
-    y: yScale(normalizeValue(point.value)),
-    label: point.label,
-    value: normalizeValue(point.value),
-  }));
+  const { baseline, points } = buildTrendPoints({ chartHeight, chartWidth, normalizedSeries });
   const trendPath =
     line<ReportingTrendPoint>()
       .x((point) => point.x)
@@ -453,6 +494,134 @@ const renderTrendGraphic = (
         </g>
       ))}
     </svg>
+  );
+};
+
+const renderTrendAreaGraphic = (
+  normalizedSeries: readonly ReportingVisualSeriesPoint[],
+  titleId: string,
+  descriptionIds: string,
+): HonoElement => {
+  const chartHeight = 122;
+  const chartWidth = REPORTING_VISUAL_WIDTH;
+  const { baseline, points, usableHeight } = buildTrendPoints({
+    chartHeight,
+    chartWidth,
+    normalizedSeries,
+  });
+  const trendPath =
+    line<ReportingTrendPoint>()
+      .x((point) => point.x)
+      .y((point) => point.y)
+      .curve(curveMonotoneX)(points) ?? "";
+  const areaPath =
+    area<ReportingTrendPoint>()
+      .x((point) => point.x)
+      .y0(baseline)
+      .y1((point) => point.y)
+      .curve(curveMonotoneX)(points) ?? "";
+  const peakPoint =
+    [...points].sort((left, right) => {
+      if (right.value !== left.value) {
+        return right.value - left.value;
+      }
+
+      return left.index - right.index;
+    })[0] ?? points[0];
+  const latestPoint = points[points.length - 1] ?? peakPoint;
+  const guideY = baseline - usableHeight * 0.5;
+
+  return (
+    <svg
+      class="ct-reporting-visual__graphic ct-reporting-visual__graphic--area"
+      viewBox={`0 0 ${String(chartWidth)} ${String(chartHeight)}`}
+      role="img"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionIds}
+    >
+      <desc>Momentum area chart; the text summary lists start, latest, and peak values.</desc>
+      <line
+        class="ct-reporting-visual__guide"
+        x1={String(REPORTING_VISUAL_PADDING)}
+        y1={guideY.toFixed(2)}
+        x2={String(chartWidth - REPORTING_VISUAL_PADDING)}
+        y2={guideY.toFixed(2)}
+      ></line>
+      <line
+        class="ct-reporting-visual__baseline"
+        x1={String(REPORTING_VISUAL_PADDING)}
+        y1={String(baseline)}
+        x2={String(chartWidth - REPORTING_VISUAL_PADDING)}
+        y2={String(baseline)}
+      ></line>
+      <path class="ct-reporting-visual__trend-area" d={areaPath}></path>
+      <path class="ct-reporting-visual__trend-line" d={trendPath}></path>
+      {peakPoint === undefined ? null : (
+        <circle
+          class="ct-reporting-visual__point ct-reporting-visual__point--peak"
+          cx={peakPoint.x.toFixed(2)}
+          cy={peakPoint.y.toFixed(2)}
+          r="4.5"
+        ></circle>
+      )}
+      {latestPoint === undefined ? null : (
+        <circle
+          class="ct-reporting-visual__point ct-reporting-visual__point--latest"
+          cx={latestPoint.x.toFixed(2)}
+          cy={latestPoint.y.toFixed(2)}
+          r="4.5"
+        ></circle>
+      )}
+    </svg>
+  );
+};
+
+const renderJourneyFunnelGraphic = (
+  normalizedSeries: readonly ReportingVisualSeriesPoint[],
+  titleId: string,
+  descriptionIds: string,
+): HonoElement => {
+  const maxValue = Math.max(...normalizedSeries.map((point) => normalizeValue(point.value)), 1);
+
+  return (
+    <div
+      class="ct-reporting-visual__journey-funnel"
+      role="img"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionIds}
+    >
+      <ol class="ct-reporting-visual__journey-list">
+        {normalizedSeries.map((point, index) => {
+          const width =
+            normalizeValue(point.value) === 0 ? 0 : Math.max((point.value / maxValue) * 100, 10);
+
+          return (
+            <li
+              key={`${point.label}:${String(index)}`}
+              class="ct-reporting-visual__journey-item"
+              data-reporting-visual-index={String(index)}
+            >
+              <div class="ct-reporting-visual__journey-head">
+                <span class="ct-reporting-visual__journey-step">{String(index + 1)}</span>
+                <span class="ct-reporting-visual__journey-label">{point.label}</span>
+                <strong class="ct-reporting-visual__journey-value">
+                  {formatValue(point.value)}
+                </strong>
+              </div>
+              <div class="ct-reporting-visual__journey-track" aria-hidden="true">
+                <span
+                  class={`ct-reporting-visual__journey-fill ct-reporting-visual__journey-fill--${String(index % 4)}`}
+                  style={`width:${width.toFixed(2)}%`}
+                ></span>
+              </div>
+              {point.detail === undefined || point.detail.trim().length === 0 ? null : (
+                <span class="ct-reporting-visual__journey-detail">{point.detail}</span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 };
 
@@ -539,8 +708,12 @@ const renderGraphic = (
       return renderComparisonRankedGraphic(input, normalizedSeries, titleId, descriptionIds);
     case "comparison-bars":
       return renderComparisonGraphic(normalizedSeries, titleId, descriptionIds);
+    case "journey-funnel":
+      return renderJourneyFunnelGraphic(normalizedSeries, titleId, descriptionIds);
     case "stacked-summary":
       return renderStackedGraphic(normalizedSeries, titleId, descriptionIds);
+    case "trend-area":
+      return renderTrendAreaGraphic(normalizedSeries, titleId, descriptionIds);
     case "trend-series":
       return renderTrendGraphic(normalizedSeries, titleId, descriptionIds);
   }

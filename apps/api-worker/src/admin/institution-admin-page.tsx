@@ -545,7 +545,13 @@ const renderInstitutionAdminPage = (
     emptyMessage?: string;
     headingLevel?: "h3" | "h4";
     id?: string;
-    kind: "comparison-bars" | "comparison-ranked" | "stacked-summary" | "trend-series";
+    kind:
+      | "comparison-bars"
+      | "comparison-ranked"
+      | "journey-funnel"
+      | "stacked-summary"
+      | "trend-area"
+      | "trend-series";
     note?: string;
     series: readonly ReportingVisualSeriesPoint[];
     seriesOrder?: "input" | "value-desc";
@@ -1384,6 +1390,196 @@ const renderInstitutionAdminPage = (
     reportingOverview === null
       ? "Generated just now"
       : `Generated ${formatIsoTimestamp(reportingOverview.generatedAt)}`;
+  const reportingTrendSeries = reportingTrends?.series ?? [];
+  const reportingTrendActivityRowCount = reportingTrendSeries.filter((row) =>
+    hasReportingActivity(row),
+  ).length;
+  const reportingTrendState = classifyReportingPanelState(reportingTrendActivityRowCount);
+  const reportingTrendStartRow = reportingTrendSeries[0] ?? null;
+  const reportingTrendLatestRow =
+    reportingTrendSeries[reportingTrendSeries.length - 1] ?? reportingTrendStartRow;
+  const reportingTrendPeakRow =
+    reportingTrendSeries.reduce<TenantReportingTrendRecord["series"][number] | null>(
+      (highestRow, row) => {
+        if (highestRow === null || row.issuedCount > highestRow.issuedCount) {
+          return row;
+        }
+
+        return highestRow;
+      },
+      null,
+    ) ?? reportingTrendLatestRow;
+  const reportingMomentumDelta =
+    reportingTrendStartRow === null || reportingTrendLatestRow === null
+      ? null
+      : reportingTrendLatestRow.issuedCount - reportingTrendStartRow.issuedCount;
+  const reportingMomentumDeltaLabel =
+    reportingMomentumDelta === null
+      ? "No trend delta yet"
+      : reportingMomentumDelta === 0
+        ? "No change from start"
+        : `${reportingMomentumDelta > 0 ? "+" : ""}${formatReportingCount(
+            reportingMomentumDelta,
+          )} from start`;
+  const reportingMomentumVisualMarkup =
+    reportingTrendSeries.length === 0
+      ? null
+      : renderReportingVisualModule({
+          kind: "trend-area",
+          id: "reporting-highlights-momentum",
+          headingLevel: "h4",
+          title: "90-day issuance momentum",
+          description:
+            "Area trend for the default reporting window, generated from the same daily issued counts used in Trend Detail.",
+          series: reportingTrendSeries.map((row) => ({
+            label: formatReportingDateLabel(row.bucketStart),
+            value: row.issuedCount,
+            detail: `${formatReportingCount(row.publicBadgeViewCount)} public views · ${formatReportingCount(row.walletAcceptCount)} wallet accepts`,
+          })),
+          ...(reportingTrendStartRow === null ||
+          reportingTrendLatestRow === null ||
+          reportingTrendPeakRow === null
+            ? {}
+            : {
+                summaryOverride: `${reportingMomentumDeltaLabel}. Peak was ${formatReportingCount(
+                  reportingTrendPeakRow.issuedCount,
+                )} on ${formatReportingDateLabel(reportingTrendPeakRow.bucketStart)}; latest is ${formatReportingCount(
+                  reportingTrendLatestRow.issuedCount,
+                )} on ${formatReportingDateLabel(reportingTrendLatestRow.bucketStart)}.`,
+              }),
+        });
+  const reportingSummaryMomentumMarkup = (
+    <section class="ct-admin__reporting-summary-feature" aria-label="Issuance momentum">
+      {reportingMomentumVisualMarkup ?? (
+        <div class="ct-admin__reporting-summary-feature-empty ct-stack">
+          <p class="ct-admin__eyebrow">90-day momentum</p>
+          <h3>No issuance trend yet</h3>
+          <p class="ct-admin__hint">
+            The summary becomes visual once the selected reporting slice has daily issued badge
+            counts.
+          </p>
+        </div>
+      )}
+      <dl class="ct-admin__reporting-summary-feature-stats">
+        <div>
+          <dt>Latest day</dt>
+          <dd>
+            {reportingTrendLatestRow === null
+              ? "No activity"
+              : `${formatReportingCount(
+                  reportingTrendLatestRow.issuedCount,
+                )} on ${formatReportingDateLabel(reportingTrendLatestRow.bucketStart)}`}
+          </dd>
+        </div>
+        <div>
+          <dt>Peak day</dt>
+          <dd>
+            {reportingTrendPeakRow === null
+              ? "No activity"
+              : `${formatReportingCount(
+                  reportingTrendPeakRow.issuedCount,
+                )} on ${formatReportingDateLabel(reportingTrendPeakRow.bucketStart)}`}
+          </dd>
+        </div>
+      </dl>
+    </section>
+  );
+  const selectTopReportingComparisonRow = (
+    rows: readonly TenantReportingComparisonRowRecord[],
+  ): TenantReportingComparisonRowRecord | null => {
+    return (
+      rows
+        .filter((row) => hasReportingActivity(row))
+        .sort((left, right) => {
+          if (right.issuedCount !== left.issuedCount) {
+            return right.issuedCount - left.issuedCount;
+          }
+
+          return getReportingComparisonLabel(left).localeCompare(
+            getReportingComparisonLabel(right),
+          );
+        })[0] ?? null
+    );
+  };
+  const buildReportingIssuedShareLabel = (
+    row: TenantReportingComparisonRowRecord,
+    rows: readonly TenantReportingComparisonRowRecord[],
+  ): string => {
+    const totalIssued = rows.reduce((sum, item) => sum + item.issuedCount, 0);
+
+    if (totalIssued <= 0) {
+      return `${formatReportingCount(row.issuedCount)} issued`;
+    }
+
+    return `${formatReportingRate((row.issuedCount / totalIssued) * 100)} of visible issued volume`;
+  };
+  const reportingTopTemplateRow = selectTopReportingComparisonRow(reportingTemplateComparisons);
+  const reportingTopOrgUnitRow = selectTopReportingComparisonRow(reportingOrgUnitComparisons);
+  const reportingClaimRateLeader =
+    [...reportingTemplateComparisons, ...reportingOrgUnitComparisons]
+      .filter((row) => row.issuedCount >= REPORTING_RATE_MIN_ISSUED)
+      .sort((left, right) => {
+        if (right.claimRate !== left.claimRate) {
+          return right.claimRate - left.claimRate;
+        }
+
+        if (right.issuedCount !== left.issuedCount) {
+          return right.issuedCount - left.issuedCount;
+        }
+
+        return getReportingComparisonLabel(left).localeCompare(getReportingComparisonLabel(right));
+      })[0] ?? null;
+  const reportingInsightItems: Array<{
+    detail: string;
+    eyebrow: string;
+    metric: string;
+    title: string;
+  }> = [];
+
+  if (reportingTopTemplateRow !== null) {
+    reportingInsightItems.push({
+      eyebrow: "Template signal",
+      metric: formatReportingCount(reportingTopTemplateRow.issuedCount),
+      title: getReportingComparisonLabel(reportingTopTemplateRow),
+      detail: buildReportingIssuedShareLabel(reportingTopTemplateRow, reportingTemplateComparisons),
+    });
+  }
+
+  if (reportingTopOrgUnitRow !== null) {
+    reportingInsightItems.push({
+      eyebrow: "Org signal",
+      metric: formatReportingCount(reportingTopOrgUnitRow.issuedCount),
+      title: getReportingComparisonLabel(reportingTopOrgUnitRow),
+      detail: buildReportingIssuedShareLabel(reportingTopOrgUnitRow, reportingOrgUnitComparisons),
+    });
+  }
+
+  if (reportingClaimRateLeader !== null) {
+    reportingInsightItems.push({
+      eyebrow: "Engagement signal",
+      metric: formatReportingRate(reportingClaimRateLeader.claimRate),
+      title: getReportingComparisonLabel(reportingClaimRateLeader),
+      detail: `${formatReportingCount(
+        reportingClaimRateLeader.issuedCount,
+      )} issued badges at or above the rate threshold`,
+    });
+  }
+
+  const reportingInsightCalloutsMarkup =
+    reportingInsightItems.length === 0 ? null : (
+      <section class="ct-admin__reporting-insight-grid" aria-label="Reporting insight callouts">
+        {reportingInsightItems.map((item) => (
+          <article class="ct-admin__reporting-insight-card ct-stack">
+            <p class="ct-admin__eyebrow">{item.eyebrow}</p>
+            <div class="ct-admin__reporting-insight-card-main">
+              <strong>{item.metric}</strong>
+              <span>{item.title}</span>
+            </div>
+            <p class="ct-admin__hint">{item.detail}</p>
+          </article>
+        ))}
+      </section>
+    );
   const reportingSummaryContextItems = [
     {
       label: "Issued window",
@@ -1470,6 +1666,7 @@ const renderInstitutionAdminPage = (
               badge views.
             </p>
           </div>
+          {reportingSummaryMomentumMarkup}
           <div class="ct-admin__reporting-summary-metrics">
             {reportingExecutiveSummaryMetrics.map((metric) => (
               <article
@@ -1484,6 +1681,7 @@ const renderInstitutionAdminPage = (
           </div>
         </div>
       </div>
+      {reportingInsightCalloutsMarkup}
       <section class="ct-admin__reporting-summary-context" aria-label="Current slice">
         <div class="ct-stack">
           <div class="ct-cluster">
@@ -1670,6 +1868,72 @@ const renderInstitutionAdminPage = (
         })}
       </div>
     );
+  const reportingJourneyVisualMarkup =
+    reportingEngagementCounts === null
+      ? renderReportingStateShell({
+          state: "empty",
+          eyebrow: "No journey yet",
+          title: "Credential journey signals appear once engagement counts are available.",
+          description:
+            "The Highlights home keeps this module ready for public views, claim actions, sharing, and verification signals.",
+        })
+      : renderReportingVisualModule({
+          kind: "journey-funnel",
+          id: "reporting-highlights-credential-journey",
+          title: "Credential journey",
+          description:
+            "A post-issuance signal path from issued badges through public visibility, learner action, sharing, and verification.",
+          series: [
+            {
+              label: "Issued",
+              value: reportingEngagementCounts.issuedCount,
+              detail: "Badges issued in the selected reporting slice.",
+            },
+            {
+              label: "Public viewed",
+              value: reportingEngagementCounts.publicBadgeViewCount,
+              detail: "CredTrail-owned public badge page views.",
+            },
+            {
+              label: "Claimed or accepted",
+              value:
+                reportingEngagementCounts.learnerClaimCount +
+                reportingEngagementCounts.walletAcceptCount,
+              detail: `${formatReportingCount(
+                reportingEngagementCounts.learnerClaimCount,
+              )} claim actions · ${formatReportingCount(
+                reportingEngagementCounts.walletAcceptCount,
+              )} wallet accepts`,
+            },
+            {
+              label: "Shared",
+              value: reportingEngagementCounts.shareClickCount,
+              detail: "Outbound share actions routed through CredTrail.",
+            },
+            {
+              label: "Verified",
+              value: reportingEngagementCounts.verificationViewCount,
+              detail: "Successful verification responses served by CredTrail.",
+            },
+          ] as const,
+          note: "Signals are product-owned event totals, so this reads as a demo-friendly journey rather than a unique-user conversion funnel.",
+        });
+  const reportingJourneyPanelMarkup = (
+    <AdminPanel className="ct-admin__reporting-journey-panel">
+      <div class="ct-cluster">
+        <div class="ct-stack">
+          <p class="ct-admin__eyebrow">Credential journey</p>
+          <h2>What happens after issuance</h2>
+        </div>
+        <AdminStatusPill>Demo story</AdminStatusPill>
+      </div>
+      <p>
+        Issuance is only the first signal. This module turns downstream public views, learner
+        action, sharing, and verification into a single story for leadership demos.
+      </p>
+      {reportingJourneyVisualMarkup}
+    </AdminPanel>
+  );
   const reportingOverviewVisualMarkup =
     reportingOverview === null
       ? null
@@ -1702,10 +1966,6 @@ const renderInstitutionAdminPage = (
           ] as const,
           note: "Cards below retain the exact lifecycle counts used for reporting review and export parity.",
         });
-  const reportingTrendActivityRowCount =
-    reportingTrends?.series.filter((row) => hasReportingActivity(row)).length ?? 0;
-  const reportingTrendState = classifyReportingPanelState(reportingTrendActivityRowCount);
-  const reportingTrendSeries = reportingTrends?.series ?? [];
   const reportingTrendVisualMarkup =
     reportingTrendSeries.length === 0
       ? ""
@@ -4873,6 +5133,7 @@ const renderInstitutionAdminPage = (
                     {reportingExecutiveSummaryMarkup}
                   </section>
                   {renderReportingTrendPanelMarkup({ includeDetailedTable: false })}
+                  {reportingJourneyPanelMarkup}
                   <section class="ct-admin__reporting-highlight-grid">
                     {reportingEngagementPanelMarkup}
                     {reportingTemplateHighlightsPanelMarkup}

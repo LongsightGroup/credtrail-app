@@ -1394,6 +1394,11 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('data-reporting-summary-metric="claim-rate"');
     expect(body).toContain('data-reporting-summary-metric="share-rate"');
     expect(body).toContain('data-reporting-summary-metric="public-badge-views"');
+    expect(body).toContain("90-day issuance momentum");
+    expect(body).toContain('data-reporting-visual-kind="trend-area"');
+    expect(body).toContain("What happens after issuance");
+    expect(body).toContain('data-reporting-visual-kind="journey-funnel"');
+    expect(body).toContain('class="ct-admin__reporting-insight-grid"');
     expect(body).toContain("Smart defaults");
     expect(body).toContain("Engagement Counts");
     expect(body).toContain("Trend lines");
@@ -1698,6 +1703,8 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("ct-admin__reporting-presentation-shell--highlights");
     expect(body).toContain('class="ct-admin__reporting-presentation-note');
     expect(body).toContain("Selected reporting slice");
+    expect(body).toContain('class="ct-admin__reporting-summary-feature"');
+    expect(body).toContain("ct-admin__reporting-journey-panel");
     expect(body).toContain(
       "Highlights use smart defaults for the current reporting slice while preserving the same issue-date, badge, organization, and lifecycle selections behind every deep link.",
     );
@@ -1759,6 +1766,10 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     );
     expect(INSTITUTION_ADMIN_CSS).toContain(
       ".ct-admin__reporting-supporting-grid,\n  .ct-admin__reporting-highlight-grid,\n  .ct-admin__reporting-panel-media,\n  .ct-admin__reporting-focus-summary-grid {\n    grid-template-columns: minmax(0, 1fr);",
+    );
+    expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__reporting-insight-grid");
+    expect(INSTITUTION_ADMIN_CSS).toContain(
+      ".ct-admin__reporting-journey-panel .ct-reporting-visual__journey-list",
     );
     expect(INSTITUTION_ADMIN_CSS).toContain(
       ".ct-admin__reporting-presentation-note {\n    gap: 0.6rem;",

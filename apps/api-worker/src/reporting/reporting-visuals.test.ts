@@ -84,6 +84,46 @@ describe("renderReporting", () => {
     expect(html).toContain("8 public views");
   });
 
+  it("renders compact trend-area visuals with an area path and peak/latest markers", () => {
+    const html = renderReportingString({
+      kind: "trend-area",
+      title: "90-day issuance momentum",
+      description: "Issued badges for the default reporting window.",
+      series: [
+        { label: "Mar 1", value: 3 },
+        { label: "Mar 2", value: 8 },
+        { label: "Mar 3", value: 5 },
+      ],
+    });
+
+    expect(html).toContain('data-reporting-visual-kind="trend-area"');
+    expect(html).toContain('class="ct-reporting-visual__trend-area"');
+    expect(html).toContain('class="ct-reporting-visual__point ct-reporting-visual__point--peak"');
+    expect(html).toContain('class="ct-reporting-visual__point ct-reporting-visual__point--latest"');
+    expect(html).toContain("Mar 1 starts at 3; Mar 3 is now 5 with a peak of 8.");
+    expect(html).not.toContain("Legend");
+  });
+
+  it("renders journey-funnel visuals as staged post-issuance signal rows", () => {
+    const html = renderReportingString({
+      kind: "journey-funnel",
+      title: "Credential journey",
+      description: "Signals after issuance.",
+      series: [
+        { label: "Issued", value: 30, detail: "Badges issued." },
+        { label: "Public viewed", value: 18, detail: "Public page views." },
+        { label: "Verified", value: 6, detail: "Verification responses." },
+      ],
+    });
+
+    expect(html).toContain('data-reporting-visual-kind="journey-funnel"');
+    expect(html).toContain('class="ct-reporting-visual__journey-list"');
+    expect(html).toContain('class="ct-reporting-visual__journey-step"');
+    expect(html).toContain("Issued records 30; Verified records 6 (20.0% of the first signal).");
+    expect(html).toContain("Public page views.");
+    expect(html).not.toContain("Legend");
+  });
+
   it("renders comparison-ranked visuals with top-five emphasis and adjacent rate detail", () => {
     const html = renderReportingString({
       kind: "comparison-ranked" as unknown as Parameters<typeof renderReporting>[0]["kind"],
@@ -125,6 +165,7 @@ describe("renderReporting", () => {
 
     expect(html).toContain('data-reporting-visual-kind="comparison-ranked"');
     expect(html).toContain('class="ct-reporting-visual__comparison-ranked-list"');
+    expect(html).toContain('class="ct-reporting-visual__comparison-ranked-rank"');
     expect(html).toContain('class="ct-reporting-visual__comparison-ranked-detail"');
     expect(html).toContain('data-reporting-visual-emphasis-count="5"');
     expect(html).toContain("Top 5 shown here. The exact table below keeps all 6 visible rows.");
@@ -210,10 +251,15 @@ describe("renderReporting", () => {
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__legend");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__surface");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__trend-axis");
+    expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__trend-area");
+    expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__journey-list");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__trend-callouts");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__comparison-ranked-list");
+    expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__comparison-ranked-rank");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__comparison-ranked-detail");
     expect(INSTITUTION_ADMIN_CSS).toContain("data-reporting-visual-kind='comparison-ranked'");
+    expect(INSTITUTION_ADMIN_CSS).toContain("ct-reporting-rise-in");
+    expect(INSTITUTION_ADMIN_CSS).toContain("prefers-reduced-motion: reduce");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__reporting-trend-hero");
     expect(INSTITUTION_ADMIN_CSS).toContain("data-reporting-visual-kind");
     expect(INSTITUTION_ADMIN_CSS).toContain("@media (max-width: 960px)");
