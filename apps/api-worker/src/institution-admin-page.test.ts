@@ -1743,7 +1743,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('class="ct-reporting-visual__legend"');
     expect(body).toContain('class="ct-admin__reporting-panel-media"');
     expect(body).toContain("Legend");
-    expect(body).toContain("Current badge-state mix");
+    expect(body).toContain("Current badge state mix");
     expect(body).toContain("Public badge views");
     expect(body).toContain("Claim rate");
     expect(body).toContain('id="reporting-filters-form"');
@@ -2096,7 +2096,8 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('<svg class="ct-reporting-visual__graphic"');
     expect(body).toContain('role="img"');
     expect(body).toContain("Visible labels and numeric values are listed in the legend below.");
-    expect(body).toContain("Cards below retain the exact lifecycle counts");
+    expect(body).toContain("Shows whether badges in this slice are active");
+    expect(body).toContain("Use the state cards below for exact counts");
   });
 
   it("can verify a seeded-demo reporting slice on the normal reporting route from the canonical fixture", async () => {

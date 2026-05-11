@@ -589,6 +589,9 @@ export const EXECUTIVE_DASHBOARD_CSS = String.raw`
   stroke: rgba(17, 93, 159, 0.18);
   stroke-width: 1.5;
 }
+.executive-dashboard .ct-reporting-visual__segment {
+  stroke: none;
+}
 .executive-dashboard .ct-reporting-visual__bar--1,
 .executive-dashboard .ct-reporting-visual__segment--1 {
   fill: rgba(17, 93, 159, 0.78);

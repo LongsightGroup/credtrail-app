@@ -1771,7 +1771,7 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(html).toContain('class="ct-reporting-visual__comparison-ranked-list"');
     expect(html).toContain('class="ct-reporting-visual__legend"');
     expect(html).toContain('class="ct-admin__reporting-panel-media"');
-    expect(html).toContain("Current badge-state mix");
+    expect(html).toContain("Current badge state mix");
     expect(html).toContain("TypeScript Foundations");
     expect(html).toContain("14 public views · 40.0% claim · 20.0% share");
     expect(

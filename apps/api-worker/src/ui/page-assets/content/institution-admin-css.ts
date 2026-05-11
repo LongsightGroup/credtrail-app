@@ -612,6 +612,9 @@ export const INSTITUTION_ADMIN_CSS = `
   stroke: rgba(15, 95, 166, 0.18);
   stroke-width: 1.5;
 }
+.ct-reporting-visual__segment {
+  stroke: none;
+}
 .ct-reporting-visual__bar--1,
 .ct-reporting-visual__segment--1 {
   fill: rgba(15, 95, 166, 0.78);

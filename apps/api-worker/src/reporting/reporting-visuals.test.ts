@@ -64,6 +64,39 @@ describe("renderReporting", () => {
     expect(html).toContain("aria-describedby");
   });
 
+  it("does not render zero-value stacked-summary segments as visible slivers", () => {
+    const html = renderReportingString({
+      kind: "stacked-summary",
+      title: "Current badge state mix",
+      description:
+        "Shows whether badges in this slice are active, suspended, revoked, or waiting for review.",
+      series: [
+        { label: "Active", value: 7 },
+        { label: "Suspended", value: 0 },
+        { label: "Revoked", value: 0 },
+        { label: "Pending review", value: 0 },
+      ],
+    });
+
+    const renderedSegments = html.match(
+      /ct-reporting-visual__segment ct-reporting-visual__segment--/g,
+    );
+
+    expect(renderedSegments).toHaveLength(1);
+    expect(html).toContain('width="328.00"');
+    expect(html).toContain("<clipPath");
+    expect(html).toContain("7 total; all active in this slice.");
+    expect(html).not.toContain(
+      'class="ct-reporting-visual__segment ct-reporting-visual__segment--1"',
+    );
+    expect(html).not.toContain(
+      'class="ct-reporting-visual__segment ct-reporting-visual__segment--2"',
+    );
+    expect(html).not.toContain(
+      'class="ct-reporting-visual__segment ct-reporting-visual__segment--3"',
+    );
+  });
+
   it("renders trend visuals with visible time anchors and chart callouts for chart-first reading", () => {
     const html = renderReportingString({
       kind: "trend-series",

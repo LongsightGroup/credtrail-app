@@ -1942,9 +1942,9 @@ const renderInstitutionAdminPage = (
       ? null
       : renderReportingVisualModule({
           kind: "stacked-summary",
-          title: "Current badge-state mix",
+          title: "Current badge state mix",
           description:
-            "Shared visual summarizes the same lifecycle-state counts shown in the cards for the current reporting slice.",
+            "Shows whether badges in this slice are active, suspended, revoked, or waiting for review.",
           series: [
             {
               label: "Active",
@@ -1964,10 +1964,10 @@ const renderInstitutionAdminPage = (
             {
               label: "Pending review",
               value: reportingOverview.counts.pendingReview,
-              detail: `${formatReportingCount(reportingOverview.counts.pendingReview)} suspended-for-review badges`,
+              detail: `${formatReportingCount(reportingOverview.counts.pendingReview)} badges pending review`,
             },
           ] as const,
-          note: "Cards below retain the exact lifecycle counts used for reporting review and export parity.",
+          note: "Use the state cards below for exact counts before exporting or investigating.",
         });
   const reportingTrendVisualMarkup =
     reportingTrendSeries.length === 0
@@ -1976,7 +1976,7 @@ const renderInstitutionAdminPage = (
           kind: "trend-series",
           title: "Issued over time",
           description:
-            "Shared SSR trend visual uses issued counts from the current reporting filter slice. The full table remains below for supported engagement detail.",
+            "Tracks issued badge volume over the selected dates. The table below keeps the exact daily engagement counts.",
           series: reportingTrendSeries.map((row) => ({
             label: formatReportingDateLabel(row.bucketStart),
             value: row.issuedCount,
@@ -2789,7 +2789,7 @@ const renderInstitutionAdminPage = (
               renderPerformerPanel({
                 title: "Highest issuance volume",
                 description:
-                  "Shared ranked visual compares the highest-volume org units without hiding the exact issued totals or rates.",
+                  "Highlights the org units issuing the most badges while keeping exact totals and rates visible.",
                 rows: reportingHighestVolumeRows,
                 emptyLabel: "No org units available for volume rankings.",
                 barGroup: "performer-high-volume",
@@ -2799,7 +2799,7 @@ const renderInstitutionAdminPage = (
               renderPerformerPanel({
                 title: "Lowest issuance volume",
                 description:
-                  "Shared ranked visual compares the lowest-volume org units while keeping the same tabular rows underneath.",
+                  "Highlights lower-volume org units without separating the ranking from its exact table rows.",
                 rows: reportingLowestVolumeRows,
                 emptyLabel: "No org units available for volume rankings.",
                 barGroup: "performer-low-volume",
@@ -2817,7 +2817,7 @@ const renderInstitutionAdminPage = (
               renderPerformerPanel({
                 title: "Highest claim rate",
                 description:
-                  "Shared ranked visual compares claim-rate leaders for rows that meet the minimum issued-badge threshold.",
+                  "Ranks claim-rate leaders that meet the minimum issued-badge threshold.",
                 rows: reportingHighestClaimRateRows,
                 emptyLabel: `No ${formatReportingHierarchyLevelLabel(reportingPerformerLevel).toLowerCase()} rows meet the minimum rate sample.`,
                 barGroup: "performer-high-claim-rate",
@@ -2826,8 +2826,7 @@ const renderInstitutionAdminPage = (
               }),
               renderPerformerPanel({
                 title: "Lowest claim rate",
-                description:
-                  "Shared ranked visual compares lower claim-rate rows without changing the minimum-sample rule.",
+                description: "Ranks lower claim-rate rows using the same minimum-sample rule.",
                 rows: reportingLowestClaimRateRows,
                 emptyLabel: `No ${formatReportingHierarchyLevelLabel(reportingPerformerLevel).toLowerCase()} rows meet the minimum rate sample.`,
                 barGroup: "performer-low-claim-rate",
@@ -2837,7 +2836,7 @@ const renderInstitutionAdminPage = (
               renderPerformerPanel({
                 title: "Highest share rate",
                 description:
-                  "Shared ranked visual compares share-rate leaders while keeping issued totals visible in the adjacent table.",
+                  "Ranks share-rate leaders while keeping issued totals visible in the adjacent table.",
                 rows: reportingHighestShareRateRows,
                 emptyLabel: `No ${formatReportingHierarchyLevelLabel(reportingPerformerLevel).toLowerCase()} rows meet the minimum rate sample.`,
                 barGroup: "performer-high-share-rate",
@@ -2847,7 +2846,7 @@ const renderInstitutionAdminPage = (
               renderPerformerPanel({
                 title: "Lowest share rate",
                 description:
-                  "Shared ranked visual compares lower share-rate rows with the same volume threshold applied to the table below.",
+                  "Ranks lower share-rate rows with the same volume threshold used by the table below.",
                 rows: reportingLowestShareRateRows,
                 emptyLabel: `No ${formatReportingHierarchyLevelLabel(reportingPerformerLevel).toLowerCase()} rows meet the minimum rate sample.`,
                 barGroup: "performer-low-share-rate",

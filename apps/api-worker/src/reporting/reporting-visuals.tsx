@@ -109,6 +109,38 @@ const buildVisualId = (input: ReportingVisualProps): string => {
   return `${input.kind}-${slugify(input.title)}`;
 };
 
+const formatLabelList = (labels: readonly string[]): string => {
+  const cleanedLabels = labels.map((label) => label.trim()).filter((label) => label.length > 0);
+
+  if (cleanedLabels.length === 0) {
+    return "listed categories";
+  }
+
+  if (cleanedLabels.length === 1) {
+    return cleanedLabels[0] ?? "listed category";
+  }
+
+  const finalLabel = cleanedLabels[cleanedLabels.length - 1] ?? "listed category";
+  const leadingLabels = cleanedLabels.slice(0, -1);
+
+  if (leadingLabels.length === 1) {
+    return `${leadingLabels[0] ?? "listed category"} and ${finalLabel}`;
+  }
+
+  return `${leadingLabels.join(", ")}, and ${finalLabel}`;
+};
+
+const lowercaseInitial = (value: string): string => {
+  const trimmedValue = value.trim();
+  const firstCharacter = trimmedValue[0];
+
+  if (firstCharacter === undefined) {
+    return "this category";
+  }
+
+  return `${firstCharacter.toLocaleLowerCase("en-US")}${trimmedValue.slice(1)}`;
+};
+
 const buildLegendDetail = (
   input: ReportingVisualProps,
   point: ReportingVisualSeriesPoint,
@@ -140,7 +172,26 @@ const buildSummaryText = (
   totalValue: number,
 ): string => {
   if (input.kind === "stacked-summary") {
-    return `Total ${formatValue(totalValue)} across ${normalizedSeries.length} segments.`;
+    const positiveSeries = normalizedSeries.filter((point) => point.value > 0);
+
+    if (positiveSeries.length === 1) {
+      const positivePoint = positiveSeries[0];
+      const totalLabel = formatValue(totalValue);
+      const categoryLabel = lowercaseInitial(positivePoint?.label ?? "");
+
+      if (totalValue === 1) {
+        return `${totalLabel} total; ${categoryLabel} in this slice.`;
+      }
+
+      return `${totalLabel} total; all ${categoryLabel} in this slice.`;
+    }
+
+    const summaryLabels =
+      positiveSeries.length > 0
+        ? positiveSeries.map((point) => point.label)
+        : normalizedSeries.map((point) => point.label);
+
+    return `Total ${formatValue(totalValue)} across ${formatLabelList(summaryLabels)}.`;
   }
 
   const sortedSeries = [...normalizedSeries].sort((left, right) => right.value - left.value);
@@ -383,6 +434,14 @@ const renderStackedGraphic = (
   const totalValue = normalizedSeries.reduce((sum, point) => sum + normalizeValue(point.value), 0);
   const chartHeight = 68;
   const availableWidth = REPORTING_VISUAL_WIDTH - REPORTING_VISUAL_PADDING * 2;
+  const clipPathId = `${titleId}-stack-clip`;
+  const positiveSegments = normalizedSeries
+    .map((point, index) => ({
+      index,
+      label: point.label,
+      value: normalizeValue(point.value),
+    }))
+    .filter((segment) => segment.value > 0);
   let x = REPORTING_VISUAL_PADDING;
 
   return (
@@ -394,6 +453,17 @@ const renderStackedGraphic = (
       aria-describedby={descriptionIds}
     >
       <desc>Visible labels and numeric values are listed in the legend below.</desc>
+      <defs>
+        <clipPath id={clipPathId}>
+          <rect
+            x={String(REPORTING_VISUAL_PADDING)}
+            y="22"
+            width={String(availableWidth)}
+            height="24"
+            rx="10"
+          ></rect>
+        </clipPath>
+      </defs>
       <rect
         class="ct-reporting-visual__segment-track"
         x={String(REPORTING_VISUAL_PADDING)}
@@ -402,23 +472,28 @@ const renderStackedGraphic = (
         height="24"
         rx="10"
       ></rect>
-      {normalizedSeries.map((point, index) => {
-        const width = Math.max((normalizeValue(point.value) / totalValue) * availableWidth, 2);
-        const segmentX = x;
-        x += width;
+      <g clip-path={`url(#${clipPathId})`}>
+        {positiveSegments.map((segment, segmentIndex) => {
+          const segmentCount = positiveSegments.length;
+          const isLastSegment = segmentIndex === segmentCount - 1;
+          const width = isLastSegment
+            ? REPORTING_VISUAL_PADDING + availableWidth - x
+            : (segment.value / totalValue) * availableWidth;
+          const segmentX = x;
+          x += width;
 
-        return (
-          <rect
-            key={`${point.label}:${String(index)}`}
-            class={`ct-reporting-visual__segment ct-reporting-visual__segment--${String(index % 4)}`}
-            x={segmentX.toFixed(2)}
-            y="22"
-            width={width.toFixed(2)}
-            height="24"
-            rx="10"
-          ></rect>
-        );
-      })}
+          return (
+            <rect
+              key={`${segment.label}:${String(segment.index)}`}
+              class={`ct-reporting-visual__segment ct-reporting-visual__segment--${String(segment.index % 4)}`}
+              x={segmentX.toFixed(2)}
+              y="22"
+              width={Math.max(width, 0).toFixed(2)}
+              height="24"
+            ></rect>
+          );
+        })}
+      </g>
     </svg>
   );
 };
