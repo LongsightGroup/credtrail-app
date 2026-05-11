@@ -1610,6 +1610,56 @@ const renderInstitutionAdminPage = (
       value: formatReportingStateLabel(reportingState),
     },
   ] as const;
+  const reportingExploreSliceMetrics = [
+    {
+      key: "issued",
+      label: "Issued",
+      value: formatReportingCount(
+        reportingOverview?.counts.issued ?? reportingEngagementCounts?.issuedCount ?? 0,
+      ),
+    },
+    {
+      key: "claim-rate",
+      label: "Claim rate",
+      value: formatReportingRate(reportingEngagementCounts?.claimRate ?? 0),
+    },
+    {
+      key: "share-rate",
+      label: "Share rate",
+      value: formatReportingRate(reportingEngagementCounts?.shareRate ?? 0),
+    },
+    {
+      key: "public-views",
+      label: "Public views",
+      value: formatReportingCount(reportingEngagementCounts?.publicBadgeViewCount ?? 0),
+    },
+  ] as const;
+  const reportingExploreSliceSummaryMarkup = (
+    <section class="ct-admin__reporting-slice-strip" aria-label="Current reporting slice">
+      <div class="ct-admin__reporting-slice-main">
+        <div class="ct-cluster">
+          <p class="ct-admin__eyebrow">Current slice</p>
+          <span class="ct-admin__status-pill">{reportingGeneratedAtLabel}</span>
+        </div>
+        <div class="ct-admin__reporting-slice-tags">
+          {reportingSummaryContextItems.map((item) => (
+            <span class="ct-admin__reporting-slice-tag">
+              <strong>{item.label}</strong>
+              {item.value}
+            </span>
+          ))}
+        </div>
+      </div>
+      <dl class="ct-admin__reporting-slice-metrics">
+        {reportingExploreSliceMetrics.map((metric) => (
+          <div data-reporting-slice-metric={metric.key}>
+            <dt>{metric.label}</dt>
+            <dd>{metric.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
   const reportingHierarchyScopeSummary = reportingSummaryContextItems
     .map((item) => `${item.label}: ${item.value}`)
     .join(" · ");
@@ -1700,27 +1750,6 @@ const renderInstitutionAdminPage = (
       </section>
     </article>
   );
-  const reportingMetricCardsMarkup =
-    reportingMetrics.filter((metric) => metric.available).length === 0 ? (
-      <p class="ct-admin__empty">No reporting metrics are available yet.</p>
-    ) : (
-      reportingMetrics
-        .filter((metric) => metric.available)
-        .map((metric) => {
-          const metricValue =
-            metric.key === "claimRate" || metric.key === "shareRate"
-              ? formatReportingRate(metric.value ?? 0)
-              : formatReportingCount(metric.value ?? 0);
-
-          return (
-            <article class="ct-admin__metric-card ct-stack">
-              <p class="ct-admin__eyebrow">{metric.label}</p>
-              <strong class="ct-admin__metric-value">{metricValue}</strong>
-              <p class="ct-admin__hint">{metric.description}</p>
-            </article>
-          );
-        })
-    );
   const reportingDeferredMetrics = reportingMetrics.filter((metric) => !metric.available);
   const reportingDeferredMetricsMarkup = reportingDeferredMetrics.map((metric) => {
     return (
@@ -1811,6 +1840,15 @@ const renderInstitutionAdminPage = (
             <p class="ct-admin__hint">{metric.description}</p>
           </article>
         ));
+  const reportingRawEngagementTotal =
+    reportingEngagementCounts === null
+      ? 0
+      : reportingEngagementCounts.publicBadgeViewCount +
+        reportingEngagementCounts.verificationViewCount +
+        reportingEngagementCounts.shareClickCount +
+        reportingEngagementCounts.learnerClaimCount +
+        reportingEngagementCounts.walletAcceptCount;
+  const reportingHasRawEngagementEvents = reportingRawEngagementTotal > 0;
   const reportingEngagementVisualsMarkup =
     reportingEngagementCounts === null ? null : (
       <div class="ct-admin__reporting-visual-grid">
@@ -1818,7 +1856,7 @@ const renderInstitutionAdminPage = (
           kind: "comparison-bars",
           title: "Supported engagement signals",
           description:
-            "Server-rendered visual of the same raw event totals shown in the metric cards below.",
+            "Raw event totals for public views, verification, sharing, claims, and wallet accepts.",
           series: [
             {
               label: "Public badge views",
@@ -1846,7 +1884,7 @@ const renderInstitutionAdminPage = (
               detail: "Successful credential retrievals.",
             },
           ] as const,
-          note: "Cards below keep the same raw counts visible for review and export parity checks.",
+          note: "Use these event totals for export checks; rates stay distinct-assertion metrics.",
         })}
         {renderReportingVisualModule({
           kind: "comparison-bars",
@@ -1865,7 +1903,7 @@ const renderInstitutionAdminPage = (
               detail: `${formatReportingCount(reportingEngagementCounts.shareClickCount)} share clicks over ${formatReportingCount(reportingEngagementCounts.issuedCount)} issued badges.`,
             },
           ] as const,
-          note: "This visual does not replace the rate cards; it keeps the same definitions in a shared presentation seam.",
+          note: "Claim and share rates use distinct assertions, not repeat clicks.",
         })}
       </div>
     );
@@ -1935,38 +1973,101 @@ const renderInstitutionAdminPage = (
       {reportingJourneyVisualMarkup}
     </AdminPanel>
   );
-  const reportingOverviewVisualMarkup =
+  const reportingStateMixItems =
     reportingOverview === null
-      ? null
-      : renderReportingVisualModule({
-          kind: "stacked-summary",
-          title: "Current badge state mix",
-          description:
-            "Shows whether badges in this slice are active, suspended, revoked, or waiting for review.",
-          series: [
-            {
-              label: "Active",
-              value: reportingOverview.counts.active,
-              detail: `${formatReportingCount(reportingOverview.counts.active)} currently active badges`,
-            },
-            {
-              label: "Suspended",
-              value: reportingOverview.counts.suspended,
-              detail: `${formatReportingCount(reportingOverview.counts.suspended)} currently suspended badges`,
-            },
-            {
-              label: "Revoked",
-              value: reportingOverview.counts.revoked,
-              detail: `${formatReportingCount(reportingOverview.counts.revoked)} revoked badges`,
-            },
-            {
-              label: "Pending review",
-              value: reportingOverview.counts.pendingReview,
-              detail: `${formatReportingCount(reportingOverview.counts.pendingReview)} badges pending review`,
-            },
-          ] as const,
-          note: "Use the state cards below for exact counts before exporting or investigating.",
-        });
+      ? []
+      : [
+          {
+            key: "active",
+            label: "Active",
+            value: reportingOverview.counts.active,
+          },
+          {
+            key: "suspended",
+            label: "Suspended",
+            value: reportingOverview.counts.suspended,
+          },
+          {
+            key: "revoked",
+            label: "Revoked",
+            value: reportingOverview.counts.revoked,
+          },
+          {
+            key: "pending-review",
+            label: "Pending review",
+            value: reportingOverview.counts.pendingReview,
+          },
+        ];
+  const reportingStateMixTotal = reportingStateMixItems.reduce(
+    (total, item) => total + item.value,
+    0,
+  );
+  const reportingActiveStateCount =
+    reportingOverview === null ? 0 : reportingOverview.counts.active;
+  const reportingAttentionStateCount = Math.max(
+    reportingStateMixTotal - reportingActiveStateCount,
+    0,
+  );
+  const reportingStateMixSummary =
+    reportingOverview === null || reportingStateMixTotal === 0
+      ? "No badges are in this slice yet."
+      : reportingActiveStateCount === reportingStateMixTotal
+        ? `All ${formatReportingCount(reportingStateMixTotal)} badges are active.`
+        : `${formatReportingCount(reportingActiveStateCount)} active; ${formatReportingCount(
+            reportingAttentionStateCount,
+          )} ${reportingAttentionStateCount === 1 ? "needs" : "need"} attention.`;
+  const reportingStateMixMarkup =
+    reportingOverview === null ? (
+      renderReportingStateShell({
+        state: "empty",
+        eyebrow: "Current badge state mix",
+        title: "No badge state counts are available yet.",
+        description: "Widen the reporting slice or remove filters to check badge lifecycle state.",
+      })
+    ) : (
+      <section class="ct-admin__reporting-state-summary" aria-label="Current badge state mix">
+        <div class="ct-admin__reporting-state-summary-head">
+          <h3>Current badge state mix</h3>
+          <p>{reportingStateMixSummary}</p>
+        </div>
+        <div
+          class="ct-admin__reporting-state-meter"
+          role="img"
+          aria-label={reportingStateMixItems
+            .map((item) => `${item.label}: ${formatReportingCount(item.value)}`)
+            .join(", ")}
+        >
+          {reportingStateMixItems.filter((item) => item.value > 0).length === 0 ? (
+            <span class="ct-admin__reporting-state-meter-empty"></span>
+          ) : (
+            reportingStateMixItems
+              .filter((item) => item.value > 0)
+              .map((item) => {
+                const width =
+                  reportingStateMixTotal === 0 ? 0 : (item.value / reportingStateMixTotal) * 100;
+
+                return (
+                  <span
+                    class={`ct-admin__reporting-state-segment ct-admin__reporting-state-segment--${item.key}`}
+                    style={`flex-basis:${width.toFixed(2)}%`}
+                    aria-label={`${item.label}: ${formatReportingCount(item.value)}`}
+                  ></span>
+                );
+              })
+          )}
+        </div>
+        <dl class="ct-admin__reporting-state-list">
+          {reportingStateMixItems.map((item) => (
+            <div
+              class={`ct-admin__reporting-state-item ct-admin__reporting-state-item--${item.key}`}
+            >
+              <dt>{item.label}</dt>
+              <dd>{formatReportingCount(item.value)}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    );
   const renderReportingTrendVisualMarkup = (includeDetailedContext: boolean): HonoElement => {
     if (reportingTrendSeries.length === 0) {
       return <></>;
@@ -2173,6 +2274,19 @@ const renderInstitutionAdminPage = (
   );
   const reportingOrgUnitComparisonState = classifyReportingPanelState(
     reportingOrgUnitComparisons.filter((row) => hasReportingActivity(row)).length,
+  );
+  const selectSparseReportingComparisonRow = (
+    rows: readonly TenantReportingComparisonRowRecord[],
+  ): TenantReportingComparisonRowRecord | null => {
+    const activeRows = rows.filter((row) => hasReportingActivity(row));
+
+    return activeRows.length === 1 ? (activeRows[0] ?? null) : null;
+  };
+  const reportingSparseTemplateComparisonRow = selectSparseReportingComparisonRow(
+    reportingTemplateComparisons,
+  );
+  const reportingSparseOrgUnitComparisonRow = selectSparseReportingComparisonRow(
+    reportingOrgUnitComparisons,
   );
   const reportingTemplateHighlightRows = selectReportingHighlightRows(reportingTemplateComparisons);
   const reportingOrgUnitHighlightRows = selectReportingHighlightRows(reportingOrgUnitComparisons);
@@ -4037,24 +4151,17 @@ const renderInstitutionAdminPage = (
   );
 
   const reportingOverviewPanelMarkup = (
-    <AdminPanel id="reporting-overview-panel">
+    <AdminPanel id="reporting-overview-panel" className="ct-admin__reporting-overview-panel">
       <div class="ct-cluster">
         <h2>Reporting Overview</h2>
-        <AdminStatusPill>Supporting detail</AdminStatusPill>
+        <AdminStatusPill>Filters</AdminStatusPill>
       </div>
-      <p>
-        Filter by issue date, template, org unit, or current badge state. Counts reflect
-        product-owned data only, and analytics stay in this reporting workspace.
-      </p>
       {renderReportingFiltersForm(reportingExplorePath)}
       <p class="ct-admin__hint">
         Need CSV downloads for this slice?{" "}
         <a href={reportingReportsExportsHref}>Open export options</a>.
       </p>
-      <div class="ct-admin__reporting-panel-media">
-        {reportingOverviewVisualMarkup}
-        <div class="ct-admin__metric-grid">{reportingMetricCardsMarkup}</div>
-      </div>
+      {reportingStateMixMarkup}
       <p class="ct-admin__hint">
         Generated{" "}
         {reportingOverview === null
@@ -4094,21 +4201,43 @@ const renderInstitutionAdminPage = (
   );
 
   const reportingEngagementPanelMarkup = (
-    <AdminPanel>
+    <AdminPanel className="ct-admin__reporting-engagement-panel">
       <div class="ct-cluster">
         <h2>Engagement Counts</h2>
-        <AdminStatusPill>Product-owned events</AdminStatusPill>
+        <AdminStatusPill>Rates first</AdminStatusPill>
       </div>
       <p>
-        Raw counts show event totals. Rates use distinct engaged assertions over issued badges, so
-        comparison tables do not inflate because of repeat clicks from one assertion.
+        Claim and share rates stay visible here; raw event totals are available when you need export
+        parity checks.
       </p>
-      {reportingEngagementVisualsMarkup}
-      <div class="ct-admin__metric-grid">{reportingEngagementCardsMarkup}</div>
       {reportingRateCardsMarkup.length === 0 ? null : (
         <div class="ct-admin__metric-grid ct-admin__metric-grid--rates">
           {reportingRateCardsMarkup}
         </div>
+      )}
+      {reportingEngagementCounts === null ? (
+        <p class="ct-admin__empty">Engagement counts are not available yet.</p>
+      ) : (
+        <details class="ct-admin__reporting-inline-disclosure">
+          <summary class="ct-admin__reporting-inline-summary">
+            <span>Engagement event counts</span>
+            <small>
+              {reportingHasRawEngagementEvents
+                ? `${formatReportingCount(reportingRawEngagementTotal)} raw events in this slice`
+                : "No raw engagement events yet for this slice"}
+            </small>
+          </summary>
+          <div class="ct-admin__reporting-inline-body">
+            {reportingHasRawEngagementEvents ? (
+              <>
+                {reportingEngagementVisualsMarkup}
+                <div class="ct-admin__metric-grid">{reportingEngagementCardsMarkup}</div>
+              </>
+            ) : (
+              <p class="ct-admin__empty">No engagement events yet for this slice.</p>
+            )}
+          </div>
+        </details>
       )}
     </AdminPanel>
   );
@@ -4147,6 +4276,55 @@ const renderInstitutionAdminPage = (
       )}
     </AdminPanel>
   );
+  const renderReportingComparisonSummary = (
+    row: TenantReportingComparisonRowRecord,
+  ): HonoElement => (
+    <section class="ct-admin__reporting-comparison-summary">
+      <div class="ct-admin__reporting-comparison-identity">
+        {renderReportingComparisonGroupLabel(row)}
+      </div>
+      <dl class="ct-admin__reporting-comparison-metrics">
+        <div>
+          <dt>Issued</dt>
+          <dd>{formatReportingCount(row.issuedCount)}</dd>
+        </div>
+        <div>
+          <dt>Public views</dt>
+          <dd>{formatReportingCount(row.publicBadgeViewCount)}</dd>
+        </div>
+        <div>
+          <dt>Claim rate</dt>
+          <dd>{formatReportingRate(row.claimRate)}</dd>
+        </div>
+        <div>
+          <dt>Share rate</dt>
+          <dd>{formatReportingRate(row.shareRate)}</dd>
+        </div>
+      </dl>
+    </section>
+  );
+  const reportingComparisonTableHeaders = [
+    "Issued",
+    "Public badge views",
+    "Verification views",
+    "Share clicks",
+    "Claim actions",
+    "Wallet accepts",
+    "Claim rate",
+    "Share rate",
+  ];
+  const renderReportingComparisonTable = (input: {
+    groupHeader: string;
+    rows: HonoElement;
+    rowGroup: "org-comparisons" | "template-comparisons";
+  }): HonoElement => (
+    <AdminTable
+      headers={[input.groupHeader, ...reportingComparisonTableHeaders]}
+      tbodyDataAttributes={{ "data-reporting-bar-group": input.rowGroup }}
+    >
+      {input.rows}
+    </AdminTable>
+  );
 
   const reportingTemplateComparisonPanelMarkup = (
     <AdminPanel
@@ -4158,25 +4336,34 @@ const renderInstitutionAdminPage = (
         {reportingTemplateComparisonState === "rich"
           ? "Exact badge-template rows for the selected slice. Use Highlights for the ranked visual summary."
           : reportingTemplateComparisonState === "sparse"
-            ? "Only one badge template row is visible in this slice, so the exact row below carries the full comparison detail."
+            ? "One badge template matches this slice. Open the exact row only when you need every event column."
             : "No badge-template rows are visible for this slice yet. Widen the date range or remove a filter to compare templates."}
       </p>
-      <AdminTable
-        headers={[
-          "Badge template",
-          "Issued",
-          "Public badge views",
-          "Verification views",
-          "Share clicks",
-          "Claim actions",
-          "Wallet accepts",
-          "Claim rate",
-          "Share rate",
-        ]}
-        tbodyDataAttributes={{ "data-reporting-bar-group": "template-comparisons" }}
-      >
-        {reportingTemplateComparisonRowsMarkup}
-      </AdminTable>
+      {reportingSparseTemplateComparisonRow === null
+        ? null
+        : renderReportingComparisonSummary(reportingSparseTemplateComparisonRow)}
+      {reportingTemplateComparisonState === "sparse" &&
+      reportingSparseTemplateComparisonRow !== null ? (
+        <details class="ct-admin__reporting-inline-disclosure">
+          <summary class="ct-admin__reporting-inline-summary">
+            <span>Exact badge-template row</span>
+            <small>Show all event columns</small>
+          </summary>
+          <div class="ct-admin__reporting-inline-body">
+            {renderReportingComparisonTable({
+              groupHeader: "Badge template",
+              rows: reportingTemplateComparisonRowsMarkup,
+              rowGroup: "template-comparisons",
+            })}
+          </div>
+        </details>
+      ) : (
+        renderReportingComparisonTable({
+          groupHeader: "Badge template",
+          rows: reportingTemplateComparisonRowsMarkup,
+          rowGroup: "template-comparisons",
+        })
+      )}
     </AdminPanel>
   );
 
@@ -4190,39 +4377,49 @@ const renderInstitutionAdminPage = (
         {reportingOrgUnitComparisonState === "rich"
           ? "Exact org-unit rows for the selected slice. Advanced hierarchy drilldowns stay collapsed below until needed."
           : reportingOrgUnitComparisonState === "sparse"
-            ? "Only one org-unit row is visible in this slice, so use the exact row below to read the current context."
+            ? "One org unit matches this slice. Open the exact row only when you need every event column."
             : "No org-unit rows are visible for this slice yet. Widen the date range or remove a filter to compare org units."}
       </p>
-      <AdminTable
-        headers={[
-          "Org unit",
-          "Issued",
-          "Public badge views",
-          "Verification views",
-          "Share clicks",
-          "Claim actions",
-          "Wallet accepts",
-          "Claim rate",
-          "Share rate",
-        ]}
-        tbodyDataAttributes={{ "data-reporting-bar-group": "org-comparisons" }}
-      >
-        {reportingOrgUnitComparisonRowsMarkup}
-      </AdminTable>
+      {reportingSparseOrgUnitComparisonRow === null
+        ? null
+        : renderReportingComparisonSummary(reportingSparseOrgUnitComparisonRow)}
+      {reportingOrgUnitComparisonState === "sparse" &&
+      reportingSparseOrgUnitComparisonRow !== null ? (
+        <details class="ct-admin__reporting-inline-disclosure">
+          <summary class="ct-admin__reporting-inline-summary">
+            <span>Exact org-unit row</span>
+            <small>Show all event columns</small>
+          </summary>
+          <div class="ct-admin__reporting-inline-body">
+            {renderReportingComparisonTable({
+              groupHeader: "Org unit",
+              rows: reportingOrgUnitComparisonRowsMarkup,
+              rowGroup: "org-comparisons",
+            })}
+          </div>
+        </details>
+      ) : (
+        renderReportingComparisonTable({
+          groupHeader: "Org unit",
+          rows: reportingOrgUnitComparisonRowsMarkup,
+          rowGroup: "org-comparisons",
+        })
+      )}
     </AdminPanel>
   );
 
   const reportingDefinitionsPanelMarkup = (
-    <AdminPanel variant="table">
-      <h2>Metric Definitions</h2>
-      <p>
-        Every number in this page lists its source so institution admins can tell the difference
-        between event totals and rate-style comparisons.
-      </p>
-      <AdminTable headers={["Metric", "Source", "Status", "Notes"]}>
-        {reportingDefinitionRows}
-      </AdminTable>
-    </AdminPanel>
+    <details class="ct-admin__reporting-inline-disclosure ct-admin__reporting-inline-disclosure--definitions">
+      <summary class="ct-admin__reporting-inline-summary">
+        <span>Metric Definitions</span>
+        <small>Show sources and rate definitions</small>
+      </summary>
+      <div class="ct-admin__reporting-inline-body">
+        <AdminTable headers={["Metric", "Source", "Status", "Notes"]}>
+          {reportingDefinitionRows}
+        </AdminTable>
+      </div>
+    </details>
   );
 
   const reportingDeferredPanelMarkup =
@@ -5089,22 +5286,14 @@ const renderInstitutionAdminPage = (
           <>
             {renderPageHeader(
               "Reporting Explore",
-              "Use focused reporting tables for exact filters and counts. Advanced drilldowns stay collapsed until needed.",
+              "Filter the current reporting slice, scan concise previews, and open exact detail only when needed.",
             )}
             <section class="ct-admin ct-stack">
-              <section class="ct-admin__reporting-presentation-shell ct-stack">
-                <section class="ct-admin__reporting-primary-story ct-stack">
-                  <section class="ct-admin__reporting-first-screen ct-stack">
-                    {reportingExecutiveSummaryMarkup}
-                    {reportingOverviewPanelMarkup}
-                  </section>
-                  {renderReportingTrendPanelMarkup({ includeDetailedTable: false })}
-                  <section class="ct-admin__reporting-supporting-grid">
-                    {reportingEngagementPanelMarkup}
-                  </section>
-                </section>
-              </section>
-              <section class="ct-admin__reporting-secondary-story ct-stack">
+              {reportingExploreSliceSummaryMarkup}
+              <section class="ct-admin__reporting-explore-workspace ct-stack">
+                {reportingOverviewPanelMarkup}
+                {renderReportingTrendPanelMarkup({ includeDetailedTable: false })}
+                {reportingEngagementPanelMarkup}
                 {reportingLowerStoryMarkup}
                 {reportingDefinitionsPanelMarkup}
                 {reportingDeferredPanelMarkup}

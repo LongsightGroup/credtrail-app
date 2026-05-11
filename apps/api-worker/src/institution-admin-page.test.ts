@@ -1764,11 +1764,12 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(response.status).toBe(200);
     expect(body).toContain('class="ct-reporting-visual"');
     expect(body).toContain('data-reporting-visual-kind="comparison-bars"');
-    expect(body).toContain('data-reporting-visual-kind="stacked-summary"');
     expect(body).toContain('data-reporting-visual-kind="trend-series"');
     expect(body).toContain('class="ct-reporting-visual__legend"');
-    expect(body).toContain('class="ct-admin__reporting-panel-media"');
     expect(body).toContain("Legend");
+    expect(body).toContain('class="ct-admin__reporting-slice-strip"');
+    expect(body).toContain('data-reporting-slice-metric="issued"');
+    expect(body).toContain('class="ct-admin__reporting-state-summary"');
     expect(body).toContain("Current badge state mix");
     expect(body).toContain("Public badge views");
     expect(body).toContain("Claim rate");
@@ -1784,6 +1785,8 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(trendPanel).not.toContain('class="ct-reporting-visual__trend-callouts"');
     expect(trendPanel).not.toContain('class="ct-reporting-visual__legend"');
     expect(trendPanel).not.toContain("The table below preserves every visible count");
+    expect(body).not.toContain('data-reporting-visual-kind="stacked-summary"');
+    expect(body).not.toContain("Executive Summary");
   });
 
   it("ships a mid-width reporting breakpoint for walkthrough layouts", () => {
@@ -2062,13 +2065,17 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(trendPanel).not.toContain("Read issued badge momentum first");
     expect(templatePanel).toContain('data-reporting-state="sparse"');
     expect(templatePanel).toContain(
-      "Only one badge template row is visible in this slice, so the exact row below carries the full comparison detail.",
+      "One badge template matches this slice. Open the exact row only when you need every event column.",
     );
+    expect(templatePanel).toContain("Exact badge-template row");
+    expect(templatePanel).toContain("Show all event columns");
     expect(templatePanel).not.toContain("Start with the ranked visual");
     expect(orgUnitPanel).toContain('data-reporting-state="sparse"');
     expect(orgUnitPanel).toContain(
-      "Only one org-unit row is visible in this slice, so use the exact row below to read the current context.",
+      "One org unit matches this slice. Open the exact row only when you need every event column.",
     );
+    expect(orgUnitPanel).toContain("Exact org-unit row");
+    expect(orgUnitPanel).toContain("Show all event columns");
     expect(orgUnitPanel).not.toContain("Start with the ranked visual");
     expect(hierarchyPanel).toContain('data-reporting-state="sparse"');
     expect(hierarchyPanel).toContain(
@@ -2131,8 +2138,9 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('<svg class="ct-reporting-visual__graphic"');
     expect(body).toContain('role="img"');
     expect(body).toContain("Visible labels and numeric values are listed in the legend below.");
-    expect(body).toContain("Shows whether badges in this slice are active");
-    expect(body).toContain("Use the state cards below for exact counts");
+    expect(body).toContain('class="ct-admin__reporting-state-meter"');
+    expect(body).toContain("Current badge state mix");
+    expect(body).toContain("12 active; 3 need attention.");
   });
 
   it("can verify a seeded-demo reporting slice on the normal reporting route from the canonical fixture", async () => {

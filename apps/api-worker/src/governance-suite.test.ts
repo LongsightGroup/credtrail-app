@@ -1725,10 +1725,12 @@ describe("org unit and badge ownership governance endpoints", () => {
 
     expect(response.status).toBe(200);
     expect(html).toContain("Reporting Explore");
-    expect(html).toContain("Executive Summary");
-    expect(html).toContain('class="ct-admin__reporting-summary-band"');
-    expect(html).toContain('class="ct-admin__reporting-summary-context"');
-    expect(html).toContain('class="ct-admin__reporting-supporting-grid"');
+    expect(html).not.toContain("Executive Summary");
+    expect(html).not.toContain('class="ct-admin__reporting-summary-band"');
+    expect(html).not.toContain('class="ct-admin__reporting-supporting-grid"');
+    expect(html).toContain('class="ct-admin__reporting-slice-strip"');
+    expect(html).toContain('data-reporting-slice-metric="issued"');
+    expect(html).toContain('class="ct-admin__reporting-state-summary"');
     expect(html).not.toContain('class="ct-admin__reporting-supporting-rail"');
     expect(html).toContain("Current slice");
     expect(html).toContain("Compare by badge template");
@@ -1770,13 +1772,15 @@ describe("org unit and badge ownership governance endpoints", () => {
     ).toBeGreaterThanOrEqual(2);
     expect(html).toContain('class="ct-reporting-visual__comparison-ranked-list"');
     expect(html).toContain('class="ct-reporting-visual__legend"');
-    expect(html).toContain('class="ct-admin__reporting-panel-media"');
+    expect(html).not.toContain('data-reporting-visual-kind="stacked-summary"');
     expect(html).toContain("Current badge state mix");
     expect(html).toContain("TypeScript Foundations");
     expect(html).toContain("14 public views · 40.0% claim · 20.0% share");
     expect(html).toContain(
-      "Only one badge template row is visible in this slice, so the exact row below carries the full comparison detail.",
+      "One badge template matches this slice. Open the exact row only when you need every event column.",
     );
+    expect(html).toContain("Exact badge-template row");
+    expect(html).toContain("Show all event columns");
     expect(html).not.toContain(
       "The table below keeps the full row set with exact counts and rate definitions.",
     );
@@ -2087,11 +2091,14 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(hierarchyPanel).toContain('data-reporting-state="sparse"');
     expect(performerPanel).toContain('data-reporting-state="sparse"');
     expect(html).toContain(
-      "Only one badge template row is visible in this slice, so the exact row below carries the full comparison detail.",
+      "One badge template matches this slice. Open the exact row only when you need every event column.",
     );
     expect(html).toContain(
-      "Only one org-unit row is visible in this slice, so use the exact row below to read the current context.",
+      "One org unit matches this slice. Open the exact row only when you need every event column.",
     );
+    expect(html).toContain("Exact badge-template row");
+    expect(html).toContain("Exact org-unit row");
+    expect(html).toContain("Show all event columns");
     expect(html).toContain("This slice currently resolves to one visible reporting path.");
     expect(html).toContain(
       "Rankings stay paused until this slice has more than one comparable hierarchy row.",
