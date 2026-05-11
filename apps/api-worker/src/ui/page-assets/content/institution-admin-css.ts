@@ -1174,7 +1174,7 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__reporting-deep-links {
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
 }
 .ct-admin__reporting-deep-links a {
   display: grid;

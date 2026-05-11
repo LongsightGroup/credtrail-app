@@ -1781,7 +1781,7 @@ describe("org unit and badge ownership governance endpoints", () => {
     ).toHaveLength(2);
     expect(html).toContain('data-reporting-bar-group="template-comparisons"');
     expect(html).toContain('data-reporting-bar-group="org-comparisons"');
-    expect(html).toContain('href="/tenants/tenant_123/admin/reporting/exports?');
+    expect(html).toContain('href="/tenants/tenant_123/admin/reporting/reports?');
     expect(html).toContain("orgUnitId=tenant_123%3Aorg%3Aprogram-cs");
     expect(html).not.toContain("<h2>Export CSV</h2>");
     expect(html.indexOf("Compare by badge template")).toBeLessThan(

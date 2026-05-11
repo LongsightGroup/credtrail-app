@@ -221,8 +221,9 @@ export const institutionAdminRuleBuilderPage = (input: {
   const operationsIssuedBadgesPath = `${operationsPath}/issued-badges`;
   const operationsBadgeStatusPath = `${operationsPath}/badge-status`;
   const reportingPath = `${tenantAdminPath}/reporting`;
+  const reportingExplorePath = `${reportingPath}/explore`;
   const reportingTrendsPath = `${reportingPath}/trends`;
-  const reportingExportsPath = `${reportingPath}/exports`;
+  const reportingReportsPath = `${reportingPath}/reports`;
   const accessPath = `${tenantAdminPath}/access`;
   const accessMembersPath = `${accessPath}/members`;
   const accessGovernancePath = `${accessPath}/governance`;
@@ -250,9 +251,10 @@ export const institutionAdminRuleBuilderPage = (input: {
     {
       label: "Reporting",
       links: [
-        { href: reportingPath, label: "Overview" },
+        { href: reportingPath, label: "Highlights" },
+        { href: reportingExplorePath, label: "Explore", isSub: true },
         { href: reportingTrendsPath, label: "Trends", isSub: true },
-        { href: reportingExportsPath, label: "Exports", isSub: true },
+        { href: reportingReportsPath, label: "Reports", isSub: true },
       ],
     },
     {

@@ -1404,16 +1404,16 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("Top org units");
     expect(body).toContain("Open a visible reporting path");
     expect(body).toContain("Explore");
-    expect(body).toContain("Saved");
-    expect(body).toContain("Custom");
+    expect(body).toContain("Reports");
     expect(body).toContain("Public badge views");
     expect(body).toContain("35.7");
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting/explore');
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting/trends');
-    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/saved');
-    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/custom');
-    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/exports');
+    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/reports');
+    expect(body).not.toContain('href="/tenants/tenant_123/admin/reporting/saved');
+    expect(body).not.toContain('href="/tenants/tenant_123/admin/reporting/custom');
+    expect(body).not.toContain('href="/tenants/tenant_123/admin/reporting/exports');
     expect(body).toContain("14");
     expect(body.indexOf('data-reporting-summary-metric="issued"')).toBeLessThan(
       body.indexOf("What happens after issuance"),
@@ -1609,7 +1609,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     });
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/reporting/exports?issuedFrom=2026-03-01&issuedTo=2026-03-31&badgeTemplateId=badge_template_001&orgUnitId=tenant_123%3Aorg%3Adepartment-cs&state=active",
+      "/tenants/tenant_123/admin/reporting/reports?issuedFrom=2026-03-01&issuedTo=2026-03-31&badgeTemplateId=badge_template_001&orgUnitId=tenant_123%3Aorg%3Adepartment-cs&state=active",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -1620,9 +1620,11 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Reporting Exports");
+    expect(body).toContain("Report Library");
+    expect(body).toContain("Saved reports");
+    expect(body).toContain("Custom reports");
     expect(body).toContain("Export filters");
-    expect(body).toContain('method="get" action="/tenants/tenant_123/admin/reporting/exports"');
+    expect(body).toContain('method="get" action="/tenants/tenant_123/admin/reporting/reports"');
     expect(body).toContain("Export CSV");
     expect(body).not.toContain("Executive Summary");
     expect(body).toContain(
@@ -1643,9 +1645,19 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).not.toContain('href="/v1/tenants/tenant_123/assertions/ledger-export.csv"');
   });
 
-  it("renders saved and custom reporting placeholders behind deeper routes", async () => {
+  it("renders one reports screen and keeps legacy reporting utility routes compatible", async () => {
     const env = createEnv();
 
+    const reportsResponse = await app.request(
+      "/tenants/tenant_123/admin/reporting/reports?issuedFrom=2026-03-01&issuedTo=2026-03-31",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const reportsBody = await reportsResponse.text();
     const savedResponse = await app.request(
       "/tenants/tenant_123/admin/reporting/saved?issuedFrom=2026-03-01&issuedTo=2026-03-31",
       {
@@ -1666,19 +1678,40 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
       env,
     );
     const customBody = await customResponse.text();
+    const exportsResponse = await app.request(
+      "/tenants/tenant_123/admin/reporting/exports?issuedFrom=2026-03-01&issuedTo=2026-03-31",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const exportsBody = await exportsResponse.text();
 
+    expect(reportsResponse.status).toBe(200);
+    expect(reportsBody).toContain("Report Library");
+    expect(reportsBody).toContain('id="reporting-reports-saved"');
+    expect(reportsBody).toContain('id="reporting-reports-custom"');
+    expect(reportsBody).toContain('id="reporting-reports-exports"');
     expect(savedResponse.status).toBe(200);
-    expect(savedBody).toContain("Saved Reports");
-    expect(savedBody).toContain("Saved reports will keep curated shortcuts here.");
+    expect(savedBody).toContain("Report Library");
+    expect(savedBody).toContain("Saved report shortcuts will live here.");
+    expect(savedBody).toContain("Custom report setup will live here.");
+    expect(savedBody).toContain("Export CSV");
     expect(savedBody).toContain("Planned");
     expect(savedBody).toContain('href="/tenants/tenant_123/admin/reporting/explore');
     expect(savedBody).not.toContain("Reporting Overview");
     expect(customResponse.status).toBe(200);
-    expect(customBody).toContain("Custom Reports");
-    expect(customBody).toContain("Custom reports will live behind this deeper path.");
+    expect(customBody).toContain("Report Library");
+    expect(customBody).toContain("Custom report setup will live here.");
     expect(customBody).toContain("Planned");
-    expect(customBody).toContain('href="/tenants/tenant_123/admin/reporting/exports');
+    expect(customBody).toContain('href="/tenants/tenant_123/admin/reporting/reports');
     expect(customBody).not.toContain("Reporting Overview");
+    expect(exportsResponse.status).toBe(200);
+    expect(exportsBody).toContain("Report Library");
+    expect(exportsBody).toContain("Export CSV");
+    expect(exportsBody).not.toContain("Reporting Overview");
   });
 
   it("adds presentation-fit reporting wrappers around the Highlights story", async () => {
@@ -1748,7 +1781,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("Claim rate");
     expect(body).toContain('id="reporting-filters-form"');
     expect(body).toContain('method="get" action="/tenants/tenant_123/admin/reporting/explore"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/exports');
+    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/reports');
     expect(body).not.toContain("Overview CSV");
   });
 
@@ -1797,7 +1830,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).not.toContain("Detailed trend table");
     expect(body).toContain("Public badge views");
     expect(body).toContain("wallet accepts");
-    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/exports');
+    expect(body).toContain('href="/tenants/tenant_123/admin/reporting/reports');
     expect(body).not.toContain("<h2>Export CSV</h2>");
   });
 

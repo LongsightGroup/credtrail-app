@@ -260,9 +260,7 @@ type InstitutionAdminView =
   | "reporting"
   | "reportingExplore"
   | "reportingTrends"
-  | "reportingSaved"
-  | "reportingCustom"
-  | "reportingExports"
+  | "reportingReports"
   | "rules"
   | "access"
   | "accessMembers"
@@ -367,9 +365,7 @@ const renderInstitutionAdminPage = (
   const reportingPath = `${tenantAdminPath}/reporting`;
   const reportingExplorePath = `${reportingPath}/explore`;
   const reportingTrendsPath = `${reportingPath}/trends`;
-  const reportingSavedPath = `${reportingPath}/saved`;
-  const reportingCustomPath = `${reportingPath}/custom`;
-  const reportingExportsPath = `${reportingPath}/exports`;
+  const reportingReportsPath = `${reportingPath}/reports`;
   const rulesWorkspacePath = `${tenantAdminPath}/rules`;
   const accessPath = `${tenantAdminPath}/access`;
   const accessMembersPath = `${accessPath}/members`;
@@ -1313,9 +1309,8 @@ const renderInstitutionAdminPage = (
   const reportingAggregateExportEntries = [...reportingPageQueryEntries] as const;
   const reportingExploreHref = buildPathWithQuery(reportingExplorePath, reportingPageQueryEntries);
   const reportingTrendsHref = buildPathWithQuery(reportingTrendsPath, reportingPageQueryEntries);
-  const reportingSavedHref = buildPathWithQuery(reportingSavedPath, reportingPageQueryEntries);
-  const reportingCustomHref = buildPathWithQuery(reportingCustomPath, reportingPageQueryEntries);
-  const reportingExportsHref = buildPathWithQuery(reportingExportsPath, reportingPageQueryEntries);
+  const reportingReportsHref = buildPathWithQuery(reportingReportsPath, reportingPageQueryEntries);
+  const reportingReportsExportsHref = `${reportingReportsHref}#reporting-reports-exports`;
   const reportingOverviewExportHref = buildPathWithQuery(
     `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/overview/export.csv`,
     reportingAggregateExportEntries,
@@ -1354,7 +1349,7 @@ const renderInstitutionAdminPage = (
     );
   };
   const reportingExportsPanelMarkup = (
-    <article class="ct-admin__panel ct-stack">
+    <article id="reporting-reports-exports" class="ct-admin__panel ct-stack">
       <div class="ct-cluster">
         <h2>Export CSV</h2>
         <span class="ct-admin__status-pill">Supporting operations</span>
@@ -3246,21 +3241,9 @@ const renderInstitutionAdminPage = (
           isSub: true,
         },
         {
-          href: reportingSavedPath,
-          label: "Saved",
-          isCurrent: view === "reportingSaved",
-          isSub: true,
-        },
-        {
-          href: reportingCustomPath,
-          label: "Custom",
-          isCurrent: view === "reportingCustom",
-          isSub: true,
-        },
-        {
-          href: reportingExportsPath,
-          label: "Exports",
-          isCurrent: view === "reportingExports",
+          href: reportingReportsPath,
+          label: "Reports",
+          isCurrent: view === "reportingReports",
           isSub: true,
         },
       ],
@@ -4097,7 +4080,8 @@ const renderInstitutionAdminPage = (
       </p>
       {renderReportingFiltersForm(reportingExplorePath)}
       <p class="ct-admin__hint">
-        Need CSV downloads for this slice? <a href={reportingExportsHref}>Open Exports</a>.
+        Need CSV downloads for this slice?{" "}
+        <a href={reportingReportsExportsHref}>Open export options</a>.
       </p>
       <div class="ct-admin__reporting-panel-media">
         {reportingOverviewVisualMarkup}
@@ -4137,7 +4121,7 @@ const renderInstitutionAdminPage = (
         <h2>Export filters</h2>
       </div>
       <p>Choose filters before downloading CSV files.</p>
-      {renderReportingFiltersForm(reportingExportsPath)}
+      {renderReportingFiltersForm(reportingReportsPath)}
     </AdminPanel>
   );
 
@@ -4292,7 +4276,7 @@ const renderInstitutionAdminPage = (
       </p>
       <p class="ct-admin__hint">
         <a href={reportingExploreHref}>Explore filters</a> ·{" "}
-        <a href={reportingTrendsHref}>Trend detail</a> · <a href={reportingExportsHref}>Exports</a>
+        <a href={reportingTrendsHref}>Trend detail</a> · <a href={reportingReportsHref}>Reports</a>
       </p>
     </aside>
   );
@@ -4382,33 +4366,24 @@ const renderInstitutionAdminPage = (
         <span>Trends</span>
         <strong>Daily counts behind the chart</strong>
       </a>
-      <a href={reportingSavedHref}>
-        <span>Saved</span>
-        <strong>Curated report shortcuts</strong>
-      </a>
-      <a href={reportingCustomHref}>
-        <span>Custom</span>
-        <strong>Custom report builder path</strong>
-      </a>
-      <a href={reportingExportsHref}>
-        <span>Exports</span>
-        <strong>CSV downloads for this slice</strong>
+      <a href={reportingReportsHref}>
+        <span>Reports</span>
+        <strong>Saved reports, custom setup, and exports</strong>
       </a>
     </section>
   );
   const reportingSavedReportsPanelMarkup = (
-    <AdminPanel className="ct-admin__reporting-placeholder-panel">
+    <AdminPanel id="reporting-reports-saved" className="ct-admin__reporting-placeholder-panel">
       <div class="ct-cluster">
         <div class="ct-stack">
           <p class="ct-admin__eyebrow">Saved reports</p>
-          <h2>Saved reports will keep curated shortcuts here.</h2>
+          <h2>Saved report shortcuts will live here.</h2>
         </div>
         <AdminStatusPill>Planned</AdminStatusPill>
       </div>
       <p>
-        This route is reserved for named reports that preserve a reporting slice, audience, and
-        export intent. For now, use Highlights for the default read and Explore for the exact table
-        workspace.
+        Reserved for named reports that preserve a reporting slice, audience, and export intent. For
+        now, use Highlights for the default read and Explore for the exact table workspace.
       </p>
       <div class="ct-admin__reporting-highlight-actions">
         <AdminButtonLink href={reportingPath} variant="secondary">
@@ -4421,28 +4396,33 @@ const renderInstitutionAdminPage = (
     </AdminPanel>
   );
   const reportingCustomReportsPanelMarkup = (
-    <AdminPanel className="ct-admin__reporting-placeholder-panel">
+    <AdminPanel id="reporting-reports-custom" className="ct-admin__reporting-placeholder-panel">
       <div class="ct-cluster">
         <div class="ct-stack">
           <p class="ct-admin__eyebrow">Custom reports</p>
-          <h2>Custom reports will live behind this deeper path.</h2>
+          <h2>Custom report setup will live here.</h2>
         </div>
         <AdminStatusPill>Planned</AdminStatusPill>
       </div>
       <p>
-        This route keeps custom reporting out of the default home until report builders and custom
-        export profiles are persisted. Current filters still travel through Explore, Trends, and
-        Exports.
+        Custom report builders and reusable export profiles are planned. Current filters still
+        travel through Explore, Trends, and Reports.
       </p>
       <div class="ct-admin__reporting-highlight-actions">
         <AdminButtonLink href={reportingExploreHref} variant="secondary">
           Build from Explore
         </AdminButtonLink>
-        <AdminButtonLink href={reportingExportsHref} variant="ghost">
-          Open Exports
+        <AdminButtonLink href={reportingReportsExportsHref} variant="ghost">
+          Export current slice
         </AdminButtonLink>
       </div>
     </AdminPanel>
+  );
+  const reportingReportsLibraryMarkup = (
+    <section class="ct-admin__reporting-highlight-grid">
+      {reportingSavedReportsPanelMarkup}
+      {reportingCustomReportsPanelMarkup}
+    </section>
   );
   const reportingLowerStoryMarkup = (
     <section class="ct-admin__reporting-lower-story" aria-label="Reporting lower-page story">
@@ -5007,23 +4987,19 @@ const renderInstitutionAdminPage = (
                       ? `Reporting Explore · Institution Admin · ${input.tenant.displayName}`
                       : view === "reportingTrends"
                         ? `Trend Detail · Reporting · Institution Admin · ${input.tenant.displayName}`
-                        : view === "reportingSaved"
-                          ? `Saved Reports · Reporting · Institution Admin · ${input.tenant.displayName}`
-                          : view === "reportingCustom"
-                            ? `Custom Reports · Reporting · Institution Admin · ${input.tenant.displayName}`
-                            : view === "reportingExports"
-                              ? `Reporting Exports · Institution Admin · ${input.tenant.displayName}`
-                              : view === "rules"
-                                ? `Rules · Institution Admin · ${input.tenant.displayName}`
-                                : view === "access"
-                                  ? `Access · Institution Admin · ${input.tenant.displayName}`
-                                  : view === "accessMembers"
-                                    ? `Members · Institution Admin · ${input.tenant.displayName}`
-                                    : view === "accessGovernance"
-                                      ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
-                                      : view === "accessApiKeys"
-                                        ? `API Keys · Institution Admin · ${input.tenant.displayName}`
-                                        : `Org Units · Institution Admin · ${input.tenant.displayName}`;
+                        : view === "reportingReports"
+                          ? `Report Library · Reporting · Institution Admin · ${input.tenant.displayName}`
+                          : view === "rules"
+                            ? `Rules · Institution Admin · ${input.tenant.displayName}`
+                            : view === "access"
+                              ? `Access · Institution Admin · ${input.tenant.displayName}`
+                              : view === "accessMembers"
+                                ? `Members · Institution Admin · ${input.tenant.displayName}`
+                                : view === "accessGovernance"
+                                  ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
+                                  : view === "accessApiKeys"
+                                    ? `API Keys · Institution Admin · ${input.tenant.displayName}`
+                                    : `Org Units · Institution Admin · ${input.tenant.displayName}`;
 
   const viewContent = (() => {
     switch (view) {
@@ -5179,34 +5155,15 @@ const renderInstitutionAdminPage = (
             </section>
           </>
         );
-      case "reportingSaved":
+      case "reportingReports":
         return (
           <>
             {renderPageHeader(
-              "Saved Reports",
-              "Keep saved reporting shortcuts behind a deeper route so Highlights stays simple by default.",
-            )}
-            <section class="ct-admin ct-stack">{reportingSavedReportsPanelMarkup}</section>
-          </>
-        );
-      case "reportingCustom":
-        return (
-          <>
-            {renderPageHeader(
-              "Custom Reports",
-              "Custom report and export builders stay one level deeper than the default reporting home.",
-            )}
-            <section class="ct-admin ct-stack">{reportingCustomReportsPanelMarkup}</section>
-          </>
-        );
-      case "reportingExports":
-        return (
-          <>
-            {renderPageHeader(
-              "Reporting Exports",
-              "Download CSV files for the selected reporting filters.",
+              "Report Library",
+              "Use one focused page for saved report shortcuts, custom report setup, and CSV exports.",
             )}
             <section class="ct-admin ct-stack">
+              {reportingReportsLibraryMarkup}
               {reportingExportFiltersPanelMarkup}
               {reportingExportsPanelMarkup}
             </section>
@@ -5387,16 +5344,8 @@ export const institutionAdminReportingTrendsPage = (input: InstitutionAdminPageI
   return renderInstitutionAdminPage(input, "reportingTrends");
 };
 
-export const institutionAdminReportingSavedPage = (input: InstitutionAdminPageInput): AppPage => {
-  return renderInstitutionAdminPage(input, "reportingSaved");
-};
-
-export const institutionAdminReportingCustomPage = (input: InstitutionAdminPageInput): AppPage => {
-  return renderInstitutionAdminPage(input, "reportingCustom");
-};
-
-export const institutionAdminReportingExportsPage = (input: InstitutionAdminPageInput): AppPage => {
-  return renderInstitutionAdminPage(input, "reportingExports");
+export const institutionAdminReportingReportsPage = (input: InstitutionAdminPageInput): AppPage => {
+  return renderInstitutionAdminPage(input, "reportingReports");
 };
 
 export const institutionAdminRulesPage = (input: InstitutionAdminPageInput): AppPage => {

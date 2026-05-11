@@ -100,11 +100,9 @@ import {
   institutionAdminOperationsReviewQueuePage,
   institutionAdminOperationsPage,
   institutionAdminOrgUnitsPage,
-  institutionAdminReportingCustomPage,
-  institutionAdminReportingExportsPage,
   institutionAdminReportingExplorePage,
   institutionAdminReportingPage,
-  institutionAdminReportingSavedPage,
+  institutionAdminReportingReportsPage,
   institutionAdminReportingTrendsPage,
   institutionAdminRulesPage,
 } from "../admin/institution-admin-page";
@@ -1623,13 +1621,23 @@ export const registerTenantGovernanceRoutes = (
     );
   });
 
+  app.get("/tenants/:tenantId/admin/reporting/reports", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    return renderReportingWorkspace(
+      c,
+      pathParams.tenantId,
+      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/reports`,
+      institutionAdminReportingReportsPage,
+    );
+  });
+
   app.get("/tenants/:tenantId/admin/reporting/saved", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
     return renderReportingWorkspace(
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/saved`,
-      institutionAdminReportingSavedPage,
+      institutionAdminReportingReportsPage,
     );
   });
 
@@ -1639,7 +1647,7 @@ export const registerTenantGovernanceRoutes = (
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/custom`,
-      institutionAdminReportingCustomPage,
+      institutionAdminReportingReportsPage,
     );
   });
 
@@ -1649,7 +1657,7 @@ export const registerTenantGovernanceRoutes = (
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/exports`,
-      institutionAdminReportingExportsPage,
+      institutionAdminReportingReportsPage,
     );
   });
 
