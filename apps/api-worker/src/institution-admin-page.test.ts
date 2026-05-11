@@ -1767,6 +1767,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
       env,
     );
     const body = await response.text();
+    const trendPanel = getReportingPanelArticleMarkup(body, "Trend lines");
 
     expect(response.status).toBe(200);
     expect(body).toContain('class="ct-reporting-visual"');
@@ -1783,6 +1784,14 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('method="get" action="/tenants/tenant_123/admin/reporting/explore"');
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting/reports');
     expect(body).not.toContain("Overview CSV");
+    expect(trendPanel).toContain('data-reporting-visual-kind="trend-series"');
+    expect(trendPanel).toContain('data-reporting-visual-density="compact"');
+    expect(trendPanel).toContain("Need exact daily counts?");
+    expect(trendPanel).toContain("Open trend detail");
+    expect(trendPanel).not.toContain('class="ct-reporting-visual__trend-axis"');
+    expect(trendPanel).not.toContain('class="ct-reporting-visual__trend-callouts"');
+    expect(trendPanel).not.toContain('class="ct-reporting-visual__legend"');
+    expect(trendPanel).not.toContain("The table below preserves every visible count");
   });
 
   it("ships a mid-width reporting breakpoint for walkthrough layouts", () => {

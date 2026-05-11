@@ -117,6 +117,31 @@ describe("renderReporting", () => {
     expect(html).toContain("8 public views");
   });
 
+  it("can render trend visuals in summary mode without per-date detail cards", () => {
+    const html = renderReportingString({
+      kind: "trend-series",
+      title: "Issued over time",
+      density: "compact",
+      description: "Issued badges by day.",
+      showLegend: false,
+      showTrendContext: false,
+      series: [
+        { label: "Mar 1", value: 3, detail: "8 public views" },
+        { label: "Mar 2", value: 2, detail: "5 public views" },
+      ],
+    });
+
+    expect(html).toContain('data-reporting-visual-kind="trend-series"');
+    expect(html).toContain('data-reporting-visual-density="compact"');
+    expect(html).toContain("<svg");
+    expect(html).toContain("Trend line summarizes the values across the selected range.");
+    expect(html).not.toContain('class="ct-reporting-visual__trend-axis"');
+    expect(html).not.toContain('class="ct-reporting-visual__trend-callouts"');
+    expect(html).not.toContain('class="ct-reporting-visual__legend"');
+    expect(html).not.toContain("legend below");
+    expect(html).not.toContain("8 public views");
+  });
+
   it("renders compact trend-area visuals with an area path and peak/latest markers", () => {
     const html = renderReportingString({
       kind: "trend-area",

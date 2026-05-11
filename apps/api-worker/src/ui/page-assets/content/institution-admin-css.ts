@@ -650,6 +650,16 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-reporting-visual[data-reporting-visual-kind='trend-series'] .ct-reporting-visual__trend-line {
   stroke-dasharray: 10 6;
 }
+.ct-reporting-visual[data-reporting-visual-kind='trend-series'][data-reporting-visual-density='compact'] {
+  gap: 0.65rem;
+}
+.ct-reporting-visual[data-reporting-visual-kind='trend-series'][data-reporting-visual-density='compact'] .ct-reporting-visual__surface {
+  padding: 0.65rem;
+}
+.ct-reporting-visual[data-reporting-visual-kind='trend-series'][data-reporting-visual-density='compact'] .ct-reporting-visual__graphic {
+  width: min(100%, 42rem);
+  margin-inline: auto;
+}
 .ct-reporting-visual[data-reporting-visual-kind='trend-area'] {
   --ct-reporting-visual-surface: linear-gradient(
     180deg,

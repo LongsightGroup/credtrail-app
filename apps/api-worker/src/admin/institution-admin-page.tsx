@@ -538,6 +538,7 @@ const renderInstitutionAdminPage = (
   };
   const renderReportingVisualModule = (input: {
     description: string;
+    density?: "regular" | "compact";
     emptyMessage?: string;
     headingLevel?: "h3" | "h4";
     id?: string;
@@ -551,6 +552,8 @@ const renderInstitutionAdminPage = (
     note?: string;
     series: readonly ReportingVisualSeriesPoint[];
     seriesOrder?: "input" | "value-desc";
+    showLegend?: boolean;
+    showTrendContext?: boolean;
     sparseMessage?: string;
     summaryOverride?: string;
     title: string;
@@ -1964,21 +1967,32 @@ const renderInstitutionAdminPage = (
           ] as const,
           note: "Use the state cards below for exact counts before exporting or investigating.",
         });
-  const reportingTrendVisualMarkup =
-    reportingTrendSeries.length === 0
-      ? ""
-      : renderReportingVisualModule({
-          kind: "trend-series",
-          title: "Issued over time",
-          description:
-            "Tracks issued badge volume over the selected dates. The table below keeps the exact daily engagement counts.",
-          series: reportingTrendSeries.map((row) => ({
-            label: formatReportingDateLabel(row.bucketStart),
-            value: row.issuedCount,
-            detail: `${formatReportingCount(row.publicBadgeViewCount)} public views · ${formatReportingCount(row.shareClickCount)} shares`,
-          })),
-          note: "The table below preserves every visible count so the chart remains a summary, not a second interpretation layer.",
-        });
+  const renderReportingTrendVisualMarkup = (includeDetailedContext: boolean): HonoElement => {
+    if (reportingTrendSeries.length === 0) {
+      return <></>;
+    }
+
+    return renderReportingVisualModule({
+      kind: "trend-series",
+      title: "Issued over time",
+      description: includeDetailedContext
+        ? "Tracks issued badge volume over the selected dates. The table below keeps the exact daily engagement counts."
+        : "Tracks issued badge volume over the selected dates.",
+      density: includeDetailedContext ? "regular" : "compact",
+      showLegend: false,
+      showTrendContext: includeDetailedContext,
+      series: reportingTrendSeries.map((row) => ({
+        label: formatReportingDateLabel(row.bucketStart),
+        value: row.issuedCount,
+        detail: `${formatReportingCount(row.publicBadgeViewCount)} public views · ${formatReportingCount(row.shareClickCount)} shares`,
+      })),
+      ...(includeDetailedContext
+        ? {
+            note: "The table below preserves every visible count so the chart remains a summary, not a second interpretation layer.",
+          }
+        : {}),
+    });
+  };
   const reportingTrendRowsMarkup =
     reportingTrendSeries.length === 0 ? (
       <AdminEmptyTableRow colSpan={7}>
@@ -2092,7 +2106,7 @@ const renderInstitutionAdminPage = (
                     })}
                   </div>
                 </div>
-                {reportingTrendVisualMarkup}
+                {renderReportingTrendVisualMarkup(true)}
               </div>
             );
           })();
@@ -4151,7 +4165,9 @@ const renderInstitutionAdminPage = (
     <AdminPanel variant="table" dataAttributes={{ "data-reporting-state": reportingTrendState }}>
       <h2>Trend lines</h2>
       <p>{getReportingTrendIntroCopy(input.includeDetailedTable)}</p>
-      {renderReportingTrendHeroMarkup(input.includeDetailedTable)}
+      {input.includeDetailedTable || reportingTrendState !== "rich"
+        ? renderReportingTrendHeroMarkup(input.includeDetailedTable)
+        : renderReportingTrendVisualMarkup(false)}
       {input.includeDetailedTable ? (
         <div>
           <h3>Detailed trend table</h3>

@@ -11,6 +11,7 @@ export type ReportingVisualKind =
   | "stacked-summary"
   | "trend-area"
   | "trend-series";
+export type ReportingVisualDensity = "regular" | "compact";
 export type ReportingVisualHeadingLevel = "h3" | "h4";
 
 export interface ReportingVisualSeriesPoint {
@@ -22,12 +23,15 @@ export interface ReportingVisualSeriesPoint {
 export interface ReportingVisualProps {
   kind: ReportingVisualKind;
   title: string;
+  density?: ReportingVisualDensity;
   description?: string;
   series: readonly ReportingVisualSeriesPoint[];
   id?: string;
   emptyMessage?: string;
   sparseMessage?: string;
   headingLevel?: ReportingVisualHeadingLevel;
+  showLegend?: boolean;
+  showTrendContext?: boolean;
   summaryOverride?: string;
   seriesOrder?: "input" | "value-desc";
 }
@@ -528,11 +532,12 @@ const buildTrendPoints = (input: {
 };
 
 const renderTrendGraphic = (
+  input: ReportingVisualProps,
   normalizedSeries: readonly ReportingVisualSeriesPoint[],
   titleId: string,
   descriptionIds: string,
 ): HonoElement => {
-  const chartHeight = 160;
+  const chartHeight = input.density === "compact" ? 104 : 160;
   const chartWidth = REPORTING_VISUAL_WIDTH;
   const { baseline, points } = buildTrendPoints({ chartHeight, chartWidth, normalizedSeries });
   const trendPath =
@@ -549,7 +554,11 @@ const renderTrendGraphic = (
       aria-labelledby={titleId}
       aria-describedby={descriptionIds}
     >
-      <desc>Visible labels and numeric values are listed in the legend below.</desc>
+      <desc>
+        {input.showLegend === false
+          ? "Trend line summarizes the values across the selected range."
+          : "Trend line plots the values listed in the legend below."}
+      </desc>
       <line
         class="ct-reporting-visual__baseline"
         x1={String(REPORTING_VISUAL_PADDING)}
@@ -790,7 +799,7 @@ const renderGraphic = (
     case "trend-area":
       return renderTrendAreaGraphic(normalizedSeries, titleId, descriptionIds);
     case "trend-series":
-      return renderTrendGraphic(normalizedSeries, titleId, descriptionIds);
+      return renderTrendGraphic(input, normalizedSeries, titleId, descriptionIds);
   }
 };
 
@@ -799,6 +808,7 @@ export const renderReporting = (input: ReportingVisualProps): HonoElement => {
   const titleId = `${visualId}-title`;
   const descriptionId = `${visualId}-description`;
   const summaryId = `${visualId}-summary`;
+  const visualDensity = input.density ?? "regular";
   const headingLevel = input.headingLevel ?? "h3";
   const normalizedSeries = input.series.map((point) => ({
     ...point,
@@ -814,6 +824,7 @@ export const renderReporting = (input: ReportingVisualProps): HonoElement => {
     return (
       <figure
         class="ct-reporting-visual"
+        data-reporting-visual-density={visualDensity}
         data-reporting-visual-kind={input.kind}
         data-reporting-visual-state="empty"
       >
@@ -834,6 +845,7 @@ export const renderReporting = (input: ReportingVisualProps): HonoElement => {
     return (
       <figure
         class="ct-reporting-visual"
+        data-reporting-visual-density={visualDensity}
         data-reporting-visual-kind={input.kind}
         data-reporting-visual-state="sparse"
       >
@@ -857,6 +869,7 @@ export const renderReporting = (input: ReportingVisualProps): HonoElement => {
   return (
     <figure
       class="ct-reporting-visual"
+      data-reporting-visual-density={visualDensity}
       data-reporting-visual-kind={input.kind}
       data-reporting-visual-state="ready"
     >
@@ -867,11 +880,15 @@ export const renderReporting = (input: ReportingVisualProps): HonoElement => {
       <div class="ct-reporting-visual__surface">
         {renderGraphic(input, normalizedSeries, titleId, descriptionIds)}
       </div>
-      {input.kind === "trend-series" ? renderTrendContext(normalizedSeries) : null}
+      {input.kind === "trend-series" && input.showTrendContext !== false
+        ? renderTrendContext(normalizedSeries)
+        : null}
       <p id={summaryId} class="ct-reporting-visual__summary">
         {summaryText}
       </p>
-      {renderLegend(input, normalizedSeries, totalValue, maxValue)}
+      {input.showLegend === false
+        ? null
+        : renderLegend(input, normalizedSeries, totalValue, maxValue)}
     </figure>
   );
 };
