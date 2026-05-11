@@ -2167,29 +2167,6 @@ const renderInstitutionAdminPage = (
   const reportingTemplateComparisonState = classifyReportingPanelState(
     reportingTemplateComparisons.filter((row) => hasReportingActivity(row)).length,
   );
-  const reportingTemplateComparisonVisualMarkup =
-    reportingTemplateComparisonState === "empty"
-      ? renderReportingStateShell({
-          state: "empty",
-          eyebrow: "No comparison rows yet",
-          title: "No badge-template rows are visible for this slice yet.",
-          description:
-            "Widen the reporting window or remove a filter to compare badge-template performance inside this workspace.",
-        })
-      : renderReportingVisualModule({
-          kind: "comparison-ranked",
-          title: "Issued ranking by badge template",
-          description:
-            "Volume-first comparison ranks badge templates by issued count while keeping public views and claim/share rates visible as adjacent detail.",
-          series: buildReportingComparisonSeries(reportingTemplateComparisons),
-          ...(reportingTemplateComparisonState === "sparse"
-            ? {
-                sparseMessage:
-                  "Only one badge template row is visible in this slice, so the exact row below carries the full comparison detail.",
-              }
-            : {}),
-          note: "The table below keeps the full row set with exact counts and rate definitions.",
-        });
   const reportingOrgUnitComparisonRowsMarkup = renderReportingComparisonRows(
     reportingOrgUnitComparisons,
     "No org-unit comparisons available for the selected filters.",
@@ -2197,29 +2174,6 @@ const renderInstitutionAdminPage = (
   const reportingOrgUnitComparisonState = classifyReportingPanelState(
     reportingOrgUnitComparisons.filter((row) => hasReportingActivity(row)).length,
   );
-  const reportingOrgUnitComparisonVisualMarkup =
-    reportingOrgUnitComparisonState === "empty"
-      ? renderReportingStateShell({
-          state: "empty",
-          eyebrow: "No comparison rows yet",
-          title: "No org-unit rows are visible for this slice yet.",
-          description:
-            "Widen the reporting window or remove a filter to compare org-unit performance inside this workspace.",
-        })
-      : renderReportingVisualModule({
-          kind: "comparison-ranked",
-          title: "Issued ranking by org unit",
-          description:
-            "Volume-first comparison ranks org units by issued count while keeping public views and claim/share rates visible as adjacent detail.",
-          series: buildReportingComparisonSeries(reportingOrgUnitComparisons),
-          ...(reportingOrgUnitComparisonState === "sparse"
-            ? {
-                sparseMessage:
-                  "Only one org-unit row is visible in this slice, so use the exact row below to read the current context.",
-              }
-            : {}),
-          note: "The table below keeps the full row set with exact counts and rate definitions.",
-        });
   const reportingTemplateHighlightRows = selectReportingHighlightRows(reportingTemplateComparisons);
   const reportingOrgUnitHighlightRows = selectReportingHighlightRows(reportingOrgUnitComparisons);
   const renderReportingHighlightComparisonPanel = (input: {
@@ -4202,30 +4156,27 @@ const renderInstitutionAdminPage = (
       <h2>Compare by badge template</h2>
       <p>
         {reportingTemplateComparisonState === "rich"
-          ? "Start with the ranked visual for volume-first scanning, then use the exact table below to inspect every visible badge-template row."
+          ? "Exact badge-template rows for the selected slice. Use Highlights for the ranked visual summary."
           : reportingTemplateComparisonState === "sparse"
             ? "Only one badge template row is visible in this slice, so the exact row below carries the full comparison detail."
-            : "Review the current slice below. The comparison table stays in place even when no badge-template rows are yet visible for the selected filters."}
+            : "No badge-template rows are visible for this slice yet. Widen the date range or remove a filter to compare templates."}
       </p>
-      <div class="ct-admin__reporting-panel-media">
-        {reportingTemplateComparisonVisualMarkup}
-        <AdminTable
-          headers={[
-            "Badge template",
-            "Issued",
-            "Public badge views",
-            "Verification views",
-            "Share clicks",
-            "Claim actions",
-            "Wallet accepts",
-            "Claim rate",
-            "Share rate",
-          ]}
-          tbodyDataAttributes={{ "data-reporting-bar-group": "template-comparisons" }}
-        >
-          {reportingTemplateComparisonRowsMarkup}
-        </AdminTable>
-      </div>
+      <AdminTable
+        headers={[
+          "Badge template",
+          "Issued",
+          "Public badge views",
+          "Verification views",
+          "Share clicks",
+          "Claim actions",
+          "Wallet accepts",
+          "Claim rate",
+          "Share rate",
+        ]}
+        tbodyDataAttributes={{ "data-reporting-bar-group": "template-comparisons" }}
+      >
+        {reportingTemplateComparisonRowsMarkup}
+      </AdminTable>
     </AdminPanel>
   );
 
@@ -4237,30 +4188,27 @@ const renderInstitutionAdminPage = (
       <h2>Compare by org unit</h2>
       <p>
         {reportingOrgUnitComparisonState === "rich"
-          ? "Start with the ranked visual for volume-first scanning, then use the exact table below to inspect every visible org-unit row alongside hierarchy drilldowns."
+          ? "Exact org-unit rows for the selected slice. Advanced hierarchy drilldowns stay collapsed below until needed."
           : reportingOrgUnitComparisonState === "sparse"
             ? "Only one org-unit row is visible in this slice, so use the exact row below to read the current context."
-            : "Review the current slice below. The comparison table stays in place even when no org-unit rows are yet visible for the selected filters."}
+            : "No org-unit rows are visible for this slice yet. Widen the date range or remove a filter to compare org units."}
       </p>
-      <div class="ct-admin__reporting-panel-media">
-        {reportingOrgUnitComparisonVisualMarkup}
-        <AdminTable
-          headers={[
-            "Org unit",
-            "Issued",
-            "Public badge views",
-            "Verification views",
-            "Share clicks",
-            "Claim actions",
-            "Wallet accepts",
-            "Claim rate",
-            "Share rate",
-          ]}
-          tbodyDataAttributes={{ "data-reporting-bar-group": "org-comparisons" }}
-        >
-          {reportingOrgUnitComparisonRowsMarkup}
-        </AdminTable>
-      </div>
+      <AdminTable
+        headers={[
+          "Org unit",
+          "Issued",
+          "Public badge views",
+          "Verification views",
+          "Share clicks",
+          "Claim actions",
+          "Wallet accepts",
+          "Claim rate",
+          "Share rate",
+        ]}
+        tbodyDataAttributes={{ "data-reporting-bar-group": "org-comparisons" }}
+      >
+        {reportingOrgUnitComparisonRowsMarkup}
+      </AdminTable>
     </AdminPanel>
   );
 
@@ -4440,19 +4388,25 @@ const renderInstitutionAdminPage = (
       {reportingCustomReportsPanelMarkup}
     </section>
   );
-  const reportingLowerStoryMarkup = (
-    <section class="ct-admin__reporting-lower-story" aria-label="Reporting lower-page story">
-      <div class="ct-admin__reporting-lower-story-intro ct-stack">
-        <p class="ct-admin__eyebrow">Lower-page story</p>
-        <p>
-          Move from template comparison into hierarchy context, performer rankings, and org-unit
-          comparison while the exact tables stay adjacent to each shared visual.
-        </p>
+  const reportingAdvancedDrilldownsMarkup = (
+    <details id="reporting-advanced-drilldowns" class="ct-admin__reporting-advanced-drilldowns">
+      <summary class="ct-admin__reporting-advanced-summary">
+        <span>Advanced hierarchy drilldowns</span>
+        <small>
+          Open org-unit drilldowns and performer rankings when you need structural detail.
+        </small>
+      </summary>
+      <div class="ct-admin__reporting-advanced-body">
+        {reportingHierarchyPanelMarkup}
+        {reportingPerformerPanelsMarkup}
       </div>
+    </details>
+  );
+  const reportingLowerStoryMarkup = (
+    <section class="ct-admin__reporting-lower-story" aria-label="Reporting comparison tables">
       {reportingTemplateComparisonPanelMarkup}
-      {reportingHierarchyPanelMarkup}
-      {reportingPerformerPanelsMarkup}
       {reportingOrgUnitComparisonPanelMarkup}
+      {reportingAdvancedDrilldownsMarkup}
     </section>
   );
 
@@ -5135,7 +5089,7 @@ const renderInstitutionAdminPage = (
           <>
             {renderPageHeader(
               "Reporting Explore",
-              "Use the full reporting workspace for exact filters, supporting tables, hierarchy drilldowns, and metric definitions.",
+              "Use focused reporting tables for exact filters and counts. Advanced drilldowns stay collapsed until needed.",
             )}
             <section class="ct-admin ct-stack">
               <section class="ct-admin__reporting-presentation-shell ct-stack">

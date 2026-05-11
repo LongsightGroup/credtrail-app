@@ -1123,14 +1123,36 @@ export const INSTITUTION_ADMIN_CSS = `
   display: grid;
   gap: 1rem;
 }
-.ct-admin__reporting-lower-story-intro {
+.ct-admin__reporting-advanced-drilldowns {
   padding: 0.95rem 1rem;
   border-radius: var(--ct-radius-lg);
   border: 1px solid rgba(15, 95, 166, 0.12);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(238, 246, 255, 0.78));
 }
-.ct-admin__reporting-lower-story-intro p:last-child {
-  max-width: 62rem;
+.ct-admin__reporting-advanced-drilldowns {
+  display: grid;
+  gap: 0.85rem;
+}
+.ct-admin__reporting-advanced-summary {
+  display: grid;
+  gap: 0.25rem;
+  cursor: pointer;
+  color: var(--ct-theme-text-title);
+  font-weight: 700;
+}
+.ct-admin__reporting-advanced-summary::-webkit-details-marker {
+  color: var(--ct-brand-lake-700);
+}
+.ct-admin__reporting-advanced-summary small {
+  color: var(--ct-theme-text-muted);
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.ct-admin__reporting-advanced-body {
+  display: grid;
+  gap: 1rem;
+  padding-top: 0.85rem;
 }
 .ct-admin__reporting-supporting-grid {
   display: grid;
@@ -1553,7 +1575,7 @@ export const INSTITUTION_ADMIN_CSS = `
   .ct-admin__reporting-focus-summary-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-  .ct-admin__reporting-lower-story-intro,
+  .ct-admin__reporting-advanced-drilldowns,
   .ct-admin__reporting-focus-section,
   .ct-admin__reporting-performer-group {
     padding: 0.9rem;
@@ -1599,7 +1621,7 @@ export const INSTITUTION_ADMIN_CSS = `
   .ct-admin__reporting-summary-band {
     padding: 1rem;
   }
-  .ct-admin__reporting-lower-story-intro,
+  .ct-admin__reporting-advanced-drilldowns,
   .ct-admin__reporting-performer-group {
     padding: 0.85rem;
   }

@@ -404,14 +404,6 @@ const getReportingPanelArticleMarkup = (html: string, heading: string): string =
   return html.slice(start, end);
 };
 
-const getReportingPanelVisualMarkup = (panelMarkup: string): string => {
-  const tableWrapStart = panelMarkup.indexOf('<div class="ct-admin__table-wrap">');
-
-  expect(tableWrapStart).toBeGreaterThan(-1);
-
-  return panelMarkup.slice(0, tableWrapStart);
-};
-
 beforeEach(() => {
   mockedCreatePostgresDatabase.mockReset();
   mockedCreatePostgresDatabase.mockReturnValue(fakeDb);
@@ -1809,6 +1801,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(INSTITUTION_ADMIN_CSS).toContain(
       ".ct-admin__reporting-presentation-note {\n    gap: 0.6rem;",
     );
+    expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__reporting-advanced-drilldowns");
   });
 
   it("keeps the trend preview embedded in Highlights and links detail through the compact scope bar", async () => {
@@ -2182,7 +2175,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('data-reporting-visual-kind="comparison-ranked"');
   });
 
-  it("renders ranked comparison modules while keeping the full comparison tables below", async () => {
+  it("renders Explore comparison panels as direct exact tables", async () => {
     const env = createEnv();
     mockedListBadgeTemplates.mockResolvedValue([
       {
@@ -2444,35 +2437,27 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     const body = await response.text();
     const templatePanel = getReportingPanelMarkup(body, "Compare by badge template");
     const orgUnitPanel = getReportingPanelMarkup(body, "Compare by org unit");
-    const templateVisual = getReportingPanelVisualMarkup(templatePanel);
-    const orgUnitVisual = getReportingPanelVisualMarkup(orgUnitPanel);
 
     expect(response.status).toBe(200);
-    expect(templatePanel).toContain('data-reporting-visual-kind="comparison-ranked"');
-    expect(orgUnitPanel).toContain('data-reporting-visual-kind="comparison-ranked"');
+    expect(templatePanel).not.toContain('data-reporting-visual-kind="comparison-ranked"');
+    expect(orgUnitPanel).not.toContain('data-reporting-visual-kind="comparison-ranked"');
+    expect(templatePanel).not.toContain("Issued ranking by badge template");
+    expect(orgUnitPanel).not.toContain("Issued ranking by org unit");
     expect(templatePanel).toContain(
-      "The table below keeps the full row set with exact counts and rate definitions.",
+      "Exact badge-template rows for the selected slice. Use Highlights for the ranked visual summary.",
     );
     expect(orgUnitPanel).toContain(
-      "The table below keeps the full row set with exact counts and rate definitions.",
+      "Exact org-unit rows for the selected slice. Advanced hierarchy drilldowns stay collapsed below until needed.",
     );
-    expect(templateVisual).toContain(
-      "Top 5 shown here. The exact table below keeps all 6 visible rows.",
-    );
-    expect(orgUnitVisual).toContain(
-      "Top 5 shown here. The exact table below keeps all 6 visible rows.",
-    );
-    expect(templateVisual).toContain("51 public views · 45.8% claim · 33.3% share");
-    expect(orgUnitVisual).toContain("42 public views · 47.1% claim · 41.2% share");
-    expect(templateVisual.indexOf("Applied Analytics")).toBeLessThan(
-      templateVisual.indexOf("Civic History"),
-    );
-    expect(orgUnitVisual.indexOf("College of Arts")).toBeLessThan(
-      orgUnitVisual.indexOf("College of Engineering"),
-    );
-    expect(templateVisual).not.toContain("Zoology Fieldwork");
-    expect(orgUnitVisual).not.toContain("Design Foundations");
+    expect(templatePanel).not.toContain("Top 5 shown here.");
+    expect(orgUnitPanel).not.toContain("Top 5 shown here.");
+    expect(templatePanel).toContain("51");
+    expect(orgUnitPanel).toContain("42");
+    expect(templatePanel).toContain("Applied Analytics");
+    expect(templatePanel).toContain("Civic History");
     expect(templatePanel).toContain("Zoology Fieldwork");
+    expect(orgUnitPanel).toContain("College of Arts");
+    expect(orgUnitPanel).toContain("College of Engineering");
     expect(orgUnitPanel).toContain("Design Foundations");
   });
 
@@ -2512,6 +2497,11 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("Hierarchy drilldown");
+    expect(body).toContain('id="reporting-advanced-drilldowns"');
+    expect(body).toContain("Advanced hierarchy drilldowns");
+    expect(body).toContain(
+      "Open org-unit drilldowns and performer rankings when you need structural detail.",
+    );
     expect(body).toContain("Visible roots stay inside the reporting workspace.");
     expect(body).toContain("Institution");
     expect(body).toContain("College of Engineering");
@@ -2589,10 +2579,15 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     );
     expect(body).toContain('class="ct-admin__reporting-lower-story"');
     expect(body.indexOf("Compare by badge template")).toBeLessThan(
+      body.indexOf("Compare by org unit"),
+    );
+    expect(body.indexOf("Compare by org unit")).toBeLessThan(
+      body.indexOf("Advanced hierarchy drilldowns"),
+    );
+    expect(body.indexOf("Advanced hierarchy drilldowns")).toBeLessThan(
       body.indexOf("Hierarchy drilldown"),
     );
     expect(body.indexOf("Hierarchy drilldown")).toBeLessThan(body.indexOf("Performer panels"));
-    expect(body.indexOf("Performer panels")).toBeLessThan(body.indexOf("Compare by org unit"));
   });
 });
 

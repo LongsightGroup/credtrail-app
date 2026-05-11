@@ -1774,21 +1774,31 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(html).toContain("Current badge state mix");
     expect(html).toContain("TypeScript Foundations");
     expect(html).toContain("14 public views · 40.0% claim · 20.0% share");
-    expect(
-      html.match(
-        /The table below keeps the full row set with exact counts and rate definitions\./g,
-      ),
-    ).toHaveLength(2);
+    expect(html).toContain(
+      "Only one badge template row is visible in this slice, so the exact row below carries the full comparison detail.",
+    );
+    expect(html).not.toContain(
+      "The table below keeps the full row set with exact counts and rate definitions.",
+    );
+    expect(html).toContain("Advanced hierarchy drilldowns");
+    expect(html).toContain(
+      "Open org-unit drilldowns and performer rankings when you need structural detail.",
+    );
     expect(html).toContain('data-reporting-bar-group="template-comparisons"');
     expect(html).toContain('data-reporting-bar-group="org-comparisons"');
     expect(html).toContain('href="/tenants/tenant_123/admin/reporting/reports?');
     expect(html).toContain("orgUnitId=tenant_123%3Aorg%3Aprogram-cs");
     expect(html).not.toContain("<h2>Export CSV</h2>");
     expect(html.indexOf("Compare by badge template")).toBeLessThan(
+      html.indexOf("Compare by org unit"),
+    );
+    expect(html.indexOf("Compare by org unit")).toBeLessThan(
+      html.indexOf("Advanced hierarchy drilldowns"),
+    );
+    expect(html.indexOf("Advanced hierarchy drilldowns")).toBeLessThan(
       html.indexOf("Hierarchy drilldown"),
     );
     expect(html.indexOf("Hierarchy drilldown")).toBeLessThan(html.indexOf("Performer panels"));
-    expect(html.indexOf("Performer panels")).toBeLessThan(html.indexOf("Compare by org unit"));
     expect(html).not.toContain("Phase 10 product data");
     expect(html).not.toContain("Phase 11 Scope");
     expect(html).not.toContain('href="/v1/tenants/tenant_123/assertions/ledger-export.csv"');
