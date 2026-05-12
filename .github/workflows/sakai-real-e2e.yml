@@ -29,10 +29,12 @@ on:
         description: Optional LTI deployment ID to pass in OIDC initiation
         required: false
         default: ''
+      sakai_platform_jwks_endpoint:
+        description: Sakai platform JWKS endpoint used to verify signed LTI launch ID tokens
+        required: true
       sakai_token_endpoint:
-        description: Optional token endpoint used for NRPS (only if your Sakai setup supports configured flow)
-        required: false
-        default: ''
+        description: Sakai OAuth token endpoint used by LTI Advantage service calls
+        required: true
       require_deep_linking:
         description: Fail unless launch resolves to deep-link selection page
         required: false
@@ -100,16 +102,9 @@ jobs:
 
       - name: Validate optional parameter combinations
         env:
-          REQUIRE_NRPS: ${{ inputs.require_nrps }}
-          SAKAI_TOKEN_ENDPOINT: ${{ inputs.sakai_token_endpoint }}
           SAKAI_USERNAME: ${{ inputs.sakai_username }}
           E2E_SAKAI_PASSWORD: ${{ secrets.E2E_SAKAI_PASSWORD }}
         run: |
-          if [ "$REQUIRE_NRPS" = "true" ] && [ -z "$SAKAI_TOKEN_ENDPOINT" ]; then
-            echo "Input sakai_token_endpoint is required when require_nrps=true"
-            exit 1
-          fi
-
           if [ -n "$SAKAI_USERNAME" ] && [ -z "$E2E_SAKAI_PASSWORD" ]; then
             echo "Repository secret E2E_SAKAI_PASSWORD is required when sakai_username is provided"
             exit 1
@@ -127,8 +122,8 @@ jobs:
           E2E_SAKAI_TARGET_LINK_URI: ${{ inputs.sakai_target_link_uri }}
           E2E_SAKAI_LOGIN_HINT: ${{ inputs.sakai_login_hint }}
           E2E_SAKAI_DEPLOYMENT_ID: ${{ inputs.sakai_deployment_id }}
+          E2E_SAKAI_PLATFORM_JWKS_ENDPOINT: ${{ inputs.sakai_platform_jwks_endpoint }}
           E2E_SAKAI_TOKEN_ENDPOINT: ${{ inputs.sakai_token_endpoint }}
-          E2E_SAKAI_CLIENT_SECRET: ${{ secrets.E2E_SAKAI_CLIENT_SECRET }}
           E2E_SAKAI_USERNAME: ${{ inputs.sakai_username }}
           E2E_SAKAI_PASSWORD: ${{ secrets.E2E_SAKAI_PASSWORD }}
           E2E_SAKAI_REQUIRE_DEEP_LINKING: ${{ inputs.require_deep_linking }}

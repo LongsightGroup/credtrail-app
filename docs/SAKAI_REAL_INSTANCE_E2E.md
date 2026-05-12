@@ -24,6 +24,8 @@ This test is intentionally gated and skipped by default in standard CI.
    - matching `issuer` (`iss`)
    - matching `client_id`
    - valid OIDC authorization endpoint
+   - platform JWKS endpoint for signed launch verification
+   - token endpoint for LTI Advantage service calls
    - tool launch URL set to CredTrail target link URI
 3. Optional Sakai username/password if Sakai shows an interactive login page.
 4. For NRPS-required assertions, Sakai roster access must be enabled and token flow configured.
@@ -40,11 +42,11 @@ E2E_SAKAI_TENANT_ID="sakai" \
 E2E_SAKAI_ISSUER="https://sakai.example" \
 E2E_SAKAI_AUTHORIZATION_ENDPOINT="https://sakai.example/imsoidc/lti13/oidc_auth" \
 E2E_SAKAI_CLIENT_ID="<lti-client-id>" \
-E2E_SAKAI_TARGET_LINK_URI="https://credtrail.org/lti/launch" \
+E2E_SAKAI_TARGET_LINK_URI="https://credtrail.org/v1/lti/launch" \
 E2E_SAKAI_LOGIN_HINT="<sakai-login-hint>" \
 E2E_SAKAI_DEPLOYMENT_ID="<optional-deployment-id>" \
-E2E_SAKAI_TOKEN_ENDPOINT="<optional-token-endpoint>" \
-E2E_SAKAI_CLIENT_SECRET="<optional-client-secret>" \
+E2E_SAKAI_PLATFORM_JWKS_ENDPOINT="https://sakai.example/imsoidc/lti13/jwks" \
+E2E_SAKAI_TOKEN_ENDPOINT="https://sakai.example/imsoidc/lti13/token" \
 E2E_SAKAI_USERNAME="<optional-sakai-username>" \
 E2E_SAKAI_PASSWORD="<optional-sakai-password>" \
 E2E_SAKAI_REQUIRE_DEEP_LINKING="false" \
@@ -67,11 +69,12 @@ Inputs:
 6. `sakai_target_link_uri`
 7. `sakai_login_hint`
 8. optional `sakai_deployment_id`
-9. optional `sakai_token_endpoint`
-10. optional `require_deep_linking`
-11. optional `require_nrps`
-12. optional `expected_role`
-13. optional `sakai_username`
+9. `sakai_platform_jwks_endpoint`
+10. `sakai_token_endpoint`
+11. optional `require_deep_linking`
+12. optional `require_nrps`
+13. optional `expected_role`
+14. optional `sakai_username`
 
 Required repository secret:
 
@@ -80,7 +83,6 @@ Required repository secret:
 Optional repository secrets:
 
 - `E2E_SAKAI_PASSWORD` (required when `sakai_username` is provided)
-- `E2E_SAKAI_CLIENT_SECRET` (required only if your Sakai token endpoint requires client secret auth)
 
 ## Failure triage
 
@@ -91,6 +93,7 @@ Common failures:
 3. Launch never returns to CredTrail because Sakai tool placement or target link URI is misconfigured.
 4. `E2E_SAKAI_REQUIRE_DEEP_LINKING=true` but launch returns resource-link flow.
 5. `E2E_SAKAI_REQUIRE_NRPS=true` but roster capability is disabled in Sakai or token settings are incomplete.
+6. Signed launch verification fails because the platform JWKS endpoint is missing or does not expose the active Sakai signing key.
 
 When failures occur:
 

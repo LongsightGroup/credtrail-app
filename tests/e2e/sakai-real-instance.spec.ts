@@ -18,8 +18,8 @@ interface BootstrapRegistrationResponse {
     issuer: string;
     tenantId: string;
     clientId: string;
+    platformJwksEndpoint: string | null;
     tokenEndpoint: string | null;
-    hasClientSecret: boolean;
     allowUnsignedIdToken: boolean;
   };
 }
@@ -71,8 +71,8 @@ const sakaiClientId = process.env.E2E_SAKAI_CLIENT_ID?.trim() ?? '';
 const sakaiTargetLinkUri = process.env.E2E_SAKAI_TARGET_LINK_URI?.trim() ?? '';
 const sakaiLoginHint = process.env.E2E_SAKAI_LOGIN_HINT?.trim() ?? '';
 const sakaiDeploymentId = process.env.E2E_SAKAI_DEPLOYMENT_ID?.trim() ?? '';
+const sakaiPlatformJwksEndpoint = process.env.E2E_SAKAI_PLATFORM_JWKS_ENDPOINT?.trim() ?? '';
 const sakaiTokenEndpoint = process.env.E2E_SAKAI_TOKEN_ENDPOINT?.trim() ?? '';
-const sakaiClientSecret = process.env.E2E_SAKAI_CLIENT_SECRET?.trim() ?? '';
 const sakaiUsername = process.env.E2E_SAKAI_USERNAME?.trim() ?? '';
 const sakaiPassword = process.env.E2E_SAKAI_PASSWORD?.trim() ?? '';
 const requireDeepLinking = parseBoolean(process.env.E2E_SAKAI_REQUIRE_DEEP_LINKING, false);
@@ -110,9 +110,8 @@ const upsertIssuerRegistration = async (request: APIRequestContext): Promise<voi
       tenantId: sakaiTenantId,
       authorizationEndpoint: sakaiAuthorizationEndpoint,
       clientId: sakaiClientId,
-      allowUnsignedIdToken: true,
-      ...(sakaiTokenEndpoint.length === 0 ? {} : { tokenEndpoint: sakaiTokenEndpoint }),
-      ...(sakaiClientSecret.length === 0 ? {} : { clientSecret: sakaiClientSecret }),
+      platformJwksEndpoint: sakaiPlatformJwksEndpoint,
+      tokenEndpoint: sakaiTokenEndpoint,
     },
   });
 
@@ -120,6 +119,9 @@ const upsertIssuerRegistration = async (request: APIRequestContext): Promise<voi
   expect(registrationPayload.registration?.issuer).toBe(sakaiIssuer);
   expect(registrationPayload.registration?.tenantId).toBe(sakaiTenantId);
   expect(registrationPayload.registration?.clientId).toBe(sakaiClientId);
+  expect(registrationPayload.registration?.platformJwksEndpoint).toBe(sakaiPlatformJwksEndpoint);
+  expect(registrationPayload.registration?.tokenEndpoint).toBe(sakaiTokenEndpoint);
+  expect(registrationPayload.registration?.allowUnsignedIdToken).toBe(false);
 };
 
 const maybeCompleteSakaiLogin = async ({
@@ -210,6 +212,8 @@ test('real Sakai launch reaches CredTrail and handles available capabilities @re
   const resolvedClientId = requireNonEmptyEnv('E2E_SAKAI_CLIENT_ID', sakaiClientId);
   const resolvedTargetLinkUri = requireNonEmptyEnv('E2E_SAKAI_TARGET_LINK_URI', sakaiTargetLinkUri);
   const resolvedLoginHint = requireNonEmptyEnv('E2E_SAKAI_LOGIN_HINT', sakaiLoginHint);
+  requireNonEmptyEnv('E2E_SAKAI_PLATFORM_JWKS_ENDPOINT', sakaiPlatformJwksEndpoint);
+  requireNonEmptyEnv('E2E_SAKAI_TOKEN_ENDPOINT', sakaiTokenEndpoint);
 
   expect(expectedRole === 'any' || expectedRole === 'instructor' || expectedRole === 'learner').toBe(
     true,
