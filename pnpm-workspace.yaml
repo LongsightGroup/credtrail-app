@@ -1,6 +1,8 @@
 packages:
   - apps/*
   - packages/*
+minimumReleaseAge: 10080
+blockExoticSubdeps: true
 ignoredBuiltDependencies:
   - esbuild
   - sharp
