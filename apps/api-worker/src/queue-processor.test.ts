@@ -72,6 +72,22 @@ const createEnv = (): {
   };
 };
 
+const PROCESSOR_TOKEN = "processor-secret";
+
+const createProcessorEnv = (): ReturnType<typeof createEnv> => {
+  return {
+    ...createEnv(),
+    JOB_PROCESSOR_TOKEN: PROCESSOR_TOKEN,
+  };
+};
+
+const processorHeaders = (): HeadersInit => {
+  return {
+    authorization: `Bearer ${PROCESSOR_TOKEN}`,
+    "content-type": "application/json",
+  };
+};
+
 const sampleAuditLogRecord = (overrides?: Partial<AuditLogRecord>): AuditLogRecord => {
   return {
     ...overrides,
@@ -173,11 +189,7 @@ describe("POST /v1/jobs/process", () => {
     });
   });
 
-  it("processes leased jobs and marks them completed", async () => {
-    const env = createEnv();
-
-    mockedLeaseJobQueueMessages.mockResolvedValue([sampleLeasedQueueMessage()]);
-
+  it("hides processor route when JOB_PROCESSOR_TOKEN is not configured", async () => {
     const response = await app.request(
       "/v1/jobs/process",
       {
@@ -185,6 +197,27 @@ describe("POST /v1/jobs/process", () => {
         headers: {
           "content-type": "application/json",
         },
+        body: JSON.stringify({}),
+      },
+      createEnv(),
+    );
+    const body = await response.json<ErrorResponse>();
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe("Route unavailable");
+    expect(mockedLeaseJobQueueMessages).not.toHaveBeenCalled();
+  });
+
+  it("processes leased jobs and marks them completed", async () => {
+    const env = createProcessorEnv();
+
+    mockedLeaseJobQueueMessages.mockResolvedValue([sampleLeasedQueueMessage()]);
+
+    const response = await app.request(
+      "/v1/jobs/process",
+      {
+        method: "POST",
+        headers: processorHeaders(),
         body: JSON.stringify({}),
       },
       env,
@@ -200,10 +233,7 @@ describe("POST /v1/jobs/process", () => {
   });
 
   it("requires bearer auth when JOB_PROCESSOR_TOKEN is configured", async () => {
-    const env = {
-      ...createEnv(),
-      JOB_PROCESSOR_TOKEN: "processor-secret",
-    };
+    const env = createProcessorEnv();
 
     const response = await app.request(
       "/v1/jobs/process",
@@ -224,7 +254,7 @@ describe("POST /v1/jobs/process", () => {
   });
 
   it("requeues failed jobs when fail handler marks pending", async () => {
-    const env = createEnv();
+    const env = createProcessorEnv();
 
     mockedLeaseJobQueueMessages.mockResolvedValue([
       sampleLeasedQueueMessage({
@@ -238,9 +268,7 @@ describe("POST /v1/jobs/process", () => {
       "/v1/jobs/process",
       {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
+        headers: processorHeaders(),
         body: JSON.stringify({}),
       },
       env,
@@ -254,7 +282,7 @@ describe("POST /v1/jobs/process", () => {
   });
 
   it("writes audit logs for processed revoke jobs", async () => {
-    const env = createEnv();
+    const env = createProcessorEnv();
 
     mockedLeaseJobQueueMessages.mockResolvedValue([
       sampleLeasedQueueMessage({
@@ -278,9 +306,7 @@ describe("POST /v1/jobs/process", () => {
       "/v1/jobs/process",
       {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
+        headers: processorHeaders(),
         body: JSON.stringify({}),
       },
       env,
@@ -301,7 +327,7 @@ describe("POST /v1/jobs/process", () => {
   });
 
   it("applies learner-record import jobs through the shared import seam", async () => {
-    const env = createEnv();
+    const env = createProcessorEnv();
 
     mockedLeaseJobQueueMessages.mockResolvedValue([
       sampleLeasedQueueMessage({
@@ -340,9 +366,7 @@ describe("POST /v1/jobs/process", () => {
       "/v1/jobs/process",
       {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
+        headers: processorHeaders(),
         body: JSON.stringify({}),
       },
       env,

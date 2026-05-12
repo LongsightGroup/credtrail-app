@@ -327,20 +327,10 @@ export const registerQueueRoutes = (input: RegisterQueueRoutesInput): void => {
   }
 
   app.post("/v1/jobs/process", async (c) => {
-    const configuredToken = c.env.JOB_PROCESSOR_TOKEN?.trim();
+    const authError = authorizeTrustedInternalRequest(c);
 
-    if (configuredToken !== undefined && configuredToken.length > 0) {
-      const authorizationHeader = c.req.header("authorization");
-      const expectedAuthorization = `Bearer ${configuredToken}`;
-
-      if (authorizationHeader !== expectedAuthorization) {
-        return c.json(
-          {
-            error: "Unauthorized",
-          },
-          401,
-        );
-      }
+    if (authError !== null) {
+      return authError;
     }
 
     const request = parseProcessQueueRequest(await readJsonBodyOrEmptyObject(c));
