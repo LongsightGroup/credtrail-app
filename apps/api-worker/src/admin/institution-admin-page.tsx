@@ -1513,6 +1513,21 @@ const renderInstitutionAdminPage = (
   };
   const reportingTopTemplateRow = selectTopReportingComparisonRow(reportingTemplateComparisons);
   const reportingTopOrgUnitRow = selectTopReportingComparisonRow(reportingOrgUnitComparisons);
+  const buildReportingExploreHrefForComparisonRow = (
+    row: TenantReportingComparisonRowRecord,
+  ): string => {
+    return buildPathWithQuery(
+      reportingExplorePath,
+      buildReportingPageQueryEntries({
+        issuedFrom: reportingIssuedFromValue,
+        issuedTo: reportingIssuedToValue,
+        badgeTemplateId:
+          row.groupBy === "badgeTemplate" ? row.groupId : reportingBadgeTemplateIdValue,
+        orgUnitId: row.groupBy === "orgUnit" ? row.groupId : reportingOrgUnitIdValue,
+        state: reportingState ?? undefined,
+      }),
+    );
+  };
   const reportingClaimRateLeader =
     [...reportingTemplateComparisons, ...reportingOrgUnitComparisons]
       .filter((row) => row.issuedCount >= REPORTING_RATE_MIN_ISSUED)
@@ -4432,8 +4447,8 @@ const renderInstitutionAdminPage = (
       aria-label="Selected reporting slice note"
     >
       <p>
-        <strong>Smart defaults active.</strong> Current slice, visible org scope, and deep links
-        stay aligned.
+        <strong>Smart defaults active.</strong> Highlights use the current reporting slice and keep
+        detailed pages one click away.
       </p>
       <p class="ct-admin__hint">
         <a href={reportingExploreHref}>Explore filters</a> ·{" "}
@@ -4469,50 +4484,131 @@ const renderInstitutionAdminPage = (
     actionHref: reportingExploreHref,
     exportHref: reportingOrgUnitComparisonExportHref,
   });
-  const reportingDrilldownHighlightsPanelMarkup = (
+  const reportingLifecycleAttentionCount =
+    reportingOverview === null
+      ? 0
+      : reportingOverview.counts.suspended +
+        reportingOverview.counts.revoked +
+        reportingOverview.counts.pendingReview;
+  const reportingLifecycleAttentionState =
+    reportingOverview === null
+      ? undefined
+      : reportingOverview.counts.pendingReview > 0
+        ? "pending_review"
+        : reportingOverview.counts.suspended > 0
+          ? "suspended"
+          : reportingOverview.counts.revoked > 0
+            ? "revoked"
+            : undefined;
+  const reportingLifecycleAttentionHref = buildPathWithQuery(
+    reportingExplorePath,
+    buildReportingPageQueryEntries({
+      issuedFrom: reportingIssuedFromValue,
+      issuedTo: reportingIssuedToValue,
+      badgeTemplateId: reportingBadgeTemplateIdValue,
+      orgUnitId: reportingOrgUnitIdValue,
+      state: reportingLifecycleAttentionState ?? reportingState ?? undefined,
+    }),
+  );
+  const reportingFocusAreaItems: Array<{
+    actionLabel: string;
+    detail: string;
+    eyebrow: string;
+    href: string;
+    metric: string;
+    title: string;
+  }> = [];
+
+  if (reportingTopOrgUnitRow !== null) {
+    reportingFocusAreaItems.push({
+      eyebrow: "Org unit to notice",
+      metric: `${formatReportingCount(reportingTopOrgUnitRow.issuedCount)} issued`,
+      title: getReportingComparisonLabel(reportingTopOrgUnitRow),
+      detail: "Highest visible org-unit volume in the current slice.",
+      href: buildReportingExploreHrefForComparisonRow(reportingTopOrgUnitRow),
+      actionLabel: "Explore this slice",
+    });
+  }
+
+  if (reportingTopTemplateRow !== null) {
+    reportingFocusAreaItems.push({
+      eyebrow: "Template to notice",
+      metric: `${formatReportingCount(reportingTopTemplateRow.issuedCount)} issued`,
+      title: getReportingComparisonLabel(reportingTopTemplateRow),
+      detail: "Highest visible badge-template volume in the current slice.",
+      href: buildReportingExploreHrefForComparisonRow(reportingTopTemplateRow),
+      actionLabel: "Explore this slice",
+    });
+  }
+
+  if (reportingLifecycleAttentionCount > 0) {
+    reportingFocusAreaItems.push({
+      eyebrow: "Lifecycle attention",
+      metric: formatReportingCount(reportingLifecycleAttentionCount),
+      title: "Badges need review",
+      detail: "Suspended, revoked, or pending-review badges are present in this slice.",
+      href: reportingLifecycleAttentionHref,
+      actionLabel: "Review in Explore",
+    });
+  } else if (reportingClaimRateLeader !== null) {
+    reportingFocusAreaItems.push({
+      eyebrow: "Engagement to notice",
+      metric: formatReportingRate(reportingClaimRateLeader.claimRate),
+      title: getReportingComparisonLabel(reportingClaimRateLeader),
+      detail: "Strongest claim-rate signal above the minimum sample threshold.",
+      href: buildReportingExploreHrefForComparisonRow(reportingClaimRateLeader),
+      actionLabel: "Explore this slice",
+    });
+  }
+  const reportingFocusAreaState = classifyReportingPanelState(reportingFocusAreaItems.length);
+
+  const reportingFocusAreaPanelMarkup = (
     <AdminPanel
       className="ct-admin__reporting-highlight-panel"
-      dataAttributes={{ "data-reporting-state": reportingHierarchyState }}
+      dataAttributes={{ "data-reporting-state": reportingFocusAreaState }}
     >
       <div class="ct-cluster">
         <div class="ct-stack">
-          <p class="ct-admin__eyebrow">Scoped drilldowns</p>
-          <h2>Open a visible reporting path</h2>
+          <p class="ct-admin__eyebrow">Focus areas</p>
+          <h2>Where to look next</h2>
         </div>
-        <AdminStatusPill>{reportingVisibleRoots.length} roots</AdminStatusPill>
+        <AdminStatusPill>
+          {formatReportingCount(reportingFocusAreaItems.length)}{" "}
+          {reportingFocusAreaItems.length === 1 ? "signal" : "signals"}
+        </AdminStatusPill>
       </div>
-      {reportingVisibleRoots.length === 0 ? (
+      <p>
+        Start with the strongest current signals. Open Explore when you need exact rows or custom
+        filters.
+      </p>
+      {reportingFocusAreaItems.length === 0 ? (
         renderReportingStateShell({
-          state: reportingHierarchyState === "empty" ? "empty" : "sparse",
-          eyebrow: "No drilldown path yet",
-          title: "Drilldowns appear when visible org-unit rows exist.",
+          state: "empty",
+          eyebrow: "No focus areas yet",
+          title: "Highlights will suggest focus areas once this slice has activity.",
           description:
-            "The Highlights home keeps the selected slice stable; Explore will show hierarchy tables once comparable rows exist.",
+            "Widen the date window or remove a filter in Explore to review more reporting signals.",
         })
       ) : (
-        <>
-          <p>
-            Start from the highest visible reporting roots, then continue through Explore for exact
-            hierarchy tables and CSV context.
-          </p>
-          <div class="ct-admin__reporting-root-links">
-            {reportingVisibleRoots.map((rootOrgUnit) => (
-              <a
-                class="ct-admin__reporting-root-link"
-                href={buildReportingHierarchyDrillHref(rootOrgUnit.id)}
-                data-reporting-focus-link
-                data-reporting-root-link
-                data-reporting-focus-target={buildReportingHierarchyFocusId(rootOrgUnit.id)}
-              >
-                {rootOrgUnit.displayName}
-              </a>
-            ))}
-          </div>
-        </>
+        <div class="ct-admin__reporting-focus-area-list">
+          {reportingFocusAreaItems.slice(0, 3).map((item) => (
+            <article class="ct-admin__reporting-focus-area-item">
+              <div class="ct-admin__reporting-focus-area-metric">{item.metric}</div>
+              <div class="ct-admin__reporting-focus-area-copy">
+                <p class="ct-admin__eyebrow">{item.eyebrow}</p>
+                <h3>{item.title}</h3>
+                <p class="ct-admin__hint">{item.detail}</p>
+              </div>
+              <AdminButtonLink href={item.href} variant="ghost">
+                {item.actionLabel}
+              </AdminButtonLink>
+            </article>
+          ))}
+        </div>
       )}
       <div class="ct-admin__reporting-highlight-actions">
         <AdminButtonLink href={reportingExploreHref} variant="secondary">
-          Open hierarchy
+          Open Explore
         </AdminButtonLink>
       </div>
     </AdminPanel>
@@ -5260,7 +5356,7 @@ const renderInstitutionAdminPage = (
           <>
             {renderPageHeader(
               "Reporting Highlights",
-              "Start with smart-default rollups, current-scope drilldowns, and visually curated report modules before opening detailed reporting pages.",
+              "Start with smart-default rollups, focus areas, and visually curated report modules before opening detailed reporting pages.",
             )}
             <section class="ct-admin ct-stack">
               <section class="ct-admin__reporting-presentation-shell ct-admin__reporting-presentation-shell--highlights ct-stack">
@@ -5274,7 +5370,7 @@ const renderInstitutionAdminPage = (
                     {reportingTemplateHighlightsPanelMarkup}
                     {reportingOrgUnitHighlightsPanelMarkup}
                   </section>
-                  {reportingDrilldownHighlightsPanelMarkup}
+                  {reportingFocusAreaPanelMarkup}
                   {reportingDeepLinksMarkup}
                 </section>
               </section>

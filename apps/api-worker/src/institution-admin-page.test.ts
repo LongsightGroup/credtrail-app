@@ -1394,7 +1394,9 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("Smart defaults");
     expect(body).toContain("Top badge templates");
     expect(body).toContain("Top org units");
-    expect(body).toContain("Open a visible reporting path");
+    expect(body).toContain("Where to look next");
+    expect(body).toContain("Focus areas");
+    expect(body).toContain("Explore this slice");
     expect(body).toContain("Explore");
     expect(body).toContain("Reports");
     expect(body).toContain("Public badge views");
@@ -1727,14 +1729,18 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('class="ct-admin__reporting-summary-feature"');
     expect(body).toContain("ct-admin__reporting-journey-panel");
     expect(body).toContain("Smart defaults active.");
-    expect(body).toContain("Current slice, visible org scope, and deep links stay aligned.");
+    expect(body).toContain(
+      "Highlights use the current reporting slice and keep detailed pages one click away.",
+    );
     expect(body).toContain('class="ct-admin__reporting-primary-story');
     expect(body).toContain('class="ct-admin__reporting-first-screen');
     expect(body).toContain('class="ct-admin__reporting-highlight-grid');
     expect(body).toContain('class="ct-admin__reporting-deep-links');
     expect(body).toContain("Top badge templates");
     expect(body).toContain("Top org units");
-    expect(body).toContain("Open a visible reporting path");
+    expect(body).toContain("Where to look next");
+    expect(body).not.toContain("Scoped drilldowns");
+    expect(body).not.toContain("Open a visible reporting path");
     expect(body.indexOf("Smart defaults active.")).toBeLessThan(body.indexOf("Executive Summary"));
     expect(body.indexOf('class="ct-admin__reporting-first-screen')).toBeLessThan(
       body.indexOf("What happens after issuance"),

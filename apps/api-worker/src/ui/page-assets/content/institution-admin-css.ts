@@ -1441,6 +1441,41 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__reporting-highlight-panel .ct-reporting-visual {
   border-color: rgba(15, 95, 166, 0.14);
 }
+.ct-admin__reporting-focus-area-list {
+  display: grid;
+  gap: 0.15rem;
+}
+.ct-admin__reporting-focus-area-item {
+  display: grid;
+  gap: 0.75rem;
+  align-items: center;
+  grid-template-columns: minmax(5rem, 0.24fr) minmax(0, 1fr) auto;
+  padding: 0.72rem 0;
+  border-top: 1px solid rgba(15, 95, 166, 0.12);
+}
+.ct-admin__reporting-focus-area-item:first-child {
+  border-top: 0;
+  padding-top: 0.25rem;
+}
+.ct-admin__reporting-focus-area-item:last-child {
+  padding-bottom: 0.25rem;
+}
+.ct-admin__reporting-focus-area-metric {
+  color: var(--ct-theme-text-title);
+  font-size: 1.08rem;
+  font-weight: 760;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.ct-admin__reporting-focus-area-copy {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+.ct-admin__reporting-focus-area-copy h3 {
+  color: var(--ct-theme-text-title);
+  font-size: 1rem;
+}
 .ct-admin__reporting-highlight-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1838,6 +1873,9 @@ export const INSTITUTION_ADMIN_CSS = `
   }
   .ct-admin__reporting-inline-summary small {
     text-align: left;
+  }
+  .ct-admin__reporting-focus-area-item {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (max-width: 1100px) {

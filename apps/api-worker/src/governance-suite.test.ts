@@ -2220,10 +2220,14 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(response.status).toBe(200);
     expect(html).toContain('class="ct-admin__reporting-presentation-note');
     expect(html).toContain("Smart defaults active.");
-    expect(html).toContain("Current slice, visible org scope, and deep links stay aligned.");
+    expect(html).toContain(
+      "Highlights use the current reporting slice and keep detailed pages one click away.",
+    );
     expect(html).toContain('class="ct-admin__reporting-primary-story');
     expect(html).toContain('class="ct-admin__reporting-highlight-grid');
     expect(html).toContain('class="ct-admin__reporting-deep-links');
+    expect(html).toContain("Where to look next");
+    expect(html).not.toContain("Scoped drilldowns");
     expect(html.indexOf("Smart defaults active.")).toBeLessThan(html.indexOf("Executive Summary"));
     expect(html.indexOf("What happens after issuance")).toBeLessThan(
       html.indexOf('class="ct-admin__reporting-highlight-grid'),
@@ -2231,9 +2235,11 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(html).toContain("Computer Science Program");
     expect(html).toContain("TypeScript Foundations");
     expect(html).toContain("14 public views · 40.0% claim · 20.0% share");
-    expect(html).toContain(
-      'href="/tenants/tenant_123/admin/reporting/explore#reporting-hierarchy-focus-tenant_123%3Aorg%3Acollege-eng"',
-    );
+    expect(html).toContain("Org unit to notice");
+    expect(html).toContain("Template to notice");
+    expect(html).toContain("Explore this slice");
+    expect(html).not.toContain("data-reporting-root-link");
+    expect(html).not.toContain("#reporting-hierarchy-focus");
     expect(html).not.toContain("Chemistry Lab");
     expect(html).not.toContain("History");
     expect(html).not.toContain("demo mode");
