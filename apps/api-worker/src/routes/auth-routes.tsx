@@ -51,6 +51,53 @@ const MAGIC_LINK_RATE_LIMITS: Record<
   tenant_email: { challengeAt: 3, blockAt: 10 },
 };
 
+const googleOAuthConfigured = (env: AppBindings): boolean => {
+  return (
+    (env.GOOGLE_OAUTH_CLIENT_ID?.trim().length ?? 0) > 0 &&
+    (env.GOOGLE_OAUTH_CLIENT_SECRET?.trim().length ?? 0) > 0
+  );
+};
+
+const googleSignInStartPath = (input: { tenantId: string; nextPath: string }): string => {
+  const params = new URLSearchParams();
+
+  if (input.tenantId.length > 0) {
+    params.set("tenantId", input.tenantId);
+  }
+
+  if (input.nextPath.length > 0) {
+    params.set("next", input.nextPath);
+  }
+
+  const query = params.toString();
+  return query.length === 0 ? "/auth/google/start" : `/auth/google/start?${query}`;
+};
+
+const hostedSocialProvidersForLogin = (
+  env: AppBindings,
+  input: { tenantId: string; nextPath: string },
+):
+  | readonly [
+      {
+        id: "google";
+        label: string;
+        startPath: string;
+      },
+    ]
+  | readonly [] => {
+  if (!googleOAuthConfigured(env)) {
+    return [];
+  }
+
+  return [
+    {
+      id: "google",
+      label: "Google",
+      startPath: googleSignInStartPath(input),
+    },
+  ];
+};
+
 interface RegisterAuthRoutesInput {
   app: Hono<AppEnv>;
   resolveDatabase: (bindings: AppBindings) => SqlDatabase;
@@ -241,6 +288,12 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
           localLoginAllowed: loginExperience.localLoginAllowed,
           explicitLocalLoginPath: loginExperience.explicitLocalLoginPath,
           enterpriseProviders: loginExperience.enterpriseProviders,
+          hostedSocialProviders: loginExperience.localLoginAllowed
+            ? hostedSocialProvidersForLogin(c.env, {
+                tenantId,
+                nextPath,
+              })
+            : [],
           ...(loginExperience.notice === undefined ? {} : { notice: loginExperience.notice }),
         }),
       );
@@ -252,6 +305,10 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
         tenantId,
         nextPath,
         turnstileSiteKey: c.env.TURNSTILE_SITE_KEY,
+        hostedSocialProviders: hostedSocialProvidersForLogin(c.env, {
+          tenantId,
+          nextPath,
+        }),
         ...(reason.length === 0 ? {} : { reason }),
       }),
     );

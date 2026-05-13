@@ -6,6 +6,7 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import { betterAuth } from "better-auth";
+import type { SocialProviders } from "better-auth/social-providers";
 import {
   createAdapterFactory,
   type CleanedWhere,
@@ -770,6 +771,7 @@ export const createCredtrailBetterAuth = (input: {
   magicLinkTtlSeconds: number;
   generateMagicLinkToken?: (() => string) | undefined;
   oauthProviders?: readonly GenericOAuthConfig[] | undefined;
+  socialProviders?: SocialProviders | undefined;
   sendMagicLink: (data: { email: string; token: string; url: string }) => Promise<void>;
   sendResetPassword?: (data: { email: string; url: string; token: string }) => Promise<void>;
 }) => {
@@ -807,6 +809,7 @@ export const createCredtrailBetterAuth = (input: {
     basePath: BETTER_AUTH_BASE_PATH,
     ...(input.runtimeConfig.secret === null ? {} : { secret: input.runtimeConfig.secret }),
     trustedOrigins: input.runtimeConfig.trustedOrigins,
+    ...(input.socialProviders === undefined ? {} : { socialProviders: input.socialProviders }),
     emailAndPassword: {
       enabled: true,
       sendResetPassword: async ({ user, url, token }) => {

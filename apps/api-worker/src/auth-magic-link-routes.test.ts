@@ -112,6 +112,8 @@ const createEnv = (
   PLATFORM_DOMAIN: string;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
+  GOOGLE_OAUTH_CLIENT_ID?: string;
+  GOOGLE_OAUTH_CLIENT_SECRET?: string;
 } => {
   return {
     APP_ENV: appEnv,
@@ -378,6 +380,20 @@ describe("magic-link auth routes", () => {
     expect(body).toContain('type="hidden"');
     expect(body).not.toContain("Tenant ID");
     expect(body).not.toContain('placeholder="sakai"');
+  });
+
+  it("renders Google sign-in when OAuth credentials are configured", async () => {
+    const env = {
+      ...createEnv("production"),
+      GOOGLE_OAUTH_CLIENT_ID: "google-client-id",
+      GOOGLE_OAUTH_CLIENT_SECRET: "google-client-secret",
+    };
+    const response = await app.request("/login", undefined, env);
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Continue with Google");
+    expect(body).toContain("/auth/google/start");
   });
 
   it("redirects sso_required tenant login pages into the default enterprise provider flow", async () => {

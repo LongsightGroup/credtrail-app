@@ -14,6 +14,7 @@ import {
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 import { Hono, type Context } from "hono";
+import type { SocialProviders } from "better-auth/social-providers";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import {
   credentialDownloadFilename,
@@ -101,6 +102,7 @@ import {
   createCredtrailBetterAuth,
   findBetterAuthSessionByToken,
   parseHostedMagicLinkToken,
+  tenantIdFromNextPath,
 } from "./auth/better-auth-runtime";
 import { createEnterpriseSsoAdapter } from "./auth/enterprise-sso-adapter";
 import { createOAuthTokenHelpers } from "./ob3/oauth-token-helpers";
@@ -186,6 +188,8 @@ export interface AppBindings {
   TURNSTILE_SECRET_KEY?: string;
   BETTER_AUTH_SECRET?: string;
   BETTER_AUTH_TRUSTED_ORIGINS?: string;
+  GOOGLE_OAUTH_CLIENT_ID?: string;
+  GOOGLE_OAUTH_CLIENT_SECRET?: string;
   GITHUB_TOKEN?: string;
   JOB_PROCESSOR_TOKEN?: string;
   BOOTSTRAP_ADMIN_TOKEN?: string;
@@ -345,6 +349,27 @@ const createBetterAuthRequest = (
   return new Request(url.toString(), requestInit);
 };
 
+const createConfiguredSocialProviders = (bindings: AppBindings): SocialProviders | undefined => {
+  const googleClientId = bindings.GOOGLE_OAUTH_CLIENT_ID?.trim();
+  const googleClientSecret = bindings.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
+
+  if (
+    googleClientId === undefined ||
+    googleClientId.length === 0 ||
+    googleClientSecret === undefined ||
+    googleClientSecret.length === 0
+  ) {
+    return undefined;
+  }
+
+  return {
+    google: {
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
+    },
+  };
+};
+
 const createBetterAuthRuntime = (
   context: AppContext,
   options?: {
@@ -352,6 +377,7 @@ const createBetterAuthRuntime = (
     oauthProviders?:
       | readonly import("better-auth/plugins/generic-oauth").GenericOAuthConfig[]
       | undefined;
+    socialProviders?: SocialProviders | undefined;
     sendMagicLink?:
       | ((data: { email: string; token: string; url: string }) => Promise<void>)
       | undefined;
@@ -373,6 +399,7 @@ const createBetterAuthRuntime = (
       magicLinkTtlSeconds: MAGIC_LINK_TTL_SECONDS,
       generateMagicLinkToken: options?.generateMagicLinkToken,
       oauthProviders: options?.oauthProviders,
+      socialProviders: options?.socialProviders ?? createConfiguredSocialProviders(context.env),
       sendMagicLink:
         options?.sendMagicLink ??
         (async () => {
@@ -628,6 +655,129 @@ const tenantMemberInviteLoginUrl = (context: AppContext, tenantId: string): stri
   loginUrl.searchParams.set("next", "/auth/resolve");
   loginUrl.searchParams.set("reason", "sso_required");
   return loginUrl.toString();
+};
+
+const normalizeHostedLoginNextPath = (nextPath: string): string => {
+  return nextPath.startsWith("/") ? nextPath : "/auth/resolve";
+};
+
+const googleLoginRedirectPath = (input: {
+  tenantId: string;
+  nextPath: string;
+  reason: "google_unavailable" | "google_failed";
+}): string => {
+  const url = new URL("/login", "https://credtrail.local");
+
+  if (input.tenantId.length > 0) {
+    url.searchParams.set("tenantId", input.tenantId);
+  }
+
+  if (input.nextPath.length > 0) {
+    url.searchParams.set("next", input.nextPath);
+  }
+
+  url.searchParams.set("reason", input.reason);
+  return `${url.pathname}${url.search}`;
+};
+
+const authResolveCallbackPath = (nextPath: string): string => {
+  const url = new URL("/auth/resolve", "https://credtrail.local");
+
+  if (nextPath.startsWith("/") && nextPath !== "/auth/resolve") {
+    url.searchParams.set("next", nextPath);
+  }
+
+  return `${url.pathname}${url.search}`;
+};
+
+const registerGoogleAuthRoutes = (): void => {
+  app.get("/auth/google/start", async (c) => {
+    if (createConfiguredSocialProviders(c.env)?.google === undefined) {
+      return c.redirect(
+        googleLoginRedirectPath({
+          tenantId: (c.req.query("tenantId") ?? "").trim(),
+          nextPath: normalizeHostedLoginNextPath((c.req.query("next") ?? "").trim()),
+          reason: "google_unavailable",
+        }),
+        302,
+      );
+    }
+
+    const tenantIdQuery = (c.req.query("tenantId") ?? "").trim();
+    const nextPathQuery = (c.req.query("next") ?? "").trim();
+    const requestedTenantId =
+      tenantIdQuery.length > 0
+        ? tenantIdQuery
+        : (tenantIdFromNextPath(nextPathQuery)?.trim() ?? "");
+    const nextPath = normalizeHostedLoginNextPath((c.req.query("next") ?? "").trim());
+
+    if (requestedTenantId.length > 0) {
+      const localLoginBlocked = await enterpriseSsoAdapter.enforceLocalMagicLinkRequest(c, {
+        tenantId: requestedTenantId,
+        nextPath,
+      });
+
+      if (localLoginBlocked !== null && localLoginBlocked !== undefined) {
+        return localLoginBlocked;
+      }
+    }
+
+    if (requestedTenantId.length > 0) {
+      rememberRequestedTenant(c, requestedTenantId);
+    }
+
+    const { auth } = createBetterAuthRuntime(c);
+    const loginPath = googleLoginRedirectPath({
+      tenantId: requestedTenantId,
+      nextPath,
+      reason: "google_failed",
+    });
+    const response = await auth.handler(
+      createBetterAuthRequest(c, "/sign-in/social", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          provider: "google",
+          callbackURL: authResolveCallbackPath(nextPath),
+          errorCallbackURL: loginPath,
+          disableRedirect: true,
+        }),
+      }),
+    );
+
+    if (!response.ok) {
+      return c.redirect(loginPath, 302);
+    }
+
+    applyBetterAuthResponseHeaders(c, response);
+
+    const payload = await response.json<{
+      url?: string | undefined;
+    }>();
+    const authorizationUrl = payload.url?.trim();
+
+    if (authorizationUrl === undefined || authorizationUrl.length === 0) {
+      return c.redirect(loginPath, 302);
+    }
+
+    return c.redirect(authorizationUrl, 302);
+  });
+
+  app.get(`${BETTER_AUTH_BASE_PATH}/callback/google`, async (c) => {
+    if (createConfiguredSocialProviders(c.env)?.google === undefined) {
+      return c.redirect("/login?reason=google_unavailable", 302);
+    }
+
+    const requestUrl = new URL(c.req.url);
+    const { auth } = createBetterAuthRuntime(c);
+    return auth.handler(
+      createBetterAuthRequest(c, `/callback/google${requestUrl.search}`, {
+        method: "GET",
+      }),
+    );
+  });
 };
 
 const requestTenantMemberInvite = async (
@@ -1050,6 +1200,8 @@ registerAppPageRenderer(app);
 registerPageAssetRoutes({
   app,
 });
+
+registerGoogleAuthRoutes();
 
 app.get("/healthz/dependencies", async (c) => {
   try {

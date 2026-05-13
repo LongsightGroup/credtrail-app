@@ -8,6 +8,8 @@ export interface BetterAuthRuntimeBindings {
   PLATFORM_DOMAIN: string;
   BETTER_AUTH_SECRET?: string | undefined;
   BETTER_AUTH_TRUSTED_ORIGINS?: string | undefined;
+  GOOGLE_OAUTH_CLIENT_ID?: string | undefined;
+  GOOGLE_OAUTH_CLIENT_SECRET?: string | undefined;
 }
 
 export interface BetterAuthRuntimeConfig {

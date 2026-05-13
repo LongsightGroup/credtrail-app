@@ -13,6 +13,12 @@ interface EnterpriseProviderView {
   startPath: string;
 }
 
+interface HostedSocialProviderView {
+  id: "google";
+  label: string;
+  startPath: string;
+}
+
 const authPage = (input: {
   title: string;
   body: HonoElement;
@@ -98,6 +104,22 @@ const LoginReasonNotice = (input: {
     );
   }
 
+  if (input.reason === "google_failed") {
+    return (
+      <p class="ct-login__context">
+        Google sign-in did not complete. Try again or use an email sign-in link.
+      </p>
+    );
+  }
+
+  if (input.reason === "google_unavailable") {
+    return (
+      <p class="ct-login__context">
+        Google sign-in is not configured for this CredTrail environment.
+      </p>
+    );
+  }
+
   if (input.reason === "sso_required") {
     return <p class="ct-login__context">Institution sign-in is required for this tenant.</p>;
   }
@@ -131,6 +153,31 @@ const EnterpriseSignIn = (input: {
         enterprise connection.
       </p>
       <div id="enterprise-sso-options" class="ct-stack">
+        {input.providers.map((provider) => {
+          return (
+            <LoginActionLink href={provider.startPath}>
+              Continue with {provider.label}
+            </LoginActionLink>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
+
+const HostedSocialSignIn = (input: {
+  providers: readonly HostedSocialProviderView[];
+}): HonoElement | null => {
+  if (input.providers.length === 0) {
+    return null;
+  }
+
+  return (
+    <section class="ct-stack" aria-labelledby="hosted-social-sign-in-title">
+      <h2 id="hosted-social-sign-in-title" class="ct-login__form-title">
+        Faster sign-in
+      </h2>
+      <div class="ct-stack">
         {input.providers.map((provider) => {
           return (
             <LoginActionLink href={provider.startPath}>
@@ -252,12 +299,14 @@ export const magicLinkLoginPage = (input: {
   localLoginAllowed?: boolean;
   explicitLocalLoginPath?: string | null;
   enterpriseProviders?: readonly EnterpriseProviderView[];
+  hostedSocialProviders?: readonly HostedSocialProviderView[];
   notice?: string;
   turnstileSiteKey?: string | undefined;
 }): AppPage => {
   const adminTenantLabel = adminTenantLabelFromNextPath(input.tenantId, input.nextPath);
   const effectiveTenantId = effectiveTenantIdFromInput(input.tenantId, adminTenantLabel);
   const enterpriseProviders = input.enterpriseProviders ?? [];
+  const hostedSocialProviders = input.hostedSocialProviders ?? [];
   const localLoginAllowed = input.localLoginAllowed ?? true;
   const explicitLocalLoginPath = input.explicitLocalLoginPath ?? null;
   const notice = input.notice?.trim() ?? "";
@@ -304,6 +353,7 @@ export const magicLinkLoginPage = (input: {
           <div class="ct-login__form-wrap ct-stack">
             <LoginReasonNotice reason={input.reason} hasExplicitNotice={hasExplicitNotice} />
             {!hasExplicitNotice ? null : <p class="ct-login__context">{notice}</p>}
+            <HostedSocialSignIn providers={hostedSocialProviders} />
             <EnterpriseSignIn providers={enterpriseProviders} />
             {!localLoginAllowed ? null : (
               <MagicLinkEmailSignIn
