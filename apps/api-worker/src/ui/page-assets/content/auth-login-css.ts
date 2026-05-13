@@ -301,6 +301,7 @@ export const AUTH_LOGIN_CSS = `
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.55rem;
   border: none;
   border-radius: var(--ct-radius-md);
   min-height: 2.75rem;
@@ -334,6 +335,30 @@ export const AUTH_LOGIN_CSS = `
   box-shadow:
     var(--ct-focus-ring),
     var(--ct-theme-shadow-soft);
+}
+
+.ct-login__submit--google {
+  border: 1px solid #dadce0;
+  color: #3c4043;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.ct-login__submit--google:hover:not(:disabled) {
+  border-color: #d2d5da;
+  color: #202124;
+  background: #f8fafd;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.16);
+}
+
+.ct-login__submit--google:active:not(:disabled) {
+  background: #eef4fb;
+}
+
+.ct-login__google-mark {
+  flex: 0 0 auto;
+  width: 1.125rem;
+  height: 1.125rem;
 }
 
 .ct-login__status {

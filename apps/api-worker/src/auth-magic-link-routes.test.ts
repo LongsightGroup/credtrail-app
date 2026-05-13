@@ -394,6 +394,8 @@ describe("magic-link auth routes", () => {
     expect(response.status).toBe(200);
     expect(body).toContain("Continue with Google");
     expect(body).toContain("/auth/google/start");
+    expect(body).toContain("ct-login__google-mark");
+    expect(body).toContain("ct-login__submit--google");
   });
 
   it("redirects sso_required tenant login pages into the default enterprise provider flow", async () => {
