@@ -1,7 +1,6 @@
 import { once } from "node:events";
 import { createServer } from "node:http";
 
-import { Oid4vciClient } from "@animo-id/oid4vci";
 import { CredentialOfferClient } from "@sphereon/oid4vci-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -82,6 +81,16 @@ const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const fakeDb = {
   prepare: vi.fn(),
 } as unknown as SqlDatabase;
+const PRE_AUTHORIZED_CODE_GRANT = "urn:ietf:params:oauth:grant-type:pre-authorized_code";
+
+interface ResolvedCredentialOfferForTest {
+  credentialIssuer: string;
+  credentialConfigurationIds: string[];
+  credentials: Array<{
+    format: string;
+  }>;
+  preAuthorizedCode: string;
+}
 
 const createEnv = (): {
   APP_ENV: string;
@@ -198,31 +207,114 @@ const sampleAssertionEngagementEvent = (
   };
 };
 
-const createAnimoOid4vciClient = (): Oid4vciClient =>
-  new Oid4vciClient({
-    callbacks: {
-      fetch: globalThis.fetch,
-      hash: async (data, alg) => {
-        const algorithms: Record<string, AlgorithmIdentifier> = {
-          SHA1: "SHA-1",
-          SHA256: "SHA-256",
-          SHA384: "SHA-384",
-          SHA512: "SHA-512",
-          "SHA-1": "SHA-1",
-          "SHA-256": "SHA-256",
-          "SHA-384": "SHA-384",
-          "SHA-512": "SHA-512",
-        };
-        const algorithm = algorithms[alg as keyof typeof algorithms] ?? "SHA-256";
-        const digestInput = new Uint8Array(data.byteLength);
-        digestInput.set(data);
-        const digest = await crypto.subtle.digest(algorithm, digestInput);
-        return new Uint8Array(digest);
-      },
-      signJwt: () => "unused-signature",
-      generateRandom: (byteLength) => crypto.getRandomValues(new Uint8Array(byteLength)),
-    },
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+};
+
+const requiredRecordValue = (value: unknown, label: string): Record<string, unknown> => {
+  if (!isRecord(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+
+  return value;
+};
+
+const requiredRecordProperty = (
+  record: Record<string, unknown>,
+  propertyName: string,
+): Record<string, unknown> => {
+  return requiredRecordValue(record[propertyName], propertyName);
+};
+
+const requiredStringProperty = (
+  record: Record<string, unknown>,
+  propertyName: string,
+): string => {
+  const value = record[propertyName];
+
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`${propertyName} must be a non-empty string`);
+  }
+
+  return value;
+};
+
+const requiredStringArrayProperty = (
+  record: Record<string, unknown>,
+  propertyName: string,
+): string[] => {
+  const value = record[propertyName];
+
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+    throw new Error(`${propertyName} must be an array of strings`);
+  }
+
+  return value;
+};
+
+const requiredArrayProperty = (
+  record: Record<string, unknown>,
+  propertyName: string,
+): unknown[] => {
+  const value = record[propertyName];
+
+  if (!Array.isArray(value)) {
+    throw new Error(`${propertyName} must be an array`);
+  }
+
+  return value;
+};
+
+const parseCredentialOfferForTest = (payload: unknown): ResolvedCredentialOfferForTest => {
+  const offer = requiredRecordValue(payload, "credential offer");
+  const credentialIssuer = requiredStringProperty(offer, "credential_issuer");
+  const credentialConfigurationIds = requiredStringArrayProperty(
+    offer,
+    "credential_configuration_ids",
+  );
+  const grants = requiredRecordProperty(offer, "grants");
+  const preAuthorizedCodeGrant = requiredRecordProperty(grants, PRE_AUTHORIZED_CODE_GRANT);
+  const credentials = requiredArrayProperty(offer, "credentials").map((credential) => {
+    const credentialRecord = requiredRecordValue(credential, "credential");
+
+    return {
+      format: requiredStringProperty(credentialRecord, "format"),
+    };
   });
+
+  new URL(credentialIssuer);
+
+  return {
+    credentialIssuer,
+    credentialConfigurationIds,
+    credentials,
+    preAuthorizedCode: requiredStringProperty(preAuthorizedCodeGrant, "pre-authorized_code"),
+  };
+};
+
+const resolveCredentialOfferUriForTest = async (
+  walletOfferUri: string,
+): Promise<ResolvedCredentialOfferForTest> => {
+  const parsedWalletOfferUri = new URL(walletOfferUri);
+
+  if (parsedWalletOfferUri.protocol !== "openid-credential-offer:") {
+    throw new Error("wallet offer URI must use the openid-credential-offer scheme");
+  }
+
+  const credentialOfferUri = parsedWalletOfferUri.searchParams.get("credential_offer_uri");
+
+  if (credentialOfferUri === null || credentialOfferUri.length === 0) {
+    throw new Error("wallet offer URI must include credential_offer_uri");
+  }
+
+  const response = await fetch(credentialOfferUri);
+
+  if (!response.ok) {
+    throw new Error(`credential_offer_uri returned ${String(response.status)}`);
+  }
+
+  return parseCredentialOfferForTest(await response.json());
+};
 
 beforeEach(() => {
   mockedCreatePostgresDatabase.mockReset();
@@ -848,7 +940,7 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(mockedCreateOid4vciPreAuthorizedCode).toHaveBeenCalledTimes(1);
   });
 
-  it("resolves credential_offer_uri with two wallet implementations (Sphereon and Animo)", async () => {
+  it("resolves credential_offer_uri with Sphereon and the CredTrail contract parser", async () => {
     const env = createEnv();
     const credential: JsonObject = {
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
@@ -896,7 +988,7 @@ describe("GET /badges/:badgeIdentifier", () => {
 
     try {
       const sphereonOffer = await CredentialOfferClient.fromURI(walletOfferUri, { resolve: true });
-      const animoOffer = await createAnimoOid4vciClient().resolveCredentialOffer(walletOfferUri);
+      const credtrailOffer = await resolveCredentialOfferUriForTest(walletOfferUri);
 
       expect(offerRequestCount).toBe(2);
       expect(sphereonOffer.credential_offer.credential_configuration_ids).toContain(
@@ -911,20 +1003,16 @@ describe("GET /badges/:badgeIdentifier", () => {
         ]?.["pre-authorized_code"],
       ).toBe(sphereonOffer.preAuthorizedCode);
 
-      expect(animoOffer.credential_configuration_ids).toContain("OpenBadgeCredential");
-      expect(animoOffer.credential_issuer).toBe("https://credtrail.test");
-      expect(animoOffer.credentials).toEqual(
+      expect(credtrailOffer.credentialConfigurationIds).toContain("OpenBadgeCredential");
+      expect(credtrailOffer.credentialIssuer).toBe("https://credtrail.test");
+      expect(credtrailOffer.credentials).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
             format: "ldp_vc",
           }),
         ]),
       );
-      expect(
-        animoOffer.grants?.["urn:ietf:params:oauth:grant-type:pre-authorized_code"]?.[
-          "pre-authorized_code"
-        ],
-      ).toBe(sphereonOffer.preAuthorizedCode);
+      expect(credtrailOffer.preAuthorizedCode).toBe(sphereonOffer.preAuthorizedCode);
     } finally {
       server.close();
       await once(server, "close");

@@ -23,7 +23,6 @@
     "check": "pnpm check:public-docs && pnpm check:design-tokens && pnpm check:ob3-openapi && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
-    "@animo-id/oid4vci": "^0.1.4",
     "@cloudflare/workers-types": "^4.20260508.1",
     "@playwright/test": "^1.59.1",
     "@sphereon/oid4vci-client": "^0.20.1",
