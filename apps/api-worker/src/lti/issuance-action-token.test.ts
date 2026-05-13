@@ -5,7 +5,6 @@ import {
 } from "./issuance-action-token";
 
 const env = {
-  PLATFORM_DOMAIN: "credtrail.test",
   LTI_STATE_SIGNING_SECRET: "test-lti-state-secret",
 };
 
@@ -62,5 +61,11 @@ describe("LTI issuance action token", () => {
     vi.setSystemTime(new Date("2026-05-01T12:00:02.000Z"));
 
     await expect(verifyLtiIssuanceActionToken(env, token)).resolves.toBeNull();
+  });
+
+  it("requires an explicit LTI state signing secret", async () => {
+    await expect(createLtiIssuanceActionToken({}, validInput)).rejects.toThrow(
+      "LTI_STATE_SIGNING_SECRET is required",
+    );
   });
 });

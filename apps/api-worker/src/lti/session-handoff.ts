@@ -1,6 +1,7 @@
 import type { AppBindings } from "../app";
+import { ltiStateSigningSecret } from "./lti-helpers";
 
-type LtiSessionHandoffBindings = Pick<AppBindings, "PLATFORM_DOMAIN" | "LTI_STATE_SIGNING_SECRET">;
+type LtiSessionHandoffBindings = Pick<AppBindings, "LTI_STATE_SIGNING_SECRET">;
 
 export interface LtiSessionHandoffPayload {
   tenantId: string;
@@ -9,13 +10,6 @@ export interface LtiSessionHandoffPayload {
 }
 
 const textEncoder = new TextEncoder();
-
-const ltiSessionHandoffSecret = (env: LtiSessionHandoffBindings): string => {
-  const configuredSecret = env.LTI_STATE_SIGNING_SECRET?.trim();
-  return configuredSecret === undefined || configuredSecret.length === 0
-    ? `${env.PLATFORM_DOMAIN}:lti-state-secret`
-    : configuredSecret;
-};
 
 const base64UrlEncode = (bytes: Uint8Array): string => {
   let binary = "";
@@ -49,7 +43,7 @@ const base64UrlDecode = (value: string): Uint8Array | null => {
 const sign = async (env: LtiSessionHandoffBindings, payload: string): Promise<string> => {
   const key = await crypto.subtle.importKey(
     "raw",
-    textEncoder.encode(ltiSessionHandoffSecret(env)),
+    textEncoder.encode(ltiStateSigningSecret(env)),
     {
       name: "HMAC",
       hash: "SHA-256",

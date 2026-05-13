@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { createLtiSessionHandoffToken, verifyLtiSessionHandoffToken } from "./session-handoff";
 
 const env = {
-  PLATFORM_DOMAIN: "credtrail.test",
   LTI_STATE_SIGNING_SECRET: "test-lti-state-secret",
 };
 
@@ -31,5 +30,18 @@ describe("LTI session handoff tokens", () => {
     const tamperedToken = `${token.slice(0, -1)}${token.endsWith("a") ? "b" : "a"}`;
 
     expect(await verifyLtiSessionHandoffToken(env, tamperedToken)).toBeNull();
+  });
+
+  it("requires an explicit LTI state signing secret", async () => {
+    await expect(
+      createLtiSessionHandoffToken(
+        {},
+        {
+          tenantId: "tenant_123",
+          sessionToken: "better-auth-session-token",
+          ttlSeconds: 60,
+        },
+      ),
+    ).rejects.toThrow("LTI_STATE_SIGNING_SECRET is required");
   });
 });

@@ -182,11 +182,14 @@ export const ltiIssuerRegistryFromStoredRows = (
   return registry;
 };
 
-export const ltiStateSigningSecret = (env: AppBindings): string => {
+export const ltiStateSigningSecret = (env: Pick<AppBindings, "LTI_STATE_SIGNING_SECRET">): string => {
   const configuredSecret = env.LTI_STATE_SIGNING_SECRET?.trim();
-  return configuredSecret === undefined || configuredSecret.length === 0
-    ? `${env.PLATFORM_DOMAIN}:lti-state-secret`
-    : configuredSecret;
+
+  if (configuredSecret === undefined || configuredSecret.length === 0) {
+    throw new Error("LTI_STATE_SIGNING_SECRET is required");
+  }
+
+  return configuredSecret;
 };
 
 export const ltiAudienceIncludesClientId = (

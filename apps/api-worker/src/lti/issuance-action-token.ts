@@ -1,6 +1,7 @@
 import type { AppBindings } from "../app";
+import { ltiStateSigningSecret } from "./lti-helpers";
 
-type LtiIssuanceActionBindings = Pick<AppBindings, "PLATFORM_DOMAIN" | "LTI_STATE_SIGNING_SECRET">;
+type LtiIssuanceActionBindings = Pick<AppBindings, "LTI_STATE_SIGNING_SECRET">;
 
 export interface LtiIssuanceActionPayload {
   tenantId: string;
@@ -18,13 +19,7 @@ export interface LtiIssuanceActionPayload {
 const textEncoder = new TextEncoder();
 
 const ltiIssuanceActionSecret = (env: LtiIssuanceActionBindings): string => {
-  const configuredSecret = env.LTI_STATE_SIGNING_SECRET?.trim();
-  const baseSecret =
-    configuredSecret === undefined || configuredSecret.length === 0
-      ? `${env.PLATFORM_DOMAIN}:lti-state-secret`
-      : configuredSecret;
-
-  return `${baseSecret}:issuance-action`;
+  return `${ltiStateSigningSecret(env)}:issuance-action`;
 };
 
 const base64UrlEncode = (bytes: Uint8Array): string => {
