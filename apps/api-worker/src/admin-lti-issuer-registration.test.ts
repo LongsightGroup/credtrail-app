@@ -81,7 +81,6 @@ const sampleLtiIssuerRegistration = (
     platformJwksEndpoint: null,
     tokenEndpoint: "https://canvas.example.edu/login/oauth2/token",
     clientSecret: null,
-    allowUnsignedIdToken: false,
     createdAt: "2026-02-10T22:00:00.000Z",
     updatedAt: "2026-02-10T22:00:00.000Z",
     ...overrides,

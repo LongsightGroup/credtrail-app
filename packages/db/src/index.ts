@@ -114,7 +114,6 @@ export interface LtiIssuerRegistrationRecord {
   platformJwksEndpoint: string | null;
   tokenEndpoint: string | null;
   clientSecret: string | null;
-  allowUnsignedIdToken: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -127,7 +126,6 @@ export interface UpsertLtiIssuerRegistrationInput {
   platformJwksEndpoint?: string | undefined;
   tokenEndpoint?: string | undefined;
   clientSecret?: string | undefined;
-  allowUnsignedIdToken?: boolean | undefined;
 }
 
 export interface LtiDeploymentRecord {
@@ -2339,7 +2337,6 @@ interface LtiIssuerRegistrationRow {
   platformJwksEndpoint: string | null;
   tokenEndpoint: string | null;
   clientSecret: string | null;
-  allowUnsignedIdToken: number | boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -3079,7 +3076,6 @@ const ensureLtiIssuerRegistrationsTable = async (db: SqlDatabase): Promise<void>
         platform_jwks_endpoint TEXT,
         token_endpoint TEXT,
         client_secret TEXT,
-        allow_unsigned_id_token INTEGER NOT NULL DEFAULT 0 CHECK (allow_unsigned_id_token IN (0, 1)),
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE
@@ -8698,7 +8694,6 @@ const mapLtiIssuerRegistrationRow = (
     platformJwksEndpoint: row.platformJwksEndpoint,
     tokenEndpoint: row.tokenEndpoint,
     clientSecret: row.clientSecret,
-    allowUnsignedIdToken: row.allowUnsignedIdToken === 1 || row.allowUnsignedIdToken === true,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -12649,7 +12644,6 @@ export const upsertLtiIssuerRegistration = async (
 ): Promise<LtiIssuerRegistrationRecord> => {
   const nowIso = new Date().toISOString();
   const normalizedIssuer = normalizeLtiIssuer(input.issuer);
-  const allowUnsignedIdToken = input.allowUnsignedIdToken ?? false;
 
   const upsertStatement = (): Promise<SqlRunResult> =>
     db
@@ -12663,11 +12657,10 @@ export const upsertLtiIssuerRegistration = async (
           platform_jwks_endpoint,
           token_endpoint,
           client_secret,
-          allow_unsigned_id_token,
           created_at,
           updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (issuer)
         DO UPDATE SET
           tenant_id = excluded.tenant_id,
@@ -12676,7 +12669,6 @@ export const upsertLtiIssuerRegistration = async (
           platform_jwks_endpoint = COALESCE(excluded.platform_jwks_endpoint, lti_issuer_registrations.platform_jwks_endpoint),
           token_endpoint = COALESCE(excluded.token_endpoint, lti_issuer_registrations.token_endpoint),
           client_secret = COALESCE(excluded.client_secret, lti_issuer_registrations.client_secret),
-          allow_unsigned_id_token = excluded.allow_unsigned_id_token,
           updated_at = excluded.updated_at
       `,
       )
@@ -12688,7 +12680,6 @@ export const upsertLtiIssuerRegistration = async (
         input.platformJwksEndpoint ?? null,
         input.tokenEndpoint ?? null,
         input.clientSecret ?? null,
-        allowUnsignedIdToken ? 1 : 0,
         nowIso,
         nowIso,
       )
@@ -12706,7 +12697,6 @@ export const upsertLtiIssuerRegistration = async (
           platform_jwks_endpoint AS platformJwksEndpoint,
           token_endpoint AS tokenEndpoint,
           client_secret AS clientSecret,
-          allow_unsigned_id_token AS allowUnsignedIdToken,
           created_at AS createdAt,
           updated_at AS updatedAt
         FROM lti_issuer_registrations
@@ -12752,7 +12742,6 @@ export const listLtiIssuerRegistrations = async (
           platform_jwks_endpoint AS platformJwksEndpoint,
           token_endpoint AS tokenEndpoint,
           client_secret AS clientSecret,
-          allow_unsigned_id_token AS allowUnsignedIdToken,
           created_at AS createdAt,
           updated_at AS updatedAt
         FROM lti_issuer_registrations

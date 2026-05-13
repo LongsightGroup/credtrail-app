@@ -20,7 +20,6 @@ interface BootstrapRegistrationResponse {
     clientId: string;
     platformJwksEndpoint: string | null;
     tokenEndpoint: string | null;
-    allowUnsignedIdToken: boolean;
   };
 }
 
@@ -121,7 +120,6 @@ const upsertIssuerRegistration = async (request: APIRequestContext): Promise<voi
   expect(registrationPayload.registration?.clientId).toBe(sakaiClientId);
   expect(registrationPayload.registration?.platformJwksEndpoint).toBe(sakaiPlatformJwksEndpoint);
   expect(registrationPayload.registration?.tokenEndpoint).toBe(sakaiTokenEndpoint);
-  expect(registrationPayload.registration?.allowUnsignedIdToken).toBe(false);
 };
 
 const maybeCompleteSakaiLogin = async ({

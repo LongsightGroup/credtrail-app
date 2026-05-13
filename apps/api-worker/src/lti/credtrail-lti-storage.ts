@@ -124,7 +124,6 @@ export class CredTrailLtiStorage implements LTIStorage {
       clientId: client.clientId,
       platformJwksEndpoint: client.jwksUrl,
       tokenEndpoint: client.tokenUrl,
-      allowUnsignedIdToken: false,
     });
 
     return normalizeLtiIssuer(client.iss);
@@ -153,7 +152,6 @@ export class CredTrailLtiStorage implements LTIStorage {
       clientId: client.clientId ?? existing.clientId,
       platformJwksEndpoint: client.jwksUrl ?? existing.jwksUrl,
       tokenEndpoint: client.tokenUrl ?? existing.tokenUrl,
-      allowUnsignedIdToken: false,
     });
   }
 
@@ -329,7 +327,6 @@ export class CredTrailLtiStorage implements LTIStorage {
       clientId: launchConfig.clientId,
       platformJwksEndpoint: launchConfig.jwksUrl,
       tokenEndpoint: launchConfig.tokenUrl,
-      allowUnsignedIdToken: false,
     });
     await upsertLtiDeployment(this.db, {
       issuer: launchConfig.iss,

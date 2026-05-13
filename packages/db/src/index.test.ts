@@ -5094,4 +5094,14 @@ describe("better auth core migration", () => {
     expect(sql).toContain("ADD COLUMN IF NOT EXISTS token_endpoint TEXT");
     expect(sql).toContain("ADD COLUMN IF NOT EXISTS client_secret TEXT");
   });
+
+  it("drops obsolete unsigned LTI launch compatibility through a forward migration", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0041_drop_lti_allow_unsigned_id_token.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("ALTER TABLE lti_issuer_registrations");
+    expect(sql).toContain("DROP COLUMN IF EXISTS allow_unsigned_id_token");
+  });
 });
