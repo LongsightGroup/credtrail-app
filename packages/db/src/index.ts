@@ -10939,7 +10939,7 @@ export const listBadgeIssuanceRuleValueLists = async (
           updated_at AS updatedAt
         FROM badge_issuance_rule_value_lists
         WHERE tenant_id = ?
-          AND (? IS NULL OR kind = ?)
+          AND (CAST(? AS TEXT) IS NULL OR kind = ?)
           AND (? = 1 OR archived_at IS NULL)
         ORDER BY created_at DESC, id DESC
       `,
@@ -12186,11 +12186,11 @@ export const listBadgeIssuanceRuleEvaluations = async (
           ON rules.id = evaluations.rule_id
           AND rules.tenant_id = evaluations.tenant_id
         WHERE evaluations.tenant_id = ?
-          AND (? IS NULL OR evaluations.rule_id = ?)
-          AND (? IS NULL OR evaluations.version_id = ?)
-          AND (? IS NULL OR rules.badge_template_id = ?)
-          AND (? IS NULL OR evaluations.issuance_status = ?)
-          AND (? IS NULL OR evaluations.review_status = ?)
+          AND (CAST(? AS TEXT) IS NULL OR evaluations.rule_id = ?)
+          AND (CAST(? AS TEXT) IS NULL OR evaluations.version_id = ?)
+          AND (CAST(? AS TEXT) IS NULL OR rules.badge_template_id = ?)
+          AND (CAST(? AS TEXT) IS NULL OR evaluations.issuance_status = ?)
+          AND (CAST(? AS TEXT) IS NULL OR evaluations.review_status = ?)
         ORDER BY evaluations.evaluated_at DESC, evaluations.id DESC
         LIMIT ?
       `,
