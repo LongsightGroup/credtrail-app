@@ -2668,9 +2668,13 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       /href="\/tenants\/tenant_123\/admin\/rules\/templates"[^>]*aria-current="page"/,
     );
     expect(body).toContain("Upload Badge Template Image");
+    expect(body).toContain('id="template-image-panel"');
+    expect(body).toContain('class="ct-admin__panel ct-admin__add-disclosure"');
     expect(body).toContain('id="badge-template-image-upload-form"');
+    expect(body).toContain("Open form");
     expect(body).toContain("Badge Templates (1)");
     expect(body).toContain("Template records, public links, and artwork maintenance");
+    expect(body).not.toContain("ct-grid--sidebar");
     expect(body).not.toContain("Rule Value Lists");
     expect(body).not.toContain('id="rule-value-list-form"');
     expect(body).not.toContain("Evaluate Rule");

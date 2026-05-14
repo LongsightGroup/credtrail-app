@@ -2167,6 +2167,9 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__add-disclosure-form--api-key.ct-grid {
   grid-template-columns: minmax(14rem, 1fr) minmax(18rem, 1.4fr) auto;
 }
+.ct-admin__add-disclosure-form--template-image.ct-grid {
+  grid-template-columns: minmax(16rem, 1fr) minmax(16rem, 1fr) auto;
+}
 .ct-admin__add-disclosure-form--org-unit.ct-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
 }

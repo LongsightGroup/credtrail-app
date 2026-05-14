@@ -3490,11 +3490,26 @@ const renderInstitutionAdminPage = (
     </AdminPanel>
   );
 
+  const addDisclosureControlMarkup = (
+    <span class="ct-admin__add-disclosure-control">
+      <span class="ct-admin__add-disclosure-control-open">Open form</span>
+      <span class="ct-admin__add-disclosure-control-close">Hide form</span>
+    </span>
+  );
+
   const templateImagePanelMarkup = (
-    <AdminPanel id="template-image-panel">
-      <h2>Upload Badge Template Image</h2>
-      <p>Update badge artwork where template records are managed.</p>
-      <AdminForm id="badge-template-image-upload-form">
+    <details id="template-image-panel" class="ct-admin__panel ct-admin__add-disclosure">
+      <summary class="ct-admin__add-disclosure-summary">
+        <span>
+          <strong>Upload Badge Template Image</strong>
+          <small>Update badge artwork only when a template needs new artwork.</small>
+        </span>
+        {addDisclosureControlMarkup}
+      </summary>
+      <AdminForm
+        id="badge-template-image-upload-form"
+        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--template-image ct-grid"
+      >
         <AdminField label="Badge template">
           <select name="badgeTemplateId" required>
             {templateSelectOptions}
@@ -3506,14 +3521,7 @@ const renderInstitutionAdminPage = (
         <AdminButton type="submit">Upload image</AdminButton>
       </AdminForm>
       <AdminStatus id="badge-template-image-upload-status"></AdminStatus>
-    </AdminPanel>
-  );
-
-  const addDisclosureControlMarkup = (
-    <span class="ct-admin__add-disclosure-control">
-      <span class="ct-admin__add-disclosure-control-open">Open form</span>
-      <span class="ct-admin__add-disclosure-control-close">Hide form</span>
-    </span>
+    </details>
   );
 
   const apiKeyPanelMarkup = (
@@ -5472,12 +5480,8 @@ const renderInstitutionAdminPage = (
               "Manage template records, artwork, and public template links without crowding the rules overview.",
             )}
             <section class="ct-admin ct-stack">
-              <section class="ct-admin__layout ct-grid ct-grid--sidebar">
-                <div class="ct-admin__grid ct-stack">{templateImagePanelMarkup}</div>
-                <div class="ct-admin__grid ct-stack">
-                  {badgeTemplatesTableMarkup}
-                </div>
-              </section>
+              {templateImagePanelMarkup}
+              {badgeTemplatesTableMarkup}
             </section>
           </>
         );
