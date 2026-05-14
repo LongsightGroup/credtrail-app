@@ -2951,6 +2951,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('id="rule-builder-step-prev"');
     expect(body).toContain('id="rule-builder-step-next"');
     expect(body).toContain('id="rule-builder-submit"');
+    expect(body).toContain('id="rule-builder-flow-list"');
+    expect(body).toContain('id="rule-builder-source-list"');
     expect(body).toMatch(
       /id="rule-builder-add-condition"[^>]*class="ct-admin__button ct-admin__button--tiny"/,
     );
@@ -2973,6 +2975,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("Start from existing rule");
     expect(body).toContain("Survey completion");
     expect(body).toContain("Custom field");
+    expect(body).toContain("Rule flow preview");
+    expect(body).toContain("Data sources");
     expect(body).toContain("Draft readiness");
     expect(body).toContain("Authoring approach");
     expect(body).toContain("Requirement catalog");

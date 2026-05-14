@@ -2540,6 +2540,91 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__builder-condition-list {
   --ct-stack-gap: 0.55rem;
 }
+.ct-admin__builder-flow {
+  --ct-stack-gap: 0.58rem;
+  padding: 0.72rem;
+  border: 1px solid var(--ct-border-soft);
+  border-radius: var(--ct-radius-md);
+  background: var(--ct-theme-surface-card-strong);
+}
+.ct-admin__builder-flow-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ct-admin__builder-flow-item {
+  display: grid;
+  grid-template-columns: minmax(3rem, 4rem) minmax(0, 1fr);
+  gap: 0.48rem;
+  align-items: stretch;
+}
+.ct-admin__builder-flow-item:first-child {
+  grid-template-columns: minmax(0, 1fr);
+}
+.ct-admin__builder-flow-connector {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  min-height: 1.8rem;
+  padding: 0.16rem 0.48rem;
+  border: 1px solid var(--ct-border-soft);
+  border-radius: var(--ct-radius-pill);
+  background: var(--ct-theme-surface-soft);
+  color: var(--ct-theme-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.ct-admin__builder-flow-node {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+  padding: 0.56rem 0.62rem;
+  border: 1px solid var(--ct-theme-border-info);
+  border-radius: var(--ct-radius-sm);
+  background: var(--ct-theme-surface-info);
+}
+.ct-admin__builder-flow-node strong {
+  color: var(--ct-color-ink);
+  font-size: 0.88rem;
+  line-height: 1.25;
+}
+.ct-admin__builder-flow-node p {
+  margin: 0;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.ct-admin__builder-flow-kicker {
+  color: var(--ct-theme-text-subtle);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.ct-admin__builder-flow-item--course_completion .ct-admin__builder-flow-node,
+.ct-admin__builder-flow-item--issue .ct-admin__builder-flow-node {
+  border-color: var(--ct-theme-border-success);
+  background: var(--ct-theme-surface-success);
+}
+.ct-admin__builder-flow-item--grade_threshold .ct-admin__builder-flow-node,
+.ct-admin__builder-flow-item--custom_field .ct-admin__builder-flow-node {
+  border-color: var(--ct-theme-border-focus);
+  background: var(--ct-theme-surface-card-strong);
+}
+.ct-admin__builder-flow-item--assignment_submission .ct-admin__builder-flow-node,
+.ct-admin__builder-flow-item--time_window .ct-admin__builder-flow-node {
+  border-color: var(--ct-theme-border-warning);
+  background: var(--ct-theme-surface-warning);
+}
+.ct-admin__builder-flow-item--prerequisite_badge .ct-admin__builder-flow-node {
+  border-color: var(--ct-theme-border-danger);
+  background: var(--ct-theme-surface-danger);
+}
 .ct-admin__builder-test-layout.ct-grid,
 .ct-admin__builder-review-layout.ct-grid {
   --ct-grid-gap: 0.8rem;
@@ -2571,6 +2656,40 @@ export const INSTITUTION_ADMIN_CSS = `
   border-radius: var(--ct-radius-md);
   border: 1px solid var(--ct-border-soft);
   background: var(--ct-theme-surface-soft);
+}
+.ct-admin__builder-source-panel {
+  --ct-stack-gap: 0.56rem;
+  padding-top: 0.74rem;
+  border-top: 1px solid var(--ct-border-soft);
+}
+.ct-admin__builder-source-list {
+  display: grid;
+  gap: 0.46rem;
+  margin: 0;
+  padding: 0;
+}
+.ct-admin__builder-source-list > div {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.54rem 0.58rem;
+  border: 1px solid var(--ct-border-soft);
+  border-radius: var(--ct-radius-sm);
+  background: var(--ct-theme-surface-card-strong);
+}
+.ct-admin__builder-source-list dt {
+  color: var(--ct-color-ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.ct-admin__builder-source-list dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.36rem;
+  align-items: center;
+  margin: 0;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 .ct-admin__builder-rail-card > summary,
 .ct-admin__builder-simulation > summary {
@@ -3400,6 +3519,15 @@ export const INSTITUTION_ADMIN_CSS = `
   .ct-admin__builder-stepper-panel .ct-admin__builder-steps,
   .ct-admin__builder-summary-list {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-admin__builder-flow-item,
+  .ct-admin__builder-flow-item:first-child {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-admin__builder-flow-connector {
+    justify-self: start;
   }
 
   .ct-admin__add-disclosure-control,

@@ -561,6 +561,25 @@ export const institutionAdminRuleBuilderPage = (input: {
                         class="ct-admin__builder-condition-list ct-stack"
                       ></div>
                     </section>
+                    <section
+                      class="ct-admin__builder-flow ct-stack"
+                      aria-labelledby="rule-builder-flow-title"
+                    >
+                      <header class="ct-admin__builder-canvas-header ct-cluster">
+                        <strong id="rule-builder-flow-title">Rule flow preview</strong>
+                        <span id="rule-builder-flow-mode" class="ct-admin__meta">
+                          Waiting for requirements.
+                        </span>
+                      </header>
+                      <p id="rule-builder-flow-empty" class="ct-admin__builder-canvas-empty">
+                        Add requirements to preview the earning path.
+                      </p>
+                      <ol
+                        id="rule-builder-flow-list"
+                        class="ct-admin__builder-flow-list"
+                        aria-label="Generated rule flow"
+                      ></ol>
+                    </section>
                   </div>
 
                   <details class="ct-admin__builder-guide">
@@ -715,6 +734,19 @@ export const institutionAdminRuleBuilderPage = (input: {
                         </AdminButton>
                       </div>
                     </AdminFieldset>
+
+                    <section class="ct-admin__builder-source-panel ct-stack">
+                      <header class="ct-admin__builder-canvas-header ct-cluster">
+                        <strong>Data sources</strong>
+                        <span class="ct-admin__meta">Preview facts used by this draft.</span>
+                      </header>
+                      <dl id="rule-builder-source-list" class="ct-admin__builder-source-list"></dl>
+                      <pre
+                        id="rule-builder-source-sample"
+                        class="ct-admin__code-output"
+                        hidden
+                      ></pre>
+                    </section>
 
                     <details class="ct-admin__builder-advanced ct-stack">
                       <summary>Advanced facts JSON</summary>

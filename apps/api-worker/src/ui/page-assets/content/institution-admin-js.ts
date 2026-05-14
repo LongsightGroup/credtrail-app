@@ -153,6 +153,9 @@ export const INSTITUTION_ADMIN_JS = `
   const ruleBuilderCanvasCount = document.getElementById('rule-builder-canvas-count');
   const ruleBuilderCanvasLogic = document.getElementById('rule-builder-canvas-logic');
   const ruleBuilderConditionEmpty = document.getElementById('rule-builder-condition-empty');
+  const ruleBuilderFlowMode = document.getElementById('rule-builder-flow-mode');
+  const ruleBuilderFlowEmpty = document.getElementById('rule-builder-flow-empty');
+  const ruleBuilderFlowList = document.getElementById('rule-builder-flow-list');
   const ruleBuilderSummaryMessage = document.getElementById('rule-builder-summary-message');
   const ruleBuilderSummaryRuleName = document.getElementById('rule-builder-summary-rule-name');
   const ruleBuilderSummaryConditionCount = document.getElementById(
@@ -166,6 +169,8 @@ export const INSTITUTION_ADMIN_JS = `
   const ruleBuilderSimulateLimit = document.getElementById('rule-builder-simulate-limit');
   const ruleBuilderSimulateStatus = document.getElementById('rule-builder-simulate-status');
   const ruleBuilderSimulateOutput = document.getElementById('rule-builder-simulate-output');
+  const ruleBuilderSourceList = document.getElementById('rule-builder-source-list');
+  const ruleBuilderSourceSample = document.getElementById('rule-builder-source-sample');
   const ruleBuilderStepButtons = Array.from(
     document.querySelectorAll('[data-rule-step-target]'),
   ).filter((candidate) => candidate instanceof HTMLButtonElement);
@@ -3532,6 +3537,422 @@ export const INSTITUTION_ADMIN_JS = `
       return definition;
     };
 
+    const leafConditionFromCondition = (condition) => {
+      if (condition && typeof condition === 'object' && 'not' in condition) {
+        const nested = condition.not;
+        return nested && typeof nested === 'object' ? nested : condition;
+      }
+
+      return condition;
+    };
+
+    const conditionLabel = (condition) => {
+      const leaf = leafConditionFromCondition(condition);
+      const type = leaf && typeof leaf === 'object' && typeof leaf.type === 'string' ? leaf.type : '';
+      return conditionTypeLabels[type] ?? 'Requirement';
+    };
+
+    const conditionDetail = (condition) => {
+      const leaf = leafConditionFromCondition(condition);
+
+      if (leaf === null || typeof leaf !== 'object') {
+        return 'Configure requirement details.';
+      }
+
+      if (leaf.type === 'course_completion') {
+        return 'Course ' + (leaf.courseId ?? leaf.courseListId ?? 'selected') + ' must be complete.';
+      }
+
+      if (leaf.type === 'grade_threshold') {
+        const parts = [];
+
+        if (leaf.minScore !== undefined) {
+          parts.push('min ' + String(leaf.minScore));
+        }
+
+        if (leaf.maxScore !== undefined) {
+          parts.push('max ' + String(leaf.maxScore));
+        }
+
+        return 'Course ' + (leaf.courseId ?? leaf.courseListId ?? 'selected') + ' score ' + (parts.join(', ') || 'threshold');
+      }
+
+      if (leaf.type === 'program_completion') {
+        return 'Complete ' + String(leaf.minimumCompleted ?? 'all') + ' required courses.';
+      }
+
+      if (leaf.type === 'assignment_submission') {
+        return 'Assignment ' + leaf.assignmentId + ' in ' + leaf.courseId + ' must satisfy submission rules.';
+      }
+
+      if (leaf.type === 'survey_completion') {
+        return 'Survey ' + leaf.surveyId + ' must be completed.';
+      }
+
+      if (leaf.type === 'time_window') {
+        return 'Qualifying activity must fall inside the configured time window.';
+      }
+
+      if (leaf.type === 'prerequisite_badge') {
+        return 'Requires badge ' + (leaf.badgeTemplateId ?? leaf.badgeTemplateListId ?? 'selected') + '.';
+      }
+
+      if (leaf.type === 'custom_field') {
+        return leaf.fieldName + ' ' + (leaf.operator ?? 'equals') + ' ' + String(leaf.expectedValue) + '.';
+      }
+
+      return 'Configure requirement details.';
+    };
+
+    const readConditionsForPreview = () => {
+      return getConditionCards()
+        .map((card) => {
+          try {
+            return readConditionFromCard(card, false);
+          } catch {
+            return null;
+          }
+        })
+        .filter((condition) => condition !== null);
+    };
+
+    const selectedBadgeTemplateLabel = () => {
+      const field = getRuleCreateField('badgeTemplateId');
+
+      if (!(field instanceof HTMLSelectElement)) {
+        return 'selected badge';
+      }
+
+      const option = field.selectedOptions.item(0);
+      return option === null ? 'selected badge' : option.textContent?.trim() || 'selected badge';
+    };
+
+    const renderRuleFlowPreview = () => {
+      if (
+        !(ruleBuilderFlowList instanceof HTMLOListElement) ||
+        !(ruleBuilderFlowEmpty instanceof HTMLElement)
+      ) {
+        return;
+      }
+
+      const conditions = readConditionsForPreview();
+      const rootLogic = getRuleBuilderRootLogic();
+      const connectorLabel = rootLogic === 'any' ? 'OR' : 'AND';
+
+      ruleBuilderFlowEmpty.hidden = conditions.length > 0;
+
+      if (ruleBuilderFlowMode instanceof HTMLElement) {
+        ruleBuilderFlowMode.textContent =
+          conditions.length === 0
+            ? 'Waiting for requirements.'
+            : rootLogic === 'any'
+              ? 'Any path can qualify.'
+              : 'All requirements must pass.';
+      }
+
+      if (conditions.length === 0) {
+        ruleBuilderFlowList.innerHTML = '';
+        return;
+      }
+
+      const conditionItems = conditions
+        .map((condition, index) => {
+          const leaf = leafConditionFromCondition(condition);
+          const type =
+            leaf && typeof leaf === 'object' && typeof leaf.type === 'string' ? leaf.type : 'unknown';
+          const isNegated = condition && typeof condition === 'object' && 'not' in condition;
+          return (
+            '<li class="ct-admin__builder-flow-item ct-admin__builder-flow-item--' +
+            escapeHtml(type) +
+            '">' +
+            (index === 0
+              ? ''
+              : '<span class="ct-admin__builder-flow-connector">' + connectorLabel + '</span>') +
+            '<div class="ct-admin__builder-flow-node">' +
+            '<span class="ct-admin__builder-flow-kicker">Requirement ' +
+            String(index + 1) +
+            '</span>' +
+            '<strong>' +
+            escapeHtml((isNegated ? 'Exclude: ' : '') + conditionLabel(condition)) +
+            '</strong>' +
+            '<p>' +
+            escapeHtml(conditionDetail(condition)) +
+            '</p>' +
+            '</div>' +
+            '</li>'
+          );
+        })
+        .join('');
+      const badgeLabel = selectedBadgeTemplateLabel();
+
+      ruleBuilderFlowList.innerHTML =
+        conditionItems +
+        '<li class="ct-admin__builder-flow-item ct-admin__builder-flow-item--issue">' +
+        '<span class="ct-admin__builder-flow-connector">THEN</span>' +
+        '<div class="ct-admin__builder-flow-node">' +
+        '<span class="ct-admin__builder-flow-kicker">Outcome</span>' +
+        '<strong>Issue badge draft</strong>' +
+        '<p>' +
+        escapeHtml(badgeLabel) +
+        '</p>' +
+        '</div>' +
+        '</li>';
+    };
+
+    const addSourceEntry = (entries, key, label, state, detail) => {
+      if (!entries.has(key)) {
+        entries.set(key, {
+          label,
+          state,
+          details: [],
+        });
+      }
+
+      const entry = entries.get(key);
+
+      if (entry && !entry.details.includes(detail)) {
+        entry.details.push(detail);
+      }
+    };
+
+    const sourceEntriesForConditions = (conditions) => {
+      const entries = new Map();
+      const lmsLabel = getTextFieldValue('lmsProviderKind') || 'canvas';
+
+      conditions.forEach((condition) => {
+        const leaf = leafConditionFromCondition(condition);
+
+        if (leaf === null || typeof leaf !== 'object') {
+          return;
+        }
+
+        if (
+          leaf.type === 'course_completion' ||
+          leaf.type === 'grade_threshold' ||
+          leaf.type === 'program_completion'
+        ) {
+          addSourceEntry(
+            entries,
+            'lms-gradebook',
+            lmsLabel + ' gradebook',
+            'Connected or sample',
+            conditionDetail(condition),
+          );
+          return;
+        }
+
+        if (leaf.type === 'assignment_submission') {
+          addSourceEntry(
+            entries,
+            'lms-assignments',
+            lmsLabel + ' assignments',
+            'Connected or sample',
+            conditionDetail(condition),
+          );
+          return;
+        }
+
+        if (leaf.type === 'survey_completion') {
+          addSourceEntry(
+            entries,
+            'survey',
+            leaf.source === 'qualtrics' ? 'Qualtrics surveys' : 'Survey facts',
+            'Sample or connector facts',
+            conditionDetail(condition),
+          );
+          return;
+        }
+
+        if (leaf.type === 'prerequisite_badge') {
+          addSourceEntry(
+            entries,
+            'credtrail',
+            'CredTrail issued badges',
+            'Available',
+            conditionDetail(condition),
+          );
+          return;
+        }
+
+        if (leaf.type === 'custom_field') {
+          addSourceEntry(
+            entries,
+            'custom',
+            'Institutional fields',
+            'Sample or import facts',
+            conditionDetail(condition),
+          );
+          return;
+        }
+
+        if (leaf.type === 'time_window') {
+          addSourceEntry(
+            entries,
+            'clock',
+            'System clock',
+            'Available',
+            conditionDetail(condition),
+          );
+        }
+      });
+
+      return Array.from(entries.values());
+    };
+
+    const buildSampleFactsPreview = (conditions) => {
+      const advancedFactsJson = getTextFieldValue('testFactsJson');
+
+      if (advancedFactsJson.length > 0) {
+        try {
+          return JSON.stringify(JSON.parse(advancedFactsJson), null, 2);
+        } catch {
+          return 'Advanced facts JSON is invalid.';
+        }
+      }
+
+      const learnerId = getTextFieldValue('testLearnerId') || 'canvas:12345';
+      const courseId = getTextFieldValue('testCourseId') || 'CS101';
+      const parsedFinalScore = Number(getTextFieldValue('testFinalScore'));
+      const finalScore =
+        Number.isFinite(parsedFinalScore) && parsedFinalScore >= 0 && parsedFinalScore <= 100
+          ? parsedFinalScore
+          : 92;
+      const facts = {
+        grades: [],
+        completions: [],
+        submissions: [],
+        surveyCompletions: [],
+        customFields: [],
+        earnedBadgeTemplateIds: [],
+      };
+
+      conditions.forEach((condition) => {
+        const leaf = leafConditionFromCondition(condition);
+
+        if (leaf === null || typeof leaf !== 'object') {
+          return;
+        }
+
+        if (leaf.type === 'grade_threshold') {
+          facts.grades.push({
+            courseId: leaf.courseId ?? courseId,
+            learnerId,
+            finalScore,
+          });
+          return;
+        }
+
+        if (leaf.type === 'course_completion' || leaf.type === 'program_completion') {
+          const courseIds = Array.isArray(leaf.courseIds) ? leaf.courseIds : [leaf.courseId ?? courseId];
+          courseIds.forEach((entryCourseId) => {
+            facts.completions.push({
+              courseId: entryCourseId,
+              learnerId,
+              completed: getCheckboxFieldValue('testCompleted'),
+              completionPercent: getCheckboxFieldValue('testCompleted') ? 100 : 0,
+            });
+          });
+          return;
+        }
+
+        if (leaf.type === 'assignment_submission') {
+          facts.submissions.push({
+            courseId: leaf.courseId,
+            assignmentId: leaf.assignmentId,
+            learnerId,
+            score: finalScore,
+            workflowState: 'submitted',
+            submittedAt: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (leaf.type === 'survey_completion') {
+          facts.surveyCompletions.push({
+            surveyId: leaf.surveyId,
+            learnerId,
+            ...(leaf.source === undefined ? {} : { source: leaf.source }),
+            completed: true,
+            completedAt: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (leaf.type === 'custom_field') {
+          facts.customFields.push({
+            learnerId,
+            fieldName: leaf.fieldName,
+            value: leaf.expectedValue,
+          });
+          return;
+        }
+
+        if (leaf.type === 'prerequisite_badge') {
+          facts.earnedBadgeTemplateIds.push(leaf.badgeTemplateId ?? 'badge_template_foundations');
+        }
+      });
+
+      return JSON.stringify(facts, null, 2);
+    };
+
+    const renderSourceReadiness = () => {
+      if (!(ruleBuilderSourceList instanceof HTMLElement)) {
+        return;
+      }
+
+      const conditions = readConditionsForPreview();
+      const entries = sourceEntriesForConditions(conditions);
+
+      if (entries.length === 0) {
+        ruleBuilderSourceList.innerHTML =
+          '<div><dt>No sources yet</dt><dd>Add requirements to see which facts CredTrail needs.</dd></div>';
+        setCodeOutput(ruleBuilderSourceSample, '');
+        return;
+      }
+
+      ruleBuilderSourceList.innerHTML = entries
+        .map((entry) => {
+          return (
+            '<div>' +
+            '<dt>' +
+            escapeHtml(entry.label) +
+            '</dt>' +
+            '<dd><span class="ct-admin__status-pill">' +
+            escapeHtml(entry.state) +
+            '</span><span>' +
+            escapeHtml(entry.details.join(' ')) +
+            '</span></dd>' +
+            '</div>'
+          );
+        })
+        .join('');
+      setCodeOutput(ruleBuilderSourceSample, buildSampleFactsPreview(conditions));
+    };
+
+    const validateConditionCards = (updateRows) => {
+      const errors = [];
+
+      getConditionCards().forEach((card, index) => {
+        try {
+          readConditionFromCard(card, true);
+
+          if (updateRows) {
+            setConditionResultState(card, 'idle', 'Ready to test.');
+          }
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : 'Requirement needs attention.';
+          errors.push('Requirement ' + String(index + 1) + ': ' + message);
+
+          if (updateRows) {
+            setConditionResultState(card, 'fail', message);
+          }
+        }
+      });
+
+      return errors;
+    };
+
     let ruleBuilderLastTestSummary = 'Not run';
 
     const resetConditionEvaluationResults = () => {
@@ -3742,6 +4163,9 @@ export const INSTITUTION_ADMIN_JS = `
     };
 
     const syncRuleBuilderSummary = (statusOverride) => {
+      renderRuleFlowPreview();
+      renderSourceReadiness();
+
       const ruleName = getTextFieldValue('name');
       const cardCount = getConditionCards().length;
       const rootLogicLabel =
@@ -3754,33 +4178,41 @@ export const INSTITUTION_ADMIN_JS = `
         definitionStatus = 'Needs requirements';
         definitionTone = 'warning';
       } else {
-        try {
-          const definition = readDefinitionFromBuilder(false);
-          const rootConditions =
-            definition &&
-            typeof definition === 'object' &&
-            definition.conditions &&
-            typeof definition.conditions === 'object'
-              ? definition.conditions
-              : null;
-          const childCount =
-            rootConditions !== null && Array.isArray(rootConditions.all)
-              ? rootConditions.all.length
-              : rootConditions !== null && Array.isArray(rootConditions.any)
-                ? rootConditions.any.length
-                : cardCount;
+        const validationErrors = validateConditionCards(false);
 
-          definitionStatus = childCount > 0 ? 'Ready for review' : 'Needs requirements';
-          definitionTone = childCount > 0 ? 'success' : 'warning';
-          summaryMessage =
-            childCount > 0
-              ? 'Requirements are synchronized with the generated rule JSON.'
-              : 'Add one or more requirements to continue.';
-        } catch (error) {
+        if (validationErrors.length > 0) {
           definitionStatus = 'Needs attention';
           definitionTone = 'error';
-          summaryMessage =
-            error instanceof Error ? error.message : 'Definition is not ready for submission.';
+          summaryMessage = validationErrors[0];
+        } else {
+          try {
+            const definition = readDefinitionFromBuilder(true);
+            const rootConditions =
+              definition &&
+              typeof definition === 'object' &&
+              definition.conditions &&
+              typeof definition.conditions === 'object'
+                ? definition.conditions
+                : null;
+            const childCount =
+              rootConditions !== null && Array.isArray(rootConditions.all)
+                ? rootConditions.all.length
+                : rootConditions !== null && Array.isArray(rootConditions.any)
+                  ? rootConditions.any.length
+                  : cardCount;
+
+            definitionStatus = childCount > 0 ? 'Ready for review' : 'Needs requirements';
+            definitionTone = childCount > 0 ? 'success' : 'warning';
+            summaryMessage =
+              childCount > 0
+                ? 'Requirements are synchronized with the generated rule JSON.'
+                : 'Add one or more requirements to continue.';
+          } catch (error) {
+            definitionStatus = 'Needs attention';
+            definitionTone = 'error';
+            summaryMessage =
+              error instanceof Error ? error.message : 'Definition is not ready for submission.';
+          }
         }
       }
 
@@ -3828,6 +4260,8 @@ export const INSTITUTION_ADMIN_JS = `
 
     const syncDefinitionJsonFromBuilder = () => {
       syncConditionCanvasMeta();
+      renderRuleFlowPreview();
+      renderSourceReadiness();
 
       try {
         const definition = readDefinitionFromBuilder(false);
@@ -3837,7 +4271,7 @@ export const INSTITUTION_ADMIN_JS = `
       }
 
       ruleBuilderLastTestSummary = 'Not run';
-      resetConditionEvaluationResults();
+      validateConditionCards(true);
       syncRuleBuilderSummary();
     };
 
@@ -4130,7 +4564,9 @@ export const INSTITUTION_ADMIN_JS = `
         ruleBuilderDefinitionJson.value = '';
         ruleBuilderLastTestSummary = 'Not run';
         syncConditionCanvasMeta();
-        resetConditionEvaluationResults();
+        renderRuleFlowPreview();
+        renderSourceReadiness();
+        validateConditionCards(true);
         setStatus(ruleCreateStatus, 'Blank requirements started.', false, 'success');
         syncRuleBuilderSummary('Blank requirements started.');
         return;
@@ -4272,7 +4708,8 @@ export const INSTITUTION_ADMIN_JS = `
       }
 
       ruleBuilderLastTestSummary = 'Not run';
-      resetConditionEvaluationResults();
+      renderSourceReadiness();
+      validateConditionCards(true);
       setStatus(ruleCreateStatus, 'Applied test facts preset.', false);
       syncRuleBuilderSummary('Applied test facts preset.');
     };
