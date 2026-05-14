@@ -700,6 +700,9 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-reporting-visual__point--3 {
   stroke: rgba(15, 95, 166, 0.98);
 }
+.ct-reporting-visual__chart-key {
+  pointer-events: none;
+}
 .ct-reporting-visual__axis-label,
 .ct-reporting-visual__chart-key text {
   fill: var(--ct-theme-text-subtle);
