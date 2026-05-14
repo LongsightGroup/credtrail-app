@@ -823,10 +823,10 @@ export const institutionAdminRuleBuilderPage = (input: {
             </details>
 
             <details class="ct-admin__builder-rail-card ct-stack">
-              <summary>Local draft storage</summary>
+              <summary>Draft recovery</summary>
               <p class="ct-admin__hint">
-                Saved drafts are stored in this browser and scoped to{" "}
-                <strong>{ruleBuilderPath}</strong>.
+                Save your progress while building the rule. Export JSON when you need a review
+                artifact.
               </p>
             </details>
 
@@ -891,7 +891,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                 <h3>Draft tools</h3>
                 <div class="ct-admin__builder-toolbar ct-cluster">
                   <AdminButton type="button" id="rule-builder-save-draft" size="tiny">
-                    Save local draft
+                    Save draft
                   </AdminButton>
                   <AdminButton
                     type="button"
@@ -899,7 +899,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                     size="tiny"
                     variant="secondary"
                   >
-                    Load local draft
+                    Load draft
                   </AdminButton>
                   <AdminButton
                     type="button"
@@ -925,8 +925,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                   />
                 </div>
                 <p class="ct-admin__hint">
-                  Local drafts stay in this browser. Use export/import when you want a portable
-                  review artifact.
+                  Save progress while building. Use export/import when you want a portable review
+                  artifact.
                 </p>
               </section>
 

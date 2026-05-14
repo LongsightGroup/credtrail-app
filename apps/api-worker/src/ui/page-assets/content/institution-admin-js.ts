@@ -4215,11 +4215,11 @@ export const INSTITUTION_ADMIN_JS = `
           localStorage.setItem(ruleBuilderDraftStorageKey, JSON.stringify(draft));
           setStatus(
             ruleCreateStatus,
-            'Rule builder draft saved locally in this browser.',
+            'Rule builder draft saved.',
             false,
             'success',
           );
-          syncRuleBuilderSummary('Rule builder draft saved locally in this browser.');
+          syncRuleBuilderSummary('Rule builder draft saved.');
         } catch (error) {
           setStatus(
             ruleCreateStatus,
@@ -4238,8 +4238,8 @@ export const INSTITUTION_ADMIN_JS = `
         const rawDraft = localStorage.getItem(ruleBuilderDraftStorageKey);
 
         if (rawDraft === null) {
-          setStatus(ruleCreateStatus, 'No saved draft found in this browser.', true);
-          syncRuleBuilderSummary('No saved draft found in this browser.');
+          setStatus(ruleCreateStatus, 'No saved draft found.', true);
+          syncRuleBuilderSummary('No saved draft found.');
           return;
         }
 
