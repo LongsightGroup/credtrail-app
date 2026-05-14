@@ -852,14 +852,6 @@ export const institutionAdminRuleBuilderPage = (input: {
               </ul>
             </details>
 
-            <details class="ct-admin__builder-rail-card ct-stack">
-              <summary>Draft recovery</summary>
-              <p class="ct-admin__hint">
-                Save your progress while building the rule. Export JSON when you need a review
-                artifact.
-              </p>
-            </details>
-
             <div class="ct-admin__builder-step-nav ct-cluster">
               <AdminButton
                 id="rule-builder-step-prev"
@@ -955,8 +947,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                   />
                 </div>
                 <p class="ct-admin__hint">
-                  Save progress while building. Use export/import when you want a portable review
-                  artifact.
+                  Save draft progress here, or export JSON to move the rule definition between
+                  sessions.
                 </p>
               </section>
 
