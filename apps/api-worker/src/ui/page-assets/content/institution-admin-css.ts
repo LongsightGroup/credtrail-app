@@ -2422,6 +2422,62 @@ export const INSTITUTION_ADMIN_CSS = `
   gap: 0.25rem;
   min-width: 12rem;
 }
+.ct-admin__field-label {
+  font-size: 0.88rem;
+  color: var(--ct-color-ink);
+}
+.ct-admin__segmented-control {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.18rem;
+  padding: 0.18rem;
+  border: 1px solid var(--ct-border-soft);
+  border-radius: var(--ct-radius-sm);
+  background: var(--ct-theme-surface-soft);
+}
+.ct-admin__segmented-control label {
+  display: block;
+  min-width: 0;
+  cursor: pointer;
+}
+.ct-admin__segmented-control input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.ct-admin__segmented-control span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0.36rem 0.58rem;
+  border-radius: calc(var(--ct-radius-sm) - 2px);
+  color: var(--ct-theme-text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+.ct-admin__segmented-control input:checked + span {
+  background: var(--ct-theme-surface-card-strong);
+  color: var(--ct-color-ink);
+  box-shadow: var(--ct-shadow-soft);
+}
+.ct-admin__segmented-control input:focus-visible + span {
+  outline: 2px solid var(--ct-theme-border-focus);
+  outline-offset: 2px;
+}
 .ct-admin__builder-canvas {
   --ct-stack-gap: 0.55rem;
   border: 1px solid var(--ct-border-soft);

@@ -1785,6 +1785,9 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).not.toContain("Overview CSV");
     expect(trendPanel).toContain('data-reporting-visual-kind="trend-series"');
     expect(trendPanel).toContain('data-reporting-visual-density="compact"');
+    expect(trendPanel).toContain('class="ct-reporting-visual__chart-key"');
+    expect(trendPanel).toContain("Issued badges");
+    expect(trendPanel).toContain('class="ct-reporting-visual__axis ct-reporting-visual__axis--x');
     expect(trendPanel).toContain("Need exact daily counts?");
     expect(trendPanel).toContain("Open trend detail");
     expect(trendPanel).not.toContain('class="ct-reporting-visual__trend-axis"');

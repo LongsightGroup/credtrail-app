@@ -485,14 +485,42 @@ export const institutionAdminRuleBuilderPage = (input: {
                       <details class="ct-admin__builder-advanced ct-admin__builder-advanced--inline">
                         <summary>Advanced logic</summary>
                         <div class="ct-admin__builder-inline ct-cluster">
-                          <AdminField label="Earning path" className="ct-admin__inline-control">
-                            <select id="rule-builder-root-logic" name="rootLogic">
-                              <option value="all" selected>
-                                All requirements must pass
-                              </option>
-                              <option value="any">Any requirement can pass</option>
-                            </select>
-                          </AdminField>
+                          <div class="ct-admin__inline-control">
+                            <span id="rule-builder-root-logic-label" class="ct-admin__field-label">
+                              Earning path
+                            </span>
+                            <input
+                              id="rule-builder-root-logic"
+                              name="rootLogic"
+                              type="hidden"
+                              value="all"
+                            />
+                            <div
+                              class="ct-admin__segmented-control"
+                              role="radiogroup"
+                              aria-labelledby="rule-builder-root-logic-label"
+                            >
+                              <label>
+                                <input
+                                  type="radio"
+                                  name="rootLogicChoice"
+                                  value="all"
+                                  data-rule-builder-root-logic-option="all"
+                                  checked
+                                />
+                                <span>All requirements</span>
+                              </label>
+                              <label>
+                                <input
+                                  type="radio"
+                                  name="rootLogicChoice"
+                                  value="any"
+                                  data-rule-builder-root-logic-option="any"
+                                />
+                                <span>Any requirement</span>
+                              </label>
+                            </div>
+                          </div>
                           <AdminButton
                             type="button"
                             id="rule-builder-add-alternative-path"

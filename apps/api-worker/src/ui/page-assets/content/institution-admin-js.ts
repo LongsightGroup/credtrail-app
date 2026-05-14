@@ -2561,7 +2561,7 @@ export const INSTITUTION_ADMIN_JS = `
     ruleCreateForm instanceof HTMLFormElement &&
     ruleCreateStatus instanceof HTMLElement &&
     ruleBuilderConditionList instanceof HTMLElement &&
-    ruleBuilderRootLogic instanceof HTMLSelectElement &&
+    ruleBuilderRootLogic instanceof HTMLInputElement &&
     ruleBuilderDefinitionJson instanceof HTMLTextAreaElement
   ) {
     const badgeRulePreviewApiPath = badgeRuleApiPath + '/preview-evaluate';
@@ -2574,6 +2574,19 @@ export const INSTITUTION_ADMIN_JS = `
       assignment_submission: 'Assignment submission',
       time_window: 'Time window',
       prerequisite_badge: 'Prerequisite badge',
+    };
+    const getRuleBuilderRootLogic = () => {
+      return ruleBuilderRootLogic.value === 'any' ? 'any' : 'all';
+    };
+    const setRuleBuilderRootLogic = (value) => {
+      const normalizedValue = value === 'any' ? 'any' : 'all';
+
+      ruleBuilderRootLogic.value = normalizedValue;
+      document.querySelectorAll('[data-rule-builder-root-logic-option]').forEach((candidate) => {
+        if (candidate instanceof HTMLInputElement) {
+          candidate.checked = candidate.value === normalizedValue;
+        }
+      });
     };
     const conditionTypeHelpText = {
       course_completion:
@@ -3347,7 +3360,7 @@ export const INSTITUTION_ADMIN_JS = `
       }
 
       const conditions = cards.map((card) => readConditionFromCard(card, strict));
-      const rootLogic = ruleBuilderRootLogic.value === 'any' ? 'any' : 'all';
+      const rootLogic = getRuleBuilderRootLogic();
 
       const definition = {
         conditions: rootLogic === 'any' ? { any: conditions } : { all: conditions },
@@ -3513,8 +3526,8 @@ export const INSTITUTION_ADMIN_JS = `
 
       if (ruleBuilderCanvasLogic instanceof HTMLElement) {
         ruleBuilderCanvasLogic.textContent =
-          ruleBuilderRootLogic.value === 'any' ? 'Alternative paths' : 'All requirements';
-        ruleBuilderCanvasLogic.dataset.tone = ruleBuilderRootLogic.value === 'any' ? 'warning' : 'success';
+          getRuleBuilderRootLogic() === 'any' ? 'Alternative paths' : 'All requirements';
+        ruleBuilderCanvasLogic.dataset.tone = getRuleBuilderRootLogic() === 'any' ? 'warning' : 'success';
       }
     };
 
@@ -3575,7 +3588,7 @@ export const INSTITUTION_ADMIN_JS = `
       const ruleName = getTextFieldValue('name');
       const cardCount = getConditionCards().length;
       const rootLogicLabel =
-        ruleBuilderRootLogic.value === 'any' ? 'Alternative paths' : 'All requirements';
+        getRuleBuilderRootLogic() === 'any' ? 'Alternative paths' : 'All requirements';
       let definitionStatus = 'Drafting';
       let definitionTone = 'warning';
       let summaryMessage = 'Add at least one requirement to create a draft.';
@@ -3906,7 +3919,7 @@ export const INSTITUTION_ADMIN_JS = `
       }
 
       clearConditionCanvas();
-      ruleBuilderRootLogic.value = rootLogic;
+      setRuleBuilderRootLogic(rootLogic);
       normalizedChildren.forEach((seed) => {
         addConditionToCanvas(seed);
       });
@@ -3956,7 +3969,7 @@ export const INSTITUTION_ADMIN_JS = `
 
       if (presetKey === 'blank') {
         clearConditionCanvas();
-        ruleBuilderRootLogic.value = 'all';
+        setRuleBuilderRootLogic('all');
         ruleBuilderDefinitionJson.value = '';
         ruleBuilderLastTestSummary = 'Not run';
         syncConditionCanvasMeta();
@@ -4147,7 +4160,7 @@ export const INSTITUTION_ADMIN_JS = `
 
     if (ruleBuilderAddAlternativePathButton instanceof HTMLButtonElement) {
       ruleBuilderAddAlternativePathButton.addEventListener('click', () => {
-        ruleBuilderRootLogic.value = 'any';
+        setRuleBuilderRootLogic('any');
         addConditionToCanvas({
           type: 'grade_threshold',
           courseId: 'CS101',
@@ -4186,11 +4199,16 @@ export const INSTITUTION_ADMIN_JS = `
       });
     }
 
-    if (ruleBuilderRootLogic instanceof HTMLSelectElement) {
-      ruleBuilderRootLogic.addEventListener('change', () => {
-        syncDefinitionJsonFromBuilder();
-      });
-    }
+    document.querySelectorAll('[data-rule-builder-root-logic-option]').forEach((candidate) => {
+      if (candidate instanceof HTMLInputElement) {
+        candidate.addEventListener('change', () => {
+          if (candidate.checked) {
+            setRuleBuilderRootLogic(candidate.value);
+            syncDefinitionJsonFromBuilder();
+          }
+        });
+      }
+    });
 
     if (ruleBuilderSaveDraftButton instanceof HTMLButtonElement) {
       ruleBuilderSaveDraftButton.addEventListener('click', () => {
