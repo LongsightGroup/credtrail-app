@@ -637,18 +637,22 @@ export const INSTITUTION_ADMIN_CSS = `
   stroke-width: 1;
   stroke-dasharray: 5 5;
 }
+.ct-reporting-visual__axis {
+  stroke: rgba(15, 95, 166, 0.2);
+  stroke-width: 1.25;
+}
 .ct-reporting-visual__trend-area {
   fill: rgba(15, 95, 166, 0.14);
 }
 .ct-reporting-visual__trend-line {
   fill: none;
   stroke: var(--ct-reporting-visual-accent);
-  stroke-width: 3;
+  stroke-width: 2.75;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 .ct-reporting-visual[data-reporting-visual-kind='trend-series'] .ct-reporting-visual__trend-line {
-  stroke-dasharray: 10 6;
+  stroke-dasharray: none;
 }
 .ct-reporting-visual[data-reporting-visual-kind='trend-series'][data-reporting-visual-density='compact'] {
   gap: 0.65rem;
@@ -675,6 +679,10 @@ export const INSTITUTION_ADMIN_CSS = `
   stroke: var(--ct-reporting-visual-accent);
   stroke-width: 3;
 }
+.ct-reporting-visual__point--trend-marker {
+  fill: rgba(255, 255, 255, 0.98);
+  stroke: var(--ct-brand-lake-700);
+}
 .ct-reporting-visual__point--peak {
   fill: var(--ct-brand-sun-400);
   stroke: var(--ct-brand-midnight-900);
@@ -691,6 +699,29 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-reporting-visual__point--3 {
   stroke: rgba(15, 95, 166, 0.98);
+}
+.ct-reporting-visual__axis-label,
+.ct-reporting-visual__chart-key text {
+  fill: var(--ct-theme-text-subtle);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+.ct-reporting-visual__axis-label--x {
+  text-anchor: start;
+}
+.ct-reporting-visual__axis-label--end {
+  text-anchor: end;
+}
+.ct-reporting-visual__chart-key line {
+  stroke: var(--ct-reporting-visual-accent);
+  stroke-width: 2.75;
+  stroke-linecap: round;
+}
+.ct-reporting-visual__chart-key circle {
+  fill: rgba(255, 255, 255, 0.98);
+  stroke: var(--ct-reporting-visual-accent);
+  stroke-width: 2.5;
 }
 .ct-reporting-visual__trend-context {
   display: grid;

@@ -134,12 +134,42 @@ describe("renderReporting", () => {
     expect(html).toContain('data-reporting-visual-kind="trend-series"');
     expect(html).toContain('data-reporting-visual-density="compact"');
     expect(html).toContain("<svg");
-    expect(html).toContain("Trend line summarizes the values across the selected range.");
+    expect(html).toContain(
+      "Trend line summarizes issued badge counts with start, peak, and latest markers.",
+    );
+    expect(html).toContain('class="ct-reporting-visual__chart-key"');
+    expect(html).toContain("Issued badges");
+    expect(html).toContain('class="ct-reporting-visual__axis ct-reporting-visual__axis--x');
+    expect(html).toContain('class="ct-reporting-visual__axis-label');
     expect(html).not.toContain('class="ct-reporting-visual__trend-axis"');
     expect(html).not.toContain('class="ct-reporting-visual__trend-callouts"');
     expect(html).not.toContain('class="ct-reporting-visual__legend"');
     expect(html).not.toContain("legend below");
     expect(html).not.toContain("8 public views");
+  });
+
+  it("keeps compact trend visuals sparse when many date buckets are present", () => {
+    const html = renderReportingString({
+      kind: "trend-series",
+      title: "Issued over time",
+      density: "compact",
+      description: "Issued badges by day.",
+      showLegend: false,
+      showTrendContext: false,
+      series: Array.from({ length: 30 }, (_, index) => ({
+        label: `Day ${String(index + 1)}`,
+        value: index === 3 ? 2 : index === 18 ? 4 : 0,
+        detail: `${String(index)} public views`,
+      })),
+    });
+    const pointCount = html.match(/class="ct-reporting-visual__point /g)?.length ?? 0;
+
+    expect(pointCount).toBeLessThanOrEqual(3);
+    expect(html).toContain("Day 1");
+    expect(html).toContain("Day 30");
+    expect(html).toContain("Issued badges");
+    expect(html).not.toContain("public views");
+    expect(html).not.toContain('class="ct-reporting-visual__legend"');
   });
 
   it("renders compact trend-area visuals with an area path and peak/latest markers", () => {
@@ -308,6 +338,8 @@ describe("renderReporting", () => {
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__legend");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__surface");
+    expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__chart-key");
+    expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__axis");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__trend-axis");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__trend-area");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-reporting-visual__journey-list");
