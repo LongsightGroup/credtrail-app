@@ -214,6 +214,7 @@ export const institutionAdminRuleBuilderPage = (input: {
   });
 
   const rulesWorkspacePath = `${tenantAdminPath}/rules`;
+  const rulesTemplatesPath = `${rulesWorkspacePath}/templates`;
   const operationsPath = `${tenantAdminPath}/operations`;
   const operationsLearnerRecordsPath = `${operationsPath}/learner-records`;
   const operationsLearnerRecordImportsPath = `${operationsPath}/learner-record-imports`;
@@ -261,6 +262,7 @@ export const institutionAdminRuleBuilderPage = (input: {
       label: "Configuration",
       links: [
         { href: rulesWorkspacePath, label: "Rules" },
+        { href: rulesTemplatesPath, label: "Badge Templates", isSub: true },
         { href: ruleBuilderPath, label: "Rule Builder", isCurrent: true, isSub: true },
       ],
     },

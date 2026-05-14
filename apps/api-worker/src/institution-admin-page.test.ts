@@ -2982,6 +2982,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/operations/learner-records"');
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
+    expect(body).toContain(">Badge Templates</a>");
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new" aria-current="page"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/members"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/governance"');
