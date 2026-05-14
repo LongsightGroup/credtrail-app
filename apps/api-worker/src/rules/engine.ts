@@ -26,12 +26,30 @@ export interface BadgeIssuanceRuleSubmissionFact {
   submittedAt: string | null;
 }
 
+export interface BadgeIssuanceRuleSurveyCompletionFact {
+  surveyId: string;
+  learnerId: string;
+  source: string | null;
+  completed: boolean;
+  completedAt: string | null;
+}
+
+export type BadgeIssuanceRuleCustomFieldValue = string | number | boolean;
+
+export interface BadgeIssuanceRuleCustomFieldFact {
+  learnerId: string;
+  fieldName: string;
+  value: BadgeIssuanceRuleCustomFieldValue | null;
+}
+
 export interface BadgeIssuanceRuleEvaluationFacts {
   learnerId: string;
   nowIso: string;
   grades: readonly BadgeIssuanceRuleGradeFact[];
   completions: readonly BadgeIssuanceRuleCompletionFact[];
   submissions: readonly BadgeIssuanceRuleSubmissionFact[];
+  surveyCompletions: readonly BadgeIssuanceRuleSurveyCompletionFact[];
+  customFields: readonly BadgeIssuanceRuleCustomFieldFact[];
   earnedBadgeTemplateIds: readonly string[];
 }
 
@@ -41,6 +59,8 @@ export interface BadgeIssuanceRuleRequirements {
     courseId: string;
     assignmentId: string;
   }[];
+  surveyIds: string[];
+  customFieldNames: string[];
   prerequisiteBadgeTemplateIds: string[];
 }
 
@@ -72,6 +92,8 @@ export const extractBadgeIssuanceRuleRequirements = (
 ): BadgeIssuanceRuleRequirements => {
   const courseIds = new Set<string>();
   const assignmentRefs = new Map<string, { courseId: string; assignmentId: string }>();
+  const surveyIds = new Set<string>();
+  const customFieldNames = new Set<string>();
   const prerequisiteBadgeTemplateIds = new Set<string>();
 
   const collect = (condition: BadgeIssuanceRuleCondition): void => {
@@ -120,6 +142,12 @@ export const extractBadgeIssuanceRuleRequirements = (
         );
         return;
       }
+      case "survey_completion":
+        surveyIds.add(condition.surveyId);
+        return;
+      case "custom_field":
+        customFieldNames.add(condition.fieldName);
+        return;
       case "prerequisite_badge":
         if (condition.badgeTemplateId !== undefined) {
           prerequisiteBadgeTemplateIds.add(condition.badgeTemplateId);
@@ -135,8 +163,54 @@ export const extractBadgeIssuanceRuleRequirements = (
   return {
     courseIds: Array.from(courseIds).sort(),
     assignmentRefs: Array.from(assignmentRefs.values()),
+    surveyIds: Array.from(surveyIds).sort(),
+    customFieldNames: Array.from(customFieldNames).sort(),
     prerequisiteBadgeTemplateIds: Array.from(prerequisiteBadgeTemplateIds).sort(),
   };
+};
+
+const customFieldValueLabel = (value: BadgeIssuanceRuleCustomFieldValue): string => {
+  return typeof value === "string" ? value : String(value);
+};
+
+const customFieldValueAsNumber = (value: BadgeIssuanceRuleCustomFieldValue): number | null => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
+
+const customFieldMatches = (input: {
+  actual: BadgeIssuanceRuleCustomFieldValue;
+  expected: BadgeIssuanceRuleCustomFieldValue;
+  operator: "equals" | "not_equals" | "contains" | "greater_than_or_equal" | "less_than_or_equal";
+}): boolean => {
+  const { actual, expected, operator } = input;
+
+  switch (operator) {
+    case "equals":
+      return actual === expected;
+    case "not_equals":
+      return actual !== expected;
+    case "contains":
+      return String(actual).toLowerCase().includes(String(expected).toLowerCase());
+    case "greater_than_or_equal": {
+      const actualNumber = customFieldValueAsNumber(actual);
+      const expectedNumber = customFieldValueAsNumber(expected);
+      return actualNumber !== null && expectedNumber !== null && actualNumber >= expectedNumber;
+    }
+    case "less_than_or_equal": {
+      const actualNumber = customFieldValueAsNumber(actual);
+      const expectedNumber = customFieldValueAsNumber(expected);
+      return actualNumber !== null && expectedNumber !== null && actualNumber <= expectedNumber;
+    }
+  }
 };
 
 const evaluatePredicate = (
@@ -343,6 +417,72 @@ const evaluatePredicate = (
         matched: true,
         detail: `Submission criteria satisfied for assignment ${assignmentId}`,
         resultKind: "matched",
+      };
+    }
+    case "survey_completion": {
+      const survey = facts.surveyCompletions.find(
+        (candidate) =>
+          candidate.surveyId === condition.surveyId &&
+          candidate.learnerId === facts.learnerId &&
+          (condition.source === undefined || candidate.source === condition.source),
+      );
+
+      if (survey === undefined) {
+        return {
+          type: "survey_completion",
+          matched: false,
+          detail: `No survey completion found for ${condition.surveyId}`,
+          resultKind: "missing_data",
+        };
+      }
+
+      const requireCompleted = condition.requireCompleted ?? true;
+
+      if (requireCompleted && !survey.completed) {
+        return {
+          type: "survey_completion",
+          matched: false,
+          detail: `Survey ${condition.surveyId} is not marked completed`,
+          resultKind: "failed_condition",
+        };
+      }
+
+      return {
+        type: "survey_completion",
+        matched: true,
+        detail: `Survey ${condition.surveyId} completion criteria satisfied`,
+        resultKind: "matched",
+      };
+    }
+    case "custom_field": {
+      const field = facts.customFields.find(
+        (candidate) =>
+          candidate.fieldName === condition.fieldName && candidate.learnerId === facts.learnerId,
+      );
+
+      if (field === undefined || field.value === null) {
+        return {
+          type: "custom_field",
+          matched: false,
+          detail: `No custom field value found for ${condition.fieldName}`,
+          resultKind: "missing_data",
+        };
+      }
+
+      const operator = condition.operator ?? "equals";
+      const matched = customFieldMatches({
+        actual: field.value,
+        expected: condition.expectedValue,
+        operator,
+      });
+
+      return {
+        type: "custom_field",
+        matched,
+        detail: matched
+          ? `Custom field ${condition.fieldName} matched ${operator} ${customFieldValueLabel(condition.expectedValue)}`
+          : `Custom field ${condition.fieldName} did not match ${operator} ${customFieldValueLabel(condition.expectedValue)}`,
+        resultKind: matched ? "matched" : "failed_condition",
       };
     }
     case "prerequisite_badge": {

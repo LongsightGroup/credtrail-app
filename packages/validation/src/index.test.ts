@@ -1023,6 +1023,17 @@ describe("badge issuance rule parsers", () => {
                 },
               ],
             },
+            {
+              type: "survey_completion",
+              source: "qualtrics",
+              surveyId: "exit_survey",
+            },
+            {
+              type: "custom_field",
+              fieldName: "programStanding",
+              operator: "equals",
+              expectedValue: "eligible",
+            },
           ],
         },
       },
@@ -1070,6 +1081,21 @@ describe("badge issuance rule parsers", () => {
             finalScore: 92,
           },
         ],
+        surveyCompletions: [
+          {
+            surveyId: "exit_survey",
+            learnerId: "learner_123",
+            source: "qualtrics",
+            completed: true,
+          },
+        ],
+        customFields: [
+          {
+            learnerId: "learner_123",
+            fieldName: "programStanding",
+            value: "eligible",
+          },
+        ],
       },
     });
     const previewEvaluateRequest = parsePreviewEvaluateBadgeIssuanceRuleRequest({
@@ -1111,6 +1137,8 @@ describe("badge issuance rule parsers", () => {
 
     expect(createRequest.lmsProviderKind).toBe("canvas");
     expect(createRequest.approvalChain?.[0]?.requiredRole).toBe("issuer");
+    expect(JSON.stringify(createRequest.definition.conditions)).toContain("survey_completion");
+    expect(JSON.stringify(createRequest.definition.conditions)).toContain("custom_field");
     expect(versionRequest.changeSummary).toContain("spring");
     expect(versionRequest.approvalChain).toHaveLength(1);
     expect(decisionRequest.decision).toBe("approved");

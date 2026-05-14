@@ -838,6 +838,79 @@ describe("badge rule routes", () => {
     expect(mockedIssueBadgeForTenant).not.toHaveBeenCalled();
   });
 
+  it("preview-evaluates survey completion and custom field rules", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules/preview-evaluate",
+      {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          definition: {
+            conditions: {
+              all: [
+                {
+                  type: "survey_completion",
+                  source: "qualtrics",
+                  surveyId: "exit_survey",
+                },
+                {
+                  type: "custom_field",
+                  fieldName: "programStanding",
+                  operator: "equals",
+                  expectedValue: "eligible",
+                },
+              ],
+            },
+          },
+          learnerId: "learner_123",
+          recipientIdentity: "learner@example.edu",
+          recipientIdentityType: "email",
+          facts: {
+            nowIso: "2026-02-17T00:00:00.000Z",
+            surveyCompletions: [
+              {
+                surveyId: "exit_survey",
+                learnerId: "learner_123",
+                source: "qualtrics",
+                completed: true,
+              },
+            ],
+            customFields: [
+              {
+                learnerId: "learner_123",
+                fieldName: "programStanding",
+                value: "eligible",
+              },
+            ],
+          },
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{
+      dryRun: boolean;
+      evaluation: {
+        matched: boolean;
+      };
+      facts: {
+        surveyCompletions: unknown[];
+        customFields: unknown[];
+      };
+    }>();
+
+    expect(response.status).toBe(200);
+    expect(body.dryRun).toBe(true);
+    expect(body.evaluation.matched).toBe(true);
+    expect(body.facts.surveyCompletions).toHaveLength(1);
+    expect(body.facts.customFields).toHaveLength(1);
+    expect(mockedIssueBadgeForTenant).not.toHaveBeenCalled();
+  });
+
   it("resolves reusable value lists during preview evaluation", async () => {
     const env = createEnv();
     mockedListBadgeIssuanceRuleValueLists.mockResolvedValue([sampleValueListRecord()]);

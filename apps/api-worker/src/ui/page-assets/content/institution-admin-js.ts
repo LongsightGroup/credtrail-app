@@ -2572,8 +2572,10 @@ export const INSTITUTION_ADMIN_JS = `
       grade_threshold: 'Grade threshold',
       program_completion: 'Program completion',
       assignment_submission: 'Assignment submission',
+      survey_completion: 'Survey completion',
       time_window: 'Time window',
       prerequisite_badge: 'Prerequisite badge',
+      custom_field: 'Custom field',
     };
     const getRuleBuilderRootLogic = () => {
       return ruleBuilderRootLogic.value === 'any' ? 'any' : 'all';
@@ -2597,10 +2599,14 @@ export const INSTITUTION_ADMIN_JS = `
         'Learner must complete enough courses in a program or pathway.',
       assignment_submission:
         'Learner must submit an assignment or evidence, with optional score constraints.',
+      survey_completion:
+        'Learner must complete a required survey, such as an exit survey or attestation.',
       time_window:
         'Badge can only be earned inside the configured date-time window.',
       prerequisite_badge:
         'Learner must already hold a specific prerequisite badge.',
+      custom_field:
+        'Learner must match an institution-specific field from imported or connected data.',
     };
 
     function listOptionsMarkup(kind, selectedValue, emptyLabel) {
@@ -2749,6 +2755,18 @@ export const INSTITUTION_ADMIN_JS = `
           ],
         },
       },
+      survey_completion: {
+        conditions: {
+          all: [
+            {
+              type: 'survey_completion',
+              source: 'qualtrics',
+              surveyId: 'CS101_EXIT_SURVEY',
+              requireCompleted: true,
+            },
+          ],
+        },
+      },
       time_limited: {
         conditions: {
           all: [
@@ -2760,6 +2778,18 @@ export const INSTITUTION_ADMIN_JS = `
             {
               type: 'time_window',
               notBefore: new Date().toISOString(),
+            },
+          ],
+        },
+      },
+      custom_field: {
+        conditions: {
+          all: [
+            {
+              type: 'custom_field',
+              fieldName: 'programStanding',
+              operator: 'equals',
+              expectedValue: 'eligible',
             },
           ],
         },
@@ -2934,6 +2964,10 @@ export const INSTITUTION_ADMIN_JS = `
     };
 
     const parseNumberInput = (value) => {
+      if (value.trim().length === 0) {
+        return null;
+      }
+
       const parsed = Number(value);
       return Number.isFinite(parsed) ? parsed : null;
     };
@@ -2943,6 +2977,29 @@ export const INSTITUTION_ADMIN_JS = `
         .split(',')
         .map((entry) => entry.trim())
         .filter((entry) => entry.length > 0);
+    };
+
+    const parseCustomExpectedValue = (value, valueType) => {
+      if (valueType === 'number') {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+
+      if (valueType === 'boolean') {
+        const normalized = value.trim().toLowerCase();
+
+        if (normalized === 'true' || normalized === 'yes' || normalized === '1') {
+          return true;
+        }
+
+        if (normalized === 'false' || normalized === 'no' || normalized === '0') {
+          return false;
+        }
+
+        return null;
+      }
+
+      return value.trim().length > 0 ? value.trim() : null;
     };
 
     const toDateTimeLocalInput = (isoValue) => {
@@ -2989,8 +3046,10 @@ export const INSTITUTION_ADMIN_JS = `
         'ct-admin__condition-card--grade_threshold',
         'ct-admin__condition-card--program_completion',
         'ct-admin__condition-card--assignment_submission',
+        'ct-admin__condition-card--survey_completion',
         'ct-admin__condition-card--time_window',
         'ct-admin__condition-card--prerequisite_badge',
+        'ct-admin__condition-card--custom_field',
       );
       card.classList.add('ct-admin__condition-card--' + conditionType);
     };
@@ -3146,6 +3205,26 @@ export const INSTITUTION_ADMIN_JS = `
         return;
       }
 
+      if (conditionType === 'survey_completion') {
+        fieldsContainer.innerHTML =
+          '<label>Survey ID<input type="text" data-field="surveyId" placeholder="CS101_EXIT_SURVEY" /></label>' +
+          '<label>Source (optional)<input type="text" data-field="source" placeholder="qualtrics" /></label>' +
+          '<label class="ct-admin__checkbox-row ct-checkbox-row"><input type="checkbox" data-field="requireCompleted" checked />Require completed</label>';
+
+        setFieldOnCard(
+          card,
+          'surveyId',
+          typeof seed.surveyId === 'string' ? seed.surveyId : '',
+        );
+        setFieldOnCard(card, 'source', typeof seed.source === 'string' ? seed.source : '');
+        setCheckboxOnCard(
+          card,
+          'requireCompleted',
+          seed.requireCompleted === undefined ? true : Boolean(seed.requireCompleted),
+        );
+        return;
+      }
+
       if (conditionType === 'time_window') {
         fieldsContainer.innerHTML =
           '<label>Not before (optional)<input type="datetime-local" data-field="notBefore" /></label>' +
@@ -3153,6 +3232,38 @@ export const INSTITUTION_ADMIN_JS = `
 
         setFieldOnCard(card, 'notBefore', toDateTimeLocalInput(seed.notBefore));
         setFieldOnCard(card, 'notAfter', toDateTimeLocalInput(seed.notAfter));
+        return;
+      }
+
+      if (conditionType === 'custom_field') {
+        const valueType =
+          typeof seed.expectedValue === 'number'
+            ? 'number'
+            : typeof seed.expectedValue === 'boolean'
+              ? 'boolean'
+              : 'string';
+        fieldsContainer.innerHTML =
+          '<label>Field name<input type="text" data-field="fieldName" placeholder="programStanding" /></label>' +
+          '<label>Operator<select data-field="operator"><option value="equals">Equals</option><option value="not_equals">Does not equal</option><option value="contains">Contains</option><option value="greater_than_or_equal">Greater than or equal</option><option value="less_than_or_equal">Less than or equal</option></select></label>' +
+          '<label>Value type<select data-field="expectedValueType"><option value="string">Text</option><option value="number">Number</option><option value="boolean">True/false</option></select></label>' +
+          '<label>Expected value<input type="text" data-field="expectedValue" placeholder="eligible" /></label>';
+
+        setFieldOnCard(
+          card,
+          'fieldName',
+          typeof seed.fieldName === 'string' ? seed.fieldName : '',
+        );
+        setFieldOnCard(
+          card,
+          'operator',
+          typeof seed.operator === 'string' ? seed.operator : 'equals',
+        );
+        setFieldOnCard(card, 'expectedValueType', valueType);
+        setFieldOnCard(
+          card,
+          'expectedValue',
+          seed.expectedValue === undefined ? '' : String(seed.expectedValue),
+        );
         return;
       }
 
@@ -3303,6 +3414,23 @@ export const INSTITUTION_ADMIN_JS = `
         if (workflowStates.length > 0) {
           condition.workflowStates = workflowStates;
         }
+      } else if (conditionType === 'survey_completion') {
+        const surveyId = readFieldFromCard(card, 'surveyId');
+        const source = readFieldFromCard(card, 'source');
+
+        if (strict && surveyId.length === 0) {
+          throw new Error('Survey completion requirement needs a survey ID.');
+        }
+
+        condition = {
+          type: 'survey_completion',
+          surveyId: surveyId.length > 0 ? surveyId : 'SURVEY_ID',
+          requireCompleted: readCheckboxFromCard(card, 'requireCompleted'),
+        };
+
+        if (source.length > 0) {
+          condition.source = source;
+        }
       } else if (conditionType === 'time_window') {
         const notBeforeIso = toIsoTimestamp(readFieldFromCard(card, 'notBefore'));
         const notAfterIso = toIsoTimestamp(readFieldFromCard(card, 'notAfter'));
@@ -3326,6 +3454,35 @@ export const INSTITUTION_ADMIN_JS = `
         if (notAfterIso !== undefined) {
           condition.notAfter = notAfterIso;
         }
+      } else if (conditionType === 'custom_field') {
+        const fieldName = readFieldFromCard(card, 'fieldName');
+        const operator = readFieldFromCard(card, 'operator');
+        const expectedValueType = readFieldFromCard(card, 'expectedValueType');
+        const expectedValue = parseCustomExpectedValue(
+          readFieldFromCard(card, 'expectedValue'),
+          expectedValueType,
+        );
+
+        if (strict && fieldName.length === 0) {
+          throw new Error('Custom field requirement needs a field name.');
+        }
+
+        if (strict && expectedValue === null) {
+          throw new Error('Custom field requirement needs a valid expected value.');
+        }
+
+        condition = {
+          type: 'custom_field',
+          fieldName: fieldName.length > 0 ? fieldName : 'fieldName',
+          operator:
+            operator === 'not_equals' ||
+            operator === 'contains' ||
+            operator === 'greater_than_or_equal' ||
+            operator === 'less_than_or_equal'
+              ? operator
+              : 'equals',
+          expectedValue: expectedValue === null ? 'VALUE' : expectedValue,
+        };
       } else {
         const badgeTemplateId = readFieldFromCard(card, 'badgeTemplateId');
         const badgeTemplateListId = readFieldFromCard(card, 'badgeTemplateListId');
@@ -4057,6 +4214,46 @@ export const INSTITUTION_ADMIN_JS = `
           JSON.stringify(
             {
               earnedBadgeTemplateIds: ['badge_template_foundations'],
+            },
+            null,
+            2,
+          ),
+        );
+      } else if (presetKey === 'survey_completion') {
+        setRuleCreateFieldValue('testCourseId', 'CS101');
+        setRuleCreateFieldValue('testFinalScore', '92');
+        setRuleCreateFieldValue(
+          'testFactsJson',
+          JSON.stringify(
+            {
+              surveyCompletions: [
+                {
+                  surveyId: 'CS101_EXIT_SURVEY',
+                  learnerId,
+                  source: 'qualtrics',
+                  completed: true,
+                  completedAt: new Date().toISOString(),
+                },
+              ],
+            },
+            null,
+            2,
+          ),
+        );
+      } else if (presetKey === 'custom_field') {
+        setRuleCreateFieldValue('testCourseId', 'CS101');
+        setRuleCreateFieldValue('testFinalScore', '92');
+        setRuleCreateFieldValue(
+          'testFactsJson',
+          JSON.stringify(
+            {
+              customFields: [
+                {
+                  learnerId,
+                  fieldName: 'programStanding',
+                  value: 'eligible',
+                },
+              ],
             },
             null,
             2,

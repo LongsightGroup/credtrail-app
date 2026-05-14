@@ -1093,6 +1093,13 @@ const badgeIssuanceRuleAssignmentSubmissionConditionSchema = z.object({
   workflowStates: z.array(z.string().trim().min(1).max(64)).min(1).max(20).optional(),
 });
 
+const badgeIssuanceRuleSurveyCompletionConditionSchema = z.object({
+  type: z.literal("survey_completion"),
+  surveyId: z.string().trim().min(1).max(255),
+  source: z.string().trim().min(1).max(64).optional(),
+  requireCompleted: z.boolean().optional(),
+});
+
 const badgeIssuanceRuleTimeWindowConditionSchema = z
   .object({
     type: z.literal("time_window"),
@@ -1118,6 +1125,21 @@ const badgeIssuanceRulePrerequisiteBadgeConditionSchema = z
     badgeIssuanceRuleBadgeTemplateReferenceRefinement(value, ctx);
   });
 
+const badgeIssuanceRuleCustomFieldValueSchema = z.union([
+  z.string().trim().min(1).max(512),
+  z.number().finite(),
+  z.boolean(),
+]);
+
+const badgeIssuanceRuleCustomFieldConditionSchema = z.object({
+  type: z.literal("custom_field"),
+  fieldName: z.string().trim().min(1).max(255),
+  operator: z
+    .enum(["equals", "not_equals", "contains", "greater_than_or_equal", "less_than_or_equal"])
+    .optional(),
+  expectedValue: badgeIssuanceRuleCustomFieldValueSchema,
+});
+
 export type BadgeIssuanceRuleCondition =
   | {
       all: BadgeIssuanceRuleCondition[];
@@ -1132,8 +1154,10 @@ export type BadgeIssuanceRuleCondition =
   | z.infer<typeof badgeIssuanceRuleCourseCompletionConditionSchema>
   | z.infer<typeof badgeIssuanceRuleProgramCompletionConditionSchema>
   | z.infer<typeof badgeIssuanceRuleAssignmentSubmissionConditionSchema>
+  | z.infer<typeof badgeIssuanceRuleSurveyCompletionConditionSchema>
   | z.infer<typeof badgeIssuanceRuleTimeWindowConditionSchema>
-  | z.infer<typeof badgeIssuanceRulePrerequisiteBadgeConditionSchema>;
+  | z.infer<typeof badgeIssuanceRulePrerequisiteBadgeConditionSchema>
+  | z.infer<typeof badgeIssuanceRuleCustomFieldConditionSchema>;
 
 export const badgeIssuanceRuleConditionSchema: z.ZodType<BadgeIssuanceRuleCondition> = z.lazy(() =>
   z.union([
@@ -1150,8 +1174,10 @@ export const badgeIssuanceRuleConditionSchema: z.ZodType<BadgeIssuanceRuleCondit
     badgeIssuanceRuleCourseCompletionConditionSchema,
     badgeIssuanceRuleProgramCompletionConditionSchema,
     badgeIssuanceRuleAssignmentSubmissionConditionSchema,
+    badgeIssuanceRuleSurveyCompletionConditionSchema,
     badgeIssuanceRuleTimeWindowConditionSchema,
     badgeIssuanceRulePrerequisiteBadgeConditionSchema,
+    badgeIssuanceRuleCustomFieldConditionSchema,
   ]),
 );
 
@@ -1235,11 +1261,27 @@ const badgeIssuanceRuleFactSubmissionSchema = z.object({
   submittedAt: isoTimestampSchema.nullable().optional(),
 });
 
+const badgeIssuanceRuleFactSurveyCompletionSchema = z.object({
+  surveyId: z.string().trim().min(1).max(255),
+  learnerId: z.string().trim().min(1).max(255),
+  source: z.string().trim().min(1).max(64).optional(),
+  completed: z.boolean(),
+  completedAt: isoTimestampSchema.nullable().optional(),
+});
+
+const badgeIssuanceRuleFactCustomFieldSchema = z.object({
+  learnerId: z.string().trim().min(1).max(255),
+  fieldName: z.string().trim().min(1).max(255),
+  value: badgeIssuanceRuleCustomFieldValueSchema.nullable(),
+});
+
 export const badgeIssuanceRuleFactsSchema = z.object({
   nowIso: isoTimestampSchema.optional(),
   grades: z.array(badgeIssuanceRuleFactGradeSchema).optional(),
   completions: z.array(badgeIssuanceRuleFactCompletionSchema).optional(),
   submissions: z.array(badgeIssuanceRuleFactSubmissionSchema).optional(),
+  surveyCompletions: z.array(badgeIssuanceRuleFactSurveyCompletionSchema).optional(),
+  customFields: z.array(badgeIssuanceRuleFactCustomFieldSchema).optional(),
   earnedBadgeTemplateIds: z.array(resourceIdSchema).optional(),
 });
 

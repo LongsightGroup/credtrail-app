@@ -2971,6 +2971,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("Advanced tools and reusable lists");
     expect(body).toContain("Start from a proven pattern");
     expect(body).toContain("Start from existing rule");
+    expect(body).toContain("Survey completion");
+    expect(body).toContain("Custom field");
     expect(body).toContain("Draft readiness");
     expect(body).toContain("Authoring approach");
     expect(body).toContain("Requirement catalog");

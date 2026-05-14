@@ -406,6 +406,23 @@ export const createPublicBadgePageRenderers = (
           </li>
         );
       }
+      case "survey_completion": {
+        const sourceClause = condition.source === undefined ? "" : ` from ${condition.source}`;
+        return (
+          <li>
+            Survey {condition.surveyId}
+            {sourceClause} must be completed.
+          </li>
+        );
+      }
+      case "custom_field": {
+        const operator = (condition.operator ?? "equals").replaceAll("_", " ");
+        return (
+          <li>
+            Custom field {condition.fieldName} must {operator} {String(condition.expectedValue)}.
+          </li>
+        );
+      }
       case "time_window": {
         const notBefore =
           condition.notBefore === undefined

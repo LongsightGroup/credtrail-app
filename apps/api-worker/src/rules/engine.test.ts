@@ -29,6 +29,17 @@ const baseDefinition = parseCreateBadgeIssuanceRuleRequest({
           minScore: 80,
         },
         {
+          type: "survey_completion",
+          source: "qualtrics",
+          surveyId: "exit_survey",
+        },
+        {
+          type: "custom_field",
+          fieldName: "programStanding",
+          operator: "equals",
+          expectedValue: "eligible",
+        },
+        {
           type: "prerequisite_badge",
           badgeTemplateId: "badge_template_foundations",
         },
@@ -48,6 +59,8 @@ describe("badge issuance rule engine", () => {
         assignmentId: "assignment_midterm",
       },
     ]);
+    expect(requirements.surveyIds).toEqual(["exit_survey"]);
+    expect(requirements.customFieldNames).toEqual(["programStanding"]);
     expect(requirements.prerequisiteBadgeTemplateIds).toEqual(["badge_template_foundations"]);
   });
 
@@ -79,6 +92,22 @@ describe("badge issuance rule engine", () => {
           score: 90,
           workflowState: "graded",
           submittedAt: "2026-01-15T12:00:00.000Z",
+        },
+      ],
+      surveyCompletions: [
+        {
+          surveyId: "exit_survey",
+          learnerId: "learner_123",
+          source: "qualtrics",
+          completed: true,
+          completedAt: "2026-01-16T12:00:00.000Z",
+        },
+      ],
+      customFields: [
+        {
+          learnerId: "learner_123",
+          fieldName: "programStanding",
+          value: "eligible",
         },
       ],
       earnedBadgeTemplateIds: ["badge_template_foundations"],
@@ -118,6 +147,22 @@ describe("badge issuance rule engine", () => {
           submittedAt: "2026-01-15T12:00:00.000Z",
         },
       ],
+      surveyCompletions: [
+        {
+          surveyId: "exit_survey",
+          learnerId: "learner_123",
+          source: "qualtrics",
+          completed: true,
+          completedAt: "2026-01-16T12:00:00.000Z",
+        },
+      ],
+      customFields: [
+        {
+          learnerId: "learner_123",
+          fieldName: "programStanding",
+          value: "eligible",
+        },
+      ],
       earnedBadgeTemplateIds: [],
     });
 
@@ -141,6 +186,14 @@ describe("badge issuance rule engine", () => {
         },
       ],
       submissions: [],
+      surveyCompletions: [],
+      customFields: [
+        {
+          learnerId: "learner_123",
+          fieldName: "programStanding",
+          value: "eligible",
+        },
+      ],
       earnedBadgeTemplateIds: ["badge_template_foundations"],
     });
     const summary = summarizeBadgeIssuanceRuleEvaluation(result);
@@ -148,5 +201,59 @@ describe("badge issuance rule engine", () => {
     expect(result.matched).toBe(false);
     expect(summary.missingDataCount).toBeGreaterThan(0);
     expect(summary.failedConditionCount).toBe(0);
+  });
+
+  it("evaluates survey completion and custom field conditions", () => {
+    const definition = parseCreateBadgeIssuanceRuleRequest({
+      name: "Survey and cohort rule",
+      badgeTemplateId: "badge_template_survey",
+      lmsProviderKind: "canvas",
+      definition: {
+        conditions: {
+          all: [
+            {
+              type: "survey_completion",
+              source: "qualtrics",
+              surveyId: "exit_survey",
+            },
+            {
+              type: "custom_field",
+              fieldName: "cohortYear",
+              operator: "greater_than_or_equal",
+              expectedValue: 2026,
+            },
+          ],
+        },
+      },
+    }).definition;
+
+    const result = evaluateBadgeIssuanceRuleDefinition(definition, {
+      learnerId: "learner_123",
+      nowIso: "2026-02-17T00:00:00.000Z",
+      grades: [],
+      completions: [],
+      submissions: [],
+      surveyCompletions: [
+        {
+          surveyId: "exit_survey",
+          learnerId: "learner_123",
+          source: "qualtrics",
+          completed: true,
+          completedAt: "2026-02-16T00:00:00.000Z",
+        },
+      ],
+      customFields: [
+        {
+          learnerId: "learner_123",
+          fieldName: "cohortYear",
+          value: 2026,
+        },
+      ],
+      earnedBadgeTemplateIds: [],
+    });
+
+    expect(result.matched).toBe(true);
+    expect(JSON.stringify(result.tree)).toContain("exit_survey");
+    expect(JSON.stringify(result.tree)).toContain("cohortYear");
   });
 });

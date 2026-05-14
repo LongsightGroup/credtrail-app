@@ -58,9 +58,11 @@ import {
   extractBadgeIssuanceRuleRequirements,
   summarizeBadgeIssuanceRuleEvaluation,
   type BadgeIssuanceRuleCompletionFact,
+  type BadgeIssuanceRuleCustomFieldFact,
   type BadgeIssuanceRuleEvaluationFacts,
   type BadgeIssuanceRuleGradeFact,
   type BadgeIssuanceRuleSubmissionFact,
+  type BadgeIssuanceRuleSurveyCompletionFact,
 } from "../rules/engine";
 
 interface DirectIssueBadgeRequest {
@@ -442,7 +444,9 @@ function resolveRuleConditionValueLists(
     case "prerequisite_badge":
       return resolveBadgeTemplateListCondition(condition, valueLists);
     case "assignment_submission":
+    case "survey_completion":
     case "time_window":
+    case "custom_field":
       return condition;
   }
 }
@@ -516,6 +520,8 @@ function parseFactsFromEvaluationRecord(
       grades: Array.isArray(facts.grades) ? facts.grades : [],
       completions: Array.isArray(facts.completions) ? facts.completions : [],
       submissions: Array.isArray(facts.submissions) ? facts.submissions : [],
+      surveyCompletions: Array.isArray(facts.surveyCompletions) ? facts.surveyCompletions : [],
+      customFields: Array.isArray(facts.customFields) ? facts.customFields : [],
       earnedBadgeTemplateIds: Array.isArray(facts.earnedBadgeTemplateIds)
         ? facts.earnedBadgeTemplateIds
         : [],
@@ -569,6 +575,18 @@ const loadRuleFacts = async (input: {
         score: fact.score ?? null,
         workflowState: fact.workflowState ?? null,
         submittedAt: fact.submittedAt ?? null,
+      })),
+      surveyCompletions: (requestedFacts.surveyCompletions ?? []).map((fact) => ({
+        surveyId: fact.surveyId,
+        learnerId: fact.learnerId,
+        source: fact.source ?? null,
+        completed: fact.completed,
+        completedAt: fact.completedAt ?? null,
+      })),
+      customFields: (requestedFacts.customFields ?? []).map((fact) => ({
+        learnerId: fact.learnerId,
+        fieldName: fact.fieldName,
+        value: fact.value,
       })),
       earnedBadgeTemplateIds,
     };
@@ -641,6 +659,8 @@ const loadRuleFacts = async (input: {
   const grades: BadgeIssuanceRuleGradeFact[] = [];
   const completions: BadgeIssuanceRuleCompletionFact[] = [];
   const submissions: BadgeIssuanceRuleSubmissionFact[] = [];
+  const surveyCompletions: BadgeIssuanceRuleSurveyCompletionFact[] = [];
+  const customFields: BadgeIssuanceRuleCustomFieldFact[] = [];
 
   for (const courseId of requirements.courseIds) {
     const [courseGrades, courseCompletions] = await Promise.all([
@@ -703,6 +723,8 @@ const loadRuleFacts = async (input: {
     grades,
     completions,
     submissions,
+    surveyCompletions,
+    customFields,
     earnedBadgeTemplateIds,
   };
 };

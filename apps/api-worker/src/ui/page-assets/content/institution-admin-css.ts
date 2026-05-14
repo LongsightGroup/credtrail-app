@@ -2617,11 +2617,17 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin__condition-card--assignment_submission {
   border-color: var(--ct-theme-border-warning);
 }
+.ct-admin__condition-card--survey_completion {
+  border-color: var(--ct-theme-border-info);
+}
 .ct-admin__condition-card--time_window {
   border-color: var(--ct-border-strong);
 }
 .ct-admin__condition-card--prerequisite_badge {
   border-color: var(--ct-theme-border-danger);
+}
+.ct-admin__condition-card--custom_field {
+  border-color: var(--ct-theme-border-focus);
 }
 .ct-admin__condition-card--result-idle {
   box-shadow: none;

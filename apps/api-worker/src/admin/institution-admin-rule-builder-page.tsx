@@ -41,8 +41,10 @@ const ruleBuilderConditionTypes = [
   { value: "grade_threshold", label: "Grade threshold" },
   { value: "program_completion", label: "Program completion" },
   { value: "assignment_submission", label: "Assignment submission" },
+  { value: "survey_completion", label: "Survey completion" },
   { value: "time_window", label: "Time window" },
   { value: "prerequisite_badge", label: "Prerequisite badge" },
+  { value: "custom_field", label: "Custom field" },
 ] as const;
 
 const RuleBuilderStepButton = (props: {
@@ -409,8 +411,10 @@ export const institutionAdminRuleBuilderPage = (input: {
                         <option value="assignment_submission">
                           Assignment or evidence submitted
                         </option>
+                        <option value="survey_completion">Survey completed</option>
                         <option value="prerequisite_chain">Prerequisite badge required</option>
                         <option value="time_limited">Date-limited earning window</option>
+                        <option value="custom_field">Custom institutional field</option>
                         <option value="blank">Blank requirements</option>
                       </select>
                     </AdminField>
@@ -594,6 +598,13 @@ export const institutionAdminRuleBuilderPage = (input: {
                         </dd>
                       </div>
                       <div>
+                        <dt>Survey completion</dt>
+                        <dd>
+                          Matches when completion facts show that a learner finished a required
+                          survey.
+                        </dd>
+                      </div>
+                      <div>
                         <dt>Time window</dt>
                         <dd>Matches only inside optional not-before / not-after timestamps.</dd>
                       </div>
@@ -601,6 +612,13 @@ export const institutionAdminRuleBuilderPage = (input: {
                         <dt>Prerequisite badge</dt>
                         <dd>
                           Matches when learner already has an earned prerequisite badge template.
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Custom field</dt>
+                        <dd>
+                          Matches institution-specific learner attributes such as cohort, pathway,
+                          or standing.
                         </dd>
                       </div>
                     </dl>
@@ -677,7 +695,9 @@ export const institutionAdminRuleBuilderPage = (input: {
                             </option>
                             <option value="program_completion">Program completion</option>
                             <option value="assignment_submission">Assignment submission</option>
+                            <option value="survey_completion">Survey completion</option>
                             <option value="prerequisite_badge">Prerequisite badge</option>
+                            <option value="custom_field">Custom field</option>
                           </select>
                         </AdminField>
                         <AdminButton
