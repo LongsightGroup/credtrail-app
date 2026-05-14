@@ -5216,8 +5216,7 @@ const renderInstitutionAdminPage = (
           <input name="file" type="file" accept=".csv,text/csv" />
         </AdminField>
         <p class="ct-admin__hint">
-          Smart defaults only infer from the current org-unit tree and live badge-template
-          ownership. Missing context stays explicit instead of being fabricated.
+          Defaults come from the current org-unit structure and badge-template ownership.
         </p>
         <div class="ct-admin__workspace-actions">
           <AdminButton type="submit">Preview import</AdminButton>
