@@ -1580,7 +1580,7 @@ export const INSTITUTION_ADMIN_JS = `
           false,
         );
         setTimeout(() => {
-          window.location.assign(tenantAdminPath);
+          window.location.assign(tenantAdminPath + '/rules/templates');
         }, 900);
       } catch {
         setStatus(

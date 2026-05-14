@@ -262,6 +262,7 @@ type InstitutionAdminView =
   | "reportingTrends"
   | "reportingReports"
   | "rules"
+  | "rulesTemplates"
   | "access"
   | "accessMembers"
   | "accessGovernance"
@@ -367,6 +368,7 @@ const renderInstitutionAdminPage = (
   const reportingTrendsPath = `${reportingPath}/trends`;
   const reportingReportsPath = `${reportingPath}/reports`;
   const rulesWorkspacePath = `${tenantAdminPath}/rules`;
+  const rulesTemplatesPath = `${rulesWorkspacePath}/templates`;
   const accessPath = `${tenantAdminPath}/access`;
   const accessMembersPath = `${accessPath}/members`;
   const accessGovernancePath = `${accessPath}/governance`;
@@ -3349,6 +3351,12 @@ const renderInstitutionAdminPage = (
       label: "Configuration",
       links: [
         { href: rulesWorkspacePath, label: "Rules", isCurrent: view === "rules" },
+        {
+          href: rulesTemplatesPath,
+          label: "Badge Templates",
+          isCurrent: view === "rulesTemplates",
+          isSub: true,
+        },
         { href: ruleBuilderPath, label: "Rule Builder", isSub: true },
       ],
     },
@@ -3436,7 +3444,8 @@ const renderInstitutionAdminPage = (
         <p class="ct-admin__eyebrow">Authoring</p>
         <h2>Rules</h2>
         <p>
-          Maintain templates, reusable lists, governance context, and the dedicated rule builder.
+          Review awarding rules, maintain reusable lists, and open focused pages for builder and
+          template maintenance.
         </p>
         {input.badgeRules.length === 0 ? (
           <p class="ct-admin__hint">No badge rules found. Create your first rule.</p>
@@ -3484,7 +3493,7 @@ const renderInstitutionAdminPage = (
   const templateImagePanelMarkup = (
     <AdminPanel id="template-image-panel">
       <h2>Upload Badge Template Image</h2>
-      <p>Upload template artwork (PNG, JPEG, or WebP, max 2 MB).</p>
+      <p>Update badge artwork where template records are managed.</p>
       <AdminForm id="badge-template-image-upload-form">
         <AdminField label="Badge template">
           <select name="badgeTemplateId" required>
@@ -4707,6 +4716,14 @@ const renderInstitutionAdminPage = (
     <AdminPanel variant="table">
       <h2>Badge Rules ({ruleCount})</h2>
       <p>Lifecycle actions operate on each rule’s latest version.</p>
+      <div class="ct-admin__workspace-actions">
+        <AdminButtonLink href={ruleBuilderPath} variant="secondary">
+          Open rule builder
+        </AdminButtonLink>
+        <AdminButtonLink href={rulesTemplatesPath} variant="ghost">
+          Manage badge templates
+        </AdminButtonLink>
+      </div>
       <AdminTable
         headers={[
           "Rule",
@@ -4728,6 +4745,7 @@ const renderInstitutionAdminPage = (
   const badgeTemplatesTableMarkup = (
     <AdminPanel variant="table">
       <h2>Badge Templates ({badgeTemplateCount})</h2>
+      <p>Template records, public links, and artwork maintenance live together here.</p>
       <AdminTable headers={["Image", "Template", "Slug", "Updated", "Links"]}>
         {templateRows}
       </AdminTable>
@@ -5253,15 +5271,17 @@ const renderInstitutionAdminPage = (
                           ? `Report Library · Reporting · Institution Admin · ${input.tenant.displayName}`
                           : view === "rules"
                             ? `Rules · Institution Admin · ${input.tenant.displayName}`
-                            : view === "access"
-                              ? `Access · Institution Admin · ${input.tenant.displayName}`
-                              : view === "accessMembers"
-                                ? `Members · Institution Admin · ${input.tenant.displayName}`
-                                : view === "accessGovernance"
-                                  ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
-                                  : view === "accessApiKeys"
-                                    ? `API Keys · Institution Admin · ${input.tenant.displayName}`
-                                    : `Org Units · Institution Admin · ${input.tenant.displayName}`;
+                            : view === "rulesTemplates"
+                              ? `Badge Templates · Rules · Institution Admin · ${input.tenant.displayName}`
+                              : view === "access"
+                                ? `Access · Institution Admin · ${input.tenant.displayName}`
+                                : view === "accessMembers"
+                                  ? `Members · Institution Admin · ${input.tenant.displayName}`
+                                  : view === "accessGovernance"
+                                    ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
+                                    : view === "accessApiKeys"
+                                      ? `API Keys · Institution Admin · ${input.tenant.displayName}`
+                                      : `Org Units · Institution Admin · ${input.tenant.displayName}`;
 
   const viewContent = (() => {
     switch (view) {
@@ -5428,18 +5448,33 @@ const renderInstitutionAdminPage = (
           <>
             {renderPageHeader(
               "Rules",
-              "Keep authoring, template maintenance, and governance context together in one focused workspace.",
+              "Review awarding rules and use focused tools for rule logic, reusable lists, and governance context.",
             )}
             <section class="ct-admin ct-stack">
               <section class="ct-admin__layout ct-grid ct-grid--sidebar">
                 <div class="ct-admin__grid ct-stack">
-                  {templateImagePanelMarkup}
                   {ruleValueListsPanelMarkup}
                   {evaluateRulePanelMarkup}
                   {ruleGovernancePanelMarkup}
                 </div>
                 <div class="ct-admin__grid ct-stack">
                   {badgeRulesTableMarkup}
+                </div>
+              </section>
+            </section>
+          </>
+        );
+      case "rulesTemplates":
+        return (
+          <>
+            {renderPageHeader(
+              "Badge Templates",
+              "Manage template records, artwork, and public template links without crowding the rules overview.",
+            )}
+            <section class="ct-admin ct-stack">
+              <section class="ct-admin__layout ct-grid ct-grid--sidebar">
+                <div class="ct-admin__grid ct-stack">{templateImagePanelMarkup}</div>
+                <div class="ct-admin__grid ct-stack">
                   {badgeTemplatesTableMarkup}
                 </div>
               </section>
@@ -5604,6 +5639,10 @@ export const institutionAdminReportingReportsPage = (input: InstitutionAdminPage
 
 export const institutionAdminRulesPage = (input: InstitutionAdminPageInput): AppPage => {
   return renderInstitutionAdminPage(input, "rules");
+};
+
+export const institutionAdminRuleTemplatesPage = (input: InstitutionAdminPageInput): AppPage => {
+  return renderInstitutionAdminPage(input, "rulesTemplates");
 };
 
 export const institutionAdminAccessPage = (input: InstitutionAdminPageInput): AppPage => {

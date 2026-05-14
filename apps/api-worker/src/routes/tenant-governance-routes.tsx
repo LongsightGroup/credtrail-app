@@ -104,6 +104,7 @@ import {
   institutionAdminReportingPage,
   institutionAdminReportingReportsPage,
   institutionAdminReportingTrendsPage,
+  institutionAdminRuleTemplatesPage,
   institutionAdminRulesPage,
 } from "../admin/institution-admin-page";
 import { AdminActions, AdminButtonLink, AdminPageHeader, AdminPanel } from "../admin/components";
@@ -1668,6 +1669,16 @@ export const registerTenantGovernanceRoutes = (
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules`,
       institutionAdminRulesPage,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/rules/templates", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    return renderInstitutionAdminWorkspace(
+      c,
+      pathParams.tenantId,
+      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules/templates`,
+      institutionAdminRuleTemplatesPage,
     );
   });
 

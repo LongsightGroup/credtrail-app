@@ -909,6 +909,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/operations"');
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access"');
     expect(body).toContain('href="/admin/audit-logs?tenantId=tenant_123"');
@@ -2627,19 +2628,53 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain(">Rules<");
     expect(body).not.toContain("Rule Builder Workspace");
-    expect(body).not.toMatch(/>\s*Open rule builder\s*<\/a>/);
+    expect(body).toMatch(/>\s*Open rule builder\s*<\/a>/);
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new"');
-    expect(body).toContain("Upload Badge Template Image");
-    expect(body).toContain('id="badge-template-image-upload-form"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
+    expect(body).toMatch(/>\s*Manage badge templates\s*<\/a>/);
+    expect(body).not.toContain("Upload Badge Template Image");
+    expect(body).not.toContain('id="badge-template-image-upload-form"');
     expect(body).toContain("Rule Value Lists");
     expect(body).toContain('id="rule-value-list-form"');
     expect(body).toContain("Evaluate Rule");
     expect(body).toContain('id="rule-evaluate-form"');
     expect(body).toContain("Rule Governance Context");
     expect(body).toContain("Badge Rules (1)");
-    expect(body).toContain("Badge Templates (1)");
+    expect(body).not.toContain("Badge Templates (1)");
     expect(body).not.toContain("Create Tenant API Key");
     expect(body).not.toContain("Issued Badges Ledger");
+  });
+});
+
+describe("GET /tenants/:tenantId/admin/rules/templates", () => {
+  it("renders badge template maintenance outside the rules overview", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/templates",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(body).toContain(">Badge Templates<");
+    expect(body).toMatch(
+      /href="\/tenants\/tenant_123\/admin\/rules\/templates"[^>]*aria-current="page"/,
+    );
+    expect(body).toContain("Upload Badge Template Image");
+    expect(body).toContain('id="badge-template-image-upload-form"');
+    expect(body).toContain("Badge Templates (1)");
+    expect(body).toContain("Template records, public links, and artwork maintenance");
+    expect(body).not.toContain("Rule Value Lists");
+    expect(body).not.toContain('id="rule-value-list-form"');
+    expect(body).not.toContain("Evaluate Rule");
+    expect(body).not.toContain('id="rule-evaluate-form"');
   });
 });
 
