@@ -723,8 +723,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                         <li>Approval roles match the governance path.</li>
                       </ul>
                       <p class="ct-admin__hint">
-                        Create the draft only when the latest test and readiness rail are both
-                        clean.
+                        Create the draft only when the latest test and readiness summary are both
+                        clear.
                       </p>
                     </details>
                   </div>
@@ -771,7 +771,7 @@ export const institutionAdminRuleBuilderPage = (input: {
             <p class="ct-admin__eyebrow">Readiness</p>
             <h2>Draft readiness</h2>
             <p class="ct-admin__hint">
-              Use this rail to see whether the draft is ready for governance review.
+              Use this summary to see whether the draft is ready for governance review.
             </p>
             <dl class="ct-admin__builder-summary-list">
               <div>
