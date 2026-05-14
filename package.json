@@ -41,6 +41,9 @@
     "better-auth": "1.6.9"
   },
   "pnpm": {
+    "overrides": {
+      "zod": "4.4.3"
+    },
     "patchedDependencies": {
       "@lti-tool/core@1.1.0": "patches/@lti-tool__core@1.1.0.patch"
     }
