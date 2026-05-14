@@ -503,7 +503,6 @@ const renderStackedGraphic = (
 };
 
 const buildTrendPoints = (input: {
-  bottomInset?: number | undefined;
   chartHeight: number;
   chartWidth: number;
   normalizedSeries: readonly ReportingVisualSeriesPoint[];
@@ -512,9 +511,8 @@ const buildTrendPoints = (input: {
     ...input.normalizedSeries.map((point) => normalizeValue(point.value)),
     1,
   );
-  const bottomInset = input.bottomInset ?? REPORTING_VISUAL_PADDING;
-  const baseline = input.chartHeight - bottomInset;
-  const usableHeight = input.chartHeight - REPORTING_VISUAL_PADDING * 2 - bottomInset;
+  const baseline = input.chartHeight - REPORTING_VISUAL_PADDING;
+  const usableHeight = input.chartHeight - REPORTING_VISUAL_PADDING * 3;
   const maxIndex = Math.max(input.normalizedSeries.length - 1, 1);
   const xScale = scaleLinear()
     .domain([0, maxIndex])
@@ -533,68 +531,20 @@ const buildTrendPoints = (input: {
   return { baseline, points, usableHeight };
 };
 
-const selectTrendMarkers = (
-  points: readonly ReportingTrendPoint[],
-): readonly ReportingTrendPoint[] => {
-  const selectedPoints = new Map<number, ReportingTrendPoint>();
-  const addPoint = (point: ReportingTrendPoint | undefined): void => {
-    if (point !== undefined) {
-      selectedPoints.set(point.index, point);
-    }
-  };
-  const positivePoints = points.filter((point) => point.value > 0);
-  const peakPoint =
-    [...points].sort((left, right) => {
-      if (right.value !== left.value) {
-        return right.value - left.value;
-      }
-
-      return left.index - right.index;
-    })[0] ?? points[0];
-  const latestPoint = points[points.length - 1];
-
-  if (points.length <= 12) {
-    points.forEach(addPoint);
-    return [...selectedPoints.values()].sort((left, right) => left.index - right.index);
-  }
-
-  if (positivePoints.length > 0 && positivePoints.length <= 6) {
-    positivePoints.forEach(addPoint);
-  } else {
-    addPoint(points[0]);
-    addPoint(peakPoint);
-  }
-
-  addPoint(latestPoint);
-
-  return [...selectedPoints.values()].sort((left, right) => left.index - right.index);
-};
-
 const renderTrendGraphic = (
   input: ReportingVisualProps,
   normalizedSeries: readonly ReportingVisualSeriesPoint[],
   titleId: string,
   descriptionIds: string,
 ): HonoElement => {
-  const chartHeight = input.density === "compact" ? 132 : 168;
+  const chartHeight = input.density === "compact" ? 104 : 160;
   const chartWidth = REPORTING_VISUAL_WIDTH;
-  const bottomInset = input.density === "compact" ? 36 : 38;
-  const { baseline, points, usableHeight } = buildTrendPoints({
-    bottomInset,
-    chartHeight,
-    chartWidth,
-    normalizedSeries,
-  });
+  const { baseline, points } = buildTrendPoints({ chartHeight, chartWidth, normalizedSeries });
   const trendPath =
     line<ReportingTrendPoint>()
       .x((point) => point.x)
       .y((point) => point.y)
       .curve(curveMonotoneX)(points) ?? "";
-  const maxValue = Math.max(...normalizedSeries.map((point) => normalizeValue(point.value)), 1);
-  const startPoint = points[0];
-  const latestPoint = points[points.length - 1] ?? startPoint;
-  const markerPoints = selectTrendMarkers(points);
-  const guideY = baseline - usableHeight;
 
   return (
     <svg
@@ -606,78 +556,27 @@ const renderTrendGraphic = (
     >
       <desc>
         {input.showLegend === false
-          ? "Trend line summarizes issued badge counts with start, peak, and latest markers."
+          ? "Trend line summarizes the values across the selected range."
           : "Trend line plots the values listed in the legend below."}
       </desc>
-      <g class="ct-reporting-visual__chart-key" aria-hidden="true">
-        <line x1="16" y1="14" x2="42" y2="14"></line>
-        <circle cx="29" cy="14" r="3"></circle>
-        <text x="50" y="17">
-          Issued badges
-        </text>
-      </g>
       <line
-        class="ct-reporting-visual__guide"
-        x1={String(REPORTING_VISUAL_PADDING)}
-        y1={guideY.toFixed(2)}
-        x2={String(chartWidth - REPORTING_VISUAL_PADDING)}
-        y2={guideY.toFixed(2)}
-      ></line>
-      <line
-        class="ct-reporting-visual__axis ct-reporting-visual__axis--y"
-        x1={String(REPORTING_VISUAL_PADDING)}
-        y1={guideY.toFixed(2)}
-        x2={String(REPORTING_VISUAL_PADDING)}
-        y2={String(baseline)}
-      ></line>
-      <line
-        class="ct-reporting-visual__axis ct-reporting-visual__axis--x ct-reporting-visual__baseline"
+        class="ct-reporting-visual__baseline"
         x1={String(REPORTING_VISUAL_PADDING)}
         y1={String(baseline)}
         x2={String(chartWidth - REPORTING_VISUAL_PADDING)}
         y2={String(baseline)}
       ></line>
       <path class="ct-reporting-visual__trend-line" d={trendPath}></path>
-      {markerPoints.map((point) => (
+      {points.map((point) => (
         <g key={`${point.label}:${String(point.index)}`} class="ct-reporting-visual__point-group">
           <circle
-            class={`ct-reporting-visual__point ${
-              point.value === maxValue
-                ? "ct-reporting-visual__point--peak"
-                : point.index === latestPoint?.index
-                  ? "ct-reporting-visual__point--latest"
-                  : "ct-reporting-visual__point--trend-marker"
-            }`}
+            class={`ct-reporting-visual__point ct-reporting-visual__point--${String(point.index % 4)}`}
             cx={point.x.toFixed(2)}
             cy={point.y.toFixed(2)}
-            r={point.value > 0 ? "4.5" : "3.5"}
+            r="4"
           ></circle>
         </g>
       ))}
-      <text class="ct-reporting-visual__axis-label" x="20" y={(guideY - 5).toFixed(2)}>
-        {formatValue(maxValue)}
-      </text>
-      <text class="ct-reporting-visual__axis-label" x="20" y={(baseline - 5).toFixed(2)}>
-        0
-      </text>
-      {startPoint === undefined ? null : (
-        <text
-          class="ct-reporting-visual__axis-label ct-reporting-visual__axis-label--x"
-          x={startPoint.x.toFixed(2)}
-          y={String(chartHeight - 8)}
-        >
-          {startPoint.label}
-        </text>
-      )}
-      {latestPoint === undefined ? null : (
-        <text
-          class="ct-reporting-visual__axis-label ct-reporting-visual__axis-label--x ct-reporting-visual__axis-label--end"
-          x={latestPoint.x.toFixed(2)}
-          y={String(chartHeight - 8)}
-        >
-          {latestPoint.label}
-        </text>
-      )}
     </svg>
   );
 };
