@@ -891,12 +891,22 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain("Institution Admin");
-    expect(body).toContain("Choose a workspace instead of forcing every task onto one page.");
+    expect(body).toContain("Choose a workspace.");
+    expect(body).not.toContain("Start Here");
+    expect(body).not.toContain("instead of forcing every task onto one page");
     expect(body).toContain("Institution admin workspaces");
+    expect(body).toContain("Issue &amp; Inspect");
     expect(body).toContain("Operations");
     expect(body).toContain("Reporting");
     expect(body).toContain("Rules");
     expect(body).toContain("Access");
+    expect(body).toContain("Analytics");
+    expect(body).toContain("Management");
+    expect(body).toContain("Configuration");
+    expect(body).toContain('aria-label="Open Issue &amp; Inspect workspace"');
+    expect(body).toContain('aria-label="Open Reporting workspace"');
+    expect(body).toContain('aria-label="Open Rules workspace"');
+    expect(body).toContain('aria-label="Open Access workspace"');
     expect(body).not.toMatch(/>\s*Open operations\s*<\/a>/);
     expect(body).not.toMatch(/>\s*Open reporting\s*<\/a>/);
     expect(body).not.toMatch(/>\s*Open rules\s*<\/a>/);
@@ -1028,7 +1038,7 @@ describe("GET /tenants/:tenantId/admin/operations", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(body).toContain(">Operations<");
+    expect(body).toContain(">Issue &amp; Inspect<");
     expect(body).toContain("Manual Issue Badge");
     expect(body).toContain("Learner Records");
     expect(body).toContain("Learner Record Imports");
@@ -1377,7 +1387,8 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Reporting Highlights");
+    expect(body).toContain(">Reporting<");
+    expect(body).not.toContain("Reporting Highlights");
     expect(body).toContain("Executive Summary");
     expect(body).toContain('class="ct-admin__reporting-summary-band"');
     expect(body).toContain(

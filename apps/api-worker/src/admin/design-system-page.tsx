@@ -477,7 +477,7 @@ const SurfacePreview = (): HonoElement => {
     <div class="ct-stack">
       <AdminPageHeader
         compact
-        title="Operations"
+        title="Issue & Inspect"
         description="Focused admin workspaces keep hierarchy and secondary notes predictable."
       />
       <AdminPanel>
@@ -490,7 +490,7 @@ const SurfacePreview = (): HonoElement => {
           <p class="ct-admin__metric-value">42</p>
         </AdminMetricCard>
         <AdminWorkspaceCard>
-          <p class="ct-admin__eyebrow">Setup</p>
+          <p class="ct-admin__eyebrow">Configuration</p>
           <h3>Access</h3>
           <p>Workspace cards keep the overview page language consistent.</p>
         </AdminWorkspaceCard>

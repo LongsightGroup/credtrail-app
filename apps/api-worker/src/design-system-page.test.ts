@@ -126,6 +126,8 @@ describe("CredTrail UI styleguide", () => {
 
     expect(html).toContain('class="ct-admin-shell"');
     expect(html).toContain('class="ct-admin-sidebar"');
+    expect(html).toContain('class="ct-admin-sidebar__section-summary"');
+    expect(html).toContain('class="ct-admin-sidebar__section-caret"');
     expect(html).toContain('aria-current="page"');
     expect(html).toContain("Issued Badges");
     expect(html).toContain('class="ct-admin-topbar"');
@@ -157,6 +159,15 @@ describe("CredTrail UI styleguide", () => {
         toString(): string;
       }
     ).toString();
+    const linkedWorkspaceHtml = (
+      AdminWorkspaceCard({
+        href: "/tenants/sakai/admin/reporting",
+        ariaLabel: "Open Reporting workspace",
+        children: "Reporting workspace",
+      }) as {
+        toString(): string;
+      }
+    ).toString();
 
     expect(adminPanelClass({ variant: "table" })).toBe(
       "ct-admin__panel ct-admin__panel--table ct-stack",
@@ -167,6 +178,10 @@ describe("CredTrail UI styleguide", () => {
     expect(panelHtml).toContain('data-reporting-state="rich"');
     expect(metricHtml).toContain('class="ct-admin__metric-card ct-stack"');
     expect(workspaceHtml).toContain('class="ct-admin__workspace-card ct-stack"');
+    expect(workspaceHtml).toContain("<article");
+    expect(linkedWorkspaceHtml).toContain("<a");
+    expect(linkedWorkspaceHtml).toContain('href="/tenants/sakai/admin/reporting"');
+    expect(linkedWorkspaceHtml).toContain('aria-label="Open Reporting workspace"');
   });
 
   it("renders shared admin table primitives", () => {

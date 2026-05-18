@@ -3290,7 +3290,7 @@ const renderInstitutionAdminPage = (
     {
       label: "Operations",
       links: [
-        { href: operationsPath, label: "Overview", isCurrent: view === "operations" },
+        { href: operationsPath, label: "Issue & Inspect", isCurrent: view === "operations" },
         {
           href: operationsLearnerRecordsPath,
           label: "Learner Records",
@@ -3324,9 +3324,9 @@ const renderInstitutionAdminPage = (
       ],
     },
     {
-      label: "Reporting",
+      label: "Analytics",
       links: [
-        { href: reportingPath, label: "Highlights", isCurrent: view === "reporting" },
+        { href: reportingPath, label: "Reporting", isCurrent: view === "reporting" },
         {
           href: reportingExplorePath,
           label: "Explore",
@@ -3348,7 +3348,7 @@ const renderInstitutionAdminPage = (
       ],
     },
     {
-      label: "Configuration",
+      label: "Management",
       links: [
         { href: rulesWorkspacePath, label: "Rules", isCurrent: view === "rules" },
         {
@@ -3361,9 +3361,9 @@ const renderInstitutionAdminPage = (
       ],
     },
     {
-      label: "Access",
+      label: "Configuration",
       links: [
-        { href: accessPath, label: "Overview", isCurrent: view === "access" },
+        { href: accessPath, label: "Access", isCurrent: view === "access" },
         {
           href: accessMembersPath,
           label: "Members",
@@ -3415,9 +3415,9 @@ const renderInstitutionAdminPage = (
 
   const workspaceCardsMarkup = (
     <section class="ct-admin__workspace-grid ct-grid" aria-label="Institution admin workspaces">
-      <AdminWorkspaceCard>
-        <p class="ct-admin__eyebrow">Daily work</p>
-        <h2>Operations</h2>
+      <AdminWorkspaceCard href={operationsPath} ariaLabel="Open Issue & Inspect workspace">
+        <p class="ct-admin__eyebrow">Operations</p>
+        <h2>Issue & Inspect</h2>
         <p>
           Issue badges, route manual review, inspect issued badges, and update badge status across
           focused pages.
@@ -3427,7 +3427,7 @@ const renderInstitutionAdminPage = (
           <AdminStatusPill>{ruleCount} rules</AdminStatusPill>
         </div>
       </AdminWorkspaceCard>
-      <AdminWorkspaceCard>
+      <AdminWorkspaceCard href={reportingPath} ariaLabel="Open Reporting workspace">
         <p class="ct-admin__eyebrow">Analytics</p>
         <h2>Reporting</h2>
         <p>
@@ -3440,8 +3440,8 @@ const renderInstitutionAdminPage = (
           </AdminStatusPill>
         </div>
       </AdminWorkspaceCard>
-      <AdminWorkspaceCard>
-        <p class="ct-admin__eyebrow">Authoring</p>
+      <AdminWorkspaceCard href={rulesWorkspacePath} ariaLabel="Open Rules workspace">
+        <p class="ct-admin__eyebrow">Management</p>
         <h2>Rules</h2>
         <p>
           Review awarding rules, maintain reusable lists, and open focused pages for builder and
@@ -3455,8 +3455,8 @@ const renderInstitutionAdminPage = (
           <AdminStatusPill>{badgeTemplateCount} templates</AdminStatusPill>
         </div>
       </AdminWorkspaceCard>
-      <AdminWorkspaceCard>
-        <p class="ct-admin__eyebrow">Setup</p>
+      <AdminWorkspaceCard href={accessPath} ariaLabel="Open Access workspace">
+        <p class="ct-admin__eyebrow">Configuration</p>
         <h2>Access</h2>
         <p>
           Manage permissions and enterprise auth here, with separate pages for API keys and org
@@ -5258,7 +5258,7 @@ const renderInstitutionAdminPage = (
     view === "home"
       ? `Institution Admin · ${input.tenant.displayName}`
       : view === "operations"
-        ? `Operations · Institution Admin · ${input.tenant.displayName}`
+        ? `Issue & Inspect · Institution Admin · ${input.tenant.displayName}`
         : view === "operationsLearnerRecords"
           ? `Learner Records · Institution Admin · ${input.tenant.displayName}`
           : view === "operationsLearnerRecordImports"
@@ -5270,7 +5270,7 @@ const renderInstitutionAdminPage = (
                 : view === "operationsBadgeStatus"
                   ? `Badge Status · Institution Admin · ${input.tenant.displayName}`
                   : view === "reporting"
-                    ? `Reporting Highlights · Institution Admin · ${input.tenant.displayName}`
+                    ? `Reporting · Institution Admin · ${input.tenant.displayName}`
                     : view === "reportingExplore"
                       ? `Reporting Explore · Institution Admin · ${input.tenant.displayName}`
                       : view === "reportingTrends"
@@ -5296,17 +5296,7 @@ const renderInstitutionAdminPage = (
       case "home":
         return (
           <>
-            {renderPageHeader(
-              "Institution Admin",
-              "Choose a workspace instead of forcing every task onto one page.",
-              <aside class="ct-admin-page-header__note">
-                <h2>Start Here</h2>
-                <p>
-                  Operations is the primary daily workspace. Use the Rules and Access pages to
-                  configure policy and permissions.
-                </p>
-              </aside>,
-            )}
+            {renderPageHeader("Institution Admin", "Choose a workspace.")}
             <section class="ct-admin ct-stack">{workspaceCardsMarkup}</section>
           </>
         );
@@ -5314,7 +5304,7 @@ const renderInstitutionAdminPage = (
         return (
           <>
             {renderPageHeader(
-              "Operations",
+              "Issue & Inspect",
               "Issue badges here, then use dedicated pages for learner records, imports, review queue, issued badges, and badge status.",
             )}
             <section class="ct-admin ct-stack">{manualIssuePanelMarkup}</section>
@@ -5382,7 +5372,7 @@ const renderInstitutionAdminPage = (
         return (
           <>
             {renderPageHeader(
-              "Reporting Highlights",
+              "Reporting",
               "Start with smart-default rollups, focus areas, and visually curated report modules before opening detailed reporting pages.",
             )}
             <section class="ct-admin ct-stack">
@@ -5465,9 +5455,7 @@ const renderInstitutionAdminPage = (
                   {evaluateRulePanelMarkup}
                   {ruleGovernancePanelMarkup}
                 </div>
-                <div class="ct-admin__grid ct-stack">
-                  {badgeRulesTableMarkup}
-                </div>
+                <div class="ct-admin__grid ct-stack">{badgeRulesTableMarkup}</div>
               </section>
             </section>
           </>

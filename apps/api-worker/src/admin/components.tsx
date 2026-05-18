@@ -248,35 +248,50 @@ export const AdminSidebar = (input: {
   sections: readonly AdminSidebarSection[];
   footerLinks: readonly AdminSidebarFooterLink[];
 }): HonoElement => {
+  const renderLinks = (links: readonly AdminSidebarLinkItem[]): HonoElement => {
+    return (
+      <>
+        {links.map((link) => {
+          const className =
+            link.isSub === true
+              ? "ct-admin-sidebar__link ct-admin-sidebar__link--sub"
+              : "ct-admin-sidebar__link";
+
+          return (
+            <a
+              class={className}
+              href={link.href}
+              aria-current={link.isCurrent === true ? "page" : undefined}
+            >
+              {link.label}
+            </a>
+          );
+        })}
+      </>
+    );
+  };
+
   return (
     <aside class="ct-admin-sidebar">
       <a class="ct-admin-sidebar__brand" href={input.brandHref}>
         CredTrail
       </a>
       <nav class="ct-admin-sidebar__nav" aria-label="Admin navigation">
-        {input.sections.map((section) => (
-          <>
-            {section.label === undefined ? null : (
-              <p class="ct-admin-sidebar__section-label">{section.label}</p>
-            )}
-            {section.links.map((link) => {
-              const className =
-                link.isSub === true
-                  ? "ct-admin-sidebar__link ct-admin-sidebar__link--sub"
-                  : "ct-admin-sidebar__link";
+        {input.sections.map((section) => {
+          if (section.label === undefined) {
+            return <div class="ct-admin-sidebar__section">{renderLinks(section.links)}</div>;
+          }
 
-              return (
-                <a
-                  class={className}
-                  href={link.href}
-                  aria-current={link.isCurrent === true ? "page" : undefined}
-                >
-                  {link.label}
-                </a>
-              );
-            })}
-          </>
-        ))}
+          return (
+            <details class="ct-admin-sidebar__section" open>
+              <summary class="ct-admin-sidebar__section-summary">
+                <span class="ct-admin-sidebar__section-caret" aria-hidden="true"></span>
+                <span class="ct-admin-sidebar__section-label">{section.label}</span>
+              </summary>
+              <div class="ct-admin-sidebar__section-links">{renderLinks(section.links)}</div>
+            </details>
+          );
+        })}
       </nav>
       <div class="ct-admin-sidebar__footer">
         {input.footerLinks.map((link) => {
@@ -392,8 +407,25 @@ export const AdminMetricCard = ({
   );
 };
 
-export const AdminWorkspaceCard = ({ children }: PropsWithChildren): HonoElement => {
-  return <article class="ct-admin__workspace-card ct-stack">{children}</article>;
+export const AdminWorkspaceCard = ({
+  href,
+  ariaLabel,
+  children,
+}: PropsWithChildren<{
+  href?: string;
+  ariaLabel?: string;
+}>): HonoElement => {
+  const className = "ct-admin__workspace-card ct-stack";
+
+  if (href === undefined) {
+    return <article class={className}>{children}</article>;
+  }
+
+  return (
+    <a class={className} href={href} aria-label={ariaLabel}>
+      {children}
+    </a>
+  );
 };
 
 export const AdminCtaLink = ({

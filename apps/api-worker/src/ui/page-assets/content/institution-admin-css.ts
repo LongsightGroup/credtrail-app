@@ -33,14 +33,47 @@ export const INSTITUTION_ADMIN_CSS = `
   gap: 0.15rem;
   align-content: start;
 }
+.ct-admin-sidebar__section {
+  min-width: 0;
+}
+.ct-admin-sidebar__section-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.85rem 1.25rem 0.35rem;
+  color: var(--ct-theme-text-subtle);
+  cursor: pointer;
+  list-style: none;
+}
+.ct-admin-sidebar__section-summary::-webkit-details-marker {
+  display: none;
+}
+.ct-admin-sidebar__section-summary:focus-visible {
+  outline: 2px solid var(--ct-theme-border-focus);
+  outline-offset: -2px;
+}
+.ct-admin-sidebar__section-caret {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--ct-duration-fast) var(--ct-ease-standard);
+}
+.ct-admin-sidebar__section[open] .ct-admin-sidebar__section-caret {
+  transform: rotate(45deg);
+}
 .ct-admin-sidebar__section-label {
   margin: 0;
-  padding: 0.85rem 1.25rem 0.35rem;
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 700;
-  color: var(--ct-theme-text-subtle);
+  line-height: 1.2;
+}
+.ct-admin-sidebar__section-links {
+  display: grid;
+  gap: 0.15rem;
 }
 .ct-admin-sidebar__link {
   display: flex;
@@ -280,11 +313,35 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin__workspace-card {
   --ct-stack-gap: 0.7rem;
+  display: block;
+  color: inherit;
+  text-decoration: none;
   padding: 1rem;
   border-radius: var(--ct-radius-lg);
   border: 1px solid var(--ct-border-soft);
   background: var(--ct-theme-surface-card-strong);
   box-shadow: var(--ct-shadow-soft);
+  transition:
+    background var(--ct-duration-fast) var(--ct-ease-standard),
+    border-color var(--ct-duration-fast) var(--ct-ease-standard),
+    box-shadow var(--ct-duration-fast) var(--ct-ease-standard);
+}
+a.ct-admin__workspace-card {
+  cursor: pointer;
+}
+a.ct-admin__workspace-card:hover {
+  border-color: var(--ct-theme-border-info);
+  background: var(--ct-theme-surface-info);
+  box-shadow: var(--ct-shadow-card);
+}
+a.ct-admin__workspace-card:focus-visible {
+  outline: 2px solid var(--ct-theme-border-focus);
+  outline-offset: 3px;
+  border-color: var(--ct-theme-border-info);
+  background: var(--ct-theme-surface-info);
+}
+a.ct-admin__workspace-card:active {
+  border-color: var(--ct-brand-lake-600);
 }
 .ct-admin__workspace-card h2 {
   margin: 0;

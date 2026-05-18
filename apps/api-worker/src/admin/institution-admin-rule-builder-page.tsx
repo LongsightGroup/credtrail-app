@@ -239,7 +239,7 @@ export const institutionAdminRuleBuilderPage = (input: {
     {
       label: "Operations",
       links: [
-        { href: operationsPath, label: "Overview" },
+        { href: operationsPath, label: "Issue & Inspect" },
         { href: operationsLearnerRecordsPath, label: "Learner Records", isSub: true },
         {
           href: operationsLearnerRecordImportsPath,
@@ -252,16 +252,16 @@ export const institutionAdminRuleBuilderPage = (input: {
       ],
     },
     {
-      label: "Reporting",
+      label: "Analytics",
       links: [
-        { href: reportingPath, label: "Highlights" },
+        { href: reportingPath, label: "Reporting" },
         { href: reportingExplorePath, label: "Explore", isSub: true },
         { href: reportingTrendsPath, label: "Trends", isSub: true },
         { href: reportingReportsPath, label: "Reports", isSub: true },
       ],
     },
     {
-      label: "Configuration",
+      label: "Management",
       links: [
         { href: rulesWorkspacePath, label: "Rules" },
         { href: rulesTemplatesPath, label: "Badge Templates", isSub: true },
@@ -269,9 +269,9 @@ export const institutionAdminRuleBuilderPage = (input: {
       ],
     },
     {
-      label: "Access",
+      label: "Configuration",
       links: [
-        { href: accessPath, label: "Overview" },
+        { href: accessPath, label: "Access" },
         { href: accessMembersPath, label: "Members", isSub: true },
         { href: accessGovernancePath, label: "Governance", isSub: true },
         { href: accessApiKeysPath, label: "API Keys", isSub: true },
