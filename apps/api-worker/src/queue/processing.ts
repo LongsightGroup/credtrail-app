@@ -14,6 +14,7 @@ import {
 } from "@credtrail/db";
 import {
   parseQueueJob,
+  type GenerateBadgeTemplateImageQueueJob,
   type IssueBadgeQueueJob,
   type ProcessQueueRequest,
   type QueueJob,
@@ -21,7 +22,7 @@ import {
 import { applyLearnerRecordImportQueuePayload } from "../learner-record/learner-record-import";
 
 const DEFAULT_JOB_PROCESS_LIMIT = 10;
-const DEFAULT_JOB_PROCESS_LEASE_SECONDS = 30;
+const DEFAULT_JOB_PROCESS_LEASE_SECONDS = 300;
 const DEFAULT_JOB_PROCESS_RETRY_DELAY_SECONDS = 30;
 
 export interface ProcessQueueRunResult {
@@ -103,6 +104,11 @@ interface ProcessQueuedJobsDependencies<TBindings, TContext extends { env: TBind
     },
     issuedByUserId?: string,
   ) => Promise<unknown>;
+  processBadgeTemplateImageGenerationJob: (
+    context: TContext,
+    tenantId: string,
+    payload: GenerateBadgeTemplateImageQueueJob["payload"],
+  ) => Promise<void>;
 }
 
 const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
@@ -181,6 +187,9 @@ const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
           row: job.payload.row,
         },
       );
+      return;
+    case "generate_badge_template_image":
+      await dependencies.processBadgeTemplateImageGenerationJob(c, job.tenantId, job.payload);
       return;
   }
 };

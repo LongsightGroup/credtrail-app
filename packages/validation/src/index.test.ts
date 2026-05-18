@@ -40,9 +40,12 @@ import {
   parseCreateTenantMemberRequest,
   parseBadgeTemplateListQuery,
   parseTenantOrgUnitListQuery,
+  parseBadgeTemplateImageGenerationPathParams,
+  parseBadgeTemplateImageRevisionPathParams,
   parseBadgeTemplatePathParams,
   parseCredentialPathParams,
   parseCreateBadgeTemplateRequest,
+  parseGenerateBadgeTemplateImageRequest,
   parseLearnerRecordImportBatchDefaults,
   parseLearnerRecordImportBatchPathParams,
   parseLearnerRecordImportProgressQuery,
@@ -162,6 +165,24 @@ describe("parseQueueJob", () => {
     });
 
     expect(job.jobType).toBe("revoke_badge");
+  });
+
+  it("accepts a valid generate_badge_template_image queue payload", () => {
+    const job = parseQueueJob({
+      jobType: "generate_badge_template_image",
+      tenantId: "tenant_123",
+      payload: {
+        generationId: "btig_123",
+        badgeTemplateId: "badge_template_001",
+        promptText: "Create a square badge image.",
+        stylePreset: "institutional",
+        requestedAt: "2026-02-10T15:00:00.000Z",
+        requestedByUserId: "usr_admin",
+      },
+      idempotencyKey: "btig_123",
+    });
+
+    expect(job.jobType).toBe("generate_badge_template_image");
   });
 
   it("rejects malformed queue jobs", () => {
@@ -1450,6 +1471,28 @@ describe("badge template parsers", () => {
     });
 
     expect(params.badgeTemplateId).toBe("tmpl_456");
+  });
+
+  it("parses badge template image generation requests and path params", () => {
+    const request = parseGenerateBadgeTemplateImageRequest({
+      stylePreset: "technical",
+      promptNotes: "Use circuit lines.",
+      accentColor: "blue",
+    });
+    const generationParams = parseBadgeTemplateImageGenerationPathParams({
+      tenantId: "tenant_123",
+      badgeTemplateId: "tmpl_456",
+      generationId: "btig_789",
+    });
+    const revisionParams = parseBadgeTemplateImageRevisionPathParams({
+      tenantId: "tenant_123",
+      badgeTemplateId: "tmpl_456",
+      revisionId: "btir_789",
+    });
+
+    expect(request.stylePreset).toBe("technical");
+    expect(generationParams.generationId).toBe("btig_789");
+    expect(revisionParams.revisionId).toBe("btir_789");
   });
 
   it("parses path params for public credential verification route", () => {

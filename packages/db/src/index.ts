@@ -1455,6 +1455,86 @@ export interface UpdateBadgeTemplateInput {
   imageUri?: string | null | undefined;
 }
 
+export type BadgeTemplateImageRevisionSource =
+  | "manual_update"
+  | "upload"
+  | "ai_generated"
+  | "restore";
+
+export interface BadgeTemplateImageRevisionRecord {
+  id: string;
+  tenantId: string;
+  badgeTemplateId: string;
+  previousImageUri: string | null;
+  newImageUri: string | null;
+  sourceType: BadgeTemplateImageRevisionSource;
+  promptText: string | null;
+  provider: string | null;
+  model: string | null;
+  metadataJson: string | null;
+  createdByUserId: string | null;
+  createdAt: string;
+}
+
+export interface CreateBadgeTemplateImageRevisionInput {
+  tenantId: string;
+  badgeTemplateId: string;
+  previousImageUri: string | null;
+  newImageUri: string | null;
+  sourceType: BadgeTemplateImageRevisionSource;
+  promptText?: string | null | undefined;
+  provider?: string | null | undefined;
+  model?: string | null | undefined;
+  metadataJson?: string | null | undefined;
+  createdByUserId?: string | null | undefined;
+}
+
+export interface ListBadgeTemplateImageRevisionsInput {
+  tenantId: string;
+  badgeTemplateId: string;
+  limit?: number | undefined;
+}
+
+export type BadgeTemplateImageGenerationStatus = "queued" | "processing" | "succeeded" | "failed";
+
+export interface BadgeTemplateImageGenerationRecord {
+  id: string;
+  tenantId: string;
+  badgeTemplateId: string;
+  status: BadgeTemplateImageGenerationStatus;
+  promptText: string;
+  stylePreset: string;
+  promptNotes: string | null;
+  accentColor: string | null;
+  resultImageUri: string | null;
+  errorMessage: string | null;
+  requestedByUserId: string | null;
+  queuedJobId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+}
+
+export interface CreateBadgeTemplateImageGenerationInput {
+  tenantId: string;
+  badgeTemplateId: string;
+  promptText: string;
+  stylePreset: string;
+  promptNotes?: string | null | undefined;
+  accentColor?: string | null | undefined;
+  requestedByUserId?: string | null | undefined;
+}
+
+export interface UpdateBadgeTemplateImageGenerationInput {
+  tenantId: string;
+  id: string;
+  status?: BadgeTemplateImageGenerationStatus | undefined;
+  resultImageUri?: string | null | undefined;
+  errorMessage?: string | null | undefined;
+  queuedJobId?: string | null | undefined;
+  completedAt?: string | null | undefined;
+}
+
 export interface SetBadgeTemplateArchiveStateInput {
   tenantId: string;
   id: string;
@@ -1693,7 +1773,8 @@ export type JobQueueMessageType =
   | "revoke_badge"
   | "rebuild_verification_cache"
   | "import_migration_batch"
-  | "import_learner_record_batch";
+  | "import_learner_record_batch"
+  | "generate_badge_template_image";
 
 export type JobQueueMessageStatus = "pending" | "processing" | "completed" | "failed";
 
@@ -2206,6 +2287,39 @@ interface BadgeTemplateOwnershipEventRow {
   transferredByUserId: string | null;
   transferredAt: string;
   createdAt: string;
+}
+
+interface BadgeTemplateImageRevisionRow {
+  id: string;
+  tenantId: string;
+  badgeTemplateId: string;
+  previousImageUri: string | null;
+  newImageUri: string | null;
+  sourceType: BadgeTemplateImageRevisionSource;
+  promptText: string | null;
+  provider: string | null;
+  model: string | null;
+  metadataJson: string | null;
+  createdByUserId: string | null;
+  createdAt: string;
+}
+
+interface BadgeTemplateImageGenerationRow {
+  id: string;
+  tenantId: string;
+  badgeTemplateId: string;
+  status: BadgeTemplateImageGenerationStatus;
+  promptText: string;
+  stylePreset: string;
+  promptNotes: string | null;
+  accentColor: string | null;
+  resultImageUri: string | null;
+  errorMessage: string | null;
+  requestedByUserId: string | null;
+  queuedJobId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
 }
 
 interface BadgeIssuanceRuleRow {
@@ -2989,6 +3103,26 @@ const isMissingBadgeTemplateOwnershipEventsTableError = (error: unknown): boolea
       error.message.includes("relation") ||
       error.message.includes("does not exist")) &&
     error.message.includes("badge_template_ownership_events")
+  );
+};
+
+const isMissingBadgeTemplateImageTablesError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const tableMissing =
+    error.message.includes("badge_template_image_revisions") ||
+    error.message.includes("badge_template_image_generations");
+
+  if (!tableMissing) {
+    return false;
+  }
+
+  return (
+    error.message.includes("no such table") ||
+    error.message.includes("relation") ||
+    error.message.includes("does not exist")
   );
 };
 
@@ -4271,6 +4405,80 @@ const ensureBadgeTemplateOwnershipEventsTable = async (db: SqlDatabase): Promise
       `
       CREATE INDEX IF NOT EXISTS idx_badge_template_ownership_events_to_org
         ON badge_template_ownership_events (tenant_id, to_org_unit_id, transferred_at DESC)
+    `,
+    )
+    .run();
+};
+
+const ensureBadgeTemplateImageTables = async (db: SqlDatabase): Promise<void> => {
+  await db
+    .prepare(
+      `
+      CREATE TABLE IF NOT EXISTS badge_template_image_revisions (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        badge_template_id TEXT NOT NULL,
+        previous_image_uri TEXT,
+        new_image_uri TEXT,
+        source_type TEXT NOT NULL CHECK (
+          source_type IN ('manual_update', 'upload', 'ai_generated', 'restore')
+        ),
+        prompt_text TEXT,
+        provider TEXT,
+        model TEXT,
+        metadata_json TEXT,
+        created_by_user_id TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id, badge_template_id)
+          REFERENCES badge_templates (tenant_id, id) ON DELETE CASCADE,
+        FOREIGN KEY (created_by_user_id) REFERENCES users (id) ON DELETE SET NULL
+      )
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_badge_template_image_revisions_template
+        ON badge_template_image_revisions (tenant_id, badge_template_id, created_at DESC)
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE TABLE IF NOT EXISTS badge_template_image_generations (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        badge_template_id TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('queued', 'processing', 'succeeded', 'failed')),
+        prompt_text TEXT NOT NULL,
+        style_preset TEXT NOT NULL,
+        prompt_notes TEXT,
+        accent_color TEXT,
+        result_image_uri TEXT,
+        error_message TEXT,
+        requested_by_user_id TEXT,
+        queued_job_id TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        completed_at TEXT,
+        FOREIGN KEY (tenant_id, badge_template_id)
+          REFERENCES badge_templates (tenant_id, id) ON DELETE CASCADE,
+        FOREIGN KEY (requested_by_user_id) REFERENCES users (id) ON DELETE SET NULL,
+        FOREIGN KEY (queued_job_id) REFERENCES job_queue_messages (id) ON DELETE SET NULL
+      )
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_badge_template_image_generations_template
+        ON badge_template_image_generations (tenant_id, badge_template_id, created_at DESC)
     `,
     )
     .run();
@@ -9297,6 +9505,47 @@ const mapBadgeTemplateOwnershipEventRow = (
     transferredByUserId: row.transferredByUserId,
     transferredAt: row.transferredAt,
     createdAt: row.createdAt,
+  };
+};
+
+const mapBadgeTemplateImageRevisionRow = (
+  row: BadgeTemplateImageRevisionRow,
+): BadgeTemplateImageRevisionRecord => {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    badgeTemplateId: row.badgeTemplateId,
+    previousImageUri: row.previousImageUri,
+    newImageUri: row.newImageUri,
+    sourceType: row.sourceType,
+    promptText: row.promptText,
+    provider: row.provider,
+    model: row.model,
+    metadataJson: row.metadataJson,
+    createdByUserId: row.createdByUserId,
+    createdAt: row.createdAt,
+  };
+};
+
+const mapBadgeTemplateImageGenerationRow = (
+  row: BadgeTemplateImageGenerationRow,
+): BadgeTemplateImageGenerationRecord => {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    badgeTemplateId: row.badgeTemplateId,
+    status: row.status,
+    promptText: row.promptText,
+    stylePreset: row.stylePreset,
+    promptNotes: row.promptNotes,
+    accentColor: row.accentColor,
+    resultImageUri: row.resultImageUri,
+    errorMessage: row.errorMessage,
+    requestedByUserId: row.requestedByUserId,
+    queuedJobId: row.queuedJobId,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    completedAt: row.completedAt,
   };
 };
 
@@ -15338,6 +15587,350 @@ export const updateBadgeTemplate = async (
     .run();
 
   return findBadgeTemplateById(db, input.tenantId, input.id);
+};
+
+export const createBadgeTemplateImageRevision = async (
+  db: SqlDatabase,
+  input: CreateBadgeTemplateImageRevisionInput,
+): Promise<BadgeTemplateImageRevisionRecord> => {
+  const id = createPrefixedId("btir");
+  const nowIso = new Date().toISOString();
+  const insertStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        INSERT INTO badge_template_image_revisions (
+          id,
+          tenant_id,
+          badge_template_id,
+          previous_image_uri,
+          new_image_uri,
+          source_type,
+          prompt_text,
+          provider,
+          model,
+          metadata_json,
+          created_by_user_id,
+          created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      )
+      .bind(
+        id,
+        input.tenantId,
+        input.badgeTemplateId,
+        input.previousImageUri,
+        input.newImageUri,
+        input.sourceType,
+        input.promptText ?? null,
+        input.provider ?? null,
+        input.model ?? null,
+        input.metadataJson ?? null,
+        input.createdByUserId ?? null,
+        nowIso,
+      )
+      .run();
+
+  try {
+    await insertStatement();
+  } catch (error: unknown) {
+    if (!isMissingBadgeTemplateImageTablesError(error)) {
+      throw error;
+    }
+
+    await ensureBadgeTemplateImageTables(db);
+    await insertStatement();
+  }
+
+  const revision = await findBadgeTemplateImageRevisionById(
+    db,
+    input.tenantId,
+    input.badgeTemplateId,
+    id,
+  );
+
+  if (revision === null) {
+    throw new Error(`Unable to load badge template image revision ${id} after insert`);
+  }
+
+  return revision;
+};
+
+export const listBadgeTemplateImageRevisions = async (
+  db: SqlDatabase,
+  input: ListBadgeTemplateImageRevisionsInput,
+): Promise<BadgeTemplateImageRevisionRecord[]> => {
+  const queryLimit = Math.max(1, Math.min(input.limit ?? 25, 100));
+  const listStatement = (): Promise<SqlQueryResult<BadgeTemplateImageRevisionRow>> =>
+    db
+      .prepare(
+        `
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          badge_template_id AS badgeTemplateId,
+          previous_image_uri AS previousImageUri,
+          new_image_uri AS newImageUri,
+          source_type AS sourceType,
+          prompt_text AS promptText,
+          provider,
+          model,
+          metadata_json AS metadataJson,
+          created_by_user_id AS createdByUserId,
+          created_at AS createdAt
+        FROM badge_template_image_revisions
+        WHERE tenant_id = ?
+          AND badge_template_id = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?
+      `,
+      )
+      .bind(input.tenantId, input.badgeTemplateId, queryLimit)
+      .all<BadgeTemplateImageRevisionRow>();
+
+  let result: SqlQueryResult<BadgeTemplateImageRevisionRow>;
+
+  try {
+    result = await listStatement();
+  } catch (error: unknown) {
+    if (!isMissingBadgeTemplateImageTablesError(error)) {
+      throw error;
+    }
+
+    await ensureBadgeTemplateImageTables(db);
+    result = await listStatement();
+  }
+
+  return result.results.map((row) => mapBadgeTemplateImageRevisionRow(row));
+};
+
+export const findBadgeTemplateImageRevisionById = async (
+  db: SqlDatabase,
+  tenantId: string,
+  badgeTemplateId: string,
+  revisionId: string,
+): Promise<BadgeTemplateImageRevisionRecord | null> => {
+  const findStatement = (): Promise<BadgeTemplateImageRevisionRow | null> =>
+    db
+      .prepare(
+        `
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          badge_template_id AS badgeTemplateId,
+          previous_image_uri AS previousImageUri,
+          new_image_uri AS newImageUri,
+          source_type AS sourceType,
+          prompt_text AS promptText,
+          provider,
+          model,
+          metadata_json AS metadataJson,
+          created_by_user_id AS createdByUserId,
+          created_at AS createdAt
+        FROM badge_template_image_revisions
+        WHERE tenant_id = ?
+          AND badge_template_id = ?
+          AND id = ?
+        LIMIT 1
+      `,
+      )
+      .bind(tenantId, badgeTemplateId, revisionId)
+      .first<BadgeTemplateImageRevisionRow>();
+
+  let row: BadgeTemplateImageRevisionRow | null;
+
+  try {
+    row = await findStatement();
+  } catch (error: unknown) {
+    if (!isMissingBadgeTemplateImageTablesError(error)) {
+      throw error;
+    }
+
+    await ensureBadgeTemplateImageTables(db);
+    row = await findStatement();
+  }
+
+  return row === null ? null : mapBadgeTemplateImageRevisionRow(row);
+};
+
+export const createBadgeTemplateImageGeneration = async (
+  db: SqlDatabase,
+  input: CreateBadgeTemplateImageGenerationInput,
+): Promise<BadgeTemplateImageGenerationRecord> => {
+  const id = createPrefixedId("btig");
+  const nowIso = new Date().toISOString();
+  const insertStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        INSERT INTO badge_template_image_generations (
+          id,
+          tenant_id,
+          badge_template_id,
+          status,
+          prompt_text,
+          style_preset,
+          prompt_notes,
+          accent_color,
+          result_image_uri,
+          error_message,
+          requested_by_user_id,
+          queued_job_id,
+          created_at,
+          updated_at,
+          completed_at
+        )
+        VALUES (?, ?, ?, 'queued', ?, ?, ?, ?, NULL, NULL, ?, NULL, ?, ?, NULL)
+      `,
+      )
+      .bind(
+        id,
+        input.tenantId,
+        input.badgeTemplateId,
+        input.promptText,
+        input.stylePreset,
+        input.promptNotes ?? null,
+        input.accentColor ?? null,
+        input.requestedByUserId ?? null,
+        nowIso,
+        nowIso,
+      )
+      .run();
+
+  try {
+    await insertStatement();
+  } catch (error: unknown) {
+    if (!isMissingBadgeTemplateImageTablesError(error)) {
+      throw error;
+    }
+
+    await ensureBadgeTemplateImageTables(db);
+    await insertStatement();
+  }
+
+  const generation = await findBadgeTemplateImageGenerationById(db, input.tenantId, id);
+
+  if (generation === null) {
+    throw new Error(`Unable to load badge template image generation ${id} after insert`);
+  }
+
+  return generation;
+};
+
+export const updateBadgeTemplateImageGeneration = async (
+  db: SqlDatabase,
+  input: UpdateBadgeTemplateImageGenerationInput,
+): Promise<BadgeTemplateImageGenerationRecord | null> => {
+  const setClauses: string[] = [];
+  const params: (string | null)[] = [];
+
+  if (input.status !== undefined) {
+    setClauses.push("status = ?");
+    params.push(input.status);
+  }
+
+  if (input.resultImageUri !== undefined) {
+    setClauses.push("result_image_uri = ?");
+    params.push(input.resultImageUri);
+  }
+
+  if (input.errorMessage !== undefined) {
+    setClauses.push("error_message = ?");
+    params.push(input.errorMessage);
+  }
+
+  if (input.queuedJobId !== undefined) {
+    setClauses.push("queued_job_id = ?");
+    params.push(input.queuedJobId);
+  }
+
+  if (input.completedAt !== undefined) {
+    setClauses.push("completed_at = ?");
+    params.push(input.completedAt);
+  }
+
+  if (setClauses.length === 0) {
+    throw new Error("No badge template image generation fields were provided for update");
+  }
+
+  const updatedAt = new Date().toISOString();
+  const updateStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        UPDATE badge_template_image_generations
+        SET ${setClauses.join(", ")},
+            updated_at = ?
+        WHERE tenant_id = ?
+          AND id = ?
+      `,
+      )
+      .bind(...params, updatedAt, input.tenantId, input.id)
+      .run();
+
+  try {
+    await updateStatement();
+  } catch (error: unknown) {
+    if (!isMissingBadgeTemplateImageTablesError(error)) {
+      throw error;
+    }
+
+    await ensureBadgeTemplateImageTables(db);
+    await updateStatement();
+  }
+
+  return findBadgeTemplateImageGenerationById(db, input.tenantId, input.id);
+};
+
+export const findBadgeTemplateImageGenerationById = async (
+  db: SqlDatabase,
+  tenantId: string,
+  generationId: string,
+): Promise<BadgeTemplateImageGenerationRecord | null> => {
+  const findStatement = (): Promise<BadgeTemplateImageGenerationRow | null> =>
+    db
+      .prepare(
+        `
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          badge_template_id AS badgeTemplateId,
+          status,
+          prompt_text AS promptText,
+          style_preset AS stylePreset,
+          prompt_notes AS promptNotes,
+          accent_color AS accentColor,
+          result_image_uri AS resultImageUri,
+          error_message AS errorMessage,
+          requested_by_user_id AS requestedByUserId,
+          queued_job_id AS queuedJobId,
+          created_at AS createdAt,
+          updated_at AS updatedAt,
+          completed_at AS completedAt
+        FROM badge_template_image_generations
+        WHERE tenant_id = ?
+          AND id = ?
+        LIMIT 1
+      `,
+      )
+      .bind(tenantId, generationId)
+      .first<BadgeTemplateImageGenerationRow>();
+
+  let row: BadgeTemplateImageGenerationRow | null;
+
+  try {
+    row = await findStatement();
+  } catch (error: unknown) {
+    if (!isMissingBadgeTemplateImageTablesError(error)) {
+      throw error;
+    }
+
+    await ensureBadgeTemplateImageTables(db);
+    row = await findStatement();
+  }
+
+  return row === null ? null : mapBadgeTemplateImageGenerationRow(row);
 };
 
 export const setBadgeTemplateArchivedState = async (

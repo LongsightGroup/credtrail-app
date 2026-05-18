@@ -20,14 +20,21 @@ vi.mock("@credtrail/db", async () => {
   return {
     ...actual,
     createAuditLog: vi.fn(),
+    createBadgeTemplateImageGeneration: vi.fn(),
+    createBadgeTemplateImageRevision: vi.fn(),
+    enqueueJobQueueMessage: vi.fn(),
     findActiveSessionByHash: mockedFindActiveSessionByHash,
     findBadgeTemplateById: vi.fn(),
+    findBadgeTemplateImageGenerationById: vi.fn(),
+    findBadgeTemplateImageRevisionById: vi.fn(),
     findTenantMembership: vi.fn(),
     hasTenantMembershipOrgUnitAccess: vi.fn(),
     hasTenantMembershipOrgUnitScopeAssignments: vi.fn(),
+    listBadgeTemplateImageRevisions: vi.fn(),
     listBadgeTemplates: vi.fn(),
     touchSession: mockedTouchSession,
     updateBadgeTemplate: vi.fn(),
+    updateBadgeTemplateImageGeneration: vi.fn(),
   };
 });
 
@@ -57,13 +64,23 @@ vi.mock("./auth/better-auth-adapter", async () => {
 
 import {
   createAuditLog,
+  createBadgeTemplateImageGeneration,
+  createBadgeTemplateImageRevision,
+  enqueueJobQueueMessage,
   findBadgeTemplateById,
+  findBadgeTemplateImageGenerationById,
+  findBadgeTemplateImageRevisionById,
   findTenantMembership,
   hasTenantMembershipOrgUnitAccess,
   hasTenantMembershipOrgUnitScopeAssignments,
+  listBadgeTemplateImageRevisions,
   listBadgeTemplates,
   updateBadgeTemplate,
+  updateBadgeTemplateImageGeneration,
   type BadgeTemplateRecord,
+  type BadgeTemplateImageGenerationRecord,
+  type BadgeTemplateImageRevisionRecord,
+  type JobQueueMessageRecord,
   type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRecord,
@@ -73,14 +90,21 @@ import { BADGE_TEMPLATE_IMAGE_MAX_BYTES } from "./badges/template-image-storage"
 import { app } from "./index";
 
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
+const mockedCreateBadgeTemplateImageGeneration = vi.mocked(createBadgeTemplateImageGeneration);
+const mockedCreateBadgeTemplateImageRevision = vi.mocked(createBadgeTemplateImageRevision);
+const mockedEnqueueJobQueueMessage = vi.mocked(enqueueJobQueueMessage);
 const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
+const mockedFindBadgeTemplateImageGenerationById = vi.mocked(findBadgeTemplateImageGenerationById);
+const mockedFindBadgeTemplateImageRevisionById = vi.mocked(findBadgeTemplateImageRevisionById);
 const mockedFindTenantMembership = vi.mocked(findTenantMembership);
 const mockedHasTenantMembershipOrgUnitAccess = vi.mocked(hasTenantMembershipOrgUnitAccess);
 const mockedHasTenantMembershipOrgUnitScopeAssignments = vi.mocked(
   hasTenantMembershipOrgUnitScopeAssignments,
 );
+const mockedListBadgeTemplateImageRevisions = vi.mocked(listBadgeTemplateImageRevisions);
 const mockedListBadgeTemplates = vi.mocked(listBadgeTemplates);
 const mockedUpdateBadgeTemplate = vi.mocked(updateBadgeTemplate);
+const mockedUpdateBadgeTemplateImageGeneration = vi.mocked(updateBadgeTemplateImageGeneration);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 
 const fakeDb = {
@@ -148,6 +172,71 @@ const sampleTemplate = (overrides?: Partial<BadgeTemplateRecord>): BadgeTemplate
     isArchived: false,
     createdAt: "2026-02-23T12:00:00.000Z",
     updatedAt: "2026-02-23T12:00:00.000Z",
+    ...overrides,
+  };
+};
+
+const sampleImageRevision = (
+  overrides?: Partial<BadgeTemplateImageRevisionRecord>,
+): BadgeTemplateImageRevisionRecord => {
+  return {
+    id: "btir_123",
+    tenantId: "tenant_123",
+    badgeTemplateId: "badge_template_001",
+    previousImageUri: "https://credtrail.test/old.png",
+    newImageUri: "https://credtrail.test/new.png",
+    sourceType: "upload",
+    promptText: null,
+    provider: null,
+    model: null,
+    metadataJson: null,
+    createdByUserId: "usr_admin",
+    createdAt: "2026-02-23T12:30:00.000Z",
+    ...overrides,
+  };
+};
+
+const sampleImageGeneration = (
+  overrides?: Partial<BadgeTemplateImageGenerationRecord>,
+): BadgeTemplateImageGenerationRecord => {
+  return {
+    id: "btig_123",
+    tenantId: "tenant_123",
+    badgeTemplateId: "badge_template_001",
+    status: "queued",
+    promptText: "Create a badge image.",
+    stylePreset: "institutional",
+    promptNotes: null,
+    accentColor: null,
+    resultImageUri: null,
+    errorMessage: null,
+    requestedByUserId: "usr_admin",
+    queuedJobId: null,
+    createdAt: "2026-02-23T12:30:00.000Z",
+    updatedAt: "2026-02-23T12:30:00.000Z",
+    completedAt: null,
+    ...overrides,
+  };
+};
+
+const sampleQueuedJob = (overrides?: Partial<JobQueueMessageRecord>): JobQueueMessageRecord => {
+  return {
+    id: "job_123",
+    tenantId: "tenant_123",
+    jobType: "generate_badge_template_image",
+    payloadJson: "{}",
+    idempotencyKey: "btig_123",
+    attemptCount: 0,
+    maxAttempts: 3,
+    availableAt: "2026-02-23T12:30:00.000Z",
+    leasedUntil: null,
+    leaseToken: null,
+    lastError: null,
+    completedAt: null,
+    failedAt: null,
+    status: "pending",
+    createdAt: "2026-02-23T12:30:00.000Z",
+    updatedAt: "2026-02-23T12:30:00.000Z",
     ...overrides,
   };
 };
@@ -252,6 +341,31 @@ beforeEach(() => {
   mockedHasTenantMembershipOrgUnitAccess.mockResolvedValue(true);
   mockedListBadgeTemplates.mockReset();
   mockedListBadgeTemplates.mockResolvedValue([sampleTemplate()]);
+  mockedListBadgeTemplateImageRevisions.mockReset();
+  mockedListBadgeTemplateImageRevisions.mockResolvedValue([sampleImageRevision()]);
+  mockedFindBadgeTemplateImageRevisionById.mockReset();
+  mockedFindBadgeTemplateImageRevisionById.mockResolvedValue(sampleImageRevision());
+  mockedCreateBadgeTemplateImageRevision.mockReset();
+  mockedCreateBadgeTemplateImageRevision.mockResolvedValue(sampleImageRevision());
+  mockedCreateBadgeTemplateImageGeneration.mockReset();
+  mockedCreateBadgeTemplateImageGeneration.mockResolvedValue(sampleImageGeneration());
+  mockedFindBadgeTemplateImageGenerationById.mockReset();
+  mockedFindBadgeTemplateImageGenerationById.mockResolvedValue(sampleImageGeneration());
+  mockedUpdateBadgeTemplateImageGeneration.mockReset();
+  mockedUpdateBadgeTemplateImageGeneration.mockImplementation((_db, request) => {
+    return Promise.resolve(
+      sampleImageGeneration({
+        id: request.id,
+        status: request.status ?? "queued",
+        queuedJobId: request.queuedJobId ?? null,
+        resultImageUri: request.resultImageUri ?? null,
+        errorMessage: request.errorMessage ?? null,
+        completedAt: request.completedAt ?? null,
+      }),
+    );
+  });
+  mockedEnqueueJobQueueMessage.mockReset();
+  mockedEnqueueJobQueueMessage.mockResolvedValue(sampleQueuedJob());
   mockedUpdateBadgeTemplate.mockReset();
   mockedUpdateBadgeTemplate.mockImplementation((_db, request) => {
     return Promise.resolve(
@@ -351,6 +465,15 @@ describe("badge template image upload routes", () => {
     expect(uploadBody.template.imageUri).toBe(uploadBody.image.url);
     expect(entries.size).toBe(1);
     expect(mockedUpdateBadgeTemplate).toHaveBeenCalledTimes(1);
+    expect(mockedCreateBadgeTemplateImageRevision).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        badgeTemplateId: "badge_template_001",
+        sourceType: "upload",
+        newImageUri: uploadBody.image.url,
+      }),
+    );
     expect(mockedCreateAuditLog).toHaveBeenCalledTimes(1);
 
     const publicAssetPath = new URL(uploadBody.image.url).pathname;
@@ -457,5 +580,100 @@ describe("badge template image upload routes", () => {
     );
 
     expect(response.status).toBe(404);
+  });
+
+  it("queues badge template image generation instead of waiting for AI inline", async () => {
+    const { store } = createBadgeObjectStore();
+    const env = {
+      ...createEnv(store),
+      AI_GATEWAY_ENABLED: "true",
+      AI_GATEWAY_ACCOUNT_ID: "cf_account_123",
+      AI_GATEWAY_ID: "credtrail",
+      AI_GATEWAY_PROVIDER: "openai",
+      BADGE_IMAGE_GENERATION_MODEL: "gpt-image-1",
+    };
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-templates/badge_template_001/image-generations",
+      {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          stylePreset: "institutional",
+          promptNotes: "Use a shield motif.",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{
+      generation: {
+        id: string;
+        status: string;
+      };
+    }>();
+
+    expect(response.status).toBe(202);
+    expect(body.generation.id).toBe("btig_123");
+    expect(mockedCreateBadgeTemplateImageGeneration).toHaveBeenCalledTimes(1);
+    expect(mockedEnqueueJobQueueMessage).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        jobType: "generate_badge_template_image",
+      }),
+    );
+    expect(mockedEnqueueJobQueueMessage.mock.calls[0]?.[1]).toMatchObject({
+      payload: {
+        generationId: "btig_123",
+        badgeTemplateId: "badge_template_001",
+        stylePreset: "institutional",
+        requestedByUserId: "usr_admin",
+      },
+      maxAttempts: 3,
+    });
+  });
+
+  it("applies a completed generated image through the admin route", async () => {
+    const { store } = createBadgeObjectStore();
+    const env = createEnv(store);
+
+    mockedFindBadgeTemplateImageGenerationById.mockResolvedValue(
+      sampleImageGeneration({
+        status: "succeeded",
+        resultImageUri:
+          "https://credtrail.test/badges/assets/tenant_123/badge_template_001/asset_ai",
+      }),
+    );
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-templates/badge_template_001/image-generations/btig_123/apply",
+      {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedUpdateBadgeTemplate).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        id: "badge_template_001",
+        imageUri: "https://credtrail.test/badges/assets/tenant_123/badge_template_001/asset_ai",
+      }),
+    );
+    expect(mockedCreateBadgeTemplateImageRevision).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        sourceType: "ai_generated",
+        promptText: "Create a badge image.",
+      }),
+    );
   });
 });

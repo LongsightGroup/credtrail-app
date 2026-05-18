@@ -13,6 +13,7 @@ export const queueJobTypeSchema = z.enum([
   "rebuild_verification_cache",
   "import_migration_batch",
   "import_learner_record_batch",
+  "generate_badge_template_image",
 ]);
 
 export const idempotencyKeySchema = z.string().min(1).max(128);
@@ -210,6 +211,14 @@ export const tenantPathParamsSchema = z.object({
 
 export const badgeTemplatePathParamsSchema = tenantPathParamsSchema.extend({
   badgeTemplateId: resourceIdSchema,
+});
+
+export const badgeTemplateImageRevisionPathParamsSchema = badgeTemplatePathParamsSchema.extend({
+  revisionId: resourceIdSchema,
+});
+
+export const badgeTemplateImageGenerationPathParamsSchema = badgeTemplatePathParamsSchema.extend({
+  generationId: resourceIdSchema,
 });
 
 export const tenantUserPathParamsSchema = tenantPathParamsSchema.extend({
@@ -600,6 +609,24 @@ export const updateBadgeTemplateRequestSchema = z
       message: "At least one badge template field must be provided",
     },
   );
+
+export const badgeTemplateImageGenerationStylePresetSchema = z.enum([
+  "institutional",
+  "technical",
+  "academic",
+  "open_source",
+  "minimal",
+]);
+
+export const generateBadgeTemplateImageRequestSchema = z.object({
+  stylePreset: badgeTemplateImageGenerationStylePresetSchema.default("institutional"),
+  promptNotes: z.string().trim().max(1000).optional(),
+  accentColor: z.string().trim().max(80).optional(),
+});
+
+export const applyBadgeTemplateImageDesignRequestSchema = z.object({
+  imageUri: badgeTemplateUriSchema,
+});
 
 export const createTenantOrgUnitRequestSchema = z.object({
   unitType: orgUnitTypeSchema,
@@ -1744,12 +1771,31 @@ export const learnerRecordImportBatchQueueJobSchema = z.object({
   idempotencyKey: idempotencyKeySchema,
 });
 
+export const generateBadgeTemplateImageJobPayloadSchema = z.object({
+  generationId: resourceIdSchema,
+  badgeTemplateId: resourceIdSchema,
+  promptText: z.string().trim().min(1).max(4000),
+  stylePreset: badgeTemplateImageGenerationStylePresetSchema,
+  promptNotes: z.string().trim().max(1000).optional(),
+  accentColor: z.string().trim().max(80).optional(),
+  requestedAt: isoTimestampSchema,
+  requestedByUserId: userIdSchema.optional(),
+});
+
+export const generateBadgeTemplateImageQueueJobSchema = z.object({
+  jobType: z.literal("generate_badge_template_image"),
+  tenantId: tenantIdSchema,
+  payload: generateBadgeTemplateImageJobPayloadSchema,
+  idempotencyKey: idempotencyKeySchema,
+});
+
 export const queueJobSchema = z.discriminatedUnion("jobType", [
   issueBadgeQueueJobSchema,
   revokeBadgeQueueJobSchema,
   rebuildVerificationCacheQueueJobSchema,
   importMigrationBatchQueueJobSchema,
   learnerRecordImportBatchQueueJobSchema,
+  generateBadgeTemplateImageQueueJobSchema,
 ]);
 
 export const queueEnvelopeSchema = z.object({
@@ -1811,6 +1857,9 @@ export type RevokeBadgeQueueJob = z.infer<typeof revokeBadgeQueueJobSchema>;
 export type LearnerRecordImportBatchQueueJob = z.infer<
   typeof learnerRecordImportBatchQueueJobSchema
 >;
+export type GenerateBadgeTemplateImageQueueJob = z.infer<
+  typeof generateBadgeTemplateImageQueueJobSchema
+>;
 export type ManualIssueBadgeRequest = z.infer<typeof manualIssueBadgeRequestSchema>;
 export type TenantPathParams = z.infer<typeof tenantPathParamsSchema>;
 export type LearnerRecordImportBatchPathParams = z.infer<
@@ -1818,6 +1867,12 @@ export type LearnerRecordImportBatchPathParams = z.infer<
 >;
 export type MigrationBatchPathParams = z.infer<typeof migrationBatchPathParamsSchema>;
 export type BadgeTemplatePathParams = z.infer<typeof badgeTemplatePathParamsSchema>;
+export type BadgeTemplateImageRevisionPathParams = z.infer<
+  typeof badgeTemplateImageRevisionPathParamsSchema
+>;
+export type BadgeTemplateImageGenerationPathParams = z.infer<
+  typeof badgeTemplateImageGenerationPathParamsSchema
+>;
 export type CredentialPathParams = z.infer<typeof credentialPathParamsSchema>;
 export type TenantUserPathParams = z.infer<typeof tenantUserPathParamsSchema>;
 export type TenantMemberPathParams = z.infer<typeof tenantMemberPathParamsSchema>;
@@ -1879,6 +1934,12 @@ export type ExecutiveDashboardWindow = z.infer<typeof executiveDashboardWindowSc
 export type TenantExecutiveDashboardQuery = z.infer<typeof tenantExecutiveDashboardQuerySchema>;
 export type CreateBadgeTemplateRequest = z.infer<typeof createBadgeTemplateRequestSchema>;
 export type UpdateBadgeTemplateRequest = z.infer<typeof updateBadgeTemplateRequestSchema>;
+export type GenerateBadgeTemplateImageRequest = z.infer<
+  typeof generateBadgeTemplateImageRequestSchema
+>;
+export type ApplyBadgeTemplateImageDesignRequest = z.infer<
+  typeof applyBadgeTemplateImageDesignRequestSchema
+>;
 export type CreateTenantOrgUnitRequest = z.infer<typeof createTenantOrgUnitRequestSchema>;
 export type UpsertTenantMembershipOrgUnitScopeRequest = z.infer<
   typeof upsertTenantMembershipOrgUnitScopeRequestSchema
@@ -2094,6 +2155,18 @@ export const parseMigrationBatchPathParams = (input: unknown): MigrationBatchPat
 
 export const parseBadgeTemplatePathParams = (input: unknown): BadgeTemplatePathParams => {
   return badgeTemplatePathParamsSchema.parse(input);
+};
+
+export const parseBadgeTemplateImageRevisionPathParams = (
+  input: unknown,
+): BadgeTemplateImageRevisionPathParams => {
+  return badgeTemplateImageRevisionPathParamsSchema.parse(input);
+};
+
+export const parseBadgeTemplateImageGenerationPathParams = (
+  input: unknown,
+): BadgeTemplateImageGenerationPathParams => {
+  return badgeTemplateImageGenerationPathParamsSchema.parse(input);
 };
 
 export const parseCredentialPathParams = (input: unknown): CredentialPathParams => {
@@ -2472,6 +2545,18 @@ export const parseResolveDedicatedDbProvisioningRequest = (
 
 export const parseUpdateBadgeTemplateRequest = (input: unknown): UpdateBadgeTemplateRequest => {
   return updateBadgeTemplateRequestSchema.parse(input);
+};
+
+export const parseGenerateBadgeTemplateImageRequest = (
+  input: unknown,
+): GenerateBadgeTemplateImageRequest => {
+  return generateBadgeTemplateImageRequestSchema.parse(input);
+};
+
+export const parseApplyBadgeTemplateImageDesignRequest = (
+  input: unknown,
+): ApplyBadgeTemplateImageDesignRequest => {
+  return applyBadgeTemplateImageDesignRequestSchema.parse(input);
 };
 
 export const parseAdminUpsertTenantRequest = (input: unknown): AdminUpsertTenantRequest => {

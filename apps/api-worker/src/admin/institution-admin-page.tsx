@@ -3269,8 +3269,8 @@ const renderInstitutionAdminPage = (
     <details id="template-image-panel" class="ct-admin__panel ct-admin__add-disclosure">
       <summary class="ct-admin__add-disclosure-summary">
         <span>
-          <strong>Upload Badge Template Image</strong>
-          <small>Update badge artwork only when a template needs new artwork.</small>
+          <strong>Manage Badge Template Images</strong>
+          <small>Upload, generate, and restore template artwork.</small>
         </span>
         {addDisclosureControlMarkup}
       </summary>
@@ -3289,6 +3289,65 @@ const renderInstitutionAdminPage = (
         <AdminButton type="submit">Upload image</AdminButton>
       </AdminForm>
       <AdminStatus id="badge-template-image-upload-status"></AdminStatus>
+      <AdminForm
+        id="badge-template-image-generation-form"
+        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--template-image-generation ct-grid"
+      >
+        <AdminField label="Badge template">
+          <select name="badgeTemplateId" required>
+            {templateSelectOptions}
+          </select>
+        </AdminField>
+        <AdminField label="Style">
+          <select name="stylePreset" required>
+            <option value="institutional">Institutional</option>
+            <option value="technical">Technical</option>
+            <option value="academic">Academic</option>
+            <option value="open_source">Open source</option>
+            <option value="minimal">Minimal</option>
+          </select>
+        </AdminField>
+        <AdminField label="Accent">
+          <input name="accentColor" type="text" placeholder="Sakai blue" maxlength={80} />
+        </AdminField>
+        <AdminField label="Prompt notes">
+          <input
+            name="promptNotes"
+            type="text"
+            placeholder="Shield, milestone, stars"
+            maxlength={1000}
+          />
+        </AdminField>
+        <AdminButton type="submit">Generate draft</AdminButton>
+      </AdminForm>
+      <AdminStatus id="badge-template-image-generation-status"></AdminStatus>
+      <div
+        id="badge-template-image-generation-preview"
+        class="ct-admin__image-generation-preview"
+        hidden
+      >
+        <img id="badge-template-image-generation-preview-img" alt="Generated badge draft" />
+        <div class="ct-admin__image-generation-actions">
+          <AdminButton id="badge-template-image-generation-apply" variant="secondary">
+            Apply generated image
+          </AdminButton>
+        </div>
+      </div>
+      <AdminForm
+        id="badge-template-image-revision-form"
+        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--template-image-revisions ct-grid"
+      >
+        <AdminField label="Badge template">
+          <select name="badgeTemplateId" required>
+            {templateSelectOptions}
+          </select>
+        </AdminField>
+        <AdminButton type="submit" variant="secondary">
+          Load image history
+        </AdminButton>
+      </AdminForm>
+      <AdminStatus id="badge-template-image-revision-status"></AdminStatus>
+      <div id="badge-template-image-revision-list" class="ct-admin__image-revision-list"></div>
     </details>
   );
 

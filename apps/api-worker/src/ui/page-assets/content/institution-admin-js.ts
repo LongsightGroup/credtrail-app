@@ -119,6 +119,30 @@ export const INSTITUTION_ADMIN_JS = `
   const badgeTemplateImageUploadStatus = document.getElementById(
     'badge-template-image-upload-status',
   );
+  const badgeTemplateImageGenerationForm = document.getElementById(
+    'badge-template-image-generation-form',
+  );
+  const badgeTemplateImageGenerationStatus = document.getElementById(
+    'badge-template-image-generation-status',
+  );
+  const badgeTemplateImageGenerationPreview = document.getElementById(
+    'badge-template-image-generation-preview',
+  );
+  const badgeTemplateImageGenerationPreviewImg = document.getElementById(
+    'badge-template-image-generation-preview-img',
+  );
+  const badgeTemplateImageGenerationApplyButton = document.getElementById(
+    'badge-template-image-generation-apply',
+  );
+  const badgeTemplateImageRevisionForm = document.getElementById(
+    'badge-template-image-revision-form',
+  );
+  const badgeTemplateImageRevisionStatus = document.getElementById(
+    'badge-template-image-revision-status',
+  );
+  const badgeTemplateImageRevisionList = document.getElementById(
+    'badge-template-image-revision-list',
+  );
   const apiKeyRevokeStatus = document.getElementById('api-key-revoke-status');
   const ruleCreateForm = document.getElementById('rule-create-form');
   const ruleCreateStatus = document.getElementById('rule-create-status');
@@ -224,6 +248,8 @@ export const INSTITUTION_ADMIN_JS = `
   const breakGlassAccountBody = document.getElementById('break-glass-account-body');
   let ruleValueLists = [];
   let refreshIssuedBadges = null;
+  let activeBadgeTemplateImageGeneration = null;
+  let badgeTemplateImageGenerationPollTimer = null;
 
   const setStatus = (el, text, isError, tone = 'info') => {
     el.textContent = text;
@@ -296,6 +322,137 @@ export const INSTITUTION_ADMIN_JS = `
     }
 
     return new Date(parsed).toLocaleString();
+  };
+  const badgeTemplateImageGenerationPath = (badgeTemplateId, generationId) => {
+    return (
+      badgeTemplateApiPathPrefix +
+      '/' +
+      encodeURIComponent(badgeTemplateId) +
+      '/image-generations/' +
+      encodeURIComponent(generationId)
+    );
+  };
+  const clearBadgeTemplateImageGenerationPoll = () => {
+    if (badgeTemplateImageGenerationPollTimer !== null) {
+      window.clearTimeout(badgeTemplateImageGenerationPollTimer);
+      badgeTemplateImageGenerationPollTimer = null;
+    }
+  };
+  const showBadgeTemplateImageGenerationPreview = (generation) => {
+    if (
+      !(badgeTemplateImageGenerationPreview instanceof HTMLElement) ||
+      !(badgeTemplateImageGenerationPreviewImg instanceof HTMLImageElement) ||
+      !(badgeTemplateImageGenerationApplyButton instanceof HTMLButtonElement)
+    ) {
+      return;
+    }
+
+    if (
+      !generation ||
+      generation.status !== 'succeeded' ||
+      typeof generation.resultImageUri !== 'string' ||
+      generation.resultImageUri.length === 0
+    ) {
+      badgeTemplateImageGenerationPreview.hidden = true;
+      badgeTemplateImageGenerationPreviewImg.removeAttribute('src');
+      badgeTemplateImageGenerationApplyButton.disabled = true;
+      return;
+    }
+
+    badgeTemplateImageGenerationPreview.hidden = false;
+    badgeTemplateImageGenerationPreviewImg.src = generation.resultImageUri;
+    badgeTemplateImageGenerationApplyButton.disabled = false;
+  };
+  const pollBadgeTemplateImageGeneration = async (badgeTemplateId, generationId) => {
+    if (!(badgeTemplateImageGenerationStatus instanceof HTMLElement)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(badgeTemplateImageGenerationPath(badgeTemplateId, generationId));
+      const payload = await parseJsonBody(response);
+
+      if (!response.ok) {
+        setStatus(badgeTemplateImageGenerationStatus, errorDetailFromPayload(payload), true);
+        clearBadgeTemplateImageGenerationPoll();
+        return;
+      }
+
+      const generation = payload && payload.generation ? payload.generation : null;
+      activeBadgeTemplateImageGeneration = {
+        badgeTemplateId,
+        generationId,
+      };
+
+      if (generation && generation.status === 'succeeded') {
+        setStatus(badgeTemplateImageGenerationStatus, 'Generated draft ready.', false, 'success');
+        showBadgeTemplateImageGenerationPreview(generation);
+        clearBadgeTemplateImageGenerationPoll();
+        return;
+      }
+
+      if (generation && generation.status === 'failed') {
+        const detail =
+          typeof generation.errorMessage === 'string' && generation.errorMessage.length > 0
+            ? generation.errorMessage
+            : 'Badge image generation failed.';
+        setStatus(badgeTemplateImageGenerationStatus, detail, true);
+        showBadgeTemplateImageGenerationPreview(null);
+        clearBadgeTemplateImageGenerationPoll();
+        return;
+      }
+
+      setStatus(badgeTemplateImageGenerationStatus, 'Generating badge image draft...', false);
+      badgeTemplateImageGenerationPollTimer = window.setTimeout(() => {
+        void pollBadgeTemplateImageGeneration(badgeTemplateId, generationId);
+      }, 2500);
+    } catch {
+      setStatus(
+        badgeTemplateImageGenerationStatus,
+        'Unable to check badge image generation status from this browser session.',
+        true,
+      );
+      clearBadgeTemplateImageGenerationPoll();
+    }
+  };
+  const renderBadgeTemplateImageRevisions = (badgeTemplateId, revisions) => {
+    if (!(badgeTemplateImageRevisionList instanceof HTMLElement)) {
+      return;
+    }
+
+    badgeTemplateImageRevisionList.textContent = '';
+
+    if (!Array.isArray(revisions) || revisions.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'ct-admin__empty';
+      empty.textContent = 'No image history is available for this badge template.';
+      badgeTemplateImageRevisionList.append(empty);
+      return;
+    }
+
+    revisions.forEach((revision) => {
+      const item = document.createElement('div');
+      item.className = 'ct-admin__image-revision-item';
+      const meta = document.createElement('div');
+      meta.className = 'ct-admin__image-revision-meta';
+      const title = document.createElement('strong');
+      title.textContent =
+        String(revision.sourceType || 'image change') + ' · ' + formatTimestamp(revision.createdAt);
+      const detail = document.createElement('span');
+      detail.textContent =
+        typeof revision.previousImageUri === 'string' && revision.previousImageUri.length > 0
+          ? 'Restore the previous image'
+          : 'Restore to no image';
+      meta.append(title, detail);
+
+      const button = createAdminButtonElement(adminButtonTinySecondaryClass, 'Restore', {
+        'data-badge-template-id': badgeTemplateId,
+        'data-revision-id': String(revision.id || ''),
+      });
+
+      item.append(meta, button);
+      badgeTemplateImageRevisionList.append(item);
+    });
   };
   const parseIssuedBadgesLimit = (rawValue) => {
     const fallbackLimit = 100;
@@ -1593,6 +1750,243 @@ export const INSTITUTION_ADMIN_JS = `
           'Unable to upload template image from this browser session.',
           true,
         );
+      }
+    });
+  }
+
+  if (
+    badgeTemplateImageGenerationForm instanceof HTMLFormElement &&
+    badgeTemplateImageGenerationStatus instanceof HTMLElement
+  ) {
+    badgeTemplateImageGenerationForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearBadgeTemplateImageGenerationPoll();
+      showBadgeTemplateImageGenerationPreview(null);
+      setStatus(badgeTemplateImageGenerationStatus, 'Queueing badge image draft...', false);
+      const data = new FormData(badgeTemplateImageGenerationForm);
+      const badgeTemplateIdRaw = data.get('badgeTemplateId');
+      const stylePresetRaw = data.get('stylePreset');
+      const promptNotesRaw = data.get('promptNotes');
+      const accentColorRaw = data.get('accentColor');
+      const badgeTemplateId =
+        typeof badgeTemplateIdRaw === 'string' ? badgeTemplateIdRaw.trim() : '';
+      const stylePreset = typeof stylePresetRaw === 'string' ? stylePresetRaw.trim() : '';
+      const promptNotes = typeof promptNotesRaw === 'string' ? promptNotesRaw.trim() : '';
+      const accentColor = typeof accentColorRaw === 'string' ? accentColorRaw.trim() : '';
+
+      if (badgeTemplateId.length === 0 || stylePreset.length === 0) {
+        setStatus(badgeTemplateImageGenerationStatus, 'Badge template and style are required.', true);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          badgeTemplateApiPathPrefix +
+            '/' +
+            encodeURIComponent(badgeTemplateId) +
+            '/image-generations',
+          {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              stylePreset,
+              ...(promptNotes.length === 0 ? {} : { promptNotes }),
+              ...(accentColor.length === 0 ? {} : { accentColor }),
+            }),
+          },
+        );
+        const payload = await parseJsonBody(response);
+
+        if (!response.ok) {
+          setStatus(badgeTemplateImageGenerationStatus, errorDetailFromPayload(payload), true);
+          return;
+        }
+
+        const generationId =
+          payload &&
+          payload.generation &&
+          typeof payload.generation.id === 'string'
+            ? payload.generation.id
+            : '';
+
+        if (generationId.length === 0) {
+          setStatus(badgeTemplateImageGenerationStatus, 'Generation was queued without an id.', true);
+          return;
+        }
+
+        activeBadgeTemplateImageGeneration = {
+          badgeTemplateId,
+          generationId,
+        };
+        setStatus(
+          badgeTemplateImageGenerationStatus,
+          'Generation queued. This may take a minute.',
+          false,
+        );
+        badgeTemplateImageGenerationPollTimer = window.setTimeout(() => {
+          void pollBadgeTemplateImageGeneration(badgeTemplateId, generationId);
+        }, 1500);
+      } catch {
+        setStatus(
+          badgeTemplateImageGenerationStatus,
+          'Unable to queue badge image generation from this browser session.',
+          true,
+        );
+      }
+    });
+  }
+
+  if (
+    badgeTemplateImageGenerationApplyButton instanceof HTMLButtonElement &&
+    badgeTemplateImageGenerationStatus instanceof HTMLElement
+  ) {
+    badgeTemplateImageGenerationApplyButton.addEventListener('click', async () => {
+      if (
+        !activeBadgeTemplateImageGeneration ||
+        typeof activeBadgeTemplateImageGeneration.badgeTemplateId !== 'string' ||
+        typeof activeBadgeTemplateImageGeneration.generationId !== 'string'
+      ) {
+        setStatus(badgeTemplateImageGenerationStatus, 'No generated draft is selected.', true);
+        return;
+      }
+
+      badgeTemplateImageGenerationApplyButton.disabled = true;
+      setStatus(badgeTemplateImageGenerationStatus, 'Applying generated badge image...', false);
+
+      try {
+        const response = await fetch(
+          badgeTemplateImageGenerationPath(
+            activeBadgeTemplateImageGeneration.badgeTemplateId,
+            activeBadgeTemplateImageGeneration.generationId,
+          ) + '/apply',
+          {
+            method: 'POST',
+          },
+        );
+        const payload = await parseJsonBody(response);
+
+        if (!response.ok) {
+          setStatus(badgeTemplateImageGenerationStatus, errorDetailFromPayload(payload), true);
+          badgeTemplateImageGenerationApplyButton.disabled = false;
+          return;
+        }
+
+        setStatus(badgeTemplateImageGenerationStatus, 'Generated image applied.', false, 'success');
+        setTimeout(() => {
+          window.location.assign(tenantAdminPath + '/rules/templates');
+        }, 900);
+      } catch {
+        setStatus(
+          badgeTemplateImageGenerationStatus,
+          'Unable to apply generated badge image from this browser session.',
+          true,
+        );
+        badgeTemplateImageGenerationApplyButton.disabled = false;
+      }
+    });
+  }
+
+  if (
+    badgeTemplateImageRevisionForm instanceof HTMLFormElement &&
+    badgeTemplateImageRevisionStatus instanceof HTMLElement
+  ) {
+    badgeTemplateImageRevisionForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      setStatus(badgeTemplateImageRevisionStatus, 'Loading badge image history...', false);
+      const data = new FormData(badgeTemplateImageRevisionForm);
+      const badgeTemplateIdRaw = data.get('badgeTemplateId');
+      const badgeTemplateId =
+        typeof badgeTemplateIdRaw === 'string' ? badgeTemplateIdRaw.trim() : '';
+
+      if (badgeTemplateId.length === 0) {
+        setStatus(badgeTemplateImageRevisionStatus, 'Badge template is required.', true);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          badgeTemplateApiPathPrefix +
+            '/' +
+            encodeURIComponent(badgeTemplateId) +
+            '/image-revisions',
+        );
+        const payload = await parseJsonBody(response);
+
+        if (!response.ok) {
+          setStatus(badgeTemplateImageRevisionStatus, errorDetailFromPayload(payload), true);
+          return;
+        }
+
+        renderBadgeTemplateImageRevisions(
+          badgeTemplateId,
+          payload && Array.isArray(payload.revisions) ? payload.revisions : [],
+        );
+        setStatus(badgeTemplateImageRevisionStatus, 'Image history loaded.', false, 'success');
+      } catch {
+        setStatus(
+          badgeTemplateImageRevisionStatus,
+          'Unable to load badge image history from this browser session.',
+          true,
+        );
+      }
+    });
+  }
+
+  if (
+    badgeTemplateImageRevisionList instanceof HTMLElement &&
+    badgeTemplateImageRevisionStatus instanceof HTMLElement
+  ) {
+    badgeTemplateImageRevisionList.addEventListener('click', async (event) => {
+      const target = event.target;
+
+      if (!(target instanceof HTMLButtonElement)) {
+        return;
+      }
+
+      const badgeTemplateId = target.dataset.badgeTemplateId || '';
+      const revisionId = target.dataset.revisionId || '';
+
+      if (badgeTemplateId.length === 0 || revisionId.length === 0) {
+        setStatus(badgeTemplateImageRevisionStatus, 'Invalid image revision action.', true);
+        return;
+      }
+
+      target.disabled = true;
+      setStatus(badgeTemplateImageRevisionStatus, 'Restoring badge image...', false);
+
+      try {
+        const response = await fetch(
+          badgeTemplateApiPathPrefix +
+            '/' +
+            encodeURIComponent(badgeTemplateId) +
+            '/image-revisions/' +
+            encodeURIComponent(revisionId) +
+            '/restore',
+          {
+            method: 'POST',
+          },
+        );
+        const payload = await parseJsonBody(response);
+
+        if (!response.ok) {
+          setStatus(badgeTemplateImageRevisionStatus, errorDetailFromPayload(payload), true);
+          target.disabled = false;
+          return;
+        }
+
+        setStatus(badgeTemplateImageRevisionStatus, 'Badge image restored.', false, 'success');
+        setTimeout(() => {
+          window.location.assign(tenantAdminPath + '/rules/templates');
+        }, 900);
+      } catch {
+        setStatus(
+          badgeTemplateImageRevisionStatus,
+          'Unable to restore badge image from this browser session.',
+          true,
+        );
+        target.disabled = false;
       }
     });
   }

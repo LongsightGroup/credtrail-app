@@ -5104,4 +5104,15 @@ describe("better auth core migration", () => {
     expect(sql).toContain("ALTER TABLE lti_issuer_registrations");
     expect(sql).toContain("DROP COLUMN IF EXISTS allow_unsigned_id_token");
   });
+
+  it("adds badge template image revision and generation tables", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0042_badge_template_image_design.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS badge_template_image_revisions");
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS badge_template_image_generations");
+    expect(sql).toContain("generate_badge_template_image");
+  });
 });

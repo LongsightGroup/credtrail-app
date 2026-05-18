@@ -47,6 +47,7 @@ import {
 } from "./badges/revocation-status";
 import { createPublicBadgePageRenderers } from "./badges/public-badge-pages";
 import { createIssueBadgeForTenant } from "./badges/direct-issue";
+import { processBadgeTemplateImageGenerationJob } from "./badges/badge-template-image-generation";
 import {
   assertionBelongsToTenant,
   loadCredentialForAssertion,
@@ -204,6 +205,13 @@ export interface AppBindings {
   OB3_OAUTH_AUTHORIZATION_URL?: string;
   OB3_OAUTH_TOKEN_URL?: string;
   OB3_OAUTH_REFRESH_URL?: string;
+  AI_GATEWAY_ENABLED?: string;
+  AI_GATEWAY_ACCOUNT_ID?: string;
+  AI_GATEWAY_ID?: string;
+  AI_GATEWAY_PROVIDER?: string;
+  AI_GATEWAY_AUTH_TOKEN?: string;
+  AI_GATEWAY_PROVIDER_API_KEY?: string;
+  BADGE_IMAGE_GENERATION_MODEL?: string;
 }
 
 export interface AppEnv {
@@ -1500,6 +1508,15 @@ const processQueuedJobs = createProcessQueuedJobs({
   resolveDatabase,
   observabilityContext,
   issueBadgeForTenant,
+  processBadgeTemplateImageGenerationJob: (c, tenantId, payload) => {
+    return processBadgeTemplateImageGenerationJob({
+      db: resolveDatabase(c.env),
+      store: c.env.BADGE_OBJECTS,
+      env: c.env,
+      tenantId,
+      payload,
+    });
+  },
 });
 
 registerQueueRoutes({
