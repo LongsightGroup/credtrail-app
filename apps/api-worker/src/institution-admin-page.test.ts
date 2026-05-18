@@ -1373,7 +1373,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).not.toContain('style="');
   });
 
-  it("renders a curated Highlights home before deeper reporting sections", async () => {
+  it("renders a distilled reporting home before deeper reporting sections", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -1390,8 +1390,8 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(response.status).toBe(200);
     expect(body).toContain(">Reporting<");
     expect(body).not.toContain("Reporting Highlights");
-    expect(body).toContain("Executive Summary");
-    expect(body).toContain('class="ct-admin__reporting-summary-band"');
+    expect(body).toContain("At a glance");
+    expect(body).toContain("ct-admin__reporting-summary-band");
     expect(body).toContain(
       'class="ct-admin__reporting-presentation-shell ct-admin__reporting-presentation-shell--highlights',
     );
@@ -1399,12 +1399,13 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain('data-reporting-summary-metric="claim-rate"');
     expect(body).toContain('data-reporting-summary-metric="share-rate"');
     expect(body).toContain('data-reporting-summary-metric="public-badge-views"');
-    expect(body).toContain("90-day issuance momentum");
-    expect(body).toContain('data-reporting-visual-kind="trend-area"');
-    expect(body).toContain("What happens after issuance");
-    expect(body).toContain('data-reporting-visual-kind="journey-funnel"');
-    expect(body).toContain('class="ct-admin__reporting-insight-grid"');
-    expect(body).toContain("Smart defaults");
+    expect(body).not.toContain("90-day issuance momentum");
+    expect(body).not.toContain('data-reporting-visual-kind="trend-area"');
+    expect(body).not.toContain("What happens after issuance");
+    expect(body).not.toContain('data-reporting-visual-kind="journey-funnel"');
+    expect(body).not.toContain('class="ct-admin__reporting-insight-grid"');
+    expect(body).not.toContain("Smart defaults active.");
+    expect(body).toContain("Ranked charts");
     expect(body).toContain("Top badge templates");
     expect(body).toContain("Top org units");
     expect(body).toContain("Where to look next");
@@ -1423,7 +1424,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).not.toContain('href="/tenants/tenant_123/admin/reporting/exports');
     expect(body).toContain("14");
     expect(body.indexOf('data-reporting-summary-metric="issued"')).toBeLessThan(
-      body.indexOf("What happens after issuance"),
+      body.indexOf("Where to look next"),
     );
     expect(body).not.toContain("Reporting Overview");
     expect(body).not.toContain("Engagement Counts");
@@ -1721,7 +1722,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(exportsBody).not.toContain("Reporting Overview");
   });
 
-  it("adds presentation-fit reporting wrappers around the Highlights story", async () => {
+  it("keeps the reporting home distilled with ranked charts behind disclosure", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -1738,28 +1739,26 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(response.status).toBe(200);
     expect(body).toContain('class="ct-admin__reporting-presentation-shell');
     expect(body).toContain("ct-admin__reporting-presentation-shell--highlights");
-    expect(body).toContain('class="ct-admin__reporting-presentation-note');
-    expect(body).toContain('class="ct-admin__reporting-summary-feature"');
-    expect(body).toContain("ct-admin__reporting-journey-panel");
-    expect(body).toContain("Smart defaults active.");
+    expect(body).not.toContain('class="ct-admin__reporting-presentation-note');
+    expect(body).not.toContain('class="ct-admin__reporting-summary-feature"');
+    expect(body).not.toContain("ct-admin__reporting-journey-panel");
+    expect(body).not.toContain("Smart defaults active.");
+    expect(body).toContain("At a glance");
     expect(body).toContain(
-      "Highlights use the current reporting slice and keep detailed pages one click away.",
+      '<details class="ct-admin__reporting-inline-disclosure ct-admin__reporting-inline-disclosure--ranked">',
     );
     expect(body).toContain('class="ct-admin__reporting-primary-story');
     expect(body).toContain('class="ct-admin__reporting-first-screen');
     expect(body).toContain('class="ct-admin__reporting-highlight-grid');
     expect(body).toContain('class="ct-admin__reporting-deep-links');
+    expect(body).toContain('class="ct-admin__reporting-deep-link');
     expect(body).toContain("Top badge templates");
     expect(body).toContain("Top org units");
     expect(body).toContain("Where to look next");
     expect(body).not.toContain("Scoped drilldowns");
     expect(body).not.toContain("Open a visible reporting path");
-    expect(body.indexOf("Smart defaults active.")).toBeLessThan(body.indexOf("Executive Summary"));
     expect(body.indexOf('class="ct-admin__reporting-first-screen')).toBeLessThan(
-      body.indexOf("What happens after issuance"),
-    );
-    expect(body.indexOf("What happens after issuance")).toBeLessThan(
-      body.indexOf('class="ct-admin__reporting-highlight-grid'),
+      body.indexOf("Where to look next"),
     );
     expect(body).not.toContain("demo mode");
     expect(body).not.toContain("presentation-only");
@@ -1819,17 +1818,15 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(INSTITUTION_ADMIN_CSS).toContain(
       ".ct-admin__reporting-supporting-grid,\n  .ct-admin__reporting-highlight-grid,\n  .ct-admin__reporting-panel-media,\n  .ct-admin__reporting-focus-summary-grid {\n    grid-template-columns: minmax(0, 1fr);",
     );
-    expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__reporting-insight-grid");
-    expect(INSTITUTION_ADMIN_CSS).toContain(
-      ".ct-admin__reporting-journey-panel .ct-reporting-visual__journey-list",
-    );
+    expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__reporting-summary-metrics");
+    expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__reporting-deep-link");
     expect(INSTITUTION_ADMIN_CSS).toContain(
       ".ct-admin__reporting-presentation-note {\n    gap: 0.6rem;",
     );
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__reporting-advanced-drilldowns");
   });
 
-  it("keeps the trend preview embedded in Highlights and links detail through the compact scope bar", async () => {
+  it("moves trend detail out of the reporting home and keeps a compact route link", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -1844,19 +1841,20 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("90-day issuance momentum");
-    expect(body).toContain('data-reporting-visual-kind="trend-area"');
+    expect(body).toContain("At a glance");
+    expect(body).not.toContain("90-day issuance momentum");
+    expect(body).not.toContain('data-reporting-visual-kind="trend-area"');
     expect(body).toContain("Trend detail");
     expect(body).not.toContain("Chart-first read");
     expect(body).not.toContain("Read issued badge momentum first");
-    expect(body).toContain("Peak day");
-    expect(body).toContain("Latest day");
+    expect(body).not.toContain("Peak day");
+    expect(body).not.toContain("Latest day");
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting/trends');
     expect(body).not.toContain('class="ct-admin__reporting-trend-hero"');
     expect(body).not.toContain("Open trend detail for exact engagement counts.");
     expect(body).not.toContain("Detailed trend table");
     expect(body).toContain("Public badge views");
-    expect(body).toContain("wallet accepts");
+    expect(body).not.toContain("wallet accepts");
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting/reports');
     expect(body).not.toContain("<h2>Export CSV</h2>");
   });

@@ -2218,20 +2218,17 @@ describe("org unit and badge ownership governance endpoints", () => {
     const html = await response.text();
 
     expect(response.status).toBe(200);
-    expect(html).toContain('class="ct-admin__reporting-presentation-note');
-    expect(html).toContain("Smart defaults active.");
-    expect(html).toContain(
-      "Highlights use the current reporting slice and keep detailed pages one click away.",
-    );
+    expect(html).not.toContain('class="ct-admin__reporting-presentation-note');
+    expect(html).not.toContain("Smart defaults active.");
+    expect(html).toContain("At a glance");
     expect(html).toContain('class="ct-admin__reporting-primary-story');
     expect(html).toContain('class="ct-admin__reporting-highlight-grid');
+    expect(html).toContain("Ranked charts");
     expect(html).toContain('class="ct-admin__reporting-deep-links');
     expect(html).toContain("Where to look next");
     expect(html).not.toContain("Scoped drilldowns");
-    expect(html.indexOf("Smart defaults active.")).toBeLessThan(html.indexOf("Executive Summary"));
-    expect(html.indexOf("What happens after issuance")).toBeLessThan(
-      html.indexOf('class="ct-admin__reporting-highlight-grid'),
-    );
+    expect(html.indexOf("At a glance")).toBeLessThan(html.indexOf("Where to look next"));
+    expect(html.indexOf("Where to look next")).toBeLessThan(html.indexOf("Ranked charts"));
     expect(html).toContain("Computer Science Program");
     expect(html).toContain("TypeScript Foundations");
     expect(html).toContain("14 public views · 40.0% claim · 20.0% share");

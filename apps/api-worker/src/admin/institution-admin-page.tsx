@@ -1395,95 +1395,6 @@ const renderInstitutionAdminPage = (
     hasReportingActivity(row),
   ).length;
   const reportingTrendState = classifyReportingPanelState(reportingTrendActivityRowCount);
-  const reportingTrendStartRow = reportingTrendSeries[0] ?? null;
-  const reportingTrendLatestRow =
-    reportingTrendSeries[reportingTrendSeries.length - 1] ?? reportingTrendStartRow;
-  const reportingTrendPeakRow =
-    reportingTrendSeries.reduce<TenantReportingTrendRecord["series"][number] | null>(
-      (highestRow, row) => {
-        if (highestRow === null || row.issuedCount > highestRow.issuedCount) {
-          return row;
-        }
-
-        return highestRow;
-      },
-      null,
-    ) ?? reportingTrendLatestRow;
-  const reportingMomentumDelta =
-    reportingTrendStartRow === null || reportingTrendLatestRow === null
-      ? null
-      : reportingTrendLatestRow.issuedCount - reportingTrendStartRow.issuedCount;
-  const reportingMomentumDeltaLabel =
-    reportingMomentumDelta === null
-      ? "No trend delta yet"
-      : reportingMomentumDelta === 0
-        ? "No change from start"
-        : `${reportingMomentumDelta > 0 ? "+" : ""}${formatReportingCount(
-            reportingMomentumDelta,
-          )} from start`;
-  const reportingMomentumVisualMarkup =
-    reportingTrendSeries.length === 0
-      ? null
-      : renderReportingVisualModule({
-          kind: "trend-area",
-          id: "reporting-highlights-momentum",
-          headingLevel: "h4",
-          title: "90-day issuance momentum",
-          description:
-            "Area trend for the default reporting window, generated from the same daily issued counts used in Trend Detail.",
-          series: reportingTrendSeries.map((row) => ({
-            label: formatReportingDateLabel(row.bucketStart),
-            value: row.issuedCount,
-            detail: `${formatReportingCount(row.publicBadgeViewCount)} public views · ${formatReportingCount(row.walletAcceptCount)} wallet accepts`,
-          })),
-          ...(reportingTrendStartRow === null ||
-          reportingTrendLatestRow === null ||
-          reportingTrendPeakRow === null
-            ? {}
-            : {
-                summaryOverride: `${reportingMomentumDeltaLabel}. Peak was ${formatReportingCount(
-                  reportingTrendPeakRow.issuedCount,
-                )} on ${formatReportingDateLabel(reportingTrendPeakRow.bucketStart)}; latest is ${formatReportingCount(
-                  reportingTrendLatestRow.issuedCount,
-                )} on ${formatReportingDateLabel(reportingTrendLatestRow.bucketStart)}.`,
-              }),
-        });
-  const reportingSummaryMomentumMarkup = (
-    <section class="ct-admin__reporting-summary-feature" aria-label="Issuance momentum">
-      {reportingMomentumVisualMarkup ?? (
-        <div class="ct-admin__reporting-summary-feature-empty ct-stack">
-          <p class="ct-admin__eyebrow">90-day momentum</p>
-          <h3>No issuance trend yet</h3>
-          <p class="ct-admin__hint">
-            The summary becomes visual once the selected reporting slice has daily issued badge
-            counts.
-          </p>
-        </div>
-      )}
-      <dl class="ct-admin__reporting-summary-feature-stats">
-        <div>
-          <dt>Latest day</dt>
-          <dd>
-            {reportingTrendLatestRow === null
-              ? "No activity"
-              : `${formatReportingCount(
-                  reportingTrendLatestRow.issuedCount,
-                )} on ${formatReportingDateLabel(reportingTrendLatestRow.bucketStart)}`}
-          </dd>
-        </div>
-        <div>
-          <dt>Peak day</dt>
-          <dd>
-            {reportingTrendPeakRow === null
-              ? "No activity"
-              : `${formatReportingCount(
-                  reportingTrendPeakRow.issuedCount,
-                )} on ${formatReportingDateLabel(reportingTrendPeakRow.bucketStart)}`}
-          </dd>
-        </div>
-      </dl>
-    </section>
-  );
   const selectTopReportingComparisonRow = (
     rows: readonly TenantReportingComparisonRowRecord[],
   ): TenantReportingComparisonRowRecord | null => {
@@ -1500,18 +1411,6 @@ const renderInstitutionAdminPage = (
           );
         })[0] ?? null
     );
-  };
-  const buildReportingIssuedShareLabel = (
-    row: TenantReportingComparisonRowRecord,
-    rows: readonly TenantReportingComparisonRowRecord[],
-  ): string => {
-    const totalIssued = rows.reduce((sum, item) => sum + item.issuedCount, 0);
-
-    if (totalIssued <= 0) {
-      return `${formatReportingCount(row.issuedCount)} issued`;
-    }
-
-    return `${formatReportingRate((row.issuedCount / totalIssued) * 100)} of visible issued volume`;
   };
   const reportingTopTemplateRow = selectTopReportingComparisonRow(reportingTemplateComparisons);
   const reportingTopOrgUnitRow = selectTopReportingComparisonRow(reportingOrgUnitComparisons);
@@ -1544,57 +1443,6 @@ const renderInstitutionAdminPage = (
 
         return getReportingComparisonLabel(left).localeCompare(getReportingComparisonLabel(right));
       })[0] ?? null;
-  const reportingInsightItems: Array<{
-    detail: string;
-    eyebrow: string;
-    metric: string;
-    title: string;
-  }> = [];
-
-  if (reportingTopTemplateRow !== null) {
-    reportingInsightItems.push({
-      eyebrow: "Template signal",
-      metric: formatReportingCount(reportingTopTemplateRow.issuedCount),
-      title: getReportingComparisonLabel(reportingTopTemplateRow),
-      detail: buildReportingIssuedShareLabel(reportingTopTemplateRow, reportingTemplateComparisons),
-    });
-  }
-
-  if (reportingTopOrgUnitRow !== null) {
-    reportingInsightItems.push({
-      eyebrow: "Org signal",
-      metric: formatReportingCount(reportingTopOrgUnitRow.issuedCount),
-      title: getReportingComparisonLabel(reportingTopOrgUnitRow),
-      detail: buildReportingIssuedShareLabel(reportingTopOrgUnitRow, reportingOrgUnitComparisons),
-    });
-  }
-
-  if (reportingClaimRateLeader !== null) {
-    reportingInsightItems.push({
-      eyebrow: "Engagement signal",
-      metric: formatReportingRate(reportingClaimRateLeader.claimRate),
-      title: getReportingComparisonLabel(reportingClaimRateLeader),
-      detail: `${formatReportingCount(
-        reportingClaimRateLeader.issuedCount,
-      )} issued badges at or above the rate threshold`,
-    });
-  }
-
-  const reportingInsightCalloutsMarkup =
-    reportingInsightItems.length === 0 ? null : (
-      <section class="ct-admin__reporting-insight-grid" aria-label="Reporting insight callouts">
-        {reportingInsightItems.map((item) => (
-          <article class="ct-admin__reporting-insight-card ct-stack">
-            <p class="ct-admin__eyebrow">{item.eyebrow}</p>
-            <div class="ct-admin__reporting-insight-card-main">
-              <strong>{item.metric}</strong>
-              <span>{item.title}</span>
-            </div>
-            <p class="ct-admin__hint">{item.detail}</p>
-          </article>
-        ))}
-      </section>
-    );
   const reportingSummaryContextItems = [
     {
       label: "Issued window",
@@ -1709,52 +1557,34 @@ const renderInstitutionAdminPage = (
     },
   ] as const;
   const reportingExecutiveSummaryMarkup = (
-    <article class="ct-admin__panel ct-stack">
-      <div class="ct-admin__reporting-summary-band">
-        <div class="ct-admin__reporting-summary-layout">
-          <div class="ct-admin__reporting-summary-main">
-            <div class="ct-stack">
-              <div class="ct-cluster">
-                <div class="ct-stack">
-                  <p class="ct-admin__eyebrow">KPI readout</p>
-                  <h2>Executive Summary</h2>
-                </div>
-                <span class="ct-admin__status-pill">KPI-first</span>
-              </div>
-              <p class="ct-admin__reporting-summary-copy">
-                Current reporting slice shows{" "}
-                {formatReportingCount(
-                  reportingOverview?.counts.issued ?? reportingEngagementCounts?.issuedCount ?? 0,
-                )}{" "}
-                issued badges, {formatReportingRate(reportingEngagementCounts?.claimRate ?? 0)}{" "}
-                claim rate, {formatReportingRate(reportingEngagementCounts?.shareRate ?? 0)} share
-                rate, and{" "}
-                {formatReportingCount(reportingEngagementCounts?.publicBadgeViewCount ?? 0)} public
-                badge views.
-              </p>
-            </div>
-            <div class="ct-admin__reporting-summary-metrics">
-              {reportingExecutiveSummaryMetrics.map((metric) => (
-                <article
-                  class="ct-admin__metric-card ct-admin__metric-card--reporting-summary ct-stack"
-                  data-reporting-summary-metric={metric.key}
-                >
-                  <p class="ct-admin__eyebrow">{metric.label}</p>
-                  <strong class="ct-admin__metric-value">{metric.value}</strong>
-                  <p class="ct-admin__hint">{metric.detail}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-          {reportingSummaryMomentumMarkup}
+    <article class="ct-admin__panel ct-admin__reporting-summary-band ct-stack">
+      <div class="ct-admin__reporting-readout-head">
+        <div class="ct-stack">
+          <p class="ct-admin__eyebrow">Current slice</p>
+          <h2>At a glance</h2>
+          <p class="ct-admin__reporting-summary-copy">
+            {formatReportingCount(
+              reportingOverview?.counts.issued ?? reportingEngagementCounts?.issuedCount ?? 0,
+            )}{" "}
+            issued badges, {formatReportingRate(reportingEngagementCounts?.claimRate ?? 0)} claim
+            rate, {formatReportingRate(reportingEngagementCounts?.shareRate ?? 0)} share rate.
+          </p>
         </div>
+        <span class="ct-admin__status-pill">{reportingGeneratedAtLabel}</span>
       </div>
-      {reportingInsightCalloutsMarkup}
+      <dl class="ct-admin__reporting-summary-metrics">
+        {reportingExecutiveSummaryMetrics.map((metric) => (
+          <div data-reporting-summary-metric={metric.key}>
+            <dt>{metric.label}</dt>
+            <dd>{metric.value}</dd>
+            <span>{metric.detail}</span>
+          </div>
+        ))}
+      </dl>
       <section class="ct-admin__reporting-summary-context" aria-label="Current slice">
         <div class="ct-stack">
           <div class="ct-cluster">
-            <p class="ct-admin__eyebrow">Current slice</p>
-            <span class="ct-admin__status-pill">{reportingGeneratedAtLabel}</span>
+            <p class="ct-admin__eyebrow">Filters</p>
           </div>
           <div class="ct-cluster">
             {reportingSummaryContextItems.map((item) => (
@@ -1924,72 +1754,6 @@ const renderInstitutionAdminPage = (
         })}
       </div>
     );
-  const reportingJourneyVisualMarkup =
-    reportingEngagementCounts === null
-      ? renderReportingStateShell({
-          state: "empty",
-          eyebrow: "No journey yet",
-          title: "Credential journey signals appear once engagement counts are available.",
-          description:
-            "The Highlights home keeps this module ready for public views, claim actions, sharing, and verification signals.",
-        })
-      : renderReportingVisualModule({
-          kind: "journey-funnel",
-          id: "reporting-highlights-credential-journey",
-          title: "Credential journey",
-          description:
-            "A post-issuance signal path from issued badges through public visibility, learner action, sharing, and verification.",
-          series: [
-            {
-              label: "Issued",
-              value: reportingEngagementCounts.issuedCount,
-              detail: "Badges issued in the selected reporting slice.",
-            },
-            {
-              label: "Public viewed",
-              value: reportingEngagementCounts.publicBadgeViewCount,
-              detail: "CredTrail-owned public badge page views.",
-            },
-            {
-              label: "Claimed or accepted",
-              value:
-                reportingEngagementCounts.learnerClaimCount +
-                reportingEngagementCounts.walletAcceptCount,
-              detail: `${formatReportingCount(
-                reportingEngagementCounts.learnerClaimCount,
-              )} claim actions · ${formatReportingCount(
-                reportingEngagementCounts.walletAcceptCount,
-              )} wallet accepts`,
-            },
-            {
-              label: "Shared",
-              value: reportingEngagementCounts.shareClickCount,
-              detail: "Outbound share actions routed through CredTrail.",
-            },
-            {
-              label: "Verified",
-              value: reportingEngagementCounts.verificationViewCount,
-              detail: "Successful verification responses served by CredTrail.",
-            },
-          ] as const,
-          note: "Signals are product-owned event totals, so this reads as a demo-friendly journey rather than a unique-user conversion funnel.",
-        });
-  const reportingJourneyPanelMarkup = (
-    <AdminPanel className="ct-admin__reporting-journey-panel">
-      <div class="ct-cluster">
-        <div class="ct-stack">
-          <p class="ct-admin__eyebrow">Credential journey</p>
-          <h2>What happens after issuance</h2>
-        </div>
-        <AdminStatusPill>Demo story</AdminStatusPill>
-      </div>
-      <p>
-        Issuance is only the first signal. This module turns downstream public views, learner
-        action, sharing, and verification into a single story for leadership demos.
-      </p>
-      {reportingJourneyVisualMarkup}
-    </AdminPanel>
-  );
   const reportingStateMixItems =
     reportingOverview === null
       ? []
@@ -4462,21 +4226,6 @@ const renderInstitutionAdminPage = (
     reportingDeferredMetricsMarkup.length === 0 ? null : (
       <section class="ct-admin__grid ct-stack">{reportingDeferredMetricsMarkup}</section>
     );
-  const reportingPresentationNoteMarkup = (
-    <aside
-      class="ct-admin__reporting-presentation-note ct-stack"
-      aria-label="Selected reporting slice note"
-    >
-      <p>
-        <strong>Smart defaults active.</strong> Highlights use the current reporting slice and keep
-        detailed pages one click away.
-      </p>
-      <p class="ct-admin__hint">
-        <a href={reportingExploreHref}>Explore filters</a> ·{" "}
-        <a href={reportingTrendsHref}>Trend detail</a> · <a href={reportingReportsHref}>Reports</a>
-      </p>
-    </aside>
-  );
   const reportingTemplateHighlightsPanelMarkup = renderReportingHighlightComparisonPanel({
     eyebrow: "Template performance",
     title: "Top badge templates",
@@ -4505,6 +4254,20 @@ const renderInstitutionAdminPage = (
     actionHref: reportingExploreHref,
     exportHref: reportingOrgUnitComparisonExportHref,
   });
+  const reportingRankedChartsMarkup = (
+    <details class="ct-admin__reporting-inline-disclosure ct-admin__reporting-inline-disclosure--ranked">
+      <summary class="ct-admin__reporting-inline-summary">
+        <span>Ranked charts</span>
+        <small>Top badge templates and org units for this slice</small>
+      </summary>
+      <div class="ct-admin__reporting-inline-body">
+        <section class="ct-admin__reporting-highlight-grid">
+          {reportingTemplateHighlightsPanelMarkup}
+          {reportingOrgUnitHighlightsPanelMarkup}
+        </section>
+      </div>
+    </details>
+  );
   const reportingLifecycleAttentionCount =
     reportingOverview === null
       ? 0
@@ -4540,6 +4303,17 @@ const renderInstitutionAdminPage = (
     title: string;
   }> = [];
 
+  if (reportingLifecycleAttentionCount > 0) {
+    reportingFocusAreaItems.push({
+      eyebrow: "Lifecycle attention",
+      metric: formatReportingCount(reportingLifecycleAttentionCount),
+      title: "Badges need review",
+      detail: "Suspended, revoked, or pending-review badges are present in this slice.",
+      href: reportingLifecycleAttentionHref,
+      actionLabel: "Review in Explore",
+    });
+  }
+
   if (reportingTopOrgUnitRow !== null) {
     reportingFocusAreaItems.push({
       eyebrow: "Org unit to notice",
@@ -4560,17 +4334,6 @@ const renderInstitutionAdminPage = (
       href: buildReportingExploreHrefForComparisonRow(reportingTopTemplateRow),
       actionLabel: "Explore this slice",
     });
-  }
-
-  if (reportingLifecycleAttentionCount > 0) {
-    reportingFocusAreaItems.push({
-      eyebrow: "Lifecycle attention",
-      metric: formatReportingCount(reportingLifecycleAttentionCount),
-      title: "Badges need review",
-      detail: "Suspended, revoked, or pending-review badges are present in this slice.",
-      href: reportingLifecycleAttentionHref,
-      actionLabel: "Review in Explore",
-    });
   } else if (reportingClaimRateLeader !== null) {
     reportingFocusAreaItems.push({
       eyebrow: "Engagement to notice",
@@ -4582,6 +4345,7 @@ const renderInstitutionAdminPage = (
     });
   }
   const reportingFocusAreaState = classifyReportingPanelState(reportingFocusAreaItems.length);
+  const visibleReportingFocusAreaItems = reportingFocusAreaItems.slice(0, 2);
 
   const reportingFocusAreaPanelMarkup = (
     <AdminPanel
@@ -4594,15 +4358,12 @@ const renderInstitutionAdminPage = (
           <h2>Where to look next</h2>
         </div>
         <AdminStatusPill>
-          {formatReportingCount(reportingFocusAreaItems.length)}{" "}
-          {reportingFocusAreaItems.length === 1 ? "signal" : "signals"}
+          {formatReportingCount(visibleReportingFocusAreaItems.length)}{" "}
+          {visibleReportingFocusAreaItems.length === 1 ? "signal" : "signals"}
         </AdminStatusPill>
       </div>
-      <p>
-        Start with the strongest current signals. Open Explore when you need exact rows or custom
-        filters.
-      </p>
-      {reportingFocusAreaItems.length === 0 ? (
+      <p>Start here. Open Explore only when you need exact rows or custom filters.</p>
+      {visibleReportingFocusAreaItems.length === 0 ? (
         renderReportingStateShell({
           state: "empty",
           eyebrow: "No focus areas yet",
@@ -4612,7 +4373,7 @@ const renderInstitutionAdminPage = (
         })
       ) : (
         <div class="ct-admin__reporting-focus-area-list">
-          {reportingFocusAreaItems.slice(0, 3).map((item) => (
+          {visibleReportingFocusAreaItems.map((item) => (
             <article class="ct-admin__reporting-focus-area-item">
               <div class="ct-admin__reporting-focus-area-metric">{item.metric}</div>
               <div class="ct-admin__reporting-focus-area-copy">
@@ -4636,17 +4397,17 @@ const renderInstitutionAdminPage = (
   );
   const reportingDeepLinksMarkup = (
     <section class="ct-admin__reporting-deep-links" aria-label="Advanced reporting links">
-      <a href={reportingExploreHref}>
-        <span>Explore</span>
-        <strong>Filters, tables, and hierarchy</strong>
+      <a
+        class="ct-admin__reporting-deep-link ct-admin__reporting-deep-link--primary"
+        href={reportingExploreHref}
+      >
+        Explore
       </a>
-      <a href={reportingTrendsHref}>
-        <span>Trends</span>
-        <strong>Daily counts behind the chart</strong>
+      <a class="ct-admin__reporting-deep-link" href={reportingTrendsHref}>
+        Trend detail
       </a>
-      <a href={reportingReportsHref}>
-        <span>Reports</span>
-        <strong>Saved reports, custom setup, and exports</strong>
+      <a class="ct-admin__reporting-deep-link" href={reportingReportsHref}>
+        Reports
       </a>
     </section>
   );
@@ -5377,21 +5138,16 @@ const renderInstitutionAdminPage = (
           <>
             {renderPageHeader(
               "Reporting",
-              "Start with smart-default rollups, focus areas, and visually curated report modules before opening detailed reporting pages.",
+              "Start with the current slice, then open detail only when you need it.",
             )}
             <section class="ct-admin ct-stack">
               <section class="ct-admin__reporting-presentation-shell ct-admin__reporting-presentation-shell--highlights ct-stack">
-                {reportingPresentationNoteMarkup}
                 <section class="ct-admin__reporting-primary-story ct-stack">
                   <section class="ct-admin__reporting-first-screen ct-stack">
                     {reportingExecutiveSummaryMarkup}
                   </section>
-                  {reportingJourneyPanelMarkup}
-                  <section class="ct-admin__reporting-highlight-grid">
-                    {reportingTemplateHighlightsPanelMarkup}
-                    {reportingOrgUnitHighlightsPanelMarkup}
-                  </section>
                   {reportingFocusAreaPanelMarkup}
+                  {reportingRankedChartsMarkup}
                   {reportingDeepLinksMarkup}
                 </section>
               </section>
