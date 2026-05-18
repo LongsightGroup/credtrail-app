@@ -11,11 +11,13 @@ vi.mock("@credtrail/db", async () => {
     ensureTenantMembership: vi.fn(),
     findAuthIdentityLinkByAuthUserId: vi.fn(),
     findAuthIdentityLinkByCredtrailUserId: vi.fn(),
+    findAssertionByIdempotencyKey: vi.fn(),
     findBadgeTemplateById: vi.fn(),
     findLearnerProfileByIdentity: vi.fn(),
     findUserById: vi.fn(),
     listBadgeTemplates: vi.fn(),
     listLtiIssuerRegistrations: vi.fn(),
+    resolveAssertionLifecycleState: vi.fn(),
     upsertLtiDeployment: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
     upsertLtiResourceLinkPlacement: vi.fn(),
@@ -36,12 +38,15 @@ import {
   ensureTenantMembership,
   findAuthIdentityLinkByAuthUserId,
   findAuthIdentityLinkByCredtrailUserId,
+  findAssertionByIdempotencyKey,
   findBadgeTemplateById,
   findLearnerProfileByIdentity,
   findUserById,
   listBadgeTemplates,
   listLtiIssuerRegistrations,
+  resolveAssertionLifecycleState,
   resolveLearnerProfileForIdentity,
+  type AssertionRecord,
   upsertLtiResourceLinkPlacement,
   upsertTenantMembershipRole,
   upsertUserByEmail,
@@ -66,11 +71,13 @@ const mockedFindAuthIdentityLinkByAuthUserId = vi.mocked(findAuthIdentityLinkByA
 const mockedFindAuthIdentityLinkByCredtrailUserId = vi.mocked(
   findAuthIdentityLinkByCredtrailUserId,
 );
+const mockedFindAssertionByIdempotencyKey = vi.mocked(findAssertionByIdempotencyKey);
 const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
 const mockedFindLearnerProfileByIdentity = vi.mocked(findLearnerProfileByIdentity);
 const mockedFindUserById = vi.mocked(findUserById);
 const mockedListBadgeTemplates = vi.mocked(listBadgeTemplates);
 const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
+const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
 const mockedResolveLearnerProfileForIdentity = vi.mocked(resolveLearnerProfileForIdentity);
 const mockedUpsertLtiResourceLinkPlacement = vi.mocked(upsertLtiResourceLinkPlacement);
 const mockedUpsertTenantMembershipRole = vi.mocked(upsertTenantMembershipRole);
@@ -381,6 +388,27 @@ const sampleBadgeTemplate = (overrides?: {
   };
 };
 
+const sampleAssertionRecord = (overrides?: Partial<AssertionRecord>): AssertionRecord => {
+  return {
+    id: "tenant_123:assertion_existing",
+    tenantId: "tenant_123",
+    publicId: null,
+    learnerProfileId: "lpr_123",
+    badgeTemplateId: "badge_template_001",
+    recipientIdentity: "learner-one@example.edu",
+    recipientIdentityType: "email",
+    vcR2Key: "tenants/tenant_123/assertions/tenant_123%3Aassertion_existing.jsonld",
+    statusListIndex: 1,
+    idempotencyKey: "lti:existing",
+    issuedAt: "2026-05-18T18:00:00.000Z",
+    issuedByUserId: "usr_lti_123",
+    revokedAt: null,
+    createdAt: "2026-05-18T18:00:00.000Z",
+    updatedAt: "2026-05-18T18:00:00.000Z",
+    ...overrides,
+  };
+};
+
 const bytesToBase64UrlForTest = (bytes: Uint8Array): string => {
   let raw = "";
 
@@ -505,6 +533,17 @@ describe("LTI 1.3 core launch flow", () => {
     );
     mockedListBadgeTemplates.mockReset();
     mockedListBadgeTemplates.mockResolvedValue([sampleBadgeTemplate()]);
+    mockedFindAssertionByIdempotencyKey.mockReset();
+    mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
+    mockedResolveAssertionLifecycleState.mockReset();
+    mockedResolveAssertionLifecycleState.mockResolvedValue({
+      state: "active",
+      source: "default_active",
+      reasonCode: null,
+      reason: null,
+      transitionedAt: null,
+      revokedAt: null,
+    });
     mockedFindBadgeTemplateById.mockReset();
     mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
     mockedUpsertLtiResourceLinkPlacement.mockReset();
@@ -1236,11 +1275,107 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain("Loaded 1 learner members from LMS NRPS roster.");
     expect(body).toContain("badge_template_001");
     expect(body).toContain("learner-one@example.edu");
+    expect(body).toContain("Issued in this launch item");
+    expect(body).toContain("0 of 1");
     expect(body).toContain('action="/v1/lti/resource-link/issue"');
     expect(body).toContain('name="issuance_action_token"');
     expect(body).toContain('name="learner_user_id"');
     expect(body).toContain("Issue selected badges");
     expect(getMembers).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks already issued Sakai roster learners on refreshed LTI launches", async () => {
+    const env = createLtiEnv();
+    const rosterTargetLinkUri = `${targetLinkUri}?badgeTemplateId=badge_template_001`;
+    const existingAssertion = sampleAssertionRecord();
+    mockedFindAssertionByIdempotencyKey.mockResolvedValue(existingAssertion);
+    const getMembers = vi.fn().mockResolvedValue([
+      {
+        userId: "learner-001",
+        name: "Learner One",
+        email: "learner-one@example.edu",
+        lisPersonSourcedId: "sourced-learner-001",
+        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+        status: "Active",
+      },
+    ]);
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembers });
+    const loginResponse = await isolatedApp.request(
+      `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
+        "opaque-login-hint",
+      )}&target_link_uri=${encodeURIComponent(rosterTargetLinkUri)}&lti_deployment_id=${encodeURIComponent(
+        deploymentId,
+      )}`,
+      undefined,
+      env,
+    );
+    const loginUrl = new URL(loginResponse.headers.get("location") ?? "");
+    const nowEpochSeconds = Math.floor(Date.now() / 1000);
+    const idToken = compactJwsForTest({
+      header: {
+        alg: "RS256",
+        typ: "JWT",
+      },
+      payload: {
+        iss: issuer,
+        sub: "instructor-001",
+        aud: clientId,
+        exp: nowEpochSeconds + 300,
+        iat: nowEpochSeconds - 10,
+        nonce: loginUrl.searchParams.get("nonce") ?? "",
+        "https://purl.imsglobal.org/spec/lti/claim/deployment_id": deploymentId,
+        "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiResourceLinkRequest",
+        "https://purl.imsglobal.org/spec/lti/claim/version": "1.3.0",
+        "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": rosterTargetLinkUri,
+        "https://purl.imsglobal.org/spec/lti/claim/resource_link": {
+          id: "resource-link-nrps-1",
+        },
+        "https://purl.imsglobal.org/spec/lti/claim/context": {
+          id: "course-42",
+          title: "Course 42",
+        },
+        "https://purl.imsglobal.org/spec/lti/claim/roles": [
+          "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor",
+        ],
+        "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice": {
+          context_memberships_url: "https://canvas.example.edu/api/lti/courses/42/names_and_roles",
+          service_versions: ["2.0"],
+        },
+      },
+    });
+
+    const response = await isolatedApp.request(
+      "/v1/lti/launch",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          id_token: idToken,
+          state: loginUrl.searchParams.get("state") ?? "",
+        }).toString(),
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Issued in this launch item");
+    expect(body).toContain("1 of 1");
+    expect(body).toContain(`Already issued: ${existingAssertion.id}`);
+    expect(body).toContain("Selectable learners");
+    expect(body).toMatch(/value="learner-001"[^>]*disabled/);
+    expect(mockedFindAssertionByIdempotencyKey).toHaveBeenCalledWith(
+      fakeDb,
+      tenantId,
+      expect.stringMatching(/^lti:[a-f0-9]{64}$/),
+    );
+    expect(mockedResolveAssertionLifecycleState).toHaveBeenCalledWith(
+      fakeDb,
+      tenantId,
+      existingAssertion.id,
+    );
   });
 
   it("issues selected Sakai roster learners through the LTI resource-link action", async () => {

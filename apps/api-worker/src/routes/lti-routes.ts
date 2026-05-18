@@ -1,9 +1,12 @@
 import { captureSentryException } from "@credtrail/core-domain";
 import {
   findBadgeTemplateById,
+  findAssertionByIdempotencyKey,
   listBadgeTemplates,
+  resolveAssertionLifecycleState,
   upsertLtiDeployment,
   upsertLtiResourceLinkPlacement,
+  type AssertionLifecycleState,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -102,6 +105,20 @@ const LTI_DEEP_LINKING_SELECT_PATH = "/v1/lti/deep-linking/select";
 const LTI_RESOURCE_LINK_ISSUE_PATH = "/v1/lti/resource-link/issue";
 const LTI_SESSION_HANDOFF_TTL_SECONDS = 10 * 60;
 
+interface LtiRosterIssuedBadgeState {
+  assertionId: string;
+  issuedAt: string;
+  lifecycleState: AssertionLifecycleState | null;
+}
+
+type LtiIssuanceIdempotencyKeyContext = Pick<
+  LtiIssuanceActionPayload,
+  "issuer" | "clientId" | "deploymentId" | "contextId" | "resourceLinkId" | "badgeTemplateId"
+>;
+
+type LtiRosterIssuanceLookupContext = LtiIssuanceIdempotencyKeyContext &
+  Pick<LtiIssuanceActionPayload, "tenantId">;
+
 const ltiPostMessageStorageRedirectInput = (input: {
   authorizationRedirectUrl: string;
   storageTarget: string | undefined;
@@ -140,8 +157,11 @@ const ltiBulkIssuanceViewFromRoster = (input: {
   courseContextTitle: string | null;
   courseContextId: string | null;
   contextMembershipsUrl: string;
+  issuedBadgeStatesByUserId: ReadonlyMap<string, LtiRosterIssuedBadgeState>;
 }): LtiBulkIssuanceView => {
   const learnerMembers = input.roster.learnerMembers.map((member) => {
+    const issuedState = input.issuedBadgeStatesByUserId.get(member.userId) ?? null;
+
     return {
       userId: member.userId,
       sourcedId: member.sourcedId,
@@ -149,6 +169,9 @@ const ltiBulkIssuanceViewFromRoster = (input: {
       email: member.email,
       roleSummary: member.roleSummary,
       status: member.status,
+      issuedAssertionId: issuedState?.assertionId ?? null,
+      issuedAt: issuedState?.issuedAt ?? null,
+      issuanceLifecycleState: issuedState?.lifecycleState ?? null,
     };
   });
 
@@ -310,7 +333,7 @@ const ltiSessionMatchesIssuanceAction = (
 
 const ltiIssuanceIdempotencyKey = async (
   sha256Hex: (value: string) => Promise<string>,
-  action: LtiIssuanceActionPayload,
+  action: LtiIssuanceIdempotencyKeyContext,
   learnerUserId: string,
 ): Promise<string> => {
   const digest = await sha256Hex(
@@ -326,6 +349,46 @@ const ltiIssuanceIdempotencyKey = async (
   );
 
   return `lti:${digest}`;
+};
+
+const ltiRosterIssuedBadgeStatesByUserId = async (input: {
+  db: SqlDatabase;
+  sha256Hex: (value: string) => Promise<string>;
+  action: LtiRosterIssuanceLookupContext;
+  learnerMembers: readonly LtiNrpsMember[];
+}): Promise<Map<string, LtiRosterIssuedBadgeState>> => {
+  const statesByUserId = new Map<string, LtiRosterIssuedBadgeState>();
+
+  for (const member of input.learnerMembers) {
+    const idempotencyKey = await ltiIssuanceIdempotencyKey(
+      input.sha256Hex,
+      input.action,
+      member.userId,
+    );
+    const assertion = await findAssertionByIdempotencyKey(
+      input.db,
+      input.action.tenantId,
+      idempotencyKey,
+    );
+
+    if (assertion === null) {
+      continue;
+    }
+
+    const lifecycle = await resolveAssertionLifecycleState(
+      input.db,
+      input.action.tenantId,
+      assertion.id,
+    );
+
+    statesByUserId.set(member.userId, {
+      assertionId: assertion.id,
+      issuedAt: assertion.issuedAt,
+      lifecycleState: lifecycle?.state ?? null,
+    });
+  }
+
+  return statesByUserId;
 };
 
 const skippedLtiIssuanceResult = (
@@ -988,6 +1051,30 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
             contextId: courseContextId ?? ltiLaunchSession.context.id ?? null,
             members,
           });
+          const issuanceActionContextId = courseContextId ?? ltiLaunchSession.context.id;
+          const issuanceActionInput =
+            launchMessage.badgeTemplateId !== null && issuanceActionContextId.length > 0
+              ? {
+                  tenantId,
+                  ltiSessionId: ltiLaunchSession.id,
+                  issuer: launchClaims.iss,
+                  clientId: issuerEntry.clientId,
+                  deploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
+                  contextId: issuanceActionContextId,
+                  resourceLinkId: launchMessage.resourceLinkId,
+                  badgeTemplateId: launchMessage.badgeTemplateId,
+                  issuedByUserId: linkedAccount.userId,
+                }
+              : null;
+          const issuedBadgeStatesByUserId =
+            issuanceActionInput === null
+              ? new Map<string, LtiRosterIssuedBadgeState>()
+              : await ltiRosterIssuedBadgeStatesByUserId({
+                  db,
+                  sha256Hex,
+                  action: issuanceActionInput,
+                  learnerMembers: roster.learnerMembers,
+                });
           bulkIssuanceView = ltiBulkIssuanceViewFromRoster({
             roster,
             message: `Loaded ${String(roster.learnerMembers.length)} learner members from LMS NRPS roster.`,
@@ -995,20 +1082,12 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
             courseContextTitle,
             courseContextId,
             contextMembershipsUrl: nrpsClaim.contextMembershipsUrl,
+            issuedBadgeStatesByUserId,
           });
-          const issuanceActionContextId = courseContextId ?? ltiLaunchSession.context.id;
-          if (launchMessage.badgeTemplateId !== null && issuanceActionContextId.length > 0) {
+          if (issuanceActionInput !== null) {
             bulkIssuanceView = ltiBulkIssuanceViewWithAction(bulkIssuanceView, {
               issuanceActionToken: await createLtiIssuanceActionToken(c.env, {
-                tenantId,
-                ltiSessionId: ltiLaunchSession.id,
-                issuer: launchClaims.iss,
-                clientId: issuerEntry.clientId,
-                deploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
-                contextId: issuanceActionContextId,
-                resourceLinkId: launchMessage.resourceLinkId,
-                badgeTemplateId: launchMessage.badgeTemplateId,
-                issuedByUserId: linkedAccount.userId,
+                ...issuanceActionInput,
                 ttlSeconds: LTI_SESSION_HANDOFF_TTL_SECONDS,
               }),
             });

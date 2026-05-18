@@ -30,8 +30,17 @@ const LtiLaunchCard = ({
   return <article class={className}>{children}</article>;
 };
 
-const LtiSubmitButton = ({ children }: PropsWithChildren): HonoElement => {
-  return <button type="submit">{children}</button>;
+const LtiSubmitButton = ({
+  disabled,
+  children,
+}: PropsWithChildren<{
+  disabled?: boolean;
+}>): HonoElement => {
+  return (
+    <button type="submit" disabled={disabled === true}>
+      {children}
+    </button>
+  );
 };
 
 const LtiDeepLinkForm = ({
@@ -125,6 +134,9 @@ export interface LtiBulkIssuanceRosterMember {
   email: string | null;
   roleSummary: string;
   status: string | null;
+  issuedAssertionId: string | null;
+  issuedAt: string | null;
+  issuanceLifecycleState: "active" | "suspended" | "revoked" | "expired" | null;
 }
 
 export interface LtiBulkIssuanceView {
@@ -186,6 +198,23 @@ const BulkIssuanceSection = (input: { view: LtiBulkIssuanceView | null }): HonoE
     view.issuanceActionPath !== null &&
     view.issuanceActionToken !== null;
   const missingEmailCount = view.members.filter((member) => member.email === null).length;
+  const alreadyIssuedCount = view.members.filter(
+    (member) => member.issuedAssertionId !== null,
+  ).length;
+  const selectableCount = view.members.filter(
+    (member) => member.email !== null && member.issuedAssertionId === null,
+  ).length;
+  const badgeIssuanceStatus = (member: LtiBulkIssuanceRosterMember): string => {
+    if (member.issuedAssertionId === null) {
+      return "Not issued";
+    }
+
+    if (member.issuanceLifecycleState === null || member.issuanceLifecycleState === "active") {
+      return `Already issued: ${member.issuedAssertionId}`;
+    }
+
+    return `Already issued (${member.issuanceLifecycleState}): ${member.issuedAssertionId}`;
+  };
   const table = (
     <div class="lti-launch__bulk-table-wrap">
       <table class="lti-launch__bulk-table">
@@ -196,13 +225,14 @@ const BulkIssuanceSection = (input: { view: LtiBulkIssuanceView | null }): HonoE
             <th>Email</th>
             <th>Sourced ID</th>
             <th>Roles</th>
+            <th>Badge</th>
             <th>Status</th>
           </tr>
         </thead>
         <tbody>
           {view.members.length === 0 ? (
             <tr>
-              <td colspan={canIssue ? 6 : 5} class="lti-launch__bulk-empty">
+              <td colspan={canIssue ? 7 : 6} class="lti-launch__bulk-empty">
                 No learner members returned by LMS roster for this launch.
               </td>
             </tr>
@@ -215,7 +245,7 @@ const BulkIssuanceSection = (input: { view: LtiBulkIssuanceView | null }): HonoE
                       type="checkbox"
                       name="learner_user_id"
                       value={member.userId}
-                      disabled={member.email === null}
+                      disabled={member.email === null || member.issuedAssertionId !== null}
                     />
                   </td>
                 ) : null}
@@ -223,6 +253,7 @@ const BulkIssuanceSection = (input: { view: LtiBulkIssuanceView | null }): HonoE
                 <td>{member.email ?? "Not provided"}</td>
                 <td>{member.sourcedId ?? "Not provided"}</td>
                 <td>{member.roleSummary.length === 0 ? "Not provided" : member.roleSummary}</td>
+                <td>{badgeIssuanceStatus(member)}</td>
                 <td>{member.status ?? "Not provided"}</td>
               </tr>
             ))
@@ -264,6 +295,14 @@ const BulkIssuanceSection = (input: { view: LtiBulkIssuanceView | null }): HonoE
               label: "Learner members",
               value: `${String(view.learnerCount)} of ${String(view.totalCount)}`,
             },
+            {
+              label: "Issued in this launch item",
+              value: `${String(alreadyIssuedCount)} of ${String(view.learnerCount)}`,
+            },
+            {
+              label: "Selectable learners",
+              value: selectableCount,
+            },
           ]}
         />
       </dl>
@@ -282,7 +321,9 @@ const BulkIssuanceSection = (input: { view: LtiBulkIssuanceView | null }): HonoE
                 cannot be selected because Sakai did not provide an email address.
               </p>
             )}
-            <LtiSubmitButton>Issue selected badges</LtiSubmitButton>
+            <LtiSubmitButton disabled={selectableCount === 0}>
+              Issue selected badges
+            </LtiSubmitButton>
           </div>
         </form>
       ) : (
