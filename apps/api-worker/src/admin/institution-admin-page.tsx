@@ -827,12 +827,20 @@ const renderInstitutionAdminPage = (
               {template.imageUri === null ? (
                 <span class="ct-admin__template-placeholder">No image</span>
               ) : (
-                <img
-                  class="ct-admin__template-image"
-                  src={template.imageUri}
-                  alt={`${template.title} artwork`}
-                  loading="lazy"
-                />
+                <a
+                  class="ct-admin__template-image-link"
+                  href={template.imageUri}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`Open full size image for ${template.title}`}
+                >
+                  <img
+                    class="ct-admin__template-image"
+                    src={template.imageUri}
+                    alt={`${template.title} artwork`}
+                    loading="lazy"
+                  />
+                </a>
               )}
             </td>
             <td>
@@ -3335,6 +3343,16 @@ const renderInstitutionAdminPage = (
           <AdminButton id="badge-template-image-generation-apply" variant="secondary">
             Apply generated image
           </AdminButton>
+          <a
+            id="badge-template-image-generation-open"
+            class="ct-admin__text-action"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            hidden
+          >
+            Open full size
+          </a>
         </div>
       </div>
       <AdminForm

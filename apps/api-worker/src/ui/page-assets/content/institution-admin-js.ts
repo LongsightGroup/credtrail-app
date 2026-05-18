@@ -137,6 +137,9 @@ export const INSTITUTION_ADMIN_JS = `
   const badgeTemplateImageGenerationApplyButton = document.getElementById(
     'badge-template-image-generation-apply',
   );
+  const badgeTemplateImageGenerationOpenLink = document.getElementById(
+    'badge-template-image-generation-open',
+  );
   const badgeTemplateImageRevisionForm = document.getElementById(
     'badge-template-image-revision-form',
   );
@@ -345,7 +348,8 @@ export const INSTITUTION_ADMIN_JS = `
     if (
       !(badgeTemplateImageGenerationPreview instanceof HTMLElement) ||
       !(badgeTemplateImageGenerationPreviewImg instanceof HTMLImageElement) ||
-      !(badgeTemplateImageGenerationApplyButton instanceof HTMLButtonElement)
+      !(badgeTemplateImageGenerationApplyButton instanceof HTMLButtonElement) ||
+      !(badgeTemplateImageGenerationOpenLink instanceof HTMLAnchorElement)
     ) {
       return;
     }
@@ -359,12 +363,16 @@ export const INSTITUTION_ADMIN_JS = `
       badgeTemplateImageGenerationPreview.hidden = true;
       badgeTemplateImageGenerationPreviewImg.removeAttribute('src');
       badgeTemplateImageGenerationApplyButton.disabled = true;
+      badgeTemplateImageGenerationOpenLink.hidden = true;
+      badgeTemplateImageGenerationOpenLink.removeAttribute('href');
       return;
     }
 
     badgeTemplateImageGenerationPreview.hidden = false;
     badgeTemplateImageGenerationPreviewImg.src = generation.resultImageUri;
     badgeTemplateImageGenerationApplyButton.disabled = false;
+    badgeTemplateImageGenerationOpenLink.href = generation.resultImageUri;
+    badgeTemplateImageGenerationOpenLink.hidden = false;
   };
   const pollBadgeTemplateImageGeneration = async (badgeTemplateId, generationId) => {
     if (!(badgeTemplateImageGenerationStatus instanceof HTMLElement)) {
@@ -446,6 +454,33 @@ export const INSTITUTION_ADMIN_JS = `
     revisions.forEach((revision) => {
       const item = document.createElement('div');
       item.className = 'ct-admin__image-revision-item';
+      const previousImageUri =
+        typeof revision.previousImageUri === 'string' && revision.previousImageUri.length > 0
+          ? revision.previousImageUri
+          : '';
+
+      const preview =
+        previousImageUri.length > 0
+          ? document.createElement('a')
+          : document.createElement('span');
+      preview.className = 'ct-admin__image-revision-thumbnail-link';
+
+      if (preview instanceof HTMLAnchorElement) {
+        preview.href = previousImageUri;
+        preview.target = '_blank';
+        preview.rel = 'noopener noreferrer';
+        preview.setAttribute('aria-label', 'Open full size previous badge image');
+        const thumbnail = document.createElement('img');
+        thumbnail.className = 'ct-admin__image-revision-thumbnail';
+        thumbnail.src = previousImageUri;
+        thumbnail.alt = '';
+        thumbnail.loading = 'lazy';
+        preview.append(thumbnail);
+      } else {
+        preview.classList.add('ct-admin__image-revision-thumbnail-link--empty');
+        preview.textContent = 'No image';
+      }
+
       const meta = document.createElement('div');
       meta.className = 'ct-admin__image-revision-meta';
       const title = document.createElement('strong');
@@ -453,17 +488,29 @@ export const INSTITUTION_ADMIN_JS = `
         String(revision.sourceType || 'image change') + ' · ' + formatTimestamp(revision.createdAt);
       const detail = document.createElement('span');
       detail.textContent =
-        typeof revision.previousImageUri === 'string' && revision.previousImageUri.length > 0
-          ? 'Restore the previous image'
-          : 'Restore to no image';
+        previousImageUri.length > 0 ? 'Restore the previous image' : 'Restore to no image';
       meta.append(title, detail);
+
+      const actions = document.createElement('div');
+      actions.className = 'ct-admin__image-revision-actions';
+
+      if (previousImageUri.length > 0) {
+        const openLink = document.createElement('a');
+        openLink.className = 'ct-admin__text-action';
+        openLink.href = previousImageUri;
+        openLink.target = '_blank';
+        openLink.rel = 'noopener noreferrer';
+        openLink.textContent = 'Open full size';
+        actions.append(openLink);
+      }
 
       const button = createAdminButtonElement(adminButtonTinySecondaryClass, 'Restore', {
         'data-badge-template-id': badgeTemplateId,
         'data-revision-id': String(revision.id || ''),
       });
 
-      item.append(meta, button);
+      actions.append(button);
+      item.append(preview, meta, actions);
       badgeTemplateImageRevisionList.append(item);
     });
   };

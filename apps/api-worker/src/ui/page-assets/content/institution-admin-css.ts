@@ -3210,6 +3210,19 @@ a.ct-admin__workspace-card:active {
   flex-wrap: wrap;
   gap: 0.32rem;
 }
+.ct-admin__template-image-link,
+.ct-admin__image-revision-thumbnail-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ct-radius-sm);
+  color: inherit;
+}
+.ct-admin__template-image-link:focus-visible,
+.ct-admin__image-revision-thumbnail-link:focus-visible {
+  outline: 2px solid var(--ct-theme-border-focus);
+  outline-offset: 2px;
+}
 .ct-admin__template-image {
   width: 3.2rem;
   height: 3.2rem;
@@ -3237,7 +3250,18 @@ a.ct-admin__workspace-card:active {
 .ct-admin__image-generation-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--ct-space-2);
+}
+.ct-admin__text-action {
+  color: var(--ct-theme-link);
+  font-size: 0.88rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+.ct-admin__text-action:hover,
+.ct-admin__text-action:focus-visible {
+  text-decoration: underline;
 }
 .ct-admin__image-revision-list {
   display: grid;
@@ -3247,7 +3271,6 @@ a.ct-admin__workspace-card:active {
 .ct-admin__image-revision-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--ct-space-3);
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-md);
@@ -3258,10 +3281,34 @@ a.ct-admin__workspace-card:active {
   display: grid;
   gap: 0.15rem;
   min-width: 0;
+  flex: 1;
 }
 .ct-admin__image-revision-meta span {
   color: var(--ct-color-muted);
   font-size: 0.84rem;
+}
+.ct-admin__image-revision-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--ct-space-2);
+  flex: 0 0 auto;
+}
+.ct-admin__image-revision-thumbnail {
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid var(--ct-border-soft);
+  border-radius: var(--ct-radius-sm);
+  object-fit: cover;
+  background: var(--ct-surface-subtle);
+}
+.ct-admin__image-revision-thumbnail-link--empty {
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px dashed var(--ct-border-strong);
+  font-size: 0.66rem;
+  color: var(--ct-color-ink-soft);
 }
 .ct-admin__template-placeholder {
   display: inline-flex;
@@ -3583,6 +3630,16 @@ a.ct-admin__workspace-card:active {
   .ct-admin__builder-step-nav .ct-admin__button,
   .ct-admin__builder-step-nav #rule-builder-submit {
     width: 100%;
+  }
+
+  .ct-admin__image-revision-item {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .ct-admin__image-revision-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 @media (max-width: 1180px) {

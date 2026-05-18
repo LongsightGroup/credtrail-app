@@ -2682,10 +2682,16 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('class="ct-admin__panel ct-admin__add-disclosure"');
     expect(body).toContain('id="badge-template-image-upload-form"');
     expect(body).toContain('id="badge-template-image-generation-form"');
+    expect(body).toContain('id="badge-template-image-generation-open"');
     expect(body).toContain('id="badge-template-image-revision-form"');
+    expect(body).toContain('class="ct-admin__template-image-link"');
+    expect(body).toContain('aria-label="Open full size image for TypeScript Foundations"');
+    expect(body).toContain('href="https://example.edu/badges/typescript.png"');
     expect(body).toContain("Open form");
     expect(body).toContain("Badge Templates (1)");
     expect(body).toContain("Template records, public links, and artwork maintenance");
+    expect(INSTITUTION_ADMIN_JS).toContain("badge-template-image-generation-open");
+    expect(INSTITUTION_ADMIN_JS).toContain("Open full size previous badge image");
     expect(body).not.toContain("ct-grid--sidebar");
     expect(body).not.toContain("Rule Value Lists");
     expect(body).not.toContain('id="rule-value-list-form"');
