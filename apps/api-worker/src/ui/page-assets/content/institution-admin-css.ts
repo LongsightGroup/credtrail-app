@@ -77,6 +77,18 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin-sidebar__section[open] .ct-admin-sidebar__section-caret {
   transform: rotate(45deg);
 }
+.ct-admin-sidebar__section-title {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.ct-admin-sidebar__section-icon {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  stroke-width: 1.8;
+}
 .ct-admin-sidebar__section-label {
   margin: 0;
   font-size: 0.7rem;

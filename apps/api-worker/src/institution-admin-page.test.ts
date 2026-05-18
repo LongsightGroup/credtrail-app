@@ -903,6 +903,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain("Analytics");
     expect(body).toContain("Management");
     expect(body).toContain("Configuration");
+    expect(body.match(/class="ct-admin-sidebar__section-icon"/g)?.length).toBe(4);
     expect(body).toContain('aria-label="Open Issue &amp; Inspect workspace"');
     expect(body).toContain('aria-label="Open Reporting workspace"');
     expect(body).toContain('aria-label="Open Rules workspace"');

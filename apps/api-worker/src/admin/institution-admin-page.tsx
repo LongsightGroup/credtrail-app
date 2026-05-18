@@ -3289,6 +3289,7 @@ const renderInstitutionAdminPage = (
     },
     {
       label: "Operations",
+      icon: "operations",
       links: [
         { href: operationsPath, label: "Issue & Inspect", isCurrent: view === "operations" },
         {
@@ -3325,6 +3326,7 @@ const renderInstitutionAdminPage = (
     },
     {
       label: "Analytics",
+      icon: "analytics",
       links: [
         { href: reportingPath, label: "Reporting", isCurrent: view === "reporting" },
         {
@@ -3349,6 +3351,7 @@ const renderInstitutionAdminPage = (
     },
     {
       label: "Management",
+      icon: "management",
       links: [
         { href: rulesWorkspacePath, label: "Rules", isCurrent: view === "rules" },
         {
@@ -3362,6 +3365,7 @@ const renderInstitutionAdminPage = (
     },
     {
       label: "Configuration",
+      icon: "configuration",
       links: [
         { href: accessPath, label: "Access", isCurrent: view === "access" },
         {
