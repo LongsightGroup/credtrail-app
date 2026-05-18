@@ -97,18 +97,21 @@ export const buildBadgeTemplateImagePrompt = (input: {
   const description = input.template.description?.trim();
 
   return [
-    "Create a square Open Badges 3.0 badge image for CredTrail.",
-    `Badge title: ${input.template.title}.`,
-    description === undefined || description.length === 0
-      ? ""
-      : `Badge description: ${description}.`,
+    "Create a tiny, fun, simple square badge icon for a digital credential. Think app icon, sticker, pin, patch, or achievement token.",
+    "Keep it playful and minimal: one bold symbol, very few details, no layout sections, and no explanatory content.",
+    "This must be a small icon-style badge mark, not a certificate, poster, hero image, web page, card, document, or screenshot.",
+    "Use the badge title and description only as semantic guidance for symbols and mood. Do not typeset the title or description.",
+    `Concept title: ${input.template.title}.`,
+    description === undefined || description.length === 0 ? "" : `Concept meaning: ${description}.`,
     `Visual style preset: ${input.stylePreset}.`,
     accentColor === undefined || accentColor.length === 0
       ? ""
       : `Preferred accent color: ${accentColor}.`,
-    notes === undefined || notes.length === 0 ? "" : `Admin notes: ${notes}.`,
-    "Use clean vector-like geometry, strong contrast, no photo background, no watermark, no signature, and no tiny unreadable text.",
-    "Do not use protected LMS logos unless the prompt explicitly includes permission.",
+    notes === undefined || notes.length === 0 ? "" : `Visual hints from admin: ${notes}.`,
+    "Composition: centered emblem, medallion, sticker, pin, patch, or simple geometric symbol with one clear focal idea. Make it legible at 64x64 and 128x128 pixels.",
+    "Use clean vector-like geometry, strong contrast, friendly color blocking, and a transparent or simple solid background.",
+    "Text rules: no text by default. No paragraphs, no sentences, no subtitle blocks, no brand headers, no CredTrail wordmark, no LMS wordmarks, no fake UI text, no tiny unreadable text. If text is unavoidable, use at most one to three large characters.",
+    "Do not use protected LMS logos or product logos unless the prompt explicitly includes permission.",
   ]
     .filter((line) => line.length > 0)
     .join("\n");
