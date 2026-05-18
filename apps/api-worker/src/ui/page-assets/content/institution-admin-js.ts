@@ -1814,7 +1814,11 @@ export const INSTITUTION_ADMIN_JS = `
       event.preventDefault();
       clearBadgeTemplateImageGenerationPoll();
       showBadgeTemplateImageGenerationPreview(null);
-      setStatus(badgeTemplateImageGenerationStatus, 'Queueing badge image draft...', false);
+      setStatus(
+        badgeTemplateImageGenerationStatus,
+        'Generating badge image draft. This can take up to 30 seconds...',
+        false,
+      );
       const data = new FormData(badgeTemplateImageGenerationForm);
       const badgeTemplateIdRaw = data.get('badgeTemplateId');
       const stylePresetRaw = data.get('stylePreset');
@@ -1864,7 +1868,7 @@ export const INSTITUTION_ADMIN_JS = `
             : '';
 
         if (generationId.length === 0) {
-          setStatus(badgeTemplateImageGenerationStatus, 'Generation was queued without an id.', true);
+          setStatus(badgeTemplateImageGenerationStatus, 'Generation completed without an id.', true);
           return;
         }
 
@@ -1872,18 +1876,28 @@ export const INSTITUTION_ADMIN_JS = `
           badgeTemplateId,
           generationId,
         };
+        const generation = payload && payload.generation ? payload.generation : null;
+
+        if (
+          generation &&
+          generation.status === 'succeeded' &&
+          typeof generation.resultImageUri === 'string' &&
+          generation.resultImageUri.length > 0
+        ) {
+          showBadgeTemplateImageGenerationPreview(generation);
+          setStatus(badgeTemplateImageGenerationStatus, 'Generated draft ready.', false, 'success');
+          return;
+        }
+
         setStatus(
           badgeTemplateImageGenerationStatus,
-          'Draft queued. The background image worker runs about once a minute; this page will check periodically.',
-          false,
+          'Generation finished, but no draft image was returned.',
+          true,
         );
-        badgeTemplateImageGenerationPollTimer = window.setTimeout(() => {
-          void pollBadgeTemplateImageGeneration(badgeTemplateId, generationId);
-        }, badgeTemplateImageQueuedPollDelayMs);
       } catch {
         setStatus(
           badgeTemplateImageGenerationStatus,
-          'Unable to queue badge image generation from this browser session.',
+          'Unable to generate badge image from this browser session.',
           true,
         );
       }

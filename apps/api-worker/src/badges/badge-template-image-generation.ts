@@ -4,6 +4,7 @@ import {
   findBadgeTemplateById,
   findBadgeTemplateImageGenerationById,
   updateBadgeTemplateImageGeneration,
+  type BadgeTemplateImageGenerationRecord,
   type BadgeTemplateRecord,
   type SqlDatabase,
 } from "@credtrail/db";
@@ -39,7 +40,7 @@ interface GeneratedBadgeTemplateImage {
 }
 
 const DEFAULT_WORKERS_AI_IMAGE_MODEL = "@cf/black-forest-labs/flux-2-klein-4b";
-const WORKERS_AI_IMAGE_GENERATION_TIMEOUT_MS = 120_000;
+const WORKERS_AI_IMAGE_GENERATION_TIMEOUT_MS = 30_000;
 
 const decodeBase64 = (value: string): Uint8Array => {
   const normalized = value.includes(",") ? (value.split(",").pop() ?? "") : value;
@@ -248,6 +249,96 @@ const assetUrlForPlatform = (input: {
   };
 };
 
+export const completeBadgeTemplateImageGeneration = async (input: {
+  db: SqlDatabase;
+  store: ImmutableCredentialStore;
+  env: BadgeTemplateImageGenerationEnv;
+  tenantId: string;
+  badgeTemplateId: string;
+  generationId: string;
+  promptText: string;
+  requestedByUserId?: string | null | undefined;
+}): Promise<BadgeTemplateImageGenerationRecord> => {
+  await updateBadgeTemplateImageGeneration(input.db, {
+    tenantId: input.tenantId,
+    id: input.generationId,
+    status: "processing",
+    errorMessage: null,
+    completedAt: null,
+  });
+
+  try {
+    const generated = await generateBadgeTemplateImageViaWorkersAi({
+      env: input.env,
+      promptText: input.promptText,
+    });
+    const assetId = crypto.randomUUID();
+
+    await storeBadgeTemplateImage(input.store, {
+      tenantId: input.tenantId,
+      badgeTemplateId: input.badgeTemplateId,
+      assetId,
+      mimeType: generated.mimeType,
+      bytes: generated.bytes,
+      originalFilename: null,
+    });
+
+    const image = assetUrlForPlatform({
+      platformDomain: input.env.PLATFORM_DOMAIN,
+      tenantId: input.tenantId,
+      badgeTemplateId: input.badgeTemplateId,
+      assetId,
+    });
+    const completedAt = new Date().toISOString();
+    const updatedGeneration = await updateBadgeTemplateImageGeneration(input.db, {
+      tenantId: input.tenantId,
+      id: input.generationId,
+      status: "succeeded",
+      resultImageUri: image.url,
+      errorMessage: null,
+      completedAt,
+    });
+
+    if (updatedGeneration === null) {
+      throw new Error(`Badge template image generation ${input.generationId} not found`);
+    }
+
+    await createAuditLog(input.db, {
+      tenantId: input.tenantId,
+      ...(input.requestedByUserId === undefined || input.requestedByUserId === null
+        ? {}
+        : {
+            actorUserId: input.requestedByUserId,
+          }),
+      action: "badge_template.image_generated",
+      targetType: "badge_template",
+      targetId: input.badgeTemplateId,
+      metadata: {
+        generationId: input.generationId,
+        imagePath: image.path,
+        imageMimeType: generated.mimeType,
+        imageSizeBytes: generated.bytes.byteLength,
+        provider: generated.provider,
+        model: generated.model,
+      },
+    });
+
+    return updatedGeneration;
+  } catch (error: unknown) {
+    const detail = error instanceof Error ? error.message : "Unknown badge image generation error";
+
+    await updateBadgeTemplateImageGeneration(input.db, {
+      tenantId: input.tenantId,
+      id: input.generationId,
+      status: "failed",
+      errorMessage: detail,
+      completedAt: new Date().toISOString(),
+    });
+
+    throw error;
+  }
+};
+
 export const processBadgeTemplateImageGenerationJob = async (input: {
   db: SqlDatabase;
   store: ImmutableCredentialStore;
@@ -288,56 +379,15 @@ export const processBadgeTemplateImageGenerationJob = async (input: {
       throw new Error(`Badge template ${input.payload.badgeTemplateId} not found`);
     }
 
-    const generated = await generateBadgeTemplateImageViaWorkersAi({
+    await completeBadgeTemplateImageGeneration({
+      db: input.db,
+      store: input.store,
       env: input.env,
+      tenantId: input.tenantId,
+      badgeTemplateId: input.payload.badgeTemplateId,
+      generationId: input.payload.generationId,
       promptText: input.payload.promptText,
-    });
-    const assetId = crypto.randomUUID();
-
-    await storeBadgeTemplateImage(input.store, {
-      tenantId: input.tenantId,
-      badgeTemplateId: input.payload.badgeTemplateId,
-      assetId,
-      mimeType: generated.mimeType,
-      bytes: generated.bytes,
-      originalFilename: null,
-    });
-
-    const image = assetUrlForPlatform({
-      platformDomain: input.env.PLATFORM_DOMAIN,
-      tenantId: input.tenantId,
-      badgeTemplateId: input.payload.badgeTemplateId,
-      assetId,
-    });
-    const completedAt = new Date().toISOString();
-
-    await updateBadgeTemplateImageGeneration(input.db, {
-      tenantId: input.tenantId,
-      id: input.payload.generationId,
-      status: "succeeded",
-      resultImageUri: image.url,
-      errorMessage: null,
-      completedAt,
-    });
-
-    await createAuditLog(input.db, {
-      tenantId: input.tenantId,
-      ...(input.payload.requestedByUserId === undefined
-        ? {}
-        : {
-            actorUserId: input.payload.requestedByUserId,
-          }),
-      action: "badge_template.image_generated",
-      targetType: "badge_template",
-      targetId: input.payload.badgeTemplateId,
-      metadata: {
-        generationId: input.payload.generationId,
-        imagePath: image.path,
-        imageMimeType: generated.mimeType,
-        imageSizeBytes: generated.bytes.byteLength,
-        provider: generated.provider,
-        model: generated.model,
-      },
+      requestedByUserId: input.payload.requestedByUserId,
     });
   } catch (error: unknown) {
     const detail = error instanceof Error ? error.message : "Unknown badge image generation error";

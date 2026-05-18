@@ -115,7 +115,9 @@ const fakeDb = {
 const createFakeWorkersAiBinding = (): BadgeTemplateImageGenerationAiBinding => {
   return {
     run: vi.fn(async () => {
-      return {};
+      return {
+        image: Buffer.from(samplePngBytes()).toString("base64"),
+      };
     }),
   };
 };
@@ -591,8 +593,8 @@ describe("badge template image upload routes", () => {
     expect(response.status).toBe(404);
   });
 
-  it("queues badge template image generation instead of waiting for AI inline", async () => {
-    const { store } = createBadgeObjectStore();
+  it("generates a badge template image inline and returns a ready draft", async () => {
+    const { store, entries } = createBadgeObjectStore();
     const env = {
       ...createEnv(store),
       AI: createFakeWorkersAiBinding(),
@@ -618,28 +620,38 @@ describe("badge template image upload routes", () => {
       generation: {
         id: string;
         status: string;
+        resultImageUri: string | null;
       };
     }>();
 
-    expect(response.status).toBe(202);
+    expect(response.status).toBe(200);
     expect(body.generation.id).toBe("btig_123");
+    expect(body.generation.status).toBe("succeeded");
+    expect(body.generation.resultImageUri).toContain(
+      "/badges/assets/tenant_123/badge_template_001/",
+    );
     expect(mockedCreateBadgeTemplateImageGeneration).toHaveBeenCalledTimes(1);
-    expect(mockedEnqueueJobQueueMessage).toHaveBeenCalledWith(
+    expect(mockedEnqueueJobQueueMessage).not.toHaveBeenCalled();
+    expect(entries.size).toBe(1);
+    expect(mockedUpdateBadgeTemplateImageGeneration).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
         tenantId: "tenant_123",
-        jobType: "generate_badge_template_image",
+        id: "btig_123",
+        status: "processing",
       }),
     );
-    expect(mockedEnqueueJobQueueMessage.mock.calls[0]?.[1]).toMatchObject({
-      payload: {
-        generationId: "btig_123",
-        badgeTemplateId: "badge_template_001",
-        stylePreset: "institutional",
-        requestedByUserId: "usr_admin",
-      },
-      maxAttempts: 3,
-    });
+    expect(mockedUpdateBadgeTemplateImageGeneration).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        id: "btig_123",
+        status: "succeeded",
+        resultImageUri: expect.stringContaining(
+          "/badges/assets/tenant_123/badge_template_001/",
+        ) as string,
+      }),
+    );
   });
 
   it("applies a completed generated image through the admin route", async () => {
