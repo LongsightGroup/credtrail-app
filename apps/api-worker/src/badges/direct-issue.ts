@@ -245,7 +245,8 @@ export const createIssueBadgeForTenant = <
     const signedCredentialResult = await input.signCredentialForDid({
       context,
       did: issuerDid,
-      proofType: "Ed25519Signature2020",
+      proofType: "DataIntegrityProof",
+      cryptosuite: "eddsa-rdfc-2022",
       createdAt: issuedAt,
       missingPrivateKeyError:
         "Tenant DID is missing private signing key material and no remote signer is configured",

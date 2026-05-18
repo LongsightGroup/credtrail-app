@@ -73,7 +73,7 @@ vi.mock("./notifications/send-issuance-email", () => {
 import {
   type JsonObject,
   generateTenantDidSigningMaterial,
-  signCredentialWithEd25519Signature2020,
+  signCredentialWithDataIntegrityProof,
 } from "@credtrail/core-domain";
 import {
   createAssertion,
@@ -843,10 +843,11 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
         );
       }
 
-      const signedCredential = await signCredentialWithEd25519Signature2020({
+      const signedCredential = await signCredentialWithDataIntegrityProof({
         credential: unsignedCredential,
         privateJwk: signingMaterial.privateJwk,
         verificationMethod,
+        cryptosuite: "eddsa-rdfc-2022",
         ...(createdAt === null ? {} : { createdAt }),
       });
 
