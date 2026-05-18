@@ -30,29 +30,43 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin-sidebar__nav {
   padding: 0.75rem 0;
   display: grid;
-  gap: 0.15rem;
+  gap: 0.2rem;
   align-content: start;
 }
 .ct-admin-sidebar__section {
   min-width: 0;
+  margin: 0.08rem 0;
 }
 .ct-admin-sidebar__section-summary {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.85rem 1.25rem 0.35rem;
-  color: var(--ct-theme-text-subtle);
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0.6rem;
+  padding: 0.54rem 0.65rem;
+  color: var(--ct-theme-text-muted);
   cursor: pointer;
   list-style: none;
+  border: 1px solid transparent;
+  border-radius: var(--ct-radius-sm);
+  transition:
+    background var(--ct-duration-fast) var(--ct-ease-standard),
+    border-color var(--ct-duration-fast) var(--ct-ease-standard),
+    color var(--ct-duration-fast) var(--ct-ease-standard);
 }
 .ct-admin-sidebar__section-summary::-webkit-details-marker {
   display: none;
 }
+.ct-admin-sidebar__section-summary:hover {
+  background: var(--ct-theme-surface-soft);
+  color: var(--ct-theme-text-title);
+}
 .ct-admin-sidebar__section-summary:focus-visible {
   outline: 2px solid var(--ct-theme-border-focus);
-  outline-offset: -2px;
+  outline-offset: 2px;
 }
 .ct-admin-sidebar__section-caret {
+  flex: 0 0 auto;
   width: 0.42rem;
   height: 0.42rem;
   border-right: 1.5px solid currentColor;
@@ -65,15 +79,21 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin-sidebar__section-label {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.09em;
   font-weight: 700;
   line-height: 1.2;
 }
 .ct-admin-sidebar__section-links {
   display: grid;
-  gap: 0.15rem;
+  gap: 0.1rem;
+  margin: 0.22rem 0 0.55rem 1.55rem;
+  padding-left: 0.62rem;
+  border-left: 1px solid var(--ct-border-soft);
+}
+.ct-admin-sidebar__section-links .ct-admin-sidebar__link {
+  margin-left: 0;
 }
 .ct-admin-sidebar__link {
   display: flex;
@@ -103,7 +123,7 @@ export const INSTITUTION_ADMIN_CSS = `
   font-weight: 600;
 }
 .ct-admin-sidebar__link--sub {
-  padding-left: 1.45rem;
+  padding-left: 0.95rem;
   font-size: 0.83rem;
 }
 .ct-admin-sidebar__link--external::after {

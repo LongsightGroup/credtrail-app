@@ -285,8 +285,8 @@ export const AdminSidebar = (input: {
           return (
             <details class="ct-admin-sidebar__section" open>
               <summary class="ct-admin-sidebar__section-summary">
-                <span class="ct-admin-sidebar__section-caret" aria-hidden="true"></span>
                 <span class="ct-admin-sidebar__section-label">{section.label}</span>
+                <span class="ct-admin-sidebar__section-caret" aria-hidden="true"></span>
               </summary>
               <div class="ct-admin-sidebar__section-links">{renderLinks(section.links)}</div>
             </details>
