@@ -47,7 +47,10 @@ import {
 } from "./badges/revocation-status";
 import { createPublicBadgePageRenderers } from "./badges/public-badge-pages";
 import { createIssueBadgeForTenant } from "./badges/direct-issue";
-import { processBadgeTemplateImageGenerationJob } from "./badges/badge-template-image-generation";
+import {
+  processBadgeTemplateImageGenerationJob,
+  type BadgeTemplateImageGenerationAiBinding,
+} from "./badges/badge-template-image-generation";
 import {
   assertionBelongsToTenant,
   loadCredentialForAssertion,
@@ -197,6 +200,7 @@ export interface AppBindings {
   LTI_ISSUER_REGISTRY_JSON?: string;
   LTI_STATE_SIGNING_SECRET?: string;
   CANVAS_OAUTH_STATE_SIGNING_SECRET?: string;
+  AI?: BadgeTemplateImageGenerationAiBinding;
   OB3_DISCOVERY_TITLE?: string;
   OB3_TERMS_OF_SERVICE_URL?: string;
   OB3_PRIVACY_POLICY_URL?: string;
@@ -205,12 +209,6 @@ export interface AppBindings {
   OB3_OAUTH_AUTHORIZATION_URL?: string;
   OB3_OAUTH_TOKEN_URL?: string;
   OB3_OAUTH_REFRESH_URL?: string;
-  AI_GATEWAY_ENABLED?: string;
-  AI_GATEWAY_ACCOUNT_ID?: string;
-  AI_GATEWAY_ID?: string;
-  AI_GATEWAY_PROVIDER?: string;
-  AI_GATEWAY_AUTH_TOKEN?: string;
-  AI_GATEWAY_PROVIDER_API_KEY?: string;
   BADGE_IMAGE_GENERATION_MODEL?: string;
 }
 

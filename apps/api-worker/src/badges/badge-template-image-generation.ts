@@ -16,22 +16,16 @@ import {
 } from "./template-image-storage";
 
 export interface BadgeTemplateImageGenerationConfig {
-  enabled: boolean;
-  accountId: string;
-  gatewayId: string;
-  provider: string;
+  provider: "workers-ai";
   model: string;
-  gatewayAuthToken: string | null;
-  providerApiKey: string | null;
+}
+
+export interface BadgeTemplateImageGenerationAiBinding {
+  run(model: string, inputs: Record<string, unknown>): Promise<unknown>;
 }
 
 export interface BadgeTemplateImageGenerationEnv {
-  AI_GATEWAY_ENABLED?: string;
-  AI_GATEWAY_ACCOUNT_ID?: string;
-  AI_GATEWAY_ID?: string;
-  AI_GATEWAY_PROVIDER?: string;
-  AI_GATEWAY_AUTH_TOKEN?: string;
-  AI_GATEWAY_PROVIDER_API_KEY?: string;
+  AI?: BadgeTemplateImageGenerationAiBinding;
   BADGE_IMAGE_GENERATION_MODEL?: string;
   PLATFORM_DOMAIN: string;
 }
@@ -45,10 +39,7 @@ interface GeneratedBadgeTemplateImage {
 }
 
 const DEFAULT_WORKERS_AI_IMAGE_MODEL = "@cf/black-forest-labs/flux-2-klein-4b";
-const DEFAULT_AI_GATEWAY_REQUEST_TIMEOUT_MS = "120000";
-const DEFAULT_AI_GATEWAY_MAX_ATTEMPTS = "2";
-const DEFAULT_AI_GATEWAY_RETRY_DELAY_MS = "1000";
-const DEFAULT_AI_GATEWAY_BACKOFF = "exponential";
+const WORKERS_AI_IMAGE_GENERATION_TIMEOUT_MS = 120_000;
 
 const decodeBase64 = (value: string): Uint8Array => {
   const normalized = value.includes(",") ? (value.split(",").pop() ?? "") : value;
@@ -78,26 +69,12 @@ const requiredConfigValue = (value: string | undefined): string => {
 export const badgeTemplateImageGenerationConfigFromEnv = (
   env: BadgeTemplateImageGenerationEnv,
 ): BadgeTemplateImageGenerationConfig => {
-  const enabled = requiredConfigValue(env.AI_GATEWAY_ENABLED).toLowerCase() === "true";
-  const accountId = requiredConfigValue(env.AI_GATEWAY_ACCOUNT_ID);
-  const gatewayId = requiredConfigValue(env.AI_GATEWAY_ID);
-  const provider = requiredConfigValue(env.AI_GATEWAY_PROVIDER) || "workers-ai";
   const configuredModel = requiredConfigValue(env.BADGE_IMAGE_GENERATION_MODEL);
-  const model =
-    configuredModel.length > 0 || provider !== "workers-ai"
-      ? configuredModel
-      : DEFAULT_WORKERS_AI_IMAGE_MODEL;
-  const gatewayAuthToken = requiredConfigValue(env.AI_GATEWAY_AUTH_TOKEN);
-  const providerApiKey = requiredConfigValue(env.AI_GATEWAY_PROVIDER_API_KEY);
+  const model = configuredModel.length > 0 ? configuredModel : DEFAULT_WORKERS_AI_IMAGE_MODEL;
 
   return {
-    enabled,
-    accountId,
-    gatewayId,
-    provider,
+    provider: "workers-ai",
     model,
-    gatewayAuthToken: gatewayAuthToken.length === 0 ? null : gatewayAuthToken,
-    providerApiKey: providerApiKey.length === 0 ? null : providerApiKey,
   };
 };
 
@@ -105,17 +82,7 @@ export const isBadgeTemplateImageGenerationConfigured = (
   env: BadgeTemplateImageGenerationEnv,
 ): boolean => {
   const config = badgeTemplateImageGenerationConfigFromEnv(env);
-  const workersAiRequiresProviderToken =
-    config.provider === "workers-ai" && config.providerApiKey === null;
-
-  return (
-    config.enabled &&
-    config.accountId.length > 0 &&
-    config.gatewayId.length > 0 &&
-    config.provider.length > 0 &&
-    config.model.length > 0 &&
-    !workersAiRequiresProviderToken
-  );
+  return env.AI !== undefined && config.model.length > 0;
 };
 
 export const buildBadgeTemplateImagePrompt = (input: {
@@ -146,28 +113,7 @@ export const buildBadgeTemplateImagePrompt = (input: {
     .join("\n");
 };
 
-const encodeModelPath = (model: string): string => {
-  return model
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
-};
-
-const buildCloudflareAiGatewayUrl = (config: BadgeTemplateImageGenerationConfig): string => {
-  const baseUrl = `https://gateway.ai.cloudflare.com/v1/${encodeURIComponent(
-    config.accountId,
-  )}/${encodeURIComponent(config.gatewayId)}`;
-
-  if (config.provider === "workers-ai") {
-    return `${baseUrl}/workers-ai/${encodeModelPath(config.model)}`;
-  }
-
-  return `https://gateway.ai.cloudflare.com/v1/${encodeURIComponent(
-    config.accountId,
-  )}/${encodeURIComponent(config.gatewayId)}/${encodeURIComponent(config.provider)}/images/generations`;
-};
-
-const imageBytesFromGenerationResponse = async (responsePayload: unknown): Promise<Uint8Array> => {
+const imageBytesFromGenerationResponse = (responsePayload: unknown): Uint8Array => {
   const payload = asRecord(responsePayload);
   const directImage = payload?.image;
 
@@ -182,91 +128,54 @@ const imageBytesFromGenerationResponse = async (responsePayload: unknown): Promi
     return decodeBase64(resultImage);
   }
 
-  const data = Array.isArray(payload?.data) ? payload.data : [];
-  const first = asRecord(data[0]);
-
-  if (first === null) {
-    throw new Error("AI image generation response did not include image data");
-  }
-
-  if (typeof first.b64_json === "string" && first.b64_json.length > 0) {
-    return decodeBase64(first.b64_json);
-  }
-
-  if (typeof first.url === "string" && first.url.length > 0) {
-    const imageResponse = await fetch(first.url);
-
-    if (!imageResponse.ok) {
-      throw new Error(`Unable to fetch generated image URL: HTTP ${String(imageResponse.status)}`);
-    }
-
-    return new Uint8Array(await imageResponse.arrayBuffer());
-  }
-
-  throw new Error("AI image generation response did not include b64_json or url");
+  throw new Error("Workers AI image generation response did not include image data");
 };
 
-const parseJsonText = (value: string): unknown => {
-  try {
-    return JSON.parse(value) as unknown;
-  } catch {
-    return null;
-  }
-};
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
 
-const aiGatewayErrorDetail = (responsePayload: unknown, status: number): string => {
-  const payload = asRecord(responsePayload);
-  const errorPayload = asRecord(payload?.error);
-
-  if (typeof payload?.error === "string") {
-    return payload.error;
-  }
-
-  if (typeof errorPayload?.message === "string") {
-    return errorPayload.message;
-  }
-
-  return `AI Gateway image generation failed with HTTP ${String(status)}`;
-};
-
-const requestOpenAiProviderImage = async (input: {
-  config: BadgeTemplateImageGenerationConfig;
-  headers: Headers;
-  promptText: string;
-}): Promise<Response> => {
-  input.headers.set("content-type", "application/json");
-
-  return fetch(buildCloudflareAiGatewayUrl(input.config), {
-    method: "POST",
-    headers: input.headers,
-    body: JSON.stringify({
-      model: input.config.model,
-      prompt: input.promptText,
-      n: 1,
-      size: "1024x1024",
-      response_format: "b64_json",
-    }),
+  const timeoutPromise = new Promise<never>((_resolve, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error(`Workers AI image generation timed out after ${String(timeoutMs)}ms`));
+    }, timeoutMs);
   });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeout !== null) {
+      clearTimeout(timeout);
+    }
+  }
 };
 
-const requestWorkersAiImage = async (input: {
+const requestWorkersAiImage = (input: {
+  ai: BadgeTemplateImageGenerationAiBinding;
   config: BadgeTemplateImageGenerationConfig;
-  headers: Headers;
   promptText: string;
-}): Promise<Response> => {
+}): Promise<unknown> => {
   const form = new FormData();
   form.set("prompt", input.promptText);
   form.set("width", "1024");
   form.set("height", "1024");
 
-  return fetch(buildCloudflareAiGatewayUrl(input.config), {
-    method: "POST",
-    headers: input.headers,
-    body: form,
+  const serializedForm = new Response(form);
+  const body = serializedForm.body;
+  const contentType = serializedForm.headers.get("content-type");
+
+  if (body === null || contentType === null) {
+    throw new Error("Unable to serialize Workers AI multipart image request");
+  }
+
+  return input.ai.run(input.config.model, {
+    multipart: {
+      body,
+      contentType,
+    },
   });
 };
 
-export const generateBadgeTemplateImageViaCloudflareGateway = async (input: {
+export const generateBadgeTemplateImageViaWorkersAi = async (input: {
   env: BadgeTemplateImageGenerationEnv;
   promptText: string;
 }): Promise<GeneratedBadgeTemplateImage> => {
@@ -276,46 +185,21 @@ export const generateBadgeTemplateImageViaCloudflareGateway = async (input: {
     throw new Error("Badge image generation is not configured");
   }
 
-  const headers = new Headers();
+  const ai = input.env.AI;
 
-  if (config.providerApiKey !== null) {
-    headers.set("authorization", `Bearer ${config.providerApiKey}`);
+  if (ai === undefined) {
+    throw new Error("Badge image generation is not configured");
   }
 
-  if (config.gatewayAuthToken !== null) {
-    headers.set("cf-aig-authorization", `Bearer ${config.gatewayAuthToken}`);
-  }
-
-  headers.set("cf-aig-request-timeout", DEFAULT_AI_GATEWAY_REQUEST_TIMEOUT_MS);
-  headers.set("cf-aig-max-attempts", DEFAULT_AI_GATEWAY_MAX_ATTEMPTS);
-  headers.set("cf-aig-retry-delay", DEFAULT_AI_GATEWAY_RETRY_DELAY_MS);
-  headers.set("cf-aig-backoff", DEFAULT_AI_GATEWAY_BACKOFF);
-
-  const response =
-    config.provider === "workers-ai"
-      ? await requestWorkersAiImage({
-          config,
-          headers,
-          promptText: input.promptText,
-        })
-      : await requestOpenAiProviderImage({
-          config,
-          headers,
-          promptText: input.promptText,
-        });
-
-  const responseContentType = response.headers.get("content-type") ?? "";
-  const responsePayload = responseContentType.toLowerCase().startsWith("image/")
-    ? null
-    : parseJsonText(await response.text());
-
-  if (!response.ok) {
-    throw new Error(aiGatewayErrorDetail(responsePayload, response.status));
-  }
-
-  const bytes = responseContentType.toLowerCase().startsWith("image/")
-    ? new Uint8Array(await response.arrayBuffer())
-    : await imageBytesFromGenerationResponse(responsePayload);
+  const responsePayload = await withTimeout(
+    requestWorkersAiImage({
+      ai,
+      config,
+      promptText: input.promptText,
+    }),
+    WORKERS_AI_IMAGE_GENERATION_TIMEOUT_MS,
+  );
+  const bytes = imageBytesFromGenerationResponse(responsePayload);
 
   if (bytes.byteLength > BADGE_TEMPLATE_IMAGE_MAX_BYTES) {
     throw new Error(
@@ -335,9 +219,10 @@ export const generateBadgeTemplateImageViaCloudflareGateway = async (input: {
     provider: config.provider,
     model: config.model,
     metadata: {
-      gatewayProvider: config.provider,
+      provider: config.provider,
       model: config.model,
       byteSize: bytes.byteLength,
+      invocation: "workers-ai-binding",
     },
   };
 };
@@ -403,7 +288,7 @@ export const processBadgeTemplateImageGenerationJob = async (input: {
       throw new Error(`Badge template ${input.payload.badgeTemplateId} not found`);
     }
 
-    const generated = await generateBadgeTemplateImageViaCloudflareGateway({
+    const generated = await generateBadgeTemplateImageViaWorkersAi({
       env: input.env,
       promptText: input.payload.promptText,
     });

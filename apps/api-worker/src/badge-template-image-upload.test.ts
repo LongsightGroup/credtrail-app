@@ -86,6 +86,7 @@ import {
   type TenantMembershipRecord,
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
+import type { BadgeTemplateImageGenerationAiBinding } from "./badges/badge-template-image-generation";
 import { BADGE_TEMPLATE_IMAGE_MAX_BYTES } from "./badges/template-image-storage";
 import { app } from "./index";
 
@@ -110,6 +111,14 @@ const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const fakeDb = {
   prepare: vi.fn(),
 } as unknown as SqlDatabase;
+
+const createFakeWorkersAiBinding = (): BadgeTemplateImageGenerationAiBinding => {
+  return {
+    run: vi.fn(async () => {
+      return {};
+    }),
+  };
+};
 
 const createEnv = (
   badgeObjects: R2Bucket,
@@ -586,11 +595,7 @@ describe("badge template image upload routes", () => {
     const { store } = createBadgeObjectStore();
     const env = {
       ...createEnv(store),
-      AI_GATEWAY_ENABLED: "true",
-      AI_GATEWAY_ACCOUNT_ID: "cf_account_123",
-      AI_GATEWAY_ID: "credtrail",
-      AI_GATEWAY_PROVIDER: "workers-ai",
-      AI_GATEWAY_PROVIDER_API_KEY: "cf-workers-ai-token",
+      AI: createFakeWorkersAiBinding(),
       BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-4b",
     };
 
