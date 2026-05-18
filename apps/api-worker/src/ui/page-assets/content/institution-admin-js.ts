@@ -107,6 +107,8 @@ export const INSTITUTION_ADMIN_JS = `
   const adminButtonTinySecondaryClass = adminButtonTinyClass + ' ct-admin__button--secondary';
   const adminButtonTinyGhostClass = adminButtonTinyClass + ' ct-admin__button--ghost';
   const adminButtonTinyDangerClass = adminButtonTinyClass + ' ct-admin__button--danger';
+  const badgeTemplateImageQueuedPollDelayMs = 15000;
+  const badgeTemplateImageProcessingPollDelayMs = 10000;
 
   const manualIssueForm = document.getElementById('manual-issue-form');
   const manualIssueStatus = document.getElementById('manual-issue-status');
@@ -407,8 +409,11 @@ export const INSTITUTION_ADMIN_JS = `
       const statusText =
         status === 'queued'
           ? 'Draft queued. Waiting for the background image worker...'
-          : 'Generating badge image draft...';
-      const nextPollDelayMs = status === 'processing' ? 3000 : 5000;
+          : 'Generating badge image draft. Checking again shortly...';
+      const nextPollDelayMs =
+        status === 'processing'
+          ? badgeTemplateImageProcessingPollDelayMs
+          : badgeTemplateImageQueuedPollDelayMs;
 
       setStatus(badgeTemplateImageGenerationStatus, statusText, false);
       badgeTemplateImageGenerationPollTimer = window.setTimeout(() => {
@@ -1869,12 +1874,12 @@ export const INSTITUTION_ADMIN_JS = `
         };
         setStatus(
           badgeTemplateImageGenerationStatus,
-          'Draft queued. The background image worker runs about once a minute.',
+          'Draft queued. The background image worker runs about once a minute; this page will check periodically.',
           false,
         );
         badgeTemplateImageGenerationPollTimer = window.setTimeout(() => {
           void pollBadgeTemplateImageGeneration(badgeTemplateId, generationId);
-        }, 5000);
+        }, badgeTemplateImageQueuedPollDelayMs);
       } catch {
         setStatus(
           badgeTemplateImageGenerationStatus,
