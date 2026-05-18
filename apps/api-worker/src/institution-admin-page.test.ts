@@ -2713,14 +2713,18 @@ describe("GET /tenants/:tenantId/admin/access", () => {
     expect(body).toContain(">Access<");
     expect(body).toContain("Members");
     expect(body).toContain('href="/tenants/tenant_123/admin/access/members"');
+    expect(body).toContain('aria-label="Open Members page"');
     expect(body).not.toMatch(/>\s*Manage members\s*<\/a>/);
     expect(body).toContain("Access pages");
     expect(body).toContain("Governance");
     expect(body).toContain('href="/tenants/tenant_123/admin/access/governance"');
+    expect(body).toContain('aria-label="Open Governance page"');
     expect(body).toContain("API Keys");
     expect(body).toContain("Org Units");
     expect(body).toContain('href="/tenants/tenant_123/admin/access/api-keys"');
+    expect(body).toContain('aria-label="Open API Keys page"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/org-units"');
+    expect(body).toContain('aria-label="Open Org Units page"');
     expect(body).not.toContain("Save scoped role");
     expect(body).not.toContain('id="tenant-member-form"');
     expect(body).not.toContain('id="membership-scope-form"');

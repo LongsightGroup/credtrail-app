@@ -3666,7 +3666,7 @@ const renderInstitutionAdminPage = (
 
   const accessOverviewPanelMarkup = (
     <section class="ct-admin__workspace-grid ct-grid" aria-label="Access pages">
-      <AdminWorkspaceCard>
+      <AdminWorkspaceCard href={accessMembersPath} ariaLabel="Open Members page">
         <p class="ct-admin__eyebrow">People</p>
         <h2>Members</h2>
         <p>
@@ -3676,7 +3676,7 @@ const renderInstitutionAdminPage = (
           <AdminStatusPill>{tenantMemberCount} members</AdminStatusPill>
         </div>
       </AdminWorkspaceCard>
-      <AdminWorkspaceCard>
+      <AdminWorkspaceCard href={accessGovernancePath} ariaLabel="Open Governance page">
         <p class="ct-admin__eyebrow">Delegation</p>
         <h2>Governance</h2>
         <p>Grant org-unit scoped roles and time-boxed badge authority.</p>
@@ -3685,7 +3685,7 @@ const renderInstitutionAdminPage = (
           <AdminStatusPill>{delegatedAuthorityGrantCount} delegations</AdminStatusPill>
         </div>
       </AdminWorkspaceCard>
-      <AdminWorkspaceCard>
+      <AdminWorkspaceCard href={accessApiKeysPath} ariaLabel="Open API Keys page">
         <p class="ct-admin__eyebrow">Integrations</p>
         <h2>API Keys</h2>
         <p>Create and revoke tenant API keys for trusted integrations.</p>
@@ -3694,7 +3694,7 @@ const renderInstitutionAdminPage = (
           <AdminStatusPill>{revokedApiKeyCount} revoked</AdminStatusPill>
         </div>
       </AdminWorkspaceCard>
-      <AdminWorkspaceCard>
+      <AdminWorkspaceCard href={accessOrgUnitsPath} ariaLabel="Open Org Units page">
         <p class="ct-admin__eyebrow">Structure</p>
         <h2>Org Units</h2>
         <p>Maintain institution, college, department, and program hierarchy.</p>
