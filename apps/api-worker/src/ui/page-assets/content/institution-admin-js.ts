@@ -115,6 +115,7 @@ export const INSTITUTION_ADMIN_JS = `
   const apiKeySecret = document.getElementById('api-key-secret');
   const orgUnitForm = document.getElementById('org-unit-form');
   const orgUnitStatus = document.getElementById('org-unit-status');
+  const templateImagePanel = document.getElementById('template-image-panel');
   const badgeTemplateImageUploadForm = document.getElementById('badge-template-image-upload-form');
   const badgeTemplateImageUploadStatus = document.getElementById(
     'badge-template-image-upload-status',
@@ -402,10 +403,17 @@ export const INSTITUTION_ADMIN_JS = `
         return;
       }
 
-      setStatus(badgeTemplateImageGenerationStatus, 'Generating badge image draft...', false);
+      const status = generation && typeof generation.status === 'string' ? generation.status : '';
+      const statusText =
+        status === 'queued'
+          ? 'Draft queued. Waiting for the background image worker...'
+          : 'Generating badge image draft...';
+      const nextPollDelayMs = status === 'processing' ? 3000 : 5000;
+
+      setStatus(badgeTemplateImageGenerationStatus, statusText, false);
       badgeTemplateImageGenerationPollTimer = window.setTimeout(() => {
         void pollBadgeTemplateImageGeneration(badgeTemplateId, generationId);
-      }, 2500);
+      }, nextPollDelayMs);
     } catch {
       setStatus(
         badgeTemplateImageGenerationStatus,
@@ -453,6 +461,45 @@ export const INSTITUTION_ADMIN_JS = `
       item.append(meta, button);
       badgeTemplateImageRevisionList.append(item);
     });
+  };
+  const loadBadgeTemplateImageRevisions = async (badgeTemplateId) => {
+    if (!(badgeTemplateImageRevisionStatus instanceof HTMLElement)) {
+      return;
+    }
+
+    if (badgeTemplateId.length === 0) {
+      setStatus(badgeTemplateImageRevisionStatus, 'Badge template is required.', true);
+      return;
+    }
+
+    setStatus(badgeTemplateImageRevisionStatus, 'Loading badge image history...', false);
+
+    try {
+      const response = await fetch(
+        badgeTemplateApiPathPrefix +
+          '/' +
+          encodeURIComponent(badgeTemplateId) +
+          '/image-revisions',
+      );
+      const payload = await parseJsonBody(response);
+
+      if (!response.ok) {
+        setStatus(badgeTemplateImageRevisionStatus, errorDetailFromPayload(payload), true);
+        return;
+      }
+
+      renderBadgeTemplateImageRevisions(
+        badgeTemplateId,
+        payload && Array.isArray(payload.revisions) ? payload.revisions : [],
+      );
+      setStatus(badgeTemplateImageRevisionStatus, 'Image history loaded.', false, 'success');
+    } catch {
+      setStatus(
+        badgeTemplateImageRevisionStatus,
+        'Unable to load badge image history from this browser session.',
+        true,
+      );
+    }
   };
   const parseIssuedBadgesLimit = (rawValue) => {
     const fallbackLimit = 100;
@@ -1822,12 +1869,12 @@ export const INSTITUTION_ADMIN_JS = `
         };
         setStatus(
           badgeTemplateImageGenerationStatus,
-          'Generation queued. This may take a minute.',
+          'Draft queued. The background image worker runs about once a minute.',
           false,
         );
         badgeTemplateImageGenerationPollTimer = window.setTimeout(() => {
           void pollBadgeTemplateImageGeneration(badgeTemplateId, generationId);
-        }, 1500);
+        }, 5000);
       } catch {
         setStatus(
           badgeTemplateImageGenerationStatus,
@@ -1894,45 +1941,43 @@ export const INSTITUTION_ADMIN_JS = `
   ) {
     badgeTemplateImageRevisionForm.addEventListener('submit', async (event) => {
       event.preventDefault();
-      setStatus(badgeTemplateImageRevisionStatus, 'Loading badge image history...', false);
       const data = new FormData(badgeTemplateImageRevisionForm);
       const badgeTemplateIdRaw = data.get('badgeTemplateId');
       const badgeTemplateId =
         typeof badgeTemplateIdRaw === 'string' ? badgeTemplateIdRaw.trim() : '';
 
-      if (badgeTemplateId.length === 0) {
-        setStatus(badgeTemplateImageRevisionStatus, 'Badge template is required.', true);
-        return;
-      }
-
-      try {
-        const response = await fetch(
-          badgeTemplateApiPathPrefix +
-            '/' +
-            encodeURIComponent(badgeTemplateId) +
-            '/image-revisions',
-        );
-        const payload = await parseJsonBody(response);
-
-        if (!response.ok) {
-          setStatus(badgeTemplateImageRevisionStatus, errorDetailFromPayload(payload), true);
-          return;
-        }
-
-        renderBadgeTemplateImageRevisions(
-          badgeTemplateId,
-          payload && Array.isArray(payload.revisions) ? payload.revisions : [],
-        );
-        setStatus(badgeTemplateImageRevisionStatus, 'Image history loaded.', false, 'success');
-      } catch {
-        setStatus(
-          badgeTemplateImageRevisionStatus,
-          'Unable to load badge image history from this browser session.',
-          true,
-        );
-      }
+      await loadBadgeTemplateImageRevisions(badgeTemplateId);
     });
   }
+
+  document.querySelectorAll('[data-template-image-history-template-id]').forEach((candidate) => {
+    if (!(candidate instanceof HTMLAnchorElement)) {
+      return;
+    }
+
+    candidate.addEventListener('click', async (event) => {
+      event.preventDefault();
+      const badgeTemplateId = candidate.dataset.templateImageHistoryTemplateId || '';
+
+      if (templateImagePanel instanceof HTMLDetailsElement) {
+        templateImagePanel.open = true;
+      }
+
+      if (badgeTemplateImageRevisionForm instanceof HTMLFormElement) {
+        const templateSelect = badgeTemplateImageRevisionForm.elements.namedItem('badgeTemplateId');
+
+        if (templateSelect instanceof HTMLSelectElement) {
+          templateSelect.value = badgeTemplateId;
+        }
+      }
+
+      if (badgeTemplateImageRevisionStatus instanceof HTMLElement) {
+        badgeTemplateImageRevisionStatus.scrollIntoView({ block: 'center' });
+      }
+
+      await loadBadgeTemplateImageRevisions(badgeTemplateId);
+    });
+  });
 
   if (
     badgeTemplateImageRevisionList instanceof HTMLElement &&

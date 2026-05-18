@@ -167,7 +167,6 @@ import {
   processQueueInputWithDefaults,
   readJsonBodyOrEmptyObject,
 } from "./queue/processing";
-import { queueProcessorRequestFromSchedule } from "./queue/scheduled-trigger";
 import {
   createPresentationVerificationHelpers,
   didKeyVerificationMethod,
@@ -1530,7 +1529,9 @@ registerQueueRoutes({
 
 const worker = createApiWorker({
   app,
-  queueProcessorRequestFromSchedule,
+  processScheduledQueue: (env) => {
+    return processQueuedJobs({ env } as AppContext, processQueueInputWithDefaults({}));
+  },
   observabilityContext,
 });
 

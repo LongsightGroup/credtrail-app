@@ -6,6 +6,7 @@ import {
 } from "@credtrail/core-domain";
 import type { Hono } from "hono";
 import type { AppBindings, AppEnv } from "../app";
+import type { ProcessQueueRunResult } from "../queue/processing";
 import { createR2ImmutableCredentialStore } from "../storage/r2-immutable-credential-store";
 
 export interface WorkerRuntimeBindings extends Omit<AppBindings, "BADGE_OBJECTS"> {
@@ -14,14 +15,14 @@ export interface WorkerRuntimeBindings extends Omit<AppBindings, "BADGE_OBJECTS"
 
 interface CreateApiWorkerInput {
   app: Hono<AppEnv>;
-  queueProcessorRequestFromSchedule: (env: AppBindings) => Request;
+  processScheduledQueue: (env: AppBindings) => Promise<ProcessQueueRunResult>;
   observabilityContext: (bindings: AppBindings) => ObservabilityContext;
 }
 
 export const createApiWorker = (
   input: CreateApiWorkerInput,
 ): ExportedHandler<WorkerRuntimeBindings> => {
-  const { app, queueProcessorRequestFromSchedule, observabilityContext } = input;
+  const { app, processScheduledQueue, observabilityContext } = input;
   const appBindingsFromRuntime = (env: WorkerRuntimeBindings): AppBindings => {
     return {
       ...env,
@@ -34,38 +35,36 @@ export const createApiWorker = (
       const appBindings = appBindingsFromRuntime(env);
       return Promise.resolve(app.fetch(request, appBindings, executionCtx));
     },
-    async scheduled(event, env, executionCtx): Promise<void> {
+    async scheduled(event, env): Promise<void> {
       const appBindings = appBindingsFromRuntime(env);
-      const request = queueProcessorRequestFromSchedule(appBindings);
-      const response = await app.fetch(request, appBindings, executionCtx);
-      const responseBody = await response.text();
 
-      if (!response.ok) {
+      try {
+        const result = await processScheduledQueue(appBindings);
+
+        logInfo(observabilityContext(appBindings), "scheduled_queue_processing_succeeded", {
+          cron: event.cron,
+          ...result,
+        });
+      } catch (error: unknown) {
+        const detail = error instanceof Error ? error.message : "Unknown queue processing failure";
+
         await captureSentryException({
           context: observabilityContext(appBindings),
           dsn: appBindings.SENTRY_DSN,
-          error: new Error("Scheduled queue processing failed"),
+          error,
           message: "Scheduled queue processing failed",
           extra: {
             cron: event.cron,
-            status: response.status,
-            responseBody,
+            detail,
           },
         });
 
         logError(observabilityContext(appBindings), "scheduled_queue_processing_failed", {
           cron: event.cron,
-          status: response.status,
-          responseBody,
+          detail,
         });
         return;
       }
-
-      logInfo(observabilityContext(appBindings), "scheduled_queue_processing_succeeded", {
-        cron: event.cron,
-        status: response.status,
-        responseBody,
-      });
     },
   };
 };

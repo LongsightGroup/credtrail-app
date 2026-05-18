@@ -849,6 +849,10 @@ const renderInstitutionAdminPage = (
               <a href={criteriaRegistryHref} target="_blank" rel="noopener noreferrer">
                 Criteria
               </a>
+              {" · "}
+              <a href="#template-image-panel" data-template-image-history-template-id={template.id}>
+                History
+              </a>
             </td>
           </tr>
         );

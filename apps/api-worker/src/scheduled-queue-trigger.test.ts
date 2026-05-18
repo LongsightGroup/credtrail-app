@@ -48,12 +48,7 @@ beforeEach(() => {
 });
 
 describe("scheduled queue processor trigger", () => {
-  it("invokes queue processing endpoint on schedule", async () => {
-    const env = {
-      ...createEnv(),
-      JOB_PROCESSOR_TOKEN: "processor-secret",
-    };
-
+  it("processes queued jobs directly on schedule", async () => {
     mockedLeaseJobQueueMessages.mockResolvedValue([]);
 
     await worker.scheduled?.(
@@ -63,7 +58,7 @@ describe("scheduled queue processor trigger", () => {
         type: "scheduled",
         noRetry: vi.fn(),
       } as unknown as ScheduledController,
-      env,
+      createEnv(),
       {
         waitUntil: vi.fn(),
         passThroughOnException: vi.fn(),
