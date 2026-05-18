@@ -39,8 +39,8 @@ interface GeneratedBadgeTemplateImage {
   metadata: Record<string, string | number | boolean | null>;
 }
 
-const DEFAULT_WORKERS_AI_IMAGE_MODEL = "@cf/black-forest-labs/flux-2-klein-4b";
-const WORKERS_AI_IMAGE_GENERATION_TIMEOUT_MS = 30_000;
+const DEFAULT_WORKERS_AI_IMAGE_MODEL = "@cf/black-forest-labs/flux-2-dev";
+const WORKERS_AI_IMAGE_GENERATION_TIMEOUT_MS = 60_000;
 
 const decodeBase64 = (value: string): Uint8Array => {
   const normalized = value.includes(",") ? (value.split(",").pop() ?? "") : value;
@@ -160,6 +160,7 @@ const requestWorkersAiImage = (input: {
 }): Promise<unknown> => {
   const form = new FormData();
   form.set("prompt", input.promptText);
+  form.set("steps", "25");
   form.set("width", "1024");
   form.set("height", "1024");
 

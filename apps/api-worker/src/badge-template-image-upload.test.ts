@@ -598,7 +598,7 @@ describe("badge template image upload routes", () => {
     const env = {
       ...createEnv(store),
       AI: createFakeWorkersAiBinding(),
-      BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-4b",
+      BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-dev",
     };
 
     const response = await app.request(

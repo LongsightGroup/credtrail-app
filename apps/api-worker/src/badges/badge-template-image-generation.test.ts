@@ -34,7 +34,7 @@ const sampleTemplate = (): BadgeTemplateRecord => {
 };
 
 describe("badge template image generation Workers AI client", () => {
-  it("defaults to the fast Workers AI FLUX.2 klein model", () => {
+  it("defaults to the higher quality Workers AI FLUX.2 dev model", () => {
     const ai = {
       run: vi.fn<BadgeTemplateImageGenerationAiBinding["run"]>(async () => {
         return {};
@@ -46,7 +46,7 @@ describe("badge template image generation Workers AI client", () => {
     });
 
     expect(config.provider).toBe("workers-ai");
-    expect(config.model).toBe("@cf/black-forest-labs/flux-2-klein-4b");
+    expect(config.model).toBe("@cf/black-forest-labs/flux-2-dev");
     expect(
       isBadgeTemplateImageGenerationConfigured({
         AI: ai,
@@ -94,7 +94,7 @@ describe("badge template image generation Workers AI client", () => {
     const generated = await generateBadgeTemplateImageViaWorkersAi({
       env: {
         AI: ai,
-        BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-4b",
+        BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-dev",
         PLATFORM_DOMAIN: "credtrail.test",
       },
       promptText: "Create a badge.",
@@ -118,7 +118,19 @@ describe("badge template image generation Workers AI client", () => {
       throw new Error("Expected Workers AI multipart body to be a ReadableStream");
     }
 
-    expect(model).toBe("@cf/black-forest-labs/flux-2-klein-4b");
-    expect(String(multipart.contentType)).toContain("multipart/form-data");
+    const contentType = typeof multipart.contentType === "string" ? multipart.contentType : "";
+
+    expect(model).toBe("@cf/black-forest-labs/flux-2-dev");
+    expect(contentType).toContain("multipart/form-data");
+
+    const submittedForm = await new Response(multipart.body, {
+      headers: {
+        "content-type": contentType,
+      },
+    }).formData();
+
+    expect(submittedForm.get("steps")).toBe("25");
+    expect(submittedForm.get("width")).toBe("1024");
+    expect(submittedForm.get("height")).toBe("1024");
   });
 });
