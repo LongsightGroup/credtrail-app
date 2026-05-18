@@ -43,8 +43,8 @@ describe("createNodeRuntimeBindings", () => {
       AI_GATEWAY_ENABLED: "true",
       AI_GATEWAY_ACCOUNT_ID: "cf-account",
       AI_GATEWAY_ID: "credtrail",
-      AI_GATEWAY_PROVIDER: "openai",
-      BADGE_IMAGE_GENERATION_MODEL: "gpt-image-1",
+      AI_GATEWAY_PROVIDER: "workers-ai",
+      BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-4b",
       S3_BUCKET: "credtrail-badges",
       S3_REGION: "us-east-1",
       S3_ENDPOINT: "http://minio:9000",
@@ -58,7 +58,7 @@ describe("createNodeRuntimeBindings", () => {
     expect(bindings.DATABASE_URL).toBe("postgres://example/db");
     expect(bindings.JOB_PROCESSOR_TOKEN).toBe("job-token");
     expect(bindings.AI_GATEWAY_ENABLED).toBe("true");
-    expect(bindings.BADGE_IMAGE_GENERATION_MODEL).toBe("gpt-image-1");
+    expect(bindings.BADGE_IMAGE_GENERATION_MODEL).toBe("@cf/black-forest-labs/flux-2-klein-4b");
     expect(typeof bindings.BADGE_OBJECTS.head).toBe("function");
     expect(typeof bindings.BADGE_OBJECTS.get).toBe("function");
     expect(typeof bindings.BADGE_OBJECTS.put).toBe("function");

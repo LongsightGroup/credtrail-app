@@ -44,6 +44,8 @@ interface GeneratedBadgeTemplateImage {
   metadata: Record<string, string | number | boolean | null>;
 }
 
+const DEFAULT_WORKERS_AI_IMAGE_MODEL = "@cf/black-forest-labs/flux-2-klein-4b";
+
 const decodeBase64 = (value: string): Uint8Array => {
   const normalized = value.includes(",") ? (value.split(",").pop() ?? "") : value;
   const binary = atob(normalized);
@@ -75,8 +77,12 @@ export const badgeTemplateImageGenerationConfigFromEnv = (
   const enabled = requiredConfigValue(env.AI_GATEWAY_ENABLED).toLowerCase() === "true";
   const accountId = requiredConfigValue(env.AI_GATEWAY_ACCOUNT_ID);
   const gatewayId = requiredConfigValue(env.AI_GATEWAY_ID);
-  const provider = requiredConfigValue(env.AI_GATEWAY_PROVIDER) || "openai";
-  const model = requiredConfigValue(env.BADGE_IMAGE_GENERATION_MODEL);
+  const provider = requiredConfigValue(env.AI_GATEWAY_PROVIDER) || "workers-ai";
+  const configuredModel = requiredConfigValue(env.BADGE_IMAGE_GENERATION_MODEL);
+  const model =
+    configuredModel.length > 0 || provider !== "workers-ai"
+      ? configuredModel
+      : DEFAULT_WORKERS_AI_IMAGE_MODEL;
   const gatewayAuthToken = requiredConfigValue(env.AI_GATEWAY_AUTH_TOKEN);
   const providerApiKey = requiredConfigValue(env.AI_GATEWAY_PROVIDER_API_KEY);
 
@@ -95,12 +101,16 @@ export const isBadgeTemplateImageGenerationConfigured = (
   env: BadgeTemplateImageGenerationEnv,
 ): boolean => {
   const config = badgeTemplateImageGenerationConfigFromEnv(env);
+  const workersAiRequiresProviderToken =
+    config.provider === "workers-ai" && config.providerApiKey === null;
+
   return (
     config.enabled &&
     config.accountId.length > 0 &&
     config.gatewayId.length > 0 &&
     config.provider.length > 0 &&
-    config.model.length > 0
+    config.model.length > 0 &&
+    !workersAiRequiresProviderToken
   );
 };
 
@@ -132,7 +142,22 @@ export const buildBadgeTemplateImagePrompt = (input: {
     .join("\n");
 };
 
+const encodeModelPath = (model: string): string => {
+  return model
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+};
+
 const buildCloudflareAiGatewayUrl = (config: BadgeTemplateImageGenerationConfig): string => {
+  const baseUrl = `https://gateway.ai.cloudflare.com/v1/${encodeURIComponent(
+    config.accountId,
+  )}/${encodeURIComponent(config.gatewayId)}`;
+
+  if (config.provider === "workers-ai") {
+    return `${baseUrl}/workers-ai/${encodeModelPath(config.model)}`;
+  }
+
   return `https://gateway.ai.cloudflare.com/v1/${encodeURIComponent(
     config.accountId,
   )}/${encodeURIComponent(config.gatewayId)}/${encodeURIComponent(config.provider)}/images/generations`;
@@ -140,6 +165,19 @@ const buildCloudflareAiGatewayUrl = (config: BadgeTemplateImageGenerationConfig)
 
 const imageBytesFromGenerationResponse = async (responsePayload: unknown): Promise<Uint8Array> => {
   const payload = asRecord(responsePayload);
+  const directImage = payload?.image;
+
+  if (typeof directImage === "string" && directImage.length > 0) {
+    return decodeBase64(directImage);
+  }
+
+  const result = asRecord(payload?.result);
+  const resultImage = result?.image;
+
+  if (typeof resultImage === "string" && resultImage.length > 0) {
+    return decodeBase64(resultImage);
+  }
+
   const data = Array.isArray(payload?.data) ? payload.data : [];
   const first = asRecord(data[0]);
 
@@ -164,6 +202,66 @@ const imageBytesFromGenerationResponse = async (responsePayload: unknown): Promi
   throw new Error("AI image generation response did not include b64_json or url");
 };
 
+const parseJsonText = (value: string): unknown => {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+};
+
+const aiGatewayErrorDetail = (responsePayload: unknown, status: number): string => {
+  const payload = asRecord(responsePayload);
+  const errorPayload = asRecord(payload?.error);
+
+  if (typeof payload?.error === "string") {
+    return payload.error;
+  }
+
+  if (typeof errorPayload?.message === "string") {
+    return errorPayload.message;
+  }
+
+  return `AI Gateway image generation failed with HTTP ${String(status)}`;
+};
+
+const requestOpenAiProviderImage = async (input: {
+  config: BadgeTemplateImageGenerationConfig;
+  headers: Headers;
+  promptText: string;
+}): Promise<Response> => {
+  input.headers.set("content-type", "application/json");
+
+  return fetch(buildCloudflareAiGatewayUrl(input.config), {
+    method: "POST",
+    headers: input.headers,
+    body: JSON.stringify({
+      model: input.config.model,
+      prompt: input.promptText,
+      n: 1,
+      size: "1024x1024",
+      response_format: "b64_json",
+    }),
+  });
+};
+
+const requestWorkersAiImage = async (input: {
+  config: BadgeTemplateImageGenerationConfig;
+  headers: Headers;
+  promptText: string;
+}): Promise<Response> => {
+  const form = new FormData();
+  form.set("prompt", input.promptText);
+  form.set("width", "1024");
+  form.set("height", "1024");
+
+  return fetch(buildCloudflareAiGatewayUrl(input.config), {
+    method: "POST",
+    headers: input.headers,
+    body: form,
+  });
+};
+
 export const generateBadgeTemplateImageViaCloudflareGateway = async (input: {
   env: BadgeTemplateImageGenerationEnv;
   promptText: string;
@@ -174,9 +272,7 @@ export const generateBadgeTemplateImageViaCloudflareGateway = async (input: {
     throw new Error("Badge image generation is not configured");
   }
 
-  const headers = new Headers({
-    "content-type": "application/json",
-  });
+  const headers = new Headers();
 
   if (config.providerApiKey !== null) {
     headers.set("authorization", `Bearer ${config.providerApiKey}`);
@@ -186,31 +282,31 @@ export const generateBadgeTemplateImageViaCloudflareGateway = async (input: {
     headers.set("cf-aig-authorization", `Bearer ${config.gatewayAuthToken}`);
   }
 
-  const response = await fetch(buildCloudflareAiGatewayUrl(config), {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model: config.model,
-      prompt: input.promptText,
-      n: 1,
-      size: "1024x1024",
-      response_format: "b64_json",
-    }),
-  });
+  const response =
+    config.provider === "workers-ai"
+      ? await requestWorkersAiImage({
+          config,
+          headers,
+          promptText: input.promptText,
+        })
+      : await requestOpenAiProviderImage({
+          config,
+          headers,
+          promptText: input.promptText,
+        });
 
-  const responseText = await response.text();
-  const responsePayload = responseText.length === 0 ? null : (JSON.parse(responseText) as unknown);
+  const responseContentType = response.headers.get("content-type") ?? "";
+  const responsePayload = responseContentType.toLowerCase().startsWith("image/")
+    ? null
+    : parseJsonText(await response.text());
 
   if (!response.ok) {
-    const errorPayload = asRecord(responsePayload);
-    const detail =
-      typeof errorPayload?.error === "string"
-        ? errorPayload.error
-        : `AI Gateway image generation failed with HTTP ${String(response.status)}`;
-    throw new Error(detail);
+    throw new Error(aiGatewayErrorDetail(responsePayload, response.status));
   }
 
-  const bytes = await imageBytesFromGenerationResponse(responsePayload);
+  const bytes = responseContentType.toLowerCase().startsWith("image/")
+    ? new Uint8Array(await response.arrayBuffer())
+    : await imageBytesFromGenerationResponse(responsePayload);
 
   if (bytes.byteLength > BADGE_TEMPLATE_IMAGE_MAX_BYTES) {
     throw new Error(

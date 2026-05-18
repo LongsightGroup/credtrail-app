@@ -589,8 +589,9 @@ describe("badge template image upload routes", () => {
       AI_GATEWAY_ENABLED: "true",
       AI_GATEWAY_ACCOUNT_ID: "cf_account_123",
       AI_GATEWAY_ID: "credtrail",
-      AI_GATEWAY_PROVIDER: "openai",
-      BADGE_IMAGE_GENERATION_MODEL: "gpt-image-1",
+      AI_GATEWAY_PROVIDER: "workers-ai",
+      AI_GATEWAY_PROVIDER_API_KEY: "cf-workers-ai-token",
+      BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-4b",
     };
 
     const response = await app.request(
