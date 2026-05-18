@@ -45,6 +45,10 @@ interface GeneratedBadgeTemplateImage {
 }
 
 const DEFAULT_WORKERS_AI_IMAGE_MODEL = "@cf/black-forest-labs/flux-2-klein-4b";
+const DEFAULT_AI_GATEWAY_REQUEST_TIMEOUT_MS = "120000";
+const DEFAULT_AI_GATEWAY_MAX_ATTEMPTS = "2";
+const DEFAULT_AI_GATEWAY_RETRY_DELAY_MS = "1000";
+const DEFAULT_AI_GATEWAY_BACKOFF = "exponential";
 
 const decodeBase64 = (value: string): Uint8Array => {
   const normalized = value.includes(",") ? (value.split(",").pop() ?? "") : value;
@@ -281,6 +285,11 @@ export const generateBadgeTemplateImageViaCloudflareGateway = async (input: {
   if (config.gatewayAuthToken !== null) {
     headers.set("cf-aig-authorization", `Bearer ${config.gatewayAuthToken}`);
   }
+
+  headers.set("cf-aig-request-timeout", DEFAULT_AI_GATEWAY_REQUEST_TIMEOUT_MS);
+  headers.set("cf-aig-max-attempts", DEFAULT_AI_GATEWAY_MAX_ATTEMPTS);
+  headers.set("cf-aig-retry-delay", DEFAULT_AI_GATEWAY_RETRY_DELAY_MS);
+  headers.set("cf-aig-backoff", DEFAULT_AI_GATEWAY_BACKOFF);
 
   const response =
     config.provider === "workers-ai"

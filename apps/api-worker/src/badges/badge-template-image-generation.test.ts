@@ -84,6 +84,10 @@ describe("badge template image generation gateway client", () => {
     );
     expect(headers.get("authorization")).toBe("Bearer cf-workers-ai-token");
     expect(headers.has("content-type")).toBe(false);
+    expect(headers.get("cf-aig-request-timeout")).toBe("120000");
+    expect(headers.get("cf-aig-max-attempts")).toBe("2");
+    expect(headers.get("cf-aig-retry-delay")).toBe("1000");
+    expect(headers.get("cf-aig-backoff")).toBe("exponential");
     expect(body.get("prompt")).toBe("Create a badge.");
     expect(body.get("width")).toBe("1024");
     expect(body.get("height")).toBe("1024");
@@ -135,6 +139,7 @@ describe("badge template image generation gateway client", () => {
       "https://gateway.ai.cloudflare.com/v1/cf_account_123/credtrail/openai/images/generations",
     );
     expect(headers.get("content-type")).toBe("application/json");
+    expect(headers.get("cf-aig-request-timeout")).toBe("120000");
     expect(body.model).toBe("gpt-image-1");
     expect(body.prompt).toBe("Create a badge.");
   });
