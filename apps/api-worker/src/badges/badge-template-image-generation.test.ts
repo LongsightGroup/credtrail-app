@@ -129,8 +129,8 @@ describe("badge template image generation Workers AI client", () => {
       },
     }).formData();
 
-    expect(submittedForm.get("steps")).toBe("25");
-    expect(submittedForm.get("width")).toBe("1024");
-    expect(submittedForm.get("height")).toBe("1024");
+    expect(submittedForm.get("steps")).toBe("12");
+    expect(submittedForm.get("width")).toBe("256");
+    expect(submittedForm.get("height")).toBe("256");
   });
 });

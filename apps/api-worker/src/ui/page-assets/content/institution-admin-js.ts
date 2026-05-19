@@ -1863,7 +1863,7 @@ export const INSTITUTION_ADMIN_JS = `
       showBadgeTemplateImageGenerationPreview(null);
       setStatus(
         badgeTemplateImageGenerationStatus,
-        'Generating badge image draft. This can take a few minutes...',
+        'Generating badge image draft. This may take about a minute...',
         false,
       );
       const data = new FormData(badgeTemplateImageGenerationForm);

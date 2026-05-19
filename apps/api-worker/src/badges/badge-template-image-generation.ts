@@ -41,6 +41,8 @@ interface GeneratedBadgeTemplateImage {
 
 const DEFAULT_WORKERS_AI_IMAGE_MODEL = "@cf/black-forest-labs/flux-2-dev";
 const WORKERS_AI_IMAGE_GENERATION_TIMEOUT_MS = 240_000;
+const WORKERS_AI_BADGE_IMAGE_SIZE_PX = "256";
+const WORKERS_AI_BADGE_IMAGE_STEPS = "12";
 
 const decodeBase64 = (value: string): Uint8Array => {
   const normalized = value.includes(",") ? (value.split(",").pop() ?? "") : value;
@@ -160,9 +162,9 @@ const requestWorkersAiImage = (input: {
 }): Promise<unknown> => {
   const form = new FormData();
   form.set("prompt", input.promptText);
-  form.set("steps", "25");
-  form.set("width", "1024");
-  form.set("height", "1024");
+  form.set("steps", WORKERS_AI_BADGE_IMAGE_STEPS);
+  form.set("width", WORKERS_AI_BADGE_IMAGE_SIZE_PX);
+  form.set("height", WORKERS_AI_BADGE_IMAGE_SIZE_PX);
 
   const serializedForm = new Response(form);
   const body = serializedForm.body;
