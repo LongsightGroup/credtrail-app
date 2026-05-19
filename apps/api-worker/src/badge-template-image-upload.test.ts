@@ -583,7 +583,7 @@ describe("badge template image upload routes", () => {
     expect(response.status).toBe(404);
   });
 
-  it("queues a badge template image generation and returns a polling record", async () => {
+  it("generates a badge template image inline and returns the completed draft", async () => {
     const { store, entries } = createBadgeObjectStore();
     const aiRun = vi.fn<BadgeTemplateImageGenerationAiBinding["run"]>(async () => {
       return {
@@ -594,7 +594,7 @@ describe("badge template image upload routes", () => {
     const env = {
       ...createEnv(store),
       AI: ai,
-      BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-dev",
+      BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-4b",
     };
 
     const response = await app.request(
@@ -620,25 +620,20 @@ describe("badge template image upload routes", () => {
       };
     }>();
 
-    expect(response.status).toBe(202);
+    expect(response.status).toBe(200);
     expect(body.generation.id).toBe("btig_123");
-    expect(body.generation.status).toBe("queued");
-    expect(body.generation.resultImageUri).toBeNull();
+    expect(body.generation.status).toBe("succeeded");
+    expect(body.generation.resultImageUri).toContain(
+      "https://credtrail.test/badges/assets/tenant_123/badge_template_001/",
+    );
     expect(mockedCreateBadgeTemplateImageGeneration).toHaveBeenCalledTimes(1);
-    expect(mockedEnqueueJobQueueMessage).toHaveBeenCalledWith(
+    expect(mockedEnqueueJobQueueMessage).not.toHaveBeenCalled();
+    expect(mockedUpdateBadgeTemplateImageGeneration).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
         tenantId: "tenant_123",
-        jobType: "generate_badge_template_image",
-        idempotencyKey: "btig_123",
-        maxAttempts: 3,
-        payload: expect.objectContaining({
-          generationId: "btig_123",
-          badgeTemplateId: "badge_template_001",
-          stylePreset: "institutional",
-          promptNotes: "Use a shield motif.",
-          requestedByUserId: "usr_admin",
-        }) as unknown,
+        id: "btig_123",
+        status: "processing",
       }),
     );
     expect(mockedUpdateBadgeTemplateImageGeneration).toHaveBeenCalledWith(
@@ -646,12 +641,21 @@ describe("badge template image upload routes", () => {
       expect.objectContaining({
         tenantId: "tenant_123",
         id: "btig_123",
-        status: "queued",
-        queuedJobId: "job_123",
+        status: "succeeded",
+        resultImageUri: expect.stringContaining(
+          "https://credtrail.test/badges/assets/tenant_123/badge_template_001/",
+        ),
       }),
     );
-    expect(aiRun).not.toHaveBeenCalled();
-    expect(entries.size).toBe(0);
+    expect(aiRun).toHaveBeenCalledWith(
+      "@cf/black-forest-labs/flux-2-klein-4b",
+      expect.objectContaining({
+        multipart: expect.objectContaining({
+          contentType: expect.stringContaining("multipart/form-data"),
+        }),
+      }),
+    );
+    expect(entries.size).toBe(1);
   });
 
   it("applies a completed generated image through the admin route", async () => {

@@ -39,8 +39,8 @@ interface GeneratedBadgeTemplateImage {
   metadata: Record<string, string | number | boolean | null>;
 }
 
-const DEFAULT_WORKERS_AI_IMAGE_MODEL = "@cf/black-forest-labs/flux-2-dev";
-const WORKERS_AI_IMAGE_GENERATION_TIMEOUT_MS = 240_000;
+const DEFAULT_WORKERS_AI_IMAGE_MODEL = "@cf/black-forest-labs/flux-2-klein-4b";
+const WORKERS_AI_IMAGE_GENERATION_TIMEOUT_MS = 60_000;
 const WORKERS_AI_BADGE_IMAGE_SIZE_PX = "256";
 const WORKERS_AI_BADGE_IMAGE_STEPS = "12";
 

@@ -40,7 +40,7 @@ describe("createNodeRuntimeBindings", () => {
       PLATFORM_DOMAIN: "badges.example.edu",
       DATABASE_URL: "postgres://example/db",
       JOB_PROCESSOR_TOKEN: "job-token",
-      BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-dev",
+      BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-4b",
       S3_BUCKET: "credtrail-badges",
       S3_REGION: "us-east-1",
       S3_ENDPOINT: "http://minio:9000",
@@ -53,7 +53,7 @@ describe("createNodeRuntimeBindings", () => {
     expect(bindings.PLATFORM_DOMAIN).toBe("badges.example.edu");
     expect(bindings.DATABASE_URL).toBe("postgres://example/db");
     expect(bindings.JOB_PROCESSOR_TOKEN).toBe("job-token");
-    expect(bindings.BADGE_IMAGE_GENERATION_MODEL).toBe("@cf/black-forest-labs/flux-2-dev");
+    expect(bindings.BADGE_IMAGE_GENERATION_MODEL).toBe("@cf/black-forest-labs/flux-2-klein-4b");
     expect(typeof bindings.BADGE_OBJECTS.head).toBe("function");
     expect(typeof bindings.BADGE_OBJECTS.get).toBe("function");
     expect(typeof bindings.BADGE_OBJECTS.put).toBe("function");
