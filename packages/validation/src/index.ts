@@ -1234,6 +1234,10 @@ export const badgeIssuanceRuleAuditLogQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional(),
 });
 
+export const badgeTemplateAuditLogQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+});
+
 const badgeIssuanceRuleApprovalChainStepSchema = z.object({
   requiredRole: tenantMembershipRoleSchema,
   label: z.string().trim().min(1).max(120).optional(),
@@ -1914,6 +1918,7 @@ export type BadgeIssuanceRuleVersionDiffQuery = z.infer<
   typeof badgeIssuanceRuleVersionDiffQuerySchema
 >;
 export type BadgeIssuanceRuleAuditLogQuery = z.infer<typeof badgeIssuanceRuleAuditLogQuerySchema>;
+export type BadgeTemplateAuditLogQuery = z.infer<typeof badgeTemplateAuditLogQuerySchema>;
 export type BadgeIssuanceRuleValueListQuery = z.infer<typeof badgeIssuanceRuleValueListQuerySchema>;
 export type BadgeTemplateListQuery = z.infer<typeof badgeTemplateListQuerySchema>;
 export type TenantOrgUnitListQuery = z.infer<typeof tenantOrgUnitListQuerySchema>;
@@ -2459,6 +2464,12 @@ export const parseBadgeIssuanceRuleAuditLogQuery = (
   input: unknown,
 ): BadgeIssuanceRuleAuditLogQuery => {
   return badgeIssuanceRuleAuditLogQuerySchema.parse(input);
+};
+
+export const parseBadgeTemplateAuditLogQuery = (
+  input: unknown,
+): BadgeTemplateAuditLogQuery => {
+  return badgeTemplateAuditLogQuerySchema.parse(input);
 };
 
 export const parseCreateBadgeIssuanceRuleValueListRequest = (

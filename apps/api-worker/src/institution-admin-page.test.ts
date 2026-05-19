@@ -64,6 +64,8 @@ vi.mock("@credtrail/db", async () => {
     listTenantMembers: mockedListTenantMembers,
     listTenantMembershipOrgUnitScopes: vi.fn(),
     listTenantAuthProviders: mockedListTenantAuthProviders,
+    findBadgeTemplateById: vi.fn(),
+    listBadgeTemplateImageRevisionCountsByTenant: vi.fn(),
     listBadgeTemplates: vi.fn(),
     listTenantApiKeys: vi.fn(),
     listTenantOrgUnits: vi.fn(),
@@ -95,6 +97,7 @@ vi.mock("./auth/better-auth-adapter", async () => {
 });
 
 import {
+  findBadgeTemplateById,
   findLearnerProfileById,
   findLearnerProfileByIdentity,
   findTenantById,
@@ -104,6 +107,7 @@ import {
   listDelegatedIssuingAuthorityGrants,
   listBadgeIssuanceRules,
   listBadgeIssuanceRuleVersions,
+  listBadgeTemplateImageRevisionCountsByTenant,
   listBadgeTemplates,
   listImportLearnerRecordBatchQueueMessages,
   listTenantApiKeys,
@@ -131,6 +135,7 @@ import { pageAssetPath } from "./ui/page-assets";
 import { INSTITUTION_ADMIN_CSS } from "./ui/page-assets/content/institution-admin-css";
 import { INSTITUTION_ADMIN_JS } from "./ui/page-assets/content/institution-admin-js";
 
+const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
 const mockedFindLearnerProfileByIdDb = vi.mocked(findLearnerProfileById);
 const mockedFindLearnerProfileByIdentityDb = vi.mocked(findLearnerProfileByIdentity);
 const mockedFindTenantMembership = vi.mocked(findTenantMembership);
@@ -139,6 +144,9 @@ const mockedFindUserById = vi.mocked(findUserById);
 const mockedListDelegatedIssuingAuthorityGrants = vi.mocked(listDelegatedIssuingAuthorityGrants);
 const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
 const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRuleVersions);
+const mockedListBadgeTemplateImageRevisionCountsByTenant = vi.mocked(
+  listBadgeTemplateImageRevisionCountsByTenant,
+);
 const mockedListBadgeTemplates = vi.mocked(listBadgeTemplates);
 const mockedListImportLearnerRecordBatchQueueMessagesDb = vi.mocked(
   listImportLearnerRecordBatchQueueMessages,
@@ -437,6 +445,13 @@ beforeEach(() => {
     id: "usr_admin",
     email: "admin@tenant-123.edu",
   });
+  mockedListBadgeTemplateImageRevisionCountsByTenant.mockReset();
+  mockedListBadgeTemplateImageRevisionCountsByTenant.mockResolvedValue([
+    {
+      badgeTemplateId: "badge_template_001",
+      revisionCount: 3,
+    },
+  ]);
   mockedListBadgeTemplates.mockReset();
   mockedListBadgeTemplates.mockResolvedValue([
     {
@@ -2683,15 +2698,32 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('id="badge-template-image-upload-form"');
     expect(body).toContain('id="badge-template-image-generation-form"');
     expect(body).toContain('id="badge-template-image-generation-open"');
-    expect(body).toContain('id="badge-template-image-revision-form"');
+    expect(body).toContain('id="template-edit-panel"');
+    expect(body).toContain('id="badge-template-edit-form"');
+    expect(body).toContain('data-template-edit-template-id="badge_template_001"');
+    expect(body).toContain('data-template-manage-image-template-id="badge_template_001"');
+    expect(body).toContain('id="badge-template-history-dialog"');
+    expect(body).not.toContain('id="badge-template-image-revision-form"');
+    expect(body).not.toContain("Load image history");
+    expect(body).toContain('data-template-history-template-id="badge_template_001"');
+    expect(body).toContain("3 image versions");
+    expect(body).toContain('data-template-row-id="badge_template_001"');
     expect(body).toContain('class="ct-admin__template-image-link"');
     expect(body).toContain('aria-label="Open full size image for TypeScript Foundations"');
     expect(body).toContain('href="https://example.edu/badges/typescript.png"');
     expect(body).toContain("Open form");
     expect(body).toContain("Badge Templates (1)");
     expect(body).toContain("Template records, public links, and artwork maintenance");
+    expect(body).toContain('<th scope="col">Status</th>');
     expect(body).toContain('<th scope="col">ID</th>');
     expect(body).not.toContain(">Slug</th>");
+    expect(body).toContain('name="q"');
+    expect(body).toContain("Include archived templates");
+    expect(body).toContain(
+      'href="/tenants/tenant_123/admin/rules/templates?badgeTemplateId=badge_template_001&amp;history=1"',
+    );
+    expect(body).toContain("autoOpenTemplateAuditTemplateId&quot;:null");
+    expect(INSTITUTION_ADMIN_JS).toContain("history-timeline");
     expect(INSTITUTION_ADMIN_JS).toContain("badge-template-image-generation-open");
     expect(INSTITUTION_ADMIN_JS).toContain("Open full size previous badge image");
     expect(body).not.toContain("ct-grid--sidebar");
@@ -2699,6 +2731,169 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).not.toContain('id="rule-value-list-form"');
     expect(body).not.toContain("Evaluate Rule");
     expect(body).not.toContain('id="rule-evaluate-form"');
+  });
+
+  it("supports template search, archived filters, and deep-linked history", async () => {
+    const env = createEnv();
+
+    mockedListBadgeTemplates.mockResolvedValue([
+      {
+        id: "badge_template_001",
+        tenantId: "tenant_123",
+        slug: "typescript-foundations",
+        title: "TypeScript Foundations",
+        description: "Awarded for TypeScript basics.",
+        criteriaUri: "https://example.edu/criteria",
+        imageUri: "https://example.edu/badges/typescript.png",
+        createdByUserId: "usr_admin",
+        ownerOrgUnitId: "tenant_123:org:institution",
+        governanceMetadataJson: null,
+        isArchived: false,
+        createdAt: "2026-02-18T12:00:00.000Z",
+        updatedAt: "2026-02-18T12:00:00.000Z",
+      },
+      {
+        id: "badge_template_archived",
+        tenantId: "tenant_123",
+        slug: "legacy-workshop",
+        title: "Legacy Workshop",
+        description: "Retired workshop template.",
+        criteriaUri: "https://example.edu/criteria/legacy",
+        imageUri: null,
+        createdByUserId: "usr_admin",
+        ownerOrgUnitId: "tenant_123:org:institution",
+        governanceMetadataJson: null,
+        isArchived: true,
+        createdAt: "2026-02-18T12:00:00.000Z",
+        updatedAt: "2026-02-18T12:00:00.000Z",
+      },
+    ]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/templates?q=legacy&includeArchived=1&badgeTemplateId=badge_template_archived&history=1",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(mockedListBadgeTemplates).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      includeArchived: true,
+    });
+    expect(body).toContain("Legacy Workshop");
+    expect(body).not.toContain("TypeScript Foundations");
+    expect(body).toContain('value="legacy"');
+    expect(body).toContain('name="includeArchived"');
+    expect(body).toContain("Archived");
+    expect(body).toContain(
+      "autoOpenTemplateAuditTemplateId&quot;:&quot;badge_template_archived&quot;",
+    );
+    expect(body).toContain("history=1");
+    expect(body).toContain("includeArchived=1");
+  });
+
+  it("redirects deep-linked archived template history to include archived templates", async () => {
+    const env = createEnv();
+
+    mockedFindBadgeTemplateById.mockResolvedValue({
+      id: "badge_template_archived",
+      tenantId: "tenant_123",
+      slug: "legacy-workshop",
+      title: "Legacy Workshop",
+      description: "Retired workshop template.",
+      criteriaUri: "https://example.edu/criteria/legacy",
+      imageUri: null,
+      createdByUserId: "usr_admin",
+      ownerOrgUnitId: "tenant_123:org:institution",
+      governanceMetadataJson: null,
+      isArchived: true,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/templates?badgeTemplateId=badge_template_archived&history=1",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toContain("includeArchived=1");
+    expect(response.headers.get("location")).toContain("badgeTemplateId=badge_template_archived");
+    expect(response.headers.get("location")).toContain("history=1");
+  });
+
+  it("pins deep-linked templates excluded by search and reports missing templates", async () => {
+    const env = createEnv();
+    const activeTemplate = {
+      id: "badge_template_001",
+      tenantId: "tenant_123",
+      slug: "typescript-foundations",
+      title: "TypeScript Foundations",
+      description: "Awarded for TypeScript basics.",
+      criteriaUri: "https://example.edu/criteria",
+      imageUri: "https://example.edu/badges/typescript.png",
+      createdByUserId: "usr_admin",
+      ownerOrgUnitId: "tenant_123:org:institution",
+      governanceMetadataJson: null,
+      isArchived: false,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    };
+    const archivedTemplate = {
+      ...activeTemplate,
+      id: "badge_template_archived",
+      slug: "legacy-workshop",
+      title: "Legacy Workshop",
+      isArchived: true,
+    };
+
+    mockedListBadgeTemplates.mockResolvedValue([activeTemplate, archivedTemplate]);
+
+    const pinnedResponse = await app.request(
+      "/tenants/tenant_123/admin/rules/templates?q=nonexistent&includeArchived=1&badgeTemplateId=badge_template_archived&history=1",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const pinnedBody = await pinnedResponse.text();
+
+    expect(pinnedResponse.status).toBe(200);
+    expect(pinnedBody).toContain("Legacy Workshop");
+    expect(pinnedBody).not.toContain('data-template-row-id="badge_template_001"');
+    expect(pinnedBody).toContain(
+      "autoOpenTemplateAuditTemplateId&quot;:&quot;badge_template_archived&quot;",
+    );
+
+    mockedFindBadgeTemplateById.mockResolvedValue(null);
+
+    const missingResponse = await app.request(
+      "/tenants/tenant_123/admin/rules/templates?badgeTemplateId=missing_template&history=1",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const missingBody = await missingResponse.text();
+
+    expect(missingResponse.status).toBe(200);
+    expect(missingBody).toContain("does not match a badge template in this tenant");
+    expect(missingBody).toContain("autoOpenTemplateAuditTemplateId&quot;:null");
   });
 });
 
@@ -2958,7 +3153,7 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain("Badge Awarding Rule");
-    expect(body).toContain("Choose an awarding pattern, define requirements");
+    expect(body).toContain("Define when learners earn this badge");
     expect(body).toContain('class="ct-admin-content ct-admin-content--rule-builder"');
     expect(body).toContain('class="ct-admin__builder-shell ct-stack"');
     expect(body).not.toContain('class="ct-admin__builder-shell ct-grid"');
@@ -2970,39 +3165,52 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).not.toContain('data-rule-step-target="review"');
     expect(body).toContain('id="rule-builder-condition-list"');
     expect(body).toContain('id="rule-builder-definition-json"');
-    expect(body).toContain('id="rule-builder-summary-validity"');
-    expect(body).toContain('id="rule-builder-summary-last-test"');
     expect(body).toContain('id="rule-builder-step-prev"');
     expect(body).toContain('id="rule-builder-step-next"');
     expect(body).toContain('id="rule-builder-submit"');
     expect(body).toContain('id="rule-builder-flow-list"');
-    expect(body).toContain('id="rule-builder-source-list"');
     expect(body).toMatch(
       /id="rule-builder-add-condition"[^>]*class="ct-admin__button ct-admin__button--tiny"/,
     );
     expect(body).toMatch(
-      /id="rule-builder-step-next"[^>]*class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary"/,
+      /id="rule-builder-step-next"[^>]*class="ct-admin__button ct-admin__button--tiny"/,
     );
     expect(body).toMatch(
       /id="rule-builder-submit"[^>]*form="rule-create-form"[^>]*class="ct-admin__button"/,
     );
     expect(body).toContain('id="rule-builder-test-preset"');
-    expect(body).toContain('id="rule-builder-apply-test-preset"');
+    expect(body).not.toContain('id="rule-builder-apply-test-preset"');
     expect(body).toContain('id="rule-builder-test-output"');
     expect(body).toContain('id="rule-builder-value-list-body"');
     expect(body).toContain('name="reviewOnMissingFacts"');
     expect(body).toContain('id="rule-builder-simulate"');
     expect(body).toContain('id="rule-builder-simulate-output"');
-    expect(body).toContain("Build in three passes");
+    expect(body).toContain("Follow these steps in order");
+    expect(body).toContain("Continue to Requirements");
+    expect(body).toContain('id="rule-builder-step-callout"');
+    expect(body).toContain("Set up this rule");
+    expect(body).toContain("Requirements update automatically");
+    expect(body).not.toContain("Use pattern");
+    expect(body).not.toContain("rule-builder-apply-test-preset");
+    expect(body).not.toContain("Confirm the badge and LMS source");
+    expect(body).toContain('id="rule-builder-return-to-pattern"');
+    expect(body).toContain("No requirements yet");
+    expect(body).toContain("Back to Step 1");
     expect(body).toContain("Advanced tools and reusable lists");
-    expect(body).toContain("Start from a proven pattern");
-    expect(body).toContain("Start from existing rule");
+    expect(body).not.toContain("Start from a proven pattern");
+    expect(body).toContain("Choose the badge, LMS, and how learners earn it");
+    expect(body).toContain("Start from an existing rule");
+    expect(body).toContain("Save progress");
+    expect(body).toContain("Resume saved progress");
+    expect(body).toContain("Edit requirement details");
+    expect(body).toContain('id="rule-builder-test-result"');
+    expect(body).toContain("Import and export");
+    expect(body).not.toContain("Authoring approach");
     expect(body).toContain("Survey completion");
     expect(body).toContain("Custom field");
     expect(body).toContain("Rule flow preview");
-    expect(body).toContain("Data sources");
-    expect(body).toContain("Draft readiness");
-    expect(body).toContain("Authoring approach");
+    expect(body).not.toContain("Data sources");
+    expect(body).not.toContain("Draft readiness");
     expect(body).toContain("Requirement catalog");
     expect(body).not.toContain("Five-minute walkthrough");
     expect(body).not.toContain("RULE_BUILDER_TUTORIAL_EMBED_URL");

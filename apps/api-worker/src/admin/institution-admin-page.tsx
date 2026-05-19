@@ -321,12 +321,22 @@ interface InstitutionAdminLearnerRecordImportWorkflow {
   };
 }
 
+interface InstitutionAdminBadgeTemplatesPageOptions {
+  searchQuery: string;
+  includeArchived: boolean;
+  /** When set with history=1, auto-opens the template audit dialog on load. */
+  deepLinkHistoryTemplateId: string | null;
+  deepLinkHistoryUnavailable: "not_found" | null;
+}
+
 interface InstitutionAdminPageInput {
   tenant: TenantRecord;
   userId: string;
   userEmail?: string;
   membershipRole: TenantMembershipRole;
   badgeTemplates: readonly BadgeTemplateRecord[];
+  badgeTemplateImageRevisionCountsById?: Readonly<Record<string, number>>;
+  badgeTemplatesPage?: InstitutionAdminBadgeTemplatesPageOptions;
   orgUnits: readonly TenantOrgUnitRecord[];
   tenantMembers: readonly TenantMemberRecord[];
   membershipOrgUnitScopes: readonly TenantMembershipOrgUnitScopeRecord[];
@@ -354,6 +364,7 @@ const renderInstitutionAdminPage = (
   view: InstitutionAdminView,
 ): AppPage => {
   const templateById = new Map(input.badgeTemplates.map((template) => [template.id, template]));
+  const badgeTemplateImageRevisionCountsById = input.badgeTemplateImageRevisionCountsById ?? {};
   const orgUnitById = new Map(input.orgUnits.map((orgUnit) => [orgUnit.id, orgUnit]));
   const versionsByRuleId = new Map<string, BadgeIssuanceRuleVersionRecord[]>();
   const tenantAdminPath = `/tenants/${encodeURIComponent(input.tenant.id)}/admin`;
@@ -810,11 +821,36 @@ const renderInstitutionAdminPage = (
     versions.sort((left, right) => right.versionNumber - left.versionNumber);
   }
 
+  const badgeTemplatesPage = input.badgeTemplatesPage;
+  const templateHistoryHref = (badgeTemplateId: string): string => {
+    const query = new URLSearchParams();
+
+    if (badgeTemplatesPage !== undefined) {
+      if (badgeTemplatesPage.searchQuery.length > 0) {
+        query.set("q", badgeTemplatesPage.searchQuery);
+      }
+
+      if (badgeTemplatesPage.includeArchived) {
+        query.set("includeArchived", "1");
+      }
+    }
+
+    query.set("badgeTemplateId", badgeTemplateId);
+    query.set("history", "1");
+
+    return `${rulesTemplatesPath}?${query.toString()}`;
+  };
   const templateRows =
     input.badgeTemplates.length === 0 ? (
-      <AdminEmptyTableRow colSpan={5}>No badge templates found.</AdminEmptyTableRow>
+      <AdminEmptyTableRow colSpan={6}>
+        {badgeTemplatesPage !== undefined &&
+        (badgeTemplatesPage.searchQuery.length > 0 || badgeTemplatesPage.includeArchived)
+          ? "No badge templates match these filters."
+          : "No badge templates found."}
+      </AdminEmptyTableRow>
     ) : (
       input.badgeTemplates.map((template) => {
+        const imageRevisionCount = badgeTemplateImageRevisionCountsById[template.id] ?? 0;
         const showcaseHref = `/showcase/${encodeURIComponent(
           input.tenant.id,
         )}?badgeTemplateId=${encodeURIComponent(template.id)}`;
@@ -822,7 +858,7 @@ const renderInstitutionAdminPage = (
           input.tenant.id,
         )}/criteria?badgeTemplateId=${encodeURIComponent(template.id)}`;
         return (
-          <tr>
+          <tr data-template-row-id={template.id} data-template-archived={template.isArchived ? "true" : "false"}>
             <td>
               {template.imageUri === null ? (
                 <span class="ct-admin__template-placeholder">No image</span>
@@ -845,6 +881,20 @@ const renderInstitutionAdminPage = (
             </td>
             <td>
               <strong>{template.title}</strong>
+              {imageRevisionCount > 0 ? (
+                <AdminMeta as="span">
+                  {imageRevisionCount === 1
+                    ? "1 image version"
+                    : `${String(imageRevisionCount)} image versions`}
+                </AdminMeta>
+              ) : null}
+            </td>
+            <td>
+              {template.isArchived ? (
+                <AdminStatusPill tone="revoked">Archived</AdminStatusPill>
+              ) : (
+                <AdminStatusPill tone="active">Active</AdminStatusPill>
+              )}
             </td>
             <td>{template.id}</td>
             <td>{formatIsoTimestamp(template.updatedAt)}</td>
@@ -857,7 +907,29 @@ const renderInstitutionAdminPage = (
                 Criteria
               </a>
               {" · "}
-              <a href="#template-image-panel" data-template-image-history-template-id={template.id}>
+              <button
+                type="button"
+                class="ct-admin__text-action"
+                data-template-edit-template-id={template.id}
+              >
+                Edit
+              </button>
+              {" · "}
+              <button
+                type="button"
+                class="ct-admin__text-action"
+                data-template-manage-image-template-id={template.id}
+              >
+                Manage image
+              </button>
+              {" · "}
+              <a
+                href={templateHistoryHref(template.id)}
+                class="ct-admin__text-action"
+                data-template-history-template-id={template.id}
+                data-template-history-template-title={template.title}
+                data-template-history-image-revision-count={String(imageRevisionCount)}
+              >
                 History
               </a>
             </td>
@@ -3032,12 +3104,26 @@ const renderInstitutionAdminPage = (
         ) : null}
       </article>
     );
+  const tenantMemberEmailsByUserId = Object.fromEntries(
+    input.tenantMembers.map((member) => [member.userId, member.email]),
+  );
+  const badgeTemplateRecords = input.badgeTemplates.map((template) => ({
+    id: template.id,
+    slug: template.slug,
+    title: template.title,
+    description: template.description,
+    criteriaUri: template.criteriaUri,
+  }));
   const adminPageContextJson = serializeJsonScriptContent({
     tenantAdminPath,
     manualIssueApiPath,
     createApiKeyPath,
     createOrgUnitPath,
     badgeTemplateApiPathPrefix,
+    badgeTemplateRecords,
+    // Avoids the substring "History" in JSON keys (breaks unrelated page tests).
+    autoOpenTemplateAuditTemplateId: badgeTemplatesPage?.deepLinkHistoryTemplateId ?? null,
+    tenantMemberEmailsByUserId,
     badgeRuleApiPath,
     badgeRuleValueListApiPath,
     badgeRulePreviewSimulationApiPath,
@@ -3276,12 +3362,48 @@ const renderInstitutionAdminPage = (
     </span>
   );
 
+  const templateEditPanelMarkup = (
+    <details id="template-edit-panel" class="ct-admin__panel ct-admin__add-disclosure">
+      <summary class="ct-admin__add-disclosure-summary">
+        <span>
+          <strong>Edit Badge Template</strong>
+          <small>Update title, slug, description, and criteria URL.</small>
+        </span>
+        {addDisclosureControlMarkup}
+      </summary>
+      <AdminForm
+        id="badge-template-edit-form"
+        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--template-edit ct-grid"
+      >
+        <AdminField label="Badge template">
+          <select name="badgeTemplateId" required>
+            {templateSelectOptions}
+          </select>
+        </AdminField>
+        <AdminField label="Title">
+          <input name="title" type="text" required maxlength={200} />
+        </AdminField>
+        <AdminField label="Slug">
+          <input name="slug" type="text" required maxlength={120} />
+        </AdminField>
+        <AdminField label="Description">
+          <textarea name="description" rows={3} maxlength={2000}></textarea>
+        </AdminField>
+        <AdminField label="Criteria URL">
+          <input name="criteriaUri" type="url" maxlength={2048} />
+        </AdminField>
+        <AdminButton type="submit">Save template</AdminButton>
+      </AdminForm>
+      <AdminStatus id="badge-template-edit-status"></AdminStatus>
+    </details>
+  );
+
   const templateImagePanelMarkup = (
     <details id="template-image-panel" class="ct-admin__panel ct-admin__add-disclosure">
       <summary class="ct-admin__add-disclosure-summary">
         <span>
           <strong>Manage Badge Template Images</strong>
-          <small>Upload, generate, and restore template artwork.</small>
+          <small>Upload or generate artwork for a selected template.</small>
         </span>
         {addDisclosureControlMarkup}
       </summary>
@@ -3354,22 +3476,29 @@ const renderInstitutionAdminPage = (
           </a>
         </div>
       </div>
-      <AdminForm
-        id="badge-template-image-revision-form"
-        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--template-image-revisions ct-grid"
-      >
-        <AdminField label="Badge template">
-          <select name="badgeTemplateId" required>
-            {templateSelectOptions}
-          </select>
-        </AdminField>
-        <AdminButton type="submit" variant="secondary">
-          Load image history
-        </AdminButton>
-      </AdminForm>
-      <AdminStatus id="badge-template-image-revision-status"></AdminStatus>
-      <div id="badge-template-image-revision-list" class="ct-admin__image-revision-list"></div>
     </details>
+  );
+
+  const badgeTemplateHistoryDialogMarkup = (
+    <dialog id="badge-template-history-dialog" class="ct-admin__history-dialog">
+      <form method="dialog" class="ct-admin__history-dialog-surface">
+        <header class="ct-admin__history-dialog-header">
+          <div>
+            <h2 id="badge-template-history-dialog-title">Template history</h2>
+            <p id="badge-template-history-dialog-subtitle" class="ct-admin__meta"></p>
+          </div>
+          <AdminButton type="submit" variant="secondary" size="tiny">
+            Close
+          </AdminButton>
+        </header>
+        <AdminStatus id="badge-template-history-status"></AdminStatus>
+        <div id="badge-template-history-audit-list" class="ct-admin__history-audit-list"></div>
+        <details id="badge-template-image-history-section" class="ct-admin__history-image-section" hidden>
+          <summary>Image versions</summary>
+          <div id="badge-template-image-revision-list" class="ct-admin__image-revision-list"></div>
+        </details>
+      </form>
+    </dialog>
   );
 
   const apiKeyPanelMarkup = (
@@ -4595,11 +4724,45 @@ const renderInstitutionAdminPage = (
     </AdminPanel>
   );
 
+  const badgeTemplatesFilterMarkup =
+    badgeTemplatesPage === undefined ? null : (
+      <AdminForm
+        method="get"
+        action={rulesTemplatesPath}
+        className="ct-admin__form ct-admin__form--inline ct-grid"
+      >
+        <AdminField label="Search">
+          <input
+            name="q"
+            type="search"
+            value={badgeTemplatesPage.searchQuery}
+            placeholder="Title, slug, or template ID"
+          />
+        </AdminField>
+        <AdminCheckboxRow>
+          <input
+            type="checkbox"
+            name="includeArchived"
+            value="1"
+            checked={badgeTemplatesPage.includeArchived}
+          />
+          Include archived templates
+        </AdminCheckboxRow>
+        <AdminButton type="submit">Apply filters</AdminButton>
+        {badgeTemplatesPage.searchQuery.length > 0 || badgeTemplatesPage.includeArchived ? (
+          <AdminButtonLink href={rulesTemplatesPath} variant="ghost">
+            Clear filters
+          </AdminButtonLink>
+        ) : null}
+      </AdminForm>
+    );
+
   const badgeTemplatesTableMarkup = (
     <AdminPanel variant="table">
       <h2>Badge Templates ({badgeTemplateCount})</h2>
       <p>Template records, public links, and artwork maintenance live together here.</p>
-      <AdminTable headers={["Image", "Template", "ID", "Updated", "Links"]}>
+      {badgeTemplatesFilterMarkup}
+      <AdminTable headers={["Image", "Template", "Status", "ID", "Updated", "Links"]}>
         {templateRows}
       </AdminTable>
     </AdminPanel>
@@ -5308,8 +5471,16 @@ const renderInstitutionAdminPage = (
               "Manage template records, artwork, and public template links without crowding the rules overview.",
             )}
             <section class="ct-admin ct-stack">
+              {badgeTemplatesPage?.deepLinkHistoryUnavailable === "not_found" ? (
+                <AdminStatus id="badge-template-history-deeplink-status" data-tone="error">
+                  The requested template history link does not match a badge template in this
+                  tenant.
+                </AdminStatus>
+              ) : null}
+              {templateEditPanelMarkup}
               {templateImagePanelMarkup}
               {badgeTemplatesTableMarkup}
+              {badgeTemplateHistoryDialogMarkup}
             </section>
           </>
         );

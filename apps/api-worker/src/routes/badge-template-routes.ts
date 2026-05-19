@@ -20,6 +20,7 @@ import {
 } from "@credtrail/db";
 import type { Hono } from "hono";
 import {
+  parseBadgeTemplateAuditLogQuery,
   parseBadgeTemplateImageGenerationPathParams,
   parseBadgeTemplateImageRevisionPathParams,
   parseBadgeTemplateListQuery,
@@ -39,6 +40,15 @@ import {
   loadBadgeTemplateImage,
   storeBadgeTemplateImage,
 } from "../badges/template-image-storage";
+import {
+  buildBadgeTemplateFieldChanges,
+  buildBadgeTemplateImageUriChange,
+} from "../badges/badge-template-audit-metadata";
+import {
+  authorizeBadgeTemplateHistoryAccess,
+  loadBadgeTemplateHistoryPayload,
+} from "../badges/badge-template-history-access";
+import { renderBadgeTemplateHistoryTimelineToString } from "../admin/badge-template-history-fragment";
 import {
   buildBadgeTemplateImagePrompt,
   completeBadgeTemplateImageGeneration,
@@ -399,6 +409,106 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
     });
   });
 
+  const authorizeTemplateHistory = async (
+    c: AppContext,
+    tenantId: string,
+    badgeTemplateId: string,
+  ) =>
+    authorizeBadgeTemplateHistoryAccess({
+      c,
+      resolveDatabase,
+      tenantId,
+      badgeTemplateId,
+      requireTenantRole,
+      requireScopedOrgUnitPermission,
+      issuerRoles: ISSUER_ROLES,
+    });
+
+  // JSON timeline for API clients and tests. Admin UI prefers history-timeline (HTML).
+  app.get("/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/audit-log", async (c) => {
+    const pathParams = parseBadgeTemplatePathParams(c.req.param());
+    let query;
+
+    try {
+      query = parseBadgeTemplateAuditLogQuery(c.req.query());
+    } catch {
+      return c.json(
+        {
+          error: "Invalid badge template audit log query",
+        },
+        400,
+      );
+    }
+
+    const access = await authorizeTemplateHistory(
+      c,
+      pathParams.tenantId,
+      pathParams.badgeTemplateId,
+    );
+
+    if (access instanceof Response) {
+      return access;
+    }
+
+    const { db } = access;
+    const { timeline, imageRevisionCount } = await loadBadgeTemplateHistoryPayload(db, {
+      tenantId: pathParams.tenantId,
+      badgeTemplateId: pathParams.badgeTemplateId,
+      limit: query.limit ?? 100,
+    });
+
+    return c.json({
+      tenantId: pathParams.tenantId,
+      badgeTemplateId: pathParams.badgeTemplateId,
+      timeline,
+      imageRevisionCount,
+    });
+  });
+
+  app.get(
+    "/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/history-timeline",
+    async (c) => {
+      const pathParams = parseBadgeTemplatePathParams(c.req.param());
+      let query;
+
+      try {
+        query = parseBadgeTemplateAuditLogQuery(c.req.query());
+      } catch {
+        return c.json(
+          {
+            error: "Invalid badge template history timeline query",
+          },
+          400,
+        );
+      }
+
+      const access = await authorizeTemplateHistory(
+        c,
+        pathParams.tenantId,
+        pathParams.badgeTemplateId,
+      );
+
+      if (access instanceof Response) {
+        return access;
+      }
+
+      const { db } = access;
+      const { timeline, imageRevisionCount } = await loadBadgeTemplateHistoryPayload(db, {
+        tenantId: pathParams.tenantId,
+        badgeTemplateId: pathParams.badgeTemplateId,
+        limit: query.limit ?? 100,
+      });
+
+      c.header("Cache-Control", "no-store");
+      c.header("Content-Type", "text/html; charset=utf-8");
+      // Internal response metadata for the admin history dialog script.
+      c.header("X-CredTrail-Badge-Template-Image-Revision-Count", String(imageRevisionCount));
+      c.header("X-CredTrail-Badge-Template-History-Event-Count", String(timeline.length));
+
+      return c.body(renderBadgeTemplateHistoryTimelineToString(timeline));
+    },
+  );
+
   app.post(
     "/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/ownership-transfer",
     async (c) => {
@@ -568,18 +678,21 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
         });
       }
 
-      await createAuditLog(db, {
-        tenantId: pathParams.tenantId,
-        actorUserId: principal.userId,
-        action: "badge_template.updated",
-        targetType: "badge_template",
-        targetId: template.id,
-        metadata: {
-          role: membershipRole,
-          slug: template.slug,
-          title: template.title,
-        },
-      });
+      const changes = buildBadgeTemplateFieldChanges(existingTemplate, template, request);
+
+      if (changes.length > 0) {
+        await createAuditLog(db, {
+          tenantId: pathParams.tenantId,
+          actorUserId: principal.userId,
+          action: "badge_template.updated",
+          targetType: "badge_template",
+          targetId: template.id,
+          metadata: {
+            role: membershipRole,
+            changes,
+          },
+        });
+      }
 
       return c.json({
         tenantId: pathParams.tenantId,
@@ -748,6 +861,8 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
       },
     });
 
+    const imageUriChange = buildBadgeTemplateImageUriChange(template.imageUri, updatedTemplate.imageUri);
+
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
       actorUserId: principal.userId,
@@ -760,6 +875,7 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
         imageMimeType: declaredMimeType,
         imageSizeBytes: bytes.byteLength,
         ...(fileName.length === 0 ? {} : { fileName }),
+        ...(imageUriChange === null ? {} : { changes: [imageUriChange] }),
       },
     });
 
@@ -915,6 +1031,11 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
         },
       });
 
+      const restoredImageUriChange = buildBadgeTemplateImageUriChange(
+        template.imageUri,
+        updatedTemplate.imageUri,
+      );
+
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
         actorUserId: principal.userId,
@@ -924,6 +1045,7 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
         metadata: {
           role: membershipRole,
           restoredRevisionId: revision.id,
+          ...(restoredImageUriChange === null ? {} : { changes: [restoredImageUriChange] }),
         },
       });
 
@@ -1199,6 +1321,11 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
         },
       });
 
+      const appliedImageUriChange = buildBadgeTemplateImageUriChange(
+        template.imageUri,
+        updatedTemplate.imageUri,
+      );
+
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
         actorUserId: principal.userId,
@@ -1208,6 +1335,7 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
         metadata: {
           role: membershipRole,
           generationId: generation.id,
+          ...(appliedImageUriChange === null ? {} : { changes: [appliedImageUriChange] }),
         },
       });
 

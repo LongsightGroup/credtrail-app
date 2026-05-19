@@ -1,3 +1,5 @@
+import { INSTITUTION_ADMIN_BADGE_TEMPLATE_JS } from "./institution-admin-badge-template-js";
+
 export const INSTITUTION_ADMIN_JS = `
 (() => {
   const contextElement = document.getElementById('ct-admin-context');
@@ -85,6 +87,23 @@ export const INSTITUTION_ADMIN_JS = `
     parsedContext && typeof parsedContext.breakGlassAccountsApiPath === 'string'
       ? parsedContext.breakGlassAccountsApiPath
       : '';
+  const tenantMemberEmailsByUserId =
+    parsedContext &&
+    parsedContext.tenantMemberEmailsByUserId &&
+    typeof parsedContext.tenantMemberEmailsByUserId === 'object'
+      ? parsedContext.tenantMemberEmailsByUserId
+      : {};
+  const badgeTemplateRecordsById = new Map();
+  const badgeTemplateRecordsContext =
+    parsedContext && Array.isArray(parsedContext.badgeTemplateRecords)
+      ? parsedContext.badgeTemplateRecords
+      : [];
+
+  badgeTemplateRecordsContext.forEach((entry) => {
+    if (entry && typeof entry.id === 'string' && entry.id.length > 0) {
+      badgeTemplateRecordsById.set(entry.id, entry);
+    }
+  });
 
   if (
     tenantAdminPath.length === 0 ||
@@ -117,6 +136,9 @@ export const INSTITUTION_ADMIN_JS = `
   const apiKeySecret = document.getElementById('api-key-secret');
   const orgUnitForm = document.getElementById('org-unit-form');
   const orgUnitStatus = document.getElementById('org-unit-status');
+  const templateEditPanel = document.getElementById('template-edit-panel');
+  const badgeTemplateEditForm = document.getElementById('badge-template-edit-form');
+  const badgeTemplateEditStatus = document.getElementById('badge-template-edit-status');
   const templateImagePanel = document.getElementById('template-image-panel');
   const badgeTemplateImageUploadForm = document.getElementById('badge-template-image-upload-form');
   const badgeTemplateImageUploadStatus = document.getElementById(
@@ -140,11 +162,17 @@ export const INSTITUTION_ADMIN_JS = `
   const badgeTemplateImageGenerationOpenLink = document.getElementById(
     'badge-template-image-generation-open',
   );
-  const badgeTemplateImageRevisionForm = document.getElementById(
-    'badge-template-image-revision-form',
+  const badgeTemplateHistoryDialog = document.getElementById('badge-template-history-dialog');
+  const badgeTemplateHistoryDialogTitle = document.getElementById(
+    'badge-template-history-dialog-title',
   );
-  const badgeTemplateImageRevisionStatus = document.getElementById(
-    'badge-template-image-revision-status',
+  const badgeTemplateHistoryDialogSubtitle = document.getElementById(
+    'badge-template-history-dialog-subtitle',
+  );
+  const badgeTemplateHistoryStatus = document.getElementById('badge-template-history-status');
+  const badgeTemplateHistoryAuditList = document.getElementById('badge-template-history-audit-list');
+  const badgeTemplateImageHistorySection = document.getElementById(
+    'badge-template-image-history-section',
   );
   const badgeTemplateImageRevisionList = document.getElementById(
     'badge-template-image-revision-list',
@@ -176,9 +204,13 @@ export const INSTITUTION_ADMIN_JS = `
   const ruleBuilderTestPresetSelect = document.getElementById('rule-builder-test-preset');
   const ruleBuilderApplyTestPresetButton = document.getElementById('rule-builder-apply-test-preset');
   const ruleBuilderTestOutput = document.getElementById('rule-builder-test-output');
+  const ruleBuilderTestResult = document.getElementById('rule-builder-test-result');
   const ruleBuilderStepPrevButton = document.getElementById('rule-builder-step-prev');
   const ruleBuilderStepNextButton = document.getElementById('rule-builder-step-next');
   const ruleBuilderStepProgress = document.getElementById('rule-builder-step-progress');
+  const ruleBuilderStepCallout = document.getElementById('rule-builder-step-callout');
+  const ruleBuilderReturnToPatternButton = document.getElementById('rule-builder-return-to-pattern');
+  const ruleBuilderNameVisible = document.getElementById('rule-builder-name-visible');
   const ruleBuilderSubmitButton = document.getElementById('rule-builder-submit');
   const ruleBuilderCanvasCount = document.getElementById('rule-builder-canvas-count');
   const ruleBuilderCanvasLogic = document.getElementById('rule-builder-canvas-logic');
@@ -329,230 +361,7 @@ export const INSTITUTION_ADMIN_JS = `
 
     return new Date(parsed).toLocaleString();
   };
-  const badgeTemplateImageGenerationPath = (badgeTemplateId, generationId) => {
-    return (
-      badgeTemplateApiPathPrefix +
-      '/' +
-      encodeURIComponent(badgeTemplateId) +
-      '/image-generations/' +
-      encodeURIComponent(generationId)
-    );
-  };
-  const clearBadgeTemplateImageGenerationPoll = () => {
-    if (badgeTemplateImageGenerationPollTimer !== null) {
-      window.clearTimeout(badgeTemplateImageGenerationPollTimer);
-      badgeTemplateImageGenerationPollTimer = null;
-    }
-  };
-  const showBadgeTemplateImageGenerationPreview = (generation) => {
-    if (
-      !(badgeTemplateImageGenerationPreview instanceof HTMLElement) ||
-      !(badgeTemplateImageGenerationPreviewImg instanceof HTMLImageElement) ||
-      !(badgeTemplateImageGenerationApplyButton instanceof HTMLButtonElement) ||
-      !(badgeTemplateImageGenerationOpenLink instanceof HTMLAnchorElement)
-    ) {
-      return;
-    }
-
-    if (
-      !generation ||
-      generation.status !== 'succeeded' ||
-      typeof generation.resultImageUri !== 'string' ||
-      generation.resultImageUri.length === 0
-    ) {
-      badgeTemplateImageGenerationPreview.hidden = true;
-      badgeTemplateImageGenerationPreviewImg.removeAttribute('src');
-      badgeTemplateImageGenerationApplyButton.disabled = true;
-      badgeTemplateImageGenerationOpenLink.hidden = true;
-      badgeTemplateImageGenerationOpenLink.removeAttribute('href');
-      return;
-    }
-
-    badgeTemplateImageGenerationPreview.hidden = false;
-    badgeTemplateImageGenerationPreviewImg.src = generation.resultImageUri;
-    badgeTemplateImageGenerationApplyButton.disabled = false;
-    badgeTemplateImageGenerationOpenLink.href = generation.resultImageUri;
-    badgeTemplateImageGenerationOpenLink.hidden = false;
-  };
-  const pollBadgeTemplateImageGeneration = async (badgeTemplateId, generationId) => {
-    if (!(badgeTemplateImageGenerationStatus instanceof HTMLElement)) {
-      return;
-    }
-
-    try {
-      const response = await fetch(badgeTemplateImageGenerationPath(badgeTemplateId, generationId));
-      const payload = await parseJsonBody(response);
-
-      if (!response.ok) {
-        setStatus(badgeTemplateImageGenerationStatus, errorDetailFromPayload(payload), true);
-        clearBadgeTemplateImageGenerationPoll();
-        return;
-      }
-
-      const generation = payload && payload.generation ? payload.generation : null;
-      activeBadgeTemplateImageGeneration = {
-        badgeTemplateId,
-        generationId,
-      };
-
-      if (generation && generation.status === 'succeeded') {
-        setStatus(badgeTemplateImageGenerationStatus, 'Generated draft ready.', false, 'success');
-        showBadgeTemplateImageGenerationPreview(generation);
-        clearBadgeTemplateImageGenerationPoll();
-        return;
-      }
-
-      if (generation && generation.status === 'failed') {
-        const detail =
-          typeof generation.errorMessage === 'string' && generation.errorMessage.length > 0
-            ? generation.errorMessage
-            : 'Badge image generation failed.';
-        setStatus(badgeTemplateImageGenerationStatus, detail, true);
-        showBadgeTemplateImageGenerationPreview(null);
-        clearBadgeTemplateImageGenerationPoll();
-        return;
-      }
-
-      const status = generation && typeof generation.status === 'string' ? generation.status : '';
-      const statusText =
-        status === 'queued'
-          ? 'Draft queued. Waiting for the background image worker...'
-          : 'Generating badge image draft. Checking again shortly...';
-      const nextPollDelayMs =
-        status === 'processing'
-          ? badgeTemplateImageProcessingPollDelayMs
-          : badgeTemplateImageQueuedPollDelayMs;
-
-      setStatus(badgeTemplateImageGenerationStatus, statusText, false);
-      badgeTemplateImageGenerationPollTimer = window.setTimeout(() => {
-        void pollBadgeTemplateImageGeneration(badgeTemplateId, generationId);
-      }, nextPollDelayMs);
-    } catch {
-      setStatus(
-        badgeTemplateImageGenerationStatus,
-        'Unable to check badge image generation status from this browser session.',
-        true,
-      );
-      clearBadgeTemplateImageGenerationPoll();
-    }
-  };
-  const renderBadgeTemplateImageRevisions = (badgeTemplateId, revisions) => {
-    if (!(badgeTemplateImageRevisionList instanceof HTMLElement)) {
-      return;
-    }
-
-    badgeTemplateImageRevisionList.textContent = '';
-
-    if (!Array.isArray(revisions) || revisions.length === 0) {
-      const empty = document.createElement('p');
-      empty.className = 'ct-admin__empty';
-      empty.textContent = 'No image history is available for this badge template.';
-      badgeTemplateImageRevisionList.append(empty);
-      return;
-    }
-
-    revisions.forEach((revision) => {
-      const item = document.createElement('div');
-      item.className = 'ct-admin__image-revision-item';
-      const previousImageUri =
-        typeof revision.previousImageUri === 'string' && revision.previousImageUri.length > 0
-          ? revision.previousImageUri
-          : '';
-
-      const preview =
-        previousImageUri.length > 0
-          ? document.createElement('a')
-          : document.createElement('span');
-      preview.className = 'ct-admin__image-revision-thumbnail-link';
-
-      if (preview instanceof HTMLAnchorElement) {
-        preview.href = previousImageUri;
-        preview.target = '_blank';
-        preview.rel = 'noopener noreferrer';
-        preview.setAttribute('aria-label', 'Open full size previous badge image');
-        const thumbnail = document.createElement('img');
-        thumbnail.className = 'ct-admin__image-revision-thumbnail';
-        thumbnail.src = previousImageUri;
-        thumbnail.alt = '';
-        thumbnail.loading = 'lazy';
-        preview.append(thumbnail);
-      } else {
-        preview.classList.add('ct-admin__image-revision-thumbnail-link--empty');
-        preview.textContent = 'No image';
-      }
-
-      const meta = document.createElement('div');
-      meta.className = 'ct-admin__image-revision-meta';
-      const title = document.createElement('strong');
-      title.textContent =
-        String(revision.sourceType || 'image change') + ' · ' + formatTimestamp(revision.createdAt);
-      const detail = document.createElement('span');
-      detail.textContent =
-        previousImageUri.length > 0 ? 'Restore the previous image' : 'Restore to no image';
-      meta.append(title, detail);
-
-      const actions = document.createElement('div');
-      actions.className = 'ct-admin__image-revision-actions';
-
-      if (previousImageUri.length > 0) {
-        const openLink = document.createElement('a');
-        openLink.className = 'ct-admin__text-action';
-        openLink.href = previousImageUri;
-        openLink.target = '_blank';
-        openLink.rel = 'noopener noreferrer';
-        openLink.textContent = 'Open full size';
-        actions.append(openLink);
-      }
-
-      const button = createAdminButtonElement(adminButtonTinySecondaryClass, 'Restore', {
-        'data-badge-template-id': badgeTemplateId,
-        'data-revision-id': String(revision.id || ''),
-      });
-
-      actions.append(button);
-      item.append(preview, meta, actions);
-      badgeTemplateImageRevisionList.append(item);
-    });
-  };
-  const loadBadgeTemplateImageRevisions = async (badgeTemplateId) => {
-    if (!(badgeTemplateImageRevisionStatus instanceof HTMLElement)) {
-      return;
-    }
-
-    if (badgeTemplateId.length === 0) {
-      setStatus(badgeTemplateImageRevisionStatus, 'Badge template is required.', true);
-      return;
-    }
-
-    setStatus(badgeTemplateImageRevisionStatus, 'Loading badge image history...', false);
-
-    try {
-      const response = await fetch(
-        badgeTemplateApiPathPrefix +
-          '/' +
-          encodeURIComponent(badgeTemplateId) +
-          '/image-revisions',
-      );
-      const payload = await parseJsonBody(response);
-
-      if (!response.ok) {
-        setStatus(badgeTemplateImageRevisionStatus, errorDetailFromPayload(payload), true);
-        return;
-      }
-
-      renderBadgeTemplateImageRevisions(
-        badgeTemplateId,
-        payload && Array.isArray(payload.revisions) ? payload.revisions : [],
-      );
-      setStatus(badgeTemplateImageRevisionStatus, 'Image history loaded.', false, 'success');
-    } catch {
-      setStatus(
-        badgeTemplateImageRevisionStatus,
-        'Unable to load badge image history from this browser session.',
-        true,
-      );
-    }
-  };
+  ${INSTITUTION_ADMIN_BADGE_TEMPLATE_JS}
   const parseIssuedBadgesLimit = (rawValue) => {
     const fallbackLimit = 100;
 
@@ -1765,351 +1574,6 @@ export const INSTITUTION_ADMIN_JS = `
   }
 
   if (
-    badgeTemplateImageUploadForm instanceof HTMLFormElement &&
-    badgeTemplateImageUploadStatus instanceof HTMLElement
-  ) {
-    badgeTemplateImageUploadForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      setStatus(badgeTemplateImageUploadStatus, 'Uploading template image...', false);
-      const data = new FormData(badgeTemplateImageUploadForm);
-      const badgeTemplateIdRaw = data.get('badgeTemplateId');
-      const upload = data.get('file');
-      const badgeTemplateId =
-        typeof badgeTemplateIdRaw === 'string' ? badgeTemplateIdRaw.trim() : '';
-
-      if (badgeTemplateId.length === 0 || !(upload instanceof File)) {
-        setStatus(
-          badgeTemplateImageUploadStatus,
-          'Badge template and image file are required.',
-          true,
-        );
-        return;
-      }
-
-      if (upload.size > 2 * 1024 * 1024) {
-        setStatus(
-          badgeTemplateImageUploadStatus,
-          'Image file exceeds 2 MB limit.',
-          true,
-        );
-        return;
-      }
-
-      const normalizedMimeType = upload.type.trim().toLowerCase();
-      const allowedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
-
-      if (!allowedMimeTypes.has(normalizedMimeType)) {
-        setStatus(
-          badgeTemplateImageUploadStatus,
-          'Unsupported image type. Use PNG, JPEG, or WebP.',
-          true,
-        );
-        return;
-      }
-
-      const uploadBody = new FormData();
-      uploadBody.set('file', upload);
-
-      try {
-        const response = await fetch(
-          badgeTemplateApiPathPrefix +
-            '/' +
-            encodeURIComponent(badgeTemplateId) +
-            '/image-upload',
-          {
-            method: 'POST',
-            body: uploadBody,
-          },
-        );
-        const payload = await parseJsonBody(response);
-
-        if (!response.ok) {
-          setStatus(badgeTemplateImageUploadStatus, errorDetailFromPayload(payload), true);
-          return;
-        }
-
-        const imageUrl =
-          payload &&
-          payload.image &&
-          typeof payload.image.url === 'string'
-            ? payload.image.url
-            : null;
-
-        setStatus(
-          badgeTemplateImageUploadStatus,
-          imageUrl === null ? 'Template image uploaded.' : 'Template image uploaded: ' + imageUrl,
-          false,
-        );
-        setTimeout(() => {
-          window.location.assign(tenantAdminPath + '/rules/templates');
-        }, 900);
-      } catch {
-        setStatus(
-          badgeTemplateImageUploadStatus,
-          'Unable to upload template image from this browser session.',
-          true,
-        );
-      }
-    });
-  }
-
-  if (
-    badgeTemplateImageGenerationForm instanceof HTMLFormElement &&
-    badgeTemplateImageGenerationStatus instanceof HTMLElement
-  ) {
-    badgeTemplateImageGenerationForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      clearBadgeTemplateImageGenerationPoll();
-      showBadgeTemplateImageGenerationPreview(null);
-      setStatus(
-        badgeTemplateImageGenerationStatus,
-        'Generating badge image draft...',
-        false,
-      );
-      const data = new FormData(badgeTemplateImageGenerationForm);
-      const badgeTemplateIdRaw = data.get('badgeTemplateId');
-      const stylePresetRaw = data.get('stylePreset');
-      const promptNotesRaw = data.get('promptNotes');
-      const accentColorRaw = data.get('accentColor');
-      const badgeTemplateId =
-        typeof badgeTemplateIdRaw === 'string' ? badgeTemplateIdRaw.trim() : '';
-      const stylePreset = typeof stylePresetRaw === 'string' ? stylePresetRaw.trim() : '';
-      const promptNotes = typeof promptNotesRaw === 'string' ? promptNotesRaw.trim() : '';
-      const accentColor = typeof accentColorRaw === 'string' ? accentColorRaw.trim() : '';
-
-      if (badgeTemplateId.length === 0 || stylePreset.length === 0) {
-        setStatus(badgeTemplateImageGenerationStatus, 'Badge template and style are required.', true);
-        return;
-      }
-
-      try {
-        const response = await fetch(
-          badgeTemplateApiPathPrefix +
-            '/' +
-            encodeURIComponent(badgeTemplateId) +
-            '/image-generations',
-          {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-              stylePreset,
-              ...(promptNotes.length === 0 ? {} : { promptNotes }),
-              ...(accentColor.length === 0 ? {} : { accentColor }),
-            }),
-          },
-        );
-        const payload = await parseJsonBody(response);
-
-        if (!response.ok) {
-          setStatus(badgeTemplateImageGenerationStatus, errorDetailFromPayload(payload), true);
-          return;
-        }
-
-        const generationId =
-          payload &&
-          payload.generation &&
-          typeof payload.generation.id === 'string'
-            ? payload.generation.id
-            : '';
-
-        if (generationId.length === 0) {
-          setStatus(badgeTemplateImageGenerationStatus, 'Generation completed without an id.', true);
-          return;
-        }
-
-        activeBadgeTemplateImageGeneration = {
-          badgeTemplateId,
-          generationId,
-        };
-        const generation = payload && payload.generation ? payload.generation : null;
-
-        if (
-          generation &&
-          generation.status === 'succeeded' &&
-          typeof generation.resultImageUri === 'string' &&
-          generation.resultImageUri.length > 0
-        ) {
-          showBadgeTemplateImageGenerationPreview(generation);
-          setStatus(badgeTemplateImageGenerationStatus, 'Generated draft ready.', false, 'success');
-          return;
-        }
-
-        setStatus(
-          badgeTemplateImageGenerationStatus,
-          generation && generation.status === 'processing'
-            ? 'Generating badge image draft. Checking again shortly...'
-            : 'Draft queued. Waiting for the image worker...',
-          false,
-        );
-        const nextPollDelayMs =
-          generation && generation.status === 'processing'
-            ? badgeTemplateImageProcessingPollDelayMs
-            : badgeTemplateImageQueuedPollDelayMs;
-        badgeTemplateImageGenerationPollTimer = window.setTimeout(() => {
-          void pollBadgeTemplateImageGeneration(badgeTemplateId, generationId);
-        }, nextPollDelayMs);
-      } catch {
-        setStatus(
-          badgeTemplateImageGenerationStatus,
-          'Unable to generate badge image from this browser session.',
-          true,
-        );
-      }
-    });
-  }
-
-  if (
-    badgeTemplateImageGenerationApplyButton instanceof HTMLButtonElement &&
-    badgeTemplateImageGenerationStatus instanceof HTMLElement
-  ) {
-    badgeTemplateImageGenerationApplyButton.addEventListener('click', async () => {
-      if (
-        !activeBadgeTemplateImageGeneration ||
-        typeof activeBadgeTemplateImageGeneration.badgeTemplateId !== 'string' ||
-        typeof activeBadgeTemplateImageGeneration.generationId !== 'string'
-      ) {
-        setStatus(badgeTemplateImageGenerationStatus, 'No generated draft is selected.', true);
-        return;
-      }
-
-      badgeTemplateImageGenerationApplyButton.disabled = true;
-      setStatus(badgeTemplateImageGenerationStatus, 'Applying generated badge image...', false);
-
-      try {
-        const response = await fetch(
-          badgeTemplateImageGenerationPath(
-            activeBadgeTemplateImageGeneration.badgeTemplateId,
-            activeBadgeTemplateImageGeneration.generationId,
-          ) + '/apply',
-          {
-            method: 'POST',
-          },
-        );
-        const payload = await parseJsonBody(response);
-
-        if (!response.ok) {
-          setStatus(badgeTemplateImageGenerationStatus, errorDetailFromPayload(payload), true);
-          badgeTemplateImageGenerationApplyButton.disabled = false;
-          return;
-        }
-
-        setStatus(badgeTemplateImageGenerationStatus, 'Generated image applied.', false, 'success');
-        setTimeout(() => {
-          window.location.assign(tenantAdminPath + '/rules/templates');
-        }, 900);
-      } catch {
-        setStatus(
-          badgeTemplateImageGenerationStatus,
-          'Unable to apply generated badge image from this browser session.',
-          true,
-        );
-        badgeTemplateImageGenerationApplyButton.disabled = false;
-      }
-    });
-  }
-
-  if (
-    badgeTemplateImageRevisionForm instanceof HTMLFormElement &&
-    badgeTemplateImageRevisionStatus instanceof HTMLElement
-  ) {
-    badgeTemplateImageRevisionForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const data = new FormData(badgeTemplateImageRevisionForm);
-      const badgeTemplateIdRaw = data.get('badgeTemplateId');
-      const badgeTemplateId =
-        typeof badgeTemplateIdRaw === 'string' ? badgeTemplateIdRaw.trim() : '';
-
-      await loadBadgeTemplateImageRevisions(badgeTemplateId);
-    });
-  }
-
-  document.querySelectorAll('[data-template-image-history-template-id]').forEach((candidate) => {
-    if (!(candidate instanceof HTMLAnchorElement)) {
-      return;
-    }
-
-    candidate.addEventListener('click', async (event) => {
-      event.preventDefault();
-      const badgeTemplateId = candidate.dataset.templateImageHistoryTemplateId || '';
-
-      if (templateImagePanel instanceof HTMLDetailsElement) {
-        templateImagePanel.open = true;
-      }
-
-      if (badgeTemplateImageRevisionForm instanceof HTMLFormElement) {
-        const templateSelect = badgeTemplateImageRevisionForm.elements.namedItem('badgeTemplateId');
-
-        if (templateSelect instanceof HTMLSelectElement) {
-          templateSelect.value = badgeTemplateId;
-        }
-      }
-
-      if (badgeTemplateImageRevisionStatus instanceof HTMLElement) {
-        badgeTemplateImageRevisionStatus.scrollIntoView({ block: 'center' });
-      }
-
-      await loadBadgeTemplateImageRevisions(badgeTemplateId);
-    });
-  });
-
-  if (
-    badgeTemplateImageRevisionList instanceof HTMLElement &&
-    badgeTemplateImageRevisionStatus instanceof HTMLElement
-  ) {
-    badgeTemplateImageRevisionList.addEventListener('click', async (event) => {
-      const target = event.target;
-
-      if (!(target instanceof HTMLButtonElement)) {
-        return;
-      }
-
-      const badgeTemplateId = target.dataset.badgeTemplateId || '';
-      const revisionId = target.dataset.revisionId || '';
-
-      if (badgeTemplateId.length === 0 || revisionId.length === 0) {
-        setStatus(badgeTemplateImageRevisionStatus, 'Invalid image revision action.', true);
-        return;
-      }
-
-      target.disabled = true;
-      setStatus(badgeTemplateImageRevisionStatus, 'Restoring badge image...', false);
-
-      try {
-        const response = await fetch(
-          badgeTemplateApiPathPrefix +
-            '/' +
-            encodeURIComponent(badgeTemplateId) +
-            '/image-revisions/' +
-            encodeURIComponent(revisionId) +
-            '/restore',
-          {
-            method: 'POST',
-          },
-        );
-        const payload = await parseJsonBody(response);
-
-        if (!response.ok) {
-          setStatus(badgeTemplateImageRevisionStatus, errorDetailFromPayload(payload), true);
-          target.disabled = false;
-          return;
-        }
-
-        setStatus(badgeTemplateImageRevisionStatus, 'Badge image restored.', false, 'success');
-        setTimeout(() => {
-          window.location.assign(tenantAdminPath + '/rules/templates');
-        }, 900);
-      } catch {
-        setStatus(
-          badgeTemplateImageRevisionStatus,
-          'Unable to restore badge image from this browser session.',
-          true,
-        );
-        target.disabled = false;
-      }
-    });
-  }
 
   if (tenantMemberForm instanceof HTMLFormElement && tenantMemberStatus instanceof HTMLElement) {
     tenantMemberForm.addEventListener('submit', async (event) => {
@@ -3085,6 +2549,211 @@ export const INSTITUTION_ADMIN_JS = `
   ) {
     const badgeRulePreviewApiPath = badgeRuleApiPath + '/preview-evaluate';
     const ruleBuilderDraftStorageKey = 'credtrail:rule-builder:' + tenantAdminPath;
+    const ruleBuilderContext =
+      parsedContext &&
+      parsedContext.ruleBuilderContext &&
+      typeof parsedContext.ruleBuilderContext === 'object'
+        ? parsedContext.ruleBuilderContext
+        : null;
+    const badgeTemplateCourseMap = new Map();
+    const badgeTemplatesContext =
+      ruleBuilderContext && Array.isArray(ruleBuilderContext.badgeTemplates)
+        ? ruleBuilderContext.badgeTemplates
+        : [];
+
+    badgeTemplatesContext.forEach((entry) => {
+      if (entry && typeof entry.id === 'string') {
+        badgeTemplateCourseMap.set(
+          entry.id,
+          typeof entry.defaultCourseId === 'string' && entry.defaultCourseId.length > 0
+            ? entry.defaultCourseId
+            : null,
+        );
+      }
+    });
+
+    const fallbackCourseId =
+      ruleBuilderContext &&
+      typeof ruleBuilderContext.fallbackCourseId === 'string' &&
+      ruleBuilderContext.fallbackCourseId.length > 0
+        ? ruleBuilderContext.fallbackCourseId
+        : '';
+
+    const getSelectedBadgeTemplateId = () => {
+      return getTextFieldValue('badgeTemplateId');
+    };
+
+    const deriveRelatedCourseIds = (courseId, count) => {
+      const ids = [courseId];
+      const match = courseId.match(/^(.+?)(\\d+)([A-Z]?)$/i);
+
+      if (match) {
+        const prefix = match[1];
+        const number = Number(match[2]);
+        const suffix = match[3] ?? '';
+
+        for (let index = 1; index < count; index += 1) {
+          ids.push(prefix + String(number + index) + suffix);
+        }
+
+        return ids;
+      }
+
+      for (let index = 1; index < count; index += 1) {
+        ids.push(courseId + '-' + String(index + 1));
+      }
+
+      return ids;
+    };
+
+    const getDefaultCourseId = () => {
+      const templateId = getSelectedBadgeTemplateId();
+      const fromTemplate =
+        templateId.length > 0 ? badgeTemplateCourseMap.get(templateId) : null;
+
+      if (typeof fromTemplate === 'string' && fromTemplate.length > 0) {
+        return fromTemplate;
+      }
+
+      if (fallbackCourseId.length > 0) {
+        return fallbackCourseId;
+      }
+
+      return '';
+    };
+
+    const getCoursePlaceholder = () => {
+      const courseId = getDefaultCourseId();
+
+      return courseId.length > 0 ? courseId : 'COURSE_ID';
+    };
+
+    const buildDefaultTemplateDefinitions = (courseId) => {
+      const primaryCourseId = courseId.length > 0 ? courseId : 'COURSE_ID';
+      const programCourseIds = deriveRelatedCourseIds(primaryCourseId, 3);
+      const nextCourseId = programCourseIds[1] ?? primaryCourseId + '-2';
+      const surveyId = primaryCourseId + '_EXIT_SURVEY';
+
+      return {
+        blank: {
+          conditions: {
+            all: [
+              {
+                type: 'course_completion',
+                courseId: primaryCourseId,
+                requireCompleted: true,
+              },
+            ],
+          },
+        },
+        course_completion: {
+          conditions: {
+            all: [
+              {
+                type: 'course_completion',
+                courseId: primaryCourseId,
+                requireCompleted: true,
+              },
+            ],
+          },
+        },
+        course_and_grade: {
+          conditions: {
+            all: [
+              {
+                type: 'course_completion',
+                courseId: primaryCourseId,
+                requireCompleted: true,
+              },
+              {
+                type: 'grade_threshold',
+                courseId: primaryCourseId,
+                scoreField: 'final_score',
+                minScore: 80,
+              },
+            ],
+          },
+        },
+        program_completion: {
+          conditions: {
+            all: [
+              {
+                type: 'program_completion',
+                courseIds: programCourseIds,
+                minimumCompleted: 3,
+              },
+            ],
+          },
+        },
+        assignment_submission: {
+          conditions: {
+            all: [
+              {
+                type: 'assignment_submission',
+                courseId: primaryCourseId,
+                assignmentId: 'assignment_1',
+                requireSubmitted: true,
+              },
+            ],
+          },
+        },
+        survey_completion: {
+          conditions: {
+            all: [
+              {
+                type: 'survey_completion',
+                source: 'qualtrics',
+                surveyId,
+                requireCompleted: true,
+              },
+            ],
+          },
+        },
+        time_limited: {
+          conditions: {
+            all: [
+              {
+                type: 'course_completion',
+                courseId: primaryCourseId,
+                requireCompleted: true,
+              },
+              {
+                type: 'time_window',
+                notBefore: new Date().toISOString(),
+              },
+            ],
+          },
+        },
+        custom_field: {
+          conditions: {
+            all: [
+              {
+                type: 'custom_field',
+                fieldName: 'programStanding',
+                operator: 'equals',
+                expectedValue: 'eligible',
+              },
+            ],
+          },
+        },
+        prerequisite_chain: {
+          conditions: {
+            all: [
+              {
+                type: 'prerequisite_badge',
+                badgeTemplateId: 'badge_template_foundations',
+              },
+              {
+                type: 'course_completion',
+                courseId: nextCourseId,
+                requireCompleted: true,
+              },
+            ],
+          },
+        },
+      };
+    };
+    let runRuleBuilderTest = async () => {};
     const validRoles = new Set(['owner', 'admin', 'issuer', 'viewer']);
     const conditionTypeLabels = {
       course_completion: 'Course completion',
@@ -3211,124 +2880,6 @@ export const INSTITUTION_ADMIN_JS = `
       syncPair();
     }
 
-    const defaultTemplateDefinitions = {
-      blank: {
-        conditions: {
-          all: [
-            {
-              type: 'course_completion',
-              courseId: 'CS101',
-              requireCompleted: true,
-            },
-          ],
-        },
-      },
-      course_completion: {
-        conditions: {
-          all: [
-            {
-              type: 'course_completion',
-              courseId: 'CS101',
-              requireCompleted: true,
-            },
-          ],
-        },
-      },
-      course_and_grade: {
-        conditions: {
-          all: [
-            {
-              type: 'course_completion',
-              courseId: 'CS101',
-              requireCompleted: true,
-            },
-            {
-              type: 'grade_threshold',
-              courseId: 'CS101',
-              scoreField: 'final_score',
-              minScore: 80,
-            },
-          ],
-        },
-      },
-      program_completion: {
-        conditions: {
-          all: [
-            {
-              type: 'program_completion',
-              courseIds: ['CS101', 'CS102', 'CS103'],
-              minimumCompleted: 3,
-            },
-          ],
-        },
-      },
-      assignment_submission: {
-        conditions: {
-          all: [
-            {
-              type: 'assignment_submission',
-              courseId: 'CS101',
-              assignmentId: 'assignment_1',
-              requireSubmitted: true,
-            },
-          ],
-        },
-      },
-      survey_completion: {
-        conditions: {
-          all: [
-            {
-              type: 'survey_completion',
-              source: 'qualtrics',
-              surveyId: 'CS101_EXIT_SURVEY',
-              requireCompleted: true,
-            },
-          ],
-        },
-      },
-      time_limited: {
-        conditions: {
-          all: [
-            {
-              type: 'course_completion',
-              courseId: 'CS101',
-              requireCompleted: true,
-            },
-            {
-              type: 'time_window',
-              notBefore: new Date().toISOString(),
-            },
-          ],
-        },
-      },
-      custom_field: {
-        conditions: {
-          all: [
-            {
-              type: 'custom_field',
-              fieldName: 'programStanding',
-              operator: 'equals',
-              expectedValue: 'eligible',
-            },
-          ],
-        },
-      },
-      prerequisite_chain: {
-        conditions: {
-          all: [
-            {
-              type: 'prerequisite_badge',
-              badgeTemplateId: 'badge_template_foundations',
-            },
-            {
-              type: 'course_completion',
-              courseId: 'CS201',
-              requireCompleted: true,
-            },
-          ],
-        },
-      },
-    };
 
     const getRuleCreateField = (fieldName) => {
       return ruleCreateForm.elements.namedItem(fieldName);
@@ -3365,6 +2916,56 @@ export const INSTITUTION_ADMIN_JS = `
       }
     };
 
+    let ruleNameManuallyEdited = false;
+
+    const getSelectedOptionLabel = (field) => {
+      if (!(field instanceof HTMLSelectElement)) {
+        return '';
+      }
+
+      const selectedOption = field.selectedOptions[0];
+
+      if (!(selectedOption instanceof HTMLOptionElement)) {
+        return '';
+      }
+
+      const optionText = selectedOption.textContent?.trim() ?? '';
+
+      if (optionText.length === 0) {
+        return '';
+      }
+
+      const templateIdSuffixIndex = optionText.lastIndexOf(' (');
+
+      if (templateIdSuffixIndex > 0) {
+        return optionText.slice(0, templateIdSuffixIndex).trim();
+      }
+
+      return optionText;
+    };
+
+    const buildSuggestedRuleName = () => {
+      const badgeTitle = getSelectedOptionLabel(getRuleCreateField('badgeTemplateId'));
+      const patternLabel = getSelectedOptionLabel(ruleBuilderTemplatePreset);
+      const badgeLabel = badgeTitle.length > 0 ? badgeTitle : 'Badge rule';
+      const patternName = patternLabel.length > 0 ? patternLabel : 'Awarding rule';
+
+      return badgeLabel + ' \u2013 ' + patternName;
+    };
+
+    const syncSuggestedRuleName = () => {
+      if (ruleNameManuallyEdited) {
+        return;
+      }
+
+      const suggestedName = buildSuggestedRuleName();
+      setRuleCreateFieldValue('name', suggestedName);
+
+      if (ruleBuilderNameVisible instanceof HTMLInputElement) {
+        ruleBuilderNameVisible.value = suggestedName;
+      }
+    };
+
     const ruleBuilderStepPanels = Array.from(
       ruleCreateForm.querySelectorAll('[data-rule-step]'),
     ).filter((candidate) => candidate instanceof HTMLElement);
@@ -3374,9 +2975,233 @@ export const INSTITUTION_ADMIN_JS = `
     const ruleBuilderStepLabels = {
       metadata: 'Awarding pattern',
       conditions: 'Requirements',
-      test: 'Test & submit',
+      test: 'Test and submit',
+    };
+    const ruleBuilderStepCallouts = {
+      metadata: 'Choose an awarding pattern, badge, and LMS source, then select Continue.',
+      conditions: 'Confirm the requirements learners must meet, then select Continue.',
+      test: 'Test with a sample learner. When results look right, create the draft.',
+    };
+    const ruleBuilderStepGateMessages = {
+      metadata: 'Choose a badge template and LMS provider before continuing.',
+      conditions: 'Add at least one requirement before continuing.',
+      test: 'Run a test with a sample learner before creating the draft.',
     };
     let activeRuleBuilderStepIndex = 0;
+
+    const isMetadataStepComplete = () => {
+      return (
+        getTextFieldValue('name').length > 0 &&
+        getTextFieldValue('badgeTemplateId').length > 0 &&
+        getTextFieldValue('lmsProviderKind').length > 0
+      );
+    };
+
+    const isConditionsStepComplete = () => {
+      const cardCount = getConditionCards().length;
+
+      if (cardCount === 0) {
+        return false;
+      }
+
+      const validationErrors = validateConditionCards(false);
+
+      if (validationErrors.length > 0) {
+        return false;
+      }
+
+      try {
+        const definition = readDefinitionFromBuilder(true);
+        const rootConditions =
+          definition &&
+          typeof definition === 'object' &&
+          definition.conditions &&
+          typeof definition.conditions === 'object'
+            ? definition.conditions
+            : null;
+        const childCount =
+          rootConditions !== null && Array.isArray(rootConditions.all)
+            ? rootConditions.all.length
+            : rootConditions !== null && Array.isArray(rootConditions.any)
+              ? rootConditions.any.length
+              : cardCount;
+
+        return childCount > 0;
+      } catch {
+        return false;
+      }
+    };
+
+    const isTestStepComplete = () => {
+      const testReady =
+        ruleBuilderLastTestSummary.startsWith('Matched') ||
+        ruleBuilderLastTestSummary.startsWith('No match') ||
+        ruleBuilderLastTestSummary.startsWith('Review required');
+      let reviewReady = getTextFieldValue('issuanceTiming').length > 0;
+
+      try {
+        buildApprovalChain(getTextFieldValue('approvalRoles'));
+      } catch {
+        reviewReady = false;
+      }
+
+      return testReady && reviewReady;
+    };
+
+    const getRuleBuilderCompletionState = () => {
+      return {
+        metadata: isMetadataStepComplete(),
+        conditions: isConditionsStepComplete(),
+        test: isTestStepComplete(),
+      };
+    };
+
+    const isStepComplete = (stepName) => {
+      const completion = getRuleBuilderCompletionState();
+      return completion[stepName] === true;
+    };
+
+    const getStepGateMessage = (stepName) => {
+      if (stepName === 'metadata') {
+        const missingLabels = [];
+
+        if (getTextFieldValue('badgeTemplateId').length === 0) {
+          missingLabels.push('badge template');
+        }
+
+        if (getTextFieldValue('lmsProviderKind').length === 0) {
+          missingLabels.push('LMS provider');
+        }
+
+        if (missingLabels.length > 0) {
+          return 'Choose a ' + missingLabels.join(' and ') + ' before continuing.';
+        }
+      }
+
+      if (stepName === 'conditions') {
+        const cardCount = getConditionCards().length;
+
+        if (cardCount === 0) {
+          return 'Add at least one requirement before continuing. Go back to Step 1 to choose a pattern.';
+        }
+
+        const validationErrors = validateConditionCards(false);
+
+        if (validationErrors.length > 0) {
+          return validationErrors[0];
+        }
+
+        try {
+          readDefinitionFromBuilder(true);
+        } catch (error) {
+          return error instanceof Error ? error.message : 'Fix the requirements before continuing.';
+        }
+      }
+
+      if (stepName === 'test') {
+        const testReady =
+          ruleBuilderLastTestSummary.startsWith('Matched') ||
+          ruleBuilderLastTestSummary.startsWith('No match') ||
+          ruleBuilderLastTestSummary.startsWith('Review required');
+
+        if (!testReady) {
+          return 'Run a test with a sample learner before creating the draft.';
+        }
+
+        if (getTextFieldValue('issuanceTiming').length === 0) {
+          return 'Choose when the badge should be issued before creating the draft.';
+        }
+
+        try {
+          buildApprovalChain(getTextFieldValue('approvalRoles'));
+        } catch (error) {
+          return error instanceof Error ? error.message : 'Fix approval roles before creating the draft.';
+        }
+      }
+
+      return ruleBuilderStepGateMessages[stepName] ?? 'Complete this step before continuing.';
+    };
+
+    const canNavigateToStep = (targetIndex) => {
+      if (targetIndex < 0 || targetIndex >= ruleBuilderStepOrder.length) {
+        return false;
+      }
+
+      if (targetIndex <= activeRuleBuilderStepIndex) {
+        return true;
+      }
+
+      const completion = getRuleBuilderCompletionState();
+
+      for (let index = 0; index < targetIndex; index += 1) {
+        const stepName = ruleBuilderStepOrder[index] ?? '';
+
+        if (completion[stepName] !== true) {
+          return false;
+        }
+      }
+
+      return true;
+    };
+
+    const showStepGateMessage = (stepName) => {
+      if (!(ruleBuilderStepCallout instanceof HTMLElement)) {
+        return;
+      }
+
+      ruleBuilderStepCallout.textContent = getStepGateMessage(stepName);
+      ruleBuilderStepCallout.dataset.tone = 'warning';
+    };
+
+    const updateStepNavigationState = () => {
+      const completion = getRuleBuilderCompletionState();
+      const currentStep = ruleBuilderStepOrder[activeRuleBuilderStepIndex] ?? '';
+      const currentComplete = completion[currentStep] === true;
+
+      ruleBuilderStepButtons.forEach((candidate) => {
+        if (!(candidate instanceof HTMLButtonElement)) {
+          return;
+        }
+
+        const targetStep = candidate.dataset.ruleStepTarget ?? '';
+        const targetIndex = ruleBuilderStepOrder.indexOf(targetStep);
+        const reachable = canNavigateToStep(targetIndex);
+
+        candidate.disabled = !reachable;
+        candidate.classList.toggle('is-locked', !reachable);
+        candidate.setAttribute('aria-disabled', reachable ? 'false' : 'true');
+      });
+
+      if (ruleBuilderStepPrevButton instanceof HTMLButtonElement) {
+        ruleBuilderStepPrevButton.disabled = activeRuleBuilderStepIndex === 0;
+      }
+
+      if (ruleBuilderStepNextButton instanceof HTMLButtonElement) {
+        const nextStep = ruleBuilderStepOrder[activeRuleBuilderStepIndex + 1] ?? '';
+        const nextStepLabel = ruleBuilderStepLabels[nextStep] ?? '';
+
+        ruleBuilderStepNextButton.textContent =
+          nextStepLabel.length > 0 ? 'Continue to ' + nextStepLabel : 'Continue';
+        ruleBuilderStepNextButton.disabled =
+          activeRuleBuilderStepIndex >= ruleBuilderStepOrder.length - 1 || !currentComplete;
+      }
+
+      if (ruleBuilderSubmitButton instanceof HTMLButtonElement) {
+        ruleBuilderSubmitButton.disabled =
+          activeRuleBuilderStepIndex < ruleBuilderStepOrder.length - 1 || !completion.test;
+      }
+
+      if (ruleBuilderStepCallout instanceof HTMLElement) {
+        if (!currentComplete) {
+          ruleBuilderStepCallout.textContent = getStepGateMessage(currentStep);
+          ruleBuilderStepCallout.dataset.tone = 'warning';
+        } else {
+          ruleBuilderStepCallout.textContent =
+            ruleBuilderStepCallouts[currentStep] ?? 'Complete this step, then continue.';
+          delete ruleBuilderStepCallout.dataset.tone;
+        }
+      }
+    };
 
     const setBuilderStepState = (requestedIndex) => {
       if (ruleBuilderStepOrder.length === 0) {
@@ -3415,26 +3240,30 @@ export const INSTITUTION_ADMIN_JS = `
         }
       });
 
-      if (ruleBuilderStepPrevButton instanceof HTMLButtonElement) {
-        ruleBuilderStepPrevButton.disabled = nextIndex === 0;
+      syncRuleBuilderStepCompletion();
+
+      if (activeStep === 'test') {
+        applyTestFactPreset();
+        void runRuleBuilderTest({ auto: true });
+      }
+    };
+
+    const tryNavigateToStep = (targetIndex) => {
+      if (!canNavigateToStep(targetIndex)) {
+        for (let index = 0; index < targetIndex; index += 1) {
+          const stepName = ruleBuilderStepOrder[index] ?? '';
+
+          if (!isStepComplete(stepName)) {
+            showStepGateMessage(stepName);
+            break;
+          }
+        }
+
+        return false;
       }
 
-      if (ruleBuilderStepNextButton instanceof HTMLButtonElement) {
-        ruleBuilderStepNextButton.disabled = nextIndex >= ruleBuilderStepOrder.length - 1;
-      }
-
-      if (ruleBuilderSubmitButton instanceof HTMLButtonElement) {
-        ruleBuilderSubmitButton.disabled = nextIndex < ruleBuilderStepOrder.length - 1;
-      }
-      if (ruleBuilderStepProgress instanceof HTMLElement) {
-        ruleBuilderStepProgress.textContent =
-          'Step ' +
-          String(nextIndex + 1) +
-          ' of ' +
-          String(ruleBuilderStepOrder.length) +
-          ' · ' +
-          activeStepLabel;
-      }
+      setBuilderStepState(targetIndex);
+      return true;
     };
 
     const getConditionCards = () => {
@@ -3573,15 +3402,188 @@ export const INSTITUTION_ADMIN_JS = `
       card.classList.add('ct-admin__condition-card--' + conditionType);
     };
 
-    const updateConditionHelpText = (card, conditionType) => {
-      const helpElement = card.querySelector('.ct-admin__condition-help');
+    const updateConditionPlainSummary = (card) => {
+      const summaryElement = card.querySelector('.ct-admin__condition-summary');
 
-      if (!(helpElement instanceof HTMLElement)) {
+      if (!(summaryElement instanceof HTMLElement)) {
         return;
       }
 
-      const helpText = conditionTypeHelpText[conditionType] ?? 'Configure condition inputs.';
-      helpElement.textContent = helpText;
+      const typeSelect = card.querySelector('.ct-admin__condition-type');
+      const conditionType =
+        typeSelect instanceof HTMLSelectElement ? typeSelect.value : 'course_completion';
+      const negatePrefix = readCheckboxFromCard(card, 'negate') ? 'Must not: ' : '';
+
+      try {
+        const condition = readConditionFromCard(card, false);
+        summaryElement.textContent = negatePrefix + formatConditionPlainSummary(condition);
+        return;
+      } catch {
+        summaryElement.textContent =
+          negatePrefix + (conditionTypeLabels[conditionType] ?? 'Requirement');
+      }
+    };
+
+    const formatConditionPlainSummary = (condition) => {
+      if (!condition || typeof condition !== 'object' || typeof condition.type !== 'string') {
+        return 'Requirement';
+      }
+
+      if (condition.type === 'course_completion') {
+        const courseLabel =
+          typeof condition.courseListId === 'string' && condition.courseListId.length > 0
+            ? 'courses from list ' + condition.courseListId
+            : typeof condition.courseId === 'string' && condition.courseId.length > 0
+              ? condition.courseId
+              : 'the course';
+        const completionLabel =
+          condition.requireCompleted === false ? 'started ' : 'completed ';
+        const minPercent =
+          typeof condition.minCompletionPercent === 'number'
+            ? ' with at least ' + String(condition.minCompletionPercent) + '% completion'
+            : '';
+
+        return 'Learner has ' + completionLabel + courseLabel + minPercent;
+      }
+
+      if (condition.type === 'grade_threshold') {
+        const courseLabel =
+          typeof condition.courseListId === 'string' && condition.courseListId.length > 0
+            ? 'courses from list ' + condition.courseListId
+            : typeof condition.courseId === 'string' && condition.courseId.length > 0
+              ? condition.courseId
+              : 'the course';
+        const scoreField =
+          condition.scoreField === 'current_score' ? 'current score' : 'final score';
+        const minScore =
+          typeof condition.minScore === 'number'
+            ? ' at least ' + String(condition.minScore)
+            : '';
+        const maxScore =
+          typeof condition.maxScore === 'number'
+            ? ' no more than ' + String(condition.maxScore)
+            : '';
+
+        return (
+          'Learner ' +
+          scoreField +
+          ' in ' +
+          courseLabel +
+          ' is' +
+          minScore +
+          maxScore
+        );
+      }
+
+      if (condition.type === 'program_completion') {
+        const courseCount = Array.isArray(condition.courseIds) ? condition.courseIds.length : 0;
+        const minimumCompleted =
+          typeof condition.minimumCompleted === 'number'
+            ? condition.minimumCompleted
+            : courseCount;
+
+        if (
+          typeof condition.courseListId === 'string' &&
+          condition.courseListId.length > 0
+        ) {
+          return (
+            'Learner completes at least ' +
+            String(minimumCompleted) +
+            ' courses from list ' +
+            condition.courseListId
+          );
+        }
+
+        const courseLabel =
+          courseCount > 0 ? condition.courseIds.join(', ') : 'required courses';
+
+        return (
+          'Learner completes at least ' +
+          String(minimumCompleted) +
+          ' of: ' +
+          courseLabel
+        );
+      }
+
+      if (condition.type === 'assignment_submission') {
+        const courseLabel =
+          typeof condition.courseId === 'string' && condition.courseId.length > 0
+            ? condition.courseId
+            : 'the course';
+        const assignmentLabel =
+          typeof condition.assignmentId === 'string' && condition.assignmentId.length > 0
+            ? condition.assignmentId
+            : 'the assignment';
+        const minScore =
+          typeof condition.minScore === 'number'
+            ? ' with score at least ' + String(condition.minScore)
+            : '';
+
+        return (
+          'Learner submits ' +
+          assignmentLabel +
+          ' in ' +
+          courseLabel +
+          minScore
+        );
+      }
+
+      if (condition.type === 'survey_completion') {
+        const surveyLabel =
+          typeof condition.surveyId === 'string' && condition.surveyId.length > 0
+            ? condition.surveyId
+            : 'the required survey';
+
+        return 'Learner completes survey ' + surveyLabel;
+      }
+
+      if (condition.type === 'time_window') {
+        const notBefore =
+          typeof condition.notBefore === 'string' && condition.notBefore.length > 0
+            ? ' after ' + condition.notBefore
+            : '';
+        const notAfter =
+          typeof condition.notAfter === 'string' && condition.notAfter.length > 0
+            ? ' before ' + condition.notAfter
+            : '';
+
+        return 'Badge can only be earned' + notBefore + notAfter;
+      }
+
+      if (condition.type === 'prerequisite_badge') {
+        const badgeLabel =
+          typeof condition.badgeTemplateListId === 'string' &&
+          condition.badgeTemplateListId.length > 0
+            ? 'badges from list ' + condition.badgeTemplateListId
+            : typeof condition.badgeTemplateId === 'string' &&
+                condition.badgeTemplateId.length > 0
+              ? condition.badgeTemplateId
+              : 'a prerequisite badge';
+
+        return 'Learner already holds ' + badgeLabel;
+      }
+
+      if (condition.type === 'custom_field') {
+        const fieldName =
+          typeof condition.fieldName === 'string' && condition.fieldName.length > 0
+            ? condition.fieldName
+            : 'custom field';
+        const expectedValue =
+          typeof condition.expectedValue === 'string' && condition.expectedValue.length > 0
+            ? condition.expectedValue
+            : 'expected value';
+
+        return (
+          'Learner ' +
+          fieldName +
+          ' ' +
+          (typeof condition.operator === 'string' ? condition.operator : 'matches') +
+          ' ' +
+          expectedValue
+        );
+      }
+
+      return conditionTypeLabels[condition.type] ?? 'Requirement';
     };
 
     const setConditionResultState = (card, state, detail) => {
@@ -3611,11 +3613,15 @@ export const INSTITUTION_ADMIN_JS = `
 
       const conditionType = typeSelect.value;
       updateConditionCardClass(card, conditionType);
-      updateConditionHelpText(card, conditionType);
+      const coursePlaceholder = getCoursePlaceholder();
+      const programCoursePlaceholder = deriveRelatedCourseIds(coursePlaceholder, 3).join(', ');
+      const surveyPlaceholder = coursePlaceholder + '_EXIT_SURVEY';
 
       if (conditionType === 'course_completion') {
         fieldsContainer.innerHTML =
-          '<label>Course ID<input type="text" data-field="courseId" placeholder="CS101" /></label>' +
+          '<label>Course ID<input type="text" data-field="courseId" placeholder="' +
+          coursePlaceholder +
+          '" /></label>' +
           '<label>Reusable course list<select data-field="courseListId">' +
           listOptionsMarkup('course_ids', typeof seed.courseListId === 'string' ? seed.courseListId : '', 'Use single course ID') +
           '</select></label>' +
@@ -3639,12 +3645,15 @@ export const INSTITUTION_ADMIN_JS = `
           seed.requireCompleted === undefined ? true : Boolean(seed.requireCompleted),
         );
         bindExclusiveFieldPair(card, 'courseId', 'courseListId');
+        updateConditionPlainSummary(card);
         return;
       }
 
       if (conditionType === 'grade_threshold') {
         fieldsContainer.innerHTML =
-          '<label>Course ID<input type="text" data-field="courseId" placeholder="CS101" /></label>' +
+          '<label>Course ID<input type="text" data-field="courseId" placeholder="' +
+          coursePlaceholder +
+          '" /></label>' +
           '<label>Reusable course list<select data-field="courseListId">' +
           listOptionsMarkup('course_ids', typeof seed.courseListId === 'string' ? seed.courseListId : '', 'Use single course ID') +
           '</select></label>' +
@@ -3666,12 +3675,15 @@ export const INSTITUTION_ADMIN_JS = `
         setFieldOnCard(card, 'minScore', typeof seed.minScore === 'number' ? String(seed.minScore) : '');
         setFieldOnCard(card, 'maxScore', typeof seed.maxScore === 'number' ? String(seed.maxScore) : '');
         bindExclusiveFieldPair(card, 'courseId', 'courseListId');
+        updateConditionPlainSummary(card);
         return;
       }
 
       if (conditionType === 'program_completion') {
         fieldsContainer.innerHTML =
-          '<label>Course IDs (comma separated)<input type="text" data-field="courseIds" placeholder="CS101,CS102,CS103" /></label>' +
+          '<label>Course IDs (comma separated)<input type="text" data-field="courseIds" placeholder="' +
+          programCoursePlaceholder +
+          '" /></label>' +
           '<label>Reusable course list<select data-field="courseListId">' +
           listOptionsMarkup('course_ids', typeof seed.courseListId === 'string' ? seed.courseListId : '', 'Use explicit course IDs') +
           '</select></label>' +
@@ -3693,12 +3705,15 @@ export const INSTITUTION_ADMIN_JS = `
           typeof seed.minimumCompleted === 'number' ? String(seed.minimumCompleted) : '',
         );
         bindExclusiveFieldPair(card, 'courseIds', 'courseListId');
+        updateConditionPlainSummary(card);
         return;
       }
 
       if (conditionType === 'assignment_submission') {
         fieldsContainer.innerHTML =
-          '<label>Course ID<input type="text" data-field="courseId" placeholder="CS101" /></label>' +
+          '<label>Course ID<input type="text" data-field="courseId" placeholder="' +
+          coursePlaceholder +
+          '" /></label>' +
           '<label>Assignment ID<input type="text" data-field="assignmentId" placeholder="assignment_1" /></label>' +
           '<label>Min score (optional)<input type="number" data-field="minScore" min="0" max="100" step="0.01" /></label>' +
           '<label>Workflow states (comma separated, optional)<input type="text" data-field="workflowStates" placeholder="submitted,graded" /></label>' +
@@ -3721,12 +3736,15 @@ export const INSTITUTION_ADMIN_JS = `
           'requireSubmitted',
           seed.requireSubmitted === undefined ? true : Boolean(seed.requireSubmitted),
         );
+        updateConditionPlainSummary(card);
         return;
       }
 
       if (conditionType === 'survey_completion') {
         fieldsContainer.innerHTML =
-          '<label>Survey ID<input type="text" data-field="surveyId" placeholder="CS101_EXIT_SURVEY" /></label>' +
+          '<label>Survey ID<input type="text" data-field="surveyId" placeholder="' +
+          surveyPlaceholder +
+          '" /></label>' +
           '<label>Source (optional)<input type="text" data-field="source" placeholder="qualtrics" /></label>' +
           '<label class="ct-admin__checkbox-row ct-checkbox-row"><input type="checkbox" data-field="requireCompleted" checked />Require completed</label>';
 
@@ -3741,6 +3759,7 @@ export const INSTITUTION_ADMIN_JS = `
           'requireCompleted',
           seed.requireCompleted === undefined ? true : Boolean(seed.requireCompleted),
         );
+        updateConditionPlainSummary(card);
         return;
       }
 
@@ -3751,6 +3770,7 @@ export const INSTITUTION_ADMIN_JS = `
 
         setFieldOnCard(card, 'notBefore', toDateTimeLocalInput(seed.notBefore));
         setFieldOnCard(card, 'notAfter', toDateTimeLocalInput(seed.notAfter));
+        updateConditionPlainSummary(card);
         return;
       }
 
@@ -3783,6 +3803,7 @@ export const INSTITUTION_ADMIN_JS = `
           'expectedValue',
           seed.expectedValue === undefined ? '' : String(seed.expectedValue),
         );
+        updateConditionPlainSummary(card);
         return;
       }
 
@@ -3806,6 +3827,7 @@ export const INSTITUTION_ADMIN_JS = `
         typeof seed.badgeTemplateListId === 'string' ? seed.badgeTemplateListId : '',
       );
       bindExclusiveFieldPair(card, 'badgeTemplateId', 'badgeTemplateListId');
+      updateConditionPlainSummary(card);
     };
 
     const readConditionFromCard = (card, strict) => {
@@ -4325,7 +4347,7 @@ export const INSTITUTION_ADMIN_JS = `
       }
 
       const learnerId = getTextFieldValue('testLearnerId') || 'canvas:12345';
-      const courseId = getTextFieldValue('testCourseId') || 'CS101';
+      const courseId = getTextFieldValue('testCourseId') || getDefaultCourseId() || getCoursePlaceholder();
       const parsedFinalScore = Number(getTextFieldValue('testFinalScore'));
       const finalScore =
         Number.isFinite(parsedFinalScore) && parsedFinalScore >= 0 && parsedFinalScore <= 100
@@ -4623,28 +4645,8 @@ export const INSTITUTION_ADMIN_JS = `
       }
     };
 
-    const syncRuleBuilderStepCompletion = (definitionReady) => {
-      const metadataReady =
-        getTextFieldValue('name').length > 0 &&
-        getTextFieldValue('badgeTemplateId').length > 0 &&
-        getTextFieldValue('lmsProviderKind').length > 0;
-      const testReady =
-        ruleBuilderLastTestSummary.startsWith('Matched') ||
-        ruleBuilderLastTestSummary.startsWith('No match') ||
-        ruleBuilderLastTestSummary.startsWith('Review required');
-      let reviewReady = getTextFieldValue('issuanceTiming').length > 0;
-
-      try {
-        buildApprovalChain(getTextFieldValue('approvalRoles'));
-      } catch {
-        reviewReady = false;
-      }
-
-      const completionByStep = {
-        metadata: metadataReady,
-        conditions: definitionReady,
-        test: testReady && reviewReady,
-      };
+    const syncRuleBuilderStepCompletion = () => {
+      const completion = getRuleBuilderCompletionState();
 
       ruleBuilderStepButtons.forEach((candidate) => {
         if (!(candidate instanceof HTMLButtonElement)) {
@@ -4652,11 +4654,11 @@ export const INSTITUTION_ADMIN_JS = `
         }
 
         const targetStep = candidate.dataset.ruleStepTarget ?? '';
-        const isDone = completionByStep[targetStep] === true;
+        const isDone = completion[targetStep] === true;
         candidate.classList.toggle('is-done', isDone);
       });
 
-      const completedCount = Object.values(completionByStep).filter((value) => value).length;
+      const completedCount = Object.values(completion).filter((value) => value).length;
       const activeStep = ruleBuilderStepOrder[activeRuleBuilderStepIndex] ?? '';
       const activeStepLabel = ruleBuilderStepLabels[activeStep] ?? 'Step';
 
@@ -4674,6 +4676,8 @@ export const INSTITUTION_ADMIN_JS = `
           String(ruleBuilderStepOrder.length) +
           ' complete';
       }
+
+      updateStepNavigationState();
     };
 
     const syncRuleBuilderSummary = (statusOverride) => {
@@ -4769,7 +4773,7 @@ export const INSTITUTION_ADMIN_JS = `
                 ? 'warning'
                 : 'info',
       );
-      syncRuleBuilderStepCompletion(definitionTone === 'success');
+      syncRuleBuilderStepCompletion();
     };
 
     const syncDefinitionJsonFromBuilder = () => {
@@ -4786,6 +4790,9 @@ export const INSTITUTION_ADMIN_JS = `
 
       ruleBuilderLastTestSummary = 'Not run';
       validateConditionCards(true);
+      getConditionCards().forEach((card) => {
+        updateConditionPlainSummary(card);
+      });
       syncRuleBuilderSummary();
     };
 
@@ -5032,7 +5039,7 @@ export const INSTITUTION_ADMIN_JS = `
       if (normalizedChildren.length === 0) {
         addConditionToCanvas({
           type: 'course_completion',
-          courseId: 'CS101',
+          courseId: getDefaultCourseId() || getCoursePlaceholder(),
           requireCompleted: true,
           negate: false,
         });
@@ -5082,60 +5089,58 @@ export const INSTITUTION_ADMIN_JS = `
         renderSourceReadiness();
         validateConditionCards(true);
         setStatus(ruleCreateStatus, 'Blank requirements started.', false, 'success');
+        syncSuggestedRuleName();
         syncRuleBuilderSummary('Blank requirements started.');
         return;
       }
 
-      const selectedTemplate = defaultTemplateDefinitions[presetKey] ?? defaultTemplateDefinitions.course_and_grade;
+      const selectedTemplate =
+        buildDefaultTemplateDefinitions(getDefaultCourseId())[presetKey] ??
+        buildDefaultTemplateDefinitions(getDefaultCourseId()).course_and_grade;
       ruleBuilderDefinitionJson.value = JSON.stringify(selectedTemplate, null, 2);
       applyDefinitionToBuilder(selectedTemplate, 'Template');
+      syncSuggestedRuleName();
     };
 
     const applyTestFactPreset = () => {
       const presetKey =
-        ruleBuilderTestPresetSelect instanceof HTMLSelectElement
-          ? ruleBuilderTestPresetSelect.value.trim()
-          : 'canvas_course_grade';
+        ruleBuilderTemplatePreset instanceof HTMLSelectElement
+          ? ruleBuilderTemplatePreset.value.trim()
+          : ruleBuilderTestPresetSelect instanceof HTMLSelectElement
+            ? ruleBuilderTestPresetSelect.value.trim()
+            : 'canvas_course_grade';
       const learnerId = getTextFieldValue('testLearnerId') || 'canvas:12345';
       const recipientIdentity = getTextFieldValue('testRecipientIdentity') || 'learner@example.edu';
+      const courseId = getDefaultCourseId() || getCoursePlaceholder();
+      const programCourseIds = deriveRelatedCourseIds(courseId, 3);
+      const nextCourseId = programCourseIds[1] ?? courseId + '-2';
+      const surveyId = courseId + '_EXIT_SURVEY';
 
       setRuleCreateFieldValue('testLearnerId', learnerId);
       setRuleCreateFieldValue('testRecipientIdentity', recipientIdentity);
 
       if (presetKey === 'program_completion') {
-        setRuleCreateFieldValue('testCourseId', 'CS101');
+        setRuleCreateFieldValue('testCourseId', courseId);
         setRuleCreateFieldValue('testFinalScore', '92');
         setRuleCreateFieldValue(
           'testFactsJson',
           JSON.stringify(
             {
-              completions: [
-                {
-                  courseId: 'CS101',
+              completions: programCourseIds.map((entry) => {
+                return {
+                  courseId: entry,
                   learnerId,
                   completed: true,
                   completionPercent: 100,
-                },
-                {
-                  courseId: 'CS102',
-                  learnerId,
-                  completed: true,
-                  completionPercent: 100,
-                },
-                {
-                  courseId: 'CS103',
-                  learnerId,
-                  completed: true,
-                  completionPercent: 100,
-                },
-              ],
+                };
+              }),
             },
             null,
             2,
           ),
         );
       } else if (presetKey === 'assignment_submission') {
-        setRuleCreateFieldValue('testCourseId', 'CS101');
+        setRuleCreateFieldValue('testCourseId', courseId);
         setRuleCreateFieldValue('testFinalScore', '88');
         setRuleCreateFieldValue(
           'testFactsJson',
@@ -5143,7 +5148,7 @@ export const INSTITUTION_ADMIN_JS = `
             {
               submissions: [
                 {
-                  courseId: 'CS101',
+                  courseId,
                   assignmentId: 'assignment_1',
                   learnerId,
                   score: 88,
@@ -5156,8 +5161,8 @@ export const INSTITUTION_ADMIN_JS = `
             2,
           ),
         );
-      } else if (presetKey === 'prerequisite_badge') {
-        setRuleCreateFieldValue('testCourseId', 'CS201');
+      } else if (presetKey === 'prerequisite_chain' || presetKey === 'prerequisite_badge') {
+        setRuleCreateFieldValue('testCourseId', nextCourseId);
         setRuleCreateFieldValue('testFinalScore', '95');
         setRuleCreateFieldValue(
           'testFactsJson',
@@ -5170,7 +5175,7 @@ export const INSTITUTION_ADMIN_JS = `
           ),
         );
       } else if (presetKey === 'survey_completion') {
-        setRuleCreateFieldValue('testCourseId', 'CS101');
+        setRuleCreateFieldValue('testCourseId', courseId);
         setRuleCreateFieldValue('testFinalScore', '92');
         setRuleCreateFieldValue(
           'testFactsJson',
@@ -5178,7 +5183,7 @@ export const INSTITUTION_ADMIN_JS = `
             {
               surveyCompletions: [
                 {
-                  surveyId: 'CS101_EXIT_SURVEY',
+                  surveyId,
                   learnerId,
                   source: 'qualtrics',
                   completed: true,
@@ -5191,7 +5196,7 @@ export const INSTITUTION_ADMIN_JS = `
           ),
         );
       } else if (presetKey === 'custom_field') {
-        setRuleCreateFieldValue('testCourseId', 'CS101');
+        setRuleCreateFieldValue('testCourseId', courseId);
         setRuleCreateFieldValue('testFinalScore', '92');
         setRuleCreateFieldValue(
           'testFactsJson',
@@ -5210,7 +5215,7 @@ export const INSTITUTION_ADMIN_JS = `
           ),
         );
       } else {
-        setRuleCreateFieldValue('testCourseId', 'CS101');
+        setRuleCreateFieldValue('testCourseId', courseId);
         setRuleCreateFieldValue('testFinalScore', '92');
         setRuleCreateFieldValue('testFactsJson', '');
       }
@@ -5261,7 +5266,7 @@ export const INSTITUTION_ADMIN_JS = `
           const targetIndex = ruleBuilderStepOrder.indexOf(targetStep);
 
           if (targetIndex >= 0) {
-            setBuilderStepState(targetIndex);
+            tryNavigateToStep(targetIndex);
           }
         });
       });
@@ -5269,13 +5274,26 @@ export const INSTITUTION_ADMIN_JS = `
 
     if (ruleBuilderStepPrevButton instanceof HTMLButtonElement) {
       ruleBuilderStepPrevButton.addEventListener('click', () => {
-        setBuilderStepState(activeRuleBuilderStepIndex - 1);
+        tryNavigateToStep(activeRuleBuilderStepIndex - 1);
       });
     }
 
     if (ruleBuilderStepNextButton instanceof HTMLButtonElement) {
       ruleBuilderStepNextButton.addEventListener('click', () => {
-        setBuilderStepState(activeRuleBuilderStepIndex + 1);
+        const currentStep = ruleBuilderStepOrder[activeRuleBuilderStepIndex] ?? '';
+
+        if (!isStepComplete(currentStep)) {
+          showStepGateMessage(currentStep);
+          return;
+        }
+
+        tryNavigateToStep(activeRuleBuilderStepIndex + 1);
+      });
+    }
+
+    if (ruleBuilderReturnToPatternButton instanceof HTMLButtonElement) {
+      ruleBuilderReturnToPatternButton.addEventListener('click', () => {
+        tryNavigateToStep(0);
       });
     }
 
@@ -5299,7 +5317,7 @@ export const INSTITUTION_ADMIN_JS = `
       ruleBuilderAddConditionButton.addEventListener('click', () => {
         addConditionToCanvas({
           type: 'course_completion',
-          courseId: 'CS101',
+          courseId: getDefaultCourseId() || getCoursePlaceholder(),
           requireCompleted: true,
           negate: false,
         });
@@ -5311,7 +5329,7 @@ export const INSTITUTION_ADMIN_JS = `
         setRuleBuilderRootLogic('any');
         addConditionToCanvas({
           type: 'grade_threshold',
-          courseId: 'CS101',
+          courseId: getDefaultCourseId() || getCoursePlaceholder(),
           scoreField: 'final_score',
           minScore: 80,
           negate: false,
@@ -5420,7 +5438,12 @@ export const INSTITUTION_ADMIN_JS = `
           setRuleCreateFieldValue('issuanceTiming', typeof draft.issuanceTiming === 'string' ? draft.issuanceTiming : 'immediate');
           setRuleCreateFieldValue('testLearnerId', typeof draft.testLearnerId === 'string' ? draft.testLearnerId : 'canvas:12345');
           setRuleCreateFieldValue('testRecipientIdentity', typeof draft.testRecipientIdentity === 'string' ? draft.testRecipientIdentity : 'learner@example.edu');
-          setRuleCreateFieldValue('testCourseId', typeof draft.testCourseId === 'string' ? draft.testCourseId : 'CS101');
+          setRuleCreateFieldValue(
+            'testCourseId',
+            typeof draft.testCourseId === 'string'
+              ? draft.testCourseId
+              : getDefaultCourseId() || getCoursePlaceholder(),
+          );
           setRuleCreateFieldValue('testFinalScore', typeof draft.testFinalScore === 'string' ? draft.testFinalScore : '92');
           setRuleCreateFieldValue('testFactsJson', typeof draft.testFactsJson === 'string' ? draft.testFactsJson : '');
           const testCompletedField = getRuleCreateField('testCompleted');
@@ -5606,7 +5629,13 @@ export const INSTITUTION_ADMIN_JS = `
             })[0];
 
           if (rule && typeof rule.name === 'string') {
-            setRuleCreateFieldValue('name', rule.name + ' copy');
+            const clonedName = rule.name + ' copy';
+            ruleNameManuallyEdited = true;
+            setRuleCreateFieldValue('name', clonedName);
+
+            if (ruleBuilderNameVisible instanceof HTMLInputElement) {
+              ruleBuilderNameVisible.value = clonedName;
+            }
           }
 
           if (rule && typeof rule.description === 'string' && rule.description.length > 0) {
@@ -5636,192 +5665,258 @@ export const INSTITUTION_ADMIN_JS = `
       });
     }
 
-    if (ruleBuilderTestButton instanceof HTMLButtonElement) {
-      ruleBuilderTestButton.addEventListener('click', async () => {
-        setStatus(ruleCreateStatus, 'Evaluating rule in test mode...', false);
-        setCodeOutput(ruleBuilderTestOutput, '');
-        resetConditionEvaluationResults();
-        ruleBuilderLastTestSummary = 'Running...';
-        syncRuleBuilderSummary('Evaluating rule in test mode...');
+    runRuleBuilderTest = async (options) => {
+      const autoRun = options && options.auto === true;
+      const runningMessage = autoRun
+        ? 'Running automatic test with sample learner...'
+        : 'Evaluating rule in test mode...';
 
-        let definition;
+      setStatus(ruleCreateStatus, runningMessage, false);
+      setCodeOutput(ruleBuilderTestOutput, '');
 
+      if (ruleBuilderTestResult instanceof HTMLElement) {
+        setStatus(ruleBuilderTestResult, runningMessage, false);
+      }
+
+      resetConditionEvaluationResults();
+      ruleBuilderLastTestSummary = 'Running...';
+      syncRuleBuilderSummary(runningMessage);
+
+      let definition;
+
+      try {
+        definition = parseDefinitionJson();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Rule definition is invalid.';
+        setStatus(ruleCreateStatus, message, true);
+        if (ruleBuilderTestResult instanceof HTMLElement) {
+          setStatus(ruleBuilderTestResult, message, true);
+        }
+        ruleBuilderLastTestSummary = 'Definition invalid';
+        syncRuleBuilderSummary(message);
+        return;
+      }
+
+      const learnerId = getTextFieldValue('testLearnerId');
+      const recipientIdentity = getTextFieldValue('testRecipientIdentity').toLowerCase();
+      const lmsProviderKind = getTextFieldValue('lmsProviderKind');
+      const sampleCourseId = getTextFieldValue('testCourseId');
+      const sampleFinalScoreText = getTextFieldValue('testFinalScore');
+      const testFactsJson = getTextFieldValue('testFactsJson');
+      const testCompleted = getCheckboxFieldValue('testCompleted');
+
+      if (learnerId.length === 0 || recipientIdentity.length === 0) {
+        const message = 'Test mode requires learner ID and recipient email.';
+        setStatus(ruleCreateStatus, message, true);
+        if (ruleBuilderTestResult instanceof HTMLElement) {
+          setStatus(ruleBuilderTestResult, message, true);
+        }
+        ruleBuilderLastTestSummary = 'Missing test identifiers';
+        syncRuleBuilderSummary(message);
+        return;
+      }
+
+      let facts = undefined;
+
+      if (testFactsJson.length > 0) {
         try {
-          definition = parseDefinitionJson();
-        } catch (error) {
-          setStatus(
-            ruleCreateStatus,
-            error instanceof Error ? error.message : 'Rule definition is invalid.',
-            true,
-          );
-          ruleBuilderLastTestSummary = 'Definition invalid';
-          syncRuleBuilderSummary(error instanceof Error ? error.message : 'Rule definition is invalid.');
+          facts = JSON.parse(testFactsJson);
+        } catch {
+          const message = 'Advanced facts JSON is invalid.';
+          setStatus(ruleCreateStatus, message, true);
+          if (ruleBuilderTestResult instanceof HTMLElement) {
+            setStatus(ruleBuilderTestResult, message, true);
+          }
+          ruleBuilderLastTestSummary = 'Facts JSON invalid';
+          syncRuleBuilderSummary(message);
+          return;
+        }
+      } else if (sampleCourseId.length > 0) {
+        const sampleFinalScore = Number(sampleFinalScoreText);
+
+        if (!Number.isFinite(sampleFinalScore) || sampleFinalScore < 0 || sampleFinalScore > 100) {
+          const message = 'Sample final score must be a number between 0 and 100.';
+          setStatus(ruleCreateStatus, message, true);
+          if (ruleBuilderTestResult instanceof HTMLElement) {
+            setStatus(ruleBuilderTestResult, message, true);
+          }
+          ruleBuilderLastTestSummary = 'Sample score invalid';
+          syncRuleBuilderSummary(message);
           return;
         }
 
-        const learnerId = getTextFieldValue('testLearnerId');
-        const recipientIdentity = getTextFieldValue('testRecipientIdentity').toLowerCase();
-        const lmsProviderKind = getTextFieldValue('lmsProviderKind');
-        const sampleCourseId = getTextFieldValue('testCourseId');
-        const sampleFinalScoreText = getTextFieldValue('testFinalScore');
-        const testFactsJson = getTextFieldValue('testFactsJson');
-        const testCompleted = getCheckboxFieldValue('testCompleted');
-
-        if (learnerId.length === 0 || recipientIdentity.length === 0) {
-          setStatus(ruleCreateStatus, 'Test mode requires learner ID and recipient email.', true);
-          ruleBuilderLastTestSummary = 'Missing test identifiers';
-          syncRuleBuilderSummary('Test mode requires learner ID and recipient email.');
-          return;
-        }
-
-        let facts = undefined;
-
-        if (testFactsJson.length > 0) {
-          try {
-            facts = JSON.parse(testFactsJson);
-          } catch {
-            setStatus(ruleCreateStatus, 'Advanced facts JSON is invalid.', true);
-            ruleBuilderLastTestSummary = 'Facts JSON invalid';
-            syncRuleBuilderSummary('Advanced facts JSON is invalid.');
-            return;
-          }
-        } else if (sampleCourseId.length > 0) {
-          const sampleFinalScore = Number(sampleFinalScoreText);
-
-          if (!Number.isFinite(sampleFinalScore) || sampleFinalScore < 0 || sampleFinalScore > 100) {
-            setStatus(
-              ruleCreateStatus,
-              'Sample final score must be a number between 0 and 100.',
-              true,
-            );
-            ruleBuilderLastTestSummary = 'Sample score invalid';
-            syncRuleBuilderSummary('Sample final score must be a number between 0 and 100.');
-            return;
-          }
-
-          facts = {
-            grades: [
-              {
-                courseId: sampleCourseId,
-                learnerId,
-                finalScore: sampleFinalScore,
-              },
-            ],
-            completions: [
-              {
-                courseId: sampleCourseId,
-                learnerId,
-                completed: testCompleted,
-                completionPercent: testCompleted ? 100 : 0,
-              },
-            ],
-          };
-        }
-
-        try {
-          const response = await fetch(badgeRulePreviewApiPath, {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-              definition,
-              lmsProviderKind: lmsProviderKind.length === 0 ? 'canvas' : lmsProviderKind,
+        facts = {
+          grades: [
+            {
+              courseId: sampleCourseId,
               learnerId,
-              recipientIdentity,
-              recipientIdentityType: 'email',
-              ...(facts === undefined ? {} : { facts }),
-            }),
-          });
-          const payload = await parseJsonBody(response);
+              finalScore: sampleFinalScore,
+            },
+          ],
+          completions: [
+            {
+              courseId: sampleCourseId,
+              learnerId,
+              completed: testCompleted,
+              completionPercent: testCompleted ? 100 : 0,
+            },
+          ],
+        };
+      }
 
-          if (!response.ok) {
-            setStatus(ruleCreateStatus, errorDetailFromPayload(payload), true);
-            ruleBuilderLastTestSummary = 'Failed';
-            syncRuleBuilderSummary(errorDetailFromPayload(payload));
-            return;
+      try {
+        const response = await fetch(badgeRulePreviewApiPath, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            definition,
+            lmsProviderKind: lmsProviderKind.length === 0 ? 'canvas' : lmsProviderKind,
+            learnerId,
+            recipientIdentity,
+            recipientIdentityType: 'email',
+            ...(facts === undefined ? {} : { facts }),
+          }),
+        });
+        const payload = await parseJsonBody(response);
+
+        if (!response.ok) {
+          const message = errorDetailFromPayload(payload);
+          setStatus(ruleCreateStatus, message, true);
+          if (ruleBuilderTestResult instanceof HTMLElement) {
+            setStatus(ruleBuilderTestResult, message, true);
           }
+          ruleBuilderLastTestSummary = 'Failed';
+          syncRuleBuilderSummary(message);
+          return;
+        }
 
-          const matched =
-            payload && payload.evaluation && payload.evaluation.matched === true;
-          let outcome = 'no_match';
+        const matched =
+          payload && payload.evaluation && payload.evaluation.matched === true;
+        let outcome = 'no_match';
 
-          if (payload && typeof payload.outcome === 'string') {
-            outcome = payload.outcome;
-          } else if (matched) {
-            outcome = 'matched';
-          }
-          const evaluationSummary =
-            payload && payload.evaluationSummary && typeof payload.evaluationSummary === 'object'
-              ? payload.evaluationSummary
-              : null;
-          const missingDataCount =
-            evaluationSummary && typeof evaluationSummary.missingDataCount === 'number'
-              ? evaluationSummary.missingDataCount
-              : 0;
-          const conditionSummary = applyConditionEvaluationResults(
-            payload && payload.evaluation ? payload.evaluation : null,
-          );
-          const conditionSummaryText =
-            conditionSummary.total === 0
-              ? ''
-              : ' Requirements passed: ' +
-                String(conditionSummary.matched) +
-                '/' +
-                String(conditionSummary.total) +
-                '.';
-          let outcomeLabel = 'no_match';
+        if (payload && typeof payload.outcome === 'string') {
+          outcome = payload.outcome;
+        } else if (matched) {
+          outcome = 'matched';
+        }
+        const evaluationSummary =
+          payload && payload.evaluationSummary && typeof payload.evaluationSummary === 'object'
+            ? payload.evaluationSummary
+            : null;
+        const missingDataCount =
+          evaluationSummary && typeof evaluationSummary.missingDataCount === 'number'
+            ? evaluationSummary.missingDataCount
+            : 0;
+        const conditionSummary = applyConditionEvaluationResults(
+          payload && payload.evaluation ? payload.evaluation : null,
+        );
+        const conditionSummaryText =
+          conditionSummary.total === 0
+            ? ''
+            : ' Requirements passed: ' +
+              String(conditionSummary.matched) +
+              '/' +
+              String(conditionSummary.total) +
+              '.';
+        let outcomeLabel = 'no_match';
 
-          if (outcome === 'review_required') {
-            outcomeLabel = 'review_required';
-          } else if (outcome === 'matched') {
-            outcomeLabel = 'matched';
-          }
+        if (outcome === 'review_required') {
+          outcomeLabel = 'review_required';
+        } else if (outcome === 'matched') {
+          outcomeLabel = 'matched';
+        }
+
+        let resultMessage = '';
+
+        if (outcome === 'review_required') {
+          resultMessage =
+            'Review required: ' +
+            String(conditionSummary.matched) +
+            ' of ' +
+            String(conditionSummary.total) +
+            ' requirements matched, with missing data for ' +
+            String(missingDataCount) +
+            ' check(s).';
+        } else if (matched) {
+          resultMessage =
+            'Sample learner qualifies for this badge (' +
+            String(conditionSummary.matched) +
+            ' of ' +
+            String(conditionSummary.total) +
+            ' requirements matched).';
+        } else {
+          resultMessage =
+            'Sample learner does not qualify yet (' +
+            String(conditionSummary.matched) +
+            ' of ' +
+            String(conditionSummary.total) +
+            ' requirements matched). Adjust requirements or test facts and run again.';
+        }
+
+        setStatus(
+          ruleCreateStatus,
+          'Test evaluation complete. outcome=' +
+            outcomeLabel +
+            '.' +
+            (missingDataCount > 0 ? ' Missing data=' + String(missingDataCount) + '.' : '') +
+            conditionSummaryText,
+          false,
+          outcome === 'matched' ? 'success' : 'warning',
+        );
+
+        if (ruleBuilderTestResult instanceof HTMLElement) {
           setStatus(
-            ruleCreateStatus,
-            'Test evaluation complete. outcome=' +
-              outcomeLabel +
-              '.' +
-              (missingDataCount > 0
-                ? ' Missing data=' + String(missingDataCount) + '.'
-                : '') +
-              conditionSummaryText,
+            ruleBuilderTestResult,
+            resultMessage,
             false,
             outcome === 'matched' ? 'success' : 'warning',
           );
-          if (outcome === 'review_required') {
-            ruleBuilderLastTestSummary =
-              'Review required (' +
-              String(missingDataCount) +
-              ' missing, ' +
-              String(conditionSummary.matched) +
-              '/' +
-              String(conditionSummary.total) +
-              ' requirements matched)';
-          } else {
-            ruleBuilderLastTestSummary =
-              (matched ? 'Matched' : 'No match') +
-              ' (' +
-              String(conditionSummary.matched) +
-              '/' +
-              String(conditionSummary.total) +
-              ' requirements)';
-          }
-          syncRuleBuilderSummary(
-            'Test evaluation complete. outcome=' +
-              outcomeLabel +
-              '.' +
-              (missingDataCount > 0
-                ? ' Missing data=' + String(missingDataCount) + '.'
-                : '') +
-              conditionSummaryText,
-          );
-          setCodeOutput(ruleBuilderTestOutput, JSON.stringify(payload, null, 2));
-        } catch {
-          setStatus(ruleCreateStatus, 'Unable to run rule test from this browser session.', true);
-          ruleBuilderLastTestSummary = 'Failed';
-          syncRuleBuilderSummary('Unable to run rule test from this browser session.');
         }
+
+        if (outcome === 'review_required') {
+          ruleBuilderLastTestSummary =
+            'Review required (' +
+            String(missingDataCount) +
+            ' missing, ' +
+            String(conditionSummary.matched) +
+            '/' +
+            String(conditionSummary.total) +
+            ' requirements matched)';
+        } else {
+          ruleBuilderLastTestSummary =
+            (matched ? 'Matched' : 'No match') +
+            ' (' +
+            String(conditionSummary.matched) +
+            '/' +
+            String(conditionSummary.total) +
+            ' requirements)';
+        }
+
+        syncRuleBuilderSummary(
+          'Test evaluation complete. outcome=' +
+            outcomeLabel +
+            '.' +
+            (missingDataCount > 0 ? ' Missing data=' + String(missingDataCount) + '.' : '') +
+            conditionSummaryText,
+        );
+        setCodeOutput(ruleBuilderTestOutput, JSON.stringify(payload, null, 2));
+      } catch {
+        const message = 'Unable to run rule test from this browser session.';
+        setStatus(ruleCreateStatus, message, true);
+        if (ruleBuilderTestResult instanceof HTMLElement) {
+          setStatus(ruleBuilderTestResult, message, true);
+        }
+        ruleBuilderLastTestSummary = 'Failed';
+        syncRuleBuilderSummary(message);
+      }
+    };
+
+    if (ruleBuilderTestButton instanceof HTMLButtonElement) {
+      ruleBuilderTestButton.addEventListener('click', () => {
+        void runRuleBuilderTest({ auto: false });
       });
     }
 
@@ -6032,7 +6127,43 @@ export const INSTITUTION_ADMIN_JS = `
       }
     });
 
+    if (ruleBuilderNameVisible instanceof HTMLInputElement) {
+      ruleBuilderNameVisible.addEventListener('input', () => {
+        ruleNameManuallyEdited = true;
+        setRuleCreateFieldValue('name', ruleBuilderNameVisible.value.trim());
+        syncRuleBuilderSummary();
+      });
+    }
+
+    const badgeTemplateField = getRuleCreateField('badgeTemplateId');
+
+    if (badgeTemplateField instanceof HTMLSelectElement) {
+      badgeTemplateField.addEventListener('change', () => {
+        syncSuggestedRuleName();
+        syncRuleBuilderSummary();
+
+        const courseId = getDefaultCourseId();
+
+        if (courseId.length > 0) {
+          setRuleCreateFieldValue('testCourseId', courseId);
+        }
+
+        if (ruleBuilderTemplatePreset instanceof HTMLSelectElement) {
+          applyTemplatePreset();
+        }
+      });
+    }
+
+    if (ruleBuilderTemplatePreset instanceof HTMLSelectElement) {
+      ruleBuilderTemplatePreset.addEventListener('change', () => {
+        applyTemplatePreset();
+        syncSuggestedRuleName();
+        syncRuleBuilderSummary();
+      });
+    }
+
     setBuilderStepState(0);
+    syncSuggestedRuleName();
     applyTemplatePreset();
     void loadRuleValueLists(null, {
       quietSuccess: true,

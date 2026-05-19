@@ -184,6 +184,7 @@ vi.mock("@credtrail/db", async () => {
     findTenantById: vi.fn(),
     findTenantSsoSamlConfiguration: vi.fn(),
     findUserById: vi.fn(),
+    findUsersByIds: vi.fn(),
     getTenantReportingEngagementCounts: vi.fn(),
     getTenantReportingOverview: vi.fn(),
     getTenantReportingTrends: vi.fn(),
@@ -192,7 +193,10 @@ vi.mock("@credtrail/db", async () => {
     listAccessibleTenantContextsForUser: vi.fn(),
     listBadgeIssuanceRules: vi.fn(),
     listBadgeIssuanceRuleVersions: vi.fn(),
+    listAuditLogs: vi.fn(),
     listBadgeTemplates: vi.fn(),
+    countBadgeTemplateImageRevisions: vi.fn(),
+    listBadgeTemplateImageRevisionCountsByTenant: vi.fn(),
     listBadgeTemplateOwnershipEvents: vi.fn(),
     listDelegatedIssuingAuthorityGrantEvents: vi.fn(),
     listDelegatedIssuingAuthorityGrants: vi.fn(),
@@ -213,6 +217,7 @@ vi.mock("@credtrail/db", async () => {
     revokeDelegatedIssuingAuthorityGrant: vi.fn(),
     touchSession: mockedTouchSession,
     transferBadgeTemplateOwnership: vi.fn(),
+    updateBadgeTemplate: vi.fn(),
     upsertTenantSsoSamlConfiguration: vi.fn(),
     upsertTenantMembershipRole: vi.fn(),
     upsertTenantMembershipOrgUnitScope: vi.fn(),
@@ -245,6 +250,7 @@ vi.mock("./auth/better-auth-adapter", async () => {
 });
 
 import {
+  countBadgeTemplateImageRevisions,
   countTenantMembershipsByRole,
   createAuditLog,
   createDelegatedIssuingAuthorityGrant,
@@ -262,6 +268,7 @@ import {
   findTenantById,
   findTenantSsoSamlConfiguration,
   findUserById,
+  findUsersByIds,
   getTenantReportingEngagementCounts,
   getTenantReportingOverview,
   getTenantReportingTrends,
@@ -269,8 +276,10 @@ import {
   hasTenantMembershipOrgUnitScopeAssignments,
   listAccessibleTenantContextsForUser,
   listBadgeIssuanceRules,
+  listAuditLogs,
   listBadgeIssuanceRuleVersions,
   listBadgeTemplates,
+  listBadgeTemplateImageRevisionCountsByTenant,
   listBadgeTemplateOwnershipEvents,
   listDelegatedIssuingAuthorityGrantEvents,
   listDelegatedIssuingAuthorityGrants,
@@ -290,6 +299,7 @@ import {
   revokeTenantBreakGlassAccount,
   revokeDelegatedIssuingAuthorityGrant,
   transferBadgeTemplateOwnership,
+  updateBadgeTemplate,
   upsertTenantSsoSamlConfiguration,
   upsertTenantMembershipRole,
   upsertTenantMembershipOrgUnitScope,
@@ -320,6 +330,8 @@ interface ErrorResponse {
 }
 
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
+const mockedListAuditLogs = vi.mocked(listAuditLogs);
+const mockedUpdateBadgeTemplate = vi.mocked(updateBadgeTemplate);
 const mockedCountTenantMembershipsByRole = vi.mocked(countTenantMembershipsByRole);
 const mockedCreateDelegatedIssuingAuthorityGrant = vi.mocked(createDelegatedIssuingAuthorityGrant);
 const mockedCreateTenantApiKey = vi.mocked(createTenantApiKey);
@@ -342,6 +354,7 @@ const mockedFindTenantMembership = vi.mocked(findTenantMembership);
 const mockedFindTenantById = vi.mocked(findTenantById);
 const mockedFindTenantSsoSamlConfiguration = vi.mocked(findTenantSsoSamlConfiguration);
 const mockedFindUserById = vi.mocked(findUserById);
+const mockedFindUsersByIds = vi.mocked(findUsersByIds);
 const mockedGetTenantReportingEngagementCounts = vi.mocked(getTenantReportingEngagementCounts);
 const mockedGetTenantReportingOverview = vi.mocked(getTenantReportingOverview);
 const mockedGetTenantReportingTrends = vi.mocked(getTenantReportingTrends);
@@ -353,6 +366,10 @@ const mockedListAccessibleTenantContextsForUser = vi.mocked(listAccessibleTenant
 const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
 const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRuleVersions);
 const mockedListBadgeTemplates = vi.mocked(listBadgeTemplates);
+const mockedCountBadgeTemplateImageRevisions = vi.mocked(countBadgeTemplateImageRevisions);
+const mockedListBadgeTemplateImageRevisionCountsByTenant = vi.mocked(
+  listBadgeTemplateImageRevisionCountsByTenant,
+);
 const mockedListBadgeTemplateOwnershipEvents = vi.mocked(listBadgeTemplateOwnershipEvents);
 const mockedListDelegatedIssuingAuthorityGrantEvents = vi.mocked(
   listDelegatedIssuingAuthorityGrantEvents,
@@ -493,6 +510,20 @@ beforeEach(() => {
     id: "usr_123",
     email: "learner@example.edu",
   });
+  mockedFindUsersByIds.mockReset();
+  mockedFindUsersByIds.mockImplementation(async (_db, userIds) => {
+    const usersById = new Map<string, { id: string; email: string }>();
+
+    for (const userId of userIds) {
+      const user = await mockedFindUserById(_db, userId);
+
+      if (user !== null) {
+        usersById.set(userId, user);
+      }
+    }
+
+    return usersById;
+  });
   mockedFindDelegatedIssuingAuthorityGrantById.mockReset();
   mockedFindDelegatedIssuingAuthorityGrantById.mockResolvedValue(null);
   mockedFindActiveDelegatedIssuingAuthorityGrantForAction.mockReset();
@@ -578,6 +609,8 @@ beforeEach(() => {
   mockedListBadgeIssuanceRuleVersions.mockResolvedValue([]);
   mockedListBadgeTemplates.mockReset();
   mockedListBadgeTemplates.mockResolvedValue([sampleBadgeTemplate()]);
+  mockedListBadgeTemplateImageRevisionCountsByTenant.mockReset();
+  mockedListBadgeTemplateImageRevisionCountsByTenant.mockResolvedValue([]);
   mockedListBadgeTemplateOwnershipEvents.mockReset();
   mockedListBadgeTemplateOwnershipEvents.mockResolvedValue([]);
   mockedResolveBetterAuthPrincipal.mockReset();
@@ -762,6 +795,10 @@ beforeEach(() => {
   });
   mockedCreateAuditLog.mockReset();
   mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
+  mockedListAuditLogs.mockReset();
+  mockedListAuditLogs.mockResolvedValue([]);
+  mockedUpdateBadgeTemplate.mockReset();
+  mockedUpdateBadgeTemplate.mockResolvedValue(sampleBadgeTemplate());
 });
 
 afterEach(() => {
@@ -1438,7 +1475,11 @@ describe("org unit and badge ownership governance endpoints", () => {
     mockedTouchSession.mockReset();
     mockedCreateTenantOrgUnit.mockReset();
     mockedListTenantOrgUnits.mockReset();
+    mockedListTenantOrgUnits.mockResolvedValue([]);
+    mockedListBadgeTemplateImageRevisionCountsByTenant.mockReset();
+    mockedListBadgeTemplateImageRevisionCountsByTenant.mockResolvedValue([]);
     mockedListBadgeTemplateOwnershipEvents.mockReset();
+    mockedListBadgeTemplateOwnershipEvents.mockResolvedValue([]);
     mockedTransferBadgeTemplateOwnership.mockReset();
     mockedFindBadgeTemplateById.mockReset();
     mockedFindDelegatedIssuingAuthorityGrantById.mockReset();
@@ -2771,6 +2812,271 @@ describe("org unit and badge ownership governance endpoints", () => {
       tenantId: "tenant_123",
       badgeTemplateId: "badge_template_001",
     });
+  });
+
+  it("returns badge template scoped audit log entries", async () => {
+    const env = createEnv();
+
+    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: "admin" }));
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue(undefined);
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
+    mockedListAuditLogs.mockResolvedValue([
+      sampleAuditLogRecord({
+        action: "badge_template.updated",
+        targetType: "badge_template",
+        targetId: "badge_template_001",
+        metadataJson: JSON.stringify({
+          changes: [
+            {
+              field: "title",
+              from: "Old title",
+              to: "New title",
+            },
+          ],
+        }),
+      }),
+    ]);
+    mockedListTenantOrgUnits.mockResolvedValue([
+      sampleTenantOrgUnit({
+        id: "tenant_123:org:institution",
+        displayName: "Institution",
+      }),
+      sampleTenantOrgUnit({
+        id: "tenant_123:org:department-math",
+        displayName: "Math",
+        unitType: "department",
+        slug: "math",
+      }),
+    ]);
+    mockedListBadgeTemplateOwnershipEvents.mockResolvedValue([sampleBadgeTemplateOwnershipEvent()]);
+    mockedCountBadgeTemplateImageRevisions.mockResolvedValue(2);
+    mockedFindUserById.mockImplementation(async (_db, userId: string) => {
+      if (userId === "usr_123") {
+        return {
+          id: "usr_123",
+          email: "admin@example.edu",
+        };
+      }
+
+      return null;
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-templates/badge_template_001/audit-log?limit=10",
+      {
+        method: "GET",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.json<{
+      timeline: Array<{ kind: string; actorLabel: string; summary: string }>;
+      imageRevisionCount: number;
+    }>();
+
+    expect(response.status).toBe(200);
+    expect(body.timeline.length).toBeGreaterThanOrEqual(1);
+    expect(body.timeline[0]?.actorLabel).toBeTruthy();
+    expect(body.imageRevisionCount).toBe(2);
+    expect(mockedListAuditLogs).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      targetType: "badge_template",
+      targetId: "badge_template_001",
+      limit: 20,
+    });
+    expect(mockedListBadgeTemplateOwnershipEvents).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      badgeTemplateId: "badge_template_001",
+      limit: 20,
+    });
+    expect(mockedCountBadgeTemplateImageRevisions).toHaveBeenCalledWith(
+      fakeDb,
+      "tenant_123",
+      "badge_template_001",
+    );
+  });
+
+  it("returns server-rendered badge template history timeline HTML", async () => {
+    const env = createEnv();
+
+    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: "admin" }));
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue(undefined);
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
+    mockedListAuditLogs.mockResolvedValue([
+      {
+        id: "aud_123",
+        tenantId: "tenant_123",
+        actorUserId: "usr_123",
+        action: "badge_template.updated",
+        targetType: "badge_template",
+        targetId: "badge_template_001",
+        metadataJson: JSON.stringify({
+          changes: [{ field: "title", from: "Old", to: "New" }],
+        }),
+        occurredAt: "2026-02-18T12:00:00.000Z",
+        createdAt: "2026-02-18T12:00:00.000Z",
+      },
+    ]);
+    mockedListBadgeTemplateOwnershipEvents.mockResolvedValue([]);
+    mockedListTenantOrgUnits.mockResolvedValue([
+      sampleTenantOrgUnit({
+        id: "tenant_123:org:institution",
+        displayName: "Institution",
+      }),
+    ]);
+    mockedCountBadgeTemplateImageRevisions.mockResolvedValue(2);
+    mockedFindUserById.mockResolvedValue({
+      id: "usr_123",
+      email: "admin@example.edu",
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-templates/badge_template_001/history-timeline?limit=10",
+      {
+        method: "GET",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(response.headers.get("X-CredTrail-Badge-Template-Image-Revision-Count")).toBe("2");
+    expect(body).toContain("ct-admin__history-audit-item");
+    expect(body).toContain("Updated template");
+    expect(body).toContain("Title: Old → New");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(mockedCountBadgeTemplateImageRevisions).toHaveBeenCalledWith(
+      fakeDb,
+      "tenant_123",
+      "badge_template_001",
+    );
+  });
+
+  it("returns 403 for history-timeline when org-unit scope is insufficient", async () => {
+    const env = createEnv();
+
+    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: "issuer" }));
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue(undefined);
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
+    mockedHasTenantMembershipOrgUnitScopeAssignments.mockResolvedValue(true);
+    mockedHasTenantMembershipOrgUnitAccess.mockResolvedValue(false);
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-templates/badge_template_001/history-timeline?limit=10",
+      {
+        method: "GET",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.json<ErrorResponse>();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toBe("Insufficient org-unit scope for requested action");
+    expect(mockedListAuditLogs).not.toHaveBeenCalled();
+  });
+
+  it("writes field-level changes when updating a badge template", async () => {
+    const env = createEnv();
+
+    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: "admin" }));
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue(undefined);
+    mockedFindBadgeTemplateById.mockResolvedValue(
+      sampleBadgeTemplate({
+        title: "TypeScript Foundations",
+        slug: "typescript-foundations",
+      }),
+    );
+    mockedUpdateBadgeTemplate.mockResolvedValue(
+      sampleBadgeTemplate({
+        title: "TypeScript Foundations (2026)",
+        slug: "typescript-foundations-2026",
+      }),
+    );
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-templates/badge_template_001",
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: JSON.stringify({
+          title: "TypeScript Foundations (2026)",
+          slug: "typescript-foundations-2026",
+        }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        action: "badge_template.updated",
+        metadata: expect.objectContaining({
+          changes: [
+            {
+              field: "slug",
+              from: "typescript-foundations",
+              to: "typescript-foundations-2026",
+            },
+            {
+              field: "title",
+              from: "TypeScript Foundations",
+              to: "TypeScript Foundations (2026)",
+            },
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("skips audit log when a badge template PATCH makes no field changes", async () => {
+    const env = createEnv();
+    const unchangedTemplate = sampleBadgeTemplate({
+      title: "TypeScript Foundations",
+      slug: "typescript-foundations",
+    });
+
+    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: "admin" }));
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue(undefined);
+    mockedFindBadgeTemplateById.mockResolvedValue(unchangedTemplate);
+    mockedUpdateBadgeTemplate.mockResolvedValue(unchangedTemplate);
+    mockedCreateAuditLog.mockClear();
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-templates/badge_template_001",
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: JSON.stringify({
+          title: "TypeScript Foundations",
+          slug: "typescript-foundations",
+        }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedCreateAuditLog).not.toHaveBeenCalled();
   });
 
   it("transfers badge template ownership and writes audit log", async () => {

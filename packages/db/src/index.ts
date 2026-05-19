@@ -445,6 +445,8 @@ export interface CreateAuditLogInput {
 export interface ListAuditLogsInput {
   tenantId: string;
   action?: string | undefined;
+  targetType?: string | undefined;
+  targetId?: string | undefined;
   limit?: number | undefined;
 }
 
@@ -1493,6 +1495,11 @@ export interface ListBadgeTemplateImageRevisionsInput {
   tenantId: string;
   badgeTemplateId: string;
   limit?: number | undefined;
+}
+
+export interface BadgeTemplateImageRevisionCountRecord {
+  badgeTemplateId: string;
+  revisionCount: number;
 }
 
 export type BadgeTemplateImageGenerationStatus = "queued" | "processing" | "succeeded" | "failed";
@@ -3488,6 +3495,15 @@ const ensureAuditLogsTable = async (db: SqlDatabase): Promise<void> => {
       `
       CREATE INDEX IF NOT EXISTS idx_audit_logs_action
         ON audit_logs (action)
+    `,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant_target_occurred_at
+        ON audit_logs (tenant_id, target_type, target_id, occurred_at DESC)
     `,
     )
     .run();
@@ -6113,6 +6129,43 @@ export const findUserById = async (db: SqlDatabase, userId: string): Promise<Use
   return user;
 };
 
+export const findUsersByIds = async (
+  db: SqlDatabase,
+  userIds: readonly string[],
+): Promise<Map<string, UserRecord>> => {
+  const uniqueUserIds = [
+    ...new Set(
+      userIds.filter((userId): userId is string => {
+        return userId.length > 0;
+      }),
+    ),
+  ];
+
+  if (uniqueUserIds.length === 0) {
+    return new Map();
+  }
+
+  const placeholders = uniqueUserIds.map(() => "?").join(", ");
+  const result = await db
+    .prepare(
+      `
+      SELECT id, email
+      FROM users
+      WHERE id IN (${placeholders})
+    `,
+    )
+    .bind(...uniqueUserIds)
+    .all<UserRecord>();
+
+  const usersById = new Map<string, UserRecord>();
+
+  for (const user of result.results ?? []) {
+    usersById.set(user.id, user);
+  }
+
+  return usersById;
+};
+
 export const createAuthIdentityLink = async (
   db: SqlDatabase,
   input: CreateAuthIdentityLinkInput,
@@ -7315,6 +7368,16 @@ export const listAuditLogs = async (
   if (input.action !== undefined) {
     whereClauses.push("action = ?");
     queryParams.push(input.action);
+  }
+
+  if (input.targetType !== undefined) {
+    whereClauses.push("target_type = ?");
+    queryParams.push(input.targetType);
+  }
+
+  if (input.targetId !== undefined) {
+    whereClauses.push("target_id = ?");
+    queryParams.push(input.targetId);
   }
 
   const listStatement = (): Promise<SqlQueryResult<AuditLogRow>> =>
@@ -15703,6 +15766,89 @@ export const listBadgeTemplateImageRevisions = async (
   }
 
   return result.results.map((row) => mapBadgeTemplateImageRevisionRow(row));
+};
+
+export const listBadgeTemplateImageRevisionCountsByTenant = async (
+  db: SqlDatabase,
+  tenantId: string,
+): Promise<BadgeTemplateImageRevisionCountRecord[]> => {
+  const listStatement = (): Promise<
+    SqlQueryResult<{
+      badgeTemplateId: string;
+      revisionCount: number;
+    }>
+  > =>
+    db
+      .prepare(
+        `
+        SELECT
+          badge_template_id AS badgeTemplateId,
+          COUNT(*) AS revisionCount
+        FROM badge_template_image_revisions
+        WHERE tenant_id = ?
+        GROUP BY badge_template_id
+      `,
+      )
+      .bind(tenantId)
+      .all<{
+        badgeTemplateId: string;
+        revisionCount: number;
+      }>();
+
+  let result: SqlQueryResult<{
+    badgeTemplateId: string;
+    revisionCount: number;
+  }>;
+
+  try {
+    result = await listStatement();
+  } catch (error: unknown) {
+    if (!isMissingBadgeTemplateImageTablesError(error)) {
+      throw error;
+    }
+
+    await ensureBadgeTemplateImageTables(db);
+    result = await listStatement();
+  }
+
+  return result.results.map((row) => ({
+    badgeTemplateId: row.badgeTemplateId,
+    revisionCount: Number(row.revisionCount),
+  }));
+};
+
+export const countBadgeTemplateImageRevisions = async (
+  db: SqlDatabase,
+  tenantId: string,
+  badgeTemplateId: string,
+): Promise<number> => {
+  const countStatement = (): Promise<{ revisionCount: number } | null> =>
+    db
+      .prepare(
+        `
+        SELECT COUNT(*) AS revisionCount
+        FROM badge_template_image_revisions
+        WHERE tenant_id = ?
+          AND badge_template_id = ?
+      `,
+      )
+      .bind(tenantId, badgeTemplateId)
+      .first<{ revisionCount: number }>();
+
+  let row: { revisionCount: number } | null;
+
+  try {
+    row = await countStatement();
+  } catch (error: unknown) {
+    if (!isMissingBadgeTemplateImageTablesError(error)) {
+      throw error;
+    }
+
+    await ensureBadgeTemplateImageTables(db);
+    row = await countStatement();
+  }
+
+  return row === null ? 0 : Number(row.revisionCount);
 };
 
 export const findBadgeTemplateImageRevisionById = async (

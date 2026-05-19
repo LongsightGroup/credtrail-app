@@ -14,6 +14,7 @@ import {
   findLearnerProfileByIdentity,
   findTenantAuthPolicy,
   findTenantAuthProviderById,
+  findBadgeTemplateById,
   findTenantById,
   findTenantMembership,
   getTenantReportingEngagementCounts,
@@ -26,6 +27,7 @@ import {
   findTenantSsoSamlConfiguration,
   listBadgeIssuanceRules,
   listBadgeIssuanceRuleVersions,
+  listBadgeTemplateImageRevisionCountsByTenant,
   listBadgeTemplates,
   listTenantApiKeys,
   listTenantReportingComparisons,
@@ -523,6 +525,9 @@ export const registerTenantGovernanceRoutes = (
     tenantId: string,
     sessionUserId: string,
     membershipRole: TenantMembershipRole,
+    options?: {
+      badgeTemplatesIncludeArchived?: boolean;
+    },
   ): Promise<InstitutionAdminPageData | Response> => {
     const db = resolveDatabase(c.env);
     const tenant = await findTenantById(db, tenantId);
@@ -548,11 +553,12 @@ export const registerTenantGovernanceRoutes = (
       authPolicy,
       authProviders,
       breakGlassAccounts,
+      badgeTemplateImageRevisionCounts,
     ] = await Promise.all([
       findUserById(db, sessionUserId),
       listBadgeTemplates(db, {
         tenantId,
-        includeArchived: false,
+        includeArchived: options?.badgeTemplatesIncludeArchived ?? false,
       }),
       listTenantOrgUnits(db, {
         tenantId,
@@ -581,7 +587,11 @@ export const registerTenantGovernanceRoutes = (
       tenant.planTier === "enterprise"
         ? listTenantBreakGlassAccounts(db, tenantId)
         : Promise.resolve([]),
+      listBadgeTemplateImageRevisionCountsByTenant(db, tenantId),
     ]);
+    const badgeTemplateImageRevisionCountsById = Object.fromEntries(
+      badgeTemplateImageRevisionCounts.map((entry) => [entry.badgeTemplateId, entry.revisionCount]),
+    );
 
     const badgeRuleVersionLists = await Promise.all(
       badgeRules.map(async (rule) =>
@@ -607,6 +617,7 @@ export const registerTenantGovernanceRoutes = (
       ...(currentUser?.email === undefined ? {} : { userEmail: currentUser.email }),
       membershipRole,
       badgeTemplates,
+      badgeTemplateImageRevisionCountsById,
       orgUnits,
       membershipOrgUnitScopes,
       tenantMembers,
@@ -954,12 +965,17 @@ export const registerTenantGovernanceRoutes = (
     };
   };
 
-  const renderInstitutionAdminWorkspace = async (
+  const resolveInstitutionAdminAdminRole = async (
     c: AppContext,
     tenantId: string,
     nextPath: string,
-    renderPage: (pageData: Parameters<typeof institutionAdminDashboardPage>[0]) => AppPage,
-  ): Promise<Response> => {
+  ): Promise<
+    | Response
+    | {
+        session: SessionRecord;
+        membershipRole: TenantMembershipRole;
+      }
+  > => {
     const roleCheck = await requireTenantRole(c, tenantId, ADMIN_ROLES);
 
     if (roleCheck instanceof Response) {
@@ -987,6 +1003,21 @@ export const registerTenantGovernanceRoutes = (
       return roleCheck;
     }
 
+    return roleCheck;
+  };
+
+  const renderInstitutionAdminWorkspace = async (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+    renderPage: (pageData: Parameters<typeof institutionAdminDashboardPage>[0]) => AppPage,
+  ): Promise<Response> => {
+    const roleCheck = await resolveInstitutionAdminAdminRole(c, tenantId, nextPath);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
     const { session, membershipRole } = roleCheck;
     const pageData = await loadInstitutionAdminPageData(
       c,
@@ -1002,6 +1033,126 @@ export const registerTenantGovernanceRoutes = (
     c.header("Cache-Control", "no-store");
 
     return renderAppPage(c, renderPage(pageData));
+  };
+
+  const renderInstitutionAdminTemplatesWorkspace = async (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ): Promise<Response> => {
+    const roleCheck = await resolveInstitutionAdminAdminRole(c, tenantId, nextPath);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const searchQuery = (c.req.query("q") ?? "").trim();
+    const includeArchived =
+      c.req.query("includeArchived") === "1" || c.req.query("includeArchived") === "true";
+    const historyParam = c.req.query("history");
+    const badgeTemplateIdParam = (c.req.query("badgeTemplateId") ?? "").trim();
+    const historyDeepLinkRequested =
+      (historyParam === "1" || historyParam === "true") && badgeTemplateIdParam.length > 0;
+
+    if (historyDeepLinkRequested && !includeArchived) {
+      const db = resolveDatabase(c.env);
+      const deepLinkTemplate = await findBadgeTemplateById(
+        db,
+        tenantId,
+        badgeTemplateIdParam,
+      );
+
+      if (deepLinkTemplate?.isArchived === true) {
+        const redirectUrl = new URL(c.req.url);
+        redirectUrl.searchParams.set("includeArchived", "1");
+        return c.redirect(redirectUrl.toString(), 302);
+      }
+    }
+
+    let deepLinkHistoryTemplateId = historyDeepLinkRequested ? badgeTemplateIdParam : null;
+    let deepLinkHistoryUnavailable: "not_found" | null = null;
+
+    const pageData = await loadInstitutionAdminPageData(
+      c,
+      tenantId,
+      session.userId,
+      membershipRole,
+      {
+        badgeTemplatesIncludeArchived: includeArchived,
+      },
+    );
+
+    if (pageData instanceof Response) {
+      return pageData;
+    }
+
+    // Title/slug/ID search is applied in memory after the tenant list loads. Replace with
+    // DB-side filtering when template counts grow large (for example Sakai imports).
+    const normalizedSearch = searchQuery.toLowerCase();
+    let filteredTemplates =
+      normalizedSearch.length === 0
+        ? [...pageData.badgeTemplates]
+        : pageData.badgeTemplates.filter((template) => {
+            return (
+              template.title.toLowerCase().includes(normalizedSearch) ||
+              template.slug.toLowerCase().includes(normalizedSearch) ||
+              template.id.toLowerCase().includes(normalizedSearch)
+            );
+          });
+
+    if (deepLinkHistoryTemplateId !== null) {
+      const deepLinkTemplate = pageData.badgeTemplates.find(
+        (template) => template.id === deepLinkHistoryTemplateId,
+      );
+
+      if (deepLinkTemplate === undefined) {
+        const db = resolveDatabase(c.env);
+        const templateFromDb = await findBadgeTemplateById(
+          db,
+          tenantId,
+          deepLinkHistoryTemplateId,
+        );
+
+        if (templateFromDb === null) {
+          deepLinkHistoryTemplateId = null;
+          deepLinkHistoryUnavailable = "not_found";
+        } else {
+          filteredTemplates = [
+            templateFromDb,
+            ...filteredTemplates.filter((template) => template.id !== templateFromDb.id),
+          ];
+        }
+      } else if (!filteredTemplates.some((template) => template.id === deepLinkTemplate.id)) {
+        filteredTemplates = [
+          deepLinkTemplate,
+          ...filteredTemplates.filter((template) => template.id !== deepLinkTemplate.id),
+        ];
+      }
+    }
+
+    const autoOpenTemplateAuditTemplateId =
+      deepLinkHistoryTemplateId !== null &&
+      deepLinkHistoryUnavailable === null &&
+      filteredTemplates.some((template) => template.id === deepLinkHistoryTemplateId)
+        ? deepLinkHistoryTemplateId
+        : null;
+
+    c.header("Cache-Control", "no-store");
+
+    return renderAppPage(
+      c,
+      institutionAdminRuleTemplatesPage({
+        ...pageData,
+        badgeTemplates: filteredTemplates,
+        badgeTemplatesPage: {
+          searchQuery,
+          includeArchived,
+          deepLinkHistoryTemplateId: autoOpenTemplateAuditTemplateId,
+          deepLinkHistoryUnavailable,
+        },
+      }),
+    );
   };
 
   const renderLearnerRecordImportWorkspace = async (
@@ -1674,11 +1825,10 @@ export const registerTenantGovernanceRoutes = (
 
   app.get("/tenants/:tenantId/admin/rules/templates", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
+    return renderInstitutionAdminTemplatesWorkspace(
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules/templates`,
-      institutionAdminRuleTemplatesPage,
     );
   });
 
