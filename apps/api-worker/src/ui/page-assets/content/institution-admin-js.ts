@@ -1723,7 +1723,7 @@ export const INSTITUTION_ADMIN_JS = `
         typeof parentOrgUnitIdRaw === 'string' ? parentOrgUnitIdRaw.trim() : '';
 
       if (unitType.length === 0 || slug.length === 0 || displayName.length === 0) {
-        setStatus(orgUnitStatus, 'Unit type, slug, and display name are required.', true);
+        setStatus(orgUnitStatus, 'Unit type, ID, and display name are required.', true);
         return;
       }
 

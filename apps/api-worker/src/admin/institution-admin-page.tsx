@@ -845,9 +845,8 @@ const renderInstitutionAdminPage = (
             </td>
             <td>
               <strong>{template.title}</strong>
-              <AdminMeta>{template.id}</AdminMeta>
             </td>
-            <td>{template.slug}</td>
+            <td>{template.id}</td>
             <td>{formatIsoTimestamp(template.updatedAt)}</td>
             <td>
               <a href={showcaseHref} target="_blank" rel="noopener noreferrer">
@@ -3423,7 +3422,7 @@ const renderInstitutionAdminPage = (
             <option value="institution">Institution</option>
           </select>
         </AdminField>
-        <AdminField label="Slug">
+        <AdminField label="ID">
           <input name="slug" type="text" required placeholder="engineering-college" />
         </AdminField>
         <AdminField label="Display name">
@@ -4600,7 +4599,7 @@ const renderInstitutionAdminPage = (
     <AdminPanel variant="table">
       <h2>Badge Templates ({badgeTemplateCount})</h2>
       <p>Template records, public links, and artwork maintenance live together here.</p>
-      <AdminTable headers={["Image", "Template", "Slug", "Updated", "Links"]}>
+      <AdminTable headers={["Image", "Template", "ID", "Updated", "Links"]}>
         {templateRows}
       </AdminTable>
     </AdminPanel>

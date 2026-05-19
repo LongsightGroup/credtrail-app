@@ -259,6 +259,8 @@ describe("GET /showcase/:tenantId/criteria", () => {
     expect(body).toContain("Governance and ownership");
     expect(body).toContain("View public badge examples");
     expect(body).toContain("Badge record details and raw metadata");
+    expect(body).toContain("Template ID: badge_template_sakai_1000");
+    expect(body).not.toContain("Slug:");
     expect(body).toContain("/showcase/sakai?badgeTemplateId=badge_template_sakai_1000");
     expect(body).toContain(
       '<link rel="canonical" href="http://localhost/showcase/sakai/criteria?badgeTemplateId=badge_template_sakai_1000"',

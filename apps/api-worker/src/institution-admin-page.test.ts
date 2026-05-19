@@ -2690,6 +2690,8 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("Open form");
     expect(body).toContain("Badge Templates (1)");
     expect(body).toContain("Template records, public links, and artwork maintenance");
+    expect(body).toContain('<th scope="col">ID</th>');
+    expect(body).not.toContain(">Slug</th>");
     expect(INSTITUTION_ADMIN_JS).toContain("badge-template-image-generation-open");
     expect(INSTITUTION_ADMIN_JS).toContain("Open full size previous badge image");
     expect(body).not.toContain("ct-grid--sidebar");

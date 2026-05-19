@@ -1176,7 +1176,6 @@ export const createPublicBadgePageRenderers = (
               </summary>
               <div class="criteria-registry__details-body criteria-registry__stack-sm">
                 <p class="criteria-registry__muted">Template ID: {template.id}</p>
-                <p class="criteria-registry__muted">Slug: {template.slug}</p>
               </div>
               {template.governanceMetadataJson === null ? null : (
                 <pre class="criteria-registry__pre">{template.governanceMetadataJson}</pre>
