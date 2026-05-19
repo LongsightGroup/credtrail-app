@@ -40,7 +40,7 @@ interface GeneratedBadgeTemplateImage {
 }
 
 const DEFAULT_WORKERS_AI_IMAGE_MODEL = "@cf/black-forest-labs/flux-2-dev";
-const WORKERS_AI_IMAGE_GENERATION_TIMEOUT_MS = 60_000;
+const WORKERS_AI_IMAGE_GENERATION_TIMEOUT_MS = 240_000;
 
 const decodeBase64 = (value: string): Uint8Array => {
   const normalized = value.includes(",") ? (value.split(",").pop() ?? "") : value;

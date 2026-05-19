@@ -112,16 +112,6 @@ const fakeDb = {
   prepare: vi.fn(),
 } as unknown as SqlDatabase;
 
-const createFakeWorkersAiBinding = (): BadgeTemplateImageGenerationAiBinding => {
-  return {
-    run: vi.fn(async () => {
-      return {
-        image: Buffer.from(samplePngBytes()).toString("base64"),
-      };
-    }),
-  };
-};
-
 const createEnv = (
   badgeObjects: R2Bucket,
 ): {
@@ -593,11 +583,17 @@ describe("badge template image upload routes", () => {
     expect(response.status).toBe(404);
   });
 
-  it("generates a badge template image inline and returns a ready draft", async () => {
+  it("queues a badge template image generation and returns a polling record", async () => {
     const { store, entries } = createBadgeObjectStore();
+    const aiRun = vi.fn<BadgeTemplateImageGenerationAiBinding["run"]>(async () => {
+      return {
+        image: Buffer.from(samplePngBytes()).toString("base64"),
+      };
+    });
+    const ai = { run: aiRun };
     const env = {
       ...createEnv(store),
-      AI: createFakeWorkersAiBinding(),
+      AI: ai,
       BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-dev",
     };
 
@@ -624,21 +620,25 @@ describe("badge template image upload routes", () => {
       };
     }>();
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(202);
     expect(body.generation.id).toBe("btig_123");
-    expect(body.generation.status).toBe("succeeded");
-    expect(body.generation.resultImageUri).toContain(
-      "/badges/assets/tenant_123/badge_template_001/",
-    );
+    expect(body.generation.status).toBe("queued");
+    expect(body.generation.resultImageUri).toBeNull();
     expect(mockedCreateBadgeTemplateImageGeneration).toHaveBeenCalledTimes(1);
-    expect(mockedEnqueueJobQueueMessage).not.toHaveBeenCalled();
-    expect(entries.size).toBe(1);
-    expect(mockedUpdateBadgeTemplateImageGeneration).toHaveBeenCalledWith(
+    expect(mockedEnqueueJobQueueMessage).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
         tenantId: "tenant_123",
-        id: "btig_123",
-        status: "processing",
+        jobType: "generate_badge_template_image",
+        idempotencyKey: "btig_123",
+        maxAttempts: 3,
+        payload: expect.objectContaining({
+          generationId: "btig_123",
+          badgeTemplateId: "badge_template_001",
+          stylePreset: "institutional",
+          promptNotes: "Use a shield motif.",
+          requestedByUserId: "usr_admin",
+        }) as unknown,
       }),
     );
     expect(mockedUpdateBadgeTemplateImageGeneration).toHaveBeenCalledWith(
@@ -646,12 +646,12 @@ describe("badge template image upload routes", () => {
       expect.objectContaining({
         tenantId: "tenant_123",
         id: "btig_123",
-        status: "succeeded",
-        resultImageUri: expect.stringContaining(
-          "/badges/assets/tenant_123/badge_template_001/",
-        ) as string,
+        status: "queued",
+        queuedJobId: "job_123",
       }),
     );
+    expect(aiRun).not.toHaveBeenCalled();
+    expect(entries.size).toBe(0);
   });
 
   it("applies a completed generated image through the admin route", async () => {

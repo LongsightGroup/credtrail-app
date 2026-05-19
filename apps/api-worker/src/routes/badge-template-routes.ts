@@ -3,6 +3,7 @@ import {
   createBadgeTemplateImageGeneration,
   createBadgeTemplateImageRevision,
   createBadgeTemplate,
+  enqueueJobQueueMessage,
   findBadgeTemplateById,
   findBadgeTemplateImageGenerationById,
   findBadgeTemplateImageRevisionById,
@@ -14,6 +15,7 @@ import {
   setBadgeTemplateArchivedState,
   transferBadgeTemplateOwnership,
   updateBadgeTemplate,
+  updateBadgeTemplateImageGeneration,
   type SqlDatabase,
   type TenantMembershipOrgUnitScopeRole,
   type TenantMembershipRole,
@@ -41,7 +43,6 @@ import {
 } from "../badges/template-image-storage";
 import {
   buildBadgeTemplateImagePrompt,
-  completeBadgeTemplateImageGeneration,
   isBadgeTemplateImageGenerationConfigured,
 } from "../badges/badge-template-image-generation";
 
@@ -1005,19 +1006,43 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
       let updatedGeneration = generation;
 
       try {
-        updatedGeneration = await completeBadgeTemplateImageGeneration({
-          db,
-          store: c.env.BADGE_OBJECTS,
-          env: c.env,
+        const queuedJob = await enqueueJobQueueMessage(db, {
           tenantId: pathParams.tenantId,
-          badgeTemplateId: pathParams.badgeTemplateId,
-          generationId: generation.id,
-          promptText,
-          requestedByUserId: principal.userId,
+          jobType: "generate_badge_template_image",
+          payload: {
+            generationId: generation.id,
+            badgeTemplateId: pathParams.badgeTemplateId,
+            promptText,
+            stylePreset: request.stylePreset,
+            ...(request.promptNotes === undefined ? {} : { promptNotes: request.promptNotes }),
+            ...(request.accentColor === undefined ? {} : { accentColor: request.accentColor }),
+            requestedAt: generation.createdAt,
+            requestedByUserId: principal.userId,
+          },
+          idempotencyKey: generation.id,
+          maxAttempts: 3,
         });
+        const queuedGeneration = await updateBadgeTemplateImageGeneration(db, {
+          tenantId: pathParams.tenantId,
+          id: generation.id,
+          status: "queued",
+          queuedJobId: queuedJob.id,
+          errorMessage: null,
+          completedAt: null,
+        });
+
+        if (queuedGeneration === null) {
+          return c.json(
+            {
+              error: "Badge template image generation not found after enqueue",
+            },
+            500,
+          );
+        }
+
+        updatedGeneration = queuedGeneration;
       } catch (error: unknown) {
-        const detail =
-          error instanceof Error ? error.message : "Unknown badge image generation error";
+        const detail = error instanceof Error ? error.message : "Unknown badge image queue error";
         const failedGeneration =
           (await findBadgeTemplateImageGenerationById(db, pathParams.tenantId, generation.id)) ??
           generation;
@@ -1029,7 +1054,7 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
             template,
             generation: failedGeneration,
           },
-          detail.includes("timed out") ? 504 : 502,
+          502,
         );
       }
 
@@ -1039,7 +1064,7 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
           template,
           generation: updatedGeneration,
         },
-        200,
+        202,
       );
     },
   );

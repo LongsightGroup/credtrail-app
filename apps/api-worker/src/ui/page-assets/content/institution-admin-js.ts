@@ -1863,7 +1863,7 @@ export const INSTITUTION_ADMIN_JS = `
       showBadgeTemplateImageGenerationPreview(null);
       setStatus(
         badgeTemplateImageGenerationStatus,
-        'Generating badge image draft. This can take up to 60 seconds...',
+        'Generating badge image draft. This can take a few minutes...',
         false,
       );
       const data = new FormData(badgeTemplateImageGenerationForm);
@@ -1938,9 +1938,18 @@ export const INSTITUTION_ADMIN_JS = `
 
         setStatus(
           badgeTemplateImageGenerationStatus,
-          'Generation finished, but no draft image was returned.',
-          true,
+          generation && generation.status === 'processing'
+            ? 'Generating badge image draft. Checking again shortly...'
+            : 'Draft queued. Waiting for the image worker...',
+          false,
         );
+        const nextPollDelayMs =
+          generation && generation.status === 'processing'
+            ? badgeTemplateImageProcessingPollDelayMs
+            : badgeTemplateImageQueuedPollDelayMs;
+        badgeTemplateImageGenerationPollTimer = window.setTimeout(() => {
+          void pollBadgeTemplateImageGeneration(badgeTemplateId, generationId);
+        }, nextPollDelayMs);
       } catch {
         setStatus(
           badgeTemplateImageGenerationStatus,
