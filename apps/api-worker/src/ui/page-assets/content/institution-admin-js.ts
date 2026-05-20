@@ -1573,8 +1573,6 @@ export const INSTITUTION_ADMIN_JS = `
     });
   }
 
-  if (
-
   if (tenantMemberForm instanceof HTMLFormElement && tenantMemberStatus instanceof HTMLElement) {
     tenantMemberForm.addEventListener('submit', async (event) => {
       event.preventDefault();

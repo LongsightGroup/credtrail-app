@@ -594,6 +594,7 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
     badgeTemplateHistoryDialog.showModal();
     await loadBadgeTemplateHistory(badgeTemplateId);
   };
+  if (
     badgeTemplateImageUploadForm instanceof HTMLFormElement &&
     badgeTemplateImageUploadStatus instanceof HTMLElement
   ) {
@@ -1091,6 +1092,7 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
           : autoOpenTemplateAuditTemplateId;
       void openBadgeTemplateHistory(autoOpenTemplateAuditTemplateId, badgeTemplateTitle);
     }
+  }
   };
 
   if (document.getElementById('badge-template-edit-form')) {

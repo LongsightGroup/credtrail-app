@@ -1,3 +1,4 @@
+import { Script } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { app } from "./index";
 import { pageAssetPath, type PageAssetKey } from "./ui/page-assets";
@@ -39,6 +40,24 @@ describe("GET /assets/ui/:assetFilename", () => {
       expect(response.headers.get("cache-control")).toContain("immutable");
       expect(response.headers.get("x-content-type-options")).toBe("nosniff");
       expect(response.headers.get("content-type")).toContain(expectedContentType);
+    }
+  });
+
+  it("serves JavaScript assets that parse as browser scripts", async () => {
+    const env = createEnv();
+    const scriptAssetKeys: readonly PageAssetKey[] = [
+      "authLoginJs",
+      "institutionAdminJs",
+      "ltiPostMessageStorageJs",
+      "publicBadgeJs",
+    ];
+
+    for (const assetKey of scriptAssetKeys) {
+      const response = await app.request(pageAssetPath(assetKey), undefined, env);
+      const body = await response.text();
+
+      expect(response.status).toBe(200);
+      expect(() => new Script(body, { filename: `${String(assetKey)}.js` })).not.toThrow();
     }
   });
 
