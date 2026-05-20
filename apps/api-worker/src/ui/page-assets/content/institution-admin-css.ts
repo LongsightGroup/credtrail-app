@@ -3375,6 +3375,32 @@ a.ct-admin__workspace-card:active {
   flex-wrap: wrap;
   gap: 0.32rem;
 }
+.ct-admin__template-actions {
+  display: grid;
+  gap: 0.28rem;
+  justify-items: start;
+}
+.ct-admin__template-primary-action {
+  font-weight: 700;
+}
+.ct-admin__template-secondary-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  color: var(--ct-color-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.ct-admin__template-secondary-actions a {
+  color: inherit;
+  font-weight: 500;
+  text-decoration: none;
+}
+.ct-admin__template-secondary-actions a:hover,
+.ct-admin__template-secondary-actions a:focus-visible {
+  color: var(--ct-theme-link);
+  text-decoration: underline;
+}
 .ct-admin__template-image-link,
 .ct-admin__image-revision-thumbnail-link {
   display: inline-flex;

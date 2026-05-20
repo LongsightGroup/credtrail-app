@@ -899,39 +899,31 @@ const renderInstitutionAdminPage = (
             <td>{template.id}</td>
             <td>{formatIsoTimestamp(template.updatedAt)}</td>
             <td>
-              <a href={showcaseHref} target="_blank" rel="noopener noreferrer">
-                Showcase
-              </a>
-              {" · "}
-              <a href={criteriaRegistryHref} target="_blank" rel="noopener noreferrer">
-                Criteria
-              </a>
-              {" · "}
-              <button
-                type="button"
-                class="ct-admin__text-action"
-                data-template-edit-template-id={template.id}
-              >
-                Edit
-              </button>
-              {" · "}
-              <button
-                type="button"
-                class="ct-admin__text-action"
-                data-template-manage-image-template-id={template.id}
-              >
-                Manage image
-              </button>
-              {" · "}
-              <a
-                href={templateHistoryHref(template.id)}
-                class="ct-admin__text-action"
-                data-template-history-template-id={template.id}
-                data-template-history-template-title={template.title}
-                data-template-history-image-revision-count={String(imageRevisionCount)}
-              >
-                History
-              </a>
+              <div class="ct-admin__template-actions">
+                <button
+                  type="button"
+                  class="ct-admin__text-action ct-admin__template-primary-action"
+                  data-template-edit-template-id={template.id}
+                >
+                  Edit
+                </button>
+                <span class="ct-admin__template-secondary-actions" aria-label="Public template links">
+                  <a href={showcaseHref} target="_blank" rel="noopener noreferrer">
+                    Public
+                  </a>
+                  <a href={criteriaRegistryHref} target="_blank" rel="noopener noreferrer">
+                    Criteria
+                  </a>
+                  <a
+                    href={templateHistoryHref(template.id)}
+                    data-template-history-template-id={template.id}
+                    data-template-history-template-title={template.title}
+                    data-template-history-image-revision-count={String(imageRevisionCount)}
+                  >
+                    History
+                  </a>
+                </span>
+              </div>
             </td>
           </tr>
         );
@@ -3367,7 +3359,7 @@ const renderInstitutionAdminPage = (
       <summary class="ct-admin__add-disclosure-summary">
         <span>
           <strong>Edit Badge Template</strong>
-          <small>Update title, slug, description, and criteria URL.</small>
+          <small>Update details and artwork for a selected template.</small>
         </span>
         {addDisclosureControlMarkup}
       </summary>
@@ -3403,7 +3395,7 @@ const renderInstitutionAdminPage = (
       <summary class="ct-admin__add-disclosure-summary">
         <span>
           <strong>Manage Badge Template Images</strong>
-          <small>Upload or generate artwork for a selected template.</small>
+          <small>Artwork tools for the selected template.</small>
         </span>
         {addDisclosureControlMarkup}
       </summary>

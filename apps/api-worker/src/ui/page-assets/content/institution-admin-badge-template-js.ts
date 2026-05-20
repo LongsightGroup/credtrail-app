@@ -247,10 +247,15 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
   };
   const openTemplateEditPanel = (badgeTemplateId) => {
     syncBadgeTemplateEditForm(badgeTemplateId);
+    setBadgeTemplateImageFormSelection(badgeTemplateId);
 
     if (templateEditPanel instanceof HTMLDetailsElement) {
       templateEditPanel.open = true;
       templateEditPanel.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+
+    if (templateImagePanel instanceof HTMLDetailsElement) {
+      templateImagePanel.open = true;
     }
   };
   const openTemplateImagePanel = (badgeTemplateId) => {

@@ -2693,6 +2693,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       /href="\/tenants\/tenant_123\/admin\/rules\/templates"[^>]*aria-current="page"/,
     );
     expect(body).toContain("Manage Badge Template Images");
+    expect(body).toContain("Artwork tools for the selected template.");
     expect(body).toContain('id="template-image-panel"');
     expect(body).toContain('class="ct-admin__panel ct-admin__add-disclosure"');
     expect(body).toContain('id="badge-template-image-upload-form"');
@@ -2701,7 +2702,9 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('id="template-edit-panel"');
     expect(body).toContain('id="badge-template-edit-form"');
     expect(body).toContain('data-template-edit-template-id="badge_template_001"');
-    expect(body).toContain('data-template-manage-image-template-id="badge_template_001"');
+    expect(body).not.toContain('data-template-manage-image-template-id="badge_template_001"');
+    expect(body).toContain('class="ct-admin__template-actions"');
+    expect(body).toContain("Public");
     expect(body).toContain('id="badge-template-history-dialog"');
     expect(body).not.toContain('id="badge-template-image-revision-form"');
     expect(body).not.toContain("Load image history");
