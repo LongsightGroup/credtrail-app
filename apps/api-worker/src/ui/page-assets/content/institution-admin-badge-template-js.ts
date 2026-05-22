@@ -454,32 +454,12 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
       badgeTemplateHistoryDialogSubtitle.textContent = template.title;
     }
   };
-  const badgeTemplateHistoryHref = (badgeTemplateId) => {
-    const basePath = tenantAdminPath + '/rules/templates';
-    const query = new URLSearchParams();
-    query.set('badgeTemplateId', badgeTemplateId);
-    query.set('history', '1');
-    return basePath + '?' + query.toString();
-  };
-  const badgeTemplateTenantPathSegment = () => {
-    const tenantPathParts = tenantAdminPath.split('/');
-
-    return tenantPathParts.length > 2 ? tenantPathParts[2] : '';
-  };
-  const badgeTemplateShowcaseHref = (badgeTemplateId) => {
+  const badgeTemplateAdminTableRowPath = (badgeTemplateId) => {
     return (
-      '/showcase/' +
-      badgeTemplateTenantPathSegment() +
-      '?badgeTemplateId=' +
-      encodeURIComponent(badgeTemplateId)
-    );
-  };
-  const badgeTemplateCriteriaHref = (badgeTemplateId) => {
-    return (
-      '/showcase/' +
-      badgeTemplateTenantPathSegment() +
-      '/criteria?badgeTemplateId=' +
-      encodeURIComponent(badgeTemplateId)
+      badgeTemplateAdminTableRowPathPrefix +
+      '/' +
+      encodeURIComponent(badgeTemplateId) +
+      '/table-row'
     );
   };
   const removeEmptyBadgeTemplateOptions = (select) => {
@@ -513,126 +493,74 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
       candidate.value = template.id;
     });
   };
-  const appendTextLink = (parent, href, text, attributes) => {
-    const link = document.createElement('a');
-    link.href = href;
-    link.textContent = text;
-
-    Object.entries(attributes || {}).forEach(([name, value]) => {
-      link.setAttribute(name, String(value));
-    });
-
-    parent.append(link);
-    return link;
+  const optionalTemplateText = (value, fallback) => {
+    return typeof value === 'string' || value === null ? value : fallback;
   };
-  const renderBadgeTemplateTableRow = (template) => {
-    if (!template || typeof template.id !== 'string' || typeof template.title !== 'string') {
+  const normalizeBadgeTemplateRecord = (candidate, fallback) => {
+    if (!candidate || typeof candidate !== 'object' || typeof candidate.id !== 'string') {
       return null;
     }
 
-    const row = document.createElement('tr');
-    row.dataset.templateRowId = template.id;
-    row.dataset.templateArchived = template.isArchived === true ? 'true' : 'false';
+    return {
+      id: candidate.id,
+      slug: typeof candidate.slug === 'string' ? candidate.slug : fallback.slug,
+      title: typeof candidate.title === 'string' ? candidate.title : fallback.title,
+      description: optionalTemplateText(candidate.description, fallback.description),
+      criteriaUri: optionalTemplateText(candidate.criteriaUri, fallback.criteriaUri),
+    };
+  };
+  const parseBadgeTemplateTableRowFragment = (html) => {
+    const fragment = document.createElement('template');
+    fragment.innerHTML = html.trim();
+    const row = fragment.content.firstElementChild;
 
-    const imageCell = document.createElement('td');
-    const imageUri = typeof template.imageUri === 'string' ? template.imageUri : '';
-
-    if (imageUri.length === 0) {
-      const placeholder = document.createElement('span');
-      placeholder.className = 'ct-admin__template-placeholder';
-      placeholder.textContent = 'No image';
-      imageCell.append(placeholder);
-    } else {
-      const imageLink = document.createElement('a');
-      imageLink.className = 'ct-admin__template-image-link';
-      imageLink.href = imageUri;
-      imageLink.target = '_blank';
-      imageLink.rel = 'noopener noreferrer';
-      imageLink.setAttribute('aria-label', 'Open full size image for ' + template.title);
-      const image = document.createElement('img');
-      image.className = 'ct-admin__template-image';
-      image.src = imageUri;
-      image.alt = template.title + ' artwork';
-      image.loading = 'lazy';
-      imageLink.append(image);
-      imageCell.append(imageLink);
+    return row instanceof HTMLTableRowElement ? row : null;
+  };
+  const fetchBadgeTemplateTableRow = async (badgeTemplateId) => {
+    if (badgeTemplateAdminTableRowPathPrefix.length === 0) {
+      return null;
     }
 
-    const titleCell = document.createElement('td');
-    const title = document.createElement('strong');
-    title.textContent = template.title;
-    titleCell.append(title);
+    let response;
 
-    const statusCell = document.createElement('td');
-    const statusPill = document.createElement('span');
-    statusPill.className =
-      template.isArchived === true
-        ? 'ct-admin__status-pill ct-admin__status-pill--revoked'
-        : 'ct-admin__status-pill ct-admin__status-pill--active';
-    statusPill.textContent = template.isArchived === true ? 'Archived' : 'Active';
-    statusCell.append(statusPill);
+    try {
+      response = await fetch(badgeTemplateAdminTableRowPath(badgeTemplateId), {
+        headers: {
+          accept: 'text/html',
+        },
+      });
+    } catch {
+      return null;
+    }
 
-    const idCell = document.createElement('td');
-    idCell.textContent = template.id;
+    if (!response.ok) {
+      return null;
+    }
 
-    const updatedAtCell = document.createElement('td');
-    updatedAtCell.textContent =
-      typeof template.updatedAt === 'string' ? formatTimestamp(template.updatedAt) : 'n/a';
-
-    const linksCell = document.createElement('td');
-    const actions = document.createElement('div');
-    actions.className = 'ct-admin__template-actions';
-    const editButton = document.createElement('button');
-    editButton.type = 'button';
-    editButton.className = 'ct-admin__text-action ct-admin__template-primary-action';
-    editButton.dataset.templateEditTemplateId = template.id;
-    editButton.textContent = 'Edit';
-    actions.append(editButton);
-
-    const secondaryActions = document.createElement('span');
-    secondaryActions.className = 'ct-admin__template-secondary-actions';
-    secondaryActions.setAttribute('aria-label', 'Public template links');
-    appendTextLink(secondaryActions, badgeTemplateShowcaseHref(template.id), 'Public', {
-      target: '_blank',
-      rel: 'noopener noreferrer',
-    });
-    appendTextLink(secondaryActions, badgeTemplateCriteriaHref(template.id), 'Criteria', {
-      target: '_blank',
-      rel: 'noopener noreferrer',
-    });
-    appendTextLink(secondaryActions, badgeTemplateHistoryHref(template.id), 'History', {
-      'data-template-history-template-id': template.id,
-      'data-template-history-template-title': template.title,
-      'data-template-history-image-revision-count': '0',
-    });
-    actions.append(secondaryActions);
-    linksCell.append(actions);
-
-    row.append(imageCell, titleCell, statusCell, idCell, updatedAtCell, linksCell);
-    return row;
+    return parseBadgeTemplateTableRowFragment(await response.text());
   };
-  const upsertBadgeTemplateTableRow = (template) => {
-    if (!template || typeof template.id !== 'string') {
-      return;
+  const upsertBadgeTemplateTableRow = async (badgeTemplateId) => {
+    if (typeof badgeTemplateId !== 'string' || badgeTemplateId.length === 0) {
+      return false;
     }
 
     const tableBody = document.getElementById('badge-template-table-body');
 
     if (!(tableBody instanceof HTMLTableSectionElement)) {
-      return;
+      return false;
     }
 
-    const row = renderBadgeTemplateTableRow(template);
+    const row = await fetchBadgeTemplateTableRow(badgeTemplateId);
 
     if (row === null) {
-      return;
+      return false;
     }
 
     tableBody.querySelectorAll('td.ct-admin__empty').forEach((emptyCell) => {
       emptyCell.closest('tr')?.remove();
     });
 
-    const existingRow = tableBody.querySelector('[data-template-row-id="' + template.id + '"]');
+    const existingRow = tableBody.querySelector('[data-template-row-id="' + badgeTemplateId + '"]');
 
     if (existingRow instanceof HTMLTableRowElement) {
       existingRow.replaceWith(row);
@@ -640,53 +568,7 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
       tableBody.prepend(row);
     }
 
-    bindBadgeTemplateRowActions(row);
-  };
-  const templateEditButtons = new WeakSet();
-  const templateImageButtons = new WeakSet();
-  const templateHistoryTriggers = new WeakSet();
-  const bindBadgeTemplateRowActions = (root) => {
-    root.querySelectorAll('[data-template-edit-template-id]').forEach((candidate) => {
-      if (!(candidate instanceof HTMLButtonElement) || templateEditButtons.has(candidate)) {
-        return;
-      }
-
-      templateEditButtons.add(candidate);
-      candidate.addEventListener('click', () => {
-        const badgeTemplateId = candidate.dataset.templateEditTemplateId || '';
-        openTemplateEditPanel(badgeTemplateId);
-      });
-    });
-
-    root.querySelectorAll('[data-template-manage-image-template-id]').forEach((candidate) => {
-      if (!(candidate instanceof HTMLButtonElement) || templateImageButtons.has(candidate)) {
-        return;
-      }
-
-      templateImageButtons.add(candidate);
-      candidate.addEventListener('click', () => {
-        const badgeTemplateId = candidate.dataset.templateManageImageTemplateId || '';
-        openTemplateImagePanel(badgeTemplateId);
-      });
-    });
-
-    root.querySelectorAll('[data-template-history-template-id]').forEach((candidate) => {
-      if (
-        (!(candidate instanceof HTMLButtonElement) &&
-          !(candidate instanceof HTMLAnchorElement)) ||
-        templateHistoryTriggers.has(candidate)
-      ) {
-        return;
-      }
-
-      templateHistoryTriggers.add(candidate);
-      candidate.addEventListener('click', async (event) => {
-        event.preventDefault();
-        const badgeTemplateId = candidate.dataset.templateHistoryTemplateId || '';
-        const badgeTemplateTitle = candidate.dataset.templateHistoryTemplateTitle || '';
-        await openBadgeTemplateHistory(badgeTemplateId, badgeTemplateTitle);
-      });
-    });
+    return true;
   };
   let activeBadgeTemplateHistoryId = '';
   let activeBadgeTemplateHistoryTitle = '';
@@ -833,6 +715,44 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
     badgeTemplateHistoryDialog.showModal();
     await loadBadgeTemplateHistory(badgeTemplateId);
   };
+  const badgeTemplateTableBody = document.getElementById('badge-template-table-body');
+
+  if (badgeTemplateTableBody instanceof HTMLElement) {
+    badgeTemplateTableBody.addEventListener('click', async (event) => {
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const editButton = target.closest('[data-template-edit-template-id]');
+
+      if (editButton instanceof HTMLButtonElement) {
+        openTemplateEditPanel(editButton.dataset.templateEditTemplateId || '');
+        return;
+      }
+
+      const imageButton = target.closest('[data-template-manage-image-template-id]');
+
+      if (imageButton instanceof HTMLButtonElement) {
+        openTemplateImagePanel(imageButton.dataset.templateManageImageTemplateId || '');
+        return;
+      }
+
+      const historyTrigger = target.closest('[data-template-history-template-id]');
+
+      if (
+        historyTrigger instanceof HTMLButtonElement ||
+        historyTrigger instanceof HTMLAnchorElement
+      ) {
+        event.preventDefault();
+        await openBadgeTemplateHistory(
+          historyTrigger.dataset.templateHistoryTemplateId || '',
+          historyTrigger.dataset.templateHistoryTemplateTitle || '',
+        );
+      }
+    });
+  }
   if (
     badgeTemplateImageUploadForm instanceof HTMLFormElement &&
     badgeTemplateImageUploadStatus instanceof HTMLElement
@@ -1191,37 +1111,24 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
           return;
         }
 
-        const createdTemplate =
-          payload && payload.template && typeof payload.template === 'object'
-            ? payload.template
-            : null;
+        const createdTemplate = normalizeBadgeTemplateRecord(
+          payload && payload.template ? payload.template : null,
+          {
+            slug,
+            title,
+            description: description.length === 0 ? null : description,
+            criteriaUri: criteriaUri.length === 0 ? null : criteriaUri,
+          },
+        );
 
-        if (createdTemplate === null || typeof createdTemplate.id !== 'string') {
+        if (createdTemplate === null) {
           setStatus(badgeTemplateCreateStatus, 'Template created without a generated id.', true);
           return;
         }
 
-        badgeTemplateRecordsById.set(createdTemplate.id, {
-          id: createdTemplate.id,
-          slug: typeof createdTemplate.slug === 'string' ? createdTemplate.slug : slug,
-          title: typeof createdTemplate.title === 'string' ? createdTemplate.title : title,
-          description:
-            typeof createdTemplate.description === 'string' ||
-            createdTemplate.description === null
-              ? createdTemplate.description
-              : description.length === 0
-                ? null
-                : description,
-          criteriaUri:
-            typeof createdTemplate.criteriaUri === 'string' ||
-            createdTemplate.criteriaUri === null
-              ? createdTemplate.criteriaUri
-              : criteriaUri.length === 0
-                ? null
-                : criteriaUri,
-        });
+        badgeTemplateRecordsById.set(createdTemplate.id, createdTemplate);
         upsertBadgeTemplateSelectOptions(createdTemplate);
-        upsertBadgeTemplateTableRow(createdTemplate);
+        const tableRowUpdated = await upsertBadgeTemplateTableRow(createdTemplate.id);
         syncBadgeTemplateEditForm(createdTemplate.id);
         setBadgeTemplateImageFormSelection(createdTemplate.id);
         badgeTemplateCreateForm.reset();
@@ -1233,7 +1140,11 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
 
         setStatus(
           badgeTemplateCreateStatus,
-          'Template created. Generated template ID: ' + createdTemplate.id + '.',
+          tableRowUpdated
+            ? 'Template created. Generated template ID: ' + createdTemplate.id + '.'
+            : 'Template created. Generated template ID: ' +
+                createdTemplate.id +
+                '. Refresh to see it in the table.',
           false,
           'success',
         );
@@ -1360,8 +1271,6 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
       }
     });
   }
-
-  bindBadgeTemplateRowActions(document);
 
   if (
     badgeTemplateImageRevisionList instanceof HTMLElement &&

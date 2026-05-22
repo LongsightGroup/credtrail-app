@@ -476,46 +476,49 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
     });
   });
 
-  app.get("/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/history-timeline", async (c) => {
-    const pathParams = parseBadgeTemplatePathParams(c.req.param());
-    let query;
+  app.get(
+    "/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/history-timeline",
+    async (c) => {
+      const pathParams = parseBadgeTemplatePathParams(c.req.param());
+      let query;
 
-    try {
-      query = parseBadgeTemplateAuditLogQuery(c.req.query());
-    } catch {
-      return c.json(
-        {
-          error: "Invalid badge template history timeline query",
-        },
-        400,
+      try {
+        query = parseBadgeTemplateAuditLogQuery(c.req.query());
+      } catch {
+        return c.json(
+          {
+            error: "Invalid badge template history timeline query",
+          },
+          400,
+        );
+      }
+
+      const access = await authorizeTemplateHistory(
+        c,
+        pathParams.tenantId,
+        pathParams.badgeTemplateId,
       );
-    }
 
-    const access = await authorizeTemplateHistory(
-      c,
-      pathParams.tenantId,
-      pathParams.badgeTemplateId,
-    );
+      if (access instanceof Response) {
+        return access;
+      }
 
-    if (access instanceof Response) {
-      return access;
-    }
+      const { db } = access;
+      const { timeline, imageRevisionCount } = await loadBadgeTemplateHistoryPayload(db, {
+        tenantId: pathParams.tenantId,
+        badgeTemplateId: pathParams.badgeTemplateId,
+        limit: query.limit ?? 100,
+      });
 
-    const { db } = access;
-    const { timeline, imageRevisionCount } = await loadBadgeTemplateHistoryPayload(db, {
-      tenantId: pathParams.tenantId,
-      badgeTemplateId: pathParams.badgeTemplateId,
-      limit: query.limit ?? 100,
-    });
+      c.header("Cache-Control", "no-store");
+      c.header("Content-Type", "text/html; charset=utf-8");
+      // Internal response metadata for the admin history dialog script.
+      c.header("X-CredTrail-Badge-Template-Image-Revision-Count", String(imageRevisionCount));
+      c.header("X-CredTrail-Badge-Template-History-Event-Count", String(timeline.length));
 
-    c.header("Cache-Control", "no-store");
-    c.header("Content-Type", "text/html; charset=utf-8");
-    // Internal response metadata for the admin history dialog script.
-    c.header("X-CredTrail-Badge-Template-Image-Revision-Count", String(imageRevisionCount));
-    c.header("X-CredTrail-Badge-Template-History-Event-Count", String(timeline.length));
-
-    return c.body(renderBadgeTemplateHistoryTimelineToString(timeline));
-  });
+      return c.body(renderBadgeTemplateHistoryTimelineToString(timeline));
+    },
+  );
 
   app.post(
     "/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/ownership-transfer",
@@ -869,10 +872,7 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
       },
     });
 
-    const imageUriChange = buildBadgeTemplateImageUriChange(
-      template.imageUri,
-      updatedTemplate.imageUri,
-    );
+    const imageUriChange = buildBadgeTemplateImageUriChange(template.imageUri, updatedTemplate.imageUri);
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,

@@ -41,6 +41,12 @@ export const INSTITUTION_ADMIN_JS = `
     parsedContext && typeof parsedContext.badgeTemplateApiPathPrefix === 'string'
       ? parsedContext.badgeTemplateApiPathPrefix
       : '';
+  const badgeTemplateAdminTableRowPathPrefix =
+    parsedContext && typeof parsedContext.badgeTemplateAdminTableRowPathPrefix === 'string'
+      ? parsedContext.badgeTemplateAdminTableRowPathPrefix
+      : tenantAdminPath.length === 0
+        ? ''
+        : tenantAdminPath + '/rules/templates';
   const badgeRuleApiPath =
     parsedContext && typeof parsedContext.badgeRuleApiPath === 'string'
       ? parsedContext.badgeRuleApiPath

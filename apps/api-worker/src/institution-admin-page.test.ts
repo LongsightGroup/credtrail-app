@@ -429,6 +429,8 @@ beforeEach(() => {
     createdAt: "2026-02-18T12:00:00.000Z",
     updatedAt: "2026-02-18T12:00:00.000Z",
   });
+  mockedFindBadgeTemplateById.mockReset();
+  mockedFindBadgeTemplateById.mockResolvedValue(null);
   mockedFindTenantAuthPolicy.mockReset();
   mockedFindTenantAuthPolicy.mockResolvedValue({
     tenantId: "tenant_123",
@@ -2753,6 +2755,11 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(INSTITUTION_ADMIN_JS).toContain("badge-template-create-form");
     expect(INSTITUTION_ADMIN_JS).toContain("Generated template ID");
     expect(INSTITUTION_ADMIN_JS).toContain("upsertBadgeTemplateTableRow");
+    expect(INSTITUTION_ADMIN_JS).toContain("badgeTemplateAdminTableRowPathPrefix");
+    expect(INSTITUTION_ADMIN_JS).toContain("table-row");
+    expect(INSTITUTION_ADMIN_JS).not.toContain("renderBadgeTemplateTableRow");
+    expect(INSTITUTION_ADMIN_JS).not.toContain("badgeTemplateTenantPathSegment");
+    expect(INSTITUTION_ADMIN_JS).not.toContain("new WeakSet");
     expect(INSTITUTION_ADMIN_JS).toContain("badge-template-image-generation-open");
     expect(INSTITUTION_ADMIN_JS).toContain("Open full size previous badge image");
     expect(body).not.toContain("ct-grid--sidebar");
@@ -2760,6 +2767,53 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).not.toContain('id="rule-value-list-form"');
     expect(body).not.toContain("Evaluate Rule");
     expect(body).not.toContain('id="rule-evaluate-form"');
+  });
+
+  it("renders the admin badge template table row as a server-owned fragment", async () => {
+    const env = createEnv();
+
+    mockedFindBadgeTemplateById.mockResolvedValue({
+      id: "badge_template_001",
+      tenantId: "tenant_123",
+      slug: "typescript-foundations",
+      title: "TypeScript Foundations",
+      description: "Awarded for TypeScript basics.",
+      criteriaUri: "https://example.edu/criteria",
+      imageUri: "https://example.edu/badges/typescript.png",
+      createdByUserId: "usr_admin",
+      ownerOrgUnitId: "tenant_123:org:institution",
+      governanceMetadataJson: null,
+      isArchived: false,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/templates/badge_template_001/table-row",
+      {
+        headers: {
+          Accept: "text/html",
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(body.trim().startsWith("<tr")).toBe(true);
+    expect(body).toContain('data-template-row-id="badge_template_001"');
+    expect(body).toContain("TypeScript Foundations");
+    expect(body).toContain("3 image versions");
+    expect(body).toContain("Public");
+    expect(body).toContain("Criteria");
+    expect(body).toContain("History");
+    expect(body).toContain(
+      'href="/tenants/tenant_123/admin/rules/templates?badgeTemplateId=badge_template_001&amp;history=1"',
+    );
+    expect(body).not.toContain('id="badge-template-create-form"');
   });
 
   it("supports template search, archived filters, and deep-linked history", async () => {

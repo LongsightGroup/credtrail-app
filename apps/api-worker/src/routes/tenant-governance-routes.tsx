@@ -69,6 +69,7 @@ import {
   parseTenantMemberPathParams,
   parseTenantAuthProviderPathParams,
   parseCreateDelegatedIssuingAuthorityGrantRequest,
+  parseBadgeTemplatePathParams,
   parseRevokeTenantApiKeyRequest,
   parseCreateTenantOrgUnitRequest,
   parseDelegatedIssuingAuthorityGrantListQuery,
@@ -110,6 +111,7 @@ import {
   institutionAdminRulesPage,
 } from "../admin/institution-admin-page";
 import { AdminActions, AdminButtonLink, AdminPageHeader, AdminPanel } from "../admin/components";
+import { renderBadgeTemplateAdminTableRowToString } from "../admin/badge-template-table-row-fragment";
 import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
 import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
 import { resolveTenantReportingAccess } from "../auth/tenant-access";
@@ -1829,6 +1831,50 @@ export const registerTenantGovernanceRoutes = (
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules/templates`,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/rules/templates/:badgeTemplateId/table-row", async (c) => {
+    const pathParams = parseBadgeTemplatePathParams(c.req.param());
+    const rulesTemplatesPath = `/tenants/${encodeURIComponent(
+      pathParams.tenantId,
+    )}/admin/rules/templates`;
+    const roleCheck = await resolveInstitutionAdminAdminRole(
+      c,
+      pathParams.tenantId,
+      rulesTemplatesPath,
+    );
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const db = resolveDatabase(c.env);
+    const [template, imageRevisionCounts] = await Promise.all([
+      findBadgeTemplateById(db, pathParams.tenantId, pathParams.badgeTemplateId),
+      listBadgeTemplateImageRevisionCountsByTenant(db, pathParams.tenantId),
+    ]);
+
+    if (template === null) {
+      return c.text("Badge template not found", 404);
+    }
+
+    const query = new URLSearchParams();
+    query.set("badgeTemplateId", template.id);
+    query.set("history", "1");
+
+    c.header("Cache-Control", "no-store");
+    c.header("Content-Type", "text/html; charset=utf-8");
+
+    return c.body(
+      renderBadgeTemplateAdminTableRowToString({
+        tenantId: pathParams.tenantId,
+        template,
+        imageRevisionCount:
+          imageRevisionCounts.find((entry) => entry.badgeTemplateId === template.id)
+            ?.revisionCount ?? 0,
+        historyHref: `${rulesTemplatesPath}?${query.toString()}`,
+      }),
     );
   });
 

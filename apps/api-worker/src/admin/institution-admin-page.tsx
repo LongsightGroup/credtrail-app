@@ -57,6 +57,7 @@ import {
   type AdminSidebarFooterLink,
   type AdminSidebarSection,
 } from "./components";
+import { BadgeTemplateAdminTableRow } from "./badge-template-table-row-fragment";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -851,87 +852,13 @@ const renderInstitutionAdminPage = (
     ) : (
       input.badgeTemplates.map((template) => {
         const imageRevisionCount = badgeTemplateImageRevisionCountsById[template.id] ?? 0;
-        const showcaseHref = `/showcase/${encodeURIComponent(
-          input.tenant.id,
-        )}?badgeTemplateId=${encodeURIComponent(template.id)}`;
-        const criteriaRegistryHref = `/showcase/${encodeURIComponent(
-          input.tenant.id,
-        )}/criteria?badgeTemplateId=${encodeURIComponent(template.id)}`;
         return (
-          <tr
-            data-template-row-id={template.id}
-            data-template-archived={template.isArchived ? "true" : "false"}
-          >
-            <td>
-              {template.imageUri === null ? (
-                <span class="ct-admin__template-placeholder">No image</span>
-              ) : (
-                <a
-                  class="ct-admin__template-image-link"
-                  href={template.imageUri}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`Open full size image for ${template.title}`}
-                >
-                  <img
-                    class="ct-admin__template-image"
-                    src={template.imageUri}
-                    alt={`${template.title} artwork`}
-                    loading="lazy"
-                  />
-                </a>
-              )}
-            </td>
-            <td>
-              <strong>{template.title}</strong>
-              {imageRevisionCount > 0 ? (
-                <AdminMeta as="span">
-                  {imageRevisionCount === 1
-                    ? "1 image version"
-                    : `${String(imageRevisionCount)} image versions`}
-                </AdminMeta>
-              ) : null}
-            </td>
-            <td>
-              {template.isArchived ? (
-                <AdminStatusPill tone="revoked">Archived</AdminStatusPill>
-              ) : (
-                <AdminStatusPill tone="active">Active</AdminStatusPill>
-              )}
-            </td>
-            <td>{template.id}</td>
-            <td>{formatIsoTimestamp(template.updatedAt)}</td>
-            <td>
-              <div class="ct-admin__template-actions">
-                <button
-                  type="button"
-                  class="ct-admin__text-action ct-admin__template-primary-action"
-                  data-template-edit-template-id={template.id}
-                >
-                  Edit
-                </button>
-                <span
-                  class="ct-admin__template-secondary-actions"
-                  aria-label="Public template links"
-                >
-                  <a href={showcaseHref} target="_blank" rel="noopener noreferrer">
-                    Public
-                  </a>
-                  <a href={criteriaRegistryHref} target="_blank" rel="noopener noreferrer">
-                    Criteria
-                  </a>
-                  <a
-                    href={templateHistoryHref(template.id)}
-                    data-template-history-template-id={template.id}
-                    data-template-history-template-title={template.title}
-                    data-template-history-image-revision-count={String(imageRevisionCount)}
-                  >
-                    History
-                  </a>
-                </span>
-              </div>
-            </td>
-          </tr>
+          <BadgeTemplateAdminTableRow
+            tenantId={input.tenant.id}
+            template={template}
+            imageRevisionCount={imageRevisionCount}
+            historyHref={templateHistoryHref(template.id)}
+          />
         );
       })
     );
@@ -1292,6 +1219,7 @@ const renderInstitutionAdminPage = (
   const createApiKeyPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/api-keys`;
   const createOrgUnitPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/org-units`;
   const badgeTemplateApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-templates`;
+  const badgeTemplateAdminTableRowPathPrefix = `${tenantAdminPath}/rules/templates`;
   const badgeRuleApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules`;
   const badgeRuleValueListApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rule-value-lists`;
   const badgeRulePreviewSimulationApiPath = `${badgeRuleApiPath}/preview-simulate`;
@@ -3118,6 +3046,7 @@ const renderInstitutionAdminPage = (
     createApiKeyPath,
     createOrgUnitPath,
     badgeTemplateApiPathPrefix,
+    badgeTemplateAdminTableRowPathPrefix,
     badgeTemplateRecords,
     // Avoids the substring "History" in JSON keys (breaks unrelated page tests).
     autoOpenTemplateAuditTemplateId: badgeTemplatesPage?.deepLinkHistoryTemplateId ?? null,
