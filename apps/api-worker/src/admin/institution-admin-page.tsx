@@ -3339,7 +3339,7 @@ const renderInstitutionAdminPage = (
       <summary class="ct-admin__add-disclosure-summary">
         <span>
           <strong>Create Badge Template</strong>
-          <small>Start with the badge name. Artwork and rules can come next.</small>
+          <small>Start with the badge name. CredTrail opens artwork setup after creation.</small>
         </span>
         {addDisclosureControlMarkup}
       </summary>
@@ -3372,7 +3372,7 @@ const renderInstitutionAdminPage = (
           </span>
         </AdminField>
         <div class="ct-admin__template-create-actions">
-          <AdminButton type="submit">Create badge template</AdminButton>
+          <AdminButton type="submit">Create and add artwork</AdminButton>
         </div>
       </AdminForm>
       <p
@@ -3384,30 +3384,39 @@ const renderInstitutionAdminPage = (
         id="badge-template-create-next-actions"
         class="ct-admin__template-create-next-actions"
         hidden
+        data-artwork-ready="false"
       >
-        <AdminButtonLink
-          href={ruleBuilderPath}
-          variant="secondary"
-          dataAttributes={{ "data-template-create-rule-link": "" }}
-        >
-          Use in a rule
-        </AdminButtonLink>
-        <AdminButton
-          type="button"
-          variant="secondary"
-          dataAttributes={{ "data-template-create-artwork-template-id": "" }}
-        >
-          Add artwork
-        </AdminButton>
-        <AdminButtonLink
-          href={showcasePath}
-          variant="ghost"
-          target="_blank"
-          rel="noopener noreferrer"
-          dataAttributes={{ "data-template-create-public-link": "" }}
-        >
-          View public page
-        </AdminButtonLink>
+        <p id="badge-template-create-next-copy">
+          Add badge artwork next, then use this template in a rule.
+        </p>
+        <div class="ct-admin__template-create-next-action-row">
+          <AdminButton
+            type="button"
+            variant="secondary"
+            className="ct-admin__template-create-artwork-action"
+            dataAttributes={{ "data-template-create-artwork-template-id": "" }}
+          >
+            Add artwork
+          </AdminButton>
+          <AdminButtonLink
+            href={ruleBuilderPath}
+            variant="secondary"
+            className="ct-admin__template-create-rule-action"
+            dataAttributes={{ "data-template-create-rule-link": "" }}
+          >
+            Use in a rule
+          </AdminButtonLink>
+          <AdminButtonLink
+            href={showcasePath}
+            variant="ghost"
+            className="ct-admin__template-create-public-action"
+            target="_blank"
+            rel="noopener noreferrer"
+            dataAttributes={{ "data-template-create-public-link": "" }}
+          >
+            View public page
+          </AdminButtonLink>
+        </div>
       </div>
     </details>
   );
@@ -3416,8 +3425,8 @@ const renderInstitutionAdminPage = (
     <details id="template-image-panel" class="ct-admin__panel ct-admin__add-disclosure" hidden>
       <summary class="ct-admin__add-disclosure-summary">
         <span>
-          <strong>Selected Template Artwork</strong>
-          <small>Use a row action after the template record exists.</small>
+          <strong>Badge Artwork</strong>
+          <small>Upload an image or generate a draft before using the template in rules.</small>
         </span>
         {addDisclosureControlMarkup}
       </summary>
@@ -5517,9 +5526,9 @@ const renderInstitutionAdminPage = (
                 </AdminStatus>
               ) : null}
               {templateCreatePanelMarkup}
+              {templateImagePanelMarkup}
               {badgeTemplatesTableMarkup}
               {templateEditPanelMarkup}
-              {templateImagePanelMarkup}
               {badgeTemplateHistoryDialogMarkup}
             </section>
           </>

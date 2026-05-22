@@ -2703,23 +2703,28 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       /href="\/tenants\/tenant_123\/admin\/rules\/templates"[^>]*aria-current="page"/,
     );
     expect(body).toContain("Create Badge Template");
-    expect(body).toContain("Start with the badge name. Artwork and rules can come next.");
+    expect(body).toContain("Start with the badge name. CredTrail opens artwork setup after creation.");
     expect(body).toContain(">Badge name<");
     expect(body).toContain(">URL key<");
     expect(body).toContain(">Criteria page URL<");
-    expect(body).toContain("Create badge template");
+    expect(body).toContain("Create and add artwork");
     expect(body).toContain('id="badge-template-create-next-actions"');
+    expect(body).toContain('data-artwork-ready="false"');
+    expect(body).toContain('id="badge-template-create-next-copy"');
+    expect(body).toContain("Add badge artwork next, then use this template in a rule.");
     expect(body).toContain("Use in a rule");
     expect(body).toContain("Add artwork");
     expect(body).toContain("View public page");
+    expect(body).toContain("ct-admin__template-create-rule-action");
+    expect(body).toContain("ct-admin__template-create-public-action");
     expect(body).toContain('id="template-create-panel"');
     expect(body).toContain('id="badge-template-create-form"');
     expect(body).toContain('id="badge-template-create-status"');
     expect(body).toContain('name="slug"');
     expect(body).not.toContain('id="badge-template-create-slug-hint"');
     expect(body).not.toContain('pattern="[a-z0-9]+(-[a-z0-9]+)*"');
-    expect(body).toContain("Selected Template Artwork");
-    expect(body).toContain("Use a row action after the template record exists.");
+    expect(body).toContain("Badge Artwork");
+    expect(body).toContain("Upload an image or generate a draft before using the template in rules.");
     expect(body).toContain('id="template-image-panel"');
     expect(body).toContain('class="ct-admin__panel ct-admin__add-disclosure"');
     expect(body).toContain('id="badge-template-image-upload-form"');
@@ -2745,13 +2750,13 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("Template records, public links, and artwork maintenance");
     expect(body).toContain('id="badge-template-table-body"');
     expect(body.indexOf('id="template-create-panel"')).toBeLessThan(
+      body.indexOf('id="template-image-panel"'),
+    );
+    expect(body.indexOf('id="template-image-panel"')).toBeLessThan(
       body.indexOf('id="badge-template-table-body"'),
     );
     expect(body.indexOf('id="badge-template-table-body"')).toBeLessThan(
       body.indexOf('id="template-edit-panel"'),
-    );
-    expect(body.indexOf('id="template-edit-panel"')).toBeLessThan(
-      body.indexOf('id="template-image-panel"'),
     );
     expect(body).toContain('<th scope="col">Status</th>');
     expect(body).not.toContain('<th scope="col">ID</th>');
@@ -2769,9 +2774,14 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(INSTITUTION_ADMIN_JS).toContain("deriveBadgeTemplateSlugFromTitle");
     expect(INSTITUTION_ADMIN_JS).toContain("A template with this badge name already exists.");
     expect(INSTITUTION_ADMIN_JS).toContain("Template created. URL key:");
+    expect(INSTITUTION_ADMIN_JS).toContain("Next: add artwork below.");
     expect(INSTITUTION_ADMIN_JS).toContain("Generated template ID");
     expect(INSTITUTION_ADMIN_JS).toContain("badgeTemplateRuleBuilderPath");
     expect(INSTITUTION_ADMIN_JS).toContain("badgeTemplatesReturnToRuleBuilder");
+    expect(INSTITUTION_ADMIN_JS).toContain("openTemplateImagePanel(createdTemplate.id, false)");
+    expect(INSTITUTION_ADMIN_JS).toContain("markBadgeTemplateCreateArtworkReady");
+    expect(INSTITUTION_ADMIN_JS).toContain("badgeTemplateCreateNextActions.dataset.artworkReady");
+    expect(INSTITUTION_ADMIN_JS).not.toContain("window.location.assign(nextRuleBuilderPath)");
     expect(INSTITUTION_ADMIN_JS).toContain("upsertBadgeTemplateTableRow");
     expect(INSTITUTION_ADMIN_JS).toContain("badgeTemplateAdminTableRowPathPrefix");
     expect(INSTITUTION_ADMIN_JS).toContain("table-row");

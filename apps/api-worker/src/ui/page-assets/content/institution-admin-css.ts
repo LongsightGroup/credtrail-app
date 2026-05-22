@@ -2211,13 +2211,28 @@ a.ct-admin__workspace-card:active {
   max-width: 44rem;
 }
 .ct-admin__template-create-next-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: var(--ct-space-2);
   max-width: 44rem;
   padding: 0 var(--ct-space-4) var(--ct-space-4);
 }
 .ct-admin__template-create-next-actions[hidden] {
+  display: none;
+}
+.ct-admin__template-create-next-actions p {
+  margin: 0;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.88rem;
+}
+.ct-admin__template-create-next-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ct-space-2);
+}
+.ct-admin__template-create-next-actions[data-artwork-ready='false']
+  .ct-admin__template-create-rule-action,
+.ct-admin__template-create-next-actions[data-artwork-ready='false']
+  .ct-admin__template-create-public-action {
   display: none;
 }
 .ct-admin__add-disclosure-form--template-create textarea {
@@ -3956,11 +3971,11 @@ button.ct-admin__text-action {
 
   .ct-admin__add-disclosure-summary {
     align-items: flex-start;
-    flex-direction: column;
+    flex-direction: row;
   }
 
   .ct-admin__add-disclosure-control {
-    width: 100%;
+    flex: 0 0 auto;
   }
 
   .ct-admin__builder-stepper-panel .ct-admin__builder-steps,

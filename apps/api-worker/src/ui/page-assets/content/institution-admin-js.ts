@@ -160,6 +160,7 @@ export const INSTITUTION_ADMIN_JS = `
   const badgeTemplateCreateNextActions = document.getElementById(
     'badge-template-create-next-actions',
   );
+  const badgeTemplateCreateNextCopy = document.getElementById('badge-template-create-next-copy');
   const badgeTemplateCreateRuleLink = document.querySelector('[data-template-create-rule-link]');
   const badgeTemplateCreateArtworkButton = document.querySelector(
     '[data-template-create-artwork-template-id]',
@@ -319,6 +320,7 @@ export const INSTITUTION_ADMIN_JS = `
   let refreshIssuedBadges = null;
   let activeBadgeTemplateImageGeneration = null;
   let badgeTemplateImageGenerationPollTimer = null;
+  let activeCreatedBadgeTemplateId = '';
 
   const setStatus = (el, text, isError, tone = 'info') => {
     el.textContent = text;

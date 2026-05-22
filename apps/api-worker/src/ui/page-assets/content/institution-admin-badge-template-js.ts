@@ -260,13 +260,16 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
       templateImagePanel.open = true;
     }
   };
-  const openTemplateImagePanel = (badgeTemplateId) => {
+  const openTemplateImagePanel = (badgeTemplateId, shouldScroll = true) => {
     setBadgeTemplateImageFormSelection(badgeTemplateId);
 
     if (templateImagePanel instanceof HTMLDetailsElement) {
       templateImagePanel.hidden = false;
       templateImagePanel.open = true;
-      templateImagePanel.scrollIntoView({ block: 'start', behavior: 'smooth' });
+
+      if (shouldScroll) {
+        templateImagePanel.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      }
     }
   };
   const setBadgeTemplateHistoryTimelineHtml = (html) => {
@@ -484,8 +487,11 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
     return url.pathname + url.search;
   };
   const hideBadgeTemplateCreateNextActions = () => {
+    activeCreatedBadgeTemplateId = '';
+
     if (badgeTemplateCreateNextActions instanceof HTMLElement) {
       badgeTemplateCreateNextActions.hidden = true;
+      badgeTemplateCreateNextActions.dataset.artworkReady = 'false';
     }
   };
   const showBadgeTemplateCreateNextActions = (badgeTemplateId) => {
@@ -493,6 +499,7 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
       return;
     }
 
+    activeCreatedBadgeTemplateId = badgeTemplateId;
     const rulePath = badgeTemplateRuleBuilderPath(badgeTemplateId);
     const publicPath = badgeTemplateShowcasePath(badgeTemplateId);
 
@@ -508,7 +515,32 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
       badgeTemplateCreateArtworkButton.dataset.templateCreateArtworkTemplateId = badgeTemplateId;
     }
 
+    badgeTemplateCreateNextActions.dataset.artworkReady = 'false';
+
+    if (badgeTemplateCreateNextCopy instanceof HTMLElement) {
+      badgeTemplateCreateNextCopy.textContent = badgeTemplatesReturnToRuleBuilder
+        ? 'Add badge artwork next, then continue back to the rule builder.'
+        : 'Add badge artwork next, then use this template in a rule.';
+    }
+
     badgeTemplateCreateNextActions.hidden = false;
+  };
+  const markBadgeTemplateCreateArtworkReady = (badgeTemplateId) => {
+    if (
+      activeCreatedBadgeTemplateId.length === 0 ||
+      activeCreatedBadgeTemplateId !== badgeTemplateId ||
+      !(badgeTemplateCreateNextActions instanceof HTMLElement)
+    ) {
+      return;
+    }
+
+    badgeTemplateCreateNextActions.dataset.artworkReady = 'true';
+
+    if (badgeTemplateCreateNextCopy instanceof HTMLElement) {
+      badgeTemplateCreateNextCopy.textContent = badgeTemplatesReturnToRuleBuilder
+        ? 'Artwork added. Continue back to the rule builder when you are ready.'
+        : 'Artwork added. Use this template in a rule when you are ready.';
+    }
   };
   const removeEmptyBadgeTemplateOptions = (select) => {
     Array.from(select.options).forEach((option) => {
@@ -944,6 +976,7 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
         if (imageUrl !== null) {
           updateBadgeTemplateRowImage(badgeTemplateId, imageUrl);
           bumpBadgeTemplateImageRevisionHint(badgeTemplateId);
+          markBadgeTemplateCreateArtworkReady(badgeTemplateId);
           void refreshBadgeTemplateHistoryIfOpen(badgeTemplateId);
         }
 
@@ -1113,6 +1146,7 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
           const appliedBadgeTemplateId = activeBadgeTemplateImageGeneration.badgeTemplateId;
           updateBadgeTemplateRowImage(appliedBadgeTemplateId, appliedImageUri);
           bumpBadgeTemplateImageRevisionHint(appliedBadgeTemplateId);
+          markBadgeTemplateCreateArtworkReady(appliedBadgeTemplateId);
           void refreshBadgeTemplateHistoryIfOpen(appliedBadgeTemplateId);
         }
 
@@ -1258,18 +1292,10 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
         badgeTemplateCreateForm.reset();
         syncCreateFormAriaInvalid();
         showBadgeTemplateCreateNextActions(createdTemplate.id);
+        openTemplateImagePanel(createdTemplate.id, false);
 
         if (templateCreatePanel instanceof HTMLDetailsElement) {
           templateCreatePanel.open = true;
-        }
-
-        if (badgeTemplatesReturnToRuleBuilder) {
-          const nextRuleBuilderPath = badgeTemplateRuleBuilderPath(createdTemplate.id);
-
-          if (nextRuleBuilderPath.length > 0) {
-            window.location.assign(nextRuleBuilderPath);
-            return;
-          }
         }
 
         const successMessage =
@@ -1277,7 +1303,7 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
           createdTemplate.slug +
           '. Generated template ID: ' +
           createdTemplate.id +
-          '.';
+          '. Next: add artwork below.';
         setStatus(
           badgeTemplateCreateStatus,
           tableRowUpdated ? successMessage : successMessage + ' Refresh to see it in the table.',
