@@ -496,6 +496,60 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
   const optionalTemplateText = (value, fallback) => {
     return typeof value === 'string' || value === null ? value : fallback;
   };
+  const badgeTemplateSlugBaseFromTitle = (title) => {
+    const normalized = title
+      .trim()
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[\\u0300-\\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .replace(/-{2,}/g, '-');
+
+    if (normalized.length === 1) {
+      return normalized + '-badge';
+    }
+
+    return normalized;
+  };
+  const clampBadgeTemplateSlug = (slug, maxLength) => {
+    const clipped = slug.slice(0, maxLength).replace(/-+$/g, '');
+
+    if (clipped.length >= 2) {
+      return clipped;
+    }
+
+    return '';
+  };
+  const deriveBadgeTemplateSlugFromTitle = (title) => {
+    const base = clampBadgeTemplateSlug(badgeTemplateSlugBaseFromTitle(title), 96);
+
+    if (base.length === 0) {
+      return '';
+    }
+
+    const existingSlugs = new Set();
+    badgeTemplateRecordsById.forEach((record) => {
+      if (record && typeof record.slug === 'string' && record.slug.length > 0) {
+        existingSlugs.add(record.slug);
+      }
+    });
+
+    if (!existingSlugs.has(base)) {
+      return base;
+    }
+
+    for (let suffix = 2; suffix < 1000; suffix += 1) {
+      const suffixText = '-' + suffix;
+      const candidate = clampBadgeTemplateSlug(base, 96 - suffixText.length) + suffixText;
+
+      if (!existingSlugs.has(candidate)) {
+        return candidate;
+      }
+    }
+
+    return clampBadgeTemplateSlug(base, 87) + '-' + Date.now().toString(36).slice(-8);
+  };
   const normalizeBadgeTemplateRecord = (candidate, fallback) => {
     if (!candidate || typeof candidate !== 'object' || typeof candidate.id !== 'string') {
       return null;
@@ -1080,14 +1134,22 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
 
       const data = new FormData(badgeTemplateCreateForm);
       const titleRaw = data.get('title');
-      const slugRaw = data.get('slug');
       const descriptionRaw = data.get('description');
       const criteriaUriRaw = data.get('criteriaUri');
       const title = typeof titleRaw === 'string' ? titleRaw.trim() : '';
-      const slug = typeof slugRaw === 'string' ? slugRaw.trim() : '';
+      const slug = deriveBadgeTemplateSlugFromTitle(title);
       const description =
         typeof descriptionRaw === 'string' ? descriptionRaw.trim() : '';
       const criteriaUri = typeof criteriaUriRaw === 'string' ? criteriaUriRaw.trim() : '';
+
+      if (slug.length === 0) {
+        setStatus(
+          badgeTemplateCreateStatus,
+          'Badge name needs at least one letter or number so CredTrail can create the URL key.',
+          true,
+        );
+        return;
+      }
 
       setStatus(badgeTemplateCreateStatus, 'Creating template...', false);
 
@@ -1107,7 +1169,14 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
         const payload = await parseJsonBody(response);
 
         if (!response.ok) {
-          setStatus(badgeTemplateCreateStatus, errorDetailFromPayload(payload), true);
+          const detail = errorDetailFromPayload(payload);
+          setStatus(
+            badgeTemplateCreateStatus,
+            response.status === 409 && detail.toLowerCase().includes('slug')
+              ? 'A template with this badge name already exists. Use a more specific badge name or edit the existing template.'
+              : detail,
+            true,
+          );
           return;
         }
 
@@ -1138,13 +1207,15 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
           templateCreatePanel.open = true;
         }
 
+        const successMessage =
+          'Template created. URL key: ' +
+          createdTemplate.slug +
+          '. Generated template ID: ' +
+          createdTemplate.id +
+          '.';
         setStatus(
           badgeTemplateCreateStatus,
-          tableRowUpdated
-            ? 'Template created. Generated template ID: ' + createdTemplate.id + '.'
-            : 'Template created. Generated template ID: ' +
-                createdTemplate.id +
-                '. Refresh to see it in the table.',
+          tableRowUpdated ? successMessage : successMessage + ' Refresh to see it in the table.',
           false,
           'success',
         );

@@ -2701,17 +2701,17 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       /href="\/tenants\/tenant_123\/admin\/rules\/templates"[^>]*aria-current="page"/,
     );
     expect(body).toContain("Create Badge Template");
-    expect(body).toContain("CredTrail generates the template ID after creation.");
+    expect(body).toContain("CredTrail generates the URL key and template ID.");
     expect(body).toContain(">Badge name<");
     expect(body).toContain(">URL key<");
-    expect(body).toContain("Used in URLs and imports.");
     expect(body).toContain(">Criteria page URL<");
     expect(body).toContain("Create badge template");
     expect(body).toContain('id="template-create-panel"');
     expect(body).toContain('id="badge-template-create-form"');
     expect(body).toContain('id="badge-template-create-status"');
     expect(body).toContain('name="slug"');
-    expect(body).toContain('pattern="[a-z0-9]+(-[a-z0-9]+)*"');
+    expect(body).not.toContain('id="badge-template-create-slug-hint"');
+    expect(body).not.toContain('pattern="[a-z0-9]+(-[a-z0-9]+)*"');
     expect(body).toContain("Manage Badge Template Images");
     expect(body).toContain("Artwork tools for the selected template.");
     expect(body).toContain('id="template-image-panel"');
@@ -2759,6 +2759,9 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("autoOpenTemplateAuditTemplateId&quot;:null");
     expect(INSTITUTION_ADMIN_JS).toContain("history-timeline");
     expect(INSTITUTION_ADMIN_JS).toContain("badge-template-create-form");
+    expect(INSTITUTION_ADMIN_JS).toContain("deriveBadgeTemplateSlugFromTitle");
+    expect(INSTITUTION_ADMIN_JS).toContain("A template with this badge name already exists.");
+    expect(INSTITUTION_ADMIN_JS).toContain("Template created. URL key:");
     expect(INSTITUTION_ADMIN_JS).toContain("Generated template ID");
     expect(INSTITUTION_ADMIN_JS).toContain("upsertBadgeTemplateTableRow");
     expect(INSTITUTION_ADMIN_JS).toContain("badgeTemplateAdminTableRowPathPrefix");

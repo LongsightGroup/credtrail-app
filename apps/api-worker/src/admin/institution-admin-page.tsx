@@ -3331,7 +3331,7 @@ const renderInstitutionAdminPage = (
         <span>
           <strong>Create Badge Template</strong>
           <small>
-            Create the record first. CredTrail generates the template ID after creation.
+            Create the record first. CredTrail generates the URL key and template ID.
           </small>
         </span>
         {addDisclosureControlMarkup}
@@ -3351,21 +3351,6 @@ const renderInstitutionAdminPage = (
           />
           <span id="badge-template-create-title-hint" class="ct-admin__field-hint">
             The name administrators, learners, and public viewers will see.
-          </span>
-        </AdminField>
-        <AdminField label="URL key">
-          <input
-            name="slug"
-            type="text"
-            required
-            minlength={2}
-            maxlength={96}
-            pattern="[a-z0-9]+(-[a-z0-9]+)*"
-            autocomplete="off"
-            aria-describedby="badge-template-create-slug-hint"
-          />
-          <span id="badge-template-create-slug-hint" class="ct-admin__field-hint">
-            Used in URLs and imports. Use lowercase letters, numbers, and hyphens.
           </span>
         </AdminField>
         <AdminField label="Description" className="ct-admin__template-create-field--wide">
