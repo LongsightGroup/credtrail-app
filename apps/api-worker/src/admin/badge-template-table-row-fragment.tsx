@@ -74,7 +74,6 @@ export const BadgeTemplateAdminTableRow = ({
           <AdminStatusPill tone="active">Active</AdminStatusPill>
         )}
       </td>
-      <td>{template.id}</td>
       <td>{formatIsoTimestamp(template.updatedAt)}</td>
       <td>
         <div class="ct-admin__template-actions">
@@ -84,6 +83,13 @@ export const BadgeTemplateAdminTableRow = ({
             data-template-edit-template-id={template.id}
           >
             Edit
+          </button>
+          <button
+            type="button"
+            class="ct-admin__text-action"
+            data-template-manage-image-template-id={template.id}
+          >
+            Artwork
           </button>
           <span class="ct-admin__template-secondary-actions" aria-label="Public template links">
             <a

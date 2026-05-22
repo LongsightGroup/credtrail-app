@@ -2655,10 +2655,11 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain(">Rules<");
     expect(body).not.toContain("Rule Builder Workspace");
-    expect(body).toMatch(/>\s*Open rule builder\s*<\/a>/);
+    expect(body).toMatch(/>\s*Create badge rule\s*<\/a>/);
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
     expect(body).toMatch(/>\s*Manage badge templates\s*<\/a>/);
+    expect(body).toContain("Advanced rule tools");
     expect(body).not.toContain("Create Badge Template");
     expect(body).not.toContain('id="badge-template-create-form"');
     expect(body).not.toContain("Manage Badge Template Images");
@@ -2672,6 +2673,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).toContain("Evaluate Rule");
     expect(body).toContain('id="rule-evaluate-form"');
     expect(body).toContain("Rule Governance Context");
+    expect(body).not.toContain("ct-grid--sidebar");
     expect(body).toContain("Badge Rules (1)");
     expect(body).not.toContain("Badge Templates (1)");
     expect(body).not.toContain("Create Tenant API Key");
@@ -2701,19 +2703,23 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       /href="\/tenants\/tenant_123\/admin\/rules\/templates"[^>]*aria-current="page"/,
     );
     expect(body).toContain("Create Badge Template");
-    expect(body).toContain("CredTrail generates the URL key and template ID.");
+    expect(body).toContain("Start with the badge name. Artwork and rules can come next.");
     expect(body).toContain(">Badge name<");
     expect(body).toContain(">URL key<");
     expect(body).toContain(">Criteria page URL<");
     expect(body).toContain("Create badge template");
+    expect(body).toContain('id="badge-template-create-next-actions"');
+    expect(body).toContain("Use in a rule");
+    expect(body).toContain("Add artwork");
+    expect(body).toContain("View public page");
     expect(body).toContain('id="template-create-panel"');
     expect(body).toContain('id="badge-template-create-form"');
     expect(body).toContain('id="badge-template-create-status"');
     expect(body).toContain('name="slug"');
     expect(body).not.toContain('id="badge-template-create-slug-hint"');
     expect(body).not.toContain('pattern="[a-z0-9]+(-[a-z0-9]+)*"');
-    expect(body).toContain("Manage Badge Template Images");
-    expect(body).toContain("Artwork tools for the selected template.");
+    expect(body).toContain("Selected Template Artwork");
+    expect(body).toContain("Use a row action after the template record exists.");
     expect(body).toContain('id="template-image-panel"');
     expect(body).toContain('class="ct-admin__panel ct-admin__add-disclosure"');
     expect(body).toContain('id="badge-template-image-upload-form"');
@@ -2722,7 +2728,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('id="template-edit-panel"');
     expect(body).toContain('id="badge-template-edit-form"');
     expect(body).toContain('data-template-edit-template-id="badge_template_001"');
-    expect(body).not.toContain('data-template-manage-image-template-id="badge_template_001"');
+    expect(body).toContain('data-template-manage-image-template-id="badge_template_001"');
     expect(body).toContain('class="ct-admin__template-actions"');
     expect(body).toContain("Public");
     expect(body).toContain('id="badge-template-history-dialog"');
@@ -2739,16 +2745,17 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("Template records, public links, and artwork maintenance");
     expect(body).toContain('id="badge-template-table-body"');
     expect(body.indexOf('id="template-create-panel"')).toBeLessThan(
+      body.indexOf('id="badge-template-table-body"'),
+    );
+    expect(body.indexOf('id="badge-template-table-body"')).toBeLessThan(
       body.indexOf('id="template-edit-panel"'),
     );
     expect(body.indexOf('id="template-edit-panel"')).toBeLessThan(
       body.indexOf('id="template-image-panel"'),
     );
-    expect(body.indexOf('id="template-image-panel"')).toBeLessThan(
-      body.indexOf('id="badge-template-table-body"'),
-    );
     expect(body).toContain('<th scope="col">Status</th>');
-    expect(body).toContain('<th scope="col">ID</th>');
+    expect(body).not.toContain('<th scope="col">ID</th>');
+    expect(body).toContain('<th scope="col">Actions</th>');
     expect(body).not.toContain(">Slug</th>");
     expect(body).not.toContain(">Slug<");
     expect(body).toContain('name="q"');
@@ -2763,6 +2770,8 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(INSTITUTION_ADMIN_JS).toContain("A template with this badge name already exists.");
     expect(INSTITUTION_ADMIN_JS).toContain("Template created. URL key:");
     expect(INSTITUTION_ADMIN_JS).toContain("Generated template ID");
+    expect(INSTITUTION_ADMIN_JS).toContain("badgeTemplateRuleBuilderPath");
+    expect(INSTITUTION_ADMIN_JS).toContain("badgeTemplatesReturnToRuleBuilder");
     expect(INSTITUTION_ADMIN_JS).toContain("upsertBadgeTemplateTableRow");
     expect(INSTITUTION_ADMIN_JS).toContain("badgeTemplateAdminTableRowPathPrefix");
     expect(INSTITUTION_ADMIN_JS).toContain("table-row");
@@ -2817,12 +2826,36 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("TypeScript Foundations");
     expect(body).toContain("3 image versions");
     expect(body).toContain("Public");
+    expect(body).toContain("Artwork");
+    expect(body).toContain('data-template-manage-image-template-id="badge_template_001"');
     expect(body).toContain("Criteria");
     expect(body).toContain("History");
     expect(body).toContain(
       'href="/tenants/tenant_123/admin/rules/templates?badgeTemplateId=badge_template_001&amp;history=1"',
     );
     expect(body).not.toContain('id="badge-template-create-form"');
+  });
+
+  it("preserves rule-builder return context on the badge template page", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/templates?returnTo=rule-builder",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("badgeTemplatesReturnToRuleBuilder&quot;:true");
+    expect(body).toContain(
+      'href="/tenants/tenant_123/admin/rules/templates?returnTo=rule-builder&amp;badgeTemplateId=badge_template_001&amp;history=1"',
+    );
+    expect(body).toContain("Use in a rule");
   });
 
   it("supports template search, archived filters, and deep-linked history", async () => {
@@ -3293,7 +3326,10 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("Choose the badge, LMS, and how learners earn it");
     expect(body).toContain("Need a new template?");
     expect(body).toContain("Create one in Badge Templates");
-    expect(body).toContain("then return here.");
+    expect(body).toContain(
+      'href="/tenants/tenant_123/admin/rules/templates?returnTo=rule-builder"',
+    );
+    expect(body).toContain("and continue here");
     expect(body).toContain("Start from an existing rule");
     expect(body).toContain("Save progress");
     expect(body).toContain("Resume saved progress");
@@ -3323,6 +3359,61 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/access/api-keys"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/org-units"');
     expect(body).toContain('href="/admin/audit-logs?tenantId=tenant_123"');
+  });
+
+  it("preselects a returned badge template in the rule builder", async () => {
+    const env = createEnv();
+    mockedListBadgeTemplates.mockResolvedValue([
+      {
+        id: "badge_template_001",
+        tenantId: "tenant_123",
+        slug: "typescript-foundations",
+        title: "TypeScript Foundations",
+        description: "Awarded for TypeScript basics.",
+        criteriaUri: "https://example.edu/criteria",
+        imageUri: "https://example.edu/badges/typescript.png",
+        createdByUserId: "usr_admin",
+        ownerOrgUnitId: "tenant_123:org:institution",
+        governanceMetadataJson: null,
+        isArchived: false,
+        createdAt: "2026-02-18T12:00:00.000Z",
+        updatedAt: "2026-02-18T12:00:00.000Z",
+      },
+      {
+        id: "badge_template_002",
+        tenantId: "tenant_123",
+        slug: "advanced-analytics",
+        title: "Advanced Analytics",
+        description: "Awarded for analytics mastery.",
+        criteriaUri: null,
+        imageUri: null,
+        createdByUserId: "usr_admin",
+        ownerOrgUnitId: "tenant_123:org:institution",
+        governanceMetadataJson: null,
+        isArchived: false,
+        createdAt: "2026-02-18T12:00:00.000Z",
+        updatedAt: "2026-02-18T12:00:00.000Z",
+      },
+    ]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/new?badgeTemplateId=badge_template_002",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain(
+      '<option value="badge_template_002" selected="">Advanced Analytics (badge_template_002)</option>',
+    );
+    expect(body).toContain(
+      '<option value="badge_template_001">TypeScript Foundations (badge_template_001)</option>',
+    );
   });
 
   it("keeps the switch-organization sidebar link on the dedicated rule-builder page", async () => {

@@ -250,11 +250,13 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
     setBadgeTemplateImageFormSelection(badgeTemplateId);
 
     if (templateEditPanel instanceof HTMLDetailsElement) {
+      templateEditPanel.hidden = false;
       templateEditPanel.open = true;
       templateEditPanel.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
 
     if (templateImagePanel instanceof HTMLDetailsElement) {
+      templateImagePanel.hidden = false;
       templateImagePanel.open = true;
     }
   };
@@ -262,6 +264,7 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
     setBadgeTemplateImageFormSelection(badgeTemplateId);
 
     if (templateImagePanel instanceof HTMLDetailsElement) {
+      templateImagePanel.hidden = false;
       templateImagePanel.open = true;
       templateImagePanel.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
@@ -461,6 +464,51 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
       encodeURIComponent(badgeTemplateId) +
       '/table-row'
     );
+  };
+  const badgeTemplateRuleBuilderPath = (badgeTemplateId) => {
+    if (ruleBuilderPath.length === 0) {
+      return '';
+    }
+
+    const url = new URL(ruleBuilderPath, window.location.origin);
+    url.searchParams.set('badgeTemplateId', badgeTemplateId);
+    return url.pathname + url.search;
+  };
+  const badgeTemplateShowcasePath = (badgeTemplateId) => {
+    if (showcasePath.length === 0) {
+      return '';
+    }
+
+    const url = new URL(showcasePath, window.location.origin);
+    url.searchParams.set('badgeTemplateId', badgeTemplateId);
+    return url.pathname + url.search;
+  };
+  const hideBadgeTemplateCreateNextActions = () => {
+    if (badgeTemplateCreateNextActions instanceof HTMLElement) {
+      badgeTemplateCreateNextActions.hidden = true;
+    }
+  };
+  const showBadgeTemplateCreateNextActions = (badgeTemplateId) => {
+    if (!(badgeTemplateCreateNextActions instanceof HTMLElement)) {
+      return;
+    }
+
+    const rulePath = badgeTemplateRuleBuilderPath(badgeTemplateId);
+    const publicPath = badgeTemplateShowcasePath(badgeTemplateId);
+
+    if (badgeTemplateCreateRuleLink instanceof HTMLAnchorElement && rulePath.length > 0) {
+      badgeTemplateCreateRuleLink.href = rulePath;
+    }
+
+    if (badgeTemplateCreatePublicLink instanceof HTMLAnchorElement && publicPath.length > 0) {
+      badgeTemplateCreatePublicLink.href = publicPath;
+    }
+
+    if (badgeTemplateCreateArtworkButton instanceof HTMLButtonElement) {
+      badgeTemplateCreateArtworkButton.dataset.templateCreateArtworkTemplateId = badgeTemplateId;
+    }
+
+    badgeTemplateCreateNextActions.hidden = false;
   };
   const removeEmptyBadgeTemplateOptions = (select) => {
     Array.from(select.options).forEach((option) => {
@@ -807,6 +855,15 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
       }
     });
   }
+
+  if (badgeTemplateCreateArtworkButton instanceof HTMLButtonElement) {
+    badgeTemplateCreateArtworkButton.addEventListener('click', () => {
+      openTemplateImagePanel(
+        badgeTemplateCreateArtworkButton.dataset.templateCreateArtworkTemplateId || '',
+      );
+    });
+  }
+
   if (
     badgeTemplateImageUploadForm instanceof HTMLFormElement &&
     badgeTemplateImageUploadStatus instanceof HTMLElement
@@ -1120,6 +1177,7 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
     });
     badgeTemplateCreateForm.addEventListener('submit', async (event) => {
       event.preventDefault();
+      hideBadgeTemplateCreateNextActions();
       syncCreateFormAriaInvalid();
 
       if (!badgeTemplateCreateForm.checkValidity()) {
@@ -1135,12 +1193,10 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
       const data = new FormData(badgeTemplateCreateForm);
       const titleRaw = data.get('title');
       const descriptionRaw = data.get('description');
-      const criteriaUriRaw = data.get('criteriaUri');
       const title = typeof titleRaw === 'string' ? titleRaw.trim() : '';
       const slug = deriveBadgeTemplateSlugFromTitle(title);
       const description =
         typeof descriptionRaw === 'string' ? descriptionRaw.trim() : '';
-      const criteriaUri = typeof criteriaUriRaw === 'string' ? criteriaUriRaw.trim() : '';
 
       if (slug.length === 0) {
         setStatus(
@@ -1163,7 +1219,6 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
             title,
             slug,
             ...(description.length === 0 ? {} : { description }),
-            ...(criteriaUri.length === 0 ? {} : { criteriaUri }),
           }),
         });
         const payload = await parseJsonBody(response);
@@ -1186,7 +1241,7 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
             slug,
             title,
             description: description.length === 0 ? null : description,
-            criteriaUri: criteriaUri.length === 0 ? null : criteriaUri,
+            criteriaUri: null,
           },
         );
 
@@ -1202,9 +1257,19 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
         setBadgeTemplateImageFormSelection(createdTemplate.id);
         badgeTemplateCreateForm.reset();
         syncCreateFormAriaInvalid();
+        showBadgeTemplateCreateNextActions(createdTemplate.id);
 
         if (templateCreatePanel instanceof HTMLDetailsElement) {
           templateCreatePanel.open = true;
+        }
+
+        if (badgeTemplatesReturnToRuleBuilder) {
+          const nextRuleBuilderPath = badgeTemplateRuleBuilderPath(createdTemplate.id);
+
+          if (nextRuleBuilderPath.length > 0) {
+            window.location.assign(nextRuleBuilderPath);
+            return;
+          }
         }
 
         const successMessage =
@@ -1323,6 +1388,7 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
 
         if (templateEditPanel instanceof HTMLDetailsElement) {
           templateEditPanel.open = false;
+          templateEditPanel.hidden = true;
         }
 
         setStatus(badgeTemplateEditStatus, 'Template saved.', false, 'success');

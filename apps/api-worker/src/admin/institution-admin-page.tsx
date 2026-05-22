@@ -325,6 +325,7 @@ interface InstitutionAdminLearnerRecordImportWorkflow {
 interface InstitutionAdminBadgeTemplatesPageOptions {
   searchQuery: string;
   includeArchived: boolean;
+  returnToRuleBuilder: boolean;
   /** When set with history=1, auto-opens the template audit dialog on load. */
   deepLinkHistoryTemplateId: string | null;
   deepLinkHistoryUnavailable: "not_found" | null;
@@ -392,6 +393,7 @@ const renderInstitutionAdminPage = (
   const activeApiKeyCount = String(input.activeApiKeys.length);
   const revokedApiKeyCount = String(input.revokedApiKeyCount);
   const ruleCount = String(input.badgeRules.length);
+  const hasBadgeRules = input.badgeRules.length > 0;
   const tenantMemberCount = String(input.tenantMembers.length);
   const scopedRoleCount = String(input.membershipOrgUnitScopes.length);
   const delegatedAuthorityGrantCount = String(input.delegatedIssuingAuthorityGrants.length);
@@ -834,6 +836,10 @@ const renderInstitutionAdminPage = (
       if (badgeTemplatesPage.includeArchived) {
         query.set("includeArchived", "1");
       }
+
+      if (badgeTemplatesPage.returnToRuleBuilder) {
+        query.set("returnTo", "rule-builder");
+      }
     }
 
     query.set("badgeTemplateId", badgeTemplateId);
@@ -843,7 +849,7 @@ const renderInstitutionAdminPage = (
   };
   const templateRows =
     input.badgeTemplates.length === 0 ? (
-      <AdminEmptyTableRow colSpan={6}>
+      <AdminEmptyTableRow colSpan={5}>
         {badgeTemplatesPage !== undefined &&
         (badgeTemplatesPage.searchQuery.length > 0 || badgeTemplatesPage.includeArchived)
           ? "No badge templates match these filters."
@@ -3047,7 +3053,10 @@ const renderInstitutionAdminPage = (
     createOrgUnitPath,
     badgeTemplateApiPathPrefix,
     badgeTemplateAdminTableRowPathPrefix,
+    ruleBuilderPath,
+    showcasePath,
     badgeTemplateRecords,
+    badgeTemplatesReturnToRuleBuilder: badgeTemplatesPage?.returnToRuleBuilder ?? false,
     // Avoids the substring "History" in JSON keys (breaks unrelated page tests).
     autoOpenTemplateAuditTemplateId: badgeTemplatesPage?.deepLinkHistoryTemplateId ?? null,
     tenantMemberEmailsByUserId,
@@ -3290,11 +3299,11 @@ const renderInstitutionAdminPage = (
   );
 
   const templateEditPanelMarkup = (
-    <details id="template-edit-panel" class="ct-admin__panel ct-admin__add-disclosure">
+    <details id="template-edit-panel" class="ct-admin__panel ct-admin__add-disclosure" hidden>
       <summary class="ct-admin__add-disclosure-summary">
         <span>
-          <strong>Edit Badge Template</strong>
-          <small>Update details and artwork for a selected template.</small>
+          <strong>Selected Template Details</strong>
+          <small>Use a row action to update name, criteria, or the generated URL key.</small>
         </span>
         {addDisclosureControlMarkup}
       </summary>
@@ -3330,9 +3339,7 @@ const renderInstitutionAdminPage = (
       <summary class="ct-admin__add-disclosure-summary">
         <span>
           <strong>Create Badge Template</strong>
-          <small>
-            Create the record first. CredTrail generates the URL key and template ID.
-          </small>
+          <small>Start with the badge name. Artwork and rules can come next.</small>
         </span>
         {addDisclosureControlMarkup}
       </summary>
@@ -3364,18 +3371,6 @@ const renderInstitutionAdminPage = (
             Optional short summary shown with issued badge records.
           </span>
         </AdminField>
-        <AdminField label="Criteria page URL" className="ct-admin__template-create-field--wide">
-          <input
-            name="criteriaUri"
-            type="url"
-            maxlength={2048}
-            placeholder="https://example.edu/badges/example/criteria"
-            aria-describedby="badge-template-create-criteria-hint"
-          />
-          <span id="badge-template-create-criteria-hint" class="ct-admin__field-hint">
-            Optional public page explaining how someone earns this badge.
-          </span>
-        </AdminField>
         <div class="ct-admin__template-create-actions">
           <AdminButton type="submit">Create badge template</AdminButton>
         </div>
@@ -3385,15 +3380,44 @@ const renderInstitutionAdminPage = (
         class="ct-admin__status ct-admin__template-create-status"
         aria-live="polite"
       ></p>
+      <div
+        id="badge-template-create-next-actions"
+        class="ct-admin__template-create-next-actions"
+        hidden
+      >
+        <AdminButtonLink
+          href={ruleBuilderPath}
+          variant="secondary"
+          dataAttributes={{ "data-template-create-rule-link": "" }}
+        >
+          Use in a rule
+        </AdminButtonLink>
+        <AdminButton
+          type="button"
+          variant="secondary"
+          dataAttributes={{ "data-template-create-artwork-template-id": "" }}
+        >
+          Add artwork
+        </AdminButton>
+        <AdminButtonLink
+          href={showcasePath}
+          variant="ghost"
+          target="_blank"
+          rel="noopener noreferrer"
+          dataAttributes={{ "data-template-create-public-link": "" }}
+        >
+          View public page
+        </AdminButtonLink>
+      </div>
     </details>
   );
 
   const templateImagePanelMarkup = (
-    <details id="template-image-panel" class="ct-admin__panel ct-admin__add-disclosure">
+    <details id="template-image-panel" class="ct-admin__panel ct-admin__add-disclosure" hidden>
       <summary class="ct-admin__add-disclosure-summary">
         <span>
-          <strong>Manage Badge Template Images</strong>
-          <small>Artwork tools for the selected template.</small>
+          <strong>Selected Template Artwork</strong>
+          <small>Use a row action after the template record exists.</small>
         </span>
         {addDisclosureControlMarkup}
       </summary>
@@ -4691,10 +4715,12 @@ const renderInstitutionAdminPage = (
   const badgeRulesTableMarkup = (
     <AdminPanel variant="table">
       <h2>Badge Rules ({ruleCount})</h2>
-      <p>Lifecycle actions operate on each rule’s latest version.</p>
+      <p>
+        Create and review the rules that award badges from LMS activity and other verified facts.
+      </p>
       <div class="ct-admin__workspace-actions">
         <AdminButtonLink href={ruleBuilderPath} variant="secondary">
-          Open rule builder
+          Create badge rule
         </AdminButtonLink>
         <AdminButtonLink href={rulesTemplatesPath} variant="ghost">
           Manage badge templates
@@ -4717,6 +4743,28 @@ const renderInstitutionAdminPage = (
       <AdminStatus id="rule-action-status"></AdminStatus>
     </AdminPanel>
   );
+  const ruleAdvancedToolsMarkup = (
+    <details class="ct-admin__advanced-tools">
+      <summary>
+        <span>Advanced rule tools</span>
+        <small>
+          Use reusable value lists, dry-run evaluation, and governance after rules exist.
+        </small>
+      </summary>
+      {hasBadgeRules ? (
+        <div class="ct-admin__advanced-tools-body ct-grid">
+          {ruleValueListsPanelMarkup}
+          {evaluateRulePanelMarkup}
+          {ruleGovernancePanelMarkup}
+        </div>
+      ) : (
+        <p class="ct-admin__hint">
+          Create a badge rule first. Evaluation and governance tools become useful once there is a
+          rule to test or approve.
+        </p>
+      )}
+    </details>
+  );
 
   const badgeTemplatesFilterMarkup =
     badgeTemplatesPage === undefined ? null : (
@@ -4730,7 +4778,7 @@ const renderInstitutionAdminPage = (
             name="q"
             type="search"
             value={badgeTemplatesPage.searchQuery}
-            placeholder="Badge name, URL key, or template ID"
+            placeholder="Search badge templates"
           />
         </AdminField>
         <AdminCheckboxRow>
@@ -4758,7 +4806,7 @@ const renderInstitutionAdminPage = (
       {badgeTemplatesFilterMarkup}
       <AdminTable
         tbodyId="badge-template-table-body"
-        headers={["Image", "Template", "Status", "ID", "Updated", "Links"]}
+        headers={["Image", "Template", "Status", "Updated", "Actions"]}
       >
         {templateRows}
       </AdminTable>
@@ -5449,14 +5497,8 @@ const renderInstitutionAdminPage = (
               "Review awarding rules and use focused tools for rule logic, reusable lists, and governance context.",
             )}
             <section class="ct-admin ct-stack">
-              <section class="ct-admin__layout ct-grid ct-grid--sidebar">
-                <div class="ct-admin__grid ct-stack">
-                  {ruleValueListsPanelMarkup}
-                  {evaluateRulePanelMarkup}
-                  {ruleGovernancePanelMarkup}
-                </div>
-                <div class="ct-admin__grid ct-stack">{badgeRulesTableMarkup}</div>
-              </section>
+              {badgeRulesTableMarkup}
+              {ruleAdvancedToolsMarkup}
             </section>
           </>
         );
@@ -5475,9 +5517,9 @@ const renderInstitutionAdminPage = (
                 </AdminStatus>
               ) : null}
               {templateCreatePanelMarkup}
+              {badgeTemplatesTableMarkup}
               {templateEditPanelMarkup}
               {templateImagePanelMarkup}
-              {badgeTemplatesTableMarkup}
               {badgeTemplateHistoryDialogMarkup}
             </section>
           </>

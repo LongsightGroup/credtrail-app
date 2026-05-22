@@ -47,6 +47,18 @@ export const INSTITUTION_ADMIN_JS = `
       : tenantAdminPath.length === 0
         ? ''
         : tenantAdminPath + '/rules/templates';
+  const ruleBuilderPath =
+    parsedContext && typeof parsedContext.ruleBuilderPath === 'string'
+      ? parsedContext.ruleBuilderPath
+      : tenantAdminPath.length === 0
+        ? ''
+        : tenantAdminPath + '/rules/new';
+  const showcasePath =
+    parsedContext && typeof parsedContext.showcasePath === 'string'
+      ? parsedContext.showcasePath
+      : '';
+  const badgeTemplatesReturnToRuleBuilder =
+    parsedContext && parsedContext.badgeTemplatesReturnToRuleBuilder === true;
   const badgeRuleApiPath =
     parsedContext && typeof parsedContext.badgeRuleApiPath === 'string'
       ? parsedContext.badgeRuleApiPath
@@ -145,6 +157,16 @@ export const INSTITUTION_ADMIN_JS = `
   const templateCreatePanel = document.getElementById('template-create-panel');
   const badgeTemplateCreateForm = document.getElementById('badge-template-create-form');
   const badgeTemplateCreateStatus = document.getElementById('badge-template-create-status');
+  const badgeTemplateCreateNextActions = document.getElementById(
+    'badge-template-create-next-actions',
+  );
+  const badgeTemplateCreateRuleLink = document.querySelector('[data-template-create-rule-link]');
+  const badgeTemplateCreateArtworkButton = document.querySelector(
+    '[data-template-create-artwork-template-id]',
+  );
+  const badgeTemplateCreatePublicLink = document.querySelector(
+    '[data-template-create-public-link]',
+  );
   const templateEditPanel = document.getElementById('template-edit-panel');
   const badgeTemplateEditForm = document.getElementById('badge-template-edit-form');
   const badgeTemplateEditStatus = document.getElementById('badge-template-edit-status');

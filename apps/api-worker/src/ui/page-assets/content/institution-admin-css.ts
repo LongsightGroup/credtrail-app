@@ -2141,6 +2141,46 @@ a.ct-admin__workspace-card:active {
 .ct-admin__add-disclosure[open] .ct-admin__add-disclosure-control-close {
   display: inline;
 }
+.ct-admin__advanced-tools {
+  border: 1px solid var(--ct-border-soft);
+  border-radius: var(--ct-radius-lg);
+  background: var(--ct-theme-surface-card);
+}
+.ct-admin__advanced-tools > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ct-space-3);
+  padding: var(--ct-space-4);
+  cursor: pointer;
+  list-style: none;
+}
+.ct-admin__advanced-tools > summary::-webkit-details-marker {
+  display: none;
+}
+.ct-admin__advanced-tools > summary span,
+.ct-admin__advanced-tools > summary small {
+  display: block;
+}
+.ct-admin__advanced-tools > summary span {
+  color: var(--ct-theme-text-title);
+  font-size: 1rem;
+  font-weight: 600;
+}
+.ct-admin__advanced-tools > summary small {
+  max-width: 64ch;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+.ct-admin__advanced-tools > .ct-admin__hint {
+  margin: 0;
+  padding: 0 var(--ct-space-4) var(--ct-space-4);
+}
+.ct-admin__advanced-tools-body.ct-grid {
+  --ct-grid-gap: var(--ct-space-4);
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0 var(--ct-space-4) var(--ct-space-4);
+}
 .ct-admin__add-disclosure-form.ct-grid {
   --ct-grid-gap: var(--ct-space-3);
   grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
@@ -2169,6 +2209,16 @@ a.ct-admin__workspace-card:active {
 }
 .ct-admin__template-create-status.ct-admin__status {
   max-width: 44rem;
+}
+.ct-admin__template-create-next-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ct-space-2);
+  max-width: 44rem;
+  padding: 0 var(--ct-space-4) var(--ct-space-4);
+}
+.ct-admin__template-create-next-actions[hidden] {
+  display: none;
 }
 .ct-admin__add-disclosure-form--template-create textarea {
   min-height: 6.75rem;

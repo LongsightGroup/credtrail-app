@@ -224,6 +224,7 @@ export const institutionAdminRuleBuilderPage = (input: {
   badgeTemplates: readonly BadgeTemplateRecord[];
   badgeRules: readonly BadgeIssuanceRuleRecord[];
   badgeRuleVersions: readonly BadgeIssuanceRuleVersionRecord[];
+  selectedBadgeTemplateId?: string;
   switchOrganizationPath?: string | null;
 }): AppPage => {
   const versionsByRuleId = new Map<string, BadgeIssuanceRuleVersionRecord[]>();
@@ -265,9 +266,13 @@ export const institutionAdminRuleBuilderPage = (input: {
   const switchOrganizationPath = input.switchOrganizationPath?.trim() ?? "";
   const userLabel = input.userEmail ?? input.userId;
 
+  const selectedBadgeTemplateId = input.selectedBadgeTemplateId ?? null;
+  const hasSelectedBadgeTemplate =
+    selectedBadgeTemplateId !== null &&
+    input.badgeTemplates.some((template) => template.id === selectedBadgeTemplateId);
   const templateOptions = input.badgeTemplates.map((template, index) => ({
     template,
-    isSelected: index === 0,
+    isSelected: hasSelectedBadgeTemplate ? template.id === selectedBadgeTemplateId : index === 0,
   }));
 
   const lmsProviderOptions = [
@@ -384,6 +389,7 @@ export const institutionAdminRuleBuilderPage = (input: {
 
   const rulesWorkspacePath = `${tenantAdminPath}/rules`;
   const rulesTemplatesPath = `${rulesWorkspacePath}/templates`;
+  const createTemplateForRulePath = `${rulesTemplatesPath}?returnTo=rule-builder`;
   const operationsPath = `${tenantAdminPath}/operations`;
   const operationsLearnerRecordsPath = `${operationsPath}/learner-records`;
   const operationsLearnerRecordImportsPath = `${operationsPath}/learner-record-imports`;
@@ -565,8 +571,10 @@ export const institutionAdminRuleBuilderPage = (input: {
                     </AdminField>
                     <p class="ct-admin__hint ct-admin__builder-field-span">
                       Need a new template?{" "}
-                      <a href={rulesTemplatesPath}>Create one in Badge Templates</a>, then return
-                      here.
+                      <a href={createTemplateForRulePath}>
+                        Create one in Badge Templates and continue here
+                      </a>
+                      .
                     </p>
                     <AdminField label="LMS provider">
                       <select name="lmsProviderKind" required>

@@ -1052,6 +1052,7 @@ export const registerTenantGovernanceRoutes = (
     const searchQuery = (c.req.query("q") ?? "").trim();
     const includeArchived =
       c.req.query("includeArchived") === "1" || c.req.query("includeArchived") === "true";
+    const returnToRuleBuilder = c.req.query("returnTo") === "rule-builder";
     const historyParam = c.req.query("history");
     const badgeTemplateIdParam = (c.req.query("badgeTemplateId") ?? "").trim();
     const historyDeepLinkRequested =
@@ -1150,6 +1151,7 @@ export const registerTenantGovernanceRoutes = (
         badgeTemplatesPage: {
           searchQuery,
           includeArchived,
+          returnToRuleBuilder,
           deepLinkHistoryTemplateId: autoOpenTemplateAuditTemplateId,
           deepLinkHistoryUnavailable,
         },
@@ -1995,6 +1997,12 @@ export const registerTenantGovernanceRoutes = (
     );
     const badgeRuleVersions = badgeRuleVersionLists.flat();
     const requestUrl = new URL(c.req.url);
+    const requestedBadgeTemplateId = (c.req.query("badgeTemplateId") ?? "").trim();
+    const selectedBadgeTemplateId = badgeTemplates.some(
+      (template) => template.id === requestedBadgeTemplateId,
+    )
+      ? requestedBadgeTemplateId
+      : undefined;
     const switchOrganizationPath =
       accessibleTenantContexts.length > 1
         ? buildOrganizationsPath(`${requestUrl.pathname}${requestUrl.search}`)
@@ -2012,6 +2020,7 @@ export const registerTenantGovernanceRoutes = (
         badgeTemplates,
         badgeRules,
         badgeRuleVersions,
+        ...(selectedBadgeTemplateId === undefined ? {} : { selectedBadgeTemplateId }),
         switchOrganizationPath,
       }),
     );
