@@ -2702,6 +2702,11 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     );
     expect(body).toContain("Create Badge Template");
     expect(body).toContain("CredTrail generates the template ID after creation.");
+    expect(body).toContain(">Badge name<");
+    expect(body).toContain(">URL key<");
+    expect(body).toContain("Used in URLs and imports.");
+    expect(body).toContain(">Criteria page URL<");
+    expect(body).toContain("Create badge template");
     expect(body).toContain('id="template-create-panel"');
     expect(body).toContain('id="badge-template-create-form"');
     expect(body).toContain('id="badge-template-create-status"');
@@ -2745,6 +2750,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('<th scope="col">Status</th>');
     expect(body).toContain('<th scope="col">ID</th>');
     expect(body).not.toContain(">Slug</th>");
+    expect(body).not.toContain(">Slug<");
     expect(body).toContain('name="q"');
     expect(body).toContain("Include archived templates");
     expect(body).toContain(

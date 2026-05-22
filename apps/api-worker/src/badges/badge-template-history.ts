@@ -30,7 +30,7 @@ const auditActionLabels: Readonly<Record<string, string>> = {
 };
 
 const auditFieldLabels: Readonly<Record<string, string>> = {
-  slug: "Slug",
+  slug: "URL key",
   title: "Title",
   description: "Description",
   criteriaUri: "Criteria URL",
@@ -107,7 +107,7 @@ export const formatBadgeTemplateAuditDetail = (metadataJson: string | null): str
       }
 
       if (typeof record.slug === "string" && record.slug.length > 0) {
-        parts.push(`Slug: ${record.slug}`);
+        parts.push(`URL key: ${record.slug}`);
       }
 
       if (typeof record.fileName === "string" && record.fileName.length > 0) {

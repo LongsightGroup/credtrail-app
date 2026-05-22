@@ -1195,7 +1195,7 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
       }
 
       if (title.length === 0 || slug.length === 0) {
-        setStatus(badgeTemplateEditStatus, 'Title and slug are required.', true);
+        setStatus(badgeTemplateEditStatus, 'Badge name and URL key are required.', true);
         return;
       }
 

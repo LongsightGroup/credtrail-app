@@ -2154,9 +2154,25 @@ a.ct-admin__workspace-card:active {
   grid-template-columns: minmax(14rem, 1fr) minmax(18rem, 1.4fr) auto;
 }
 .ct-admin__add-disclosure-form--template-create.ct-grid {
-  grid-template-columns:
-    minmax(12rem, 1fr) minmax(10rem, 0.8fr) minmax(16rem, 1.3fr) minmax(16rem, 1.3fr)
-    auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--ct-space-3) var(--ct-space-4);
+  max-width: 58rem;
+}
+.ct-admin__template-create-field--wide,
+.ct-admin__template-create-actions {
+  grid-column: 1 / -1;
+}
+.ct-admin__template-create-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--ct-space-1);
+}
+.ct-admin__template-create-status.ct-admin__status {
+  max-width: 58rem;
+}
+.ct-admin__add-disclosure-form--template-create textarea {
+  min-height: 6.75rem;
 }
 .ct-admin__add-disclosure-form--template-image.ct-grid {
   grid-template-columns: minmax(16rem, 1fr) minmax(16rem, 1fr) auto;

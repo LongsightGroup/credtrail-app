@@ -73,7 +73,7 @@ describe("badge template history", () => {
           slug: "new-slug",
         }),
       ),
-    ).toBe("Title: New title · Slug: new-slug");
+    ).toBe("Title: New title · URL key: new-slug");
   });
 
   it("merges ownership events and audit logs without duplicate ownership audit rows", () => {

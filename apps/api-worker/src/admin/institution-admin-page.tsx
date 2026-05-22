@@ -3307,16 +3307,16 @@ const renderInstitutionAdminPage = (
             {templateSelectOptions}
           </select>
         </AdminField>
-        <AdminField label="Title">
+        <AdminField label="Badge name">
           <input name="title" type="text" required maxlength={200} />
         </AdminField>
-        <AdminField label="Slug">
+        <AdminField label="URL key">
           <input name="slug" type="text" required maxlength={120} />
         </AdminField>
         <AdminField label="Description">
           <textarea name="description" rows={3} maxlength={2000}></textarea>
         </AdminField>
-        <AdminField label="Criteria URL">
+        <AdminField label="Criteria page URL">
           <input name="criteriaUri" type="url" maxlength={2048} />
         </AdminField>
         <AdminButton type="submit">Save template</AdminButton>
@@ -3331,7 +3331,7 @@ const renderInstitutionAdminPage = (
         <span>
           <strong>Create Badge Template</strong>
           <small>
-            Define the template record first. CredTrail generates the template ID after creation.
+            Create the record first. CredTrail generates the template ID after creation.
           </small>
         </span>
         {addDisclosureControlMarkup}
@@ -3340,7 +3340,7 @@ const renderInstitutionAdminPage = (
         id="badge-template-create-form"
         className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--template-create ct-grid"
       >
-        <AdminField label="Title">
+        <AdminField label="Badge name">
           <input
             name="title"
             type="text"
@@ -3350,10 +3350,10 @@ const renderInstitutionAdminPage = (
             aria-describedby="badge-template-create-title-hint"
           />
           <span id="badge-template-create-title-hint" class="ct-admin__field-hint">
-            User-facing badge name.
+            The name administrators, learners, and public viewers will see.
           </span>
         </AdminField>
-        <AdminField label="Slug">
+        <AdminField label="URL key">
           <input
             name="slug"
             type="text"
@@ -3365,10 +3365,10 @@ const renderInstitutionAdminPage = (
             aria-describedby="badge-template-create-slug-hint"
           />
           <span id="badge-template-create-slug-hint" class="ct-admin__field-hint">
-            Lowercase letters, numbers, and hyphens.
+            Used in URLs and imports. Use lowercase letters, numbers, and hyphens.
           </span>
         </AdminField>
-        <AdminField label="Description">
+        <AdminField label="Description" className="ct-admin__template-create-field--wide">
           <textarea
             name="description"
             rows={3}
@@ -3376,10 +3376,10 @@ const renderInstitutionAdminPage = (
             aria-describedby="badge-template-create-description-hint"
           ></textarea>
           <span id="badge-template-create-description-hint" class="ct-admin__field-hint">
-            Optional summary shown with issued badge records.
+            Optional short summary shown with issued badge records.
           </span>
         </AdminField>
-        <AdminField label="Criteria URL">
+        <AdminField label="Criteria page URL" className="ct-admin__template-create-field--wide">
           <input
             name="criteriaUri"
             type="url"
@@ -3388,12 +3388,18 @@ const renderInstitutionAdminPage = (
             aria-describedby="badge-template-create-criteria-hint"
           />
           <span id="badge-template-create-criteria-hint" class="ct-admin__field-hint">
-            Optional public criteria page.
+            Optional public page explaining how someone earns this badge.
           </span>
         </AdminField>
-        <AdminButton type="submit">Create template</AdminButton>
+        <div class="ct-admin__template-create-actions">
+          <AdminButton type="submit">Create badge template</AdminButton>
+        </div>
       </AdminForm>
-      <p id="badge-template-create-status" class="ct-admin__status" aria-live="polite"></p>
+      <p
+        id="badge-template-create-status"
+        class="ct-admin__status ct-admin__template-create-status"
+        aria-live="polite"
+      ></p>
     </details>
   );
 
@@ -4739,7 +4745,7 @@ const renderInstitutionAdminPage = (
             name="q"
             type="search"
             value={badgeTemplatesPage.searchQuery}
-            placeholder="Title, slug, or template ID"
+            placeholder="Badge name, URL key, or template ID"
           />
         </AdminField>
         <AdminCheckboxRow>
