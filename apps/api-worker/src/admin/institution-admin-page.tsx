@@ -858,7 +858,10 @@ const renderInstitutionAdminPage = (
           input.tenant.id,
         )}/criteria?badgeTemplateId=${encodeURIComponent(template.id)}`;
         return (
-          <tr data-template-row-id={template.id} data-template-archived={template.isArchived ? "true" : "false"}>
+          <tr
+            data-template-row-id={template.id}
+            data-template-archived={template.isArchived ? "true" : "false"}
+          >
             <td>
               {template.imageUri === null ? (
                 <span class="ct-admin__template-placeholder">No image</span>
@@ -907,7 +910,10 @@ const renderInstitutionAdminPage = (
                 >
                   Edit
                 </button>
-                <span class="ct-admin__template-secondary-actions" aria-label="Public template links">
+                <span
+                  class="ct-admin__template-secondary-actions"
+                  aria-label="Public template links"
+                >
                   <a href={showcaseHref} target="_blank" rel="noopener noreferrer">
                     Public
                   </a>
@@ -3390,6 +3396,78 @@ const renderInstitutionAdminPage = (
     </details>
   );
 
+  const templateCreatePanelMarkup = (
+    <details id="template-create-panel" class="ct-admin__panel ct-admin__add-disclosure">
+      <summary class="ct-admin__add-disclosure-summary">
+        <span>
+          <strong>Create Badge Template</strong>
+          <small>
+            Define the template record first. CredTrail generates the template ID after creation.
+          </small>
+        </span>
+        {addDisclosureControlMarkup}
+      </summary>
+      <AdminForm
+        id="badge-template-create-form"
+        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--template-create ct-grid"
+      >
+        <AdminField label="Title">
+          <input
+            name="title"
+            type="text"
+            required
+            maxlength={200}
+            autocomplete="off"
+            aria-describedby="badge-template-create-title-hint"
+          />
+          <span id="badge-template-create-title-hint" class="ct-admin__field-hint">
+            User-facing badge name.
+          </span>
+        </AdminField>
+        <AdminField label="Slug">
+          <input
+            name="slug"
+            type="text"
+            required
+            minlength={2}
+            maxlength={96}
+            pattern="[a-z0-9]+(-[a-z0-9]+)*"
+            autocomplete="off"
+            aria-describedby="badge-template-create-slug-hint"
+          />
+          <span id="badge-template-create-slug-hint" class="ct-admin__field-hint">
+            Lowercase letters, numbers, and hyphens.
+          </span>
+        </AdminField>
+        <AdminField label="Description">
+          <textarea
+            name="description"
+            rows={3}
+            maxlength={2000}
+            aria-describedby="badge-template-create-description-hint"
+          ></textarea>
+          <span id="badge-template-create-description-hint" class="ct-admin__field-hint">
+            Optional summary shown with issued badge records.
+          </span>
+        </AdminField>
+        <AdminField label="Criteria URL">
+          <input
+            name="criteriaUri"
+            type="url"
+            maxlength={2048}
+            placeholder="https://example.edu/badges/example/criteria"
+            aria-describedby="badge-template-create-criteria-hint"
+          />
+          <span id="badge-template-create-criteria-hint" class="ct-admin__field-hint">
+            Optional public criteria page.
+          </span>
+        </AdminField>
+        <AdminButton type="submit">Create template</AdminButton>
+      </AdminForm>
+      <p id="badge-template-create-status" class="ct-admin__status" aria-live="polite"></p>
+    </details>
+  );
+
   const templateImagePanelMarkup = (
     <details id="template-image-panel" class="ct-admin__panel ct-admin__add-disclosure">
       <summary class="ct-admin__add-disclosure-summary">
@@ -3485,7 +3563,11 @@ const renderInstitutionAdminPage = (
         </header>
         <AdminStatus id="badge-template-history-status"></AdminStatus>
         <div id="badge-template-history-audit-list" class="ct-admin__history-audit-list"></div>
-        <details id="badge-template-image-history-section" class="ct-admin__history-image-section" hidden>
+        <details
+          id="badge-template-image-history-section"
+          class="ct-admin__history-image-section"
+          hidden
+        >
           <summary>Image versions</summary>
           <div id="badge-template-image-revision-list" class="ct-admin__image-revision-list"></div>
         </details>
@@ -3804,8 +3886,8 @@ const renderInstitutionAdminPage = (
     <AdminPanel id="rule-value-lists-panel">
       <h2>Rule Value Lists</h2>
       <p>
-        Create reusable course and badge-template lists so authors stop copying long IDs into every
-        rule.
+        Rule value lists are reusable sets of course IDs or badge-template IDs for rule conditions.
+        They do not create badge templates.
       </p>
       <AdminForm id="rule-value-list-form">
         <AdminField label="Label">
@@ -4754,7 +4836,10 @@ const renderInstitutionAdminPage = (
       <h2>Badge Templates ({badgeTemplateCount})</h2>
       <p>Template records, public links, and artwork maintenance live together here.</p>
       {badgeTemplatesFilterMarkup}
-      <AdminTable headers={["Image", "Template", "Status", "ID", "Updated", "Links"]}>
+      <AdminTable
+        tbodyId="badge-template-table-body"
+        headers={["Image", "Template", "Status", "ID", "Updated", "Links"]}
+      >
         {templateRows}
       </AdminTable>
     </AdminPanel>
@@ -5469,6 +5554,7 @@ const renderInstitutionAdminPage = (
                   tenant.
                 </AdminStatus>
               ) : null}
+              {templateCreatePanelMarkup}
               {templateEditPanelMarkup}
               {templateImagePanelMarkup}
               {badgeTemplatesTableMarkup}

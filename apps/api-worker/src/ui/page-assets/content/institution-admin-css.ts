@@ -2153,6 +2153,11 @@ a.ct-admin__workspace-card:active {
 .ct-admin__add-disclosure-form--api-key.ct-grid {
   grid-template-columns: minmax(14rem, 1fr) minmax(18rem, 1.4fr) auto;
 }
+.ct-admin__add-disclosure-form--template-create.ct-grid {
+  grid-template-columns:
+    minmax(12rem, 1fr) minmax(10rem, 0.8fr) minmax(16rem, 1.3fr) minmax(16rem, 1.3fr)
+    auto;
+}
 .ct-admin__add-disclosure-form--template-image.ct-grid {
   grid-template-columns: minmax(16rem, 1fr) minmax(16rem, 1fr) auto;
 }
@@ -2186,6 +2191,11 @@ a.ct-admin__workspace-card:active {
   gap: 0.28rem;
   font-size: 0.88rem;
   color: var(--ct-color-ink);
+}
+.ct-admin__field-hint {
+  color: var(--ct-theme-text-subtle);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 .ct-admin__fieldset {
   border: 1px solid var(--ct-border-soft);
@@ -2243,6 +2253,15 @@ a.ct-admin__workspace-card:active {
   outline: none;
   border-color: var(--ct-theme-border-focus);
   box-shadow: var(--ct-focus-ring);
+}
+.ct-admin__form input:not([type='checkbox']):user-invalid,
+.ct-admin__form select:user-invalid,
+.ct-admin__form textarea:user-invalid,
+.ct-admin__form input:not([type='checkbox']).user-invalid-fallback,
+.ct-admin__form select.user-invalid-fallback,
+.ct-admin__form textarea.user-invalid-fallback {
+  border-color: var(--ct-theme-state-danger);
+  background: var(--ct-theme-surface-danger);
 }
 .ct-admin__form select:disabled,
 .ct-admin__table select:disabled {

@@ -20,6 +20,7 @@ vi.mock("@credtrail/db", async () => {
   return {
     ...actual,
     createAuditLog: vi.fn(),
+    createBadgeTemplate: vi.fn(),
     createBadgeTemplateImageGeneration: vi.fn(),
     createBadgeTemplateImageRevision: vi.fn(),
     enqueueJobQueueMessage: vi.fn(),
@@ -64,6 +65,7 @@ vi.mock("./auth/better-auth-adapter", async () => {
 
 import {
   createAuditLog,
+  createBadgeTemplate,
   createBadgeTemplateImageGeneration,
   createBadgeTemplateImageRevision,
   enqueueJobQueueMessage,
@@ -91,6 +93,7 @@ import { BADGE_TEMPLATE_IMAGE_MAX_BYTES } from "./badges/template-image-storage"
 import { app } from "./index";
 
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
+const mockedCreateBadgeTemplate = vi.mocked(createBadgeTemplate);
 const mockedCreateBadgeTemplateImageGeneration = vi.mocked(createBadgeTemplateImageGeneration);
 const mockedCreateBadgeTemplateImageRevision = vi.mocked(createBadgeTemplateImageRevision);
 const mockedEnqueueJobQueueMessage = vi.mocked(enqueueJobQueueMessage);
@@ -344,6 +347,8 @@ beforeEach(() => {
   mockedListBadgeTemplates.mockResolvedValue([sampleTemplate()]);
   mockedListBadgeTemplateImageRevisions.mockReset();
   mockedListBadgeTemplateImageRevisions.mockResolvedValue([sampleImageRevision()]);
+  mockedCreateBadgeTemplate.mockReset();
+  mockedCreateBadgeTemplate.mockResolvedValue(sampleTemplate({ id: "bt_generated" }));
   mockedFindBadgeTemplateImageRevisionById.mockReset();
   mockedFindBadgeTemplateImageRevisionById.mockResolvedValue(sampleImageRevision());
   mockedCreateBadgeTemplateImageRevision.mockReset();
@@ -420,6 +425,110 @@ describe("badge template image upload routes", () => {
       tenantId: "tenant_123",
       includeArchived: false,
     });
+  });
+
+  it("creates a badge template with a generated template id and audit log", async () => {
+    const { store } = createBadgeObjectStore();
+    const env = createEnv(store);
+
+    mockedCreateBadgeTemplate.mockResolvedValueOnce(
+      sampleTemplate({
+        id: "bt_generated",
+        slug: "applied-analytics",
+        title: "Applied Analytics",
+        description: "Awarded for applied analytics work.",
+        criteriaUri: "https://example.edu/badges/applied-analytics/criteria",
+      }),
+    );
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-templates",
+      {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          id: "badge_template_should_not_be_used",
+          slug: "applied-analytics",
+          title: "Applied Analytics",
+          description: "Awarded for applied analytics work.",
+          criteriaUri: "https://example.edu/badges/applied-analytics/criteria",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{
+      tenantId: string;
+      template: BadgeTemplateRecord;
+    }>();
+
+    expect(response.status).toBe(201);
+    expect(body.tenantId).toBe("tenant_123");
+    expect(body.template.id).toBe("bt_generated");
+    expect(mockedCreateBadgeTemplate).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        slug: "applied-analytics",
+        title: "Applied Analytics",
+        description: "Awarded for applied analytics work.",
+        criteriaUri: "https://example.edu/badges/applied-analytics/criteria",
+        createdByUserId: "usr_admin",
+      }),
+    );
+    expect(mockedCreateBadgeTemplate).not.toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        id: "badge_template_should_not_be_used",
+      }),
+    );
+    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        action: "badge_template.created",
+        targetType: "badge_template",
+        targetId: "bt_generated",
+        metadata: expect.objectContaining({
+          role: "admin",
+          slug: "applied-analytics",
+          title: "Applied Analytics",
+          ownerOrgUnitId: "tenant_123:org:institution",
+        }),
+      }),
+    );
+  });
+
+  it("returns a conflict when creating a badge template with a duplicate slug", async () => {
+    const { store } = createBadgeObjectStore();
+    const env = createEnv(store);
+
+    mockedCreateBadgeTemplate.mockRejectedValueOnce(
+      new Error(
+        'duplicate key value violates unique constraint "badge_templates_tenant_id_slug_key"',
+      ),
+    );
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-templates",
+      {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          slug: "typescript-foundations",
+          title: "TypeScript Foundations",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toBe("Badge template slug already exists for tenant");
   });
 
   it("uploads a PNG image, stores it in object storage, and serves it publicly", async () => {

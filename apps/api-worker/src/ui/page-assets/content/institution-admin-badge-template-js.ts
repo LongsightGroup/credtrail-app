@@ -454,6 +454,240 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
       badgeTemplateHistoryDialogSubtitle.textContent = template.title;
     }
   };
+  const badgeTemplateHistoryHref = (badgeTemplateId) => {
+    const basePath = tenantAdminPath + '/rules/templates';
+    const query = new URLSearchParams();
+    query.set('badgeTemplateId', badgeTemplateId);
+    query.set('history', '1');
+    return basePath + '?' + query.toString();
+  };
+  const badgeTemplateTenantPathSegment = () => {
+    const tenantPathParts = tenantAdminPath.split('/');
+
+    return tenantPathParts.length > 2 ? tenantPathParts[2] : '';
+  };
+  const badgeTemplateShowcaseHref = (badgeTemplateId) => {
+    return (
+      '/showcase/' +
+      badgeTemplateTenantPathSegment() +
+      '?badgeTemplateId=' +
+      encodeURIComponent(badgeTemplateId)
+    );
+  };
+  const badgeTemplateCriteriaHref = (badgeTemplateId) => {
+    return (
+      '/showcase/' +
+      badgeTemplateTenantPathSegment() +
+      '/criteria?badgeTemplateId=' +
+      encodeURIComponent(badgeTemplateId)
+    );
+  };
+  const removeEmptyBadgeTemplateOptions = (select) => {
+    Array.from(select.options).forEach((option) => {
+      if (option.value.length === 0) {
+        option.remove();
+      }
+    });
+  };
+  const upsertBadgeTemplateSelectOptions = (template) => {
+    if (!template || typeof template.id !== 'string' || typeof template.title !== 'string') {
+      return;
+    }
+
+    document.querySelectorAll('select[name="badgeTemplateId"]').forEach((candidate) => {
+      if (!(candidate instanceof HTMLSelectElement)) {
+        return;
+      }
+
+      removeEmptyBadgeTemplateOptions(candidate);
+
+      let option = Array.from(candidate.options).find((entry) => entry.value === template.id);
+
+      if (option === undefined) {
+        option = document.createElement('option');
+        option.value = template.id;
+        candidate.append(option);
+      }
+
+      option.textContent = template.title + ' (' + template.id + ')';
+      candidate.value = template.id;
+    });
+  };
+  const appendTextLink = (parent, href, text, attributes) => {
+    const link = document.createElement('a');
+    link.href = href;
+    link.textContent = text;
+
+    Object.entries(attributes || {}).forEach(([name, value]) => {
+      link.setAttribute(name, String(value));
+    });
+
+    parent.append(link);
+    return link;
+  };
+  const renderBadgeTemplateTableRow = (template) => {
+    if (!template || typeof template.id !== 'string' || typeof template.title !== 'string') {
+      return null;
+    }
+
+    const row = document.createElement('tr');
+    row.dataset.templateRowId = template.id;
+    row.dataset.templateArchived = template.isArchived === true ? 'true' : 'false';
+
+    const imageCell = document.createElement('td');
+    const imageUri = typeof template.imageUri === 'string' ? template.imageUri : '';
+
+    if (imageUri.length === 0) {
+      const placeholder = document.createElement('span');
+      placeholder.className = 'ct-admin__template-placeholder';
+      placeholder.textContent = 'No image';
+      imageCell.append(placeholder);
+    } else {
+      const imageLink = document.createElement('a');
+      imageLink.className = 'ct-admin__template-image-link';
+      imageLink.href = imageUri;
+      imageLink.target = '_blank';
+      imageLink.rel = 'noopener noreferrer';
+      imageLink.setAttribute('aria-label', 'Open full size image for ' + template.title);
+      const image = document.createElement('img');
+      image.className = 'ct-admin__template-image';
+      image.src = imageUri;
+      image.alt = template.title + ' artwork';
+      image.loading = 'lazy';
+      imageLink.append(image);
+      imageCell.append(imageLink);
+    }
+
+    const titleCell = document.createElement('td');
+    const title = document.createElement('strong');
+    title.textContent = template.title;
+    titleCell.append(title);
+
+    const statusCell = document.createElement('td');
+    const statusPill = document.createElement('span');
+    statusPill.className =
+      template.isArchived === true
+        ? 'ct-admin__status-pill ct-admin__status-pill--revoked'
+        : 'ct-admin__status-pill ct-admin__status-pill--active';
+    statusPill.textContent = template.isArchived === true ? 'Archived' : 'Active';
+    statusCell.append(statusPill);
+
+    const idCell = document.createElement('td');
+    idCell.textContent = template.id;
+
+    const updatedAtCell = document.createElement('td');
+    updatedAtCell.textContent =
+      typeof template.updatedAt === 'string' ? formatTimestamp(template.updatedAt) : 'n/a';
+
+    const linksCell = document.createElement('td');
+    const actions = document.createElement('div');
+    actions.className = 'ct-admin__template-actions';
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'ct-admin__text-action ct-admin__template-primary-action';
+    editButton.dataset.templateEditTemplateId = template.id;
+    editButton.textContent = 'Edit';
+    actions.append(editButton);
+
+    const secondaryActions = document.createElement('span');
+    secondaryActions.className = 'ct-admin__template-secondary-actions';
+    secondaryActions.setAttribute('aria-label', 'Public template links');
+    appendTextLink(secondaryActions, badgeTemplateShowcaseHref(template.id), 'Public', {
+      target: '_blank',
+      rel: 'noopener noreferrer',
+    });
+    appendTextLink(secondaryActions, badgeTemplateCriteriaHref(template.id), 'Criteria', {
+      target: '_blank',
+      rel: 'noopener noreferrer',
+    });
+    appendTextLink(secondaryActions, badgeTemplateHistoryHref(template.id), 'History', {
+      'data-template-history-template-id': template.id,
+      'data-template-history-template-title': template.title,
+      'data-template-history-image-revision-count': '0',
+    });
+    actions.append(secondaryActions);
+    linksCell.append(actions);
+
+    row.append(imageCell, titleCell, statusCell, idCell, updatedAtCell, linksCell);
+    return row;
+  };
+  const upsertBadgeTemplateTableRow = (template) => {
+    if (!template || typeof template.id !== 'string') {
+      return;
+    }
+
+    const tableBody = document.getElementById('badge-template-table-body');
+
+    if (!(tableBody instanceof HTMLTableSectionElement)) {
+      return;
+    }
+
+    const row = renderBadgeTemplateTableRow(template);
+
+    if (row === null) {
+      return;
+    }
+
+    tableBody.querySelectorAll('td.ct-admin__empty').forEach((emptyCell) => {
+      emptyCell.closest('tr')?.remove();
+    });
+
+    const existingRow = tableBody.querySelector('[data-template-row-id="' + template.id + '"]');
+
+    if (existingRow instanceof HTMLTableRowElement) {
+      existingRow.replaceWith(row);
+    } else {
+      tableBody.prepend(row);
+    }
+
+    bindBadgeTemplateRowActions(row);
+  };
+  const templateEditButtons = new WeakSet();
+  const templateImageButtons = new WeakSet();
+  const templateHistoryTriggers = new WeakSet();
+  const bindBadgeTemplateRowActions = (root) => {
+    root.querySelectorAll('[data-template-edit-template-id]').forEach((candidate) => {
+      if (!(candidate instanceof HTMLButtonElement) || templateEditButtons.has(candidate)) {
+        return;
+      }
+
+      templateEditButtons.add(candidate);
+      candidate.addEventListener('click', () => {
+        const badgeTemplateId = candidate.dataset.templateEditTemplateId || '';
+        openTemplateEditPanel(badgeTemplateId);
+      });
+    });
+
+    root.querySelectorAll('[data-template-manage-image-template-id]').forEach((candidate) => {
+      if (!(candidate instanceof HTMLButtonElement) || templateImageButtons.has(candidate)) {
+        return;
+      }
+
+      templateImageButtons.add(candidate);
+      candidate.addEventListener('click', () => {
+        const badgeTemplateId = candidate.dataset.templateManageImageTemplateId || '';
+        openTemplateImagePanel(badgeTemplateId);
+      });
+    });
+
+    root.querySelectorAll('[data-template-history-template-id]').forEach((candidate) => {
+      if (
+        (!(candidate instanceof HTMLButtonElement) &&
+          !(candidate instanceof HTMLAnchorElement)) ||
+        templateHistoryTriggers.has(candidate)
+      ) {
+        return;
+      }
+
+      templateHistoryTriggers.add(candidate);
+      candidate.addEventListener('click', async (event) => {
+        event.preventDefault();
+        const badgeTemplateId = candidate.dataset.templateHistoryTemplateId || '';
+        const badgeTemplateTitle = candidate.dataset.templateHistoryTemplateTitle || '';
+        await openBadgeTemplateHistory(badgeTemplateId, badgeTemplateTitle);
+      });
+    });
+  };
   let activeBadgeTemplateHistoryId = '';
   let activeBadgeTemplateHistoryTitle = '';
   const loadBadgeTemplateHistory = async (badgeTemplateId) => {
@@ -864,6 +1098,155 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
     });
   }
 
+  if (
+    badgeTemplateCreateForm instanceof HTMLFormElement &&
+    badgeTemplateCreateStatus instanceof HTMLElement
+  ) {
+    const syncCreateFormAriaInvalid = () => {
+      Array.from(badgeTemplateCreateForm.elements).forEach((control) => {
+        if (
+          !(control instanceof HTMLInputElement) &&
+          !(control instanceof HTMLTextAreaElement) &&
+          !(control instanceof HTMLSelectElement)
+        ) {
+          return;
+        }
+
+        let isUserInvalid = false;
+        let supportsUserInvalid = true;
+
+        try {
+          isUserInvalid = control.matches(':user-invalid');
+        } catch {
+          supportsUserInvalid = false;
+          isUserInvalid = !control.checkValidity();
+        }
+
+        if (!supportsUserInvalid) {
+          control.classList.toggle('user-invalid-fallback', isUserInvalid);
+        }
+
+        if (isUserInvalid) {
+          control.setAttribute('aria-invalid', 'true');
+        } else {
+          control.removeAttribute('aria-invalid');
+        }
+      });
+    };
+
+    badgeTemplateCreateForm.addEventListener(
+      'blur',
+      () => {
+        syncCreateFormAriaInvalid();
+      },
+      true,
+    );
+    badgeTemplateCreateForm.addEventListener('input', () => {
+      syncCreateFormAriaInvalid();
+    });
+    badgeTemplateCreateForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      syncCreateFormAriaInvalid();
+
+      if (!badgeTemplateCreateForm.checkValidity()) {
+        badgeTemplateCreateForm.reportValidity();
+        setStatus(
+          badgeTemplateCreateStatus,
+          'Complete the required template fields before creating it.',
+          true,
+        );
+        return;
+      }
+
+      const data = new FormData(badgeTemplateCreateForm);
+      const titleRaw = data.get('title');
+      const slugRaw = data.get('slug');
+      const descriptionRaw = data.get('description');
+      const criteriaUriRaw = data.get('criteriaUri');
+      const title = typeof titleRaw === 'string' ? titleRaw.trim() : '';
+      const slug = typeof slugRaw === 'string' ? slugRaw.trim() : '';
+      const description =
+        typeof descriptionRaw === 'string' ? descriptionRaw.trim() : '';
+      const criteriaUri = typeof criteriaUriRaw === 'string' ? criteriaUriRaw.trim() : '';
+
+      setStatus(badgeTemplateCreateStatus, 'Creating template...', false);
+
+      try {
+        const response = await fetch(badgeTemplateApiPathPrefix, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            title,
+            slug,
+            ...(description.length === 0 ? {} : { description }),
+            ...(criteriaUri.length === 0 ? {} : { criteriaUri }),
+          }),
+        });
+        const payload = await parseJsonBody(response);
+
+        if (!response.ok) {
+          setStatus(badgeTemplateCreateStatus, errorDetailFromPayload(payload), true);
+          return;
+        }
+
+        const createdTemplate =
+          payload && payload.template && typeof payload.template === 'object'
+            ? payload.template
+            : null;
+
+        if (createdTemplate === null || typeof createdTemplate.id !== 'string') {
+          setStatus(badgeTemplateCreateStatus, 'Template created without a generated id.', true);
+          return;
+        }
+
+        badgeTemplateRecordsById.set(createdTemplate.id, {
+          id: createdTemplate.id,
+          slug: typeof createdTemplate.slug === 'string' ? createdTemplate.slug : slug,
+          title: typeof createdTemplate.title === 'string' ? createdTemplate.title : title,
+          description:
+            typeof createdTemplate.description === 'string' ||
+            createdTemplate.description === null
+              ? createdTemplate.description
+              : description.length === 0
+                ? null
+                : description,
+          criteriaUri:
+            typeof createdTemplate.criteriaUri === 'string' ||
+            createdTemplate.criteriaUri === null
+              ? createdTemplate.criteriaUri
+              : criteriaUri.length === 0
+                ? null
+                : criteriaUri,
+        });
+        upsertBadgeTemplateSelectOptions(createdTemplate);
+        upsertBadgeTemplateTableRow(createdTemplate);
+        syncBadgeTemplateEditForm(createdTemplate.id);
+        setBadgeTemplateImageFormSelection(createdTemplate.id);
+        badgeTemplateCreateForm.reset();
+        syncCreateFormAriaInvalid();
+
+        if (templateCreatePanel instanceof HTMLDetailsElement) {
+          templateCreatePanel.open = true;
+        }
+
+        setStatus(
+          badgeTemplateCreateStatus,
+          'Template created. Generated template ID: ' + createdTemplate.id + '.',
+          false,
+          'success',
+        );
+      } catch {
+        setStatus(
+          badgeTemplateCreateStatus,
+          'Unable to create badge template from this browser session.',
+          true,
+        );
+      }
+    });
+  }
+
   if (badgeTemplateEditForm instanceof HTMLFormElement && badgeTemplateEditStatus instanceof HTMLElement) {
     const templateSelect = badgeTemplateEditForm.elements.namedItem('badgeTemplateId');
 
@@ -978,43 +1361,7 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
     });
   }
 
-  document.querySelectorAll('[data-template-edit-template-id]').forEach((candidate) => {
-    if (!(candidate instanceof HTMLButtonElement)) {
-      return;
-    }
-
-    candidate.addEventListener('click', () => {
-      const badgeTemplateId = candidate.dataset.templateEditTemplateId || '';
-      openTemplateEditPanel(badgeTemplateId);
-    });
-  });
-
-  document.querySelectorAll('[data-template-manage-image-template-id]').forEach((candidate) => {
-    if (!(candidate instanceof HTMLButtonElement)) {
-      return;
-    }
-
-    candidate.addEventListener('click', () => {
-      const badgeTemplateId = candidate.dataset.templateManageImageTemplateId || '';
-      openTemplateImagePanel(badgeTemplateId);
-    });
-  });
-
-  document.querySelectorAll('[data-template-history-template-id]').forEach((candidate) => {
-    if (
-      !(candidate instanceof HTMLButtonElement) &&
-      !(candidate instanceof HTMLAnchorElement)
-    ) {
-      return;
-    }
-
-    candidate.addEventListener('click', async (event) => {
-      event.preventDefault();
-      const badgeTemplateId = candidate.dataset.templateHistoryTemplateId || '';
-      const badgeTemplateTitle = candidate.dataset.templateHistoryTemplateTitle || '';
-      await openBadgeTemplateHistory(badgeTemplateId, badgeTemplateTitle);
-    });
-  });
+  bindBadgeTemplateRowActions(document);
 
   if (
     badgeTemplateImageRevisionList instanceof HTMLElement &&

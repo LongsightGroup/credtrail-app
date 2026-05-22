@@ -132,6 +132,17 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
     });
   };
 
+  const isBadgeTemplateSlugConflict = (error: unknown): boolean => {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    return (
+      error.message.includes("UNIQUE constraint failed") ||
+      (error.message.includes("duplicate key") && error.message.includes("badge_templates"))
+    );
+  };
+
   app.get("/badges/assets/:tenantId/:badgeTemplateId/:assetId", async (c) => {
     const tenantId = c.req.param("tenantId").trim();
     const badgeTemplateId = c.req.param("badgeTemplateId").trim();
@@ -275,7 +286,7 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
         201,
       );
     } catch (error: unknown) {
-      if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
+      if (isBadgeTemplateSlugConflict(error)) {
         return c.json(
           {
             error: "Badge template slug already exists for tenant",
@@ -465,49 +476,46 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
     });
   });
 
-  app.get(
-    "/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/history-timeline",
-    async (c) => {
-      const pathParams = parseBadgeTemplatePathParams(c.req.param());
-      let query;
+  app.get("/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/history-timeline", async (c) => {
+    const pathParams = parseBadgeTemplatePathParams(c.req.param());
+    let query;
 
-      try {
-        query = parseBadgeTemplateAuditLogQuery(c.req.query());
-      } catch {
-        return c.json(
-          {
-            error: "Invalid badge template history timeline query",
-          },
-          400,
-        );
-      }
-
-      const access = await authorizeTemplateHistory(
-        c,
-        pathParams.tenantId,
-        pathParams.badgeTemplateId,
+    try {
+      query = parseBadgeTemplateAuditLogQuery(c.req.query());
+    } catch {
+      return c.json(
+        {
+          error: "Invalid badge template history timeline query",
+        },
+        400,
       );
+    }
 
-      if (access instanceof Response) {
-        return access;
-      }
+    const access = await authorizeTemplateHistory(
+      c,
+      pathParams.tenantId,
+      pathParams.badgeTemplateId,
+    );
 
-      const { db } = access;
-      const { timeline, imageRevisionCount } = await loadBadgeTemplateHistoryPayload(db, {
-        tenantId: pathParams.tenantId,
-        badgeTemplateId: pathParams.badgeTemplateId,
-        limit: query.limit ?? 100,
-      });
+    if (access instanceof Response) {
+      return access;
+    }
 
-      c.header("Cache-Control", "no-store");
-      c.header("Content-Type", "text/html; charset=utf-8");
-      // Internal response metadata for the admin history dialog script.
-      c.header("X-CredTrail-Badge-Template-Image-Revision-Count", String(imageRevisionCount));
-      c.header("X-CredTrail-Badge-Template-History-Event-Count", String(timeline.length));
+    const { db } = access;
+    const { timeline, imageRevisionCount } = await loadBadgeTemplateHistoryPayload(db, {
+      tenantId: pathParams.tenantId,
+      badgeTemplateId: pathParams.badgeTemplateId,
+      limit: query.limit ?? 100,
+    });
 
-      return c.body(renderBadgeTemplateHistoryTimelineToString(timeline));
-    },
-  );
+    c.header("Cache-Control", "no-store");
+    c.header("Content-Type", "text/html; charset=utf-8");
+    // Internal response metadata for the admin history dialog script.
+    c.header("X-CredTrail-Badge-Template-Image-Revision-Count", String(imageRevisionCount));
+    c.header("X-CredTrail-Badge-Template-History-Event-Count", String(timeline.length));
+
+    return c.body(renderBadgeTemplateHistoryTimelineToString(timeline));
+  });
 
   app.post(
     "/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/ownership-transfer",
@@ -699,7 +707,7 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
         template,
       });
     } catch (error: unknown) {
-      if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
+      if (isBadgeTemplateSlugConflict(error)) {
         return c.json(
           {
             error: "Badge template slug already exists for tenant",
@@ -861,7 +869,10 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
       },
     });
 
-    const imageUriChange = buildBadgeTemplateImageUriChange(template.imageUri, updatedTemplate.imageUri);
+    const imageUriChange = buildBadgeTemplateImageUriChange(
+      template.imageUri,
+      updatedTemplate.imageUri,
+    );
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
