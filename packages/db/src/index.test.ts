@@ -14,6 +14,7 @@ import {
   createTenantAuthProvider,
   createAuthIdentityLink,
   createLearnerProfile,
+  enqueueJobQueueMessageOnce,
   findActiveTenantBreakGlassAccountByEmail,
   findLearnerRecordImportContextByEntryId,
   listLearnerRecordEntries,
@@ -31,6 +32,7 @@ import {
   findUserByEmail,
   listTenantBreakGlassAccounts,
   listLearnerIdentitiesByProfile,
+  markLearnerRecordImportPreviewQueued,
   markTenantBreakGlassAccountUsed,
   markTenantBreakGlassEnrollmentEmailSent,
   normalizeLearnerIdentityValue,
@@ -239,6 +241,20 @@ interface FakeJobQueueMessageRow {
   updated_at: string;
 }
 
+interface FakeLearnerRecordImportPreviewRow {
+  tenant_id: string;
+  batch_id: string;
+  file_name: string;
+  format: "csv";
+  defaults_json: string;
+  reports_json: string;
+  queue_payloads_json: string;
+  created_by_user_id: string | null;
+  created_at: string;
+  expires_at: string;
+  queued_at: string | null;
+}
+
 class FakeStatement {
   private readonly sql: string;
   private readonly db: FakeSqlDatabase;
@@ -336,6 +352,20 @@ class FakeStatement {
       normalizedSql.includes("AND entry_id = ?")
     ) {
       return Promise.resolve(this.selectLearnerRecordImportContextByEntryId() as T | null);
+    }
+
+    if (
+      normalizedSql.includes("INSERT INTO job_queue_messages") &&
+      normalizedSql.includes("ON CONFLICT(tenant_id, job_type, idempotency_key) DO NOTHING")
+    ) {
+      return Promise.resolve(this.insertJobQueueMessageOnce() as T | null);
+    }
+
+    if (
+      normalizedSql.includes("UPDATE learner_record_import_previews") &&
+      normalizedSql.includes("RETURNING batch_id AS batchId")
+    ) {
+      return Promise.resolve(this.markLearnerRecordImportPreviewQueued() as T | null);
     }
 
     throw new Error(`Unsupported first SQL in fake DB: ${normalizedSql}`);
@@ -756,6 +786,96 @@ class FakeStatement {
     row.last_error = null;
     row.failed_at = null;
     row.updated_at = updatedAt;
+  }
+
+  private insertJobQueueMessageOnce(): Record<string, unknown> | null {
+    const [
+      id,
+      tenantId,
+      jobType,
+      payloadJson,
+      idempotencyKey,
+      maxAttempts,
+      availableAt,
+      createdAt,
+      updatedAt,
+    ] = this.boundParams;
+
+    if (
+      typeof id !== "string" ||
+      typeof tenantId !== "string" ||
+      typeof jobType !== "string" ||
+      typeof payloadJson !== "string" ||
+      typeof idempotencyKey !== "string" ||
+      typeof maxAttempts !== "number" ||
+      typeof availableAt !== "string" ||
+      typeof createdAt !== "string" ||
+      typeof updatedAt !== "string"
+    ) {
+      throw new Error("Invalid bound parameters for idempotent job queue insert");
+    }
+
+    const duplicate = this.db.jobQueueMessages.some((row) => {
+      return (
+        row.tenant_id === tenantId &&
+        row.job_type === jobType &&
+        row.idempotency_key === idempotencyKey
+      );
+    });
+
+    if (duplicate) {
+      return null;
+    }
+
+    this.db.jobQueueMessages.push({
+      id,
+      tenant_id: tenantId,
+      job_type: jobType as dbModule.JobQueueMessageType,
+      payload_json: payloadJson,
+      idempotency_key: idempotencyKey,
+      attempt_count: 0,
+      max_attempts: maxAttempts,
+      available_at: availableAt,
+      leased_until: null,
+      lease_token: null,
+      last_error: null,
+      completed_at: null,
+      failed_at: null,
+      status: "pending",
+      created_at: createdAt,
+      updated_at: updatedAt,
+    });
+
+    return { id };
+  }
+
+  private markLearnerRecordImportPreviewQueued(): Record<string, unknown> | null {
+    const [queuedAt, tenantId, batchId, expiresAtCutoff] = this.boundParams;
+
+    if (
+      typeof queuedAt !== "string" ||
+      typeof tenantId !== "string" ||
+      typeof batchId !== "string" ||
+      typeof expiresAtCutoff !== "string"
+    ) {
+      throw new Error("Invalid bound parameters for learner-record import preview queue mark");
+    }
+
+    const preview = this.db.learnerRecordImportPreviews.find((row) => {
+      return (
+        row.tenant_id === tenantId &&
+        row.batch_id === batchId &&
+        row.queued_at === null &&
+        row.expires_at > expiresAtCutoff
+      );
+    });
+
+    if (preview === undefined) {
+      return null;
+    }
+
+    preview.queued_at = queuedAt;
+    return { batchId };
   }
 
   private selectLearnerProfileById(): Record<string, unknown> | null {
@@ -1220,6 +1340,7 @@ class FakeSqlDatabase {
   badgeTemplates: FakeBadgeTemplateRow[] = [];
   assertions: FakeAssertionRow[] = [];
   jobQueueMessages: FakeJobQueueMessageRow[] = [];
+  learnerRecordImportPreviews: FakeLearnerRecordImportPreviewRow[] = [];
 
   prepare(sql: string): FakeStatement {
     return new FakeStatement(this, sql);
@@ -2828,6 +2949,73 @@ describe("learner-record import context", () => {
 });
 
 describe("learner-record import queue helpers", () => {
+  it("enqueues learner-record import jobs idempotently by tenant, type, and key", async () => {
+    const db = createFakeDb() as unknown as FakeSqlDatabase;
+
+    const firstInsert = await enqueueJobQueueMessageOnce(db, {
+      tenantId: "tenant_umich",
+      jobType: "import_learner_record_batch",
+      payload: {
+        batchId: "batch_123",
+        rowNumber: 1,
+      },
+      idempotencyKey: "learner-record-import:batch_123:1",
+      nowIso: "2026-03-26T15:00:00.000Z",
+    });
+    const duplicateInsert = await enqueueJobQueueMessageOnce(db, {
+      tenantId: "tenant_umich",
+      jobType: "import_learner_record_batch",
+      payload: {
+        batchId: "batch_123",
+        rowNumber: 1,
+      },
+      idempotencyKey: "learner-record-import:batch_123:1",
+      nowIso: "2026-03-26T15:01:00.000Z",
+    });
+
+    expect(firstInsert).toBe(true);
+    expect(duplicateInsert).toBe(false);
+    expect(db.jobQueueMessages).toHaveLength(1);
+    expect(db.jobQueueMessages[0]).toMatchObject({
+      tenant_id: "tenant_umich",
+      job_type: "import_learner_record_batch",
+      idempotency_key: "learner-record-import:batch_123:1",
+      status: "pending",
+    });
+  });
+
+  it("marks active learner-record import previews queued only once", async () => {
+    const db = createFakeDb() as unknown as FakeSqlDatabase;
+    db.learnerRecordImportPreviews.push({
+      tenant_id: "tenant_umich",
+      batch_id: "batch_123",
+      file_name: "learner-records.csv",
+      format: "csv",
+      defaults_json: "{}",
+      reports_json: "[]",
+      queue_payloads_json: "[]",
+      created_by_user_id: "usr_admin",
+      created_at: "2026-03-26T15:00:00.000Z",
+      expires_at: "2026-03-26T16:00:00.000Z",
+      queued_at: null,
+    });
+
+    const firstMark = await markLearnerRecordImportPreviewQueued(db, {
+      tenantId: "tenant_umich",
+      batchId: "batch_123",
+      queuedAt: "2026-03-26T15:10:00.000Z",
+    });
+    const secondMark = await markLearnerRecordImportPreviewQueued(db, {
+      tenantId: "tenant_umich",
+      batchId: "batch_123",
+      queuedAt: "2026-03-26T15:11:00.000Z",
+    });
+
+    expect(firstMark).toBe(true);
+    expect(secondMark).toBe(false);
+    expect(db.learnerRecordImportPreviews[0]?.queued_at).toBe("2026-03-26T15:10:00.000Z");
+  });
+
   it("lists and retries learner-record import queue messages by batch", async () => {
     const db = createFakeDb() as unknown as FakeSqlDatabase;
 

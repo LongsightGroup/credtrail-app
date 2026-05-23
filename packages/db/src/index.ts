@@ -1851,6 +1851,10 @@ export interface EnqueueJobQueueMessageInput {
   maxAttempts?: number | undefined;
 }
 
+export interface EnqueueJobQueueMessageOnceInput extends EnqueueJobQueueMessageInput {
+  nowIso?: string | undefined;
+}
+
 export type AuthMagicLinkRateLimitDimension = "ip" | "tenant" | "email" | "tenant_email";
 
 export interface RecordAuthMagicLinkRateLimitAttemptInput {
@@ -7217,7 +7221,7 @@ export const markLearnerRecordImportPreviewQueued = async (
   db: SqlDatabase,
   input: MarkLearnerRecordImportPreviewQueuedInput,
 ): Promise<boolean> => {
-  const result = await db
+  const row = await db
     .prepare(
       `
       UPDATE learner_record_import_previews
@@ -7226,12 +7230,13 @@ export const markLearnerRecordImportPreviewQueued = async (
         AND batch_id = ?
         AND queued_at IS NULL
         AND expires_at > ?
+      RETURNING batch_id AS batchId
     `,
     )
     .bind(input.queuedAt, input.tenantId, input.batchId, input.queuedAt)
-    .run();
+    .first<{ batchId: string }>();
 
-  return result.meta.rowsWritten === undefined ? result.success : result.meta.rowsWritten > 0;
+  return row !== null;
 };
 
 export const ensureTenantMembership = async (
@@ -18590,6 +18595,56 @@ export const enqueueJobQueueMessage = async (
     createdAt: nowIso,
     updatedAt: nowIso,
   };
+};
+
+export const enqueueJobQueueMessageOnce = async (
+  db: SqlDatabase,
+  input: EnqueueJobQueueMessageOnceInput,
+): Promise<boolean> => {
+  const messageId = createPrefixedId("job");
+  const nowIso = input.nowIso ?? new Date().toISOString();
+  const payloadJson = serializeQueuePayload(input.payload);
+  const maxAttempts = input.maxAttempts ?? 8;
+  const row = await db
+    .prepare(
+      `
+      INSERT INTO job_queue_messages (
+        id,
+        tenant_id,
+        job_type,
+        payload_json,
+        idempotency_key,
+        attempt_count,
+        max_attempts,
+        available_at,
+        leased_until,
+        lease_token,
+        last_error,
+        completed_at,
+        failed_at,
+        status,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?, NULL, NULL, NULL, NULL, NULL, 'pending', ?, ?)
+      ON CONFLICT(tenant_id, job_type, idempotency_key) DO NOTHING
+      RETURNING id
+    `,
+    )
+    .bind(
+      messageId,
+      input.tenantId,
+      input.jobType,
+      payloadJson,
+      input.idempotencyKey,
+      maxAttempts,
+      nowIso,
+      nowIso,
+      nowIso,
+    )
+    .first<{ id: string }>();
+
+  return row !== null;
 };
 
 export const leaseJobQueueMessages = async (

@@ -177,6 +177,7 @@ vi.mock("@credtrail/db", async () => {
     createTenantApiKey: vi.fn(),
     createTenantOrgUnit: vi.fn(),
     deleteTenantSsoSamlConfiguration: vi.fn(),
+    enqueueJobQueueMessageOnce: vi.fn(),
     findActiveDelegatedIssuingAuthorityGrantForAction: vi.fn(),
     findActiveLearnerRecordImportPreview: vi.fn(),
     findActiveSessionByHash: mockedFindActiveSessionByHash,
@@ -265,6 +266,7 @@ import {
   createTenantApiKey,
   createTenantOrgUnit,
   deleteTenantSsoSamlConfiguration,
+  enqueueJobQueueMessageOnce,
   findActiveDelegatedIssuingAuthorityGrantForAction,
   findActiveLearnerRecordImportPreview,
   findActiveTenantBreakGlassAccountByUserId,
@@ -370,6 +372,7 @@ const mockedFindUsersByIds = vi.mocked(findUsersByIds);
 const mockedGetTenantReportingEngagementCounts = vi.mocked(getTenantReportingEngagementCounts);
 const mockedGetTenantReportingOverview = vi.mocked(getTenantReportingOverview);
 const mockedGetTenantReportingTrends = vi.mocked(getTenantReportingTrends);
+const mockedEnqueueJobQueueMessageOnce = vi.mocked(enqueueJobQueueMessageOnce);
 const mockedHasTenantMembershipOrgUnitAccess = vi.mocked(hasTenantMembershipOrgUnitAccess);
 const mockedHasTenantMembershipOrgUnitScopeAssignments = vi.mocked(
   hasTenantMembershipOrgUnitScopeAssignments,
@@ -669,6 +672,8 @@ beforeEach(() => {
   mockedFindActiveLearnerRecordImportPreview.mockResolvedValue(null);
   mockedMarkLearnerRecordImportPreviewQueued.mockReset();
   mockedMarkLearnerRecordImportPreviewQueued.mockResolvedValue(true);
+  mockedEnqueueJobQueueMessageOnce.mockReset();
+  mockedEnqueueJobQueueMessageOnce.mockResolvedValue(true);
   mockedFindTenantAuthPolicy.mockReset();
   mockedFindTenantAuthPolicy.mockResolvedValue(null);
   mockedGetTenantReportingEngagementCounts.mockReset();

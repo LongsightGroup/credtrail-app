@@ -1,3 +1,4 @@
+import { readdirSync, readFileSync } from "node:fs";
 import { Script } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { app } from "./index";
@@ -71,6 +72,34 @@ describe("GET /assets/ui/:assetFilename", () => {
       expect(response.status).toBe(200);
       expect(() => new Script(body, { filename: `${String(assetKey)}.js` })).not.toThrow();
     }
+  });
+
+  it("keeps admin browser controllers split into focused source files", () => {
+    const assetContentDir = new URL("./ui/page-assets/content/", import.meta.url);
+    const adminScriptFiles = readdirSync(assetContentDir).filter((fileName) => {
+      return fileName.startsWith("institution-admin") && fileName.endsWith("-js.ts");
+    });
+
+    expect(adminScriptFiles.length).toBeGreaterThan(0);
+
+    for (const fileName of adminScriptFiles) {
+      const source = readFileSync(new URL(fileName, assetContentDir), "utf8");
+      const lineCount = source.split("\n").length;
+
+      expect(lineCount).toBeLessThan(1000);
+    }
+  });
+
+  it("does not carry the old rule-value-list null shim in the rule builder asset", async () => {
+    const response = await app.request(
+      pageAssetPath("institutionAdminRuleBuilderJs"),
+      undefined,
+      createEnv(),
+    );
+    const body = await response.text();
+
+    expect(body).not.toContain("const ruleValueListBody = null");
+    expect(body).not.toContain("ruleValueListBody instanceof HTMLElement");
   });
 
   it("returns 404 for unknown page assets", async () => {

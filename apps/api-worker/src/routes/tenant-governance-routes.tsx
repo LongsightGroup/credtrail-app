@@ -13,7 +13,6 @@ import {
   findDelegatedIssuingAuthorityGrantById,
   findLearnerProfileById,
   findLearnerProfileByIdentity,
-  findActiveLearnerRecordImportPreview,
   findTenantAuthPolicy,
   findTenantAuthProviderById,
   findBadgeTemplateById,
@@ -39,7 +38,6 @@ import {
   listTenantMembers,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
-  markLearnerRecordImportPreviewQueued,
   removeTenantMembership,
   removeTenantMembershipOrgUnitScope,
   revokeTenantApiKey,
@@ -120,10 +118,8 @@ import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule
 import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
 import { resolveTenantReportingAccess } from "../auth/tenant-access";
 import {
-  enqueueLearnerRecordImportBatch,
-  learnerRecordImportQueuePayloadsFromJson,
-  learnerRecordImportRowReportsFromJson,
   prepareLearnerRecordImportSubmission,
+  queueReviewedLearnerRecordImportPreview,
   summarizeLearnerRecordImportProgress,
 } from "../learner-record/learner-record-import";
 import { buildReportingMetricEntries } from "../reporting/metric-definitions";
@@ -1286,13 +1282,36 @@ export const registerTenantGovernanceRoutes = (
         );
       }
 
-      const preview = await findActiveLearnerRecordImportPreview(db, {
-        tenantId: input.tenantId,
-        batchId,
-        nowIso,
-      });
+      let queueResult: Awaited<ReturnType<typeof queueReviewedLearnerRecordImportPreview>>;
 
-      if (preview === null) {
+      try {
+        queueResult = await queueReviewedLearnerRecordImportPreview(db, {
+          tenantId: input.tenantId,
+          batchId,
+          queuedAt: nowIso,
+        });
+      } catch {
+        return renderLearnerRecordImportWorkspace(
+          input.c,
+          input.tenantId,
+          input.sessionUserId,
+          input.membershipRole,
+          {
+            defaults: {
+              defaultTrustLevel: "issuer_verified",
+              defaultIssuerName: "",
+            },
+            submission: null,
+            feedback: {
+              tone: "warning",
+              title: "Reviewed preview could not be queued",
+              detail: "Try queueing again. CredTrail will reuse the reviewed preview without duplicating rows.",
+            },
+          },
+        );
+      }
+
+      if (queueResult.status === "missing") {
         return renderLearnerRecordImportWorkspace(
           input.c,
           input.tenantId,
@@ -1313,39 +1332,11 @@ export const registerTenantGovernanceRoutes = (
         );
       }
 
-      const queuePayloads = learnerRecordImportQueuePayloadsFromJson(preview.queuePayloadsJson);
-      const reports = learnerRecordImportRowReportsFromJson(preview.reportsJson);
-
-      let defaults;
-
-      try {
-        defaults = parseLearnerRecordImportBatchDefaults(
-          JSON.parse(preview.defaultsJson) as unknown,
-        );
-      } catch {
-        return renderLearnerRecordImportWorkspace(
-          input.c,
-          input.tenantId,
-          input.sessionUserId,
-          input.membershipRole,
-          {
-            defaults: {
-              defaultTrustLevel: "issuer_verified",
-              defaultIssuerName: "",
-            },
-            submission: null,
-            feedback: {
-              tone: "warning",
-              title: "Reviewed preview could not be queued",
-              detail: "Preview the CSV again so CredTrail can rebuild the reviewed queue payload.",
-            },
-          },
-        );
-      }
-
-      const defaultIssuerName = defaults.defaultIssuerName ?? "";
-
-      if (queuePayloads === null || reports === null) {
+      if (queueResult.status === "invalid_preview") {
+        const defaults = queueResult.defaults ?? {
+          defaultTrustLevel: "issuer_verified" as const,
+        };
+        const defaultIssuerName = defaults.defaultIssuerName ?? "";
         return renderLearnerRecordImportWorkspace(
           input.c,
           input.tenantId,
@@ -1366,13 +1357,9 @@ export const registerTenantGovernanceRoutes = (
         );
       }
 
-      const claimed = await markLearnerRecordImportPreviewQueued(db, {
-        tenantId: input.tenantId,
-        batchId: preview.batchId,
-        queuedAt: nowIso,
-      });
+      const defaultIssuerName = queueResult.defaults.defaultIssuerName ?? "";
 
-      if (!claimed) {
+      if (queueResult.status === "already_queued") {
         return renderLearnerRecordImportWorkspace(
           input.c,
           input.tenantId,
@@ -1380,7 +1367,7 @@ export const registerTenantGovernanceRoutes = (
           input.membershipRole,
           {
             defaults: {
-              defaultTrustLevel: defaults.defaultTrustLevel,
+              defaultTrustLevel: queueResult.defaults.defaultTrustLevel,
               defaultIssuerName,
             },
             submission: null,
@@ -1393,7 +1380,7 @@ export const registerTenantGovernanceRoutes = (
         );
       }
 
-      const queuedRows = await enqueueLearnerRecordImportBatch(db, input.tenantId, queuePayloads);
+      const reports = queueResult.reports;
       const validRows = reports.filter((report) => report.status === "valid").length;
       const invalidRows = reports.length - validRows;
 
@@ -1404,24 +1391,24 @@ export const registerTenantGovernanceRoutes = (
         input.membershipRole,
         {
           defaults: {
-            defaultTrustLevel: defaults.defaultTrustLevel,
+            defaultTrustLevel: queueResult.defaults.defaultTrustLevel,
             defaultIssuerName,
           },
           submission: {
             mode: "apply",
-            batchId: preview.batchId,
-            fileName: preview.fileName,
+            batchId: queueResult.preview.batchId,
+            fileName: queueResult.preview.fileName,
             totalRows: reports.length,
             validRows,
             invalidRows,
-            queuedRows,
+            queuedRows: queueResult.queuedRows,
             rows: reports,
             queueForm: null,
           },
           feedback: {
             tone: "success",
             title: "Learner-record import batch queued",
-            detail: `Queued ${String(queuedRows)} valid rows from ${preview.fileName}. Invalid rows were kept out of the queue.`,
+            detail: `Queued ${String(queueResult.queuedRows)} valid rows from ${queueResult.preview.fileName}. Invalid rows were kept out of the queue.`,
           },
         },
       );

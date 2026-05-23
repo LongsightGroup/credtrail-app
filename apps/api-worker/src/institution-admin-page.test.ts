@@ -11,6 +11,7 @@ const {
   mockedListTenantMembers,
   mockedListImportLearnerRecordBatchQueueMessages,
   mockedCreateLearnerRecordImportPreview,
+  mockedEnqueueJobQueueMessageOnce,
   mockedFindActiveLearnerRecordImportPreview,
   mockedMarkLearnerRecordImportPreviewQueued,
   mockedListAccessibleTenantContextsForUser,
@@ -32,6 +33,7 @@ const {
     mockedListTenantMembers: vi.fn(),
     mockedListImportLearnerRecordBatchQueueMessages: vi.fn(),
     mockedCreateLearnerRecordImportPreview: vi.fn(),
+    mockedEnqueueJobQueueMessageOnce: vi.fn(),
     mockedFindActiveLearnerRecordImportPreview: vi.fn(),
     mockedMarkLearnerRecordImportPreviewQueued: vi.fn(),
     mockedListAccessibleTenantContextsForUser: vi.fn(),
@@ -52,6 +54,7 @@ vi.mock("@credtrail/db", async () => {
     findLearnerProfileById: mockedFindLearnerProfileById,
     findLearnerProfileByIdentity: mockedFindLearnerProfileByIdentity,
     createLearnerRecordImportPreview: mockedCreateLearnerRecordImportPreview,
+    enqueueJobQueueMessageOnce: mockedEnqueueJobQueueMessageOnce,
     findActiveLearnerRecordImportPreview: mockedFindActiveLearnerRecordImportPreview,
     findTenantAuthPolicy: mockedFindTenantAuthPolicy,
     findTenantById: vi.fn(),
@@ -680,6 +683,8 @@ beforeEach(() => {
     expiresAt: input.expiresAt,
     queuedAt: null,
   }));
+  mockedEnqueueJobQueueMessageOnce.mockReset();
+  mockedEnqueueJobQueueMessageOnce.mockResolvedValue(true);
   mockedFindActiveLearnerRecordImportPreviewDb.mockReset();
   mockedFindActiveLearnerRecordImportPreviewDb.mockResolvedValue(null);
   mockedMarkLearnerRecordImportPreviewQueuedDb.mockReset();
@@ -1397,10 +1402,6 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
       expiresAt: "2026-03-27T12:00:00.000Z",
       queuedAt: null,
     });
-    const runMock = vi.fn().mockResolvedValue({ success: true });
-    const bindMock = vi.fn().mockReturnValue({ run: runMock });
-    fakeDbPrepare.mockReturnValue({ bind: bindMock });
-
     const response = await app.request(
       "/tenants/tenant_123/admin/operations/learner-record-imports/apply",
       {
@@ -1419,6 +1420,14 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
     expect(body).toContain("Queued 1 valid rows from learner-records.csv");
     expect(body).toContain('data-learner-record-import-state="apply"');
     expect(body).not.toContain("Queue reviewed import");
+    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        jobType: "import_learner_record_batch",
+        idempotencyKey: `learner-record-import:${batchId}:1`,
+      }),
+    );
     expect(mockedMarkLearnerRecordImportPreviewQueuedDb).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
@@ -1426,7 +1435,111 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
         batchId,
       }),
     );
-    expect(bindMock).toHaveBeenCalled();
+    expect(
+      mockedEnqueueJobQueueMessageOnce.mock.invocationCallOrder[0] ?? 0,
+    ).toBeLessThan(mockedMarkLearnerRecordImportPreviewQueuedDb.mock.invocationCallOrder[0] ?? 0);
+  });
+
+  it("leaves reviewed learner-record previews retryable when queue insertion fails", async () => {
+    const env = createEnv();
+    const batchId = "lrib_retryable";
+    const reports = [
+      {
+        rowNumber: 1,
+        status: "valid",
+        errors: [],
+        warnings: [],
+        preview: {
+          learner: {
+            email: "learner@example.edu",
+            displayName: null,
+          },
+          record: {
+            title: "Clinical Placement Seminar",
+            recordType: "course",
+            issuedAt: "2026-03-26T12:00:00.000Z",
+            description: null,
+            sourceRecordId: null,
+            evidenceLinks: [],
+          },
+          trustLevel: "issuer_verified",
+          issuerName: "Tenant 123",
+          sourceSystem: "csv_import",
+          smartContext: {
+            orgUnitId: null,
+            orgUnitLabel: null,
+            badgeTemplateId: null,
+            badgeTemplateLabel: null,
+            pathwayLabel: null,
+            inferredFrom: ["none"],
+          },
+        },
+      },
+    ];
+    const queuePayloads = [
+      {
+        batchId,
+        rowNumber: 1,
+        fileName: "learner-records.csv",
+        format: "csv",
+        requestedAt: "2026-03-26T12:00:00.000Z",
+        requestedByUserId: "usr_admin",
+        row: {
+          learnerEmail: "learner@example.edu",
+          learnerDisplayName: null,
+          title: "Clinical Placement Seminar",
+          recordType: "course",
+          issuedAt: "2026-03-26T12:00:00.000Z",
+          description: null,
+          sourceRecordId: null,
+          evidenceLinks: [],
+          effectiveTrustLevel: "issuer_verified",
+          effectiveIssuerName: "Tenant 123",
+          smartContext: {
+            orgUnitId: null,
+            badgeTemplateId: null,
+            pathwayLabel: null,
+            inferredFrom: ["none"],
+          },
+        },
+      },
+    ];
+    const formData = new FormData();
+    formData.set("batchId", batchId);
+    mockedFindActiveLearnerRecordImportPreviewDb.mockResolvedValueOnce({
+      tenantId: "tenant_123",
+      batchId,
+      fileName: "learner-records.csv",
+      format: "csv",
+      defaultsJson: JSON.stringify({
+        defaultTrustLevel: "issuer_verified",
+      }),
+      reportsJson: JSON.stringify(reports),
+      queuePayloadsJson: JSON.stringify(queuePayloads),
+      createdByUserId: "usr_admin",
+      createdAt: "2026-03-26T12:00:00.000Z",
+      expiresAt: "2026-03-27T12:00:00.000Z",
+      queuedAt: null,
+    });
+    mockedEnqueueJobQueueMessageOnce.mockRejectedValueOnce(new Error("queue unavailable"));
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/learner-record-imports/apply",
+      {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: formData,
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Reviewed preview could not be queued");
+    expect(body).toContain("without duplicating rows");
+    expect(mockedMarkLearnerRecordImportPreviewQueuedDb).not.toHaveBeenCalled();
   });
 
   it("does not queue direct apply uploads before preview review", async () => {

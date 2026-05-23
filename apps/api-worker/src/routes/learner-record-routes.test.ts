@@ -9,6 +9,7 @@ import type {
 const {
   mockedCreateLearnerRecordEntry,
   mockedEnqueueJobQueueMessage,
+  mockedEnqueueJobQueueMessageOnce,
   mockedFindTenantById,
   mockedListLearnerRecordEntries,
   mockedListBadgeTemplates,
@@ -23,6 +24,7 @@ const {
   return {
     mockedCreateLearnerRecordEntry: vi.fn(),
     mockedEnqueueJobQueueMessage: vi.fn(),
+    mockedEnqueueJobQueueMessageOnce: vi.fn(),
     mockedFindTenantById: vi.fn(),
     mockedListLearnerRecordEntries: vi.fn(),
     mockedListBadgeTemplates: vi.fn(),
@@ -43,6 +45,7 @@ vi.mock("@credtrail/db", async () => {
     ...actual,
     createLearnerRecordEntry: mockedCreateLearnerRecordEntry,
     enqueueJobQueueMessage: mockedEnqueueJobQueueMessage,
+    enqueueJobQueueMessageOnce: mockedEnqueueJobQueueMessageOnce,
     findTenantById: mockedFindTenantById,
     listLearnerRecordEntries: mockedListLearnerRecordEntries,
     listBadgeTemplates: mockedListBadgeTemplates,
@@ -198,6 +201,7 @@ const sampleImportQueueMessage = (
 beforeEach(() => {
   mockedCreateLearnerRecordEntry.mockReset();
   mockedEnqueueJobQueueMessage.mockReset();
+  mockedEnqueueJobQueueMessageOnce.mockReset();
   mockedFindTenantById.mockReset();
   mockedListLearnerRecordEntries.mockReset();
   mockedListBadgeTemplates.mockReset();
@@ -246,6 +250,7 @@ beforeEach(() => {
     createdAt: "2026-03-24T15:00:00.000Z",
     updatedAt: "2026-03-24T15:00:00.000Z",
   });
+  mockedEnqueueJobQueueMessageOnce.mockResolvedValue(true);
   mockedFindTenantById.mockResolvedValue({
     id: "tenant_123",
     slug: "tenant-123",
@@ -559,7 +564,7 @@ describe("learner-record import routes", () => {
     expect(body.validRows).toBe(1);
     expect(body.invalidRows).toBe(0);
     expect(body.queuedRows).toBe(0);
-    expect(mockedEnqueueJobQueueMessage).not.toHaveBeenCalled();
+    expect(mockedEnqueueJobQueueMessageOnce).not.toHaveBeenCalled();
 
     const rows = body.rows as Array<Record<string, unknown>>;
     expect(rows[0]?.preview).toEqual(
@@ -615,8 +620,8 @@ describe("learner-record import routes", () => {
     expect(response.status).toBe(200);
     expect(body.dryRun).toBe(false);
     expect(body.queuedRows).toBe(1);
-    expect(mockedEnqueueJobQueueMessage).toHaveBeenCalledTimes(1);
-    expect(mockedEnqueueJobQueueMessage).toHaveBeenCalledWith(
+    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledTimes(1);
+    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({
         tenantId: "tenant_123",

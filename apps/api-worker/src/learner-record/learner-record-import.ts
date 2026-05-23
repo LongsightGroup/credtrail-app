@@ -1,13 +1,16 @@
 import {
-  enqueueJobQueueMessage,
+  enqueueJobQueueMessageOnce,
+  findActiveLearnerRecordImportPreview,
   findTenantById,
   createLearnerRecordEntry,
   createLearnerRecordImportContext,
   listBadgeTemplates,
   listTenantOrgUnits,
+  markLearnerRecordImportPreviewQueued,
   resolveLearnerProfileForIdentity,
   type BadgeTemplateRecord,
   type ImportLearnerRecordBatchQueueMessageRecord,
+  type LearnerRecordImportPreviewRecord,
   type LearnerRecordEntryType,
   type LearnerRecordImportContextInferenceSource,
   type LearnerRecordTrustLevel,
@@ -135,6 +138,23 @@ export interface LearnerRecordImportBatchProgressSummary {
   firstQueuedAt: string;
   lastUpdatedAt: string;
 }
+
+export type QueueReviewedLearnerRecordImportPreviewResult =
+  | { status: "missing" }
+  | { status: "invalid_preview"; defaults: LearnerRecordImportBatchDefaults | null }
+  | {
+      status: "already_queued";
+      preview: LearnerRecordImportPreviewRecord;
+      defaults: LearnerRecordImportBatchDefaults;
+      reports: LearnerRecordImportRowReport[];
+    }
+  | {
+      status: "queued";
+      preview: LearnerRecordImportPreviewRecord;
+      defaults: LearnerRecordImportBatchDefaults;
+      reports: LearnerRecordImportRowReport[];
+      queuedRows: number;
+    };
 
 const MAX_IMPORT_ROWS = 500;
 
@@ -843,19 +863,93 @@ export const enqueueLearnerRecordImportBatch = async (
   tenantId: string,
   queuePayloads: readonly LearnerRecordImportQueuePayload[],
 ): Promise<number> => {
-  let queuedRows = 0;
-
   for (const payload of queuePayloads) {
-    await enqueueJobQueueMessage(db, {
+    await enqueueJobQueueMessageOnce(db, {
       tenantId,
       jobType: "import_learner_record_batch",
       payload,
       idempotencyKey: `learner-record-import:${payload.batchId}:${String(payload.rowNumber)}`,
     });
-    queuedRows += 1;
   }
 
-  return queuedRows;
+  return queuePayloads.length;
+};
+
+const learnerRecordImportBatchDefaultsFromJson = (
+  defaultsJson: string,
+): LearnerRecordImportBatchDefaults | null => {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(defaultsJson) as unknown;
+  } catch {
+    return null;
+  }
+
+  const result = learnerRecordImportBatchDefaultsSchema.safeParse(parsed);
+  return result.success ? result.data : null;
+};
+
+export const queueReviewedLearnerRecordImportPreview = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    batchId: string;
+    queuedAt: string;
+  },
+): Promise<QueueReviewedLearnerRecordImportPreviewResult> => {
+  const preview = await findActiveLearnerRecordImportPreview(db, {
+    tenantId: input.tenantId,
+    batchId: input.batchId,
+    nowIso: input.queuedAt,
+  });
+
+  if (preview === null) {
+    return { status: "missing" };
+  }
+
+  const defaults = learnerRecordImportBatchDefaultsFromJson(preview.defaultsJson);
+
+  if (defaults === null) {
+    return {
+      status: "invalid_preview",
+      defaults: null,
+    };
+  }
+
+  const queuePayloads = learnerRecordImportQueuePayloadsFromJson(preview.queuePayloadsJson);
+  const reports = learnerRecordImportRowReportsFromJson(preview.reportsJson);
+
+  if (queuePayloads === null || reports === null) {
+    return {
+      status: "invalid_preview",
+      defaults,
+    };
+  }
+
+  const queuedRows = await enqueueLearnerRecordImportBatch(db, input.tenantId, queuePayloads);
+  const claimed = await markLearnerRecordImportPreviewQueued(db, {
+    tenantId: input.tenantId,
+    batchId: preview.batchId,
+    queuedAt: input.queuedAt,
+  });
+
+  if (!claimed) {
+    return {
+      status: "already_queued",
+      preview,
+      defaults,
+      reports,
+    };
+  }
+
+  return {
+    status: "queued",
+    preview,
+    defaults,
+    reports,
+    queuedRows,
+  };
 };
 
 const learnerRecordImportPreparedRowFromUnknown = (
@@ -1075,13 +1169,19 @@ export const learnerRecordImportQueuePayloadsFromJson = (
     return null;
   }
 
-  const payloads = parsed.map((entry) => learnerRecordImportQueuePayloadFromUnknown(entry));
+  const payloads: LearnerRecordImportQueuePayload[] = [];
 
-  if (payloads.some((entry) => entry === null)) {
-    return null;
+  for (const entry of parsed) {
+    const payload = learnerRecordImportQueuePayloadFromUnknown(entry);
+
+    if (payload === null) {
+      return null;
+    }
+
+    payloads.push(payload);
   }
 
-  return payloads as LearnerRecordImportQueuePayload[];
+  return payloads;
 };
 
 export const learnerRecordImportRowReportsFromJson = (
@@ -1099,13 +1199,19 @@ export const learnerRecordImportRowReportsFromJson = (
     return null;
   }
 
-  const reports = parsed.map((entry) => learnerRecordImportRowReportFromUnknown(entry));
+  const reports: LearnerRecordImportRowReport[] = [];
 
-  if (reports.some((entry) => entry === null)) {
-    return null;
+  for (const entry of parsed) {
+    const report = learnerRecordImportRowReportFromUnknown(entry);
+
+    if (report === null) {
+      return null;
+    }
+
+    reports.push(report);
   }
 
-  return reports as LearnerRecordImportRowReport[];
+  return reports;
 };
 
 const buildImportDetailsJson = (payload: LearnerRecordImportQueuePayload): string | undefined => {
