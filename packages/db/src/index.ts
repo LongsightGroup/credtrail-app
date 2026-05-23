@@ -220,7 +220,7 @@ export interface UpsertLtiResourceLinkPlacementInput {
   contextId?: string | null | undefined;
   resourceLinkId: string;
   badgeTemplateId: string;
-  createdByUserId?: string | null | undefined;
+  createdByUserId?: string | null;
 }
 
 export interface UserRecord {
@@ -1299,6 +1299,20 @@ export interface LearnerRecordImportContextRecord {
   updatedAt: string;
 }
 
+export interface LearnerRecordImportPreviewRecord {
+  tenantId: string;
+  batchId: string;
+  fileName: string;
+  format: "csv";
+  defaultsJson: string;
+  reportsJson: string;
+  queuePayloadsJson: string;
+  createdByUserId: string | null;
+  createdAt: string;
+  expiresAt: string;
+  queuedAt: string | null;
+}
+
 export interface CreateLearnerRecordEntryInput {
   tenantId: string;
   learnerProfileId: string;
@@ -1325,6 +1339,31 @@ export interface CreateLearnerRecordImportContextInput {
   badgeTemplateId?: string | null | undefined;
   pathwayLabel?: string | null | undefined;
   inferredFrom: readonly LearnerRecordImportContextInferenceSource[];
+}
+
+export interface CreateLearnerRecordImportPreviewInput {
+  tenantId: string;
+  batchId: string;
+  fileName: string;
+  format: "csv";
+  defaultsJson: string;
+  reportsJson: string;
+  queuePayloadsJson: string;
+  createdByUserId?: string | null | undefined;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface FindActiveLearnerRecordImportPreviewInput {
+  tenantId: string;
+  batchId: string;
+  nowIso: string;
+}
+
+export interface MarkLearnerRecordImportPreviewQueuedInput {
+  tenantId: string;
+  batchId: string;
+  queuedAt: string;
 }
 
 export interface ListLearnerRecordEntriesInput {
@@ -4957,6 +4996,20 @@ interface LearnerRecordImportContextRow {
   updatedAt: string;
 }
 
+interface LearnerRecordImportPreviewRow {
+  tenantId: string;
+  batchId: string;
+  fileName: string;
+  format: "csv";
+  defaultsJson: string;
+  reportsJson: string;
+  queuePayloadsJson: string;
+  createdByUserId: string | null;
+  createdAt: string;
+  expiresAt: string;
+  queuedAt: string | null;
+}
+
 interface LearnerIdentityLinkProofRow {
   id: string;
   tenantId: string;
@@ -7065,6 +7118,120 @@ export const createLearnerRecordImportContext = async (
   }
 
   return context;
+};
+
+export const createLearnerRecordImportPreview = async (
+  db: SqlDatabase,
+  input: CreateLearnerRecordImportPreviewInput,
+): Promise<LearnerRecordImportPreviewRecord> => {
+  await db
+    .prepare(
+      `
+      INSERT INTO learner_record_import_previews (
+        tenant_id,
+        batch_id,
+        file_name,
+        format,
+        defaults_json,
+        reports_json,
+        queue_payloads_json,
+        created_by_user_id,
+        created_at,
+        expires_at,
+        queued_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+      ON CONFLICT(tenant_id, batch_id) DO UPDATE SET
+        file_name = excluded.file_name,
+        format = excluded.format,
+        defaults_json = excluded.defaults_json,
+        reports_json = excluded.reports_json,
+        queue_payloads_json = excluded.queue_payloads_json,
+        created_by_user_id = excluded.created_by_user_id,
+        created_at = excluded.created_at,
+        expires_at = excluded.expires_at,
+        queued_at = NULL
+    `,
+    )
+    .bind(
+      input.tenantId,
+      input.batchId,
+      input.fileName,
+      input.format,
+      input.defaultsJson,
+      input.reportsJson,
+      input.queuePayloadsJson,
+      input.createdByUserId ?? null,
+      input.createdAt,
+      input.expiresAt,
+    )
+    .run();
+
+  const preview = await findActiveLearnerRecordImportPreview(db, {
+    tenantId: input.tenantId,
+    batchId: input.batchId,
+    nowIso: input.createdAt,
+  });
+
+  if (preview === null) {
+    throw new Error(`Unable to create learner-record import preview "${input.batchId}"`);
+  }
+
+  return preview;
+};
+
+export const findActiveLearnerRecordImportPreview = async (
+  db: SqlDatabase,
+  input: FindActiveLearnerRecordImportPreviewInput,
+): Promise<LearnerRecordImportPreviewRecord | null> => {
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        tenant_id AS tenantId,
+        batch_id AS batchId,
+        file_name AS fileName,
+        format,
+        defaults_json AS defaultsJson,
+        reports_json AS reportsJson,
+        queue_payloads_json AS queuePayloadsJson,
+        created_by_user_id AS createdByUserId,
+        created_at AS createdAt,
+        expires_at AS expiresAt,
+        queued_at AS queuedAt
+      FROM learner_record_import_previews
+      WHERE tenant_id = ?
+        AND batch_id = ?
+        AND queued_at IS NULL
+        AND expires_at > ?
+      LIMIT 1
+    `,
+    )
+    .bind(input.tenantId, input.batchId, input.nowIso)
+    .first<LearnerRecordImportPreviewRow>();
+
+  return row === null ? null : mapLearnerRecordImportPreviewRow(row);
+};
+
+export const markLearnerRecordImportPreviewQueued = async (
+  db: SqlDatabase,
+  input: MarkLearnerRecordImportPreviewQueuedInput,
+): Promise<boolean> => {
+  const result = await db
+    .prepare(
+      `
+      UPDATE learner_record_import_previews
+      SET queued_at = ?
+      WHERE tenant_id = ?
+        AND batch_id = ?
+        AND queued_at IS NULL
+        AND expires_at > ?
+    `,
+    )
+    .bind(input.queuedAt, input.tenantId, input.batchId, input.queuedAt)
+    .run();
+
+  return result.meta.rowsWritten === undefined ? result.success : result.meta.rowsWritten > 0;
 };
 
 export const ensureTenantMembership = async (
@@ -9673,6 +9840,24 @@ const mapLearnerRecordImportContextRow = (
     inferredFromJson: row.inferredFromJson,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+  };
+};
+
+const mapLearnerRecordImportPreviewRow = (
+  row: LearnerRecordImportPreviewRow,
+): LearnerRecordImportPreviewRecord => {
+  return {
+    tenantId: row.tenantId,
+    batchId: row.batchId,
+    fileName: row.fileName,
+    format: row.format,
+    defaultsJson: row.defaultsJson,
+    reportsJson: row.reportsJson,
+    queuePayloadsJson: row.queuePayloadsJson,
+    createdByUserId: row.createdByUserId,
+    createdAt: row.createdAt,
+    expiresAt: row.expiresAt,
+    queuedAt: row.queuedAt,
   };
 };
 

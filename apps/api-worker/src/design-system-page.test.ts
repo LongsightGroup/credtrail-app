@@ -31,7 +31,9 @@ import { DESIGN_SYSTEM_CSS } from "./ui/page-assets/content/design-system-css";
 import { FOUNDATION_CSS } from "./ui/page-assets/content/foundation-css";
 import { GENERATED_DESIGN_TOKENS_CSS } from "./ui/page-assets/content/generated/design-tokens-css";
 import { INSTITUTION_ADMIN_CSS } from "./ui/page-assets/content/institution-admin-css";
+import { INSTITUTION_ADMIN_ISSUED_BADGES_JS } from "./ui/page-assets/content/institution-admin-issued-badges-js";
 import { INSTITUTION_ADMIN_JS } from "./ui/page-assets/content/institution-admin-js";
+import { INSTITUTION_ADMIN_RULE_BUILDER_JS } from "./ui/page-assets/content/institution-admin-rule-builder-js";
 import { renderAppPageToString } from "./ui/render-page";
 
 const createEnv = (): {
@@ -351,8 +353,8 @@ describe("CredTrail UI styleguide", () => {
 
     expect(INSTITUTION_ADMIN_CSS).not.toContain(legacyClass);
     expect(INSTITUTION_ADMIN_JS).not.toContain(legacyClass);
-    expect(INSTITUTION_ADMIN_JS).toContain("issuedBadgeRowsPath");
-    expect(INSTITUTION_ADMIN_JS).toContain("accept: 'text/html'");
+    expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).toContain("issuedBadgeRowsPath");
+    expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).toContain("accept: 'text/html'");
     expect(DESIGN_SYSTEM_CSS).not.toContain(legacyClass);
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__button");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__issued-actions .ct-admin__button");
@@ -369,8 +371,9 @@ describe("CredTrail UI styleguide", () => {
     expect(INSTITUTION_ADMIN_JS).toContain(
       "createAdminButtonElement(adminButtonTinySecondaryClass, 'Dismiss'",
     );
-    expect(INSTITUTION_ADMIN_JS).toContain("rule-builder-condition-card-template");
-    expect(INSTITUTION_ADMIN_JS).toContain("cloneRuleBuilderConditionCard");
+    expect(INSTITUTION_ADMIN_JS).not.toContain("rule-builder-condition-card-template");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-condition-card-template");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("cloneRuleBuilderConditionCard");
     expect(INSTITUTION_ADMIN_JS).not.toContain("const renderAdminButton");
   });
 

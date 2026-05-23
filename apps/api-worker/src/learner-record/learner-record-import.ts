@@ -138,6 +138,66 @@ export interface LearnerRecordImportBatchProgressSummary {
 
 const MAX_IMPORT_ROWS = 500;
 
+const LEARNER_RECORD_ENTRY_TYPE_VALUES: readonly LearnerRecordEntryType[] = [
+  "course",
+  "certificate",
+  "license",
+  "competency",
+  "work_based_learning",
+  "experience",
+  "membership",
+  "supplemental_artifact",
+  "custom",
+];
+
+const LEARNER_RECORD_TRUST_LEVEL_VALUES: readonly LearnerRecordTrustLevel[] = [
+  "issuer_verified",
+  "learner_supplemental",
+];
+
+const LEARNER_RECORD_IMPORT_CONTEXT_INFERENCE_SOURCE_VALUES: readonly LearnerRecordImportContextInferenceSource[] =
+  ["row", "badge_template", "org_unit", "none"];
+
+const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+};
+
+const isRecordType = (value: unknown): value is LearnerRecordEntryType => {
+  return (
+    typeof value === "string" &&
+    LEARNER_RECORD_ENTRY_TYPE_VALUES.includes(value as LearnerRecordEntryType)
+  );
+};
+
+const isTrustLevel = (value: unknown): value is LearnerRecordTrustLevel => {
+  return (
+    typeof value === "string" &&
+    LEARNER_RECORD_TRUST_LEVEL_VALUES.includes(value as LearnerRecordTrustLevel)
+  );
+};
+
+const isInferenceSource = (value: unknown): value is LearnerRecordImportContextInferenceSource => {
+  return (
+    typeof value === "string" &&
+    LEARNER_RECORD_IMPORT_CONTEXT_INFERENCE_SOURCE_VALUES.includes(
+      value as LearnerRecordImportContextInferenceSource,
+    )
+  );
+};
+
+const isNullableString = (value: unknown): value is string | null => {
+  return value === null || typeof value === "string";
+};
+
+const stringArrayFromUnknown = (value: unknown): string[] | null => {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const strings = value.filter((entry): entry is string => typeof entry === "string");
+  return strings.length === value.length ? strings : null;
+};
+
 export const LEARNER_RECORD_IMPORT_TEMPLATE_HEADERS = [
   "learnerEmail",
   "learnerDisplayName",
@@ -796,6 +856,256 @@ export const enqueueLearnerRecordImportBatch = async (
   }
 
   return queuedRows;
+};
+
+const learnerRecordImportPreparedRowFromUnknown = (
+  value: unknown,
+): LearnerRecordImportPreparedRow | null => {
+  if (!isPlainRecord(value)) {
+    return null;
+  }
+
+  const evidenceLinks = stringArrayFromUnknown(value.evidenceLinks);
+  const smartContext = value.smartContext;
+
+  if (
+    typeof value.learnerEmail !== "string" ||
+    !isNullableString(value.learnerDisplayName) ||
+    typeof value.title !== "string" ||
+    !isRecordType(value.recordType) ||
+    typeof value.issuedAt !== "string" ||
+    !isNullableString(value.description) ||
+    !isNullableString(value.sourceRecordId) ||
+    evidenceLinks === null ||
+    !isTrustLevel(value.effectiveTrustLevel) ||
+    typeof value.effectiveIssuerName !== "string" ||
+    !isPlainRecord(smartContext) ||
+    !isNullableString(smartContext.orgUnitId) ||
+    !isNullableString(smartContext.badgeTemplateId) ||
+    !isNullableString(smartContext.pathwayLabel)
+  ) {
+    return null;
+  }
+
+  const inferredFrom = stringArrayFromUnknown(smartContext.inferredFrom);
+
+  if (inferredFrom === null || !inferredFrom.every(isInferenceSource)) {
+    return null;
+  }
+
+  return {
+    learnerEmail: value.learnerEmail,
+    learnerDisplayName: value.learnerDisplayName,
+    title: value.title,
+    recordType: value.recordType,
+    issuedAt: value.issuedAt,
+    description: value.description,
+    sourceRecordId: value.sourceRecordId,
+    evidenceLinks,
+    effectiveTrustLevel: value.effectiveTrustLevel,
+    effectiveIssuerName: value.effectiveIssuerName,
+    smartContext: {
+      orgUnitId: smartContext.orgUnitId,
+      badgeTemplateId: smartContext.badgeTemplateId,
+      pathwayLabel: smartContext.pathwayLabel,
+      inferredFrom,
+    },
+  };
+};
+
+const learnerRecordImportQueuePayloadFromUnknown = (
+  value: unknown,
+): LearnerRecordImportQueuePayload | null => {
+  if (!isPlainRecord(value)) {
+    return null;
+  }
+
+  const row = learnerRecordImportPreparedRowFromUnknown(value.row);
+
+  if (
+    typeof value.batchId !== "string" ||
+    typeof value.rowNumber !== "number" ||
+    !Number.isInteger(value.rowNumber) ||
+    value.rowNumber < 1 ||
+    typeof value.fileName !== "string" ||
+    value.format !== "csv" ||
+    typeof value.requestedAt !== "string" ||
+    (value.requestedByUserId !== undefined && typeof value.requestedByUserId !== "string") ||
+    row === null
+  ) {
+    return null;
+  }
+
+  return {
+    batchId: value.batchId,
+    rowNumber: value.rowNumber,
+    fileName: value.fileName,
+    format: value.format,
+    requestedAt: value.requestedAt,
+    ...(value.requestedByUserId === undefined
+      ? {}
+      : { requestedByUserId: value.requestedByUserId }),
+    row,
+  };
+};
+
+const learnerRecordImportSmartContextFromUnknown = (
+  value: unknown,
+): LearnerRecordImportSmartContext | null => {
+  if (!isPlainRecord(value)) {
+    return null;
+  }
+
+  const inferredFrom = stringArrayFromUnknown(value.inferredFrom);
+
+  if (
+    !isNullableString(value.orgUnitId) ||
+    !isNullableString(value.orgUnitLabel) ||
+    !isNullableString(value.badgeTemplateId) ||
+    !isNullableString(value.badgeTemplateLabel) ||
+    !isNullableString(value.pathwayLabel) ||
+    inferredFrom === null ||
+    !inferredFrom.every(isInferenceSource)
+  ) {
+    return null;
+  }
+
+  return {
+    orgUnitId: value.orgUnitId,
+    orgUnitLabel: value.orgUnitLabel,
+    badgeTemplateId: value.badgeTemplateId,
+    badgeTemplateLabel: value.badgeTemplateLabel,
+    pathwayLabel: value.pathwayLabel,
+    inferredFrom,
+  };
+};
+
+const learnerRecordImportPreviewFromUnknown = (
+  value: unknown,
+): LearnerRecordImportPreview | null => {
+  if (!isPlainRecord(value) || !isPlainRecord(value.learner) || !isPlainRecord(value.record)) {
+    return null;
+  }
+
+  const evidenceLinks = stringArrayFromUnknown(value.record.evidenceLinks);
+  const smartContext = learnerRecordImportSmartContextFromUnknown(value.smartContext);
+
+  if (
+    typeof value.learner.email !== "string" ||
+    !isNullableString(value.learner.displayName) ||
+    typeof value.record.title !== "string" ||
+    !isRecordType(value.record.recordType) ||
+    typeof value.record.issuedAt !== "string" ||
+    !isNullableString(value.record.description) ||
+    !isNullableString(value.record.sourceRecordId) ||
+    evidenceLinks === null ||
+    !isTrustLevel(value.trustLevel) ||
+    typeof value.issuerName !== "string" ||
+    value.sourceSystem !== "csv_import" ||
+    smartContext === null
+  ) {
+    return null;
+  }
+
+  return {
+    learner: {
+      email: value.learner.email,
+      displayName: value.learner.displayName,
+    },
+    record: {
+      title: value.record.title,
+      recordType: value.record.recordType,
+      issuedAt: value.record.issuedAt,
+      description: value.record.description,
+      sourceRecordId: value.record.sourceRecordId,
+      evidenceLinks,
+    },
+    trustLevel: value.trustLevel,
+    issuerName: value.issuerName,
+    sourceSystem: value.sourceSystem,
+    smartContext,
+  };
+};
+
+const learnerRecordImportRowReportFromUnknown = (
+  value: unknown,
+): LearnerRecordImportRowReport | null => {
+  if (!isPlainRecord(value)) {
+    return null;
+  }
+
+  const errors = stringArrayFromUnknown(value.errors);
+  const warnings = stringArrayFromUnknown(value.warnings);
+  const preview =
+    value.preview === null ? null : learnerRecordImportPreviewFromUnknown(value.preview);
+
+  if (
+    typeof value.rowNumber !== "number" ||
+    !Number.isInteger(value.rowNumber) ||
+    value.rowNumber < 1 ||
+    (value.status !== "valid" && value.status !== "invalid") ||
+    errors === null ||
+    warnings === null ||
+    (value.preview !== null && preview === null)
+  ) {
+    return null;
+  }
+
+  return {
+    rowNumber: value.rowNumber,
+    status: value.status,
+    errors,
+    warnings,
+    preview,
+  };
+};
+
+export const learnerRecordImportQueuePayloadsFromJson = (
+  payloadJson: string,
+): LearnerRecordImportQueuePayload[] | null => {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(payloadJson) as unknown;
+  } catch {
+    return null;
+  }
+
+  if (!Array.isArray(parsed)) {
+    return null;
+  }
+
+  const payloads = parsed.map((entry) => learnerRecordImportQueuePayloadFromUnknown(entry));
+
+  if (payloads.some((entry) => entry === null)) {
+    return null;
+  }
+
+  return payloads as LearnerRecordImportQueuePayload[];
+};
+
+export const learnerRecordImportRowReportsFromJson = (
+  reportsJson: string,
+): LearnerRecordImportRowReport[] | null => {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(reportsJson) as unknown;
+  } catch {
+    return null;
+  }
+
+  if (!Array.isArray(parsed)) {
+    return null;
+  }
+
+  const reports = parsed.map((entry) => learnerRecordImportRowReportFromUnknown(entry));
+
+  if (reports.some((entry) => entry === null)) {
+    return null;
+  }
+
+  return reports as LearnerRecordImportRowReport[];
 };
 
 const buildImportDetailsJson = (payload: LearnerRecordImportQueuePayload): string | undefined => {

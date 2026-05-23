@@ -10,6 +10,9 @@ const {
   mockedListTenantBreakGlassAccounts,
   mockedListTenantMembers,
   mockedListImportLearnerRecordBatchQueueMessages,
+  mockedCreateLearnerRecordImportPreview,
+  mockedFindActiveLearnerRecordImportPreview,
+  mockedMarkLearnerRecordImportPreviewQueued,
   mockedListAccessibleTenantContextsForUser,
   mockedListLearnerRecordAssertionExports,
   mockedListLearnerRecordEntries,
@@ -28,6 +31,9 @@ const {
     mockedListTenantBreakGlassAccounts: vi.fn(),
     mockedListTenantMembers: vi.fn(),
     mockedListImportLearnerRecordBatchQueueMessages: vi.fn(),
+    mockedCreateLearnerRecordImportPreview: vi.fn(),
+    mockedFindActiveLearnerRecordImportPreview: vi.fn(),
+    mockedMarkLearnerRecordImportPreviewQueued: vi.fn(),
     mockedListAccessibleTenantContextsForUser: vi.fn(),
     mockedListLearnerRecordAssertionExports: vi.fn(),
     mockedListLearnerRecordEntries: vi.fn(),
@@ -45,6 +51,8 @@ vi.mock("@credtrail/db", async () => {
     ...actual,
     findLearnerProfileById: mockedFindLearnerProfileById,
     findLearnerProfileByIdentity: mockedFindLearnerProfileByIdentity,
+    createLearnerRecordImportPreview: mockedCreateLearnerRecordImportPreview,
+    findActiveLearnerRecordImportPreview: mockedFindActiveLearnerRecordImportPreview,
     findTenantAuthPolicy: mockedFindTenantAuthPolicy,
     findTenantById: vi.fn(),
     findTenantMembership: vi.fn(),
@@ -69,6 +77,7 @@ vi.mock("@credtrail/db", async () => {
     listBadgeTemplates: vi.fn(),
     listTenantApiKeys: vi.fn(),
     listTenantOrgUnits: vi.fn(),
+    markLearnerRecordImportPreviewQueued: mockedMarkLearnerRecordImportPreviewQueued,
   };
 });
 
@@ -97,7 +106,9 @@ vi.mock("./auth/better-auth-adapter", async () => {
 });
 
 import {
+  createLearnerRecordImportPreview,
   findBadgeTemplateById,
+  findActiveLearnerRecordImportPreview,
   findLearnerProfileById,
   findLearnerProfileByIdentity,
   findTenantById,
@@ -114,6 +125,7 @@ import {
   listTenantMembers,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
+  markLearnerRecordImportPreviewQueued,
   getTenantReportingOverview,
   getTenantReportingTrends,
   listLearnerRecordAssertionExports,
@@ -132,10 +144,19 @@ import { app } from "./index";
 import { getSeededDemoLearnerRecordFixture } from "./learner-record/seeded-demo-learner-record-fixture";
 import { getSeededDemoReportingRouteFixture } from "./reporting/seeded-demo-reporting-fixture";
 import { pageAssetPath } from "./ui/page-assets";
+import { INSTITUTION_ADMIN_API_KEYS_JS } from "./ui/page-assets/content/institution-admin-api-keys-js";
+import { INSTITUTION_ADMIN_BADGE_TEMPLATE_JS } from "./ui/page-assets/content/institution-admin-badge-template-js";
 import { INSTITUTION_ADMIN_CSS } from "./ui/page-assets/content/institution-admin-css";
+import { INSTITUTION_ADMIN_ISSUED_BADGES_JS } from "./ui/page-assets/content/institution-admin-issued-badges-js";
 import { INSTITUTION_ADMIN_JS } from "./ui/page-assets/content/institution-admin-js";
+import { INSTITUTION_ADMIN_ORG_UNITS_JS } from "./ui/page-assets/content/institution-admin-org-units-js";
+import { INSTITUTION_ADMIN_RULE_BUILDER_JS } from "./ui/page-assets/content/institution-admin-rule-builder-js";
 
 const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
+const mockedCreateLearnerRecordImportPreviewDb = vi.mocked(createLearnerRecordImportPreview);
+const mockedFindActiveLearnerRecordImportPreviewDb = vi.mocked(
+  findActiveLearnerRecordImportPreview,
+);
 const mockedFindLearnerProfileByIdDb = vi.mocked(findLearnerProfileById);
 const mockedFindLearnerProfileByIdentityDb = vi.mocked(findLearnerProfileByIdentity);
 const mockedFindTenantMembership = vi.mocked(findTenantMembership);
@@ -155,6 +176,9 @@ const mockedListTenantOrgUnits = vi.mocked(listTenantOrgUnits);
 const mockedListTenantApiKeys = vi.mocked(listTenantApiKeys);
 const mockedListTenantMembersDb = vi.mocked(listTenantMembers);
 const mockedListTenantMembershipOrgUnitScopes = vi.mocked(listTenantMembershipOrgUnitScopes);
+const mockedMarkLearnerRecordImportPreviewQueuedDb = vi.mocked(
+  markLearnerRecordImportPreviewQueued,
+);
 const mockedGetTenantReportingComparisonsDb = vi.mocked(listTenantReportingComparisons);
 const mockedGetTenantReportingEngagementCountsDb = vi.mocked(getTenantReportingEngagementCounts);
 const mockedGetTenantReportingOverviewDb = vi.mocked(getTenantReportingOverview);
@@ -642,6 +666,24 @@ beforeEach(() => {
   ]);
   mockedListImportLearnerRecordBatchQueueMessagesDb.mockReset();
   mockedListImportLearnerRecordBatchQueueMessagesDb.mockResolvedValue([]);
+  mockedCreateLearnerRecordImportPreviewDb.mockReset();
+  mockedCreateLearnerRecordImportPreviewDb.mockImplementation(async (_db, input) => ({
+    tenantId: input.tenantId,
+    batchId: input.batchId,
+    fileName: input.fileName,
+    format: input.format,
+    defaultsJson: input.defaultsJson,
+    reportsJson: input.reportsJson,
+    queuePayloadsJson: input.queuePayloadsJson,
+    createdByUserId: input.createdByUserId ?? null,
+    createdAt: input.createdAt,
+    expiresAt: input.expiresAt,
+    queuedAt: null,
+  }));
+  mockedFindActiveLearnerRecordImportPreviewDb.mockReset();
+  mockedFindActiveLearnerRecordImportPreviewDb.mockResolvedValue(null);
+  mockedMarkLearnerRecordImportPreviewQueuedDb.mockReset();
+  mockedMarkLearnerRecordImportPreviewQueuedDb.mockResolvedValue(true);
   mockedFindLearnerProfileByIdDb.mockReset();
   mockedFindLearnerProfileByIdDb.mockResolvedValue(sampleLearnerProfile());
   mockedFindLearnerProfileByIdentityDb.mockReset();
@@ -1260,20 +1302,101 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/operations/learner-record-imports/apply"',
     );
-    expect(body).toContain('name="csvPayloadBase64"');
+    expect(body).toContain('name="batchId"');
+    expect(body).not.toContain('name="csvPayloadBase64"');
     expect(body).toContain("Queue reviewed import");
+    expect(mockedCreateLearnerRecordImportPreviewDb).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        fileName: "learner-records.csv",
+        format: "csv",
+        createdByUserId: "usr_admin",
+      }),
+    );
   });
 
   it("queues learner-record imports only from the reviewed preview payload", async () => {
     const env = createEnv();
-    const csv = [
-      "learnerEmail,title,recordType,issuedAt,badgeTemplateSlug,pathwayLabel",
-      "learner@example.edu,Clinical Placement Seminar,course,2026-03-26T12:00:00.000Z,applied-analytics,Clinical readiness",
-    ].join("\n");
+    const batchId = "lrib_reviewed";
+    const reports = [
+      {
+        rowNumber: 1,
+        status: "valid",
+        errors: [],
+        warnings: [],
+        preview: {
+          learner: {
+            email: "learner@example.edu",
+            displayName: null,
+          },
+          record: {
+            title: "Clinical Placement Seminar",
+            recordType: "course",
+            issuedAt: "2026-03-26T12:00:00.000Z",
+            description: null,
+            sourceRecordId: null,
+            evidenceLinks: [],
+          },
+          trustLevel: "issuer_verified",
+          issuerName: "Tenant 123",
+          sourceSystem: "csv_import",
+          smartContext: {
+            orgUnitId: null,
+            orgUnitLabel: null,
+            badgeTemplateId: "badge_template_001",
+            badgeTemplateLabel: "TypeScript Foundations",
+            pathwayLabel: "Clinical readiness",
+            inferredFrom: ["badge_template"],
+          },
+        },
+      },
+    ];
+    const queuePayloads = [
+      {
+        batchId,
+        rowNumber: 1,
+        fileName: "learner-records.csv",
+        format: "csv",
+        requestedAt: "2026-03-26T12:00:00.000Z",
+        requestedByUserId: "usr_admin",
+        row: {
+          learnerEmail: "learner@example.edu",
+          learnerDisplayName: null,
+          title: "Clinical Placement Seminar",
+          recordType: "course",
+          issuedAt: "2026-03-26T12:00:00.000Z",
+          description: null,
+          sourceRecordId: null,
+          evidenceLinks: [],
+          effectiveTrustLevel: "issuer_verified",
+          effectiveIssuerName: "Tenant 123",
+          smartContext: {
+            orgUnitId: null,
+            badgeTemplateId: "badge_template_001",
+            pathwayLabel: "Clinical readiness",
+            inferredFrom: ["badge_template"],
+          },
+        },
+      },
+    ];
     const formData = new FormData();
-    formData.set("csvPayloadBase64", btoa(csv));
-    formData.set("fileName", "learner-records.csv");
-    formData.set("defaultTrustLevel", "issuer_verified");
+    formData.set("batchId", batchId);
+    mockedFindActiveLearnerRecordImportPreviewDb.mockResolvedValueOnce({
+      tenantId: "tenant_123",
+      batchId,
+      fileName: "learner-records.csv",
+      format: "csv",
+      defaultsJson: JSON.stringify({
+        defaultTrustLevel: "issuer_verified",
+      }),
+      reportsJson: JSON.stringify(reports),
+      queuePayloadsJson: JSON.stringify(queuePayloads),
+      createdByUserId: "usr_admin",
+      createdAt: "2026-03-26T12:00:00.000Z",
+      expiresAt: "2026-03-27T12:00:00.000Z",
+      queuedAt: null,
+    });
     const runMock = vi.fn().mockResolvedValue({ success: true });
     const bindMock = vi.fn().mockReturnValue({ run: runMock });
     fakeDbPrepare.mockReturnValue({ bind: bindMock });
@@ -1296,6 +1419,13 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
     expect(body).toContain("Queued 1 valid rows from learner-records.csv");
     expect(body).toContain('data-learner-record-import-state="apply"');
     expect(body).not.toContain("Queue reviewed import");
+    expect(mockedMarkLearnerRecordImportPreviewQueuedDb).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        batchId,
+      }),
+    );
     expect(bindMock).toHaveBeenCalled();
   });
 
@@ -1389,9 +1519,13 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     expect(body).not.toContain('id="manual-issue-form"');
     expect(body).not.toContain('id="rule-review-queue-refresh"');
     expect(body).not.toContain('id="assertion-lifecycle-view-form"');
-    expect(INSTITUTION_ADMIN_JS).toContain("openIssuedBadgeLifecyclePanel");
-    expect(INSTITUTION_ADMIN_JS).toContain("Review revocation for");
-    expect(INSTITUTION_ADMIN_JS).not.toContain("Optional revocation reason");
+    expect(body).toContain(pageAssetPath("institutionAdminShellJs"));
+    expect(body).not.toContain(pageAssetPath("institutionAdminJs"));
+    expect(body).toContain(pageAssetPath("institutionAdminIssuedBadgesJs"));
+    expect(INSTITUTION_ADMIN_JS).not.toContain("openIssuedBadgeLifecyclePanel");
+    expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).toContain("openIssuedBadgeLifecyclePanel");
+    expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).toContain("Review revocation for");
+    expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).not.toContain("Optional revocation reason");
   });
 
   it("renders a separate admin ledger export form with audit filters", async () => {
@@ -2789,7 +2923,9 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       /href="\/tenants\/tenant_123\/admin\/rules\/templates"[^>]*aria-current="page"/,
     );
     expect(body).toContain("Create Badge Template");
-    expect(body).toContain("Start with the badge name. CredTrail opens artwork setup after creation.");
+    expect(body).toContain(
+      "Start with the badge name. CredTrail opens artwork setup after creation.",
+    );
     expect(body).toContain(">Badge name<");
     expect(body).toContain(">URL key<");
     expect(body).toContain(">Criteria page URL<");
@@ -2810,7 +2946,9 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).not.toContain('id="badge-template-create-slug-hint"');
     expect(body).not.toContain('pattern="[a-z0-9]+(-[a-z0-9]+)*"');
     expect(body).toContain("Badge Artwork");
-    expect(body).toContain("Upload an image or generate a draft before using the template in rules.");
+    expect(body).toContain(
+      "Upload an image or generate a draft before using the template in rules.",
+    );
     expect(body).toContain('id="template-image-panel"');
     expect(body).toContain('class="ct-admin__panel ct-admin__add-disclosure"');
     expect(body).toContain('id="badge-template-image-upload-form"');
@@ -2855,27 +2993,39 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       'href="/tenants/tenant_123/admin/rules/templates?badgeTemplateId=badge_template_001&amp;history=1"',
     );
     expect(body).toContain("autoOpenTemplateAuditTemplateId&quot;:null");
-    expect(INSTITUTION_ADMIN_JS).toContain("history-timeline");
-    expect(INSTITUTION_ADMIN_JS).toContain("badge-template-create-form");
-    expect(INSTITUTION_ADMIN_JS).toContain("deriveBadgeTemplateSlugFromTitle");
-    expect(INSTITUTION_ADMIN_JS).toContain("A template with this badge name already exists.");
-    expect(INSTITUTION_ADMIN_JS).toContain("Template created. URL key:");
-    expect(INSTITUTION_ADMIN_JS).toContain("Next: add artwork below.");
-    expect(INSTITUTION_ADMIN_JS).toContain("Generated template ID");
-    expect(INSTITUTION_ADMIN_JS).toContain("badgeTemplateRuleBuilderPath");
-    expect(INSTITUTION_ADMIN_JS).toContain("badgeTemplatesReturnToRuleBuilder");
-    expect(INSTITUTION_ADMIN_JS).toContain("openTemplateImagePanel(createdTemplate.id, false)");
-    expect(INSTITUTION_ADMIN_JS).toContain("markBadgeTemplateCreateArtworkReady");
-    expect(INSTITUTION_ADMIN_JS).toContain("badgeTemplateCreateNextActions.dataset.artworkReady");
-    expect(INSTITUTION_ADMIN_JS).not.toContain("window.location.assign(nextRuleBuilderPath)");
-    expect(INSTITUTION_ADMIN_JS).toContain("upsertBadgeTemplateTableRow");
-    expect(INSTITUTION_ADMIN_JS).toContain("badgeTemplateAdminTableRowPathPrefix");
-    expect(INSTITUTION_ADMIN_JS).toContain("table-row");
-    expect(INSTITUTION_ADMIN_JS).not.toContain("renderBadgeTemplateTableRow");
-    expect(INSTITUTION_ADMIN_JS).not.toContain("badgeTemplateTenantPathSegment");
-    expect(INSTITUTION_ADMIN_JS).not.toContain("new WeakSet");
-    expect(INSTITUTION_ADMIN_JS).toContain("badge-template-image-generation-open");
-    expect(INSTITUTION_ADMIN_JS).toContain("Open full size previous badge image");
+    expect(body).toContain(pageAssetPath("institutionAdminShellJs"));
+    expect(body).not.toContain(pageAssetPath("institutionAdminJs"));
+    expect(body).toContain(pageAssetPath("institutionAdminBadgeTemplateJs"));
+    expect(INSTITUTION_ADMIN_JS).not.toContain("badge-template-create-form");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("history-timeline");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("badge-template-create-form");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("deriveBadgeTemplateSlugFromTitle");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain(
+      "A template with this badge name already exists.",
+    );
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("Template created. URL key:");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("Next: add artwork below.");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("Generated template ID");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("badgeTemplateRuleBuilderPath");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("badgeTemplatesReturnToRuleBuilder");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain(
+      "openTemplateImagePanel(createdTemplate.id, false)",
+    );
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("markBadgeTemplateCreateArtworkReady");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain(
+      "badgeTemplateCreateNextActions.dataset.artworkReady",
+    );
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).not.toContain(
+      "window.location.assign(nextRuleBuilderPath)",
+    );
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("upsertBadgeTemplateTableRow");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("badgeTemplateAdminTableRowPathPrefix");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("table-row");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).not.toContain("renderBadgeTemplateTableRow");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).not.toContain("badgeTemplateTenantPathSegment");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).not.toContain("new WeakSet");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("badge-template-image-generation-open");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("Open full size previous badge image");
     expect(body).not.toContain("ct-grid--sidebar");
     expect(body).not.toContain("Rule Value Lists");
     expect(body).not.toContain('id="rule-value-list-form"');
@@ -3321,8 +3471,12 @@ describe("GET /tenants/:tenantId/admin/access/api-keys", () => {
     expect(body).toContain('id="api-key-active-count"');
     expect(body).toContain("Active API Keys (1)");
     expect(body).toContain('id="api-key-body"');
-    expect(INSTITUTION_ADMIN_JS).toContain("insertApiKeyRow");
-    expect(INSTITUTION_ADMIN_JS).toContain("Store the secret before closing this form");
+    expect(body).toContain(pageAssetPath("institutionAdminShellJs"));
+    expect(body).not.toContain(pageAssetPath("institutionAdminJs"));
+    expect(body).toContain(pageAssetPath("institutionAdminApiKeysJs"));
+    expect(INSTITUTION_ADMIN_JS).not.toContain("insertApiKeyRow");
+    expect(INSTITUTION_ADMIN_API_KEYS_JS).toContain("insertApiKeyRowHtml");
+    expect(INSTITUTION_ADMIN_API_KEYS_JS).toContain("Store the secret before closing this form");
     expect(body).toContain(
       'class="ct-admin__panel ct-admin__panel--table ct-admin__api-keys-table ct-stack"',
     );
@@ -3355,11 +3509,15 @@ describe("GET /tenants/:tenantId/admin/access/org-units", () => {
     expect(body).toContain("Hide form");
     expect(body).toContain('id="org-unit-form"');
     expect(body).toContain("Create org unit");
-    expect(body).toContain('name="slug" type="hidden"');
+    expect(body).not.toContain('name="slug" type="hidden"');
     expect(body).toContain("CredTrail creates the internal org key from the display name.");
     expect(body).not.toContain("<label>ID");
-    expect(INSTITUTION_ADMIN_JS).toContain("deriveUrlKey");
-    expect(INSTITUTION_ADMIN_JS).toContain("Unit type and display name are required.");
+    expect(body).toContain(pageAssetPath("institutionAdminShellJs"));
+    expect(body).not.toContain(pageAssetPath("institutionAdminJs"));
+    expect(body).toContain(pageAssetPath("institutionAdminOrgUnitsJs"));
+    expect(INSTITUTION_ADMIN_JS).not.toContain("deriveUrlKey");
+    expect(INSTITUTION_ADMIN_ORG_UNITS_JS).not.toContain("deriveUrlKey");
+    expect(INSTITUTION_ADMIN_ORG_UNITS_JS).toContain("Unit type and display name are required.");
     expect(body).toContain("Org Units (");
     expect(body).toContain(
       'class="ct-admin__panel ct-admin__panel--table ct-admin__org-units-table ct-stack"',
@@ -3398,6 +3556,9 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain("Badge Awarding Rule");
+    expect(body).toContain(pageAssetPath("institutionAdminShellJs"));
+    expect(body).not.toContain(pageAssetPath("institutionAdminJs"));
+    expect(body).toContain(pageAssetPath("institutionAdminRuleBuilderJs"));
     expect(body).toContain("Define when learners earn this badge");
     expect(body).toContain('class="ct-admin-content ct-admin-content--rule-builder"');
     expect(body).toContain('class="ct-admin__builder-shell ct-stack"');
@@ -3479,6 +3640,9 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/access/api-keys"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/org-units"');
     expect(body).toContain('href="/admin/audit-logs?tenantId=tenant_123"');
+    expect(INSTITUTION_ADMIN_JS).not.toContain("rule-builder-condition-list");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-condition-list");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("credtrail:rule-builder:");
   });
 
   it("preselects a returned badge template in the rule builder", async () => {

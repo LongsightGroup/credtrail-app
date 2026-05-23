@@ -20,6 +20,7 @@ import type {
 } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../ui/render-page";
+import type { PageAssetKey } from "../ui/page-assets";
 import type { ReportingMetricEntry } from "../reporting/metric-definitions";
 import { selectReportingHighlightRows } from "../reporting/reporting-highlights";
 import {
@@ -58,25 +59,9 @@ import {
   type AdminSidebarSection,
 } from "./components";
 import { BadgeTemplateAdminTableRow } from "./badge-template-table-row-fragment";
+import { TenantApiKeyAdminTableRow } from "./api-key-table-row-fragment";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
-
-const formatScopesSummary = (scopesJson: string): string => {
-  try {
-    const parsed = JSON.parse(scopesJson) as unknown;
-
-    if (!Array.isArray(parsed)) {
-      return scopesJson;
-    }
-
-    return parsed
-      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-      .filter((entry) => entry.length > 0)
-      .join(", ");
-  } catch {
-    return scopesJson;
-  }
-};
 
 const serializeJsonScriptContent = (value: unknown): string => {
   return JSON.stringify(value)
@@ -304,10 +289,7 @@ interface InstitutionAdminLearnerRecordImportWorkflow {
     queuedRows: number;
     rows: readonly LearnerRecordImportRowReport[];
     queueForm: {
-      csvPayloadBase64: string;
-      defaultTrustLevel: LearnerRecordTrustLevel;
-      defaultIssuerName: string;
-      fileName: string;
+      batchId: string;
     } | null;
   } | null;
   feedback: {
@@ -893,32 +875,9 @@ const renderInstitutionAdminPage = (
     input.activeApiKeys.length === 0 ? (
       <AdminEmptyTableRow colSpan={5}>No active API keys found.</AdminEmptyTableRow>
     ) : (
-      input.activeApiKeys.map((apiKey) => {
-        const revokeApiKeyPath = `/v1/tenants/${encodeURIComponent(
-          input.tenant.id,
-        )}/api-keys/${encodeURIComponent(apiKey.id)}/revoke`;
-
-        return (
-          <tr data-api-key-id={apiKey.id}>
-            <td>{apiKey.label}</td>
-            <td>{apiKey.keyPrefix}</td>
-            <td>{formatScopesSummary(apiKey.scopesJson)}</td>
-            <td>{apiKey.expiresAt === null ? "Never" : formatIsoTimestamp(apiKey.expiresAt)}</td>
-            <td>
-              <AdminButton
-                type="button"
-                variant="danger"
-                dataAttributes={{
-                  "data-revoke-api-key-path": revokeApiKeyPath,
-                  "data-api-key-label": apiKey.label,
-                }}
-              >
-                Revoke
-              </AdminButton>
-            </td>
-          </tr>
-        );
-      })
+      input.activeApiKeys.map((apiKey) => (
+        <TenantApiKeyAdminTableRow tenantId={input.tenant.id} apiKey={apiKey} />
+      ))
     );
 
   const assignableTenantRoles: TenantMembershipRole[] =
@@ -1256,11 +1215,7 @@ const renderInstitutionAdminPage = (
       return <option value={orgUnit.id}>{`${orgUnit.displayName} (${orgUnit.unitType})`}</option>;
     });
   const tenantMemberOptions = input.tenantMembers.map((member) => {
-    return (
-      <option value={member.userId}>
-        {`${member.email} (${member.role})`}
-      </option>
-    );
+    return <option value={member.userId}>{`${member.email} (${member.role})`}</option>;
   });
   const templateOptions = input.badgeTemplates.map((template, index) => {
     return (
@@ -3597,7 +3552,6 @@ const renderInstitutionAdminPage = (
         id="org-unit-form"
         className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--org-unit ct-grid"
       >
-        <input name="slug" type="hidden" />
         <AdminField label="Display name">
           <input name="displayName" type="text" required placeholder="College of Engineering" />
         </AdminField>
@@ -3615,9 +3569,7 @@ const renderInstitutionAdminPage = (
             {orgUnitParentOptions}
           </select>
         </AdminField>
-        <p class="ct-admin__hint">
-          CredTrail creates the internal org key from the display name.
-        </p>
+        <p class="ct-admin__hint">CredTrail creates the internal org key from the display name.</p>
         <AdminButton type="submit">Create org unit</AdminButton>
       </AdminForm>
       <AdminStatus id="org-unit-status"></AdminStatus>
@@ -3632,8 +3584,8 @@ const renderInstitutionAdminPage = (
         Choosing a parent org unit also covers the child units beneath it.
       </p>
       <p class="ct-admin__hint">
-        The selected member receives the access. This workflow does not create tenant membership,
-        so the person must already exist in this tenant.
+        The selected member receives the access. This workflow does not create tenant membership, so
+        the person must already exist in this tenant.
       </p>
       <ul>
         <li>Use a scoped role for standing access inside an org unit.</li>
@@ -4150,7 +4102,11 @@ const renderInstitutionAdminPage = (
         </p>
       </AdminPanel>
       <AdminStatus id="issued-badges-status">Load tenant assertions from the browser.</AdminStatus>
-      <section id="issued-badge-lifecycle-panel" class="ct-admin__inline-action-panel ct-stack" hidden>
+      <section
+        id="issued-badge-lifecycle-panel"
+        class="ct-admin__inline-action-panel ct-stack"
+        hidden
+      >
         <div class="ct-cluster">
           <h3 id="issued-badge-lifecycle-title">Selected badge lifecycle</h3>
           <AdminButton
@@ -4919,7 +4875,10 @@ const renderInstitutionAdminPage = (
     <AdminPanel variant="table" className="ct-admin__api-keys-table">
       <h2 id="api-key-active-count">Active API Keys ({activeApiKeyCount})</h2>
       <p>Revoked keys: {revokedApiKeyCount}</p>
-      <AdminTable headers={["Label", "Prefix", "Scopes", "Expires", "Action"]} tbodyId="api-key-body">
+      <AdminTable
+        headers={["Label", "Prefix", "Scopes", "Expires", "Action"]}
+        tbodyId="api-key-body"
+      >
         {apiKeyRows}
       </AdminTable>
       <AdminStatus id="api-key-revoke-status"></AdminStatus>
@@ -5256,29 +5215,13 @@ const renderInstitutionAdminPage = (
         ) : (
           <AdminForm
             method="post"
-            encType="multipart/form-data"
             action={learnerRecordImportWorkflow.applyPath}
             className="ct-admin__form ct-admin__review-action-form"
           >
             <input
               type="hidden"
-              name="csvPayloadBase64"
-              value={learnerRecordImportWorkflow.submission.queueForm.csvPayloadBase64}
-            />
-            <input
-              type="hidden"
-              name="fileName"
-              value={learnerRecordImportWorkflow.submission.queueForm.fileName}
-            />
-            <input
-              type="hidden"
-              name="defaultTrustLevel"
-              value={learnerRecordImportWorkflow.submission.queueForm.defaultTrustLevel}
-            />
-            <input
-              type="hidden"
-              name="defaultIssuerName"
-              value={learnerRecordImportWorkflow.submission.queueForm.defaultIssuerName}
+              name="batchId"
+              value={learnerRecordImportWorkflow.submission.queueForm.batchId}
             />
             <div class="ct-admin__workspace-actions">
               <AdminButton type="submit">Queue reviewed import</AdminButton>
@@ -5730,10 +5673,41 @@ const renderInstitutionAdminPage = (
         );
     }
   })();
+  const pageAssets: PageAssetKey[] = ["institutionAdminCss"];
+  const usesSharedAdminController =
+    view === "operations" ||
+    view === "operationsReviewQueue" ||
+    view === "operationsBadgeStatus" ||
+    view === "reporting" ||
+    view === "reportingExplore" ||
+    view === "reportingTrends" ||
+    view === "reportingReports" ||
+    view === "rules" ||
+    view === "access" ||
+    view === "accessMembers" ||
+    view === "accessGovernance";
+
+  pageAssets.push(usesSharedAdminController ? "institutionAdminJs" : "institutionAdminShellJs");
+
+  if (view === "accessApiKeys") {
+    pageAssets.push("institutionAdminApiKeysJs");
+  }
+
+  if (view === "rulesTemplates") {
+    pageAssets.push("institutionAdminBadgeTemplateJs");
+  }
+
+  if (view === "accessOrgUnits") {
+    pageAssets.push("institutionAdminOrgUnitsJs");
+  }
+
+  if (view === "operationsIssuedBadges") {
+    pageAssets.push("institutionAdminIssuedBadgesJs");
+  }
 
   return appPage({
     title: pageTitle,
-    assets: ["institutionAdminCss", "institutionAdminJs"],
+    assets: pageAssets,
     variant: "admin",
     body: (
       <AdminShell

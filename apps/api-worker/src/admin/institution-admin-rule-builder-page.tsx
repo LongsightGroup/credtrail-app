@@ -468,7 +468,7 @@ export const institutionAdminRuleBuilderPage = (input: {
 
   return appPage({
     title: `Rule Builder · ${input.tenant.displayName}`,
-    assets: ["institutionAdminCss", "institutionAdminJs"],
+    assets: ["institutionAdminCss", "institutionAdminShellJs", "institutionAdminRuleBuilderJs"],
     variant: "admin",
     body: (
       <AdminShell

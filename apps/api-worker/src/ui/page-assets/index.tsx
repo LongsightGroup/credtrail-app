@@ -12,8 +12,14 @@ import {
   type FontAssetSource,
 } from "./content/font-assets";
 import { FOUNDATION_CSS } from "./content/foundation-css";
+import { INSTITUTION_ADMIN_API_KEYS_JS } from "./content/institution-admin-api-keys-js";
+import { INSTITUTION_ADMIN_BADGE_TEMPLATE_JS } from "./content/institution-admin-badge-template-js";
 import { INSTITUTION_ADMIN_CSS } from "./content/institution-admin-css";
+import { INSTITUTION_ADMIN_ISSUED_BADGES_JS } from "./content/institution-admin-issued-badges-js";
 import { INSTITUTION_ADMIN_JS } from "./content/institution-admin-js";
+import { INSTITUTION_ADMIN_ORG_UNITS_JS } from "./content/institution-admin-org-units-js";
+import { INSTITUTION_ADMIN_RULE_BUILDER_JS } from "./content/institution-admin-rule-builder-js";
+import { INSTITUTION_ADMIN_SHELL_JS } from "./content/institution-admin-shell-js";
 import { LEARNER_DASHBOARD_CSS } from "./content/learner-dashboard-css";
 import { LEARNER_RECORD_CSS } from "./content/learner-record-css";
 import { LTI_PAGES_CSS } from "./content/lti-pages-css";
@@ -74,6 +80,42 @@ const PAGE_ASSET_SOURCES = {
     kind: "script",
     stem: "institution-admin",
     body: INSTITUTION_ADMIN_JS,
+    contentType: "text/javascript; charset=utf-8",
+  },
+  institutionAdminShellJs: {
+    kind: "script",
+    stem: "institution-admin-shell",
+    body: INSTITUTION_ADMIN_SHELL_JS,
+    contentType: "text/javascript; charset=utf-8",
+  },
+  institutionAdminApiKeysJs: {
+    kind: "script",
+    stem: "institution-admin-api-keys",
+    body: INSTITUTION_ADMIN_API_KEYS_JS,
+    contentType: "text/javascript; charset=utf-8",
+  },
+  institutionAdminBadgeTemplateJs: {
+    kind: "script",
+    stem: "institution-admin-badge-template",
+    body: INSTITUTION_ADMIN_BADGE_TEMPLATE_JS,
+    contentType: "text/javascript; charset=utf-8",
+  },
+  institutionAdminIssuedBadgesJs: {
+    kind: "script",
+    stem: "institution-admin-issued-badges",
+    body: INSTITUTION_ADMIN_ISSUED_BADGES_JS,
+    contentType: "text/javascript; charset=utf-8",
+  },
+  institutionAdminOrgUnitsJs: {
+    kind: "script",
+    stem: "institution-admin-org-units",
+    body: INSTITUTION_ADMIN_ORG_UNITS_JS,
+    contentType: "text/javascript; charset=utf-8",
+  },
+  institutionAdminRuleBuilderJs: {
+    kind: "script",
+    stem: "institution-admin-rule-builder",
+    body: INSTITUTION_ADMIN_RULE_BUILDER_JS,
     contentType: "text/javascript; charset=utf-8",
   },
   learnerRecordCss: {

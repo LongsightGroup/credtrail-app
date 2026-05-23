@@ -28,6 +28,12 @@ describe("GET /assets/ui/:assetFilename", () => {
       "executiveDashboardCss",
       "institutionAdminCss",
       "institutionAdminJs",
+      "institutionAdminShellJs",
+      "institutionAdminApiKeysJs",
+      "institutionAdminBadgeTemplateJs",
+      "institutionAdminIssuedBadgesJs",
+      "institutionAdminOrgUnitsJs",
+      "institutionAdminRuleBuilderJs",
       "learnerRecordCss",
       "ltiPagesCss",
     ];
@@ -48,6 +54,12 @@ describe("GET /assets/ui/:assetFilename", () => {
     const scriptAssetKeys: readonly PageAssetKey[] = [
       "authLoginJs",
       "institutionAdminJs",
+      "institutionAdminShellJs",
+      "institutionAdminApiKeysJs",
+      "institutionAdminBadgeTemplateJs",
+      "institutionAdminIssuedBadgesJs",
+      "institutionAdminOrgUnitsJs",
+      "institutionAdminRuleBuilderJs",
       "ltiPostMessageStorageJs",
       "publicBadgeJs",
     ];

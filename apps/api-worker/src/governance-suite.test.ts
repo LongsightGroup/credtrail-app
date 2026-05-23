@@ -172,11 +172,13 @@ vi.mock("@credtrail/db", async () => {
     ...actual,
     countTenantMembershipsByRole: vi.fn(),
     createAuditLog: vi.fn(),
+    createLearnerRecordImportPreview: vi.fn(),
     createDelegatedIssuingAuthorityGrant: vi.fn(),
     createTenantApiKey: vi.fn(),
     createTenantOrgUnit: vi.fn(),
     deleteTenantSsoSamlConfiguration: vi.fn(),
     findActiveDelegatedIssuingAuthorityGrantForAction: vi.fn(),
+    findActiveLearnerRecordImportPreview: vi.fn(),
     findActiveSessionByHash: mockedFindActiveSessionByHash,
     findBadgeTemplateById: vi.fn(),
     findDelegatedIssuingAuthorityGrantById: vi.fn(),
@@ -214,6 +216,7 @@ vi.mock("@credtrail/db", async () => {
     listTenantBreakGlassAccounts: vi.fn(),
     listTenantMembers: vi.fn(),
     listTenantReportingComparisons: vi.fn(),
+    markLearnerRecordImportPreviewQueued: vi.fn(),
     removeTenantMembership: vi.fn(),
     removeTenantMembershipOrgUnitScope: vi.fn(),
     revokeTenantApiKey: vi.fn(),
@@ -257,11 +260,13 @@ import {
   countBadgeTemplateImageRevisions,
   countTenantMembershipsByRole,
   createAuditLog,
+  createLearnerRecordImportPreview,
   createDelegatedIssuingAuthorityGrant,
   createTenantApiKey,
   createTenantOrgUnit,
   deleteTenantSsoSamlConfiguration,
   findActiveDelegatedIssuingAuthorityGrantForAction,
+  findActiveLearnerRecordImportPreview,
   findActiveTenantBreakGlassAccountByUserId,
   findBadgeTemplateById,
   findDelegatedIssuingAuthorityGrantById,
@@ -297,6 +302,7 @@ import {
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
   listTenantReportingComparisons,
+  markLearnerRecordImportPreviewQueued,
   removeTenantMembership,
   removeTenantMembershipOrgUnitScope,
   revokeTenantApiKey,
@@ -337,6 +343,7 @@ const mockedCreateAuditLog = vi.mocked(createAuditLog);
 const mockedListAuditLogs = vi.mocked(listAuditLogs);
 const mockedUpdateBadgeTemplate = vi.mocked(updateBadgeTemplate);
 const mockedCountTenantMembershipsByRole = vi.mocked(countTenantMembershipsByRole);
+const mockedCreateLearnerRecordImportPreview = vi.mocked(createLearnerRecordImportPreview);
 const mockedCreateDelegatedIssuingAuthorityGrant = vi.mocked(createDelegatedIssuingAuthorityGrant);
 const mockedCreateTenantApiKey = vi.mocked(createTenantApiKey);
 const mockedCreateTenantOrgUnit = vi.mocked(createTenantOrgUnit);
@@ -344,6 +351,7 @@ const mockedDeleteTenantSsoSamlConfiguration = vi.mocked(deleteTenantSsoSamlConf
 const mockedFindActiveDelegatedIssuingAuthorityGrantForAction = vi.mocked(
   findActiveDelegatedIssuingAuthorityGrantForAction,
 );
+const mockedFindActiveLearnerRecordImportPreview = vi.mocked(findActiveLearnerRecordImportPreview);
 const mockedFindActiveTenantBreakGlassAccountByUserId = vi.mocked(
   findActiveTenantBreakGlassAccountByUserId,
 );
@@ -391,6 +399,7 @@ const mockedListTenantMembers = vi.mocked(listTenantMembers);
 const mockedListTenantMembershipOrgUnitScopes = vi.mocked(listTenantMembershipOrgUnitScopes);
 const mockedListTenantOrgUnits = vi.mocked(listTenantOrgUnits);
 const mockedListTenantReportingComparisons = vi.mocked(listTenantReportingComparisons);
+const mockedMarkLearnerRecordImportPreviewQueued = vi.mocked(markLearnerRecordImportPreviewQueued);
 const mockedRemoveTenantMembership = vi.mocked(removeTenantMembership);
 const mockedRemoveTenantMembershipOrgUnitScope = vi.mocked(removeTenantMembershipOrgUnitScope);
 const mockedRevokeTenantApiKey = vi.mocked(revokeTenantApiKey);
@@ -642,6 +651,24 @@ beforeEach(() => {
   mockedListDelegatedIssuingAuthorityGrants.mockResolvedValue([]);
   mockedListImportLearnerRecordBatchQueueMessages.mockReset();
   mockedListImportLearnerRecordBatchQueueMessages.mockResolvedValue([]);
+  mockedCreateLearnerRecordImportPreview.mockReset();
+  mockedCreateLearnerRecordImportPreview.mockImplementation(async (_db, input) => ({
+    tenantId: input.tenantId,
+    batchId: input.batchId,
+    fileName: input.fileName,
+    format: input.format,
+    defaultsJson: input.defaultsJson,
+    reportsJson: input.reportsJson,
+    queuePayloadsJson: input.queuePayloadsJson,
+    createdByUserId: input.createdByUserId ?? null,
+    createdAt: input.createdAt,
+    expiresAt: input.expiresAt,
+    queuedAt: null,
+  }));
+  mockedFindActiveLearnerRecordImportPreview.mockReset();
+  mockedFindActiveLearnerRecordImportPreview.mockResolvedValue(null);
+  mockedMarkLearnerRecordImportPreviewQueued.mockReset();
+  mockedMarkLearnerRecordImportPreviewQueued.mockResolvedValue(true);
   mockedFindTenantAuthPolicy.mockReset();
   mockedFindTenantAuthPolicy.mockResolvedValue(null);
   mockedGetTenantReportingEngagementCounts.mockReset();
@@ -2593,7 +2620,6 @@ describe("org unit and badge ownership governance endpoints", () => {
         },
         body: JSON.stringify({
           unitType: "department",
-          slug: "math",
           displayName: "Department of Mathematics",
           parentOrgUnitId: "tenant_123:org:institution",
         }),
@@ -2610,7 +2636,7 @@ describe("org unit and badge ownership governance endpoints", () => {
       expect.objectContaining({
         tenantId: "tenant_123",
         unitType: "department",
-        slug: "math",
+        slug: "department-of-mathematics",
         displayName: "Department of Mathematics",
         parentOrgUnitId: "tenant_123:org:institution",
         createdByUserId: "usr_123",

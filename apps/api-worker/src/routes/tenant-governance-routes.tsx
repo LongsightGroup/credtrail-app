@@ -1,5 +1,6 @@
 import {
   countTenantMembershipsByRole,
+  createLearnerRecordImportPreview,
   createTenantAuthProvider,
   createTenantApiKey,
   createAuditLog,
@@ -12,6 +13,7 @@ import {
   findDelegatedIssuingAuthorityGrantById,
   findLearnerProfileById,
   findLearnerProfileByIdentity,
+  findActiveLearnerRecordImportPreview,
   findTenantAuthPolicy,
   findTenantAuthProviderById,
   findBadgeTemplateById,
@@ -37,6 +39,7 @@ import {
   listTenantMembers,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
+  markLearnerRecordImportPreviewQueued,
   removeTenantMembership,
   removeTenantMembershipOrgUnitScope,
   revokeTenantApiKey,
@@ -111,12 +114,15 @@ import {
   institutionAdminRulesPage,
 } from "../admin/institution-admin-page";
 import { AdminActions, AdminButtonLink, AdminPageHeader, AdminPanel } from "../admin/components";
+import { renderTenantApiKeyAdminTableRowToString } from "../admin/api-key-table-row-fragment";
 import { renderBadgeTemplateAdminTableRowToString } from "../admin/badge-template-table-row-fragment";
 import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
 import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
 import { resolveTenantReportingAccess } from "../auth/tenant-access";
 import {
   enqueueLearnerRecordImportBatch,
+  learnerRecordImportQueuePayloadsFromJson,
+  learnerRecordImportRowReportsFromJson,
   prepareLearnerRecordImportSubmission,
   summarizeLearnerRecordImportProgress,
 } from "../learner-record/learner-record-import";
@@ -170,26 +176,49 @@ interface RegisterTenantGovernanceRoutesInput {
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }
 
-const encodeTextForHiddenForm = (value: string): string => {
-  const bytes = new TextEncoder().encode(value);
-  let binary = "";
+const LEARNER_RECORD_IMPORT_PREVIEW_TTL_HOURS = 24;
 
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
+const addHoursToIso = (fromIso: string, hours: number): string => {
+  const fromMs = Date.parse(fromIso);
 
-  return btoa(binary);
-};
-
-const decodeTextFromHiddenForm = (value: string): string => {
-  const binary = atob(value);
-  const bytes = new Uint8Array(binary.length);
-
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
+  if (!Number.isFinite(fromMs)) {
+    throw new Error("Invalid ISO timestamp");
   }
 
-  return new TextDecoder().decode(bytes);
+  return new Date(fromMs + hours * 60 * 60 * 1000).toISOString();
+};
+
+const deriveUrlKey = (value: string): string => {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+};
+
+const withDerivedOrgUnitSlug = (input: unknown): unknown => {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    return input;
+  }
+
+  const payload = input as Record<string, unknown>;
+  const rawSlug = payload.slug;
+
+  if (typeof rawSlug === "string" && rawSlug.trim().length > 0) {
+    return input;
+  }
+
+  const rawDisplayName = payload.displayName;
+
+  if (typeof rawDisplayName !== "string") {
+    return input;
+  }
+
+  return {
+    ...payload,
+    slug: deriveUrlKey(rawDisplayName),
+  };
 };
 
 export const adminRoleRequiredPage = (tenantId: string): AppPage => {
@@ -1082,11 +1111,7 @@ export const registerTenantGovernanceRoutes = (
 
     if (historyDeepLinkRequested && !includeArchived) {
       const db = resolveDatabase(c.env);
-      const deepLinkTemplate = await findBadgeTemplateById(
-        db,
-        tenantId,
-        badgeTemplateIdParam,
-      );
+      const deepLinkTemplate = await findBadgeTemplateById(db, tenantId, badgeTemplateIdParam);
 
       if (deepLinkTemplate?.isArchived === true) {
         const redirectUrl = new URL(c.req.url);
@@ -1133,11 +1158,7 @@ export const registerTenantGovernanceRoutes = (
 
       if (deepLinkTemplate === undefined) {
         const db = resolveDatabase(c.env);
-        const templateFromDb = await findBadgeTemplateById(
-          db,
-          tenantId,
-          deepLinkHistoryTemplateId,
-        );
+        const templateFromDb = await findBadgeTemplateById(db, tenantId, deepLinkHistoryTemplateId);
 
         if (templateFromDb === null) {
           deepLinkHistoryTemplateId = null;
@@ -1213,7 +1234,10 @@ export const registerTenantGovernanceRoutes = (
   }): Promise<Response> => {
     const contentType = input.c.req.header("content-type")?.toLowerCase() ?? "";
 
-    if (!contentType.includes("multipart/form-data")) {
+    if (
+      !contentType.includes("multipart/form-data") &&
+      !contentType.includes("application/x-www-form-urlencoded")
+    ) {
       return renderLearnerRecordImportWorkspace(
         input.c,
         input.tenantId,
@@ -1235,9 +1259,196 @@ export const registerTenantGovernanceRoutes = (
     }
 
     const formData = await input.c.req.formData();
+    const db = resolveDatabase(input.c.env);
+
+    if (input.mode === "apply") {
+      const batchId = getOptionalFormValue(formData, "batchId") ?? "";
+      const nowIso = new Date().toISOString();
+
+      if (batchId.length === 0) {
+        return renderLearnerRecordImportWorkspace(
+          input.c,
+          input.tenantId,
+          input.sessionUserId,
+          input.membershipRole,
+          {
+            defaults: {
+              defaultTrustLevel: "issuer_verified",
+              defaultIssuerName: "",
+            },
+            submission: null,
+            feedback: {
+              tone: "warning",
+              title: "Preview is required before queueing",
+              detail: "Preview the CSV first, then use the queue action shown under the preview.",
+            },
+          },
+        );
+      }
+
+      const preview = await findActiveLearnerRecordImportPreview(db, {
+        tenantId: input.tenantId,
+        batchId,
+        nowIso,
+      });
+
+      if (preview === null) {
+        return renderLearnerRecordImportWorkspace(
+          input.c,
+          input.tenantId,
+          input.sessionUserId,
+          input.membershipRole,
+          {
+            defaults: {
+              defaultTrustLevel: "issuer_verified",
+              defaultIssuerName: "",
+            },
+            submission: null,
+            feedback: {
+              tone: "warning",
+              title: "Reviewed preview is no longer available",
+              detail: "Preview the CSV again, then use the queue action shown under the preview.",
+            },
+          },
+        );
+      }
+
+      const queuePayloads = learnerRecordImportQueuePayloadsFromJson(preview.queuePayloadsJson);
+      const reports = learnerRecordImportRowReportsFromJson(preview.reportsJson);
+
+      let defaults;
+
+      try {
+        defaults = parseLearnerRecordImportBatchDefaults(
+          JSON.parse(preview.defaultsJson) as unknown,
+        );
+      } catch {
+        return renderLearnerRecordImportWorkspace(
+          input.c,
+          input.tenantId,
+          input.sessionUserId,
+          input.membershipRole,
+          {
+            defaults: {
+              defaultTrustLevel: "issuer_verified",
+              defaultIssuerName: "",
+            },
+            submission: null,
+            feedback: {
+              tone: "warning",
+              title: "Reviewed preview could not be queued",
+              detail: "Preview the CSV again so CredTrail can rebuild the reviewed queue payload.",
+            },
+          },
+        );
+      }
+
+      const defaultIssuerName = defaults.defaultIssuerName ?? "";
+
+      if (queuePayloads === null || reports === null) {
+        return renderLearnerRecordImportWorkspace(
+          input.c,
+          input.tenantId,
+          input.sessionUserId,
+          input.membershipRole,
+          {
+            defaults: {
+              defaultTrustLevel: defaults.defaultTrustLevel,
+              defaultIssuerName,
+            },
+            submission: null,
+            feedback: {
+              tone: "warning",
+              title: "Reviewed preview could not be queued",
+              detail: "Preview the CSV again so CredTrail can rebuild the reviewed queue payload.",
+            },
+          },
+        );
+      }
+
+      const claimed = await markLearnerRecordImportPreviewQueued(db, {
+        tenantId: input.tenantId,
+        batchId: preview.batchId,
+        queuedAt: nowIso,
+      });
+
+      if (!claimed) {
+        return renderLearnerRecordImportWorkspace(
+          input.c,
+          input.tenantId,
+          input.sessionUserId,
+          input.membershipRole,
+          {
+            defaults: {
+              defaultTrustLevel: defaults.defaultTrustLevel,
+              defaultIssuerName,
+            },
+            submission: null,
+            feedback: {
+              tone: "warning",
+              title: "Reviewed preview was already queued",
+              detail: "Open the import progress table below to review the queued batch.",
+            },
+          },
+        );
+      }
+
+      const queuedRows = await enqueueLearnerRecordImportBatch(db, input.tenantId, queuePayloads);
+      const validRows = reports.filter((report) => report.status === "valid").length;
+      const invalidRows = reports.length - validRows;
+
+      return renderLearnerRecordImportWorkspace(
+        input.c,
+        input.tenantId,
+        input.sessionUserId,
+        input.membershipRole,
+        {
+          defaults: {
+            defaultTrustLevel: defaults.defaultTrustLevel,
+            defaultIssuerName,
+          },
+          submission: {
+            mode: "apply",
+            batchId: preview.batchId,
+            fileName: preview.fileName,
+            totalRows: reports.length,
+            validRows,
+            invalidRows,
+            queuedRows,
+            rows: reports,
+            queueForm: null,
+          },
+          feedback: {
+            tone: "success",
+            title: "Learner-record import batch queued",
+            detail: `Queued ${String(queuedRows)} valid rows from ${preview.fileName}. Invalid rows were kept out of the queue.`,
+          },
+        },
+      );
+    }
+
+    if (!contentType.includes("multipart/form-data")) {
+      return renderLearnerRecordImportWorkspace(
+        input.c,
+        input.tenantId,
+        input.sessionUserId,
+        input.membershipRole,
+        {
+          defaults: {
+            defaultTrustLevel: "issuer_verified",
+            defaultIssuerName: "",
+          },
+          submission: null,
+          feedback: {
+            tone: "warning",
+            title: "Upload requires CSV form data",
+            detail: 'Use multipart form upload with a file field named "file".',
+          },
+        },
+      );
+    }
+
     const upload = formData.get("file");
-    const csvPayloadBase64 = getOptionalFormValue(formData, "csvPayloadBase64");
-    const reviewedFileName = getOptionalFormValue(formData, "fileName");
     const defaultIssuerName = getOptionalFormValue(formData, "defaultIssuerName") ?? "";
     let defaults;
 
@@ -1271,39 +1482,10 @@ export const registerTenantGovernanceRoutes = (
     let fileName: string;
     let mimeType: string;
 
-    if (input.mode === "preview" && upload instanceof File && upload.size > 0) {
+    if (upload instanceof File && upload.size > 0) {
       fileContent = await upload.text();
       fileName = upload.name;
       mimeType = upload.type;
-    } else if (
-      input.mode === "apply" &&
-      csvPayloadBase64 !== undefined &&
-      csvPayloadBase64.length > 0
-    ) {
-      try {
-        fileContent = decodeTextFromHiddenForm(csvPayloadBase64);
-        fileName = reviewedFileName ?? "learner-records.csv";
-        mimeType = "text/csv";
-      } catch {
-        return renderLearnerRecordImportWorkspace(
-          input.c,
-          input.tenantId,
-          input.sessionUserId,
-          input.membershipRole,
-          {
-            defaults: {
-              defaultTrustLevel: defaults.defaultTrustLevel,
-              defaultIssuerName,
-            },
-            submission: null,
-            feedback: {
-              tone: "warning",
-              title: "Reviewed CSV could not be queued",
-              detail: "Preview the CSV again, then use the queue action shown under the preview.",
-            },
-          },
-        );
-      }
     } else {
       return renderLearnerRecordImportWorkspace(
         input.c,
@@ -1318,11 +1500,8 @@ export const registerTenantGovernanceRoutes = (
           submission: null,
           feedback: {
             tone: "warning",
-            title: input.mode === "apply" ? "Preview is required before queueing" : "CSV file is required",
-            detail:
-              input.mode === "apply"
-                ? "Preview the CSV first, then use the queue action shown under the preview."
-                : 'Attach a CSV file in the "file" field to preview learner-record imports.',
+            title: "CSV file is required",
+            detail: 'Attach a CSV file in the "file" field to preview learner-record imports.',
           },
         },
       );
@@ -1349,8 +1528,8 @@ export const registerTenantGovernanceRoutes = (
       );
     }
 
-    const db = resolveDatabase(input.c.env);
     let prepared;
+    const requestedAt = new Date().toISOString();
 
     try {
       prepared = await prepareLearnerRecordImportSubmission(db, {
@@ -1359,7 +1538,7 @@ export const registerTenantGovernanceRoutes = (
         mimeType,
         content: fileContent,
         defaults,
-        requestedAt: new Date().toISOString(),
+        requestedAt,
         requestedByUserId: input.sessionUserId,
       });
     } catch (error: unknown) {
@@ -1386,12 +1565,23 @@ export const registerTenantGovernanceRoutes = (
       );
     }
 
-    const queuedRows =
-      input.mode === "apply"
-        ? await enqueueLearnerRecordImportBatch(db, input.tenantId, prepared.queuePayloads)
-        : 0;
     const validRows = prepared.reports.filter((report) => report.status === "valid").length;
     const invalidRows = prepared.reports.length - validRows;
+
+    if (validRows > 0) {
+      await createLearnerRecordImportPreview(db, {
+        tenantId: input.tenantId,
+        batchId: prepared.batchId,
+        fileName: prepared.fileName,
+        format: prepared.format,
+        defaultsJson: JSON.stringify(prepared.defaults),
+        reportsJson: JSON.stringify(prepared.reports),
+        queuePayloadsJson: JSON.stringify(prepared.queuePayloads),
+        createdByUserId: input.sessionUserId,
+        createdAt: requestedAt,
+        expiresAt: addHoursToIso(requestedAt, LEARNER_RECORD_IMPORT_PREVIEW_TTL_HOURS),
+      });
+    }
 
     return renderLearnerRecordImportWorkspace(
       input.c,
@@ -1404,34 +1594,21 @@ export const registerTenantGovernanceRoutes = (
           defaultIssuerName,
         },
         submission: {
-          mode: input.mode,
+          mode: "preview",
           batchId: prepared.batchId,
           fileName: prepared.fileName,
           totalRows: prepared.reports.length,
           validRows,
           invalidRows,
-          queuedRows,
+          queuedRows: 0,
           rows: prepared.reports,
-          queueForm:
-            input.mode === "preview" && validRows > 0
-              ? {
-                  csvPayloadBase64: encodeTextForHiddenForm(fileContent),
-                  defaultTrustLevel: defaults.defaultTrustLevel,
-                  defaultIssuerName,
-                  fileName: prepared.fileName,
-                }
-              : null,
+          queueForm: validRows > 0 ? { batchId: prepared.batchId } : null,
         },
         feedback: {
-          tone: input.mode === "apply" ? "success" : "warning",
-          title:
-            input.mode === "apply"
-              ? "Learner-record import batch queued"
-              : "Learner-record import preview ready",
+          tone: "warning",
+          title: "Learner-record import preview ready",
           detail:
-            input.mode === "apply"
-              ? `Queued ${String(queuedRows)} valid rows from ${prepared.fileName}. Invalid rows were kept out of the queue.`
-              : "Review trust classification, smart defaults, and warnings below before queueing the import.",
+            "Review trust classification, smart defaults, and warnings below before queueing the import.",
         },
       },
     );
@@ -3159,6 +3336,10 @@ export const registerTenantGovernanceRoutes = (
           revokedAt: keyRecord.revokedAt,
           createdAt: keyRecord.createdAt,
         },
+        rowHtml: renderTenantApiKeyAdminTableRowToString({
+          tenantId: pathParams.tenantId,
+          apiKey: keyRecord,
+        }),
       },
       201,
     );
@@ -3249,7 +3430,9 @@ export const registerTenantGovernanceRoutes = (
     let request: ReturnType<typeof parseCreateTenantOrgUnitRequest>;
 
     try {
-      request = parseCreateTenantOrgUnitRequest(await c.req.json<unknown>());
+      request = parseCreateTenantOrgUnitRequest(
+        withDerivedOrgUnitSlug(await c.req.json<unknown>()),
+      );
     } catch {
       return c.json(
         {
