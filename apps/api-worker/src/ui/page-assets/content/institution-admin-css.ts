@@ -2193,6 +2193,14 @@ a.ct-admin__workspace-card:active {
 .ct-admin__add-disclosure-form--api-key.ct-grid {
   grid-template-columns: minmax(14rem, 1fr) minmax(18rem, 1.4fr) auto;
 }
+.ct-admin__add-disclosure-form--governance.ct-grid {
+  grid-template-columns: minmax(0, 44rem);
+  align-items: start;
+}
+.ct-admin__add-disclosure-form--issued-revoke.ct-grid {
+  grid-template-columns: minmax(12rem, 0.8fr) minmax(18rem, 1.4fr) auto;
+  align-items: end;
+}
 .ct-admin__add-disclosure-form--template-create.ct-grid {
   grid-template-columns: minmax(0, 44rem);
   align-items: start;
@@ -2250,7 +2258,8 @@ a.ct-admin__workspace-card:active {
   grid-template-columns: minmax(16rem, 1fr) auto;
 }
 .ct-admin__add-disclosure-form--org-unit.ct-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  grid-template-columns: minmax(0, 44rem);
+  align-items: start;
 }
 .ct-admin__add-disclosure-form .ct-admin__checkbox-row {
   min-height: 2.75rem;
@@ -3286,6 +3295,15 @@ a.ct-admin__workspace-card:active {
   line-height: 1.35;
   overflow: auto;
   max-height: 14rem;
+}
+.ct-admin__inline-action-panel {
+  padding: var(--ct-space-4);
+  border: 1px solid var(--ct-border-soft);
+  border-radius: var(--ct-radius-md);
+  background: var(--ct-theme-surface-raised);
+}
+.ct-admin__inline-action-panel[hidden] {
+  display: none;
 }
 .ct-admin__table-wrap {
   overflow: auto;

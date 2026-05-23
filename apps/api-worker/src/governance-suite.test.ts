@@ -157,6 +157,10 @@ describe("admin learner-record import route", () => {
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/operations/learner-record-imports/preview"',
     );
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/operations/learner-record-imports/apply"',
+    );
+    expect(body).toContain("Queue reviewed import");
     expect(body).not.toContain("/v1/tenants/tenant_123/learner-record-imports/csv");
   });
 });

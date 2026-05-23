@@ -152,6 +152,8 @@ export const INSTITUTION_ADMIN_JS = `
   const apiKeyForm = document.getElementById('api-key-form');
   const apiKeyStatus = document.getElementById('api-key-status');
   const apiKeySecret = document.getElementById('api-key-secret');
+  const apiKeyBody = document.getElementById('api-key-body');
+  const apiKeyActiveCount = document.getElementById('api-key-active-count');
   const orgUnitForm = document.getElementById('org-unit-form');
   const orgUnitStatus = document.getElementById('org-unit-status');
   const templateCreatePanel = document.getElementById('template-create-panel');
@@ -281,6 +283,12 @@ export const INSTITUTION_ADMIN_JS = `
   const issuedBadgesStatus = document.getElementById('issued-badges-status');
   const issuedBadgesBody = document.getElementById('issued-badges-body');
   const issuedBadgesActionStatus = document.getElementById('issued-badges-action-status');
+  const issuedBadgeLifecyclePanel = document.getElementById('issued-badge-lifecycle-panel');
+  const issuedBadgeLifecycleTitle = document.getElementById('issued-badge-lifecycle-title');
+  const issuedBadgeLifecycleClose = document.getElementById('issued-badge-lifecycle-close');
+  const issuedBadgeLifecycleStatus = document.getElementById('issued-badge-lifecycle-status');
+  const issuedBadgeLifecycleOutput = document.getElementById('issued-badge-lifecycle-output');
+  const issuedBadgeRevokeForm = document.getElementById('issued-badge-revoke-form');
   const reportingFiltersForm = document.getElementById('reporting-filters-form');
   const reportingFiltersStatus = document.getElementById('reporting-filters-status');
   const membershipScopeForm = document.getElementById('membership-scope-form');
@@ -369,6 +377,14 @@ export const INSTITUTION_ADMIN_JS = `
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#39;');
   };
+  const deriveUrlKey = (value) => {
+    return String(value)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .replace(/-{2,}/g, '-');
+  };
   const createAdminButtonElement = (className, label, attributes) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -393,6 +409,101 @@ export const INSTITUTION_ADMIN_JS = `
     }
 
     return new Date(parsed).toLocaleString();
+  };
+  const formatApiKeyScopes = (scopesJson) => {
+    if (typeof scopesJson !== 'string' || scopesJson.length === 0) {
+      return 'none';
+    }
+
+    try {
+      const parsed = JSON.parse(scopesJson);
+
+      if (!Array.isArray(parsed)) {
+        return scopesJson;
+      }
+
+      const scopes = parsed
+        .filter((scope) => typeof scope === 'string' && scope.trim().length > 0)
+        .map((scope) => scope.trim());
+
+      return scopes.length === 0 ? 'none' : scopes.join(', ');
+    } catch {
+      return scopesJson;
+    }
+  };
+  const updateApiKeyActiveCount = () => {
+    if (!(apiKeyBody instanceof HTMLElement) || !(apiKeyActiveCount instanceof HTMLElement)) {
+      return;
+    }
+
+    const activeRows = apiKeyBody.querySelectorAll('tr[data-api-key-id]').length;
+    apiKeyActiveCount.textContent = 'Active API Keys (' + activeRows + ')';
+  };
+  const ensureApiKeyEmptyState = () => {
+    if (!(apiKeyBody instanceof HTMLElement)) {
+      return;
+    }
+
+    if (apiKeyBody.querySelector('tr[data-api-key-id]') !== null) {
+      return;
+    }
+
+    apiKeyBody.innerHTML = '<tr><td colspan="5">No active API keys found.</td></tr>';
+  };
+  const insertApiKeyRow = (key) => {
+    if (!(apiKeyBody instanceof HTMLElement) || key === null || typeof key !== 'object') {
+      return;
+    }
+
+    const id = typeof key.id === 'string' ? key.id : '';
+    const label = typeof key.label === 'string' ? key.label : 'API key';
+    const keyPrefix = typeof key.keyPrefix === 'string' ? key.keyPrefix : 'n/a';
+    const scopesJson = typeof key.scopesJson === 'string' ? key.scopesJson : '';
+    const expiresAt =
+      key.expiresAt === null
+        ? 'Never'
+        : typeof key.expiresAt === 'string'
+          ? formatTimestamp(key.expiresAt)
+          : 'Never';
+
+    if (id.length === 0) {
+      return;
+    }
+
+    const existingRow = Array.from(apiKeyBody.querySelectorAll('tr[data-api-key-id]')).find(
+      (candidate) => candidate instanceof HTMLElement && candidate.dataset.apiKeyId === id,
+    );
+    if (existingRow !== null) {
+      existingRow.remove();
+    }
+
+    apiKeyBody.querySelectorAll('td[colspan]').forEach((cell) => {
+      const row = cell.closest('tr');
+
+      if (row !== null) {
+        row.remove();
+      }
+    });
+
+    const row = document.createElement('tr');
+    row.dataset.apiKeyId = id;
+    row.innerHTML =
+      '<td>' +
+      escapeHtml(label) +
+      '</td><td>' +
+      escapeHtml(keyPrefix) +
+      '</td><td>' +
+      escapeHtml(formatApiKeyScopes(scopesJson)) +
+      '</td><td>' +
+      escapeHtml(expiresAt) +
+      '</td><td><button type="button" class="ct-admin__button ct-admin__button--danger" data-revoke-api-key-path="' +
+      escapeHtml(createApiKeyPath + '/' + encodeURIComponent(id) + '/revoke') +
+      '" data-api-key-label="' +
+      escapeHtml(label) +
+      '">Revoke</button></td>';
+
+    apiKeyBody.prepend(row);
+    updateApiKeyActiveCount();
   };
   ${INSTITUTION_ADMIN_BADGE_TEMPLATE_JS}
   const parseIssuedBadgesLimit = (rawValue) => {
@@ -922,7 +1033,11 @@ export const INSTITUTION_ADMIN_JS = `
     }
   }
 
-  const loadAssertionLifecycle = async (assertionId, statusElement) => {
+  const loadAssertionLifecycle = async (
+    assertionId,
+    statusElement,
+    outputElement = assertionLifecycleOutput,
+  ) => {
     const normalizedAssertionId =
       typeof assertionId === 'string' ? assertionId.trim() : '';
 
@@ -938,7 +1053,7 @@ export const INSTITUTION_ADMIN_JS = `
       setStatus(statusElement, 'Loading lifecycle state...', false);
     }
 
-    setCodeOutput(assertionLifecycleOutput, '');
+    setCodeOutput(outputElement, '');
 
     try {
       const response = await fetch(
@@ -972,12 +1087,89 @@ export const INSTITUTION_ADMIN_JS = `
         );
       }
 
-      setCodeOutput(assertionLifecycleOutput, JSON.stringify(payload, null, 2));
+      setCodeOutput(outputElement, JSON.stringify(payload, null, 2));
       fillLifecycleAssertionIdInputs(normalizedAssertionId);
       return payload;
     } catch {
       if (statusElement instanceof HTMLElement) {
         setStatus(statusElement, 'Unable to load lifecycle state from this browser session.', true);
+      }
+
+      return null;
+    }
+  };
+  const transitionAssertionLifecycle = async ({
+    assertionId,
+    toState,
+    reasonCode,
+    reason,
+    statusElement,
+  }) => {
+    const normalizedAssertionId = typeof assertionId === 'string' ? assertionId.trim() : '';
+    const normalizedToState = typeof toState === 'string' ? toState.trim() : '';
+    const normalizedReasonCode = typeof reasonCode === 'string' ? reasonCode.trim() : '';
+    const normalizedReason = typeof reason === 'string' ? reason.trim() : '';
+
+    if (
+      normalizedAssertionId.length === 0 ||
+      normalizedToState.length === 0 ||
+      normalizedReasonCode.length === 0
+    ) {
+      if (statusElement instanceof HTMLElement) {
+        setStatus(statusElement, 'Assertion, target state, and reason code are required.', true);
+      }
+
+      return null;
+    }
+
+    if (statusElement instanceof HTMLElement) {
+      setStatus(statusElement, 'Applying lifecycle transition...', false);
+    }
+
+    try {
+      const response = await fetch(
+        assertionsApiPathPrefix +
+          '/' +
+          encodeURIComponent(normalizedAssertionId) +
+          '/lifecycle/transition',
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            toState: normalizedToState,
+            reasonCode: normalizedReasonCode,
+            ...(normalizedReason.length > 0 ? { reason: normalizedReason } : {}),
+          }),
+        },
+      );
+      const payload = await parseJsonBody(response);
+
+      if (!response.ok) {
+        if (statusElement instanceof HTMLElement) {
+          setStatus(statusElement, errorDetailFromPayload(payload), true);
+        }
+
+        return null;
+      }
+
+      const status = payload && typeof payload.status === 'string' ? payload.status : 'updated';
+      const currentState =
+        payload && typeof payload.currentState === 'string' ? payload.currentState : normalizedToState;
+
+      if (statusElement instanceof HTMLElement) {
+        setStatus(
+          statusElement,
+          'Lifecycle transition result: status=' + status + ', currentState=' + currentState + '.',
+          false,
+        );
+      }
+
+      return payload;
+    } catch {
+      if (statusElement instanceof HTMLElement) {
+        setStatus(statusElement, 'Unable to apply lifecycle transition from this browser session.', true);
       }
 
       return null;
@@ -1134,9 +1326,6 @@ export const INSTITUTION_ADMIN_JS = `
             ? ''
             : ' Open /badges/' + assertionId + ' (redirects to canonical URL).';
         setStatus(manualIssueStatus, 'Badge issued for ' + recipientIdentity + '.' + link, false);
-        setTimeout(() => {
-          window.location.assign(tenantAdminPath);
-        }, 900);
       } catch {
         setStatus(manualIssueStatus, 'Unable to issue badge from this browser session.', true);
       }
@@ -1190,16 +1379,17 @@ export const INSTITUTION_ADMIN_JS = `
         }
 
         const apiKey = payload && typeof payload.apiKey === 'string' ? payload.apiKey : null;
+        const key =
+          payload && payload.key !== null && typeof payload.key === 'object' ? payload.key : null;
 
         if (apiKey !== null) {
           apiKeySecret.hidden = false;
           apiKeySecret.textContent = 'Store this now. It is shown once:\\n\\n' + apiKey;
         }
 
-        setStatus(apiKeyStatus, 'API key created.', false);
-        setTimeout(() => {
-          window.location.assign(tenantAdminPath);
-        }, 900);
+        insertApiKeyRow(key);
+        apiKeyForm.reset();
+        setStatus(apiKeyStatus, 'API key created. Store the secret before closing this form.', false);
       } catch {
         setStatus(apiKeyStatus, 'Unable to create API key from this browser session.', true);
       }
@@ -1555,17 +1745,16 @@ export const INSTITUTION_ADMIN_JS = `
       setStatus(orgUnitStatus, 'Creating org unit...', false);
       const data = new FormData(orgUnitForm);
       const unitTypeRaw = data.get('unitType');
-      const slugRaw = data.get('slug');
       const displayNameRaw = data.get('displayName');
       const parentOrgUnitIdRaw = data.get('parentOrgUnitId');
       const unitType = typeof unitTypeRaw === 'string' ? unitTypeRaw.trim() : '';
-      const slug = typeof slugRaw === 'string' ? slugRaw.trim() : '';
       const displayName = typeof displayNameRaw === 'string' ? displayNameRaw.trim() : '';
+      const slug = deriveUrlKey(displayName);
       const parentOrgUnitId =
         typeof parentOrgUnitIdRaw === 'string' ? parentOrgUnitIdRaw.trim() : '';
 
       if (unitType.length === 0 || slug.length === 0 || displayName.length === 0) {
-        setStatus(orgUnitStatus, 'Unit type, ID, and display name are required.', true);
+        setStatus(orgUnitStatus, 'Unit type and display name are required.', true);
         return;
       }
 
@@ -1853,7 +2042,7 @@ export const INSTITUTION_ADMIN_JS = `
       if (userId.length === 0 || orgUnitId.length === 0 || role.length === 0) {
         setStatus(
           membershipScopeStatus,
-          'Tenant member user ID, org unit, and scoped role are required.',
+          'Tenant member, org unit, and scoped role are required.',
           true,
         );
         return;
@@ -1993,7 +2182,7 @@ export const INSTITUTION_ADMIN_JS = `
         .filter((value) => value.length > 0);
 
       if (delegateUserId.length === 0 || orgUnitId.length === 0) {
-        setStatus(delegatedGrantStatus, 'Delegate user ID and org unit are required.', true);
+        setStatus(delegatedGrantStatus, 'Delegate and org unit are required.', true);
         return;
       }
 
@@ -2162,66 +2351,18 @@ export const INSTITUTION_ADMIN_JS = `
   ) {
     assertionLifecycleTransitionForm.addEventListener('submit', async (event) => {
       event.preventDefault();
-      setStatus(assertionLifecycleTransitionStatus, 'Applying lifecycle transition...', false);
       const data = new FormData(assertionLifecycleTransitionForm);
       const assertionIdRaw = data.get('assertionId');
       const toStateRaw = data.get('toState');
       const reasonCodeRaw = data.get('reasonCode');
       const reasonRaw = data.get('reason');
-      const assertionId = typeof assertionIdRaw === 'string' ? assertionIdRaw.trim() : '';
-      const toState = typeof toStateRaw === 'string' ? toStateRaw.trim() : '';
-      const reasonCode = typeof reasonCodeRaw === 'string' ? reasonCodeRaw.trim() : '';
-      const reason = typeof reasonRaw === 'string' ? reasonRaw.trim() : '';
-
-      if (assertionId.length === 0 || toState.length === 0 || reasonCode.length === 0) {
-        setStatus(
-          assertionLifecycleTransitionStatus,
-          'Assertion ID, target state, and reason code are required.',
-          true,
-        );
-        return;
-      }
-
-      try {
-        const response = await fetch(
-          assertionsApiPathPrefix +
-            '/' +
-            encodeURIComponent(assertionId) +
-            '/lifecycle/transition',
-          {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-              toState,
-              reasonCode,
-              ...(reason.length > 0 ? { reason } : {}),
-            }),
-          },
-        );
-        const payload = await parseJsonBody(response);
-
-        if (!response.ok) {
-          setStatus(assertionLifecycleTransitionStatus, errorDetailFromPayload(payload), true);
-          return;
-        }
-
-        const status = payload && typeof payload.status === 'string' ? payload.status : 'updated';
-        const currentState =
-          payload && typeof payload.currentState === 'string' ? payload.currentState : toState;
-        setStatus(
-          assertionLifecycleTransitionStatus,
-          'Lifecycle transition result: status=' + status + ', currentState=' + currentState + '.',
-          false,
-        );
-      } catch {
-        setStatus(
-          assertionLifecycleTransitionStatus,
-          'Unable to apply lifecycle transition from this browser session.',
-          true,
-        );
-      }
+      await transitionAssertionLifecycle({
+        assertionId: assertionIdRaw,
+        toState: toStateRaw,
+        reasonCode: reasonCodeRaw,
+        reason: reasonRaw,
+        statusElement: assertionLifecycleTransitionStatus,
+      });
     });
   }
 
@@ -2304,59 +2445,89 @@ export const INSTITUTION_ADMIN_JS = `
       });
     };
 
-    const revokeAssertion = async (assertionId) => {
-      const reasonPrompt = window.prompt(
-        'Optional revocation reason for ' + assertionId + ':',
-        'Institution admin revocation',
-      );
-
-      if (reasonPrompt === null) {
-        return;
+    const openIssuedBadgeLifecyclePanel = (assertionId, mode) => {
+      if (!(issuedBadgeLifecyclePanel instanceof HTMLElement)) {
+        return false;
       }
 
-      setStatus(issuedBadgesActionStatus, 'Revoking assertion ' + assertionId + '...', false);
+      issuedBadgeLifecyclePanel.hidden = false;
 
-      try {
-        const response = await fetch(
-          assertionsApiPathPrefix +
-            '/' +
-            encodeURIComponent(assertionId) +
-            '/lifecycle/transition',
-          {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-              toState: 'revoked',
-              reasonCode: 'issuer_requested',
-              ...(reasonPrompt.trim().length > 0 ? { reason: reasonPrompt.trim() } : {}),
-            }),
-          },
-        );
-        const payload = await parseJsonBody(response);
+      if (issuedBadgeLifecycleTitle instanceof HTMLElement) {
+        issuedBadgeLifecycleTitle.textContent =
+          mode === 'revoke'
+            ? 'Review revocation for ' + assertionId
+            : 'Lifecycle audit for ' + assertionId;
+      }
 
-        if (!response.ok) {
-          setStatus(issuedBadgesActionStatus, errorDetailFromPayload(payload), true);
-          return;
+      if (issuedBadgeRevokeForm instanceof HTMLFormElement) {
+        issuedBadgeRevokeForm.reset();
+        issuedBadgeRevokeForm.hidden = mode !== 'revoke';
+
+        const assertionInput = issuedBadgeRevokeForm.elements.namedItem('assertionId');
+
+        if (assertionInput instanceof HTMLInputElement) {
+          assertionInput.value = assertionId;
         }
+      }
 
-        setStatus(issuedBadgesActionStatus, 'Assertion revoked: ' + assertionId + '.', false);
-        await loadAssertionLifecycle(assertionId, assertionLifecycleViewStatus);
-        await loadIssuedBadges();
-      } catch {
+      if (issuedBadgeLifecycleStatus instanceof HTMLElement) {
         setStatus(
-          issuedBadgesActionStatus,
-          'Unable to revoke assertion from this browser session.',
-          true,
+          issuedBadgeLifecycleStatus,
+          mode === 'revoke'
+            ? 'Review lifecycle state, enter a reason, then revoke the badge.'
+            : 'Loading lifecycle audit...',
+          false,
+          mode === 'revoke' ? 'warning' : 'info',
         );
       }
+
+      setCodeOutput(issuedBadgeLifecycleOutput, '');
+      issuedBadgeLifecyclePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return true;
     };
 
     issuedBadgesFilterForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       await loadIssuedBadges();
     });
+
+    if (issuedBadgeLifecycleClose instanceof HTMLButtonElement) {
+      issuedBadgeLifecycleClose.addEventListener('click', () => {
+        if (issuedBadgeLifecyclePanel instanceof HTMLElement) {
+          issuedBadgeLifecyclePanel.hidden = true;
+        }
+      });
+    }
+
+    if (
+      issuedBadgeRevokeForm instanceof HTMLFormElement &&
+      issuedBadgeLifecycleStatus instanceof HTMLElement
+    ) {
+      issuedBadgeRevokeForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const data = new FormData(issuedBadgeRevokeForm);
+        const assertionIdRaw = data.get('assertionId');
+        const reasonCodeRaw = data.get('reasonCode');
+        const reasonRaw = data.get('reason');
+        const assertionId = typeof assertionIdRaw === 'string' ? assertionIdRaw.trim() : '';
+        const result = await transitionAssertionLifecycle({
+          assertionId,
+          toState: 'revoked',
+          reasonCode: reasonCodeRaw,
+          reason: reasonRaw,
+          statusElement: issuedBadgeLifecycleStatus,
+        });
+
+        if (result === null) {
+          return;
+        }
+
+        issuedBadgeRevokeForm.hidden = true;
+        setStatus(issuedBadgesActionStatus, 'Assertion revoked: ' + assertionId + '.', false);
+        await loadAssertionLifecycle(assertionId, issuedBadgeLifecycleStatus, issuedBadgeLifecycleOutput);
+        await loadIssuedBadges();
+      });
+    }
 
     document.addEventListener('click', (event) => {
       if (!(event.target instanceof Node)) {
@@ -2425,9 +2596,11 @@ export const INSTITUTION_ADMIN_JS = `
 
       if (action === 'audit') {
         setStatus(issuedBadgesActionStatus, 'Loading lifecycle audit for ' + assertionId + '...', false);
+        openIssuedBadgeLifecyclePanel(assertionId, 'audit');
         const lifecyclePayload = await loadAssertionLifecycle(
           assertionId,
-          assertionLifecycleViewStatus,
+          issuedBadgeLifecycleStatus,
+          issuedBadgeLifecycleOutput,
         );
 
         if (lifecyclePayload === null) {
@@ -2436,25 +2609,13 @@ export const INSTITUTION_ADMIN_JS = `
         }
 
         setStatus(issuedBadgesActionStatus, 'Lifecycle audit loaded for ' + assertionId + '.', false);
-        const lifecyclePanel = document.getElementById('lifecycle-panel');
-
-        if (lifecyclePanel instanceof HTMLElement) {
-          lifecyclePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
         return;
       }
 
       if (action === 'revoke') {
-        if (
-          !window.confirm(
-            'Revoke assertion "' + assertionId + '"? This changes credential lifecycle state.',
-          )
-        ) {
-          return;
-        }
-
-        await revokeAssertion(assertionId);
+        setStatus(issuedBadgesActionStatus, 'Review revocation details for ' + assertionId + '.', false);
+        openIssuedBadgeLifecyclePanel(assertionId, 'revoke');
+        await loadAssertionLifecycle(assertionId, issuedBadgeLifecycleStatus, issuedBadgeLifecycleOutput);
       }
     });
 
@@ -6438,59 +6599,70 @@ export const INSTITUTION_ADMIN_JS = `
   }
 
   if (apiKeyRevokeStatus instanceof HTMLElement) {
-    document
-      .querySelectorAll('button[data-revoke-api-key-path]')
-      .forEach((candidate) => {
-        if (!(candidate instanceof HTMLButtonElement)) {
+    document.addEventListener('click', async (event) => {
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const candidate = target.closest('button[data-revoke-api-key-path]');
+
+      if (!(candidate instanceof HTMLButtonElement)) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const revokePath = candidate.dataset.revokeApiKeyPath;
+      const label = candidate.dataset.apiKeyLabel ?? 'API key';
+
+      if (typeof revokePath !== 'string' || revokePath.length === 0) {
+        setStatus(apiKeyRevokeStatus, 'Missing revoke path for selected key.', true);
+        return;
+      }
+
+      if (!window.confirm('Revoke key "' + label + '"? This action cannot be undone.')) {
+        return;
+      }
+
+      candidate.disabled = true;
+      setStatus(apiKeyRevokeStatus, 'Revoking API key...', false);
+
+      try {
+        const response = await fetch(revokePath, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        });
+        const payload = await parseJsonBody(response);
+
+        if (!response.ok) {
+          setStatus(apiKeyRevokeStatus, errorDetailFromPayload(payload), true);
+          candidate.disabled = false;
           return;
         }
 
-        candidate.addEventListener('click', async () => {
-          const revokePath = candidate.dataset.revokeApiKeyPath;
-          const label = candidate.dataset.apiKeyLabel ?? 'API key';
+        const row = candidate.closest('tr[data-api-key-id]');
 
-          if (typeof revokePath !== 'string' || revokePath.length === 0) {
-            setStatus(apiKeyRevokeStatus, 'Missing revoke path for selected key.', true);
-            return;
-          }
+        if (row !== null) {
+          row.remove();
+        }
 
-          if (!window.confirm('Revoke key "' + label + '"? This action cannot be undone.')) {
-            return;
-          }
-
-          candidate.disabled = true;
-          setStatus(apiKeyRevokeStatus, 'Revoking API key...', false);
-
-          try {
-            const response = await fetch(revokePath, {
-              method: 'POST',
-              headers: {
-                'content-type': 'application/json',
-              },
-              body: JSON.stringify({}),
-            });
-            const payload = await parseJsonBody(response);
-
-            if (!response.ok) {
-              setStatus(apiKeyRevokeStatus, errorDetailFromPayload(payload), true);
-              candidate.disabled = false;
-              return;
-            }
-
-            setStatus(apiKeyRevokeStatus, 'API key revoked.', false);
-            setTimeout(() => {
-              window.location.assign(tenantAdminPath);
-            }, 700);
-          } catch {
-            setStatus(
-              apiKeyRevokeStatus,
-              'Unable to revoke API key from this browser session.',
-              true,
-            );
-            candidate.disabled = false;
-          }
-        });
-      });
+        updateApiKeyActiveCount();
+        ensureApiKeyEmptyState();
+        setStatus(apiKeyRevokeStatus, 'API key revoked.', false);
+      } catch {
+        setStatus(
+          apiKeyRevokeStatus,
+          'Unable to revoke API key from this browser session.',
+          true,
+        );
+        candidate.disabled = false;
+      }
+    });
   }
 
   if (reportingFiltersForm instanceof HTMLFormElement) {

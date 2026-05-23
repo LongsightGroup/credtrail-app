@@ -303,6 +303,12 @@ interface InstitutionAdminLearnerRecordImportWorkflow {
     invalidRows: number;
     queuedRows: number;
     rows: readonly LearnerRecordImportRowReport[];
+    queueForm: {
+      csvPayloadBase64: string;
+      defaultTrustLevel: LearnerRecordTrustLevel;
+      defaultIssuerName: string;
+      fileName: string;
+    } | null;
   } | null;
   feedback: {
     tone: "success" | "warning";
@@ -893,7 +899,7 @@ const renderInstitutionAdminPage = (
         )}/api-keys/${encodeURIComponent(apiKey.id)}/revoke`;
 
         return (
-          <tr>
+          <tr data-api-key-id={apiKey.id}>
             <td>{apiKey.label}</td>
             <td>{apiKey.keyPrefix}</td>
             <td>{formatScopesSummary(apiKey.scopesJson)}</td>
@@ -1249,6 +1255,13 @@ const renderInstitutionAdminPage = (
     .map((orgUnit) => {
       return <option value={orgUnit.id}>{`${orgUnit.displayName} (${orgUnit.unitType})`}</option>;
     });
+  const tenantMemberOptions = input.tenantMembers.map((member) => {
+    return (
+      <option value={member.userId}>
+        {`${member.email} (${member.role})`}
+      </option>
+    );
+  });
   const templateOptions = input.badgeTemplates.map((template, index) => {
     return (
       <option value={template.id} selected={index === 0}>
@@ -1296,6 +1309,20 @@ const renderInstitutionAdminPage = (
     ) : (
       <option value="">No active org units available</option>
     );
+  const tenantMemberSelectOptions =
+    tenantMemberOptions.length > 0 ? (
+      tenantMemberOptions
+    ) : (
+      <option value="">No tenant members available</option>
+    );
+  const optionalBadgeTemplateScopeOptions = (
+    <>
+      <option value="">All badge templates in the selected scope</option>
+      {input.badgeTemplates.map((template) => (
+        <option value={template.id}>{template.title}</option>
+      ))}
+    </>
+  );
   const ruleSelectOptions =
     ruleOptions.length > 0 ? ruleOptions : <option value="">No rules available</option>;
   const reportingState = reportingOverview?.filters.state ?? null;
@@ -3570,6 +3597,10 @@ const renderInstitutionAdminPage = (
         id="org-unit-form"
         className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--org-unit ct-grid"
       >
+        <input name="slug" type="hidden" />
+        <AdminField label="Display name">
+          <input name="displayName" type="text" required placeholder="College of Engineering" />
+        </AdminField>
         <AdminField label="Unit type">
           <select name="unitType" required>
             <option value="college">College</option>
@@ -3578,18 +3609,15 @@ const renderInstitutionAdminPage = (
             <option value="institution">Institution</option>
           </select>
         </AdminField>
-        <AdminField label="ID">
-          <input name="slug" type="text" required placeholder="engineering-college" />
-        </AdminField>
-        <AdminField label="Display name">
-          <input name="displayName" type="text" required placeholder="College of Engineering" />
-        </AdminField>
         <AdminField label="Parent org unit">
           <select name="parentOrgUnitId">
             <option value="">None</option>
             {orgUnitParentOptions}
           </select>
         </AdminField>
+        <p class="ct-admin__hint">
+          CredTrail creates the internal org key from the display name.
+        </p>
         <AdminButton type="submit">Create org unit</AdminButton>
       </AdminForm>
       <AdminStatus id="org-unit-status"></AdminStatus>
@@ -3604,14 +3632,15 @@ const renderInstitutionAdminPage = (
         Choosing a parent org unit also covers the child units beneath it.
       </p>
       <p class="ct-admin__hint">
-        The user ID on this page belongs to the person receiving access. This workflow does not
-        create tenant membership, so the person must already exist in this tenant.
+        The selected member receives the access. This workflow does not create tenant membership,
+        so the person must already exist in this tenant.
       </p>
       <ul>
         <li>Use a scoped role for standing access inside an org unit.</li>
         <li>Use delegated authority for temporary badge actions with an end date.</li>
         <li>
-          Leave badge template IDs blank when the delegation should cover every template in scope.
+          Leave the badge template limit blank when the delegation should cover every template in
+          scope.
         </li>
       </ul>
     </AdminPanel>
@@ -3710,15 +3739,25 @@ const renderInstitutionAdminPage = (
   );
 
   const membershipScopePanelMarkup = (
-    <AdminPanel>
-      <h2>Scoped Roles</h2>
-      <p>Assign the smallest org-unit role that matches the person’s ongoing responsibilities.</p>
-      <AdminForm id="membership-scope-form">
-        <AdminField label="Tenant member user ID">
-          <input name="userId" type="text" required placeholder="usr_issuer" />
+    <details id="membership-scope-panel" class="ct-admin__panel ct-admin__add-disclosure">
+      <summary class="ct-admin__add-disclosure-summary">
+        <span>
+          <strong>Add scoped role</strong>
+          <small>Assign standing access to one org unit.</small>
+        </span>
+        {addDisclosureControlMarkup}
+      </summary>
+      <AdminForm
+        id="membership-scope-form"
+        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--governance ct-grid"
+      >
+        <AdminField label="Tenant member">
+          <select name="userId" required>
+            {tenantMemberSelectOptions}
+          </select>
         </AdminField>
         <p class="ct-admin__hint">
-          This is the person receiving access. They must already belong to this tenant.
+          Choose the person receiving access. They must already belong to this tenant.
         </p>
         <AdminField label="Org unit">
           <select name="orgUnitId" required>
@@ -3747,7 +3786,7 @@ const renderInstitutionAdminPage = (
         <AdminButton type="submit">Save scoped role</AdminButton>
       </AdminForm>
       <AdminStatus id="membership-scope-status"></AdminStatus>
-    </AdminPanel>
+    </details>
   );
 
   const membershipScopeTableMarkup = (
@@ -3765,14 +3804,24 @@ const renderInstitutionAdminPage = (
   );
 
   const delegatedGrantPanelMarkup = (
-    <AdminPanel>
-      <h2>Delegated Authority</h2>
-      <p>Grant time-boxed badge authority without changing the person’s standing org-unit role.</p>
-      <AdminForm id="delegated-grant-form">
-        <AdminField label="Delegate user ID">
-          <input name="delegateUserId" type="text" required placeholder="usr_issuer" />
+    <details id="delegated-grant-panel" class="ct-admin__panel ct-admin__add-disclosure">
+      <summary class="ct-admin__add-disclosure-summary">
+        <span>
+          <strong>Add delegated authority</strong>
+          <small>Grant temporary badge authority without changing standing access.</small>
+        </span>
+        {addDisclosureControlMarkup}
+      </summary>
+      <AdminForm
+        id="delegated-grant-form"
+        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--governance ct-grid"
+      >
+        <AdminField label="Delegate">
+          <select name="delegateUserId" required>
+            {tenantMemberSelectOptions}
+          </select>
         </AdminField>
-        <p class="ct-admin__hint">This is the tenant member receiving the delegation.</p>
+        <p class="ct-admin__hint">Choose the tenant member receiving the delegation.</p>
         <AdminField label="Org unit">
           <select name="orgUnitId" required>
             {activeOrgUnitSelectOptions}
@@ -3796,12 +3845,8 @@ const renderInstitutionAdminPage = (
           “Change badge status” covers non-revocation lifecycle changes such as suspend, expire, or
           restore.
         </p>
-        <AdminField label="Limit to badge template IDs (optional)">
-          <input
-            name="badgeTemplateIds"
-            type="text"
-            placeholder="badge_template_001,badge_template_002"
-          />
+        <AdminField label="Limit to badge template (optional)">
+          <select name="badgeTemplateIds">{optionalBadgeTemplateScopeOptions}</select>
         </AdminField>
         <p class="ct-admin__hint">
           Leave blank to allow all badge templates inside the selected org-unit scope.
@@ -3818,7 +3863,7 @@ const renderInstitutionAdminPage = (
         <AdminButton type="submit">Save delegation</AdminButton>
       </AdminForm>
       <AdminStatus id="delegated-grant-status"></AdminStatus>
-    </AdminPanel>
+    </details>
   );
 
   const delegatedGrantTableMarkup = (
@@ -4105,6 +4150,47 @@ const renderInstitutionAdminPage = (
         </p>
       </AdminPanel>
       <AdminStatus id="issued-badges-status">Load tenant assertions from the browser.</AdminStatus>
+      <section id="issued-badge-lifecycle-panel" class="ct-admin__inline-action-panel ct-stack" hidden>
+        <div class="ct-cluster">
+          <h3 id="issued-badge-lifecycle-title">Selected badge lifecycle</h3>
+          <AdminButton
+            id="issued-badge-lifecycle-close"
+            type="button"
+            size="tiny"
+            variant="secondary"
+          >
+            Close
+          </AdminButton>
+        </div>
+        <AdminStatus id="issued-badge-lifecycle-status"></AdminStatus>
+        <pre id="issued-badge-lifecycle-output" class="ct-admin__code-output" hidden></pre>
+        <AdminForm
+          id="issued-badge-revoke-form"
+          className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--issued-revoke ct-grid"
+          hidden
+        >
+          <input name="assertionId" type="hidden" />
+          <AdminField label="Reason code">
+            <select name="reasonCode" required>
+              <option value="issuer_requested">issuer requested</option>
+              <option value="administrative_hold">administrative hold</option>
+              <option value="policy_violation">policy violation</option>
+              <option value="appeal_pending">appeal pending</option>
+              <option value="other">other</option>
+            </select>
+          </AdminField>
+          <AdminField label="Reason details">
+            <input
+              name="reason"
+              type="text"
+              placeholder="Explain why this badge should be revoked."
+            />
+          </AdminField>
+          <AdminButton type="submit" variant="danger">
+            Revoke badge
+          </AdminButton>
+        </AdminForm>
+      </section>
       <AdminTable
         headers={["Issued", "Recipient", "Template", "State", "Assertion", "Actions"]}
         tbodyId="issued-badges-body"
@@ -4831,9 +4917,9 @@ const renderInstitutionAdminPage = (
 
   const apiKeysTableMarkup = (
     <AdminPanel variant="table" className="ct-admin__api-keys-table">
-      <h2>Active API Keys ({activeApiKeyCount})</h2>
+      <h2 id="api-key-active-count">Active API Keys ({activeApiKeyCount})</h2>
       <p>Revoked keys: {revokedApiKeyCount}</p>
-      <AdminTable headers={["Label", "Prefix", "Scopes", "Expires", "Action"]}>
+      <AdminTable headers={["Label", "Prefix", "Scopes", "Expires", "Action"]} tbodyId="api-key-body">
         {apiKeyRows}
       </AdminTable>
       <AdminStatus id="api-key-revoke-status"></AdminStatus>
@@ -5163,6 +5249,42 @@ const renderInstitutionAdminPage = (
             </p>
           </AdminMetricCard>
         </section>
+        {learnerRecordImportWorkflow.submission.queueForm === null ? (
+          learnerRecordImportWorkflow.submission.mode === "preview" ? (
+            <p class="ct-admin__hint">No valid rows are ready to queue from this preview.</p>
+          ) : null
+        ) : (
+          <AdminForm
+            method="post"
+            encType="multipart/form-data"
+            action={learnerRecordImportWorkflow.applyPath}
+            className="ct-admin__form ct-admin__review-action-form"
+          >
+            <input
+              type="hidden"
+              name="csvPayloadBase64"
+              value={learnerRecordImportWorkflow.submission.queueForm.csvPayloadBase64}
+            />
+            <input
+              type="hidden"
+              name="fileName"
+              value={learnerRecordImportWorkflow.submission.queueForm.fileName}
+            />
+            <input
+              type="hidden"
+              name="defaultTrustLevel"
+              value={learnerRecordImportWorkflow.submission.queueForm.defaultTrustLevel}
+            />
+            <input
+              type="hidden"
+              name="defaultIssuerName"
+              value={learnerRecordImportWorkflow.submission.queueForm.defaultIssuerName}
+            />
+            <div class="ct-admin__workspace-actions">
+              <AdminButton type="submit">Queue reviewed import</AdminButton>
+            </div>
+          </AdminForm>
+        )}
         <AdminTable
           headers={["Row", "Status", "Learner and record", "Trust", "Smart defaults", "Notes"]}
           wrapperClassName="ct-admin__table-shell"
@@ -5308,9 +5430,6 @@ const renderInstitutionAdminPage = (
         </p>
         <div class="ct-admin__workspace-actions">
           <AdminButton type="submit">Preview import</AdminButton>
-          <AdminButton type="submit" formAction={learnerRecordImportWorkflow.applyPath}>
-            Queue import
-          </AdminButton>
         </div>
       </AdminForm>
     </AdminPanel>
@@ -5573,7 +5692,7 @@ const renderInstitutionAdminPage = (
               "Governance Delegation",
               "Grant org-unit access and time-boxed badge authority with direct removal from the current assignments list.",
               <aside class="ct-admin-page-header__note">
-                <h2>Choose The Smallest Access</h2>
+                <h2>Choose the smallest access</h2>
                 <p>
                   Use scoped roles for standing access. Use delegated authority when someone only
                   needs temporary badge operations.
@@ -5582,10 +5701,10 @@ const renderInstitutionAdminPage = (
             )}
             <section class="ct-admin ct-stack">
               {governanceGuidePanelMarkup}
-              {membershipScopePanelMarkup}
               {membershipScopeTableMarkup}
-              {delegatedGrantPanelMarkup}
+              {membershipScopePanelMarkup}
               {delegatedGrantTableMarkup}
+              {delegatedGrantPanelMarkup}
             </section>
           </>
         );

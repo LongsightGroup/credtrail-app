@@ -623,6 +623,7 @@ export const AdminForm = ({
   encType,
   className = "ct-admin__form ct-stack",
   dataAttributes,
+  hidden,
   children,
 }: PropsWithChildren<{
   id?: string;
@@ -631,6 +632,7 @@ export const AdminForm = ({
   encType?: "multipart/form-data";
   className?: string;
   dataAttributes?: DataAttributes;
+  hidden?: boolean;
 }>): HonoElement => {
   return (
     <form
@@ -639,6 +641,7 @@ export const AdminForm = ({
       action={action}
       enctype={encType}
       class={className}
+      hidden={hidden}
       {...(dataAttributes ?? {})}
     >
       {children}

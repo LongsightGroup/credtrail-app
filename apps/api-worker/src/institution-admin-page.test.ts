@@ -162,8 +162,9 @@ const mockedGetTenantReportingTrendsDb = vi.mocked(getTenantReportingTrends);
 const mockedListLearnerRecordAssertionExportsDb = vi.mocked(listLearnerRecordAssertionExports);
 const mockedListLearnerRecordEntriesDb = vi.mocked(listLearnerRecordEntries);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
+const fakeDbPrepare = vi.fn();
 const fakeDb = {
-  prepare: vi.fn(),
+  prepare: fakeDbPrepare,
 } as unknown as SqlDatabase;
 
 const createEnv = (): {
@@ -413,6 +414,7 @@ const getReportingPanelArticleMarkup = (html: string, heading: string): string =
 };
 
 beforeEach(() => {
+  fakeDbPrepare.mockReset();
   mockedCreatePostgresDatabase.mockReset();
   mockedCreatePostgresDatabase.mockReturnValue(fakeDb);
   mockedFindTenantMembership.mockReset();
@@ -1206,9 +1208,10 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/operations/learner-record-imports/preview"',
     );
-    expect(body).toContain(
+    expect(body).not.toContain(
       'formaction="/tenants/tenant_123/admin/operations/learner-record-imports/apply"',
     );
+    expect(body).not.toContain("Queue import");
     expect(body).toContain("Current import progress");
     expect(body).toContain("No learner-record import batches have been queued");
   });
@@ -1254,6 +1257,84 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
       "Review trust classification, smart defaults, and warnings below before queueing the import.",
     );
     expect(body).toContain('data-learner-record-import-state="preview"');
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/operations/learner-record-imports/apply"',
+    );
+    expect(body).toContain('name="csvPayloadBase64"');
+    expect(body).toContain("Queue reviewed import");
+  });
+
+  it("queues learner-record imports only from the reviewed preview payload", async () => {
+    const env = createEnv();
+    const csv = [
+      "learnerEmail,title,recordType,issuedAt,badgeTemplateSlug,pathwayLabel",
+      "learner@example.edu,Clinical Placement Seminar,course,2026-03-26T12:00:00.000Z,applied-analytics,Clinical readiness",
+    ].join("\n");
+    const formData = new FormData();
+    formData.set("csvPayloadBase64", btoa(csv));
+    formData.set("fileName", "learner-records.csv");
+    formData.set("defaultTrustLevel", "issuer_verified");
+    const runMock = vi.fn().mockResolvedValue({ success: true });
+    const bindMock = vi.fn().mockReturnValue({ run: runMock });
+    fakeDbPrepare.mockReturnValue({ bind: bindMock });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/learner-record-imports/apply",
+      {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: formData,
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Learner-record import batch queued");
+    expect(body).toContain("Queued 1 valid rows from learner-records.csv");
+    expect(body).toContain('data-learner-record-import-state="apply"');
+    expect(body).not.toContain("Queue reviewed import");
+    expect(bindMock).toHaveBeenCalled();
+  });
+
+  it("does not queue direct apply uploads before preview review", async () => {
+    const env = createEnv();
+    const formData = new FormData();
+    formData.set(
+      "file",
+      new File(
+        [
+          [
+            "learnerEmail,title,recordType,issuedAt,badgeTemplateSlug,pathwayLabel",
+            "learner@example.edu,Clinical Placement Seminar,course,2026-03-26T12:00:00.000Z,applied-analytics,Clinical readiness",
+          ].join("\n"),
+        ],
+        "learner-records.csv",
+        {
+          type: "text/csv",
+        },
+      ),
+    );
+    formData.set("defaultTrustLevel", "issuer_verified");
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/learner-record-imports/apply",
+      {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: formData,
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Preview is required before queueing");
+    expect(fakeDbPrepare).not.toHaveBeenCalled();
   });
 });
 
@@ -1300,12 +1381,17 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     expect(response.status).toBe(200);
     expect(body).toContain("Issued Badges");
     expect(body).toContain('id="issued-badges-filter-form"');
+    expect(body).toContain('id="issued-badge-lifecycle-panel"');
+    expect(body).toContain('id="issued-badge-revoke-form"');
     expect(body).toContain(
       "&quot;issuedBadgeRowsPath&quot;:&quot;/v1/tenants/tenant_123/assertions/table-rows&quot;",
     );
     expect(body).not.toContain('id="manual-issue-form"');
     expect(body).not.toContain('id="rule-review-queue-refresh"');
     expect(body).not.toContain('id="assertion-lifecycle-view-form"');
+    expect(INSTITUTION_ADMIN_JS).toContain("openIssuedBadgeLifecyclePanel");
+    expect(INSTITUTION_ADMIN_JS).toContain("Review revocation for");
+    expect(INSTITUTION_ADMIN_JS).not.toContain("Optional revocation reason");
   });
 
   it("renders a separate admin ledger export form with audit filters", async () => {
@@ -3140,12 +3226,27 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
     expect(body).toContain("Governance Delegation");
     expect(body).toContain("must already exist in this tenant");
     expect(body).toContain('id="membership-scope-form"');
+    expect(body).toContain('id="membership-scope-panel"');
+    expect(body).toContain('name="userId"');
+    expect(body).toContain("issuer@tenant-123.edu (issuer)");
     expect(body).toContain("Scoped Roles");
     expect(body).toContain("Current Scoped Roles (1)");
     expect(body).toContain('data-membership-scope-remove-user-id="usr_issuer"');
     expect(body).toContain("Current Delegations (1)");
+    expect(body).toContain('id="delegated-grant-panel"');
+    expect(body).toContain('name="delegateUserId"');
+    expect(body).toContain("Limit to badge template (optional)");
     expect(body).toContain('data-delegated-grant-remove-id="dag_123"');
     expect(body).toContain("Issue badges");
+    expect(body.indexOf('id="membership-scope-body"')).toBeLessThan(
+      body.indexOf('id="membership-scope-panel"'),
+    );
+    expect(body.indexOf('id="delegated-grant-body"')).toBeLessThan(
+      body.indexOf('id="delegated-grant-panel"'),
+    );
+    expect(body).not.toContain("Tenant member user ID");
+    expect(body).not.toContain("Delegate user ID");
+    expect(body).not.toContain("Limit to badge template IDs");
     expect(body).not.toContain('id="api-key-form"');
     expect(body).not.toContain('id="org-unit-form"');
   });
@@ -3217,7 +3318,11 @@ describe("GET /tenants/:tenantId/admin/access/api-keys", () => {
     expect(body).toContain("Hide form");
     expect(body).toContain('id="api-key-form"');
     expect(body).toContain("Create API key");
+    expect(body).toContain('id="api-key-active-count"');
     expect(body).toContain("Active API Keys (1)");
+    expect(body).toContain('id="api-key-body"');
+    expect(INSTITUTION_ADMIN_JS).toContain("insertApiKeyRow");
+    expect(INSTITUTION_ADMIN_JS).toContain("Store the secret before closing this form");
     expect(body).toContain(
       'class="ct-admin__panel ct-admin__panel--table ct-admin__api-keys-table ct-stack"',
     );
@@ -3250,6 +3355,11 @@ describe("GET /tenants/:tenantId/admin/access/org-units", () => {
     expect(body).toContain("Hide form");
     expect(body).toContain('id="org-unit-form"');
     expect(body).toContain("Create org unit");
+    expect(body).toContain('name="slug" type="hidden"');
+    expect(body).toContain("CredTrail creates the internal org key from the display name.");
+    expect(body).not.toContain("<label>ID");
+    expect(INSTITUTION_ADMIN_JS).toContain("deriveUrlKey");
+    expect(INSTITUTION_ADMIN_JS).toContain("Unit type and display name are required.");
     expect(body).toContain("Org Units (");
     expect(body).toContain(
       'class="ct-admin__panel ct-admin__panel--table ct-admin__org-units-table ct-stack"',

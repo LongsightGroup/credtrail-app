@@ -170,6 +170,28 @@ interface RegisterTenantGovernanceRoutesInput {
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }
 
+const encodeTextForHiddenForm = (value: string): string => {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+
+  return btoa(binary);
+};
+
+const decodeTextFromHiddenForm = (value: string): string => {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new TextDecoder().decode(bytes);
+};
+
 export const adminRoleRequiredPage = (tenantId: string): AppPage => {
   return appPage({
     title: "Admin access required",
@@ -1214,6 +1236,8 @@ export const registerTenantGovernanceRoutes = (
 
     const formData = await input.c.req.formData();
     const upload = formData.get("file");
+    const csvPayloadBase64 = getOptionalFormValue(formData, "csvPayloadBase64");
+    const reviewedFileName = getOptionalFormValue(formData, "fileName");
     const defaultIssuerName = getOptionalFormValue(formData, "defaultIssuerName") ?? "";
     let defaults;
 
@@ -1243,7 +1267,44 @@ export const registerTenantGovernanceRoutes = (
       );
     }
 
-    if (!(upload instanceof File)) {
+    let fileContent: string;
+    let fileName: string;
+    let mimeType: string;
+
+    if (input.mode === "preview" && upload instanceof File && upload.size > 0) {
+      fileContent = await upload.text();
+      fileName = upload.name;
+      mimeType = upload.type;
+    } else if (
+      input.mode === "apply" &&
+      csvPayloadBase64 !== undefined &&
+      csvPayloadBase64.length > 0
+    ) {
+      try {
+        fileContent = decodeTextFromHiddenForm(csvPayloadBase64);
+        fileName = reviewedFileName ?? "learner-records.csv";
+        mimeType = "text/csv";
+      } catch {
+        return renderLearnerRecordImportWorkspace(
+          input.c,
+          input.tenantId,
+          input.sessionUserId,
+          input.membershipRole,
+          {
+            defaults: {
+              defaultTrustLevel: defaults.defaultTrustLevel,
+              defaultIssuerName,
+            },
+            submission: null,
+            feedback: {
+              tone: "warning",
+              title: "Reviewed CSV could not be queued",
+              detail: "Preview the CSV again, then use the queue action shown under the preview.",
+            },
+          },
+        );
+      }
+    } else {
       return renderLearnerRecordImportWorkspace(
         input.c,
         input.tenantId,
@@ -1257,15 +1318,15 @@ export const registerTenantGovernanceRoutes = (
           submission: null,
           feedback: {
             tone: "warning",
-            title: "CSV file is required",
+            title: input.mode === "apply" ? "Preview is required before queueing" : "CSV file is required",
             detail:
-              'Attach a CSV file in the "file" field to preview or queue learner-record imports.',
+              input.mode === "apply"
+                ? "Preview the CSV first, then use the queue action shown under the preview."
+                : 'Attach a CSV file in the "file" field to preview learner-record imports.',
           },
         },
       );
     }
-
-    const fileContent = await upload.text();
 
     if (fileContent.trim().length === 0) {
       return renderLearnerRecordImportWorkspace(
@@ -1294,8 +1355,8 @@ export const registerTenantGovernanceRoutes = (
     try {
       prepared = await prepareLearnerRecordImportSubmission(db, {
         tenantId: input.tenantId,
-        fileName: upload.name,
-        mimeType: upload.type,
+        fileName,
+        mimeType,
         content: fileContent,
         defaults,
         requestedAt: new Date().toISOString(),
@@ -1351,6 +1412,15 @@ export const registerTenantGovernanceRoutes = (
           invalidRows,
           queuedRows,
           rows: prepared.reports,
+          queueForm:
+            input.mode === "preview" && validRows > 0
+              ? {
+                  csvPayloadBase64: encodeTextForHiddenForm(fileContent),
+                  defaultTrustLevel: defaults.defaultTrustLevel,
+                  defaultIssuerName,
+                  fileName: prepared.fileName,
+                }
+              : null,
         },
         feedback: {
           tone: input.mode === "apply" ? "success" : "warning",
