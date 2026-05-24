@@ -1271,7 +1271,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
       new File(
         [
           [
-            "learnerEmail,title,recordType,issuedAt,badgeTemplateSlug,pathwayLabel",
+            "learnerEmail,title,recordType,issuedAt,badgeTemplateUrlKey,pathwayLabel",
             "learner@example.edu,Clinical Placement Seminar,course,2026-03-26T12:00:00.000Z,applied-analytics,Clinical readiness",
           ].join("\n"),
         ],
@@ -1550,7 +1550,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
       new File(
         [
           [
-            "learnerEmail,title,recordType,issuedAt,badgeTemplateSlug,pathwayLabel",
+            "learnerEmail,title,recordType,issuedAt,badgeTemplateUrlKey,pathwayLabel",
             "learner@example.edu,Clinical Placement Seminar,course,2026-03-26T12:00:00.000Z,applied-analytics,Clinical readiness",
           ].join("\n"),
         ],
@@ -3114,7 +3114,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("badge-template-create-form");
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("deriveBadgeTemplateSlugFromTitle");
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain(
-      "A template with this badge name already exists.",
+      "That badge name creates a URL key already used by another template.",
     );
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("Template created. URL key:");
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("Next: add artwork below.");

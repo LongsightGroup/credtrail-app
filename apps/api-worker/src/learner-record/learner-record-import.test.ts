@@ -84,6 +84,36 @@ describe("learner-record import contract", () => {
     ]);
   });
 
+  it("accepts URL key headers while keeping legacy slug headers compatible", () => {
+    const csv = [
+      "learnerEmail,title,recordType,issuedAt,badgeTemplateUrlKey",
+      "learner@example.edu,Clinical Placement Seminar,course,2026-03-26T12:00:00.000Z,clinical-placement-badge",
+    ].join("\n");
+    const legacyCsv = [
+      "learnerEmail,title,recordType,issuedAt,badgeTemplateSlug",
+      "learner@example.edu,Clinical Placement Seminar,course,2026-03-26T12:00:00.000Z,clinical-placement-badge",
+    ].join("\n");
+
+    expect(
+      parseLearnerRecordImportFile({
+        fileName: "learner-records.csv",
+        mimeType: "text/csv",
+        content: csv,
+      }).rows[0]?.candidate,
+    ).toMatchObject({
+      badgeTemplateSlug: "clinical-placement-badge",
+    });
+    expect(
+      parseLearnerRecordImportFile({
+        fileName: "learner-records.csv",
+        mimeType: "text/csv",
+        content: legacyCsv,
+      }).rows[0]?.candidate,
+    ).toMatchObject({
+      badgeTemplateSlug: "clinical-placement-badge",
+    });
+  });
+
   it("uses smart defaults from badge-template ownership and preserves pathway as metadata", () => {
     const prepared = prepareLearnerRecordImportBatch({
       rows: [
@@ -208,6 +238,10 @@ describe("learner-record import contract", () => {
     const csv = buildLearnerRecordImportTemplateCsv();
 
     expect(csv).toContain("learnerEmail,learnerDisplayName,title,recordType,issuedAt");
+    expect(csv).toContain("orgUnitUrlKey");
+    expect(csv).toContain("badgeTemplateUrlKey");
+    expect(csv).not.toContain("orgUnitSlug");
+    expect(csv).not.toContain("badgeTemplateSlug");
     expect(csv).toContain("Clinical Placement Seminar");
   });
 });

@@ -223,7 +223,7 @@ export const registerAdminRoutes = (input: RegisterAdminRoutesInput): void => {
       if (isUniqueConstraintError(error)) {
         return c.json(
           {
-            error: "Tenant slug or issuer domain is already in use",
+            error: "Tenant URL key or issuer domain is already in use.",
           },
           409,
         );
@@ -345,7 +345,7 @@ export const registerAdminRoutes = (input: RegisterAdminRoutesInput): void => {
       if (isUniqueConstraintError(error)) {
         return c.json(
           {
-            error: "Badge template slug already exists for tenant",
+            error: "A badge template with that URL key already exists.",
           },
           409,
         );

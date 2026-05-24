@@ -1,4 +1,15 @@
 export const INSTITUTION_ADMIN_BADGE_TEMPLATE_CREATE_EDIT_JS = `
+  const isBadgeTemplateUrlKeyConflict = (response, payload) => {
+    const detail = errorDetailFromPayload(payload).toLowerCase();
+
+    return (
+      response.status === 409 &&
+      (detail.includes('url key') ||
+        detail.includes('already exists') ||
+        detail.includes('slug'))
+    );
+  };
+
   if (
     badgeTemplateCreateForm instanceof HTMLFormElement &&
     badgeTemplateCreateStatus instanceof HTMLElement
@@ -97,8 +108,8 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_CREATE_EDIT_JS = `
           const detail = errorDetailFromPayload(payload);
           setStatus(
             badgeTemplateCreateStatus,
-            response.status === 409 && detail.toLowerCase().includes('slug')
-              ? 'A template with this badge name already exists. Use a more specific badge name or edit the existing template.'
+            isBadgeTemplateUrlKeyConflict(response, payload)
+              ? 'That badge name creates a URL key already used by another template. Use a more specific badge name or edit the existing template.'
               : detail,
             true,
           );
@@ -216,7 +227,13 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_CREATE_EDIT_JS = `
         const payload = await parseJsonBody(response);
 
         if (!response.ok) {
-          setStatus(badgeTemplateEditStatus, errorDetailFromPayload(payload), true);
+          setStatus(
+            badgeTemplateEditStatus,
+            isBadgeTemplateUrlKeyConflict(response, payload)
+              ? 'A template with this URL key already exists. Change the URL key or edit the existing template.'
+              : errorDetailFromPayload(payload),
+            true,
+          );
           return;
         }
 

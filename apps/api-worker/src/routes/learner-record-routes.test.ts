@@ -515,9 +515,11 @@ describe("learner-record import routes", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/csv");
-    expect(await response.text()).toContain(
-      "learnerEmail,learnerDisplayName,title,recordType,issuedAt",
-    );
+    const body = await response.text();
+
+    expect(body).toContain("learnerEmail,learnerDisplayName,title,recordType,issuedAt");
+    expect(body).toContain("badgeTemplateUrlKey");
+    expect(body).not.toContain("badgeTemplateSlug");
   });
 
   it("supports dry-run CSV preview without mutating queue state", async () => {
@@ -534,7 +536,7 @@ describe("learner-record import routes", () => {
       new File(
         [
           [
-            "learnerEmail,title,recordType,issuedAt,badgeTemplateSlug,pathwayLabel",
+            "learnerEmail,title,recordType,issuedAt,badgeTemplateUrlKey,pathwayLabel",
             "learner@example.edu,Clinical Placement Seminar,course,2026-03-26T12:00:00.000Z,clinical-placement-badge,Clinical readiness",
           ].join("\n"),
         ],

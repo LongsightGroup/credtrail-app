@@ -500,7 +500,7 @@ describe("badge template image upload routes", () => {
     );
   });
 
-  it("returns a conflict when creating a badge template with a duplicate slug", async () => {
+  it("returns a conflict when creating a badge template with a duplicate URL key", async () => {
     const { store } = createBadgeObjectStore();
     const env = createEnv(store);
 
@@ -528,7 +528,7 @@ describe("badge template image upload routes", () => {
     const body = await response.json<{ error: string }>();
 
     expect(response.status).toBe(409);
-    expect(body.error).toBe("Badge template slug already exists for tenant");
+    expect(body.error).toBe("A badge template with that URL key already exists.");
   });
 
   it("uploads a PNG image, stores it in object storage, and serves it publicly", async () => {

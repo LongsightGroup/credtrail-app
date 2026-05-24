@@ -218,7 +218,7 @@ const stringArrayFromUnknown = (value: unknown): string[] | null => {
   return strings.length === value.length ? strings : null;
 };
 
-export const LEARNER_RECORD_IMPORT_TEMPLATE_HEADERS = [
+const LEARNER_RECORD_IMPORT_FIELDS = [
   "learnerEmail",
   "learnerDisplayName",
   "title",
@@ -236,6 +236,26 @@ export const LEARNER_RECORD_IMPORT_TEMPLATE_HEADERS = [
   "evidenceLinks",
 ] as const;
 
+type LearnerRecordImportField = (typeof LEARNER_RECORD_IMPORT_FIELDS)[number];
+
+export const LEARNER_RECORD_IMPORT_TEMPLATE_HEADERS = [
+  "learnerEmail",
+  "learnerDisplayName",
+  "title",
+  "recordType",
+  "issuedAt",
+  "trustLevel",
+  "description",
+  "issuerName",
+  "orgUnitId",
+  "orgUnitUrlKey",
+  "badgeTemplateId",
+  "badgeTemplateUrlKey",
+  "pathwayLabel",
+  "sourceRecordId",
+  "evidenceLinks",
+] as const;
+
 const normalizeHeader = (value: string): string => {
   return value
     .trim()
@@ -245,7 +265,7 @@ const normalizeHeader = (value: string): string => {
 
 const canonicalFieldForHeader = (
   header: string,
-): (typeof LEARNER_RECORD_IMPORT_TEMPLATE_HEADERS)[number] | null => {
+): LearnerRecordImportField | null => {
   switch (header) {
     case "learneremail":
     case "email":
@@ -273,11 +293,16 @@ const canonicalFieldForHeader = (
       return "issuerName";
     case "orgunitid":
       return "orgUnitId";
+    case "orguniturlkey":
+    case "orgunitkey":
     case "orgunitslug":
       return "orgUnitSlug";
     case "badgetemplateid":
     case "templateid":
       return "badgeTemplateId";
+    case "badgetemplateurlkey":
+    case "templateurlkey":
+    case "templatekey":
     case "badgetemplateslug":
     case "templateslug":
       return "badgeTemplateSlug";
@@ -388,7 +413,7 @@ const parseEvidenceLinksCell = (value: string): string[] | string => {
 };
 
 const normalizeCandidateValue = (
-  field: (typeof LEARNER_RECORD_IMPORT_TEMPLATE_HEADERS)[number],
+  field: LearnerRecordImportField,
   value: string,
 ): unknown => {
   if (field === "evidenceLinks") {
@@ -468,6 +493,30 @@ export const parseLearnerRecordImportFile = (input: {
   };
 };
 
+const learnerRecordImportFieldLabel = (field: string): string => {
+  switch (field) {
+    case "orgUnitSlug":
+      return "org unit URL key";
+    case "badgeTemplateSlug":
+      return "badge template URL key";
+    default:
+      return field;
+  }
+};
+
+const zodIssuePathLabel = (path: readonly PropertyKey[]): string => {
+  if (path.length === 0) {
+    return "row";
+  }
+
+  const pathSegments = path.map(String);
+  const firstSegment = pathSegments[0] ?? "row";
+  const label = learnerRecordImportFieldLabel(firstSegment);
+  const remainingSegments = pathSegments.slice(1);
+
+  return remainingSegments.length === 0 ? label : `${label}.${remainingSegments.join(".")}`;
+};
+
 const zodIssueMessages = (
   issues: readonly {
     path: readonly PropertyKey[];
@@ -475,7 +524,7 @@ const zodIssueMessages = (
   }[],
 ): string[] => {
   return issues.map((issue) => {
-    const path = issue.path.length > 0 ? issue.path.map(String).join(".") : "row";
+    const path = zodIssuePathLabel(issue.path);
     return `${path}: ${issue.message}`;
   });
 };
@@ -517,7 +566,7 @@ const resolveExplicitOrgUnit = (
   if (orgUnitById !== null && orgUnitBySlug !== null && orgUnitById.id !== orgUnitBySlug.id) {
     return {
       orgUnit: null,
-      errors: ["orgUnitId and orgUnitSlug refer to different org units"],
+      errors: ["Org unit ID and org unit URL key refer to different org units"],
       warnings: [],
       usedRowValue: true,
     };
@@ -562,7 +611,7 @@ const resolveBadgeTemplate = (
   if (templateById !== null && templateBySlug !== null && templateById.id !== templateBySlug.id) {
     return {
       badgeTemplate: null,
-      errors: ["badgeTemplateId and badgeTemplateSlug refer to different badge templates"],
+      errors: ["Badge template ID and badge template URL key refer to different badge templates"],
       warnings: [],
       usedRowValue: true,
     };

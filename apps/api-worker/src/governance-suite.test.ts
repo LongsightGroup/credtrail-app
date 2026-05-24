@@ -128,7 +128,7 @@ describe("admin learner-record import route", () => {
       new File(
         [
           [
-            "learnerEmail,title,recordType,issuedAt,badgeTemplateSlug,pathwayLabel",
+            "learnerEmail,title,recordType,issuedAt,badgeTemplateUrlKey,pathwayLabel",
             "learner@example.edu,Clinical Placement Seminar,course,2026-03-26T12:00:00.000Z,migration-foundations,Clinical readiness",
           ].join("\n"),
         ],

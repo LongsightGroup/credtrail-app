@@ -3473,7 +3473,7 @@ export const registerTenantGovernanceRoutes = (
         if (error.message.includes("UNIQUE constraint failed")) {
           return c.json(
             {
-              error: "Org unit slug already exists for tenant",
+              error: "An org unit with that URL key already exists.",
             },
             409,
           );

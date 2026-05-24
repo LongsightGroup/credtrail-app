@@ -289,7 +289,7 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
       if (isBadgeTemplateSlugConflict(error)) {
         return c.json(
           {
-            error: "Badge template slug already exists for tenant",
+            error: "A badge template with that URL key already exists.",
           },
           409,
         );
@@ -713,7 +713,7 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
       if (isBadgeTemplateSlugConflict(error)) {
         return c.json(
           {
-            error: "Badge template slug already exists for tenant",
+            error: "A badge template with that URL key already exists.",
           },
           409,
         );

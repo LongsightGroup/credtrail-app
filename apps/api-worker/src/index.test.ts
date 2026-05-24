@@ -482,7 +482,7 @@ describe("PUT /v1/admin/tenants/:tenantId", () => {
     });
   });
 
-  it("returns 409 when tenant slug/domain uniqueness is violated", async () => {
+  it("returns 409 when tenant URL key/domain uniqueness is violated", async () => {
     const env = {
       ...createEnv(),
       BOOTSTRAP_ADMIN_TOKEN: "bootstrap-secret",
@@ -509,7 +509,7 @@ describe("PUT /v1/admin/tenants/:tenantId", () => {
     const body = await response.json<ErrorResponse>();
 
     expect(response.status).toBe(409);
-    expect(body.error).toBe("Tenant slug or issuer domain is already in use");
+    expect(body.error).toBe("Tenant URL key or issuer domain is already in use.");
   });
 });
 
