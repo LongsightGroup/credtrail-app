@@ -301,6 +301,9 @@ export const registerTenantGovernanceRoutes = (
   } = input;
 
   type InstitutionAdminPageData = Parameters<typeof institutionAdminDashboardPage>[0];
+  type InstitutionAdminRuleTemplatesPageData = Parameters<
+    typeof institutionAdminRuleTemplatesPage
+  >[0];
   type ReportingComparisonRow = Awaited<ReturnType<typeof listTenantReportingComparisons>>[number];
   type BadgeTemplateRecord = InstitutionAdminPageData["badgeTemplates"][number];
   type LearnerRecordImportWorkflowInput = Pick<
@@ -679,6 +682,95 @@ export const registerTenantGovernanceRoutes = (
       enterpriseAuthProviders: authProviders,
       breakGlassAccounts,
       switchOrganizationPath,
+    };
+  };
+
+  const loadInstitutionAdminShellData = async (
+    c: AppContext,
+    tenantId: string,
+    sessionUserId: string,
+    membershipRole: TenantMembershipRole,
+  ): Promise<
+    | Pick<
+        InstitutionAdminPageData,
+        "membershipRole" | "switchOrganizationPath" | "tenant" | "userEmail" | "userId"
+      >
+    | Response
+  > => {
+    const db = resolveDatabase(c.env);
+    const [tenant, currentUser, accessibleTenantContexts] = await Promise.all([
+      findTenantById(db, tenantId),
+      findUserById(db, sessionUserId),
+      listAccessibleTenantContextsForUser(db, sessionUserId),
+    ]);
+
+    if (tenant === null) {
+      return c.json(
+        {
+          error: "Tenant not found",
+        },
+        404,
+      );
+    }
+
+    const requestUrl = new URL(c.req.url);
+    const switchOrganizationPath =
+      accessibleTenantContexts.length > 1
+        ? buildOrganizationsPath(`${requestUrl.pathname}${requestUrl.search}`)
+        : null;
+
+    return {
+      tenant,
+      userId: sessionUserId,
+      ...(currentUser?.email === undefined ? {} : { userEmail: currentUser.email }),
+      membershipRole,
+      switchOrganizationPath,
+    };
+  };
+
+  const loadInstitutionAdminTemplatesPageData = async (
+    c: AppContext,
+    tenantId: string,
+    sessionUserId: string,
+    membershipRole: TenantMembershipRole,
+    input: {
+      includeArchived: boolean;
+    },
+  ): Promise<InstitutionAdminRuleTemplatesPageData | Response> => {
+    const shellData = await loadInstitutionAdminShellData(
+      c,
+      tenantId,
+      sessionUserId,
+      membershipRole,
+    );
+
+    if (shellData instanceof Response) {
+      return shellData;
+    }
+
+    const db = resolveDatabase(c.env);
+    const [badgeTemplates, badgeTemplateImageRevisionCounts] = await Promise.all([
+      listBadgeTemplates(db, {
+        tenantId,
+        includeArchived: input.includeArchived,
+      }),
+      listBadgeTemplateImageRevisionCountsByTenant(db, tenantId),
+    ]);
+    const badgeTemplateImageRevisionCountsById = Object.fromEntries(
+      badgeTemplateImageRevisionCounts.map((entry) => [entry.badgeTemplateId, entry.revisionCount]),
+    );
+
+    return {
+      ...shellData,
+      badgeTemplates,
+      badgeTemplateImageRevisionCountsById,
+      badgeTemplatesPage: {
+        searchQuery: "",
+        includeArchived: input.includeArchived,
+        returnToRuleBuilder: false,
+        deepLinkHistoryTemplateId: null,
+        deepLinkHistoryUnavailable: null,
+      },
     };
   };
 
@@ -1119,14 +1211,12 @@ export const registerTenantGovernanceRoutes = (
     let deepLinkHistoryTemplateId = historyDeepLinkRequested ? badgeTemplateIdParam : null;
     let deepLinkHistoryUnavailable: "not_found" | null = null;
 
-    const pageData = await loadInstitutionAdminPageData(
+    const pageData = await loadInstitutionAdminTemplatesPageData(
       c,
       tenantId,
       session.userId,
       membershipRole,
-      {
-        badgeTemplatesIncludeArchived: includeArchived,
-      },
+      { includeArchived },
     );
 
     if (pageData instanceof Response) {
@@ -1305,7 +1395,8 @@ export const registerTenantGovernanceRoutes = (
             feedback: {
               tone: "warning",
               title: "Reviewed preview could not be queued",
-              detail: "Try queueing again. CredTrail will reuse the reviewed preview without duplicating rows.",
+              detail:
+                "Try queueing again. CredTrail will reuse the reviewed preview without duplicating rows.",
             },
           },
         );

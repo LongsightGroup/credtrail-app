@@ -60,6 +60,7 @@ import {
 } from "./components";
 import { BadgeTemplateAdminTableRow } from "./badge-template-table-row-fragment";
 import { TenantApiKeyAdminTableRow } from "./api-key-table-row-fragment";
+export { institutionAdminRuleTemplatesPage } from "./institution-admin-templates-page";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -254,6 +255,92 @@ type InstitutionAdminView =
   | "accessGovernance"
   | "accessApiKeys"
   | "accessOrgUnits";
+
+const INSTITUTION_ADMIN_VIEW_CONFIG = {
+  home: {
+    titlePrefix: "Institution Admin",
+    controller: "shell",
+  },
+  operations: {
+    titlePrefix: "Issue & Inspect · Institution Admin",
+    controller: "shared",
+  },
+  operationsLearnerRecords: {
+    titlePrefix: "Learner Records · Institution Admin",
+    controller: "shell",
+  },
+  operationsLearnerRecordImports: {
+    titlePrefix: "Learner Record Imports · Institution Admin",
+    controller: "shell",
+  },
+  operationsReviewQueue: {
+    titlePrefix: "Rule Review Queue · Institution Admin",
+    controller: "shared",
+  },
+  operationsIssuedBadges: {
+    titlePrefix: "Issued Badges · Institution Admin",
+    controller: "shell",
+    extraAssets: ["institutionAdminIssuedBadgesJs"],
+  },
+  operationsBadgeStatus: {
+    titlePrefix: "Badge Status · Institution Admin",
+    controller: "shared",
+  },
+  reporting: {
+    titlePrefix: "Reporting · Institution Admin",
+    controller: "shared",
+  },
+  reportingExplore: {
+    titlePrefix: "Reporting Explore · Institution Admin",
+    controller: "shared",
+  },
+  reportingTrends: {
+    titlePrefix: "Trend Detail · Reporting · Institution Admin",
+    controller: "shared",
+  },
+  reportingReports: {
+    titlePrefix: "Report Library · Reporting · Institution Admin",
+    controller: "shared",
+  },
+  rules: {
+    titlePrefix: "Rules · Institution Admin",
+    controller: "shared",
+  },
+  rulesTemplates: {
+    titlePrefix: "Badge Templates · Rules · Institution Admin",
+    controller: "shell",
+    extraAssets: ["institutionAdminBadgeTemplateJs"],
+  },
+  access: {
+    titlePrefix: "Access · Institution Admin",
+    controller: "shared",
+  },
+  accessMembers: {
+    titlePrefix: "Members · Institution Admin",
+    controller: "shared",
+  },
+  accessGovernance: {
+    titlePrefix: "Governance Delegation · Institution Admin",
+    controller: "shared",
+  },
+  accessApiKeys: {
+    titlePrefix: "API Keys · Institution Admin",
+    controller: "shell",
+    extraAssets: ["institutionAdminApiKeysJs"],
+  },
+  accessOrgUnits: {
+    titlePrefix: "Org Units · Institution Admin",
+    controller: "shell",
+    extraAssets: ["institutionAdminOrgUnitsJs"],
+  },
+} as const satisfies Record<
+  InstitutionAdminView,
+  {
+    controller: "shared" | "shell";
+    extraAssets?: readonly PageAssetKey[];
+    titlePrefix: string;
+  }
+>;
 
 interface InstitutionAdminLearnerRecordReview {
   lookup: {
@@ -5448,42 +5535,8 @@ const renderInstitutionAdminPage = (
     </AdminPanel>
   );
 
-  const pageTitle =
-    view === "home"
-      ? `Institution Admin · ${input.tenant.displayName}`
-      : view === "operations"
-        ? `Issue & Inspect · Institution Admin · ${input.tenant.displayName}`
-        : view === "operationsLearnerRecords"
-          ? `Learner Records · Institution Admin · ${input.tenant.displayName}`
-          : view === "operationsLearnerRecordImports"
-            ? `Learner Record Imports · Institution Admin · ${input.tenant.displayName}`
-            : view === "operationsReviewQueue"
-              ? `Rule Review Queue · Institution Admin · ${input.tenant.displayName}`
-              : view === "operationsIssuedBadges"
-                ? `Issued Badges · Institution Admin · ${input.tenant.displayName}`
-                : view === "operationsBadgeStatus"
-                  ? `Badge Status · Institution Admin · ${input.tenant.displayName}`
-                  : view === "reporting"
-                    ? `Reporting · Institution Admin · ${input.tenant.displayName}`
-                    : view === "reportingExplore"
-                      ? `Reporting Explore · Institution Admin · ${input.tenant.displayName}`
-                      : view === "reportingTrends"
-                        ? `Trend Detail · Reporting · Institution Admin · ${input.tenant.displayName}`
-                        : view === "reportingReports"
-                          ? `Report Library · Reporting · Institution Admin · ${input.tenant.displayName}`
-                          : view === "rules"
-                            ? `Rules · Institution Admin · ${input.tenant.displayName}`
-                            : view === "rulesTemplates"
-                              ? `Badge Templates · Rules · Institution Admin · ${input.tenant.displayName}`
-                              : view === "access"
-                                ? `Access · Institution Admin · ${input.tenant.displayName}`
-                                : view === "accessMembers"
-                                  ? `Members · Institution Admin · ${input.tenant.displayName}`
-                                  : view === "accessGovernance"
-                                    ? `Governance Delegation · Institution Admin · ${input.tenant.displayName}`
-                                    : view === "accessApiKeys"
-                                      ? `API Keys · Institution Admin · ${input.tenant.displayName}`
-                                      : `Org Units · Institution Admin · ${input.tenant.displayName}`;
+  const viewConfig = INSTITUTION_ADMIN_VIEW_CONFIG[view];
+  const pageTitle = `${viewConfig.titlePrefix} · ${input.tenant.displayName}`;
 
   const viewContent = (() => {
     switch (view) {
@@ -5742,37 +5795,11 @@ const renderInstitutionAdminPage = (
         );
     }
   })();
-  const pageAssets: PageAssetKey[] = ["institutionAdminCss"];
-  const usesSharedAdminController =
-    view === "operations" ||
-    view === "operationsReviewQueue" ||
-    view === "operationsBadgeStatus" ||
-    view === "reporting" ||
-    view === "reportingExplore" ||
-    view === "reportingTrends" ||
-    view === "reportingReports" ||
-    view === "rules" ||
-    view === "access" ||
-    view === "accessMembers" ||
-    view === "accessGovernance";
-
-  pageAssets.push(usesSharedAdminController ? "institutionAdminJs" : "institutionAdminShellJs");
-
-  if (view === "accessApiKeys") {
-    pageAssets.push("institutionAdminApiKeysJs");
-  }
-
-  if (view === "rulesTemplates") {
-    pageAssets.push("institutionAdminBadgeTemplateJs");
-  }
-
-  if (view === "accessOrgUnits") {
-    pageAssets.push("institutionAdminOrgUnitsJs");
-  }
-
-  if (view === "operationsIssuedBadges") {
-    pageAssets.push("institutionAdminIssuedBadgesJs");
-  }
+  const pageAssets: PageAssetKey[] = [
+    "institutionAdminCss",
+    viewConfig.controller === "shared" ? "institutionAdminJs" : "institutionAdminShellJs",
+    ...("extraAssets" in viewConfig ? viewConfig.extraAssets : []),
+  ];
 
   return appPage({
     title: pageTitle,
@@ -5853,10 +5880,6 @@ export const institutionAdminReportingReportsPage = (input: InstitutionAdminPage
 
 export const institutionAdminRulesPage = (input: InstitutionAdminPageInput): AppPage => {
   return renderInstitutionAdminPage(input, "rules");
-};
-
-export const institutionAdminRuleTemplatesPage = (input: InstitutionAdminPageInput): AppPage => {
-  return renderInstitutionAdminPage(input, "rulesTemplates");
 };
 
 export const institutionAdminAccessPage = (input: InstitutionAdminPageInput): AppPage => {
