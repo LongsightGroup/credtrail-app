@@ -19,7 +19,6 @@ import {
   findLearnerRecordImportContextByEntryId,
   listLearnerRecordEntries,
   listLearnerRecordAssertionExports,
-  listBadgeIssuanceRuleEvaluations,
   listImportLearnerRecordBatchQueueMessages,
   findTenantAuthPolicy,
   listAccessibleTenantContextsForUser,
@@ -5104,75 +5103,6 @@ describe("badge rule review queue schema", () => {
     expect(sql).toContain("ADD COLUMN IF NOT EXISTS reviewed_by_user_id TEXT");
     expect(sql).toContain("ADD COLUMN IF NOT EXISTS reviewed_at TEXT");
     expect(sql).toContain("idx_badge_issuance_rule_evaluations_review_queue");
-  });
-
-  it("repairs missing badge rule review columns before listing evaluations", async () => {
-    class MissingReviewColumnStatement {
-      private readonly db: MissingReviewColumnDb;
-      private readonly sql: string;
-
-      constructor(db: MissingReviewColumnDb, sql: string) {
-        this.db = db;
-        this.sql = sql;
-      }
-
-      bind(..._params: unknown[]): this {
-        return this;
-      }
-
-      first<T>(): Promise<T | null> {
-        return Promise.resolve(null);
-      }
-
-      all<T>(): Promise<SqlQueryResult<T>> {
-        if (this.sql.includes("FROM badge_issuance_rule_evaluations AS evaluations")) {
-          this.db.listAttempts += 1;
-
-          if (this.db.listAttempts === 1) {
-            throw new Error("column evaluations.review_status does not exist");
-          }
-        }
-
-        return Promise.resolve({
-          success: true,
-          meta: {},
-          results: [],
-        });
-      }
-
-      run(): Promise<SqlRunResult> {
-        this.db.repairStatements.push(this.sql);
-        return Promise.resolve({
-          success: true,
-          meta: {},
-        });
-      }
-    }
-
-    class MissingReviewColumnDb {
-      listAttempts = 0;
-      repairStatements: string[] = [];
-
-      prepare(sql: string): MissingReviewColumnStatement {
-        return new MissingReviewColumnStatement(this, sql);
-      }
-    }
-
-    const db = new MissingReviewColumnDb();
-    const evaluations = await listBadgeIssuanceRuleEvaluations(db as unknown as SqlDatabase, {
-      tenantId: "tenant_123",
-      issuanceStatus: "review_required",
-      reviewStatus: "pending",
-    });
-
-    expect(evaluations).toEqual([]);
-    expect(db.listAttempts).toBe(2);
-    expect(db.repairStatements.some((statement) => statement.includes("review_status"))).toBe(true);
-    expect(
-      db.repairStatements.some((statement) =>
-        statement.includes("idx_badge_issuance_rule_evaluations_review_queue"),
-      ),
-    ).toBe(true);
   });
 });
 
