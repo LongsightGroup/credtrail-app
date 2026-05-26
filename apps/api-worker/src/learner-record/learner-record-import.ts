@@ -263,9 +263,7 @@ const normalizeHeader = (value: string): string => {
     .replace(/[^a-z0-9]/g, "");
 };
 
-const canonicalFieldForHeader = (
-  header: string,
-): LearnerRecordImportField | null => {
+const canonicalFieldForHeader = (header: string): LearnerRecordImportField | null => {
   switch (header) {
     case "learneremail":
     case "email":
@@ -412,10 +410,7 @@ const parseEvidenceLinksCell = (value: string): string[] | string => {
   return segments.length > 0 ? segments : trimmed;
 };
 
-const normalizeCandidateValue = (
-  field: LearnerRecordImportField,
-  value: string,
-): unknown => {
+const normalizeCandidateValue = (field: LearnerRecordImportField, value: string): unknown => {
   if (field === "evidenceLinks") {
     return parseEvidenceLinksCell(value);
   }
@@ -976,7 +971,6 @@ export const queueReviewedLearnerRecordImportPreview = async (
     };
   }
 
-  const queuedRows = await enqueueLearnerRecordImportBatch(db, input.tenantId, queuePayloads);
   const claimed = await markLearnerRecordImportPreviewQueued(db, {
     tenantId: input.tenantId,
     batchId: preview.batchId,
@@ -991,6 +985,8 @@ export const queueReviewedLearnerRecordImportPreview = async (
       reports,
     };
   }
+
+  const queuedRows = await enqueueLearnerRecordImportBatch(db, input.tenantId, queuePayloads);
 
   return {
     status: "queued",

@@ -1396,7 +1396,7 @@ export const registerTenantGovernanceRoutes = (
               tone: "warning",
               title: "Reviewed preview could not be queued",
               detail:
-                "Try queueing again. CredTrail will reuse the reviewed preview without duplicating rows.",
+                "Check import progress before trying again. If this batch does not appear, preview the CSV again.",
             },
           },
         );
