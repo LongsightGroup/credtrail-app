@@ -605,7 +605,6 @@ export const registerTenantGovernanceRoutes = (
       authPolicy,
       authProviders,
       breakGlassAccounts,
-      badgeTemplateImageRevisionCounts,
     ] = await Promise.all([
       findUserById(db, sessionUserId),
       listBadgeTemplates(db, {
@@ -639,11 +638,7 @@ export const registerTenantGovernanceRoutes = (
       tenant.planTier === "enterprise"
         ? listTenantBreakGlassAccounts(db, tenantId)
         : Promise.resolve([]),
-      listBadgeTemplateImageRevisionCountsByTenant(db, tenantId),
     ]);
-    const badgeTemplateImageRevisionCountsById = Object.fromEntries(
-      badgeTemplateImageRevisionCounts.map((entry) => [entry.badgeTemplateId, entry.revisionCount]),
-    );
 
     const badgeRuleVersionLists = await Promise.all(
       badgeRules.map(async (rule) =>
@@ -669,7 +664,6 @@ export const registerTenantGovernanceRoutes = (
       ...(currentUser?.email === undefined ? {} : { userEmail: currentUser.email }),
       membershipRole,
       badgeTemplates,
-      badgeTemplateImageRevisionCountsById,
       orgUnits,
       membershipOrgUnitScopes,
       tenantMembers,

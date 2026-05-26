@@ -994,7 +994,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain("/v1/tenants/tenant_123/assertions/manual-issue");
     expect(body).toContain("/v1/tenants/tenant_123/api-keys");
     expect(body).toContain("/v1/tenants/tenant_123/org-units");
-    expect(body).toContain("/v1/tenants/tenant_123/badge-templates");
+    expect(body).not.toContain("/v1/tenants/tenant_123/badge-templates");
     expect(body).toContain("/v1/tenants/tenant_123/users");
     expect(body).toContain("/v1/tenants/tenant_123/badge-rules");
     expect(body).toContain("/v1/tenants/tenant_123/badge-rule-value-lists");

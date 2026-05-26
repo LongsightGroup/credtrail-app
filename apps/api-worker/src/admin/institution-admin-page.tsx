@@ -58,20 +58,11 @@ import {
   type AdminSidebarFooterLink,
   type AdminSidebarSection,
 } from "./components";
-import { BadgeTemplateAdminTableRow } from "./badge-template-table-row-fragment";
 import { TenantApiKeyAdminTableRow } from "./api-key-table-row-fragment";
+import { serializeJsonScriptContent } from "./institution-admin-shell";
 export { institutionAdminRuleTemplatesPage } from "./institution-admin-templates-page";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
-
-const serializeJsonScriptContent = (value: unknown): string => {
-  return JSON.stringify(value)
-    .replaceAll("<", "\\u003c")
-    .replaceAll(">", "\\u003e")
-    .replaceAll("&", "\\u0026")
-    .replaceAll("\u2028", "\\u2028")
-    .replaceAll("\u2029", "\\u2029");
-};
 
 const formatJsonTextareaValue = (value: string): string => {
   try {
@@ -249,7 +240,6 @@ type InstitutionAdminView =
   | "reportingTrends"
   | "reportingReports"
   | "rules"
-  | "rulesTemplates"
   | "access"
   | "accessMembers"
   | "accessGovernance"
@@ -305,11 +295,6 @@ const INSTITUTION_ADMIN_VIEW_CONFIG = {
   rules: {
     titlePrefix: "Rules · Institution Admin",
     controller: "shared",
-  },
-  rulesTemplates: {
-    titlePrefix: "Badge Templates · Rules · Institution Admin",
-    controller: "shell",
-    extraAssets: ["institutionAdminBadgeTemplateJs"],
   },
   access: {
     titlePrefix: "Access · Institution Admin",
@@ -397,23 +382,12 @@ interface InstitutionAdminLearnerRecordImportWorkflow {
   };
 }
 
-interface InstitutionAdminBadgeTemplatesPageOptions {
-  searchQuery: string;
-  includeArchived: boolean;
-  returnToRuleBuilder: boolean;
-  /** When set with history=1, auto-opens the template audit dialog on load. */
-  deepLinkHistoryTemplateId: string | null;
-  deepLinkHistoryUnavailable: "not_found" | null;
-}
-
 interface InstitutionAdminPageInput {
   tenant: TenantRecord;
   userId: string;
   userEmail?: string;
   membershipRole: TenantMembershipRole;
   badgeTemplates: readonly BadgeTemplateRecord[];
-  badgeTemplateImageRevisionCountsById?: Readonly<Record<string, number>>;
-  badgeTemplatesPage?: InstitutionAdminBadgeTemplatesPageOptions;
   orgUnits: readonly TenantOrgUnitRecord[];
   tenantMembers: readonly TenantMemberRecord[];
   membershipOrgUnitScopes: readonly TenantMembershipOrgUnitScopeRecord[];
@@ -441,7 +415,6 @@ const renderInstitutionAdminPage = (
   view: InstitutionAdminView,
 ): AppPage => {
   const templateById = new Map(input.badgeTemplates.map((template) => [template.id, template]));
-  const badgeTemplateImageRevisionCountsById = input.badgeTemplateImageRevisionCountsById ?? {};
   const orgUnitById = new Map(input.orgUnits.map((orgUnit) => [orgUnit.id, orgUnit]));
   const versionsByRuleId = new Map<string, BadgeIssuanceRuleVersionRecord[]>();
   const tenantAdminPath = `/tenants/${encodeURIComponent(input.tenant.id)}/admin`;
@@ -899,51 +872,6 @@ const renderInstitutionAdminPage = (
     versions.sort((left, right) => right.versionNumber - left.versionNumber);
   }
 
-  const badgeTemplatesPage = input.badgeTemplatesPage;
-  const templateHistoryHref = (badgeTemplateId: string): string => {
-    const query = new URLSearchParams();
-
-    if (badgeTemplatesPage !== undefined) {
-      if (badgeTemplatesPage.searchQuery.length > 0) {
-        query.set("q", badgeTemplatesPage.searchQuery);
-      }
-
-      if (badgeTemplatesPage.includeArchived) {
-        query.set("includeArchived", "1");
-      }
-
-      if (badgeTemplatesPage.returnToRuleBuilder) {
-        query.set("returnTo", "rule-builder");
-      }
-    }
-
-    query.set("badgeTemplateId", badgeTemplateId);
-    query.set("history", "1");
-
-    return `${rulesTemplatesPath}?${query.toString()}`;
-  };
-  const templateRows =
-    input.badgeTemplates.length === 0 ? (
-      <AdminEmptyTableRow colSpan={5}>
-        {badgeTemplatesPage !== undefined &&
-        (badgeTemplatesPage.searchQuery.length > 0 || badgeTemplatesPage.includeArchived)
-          ? "No badge templates match these filters."
-          : "No badge templates found."}
-      </AdminEmptyTableRow>
-    ) : (
-      input.badgeTemplates.map((template) => {
-        const imageRevisionCount = badgeTemplateImageRevisionCountsById[template.id] ?? 0;
-        return (
-          <BadgeTemplateAdminTableRow
-            tenantId={input.tenant.id}
-            template={template}
-            imageRevisionCount={imageRevisionCount}
-            historyHref={templateHistoryHref(template.id)}
-          />
-        );
-      })
-    );
-
   const orgUnitRows =
     input.orgUnits.length === 0 ? (
       <AdminEmptyTableRow colSpan={4}>No org units found.</AdminEmptyTableRow>
@@ -1276,8 +1204,6 @@ const renderInstitutionAdminPage = (
   const manualIssueApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions/manual-issue`;
   const createApiKeyPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/api-keys`;
   const createOrgUnitPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/org-units`;
-  const badgeTemplateApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-templates`;
-  const badgeTemplateAdminTableRowPathPrefix = `${tenantAdminPath}/rules/templates`;
   const badgeRuleApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules`;
   const badgeRuleValueListApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rule-value-lists`;
   const badgeRulePreviewSimulationApiPath = `${badgeRuleApiPath}/preview-simulate`;
@@ -3108,29 +3034,13 @@ const renderInstitutionAdminPage = (
   const tenantMemberEmailsByUserId = Object.fromEntries(
     input.tenantMembers.map((member) => [member.userId, member.email]),
   );
-  const badgeTemplateRecords = input.badgeTemplates.map((template) => ({
-    id: template.id,
-    slug: template.slug,
-    title: template.title,
-    description: template.description,
-    criteriaUri: template.criteriaUri,
-    imageUri: template.imageUri,
-    isArchived: template.isArchived,
-    updatedAt: template.updatedAt,
-  }));
   const adminPageContextJson = serializeJsonScriptContent({
     tenantAdminPath,
     manualIssueApiPath,
     createApiKeyPath,
     createOrgUnitPath,
-    badgeTemplateApiPathPrefix,
-    badgeTemplateAdminTableRowPathPrefix,
     ruleBuilderPath,
     showcasePath,
-    badgeTemplateRecords,
-    badgeTemplatesReturnToRuleBuilder: badgeTemplatesPage?.returnToRuleBuilder ?? false,
-    // Avoids the substring "History" in JSON keys (breaks unrelated page tests).
-    autoOpenTemplateAuditTemplateId: badgeTemplatesPage?.deepLinkHistoryTemplateId ?? null,
     tenantMemberEmailsByUserId,
     badgeRuleApiPath,
     badgeRuleValueListApiPath,
@@ -3226,7 +3136,7 @@ const renderInstitutionAdminPage = (
         {
           href: rulesTemplatesPath,
           label: "Badge Templates",
-          isCurrent: view === "rulesTemplates",
+          isCurrent: false,
           isSub: true,
         },
         { href: ruleBuilderPath, label: "Rule Builder", isSub: true },
@@ -3368,303 +3278,6 @@ const renderInstitutionAdminPage = (
       <span class="ct-admin__add-disclosure-control-open">Open form</span>
       <span class="ct-admin__add-disclosure-control-close">Hide form</span>
     </span>
-  );
-
-  const templateEditPanelMarkup = (
-    <details id="template-edit-panel" class="ct-admin__panel ct-admin__add-disclosure" hidden>
-      <summary class="ct-admin__add-disclosure-summary">
-        <span>
-          <strong>Edit Badge Template</strong>
-          <small>
-            Update details, artwork, criteria, public links, and activity for the selected template.
-          </small>
-        </span>
-        {addDisclosureControlMarkup}
-      </summary>
-      <AdminForm
-        id="badge-template-edit-form"
-        className="ct-admin__form ct-admin__template-editor-form"
-      >
-        <section class="ct-admin__template-editor-section" id="template-editor-details">
-          <header class="ct-admin__template-editor-section-header">
-            <h3>Details</h3>
-            <p>Name and description shown on issued badge records.</p>
-          </header>
-          <div class="ct-admin__template-editor-fields">
-            <AdminField label="Badge template">
-              <select name="badgeTemplateId" required>
-                {templateSelectOptions}
-              </select>
-            </AdminField>
-            <AdminField label="Badge name">
-              <input name="title" type="text" required maxlength={200} />
-            </AdminField>
-            <details class="ct-admin__template-editor-advanced">
-              <summary>Advanced URL settings</summary>
-              <AdminField label="URL key">
-                <input name="slug" type="text" required maxlength={120} />
-              </AdminField>
-            </details>
-            <AdminField label="Description">
-              <textarea name="description" rows={3} maxlength={2000}></textarea>
-            </AdminField>
-          </div>
-        </section>
-        <section class="ct-admin__template-editor-section" id="template-editor-criteria">
-          <header class="ct-admin__template-editor-section-header">
-            <h3>Criteria</h3>
-            <p>Where public viewers confirm what the badge represents.</p>
-          </header>
-          <div class="ct-admin__template-editor-fields">
-            <AdminField label="Criteria page URL">
-              <input name="criteriaUri" type="url" maxlength={2048} />
-            </AdminField>
-            <a
-              id="badge-template-editor-criteria-link"
-              class="ct-admin__text-action"
-              href="#"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View public criteria page ↗
-            </a>
-          </div>
-        </section>
-        <section class="ct-admin__template-editor-section" id="template-editor-visibility">
-          <header class="ct-admin__template-editor-section-header">
-            <h3>Visibility</h3>
-            <p>Preview the public badge page for this template.</p>
-          </header>
-          <a
-            id="badge-template-editor-public-link"
-            class="ct-admin__text-action"
-            href="#"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View public badge page ↗
-          </a>
-        </section>
-        <section class="ct-admin__template-editor-section" id="template-editor-activity">
-          <header class="ct-admin__template-editor-section-header">
-            <h3>Activity</h3>
-            <p id="badge-template-editor-activity-summary">Select a template to review activity.</p>
-          </header>
-          <a
-            href="#"
-            class="ct-admin__text-action"
-            id="badge-template-editor-history-link"
-            data-template-history-template-id=""
-            data-template-history-template-title=""
-            data-template-history-image-revision-count="0"
-          >
-            View full history
-          </a>
-        </section>
-        <div class="ct-admin__template-editor-submit">
-          <AdminButton type="submit">Save template</AdminButton>
-        </div>
-      </AdminForm>
-      <AdminStatus id="badge-template-edit-status"></AdminStatus>
-      <AdminForm
-        id="badge-template-image-upload-form"
-        className="ct-admin__form ct-admin__template-editor-form"
-      >
-        <section class="ct-admin__template-editor-section" id="template-editor-artwork">
-          <header class="ct-admin__template-editor-section-header">
-            <h3>Artwork</h3>
-            <p>Upload an image or generate a draft before using the template in rules.</p>
-          </header>
-          <div class="ct-admin__template-editor-fields">
-            <AdminField label="Badge template">
-              <select name="badgeTemplateId" required>
-                {templateSelectOptions}
-              </select>
-            </AdminField>
-            <AdminField label="Image file">
-              <input name="file" type="file" required accept="image/png,image/jpeg,image/webp" />
-            </AdminField>
-            <AdminButton type="submit">Upload image</AdminButton>
-          </div>
-        </section>
-      </AdminForm>
-      <AdminStatus id="badge-template-image-upload-status"></AdminStatus>
-      <AdminForm
-        id="badge-template-image-generation-form"
-        className="ct-admin__form ct-admin__template-editor-form"
-      >
-        <section class="ct-admin__template-editor-section">
-          <header class="ct-admin__template-editor-section-header">
-            <h3>Generate draft</h3>
-            <p>Use the selected template as the source for a generated badge image.</p>
-          </header>
-          <div class="ct-admin__template-editor-fields ct-admin__template-editor-fields--generation">
-            <AdminField label="Badge template">
-              <select name="badgeTemplateId" required>
-                {templateSelectOptions}
-              </select>
-            </AdminField>
-            <AdminField label="Style">
-              <select name="stylePreset" required>
-                <option value="institutional">Institutional</option>
-                <option value="technical">Technical</option>
-                <option value="academic">Academic</option>
-                <option value="open_source">Open source</option>
-                <option value="minimal">Minimal</option>
-              </select>
-            </AdminField>
-            <AdminField label="Accent">
-              <input name="accentColor" type="text" placeholder="Sakai blue" maxlength={80} />
-            </AdminField>
-            <AdminField label="Prompt notes">
-              <input
-                name="promptNotes"
-                type="text"
-                placeholder="Shield, milestone, stars"
-                maxlength={1000}
-              />
-            </AdminField>
-            <AdminButton type="submit">Generate draft</AdminButton>
-          </div>
-        </section>
-      </AdminForm>
-      <AdminStatus id="badge-template-image-generation-status"></AdminStatus>
-      <div
-        id="badge-template-image-generation-preview"
-        class="ct-admin__image-generation-preview"
-        hidden
-      >
-        <img id="badge-template-image-generation-preview-img" alt="Generated badge draft" />
-        <div class="ct-admin__image-generation-actions">
-          <AdminButton id="badge-template-image-generation-apply" variant="secondary">
-            Apply generated image
-          </AdminButton>
-          <a
-            id="badge-template-image-generation-open"
-            class="ct-admin__text-action"
-            href="#"
-            target="_blank"
-            rel="noopener noreferrer"
-            hidden
-          >
-            Open full size
-          </a>
-        </div>
-      </div>
-    </details>
-  );
-
-  const templateCreatePanelMarkup = (
-    <details id="template-create-panel" class="ct-admin__panel ct-admin__add-disclosure">
-      <summary class="ct-admin__add-disclosure-summary">
-        <span>
-          <strong>Create Badge Template</strong>
-          <small>Start with the badge name. CredTrail opens artwork setup after creation.</small>
-        </span>
-        {addDisclosureControlMarkup}
-      </summary>
-      <AdminForm
-        id="badge-template-create-form"
-        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--template-create ct-grid"
-      >
-        <AdminField label="Badge name">
-          <input
-            name="title"
-            type="text"
-            required
-            maxlength={200}
-            autocomplete="off"
-            aria-describedby="badge-template-create-title-hint"
-          />
-          <span id="badge-template-create-title-hint" class="ct-admin__field-hint">
-            The name administrators, learners, and public viewers will see.
-          </span>
-        </AdminField>
-        <AdminField label="Description" className="ct-admin__template-create-field--wide">
-          <textarea
-            name="description"
-            rows={3}
-            maxlength={2000}
-            aria-describedby="badge-template-create-description-hint"
-          ></textarea>
-          <span id="badge-template-create-description-hint" class="ct-admin__field-hint">
-            Optional short summary shown with issued badge records.
-          </span>
-        </AdminField>
-        <div class="ct-admin__template-create-actions">
-          <AdminButton type="submit">Create and add artwork</AdminButton>
-        </div>
-      </AdminForm>
-      <p
-        id="badge-template-create-status"
-        class="ct-admin__status ct-admin__template-create-status"
-        aria-live="polite"
-      ></p>
-      <div
-        id="badge-template-create-next-actions"
-        class="ct-admin__template-create-next-actions"
-        hidden
-        data-artwork-ready="false"
-      >
-        <p id="badge-template-create-next-copy">
-          Add badge artwork next, then use this template in a rule.
-        </p>
-        <div class="ct-admin__template-create-next-action-row">
-          <AdminButton
-            type="button"
-            variant="secondary"
-            className="ct-admin__template-create-artwork-action"
-            dataAttributes={{ "data-template-create-artwork-template-id": "" }}
-          >
-            Add artwork
-          </AdminButton>
-          <AdminButtonLink
-            href={ruleBuilderPath}
-            variant="secondary"
-            className="ct-admin__template-create-rule-action"
-            dataAttributes={{ "data-template-create-rule-link": "" }}
-          >
-            Use in a rule
-          </AdminButtonLink>
-          <AdminButtonLink
-            href={showcasePath}
-            variant="ghost"
-            className="ct-admin__template-create-public-action"
-            target="_blank"
-            rel="noopener noreferrer"
-            dataAttributes={{ "data-template-create-public-link": "" }}
-          >
-            View public page
-          </AdminButtonLink>
-        </div>
-      </div>
-    </details>
-  );
-
-  const badgeTemplateHistoryDialogMarkup = (
-    <dialog id="badge-template-history-dialog" class="ct-admin__history-dialog">
-      <form method="dialog" class="ct-admin__history-dialog-surface">
-        <header class="ct-admin__history-dialog-header">
-          <div>
-            <h2 id="badge-template-history-dialog-title">Template history</h2>
-            <p id="badge-template-history-dialog-subtitle" class="ct-admin__meta"></p>
-          </div>
-          <AdminButton type="submit" variant="secondary" size="tiny">
-            Close
-          </AdminButton>
-        </header>
-        <AdminStatus id="badge-template-history-status"></AdminStatus>
-        <div id="badge-template-history-audit-list" class="ct-admin__history-audit-list"></div>
-        <details
-          id="badge-template-image-history-section"
-          class="ct-admin__history-image-section"
-          hidden
-        >
-          <summary>Image versions</summary>
-          <div id="badge-template-image-revision-list" class="ct-admin__image-revision-list"></div>
-        </details>
-      </form>
-    </dialog>
   );
 
   const apiKeyPanelMarkup = (
@@ -4974,53 +4587,6 @@ const renderInstitutionAdminPage = (
     </details>
   );
 
-  const badgeTemplatesFilterMarkup =
-    badgeTemplatesPage === undefined ? null : (
-      <AdminForm
-        method="get"
-        action={rulesTemplatesPath}
-        className="ct-admin__form ct-admin__form--inline ct-grid"
-      >
-        <AdminField label="Search">
-          <input
-            name="q"
-            type="search"
-            value={badgeTemplatesPage.searchQuery}
-            placeholder="Search badge templates"
-          />
-        </AdminField>
-        <AdminCheckboxRow>
-          <input
-            type="checkbox"
-            name="includeArchived"
-            value="1"
-            checked={badgeTemplatesPage.includeArchived}
-          />
-          Include archived templates
-        </AdminCheckboxRow>
-        <AdminButton type="submit">Apply filters</AdminButton>
-        {badgeTemplatesPage.searchQuery.length > 0 || badgeTemplatesPage.includeArchived ? (
-          <AdminButtonLink href={rulesTemplatesPath} variant="ghost">
-            Clear filters
-          </AdminButtonLink>
-        ) : null}
-      </AdminForm>
-    );
-
-  const badgeTemplatesTableMarkup = (
-    <AdminPanel variant="table">
-      <h2>Badge Templates ({badgeTemplateCount})</h2>
-      <p>Template records, public links, and artwork maintenance live together here.</p>
-      {badgeTemplatesFilterMarkup}
-      <AdminTable
-        tbodyId="badge-template-table-body"
-        headers={["Image", "Template", "Status", "Updated", "Actions"]}
-      >
-        {templateRows}
-      </AdminTable>
-    </AdminPanel>
-  );
-
   const orgUnitsTableMarkup = (
     <AdminPanel variant="table" className="ct-admin__org-units-table">
       <h2>Org Units ({orgUnitCount})</h2>
@@ -5693,27 +5259,6 @@ const renderInstitutionAdminPage = (
             <section class="ct-admin ct-stack">
               {badgeRulesTableMarkup}
               {ruleAdvancedToolsMarkup}
-            </section>
-          </>
-        );
-      case "rulesTemplates":
-        return (
-          <>
-            {renderPageHeader(
-              "Badge Templates",
-              "Manage template records, artwork, and public template links without crowding the rules overview.",
-            )}
-            <section class="ct-admin ct-stack">
-              {badgeTemplatesPage?.deepLinkHistoryUnavailable === "not_found" ? (
-                <AdminStatus id="badge-template-history-deeplink-status" data-tone="error">
-                  The requested template history link does not match a badge template in this
-                  tenant.
-                </AdminStatus>
-              ) : null}
-              {templateCreatePanelMarkup}
-              {templateEditPanelMarkup}
-              {badgeTemplatesTableMarkup}
-              {badgeTemplateHistoryDialogMarkup}
             </section>
           </>
         );
