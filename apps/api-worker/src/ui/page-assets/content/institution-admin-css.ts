@@ -2257,6 +2257,67 @@ a.ct-admin__workspace-card:active {
 .ct-admin__add-disclosure-form--template-image-revisions.ct-grid {
   grid-template-columns: minmax(16rem, 1fr) auto;
 }
+.ct-admin__template-editor-form {
+  display: grid;
+  gap: var(--ct-space-3);
+  max-width: 54rem;
+  padding: 0 var(--ct-space-4) var(--ct-space-3);
+}
+.ct-admin__template-editor-section {
+  display: grid;
+  gap: var(--ct-space-2);
+  padding-block: var(--ct-space-1);
+  border-bottom: 1px solid var(--ct-border-subtle);
+}
+.ct-admin__template-editor-section:last-of-type {
+  border-bottom: none;
+}
+.ct-admin__template-editor-section-header {
+  display: grid;
+  gap: 0.18rem;
+}
+.ct-admin__template-editor-section-header h3 {
+  margin: 0;
+  color: var(--ct-theme-text-title);
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+.ct-admin__template-editor-section-header p {
+  max-width: 64ch;
+  margin: 0;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+.ct-admin__template-editor-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ct-space-3);
+  align-items: end;
+}
+.ct-admin__template-editor-fields--generation {
+  grid-template-columns: minmax(13rem, 1fr) minmax(10rem, 0.8fr) minmax(10rem, 0.8fr) minmax(
+      16rem,
+      1.4fr
+    ) auto;
+}
+.ct-admin__template-editor-advanced {
+  display: grid;
+  gap: var(--ct-space-2);
+}
+.ct-admin__template-editor-advanced > summary {
+  color: var(--ct-theme-link);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ct-admin__template-editor-advanced > .ct-admin__field {
+  margin-top: var(--ct-space-2);
+}
+.ct-admin__template-editor-submit {
+  display: flex;
+  justify-content: flex-end;
+}
 .ct-admin__add-disclosure-form--org-unit.ct-grid {
   grid-template-columns: minmax(0, 44rem);
   align-items: start;
@@ -3973,6 +4034,10 @@ button.ct-admin__text-action {
   .ct-admin__builder-test-layout.ct-grid,
   .ct-admin__builder-review-layout.ct-grid,
   .ct-admin__workspace-grid.ct-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-admin__template-editor-fields--generation {
     grid-template-columns: minmax(0, 1fr);
   }
 

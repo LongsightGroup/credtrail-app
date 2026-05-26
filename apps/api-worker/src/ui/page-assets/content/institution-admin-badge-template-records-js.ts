@@ -41,32 +41,58 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_RECORDS_JS = `
           ? record.criteriaUri
           : '';
     }
+
+    const publicPath = badgeTemplateShowcasePath(badgeTemplateId);
+    const criteriaPath = badgeTemplateCriteriaRegistryPath(badgeTemplateId);
+
+    if (badgeTemplateEditorPublicLink instanceof HTMLAnchorElement && publicPath.length > 0) {
+      badgeTemplateEditorPublicLink.href = publicPath;
+    }
+
+    if (badgeTemplateEditorCriteriaLink instanceof HTMLAnchorElement && criteriaPath.length > 0) {
+      badgeTemplateEditorCriteriaLink.href = criteriaPath;
+    }
+
+    if (badgeTemplateEditorHistoryLink instanceof HTMLAnchorElement) {
+      const rowHistoryTrigger = document.querySelector(
+        '[data-template-history-template-id="' + badgeTemplateId + '"]',
+      );
+      const revisionCount =
+        rowHistoryTrigger instanceof HTMLElement
+          ? rowHistoryTrigger.dataset.templateHistoryImageRevisionCount || '0'
+          : '0';
+      badgeTemplateEditorHistoryLink.dataset.templateHistoryTemplateId = badgeTemplateId;
+      badgeTemplateEditorHistoryLink.dataset.templateHistoryTemplateTitle =
+        typeof record.title === 'string' ? record.title : '';
+      badgeTemplateEditorHistoryLink.dataset.templateHistoryImageRevisionCount = revisionCount;
+    }
+
+    if (badgeTemplateEditorActivitySummary instanceof HTMLElement) {
+      const revisionCount = readBadgeTemplateImageRevisionCount(badgeTemplateId);
+      const revisionLabel =
+        revisionCount === 1 ? '1 image version' : String(revisionCount) + ' image versions';
+      const updatedAt =
+        typeof record.updatedAt === 'string' && record.updatedAt.length > 0
+          ? formatTimestamp(record.updatedAt)
+          : 'n/a';
+      badgeTemplateEditorActivitySummary.textContent =
+        revisionLabel + '. Last updated ' + updatedAt + '.';
+    }
   };
-  const openTemplateEditPanel = (badgeTemplateId) => {
+  const openTemplateEditor = (badgeTemplateId, section) => {
     syncBadgeTemplateEditForm(badgeTemplateId);
     setBadgeTemplateImageFormSelection(badgeTemplateId);
 
     if (templateEditPanel instanceof HTMLDetailsElement) {
       templateEditPanel.hidden = false;
       templateEditPanel.open = true;
-      templateEditPanel.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    }
 
-    if (templateImagePanel instanceof HTMLDetailsElement) {
-      templateImagePanel.hidden = false;
-      templateImagePanel.open = true;
-    }
-  };
-  const openTemplateImagePanel = (badgeTemplateId, shouldScroll = true) => {
-    setBadgeTemplateImageFormSelection(badgeTemplateId);
-
-    if (templateImagePanel instanceof HTMLDetailsElement) {
-      templateImagePanel.hidden = false;
-      templateImagePanel.open = true;
-
-      if (shouldScroll) {
-        templateImagePanel.scrollIntoView({ block: 'start', behavior: 'smooth' });
-      }
+      const sectionId =
+        typeof section === 'string' && section.length > 0 ? 'template-editor-' + section : '';
+      const sectionElement =
+        sectionId.length > 0 ? document.getElementById(sectionId) : templateEditPanel;
+      const scrollTarget = sectionElement instanceof HTMLElement ? sectionElement : templateEditPanel;
+      scrollTarget.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
   };
   const setBadgeTemplateHistoryTimelineHtml = (html) => {
@@ -153,30 +179,24 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_RECORDS_JS = `
       return;
     }
 
-    let hint = titleCell.querySelector('[data-template-image-revision-hint]');
+    titleCell.querySelector('[data-template-image-revision-hint]')?.remove();
 
-    if (revisionCount < 1) {
-      hint?.remove();
-      return;
+    if (badgeTemplateEditorHistoryLink instanceof HTMLElement) {
+      badgeTemplateEditorHistoryLink.dataset.templateHistoryImageRevisionCount =
+        String(revisionCount);
     }
 
-    const hintText =
-      revisionCount === 1 ? '1 image version' : String(revisionCount) + ' image versions';
-
-    if (!(hint instanceof HTMLElement)) {
-      hint = document.createElement('span');
-      hint.className = 'ct-admin__meta';
-      hint.dataset.templateImageRevisionHint = 'true';
-      const title = titleCell.querySelector('strong');
-
-      if (title instanceof HTMLElement) {
-        title.insertAdjacentElement('afterend', hint);
-      } else {
-        titleCell.append(hint);
-      }
+    if (badgeTemplateEditorActivitySummary instanceof HTMLElement) {
+      const record = badgeTemplateRecordsById.get(badgeTemplateId);
+      const updatedAt =
+        record && typeof record.updatedAt === 'string' && record.updatedAt.length > 0
+          ? formatTimestamp(record.updatedAt)
+          : 'n/a';
+      const revisionLabel =
+        revisionCount === 1 ? '1 image version' : String(revisionCount) + ' image versions';
+      badgeTemplateEditorActivitySummary.textContent =
+        revisionLabel + '. Last updated ' + updatedAt + '.';
     }
-
-    hint.textContent = hintText;
   };
   const readBadgeTemplateImageRevisionCount = (badgeTemplateId) => {
     const historyButton = document.querySelector(
@@ -233,7 +253,7 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_RECORDS_JS = `
       }
     }
 
-    const updatedAtCell = row.cells.item(4);
+    const updatedAtCell = row.cells.item(3);
 
     if (updatedAtCell !== null && template && typeof template.updatedAt === 'string') {
       updatedAtCell.textContent = formatTimestamp(template.updatedAt);
@@ -255,6 +275,10 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_RECORDS_JS = `
     ) {
       activeBadgeTemplateHistoryTitle = template.title;
       badgeTemplateHistoryDialogSubtitle.textContent = template.title;
+    }
+
+    if (template && typeof template.id === 'string') {
+      syncBadgeTemplateEditForm(template.id);
     }
   };
   const badgeTemplateAdminTableRowPath = (badgeTemplateId) => {
@@ -280,6 +304,16 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_RECORDS_JS = `
     }
 
     const url = new URL(showcasePath, window.location.origin);
+    url.searchParams.set('badgeTemplateId', badgeTemplateId);
+    return url.pathname + url.search;
+  };
+  const badgeTemplateCriteriaRegistryPath = (badgeTemplateId) => {
+    if (showcasePath.length === 0) {
+      return '';
+    }
+
+    const url = new URL(showcasePath, window.location.origin);
+    url.pathname = url.pathname.replace(/\\/$/, '') + '/criteria';
     url.searchParams.set('badgeTemplateId', badgeTemplateId);
     return url.pathname + url.search;
   };
@@ -438,6 +472,11 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_RECORDS_JS = `
       title: typeof candidate.title === 'string' ? candidate.title : fallback.title,
       description: optionalTemplateText(candidate.description, fallback.description),
       criteriaUri: optionalTemplateText(candidate.criteriaUri, fallback.criteriaUri),
+      imageUri: optionalTemplateText(candidate.imageUri, fallback.imageUri ?? null),
+      isArchived:
+        typeof candidate.isArchived === 'boolean' ? candidate.isArchived : fallback.isArchived ?? false,
+      updatedAt:
+        typeof candidate.updatedAt === 'string' ? candidate.updatedAt : fallback.updatedAt ?? '',
     };
   };
   const parseBadgeTemplateTableRowFragment = (html) => {

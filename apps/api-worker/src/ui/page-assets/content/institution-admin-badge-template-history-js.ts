@@ -145,6 +145,80 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_HISTORY_JS = `
     await loadBadgeTemplateHistory(badgeTemplateId);
   };
   const badgeTemplateTableBody = document.getElementById('badge-template-table-body');
+  const closeBadgeTemplateActionMenus = (exceptMenu) => {
+    if (!(badgeTemplateTableBody instanceof HTMLElement)) {
+      return;
+    }
+
+    const openMenus = badgeTemplateTableBody.querySelectorAll('details.ct-admin__action-menu[open]');
+
+    openMenus.forEach((menu) => {
+      if (!(menu instanceof HTMLDetailsElement) || menu === exceptMenu) {
+        return;
+      }
+
+      menu.open = false;
+    });
+  };
+  const setBadgeTemplateArchivedStateFromRow = async (badgeTemplateId, action, statusElement) => {
+    if (badgeTemplateId.length === 0 || (action !== 'archive' && action !== 'unarchive')) {
+      setStatus(statusElement, 'Invalid template archive action.', true);
+      return;
+    }
+
+    setStatus(
+      statusElement,
+      action === 'archive' ? 'Archiving badge template...' : 'Restoring badge template...',
+      false,
+    );
+
+    try {
+      const response = await fetch(
+        badgeTemplateApiPathPrefix +
+          '/' +
+          encodeURIComponent(badgeTemplateId) +
+          '/' +
+          action,
+        {
+          method: 'POST',
+        },
+      );
+      const payload = await parseJsonBody(response);
+
+      if (!response.ok) {
+        setStatus(statusElement, errorDetailFromPayload(payload), true);
+        return;
+      }
+
+      const template =
+        payload && payload.template && typeof payload.template === 'object'
+          ? payload.template
+          : null;
+
+      if (template !== null && typeof template.id === 'string') {
+        const existingRecord = badgeTemplateRecordsById.get(template.id) || {};
+        badgeTemplateRecordsById.set(template.id, {
+          ...existingRecord,
+          ...template,
+        });
+        await upsertBadgeTemplateTableRow(template.id);
+        syncBadgeTemplateEditForm(template.id);
+      }
+
+      setStatus(
+        statusElement,
+        action === 'archive' ? 'Badge template archived.' : 'Badge template restored.',
+        false,
+        'success',
+      );
+    } catch {
+      setStatus(
+        statusElement,
+        'Unable to update badge template archive state from this browser session.',
+        true,
+      );
+    }
+  };
 
   if (badgeTemplateTableBody instanceof HTMLElement) {
     badgeTemplateTableBody.addEventListener('click', async (event) => {
@@ -157,14 +231,21 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_HISTORY_JS = `
       const editButton = target.closest('[data-template-edit-template-id]');
 
       if (editButton instanceof HTMLButtonElement) {
-        openTemplateEditPanel(editButton.dataset.templateEditTemplateId || '');
+        openTemplateEditor(editButton.dataset.templateEditTemplateId || '');
         return;
       }
 
-      const imageButton = target.closest('[data-template-manage-image-template-id]');
+      const menuTrigger = target.closest('summary.ct-admin__action-menu-trigger');
 
-      if (imageButton instanceof HTMLButtonElement) {
-        openTemplateImagePanel(imageButton.dataset.templateManageImageTemplateId || '');
+      if (menuTrigger instanceof HTMLElement) {
+        const menu = menuTrigger.parentElement;
+
+        if (menu instanceof HTMLDetailsElement) {
+          window.setTimeout(() => {
+            closeBadgeTemplateActionMenus(menu.open ? menu : undefined);
+          }, 0);
+        }
+
         return;
       }
 
@@ -179,14 +260,47 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_HISTORY_JS = `
           historyTrigger.dataset.templateHistoryTemplateId || '',
           historyTrigger.dataset.templateHistoryTemplateTitle || '',
         );
+        const menu = historyTrigger.closest('details.ct-admin__action-menu');
+
+        if (menu instanceof HTMLDetailsElement) {
+          menu.open = false;
+        }
+        return;
+      }
+
+      const archiveButton = target.closest('[data-template-archive-template-id]');
+
+      if (archiveButton instanceof HTMLButtonElement) {
+        const menu = archiveButton.closest('details.ct-admin__action-menu');
+
+        if (menu instanceof HTMLDetailsElement) {
+          menu.open = false;
+        }
+
+        await setBadgeTemplateArchivedStateFromRow(
+          archiveButton.dataset.templateArchiveTemplateId || '',
+          archiveButton.dataset.templateArchiveAction || '',
+          badgeTemplateEditStatus,
+        );
       }
     });
   }
 
   if (badgeTemplateCreateArtworkButton instanceof HTMLButtonElement) {
     badgeTemplateCreateArtworkButton.addEventListener('click', () => {
-      openTemplateImagePanel(
+      openTemplateEditor(
         badgeTemplateCreateArtworkButton.dataset.templateCreateArtworkTemplateId || '',
+        'artwork',
+      );
+    });
+  }
+
+  if (badgeTemplateEditorHistoryLink instanceof HTMLAnchorElement) {
+    badgeTemplateEditorHistoryLink.addEventListener('click', async (event) => {
+      event.preventDefault();
+      await openBadgeTemplateHistory(
+        badgeTemplateEditorHistoryLink.dataset.templateHistoryTemplateId || '',
+        badgeTemplateEditorHistoryLink.dataset.templateHistoryTemplateTitle || '',
       );
     });
   }

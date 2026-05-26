@@ -1435,9 +1435,9 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
         batchId,
       }),
     );
-    expect(
-      mockedEnqueueJobQueueMessageOnce.mock.invocationCallOrder[0] ?? 0,
-    ).toBeLessThan(mockedMarkLearnerRecordImportPreviewQueuedDb.mock.invocationCallOrder[0] ?? 0);
+    expect(mockedEnqueueJobQueueMessageOnce.mock.invocationCallOrder[0] ?? 0).toBeLessThan(
+      mockedMarkLearnerRecordImportPreviewQueuedDb.mock.invocationCallOrder[0] ?? 0,
+    );
   });
 
   it("leaves reviewed learner-record previews retryable when queue insertion fails", async () => {
@@ -3058,26 +3058,43 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('name="slug"');
     expect(body).not.toContain('id="badge-template-create-slug-hint"');
     expect(body).not.toContain('pattern="[a-z0-9]+(-[a-z0-9]+)*"');
-    expect(body).toContain("Badge Artwork");
+    expect(body).toContain("Edit Badge Template");
+    expect(body).toContain("Details");
+    expect(body).toContain("Artwork");
+    expect(body).toContain("Criteria");
+    expect(body).toContain("Visibility");
+    expect(body).toContain("Activity");
     expect(body).toContain(
       "Upload an image or generate a draft before using the template in rules.",
     );
-    expect(body).toContain('id="template-image-panel"');
+    expect(body).toContain('id="template-editor-artwork"');
+    expect(body).not.toContain('id="template-image-panel"');
     expect(body).toContain('class="ct-admin__panel ct-admin__add-disclosure"');
     expect(body).toContain('id="badge-template-image-upload-form"');
     expect(body).toContain('id="badge-template-image-generation-form"');
     expect(body).toContain('id="badge-template-image-generation-open"');
     expect(body).toContain('id="template-edit-panel"');
     expect(body).toContain('id="badge-template-edit-form"');
+    expect(body).toContain('id="badge-template-editor-criteria-link"');
+    expect(body).toContain("View public criteria page ↗");
+    expect(body).toContain('id="badge-template-editor-public-link"');
+    expect(body).toContain("View public badge page ↗");
+    expect(body).toContain('id="badge-template-editor-history-link"');
     expect(body).toContain('data-template-edit-template-id="badge_template_001"');
-    expect(body).toContain('data-template-manage-image-template-id="badge_template_001"');
+    expect(body).not.toContain('data-template-manage-image-template-id="badge_template_001"');
     expect(body).toContain('class="ct-admin__template-actions"');
-    expect(body).toContain("Public");
+    expect(body).toContain("Edit template");
+    expect(body).toContain("View public page ↗");
+    expect(body).toContain("View criteria page ↗");
+    expect(body).toContain("View history");
+    expect(body).toContain("Archive");
+    expect(body).not.toContain(">Public<");
     expect(body).toContain('id="badge-template-history-dialog"');
     expect(body).not.toContain('id="badge-template-image-revision-form"');
     expect(body).not.toContain("Load image history");
     expect(body).toContain('data-template-history-template-id="badge_template_001"');
-    expect(body).toContain("3 image versions");
+    expect(body).toContain('data-template-history-image-revision-count="3"');
+    expect(body).not.toContain("3 image versions");
     expect(body).toContain('data-template-row-id="badge_template_001"');
     expect(body).toContain('class="ct-admin__template-image-link"');
     expect(body).toContain('aria-label="Open full size image for TypeScript Foundations"');
@@ -3087,13 +3104,10 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("Template records, public links, and artwork maintenance");
     expect(body).toContain('id="badge-template-table-body"');
     expect(body.indexOf('id="template-create-panel"')).toBeLessThan(
-      body.indexOf('id="template-image-panel"'),
-    );
-    expect(body.indexOf('id="template-image-panel"')).toBeLessThan(
-      body.indexOf('id="badge-template-table-body"'),
-    );
-    expect(body.indexOf('id="badge-template-table-body"')).toBeLessThan(
       body.indexOf('id="template-edit-panel"'),
+    );
+    expect(body.indexOf('id="template-edit-panel"')).toBeLessThan(
+      body.indexOf('id="badge-template-table-body"'),
     );
     expect(body).toContain('<th scope="col">Status</th>');
     expect(body).not.toContain('<th scope="col">ID</th>');
@@ -3122,8 +3136,9 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("badgeTemplateRuleBuilderPath");
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("badgeTemplatesReturnToRuleBuilder");
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain(
-      "openTemplateImagePanel(createdTemplate.id, false)",
+      "openTemplateEditor(createdTemplate.id, 'artwork')",
     );
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).not.toContain("openTemplateImagePanel");
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain("markBadgeTemplateCreateArtworkReady");
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_JS).toContain(
       "badgeTemplateCreateNextActions.dataset.artworkReady",
@@ -3183,12 +3198,17 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body.trim().startsWith("<tr")).toBe(true);
     expect(body).toContain('data-template-row-id="badge_template_001"');
     expect(body).toContain("TypeScript Foundations");
-    expect(body).toContain("3 image versions");
-    expect(body).toContain("Public");
-    expect(body).toContain("Artwork");
-    expect(body).toContain('data-template-manage-image-template-id="badge_template_001"');
-    expect(body).toContain("Criteria");
-    expect(body).toContain("History");
+    expect(body).not.toContain("3 image versions");
+    expect(body).toContain('data-template-history-image-revision-count="3"');
+    expect(body).toContain("Edit template");
+    expect(body).toContain("View public page ↗");
+    expect(body).toContain("View criteria page ↗");
+    expect(body).toContain("View history");
+    expect(body).toContain("Archive");
+    expect(body).not.toContain(">Public<");
+    expect(body).not.toContain(">Criteria<");
+    expect(body).not.toContain("Artwork");
+    expect(body).not.toContain('data-template-manage-image-template-id="badge_template_001"');
     expect(body).toContain(
       'href="/tenants/tenant_123/admin/rules/templates?badgeTemplateId=badge_template_001&amp;history=1"',
     );

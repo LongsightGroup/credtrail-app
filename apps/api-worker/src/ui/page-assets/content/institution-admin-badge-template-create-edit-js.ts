@@ -123,6 +123,9 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_CREATE_EDIT_JS = `
             title,
             description: description.length === 0 ? null : description,
             criteriaUri: null,
+            imageUri: null,
+            isArchived: false,
+            updatedAt: '',
           },
         );
 
@@ -139,7 +142,7 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_CREATE_EDIT_JS = `
         badgeTemplateCreateForm.reset();
         syncCreateFormAriaInvalid();
         showBadgeTemplateCreateNextActions(createdTemplate.id);
-        openTemplateImagePanel(createdTemplate.id, false);
+        openTemplateEditor(createdTemplate.id, 'artwork');
 
         if (templateCreatePanel instanceof HTMLDetailsElement) {
           templateCreatePanel.open = true;
@@ -263,11 +266,6 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_CREATE_EDIT_JS = `
                   : criteriaUri,
           });
           updateBadgeTemplateRowDetails(updatedTemplate.id, updatedTemplate);
-        }
-
-        if (templateEditPanel instanceof HTMLDetailsElement) {
-          templateEditPanel.open = false;
-          templateEditPanel.hidden = true;
         }
 
         setStatus(badgeTemplateEditStatus, 'Template saved.', false, 'success');

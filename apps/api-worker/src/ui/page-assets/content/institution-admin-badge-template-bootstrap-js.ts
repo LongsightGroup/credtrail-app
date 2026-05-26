@@ -81,7 +81,18 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_BOOTSTRAP_JS = `
   const templateEditPanel = document.getElementById('template-edit-panel');
   const badgeTemplateEditForm = document.getElementById('badge-template-edit-form');
   const badgeTemplateEditStatus = document.getElementById('badge-template-edit-status');
-  const templateImagePanel = document.getElementById('template-image-panel');
+  const badgeTemplateEditorCriteriaLink = document.getElementById(
+    'badge-template-editor-criteria-link',
+  );
+  const badgeTemplateEditorPublicLink = document.getElementById(
+    'badge-template-editor-public-link',
+  );
+  const badgeTemplateEditorActivitySummary = document.getElementById(
+    'badge-template-editor-activity-summary',
+  );
+  const badgeTemplateEditorHistoryLink = document.getElementById(
+    'badge-template-editor-history-link',
+  );
   const badgeTemplateImageUploadForm = document.getElementById('badge-template-image-upload-form');
   const badgeTemplateImageUploadStatus = document.getElementById(
     'badge-template-image-upload-status',

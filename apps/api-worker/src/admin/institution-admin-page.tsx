@@ -3027,6 +3027,9 @@ const renderInstitutionAdminPage = (
     title: template.title,
     description: template.description,
     criteriaUri: template.criteriaUri,
+    imageUri: template.imageUri,
+    isArchived: template.isArchived,
+    updatedAt: template.updatedAt,
   }));
   const adminPageContextJson = serializeJsonScriptContent({
     tenantAdminPath,
@@ -3284,35 +3287,183 @@ const renderInstitutionAdminPage = (
     <details id="template-edit-panel" class="ct-admin__panel ct-admin__add-disclosure" hidden>
       <summary class="ct-admin__add-disclosure-summary">
         <span>
-          <strong>Selected Template Details</strong>
-          <small>Use a row action to update name, criteria, or the generated URL key.</small>
+          <strong>Edit Badge Template</strong>
+          <small>
+            Update details, artwork, criteria, public links, and activity for the selected template.
+          </small>
         </span>
         {addDisclosureControlMarkup}
       </summary>
       <AdminForm
         id="badge-template-edit-form"
-        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--template-edit ct-grid"
+        className="ct-admin__form ct-admin__template-editor-form"
       >
-        <AdminField label="Badge template">
-          <select name="badgeTemplateId" required>
-            {templateSelectOptions}
-          </select>
-        </AdminField>
-        <AdminField label="Badge name">
-          <input name="title" type="text" required maxlength={200} />
-        </AdminField>
-        <AdminField label="URL key">
-          <input name="slug" type="text" required maxlength={120} />
-        </AdminField>
-        <AdminField label="Description">
-          <textarea name="description" rows={3} maxlength={2000}></textarea>
-        </AdminField>
-        <AdminField label="Criteria page URL">
-          <input name="criteriaUri" type="url" maxlength={2048} />
-        </AdminField>
-        <AdminButton type="submit">Save template</AdminButton>
+        <section class="ct-admin__template-editor-section" id="template-editor-details">
+          <header class="ct-admin__template-editor-section-header">
+            <h3>Details</h3>
+            <p>Name and description shown on issued badge records.</p>
+          </header>
+          <div class="ct-admin__template-editor-fields">
+            <AdminField label="Badge template">
+              <select name="badgeTemplateId" required>
+                {templateSelectOptions}
+              </select>
+            </AdminField>
+            <AdminField label="Badge name">
+              <input name="title" type="text" required maxlength={200} />
+            </AdminField>
+            <details class="ct-admin__template-editor-advanced">
+              <summary>Advanced URL settings</summary>
+              <AdminField label="URL key">
+                <input name="slug" type="text" required maxlength={120} />
+              </AdminField>
+            </details>
+            <AdminField label="Description">
+              <textarea name="description" rows={3} maxlength={2000}></textarea>
+            </AdminField>
+          </div>
+        </section>
+        <section class="ct-admin__template-editor-section" id="template-editor-criteria">
+          <header class="ct-admin__template-editor-section-header">
+            <h3>Criteria</h3>
+            <p>Where public viewers confirm what the badge represents.</p>
+          </header>
+          <div class="ct-admin__template-editor-fields">
+            <AdminField label="Criteria page URL">
+              <input name="criteriaUri" type="url" maxlength={2048} />
+            </AdminField>
+            <a
+              id="badge-template-editor-criteria-link"
+              class="ct-admin__text-action"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View public criteria page ↗
+            </a>
+          </div>
+        </section>
+        <section class="ct-admin__template-editor-section" id="template-editor-visibility">
+          <header class="ct-admin__template-editor-section-header">
+            <h3>Visibility</h3>
+            <p>Preview the public badge page for this template.</p>
+          </header>
+          <a
+            id="badge-template-editor-public-link"
+            class="ct-admin__text-action"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View public badge page ↗
+          </a>
+        </section>
+        <section class="ct-admin__template-editor-section" id="template-editor-activity">
+          <header class="ct-admin__template-editor-section-header">
+            <h3>Activity</h3>
+            <p id="badge-template-editor-activity-summary">Select a template to review activity.</p>
+          </header>
+          <a
+            href="#"
+            class="ct-admin__text-action"
+            id="badge-template-editor-history-link"
+            data-template-history-template-id=""
+            data-template-history-template-title=""
+            data-template-history-image-revision-count="0"
+          >
+            View full history
+          </a>
+        </section>
+        <div class="ct-admin__template-editor-submit">
+          <AdminButton type="submit">Save template</AdminButton>
+        </div>
       </AdminForm>
       <AdminStatus id="badge-template-edit-status"></AdminStatus>
+      <AdminForm
+        id="badge-template-image-upload-form"
+        className="ct-admin__form ct-admin__template-editor-form"
+      >
+        <section class="ct-admin__template-editor-section" id="template-editor-artwork">
+          <header class="ct-admin__template-editor-section-header">
+            <h3>Artwork</h3>
+            <p>Upload an image or generate a draft before using the template in rules.</p>
+          </header>
+          <div class="ct-admin__template-editor-fields">
+            <AdminField label="Badge template">
+              <select name="badgeTemplateId" required>
+                {templateSelectOptions}
+              </select>
+            </AdminField>
+            <AdminField label="Image file">
+              <input name="file" type="file" required accept="image/png,image/jpeg,image/webp" />
+            </AdminField>
+            <AdminButton type="submit">Upload image</AdminButton>
+          </div>
+        </section>
+      </AdminForm>
+      <AdminStatus id="badge-template-image-upload-status"></AdminStatus>
+      <AdminForm
+        id="badge-template-image-generation-form"
+        className="ct-admin__form ct-admin__template-editor-form"
+      >
+        <section class="ct-admin__template-editor-section">
+          <header class="ct-admin__template-editor-section-header">
+            <h3>Generate draft</h3>
+            <p>Use the selected template as the source for a generated badge image.</p>
+          </header>
+          <div class="ct-admin__template-editor-fields ct-admin__template-editor-fields--generation">
+            <AdminField label="Badge template">
+              <select name="badgeTemplateId" required>
+                {templateSelectOptions}
+              </select>
+            </AdminField>
+            <AdminField label="Style">
+              <select name="stylePreset" required>
+                <option value="institutional">Institutional</option>
+                <option value="technical">Technical</option>
+                <option value="academic">Academic</option>
+                <option value="open_source">Open source</option>
+                <option value="minimal">Minimal</option>
+              </select>
+            </AdminField>
+            <AdminField label="Accent">
+              <input name="accentColor" type="text" placeholder="Sakai blue" maxlength={80} />
+            </AdminField>
+            <AdminField label="Prompt notes">
+              <input
+                name="promptNotes"
+                type="text"
+                placeholder="Shield, milestone, stars"
+                maxlength={1000}
+              />
+            </AdminField>
+            <AdminButton type="submit">Generate draft</AdminButton>
+          </div>
+        </section>
+      </AdminForm>
+      <AdminStatus id="badge-template-image-generation-status"></AdminStatus>
+      <div
+        id="badge-template-image-generation-preview"
+        class="ct-admin__image-generation-preview"
+        hidden
+      >
+        <img id="badge-template-image-generation-preview-img" alt="Generated badge draft" />
+        <div class="ct-admin__image-generation-actions">
+          <AdminButton id="badge-template-image-generation-apply" variant="secondary">
+            Apply generated image
+          </AdminButton>
+          <a
+            id="badge-template-image-generation-open"
+            class="ct-admin__text-action"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            hidden
+          >
+            Open full size
+          </a>
+        </div>
+      </div>
     </details>
   );
 
@@ -3398,87 +3549,6 @@ const renderInstitutionAdminPage = (
           >
             View public page
           </AdminButtonLink>
-        </div>
-      </div>
-    </details>
-  );
-
-  const templateImagePanelMarkup = (
-    <details id="template-image-panel" class="ct-admin__panel ct-admin__add-disclosure" hidden>
-      <summary class="ct-admin__add-disclosure-summary">
-        <span>
-          <strong>Badge Artwork</strong>
-          <small>Upload an image or generate a draft before using the template in rules.</small>
-        </span>
-        {addDisclosureControlMarkup}
-      </summary>
-      <AdminForm
-        id="badge-template-image-upload-form"
-        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--template-image ct-grid"
-      >
-        <AdminField label="Badge template">
-          <select name="badgeTemplateId" required>
-            {templateSelectOptions}
-          </select>
-        </AdminField>
-        <AdminField label="Image file">
-          <input name="file" type="file" required accept="image/png,image/jpeg,image/webp" />
-        </AdminField>
-        <AdminButton type="submit">Upload image</AdminButton>
-      </AdminForm>
-      <AdminStatus id="badge-template-image-upload-status"></AdminStatus>
-      <AdminForm
-        id="badge-template-image-generation-form"
-        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--template-image-generation ct-grid"
-      >
-        <AdminField label="Badge template">
-          <select name="badgeTemplateId" required>
-            {templateSelectOptions}
-          </select>
-        </AdminField>
-        <AdminField label="Style">
-          <select name="stylePreset" required>
-            <option value="institutional">Institutional</option>
-            <option value="technical">Technical</option>
-            <option value="academic">Academic</option>
-            <option value="open_source">Open source</option>
-            <option value="minimal">Minimal</option>
-          </select>
-        </AdminField>
-        <AdminField label="Accent">
-          <input name="accentColor" type="text" placeholder="Sakai blue" maxlength={80} />
-        </AdminField>
-        <AdminField label="Prompt notes">
-          <input
-            name="promptNotes"
-            type="text"
-            placeholder="Shield, milestone, stars"
-            maxlength={1000}
-          />
-        </AdminField>
-        <AdminButton type="submit">Generate draft</AdminButton>
-      </AdminForm>
-      <AdminStatus id="badge-template-image-generation-status"></AdminStatus>
-      <div
-        id="badge-template-image-generation-preview"
-        class="ct-admin__image-generation-preview"
-        hidden
-      >
-        <img id="badge-template-image-generation-preview-img" alt="Generated badge draft" />
-        <div class="ct-admin__image-generation-actions">
-          <AdminButton id="badge-template-image-generation-apply" variant="secondary">
-            Apply generated image
-          </AdminButton>
-          <a
-            id="badge-template-image-generation-open"
-            class="ct-admin__text-action"
-            href="#"
-            target="_blank"
-            rel="noopener noreferrer"
-            hidden
-          >
-            Open full size
-          </a>
         </div>
       </div>
     </details>
@@ -5588,9 +5658,8 @@ const renderInstitutionAdminPage = (
                 </AdminStatus>
               ) : null}
               {templateCreatePanelMarkup}
-              {templateImagePanelMarkup}
-              {badgeTemplatesTableMarkup}
               {templateEditPanelMarkup}
+              {badgeTemplatesTableMarkup}
               {badgeTemplateHistoryDialogMarkup}
             </section>
           </>

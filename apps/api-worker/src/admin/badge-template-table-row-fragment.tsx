@@ -2,7 +2,12 @@
 import type { BadgeTemplateRecord } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { formatIsoTimestamp } from "../utils/display-format";
-import { AdminMeta, AdminStatusPill } from "./components";
+import {
+  AdminActionMenu,
+  AdminActionMenuButton,
+  AdminActionMenuLink,
+  AdminStatusPill,
+} from "./components";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -59,13 +64,6 @@ export const BadgeTemplateAdminTableRow = ({
       </td>
       <td>
         <strong>{template.title}</strong>
-        {imageRevisionCount > 0 ? (
-          <AdminMeta as="span">
-            {imageRevisionCount === 1
-              ? "1 image version"
-              : `${String(imageRevisionCount)} image versions`}
-          </AdminMeta>
-        ) : null}
       </td>
       <td>
         {template.isArchived ? (
@@ -82,39 +80,56 @@ export const BadgeTemplateAdminTableRow = ({
             class="ct-admin__text-action ct-admin__template-primary-action"
             data-template-edit-template-id={template.id}
           >
-            Edit
+            Edit template
           </button>
-          <button
-            type="button"
-            class="ct-admin__text-action"
-            data-template-manage-image-template-id={template.id}
-          >
-            Artwork
-          </button>
-          <span class="ct-admin__template-secondary-actions" aria-label="Public template links">
+          <div class="ct-admin__template-secondary-actions" aria-label="Template links and actions">
             <a
               href={badgeTemplateShowcaseHref(tenantId, template.id)}
               target="_blank"
               rel="noopener noreferrer"
             >
-              Public
+              View public page ↗
             </a>
-            <a
-              href={badgeTemplateCriteriaRegistryHref(tenantId, template.id)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Criteria
-            </a>
-            <a
-              href={historyHref}
-              data-template-history-template-id={template.id}
-              data-template-history-template-title={template.title}
-              data-template-history-image-revision-count={String(imageRevisionCount)}
-            >
-              History
-            </a>
-          </span>
+            <AdminActionMenu ariaLabel={`More actions for ${template.title}`}>
+              <AdminActionMenuLink
+                href={badgeTemplateCriteriaRegistryHref(tenantId, template.id)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View criteria page ↗
+              </AdminActionMenuLink>
+              <AdminActionMenuLink
+                href={historyHref}
+                dataAttributes={{
+                  "data-template-history-template-id": template.id,
+                  "data-template-history-template-title": template.title,
+                  "data-template-history-image-revision-count": String(imageRevisionCount),
+                }}
+              >
+                View history
+              </AdminActionMenuLink>
+              {template.isArchived ? (
+                <AdminActionMenuButton
+                  dataAttributes={{
+                    "data-template-archive-template-id": template.id,
+                    "data-template-archive-action": "unarchive",
+                  }}
+                >
+                  Restore
+                </AdminActionMenuButton>
+              ) : (
+                <AdminActionMenuButton
+                  tone="danger"
+                  dataAttributes={{
+                    "data-template-archive-template-id": template.id,
+                    "data-template-archive-action": "archive",
+                  }}
+                >
+                  Archive
+                </AdminActionMenuButton>
+              )}
+            </AdminActionMenu>
+          </div>
         </div>
       </td>
     </tr>
