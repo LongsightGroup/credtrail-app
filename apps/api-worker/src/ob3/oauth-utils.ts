@@ -1,5 +1,6 @@
 import type { JsonObject } from "@credtrail/core-domain";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
+import { parseCompactJwsHeaderObject, parseCompactJwsPayloadObject } from "../http/compact-jws";
 import {
   OB3_BASE_PATH,
   OB3_OAUTH_SUPPORTED_SCOPE_SET,
@@ -106,53 +107,7 @@ export const defaultOb3Profile = (input: {
   };
 };
 
-const parseCompactJwsSegmentObject = (segment: string): JsonObject | null => {
-  if (segment.length === 0) {
-    return null;
-  }
-
-  const normalizedBase64 = segment.replace(/-/g, "+").replace(/_/g, "/");
-  const paddedBase64 = `${normalizedBase64}${"=".repeat((4 - (normalizedBase64.length % 4)) % 4)}`;
-
-  try {
-    const segmentRaw = atob(paddedBase64);
-    return asJsonObject(JSON.parse(segmentRaw) as unknown);
-  } catch {
-    return null;
-  }
-};
-
-export const parseCompactJwsPayloadObject = (compactJws: string): JsonObject | null => {
-  const segments = compactJws.split(".");
-
-  if (segments.length !== 3) {
-    return null;
-  }
-
-  const payloadSegment = segments[1];
-
-  if (payloadSegment === undefined) {
-    return null;
-  }
-
-  return parseCompactJwsSegmentObject(payloadSegment);
-};
-
-export const parseCompactJwsHeaderObject = (compactJws: string): JsonObject | null => {
-  const segments = compactJws.split(".");
-
-  if (segments.length !== 3) {
-    return null;
-  }
-
-  const headerSegment = segments[0];
-
-  if (headerSegment === undefined) {
-    return null;
-  }
-
-  return parseCompactJwsSegmentObject(headerSegment);
-};
+export { parseCompactJwsHeaderObject, parseCompactJwsPayloadObject } from "../http/compact-jws";
 
 export const resolveOb3CredentialIdFromCompactJws = (compactJws: string): string => {
   const header = parseCompactJwsHeaderObject(compactJws);

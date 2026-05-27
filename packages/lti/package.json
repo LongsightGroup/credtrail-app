@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@lti-tool/core": "1.1.0",
+    "@lti-tool/core": "1.1.2",
     "zod": "^4.4.3"
   }
 }

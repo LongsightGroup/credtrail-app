@@ -11,11 +11,12 @@
     "@credtrail/ui-components": "workspace:*",
     "@credtrail/validation": "workspace:*",
     "@hono/node-server": "^2.0.2",
-    "@lti-tool/core": "1.1.0",
+    "@lti-tool/core": "1.1.2",
     "csv-stringify": "^6.7.0",
     "d3-scale": "^4.0.2",
     "d3-shape": "^3.2.0",
     "hono": "^4.12.18",
+    "jose": "6.2.1",
     "pdf-lib": "^1.17.1"
   },
   "devDependencies": {

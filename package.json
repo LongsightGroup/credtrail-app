@@ -42,10 +42,8 @@
   },
   "pnpm": {
     "overrides": {
+      "jose": "6.2.1",
       "zod": "4.4.3"
-    },
-    "patchedDependencies": {
-      "@lti-tool/core@1.1.0": "patches/@lti-tool__core@1.1.0.patch"
     }
   }
 }

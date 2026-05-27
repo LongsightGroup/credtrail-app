@@ -2,6 +2,9 @@ packages:
   - apps/*
   - packages/*
 minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  # CredTrail is a co-author on @lti-tool/core, so we can safely consume coordinated releases immediately.
+  - "@lti-tool/core"
 blockExoticSubdeps: true
 ignoredBuiltDependencies:
   - esbuild
