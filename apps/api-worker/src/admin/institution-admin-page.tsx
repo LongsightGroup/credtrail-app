@@ -60,7 +60,10 @@ import {
 } from "./components";
 import { TenantApiKeyAdminTableRow } from "./api-key-table-row-fragment";
 import { serializeJsonScriptContent } from "./institution-admin-shell";
-export { institutionAdminRuleTemplatesPage } from "./institution-admin-templates-page";
+export {
+  institutionAdminRuleTemplateEditorPage,
+  institutionAdminRuleTemplatesPage,
+} from "./institution-admin-templates-page";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 

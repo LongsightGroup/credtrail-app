@@ -2260,11 +2260,81 @@ a.ct-admin__workspace-card:active {
 .ct-admin__template-editor-identity-form {
   display: none;
 }
+.ct-admin__template-editor-overview {
+  display: grid;
+  grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
+  gap: var(--ct-space-4);
+  align-items: center;
+}
+.ct-admin__template-editor-preview {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--ct-border-subtle);
+  border-radius: var(--ct-radius-lg);
+  padding: var(--ct-space-2);
+  background: var(--ct-theme-surface-soft);
+}
+.ct-admin__template-editor-preview a,
+.ct-admin__template-editor-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.ct-admin__template-editor-preview img {
+  object-fit: contain;
+  border-radius: var(--ct-radius-md);
+  background: var(--ct-theme-surface-card-strong);
+}
+.ct-admin__template-editor-preview-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--ct-border-strong);
+  border-radius: var(--ct-radius-md);
+  color: var(--ct-theme-text-muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-align: center;
+  background: var(--ct-theme-surface-card-strong);
+}
+.ct-admin__template-editor-summary {
+  display: grid;
+  gap: var(--ct-space-3);
+}
+.ct-admin__template-editor-summary h2,
+.ct-admin__template-editor-page-panel > h2 {
+  margin: 0;
+  color: var(--ct-theme-text-title);
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+.ct-admin__template-editor-summary p,
+.ct-admin__template-editor-page-panel > p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.ct-admin__template-editor-summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ct-space-2);
+  align-items: center;
+}
+.ct-admin__template-editor-page-panel {
+  display: grid;
+  gap: var(--ct-space-3);
+}
 .ct-admin__template-editor-body {
   display: grid;
   gap: var(--ct-space-3);
-  max-width: 54rem;
-  padding: 0 var(--ct-space-4) var(--ct-space-3);
+  max-width: 58rem;
+  padding: 0;
 }
 .ct-admin__template-editor-subform {
   display: grid;
@@ -4125,6 +4195,14 @@ button.ct-admin__text-action {
   .ct-admin__template-editor-fields--generation,
   .ct-admin__template-editor-fields--upload {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-admin__template-editor-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-admin__template-editor-preview {
+    max-width: 12rem;
   }
 
   .ct-admin__builder-inline,

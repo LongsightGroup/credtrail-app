@@ -28,6 +28,10 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_BOOTSTRAP_JS = `
       : tenantAdminPath.length === 0
         ? ''
         : tenantAdminPath + '/rules/templates';
+  const badgeTemplateEditorPathPrefix =
+    parsedContext && typeof parsedContext.badgeTemplateEditorPathPrefix === 'string'
+      ? parsedContext.badgeTemplateEditorPathPrefix
+      : badgeTemplateAdminTableRowPathPrefix;
   const ruleBuilderPath =
     parsedContext && typeof parsedContext.ruleBuilderPath === 'string'
       ? parsedContext.ruleBuilderPath
@@ -52,11 +56,7 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_BOOTSTRAP_JS = `
     }
   });
 
-  if (
-    tenantAdminPath.length === 0 ||
-    badgeTemplateApiPathPrefix.length === 0 ||
-    badgeTemplateAdminTableRowPathPrefix.length === 0
-  ) {
+  if (tenantAdminPath.length === 0 || badgeTemplateApiPathPrefix.length === 0) {
     return;
   }
 

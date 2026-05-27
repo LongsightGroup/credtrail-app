@@ -108,6 +108,7 @@ import {
   institutionAdminReportingPage,
   institutionAdminReportingReportsPage,
   institutionAdminReportingTrendsPage,
+  institutionAdminRuleTemplateEditorPage,
   institutionAdminRuleTemplatesPage,
   institutionAdminRulesPage,
 } from "../admin/institution-admin-page";
@@ -1282,6 +1283,57 @@ export const registerTenantGovernanceRoutes = (
     );
   };
 
+  const renderInstitutionAdminTemplateEditorWorkspace = async (
+    c: AppContext,
+    tenantId: string,
+    badgeTemplateId: string,
+    nextPath: string,
+  ): Promise<Response> => {
+    const roleCheck = await resolveInstitutionAdminAdminRole(c, tenantId, nextPath);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const shellData = await loadInstitutionAdminShellData(
+      c,
+      tenantId,
+      session.userId,
+      membershipRole,
+    );
+
+    if (shellData instanceof Response) {
+      return shellData;
+    }
+
+    const db = resolveDatabase(c.env);
+    const [badgeTemplate, imageRevisionCounts] = await Promise.all([
+      findBadgeTemplateById(db, tenantId, badgeTemplateId),
+      listBadgeTemplateImageRevisionCountsByTenant(db, tenantId),
+    ]);
+
+    if (badgeTemplate === null) {
+      return c.redirect(`/tenants/${encodeURIComponent(tenantId)}/admin/rules/templates`, 302);
+    }
+
+    const revisionCount =
+      imageRevisionCounts.find((entry) => entry.badgeTemplateId === badgeTemplate.id)
+        ?.revisionCount ?? 0;
+
+    c.header("Cache-Control", "no-store");
+
+    return renderAppPage(
+      c,
+      institutionAdminRuleTemplateEditorPage({
+        ...shellData,
+        badgeTemplate,
+        badgeTemplateImageRevisionCount: revisionCount,
+        returnToRuleBuilder: c.req.query("returnTo") === "rule-builder",
+      }),
+    );
+  };
+
   const renderLearnerRecordImportWorkspace = async (
     c: AppContext,
     tenantId: string,
@@ -2152,6 +2204,18 @@ export const registerTenantGovernanceRoutes = (
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules/templates`,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/rules/templates/:badgeTemplateId", async (c) => {
+    const pathParams = parseBadgeTemplatePathParams(c.req.param());
+    return renderInstitutionAdminTemplateEditorWorkspace(
+      c,
+      pathParams.tenantId,
+      pathParams.badgeTemplateId,
+      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules/templates/${encodeURIComponent(
+        pathParams.badgeTemplateId,
+      )}`,
     );
   });
 

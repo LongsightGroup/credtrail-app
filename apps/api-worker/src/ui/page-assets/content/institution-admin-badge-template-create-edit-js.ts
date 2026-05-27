@@ -160,6 +160,11 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_CREATE_EDIT_JS = `
           false,
           'success',
         );
+        const editorPath = badgeTemplateEditorPath(createdTemplate.id, 'template-editor-artwork');
+
+        if (editorPath.length > 0) {
+          window.location.assign(editorPath);
+        }
       } catch {
         setStatus(
           badgeTemplateCreateStatus,
@@ -370,7 +375,10 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_CREATE_EDIT_JS = `
   }
   };
 
-  if (document.getElementById('badge-template-edit-form')) {
+  if (
+    document.getElementById('badge-template-edit-form') ||
+    document.getElementById('badge-template-create-form')
+  ) {
     initInstitutionAdminBadgeTemplates();
   }
 })();

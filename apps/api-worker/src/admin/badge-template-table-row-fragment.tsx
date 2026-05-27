@@ -26,6 +26,12 @@ export const badgeTemplateCriteriaRegistryHref = (
   )}`;
 };
 
+export const badgeTemplateAdminEditorHref = (tenantId: string, badgeTemplateId: string): string => {
+  return `/tenants/${encodeURIComponent(tenantId)}/admin/rules/templates/${encodeURIComponent(
+    badgeTemplateId,
+  )}`;
+};
+
 export const BadgeTemplateAdminTableRow = ({
   tenantId,
   template,
@@ -75,13 +81,12 @@ export const BadgeTemplateAdminTableRow = ({
       <td>{formatIsoTimestamp(template.updatedAt)}</td>
       <td>
         <div class="ct-admin__template-actions">
-          <button
-            type="button"
+          <a
             class="ct-admin__text-action ct-admin__template-primary-action"
-            data-template-edit-template-id={template.id}
+            href={badgeTemplateAdminEditorHref(tenantId, template.id)}
           >
             Edit template
-          </button>
+          </a>
           <AdminActionMenu
             menuId={`badge-template-action-menu-${template.id}`}
             ariaLabel={`More actions for ${template.title}`}

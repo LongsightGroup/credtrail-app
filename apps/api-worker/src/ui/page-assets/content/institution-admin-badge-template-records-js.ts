@@ -122,6 +122,34 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_RECORDS_JS = `
       return;
     }
 
+    const previewFrame = document.getElementById('badge-template-editor-preview-frame');
+
+    if (previewFrame instanceof HTMLElement) {
+      const record = badgeTemplateRecordsById.get(badgeTemplateId);
+      const title =
+        record && typeof record.title === 'string' && record.title.length > 0
+          ? record.title
+          : 'Badge template';
+
+      if (typeof imageUri !== 'string' || imageUri.length === 0) {
+        previewFrame.innerHTML =
+          '<span class="ct-admin__template-editor-preview-empty">No artwork</span>';
+      } else {
+        previewFrame.innerHTML =
+          '<a href="' +
+          escapeHtml(imageUri) +
+          '" target="_blank" rel="noopener noreferrer" aria-label="Open full size image for ' +
+          escapeHtml(title) +
+          '">' +
+          '<img src="' +
+          escapeHtml(imageUri) +
+          '" alt="' +
+          escapeHtml(title) +
+          ' artwork">' +
+          '</a>';
+      }
+    }
+
     const row = document.querySelector('[data-template-row-id="' + badgeTemplateId + '"]');
 
     if (!(row instanceof HTMLTableRowElement)) {
@@ -288,6 +316,14 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_RECORDS_JS = `
       encodeURIComponent(badgeTemplateId) +
       '/table-row'
     );
+  };
+  const badgeTemplateEditorPath = (badgeTemplateId, section) => {
+    if (badgeTemplateEditorPathPrefix.length === 0) {
+      return '';
+    }
+
+    const path = badgeTemplateEditorPathPrefix + '/' + encodeURIComponent(badgeTemplateId);
+    return typeof section === 'string' && section.length > 0 ? path + '#' + section : path;
   };
   const badgeTemplateRuleBuilderPath = (badgeTemplateId) => {
     if (ruleBuilderPath.length === 0) {
