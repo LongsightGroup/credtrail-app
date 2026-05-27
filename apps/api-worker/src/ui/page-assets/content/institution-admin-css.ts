@@ -2266,12 +2266,6 @@ a.ct-admin__workspace-card:active {
   max-width: 54rem;
   padding: 0 var(--ct-space-4) var(--ct-space-3);
 }
-.ct-admin__template-editor-form {
-  display: grid;
-  gap: var(--ct-space-3);
-  max-width: 54rem;
-  padding: 0 var(--ct-space-4) var(--ct-space-3);
-}
 .ct-admin__template-editor-subform {
   display: grid;
   gap: var(--ct-space-2);
@@ -3543,10 +3537,8 @@ a.ct-admin__workspace-card:active {
   background: transparent;
 }
 .ct-admin__action-menu-popover:popover-open {
-  position: absolute;
-  inset: auto 0 auto auto;
-  top: calc(100% + 0.32rem);
-  right: 0;
+  position: fixed;
+  inset: auto;
   display: grid;
   gap: 0.18rem;
   min-width: 11rem;

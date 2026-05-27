@@ -3181,6 +3181,9 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('id="badge-template-edit-form"');
     expect(body).toContain('popover="auto"');
     expect(body).toContain("popovertarget=");
+    expect(body).toContain("aria-controls=");
+    expect(body).not.toContain('role="menu"');
+    expect(body).not.toContain('role="menuitem"');
     // Section order: Details → Artwork → Criteria → Visibility → Activity
     expect(body.indexOf('id="template-editor-details"')).toBeLessThan(
       body.indexOf('id="template-editor-artwork"'),

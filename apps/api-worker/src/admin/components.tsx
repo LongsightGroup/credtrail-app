@@ -715,6 +715,10 @@ export const AdminActionBar = ({
   );
 };
 
+/**
+ * Renders a Popover API action panel. Callers must pass a stable page-unique menuId
+ * so the trigger can reference the popover with popovertarget and aria-controls.
+ */
 export const AdminActionMenu = ({
   menuId,
   ariaLabel,
@@ -735,12 +739,12 @@ export const AdminActionMenu = ({
           extraClass: "ct-admin__action-menu-trigger",
         })}
         popovertarget={menuId}
-        aria-haspopup="menu"
+        aria-controls={menuId}
         aria-label={ariaLabel}
       >
         {triggerLabel}
       </button>
-      <div id={menuId} popover="auto" role="menu" class="ct-admin__action-menu-popover">
+      <div id={menuId} popover="auto" class="ct-admin__action-menu-popover">
         {children}
       </div>
     </span>
@@ -767,14 +771,7 @@ export const AdminActionMenuLink = ({
       : "ct-admin__action-menu-item";
 
   return (
-    <a
-      class={className}
-      role="menuitem"
-      href={href}
-      target={target}
-      rel={rel}
-      {...(dataAttributes ?? {})}
-    >
+    <a class={className} href={href} target={target} rel={rel} {...(dataAttributes ?? {})}>
       {children}
     </a>
   );
@@ -796,7 +793,7 @@ export const AdminActionMenuButton = ({
       : "ct-admin__action-menu-item";
 
   return (
-    <button type={type} role="menuitem" class={className} {...(dataAttributes ?? {})}>
+    <button type={type} class={className} {...(dataAttributes ?? {})}>
       {children}
     </button>
   );

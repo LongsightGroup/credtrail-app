@@ -264,42 +264,8 @@ export const INSTITUTION_ADMIN_ISSUED_BADGES_JS = `
     }
   };
   const closeIssuedActionMenuPopover = (element) => {
-    if (!(element instanceof Element)) {
-      return;
-    }
-    const popover = element.closest('.ct-admin__action-menu-popover');
-    if (popover instanceof HTMLElement && typeof popover.hidePopover === 'function') {
-      popover.hidePopover();
-    }
+    window.CredTrailAdminActionMenus?.close(element);
   };
-  const positionIssuedActionMenuPopover = (popover, trigger) => {
-    if (!(popover instanceof HTMLElement) || !(trigger instanceof HTMLElement)) {
-      return;
-    }
-    const rect = trigger.getBoundingClientRect();
-    popover.style.position = 'fixed';
-    popover.style.top = rect.bottom + 4 + 'px';
-    popover.style.right = window.innerWidth - rect.right + 'px';
-    popover.style.left = 'auto';
-    popover.style.bottom = 'auto';
-  };
-  document.addEventListener('pointerdown', (event) => {
-    if (!(event.target instanceof Element)) {
-      return;
-    }
-    const trigger = event.target.closest('[popovertarget]');
-    if (!(trigger instanceof HTMLElement)) {
-      return;
-    }
-    const popoverId = trigger.getAttribute('popovertarget');
-    if (popoverId === null || popoverId.length === 0) {
-      return;
-    }
-    const popover = document.getElementById(popoverId);
-    if (popover instanceof HTMLElement && popover.classList.contains('ct-admin__action-menu-popover')) {
-      positionIssuedActionMenuPopover(popover, trigger);
-    }
-  });
   const openIssuedBadgeLifecyclePanel = (assertionId, mode) => {
     if (!(issuedBadgeLifecyclePanel instanceof HTMLElement)) {
       return false;
