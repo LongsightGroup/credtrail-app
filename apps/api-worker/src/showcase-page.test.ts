@@ -167,7 +167,13 @@ describe("GET /showcase/:tenantId", () => {
 
   it("applies badgeTemplateId filter when provided", async () => {
     const env = createEnv();
-    mockedListPublicBadgeWallEntries.mockResolvedValue([]);
+    mockedListPublicBadgeWallEntries.mockResolvedValue([
+      samplePublicBadgeWallEntry({
+        badgeImageUri: "https://example.edu/badges/intro-to-badging.png",
+        badgeTitle: "Intro to Badging",
+        badgeDescription: "Awarded for completing an introduction to badging.",
+      }),
+    ]);
 
     const response = await app.request(
       "/showcase/sakai?badgeTemplateId=badge_template_sakai_1000",
@@ -177,8 +183,12 @@ describe("GET /showcase/:tenantId", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("badge_template_sakai_1000 · sakai");
-    expect(body).toContain("Publicly verified credentials for badge_template_sakai_1000.");
+    expect(body).toContain("Intro to Badging · sakai");
+    expect(body).toContain("Publicly verified credentials for Intro to Badging.");
+    expect(body).toContain('class="badge-wall__hero-image-frame"');
+    expect(body).toContain('class="badge-wall__hero-image"');
+    expect(body).toContain('src="https://example.edu/badges/intro-to-badging.png"');
+    expect(body).toContain("Awarded for completing an introduction to badging.");
     expect(mockedListPublicBadgeWallEntries).toHaveBeenCalledWith(fakeDb, {
       tenantId: "sakai",
       badgeTemplateId: "badge_template_sakai_1000",

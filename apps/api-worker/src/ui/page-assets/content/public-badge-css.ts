@@ -514,13 +514,19 @@ export const PUBLIC_BADGE_CSS = `
 
 .badge-wall__hero {
   display: grid;
-  gap: 0.65rem;
+  gap: 1rem;
   padding: clamp(1.1rem, 2.5vw, 1.5rem);
   border: 1px solid var(--ct-theme-border-soft);
   border-radius: 1.25rem;
   background: var(--ct-theme-surface-card-strong);
   color: var(--ct-theme-text-title);
   box-shadow: var(--ct-theme-shadow-soft);
+}
+
+.badge-wall__hero-copy {
+  display: grid;
+  gap: 0.65rem;
+  align-content: center;
 }
 
 .badge-wall__hero h1 {
@@ -530,12 +536,64 @@ export const PUBLIC_BADGE_CSS = `
   line-height: 1.2;
 }
 
+.badge-wall__hero-image-frame {
+  display: grid;
+  place-items: center;
+  width: min(100%, 15rem);
+  border: 1px solid var(--ct-theme-border-soft);
+  border-radius: 1.15rem;
+  padding: 0.68rem;
+  background: linear-gradient(
+    180deg,
+    var(--ct-theme-surface-card-strong),
+    color-mix(in srgb, var(--ct-theme-surface-soft) 86%, var(--ct-theme-surface-card-strong))
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.badge-wall__hero-image {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--ct-theme-border-default);
+  border-radius: 0.88rem;
+  padding: clamp(0.5rem, 2vw, 0.75rem);
+  object-fit: contain;
+  background: var(--ct-theme-surface-card-strong);
+}
+
+.badge-wall__hero-image--placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ct-theme-text-on-brand);
+  font-size: clamp(3rem, 10vw, 5.5rem);
+  font-weight: 700;
+  background: var(--ct-theme-gradient-hero);
+}
+
 .badge-wall__lead {
   margin: 0;
   max-width: 48rem;
   color: var(--ct-theme-text-muted);
   font-size: 0.92rem;
   line-height: 1.55;
+}
+
+.badge-wall__description {
+  margin: 0;
+  max-width: 54rem;
+  color: var(--ct-theme-text-body);
+  font-size: 0.96rem;
+  line-height: 1.5;
+}
+
+.badge-wall__hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
 }
 
 .badge-wall__count {
@@ -808,7 +866,18 @@ export const PUBLIC_BADGE_CSS = `
   }
 }
 
+@media (min-width: 720px) {
+  .badge-wall__hero:has(.badge-wall__hero-image-frame) {
+    grid-template-columns: minmax(10rem, 15rem) 1fr;
+    align-items: center;
+  }
+}
+
 @media (max-width: 640px) {
+  .badge-wall__hero-image-frame {
+    width: min(100%, 12rem);
+  }
+
   .badge-wall__summary {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

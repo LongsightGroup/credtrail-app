@@ -979,6 +979,8 @@ export const createPublicBadgePageRenderers = (
     const displayTenantName = tenantId;
     const firstBadgeTitle = entries.length > 0 ? (entries[0]?.badgeTitle ?? null) : null;
     const filterLabel = firstBadgeTitle ?? filterBadgeTemplateId;
+    const heroEntry = filterBadgeTemplateId === null ? null : (entries[0] ?? null);
+    const heroBadgeInitial = (filterLabel ?? "Badge").trim().slice(0, 1).toUpperCase() || "B";
     const title =
       filterBadgeTemplateId === null
         ? `Issued Credentials · ${displayTenantName}`
@@ -1020,12 +1022,35 @@ export const createPublicBadgePageRenderers = (
       body: (
         <section class="badge-wall">
           <header class="badge-wall__hero">
-            <h1>{title}</h1>
-            <p class="badge-wall__lead">{subtitle}</p>
-            <p class="badge-wall__count">{String(entries.length)} issued badges</p>
-            <a class="badge-wall__hero-link" href={criteriaRegistryPath}>
-              View criteria registry
-            </a>
+            {heroEntry === null ? null : (
+              <div class="badge-wall__hero-image-frame">
+                {heroEntry.badgeImageUri === null ? (
+                  <span class="badge-wall__hero-image badge-wall__hero-image--placeholder">
+                    {heroBadgeInitial}
+                  </span>
+                ) : (
+                  <img
+                    class="badge-wall__hero-image"
+                    src={heroEntry.badgeImageUri}
+                    alt={`${heroEntry.badgeTitle} badge artwork`}
+                  />
+                )}
+              </div>
+            )}
+            <div class="badge-wall__hero-copy">
+              <h1>{title}</h1>
+              <p class="badge-wall__lead">{subtitle}</p>
+              {heroEntry?.badgeDescription === null ||
+              heroEntry?.badgeDescription === undefined ? null : (
+                <p class="badge-wall__description">{heroEntry.badgeDescription}</p>
+              )}
+              <div class="badge-wall__hero-actions">
+                <p class="badge-wall__count">{String(entries.length)} issued badges</p>
+                <a class="badge-wall__hero-link" href={criteriaRegistryPath}>
+                  View criteria registry
+                </a>
+              </div>
+            </div>
           </header>
           {entries.length === 0 ? (
             <p class="badge-wall__empty">No public badges found for this showcase.</p>
