@@ -19,7 +19,7 @@ const createEnv = (): {
   };
 };
 
-type ToggleListener = (event: { target: unknown; newState: string }) => void;
+type ShellEventListener = (event: { target?: unknown; newState?: string }) => void;
 
 interface BrowserRect {
   readonly top: number;
@@ -60,6 +60,7 @@ class FakeBrowserElement {
   private readonly rect: BrowserRect;
   private closestElement: FakeBrowserElement | null = null;
   private hidden = false;
+  private hideCount = 0;
 
   public constructor(input: {
     id?: string;
@@ -98,10 +99,15 @@ class FakeBrowserElement {
 
   public hidePopover(): void {
     this.hidden = true;
+    this.hideCount += 1;
   }
 
   public wasHidden(): boolean {
     return this.hidden;
+  }
+
+  public getHideCount(): number {
+    return this.hideCount;
   }
 }
 
@@ -190,7 +196,8 @@ describe("GET /assets/ui/:assetFilename", () => {
   });
 
   it("positions shared admin action popovers when they open from keyboard activation", () => {
-    let toggleListener: ToggleListener | null = null;
+    let toggleListener: ShellEventListener | null = null;
+    let scrollListener: ShellEventListener | null = null;
     const trigger = new FakeBrowserElement({
       attributes: new Map([["popovertarget", "row-actions"]]),
       rect: createBrowserRect({ x: 280, y: 210, width: 30, height: 20 }),
@@ -209,20 +216,30 @@ describe("GET /assets/ui/:assetFilename", () => {
       };
       innerWidth: number;
       innerHeight: number;
+      requestAnimationFrame: (callback: () => void) => number;
     } = {
       innerWidth: 320,
       innerHeight: 240,
+      requestAnimationFrame: (callback: () => void): number => {
+        callback();
+        return 1;
+      },
     };
     const documentStub = {
-      addEventListener: (type: string, listener: ToggleListener): void => {
+      addEventListener: (type: string, listener: ShellEventListener): void => {
         if (type === "toggle") {
           toggleListener = listener;
         }
+        if (type === "scroll") {
+          scrollListener = listener;
+        }
       },
-      querySelector: (): null => null,
-      querySelectorAll: (): FakeBrowserElement[] => [trigger],
+      querySelector: (selector: string): FakeBrowserElement | null => {
+        return selector === '[popovertarget="row-actions"]' ? trigger : null;
+      },
     };
     const context = createContext({
+      CSS: { escape: (value: string): string => value },
       document: documentStub,
       Element: FakeBrowserElement,
       HTMLElement: FakeBrowserElement,
@@ -230,8 +247,10 @@ describe("GET /assets/ui/:assetFilename", () => {
     });
 
     new Script(INSTITUTION_ADMIN_SHELL_JS).runInContext(context);
-    const openListener = toggleListener as ToggleListener | null;
+    const openListener = toggleListener as ShellEventListener | null;
+    const closeOnScrollListener = scrollListener as ShellEventListener | null;
     expect(openListener).not.toBeNull();
+    expect(closeOnScrollListener).not.toBeNull();
 
     openListener?.({ target: popover, newState: "open" });
 
@@ -242,6 +261,11 @@ describe("GET /assets/ui/:assetFilename", () => {
 
     shellWindow.CredTrailAdminActionMenus?.close(menuItem);
     expect(popover.wasHidden()).toBe(true);
+    expect(popover.getHideCount()).toBe(1);
+
+    openListener?.({ target: popover, newState: "open" });
+    closeOnScrollListener?.({});
+    expect(popover.getHideCount()).toBe(2);
   });
 
   it("returns 404 for unknown page assets", async () => {

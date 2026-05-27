@@ -21,22 +21,15 @@ export const INSTITUTION_ADMIN_SHELL_JS = `
 
   const actionMenuGap = 4;
   const viewportPadding = 8;
+  let openActionMenuPopover = null;
 
   const findActionMenuTrigger = (popover) => {
     if (!(popover instanceof HTMLElement) || popover.id.length === 0) {
       return null;
     }
 
-    for (const candidate of document.querySelectorAll('[popovertarget]')) {
-      if (
-        candidate instanceof HTMLElement &&
-        candidate.getAttribute('popovertarget') === popover.id
-      ) {
-        return candidate;
-      }
-    }
-
-    return null;
+    const candidate = document.querySelector('[popovertarget="' + CSS.escape(popover.id) + '"]');
+    return candidate instanceof HTMLElement ? candidate : null;
   };
 
   const positionActionMenuPopover = (popover, trigger) => {
@@ -66,13 +59,24 @@ export const INSTITUTION_ADMIN_SHELL_JS = `
     popover.style.bottom = 'auto';
   };
 
+  const positionActionMenuPopoverAfterOpen = (popover, trigger) => {
+    positionActionMenuPopover(popover, trigger);
+
+    const popoverRect = popover.getBoundingClientRect();
+    if (popoverRect.width === 0 || popoverRect.height === 0) {
+      window.requestAnimationFrame(() => {
+        positionActionMenuPopover(popover, trigger);
+      });
+    }
+  };
+
   const closeActionMenuPopover = (element) => {
     if (!(element instanceof Element)) {
       return;
     }
 
     const popover = element.closest('.ct-admin__action-menu-popover');
-    if (popover instanceof HTMLElement && typeof popover.hidePopover === 'function') {
+    if (popover instanceof HTMLElement) {
       popover.hidePopover();
     }
   };
@@ -85,14 +89,29 @@ export const INSTITUTION_ADMIN_SHELL_JS = `
       !popover.classList.contains('ct-admin__action-menu-popover') ||
       event.newState !== 'open'
     ) {
+      if (popover === openActionMenuPopover) {
+        openActionMenuPopover = null;
+      }
       return;
     }
 
     const trigger = findActionMenuTrigger(popover);
     if (trigger instanceof HTMLElement) {
-      positionActionMenuPopover(popover, trigger);
+      openActionMenuPopover = popover;
+      positionActionMenuPopoverAfterOpen(popover, trigger);
     }
   });
+
+  document.addEventListener(
+    'scroll',
+    () => {
+      if (openActionMenuPopover instanceof HTMLElement) {
+        openActionMenuPopover.hidePopover();
+        openActionMenuPopover = null;
+      }
+    },
+    { capture: true, passive: true },
+  );
 
   window.CredTrailAdminActionMenus = {
     close: closeActionMenuPopover,

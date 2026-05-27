@@ -264,7 +264,7 @@ export const INSTITUTION_ADMIN_ISSUED_BADGES_JS = `
     }
   };
   const closeIssuedActionMenuPopover = (element) => {
-    window.CredTrailAdminActionMenus?.close(element);
+    window.CredTrailAdminActionMenus.close(element);
   };
   const openIssuedBadgeLifecyclePanel = (assertionId, mode) => {
     if (!(issuedBadgeLifecyclePanel instanceof HTMLElement)) {

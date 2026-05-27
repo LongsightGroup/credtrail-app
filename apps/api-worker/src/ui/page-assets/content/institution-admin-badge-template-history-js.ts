@@ -146,7 +146,7 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_HISTORY_JS = `
   };
   const badgeTemplateTableBody = document.getElementById('badge-template-table-body');
   const closeActionMenuPopover = (element) => {
-    window.CredTrailAdminActionMenus?.close(element);
+    window.CredTrailAdminActionMenus.close(element);
   };
   const setBadgeTemplateArchivedStateFromRow = async (badgeTemplateId, action, statusElement) => {
     if (badgeTemplateId.length === 0 || (action !== 'archive' && action !== 'unarchive')) {
