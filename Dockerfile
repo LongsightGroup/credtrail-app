@@ -15,7 +15,6 @@ COPY packages/db/package.json ./packages/db/package.json
 COPY packages/lti/package.json ./packages/lti/package.json
 COPY packages/ui-components/package.json ./packages/ui-components/package.json
 COPY packages/validation/package.json ./packages/validation/package.json
-COPY patches ./patches
 
 RUN pnpm install --frozen-lockfile
 
@@ -38,7 +37,6 @@ COPY --from=base /app/apps ./apps
 COPY --from=base /app/packages ./packages
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY tsconfig.json vitest.config.ts .oxlintrc.json ./
-COPY patches ./patches
 COPY apps ./apps
 COPY packages ./packages
 COPY scripts ./scripts
