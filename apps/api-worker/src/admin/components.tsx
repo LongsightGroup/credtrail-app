@@ -657,8 +657,10 @@ export const AdminField = ({
   label: string;
   className?: string;
 }>): HonoElement => {
+  const classes =
+    className === undefined ? "ct-admin__field" : `ct-admin__field ${className}`;
   return (
-    <label class={className}>
+    <label class={classes}>
       {label}
       {children}
     </label>
@@ -722,7 +724,7 @@ export const AdminActionBar = ({
 export const AdminActionMenu = ({
   menuId,
   ariaLabel,
-  triggerLabel = "...",
+  triggerLabel = "⋮",
   children,
 }: PropsWithChildren<{
   menuId: string;

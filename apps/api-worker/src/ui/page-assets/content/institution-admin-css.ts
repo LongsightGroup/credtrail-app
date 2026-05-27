@@ -2328,6 +2328,11 @@ a.ct-admin__workspace-card:active {
       1.4fr
     ) auto;
 }
+.ct-admin__template-editor-fields--upload {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--ct-space-3);
+}
 .ct-admin__template-editor-advanced {
   display: grid;
   gap: var(--ct-space-2);
@@ -2369,6 +2374,14 @@ a.ct-admin__workspace-card:active {
   font-size: 0.88rem;
   color: var(--ct-color-ink);
 }
+.ct-admin__field {
+  --ct-stack-gap: 0.28rem;
+  display: grid;
+  gap: 0.28rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ct-color-ink);
+}
 .ct-admin__field-hint {
   color: var(--ct-theme-text-subtle);
   font-size: 0.78rem;
@@ -2387,7 +2400,10 @@ a.ct-admin__workspace-card:active {
 }
 .ct-admin__form input:not([type='checkbox']),
 .ct-admin__form select,
-.ct-admin__form textarea {
+.ct-admin__form textarea,
+.ct-admin__template-editor-body input:not([type='checkbox']):not([type='hidden']),
+.ct-admin__template-editor-body select,
+.ct-admin__template-editor-body textarea {
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -2408,7 +2424,8 @@ a.ct-admin__workspace-card:active {
     background var(--ct-duration-fast) var(--ct-ease-standard);
 }
 .ct-admin__form select,
-.ct-admin__table select {
+.ct-admin__table select,
+.ct-admin__template-editor-body select {
   -webkit-appearance: none;
   appearance: none;
   background-image:
@@ -2426,7 +2443,10 @@ a.ct-admin__workspace-card:active {
 .ct-admin__form input:not([type='checkbox']):focus,
 .ct-admin__form select:focus,
 .ct-admin__form textarea:focus,
-.ct-admin__table select:focus {
+.ct-admin__table select:focus,
+.ct-admin__template-editor-body input:not([type='checkbox']):not([type='hidden']):focus,
+.ct-admin__template-editor-body select:focus,
+.ct-admin__template-editor-body textarea:focus {
   outline: none;
   border-color: var(--ct-theme-border-focus);
   box-shadow: var(--ct-focus-ring);
@@ -2436,21 +2456,35 @@ a.ct-admin__workspace-card:active {
 .ct-admin__form textarea:user-invalid,
 .ct-admin__form input:not([type='checkbox']).user-invalid-fallback,
 .ct-admin__form select.user-invalid-fallback,
-.ct-admin__form textarea.user-invalid-fallback {
+.ct-admin__form textarea.user-invalid-fallback,
+.ct-admin__template-editor-body input:not([type='checkbox']):not([type='hidden']):user-invalid,
+.ct-admin__template-editor-body select:user-invalid,
+.ct-admin__template-editor-body textarea:user-invalid {
   border-color: var(--ct-theme-state-danger);
   background: var(--ct-theme-surface-danger);
 }
 .ct-admin__form select:disabled,
-.ct-admin__table select:disabled {
+.ct-admin__table select:disabled,
+.ct-admin__template-editor-body select:disabled {
   cursor: progress;
   opacity: 0.68;
 }
-.ct-admin__form textarea {
+.ct-admin__form textarea,
+.ct-admin__template-editor-body textarea {
   min-height: 5.5rem;
   resize: vertical;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.84rem;
   line-height: 1.35;
+}
+.ct-admin__template-editor-body input[type='file'] {
+  width: 100%;
+  border: 1px dashed var(--ct-border-soft);
+  border-radius: var(--ct-radius-md);
+  padding: 0.55rem 0.72rem;
+  background: var(--ct-theme-surface-soft);
+  font-size: 0.86rem;
+  min-height: auto;
 }
 .ct-admin__builder-grid {
   --ct-grid-gap: 0.65rem;
@@ -3513,9 +3547,34 @@ a.ct-admin__workspace-card:active {
   );
 }
 .ct-admin__action-menu-trigger {
-  min-width: 1.9rem;
-  width: 1.9rem;
-  padding-inline: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.15rem;
+  width: 2.15rem;
+  height: 2.15rem;
+  min-height: 2.15rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  background-image: none;
+  color: var(--ct-theme-text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--ct-radius-md);
+  transition:
+    background var(--ct-duration-fast) var(--ct-ease-standard),
+    color var(--ct-duration-fast) var(--ct-ease-standard);
+}
+.ct-admin__action-menu-trigger:hover {
+  background: var(--ct-theme-surface-info);
+  color: var(--ct-theme-text-body);
+}
+.ct-admin__action-menu-trigger:focus-visible {
+  outline: 2px solid var(--ct-theme-border-focus);
+  outline-offset: 1px;
+  box-shadow: none;
 }
 .ct-admin__issued-actions .ct-admin__button:focus-visible {
   outline-offset: 1px;
@@ -3578,31 +3637,12 @@ a.ct-admin__workspace-card:active {
   gap: 0.32rem;
 }
 .ct-admin__template-actions {
-  display: grid;
-  gap: 0.28rem;
-  justify-items: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 .ct-admin__template-primary-action {
   font-weight: 700;
-}
-.ct-admin__template-secondary-actions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.55rem;
-  color: var(--ct-color-muted);
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-.ct-admin__template-secondary-actions a {
-  color: inherit;
-  font-weight: 500;
-  text-decoration: none;
-}
-.ct-admin__template-secondary-actions a:hover,
-.ct-admin__template-secondary-actions a:focus-visible {
-  color: var(--ct-theme-link);
-  text-decoration: underline;
 }
 .ct-admin__template-image-link,
 .ct-admin__image-revision-thumbnail-link {
@@ -4062,7 +4102,8 @@ button.ct-admin__text-action {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .ct-admin__template-editor-fields--generation {
+  .ct-admin__template-editor-fields--generation,
+  .ct-admin__template-editor-fields--upload {
     grid-template-columns: minmax(0, 1fr);
   }
 

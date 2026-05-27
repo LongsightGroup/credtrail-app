@@ -226,7 +226,7 @@ const renderTemplateEditorPanel = (input: { templateSelectOptions: HonoElement }
               className="ct-admin__form ct-admin__template-editor-subform"
             >
               <input type="hidden" name="badgeTemplateId" value="" />
-              <div class="ct-admin__template-editor-fields">
+              <div class="ct-admin__template-editor-fields ct-admin__template-editor-fields--upload">
                 <AdminField label="Image file">
                   <input
                     name="file"

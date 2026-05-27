@@ -82,57 +82,55 @@ export const BadgeTemplateAdminTableRow = ({
           >
             Edit template
           </button>
-          <div class="ct-admin__template-secondary-actions" aria-label="Template links and actions">
-            <a
+          <AdminActionMenu
+            menuId={`badge-template-action-menu-${template.id}`}
+            ariaLabel={`More actions for ${template.title}`}
+          >
+            <AdminActionMenuLink
               href={badgeTemplateShowcaseHref(tenantId, template.id)}
               target="_blank"
               rel="noopener noreferrer"
             >
               View public page ↗
-            </a>
-            <AdminActionMenu
-              menuId={`badge-template-action-menu-${template.id}`}
-              ariaLabel={`More actions for ${template.title}`}
+            </AdminActionMenuLink>
+            <AdminActionMenuLink
+              href={badgeTemplateCriteriaRegistryHref(tenantId, template.id)}
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              <AdminActionMenuLink
-                href={badgeTemplateCriteriaRegistryHref(tenantId, template.id)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                View criteria page ↗
-              </AdminActionMenuLink>
-              <AdminActionMenuLink
-                href={historyHref}
+              View criteria page ↗
+            </AdminActionMenuLink>
+            <AdminActionMenuLink
+              href={historyHref}
+              dataAttributes={{
+                "data-template-history-template-id": template.id,
+                "data-template-history-template-title": template.title,
+                "data-template-history-image-revision-count": String(imageRevisionCount),
+              }}
+            >
+              View history
+            </AdminActionMenuLink>
+            {template.isArchived ? (
+              <AdminActionMenuButton
                 dataAttributes={{
-                  "data-template-history-template-id": template.id,
-                  "data-template-history-template-title": template.title,
-                  "data-template-history-image-revision-count": String(imageRevisionCount),
+                  "data-template-archive-template-id": template.id,
+                  "data-template-archive-action": "unarchive",
                 }}
               >
-                View history
-              </AdminActionMenuLink>
-              {template.isArchived ? (
-                <AdminActionMenuButton
-                  dataAttributes={{
-                    "data-template-archive-template-id": template.id,
-                    "data-template-archive-action": "unarchive",
-                  }}
-                >
-                  Restore
-                </AdminActionMenuButton>
-              ) : (
-                <AdminActionMenuButton
-                  tone="danger"
-                  dataAttributes={{
-                    "data-template-archive-template-id": template.id,
-                    "data-template-archive-action": "archive",
-                  }}
-                >
-                  Archive
-                </AdminActionMenuButton>
-              )}
-            </AdminActionMenu>
-          </div>
+                Restore
+              </AdminActionMenuButton>
+            ) : (
+              <AdminActionMenuButton
+                tone="danger"
+                dataAttributes={{
+                  "data-template-archive-template-id": template.id,
+                  "data-template-archive-action": "archive",
+                }}
+              >
+                Archive
+              </AdminActionMenuButton>
+            )}
+          </AdminActionMenu>
         </div>
       </td>
     </tr>
