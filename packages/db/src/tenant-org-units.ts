@@ -43,63 +43,6 @@ interface TenantOrgUnitRow {
   updatedAt: string;
 }
 
-export const isMissingTenantOrgUnitsTableError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return (
-    (error.message.includes("no such table") ||
-      error.message.includes("relation") ||
-      error.message.includes("does not exist")) &&
-    error.message.includes("tenant_org_units")
-  );
-};
-
-export const ensureTenantOrgUnitsTable = async (db: SqlDatabase): Promise<void> => {
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS tenant_org_units (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        unit_type TEXT NOT NULL CHECK (unit_type IN ('institution', 'college', 'department', 'program')),
-        slug TEXT NOT NULL,
-        display_name TEXT NOT NULL,
-        parent_org_unit_id TEXT,
-        created_by_user_id TEXT,
-        is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE (tenant_id, id),
-        UNIQUE (tenant_id, slug),
-        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE,
-        FOREIGN KEY (parent_org_unit_id) REFERENCES tenant_org_units (id) ON DELETE SET NULL,
-        FOREIGN KEY (created_by_user_id) REFERENCES users (id) ON DELETE SET NULL
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_tenant_org_units_tenant_type
-        ON tenant_org_units (tenant_id, unit_type, is_active)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_tenant_org_units_tenant_parent
-        ON tenant_org_units (tenant_id, parent_org_unit_id)
-    `,
-    )
-    .run();
-};
-
 export const institutionOrgUnitIdForTenant = (tenantId: string): string => {
   return `${tenantId}:org:institution`;
 };
@@ -155,18 +98,7 @@ export const findTenantOrgUnitById = async (
       .bind(tenantId, orgUnitId)
       .first<TenantOrgUnitRow>();
 
-  let row: TenantOrgUnitRow | null;
-
-  try {
-    row = await findStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantOrgUnitsTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantOrgUnitsTable(db);
-    row = await findStatement();
-  }
+  const row = await findStatement();
 
   return row === null ? null : mapTenantOrgUnitRow(row);
 };
@@ -200,16 +132,7 @@ export const ensureInstitutionOrgUnitForTenant = async (
       .bind(institutionId, tenantId, `${tenantId} Institution`, nowIso, nowIso)
       .run();
 
-  try {
-    await seedStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantOrgUnitsTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantOrgUnitsTable(db);
-    await seedStatement();
-  }
+  await seedStatement();
 
   return institutionId;
 };
@@ -288,16 +211,7 @@ export const createTenantOrgUnit = async (
       )
       .run();
 
-  try {
-    await insertStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantOrgUnitsTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantOrgUnitsTable(db);
-    await insertStatement();
-  }
+  await insertStatement();
 
   const orgUnit = await findTenantOrgUnitById(db, input.tenantId, id);
 
@@ -345,19 +259,7 @@ export const listTenantOrgUnits = async (
       .bind(input.tenantId, input.includeInactive === true ? 1 : 0)
       .all<TenantOrgUnitRow>();
 
-  let result: SqlQueryResult<TenantOrgUnitRow>;
-
-  try {
-    result = await listStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantOrgUnitsTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantOrgUnitsTable(db);
-    await ensureInstitutionOrgUnitForTenant(db, input.tenantId);
-    result = await listStatement();
-  }
+  let result = await listStatement();
 
   if (result.results.length === 0) {
     await ensureInstitutionOrgUnitForTenant(db, input.tenantId);

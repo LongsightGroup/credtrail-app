@@ -39,47 +39,6 @@ interface TenantSigningRegistrationRow {
   updatedAt: string;
 }
 
-const isMissingTenantSigningRegistrationsTableError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return (
-    (error.message.includes("no such table") ||
-      error.message.includes("relation") ||
-      error.message.includes("does not exist")) &&
-    error.message.includes("tenant_signing_registrations")
-  );
-};
-
-const ensureTenantSigningRegistrationsTable = async (db: SqlDatabase): Promise<void> => {
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS tenant_signing_registrations (
-        tenant_id TEXT PRIMARY KEY,
-        did TEXT NOT NULL UNIQUE,
-        key_id TEXT NOT NULL,
-        public_jwk_json TEXT NOT NULL,
-        private_jwk_json TEXT,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_tenant_signing_registrations_did
-        ON tenant_signing_registrations (did)
-    `,
-    )
-    .run();
-};
-
 const mapTenantSigningRegistrationRow = (
   row: TenantSigningRegistrationRow,
 ): TenantSigningRegistrationRecord => {
@@ -134,16 +93,7 @@ export const upsertTenantSigningRegistration = async (
       )
       .run();
 
-  try {
-    await upsertStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantSigningRegistrationsTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantSigningRegistrationsTable(db);
-    await upsertStatement();
-  }
+  await upsertStatement();
 
   const row = await db
     .prepare(
@@ -195,18 +145,7 @@ export const findTenantSigningRegistrationByDid = async (
       .bind(did)
       .first<TenantSigningRegistrationRow>();
 
-  let row: TenantSigningRegistrationRow | null;
-
-  try {
-    row = await findStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantSigningRegistrationsTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantSigningRegistrationsTable(db);
-    row = await findStatement();
-  }
+  const row = await findStatement();
 
   if (row === null) {
     return null;

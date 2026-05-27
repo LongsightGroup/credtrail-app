@@ -1,11 +1,7 @@
 import { findBadgeTemplateById } from "./badge-templates";
 import { assertValidIsoTimestamp, createPrefixedId } from "./shared-helpers";
 import { findTenantMembership } from "./tenant-memberships";
-import {
-  ensureTenantOrgUnitsTable,
-  findTenantOrgUnitById,
-  isMissingTenantOrgUnitsTableError,
-} from "./tenant-org-units";
+import { findTenantOrgUnitById } from "./tenant-org-units";
 import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "./tenant-scope";
 
 export type DelegatedIssuingAuthorityAction = "issue_badge" | "revoke_badge" | "manage_lifecycle";
@@ -122,141 +118,6 @@ interface DelegatedIssuingAuthorityGrantEventRow {
   occurredAt: string;
   createdAt: string;
 }
-
-const isMissingDelegatedIssuingAuthorityTablesError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const tableMissing =
-    error.message.includes("delegated_issuing_authority_grants") ||
-    error.message.includes("delegated_issuing_authority_grant_badge_templates") ||
-    error.message.includes("delegated_issuing_authority_grant_events");
-
-  if (!tableMissing) {
-    return false;
-  }
-
-  return (
-    error.message.includes("no such table") ||
-    error.message.includes("relation") ||
-    error.message.includes("does not exist")
-  );
-};
-
-const ensureDelegatedIssuingAuthorityTables = async (db: SqlDatabase): Promise<void> => {
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS delegated_issuing_authority_grants (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        delegate_user_id TEXT NOT NULL,
-        delegated_by_user_id TEXT,
-        org_unit_id TEXT NOT NULL,
-        allowed_actions_json TEXT NOT NULL,
-        starts_at TEXT NOT NULL,
-        ends_at TEXT NOT NULL,
-        revoked_at TEXT,
-        revoked_by_user_id TEXT,
-        revoked_reason TEXT,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CHECK (starts_at < ends_at),
-        UNIQUE (tenant_id, id),
-        FOREIGN KEY (tenant_id, delegate_user_id) REFERENCES memberships (tenant_id, user_id) ON DELETE CASCADE,
-        FOREIGN KEY (delegated_by_user_id) REFERENCES users (id) ON DELETE SET NULL,
-        FOREIGN KEY (tenant_id, org_unit_id) REFERENCES tenant_org_units (tenant_id, id) ON DELETE CASCADE,
-        FOREIGN KEY (revoked_by_user_id) REFERENCES users (id) ON DELETE SET NULL
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS delegated_issuing_authority_grant_badge_templates (
-        tenant_id TEXT NOT NULL,
-        grant_id TEXT NOT NULL,
-        badge_template_id TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (tenant_id, grant_id, badge_template_id),
-        FOREIGN KEY (tenant_id, grant_id)
-          REFERENCES delegated_issuing_authority_grants (tenant_id, id) ON DELETE CASCADE,
-        FOREIGN KEY (tenant_id, badge_template_id)
-          REFERENCES badge_templates (tenant_id, id) ON DELETE CASCADE
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS delegated_issuing_authority_grant_events (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        grant_id TEXT NOT NULL,
-        event_type TEXT NOT NULL CHECK (event_type IN ('granted', 'revoked', 'expired')),
-        actor_user_id TEXT,
-        details_json TEXT,
-        occurred_at TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (tenant_id, grant_id)
-          REFERENCES delegated_issuing_authority_grants (tenant_id, id) ON DELETE CASCADE,
-        FOREIGN KEY (actor_user_id)
-          REFERENCES users (id) ON DELETE SET NULL
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_delegated_grants_delegate_active
-        ON delegated_issuing_authority_grants (tenant_id, delegate_user_id, revoked_at, starts_at, ends_at)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_delegated_grants_delegate_org
-        ON delegated_issuing_authority_grants (tenant_id, delegate_user_id, org_unit_id)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_delegated_grants_org_unit
-        ON delegated_issuing_authority_grants (tenant_id, org_unit_id)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_delegated_grant_badge_templates_template
-        ON delegated_issuing_authority_grant_badge_templates (tenant_id, badge_template_id)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_delegated_grant_events_grant
-        ON delegated_issuing_authority_grant_events (tenant_id, grant_id, occurred_at DESC)
-    `,
-    )
-    .run();
-};
 
 const DELEGATED_ISSUING_AUTHORITY_ACTIONS = new Set<DelegatedIssuingAuthorityAction>([
   "issue_badge",
@@ -404,18 +265,7 @@ const isOrgUnitWithinDelegatedAuthorityScope = async (
       .bind(tenantId, targetOrgUnitId, tenantId, scopedOrgUnitId)
       .first<{ id: string }>();
 
-  let row: { id: string } | null;
-
-  try {
-    row = await statement();
-  } catch (error: unknown) {
-    if (!isMissingTenantOrgUnitsTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantOrgUnitsTable(db);
-    row = await statement();
-  }
+  const row = await statement();
 
   return row !== null;
 };
@@ -443,18 +293,7 @@ const listDelegatedIssuingAuthorityGrantBadgeTemplateIds = async (
       .bind(tenantId, grantId)
       .all<DelegatedIssuingAuthorityGrantBadgeTemplateRow>();
 
-  let result: SqlQueryResult<DelegatedIssuingAuthorityGrantBadgeTemplateRow>;
-
-  try {
-    result = await listStatement();
-  } catch (error: unknown) {
-    if (!isMissingDelegatedIssuingAuthorityTablesError(error)) {
-      throw error;
-    }
-
-    await ensureDelegatedIssuingAuthorityTables(db);
-    result = await listStatement();
-  }
+  const result = await listStatement();
 
   return result.results.map((row) => row.badgeTemplateId);
 };
@@ -521,18 +360,7 @@ const findDelegatedIssuingAuthorityGrantRowById = async (
       .bind(tenantId, grantId)
       .first<DelegatedIssuingAuthorityGrantRow>();
 
-  let row: DelegatedIssuingAuthorityGrantRow | null;
-
-  try {
-    row = await findStatement();
-  } catch (error: unknown) {
-    if (!isMissingDelegatedIssuingAuthorityTablesError(error)) {
-      throw error;
-    }
-
-    await ensureDelegatedIssuingAuthorityTables(db);
-    row = await findStatement();
-  }
+  const row = await findStatement();
 
   return row;
 };
@@ -579,16 +407,7 @@ const createDelegatedIssuingAuthorityGrantEvent = async (
       )
       .run();
 
-  try {
-    await insertStatement();
-  } catch (error: unknown) {
-    if (!isMissingDelegatedIssuingAuthorityTablesError(error)) {
-      throw error;
-    }
-
-    await ensureDelegatedIssuingAuthorityTables(db);
-    await insertStatement();
-  }
+  await insertStatement();
 
   return {
     id: eventId,
@@ -630,18 +449,7 @@ const recordExpiredDelegatedIssuingAuthorityGrantEvents = async (
       .bind(tenantId, nowIso)
       .all<{ grantId: string; endsAt: string }>();
 
-  let result: SqlQueryResult<{ grantId: string; endsAt: string }>;
-
-  try {
-    result = await listStatement();
-  } catch (error: unknown) {
-    if (!isMissingDelegatedIssuingAuthorityTablesError(error)) {
-      throw error;
-    }
-
-    await ensureDelegatedIssuingAuthorityTables(db);
-    result = await listStatement();
-  }
+  const result = await listStatement();
 
   for (const row of result.results) {
     await createDelegatedIssuingAuthorityGrantEvent(db, {
@@ -786,18 +594,7 @@ export const createDelegatedIssuingAuthorityGrant = async (
       .bind(input.tenantId, input.delegateUserId, input.orgUnitId, input.endsAt, input.startsAt)
       .all<DelegatedIssuingAuthorityGrantRow>();
 
-  let conflicts: SqlQueryResult<DelegatedIssuingAuthorityGrantRow>;
-
-  try {
-    conflicts = await conflictingStatement();
-  } catch (error: unknown) {
-    if (!isMissingDelegatedIssuingAuthorityTablesError(error)) {
-      throw error;
-    }
-
-    await ensureDelegatedIssuingAuthorityTables(db);
-    conflicts = await conflictingStatement();
-  }
+  const conflicts = await conflictingStatement();
 
   for (const existing of conflicts.results) {
     const existingActions = parseDelegatedIssuingAuthorityActionsJson(existing.allowedActionsJson);
@@ -857,16 +654,7 @@ export const createDelegatedIssuingAuthorityGrant = async (
       )
       .run();
 
-  try {
-    await insertGrantStatement();
-  } catch (error: unknown) {
-    if (!isMissingDelegatedIssuingAuthorityTablesError(error)) {
-      throw error;
-    }
-
-    await ensureDelegatedIssuingAuthorityTables(db);
-    await insertGrantStatement();
-  }
+  await insertGrantStatement();
 
   if (badgeTemplateIds.length > 0) {
     for (const badgeTemplateId of badgeTemplateIds) {
@@ -886,16 +674,7 @@ export const createDelegatedIssuingAuthorityGrant = async (
           .bind(input.tenantId, grantId, badgeTemplateId, nowIso)
           .run();
 
-      try {
-        await insertTemplateScopeStatement();
-      } catch (error: unknown) {
-        if (!isMissingDelegatedIssuingAuthorityTablesError(error)) {
-          throw error;
-        }
-
-        await ensureDelegatedIssuingAuthorityTables(db);
-        await insertTemplateScopeStatement();
-      }
+      await insertTemplateScopeStatement();
     }
   }
 
@@ -976,18 +755,7 @@ export const listDelegatedIssuingAuthorityGrants = async (
           .bind(input.tenantId, input.delegateUserId)
           .all<DelegatedIssuingAuthorityGrantRow>();
 
-  let result: SqlQueryResult<DelegatedIssuingAuthorityGrantRow>;
-
-  try {
-    result = await listStatement();
-  } catch (error: unknown) {
-    if (!isMissingDelegatedIssuingAuthorityTablesError(error)) {
-      throw error;
-    }
-
-    await ensureDelegatedIssuingAuthorityTables(db);
-    result = await listStatement();
-  }
+  const result = await listStatement();
 
   const mapped: DelegatedIssuingAuthorityGrantRecord[] = [];
 
@@ -1060,18 +828,7 @@ export const revokeDelegatedIssuingAuthorityGrant = async (
       )
       .run();
 
-  let result: SqlRunResult;
-
-  try {
-    result = await revokeStatement();
-  } catch (error: unknown) {
-    if (!isMissingDelegatedIssuingAuthorityTablesError(error)) {
-      throw error;
-    }
-
-    await ensureDelegatedIssuingAuthorityTables(db);
-    result = await revokeStatement();
-  }
+  const result = await revokeStatement();
 
   if ((result.meta.rowsWritten ?? 0) > 0) {
     const detailsJson =
@@ -1141,18 +898,7 @@ export const listDelegatedIssuingAuthorityGrantEvents = async (
       .bind(input.tenantId, input.grantId, limit)
       .all<DelegatedIssuingAuthorityGrantEventRow>();
 
-  let result: SqlQueryResult<DelegatedIssuingAuthorityGrantEventRow>;
-
-  try {
-    result = await listStatement();
-  } catch (error: unknown) {
-    if (!isMissingDelegatedIssuingAuthorityTablesError(error)) {
-      throw error;
-    }
-
-    await ensureDelegatedIssuingAuthorityTables(db);
-    result = await listStatement();
-  }
+  const result = await listStatement();
 
   return result.results.map((row) => mapDelegatedIssuingAuthorityGrantEventRow(row));
 };
@@ -1195,18 +941,7 @@ export const findActiveDelegatedIssuingAuthorityGrantForAction = async (
       .bind(input.tenantId, input.userId, atIso, atIso)
       .all<DelegatedIssuingAuthorityGrantRow>();
 
-  let result: SqlQueryResult<DelegatedIssuingAuthorityGrantRow>;
-
-  try {
-    result = await listStatement();
-  } catch (error: unknown) {
-    if (!isMissingDelegatedIssuingAuthorityTablesError(error)) {
-      throw error;
-    }
-
-    await ensureDelegatedIssuingAuthorityTables(db);
-    result = await listStatement();
-  }
+  const result = await listStatement();
 
   for (const row of result.results) {
     const grant = await mapDelegatedIssuingAuthorityGrantRow(db, row, atIso);

@@ -1,4 +1,3 @@
-import { ensureOAuthTables, isMissingOAuthTablesError } from "./oauth-tables";
 import { createPrefixedId } from "./shared-helpers";
 import type { SqlDatabase, SqlRunResult } from "./tenant-scope";
 
@@ -130,16 +129,7 @@ export const createOid4vciPreAuthorizedCode = async (
       )
       .run();
 
-  try {
-    await insertStatement();
-  } catch (error: unknown) {
-    if (!isMissingOAuthTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOAuthTables(db);
-    await insertStatement();
-  }
+  await insertStatement();
 
   return {
     id,
@@ -180,18 +170,7 @@ export const consumeOid4vciPreAuthorizedCode = async (
       .bind(input.nowIso, input.codeHash, input.nowIso)
       .first<Oid4vciPreAuthorizedCodeRow>();
 
-  let row: Oid4vciPreAuthorizedCodeRow | null;
-
-  try {
-    row = await consumeStatement();
-  } catch (error: unknown) {
-    if (!isMissingOAuthTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOAuthTables(db);
-    row = await consumeStatement();
-  }
+  const row = await consumeStatement();
 
   return row === null ? null : mapOid4vciPreAuthorizedCodeRow(row);
 };
@@ -228,16 +207,7 @@ export const createOid4vciAccessToken = async (
       )
       .run();
 
-  try {
-    await insertStatement();
-  } catch (error: unknown) {
-    if (!isMissingOAuthTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOAuthTables(db);
-    await insertStatement();
-  }
+  await insertStatement();
 
   return {
     id,
@@ -276,18 +246,7 @@ export const findActiveOid4vciAccessTokenByHash = async (
       .bind(input.accessTokenHash, input.nowIso)
       .first<Oid4vciAccessTokenRow>();
 
-  let row: Oid4vciAccessTokenRow | null;
-
-  try {
-    row = await findStatement();
-  } catch (error: unknown) {
-    if (!isMissingOAuthTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOAuthTables(db);
-    row = await findStatement();
-  }
+  const row = await findStatement();
 
   return row === null ? null : mapOid4vciAccessTokenRow(row);
 };

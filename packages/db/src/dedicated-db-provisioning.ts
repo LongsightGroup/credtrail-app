@@ -58,52 +58,6 @@ interface DedicatedDbProvisioningRequestRow {
   updatedAt: string;
 }
 
-const isMissingDedicatedDbProvisioningRequestsTableError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return (
-    (error.message.includes("no such table") ||
-      error.message.includes("relation") ||
-      error.message.includes("does not exist")) &&
-    error.message.includes("tenant_dedicated_db_provisioning_requests")
-  );
-};
-
-const ensureDedicatedDbProvisioningRequestsTable = async (db: SqlDatabase): Promise<void> => {
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS tenant_dedicated_db_provisioning_requests (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        requested_by_user_id TEXT,
-        target_region TEXT NOT NULL,
-        status TEXT NOT NULL CHECK (status IN ('pending', 'provisioned', 'failed', 'canceled')),
-        dedicated_database_url TEXT,
-        notes TEXT,
-        requested_at TEXT NOT NULL,
-        resolved_at TEXT,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE,
-        FOREIGN KEY (requested_by_user_id) REFERENCES users (id) ON DELETE SET NULL
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_dedicated_db_provisioning_tenant_status
-        ON tenant_dedicated_db_provisioning_requests (tenant_id, status, requested_at DESC)
-    `,
-    )
-    .run();
-};
-
 const mapDedicatedDbProvisioningRequestRow = (
   row: DedicatedDbProvisioningRequestRow,
 ): DedicatedDbProvisioningRequestRecord => {
@@ -160,16 +114,7 @@ export const createDedicatedDbProvisioningRequest = async (
       )
       .run();
 
-  try {
-    await insertStatement();
-  } catch (error: unknown) {
-    if (!isMissingDedicatedDbProvisioningRequestsTableError(error)) {
-      throw error;
-    }
-
-    await ensureDedicatedDbProvisioningRequestsTable(db);
-    await insertStatement();
-  }
+  await insertStatement();
 
   const row = await db
     .prepare(
@@ -237,18 +182,7 @@ export const listDedicatedDbProvisioningRequests = async (
       .bind(...queryParams)
       .all<DedicatedDbProvisioningRequestRow>();
 
-  let result: SqlQueryResult<DedicatedDbProvisioningRequestRow>;
-
-  try {
-    result = await listStatement();
-  } catch (error: unknown) {
-    if (!isMissingDedicatedDbProvisioningRequestsTableError(error)) {
-      throw error;
-    }
-
-    await ensureDedicatedDbProvisioningRequestsTable(db);
-    result = await listStatement();
-  }
+  const result = await listStatement();
 
   return result.results.map((row) => mapDedicatedDbProvisioningRequestRow(row));
 };
@@ -258,7 +192,6 @@ export const resolveDedicatedDbProvisioningRequest = async (
   input: ResolveDedicatedDbProvisioningRequestInput,
 ): Promise<DedicatedDbProvisioningRequestRecord | null> => {
   const resolvedAt = input.resolvedAt ?? new Date().toISOString();
-  let result: SqlRunResult;
   const updateStatement = (): Promise<SqlRunResult> =>
     db
       .prepare(
@@ -286,16 +219,7 @@ export const resolveDedicatedDbProvisioningRequest = async (
       )
       .run();
 
-  try {
-    result = await updateStatement();
-  } catch (error: unknown) {
-    if (!isMissingDedicatedDbProvisioningRequestsTableError(error)) {
-      throw error;
-    }
-
-    await ensureDedicatedDbProvisioningRequestsTable(db);
-    result = await updateStatement();
-  }
+  const result = await updateStatement();
 
   if ((result.meta.rowsWritten ?? 0) === 0) {
     return null;

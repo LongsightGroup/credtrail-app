@@ -2,7 +2,10 @@ export * from "./audit-logs";
 export * from "./assertions";
 export * from "./auth-magic-link-rate-limit";
 export * from "./badge-templates";
+export * from "./badge-template-images";
 export * from "./badge-issuance-rules";
+export * from "./badge-issuance-rule-evaluations";
+export * from "./badge-issuance-rule-value-lists";
 export * from "./dedicated-db-provisioning";
 export * from "./delegated-issuing-authority";
 export * from "./job-queue";
@@ -17,15 +20,9 @@ export * from "./ob3-resources";
 export * from "./tenant-api-keys";
 export * from "./tenant-auth-policies";
 export * from "./tenant-memberships";
+export * from "./tenant-org-units";
 export * from "./tenant-scope";
 export * from "./tenant-signing";
-export type {
-  CreateTenantOrgUnitInput,
-  ListTenantOrgUnitsInput,
-  OrgUnitType,
-  TenantOrgUnitRecord,
-} from "./tenant-org-units";
-export { createTenantOrgUnit, listTenantOrgUnits } from "./tenant-org-units";
 export * from "./tenants";
 export * from "./sessions";
 export * from "./users";

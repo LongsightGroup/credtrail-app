@@ -1,7 +1,6 @@
 import { createPrefixedId } from "./shared-helpers";
 import { ensureInstitutionOrgUnitForTenant, findTenantOrgUnitById } from "./tenant-org-units";
 import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "./tenant-scope";
-export * from "./badge-template-images";
 
 export interface UpsertBadgeTemplateByIdInput {
   id: string;

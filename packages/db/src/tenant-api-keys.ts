@@ -1,5 +1,5 @@
 import { createPrefixedId } from "./shared-helpers";
-import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "./tenant-scope";
+import type { SqlDatabase, SqlRunResult } from "./tenant-scope";
 
 export interface TenantApiKeyRecord {
   id: string;
@@ -55,51 +55,6 @@ interface TenantApiKeyRow {
   createdAt: string;
   updatedAt: string;
 }
-const isMissingTenantApiKeysTableError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return (
-    (error.message.includes("no such table") ||
-      error.message.includes("relation") ||
-      error.message.includes("does not exist")) &&
-    error.message.includes("tenant_api_keys")
-  );
-};
-const ensureTenantApiKeysTable = async (db: SqlDatabase): Promise<void> => {
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS tenant_api_keys (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        label TEXT NOT NULL,
-        key_prefix TEXT NOT NULL,
-        key_hash TEXT NOT NULL UNIQUE,
-        scopes_json TEXT NOT NULL,
-        created_by_user_id TEXT,
-        expires_at TEXT,
-        last_used_at TEXT,
-        revoked_at TEXT,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE,
-        FOREIGN KEY (created_by_user_id) REFERENCES users (id) ON DELETE SET NULL
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_tenant_api_keys_tenant_active
-        ON tenant_api_keys (tenant_id, revoked_at, expires_at, created_at DESC)
-    `,
-    )
-    .run();
-};
 const mapTenantApiKeyRow = (row: TenantApiKeyRow): TenantApiKeyRecord => {
   return {
     id: row.id,
@@ -157,16 +112,7 @@ export const createTenantApiKey = async (
       )
       .run();
 
-  try {
-    await insertStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantApiKeysTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantApiKeysTable(db);
-    await insertStatement();
-  }
+  await insertStatement();
 
   const row = await db
     .prepare(
@@ -242,18 +188,7 @@ export const listTenantApiKeys = async (
       ORDER BY created_at DESC
     `;
 
-  let result: SqlQueryResult<TenantApiKeyRow>;
-
-  try {
-    result = await db.prepare(query).bind(input.tenantId).all<TenantApiKeyRow>();
-  } catch (error: unknown) {
-    if (!isMissingTenantApiKeysTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantApiKeysTable(db);
-    result = await db.prepare(query).bind(input.tenantId).all<TenantApiKeyRow>();
-  }
+  const result = await db.prepare(query).bind(input.tenantId).all<TenantApiKeyRow>();
 
   return result.results.map((row) => mapTenantApiKeyRow(row));
 };
@@ -289,18 +224,7 @@ export const findActiveTenantApiKeyByHash = async (
       .bind(input.keyHash, input.nowIso)
       .first<TenantApiKeyRow>();
 
-  let row: TenantApiKeyRow | null;
-
-  try {
-    row = await lookupStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantApiKeysTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantApiKeysTable(db);
-    row = await lookupStatement();
-  }
+  const row = await lookupStatement();
 
   return row === null ? null : mapTenantApiKeyRow(row);
 };
@@ -324,16 +248,7 @@ export const touchTenantApiKeyLastUsedAt = async (
       .bind(lastUsedAt, lastUsedAt, id)
       .run();
 
-  try {
-    await touchStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantApiKeysTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantApiKeysTable(db);
-    await touchStatement();
-  }
+  await touchStatement();
 };
 
 export const revokeTenantApiKey = async (
@@ -356,18 +271,7 @@ export const revokeTenantApiKey = async (
       .bind(input.revokedAt, input.revokedAt, input.tenantId, input.apiKeyId)
       .run();
 
-  let result: SqlRunResult;
-
-  try {
-    result = await updateStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantApiKeysTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantApiKeysTable(db);
-    result = await updateStatement();
-  }
+  const result = await updateStatement();
 
   return (result.meta.rowsWritten ?? 0) > 0;
 };

@@ -1,4 +1,3 @@
-import { ensureOAuthTables, isMissingOAuthTablesError } from "./oauth-tables";
 import { createPrefixedId } from "./shared-helpers";
 import type { SqlDatabase, SqlRunResult } from "./tenant-scope";
 
@@ -275,16 +274,7 @@ export const createOAuthClient = async (
       )
       .run();
 
-  try {
-    await insertStatement();
-  } catch (error: unknown) {
-    if (!isMissingOAuthTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOAuthTables(db);
-    await insertStatement();
-  }
+  await insertStatement();
 
   const row = await db
     .prepare(
@@ -342,18 +332,7 @@ export const findOAuthClientById = async (
       .bind(clientId)
       .first<OAuthClientRow>();
 
-  let row: OAuthClientRow | null;
-
-  try {
-    row = await findStatement();
-  } catch (error: unknown) {
-    if (!isMissingOAuthTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOAuthTables(db);
-    row = await findStatement();
-  }
+  const row = await findStatement();
 
   if (row === null) {
     return null;
@@ -404,16 +383,7 @@ export const createOAuthAuthorizationCode = async (
       )
       .run();
 
-  try {
-    await insertStatement();
-  } catch (error: unknown) {
-    if (!isMissingOAuthTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOAuthTables(db);
-    await insertStatement();
-  }
+  await insertStatement();
 
   return {
     id,
@@ -464,18 +434,7 @@ export const consumeOAuthAuthorizationCode = async (
       .bind(input.nowIso, input.clientId, input.codeHash, input.redirectUri, input.nowIso)
       .first<OAuthAuthorizationCodeRow>();
 
-  let row: OAuthAuthorizationCodeRow | null;
-
-  try {
-    row = await consumeStatement();
-  } catch (error: unknown) {
-    if (!isMissingOAuthTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOAuthTables(db);
-    row = await consumeStatement();
-  }
+  const row = await consumeStatement();
 
   if (row === null) {
     return null;
@@ -520,16 +479,7 @@ export const createOAuthAccessToken = async (
       )
       .run();
 
-  try {
-    await insertStatement();
-  } catch (error: unknown) {
-    if (!isMissingOAuthTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOAuthTables(db);
-    await insertStatement();
-  }
+  await insertStatement();
 
   const row = await db
     .prepare(
@@ -595,16 +545,7 @@ export const createOAuthRefreshToken = async (
       )
       .run();
 
-  try {
-    await insertStatement();
-  } catch (error: unknown) {
-    if (!isMissingOAuthTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOAuthTables(db);
-    await insertStatement();
-  }
+  await insertStatement();
 
   const row = await db
     .prepare(
@@ -663,18 +604,7 @@ export const consumeOAuthRefreshToken = async (
       .bind(input.nowIso, input.clientId, input.refreshTokenHash, input.nowIso)
       .first<OAuthRefreshTokenRow>();
 
-  let row: OAuthRefreshTokenRow | null;
-
-  try {
-    row = await consumeStatement();
-  } catch (error: unknown) {
-    if (!isMissingOAuthTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOAuthTables(db);
-    row = await consumeStatement();
-  }
+  const row = await consumeStatement();
 
   if (row === null) {
     return null;
@@ -700,16 +630,7 @@ export const revokeOAuthAccessTokenByHash = async (
       .bind(input.revokedAt, input.clientId, input.accessTokenHash)
       .run();
 
-  try {
-    await revokeStatement();
-  } catch (error: unknown) {
-    if (!isMissingOAuthTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOAuthTables(db);
-    await revokeStatement();
-  }
+  await revokeStatement();
 };
 
 export const revokeOAuthRefreshTokenByHash = async (
@@ -729,16 +650,7 @@ export const revokeOAuthRefreshTokenByHash = async (
       .bind(input.revokedAt, input.clientId, input.refreshTokenHash)
       .run();
 
-  try {
-    await revokeStatement();
-  } catch (error: unknown) {
-    if (!isMissingOAuthTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOAuthTables(db);
-    await revokeStatement();
-  }
+  await revokeStatement();
 };
 
 export const findActiveOAuthAccessTokenByHash = async (
@@ -769,18 +681,7 @@ export const findActiveOAuthAccessTokenByHash = async (
       .bind(input.accessTokenHash, input.nowIso)
       .first<OAuthAccessTokenRow>();
 
-  let row: OAuthAccessTokenRow | null;
-
-  try {
-    row = await findStatement();
-  } catch (error: unknown) {
-    if (!isMissingOAuthTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOAuthTables(db);
-    row = await findStatement();
-  }
+  const row = await findStatement();
 
   return row === null ? null : mapOAuthAccessTokenRow(row);
 };

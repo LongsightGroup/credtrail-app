@@ -1,8 +1,4 @@
-import {
-  ensureTenantOrgUnitsTable,
-  findTenantOrgUnitById,
-  isMissingTenantOrgUnitsTableError,
-} from "./tenant-org-units";
+import { findTenantOrgUnitById } from "./tenant-org-units";
 import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "./tenant-scope";
 import type { TenantPlanTier } from "./tenants";
 
@@ -130,59 +126,6 @@ interface TenantMembershipOrgUnitScopeRow {
   createdAt: string;
   updatedAt: string;
 }
-
-const isMissingTenantMembershipOrgUnitScopesTableError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return (
-    (error.message.includes("no such table") ||
-      error.message.includes("relation") ||
-      error.message.includes("does not exist")) &&
-    error.message.includes("tenant_membership_org_unit_scopes")
-  );
-};
-
-const ensureTenantMembershipOrgUnitScopesTable = async (db: SqlDatabase): Promise<void> => {
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS tenant_membership_org_unit_scopes (
-        tenant_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        org_unit_id TEXT NOT NULL,
-        role TEXT NOT NULL CHECK (role IN ('admin', 'issuer', 'viewer')),
-        created_by_user_id TEXT,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (tenant_id, user_id, org_unit_id),
-        FOREIGN KEY (tenant_id, user_id) REFERENCES memberships (tenant_id, user_id) ON DELETE CASCADE,
-        FOREIGN KEY (tenant_id, org_unit_id) REFERENCES tenant_org_units (tenant_id, id) ON DELETE CASCADE,
-        FOREIGN KEY (created_by_user_id) REFERENCES users (id) ON DELETE SET NULL
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_membership_org_scopes_tenant_user_role
-        ON tenant_membership_org_unit_scopes (tenant_id, user_id, role)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_membership_org_scopes_tenant_org_unit
-        ON tenant_membership_org_unit_scopes (tenant_id, org_unit_id)
-    `,
-    )
-    .run();
-};
 
 const TENANT_MEMBERSHIP_ORG_UNIT_SCOPE_ROLE_PRIORITY: Record<
   TenantMembershipOrgUnitScopeRole,
@@ -476,18 +419,7 @@ const findTenantMembershipOrgUnitScope = async (
       .bind(tenantId, userId, orgUnitId)
       .first<TenantMembershipOrgUnitScopeRow>();
 
-  let row: TenantMembershipOrgUnitScopeRow | null;
-
-  try {
-    row = await findStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantMembershipOrgUnitScopesTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantMembershipOrgUnitScopesTable(db);
-    row = await findStatement();
-  }
+  const row = await findStatement();
 
   return row === null ? null : mapTenantMembershipOrgUnitScopeRow(row);
 };
@@ -547,16 +479,7 @@ export const upsertTenantMembershipOrgUnitScope = async (
       )
       .run();
 
-  try {
-    await upsertStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantMembershipOrgUnitScopesTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantMembershipOrgUnitScopesTable(db);
-    await upsertStatement();
-  }
+  await upsertStatement();
 
   const scope = await findTenantMembershipOrgUnitScope(
     db,
@@ -617,18 +540,7 @@ export const listTenantMembershipOrgUnitScopes = async (
       ? db.prepare(query).bind(input.tenantId).all<TenantMembershipOrgUnitScopeRow>()
       : db.prepare(query).bind(input.tenantId, input.userId).all<TenantMembershipOrgUnitScopeRow>();
 
-  let result: SqlQueryResult<TenantMembershipOrgUnitScopeRow>;
-
-  try {
-    result = await listStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantMembershipOrgUnitScopesTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantMembershipOrgUnitScopesTable(db);
-    result = await listStatement();
-  }
+  const result = await listStatement();
 
   return result.results.map((row) => mapTenantMembershipOrgUnitScopeRow(row));
 };
@@ -650,18 +562,7 @@ export const removeTenantMembershipOrgUnitScope = async (
       .bind(input.tenantId, input.userId, input.orgUnitId)
       .run();
 
-  let result: SqlRunResult;
-
-  try {
-    result = await deleteStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantMembershipOrgUnitScopesTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantMembershipOrgUnitScopesTable(db);
-    result = await deleteStatement();
-  }
+  const result = await deleteStatement();
 
   return (result.meta.rowsWritten ?? 0) > 0;
 };
@@ -684,18 +585,7 @@ export const hasTenantMembershipOrgUnitScopeAssignments = async (
       .bind(tenantId, userId)
       .first<{ totalCount: number | string }>();
 
-  let row: { totalCount: number | string } | null;
-
-  try {
-    row = await countStatement();
-  } catch (error: unknown) {
-    if (!isMissingTenantMembershipOrgUnitScopesTableError(error)) {
-      throw error;
-    }
-
-    await ensureTenantMembershipOrgUnitScopesTable(db);
-    row = await countStatement();
-  }
+  const row = await countStatement();
 
   const totalCount = Number.parseInt(String(row?.totalCount ?? 0), 10);
   return Number.isFinite(totalCount) && totalCount > 0;
@@ -756,28 +646,7 @@ export const hasTenantMembershipOrgUnitAccess = async (
       )
       .first<{ orgUnitId: string }>();
 
-  let row: { orgUnitId: string } | null;
-
-  try {
-    row = await accessStatement();
-  } catch (error: unknown) {
-    if (
-      !isMissingTenantMembershipOrgUnitScopesTableError(error) &&
-      !isMissingTenantOrgUnitsTableError(error)
-    ) {
-      throw error;
-    }
-
-    if (isMissingTenantOrgUnitsTableError(error)) {
-      await ensureTenantOrgUnitsTable(db);
-    }
-
-    if (isMissingTenantMembershipOrgUnitScopesTableError(error)) {
-      await ensureTenantMembershipOrgUnitScopesTable(db);
-    }
-
-    row = await accessStatement();
-  }
+  const row = await accessStatement();
 
   return row !== null;
 };

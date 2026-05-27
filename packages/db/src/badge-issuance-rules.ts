@@ -1,7 +1,5 @@
 import { createPrefixedId } from "./shared-helpers";
 import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "./tenant-scope";
-export * from "./badge-issuance-rule-evaluations";
-export * from "./badge-issuance-rule-value-lists";
 import type { TenantMembershipRole } from "./tenant-memberships";
 
 export type BadgeIssuanceRuleLmsProviderKind =

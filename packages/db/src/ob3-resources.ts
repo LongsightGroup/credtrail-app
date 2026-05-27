@@ -78,75 +78,6 @@ interface Ob3SubjectProfileRow {
   updatedAt: string;
 }
 
-const isMissingOb3ResourceTablesError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const tableMissing =
-    error.message.includes("ob3_subject_credentials") ||
-    error.message.includes("ob3_subject_profiles");
-
-  if (!tableMissing) {
-    return false;
-  }
-
-  return (
-    error.message.includes("no such table") ||
-    error.message.includes("relation") ||
-    error.message.includes("does not exist")
-  );
-};
-
-const ensureOb3ResourceTables = async (db: SqlDatabase): Promise<void> => {
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS ob3_subject_credentials (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        credential_id TEXT NOT NULL,
-        payload_json TEXT,
-        compact_jws TEXT,
-        issued_at TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE (tenant_id, user_id, credential_id),
-        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_ob3_subject_credentials_lookup
-        ON ob3_subject_credentials (tenant_id, user_id, issued_at DESC)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS ob3_subject_profiles (
-        tenant_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        profile_json TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (tenant_id, user_id),
-        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-      )
-    `,
-    )
-    .run();
-};
-
 const mapOb3SubjectCredentialRow = (row: Ob3SubjectCredentialRow): Ob3SubjectCredentialRecord => {
   return {
     id: row.id,
@@ -219,21 +150,8 @@ export const listOb3SubjectCredentials = async (
       .bind(...sharedParams, normalizedLimit, normalizedOffset)
       .all<Ob3SubjectCredentialRow>();
 
-  let totalCountRow: Ob3SubjectCredentialCountRow | null;
-  let rowsResult: SqlQueryResult<Ob3SubjectCredentialRow>;
-
-  try {
-    totalCountRow = await countStatement();
-    rowsResult = await listStatement();
-  } catch (error: unknown) {
-    if (!isMissingOb3ResourceTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOb3ResourceTables(db);
-    totalCountRow = await countStatement();
-    rowsResult = await listStatement();
-  }
+  const totalCountRow = await countStatement();
+  const rowsResult = await listStatement();
 
   const rawTotalCount = totalCountRow?.totalCount ?? 0;
   const totalCount = Number.isFinite(Number(rawTotalCount)) ? Number(rawTotalCount) : 0;
@@ -312,18 +230,7 @@ export const upsertOb3SubjectCredential = async (
       )
       .run();
 
-  let existingCredential: Ob3SubjectCredentialRow | null;
-
-  try {
-    existingCredential = await selectStatement();
-  } catch (error: unknown) {
-    if (!isMissingOb3ResourceTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOb3ResourceTables(db);
-    existingCredential = await selectStatement();
-  }
+  const existingCredential = await selectStatement();
 
   const credentialId = existingCredential?.id ?? createPrefixedId("ob3c");
   await upsertStatement(credentialId);
@@ -367,18 +274,7 @@ export const findOb3SubjectProfile = async (
       .bind(input.tenantId, input.userId)
       .first<Ob3SubjectProfileRow>();
 
-  let row: Ob3SubjectProfileRow | null;
-
-  try {
-    row = await findStatement();
-  } catch (error: unknown) {
-    if (!isMissingOb3ResourceTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOb3ResourceTables(db);
-    row = await findStatement();
-  }
+  const row = await findStatement();
 
   return row === null ? null : mapOb3SubjectProfileRow(row);
 };
@@ -427,16 +323,7 @@ export const upsertOb3SubjectProfile = async (
       .bind(input.tenantId, input.userId)
       .first<Ob3SubjectProfileRow>();
 
-  try {
-    await upsertStatement();
-  } catch (error: unknown) {
-    if (!isMissingOb3ResourceTablesError(error)) {
-      throw error;
-    }
-
-    await ensureOb3ResourceTables(db);
-    await upsertStatement();
-  }
+  await upsertStatement();
 
   const row = await findStatement();
 

@@ -184,272 +184,6 @@ interface LtiResourceLinkPlacementRow {
   updatedAt: string;
 }
 
-const isMissingLtiIssuerRegistrationsTableError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const missingTable =
-    (error.message.includes("no such table") ||
-      error.message.includes("relation") ||
-      error.message.includes("does not exist")) &&
-    error.message.includes("lti_issuer_registrations");
-  const missingNrpsColumns =
-    error.message.includes("column") &&
-    error.message.includes("does not exist") &&
-    (error.message.includes("token_endpoint") ||
-      error.message.includes("client_secret") ||
-      error.message.includes("platform_jwks_endpoint"));
-
-  return missingTable || missingNrpsColumns;
-};
-
-const isMissingLtiAdvantageTableError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return (
-    (error.message.includes("no such table") ||
-      error.message.includes("relation") ||
-      error.message.includes("does not exist")) &&
-    (error.message.includes("lti_deployments") ||
-      error.message.includes("lti_tool_keys") ||
-      error.message.includes("lti_launch_nonces") ||
-      error.message.includes("lti_launch_sessions") ||
-      error.message.includes("lti_dynamic_registration_sessions") ||
-      error.message.includes("lti_resource_link_placements"))
-  );
-};
-
-const ensureLtiIssuerRegistrationsTable = async (db: SqlDatabase): Promise<void> => {
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS lti_issuer_registrations (
-        issuer TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        authorization_endpoint TEXT NOT NULL,
-        client_id TEXT NOT NULL,
-        platform_jwks_endpoint TEXT,
-        token_endpoint TEXT,
-        client_secret TEXT,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_lti_issuer_registrations_tenant
-        ON lti_issuer_registrations (tenant_id)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      ALTER TABLE lti_issuer_registrations
-      ADD COLUMN IF NOT EXISTS token_endpoint TEXT
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      ALTER TABLE lti_issuer_registrations
-      ADD COLUMN IF NOT EXISTS client_secret TEXT
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      ALTER TABLE lti_issuer_registrations
-      ADD COLUMN IF NOT EXISTS platform_jwks_endpoint TEXT
-    `,
-    )
-    .run();
-};
-
-const ensureLtiAdvantageTables = async (db: SqlDatabase): Promise<void> => {
-  await ensureLtiIssuerRegistrationsTable(db);
-
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS lti_deployments (
-        id TEXT PRIMARY KEY,
-        issuer TEXT NOT NULL,
-        client_id TEXT NOT NULL,
-        deployment_id TEXT NOT NULL,
-        name TEXT,
-        description TEXT,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (issuer) REFERENCES lti_issuer_registrations (issuer) ON DELETE CASCADE,
-        UNIQUE (issuer, client_id, deployment_id)
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_lti_deployments_issuer
-        ON lti_deployments (issuer)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS lti_tool_keys (
-        id TEXT PRIMARY KEY,
-        key_id TEXT NOT NULL UNIQUE,
-        public_jwk_json TEXT NOT NULL,
-        private_jwk_json TEXT NOT NULL,
-        is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_lti_tool_keys_active
-        ON lti_tool_keys (is_active, created_at DESC)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS lti_launch_nonces (
-        nonce TEXT PRIMARY KEY,
-        expires_at TEXT NOT NULL,
-        consumed_at TEXT,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_lti_launch_nonces_expires
-        ON lti_launch_nonces (expires_at)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS lti_launch_sessions (
-        id TEXT PRIMARY KEY,
-        issuer TEXT NOT NULL,
-        client_id TEXT NOT NULL,
-        deployment_id TEXT NOT NULL,
-        user_id TEXT,
-        tenant_id TEXT,
-        data_json TEXT NOT NULL,
-        expires_at TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_lti_launch_sessions_expires
-        ON lti_launch_sessions (expires_at)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS lti_dynamic_registration_sessions (
-        id TEXT PRIMARY KEY,
-        data_json TEXT NOT NULL,
-        expires_at TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_lti_dynamic_registration_sessions_expires
-        ON lti_dynamic_registration_sessions (expires_at)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS lti_resource_link_placements (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        issuer TEXT NOT NULL,
-        client_id TEXT NOT NULL,
-        deployment_id TEXT NOT NULL,
-        context_id TEXT,
-        resource_link_id TEXT NOT NULL,
-        badge_template_id TEXT NOT NULL,
-        created_by_user_id TEXT,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE,
-        FOREIGN KEY (badge_template_id) REFERENCES badge_templates (id) ON DELETE CASCADE,
-        UNIQUE (issuer, client_id, deployment_id, resource_link_id)
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_lti_resource_link_placements_tenant
-        ON lti_resource_link_placements (tenant_id)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_lti_resource_link_placements_lookup
-        ON lti_resource_link_placements (issuer, client_id, deployment_id, resource_link_id)
-    `,
-    )
-    .run();
-};
-
 const mapLtiIssuerRegistrationRow = (
   row: LtiIssuerRegistrationRow,
 ): LtiIssuerRegistrationRecord => {
@@ -608,16 +342,7 @@ export const upsertLtiIssuerRegistration = async (
       .bind(normalizedIssuer)
       .first<LtiIssuerRegistrationRow>();
 
-  try {
-    await upsertStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiIssuerRegistrationsTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiIssuerRegistrationsTable(db);
-    await upsertStatement();
-  }
+  await upsertStatement();
 
   const row = await findStatement();
 
@@ -651,18 +376,7 @@ export const listLtiIssuerRegistrations = async (
       )
       .all<LtiIssuerRegistrationRow>();
 
-  let result: SqlQueryResult<LtiIssuerRegistrationRow>;
-
-  try {
-    result = await listStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiIssuerRegistrationsTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiIssuerRegistrationsTable(db);
-    result = await listStatement();
-  }
+  const result = await listStatement();
 
   return result.results.map((row) => mapLtiIssuerRegistrationRow(row));
 };
@@ -684,18 +398,7 @@ export const deleteLtiIssuerRegistrationByIssuer = async (
       .bind(normalizedIssuer)
       .run();
 
-  let result: SqlRunResult;
-
-  try {
-    result = await deleteStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiIssuerRegistrationsTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiIssuerRegistrationsTable(db);
-    result = await deleteStatement();
-  }
+  const result = await deleteStatement();
 
   return (result.meta.rowsWritten ?? 0) > 0;
 };
@@ -742,16 +445,7 @@ export const upsertLtiDeployment = async (
       )
       .run();
 
-  try {
-    await upsertStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiAdvantageTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiAdvantageTables(db);
-    await upsertStatement();
-  }
+  await upsertStatement();
 
   const deployment = await findLtiDeploymentByIssuerClientDeployment(db, {
     issuer: normalizedIssuer,
@@ -798,18 +492,7 @@ export const findLtiDeploymentByIssuerClientDeployment = async (
       .bind(normalizedIssuer, input.clientId, input.deploymentId)
       .first<LtiDeploymentRow>();
 
-  let row: LtiDeploymentRow | null;
-
-  try {
-    row = await lookupStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiAdvantageTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiAdvantageTables(db);
-    row = await lookupStatement();
-  }
+  const row = await lookupStatement();
 
   return row === null ? null : mapLtiDeploymentRow(row);
 };
@@ -840,18 +523,7 @@ export const listLtiDeploymentsForIssuer = async (
       .bind(normalizedIssuer)
       .all<LtiDeploymentRow>();
 
-  let result: SqlQueryResult<LtiDeploymentRow>;
-
-  try {
-    result = await listStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiAdvantageTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiAdvantageTables(db);
-    result = await listStatement();
-  }
+  const result = await listStatement();
 
   return result.results.map((row) => mapLtiDeploymentRow(row));
 };
@@ -897,16 +569,7 @@ export const createLtiToolKey = async (
       )
       .run();
 
-  try {
-    await insertStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiAdvantageTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiAdvantageTables(db);
-    await insertStatement();
-  }
+  await insertStatement();
 
   const key = await findActiveLtiToolKey(db);
 
@@ -938,18 +601,7 @@ export const findActiveLtiToolKey = async (db: SqlDatabase): Promise<LtiToolKeyR
       )
       .first<LtiToolKeyRow>();
 
-  let row: LtiToolKeyRow | null;
-
-  try {
-    row = await findStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiAdvantageTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiAdvantageTables(db);
-    row = await findStatement();
-  }
+  const row = await findStatement();
 
   return row === null ? null : mapLtiToolKeyRow(row);
 };
@@ -975,16 +627,7 @@ export const storeLtiLaunchNonce = async (
       .bind(nonce, expiresAt)
       .run();
 
-  try {
-    await insertStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiAdvantageTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiAdvantageTables(db);
-    await insertStatement();
-  }
+  await insertStatement();
 };
 
 export const consumeLtiLaunchNonce = async (
@@ -1007,18 +650,7 @@ export const consumeLtiLaunchNonce = async (
       .bind(nowIso, nonce, nowIso)
       .all<{ nonce: string }>();
 
-  let result: SqlQueryResult<{ nonce: string }>;
-
-  try {
-    result = await updateStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiAdvantageTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiAdvantageTables(db);
-    result = await updateStatement();
-  }
+  const result = await updateStatement();
 
   return result.results.length > 0;
 };
@@ -1068,16 +700,7 @@ export const upsertLtiLaunchSession = async (
       )
       .run();
 
-  try {
-    await upsertStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiAdvantageTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiAdvantageTables(db);
-    await upsertStatement();
-  }
+  await upsertStatement();
 
   const session = await findLtiLaunchSessionById(db, input.id);
 
@@ -1117,18 +740,7 @@ export const findLtiLaunchSessionById = async (
       .bind(sessionId, nowIso)
       .first<LtiLaunchSessionRow>();
 
-  let row: LtiLaunchSessionRow | null;
-
-  try {
-    row = await findStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiAdvantageTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiAdvantageTables(db);
-    row = await findStatement();
-  }
+  const row = await findStatement();
 
   return row === null ? null : mapLtiLaunchSessionRow(row);
 };
@@ -1160,16 +772,7 @@ export const upsertLtiDynamicRegistrationSession = async (
       .bind(input.id, input.dataJson, input.expiresAt)
       .run();
 
-  try {
-    await insertStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiAdvantageTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiAdvantageTables(db);
-    await insertStatement();
-  }
+  await insertStatement();
 };
 
 export const findLtiDynamicRegistrationSessionById = async (
@@ -1195,18 +798,7 @@ export const findLtiDynamicRegistrationSessionById = async (
       .bind(sessionId, nowIso)
       .first<LtiDynamicRegistrationSessionRow>();
 
-  let row: LtiDynamicRegistrationSessionRow | null;
-
-  try {
-    row = await findStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiAdvantageTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiAdvantageTables(db);
-    row = await findStatement();
-  }
+  const row = await findStatement();
 
   return row === null ? null : mapLtiDynamicRegistrationSessionRow(row);
 };
@@ -1226,16 +818,7 @@ export const deleteLtiDynamicRegistrationSessionById = async (
       .bind(sessionId)
       .run();
 
-  try {
-    await deleteStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiAdvantageTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiAdvantageTables(db);
-    await deleteStatement();
-  }
+  await deleteStatement();
 };
 
 export const upsertLtiResourceLinkPlacement = async (
@@ -1288,16 +871,7 @@ export const upsertLtiResourceLinkPlacement = async (
       )
       .run();
 
-  try {
-    await upsertStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiAdvantageTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiAdvantageTables(db);
-    await upsertStatement();
-  }
+  await upsertStatement();
 
   const placement = await findLtiResourceLinkPlacement(db, {
     issuer: normalizedIssuer,
@@ -1350,18 +924,7 @@ export const findLtiResourceLinkPlacement = async (
       .bind(normalizedIssuer, input.clientId, input.deploymentId, input.resourceLinkId)
       .first<LtiResourceLinkPlacementRow>();
 
-  let row: LtiResourceLinkPlacementRow | null;
-
-  try {
-    row = await findStatement();
-  } catch (error: unknown) {
-    if (!isMissingLtiAdvantageTableError(error)) {
-      throw error;
-    }
-
-    await ensureLtiAdvantageTables(db);
-    row = await findStatement();
-  }
+  const row = await findStatement();
 
   return row === null ? null : mapLtiResourceLinkPlacementRow(row);
 };

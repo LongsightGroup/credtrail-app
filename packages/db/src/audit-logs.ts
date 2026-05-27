@@ -41,66 +41,6 @@ interface AuditLogRow {
   occurredAt: string;
   createdAt: string;
 }
-const isMissingAuditLogsTableError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return (
-    (error.message.includes("no such table") ||
-      error.message.includes("relation") ||
-      error.message.includes("does not exist")) &&
-    error.message.includes("audit_logs")
-  );
-};
-const ensureAuditLogsTable = async (db: SqlDatabase): Promise<void> => {
-  await db
-    .prepare(
-      `
-      CREATE TABLE IF NOT EXISTS audit_logs (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL,
-        actor_user_id TEXT,
-        action TEXT NOT NULL,
-        target_type TEXT NOT NULL,
-        target_id TEXT NOT NULL,
-        metadata_json TEXT,
-        occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE,
-        FOREIGN KEY (actor_user_id) REFERENCES users (id) ON DELETE SET NULL
-      )
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant_occurred_at
-        ON audit_logs (tenant_id, occurred_at DESC)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_audit_logs_action
-        ON audit_logs (action)
-    `,
-    )
-    .run();
-
-  await db
-    .prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant_target_occurred_at
-        ON audit_logs (tenant_id, target_type, target_id, occurred_at DESC)
-    `,
-    )
-    .run();
-};
 const mapAuditLogRow = (row: AuditLogRow): AuditLogRecord => {
   return {
     id: row.id,
@@ -153,16 +93,7 @@ export const createAuditLog = async (
       )
       .run();
 
-  try {
-    await insertStatement();
-  } catch (error: unknown) {
-    if (!isMissingAuditLogsTableError(error)) {
-      throw error;
-    }
-
-    await ensureAuditLogsTable(db);
-    await insertStatement();
-  }
+  await insertStatement();
 
   const row = await db
     .prepare(
@@ -238,18 +169,7 @@ export const listAuditLogs = async (
       .bind(...queryParams, queryLimit)
       .all<AuditLogRow>();
 
-  let result: SqlQueryResult<AuditLogRow>;
-
-  try {
-    result = await listStatement();
-  } catch (error: unknown) {
-    if (!isMissingAuditLogsTableError(error)) {
-      throw error;
-    }
-
-    await ensureAuditLogsTable(db);
-    result = await listStatement();
-  }
+  const result = await listStatement();
 
   return result.results.map((row) => mapAuditLogRow(row));
 };
