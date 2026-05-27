@@ -193,10 +193,13 @@ const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
           return;
         }
 
-        const templateSelect = form.elements.namedItem('badgeTemplateId');
+        const templateField = form.elements.namedItem('badgeTemplateId');
 
-        if (templateSelect instanceof HTMLSelectElement) {
-          templateSelect.value = badgeTemplateId;
+        if (
+          templateField instanceof HTMLSelectElement ||
+          templateField instanceof HTMLInputElement
+        ) {
+          templateField.value = badgeTemplateId;
         }
       },
     );

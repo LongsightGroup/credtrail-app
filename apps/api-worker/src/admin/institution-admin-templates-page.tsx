@@ -166,10 +166,9 @@ const renderTemplateEditorPanel = (input: { templateSelectOptions: HonoElement }
         </span>
         {addDisclosureControlMarkup}
       </summary>
-      <AdminForm
-        id="badge-template-edit-form"
-        className="ct-admin__form ct-admin__template-editor-form"
-      >
+      {/* Identity-only form: inputs and submit button bind by id via the HTML `form` attribute. */}
+      <form id="badge-template-edit-form" class="ct-admin__template-editor-identity-form" hidden></form>
+      <div class="ct-admin__template-editor-body">
         <section class="ct-admin__template-editor-section" id="template-editor-details">
           <header class="ct-admin__template-editor-section-header">
             <h3>Details</h3>
@@ -177,22 +176,125 @@ const renderTemplateEditorPanel = (input: { templateSelectOptions: HonoElement }
           </header>
           <div class="ct-admin__template-editor-fields">
             <AdminField label="Badge template">
-              <select name="badgeTemplateId" required>
+              <select form="badge-template-edit-form" name="badgeTemplateId" required>
                 {input.templateSelectOptions}
               </select>
             </AdminField>
             <AdminField label="Badge name">
-              <input name="title" type="text" required maxlength={200} />
+              <input
+                form="badge-template-edit-form"
+                name="title"
+                type="text"
+                required
+                maxlength={200}
+              />
             </AdminField>
             <details class="ct-admin__template-editor-advanced">
               <summary>Advanced URL settings</summary>
               <AdminField label="URL key">
-                <input name="slug" type="text" required maxlength={120} />
+                <input
+                  form="badge-template-edit-form"
+                  name="slug"
+                  type="text"
+                  required
+                  maxlength={120}
+                />
               </AdminField>
             </details>
             <AdminField label="Description">
-              <textarea name="description" rows={3} maxlength={2000}></textarea>
+              <textarea
+                form="badge-template-edit-form"
+                name="description"
+                rows={3}
+                maxlength={2000}
+              ></textarea>
             </AdminField>
+          </div>
+        </section>
+        <section
+          class="ct-admin__template-editor-section ct-admin__template-editor-section--artwork"
+          id="template-editor-artwork"
+        >
+          <header class="ct-admin__template-editor-section-header">
+            <h3>Artwork</h3>
+            <p>Upload an image or generate one with AI before using the template in rules.</p>
+          </header>
+          <div class="ct-admin__template-editor-subgroup">
+            <h4 class="ct-admin__template-editor-subgroup-title">Upload an image</h4>
+            <AdminForm
+              id="badge-template-image-upload-form"
+              className="ct-admin__form ct-admin__template-editor-subform"
+            >
+              <input type="hidden" name="badgeTemplateId" value="" />
+              <div class="ct-admin__template-editor-fields">
+                <AdminField label="Image file">
+                  <input
+                    name="file"
+                    type="file"
+                    required
+                    accept="image/png,image/jpeg,image/webp"
+                  />
+                </AdminField>
+                <AdminButton type="submit">Upload image</AdminButton>
+              </div>
+            </AdminForm>
+            <AdminStatus id="badge-template-image-upload-status"></AdminStatus>
+          </div>
+          <hr class="ct-admin__template-editor-divider" aria-hidden="true" />
+          <div class="ct-admin__template-editor-subgroup">
+            <h4 class="ct-admin__template-editor-subgroup-title">Or generate with AI</h4>
+            <AdminForm
+              id="badge-template-image-generation-form"
+              className="ct-admin__form ct-admin__template-editor-subform"
+            >
+              <input type="hidden" name="badgeTemplateId" value="" />
+              <div class="ct-admin__template-editor-fields ct-admin__template-editor-fields--generation">
+                <AdminField label="Style">
+                  <select name="stylePreset" required>
+                    <option value="institutional">Institutional</option>
+                    <option value="technical">Technical</option>
+                    <option value="academic">Academic</option>
+                    <option value="open_source">Open source</option>
+                    <option value="minimal">Minimal</option>
+                  </select>
+                </AdminField>
+                <AdminField label="Accent">
+                  <input name="accentColor" type="text" placeholder="Sakai blue" maxlength={80} />
+                </AdminField>
+                <AdminField label="Prompt notes">
+                  <input
+                    name="promptNotes"
+                    type="text"
+                    placeholder="Shield, milestone, stars"
+                    maxlength={1000}
+                  />
+                </AdminField>
+                <AdminButton type="submit">Generate draft</AdminButton>
+              </div>
+            </AdminForm>
+            <AdminStatus id="badge-template-image-generation-status"></AdminStatus>
+            <div
+              id="badge-template-image-generation-preview"
+              class="ct-admin__image-generation-preview"
+              hidden
+            >
+              <img id="badge-template-image-generation-preview-img" alt="Generated badge draft" />
+              <div class="ct-admin__image-generation-actions">
+                <AdminButton id="badge-template-image-generation-apply" variant="secondary">
+                  Apply generated image
+                </AdminButton>
+                <a
+                  id="badge-template-image-generation-open"
+                  class="ct-admin__text-action"
+                  href="#"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  hidden
+                >
+                  Open full size
+                </a>
+              </div>
+            </div>
           </div>
         </section>
         <section class="ct-admin__template-editor-section" id="template-editor-criteria">
@@ -202,7 +304,12 @@ const renderTemplateEditorPanel = (input: { templateSelectOptions: HonoElement }
           </header>
           <div class="ct-admin__template-editor-fields">
             <AdminField label="Criteria page URL">
-              <input name="criteriaUri" type="url" maxlength={2048} />
+              <input
+                form="badge-template-edit-form"
+                name="criteriaUri"
+                type="url"
+                maxlength={2048}
+              />
             </AdminField>
             <a
               id="badge-template-editor-criteria-link"
@@ -247,94 +354,11 @@ const renderTemplateEditorPanel = (input: { templateSelectOptions: HonoElement }
           </a>
         </section>
         <div class="ct-admin__template-editor-submit">
-          <AdminButton type="submit">Save template</AdminButton>
-        </div>
-      </AdminForm>
-      <AdminStatus id="badge-template-edit-status"></AdminStatus>
-      <AdminForm
-        id="badge-template-image-upload-form"
-        className="ct-admin__form ct-admin__template-editor-form"
-      >
-        <section class="ct-admin__template-editor-section" id="template-editor-artwork">
-          <header class="ct-admin__template-editor-section-header">
-            <h3>Artwork</h3>
-            <p>Upload an image or generate a draft before using the template in rules.</p>
-          </header>
-          <div class="ct-admin__template-editor-fields">
-            <AdminField label="Badge template">
-              <select name="badgeTemplateId" required>
-                {input.templateSelectOptions}
-              </select>
-            </AdminField>
-            <AdminField label="Image file">
-              <input name="file" type="file" required accept="image/png,image/jpeg,image/webp" />
-            </AdminField>
-            <AdminButton type="submit">Upload image</AdminButton>
-          </div>
-        </section>
-      </AdminForm>
-      <AdminStatus id="badge-template-image-upload-status"></AdminStatus>
-      <AdminForm
-        id="badge-template-image-generation-form"
-        className="ct-admin__form ct-admin__template-editor-form"
-      >
-        <section class="ct-admin__template-editor-section">
-          <header class="ct-admin__template-editor-section-header">
-            <h3>Generate draft</h3>
-            <p>Use the selected template as the source for a generated badge image.</p>
-          </header>
-          <div class="ct-admin__template-editor-fields ct-admin__template-editor-fields--generation">
-            <AdminField label="Badge template">
-              <select name="badgeTemplateId" required>
-                {input.templateSelectOptions}
-              </select>
-            </AdminField>
-            <AdminField label="Style">
-              <select name="stylePreset" required>
-                <option value="institutional">Institutional</option>
-                <option value="technical">Technical</option>
-                <option value="academic">Academic</option>
-                <option value="open_source">Open source</option>
-                <option value="minimal">Minimal</option>
-              </select>
-            </AdminField>
-            <AdminField label="Accent">
-              <input name="accentColor" type="text" placeholder="Sakai blue" maxlength={80} />
-            </AdminField>
-            <AdminField label="Prompt notes">
-              <input
-                name="promptNotes"
-                type="text"
-                placeholder="Shield, milestone, stars"
-                maxlength={1000}
-              />
-            </AdminField>
-            <AdminButton type="submit">Generate draft</AdminButton>
-          </div>
-        </section>
-      </AdminForm>
-      <AdminStatus id="badge-template-image-generation-status"></AdminStatus>
-      <div
-        id="badge-template-image-generation-preview"
-        class="ct-admin__image-generation-preview"
-        hidden
-      >
-        <img id="badge-template-image-generation-preview-img" alt="Generated badge draft" />
-        <div class="ct-admin__image-generation-actions">
-          <AdminButton id="badge-template-image-generation-apply" variant="secondary">
-            Apply generated image
+          <AdminButton form="badge-template-edit-form" type="submit">
+            Save details
           </AdminButton>
-          <a
-            id="badge-template-image-generation-open"
-            class="ct-admin__text-action"
-            href="#"
-            target="_blank"
-            rel="noopener noreferrer"
-            hidden
-          >
-            Open full size
-          </a>
         </div>
+        <AdminStatus id="badge-template-edit-status"></AdminStatus>
       </div>
     </details>
   );

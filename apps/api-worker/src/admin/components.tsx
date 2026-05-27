@@ -716,27 +716,34 @@ export const AdminActionBar = ({
 };
 
 export const AdminActionMenu = ({
+  menuId,
   ariaLabel,
   triggerLabel = "...",
   children,
 }: PropsWithChildren<{
+  menuId: string;
   ariaLabel: string;
   triggerLabel?: string;
 }>): HonoElement => {
   return (
-    <details class="ct-admin__action-menu">
-      <summary
+    <span class="ct-admin__action-menu">
+      <button
+        type="button"
         class={adminButtonClass({
           variant: "secondary",
           size: "tiny",
           extraClass: "ct-admin__action-menu-trigger",
         })}
+        popovertarget={menuId}
+        aria-haspopup="menu"
         aria-label={ariaLabel}
       >
         {triggerLabel}
-      </summary>
-      <div class="ct-admin__action-menu-popover">{children}</div>
-    </details>
+      </button>
+      <div id={menuId} popover="auto" role="menu" class="ct-admin__action-menu-popover">
+        {children}
+      </div>
+    </span>
   );
 };
 
@@ -760,7 +767,14 @@ export const AdminActionMenuLink = ({
       : "ct-admin__action-menu-item";
 
   return (
-    <a class={className} href={href} target={target} rel={rel} {...(dataAttributes ?? {})}>
+    <a
+      class={className}
+      role="menuitem"
+      href={href}
+      target={target}
+      rel={rel}
+      {...(dataAttributes ?? {})}
+    >
       {children}
     </a>
   );
@@ -782,7 +796,7 @@ export const AdminActionMenuButton = ({
       : "ct-admin__action-menu-item";
 
   return (
-    <button type={type} class={className} {...(dataAttributes ?? {})}>
+    <button type={type} role="menuitem" class={className} {...(dataAttributes ?? {})}>
       {children}
     </button>
   );
@@ -814,7 +828,10 @@ export const IssuedBadgeActions = (input: {
       >
         Audit
       </AdminButton>
-      <AdminActionMenu ariaLabel={`More actions for assertion ${input.assertionId}`}>
+      <AdminActionMenu
+        menuId={`issued-badge-action-menu-${input.assertionId}`}
+        ariaLabel={`More actions for assertion ${input.assertionId}`}
+      >
         <AdminActionMenuLink href={input.rawJsonHref} target="_blank" rel="noopener noreferrer">
           Open JSON-LD
         </AdminActionMenuLink>

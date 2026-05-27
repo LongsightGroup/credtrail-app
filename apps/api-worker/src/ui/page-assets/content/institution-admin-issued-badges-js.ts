@@ -263,17 +263,43 @@ export const INSTITUTION_ADMIN_ISSUED_BADGES_JS = `
       setIssuedBadgesEmptyState('Unable to load assertions.');
     }
   };
-  const closeIssuedActionMenus = (exceptMenu) => {
-    const openMenus = issuedBadgesBody.querySelectorAll('details.ct-admin__action-menu[open]');
-
-    openMenus.forEach((menu) => {
-      if (!(menu instanceof HTMLDetailsElement) || menu === exceptMenu) {
-        return;
-      }
-
-      menu.open = false;
-    });
+  const closeIssuedActionMenuPopover = (element) => {
+    if (!(element instanceof Element)) {
+      return;
+    }
+    const popover = element.closest('.ct-admin__action-menu-popover');
+    if (popover instanceof HTMLElement && typeof popover.hidePopover === 'function') {
+      popover.hidePopover();
+    }
   };
+  const positionIssuedActionMenuPopover = (popover, trigger) => {
+    if (!(popover instanceof HTMLElement) || !(trigger instanceof HTMLElement)) {
+      return;
+    }
+    const rect = trigger.getBoundingClientRect();
+    popover.style.position = 'fixed';
+    popover.style.top = rect.bottom + 4 + 'px';
+    popover.style.right = window.innerWidth - rect.right + 'px';
+    popover.style.left = 'auto';
+    popover.style.bottom = 'auto';
+  };
+  document.addEventListener('pointerdown', (event) => {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+    const trigger = event.target.closest('[popovertarget]');
+    if (!(trigger instanceof HTMLElement)) {
+      return;
+    }
+    const popoverId = trigger.getAttribute('popovertarget');
+    if (popoverId === null || popoverId.length === 0) {
+      return;
+    }
+    const popover = document.getElementById(popoverId);
+    if (popover instanceof HTMLElement && popover.classList.contains('ct-admin__action-menu-popover')) {
+      positionIssuedActionMenuPopover(popover, trigger);
+    }
+  });
   const openIssuedBadgeLifecyclePanel = (assertionId, mode) => {
     if (!(issuedBadgeLifecyclePanel instanceof HTMLElement)) {
       return false;
@@ -358,18 +384,6 @@ export const INSTITUTION_ADMIN_ISSUED_BADGES_JS = `
     });
   }
 
-  document.addEventListener('click', (event) => {
-    if (!(event.target instanceof Node)) {
-      return;
-    }
-
-    if (issuedBadgesBody.contains(event.target)) {
-      return;
-    }
-
-    closeIssuedActionMenus();
-  });
-
   issuedBadgesBody.addEventListener('click', async (event) => {
     const target = event.target;
 
@@ -377,29 +391,10 @@ export const INSTITUTION_ADMIN_ISSUED_BADGES_JS = `
       return;
     }
 
-    const menuTrigger = target.closest('summary.ct-admin__action-menu-trigger');
-
-    if (menuTrigger instanceof HTMLElement) {
-      const menu = menuTrigger.parentElement;
-
-      if (menu instanceof HTMLDetailsElement) {
-        window.setTimeout(() => {
-          closeIssuedActionMenus(menu.open ? menu : undefined);
-        }, 0);
-      }
-
-      return;
-    }
-
     const menuLink = target.closest('a.ct-admin__action-menu-item');
 
     if (menuLink instanceof HTMLAnchorElement) {
-      const menu = menuLink.closest('details.ct-admin__action-menu');
-
-      if (menu instanceof HTMLDetailsElement) {
-        menu.open = false;
-      }
-
+      closeIssuedActionMenuPopover(menuLink);
       return;
     }
 
@@ -417,11 +412,7 @@ export const INSTITUTION_ADMIN_ISSUED_BADGES_JS = `
       return;
     }
 
-    const parentMenu = actionButton.closest('details.ct-admin__action-menu');
-
-    if (parentMenu instanceof HTMLDetailsElement) {
-      parentMenu.open = false;
-    }
+    closeIssuedActionMenuPopover(actionButton);
 
     if (action === 'audit') {
       setStatus(issuedBadgesActionStatus, 'Loading lifecycle audit for ' + assertionId + '...', false);

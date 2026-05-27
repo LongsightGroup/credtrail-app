@@ -90,7 +90,10 @@ export const BadgeTemplateAdminTableRow = ({
             >
               View public page ↗
             </a>
-            <AdminActionMenu ariaLabel={`More actions for ${template.title}`}>
+            <AdminActionMenu
+              menuId={`badge-template-action-menu-${template.id}`}
+              ariaLabel={`More actions for ${template.title}`}
+            >
               <AdminActionMenuLink
                 href={badgeTemplateCriteriaRegistryHref(tenantId, template.id)}
                 target="_blank"

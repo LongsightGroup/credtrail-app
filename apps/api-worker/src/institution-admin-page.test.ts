@@ -3167,8 +3167,10 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("Visibility");
     expect(body).toContain("Activity");
     expect(body).toContain(
-      "Upload an image or generate a draft before using the template in rules.",
+      "Upload an image or generate one with AI before using the template in rules.",
     );
+    expect(body).toContain("Upload an image");
+    expect(body).toContain("Or generate with AI");
     expect(body).toContain('id="template-editor-artwork"');
     expect(body).not.toContain('id="template-image-panel"');
     expect(body).toContain('class="ct-admin__panel ct-admin__add-disclosure"');
@@ -3177,6 +3179,21 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('id="badge-template-image-generation-open"');
     expect(body).toContain('id="template-edit-panel"');
     expect(body).toContain('id="badge-template-edit-form"');
+    expect(body).toContain('popover="auto"');
+    expect(body).toContain("popovertarget=");
+    // Section order: Details → Artwork → Criteria → Visibility → Activity
+    expect(body.indexOf('id="template-editor-details"')).toBeLessThan(
+      body.indexOf('id="template-editor-artwork"'),
+    );
+    expect(body.indexOf('id="template-editor-artwork"')).toBeLessThan(
+      body.indexOf('id="template-editor-criteria"'),
+    );
+    expect(body.indexOf('id="template-editor-criteria"')).toBeLessThan(
+      body.indexOf('id="template-editor-visibility"'),
+    );
+    expect(body.indexOf('id="template-editor-visibility"')).toBeLessThan(
+      body.indexOf('id="template-editor-activity"'),
+    );
     expect(body).toContain('id="badge-template-editor-criteria-link"');
     expect(body).toContain("View public criteria page ↗");
     expect(body).toContain('id="badge-template-editor-public-link"');

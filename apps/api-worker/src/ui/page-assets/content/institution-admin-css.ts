@@ -2257,11 +2257,24 @@ a.ct-admin__workspace-card:active {
 .ct-admin__add-disclosure-form--template-image-revisions.ct-grid {
   grid-template-columns: minmax(16rem, 1fr) auto;
 }
+.ct-admin__template-editor-identity-form {
+  display: none;
+}
+.ct-admin__template-editor-body {
+  display: grid;
+  gap: var(--ct-space-3);
+  max-width: 54rem;
+  padding: 0 var(--ct-space-4) var(--ct-space-3);
+}
 .ct-admin__template-editor-form {
   display: grid;
   gap: var(--ct-space-3);
   max-width: 54rem;
   padding: 0 var(--ct-space-4) var(--ct-space-3);
+}
+.ct-admin__template-editor-subform {
+  display: grid;
+  gap: var(--ct-space-2);
 }
 .ct-admin__template-editor-section {
   display: grid;
@@ -2271,6 +2284,26 @@ a.ct-admin__workspace-card:active {
 }
 .ct-admin__template-editor-section:last-of-type {
   border-bottom: none;
+}
+.ct-admin__template-editor-section--artwork {
+  gap: var(--ct-space-3);
+}
+.ct-admin__template-editor-subgroup {
+  display: grid;
+  gap: var(--ct-space-2);
+}
+.ct-admin__template-editor-subgroup-title {
+  margin: 0;
+  color: var(--ct-theme-text-title);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.ct-admin__template-editor-divider {
+  width: 100%;
+  margin: 0;
+  border: none;
+  border-top: 1px dashed var(--ct-border-subtle);
 }
 .ct-admin__template-editor-section-header {
   display: grid;
@@ -3497,22 +3530,21 @@ a.ct-admin__workspace-card:active {
 .ct-admin__action-menu {
   position: relative;
   display: inline-flex;
+  align-items: center;
 }
-.ct-admin__action-menu > summary {
-  list-style: none;
-}
-.ct-admin__action-menu > summary::-webkit-details-marker {
-  display: none;
-}
-.ct-admin__action-menu[open] > .ct-admin__action-menu-trigger {
+.ct-admin__action-menu-trigger[aria-expanded='true'],
+.ct-admin__action-menu:has(.ct-admin__action-menu-popover:popover-open) .ct-admin__action-menu-trigger {
   background: var(--ct-theme-surface-info);
 }
 .ct-admin__action-menu-popover {
-  display: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
 }
-.ct-admin__action-menu[open] .ct-admin__action-menu-popover {
+.ct-admin__action-menu-popover:popover-open {
   position: absolute;
-  z-index: 20;
+  inset: auto 0 auto auto;
   top: calc(100% + 0.32rem);
   right: 0;
   display: grid;
@@ -3564,6 +3596,7 @@ a.ct-admin__workspace-card:active {
 .ct-admin__template-secondary-actions {
   display: inline-flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.55rem;
   color: var(--ct-color-muted);
   font-size: 0.78rem;

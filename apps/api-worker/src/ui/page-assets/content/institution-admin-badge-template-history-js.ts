@@ -145,21 +145,43 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_HISTORY_JS = `
     await loadBadgeTemplateHistory(badgeTemplateId);
   };
   const badgeTemplateTableBody = document.getElementById('badge-template-table-body');
-  const closeBadgeTemplateActionMenus = (exceptMenu) => {
-    if (!(badgeTemplateTableBody instanceof HTMLElement)) {
+  const closeActionMenuPopover = (element) => {
+    if (!(element instanceof Element)) {
       return;
     }
-
-    const openMenus = badgeTemplateTableBody.querySelectorAll('details.ct-admin__action-menu[open]');
-
-    openMenus.forEach((menu) => {
-      if (!(menu instanceof HTMLDetailsElement) || menu === exceptMenu) {
-        return;
-      }
-
-      menu.open = false;
-    });
+    const popover = element.closest('.ct-admin__action-menu-popover');
+    if (popover instanceof HTMLElement && typeof popover.hidePopover === 'function') {
+      popover.hidePopover();
+    }
   };
+  const positionActionMenuPopover = (popover, trigger) => {
+    if (!(popover instanceof HTMLElement) || !(trigger instanceof HTMLElement)) {
+      return;
+    }
+    const rect = trigger.getBoundingClientRect();
+    popover.style.position = 'fixed';
+    popover.style.top = rect.bottom + 4 + 'px';
+    popover.style.right = window.innerWidth - rect.right + 'px';
+    popover.style.left = 'auto';
+    popover.style.bottom = 'auto';
+  };
+  document.addEventListener('pointerdown', (event) => {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+    const trigger = event.target.closest('[popovertarget]');
+    if (!(trigger instanceof HTMLElement)) {
+      return;
+    }
+    const popoverId = trigger.getAttribute('popovertarget');
+    if (popoverId === null || popoverId.length === 0) {
+      return;
+    }
+    const popover = document.getElementById(popoverId);
+    if (popover instanceof HTMLElement && popover.classList.contains('ct-admin__action-menu-popover')) {
+      positionActionMenuPopover(popover, trigger);
+    }
+  });
   const setBadgeTemplateArchivedStateFromRow = async (badgeTemplateId, action, statusElement) => {
     if (badgeTemplateId.length === 0 || (action !== 'archive' && action !== 'unarchive')) {
       setStatus(statusElement, 'Invalid template archive action.', true);
@@ -235,20 +257,6 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_HISTORY_JS = `
         return;
       }
 
-      const menuTrigger = target.closest('summary.ct-admin__action-menu-trigger');
-
-      if (menuTrigger instanceof HTMLElement) {
-        const menu = menuTrigger.parentElement;
-
-        if (menu instanceof HTMLDetailsElement) {
-          window.setTimeout(() => {
-            closeBadgeTemplateActionMenus(menu.open ? menu : undefined);
-          }, 0);
-        }
-
-        return;
-      }
-
       const historyTrigger = target.closest('[data-template-history-template-id]');
 
       if (
@@ -260,23 +268,14 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_HISTORY_JS = `
           historyTrigger.dataset.templateHistoryTemplateId || '',
           historyTrigger.dataset.templateHistoryTemplateTitle || '',
         );
-        const menu = historyTrigger.closest('details.ct-admin__action-menu');
-
-        if (menu instanceof HTMLDetailsElement) {
-          menu.open = false;
-        }
+        closeActionMenuPopover(historyTrigger);
         return;
       }
 
       const archiveButton = target.closest('[data-template-archive-template-id]');
 
       if (archiveButton instanceof HTMLButtonElement) {
-        const menu = archiveButton.closest('details.ct-admin__action-menu');
-
-        if (menu instanceof HTMLDetailsElement) {
-          menu.open = false;
-        }
-
+        closeActionMenuPopover(archiveButton);
         await setBadgeTemplateArchivedStateFromRow(
           archiveButton.dataset.templateArchiveTemplateId || '',
           archiveButton.dataset.templateArchiveAction || '',
