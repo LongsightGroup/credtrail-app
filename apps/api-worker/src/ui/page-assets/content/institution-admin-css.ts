@@ -2323,15 +2323,21 @@ a.ct-admin__workspace-card:active {
   align-items: end;
 }
 .ct-admin__template-editor-fields--generation {
-  grid-template-columns: minmax(13rem, 1fr) minmax(10rem, 0.8fr) minmax(10rem, 0.8fr) minmax(
-      16rem,
-      1.4fr
-    ) auto;
+  grid-template-columns: minmax(13rem, 1fr) minmax(13rem, 1fr);
+  align-items: end;
 }
 .ct-admin__template-editor-fields--upload {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: var(--ct-space-3);
+}
+.ct-admin__template-editor-generation-prompt,
+.ct-admin__template-editor-generation-action {
+  grid-column: 1 / -1;
+}
+.ct-admin__template-editor-generation-action {
+  display: flex;
+  justify-content: flex-start;
 }
 .ct-admin__template-editor-advanced {
   display: grid;
@@ -2459,7 +2465,10 @@ a.ct-admin__workspace-card:active {
 .ct-admin__form textarea.user-invalid-fallback,
 .ct-admin__template-editor-body input:not([type='checkbox']):not([type='hidden']):user-invalid,
 .ct-admin__template-editor-body select:user-invalid,
-.ct-admin__template-editor-body textarea:user-invalid {
+.ct-admin__template-editor-body textarea:user-invalid,
+.ct-admin__template-editor-body input:not([type='checkbox']):not([type='hidden']).user-invalid-fallback,
+.ct-admin__template-editor-body select.user-invalid-fallback,
+.ct-admin__template-editor-body textarea.user-invalid-fallback {
   border-color: var(--ct-theme-state-danger);
   background: var(--ct-theme-surface-danger);
 }
@@ -2476,6 +2485,11 @@ a.ct-admin__workspace-card:active {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.84rem;
   line-height: 1.35;
+}
+.ct-admin__template-editor-body .ct-admin__template-editor-prose-textarea {
+  font-family: var(--ct-font-sans);
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 .ct-admin__template-editor-body input[type='file'] {
   width: 100%;
@@ -3546,22 +3560,26 @@ a.ct-admin__workspace-card:active {
     var(--ct-theme-surface-info)
   );
 }
-.ct-admin__action-menu-trigger {
+.ct-admin__icon-button {
   display: inline-flex;
+  box-sizing: border-box;
+  appearance: none;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ct-theme-text-muted);
+  font-family: var(--ct-font-sans);
+  cursor: pointer;
+}
+.ct-admin__action-menu-trigger {
   min-width: 2.15rem;
   width: 2.15rem;
   height: 2.15rem;
   min-height: 2.15rem;
-  padding: 0;
-  border: none;
-  background: transparent;
-  background-image: none;
-  color: var(--ct-theme-text-muted);
   font-size: 1.25rem;
   line-height: 1;
-  cursor: pointer;
   border-radius: var(--ct-radius-md);
   transition:
     background var(--ct-duration-fast) var(--ct-ease-standard),
@@ -3586,19 +3604,15 @@ a.ct-admin__workspace-card:active {
   align-items: center;
 }
 .ct-admin__action-menu-trigger[aria-expanded='true'],
-.ct-admin__action-menu:has(.ct-admin__action-menu-popover:popover-open) .ct-admin__action-menu-trigger {
+.ct-admin__action-menu:has(.ct-admin__action-menu-popover[data-open='true']) .ct-admin__action-menu-trigger {
   background: var(--ct-theme-surface-info);
 }
 .ct-admin__action-menu-popover {
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-}
-.ct-admin__action-menu-popover:popover-open {
   position: fixed;
   inset: auto;
+  z-index: 20;
   display: grid;
+  margin: 0;
   gap: 0.18rem;
   min-width: 11rem;
   padding: 0.32rem;
@@ -3606,6 +3620,9 @@ a.ct-admin__workspace-card:active {
   border-radius: var(--ct-radius-md);
   background: var(--ct-theme-surface-card-strong);
   box-shadow: var(--ct-shadow-soft);
+}
+.ct-admin__action-menu-popover[hidden] {
+  display: none;
 }
 .ct-admin__table .ct-admin__action-menu-item,
 .ct-admin__table button.ct-admin__action-menu-item {
@@ -3679,7 +3696,7 @@ a.ct-admin__workspace-card:active {
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-md);
   object-fit: cover;
-  background: var(--ct-surface-subtle);
+  background: var(--ct-theme-surface-soft);
 }
 .ct-admin__image-generation-actions {
   display: flex;
@@ -3703,9 +3720,9 @@ a.ct-admin__workspace-card:active {
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-lg);
   padding: 0;
-  background: var(--ct-surface);
-  color: var(--ct-color-text);
-  box-shadow: var(--ct-shadow-lg);
+  background: var(--ct-theme-surface-card-strong);
+  color: var(--ct-theme-text-body);
+  box-shadow: var(--ct-shadow-shell);
 }
 .ct-admin__history-dialog::backdrop {
   background: rgba(15, 23, 42, 0.45);
@@ -3716,6 +3733,7 @@ a.ct-admin__workspace-card:active {
   padding: var(--ct-space-4);
   margin: 0;
   border: 0;
+  background: var(--ct-theme-surface-card-strong);
 }
 .ct-admin__history-dialog-header {
   display: flex;
@@ -3739,21 +3757,23 @@ a.ct-admin__workspace-card:active {
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-md);
   padding: var(--ct-space-2) var(--ct-space-3);
-  background: var(--ct-surface-subtle);
+  background: var(--ct-theme-surface-soft);
 }
 .ct-admin__history-audit-meta {
-  color: var(--ct-color-muted);
+  color: var(--ct-theme-text-muted);
   font-size: 0.84rem;
 }
 .ct-admin__history-audit-detail {
   margin: 0;
-  color: var(--ct-color-text);
+  color: var(--ct-theme-text-body);
   font-size: 0.88rem;
+  overflow-wrap: anywhere;
 }
 .ct-admin__history-image-section {
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-md);
   padding: 0 var(--ct-space-3) var(--ct-space-3);
+  background: var(--ct-theme-surface-info);
 }
 .ct-admin__history-image-section > summary {
   cursor: pointer;
@@ -3782,7 +3802,7 @@ button.ct-admin__text-action {
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-md);
   padding: var(--ct-space-2) var(--ct-space-3);
-  background: var(--ct-surface);
+  background: var(--ct-theme-surface-card-strong);
 }
 .ct-admin__image-revision-meta {
   display: grid;
@@ -3791,7 +3811,7 @@ button.ct-admin__text-action {
   flex: 1;
 }
 .ct-admin__image-revision-meta span {
-  color: var(--ct-color-muted);
+  color: var(--ct-theme-text-muted);
   font-size: 0.84rem;
 }
 .ct-admin__image-revision-actions {
@@ -3808,7 +3828,7 @@ button.ct-admin__text-action {
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-sm);
   object-fit: cover;
-  background: var(--ct-surface-subtle);
+  background: var(--ct-theme-surface-soft);
 }
 .ct-admin__image-revision-thumbnail-link--empty {
   width: 2.6rem;

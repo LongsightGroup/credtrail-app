@@ -657,8 +657,7 @@ export const AdminField = ({
   label: string;
   className?: string;
 }>): HonoElement => {
-  const classes =
-    className === undefined ? "ct-admin__field" : `ct-admin__field ${className}`;
+  const classes = className === undefined ? "ct-admin__field" : `ct-admin__field ${className}`;
   return (
     <label class={classes}>
       {label}
@@ -718,8 +717,8 @@ export const AdminActionBar = ({
 };
 
 /**
- * Renders a Popover API action panel. Callers must pass a stable page-unique menuId
- * so the trigger can reference the popover with popovertarget and aria-controls.
+ * Renders a row-scoped action panel. Callers must pass a stable page-unique menuId
+ * so the trigger can reference the panel with aria-controls.
  */
 export const AdminActionMenu = ({
   menuId,
@@ -735,18 +734,15 @@ export const AdminActionMenu = ({
     <span class="ct-admin__action-menu">
       <button
         type="button"
-        class={adminButtonClass({
-          variant: "secondary",
-          size: "tiny",
-          extraClass: "ct-admin__action-menu-trigger",
-        })}
-        popovertarget={menuId}
+        class="ct-admin__icon-button ct-admin__action-menu-trigger"
         aria-controls={menuId}
+        aria-expanded="false"
         aria-label={ariaLabel}
+        data-action-menu-trigger={menuId}
       >
         {triggerLabel}
       </button>
-      <div id={menuId} popover="auto" class="ct-admin__action-menu-popover">
+      <div id={menuId} class="ct-admin__action-menu-popover" data-action-menu-panel hidden>
         {children}
       </div>
     </span>

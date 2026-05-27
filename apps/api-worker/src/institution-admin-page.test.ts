@@ -3179,8 +3179,8 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('id="badge-template-image-generation-open"');
     expect(body).toContain('id="template-edit-panel"');
     expect(body).toContain('id="badge-template-edit-form"');
-    expect(body).toContain('popover="auto"');
-    expect(body).toContain("popovertarget=");
+    expect(body).toContain("data-action-menu-trigger=");
+    expect(body).toContain("data-action-menu-panel");
     expect(body).toContain("aria-controls=");
     expect(body).not.toContain('role="menu"');
     expect(body).not.toContain('role="menuitem"');

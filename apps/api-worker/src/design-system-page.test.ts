@@ -249,6 +249,7 @@ describe("CredTrail UI styleguide", () => {
 
     expect(formHtml).toContain('class="ct-admin__form ct-stack"');
     expect(fieldHtml).toContain("<label");
+    expect(fieldHtml).toContain('class="ct-admin__field"');
     expect(fieldHtml).toContain("Label");
     expect(checkboxHtml).toContain('class="ct-admin__checkbox-row ct-checkbox-row"');
     expect(fieldsetHtml).toContain('class="ct-admin__fieldset ct-stack"');

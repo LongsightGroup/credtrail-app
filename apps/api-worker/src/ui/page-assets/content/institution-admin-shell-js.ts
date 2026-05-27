@@ -22,13 +22,19 @@ export const INSTITUTION_ADMIN_SHELL_JS = `
   const actionMenuGap = 4;
   const viewportPadding = 8;
   let openActionMenuPopover = null;
+  let openActionMenuTrigger = null;
 
-  const findActionMenuTrigger = (popover) => {
-    if (!(popover instanceof HTMLElement) || popover.id.length === 0) {
+  const findActionMenuPanel = (trigger) => {
+    if (!(trigger instanceof HTMLElement)) {
       return null;
     }
 
-    const candidate = document.querySelector('[popovertarget="' + CSS.escape(popover.id) + '"]');
+    const menuId = trigger.getAttribute('data-action-menu-trigger') || '';
+    if (menuId.length === 0) {
+      return null;
+    }
+
+    const candidate = document.getElementById(menuId);
     return candidate instanceof HTMLElement ? candidate : null;
   };
 
@@ -59,15 +65,38 @@ export const INSTITUTION_ADMIN_SHELL_JS = `
     popover.style.bottom = 'auto';
   };
 
-  const positionActionMenuPopoverAfterOpen = (popover, trigger) => {
-    positionActionMenuPopover(popover, trigger);
-
-    const popoverRect = popover.getBoundingClientRect();
-    if (popoverRect.width === 0 || popoverRect.height === 0) {
-      window.requestAnimationFrame(() => {
-        positionActionMenuPopover(popover, trigger);
-      });
+  const closeOpenActionMenuPopover = () => {
+    if (openActionMenuPopover instanceof HTMLElement) {
+      openActionMenuPopover.hidden = true;
+      openActionMenuPopover.removeAttribute('data-open');
     }
+
+    if (openActionMenuTrigger instanceof HTMLElement) {
+      openActionMenuTrigger.setAttribute('aria-expanded', 'false');
+    }
+
+    openActionMenuPopover = null;
+    openActionMenuTrigger = null;
+  };
+
+  const openActionMenu = (trigger, popover) => {
+    closeOpenActionMenuPopover();
+
+    popover.hidden = false;
+    popover.setAttribute('data-open', 'true');
+    trigger.setAttribute('aria-expanded', 'true');
+    openActionMenuPopover = popover;
+    openActionMenuTrigger = trigger;
+    positionActionMenuPopover(popover, trigger);
+  };
+
+  const toggleActionMenu = (trigger, popover) => {
+    if (openActionMenuPopover === popover) {
+      closeOpenActionMenuPopover();
+      return;
+    }
+
+    openActionMenu(trigger, popover);
   };
 
   const closeActionMenuPopover = (element) => {
@@ -76,39 +105,47 @@ export const INSTITUTION_ADMIN_SHELL_JS = `
     }
 
     const popover = element.closest('.ct-admin__action-menu-popover');
-    if (popover instanceof HTMLElement) {
-      popover.hidePopover();
+    if (popover instanceof HTMLElement && popover === openActionMenuPopover) {
+      closeOpenActionMenuPopover();
     }
   };
 
-  document.addEventListener('toggle', (event) => {
-    const popover = event.target;
+  document.addEventListener('click', (event) => {
+    const target = event.target;
 
-    if (
-      !(popover instanceof HTMLElement) ||
-      !popover.classList.contains('ct-admin__action-menu-popover') ||
-      event.newState !== 'open'
-    ) {
-      if (popover === openActionMenuPopover) {
-        openActionMenuPopover = null;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const trigger = target.closest('[data-action-menu-trigger]');
+    if (trigger instanceof HTMLElement) {
+      const popover = findActionMenuPanel(trigger);
+      if (popover instanceof HTMLElement) {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleActionMenu(trigger, popover);
       }
       return;
     }
 
-    const trigger = findActionMenuTrigger(popover);
-    if (trigger instanceof HTMLElement) {
-      openActionMenuPopover = popover;
-      positionActionMenuPopoverAfterOpen(popover, trigger);
+    if (
+      openActionMenuPopover instanceof HTMLElement &&
+      !openActionMenuPopover.contains(target)
+    ) {
+      closeOpenActionMenuPopover();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeOpenActionMenuPopover();
     }
   });
 
   document.addEventListener(
     'scroll',
     () => {
-      if (openActionMenuPopover instanceof HTMLElement) {
-        openActionMenuPopover.hidePopover();
-        openActionMenuPopover = null;
-      }
+      closeOpenActionMenuPopover();
     },
     { capture: true, passive: true },
   );

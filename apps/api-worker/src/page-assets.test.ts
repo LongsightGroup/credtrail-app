@@ -19,7 +19,12 @@ const createEnv = (): {
   };
 };
 
-type ShellEventListener = (event: { target?: unknown; newState?: string }) => void;
+type ShellEventListener = (event: {
+  target?: unknown;
+  key?: string;
+  preventDefault?: () => void;
+  stopPropagation?: () => void;
+}) => void;
 
 interface BrowserRect {
   readonly top: number;
@@ -55,12 +60,11 @@ class FakeBrowserElement {
   public readonly style: Record<string, string> = {};
   public readonly classList: { contains: (className: string) => boolean };
   public id: string;
+  public hidden = true;
   private readonly attributes: ReadonlyMap<string, string>;
   private readonly classes: ReadonlySet<string>;
   private readonly rect: BrowserRect;
   private closestElement: FakeBrowserElement | null = null;
-  private hidden = false;
-  private hideCount = 0;
 
   public constructor(input: {
     id?: string;
@@ -81,6 +85,18 @@ class FakeBrowserElement {
     return this.attributes.get(name) ?? null;
   }
 
+  public setAttribute(name: string, value: string): void {
+    if (this.attributes instanceof Map) {
+      this.attributes.set(name, value);
+    }
+  }
+
+  public removeAttribute(name: string): void {
+    if (this.attributes instanceof Map) {
+      this.attributes.delete(name);
+    }
+  }
+
   public getBoundingClientRect(): BrowserRect {
     return this.rect;
   }
@@ -97,17 +113,8 @@ class FakeBrowserElement {
     this.closestElement = element;
   }
 
-  public hidePopover(): void {
-    this.hidden = true;
-    this.hideCount += 1;
-  }
-
   public wasHidden(): boolean {
     return this.hidden;
-  }
-
-  public getHideCount(): number {
-    return this.hideCount;
   }
 }
 
@@ -195,11 +202,11 @@ describe("GET /assets/ui/:assetFilename", () => {
     expect(body).not.toContain("ruleValueListBody instanceof HTMLElement");
   });
 
-  it("positions shared admin action popovers when they open from keyboard activation", () => {
-    let toggleListener: ShellEventListener | null = null;
+  it("positions shared admin action panels next to their trigger", () => {
+    let clickListener: ShellEventListener | null = null;
     let scrollListener: ShellEventListener | null = null;
     const trigger = new FakeBrowserElement({
-      attributes: new Map([["popovertarget", "row-actions"]]),
+      attributes: new Map([["data-action-menu-trigger", "row-actions"]]),
       rect: createBrowserRect({ x: 280, y: 210, width: 30, height: 20 }),
     });
     const popover = new FakeBrowserElement({
@@ -208,6 +215,7 @@ describe("GET /assets/ui/:assetFilename", () => {
       rect: createBrowserRect({ x: 0, y: 0, width: 120, height: 80 }),
     });
     const menuItem = new FakeBrowserElement({});
+    trigger.setClosest(trigger);
     menuItem.setClosest(popover);
     const shellWindow: {
       CredTrailAdminActionMenus?: {
@@ -227,15 +235,18 @@ describe("GET /assets/ui/:assetFilename", () => {
     };
     const documentStub = {
       addEventListener: (type: string, listener: ShellEventListener): void => {
-        if (type === "toggle") {
-          toggleListener = listener;
+        if (type === "click") {
+          clickListener = listener;
         }
         if (type === "scroll") {
           scrollListener = listener;
         }
       },
-      querySelector: (selector: string): FakeBrowserElement | null => {
-        return selector === '[popovertarget="row-actions"]' ? trigger : null;
+      getElementById: (id: string): FakeBrowserElement | null => {
+        return id === "row-actions" ? popover : null;
+      },
+      querySelector: (_selector: string): FakeBrowserElement | null => {
+        return null;
       },
     };
     const context = createContext({
@@ -247,13 +258,19 @@ describe("GET /assets/ui/:assetFilename", () => {
     });
 
     new Script(INSTITUTION_ADMIN_SHELL_JS).runInContext(context);
-    const openListener = toggleListener as ShellEventListener | null;
+    const openListener = clickListener as ShellEventListener | null;
     const closeOnScrollListener = scrollListener as ShellEventListener | null;
     expect(openListener).not.toBeNull();
     expect(closeOnScrollListener).not.toBeNull();
 
-    openListener?.({ target: popover, newState: "open" });
+    openListener?.({
+      target: trigger,
+      preventDefault: (): void => {},
+      stopPropagation: (): void => {},
+    });
 
+    expect(popover.hidden).toBe(false);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(popover.style.position).toBe("fixed");
     expect(popover.style.top).toBe("126px");
     expect(popover.style.left).toBe("190px");
@@ -261,11 +278,15 @@ describe("GET /assets/ui/:assetFilename", () => {
 
     shellWindow.CredTrailAdminActionMenus?.close(menuItem);
     expect(popover.wasHidden()).toBe(true);
-    expect(popover.getHideCount()).toBe(1);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
 
-    openListener?.({ target: popover, newState: "open" });
+    openListener?.({
+      target: trigger,
+      preventDefault: (): void => {},
+      stopPropagation: (): void => {},
+    });
     closeOnScrollListener?.({});
-    expect(popover.getHideCount()).toBe(2);
+    expect(popover.wasHidden()).toBe(true);
   });
 
   it("returns 404 for unknown page assets", async () => {

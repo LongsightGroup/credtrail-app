@@ -167,7 +167,11 @@ const renderTemplateEditorPanel = (input: { templateSelectOptions: HonoElement }
         {addDisclosureControlMarkup}
       </summary>
       {/* Identity-only form: inputs and submit button bind by id via the HTML `form` attribute. */}
-      <form id="badge-template-edit-form" class="ct-admin__template-editor-identity-form" hidden></form>
+      <form
+        id="badge-template-edit-form"
+        class="ct-admin__template-editor-identity-form"
+        hidden
+      ></form>
       <div class="ct-admin__template-editor-body">
         <section class="ct-admin__template-editor-section" id="template-editor-details">
           <header class="ct-admin__template-editor-section-header">
@@ -204,6 +208,7 @@ const renderTemplateEditorPanel = (input: { templateSelectOptions: HonoElement }
             <AdminField label="Description">
               <textarea
                 form="badge-template-edit-form"
+                class="ct-admin__template-editor-prose-textarea"
                 name="description"
                 rows={3}
                 maxlength={2000}
@@ -261,7 +266,10 @@ const renderTemplateEditorPanel = (input: { templateSelectOptions: HonoElement }
                 <AdminField label="Accent">
                   <input name="accentColor" type="text" placeholder="Sakai blue" maxlength={80} />
                 </AdminField>
-                <AdminField label="Prompt notes">
+                <AdminField
+                  label="Prompt notes"
+                  className="ct-admin__template-editor-generation-prompt"
+                >
                   <input
                     name="promptNotes"
                     type="text"
@@ -269,7 +277,9 @@ const renderTemplateEditorPanel = (input: { templateSelectOptions: HonoElement }
                     maxlength={1000}
                   />
                 </AdminField>
-                <AdminButton type="submit">Generate draft</AdminButton>
+                <div class="ct-admin__template-editor-generation-action">
+                  <AdminButton type="submit">Generate draft</AdminButton>
+                </div>
               </div>
             </AdminForm>
             <AdminStatus id="badge-template-image-generation-status"></AdminStatus>
