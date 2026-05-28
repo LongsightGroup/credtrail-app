@@ -26,7 +26,6 @@ import {
   AdminPanel,
   AdminShell,
   AdminSidebar,
-  AdminStatus,
   AdminStatusPill,
   AdminTable,
   AdminTopbar,
@@ -39,6 +38,7 @@ import { serializeJsonScriptContent } from "../institution-admin-shell";
 import { renderInstitutionAdminAccessSections } from "./access-sections";
 import { renderEnterpriseAuthSection } from "./enterprise-auth-section";
 import { renderInstitutionAdminLearnerRecordSections } from "./learner-record-sections";
+import { renderInstitutionAdminManagementSections } from "./management-sections";
 import { renderInstitutionAdminOperationsSections } from "./operations-sections";
 import {
   INSTITUTION_ADMIN_VIEW_CONFIG,
@@ -2958,80 +2958,26 @@ const renderInstitutionAdminPage = (
     </section>
   );
 
-  const badgeRulesTableMarkup = (
-    <AdminPanel variant="table">
-      <h2>Badge Rules ({ruleCount})</h2>
-      <p>
-        Create and review the rules that award badges from LMS activity and other verified facts.
-      </p>
-      <div class="ct-admin__workspace-actions">
-        <AdminButtonLink href={ruleBuilderPath} variant="secondary">
-          Create badge rule
-        </AdminButtonLink>
-        <AdminButtonLink href={rulesTemplatesPath} variant="ghost">
-          Manage badge templates
-        </AdminButtonLink>
-      </div>
-      <AdminTable
-        headers={[
-          "Rule",
-          "Template",
-          "LMS",
-          "Active Version",
-          "Latest Version",
-          "Status",
-          "Updated",
-          "Actions",
-        ]}
-      >
-        {ruleRows}
-      </AdminTable>
-      <AdminStatus id="rule-action-status"></AdminStatus>
-    </AdminPanel>
-  );
-  const ruleAdvancedToolsMarkup = (
-    <details class="ct-admin__advanced-tools">
-      <summary>
-        <span>Advanced rule tools</span>
-        <small>
-          Use reusable value lists, dry-run evaluation, and governance after rules exist.
-        </small>
-      </summary>
-      {hasBadgeRules ? (
-        <div class="ct-admin__advanced-tools-body ct-grid">
-          {ruleValueListsPanelMarkup}
-          {evaluateRulePanelMarkup}
-          {ruleGovernancePanelMarkup}
-        </div>
-      ) : (
-        <p class="ct-admin__hint">
-          Create a badge rule first. Evaluation and governance tools become useful once there is a
-          rule to test or approve.
-        </p>
-      )}
-    </details>
-  );
-
-  const orgUnitsTableMarkup = (
-    <AdminPanel variant="table" className="ct-admin__org-units-table">
-      <h2>Org Units ({orgUnitCount})</h2>
-      <AdminTable headers={["Name", "Type", "ID", "Status"]}>{orgUnitRows}</AdminTable>
-    </AdminPanel>
-  );
-
-  const apiKeysTableMarkup = (
-    <AdminPanel variant="table" className="ct-admin__api-keys-table">
-      <h2 id="api-key-active-count">Active API Keys ({activeApiKeyCount})</h2>
-      <p>Revoked keys: {revokedApiKeyCount}</p>
-      <AdminTable
-        headers={["Label", "Prefix", "Scopes", "Expires", "Action"]}
-        tbodyId="api-key-body"
-      >
-        {apiKeyRows}
-      </AdminTable>
-      <AdminStatus id="api-key-revoke-status"></AdminStatus>
-    </AdminPanel>
-  );
+  const {
+    badgeRulesTableMarkup,
+    ruleAdvancedToolsMarkup,
+    orgUnitsTableMarkup,
+    apiKeysTableMarkup,
+  } = renderInstitutionAdminManagementSections({
+    ruleCount,
+    hasBadgeRules,
+    ruleBuilderPath,
+    rulesTemplatesPath,
+    ruleRows,
+    ruleValueListsPanelMarkup,
+    evaluateRulePanelMarkup,
+    ruleGovernancePanelMarkup,
+    orgUnitCount,
+    orgUnitRows,
+    activeApiKeyCount,
+    revokedApiKeyCount,
+    apiKeyRows,
+  });
 
   const {
     learnerRecordReviewPanelMarkup,
