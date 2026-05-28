@@ -40,6 +40,8 @@ describe("createNodeRuntimeBindings", () => {
       PLATFORM_DOMAIN: "badges.example.edu",
       DATABASE_URL: "postgres://example/db",
       JOB_PROCESSOR_TOKEN: "job-token",
+      BETTER_AUTH_SECRET: "better-auth-secret",
+      BETTER_AUTH_TRUSTED_ORIGINS: "https://badges.example.edu,https://admin.example.edu",
       BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-4b",
       S3_BUCKET: "credtrail-badges",
       S3_REGION: "us-east-1",
@@ -53,6 +55,10 @@ describe("createNodeRuntimeBindings", () => {
     expect(bindings.PLATFORM_DOMAIN).toBe("badges.example.edu");
     expect(bindings.DATABASE_URL).toBe("postgres://example/db");
     expect(bindings.JOB_PROCESSOR_TOKEN).toBe("job-token");
+    expect(bindings.BETTER_AUTH_SECRET).toBe("better-auth-secret");
+    expect(bindings.BETTER_AUTH_TRUSTED_ORIGINS).toBe(
+      "https://badges.example.edu,https://admin.example.edu",
+    );
     expect(bindings.BADGE_IMAGE_GENERATION_MODEL).toBe("@cf/black-forest-labs/flux-2-klein-4b");
     expect(typeof bindings.BADGE_OBJECTS.head).toBe("function");
     expect(typeof bindings.BADGE_OBJECTS.get).toBe("function");

@@ -23,6 +23,8 @@ S3-compatible object storage.
 - `S3_FORCE_PATH_STYLE` (`true` for MinIO/Ceph path-style deployments)
 - `PLATFORM_DOMAIN`
 - `APP_ENV`
+- `BETTER_AUTH_SECRET` (stable, high-entropy secret; rotate only with a session reset plan)
+- `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated public origins allowed to use hosted auth)
 - `PORT`
 
 Optional:
@@ -46,6 +48,10 @@ docker compose -f docker-compose.selfhost.yml up --build
 
 Do not use `APP_ENV=development` for real self-host installs. Development mode enables local
 debugging behavior such as single-use database connections and development auth shortcuts.
+
+Before using the compose stack beyond local validation, replace the sample `BETTER_AUTH_SECRET`
+with a stable random value and set `BETTER_AUTH_TRUSTED_ORIGINS` to the public HTTPS origin for
+the deployment.
 
 Validation checks:
 
