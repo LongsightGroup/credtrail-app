@@ -3,9 +3,10 @@ x-selfhost-env: &selfhost_env
   PLATFORM_DOMAIN: localhost
   BETTER_AUTH_SECRET: replace-with-at-least-32-random-bytes
   BETTER_AUTH_TRUSTED_ORIGINS: http://localhost:8787
-  EMAIL_PROVIDER: ses
-  AWS_SES_REGION: us-east-1
-  TRANSACTIONAL_EMAIL_FROM_ADDRESS: no-reply@example.edu
+  # Local validation leaves outbound email disabled. For real deployments, uncomment and configure:
+  # EMAIL_PROVIDER: ses
+  # AWS_SES_REGION: us-east-1
+  # TRANSACTIONAL_EMAIL_FROM_ADDRESS: no-reply@example.edu
   DATABASE_URL: postgres://credtrail:credtrail@postgres:5432/credtrail
   STORAGE_BACKEND: s3
   S3_ENDPOINT: http://minio:9000

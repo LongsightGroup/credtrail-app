@@ -50,6 +50,9 @@ Use the provided compose stack to validate the self-host production runtime loca
 docker compose -f docker-compose.selfhost.yml up --build
 ```
 
+The compose stack intentionally leaves outbound email disabled. This keeps local validation from
+pretending to send mail with fake AWS credentials.
+
 Do not use `APP_ENV=development` for real self-host installs. Development mode enables local
 debugging behavior such as single-use database connections and development auth shortcuts.
 
@@ -61,6 +64,14 @@ For outbound email, the Node self-host runtime supports `EMAIL_PROVIDER=ses`. Co
 credentials with SES send permissions and verify `TRANSACTIONAL_EMAIL_FROM_ADDRESS` in SES before
 enabling magic-link, password-reset, invite, or issuance emails. If `EMAIL_PROVIDER` is omitted,
 email delivery is a silent no-op.
+
+Production SES example:
+
+```yaml
+EMAIL_PROVIDER: ses
+AWS_SES_REGION: us-east-1
+TRANSACTIONAL_EMAIL_FROM_ADDRESS: no-reply@example.edu
+```
 
 Cloudflare `EMAIL` and `AI` bindings are SaaS/Workers-only. Self-hosted installs should upload
 badge artwork manually; badge image generation is unavailable until a Node AI/image provider is
