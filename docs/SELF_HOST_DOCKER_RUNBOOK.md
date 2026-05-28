@@ -31,6 +31,10 @@ Optional:
 
 - `JOB_PROCESSOR_TOKEN`
 - `AWS_SESSION_TOKEN`
+- `EMAIL_PROVIDER` (`ses` for AWS SES, or omit to disable outbound email)
+- `AWS_SES_REGION` (defaults to `S3_REGION` if omitted)
+- `TRANSACTIONAL_EMAIL_FROM_ADDRESS` (required when `EMAIL_PROVIDER=ses`)
+- `AWS_SES_CONFIGURATION_SET`
 - `SENTRY_DSN`
 
 Worker notes:
@@ -52,6 +56,15 @@ debugging behavior such as single-use database connections and development auth 
 Before using the compose stack beyond local validation, replace the sample `BETTER_AUTH_SECRET`
 with a stable random value and set `BETTER_AUTH_TRUSTED_ORIGINS` to the public HTTPS origin for
 the deployment.
+
+For outbound email, the Node self-host runtime supports `EMAIL_PROVIDER=ses`. Configure AWS
+credentials with SES send permissions and verify `TRANSACTIONAL_EMAIL_FROM_ADDRESS` in SES before
+enabling magic-link, password-reset, invite, or issuance emails. If `EMAIL_PROVIDER` is omitted,
+email delivery is a silent no-op.
+
+Cloudflare `EMAIL` and `AI` bindings are SaaS/Workers-only. Self-hosted installs should upload
+badge artwork manually; badge image generation is unavailable until a Node AI/image provider is
+added.
 
 Validation checks:
 

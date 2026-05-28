@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1045.0",
+    "@aws-sdk/client-sesv2": "^3.1051.0",
     "@credtrail/core-domain": "workspace:*",
     "@credtrail/db": "workspace:*",
     "@credtrail/lti": "workspace:*",

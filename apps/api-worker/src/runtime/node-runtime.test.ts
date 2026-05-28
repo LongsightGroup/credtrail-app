@@ -42,6 +42,9 @@ describe("createNodeRuntimeBindings", () => {
       JOB_PROCESSOR_TOKEN: "job-token",
       BETTER_AUTH_SECRET: "better-auth-secret",
       BETTER_AUTH_TRUSTED_ORIGINS: "https://badges.example.edu,https://admin.example.edu",
+      EMAIL_PROVIDER: "ses",
+      AWS_SES_REGION: "us-west-2",
+      TRANSACTIONAL_EMAIL_FROM_ADDRESS: "no-reply@badges.example.edu",
       BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-4b",
       S3_BUCKET: "credtrail-badges",
       S3_REGION: "us-east-1",
@@ -59,6 +62,7 @@ describe("createNodeRuntimeBindings", () => {
     expect(bindings.BETTER_AUTH_TRUSTED_ORIGINS).toBe(
       "https://badges.example.edu,https://admin.example.edu",
     );
+    expect(bindings.EMAIL).toBeDefined();
     expect(bindings.BADGE_IMAGE_GENERATION_MODEL).toBe("@cf/black-forest-labs/flux-2-klein-4b");
     expect(typeof bindings.BADGE_OBJECTS.head).toBe("function");
     expect(typeof bindings.BADGE_OBJECTS.get).toBe("function");
@@ -73,5 +77,17 @@ describe("createNodeRuntimeBindings", () => {
         AWS_SECRET_ACCESS_KEY: "secret",
       }),
     ).toThrowError("S3_BUCKET is required");
+  });
+
+  it("throws when SES email is enabled without a from address", () => {
+    expect(() =>
+      createNodeRuntimeBindings({
+        EMAIL_PROVIDER: "ses",
+        S3_BUCKET: "credtrail-badges",
+        S3_REGION: "us-east-1",
+        AWS_ACCESS_KEY_ID: "access",
+        AWS_SECRET_ACCESS_KEY: "secret",
+      }),
+    ).toThrowError("TRANSACTIONAL_EMAIL_FROM_ADDRESS is required");
   });
 });

@@ -1,4 +1,5 @@
 import type { AppBindings } from "../app";
+import { createSesEmailBinding } from "../notifications/ses-email";
 import { createS3ImmutableCredentialStore } from "../storage/s3-immutable-credential-store";
 
 type EnvSource = Record<string, string | undefined>;
@@ -75,6 +76,25 @@ const parseBooleanEnv = (envSource: EnvSource, name: string): boolean | undefine
   throw new Error(`${name} must be one of: true, false, 1, 0`);
 };
 
+const createNodeEmailBinding = (envSource: EnvSource): SendEmail | undefined => {
+  const provider = optionalEnv(envSource, "EMAIL_PROVIDER")?.toLowerCase();
+
+  if (provider === undefined || provider === "none") {
+    return undefined;
+  }
+
+  if (provider !== "ses") {
+    throw new Error(`Unsupported EMAIL_PROVIDER "${provider}". Node runtime supports "ses".`);
+  }
+
+  requireEnv(envSource, "TRANSACTIONAL_EMAIL_FROM_ADDRESS");
+
+  return createSesEmailBinding({
+    region: optionalEnv(envSource, "AWS_SES_REGION") ?? requireEnv(envSource, "S3_REGION"),
+    configurationSetName: optionalEnv(envSource, "AWS_SES_CONFIGURATION_SET"),
+  });
+};
+
 const optionalBindingsFromEnv = (envSource: EnvSource): Partial<AppBindings> => {
   const bindings: Partial<AppBindings> = {};
 
@@ -144,11 +164,13 @@ export const createNodeRuntimeBindings = (envSource: EnvSource = process.env): A
     ...(s3ForcePathStyle === undefined ? {} : { forcePathStyle: s3ForcePathStyle }),
     ...(awsSessionToken === undefined ? {} : { sessionToken: awsSessionToken }),
   });
+  const emailBinding = createNodeEmailBinding(envSource);
 
   return {
     APP_ENV: optionalEnv(envSource, "APP_ENV") ?? "development",
     PLATFORM_DOMAIN: optionalEnv(envSource, "PLATFORM_DOMAIN") ?? "localhost",
     BADGE_OBJECTS: badgeObjectsBinding,
+    ...(emailBinding === undefined ? {} : { EMAIL: emailBinding }),
     ...optionalBindingsFromEnv(envSource),
   };
 };
