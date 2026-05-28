@@ -1,6 +1,4 @@
 import {
-  logWarn,
-  type ImmutableCredentialStore,
   type JsonObject,
   type ObservabilityContext,
 } from "@credtrail/core-domain";
@@ -11,10 +9,8 @@ import {
   listLtiIssuerRegistrations,
   upsertTenantMembershipRole,
   upsertUserByEmail,
-  type SqlDatabase,
 } from "@credtrail/db";
-import { createPostgresDatabase } from "@credtrail/db/postgres";
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import type { SocialProviders } from "better-auth/social-providers";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import {
@@ -50,7 +46,6 @@ import { createPublicBadgePageRenderers } from "./badges/public-badge-pages";
 import { createIssueBadgeForTenant } from "./badges/direct-issue";
 import {
   processBadgeTemplateImageGenerationJob,
-  type BadgeTemplateImageGenerationAiBinding,
 } from "./badges/badge-template-image-generation";
 import {
   assertionBelongsToTenant,
@@ -87,7 +82,6 @@ import {
   isUniqueConstraintError,
 } from "./auth/tenant-access";
 import type {
-  AuthContextVariables,
   AuthenticatedPrincipal,
   RequestedTenantContext,
 } from "./auth/auth-context";
@@ -107,7 +101,6 @@ import {
   createCredtrailBetterAuth,
   findBetterAuthSessionByToken,
   parseHostedMagicLinkToken,
-  tenantIdFromNextPath,
 } from "./auth/better-auth-runtime";
 import { createEnterpriseSsoAdapter } from "./auth/enterprise-sso-adapter";
 import { createOAuthTokenHelpers } from "./ob3/oauth-token-helpers";
@@ -144,6 +137,8 @@ import { registerOb3Routes } from "./routes/ob3-routes";
 import { registerPresentationRoutes } from "./routes/presentation-routes";
 import { registerPublicBadgeRoutes } from "./routes/public-badge-routes";
 import { registerQueueRoutes } from "./routes/queue-routes";
+import { registerGoogleAuthRoutes } from "./routes/google-auth-routes";
+import { registerHealthRoutes } from "./routes/health-routes";
 import { registerExecutiveRoutes } from "./routes/executive-routes";
 import { registerReportingRoutes } from "./routes/reporting-routes";
 import { registerSigningRoutes } from "./routes/signing-routes";
@@ -175,51 +170,10 @@ import {
   ed25519PublicJwkFromDidKey,
   verifiableCredentialObjectsFromPresentation as verifiableCredentialObjectsFromPresentationHelper,
 } from "./presentation/verification-helpers";
+import { resolveDatabase } from "./app/database";
+import type { AppBindings, AppContext, AppEnv } from "./app/types";
 
-export interface AppBindings {
-  APP_ENV: string;
-  DATABASE_URL?: string;
-  HYPERDRIVE?: Hyperdrive;
-  BADGE_OBJECTS: ImmutableCredentialStore;
-  EMAIL?: SendEmail;
-  PLATFORM_DOMAIN: string;
-  SENTRY_DSN?: string;
-  TENANT_SIGNING_REGISTRY_JSON?: string;
-  TENANT_SIGNING_KEY_HISTORY_JSON?: string;
-  TENANT_REMOTE_SIGNER_REGISTRY_JSON?: string;
-  ISSUANCE_EMAIL_NOTIFICATIONS_ENABLED?: string;
-  TRANSACTIONAL_EMAIL_FROM_ADDRESS?: string;
-  TRANSACTIONAL_EMAIL_FROM_NAME?: string;
-  TURNSTILE_SITE_KEY?: string;
-  TURNSTILE_SECRET_KEY?: string;
-  BETTER_AUTH_SECRET?: string;
-  BETTER_AUTH_TRUSTED_ORIGINS?: string;
-  GOOGLE_OAUTH_CLIENT_ID?: string;
-  GOOGLE_OAUTH_CLIENT_SECRET?: string;
-  GITHUB_TOKEN?: string;
-  JOB_PROCESSOR_TOKEN?: string;
-  BOOTSTRAP_ADMIN_TOKEN?: string;
-  LTI_ISSUER_REGISTRY_JSON?: string;
-  LTI_STATE_SIGNING_SECRET?: string;
-  CANVAS_OAUTH_STATE_SIGNING_SECRET?: string;
-  AI?: BadgeTemplateImageGenerationAiBinding;
-  OB3_DISCOVERY_TITLE?: string;
-  OB3_TERMS_OF_SERVICE_URL?: string;
-  OB3_PRIVACY_POLICY_URL?: string;
-  OB3_IMAGE_URL?: string;
-  OB3_OAUTH_REGISTRATION_URL?: string;
-  OB3_OAUTH_AUTHORIZATION_URL?: string;
-  OB3_OAUTH_TOKEN_URL?: string;
-  OB3_OAUTH_REFRESH_URL?: string;
-  BADGE_IMAGE_GENERATION_MODEL?: string;
-}
-
-export interface AppEnv {
-  Bindings: AppBindings;
-  Variables: AuthContextVariables;
-}
-
-export type AppContext = Context<AppEnv>;
+export type { AppBindings, AppContext, AppEnv } from "./app/types";
 
 export const app = new Hono<AppEnv>();
 export { sendIssuanceEmailNotification };
@@ -232,44 +186,7 @@ const OID4VCI_PRE_AUTH_CODE_TTL_SECONDS = 10 * 60;
 const OID4VCI_ACCESS_TOKEN_TTL_SECONDS = 10 * 60;
 const SAKAI_SHOWCASE_TENANT_ID = "sakai";
 const SAKAI_SHOWCASE_TEMPLATE_ID = "badge_template_sakai_1000";
-const databasesByCacheKey = new Map<string, SqlDatabase>();
 const STORAGE_READINESS_PROBE_KEY = "__credtrail__/healthz/dependency-probe.jsonld";
-
-const resolveDatabase = (bindings: AppBindings): SqlDatabase => {
-  const hyperdriveConnectionString = bindings.HYPERDRIVE?.connectionString.trim();
-
-  if (hyperdriveConnectionString !== undefined && hyperdriveConnectionString.length > 0) {
-    return createPostgresDatabase({
-      databaseUrl: hyperdriveConnectionString,
-      connectionMode: "single-use",
-    });
-  }
-
-  if (bindings.DATABASE_URL === undefined) {
-    throw new Error("DATABASE_URL or HYPERDRIVE is required");
-  }
-
-  const databaseUrl = bindings.DATABASE_URL.trim();
-
-  if (databaseUrl.length === 0) {
-    throw new Error("DATABASE_URL or HYPERDRIVE is required");
-  }
-
-  const connectionMode = bindings.APP_ENV === "development" ? "single-use" : "pool";
-  const databaseCacheKey = `${connectionMode}:${databaseUrl}`;
-  const existingDatabase = databasesByCacheKey.get(databaseCacheKey);
-
-  if (existingDatabase !== undefined) {
-    return existingDatabase;
-  }
-
-  const database = createPostgresDatabase({
-    databaseUrl,
-    connectionMode,
-  });
-  databasesByCacheKey.set(databaseCacheKey, database);
-  return database;
-};
 
 const observabilityContext = (bindings: AppBindings): ObservabilityContext => {
   return {
@@ -777,129 +694,6 @@ const tenantMemberInviteLoginUrl = (context: AppContext, tenantId: string): stri
   return loginUrl.toString();
 };
 
-const normalizeHostedLoginNextPath = (nextPath: string): string => {
-  return nextPath.startsWith("/") ? nextPath : "/auth/resolve";
-};
-
-const googleLoginRedirectPath = (input: {
-  tenantId: string;
-  nextPath: string;
-  reason: "google_unavailable" | "google_failed";
-}): string => {
-  const url = new URL("/login", "https://credtrail.local");
-
-  if (input.tenantId.length > 0) {
-    url.searchParams.set("tenantId", input.tenantId);
-  }
-
-  if (input.nextPath.length > 0) {
-    url.searchParams.set("next", input.nextPath);
-  }
-
-  url.searchParams.set("reason", input.reason);
-  return `${url.pathname}${url.search}`;
-};
-
-const authResolveCallbackPath = (nextPath: string): string => {
-  const url = new URL("/auth/resolve", "https://credtrail.local");
-
-  if (nextPath.startsWith("/") && nextPath !== "/auth/resolve") {
-    url.searchParams.set("next", nextPath);
-  }
-
-  return `${url.pathname}${url.search}`;
-};
-
-const registerGoogleAuthRoutes = (): void => {
-  app.get("/auth/google/start", async (c) => {
-    if (createConfiguredSocialProviders(c.env)?.google === undefined) {
-      return c.redirect(
-        googleLoginRedirectPath({
-          tenantId: (c.req.query("tenantId") ?? "").trim(),
-          nextPath: normalizeHostedLoginNextPath((c.req.query("next") ?? "").trim()),
-          reason: "google_unavailable",
-        }),
-        302,
-      );
-    }
-
-    const tenantIdQuery = (c.req.query("tenantId") ?? "").trim();
-    const nextPathQuery = (c.req.query("next") ?? "").trim();
-    const requestedTenantId =
-      tenantIdQuery.length > 0
-        ? tenantIdQuery
-        : (tenantIdFromNextPath(nextPathQuery)?.trim() ?? "");
-    const nextPath = normalizeHostedLoginNextPath((c.req.query("next") ?? "").trim());
-
-    if (requestedTenantId.length > 0) {
-      const localLoginBlocked = await enterpriseSsoAdapter.enforceLocalMagicLinkRequest(c, {
-        tenantId: requestedTenantId,
-        nextPath,
-      });
-
-      if (localLoginBlocked !== null && localLoginBlocked !== undefined) {
-        return localLoginBlocked;
-      }
-    }
-
-    if (requestedTenantId.length > 0) {
-      rememberRequestedTenant(c, requestedTenantId);
-    }
-
-    const { auth } = createBetterAuthRuntime(c);
-    const loginPath = googleLoginRedirectPath({
-      tenantId: requestedTenantId,
-      nextPath,
-      reason: "google_failed",
-    });
-    const response = await auth.handler(
-      createBetterAuthRequest(c, "/sign-in/social", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          provider: "google",
-          callbackURL: authResolveCallbackPath(nextPath),
-          errorCallbackURL: loginPath,
-          disableRedirect: true,
-        }),
-      }),
-    );
-
-    if (!response.ok) {
-      return c.redirect(loginPath, 302);
-    }
-
-    applyBetterAuthResponseHeaders(c, response);
-
-    const payload = await response.json<{
-      url?: string | undefined;
-    }>();
-    const authorizationUrl = payload.url?.trim();
-
-    if (authorizationUrl === undefined || authorizationUrl.length === 0) {
-      return c.redirect(loginPath, 302);
-    }
-
-    return c.redirect(authorizationUrl, 302);
-  });
-
-  app.get(`${BETTER_AUTH_BASE_PATH}/callback/google`, async (c) => {
-    if (createConfiguredSocialProviders(c.env)?.google === undefined) {
-      return c.redirect("/login?reason=google_unavailable", 302);
-    }
-
-    const requestUrl = new URL(c.req.url);
-    const { auth } = createBetterAuthRuntime(c);
-    return auth.handler(
-      createBetterAuthRequest(c, `/callback/google${requestUrl.search}`, {
-        method: "GET",
-      }),
-    );
-  });
-};
-
 const requestTenantMemberInvite = async (
   context: AppContext,
   input: {
@@ -1321,33 +1115,21 @@ registerPageAssetRoutes({
   app,
 });
 
-registerGoogleAuthRoutes();
+registerGoogleAuthRoutes({
+  app,
+  createBetterAuthRequest,
+  createBetterAuthRuntime,
+  createConfiguredSocialProviders,
+  enterpriseSso: enterpriseSsoAdapter,
+  rememberRequestedTenant,
+});
 
-app.get("/healthz/dependencies", async (c) => {
-  try {
-    await resolveDatabase(c.env).prepare("SELECT 1 AS ready").first<{ ready: number }>();
-    await c.env.BADGE_OBJECTS.head(STORAGE_READINESS_PROBE_KEY);
-  } catch (error: unknown) {
-    const detail = error instanceof Error ? error.message : "Unknown dependency check failure";
-
-    logWarn(observabilityContext(c.env), "dependency_healthcheck_failed", {
-      detail,
-    });
-
-    return c.json(
-      {
-        service: API_SERVICE_NAME,
-        status: "degraded",
-        detail,
-      },
-      503,
-    );
-  }
-
-  return c.json({
-    service: API_SERVICE_NAME,
-    status: "ok",
-  });
+registerHealthRoutes({
+  app,
+  observabilityContext,
+  resolveDatabase,
+  serviceName: API_SERVICE_NAME,
+  storageReadinessProbeKey: STORAGE_READINESS_PROBE_KEY,
 });
 
 registerAdminRoutes({
