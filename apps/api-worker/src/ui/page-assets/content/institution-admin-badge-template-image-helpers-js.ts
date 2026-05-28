@@ -184,24 +184,4 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_IMAGE_HELPERS_JS = `
       badgeTemplateImageRevisionList.append(item);
     });
   };
-const setBadgeTemplateImageFormSelection = (badgeTemplateId) => {
-    ['badge-template-image-upload-form', 'badge-template-image-generation-form'].forEach(
-      (formId) => {
-        const form = document.getElementById(formId);
-
-        if (!(form instanceof HTMLFormElement)) {
-          return;
-        }
-
-        const templateField = form.elements.namedItem('badgeTemplateId');
-
-        if (
-          templateField instanceof HTMLSelectElement ||
-          templateField instanceof HTMLInputElement
-        ) {
-          templateField.value = badgeTemplateId;
-        }
-      },
-    );
-  };
 `;

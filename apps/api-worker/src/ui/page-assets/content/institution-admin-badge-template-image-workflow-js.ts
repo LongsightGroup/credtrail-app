@@ -77,9 +77,8 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_IMAGE_WORKFLOW_JS = `
               : null;
 
         if (imageUrl !== null) {
-          updateBadgeTemplateRowImage(badgeTemplateId, imageUrl);
+          updateBadgeTemplatePreviewImage(badgeTemplateId, imageUrl);
           bumpBadgeTemplateImageRevisionHint(badgeTemplateId);
-          markBadgeTemplateCreateArtworkReady(badgeTemplateId);
           void refreshBadgeTemplateHistoryIfOpen(badgeTemplateId);
         }
 
@@ -247,9 +246,8 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_IMAGE_WORKFLOW_JS = `
 
         if (appliedImageUri !== null) {
           const appliedBadgeTemplateId = activeBadgeTemplateImageGeneration.badgeTemplateId;
-          updateBadgeTemplateRowImage(appliedBadgeTemplateId, appliedImageUri);
+          updateBadgeTemplatePreviewImage(appliedBadgeTemplateId, appliedImageUri);
           bumpBadgeTemplateImageRevisionHint(appliedBadgeTemplateId);
-          markBadgeTemplateCreateArtworkReady(appliedBadgeTemplateId);
           void refreshBadgeTemplateHistoryIfOpen(appliedBadgeTemplateId);
         }
 

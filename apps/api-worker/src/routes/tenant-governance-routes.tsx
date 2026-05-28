@@ -115,6 +115,10 @@ import {
 import { AdminActions, AdminButtonLink, AdminPageHeader, AdminPanel } from "../admin/components";
 import { renderTenantApiKeyAdminTableRowToString } from "../admin/api-key-table-row-fragment";
 import { renderBadgeTemplateAdminTableRowToString } from "../admin/badge-template-table-row-fragment";
+import {
+  badgeTemplateHistoryHref,
+  parseBadgeTemplateListPageQuery,
+} from "../admin/badge-template-admin-helpers";
 import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
 import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
 import { resolveTenantReportingAccess } from "../auth/tenant-access";
@@ -2224,6 +2228,7 @@ export const registerTenantGovernanceRoutes = (
     const rulesTemplatesPath = `/tenants/${encodeURIComponent(
       pathParams.tenantId,
     )}/admin/rules/templates`;
+    const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
     const roleCheck = await resolveInstitutionAdminAdminRole(
       c,
       pathParams.tenantId,
@@ -2244,10 +2249,6 @@ export const registerTenantGovernanceRoutes = (
       return c.text("Badge template not found", 404);
     }
 
-    const query = new URLSearchParams();
-    query.set("badgeTemplateId", template.id);
-    query.set("history", "1");
-
     c.header("Cache-Control", "no-store");
     c.header("Content-Type", "text/html; charset=utf-8");
 
@@ -2258,7 +2259,7 @@ export const registerTenantGovernanceRoutes = (
         imageRevisionCount:
           imageRevisionCounts.find((entry) => entry.badgeTemplateId === template.id)
             ?.revisionCount ?? 0,
-        historyHref: `${rulesTemplatesPath}?${query.toString()}`,
+        historyHref: badgeTemplateHistoryHref(rulesTemplatesPath, template.id, listPageQuery),
       }),
     );
   });

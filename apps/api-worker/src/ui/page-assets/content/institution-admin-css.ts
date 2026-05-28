@@ -2257,175 +2257,6 @@ a.ct-admin__workspace-card:active {
 .ct-admin__add-disclosure-form--template-image-revisions.ct-grid {
   grid-template-columns: minmax(16rem, 1fr) auto;
 }
-.ct-admin__template-editor-identity-form {
-  display: none;
-}
-.ct-admin__template-editor-overview {
-  display: grid;
-  grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
-  gap: var(--ct-space-4);
-  align-items: center;
-}
-.ct-admin__template-editor-preview {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  aspect-ratio: 1;
-  border: 1px solid var(--ct-border-subtle);
-  border-radius: var(--ct-radius-lg);
-  padding: var(--ct-space-2);
-  background: var(--ct-theme-surface-soft);
-}
-.ct-admin__template-editor-preview a,
-.ct-admin__template-editor-preview img {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.ct-admin__template-editor-preview img {
-  object-fit: contain;
-  border-radius: var(--ct-radius-md);
-  background: var(--ct-theme-surface-card-strong);
-}
-.ct-admin__template-editor-preview-empty {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  border: 1px dashed var(--ct-border-strong);
-  border-radius: var(--ct-radius-md);
-  color: var(--ct-theme-text-muted);
-  font-size: 0.84rem;
-  font-weight: 700;
-  text-align: center;
-  background: var(--ct-theme-surface-card-strong);
-}
-.ct-admin__template-editor-summary {
-  display: grid;
-  gap: var(--ct-space-3);
-}
-.ct-admin__template-editor-summary h2,
-.ct-admin__template-editor-page-panel > h2 {
-  margin: 0;
-  color: var(--ct-theme-text-title);
-  font-size: 1.15rem;
-  line-height: 1.25;
-}
-.ct-admin__template-editor-summary p,
-.ct-admin__template-editor-page-panel > p {
-  max-width: 68ch;
-  margin: 0;
-  color: var(--ct-theme-text-muted);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-.ct-admin__template-editor-summary-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ct-space-2);
-  align-items: center;
-}
-.ct-admin__template-editor-page-panel {
-  display: grid;
-  gap: var(--ct-space-3);
-}
-.ct-admin__template-editor-body {
-  display: grid;
-  gap: var(--ct-space-3);
-  max-width: 58rem;
-  padding: 0;
-}
-.ct-admin__template-editor-subform {
-  display: grid;
-  gap: var(--ct-space-2);
-}
-.ct-admin__template-editor-section {
-  display: grid;
-  gap: var(--ct-space-2);
-  padding-block: var(--ct-space-1);
-  border-bottom: 1px solid var(--ct-border-subtle);
-}
-.ct-admin__template-editor-section:last-of-type {
-  border-bottom: none;
-}
-.ct-admin__template-editor-section--artwork {
-  gap: var(--ct-space-3);
-}
-.ct-admin__template-editor-subgroup {
-  display: grid;
-  gap: var(--ct-space-2);
-}
-.ct-admin__template-editor-subgroup-title {
-  margin: 0;
-  color: var(--ct-theme-text-title);
-  font-size: 0.86rem;
-  font-weight: 700;
-  line-height: 1.25;
-}
-.ct-admin__template-editor-divider {
-  width: 100%;
-  margin: 0;
-  border: none;
-  border-top: 1px dashed var(--ct-border-subtle);
-}
-.ct-admin__template-editor-section-header {
-  display: grid;
-  gap: 0.18rem;
-}
-.ct-admin__template-editor-section-header h3 {
-  margin: 0;
-  color: var(--ct-theme-text-title);
-  font-size: 0.98rem;
-  line-height: 1.25;
-}
-.ct-admin__template-editor-section-header p {
-  max-width: 64ch;
-  margin: 0;
-  color: var(--ct-theme-text-muted);
-  font-size: 0.84rem;
-  line-height: 1.45;
-}
-.ct-admin__template-editor-fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--ct-space-3);
-  align-items: end;
-}
-.ct-admin__template-editor-fields--generation {
-  grid-template-columns: minmax(13rem, 1fr) minmax(13rem, 1fr);
-  align-items: end;
-}
-.ct-admin__template-editor-fields--upload {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: var(--ct-space-3);
-}
-.ct-admin__template-editor-generation-prompt,
-.ct-admin__template-editor-generation-action {
-  grid-column: 1 / -1;
-}
-.ct-admin__template-editor-generation-action {
-  display: flex;
-  justify-content: flex-start;
-}
-.ct-admin__template-editor-advanced {
-  display: grid;
-  gap: var(--ct-space-2);
-}
-.ct-admin__template-editor-advanced > summary {
-  color: var(--ct-theme-link);
-  font-size: 0.84rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-.ct-admin__template-editor-advanced > .ct-admin__field {
-  margin-top: var(--ct-space-2);
-}
-.ct-admin__template-editor-submit {
-  display: flex;
-  justify-content: flex-end;
-}
 .ct-admin__add-disclosure-form--org-unit.ct-grid {
   grid-template-columns: minmax(0, 44rem);
   align-items: start;
@@ -2476,10 +2307,7 @@ a.ct-admin__workspace-card:active {
 }
 .ct-admin__form input:not([type='checkbox']),
 .ct-admin__form select,
-.ct-admin__form textarea,
-.ct-admin__template-editor-body input:not([type='checkbox']):not([type='hidden']),
-.ct-admin__template-editor-body select,
-.ct-admin__template-editor-body textarea {
+.ct-admin__form textarea {
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -2500,8 +2328,7 @@ a.ct-admin__workspace-card:active {
     background var(--ct-duration-fast) var(--ct-ease-standard);
 }
 .ct-admin__form select,
-.ct-admin__table select,
-.ct-admin__template-editor-body select {
+.ct-admin__table select {
   -webkit-appearance: none;
   appearance: none;
   background-image:
@@ -2519,10 +2346,7 @@ a.ct-admin__workspace-card:active {
 .ct-admin__form input:not([type='checkbox']):focus,
 .ct-admin__form select:focus,
 .ct-admin__form textarea:focus,
-.ct-admin__table select:focus,
-.ct-admin__template-editor-body input:not([type='checkbox']):not([type='hidden']):focus,
-.ct-admin__template-editor-body select:focus,
-.ct-admin__template-editor-body textarea:focus {
+.ct-admin__table select:focus:focus:focus:focus {
   outline: none;
   border-color: var(--ct-theme-border-focus);
   box-shadow: var(--ct-focus-ring);
@@ -2532,24 +2356,16 @@ a.ct-admin__workspace-card:active {
 .ct-admin__form textarea:user-invalid,
 .ct-admin__form input:not([type='checkbox']).user-invalid-fallback,
 .ct-admin__form select.user-invalid-fallback,
-.ct-admin__form textarea.user-invalid-fallback,
-.ct-admin__template-editor-body input:not([type='checkbox']):not([type='hidden']):user-invalid,
-.ct-admin__template-editor-body select:user-invalid,
-.ct-admin__template-editor-body textarea:user-invalid,
-.ct-admin__template-editor-body input:not([type='checkbox']):not([type='hidden']).user-invalid-fallback,
-.ct-admin__template-editor-body select.user-invalid-fallback,
-.ct-admin__template-editor-body textarea.user-invalid-fallback {
+.ct-admin__form textarea.user-invalid-fallback:user-invalid:user-invalid:user-invalid.user-invalid-fallback.user-invalid-fallback.user-invalid-fallback {
   border-color: var(--ct-theme-state-danger);
   background: var(--ct-theme-surface-danger);
 }
 .ct-admin__form select:disabled,
-.ct-admin__table select:disabled,
-.ct-admin__template-editor-body select:disabled {
+.ct-admin__table select:disabled:disabled {
   cursor: progress;
   opacity: 0.68;
 }
-.ct-admin__form textarea,
-.ct-admin__template-editor-body textarea {
+.ct-admin__form textarea {
   min-height: 5.5rem;
   resize: vertical;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -4190,19 +4006,6 @@ button.ct-admin__text-action {
   .ct-admin__builder-review-layout.ct-grid,
   .ct-admin__workspace-grid.ct-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ct-admin__template-editor-fields--generation,
-  .ct-admin__template-editor-fields--upload {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ct-admin__template-editor-overview {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ct-admin__template-editor-preview {
-    max-width: 12rem;
   }
 
   .ct-admin__builder-inline,

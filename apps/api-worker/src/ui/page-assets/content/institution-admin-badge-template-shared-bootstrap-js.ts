@@ -1,4 +1,4 @@
-export const INSTITUTION_ADMIN_BADGE_TEMPLATE_BOOTSTRAP_JS = `
+export const INSTITUTION_ADMIN_BADGE_TEMPLATE_SHARED_BOOTSTRAP_JS = `
 (() => {
   const contextElement = document.getElementById('ct-admin-context');
 
@@ -42,8 +42,12 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_BOOTSTRAP_JS = `
     parsedContext && typeof parsedContext.showcasePath === 'string'
       ? parsedContext.showcasePath
       : '';
-  const badgeTemplatesReturnToRuleBuilder =
-    parsedContext && parsedContext.badgeTemplatesReturnToRuleBuilder === true;
+  const badgeTemplateListPageQuery =
+    parsedContext &&
+    parsedContext.badgeTemplateListPageQuery &&
+    typeof parsedContext.badgeTemplateListPageQuery === 'object'
+      ? parsedContext.badgeTemplateListPageQuery
+      : null;
   const badgeTemplateRecordsById = new Map();
   const badgeTemplateRecordsContext =
     parsedContext && Array.isArray(parsedContext.badgeTemplateRecords)
@@ -67,18 +71,7 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_BOOTSTRAP_JS = `
   const templateCreatePanel = document.getElementById('template-create-panel');
   const badgeTemplateCreateForm = document.getElementById('badge-template-create-form');
   const badgeTemplateCreateStatus = document.getElementById('badge-template-create-status');
-  const badgeTemplateCreateNextActions = document.getElementById(
-    'badge-template-create-next-actions',
-  );
-  const badgeTemplateCreateNextCopy = document.getElementById('badge-template-create-next-copy');
-  const badgeTemplateCreateRuleLink = document.querySelector('[data-template-create-rule-link]');
-  const badgeTemplateCreateArtworkButton = document.querySelector(
-    '[data-template-create-artwork-template-id]',
-  );
-  const badgeTemplateCreatePublicLink = document.querySelector(
-    '[data-template-create-public-link]',
-  );
-  const templateEditPanel = document.getElementById('template-edit-panel');
+  const badgeTemplateTableStatus = document.getElementById('badge-template-table-status');
   const badgeTemplateEditForm = document.getElementById('badge-template-edit-form');
   const badgeTemplateEditStatus = document.getElementById('badge-template-edit-status');
   const badgeTemplateEditorCriteriaLink = document.getElementById(
@@ -132,7 +125,6 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_BOOTSTRAP_JS = `
   );
   let activeBadgeTemplateImageGeneration = null;
   let badgeTemplateImageGenerationPollTimer = null;
-  let activeCreatedBadgeTemplateId = '';
 
   const setStatus = (el, text, isError, tone = 'info') => {
     if (!(el instanceof HTMLElement)) {
@@ -185,6 +177,55 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_BOOTSTRAP_JS = `
 
     return new Date(parsed).toLocaleString();
   };
+  const buildBadgeTemplateListPageQueryString = () => {
+    const query = new URLSearchParams();
 
-  const initInstitutionAdminBadgeTemplates = () => {
+    if (
+      badgeTemplateListPageQuery &&
+      typeof badgeTemplateListPageQuery.searchQuery === 'string' &&
+      badgeTemplateListPageQuery.searchQuery.length > 0
+    ) {
+      query.set('q', badgeTemplateListPageQuery.searchQuery);
+    }
+
+    if (badgeTemplateListPageQuery && badgeTemplateListPageQuery.includeArchived === true) {
+      query.set('includeArchived', '1');
+    }
+
+    if (badgeTemplateListPageQuery && badgeTemplateListPageQuery.returnToRuleBuilder === true) {
+      query.set('returnTo', 'rule-builder');
+    }
+
+    return query.toString();
+  };
+  const badgeTemplateEditorSectionId = (section) => {
+    if (typeof section !== 'string' || section.length === 0) {
+      return '';
+    }
+
+    return section.startsWith('template-editor-') ? section : 'template-editor-' + section;
+  };
+  const badgeTemplateEditorPath = (badgeTemplateId, section) => {
+    if (badgeTemplateEditorPathPrefix.length === 0) {
+      return '';
+    }
+
+    const path = badgeTemplateEditorPathPrefix + '/' + encodeURIComponent(badgeTemplateId);
+
+    if (typeof section === 'string' && section.length > 0) {
+      return path + '#' + badgeTemplateEditorSectionId(section);
+    }
+
+    return path;
+  };
+  const scrollToBadgeTemplateEditorSection = (section) => {
+    const sectionId = badgeTemplateEditorSectionId(section);
+    const sectionElement =
+      sectionId.length > 0 ? document.getElementById(sectionId) : null;
+
+    if (sectionElement instanceof HTMLElement) {
+      sectionElement.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  };
+
 `;

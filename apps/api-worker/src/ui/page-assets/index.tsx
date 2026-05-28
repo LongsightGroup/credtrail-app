@@ -13,8 +13,10 @@ import {
 } from "./content/font-assets";
 import { FOUNDATION_CSS } from "./content/foundation-css";
 import { INSTITUTION_ADMIN_API_KEYS_JS } from "./content/institution-admin-api-keys-js";
-import { INSTITUTION_ADMIN_BADGE_TEMPLATE_JS } from "./content/institution-admin-badge-template-js";
+import { INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS } from "./content/institution-admin-badge-template-editor-js";
+import { INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_JS } from "./content/institution-admin-badge-template-list-js";
 import { INSTITUTION_ADMIN_CSS } from "./content/institution-admin-css";
+import { INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS } from "./content/institution-admin-template-editor-css";
 import { INSTITUTION_ADMIN_ISSUED_BADGES_JS } from "./content/institution-admin-issued-badges-js";
 import { INSTITUTION_ADMIN_JS } from "./content/institution-admin-js";
 import { INSTITUTION_ADMIN_ORG_UNITS_JS } from "./content/institution-admin-org-units-js";
@@ -94,10 +96,22 @@ const PAGE_ASSET_SOURCES = {
     body: INSTITUTION_ADMIN_API_KEYS_JS,
     contentType: "text/javascript; charset=utf-8",
   },
-  institutionAdminBadgeTemplateJs: {
+  institutionAdminTemplateEditorCss: {
+    kind: "style",
+    stem: "institution-admin-template-editor",
+    body: INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS,
+    contentType: "text/css; charset=utf-8",
+  },
+  institutionAdminBadgeTemplateListJs: {
     kind: "script",
-    stem: "institution-admin-badge-template",
-    body: INSTITUTION_ADMIN_BADGE_TEMPLATE_JS,
+    stem: "institution-admin-badge-template-list",
+    body: INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_JS,
+    contentType: "text/javascript; charset=utf-8",
+  },
+  institutionAdminBadgeTemplateEditorJs: {
+    kind: "script",
+    stem: "institution-admin-badge-template-editor",
+    body: INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS,
     contentType: "text/javascript; charset=utf-8",
   },
   institutionAdminIssuedBadgesJs: {

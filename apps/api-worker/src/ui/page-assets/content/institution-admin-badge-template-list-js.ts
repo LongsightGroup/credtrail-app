@@ -1,0 +1,21 @@
+import { INSTITUTION_ADMIN_BADGE_TEMPLATE_HISTORY_CORE_JS } from "./institution-admin-badge-template-history-core-js";
+import { INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_CREATE_JS } from "./institution-admin-badge-template-list-create-js";
+import { INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_HISTORY_JS } from "./institution-admin-badge-template-list-history-js";
+import { INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_RECORDS_JS } from "./institution-admin-badge-template-list-records-js";
+import { INSTITUTION_ADMIN_BADGE_TEMPLATE_SHARED_BOOTSTRAP_JS } from "./institution-admin-badge-template-shared-bootstrap-js";
+
+export const INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_JS = [
+  INSTITUTION_ADMIN_BADGE_TEMPLATE_SHARED_BOOTSTRAP_JS,
+  INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_RECORDS_JS,
+  INSTITUTION_ADMIN_BADGE_TEMPLATE_HISTORY_CORE_JS,
+  INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_HISTORY_JS,
+  INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_CREATE_JS,
+  `
+  const initInstitutionAdminBadgeTemplateListPage = () => {};
+
+  if (document.getElementById('badge-template-create-form')) {
+    initInstitutionAdminBadgeTemplateListPage();
+  }
+})();
+`,
+].join("\n");
