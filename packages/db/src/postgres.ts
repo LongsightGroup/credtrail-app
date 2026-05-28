@@ -3,12 +3,14 @@ import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import type { SqlDatabase, SqlPreparedStatement, SqlQueryResult, SqlRunResult } from "./index";
 
 type PostgresDriver = "auto" | "neon" | "pg";
+type PostgresConnectionMode = "pool" | "single-use";
 
 interface QueryExecutor {
   query(sql: string, params: readonly unknown[]): Promise<readonly unknown[]>;
 }
 
 type PgPoolLike = import("pg").Pool;
+type PgClientLike = import("pg").Client;
 
 const pgPoolsByConnectionString = new Map<string, Promise<PgPoolLike>>();
 
@@ -122,6 +124,25 @@ const createPgQueryExecutor = (databaseUrl: string): QueryExecutor => {
   };
 };
 
+const createSingleUsePgQueryExecutor = (databaseUrl: string): QueryExecutor => {
+  return {
+    async query(sql, params) {
+      const pgModule = await import("pg");
+      const client: PgClientLike = new pgModule.Client({
+        connectionString: databaseUrl,
+      });
+
+      try {
+        await client.connect();
+        const result = await client.query(sql, [...params]);
+        return result.rows as readonly unknown[];
+      } finally {
+        await client.end();
+      }
+    },
+  };
+};
+
 class PostgresPreparedStatement implements SqlPreparedStatement {
   private readonly queryExecutor: QueryExecutor;
   private readonly sql: string;
@@ -204,6 +225,7 @@ class PostgresDatabase implements SqlDatabase {
 export interface CreatePostgresDatabaseOptions {
   databaseUrl: string;
   driver?: PostgresDriver;
+  connectionMode?: PostgresConnectionMode;
 }
 
 export const createPostgresDatabase = (options: CreatePostgresDatabaseOptions): SqlDatabase => {
@@ -215,7 +237,11 @@ export const createPostgresDatabase = (options: CreatePostgresDatabaseOptions): 
 
   const driver = resolvePostgresDriver(trimmedUrl, options.driver ?? "auto");
   const queryExecutor =
-    driver === "neon" ? createNeonQueryExecutor(trimmedUrl) : createPgQueryExecutor(trimmedUrl);
+    driver === "neon"
+      ? createNeonQueryExecutor(trimmedUrl)
+      : options.connectionMode === "single-use"
+        ? createSingleUsePgQueryExecutor(trimmedUrl)
+        : createPgQueryExecutor(trimmedUrl);
 
   return new PostgresDatabase(queryExecutor);
 };

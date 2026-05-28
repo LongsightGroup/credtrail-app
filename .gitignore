@@ -8,6 +8,8 @@ coverage/
 
 # Local project surfaces
 .local/
+.dev.vars.local
+wrangler.local.jsonc
 .beads/
 artifacts/
 .playwright-cli/

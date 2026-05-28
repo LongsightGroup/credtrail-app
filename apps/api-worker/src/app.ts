@@ -10,6 +10,7 @@ import {
   findTenantSigningRegistrationByDid,
   listLtiIssuerRegistrations,
   upsertTenantMembershipRole,
+  upsertUserByEmail,
   type SqlDatabase,
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
@@ -177,6 +178,7 @@ import {
 export interface AppBindings {
   APP_ENV: string;
   DATABASE_URL?: string;
+  HYPERDRIVE?: Hyperdrive;
   BADGE_OBJECTS: ImmutableCredentialStore;
   EMAIL?: SendEmail;
   PLATFORM_DOMAIN: string;
@@ -229,20 +231,32 @@ const OID4VCI_PRE_AUTH_CODE_TTL_SECONDS = 10 * 60;
 const OID4VCI_ACCESS_TOKEN_TTL_SECONDS = 10 * 60;
 const SAKAI_SHOWCASE_TENANT_ID = "sakai";
 const SAKAI_SHOWCASE_TEMPLATE_ID = "badge_template_sakai_1000";
-const databasesByUrl = new Map<string, SqlDatabase>();
+const databasesByCacheKey = new Map<string, SqlDatabase>();
 const STORAGE_READINESS_PROBE_KEY = "__credtrail__/healthz/dependency-probe.jsonld";
 
 const resolveDatabase = (bindings: AppBindings): SqlDatabase => {
-  if (bindings.DATABASE_URL === undefined) {
-    throw new Error("DATABASE_URL is required");
+  const hyperdriveConnectionString = bindings.HYPERDRIVE?.connectionString.trim();
+
+  if (hyperdriveConnectionString !== undefined && hyperdriveConnectionString.length > 0) {
+    return createPostgresDatabase({
+      databaseUrl: hyperdriveConnectionString,
+      connectionMode: "single-use",
+    });
   }
+
+  if (bindings.DATABASE_URL === undefined) {
+    throw new Error("DATABASE_URL or HYPERDRIVE is required");
+  }
+
   const databaseUrl = bindings.DATABASE_URL.trim();
 
   if (databaseUrl.length === 0) {
-    throw new Error("DATABASE_URL is required");
+    throw new Error("DATABASE_URL or HYPERDRIVE is required");
   }
 
-  const existingDatabase = databasesByUrl.get(databaseUrl);
+  const connectionMode = bindings.APP_ENV === "development" ? "single-use" : "pool";
+  const databaseCacheKey = `${connectionMode}:${databaseUrl}`;
+  const existingDatabase = databasesByCacheKey.get(databaseCacheKey);
 
   if (existingDatabase !== undefined) {
     return existingDatabase;
@@ -250,8 +264,9 @@ const resolveDatabase = (bindings: AppBindings): SqlDatabase => {
 
   const database = createPostgresDatabase({
     databaseUrl,
+    connectionMode,
   });
-  databasesByUrl.set(databaseUrl, database);
+  databasesByCacheKey.set(databaseCacheKey, database);
   return database;
 };
 
@@ -419,6 +434,93 @@ const createBetterAuthRuntime = (
   };
 };
 
+interface DevelopmentMagicLinkVerificationRow {
+  value: string;
+  expiresAt: string | Date;
+}
+
+const emailFromMagicLinkVerificationValue = (value: string): string | null => {
+  try {
+    const parsed = JSON.parse(value) as {
+      email?: unknown;
+    };
+    const email = typeof parsed.email === "string" ? parsed.email.trim() : "";
+    return email.length === 0 ? null : email;
+  } catch {
+    return null;
+  }
+};
+
+const createDevelopmentMagicLinkSession = async (
+  context: AppContext,
+  token: string,
+): Promise<import("./auth/better-auth-adapter").BetterAuthResolvedSession | null> => {
+  if (context.env.APP_ENV !== "development") {
+    return null;
+  }
+
+  const db = resolveDatabase(context.env);
+  const verification = await db
+    .prepare(
+      `
+      SELECT
+        value,
+        expires_at AS expiresAt
+      FROM auth.verification
+      WHERE identifier = ?
+      LIMIT 1
+    `,
+    )
+    .bind(token)
+    .first<DevelopmentMagicLinkVerificationRow>();
+
+  if (verification === null) {
+    return null;
+  }
+
+  if (new Date(verification.expiresAt).getTime() <= Date.now()) {
+    await db.prepare("DELETE FROM auth.verification WHERE identifier = ?").bind(token).run();
+    return null;
+  }
+
+  const email = emailFromMagicLinkVerificationValue(verification.value);
+
+  if (email === null) {
+    return null;
+  }
+
+  const user = await upsertUserByEmail(db, email);
+  const runtimeConfig = createBetterAuthRuntimeConfig(context.env);
+  const { session, sessionToken } = await createBetterAuthSessionForCredtrailUser({
+    db,
+    runtimeConfig,
+    credtrailUserId: user.id,
+    userAgent: context.req.header("user-agent") ?? null,
+  });
+
+  await db.prepare("DELETE FROM auth.verification WHERE identifier = ?").bind(token).run();
+
+  setCookie(context, runtimeConfig.session.cookieName, sessionToken, {
+    httpOnly: true,
+    sameSite: "Lax",
+    secure: sessionCookieSecure(context.env.APP_ENV),
+    path: "/",
+    maxAge: runtimeConfig.session.expiresInSeconds,
+  });
+
+  return {
+    sessionToken,
+    sessionId: session.sessionId,
+    accountId: null,
+    expiresAt: session.expiresAt,
+    user: {
+      id: session.userId,
+      email: session.userEmail,
+      emailVerified: session.userEmailVerified,
+    },
+  };
+};
+
 const resolveCurrentBetterAuthSession = async (
   context: AppContext,
 ): Promise<import("./auth/better-auth-adapter").BetterAuthResolvedSession | null> => {
@@ -482,6 +584,10 @@ const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindings>({
           nextPath,
         });
 
+        if (context.env.APP_ENV === "development") {
+          return;
+        }
+
         try {
           await sendMagicLinkEmailNotification({
             emailBinding: context.env.EMAIL,
@@ -523,6 +629,8 @@ const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindings>({
       }),
     );
 
+    await response.arrayBuffer();
+
     if (!response.ok) {
       throw new Error("Better Auth magic-link request failed");
     }
@@ -541,6 +649,12 @@ const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindings>({
 
     if (tokenTenant !== null) {
       rememberRequestedTenant(context, tokenTenant.tenantId);
+    }
+
+    const developmentSession = await createDevelopmentMagicLinkSession(context, token);
+
+    if (developmentSession !== null) {
+      return developmentSession;
     }
 
     const { auth } = createBetterAuthRuntime(context);

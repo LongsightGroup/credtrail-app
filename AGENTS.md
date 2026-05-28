@@ -113,6 +113,64 @@ Every change must pass:
 Type safety is a release gate:
 - `tsc --noEmit` must pass.
 
+## 5.1) Local Dev and Browser QA
+
+Preferred local app runtime for manual QA is Wrangler local with local Postgres
+and local Wrangler R2 emulation.
+
+Local-only files:
+- `wrangler.local.jsonc` is intentionally gitignored. It should define the local
+  Worker entrypoint, `BADGE_OBJECTS` R2 binding, `APP_ENV=development`,
+  `PLATFORM_DOMAIN=localhost`, `JOB_PROCESSOR_TOKEN`, `BOOTSTRAP_ADMIN_TOKEN`,
+  and a `HYPERDRIVE` binding with `localConnectionString` pointing at local
+  Postgres. Keep the Hyperdrive `id` as a local placeholder unless testing a
+  deployed Hyperdrive config.
+- `.dev.vars.local` is intentionally gitignored. It should contain local secrets
+  for scripts and fallback DB access, such as:
+  `DATABASE_URL=postgres://credtrail:credtrail@127.0.0.1:5432/credtrail`
+
+Local database setup:
+- Ensure Postgres is listening on `127.0.0.1:5432`.
+- For a fresh local machine, create the local role/database if needed:
+  `CREATE ROLE credtrail LOGIN PASSWORD 'credtrail';`
+  `CREATE DATABASE credtrail OWNER credtrail;`
+- Run migrations with:
+  `DATABASE_URL=postgres://credtrail:credtrail@127.0.0.1:5432/credtrail pnpm db:migrate:postgres`
+
+Run the app locally:
+- Start Wrangler with:
+  `pnpm exec wrangler dev --config wrangler.local.jsonc --env-file .dev.vars.local --port 8787`
+- If port `8787` is occupied by an old `workerd`, either stop that process or use
+  a different port and set `CREDTRAIL_DEV_BASE_URL` accordingly.
+
+Seed local demo data:
+- Run `pnpm dev:seed` after migrations.
+- The seed creates a local institution tenant, owner user, membership, org unit,
+  and badge templates for manual admin QA.
+- Default seeded login identity:
+  `admin@credtrail.local`
+- Default seeded tenant:
+  `tenant_123`
+
+Local development login:
+- Do not add production auth bypasses.
+- In `APP_ENV=development`, `/v1/auth/magic-link/request` returns a
+  `magicLinkUrl` in the JSON response. This is the intended local-dev shortcut.
+- Do not define an `EMAIL` binding in local Wrangler config while debugging
+  magic-link login. Development magic-link requests capture the URL and skip
+  email delivery.
+- With Wrangler running, use `pnpm dev:login-link` to print a browser-ready
+  local login URL for the seeded admin user.
+- Open the printed URL in a browser to establish the Better Auth session, then
+  continue manual QA at `/tenants/tenant_123/admin`.
+
+Browser/e2e notes:
+- Playwright defaults to `E2E_BASE_URL=http://127.0.0.1:8787`.
+- Real LMS tests use `E2E_BOOTSTRAP_ADMIN_TOKEN` and bootstrap admin APIs; they
+  do not establish a reusable browser login state by default.
+- For local manual QA, prefer the seeded magic-link workflow above over adding
+  ad hoc cookies or direct session table writes.
+
 ## 6) Simplicity Rules (K.I.S.S.)
 
 - Prefer server-rendered Hono JSX pages and HTML forms over client-heavy
