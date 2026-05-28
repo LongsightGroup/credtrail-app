@@ -21,11 +21,9 @@ import {
   AdminButton,
   AdminButtonLink,
   AdminActions,
-  AdminCheckboxRow,
   AdminCtaLink,
   AdminEmptyTableRow,
   AdminField,
-  AdminFieldset,
   AdminForm,
   AdminMeta,
   AdminMetricCard,
@@ -43,6 +41,7 @@ import {
 } from "../components";
 import { TenantApiKeyAdminTableRow } from "../api-key-table-row-fragment";
 import { serializeJsonScriptContent } from "../institution-admin-shell";
+import { renderInstitutionAdminAccessSections } from "./access-sections";
 import { renderEnterpriseAuthSection } from "./enterprise-auth-section";
 import { renderInstitutionAdminOperationsSections } from "./operations-sections";
 import {
@@ -51,6 +50,25 @@ import {
   type InstitutionAdminPageInput,
   type InstitutionAdminView,
 } from "./page-types";
+import {
+  REPORTING_HIERARCHY_DEPTH,
+  REPORTING_HIERARCHY_LEVELS,
+  REPORTING_PERFORMER_ROW_LIMIT,
+  REPORTING_RATE_MIN_ISSUED,
+  buildPathWithQuery,
+  buildReportingHierarchyFocusId,
+  formatReportingCount,
+  formatReportingDateLabel,
+  formatReportingHierarchyLevelLabel,
+  formatReportingRate,
+  formatReportingStateLabel,
+  getNextReportingHierarchyLevel,
+  isReportingHierarchyLevel,
+  type ReportingActivityCounts,
+  type ReportingHierarchyLevel,
+  type ReportingHierarchyRow,
+  type ReportingPanelState,
+} from "./reporting-helpers";
 export {
   institutionAdminRuleTemplateEditorPage,
   institutionAdminRuleTemplatesPage,
@@ -69,148 +87,6 @@ const formatDelegatedIssuingActionLabel = (action: string): string => {
     default:
       return action;
   }
-};
-
-const formatReportingCount = (value: number): string => {
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 0,
-  }).format(value);
-};
-
-const formatReportingRate = (value: number): string => {
-  return `${value.toFixed(1)}%`;
-};
-
-const formatReportingDateLabel = (value: string): string => {
-  const date = value.includes("T") ? new Date(value) : new Date(`${value}T00:00:00.000Z`);
-
-  if (!Number.isFinite(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  }).format(date);
-};
-
-const formatReportingStateLabel = (value: string | null | undefined): string => {
-  if (value === null || value === undefined || value.trim().length === 0) {
-    return "All current states";
-  }
-
-  switch (value) {
-    case "pending_review":
-      return "Pending review";
-    case "active":
-      return "active";
-    case "suspended":
-      return "suspended";
-    case "revoked":
-      return "revoked";
-    case "expired":
-      return "expired";
-    default:
-      return value;
-  }
-};
-
-const REPORTING_HIERARCHY_LEVELS = ["institution", "college", "department", "program"] as const;
-type ReportingHierarchyLevel = (typeof REPORTING_HIERARCHY_LEVELS)[number];
-
-const REPORTING_HIERARCHY_DEPTH: Record<ReportingHierarchyLevel, number> = {
-  institution: 0,
-  college: 1,
-  department: 2,
-  program: 3,
-};
-
-const REPORTING_RATE_MIN_ISSUED = 5;
-const REPORTING_PERFORMER_ROW_LIMIT = 3;
-
-interface ReportingHierarchyRow {
-  orgUnitId: string;
-  level: ReportingHierarchyLevel;
-  issuedCount: number;
-  publicBadgeViewCount: number;
-  verificationViewCount: number;
-  shareClickCount: number;
-  learnerClaimCount: number;
-  walletAcceptCount: number;
-  claimRate: number;
-  shareRate: number;
-}
-
-type ReportingPanelState = "rich" | "sparse" | "empty";
-
-interface ReportingActivityCounts {
-  issuedCount: number;
-  publicBadgeViewCount: number;
-  verificationViewCount: number;
-  shareClickCount: number;
-  learnerClaimCount: number;
-  walletAcceptCount: number;
-}
-
-const isReportingHierarchyLevel = (
-  value: TenantOrgUnitRecord["unitType"],
-): value is ReportingHierarchyLevel => {
-  return REPORTING_HIERARCHY_LEVELS.includes(value as ReportingHierarchyLevel);
-};
-
-const getNextReportingHierarchyLevel = (
-  level: ReportingHierarchyLevel,
-): ReportingHierarchyLevel | null => {
-  const index = REPORTING_HIERARCHY_LEVELS.indexOf(level);
-
-  return index === REPORTING_HIERARCHY_LEVELS.length - 1
-    ? null
-    : (REPORTING_HIERARCHY_LEVELS[index + 1] ?? null);
-};
-
-const formatReportingHierarchyLevelLabel = (level: ReportingHierarchyLevel): string => {
-  switch (level) {
-    case "institution":
-      return "Institution";
-    case "college":
-      return "College";
-    case "department":
-      return "Department";
-    case "program":
-      return "Program";
-  }
-};
-
-const buildReportingHierarchyFocusId = (orgUnitId: string): string => {
-  return `reporting-hierarchy-focus-${encodeURIComponent(orgUnitId)}`;
-};
-
-const appendQueryParam = (
-  params: URLSearchParams,
-  key: string,
-  value: string | null | undefined,
-): void => {
-  const normalizedValue = value?.trim() ?? "";
-
-  if (normalizedValue.length > 0) {
-    params.set(key, normalizedValue);
-  }
-};
-
-const buildPathWithQuery = (
-  path: string,
-  queryEntries: ReadonlyArray<readonly [string, string | null | undefined]>,
-): string => {
-  const params = new URLSearchParams();
-
-  for (const [key, value] of queryEntries) {
-    appendQueryParam(params, key, value);
-  }
-
-  const query = params.toString();
-
-  return query.length === 0 ? path : `${path}?${query}`;
 };
 
 const renderInstitutionAdminPage = (
@@ -2776,334 +2652,40 @@ const renderInstitutionAdminPage = (
     activeOrgUnitOptions,
   });
 
-  const addDisclosureControlMarkup = (
-    <span class="ct-admin__add-disclosure-control">
-      <span class="ct-admin__add-disclosure-control-open">Open form</span>
-      <span class="ct-admin__add-disclosure-control-close">Hide form</span>
-    </span>
-  );
-
-  const apiKeyPanelMarkup = (
-    <details id="api-key-panel" class="ct-admin__panel ct-admin__add-disclosure">
-      <summary class="ct-admin__add-disclosure-summary">
-        <span>
-          <strong>Create API key</strong>
-          <small>Create a scoped key and reveal the secret once.</small>
-        </span>
-        {addDisclosureControlMarkup}
-      </summary>
-      <AdminForm
-        id="api-key-form"
-        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--api-key ct-grid"
-      >
-        <AdminField label="Label">
-          <input name="label" type="text" required value="Institution integration key" />
-        </AdminField>
-        <AdminField label="Scopes (comma separated)">
-          <input name="scopes" type="text" value="queue.issue, queue.revoke" />
-        </AdminField>
-        <AdminButton type="submit">Create API key</AdminButton>
-      </AdminForm>
-      <AdminStatus id="api-key-status"></AdminStatus>
-      <pre id="api-key-secret" class="ct-admin__secret" hidden></pre>
-    </details>
-  );
-
-  const orgUnitPanelMarkup = (
-    <details id="org-unit-panel" class="ct-admin__panel ct-admin__add-disclosure">
-      <summary class="ct-admin__add-disclosure-summary">
-        <span>
-          <strong>Create org unit</strong>
-          <small>Add college, department, program, or institution hierarchy.</small>
-        </span>
-        {addDisclosureControlMarkup}
-      </summary>
-      <p class="ct-admin__hint">
-        Hierarchy: college → institution, department → college, program → department.
-      </p>
-      <AdminForm
-        id="org-unit-form"
-        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--org-unit ct-grid"
-      >
-        <AdminField label="Display name">
-          <input name="displayName" type="text" required placeholder="College of Engineering" />
-        </AdminField>
-        <AdminField label="Unit type">
-          <select name="unitType" required>
-            <option value="college">College</option>
-            <option value="department">Department</option>
-            <option value="program">Program</option>
-            <option value="institution">Institution</option>
-          </select>
-        </AdminField>
-        <AdminField label="Parent org unit">
-          <select name="parentOrgUnitId">
-            <option value="">None</option>
-            {orgUnitParentOptions}
-          </select>
-        </AdminField>
-        <p class="ct-admin__hint">CredTrail creates the internal org key from the display name.</p>
-        <AdminButton type="submit">Create org unit</AdminButton>
-      </AdminForm>
-      <AdminStatus id="org-unit-status"></AdminStatus>
-    </details>
-  );
-
-  const governanceGuidePanelMarkup = (
-    <AdminPanel id="governance-panel">
-      <h2>Before you delegate</h2>
-      <p>
-        Use this page to give an existing tenant member limited access inside a selected org unit.
-        Choosing a parent org unit also covers the child units beneath it.
-      </p>
-      <p class="ct-admin__hint">
-        The selected member receives the access. This workflow does not create tenant membership, so
-        the person must already exist in this tenant.
-      </p>
-      <ul>
-        <li>Use a scoped role for standing access inside an org unit.</li>
-        <li>Use delegated authority for temporary badge actions with an end date.</li>
-        <li>
-          Leave the badge template limit blank when the delegation should cover every template in
-          scope.
-        </li>
-      </ul>
-    </AdminPanel>
-  );
-
   const tenantMemberRoleSelectOptions = assignableTenantRoles.map((role) => (
     <option value={role}>{role}</option>
   ));
-  const tenantMembersPanelMarkup = (
-    <details class="ct-admin__panel ct-admin__add-disclosure">
-      <summary class="ct-admin__add-disclosure-summary">
-        <span>
-          <strong>Add member</strong>
-          <small>Add a colleague by institution email and assign their tenant-level role.</small>
-        </span>
-        {addDisclosureControlMarkup}
-      </summary>
-      <AdminForm
-        id="tenant-member-form"
-        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--member ct-grid"
-      >
-        <AdminField label="Institution email">
-          <input name="email" type="email" required placeholder="colleague@institution.edu" />
-        </AdminField>
-        <AdminField label="Tenant role">
-          <select name="role" required>
-            {tenantMemberRoleSelectOptions}
-          </select>
-        </AdminField>
-        <AdminCheckboxRow>
-          <input name="sendInvite" type="checkbox" checked />
-          Email sign-in invite now
-        </AdminCheckboxRow>
-        <AdminButton type="submit">Save member</AdminButton>
-      </AdminForm>
-      <AdminStatus id="tenant-member-status"></AdminStatus>
-    </details>
-  );
-
-  const tenantMembersTableMarkup = (
-    <AdminPanel variant="table" className="ct-admin__members-table">
-      <h2>Current Members ({tenantMemberCount})</h2>
-      <p>
-        Review tenant-level access, resend invites, and remove members who no longer need this
-        organization.
-      </p>
-      <AdminTable
-        headers={["Member", "Tenant role", "Joined", "Updated", "Status", "Actions"]}
-        tbodyId="tenant-member-body"
-      >
-        {tenantMemberRows}
-      </AdminTable>
-      <AdminStatus id="tenant-member-list-status"></AdminStatus>
-    </AdminPanel>
-  );
-
-  const accessOverviewPanelMarkup = (
-    <section class="ct-admin__workspace-grid ct-grid" aria-label="Access pages">
-      <AdminWorkspaceCard href={accessMembersPath} ariaLabel="Open Members page">
-        <p class="ct-admin__eyebrow">People</p>
-        <h2>Members</h2>
-        <p>
-          Add colleagues by email, assign tenant roles, resend invites, and remove tenant access.
-        </p>
-        <div class="ct-admin__workspace-stats ct-cluster">
-          <AdminStatusPill>{tenantMemberCount} members</AdminStatusPill>
-        </div>
-      </AdminWorkspaceCard>
-      <AdminWorkspaceCard href={accessGovernancePath} ariaLabel="Open Governance page">
-        <p class="ct-admin__eyebrow">Delegation</p>
-        <h2>Governance</h2>
-        <p>Grant org-unit scoped roles and time-boxed badge authority.</p>
-        <div class="ct-admin__workspace-stats ct-cluster">
-          <AdminStatusPill>{scopedRoleCount} scoped roles</AdminStatusPill>
-          <AdminStatusPill>{delegatedAuthorityGrantCount} delegations</AdminStatusPill>
-        </div>
-      </AdminWorkspaceCard>
-      <AdminWorkspaceCard href={accessApiKeysPath} ariaLabel="Open API Keys page">
-        <p class="ct-admin__eyebrow">Integrations</p>
-        <h2>API Keys</h2>
-        <p>Create and revoke tenant API keys for trusted integrations.</p>
-        <div class="ct-admin__workspace-stats ct-cluster">
-          <AdminStatusPill>{activeApiKeyCount} active</AdminStatusPill>
-          <AdminStatusPill>{revokedApiKeyCount} revoked</AdminStatusPill>
-        </div>
-      </AdminWorkspaceCard>
-      <AdminWorkspaceCard href={accessOrgUnitsPath} ariaLabel="Open Org Units page">
-        <p class="ct-admin__eyebrow">Structure</p>
-        <h2>Org Units</h2>
-        <p>Maintain institution, college, department, and program hierarchy.</p>
-        <div class="ct-admin__workspace-stats ct-cluster">
-          <AdminStatusPill>{orgUnitCount} org units</AdminStatusPill>
-        </div>
-      </AdminWorkspaceCard>
-    </section>
-  );
-
-  const membershipScopePanelMarkup = (
-    <details id="membership-scope-panel" class="ct-admin__panel ct-admin__add-disclosure">
-      <summary class="ct-admin__add-disclosure-summary">
-        <span>
-          <strong>Add scoped role</strong>
-          <small>Assign standing access to one org unit.</small>
-        </span>
-        {addDisclosureControlMarkup}
-      </summary>
-      <AdminForm
-        id="membership-scope-form"
-        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--governance ct-grid"
-      >
-        <AdminField label="Tenant member">
-          <select name="userId" required>
-            {tenantMemberSelectOptions}
-          </select>
-        </AdminField>
-        <p class="ct-admin__hint">
-          Choose the person receiving access. They must already belong to this tenant.
-        </p>
-        <AdminField label="Org unit">
-          <select name="orgUnitId" required>
-            {activeOrgUnitSelectOptions}
-          </select>
-        </AdminField>
-        <AdminField label="Scoped role">
-          <select name="role" required>
-            <option value="viewer">viewer</option>
-            <option value="issuer">issuer</option>
-            <option value="admin">admin</option>
-          </select>
-        </AdminField>
-        <ul>
-          <li>
-            <strong>viewer</strong> can view in-scope templates and governance context.
-          </li>
-          <li>
-            <strong>issuer</strong> includes viewer access and issuer workflows inside the selected
-            scope.
-          </li>
-          <li>
-            <strong>admin</strong> is the highest org-unit role and covers issuer and viewer checks.
-          </li>
-        </ul>
-        <AdminButton type="submit">Save scoped role</AdminButton>
-      </AdminForm>
-      <AdminStatus id="membership-scope-status"></AdminStatus>
-    </details>
-  );
-
-  const membershipScopeTableMarkup = (
-    <AdminPanel variant="table">
-      <h2>Current Scoped Roles ({scopedRoleCount})</h2>
-      <p>Remove access directly from the list instead of re-entering the same identifiers.</p>
-      <AdminTable
-        headers={["Member", "Org unit", "Role", "Updated", "Action"]}
-        tbodyId="membership-scope-body"
-      >
-        {membershipScopeRows}
-      </AdminTable>
-      <AdminStatus id="membership-scope-list-status"></AdminStatus>
-    </AdminPanel>
-  );
-
-  const delegatedGrantPanelMarkup = (
-    <details id="delegated-grant-panel" class="ct-admin__panel ct-admin__add-disclosure">
-      <summary class="ct-admin__add-disclosure-summary">
-        <span>
-          <strong>Add delegated authority</strong>
-          <small>Grant temporary badge authority without changing standing access.</small>
-        </span>
-        {addDisclosureControlMarkup}
-      </summary>
-      <AdminForm
-        id="delegated-grant-form"
-        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--governance ct-grid"
-      >
-        <AdminField label="Delegate">
-          <select name="delegateUserId" required>
-            {tenantMemberSelectOptions}
-          </select>
-        </AdminField>
-        <p class="ct-admin__hint">Choose the tenant member receiving the delegation.</p>
-        <AdminField label="Org unit">
-          <select name="orgUnitId" required>
-            {activeOrgUnitSelectOptions}
-          </select>
-        </AdminField>
-        <AdminFieldset legend="Allowed badge actions">
-          <AdminCheckboxRow>
-            <input name="allowedAction" type="checkbox" value="issue_badge" checked />
-            Issue badges
-          </AdminCheckboxRow>
-          <AdminCheckboxRow>
-            <input name="allowedAction" type="checkbox" value="revoke_badge" />
-            Revoke badges
-          </AdminCheckboxRow>
-          <AdminCheckboxRow>
-            <input name="allowedAction" type="checkbox" value="manage_lifecycle" />
-            Change badge status
-          </AdminCheckboxRow>
-        </AdminFieldset>
-        <p class="ct-admin__hint">
-          “Change badge status” covers non-revocation lifecycle changes such as suspend, expire, or
-          restore.
-        </p>
-        <AdminField label="Limit to badge template (optional)">
-          <select name="badgeTemplateIds">{optionalBadgeTemplateScopeOptions}</select>
-        </AdminField>
-        <p class="ct-admin__hint">
-          Leave blank to allow all badge templates inside the selected org-unit scope.
-        </p>
-        <AdminField label="Ends at">
-          <input name="endsAt" type="datetime-local" required />
-        </AdminField>
-        <p class="ct-admin__hint">
-          Delegations are time-boxed. Choose when this authority should expire.
-        </p>
-        <AdminField label="Reason (optional)">
-          <input name="reason" type="text" placeholder="Coverage for spring term operations." />
-        </AdminField>
-        <AdminButton type="submit">Save delegation</AdminButton>
-      </AdminForm>
-      <AdminStatus id="delegated-grant-status"></AdminStatus>
-    </details>
-  );
-
-  const delegatedGrantTableMarkup = (
-    <AdminPanel variant="table">
-      <h2>Current Delegations ({String(input.delegatedIssuingAuthorityGrants.length)})</h2>
-      <p>Remove active or scheduled delegations directly from the list.</p>
-      <AdminTable
-        headers={["Delegate", "Org unit", "Allowed actions", "Granted", "Status", "Action"]}
-        tbodyId="delegated-grant-body"
-      >
-        {delegatedGrantRows}
-      </AdminTable>
-      <AdminStatus id="delegated-grant-list-status"></AdminStatus>
-    </AdminPanel>
-  );
+  const {
+    apiKeyPanelMarkup,
+    orgUnitPanelMarkup,
+    governanceGuidePanelMarkup,
+    tenantMembersPanelMarkup,
+    tenantMembersTableMarkup,
+    accessOverviewPanelMarkup,
+    membershipScopePanelMarkup,
+    membershipScopeTableMarkup,
+    delegatedGrantPanelMarkup,
+    delegatedGrantTableMarkup,
+  } = renderInstitutionAdminAccessSections({
+    accessMembersPath,
+    accessGovernancePath,
+    accessApiKeysPath,
+    accessOrgUnitsPath,
+    tenantMemberCount,
+    scopedRoleCount,
+    delegatedAuthorityGrantCount,
+    activeApiKeyCount,
+    revokedApiKeyCount,
+    orgUnitCount,
+    tenantMemberRoleSelectOptions,
+    tenantMemberRows,
+    orgUnitParentOptions,
+    tenantMemberSelectOptions,
+    activeOrgUnitSelectOptions,
+    optionalBadgeTemplateScopeOptions,
+    membershipScopeRows,
+    delegatedGrantRows,
+  });
 
   const renderReportingFiltersForm = (
     actionPath: string,
