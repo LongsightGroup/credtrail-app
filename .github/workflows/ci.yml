@@ -9,6 +9,20 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: credtrail
+          POSTGRES_PASSWORD: credtrail
+          POSTGRES_DB: credtrail
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U credtrail -d credtrail"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
 
     steps:
       - name: Checkout
@@ -42,6 +56,8 @@ jobs:
         run: pnpm typecheck
 
       - name: Test
+        env:
+          TEST_DATABASE_URL: postgresql://credtrail:credtrail@127.0.0.1:5432/credtrail
         run: pnpm test
 
       - name: Build Docker image

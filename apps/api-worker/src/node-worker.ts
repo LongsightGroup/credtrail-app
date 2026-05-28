@@ -1,13 +1,7 @@
-import { app } from "./app";
-import { queueProcessorRequestFromSchedule } from "./queue/scheduled-trigger";
-import {
-  createNodeExecutionContext,
-  createNodeRuntimeBindings,
-  parsePositiveIntegerEnv,
-} from "./runtime/node-runtime";
+import { processScheduledQueue } from "./app";
+import { createNodeRuntimeBindings, parsePositiveIntegerEnv } from "./runtime/node-runtime";
 
 const bindings = createNodeRuntimeBindings(process.env);
-const executionContext = createNodeExecutionContext();
 const intervalMs = parsePositiveIntegerEnv(process.env, "JOB_POLL_INTERVAL_MS", 1000);
 
 const sleep = (durationMs: number): Promise<void> => {
@@ -17,25 +11,15 @@ const sleep = (durationMs: number): Promise<void> => {
 };
 
 const processQueue = async (): Promise<void> => {
-  const response = await app.fetch(
-    queueProcessorRequestFromSchedule(bindings),
-    bindings,
-    executionContext,
-  );
-  const bodyText = await response.text();
+  const result = await processScheduledQueue(bindings);
 
   console.info(
     JSON.stringify({
       message: "node_queue_worker_tick",
       platformDomain: bindings.PLATFORM_DOMAIN,
-      status: response.status,
-      body: bodyText,
+      ...result,
     }),
   );
-
-  if (!response.ok) {
-    throw new Error(`Queue worker received HTTP ${String(response.status)}`);
-  }
 };
 
 const startWorker = async (): Promise<void> => {

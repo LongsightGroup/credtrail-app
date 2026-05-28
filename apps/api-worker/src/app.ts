@@ -167,6 +167,7 @@ import {
   createProcessQueuedJobs,
   processQueueInputWithDefaults,
   readJsonBodyOrEmptyObject,
+  type ProcessQueueRunResult,
 } from "./queue/processing";
 import {
   createPresentationVerificationHelpers,
@@ -1630,6 +1631,10 @@ const processQueuedJobs = createProcessQueuedJobs({
   },
 });
 
+export const processScheduledQueue = (env: AppBindings): Promise<ProcessQueueRunResult> => {
+  return processQueuedJobs({ env } as AppContext, processQueueInputWithDefaults({}));
+};
+
 registerQueueRoutes({
   app,
   resolveDatabase,
@@ -1643,9 +1648,7 @@ registerQueueRoutes({
 
 const worker = createApiWorker({
   app,
-  processScheduledQueue: (env) => {
-    return processQueuedJobs({ env } as AppContext, processQueueInputWithDefaults({}));
-  },
+  processScheduledQueue,
   observabilityContext,
 });
 
