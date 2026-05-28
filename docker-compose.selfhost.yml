@@ -1,5 +1,5 @@
 x-selfhost-env: &selfhost_env
-  APP_ENV: development
+  APP_ENV: production
   PLATFORM_DOMAIN: localhost
   DATABASE_URL: postgres://credtrail:credtrail@postgres:5432/credtrail
   STORAGE_BACKEND: s3

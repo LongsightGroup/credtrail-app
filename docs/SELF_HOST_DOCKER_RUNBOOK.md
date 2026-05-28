@@ -9,6 +9,8 @@ S3-compatible object storage.
 - Queue worker: Node polling process (`apps/api-worker/src/node-worker.ts`)
 - Database: Postgres 14+
 - Object storage: S3-compatible API (AWS S3, MinIO, Ceph RGW, etc.)
+- Production installs must run with `APP_ENV=production`. The Docker image defaults to
+  production, and the reference compose stack sets `APP_ENV=production`.
 
 ## Required Environment Variables
 
@@ -36,11 +38,14 @@ Worker notes:
 
 ## Local Validation with Docker Compose
 
-Use the provided compose stack:
+Use the provided compose stack to validate the self-host production runtime locally:
 
 ```bash
 docker compose -f docker-compose.selfhost.yml up --build
 ```
+
+Do not use `APP_ENV=development` for real self-host installs. Development mode enables local
+debugging behavior such as single-use database connections and development auth shortcuts.
 
 Validation checks:
 
