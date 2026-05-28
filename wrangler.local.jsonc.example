@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "credtrail-app-local",
+  "main": "apps/api-worker/src/index.ts",
+  "compatibility_date": "2026-05-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "r2_buckets": [
+    {
+      "binding": "BADGE_OBJECTS",
+      "bucket_name": "credtrail-badges-local"
+    }
+  ],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "00000000-0000-0000-0000-000000000000",
+      "localConnectionString": "postgres://credtrail:credtrail@127.0.0.1:5432/credtrail"
+    }
+  ],
+  "vars": {
+    "APP_ENV": "development",
+    "PLATFORM_DOMAIN": "credtrail.example",
+    "BETTER_AUTH_TRUSTED_ORIGINS": "http://credtrail.example,https://credtrail.example,http://localhost:8787,http://127.0.0.1:8787",
+    "JOB_PROCESSOR_TOKEN": "local-job-token",
+    "BOOTSTRAP_ADMIN_TOKEN": "local-admin-token"
+  }
+}

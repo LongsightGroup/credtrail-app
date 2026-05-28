@@ -79,6 +79,18 @@ describe("createNodeRuntimeBindings", () => {
     ).toThrowError("S3_BUCKET is required");
   });
 
+  it("throws when Better Auth secret is missing in production", () => {
+    expect(() =>
+      createNodeRuntimeBindings({
+        APP_ENV: "production",
+        S3_BUCKET: "credtrail-badges",
+        S3_REGION: "us-east-1",
+        AWS_ACCESS_KEY_ID: "access",
+        AWS_SECRET_ACCESS_KEY: "secret",
+      }),
+    ).toThrowError("BETTER_AUTH_SECRET is required");
+  });
+
   it("throws when SES email is enabled without a from address", () => {
     expect(() =>
       createNodeRuntimeBindings({

@@ -143,12 +143,17 @@ export const parsePositiveIntegerEnv = (
 };
 
 export const createNodeRuntimeBindings = (envSource: EnvSource = process.env): AppBindings => {
+  const appEnv = optionalEnv(envSource, "APP_ENV") ?? "development";
   const storageBackend = (optionalEnv(envSource, "STORAGE_BACKEND") ?? "s3").toLowerCase();
 
   if (storageBackend !== "s3") {
     throw new Error(
       `Unsupported STORAGE_BACKEND "${storageBackend}". Node runtime currently supports "s3".`,
     );
+  }
+
+  if (appEnv === "production") {
+    requireEnv(envSource, "BETTER_AUTH_SECRET");
   }
 
   const s3Endpoint = optionalEnv(envSource, "S3_ENDPOINT");
@@ -167,7 +172,7 @@ export const createNodeRuntimeBindings = (envSource: EnvSource = process.env): A
   const emailBinding = createNodeEmailBinding(envSource);
 
   return {
-    APP_ENV: optionalEnv(envSource, "APP_ENV") ?? "development",
+    APP_ENV: appEnv,
     PLATFORM_DOMAIN: optionalEnv(envSource, "PLATFORM_DOMAIN") ?? "localhost",
     BADGE_OBJECTS: badgeObjectsBinding,
     ...(emailBinding === undefined ? {} : { EMAIL: emailBinding }),

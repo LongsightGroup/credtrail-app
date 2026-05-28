@@ -133,7 +133,10 @@ Set `PLATFORM_DOMAIN` to the public hostname used in credential URLs.
   - required object storage env var missing.
 - storage dependency check returns 503:
   - verify `S3_ENDPOINT`, credentials, bucket existence, and path-style config.
-- queue worker receives 401 from `/v1/jobs/process`:
-  - `JOB_PROCESSOR_TOKEN` mismatch between app and worker.
+- queue worker logs `node_queue_worker_error`:
+  - inspect the logged `detail` field, then verify database/storage credentials
+    and queued job payloads.
+  - the Node queue worker processes jobs in-process; it does not call
+    `/v1/jobs/process` or use `JOB_PROCESSOR_TOKEN`.
 - migration failures:
   - run migrations with `-v ON_ERROR_STOP=1` and inspect the first failing statement.
