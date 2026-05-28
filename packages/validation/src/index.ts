@@ -2466,9 +2466,7 @@ export const parseBadgeIssuanceRuleAuditLogQuery = (
   return badgeIssuanceRuleAuditLogQuerySchema.parse(input);
 };
 
-export const parseBadgeTemplateAuditLogQuery = (
-  input: unknown,
-): BadgeTemplateAuditLogQuery => {
+export const parseBadgeTemplateAuditLogQuery = (input: unknown): BadgeTemplateAuditLogQuery => {
   return badgeTemplateAuditLogQuerySchema.parse(input);
 };
 

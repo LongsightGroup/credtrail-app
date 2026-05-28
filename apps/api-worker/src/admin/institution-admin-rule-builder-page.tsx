@@ -40,7 +40,9 @@ const inferCourseCodeFromText = (text: string): string | null => {
   return match?.[1]?.toUpperCase() ?? null;
 };
 
-const parseGovernanceCourseId = (governanceMetadataJson: string | null | undefined): string | null => {
+const parseGovernanceCourseId = (
+  governanceMetadataJson: string | null | undefined,
+): string | null => {
   if (governanceMetadataJson === null || governanceMetadataJson === undefined) {
     return null;
   }
@@ -361,7 +363,8 @@ export const institutionAdminRuleBuilderPage = (input: {
     };
   });
 
-  const selectedTemplateOption = templateOptions.find((option) => option.isSelected) ?? templateOptions[0];
+  const selectedTemplateOption =
+    templateOptions.find((option) => option.isSelected) ?? templateOptions[0];
   const initialTestCourseId =
     selectedTemplateOption === undefined
       ? ""
@@ -544,528 +547,545 @@ export const institutionAdminRuleBuilderPage = (input: {
           <div class="ct-admin__builder-main ct-stack">
             <section class="ct-admin__panel ct-admin__builder-workbench-panel ct-stack">
               <AdminForm id="rule-create-form">
-              <section
-                id="builder-step-metadata"
-                class="ct-admin__builder-step"
-                data-rule-step="metadata"
-              >
-                <section class="ct-admin__step-panel ct-admin__pattern-panel ct-stack">
-                  <p class="ct-admin__step-kicker">Step 1 of 3</p>
-                  <h3>Set up this rule</h3>
-                  <p class="ct-admin__step-panel-lead">
-                    Choose the badge, LMS, and how learners earn it.
-                  </p>
-                  <div class="ct-admin__builder-grid ct-grid">
-                    <AdminField label="Badge template">
-                      <select name="badgeTemplateId" required>
-                        {templateOptions.length === 0 ? (
-                          <option value="">No badge templates available</option>
-                        ) : (
-                          templateOptions.map(({ template, isSelected }) => (
-                            <option key={template.id} value={template.id} selected={isSelected}>
-                              {template.title} ({template.id})
-                            </option>
-                          ))
-                        )}
-                      </select>
-                    </AdminField>
-                    <p class="ct-admin__hint ct-admin__builder-field-span">
-                      Need a new template?{" "}
-                      <a href={createTemplateForRulePath}>
-                        Create one in Badge Templates and continue here
-                      </a>
-                      .
+                <section
+                  id="builder-step-metadata"
+                  class="ct-admin__builder-step"
+                  data-rule-step="metadata"
+                >
+                  <section class="ct-admin__step-panel ct-admin__pattern-panel ct-stack">
+                    <p class="ct-admin__step-kicker">Step 1 of 3</p>
+                    <h3>Set up this rule</h3>
+                    <p class="ct-admin__step-panel-lead">
+                      Choose the badge, LMS, and how learners earn it.
                     </p>
-                    <AdminField label="LMS provider">
-                      <select name="lmsProviderKind" required>
-                        {lmsProviderOptions.map((option) => (
-                          <option
-                            key={option.value}
-                            value={option.value}
-                            selected={option.value === defaultLmsProviderKind}
-                          >
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </AdminField>
-                    <AdminField
-                      label="Awarding pattern"
-                      className="ct-admin__builder-field-span"
-                    >
-                      <select id="rule-builder-template-preset" name="templatePreset">
-                        <option value="course_completion">Course completed</option>
-                        <option value="course_and_grade" selected>
-                          Course completed + minimum score
-                        </option>
-                        <option value="program_completion">Program or pathway completed</option>
-                        <option value="assignment_submission">
-                          Assignment or evidence submitted
-                        </option>
-                        <option value="survey_completion">Survey completed</option>
-                        <option value="prerequisite_chain">Prerequisite badge required</option>
-                        <option value="time_limited">Date-limited earning window</option>
-                        <option value="custom_field">Custom institutional field</option>
-                        <option value="blank">Blank requirements</option>
-                      </select>
-                    </AdminField>
-                    <AdminField label="Description (optional)" className="ct-admin__builder-field-span">
-                      <input
-                        name="description"
-                        type="text"
-                        placeholder="Award when learner completes the course with strong performance."
-                      />
-                    </AdminField>
-                  </div>
-                  <p class="ct-admin__hint">
-                    Requirements update automatically when you change the awarding pattern.
-                  </p>
-                  {ruleCloneOptions.length > 0 ? (
-                    <section class="ct-admin__builder-clone ct-stack">
-                      <h4>Start from an existing rule</h4>
-                      <p class="ct-admin__hint">
-                        Load requirements from a rule you already use for this badge or a similar
-                        one.
-                      </p>
-                      <AdminField label="Existing rule">
-                        <div class="ct-admin__builder-inline ct-cluster">
-                          <select id="rule-builder-clone-rule" name="cloneRuleId">
-                            <option value="">Select rule to clone</option>
-                            {ruleCloneOptions.map((option) => (
-                              <option key={option.rule.id} value={option.rule.id}>
-                                {option.label}
+                    <div class="ct-admin__builder-grid ct-grid">
+                      <AdminField label="Badge template">
+                        <select name="badgeTemplateId" required>
+                          {templateOptions.length === 0 ? (
+                            <option value="">No badge templates available</option>
+                          ) : (
+                            templateOptions.map(({ template, isSelected }) => (
+                              <option key={template.id} value={template.id} selected={isSelected}>
+                                {template.title} ({template.id})
                               </option>
-                            ))}
-                          </select>
-                          <AdminButton
-                            id="rule-builder-clone-load"
-                            type="button"
-                            size="tiny"
-                            variant="secondary"
-                          >
-                            Load rule
-                          </AdminButton>
-                        </div>
-                      </AdminField>
-                    </section>
-                  ) : null}
-                  <input type="hidden" name="name" id="rule-builder-name" value="" />
-                  <details class="ct-admin__builder-advanced">
-                    <summary>Customize internal rule name</summary>
-                    <AdminField label="Internal rule name">
-                      <input
-                        id="rule-builder-name-visible"
-                        type="text"
-                        autocomplete="off"
-                        placeholder="Generated automatically from badge and pattern"
-                      />
-                    </AdminField>
-                    <p class="ct-admin__hint">
-                      CredTrail names this rule automatically. Change it only if your team uses a
-                      specific naming convention.
-                    </p>
-                  </details>
-                </section>
-              </section>
-
-              <section
-                id="builder-step-conditions"
-                class="ct-admin__builder-step"
-                data-rule-step="conditions"
-                hidden
-              >
-                <header class="ct-admin__step-head ct-stack">
-                  <p class="ct-admin__step-kicker">Step 2 of 3</p>
-                  <h3>Awarding requirements</h3>
-                  <p>Review each requirement learners must meet before the badge is awarded.</p>
-                </header>
-                <div class="ct-admin__builder-workbench ct-stack">
-                  <div class="ct-admin__builder-workbench-main ct-stack">
-                    <div class="ct-admin__builder-toolbar ct-cluster">
-                      <AdminButton type="button" id="rule-builder-add-condition" size="tiny">
-                        Add requirement
-                      </AdminButton>
-                      <details class="ct-admin__builder-advanced ct-admin__builder-advanced--inline">
-                        <summary>Advanced logic</summary>
-                        <div class="ct-admin__builder-inline ct-cluster">
-                          <div class="ct-admin__inline-control">
-                            <span id="rule-builder-root-logic-label" class="ct-admin__field-label">
-                              Earning path
-                            </span>
-                            <input
-                              id="rule-builder-root-logic"
-                              name="rootLogic"
-                              type="hidden"
-                              value="all"
-                            />
-                            <div
-                              class="ct-admin__segmented-control"
-                              role="radiogroup"
-                              aria-labelledby="rule-builder-root-logic-label"
-                            >
-                              <label>
-                                <input
-                                  type="radio"
-                                  name="rootLogicChoice"
-                                  value="all"
-                                  data-rule-builder-root-logic-option="all"
-                                  checked
-                                />
-                                <span>All requirements</span>
-                              </label>
-                              <label>
-                                <input
-                                  type="radio"
-                                  name="rootLogicChoice"
-                                  value="any"
-                                  data-rule-builder-root-logic-option="any"
-                                />
-                                <span>Any requirement</span>
-                              </label>
-                            </div>
-                          </div>
-                          <AdminButton
-                            type="button"
-                            id="rule-builder-add-alternative-path"
-                            size="tiny"
-                            variant="secondary"
-                          >
-                            Add alternative way
-                          </AdminButton>
-                        </div>
-                      </details>
-                    </div>
-                    <section class="ct-admin__builder-canvas ct-stack">
-                      <header class="ct-admin__builder-canvas-header ct-cluster">
-                        <strong>Requirements</strong>
-                        <span class="ct-admin__meta">
-                          Each row describes one fact CredTrail checks.
-                        </span>
-                      </header>
-                      <div class="ct-admin__builder-canvas-meta ct-cluster">
-                        <span id="rule-builder-canvas-count" class="ct-admin__status-pill">
-                          0 requirements
-                        </span>
-                        <span id="rule-builder-canvas-logic" class="ct-admin__status-pill">
-                          All requirements
-                        </span>
-                      </div>
-                      <div
-                        id="rule-builder-condition-empty"
-                        class="ct-admin__builder-empty-state ct-stack"
-                        role="status"
-                      >
-                        <p class="ct-admin__builder-empty-state__title">No requirements yet</p>
-                        <p class="ct-admin__builder-empty-state__body">
-                          Go back to Step 1 and choose an awarding pattern, or add a requirement
-                          below.
-                        </p>
-                        <AdminButton
-                          type="button"
-                          id="rule-builder-return-to-pattern"
-                          size="tiny"
-                          variant="secondary"
-                        >
-                          Back to Step 1
-                        </AdminButton>
-                      </div>
-                      <div
-                        id="rule-builder-condition-list"
-                        class="ct-admin__builder-condition-list ct-stack"
-                      ></div>
-                    </section>
-                    <section
-                      class="ct-admin__builder-flow ct-stack"
-                      aria-labelledby="rule-builder-flow-title"
-                    >
-                      <header class="ct-admin__builder-canvas-header ct-cluster">
-                        <strong id="rule-builder-flow-title">Rule flow preview</strong>
-                        <span id="rule-builder-flow-mode" class="ct-admin__meta">
-                          Waiting for requirements.
-                        </span>
-                      </header>
-                      <p id="rule-builder-flow-empty" class="ct-admin__builder-canvas-empty">
-                        Add requirements to preview the earning path.
-                      </p>
-                      <ol
-                        id="rule-builder-flow-list"
-                        class="ct-admin__builder-flow-list"
-                        aria-label="Generated rule flow"
-                      ></ol>
-                    </section>
-                  </div>
-
-                  <details class="ct-admin__builder-guide">
-                    <summary>Requirement catalog</summary>
-                    <div class="ct-admin__builder-patterns-head ct-stack">
-                      <p class="ct-admin__hint">
-                        These are the requirement rows available in the visual builder.
-                      </p>
-                    </div>
-                    <dl class="ct-admin__builder-guide-list">
-                      <div>
-                        <dt>Course completion</dt>
-                        <dd>
-                          Matches when course completion facts show learner completion and optional
-                          minimum percent.
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Grade threshold</dt>
-                        <dd>
-                          Matches when a learner score is within configured min/max thresholds.
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Program completion</dt>
-                        <dd>
-                          Matches when enough required courses are completed for a program path.
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Assignment submission</dt>
-                        <dd>
-                          Matches when assignment submission, score, and workflow-state constraints
-                          pass.
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Survey completion</dt>
-                        <dd>
-                          Matches when completion facts show that a learner finished a required
-                          survey.
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Time window</dt>
-                        <dd>Matches only inside optional not-before / not-after timestamps.</dd>
-                      </div>
-                      <div>
-                        <dt>Prerequisite badge</dt>
-                        <dd>
-                          Matches when learner already has an earned prerequisite badge template.
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Custom field</dt>
-                        <dd>
-                          Matches institution-specific learner attributes such as cohort, pathway,
-                          or standing.
-                        </dd>
-                      </div>
-                    </dl>
-                  </details>
-                </div>
-
-                <details class="ct-admin__builder-advanced ct-stack">
-                  <summary>Generated rule JSON</summary>
-                  <AdminField label="Rule JSON (expert override)">
-                    <textarea
-                      id="rule-builder-definition-json"
-                      name="definitionJson"
-                      rows={12}
-                      spellcheck={false}
-                    ></textarea>
-                  </AdminField>
-                  <div class="ct-admin__builder-inline ct-cluster">
-                    <AdminButton id="rule-builder-apply-json" type="button" size="tiny">
-                      Apply JSON
-                    </AdminButton>
-                  </div>
-                </details>
-              </section>
-
-              <section
-                id="builder-step-test"
-                class="ct-admin__builder-step"
-                data-rule-step="test"
-                hidden
-              >
-                <header class="ct-admin__step-head ct-stack">
-                  <p class="ct-admin__step-kicker">Step 3 of 3</p>
-                  <h3>Test and submit</h3>
-                  <p>Try the rule with a sample learner, then save the draft for review.</p>
-                </header>
-                <div class="ct-admin__builder-test-layout ct-stack">
-                  <AdminFieldset legend="Test with learner">
-                    <p class="ct-admin__hint">
-                      CredTrail fills in a sample learner. Adjust if needed, then run the test.
-                    </p>
-                    <AdminField label="Learner ID">
-                      <input name="testLearnerId" type="text" value="canvas:12345" />
-                    </AdminField>
-                    <AdminField label="Recipient email">
-                      <input
-                        name="testRecipientIdentity"
-                        type="email"
-                        value="learner@example.edu"
-                      />
-                    </AdminField>
-                    <AdminField label="Sample course ID">
-                      <input
-                        name="testCourseId"
-                        type="text"
-                        value={initialTestCourseId}
-                        placeholder="Course ID from your LMS"
-                      />
-                    </AdminField>
-                    <AdminField label="Sample final score">
-                      <input
-                        name="testFinalScore"
-                        type="number"
-                        min={0}
-                        max={100}
-                        step="0.01"
-                        value="92"
-                      />
-                    </AdminField>
-                    <AdminCheckboxRow>
-                      <input name="testCompleted" type="checkbox" checked />
-                      Learner completed course
-                    </AdminCheckboxRow>
-                    <select id="rule-builder-test-preset" name="testPreset" hidden>
-                      <option value="canvas_course_grade" selected>
-                        Canvas course + grade
-                      </option>
-                      <option value="program_completion">Program completion</option>
-                      <option value="assignment_submission">Assignment submission</option>
-                      <option value="survey_completion">Survey completion</option>
-                      <option value="prerequisite_badge">Prerequisite badge</option>
-                      <option value="custom_field">Custom field</option>
-                    </select>
-                    <div class="ct-admin__builder-test-actions">
-                      <AdminButton id="rule-builder-test" type="button" size="tiny">
-                        Test with learner
-                      </AdminButton>
-                    </div>
-                    <p
-                      id="rule-builder-test-result"
-                      class="ct-admin__status ct-admin__builder-test-result"
-                      aria-live="polite"
-                    >
-                      CredTrail runs a test automatically when you reach this step.
-                    </p>
-                  </AdminFieldset>
-
-                  <details class="ct-admin__builder-advanced ct-stack">
-                    <summary>Advanced test facts</summary>
-                    <AdminField label="Advanced facts JSON (optional)">
-                      <textarea
-                        name="testFactsJson"
-                        rows={6}
-                        spellcheck={false}
-                        placeholder='{"grades":[{"courseId":"CS101","learnerId":"canvas:12345","finalScore":92}]}'
-                      ></textarea>
-                    </AdminField>
-                  </details>
-                </div>
-                <pre id="rule-builder-test-output" class="ct-admin__code-output" hidden></pre>
-
-                <details class="ct-admin__builder-advanced ct-stack">
-                  <summary>Governance and release settings</summary>
-                  <p class="ct-admin__hint">
-                    Defaults work for most drafts. Open this only if approvers need a specific chain
-                    or issuance timing.
-                  </p>
-                  <div class="ct-admin__builder-review-layout ct-grid">
-                    <div class="ct-stack">
-                      <AdminField label="Approval roles (comma separated)">
-                        <input name="approvalRoles" type="text" value="admin,owner" />
-                      </AdminField>
-                      <AdminField label="Issuance timing">
-                        <select name="issuanceTiming">
-                          <option value="immediate">Immediate</option>
-                          <option value="manual">Manual review trigger</option>
-                          <option value="end_of_term">End of term batch</option>
+                            ))
+                          )}
                         </select>
                       </AdminField>
-                      <AdminField label="Change summary (optional)">
+                      <p class="ct-admin__hint ct-admin__builder-field-span">
+                        Need a new template?{" "}
+                        <a href={createTemplateForRulePath}>
+                          Create one in Badge Templates and continue here
+                        </a>
+                        .
+                      </p>
+                      <AdminField label="LMS provider">
+                        <select name="lmsProviderKind" required>
+                          {lmsProviderOptions.map((option) => (
+                            <option
+                              key={option.value}
+                              value={option.value}
+                              selected={option.value === defaultLmsProviderKind}
+                            >
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </AdminField>
+                      <AdminField label="Awarding pattern" className="ct-admin__builder-field-span">
+                        <select id="rule-builder-template-preset" name="templatePreset">
+                          <option value="course_completion">Course completed</option>
+                          <option value="course_and_grade" selected>
+                            Course completed + minimum score
+                          </option>
+                          <option value="program_completion">Program or pathway completed</option>
+                          <option value="assignment_submission">
+                            Assignment or evidence submitted
+                          </option>
+                          <option value="survey_completion">Survey completed</option>
+                          <option value="prerequisite_chain">Prerequisite badge required</option>
+                          <option value="time_limited">Date-limited earning window</option>
+                          <option value="custom_field">Custom institutional field</option>
+                          <option value="blank">Blank requirements</option>
+                        </select>
+                      </AdminField>
+                      <AdminField
+                        label="Description (optional)"
+                        className="ct-admin__builder-field-span"
+                      >
                         <input
-                          name="changeSummary"
+                          name="description"
                           type="text"
-                          placeholder="Initial draft for committee review."
+                          placeholder="Award when learner completes the course with strong performance."
+                        />
+                      </AdminField>
+                    </div>
+                    <p class="ct-admin__hint">
+                      Requirements update automatically when you change the awarding pattern.
+                    </p>
+                    {ruleCloneOptions.length > 0 ? (
+                      <section class="ct-admin__builder-clone ct-stack">
+                        <h4>Start from an existing rule</h4>
+                        <p class="ct-admin__hint">
+                          Load requirements from a rule you already use for this badge or a similar
+                          one.
+                        </p>
+                        <AdminField label="Existing rule">
+                          <div class="ct-admin__builder-inline ct-cluster">
+                            <select id="rule-builder-clone-rule" name="cloneRuleId">
+                              <option value="">Select rule to clone</option>
+                              {ruleCloneOptions.map((option) => (
+                                <option key={option.rule.id} value={option.rule.id}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <AdminButton
+                              id="rule-builder-clone-load"
+                              type="button"
+                              size="tiny"
+                              variant="secondary"
+                            >
+                              Load rule
+                            </AdminButton>
+                          </div>
+                        </AdminField>
+                      </section>
+                    ) : null}
+                    <input type="hidden" name="name" id="rule-builder-name" value="" />
+                    <details class="ct-admin__builder-advanced">
+                      <summary>Customize internal rule name</summary>
+                      <AdminField label="Internal rule name">
+                        <input
+                          id="rule-builder-name-visible"
+                          type="text"
+                          autocomplete="off"
+                          placeholder="Generated automatically from badge and pattern"
+                        />
+                      </AdminField>
+                      <p class="ct-admin__hint">
+                        CredTrail names this rule automatically. Change it only if your team uses a
+                        specific naming convention.
+                      </p>
+                    </details>
+                  </section>
+                </section>
+
+                <section
+                  id="builder-step-conditions"
+                  class="ct-admin__builder-step"
+                  data-rule-step="conditions"
+                  hidden
+                >
+                  <header class="ct-admin__step-head ct-stack">
+                    <p class="ct-admin__step-kicker">Step 2 of 3</p>
+                    <h3>Awarding requirements</h3>
+                    <p>Review each requirement learners must meet before the badge is awarded.</p>
+                  </header>
+                  <div class="ct-admin__builder-workbench ct-stack">
+                    <div class="ct-admin__builder-workbench-main ct-stack">
+                      <div class="ct-admin__builder-toolbar ct-cluster">
+                        <AdminButton type="button" id="rule-builder-add-condition" size="tiny">
+                          Add requirement
+                        </AdminButton>
+                        <details class="ct-admin__builder-advanced ct-admin__builder-advanced--inline">
+                          <summary>Advanced logic</summary>
+                          <div class="ct-admin__builder-inline ct-cluster">
+                            <div class="ct-admin__inline-control">
+                              <span
+                                id="rule-builder-root-logic-label"
+                                class="ct-admin__field-label"
+                              >
+                                Earning path
+                              </span>
+                              <input
+                                id="rule-builder-root-logic"
+                                name="rootLogic"
+                                type="hidden"
+                                value="all"
+                              />
+                              <div
+                                class="ct-admin__segmented-control"
+                                role="radiogroup"
+                                aria-labelledby="rule-builder-root-logic-label"
+                              >
+                                <label>
+                                  <input
+                                    type="radio"
+                                    name="rootLogicChoice"
+                                    value="all"
+                                    data-rule-builder-root-logic-option="all"
+                                    checked
+                                  />
+                                  <span>All requirements</span>
+                                </label>
+                                <label>
+                                  <input
+                                    type="radio"
+                                    name="rootLogicChoice"
+                                    value="any"
+                                    data-rule-builder-root-logic-option="any"
+                                  />
+                                  <span>Any requirement</span>
+                                </label>
+                              </div>
+                            </div>
+                            <AdminButton
+                              type="button"
+                              id="rule-builder-add-alternative-path"
+                              size="tiny"
+                              variant="secondary"
+                            >
+                              Add alternative way
+                            </AdminButton>
+                          </div>
+                        </details>
+                      </div>
+                      <section class="ct-admin__builder-canvas ct-stack">
+                        <header class="ct-admin__builder-canvas-header ct-cluster">
+                          <strong>Requirements</strong>
+                          <span class="ct-admin__meta">
+                            Each row describes one fact CredTrail checks.
+                          </span>
+                        </header>
+                        <div class="ct-admin__builder-canvas-meta ct-cluster">
+                          <span id="rule-builder-canvas-count" class="ct-admin__status-pill">
+                            0 requirements
+                          </span>
+                          <span id="rule-builder-canvas-logic" class="ct-admin__status-pill">
+                            All requirements
+                          </span>
+                        </div>
+                        <div
+                          id="rule-builder-condition-empty"
+                          class="ct-admin__builder-empty-state ct-stack"
+                          role="status"
+                        >
+                          <p class="ct-admin__builder-empty-state__title">No requirements yet</p>
+                          <p class="ct-admin__builder-empty-state__body">
+                            Go back to Step 1 and choose an awarding pattern, or add a requirement
+                            below.
+                          </p>
+                          <AdminButton
+                            type="button"
+                            id="rule-builder-return-to-pattern"
+                            size="tiny"
+                            variant="secondary"
+                          >
+                            Back to Step 1
+                          </AdminButton>
+                        </div>
+                        <div
+                          id="rule-builder-condition-list"
+                          class="ct-admin__builder-condition-list ct-stack"
+                        ></div>
+                      </section>
+                      <section
+                        class="ct-admin__builder-flow ct-stack"
+                        aria-labelledby="rule-builder-flow-title"
+                      >
+                        <header class="ct-admin__builder-canvas-header ct-cluster">
+                          <strong id="rule-builder-flow-title">Rule flow preview</strong>
+                          <span id="rule-builder-flow-mode" class="ct-admin__meta">
+                            Waiting for requirements.
+                          </span>
+                        </header>
+                        <p id="rule-builder-flow-empty" class="ct-admin__builder-canvas-empty">
+                          Add requirements to preview the earning path.
+                        </p>
+                        <ol
+                          id="rule-builder-flow-list"
+                          class="ct-admin__builder-flow-list"
+                          aria-label="Generated rule flow"
+                        ></ol>
+                      </section>
+                    </div>
+
+                    <details class="ct-admin__builder-guide">
+                      <summary>Requirement catalog</summary>
+                      <div class="ct-admin__builder-patterns-head ct-stack">
+                        <p class="ct-admin__hint">
+                          These are the requirement rows available in the visual builder.
+                        </p>
+                      </div>
+                      <dl class="ct-admin__builder-guide-list">
+                        <div>
+                          <dt>Course completion</dt>
+                          <dd>
+                            Matches when course completion facts show learner completion and
+                            optional minimum percent.
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Grade threshold</dt>
+                          <dd>
+                            Matches when a learner score is within configured min/max thresholds.
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Program completion</dt>
+                          <dd>
+                            Matches when enough required courses are completed for a program path.
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Assignment submission</dt>
+                          <dd>
+                            Matches when assignment submission, score, and workflow-state
+                            constraints pass.
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Survey completion</dt>
+                          <dd>
+                            Matches when completion facts show that a learner finished a required
+                            survey.
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Time window</dt>
+                          <dd>Matches only inside optional not-before / not-after timestamps.</dd>
+                        </div>
+                        <div>
+                          <dt>Prerequisite badge</dt>
+                          <dd>
+                            Matches when learner already has an earned prerequisite badge template.
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Custom field</dt>
+                          <dd>
+                            Matches institution-specific learner attributes such as cohort, pathway,
+                            or standing.
+                          </dd>
+                        </div>
+                      </dl>
+                    </details>
+                  </div>
+
+                  <details class="ct-admin__builder-advanced ct-stack">
+                    <summary>Generated rule JSON</summary>
+                    <AdminField label="Rule JSON (expert override)">
+                      <textarea
+                        id="rule-builder-definition-json"
+                        name="definitionJson"
+                        rows={12}
+                        spellcheck={false}
+                      ></textarea>
+                    </AdminField>
+                    <div class="ct-admin__builder-inline ct-cluster">
+                      <AdminButton id="rule-builder-apply-json" type="button" size="tiny">
+                        Apply JSON
+                      </AdminButton>
+                    </div>
+                  </details>
+                </section>
+
+                <section
+                  id="builder-step-test"
+                  class="ct-admin__builder-step"
+                  data-rule-step="test"
+                  hidden
+                >
+                  <header class="ct-admin__step-head ct-stack">
+                    <p class="ct-admin__step-kicker">Step 3 of 3</p>
+                    <h3>Test and submit</h3>
+                    <p>Try the rule with a sample learner, then save the draft for review.</p>
+                  </header>
+                  <div class="ct-admin__builder-test-layout ct-stack">
+                    <AdminFieldset legend="Test with learner">
+                      <p class="ct-admin__hint">
+                        CredTrail fills in a sample learner. Adjust if needed, then run the test.
+                      </p>
+                      <AdminField label="Learner ID">
+                        <input name="testLearnerId" type="text" value="canvas:12345" />
+                      </AdminField>
+                      <AdminField label="Recipient email">
+                        <input
+                          name="testRecipientIdentity"
+                          type="email"
+                          value="learner@example.edu"
+                        />
+                      </AdminField>
+                      <AdminField label="Sample course ID">
+                        <input
+                          name="testCourseId"
+                          type="text"
+                          value={initialTestCourseId}
+                          placeholder="Course ID from your LMS"
+                        />
+                      </AdminField>
+                      <AdminField label="Sample final score">
+                        <input
+                          name="testFinalScore"
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.01"
+                          value="92"
                         />
                       </AdminField>
                       <AdminCheckboxRow>
-                        <input name="reviewOnMissingFacts" type="checkbox" />
-                        Send missing-data cases to human review
+                        <input name="testCompleted" type="checkbox" checked />
+                        Learner completed course
                       </AdminCheckboxRow>
-                    </div>
-                  </div>
-                </details>
+                      <select id="rule-builder-test-preset" name="testPreset" hidden>
+                        <option value="canvas_course_grade" selected>
+                          Canvas course + grade
+                        </option>
+                        <option value="program_completion">Program completion</option>
+                        <option value="assignment_submission">Assignment submission</option>
+                        <option value="survey_completion">Survey completion</option>
+                        <option value="prerequisite_badge">Prerequisite badge</option>
+                        <option value="custom_field">Custom field</option>
+                      </select>
+                      <div class="ct-admin__builder-test-actions">
+                        <AdminButton id="rule-builder-test" type="button" size="tiny">
+                          Test with learner
+                        </AdminButton>
+                      </div>
+                      <p
+                        id="rule-builder-test-result"
+                        class="ct-admin__status ct-admin__builder-test-result"
+                        aria-live="polite"
+                      >
+                        CredTrail runs a test automatically when you reach this step.
+                      </p>
+                    </AdminFieldset>
 
-                <details class="ct-admin__builder-simulation ct-stack">
-                  <summary>Historical simulation</summary>
-                  <header class="ct-admin__step-head ct-stack">
-                    <h4>Project impact before activation</h4>
-                    <p>
-                      Replay this draft against recent rule evaluations for the same badge template.
+                    <details class="ct-admin__builder-advanced ct-stack">
+                      <summary>Advanced test facts</summary>
+                      <AdminField label="Advanced facts JSON (optional)">
+                        <textarea
+                          name="testFactsJson"
+                          rows={6}
+                          spellcheck={false}
+                          placeholder='{"grades":[{"courseId":"CS101","learnerId":"canvas:12345","finalScore":92}]}'
+                        ></textarea>
+                      </AdminField>
+                    </details>
+                  </div>
+                  <pre id="rule-builder-test-output" class="ct-admin__code-output" hidden></pre>
+
+                  <details class="ct-admin__builder-advanced ct-stack">
+                    <summary>Governance and release settings</summary>
+                    <p class="ct-admin__hint">
+                      Defaults work for most drafts. Open this only if approvers need a specific
+                      chain or issuance timing.
                     </p>
-                  </header>
-                  <div class="ct-admin__builder-inline ct-cluster">
-                    <AdminField label="Sample limit" className="ct-admin__inline-control">
-                      <input
-                        id="rule-builder-simulate-limit"
-                        type="number"
-                        min={1}
-                        max={100}
-                        step={1}
-                        value="25"
-                      />
-                    </AdminField>
-                    <AdminButton
-                      id="rule-builder-simulate"
-                      type="button"
-                      size="tiny"
-                      variant="secondary"
-                    >
-                      Run simulation
-                    </AdminButton>
-                  </div>
-                  <AdminStatus id="rule-builder-simulate-status">
-                    No historical simulation has been run yet.
-                  </AdminStatus>
-                  <pre id="rule-builder-simulate-output" class="ct-admin__code-output" hidden></pre>
-                </details>
-              </section>
-            </AdminForm>
+                    <div class="ct-admin__builder-review-layout ct-grid">
+                      <div class="ct-stack">
+                        <AdminField label="Approval roles (comma separated)">
+                          <input name="approvalRoles" type="text" value="admin,owner" />
+                        </AdminField>
+                        <AdminField label="Issuance timing">
+                          <select name="issuanceTiming">
+                            <option value="immediate">Immediate</option>
+                            <option value="manual">Manual review trigger</option>
+                            <option value="end_of_term">End of term batch</option>
+                          </select>
+                        </AdminField>
+                        <AdminField label="Change summary (optional)">
+                          <input
+                            name="changeSummary"
+                            type="text"
+                            placeholder="Initial draft for committee review."
+                          />
+                        </AdminField>
+                        <AdminCheckboxRow>
+                          <input name="reviewOnMissingFacts" type="checkbox" />
+                          Send missing-data cases to human review
+                        </AdminCheckboxRow>
+                      </div>
+                    </div>
+                  </details>
 
-            <footer class="ct-admin__builder-step-footer ct-stack">
-              <p id="rule-builder-step-callout" class="ct-admin__builder-step-callout" aria-live="polite">
-                Choose an awarding pattern, badge, and LMS source, then select Continue.
-              </p>
-              <div class="ct-admin__builder-draft-actions ct-cluster">
-                <AdminButton type="button" id="rule-builder-save-draft" size="tiny" variant="secondary">
-                  Save progress
-                </AdminButton>
-                <AdminButton
-                  type="button"
-                  id="rule-builder-load-draft"
-                  size="tiny"
-                  variant="secondary"
+                  <details class="ct-admin__builder-simulation ct-stack">
+                    <summary>Historical simulation</summary>
+                    <header class="ct-admin__step-head ct-stack">
+                      <h4>Project impact before activation</h4>
+                      <p>
+                        Replay this draft against recent rule evaluations for the same badge
+                        template.
+                      </p>
+                    </header>
+                    <div class="ct-admin__builder-inline ct-cluster">
+                      <AdminField label="Sample limit" className="ct-admin__inline-control">
+                        <input
+                          id="rule-builder-simulate-limit"
+                          type="number"
+                          min={1}
+                          max={100}
+                          step={1}
+                          value="25"
+                        />
+                      </AdminField>
+                      <AdminButton
+                        id="rule-builder-simulate"
+                        type="button"
+                        size="tiny"
+                        variant="secondary"
+                      >
+                        Run simulation
+                      </AdminButton>
+                    </div>
+                    <AdminStatus id="rule-builder-simulate-status">
+                      No historical simulation has been run yet.
+                    </AdminStatus>
+                    <pre
+                      id="rule-builder-simulate-output"
+                      class="ct-admin__code-output"
+                      hidden
+                    ></pre>
+                  </details>
+                </section>
+              </AdminForm>
+
+              <footer class="ct-admin__builder-step-footer ct-stack">
+                <p
+                  id="rule-builder-step-callout"
+                  class="ct-admin__builder-step-callout"
+                  aria-live="polite"
                 >
-                  Resume saved progress
-                </AdminButton>
-              </div>
-              <div class="ct-admin__builder-step-nav ct-cluster">
-                <AdminButton
-                  id="rule-builder-step-prev"
-                  type="button"
-                  size="tiny"
-                  variant="secondary"
-                >
-                  Back
-                </AdminButton>
-                <AdminButton id="rule-builder-step-next" type="button" size="tiny">
-                  Continue to Requirements
-                </AdminButton>
-                <AdminButton id="rule-builder-submit" type="submit" form="rule-create-form">
-                  Create rule draft
-                </AdminButton>
-              </div>
-              <AdminStatus id="rule-create-status"></AdminStatus>
-            </footer>
-          </section>
+                  Choose an awarding pattern, badge, and LMS source, then select Continue.
+                </p>
+                <div class="ct-admin__builder-draft-actions ct-cluster">
+                  <AdminButton
+                    type="button"
+                    id="rule-builder-save-draft"
+                    size="tiny"
+                    variant="secondary"
+                  >
+                    Save progress
+                  </AdminButton>
+                  <AdminButton
+                    type="button"
+                    id="rule-builder-load-draft"
+                    size="tiny"
+                    variant="secondary"
+                  >
+                    Resume saved progress
+                  </AdminButton>
+                </div>
+                <div class="ct-admin__builder-step-nav ct-cluster">
+                  <AdminButton
+                    id="rule-builder-step-prev"
+                    type="button"
+                    size="tiny"
+                    variant="secondary"
+                  >
+                    Back
+                  </AdminButton>
+                  <AdminButton id="rule-builder-step-next" type="button" size="tiny">
+                    Continue to Requirements
+                  </AdminButton>
+                  <AdminButton id="rule-builder-submit" type="submit" form="rule-create-form">
+                    Create rule draft
+                  </AdminButton>
+                </div>
+                <AdminStatus id="rule-create-status"></AdminStatus>
+              </footer>
+            </section>
           </div>
 
           <details class="ct-admin__panel ct-admin__builder-guide ct-admin__builder-support">

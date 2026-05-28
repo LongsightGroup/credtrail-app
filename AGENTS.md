@@ -90,15 +90,15 @@ Rules:
 
 ## 4) Linting, Formatting, and Spacing
 
-- ESLint must run with type-aware rules (`typescript-eslint` strict type-checked presets).
-- Prettier is the single formatter.
+- Oxlint is the single linter and must run with the project configuration.
+- Oxfmt is the single formatter.
 - Lint rule severity target: zero warnings and zero errors in CI.
 
 Style defaults:
 - 2-space indentation.
 - Semicolons enabled.
 - Trailing commas where valid.
-- Single quotes in TypeScript unless escaping hurts readability.
+- Double quotes in TypeScript.
 - Keep lines readable (target 100 chars, split long chains/objects).
 - No unused imports or variables.
 - No floating promises.

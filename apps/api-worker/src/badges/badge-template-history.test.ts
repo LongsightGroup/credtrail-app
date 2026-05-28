@@ -101,9 +101,7 @@ describe("badge template history", () => {
     expect(timeline[0]?.kind).toBe("ownership");
     expect(timeline[0]?.actorLabel).toBe("admin@example.edu");
     expect(timeline[1]?.kind).toBe("audit");
-    expect(timeline.some((entry) => entry.summary === "Transferred template ownership")).toBe(
-      true,
-    );
+    expect(timeline.some((entry) => entry.summary === "Transferred template ownership")).toBe(true);
     expect(timeline.filter((entry) => entry.kind === "ownership")).toHaveLength(1);
   });
 
@@ -138,10 +136,13 @@ describe("badge template history", () => {
   });
 
   it("formats ownership detail with org unit labels", () => {
-    const detail = formatBadgeTemplateOwnershipDetail(sampleOwnershipEvent(), new Map([
-      ["tenant_123:org:institution", "Institution"],
-      ["tenant_123:org:department-math", "Math"],
-    ]));
+    const detail = formatBadgeTemplateOwnershipDetail(
+      sampleOwnershipEvent(),
+      new Map([
+        ["tenant_123:org:institution", "Institution"],
+        ["tenant_123:org:department-math", "Math"],
+      ]),
+    );
 
     expect(detail).toContain("Institution → Math");
     expect(detail).toContain("Moved to Math governance");

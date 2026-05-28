@@ -182,7 +182,9 @@ export const ltiIssuerRegistryFromStoredRows = (
   return registry;
 };
 
-export const ltiStateSigningSecret = (env: Pick<AppBindings, "LTI_STATE_SIGNING_SECRET">): string => {
+export const ltiStateSigningSecret = (
+  env: Pick<AppBindings, "LTI_STATE_SIGNING_SECRET">,
+): string => {
   const configuredSecret = env.LTI_STATE_SIGNING_SECRET?.trim();
 
   if (configuredSecret === undefined || configuredSecret.length === 0) {

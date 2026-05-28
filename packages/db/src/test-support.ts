@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars */
+/* oxlint-disable no-unused-vars */
 import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";

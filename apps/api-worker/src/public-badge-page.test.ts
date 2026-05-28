@@ -226,10 +226,7 @@ const requiredRecordProperty = (
   return requiredRecordValue(record[propertyName], propertyName);
 };
 
-const requiredStringProperty = (
-  record: Record<string, unknown>,
-  propertyName: string,
-): string => {
+const requiredStringProperty = (record: Record<string, unknown>, propertyName: string): string => {
   const value = record[propertyName];
 
   if (typeof value !== "string" || value.length === 0) {

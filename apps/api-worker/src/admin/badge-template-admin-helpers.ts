@@ -84,8 +84,7 @@ export const parseBadgeTemplateListPageQuery = (query: {
 }): BadgeTemplateListPageQueryOptions => {
   return {
     searchQuery: (query.q ?? "").trim(),
-    includeArchived:
-      query.includeArchived === "1" || query.includeArchived === "true",
+    includeArchived: query.includeArchived === "1" || query.includeArchived === "true",
     returnToRuleBuilder: query.returnTo === "rule-builder",
   };
 };

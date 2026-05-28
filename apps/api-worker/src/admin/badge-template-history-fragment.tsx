@@ -34,7 +34,9 @@ export const BadgeTemplateHistoryTimeline = ({
 export const renderBadgeTemplateHistoryTimelineToString = (
   timeline: readonly BadgeTemplateHistoryTimelineEntry[],
 ): string => {
-  const renderable = (<BadgeTemplateHistoryTimeline timeline={timeline} />) as { toString(): string };
+  const renderable = (<BadgeTemplateHistoryTimeline timeline={timeline} />) as {
+    toString(): string;
+  };
 
   return renderable.toString();
 };
