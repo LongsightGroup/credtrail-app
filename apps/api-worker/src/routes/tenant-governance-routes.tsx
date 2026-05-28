@@ -31,7 +31,6 @@ import {
   listTenantOrgUnits,
   removeTenantMembershipOrgUnitScope,
   revokeDelegatedIssuingAuthorityGrant,
-  retryFailedImportLearnerRecordBatchQueueMessages,
   upsertTenantMembershipOrgUnitScope,
   type LearnerRecordTrustLevel,
   type SessionRecord,
@@ -41,11 +40,8 @@ import {
 } from "@credtrail/db";
 import type { Hono } from "hono";
 import {
-  parseAdminLearnerRecordReviewQuery,
-  parseLearnerRecordImportBatchPathParams,
   parseLearnerRecordImportBatchDefaults,
   parseCreateDelegatedIssuingAuthorityGrantRequest,
-  parseBadgeTemplatePathParams,
   parseCreateTenantOrgUnitRequest,
   parseDelegatedIssuingAuthorityGrantListQuery,
   parseRevokeDelegatedIssuingAuthorityGrantRequest,
@@ -60,37 +56,19 @@ import {
 import { appPage, type AppPage, renderAppPage } from "../ui/render-page";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import {
-  institutionAdminAccessPage,
-  institutionAdminApiKeysPage,
-  institutionAdminBadgeStatusPage,
   institutionAdminDashboardPage,
-  institutionAdminGovernancePage,
-  institutionAdminIssuedBadgesPage,
   institutionAdminLearnerRecordImportsPage,
-  institutionAdminLearnerRecordsPage,
-  institutionAdminMembersPage,
-  institutionAdminOperationsReviewQueuePage,
-  institutionAdminOperationsPage,
-  institutionAdminOrgUnitsPage,
-  institutionAdminReportingExplorePage,
-  institutionAdminReportingPage,
-  institutionAdminReportingReportsPage,
-  institutionAdminReportingTrendsPage,
   institutionAdminRuleTemplateEditorPage,
   institutionAdminRuleTemplatesPage,
-  institutionAdminRulesPage,
 } from "../admin/institution-admin-page";
 import { AdminActions, AdminButtonLink, AdminPageHeader, AdminPanel } from "../admin/components";
-import { renderBadgeTemplateAdminTableRowToString } from "../admin/badge-template-table-row-fragment";
+import { registerTenantAdminPageRoutes } from "./tenant-admin-page-routes";
+import { registerTenantAdminReportingPageRoutes } from "./tenant-admin-reporting-page-routes";
 import { registerTenantApiKeyRoutes } from "./tenant-api-key-routes";
 import { registerTenantAuthManagementRoutes } from "./tenant-auth-management-routes";
 import { registerTenantBreakGlassRoutes } from "./tenant-break-glass-routes";
+import { registerTenantLearnerRecordAdminRoutes } from "./tenant-learner-record-admin-routes";
 import { registerTenantMemberManagementRoutes } from "./tenant-member-management-routes";
-import {
-  badgeTemplateHistoryHref,
-  parseBadgeTemplateListPageQuery,
-} from "../admin/badge-template-admin-helpers";
-import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
 import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
 import { resolveTenantReportingAccess } from "../auth/tenant-access";
 import {
@@ -1669,265 +1647,29 @@ export const registerTenantGovernanceRoutes = (
     );
   };
 
-  app.get("/tenants/:tenantId/admin", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin`,
-      institutionAdminDashboardPage,
-    );
+  registerTenantAdminPageRoutes({
+    app,
+    ADMIN_ROLES,
+    adminRoleRequiredPage,
+    requireTenantRole,
+    redirectToTenantLogin,
+    renderInstitutionAdminWorkspace,
+    renderInstitutionAdminTemplatesWorkspace,
+    renderInstitutionAdminTemplateEditorWorkspace,
+    resolveDatabase,
+    resolveInstitutionAdminAdminRole,
   });
 
-  app.get("/tenants/:tenantId/admin/operations", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations`,
-      institutionAdminOperationsPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/operations/learner-record-imports", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      if (roleCheck.status === 401) {
-        return redirectToTenantLogin(
-          c,
-          pathParams.tenantId,
-          `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/learner-record-imports`,
-        );
-      }
-
-      if (roleCheck.status === 403) {
-        c.header("Cache-Control", "no-store");
-        return renderAppPage(c, adminRoleRequiredPage(pathParams.tenantId), 403);
-      }
-
-      return roleCheck;
-    }
-
-    return renderLearnerRecordImportWorkspace(
-      c,
-      pathParams.tenantId,
-      roleCheck.session.userId,
-      roleCheck.membershipRole,
-    );
-  });
-
-  app.post("/tenants/:tenantId/admin/operations/learner-record-imports/preview", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      if (roleCheck.status === 401) {
-        return redirectToTenantLogin(
-          c,
-          pathParams.tenantId,
-          `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/learner-record-imports`,
-        );
-      }
-
-      if (roleCheck.status === 403) {
-        c.header("Cache-Control", "no-store");
-        return renderAppPage(c, adminRoleRequiredPage(pathParams.tenantId), 403);
-      }
-
-      return roleCheck;
-    }
-
-    return handleLearnerRecordImportUpload({
-      c,
-      tenantId: pathParams.tenantId,
-      sessionUserId: roleCheck.session.userId,
-      membershipRole: roleCheck.membershipRole,
-      mode: "preview",
-    });
-  });
-
-  app.post("/tenants/:tenantId/admin/operations/learner-record-imports/apply", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      if (roleCheck.status === 401) {
-        return redirectToTenantLogin(
-          c,
-          pathParams.tenantId,
-          `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/learner-record-imports`,
-        );
-      }
-
-      if (roleCheck.status === 403) {
-        c.header("Cache-Control", "no-store");
-        return renderAppPage(c, adminRoleRequiredPage(pathParams.tenantId), 403);
-      }
-
-      return roleCheck;
-    }
-
-    return handleLearnerRecordImportUpload({
-      c,
-      tenantId: pathParams.tenantId,
-      sessionUserId: roleCheck.session.userId,
-      membershipRole: roleCheck.membershipRole,
-      mode: "apply",
-    });
-  });
-
-  app.post(
-    "/tenants/:tenantId/admin/operations/learner-record-imports/:batchId/retry",
-    async (c) => {
-      let pathParams;
-
-      try {
-        pathParams = parseLearnerRecordImportBatchPathParams(c.req.param());
-      } catch {
-        return c.json(
-          {
-            error: "Invalid learner-record import batch path",
-          },
-          400,
-        );
-      }
-
-      const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-      if (roleCheck instanceof Response) {
-        if (roleCheck.status === 401) {
-          return redirectToTenantLogin(
-            c,
-            pathParams.tenantId,
-            `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/learner-record-imports`,
-          );
-        }
-
-        if (roleCheck.status === 403) {
-          c.header("Cache-Control", "no-store");
-          return renderAppPage(c, adminRoleRequiredPage(pathParams.tenantId), 403);
-        }
-
-        return roleCheck;
-      }
-
-      const retryResult = await retryFailedImportLearnerRecordBatchQueueMessages(
-        resolveDatabase(c.env),
-        {
-          tenantId: pathParams.tenantId,
-          batchId: pathParams.batchId,
-        },
-      );
-
-      return renderLearnerRecordImportWorkspace(
-        c,
-        pathParams.tenantId,
-        roleCheck.session.userId,
-        roleCheck.membershipRole,
-        {
-          defaults: {
-            defaultTrustLevel: "issuer_verified",
-            defaultIssuerName: "",
-          },
-          submission: null,
-          feedback:
-            retryResult.matched === 0
-              ? {
-                  tone: "warning",
-                  title: "Import batch not found",
-                  detail: `Batch ${pathParams.batchId} is not available for retry in this tenant.`,
-                }
-              : {
-                  tone: "success",
-                  title: "Failed rows retried",
-                  detail: `Retried ${String(retryResult.retried)} failed rows from batch ${pathParams.batchId}.`,
-                },
-        },
-      );
-    },
-  );
-
-  app.get("/tenants/:tenantId/admin/operations/learner-records", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      if (roleCheck.status === 401) {
-        return redirectToTenantLogin(
-          c,
-          pathParams.tenantId,
-          `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/learner-records`,
-        );
-      }
-
-      if (roleCheck.status === 403) {
-        c.header("Cache-Control", "no-store");
-        return renderAppPage(c, adminRoleRequiredPage(pathParams.tenantId), 403);
-      }
-
-      return roleCheck;
-    }
-
-    let reviewQuery;
-
-    try {
-      reviewQuery = parseAdminLearnerRecordReviewQuery(c.req.query());
-    } catch {
-      return c.json(
-        {
-          error: "Invalid learner-record review query",
-        },
-        400,
-      );
-    }
-
-    const pageData = await loadLearnerRecordReviewPageData({
-      c,
-      tenantId: pathParams.tenantId,
-      sessionUserId: roleCheck.session.userId,
-      membershipRole: roleCheck.membershipRole,
-      ...(reviewQuery.learnerProfileId ? { learnerProfileId: reviewQuery.learnerProfileId } : {}),
-      ...(reviewQuery.email ? { email: reviewQuery.email } : {}),
-    });
-
-    if (pageData instanceof Response) {
-      return pageData;
-    }
-
-    c.header("Cache-Control", "no-store");
-    return renderAppPage(c, institutionAdminLearnerRecordsPage(pageData));
-  });
-
-  app.get("/tenants/:tenantId/admin/operations/review-queue", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/review-queue`,
-      institutionAdminOperationsReviewQueuePage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/operations/issued-badges", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/issued-badges`,
-      institutionAdminIssuedBadgesPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/operations/badge-status", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/badge-status`,
-      institutionAdminBadgeStatusPage,
-    );
+  registerTenantLearnerRecordAdminRoutes({
+    app,
+    ADMIN_ROLES,
+    adminRoleRequiredPage,
+    handleLearnerRecordImportUpload,
+    loadLearnerRecordReviewPageData,
+    redirectToTenantLogin,
+    renderLearnerRecordImportWorkspace,
+    resolveDatabase,
+    requireTenantRole,
   });
 
   const renderReportingWorkspace = async (
@@ -2049,292 +1791,9 @@ export const registerTenantGovernanceRoutes = (
     return renderAppPage(c, renderPage(pageData));
   };
 
-  app.get("/tenants/:tenantId/admin/reporting", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderReportingWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting`,
-      institutionAdminReportingPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/reporting/explore", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderReportingWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/explore`,
-      institutionAdminReportingExplorePage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/reporting/trends", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderReportingWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/trends`,
-      institutionAdminReportingTrendsPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/reporting/reports", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderReportingWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/reports`,
-      institutionAdminReportingReportsPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/reporting/saved", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderReportingWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/saved`,
-      institutionAdminReportingReportsPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/reporting/custom", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderReportingWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/custom`,
-      institutionAdminReportingReportsPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/reporting/exports", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderReportingWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/reporting/exports`,
-      institutionAdminReportingReportsPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/rules", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules`,
-      institutionAdminRulesPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/rules/templates", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminTemplatesWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules/templates`,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/rules/templates/:badgeTemplateId", async (c) => {
-    const pathParams = parseBadgeTemplatePathParams(c.req.param());
-    return renderInstitutionAdminTemplateEditorWorkspace(
-      c,
-      pathParams.tenantId,
-      pathParams.badgeTemplateId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules/templates/${encodeURIComponent(
-        pathParams.badgeTemplateId,
-      )}`,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/rules/templates/:badgeTemplateId/table-row", async (c) => {
-    const pathParams = parseBadgeTemplatePathParams(c.req.param());
-    const rulesTemplatesPath = `/tenants/${encodeURIComponent(
-      pathParams.tenantId,
-    )}/admin/rules/templates`;
-    const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
-    const roleCheck = await resolveInstitutionAdminAdminRole(
-      c,
-      pathParams.tenantId,
-      rulesTemplatesPath,
-    );
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const db = resolveDatabase(c.env);
-    const [template, imageRevisionCounts] = await Promise.all([
-      findBadgeTemplateById(db, pathParams.tenantId, pathParams.badgeTemplateId),
-      listBadgeTemplateImageRevisionCountsByTenant(db, pathParams.tenantId),
-    ]);
-
-    if (template === null) {
-      return c.text("Badge template not found", 404);
-    }
-
-    c.header("Cache-Control", "no-store");
-    c.header("Content-Type", "text/html; charset=utf-8");
-
-    return c.body(
-      renderBadgeTemplateAdminTableRowToString({
-        tenantId: pathParams.tenantId,
-        template,
-        imageRevisionCount:
-          imageRevisionCounts.find((entry) => entry.badgeTemplateId === template.id)
-            ?.revisionCount ?? 0,
-        historyHref: badgeTemplateHistoryHref(rulesTemplatesPath, template.id, listPageQuery),
-      }),
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/access", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access`,
-      institutionAdminAccessPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/access/members", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access/members`,
-      institutionAdminMembersPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/access/governance", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access/governance`,
-      institutionAdminGovernancePage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/access/api-keys", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access/api-keys`,
-      institutionAdminApiKeysPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/access/org-units", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access/org-units`,
-      institutionAdminOrgUnitsPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/rules/new", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      if (roleCheck.status === 401) {
-        return redirectToTenantLogin(
-          c,
-          pathParams.tenantId,
-          `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules/new`,
-        );
-      }
-
-      if (roleCheck.status === 423) {
-        return c.redirect(
-          buildLocalTwoFactorPath({
-            tenantId: pathParams.tenantId,
-            nextPath: `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules/new`,
-            setup: true,
-            reason: "break_glass_mfa_setup_pending",
-          }),
-          302,
-        );
-      }
-
-      if (roleCheck.status === 403) {
-        c.header("Cache-Control", "no-store");
-        return renderAppPage(c, adminRoleRequiredPage(pathParams.tenantId), 403);
-      }
-
-      return roleCheck;
-    }
-
-    const { session, membershipRole } = roleCheck;
-    const db = resolveDatabase(c.env);
-    const tenant = await findTenantById(db, pathParams.tenantId);
-
-    if (tenant === null) {
-      return c.json(
-        {
-          error: "Tenant not found",
-        },
-        404,
-      );
-    }
-
-    const [currentUser, badgeTemplates, badgeRules, accessibleTenantContexts] = await Promise.all([
-      findUserById(db, session.userId),
-      listBadgeTemplates(db, {
-        tenantId: pathParams.tenantId,
-        includeArchived: false,
-      }),
-      listBadgeIssuanceRules(db, {
-        tenantId: pathParams.tenantId,
-      }),
-      listAccessibleTenantContextsForUser(db, session.userId),
-    ]);
-    const badgeRuleVersionLists = await Promise.all(
-      badgeRules.map(async (rule) =>
-        listBadgeIssuanceRuleVersions(db, {
-          tenantId: pathParams.tenantId,
-          ruleId: rule.id,
-        }),
-      ),
-    );
-    const badgeRuleVersions = badgeRuleVersionLists.flat();
-    const requestUrl = new URL(c.req.url);
-    const requestedBadgeTemplateId = (c.req.query("badgeTemplateId") ?? "").trim();
-    const selectedBadgeTemplateId = badgeTemplates.some(
-      (template) => template.id === requestedBadgeTemplateId,
-    )
-      ? requestedBadgeTemplateId
-      : undefined;
-    const switchOrganizationPath =
-      accessibleTenantContexts.length > 1
-        ? buildOrganizationsPath(`${requestUrl.pathname}${requestUrl.search}`)
-        : null;
-
-    c.header("Cache-Control", "no-store");
-
-    return renderAppPage(
-      c,
-      institutionAdminRuleBuilderPage({
-        tenant,
-        userId: session.userId,
-        ...(currentUser?.email === undefined ? {} : { userEmail: currentUser.email }),
-        membershipRole,
-        badgeTemplates,
-        badgeRules,
-        badgeRuleVersions,
-        ...(selectedBadgeTemplateId === undefined ? {} : { selectedBadgeTemplateId }),
-        switchOrganizationPath,
-      }),
-    );
+  registerTenantAdminReportingPageRoutes({
+    app,
+    renderReportingWorkspace,
   });
 
   registerTenantAuthManagementRoutes({

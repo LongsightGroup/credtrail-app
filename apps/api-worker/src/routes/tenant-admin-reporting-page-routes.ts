@@ -1,0 +1,97 @@
+import type { Hono } from "hono";
+import {
+  institutionAdminReportingExplorePage,
+  institutionAdminReportingPage,
+  institutionAdminReportingReportsPage,
+  institutionAdminReportingTrendsPage,
+} from "../admin/institution-admin-page";
+import type { AppContext, AppEnv } from "../app";
+import type { AppPage } from "../ui/render-page";
+
+type InstitutionAdminPageData = Parameters<typeof institutionAdminReportingPage>[0];
+
+interface RegisterTenantAdminReportingPageRoutesInput {
+  app: Hono<AppEnv>;
+  renderReportingWorkspace: (
+    c: AppContext,
+    tenantId: string,
+    pagePath: string,
+    renderPage: (pageData: InstitutionAdminPageData) => AppPage,
+  ) => Promise<Response>;
+}
+
+export const registerTenantAdminReportingPageRoutes = (
+  input: RegisterTenantAdminReportingPageRoutesInput,
+): void => {
+  const { app, renderReportingWorkspace } = input;
+
+  app.get("/tenants/:tenantId/admin/reporting", async (c) => {
+    const tenantId = c.req.param("tenantId");
+    return renderReportingWorkspace(
+      c,
+      tenantId,
+      `/tenants/${encodeURIComponent(tenantId)}/admin/reporting`,
+      institutionAdminReportingPage,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/reporting/explore", async (c) => {
+    const tenantId = c.req.param("tenantId");
+    return renderReportingWorkspace(
+      c,
+      tenantId,
+      `/tenants/${encodeURIComponent(tenantId)}/admin/reporting/explore`,
+      institutionAdminReportingExplorePage,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/reporting/trends", async (c) => {
+    const tenantId = c.req.param("tenantId");
+    return renderReportingWorkspace(
+      c,
+      tenantId,
+      `/tenants/${encodeURIComponent(tenantId)}/admin/reporting/trends`,
+      institutionAdminReportingTrendsPage,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/reporting/reports", async (c) => {
+    const tenantId = c.req.param("tenantId");
+    return renderReportingWorkspace(
+      c,
+      tenantId,
+      `/tenants/${encodeURIComponent(tenantId)}/admin/reporting/reports`,
+      institutionAdminReportingReportsPage,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/reporting/saved", async (c) => {
+    const tenantId = c.req.param("tenantId");
+    return renderReportingWorkspace(
+      c,
+      tenantId,
+      `/tenants/${encodeURIComponent(tenantId)}/admin/reporting/saved`,
+      institutionAdminReportingReportsPage,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/reporting/custom", async (c) => {
+    const tenantId = c.req.param("tenantId");
+    return renderReportingWorkspace(
+      c,
+      tenantId,
+      `/tenants/${encodeURIComponent(tenantId)}/admin/reporting/custom`,
+      institutionAdminReportingReportsPage,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/reporting/exports", async (c) => {
+    const tenantId = c.req.param("tenantId");
+    return renderReportingWorkspace(
+      c,
+      tenantId,
+      `/tenants/${encodeURIComponent(tenantId)}/admin/reporting/exports`,
+      institutionAdminReportingReportsPage,
+    );
+  });
+};
