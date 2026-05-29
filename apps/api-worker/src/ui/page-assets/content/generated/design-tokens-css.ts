@@ -5,7 +5,7 @@ export const GENERATED_DESIGN_TOKENS_CSS = `
  */
 
 :root {
-  --ct-font-sans: 'Space Grotesk', 'Avenir Next', 'Segoe UI', sans-serif;
+  --ct-font-sans: 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
   --ct-font-display: 'Newsreader', Georgia, serif;
   --ct-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --ct-brand-midnight-800: #153a63;

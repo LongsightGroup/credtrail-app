@@ -112,7 +112,7 @@ Elevation and motion:
 ## 4) Typography System
 
 - Display/headings: `--ct-font-display` (`Newsreader`), used for page titles and major section headers.
-- Body/UI text: `--ct-font-sans` (`Space Grotesk`), used everywhere else.
+- Body/UI text: `--ct-font-sans` (system sans stack), used everywhere else.
 - Monospace: `--ct-font-mono` for JSON, IDs, and technical output.
 
 Rules:

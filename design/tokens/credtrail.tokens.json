@@ -3,7 +3,7 @@
     "font": {
       "sans": {
         "$type": "fontFamily",
-        "$value": "'Space Grotesk', 'Avenir Next', 'Segoe UI', sans-serif"
+        "$value": "'Avenir Next', 'Segoe UI', system-ui, sans-serif"
       },
       "display": {
         "$type": "fontFamily",
