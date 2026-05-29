@@ -4,11 +4,12 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
 }
 .ct-admin__template-editor-overview {
   display: grid;
-  grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
+  grid-template-columns: clamp(8rem, 18vw, 12rem) minmax(0, 1fr);
   gap: var(--ct-space-4);
   align-items: center;
 }
 .ct-admin__template-editor-preview {
+  box-sizing: border-box;
   display: grid;
   place-items: center;
   width: 100%;
@@ -46,6 +47,7 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
   background: var(--ct-theme-surface-card-strong);
 }
 .ct-admin__template-editor-summary {
+  min-width: 0;
   display: grid;
   gap: var(--ct-space-3);
   padding: var(--ct-space-3) var(--ct-space-3) var(--ct-space-3) 0;
@@ -70,12 +72,14 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
   color: var(--ct-theme-text-muted);
   font-size: 0.9rem;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 .ct-admin__template-editor-summary-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--ct-space-2);
   align-items: center;
+  min-width: 0;
 }
 .ct-admin__template-editor-page-panel {
   display: grid;
