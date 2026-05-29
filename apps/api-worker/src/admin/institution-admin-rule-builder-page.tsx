@@ -200,13 +200,10 @@ const RuleBuilderConditionCardTemplate = (): HonoElement => {
                 ))}
               </select>
             </AdminField>
-            <details class="ct-admin__condition-advanced">
-              <summary>Advanced</summary>
-              <AdminCheckboxRow>
-                <input type="checkbox" data-field="negate" />
-                Exclude learners who match this requirement
-              </AdminCheckboxRow>
-            </details>
+            <AdminCheckboxRow>
+              <input type="checkbox" data-field="negate" />
+              Do not award when a learner matches this requirement
+            </AdminCheckboxRow>
           </div>
           <div class="ct-admin__condition-fields ct-admin__builder-grid ct-grid"></div>
         </details>
@@ -556,8 +553,37 @@ export const institutionAdminRuleBuilderPage = (input: {
                     <p class="ct-admin__step-kicker">Step 1 of 3</p>
                     <h3>Set up this rule</h3>
                     <p class="ct-admin__step-panel-lead">
-                      Choose the badge, LMS, and how learners earn it.
+                      Choose the badge, Learning Management System, and how learners earn it.
                     </p>
+                    {ruleCloneOptions.length > 0 ? (
+                      <section class="ct-admin__builder-clone ct-stack">
+                        <h4>Start from an existing rule</h4>
+                        <p class="ct-admin__hint">
+                          Load a rule you already use, then review its badge, source, and
+                          requirements before submitting.
+                        </p>
+                        <AdminField label="Existing rule">
+                          <div class="ct-admin__builder-inline ct-cluster">
+                            <select id="rule-builder-clone-rule" name="cloneRuleId">
+                              <option value="">Select rule to clone</option>
+                              {ruleCloneOptions.map((option) => (
+                                <option key={option.rule.id} value={option.rule.id}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <AdminButton
+                              id="rule-builder-clone-load"
+                              type="button"
+                              size="tiny"
+                              variant="secondary"
+                            >
+                              Load rule
+                            </AdminButton>
+                          </div>
+                        </AdminField>
+                      </section>
+                    ) : null}
                     <div class="ct-admin__builder-grid ct-grid">
                       <AdminField label="Badge template">
                         <select name="badgeTemplateId" required>
@@ -579,7 +605,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                         </a>
                         .
                       </p>
-                      <AdminField label="LMS provider">
+                      <AdminField label="Learning Management System">
                         <select name="lmsProviderKind" required>
                           {lmsProviderOptions.map((option) => (
                             <option
@@ -621,53 +647,10 @@ export const institutionAdminRuleBuilderPage = (input: {
                       </AdminField>
                     </div>
                     <p class="ct-admin__hint">
-                      Requirements update automatically when you change the awarding pattern.
+                      The awarding pattern starts the requirements list. Review and change those
+                      requirements in the next step.
                     </p>
-                    {ruleCloneOptions.length > 0 ? (
-                      <section class="ct-admin__builder-clone ct-stack">
-                        <h4>Start from an existing rule</h4>
-                        <p class="ct-admin__hint">
-                          Load requirements from a rule you already use for this badge or a similar
-                          one.
-                        </p>
-                        <AdminField label="Existing rule">
-                          <div class="ct-admin__builder-inline ct-cluster">
-                            <select id="rule-builder-clone-rule" name="cloneRuleId">
-                              <option value="">Select rule to clone</option>
-                              {ruleCloneOptions.map((option) => (
-                                <option key={option.rule.id} value={option.rule.id}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                            <AdminButton
-                              id="rule-builder-clone-load"
-                              type="button"
-                              size="tiny"
-                              variant="secondary"
-                            >
-                              Load rule
-                            </AdminButton>
-                          </div>
-                        </AdminField>
-                      </section>
-                    ) : null}
                     <input type="hidden" name="name" id="rule-builder-name" value="" />
-                    <details class="ct-admin__builder-advanced">
-                      <summary>Customize internal rule name</summary>
-                      <AdminField label="Internal rule name">
-                        <input
-                          id="rule-builder-name-visible"
-                          type="text"
-                          autocomplete="off"
-                          placeholder="Generated automatically from badge and pattern"
-                        />
-                      </AdminField>
-                      <p class="ct-admin__hint">
-                        CredTrail names this rule automatically. Change it only if your team uses a
-                        specific naming convention.
-                      </p>
-                    </details>
                   </section>
                 </section>
 
@@ -680,66 +663,28 @@ export const institutionAdminRuleBuilderPage = (input: {
                   <header class="ct-admin__step-head ct-stack">
                     <p class="ct-admin__step-kicker">Step 2 of 3</p>
                     <h3>Awarding requirements</h3>
-                    <p>Review each requirement learners must meet before the badge is awarded.</p>
+                    <p>Review what a learner needs to do before CredTrail awards the badge.</p>
                   </header>
                   <div class="ct-admin__builder-workbench ct-stack">
                     <div class="ct-admin__builder-workbench-main ct-stack">
                       <div class="ct-admin__builder-toolbar ct-cluster">
+                        <input
+                          id="rule-builder-root-logic"
+                          name="rootLogic"
+                          type="hidden"
+                          value="all"
+                        />
                         <AdminButton type="button" id="rule-builder-add-condition" size="tiny">
                           Add requirement
                         </AdminButton>
-                        <details class="ct-admin__builder-advanced ct-admin__builder-advanced--inline">
-                          <summary>Advanced logic</summary>
-                          <div class="ct-admin__builder-inline ct-cluster">
-                            <div class="ct-admin__inline-control">
-                              <span
-                                id="rule-builder-root-logic-label"
-                                class="ct-admin__field-label"
-                              >
-                                Earning path
-                              </span>
-                              <input
-                                id="rule-builder-root-logic"
-                                name="rootLogic"
-                                type="hidden"
-                                value="all"
-                              />
-                              <div
-                                class="ct-admin__segmented-control"
-                                role="radiogroup"
-                                aria-labelledby="rule-builder-root-logic-label"
-                              >
-                                <label>
-                                  <input
-                                    type="radio"
-                                    name="rootLogicChoice"
-                                    value="all"
-                                    data-rule-builder-root-logic-option="all"
-                                    checked
-                                  />
-                                  <span>All requirements</span>
-                                </label>
-                                <label>
-                                  <input
-                                    type="radio"
-                                    name="rootLogicChoice"
-                                    value="any"
-                                    data-rule-builder-root-logic-option="any"
-                                  />
-                                  <span>Any requirement</span>
-                                </label>
-                              </div>
-                            </div>
-                            <AdminButton
-                              type="button"
-                              id="rule-builder-add-alternative-path"
-                              size="tiny"
-                              variant="secondary"
-                            >
-                              Add alternative way
-                            </AdminButton>
-                          </div>
-                        </details>
+                        <AdminButton
+                          type="button"
+                          id="rule-builder-add-alternative-path"
+                          size="tiny"
+                          variant="secondary"
+                        >
+                          Add another way to earn it
+                        </AdminButton>
                       </div>
                       <section class="ct-admin__builder-canvas ct-stack">
                         <header class="ct-admin__builder-canvas-header ct-cluster">
@@ -753,7 +698,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                             0 requirements
                           </span>
                           <span id="rule-builder-canvas-logic" class="ct-admin__status-pill">
-                            All requirements
+                            Learner must meet every requirement
                           </span>
                         </div>
                         <div
@@ -1047,26 +992,9 @@ export const institutionAdminRuleBuilderPage = (input: {
                   class="ct-admin__builder-step-callout"
                   aria-live="polite"
                 >
-                  Choose an awarding pattern, badge, and LMS source, then select Continue.
+                  Choose an awarding pattern, badge, and Learning Management System source, then
+                  select Continue.
                 </p>
-                <div class="ct-admin__builder-draft-actions ct-cluster">
-                  <AdminButton
-                    type="button"
-                    id="rule-builder-save-draft"
-                    size="tiny"
-                    variant="secondary"
-                  >
-                    Save progress
-                  </AdminButton>
-                  <AdminButton
-                    type="button"
-                    id="rule-builder-load-draft"
-                    size="tiny"
-                    variant="secondary"
-                  >
-                    Resume saved progress
-                  </AdminButton>
-                </div>
                 <div class="ct-admin__builder-step-nav ct-cluster">
                   <AdminButton
                     id="rule-builder-step-prev"

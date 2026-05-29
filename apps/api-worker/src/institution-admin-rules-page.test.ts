@@ -4,6 +4,7 @@ import {
   fakeDb,
   mockedFindBadgeTemplateById,
   mockedListAccessibleTenantContextsForUser,
+  mockedListBadgeTemplateImageRevisionCountsByTenant,
   mockedListBadgeTemplates,
 } from "./institution-admin-page-test-utils";
 import { app } from "./index";
@@ -201,6 +202,29 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).not.toContain('id="rule-value-list-form"');
     expect(body).not.toContain("Evaluate Rule");
     expect(body).not.toContain('id="rule-evaluate-form"');
+  });
+
+  it("renders the template list when image revision storage is not available yet", async () => {
+    const env = createEnv();
+    mockedListBadgeTemplateImageRevisionCountsByTenant.mockRejectedValueOnce(
+      new Error('relation "badge_template_image_revisions" does not exist'),
+    );
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/templates",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain(">Badge Templates<");
+    expect(body).toContain('data-template-row-id="badge_template_001"');
+    expect(body).toContain('data-template-history-image-revision-count="0"');
   });
 
   it("renders a dedicated badge template editor page", async () => {
@@ -628,16 +652,16 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("Continue to Requirements");
     expect(body).toContain('id="rule-builder-step-callout"');
     expect(body).toContain("Set up this rule");
-    expect(body).toContain("Requirements update automatically");
+    expect(body).toContain("The awarding pattern starts the requirements list");
     expect(body).not.toContain("Use pattern");
     expect(body).not.toContain("rule-builder-apply-test-preset");
-    expect(body).not.toContain("Confirm the badge and LMS source");
+    expect(body).not.toContain("Confirm the badge and Learning Management System source");
     expect(body).toContain('id="rule-builder-return-to-pattern"');
     expect(body).toContain("No requirements yet");
     expect(body).toContain("Back to Step 1");
     expect(body).toContain("Advanced tools and reusable lists");
     expect(body).not.toContain("Start from a proven pattern");
-    expect(body).toContain("Choose the badge, LMS, and how learners earn it");
+    expect(body).toContain("Choose the badge, Learning Management System, and how learners earn it");
     expect(body).toContain("Need a new template?");
     expect(body).toContain("Create one in Badge Templates");
     expect(body).toContain(
@@ -645,8 +669,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     );
     expect(body).toContain("and continue here");
     expect(body).toContain("Start from an existing rule");
-    expect(body).toContain("Save progress");
-    expect(body).toContain("Resume saved progress");
+    expect(body).not.toContain("Save progress");
+    expect(body).not.toContain("Resume saved progress");
     expect(body).toContain("Edit requirement details");
     expect(body).toContain('id="rule-builder-test-result"');
     expect(body).toContain("Import and export");
@@ -675,7 +699,7 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('href="/admin/audit-logs?tenantId=tenant_123"');
     expect(INSTITUTION_ADMIN_JS).not.toContain("rule-builder-condition-list");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-condition-list");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("credtrail:rule-builder:");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("credtrail:rule-builder:");
   });
 
   it("preselects a returned badge template in the rule builder", async () => {

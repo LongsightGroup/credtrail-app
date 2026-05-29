@@ -6,7 +6,6 @@ import {
   listAccessibleTenantContextsForUser,
   listBadgeIssuanceRules,
   listBadgeIssuanceRuleVersions,
-  listBadgeTemplateImageRevisionCountsByTenant,
   listBadgeTemplates,
 } from "@credtrail/db";
 import { parseBadgeTemplatePathParams, parseTenantPathParams } from "@credtrail/validation";
@@ -35,6 +34,7 @@ import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import type { AppPage } from "../ui/render-page";
 import { renderAppPage } from "../ui/render-page";
+import { listOptionalBadgeTemplateImageRevisionCountsByTenant } from "./badge-template-image-revision-counts";
 
 type InstitutionAdminPageData = Parameters<typeof institutionAdminDashboardPage>[0];
 
@@ -199,7 +199,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     const db = resolveDatabase(c.env);
     const [template, imageRevisionCounts] = await Promise.all([
       findBadgeTemplateById(db, pathParams.tenantId, pathParams.badgeTemplateId),
-      listBadgeTemplateImageRevisionCountsByTenant(db, pathParams.tenantId),
+      listOptionalBadgeTemplateImageRevisionCountsByTenant(db, pathParams.tenantId),
     ]);
 
     if (template === null) {

@@ -59,8 +59,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_BOOTSTRAP_JS = `
   const ruleBuilderAddAlternativePathButton = document.getElementById(
     'rule-builder-add-alternative-path',
   );
-  const ruleBuilderSaveDraftButton = document.getElementById('rule-builder-save-draft');
-  const ruleBuilderLoadDraftButton = document.getElementById('rule-builder-load-draft');
   const ruleBuilderExportJsonButton = document.getElementById('rule-builder-export-json');
   const ruleBuilderImportJsonButton = document.getElementById('rule-builder-import-json');
   const ruleBuilderImportFileInput = document.getElementById('rule-builder-import-file');
@@ -77,7 +75,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_BOOTSTRAP_JS = `
   const ruleBuilderStepProgress = document.getElementById('rule-builder-step-progress');
   const ruleBuilderStepCallout = document.getElementById('rule-builder-step-callout');
   const ruleBuilderReturnToPatternButton = document.getElementById('rule-builder-return-to-pattern');
-  const ruleBuilderNameVisible = document.getElementById('rule-builder-name-visible');
   const ruleBuilderSubmitButton = document.getElementById('rule-builder-submit');
   const ruleBuilderCanvasCount = document.getElementById('rule-builder-canvas-count');
   const ruleBuilderCanvasLogic = document.getElementById('rule-builder-canvas-logic');

@@ -352,7 +352,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
             ? 'Waiting for requirements.'
             : rootLogic === 'any'
               ? 'Any path can qualify.'
-              : 'All requirements must pass.';
+              : 'Learner must meet every requirement.';
       }
 
       if (conditions.length === 0) {

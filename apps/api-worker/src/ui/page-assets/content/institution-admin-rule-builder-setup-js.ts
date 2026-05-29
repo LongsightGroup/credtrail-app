@@ -7,7 +7,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
     ruleBuilderDefinitionJson instanceof HTMLTextAreaElement
   ) {
     const badgeRulePreviewApiPath = badgeRuleApiPath + '/preview-evaluate';
-    const ruleBuilderDraftStorageKey = 'credtrail:rule-builder:' + tenantAdminPath;
     const ruleBuilderContext =
       parsedContext &&
       parsedContext.ruleBuilderContext &&
@@ -375,8 +374,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
       }
     };
 
-    let ruleNameManuallyEdited = false;
-
     const getSelectedOptionLabel = (field) => {
       if (!(field instanceof HTMLSelectElement)) {
         return '';
@@ -413,15 +410,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
     };
 
     const syncSuggestedRuleName = () => {
-      if (ruleNameManuallyEdited) {
-        return;
-      }
-
       const suggestedName = buildSuggestedRuleName();
       setRuleCreateFieldValue('name', suggestedName);
-
-      if (ruleBuilderNameVisible instanceof HTMLInputElement) {
-        ruleBuilderNameVisible.value = suggestedName;
-      }
     };
 `;

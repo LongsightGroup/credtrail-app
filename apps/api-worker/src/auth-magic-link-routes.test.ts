@@ -108,6 +108,7 @@ const createEnv = (
 ): {
   APP_ENV: string;
   DATABASE_URL: string;
+  HYPERDRIVE?: Hyperdrive;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
   TURNSTILE_SITE_KEY?: string;
@@ -118,6 +119,9 @@ const createEnv = (
   return {
     APP_ENV: appEnv,
     DATABASE_URL: "postgres://credtrail-test.local/db",
+    ...(appEnv === "production"
+      ? { HYPERDRIVE: { connectionString: "postgres://hyperdrive-test.local/db" } as Hyperdrive }
+      : {}),
     BADGE_OBJECTS: {} as R2Bucket,
     PLATFORM_DOMAIN: "credtrail.test",
   };

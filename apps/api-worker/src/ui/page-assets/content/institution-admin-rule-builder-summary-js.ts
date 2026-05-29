@@ -150,7 +150,9 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUMMARY_JS = `
 
       if (ruleBuilderCanvasLogic instanceof HTMLElement) {
         ruleBuilderCanvasLogic.textContent =
-          getRuleBuilderRootLogic() === 'any' ? 'Alternative paths' : 'All requirements';
+          getRuleBuilderRootLogic() === 'any'
+            ? 'Learner can meet any one requirement'
+            : 'Learner must meet every requirement';
         ruleBuilderCanvasLogic.dataset.tone = getRuleBuilderRootLogic() === 'any' ? 'warning' : 'success';
       }
     };
@@ -197,7 +199,9 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUMMARY_JS = `
       const ruleName = getTextFieldValue('name');
       const cardCount = getConditionCards().length;
       const rootLogicLabel =
-        getRuleBuilderRootLogic() === 'any' ? 'Alternative paths' : 'All requirements';
+        getRuleBuilderRootLogic() === 'any'
+          ? 'Learner can meet any one requirement'
+          : 'Learner must meet every requirement';
       let definitionStatus = 'Drafting';
       let definitionTone = 'warning';
       let summaryMessage = 'Add at least one requirement to create a draft.';

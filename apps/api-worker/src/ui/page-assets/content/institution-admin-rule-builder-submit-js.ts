@@ -366,10 +366,12 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
       if (name.length === 0 || badgeTemplateId.length === 0 || lmsProviderKind.length === 0) {
         setStatus(
           ruleCreateStatus,
-          'Rule name, badge template, and LMS provider are required.',
+          'Rule name, badge template, and Learning Management System are required.',
           true,
         );
-        syncRuleBuilderSummary('Rule name, badge template, and LMS provider are required.');
+        syncRuleBuilderSummary(
+          'Rule name, badge template, and Learning Management System are required.',
+        );
         return;
       }
 
@@ -460,14 +462,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
         syncRuleBuilderSummary('Unable to create rule draft from this browser session.');
       }
     });
-
-    if (ruleBuilderNameVisible instanceof HTMLInputElement) {
-      ruleBuilderNameVisible.addEventListener('input', () => {
-        ruleNameManuallyEdited = true;
-        setRuleCreateFieldValue('name', ruleBuilderNameVisible.value.trim());
-        syncRuleBuilderSummary();
-      });
-    }
 
     const badgeTemplateField = getRuleCreateField('badgeTemplateId');
 

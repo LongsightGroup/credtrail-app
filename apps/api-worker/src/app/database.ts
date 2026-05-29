@@ -14,6 +14,10 @@ export const resolveDatabase = (bindings: AppBindings): SqlDatabase => {
     });
   }
 
+  if (bindings.APP_ENV === "production") {
+    throw new Error("HYPERDRIVE is required in production");
+  }
+
   if (bindings.DATABASE_URL === undefined) {
     throw new Error("DATABASE_URL or HYPERDRIVE is required");
   }

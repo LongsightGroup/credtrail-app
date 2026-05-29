@@ -302,97 +302,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
       }
     });
 
-    if (ruleBuilderSaveDraftButton instanceof HTMLButtonElement) {
-      ruleBuilderSaveDraftButton.addEventListener('click', () => {
-        try {
-          const draft = {
-            savedAt: new Date().toISOString(),
-            name: getTextFieldValue('name'),
-            description: getTextFieldValue('description'),
-            badgeTemplateId: getTextFieldValue('badgeTemplateId'),
-            lmsProviderKind: getTextFieldValue('lmsProviderKind'),
-            approvalRoles: getTextFieldValue('approvalRoles'),
-            changeSummary: getTextFieldValue('changeSummary'),
-            issuanceTiming: getTextFieldValue('issuanceTiming'),
-            testLearnerId: getTextFieldValue('testLearnerId'),
-            testRecipientIdentity: getTextFieldValue('testRecipientIdentity'),
-            testCourseId: getTextFieldValue('testCourseId'),
-            testFinalScore: getTextFieldValue('testFinalScore'),
-            testFactsJson: getTextFieldValue('testFactsJson'),
-            testCompleted: getCheckboxFieldValue('testCompleted'),
-            definition: parseDefinitionJson(),
-          };
-          localStorage.setItem(ruleBuilderDraftStorageKey, JSON.stringify(draft));
-          setStatus(
-            ruleCreateStatus,
-            'Rule builder draft saved.',
-            false,
-            'success',
-          );
-          syncRuleBuilderSummary('Rule builder draft saved.');
-        } catch (error) {
-          setStatus(
-            ruleCreateStatus,
-            error instanceof Error ? error.message : 'Unable to save draft.',
-            true,
-          );
-          syncRuleBuilderSummary(
-            error instanceof Error ? error.message : 'Unable to save draft.',
-          );
-        }
-      });
-    }
-
-    if (ruleBuilderLoadDraftButton instanceof HTMLButtonElement) {
-      ruleBuilderLoadDraftButton.addEventListener('click', () => {
-        const rawDraft = localStorage.getItem(ruleBuilderDraftStorageKey);
-
-        if (rawDraft === null) {
-          setStatus(ruleCreateStatus, 'No saved draft found.', true);
-          syncRuleBuilderSummary('No saved draft found.');
-          return;
-        }
-
-        try {
-          const draft = JSON.parse(rawDraft);
-          setRuleCreateFieldValue('name', typeof draft.name === 'string' ? draft.name : '');
-          setRuleCreateFieldValue('description', typeof draft.description === 'string' ? draft.description : '');
-          setRuleCreateFieldValue('badgeTemplateId', typeof draft.badgeTemplateId === 'string' ? draft.badgeTemplateId : '');
-          setRuleCreateFieldValue('lmsProviderKind', typeof draft.lmsProviderKind === 'string' ? draft.lmsProviderKind : 'canvas');
-          setRuleCreateFieldValue('approvalRoles', typeof draft.approvalRoles === 'string' ? draft.approvalRoles : 'admin,owner');
-          setRuleCreateFieldValue('changeSummary', typeof draft.changeSummary === 'string' ? draft.changeSummary : '');
-          setRuleCreateFieldValue('issuanceTiming', typeof draft.issuanceTiming === 'string' ? draft.issuanceTiming : 'immediate');
-          setRuleCreateFieldValue('testLearnerId', typeof draft.testLearnerId === 'string' ? draft.testLearnerId : 'canvas:12345');
-          setRuleCreateFieldValue('testRecipientIdentity', typeof draft.testRecipientIdentity === 'string' ? draft.testRecipientIdentity : 'learner@example.edu');
-          setRuleCreateFieldValue(
-            'testCourseId',
-            typeof draft.testCourseId === 'string'
-              ? draft.testCourseId
-              : getDefaultCourseId() || getCoursePlaceholder(),
-          );
-          setRuleCreateFieldValue('testFinalScore', typeof draft.testFinalScore === 'string' ? draft.testFinalScore : '92');
-          setRuleCreateFieldValue('testFactsJson', typeof draft.testFactsJson === 'string' ? draft.testFactsJson : '');
-          const testCompletedField = getRuleCreateField('testCompleted');
-
-          if (testCompletedField instanceof HTMLInputElement) {
-            testCompletedField.checked = draft.testCompleted === undefined ? true : Boolean(draft.testCompleted);
-          }
-
-          const definition = draft && typeof draft.definition === 'object' ? draft.definition : null;
-
-          if (definition !== null) {
-            ruleBuilderDefinitionJson.value = JSON.stringify(definition, null, 2);
-            applyDefinitionToBuilder(definition, 'Saved draft');
-          } else {
-            syncDefinitionJsonFromBuilder();
-          }
-        } catch {
-          setStatus(ruleCreateStatus, 'Saved draft data is invalid JSON.', true);
-          syncRuleBuilderSummary('Saved draft data is invalid JSON.');
-        }
-      });
-    }
-
     if (
       ruleBuilderImportJsonButton instanceof HTMLButtonElement &&
       ruleBuilderImportFileInput instanceof HTMLInputElement
@@ -553,16 +462,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
               const rightVersion = typeof right.versionNumber === 'number' ? right.versionNumber : 0;
               return rightVersion - leftVersion;
             })[0];
-
-          if (rule && typeof rule.name === 'string') {
-            const clonedName = rule.name + ' copy';
-            ruleNameManuallyEdited = true;
-            setRuleCreateFieldValue('name', clonedName);
-
-            if (ruleBuilderNameVisible instanceof HTMLInputElement) {
-              ruleBuilderNameVisible.value = clonedName;
-            }
-          }
 
           if (rule && typeof rule.description === 'string' && rule.description.length > 0) {
             setRuleCreateFieldValue('description', rule.description);
