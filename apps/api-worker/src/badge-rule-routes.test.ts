@@ -45,7 +45,10 @@ vi.mock("@credtrail/db", async () => {
     listBadgeIssuanceRuleVersionApprovalEvents: vi.fn(),
     createBadgeIssuanceRuleEvaluation: vi.fn(),
     resolveBadgeIssuanceRuleEvaluationReview: vi.fn(),
-    findTenantCanvasGradebookIntegration: vi.fn(),
+    findTenantLmsConnectionById: vi.fn(),
+    listTenantLmsConnections: vi.fn(),
+    upsertTenantLmsConnection: vi.fn(),
+    updateTenantLmsConnectionTokens: vi.fn(),
     updateTenantCanvasGradebookIntegrationTokens: vi.fn(),
     listAuditLogs: vi.fn(),
     listIssuedBadgeTemplateIdsForRecipient: vi.fn(),
@@ -109,7 +112,7 @@ import {
   findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleVersionById,
   findTenantMembership,
-  findTenantCanvasGradebookIntegration,
+  findTenantLmsConnectionById,
   listIssuedBadgeTemplateIdsForRecipient,
   listAuditLogs,
   listBadgeIssuanceRuleEvaluations,
@@ -118,8 +121,10 @@ import {
   listBadgeIssuanceRuleVersionApprovalSteps,
   listBadgeIssuanceRuleVersions,
   listBadgeIssuanceRules,
+  listTenantLmsConnections,
   resolveBadgeIssuanceRuleEvaluationReview,
   submitBadgeIssuanceRuleVersionForApproval,
+  upsertTenantLmsConnection,
   type AuditLogRecord,
   type BadgeIssuanceRuleEvaluationRecord,
   type BadgeIssuanceRuleApprovalEventRecord,
@@ -129,7 +134,7 @@ import {
   type BadgeIssuanceRuleVersionRecord,
   type SessionRecord,
   type SqlDatabase,
-  type TenantCanvasGradebookIntegrationRecord,
+  type TenantLmsConnectionRecord,
   type TenantMembershipRecord,
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
@@ -153,6 +158,7 @@ const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
 const mockedListBadgeIssuanceRuleEvaluations = vi.mocked(listBadgeIssuanceRuleEvaluations);
 const mockedListBadgeIssuanceRuleValueLists = vi.mocked(listBadgeIssuanceRuleValueLists);
 const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRuleVersions);
+const mockedListTenantLmsConnections = vi.mocked(listTenantLmsConnections);
 const mockedListBadgeIssuanceRuleVersionApprovalSteps = vi.mocked(
   listBadgeIssuanceRuleVersionApprovalSteps,
 );
@@ -165,16 +171,20 @@ const mockedResolveBadgeIssuanceRuleEvaluationReview = vi.mocked(
   resolveBadgeIssuanceRuleEvaluationReview,
 );
 const mockedFindTenantMembership = vi.mocked(findTenantMembership);
-const mockedFindTenantCanvasGradebookIntegration = vi.mocked(findTenantCanvasGradebookIntegration);
+const mockedFindTenantLmsConnectionById = vi.mocked(findTenantLmsConnectionById);
+const mockedUpsertTenantLmsConnection = vi.mocked(upsertTenantLmsConnection);
 const mockedListIssuedBadgeTemplateIdsForRecipient = vi.mocked(
   listIssuedBadgeTemplateIdsForRecipient,
 );
 
-const sampleCanvasIntegration = (
-  overrides?: Partial<TenantCanvasGradebookIntegrationRecord>,
-): TenantCanvasGradebookIntegrationRecord => {
+const sampleTenantLmsConnection = (
+  overrides?: Partial<TenantLmsConnectionRecord>,
+): TenantLmsConnectionRecord => {
   return {
+    id: "lms_123",
     tenantId: "tenant_123",
+    displayName: "Canvas Test",
+    providerKind: "canvas",
     apiBaseUrl: "https://canvas.example.edu",
     authorizationEndpoint: "https://canvas.example.edu/login/oauth2/auth",
     tokenEndpoint: "https://canvas.example.edu/login/oauth2/token",
@@ -186,6 +196,9 @@ const sampleCanvasIntegration = (
     accessTokenExpiresAt: null,
     refreshTokenExpiresAt: null,
     connectedAt: "2026-02-17T00:00:00.000Z",
+    ltiIssuer: null,
+    ltiClientId: null,
+    ltiDeploymentId: null,
     createdAt: "2026-02-17T00:00:00.000Z",
     updatedAt: "2026-02-17T00:00:00.000Z",
     ...overrides,
@@ -258,6 +271,7 @@ const sampleRule = (overrides?: Partial<BadgeIssuanceRuleRecord>): BadgeIssuance
     description: "Issue badge for CS101 excellence",
     badgeTemplateId: "badge_template_cs101",
     lmsProviderKind: "canvas",
+    lmsConnectionId: "lms_123",
     activeVersionId: "brv_123",
     createdByUserId: "usr_123",
     createdAt: "2026-02-17T00:00:00.000Z",
@@ -426,6 +440,8 @@ beforeEach(() => {
   mockedListBadgeIssuanceRuleValueLists.mockResolvedValue([]);
   mockedListBadgeIssuanceRuleVersions.mockReset();
   mockedListBadgeIssuanceRuleVersions.mockResolvedValue([]);
+  mockedListTenantLmsConnections.mockReset();
+  mockedListTenantLmsConnections.mockResolvedValue([]);
   mockedListBadgeIssuanceRuleVersionApprovalSteps.mockReset();
   mockedListBadgeIssuanceRuleVersionApprovalSteps.mockResolvedValue([]);
   mockedListBadgeIssuanceRuleVersionApprovalEvents.mockReset();
@@ -436,8 +452,59 @@ beforeEach(() => {
   mockedResolveBadgeIssuanceRuleEvaluationReview.mockReset();
   mockedIssueBadgeForTenant.mockReset();
   mockedCreateGradebookProvider.mockReset();
-  mockedFindTenantCanvasGradebookIntegration.mockReset();
-  mockedFindTenantCanvasGradebookIntegration.mockResolvedValue(sampleCanvasIntegration());
+  mockedCreateGradebookProvider.mockReturnValue({
+    kind: "canvas",
+    listCourses: () =>
+      Promise.resolve([
+        {
+          courseId: "course_101",
+          title: "CS101",
+          courseCode: "CS101",
+          workflowState: "available",
+          startsAt: null,
+          endsAt: null,
+        },
+      ]),
+    listAssignments: () =>
+      Promise.resolve([
+        {
+          assignmentId: "assignment_1",
+          courseId: "course_101",
+          title: "Final exam",
+          workflowState: "published",
+          pointsPossible: 100,
+          dueAt: null,
+        },
+      ]),
+    listEnrollments: () => Promise.resolve([]),
+    listSubmissions: () => Promise.resolve([]),
+    listGrades: () =>
+      Promise.resolve([
+        {
+          courseId: "course_101",
+          learnerId: "learner_123",
+          currentScore: 92,
+          finalScore: 92,
+          currentGrade: "A",
+          finalGrade: "A",
+        },
+      ]),
+    listCompletions: () =>
+      Promise.resolve([
+        {
+          courseId: "course_101",
+          learnerId: "learner_123",
+          completed: true,
+          completedAt: null,
+          completionPercent: 100,
+          sourceState: "completed",
+        },
+      ]),
+  });
+  mockedFindTenantLmsConnectionById.mockReset();
+  mockedFindTenantLmsConnectionById.mockResolvedValue(sampleTenantLmsConnection());
+  mockedUpsertTenantLmsConnection.mockReset();
+  mockedUpsertTenantLmsConnection.mockResolvedValue(sampleTenantLmsConnection());
   mockedListIssuedBadgeTemplateIdsForRecipient.mockReset();
   mockedListIssuedBadgeTemplateIdsForRecipient.mockResolvedValue([]);
 });
@@ -462,7 +529,7 @@ describe("badge rule routes", () => {
           name: "CS101 Rule",
           description: "Issue badge for CS101 excellence",
           badgeTemplateId: "badge_template_cs101",
-          lmsProviderKind: "canvas",
+          lmsConnectionId: "lms_123",
           definition: {
             conditions: {
               type: "grade_threshold",
@@ -478,6 +545,129 @@ describe("badge rule routes", () => {
     expect(response.status).toBe(201);
     expect(mockedCreateBadgeIssuanceRule).toHaveBeenCalledTimes(1);
     expect(mockedCreateAuditLog).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists LMS connections without returning secrets", async () => {
+    const env = createEnv();
+    mockedListTenantLmsConnections.mockResolvedValue([sampleTenantLmsConnection()]);
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/lms/connections",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.json<{
+      connections: Array<Record<string, unknown>>;
+    }>();
+
+    expect(response.status).toBe(200);
+    expect(body.connections[0]?.displayName).toBe("Canvas Test");
+    expect(body.connections[0]?.hasAccessToken).toBe(true);
+    expect(body.connections[0]).not.toHaveProperty("accessToken");
+    expect(body.connections[0]).not.toHaveProperty("clientSecret");
+  });
+
+  it("creates tenant LMS connections", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/lms/connections",
+      {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          displayName: "TrySakai",
+          providerKind: "sakai",
+          apiBaseUrl: "https://trysakai.example.edu",
+          accessToken: "sakai-session",
+          ltiIssuer: "https://trysakai.example.edu",
+          ltiClientId: "client-123",
+          ltiDeploymentId: "deployment-123",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{
+      connection: Record<string, unknown>;
+    }>();
+
+    expect(response.status).toBe(201);
+    expect(mockedUpsertTenantLmsConnection).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      displayName: "TrySakai",
+      providerKind: "sakai",
+      apiBaseUrl: "https://trysakai.example.edu",
+      accessToken: "sakai-session",
+      ltiIssuer: "https://trysakai.example.edu",
+      ltiClientId: "client-123",
+      ltiDeploymentId: "deployment-123",
+    });
+    expect(body.connection).not.toHaveProperty("accessToken");
+  });
+
+  it("looks up LMS courses, gradebook items, and workflow states", async () => {
+    const env = createEnv();
+
+    const coursesResponse = await app.request(
+      "/v1/tenants/tenant_123/lms/connections/lms_123/courses?q=cs",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const coursesBody = await coursesResponse.json<{
+      courses: Array<{ courseId: string }>;
+    }>();
+
+    expect(coursesResponse.status).toBe(200);
+    expect(coursesBody.courses[0]?.courseId).toBe("course_101");
+
+    const itemsResponse = await app.request(
+      "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/gradebook-items?q=final",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const itemsBody = await itemsResponse.json<{
+      items: Array<{ assignmentId: string }>;
+    }>();
+
+    expect(itemsResponse.status).toBe(200);
+    expect(itemsBody.items[0]?.assignmentId).toBe("assignment_1");
+
+    const statesResponse = await app.request(
+      "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/gradebook-items/assignment_1/workflow-states",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const statesBody = await statesResponse.json<{
+      states: Array<{ value: string; preselected: boolean }>;
+    }>();
+
+    expect(statesResponse.status).toBe(200);
+    expect(statesBody.states).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: "submitted", preselected: true }),
+        expect.objectContaining({ value: "graded", preselected: true }),
+        expect.objectContaining({ value: "pending_review", preselected: false }),
+      ]),
+    );
   });
 
   it("creates reusable badge-rule value lists", async () => {
@@ -797,6 +987,7 @@ describe("badge rule routes", () => {
               ],
             },
           },
+          lmsConnectionId: "lms_123",
           learnerId: "learner_123",
           recipientIdentity: "learner@example.edu",
           recipientIdentityType: "email",
@@ -867,6 +1058,7 @@ describe("badge rule routes", () => {
               ],
             },
           },
+          lmsConnectionId: "lms_123",
           learnerId: "learner_123",
           recipientIdentity: "learner@example.edu",
           recipientIdentityType: "email",
@@ -940,6 +1132,7 @@ describe("badge rule routes", () => {
               ],
             },
           },
+          lmsConnectionId: "lms_123",
           learnerId: "learner_123",
           recipientIdentity: "learner@example.edu",
           recipientIdentityType: "email",
@@ -981,10 +1174,13 @@ describe("badge rule routes", () => {
     expect(mockedListBadgeIssuanceRuleValueLists).toHaveBeenCalledTimes(1);
   });
 
-  it("uses the requested LMS provider kind for automated preview evaluation", async () => {
+  it("uses the selected LMS connection for automated preview evaluation", async () => {
     const env = createEnv();
-    mockedFindTenantCanvasGradebookIntegration.mockResolvedValue(
-      sampleCanvasIntegration({
+    mockedFindTenantLmsConnectionById.mockResolvedValue(
+      sampleTenantLmsConnection({
+        id: "lms_sakai",
+        displayName: "TrySakai",
+        providerKind: "sakai",
         apiBaseUrl: "https://sakai.example.edu",
         accessToken: "sakai-token",
         refreshToken: null,
@@ -1046,6 +1242,7 @@ describe("badge rule routes", () => {
             },
           },
           lmsProviderKind: "sakai",
+          lmsConnectionId: "lms_sakai",
           learnerId: "learner_123",
           recipientIdentity: "learner@example.edu",
           recipientIdentityType: "email",
@@ -1074,6 +1271,45 @@ describe("badge rule routes", () => {
 
     expect(providerConfig).not.toBeNull();
     expect(providerConfig && "kind" in providerConfig ? providerConfig.kind : null).toBe("sakai");
+    expect(
+      providerConfig && "apiBaseUrl" in providerConfig ? providerConfig.apiBaseUrl : null,
+    ).toBe("https://sakai.example.edu");
+  });
+
+  it("returns 422 when preview evaluation references a missing LMS connection", async () => {
+    const env = createEnv();
+    mockedFindTenantLmsConnectionById.mockResolvedValue(null);
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules/preview-evaluate",
+      {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          definition: {
+            conditions: {
+              type: "grade_threshold",
+              courseId: "course_101",
+              minScore: 80,
+            },
+          },
+          lmsProviderKind: "canvas",
+          lmsConnectionId: "missing_lms",
+          learnerId: "learner_123",
+          recipientIdentity: "learner@example.edu",
+          recipientIdentityType: "email",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(422);
+    expect(body.error).toBe("Selected LMS connection was not found");
+    expect(mockedCreateGradebookProvider).not.toHaveBeenCalled();
   });
 
   it("simulates draft impact against historical evaluations", async () => {
@@ -1317,6 +1553,38 @@ describe("badge rule routes", () => {
     expect(body.evaluationRecord.issuanceStatus).toBe("review_required");
     expect(body.evaluationRecord.reviewStatus).toBe("pending");
     expect(mockedIssueBadgeForTenant).not.toHaveBeenCalled();
+  });
+
+  it("returns 422 when automated evaluation has no LMS connection", async () => {
+    const env = createEnv();
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleRule({ lmsConnectionId: null }));
+    mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(sampleVersion({ status: "active" }));
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules/brl_123/evaluate",
+      {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          learnerId: "learner_123",
+          recipientIdentity: "learner@example.edu",
+          recipientIdentityType: "email",
+          dryRun: true,
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(422);
+    expect(body.error).toBe(
+      "Select an LMS connection before running automated gradebook evaluation.",
+    );
+    expect(mockedFindTenantLmsConnectionById).not.toHaveBeenCalled();
+    expect(mockedCreateBadgeIssuanceRuleEvaluation).not.toHaveBeenCalled();
   });
 
   it("lists the rule review queue with evaluation summaries", async () => {

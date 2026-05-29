@@ -23,6 +23,10 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_BOOTSTRAP_JS = `
     parsedContext && typeof parsedContext.tenantAdminPath === 'string'
       ? parsedContext.tenantAdminPath
       : '';
+  const rulesListPath =
+    parsedContext && typeof parsedContext.rulesListPath === 'string'
+      ? parsedContext.rulesListPath
+      : '';
   const badgeRuleApiPath =
     parsedContext && typeof parsedContext.badgeRuleApiPath === 'string'
       ? parsedContext.badgeRuleApiPath
@@ -31,16 +35,17 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_BOOTSTRAP_JS = `
     parsedContext && typeof parsedContext.badgeRuleValueListApiPath === 'string'
       ? parsedContext.badgeRuleValueListApiPath
       : '';
-  const badgeRulePreviewSimulationApiPath =
-    parsedContext && typeof parsedContext.badgeRulePreviewSimulationApiPath === 'string'
-      ? parsedContext.badgeRulePreviewSimulationApiPath
+  const lmsConnectionsApiPath =
+    parsedContext && typeof parsedContext.lmsConnectionsApiPath === 'string'
+      ? parsedContext.lmsConnectionsApiPath
       : '';
 
   if (
     tenantAdminPath.length === 0 ||
+    rulesListPath.length === 0 ||
     badgeRuleApiPath.length === 0 ||
     badgeRuleValueListApiPath.length === 0 ||
-    badgeRulePreviewSimulationApiPath.length === 0
+    lmsConnectionsApiPath.length === 0
   ) {
     return;
   }
@@ -54,10 +59,15 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_BOOTSTRAP_JS = `
   const ruleBuilderRootLogic = document.getElementById('rule-builder-root-logic');
   const ruleBuilderDefinitionJson = document.getElementById('rule-builder-definition-json');
   const ruleBuilderTemplatePreset = document.getElementById('rule-builder-template-preset');
+  const ruleBuilderLmsConnectionSelect = document.getElementById('rule-builder-lms-connection');
+  const ruleBuilderLmsProviderKindInput = document.getElementById('rule-builder-lms-provider-kind');
   const ruleBuilderApplyTemplateButton = document.getElementById('rule-builder-apply-template');
   const ruleBuilderAddConditionButton = document.getElementById('rule-builder-add-condition');
   const ruleBuilderAddAlternativePathButton = document.getElementById(
     'rule-builder-add-alternative-path',
+  );
+  const ruleBuilderRequireEveryRequirementButton = document.getElementById(
+    'rule-builder-require-every-requirement',
   );
   const ruleBuilderExportJsonButton = document.getElementById('rule-builder-export-json');
   const ruleBuilderImportJsonButton = document.getElementById('rule-builder-import-json');
@@ -91,10 +101,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_BOOTSTRAP_JS = `
   const ruleBuilderSummaryValidity = document.getElementById('rule-builder-summary-validity');
   const ruleBuilderSummaryLastTest = document.getElementById('rule-builder-summary-last-test');
   const ruleBuilderValueListBody = document.getElementById('rule-builder-value-list-body');
-  const ruleBuilderSimulateButton = document.getElementById('rule-builder-simulate');
-  const ruleBuilderSimulateLimit = document.getElementById('rule-builder-simulate-limit');
-  const ruleBuilderSimulateStatus = document.getElementById('rule-builder-simulate-status');
-  const ruleBuilderSimulateOutput = document.getElementById('rule-builder-simulate-output');
   const ruleBuilderSourceList = document.getElementById('rule-builder-source-list');
   const ruleBuilderSourceSample = document.getElementById('rule-builder-source-sample');
   const ruleBuilderStepButtons = Array.from(

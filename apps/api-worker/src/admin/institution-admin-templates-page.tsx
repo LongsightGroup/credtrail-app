@@ -27,17 +27,10 @@ import {
   renderInstitutionAdminShellPage,
 } from "./institution-admin-shell";
 import type { AppPage } from "../ui/render-page";
+import { adminStatusPillClass } from "./admin-status-pill-class";
 import { formatIsoTimestamp } from "../utils/display-format";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
-
-const adminStatusPillClass = (tone: string | null): string => {
-  const normalizedTone = tone?.trim();
-
-  return normalizedTone === undefined || normalizedTone.length === 0
-    ? "ct-admin__status-pill"
-    : `ct-admin__status-pill ct-admin__status-pill--${normalizedTone}`;
-};
 
 export interface InstitutionAdminBadgeTemplatesPageOptions {
   searchQuery: string;

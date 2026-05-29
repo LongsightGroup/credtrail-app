@@ -12,12 +12,12 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
     };
     const ruleBuilderStepCallouts = {
       metadata:
-        'Choose an awarding pattern, badge, and Learning Management System source, then select Continue.',
+        'Choose an awarding pattern, badge, and LMS connection, then select Continue.',
       conditions: 'Confirm the requirements learners must meet, then select Continue.',
       test: 'Test with a sample learner. When results look right, create the draft.',
     };
     const ruleBuilderStepGateMessages = {
-      metadata: 'Choose a badge template and Learning Management System before continuing.',
+      metadata: 'Choose a badge template and LMS connection before continuing.',
       conditions: 'Add at least one requirement before continuing.',
       test: 'Run a test with a sample learner before creating the draft.',
     };
@@ -27,7 +27,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
       return (
         getTextFieldValue('name').length > 0 &&
         getTextFieldValue('badgeTemplateId').length > 0 &&
-        getTextFieldValue('lmsProviderKind').length > 0
+        getTextFieldValue('lmsConnectionId').length > 0
       );
     };
 
@@ -103,8 +103,8 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
           missingLabels.push('badge template');
         }
 
-        if (getTextFieldValue('lmsProviderKind').length === 0) {
-          missingLabels.push('Learning Management System');
+        if (getTextFieldValue('lmsConnectionId').length === 0) {
+          missingLabels.push('LMS connection');
         }
 
         if (missingLabels.length > 0) {

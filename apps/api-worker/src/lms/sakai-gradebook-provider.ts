@@ -312,7 +312,7 @@ export const createSakaiGradebookProvider = (
       method: "GET",
       headers: {
         authorization: `Bearer ${config.accessToken}`,
-        cookie: `JSESSIONID=${config.accessToken}`,
+        cookie: `SAKAIID=${config.accessToken}`,
         accept: "application/json",
       },
     });

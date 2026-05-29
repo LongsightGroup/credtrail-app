@@ -29,7 +29,7 @@ const createMockFetch = (
 
     if (
       request.headers.get("authorization") !== "Bearer sakai-token" ||
-      request.headers.get("cookie") !== "JSESSIONID=sakai-token"
+      request.headers.get("cookie") !== "SAKAIID=sakai-token"
     ) {
       return Promise.resolve(
         new Response(JSON.stringify({ error: "Unauthorized" }), {

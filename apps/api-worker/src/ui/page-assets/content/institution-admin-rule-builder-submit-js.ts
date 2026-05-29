@@ -34,7 +34,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
 
       const learnerId = getTextFieldValue('testLearnerId');
       const recipientIdentity = getTextFieldValue('testRecipientIdentity').toLowerCase();
-      const lmsProviderKind = getTextFieldValue('lmsProviderKind');
+      const lmsConnectionId = getTextFieldValue('lmsConnectionId');
       const sampleCourseId = getTextFieldValue('testCourseId');
       const sampleFinalScoreText = getTextFieldValue('testFinalScore');
       const testFactsJson = getTextFieldValue('testFactsJson');
@@ -47,6 +47,17 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
           setStatus(ruleBuilderTestResult, message, true);
         }
         ruleBuilderLastTestSummary = 'Missing test identifiers';
+        syncRuleBuilderSummary(message);
+        return;
+      }
+
+      if (lmsConnectionId.length === 0) {
+        const message = 'Select an LMS connection before testing the rule.';
+        setStatus(ruleCreateStatus, message, true);
+        if (ruleBuilderTestResult instanceof HTMLElement) {
+          setStatus(ruleBuilderTestResult, message, true);
+        }
+        ruleBuilderLastTestSummary = 'Missing LMS connection';
         syncRuleBuilderSummary(message);
         return;
       }
@@ -107,7 +118,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
           },
           body: JSON.stringify({
             definition,
-            lmsProviderKind: lmsProviderKind.length === 0 ? 'canvas' : lmsProviderKind,
+            lmsConnectionId,
             learnerId,
             recipientIdentity,
             recipientIdentityType: 'email',
@@ -254,101 +265,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
       });
     }
 
-    if (
-      ruleBuilderSimulateButton instanceof HTMLButtonElement &&
-      ruleBuilderSimulateLimit instanceof HTMLInputElement &&
-      ruleBuilderSimulateStatus instanceof HTMLElement
-    ) {
-      ruleBuilderSimulateButton.addEventListener('click', async () => {
-        setStatus(ruleBuilderSimulateStatus, 'Running historical simulation...', false);
-        setCodeOutput(ruleBuilderSimulateOutput, '');
-
-        let definition;
-
-        try {
-          definition = parseDefinitionJson();
-        } catch (error) {
-          setStatus(
-            ruleBuilderSimulateStatus,
-            error instanceof Error ? error.message : 'Rule definition is invalid.',
-            true,
-          );
-          return;
-        }
-
-        const badgeTemplateId = getTextFieldValue('badgeTemplateId');
-        const parsedSampleLimit = Number(ruleBuilderSimulateLimit.value.trim());
-        const sampleLimit =
-          Number.isFinite(parsedSampleLimit) && parsedSampleLimit >= 1 && parsedSampleLimit <= 100
-            ? Math.trunc(parsedSampleLimit)
-            : 25;
-
-        if (badgeTemplateId.length === 0) {
-          setStatus(ruleBuilderSimulateStatus, 'Badge template is required for simulation.', true);
-          return;
-        }
-
-        try {
-          const response = await fetch(badgeRulePreviewSimulationApiPath, {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-              definition,
-              badgeTemplateId,
-              sampleLimit,
-            }),
-          });
-          const payload = await parseJsonBody(response);
-
-          if (!response.ok) {
-            setStatus(ruleBuilderSimulateStatus, errorDetailFromPayload(payload), true);
-            return;
-          }
-
-          const sampleCount =
-            payload && typeof payload.sampleCount === 'number' ? payload.sampleCount : 0;
-          const summary =
-            payload && payload.summary && typeof payload.summary === 'object'
-              ? payload.summary
-              : null;
-          const changedCount =
-            summary && typeof summary.changedCount === 'number' ? summary.changedCount : 0;
-          const reviewRequiredCount =
-            summary && typeof summary.reviewRequiredCount === 'number'
-              ? summary.reviewRequiredCount
-              : 0;
-          const matchedCount =
-            summary && typeof summary.matchedCount === 'number' ? summary.matchedCount : 0;
-
-          setStatus(
-            ruleBuilderSimulateStatus,
-            sampleCount === 0
-              ? 'No historical evaluations are available for this badge template yet.'
-              : 'Simulation complete. Samples=' +
-                  String(sampleCount) +
-                  ', matched=' +
-                  String(matchedCount) +
-                  ', review_required=' +
-                  String(reviewRequiredCount) +
-                  ', changed=' +
-                  String(changedCount) +
-                  '.',
-            false,
-            sampleCount === 0 ? 'warning' : 'success',
-          );
-          setCodeOutput(ruleBuilderSimulateOutput, JSON.stringify(payload, null, 2));
-        } catch {
-          setStatus(
-            ruleBuilderSimulateStatus,
-            'Unable to run historical simulation from this browser session.',
-            true,
-          );
-        }
-      });
-    }
-
     ruleCreateForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       setStatus(ruleCreateStatus, 'Creating rule draft...', false);
@@ -358,19 +274,19 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
       const name = getTextFieldValue('name');
       const description = getTextFieldValue('description');
       const badgeTemplateId = getTextFieldValue('badgeTemplateId');
-      const lmsProviderKind = getTextFieldValue('lmsProviderKind');
+      const lmsConnectionId = getTextFieldValue('lmsConnectionId');
       const approvalRolesText = getTextFieldValue('approvalRoles');
       const issuanceTiming = getTextFieldValue('issuanceTiming');
       const changeSummaryInput = getTextFieldValue('changeSummary');
 
-      if (name.length === 0 || badgeTemplateId.length === 0 || lmsProviderKind.length === 0) {
+      if (name.length === 0 || badgeTemplateId.length === 0 || lmsConnectionId.length === 0) {
         setStatus(
           ruleCreateStatus,
-          'Rule name, badge template, and Learning Management System are required.',
+          'Rule name, badge template, and LMS connection are required.',
           true,
         );
         syncRuleBuilderSummary(
-          'Rule name, badge template, and Learning Management System are required.',
+          'Rule name, badge template, and LMS connection are required.',
         );
         return;
       }
@@ -426,7 +342,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
             name,
             ...(description.length > 0 ? { description } : {}),
             badgeTemplateId,
-            lmsProviderKind,
+            lmsConnectionId,
             definition: definitionWithOptions,
             ...(approvalChain.length > 0 ? { approvalChain } : {}),
             ...(changeSummary.length > 0 ? { changeSummary } : {}),
@@ -455,7 +371,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
           'Rule draft created: ' + ruleId + (versionId.length > 0 ? ' (' + versionId + ')' : ''),
         );
         setTimeout(() => {
-          window.location.assign(tenantAdminPath);
+          window.location.assign(rulesListPath);
         }, 900);
       } catch {
         setStatus(ruleCreateStatus, 'Unable to create rule draft from this browser session.', true);
@@ -480,6 +396,15 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
           applyTemplatePreset();
         }
       });
+    }
+
+    if (ruleBuilderLmsConnectionSelect instanceof HTMLSelectElement) {
+      ruleBuilderLmsConnectionSelect.addEventListener('change', () => {
+        syncSelectedLmsProviderKind();
+        refreshConditionCardValueListOptions();
+        syncRuleBuilderSummary();
+      });
+      syncSelectedLmsProviderKind();
     }
 
     if (ruleBuilderTemplatePreset instanceof HTMLSelectElement) {

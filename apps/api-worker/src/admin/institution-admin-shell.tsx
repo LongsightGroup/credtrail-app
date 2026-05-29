@@ -31,6 +31,7 @@ export type InstitutionAdminShellView =
   | "accessMembers"
   | "accessGovernance"
   | "accessApiKeys"
+  | "accessLmsConnections"
   | "accessOrgUnits";
 
 export interface InstitutionAdminShellPaths {
@@ -52,6 +53,7 @@ export interface InstitutionAdminShellPaths {
   accessMembersPath: string;
   accessGovernancePath: string;
   accessApiKeysPath: string;
+  accessLmsConnectionsPath: string;
   accessOrgUnitsPath: string;
   adminAuditLogPath: string;
   showcasePath: string;
@@ -92,6 +94,7 @@ export const buildInstitutionAdminShellPaths = (tenantId: string): InstitutionAd
     accessMembersPath: `${accessPath}/members`,
     accessGovernancePath: `${accessPath}/governance`,
     accessApiKeysPath: `${accessPath}/api-keys`,
+    accessLmsConnectionsPath: `${accessPath}/lms-connections`,
     accessOrgUnitsPath: `${accessPath}/org-units`,
     adminAuditLogPath: `/admin/audit-logs?tenantId=${encodeURIComponent(tenantId)}`,
     showcasePath: `/showcase/${encodeURIComponent(tenantId)}`,
@@ -202,6 +205,12 @@ const buildSidebarSections = (
         href: paths.accessApiKeysPath,
         label: "API Keys",
         isCurrent: view === "accessApiKeys",
+        isSub: true,
+      },
+      {
+        href: paths.accessLmsConnectionsPath,
+        label: "LMS Connections",
+        isCurrent: view === "accessLmsConnections",
         isSub: true,
       },
       {

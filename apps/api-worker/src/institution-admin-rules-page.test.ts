@@ -53,6 +53,12 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).toContain("Rule Governance Context");
     expect(body).not.toContain("ct-grid--sidebar");
     expect(body).toContain("Badge Rules (1)");
+    expect(body).toContain("Version 1");
+    expect(body).toContain("Version ID: brv_123");
+    expect(body).not.toContain("v1 (brv_123)");
+    expect(body).toContain("Mark ready");
+    expect(INSTITUTION_ADMIN_JS).toContain("This does not activate the rule.");
+    expect(INSTITUTION_ADMIN_JS).toContain("Draft is ready for review. It is not active yet.");
     expect(body).not.toContain("Badge Templates (1)");
     expect(body).not.toContain("Create Tenant API Key");
     expect(body).not.toContain("Issued Badges Ledger");
@@ -114,6 +120,10 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).not.toContain('data-template-edit-template-id="badge_template_001"');
     expect(body).not.toContain('data-template-manage-image-template-id="badge_template_001"');
     expect(body).toContain('class="ct-admin__template-actions"');
+    expect(body).toContain(
+      'class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary" href="/tenants/tenant_123/admin/rules/templates/badge_template_001"',
+    );
+    expect(body).not.toContain("ct-admin__template-primary-action");
     expect(body).toContain("Edit template");
     expect(body).toContain("View public page ↗");
     expect(body).toContain("View criteria page ↗");
@@ -200,6 +210,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS).toContain(
       "badge-template-editor-ready-status",
     );
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS).toContain("adminStatusPillClass");
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS).not.toContain(
       "'<div><strong>Current artwork</strong><p>'",
     );
@@ -374,6 +385,10 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("TypeScript Foundations");
     expect(body).not.toContain("3 image versions");
     expect(body).toContain('data-template-history-image-revision-count="3"');
+    expect(body).toContain(
+      'class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary" href="/tenants/tenant_123/admin/rules/templates/badge_template_001"',
+    );
+    expect(body).not.toContain("ct-admin__template-primary-action");
     expect(body).toContain("Edit template");
     expect(body).toContain("View public page ↗");
     expect(body).toContain("View criteria page ↗");
@@ -662,6 +677,10 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toMatch(
       /id="rule-builder-add-condition"[^>]*class="ct-admin__button ct-admin__button--tiny"/,
     );
+    expect(body).toContain('id="rule-builder-require-every-requirement"');
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-require-every-requirement");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("setRuleBuilderRootLogic('all')");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("data-rule-builder-root-logic-option");
     expect(body).toMatch(
       /id="rule-builder-step-next"[^>]*class="ct-admin__button ct-admin__button--tiny"/,
     );
@@ -671,33 +690,48 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('id="rule-builder-test-preset"');
     expect(body).not.toContain('id="rule-builder-apply-test-preset"');
     expect(body).toContain('id="rule-builder-test-output"');
-    expect(body).toContain('id="rule-builder-value-list-body"');
+    expect(body).not.toContain('id="rule-builder-value-list-body"');
     expect(body).toContain('name="reviewOnMissingFacts"');
-    expect(body).toContain('id="rule-builder-simulate"');
-    expect(body).toContain('id="rule-builder-simulate-output"');
+    expect(body).not.toContain('id="rule-builder-simulate"');
+    expect(body).not.toContain('id="rule-builder-simulate-output"');
+    expect(body).not.toContain("Historical simulation");
     expect(body).toContain("Follow these steps in order");
     expect(body).toContain("Continue to Requirements");
     expect(body).toContain('id="rule-builder-step-callout"');
     expect(body).toContain("Set up this rule");
-    expect(body).toContain("The awarding pattern starts the requirements list");
+    expect(body).toContain("Each requirement describes what a learner must do.");
+    expect(body).toContain("Exclude learners who match this requirement");
+    expect(body).not.toContain("Each row describes one fact CredTrail checks");
+    expect(body).not.toContain("Require completed");
+    expect(body).not.toContain("Reusable course list");
+    expect(body).not.toContain("The awarding pattern starts the requirements list");
     expect(body).not.toContain("Use pattern");
     expect(body).not.toContain("rule-builder-apply-test-preset");
     expect(body).not.toContain("Confirm the badge and Learning Management System source");
     expect(body).toContain('id="rule-builder-return-to-pattern"');
     expect(body).toContain("No requirements yet");
     expect(body).toContain("Back to Step 1");
-    expect(body).toContain("Advanced tools and reusable lists");
+    expect(body).toContain("Advanced JSON tools");
+    expect(body).not.toContain("Advanced tools and reusable lists");
+    expect(body).not.toContain("Reusable lists");
+    expect(body).toContain("Reviewer roles (optional)");
+    expect(body).toContain("Leave blank for admin review");
+    expect(body).not.toContain('value="admin,owner"');
     expect(body).not.toContain("Start from a proven pattern");
-    expect(body).toContain(
-      "Choose the badge, Learning Management System, and how learners earn it",
-    );
+    expect(body).not.toContain("Start from an existing rule");
+    expect(body).not.toContain("Load rule");
+    expect(body).toContain("Choose the badge, LMS connection, and how learners earn it");
+    expect(body).toContain('name="lmsConnectionId"');
+    expect(body).toContain("Canvas Test (Canvas)");
     expect(body).toContain("Need a new template?");
     expect(body).toContain("Create one in Badge Templates");
     expect(body).toContain(
       'href="/tenants/tenant_123/admin/rules/templates?returnTo=rule-builder"',
     );
     expect(body).toContain("and continue here");
-    expect(body).toContain("Start from an existing rule");
+    expect(body).toContain("Copy existing rule settings");
+    expect(body).toContain("Select rule to copy");
+    expect(body).toContain("Copy settings");
     expect(body).not.toContain("Save progress");
     expect(body).not.toContain("Resume saved progress");
     expect(body).toContain("Edit requirement details");
@@ -721,6 +755,11 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
     expect(body).toContain(">Badge Templates</a>");
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new" aria-current="page"');
+    expect(body).toContain("&quot;rulesListPath&quot;:&quot;/tenants/tenant_123/admin/rules&quot;");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("window.location.assign(rulesListPath)");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain(
+      "window.location.assign(tenantAdminPath)",
+    );
     expect(body).toContain('href="/tenants/tenant_123/admin/access/members"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/governance"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/api-keys"');

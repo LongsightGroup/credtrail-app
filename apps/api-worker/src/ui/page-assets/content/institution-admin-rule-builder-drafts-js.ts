@@ -260,7 +260,16 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
           minScore: 80,
           negate: false,
         });
+        syncDefinitionJsonFromBuilder();
         syncRuleBuilderSummary('Alternative earning path added.');
+      });
+    }
+
+    if (ruleBuilderRequireEveryRequirementButton instanceof HTMLButtonElement) {
+      ruleBuilderRequireEveryRequirementButton.addEventListener('click', () => {
+        setRuleBuilderRootLogic('all');
+        syncDefinitionJsonFromBuilder();
+        syncRuleBuilderSummary('Learner must meet every requirement.');
       });
     }
 
@@ -290,17 +299,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
         }
       });
     }
-
-    document.querySelectorAll('[data-rule-builder-root-logic-option]').forEach((candidate) => {
-      if (candidate instanceof HTMLInputElement) {
-        candidate.addEventListener('change', () => {
-          if (candidate.checked) {
-            setRuleBuilderRootLogic(candidate.value);
-            syncDefinitionJsonFromBuilder();
-          }
-        });
-      }
-    });
 
     if (
       ruleBuilderImportJsonButton instanceof HTMLButtonElement &&
@@ -361,10 +359,11 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
             parsed !== null &&
             typeof parsed === 'object' &&
             !Array.isArray(parsed) &&
-            'lmsProviderKind' in parsed &&
-            typeof parsed.lmsProviderKind === 'string'
+            'lmsConnectionId' in parsed &&
+            typeof parsed.lmsConnectionId === 'string'
           ) {
-            setRuleCreateFieldValue('lmsProviderKind', parsed.lmsProviderKind);
+            setRuleCreateFieldValue('lmsConnectionId', parsed.lmsConnectionId);
+            syncSelectedLmsProviderKind();
           }
 
           if (definition === null) {
@@ -393,7 +392,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
             name: getTextFieldValue('name'),
             description: getTextFieldValue('description'),
             badgeTemplateId: getTextFieldValue('badgeTemplateId'),
-            lmsProviderKind: getTextFieldValue('lmsProviderKind'),
+            lmsConnectionId: getTextFieldValue('lmsConnectionId'),
             definition,
           };
           const blob = new Blob([JSON.stringify(payload, null, 2)], {
@@ -435,13 +434,13 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
         const ruleId = ruleBuilderCloneRuleSelect.value.trim();
 
         if (ruleId.length === 0) {
-          setStatus(ruleCreateStatus, 'Select a rule to clone.', true);
-          syncRuleBuilderSummary('Select a rule to clone.');
+          setStatus(ruleCreateStatus, 'Select a rule to copy.', true);
+          syncRuleBuilderSummary('Select a rule to copy.');
           return;
         }
 
-        setStatus(ruleCreateStatus, 'Loading rule for clone...', false);
-        syncRuleBuilderSummary('Loading rule for clone...');
+        setStatus(ruleCreateStatus, 'Copying rule settings...', false);
+        syncRuleBuilderSummary('Copying rule settings...');
 
         try {
           const response = await fetch(badgeRuleApiPath + '/' + encodeURIComponent(ruleId));
@@ -471,21 +470,22 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
             setRuleCreateFieldValue('badgeTemplateId', rule.badgeTemplateId);
           }
 
-          if (rule && typeof rule.lmsProviderKind === 'string') {
-            setRuleCreateFieldValue('lmsProviderKind', rule.lmsProviderKind);
+          if (rule && typeof rule.lmsConnectionId === 'string') {
+            setRuleCreateFieldValue('lmsConnectionId', rule.lmsConnectionId);
+            syncSelectedLmsProviderKind();
           }
 
           if (latestVersion && typeof latestVersion.ruleJson === 'string') {
             const definition = JSON.parse(latestVersion.ruleJson);
             ruleBuilderDefinitionJson.value = JSON.stringify(definition, null, 2);
-            applyDefinitionToBuilder(definition, 'Cloned rule');
+            applyDefinitionToBuilder(definition, 'Copied rule settings');
           } else {
-            setStatus(ruleCreateStatus, 'Selected rule has no version JSON to clone.', true);
-            syncRuleBuilderSummary('Selected rule has no version JSON to clone.');
+            setStatus(ruleCreateStatus, 'Selected rule has no saved settings to copy.', true);
+            syncRuleBuilderSummary('Selected rule has no saved settings to copy.');
           }
         } catch {
-          setStatus(ruleCreateStatus, 'Unable to clone selected rule from this browser session.', true);
-          syncRuleBuilderSummary('Unable to clone selected rule from this browser session.');
+          setStatus(ruleCreateStatus, 'Unable to copy selected rule from this browser session.', true);
+          syncRuleBuilderSummary('Unable to copy selected rule from this browser session.');
         }
       });
     }

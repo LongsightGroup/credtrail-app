@@ -149,11 +149,28 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUMMARY_JS = `
       }
 
       if (ruleBuilderCanvasLogic instanceof HTMLElement) {
+        const rootLogic = getRuleBuilderRootLogic();
         ruleBuilderCanvasLogic.textContent =
-          getRuleBuilderRootLogic() === 'any'
+          rootLogic === 'any'
             ? 'Learner can meet any one requirement'
             : 'Learner must meet every requirement';
-        ruleBuilderCanvasLogic.dataset.tone = getRuleBuilderRootLogic() === 'any' ? 'warning' : 'success';
+        ruleBuilderCanvasLogic.className = adminStatusPillClass(
+          rootLogic === 'any' ? 'warning' : 'active',
+        );
+      }
+
+      syncRootLogicToolbarVisibility();
+    };
+
+    const syncRootLogicToolbarVisibility = () => {
+      const rootLogic = getRuleBuilderRootLogic();
+
+      if (ruleBuilderAddAlternativePathButton instanceof HTMLButtonElement) {
+        ruleBuilderAddAlternativePathButton.hidden = rootLogic === 'any';
+      }
+
+      if (ruleBuilderRequireEveryRequirementButton instanceof HTMLButtonElement) {
+        ruleBuilderRequireEveryRequirementButton.hidden = rootLogic === 'all';
       }
     };
 

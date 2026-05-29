@@ -215,6 +215,7 @@ vi.mock("@credtrail/db", async () => {
     listTenantOrgUnits: vi.fn(),
     listTenantApiKeys: vi.fn(),
     listTenantBreakGlassAccounts: vi.fn(),
+    listTenantLmsConnections: vi.fn(),
     listTenantMembers: vi.fn(),
     listTenantReportingComparisons: vi.fn(),
     markLearnerRecordImportPreviewQueued: vi.fn(),
@@ -300,6 +301,7 @@ import {
   listTenantAuthProviders,
   listTenantApiKeys,
   listTenantBreakGlassAccounts,
+  listTenantLmsConnections,
   listTenantMembers,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
@@ -398,6 +400,7 @@ const mockedListLearnerRecordEntries = vi.mocked(listLearnerRecordEntries);
 const mockedListTenantAuthProviders = vi.mocked(listTenantAuthProviders);
 const mockedListTenantApiKeys = vi.mocked(listTenantApiKeys);
 const mockedListTenantBreakGlassAccounts = vi.mocked(listTenantBreakGlassAccounts);
+const mockedListTenantLmsConnections = vi.mocked(listTenantLmsConnections);
 const mockedListTenantMembers = vi.mocked(listTenantMembers);
 const mockedListTenantMembershipOrgUnitScopes = vi.mocked(listTenantMembershipOrgUnitScopes);
 const mockedListTenantOrgUnits = vi.mocked(listTenantOrgUnits);
@@ -738,6 +741,8 @@ beforeEach(() => {
   mockedListTenantApiKeys.mockResolvedValue([]);
   mockedListTenantBreakGlassAccounts.mockReset();
   mockedListTenantBreakGlassAccounts.mockResolvedValue([]);
+  mockedListTenantLmsConnections.mockReset();
+  mockedListTenantLmsConnections.mockResolvedValue([]);
   mockedListTenantMembers.mockReset();
   mockedListTenantMembers.mockResolvedValue([
     sampleTenantMember({

@@ -77,11 +77,11 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
         const minimumCompleted = parseNumberInput(readFieldFromCard(card, 'minimumCompleted'));
 
         if (strict && courseIds.length === 0 && courseListId.length === 0) {
-          throw new Error('Program completion requires course IDs or reusable course list.');
+          throw new Error('Course pathway completion requires selected courses or a reusable course list.');
         }
 
         if (strict && courseIds.length > 0 && courseListId.length > 0) {
-          throw new Error('Program completion can use explicit course IDs or reusable course list, not both.');
+          throw new Error('Course pathway completion can use selected courses or a reusable course list, not both.');
         }
 
         condition = {
@@ -103,11 +103,11 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
         const workflowStates = parseCsv(readFieldFromCard(card, 'workflowStates'));
 
         if (strict && courseId.length === 0) {
-          throw new Error('Assignment submission requirement needs a course ID.');
+          throw new Error('Gradebook item requirement needs a course.');
         }
 
         if (strict && assignmentId.length === 0) {
-          throw new Error('Assignment submission requirement needs an assignment ID.');
+          throw new Error('Gradebook item requirement needs a gradebook item.');
         }
 
         condition = {
@@ -287,7 +287,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
       }
 
       if (leaf.type === 'assignment_submission') {
-        return 'Assignment ' + leaf.assignmentId + ' in ' + leaf.courseId + ' must satisfy submission rules.';
+        return 'Gradebook item ' + leaf.assignmentId + ' in ' + leaf.courseId + ' must satisfy submission rules.';
       }
 
       if (leaf.type === 'survey_completion') {
@@ -422,7 +422,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
 
     const sourceEntriesForConditions = (conditions) => {
       const entries = new Map();
-      const lmsLabel = getTextFieldValue('lmsProviderKind') || 'canvas';
+      const lmsLabel = getSelectedLmsProviderKind() || 'selected LMS';
 
       conditions.forEach((condition) => {
         const leaf = leafConditionFromCondition(condition);
@@ -439,7 +439,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
           addSourceEntry(
             entries,
             'lms-gradebook',
-            lmsLabel + ' gradebook',
+            lmsLabel + ' gradebook connection',
             'Connected or sample',
             conditionDetail(condition),
           );
@@ -450,7 +450,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
           addSourceEntry(
             entries,
             'lms-assignments',
-            lmsLabel + ' assignments',
+            lmsLabel + ' gradebook items',
             'Connected or sample',
             conditionDetail(condition),
           );

@@ -19,12 +19,14 @@ interface RenderInstitutionAdminAccessSectionsInput {
   accessGovernancePath: string;
   accessApiKeysPath: string;
   accessOrgUnitsPath: string;
+  accessLmsConnectionsPath: string;
   tenantMemberCount: string;
   scopedRoleCount: string;
   delegatedAuthorityGrantCount: string;
   activeApiKeyCount: string;
   revokedApiKeyCount: string;
   orgUnitCount: string;
+  lmsConnectionCount: string;
   tenantMemberRoleSelectOptions: HonoElement;
   tenantMemberRows: HonoElement;
   orgUnitParentOptions: HonoElement;
@@ -33,10 +35,13 @@ interface RenderInstitutionAdminAccessSectionsInput {
   optionalBadgeTemplateScopeOptions: HonoElement;
   membershipScopeRows: HonoElement;
   delegatedGrantRows: HonoElement;
+  lmsConnectionRows: HonoElement;
 }
 
 interface InstitutionAdminAccessSections {
   apiKeyPanelMarkup: HonoElement;
+  lmsConnectionsPanelMarkup: HonoElement;
+  lmsConnectionsTableMarkup: HonoElement;
   orgUnitPanelMarkup: HonoElement;
   governanceGuidePanelMarkup: HonoElement;
   tenantMembersPanelMarkup: HonoElement;
@@ -82,6 +87,112 @@ export const renderInstitutionAdminAccessSections = (
       <AdminStatus id="api-key-status"></AdminStatus>
       <pre id="api-key-secret" class="ct-admin__secret" hidden></pre>
     </details>
+  );
+
+  const lmsConnectionsPanelMarkup = (
+    <details id="lms-connection-panel" class="ct-admin__panel ct-admin__add-disclosure">
+      <summary class="ct-admin__add-disclosure-summary">
+        <span>
+          <strong id="lms-connection-form-title">Add LMS connection</strong>
+          <small>Connect a tenant gradebook account for rule lookup.</small>
+        </span>
+        {addDisclosureControlMarkup}
+      </summary>
+      <AdminForm
+        id="lms-connection-form"
+        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--lms-connection ct-stack"
+      >
+        <input name="connectionId" type="hidden" value="" />
+        <AdminField label="Connection name">
+          <input name="displayName" type="text" required placeholder="TrySakai test server" />
+        </AdminField>
+        <AdminField label="Provider">
+          <select name="providerKind" required>
+            <option value="canvas">Canvas</option>
+            <option value="sakai">Sakai</option>
+          </select>
+        </AdminField>
+        <AdminField label="API/server URL">
+          <input name="apiBaseUrl" type="url" required placeholder="https://lms.example.edu" />
+        </AdminField>
+        <AdminField label="Credential or session value">
+          <input
+            name="accessToken"
+            type="password"
+            autocomplete="off"
+            placeholder="Canvas access token or Sakai SAKAIID"
+          />
+        </AdminField>
+        <details class="ct-admin__advanced-tools">
+          <summary>
+            <span>Advanced OAuth and LTI metadata</span>
+            <small>
+              Add refresh credentials or LTI identifiers only when this connection needs them.
+            </small>
+          </summary>
+          <div class="ct-admin__advanced-tools-body ct-grid">
+            <AdminField label="Refresh token (optional)">
+              <input name="refreshToken" type="password" autocomplete="off" />
+            </AdminField>
+            <AdminField label="Authorization endpoint (optional)">
+              <input
+                name="authorizationEndpoint"
+                type="url"
+                placeholder="https://lms.example.edu/login/oauth2/auth"
+              />
+            </AdminField>
+            <AdminField label="Token endpoint (optional)">
+              <input
+                name="tokenEndpoint"
+                type="url"
+                placeholder="https://lms.example.edu/login/oauth2/token"
+              />
+            </AdminField>
+            <AdminField label="OAuth client ID (optional)">
+              <input name="clientId" type="text" autocomplete="off" />
+            </AdminField>
+            <AdminField label="OAuth client secret (optional)">
+              <input name="clientSecret" type="password" autocomplete="off" />
+            </AdminField>
+            <AdminField label="LTI issuer (optional)">
+              <input name="ltiIssuer" type="url" />
+            </AdminField>
+            <AdminField label="LTI client ID (optional)">
+              <input name="ltiClientId" type="text" />
+            </AdminField>
+            <AdminField label="LTI deployment ID (optional)">
+              <input name="ltiDeploymentId" type="text" />
+            </AdminField>
+          </div>
+        </details>
+        <AdminButton type="submit">Save and connect gradebook</AdminButton>
+      </AdminForm>
+      <AdminStatus id="lms-connection-status"></AdminStatus>
+    </details>
+  );
+
+  const lmsConnectionsTableMarkup = (
+    <AdminPanel variant="table">
+      <h2 id="lms-connection-heading">Current LMS Connections ({input.lmsConnectionCount})</h2>
+      <p>
+        These tenant gradebook accounts appear in Rule Builder. Secrets are never shown after they
+        are saved.
+      </p>
+      <AdminTable
+        headers={[
+          "Connection",
+          "Provider",
+          "API/server URL",
+          "Status",
+          "Last connected",
+          "LTI metadata",
+          "Action",
+        ]}
+        tbodyId="lms-connection-body"
+      >
+        {input.lmsConnectionRows}
+      </AdminTable>
+    </AdminPanel>
   );
 
   const orgUnitPanelMarkup = (
@@ -222,6 +333,17 @@ export const renderInstitutionAdminAccessSections = (
         <div class="ct-admin__workspace-stats ct-cluster">
           <AdminStatusPill>{input.activeApiKeyCount} active</AdminStatusPill>
           <AdminStatusPill>{input.revokedApiKeyCount} revoked</AdminStatusPill>
+        </div>
+      </AdminWorkspaceCard>
+      <AdminWorkspaceCard
+        href={input.accessLmsConnectionsPath}
+        ariaLabel="Open LMS Connections page"
+      >
+        <p class="ct-admin__eyebrow">Gradebooks</p>
+        <h2>LMS Connections</h2>
+        <p>Connect Canvas or Sakai gradebook accounts used by badge awarding rules.</p>
+        <div class="ct-admin__workspace-stats ct-cluster">
+          <AdminStatusPill>{input.lmsConnectionCount} connections</AdminStatusPill>
         </div>
       </AdminWorkspaceCard>
       <AdminWorkspaceCard href={input.accessOrgUnitsPath} ariaLabel="Open Org Units page">
@@ -379,6 +501,8 @@ export const renderInstitutionAdminAccessSections = (
 
   return {
     apiKeyPanelMarkup,
+    lmsConnectionsPanelMarkup,
+    lmsConnectionsTableMarkup,
     orgUnitPanelMarkup,
     governanceGuidePanelMarkup,
     tenantMembersPanelMarkup,

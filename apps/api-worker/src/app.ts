@@ -108,6 +108,7 @@ import { registerExecutiveRoutes } from "./routes/executive-routes";
 import { registerReportingRoutes } from "./routes/reporting-routes";
 import { registerSigningRoutes } from "./routes/signing-routes";
 import { registerTenantGovernanceRoutes } from "./routes/tenant-governance-routes";
+import { registerTenantLmsConnectionRoutes } from "./routes/tenant-lms-connection-routes";
 import { registerOid4vciRoutes } from "./routes/oid4vci-routes";
 import { addSecondsToIso, generateOpaqueToken, sha256Base64Url, sha256Hex } from "./utils/crypto";
 import { formatIsoTimestamp, linkedInAddToProfileUrl } from "./utils/display-format";
@@ -736,6 +737,14 @@ registerBadgeTemplateRoutes({
   ADMIN_ROLES,
   ISSUER_ROLES,
   TENANT_MEMBER_ROLES,
+});
+
+registerTenantLmsConnectionRoutes({
+  app,
+  resolveDatabase,
+  requireTenantRole,
+  ISSUER_ROLES,
+  ADMIN_ROLES,
 });
 
 registerBadgeRuleRoutes({

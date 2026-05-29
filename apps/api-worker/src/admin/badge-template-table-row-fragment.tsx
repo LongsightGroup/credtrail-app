@@ -6,6 +6,7 @@ import {
   AdminActionMenu,
   AdminActionMenuButton,
   AdminActionMenuLink,
+  AdminButtonLink,
   AdminStatusPill,
 } from "./components";
 
@@ -81,12 +82,13 @@ export const BadgeTemplateAdminTableRow = ({
       <td>{formatIsoTimestamp(template.updatedAt)}</td>
       <td>
         <div class="ct-admin__template-actions">
-          <a
-            class="ct-admin__text-action ct-admin__template-primary-action"
+          <AdminButtonLink
             href={badgeTemplateAdminEditorHref(tenantId, template.id)}
+            variant="secondary"
+            size="tiny"
           >
             Edit template
-          </a>
+          </AdminButtonLink>
           <AdminActionMenu
             menuId={`badge-template-action-menu-${template.id}`}
             ariaLabel={`More actions for ${template.title}`}

@@ -19,6 +19,11 @@ import {
   parseAdminLearnerRecordReviewQuery,
   parseAdminCanvasOAuthExchangeRequest,
   parseTenantCanvasGradebookSnapshotQuery,
+  parseTenantLmsConnectionCoursePathParams,
+  parseTenantLmsConnectionCourseSearchQuery,
+  parseTenantLmsConnectionGradebookItemPathParams,
+  parseTenantLmsConnectionPathParams,
+  parseUpsertTenantLmsConnectionRequest,
   parseCreateBadgeIssuanceRuleRequest,
   parseCreateBadgeIssuanceRuleValueListRequest,
   parseCreateBadgeIssuanceRuleVersionRequest,
@@ -1009,12 +1014,62 @@ describe("canvas gradebook integration parsers", () => {
   });
 });
 
+describe("tenant LMS connection parsers", () => {
+  it("accepts tenant LMS connection payloads and lookup params", () => {
+    const request = parseUpsertTenantLmsConnectionRequest({
+      displayName: "TrySakai",
+      providerKind: "sakai",
+      apiBaseUrl: "https://trysakai.example.edu",
+      accessToken: "sakai-session",
+      ltiIssuer: "https://trysakai.example.edu",
+      ltiClientId: "client-123",
+      ltiDeploymentId: "deployment-123",
+    });
+    const connectionParams = parseTenantLmsConnectionPathParams({
+      tenantId: "tenant_123",
+      connectionId: "lms_123",
+    });
+    const courseParams = parseTenantLmsConnectionCoursePathParams({
+      tenantId: "tenant_123",
+      connectionId: "lms_123",
+      courseId: "course_101",
+    });
+    const gradebookItemParams = parseTenantLmsConnectionGradebookItemPathParams({
+      tenantId: "tenant_123",
+      connectionId: "lms_123",
+      courseId: "course_101",
+      assignmentId: "assignment_1",
+    });
+    const searchQuery = parseTenantLmsConnectionCourseSearchQuery({
+      q: "biology",
+    });
+
+    expect(request.providerKind).toBe("sakai");
+    expect(request.ltiDeploymentId).toBe("deployment-123");
+    expect(connectionParams.connectionId).toBe("lms_123");
+    expect(courseParams.courseId).toBe("course_101");
+    expect(gradebookItemParams.assignmentId).toBe("assignment_1");
+    expect(searchQuery.q).toBe("biology");
+  });
+
+  it("rejects unsupported LMS connection providers", () => {
+    expect(() => {
+      parseUpsertTenantLmsConnectionRequest({
+        displayName: "Moodle",
+        providerKind: "moodle",
+        apiBaseUrl: "https://moodle.example.edu",
+      });
+    }).toThrowError();
+  });
+});
+
 describe("badge issuance rule parsers", () => {
   it("accepts valid create/version/evaluate payloads", () => {
     const createRequest = parseCreateBadgeIssuanceRuleRequest({
       name: "CS101 Excellence Rule",
       description: "Award badge for high performers",
       badgeTemplateId: "badge_template_cs101",
+      lmsConnectionId: "lms_123",
       lmsProviderKind: "canvas",
       definition: {
         conditions: {
@@ -1135,6 +1190,7 @@ describe("badge issuance rule parsers", () => {
           ],
         },
       },
+      lmsConnectionId: "lms_123",
       learnerId: "learner_123",
       recipientIdentity: "learner@example.edu",
       recipientIdentityType: "email",
@@ -1166,6 +1222,23 @@ describe("badge issuance rule parsers", () => {
     expect(decisionRequest.comment).toContain("governance");
     expect(evaluateRequest.dryRun).toBe(true);
     expect(previewEvaluateRequest.definition.conditions).toHaveProperty("all");
+  });
+
+  it("rejects preview evaluation payloads without an LMS connection", () => {
+    expect(() => {
+      parsePreviewEvaluateBadgeIssuanceRuleRequest({
+        definition: {
+          conditions: {
+            type: "grade_threshold",
+            courseId: "course_101",
+            minScore: 80,
+          },
+        },
+        learnerId: "learner_123",
+        recipientIdentity: "learner@example.edu",
+        recipientIdentityType: "email",
+      });
+    }).toThrowError();
   });
 
   it("parses rule and rule-version path params", () => {
@@ -1205,6 +1278,7 @@ describe("badge issuance rule parsers", () => {
     const createRequest = parseCreateBadgeIssuanceRuleRequest({
       name: "Program path rule",
       badgeTemplateId: "badge_template_program",
+      lmsConnectionId: "lms_123",
       lmsProviderKind: "canvas",
       definition: {
         conditions: {
@@ -1251,6 +1325,7 @@ describe("badge issuance rule parsers", () => {
       parseCreateBadgeIssuanceRuleRequest({
         name: "Invalid",
         badgeTemplateId: "badge_template_cs101",
+        lmsConnectionId: "lms_123",
         lmsProviderKind: "canvas",
         definition: {
           conditions: {
@@ -1279,6 +1354,7 @@ describe("badge issuance rule parsers", () => {
       parseCreateBadgeIssuanceRuleRequest({
         name: "Invalid list combination",
         badgeTemplateId: "badge_template_cs101",
+        lmsConnectionId: "lms_123",
         lmsProviderKind: "canvas",
         definition: {
           conditions: {

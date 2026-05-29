@@ -2,6 +2,7 @@ import type {
   BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleVersionRecord,
   BadgeTemplateRecord,
+  TenantLmsConnectionRecord,
   TenantMembershipRole,
   TenantRecord,
 } from "@credtrail/db";
@@ -10,14 +11,12 @@ import { appPage, type AppPage } from "../ui/render-page";
 import {
   AdminButton,
   AdminCheckboxRow,
-  AdminEmptyTableRow,
   AdminField,
   AdminFieldset,
   AdminForm,
   AdminShell,
   AdminSidebar,
   AdminStatus,
-  AdminTable,
   AdminTopbar,
   type AdminSidebarFooterLink,
   type AdminSidebarSection,
@@ -122,8 +121,8 @@ type RuleBuilderStepTarget = "metadata" | "conditions" | "test";
 const ruleBuilderConditionTypes = [
   { value: "course_completion", label: "Course completion" },
   { value: "grade_threshold", label: "Grade threshold" },
-  { value: "program_completion", label: "Program completion" },
-  { value: "assignment_submission", label: "Assignment submission" },
+  { value: "program_completion", label: "Course pathway completion" },
+  { value: "assignment_submission", label: "Gradebook item submitted" },
   { value: "survey_completion", label: "Survey completion" },
   { value: "time_window", label: "Time window" },
   { value: "prerequisite_badge", label: "Prerequisite badge" },
@@ -202,7 +201,7 @@ const RuleBuilderConditionCardTemplate = (): HonoElement => {
             </AdminField>
             <AdminCheckboxRow>
               <input type="checkbox" data-field="negate" />
-              Do not award when a learner matches this requirement
+              Exclude learners who match this requirement
             </AdminCheckboxRow>
           </div>
           <div class="ct-admin__condition-fields ct-admin__builder-grid ct-grid"></div>
@@ -223,6 +222,7 @@ export const institutionAdminRuleBuilderPage = (input: {
   badgeTemplates: readonly BadgeTemplateRecord[];
   badgeRules: readonly BadgeIssuanceRuleRecord[];
   badgeRuleVersions: readonly BadgeIssuanceRuleVersionRecord[];
+  lmsConnections: readonly TenantLmsConnectionRecord[];
   selectedBadgeTemplateId?: string;
   switchOrganizationPath?: string | null;
 }): AppPage => {
@@ -244,6 +244,7 @@ export const institutionAdminRuleBuilderPage = (input: {
   }
 
   const tenantAdminPath = `/tenants/${encodeURIComponent(input.tenant.id)}/admin`;
+  const rulesListPath = `${tenantAdminPath}/rules`;
   const ruleBuilderPath = `${tenantAdminPath}/rules/new`;
   const manualIssueApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions/manual-issue`;
   const createApiKeyPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/api-keys`;
@@ -255,7 +256,9 @@ export const institutionAdminRuleBuilderPage = (input: {
   const badgeRuleValueListApiPath = `/v1/tenants/${encodeURIComponent(
     input.tenant.id,
   )}/badge-rule-value-lists`;
-  const badgeRulePreviewSimulationApiPath = `${badgeRuleApiPath}/preview-simulate`;
+  const lmsConnectionsApiPath = `/v1/tenants/${encodeURIComponent(
+    input.tenant.id,
+  )}/lms/connections`;
   const badgeRuleReviewQueueApiPath = `${badgeRuleApiPath}/review-queue`;
   const assertionsApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions`;
   const tenantMembersApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/members`;
@@ -274,46 +277,52 @@ export const institutionAdminRuleBuilderPage = (input: {
     isSelected: hasSelectedBadgeTemplate ? template.id === selectedBadgeTemplateId : index === 0,
   }));
 
-  const lmsProviderOptions = [
-    { value: "canvas", label: "Canvas" },
-    { value: "sakai", label: "Sakai" },
-    { value: "moodle", label: "Moodle" },
-    { value: "blackboard_ultra", label: "Blackboard Ultra" },
-    { value: "d2l_brightspace", label: "D2L Brightspace" },
-  ] as const;
+  const supportedLmsConnections = input.lmsConnections.filter(
+    (connection) => connection.providerKind === "canvas" || connection.providerKind === "sakai",
+  );
+  const connectedLmsConnections = supportedLmsConnections.filter(
+    (connection) => connection.accessToken !== null && connection.accessToken.length > 0,
+  );
+  const hasUnusableLmsConnections =
+    supportedLmsConnections.length > 0 && connectedLmsConnections.length === 0;
+  const formatLmsConnectionProvider = (
+    providerKind: TenantLmsConnectionRecord["providerKind"],
+  ): string => {
+    return providerKind === "sakai" ? "Sakai" : "Canvas";
+  };
 
-  const inferDefaultLmsProviderKind = (): (typeof lmsProviderOptions)[number]["value"] => {
+  const inferDefaultLmsConnectionId = (): string => {
     const counts = new Map<string, number>();
 
     for (const rule of input.badgeRules) {
-      const kind = rule.lmsProviderKind;
+      const connectionId = rule.lmsConnectionId;
 
-      if (typeof kind === "string" && kind.length > 0) {
-        counts.set(kind, (counts.get(kind) ?? 0) + 1);
+      if (typeof connectionId === "string" && connectionId.length > 0) {
+        counts.set(connectionId, (counts.get(connectionId) ?? 0) + 1);
       }
     }
 
     if (counts.size > 0) {
-      const mostUsedKind = [...counts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0];
+      const mostUsedConnectionId = [...counts.entries()].sort(
+        (left, right) => right[1] - left[1],
+      )[0]?.[0];
 
       if (
-        mostUsedKind !== undefined &&
-        lmsProviderOptions.some((option) => option.value === mostUsedKind)
+        mostUsedConnectionId !== undefined &&
+        connectedLmsConnections.some((connection) => connection.id === mostUsedConnectionId)
       ) {
-        return mostUsedKind as (typeof lmsProviderOptions)[number]["value"];
+        return mostUsedConnectionId;
       }
     }
 
-    const tenantKey = `${input.tenant.slug ?? ""} ${input.tenant.id}`.toLowerCase();
-
-    if (tenantKey.includes("sakai")) {
-      return "sakai";
-    }
-
-    return "canvas";
+    return connectedLmsConnections[0]?.id ?? "";
   };
 
-  const defaultLmsProviderKind = inferDefaultLmsProviderKind();
+  const defaultLmsConnectionId = inferDefaultLmsConnectionId();
+  const defaultLmsConnection =
+    connectedLmsConnections.find((connection) => connection.id === defaultLmsConnectionId) ??
+    connectedLmsConnections[0] ??
+    null;
 
   const ruleCloneOptions = input.badgeRules.map((rule) => {
     const versions = versionsByRuleId.get(rule.id) ?? [];
@@ -370,13 +379,14 @@ export const institutionAdminRuleBuilderPage = (input: {
 
   const adminPageContextJson = serializeJsonScriptContent({
     tenantAdminPath,
+    rulesListPath,
     manualIssueApiPath,
     createApiKeyPath,
     createOrgUnitPath,
     badgeTemplateApiPathPrefix,
     badgeRuleApiPath,
     badgeRuleValueListApiPath,
-    badgeRulePreviewSimulationApiPath,
+    lmsConnectionsApiPath,
     badgeRuleReviewQueueApiPath,
     assertionsApiPathPrefix,
     tenantMembersApiPath,
@@ -384,6 +394,12 @@ export const institutionAdminRuleBuilderPage = (input: {
     ruleBuilderContext: {
       badgeTemplates: badgeTemplateCourseContext,
       fallbackCourseId: initialTestCourseId,
+      lmsConnections: connectedLmsConnections.map((connection) => ({
+        id: connection.id,
+        displayName: connection.displayName,
+        providerKind: connection.providerKind,
+        apiBaseUrl: connection.apiBaseUrl,
+      })),
     },
   });
 
@@ -405,6 +421,7 @@ export const institutionAdminRuleBuilderPage = (input: {
   const accessGovernancePath = `${accessPath}/governance`;
   const accessApiKeysPath = `${accessPath}/api-keys`;
   const accessOrgUnitsPath = `${accessPath}/org-units`;
+  const accessLmsConnectionsPath = `${accessPath}/lms-connections`;
   const sidebarSections: readonly AdminSidebarSection[] = [
     {
       links: [{ href: tenantAdminPath, label: "Home" }],
@@ -448,6 +465,7 @@ export const institutionAdminRuleBuilderPage = (input: {
         { href: accessMembersPath, label: "Members", isSub: true },
         { href: accessGovernancePath, label: "Governance", isSub: true },
         { href: accessApiKeysPath, label: "API Keys", isSub: true },
+        { href: accessLmsConnectionsPath, label: "LMS Connections", isSub: true },
         { href: accessOrgUnitsPath, label: "Org Units", isSub: true },
       ],
     },
@@ -542,6 +560,37 @@ export const institutionAdminRuleBuilderPage = (input: {
           </section>
 
           <div class="ct-admin__builder-main ct-stack">
+            {ruleCloneOptions.length > 0 ? (
+              <details class="ct-admin__builder-clone ct-stack">
+                <summary>Copy existing rule settings</summary>
+                <p class="ct-admin__hint">
+                  Preload settings from a rule you already use, then review the badge, source, and
+                  requirements before submitting.
+                </p>
+                <div class="ct-admin__builder-inline ct-cluster">
+                  <select
+                    id="rule-builder-clone-rule"
+                    name="cloneRuleId"
+                    aria-label="Rule to copy settings from"
+                  >
+                    <option value="">Select rule to copy</option>
+                    {ruleCloneOptions.map((option) => (
+                      <option key={option.rule.id} value={option.rule.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <AdminButton
+                    id="rule-builder-clone-load"
+                    type="button"
+                    size="tiny"
+                    variant="secondary"
+                  >
+                    Copy settings
+                  </AdminButton>
+                </div>
+              </details>
+            ) : null}
             <section class="ct-admin__panel ct-admin__builder-workbench-panel ct-stack">
               <AdminForm id="rule-create-form">
                 <section
@@ -553,37 +602,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                     <p class="ct-admin__step-kicker">Step 1 of 3</p>
                     <h3>Set up this rule</h3>
                     <p class="ct-admin__step-panel-lead">
-                      Choose the badge, Learning Management System, and how learners earn it.
+                      Choose the badge, LMS connection, and how learners earn it.
                     </p>
-                    {ruleCloneOptions.length > 0 ? (
-                      <section class="ct-admin__builder-clone ct-stack">
-                        <h4>Start from an existing rule</h4>
-                        <p class="ct-admin__hint">
-                          Load a rule you already use, then review its badge, source, and
-                          requirements before submitting.
-                        </p>
-                        <AdminField label="Existing rule">
-                          <div class="ct-admin__builder-inline ct-cluster">
-                            <select id="rule-builder-clone-rule" name="cloneRuleId">
-                              <option value="">Select rule to clone</option>
-                              {ruleCloneOptions.map((option) => (
-                                <option key={option.rule.id} value={option.rule.id}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                            <AdminButton
-                              id="rule-builder-clone-load"
-                              type="button"
-                              size="tiny"
-                              variant="secondary"
-                            >
-                              Load rule
-                            </AdminButton>
-                          </div>
-                        </AdminField>
-                      </section>
-                    ) : null}
                     <div class="ct-admin__builder-grid ct-grid">
                       <AdminField label="Badge template">
                         <select name="badgeTemplateId" required>
@@ -605,34 +625,68 @@ export const institutionAdminRuleBuilderPage = (input: {
                         </a>
                         .
                       </p>
-                      <AdminField label="Learning Management System">
-                        <select name="lmsProviderKind" required>
-                          {lmsProviderOptions.map((option) => (
-                            <option
-                              key={option.value}
-                              value={option.value}
-                              selected={option.value === defaultLmsProviderKind}
-                            >
-                              {option.label}
+                      <AdminField label="LMS connection">
+                        <select
+                          id="rule-builder-lms-connection"
+                          name="lmsConnectionId"
+                          required
+                          disabled={connectedLmsConnections.length === 0}
+                        >
+                          {connectedLmsConnections.length === 0 ? (
+                            <option value="">
+                              {hasUnusableLmsConnections
+                                ? "LMS connection needs a session or token"
+                                : "No LMS connection configured"}
                             </option>
-                          ))}
+                          ) : (
+                            connectedLmsConnections.map((connection) => (
+                              <option
+                                key={connection.id}
+                                value={connection.id}
+                                data-provider-kind={connection.providerKind}
+                                selected={connection.id === defaultLmsConnectionId}
+                              >
+                                {`${connection.displayName} (${formatLmsConnectionProvider(
+                                  connection.providerKind,
+                                )})`}
+                              </option>
+                            ))
+                          )}
                         </select>
+                        <input
+                          id="rule-builder-lms-provider-kind"
+                          name="lmsProviderKind"
+                          type="hidden"
+                          value={defaultLmsConnection?.providerKind ?? ""}
+                        />
                       </AdminField>
+                      {connectedLmsConnections.length === 0 ? (
+                        <div class="ct-admin__builder-prereq ct-admin__builder-field-span">
+                          <span>
+                            {hasUnusableLmsConnections
+                              ? "The saved LMS connection is not usable yet. Add a Canvas access token or Sakai SAKAIID session value before building rules."
+                              : "Create an LMS connection before building rules."}
+                          </span>
+                          <a class="ct-admin__text-action" href={accessLmsConnectionsPath}>
+                            {hasUnusableLmsConnections
+                              ? "Update LMS connection"
+                              : "Create LMS connection"}
+                          </a>
+                        </div>
+                      ) : null}
                       <AdminField label="Awarding pattern" className="ct-admin__builder-field-span">
                         <select id="rule-builder-template-preset" name="templatePreset">
                           <option value="course_completion">Course completed</option>
                           <option value="course_and_grade" selected>
                             Course completed + minimum score
                           </option>
-                          <option value="program_completion">Program or pathway completed</option>
+                          <option value="program_completion">Course pathway completed</option>
                           <option value="assignment_submission">
-                            Assignment or evidence submitted
+                            Assignment, assessment, or gradebook item submitted
                           </option>
                           <option value="survey_completion">Survey completed</option>
                           <option value="prerequisite_chain">Prerequisite badge required</option>
                           <option value="time_limited">Date-limited earning window</option>
-                          <option value="custom_field">Custom institutional field</option>
-                          <option value="blank">Blank requirements</option>
                         </select>
                       </AdminField>
                       <AdminField
@@ -646,10 +700,6 @@ export const institutionAdminRuleBuilderPage = (input: {
                         />
                       </AdminField>
                     </div>
-                    <p class="ct-admin__hint">
-                      The awarding pattern starts the requirements list. Review and change those
-                      requirements in the next step.
-                    </p>
                     <input type="hidden" name="name" id="rule-builder-name" value="" />
                   </section>
                 </section>
@@ -685,12 +735,21 @@ export const institutionAdminRuleBuilderPage = (input: {
                         >
                           Add another way to earn it
                         </AdminButton>
+                        <AdminButton
+                          type="button"
+                          id="rule-builder-require-every-requirement"
+                          size="tiny"
+                          variant="secondary"
+                          hidden
+                        >
+                          Require every requirement
+                        </AdminButton>
                       </div>
                       <section class="ct-admin__builder-canvas ct-stack">
                         <header class="ct-admin__builder-canvas-header ct-cluster">
                           <strong>Requirements</strong>
                           <span class="ct-admin__meta">
-                            Each row describes one fact CredTrail checks.
+                            Each requirement describes what a learner must do.
                           </span>
                         </header>
                         <div class="ct-admin__builder-canvas-meta ct-cluster">
@@ -768,15 +827,15 @@ export const institutionAdminRuleBuilderPage = (input: {
                           </dd>
                         </div>
                         <div>
-                          <dt>Program completion</dt>
+                          <dt>Course pathway completion</dt>
                           <dd>
-                            Matches when enough required courses are completed for a program path.
+                            Matches when enough required courses are completed for a course path.
                           </dd>
                         </div>
                         <div>
-                          <dt>Assignment submission</dt>
+                          <dt>Assignment, assessment, or gradebook item submitted</dt>
                           <dd>
-                            Matches when assignment submission, score, and workflow-state
+                            Matches when gradebook item submission, score, and workflow-state
                             constraints pass.
                           </dd>
                         </div>
@@ -878,8 +937,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                         <option value="canvas_course_grade" selected>
                           Canvas course + grade
                         </option>
-                        <option value="program_completion">Program completion</option>
-                        <option value="assignment_submission">Assignment submission</option>
+                        <option value="program_completion">Course pathway completion</option>
+                        <option value="assignment_submission">Gradebook item submitted</option>
                         <option value="survey_completion">Survey completion</option>
                         <option value="prerequisite_badge">Prerequisite badge</option>
                         <option value="custom_field">Custom field</option>
@@ -915,13 +974,17 @@ export const institutionAdminRuleBuilderPage = (input: {
                   <details class="ct-admin__builder-advanced ct-stack">
                     <summary>Governance and release settings</summary>
                     <p class="ct-admin__hint">
-                      Defaults work for most drafts. Open this only if approvers need a specific
-                      chain or issuance timing.
+                      Defaults work for most drafts. Open this only if a rule needs a specific
+                      reviewer role or issuance timing.
                     </p>
                     <div class="ct-admin__builder-review-layout ct-grid">
                       <div class="ct-stack">
-                        <AdminField label="Approval roles (comma separated)">
-                          <input name="approvalRoles" type="text" value="admin,owner" />
+                        <AdminField label="Reviewer roles (optional)">
+                          <input
+                            name="approvalRoles"
+                            type="text"
+                            placeholder="Leave blank for admin review"
+                          />
                         </AdminField>
                         <AdminField label="Issuance timing">
                           <select name="issuanceTiming">
@@ -944,45 +1007,6 @@ export const institutionAdminRuleBuilderPage = (input: {
                       </div>
                     </div>
                   </details>
-
-                  <details class="ct-admin__builder-simulation ct-stack">
-                    <summary>Historical simulation</summary>
-                    <header class="ct-admin__step-head ct-stack">
-                      <h4>Project impact before activation</h4>
-                      <p>
-                        Replay this draft against recent rule evaluations for the same badge
-                        template.
-                      </p>
-                    </header>
-                    <div class="ct-admin__builder-inline ct-cluster">
-                      <AdminField label="Sample limit" className="ct-admin__inline-control">
-                        <input
-                          id="rule-builder-simulate-limit"
-                          type="number"
-                          min={1}
-                          max={100}
-                          step={1}
-                          value="25"
-                        />
-                      </AdminField>
-                      <AdminButton
-                        id="rule-builder-simulate"
-                        type="button"
-                        size="tiny"
-                        variant="secondary"
-                      >
-                        Run simulation
-                      </AdminButton>
-                    </div>
-                    <AdminStatus id="rule-builder-simulate-status">
-                      No historical simulation has been run yet.
-                    </AdminStatus>
-                    <pre
-                      id="rule-builder-simulate-output"
-                      class="ct-admin__code-output"
-                      hidden
-                    ></pre>
-                  </details>
                 </section>
               </AdminForm>
 
@@ -992,8 +1016,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                   class="ct-admin__builder-step-callout"
                   aria-live="polite"
                 >
-                  Choose an awarding pattern, badge, and Learning Management System source, then
-                  select Continue.
+                  Choose an awarding pattern, badge, and LMS connection, then select Continue.
                 </p>
                 <div class="ct-admin__builder-step-nav ct-cluster">
                   <AdminButton
@@ -1017,7 +1040,7 @@ export const institutionAdminRuleBuilderPage = (input: {
           </div>
 
           <details class="ct-admin__panel ct-admin__builder-guide ct-admin__builder-support">
-            <summary>Advanced tools and reusable lists</summary>
+            <summary>Advanced JSON tools</summary>
             <div class="ct-admin__builder-support-grid ct-grid">
               <section class="ct-admin__builder-support-section ct-stack">
                 <h3>Import and export</h3>
@@ -1052,17 +1075,12 @@ export const institutionAdminRuleBuilderPage = (input: {
               </section>
 
               <section class="ct-admin__builder-support-section ct-stack">
-                <h3>Reusable lists</h3>
+                <h3>Advanced requirement tools</h3>
                 <p class="ct-admin__hint">
-                  Course and badge-template lists appear here and can be used inside requirement
-                  rows.
+                  Use generated JSON for custom institutional fields or blank rule drafts. LMS
+                  course and gradebook item references still need to validate against the selected
+                  connection when you create the draft.
                 </p>
-                <AdminTable
-                  headers={["Label", "Kind", "Values"]}
-                  tbodyId="rule-builder-value-list-body"
-                >
-                  <AdminEmptyTableRow colSpan={3}>No reusable lists loaded yet.</AdminEmptyTableRow>
-                </AdminTable>
               </section>
             </div>
           </details>

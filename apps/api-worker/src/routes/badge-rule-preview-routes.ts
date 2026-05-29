@@ -23,6 +23,7 @@ import {
   parseFactsFromEvaluationRecord,
 } from "./badge-rule-evaluation-helpers";
 import { loadRuleFacts } from "./badge-rule-facts-loader";
+import { isClientGradebookProviderResolutionError } from "./tenant-lms-connection-helpers";
 
 interface RegisterBadgeRulePreviewRoutesInput {
   app: Hono<AppEnv>;
@@ -93,6 +94,7 @@ export const registerBadgeRulePreviewRoutes = (
         db,
         tenantId: pathParams.tenantId,
         lmsProviderKind: request.lmsProviderKind,
+        lmsConnectionId: request.lmsConnectionId,
         learnerId: request.learnerId,
         recipientIdentity: request.recipientIdentity,
         recipientIdentityType: request.recipientIdentityType,
@@ -105,7 +107,7 @@ export const registerBadgeRulePreviewRoutes = (
         {
           error: error instanceof Error ? error.message : "Failed to load rule facts",
         },
-        502,
+        isClientGradebookProviderResolutionError(error) ? 422 : 502,
       );
     }
 

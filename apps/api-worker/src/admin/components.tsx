@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
 import type { TenantAssertionSummaryRecord } from "@credtrail/db";
+import { adminStatusPillClass } from "./admin-status-pill-class";
 import { formatIsoTimestamp } from "../utils/display-format";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -130,6 +131,7 @@ export const AdminButton = ({
   variant,
   size,
   disabled,
+  hidden,
   form,
   formAction,
   className,
@@ -142,6 +144,7 @@ export const AdminButton = ({
   variant?: AdminButtonVariant;
   size?: AdminButtonSize;
   disabled?: boolean;
+  hidden?: boolean;
   form?: string;
   formAction?: string;
   className?: string;
@@ -156,6 +159,7 @@ export const AdminButton = ({
       formaction={formAction}
       class={adminButtonClass({ variant, size, extraClass: className })}
       disabled={disabled}
+      hidden={hidden}
       aria-label={ariaLabel}
       {...(dataAttributes ?? {})}
     >
@@ -543,13 +547,7 @@ export const AdminStatusPill = ({
 }: PropsWithChildren<{
   tone?: string | null;
 }>): HonoElement => {
-  const normalizedTone = tone?.trim();
-  const className =
-    normalizedTone === undefined || normalizedTone.length === 0
-      ? "ct-admin__status-pill"
-      : `ct-admin__status-pill ct-admin__status-pill--${normalizedTone}`;
-
-  return <span class={className}>{children}</span>;
+  return <span class={adminStatusPillClass(tone)}>{children}</span>;
 };
 
 export const AdminEmptyTableRow = ({

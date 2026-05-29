@@ -8,6 +8,7 @@ const {
   mockedGetTenantReportingEngagementCounts,
   mockedListTenantAuthProviders,
   mockedListTenantBreakGlassAccounts,
+  mockedListTenantLmsConnections,
   mockedListTenantMembers,
   mockedListImportLearnerRecordBatchQueueMessages,
   mockedCreateLearnerRecordImportPreview,
@@ -30,6 +31,7 @@ const {
     mockedGetTenantReportingEngagementCounts: vi.fn(),
     mockedListTenantAuthProviders: vi.fn(),
     mockedListTenantBreakGlassAccounts: vi.fn(),
+    mockedListTenantLmsConnections: vi.fn(),
     mockedListTenantMembers: vi.fn(),
     mockedListImportLearnerRecordBatchQueueMessages: vi.fn(),
     mockedCreateLearnerRecordImportPreview: vi.fn(),
@@ -63,6 +65,7 @@ export {
   mockedListLearnerRecordEntries,
   mockedListTenantAuthProviders,
   mockedListTenantBreakGlassAccounts,
+  mockedListTenantLmsConnections,
   mockedListTenantMembers,
   mockedMarkLearnerRecordImportPreviewQueued,
   mockedResolveBetterAuthPrincipal,
@@ -98,6 +101,7 @@ vi.mock("@credtrail/db", async () => {
     listTenantMembers: mockedListTenantMembers,
     listTenantMembershipOrgUnitScopes: vi.fn(),
     listTenantAuthProviders: mockedListTenantAuthProviders,
+    listTenantLmsConnections: mockedListTenantLmsConnections,
     findBadgeTemplateById: vi.fn(),
     listBadgeTemplateImageRevisionCountsByTenant: vi.fn(),
     listBadgeTemplates: vi.fn(),
@@ -148,6 +152,7 @@ import {
   listBadgeTemplates,
   listImportLearnerRecordBatchQueueMessages,
   listTenantApiKeys,
+  listTenantLmsConnections,
   listTenantMembers,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
@@ -161,6 +166,7 @@ import {
   type LearnerRecordAssertionExportRecord,
   type LearnerRecordEntryRecord,
   type SqlDatabase,
+  type TenantLmsConnectionRecord,
   type TenantMembershipRecord,
   type TenantMemberRecord,
 } from "@credtrail/db";
@@ -190,6 +196,7 @@ export const mockedListImportLearnerRecordBatchQueueMessagesDb = vi.mocked(
 );
 export const mockedListTenantOrgUnits = vi.mocked(listTenantOrgUnits);
 export const mockedListTenantApiKeys = vi.mocked(listTenantApiKeys);
+export const mockedListTenantLmsConnectionsDb = vi.mocked(listTenantLmsConnections);
 export const mockedListTenantMembersDb = vi.mocked(listTenantMembers);
 export const mockedListTenantMembershipOrgUnitScopes = vi.mocked(listTenantMembershipOrgUnitScopes);
 export const mockedMarkLearnerRecordImportPreviewQueuedDb = vi.mocked(
@@ -312,6 +319,34 @@ export const sampleLearnerRecordEntry = (
     detailsJson: '{"grade":"A"}',
     createdAt: "2026-03-23T15:00:00.000Z",
     updatedAt: "2026-03-23T15:00:00.000Z",
+    ...overrides,
+  };
+};
+
+export const sampleTenantLmsConnection = (
+  overrides?: Partial<TenantLmsConnectionRecord>,
+): TenantLmsConnectionRecord => {
+  return {
+    id: "lms_123",
+    tenantId: "tenant_123",
+    displayName: "TrySakai",
+    providerKind: "sakai",
+    apiBaseUrl: "https://trysakai.example.edu",
+    authorizationEndpoint: null,
+    tokenEndpoint: null,
+    clientId: null,
+    clientSecret: null,
+    scope: null,
+    accessToken: "sakai-token",
+    refreshToken: null,
+    accessTokenExpiresAt: null,
+    refreshTokenExpiresAt: null,
+    connectedAt: "2026-02-18T12:00:00.000Z",
+    ltiIssuer: "https://trysakai.example.edu",
+    ltiClientId: "sakai-client",
+    ltiDeploymentId: "deployment-123",
+    createdAt: "2026-02-18T12:00:00.000Z",
+    updatedAt: "2026-02-18T12:00:00.000Z",
     ...overrides,
   };
 };
@@ -529,6 +564,7 @@ beforeEach(() => {
       description: "Issue badge for CS101 completion and grade threshold.",
       badgeTemplateId: "badge_template_001",
       lmsProviderKind: "canvas",
+      lmsConnectionId: "lms_canvas",
       activeVersionId: "brv_123",
       createdByUserId: "usr_admin",
       createdAt: "2026-02-18T12:00:00.000Z",
@@ -598,6 +634,19 @@ beforeEach(() => {
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:30:00.000Z",
     },
+  ]);
+  mockedListTenantLmsConnectionsDb.mockReset();
+  mockedListTenantLmsConnectionsDb.mockResolvedValue([
+    sampleTenantLmsConnection({
+      id: "lms_canvas",
+      displayName: "Canvas Test",
+      providerKind: "canvas",
+      apiBaseUrl: "https://canvas.example.edu",
+      accessToken: "canvas-token",
+      ltiIssuer: "https://canvas.example.edu",
+      ltiClientId: "canvas-client",
+      ltiDeploymentId: "canvas-deployment",
+    }),
   ]);
   mockedListDelegatedIssuingAuthorityGrants.mockReset();
   mockedListDelegatedIssuingAuthorityGrants.mockResolvedValue([

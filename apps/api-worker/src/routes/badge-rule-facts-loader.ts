@@ -1,7 +1,5 @@
 import {
-  findTenantCanvasGradebookIntegration,
   listIssuedBadgeTemplateIdsForRecipient,
-  updateTenantCanvasGradebookIntegrationTokens,
   type BadgeIssuanceRuleLmsProviderKind,
   type SqlDatabase,
 } from "@credtrail/db";
@@ -9,8 +7,6 @@ import {
   parseBadgeIssuanceRuleDefinition,
   parseEvaluateBadgeIssuanceRuleRequest,
 } from "@credtrail/validation";
-import { refreshCanvasAccessToken } from "../lms/canvas-oauth";
-import { createGradebookProvider } from "../lms/gradebook-provider";
 import {
   extractBadgeIssuanceRuleRequirements,
   type BadgeIssuanceRuleCompletionFact,
@@ -20,26 +16,13 @@ import {
   type BadgeIssuanceRuleSubmissionFact,
   type BadgeIssuanceRuleSurveyCompletionFact,
 } from "../rules/engine";
-
-const isAccessTokenExpired = (accessTokenExpiresAt: string | null, nowIso: string): boolean => {
-  if (accessTokenExpiresAt === null) {
-    return false;
-  }
-
-  const expiryMs = Date.parse(accessTokenExpiresAt);
-  const nowMs = Date.parse(nowIso);
-
-  if (!Number.isFinite(expiryMs) || !Number.isFinite(nowMs)) {
-    return false;
-  }
-
-  return nowMs >= expiryMs;
-};
+import { resolveGradebookProvider } from "./tenant-lms-connection-helpers";
 
 export const loadRuleFacts = async (input: {
   db: SqlDatabase;
   tenantId: string;
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
+  lmsConnectionId?: string | undefined;
   learnerId: string;
   recipientIdentity: string;
   recipientIdentityType: "email" | "email_sha256" | "did" | "url";
@@ -98,7 +81,6 @@ export const loadRuleFacts = async (input: {
   }
 
   const requirements = extractBadgeIssuanceRuleRequirements(input.definition);
-  const providerLabel = input.lmsProviderKind === "sakai" ? "Sakai" : "Canvas";
 
   if (input.lmsProviderKind !== "canvas" && input.lmsProviderKind !== "sakai") {
     throw new Error(
@@ -106,59 +88,11 @@ export const loadRuleFacts = async (input: {
     );
   }
 
-  const integration = await findTenantCanvasGradebookIntegration(input.db, input.tenantId);
-
-  if (integration === null) {
-    throw new Error(
-      `${providerLabel} gradebook integration is required for automated rule evaluation`,
-    );
-  }
-
-  let accessToken = integration.accessToken;
-
-  if (accessToken === null) {
-    throw new Error(
-      `${providerLabel} gradebook integration has no access token. Connect LMS first.`,
-    );
-  }
-
-  if (
-    isAccessTokenExpired(integration.accessTokenExpiresAt, input.nowIso) &&
-    integration.refreshToken !== null
-  ) {
-    const refresh = await refreshCanvasAccessToken({
-      tokenEndpoint: integration.tokenEndpoint,
-      clientId: integration.clientId,
-      clientSecret: integration.clientSecret,
-      refreshToken: integration.refreshToken,
-    });
-    const refreshed = await updateTenantCanvasGradebookIntegrationTokens(input.db, {
-      tenantId: input.tenantId,
-      accessToken: refresh.accessToken,
-      refreshToken: refresh.refreshToken,
-      accessTokenExpiresAt:
-        refresh.expiresInSeconds === undefined
-          ? undefined
-          : new Date(Date.parse(input.nowIso) + refresh.expiresInSeconds * 1000).toISOString(),
-      refreshTokenExpiresAt:
-        refresh.refreshTokenExpiresInSeconds === undefined
-          ? undefined
-          : new Date(
-              Date.parse(input.nowIso) + refresh.refreshTokenExpiresInSeconds * 1000,
-            ).toISOString(),
-    });
-
-    if (refreshed !== null && refreshed.accessToken !== null) {
-      accessToken = refreshed.accessToken;
-    }
-  }
-
-  const provider = createGradebookProvider({
-    config: {
-      kind: input.lmsProviderKind,
-      apiBaseUrl: integration.apiBaseUrl,
-      accessToken,
-    },
+  const provider = await resolveGradebookProvider({
+    db: input.db,
+    tenantId: input.tenantId,
+    lmsConnectionId: input.lmsConnectionId,
+    nowIso: input.nowIso,
   });
 
   const grades: BadgeIssuanceRuleGradeFact[] = [];

@@ -987,6 +987,45 @@ export const tenantCanvasGradebookSnapshotQuerySchema = z.object({
   assignmentId: z.string().trim().min(1).max(255).optional(),
 });
 
+export const tenantLmsConnectionProviderKindSchema = z.enum(["canvas", "sakai"]);
+
+export const tenantLmsConnectionPathParamsSchema = tenantPathParamsSchema.extend({
+  connectionId: resourceIdSchema,
+});
+
+export const upsertTenantLmsConnectionRequestSchema = z.object({
+  displayName: z.string().trim().min(1).max(120),
+  providerKind: tenantLmsConnectionProviderKindSchema,
+  apiBaseUrl: z.string().url().max(2048),
+  authorizationEndpoint: z.string().url().max(2048).optional(),
+  tokenEndpoint: z.string().url().max(2048).optional(),
+  clientId: z.string().trim().min(1).max(512).optional(),
+  clientSecret: z.string().trim().min(1).max(2048).optional(),
+  scope: z.string().trim().min(1).max(2048).optional(),
+  accessToken: z.string().trim().min(1).max(4096).optional(),
+  refreshToken: z.string().trim().min(1).max(4096).optional(),
+  accessTokenExpiresAt: isoTimestampSchema.optional(),
+  refreshTokenExpiresAt: isoTimestampSchema.optional(),
+  ltiIssuer: z.string().url().max(2048).optional(),
+  ltiClientId: z.string().trim().min(1).max(512).optional(),
+  ltiDeploymentId: z.string().trim().min(1).max(512).optional(),
+});
+
+export const tenantLmsConnectionCourseSearchQuerySchema = z.object({
+  q: z.string().trim().min(1).max(255).optional(),
+});
+
+export const tenantLmsConnectionCoursePathParamsSchema = tenantLmsConnectionPathParamsSchema.extend(
+  {
+    courseId: z.string().trim().min(1).max(255),
+  },
+);
+
+export const tenantLmsConnectionGradebookItemPathParamsSchema =
+  tenantLmsConnectionCoursePathParamsSchema.extend({
+    assignmentId: z.string().trim().min(1).max(255),
+  });
+
 export const badgeIssuanceRuleLmsProviderKindSchema = z.enum([
   "canvas",
   "moodle",
@@ -1252,7 +1291,8 @@ export const createBadgeIssuanceRuleRequestSchema = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().min(1).max(2000).optional(),
   badgeTemplateId: resourceIdSchema,
-  lmsProviderKind: badgeIssuanceRuleLmsProviderKindSchema,
+  lmsConnectionId: resourceIdSchema,
+  lmsProviderKind: badgeIssuanceRuleLmsProviderKindSchema.optional(),
   definition: badgeIssuanceRuleDefinitionSchema,
   approvalChain: badgeIssuanceRuleApprovalChainSchema.optional(),
   changeSummary: z.string().trim().min(1).max(1000).optional(),
@@ -1327,6 +1367,7 @@ export const evaluateBadgeIssuanceRuleRequestSchema = z.object({
 
 export const previewEvaluateBadgeIssuanceRuleRequestSchema = z.object({
   definition: badgeIssuanceRuleDefinitionSchema,
+  lmsConnectionId: resourceIdSchema,
   lmsProviderKind: badgeIssuanceRuleLmsProviderKindSchema.default("canvas"),
   learnerId: z.string().trim().min(1).max(255),
   recipientIdentity: z.string().trim().min(1).max(512),
@@ -1973,6 +2014,20 @@ export type UpsertTenantSsoSamlConfigurationRequest = z.infer<
 export type UpsertTenantCanvasGradebookIntegrationRequest = z.infer<
   typeof upsertTenantCanvasGradebookIntegrationRequestSchema
 >;
+export type TenantLmsConnectionProviderKind = z.infer<typeof tenantLmsConnectionProviderKindSchema>;
+export type TenantLmsConnectionPathParams = z.infer<typeof tenantLmsConnectionPathParamsSchema>;
+export type TenantLmsConnectionCoursePathParams = z.infer<
+  typeof tenantLmsConnectionCoursePathParamsSchema
+>;
+export type TenantLmsConnectionGradebookItemPathParams = z.infer<
+  typeof tenantLmsConnectionGradebookItemPathParamsSchema
+>;
+export type UpsertTenantLmsConnectionRequest = z.infer<
+  typeof upsertTenantLmsConnectionRequestSchema
+>;
+export type TenantLmsConnectionCourseSearchQuery = z.infer<
+  typeof tenantLmsConnectionCourseSearchQuerySchema
+>;
 export type AdminCanvasOAuthAuthorizeUrlRequest = z.infer<
   typeof adminCanvasOAuthAuthorizeUrlRequestSchema
 >;
@@ -2446,6 +2501,36 @@ export const parseTenantCanvasGradebookSnapshotQuery = (
   input: unknown,
 ): TenantCanvasGradebookSnapshotQuery => {
   return tenantCanvasGradebookSnapshotQuerySchema.parse(input);
+};
+
+export const parseTenantLmsConnectionPathParams = (
+  input: unknown,
+): TenantLmsConnectionPathParams => {
+  return tenantLmsConnectionPathParamsSchema.parse(input);
+};
+
+export const parseTenantLmsConnectionCoursePathParams = (
+  input: unknown,
+): TenantLmsConnectionCoursePathParams => {
+  return tenantLmsConnectionCoursePathParamsSchema.parse(input);
+};
+
+export const parseTenantLmsConnectionGradebookItemPathParams = (
+  input: unknown,
+): TenantLmsConnectionGradebookItemPathParams => {
+  return tenantLmsConnectionGradebookItemPathParamsSchema.parse(input);
+};
+
+export const parseUpsertTenantLmsConnectionRequest = (
+  input: unknown,
+): UpsertTenantLmsConnectionRequest => {
+  return upsertTenantLmsConnectionRequestSchema.parse(input);
+};
+
+export const parseTenantLmsConnectionCourseSearchQuery = (
+  input: unknown,
+): TenantLmsConnectionCourseSearchQuery => {
+  return tenantLmsConnectionCourseSearchQuerySchema.parse(input);
 };
 
 export const parseCreateBadgeIssuanceRuleRequest = (

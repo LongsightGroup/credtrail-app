@@ -1,0 +1,206 @@
+import {
+  findTenantLmsConnectionById,
+  updateTenantLmsConnectionTokens,
+  type SqlDatabase,
+  type TenantLmsConnectionRecord,
+} from "@credtrail/db";
+import { refreshCanvasAccessToken } from "../lms/canvas-oauth";
+import { createGradebookProvider } from "../lms/gradebook-provider";
+import type { GradebookProvider } from "../lms/gradebook-types";
+
+const isAccessTokenExpired = (accessTokenExpiresAt: string | null, nowIso: string): boolean => {
+  if (accessTokenExpiresAt === null) {
+    return false;
+  }
+
+  const expiryMs = Date.parse(accessTokenExpiresAt);
+  const nowMs = Date.parse(nowIso);
+
+  return Number.isFinite(expiryMs) && Number.isFinite(nowMs) && nowMs >= expiryMs;
+};
+
+export interface PublicTenantLmsConnection {
+  id: string;
+  tenantId: string;
+  displayName: string;
+  providerKind: "canvas" | "sakai";
+  apiBaseUrl: string;
+  status: "connected" | "needs_token";
+  hasAccessToken: boolean;
+  hasRefreshToken: boolean;
+  connectedAt: string | null;
+  accessTokenExpiresAt: string | null;
+  refreshTokenExpiresAt: string | null;
+  ltiIssuer: string | null;
+  ltiClientId: string | null;
+  ltiDeploymentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export class GradebookProviderResolutionError extends Error {
+  public readonly reason: "missing_connection" | "not_found" | "unusable";
+
+  public constructor(reason: "missing_connection" | "not_found" | "unusable", message: string) {
+    super(message);
+    this.name = "GradebookProviderResolutionError";
+    this.reason = reason;
+  }
+}
+
+export const isClientGradebookProviderResolutionError = (
+  error: unknown,
+): error is GradebookProviderResolutionError => {
+  return (
+    error instanceof GradebookProviderResolutionError &&
+    (error.reason === "missing_connection" || error.reason === "not_found")
+  );
+};
+
+export const publicTenantLmsConnection = (
+  connection: TenantLmsConnectionRecord,
+): PublicTenantLmsConnection => {
+  const hasAccessToken = connection.accessToken !== null && connection.accessToken.length > 0;
+  const hasRefreshToken = connection.refreshToken !== null && connection.refreshToken.length > 0;
+
+  return {
+    id: connection.id,
+    tenantId: connection.tenantId,
+    displayName: connection.displayName,
+    providerKind: connection.providerKind,
+    apiBaseUrl: connection.apiBaseUrl,
+    status: hasAccessToken ? "connected" : "needs_token",
+    hasAccessToken,
+    hasRefreshToken,
+    connectedAt: connection.connectedAt,
+    accessTokenExpiresAt: connection.accessTokenExpiresAt,
+    refreshTokenExpiresAt: connection.refreshTokenExpiresAt,
+    ltiIssuer: connection.ltiIssuer,
+    ltiClientId: connection.ltiClientId,
+    ltiDeploymentId: connection.ltiDeploymentId,
+    createdAt: connection.createdAt,
+    updatedAt: connection.updatedAt,
+  };
+};
+
+export interface ResolvedGradebookProvider {
+  connection: TenantLmsConnectionRecord;
+  provider: GradebookProvider;
+}
+
+export const createGradebookProviderForConnection = async (input: {
+  db: SqlDatabase;
+  connection: TenantLmsConnectionRecord;
+  nowIso: string;
+}): Promise<GradebookProvider> => {
+  let accessToken = input.connection.accessToken;
+
+  if (accessToken === null || accessToken.length === 0) {
+    throw new Error("LMS connection has no access token. Connect the gradebook source first.");
+  }
+
+  if (
+    input.connection.providerKind === "canvas" &&
+    isAccessTokenExpired(input.connection.accessTokenExpiresAt, input.nowIso)
+  ) {
+    if (
+      input.connection.refreshToken === null ||
+      input.connection.tokenEndpoint === null ||
+      input.connection.clientId === null ||
+      input.connection.clientSecret === null
+    ) {
+      throw new Error("Canvas LMS connection token has expired. Reconnect the gradebook source.");
+    }
+
+    const refresh = await refreshCanvasAccessToken({
+      tokenEndpoint: input.connection.tokenEndpoint,
+      clientId: input.connection.clientId,
+      clientSecret: input.connection.clientSecret,
+      refreshToken: input.connection.refreshToken,
+    });
+    const refreshed = await updateTenantLmsConnectionTokens(input.db, {
+      tenantId: input.connection.tenantId,
+      connectionId: input.connection.id,
+      accessToken: refresh.accessToken,
+      refreshToken: refresh.refreshToken,
+      accessTokenExpiresAt:
+        refresh.expiresInSeconds === undefined
+          ? undefined
+          : new Date(Date.parse(input.nowIso) + refresh.expiresInSeconds * 1000).toISOString(),
+      refreshTokenExpiresAt:
+        refresh.refreshTokenExpiresInSeconds === undefined
+          ? undefined
+          : new Date(
+              Date.parse(input.nowIso) + refresh.refreshTokenExpiresInSeconds * 1000,
+            ).toISOString(),
+    });
+
+    if (refreshed !== null && refreshed.accessToken !== null) {
+      accessToken = refreshed.accessToken;
+    }
+  }
+
+  return createGradebookProvider({
+    config: {
+      kind: input.connection.providerKind,
+      apiBaseUrl: input.connection.apiBaseUrl,
+      accessToken,
+    },
+  });
+};
+
+export const resolveGradebookProviderWithConnection = async (input: {
+  db: SqlDatabase;
+  tenantId: string;
+  lmsConnectionId?: string | null | undefined;
+  nowIso: string;
+}): Promise<ResolvedGradebookProvider> => {
+  if (
+    input.lmsConnectionId === undefined ||
+    input.lmsConnectionId === null ||
+    input.lmsConnectionId.trim().length === 0
+  ) {
+    throw new GradebookProviderResolutionError(
+      "missing_connection",
+      "Select an LMS connection before running automated gradebook evaluation.",
+    );
+  }
+
+  const connection = await findTenantLmsConnectionById(input.db, {
+    tenantId: input.tenantId,
+    connectionId: input.lmsConnectionId,
+  });
+
+  if (connection === null) {
+    throw new GradebookProviderResolutionError(
+      "not_found",
+      "Selected LMS connection was not found",
+    );
+  }
+
+  try {
+    return {
+      connection,
+      provider: await createGradebookProviderForConnection({
+        db: input.db,
+        connection,
+        nowIso: input.nowIso,
+      }),
+    };
+  } catch (error) {
+    throw new GradebookProviderResolutionError(
+      "unusable",
+      error instanceof Error ? error.message : "Unable to use LMS connection",
+    );
+  }
+};
+
+export const resolveGradebookProvider = async (input: {
+  db: SqlDatabase;
+  tenantId: string;
+  lmsConnectionId?: string | null | undefined;
+  nowIso: string;
+}): Promise<GradebookProvider> => {
+  const resolved = await resolveGradebookProviderWithConnection(input);
+  return resolved.provider;
+};

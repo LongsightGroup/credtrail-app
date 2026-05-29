@@ -8,6 +8,13 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_FIELDS_JS = `
     const readFieldFromCard = (card, fieldName) => {
       const field = card.querySelector('[data-field="' + fieldName + '"]');
 
+      if (field instanceof HTMLSelectElement && field.multiple) {
+        return Array.from(field.selectedOptions)
+          .map((option) => option.value.trim())
+          .filter((value) => value.length > 0)
+          .join(',');
+      }
+
       if (
         field instanceof HTMLInputElement ||
         field instanceof HTMLTextAreaElement ||
@@ -26,6 +33,14 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_FIELDS_JS = `
 
     const setFieldOnCard = (card, fieldName, value) => {
       const field = card.querySelector('[data-field="' + fieldName + '"]');
+
+      if (field instanceof HTMLSelectElement && field.multiple) {
+        const values = new Set(parseCsv(String(value)));
+        Array.from(field.options).forEach((option) => {
+          option.selected = values.has(option.value);
+        });
+        return;
+      }
 
       if (
         field instanceof HTMLInputElement ||
@@ -253,7 +268,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_FIELDS_JS = `
             : '';
 
         return (
-          'Learner submits ' +
+          'Learner submits gradebook item ' +
           assignmentLabel +
           ' in ' +
           courseLabel +
@@ -351,17 +366,15 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_FIELDS_JS = `
       const surveyPlaceholder = coursePlaceholder + '_EXIT_SURVEY';
 
       if (conditionType === 'course_completion') {
+        const selectedCourseId = typeof seed.courseId === 'string' ? seed.courseId : '';
         fieldsContainer.innerHTML =
-          '<label>Course ID<input type="text" data-field="courseId" placeholder="' +
-          coursePlaceholder +
-          '" /></label>' +
-          '<label>Reusable course list<select data-field="courseListId">' +
-          listOptionsMarkup('course_ids', typeof seed.courseListId === 'string' ? seed.courseListId : '', 'Use single course ID') +
-          '</select></label>' +
-          '<label>Min completion % (optional)<input type="number" data-field="minCompletionPercent" min="0" max="100" step="0.01" /></label>' +
-          '<label class="ct-admin__checkbox-row ct-checkbox-row"><input type="checkbox" data-field="requireCompleted" checked />Require completed</label>';
+          '<label class="ct-admin__field ct-admin__condition-field">Course search<input type="search" data-lms-course-query="courseId" placeholder="Search by title, code, or ID" /></label>' +
+          '<label class="ct-admin__field ct-admin__condition-field">Course<select data-field="courseId" data-lms-course-select data-selected-value="' +
+          escapeHtml(selectedCourseId) +
+          '" required><option value="">Loading courses...</option></select></label>' +
+          '<label class="ct-admin__field ct-admin__condition-field">Minimum completion % (optional)<input type="number" data-field="minCompletionPercent" min="0" max="100" step="0.01" /></label>' +
+          '<label class="ct-admin__checkbox-row ct-checkbox-row"><input type="checkbox" data-field="requireCompleted" checked />Course must be completed</label>';
 
-        setFieldOnCard(card, 'courseId', typeof seed.courseId === 'string' ? seed.courseId : '');
         setFieldOnCard(
           card,
           'courseListId',
@@ -378,23 +391,22 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_FIELDS_JS = `
           seed.requireCompleted === undefined ? true : Boolean(seed.requireCompleted),
         );
         bindExclusiveFieldPair(card, 'courseId', 'courseListId');
+        bindSearchableCourseSelect(card, 'courseId');
         updateConditionPlainSummary(card);
         return;
       }
 
       if (conditionType === 'grade_threshold') {
+        const selectedCourseId = typeof seed.courseId === 'string' ? seed.courseId : '';
         fieldsContainer.innerHTML =
-          '<label>Course ID<input type="text" data-field="courseId" placeholder="' +
-          coursePlaceholder +
-          '" /></label>' +
-          '<label>Reusable course list<select data-field="courseListId">' +
-          listOptionsMarkup('course_ids', typeof seed.courseListId === 'string' ? seed.courseListId : '', 'Use single course ID') +
-          '</select></label>' +
-          '<label>Score field<select data-field="scoreField"><option value="final_score">Final score</option><option value="current_score">Current score</option></select></label>' +
-          '<label>Min score (optional)<input type="number" data-field="minScore" min="0" max="100" step="0.01" /></label>' +
-          '<label>Max score (optional)<input type="number" data-field="maxScore" min="0" max="100" step="0.01" /></label>';
+          '<label class="ct-admin__field ct-admin__condition-field">Course search<input type="search" data-lms-course-query="courseId" placeholder="Search by title, code, or ID" /></label>' +
+          '<label class="ct-admin__field ct-admin__condition-field">Course<select data-field="courseId" data-lms-course-select data-selected-value="' +
+          escapeHtml(selectedCourseId) +
+          '" required><option value="">Loading courses...</option></select></label>' +
+          '<label class="ct-admin__field ct-admin__condition-field">Score field<select data-field="scoreField"><option value="final_score">Final score</option><option value="current_score">Current score</option></select></label>' +
+          '<label class="ct-admin__field ct-admin__condition-field">Minimum score (optional)<input type="number" data-field="minScore" min="0" max="100" step="0.01" /></label>' +
+          '<label class="ct-admin__field ct-admin__condition-field">Maximum score (optional)<input type="number" data-field="maxScore" min="0" max="100" step="0.01" /></label>';
 
-        setFieldOnCard(card, 'courseId', typeof seed.courseId === 'string' ? seed.courseId : '');
         setFieldOnCard(
           card,
           'courseListId',
@@ -408,25 +420,20 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_FIELDS_JS = `
         setFieldOnCard(card, 'minScore', typeof seed.minScore === 'number' ? String(seed.minScore) : '');
         setFieldOnCard(card, 'maxScore', typeof seed.maxScore === 'number' ? String(seed.maxScore) : '');
         bindExclusiveFieldPair(card, 'courseId', 'courseListId');
+        bindSearchableCourseSelect(card, 'courseId');
         updateConditionPlainSummary(card);
         return;
       }
 
       if (conditionType === 'program_completion') {
+        const selectedCourseIds = Array.isArray(seed.courseIds) ? seed.courseIds.join(',') : '';
         fieldsContainer.innerHTML =
-          '<label>Course IDs (comma separated)<input type="text" data-field="courseIds" placeholder="' +
-          programCoursePlaceholder +
-          '" /></label>' +
-          '<label>Reusable course list<select data-field="courseListId">' +
-          listOptionsMarkup('course_ids', typeof seed.courseListId === 'string' ? seed.courseListId : '', 'Use explicit course IDs') +
-          '</select></label>' +
-          '<label>Minimum completed (optional)<input type="number" data-field="minimumCompleted" min="1" max="200" step="1" /></label>';
+          '<label class="ct-admin__field ct-admin__condition-field">Course search<input type="search" data-lms-course-query="courseIds" placeholder="Search by title, code, or ID" /></label>' +
+          '<label class="ct-admin__field ct-admin__condition-field">Courses<select data-field="courseIds" data-lms-course-select data-selected-values="' +
+          escapeHtml(selectedCourseIds) +
+          '" multiple size="6"><option value="">Loading courses...</option></select></label>' +
+          '<label class="ct-admin__field ct-admin__condition-field">Minimum completed (optional)<input type="number" data-field="minimumCompleted" min="1" max="200" step="1" /></label>';
 
-        setFieldOnCard(
-          card,
-          'courseIds',
-          Array.isArray(seed.courseIds) ? seed.courseIds.join(', ') : '',
-        );
         setFieldOnCard(
           card,
           'courseListId',
@@ -438,48 +445,52 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_FIELDS_JS = `
           typeof seed.minimumCompleted === 'number' ? String(seed.minimumCompleted) : '',
         );
         bindExclusiveFieldPair(card, 'courseIds', 'courseListId');
+        bindSearchableCourseSelect(card, 'courseIds');
         updateConditionPlainSummary(card);
         return;
       }
 
       if (conditionType === 'assignment_submission') {
+        const selectedCourseId = typeof seed.courseId === 'string' ? seed.courseId : '';
+        const selectedAssignmentId =
+          typeof seed.assignmentId === 'string' ? seed.assignmentId : '';
+        const selectedWorkflowStates = Array.isArray(seed.workflowStates)
+          ? seed.workflowStates.join(',')
+          : '';
         fieldsContainer.innerHTML =
-          '<label>Course ID<input type="text" data-field="courseId" placeholder="' +
-          coursePlaceholder +
-          '" /></label>' +
-          '<label>Assignment ID<input type="text" data-field="assignmentId" placeholder="assignment_1" /></label>' +
-          '<label>Min score (optional)<input type="number" data-field="minScore" min="0" max="100" step="0.01" /></label>' +
-          '<label>Workflow states (comma separated, optional)<input type="text" data-field="workflowStates" placeholder="submitted,graded" /></label>' +
-          '<label class="ct-admin__checkbox-row ct-checkbox-row"><input type="checkbox" data-field="requireSubmitted" checked />Require submitted</label>';
+          '<label class="ct-admin__field ct-admin__condition-field">Course search<input type="search" data-lms-course-query="courseId" placeholder="Search by title, code, or ID" /></label>' +
+          '<label class="ct-admin__field ct-admin__condition-field">Course<select data-field="courseId" data-lms-course-select data-selected-value="' +
+          escapeHtml(selectedCourseId) +
+          '" required><option value="">Loading courses...</option></select></label>' +
+          '<label class="ct-admin__field ct-admin__condition-field">Gradebook item search<input type="search" data-lms-gradebook-item-query placeholder="Search by title or ID" /></label>' +
+          '<label class="ct-admin__field ct-admin__condition-field">Gradebook item<select data-field="assignmentId" data-lms-gradebook-item-select data-selected-value="' +
+          escapeHtml(selectedAssignmentId) +
+          '" required><option value="">Select course first</option></select></label>' +
+          '<label class="ct-admin__field ct-admin__condition-field">Minimum score (optional)<input type="number" data-field="minScore" min="0" max="100" step="0.01" /></label>' +
+          '<label class="ct-admin__field ct-admin__condition-field">Workflow states<select data-field="workflowStates" data-lms-workflow-state-select data-selected-values="' +
+          escapeHtml(selectedWorkflowStates) +
+          '" multiple size="5"><option value="">Select gradebook item first</option></select></label>' +
+          '<label class="ct-admin__checkbox-row ct-checkbox-row"><input type="checkbox" data-field="requireSubmitted" checked />Gradebook item must be submitted</label>';
 
-        setFieldOnCard(card, 'courseId', typeof seed.courseId === 'string' ? seed.courseId : '');
-        setFieldOnCard(
-          card,
-          'assignmentId',
-          typeof seed.assignmentId === 'string' ? seed.assignmentId : '',
-        );
         setFieldOnCard(card, 'minScore', typeof seed.minScore === 'number' ? String(seed.minScore) : '');
-        setFieldOnCard(
-          card,
-          'workflowStates',
-          Array.isArray(seed.workflowStates) ? seed.workflowStates.join(', ') : '',
-        );
         setCheckboxOnCard(
           card,
           'requireSubmitted',
           seed.requireSubmitted === undefined ? true : Boolean(seed.requireSubmitted),
         );
+        bindSearchableCourseSelect(card, 'courseId');
+        bindSearchableGradebookItemSelect(card);
         updateConditionPlainSummary(card);
         return;
       }
 
       if (conditionType === 'survey_completion') {
         fieldsContainer.innerHTML =
-          '<label>Survey ID<input type="text" data-field="surveyId" placeholder="' +
+          '<label class="ct-admin__field ct-admin__condition-field">Survey ID<input type="text" data-field="surveyId" placeholder="' +
           surveyPlaceholder +
           '" /></label>' +
-          '<label>Source (optional)<input type="text" data-field="source" placeholder="qualtrics" /></label>' +
-          '<label class="ct-admin__checkbox-row ct-checkbox-row"><input type="checkbox" data-field="requireCompleted" checked />Require completed</label>';
+          '<label class="ct-admin__field ct-admin__condition-field">Source (optional)<input type="text" data-field="source" placeholder="qualtrics" /></label>' +
+          '<label class="ct-admin__checkbox-row ct-checkbox-row"><input type="checkbox" data-field="requireCompleted" checked />Survey must be completed</label>';
 
         setFieldOnCard(
           card,

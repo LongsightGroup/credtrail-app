@@ -18,6 +18,11 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
       ruleBuilderContext && Array.isArray(ruleBuilderContext.badgeTemplates)
         ? ruleBuilderContext.badgeTemplates
         : [];
+    const lmsConnectionsContext =
+      ruleBuilderContext && Array.isArray(ruleBuilderContext.lmsConnections)
+        ? ruleBuilderContext.lmsConnections
+        : [];
+    const lmsConnectionsById = new Map();
 
     badgeTemplatesContext.forEach((entry) => {
       if (entry && typeof entry.id === 'string') {
@@ -29,6 +34,38 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
         );
       }
     });
+
+    lmsConnectionsContext.forEach((entry) => {
+      if (entry && typeof entry.id === 'string') {
+        lmsConnectionsById.set(entry.id, entry);
+      }
+    });
+
+    const getSelectedLmsConnectionId = () => {
+      return getTextFieldValue('lmsConnectionId');
+    };
+
+    const getSelectedLmsConnection = () => {
+      const connectionId = getSelectedLmsConnectionId();
+      return connectionId.length > 0 ? lmsConnectionsById.get(connectionId) ?? null : null;
+    };
+
+    const getSelectedLmsProviderKind = () => {
+      const connection = getSelectedLmsConnection();
+      return connection && typeof connection.providerKind === 'string'
+        ? connection.providerKind
+        : getTextFieldValue('lmsProviderKind');
+    };
+
+    const syncSelectedLmsProviderKind = () => {
+      const connection = getSelectedLmsConnection();
+      const providerKind =
+        connection && typeof connection.providerKind === 'string' ? connection.providerKind : '';
+
+      if (ruleBuilderLmsProviderKindInput instanceof HTMLInputElement) {
+        ruleBuilderLmsProviderKindInput.value = providerKind;
+      }
+    };
 
     const fallbackCourseId =
       ruleBuilderContext &&
@@ -149,7 +186,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
               {
                 type: 'assignment_submission',
                 courseId: primaryCourseId,
-                assignmentId: 'assignment_1',
+                assignmentId: '',
                 requireSubmitted: true,
               },
             ],
@@ -216,8 +253,8 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
     const conditionTypeLabels = {
       course_completion: 'Course completion',
       grade_threshold: 'Grade threshold',
-      program_completion: 'Program completion',
-      assignment_submission: 'Assignment submission',
+      program_completion: 'Course pathway completion',
+      assignment_submission: 'Gradebook item submitted',
       survey_completion: 'Survey completion',
       time_window: 'Time window',
       prerequisite_badge: 'Prerequisite badge',
@@ -230,11 +267,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
       const normalizedValue = value === 'any' ? 'any' : 'all';
 
       ruleBuilderRootLogic.value = normalizedValue;
-      document.querySelectorAll('[data-rule-builder-root-logic-option]').forEach((candidate) => {
-        if (candidate instanceof HTMLInputElement) {
-          candidate.checked = candidate.value === normalizedValue;
-        }
-      });
+      syncRootLogicToolbarVisibility();
     };
     const conditionTypeHelpText = {
       course_completion:
@@ -242,9 +275,9 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
       grade_threshold:
         'Learner score must meet the configured minimum and/or maximum threshold.',
       program_completion:
-        'Learner must complete enough courses in a program or pathway.',
+        'Learner must complete enough courses in a course pathway.',
       assignment_submission:
-        'Learner must submit an assignment or evidence, with optional score constraints.',
+        'Learner must submit an assignment, assessment, or gradebook item, with optional score constraints.',
       survey_completion:
         'Learner must complete a required survey, such as an exit survey or attestation.',
       time_window:
@@ -291,15 +324,37 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
     function syncExclusiveFieldPair(card, valueFieldName, listFieldName) {
       const valueField = card.querySelector('[data-field="' + valueFieldName + '"]');
       const listField = card.querySelector('[data-field="' + listFieldName + '"]');
+      const readExclusiveValue = (field) => {
+        if (field instanceof HTMLSelectElement && field.multiple) {
+          return Array.from(field.selectedOptions)
+            .map((option) => option.value.trim())
+            .filter((value) => value.length > 0)
+            .join(',');
+        }
+
+        if (
+          field instanceof HTMLInputElement ||
+          field instanceof HTMLTextAreaElement ||
+          field instanceof HTMLSelectElement
+        ) {
+          return field.value.trim();
+        }
+
+        return '';
+      };
       const valueFieldText =
-        valueField instanceof HTMLInputElement || valueField instanceof HTMLTextAreaElement
-          ? valueField.value.trim()
+        valueField instanceof HTMLInputElement ||
+        valueField instanceof HTMLTextAreaElement ||
+        valueField instanceof HTMLSelectElement
+          ? readExclusiveValue(valueField)
           : '';
       const listFieldText = listField instanceof HTMLSelectElement ? listField.value.trim() : '';
 
       if (
         !(
-          valueField instanceof HTMLInputElement || valueField instanceof HTMLTextAreaElement
+          valueField instanceof HTMLInputElement ||
+          valueField instanceof HTMLTextAreaElement ||
+          valueField instanceof HTMLSelectElement
         ) ||
         !(listField instanceof HTMLSelectElement)
       ) {
@@ -322,7 +377,9 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
 
       if (
         !(
-          valueField instanceof HTMLInputElement || valueField instanceof HTMLTextAreaElement
+          valueField instanceof HTMLInputElement ||
+          valueField instanceof HTMLTextAreaElement ||
+          valueField instanceof HTMLSelectElement
         ) ||
         !(listField instanceof HTMLSelectElement)
       ) {
@@ -334,6 +391,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
       };
 
       valueField.addEventListener('input', syncPair);
+      valueField.addEventListener('change', syncPair);
       listField.addEventListener('change', syncPair);
       syncPair();
     }

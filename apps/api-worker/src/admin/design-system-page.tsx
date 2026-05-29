@@ -576,8 +576,8 @@ export const designSystemAdminPage = (): AppPage => {
         <section class="ct-design-system__section" id="foundations">
           <h2>Foundations</h2>
           <p class="ct-design-system__section-copy">
-            Newsreader carries page and section authority. The system sans stack carries
-            operational interface text, tables, forms, navigation, and controls.
+            Newsreader carries page and section authority. The system sans stack carries operational
+            interface text, tables, forms, navigation, and controls.
           </p>
           <div class="ct-design-system__grid">
             <article class="ct-design-system__specimen">

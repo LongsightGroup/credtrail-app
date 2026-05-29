@@ -264,7 +264,7 @@ export const INSTITUTION_ADMIN_GOVERNANCE_TOOLS_JS = `
   }
 
   if (ruleActionStatus instanceof HTMLElement) {
-    const postRuleAction = async (candidate, actionPath, body, actionLabel) => {
+    const postRuleAction = async (candidate, actionPath, body, actionLabel, successLabel) => {
       if (!(candidate instanceof HTMLButtonElement)) {
         return;
       }
@@ -293,7 +293,7 @@ export const INSTITUTION_ADMIN_GOVERNANCE_TOOLS_JS = `
           return;
         }
 
-        setStatus(ruleActionStatus, actionLabel + ' complete.', false);
+        setStatus(ruleActionStatus, successLabel ?? actionLabel + ' complete.', false);
         setTimeout(() => {
           window.location.assign(tenantAdminPath);
         }, 700);
@@ -309,11 +309,21 @@ export const INSTITUTION_ADMIN_GOVERNANCE_TOOLS_JS = `
       }
 
       candidate.addEventListener('click', async () => {
+        const label = candidate.dataset.ruleLabel ?? 'rule';
+        const confirmed = window.confirm(
+          'Mark draft version for "' + label + '" ready for review? This does not activate the rule.',
+        );
+
+        if (!confirmed) {
+          return;
+        }
+
         await postRuleAction(
           candidate,
           candidate.dataset.ruleSubmitPath,
           {},
-          'Submitting rule for approval',
+          'Marking draft ready for review',
+          'Draft is ready for review. It is not active yet.',
         );
       });
     });

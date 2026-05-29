@@ -7,6 +7,7 @@ import type {
   TenantAuthPolicyRecord,
   TenantAuthProviderRecord,
   TenantBreakGlassAccountRecord,
+  TenantLmsConnectionRecord,
   TenantMemberRecord,
   TenantMembershipOrgUnitScopeRecord,
   TenantMembershipRole,
@@ -43,7 +44,8 @@ export type InstitutionAdminView =
   | "accessMembers"
   | "accessGovernance"
   | "accessApiKeys"
-  | "accessOrgUnits";
+  | "accessOrgUnits"
+  | "accessLmsConnections";
 
 export const INSTITUTION_ADMIN_VIEW_CONFIG = {
   home: {
@@ -116,6 +118,11 @@ export const INSTITUTION_ADMIN_VIEW_CONFIG = {
     titlePrefix: "Org Units · Institution Admin",
     controller: "shell",
     extraAssets: ["institutionAdminOrgUnitsJs"],
+  },
+  accessLmsConnections: {
+    titlePrefix: "LMS Connections · Institution Admin",
+    controller: "shell",
+    extraAssets: ["institutionAdminLmsConnectionsJs"],
   },
 } as const satisfies Record<
   InstitutionAdminView,
@@ -191,6 +198,7 @@ export interface InstitutionAdminPageInput {
   tenantMembers: readonly TenantMemberRecord[];
   membershipOrgUnitScopes: readonly TenantMembershipOrgUnitScopeRecord[];
   delegatedIssuingAuthorityGrants: readonly DelegatedIssuingAuthorityGrantRecord[];
+  lmsConnections: readonly TenantLmsConnectionRecord[];
   activeApiKeys: readonly TenantApiKeyRecord[];
   revokedApiKeyCount: number;
   badgeRules: readonly BadgeIssuanceRuleRecord[];

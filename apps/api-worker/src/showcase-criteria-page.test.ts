@@ -116,6 +116,7 @@ const sampleRule = (overrides?: Partial<BadgeIssuanceRuleRecord>): BadgeIssuance
     description: "Determine contribution milestone eligibility",
     badgeTemplateId: "badge_template_sakai_1000",
     lmsProviderKind: "sakai",
+    lmsConnectionId: null,
     activeVersionId: "brv_123",
     createdByUserId: "usr_owner",
     createdAt: "2026-02-11T01:10:00.000Z",

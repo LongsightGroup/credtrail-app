@@ -321,6 +321,7 @@ export const loadInstitutionAdminReportingPageData = async (
     membershipOrgUnitScopes,
     tenantMembers: [],
     delegatedIssuingAuthorityGrants: [],
+    lmsConnections: [],
     activeApiKeys: [],
     revokedApiKeyCount: 0,
     badgeRules: [],

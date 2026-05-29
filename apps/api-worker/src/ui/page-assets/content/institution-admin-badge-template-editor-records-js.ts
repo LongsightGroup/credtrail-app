@@ -169,8 +169,7 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_RECORDS_JS = `
     );
 
     if (currentArtworkStatus instanceof HTMLElement) {
-      currentArtworkStatus.className =
-        'ct-admin__status-pill ct-admin__status-pill--' + (hasImage ? 'active' : 'warning');
+      currentArtworkStatus.className = adminStatusPillClass(hasImage ? 'active' : 'warning');
       currentArtworkStatus.textContent = hasImage ? 'Approved image' : 'No approved image';
     }
 
@@ -189,7 +188,7 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_RECORDS_JS = `
     if (readyStatus instanceof HTMLElement) {
       const isArchived = record && record.isArchived === true;
       const readyTone = isArchived ? 'revoked' : hasImage ? 'active' : 'warning';
-      readyStatus.className = 'ct-admin__status-pill ct-admin__status-pill--' + readyTone;
+      readyStatus.className = adminStatusPillClass(readyTone);
       readyStatus.textContent = isArchived
         ? 'Archived'
         : hasImage

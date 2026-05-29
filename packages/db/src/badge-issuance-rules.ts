@@ -28,6 +28,7 @@ export interface BadgeIssuanceRuleRecord {
   description: string | null;
   badgeTemplateId: string;
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
+  lmsConnectionId: string | null;
   activeVersionId: string | null;
   createdByUserId: string | null;
   createdAt: string;
@@ -90,6 +91,7 @@ export interface CreateBadgeIssuanceRuleInput {
   description?: string | undefined;
   badgeTemplateId: string;
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
+  lmsConnectionId: string;
   ruleJson: string;
   approvalChain?: BadgeIssuanceRuleApprovalChainStepInput[] | undefined;
   changeSummary?: string | undefined;
@@ -162,6 +164,7 @@ interface BadgeIssuanceRuleRow {
   description: string | null;
   badgeTemplateId: string;
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
+  lmsConnectionId: string | null;
   activeVersionId: string | null;
   createdByUserId: string | null;
   createdAt: string;
@@ -261,6 +264,7 @@ const mapBadgeIssuanceRuleRow = (row: BadgeIssuanceRuleRow): BadgeIssuanceRuleRe
     description: row.description,
     badgeTemplateId: row.badgeTemplateId,
     lmsProviderKind: row.lmsProviderKind,
+    lmsConnectionId: row.lmsConnectionId,
     activeVersionId: row.activeVersionId,
     createdByUserId: row.createdByUserId,
     createdAt: row.createdAt,
@@ -346,6 +350,7 @@ export const findBadgeIssuanceRuleById = async (
           description,
           badge_template_id AS badgeTemplateId,
           lms_provider_kind AS lmsProviderKind,
+          lms_connection_id AS lmsConnectionId,
           active_version_id AS activeVersionId,
           created_by_user_id AS createdByUserId,
           created_at AS createdAt,
@@ -379,6 +384,7 @@ export const listBadgeIssuanceRules = async (
           description,
           badge_template_id AS badgeTemplateId,
           lms_provider_kind AS lmsProviderKind,
+          lms_connection_id AS lmsConnectionId,
           active_version_id AS activeVersionId,
           created_by_user_id AS createdByUserId,
           created_at AS createdAt,
@@ -779,12 +785,13 @@ export const createBadgeIssuanceRule = async (
           description,
           badge_template_id,
           lms_provider_kind,
+          lms_connection_id,
           active_version_id,
           created_by_user_id,
           created_at,
           updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
       `,
       )
       .bind(
@@ -794,6 +801,7 @@ export const createBadgeIssuanceRule = async (
         input.description ?? null,
         input.badgeTemplateId,
         input.lmsProviderKind,
+        input.lmsConnectionId,
         input.createdByUserId ?? null,
         nowIso,
         nowIso,

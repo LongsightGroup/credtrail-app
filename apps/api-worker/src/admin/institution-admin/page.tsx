@@ -1,6 +1,7 @@
 import type {
   BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleVersionRecord,
+  TenantLmsConnectionRecord,
   TenantMembershipRole,
 } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
@@ -79,9 +80,11 @@ const renderInstitutionAdminPage = (
   const accessGovernancePath = `${accessPath}/governance`;
   const accessApiKeysPath = `${accessPath}/api-keys`;
   const accessOrgUnitsPath = `${accessPath}/org-units`;
+  const accessLmsConnectionsPath = `${accessPath}/lms-connections`;
   const ruleBuilderPath = `${tenantAdminPath}/rules/new`;
   const badgeTemplateCount = String(input.badgeTemplates.length);
   const orgUnitCount = String(input.orgUnits.length);
+  const lmsConnectionCount = String(input.lmsConnections.length);
   const activeApiKeyCount = String(input.activeApiKeys.length);
   const revokedApiKeyCount = String(input.revokedApiKeyCount);
   const ruleCount = String(input.badgeRules.length);
@@ -181,6 +184,74 @@ const renderInstitutionAdminPage = (
       input.activeApiKeys.map((apiKey) => (
         <TenantApiKeyAdminTableRow tenantId={input.tenant.id} apiKey={apiKey} />
       ))
+    );
+
+  const formatNullableTimestamp = (timestampIso: string | null): string => {
+    return timestampIso === null ? "Not connected" : formatIsoTimestamp(timestampIso);
+  };
+
+  const formatLmsProviderLabel = (
+    providerKind: TenantLmsConnectionRecord["providerKind"],
+  ): string => {
+    return providerKind === "sakai" ? "Sakai" : "Canvas";
+  };
+
+  const lmsConnectionRows =
+    input.lmsConnections.length === 0 ? (
+      <AdminEmptyTableRow colSpan={7}>No LMS connections configured yet.</AdminEmptyTableRow>
+    ) : (
+      input.lmsConnections.map((connection) => {
+        const connected = connection.accessToken !== null && connection.accessToken.length > 0;
+        const ltiDetails = [
+          connection.ltiIssuer === null ? null : `Issuer: ${connection.ltiIssuer}`,
+          connection.ltiClientId === null ? null : `Client: ${connection.ltiClientId}`,
+          connection.ltiDeploymentId === null ? null : `Deployment: ${connection.ltiDeploymentId}`,
+        ].filter((value): value is string => value !== null);
+
+        return (
+          <tr>
+            <td>
+              <strong>{connection.displayName}</strong>
+              <AdminMeta>{connection.id}</AdminMeta>
+            </td>
+            <td>{formatLmsProviderLabel(connection.providerKind)}</td>
+            <td>
+              <span>{connection.apiBaseUrl}</span>
+            </td>
+            <td>
+              <AdminStatusPill tone={connected ? "active" : "warning"}>
+                {connected ? "Connected" : "Needs token"}
+              </AdminStatusPill>
+            </td>
+            <td>{formatNullableTimestamp(connection.connectedAt)}</td>
+            <td>
+              {ltiDetails.length === 0 ? (
+                <AdminMeta as="span">Not recorded</AdminMeta>
+              ) : (
+                ltiDetails.join(" · ")
+              )}
+            </td>
+            <td>
+              <AdminButton
+                type="button"
+                size="tiny"
+                variant="secondary"
+                dataAttributes={{
+                  "data-lms-connection-edit": connection.id,
+                  "data-lms-connection-name": connection.displayName,
+                  "data-lms-connection-provider": connection.providerKind,
+                  "data-lms-connection-api-base-url": connection.apiBaseUrl,
+                  "data-lms-connection-lti-issuer": connection.ltiIssuer ?? "",
+                  "data-lms-connection-lti-client-id": connection.ltiClientId ?? "",
+                  "data-lms-connection-lti-deployment-id": connection.ltiDeploymentId ?? "",
+                }}
+              >
+                Edit
+              </AdminButton>
+            </td>
+          </tr>
+        );
+      })
     );
 
   const assignableTenantRoles: TenantMembershipRole[] =
@@ -406,7 +477,7 @@ const renderInstitutionAdminPage = (
                   "data-rule-label": rule.name,
                 }}
               >
-                Submit
+                Mark ready
               </AdminButton>,
             );
           }
@@ -467,9 +538,14 @@ const renderInstitutionAdminPage = (
             <td>{rule.lmsProviderKind}</td>
             <td>{rule.activeVersionId ?? "none"}</td>
             <td>
-              {latestVersion === null
-                ? "none"
-                : `v${String(latestVersion.versionNumber)} (${latestVersion.id})`}
+              {latestVersion === null ? (
+                "none"
+              ) : (
+                <>
+                  <strong>Version {String(latestVersion.versionNumber)}</strong>
+                  <AdminMeta>Version ID: {latestVersion.id}</AdminMeta>
+                </>
+              )}
             </td>
             <td>
               <AdminStatusPill tone={latestVersion?.status ?? "none"}>
@@ -492,6 +568,7 @@ const renderInstitutionAdminPage = (
   const manualIssueApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions/manual-issue`;
   const createApiKeyPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/api-keys`;
   const createOrgUnitPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/org-units`;
+  const lmsConnectionsApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/lms/connections`;
   const badgeRuleApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules`;
   const badgeRuleValueListApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rule-value-lists`;
   const badgeRulePreviewSimulationApiPath = `${badgeRuleApiPath}/preview-simulate`;
@@ -597,6 +674,7 @@ const renderInstitutionAdminPage = (
     manualIssueApiPath,
     createApiKeyPath,
     createOrgUnitPath,
+    lmsConnectionsApiPath,
     ruleBuilderPath,
     showcasePath,
     tenantMemberEmailsByUserId,
@@ -724,6 +802,12 @@ const renderInstitutionAdminPage = (
           isSub: true,
         },
         {
+          href: accessLmsConnectionsPath,
+          label: "LMS Connections",
+          isCurrent: view === "accessLmsConnections",
+          isSub: true,
+        },
+        {
           href: accessOrgUnitsPath,
           label: "Org Units",
           isCurrent: view === "accessOrgUnits",
@@ -833,6 +917,8 @@ const renderInstitutionAdminPage = (
   ));
   const {
     apiKeyPanelMarkup,
+    lmsConnectionsPanelMarkup,
+    lmsConnectionsTableMarkup,
     orgUnitPanelMarkup,
     governanceGuidePanelMarkup,
     tenantMembersPanelMarkup,
@@ -847,12 +933,14 @@ const renderInstitutionAdminPage = (
     accessGovernancePath,
     accessApiKeysPath,
     accessOrgUnitsPath,
+    accessLmsConnectionsPath,
     tenantMemberCount,
     scopedRoleCount,
     delegatedAuthorityGrantCount,
     activeApiKeyCount,
     revokedApiKeyCount,
     orgUnitCount,
+    lmsConnectionCount,
     tenantMemberRoleSelectOptions,
     tenantMemberRows,
     orgUnitParentOptions,
@@ -861,6 +949,7 @@ const renderInstitutionAdminPage = (
     optionalBadgeTemplateScopeOptions,
     membershipScopeRows,
     delegatedGrantRows,
+    lmsConnectionRows,
   });
 
   const {
@@ -1150,6 +1239,19 @@ const renderInstitutionAdminPage = (
             </section>
           </>
         );
+      case "accessLmsConnections":
+        return (
+          <>
+            {renderPageHeader(
+              "LMS Connections",
+              "Manage connected Canvas and Sakai gradebook accounts used by badge awarding rules.",
+            )}
+            <section class="ct-admin ct-stack">
+              {lmsConnectionsPanelMarkup}
+              {lmsConnectionsTableMarkup}
+            </section>
+          </>
+        );
       case "accessOrgUnits":
         return (
           <>
@@ -1263,6 +1365,10 @@ export const institutionAdminGovernancePage = (input: InstitutionAdminPageInput)
 
 export const institutionAdminApiKeysPage = (input: InstitutionAdminPageInput): AppPage => {
   return renderInstitutionAdminPage(input, "accessApiKeys");
+};
+
+export const institutionAdminLmsConnectionsPage = (input: InstitutionAdminPageInput): AppPage => {
+  return renderInstitutionAdminPage(input, "accessLmsConnections");
 };
 
 export const institutionAdminOrgUnitsPage = (input: InstitutionAdminPageInput): AppPage => {
