@@ -299,9 +299,9 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("One approved image is used for issued badges and public badge pages.");
     expect(body).toContain("Current artwork");
     expect(body).toContain("Approved image");
-    expect(body).toContain("No further action is needed unless this image changes.");
+    expect(body).toContain("Approved artwork is set. This template is ready for rules.");
     expect(body).toContain("Replace artwork");
-    expect(body).toContain("Use this only when the approved badge image changes.");
+    expect(body).toContain("Upload a new image to replace the current artwork.");
     expect(body).not.toContain('aria-label="Artwork method"');
     expect(body).not.toContain('id="badge-template-artwork-mode-upload"');
     expect(body).not.toContain('id="badge-template-artwork-mode-generate"');

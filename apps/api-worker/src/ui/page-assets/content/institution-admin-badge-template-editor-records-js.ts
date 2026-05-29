@@ -180,7 +180,7 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_RECORDS_JS = `
 
     if (currentArtworkDetail instanceof HTMLElement) {
       currentArtworkDetail.textContent = hasImage
-        ? 'No further action is needed unless this image changes.'
+        ? 'Approved artwork is set. This template is ready for rules.'
         : 'Add an approved image before using this template in rules.';
     }
 
@@ -217,7 +217,7 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_RECORDS_JS = `
 
     if (artworkActionsDetail instanceof HTMLElement) {
       artworkActionsDetail.textContent = hasImage
-        ? 'Use this only when the approved badge image changes.'
+        ? 'Upload a new image to replace the current artwork.'
         : 'Upload an approved image or generate a draft to review.';
     }
   };

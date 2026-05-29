@@ -243,7 +243,7 @@ const renderTemplateEditorFields = (input: {
               <p id="badge-template-editor-current-artwork-detail">
                 {template.imageUri === null
                   ? "Add an approved image before using this template in rules."
-                  : "No further action is needed unless this image changes."}
+                  : "Approved artwork is set. This template is ready for rules."}
               </p>
             </div>
           </div>
@@ -260,7 +260,7 @@ const renderTemplateEditorFields = (input: {
                 <small id="badge-template-editor-artwork-actions-detail">
                   {template.imageUri === null
                     ? "Upload an approved image or generate a draft to review."
-                    : "Use this only when the approved badge image changes."}
+                    : "Upload a new image to replace the current artwork."}
                 </small>
               </span>
               <span class="ct-admin__template-editor-artwork-actions-control">
