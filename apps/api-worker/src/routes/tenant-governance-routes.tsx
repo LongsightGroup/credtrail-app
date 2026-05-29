@@ -1,18 +1,11 @@
 import {
   countTenantMembershipsByRole,
   createLearnerRecordImportPreview,
-  createAuditLog,
-  createDelegatedIssuingAuthorityGrant,
-  createTenantOrgUnit,
-  findDelegatedIssuingAuthorityGrantById,
   findLearnerProfileById,
   findLearnerProfileByIdentity,
   findTenantAuthPolicy,
   findBadgeTemplateById,
   findTenantById,
-  getTenantReportingEngagementCounts,
-  getTenantReportingOverview,
-  getTenantReportingTrends,
   findUserById,
   listAccessibleTenantContextsForUser,
   listImportLearnerRecordBatchQueueMessages,
@@ -22,16 +15,11 @@ import {
   listBadgeTemplateImageRevisionCountsByTenant,
   listBadgeTemplates,
   listTenantApiKeys,
-  listTenantReportingComparisons,
-  listDelegatedIssuingAuthorityGrantEvents,
   listDelegatedIssuingAuthorityGrants,
   listTenantBreakGlassAccounts,
   listTenantMembers,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
-  removeTenantMembershipOrgUnitScope,
-  revokeDelegatedIssuingAuthorityGrant,
-  upsertTenantMembershipOrgUnitScope,
   type LearnerRecordTrustLevel,
   type SessionRecord,
   type SqlDatabase,
@@ -41,17 +29,7 @@ import {
 import type { Hono } from "hono";
 import {
   parseLearnerRecordImportBatchDefaults,
-  parseCreateDelegatedIssuingAuthorityGrantRequest,
-  parseCreateTenantOrgUnitRequest,
-  parseDelegatedIssuingAuthorityGrantListQuery,
-  parseRevokeDelegatedIssuingAuthorityGrantRequest,
-  parseTenantOrgUnitListQuery,
-  parseTenantPathParams,
   parseTenantReportingOverviewQuery,
-  parseTenantUserDelegatedGrantPathParams,
-  parseTenantUserOrgUnitPathParams,
-  parseTenantUserPathParams,
-  parseUpsertTenantMembershipOrgUnitScopeRequest,
 } from "@credtrail/validation";
 import { appPage, type AppPage, renderAppPage } from "../ui/render-page";
 import type { AppBindings, AppContext, AppEnv } from "../app";
@@ -69,22 +47,18 @@ import { registerTenantAuthManagementRoutes } from "./tenant-auth-management-rou
 import { registerTenantBreakGlassRoutes } from "./tenant-break-glass-routes";
 import { registerTenantLearnerRecordAdminRoutes } from "./tenant-learner-record-admin-routes";
 import { registerTenantMemberManagementRoutes } from "./tenant-member-management-routes";
+import { registerTenantMembershipScopeRoutes } from "./tenant-membership-scope-routes";
+import { registerTenantDelegatedAuthorityRoutes } from "./tenant-delegated-authority-routes";
+import { registerTenantOrgUnitRoutes } from "./tenant-org-unit-routes";
+import { loadInstitutionAdminReportingPageData } from "./tenant-admin-reporting-data-loader";
 import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
-import { resolveTenantReportingAccess } from "../auth/tenant-access";
 import {
   prepareLearnerRecordImportSubmission,
   queueReviewedLearnerRecordImportPreview,
   summarizeLearnerRecordImportProgress,
 } from "../learner-record/learner-record-import";
-import { buildReportingMetricEntries } from "../reporting/metric-definitions";
 import { createLearnerRecordPresentation } from "../learner-record/learner-record-presentation";
 import { loadLearnerRecordExportBundle } from "../learner-record/learner-record-export";
-import {
-  toReportingComparisonFilters,
-  toReportingEngagementFilters,
-  toReportingOverviewFilters,
-  toReportingTrendFilters,
-} from "../reporting/reporting-page-filters";
 import { applySmartReportingDefaults } from "../reporting/reporting-defaults";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";
 
@@ -136,39 +110,6 @@ const addHoursToIso = (fromIso: string, hours: number): string => {
   }
 
   return new Date(fromMs + hours * 60 * 60 * 1000).toISOString();
-};
-
-const deriveUrlKey = (value: string): string => {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-");
-};
-
-const withDerivedOrgUnitSlug = (input: unknown): unknown => {
-  if (input === null || typeof input !== "object" || Array.isArray(input)) {
-    return input;
-  }
-
-  const payload = input as Record<string, unknown>;
-  const rawSlug = payload.slug;
-
-  if (typeof rawSlug === "string" && rawSlug.trim().length > 0) {
-    return input;
-  }
-
-  const rawDisplayName = payload.displayName;
-
-  if (typeof rawDisplayName !== "string") {
-    return input;
-  }
-
-  return {
-    ...payload,
-    slug: deriveUrlKey(rawDisplayName),
-  };
 };
 
 export const adminRoleRequiredPage = (tenantId: string): AppPage => {
@@ -258,8 +199,6 @@ export const registerTenantGovernanceRoutes = (
   type InstitutionAdminRuleTemplatesPageData = Parameters<
     typeof institutionAdminRuleTemplatesPage
   >[0];
-  type ReportingComparisonRow = Awaited<ReturnType<typeof listTenantReportingComparisons>>[number];
-  type BadgeTemplateRecord = InstitutionAdminPageData["badgeTemplates"][number];
   type LearnerRecordImportWorkflowInput = Pick<
     NonNullable<InstitutionAdminPageData["learnerRecordImportWorkflow"]>,
     "defaults" | "submission" | "feedback"
@@ -407,71 +346,6 @@ export const registerTenantGovernanceRoutes = (
 
     const trimmed = value.trim();
     return trimmed.length === 0 ? undefined : trimmed;
-  };
-
-  const buildOrgUnitMap = (orgUnits: InstitutionAdminPageData["orgUnits"]) => {
-    return new Map(orgUnits.map((orgUnit) => [orgUnit.id, orgUnit] as const));
-  };
-
-  const isOrgUnitWithinRoot = (
-    orgUnitsById: ReadonlyMap<string, InstitutionAdminPageData["orgUnits"][number]>,
-    orgUnitId: string,
-    rootOrgUnitId: string,
-  ): boolean => {
-    const visited = new Set<string>();
-    let currentOrgUnitId: string | null = orgUnitId;
-
-    while (currentOrgUnitId !== null) {
-      if (currentOrgUnitId === rootOrgUnitId) {
-        return true;
-      }
-
-      if (visited.has(currentOrgUnitId)) {
-        return false;
-      }
-
-      visited.add(currentOrgUnitId);
-      currentOrgUnitId = orgUnitsById.get(currentOrgUnitId)?.parentOrgUnitId ?? null;
-    }
-
-    return false;
-  };
-
-  const isOrgUnitWithinRoots = (
-    orgUnitsById: ReadonlyMap<string, InstitutionAdminPageData["orgUnits"][number]>,
-    orgUnitId: string,
-    rootOrgUnitIds: readonly string[],
-  ): boolean => {
-    return rootOrgUnitIds.some((rootOrgUnitId) =>
-      isOrgUnitWithinRoot(orgUnitsById, orgUnitId, rootOrgUnitId),
-    );
-  };
-
-  const filterOrgUnitsToScope = (
-    orgUnits: InstitutionAdminPageData["orgUnits"],
-    orgUnitsById: ReadonlyMap<string, InstitutionAdminPageData["orgUnits"][number]>,
-    scopedRootOrgUnitIds: readonly string[],
-  ) => {
-    return orgUnits.filter((orgUnit) =>
-      isOrgUnitWithinRoots(orgUnitsById, orgUnit.id, scopedRootOrgUnitIds),
-    );
-  };
-
-  const filterComparisonRowsToScope = (
-    comparisonRows: readonly ReportingComparisonRow[],
-    orgUnitsById: ReadonlyMap<string, InstitutionAdminPageData["orgUnits"][number]>,
-    scopedRootOrgUnitIds: readonly string[],
-  ): ReportingComparisonRow[] => {
-    return comparisonRows.filter((row) =>
-      isOrgUnitWithinRoots(orgUnitsById, row.groupId, scopedRootOrgUnitIds),
-    );
-  };
-
-  const filterBadgeTemplatesToIds = (
-    badgeTemplates: readonly BadgeTemplateRecord[],
-    allowedBadgeTemplateIds: ReadonlySet<string>,
-  ): BadgeTemplateRecord[] => {
-    return badgeTemplates.filter((badgeTemplate) => allowedBadgeTemplateIds.has(badgeTemplate.id));
   };
 
   const redirectToTenantLogin = (c: AppContext, tenantId: string, nextPath: string): Response => {
@@ -841,173 +715,12 @@ export const registerTenantGovernanceRoutes = (
     orgUnitId?: string | undefined;
     state?: TenantReportingLifecycleFilter | undefined;
   }): Promise<InstitutionAdminPageData | Response> => {
-    if (input.membershipRole === "owner" || input.membershipRole === "admin") {
-      return loadInstitutionAdminPageData(
-        input.c,
-        input.tenantId,
-        input.sessionUserId,
-        input.membershipRole,
-      );
-    }
-
-    const db = resolveDatabase(input.c.env);
-    const reportingAccess = await resolveTenantReportingAccess({
-      db,
-      tenantId: input.tenantId,
-      userId: input.sessionUserId,
-      membershipRole: input.membershipRole,
+    return loadInstitutionAdminReportingPageData({
+      ...input,
+      resolveDatabase,
+      loadInstitutionAdminPageData,
+      reportingAccessRequiredPage,
     });
-
-    if (reportingAccess === null) {
-      input.c.header("Cache-Control", "no-store");
-      return renderAppPage(input.c, reportingAccessRequiredPage(input.tenantId), 403);
-    }
-
-    const [
-      tenant,
-      currentUser,
-      badgeTemplates,
-      orgUnits,
-      membershipOrgUnitScopes,
-      accessibleTenantContexts,
-    ] = await Promise.all([
-      findTenantById(db, input.tenantId),
-      findUserById(db, input.sessionUserId),
-      listBadgeTemplates(db, {
-        tenantId: input.tenantId,
-        includeArchived: false,
-      }),
-      listTenantOrgUnits(db, {
-        tenantId: input.tenantId,
-        includeInactive: true,
-      }),
-      listTenantMembershipOrgUnitScopes(db, {
-        tenantId: input.tenantId,
-        userId: input.sessionUserId,
-      }),
-      listAccessibleTenantContextsForUser(db, input.sessionUserId),
-    ]);
-
-    if (tenant === null) {
-      return input.c.json(
-        {
-          error: "Tenant not found",
-        },
-        404,
-      );
-    }
-
-    const requestUrl = new URL(input.c.req.url);
-    const switchOrganizationPath =
-      accessibleTenantContexts.length > 1
-        ? buildOrganizationsPath(`${requestUrl.pathname}${requestUrl.search}`)
-        : null;
-    const orgUnitsById = buildOrgUnitMap(orgUnits);
-    const scopedRootOrgUnitIds =
-      reportingAccess.visibility === "scoped" ? reportingAccess.scopedOrgUnitIds : [];
-
-    if (
-      input.orgUnitId !== undefined &&
-      scopedRootOrgUnitIds.length > 0 &&
-      !isOrgUnitWithinRoots(orgUnitsById, input.orgUnitId, scopedRootOrgUnitIds)
-    ) {
-      input.c.header("Cache-Control", "no-store");
-      return renderAppPage(input.c, reportingAccessRequiredPage(input.tenantId), 403);
-    }
-
-    const reportingOrgUnitComparisonsRaw = await listTenantReportingComparisons(db, {
-      tenantId: input.tenantId,
-      ...toReportingComparisonFilters(
-        {
-          issuedFrom: input.issuedFrom,
-          issuedTo: input.issuedTo,
-          badgeTemplateId: input.badgeTemplateId,
-          state: input.state,
-        },
-        "orgUnit",
-      ),
-      groupBy: "orgUnit",
-    });
-    const reportingOrgUnitComparisons =
-      scopedRootOrgUnitIds.length === 0
-        ? reportingOrgUnitComparisonsRaw
-        : filterComparisonRowsToScope(
-            reportingOrgUnitComparisonsRaw,
-            orgUnitsById,
-            scopedRootOrgUnitIds,
-          );
-    const selectedOrgUnitId =
-      input.orgUnitId ?? (scopedRootOrgUnitIds.length === 0 ? undefined : scopedRootOrgUnitIds[0]);
-    const reportingPageFilters = {
-      issuedFrom: input.issuedFrom,
-      issuedTo: input.issuedTo,
-      badgeTemplateId: input.badgeTemplateId,
-      orgUnitId: selectedOrgUnitId,
-      state: input.state,
-    };
-    const [
-      reportingOverview,
-      reportingEngagementCounts,
-      reportingTrends,
-      reportingTemplateComparisons,
-    ] = await Promise.all([
-      getTenantReportingOverview(db, {
-        tenantId: input.tenantId,
-        ...toReportingOverviewFilters(reportingPageFilters),
-      }),
-      getTenantReportingEngagementCounts(db, {
-        tenantId: input.tenantId,
-        ...toReportingEngagementFilters(reportingPageFilters),
-      }),
-      getTenantReportingTrends(db, {
-        tenantId: input.tenantId,
-        ...toReportingTrendFilters(reportingPageFilters),
-      }),
-      listTenantReportingComparisons(db, {
-        tenantId: input.tenantId,
-        ...toReportingComparisonFilters(reportingPageFilters, "badgeTemplate"),
-      }),
-    ]);
-    const visibleBadgeTemplateIds = new Set(reportingTemplateComparisons.map((row) => row.groupId));
-
-    if (input.badgeTemplateId !== undefined) {
-      visibleBadgeTemplateIds.add(input.badgeTemplateId);
-    }
-
-    const visibleBadgeTemplates =
-      scopedRootOrgUnitIds.length === 0
-        ? badgeTemplates
-        : filterBadgeTemplatesToIds(badgeTemplates, visibleBadgeTemplateIds);
-    const visibleOrgUnits =
-      scopedRootOrgUnitIds.length === 0
-        ? orgUnits
-        : filterOrgUnitsToScope(orgUnits, orgUnitsById, scopedRootOrgUnitIds);
-
-    return {
-      tenant,
-      userId: input.sessionUserId,
-      ...(currentUser?.email === undefined ? {} : { userEmail: currentUser.email }),
-      membershipRole: input.membershipRole,
-      badgeTemplates: visibleBadgeTemplates,
-      orgUnits: visibleOrgUnits,
-      membershipOrgUnitScopes,
-      tenantMembers: [],
-      delegatedIssuingAuthorityGrants: [],
-      activeApiKeys: [],
-      revokedApiKeyCount: 0,
-      badgeRules: [],
-      badgeRuleVersions: [],
-      enterpriseAuthPolicy: null,
-      enterpriseAuthProviders: [],
-      breakGlassAccounts: [],
-      switchOrganizationPath,
-      reportingOverview,
-      reportingEngagementCounts,
-      reportingMetrics: buildReportingMetricEntries(reportingOverview.counts),
-      reportingOrgUnitComparisons,
-      reportingTemplateComparisons,
-      reportingTrends,
-    };
   };
 
   const resolveInstitutionAdminAdminRole = async (
@@ -1721,7 +1434,7 @@ export const registerTenantGovernanceRoutes = (
     }
 
     const { session, membershipRole } = roleCheck;
-    let pageData = await loadReportingPageData({
+    const pageData = await loadReportingPageData({
       c,
       tenantId,
       sessionUserId: session.userId,
@@ -1735,55 +1448,6 @@ export const registerTenantGovernanceRoutes = (
 
     if (pageData instanceof Response) {
       return pageData;
-    }
-
-    if (pageData.reportingOverview === undefined) {
-      const db = resolveDatabase(c.env);
-      const reportingPageFilters = {
-        issuedFrom: reportingQuery.issuedFrom,
-        issuedTo: reportingQuery.issuedTo,
-        badgeTemplateId: reportingQuery.badgeTemplateId,
-        orgUnitId: reportingQuery.orgUnitId,
-        state: reportingQuery.state,
-      };
-      const [
-        reportingOverview,
-        reportingEngagementCounts,
-        reportingTrends,
-        reportingTemplateComparisons,
-        reportingOrgUnitComparisons,
-      ] = await Promise.all([
-        getTenantReportingOverview(db, {
-          tenantId,
-          ...toReportingOverviewFilters(reportingPageFilters),
-        }),
-        getTenantReportingEngagementCounts(db, {
-          tenantId,
-          ...toReportingEngagementFilters(reportingPageFilters),
-        }),
-        getTenantReportingTrends(db, {
-          tenantId,
-          ...toReportingTrendFilters(reportingPageFilters),
-        }),
-        listTenantReportingComparisons(db, {
-          tenantId,
-          ...toReportingComparisonFilters(reportingPageFilters, "badgeTemplate"),
-        }),
-        listTenantReportingComparisons(db, {
-          tenantId,
-          ...toReportingComparisonFilters(reportingPageFilters, "orgUnit"),
-        }),
-      ]);
-
-      pageData = {
-        ...pageData,
-        reportingOverview,
-        reportingEngagementCounts,
-        reportingMetrics: buildReportingMetricEntries(reportingOverview.counts),
-        reportingOrgUnitComparisons,
-        reportingTemplateComparisons,
-        reportingTrends,
-      };
     }
 
     c.header("Cache-Control", "no-store");
@@ -1833,543 +1497,25 @@ export const registerTenantGovernanceRoutes = (
     ADMIN_ROLES,
   });
 
-  app.get("/v1/tenants/:tenantId/org-units", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    const query = parseTenantOrgUnitListQuery({
-      includeInactive: c.req.query("includeInactive"),
-    });
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const orgUnits = await listTenantOrgUnits(resolveDatabase(c.env), {
-      tenantId: pathParams.tenantId,
-      includeInactive: query.includeInactive,
-    });
-
-    return c.json({
-      tenantId: pathParams.tenantId,
-      orgUnits,
-    });
+  registerTenantOrgUnitRoutes({
+    app,
+    resolveDatabase,
+    requireTenantRole,
+    ADMIN_ROLES,
+    ISSUER_ROLES,
   });
 
-  app.post("/v1/tenants/:tenantId/org-units", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    let request: ReturnType<typeof parseCreateTenantOrgUnitRequest>;
-
-    try {
-      request = parseCreateTenantOrgUnitRequest(
-        withDerivedOrgUnitSlug(await c.req.json<unknown>()),
-      );
-    } catch {
-      return c.json(
-        {
-          error: "Invalid org unit request payload",
-        },
-        400,
-      );
-    }
-
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const { session, membershipRole } = roleCheck;
-
-    try {
-      const orgUnit = await createTenantOrgUnit(resolveDatabase(c.env), {
-        tenantId: pathParams.tenantId,
-        unitType: request.unitType,
-        slug: request.slug,
-        displayName: request.displayName,
-        parentOrgUnitId: request.parentOrgUnitId,
-        createdByUserId: session.userId,
-      });
-
-      await createAuditLog(resolveDatabase(c.env), {
-        tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
-        action: "tenant.org_unit_created",
-        targetType: "org_unit",
-        targetId: orgUnit.id,
-        metadata: {
-          role: membershipRole,
-          unitType: orgUnit.unitType,
-          slug: orgUnit.slug,
-          parentOrgUnitId: orgUnit.parentOrgUnitId,
-        },
-      });
-
-      return c.json(
-        {
-          tenantId: pathParams.tenantId,
-          orgUnit,
-        },
-        201,
-      );
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        if (error.message.includes("UNIQUE constraint failed")) {
-          return c.json(
-            {
-              error: "An org unit with that URL key already exists.",
-            },
-            409,
-          );
-        }
-
-        if (
-          (error.message.includes("Parent org unit") &&
-            error.message.includes("not found for tenant")) ||
-          error.message.includes("cannot have a parent org unit") ||
-          error.message.includes("requires parent org unit type") ||
-          error.message.includes("is inactive for tenant")
-        ) {
-          return c.json(
-            {
-              error: error.message,
-            },
-            422,
-          );
-        }
-      }
-
-      throw error;
-    }
+  registerTenantMembershipScopeRoutes({
+    app,
+    resolveDatabase,
+    requireTenantRole,
+    ADMIN_ROLES,
   });
 
-  app.get("/v1/tenants/:tenantId/users/:userId/org-unit-scopes", async (c) => {
-    const pathParams = parseTenantUserPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const scopes = await listTenantMembershipOrgUnitScopes(resolveDatabase(c.env), {
-      tenantId: pathParams.tenantId,
-      userId: pathParams.userId,
-    });
-
-    return c.json({
-      tenantId: pathParams.tenantId,
-      userId: pathParams.userId,
-      scopes,
-    });
+  registerTenantDelegatedAuthorityRoutes({
+    app,
+    resolveDatabase,
+    requireTenantRole,
+    ADMIN_ROLES,
   });
-
-  app.put("/v1/tenants/:tenantId/users/:userId/org-unit-scopes/:orgUnitId", async (c) => {
-    const pathParams = parseTenantUserOrgUnitPathParams(c.req.param());
-    let request: ReturnType<typeof parseUpsertTenantMembershipOrgUnitScopeRequest>;
-
-    try {
-      request = parseUpsertTenantMembershipOrgUnitScopeRequest(await c.req.json<unknown>());
-    } catch {
-      return c.json(
-        {
-          error: "Invalid org-unit scope payload",
-        },
-        400,
-      );
-    }
-
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const { session, membershipRole } = roleCheck;
-
-    try {
-      const result = await upsertTenantMembershipOrgUnitScope(resolveDatabase(c.env), {
-        tenantId: pathParams.tenantId,
-        userId: pathParams.userId,
-        orgUnitId: pathParams.orgUnitId,
-        role: request.role,
-        createdByUserId: session.userId,
-      });
-
-      const action =
-        result.previousRole === null
-          ? "membership.org_scope_assigned"
-          : result.previousRole === result.scope.role
-            ? "membership.org_scope_reasserted"
-            : "membership.org_scope_changed";
-
-      await createAuditLog(resolveDatabase(c.env), {
-        tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
-        action,
-        targetType: "membership_org_scope",
-        targetId: `${pathParams.tenantId}:${pathParams.userId}:${pathParams.orgUnitId}`,
-        metadata: {
-          role: membershipRole,
-          userId: pathParams.userId,
-          orgUnitId: pathParams.orgUnitId,
-          previousRole: result.previousRole,
-          scopeRole: result.scope.role,
-          changed: result.changed,
-        },
-      });
-
-      return c.json(
-        {
-          tenantId: pathParams.tenantId,
-          userId: pathParams.userId,
-          orgUnitId: pathParams.orgUnitId,
-          scope: result.scope,
-          previousRole: result.previousRole,
-          changed: result.changed,
-        },
-        result.previousRole === null ? 201 : 200,
-      );
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        if (error.message.includes("Membership not found for tenant")) {
-          return c.json(
-            {
-              error: error.message,
-            },
-            422,
-          );
-        }
-
-        if (error.message.includes("Org unit") && error.message.includes("not found for tenant")) {
-          return c.json(
-            {
-              error: error.message,
-            },
-            422,
-          );
-        }
-      }
-
-      throw error;
-    }
-  });
-
-  app.delete("/v1/tenants/:tenantId/users/:userId/org-unit-scopes/:orgUnitId", async (c) => {
-    const pathParams = parseTenantUserOrgUnitPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const { session, membershipRole } = roleCheck;
-    const removed = await removeTenantMembershipOrgUnitScope(resolveDatabase(c.env), {
-      tenantId: pathParams.tenantId,
-      userId: pathParams.userId,
-      orgUnitId: pathParams.orgUnitId,
-    });
-
-    if (removed) {
-      await createAuditLog(resolveDatabase(c.env), {
-        tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
-        action: "membership.org_scope_removed",
-        targetType: "membership_org_scope",
-        targetId: `${pathParams.tenantId}:${pathParams.userId}:${pathParams.orgUnitId}`,
-        metadata: {
-          role: membershipRole,
-          userId: pathParams.userId,
-          orgUnitId: pathParams.orgUnitId,
-        },
-      });
-    }
-
-    return c.json({
-      tenantId: pathParams.tenantId,
-      userId: pathParams.userId,
-      orgUnitId: pathParams.orgUnitId,
-      removed,
-    });
-  });
-
-  app.get("/v1/tenants/:tenantId/users/:userId/issuing-authority-grants", async (c) => {
-    const pathParams = parseTenantUserPathParams(c.req.param());
-    const query = parseDelegatedIssuingAuthorityGrantListQuery({
-      includeRevoked: c.req.query("includeRevoked"),
-      includeExpired: c.req.query("includeExpired"),
-    });
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const grants = await listDelegatedIssuingAuthorityGrants(resolveDatabase(c.env), {
-      tenantId: pathParams.tenantId,
-      delegateUserId: pathParams.userId,
-      includeRevoked: query.includeRevoked,
-      includeExpired: query.includeExpired,
-    });
-
-    return c.json({
-      tenantId: pathParams.tenantId,
-      userId: pathParams.userId,
-      grants,
-    });
-  });
-
-  app.post("/v1/tenants/:tenantId/users/:userId/issuing-authority-grants", async (c) => {
-    const pathParams = parseTenantUserPathParams(c.req.param());
-    let request: ReturnType<typeof parseCreateDelegatedIssuingAuthorityGrantRequest>;
-
-    try {
-      request = parseCreateDelegatedIssuingAuthorityGrantRequest(await c.req.json<unknown>());
-    } catch {
-      return c.json(
-        {
-          error: "Invalid delegated authority grant payload",
-        },
-        400,
-      );
-    }
-
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const { session, membershipRole } = roleCheck;
-    const startsAt = request.startsAt ?? new Date().toISOString();
-
-    try {
-      const grant = await createDelegatedIssuingAuthorityGrant(resolveDatabase(c.env), {
-        tenantId: pathParams.tenantId,
-        delegateUserId: pathParams.userId,
-        delegatedByUserId: session.userId,
-        orgUnitId: request.orgUnitId,
-        allowedActions: request.allowedActions,
-        badgeTemplateIds: request.badgeTemplateIds,
-        startsAt,
-        endsAt: request.endsAt,
-        reason: request.reason,
-      });
-
-      await createAuditLog(resolveDatabase(c.env), {
-        tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
-        action: "delegated_issuing_authority.granted",
-        targetType: "delegated_issuing_authority_grant",
-        targetId: grant.id,
-        metadata: {
-          role: membershipRole,
-          delegateUserId: pathParams.userId,
-          orgUnitId: request.orgUnitId,
-          allowedActions: request.allowedActions,
-          badgeTemplateIds: request.badgeTemplateIds ?? [],
-          startsAt,
-          endsAt: request.endsAt,
-        },
-      });
-
-      return c.json(
-        {
-          tenantId: pathParams.tenantId,
-          userId: pathParams.userId,
-          grant,
-        },
-        201,
-      );
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        if (error.message.includes("conflicts with existing grant")) {
-          return c.json(
-            {
-              error: error.message,
-            },
-            409,
-          );
-        }
-
-        if (
-          error.message.includes("Membership not found for tenant") ||
-          (error.message.includes("Org unit") && error.message.includes("not found for tenant")) ||
-          (error.message.includes("Badge template") &&
-            error.message.includes("not found for tenant")) ||
-          error.message.includes("outside delegated org-unit scope") ||
-          error.message.includes("is inactive for tenant") ||
-          error.message.includes("must be after") ||
-          error.message.includes("must be a valid ISO timestamp")
-        ) {
-          return c.json(
-            {
-              error: error.message,
-            },
-            422,
-          );
-        }
-      }
-
-      throw error;
-    }
-  });
-
-  app.post(
-    "/v1/tenants/:tenantId/users/:userId/issuing-authority-grants/:grantId/revoke",
-    async (c) => {
-      const pathParams = parseTenantUserDelegatedGrantPathParams(c.req.param());
-      let request: ReturnType<typeof parseRevokeDelegatedIssuingAuthorityGrantRequest>;
-
-      try {
-        let payload: unknown = {};
-
-        try {
-          payload = await c.req.json<unknown>();
-        } catch {
-          payload = {};
-        }
-
-        request = parseRevokeDelegatedIssuingAuthorityGrantRequest(payload);
-      } catch {
-        return c.json(
-          {
-            error: "Invalid delegated authority revoke payload",
-          },
-          400,
-        );
-      }
-
-      const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-      if (roleCheck instanceof Response) {
-        return roleCheck;
-      }
-
-      const { session, membershipRole } = roleCheck;
-      const db = resolveDatabase(c.env);
-      const existingGrant = await findDelegatedIssuingAuthorityGrantById(
-        db,
-        pathParams.tenantId,
-        pathParams.grantId,
-      );
-
-      if (existingGrant?.delegateUserId !== pathParams.userId) {
-        return c.json(
-          {
-            error: "Delegated issuing authority grant not found",
-          },
-          404,
-        );
-      }
-
-      const revokedAt = request.revokedAt ?? new Date().toISOString();
-
-      try {
-        const result = await revokeDelegatedIssuingAuthorityGrant(db, {
-          tenantId: pathParams.tenantId,
-          grantId: pathParams.grantId,
-          revokedByUserId: session.userId,
-          revokedReason: request.reason,
-          revokedAt,
-        });
-
-        if (result.status === "revoked") {
-          await createAuditLog(db, {
-            tenantId: pathParams.tenantId,
-            actorUserId: session.userId,
-            action: "delegated_issuing_authority.revoked",
-            targetType: "delegated_issuing_authority_grant",
-            targetId: pathParams.grantId,
-            metadata: {
-              role: membershipRole,
-              delegateUserId: pathParams.userId,
-              revokedAt,
-              reason: request.reason,
-            },
-          });
-        }
-
-        return c.json({
-          tenantId: pathParams.tenantId,
-          userId: pathParams.userId,
-          status: result.status,
-          grant: result.grant,
-        });
-      } catch (error: unknown) {
-        if (error instanceof Error) {
-          if (
-            error.message.includes("not found for tenant") ||
-            error.message.includes("must be a valid ISO timestamp")
-          ) {
-            return c.json(
-              {
-                error: error.message,
-              },
-              422,
-            );
-          }
-        }
-
-        throw error;
-      }
-    },
-  );
-
-  app.get(
-    "/v1/tenants/:tenantId/users/:userId/issuing-authority-grants/:grantId/events",
-    async (c) => {
-      const pathParams = parseTenantUserDelegatedGrantPathParams(c.req.param());
-      const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-      if (roleCheck instanceof Response) {
-        return roleCheck;
-      }
-
-      const limitRaw = c.req.query("limit");
-      let limit: number | undefined;
-
-      if (limitRaw !== undefined) {
-        const parsed = Number.parseInt(limitRaw, 10);
-
-        if (!Number.isFinite(parsed) || parsed < 1) {
-          return c.json(
-            {
-              error: "limit must be a positive integer",
-            },
-            400,
-          );
-        }
-
-        limit = parsed;
-      }
-
-      const db = resolveDatabase(c.env);
-      const grant = await findDelegatedIssuingAuthorityGrantById(
-        db,
-        pathParams.tenantId,
-        pathParams.grantId,
-      );
-
-      if (grant?.delegateUserId !== pathParams.userId) {
-        return c.json(
-          {
-            error: "Delegated issuing authority grant not found",
-          },
-          404,
-        );
-      }
-
-      const events = await listDelegatedIssuingAuthorityGrantEvents(db, {
-        tenantId: pathParams.tenantId,
-        grantId: pathParams.grantId,
-        ...(limit === undefined ? {} : { limit }),
-      });
-
-      return c.json({
-        tenantId: pathParams.tenantId,
-        userId: pathParams.userId,
-        grant,
-        events,
-      });
-    },
-  );
 };
