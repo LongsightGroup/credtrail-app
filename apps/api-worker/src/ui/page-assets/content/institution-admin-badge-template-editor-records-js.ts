@@ -126,42 +126,99 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_RECORDS_JS = `
       record && typeof record.title === 'string' && record.title.length > 0
         ? record.title
         : 'Badge template';
+    const hasImage = typeof imageUri === 'string' && imageUri.length > 0;
 
-    const imageLinkHtml =
-      '<a href="' +
-      escapeHtml(imageUri) +
-      '" target="_blank" rel="noopener noreferrer" aria-label="Open full size image for ' +
-      escapeHtml(title) +
-      '">' +
-      '<img src="' +
-      escapeHtml(imageUri) +
-      '" alt="' +
-      escapeHtml(title) +
-      ' artwork">' +
-      '</a>';
+    if (record && typeof record === 'object') {
+      record.imageUri = hasImage ? imageUri : null;
+    }
+
+    const imageLinkHtml = hasImage
+      ? '<a href="' +
+        escapeHtml(imageUri) +
+        '" target="_blank" rel="noopener noreferrer" aria-label="Open full size image for ' +
+        escapeHtml(title) +
+        '">' +
+        '<img src="' +
+        escapeHtml(imageUri) +
+        '" alt="' +
+        escapeHtml(title) +
+        ' artwork">' +
+        '</a>'
+      : '';
     const previewFrame = document.getElementById('badge-template-editor-preview-frame');
 
     if (previewFrame instanceof HTMLElement) {
       previewFrame.innerHTML =
-        typeof imageUri !== 'string' || imageUri.length === 0
-          ? '<span class="ct-admin__template-editor-preview-empty">No artwork</span>'
-          : imageLinkHtml;
+        hasImage
+          ? imageLinkHtml
+          : '<span class="ct-admin__template-editor-preview-empty">No artwork</span>';
     }
 
-    const currentArtwork = document.getElementById('badge-template-editor-current-artwork');
+    const currentArtworkMedia = document.getElementById(
+      'badge-template-editor-current-artwork-media',
+    );
 
-    if (currentArtwork instanceof HTMLElement) {
-      const detail =
-        typeof imageUri !== 'string' || imageUri.length === 0
-          ? 'Add artwork before using this template in rules.'
-          : 'This image appears on issued badges and public badge pages.';
-      currentArtwork.innerHTML =
-        (typeof imageUri !== 'string' || imageUri.length === 0
-          ? '<span class="ct-admin__template-editor-current-artwork-empty">No artwork</span>'
-          : imageLinkHtml) +
-        '<div><strong>Current artwork</strong><p>' +
-        escapeHtml(detail) +
-        '</p></div>';
+    if (currentArtworkMedia instanceof HTMLElement) {
+      currentArtworkMedia.innerHTML = hasImage
+        ? imageLinkHtml
+        : '<span class="ct-admin__template-editor-current-artwork-empty">No artwork</span>';
+    }
+
+    const currentArtworkStatus = document.getElementById(
+      'badge-template-editor-current-artwork-status',
+    );
+
+    if (currentArtworkStatus instanceof HTMLElement) {
+      currentArtworkStatus.className =
+        'ct-admin__status-pill ct-admin__status-pill--' + (hasImage ? 'active' : 'warning');
+      currentArtworkStatus.textContent = hasImage ? 'Approved image' : 'No approved image';
+    }
+
+    const currentArtworkDetail = document.getElementById(
+      'badge-template-editor-current-artwork-detail',
+    );
+
+    if (currentArtworkDetail instanceof HTMLElement) {
+      currentArtworkDetail.textContent = hasImage
+        ? 'No further action is needed unless this image changes.'
+        : 'Add an approved image before using this template in rules.';
+    }
+
+    const readyStatus = document.getElementById('badge-template-editor-ready-status');
+
+    if (readyStatus instanceof HTMLElement) {
+      const isArchived = record && record.isArchived === true;
+      const readyTone = isArchived ? 'revoked' : hasImage ? 'active' : 'warning';
+      readyStatus.className = 'ct-admin__status-pill ct-admin__status-pill--' + readyTone;
+      readyStatus.textContent = isArchived
+        ? 'Archived'
+        : hasImage
+          ? 'Ready for rules'
+          : 'Needs image';
+    }
+
+    const artworkActions = document.getElementById('badge-template-editor-artwork-actions');
+
+    if (artworkActions instanceof HTMLDetailsElement) {
+      artworkActions.open = !hasImage;
+    }
+
+    const artworkActionsTitle = document.getElementById(
+      'badge-template-editor-artwork-actions-title',
+    );
+
+    if (artworkActionsTitle instanceof HTMLElement) {
+      artworkActionsTitle.textContent = hasImage ? 'Replace artwork' : 'Add artwork';
+    }
+
+    const artworkActionsDetail = document.getElementById(
+      'badge-template-editor-artwork-actions-detail',
+    );
+
+    if (artworkActionsDetail instanceof HTMLElement) {
+      artworkActionsDetail.textContent = hasImage
+        ? 'Use this only when the approved badge image changes.'
+        : 'Upload an approved image or generate a draft to review.';
     }
   };
   const updateBadgeTemplateEditorDetails = (badgeTemplateId, template) => {

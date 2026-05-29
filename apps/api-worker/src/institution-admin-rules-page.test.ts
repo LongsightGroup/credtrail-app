@@ -189,6 +189,21 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       "badge-template-image-generation-open",
     );
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS).toContain(
+      "badge-template-editor-current-artwork-media",
+    );
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS).toContain(
+      "badge-template-editor-current-artwork-status",
+    );
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS).toContain(
+      "currentArtworkDetail.textContent",
+    );
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS).toContain(
+      "badge-template-editor-ready-status",
+    );
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS).not.toContain(
+      "'<div><strong>Current artwork</strong><p>'",
+    );
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS).toContain(
       "Open full size previous badge image",
     );
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS).not.toContain(
@@ -264,8 +279,11 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("Back to badge templates");
     expect(body).toContain('id="badge-template-editor-preview-frame"');
     expect(body).toContain('src="https://example.edu/badges/typescript.png"');
-    expect(body).toContain("Ready to use");
-    expect(body).toContain("Template setup");
+    expect(body).toContain("Ready for rules");
+    expect(body).toContain('id="badge-template-editor-ready-status"');
+    expect(body).toContain("Template details");
+    expect(body).toContain("Save template details");
+    expect(body).not.toContain(">Save details<");
     expect(body).toContain('id="badge-template-edit-form"');
     expect(body).toContain('name="badgeTemplateId" value="badge_template_001"');
     expect(body).toContain(">URL key<");
@@ -275,14 +293,23 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('value="https://example.edu/criteria"');
     expect(body).toContain('id="template-editor-artwork"');
     expect(body).toContain('id="badge-template-editor-current-artwork"');
+    expect(body).toContain('id="badge-template-editor-current-artwork-media"');
+    expect(body).toContain('id="badge-template-editor-current-artwork-status"');
+    expect(body).toContain('id="badge-template-editor-current-artwork-detail"');
+    expect(body).toContain("One approved image is used for issued badges and public badge pages.");
     expect(body).toContain("Current artwork");
-    expect(body).toContain('aria-label="Artwork method"');
-    expect(body).toContain('id="badge-template-artwork-mode-upload"');
-    expect(body).toContain('id="badge-template-artwork-mode-generate"');
-    expect(body).toContain("Upload</span>");
-    expect(body).toContain("Generate</span>");
+    expect(body).toContain("Approved image");
+    expect(body).toContain("No further action is needed unless this image changes.");
+    expect(body).toContain("Replace artwork");
+    expect(body).toContain("Use this only when the approved badge image changes.");
+    expect(body).not.toContain('aria-label="Artwork method"');
+    expect(body).not.toContain('id="badge-template-artwork-mode-upload"');
+    expect(body).not.toContain('id="badge-template-artwork-mode-generate"');
     expect(body).toContain('id="badge-template-image-upload-form"');
+    expect(body).toContain("Upload approved image");
     expect(body).toContain('id="badge-template-image-generation-form"');
+    expect(body).toContain("Generate a draft");
+    expect(body).toContain("Use this draft");
     expect(body).toContain('id="badge-template-image-generation-open"');
     expect(body).toContain('id="template-editor-public-record"');
     expect(body).toContain('id="badge-template-editor-history-link"');
@@ -661,7 +688,9 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("Back to Step 1");
     expect(body).toContain("Advanced tools and reusable lists");
     expect(body).not.toContain("Start from a proven pattern");
-    expect(body).toContain("Choose the badge, Learning Management System, and how learners earn it");
+    expect(body).toContain(
+      "Choose the badge, Learning Management System, and how learners earn it",
+    );
     expect(body).toContain("Need a new template?");
     expect(body).toContain("Create one in Badge Templates");
     expect(body).toContain(

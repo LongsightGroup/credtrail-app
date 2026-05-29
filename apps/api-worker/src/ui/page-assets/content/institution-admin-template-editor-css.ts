@@ -48,9 +48,16 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
 .ct-admin__template-editor-summary {
   display: grid;
   gap: var(--ct-space-3);
+  padding: var(--ct-space-3) var(--ct-space-3) var(--ct-space-3) 0;
 }
-.ct-admin__template-editor-summary h2,
-.ct-admin__template-editor-page-panel > h2 {
+.ct-admin__template-editor-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ct-space-2);
+  align-items: center;
+  margin-bottom: var(--ct-space-1);
+}
+.ct-admin__template-editor-summary h2 {
   margin: 0;
   color: var(--ct-theme-text-title);
   font-size: 1.15rem;
@@ -87,24 +94,16 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
 .ct-admin__template-editor-section {
   display: grid;
   gap: var(--ct-space-3);
-  padding-block: var(--ct-space-2);
-  border-bottom: 1px solid var(--ct-border-subtle);
-}
-.ct-admin__template-editor-section:last-of-type {
-  border-bottom: none;
 }
 .ct-admin__template-editor-section--artwork {
   gap: var(--ct-space-4);
 }
 .ct-admin__template-editor-current-artwork {
   display: grid;
-  grid-template-columns: 5.25rem minmax(0, 1fr);
+  grid-template-columns: 4.75rem minmax(0, 1fr);
   gap: var(--ct-space-3);
   align-items: center;
-  border: 1px solid var(--ct-border-soft);
-  border-radius: var(--ct-radius-md);
-  padding: var(--ct-space-2);
-  background: var(--ct-theme-surface-soft);
+  max-width: 42rem;
 }
 .ct-admin__template-editor-current-artwork a,
 .ct-admin__template-editor-current-artwork img,
@@ -146,27 +145,77 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
   font-size: 0.82rem;
   line-height: 1.45;
 }
-.ct-admin__template-editor-artwork-mode {
+.ct-admin__template-editor-artwork-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ct-space-2);
+  align-items: center;
+}
+.ct-admin__template-editor-artwork-actions {
+  display: grid;
+  max-width: 48rem;
+  border: 1px solid var(--ct-border-subtle);
+  border-radius: var(--ct-radius-md);
+  background: var(--ct-theme-surface-card-strong);
+}
+.ct-admin__template-editor-artwork-actions-summary {
+  display: flex;
+  gap: var(--ct-space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.82rem 0.92rem;
+  cursor: pointer;
+}
+.ct-admin__template-editor-artwork-actions-summary::-webkit-details-marker {
+  display: none;
+}
+.ct-admin__template-editor-artwork-actions-summary strong,
+.ct-admin__template-editor-artwork-actions-summary small {
+  display: block;
+}
+.ct-admin__template-editor-artwork-actions-summary strong {
+  color: var(--ct-theme-text-title);
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+.ct-admin__template-editor-artwork-actions-summary small {
+  margin-top: 0.12rem;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.ct-admin__template-editor-artwork-actions-control {
+  flex: 0 0 auto;
+  border: 1px solid var(--ct-border-subtle);
+  border-radius: var(--ct-radius-sm);
+  padding: 0.42rem 0.58rem;
+  color: var(--ct-theme-link);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  background: var(--ct-theme-surface-soft);
+}
+.ct-admin__template-editor-artwork-actions-close {
+  display: none;
+}
+.ct-admin__template-editor-artwork-actions[open]
+  .ct-admin__template-editor-artwork-actions-open {
+  display: none;
+}
+.ct-admin__template-editor-artwork-actions[open]
+  .ct-admin__template-editor-artwork-actions-close {
+  display: inline;
+}
+.ct-admin__template-editor-artwork-action-grid {
   display: grid;
   gap: var(--ct-space-3);
+  padding: 0 var(--ct-space-3) var(--ct-space-3);
 }
-.ct-admin__template-editor-artwork-switch {
-  justify-self: start;
-}
-.ct-admin__template-editor-artwork-panel {
+.ct-admin__template-editor-artwork-option {
   display: grid;
   gap: var(--ct-space-2);
-}
-.ct-admin__template-editor-artwork-panel--generate {
-  display: none;
-}
-.ct-admin__template-editor-artwork-mode:has(#badge-template-artwork-mode-generate:checked)
-  .ct-admin__template-editor-artwork-panel--upload {
-  display: none;
-}
-.ct-admin__template-editor-artwork-mode:has(#badge-template-artwork-mode-generate:checked)
-  .ct-admin__template-editor-artwork-panel--generate {
-  display: grid;
+  border-top: 1px solid var(--ct-border-subtle);
+  padding-top: var(--ct-space-3);
 }
 .ct-admin__template-editor-subgroup {
   display: grid;
@@ -189,7 +238,7 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
   display: grid;
   gap: 0.18rem;
 }
-.ct-admin__template-editor-section-header h3 {
+.ct-admin__template-editor-section-header h2 {
   margin: 0;
   color: var(--ct-theme-text-title);
   font-size: 0.98rem;
@@ -364,6 +413,10 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
 
   .ct-admin__template-editor-preview {
     max-width: 12rem;
+  }
+
+  .ct-admin__template-editor-summary {
+    padding: 0;
   }
 
   .ct-admin__template-editor-current-artwork,
