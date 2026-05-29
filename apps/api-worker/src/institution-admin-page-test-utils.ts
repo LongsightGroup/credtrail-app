@@ -166,7 +166,6 @@ import {
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
-
 export const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
 export const mockedCreateLearnerRecordImportPreviewDb = vi.mocked(createLearnerRecordImportPreview);
 export const mockedFindActiveLearnerRecordImportPreviewDb = vi.mocked(
@@ -177,7 +176,9 @@ export const mockedFindLearnerProfileByIdentityDb = vi.mocked(findLearnerProfile
 export const mockedFindTenantMembership = vi.mocked(findTenantMembership);
 export const mockedFindTenantById = vi.mocked(findTenantById);
 export const mockedFindUserById = vi.mocked(findUserById);
-export const mockedListDelegatedIssuingAuthorityGrants = vi.mocked(listDelegatedIssuingAuthorityGrants);
+export const mockedListDelegatedIssuingAuthorityGrants = vi.mocked(
+  listDelegatedIssuingAuthorityGrants,
+);
 export const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
 export const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRuleVersions);
 export const mockedListBadgeTemplateImageRevisionCountsByTenant = vi.mocked(
@@ -195,10 +196,14 @@ export const mockedMarkLearnerRecordImportPreviewQueuedDb = vi.mocked(
   markLearnerRecordImportPreviewQueued,
 );
 export const mockedGetTenantReportingComparisonsDb = vi.mocked(listTenantReportingComparisons);
-export const mockedGetTenantReportingEngagementCountsDb = vi.mocked(getTenantReportingEngagementCounts);
+export const mockedGetTenantReportingEngagementCountsDb = vi.mocked(
+  getTenantReportingEngagementCounts,
+);
 export const mockedGetTenantReportingOverviewDb = vi.mocked(getTenantReportingOverview);
 export const mockedGetTenantReportingTrendsDb = vi.mocked(getTenantReportingTrends);
-export const mockedListLearnerRecordAssertionExportsDb = vi.mocked(listLearnerRecordAssertionExports);
+export const mockedListLearnerRecordAssertionExportsDb = vi.mocked(
+  listLearnerRecordAssertionExports,
+);
 export const mockedListLearnerRecordEntriesDb = vi.mocked(listLearnerRecordEntries);
 export const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 export const fakeDbPrepare = vi.fn();
@@ -242,7 +247,9 @@ export const sampleTenantMember = (overrides?: Partial<TenantMemberRecord>): Ten
   };
 };
 
-export const sampleLearnerProfile = (overrides?: Partial<LearnerProfileRecord>): LearnerProfileRecord => {
+export const sampleLearnerProfile = (
+  overrides?: Partial<LearnerProfileRecord>,
+): LearnerProfileRecord => {
   return {
     id: "lpr_123",
     tenantId: "tenant_123",

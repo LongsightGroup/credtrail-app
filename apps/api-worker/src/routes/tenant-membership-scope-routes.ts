@@ -185,5 +185,4 @@ export const registerTenantMembershipScopeRoutes = (
       removed,
     });
   });
-
 };

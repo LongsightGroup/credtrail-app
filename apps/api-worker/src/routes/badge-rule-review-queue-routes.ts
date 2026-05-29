@@ -16,9 +16,16 @@ import {
   parseTenantPathParams,
 } from "@credtrail/validation";
 import type { AppBindings, AppContext, AppEnv } from "../app";
-import { evaluateBadgeIssuanceRuleDefinition, summarizeBadgeIssuanceRuleEvaluation } from "../rules/engine";
+import {
+  evaluateBadgeIssuanceRuleDefinition,
+  summarizeBadgeIssuanceRuleEvaluation,
+} from "../rules/engine";
 import { parseFactsFromEvaluationRecord } from "./badge-rule-evaluation-helpers";
-import { isIssueBadgeHttpError, type DirectIssueBadgeResult, type IssueBadgeForTenant } from "./badge-rule-evaluation-types";
+import {
+  isIssueBadgeHttpError,
+  type DirectIssueBadgeResult,
+  type IssueBadgeForTenant,
+} from "./badge-rule-evaluation-types";
 
 interface RegisterBadgeRuleReviewQueueRoutesInput {
   app: Hono<AppEnv>;
@@ -256,5 +263,4 @@ export const registerBadgeRuleReviewQueueRoutes = (
       issuance,
     });
   });
-
 };

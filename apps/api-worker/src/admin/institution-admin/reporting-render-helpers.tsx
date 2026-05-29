@@ -5,7 +5,10 @@ import type {
   TenantReportingTrendRecord,
 } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
-import { renderReporting, type ReportingVisualSeriesPoint } from "../../reporting/reporting-visuals";
+import {
+  renderReporting,
+  type ReportingVisualSeriesPoint,
+} from "../../reporting/reporting-visuals";
 import { AdminEmptyTableRow } from "../components";
 import {
   buildReportingHierarchyFocusId,

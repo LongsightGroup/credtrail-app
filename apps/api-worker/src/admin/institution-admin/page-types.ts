@@ -18,7 +18,10 @@ import type {
   TenantReportingTrendRecord,
   DelegatedIssuingAuthorityGrantRecord,
 } from "@credtrail/db";
-import type { LearnerRecordImportBatchProgressSummary, LearnerRecordImportRowReport } from "../../learner-record/learner-record-import";
+import type {
+  LearnerRecordImportBatchProgressSummary,
+  LearnerRecordImportRowReport,
+} from "../../learner-record/learner-record-import";
 import type { LearnerRecordPresentationModel } from "../../learner-record/learner-record-presentation";
 import type { ReportingMetricEntry } from "../../reporting/metric-definitions";
 import type { PageAssetKey } from "../../ui/page-assets";

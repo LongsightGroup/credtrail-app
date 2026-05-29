@@ -176,5 +176,4 @@ export const registerTenantOrgUnitRoutes = (input: RegisterTenantOrgUnitRoutesIn
       throw error;
     }
   });
-
 };

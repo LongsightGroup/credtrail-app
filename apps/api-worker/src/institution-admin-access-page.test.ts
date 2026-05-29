@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  createEnv,
-  mockedFindTenantById,
-} from "./institution-admin-page-test-utils";
+import { createEnv, mockedFindTenantById } from "./institution-admin-page-test-utils";
 import { app } from "./index";
 import { INSTITUTION_ADMIN_API_KEYS_JS } from "./ui/page-assets/content/institution-admin-api-keys-js";
 import { INSTITUTION_ADMIN_JS } from "./ui/page-assets/content/institution-admin-js";

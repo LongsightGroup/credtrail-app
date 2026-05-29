@@ -1,10 +1,5 @@
 import type { HtmlEscapedString } from "hono/utils/html";
-import {
-  AdminButtonLink,
-  AdminPanel,
-  AdminStatus,
-  AdminTable,
-} from "../components";
+import { AdminButtonLink, AdminPanel, AdminStatus, AdminTable } from "../components";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -32,9 +27,7 @@ interface InstitutionAdminManagementSections {
 }
 
 const renderHonoElementList = (value: unknown): HonoElement | HonoElement[] => {
-  return Array.isArray(value)
-    ? (value as HonoElement[])
-    : (value as HonoElement);
+  return Array.isArray(value) ? (value as HonoElement[]) : (value as HonoElement);
 };
 
 export const renderInstitutionAdminManagementSections = (
@@ -75,7 +68,9 @@ export const renderInstitutionAdminManagementSections = (
     <details class="ct-admin__advanced-tools">
       <summary>
         <span>Advanced rule tools</span>
-        <small>Use reusable value lists, dry-run evaluation, and governance after rules exist.</small>
+        <small>
+          Use reusable value lists, dry-run evaluation, and governance after rules exist.
+        </small>
       </summary>
       {input.hasBadgeRules ? (
         <div class="ct-admin__advanced-tools-body ct-grid">

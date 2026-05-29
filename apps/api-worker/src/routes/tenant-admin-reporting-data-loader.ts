@@ -115,7 +115,6 @@ const filterBadgeTemplatesToIds = (
   return badgeTemplates.filter((badgeTemplate) => allowedBadgeTemplateIds.has(badgeTemplate.id));
 };
 
-
 export const loadInstitutionAdminReportingPageData = async (
   input: LoadInstitutionAdminReportingPageDataInput,
 ): Promise<InstitutionAdminPageData | Response> => {
@@ -180,161 +179,161 @@ export const loadInstitutionAdminReportingPageData = async (
   }
 
   const db = input.resolveDatabase(input.c.env);
-    const reportingAccess = await resolveTenantReportingAccess({
-      db,
+  const reportingAccess = await resolveTenantReportingAccess({
+    db,
+    tenantId: input.tenantId,
+    userId: input.sessionUserId,
+    membershipRole: input.membershipRole,
+  });
+
+  if (reportingAccess === null) {
+    input.c.header("Cache-Control", "no-store");
+    return renderAppPage(input.c, input.reportingAccessRequiredPage(input.tenantId), 403);
+  }
+
+  const [
+    tenant,
+    currentUser,
+    badgeTemplates,
+    orgUnits,
+    membershipOrgUnitScopes,
+    accessibleTenantContexts,
+  ] = await Promise.all([
+    findTenantById(db, input.tenantId),
+    findUserById(db, input.sessionUserId),
+    listBadgeTemplates(db, {
+      tenantId: input.tenantId,
+      includeArchived: false,
+    }),
+    listTenantOrgUnits(db, {
+      tenantId: input.tenantId,
+      includeInactive: true,
+    }),
+    listTenantMembershipOrgUnitScopes(db, {
       tenantId: input.tenantId,
       userId: input.sessionUserId,
-      membershipRole: input.membershipRole,
-    });
+    }),
+    listAccessibleTenantContextsForUser(db, input.sessionUserId),
+  ]);
 
-    if (reportingAccess === null) {
-      input.c.header("Cache-Control", "no-store");
-      return renderAppPage(input.c, input.reportingAccessRequiredPage(input.tenantId), 403);
-    }
+  if (tenant === null) {
+    return input.c.json(
+      {
+        error: "Tenant not found",
+      },
+      404,
+    );
+  }
 
-    const [
-      tenant,
-      currentUser,
-      badgeTemplates,
-      orgUnits,
-      membershipOrgUnitScopes,
-      accessibleTenantContexts,
-    ] = await Promise.all([
-      findTenantById(db, input.tenantId),
-      findUserById(db, input.sessionUserId),
-      listBadgeTemplates(db, {
-        tenantId: input.tenantId,
-        includeArchived: false,
-      }),
-      listTenantOrgUnits(db, {
-        tenantId: input.tenantId,
-        includeInactive: true,
-      }),
-      listTenantMembershipOrgUnitScopes(db, {
-        tenantId: input.tenantId,
-        userId: input.sessionUserId,
-      }),
-      listAccessibleTenantContextsForUser(db, input.sessionUserId),
-    ]);
+  const requestUrl = new URL(input.c.req.url);
+  const switchOrganizationPath =
+    accessibleTenantContexts.length > 1
+      ? buildOrganizationsPath(`${requestUrl.pathname}${requestUrl.search}`)
+      : null;
+  const orgUnitsById = buildOrgUnitMap(orgUnits);
+  const scopedRootOrgUnitIds =
+    reportingAccess.visibility === "scoped" ? reportingAccess.scopedOrgUnitIds : [];
 
-    if (tenant === null) {
-      return input.c.json(
-        {
-          error: "Tenant not found",
-        },
-        404,
-      );
-    }
+  if (
+    input.orgUnitId !== undefined &&
+    scopedRootOrgUnitIds.length > 0 &&
+    !isOrgUnitWithinRoots(orgUnitsById, input.orgUnitId, scopedRootOrgUnitIds)
+  ) {
+    input.c.header("Cache-Control", "no-store");
+    return renderAppPage(input.c, input.reportingAccessRequiredPage(input.tenantId), 403);
+  }
 
-    const requestUrl = new URL(input.c.req.url);
-    const switchOrganizationPath =
-      accessibleTenantContexts.length > 1
-        ? buildOrganizationsPath(`${requestUrl.pathname}${requestUrl.search}`)
-        : null;
-    const orgUnitsById = buildOrgUnitMap(orgUnits);
-    const scopedRootOrgUnitIds =
-      reportingAccess.visibility === "scoped" ? reportingAccess.scopedOrgUnitIds : [];
-
-    if (
-      input.orgUnitId !== undefined &&
-      scopedRootOrgUnitIds.length > 0 &&
-      !isOrgUnitWithinRoots(orgUnitsById, input.orgUnitId, scopedRootOrgUnitIds)
-    ) {
-      input.c.header("Cache-Control", "no-store");
-      return renderAppPage(input.c, input.reportingAccessRequiredPage(input.tenantId), 403);
-    }
-
-    const reportingOrgUnitComparisonsRaw = await listTenantReportingComparisons(db, {
+  const reportingOrgUnitComparisonsRaw = await listTenantReportingComparisons(db, {
+    tenantId: input.tenantId,
+    ...toReportingComparisonFilters(
+      {
+        issuedFrom: input.issuedFrom,
+        issuedTo: input.issuedTo,
+        badgeTemplateId: input.badgeTemplateId,
+        state: input.state,
+      },
+      "orgUnit",
+    ),
+    groupBy: "orgUnit",
+  });
+  const reportingOrgUnitComparisons =
+    scopedRootOrgUnitIds.length === 0
+      ? reportingOrgUnitComparisonsRaw
+      : filterComparisonRowsToScope(
+          reportingOrgUnitComparisonsRaw,
+          orgUnitsById,
+          scopedRootOrgUnitIds,
+        );
+  const selectedOrgUnitId =
+    input.orgUnitId ?? (scopedRootOrgUnitIds.length === 0 ? undefined : scopedRootOrgUnitIds[0]);
+  const reportingPageFilters = {
+    issuedFrom: input.issuedFrom,
+    issuedTo: input.issuedTo,
+    badgeTemplateId: input.badgeTemplateId,
+    orgUnitId: selectedOrgUnitId,
+    state: input.state,
+  };
+  const [
+    reportingOverview,
+    reportingEngagementCounts,
+    reportingTrends,
+    reportingTemplateComparisons,
+  ] = await Promise.all([
+    getTenantReportingOverview(db, {
       tenantId: input.tenantId,
-      ...toReportingComparisonFilters(
-        {
-          issuedFrom: input.issuedFrom,
-          issuedTo: input.issuedTo,
-          badgeTemplateId: input.badgeTemplateId,
-          state: input.state,
-        },
-        "orgUnit",
-      ),
-      groupBy: "orgUnit",
-    });
-    const reportingOrgUnitComparisons =
-      scopedRootOrgUnitIds.length === 0
-        ? reportingOrgUnitComparisonsRaw
-        : filterComparisonRowsToScope(
-            reportingOrgUnitComparisonsRaw,
-            orgUnitsById,
-            scopedRootOrgUnitIds,
-          );
-    const selectedOrgUnitId =
-      input.orgUnitId ?? (scopedRootOrgUnitIds.length === 0 ? undefined : scopedRootOrgUnitIds[0]);
-    const reportingPageFilters = {
-      issuedFrom: input.issuedFrom,
-      issuedTo: input.issuedTo,
-      badgeTemplateId: input.badgeTemplateId,
-      orgUnitId: selectedOrgUnitId,
-      state: input.state,
-    };
-    const [
-      reportingOverview,
-      reportingEngagementCounts,
-      reportingTrends,
-      reportingTemplateComparisons,
-    ] = await Promise.all([
-      getTenantReportingOverview(db, {
-        tenantId: input.tenantId,
-        ...toReportingOverviewFilters(reportingPageFilters),
-      }),
-      getTenantReportingEngagementCounts(db, {
-        tenantId: input.tenantId,
-        ...toReportingEngagementFilters(reportingPageFilters),
-      }),
-      getTenantReportingTrends(db, {
-        tenantId: input.tenantId,
-        ...toReportingTrendFilters(reportingPageFilters),
-      }),
-      listTenantReportingComparisons(db, {
-        tenantId: input.tenantId,
-        ...toReportingComparisonFilters(reportingPageFilters, "badgeTemplate"),
-      }),
-    ]);
-    const visibleBadgeTemplateIds = new Set(reportingTemplateComparisons.map((row) => row.groupId));
+      ...toReportingOverviewFilters(reportingPageFilters),
+    }),
+    getTenantReportingEngagementCounts(db, {
+      tenantId: input.tenantId,
+      ...toReportingEngagementFilters(reportingPageFilters),
+    }),
+    getTenantReportingTrends(db, {
+      tenantId: input.tenantId,
+      ...toReportingTrendFilters(reportingPageFilters),
+    }),
+    listTenantReportingComparisons(db, {
+      tenantId: input.tenantId,
+      ...toReportingComparisonFilters(reportingPageFilters, "badgeTemplate"),
+    }),
+  ]);
+  const visibleBadgeTemplateIds = new Set(reportingTemplateComparisons.map((row) => row.groupId));
 
-    if (input.badgeTemplateId !== undefined) {
-      visibleBadgeTemplateIds.add(input.badgeTemplateId);
-    }
+  if (input.badgeTemplateId !== undefined) {
+    visibleBadgeTemplateIds.add(input.badgeTemplateId);
+  }
 
-    const visibleBadgeTemplates =
-      scopedRootOrgUnitIds.length === 0
-        ? badgeTemplates
-        : filterBadgeTemplatesToIds(badgeTemplates, visibleBadgeTemplateIds);
-    const visibleOrgUnits =
-      scopedRootOrgUnitIds.length === 0
-        ? orgUnits
-        : filterOrgUnitsToScope(orgUnits, orgUnitsById, scopedRootOrgUnitIds);
+  const visibleBadgeTemplates =
+    scopedRootOrgUnitIds.length === 0
+      ? badgeTemplates
+      : filterBadgeTemplatesToIds(badgeTemplates, visibleBadgeTemplateIds);
+  const visibleOrgUnits =
+    scopedRootOrgUnitIds.length === 0
+      ? orgUnits
+      : filterOrgUnitsToScope(orgUnits, orgUnitsById, scopedRootOrgUnitIds);
 
-    return {
-      tenant,
-      userId: input.sessionUserId,
-      ...(currentUser?.email === undefined ? {} : { userEmail: currentUser.email }),
-      membershipRole: input.membershipRole,
-      badgeTemplates: visibleBadgeTemplates,
-      orgUnits: visibleOrgUnits,
-      membershipOrgUnitScopes,
-      tenantMembers: [],
-      delegatedIssuingAuthorityGrants: [],
-      activeApiKeys: [],
-      revokedApiKeyCount: 0,
-      badgeRules: [],
-      badgeRuleVersions: [],
-      enterpriseAuthPolicy: null,
-      enterpriseAuthProviders: [],
-      breakGlassAccounts: [],
-      switchOrganizationPath,
-      reportingOverview,
-      reportingEngagementCounts,
-      reportingMetrics: buildReportingMetricEntries(reportingOverview.counts),
-      reportingOrgUnitComparisons,
-      reportingTemplateComparisons,
-      reportingTrends,
-    };
+  return {
+    tenant,
+    userId: input.sessionUserId,
+    ...(currentUser?.email === undefined ? {} : { userEmail: currentUser.email }),
+    membershipRole: input.membershipRole,
+    badgeTemplates: visibleBadgeTemplates,
+    orgUnits: visibleOrgUnits,
+    membershipOrgUnitScopes,
+    tenantMembers: [],
+    delegatedIssuingAuthorityGrants: [],
+    activeApiKeys: [],
+    revokedApiKeyCount: 0,
+    badgeRules: [],
+    badgeRuleVersions: [],
+    enterpriseAuthPolicy: null,
+    enterpriseAuthProviders: [],
+    breakGlassAccounts: [],
+    switchOrganizationPath,
+    reportingOverview,
+    reportingEngagementCounts,
+    reportingMetrics: buildReportingMetricEntries(reportingOverview.counts),
+    reportingOrgUnitComparisons,
+    reportingTemplateComparisons,
+    reportingTrends,
+  };
 };

@@ -239,7 +239,6 @@ export const renderInstitutionAdminReportingComparisonSections = (
     </AdminPanel>
   );
 
-
   return {
     reportingTemplateComparisonPanelMarkup,
     reportingOrgUnitComparisonPanelMarkup,

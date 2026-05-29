@@ -1,7 +1,4 @@
-import {
-  type JsonObject,
-  type ObservabilityContext,
-} from "@credtrail/core-domain";
+import { type JsonObject, type ObservabilityContext } from "@credtrail/core-domain";
 import {
   findTenantSigningRegistrationByDid,
   listLtiIssuerRegistrations,
@@ -39,9 +36,7 @@ import {
 } from "./badges/revocation-status";
 import { createPublicBadgePageRenderers } from "./badges/public-badge-pages";
 import { createIssueBadgeForTenant } from "./badges/direct-issue";
-import {
-  processBadgeTemplateImageGenerationJob,
-} from "./badges/badge-template-image-generation";
+import { processBadgeTemplateImageGenerationJob } from "./badges/badge-template-image-generation";
 import {
   assertionBelongsToTenant,
   loadCredentialForAssertion,
@@ -114,12 +109,7 @@ import { registerReportingRoutes } from "./routes/reporting-routes";
 import { registerSigningRoutes } from "./routes/signing-routes";
 import { registerTenantGovernanceRoutes } from "./routes/tenant-governance-routes";
 import { registerOid4vciRoutes } from "./routes/oid4vci-routes";
-import {
-  addSecondsToIso,
-  generateOpaqueToken,
-  sha256Base64Url,
-  sha256Hex,
-} from "./utils/crypto";
+import { addSecondsToIso, generateOpaqueToken, sha256Base64Url, sha256Hex } from "./utils/crypto";
 import { formatIsoTimestamp, linkedInAddToProfileUrl } from "./utils/display-format";
 import { asJsonObject, asNonEmptyString, asString } from "./utils/value-parsers";
 import { createApiWorker } from "./worker/create-worker";

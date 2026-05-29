@@ -1,8 +1,4 @@
-import {
-  findTenantAuthPolicy,
-  findTenantById,
-  upsertUserByEmail,
-} from "@credtrail/db";
+import { findTenantAuthPolicy, findTenantById, upsertUserByEmail } from "@credtrail/db";
 import type { SocialProviders } from "better-auth/social-providers";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "../auth/auth-context";
@@ -48,7 +44,10 @@ const requestedTenantFromCookie = (context: AppContext): RequestedTenantContext 
   };
 };
 
-export const rememberRequestedTenant = (context: AppContext, tenantId: string): RequestedTenantContext => {
+export const rememberRequestedTenant = (
+  context: AppContext,
+  tenantId: string,
+): RequestedTenantContext => {
   const requestedTenant: RequestedTenantContext = {
     tenantId,
     source: "route",
@@ -126,7 +125,9 @@ export const createBetterAuthRequest = (
   return new Request(url.toString(), requestInit);
 };
 
-export const createConfiguredSocialProviders = (bindings: AppBindings): SocialProviders | undefined => {
+export const createConfiguredSocialProviders = (
+  bindings: AppBindings,
+): SocialProviders | undefined => {
   const googleClientId = bindings.GOOGLE_OAUTH_CLIENT_ID?.trim();
   const googleClientSecret = bindings.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
 

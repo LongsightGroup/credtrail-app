@@ -168,7 +168,10 @@ export const renderEnterpriseAuthSection = (
             <option value="hybrid" selected={enterpriseAuthPolicy.loginMode === "hybrid"}>
               Hybrid
             </option>
-            <option value="sso_required" selected={enterpriseAuthPolicy.loginMode === "sso_required"}>
+            <option
+              value="sso_required"
+              selected={enterpriseAuthPolicy.loginMode === "sso_required"}
+            >
               SSO required
             </option>
           </select>
@@ -284,7 +287,9 @@ export const renderEnterpriseAuthSection = (
           tbodyId="break-glass-account-body"
         >
           {breakGlassAccounts.length === 0 ? (
-            <AdminEmptyTableRow colSpan={5}>No break-glass accounts configured yet.</AdminEmptyTableRow>
+            <AdminEmptyTableRow colSpan={5}>
+              No break-glass accounts configured yet.
+            </AdminEmptyTableRow>
           ) : (
             breakGlassAccounts.map((account) => {
               const localStatus = account.twoFactorEnabled

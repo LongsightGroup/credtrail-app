@@ -5,7 +5,10 @@ import {
   type BadgeIssuanceRuleLmsProviderKind,
   type SqlDatabase,
 } from "@credtrail/db";
-import { parseBadgeIssuanceRuleDefinition, parseEvaluateBadgeIssuanceRuleRequest } from "@credtrail/validation";
+import {
+  parseBadgeIssuanceRuleDefinition,
+  parseEvaluateBadgeIssuanceRuleRequest,
+} from "@credtrail/validation";
 import { refreshCanvasAccessToken } from "../lms/canvas-oauth";
 import { createGradebookProvider } from "../lms/gradebook-provider";
 import {

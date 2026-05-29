@@ -1,4 +1,9 @@
-import { listBadgeIssuanceRuleEvaluations, type SessionRecord, type SqlDatabase, type TenantMembershipRole } from "@credtrail/db";
+import {
+  listBadgeIssuanceRuleEvaluations,
+  type SessionRecord,
+  type SqlDatabase,
+  type TenantMembershipRole,
+} from "@credtrail/db";
 import type { Hono } from "hono";
 import {
   parsePreviewEvaluateBadgeIssuanceRuleRequest,
@@ -7,9 +12,16 @@ import {
   type BadgeIssuanceRuleDefinition,
 } from "@credtrail/validation";
 import type { AppBindings, AppContext, AppEnv } from "../app";
-import { evaluateBadgeIssuanceRuleDefinition, summarizeBadgeIssuanceRuleEvaluation, type BadgeIssuanceRuleEvaluationFacts } from "../rules/engine";
+import {
+  evaluateBadgeIssuanceRuleDefinition,
+  summarizeBadgeIssuanceRuleEvaluation,
+  type BadgeIssuanceRuleEvaluationFacts,
+} from "../rules/engine";
 import { resolveBadgeIssuanceRuleDefinitionValueLists } from "./badge-rule-definition-resolver";
-import { badgeRuleEvaluationOutcome, parseFactsFromEvaluationRecord } from "./badge-rule-evaluation-helpers";
+import {
+  badgeRuleEvaluationOutcome,
+  parseFactsFromEvaluationRecord,
+} from "./badge-rule-evaluation-helpers";
 import { loadRuleFacts } from "./badge-rule-facts-loader";
 
 interface RegisterBadgeRulePreviewRoutesInput {
@@ -212,5 +224,4 @@ export const registerBadgeRulePreviewRoutes = (
       samples,
     });
   });
-
 };

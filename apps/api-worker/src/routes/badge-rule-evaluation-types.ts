@@ -53,7 +53,6 @@ export const isIssueBadgeHttpError = (error: unknown): error is IssueBadgeHttpEr
   return true;
 };
 
-
 export type IssueBadgeForTenant = (
   c: AppContext,
   tenantId: string,

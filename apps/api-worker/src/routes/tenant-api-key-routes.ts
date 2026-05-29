@@ -38,14 +38,8 @@ interface RegisterTenantApiKeyRoutesInput {
 }
 
 export const registerTenantApiKeyRoutes = (input: RegisterTenantApiKeyRoutesInput): void => {
-  const {
-    app,
-    generateOpaqueToken,
-    resolveDatabase,
-    sha256Hex,
-    requireTenantRole,
-    ADMIN_ROLES,
-  } = input;
+  const { app, generateOpaqueToken, resolveDatabase, sha256Hex, requireTenantRole, ADMIN_ROLES } =
+    input;
 
   app.get("/v1/tenants/:tenantId/api-keys", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());

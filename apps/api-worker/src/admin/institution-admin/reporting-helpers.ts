@@ -103,9 +103,7 @@ export const getNextReportingHierarchyLevel = (
     : (REPORTING_HIERARCHY_LEVELS[index + 1] ?? null);
 };
 
-export const formatReportingHierarchyLevelLabel = (
-  level: ReportingHierarchyLevel,
-): string => {
+export const formatReportingHierarchyLevelLabel = (level: ReportingHierarchyLevel): string => {
   switch (level) {
     case "institution":
       return "Institution";

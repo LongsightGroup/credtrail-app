@@ -652,7 +652,6 @@ export const renderInstitutionAdminReportingHierarchySections = (
       </article>
     );
 
-
   return {
     reportingHierarchyPanelMarkup,
     reportingPerformerPanelsMarkup,

@@ -20,10 +20,17 @@ import {
   summarizeBadgeIssuanceRuleEvaluation,
   type BadgeIssuanceRuleEvaluationFacts,
 } from "../rules/engine";
-import { resolveRuleDefinition, resolveBadgeIssuanceRuleDefinitionValueLists } from "./badge-rule-definition-resolver";
+import {
+  resolveRuleDefinition,
+  resolveBadgeIssuanceRuleDefinitionValueLists,
+} from "./badge-rule-definition-resolver";
 import { badgeRuleEvaluationOutcome } from "./badge-rule-evaluation-helpers";
 import { loadRuleFacts } from "./badge-rule-facts-loader";
-import { isIssueBadgeHttpError, type DirectIssueBadgeResult, type IssueBadgeForTenant } from "./badge-rule-evaluation-types";
+import {
+  isIssueBadgeHttpError,
+  type DirectIssueBadgeResult,
+  type IssueBadgeForTenant,
+} from "./badge-rule-evaluation-types";
 import { registerBadgeRulePreviewRoutes } from "./badge-rule-preview-routes";
 import { registerBadgeRuleReviewQueueRoutes } from "./badge-rule-review-queue-routes";
 
@@ -45,14 +52,10 @@ interface RegisterBadgeRuleEvaluationRoutesInput {
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }
 
-export const registerBadgeRuleEvaluationRoutes = (input: RegisterBadgeRuleEvaluationRoutesInput): void => {
-  const {
-    app,
-    resolveDatabase,
-    requireTenantRole,
-    issueBadgeForTenant,
-    ISSUER_ROLES,
-  } = input;
+export const registerBadgeRuleEvaluationRoutes = (
+  input: RegisterBadgeRuleEvaluationRoutesInput,
+): void => {
+  const { app, resolveDatabase, requireTenantRole, issueBadgeForTenant, ISSUER_ROLES } = input;
 
   registerBadgeRulePreviewRoutes({
     app,
