@@ -24,7 +24,7 @@ import {
   createBadgeTemplateWithAudit,
   isBadgeTemplateSlugConflict,
   updateBadgeTemplateWithAudit,
-} from "../badges/badge-template-mutations";
+} from "../badges/badge-template-write-workflows";
 
 interface RegisterBadgeTemplateListAdminRoutesInput {
   app: Hono<AppEnv>;
