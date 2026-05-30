@@ -249,9 +249,6 @@ export const institutionAdminRuleBuilderPage = (input: {
   const manualIssueApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions/manual-issue`;
   const createApiKeyPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/api-keys`;
   const createOrgUnitPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/org-units`;
-  const badgeTemplateApiPathPrefix = `/v1/tenants/${encodeURIComponent(
-    input.tenant.id,
-  )}/badge-templates`;
   const badgeRuleApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules`;
   const badgeRuleValueListApiPath = `/v1/tenants/${encodeURIComponent(
     input.tenant.id,
@@ -383,7 +380,6 @@ export const institutionAdminRuleBuilderPage = (input: {
     manualIssueApiPath,
     createApiKeyPath,
     createOrgUnitPath,
-    badgeTemplateApiPathPrefix,
     badgeRuleApiPath,
     badgeRuleValueListApiPath,
     lmsConnectionsApiPath,

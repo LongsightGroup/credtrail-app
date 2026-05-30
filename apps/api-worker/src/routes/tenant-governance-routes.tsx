@@ -59,7 +59,7 @@ import {
 } from "../admin/institution-admin-page";
 import type { BadgeTemplateHistoryPanel } from "../admin/institution-admin-templates-page";
 import { AdminActions, AdminButtonLink, AdminPageHeader, AdminPanel } from "../admin/components";
-import { loadBadgeTemplateHistoryPayload } from "../badges/badge-template-history-access";
+import { loadBadgeTemplateHistoryPayload } from "../badges/badge-template-history-payload";
 import { parseBadgeTemplateListPageQuery } from "../admin/badge-template-admin-helpers";
 import { registerBadgeTemplateEditorArtworkAdminRoutes } from "./badge-template-editor-artwork-admin-routes";
 import { registerBadgeTemplateListAdminRoutes } from "./badge-template-list-admin-routes";

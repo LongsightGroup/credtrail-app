@@ -34,12 +34,6 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_SHARED_BOOTSTRAP_JS = `
     }
   });
 
-  if (badgeTemplateApiPathPrefix.length === 0) {
-    return;
-  }
-
-  const adminButtonTinyClass = 'ct-admin__button ct-admin__button--tiny';
-  const adminButtonTinySecondaryClass = adminButtonTinyClass + ' ct-admin__button--secondary';
   const badgeTemplateImageQueuedPollDelayMs = 15000;
   const badgeTemplateImageProcessingPollDelayMs = 10000;
   const badgeTemplateEditorCriteriaLink = document.getElementById(
@@ -53,10 +47,6 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_SHARED_BOOTSTRAP_JS = `
   );
   const badgeTemplateEditorHistoryLink = document.getElementById(
     'badge-template-editor-history-link',
-  );
-  const badgeTemplateImageUploadForm = document.getElementById('badge-template-image-upload-form');
-  const badgeTemplateImageUploadStatus = document.getElementById(
-    'badge-template-image-upload-status',
   );
   const badgeTemplateImageGenerationForm = document.getElementById(
     'badge-template-image-generation-form',
@@ -94,9 +84,6 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_SHARED_BOOTSTRAP_JS = `
   const badgeTemplateImageHistorySection = document.getElementById(
     'badge-template-image-history-section',
   );
-  const badgeTemplateImageRevisionList = document.getElementById(
-    'badge-template-image-revision-list',
-  );
   let activeBadgeTemplateImageGeneration = null;
   let badgeTemplateImageGenerationPollTimer = null;
 
@@ -117,26 +104,6 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_SHARED_BOOTSTRAP_JS = `
   };
   const errorDetailFromPayload = (payload) => {
     return payload && typeof payload.error === 'string' ? payload.error : 'Request failed';
-  };
-  const escapeHtml = (value) => {
-    return String(value)
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
-  };
-  const createAdminButtonElement = (className, label, attributes) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = className;
-    button.textContent = label;
-
-    Object.entries(attributes || {}).forEach(([name, value]) => {
-      button.setAttribute(name, String(value));
-    });
-
-    return button;
   };
   const formatTimestamp = (value) => {
     if (typeof value !== 'string' || value.length === 0) {

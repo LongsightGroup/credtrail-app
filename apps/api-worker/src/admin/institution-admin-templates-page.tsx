@@ -527,7 +527,6 @@ export const institutionAdminRuleTemplatesPage = (
       : { switchOrganizationPath: input.switchOrganizationPath }),
     contextJson: {
       tenantAdminPath: paths.tenantAdminPath,
-      badgeTemplateApiPathPrefix: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-templates`,
       badgeTemplateEditorPathPrefix: paths.rulesTemplatesPath,
       badgeTemplateListPagePath: paths.rulesTemplatesPath,
       ruleBuilderPath: paths.ruleBuilderPath,

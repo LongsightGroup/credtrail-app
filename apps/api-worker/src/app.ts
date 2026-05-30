@@ -89,7 +89,7 @@ import {
 import { registerAdminRoutes } from "./routes/admin-routes";
 import { registerAssertionRoutes } from "./routes/assertion-routes";
 import { registerAuthRoutes } from "./routes/auth-routes";
-import { registerBadgeTemplateRoutes } from "./routes/badge-template-routes";
+import { registerBadgeTemplateImageRoutes } from "./routes/badge-template-image-routes";
 import { registerBadgeRuleRoutes } from "./routes/badge-rule-routes";
 import { registerCredentialRoutes } from "./routes/credential-routes";
 import { registerDidRoutes } from "./routes/did-routes";
@@ -732,15 +732,12 @@ registerTenantGovernanceRoutes({
   ISSUER_ROLES,
 });
 
-registerBadgeTemplateRoutes({
+registerBadgeTemplateImageRoutes({
   app,
   resolveDatabase,
   requireTenantRole,
   requireScopedOrgUnitPermission,
-  defaultInstitutionOrgUnitId,
   ADMIN_ROLES,
-  ISSUER_ROLES,
-  TENANT_MEMBER_ROLES,
 });
 
 registerTenantLmsConnectionRoutes({
