@@ -1,6 +1,6 @@
 import type { BadgeTemplateRecord } from "@credtrail/db";
 import { describe, expect, it } from "vitest";
-import { badgeTemplateEditorReadyState } from "./badge-template-editor-artwork-fragment";
+import { badgeTemplateEditorReadyState } from "./badge-template-editor-artwork";
 
 const sampleTemplate = (input: Partial<BadgeTemplateRecord> = {}): BadgeTemplateRecord => {
   return {

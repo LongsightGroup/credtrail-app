@@ -203,6 +203,7 @@ describe("GET /assets/ui/:assetFilename", () => {
 
     expect(body).not.toContain("const ruleValueListBody = null");
     expect(body).not.toContain("ruleValueListBody instanceof HTMLElement");
+    expect(body).not.toContain("innerHTML");
   });
 
   it("positions shared admin action panels next to their trigger", () => {

@@ -1,4 +1,4 @@
-/** Server-rendered badge template table row fragment for the admin UI. */
+/** Server-rendered badge template table row for the admin UI. */
 import type { BadgeTemplateRecord } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { formatIsoTimestamp } from "../utils/display-format";

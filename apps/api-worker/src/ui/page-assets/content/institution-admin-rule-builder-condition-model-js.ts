@@ -332,6 +332,36 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
       return option === null ? 'selected badge' : option.textContent?.trim() || 'selected badge';
     };
 
+    const createRuleFlowItem = (modifier, connector, kicker, title, detail) => {
+      const item = document.createElement('li');
+      item.className = 'ct-admin__builder-flow-item ct-admin__builder-flow-item--' + modifier;
+
+      if (connector.length > 0) {
+        const connectorElement = document.createElement('span');
+        connectorElement.className = 'ct-admin__builder-flow-connector';
+        connectorElement.textContent = connector;
+        item.appendChild(connectorElement);
+      }
+
+      const node = document.createElement('div');
+      node.className = 'ct-admin__builder-flow-node';
+
+      const kickerElement = document.createElement('span');
+      kickerElement.className = 'ct-admin__builder-flow-kicker';
+      kickerElement.textContent = kicker;
+
+      const titleElement = document.createElement('strong');
+      titleElement.textContent = title;
+
+      const detailElement = document.createElement('p');
+      detailElement.textContent = detail;
+
+      node.append(kickerElement, titleElement, detailElement);
+      item.appendChild(node);
+
+      return item;
+    };
+
     const renderRuleFlowPreview = () => {
       if (
         !(ruleBuilderFlowList instanceof HTMLOListElement) ||
@@ -356,52 +386,29 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
       }
 
       if (conditions.length === 0) {
-        ruleBuilderFlowList.innerHTML = '';
+        ruleBuilderFlowList.replaceChildren();
         return;
       }
 
-      const conditionItems = conditions
-        .map((condition, index) => {
+      const conditionItems = conditions.map((condition, index) => {
           const leaf = leafConditionFromCondition(condition);
           const type =
             leaf && typeof leaf === 'object' && typeof leaf.type === 'string' ? leaf.type : 'unknown';
           const isNegated = condition && typeof condition === 'object' && 'not' in condition;
-          return (
-            '<li class="ct-admin__builder-flow-item ct-admin__builder-flow-item--' +
-            escapeHtml(type) +
-            '">' +
-            (index === 0
-              ? ''
-              : '<span class="ct-admin__builder-flow-connector">' + connectorLabel + '</span>') +
-            '<div class="ct-admin__builder-flow-node">' +
-            '<span class="ct-admin__builder-flow-kicker">Requirement ' +
-            String(index + 1) +
-            '</span>' +
-            '<strong>' +
-            escapeHtml((isNegated ? 'Exclude: ' : '') + conditionLabel(condition)) +
-            '</strong>' +
-            '<p>' +
-            escapeHtml(conditionDetail(condition)) +
-            '</p>' +
-            '</div>' +
-            '</li>'
+          return createRuleFlowItem(
+            type,
+            index === 0 ? '' : connectorLabel,
+            'Requirement ' + String(index + 1),
+            (isNegated ? 'Exclude: ' : '') + conditionLabel(condition),
+            conditionDetail(condition),
           );
-        })
-        .join('');
+        });
       const badgeLabel = selectedBadgeTemplateLabel();
 
-      ruleBuilderFlowList.innerHTML =
-        conditionItems +
-        '<li class="ct-admin__builder-flow-item ct-admin__builder-flow-item--issue">' +
-        '<span class="ct-admin__builder-flow-connector">THEN</span>' +
-        '<div class="ct-admin__builder-flow-node">' +
-        '<span class="ct-admin__builder-flow-kicker">Outcome</span>' +
-        '<strong>Issue badge draft</strong>' +
-        '<p>' +
-        escapeHtml(badgeLabel) +
-        '</p>' +
-        '</div>' +
-        '</li>';
+      ruleBuilderFlowList.replaceChildren(
+        ...conditionItems,
+        createRuleFlowItem('issue', 'THEN', 'Outcome', 'Issue badge draft', badgeLabel),
+      );
     };
 
     const addSourceEntry = (entries, key, label, state, detail) => {
@@ -609,28 +616,35 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
       const entries = sourceEntriesForConditions(conditions);
 
       if (entries.length === 0) {
-        ruleBuilderSourceList.innerHTML =
-          '<div><dt>No sources yet</dt><dd>Add requirements to see which facts CredTrail needs.</dd></div>';
+        const row = document.createElement('div');
+        const term = document.createElement('dt');
+        const detail = document.createElement('dd');
+        term.textContent = 'No sources yet';
+        detail.textContent = 'Add requirements to see which facts CredTrail needs.';
+        row.append(term, detail);
+        ruleBuilderSourceList.replaceChildren(row);
         setCodeOutput(ruleBuilderSourceSample, '');
         return;
       }
 
-      ruleBuilderSourceList.innerHTML = entries
-        .map((entry) => {
-          return (
-            '<div>' +
-            '<dt>' +
-            escapeHtml(entry.label) +
-            '</dt>' +
-            '<dd><span class="ct-admin__status-pill">' +
-            escapeHtml(entry.state) +
-            '</span><span>' +
-            escapeHtml(entry.details.join(' ')) +
-            '</span></dd>' +
-            '</div>'
-          );
-        })
-        .join('');
+      const rows = entries.map((entry) => {
+        const row = document.createElement('div');
+        const term = document.createElement('dt');
+        const detail = document.createElement('dd');
+        const state = document.createElement('span');
+        const text = document.createElement('span');
+
+        term.textContent = entry.label;
+        state.className = 'ct-admin__status-pill';
+        state.textContent = entry.state;
+        text.textContent = entry.details.join(' ');
+        detail.append(state, text);
+        row.append(term, detail);
+
+        return row;
+      });
+
+      ruleBuilderSourceList.replaceChildren(...rows);
       setCodeOutput(ruleBuilderSourceSample, buildSampleFactsPreview(conditions));
     };
 

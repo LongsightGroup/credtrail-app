@@ -21,18 +21,18 @@ import {
 import {
   BadgeTemplateHistoryTimeline,
   BadgeTemplateImageRevisionList,
-} from "./badge-template-history-fragment";
+} from "./badge-template-history-panel";
 import {
   BadgeTemplateEditorArtworkActions,
   BadgeTemplateEditorCurrentArtwork,
   BadgeTemplateEditorPreviewFrame,
   BadgeTemplateEditorReadyStatus,
-} from "./badge-template-editor-artwork-fragment";
+} from "./badge-template-editor-artwork";
 import {
   BadgeTemplateAdminTableRow,
   badgeTemplateCriteriaRegistryHref,
   badgeTemplateShowcaseHref,
-} from "./badge-template-table-row-fragment";
+} from "./badge-template-table-row";
 import {
   buildInstitutionAdminShellPaths,
   renderInstitutionAdminPageHeader,
@@ -83,6 +83,7 @@ export interface InstitutionAdminRuleTemplateEditorPageInput {
   badgeTemplate: BadgeTemplateRecord;
   badgeTemplateImageRevisionCount: number;
   returnToRuleBuilder: boolean;
+  detailsNotice?: { tone: "success" | "error"; message: string } | null;
   artworkNotice?: { tone: "success" | "error"; message: string } | null;
   switchOrganizationPath?: string | null;
 }
@@ -94,7 +95,7 @@ const addDisclosureControlMarkup = (
   </span>
 );
 
-const renderTemplateCreatePanel = (): HonoElement => {
+const renderTemplateCreatePanel = (rulesTemplatesPath: string): HonoElement => {
   return (
     <details id="template-create-panel" class="ct-admin__panel ct-admin__add-disclosure">
       <summary class="ct-admin__add-disclosure-summary">
@@ -106,6 +107,8 @@ const renderTemplateCreatePanel = (): HonoElement => {
       </summary>
       <AdminForm
         id="badge-template-create-form"
+        method="post"
+        action={rulesTemplatesPath}
         className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--template-create ct-grid"
       >
         <AdminField label="Badge name">
@@ -150,9 +153,11 @@ const renderTemplateEditorFields = (input: {
   imageRevisionCount: number;
   rulesTemplatesPath: string;
   templateHistoryHref: string;
+  detailsNotice?: { tone: "success" | "error"; message: string } | null;
   artworkNotice?: { tone: "success" | "error"; message: string } | null;
 }): HonoElement => {
   const template = input.selectedTemplate;
+  const detailsFormAction = `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/details`;
   const imageUploadPath = `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/image-upload`;
   const imageApplyPath = `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/image-generations/apply`;
   const revisionLabel =
@@ -164,6 +169,8 @@ const renderTemplateEditorFields = (input: {
       {/* Identity-only form: inputs and submit button bind by id via the HTML `form` attribute. */}
       <form
         id="badge-template-edit-form"
+        method="post"
+        action={detailsFormAction}
         class="ct-admin__template-editor-identity-form"
         hidden
       ></form>
@@ -177,6 +184,11 @@ const renderTemplateEditorFields = (input: {
             <h2>Template details</h2>
             <p>Name, description, and criteria shown on issued badge records.</p>
           </header>
+          {input.detailsNotice === null || input.detailsNotice === undefined ? null : (
+            <AdminStatus id="badge-template-details-notice" data-tone={input.detailsNotice.tone}>
+              {input.detailsNotice.message}
+            </AdminStatus>
+          )}
           <div class="ct-admin__template-editor-fields">
             <input
               form="badge-template-edit-form"
@@ -220,7 +232,6 @@ const renderTemplateEditorFields = (input: {
               Save template details
             </AdminButton>
           </div>
-          <AdminStatus id="badge-template-edit-status"></AdminStatus>
         </AdminPanel>
         <AdminPanel
           as="section"
@@ -551,7 +562,7 @@ export const institutionAdminRuleTemplatesPage = (
               {input.badgeTemplatesPage.listNotice}
             </AdminStatus>
           ) : null}
-          {renderTemplateCreatePanel()}
+          {renderTemplateCreatePanel(paths.rulesTemplatesPath)}
           {renderBadgeTemplatesTable({
             badgeTemplates: input.badgeTemplates,
             badgeTemplatesPage: input.badgeTemplatesPage,
@@ -663,6 +674,7 @@ export const institutionAdminRuleTemplateEditorPage = (
             imageRevisionCount: input.badgeTemplateImageRevisionCount,
             rulesTemplatesPath: paths.rulesTemplatesPath,
             templateHistoryHref,
+            detailsNotice: input.detailsNotice ?? null,
             artworkNotice: input.artworkNotice ?? null,
           })}
           {renderBadgeTemplateHistoryDialog({

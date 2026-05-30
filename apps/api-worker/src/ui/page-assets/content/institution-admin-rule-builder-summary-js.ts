@@ -447,7 +447,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUMMARY_JS = `
     });
 
     const clearConditionCanvas = () => {
-      ruleBuilderConditionList.innerHTML = '';
+      ruleBuilderConditionList.replaceChildren();
     };
 
     const addConditionToCanvas = (seed) => {

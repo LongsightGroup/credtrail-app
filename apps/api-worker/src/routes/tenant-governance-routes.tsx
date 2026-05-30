@@ -91,6 +91,7 @@ import { buildOrganizationsPath } from "../auth/tenant-context-selection";
 interface RegisterTenantGovernanceRoutesInput {
   app: Hono<AppEnv>;
   resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  defaultInstitutionOrgUnitId: (tenantId: string) => string;
   requestTenantMemberInvite?: (
     c: AppContext,
     input: {
@@ -239,6 +240,7 @@ export const registerTenantGovernanceRoutes = (
     resolveDatabase,
     requestTenantMemberInvite,
     requestBreakGlassPasswordReset,
+    defaultInstitutionOrgUnitId,
     generateOpaqueToken,
     sha256Hex,
     requireTenantRole,
@@ -1196,6 +1198,43 @@ export const registerTenantGovernanceRoutes = (
     return null;
   };
 
+  const parseBadgeTemplateEditorDetailsNotice = (
+    query: Record<string, string | string[] | undefined>,
+  ): { tone: "success" | "error"; message: string } | null => {
+    const detailsErrorRaw = query["detailsError"];
+    const detailsError =
+      typeof detailsErrorRaw === "string"
+        ? detailsErrorRaw.trim()
+        : Array.isArray(detailsErrorRaw)
+          ? (detailsErrorRaw[0]?.trim() ?? "")
+          : "";
+
+    if (detailsError.length > 0) {
+      return { tone: "error", message: detailsError };
+    }
+
+    const detailsRaw = query["details"];
+    const details =
+      typeof detailsRaw === "string"
+        ? detailsRaw.trim()
+        : Array.isArray(detailsRaw)
+          ? (detailsRaw[0]?.trim() ?? "")
+          : "";
+
+    if (details === "created") {
+      return {
+        tone: "success",
+        message: "Badge template created. Add artwork before using it in rules.",
+      };
+    }
+
+    if (details === "saved") {
+      return { tone: "success", message: "Template details saved." };
+    }
+
+    return null;
+  };
+
   const renderInstitutionAdminTemplateEditorWorkspace = async (
     c: AppContext,
     tenantId: string,
@@ -1243,6 +1282,7 @@ export const registerTenantGovernanceRoutes = (
         badgeTemplate,
         badgeTemplateImageRevisionCount: revisionCount,
         returnToRuleBuilder: c.req.query("returnTo") === "rule-builder",
+        detailsNotice: parseBadgeTemplateEditorDetailsNotice(c.req.query()),
         artworkNotice: parseBadgeTemplateEditorArtworkNotice(c.req.query()),
       }),
     );
@@ -1662,6 +1702,7 @@ export const registerTenantGovernanceRoutes = (
   registerBadgeTemplateListAdminRoutes({
     app,
     resolveDatabase,
+    defaultInstitutionOrgUnitId,
     requireScopedOrgUnitPermission,
     resolveInstitutionAdminAdminRole,
   });

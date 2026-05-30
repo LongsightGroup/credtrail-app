@@ -14,40 +14,14 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_SHARED_BOOTSTRAP_JS = `
     return;
   }
 
-  const tenantAdminPath =
-    parsedContext && typeof parsedContext.tenantAdminPath === 'string'
-      ? parsedContext.tenantAdminPath
-      : '';
   const badgeTemplateApiPathPrefix =
     parsedContext && typeof parsedContext.badgeTemplateApiPathPrefix === 'string'
       ? parsedContext.badgeTemplateApiPathPrefix
       : '';
-  const badgeTemplateListPagePath =
-    parsedContext && typeof parsedContext.badgeTemplateListPagePath === 'string'
-      ? parsedContext.badgeTemplateListPagePath
-      : tenantAdminPath.length === 0
-        ? ''
-        : tenantAdminPath + '/rules/templates';
-  const badgeTemplateEditorPathPrefix =
-    parsedContext && typeof parsedContext.badgeTemplateEditorPathPrefix === 'string'
-      ? parsedContext.badgeTemplateEditorPathPrefix
-      : badgeTemplateListPagePath;
-  const ruleBuilderPath =
-    parsedContext && typeof parsedContext.ruleBuilderPath === 'string'
-      ? parsedContext.ruleBuilderPath
-      : tenantAdminPath.length === 0
-        ? ''
-        : tenantAdminPath + '/rules/new';
   const showcasePath =
     parsedContext && typeof parsedContext.showcasePath === 'string'
       ? parsedContext.showcasePath
       : '';
-  const badgeTemplateListPageQuery =
-    parsedContext &&
-    parsedContext.badgeTemplateListPageQuery &&
-    typeof parsedContext.badgeTemplateListPageQuery === 'object'
-      ? parsedContext.badgeTemplateListPageQuery
-      : null;
   const badgeTemplateRecordsById = new Map();
   const badgeTemplateRecordsContext =
     parsedContext && Array.isArray(parsedContext.badgeTemplateRecords)
@@ -60,7 +34,7 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_SHARED_BOOTSTRAP_JS = `
     }
   });
 
-  if (tenantAdminPath.length === 0 || badgeTemplateApiPathPrefix.length === 0) {
+  if (badgeTemplateApiPathPrefix.length === 0) {
     return;
   }
 
@@ -68,12 +42,6 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_SHARED_BOOTSTRAP_JS = `
   const adminButtonTinySecondaryClass = adminButtonTinyClass + ' ct-admin__button--secondary';
   const badgeTemplateImageQueuedPollDelayMs = 15000;
   const badgeTemplateImageProcessingPollDelayMs = 10000;
-  const templateCreatePanel = document.getElementById('template-create-panel');
-  const badgeTemplateCreateForm = document.getElementById('badge-template-create-form');
-  const badgeTemplateCreateStatus = document.getElementById('badge-template-create-status');
-  const badgeTemplateTableStatus = document.getElementById('badge-template-table-status');
-  const badgeTemplateEditForm = document.getElementById('badge-template-edit-form');
-  const badgeTemplateEditStatus = document.getElementById('badge-template-edit-status');
   const badgeTemplateEditorCriteriaLink = document.getElementById(
     'badge-template-editor-criteria-link',
   );
@@ -183,55 +151,4 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_SHARED_BOOTSTRAP_JS = `
 
     return new Date(parsed).toLocaleString();
   };
-  const buildBadgeTemplateListPageQueryString = () => {
-    const query = new URLSearchParams();
-
-    if (
-      badgeTemplateListPageQuery &&
-      typeof badgeTemplateListPageQuery.searchQuery === 'string' &&
-      badgeTemplateListPageQuery.searchQuery.length > 0
-    ) {
-      query.set('q', badgeTemplateListPageQuery.searchQuery);
-    }
-
-    if (badgeTemplateListPageQuery && badgeTemplateListPageQuery.includeArchived === true) {
-      query.set('includeArchived', '1');
-    }
-
-    if (badgeTemplateListPageQuery && badgeTemplateListPageQuery.returnToRuleBuilder === true) {
-      query.set('returnTo', 'rule-builder');
-    }
-
-    return query.toString();
-  };
-  const badgeTemplateEditorSectionId = (section) => {
-    if (typeof section !== 'string' || section.length === 0) {
-      return '';
-    }
-
-    return section.startsWith('template-editor-') ? section : 'template-editor-' + section;
-  };
-  const badgeTemplateEditorPath = (badgeTemplateId, section) => {
-    if (badgeTemplateEditorPathPrefix.length === 0) {
-      return '';
-    }
-
-    const path = badgeTemplateEditorPathPrefix + '/' + encodeURIComponent(badgeTemplateId);
-
-    if (typeof section === 'string' && section.length > 0) {
-      return path + '#' + badgeTemplateEditorSectionId(section);
-    }
-
-    return path;
-  };
-  const scrollToBadgeTemplateEditorSection = (section) => {
-    const sectionId = badgeTemplateEditorSectionId(section);
-    const sectionElement =
-      sectionId.length > 0 ? document.getElementById(sectionId) : null;
-
-    if (sectionElement instanceof HTMLElement) {
-      sectionElement.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    }
-  };
-
 `;

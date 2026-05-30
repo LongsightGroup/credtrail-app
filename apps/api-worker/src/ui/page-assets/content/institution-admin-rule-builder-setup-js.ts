@@ -288,39 +288,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
         'Learner must match an institution-specific field from imported or connected data.',
     };
 
-    function listOptionsMarkup(kind, selectedValue, emptyLabel) {
-      const matchingValueLists = ruleValueLists.filter((valueList) => valueList.kind === kind);
-      const options = matchingValueLists
-        .map((valueList) => {
-          const label =
-            typeof valueList.label === 'string' && valueList.label.length > 0
-              ? valueList.label
-              : valueList.id;
-          return (
-            '<option value="' +
-            escapeHtml(valueList.id) +
-            '"' +
-            (valueList.id === selectedValue ? ' selected' : '') +
-            '>' +
-            escapeHtml(
-              label +
-                ' · ' +
-                String(Array.isArray(valueList.values) ? valueList.values.length : 0) +
-                ' values',
-            ) +
-            '</option>'
-          );
-        })
-        .join('');
-
-      return (
-        '<option value="">' +
-        escapeHtml(emptyLabel) +
-        '</option>' +
-        options
-      );
-    }
-
     function syncExclusiveFieldPair(card, valueFieldName, listFieldName) {
       const valueField = card.querySelector('[data-field="' + valueFieldName + '"]');
       const listField = card.querySelector('[data-field="' + listFieldName + '"]');

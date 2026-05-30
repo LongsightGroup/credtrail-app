@@ -24,7 +24,7 @@ import {
   type AdminSidebarSection,
 } from "../components";
 import { lmsConnectionsPageUrl } from "../lms-connection-admin-helpers";
-import { TenantApiKeyAdminTableRow } from "../api-key-table-row-fragment";
+import { TenantApiKeyAdminTableRow } from "../api-key-table-row";
 import { serializeJsonScriptContent } from "../institution-admin-shell";
 import { renderInstitutionAdminAccessSections } from "./access-sections";
 import { renderEnterpriseAuthSection } from "./enterprise-auth-section";

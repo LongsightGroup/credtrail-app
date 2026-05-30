@@ -32,6 +32,55 @@ export const toBadgeTemplateClientRecord = (
   };
 };
 
+const badgeTemplateSlugBaseFromTitle = (title: string): string => {
+  return title
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+};
+
+const clampBadgeTemplateSlug = (slug: string, maxLength: number): string => {
+  const clipped = slug.slice(0, maxLength).replace(/-+$/g, "");
+
+  return clipped.length >= 2 ? clipped : "";
+};
+
+export const deriveUniqueBadgeTemplateSlug = (
+  title: string,
+  existingTemplates: readonly Pick<BadgeTemplateRecord, "slug">[],
+): string => {
+  const baseSource = badgeTemplateSlugBaseFromTitle(title);
+  const base = clampBadgeTemplateSlug(
+    baseSource.length === 1 ? `${baseSource}-badge` : baseSource,
+    96,
+  );
+
+  if (base.length === 0) {
+    return "";
+  }
+
+  const existingSlugs = new Set(existingTemplates.map((template) => template.slug));
+
+  if (!existingSlugs.has(base)) {
+    return base;
+  }
+
+  for (let suffix = 2; suffix < 1000; suffix += 1) {
+    const suffixText = `-${String(suffix)}`;
+    const candidate = `${clampBadgeTemplateSlug(base, 96 - suffixText.length)}${suffixText}`;
+
+    if (!existingSlugs.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  return `${clampBadgeTemplateSlug(base, 87)}-${Date.now().toString(36).slice(-8)}`;
+};
+
 export const buildBadgeTemplateListPageQuery = (
   options: BadgeTemplateListPageQueryOptions,
 ): URLSearchParams => {

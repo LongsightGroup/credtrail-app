@@ -4,7 +4,7 @@ import type { BadgeTemplateHistoryTimelineEntry } from "../badges/badge-template
 import {
   BadgeTemplateHistoryTimeline,
   BadgeTemplateImageRevisionList,
-} from "./badge-template-history-fragment";
+} from "./badge-template-history-panel";
 
 const sampleTimelineEntry = (): BadgeTemplateHistoryTimelineEntry => {
   return {

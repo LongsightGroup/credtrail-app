@@ -103,6 +103,7 @@ vi.mock("@credtrail/db", async () => {
     listTenantAuthProviders: mockedListTenantAuthProviders,
     listTenantLmsConnections: mockedListTenantLmsConnections,
     createAuditLog: vi.fn(),
+    createBadgeTemplate: vi.fn(),
     createBadgeTemplateImageRevision: vi.fn(),
     findBadgeTemplateById: vi.fn(),
     findBadgeTemplateImageRevisionById: vi.fn(),
@@ -154,6 +155,7 @@ import {
   createLearnerRecordImportPreview,
   countBadgeTemplateImageRevisions,
   createAuditLog,
+  createBadgeTemplate,
   createBadgeTemplateImageRevision,
   findBadgeTemplateById,
   findBadgeTemplateImageRevisionById,
@@ -208,6 +210,7 @@ export const mockedFindBadgeTemplateImageRevisionById = vi.mocked(
   findBadgeTemplateImageRevisionById,
 );
 export const mockedSetBadgeTemplateArchivedState = vi.mocked(setBadgeTemplateArchivedState);
+export const mockedCreateBadgeTemplate = vi.mocked(createBadgeTemplate);
 export const mockedUpdateBadgeTemplate = vi.mocked(updateBadgeTemplate);
 export const mockedListAuditLogs = vi.mocked(listAuditLogs);
 export const mockedListBadgeTemplateImageRevisions = vi.mocked(listBadgeTemplateImageRevisions);
@@ -567,6 +570,22 @@ beforeEach(() => {
   mockedFindBadgeTemplateImageRevisionById.mockResolvedValue(null);
   mockedSetBadgeTemplateArchivedState.mockReset();
   mockedSetBadgeTemplateArchivedState.mockResolvedValue(null);
+  mockedCreateBadgeTemplate.mockReset();
+  mockedCreateBadgeTemplate.mockResolvedValue({
+    id: "badge_template_created",
+    tenantId: "tenant_123",
+    slug: "created-template",
+    title: "Created Template",
+    description: null,
+    criteriaUri: null,
+    imageUri: null,
+    createdByUserId: "usr_admin",
+    ownerOrgUnitId: "tenant_123:org:institution",
+    governanceMetadataJson: null,
+    isArchived: false,
+    createdAt: "2026-02-18T12:00:00.000Z",
+    updatedAt: "2026-02-18T12:00:00.000Z",
+  });
   mockedUpdateBadgeTemplate.mockReset();
   mockedUpdateBadgeTemplate.mockResolvedValue(null);
   mockedListAuditLogs.mockReset();

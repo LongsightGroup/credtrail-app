@@ -1,7 +1,6 @@
 import {
   createAuditLog,
   createBadgeTemplateImageGeneration,
-  createBadgeTemplate,
   findBadgeTemplateById,
   findBadgeTemplateImageGenerationById,
   hasTenantMembershipOrgUnitAccess,
@@ -11,7 +10,6 @@ import {
   listBadgeTemplates,
   setBadgeTemplateArchivedState,
   transferBadgeTemplateOwnership,
-  updateBadgeTemplate,
   type SqlDatabase,
   type TenantMembershipOrgUnitScopeRole,
   type TenantMembershipRole,
@@ -34,15 +32,18 @@ import {
   badgeTemplateImageMimeTypeFromValue,
   loadBadgeTemplateImage,
 } from "../badges/template-image-storage";
-import { buildBadgeTemplateFieldChanges } from "../badges/badge-template-audit-metadata";
 import { authorizeBadgeTemplateHistoryAccess } from "../badges/badge-template-history-access";
 import { handleBadgeTemplateHistoryJsonGet } from "../badges/badge-template-history-json";
-import { recordBadgeTemplateImageRevisionIfChanged } from "../badges/badge-template-image-revision-recording";
 import {
   applyBadgeTemplateGeneratedImage,
   uploadBadgeTemplateImage,
 } from "../badges/badge-template-image-workflows";
 import { restoreBadgeTemplateImageRevision } from "../badges/badge-template-image-revision-restore";
+import {
+  createBadgeTemplateWithAudit,
+  isBadgeTemplateSlugConflict,
+  updateBadgeTemplateWithAudit,
+} from "../badges/badge-template-mutations";
 import {
   buildBadgeTemplateImagePrompt,
   completeBadgeTemplateImageGeneration,
@@ -92,17 +93,6 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
     ISSUER_ROLES,
     TENANT_MEMBER_ROLES,
   } = input;
-
-  const isBadgeTemplateSlugConflict = (error: unknown): boolean => {
-    if (!(error instanceof Error)) {
-      return false;
-    }
-
-    return (
-      error.message.includes("UNIQUE constraint failed") ||
-      (error.message.includes("duplicate key") && error.message.includes("badge_templates"))
-    );
-  };
 
   app.get("/badges/assets/:tenantId/:badgeTemplateId/:assetId", async (c) => {
     const tenantId = c.req.param("tenantId").trim();
@@ -214,29 +204,11 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
     }
 
     try {
-      const template = await createBadgeTemplate(db, {
+      const template = await createBadgeTemplateWithAudit(db, {
         tenantId: pathParams.tenantId,
-        slug: request.slug,
-        title: request.title,
-        description: request.description,
-        criteriaUri: request.criteriaUri,
-        imageUri: request.imageUri,
-        ownerOrgUnitId: request.ownerOrgUnitId,
-        createdByUserId: principal.userId,
-      });
-
-      await createAuditLog(db, {
-        tenantId: pathParams.tenantId,
+        request,
         actorUserId: principal.userId,
-        action: "badge_template.created",
-        targetType: "badge_template",
-        targetId: template.id,
-        metadata: {
-          role: membershipRole,
-          slug: template.slug,
-          title: template.title,
-          ownerOrgUnitId: template.ownerOrgUnitId,
-        },
+        membershipRole,
       });
 
       return c.json(
@@ -564,14 +536,13 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
     }
 
     try {
-      const template = await updateBadgeTemplate(db, {
+      const template = await updateBadgeTemplateWithAudit(db, {
         tenantId: pathParams.tenantId,
-        id: pathParams.badgeTemplateId,
-        slug: request.slug,
-        title: request.title,
-        description: request.description,
-        criteriaUri: request.criteriaUri,
-        imageUri: request.imageUri,
+        badgeTemplateId: pathParams.badgeTemplateId,
+        existingTemplate,
+        request,
+        actorUserId: principal.userId,
+        membershipRole,
       });
 
       if (template === null) {
@@ -581,33 +552,6 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
           },
           404,
         );
-      }
-
-      if (request.imageUri !== undefined) {
-        await recordBadgeTemplateImageRevisionIfChanged(db, {
-          tenantId: pathParams.tenantId,
-          badgeTemplateId: pathParams.badgeTemplateId,
-          previousImageUri: existingTemplate.imageUri,
-          newImageUri: template.imageUri,
-          sourceType: "manual_update",
-          createdByUserId: principal.userId,
-        });
-      }
-
-      const changes = buildBadgeTemplateFieldChanges(existingTemplate, template, request);
-
-      if (changes.length > 0) {
-        await createAuditLog(db, {
-          tenantId: pathParams.tenantId,
-          actorUserId: principal.userId,
-          action: "badge_template.updated",
-          targetType: "badge_template",
-          targetId: template.id,
-          metadata: {
-            role: membershipRole,
-            changes,
-          },
-        });
       }
 
       return c.json({

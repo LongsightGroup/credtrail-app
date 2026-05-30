@@ -1,4 +1,4 @@
-/** Server-rendered API key table row fragment for the admin UI. */
+/** Server-rendered API key table row for the admin UI. */
 import type { TenantApiKeyRecord } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { tenantApiKeyAdminRevokePath } from "./api-key-admin-helpers";

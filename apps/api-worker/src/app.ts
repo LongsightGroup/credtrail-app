@@ -713,6 +713,7 @@ registerExecutiveRoutes({
 registerTenantGovernanceRoutes({
   app,
   resolveDatabase,
+  defaultInstitutionOrgUnitId,
   requestTenantMemberInvite,
   requestBreakGlassPasswordReset: (context, request) => {
     return breakGlassPolicyAdapter.requestPasswordReset(context, {

@@ -136,14 +136,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_BOOTSTRAP_JS = `
     el.hidden = false;
     el.textContent = value;
   };
-  const escapeHtml = (value) => {
-    return String(value)
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
-  };
   function formatRuleValueListKind(kind) {
     if (kind === 'course_ids') {
       return 'Course IDs';
