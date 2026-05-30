@@ -91,6 +91,89 @@ describe("security headers", () => {
   });
 });
 
+describe("CSRF origin validation", () => {
+  it("rejects cross-origin state-changing requests that carry the browser session cookie", async () => {
+    const env = createEnv();
+    const response = await app.fetch(
+      new Request("https://credtrail.test/healthz", {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+          Origin: "https://attacker.example",
+        },
+      }),
+      env,
+    );
+    const body = await response.json<JsonObject>();
+
+    expect(response.status).toBe(403);
+    expect(asString(body.error)).toBe("Invalid request origin");
+  });
+
+  it("allows same-origin state-changing requests that carry the browser session cookie", async () => {
+    const env = createEnv();
+    const response = await app.fetch(
+      new Request("https://credtrail.test/healthz", {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+          Origin: "https://credtrail.test",
+        },
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(404);
+  });
+
+  it("falls back to Referer when Origin is absent", async () => {
+    const env = createEnv();
+    const response = await app.fetch(
+      new Request("https://credtrail.test/healthz", {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+          Referer: "https://attacker.example/csrf",
+        },
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(403);
+  });
+
+  it("does not apply browser-session CSRF checks to non-cookie requests", async () => {
+    const env = createEnv();
+    const response = await app.fetch(
+      new Request("https://credtrail.test/healthz", {
+        method: "POST",
+        headers: {
+          Origin: "https://attacker.example",
+        },
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(404);
+  });
+
+  it("exempts cross-site LTI launch protocol posts from browser-session CSRF checks", async () => {
+    const env = createEnv();
+    const response = await app.fetch(
+      new Request("https://credtrail.test/v1/lti/launch", {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+          Origin: "https://canvas.example.edu",
+        },
+      }),
+      env,
+    );
+
+    expect(response.status).not.toBe(403);
+  });
+});
+
 describe("GET /ims/ob/v3p0/discovery", () => {
   it("returns a public OB3 service description document with OAuth metadata", async () => {
     const env = createEnv();

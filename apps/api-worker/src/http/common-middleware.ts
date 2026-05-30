@@ -6,6 +6,7 @@ import {
 } from "@credtrail/core-domain";
 import type { Hono } from "hono";
 import type { AppBindings, AppEnv } from "../app";
+import { validateCsrfRequestOrigin } from "./csrf-protection";
 import { applySecurityHeaders } from "./security-headers";
 
 interface RegisterCommonMiddlewareInput {
@@ -55,6 +56,20 @@ export const registerCommonMiddleware = (input: RegisterCommonMiddlewareInput): 
     const requestUrl = new URL(c.req.url);
     const canonicalHost = c.env.PLATFORM_DOMAIN.toLowerCase();
     const requestHost = requestUrl.hostname.toLowerCase();
+
+    if (
+      !validateCsrfRequestOrigin({
+        method: c.req.method,
+        requestUrl,
+        cookieHeader: c.req.header("cookie"),
+        originHeader: c.req.header("origin"),
+        refererHeader: c.req.header("referer"),
+      })
+    ) {
+      const response = c.json({ error: "Invalid request origin" }, 403);
+      applySecurityHeaders(response.headers, c.env);
+      return response;
+    }
 
     if (requestHost === `www.${canonicalHost}` || requestHost === `badges.${canonicalHost}`) {
       requestUrl.hostname = canonicalHost;
