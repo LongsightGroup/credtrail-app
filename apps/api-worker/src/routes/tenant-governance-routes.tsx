@@ -60,6 +60,7 @@ import {
 import type { BadgeTemplateHistoryPanel } from "../admin/institution-admin-templates-page";
 import { AdminActions, AdminButtonLink, AdminPageHeader, AdminPanel } from "../admin/components";
 import { loadBadgeTemplateHistoryPayload } from "../badges/badge-template-history-access";
+import { parseBadgeTemplateListPageQuery } from "../admin/badge-template-admin-helpers";
 import { registerBadgeTemplateEditorArtworkAdminRoutes } from "./badge-template-editor-artwork-admin-routes";
 import { registerBadgeTemplateListAdminRoutes } from "./badge-template-list-admin-routes";
 import { registerTenantApiKeyAdminRoutes } from "./tenant-api-key-admin-routes";
@@ -1282,6 +1283,7 @@ export const registerTenantGovernanceRoutes = (
         badgeTemplate,
         badgeTemplateImageRevisionCount: revisionCount,
         returnToRuleBuilder: c.req.query("returnTo") === "rule-builder",
+        listPageQuery: parseBadgeTemplateListPageQuery(c.req.query()),
         detailsNotice: parseBadgeTemplateEditorDetailsNotice(c.req.query()),
         artworkNotice: parseBadgeTemplateEditorArtworkNotice(c.req.query()),
       }),

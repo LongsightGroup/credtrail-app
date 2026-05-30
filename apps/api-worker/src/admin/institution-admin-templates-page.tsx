@@ -19,6 +19,7 @@ import {
 import type { BadgeTemplateHistoryTimelineEntry } from "../badges/badge-template-history";
 import {
   badgeTemplateHistoryHref,
+  buildBadgeTemplateListPageQuery,
   toBadgeTemplateClientRecord,
   type BadgeTemplateListPageQueryOptions,
 } from "./badge-template-admin-helpers";
@@ -87,6 +88,7 @@ export interface InstitutionAdminRuleTemplateEditorPageInput {
   badgeTemplate: BadgeTemplateRecord;
   badgeTemplateImageRevisionCount: number;
   returnToRuleBuilder: boolean;
+  listPageQuery?: BadgeTemplateListPageQueryOptions;
   detailsNotice?: { tone: "success" | "error"; message: string } | null;
   artworkNotice?: { tone: "success" | "error"; message: string } | null;
   switchOrganizationPath?: string | null;
@@ -594,10 +596,15 @@ export const institutionAdminRuleTemplateEditorPage = (
   const template = input.badgeTemplate;
   const badgeTemplateRecords = [toBadgeTemplateClientRecord(template)];
   const listPageQuery = {
-    searchQuery: "",
-    includeArchived: template.isArchived,
-    returnToRuleBuilder: input.returnToRuleBuilder,
+    searchQuery: input.listPageQuery?.searchQuery ?? "",
+    includeArchived: (input.listPageQuery?.includeArchived ?? false) || template.isArchived,
+    returnToRuleBuilder: input.listPageQuery?.returnToRuleBuilder ?? input.returnToRuleBuilder,
   };
+  const listPageQueryString = buildBadgeTemplateListPageQuery(listPageQuery).toString();
+  const rulesTemplatesHref =
+    listPageQueryString.length > 0
+      ? `${paths.rulesTemplatesPath}?${listPageQueryString}`
+      : paths.rulesTemplatesPath;
   const templateHistoryHref = badgeTemplateHistoryHref(
     paths.rulesTemplatesPath,
     template.id,
@@ -637,7 +644,7 @@ export const institutionAdminRuleTemplateEditorPage = (
           "Prepare the badge details, artwork, criteria, and public record before using it in rules.",
         )}
         <section class="ct-admin ct-stack">
-          <a class="ct-admin__text-action" href={paths.rulesTemplatesPath}>
+          <a class="ct-admin__text-action" href={rulesTemplatesHref}>
             Back to badge templates
           </a>
           <AdminPanel className="ct-admin__template-editor-overview">

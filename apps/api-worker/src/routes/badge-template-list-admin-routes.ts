@@ -1,8 +1,6 @@
 import {
-  findBadgeTemplateById,
   listBadgeTemplates,
   setBadgeTemplateArchivedState,
-  type BadgeTemplateRecord,
   type SqlDatabase,
   type TenantMembershipOrgUnitScopeRole,
   type TenantMembershipRole,
@@ -26,6 +24,7 @@ import {
   isBadgeTemplateSlugConflict,
   updateBadgeTemplateWithAudit,
 } from "../badges/badge-template-write-workflows";
+import { withBadgeTemplateIssuerAccess } from "./badge-template-admin-access";
 
 interface RegisterBadgeTemplateListAdminRoutesInput {
   app: Hono<AppEnv>;
@@ -124,59 +123,6 @@ export const registerBadgeTemplateListAdminRoutes = (
     return optionalFormText(formData, name) ?? null;
   };
 
-  const withBadgeTemplateIssuerAccess = async (
-    c: AppContext,
-    input: {
-      tenantId: string;
-      badgeTemplateId: string;
-      nextPath: string;
-      listPageQuery: ReturnType<typeof parseBadgeTemplateListPageQuery>;
-    },
-    handler: (context: {
-      db: SqlDatabase;
-      session: { userId: string };
-      membershipRole: TenantMembershipRole;
-      template: BadgeTemplateRecord;
-    }) => Promise<Response>,
-  ): Promise<Response> => {
-    const roleCheck = await resolveInstitutionAdminAdminRole(c, input.tenantId, input.nextPath);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const db = resolveDatabase(c.env);
-    const template = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
-
-    if (template === null) {
-      return redirectToTemplateList(c, input.tenantId, input.listPageQuery, {
-        listError: "Badge template not found",
-      });
-    }
-
-    const { session, membershipRole } = roleCheck;
-    const scopeCheck = await requireScopedOrgUnitPermission(c, {
-      db,
-      tenantId: input.tenantId,
-      userId: session.userId,
-      membershipRole,
-      orgUnitId: template.ownerOrgUnitId,
-      requiredRole: "issuer",
-      allowWhenNoScopes: true,
-    });
-
-    if (scopeCheck !== null) {
-      return scopeCheck;
-    }
-
-    return handler({
-      db,
-      session,
-      membershipRole,
-      template,
-    });
-  };
-
   app.post("/tenants/:tenantId/admin/rules/templates", async (c) => {
     const tenantId = c.req.param("tenantId").trim();
     const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
@@ -259,12 +205,18 @@ export const registerBadgeTemplateListAdminRoutes = (
     const editorPath = buildTemplateEditorPath(pathParams.tenantId, pathParams.badgeTemplateId);
 
     return withBadgeTemplateIssuerAccess(
-      c,
       {
+        c,
         tenantId: pathParams.tenantId,
         badgeTemplateId: pathParams.badgeTemplateId,
         nextPath: editorPath,
-        listPageQuery,
+        resolveDatabase,
+        resolveInstitutionAdminAdminRole,
+        requireScopedOrgUnitPermission,
+        notFound: () =>
+          redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
+            listError: "Badge template not found",
+          }),
       },
       async ({ db, session, membershipRole, template: existingTemplate }) => {
         const formData = await c.req.formData();
@@ -324,12 +276,18 @@ export const registerBadgeTemplateListAdminRoutes = (
     listPageQuery: ReturnType<typeof parseBadgeTemplateListPageQuery>,
   ): Promise<Response> => {
     return withBadgeTemplateIssuerAccess(
-      c,
       {
+        c,
         tenantId: pathParams.tenantId,
         badgeTemplateId: pathParams.badgeTemplateId,
         nextPath: buildTemplateListPath(pathParams.tenantId),
-        listPageQuery,
+        resolveDatabase,
+        resolveInstitutionAdminAdminRole,
+        requireScopedOrgUnitPermission,
+        notFound: () =>
+          redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
+            listError: "Badge template not found",
+          }),
       },
       async ({ db }) => {
         const updatedTemplate = await setBadgeTemplateArchivedState(db, {
@@ -372,12 +330,18 @@ export const registerBadgeTemplateListAdminRoutes = (
       const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
 
       return withBadgeTemplateIssuerAccess(
-        c,
         {
+          c,
           tenantId: pathParams.tenantId,
           badgeTemplateId: pathParams.badgeTemplateId,
           nextPath: buildTemplateListPath(pathParams.tenantId),
-          listPageQuery,
+          resolveDatabase,
+          resolveInstitutionAdminAdminRole,
+          requireScopedOrgUnitPermission,
+          notFound: () =>
+            redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
+              listError: "Badge template not found",
+            }),
         },
         async ({ db, session, membershipRole }) => {
           const result = await restoreBadgeTemplateImageRevision({
