@@ -124,25 +124,19 @@ export const registerBadgeTemplateListAdminRoutes = (
     });
   };
 
-  app.post(
-    "/tenants/:tenantId/admin/rules/templates/:badgeTemplateId/archive",
-    async (c) => {
-      const pathParams = parseBadgeTemplatePathParams(c.req.param());
-      const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
+  app.post("/tenants/:tenantId/admin/rules/templates/:badgeTemplateId/archive", async (c) => {
+    const pathParams = parseBadgeTemplatePathParams(c.req.param());
+    const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
 
-      return runArchiveAction(c, pathParams, true, listPageQuery);
-    },
-  );
+    return runArchiveAction(c, pathParams, true, listPageQuery);
+  });
 
-  app.post(
-    "/tenants/:tenantId/admin/rules/templates/:badgeTemplateId/unarchive",
-    async (c) => {
-      const pathParams = parseBadgeTemplatePathParams(c.req.param());
-      const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
+  app.post("/tenants/:tenantId/admin/rules/templates/:badgeTemplateId/unarchive", async (c) => {
+    const pathParams = parseBadgeTemplatePathParams(c.req.param());
+    const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
 
-      return runArchiveAction(c, pathParams, false, listPageQuery);
-    },
-  );
+    return runArchiveAction(c, pathParams, false, listPageQuery);
+  });
 
   app.post(
     "/tenants/:tenantId/admin/rules/templates/:badgeTemplateId/image-revisions/:revisionId/restore",

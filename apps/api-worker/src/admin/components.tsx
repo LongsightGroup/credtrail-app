@@ -900,4 +900,3 @@ export const IssuedBadgeRows = (input: {
     </>
   );
 };
-

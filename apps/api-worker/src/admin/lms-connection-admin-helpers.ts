@@ -2,10 +2,7 @@ export const buildLmsConnectionsPagePath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/access/lms-connections`;
 };
 
-export const lmsConnectionsPageUrl = (
-  tenantId: string,
-  extra?: Record<string, string>,
-): string => {
+export const lmsConnectionsPageUrl = (tenantId: string, extra?: Record<string, string>): string => {
   const path = buildLmsConnectionsPagePath(tenantId);
   const query = new URLSearchParams();
 

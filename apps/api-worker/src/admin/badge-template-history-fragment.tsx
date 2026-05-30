@@ -64,9 +64,7 @@ export const BadgeTemplateImageRevisionList = ({
   const listQueryString = buildBadgeTemplateListPageQuery(listPageQuery).toString();
   const listQuerySuffix = listQueryString.length > 0 ? `?${listQueryString}` : "";
   if (revisions.length === 0) {
-    return (
-      <p class="ct-admin__empty">No image history is available for this badge template.</p>
-    );
+    return <p class="ct-admin__empty">No image history is available for this badge template.</p>;
   }
 
   return (
@@ -103,9 +101,7 @@ export const BadgeTemplateImageRevisionList = ({
                 {formatIsoTimestamp(revision.createdAt)}
               </strong>
               <span>
-                {previousImageUri.length > 0
-                  ? "Restore the previous image"
-                  : "Restore to no image"}
+                {previousImageUri.length > 0 ? "Restore the previous image" : "Restore to no image"}
               </span>
             </div>
             <div class="ct-admin__image-revision-actions">

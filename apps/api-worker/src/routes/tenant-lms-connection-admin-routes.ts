@@ -5,7 +5,10 @@ import {
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import { parseTenantPathParams, parseUpsertTenantLmsConnectionRequest } from "@credtrail/validation";
+import {
+  parseTenantPathParams,
+  parseUpsertTenantLmsConnectionRequest,
+} from "@credtrail/validation";
 import type { Hono } from "hono";
 import {
   buildLmsConnectionsPagePath,

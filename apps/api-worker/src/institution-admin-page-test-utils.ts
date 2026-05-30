@@ -204,7 +204,9 @@ import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 export const mockedCountBadgeTemplateImageRevisions = vi.mocked(countBadgeTemplateImageRevisions);
 export const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
-export const mockedFindBadgeTemplateImageRevisionById = vi.mocked(findBadgeTemplateImageRevisionById);
+export const mockedFindBadgeTemplateImageRevisionById = vi.mocked(
+  findBadgeTemplateImageRevisionById,
+);
 export const mockedSetBadgeTemplateArchivedState = vi.mocked(setBadgeTemplateArchivedState);
 export const mockedUpdateBadgeTemplate = vi.mocked(updateBadgeTemplate);
 export const mockedListAuditLogs = vi.mocked(listAuditLogs);

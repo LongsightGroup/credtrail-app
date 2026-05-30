@@ -51,13 +51,8 @@ const parseScopesFromFormValue = (raw: FormDataEntryValue | null): string[] => {
 export const registerTenantApiKeyAdminRoutes = (
   input: RegisterTenantApiKeyAdminRoutesInput,
 ): void => {
-  const {
-    app,
-    generateOpaqueToken,
-    resolveDatabase,
-    sha256Hex,
-    resolveInstitutionAdminAdminRole,
-  } = input;
+  const { app, generateOpaqueToken, resolveDatabase, sha256Hex, resolveInstitutionAdminAdminRole } =
+    input;
 
   app.post("/tenants/:tenantId/admin/access/api-keys", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());

@@ -1,6 +1,9 @@
 import type { Context } from "hono";
 import type { SqlDatabase } from "@credtrail/db";
-import { parseBadgeTemplateAuditLogQuery, parseBadgeTemplatePathParams } from "@credtrail/validation";
+import {
+  parseBadgeTemplateAuditLogQuery,
+  parseBadgeTemplatePathParams,
+} from "@credtrail/validation";
 import type { AppEnv } from "../app";
 import { loadBadgeTemplateHistoryPayload } from "./badge-template-history-access";
 

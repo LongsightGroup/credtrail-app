@@ -594,8 +594,7 @@ const renderInstitutionAdminPage = (
       </option>
     );
   });
-  const selectedBadgeTemplateFilterId =
-    input.issuedBadgesWorkspace?.filters.badgeTemplateId ?? "";
+  const selectedBadgeTemplateFilterId = input.issuedBadgesWorkspace?.filters.badgeTemplateId ?? "";
   const templateFilterOptions = (
     <>
       <option value="" selected={selectedBadgeTemplateFilterId.length === 0}>
@@ -612,8 +611,7 @@ const renderInstitutionAdminPage = (
   const lmsEditConnection =
     lmsEditConnectionId === null
       ? null
-      : (input.lmsConnections.find((connection) => connection.id === lmsEditConnectionId) ??
-        null);
+      : (input.lmsConnections.find((connection) => connection.id === lmsEditConnectionId) ?? null);
   const lmsConnectionFormValues =
     lmsEditConnection === null
       ? undefined
@@ -978,9 +976,7 @@ const renderInstitutionAdminPage = (
     ...(input.lmsConnectionsWorkspace === undefined
       ? {}
       : { lmsConnectionsWorkspace: input.lmsConnectionsWorkspace }),
-    ...(lmsConnectionFormValues === undefined
-      ? {}
-      : { lmsConnectionFormValues }),
+    ...(lmsConnectionFormValues === undefined ? {} : { lmsConnectionFormValues }),
   });
 
   const {

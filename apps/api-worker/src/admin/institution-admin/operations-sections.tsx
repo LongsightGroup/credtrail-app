@@ -248,8 +248,8 @@ export const renderInstitutionAdminOperationsSections = (
       input.issuedBadgesWorkspace.listError.length > 0 ? (
         <AdminStatus data-tone="error">{input.issuedBadgesWorkspace.listError}</AdminStatus>
       ) : input.issuedBadgesWorkspace?.listNotice !== null &&
-          input.issuedBadgesWorkspace?.listNotice !== undefined &&
-          input.issuedBadgesWorkspace.listNotice.length > 0 ? (
+        input.issuedBadgesWorkspace?.listNotice !== undefined &&
+        input.issuedBadgesWorkspace.listNotice.length > 0 ? (
         <AdminStatus data-tone="success">{input.issuedBadgesWorkspace.listNotice}</AdminStatus>
       ) : null}
       <AdminForm
@@ -394,16 +394,8 @@ export const renderInstitutionAdminOperationsSections = (
             type="hidden"
             value={input.issuedBadgesWorkspace?.lifecycleAssertionId ?? ""}
           />
-          <input
-            name="recipientQuery"
-            type="hidden"
-            value={issuedBadgesFilters.recipientQuery}
-          />
-          <input
-            name="badgeTemplateId"
-            type="hidden"
-            value={issuedBadgesFilters.badgeTemplateId}
-          />
+          <input name="recipientQuery" type="hidden" value={issuedBadgesFilters.recipientQuery} />
+          <input name="badgeTemplateId" type="hidden" value={issuedBadgesFilters.badgeTemplateId} />
           <input name="state" type="hidden" value={issuedBadgesFilters.state} />
           <input name="limit" type="hidden" value={String(issuedBadgesFilters.limit)} />
           <AdminField label="Reason code">
@@ -436,7 +428,12 @@ export const renderInstitutionAdminOperationsSections = (
           <IssuedBadgeRows
             assertions={input.issuedBadgesWorkspace.assertions}
             auditLifecycleHrefForAssertion={(assertionId) =>
-              issuedBadgesAssertionPageUrl(input.tenantId, issuedBadgesFilters, assertionId, "audit")
+              issuedBadgesAssertionPageUrl(
+                input.tenantId,
+                issuedBadgesFilters,
+                assertionId,
+                "audit",
+              )
             }
             revokeLifecycleHrefForAssertion={(assertionId) =>
               issuedBadgesAssertionPageUrl(

@@ -34,9 +34,7 @@ import {
   badgeTemplateImageMimeTypeFromValue,
   loadBadgeTemplateImage,
 } from "../badges/template-image-storage";
-import {
-  buildBadgeTemplateFieldChanges,
-} from "../badges/badge-template-audit-metadata";
+import { buildBadgeTemplateFieldChanges } from "../badges/badge-template-audit-metadata";
 import { authorizeBadgeTemplateHistoryAccess } from "../badges/badge-template-history-access";
 import { handleBadgeTemplateHistoryJsonGet } from "../badges/badge-template-history-json";
 import { recordBadgeTemplateImageRevisionIfChanged } from "../badges/badge-template-image-revision-recording";

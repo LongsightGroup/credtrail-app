@@ -1,4 +1,7 @@
-import { parseTenantAssertionListQuery, type TenantAssertionListQuery } from "@credtrail/validation";
+import {
+  parseTenantAssertionListQuery,
+  type TenantAssertionListQuery,
+} from "@credtrail/validation";
 
 export type IssuedBadgeLifecycleMode = "audit" | "revoke";
 
@@ -50,10 +53,7 @@ export const shouldLoadIssuedBadgesList = (query: {
   const hasLimitOverride = limitRaw.length > 0 && limitRaw !== "100";
 
   return (
-    recipientQuery.length > 0 ||
-    badgeTemplateId.length > 0 ||
-    state.length > 0 ||
-    hasLimitOverride
+    recipientQuery.length > 0 || badgeTemplateId.length > 0 || state.length > 0 || hasLimitOverride
   );
 };
 
@@ -128,8 +128,7 @@ export const parseIssuedBadgesPageQuery = (query: {
 
   const lifecycleRaw = (query.lifecycle ?? "").trim();
   const lifecycleModeRaw = parseLifecycleMode(query.lifecycleMode);
-  const lifecycleMode =
-    lifecycleRaw.length > 0 ? (lifecycleModeRaw ?? "audit") : lifecycleModeRaw;
+  const lifecycleMode = lifecycleRaw.length > 0 ? (lifecycleModeRaw ?? "audit") : lifecycleModeRaw;
 
   return {
     filters: {
@@ -156,7 +155,8 @@ export const safeParseIssuedBadgesPageQuery = (
   }
 };
 
-export const issuedBadgesInvalidFiltersError = "Invalid search filters. Check state and limit, then try again.";
+export const issuedBadgesInvalidFiltersError =
+  "Invalid search filters. Check state and limit, then try again.";
 
 export const tenantIssuedBadgeAdminRevokePath = (tenantId: string): string => {
   return `${buildIssuedBadgesPagePath(tenantId)}/revoke`;

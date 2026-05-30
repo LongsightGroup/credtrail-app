@@ -192,12 +192,7 @@ export const BadgeTemplateEditorArtworkActions = ({
                   </select>
                 </AdminField>
                 <AdminField label="Accent">
-                  <input
-                    name="accentColor"
-                    type="text"
-                    placeholder="Sakai blue"
-                    maxlength={80}
-                  />
+                  <input name="accentColor" type="text" placeholder="Sakai blue" maxlength={80} />
                 </AdminField>
                 <AdminField
                   label="Prompt notes"
@@ -263,4 +258,3 @@ export const BadgeTemplateEditorArtworkActions = ({
     </details>
   );
 };
-

@@ -130,13 +130,21 @@ export const BadgeTemplateAdminTableRow = ({
               View history
             </AdminActionMenuLink>
             {template.isArchived ? (
-              <AdminForm method="post" action={unarchiveAction} className="ct-admin__action-menu-form">
+              <AdminForm
+                method="post"
+                action={unarchiveAction}
+                className="ct-admin__action-menu-form"
+              >
                 <button type="submit" class="ct-admin__action-menu-item">
                   Restore
                 </button>
               </AdminForm>
             ) : (
-              <AdminForm method="post" action={archiveAction} className="ct-admin__action-menu-form">
+              <AdminForm
+                method="post"
+                action={archiveAction}
+                className="ct-admin__action-menu-form"
+              >
                 <button
                   type="submit"
                   class="ct-admin__action-menu-item ct-admin__action-menu-item--danger"
@@ -151,4 +159,3 @@ export const BadgeTemplateAdminTableRow = ({
     </tr>
   );
 };
-

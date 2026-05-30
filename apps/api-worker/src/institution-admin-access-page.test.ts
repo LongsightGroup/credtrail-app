@@ -254,12 +254,16 @@ describe("GET /tenants/:tenantId/admin/access/api-keys", () => {
     const flashCookie = response.headers.get("set-cookie") ?? "";
     expect(flashCookie).toContain("ct_admin_flash_api_key_secret_tenant_123");
 
-    const pageResponse = await app.request(location, {
-      headers: {
-        Cookie: `better-auth.session_token=session-token; ${flashCookie.split(";")[0]}`,
+    const pageResponse = await app.request(
+      location,
+      {
+        headers: {
+          Cookie: `better-auth.session_token=session-token; ${flashCookie.split(";")[0]}`,
+        },
+        redirect: "manual",
       },
-      redirect: "manual",
-    }, env);
+      env,
+    );
     const body = await pageResponse.text();
 
     expect(pageResponse.status).toBe(200);

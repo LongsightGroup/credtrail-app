@@ -295,8 +295,12 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("Prepare the badge details, artwork, criteria, and public record");
     expect(body).toContain("Back to badge templates");
     expect(body).toContain('id="badge-template-editor-preview-frame"');
-    expect(body).toContain('action="/tenants/tenant_123/admin/rules/templates/badge_template_001/image-upload"');
-    expect(body).toContain('action="/tenants/tenant_123/admin/rules/templates/badge_template_001/image-generations/apply"');
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/rules/templates/badge_template_001/image-upload"',
+    );
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/rules/templates/badge_template_001/image-generations/apply"',
+    );
     expect(body).toContain('src="https://example.edu/badges/typescript.png"');
     expect(body).toContain("Ready for rules");
     expect(body).toContain('id="badge-template-editor-ready-status"');
@@ -504,7 +508,9 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain('action="/tenants/tenant_123/admin/rules/templates/badge_template_001/archive"');
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/rules/templates/badge_template_001/archive"',
+    );
     expect(body).toContain('method="post"');
     expect(body).toContain("Archive");
   });

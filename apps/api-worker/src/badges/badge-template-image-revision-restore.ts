@@ -28,14 +28,8 @@ export const restoreBadgeTemplateImageRevision = async (input: {
   revisionId: string;
   actorUserId: string;
   membershipRole: TenantMembershipRole;
-}): Promise<
-  BadgeTemplateImageRevisionRestoreSuccess | BadgeTemplateImageRevisionRestoreError
-> => {
-  const template = await findBadgeTemplateById(
-    input.db,
-    input.tenantId,
-    input.badgeTemplateId,
-  );
+}): Promise<BadgeTemplateImageRevisionRestoreSuccess | BadgeTemplateImageRevisionRestoreError> => {
+  const template = await findBadgeTemplateById(input.db, input.tenantId, input.badgeTemplateId);
 
   if (template === null) {
     return { status: 404, message: "Badge template not found" };

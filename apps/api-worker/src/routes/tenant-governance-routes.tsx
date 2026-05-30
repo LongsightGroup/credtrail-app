@@ -885,8 +885,7 @@ export const registerTenantGovernanceRoutes = (
           listNotice: listNotice.length > 0 ? listNotice : null,
           listError: listError.length > 0 ? listError : null,
           revealedSecret,
-          openCreatePanel:
-            revealedSecret !== null || listError.length > 0 || listNotice.length > 0,
+          openCreatePanel: revealedSecret !== null || listError.length > 0 || listNotice.length > 0,
         },
       }),
     );
@@ -1171,7 +1170,7 @@ export const registerTenantGovernanceRoutes = (
       typeof artworkErrorRaw === "string"
         ? artworkErrorRaw.trim()
         : Array.isArray(artworkErrorRaw)
-          ? artworkErrorRaw[0]?.trim() ?? ""
+          ? (artworkErrorRaw[0]?.trim() ?? "")
           : "";
 
     if (artworkError.length > 0) {
@@ -1183,7 +1182,7 @@ export const registerTenantGovernanceRoutes = (
       typeof artworkRaw === "string"
         ? artworkRaw.trim()
         : Array.isArray(artworkRaw)
-          ? artworkRaw[0]?.trim() ?? ""
+          ? (artworkRaw[0]?.trim() ?? "")
           : "";
 
     if (artwork === "uploaded") {

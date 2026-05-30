@@ -532,8 +532,8 @@ export const institutionAdminRuleTemplatesPage = (
               The requested template history link does not match a badge template in this tenant.
             </AdminStatus>
           ) : input.badgeTemplatesPage.historyLoadError !== null &&
-              input.badgeTemplatesPage.historyLoadError !== undefined &&
-              input.badgeTemplatesPage.historyLoadError.length > 0 ? (
+            input.badgeTemplatesPage.historyLoadError !== undefined &&
+            input.badgeTemplatesPage.historyLoadError.length > 0 ? (
             <AdminStatus id="badge-template-history-deeplink-status" data-tone="error">
               {input.badgeTemplatesPage.historyLoadError}
             </AdminStatus>
@@ -545,8 +545,8 @@ export const institutionAdminRuleTemplatesPage = (
               {input.badgeTemplatesPage.listError}
             </AdminStatus>
           ) : input.badgeTemplatesPage.listNotice !== null &&
-              input.badgeTemplatesPage.listNotice !== undefined &&
-              input.badgeTemplatesPage.listNotice.length > 0 ? (
+            input.badgeTemplatesPage.listNotice !== undefined &&
+            input.badgeTemplatesPage.listNotice.length > 0 ? (
             <AdminStatus id="badge-template-list-notice" data-tone="success">
               {input.badgeTemplatesPage.listNotice}
             </AdminStatus>

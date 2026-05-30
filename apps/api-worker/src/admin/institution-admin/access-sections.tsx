@@ -105,8 +105,8 @@ export const renderInstitutionAdminAccessSections = (
       input.apiKeysWorkspace.listError.length > 0 ? (
         <AdminStatus data-tone="error">{input.apiKeysWorkspace.listError}</AdminStatus>
       ) : input.apiKeysWorkspace?.listNotice !== null &&
-          input.apiKeysWorkspace?.listNotice !== undefined &&
-          input.apiKeysWorkspace.listNotice.length > 0 ? (
+        input.apiKeysWorkspace?.listNotice !== undefined &&
+        input.apiKeysWorkspace.listNotice.length > 0 ? (
         <AdminStatus data-tone="success">{input.apiKeysWorkspace.listNotice}</AdminStatus>
       ) : null}
       <AdminForm
@@ -151,8 +151,8 @@ export const renderInstitutionAdminAccessSections = (
       input.lmsConnectionsWorkspace.listError.length > 0 ? (
         <AdminStatus data-tone="error">{input.lmsConnectionsWorkspace.listError}</AdminStatus>
       ) : input.lmsConnectionsWorkspace?.listNotice !== null &&
-          input.lmsConnectionsWorkspace?.listNotice !== undefined &&
-          input.lmsConnectionsWorkspace.listNotice.length > 0 ? (
+        input.lmsConnectionsWorkspace?.listNotice !== undefined &&
+        input.lmsConnectionsWorkspace.listNotice.length > 0 ? (
         <AdminStatus data-tone="success">{input.lmsConnectionsWorkspace.listNotice}</AdminStatus>
       ) : null}
       <AdminForm

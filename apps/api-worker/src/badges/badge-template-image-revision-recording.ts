@@ -36,8 +36,7 @@ export const recordBadgeTemplateImageRevisionIfChanged = async (
     provider: input.provider,
     model: input.model,
     metadataJson:
-      input.metadataJson ??
-      (input.metadata === undefined ? null : JSON.stringify(input.metadata)),
+      input.metadataJson ?? (input.metadata === undefined ? null : JSON.stringify(input.metadata)),
     createdByUserId: input.createdByUserId,
   });
 };

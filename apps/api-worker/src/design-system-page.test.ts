@@ -302,10 +302,8 @@ describe("CredTrail UI styleguide", () => {
   it("renders an empty issued badge table row when no assertions match", () => {
     const html = renderIssuedBadgeRowsToString(
       [],
-      () =>
-        "/tenants/tenant_123/admin/operations/issued-badges?lifecycleMode=audit",
-      () =>
-        "/tenants/tenant_123/admin/operations/issued-badges?lifecycleMode=revoke",
+      () => "/tenants/tenant_123/admin/operations/issued-badges?lifecycleMode=audit",
+      () => "/tenants/tenant_123/admin/operations/issued-badges?lifecycleMode=revoke",
     );
 
     expect(html).toContain('colspan="6"');

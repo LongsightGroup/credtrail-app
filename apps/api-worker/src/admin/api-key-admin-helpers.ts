@@ -2,10 +2,7 @@ export const buildApiKeysPagePath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/access/api-keys`;
 };
 
-export const apiKeysPageUrl = (
-  tenantId: string,
-  extra?: Record<string, string>,
-): string => {
+export const apiKeysPageUrl = (tenantId: string, extra?: Record<string, string>): string => {
   const path = buildApiKeysPagePath(tenantId);
   const query = new URLSearchParams();
 
