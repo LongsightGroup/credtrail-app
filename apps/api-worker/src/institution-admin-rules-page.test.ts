@@ -480,6 +480,72 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     });
   });
 
+  it("POST details preserves list filters when the template is not found before update", async () => {
+    const env = createEnv();
+
+    mockedFindBadgeTemplateById.mockResolvedValue(null);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/templates/badge_template_missing/details?q=typescript&includeArchived=1&returnTo=rule-builder",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          title: "Advanced TypeScript",
+          slug: "advanced-typescript",
+        }),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    const location = decodeURIComponent(response.headers.get("location") ?? "");
+    expect(location).toContain("/tenants/tenant_123/admin/rules/templates");
+    expect(location).toContain("q=typescript");
+    expect(location).toContain("includeArchived=1");
+    expect(location).toContain("returnTo=rule-builder");
+    expect(location).toContain("listError=Badge+template+not+found");
+    expect(mockedUpdateBadgeTemplate).not.toHaveBeenCalled();
+  });
+
+  it("POST details preserves list filters when the template disappears during update", async () => {
+    const env = createEnv();
+
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleActiveBadgeTemplate);
+    mockedUpdateBadgeTemplate.mockResolvedValue(null);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/templates/badge_template_001/details?q=typescript&includeArchived=1&returnTo=rule-builder",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          title: "Advanced TypeScript",
+          slug: "advanced-typescript",
+        }),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    const location = decodeURIComponent(response.headers.get("location") ?? "");
+    expect(location).toContain("/tenants/tenant_123/admin/rules/templates");
+    expect(location).toContain("q=typescript");
+    expect(location).toContain("includeArchived=1");
+    expect(location).toContain("returnTo=rule-builder");
+    expect(location).toContain("listError=Badge+template+not+found");
+  });
+
   it("POST archive redirects with a notice and preserves list filters", async () => {
     const env = createEnv();
 

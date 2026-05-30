@@ -201,6 +201,7 @@ export const registerBadgeTemplateListAdminRoutes = (
 
   app.post("/tenants/:tenantId/admin/rules/templates/:badgeTemplateId/details", async (c) => {
     const pathParams = parseBadgeTemplatePathParams(c.req.param());
+    const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
     const editorPath = buildTemplateEditorPath(pathParams.tenantId, pathParams.badgeTemplateId);
     const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, editorPath);
 
@@ -216,20 +217,9 @@ export const registerBadgeTemplateListAdminRoutes = (
     );
 
     if (existingTemplate === null) {
-      return c.redirect(
-        badgeTemplateListPageUrl(
-          buildTemplateListPath(pathParams.tenantId),
-          {
-            searchQuery: "",
-            includeArchived: false,
-            returnToRuleBuilder: false,
-          },
-          {
-            listError: "Badge template not found",
-          },
-        ),
-        303,
-      );
+      return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
+        listError: "Badge template not found",
+      });
     }
 
     const { session, membershipRole } = roleCheck;
@@ -275,20 +265,9 @@ export const registerBadgeTemplateListAdminRoutes = (
       });
 
       if (template === null) {
-        return c.redirect(
-          badgeTemplateListPageUrl(
-            buildTemplateListPath(pathParams.tenantId),
-            {
-              searchQuery: "",
-              includeArchived: false,
-              returnToRuleBuilder: false,
-            },
-            {
-              listError: "Badge template not found",
-            },
-          ),
-          303,
-        );
+        return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
+          listError: "Badge template not found",
+        });
       }
 
       return redirectToTemplateEditor(c, pathParams.tenantId, pathParams.badgeTemplateId, {
