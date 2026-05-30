@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { app } from "./index";
 import type { AppBindings } from "./app";
 import type { JsonObject } from "@credtrail/core-domain";
+import { CONTENT_SECURITY_POLICY } from "./http/security-headers";
 
 const asJsonObject = (value: unknown): JsonObject | null => {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -13,9 +14,9 @@ const asString = (value: unknown): string | null => {
   return typeof value === "string" ? value : null;
 };
 
-const createEnv = (): AppBindings => {
+const createEnv = (appEnv = "test"): AppBindings => {
   return {
-    APP_ENV: "test",
+    APP_ENV: appEnv,
     PLATFORM_DOMAIN: "credtrail.test",
     BADGE_OBJECTS: {} as R2Bucket,
   };
@@ -53,6 +54,40 @@ describe("canonical host redirects", () => {
 
     expect(response.status).toBe(308);
     expect(response.headers.get("location")).toBe("https://credtrail.test/healthz");
+  });
+});
+
+describe("security headers", () => {
+  it("applies the baseline browser security headers to handled responses", async () => {
+    const env = createEnv();
+    const response = await app.fetch(new Request("https://credtrail.test/healthz"), env);
+
+    expect(response.headers.get("content-security-policy")).toBe(CONTENT_SECURITY_POLICY);
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("strict-transport-security")).toBe(
+      "max-age=31536000; includeSubDomains",
+    );
+  });
+
+  it("keeps HSTS out of local development responses", async () => {
+    const env = createEnv("development");
+    const response = await app.fetch(new Request("http://localhost/healthz"), env);
+
+    expect(response.headers.get("content-security-policy")).toBe(CONTENT_SECURITY_POLICY);
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("strict-transport-security")).toBeNull();
+  });
+
+  it("applies the baseline browser security headers to canonical redirects", async () => {
+    const env = createEnv();
+    const response = await app.fetch(new Request("https://www.credtrail.test/healthz"), env);
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get("content-security-policy")).toBe(CONTENT_SECURITY_POLICY);
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("strict-transport-security")).toBe(
+      "max-age=31536000; includeSubDomains",
+    );
   });
 });
 

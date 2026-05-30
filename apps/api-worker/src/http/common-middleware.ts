@@ -6,6 +6,7 @@ import {
 } from "@credtrail/core-domain";
 import type { Hono } from "hono";
 import type { AppBindings, AppEnv } from "../app";
+import { applySecurityHeaders } from "./security-headers";
 
 interface RegisterCommonMiddlewareInput {
   app: Hono<AppEnv>;
@@ -58,11 +59,14 @@ export const registerCommonMiddleware = (input: RegisterCommonMiddlewareInput): 
     if (requestHost === `www.${canonicalHost}` || requestHost === `badges.${canonicalHost}`) {
       requestUrl.hostname = canonicalHost;
       requestUrl.port = "";
-      return c.redirect(requestUrl.toString(), 308);
+      const response = c.redirect(requestUrl.toString(), 308);
+      applySecurityHeaders(response.headers, c.env);
+      return response;
     }
 
     await next();
     c.res = await prettifyJsonResponse(c.res);
+    applySecurityHeaders(c.res.headers, c.env);
     const elapsedMs = Date.now() - startedAt;
 
     logInfo(observabilityContext(c.env), "http_request", {
