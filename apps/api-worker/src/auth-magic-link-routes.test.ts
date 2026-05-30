@@ -1100,6 +1100,7 @@ describe("magic-link auth routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=better-session",
         },
       },
@@ -1280,6 +1281,7 @@ describe("magic-link auth routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=better-session",
           "content-type": "application/x-www-form-urlencoded",
         },

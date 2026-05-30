@@ -233,6 +233,7 @@ describe("GET /tenants/:tenantId/admin/access/api-keys", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/x-www-form-urlencoded",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -280,6 +281,7 @@ describe("GET /tenants/:tenantId/admin/access/api-keys", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/x-www-form-urlencoded",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -308,6 +310,7 @@ describe("GET /tenants/:tenantId/admin/access/api-keys", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
       },

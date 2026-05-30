@@ -253,6 +253,7 @@ describe("POST /v1/tenants/:tenantId/migrations/ob2/convert", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           cookie: "better-auth.session_token=test-session-token",
           "content-type": "application/json",
         },
@@ -347,6 +348,7 @@ describe("POST /v1/tenants/:tenantId/migrations/ob2/dry-run", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           cookie: "better-auth.session_token=test-session-token",
           "content-type": "application/json",
         },
@@ -407,6 +409,7 @@ describe("POST /v1/tenants/:tenantId/migrations/ob2/dry-run", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           cookie: "better-auth.session_token=test-session-token",
           "content-type": "application/json",
         },
@@ -473,6 +476,7 @@ describe("POST /v1/tenants/:tenantId/migrations/ob2/batch-upload", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           cookie: "better-auth.session_token=test-session-token",
         },
         body: formData,
@@ -543,6 +547,7 @@ describe("POST /v1/tenants/:tenantId/migrations/ob2/batch-upload", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           cookie: "better-auth.session_token=test-session-token",
         },
         body: formData,
@@ -616,6 +621,7 @@ describe("POST /v1/tenants/:tenantId/migrations/credly/ingest", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           cookie: "better-auth.session_token=test-session-token",
         },
         body: formData,
@@ -654,6 +660,7 @@ describe("POST /v1/tenants/:tenantId/migrations/credly/ingest", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           cookie: "better-auth.session_token=test-session-token",
         },
         body: formData,
@@ -712,6 +719,7 @@ describe("POST /v1/tenants/:tenantId/migrations/parchment/ingest", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           cookie: "better-auth.session_token=test-session-token",
         },
         body: formData,
@@ -771,6 +779,7 @@ describe("POST /v1/tenants/:tenantId/migrations/parchment/ingest", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           cookie: "better-auth.session_token=test-session-token",
         },
         body: formData,
@@ -899,6 +908,7 @@ describe("migration progress dashboard and retry controls", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           cookie: "better-auth.session_token=test-session-token",
           "content-type": "application/json",
         },
@@ -944,6 +954,7 @@ describe("migration progress dashboard and retry controls", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           cookie: "better-auth.session_token=test-session-token",
           "content-type": "application/json",
         },

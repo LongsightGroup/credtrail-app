@@ -279,6 +279,7 @@ describe("enterprise auth policy governance", () => {
       {
         method: "PUT",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -343,6 +344,7 @@ describe("enterprise auth policy governance", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -374,6 +376,7 @@ describe("enterprise auth policy governance", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -409,6 +412,7 @@ describe("enterprise auth policy governance", () => {
       {
         method: "PUT",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -433,6 +437,7 @@ describe("enterprise auth policy governance", () => {
       {
         method: "DELETE",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
       },
@@ -460,6 +465,7 @@ describe("enterprise auth policy governance", () => {
       {
         method: "PUT",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },

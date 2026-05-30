@@ -847,6 +847,7 @@ describe("POST /tenants/:tenantId/learner/settings/did", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "content-type": "application/x-www-form-urlencoded",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -891,6 +892,7 @@ describe("POST /tenants/:tenantId/learner/settings/did", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "content-type": "application/x-www-form-urlencoded",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -933,6 +935,7 @@ describe("POST /tenants/:tenantId/learner/settings/did", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "content-type": "application/x-www-form-urlencoded",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -962,6 +965,7 @@ describe("POST /tenants/:tenantId/learner/settings/did", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "content-type": "application/x-www-form-urlencoded",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -1001,6 +1005,7 @@ describe("POST /tenants/:tenantId/learner/badges/:assertionId/claim", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
       },
@@ -1038,6 +1043,7 @@ describe("POST /tenants/:tenantId/learner/badges/:assertionId/claim", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
       },

@@ -67,7 +67,7 @@ export const registerCommonMiddleware = (input: RegisterCommonMiddlewareInput): 
       })
     ) {
       const response = c.json({ error: "Invalid request origin" }, 403);
-      applySecurityHeaders(response.headers, c.env);
+      applySecurityHeaders(response.headers, c.env, requestUrl);
       return response;
     }
 
@@ -75,13 +75,13 @@ export const registerCommonMiddleware = (input: RegisterCommonMiddlewareInput): 
       requestUrl.hostname = canonicalHost;
       requestUrl.port = "";
       const response = c.redirect(requestUrl.toString(), 308);
-      applySecurityHeaders(response.headers, c.env);
+      applySecurityHeaders(response.headers, c.env, requestUrl);
       return response;
     }
 
     await next();
     c.res = await prettifyJsonResponse(c.res);
-    applySecurityHeaders(c.res.headers, c.env);
+    applySecurityHeaders(c.res.headers, c.env, requestUrl);
     const elapsedMs = Date.now() - startedAt;
 
     logInfo(observabilityContext(c.env), "http_request", {

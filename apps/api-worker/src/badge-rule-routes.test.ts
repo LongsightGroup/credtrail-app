@@ -522,6 +522,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -579,6 +580,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -678,6 +680,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -736,6 +739,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
       },
@@ -778,6 +782,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -967,6 +972,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -1037,6 +1043,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -1112,6 +1119,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -1221,6 +1229,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -1285,6 +1294,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -1358,6 +1368,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -1413,6 +1424,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -1523,6 +1535,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -1565,6 +1578,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -1678,6 +1692,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -1724,6 +1739,7 @@ describe("badge rule routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { app } from "./index";
 import type { AppBindings } from "./app";
 import type { JsonObject } from "@credtrail/core-domain";
-import { CONTENT_SECURITY_POLICY } from "./http/security-headers";
 
 const asJsonObject = (value: unknown): JsonObject | null => {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -12,6 +11,35 @@ const asJsonObject = (value: unknown): JsonObject | null => {
 
 const asString = (value: unknown): string | null => {
   return typeof value === "string" ? value : null;
+};
+
+const cspDirectives = (response: Response): Map<string, string[]> => {
+  const csp = response.headers.get("content-security-policy");
+
+  expect(csp).not.toBeNull();
+
+  return new Map(
+    (csp ?? "").split(";").map((directive) => {
+      const [name, ...values] = directive.trim().split(/\s+/);
+      return [name ?? "", values] as const;
+    }),
+  );
+};
+
+const expectDirectiveContains = (
+  directives: Map<string, string[]>,
+  name: string,
+  value: string,
+): void => {
+  expect(directives.get(name) ?? []).toContain(value);
+};
+
+const expectDirectiveOmits = (
+  directives: Map<string, string[]>,
+  name: string,
+  value: string,
+): void => {
+  expect(directives.get(name) ?? []).not.toContain(value);
 };
 
 const createEnv = (appEnv = "test"): AppBindings => {
@@ -61,8 +89,17 @@ describe("security headers", () => {
   it("applies the baseline browser security headers to handled responses", async () => {
     const env = createEnv();
     const response = await app.fetch(new Request("https://credtrail.test/healthz"), env);
+    const directives = cspDirectives(response);
 
-    expect(response.headers.get("content-security-policy")).toBe(CONTENT_SECURITY_POLICY);
+    expectDirectiveContains(directives, "default-src", "'self'");
+    expectDirectiveContains(directives, "base-uri", "'none'");
+    expectDirectiveContains(directives, "object-src", "'none'");
+    expectDirectiveContains(directives, "script-src", "'self'");
+    expectDirectiveContains(directives, "script-src", "'report-sample'");
+    expectDirectiveContains(directives, "script-src-attr", "'none'");
+    expectDirectiveContains(directives, "style-src", "'self'");
+    expectDirectiveOmits(directives, "script-src", "https://challenges.cloudflare.com");
+    expectDirectiveOmits(directives, "style-src", "'unsafe-inline'");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(response.headers.get("strict-transport-security")).toBe(
       "max-age=31536000; includeSubDomains",
@@ -73,7 +110,7 @@ describe("security headers", () => {
     const env = createEnv("development");
     const response = await app.fetch(new Request("http://localhost/healthz"), env);
 
-    expect(response.headers.get("content-security-policy")).toBe(CONTENT_SECURITY_POLICY);
+    expectDirectiveContains(cspDirectives(response), "default-src", "'self'");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(response.headers.get("strict-transport-security")).toBeNull();
   });
@@ -83,11 +120,38 @@ describe("security headers", () => {
     const response = await app.fetch(new Request("https://www.credtrail.test/healthz"), env);
 
     expect(response.status).toBe(308);
-    expect(response.headers.get("content-security-policy")).toBe(CONTENT_SECURITY_POLICY);
+    expectDirectiveContains(cspDirectives(response), "default-src", "'self'");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(response.headers.get("strict-transport-security")).toBe(
       "max-age=31536000; includeSubDomains",
     );
+  });
+
+  it("scopes Cloudflare Turnstile CSP access to the login page", async () => {
+    const env = {
+      ...createEnv(),
+      TURNSTILE_SITE_KEY: "turnstile-site-key",
+    };
+    const response = await app.fetch(new Request("https://credtrail.test/login"), env);
+    const directives = cspDirectives(response);
+
+    expect(response.status).toBe(200);
+    expectDirectiveContains(directives, "script-src", "https://challenges.cloudflare.com");
+    expectDirectiveContains(directives, "connect-src", "https://challenges.cloudflare.com");
+    expectDirectiveContains(directives, "frame-src", "https://challenges.cloudflare.com");
+    expectDirectiveOmits(directives, "style-src", "'unsafe-inline'");
+  });
+
+  it("scopes inline style CSP access to reporting pages that still render dynamic bars", async () => {
+    const env = createEnv();
+    const response = await app.fetch(
+      new Request("https://credtrail.test/tenants/tenant_123/admin/reporting"),
+      env,
+    );
+    const directives = cspDirectives(response);
+
+    expectDirectiveContains(directives, "style-src", "'unsafe-inline'");
+    expectDirectiveOmits(directives, "script-src", "https://challenges.cloudflare.com");
   });
 });
 
@@ -134,6 +198,21 @@ describe("CSRF origin validation", () => {
         headers: {
           Cookie: "better-auth.session_token=session-token",
           Referer: "https://attacker.example/csrf",
+        },
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(403);
+  });
+
+  it("rejects browser-session state-changing requests when origin evidence is absent", async () => {
+    const env = createEnv();
+    const response = await app.fetch(
+      new Request("https://credtrail.test/healthz", {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
         },
       }),
       env,

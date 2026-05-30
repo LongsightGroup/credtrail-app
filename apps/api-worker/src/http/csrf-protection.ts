@@ -62,5 +62,5 @@ export const validateCsrfRequestOrigin = (input: ValidateCsrfRequestOriginInput)
     return originFromHeaderValue(refererHeader) === requestOrigin;
   }
 
-  return true;
+  return false;
 };

@@ -455,6 +455,7 @@ describe("badge template image upload routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -524,6 +525,7 @@ describe("badge template image upload routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -556,6 +558,7 @@ describe("badge template image upload routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
         body: formData,
@@ -621,6 +624,7 @@ describe("badge template image upload routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
         body: formData,
@@ -649,6 +653,7 @@ describe("badge template image upload routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
         body: formData,
@@ -677,6 +682,7 @@ describe("badge template image upload routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
         body: formData,
@@ -720,6 +726,7 @@ describe("badge template image upload routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
           "content-type": "application/json",
         },
@@ -793,6 +800,7 @@ describe("badge template image upload routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
       },

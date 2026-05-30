@@ -404,6 +404,7 @@ describe("Verifiable Presentation endpoints", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -438,6 +439,7 @@ describe("Verifiable Presentation endpoints", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },

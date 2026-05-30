@@ -223,6 +223,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
         body: formData,
@@ -342,6 +343,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
         body: formData,
@@ -458,6 +460,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
         body: formData,
@@ -559,6 +562,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
         body: formData,
@@ -604,6 +608,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
         body: formData,
@@ -792,6 +797,7 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/x-www-form-urlencoded",
           Cookie: "better-auth.session_token=session-token",
         },

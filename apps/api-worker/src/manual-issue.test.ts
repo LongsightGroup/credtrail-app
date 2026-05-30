@@ -467,6 +467,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -513,6 +514,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -563,6 +565,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -582,6 +585,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -733,6 +737,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -799,6 +804,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -893,6 +899,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -957,6 +964,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -999,6 +1007,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },

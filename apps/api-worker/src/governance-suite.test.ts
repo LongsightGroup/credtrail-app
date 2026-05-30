@@ -144,6 +144,7 @@ describe("admin learner-record import route", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
         body: formData,
@@ -1057,6 +1058,7 @@ const sampleAuditLogRecord = (overrides?: Partial<AuditLogRecord>): AuditLogReco
 
 describe("tenant member management endpoints", () => {
   const cookieHeaders = {
+    Origin: "http://localhost",
     Cookie: "better-auth.session_token=session-token",
   };
 
@@ -2625,6 +2627,7 @@ describe("org unit and badge ownership governance endpoints", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -2676,6 +2679,7 @@ describe("org unit and badge ownership governance endpoints", () => {
       {
         method: "PUT",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -2736,6 +2740,7 @@ describe("org unit and badge ownership governance endpoints", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -2799,6 +2804,7 @@ describe("org unit and badge ownership governance endpoints", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -3056,6 +3062,7 @@ describe("org unit and badge ownership governance endpoints", () => {
       {
         method: "PATCH",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -3109,6 +3116,7 @@ describe("org unit and badge ownership governance endpoints", () => {
       {
         method: "PATCH",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -3144,6 +3152,7 @@ describe("org unit and badge ownership governance endpoints", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -3236,6 +3245,7 @@ describe("org unit and badge ownership governance endpoints", () => {
       {
         method: "PUT",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -3282,6 +3292,7 @@ describe("org unit and badge ownership governance endpoints", () => {
       {
         method: "DELETE",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
       },
@@ -3359,6 +3370,7 @@ describe("org unit and badge ownership governance endpoints", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },
@@ -3427,6 +3439,7 @@ describe("org unit and badge ownership governance endpoints", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "Content-Type": "application/json",
           Cookie: "better-auth.session_token=session-token",
         },

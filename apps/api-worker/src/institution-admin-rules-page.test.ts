@@ -389,6 +389,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
         redirect: "manual",
@@ -438,6 +439,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
         },
         redirect: "manual",

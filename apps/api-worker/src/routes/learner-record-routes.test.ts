@@ -281,6 +281,7 @@ describe("learner-record routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "content-type": "application/json",
           cookie: "better-auth.session_token=better-auth-test",
         },
@@ -431,6 +432,7 @@ describe("learner-record routes", () => {
       {
         method: "PATCH",
         headers: {
+          Origin: "http://localhost",
           "content-type": "application/json",
           cookie: "better-auth.session_token=better-auth-test",
         },
@@ -553,6 +555,7 @@ describe("learner-record import routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           cookie: "better-auth.session_token=better-auth-test",
         },
         body: formData,
@@ -611,6 +614,7 @@ describe("learner-record import routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           cookie: "better-auth.session_token=better-auth-test",
         },
         body: formData,
@@ -636,6 +640,7 @@ describe("learner-record import routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "content-type": "application/json",
           cookie: "better-auth.session_token=better-auth-test",
         },
@@ -727,6 +732,7 @@ describe("learner-record import routes", () => {
       {
         method: "POST",
         headers: {
+          Origin: "http://localhost",
           "content-type": "application/json",
           cookie: "better-auth.session_token=better-auth-test",
         },
