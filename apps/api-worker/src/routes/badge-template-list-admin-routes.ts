@@ -2,6 +2,7 @@ import {
   findBadgeTemplateById,
   listBadgeTemplates,
   setBadgeTemplateArchivedState,
+  type BadgeTemplateRecord,
   type SqlDatabase,
   type TenantMembershipOrgUnitScopeRole,
   type TenantMembershipRole,
@@ -123,6 +124,59 @@ export const registerBadgeTemplateListAdminRoutes = (
     return optionalFormText(formData, name) ?? null;
   };
 
+  const withBadgeTemplateIssuerAccess = async (
+    c: AppContext,
+    input: {
+      tenantId: string;
+      badgeTemplateId: string;
+      nextPath: string;
+      listPageQuery: ReturnType<typeof parseBadgeTemplateListPageQuery>;
+    },
+    handler: (context: {
+      db: SqlDatabase;
+      session: { userId: string };
+      membershipRole: TenantMembershipRole;
+      template: BadgeTemplateRecord;
+    }) => Promise<Response>,
+  ): Promise<Response> => {
+    const roleCheck = await resolveInstitutionAdminAdminRole(c, input.tenantId, input.nextPath);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const db = resolveDatabase(c.env);
+    const template = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
+
+    if (template === null) {
+      return redirectToTemplateList(c, input.tenantId, input.listPageQuery, {
+        listError: "Badge template not found",
+      });
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const scopeCheck = await requireScopedOrgUnitPermission(c, {
+      db,
+      tenantId: input.tenantId,
+      userId: session.userId,
+      membershipRole,
+      orgUnitId: template.ownerOrgUnitId,
+      requiredRole: "issuer",
+      allowWhenNoScopes: true,
+    });
+
+    if (scopeCheck !== null) {
+      return scopeCheck;
+    }
+
+    return handler({
+      db,
+      session,
+      membershipRole,
+      template,
+    });
+  };
+
   app.post("/tenants/:tenantId/admin/rules/templates", async (c) => {
     const tenantId = c.req.param("tenantId").trim();
     const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
@@ -203,86 +257,64 @@ export const registerBadgeTemplateListAdminRoutes = (
     const pathParams = parseBadgeTemplatePathParams(c.req.param());
     const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
     const editorPath = buildTemplateEditorPath(pathParams.tenantId, pathParams.badgeTemplateId);
-    const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, editorPath);
 
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const db = resolveDatabase(c.env);
-    const existingTemplate = await findBadgeTemplateById(
-      db,
-      pathParams.tenantId,
-      pathParams.badgeTemplateId,
-    );
-
-    if (existingTemplate === null) {
-      return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
-        listError: "Badge template not found",
-      });
-    }
-
-    const { session, membershipRole } = roleCheck;
-    const scopeCheck = await requireScopedOrgUnitPermission(c, {
-      db,
-      tenantId: pathParams.tenantId,
-      userId: session.userId,
-      membershipRole,
-      orgUnitId: existingTemplate.ownerOrgUnitId,
-      requiredRole: "issuer",
-      allowWhenNoScopes: true,
-    });
-
-    if (scopeCheck !== null) {
-      return scopeCheck;
-    }
-
-    const formData = await c.req.formData();
-
-    let request: ReturnType<typeof parseUpdateBadgeTemplateRequest>;
-
-    try {
-      request = parseUpdateBadgeTemplateRequest({
-        title: optionalFormText(formData, "title"),
-        slug: optionalFormText(formData, "slug"),
-        description: nullableFormText(formData, "description"),
-        criteriaUri: nullableFormText(formData, "criteriaUri"),
-      });
-    } catch {
-      return redirectToTemplateEditor(c, pathParams.tenantId, pathParams.badgeTemplateId, {
-        detailsError: "Check the template fields and try again.",
-      });
-    }
-
-    try {
-      const template = await updateBadgeTemplateWithAudit(db, {
+    return withBadgeTemplateIssuerAccess(
+      c,
+      {
         tenantId: pathParams.tenantId,
         badgeTemplateId: pathParams.badgeTemplateId,
-        existingTemplate,
-        request,
-        actorUserId: session.userId,
-        membershipRole,
-      });
+        nextPath: editorPath,
+        listPageQuery,
+      },
+      async ({ db, session, membershipRole, template: existingTemplate }) => {
+        const formData = await c.req.formData();
 
-      if (template === null) {
-        return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
-          listError: "Badge template not found",
-        });
-      }
+        let request: ReturnType<typeof parseUpdateBadgeTemplateRequest>;
 
-      return redirectToTemplateEditor(c, pathParams.tenantId, pathParams.badgeTemplateId, {
-        details: "saved",
-      });
-    } catch (error: unknown) {
-      if (isBadgeTemplateSlugConflict(error)) {
-        return redirectToTemplateEditor(c, pathParams.tenantId, pathParams.badgeTemplateId, {
-          detailsError:
-            "A template with this URL key already exists. Change the URL key or edit the existing template.",
-        });
-      }
+        try {
+          request = parseUpdateBadgeTemplateRequest({
+            title: optionalFormText(formData, "title"),
+            slug: optionalFormText(formData, "slug"),
+            description: nullableFormText(formData, "description"),
+            criteriaUri: nullableFormText(formData, "criteriaUri"),
+          });
+        } catch {
+          return redirectToTemplateEditor(c, pathParams.tenantId, pathParams.badgeTemplateId, {
+            detailsError: "Check the template fields and try again.",
+          });
+        }
 
-      throw error;
-    }
+        try {
+          const template = await updateBadgeTemplateWithAudit(db, {
+            tenantId: pathParams.tenantId,
+            badgeTemplateId: pathParams.badgeTemplateId,
+            existingTemplate,
+            request,
+            actorUserId: session.userId,
+            membershipRole,
+          });
+
+          if (template === null) {
+            return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
+              listError: "Badge template not found",
+            });
+          }
+
+          return redirectToTemplateEditor(c, pathParams.tenantId, pathParams.badgeTemplateId, {
+            details: "saved",
+          });
+        } catch (error: unknown) {
+          if (isBadgeTemplateSlugConflict(error)) {
+            return redirectToTemplateEditor(c, pathParams.tenantId, pathParams.badgeTemplateId, {
+              detailsError:
+                "A template with this URL key already exists. Change the URL key or edit the existing template.",
+            });
+          }
+
+          throw error;
+        }
+      },
+    );
   });
 
   const runArchiveAction = async (
@@ -291,56 +323,32 @@ export const registerBadgeTemplateListAdminRoutes = (
     archive: boolean,
     listPageQuery: ReturnType<typeof parseBadgeTemplateListPageQuery>,
   ): Promise<Response> => {
-    const listPath = buildTemplateListPath(pathParams.tenantId);
-    const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, listPath);
+    return withBadgeTemplateIssuerAccess(
+      c,
+      {
+        tenantId: pathParams.tenantId,
+        badgeTemplateId: pathParams.badgeTemplateId,
+        nextPath: buildTemplateListPath(pathParams.tenantId),
+        listPageQuery,
+      },
+      async ({ db }) => {
+        const updatedTemplate = await setBadgeTemplateArchivedState(db, {
+          tenantId: pathParams.tenantId,
+          id: pathParams.badgeTemplateId,
+          isArchived: archive,
+        });
 
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
+        if (updatedTemplate === null) {
+          return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
+            listError: "Badge template not found",
+          });
+        }
 
-    const { session, membershipRole } = roleCheck;
-    const db = resolveDatabase(c.env);
-    const template = await findBadgeTemplateById(
-      db,
-      pathParams.tenantId,
-      pathParams.badgeTemplateId,
+        return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
+          listNotice: archive ? "Badge template archived." : "Badge template restored.",
+        });
+      },
     );
-
-    if (template === null) {
-      return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
-        listError: "Badge template not found",
-      });
-    }
-
-    const scopeCheck = await requireScopedOrgUnitPermission(c, {
-      db,
-      tenantId: pathParams.tenantId,
-      userId: session.userId,
-      membershipRole,
-      orgUnitId: template.ownerOrgUnitId,
-      requiredRole: "issuer",
-      allowWhenNoScopes: true,
-    });
-
-    if (scopeCheck !== null) {
-      return scopeCheck;
-    }
-
-    const updatedTemplate = await setBadgeTemplateArchivedState(db, {
-      tenantId: pathParams.tenantId,
-      id: pathParams.badgeTemplateId,
-      isArchived: archive,
-    });
-
-    if (updatedTemplate === null) {
-      return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
-        listError: "Badge template not found",
-      });
-    }
-
-    return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
-      listNotice: archive ? "Badge template archived." : "Badge template restored.",
-    });
   };
 
   app.post("/tenants/:tenantId/admin/rules/templates/:badgeTemplateId/archive", async (c) => {
@@ -362,69 +370,46 @@ export const registerBadgeTemplateListAdminRoutes = (
     async (c) => {
       const pathParams = parseBadgeTemplateImageRevisionPathParams(c.req.param());
       const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
-      const listPath = buildTemplateListPath(pathParams.tenantId);
-      const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, listPath);
 
-      if (roleCheck instanceof Response) {
-        return roleCheck;
-      }
-
-      const { session, membershipRole } = roleCheck;
-      const db = resolveDatabase(c.env);
-      const template = await findBadgeTemplateById(
-        db,
-        pathParams.tenantId,
-        pathParams.badgeTemplateId,
-      );
-
-      if (template === null) {
-        return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
-          listError: "Badge template not found",
-        });
-      }
-
-      const scopeCheck = await requireScopedOrgUnitPermission(c, {
-        db,
-        tenantId: pathParams.tenantId,
-        userId: session.userId,
-        membershipRole,
-        orgUnitId: template.ownerOrgUnitId,
-        requiredRole: "issuer",
-        allowWhenNoScopes: true,
-      });
-
-      if (scopeCheck !== null) {
-        return scopeCheck;
-      }
-
-      const result = await restoreBadgeTemplateImageRevision({
-        db,
-        tenantId: pathParams.tenantId,
-        badgeTemplateId: pathParams.badgeTemplateId,
-        revisionId: pathParams.revisionId,
-        actorUserId: session.userId,
-        membershipRole,
-      });
-
-      if ("status" in result) {
-        return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
-          history: "1",
-          badgeTemplateId: pathParams.badgeTemplateId,
-          listError: result.message,
-        });
-      }
-
-      const historyUrl = badgeTemplateListPageUrl(
-        buildTemplateListPath(pathParams.tenantId),
-        listPageQuery,
+      return withBadgeTemplateIssuerAccess(
+        c,
         {
+          tenantId: pathParams.tenantId,
           badgeTemplateId: pathParams.badgeTemplateId,
-          history: "1",
-          listNotice: "Badge image restored.",
+          nextPath: buildTemplateListPath(pathParams.tenantId),
+          listPageQuery,
+        },
+        async ({ db, session, membershipRole }) => {
+          const result = await restoreBadgeTemplateImageRevision({
+            db,
+            tenantId: pathParams.tenantId,
+            badgeTemplateId: pathParams.badgeTemplateId,
+            revisionId: pathParams.revisionId,
+            actorUserId: session.userId,
+            membershipRole,
+          });
+
+          if ("status" in result) {
+            return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
+              history: "1",
+              badgeTemplateId: pathParams.badgeTemplateId,
+              listError: result.message,
+            });
+          }
+
+          const historyUrl = badgeTemplateListPageUrl(
+            buildTemplateListPath(pathParams.tenantId),
+            listPageQuery,
+            {
+              badgeTemplateId: pathParams.badgeTemplateId,
+              history: "1",
+              listNotice: "Badge image restored.",
+            },
+          );
+
+          return c.redirect(historyUrl, 303);
         },
       );
-
-      return c.redirect(historyUrl, 303);
     },
   );
 };
