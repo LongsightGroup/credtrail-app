@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ImmutableCredentialStore } from "@credtrail/core-domain";
-import { app } from "./index";
-import worker from "./index";
+import worker, { app } from "./index";
 import type { AppBindings } from "./app";
 import type { WorkerRuntimeBindings } from "./worker/create-worker";
 

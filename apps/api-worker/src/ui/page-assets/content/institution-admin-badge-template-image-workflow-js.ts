@@ -127,4 +127,15 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_IMAGE_WORKFLOW_JS = `
         activeBadgeTemplateImageGeneration.generationId;
     });
   }
+
+  if (badgeTemplateImageGenerationOpenLink instanceof HTMLButtonElement) {
+    badgeTemplateImageGenerationOpenLink.addEventListener('click', () => {
+      const openUri = badgeTemplateImageGenerationOpenLink.dataset.openUri;
+      if (typeof openUri !== 'string' || openUri.length === 0) {
+        return;
+      }
+
+      window.open(openUri, '_blank', 'noopener,noreferrer');
+    });
+  }
 `;

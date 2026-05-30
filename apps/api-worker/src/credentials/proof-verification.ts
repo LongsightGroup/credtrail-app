@@ -5,7 +5,7 @@ import {
   type JsonObject,
   type P256PublicJwk,
 } from "@credtrail/core-domain";
-import { type TenantSigningRegistryEntry } from "@credtrail/validation";
+import type { TenantSigningRegistryEntry } from "@credtrail/validation";
 import { issuerIdentifierFromCredential } from "../badges/credential-display";
 import {
   isEd25519SigningPublicJwk,

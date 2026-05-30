@@ -19,7 +19,7 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_IMAGE_HELPERS_JS = `
       !(badgeTemplateImageGenerationPreview instanceof HTMLElement) ||
       !(badgeTemplateImageGenerationPreviewImg instanceof HTMLImageElement) ||
       !(badgeTemplateImageGenerationApplyButton instanceof HTMLButtonElement) ||
-      !(badgeTemplateImageGenerationOpenLink instanceof HTMLAnchorElement)
+      !(badgeTemplateImageGenerationOpenLink instanceof HTMLButtonElement)
     ) {
       return;
     }
@@ -34,15 +34,17 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_IMAGE_HELPERS_JS = `
       badgeTemplateImageGenerationPreviewImg.removeAttribute('src');
       badgeTemplateImageGenerationApplyButton.disabled = true;
       badgeTemplateImageGenerationOpenLink.hidden = true;
-      badgeTemplateImageGenerationOpenLink.removeAttribute('href');
+      badgeTemplateImageGenerationOpenLink.disabled = true;
+      delete badgeTemplateImageGenerationOpenLink.dataset.openUri;
       return;
     }
 
     badgeTemplateImageGenerationPreview.hidden = false;
     badgeTemplateImageGenerationPreviewImg.src = generation.resultImageUri;
     badgeTemplateImageGenerationApplyButton.disabled = false;
-    badgeTemplateImageGenerationOpenLink.href = generation.resultImageUri;
+    badgeTemplateImageGenerationOpenLink.dataset.openUri = generation.resultImageUri;
     badgeTemplateImageGenerationOpenLink.hidden = false;
+    badgeTemplateImageGenerationOpenLink.disabled = false;
   };
   const pollBadgeTemplateImageGeneration = async (badgeTemplateId, generationId) => {
     if (!(badgeTemplateImageGenerationStatus instanceof HTMLElement)) {

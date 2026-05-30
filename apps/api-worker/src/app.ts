@@ -1,4 +1,4 @@
-import { type JsonObject, type ObservabilityContext } from "@credtrail/core-domain";
+import type { JsonObject, ObservabilityContext } from "@credtrail/core-domain";
 import {
   findTenantSigningRegistrationByDid,
   listLtiIssuerRegistrations,

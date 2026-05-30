@@ -1,4 +1,9 @@
-import type { BadgeTemplateRecord, TenantMembershipRole, TenantRecord } from "@credtrail/db";
+import type {
+  BadgeTemplateImageRevisionRecord,
+  BadgeTemplateRecord,
+  TenantMembershipRole,
+  TenantRecord,
+} from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
   AdminButton,
@@ -11,7 +16,6 @@ import {
   AdminStatus,
   AdminTable,
 } from "./components";
-import type { BadgeTemplateImageRevisionRecord } from "@credtrail/db";
 import type { BadgeTemplateHistoryTimelineEntry } from "../badges/badge-template-history";
 import {
   badgeTemplateHistoryHref,

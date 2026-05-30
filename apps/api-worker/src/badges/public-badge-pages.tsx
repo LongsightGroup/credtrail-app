@@ -536,7 +536,7 @@ export const createPublicBadgePageRenderers = (
           <img
             class="public-badge__hero-image"
             src={displayBadgeImageUri}
-            alt={`${badgeName} image`}
+            alt={badgeName}
             loading="lazy"
             data-fallback-src={fallbackImageUri}
           />
@@ -1091,7 +1091,7 @@ export const createPublicBadgePageRenderers = (
                           <img
                             class="badge-wall__badge-image"
                             src={entry.badgeImageUri}
-                            alt={`${entry.badgeTitle} image`}
+                            alt={entry.badgeTitle}
                             loading="lazy"
                           />
                         )}
@@ -1387,7 +1387,7 @@ export const createPublicBadgePageRenderers = (
                   <img
                     class="criteria-registry__template-image"
                     src={template.imageUri}
-                    alt={`${template.title} image`}
+                    alt={template.title}
                     loading="lazy"
                   />
                 )}

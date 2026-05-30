@@ -240,16 +240,15 @@ export const BadgeTemplateEditorArtworkActions = ({
                 >
                   Use this draft
                 </AdminButton>
-                <a
+                <button
+                  type="button"
                   id="badge-template-image-generation-open"
                   class="ct-admin__text-action"
-                  href="#"
-                  target="_blank"
-                  rel="noopener noreferrer"
                   hidden
+                  aria-label="Open generated badge draft at full size"
                 >
                   Open full size
-                </a>
+                </button>
               </div>
             </div>
           </div>

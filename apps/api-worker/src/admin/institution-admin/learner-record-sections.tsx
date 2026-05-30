@@ -12,9 +12,9 @@ import {
   AdminStatus,
   AdminTable,
 } from "../components";
-import {
-  type InstitutionAdminLearnerRecordImportWorkflow,
-  type InstitutionAdminLearnerRecordReview,
+import type {
+  InstitutionAdminLearnerRecordImportWorkflow,
+  InstitutionAdminLearnerRecordReview,
 } from "./page-types";
 import { formatReportingCount } from "./reporting-helpers";
 
