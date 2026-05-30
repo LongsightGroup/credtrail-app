@@ -1,6 +1,7 @@
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
   AdminButton,
+  AdminButtonLink,
   AdminCheckboxRow,
   AdminField,
   AdminFieldset,
@@ -11,6 +12,12 @@ import {
   AdminTable,
   AdminWorkspaceCard,
 } from "../components";
+import { tenantApiKeyAdminCreatePath } from "../api-key-admin-helpers";
+import { tenantLmsConnectionAdminSavePath } from "../lms-connection-admin-helpers";
+import type {
+  InstitutionAdminApiKeysWorkspace,
+  InstitutionAdminLmsConnectionsWorkspace,
+} from "./page-types";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | HonoElement[];
 
@@ -36,6 +43,18 @@ interface RenderInstitutionAdminAccessSectionsInput {
   membershipScopeRows: HonoElement;
   delegatedGrantRows: HonoElement;
   lmsConnectionRows: HonoElement;
+  tenantId: string;
+  apiKeysWorkspace?: InstitutionAdminApiKeysWorkspace;
+  lmsConnectionsWorkspace?: InstitutionAdminLmsConnectionsWorkspace;
+  lmsConnectionFormValues?: {
+    connectionId: string;
+    displayName: string;
+    providerKind: "canvas" | "sakai";
+    apiBaseUrl: string;
+    ltiIssuer: string;
+    ltiClientId: string;
+    ltiDeploymentId: string;
+  };
 }
 
 interface InstitutionAdminAccessSections {
@@ -63,8 +82,17 @@ const addDisclosureControlMarkup = (
 export const renderInstitutionAdminAccessSections = (
   input: RenderInstitutionAdminAccessSectionsInput,
 ): InstitutionAdminAccessSections => {
+  const apiKeyFormOpen = input.apiKeysWorkspace?.openCreatePanel === true;
+  const apiKeyRevealedSecret = input.apiKeysWorkspace?.revealedSecret ?? null;
+  const lmsFormValues = input.lmsConnectionFormValues;
+  const lmsEditing = (lmsFormValues?.connectionId.length ?? 0) > 0;
+
   const apiKeyPanelMarkup = (
-    <details id="api-key-panel" class="ct-admin__panel ct-admin__add-disclosure">
+    <details
+      id="api-key-panel"
+      class="ct-admin__panel ct-admin__add-disclosure"
+      open={apiKeyFormOpen ? true : undefined}
+    >
       <summary class="ct-admin__add-disclosure-summary">
         <span>
           <strong>Create API key</strong>
@@ -72,8 +100,19 @@ export const renderInstitutionAdminAccessSections = (
         </span>
         {addDisclosureControlMarkup}
       </summary>
+      {input.apiKeysWorkspace?.listError !== null &&
+      input.apiKeysWorkspace?.listError !== undefined &&
+      input.apiKeysWorkspace.listError.length > 0 ? (
+        <AdminStatus data-tone="error">{input.apiKeysWorkspace.listError}</AdminStatus>
+      ) : input.apiKeysWorkspace?.listNotice !== null &&
+          input.apiKeysWorkspace?.listNotice !== undefined &&
+          input.apiKeysWorkspace.listNotice.length > 0 ? (
+        <AdminStatus data-tone="success">{input.apiKeysWorkspace.listNotice}</AdminStatus>
+      ) : null}
       <AdminForm
         id="api-key-form"
+        method="post"
+        action={tenantApiKeyAdminCreatePath(input.tenantId)}
         className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--api-key ct-grid"
       >
         <AdminField label="Label">
@@ -84,43 +123,85 @@ export const renderInstitutionAdminAccessSections = (
         </AdminField>
         <AdminButton type="submit">Create API key</AdminButton>
       </AdminForm>
-      <AdminStatus id="api-key-status"></AdminStatus>
-      <pre id="api-key-secret" class="ct-admin__secret" hidden></pre>
+      {apiKeyRevealedSecret !== null && apiKeyRevealedSecret.length > 0 ? (
+        <pre id="api-key-secret" class="ct-admin__secret">
+          {`Store this now. It is shown once:\n\n${apiKeyRevealedSecret}`}
+        </pre>
+      ) : null}
     </details>
   );
 
   const lmsConnectionsPanelMarkup = (
-    <details id="lms-connection-panel" class="ct-admin__panel ct-admin__add-disclosure">
+    <details
+      id="lms-connection-panel"
+      class="ct-admin__panel ct-admin__add-disclosure"
+      open={lmsEditing ? true : undefined}
+    >
       <summary class="ct-admin__add-disclosure-summary">
         <span>
-          <strong id="lms-connection-form-title">Add LMS connection</strong>
+          <strong id="lms-connection-form-title">
+            {lmsEditing ? "Edit LMS connection" : "Add LMS connection"}
+          </strong>
           <small>Connect a tenant gradebook account for rule lookup.</small>
         </span>
         {addDisclosureControlMarkup}
       </summary>
+      {input.lmsConnectionsWorkspace?.listError !== null &&
+      input.lmsConnectionsWorkspace?.listError !== undefined &&
+      input.lmsConnectionsWorkspace.listError.length > 0 ? (
+        <AdminStatus data-tone="error">{input.lmsConnectionsWorkspace.listError}</AdminStatus>
+      ) : input.lmsConnectionsWorkspace?.listNotice !== null &&
+          input.lmsConnectionsWorkspace?.listNotice !== undefined &&
+          input.lmsConnectionsWorkspace.listNotice.length > 0 ? (
+        <AdminStatus data-tone="success">{input.lmsConnectionsWorkspace.listNotice}</AdminStatus>
+      ) : null}
       <AdminForm
         id="lms-connection-form"
+        method="post"
+        action={tenantLmsConnectionAdminSavePath(input.tenantId)}
         className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--lms-connection ct-stack"
       >
-        <input name="connectionId" type="hidden" value="" />
+        <input name="connectionId" type="hidden" value={lmsFormValues?.connectionId ?? ""} />
         <AdminField label="Connection name">
-          <input name="displayName" type="text" required placeholder="TrySakai test server" />
+          <input
+            name="displayName"
+            type="text"
+            required
+            placeholder="TrySakai test server"
+            value={lmsFormValues?.displayName ?? ""}
+          />
         </AdminField>
         <AdminField label="Provider">
           <select name="providerKind" required>
-            <option value="canvas">Canvas</option>
-            <option value="sakai">Sakai</option>
+            <option value="canvas" selected={lmsFormValues?.providerKind !== "sakai"}>
+              Canvas
+            </option>
+            <option value="sakai" selected={lmsFormValues?.providerKind === "sakai"}>
+              Sakai
+            </option>
           </select>
         </AdminField>
         <AdminField label="API/server URL">
-          <input name="apiBaseUrl" type="url" required placeholder="https://lms.example.edu" />
+          <input
+            name="apiBaseUrl"
+            type="url"
+            required
+            placeholder="https://lms.example.edu"
+            value={lmsFormValues?.apiBaseUrl ?? ""}
+          />
         </AdminField>
         <AdminField label="Credential or session value">
           <input
             name="accessToken"
             type="password"
             autocomplete="off"
-            placeholder="Canvas access token or Sakai SAKAIID"
+            placeholder={
+              lmsEditing
+                ? "Leave blank to keep existing credential"
+                : lmsFormValues?.providerKind === "sakai"
+                  ? "Paste Sakai SAKAIID session value"
+                  : "Paste Canvas access token"
+            }
           />
         </AdminField>
         <details class="ct-admin__advanced-tools">
@@ -155,19 +236,34 @@ export const renderInstitutionAdminAccessSections = (
               <input name="clientSecret" type="password" autocomplete="off" />
             </AdminField>
             <AdminField label="LTI issuer (optional)">
-              <input name="ltiIssuer" type="url" />
+              <input name="ltiIssuer" type="url" value={lmsFormValues?.ltiIssuer ?? ""} />
             </AdminField>
             <AdminField label="LTI client ID (optional)">
-              <input name="ltiClientId" type="text" />
+              <input name="ltiClientId" type="text" value={lmsFormValues?.ltiClientId ?? ""} />
             </AdminField>
             <AdminField label="LTI deployment ID (optional)">
-              <input name="ltiDeploymentId" type="text" />
+              <input
+                name="ltiDeploymentId"
+                type="text"
+                value={lmsFormValues?.ltiDeploymentId ?? ""}
+              />
             </AdminField>
           </div>
         </details>
-        <AdminButton type="submit">Save and connect gradebook</AdminButton>
+        <AdminButton type="submit">
+          {lmsEditing ? "Save connection changes" : "Save and connect gradebook"}
+        </AdminButton>
+        {lmsEditing ? (
+          <AdminButtonLink href={input.accessLmsConnectionsPath} variant="secondary">
+            Cancel edit
+          </AdminButtonLink>
+        ) : null}
       </AdminForm>
-      <AdminStatus id="lms-connection-status"></AdminStatus>
+      {lmsEditing ? (
+        <p class="ct-admin__hint">
+          Editing connection details. Leave credential fields blank to keep saved secrets.
+        </p>
+      ) : null}
     </details>
   );
 

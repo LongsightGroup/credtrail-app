@@ -799,6 +799,8 @@ export const IssuedBadgeActions = (input: {
   assertionId: string;
   viewBadgeHref: string;
   rawJsonHref: string;
+  auditLifecycleHref: string;
+  revokeLifecycleHref: string;
   canRevoke: boolean;
 }): HonoElement => {
   return (
@@ -811,16 +813,9 @@ export const IssuedBadgeActions = (input: {
       >
         Open
       </AdminButtonLink>
-      <AdminButton
-        variant="secondary"
-        size="tiny"
-        dataAttributes={{
-          "data-issued-action": "audit",
-          "data-assertion-id": input.assertionId,
-        }}
-      >
+      <AdminButtonLink href={input.auditLifecycleHref} size="tiny" variant="secondary">
         Audit
-      </AdminButton>
+      </AdminButtonLink>
       <AdminActionMenu
         menuId={`issued-badge-action-menu-${input.assertionId}`}
         ariaLabel={`More actions for assertion ${input.assertionId}`}
@@ -829,22 +824,18 @@ export const IssuedBadgeActions = (input: {
           Open JSON-LD
         </AdminActionMenuLink>
         {input.canRevoke ? (
-          <AdminActionMenuButton
-            tone="danger"
-            dataAttributes={{
-              "data-issued-action": "revoke",
-              "data-assertion-id": input.assertionId,
-            }}
-          >
-            Revoke badge
-          </AdminActionMenuButton>
+          <AdminActionMenuLink href={input.revokeLifecycleHref}>Revoke badge</AdminActionMenuLink>
         ) : null}
       </AdminActionMenu>
     </AdminActionBar>
   );
 };
 
-export const IssuedBadgeRow = (input: { assertion: TenantAssertionSummaryRecord }): HonoElement => {
+export const IssuedBadgeRow = (input: {
+  assertion: TenantAssertionSummaryRecord;
+  auditLifecycleHref: string;
+  revokeLifecycleHref: string;
+}): HonoElement => {
   const assertion = input.assertion;
   const viewBadgeHref = `/badges/${encodeURIComponent(assertion.assertionId)}`;
   const rawJsonHref = `/credentials/v1/${encodeURIComponent(assertion.assertionId)}/jsonld`;
@@ -873,6 +864,8 @@ export const IssuedBadgeRow = (input: { assertion: TenantAssertionSummaryRecord 
             assertionId={assertion.assertionId}
             viewBadgeHref={viewBadgeHref}
             rawJsonHref={rawJsonHref}
+            auditLifecycleHref={input.auditLifecycleHref}
+            revokeLifecycleHref={input.revokeLifecycleHref}
             canRevoke={assertion.state !== "revoked"}
           />
         </div>
@@ -883,6 +876,8 @@ export const IssuedBadgeRow = (input: { assertion: TenantAssertionSummaryRecord 
 
 export const IssuedBadgeRows = (input: {
   assertions: readonly TenantAssertionSummaryRecord[];
+  auditLifecycleHrefForAssertion: (assertionId: string) => string;
+  revokeLifecycleHrefForAssertion: (assertionId: string) => string;
   emptyMessage?: string;
 }): HonoElement => {
   if (input.assertions.length === 0) {
@@ -896,16 +891,13 @@ export const IssuedBadgeRows = (input: {
   return (
     <>
       {input.assertions.map((assertion) => (
-        <IssuedBadgeRow assertion={assertion} />
+        <IssuedBadgeRow
+          assertion={assertion}
+          auditLifecycleHref={input.auditLifecycleHrefForAssertion(assertion.assertionId)}
+          revokeLifecycleHref={input.revokeLifecycleHrefForAssertion(assertion.assertionId)}
+        />
       ))}
     </>
   );
 };
 
-export const renderIssuedBadgeRowsToString = (
-  assertions: readonly TenantAssertionSummaryRecord[],
-): string => {
-  const renderable = (<IssuedBadgeRows assertions={assertions} />) as { toString(): string };
-
-  return renderable.toString();
-};

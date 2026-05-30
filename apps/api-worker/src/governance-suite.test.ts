@@ -2939,7 +2939,7 @@ describe("org unit and badge ownership governance endpoints", () => {
     );
   });
 
-  it("returns server-rendered badge template history timeline HTML", async () => {
+  it("returns badge template history timeline JSON", async () => {
     const env = createEnv();
 
     mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: "admin" }));
@@ -2984,15 +2984,20 @@ describe("org unit and badge ownership governance endpoints", () => {
       },
       env,
     );
-    const body = await response.text();
+    const body = (await response.json()) as {
+      tenantId: string;
+      badgeTemplateId: string;
+      timeline: Array<{ summary: string; detail: string | null }>;
+      imageRevisionCount: number;
+    };
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toContain("text/html");
-    expect(response.headers.get("X-CredTrail-Badge-Template-Image-Revision-Count")).toBe("2");
-    expect(body).toContain("ct-admin__history-audit-item");
-    expect(body).toContain("Updated template");
-    expect(body).toContain("Title: Old → New");
-    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("content-type")).toContain("application/json");
+    expect(body.tenantId).toBe("tenant_123");
+    expect(body.badgeTemplateId).toBe("badge_template_001");
+    expect(body.imageRevisionCount).toBe(2);
+    expect(body.timeline.some((entry) => entry.summary === "Updated template")).toBe(true);
+    expect(body.timeline.some((entry) => entry.detail === "Title: Old → New")).toBe(true);
     expect(mockedCountBadgeTemplateImageRevisions).toHaveBeenCalledWith(
       fakeDb,
       "tenant_123",

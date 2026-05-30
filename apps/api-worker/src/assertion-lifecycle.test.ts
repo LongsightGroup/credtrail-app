@@ -391,50 +391,6 @@ describe("assertion lifecycle endpoints", () => {
     expect(mockedListTenantAssertions).not.toHaveBeenCalled();
   });
 
-  it("renders tenant assertion rows as server-rendered admin HTML fragments", async () => {
-    const env = createEnv();
-
-    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
-    mockedTouchSession.mockResolvedValue(undefined);
-    mockedListTenantAssertions.mockResolvedValue([
-      sampleTenantAssertionSummary({
-        assertionId: "tenant_123:assertion_456",
-        recipientIdentity: "learner@example.edu",
-      }),
-    ]);
-
-    const response = await app.request(
-      "/v1/tenants/tenant_123/assertions/table-rows?badgeTemplateId=badge_template_001&state=active&limit=25",
-      {
-        method: "GET",
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const body = await response.text();
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("content-type")).toContain("text/html");
-    expect(response.headers.get("x-credtrail-assertion-count")).toBe("1");
-    expect(body).toContain('data-issued-badge-row="true"');
-    expect(body).toContain("TypeScript Foundations");
-    expect(body).toContain("learner@example.edu");
-    expect(body).toContain('class="ct-admin__action-bar"');
-    expect(body).toContain('data-issued-action="audit"');
-    expect(body).toContain("Open JSON-LD");
-    expect(body).toContain("Revoke badge");
-    expect(body).not.toContain("ct-admin__action-pill");
-    expect(mockedListTenantAssertions).toHaveBeenCalledWith(fakeDb, {
-      tenantId: "tenant_123",
-      badgeTemplateId: "badge_template_001",
-      state: "active",
-      limit: 25,
-    });
-  });
-
   it("returns assertion lifecycle state and history for issuer roles", async () => {
     const env = createEnv();
 

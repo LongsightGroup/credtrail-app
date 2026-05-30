@@ -11,11 +11,23 @@ import {
   AdminStatus,
   AdminTable,
 } from "./components";
+import type { BadgeTemplateImageRevisionRecord } from "@credtrail/db";
+import type { BadgeTemplateHistoryTimelineEntry } from "../badges/badge-template-history";
 import {
   badgeTemplateHistoryHref,
   toBadgeTemplateClientRecord,
   type BadgeTemplateListPageQueryOptions,
 } from "./badge-template-admin-helpers";
+import {
+  BadgeTemplateHistoryTimeline,
+  BadgeTemplateImageRevisionList,
+} from "./badge-template-history-fragment";
+import {
+  BadgeTemplateEditorArtworkActions,
+  BadgeTemplateEditorCurrentArtwork,
+  BadgeTemplateEditorPreviewFrame,
+  BadgeTemplateEditorReadyStatus,
+} from "./badge-template-editor-artwork-fragment";
 import {
   BadgeTemplateAdminTableRow,
   badgeTemplateCriteriaRegistryHref,
@@ -27,10 +39,17 @@ import {
   renderInstitutionAdminShellPage,
 } from "./institution-admin-shell";
 import type { AppPage } from "../ui/render-page";
-import { adminStatusPillClass } from "./admin-status-pill-class";
 import { formatIsoTimestamp } from "../utils/display-format";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
+
+export interface BadgeTemplateHistoryPanel {
+  templateId: string;
+  templateTitle: string;
+  timeline: readonly BadgeTemplateHistoryTimelineEntry[];
+  imageRevisionCount: number;
+  revisions: readonly BadgeTemplateImageRevisionRecord[];
+}
 
 export interface InstitutionAdminBadgeTemplatesPageOptions {
   searchQuery: string;
@@ -39,6 +58,9 @@ export interface InstitutionAdminBadgeTemplatesPageOptions {
   /** When set with history=1, auto-opens the template audit dialog on load. */
   deepLinkHistoryTemplateId: string | null;
   deepLinkHistoryUnavailable: "not_found" | null;
+  historyLoadError?: string | null;
+  listNotice?: string | null;
+  listError?: string | null;
 }
 
 export interface InstitutionAdminRuleTemplatesPageInput {
@@ -49,6 +71,7 @@ export interface InstitutionAdminRuleTemplatesPageInput {
   badgeTemplates: readonly BadgeTemplateRecord[];
   badgeTemplateImageRevisionCountsById?: Readonly<Record<string, number>>;
   badgeTemplatesPage: InstitutionAdminBadgeTemplatesPageOptions;
+  historyPanel?: BadgeTemplateHistoryPanel | null;
   switchOrganizationPath?: string | null;
 }
 
@@ -60,6 +83,7 @@ export interface InstitutionAdminRuleTemplateEditorPageInput {
   badgeTemplate: BadgeTemplateRecord;
   badgeTemplateImageRevisionCount: number;
   returnToRuleBuilder: boolean;
+  artworkNotice?: { tone: "success" | "error"; message: string } | null;
   switchOrganizationPath?: string | null;
 }
 
@@ -124,15 +148,17 @@ const renderTemplateCreatePanel = (): HonoElement => {
 const renderTemplateEditorFields = (input: {
   selectedTemplate: BadgeTemplateRecord;
   imageRevisionCount: number;
+  rulesTemplatesPath: string;
+  templateHistoryHref: string;
+  artworkNotice?: { tone: "success" | "error"; message: string } | null;
 }): HonoElement => {
   const template = input.selectedTemplate;
+  const imageUploadPath = `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/image-upload`;
+  const imageApplyPath = `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/image-generations/apply`;
   const revisionLabel =
     input.imageRevisionCount === 1
       ? "1 image version"
       : `${input.imageRevisionCount} image versions`;
-  const hasArtwork = template.imageUri !== null;
-  const artworkPillTone = hasArtwork ? "active" : "warning";
-
   return (
     <>
       {/* Identity-only form: inputs and submit button bind by id via the HTML `form` attribute. */}
@@ -205,158 +231,17 @@ const renderTemplateEditorFields = (input: {
             <h2>Artwork</h2>
             <p>One approved image is used for issued badges and public badge pages.</p>
           </header>
-          <div
-            class="ct-admin__template-editor-current-artwork"
-            id="badge-template-editor-current-artwork"
-          >
-            <div id="badge-template-editor-current-artwork-media">
-              {template.imageUri === null ? (
-                <span class="ct-admin__template-editor-current-artwork-empty">No artwork</span>
-              ) : (
-                <a
-                  href={template.imageUri}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`Open full size image for ${template.title}`}
-                >
-                  <img src={template.imageUri} alt={`${template.title} artwork`} />
-                </a>
-              )}
-            </div>
-            <div>
-              <div class="ct-admin__template-editor-artwork-status-row">
-                <strong>Current artwork</strong>
-                <span
-                  id="badge-template-editor-current-artwork-status"
-                  class={adminStatusPillClass(artworkPillTone)}
-                >
-                  {template.imageUri === null ? "No approved image" : "Approved image"}
-                </span>
-              </div>
-              <p id="badge-template-editor-current-artwork-detail">
-                {template.imageUri === null
-                  ? "Add an approved image before using this template in rules."
-                  : "Approved artwork is set. This template is ready for rules."}
-              </p>
-            </div>
-          </div>
-          <details
-            id="badge-template-editor-artwork-actions"
-            class="ct-admin__template-editor-artwork-actions"
-            open={template.imageUri === null}
-          >
-            <summary class="ct-admin__template-editor-artwork-actions-summary">
-              <span>
-                <strong id="badge-template-editor-artwork-actions-title">
-                  {template.imageUri === null ? "Add artwork" : "Replace artwork"}
-                </strong>
-                <small id="badge-template-editor-artwork-actions-detail">
-                  {template.imageUri === null
-                    ? "Upload an approved image or generate a draft to review."
-                    : "Upload a new image to replace the current artwork."}
-                </small>
-              </span>
-              <span class="ct-admin__template-editor-artwork-actions-control">
-                <span class="ct-admin__template-editor-artwork-actions-open">Open options</span>
-                <span class="ct-admin__template-editor-artwork-actions-close">Hide options</span>
-              </span>
-            </summary>
-            <div class="ct-admin__template-editor-artwork-action-grid">
-              <section class="ct-admin__template-editor-artwork-option">
-                <div class="ct-admin__template-editor-subgroup">
-                  <h4 class="ct-admin__template-editor-subgroup-title">Upload approved image</h4>
-                  <AdminForm
-                    id="badge-template-image-upload-form"
-                    className="ct-admin__form ct-admin__template-editor-subform"
-                  >
-                    <input type="hidden" name="badgeTemplateId" value={template.id} />
-                    <div class="ct-admin__template-editor-fields ct-admin__template-editor-fields--upload">
-                      <AdminField label="Image file">
-                        <input
-                          name="file"
-                          type="file"
-                          required
-                          accept="image/png,image/jpeg,image/webp"
-                        />
-                      </AdminField>
-                      <AdminButton type="submit">Upload approved image</AdminButton>
-                    </div>
-                  </AdminForm>
-                  <AdminStatus id="badge-template-image-upload-status"></AdminStatus>
-                </div>
-              </section>
-              <section class="ct-admin__template-editor-artwork-option">
-                <div class="ct-admin__template-editor-subgroup">
-                  <h4 class="ct-admin__template-editor-subgroup-title">Generate a draft</h4>
-                  <AdminForm
-                    id="badge-template-image-generation-form"
-                    className="ct-admin__form ct-admin__template-editor-subform"
-                  >
-                    <input type="hidden" name="badgeTemplateId" value={template.id} />
-                    <div class="ct-admin__template-editor-fields ct-admin__template-editor-fields--generation">
-                      <AdminField label="Style">
-                        <select name="stylePreset" required>
-                          <option value="institutional">Institutional</option>
-                          <option value="technical">Technical</option>
-                          <option value="academic">Academic</option>
-                          <option value="open_source">Open source</option>
-                          <option value="minimal">Minimal</option>
-                        </select>
-                      </AdminField>
-                      <AdminField label="Accent">
-                        <input
-                          name="accentColor"
-                          type="text"
-                          placeholder="Sakai blue"
-                          maxlength={80}
-                        />
-                      </AdminField>
-                      <AdminField
-                        label="Prompt notes"
-                        className="ct-admin__template-editor-generation-prompt"
-                      >
-                        <input
-                          name="promptNotes"
-                          type="text"
-                          placeholder="Shield, milestone, stars"
-                          maxlength={1000}
-                        />
-                      </AdminField>
-                      <div class="ct-admin__template-editor-generation-action">
-                        <AdminButton type="submit">Generate draft</AdminButton>
-                      </div>
-                    </div>
-                  </AdminForm>
-                  <AdminStatus id="badge-template-image-generation-status"></AdminStatus>
-                  <div
-                    id="badge-template-image-generation-preview"
-                    class="ct-admin__image-generation-preview"
-                    hidden
-                  >
-                    <img
-                      id="badge-template-image-generation-preview-img"
-                      alt="Generated badge draft"
-                    />
-                    <div class="ct-admin__image-generation-actions">
-                      <AdminButton id="badge-template-image-generation-apply" variant="secondary">
-                        Use this draft
-                      </AdminButton>
-                      <a
-                        id="badge-template-image-generation-open"
-                        class="ct-admin__text-action"
-                        href="#"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        hidden
-                      >
-                        Open full size
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </div>
-          </details>
+          {input.artworkNotice === null || input.artworkNotice === undefined ? null : (
+            <AdminStatus id="badge-template-artwork-notice" data-tone={input.artworkNotice.tone}>
+              {input.artworkNotice.message}
+            </AdminStatus>
+          )}
+          <BadgeTemplateEditorCurrentArtwork template={template} />
+          <BadgeTemplateEditorArtworkActions
+            template={template}
+            imageUploadPath={imageUploadPath}
+            imageApplyPath={imageApplyPath}
+          />
         </AdminPanel>
         <AdminPanel
           as="section"
@@ -417,12 +302,9 @@ const renderTemplateEditorFields = (input: {
               View public criteria page ↗
             </a>
             <a
-              href="#"
+              href={input.templateHistoryHref}
               class="ct-admin__text-action"
               id="badge-template-editor-history-link"
-              data-template-history-template-id={template.id}
-              data-template-history-template-title={template.title}
-              data-template-history-image-revision-count={String(input.imageRevisionCount)}
             >
               View full history
             </a>
@@ -433,30 +315,83 @@ const renderTemplateEditorFields = (input: {
   );
 };
 
-const renderBadgeTemplateHistoryDialog = (): HonoElement => {
+const renderBadgeTemplateHistoryDialog = (input: {
+  rulesTemplatesPath: string;
+  historyPanel: BadgeTemplateHistoryPanel | null;
+  listPageQuery: BadgeTemplateListPageQueryOptions;
+  historyLoadError?: string | null;
+  autoOpenHistoryTemplateId?: string | null;
+}): HonoElement => {
+  const panel = input.historyPanel;
+  const imageRevisionCount = panel?.imageRevisionCount ?? 0;
+  const restorePathPrefix =
+    panel === null
+      ? ""
+      : `${input.rulesTemplatesPath}/${encodeURIComponent(panel.templateId)}/image-revisions`;
+  const autoOpenHistoryTemplateId = input.autoOpenHistoryTemplateId ?? panel?.templateId ?? "";
+
   return (
-    <dialog id="badge-template-history-dialog" class="ct-admin__history-dialog">
-      <form method="dialog" class="ct-admin__history-dialog-surface">
+    <dialog
+      id="badge-template-history-dialog"
+      class="ct-admin__history-dialog"
+      data-auto-open-history-template-id={autoOpenHistoryTemplateId}
+    >
+      <div class="ct-admin__history-dialog-surface">
         <header class="ct-admin__history-dialog-header">
           <div>
             <h2 id="badge-template-history-dialog-title">Template history</h2>
-            <p id="badge-template-history-dialog-subtitle" class="ct-admin__meta"></p>
+            <p id="badge-template-history-dialog-subtitle" class="ct-admin__meta">
+              {panel === null ? "" : panel.templateTitle}
+            </p>
           </div>
-          <AdminButton type="submit" variant="secondary" size="tiny">
+          <AdminButton
+            type="button"
+            id="badge-template-history-dialog-close"
+            variant="secondary"
+            size="tiny"
+          >
             Close
           </AdminButton>
         </header>
-        <AdminStatus id="badge-template-history-status"></AdminStatus>
-        <div id="badge-template-history-audit-list" class="ct-admin__history-audit-list"></div>
+        {input.historyLoadError !== null &&
+        input.historyLoadError !== undefined &&
+        input.historyLoadError.length > 0 ? (
+          <AdminStatus id="badge-template-history-status" data-tone="error">
+            {input.historyLoadError}
+          </AdminStatus>
+        ) : panel === null ? (
+          <AdminStatus id="badge-template-history-status"></AdminStatus>
+        ) : (
+          <AdminStatus id="badge-template-history-status" data-tone="success">
+            Showing recent changes for this template.
+          </AdminStatus>
+        )}
+        <div id="badge-template-history-audit-list" class="ct-admin__history-audit-list">
+          {panel === null ? null : <BadgeTemplateHistoryTimeline timeline={panel.timeline} />}
+        </div>
         <details
           id="badge-template-image-history-section"
           class="ct-admin__history-image-section"
-          hidden
+          hidden={imageRevisionCount === 0}
+          open={imageRevisionCount > 0}
         >
-          <summary>Image versions</summary>
-          <div id="badge-template-image-revision-list" class="ct-admin__image-revision-list"></div>
+          <summary>
+            Image versions
+            {panel !== null && panel.imageRevisionCount > panel.revisions.length
+              ? ` (showing latest ${String(panel.revisions.length)} of ${String(panel.imageRevisionCount)})`
+              : null}
+          </summary>
+          <div id="badge-template-image-revision-list" class="ct-admin__image-revision-list">
+            {panel === null ? null : (
+              <BadgeTemplateImageRevisionList
+                revisions={panel.revisions}
+                restorePathPrefix={restorePathPrefix}
+                listPageQuery={input.listPageQuery}
+              />
+            )}
+          </div>
         </details>
-      </form>
+      </div>
     </dialog>
   );
 };
@@ -499,6 +434,8 @@ const renderBadgeTemplatesTable = (input: {
               template.id,
               listPageQuery,
             )}
+            rulesTemplatesPath={input.rulesTemplatesPath}
+            listPageQuery={listPageQuery}
           />
         );
       })
@@ -574,8 +511,8 @@ export const institutionAdminRuleTemplatesPage = (
     contextJson: {
       tenantAdminPath: paths.tenantAdminPath,
       badgeTemplateApiPathPrefix: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-templates`,
-      badgeTemplateAdminTableRowPathPrefix: paths.rulesTemplatesPath,
       badgeTemplateEditorPathPrefix: paths.rulesTemplatesPath,
+      badgeTemplateListPagePath: paths.rulesTemplatesPath,
       ruleBuilderPath: paths.ruleBuilderPath,
       showcasePath: paths.showcasePath,
       badgeTemplateListPageQuery: listPageQuery,
@@ -594,6 +531,25 @@ export const institutionAdminRuleTemplatesPage = (
             <AdminStatus id="badge-template-history-deeplink-status" data-tone="error">
               The requested template history link does not match a badge template in this tenant.
             </AdminStatus>
+          ) : input.badgeTemplatesPage.historyLoadError !== null &&
+              input.badgeTemplatesPage.historyLoadError !== undefined &&
+              input.badgeTemplatesPage.historyLoadError.length > 0 ? (
+            <AdminStatus id="badge-template-history-deeplink-status" data-tone="error">
+              {input.badgeTemplatesPage.historyLoadError}
+            </AdminStatus>
+          ) : null}
+          {input.badgeTemplatesPage.listError !== null &&
+          input.badgeTemplatesPage.listError !== undefined &&
+          input.badgeTemplatesPage.listError.length > 0 ? (
+            <AdminStatus id="badge-template-list-notice" data-tone="error">
+              {input.badgeTemplatesPage.listError}
+            </AdminStatus>
+          ) : input.badgeTemplatesPage.listNotice !== null &&
+              input.badgeTemplatesPage.listNotice !== undefined &&
+              input.badgeTemplatesPage.listNotice.length > 0 ? (
+            <AdminStatus id="badge-template-list-notice" data-tone="success">
+              {input.badgeTemplatesPage.listNotice}
+            </AdminStatus>
           ) : null}
           {renderTemplateCreatePanel()}
           {renderBadgeTemplatesTable({
@@ -603,7 +559,13 @@ export const institutionAdminRuleTemplatesPage = (
             rulesTemplatesPath: paths.rulesTemplatesPath,
             tenantId: input.tenant.id,
           })}
-          {renderBadgeTemplateHistoryDialog()}
+          {renderBadgeTemplateHistoryDialog({
+            rulesTemplatesPath: paths.rulesTemplatesPath,
+            historyPanel: input.historyPanel ?? null,
+            listPageQuery,
+            historyLoadError: input.badgeTemplatesPage.historyLoadError ?? null,
+            autoOpenHistoryTemplateId: input.badgeTemplatesPage.deepLinkHistoryTemplateId,
+          })}
         </section>
       </>
     ),
@@ -616,16 +578,16 @@ export const institutionAdminRuleTemplateEditorPage = (
   const paths = buildInstitutionAdminShellPaths(input.tenant.id);
   const template = input.badgeTemplate;
   const badgeTemplateRecords = [toBadgeTemplateClientRecord(template)];
-  const readyLabel = template.isArchived
-    ? "Archived"
-    : template.imageUri === null
-      ? "Needs image"
-      : "Ready for rules";
-  const readyTone = template.isArchived
-    ? "revoked"
-    : template.imageUri === null
-      ? "warning"
-      : "active";
+  const listPageQuery = {
+    searchQuery: "",
+    includeArchived: template.isArchived,
+    returnToRuleBuilder: input.returnToRuleBuilder,
+  };
+  const templateHistoryHref = badgeTemplateHistoryHref(
+    paths.rulesTemplatesPath,
+    template.id,
+    listPageQuery,
+  );
 
   return renderInstitutionAdminShellPage({
     tenant: input.tenant,
@@ -651,6 +613,7 @@ export const institutionAdminRuleTemplateEditorPage = (
       showcasePath: paths.showcasePath,
       badgeTemplateRecords,
       autoOpenTemplateAuditTemplateId: null,
+      templateHistoryHref,
     },
     children: (
       <>
@@ -663,30 +626,12 @@ export const institutionAdminRuleTemplateEditorPage = (
             Back to badge templates
           </a>
           <AdminPanel className="ct-admin__template-editor-overview">
-            <div class="ct-admin__template-editor-preview" id="badge-template-editor-preview-frame">
-              {template.imageUri === null ? (
-                <span class="ct-admin__template-editor-preview-empty">No artwork</span>
-              ) : (
-                <a
-                  href={template.imageUri}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`Open full size image for ${template.title}`}
-                >
-                  <img src={template.imageUri} alt={`${template.title} artwork`} />
-                </a>
-              )}
-            </div>
+            <BadgeTemplateEditorPreviewFrame template={template} />
             <div class="ct-admin__template-editor-summary">
               <div>
                 <div class="ct-admin__template-editor-title-row">
                   <h2>{template.title}</h2>
-                  <span
-                    id="badge-template-editor-ready-status"
-                    class={adminStatusPillClass(readyTone)}
-                  >
-                    {readyLabel}
-                  </span>
+                  <BadgeTemplateEditorReadyStatus template={template} />
                 </div>
                 <p>
                   {template.description ??
@@ -716,8 +661,15 @@ export const institutionAdminRuleTemplateEditorPage = (
           {renderTemplateEditorFields({
             selectedTemplate: template,
             imageRevisionCount: input.badgeTemplateImageRevisionCount,
+            rulesTemplatesPath: paths.rulesTemplatesPath,
+            templateHistoryHref,
+            artworkNotice: input.artworkNotice ?? null,
           })}
-          {renderBadgeTemplateHistoryDialog()}
+          {renderBadgeTemplateHistoryDialog({
+            rulesTemplatesPath: paths.rulesTemplatesPath,
+            historyPanel: null,
+            listPageQuery,
+          })}
         </section>
       </>
     ),

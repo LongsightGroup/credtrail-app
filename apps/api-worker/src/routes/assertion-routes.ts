@@ -25,7 +25,6 @@ import {
   type TenantAssertionListQuery,
 } from "@credtrail/validation";
 import type { AppBindings, AppContext, AppEnv } from "../app";
-import { renderIssuedBadgeRowsToString } from "../admin/components";
 import { buildTenantAssertionLedgerCsvExport } from "../reporting/ledger-export";
 
 type DirectIssueBadgeRequest = Pick<
@@ -220,40 +219,6 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
       tenantId: pathParams.tenantId,
       count: assertions.length,
       assertions,
-    });
-  });
-
-  app.get("/v1/tenants/:tenantId/assertions/table-rows", async (c): Promise<Response> => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    let query;
-
-    try {
-      query = parseAssertionListQuery(c);
-    } catch {
-      return c.json(
-        {
-          error: "Invalid assertion list query parameters",
-        },
-        400,
-      );
-    }
-
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const assertions = await listAssertionsForTenant(c, pathParams.tenantId, query);
-    const html = renderIssuedBadgeRowsToString(assertions);
-
-    return new Response(html, {
-      status: 200,
-      headers: {
-        "Cache-Control": "no-store",
-        "Content-Type": "text/html; charset=utf-8",
-        "X-CredTrail-Assertion-Count": String(assertions.length),
-      },
     });
   });
 

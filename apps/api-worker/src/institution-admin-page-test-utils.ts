@@ -102,10 +102,25 @@ vi.mock("@credtrail/db", async () => {
     listTenantMembershipOrgUnitScopes: vi.fn(),
     listTenantAuthProviders: mockedListTenantAuthProviders,
     listTenantLmsConnections: mockedListTenantLmsConnections,
+    createAuditLog: vi.fn(),
+    createBadgeTemplateImageRevision: vi.fn(),
     findBadgeTemplateById: vi.fn(),
+    findBadgeTemplateImageRevisionById: vi.fn(),
+    setBadgeTemplateArchivedState: vi.fn(),
+    updateBadgeTemplate: vi.fn(),
+    listAuditLogs: vi.fn(),
+    listBadgeTemplateImageRevisions: vi.fn(),
+    listBadgeTemplateOwnershipEvents: vi.fn(),
+    countBadgeTemplateImageRevisions: vi.fn(),
     listBadgeTemplateImageRevisionCountsByTenant: vi.fn(),
     listBadgeTemplates: vi.fn(),
     listTenantApiKeys: vi.fn(),
+    listTenantAssertions: vi.fn(),
+    findAssertionById: vi.fn(),
+    recordAssertionLifecycleTransition: vi.fn(),
+    createTenantApiKey: vi.fn(),
+    revokeTenantApiKey: vi.fn(),
+    upsertTenantLmsConnection: vi.fn(),
     listTenantOrgUnits: vi.fn(),
     markLearnerRecordImportPreviewQueued: mockedMarkLearnerRecordImportPreviewQueued,
   };
@@ -137,7 +152,13 @@ vi.mock("./auth/better-auth-adapter", async () => {
 
 import {
   createLearnerRecordImportPreview,
+  countBadgeTemplateImageRevisions,
+  createAuditLog,
+  createBadgeTemplateImageRevision,
   findBadgeTemplateById,
+  findBadgeTemplateImageRevisionById,
+  setBadgeTemplateArchivedState,
+  updateBadgeTemplate,
   findActiveLearnerRecordImportPreview,
   findLearnerProfileById,
   findLearnerProfileByIdentity,
@@ -146,12 +167,21 @@ import {
   findUserById,
   getTenantReportingEngagementCounts,
   listDelegatedIssuingAuthorityGrants,
+  listAuditLogs,
   listBadgeIssuanceRules,
   listBadgeIssuanceRuleVersions,
+  listBadgeTemplateImageRevisions,
   listBadgeTemplateImageRevisionCountsByTenant,
+  listBadgeTemplateOwnershipEvents,
   listBadgeTemplates,
   listImportLearnerRecordBatchQueueMessages,
   listTenantApiKeys,
+  listTenantAssertions,
+  findAssertionById,
+  recordAssertionLifecycleTransition,
+  createTenantApiKey,
+  revokeTenantApiKey,
+  upsertTenantLmsConnection,
   listTenantLmsConnections,
   listTenantMembers,
   listTenantMembershipOrgUnitScopes,
@@ -172,7 +202,14 @@ import {
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
+export const mockedCountBadgeTemplateImageRevisions = vi.mocked(countBadgeTemplateImageRevisions);
 export const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
+export const mockedFindBadgeTemplateImageRevisionById = vi.mocked(findBadgeTemplateImageRevisionById);
+export const mockedSetBadgeTemplateArchivedState = vi.mocked(setBadgeTemplateArchivedState);
+export const mockedUpdateBadgeTemplate = vi.mocked(updateBadgeTemplate);
+export const mockedListAuditLogs = vi.mocked(listAuditLogs);
+export const mockedListBadgeTemplateImageRevisions = vi.mocked(listBadgeTemplateImageRevisions);
+export const mockedListBadgeTemplateOwnershipEvents = vi.mocked(listBadgeTemplateOwnershipEvents);
 export const mockedCreateLearnerRecordImportPreviewDb = vi.mocked(createLearnerRecordImportPreview);
 export const mockedFindActiveLearnerRecordImportPreviewDb = vi.mocked(
   findActiveLearnerRecordImportPreview,
@@ -196,6 +233,14 @@ export const mockedListImportLearnerRecordBatchQueueMessagesDb = vi.mocked(
 );
 export const mockedListTenantOrgUnits = vi.mocked(listTenantOrgUnits);
 export const mockedListTenantApiKeys = vi.mocked(listTenantApiKeys);
+export const mockedListTenantAssertions = vi.mocked(listTenantAssertions);
+export const mockedFindAssertionById = vi.mocked(findAssertionById);
+export const mockedRecordAssertionLifecycleTransition = vi.mocked(
+  recordAssertionLifecycleTransition,
+);
+export const mockedCreateTenantApiKey = vi.mocked(createTenantApiKey);
+export const mockedRevokeTenantApiKey = vi.mocked(revokeTenantApiKey);
+export const mockedUpsertTenantLmsConnection = vi.mocked(upsertTenantLmsConnection);
 export const mockedListTenantLmsConnectionsDb = vi.mocked(listTenantLmsConnections);
 export const mockedListTenantMembersDb = vi.mocked(listTenantMembers);
 export const mockedListTenantMembershipOrgUnitScopes = vi.mocked(listTenantMembershipOrgUnitScopes);
@@ -223,12 +268,14 @@ export const createEnv = (): {
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  BETTER_AUTH_SECRET: string;
 } => {
   return {
     APP_ENV: "test",
     DATABASE_URL: "postgres://credtrail-test.local/db",
     BADGE_OBJECTS: {} as R2Bucket,
     PLATFORM_DOMAIN: "credtrail.test",
+    BETTER_AUTH_SECRET: "test-better-auth-secret",
   };
 };
 
@@ -514,6 +561,47 @@ beforeEach(() => {
   });
   mockedFindBadgeTemplateById.mockReset();
   mockedFindBadgeTemplateById.mockResolvedValue(null);
+  mockedFindBadgeTemplateImageRevisionById.mockReset();
+  mockedFindBadgeTemplateImageRevisionById.mockResolvedValue(null);
+  mockedSetBadgeTemplateArchivedState.mockReset();
+  mockedSetBadgeTemplateArchivedState.mockResolvedValue(null);
+  mockedUpdateBadgeTemplate.mockReset();
+  mockedUpdateBadgeTemplate.mockResolvedValue(null);
+  mockedListAuditLogs.mockReset();
+  mockedListAuditLogs.mockResolvedValue([]);
+  mockedListBadgeTemplateOwnershipEvents.mockReset();
+  mockedListBadgeTemplateOwnershipEvents.mockResolvedValue([]);
+  mockedListBadgeTemplateImageRevisions.mockReset();
+  mockedListBadgeTemplateImageRevisions.mockResolvedValue([]);
+  mockedCountBadgeTemplateImageRevisions.mockReset();
+  mockedCountBadgeTemplateImageRevisions.mockResolvedValue(0);
+  vi.mocked(createAuditLog).mockReset();
+  vi.mocked(createAuditLog).mockResolvedValue({
+    id: "aud_test",
+    tenantId: "tenant_123",
+    actorUserId: "usr_admin",
+    action: "badge_template.image_restored",
+    targetType: "badge_template",
+    targetId: "badge_template_001",
+    metadataJson: null,
+    occurredAt: "2026-02-18T12:00:00.000Z",
+    createdAt: "2026-02-18T12:00:00.000Z",
+  });
+  vi.mocked(createBadgeTemplateImageRevision).mockReset();
+  vi.mocked(createBadgeTemplateImageRevision).mockResolvedValue({
+    id: "btir_test",
+    tenantId: "tenant_123",
+    badgeTemplateId: "badge_template_001",
+    previousImageUri: "https://example.edu/new.png",
+    newImageUri: "https://example.edu/old.png",
+    sourceType: "restore",
+    promptText: null,
+    provider: null,
+    model: null,
+    metadataJson: null,
+    createdByUserId: "usr_admin",
+    createdAt: "2026-02-18T12:00:00.000Z",
+  });
   mockedFindTenantAuthPolicy.mockReset();
   mockedFindTenantAuthPolicy.mockResolvedValue({
     tenantId: "tenant_123",
@@ -604,6 +692,43 @@ beforeEach(() => {
       updatedAt: "2026-02-18T12:30:00.000Z",
     },
   ]);
+  mockedListTenantAssertions.mockReset();
+  mockedListTenantAssertions.mockResolvedValue([]);
+  mockedFindAssertionById.mockReset();
+  mockedFindAssertionById.mockResolvedValue(null);
+  mockedRecordAssertionLifecycleTransition.mockReset();
+  mockedRecordAssertionLifecycleTransition.mockResolvedValue({
+    status: "transitioned",
+    fromState: "active",
+    toState: "revoked",
+    currentState: "revoked",
+    event: null,
+    message: null,
+  });
+  mockedUpsertTenantLmsConnection.mockReset();
+  mockedUpsertTenantLmsConnection.mockResolvedValue(
+    sampleTenantLmsConnection({
+      id: "lms_new",
+      displayName: "New LMS",
+    }),
+  );
+  mockedCreateTenantApiKey.mockReset();
+  mockedCreateTenantApiKey.mockResolvedValue({
+    id: "tak_new",
+    tenantId: "tenant_123",
+    label: "Integration key",
+    keyPrefix: "ctak_newkey",
+    keyHash: "hash_new",
+    scopesJson: '["queue.issue","queue.revoke"]',
+    createdByUserId: "usr_admin",
+    expiresAt: null,
+    lastUsedAt: null,
+    revokedAt: null,
+    createdAt: "2026-02-18T12:00:00.000Z",
+    updatedAt: "2026-02-18T12:00:00.000Z",
+  });
+  mockedRevokeTenantApiKey.mockReset();
+  mockedRevokeTenantApiKey.mockResolvedValue(true);
   mockedListTenantApiKeys.mockReset();
   mockedListTenantApiKeys.mockResolvedValue([
     {

@@ -213,13 +213,132 @@ describe("GET /tenants/:tenantId/admin/access/api-keys", () => {
     expect(body).not.toContain(pageAssetPath("institutionAdminJs"));
     expect(body).toContain(pageAssetPath("institutionAdminApiKeysJs"));
     expect(INSTITUTION_ADMIN_JS).not.toContain("insertApiKeyRow");
-    expect(INSTITUTION_ADMIN_API_KEYS_JS).toContain("insertApiKeyRowHtml");
-    expect(INSTITUTION_ADMIN_API_KEYS_JS).toContain("Store the secret before closing this form");
+    expect(INSTITUTION_ADMIN_API_KEYS_JS).not.toContain("insertApiKeyRowHtml");
+    expect(INSTITUTION_ADMIN_API_KEYS_JS).toContain("data-api-key-revoke-form");
+    expect(body).toContain('method="post"');
+    expect(body).toContain("/tenants/tenant_123/admin/access/api-keys");
+    expect(body).toContain('data-api-key-revoke-form="true"');
     expect(body).toContain(
       'class="ct-admin__panel ct-admin__panel--table ct-admin__api-keys-table ct-stack"',
     );
     expect(body).not.toContain('id="org-unit-form"');
     expect(body).not.toContain('id="membership-scope-form"');
+  });
+
+  it("creates an API key through the admin form and reveals the secret from a flash cookie", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/api-keys",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          label: "Integration key",
+          scopes: "queue.issue, queue.revoke",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    const location = response.headers.get("location") ?? "";
+    expect(location).toContain("/tenants/tenant_123/admin/access/api-keys");
+    expect(location).not.toContain("apiKeySecret=");
+    expect(location).toContain("listNotice=");
+
+    const flashCookie = response.headers.get("set-cookie") ?? "";
+    expect(flashCookie).toContain("ct_admin_flash_api_key_secret_tenant_123");
+
+    const pageResponse = await app.request(location, {
+      headers: {
+        Cookie: `better-auth.session_token=session-token; ${flashCookie.split(";")[0]}`,
+      },
+      redirect: "manual",
+    }, env);
+    const body = await pageResponse.text();
+
+    expect(pageResponse.status).toBe(200);
+    expect(body).toContain('id="api-key-secret"');
+    expect(body).toContain("Store this now");
+    expect(body).toContain("ctak_");
+  });
+
+  it("saves an LMS connection through the admin form and redirects with notice", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/lms-connections",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          displayName: "Sakai QA",
+          providerKind: "sakai",
+          apiBaseUrl: "https://sakai.example.edu",
+          accessToken: "sakai-token",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    const location = response.headers.get("location") ?? "";
+    expect(location).toContain("/tenants/tenant_123/admin/access/lms-connections");
+    expect(location).toContain("listNotice=");
+  });
+
+  it("revokes an API key through the admin form and redirects with notice", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/api-keys/tak_123/revoke",
+      {
+        method: "POST",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    const location = response.headers.get("location") ?? "";
+    expect(location).toContain("/tenants/tenant_123/admin/access/api-keys");
+    expect(location).toContain("listNotice=");
+  });
+});
+
+describe("GET /tenants/:tenantId/admin/access/lms-connections", () => {
+  it("renders LMS connections with server forms instead of client row patching", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/lms-connections",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("LMS Connections");
+    expect(body).toContain('id="lms-connection-form"');
+    expect(body).toContain('method="post"');
+    expect(body).toContain("/tenants/tenant_123/admin/access/lms-connections");
+    expect(body).not.toContain("institution-admin-lms-connections.js");
+    expect(body).toContain('href="/tenants/tenant_123/admin/access/lms-connections?edit=');
   });
 });
 

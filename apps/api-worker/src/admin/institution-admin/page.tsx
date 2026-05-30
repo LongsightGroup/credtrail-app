@@ -10,6 +10,7 @@ import type { PageAssetKey } from "../../ui/page-assets";
 import { formatIsoTimestamp } from "../../utils/display-format";
 import {
   AdminButton,
+  AdminButtonLink,
   AdminActions,
   AdminEmptyTableRow,
   AdminMeta,
@@ -22,6 +23,7 @@ import {
   type AdminSidebarFooterLink,
   type AdminSidebarSection,
 } from "../components";
+import { lmsConnectionsPageUrl } from "../lms-connection-admin-helpers";
 import { TenantApiKeyAdminTableRow } from "../api-key-table-row-fragment";
 import { serializeJsonScriptContent } from "../institution-admin-shell";
 import { renderInstitutionAdminAccessSections } from "./access-sections";
@@ -232,22 +234,13 @@ const renderInstitutionAdminPage = (
               )}
             </td>
             <td>
-              <AdminButton
-                type="button"
+              <AdminButtonLink
+                href={lmsConnectionsPageUrl(input.tenant.id, { edit: connection.id })}
                 size="tiny"
                 variant="secondary"
-                dataAttributes={{
-                  "data-lms-connection-edit": connection.id,
-                  "data-lms-connection-name": connection.displayName,
-                  "data-lms-connection-provider": connection.providerKind,
-                  "data-lms-connection-api-base-url": connection.apiBaseUrl,
-                  "data-lms-connection-lti-issuer": connection.ltiIssuer ?? "",
-                  "data-lms-connection-lti-client-id": connection.ltiClientId ?? "",
-                  "data-lms-connection-lti-deployment-id": connection.ltiDeploymentId ?? "",
-                }}
               >
                 Edit
-              </AdminButton>
+              </AdminButtonLink>
             </td>
           </tr>
         );
@@ -574,7 +567,6 @@ const renderInstitutionAdminPage = (
   const badgeRulePreviewSimulationApiPath = `${badgeRuleApiPath}/preview-simulate`;
   const badgeRuleReviewQueueApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules/review-queue`;
   const assertionsApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions`;
-  const issuedBadgeRowsPath = `${assertionsApiPathPrefix}/table-rows`;
   const tenantUsersApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/users`;
   const adminAuditLogPath = `/admin/audit-logs?tenantId=${encodeURIComponent(input.tenant.id)}`;
   const showcasePath = `/showcase/${encodeURIComponent(input.tenant.id)}`;
@@ -602,9 +594,38 @@ const renderInstitutionAdminPage = (
       </option>
     );
   });
-  const templateFilterOptions = input.badgeTemplates.map((template) => {
-    return <option value={template.id}>{template.title}</option>;
-  });
+  const selectedBadgeTemplateFilterId =
+    input.issuedBadgesWorkspace?.filters.badgeTemplateId ?? "";
+  const templateFilterOptions = (
+    <>
+      <option value="" selected={selectedBadgeTemplateFilterId.length === 0}>
+        All templates
+      </option>
+      {input.badgeTemplates.map((template) => (
+        <option value={template.id} selected={template.id === selectedBadgeTemplateFilterId}>
+          {template.title}
+        </option>
+      ))}
+    </>
+  );
+  const lmsEditConnectionId = input.lmsConnectionsWorkspace?.editConnectionId ?? null;
+  const lmsEditConnection =
+    lmsEditConnectionId === null
+      ? null
+      : (input.lmsConnections.find((connection) => connection.id === lmsEditConnectionId) ??
+        null);
+  const lmsConnectionFormValues =
+    lmsEditConnection === null
+      ? undefined
+      : {
+          connectionId: lmsEditConnection.id,
+          displayName: lmsEditConnection.displayName,
+          providerKind: lmsEditConnection.providerKind,
+          apiBaseUrl: lmsEditConnection.apiBaseUrl,
+          ltiIssuer: lmsEditConnection.ltiIssuer ?? "",
+          ltiClientId: lmsEditConnection.ltiClientId ?? "",
+          ltiDeploymentId: lmsEditConnection.ltiDeploymentId ?? "",
+        };
   const formatRuleOption = (
     rule: BadgeIssuanceRuleRecord,
     includeSelected: boolean,
@@ -683,7 +704,6 @@ const renderInstitutionAdminPage = (
     badgeRulePreviewSimulationApiPath,
     badgeRuleReviewQueueApiPath,
     assertionsApiPathPrefix,
-    issuedBadgeRowsPath,
     tenantMembersApiPath: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/members`,
     tenantUsersApiPathPrefix,
     reportingComparisonsApiPath: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/comparisons`,
@@ -910,6 +930,9 @@ const renderInstitutionAdminPage = (
     ruleSelectOptions,
     templateFilterOptions,
     activeOrgUnitOptions,
+    ...(input.issuedBadgesWorkspace === undefined
+      ? {}
+      : { issuedBadgesWorkspace: input.issuedBadgesWorkspace }),
   });
 
   const tenantMemberRoleSelectOptions = assignableTenantRoles.map((role) => (
@@ -934,6 +957,7 @@ const renderInstitutionAdminPage = (
     accessApiKeysPath,
     accessOrgUnitsPath,
     accessLmsConnectionsPath,
+    tenantId: input.tenant.id,
     tenantMemberCount,
     scopedRoleCount,
     delegatedAuthorityGrantCount,
@@ -950,6 +974,13 @@ const renderInstitutionAdminPage = (
     membershipScopeRows,
     delegatedGrantRows,
     lmsConnectionRows,
+    ...(input.apiKeysWorkspace === undefined ? {} : { apiKeysWorkspace: input.apiKeysWorkspace }),
+    ...(input.lmsConnectionsWorkspace === undefined
+      ? {}
+      : { lmsConnectionsWorkspace: input.lmsConnectionsWorkspace }),
+    ...(lmsConnectionFormValues === undefined
+      ? {}
+      : { lmsConnectionFormValues }),
   });
 
   const {

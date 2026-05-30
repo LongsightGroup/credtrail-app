@@ -1,8 +1,9 @@
 /** Server-rendered API key table row fragment for the admin UI. */
 import type { TenantApiKeyRecord } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
+import { tenantApiKeyAdminRevokePath } from "./api-key-admin-helpers";
 import { formatIsoTimestamp } from "../utils/display-format";
-import { AdminButton } from "./components";
+import { AdminButton, AdminForm } from "./components";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -24,12 +25,6 @@ export const formatTenantApiKeyScopesSummary = (scopesJson: string): string => {
   }
 };
 
-export const tenantApiKeyRevokePath = (tenantId: string, apiKeyId: string): string => {
-  return `/v1/tenants/${encodeURIComponent(tenantId)}/api-keys/${encodeURIComponent(
-    apiKeyId,
-  )}/revoke`;
-};
-
 export const TenantApiKeyAdminTableRow = ({
   tenantId,
   apiKey,
@@ -44,26 +39,21 @@ export const TenantApiKeyAdminTableRow = ({
       <td>{formatTenantApiKeyScopesSummary(apiKey.scopesJson)}</td>
       <td>{apiKey.expiresAt === null ? "Never" : formatIsoTimestamp(apiKey.expiresAt)}</td>
       <td>
-        <AdminButton
-          type="button"
-          variant="danger"
+        <AdminForm
+          method="post"
+          action={tenantApiKeyAdminRevokePath(tenantId, apiKey.id)}
+          className="ct-admin__inline-form"
           dataAttributes={{
-            "data-revoke-api-key-path": tenantApiKeyRevokePath(tenantId, apiKey.id),
+            "data-api-key-revoke-form": "true",
             "data-api-key-label": apiKey.label,
           }}
         >
-          Revoke
-        </AdminButton>
+          <AdminButton type="submit" variant="danger">
+            Revoke
+          </AdminButton>
+        </AdminForm>
       </td>
     </tr>
   );
 };
 
-export const renderTenantApiKeyAdminTableRowToString = (input: {
-  tenantId: string;
-  apiKey: TenantApiKeyRecord;
-}): string => {
-  const renderable = (<TenantApiKeyAdminTableRow {...input} />) as { toString(): string };
-
-  return renderable.toString();
-};

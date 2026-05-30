@@ -15,7 +15,6 @@ import {
   parseTenantPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import { renderTenantApiKeyAdminTableRowToString } from "../admin/api-key-table-row-fragment";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 
 interface RegisterTenantApiKeyRoutesInput {
@@ -143,10 +142,6 @@ export const registerTenantApiKeyRoutes = (input: RegisterTenantApiKeyRoutesInpu
           revokedAt: keyRecord.revokedAt,
           createdAt: keyRecord.createdAt,
         },
-        rowHtml: renderTenantApiKeyAdminTableRowToString({
-          tenantId: pathParams.tenantId,
-          apiKey: keyRecord,
-        }),
       },
       201,
     );

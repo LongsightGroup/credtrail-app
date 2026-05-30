@@ -724,6 +724,9 @@ registerTenantGovernanceRoutes({
   generateOpaqueToken,
   sha256Hex,
   requireTenantRole,
+  requireScopedOrgUnitPermission,
+  requireDelegatedIssuingAuthorityPermission,
+  assertionBelongsToTenant,
   ADMIN_ROLES,
   ISSUER_ROLES,
 });

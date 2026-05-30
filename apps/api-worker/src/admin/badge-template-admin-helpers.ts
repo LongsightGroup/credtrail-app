@@ -64,17 +64,24 @@ export const badgeTemplateHistoryHref = (
   return `${rulesTemplatesPath}?${query.toString()}`;
 };
 
-export const badgeTemplateAdminTableRowPath = (
+export const badgeTemplateListPageUrl = (
   rulesTemplatesPath: string,
-  badgeTemplateId: string,
   listPageOptions: BadgeTemplateListPageQueryOptions,
+  extra?: Record<string, string>,
 ): string => {
   const query = buildBadgeTemplateListPageQuery(listPageOptions);
+
+  if (extra !== undefined) {
+    for (const [key, value] of Object.entries(extra)) {
+      if (value.length > 0) {
+        query.set(key, value);
+      }
+    }
+  }
+
   const queryString = query.toString();
 
-  return `${rulesTemplatesPath}/${encodeURIComponent(badgeTemplateId)}/table-row${
-    queryString.length > 0 ? `?${queryString}` : ""
-  }`;
+  return queryString.length > 0 ? `${rulesTemplatesPath}?${queryString}` : rulesTemplatesPath;
 };
 
 export const parseBadgeTemplateListPageQuery = (query: {

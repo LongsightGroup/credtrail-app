@@ -3,10 +3,14 @@ import type { BadgeTemplateRecord } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { formatIsoTimestamp } from "../utils/display-format";
 import {
+  buildBadgeTemplateListPageQuery,
+  type BadgeTemplateListPageQueryOptions,
+} from "./badge-template-admin-helpers";
+import {
   AdminActionMenu,
-  AdminActionMenuButton,
   AdminActionMenuLink,
   AdminButtonLink,
+  AdminForm,
   AdminStatusPill,
 } from "./components";
 
@@ -38,12 +42,20 @@ export const BadgeTemplateAdminTableRow = ({
   template,
   imageRevisionCount = 0,
   historyHref,
+  rulesTemplatesPath,
+  listPageQuery,
 }: {
   tenantId: string;
   template: BadgeTemplateRecord;
   imageRevisionCount?: number;
   historyHref: string;
+  rulesTemplatesPath: string;
+  listPageQuery: BadgeTemplateListPageQueryOptions;
 }): HonoElement => {
+  const listQueryString = buildBadgeTemplateListPageQuery(listPageQuery).toString();
+  const listQuerySuffix = listQueryString.length > 0 ? `?${listQueryString}` : "";
+  const archiveAction = `${rulesTemplatesPath}/${encodeURIComponent(template.id)}/archive${listQuerySuffix}`;
+  const unarchiveAction = `${rulesTemplatesPath}/${encodeURIComponent(template.id)}/unarchive${listQuerySuffix}`;
   return (
     <tr
       data-template-row-id={template.id}
@@ -118,24 +130,20 @@ export const BadgeTemplateAdminTableRow = ({
               View history
             </AdminActionMenuLink>
             {template.isArchived ? (
-              <AdminActionMenuButton
-                dataAttributes={{
-                  "data-template-archive-template-id": template.id,
-                  "data-template-archive-action": "unarchive",
-                }}
-              >
-                Restore
-              </AdminActionMenuButton>
+              <AdminForm method="post" action={unarchiveAction} className="ct-admin__action-menu-form">
+                <button type="submit" class="ct-admin__action-menu-item">
+                  Restore
+                </button>
+              </AdminForm>
             ) : (
-              <AdminActionMenuButton
-                tone="danger"
-                dataAttributes={{
-                  "data-template-archive-template-id": template.id,
-                  "data-template-archive-action": "archive",
-                }}
-              >
-                Archive
-              </AdminActionMenuButton>
+              <AdminForm method="post" action={archiveAction} className="ct-admin__action-menu-form">
+                <button
+                  type="submit"
+                  class="ct-admin__action-menu-item ct-admin__action-menu-item--danger"
+                >
+                  Archive
+                </button>
+              </AdminForm>
             )}
           </AdminActionMenu>
         </div>
@@ -144,13 +152,3 @@ export const BadgeTemplateAdminTableRow = ({
   );
 };
 
-export const renderBadgeTemplateAdminTableRowToString = (input: {
-  tenantId: string;
-  template: BadgeTemplateRecord;
-  imageRevisionCount?: number;
-  historyHref: string;
-}): string => {
-  const renderable = (<BadgeTemplateAdminTableRow {...input} />) as { toString(): string };
-
-  return renderable.toString();
-};

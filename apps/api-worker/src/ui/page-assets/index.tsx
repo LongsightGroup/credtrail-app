@@ -19,7 +19,6 @@ import { INSTITUTION_ADMIN_CSS } from "./content/institution-admin-css";
 import { INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS } from "./content/institution-admin-template-editor-css";
 import { INSTITUTION_ADMIN_ISSUED_BADGES_JS } from "./content/institution-admin-issued-badges-js";
 import { INSTITUTION_ADMIN_JS } from "./content/institution-admin-js";
-import { INSTITUTION_ADMIN_LMS_CONNECTIONS_JS } from "./content/institution-admin-lms-connections-js";
 import { INSTITUTION_ADMIN_ORG_UNITS_JS } from "./content/institution-admin-org-units-js";
 import { INSTITUTION_ADMIN_RULE_BUILDER_JS } from "./content/institution-admin-rule-builder-js";
 import { INSTITUTION_ADMIN_SHELL_JS } from "./content/institution-admin-shell-js";
@@ -125,12 +124,6 @@ const PAGE_ASSET_SOURCES = {
     kind: "script",
     stem: "institution-admin-org-units",
     body: INSTITUTION_ADMIN_ORG_UNITS_JS,
-    contentType: "text/javascript; charset=utf-8",
-  },
-  institutionAdminLmsConnectionsJs: {
-    kind: "script",
-    stem: "institution-admin-lms-connections",
-    body: INSTITUTION_ADMIN_LMS_CONNECTIONS_JS,
     contentType: "text/javascript; charset=utf-8",
   },
   institutionAdminRuleBuilderJs: {

@@ -103,13 +103,6 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_EDIT_JS = `
         }
 
         setStatus(badgeTemplateEditStatus, 'Template saved.', false, 'success');
-
-        if (
-          activeBadgeTemplateHistoryId.length > 0 &&
-          activeBadgeTemplateHistoryId === badgeTemplateId
-        ) {
-          void refreshBadgeTemplateHistoryIfOpen(badgeTemplateId);
-        }
       } catch {
         setStatus(
           badgeTemplateEditStatus,

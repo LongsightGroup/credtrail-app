@@ -1,36 +1,80 @@
+import type { BadgeTemplateImageRevisionRecord } from "@credtrail/db";
 import { describe, expect, it } from "vitest";
 import type { BadgeTemplateHistoryTimelineEntry } from "../badges/badge-template-history";
-import { renderBadgeTemplateHistoryTimelineToString } from "./badge-template-history-fragment";
+import {
+  BadgeTemplateHistoryTimeline,
+  BadgeTemplateImageRevisionList,
+} from "./badge-template-history-fragment";
 
-const sampleTimelineEntry = (
-  overrides?: Partial<BadgeTemplateHistoryTimelineEntry>,
-): BadgeTemplateHistoryTimelineEntry => {
+const sampleTimelineEntry = (): BadgeTemplateHistoryTimelineEntry => {
   return {
-    id: "aud_123",
+    id: "audit_123",
     kind: "audit",
-    occurredAt: "2026-02-18T12:00:00.000Z",
-    actorUserId: "usr_admin",
-    actorLabel: "admin@example.edu",
     summary: "Updated template",
     detail: "Title: Old → New",
-    ...overrides,
+    occurredAt: "2026-01-01T00:00:00.000Z",
+    actorUserId: "usr_admin",
+    actorLabel: "admin@example.edu",
   };
 };
 
-describe("renderBadgeTemplateHistoryTimelineToString", () => {
-  it("renders timeline entries as admin history markup", () => {
-    const html = renderBadgeTemplateHistoryTimelineToString([sampleTimelineEntry()]);
+const sampleRevision = (): BadgeTemplateImageRevisionRecord => {
+  return {
+    id: "btir_123",
+    tenantId: "tenant_123",
+    badgeTemplateId: "badge_template_001",
+    previousImageUri: "https://example.edu/old.png",
+    newImageUri: "https://example.edu/new.png",
+    sourceType: "upload",
+    promptText: null,
+    provider: null,
+    model: null,
+    metadataJson: null,
+    createdByUserId: "usr_admin",
+    createdAt: "2026-01-02T00:00:00.000Z",
+  };
+};
+
+describe("BadgeTemplateHistoryTimeline", () => {
+  it("renders audit items", () => {
+    const html = (
+      BadgeTemplateHistoryTimeline({ timeline: [sampleTimelineEntry()] }) as {
+        toString(): string;
+      }
+    ).toString();
 
     expect(html).toContain("ct-admin__history-audit-item");
     expect(html).toContain("Updated template");
-    expect(html).toContain("admin@example.edu");
-    expect(html).toContain("Title: Old → New");
   });
 
   it("renders an empty-state message when there is no history", () => {
-    const html = renderBadgeTemplateHistoryTimelineToString([]);
+    const html = (
+      BadgeTemplateHistoryTimeline({ timeline: [] }) as { toString(): string }
+    ).toString();
 
     expect(html).toContain("ct-admin__empty");
     expect(html).toContain("No edit history is recorded for this badge template yet.");
+  });
+});
+
+describe("BadgeTemplateImageRevisionList", () => {
+  it("renders restore forms with list query context on the action URL", () => {
+    const html = (
+      BadgeTemplateImageRevisionList({
+        revisions: [sampleRevision()],
+        restorePathPrefix:
+          "/tenants/tenant_123/admin/rules/templates/badge_template_001/image-revisions",
+        listPageQuery: {
+          searchQuery: "legacy",
+          includeArchived: true,
+          returnToRuleBuilder: false,
+        },
+      }) as { toString(): string }
+    ).toString();
+
+    expect(html).toContain('method="post"');
+    expect(html).toContain("/restore?q=legacy&amp;includeArchived=1");
+    expect(html).toContain("Restore");
+    expect(html).toContain("Uploaded");
   });
 });

@@ -458,6 +458,8 @@ const TableActionPreview = (): HonoElement => {
         assertionId="sakai:1df79bc6-6a08-42a2"
         viewBadgeHref="#actions"
         rawJsonHref="#actions"
+        auditLifecycleHref="#actions"
+        revokeLifecycleHref="#actions"
         canRevoke={true}
       />
     </div>

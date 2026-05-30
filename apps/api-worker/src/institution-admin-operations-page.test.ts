@@ -6,11 +6,16 @@ import {
   mockedCreateLearnerRecordImportPreviewDb,
   mockedEnqueueJobQueueMessageOnce,
   mockedFindActiveLearnerRecordImportPreviewDb,
+  mockedFindAssertionById,
+  mockedFindBadgeTemplateById,
   mockedFindLearnerProfileByIdDb,
   mockedFindLearnerProfileByIdentityDb,
   mockedListLearnerRecordAssertionExportsDb,
   mockedListLearnerRecordEntriesDb,
+  mockedListTenantAssertions,
   mockedMarkLearnerRecordImportPreviewQueuedDb,
+  mockedRecordAssertionLifecycleTransition,
+  sampleLearnerRecordAssertionExport,
 } from "./institution-admin-page-test-utils";
 import { app } from "./index";
 import { getSeededDemoLearnerRecordFixture } from "./learner-record/seeded-demo-learner-record-fixture";
@@ -653,14 +658,17 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     );
     const body = await response.text();
 
+    expect(mockedListTenantAssertions).not.toHaveBeenCalled();
     expect(response.status).toBe(200);
     expect(body).toContain("Issued Badges");
     expect(body).toContain('id="issued-badges-filter-form"');
     expect(body).toContain('id="issued-badge-lifecycle-panel"');
     expect(body).toContain('id="issued-badge-revoke-form"');
-    expect(body).toContain(
-      "&quot;issuedBadgeRowsPath&quot;:&quot;/v1/tenants/tenant_123/assertions/table-rows&quot;",
-    );
+    expect(body).not.toContain("issuedBadgeRowsPath");
+    expect(body).toContain('method="get"');
+    expect(body).toContain("/tenants/tenant_123/admin/operations/issued-badges");
+    expect(body).toContain('method="post"');
+    expect(body).toContain("/tenants/tenant_123/admin/operations/issued-badges/revoke");
     expect(body).not.toContain('id="manual-issue-form"');
     expect(body).not.toContain('id="rule-review-queue-refresh"');
     expect(body).not.toContain('id="assertion-lifecycle-view-form"');
@@ -668,9 +676,139 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     expect(body).not.toContain(pageAssetPath("institutionAdminJs"));
     expect(body).toContain(pageAssetPath("institutionAdminIssuedBadgesJs"));
     expect(INSTITUTION_ADMIN_JS).not.toContain("openIssuedBadgeLifecyclePanel");
-    expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).toContain("openIssuedBadgeLifecyclePanel");
-    expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).toContain("Review revocation for");
-    expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).not.toContain("Optional revocation reason");
+    expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).not.toContain("loadIssuedBadges");
+    expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).not.toContain("innerHTML");
+    expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).toContain("loadAssertionLifecycle");
+  });
+
+  it("loads issued badges only after search filters are submitted", async () => {
+    const env = createEnv();
+
+    await app.request(
+      "/tenants/tenant_123/admin/operations/issued-badges?recipientQuery=learner@example.edu",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    expect(mockedListTenantAssertions).toHaveBeenCalledTimes(1);
+  });
+
+  it("redirects with a list error when issued badge filters are invalid", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/issued-badges?state=not-a-state",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    const location = response.headers.get("location") ?? "";
+    expect(location).toContain("listError=");
+    expect(mockedListTenantAssertions).not.toHaveBeenCalled();
+  });
+
+  it("shows the revoke form only for revoke lifecycle deep links", async () => {
+    const env = createEnv();
+
+    const auditResponse = await app.request(
+      "/tenants/tenant_123/admin/operations/issued-badges?lifecycle=tenant_123%3Aassertion_456&lifecycleMode=audit",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const auditBody = await auditResponse.text();
+
+    const revokeResponse = await app.request(
+      "/tenants/tenant_123/admin/operations/issued-badges?lifecycle=tenant_123%3Aassertion_456&lifecycleMode=revoke",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const revokeBody = await revokeResponse.text();
+
+    expect(auditResponse.status).toBe(200);
+    expect(revokeResponse.status).toBe(200);
+    expect(auditBody).toMatch(/id="issued-badge-revoke-form"[^>]*hidden/);
+    expect(revokeBody).toContain('id="issued-badge-revoke-form"');
+    expect(revokeBody).toContain('name="reasonCode"');
+    expect(revokeBody).not.toMatch(/id="issued-badge-revoke-form"[^>]*hidden/);
+  });
+
+  it("revokes an issued badge through the admin form and redirects with notice", async () => {
+    const env = createEnv();
+    const assertion = sampleLearnerRecordAssertionExport();
+
+    mockedFindAssertionById.mockResolvedValueOnce({
+      id: assertion.assertionId,
+      tenantId: assertion.tenantId,
+      publicId: assertion.assertionPublicId,
+      learnerProfileId: assertion.learnerProfileId,
+      badgeTemplateId: assertion.badgeTemplateId,
+      recipientIdentity: assertion.recipientIdentity,
+      recipientIdentityType: assertion.recipientIdentityType,
+      vcR2Key: assertion.vcR2Key,
+      statusListIndex: assertion.statusListIndex,
+      idempotencyKey: assertion.idempotencyKey,
+      issuedAt: assertion.issuedAt,
+      issuedByUserId: assertion.issuedByUserId,
+      revokedAt: assertion.revokedAt,
+      createdAt: assertion.createdAt,
+      updatedAt: assertion.updatedAt,
+    });
+    mockedFindBadgeTemplateById.mockResolvedValueOnce({
+      id: assertion.badgeTemplateId,
+      tenantId: assertion.tenantId,
+      slug: "applied-analytics",
+      title: assertion.badgeTitle,
+      description: assertion.badgeDescription,
+      criteriaUri: assertion.badgeCriteriaUri,
+      imageUri: assertion.badgeImageUri,
+      createdByUserId: "usr_admin",
+      ownerOrgUnitId: "tenant_123:org:institution",
+      governanceMetadataJson: null,
+      isArchived: false,
+      createdAt: assertion.createdAt,
+      updatedAt: assertion.updatedAt,
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/issued-badges/revoke",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          assertionId: assertion.assertionId,
+          reasonCode: "issuer_requested",
+          reason: "Issued in error",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    const location = response.headers.get("location") ?? "";
+    expect(location).toContain("listNotice=");
+    expect(mockedRecordAssertionLifecycleTransition).toHaveBeenCalled();
   });
 
   it("renders a separate admin ledger export form with audit filters", async () => {

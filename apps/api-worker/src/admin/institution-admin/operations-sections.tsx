@@ -10,7 +10,14 @@ import {
   AdminStatus,
   AdminStatusPill,
   AdminTable,
+  IssuedBadgeRows,
 } from "../components";
+import {
+  buildIssuedBadgesPagePath,
+  issuedBadgesAssertionPageUrl,
+  tenantIssuedBadgeAdminRevokePath,
+} from "../issued-badges-admin-helpers";
+import type { InstitutionAdminIssuedBadgesWorkspace } from "./page-types";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | readonly HonoElement[];
 
@@ -20,6 +27,7 @@ interface RenderInstitutionAdminOperationsSectionsInput {
   ruleSelectOptions: HonoElement;
   templateFilterOptions: HonoElement;
   activeOrgUnitOptions: HonoElement;
+  issuedBadgesWorkspace?: InstitutionAdminIssuedBadgesWorkspace;
 }
 
 interface InstitutionAdminOperationsSections {
@@ -220,12 +228,34 @@ export const renderInstitutionAdminOperationsSections = (
       </AdminTable>
     </AdminPanel>
   );
+  const issuedBadgesFilters = input.issuedBadgesWorkspace?.filters ?? {
+    recipientQuery: "",
+    badgeTemplateId: "",
+    state: "",
+    limit: 100,
+  };
+  const issuedBadgesPagePath = buildIssuedBadgesPagePath(input.tenantId);
+  const showIssuedBadgeLifecyclePanel =
+    input.issuedBadgesWorkspace?.lifecycleAssertionId !== null &&
+    input.issuedBadgesWorkspace?.lifecycleAssertionId !== undefined;
+  const showIssuedBadgeRevokeForm = input.issuedBadgesWorkspace?.lifecycleMode === "revoke";
   const issuedBadgesPanelMarkup = (
     <AdminPanel id="issued-badges-panel" variant="table">
       <h2>Issued Badges Ledger</h2>
       <p>Tenant-wide assertion log with direct audit and revocation actions.</p>
+      {input.issuedBadgesWorkspace?.listError !== null &&
+      input.issuedBadgesWorkspace?.listError !== undefined &&
+      input.issuedBadgesWorkspace.listError.length > 0 ? (
+        <AdminStatus data-tone="error">{input.issuedBadgesWorkspace.listError}</AdminStatus>
+      ) : input.issuedBadgesWorkspace?.listNotice !== null &&
+          input.issuedBadgesWorkspace?.listNotice !== undefined &&
+          input.issuedBadgesWorkspace.listNotice.length > 0 ? (
+        <AdminStatus data-tone="success">{input.issuedBadgesWorkspace.listNotice}</AdminStatus>
+      ) : null}
       <AdminForm
         id="issued-badges-filter-form"
+        method="get"
+        action={issuedBadgesPagePath}
         className="ct-admin__form ct-admin__form--inline ct-grid"
       >
         <AdminField label="Recipient / assertion search">
@@ -233,27 +263,42 @@ export const renderInstitutionAdminOperationsSections = (
             name="recipientQuery"
             type="text"
             placeholder="csev@umich.edu or tenant_123:assertion_456"
+            value={issuedBadgesFilters.recipientQuery}
           />
         </AdminField>
         <AdminField label="Badge template">
-          <select name="badgeTemplateId">
-            <option value="">All templates</option>
-            {input.templateFilterOptions}
-          </select>
+          <select name="badgeTemplateId">{input.templateFilterOptions}</select>
         </AdminField>
         <AdminField label="Lifecycle state">
           <select name="state">
-            <option value="">All states</option>
-            <option value="active">active</option>
-            <option value="suspended">suspended</option>
-            <option value="revoked">revoked</option>
-            <option value="expired">expired</option>
+            <option value="" selected={issuedBadgesFilters.state.length === 0}>
+              All states
+            </option>
+            <option value="active" selected={issuedBadgesFilters.state === "active"}>
+              active
+            </option>
+            <option value="suspended" selected={issuedBadgesFilters.state === "suspended"}>
+              suspended
+            </option>
+            <option value="revoked" selected={issuedBadgesFilters.state === "revoked"}>
+              revoked
+            </option>
+            <option value="expired" selected={issuedBadgesFilters.state === "expired"}>
+              expired
+            </option>
           </select>
         </AdminField>
         <AdminField label="Limit">
-          <input name="limit" type="number" min="1" max="500" step="1" value="100" />
+          <input
+            name="limit"
+            type="number"
+            min="1"
+            max="500"
+            step="1"
+            value={String(issuedBadgesFilters.limit)}
+          />
         </AdminField>
-        <AdminButton type="submit">Load issued badges</AdminButton>
+        <AdminButton type="submit">Search issued badges</AdminButton>
       </AdminForm>
       <AdminPanel as="section" variant="nested">
         <div class="ct-cluster">
@@ -317,14 +362,15 @@ export const renderInstitutionAdminOperationsSections = (
           remains the historical contract for audit use.
         </p>
       </AdminPanel>
-      <AdminStatus id="issued-badges-status">Load tenant assertions from the browser.</AdminStatus>
       <section
         id="issued-badge-lifecycle-panel"
         class="ct-admin__inline-action-panel ct-stack"
-        hidden
+        hidden={!showIssuedBadgeLifecyclePanel}
       >
         <div class="ct-cluster">
-          <h3 id="issued-badge-lifecycle-title">Selected badge lifecycle</h3>
+          <h3 id="issued-badge-lifecycle-title">
+            {showIssuedBadgeRevokeForm ? "Revoke selected badge" : "Selected badge lifecycle"}
+          </h3>
           <AdminButton
             id="issued-badge-lifecycle-close"
             type="button"
@@ -338,10 +384,28 @@ export const renderInstitutionAdminOperationsSections = (
         <pre id="issued-badge-lifecycle-output" class="ct-admin__code-output" hidden></pre>
         <AdminForm
           id="issued-badge-revoke-form"
+          method="post"
+          action={tenantIssuedBadgeAdminRevokePath(input.tenantId)}
           className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--issued-revoke ct-grid"
-          hidden
+          hidden={!showIssuedBadgeRevokeForm}
         >
-          <input name="assertionId" type="hidden" />
+          <input
+            name="assertionId"
+            type="hidden"
+            value={input.issuedBadgesWorkspace?.lifecycleAssertionId ?? ""}
+          />
+          <input
+            name="recipientQuery"
+            type="hidden"
+            value={issuedBadgesFilters.recipientQuery}
+          />
+          <input
+            name="badgeTemplateId"
+            type="hidden"
+            value={issuedBadgesFilters.badgeTemplateId}
+          />
+          <input name="state" type="hidden" value={issuedBadgesFilters.state} />
+          <input name="limit" type="hidden" value={String(issuedBadgesFilters.limit)} />
           <AdminField label="Reason code">
             <select name="reasonCode" required>
               <option value="issuer_requested">issuer requested</option>
@@ -363,11 +427,27 @@ export const renderInstitutionAdminOperationsSections = (
           </AdminButton>
         </AdminForm>
       </section>
-      <AdminTable
-        headers={["Issued", "Recipient", "Template", "State", "Assertion", "Actions"]}
-        tbodyId="issued-badges-body"
-      >
-        <AdminEmptyTableRow colSpan={6}>No assertions loaded yet.</AdminEmptyTableRow>
+      <AdminTable headers={["Issued", "Recipient", "Template", "State", "Assertion", "Actions"]}>
+        {input.issuedBadgesWorkspace === undefined ? (
+          <AdminEmptyTableRow colSpan={6}>
+            Use the search form above to load issued badges.
+          </AdminEmptyTableRow>
+        ) : (
+          <IssuedBadgeRows
+            assertions={input.issuedBadgesWorkspace.assertions}
+            auditLifecycleHrefForAssertion={(assertionId) =>
+              issuedBadgesAssertionPageUrl(input.tenantId, issuedBadgesFilters, assertionId, "audit")
+            }
+            revokeLifecycleHrefForAssertion={(assertionId) =>
+              issuedBadgesAssertionPageUrl(
+                input.tenantId,
+                issuedBadgesFilters,
+                assertionId,
+                "revoke",
+              )
+            }
+          />
+        )}
       </AdminTable>
       <AdminStatus id="issued-badges-action-status"></AdminStatus>
     </AdminPanel>

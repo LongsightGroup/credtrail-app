@@ -1,6 +1,5 @@
 import type { SqlDatabase, TenantMembershipRole } from "@credtrail/db";
 import {
-  findBadgeTemplateById,
   findTenantById,
   findUserById,
   listAccessibleTenantContextsForUser,
@@ -11,20 +10,12 @@ import {
 } from "@credtrail/db";
 import { parseBadgeTemplatePathParams, parseTenantPathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
-import { renderBadgeTemplateAdminTableRowToString } from "../admin/badge-template-table-row-fragment";
-import {
-  badgeTemplateHistoryHref,
-  parseBadgeTemplateListPageQuery,
-} from "../admin/badge-template-admin-helpers";
 import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
 import {
   institutionAdminAccessPage,
-  institutionAdminApiKeysPage,
   institutionAdminBadgeStatusPage,
   institutionAdminDashboardPage,
   institutionAdminGovernancePage,
-  institutionAdminIssuedBadgesPage,
-  institutionAdminLmsConnectionsPage,
   institutionAdminMembersPage,
   institutionAdminOperationsPage,
   institutionAdminOperationsReviewQueuePage,
@@ -36,7 +27,6 @@ import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import type { AppPage } from "../ui/render-page";
 import { renderAppPage } from "../ui/render-page";
-import { listOptionalBadgeTemplateImageRevisionCountsByTenant } from "./badge-template-image-revision-counts";
 
 type InstitutionAdminPageData = Parameters<typeof institutionAdminDashboardPage>[0];
 
@@ -61,6 +51,21 @@ interface RegisterTenantAdminPageRoutesInput {
     tenantId: string,
     nextPath: string,
     renderPage: (pageData: InstitutionAdminPageData) => AppPage,
+  ) => Promise<Response>;
+  renderInstitutionAdminApiKeysWorkspace: (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ) => Promise<Response>;
+  renderInstitutionAdminIssuedBadgesWorkspace: (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ) => Promise<Response>;
+  renderInstitutionAdminLmsConnectionsWorkspace: (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
   ) => Promise<Response>;
   renderInstitutionAdminTemplatesWorkspace: (
     c: AppContext,
@@ -95,10 +100,12 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     requireTenantRole,
     redirectToTenantLogin,
     renderInstitutionAdminWorkspace,
+    renderInstitutionAdminApiKeysWorkspace,
+    renderInstitutionAdminIssuedBadgesWorkspace,
+    renderInstitutionAdminLmsConnectionsWorkspace,
     renderInstitutionAdminTemplatesWorkspace,
     renderInstitutionAdminTemplateEditorWorkspace,
     resolveDatabase,
-    resolveInstitutionAdminAdminRole,
   } = input;
 
   app.get("/tenants/:tenantId/admin", async (c) => {
@@ -133,11 +140,10 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
 
   app.get("/tenants/:tenantId/admin/operations/issued-badges", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
+    return renderInstitutionAdminIssuedBadgesWorkspace(
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/issued-badges`,
-      institutionAdminIssuedBadgesPage,
     );
   });
 
@@ -182,47 +188,6 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     );
   });
 
-  app.get("/tenants/:tenantId/admin/rules/templates/:badgeTemplateId/table-row", async (c) => {
-    const pathParams = parseBadgeTemplatePathParams(c.req.param());
-    const rulesTemplatesPath = `/tenants/${encodeURIComponent(
-      pathParams.tenantId,
-    )}/admin/rules/templates`;
-    const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
-    const roleCheck = await resolveInstitutionAdminAdminRole(
-      c,
-      pathParams.tenantId,
-      rulesTemplatesPath,
-    );
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const db = resolveDatabase(c.env);
-    const [template, imageRevisionCounts] = await Promise.all([
-      findBadgeTemplateById(db, pathParams.tenantId, pathParams.badgeTemplateId),
-      listOptionalBadgeTemplateImageRevisionCountsByTenant(db, pathParams.tenantId),
-    ]);
-
-    if (template === null) {
-      return c.text("Badge template not found", 404);
-    }
-
-    c.header("Cache-Control", "no-store");
-    c.header("Content-Type", "text/html; charset=utf-8");
-
-    return c.body(
-      renderBadgeTemplateAdminTableRowToString({
-        tenantId: pathParams.tenantId,
-        template,
-        imageRevisionCount:
-          imageRevisionCounts.find((entry) => entry.badgeTemplateId === template.id)
-            ?.revisionCount ?? 0,
-        historyHref: badgeTemplateHistoryHref(rulesTemplatesPath, template.id, listPageQuery),
-      }),
-    );
-  });
-
   app.get("/tenants/:tenantId/admin/access", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
     return renderInstitutionAdminWorkspace(
@@ -255,21 +220,19 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
 
   app.get("/tenants/:tenantId/admin/access/api-keys", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
+    return renderInstitutionAdminApiKeysWorkspace(
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access/api-keys`,
-      institutionAdminApiKeysPage,
     );
   });
 
   app.get("/tenants/:tenantId/admin/access/lms-connections", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
+    return renderInstitutionAdminLmsConnectionsWorkspace(
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access/lms-connections`,
-      institutionAdminLmsConnectionsPage,
     );
   });
 

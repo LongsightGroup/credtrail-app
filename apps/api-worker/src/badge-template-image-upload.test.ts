@@ -31,6 +31,7 @@ vi.mock("@credtrail/db", async () => {
     findTenantMembership: vi.fn(),
     hasTenantMembershipOrgUnitAccess: vi.fn(),
     hasTenantMembershipOrgUnitScopeAssignments: vi.fn(),
+    listBadgeTemplateImageRevisionCountsByTenant: vi.fn(),
     listBadgeTemplateImageRevisions: vi.fn(),
     listBadgeTemplates: vi.fn(),
     touchSession: mockedTouchSession,
@@ -75,6 +76,7 @@ import {
   findTenantMembership,
   hasTenantMembershipOrgUnitAccess,
   hasTenantMembershipOrgUnitScopeAssignments,
+  listBadgeTemplateImageRevisionCountsByTenant,
   listBadgeTemplateImageRevisions,
   listBadgeTemplates,
   updateBadgeTemplate,
@@ -104,6 +106,9 @@ const mockedFindTenantMembership = vi.mocked(findTenantMembership);
 const mockedHasTenantMembershipOrgUnitAccess = vi.mocked(hasTenantMembershipOrgUnitAccess);
 const mockedHasTenantMembershipOrgUnitScopeAssignments = vi.mocked(
   hasTenantMembershipOrgUnitScopeAssignments,
+);
+const mockedListBadgeTemplateImageRevisionCountsByTenant = vi.mocked(
+  listBadgeTemplateImageRevisionCountsByTenant,
 );
 const mockedListBadgeTemplateImageRevisions = vi.mocked(listBadgeTemplateImageRevisions);
 const mockedListBadgeTemplates = vi.mocked(listBadgeTemplates);
@@ -347,6 +352,10 @@ beforeEach(() => {
   mockedListBadgeTemplates.mockResolvedValue([sampleTemplate()]);
   mockedListBadgeTemplateImageRevisions.mockReset();
   mockedListBadgeTemplateImageRevisions.mockResolvedValue([sampleImageRevision()]);
+  mockedListBadgeTemplateImageRevisionCountsByTenant.mockReset();
+  mockedListBadgeTemplateImageRevisionCountsByTenant.mockResolvedValue([
+    { badgeTemplateId: "badge_template_001", revisionCount: 1 },
+  ]);
   mockedCreateBadgeTemplate.mockReset();
   mockedCreateBadgeTemplate.mockResolvedValue(sampleTemplate({ id: "bt_generated" }));
   mockedFindBadgeTemplateImageRevisionById.mockReset();

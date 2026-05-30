@@ -1,11 +1,9 @@
 import {
   createAuditLog,
   createBadgeTemplateImageGeneration,
-  createBadgeTemplateImageRevision,
   createBadgeTemplate,
   findBadgeTemplateById,
   findBadgeTemplateImageGenerationById,
-  findBadgeTemplateImageRevisionById,
   hasTenantMembershipOrgUnitAccess,
   hasTenantMembershipOrgUnitScopeAssignments,
   listBadgeTemplateImageRevisions,
@@ -20,7 +18,6 @@ import {
 } from "@credtrail/db";
 import type { Hono } from "hono";
 import {
-  parseBadgeTemplateAuditLogQuery,
   parseBadgeTemplateImageGenerationPathParams,
   parseBadgeTemplateImageRevisionPathParams,
   parseBadgeTemplateListQuery,
@@ -34,21 +31,20 @@ import {
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import type { AuthenticatedPrincipal } from "../auth/auth-context";
 import {
-  BADGE_TEMPLATE_IMAGE_MAX_BYTES,
-  badgeTemplateImageMimeTypeFromBytes,
   badgeTemplateImageMimeTypeFromValue,
   loadBadgeTemplateImage,
-  storeBadgeTemplateImage,
 } from "../badges/template-image-storage";
 import {
   buildBadgeTemplateFieldChanges,
-  buildBadgeTemplateImageUriChange,
 } from "../badges/badge-template-audit-metadata";
+import { authorizeBadgeTemplateHistoryAccess } from "../badges/badge-template-history-access";
+import { handleBadgeTemplateHistoryJsonGet } from "../badges/badge-template-history-json";
+import { recordBadgeTemplateImageRevisionIfChanged } from "../badges/badge-template-image-revision-recording";
 import {
-  authorizeBadgeTemplateHistoryAccess,
-  loadBadgeTemplateHistoryPayload,
-} from "../badges/badge-template-history-access";
-import { renderBadgeTemplateHistoryTimelineToString } from "../admin/badge-template-history-fragment";
+  applyBadgeTemplateGeneratedImage,
+  uploadBadgeTemplateImage,
+} from "../badges/badge-template-image-workflows";
+import { restoreBadgeTemplateImageRevision } from "../badges/badge-template-image-revision-restore";
 import {
   buildBadgeTemplateImagePrompt,
   completeBadgeTemplateImageGeneration,
@@ -98,39 +94,6 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
     ISSUER_ROLES,
     TENANT_MEMBER_ROLES,
   } = input;
-
-  const recordImageRevisionIfChanged = async (
-    db: SqlDatabase,
-    input: {
-      tenantId: string;
-      badgeTemplateId: string;
-      previousImageUri: string | null;
-      newImageUri: string | null;
-      sourceType: "manual_update" | "upload" | "ai_generated" | "restore";
-      createdByUserId: string;
-      promptText?: string | undefined;
-      provider?: string | undefined;
-      model?: string | undefined;
-      metadata?: Record<string, string | number | boolean | null> | undefined;
-    },
-  ): Promise<void> => {
-    if (input.previousImageUri === input.newImageUri) {
-      return;
-    }
-
-    await createBadgeTemplateImageRevision(db, {
-      tenantId: input.tenantId,
-      badgeTemplateId: input.badgeTemplateId,
-      previousImageUri: input.previousImageUri,
-      newImageUri: input.newImageUri,
-      sourceType: input.sourceType,
-      promptText: input.promptText,
-      provider: input.provider,
-      model: input.model,
-      metadataJson: input.metadata === undefined ? null : JSON.stringify(input.metadata),
-      createdByUserId: input.createdByUserId,
-    });
-  };
 
   const isBadgeTemplateSlugConflict = (error: unknown): boolean => {
     if (!(error instanceof Error)) {
@@ -435,22 +398,11 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
       issuerRoles: ISSUER_ROLES,
     });
 
-  // JSON timeline for API clients and tests. Admin UI prefers history-timeline (HTML).
-  app.get("/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/audit-log", async (c) => {
+  const serveBadgeTemplateHistoryJson = async (
+    c: AppContext,
+    invalidQueryMessage: string,
+  ): Promise<Response> => {
     const pathParams = parseBadgeTemplatePathParams(c.req.param());
-    let query;
-
-    try {
-      query = parseBadgeTemplateAuditLogQuery(c.req.query());
-    } catch {
-      return c.json(
-        {
-          error: "Invalid badge template audit log query",
-        },
-        400,
-      );
-    }
-
     const access = await authorizeTemplateHistory(
       c,
       pathParams.tenantId,
@@ -461,60 +413,18 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
       return access;
     }
 
-    const { db } = access;
-    const { timeline, imageRevisionCount } = await loadBadgeTemplateHistoryPayload(db, {
-      tenantId: pathParams.tenantId,
-      badgeTemplateId: pathParams.badgeTemplateId,
-      limit: query.limit ?? 100,
+    return handleBadgeTemplateHistoryJsonGet(c, {
+      db: access.db,
+      invalidQueryMessage,
     });
+  };
 
-    return c.json({
-      tenantId: pathParams.tenantId,
-      badgeTemplateId: pathParams.badgeTemplateId,
-      timeline,
-      imageRevisionCount,
-    });
+  app.get("/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/audit-log", async (c) => {
+    return serveBadgeTemplateHistoryJson(c, "Invalid badge template audit log query");
   });
 
   app.get("/v1/tenants/:tenantId/badge-templates/:badgeTemplateId/history-timeline", async (c) => {
-    const pathParams = parseBadgeTemplatePathParams(c.req.param());
-    let query;
-
-    try {
-      query = parseBadgeTemplateAuditLogQuery(c.req.query());
-    } catch {
-      return c.json(
-        {
-          error: "Invalid badge template history timeline query",
-        },
-        400,
-      );
-    }
-
-    const access = await authorizeTemplateHistory(
-      c,
-      pathParams.tenantId,
-      pathParams.badgeTemplateId,
-    );
-
-    if (access instanceof Response) {
-      return access;
-    }
-
-    const { db } = access;
-    const { timeline, imageRevisionCount } = await loadBadgeTemplateHistoryPayload(db, {
-      tenantId: pathParams.tenantId,
-      badgeTemplateId: pathParams.badgeTemplateId,
-      limit: query.limit ?? 100,
-    });
-
-    c.header("Cache-Control", "no-store");
-    c.header("Content-Type", "text/html; charset=utf-8");
-    // Internal response metadata for the admin history dialog script.
-    c.header("X-CredTrail-Badge-Template-Image-Revision-Count", String(imageRevisionCount));
-    c.header("X-CredTrail-Badge-Template-History-Event-Count", String(timeline.length));
-
-    return c.body(renderBadgeTemplateHistoryTimelineToString(timeline));
+    return serveBadgeTemplateHistoryJson(c, "Invalid badge template history timeline query");
   });
 
   app.post(
@@ -676,7 +586,7 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
       }
 
       if (request.imageUri !== undefined) {
-        await recordImageRevisionIfChanged(db, {
+        await recordBadgeTemplateImageRevisionIfChanged(db, {
           tenantId: pathParams.tenantId,
           badgeTemplateId: pathParams.badgeTemplateId,
           previousImageUri: existingTemplate.imageUri,
@@ -783,112 +693,42 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
       );
     }
 
-    if (upload.size < 1) {
-      return c.json(
-        {
-          error: "Badge template image file must not be empty",
-        },
-        422,
-      );
-    }
-
-    if (upload.size > BADGE_TEMPLATE_IMAGE_MAX_BYTES) {
-      return c.json(
-        {
-          error: `Badge template image exceeds ${String(BADGE_TEMPLATE_IMAGE_MAX_BYTES)} byte limit`,
-        },
-        413,
-      );
-    }
-
-    const declaredMimeType = badgeTemplateImageMimeTypeFromValue(upload.type);
-
-    if (declaredMimeType === null) {
-      return c.json(
-        {
-          error: "Unsupported image type. Allowed types: image/png, image/jpeg, image/webp",
-        },
-        422,
-      );
-    }
-
-    const bytes = new Uint8Array(await upload.arrayBuffer());
-    const detectedMimeType = badgeTemplateImageMimeTypeFromBytes(bytes);
-
-    if (detectedMimeType === null || detectedMimeType !== declaredMimeType) {
-      return c.json(
-        {
-          error: "Uploaded file content does not match declared image type",
-        },
-        422,
-      );
-    }
-
-    const assetId = crypto.randomUUID();
-    const fileName = upload.name.trim();
-    await storeBadgeTemplateImage(c.env.BADGE_OBJECTS, {
+    const uploadResult = await uploadBadgeTemplateImage({
+      c,
+      db,
+      bindings: c.env,
       tenantId: pathParams.tenantId,
       badgeTemplateId: pathParams.badgeTemplateId,
-      assetId,
-      mimeType: declaredMimeType,
-      bytes,
-      originalFilename: fileName.length === 0 ? null : fileName,
-    });
-
-    const imagePath = `/badges/assets/${encodeURIComponent(pathParams.tenantId)}/${encodeURIComponent(
-      pathParams.badgeTemplateId,
-    )}/${encodeURIComponent(assetId)}`;
-    const imageUrl = new URL(imagePath, c.req.url).toString();
-    const updatedTemplate = await updateBadgeTemplate(db, {
-      tenantId: pathParams.tenantId,
-      id: pathParams.badgeTemplateId,
-      imageUri: imageUrl,
-    });
-
-    if (updatedTemplate === null) {
-      return c.json(
-        {
-          error: "Badge template not found",
-        },
-        404,
-      );
-    }
-
-    await recordImageRevisionIfChanged(db, {
-      tenantId: pathParams.tenantId,
-      badgeTemplateId: pathParams.badgeTemplateId,
-      previousImageUri: template.imageUri,
-      newImageUri: updatedTemplate.imageUri,
-      sourceType: "upload",
-      createdByUserId: principal.userId,
-      metadata: {
-        imagePath,
-        imageMimeType: declaredMimeType,
-        imageSizeBytes: bytes.byteLength,
-        fileName: fileName.length === 0 ? null : fileName,
-      },
-    });
-
-    const imageUriChange = buildBadgeTemplateImageUriChange(
-      template.imageUri,
-      updatedTemplate.imageUri,
-    );
-
-    await createAuditLog(db, {
-      tenantId: pathParams.tenantId,
       actorUserId: principal.userId,
-      action: "badge_template.image_uploaded",
-      targetType: "badge_template",
-      targetId: updatedTemplate.id,
-      metadata: {
-        role: membershipRole,
-        imagePath,
-        imageMimeType: declaredMimeType,
-        imageSizeBytes: bytes.byteLength,
-        ...(fileName.length === 0 ? {} : { fileName }),
-        ...(imageUriChange === null ? {} : { changes: [imageUriChange] }),
-      },
+      membershipRole,
+      file: upload,
     });
+
+    if ("status" in uploadResult) {
+      return c.json(
+        {
+          error: uploadResult.message,
+        },
+        uploadResult.status,
+      );
+    }
+
+    const updatedTemplate = uploadResult.updatedTemplate;
+    const imageUrl = updatedTemplate.imageUri;
+
+    if (imageUrl === null) {
+      return c.json(
+        {
+          error: "Badge template image upload did not produce an image URI",
+        },
+        500,
+      );
+    }
+
+    const imageUrlObject = new URL(imageUrl);
+    const imagePath = imageUrlObject.pathname;
+    const assetId = decodeURIComponent(imageUrlObject.pathname.split("/").pop() ?? "");
+    const declaredMimeType = badgeTemplateImageMimeTypeFromValue(upload.type);
 
     return c.json(
       {
@@ -898,8 +738,8 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
           assetId,
           path: imagePath,
           url: imageUrl,
-          mimeType: declaredMimeType,
-          byteSize: bytes.byteLength,
+          mimeType: declaredMimeType ?? "image/png",
+          byteSize: upload.size,
         },
       },
       201,
@@ -999,71 +839,28 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
         return scopeCheck;
       }
 
-      const revision = await findBadgeTemplateImageRevisionById(
+      const result = await restoreBadgeTemplateImageRevision({
         db,
-        pathParams.tenantId,
-        pathParams.badgeTemplateId,
-        pathParams.revisionId,
-      );
-
-      if (revision === null) {
-        return c.json(
-          {
-            error: "Badge template image revision not found",
-          },
-          404,
-        );
-      }
-
-      const updatedTemplate = await updateBadgeTemplate(db, {
-        tenantId: pathParams.tenantId,
-        id: pathParams.badgeTemplateId,
-        imageUri: revision.previousImageUri,
-      });
-
-      if (updatedTemplate === null) {
-        return c.json(
-          {
-            error: "Badge template not found",
-          },
-          404,
-        );
-      }
-
-      await recordImageRevisionIfChanged(db, {
         tenantId: pathParams.tenantId,
         badgeTemplateId: pathParams.badgeTemplateId,
-        previousImageUri: template.imageUri,
-        newImageUri: updatedTemplate.imageUri,
-        sourceType: "restore",
-        createdByUserId: principal.userId,
-        metadata: {
-          restoredRevisionId: revision.id,
-        },
-      });
-
-      const restoredImageUriChange = buildBadgeTemplateImageUriChange(
-        template.imageUri,
-        updatedTemplate.imageUri,
-      );
-
-      await createAuditLog(db, {
-        tenantId: pathParams.tenantId,
+        revisionId: pathParams.revisionId,
         actorUserId: principal.userId,
-        action: "badge_template.image_restored",
-        targetType: "badge_template",
-        targetId: updatedTemplate.id,
-        metadata: {
-          role: membershipRole,
-          restoredRevisionId: revision.id,
-          ...(restoredImageUriChange === null ? {} : { changes: [restoredImageUriChange] }),
-        },
+        membershipRole,
       });
+
+      if ("status" in result) {
+        return c.json(
+          {
+            error: result.message,
+          },
+          result.status,
+        );
+      }
 
       return c.json({
         tenantId: pathParams.tenantId,
-        template: updatedTemplate,
-        restoredRevision: revision,
+        template: result.updatedTemplate,
+        restoredRevision: result.restoredRevision,
       });
     },
   );
@@ -1279,80 +1076,33 @@ export const registerBadgeTemplateRoutes = (input: RegisterBadgeTemplateRoutesIn
         return scopeCheck;
       }
 
+      const applyResult = await applyBadgeTemplateGeneratedImage({
+        db,
+        tenantId: pathParams.tenantId,
+        badgeTemplateId: pathParams.badgeTemplateId,
+        generationId: pathParams.generationId,
+        actorUserId: principal.userId,
+        membershipRole,
+      });
+
+      if ("status" in applyResult) {
+        return c.json(
+          {
+            error: applyResult.message,
+          },
+          applyResult.status,
+        );
+      }
+
       const generation = await findBadgeTemplateImageGenerationById(
         db,
         pathParams.tenantId,
         pathParams.generationId,
       );
 
-      if (generation === null || generation.badgeTemplateId !== pathParams.badgeTemplateId) {
-        return c.json(
-          {
-            error: "Badge template image generation not found",
-          },
-          404,
-        );
-      }
-
-      if (generation.status !== "succeeded" || generation.resultImageUri === null) {
-        return c.json(
-          {
-            error: "Badge template image generation is not ready to apply",
-          },
-          409,
-        );
-      }
-
-      const updatedTemplate = await updateBadgeTemplate(db, {
-        tenantId: pathParams.tenantId,
-        id: pathParams.badgeTemplateId,
-        imageUri: generation.resultImageUri,
-      });
-
-      if (updatedTemplate === null) {
-        return c.json(
-          {
-            error: "Badge template not found",
-          },
-          404,
-        );
-      }
-
-      await recordImageRevisionIfChanged(db, {
-        tenantId: pathParams.tenantId,
-        badgeTemplateId: pathParams.badgeTemplateId,
-        previousImageUri: template.imageUri,
-        newImageUri: updatedTemplate.imageUri,
-        sourceType: "ai_generated",
-        createdByUserId: principal.userId,
-        promptText: generation.promptText,
-        metadata: {
-          generationId: generation.id,
-          stylePreset: generation.stylePreset,
-        },
-      });
-
-      const appliedImageUriChange = buildBadgeTemplateImageUriChange(
-        template.imageUri,
-        updatedTemplate.imageUri,
-      );
-
-      await createAuditLog(db, {
-        tenantId: pathParams.tenantId,
-        actorUserId: principal.userId,
-        action: "badge_template.image_generation_applied",
-        targetType: "badge_template",
-        targetId: updatedTemplate.id,
-        metadata: {
-          role: membershipRole,
-          generationId: generation.id,
-          ...(appliedImageUriChange === null ? {} : { changes: [appliedImageUriChange] }),
-        },
-      });
-
       return c.json({
         tenantId: pathParams.tenantId,
-        template: updatedTemplate,
+        template: applyResult.updatedTemplate,
         generation,
       });
     },

@@ -3,6 +3,7 @@ import type {
   BadgeIssuanceRuleVersionRecord,
   BadgeTemplateRecord,
   LearnerRecordTrustLevel,
+  TenantAssertionSummaryRecord,
   TenantApiKeyRecord,
   TenantAuthPolicyRecord,
   TenantAuthProviderRecord,
@@ -122,7 +123,6 @@ export const INSTITUTION_ADMIN_VIEW_CONFIG = {
   accessLmsConnections: {
     titlePrefix: "LMS Connections · Institution Admin",
     controller: "shell",
-    extraAssets: ["institutionAdminLmsConnectionsJs"],
   },
 } as const satisfies Record<
   InstitutionAdminView,
@@ -147,6 +147,33 @@ export interface InstitutionAdminLearnerRecordReview {
   exportPath: string | null;
   standardsMappingPath: string | null;
   lookupState: "idle" | "unresolved" | "loaded";
+}
+
+export interface InstitutionAdminApiKeysWorkspace {
+  listNotice: string | null;
+  listError: string | null;
+  revealedSecret: string | null;
+  openCreatePanel: boolean;
+}
+
+export interface InstitutionAdminIssuedBadgesWorkspace {
+  filters: {
+    recipientQuery: string;
+    badgeTemplateId: string;
+    state: string;
+    limit: number;
+  };
+  assertions: readonly TenantAssertionSummaryRecord[];
+  listNotice: string | null;
+  listError: string | null;
+  lifecycleAssertionId: string | null;
+  lifecycleMode: "audit" | "revoke" | null;
+}
+
+export interface InstitutionAdminLmsConnectionsWorkspace {
+  listNotice: string | null;
+  listError: string | null;
+  editConnectionId: string | null;
 }
 
 export interface InstitutionAdminLearnerRecordImportWorkflow {
@@ -214,5 +241,8 @@ export interface InstitutionAdminPageInput {
   breakGlassAccounts?: readonly TenantBreakGlassAccountRecord[];
   learnerRecordReview?: InstitutionAdminLearnerRecordReview;
   learnerRecordImportWorkflow?: InstitutionAdminLearnerRecordImportWorkflow;
+  apiKeysWorkspace?: InstitutionAdminApiKeysWorkspace;
+  issuedBadgesWorkspace?: InstitutionAdminIssuedBadgesWorkspace;
+  lmsConnectionsWorkspace?: InstitutionAdminLmsConnectionsWorkspace;
   switchOrganizationPath?: string | null;
 }

@@ -134,7 +134,6 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_CREATE_JS = `
         }
 
         badgeTemplateRecordsById.set(createdTemplate.id, createdTemplate);
-        const tableRowUpdated = await upsertBadgeTemplateTableRow(createdTemplate.id);
         const editorPath = badgeTemplateEditorPath(createdTemplate.id, 'artwork');
 
         if (editorPath.length > 0) {
@@ -145,15 +144,11 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_CREATE_JS = `
         badgeTemplateCreateForm.reset();
         syncCreateFormAriaInvalid();
 
-        const successMessage =
-          'Template created. URL key: ' +
-          createdTemplate.slug +
-          '. Generated template ID: ' +
-          createdTemplate.id +
-          '. Open the editor to add artwork.';
         setStatus(
           badgeTemplateCreateStatus,
-          tableRowUpdated ? successMessage : successMessage + ' Refresh to see it in the table.',
+          'Template created. URL key: ' +
+            createdTemplate.slug +
+            '. Opening the editor to add artwork.',
           false,
           'success',
         );

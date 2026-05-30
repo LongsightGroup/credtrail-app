@@ -106,7 +106,6 @@ export const renderInstitutionAdminManagementSections = (
       >
         {renderHonoElementList(input.apiKeyRows)}
       </AdminTable>
-      <AdminStatus id="api-key-revoke-status"></AdminStatus>
     </AdminPanel>
   );
 

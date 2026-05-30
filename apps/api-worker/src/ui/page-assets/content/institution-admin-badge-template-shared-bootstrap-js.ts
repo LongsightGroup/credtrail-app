@@ -22,16 +22,16 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_SHARED_BOOTSTRAP_JS = `
     parsedContext && typeof parsedContext.badgeTemplateApiPathPrefix === 'string'
       ? parsedContext.badgeTemplateApiPathPrefix
       : '';
-  const badgeTemplateAdminTableRowPathPrefix =
-    parsedContext && typeof parsedContext.badgeTemplateAdminTableRowPathPrefix === 'string'
-      ? parsedContext.badgeTemplateAdminTableRowPathPrefix
+  const badgeTemplateListPagePath =
+    parsedContext && typeof parsedContext.badgeTemplateListPagePath === 'string'
+      ? parsedContext.badgeTemplateListPagePath
       : tenantAdminPath.length === 0
         ? ''
         : tenantAdminPath + '/rules/templates';
   const badgeTemplateEditorPathPrefix =
     parsedContext && typeof parsedContext.badgeTemplateEditorPathPrefix === 'string'
       ? parsedContext.badgeTemplateEditorPathPrefix
-      : badgeTemplateAdminTableRowPathPrefix;
+      : badgeTemplateListPagePath;
   const ruleBuilderPath =
     parsedContext && typeof parsedContext.ruleBuilderPath === 'string'
       ? parsedContext.ruleBuilderPath
@@ -101,6 +101,12 @@ export const INSTITUTION_ADMIN_BADGE_TEMPLATE_SHARED_BOOTSTRAP_JS = `
   );
   const badgeTemplateImageGenerationPreviewImg = document.getElementById(
     'badge-template-image-generation-preview-img',
+  );
+  const badgeTemplateImageGenerationApplyForm = document.getElementById(
+    'badge-template-image-generation-apply-form',
+  );
+  const badgeTemplateImageGenerationApplyGenerationId = document.getElementById(
+    'badge-template-image-generation-apply-generation-id',
   );
   const badgeTemplateImageGenerationApplyButton = document.getElementById(
     'badge-template-image-generation-apply',

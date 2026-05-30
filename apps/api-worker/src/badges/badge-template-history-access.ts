@@ -96,7 +96,7 @@ export const authorizeBadgeTemplateHistoryAccess = async (
   };
 };
 
-/** Shared by JSON audit-log and HTML history-timeline admin fragment endpoints. */
+/** Shared by JSON audit-log and history-timeline API endpoints. */
 export const loadBadgeTemplateHistoryPayload = async (
   db: SqlDatabase,
   input: {

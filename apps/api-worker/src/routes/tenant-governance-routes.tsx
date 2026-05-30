@@ -6,6 +6,7 @@ import {
   findTenantAuthPolicy,
   findBadgeTemplateById,
   findTenantById,
+  listBadgeTemplateImageRevisions,
   findUserById,
   listAccessibleTenantContextsForUser,
   listImportLearnerRecordBatchQueueMessages,
@@ -14,15 +15,18 @@ import {
   listBadgeIssuanceRuleVersions,
   listBadgeTemplates,
   listTenantApiKeys,
+  listTenantAssertions,
   listDelegatedIssuingAuthorityGrants,
   listTenantBreakGlassAccounts,
   listTenantLmsConnections,
   listTenantMembers,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
+  type DelegatedIssuingAuthorityAction,
   type LearnerRecordTrustLevel,
   type SessionRecord,
   type SqlDatabase,
+  type TenantMembershipOrgUnitScopeRole,
   type TenantReportingLifecycleFilter,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -33,13 +37,34 @@ import {
 } from "@credtrail/validation";
 import { appPage, type AppPage, renderAppPage } from "../ui/render-page";
 import type { AppBindings, AppContext, AppEnv } from "../app";
+import { consumeAdminFlashCookie } from "../admin/admin-flash";
 import {
+  issuedBadgesInvalidFiltersError,
+  issuedBadgesPageUrl,
+  safeParseIssuedBadgesPageQuery,
+  shouldLoadIssuedBadgesList,
+} from "../admin/issued-badges-admin-helpers";
+import {
+  loadInstitutionAdminWorkspacePageData,
+  renderInstitutionAdminWorkspacePage,
+} from "../admin/institution-admin-workspace";
+import {
+  institutionAdminApiKeysPage,
   institutionAdminDashboardPage,
+  institutionAdminIssuedBadgesPage,
   institutionAdminLearnerRecordImportsPage,
+  institutionAdminLmsConnectionsPage,
   institutionAdminRuleTemplateEditorPage,
   institutionAdminRuleTemplatesPage,
 } from "../admin/institution-admin-page";
+import type { BadgeTemplateHistoryPanel } from "../admin/institution-admin-templates-page";
 import { AdminActions, AdminButtonLink, AdminPageHeader, AdminPanel } from "../admin/components";
+import { loadBadgeTemplateHistoryPayload } from "../badges/badge-template-history-access";
+import { registerBadgeTemplateEditorArtworkAdminRoutes } from "./badge-template-editor-artwork-admin-routes";
+import { registerBadgeTemplateListAdminRoutes } from "./badge-template-list-admin-routes";
+import { registerTenantApiKeyAdminRoutes } from "./tenant-api-key-admin-routes";
+import { registerTenantIssuedBadgesAdminRoutes } from "./tenant-issued-badges-admin-routes";
+import { registerTenantLmsConnectionAdminRoutes } from "./tenant-lms-connection-admin-routes";
 import { registerTenantAdminPageRoutes } from "./tenant-admin-page-routes";
 import { registerTenantAdminReportingPageRoutes } from "./tenant-admin-reporting-page-routes";
 import { registerTenantApiKeyRoutes } from "./tenant-api-key-routes";
@@ -97,6 +122,31 @@ interface RegisterTenantGovernanceRoutesInput {
       }
     | Response
   >;
+  requireScopedOrgUnitPermission: (
+    c: AppContext,
+    input: {
+      db: SqlDatabase;
+      tenantId: string;
+      userId: string;
+      membershipRole: TenantMembershipRole;
+      orgUnitId: string;
+      requiredRole: TenantMembershipOrgUnitScopeRole;
+      allowWhenNoScopes?: boolean;
+    },
+  ) => Promise<Response | null>;
+  requireDelegatedIssuingAuthorityPermission: (
+    c: AppContext,
+    input: {
+      db: SqlDatabase;
+      tenantId: string;
+      userId: string;
+      membershipRole: TenantMembershipRole;
+      ownerOrgUnitId: string;
+      badgeTemplateId: string;
+      requiredAction: DelegatedIssuingAuthorityAction;
+    },
+  ) => Promise<Response | null>;
+  assertionBelongsToTenant: (tenantId: string, assertionId: string) => boolean;
   ADMIN_ROLES: readonly TenantMembershipRole[];
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }
@@ -192,6 +242,9 @@ export const registerTenantGovernanceRoutes = (
     generateOpaqueToken,
     sha256Hex,
     requireTenantRole,
+    requireScopedOrgUnitPermission,
+    requireDelegatedIssuingAuthorityPermission,
+    assertionBelongsToTenant,
     ADMIN_ROLES,
     ISSUER_ROLES,
   } = input;
@@ -797,6 +850,156 @@ export const registerTenantGovernanceRoutes = (
     return renderAppPage(c, renderPage(pageData));
   };
 
+  const renderInstitutionAdminApiKeysWorkspace = async (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ): Promise<Response> => {
+    const loaded = await loadInstitutionAdminWorkspacePageData({
+      c,
+      tenantId,
+      nextPath,
+      resolveInstitutionAdminAdminRole,
+      loadInstitutionAdminPageData,
+    });
+
+    if (loaded instanceof Response) {
+      return loaded;
+    }
+
+    const { pageData, session } = loaded;
+    const listNotice = (c.req.query("listNotice") ?? "").trim();
+    const listError = (c.req.query("listError") ?? "").trim();
+    const revealedSecret = await consumeAdminFlashCookie(c, {
+      kind: "api_key_secret",
+      tenantId,
+      userId: session.userId,
+    });
+
+    return await renderInstitutionAdminWorkspacePage(
+      c,
+      renderAppPage,
+      institutionAdminApiKeysPage({
+        ...pageData,
+        apiKeysWorkspace: {
+          listNotice: listNotice.length > 0 ? listNotice : null,
+          listError: listError.length > 0 ? listError : null,
+          revealedSecret,
+          openCreatePanel:
+            revealedSecret !== null || listError.length > 0 || listNotice.length > 0,
+        },
+      }),
+    );
+  };
+
+  const renderInstitutionAdminIssuedBadgesWorkspace = async (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ): Promise<Response> => {
+    const parsedQuery = safeParseIssuedBadgesPageQuery(c.req.query());
+
+    if (!parsedQuery.ok) {
+      return c.redirect(
+        issuedBadgesPageUrl(
+          tenantId,
+          {
+            recipientQuery: "",
+            badgeTemplateId: "",
+            state: "",
+            limit: 100,
+          },
+          { listError: issuedBadgesInvalidFiltersError },
+        ),
+        303,
+      );
+    }
+
+    const loaded = await loadInstitutionAdminWorkspacePageData({
+      c,
+      tenantId,
+      nextPath,
+      resolveInstitutionAdminAdminRole,
+      loadInstitutionAdminPageData,
+    });
+
+    if (loaded instanceof Response) {
+      return loaded;
+    }
+
+    const { pageData } = loaded;
+    const issuedBadgesQuery = parsedQuery.value;
+    const assertions = shouldLoadIssuedBadgesList(c.req.query())
+      ? await listTenantAssertions(resolveDatabase(c.env), {
+          tenantId,
+          ...(issuedBadgesQuery.listQuery.badgeTemplateId === undefined
+            ? {}
+            : { badgeTemplateId: issuedBadgesQuery.listQuery.badgeTemplateId }),
+          ...(issuedBadgesQuery.listQuery.recipientQuery === undefined
+            ? {}
+            : { recipientQuery: issuedBadgesQuery.listQuery.recipientQuery }),
+          ...(issuedBadgesQuery.listQuery.state === undefined
+            ? {}
+            : { state: issuedBadgesQuery.listQuery.state }),
+          ...(issuedBadgesQuery.listQuery.limit === undefined
+            ? {}
+            : { limit: issuedBadgesQuery.listQuery.limit }),
+        })
+      : [];
+
+    return await renderInstitutionAdminWorkspacePage(
+      c,
+      renderAppPage,
+      institutionAdminIssuedBadgesPage({
+        ...pageData,
+        issuedBadgesWorkspace: {
+          filters: issuedBadgesQuery.filters,
+          assertions,
+          listNotice: issuedBadgesQuery.listNotice,
+          listError: issuedBadgesQuery.listError,
+          lifecycleAssertionId: issuedBadgesQuery.lifecycleAssertionId,
+          lifecycleMode: issuedBadgesQuery.lifecycleMode,
+        },
+      }),
+    );
+  };
+
+  const renderInstitutionAdminLmsConnectionsWorkspace = async (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ): Promise<Response> => {
+    const loaded = await loadInstitutionAdminWorkspacePageData({
+      c,
+      tenantId,
+      nextPath,
+      resolveInstitutionAdminAdminRole,
+      loadInstitutionAdminPageData,
+    });
+
+    if (loaded instanceof Response) {
+      return loaded;
+    }
+
+    const { pageData } = loaded;
+    const listNotice = (c.req.query("listNotice") ?? "").trim();
+    const listError = (c.req.query("listError") ?? "").trim();
+    const editConnectionId = (c.req.query("edit") ?? "").trim();
+
+    return await renderInstitutionAdminWorkspacePage(
+      c,
+      renderAppPage,
+      institutionAdminLmsConnectionsPage({
+        ...pageData,
+        lmsConnectionsWorkspace: {
+          listNotice: listNotice.length > 0 ? listNotice : null,
+          listError: listError.length > 0 ? listError : null,
+          editConnectionId: editConnectionId.length > 0 ? editConnectionId : null,
+        },
+      }),
+    );
+  };
+
   const renderInstitutionAdminTemplatesWorkspace = async (
     c: AppContext,
     tenantId: string,
@@ -891,6 +1094,53 @@ export const registerTenantGovernanceRoutes = (
         ? deepLinkHistoryTemplateId
         : null;
 
+    let historyPanel: BadgeTemplateHistoryPanel | null = null;
+    let historyLoadError: string | null = null;
+
+    if (autoOpenTemplateAuditTemplateId !== null) {
+      const historyTemplate =
+        filteredTemplates.find((template) => template.id === autoOpenTemplateAuditTemplateId) ??
+        (await findBadgeTemplateById(
+          resolveDatabase(c.env),
+          tenantId,
+          autoOpenTemplateAuditTemplateId,
+        ));
+
+      if (historyTemplate === null) {
+        historyLoadError = "Unable to load template history. Refresh and try again.";
+      } else {
+        const db = resolveDatabase(c.env);
+
+        try {
+          const [{ timeline, imageRevisionCount }, revisions] = await Promise.all([
+            loadBadgeTemplateHistoryPayload(db, {
+              tenantId,
+              badgeTemplateId: historyTemplate.id,
+              limit: 100,
+            }),
+            listBadgeTemplateImageRevisions(db, {
+              tenantId,
+              badgeTemplateId: historyTemplate.id,
+              limit: 25,
+            }),
+          ]);
+
+          historyPanel = {
+            templateId: historyTemplate.id,
+            templateTitle: historyTemplate.title,
+            timeline,
+            imageRevisionCount,
+            revisions,
+          };
+        } catch {
+          historyLoadError = "Unable to load template history. Refresh and try again.";
+        }
+      }
+    }
+
+    const listNotice = (c.req.query("listNotice") ?? "").trim();
+    const listError = (c.req.query("listError") ?? "").trim();
+
     c.header("Cache-Control", "no-store");
 
     return renderAppPage(
@@ -904,9 +1154,47 @@ export const registerTenantGovernanceRoutes = (
           returnToRuleBuilder,
           deepLinkHistoryTemplateId: autoOpenTemplateAuditTemplateId,
           deepLinkHistoryUnavailable,
+          historyLoadError,
+          listNotice: listNotice.length > 0 ? listNotice : null,
+          listError: listError.length > 0 ? listError : null,
         },
+        historyPanel,
       }),
     );
+  };
+
+  const parseBadgeTemplateEditorArtworkNotice = (
+    query: Record<string, string | string[] | undefined>,
+  ): { tone: "success" | "error"; message: string } | null => {
+    const artworkErrorRaw = query["artworkError"];
+    const artworkError =
+      typeof artworkErrorRaw === "string"
+        ? artworkErrorRaw.trim()
+        : Array.isArray(artworkErrorRaw)
+          ? artworkErrorRaw[0]?.trim() ?? ""
+          : "";
+
+    if (artworkError.length > 0) {
+      return { tone: "error", message: artworkError };
+    }
+
+    const artworkRaw = query["artwork"];
+    const artwork =
+      typeof artworkRaw === "string"
+        ? artworkRaw.trim()
+        : Array.isArray(artworkRaw)
+          ? artworkRaw[0]?.trim() ?? ""
+          : "";
+
+    if (artwork === "uploaded") {
+      return { tone: "success", message: "Approved artwork uploaded." };
+    }
+
+    if (artwork === "applied") {
+      return { tone: "success", message: "Generated draft applied as approved artwork." };
+    }
+
+    return null;
   };
 
   const renderInstitutionAdminTemplateEditorWorkspace = async (
@@ -956,6 +1244,7 @@ export const registerTenantGovernanceRoutes = (
         badgeTemplate,
         badgeTemplateImageRevisionCount: revisionCount,
         returnToRuleBuilder: c.req.query("returnTo") === "rule-builder",
+        artworkNotice: parseBadgeTemplateEditorArtworkNotice(c.req.query()),
       }),
     );
   };
@@ -1364,6 +1653,42 @@ export const registerTenantGovernanceRoutes = (
     );
   };
 
+  registerBadgeTemplateEditorArtworkAdminRoutes({
+    app,
+    resolveDatabase,
+    requireScopedOrgUnitPermission,
+    resolveInstitutionAdminAdminRole,
+  });
+
+  registerBadgeTemplateListAdminRoutes({
+    app,
+    resolveDatabase,
+    requireScopedOrgUnitPermission,
+    resolveInstitutionAdminAdminRole,
+  });
+
+  registerTenantApiKeyAdminRoutes({
+    app,
+    generateOpaqueToken,
+    resolveDatabase,
+    sha256Hex,
+    resolveInstitutionAdminAdminRole,
+  });
+
+  registerTenantLmsConnectionAdminRoutes({
+    app,
+    resolveDatabase,
+    resolveInstitutionAdminAdminRole,
+  });
+
+  registerTenantIssuedBadgesAdminRoutes({
+    app,
+    resolveDatabase,
+    requireDelegatedIssuingAuthorityPermission,
+    assertionBelongsToTenant,
+    resolveInstitutionAdminAdminRole,
+  });
+
   registerTenantAdminPageRoutes({
     app,
     ADMIN_ROLES,
@@ -1371,6 +1696,9 @@ export const registerTenantGovernanceRoutes = (
     requireTenantRole,
     redirectToTenantLogin,
     renderInstitutionAdminWorkspace,
+    renderInstitutionAdminApiKeysWorkspace,
+    renderInstitutionAdminIssuedBadgesWorkspace,
+    renderInstitutionAdminLmsConnectionsWorkspace,
     renderInstitutionAdminTemplatesWorkspace,
     renderInstitutionAdminTemplateEditorWorkspace,
     resolveDatabase,
