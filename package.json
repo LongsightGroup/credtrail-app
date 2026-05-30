@@ -19,14 +19,10 @@
     "format:check": "pnpm exec oxfmt --check \"apps/**/*.ts\" \"apps/**/*.tsx\" \"packages/**/*.ts\" \"packages/**/*.tsx\" \"vitest.config.ts\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "test:e2e:canvas-real": "playwright test --grep @real-canvas",
-    "test:e2e:sakai-real": "playwright test --grep @real-sakai",
     "check": "pnpm check:public-docs && pnpm check:design-tokens && pnpm check:ob3-openapi && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260508.1",
-    "@playwright/test": "^1.59.1",
     "@sphereon/oid4vci-client": "^0.20.1",
     "@types/jsonld": "^1.5.15",
     "@types/pg": "^8.20.0",

@@ -164,12 +164,9 @@ Local development login:
 - Open the printed URL in a browser to establish the Better Auth session, then
   continue manual QA at `/tenants/tenant_123/admin`.
 
-Browser/e2e notes:
-- Playwright defaults to `E2E_BASE_URL=http://127.0.0.1:8787`.
-- Real LMS tests use `E2E_BOOTSTRAP_ADMIN_TOKEN` and bootstrap admin APIs; they
-  do not establish a reusable browser login state by default.
-- For local manual QA, prefer the seeded magic-link workflow above over adding
-  ad hoc cookies or direct session table writes.
+Browser QA notes:
+- For local manual QA, use the seeded magic-link workflow above over adding ad
+  hoc cookies, direct session table writes, or bootstrap-token browser flows.
 
 ## 6) Simplicity Rules (K.I.S.S.)
 
