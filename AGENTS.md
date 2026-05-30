@@ -10,9 +10,9 @@ This file defines execution standards for humans and coding agents working in th
 - Data: Postgres.
 - Object storage: Cloudflare R2.
 - Async jobs: DB-backed job messages in Postgres.
-- UI: server-rendered Hono JSX (`.tsx`) with htmx-compatible markup and minimal
+- UI: server-rendered Hono JSX (`.tsx`) with minimal
   feature-local JavaScript.
-- React is out of scope for v1.
+- React is out of scope.
 - Standards scope: Open Badges 3.0 only.
 - Architecture policy: single-path implementation in v1. No dual runtimes, no parallel frameworks, no "either/or" code paths for the same capability.
 
@@ -175,11 +175,9 @@ Browser/e2e notes:
 
 - Prefer server-rendered Hono JSX pages and HTML forms over client-heavy
   abstractions.
-- Prefer plain HTML forms, htmx-compatible markup, and small feature-local
-  scripts over SPA complexity.
-- Keep client JavaScript minimal and local to the feature.
 - Choose straightforward code over clever code.
 - Implement one clear way to do each thing in v1; defer alternatives.
+- There are no fallbacks or consideration for legacy. Go forward only.
 
 ## 7) Tenancy and Data Safety
 
