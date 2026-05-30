@@ -7,18 +7,12 @@ import {
   type TenantMembershipRole,
 } from "@credtrail/db";
 import type { CreateBadgeTemplateRequest, UpdateBadgeTemplateRequest } from "@credtrail/validation";
+import { isUniqueConstraintError } from "../http/database-errors";
 import { buildBadgeTemplateFieldChanges } from "./badge-template-audit-metadata";
 import { recordBadgeTemplateImageRevisionIfChanged } from "./badge-template-image-revision-recording";
 
 export const isBadgeTemplateSlugConflict = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return (
-    error.message.includes("UNIQUE constraint failed") ||
-    (error.message.includes("duplicate key") && error.message.includes("badge_templates"))
-  );
+  return isUniqueConstraintError(error) && error.message.includes("badge_templates");
 };
 
 export const createBadgeTemplateWithAudit = async (

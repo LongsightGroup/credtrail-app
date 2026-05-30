@@ -11,6 +11,7 @@ import {
   type TenantMembershipRole,
 } from "@credtrail/db";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "./auth-context";
+export { isUniqueConstraintError } from "../http/database-errors";
 
 export const ISSUER_ROLES: TenantMembershipRole[] = ["owner", "admin", "issuer"];
 export const TENANT_MEMBER_ROLES: TenantMembershipRole[] = ["owner", "admin", "issuer", "viewer"];
@@ -21,14 +22,6 @@ export const EXECUTIVE_SCOPE_ROLES: TenantMembershipOrgUnitScopeRole[] = [
   "issuer",
   "viewer",
 ];
-
-export const isUniqueConstraintError = (error: unknown): boolean => {
-  return (
-    error instanceof Error &&
-    (error.message.includes("UNIQUE constraint failed") ||
-      error.message.includes("duplicate key value violates unique constraint"))
-  );
-};
 
 export const defaultInstitutionOrgUnitId = (tenantId: string): string => {
   return `${tenantId}:org:institution`;
