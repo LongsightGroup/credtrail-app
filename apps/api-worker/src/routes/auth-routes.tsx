@@ -105,6 +105,13 @@ interface RegisterAuthRoutesInput {
     c: AppContext,
     input: RequestMagicLinkInput,
   ) => Promise<RequestMagicLinkResult>;
+  createLocalDevelopmentSession: (
+    c: AppContext,
+    input: {
+      tenantId: string;
+      userId: string;
+    },
+  ) => Promise<AuthenticatedPrincipal>;
   createMagicLinkSession: (c: AppContext, token: string) => Promise<AuthenticatedPrincipal | null>;
   resolveAuthenticatedPrincipal: (c: AppContext) => Promise<AuthenticatedPrincipal | null>;
   resolveRequestedTenantContext: (c: AppContext) => Promise<RequestedTenantContext | null>;
@@ -222,6 +229,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     app,
     resolveDatabase,
     requestMagicLink,
+    createLocalDevelopmentSession,
     createMagicLinkSession,
     resolveAuthenticatedPrincipal,
     resolveRequestedTenantContext,
@@ -259,6 +267,71 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
 
   app.get("/", (c) => {
     return c.redirect("/login", 302);
+  });
+
+  app.get("/v1/dev/auth/login-as", async (c) => {
+    if (c.env.APP_ENV !== "development") {
+      return c.json(
+        {
+          error: "Not found",
+        },
+        404,
+      );
+    }
+
+    const db = resolveDatabase(c.env);
+    const tenantId = (c.req.query("tenantId") ?? "").trim();
+    const email = (c.req.query("email") ?? "").trim();
+    const requestedNextPath = (c.req.query("next") ?? "").trim();
+
+    if (tenantId.length === 0) {
+      return c.json(
+        {
+          error: "tenantId is required for local development login.",
+        },
+        400,
+      );
+    }
+
+    if (email.length === 0) {
+      return c.json(
+        {
+          error: "email is required for local development login.",
+        },
+        400,
+      );
+    }
+
+    const user = await findUserByEmail(db, email);
+
+    if (user === null) {
+      return c.json(
+        {
+          error: `No local user found for ${email}. Run pnpm dev:seed first.`,
+        },
+        404,
+      );
+    }
+
+    const membership = await findTenantMembership(db, tenantId, user.id);
+
+    if (membership === null) {
+      return c.json(
+        {
+          error: `No local tenant membership found for ${email} in ${tenantId}. Run pnpm dev:seed first.`,
+        },
+        404,
+      );
+    }
+
+    await createLocalDevelopmentSession(c, {
+      tenantId,
+      userId: user.id,
+    });
+    const fallbackNextPath = `/tenants/${encodeURIComponent(tenantId)}/admin`;
+    const nextPath = requestedNextPath.startsWith("/") ? requestedNextPath : fallbackNextPath;
+
+    return c.redirect(nextPath, 302);
   });
 
   app.get("/login", async (c) => {

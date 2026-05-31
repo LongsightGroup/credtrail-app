@@ -13,6 +13,7 @@ const {
   mockedBreakGlassVerifyTwoFactor,
   mockedBreakGlassResetPassword,
   mockedListAccessibleTenantContextsForUserFn,
+  mockedCreateLocalDevelopmentSessionForCredtrailUser,
 } = vi.hoisted(() => {
   return {
     mockedResolveEnterpriseLoginExperience: vi.fn(),
@@ -26,6 +27,7 @@ const {
     mockedBreakGlassVerifyTwoFactor: vi.fn(),
     mockedBreakGlassResetPassword: vi.fn(),
     mockedListAccessibleTenantContextsForUserFn: vi.fn(),
+    mockedCreateLocalDevelopmentSessionForCredtrailUser: vi.fn(),
   };
 });
 
@@ -229,6 +231,16 @@ const loadAppWithMockedHostedAuthProviders = async (options?: {
     };
   });
 
+  vi.doMock("./app/auth-runtime", async () => {
+    const actual = await vi.importActual<typeof import("./app/auth-runtime")>("./app/auth-runtime");
+
+    return {
+      ...actual,
+      createLocalDevelopmentSessionForCredtrailUser:
+        mockedCreateLocalDevelopmentSessionForCredtrailUser,
+    };
+  });
+
   const { app: isolatedApp } = await import("./index");
 
   return {
@@ -325,10 +337,28 @@ beforeEach(() => {
       },
     }),
   );
+  mockedCreateLocalDevelopmentSessionForCredtrailUser.mockReset();
+  mockedCreateLocalDevelopmentSessionForCredtrailUser.mockImplementation(
+    (context: Parameters<typeof setCookie>[0]) => {
+      setCookie(context, "better-auth.session_token", "better-session", {
+        httpOnly: true,
+        sameSite: "Lax",
+        path: "/",
+      });
+
+      return Promise.resolve({
+        userId: "usr_123",
+        authSessionId: "ba_ses_123",
+        authMethod: "better_auth" as const,
+        expiresAt: "2026-02-18T22:00:00.000Z",
+      });
+    },
+  );
 });
 
 afterEach(() => {
   vi.doUnmock("./auth/better-auth-adapter");
+  vi.doUnmock("./app/auth-runtime");
   vi.restoreAllMocks();
 });
 
@@ -643,6 +673,50 @@ describe("magic-link auth routes", () => {
     expect(body.magicLinkToken.length).toBeGreaterThan(0);
     expect(body.magicLinkUrl).toContain("/auth/magic-link/verify?token=");
     expect(body.magicLinkUrl).toContain("next=");
+  });
+
+  it("logs in a seeded local user through a development-only API without rate limiting", async () => {
+    mockedCountAuthMagicLinkRateLimitAttempts.mockResolvedValue(3);
+    const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
+
+    const response = await isolatedApp.request(
+      "/v1/dev/auth/login-as?tenantId=tenant_123&email=learner%40example.edu&next=%2Ftenants%2Ftenant_123%2Fadmin",
+      {
+        method: "GET",
+      },
+      createEnv("development"),
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin");
+    expect(response.headers.get("set-cookie")).toContain("better-auth.session_token=");
+    expect(mockedPruneAuthMagicLinkRateLimitAttempts).not.toHaveBeenCalled();
+    expect(mockedCountAuthMagicLinkRateLimitAttempts).not.toHaveBeenCalled();
+    expect(mockedRecordAuthMagicLinkRateLimitAttempt).not.toHaveBeenCalled();
+    expect(mockedCreateLocalDevelopmentSessionForCredtrailUser).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        tenantId: "tenant_123",
+        userId: "usr_123",
+      },
+    );
+    expect(betterAuthProvider.requestMagicLink).not.toHaveBeenCalled();
+  });
+
+  it("does not expose the local CLI login-as API outside development", async () => {
+    const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
+
+    const response = await isolatedApp.request(
+      "/v1/dev/auth/login-as?tenantId=tenant_123&email=learner%40example.edu",
+      {
+        method: "GET",
+      },
+      createEnv("production"),
+    );
+
+    expect(response.status).toBe(404);
+    expect(mockedFindUserByEmail).not.toHaveBeenCalled();
+    expect(betterAuthProvider.requestMagicLink).not.toHaveBeenCalled();
   });
 
   it("rejects local hosted magic-link requests when enterprise SSO is required", async () => {

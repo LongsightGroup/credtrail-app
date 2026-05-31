@@ -10,7 +10,7 @@
     "check:ob3-openapi": "pnpm exec tsx scripts/check-ob3-openapi.mjs",
     "db:migrate:postgres": "node packages/db/scripts/migrate-postgres.mjs",
     "dev:seed": "pnpm exec tsx scripts/seed-local-dev.ts",
-    "dev:login-link": "node scripts/create-local-login-link.mjs",
+    "dev:login-as": "node scripts/create-local-login-url.mjs",
     "lint": "node scripts/run-oxlint.mjs --deny-warnings",
     "lint:fix": "node scripts/run-oxlint.mjs --fix --fix-suggestions --deny-warnings",
     "format": "pnpm exec oxfmt \"apps/**/*.ts\" \"apps/**/*.tsx\" \"packages/**/*.ts\" \"packages/**/*.tsx\" \"vitest.config.ts\"",

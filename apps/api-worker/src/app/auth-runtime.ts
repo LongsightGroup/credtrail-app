@@ -65,6 +65,47 @@ export const rememberRequestedTenant = (
   return requestedTenant;
 };
 
+export const createLocalDevelopmentSessionForCredtrailUser = async (
+  context: AppContext,
+  input: {
+    tenantId: string;
+    userId: string;
+  },
+): Promise<AuthenticatedPrincipal> => {
+  if (context.env.APP_ENV !== "development") {
+    throw new Error("Local development session creation is only available in development");
+  }
+
+  rememberRequestedTenant(context, input.tenantId);
+
+  const db = resolveDatabase(context.env);
+  const runtimeConfig = createBetterAuthRuntimeConfig(context.env);
+  const { session, sessionToken } = await createBetterAuthSessionForCredtrailUser({
+    db,
+    runtimeConfig,
+    credtrailUserId: input.userId,
+    userAgent: context.req.header("user-agent") ?? null,
+  });
+
+  setCookie(context, runtimeConfig.session.cookieName, sessionToken, {
+    httpOnly: true,
+    sameSite: "Lax",
+    secure: sessionCookieSecure(context.env.APP_ENV),
+    path: "/",
+    maxAge: runtimeConfig.session.expiresInSeconds,
+  });
+
+  const principal: AuthenticatedPrincipal = {
+    userId: input.userId,
+    authSessionId: session.sessionId,
+    authMethod: "better_auth",
+    expiresAt: session.expiresAt,
+  };
+
+  context.set("authenticatedPrincipal", principal);
+  return principal;
+};
+
 const rememberRequestedTenantForEmbeddedLaunch = (
   context: AppContext,
   tenantId: string,

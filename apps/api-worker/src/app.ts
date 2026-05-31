@@ -132,6 +132,7 @@ import { resolveDatabase } from "./app/database";
 import {
   betterAuthProvider,
   breakGlassPolicyAdapter,
+  createLocalDevelopmentSessionForCredtrailUser,
   createBetterAuthRequest,
   createBetterAuthRuntime,
   createConfiguredSocialProviders,
@@ -666,6 +667,7 @@ registerAuthRoutes({
   requestMagicLink: (context, input) => {
     return betterAuthProvider.requestMagicLink(context, input);
   },
+  createLocalDevelopmentSession: createLocalDevelopmentSessionForCredtrailUser,
   createMagicLinkSession: (context, token) => {
     return betterAuthProvider.createMagicLinkSession(context, token);
   },
