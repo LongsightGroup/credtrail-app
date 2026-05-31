@@ -17,7 +17,7 @@ describe("renderReporting", () => {
     {
       kind: "stacked-summary" as const,
       title: "Engagement mix",
-      description: "Claimed and shared badges from the same reporting slice.",
+      description: "Claimed and shared badges from the same filtered view.",
     },
     {
       kind: "trend-series" as const,
@@ -69,7 +69,7 @@ describe("renderReporting", () => {
       kind: "stacked-summary",
       title: "Current badge state mix",
       description:
-        "Shows whether badges in this slice are active, suspended, revoked, or waiting for review.",
+        "Shows whether badges in this view are active, suspended, revoked, or waiting for review.",
       series: [
         { label: "Active", value: 7 },
         { label: "Suspended", value: 0 },
@@ -85,7 +85,7 @@ describe("renderReporting", () => {
     expect(renderedSegments).toHaveLength(1);
     expect(html).toContain('width="328.00"');
     expect(html).toContain("<clipPath");
-    expect(html).toContain("7 total; all active in this slice.");
+    expect(html).toContain("7 total; all active in this view.");
     expect(html).not.toContain(
       'class="ct-reporting-visual__segment ct-reporting-visual__segment--1"',
     );
@@ -294,9 +294,10 @@ describe("renderReporting", () => {
     const html = renderReportingString({
       kind: "comparison-ranked" as unknown as Parameters<typeof renderReporting>[0]["kind"],
       title: "Compare by badge template",
-      description: "Thin-data slices should stay honest about how much comparison context exists.",
+      description:
+        "Limited-data views should stay honest about how much comparison context exists.",
       sparseMessage:
-        "Only one visible comparison row matches this slice, so use the exact row below for detail.",
+        "Only one visible comparison row matches these filters, so use the exact row below for detail.",
       series: [
         {
           label: "Applied Analytics",
@@ -308,7 +309,7 @@ describe("renderReporting", () => {
 
     expect(html).toContain('data-reporting-visual-state="sparse"');
     expect(html).toContain(
-      "Only one visible comparison row matches this slice, so use the exact row below for detail.",
+      "Only one visible comparison row matches these filters, so use the exact row below for detail.",
     );
     expect(html).not.toContain("Applied Analytics leads at 9");
   });

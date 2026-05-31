@@ -147,7 +147,7 @@ export const renderInstitutionAdminReportingHierarchySections = (
     );
     const focusSummaryCopy =
       childLevel === null
-        ? "Keeps this drilldown inside reporting while marking the deepest visible reporting leaf for the current workspace slice."
+        ? "Keeps this drilldown inside reporting while marking the deepest visible reporting leaf for the current workspace scope."
         : `Keeps this drilldown inside reporting while the exact ${childLevelLabel.toLowerCase()} table and export link stay adjacent to the shared visual.`;
     const focusSummaryMarkup = (
       <section
@@ -276,8 +276,8 @@ export const renderInstitutionAdminReportingHierarchySections = (
       : reportingHierarchyState === "sparse"
         ? renderReportingStateShell({
             state: "sparse",
-            eyebrow: "Thin-data slice",
-            title: "This slice currently resolves to one visible reporting path.",
+            eyebrow: "Limited data",
+            title: "Your filters currently show one visible reporting path.",
             description:
               "Use the current focus summary and exact hierarchy table below to review the visible path without implying a fuller tree.",
           })
@@ -285,9 +285,9 @@ export const renderInstitutionAdminReportingHierarchySections = (
             state: "empty",
             eyebrow: "No hierarchy rows yet",
             title:
-              "Hierarchy drilldowns appear here once visible org-unit rows exist for this slice.",
+              "Hierarchy drilldowns appear here once visible org-unit rows exist for this view.",
             description:
-              "The reporting route stays the same; this panel fills in as soon as the current slice exposes hierarchy rows.",
+              "The reporting route stays the same; this panel fills in as soon as the current filters expose hierarchy rows.",
           });
   const reportingHierarchyPanelMarkup = (
     <article class="ct-admin__panel ct-stack" data-reporting-state={reportingHierarchyState}>
@@ -549,15 +549,15 @@ export const renderInstitutionAdminReportingHierarchySections = (
         <h2>Performer panels</h2>
         {renderReportingStateShell({
           state: reportingPerformerState === "empty" ? "empty" : "sparse",
-          eyebrow: reportingPerformerState === "empty" ? "No rankings yet" : "Thin-data slice",
+          eyebrow: reportingPerformerState === "empty" ? "No rankings yet" : "Limited data",
           title:
             reportingPerformerState === "empty"
-              ? "Performer rankings appear once this slice includes comparable hierarchy rows."
-              : "Rankings stay paused until this slice has more than one comparable hierarchy row.",
+              ? "Performer rankings appear once this view includes comparable hierarchy rows."
+              : "Rankings stay paused until this view has more than one comparable hierarchy row.",
           description:
             reportingPerformerState === "empty"
-              ? "This section reuses the same visible hierarchy rows shown above, so it stays honest when the current slice has nothing comparable to rank."
-              : "The current slice still shows real hierarchy data above, but performer rankings wait until more than one visible row can be compared honestly.",
+              ? "This section reuses the same visible hierarchy rows shown above, so it stays honest when the current filters have nothing comparable to rank."
+              : "The current view still shows real hierarchy data above, but performer rankings wait until more than one visible row can be compared honestly.",
         })}
       </article>
     ) : (

@@ -1793,7 +1793,7 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(html).toContain('data-reporting-slice-metric="issued"');
     expect(html).toContain('class="ct-admin__reporting-state-summary"');
     expect(html).not.toContain('class="ct-admin__reporting-supporting-rail"');
-    expect(html).toContain("Current slice");
+    expect(html).toContain("Current view");
     expect(html).toContain("Compare by badge template");
     expect(html).toContain("Hierarchy drilldown");
     expect(html).toContain("College of Engineering");
@@ -1838,7 +1838,7 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(html).toContain("TypeScript Foundations");
     expect(html).toContain("14 public views · 40.0% claim · 20.0% share");
     expect(html).toContain(
-      "One badge template matches this slice. Open the exact row only when you need every event column.",
+      "One badge template matches these filters. Open the exact row only when you need every event column.",
     );
     expect(html).toContain("Exact badge-template row");
     expect(html).toContain("Show all event columns");
@@ -2152,17 +2152,17 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(hierarchyPanel).toContain('data-reporting-state="sparse"');
     expect(performerPanel).toContain('data-reporting-state="sparse"');
     expect(html).toContain(
-      "One badge template matches this slice. Open the exact row only when you need every event column.",
+      "One badge template matches these filters. Open the exact row only when you need every event column.",
     );
     expect(html).toContain(
-      "One org unit matches this slice. Open the exact row only when you need every event column.",
+      "One org unit matches these filters. Open the exact row only when you need every event column.",
     );
     expect(html).toContain("Exact badge-template row");
     expect(html).toContain("Exact org-unit row");
     expect(html).toContain("Show all event columns");
-    expect(html).toContain("This slice currently resolves to one visible reporting path.");
+    expect(html).toContain("Your filters currently show one visible reporting path.");
     expect(html).toContain(
-      "Rankings stay paused until this slice has more than one comparable hierarchy row.",
+      "Rankings stay paused until this view has more than one comparable hierarchy row.",
     );
     expect(html).toContain("Computer Science Program");
     expect(html).not.toContain("Chemistry Lab");
@@ -2295,7 +2295,7 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(html).toContain("14 public views · 40.0% claim · 20.0% share");
     expect(html).toContain("Org unit to notice");
     expect(html).toContain("Template to notice");
-    expect(html).toContain("Explore this slice");
+    expect(html).toContain("Open in Explore");
     expect(html).not.toContain("data-reporting-root-link");
     expect(html).not.toContain("#reporting-hierarchy-focus");
     expect(html).not.toContain("Chemistry Lab");
@@ -2475,13 +2475,13 @@ describe("org unit and badge ownership governance endpoints", () => {
     expect(hierarchyPanel).toContain('data-reporting-state="empty"');
     expect(performerPanel).toContain('data-reporting-state="empty"');
     expect(html).toContain("The selected filters do not have enough activity to chart yet.");
-    expect(html).toContain("No badge-template rows are visible for this slice yet.");
-    expect(html).toContain("No org-unit rows are visible for this slice yet.");
+    expect(html).toContain("No badge-template rows are visible for this view yet.");
+    expect(html).toContain("No org-unit rows are visible for this view yet.");
     expect(html).toContain(
-      "Hierarchy drilldowns appear here once visible org-unit rows exist for this slice.",
+      "Hierarchy drilldowns appear here once visible org-unit rows exist for this view.",
     );
     expect(html).toContain(
-      "Performer rankings appear once this slice includes comparable hierarchy rows.",
+      "Performer rankings appear once this view includes comparable hierarchy rows.",
     );
     expect(html).not.toContain("Chemistry Lab");
     expect(html).not.toContain("History");

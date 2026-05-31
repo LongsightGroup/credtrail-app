@@ -165,10 +165,10 @@ export const renderInstitutionAdminReportingComparisonSections = (
       <h2>Compare by badge template</h2>
       <p>
         {reportingTemplateComparisonState === "rich"
-          ? "Exact badge-template rows for the selected slice. Use Highlights for the ranked visual summary."
+          ? "Exact badge-template rows for the current filters. Use Highlights for the ranked visual summary."
           : reportingTemplateComparisonState === "sparse"
-            ? "One badge template matches this slice. Open the exact row only when you need every event column."
-            : "No badge-template rows are visible for this slice yet. Widen the date range or remove a filter to compare templates."}
+            ? "One badge template matches these filters. Open the exact row only when you need every event column."
+            : "No badge-template rows are visible for this view yet. Widen the date range or remove a filter to compare templates."}
       </p>
       {reportingSparseTemplateComparisonRow === null
         ? null
@@ -206,10 +206,10 @@ export const renderInstitutionAdminReportingComparisonSections = (
       <h2>Compare by org unit</h2>
       <p>
         {reportingOrgUnitComparisonState === "rich"
-          ? "Exact org-unit rows for the selected slice. Advanced hierarchy drilldowns stay collapsed below until needed."
+          ? "Exact org-unit rows for the current filters. Advanced hierarchy drilldowns stay collapsed below until needed."
           : reportingOrgUnitComparisonState === "sparse"
-            ? "One org unit matches this slice. Open the exact row only when you need every event column."
-            : "No org-unit rows are visible for this slice yet. Widen the date range or remove a filter to compare org units."}
+            ? "One org unit matches these filters. Open the exact row only when you need every event column."
+            : "No org-unit rows are visible for this view yet. Widen the date range or remove a filter to compare org units."}
       </p>
       {reportingSparseOrgUnitComparisonRow === null
         ? null

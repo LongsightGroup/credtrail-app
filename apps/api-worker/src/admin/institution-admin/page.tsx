@@ -1002,7 +1002,7 @@ const renderInstitutionAdminPage = (
           <>
             {renderPageHeader(
               "Reporting",
-              "Start with the current slice, then open detail only when you need it.",
+              "Start with the current view, then open detail only when you need it.",
             )}
             <section class="ct-admin ct-stack">
               <section class="ct-admin__reporting-presentation-shell ct-admin__reporting-presentation-shell--highlights ct-stack">
@@ -1023,7 +1023,7 @@ const renderInstitutionAdminPage = (
           <>
             {renderPageHeader(
               "Reporting Explore",
-              "Filter the current reporting slice, scan concise previews, and open exact detail only when needed.",
+              "Filter the report, scan concise previews, and open exact detail only when needed.",
             )}
             <section class="ct-admin ct-stack">
               {reportingExploreSliceSummaryMarkup}

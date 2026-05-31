@@ -5,7 +5,7 @@ export const INSTITUTION_ADMIN_REPORTING_JS = `
       reportingFiltersForm.setAttribute('aria-busy', 'true');
 
       if (reportingFiltersStatus instanceof HTMLElement) {
-        reportingFiltersStatus.textContent = 'Refreshing this page with the selected reporting slice...';
+        reportingFiltersStatus.textContent = 'Refreshing this page with your current filters...';
       }
 
       Array.from(reportingFiltersForm.querySelectorAll('button[type="submit"]')).forEach((candidate) => {

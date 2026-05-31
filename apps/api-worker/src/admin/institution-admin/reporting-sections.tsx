@@ -319,10 +319,10 @@ export const renderInstitutionAdminReportingSections = (
     },
   ] as const;
   const reportingExploreSliceSummaryMarkup = (
-    <section class="ct-admin__reporting-slice-strip" aria-label="Current reporting slice">
+    <section class="ct-admin__reporting-slice-strip" aria-label="Current report view">
       <div class="ct-admin__reporting-slice-main">
         <div class="ct-cluster">
-          <p class="ct-admin__eyebrow">Current slice</p>
+          <p class="ct-admin__eyebrow">Current view</p>
           <span class="ct-admin__status-pill">{reportingGeneratedAtLabel}</span>
         </div>
         <div class="ct-admin__reporting-slice-tags">
@@ -354,7 +354,7 @@ export const renderInstitutionAdminReportingSections = (
       value: formatReportingCount(
         reportingOverview?.counts.issued ?? reportingEngagementCounts?.issuedCount ?? 0,
       ),
-      detail: "Current issued volume for the selected reporting slice.",
+      detail: "Current issued volume for the active filters.",
     },
     {
       key: "claim-rate",
@@ -366,20 +366,20 @@ export const renderInstitutionAdminReportingSections = (
       key: "share-rate",
       label: "Share rate",
       value: formatReportingRate(reportingEngagementCounts?.shareRate ?? 0),
-      detail: "Distinct shared assertions over issued badges in the same slice.",
+      detail: "Distinct shared assertions over issued badges in the same view.",
     },
     {
       key: "public-badge-views",
       label: "Public badge views",
       value: formatReportingCount(reportingEngagementCounts?.publicBadgeViewCount ?? 0),
-      detail: "CredTrail-owned public badge page loads for the current slice.",
+      detail: "CredTrail-owned public badge page loads for the current view.",
     },
   ] as const;
   const reportingExecutiveSummaryMarkup = (
     <article class="ct-admin__panel ct-admin__reporting-summary-band ct-stack">
       <div class="ct-admin__reporting-readout-head">
         <div class="ct-stack">
-          <p class="ct-admin__eyebrow">Current slice</p>
+          <p class="ct-admin__eyebrow">Current view</p>
           <h2>At a glance</h2>
           <p class="ct-admin__reporting-summary-copy">
             {formatReportingCount(
@@ -400,7 +400,7 @@ export const renderInstitutionAdminReportingSections = (
           </div>
         ))}
       </dl>
-      <section class="ct-admin__reporting-summary-context" aria-label="Current slice">
+      <section class="ct-admin__reporting-summary-context" aria-label="Current view">
         <div class="ct-stack">
           <div class="ct-cluster">
             <p class="ct-admin__eyebrow">Filters</p>
@@ -610,7 +610,7 @@ export const renderInstitutionAdminReportingSections = (
   );
   const reportingStateMixSummary =
     reportingOverview === null || reportingStateMixTotal === 0
-      ? "No badges are in this slice yet."
+      ? "No badges match the current filters yet."
       : reportingActiveStateCount === reportingStateMixTotal
         ? `All ${formatReportingCount(reportingStateMixTotal)} badges are active.`
         : `${formatReportingCount(reportingActiveStateCount)} active; ${formatReportingCount(
@@ -622,7 +622,7 @@ export const renderInstitutionAdminReportingSections = (
         state: "empty",
         eyebrow: "Current badge state mix",
         title: "No badge state counts are available yet.",
-        description: "Widen the reporting slice or remove filters to check badge lifecycle state.",
+        description: "Widen the date range or remove filters to check badge lifecycle state.",
       })
     ) : (
       <section class="ct-admin__reporting-state-summary" aria-label="Current badge state mix">
@@ -714,7 +714,7 @@ export const renderInstitutionAdminReportingSections = (
             <p class="ct-admin__eyebrow">{input.eyebrow}</p>
             <h2>{input.title}</h2>
           </div>
-          <AdminStatusPill>{state === "rich" ? "Top rows" : "Current slice"}</AdminStatusPill>
+          <AdminStatusPill>{state === "rich" ? "Top rows" : "Current view"}</AdminStatusPill>
         </div>
         {visualMarkup}
         <div class="ct-admin__reporting-highlight-actions">
@@ -804,7 +804,7 @@ export const renderInstitutionAdminReportingSections = (
         data-reporting-submit-status
         aria-live="polite"
       >
-        Applying filters refreshes this page with the selected reporting slice.
+        Applying filters refreshes this page with your current selection.
       </p>
     </>
   );
@@ -817,7 +817,7 @@ export const renderInstitutionAdminReportingSections = (
       </div>
       {renderReportingFiltersForm(reportingExplorePath)}
       <p class="ct-admin__hint">
-        Need CSV downloads for this slice?{" "}
+        Need CSV downloads for this view?{" "}
         <a href={reportingReportsExportsHref}>Open export options</a>.
       </p>
       {reportingStateMixMarkup}
@@ -882,8 +882,8 @@ export const renderInstitutionAdminReportingSections = (
             <span>Engagement event counts</span>
             <small>
               {reportingHasRawEngagementEvents
-                ? `${formatReportingCount(reportingRawEngagementTotal)} raw events in this slice`
-                : "No raw engagement events yet for this slice"}
+                ? `${formatReportingCount(reportingRawEngagementTotal)} raw events in this view`
+                : "No raw engagement events yet for this view"}
             </small>
           </summary>
           <div class="ct-admin__reporting-inline-body">
@@ -893,7 +893,7 @@ export const renderInstitutionAdminReportingSections = (
                 <div class="ct-admin__metric-grid">{reportingEngagementCardsMarkup}</div>
               </>
             ) : (
-              <p class="ct-admin__empty">No engagement events yet for this slice.</p>
+              <p class="ct-admin__empty">No engagement events yet for this view.</p>
             )}
           </div>
         </details>
@@ -936,10 +936,10 @@ export const renderInstitutionAdminReportingSections = (
     title: "Top badge templates",
     visualId: "reporting-highlights-templates",
     visualDescription:
-      "Top issued badge templates for the selected reporting slice, with public views plus claim and share context carried beside each row.",
+      "Top issued badge templates for the current filters, with public views plus claim and share context carried beside each row.",
     rows: reportingTemplateHighlightRows,
     totalRowCount: reportingTemplateComparisons.length,
-    emptyTitle: "No template highlights are available for this slice yet.",
+    emptyTitle: "No template highlights are available for this view yet.",
     emptyDescription:
       "Widen the date window or remove a filter in Explore to review badge-template performance.",
     actionHref: reportingExploreHref,
@@ -950,10 +950,10 @@ export const renderInstitutionAdminReportingSections = (
     title: "Top org units",
     visualId: "reporting-highlights-org-units",
     visualDescription:
-      "Top issued organization units for the selected reporting slice, scoped to the rows this user can see.",
+      "Top issued organization units for the current filters, scoped to the rows this user can see.",
     rows: reportingOrgUnitHighlightRows,
     totalRowCount: reportingOrgUnitComparisons.length,
-    emptyTitle: "No org-unit highlights are available for this slice yet.",
+    emptyTitle: "No org-unit highlights are available for this view yet.",
     emptyDescription:
       "Widen the date window or remove a filter in Explore to review org-unit performance.",
     actionHref: reportingExploreHref,
@@ -963,7 +963,7 @@ export const renderInstitutionAdminReportingSections = (
     <details class="ct-admin__reporting-inline-disclosure ct-admin__reporting-inline-disclosure--ranked">
       <summary class="ct-admin__reporting-inline-summary">
         <span>Ranked charts</span>
-        <small>Top badge templates and org units for this slice</small>
+        <small>Top badge templates and org units for this view</small>
       </summary>
       <div class="ct-admin__reporting-inline-body">
         <section class="ct-admin__reporting-highlight-grid">
@@ -1013,7 +1013,7 @@ export const renderInstitutionAdminReportingSections = (
       eyebrow: "Lifecycle attention",
       metric: formatReportingCount(reportingLifecycleAttentionCount),
       title: "Badges need review",
-      detail: "Suspended, revoked, or pending-review badges are present in this slice.",
+      detail: "Suspended, revoked, or pending-review badges are present in this view.",
       href: reportingLifecycleAttentionHref,
       actionLabel: "Review in Explore",
     });
@@ -1024,9 +1024,9 @@ export const renderInstitutionAdminReportingSections = (
       eyebrow: "Org unit to notice",
       metric: `${formatReportingCount(reportingTopOrgUnitRow.issuedCount)} issued`,
       title: getReportingComparisonLabel(reportingTopOrgUnitRow),
-      detail: "Highest visible org-unit volume in the current slice.",
+      detail: "Highest visible org-unit volume in the current view.",
       href: buildReportingExploreHrefForComparisonRow(reportingTopOrgUnitRow),
-      actionLabel: "Explore this slice",
+      actionLabel: "Open in Explore",
     });
   }
 
@@ -1035,9 +1035,9 @@ export const renderInstitutionAdminReportingSections = (
       eyebrow: "Template to notice",
       metric: `${formatReportingCount(reportingTopTemplateRow.issuedCount)} issued`,
       title: getReportingComparisonLabel(reportingTopTemplateRow),
-      detail: "Highest visible badge-template volume in the current slice.",
+      detail: "Highest visible badge-template volume in the current view.",
       href: buildReportingExploreHrefForComparisonRow(reportingTopTemplateRow),
-      actionLabel: "Explore this slice",
+      actionLabel: "Open in Explore",
     });
   } else if (reportingClaimRateLeader !== null) {
     reportingFocusAreaItems.push({
@@ -1046,7 +1046,7 @@ export const renderInstitutionAdminReportingSections = (
       title: getReportingComparisonLabel(reportingClaimRateLeader),
       detail: "Strongest claim-rate signal above the minimum sample threshold.",
       href: buildReportingExploreHrefForComparisonRow(reportingClaimRateLeader),
-      actionLabel: "Explore this slice",
+      actionLabel: "Open in Explore",
     });
   }
   const reportingFocusAreaState = classifyReportingPanelState(reportingFocusAreaItems.length);
@@ -1072,7 +1072,7 @@ export const renderInstitutionAdminReportingSections = (
         renderReportingStateShell({
           state: "empty",
           eyebrow: "No focus areas yet",
-          title: "Highlights will suggest focus areas once this slice has activity.",
+          title: "Highlights will suggest focus areas once this view has activity.",
           description:
             "Widen the date window or remove a filter in Explore to review more reporting signals.",
         })
@@ -1126,8 +1126,8 @@ export const renderInstitutionAdminReportingSections = (
         <AdminStatusPill>Planned</AdminStatusPill>
       </div>
       <p>
-        Reserved for named reports that preserve a reporting slice, audience, and export intent. For
-        now, use Highlights for the default read and Explore for the exact table workspace.
+        Reserved for named reports that preserve filters, audience, and export intent. For now, use
+        Highlights for the default read and Explore for the exact table workspace.
       </p>
       <div class="ct-admin__reporting-highlight-actions">
         <AdminButtonLink href={reportingPath} variant="secondary">
@@ -1157,7 +1157,7 @@ export const renderInstitutionAdminReportingSections = (
           Build from Explore
         </AdminButtonLink>
         <AdminButtonLink href={reportingReportsExportsHref} variant="ghost">
-          Export current slice
+          Export current view
         </AdminButtonLink>
       </div>
     </AdminPanel>

@@ -184,10 +184,10 @@ const buildSummaryText = (
       const categoryLabel = lowercaseInitial(positivePoint?.label ?? "");
 
       if (totalValue === 1) {
-        return `${totalLabel} total; ${categoryLabel} in this slice.`;
+        return `${totalLabel} total; ${categoryLabel} in this view.`;
       }
 
-      return `${totalLabel} total; all ${categoryLabel} in this slice.`;
+      return `${totalLabel} total; all ${categoryLabel} in this view.`;
     }
 
     const summaryLabels =

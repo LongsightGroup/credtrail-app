@@ -83,7 +83,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("Top org units");
     expect(body).toContain("Where to look next");
     expect(body).toContain("Focus areas");
-    expect(body).toContain("Explore this slice");
+    expect(body).toContain("Open in Explore");
     expect(body).toContain("Explore");
     expect(body).toContain("Reports");
     expect(body).toContain("Public badge views");
@@ -148,7 +148,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     });
   });
 
-  it("keeps the current slice and generated-at context visible at the top of reporting", async () => {
+  it("keeps the current view and generated-at context visible at the top of reporting", async () => {
     const env = createEnv();
     mockedGetTenantReportingOverviewDb.mockImplementationOnce(async (_db, input) => {
       return {
@@ -184,7 +184,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain('class="ct-admin__reporting-summary-context"');
-    expect(body).toContain("Current slice");
+    expect(body).toContain("Current view");
     expect(body).toContain("Mar 1");
     expect(body).toContain("Mar 31");
     expect(body).toContain("TypeScript Foundations");
@@ -563,7 +563,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("The table below lists the exact engagement counts for each day.");
     expect(body).toContain("Detailed trend table");
     expect(body).not.toContain("Executive Summary");
-    expect(body).not.toContain("Selected reporting slice");
+    expect(body).not.toContain("Selected reporting view");
     expect(body).not.toContain("Back to overview");
     expect(body).not.toContain("Export CSV");
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
@@ -635,20 +635,20 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(trendPanel).toContain('data-reporting-state="empty"');
     expect(trendPanel).toContain("The selected filters do not have enough activity to chart yet.");
     expect(templatePanel).toContain('data-reporting-state="empty"');
-    expect(templatePanel).toContain("No badge-template rows are visible for this slice yet.");
+    expect(templatePanel).toContain("No badge-template rows are visible for this view yet.");
     expect(orgUnitPanel).toContain('data-reporting-state="empty"');
-    expect(orgUnitPanel).toContain("No org-unit rows are visible for this slice yet.");
+    expect(orgUnitPanel).toContain("No org-unit rows are visible for this view yet.");
     expect(hierarchyPanel).toContain('data-reporting-state="empty"');
     expect(hierarchyPanel).toContain(
-      "Hierarchy drilldowns appear here once visible org-unit rows exist for this slice.",
+      "Hierarchy drilldowns appear here once visible org-unit rows exist for this view.",
     );
     expect(performerPanel).toContain('data-reporting-state="empty"');
     expect(performerPanel).toContain(
-      "Performer rankings appear once this slice includes comparable hierarchy rows.",
+      "Performer rankings appear once this view includes comparable hierarchy rows.",
     );
   });
 
-  it("marks limited reporting slices as sparse and drops momentum or ranking language", async () => {
+  it("marks limited reporting views as sparse and drops momentum or ranking language", async () => {
     const env = createEnv();
     mockedGetTenantReportingOverviewDb.mockResolvedValueOnce({
       tenantId: "tenant_123",
@@ -758,25 +758,23 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(trendPanel).not.toContain("Read issued badge momentum first");
     expect(templatePanel).toContain('data-reporting-state="sparse"');
     expect(templatePanel).toContain(
-      "One badge template matches this slice. Open the exact row only when you need every event column.",
+      "One badge template matches these filters. Open the exact row only when you need every event column.",
     );
     expect(templatePanel).toContain("Exact badge-template row");
     expect(templatePanel).toContain("Show all event columns");
     expect(templatePanel).not.toContain("Start with the ranked visual");
     expect(orgUnitPanel).toContain('data-reporting-state="sparse"');
     expect(orgUnitPanel).toContain(
-      "One org unit matches this slice. Open the exact row only when you need every event column.",
+      "One org unit matches these filters. Open the exact row only when you need every event column.",
     );
     expect(orgUnitPanel).toContain("Exact org-unit row");
     expect(orgUnitPanel).toContain("Show all event columns");
     expect(orgUnitPanel).not.toContain("Start with the ranked visual");
     expect(hierarchyPanel).toContain('data-reporting-state="sparse"');
-    expect(hierarchyPanel).toContain(
-      "This slice currently resolves to one visible reporting path.",
-    );
+    expect(hierarchyPanel).toContain("Your filters currently show one visible reporting path.");
     expect(performerPanel).toContain('data-reporting-state="sparse"');
     expect(performerPanel).toContain(
-      "Rankings stay paused until this slice has more than one comparable hierarchy row.",
+      "Rankings stay paused until this view has more than one comparable hierarchy row.",
     );
   });
 
@@ -801,15 +799,13 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(overviewPanel).toContain('id="reporting-filters-status"');
     expect(overviewPanel).toContain("data-reporting-submit-status");
     expect(overviewPanel).toContain(
-      "Applying filters refreshes this page with the selected reporting slice.",
+      "Applying filters refreshes this page with your current selection.",
     );
     expect(INSTITUTION_ADMIN_JS).toContain("reporting-filters-form");
     expect(INSTITUTION_ADMIN_JS).toContain(
       "reportingFiltersForm.dataset.reportingSubmitState = 'pending'",
     );
-    expect(INSTITUTION_ADMIN_JS).toContain(
-      "Refreshing this page with the selected reporting slice...",
-    );
+    expect(INSTITUTION_ADMIN_JS).toContain("Refreshing this page with your current filters...");
     expect(overviewPanel).not.toContain("Loading dashboard");
   });
 
@@ -836,7 +832,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).toContain("12 active; 3 need attention.");
   });
 
-  it("can verify a seeded-demo reporting slice on the normal reporting route from the canonical fixture", async () => {
+  it("can verify a seeded-demo reporting view on the normal reporting route from the canonical fixture", async () => {
     const env = createEnv();
     const seededDemo = getSeededDemoReportingRouteFixture();
 
@@ -1145,10 +1141,10 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(templatePanel).not.toContain("Issued ranking by badge template");
     expect(orgUnitPanel).not.toContain("Issued ranking by org unit");
     expect(templatePanel).toContain(
-      "Exact badge-template rows for the selected slice. Use Highlights for the ranked visual summary.",
+      "Exact badge-template rows for the current filters. Use Highlights for the ranked visual summary.",
     );
     expect(orgUnitPanel).toContain(
-      "Exact org-unit rows for the selected slice. Advanced hierarchy drilldowns stay collapsed below until needed.",
+      "Exact org-unit rows for the current filters. Advanced hierarchy drilldowns stay collapsed below until needed.",
     );
     expect(templatePanel).not.toContain("Top 5 shown here.");
     expect(orgUnitPanel).not.toContain("Top 5 shown here.");
