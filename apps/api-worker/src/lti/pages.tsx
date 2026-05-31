@@ -1,4 +1,4 @@
-import type { LtiIssuerRegistrationRecord, TenantMembershipRole } from "@credtrail/db";
+import type { TenantMembershipRole } from "@credtrail/db";
 import type { LtiRoleKind } from "@credtrail/lti";
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
@@ -51,19 +51,6 @@ const LtiDeepLinkForm = ({
 }>): HonoElement => {
   return (
     <form method="post" action={action} class="lti-deep-link__form">
-      {children}
-    </form>
-  );
-};
-
-const LtiRegistrationForm = ({
-  action,
-  children,
-}: PropsWithChildren<{
-  action: string;
-}>): HonoElement => {
-  return (
-    <form method="post" action={action} class="lti-registration__form">
       {children}
     </form>
   );
@@ -534,125 +521,6 @@ export const ltiDeepLinkSelectionPage = (input: LtiDeepLinkSelectionPageInput): 
             ))
           )}
         </section>
-      </section>
-    ),
-  });
-};
-
-export interface LtiIssuerRegistrationFormState {
-  issuer?: string;
-  tenantId?: string;
-  authorizationEndpoint?: string;
-  clientId?: string;
-  platformJwksEndpoint?: string;
-  tokenEndpoint?: string;
-}
-
-export const ltiIssuerRegistrationAdminPage = (input: {
-  token: string;
-  registrations: readonly LtiIssuerRegistrationRecord[];
-  submissionError?: string;
-  formState?: LtiIssuerRegistrationFormState;
-}): AppPage => {
-  return ltiPage({
-    title: "LTI Issuer Registrations | CredTrail",
-    body: (
-      <section class="lti-registration">
-        <h1 class="lti-registration__title">Manual LTI issuer registration configuration</h1>
-        <p class="lti-registration__lede">
-          Configure issuer mappings used by LTI 1.3 OIDC login and launch. Stored registrations
-          override env-based defaults.
-        </p>
-        {input.submissionError === undefined ? null : (
-          <p class="lti-registration__error">{input.submissionError}</p>
-        )}
-        <LtiRegistrationForm action="/admin/lti/issuer-registrations">
-          <input type="hidden" name="token" value={input.token} />
-          <label class="lti-registration__field">
-            <span>Issuer URL</span>
-            <input name="issuer" type="url" required value={input.formState?.issuer ?? ""} />
-          </label>
-          <label class="lti-registration__field">
-            <span>Tenant ID</span>
-            <input name="tenantId" type="text" required value={input.formState?.tenantId ?? ""} />
-          </label>
-          <label class="lti-registration__field">
-            <span>Client ID</span>
-            <input name="clientId" type="text" required value={input.formState?.clientId ?? ""} />
-          </label>
-          <label class="lti-registration__field">
-            <span>Authorization endpoint</span>
-            <input
-              name="authorizationEndpoint"
-              type="url"
-              required
-              value={input.formState?.authorizationEndpoint ?? ""}
-            />
-          </label>
-          <label class="lti-registration__field">
-            <span>Platform JWKS endpoint</span>
-            <input
-              name="platformJwksEndpoint"
-              type="url"
-              value={input.formState?.platformJwksEndpoint ?? ""}
-            />
-          </label>
-          <label class="lti-registration__field">
-            <span>Token endpoint</span>
-            <input name="tokenEndpoint" type="url" value={input.formState?.tokenEndpoint ?? ""} />
-          </label>
-          <div class="lti-registration__actions">
-            <LtiSubmitButton>Save registration</LtiSubmitButton>
-          </div>
-        </LtiRegistrationForm>
-        <div class="lti-registration__table-wrap">
-          <table class="lti-registration__table">
-            <thead>
-              <tr>
-                <th>Issuer</th>
-                <th>Tenant</th>
-                <th>Client ID</th>
-                <th>Authorization endpoint</th>
-                <th>Platform JWKS endpoint</th>
-                <th>Token endpoint</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {input.registrations.length === 0 ? (
-                <tr>
-                  <td colspan={7} class="lti-registration__empty">
-                    No LTI issuer registrations configured.
-                  </td>
-                </tr>
-              ) : (
-                input.registrations.map((registration) => (
-                  <tr key={`${registration.issuer}:${registration.clientId}`}>
-                    <td class="lti-registration__wrap-anywhere">{registration.issuer}</td>
-                    <td>{registration.tenantId}</td>
-                    <td class="lti-registration__wrap-anywhere">{registration.clientId}</td>
-                    <td class="lti-registration__wrap-anywhere">
-                      {registration.authorizationEndpoint}
-                    </td>
-                    <td class="lti-registration__wrap-anywhere">
-                      {registration.platformJwksEndpoint ?? "Not configured"}
-                    </td>
-                    <td class="lti-registration__wrap-anywhere">
-                      {registration.tokenEndpoint ?? "Not configured"}
-                    </td>
-                    <td>
-                      <form method="post" action="/admin/lti/issuer-registrations/delete">
-                        <input type="hidden" name="token" value={input.token} />
-                        <input type="hidden" name="issuer" value={registration.issuer} />
-                        <LtiSubmitButton>Delete</LtiSubmitButton>
-                      </form>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
       </section>
     ),
   });

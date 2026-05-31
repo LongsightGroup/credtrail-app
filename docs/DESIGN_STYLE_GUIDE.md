@@ -160,7 +160,7 @@ stripes, and nested card stacks on routine admin pages.
 
 - Keep page-level CSS in `apps/api-worker/src/ui/page-assets/content/*`.
 - Keep route handlers free from inline styles/scripts.
-- Use `/admin/styleguide?token=<BOOTSTRAP_ADMIN_TOKEN>` as the internal visual reference for tokens, typography, admin buttons, major secondary link rows, and table action groups.
+- Use the source-controlled design tokens and admin component tests as the visual reference for typography, admin buttons, major secondary link rows, and table action groups.
 - Use semantic tokens first; keep legacy aliases (`--ct-color-*`, `--ct-surface-*`) only for migration.
 - New CSS should avoid hard-coded hex values unless:
   - it is a one-off brand asset treatment, and

@@ -43,7 +43,8 @@ and token endpoint metadata.
 9. Launch the tool from Canvas and confirm CredTrail shows either the LTI launch
    completion page or the Deep Linking template picker.
 
-For live Canvas validation, use [CANVAS_REAL_INSTANCE_E2E.md](./CANVAS_REAL_INSTANCE_E2E.md).
+For live Canvas validation, use this checklist against a real Canvas test course and keep
+any instance-specific credentials outside the repository.
 
 ## Sakai
 
@@ -62,7 +63,8 @@ For live Canvas validation, use [CANVAS_REAL_INSTANCE_E2E.md](./CANVAS_REAL_INST
 8. Start with a baseline launch. Then validate Deep Linking and NRPS only after
    the baseline signed launch succeeds.
 
-For live Sakai validation, use [SAKAI_REAL_INSTANCE_E2E.md](./SAKAI_REAL_INSTANCE_E2E.md).
+For live Sakai validation, use this checklist against a real Sakai test site and keep
+any instance-specific credentials outside the repository.
 
 ## Troubleshooting
 

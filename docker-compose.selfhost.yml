@@ -15,7 +15,7 @@ x-selfhost-env: &selfhost_env
   S3_FORCE_PATH_STYLE: "true"
   AWS_ACCESS_KEY_ID: minioadmin
   AWS_SECRET_ACCESS_KEY: minioadmin
-  JOB_PROCESSOR_TOKEN: local-job-token
+  JOB_PROCESSOR_TOKEN: ${JOB_PROCESSOR_TOKEN:?set JOB_PROCESSOR_TOKEN to a generated secret}
 
 services:
   postgres:

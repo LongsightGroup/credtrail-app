@@ -436,7 +436,6 @@ const createEnv = (): {
   TENANT_SIGNING_KEY_HISTORY_JSON?: string;
   TENANT_REMOTE_SIGNER_REGISTRY_JSON?: string;
   JOB_PROCESSOR_TOKEN?: string;
-  BOOTSTRAP_ADMIN_TOKEN?: string;
   LTI_ISSUER_REGISTRY_JSON?: string;
   LTI_STATE_SIGNING_SECRET?: string;
 } => {

@@ -54,7 +54,7 @@ Design-token source:
 - Run `pnpm build:design-tokens` after token edits. This regenerates:
   - `apps/api-worker/src/ui/page-assets/content/generated/design-tokens.css`
   - `apps/api-worker/src/ui/page-assets/content/generated/design-tokens-css.ts`
-- The internal visual catalog is available at `/admin/styleguide?token=<BOOTSTRAP_ADMIN_TOKEN>` and uses `designSystemCss`.
+- Admin visual patterns are covered by the source-controlled page assets and component tests.
   It documents JSX page components, the Style Dictionary pipeline, token usage, admin action patterns, and table controls.
 
 ## Inline CSS/JS Policy

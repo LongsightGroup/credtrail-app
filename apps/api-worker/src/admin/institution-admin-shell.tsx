@@ -55,7 +55,6 @@ export interface InstitutionAdminShellPaths {
   accessApiKeysPath: string;
   accessLmsConnectionsPath: string;
   accessOrgUnitsPath: string;
-  adminAuditLogPath: string;
   showcasePath: string;
 }
 
@@ -96,7 +95,6 @@ export const buildInstitutionAdminShellPaths = (tenantId: string): InstitutionAd
     accessApiKeysPath: `${accessPath}/api-keys`,
     accessLmsConnectionsPath: `${accessPath}/lms-connections`,
     accessOrgUnitsPath: `${accessPath}/org-units`,
-    adminAuditLogPath: `/admin/audit-logs?tenantId=${encodeURIComponent(tenantId)}`,
     showcasePath: `/showcase/${encodeURIComponent(tenantId)}`,
   };
 };
@@ -230,7 +228,6 @@ const buildSidebarFooterLinks = (input: {
   const switchOrganizationPath = input.switchOrganizationPath?.trim() ?? "";
 
   return [
-    { href: input.paths.adminAuditLogPath, label: "Audit logs", isExternal: true },
     {
       href: input.paths.showcasePath,
       label: "Public showcase",

@@ -69,7 +69,6 @@ import {
   TENANT_MEMBER_ROLES,
   createTenantAccessHelpers,
   defaultInstitutionOrgUnitId,
-  isUniqueConstraintError,
 } from "./auth/tenant-access";
 import { createOAuthTokenHelpers } from "./ob3/oauth-token-helpers";
 import { createOb3ErrorResponses } from "./ob3/error-responses";
@@ -86,7 +85,6 @@ import {
   sendIssuanceEmailNotification,
   type SendIssuanceEmailNotificationInput,
 } from "./notifications/send-issuance-email";
-import { registerAdminRoutes } from "./routes/admin-routes";
 import { registerAssertionRoutes } from "./routes/assertion-routes";
 import { registerAuthRoutes } from "./routes/auth-routes";
 import { registerBadgeTemplateImageRoutes } from "./routes/badge-template-image-routes";
@@ -186,8 +184,6 @@ const {
 });
 
 const {
-  requireBootstrapAdmin,
-  requireBootstrapAdminUiToken,
   requireTenantRole,
   requireScopedOrgUnitPermission,
   requireDelegatedIssuingAuthorityPermission,
@@ -501,14 +497,6 @@ registerHealthRoutes({
   resolveDatabase,
   serviceName: API_SERVICE_NAME,
   storageReadinessProbeKey: STORAGE_READINESS_PROBE_KEY,
-});
-
-registerAdminRoutes({
-  app,
-  requireBootstrapAdmin,
-  requireBootstrapAdminUiToken,
-  resolveDatabase,
-  isUniqueConstraintError,
 });
 
 registerOb3Routes({

@@ -124,7 +124,6 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access"');
-    expect(body).toContain('href="/admin/audit-logs?tenantId=tenant_123"');
     expect(body).toContain('href="/showcase/tenant_123"');
     expect(body).toContain("/v1/tenants/tenant_123/assertions/manual-issue");
     expect(body).toContain("/v1/tenants/tenant_123/api-keys");

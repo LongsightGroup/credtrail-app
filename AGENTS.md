@@ -121,10 +121,12 @@ and local Wrangler R2 emulation.
 Local-only files:
 - `wrangler.local.jsonc` is intentionally gitignored. It should define the local
   Worker entrypoint, `BADGE_OBJECTS` R2 binding, `APP_ENV=development`,
-  `PLATFORM_DOMAIN=localhost`, `JOB_PROCESSOR_TOKEN`, `BOOTSTRAP_ADMIN_TOKEN`,
-  and a `HYPERDRIVE` binding with `localConnectionString` pointing at local
-  Postgres. Start from `wrangler.local.jsonc.example`, and keep the Hyperdrive
-  `id` as a local placeholder unless testing a deployed Hyperdrive config.
+  `PLATFORM_DOMAIN=localhost`, and a `HYPERDRIVE` binding with
+  `localConnectionString` pointing at local Postgres. Start from
+  `wrangler.local.jsonc.example`, and keep the Hyperdrive `id` as a local
+  placeholder unless testing a deployed Hyperdrive config. Add
+  `JOB_PROCESSOR_TOKEN` only when testing internal queue ingress locally, and
+  generate a fresh high-entropy value instead of copying a shared token.
 - `.dev.vars.local` is intentionally gitignored. It should contain local secrets
   for scripts and fallback DB access, such as:
   `DATABASE_URL=postgres://credtrail:credtrail@127.0.0.1:5432/credtrail`

@@ -21,9 +21,7 @@ import {
 import { ADMIN_ROLES, requirePrincipalTenantRole, type TenantAccessContext } from "./tenant-access";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "./auth-context";
 
-interface FakeBindings {
-  BOOTSTRAP_ADMIN_TOKEN?: string;
-}
+type FakeBindings = Record<string, never>;
 
 type FakeContext = TenantAccessContext<FakeBindings>;
 

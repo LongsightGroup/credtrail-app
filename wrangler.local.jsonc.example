@@ -20,8 +20,6 @@
   "vars": {
     "APP_ENV": "development",
     "PLATFORM_DOMAIN": "credtrail.example",
-    "BETTER_AUTH_TRUSTED_ORIGINS": "http://credtrail.example,https://credtrail.example,http://localhost:8787,http://127.0.0.1:8787",
-    "JOB_PROCESSOR_TOKEN": "local-job-token",
-    "BOOTSTRAP_ADMIN_TOKEN": "local-admin-token"
+    "BETTER_AUTH_TRUSTED_ORIGINS": "http://credtrail.example,https://credtrail.example,http://localhost:8787,http://127.0.0.1:8787"
   }
 }

@@ -261,7 +261,6 @@ export const institutionAdminRuleBuilderPage = (input: {
   const tenantMembersApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/members`;
   const tenantUsersApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/users`;
   const showcasePath = `/showcase/${encodeURIComponent(input.tenant.id)}`;
-  const adminAuditLogPath = `/admin/audit-logs?tenantId=${encodeURIComponent(input.tenant.id)}`;
   const switchOrganizationPath = input.switchOrganizationPath?.trim() ?? "";
   const userLabel = input.userEmail ?? input.userId;
 
@@ -467,7 +466,6 @@ export const institutionAdminRuleBuilderPage = (input: {
     },
   ];
   const sidebarFooterLinks: readonly AdminSidebarFooterLink[] = [
-    { href: adminAuditLogPath, label: "Audit logs", isExternal: true },
     {
       href: showcasePath,
       label: "Public showcase",

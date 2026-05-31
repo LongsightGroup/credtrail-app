@@ -40,9 +40,6 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright Browsers
-        run: pnpm exec playwright install --with-deps chromium
-
       - name: Public Docs Policy
         run: pnpm check:public-docs
 
@@ -85,6 +82,7 @@ jobs:
           trap cleanup EXIT
 
           DATABASE_URL="postgresql://credtrail:credtrail@credtrail-ci-postgres:5432/credtrail"
+          JOB_PROCESSOR_TOKEN="$(openssl rand -hex 32)"
 
           docker run -d \
             --name credtrail-ci-postgres \
@@ -136,8 +134,7 @@ jobs:
             -e S3_FORCE_PATH_STYLE=true \
             -e AWS_ACCESS_KEY_ID=minioadmin \
             -e AWS_SECRET_ACCESS_KEY=minioadmin \
-            -e JOB_PROCESSOR_TOKEN=ci-job-token \
-            -e BOOTSTRAP_ADMIN_TOKEN=ci-bootstrap-token \
+            -e JOB_PROCESSOR_TOKEN="$JOB_PROCESSOR_TOKEN" \
             credtrail-ci:${{ github.sha }}
 
           discovery_status=""
@@ -159,10 +156,6 @@ jobs:
 
             sleep 1
           done
-
-          E2E_BASE_URL=http://127.0.0.1:8787 \
-          E2E_BOOTSTRAP_ADMIN_TOKEN=ci-bootstrap-token \
-            pnpm test:e2e --project=chromium
 
           docker run --rm \
             --network credtrail-ci-net \
@@ -207,7 +200,7 @@ jobs:
             -e S3_FORCE_PATH_STYLE=true \
             -e AWS_ACCESS_KEY_ID=minioadmin \
             -e AWS_SECRET_ACCESS_KEY=minioadmin \
-            -e JOB_PROCESSOR_TOKEN=ci-job-token \
+            -e JOB_PROCESSOR_TOKEN="$JOB_PROCESSOR_TOKEN" \
             -e JOB_POLL_INTERVAL_MS=250 \
             credtrail-ci:${{ github.sha }} \
             pnpm exec tsx apps/api-worker/src/node-worker.ts
@@ -234,11 +227,3 @@ jobs:
 
             sleep 1
           done
-
-      - name: Upload Playwright Artifacts
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: playwright-artifacts
-          path: artifacts/playwright
-          if-no-files-found: ignore

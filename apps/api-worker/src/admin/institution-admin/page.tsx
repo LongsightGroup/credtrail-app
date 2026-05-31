@@ -568,7 +568,6 @@ const renderInstitutionAdminPage = (
   const badgeRuleReviewQueueApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules/review-queue`;
   const assertionsApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions`;
   const tenantUsersApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/users`;
-  const adminAuditLogPath = `/admin/audit-logs?tenantId=${encodeURIComponent(input.tenant.id)}`;
   const showcasePath = `/showcase/${encodeURIComponent(input.tenant.id)}`;
   const orgUnitParentOptions = input.orgUnits
     .filter((orgUnit) => orgUnit.isActive)
@@ -835,7 +834,6 @@ const renderInstitutionAdminPage = (
     },
   ];
   const sidebarFooterLinks: readonly AdminSidebarFooterLink[] = [
-    { href: adminAuditLogPath, label: "Audit logs", isExternal: true },
     {
       href: showcasePath,
       label: "Public showcase",

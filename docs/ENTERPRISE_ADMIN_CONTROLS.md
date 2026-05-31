@@ -54,13 +54,8 @@ SP entity ID, ACS URL, NameID format, and enforcement flag.
 
 ## 3) Dedicated DB Provisioning Workflow
 
-Bootstrap admin endpoints track dedicated DB provisioning workflows for enterprise tenants.
-
-Endpoints:
-
-- `GET /v1/admin/tenants/:tenantId/dedicated-db/provisioning-requests`
-- `POST /v1/admin/tenants/:tenantId/dedicated-db/provisioning-requests`
-- `POST /v1/admin/tenants/:tenantId/dedicated-db/provisioning-requests/:requestId/resolve`
+Dedicated database provisioning remains an operational workflow for enterprise
+tenants. It is not exposed through HTTP admin routes.
 
 Workflow:
 

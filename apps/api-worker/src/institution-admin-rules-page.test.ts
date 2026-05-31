@@ -1068,7 +1068,6 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/access/governance"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/api-keys"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/org-units"');
-    expect(body).toContain('href="/admin/audit-logs?tenantId=tenant_123"');
     expect(INSTITUTION_ADMIN_JS).not.toContain("rule-builder-condition-list");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-condition-list");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("credtrail:rule-builder:");

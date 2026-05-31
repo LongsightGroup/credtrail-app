@@ -27,9 +27,7 @@ export const defaultInstitutionOrgUnitId = (tenantId: string): string => {
   return `${tenantId}:org:institution`;
 };
 
-export interface TenantAccessContext<
-  BindingsType extends { BOOTSTRAP_ADMIN_TOKEN?: string | undefined },
-> {
+export interface TenantAccessContext<BindingsType> {
   env: BindingsType;
   req: {
     header(name: string): string | undefined;
@@ -59,19 +57,14 @@ export interface TenantExecutiveAccessResult {
 
 interface CreateTenantAccessHelpersInput<
   ContextType extends TenantAccessContext<BindingsType>,
-  BindingsType extends { BOOTSTRAP_ADMIN_TOKEN?: string | undefined },
+  BindingsType,
 > {
   resolveAuthenticatedPrincipal: (context: ContextType) => Promise<AuthenticatedPrincipal | null>;
   resolvePendingBreakGlassTenantId?: (context: ContextType) => string | null;
   resolveDatabase: (bindings: BindingsType) => SqlDatabase;
 }
 
-interface TenantAccessHelpers<
-  ContextType extends TenantAccessContext<BindingsType>,
-  BindingsType extends { BOOTSTRAP_ADMIN_TOKEN?: string | undefined },
-> {
-  requireBootstrapAdmin: (context: ContextType) => Response | null;
-  requireBootstrapAdminUiToken: (context: ContextType, token: string | null) => Response | null;
+interface TenantAccessHelpers<ContextType extends TenantAccessContext<BindingsType>, BindingsType> {
   requireTenantRole: (
     context: ContextType,
     tenantId: string,
@@ -217,7 +210,7 @@ export const resolveTenantExecutiveAccess = async (input: {
 
 export const requirePrincipalTenantRole = async <
   ContextType extends TenantAccessContext<BindingsType>,
-  BindingsType extends { BOOTSTRAP_ADMIN_TOKEN?: string | undefined },
+  BindingsType,
 >(input: {
   context: ContextType;
   principal: AuthenticatedPrincipal | null;
@@ -322,64 +315,10 @@ const hasScopedOrgUnitPermission = async (input: {
 
 export const createTenantAccessHelpers = <
   ContextType extends TenantAccessContext<BindingsType>,
-  BindingsType extends { BOOTSTRAP_ADMIN_TOKEN?: string | undefined },
+  BindingsType,
 >(
   input: CreateTenantAccessHelpersInput<ContextType, BindingsType>,
 ): TenantAccessHelpers<ContextType, BindingsType> => {
-  const requireBootstrapAdmin = (context: ContextType): Response | null => {
-    const configuredToken = context.env.BOOTSTRAP_ADMIN_TOKEN?.trim();
-
-    if (configuredToken === undefined || configuredToken.length === 0) {
-      return context.json(
-        {
-          error: "Bootstrap admin API is not configured",
-        },
-        503,
-      );
-    }
-
-    const authorizationHeader = context.req.header("authorization");
-    const expectedAuthorization = `Bearer ${configuredToken}`;
-
-    if (authorizationHeader !== expectedAuthorization) {
-      return context.json(
-        {
-          error: "Unauthorized",
-        },
-        401,
-      );
-    }
-
-    return null;
-  };
-
-  const requireBootstrapAdminUiToken = (
-    context: ContextType,
-    token: string | null,
-  ): Response | null => {
-    const configuredToken = context.env.BOOTSTRAP_ADMIN_TOKEN?.trim();
-
-    if (configuredToken === undefined || configuredToken.length === 0) {
-      return context.json(
-        {
-          error: "Bootstrap admin API is not configured",
-        },
-        503,
-      );
-    }
-
-    if (token === null || token !== configuredToken) {
-      return context.json(
-        {
-          error: "Unauthorized",
-        },
-        401,
-      );
-    }
-
-    return null;
-  };
-
   const requireTenantRole = async (
     context: ContextType,
     tenantId: string,
@@ -513,8 +452,6 @@ export const createTenantAccessHelpers = <
   };
 
   return {
-    requireBootstrapAdmin,
-    requireBootstrapAdminUiToken,
     requireTenantRole,
     requireScopedOrgUnitPermission,
     requireDelegatedIssuingAuthorityPermission,

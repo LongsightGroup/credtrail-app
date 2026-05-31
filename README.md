@@ -70,7 +70,7 @@ Open-source Open Badges 3.0 platform with Cloudflare SaaS and Docker self-host r
 - `packages/validation`: Zod schemas for HTTP and queue boundaries.
 - `packages/lti`: LTI 1.3 parsing/validation primitives.
 - `packages/ui-components`: Shared Hono JSX page layout components.
-- `docs`: Implementation docs and ADRs (including `docs/LEARNER_DID_SETUP.md`, `docs/LEARNER_WALLET_IMPORT.md`, `docs/DCC_LCW_COMPATIBILITY.md`, `docs/OB3_CERTIFICATION_RUNBOOK.md`, `docs/VERIFIABLE_PRESENTATIONS.md`, `docs/LMS_INDEPENDENCE_MIGRATION_RUNBOOK.md`, and `docs/SAKAI_REAL_INSTANCE_E2E.md`).
+- `docs`: Implementation docs and ADRs (including `docs/LEARNER_DID_SETUP.md`, `docs/LEARNER_WALLET_IMPORT.md`, `docs/DCC_LCW_COMPATIBILITY.md`, `docs/VERIFIABLE_PRESENTATIONS.md`, and `docs/LMS_INDEPENDENCE_MIGRATION_RUNBOOK.md`).
 
 ### API worker module layout (`apps/api-worker/src`)
 
@@ -112,16 +112,12 @@ Run from the workspace root:
 - `pnpm check:public-docs`
 - `pnpm export:ob3-openapi`
 - `pnpm check:ob3-openapi`
-- `pnpm cert:preflight`
 - `pnpm lint`
 - `pnpm lint:fix`
 - `pnpm format`
 - `pnpm format:check`
 - `pnpm typecheck`
 - `pnpm test`
-- `pnpm test:e2e`
-- `pnpm test:e2e:canvas-real` (requires real Canvas env vars; see `docs/CANVAS_REAL_INSTANCE_E2E.md`)
-- `pnpm test:e2e:sakai-real` (requires real Sakai env vars; see `docs/SAKAI_REAL_INSTANCE_E2E.md`)
 
 OB3 OpenAPI snapshot file: `docs/openapi/ims-ob-v3p0.openapi.json`
 
