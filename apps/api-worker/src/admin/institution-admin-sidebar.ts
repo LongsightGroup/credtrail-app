@@ -88,8 +88,6 @@ export const buildInstitutionAdminSidebarSections = (
   },
   {
     kind: "groups",
-    label: "Credential Operations",
-    icon: "operations",
     groups: [
       {
         label: "Issuance",
@@ -135,8 +133,6 @@ export const buildInstitutionAdminSidebarSections = (
   },
   {
     kind: "groups",
-    label: "Credential Program",
-    icon: "credential",
     groups: [
       {
         label: "Badge Templates",
@@ -163,12 +159,9 @@ export const buildInstitutionAdminSidebarSections = (
   },
   {
     kind: "groups",
-    label: "Reporting",
-    icon: "analytics",
     groups: [
       {
         label: "Reporting",
-        defaultOpen: true,
         links: [
           { href: paths.reportingPath, label: "Overview", isCurrent: view === "reporting" },
           {
@@ -192,8 +185,6 @@ export const buildInstitutionAdminSidebarSections = (
   },
   {
     kind: "groups",
-    label: "Institution Setup",
-    icon: "configuration",
     groups: [
       {
         label: "People & Access",

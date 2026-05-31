@@ -28,47 +28,14 @@ export const INSTITUTION_ADMIN_CSS = `
   border-bottom: 1px solid var(--ct-border-soft);
 }
 .ct-admin-sidebar__nav {
-  padding: 0.75rem 0.45rem;
+  padding: 0.9rem 0.72rem;
   display: grid;
-  gap: 0.55rem;
+  gap: 0.28rem;
   align-content: start;
 }
 .ct-admin-sidebar__section {
   min-width: 0;
   margin: 0;
-}
-.ct-admin-sidebar__section-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0.1rem 0.2rem 0.28rem;
-  padding: 0.15rem 0.45rem;
-  color: var(--ct-theme-text-muted);
-  pointer-events: none;
-  user-select: none;
-}
-.ct-admin-sidebar__section:not(:first-child) .ct-admin-sidebar__section-header {
-  margin-top: 0.35rem;
-}
-.ct-admin-sidebar__section-title {
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.ct-admin-sidebar__section-icon {
-  flex: 0 0 auto;
-  width: 1rem;
-  height: 1rem;
-  stroke-width: 1.8;
-}
-.ct-admin-sidebar__section-label {
-  margin: 0;
-  font-size: 0.68rem;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 .ct-admin-sidebar__menu,
 .ct-admin-sidebar__groups,
@@ -80,7 +47,7 @@ export const INSTITUTION_ADMIN_CSS = `
 .ct-admin-sidebar__menu,
 .ct-admin-sidebar__groups {
   display: grid;
-  gap: 0.12rem;
+  gap: 0.16rem;
 }
 .ct-admin-sidebar__group {
   min-width: 0;
@@ -90,12 +57,12 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin-sidebar__group-trigger {
   width: 100%;
-  min-height: 2rem;
+  min-height: 2.12rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
-  padding: 0 0.65rem;
+  gap: 0.7rem;
+  padding: 0 0.82rem 0 0.66rem;
   color: var(--ct-theme-text-body);
   background: transparent;
   border: 1px solid transparent;
@@ -126,7 +93,7 @@ export const INSTITUTION_ADMIN_CSS = `
   min-width: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.56rem;
 }
 .ct-admin-sidebar__group-title span:last-child {
   min-width: 0;
@@ -136,8 +103,8 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin-sidebar__menu-chevron {
   flex: 0 0 auto;
-  width: 1rem;
-  height: 1rem;
+  width: 0.94rem;
+  height: 0.94rem;
   margin-left: auto;
   color: var(--ct-theme-text-muted);
   transition: transform var(--ct-duration-fast) var(--ct-ease-standard);
@@ -149,16 +116,16 @@ export const INSTITUTION_ADMIN_CSS = `
   font-weight: 600;
 }
 .ct-admin-sidebar__group-content {
-  margin: 0.16rem 0 0.45rem 1.04rem;
-  padding-left: 0.64rem;
+  margin: 0.18rem 0 0.56rem 0.78rem;
+  padding-left: 0.72rem;
   border-left: 1px solid var(--ct-border-soft);
 }
 .ct-admin-sidebar__link {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 2rem;
-  padding: 0 0.65rem;
+  min-height: 2.12rem;
+  padding: 0 0.66rem;
   font-size: 0.86rem;
   font-weight: 500;
   color: var(--ct-theme-text-body);
@@ -185,8 +152,8 @@ export const INSTITUTION_ADMIN_CSS = `
   font-weight: 600;
 }
 .ct-admin-sidebar__link--nested {
-  min-height: 1.88rem;
-  padding-inline: 0.62rem;
+  min-height: 1.96rem;
+  padding-inline: 0.72rem;
   font-size: 0.83rem;
 }
 .ct-admin-sidebar__link--external::after {
