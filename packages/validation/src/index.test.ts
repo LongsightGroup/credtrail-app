@@ -37,11 +37,6 @@ import {
   parseBadgeIssuanceRuleVersionDiffQuery,
   parseBadgeIssuanceRuleVersionPathParams,
   parseResolveBadgeIssuanceRuleReviewRequest,
-  parseAdminAuditLogListQuery,
-  parseAdminDeleteLtiIssuerRegistrationRequest,
-  parseAdminUpsertLtiIssuerRegistrationRequest,
-  parseAdminUpsertTenantSigningRegistrationRequest,
-  parseAdminUpsertTenantMembershipRoleRequest,
   parseCreateTenantMemberRequest,
   parseBadgeTemplateListQuery,
   parseTenantOrgUnitListQuery,
@@ -917,55 +912,6 @@ describe("learner-record parsers", () => {
   });
 });
 
-describe("admin LTI issuer registration parsers", () => {
-  it("accepts a valid upsert payload", () => {
-    const request = parseAdminUpsertLtiIssuerRegistrationRequest({
-      issuer: "https://canvas.example.edu",
-      tenantId: "tenant_123",
-      authorizationEndpoint: "https://canvas.example.edu/api/lti/authorize_redirect",
-      clientId: "canvas-client-123",
-      platformJwksEndpoint: "https://canvas.example.edu/api/lti/security/jwks",
-      tokenEndpoint: "https://canvas.example.edu/login/oauth2/token",
-    });
-
-    expect(request.issuer).toBe("https://canvas.example.edu");
-    expect(request.tenantId).toBe("tenant_123");
-    expect(request.platformJwksEndpoint).toBe("https://canvas.example.edu/api/lti/security/jwks");
-    expect(request.tokenEndpoint).toBe("https://canvas.example.edu/login/oauth2/token");
-  });
-
-  it("accepts a valid delete payload", () => {
-    const request = parseAdminDeleteLtiIssuerRegistrationRequest({
-      issuer: "https://canvas.example.edu",
-    });
-
-    expect(request.issuer).toBe("https://canvas.example.edu");
-  });
-
-  it("rejects invalid issuer URLs", () => {
-    expect(() => {
-      parseAdminUpsertLtiIssuerRegistrationRequest({
-        issuer: "not-a-url",
-        tenantId: "tenant_123",
-        authorizationEndpoint: "https://canvas.example.edu/api/lti/authorize_redirect",
-        clientId: "canvas-client-123",
-      });
-    }).toThrowError();
-  });
-
-  it("rejects invalid token endpoint URLs", () => {
-    expect(() => {
-      parseAdminUpsertLtiIssuerRegistrationRequest({
-        issuer: "https://canvas.example.edu",
-        tenantId: "tenant_123",
-        authorizationEndpoint: "https://canvas.example.edu/api/lti/authorize_redirect",
-        clientId: "canvas-client-123",
-        tokenEndpoint: "not-a-url",
-      });
-    }).toThrowError();
-  });
-});
-
 describe("canvas gradebook integration parsers", () => {
   it("accepts valid Canvas integration payloads", () => {
     const request = parseUpsertTenantCanvasGradebookIntegrationRequest({
@@ -1789,96 +1735,6 @@ describe("badge template parsers", () => {
       parseTransferBadgeTemplateOwnershipRequest({
         toOrgUnitId: "tenant_123:org:department-math",
         reasonCode: "initial_assignment",
-      });
-    }).toThrowError();
-  });
-});
-
-describe("admin request parsers", () => {
-  it("accepts P-256 tenant signing registration payloads", () => {
-    const payload = parseAdminUpsertTenantSigningRegistrationRequest({
-      keyId: "key-p256",
-      publicJwk: {
-        kty: "EC",
-        crv: "P-256",
-        x: "X".repeat(43),
-        y: "Y".repeat(43),
-      },
-      privateJwk: {
-        kty: "EC",
-        crv: "P-256",
-        x: "X".repeat(43),
-        y: "Y".repeat(43),
-        d: "D".repeat(43),
-      },
-    });
-
-    expect(payload.keyId).toBe("key-p256");
-  });
-
-  it("rejects signing registration payloads with mismatched key types", () => {
-    expect(() => {
-      parseAdminUpsertTenantSigningRegistrationRequest({
-        keyId: "key-mismatch",
-        publicJwk: {
-          kty: "OKP",
-          crv: "Ed25519",
-          x: "11qYAYLef1f99sL4fY49fN7kP8Yw6s9w8lY9Yd6n8oE",
-        },
-        privateJwk: {
-          kty: "EC",
-          crv: "P-256",
-          x: "X".repeat(43),
-          y: "Y".repeat(43),
-          d: "D".repeat(43),
-        },
-      });
-    }).toThrowError();
-  });
-
-  it("accepts valid membership role updates", () => {
-    const payload = parseAdminUpsertTenantMembershipRoleRequest({
-      role: "admin",
-    });
-
-    expect(payload.role).toBe("admin");
-  });
-
-  it("rejects invalid membership roles", () => {
-    expect(() => {
-      parseAdminUpsertTenantMembershipRoleRequest({
-        role: "superadmin",
-      });
-    }).toThrowError();
-  });
-
-  it("parses audit log list query with defaults and optional action", () => {
-    const withDefaults = parseAdminAuditLogListQuery({
-      tenantId: "tenant_123",
-    });
-    const withAction = parseAdminAuditLogListQuery({
-      tenantId: "tenant_123",
-      action: "membership.role_changed",
-      limit: "25",
-    });
-
-    expect(withDefaults.limit).toBe(100);
-    expect(withDefaults.action).toBeUndefined();
-    expect(withAction.action).toBe("membership.role_changed");
-    expect(withAction.limit).toBe(25);
-  });
-
-  it("rejects invalid audit log list query values", () => {
-    expect(() => {
-      parseAdminAuditLogListQuery({
-        tenantId: "",
-      });
-    }).toThrowError();
-
-    expect(() => {
-      parseAdminAuditLogListQuery({
-        tenantId: "tenant_123",
-        limit: "0",
       });
     }).toThrowError();
   });

@@ -1438,87 +1438,6 @@ export const resolveDedicatedDbProvisioningRequestSchema = z.object({
   resolvedAt: isoTimestampSchema.optional(),
 });
 
-export const adminUpsertTenantRequestSchema = z.object({
-  slug: z
-    .string()
-    .trim()
-    .min(1)
-    .max(96)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-  displayName: z.string().trim().min(1).max(200),
-  planTier: tenantPlanTierSchema.optional(),
-  issuerDomain: z.string().trim().min(1).max(255).optional(),
-  isActive: z.boolean().optional(),
-});
-
-const adminUpsertTenantSigningRegistrationEd25519RequestSchema = z.object({
-  keyId: z.string().trim().min(1).max(128),
-  publicJwk: ed25519PublicJwkSchema,
-  privateJwk: ed25519PrivateJwkSchema.optional(),
-});
-
-const adminUpsertTenantSigningRegistrationP256RequestSchema = z.object({
-  keyId: z.string().trim().min(1).max(128),
-  publicJwk: p256PublicJwkSchema,
-  privateJwk: p256PrivateJwkSchema.optional(),
-});
-
-export const adminUpsertTenantSigningRegistrationRequestSchema = z.union([
-  adminUpsertTenantSigningRegistrationEd25519RequestSchema,
-  adminUpsertTenantSigningRegistrationP256RequestSchema,
-]);
-
-export const adminUpsertBadgeTemplateByIdRequestSchema = createBadgeTemplateRequestSchema;
-
-export const adminUpsertTenantMembershipRoleRequestSchema = z.object({
-  role: tenantMembershipRoleSchema,
-});
-
-export const adminUpsertLtiIssuerRegistrationRequestSchema = z.object({
-  issuer: z.string().url(),
-  tenantId: tenantIdSchema,
-  authorizationEndpoint: z.string().url(),
-  clientId: z.string().trim().min(1).max(255),
-  platformJwksEndpoint: z.string().url().optional(),
-  tokenEndpoint: z.string().url().optional(),
-});
-
-export const adminDeleteLtiIssuerRegistrationRequestSchema = z.object({
-  issuer: z.string().url(),
-});
-
-export const adminAuditLogListQuerySchema = z.object({
-  tenantId: tenantIdSchema,
-  action: z
-    .preprocess((input) => {
-      if (typeof input !== "string") {
-        return input;
-      }
-
-      const trimmed = input.trim();
-      return trimmed.length === 0 ? undefined : trimmed;
-    }, z.string().min(1).max(200))
-    .optional(),
-  limit: z.preprocess((input) => {
-    if (input === undefined) {
-      return undefined;
-    }
-
-    if (typeof input === "string") {
-      const trimmed = input.trim();
-
-      if (trimmed.length === 0) {
-        return undefined;
-      }
-
-      const parsed = Number(trimmed);
-      return Number.isNaN(parsed) ? input : parsed;
-    }
-
-    return input;
-  }, z.number().int().min(1).max(200).default(100)),
-});
-
 export const magicLinkRequestSchema = z.object({
   tenantId: tenantIdSchema.optional(),
   email: z.string().email(),
@@ -2083,24 +2002,6 @@ export type BadgeTemplateOwnershipReasonCode = z.infer<
 export type BadgeTemplateOwnershipTransferReasonCode = z.infer<
   typeof badgeTemplateOwnershipTransferReasonCodeSchema
 >;
-export type AdminUpsertTenantRequest = z.infer<typeof adminUpsertTenantRequestSchema>;
-export type AdminUpsertTenantSigningRegistrationRequest = z.infer<
-  typeof adminUpsertTenantSigningRegistrationRequestSchema
->;
-export type AdminUpsertBadgeTemplateByIdRequest = z.infer<
-  typeof adminUpsertBadgeTemplateByIdRequestSchema
->;
-export type AdminUpsertTenantMembershipRoleRequest = z.infer<
-  typeof adminUpsertTenantMembershipRoleRequestSchema
->;
-export type AdminUpsertLtiIssuerRegistrationRequest = z.infer<
-  typeof adminUpsertLtiIssuerRegistrationRequestSchema
->;
-export type AdminDeleteLtiIssuerRegistrationRequest = z.infer<
-  typeof adminDeleteLtiIssuerRegistrationRequestSchema
->;
-export type AdminAuditLogListQuery = z.infer<typeof adminAuditLogListQuerySchema>;
-
 export const parseQueueJob = (input: unknown): QueueJob => {
   return queueJobSchema.parse(input);
 };
@@ -2651,42 +2552,4 @@ export const parseApplyBadgeTemplateImageDesignRequest = (
   input: unknown,
 ): ApplyBadgeTemplateImageDesignRequest => {
   return applyBadgeTemplateImageDesignRequestSchema.parse(input);
-};
-
-export const parseAdminUpsertTenantRequest = (input: unknown): AdminUpsertTenantRequest => {
-  return adminUpsertTenantRequestSchema.parse(input);
-};
-
-export const parseAdminUpsertTenantSigningRegistrationRequest = (
-  input: unknown,
-): AdminUpsertTenantSigningRegistrationRequest => {
-  return adminUpsertTenantSigningRegistrationRequestSchema.parse(input);
-};
-
-export const parseAdminUpsertBadgeTemplateByIdRequest = (
-  input: unknown,
-): AdminUpsertBadgeTemplateByIdRequest => {
-  return adminUpsertBadgeTemplateByIdRequestSchema.parse(input);
-};
-
-export const parseAdminUpsertTenantMembershipRoleRequest = (
-  input: unknown,
-): AdminUpsertTenantMembershipRoleRequest => {
-  return adminUpsertTenantMembershipRoleRequestSchema.parse(input);
-};
-
-export const parseAdminUpsertLtiIssuerRegistrationRequest = (
-  input: unknown,
-): AdminUpsertLtiIssuerRegistrationRequest => {
-  return adminUpsertLtiIssuerRegistrationRequestSchema.parse(input);
-};
-
-export const parseAdminDeleteLtiIssuerRegistrationRequest = (
-  input: unknown,
-): AdminDeleteLtiIssuerRegistrationRequest => {
-  return adminDeleteLtiIssuerRegistrationRequestSchema.parse(input);
-};
-
-export const parseAdminAuditLogListQuery = (input: unknown): AdminAuditLogListQuery => {
-  return adminAuditLogListQuerySchema.parse(input);
 };
