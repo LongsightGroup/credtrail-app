@@ -959,8 +959,15 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain(pageAssetPath("institutionAdminRuleBuilderJs"));
     expect(body).toContain("Define when learners earn this badge");
     expect(body).toContain('class="ct-admin-content ct-admin-content--rule-builder"');
-    expect(body).toContain('class="ct-admin__builder-shell ct-stack"');
-    expect(body).not.toContain('class="ct-admin__builder-shell ct-grid"');
+    expect(body).toContain('class="ct-admin__builder-shell ct-grid"');
+    expect(body).toContain('aria-label="Rule builder steps"');
+    expect(body).toContain('id="rule-builder-steps"');
+    expect(body).not.toContain('id="rule-builder-stepper"');
+    expect(body).toContain("ct-admin__builder-rail");
+    expect(body).toContain("ct-admin__builder-steps--vertical");
+    expect(body.indexOf("ct-admin__builder-rail")).toBeLessThan(
+      body.indexOf("ct-admin__builder-main"),
+    );
     expect(body).toContain('id="rule-create-form"');
     expect(body).toContain("tenantMembersApiPath");
     expect(body).toContain('data-rule-step-target="metadata"');
@@ -978,6 +985,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     );
     expect(body).toContain('id="rule-builder-require-every-requirement"');
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-require-every-requirement");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("prefers-reduced-motion: reduce");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("shouldScrollToActiveBuilderPanel");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("setRuleBuilderRootLogic('all')");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("data-rule-builder-root-logic-option");
     expect(body).toMatch(
@@ -994,7 +1003,9 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).not.toContain('id="rule-builder-simulate"');
     expect(body).not.toContain('id="rule-builder-simulate-output"');
     expect(body).not.toContain("Historical simulation");
-    expect(body).toContain("Follow these steps in order");
+    expect(body).toContain('class="ct-admin__builder-flow-title">Steps</h2>');
+    expect(body).not.toContain("Follow these steps in order");
+    expect(body).not.toContain('class="ct-admin__step-kicker"');
     expect(body).toContain("Continue to Requirements");
     expect(body).toContain('id="rule-builder-step-callout"');
     expect(body).toContain("Set up this rule");

@@ -2465,8 +2465,27 @@ a.ct-admin__workspace-card:active {
   width: 100%;
   max-width: none;
 }
+.ct-admin__builder-shell.ct-grid {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
 .ct-admin__builder-shell > * {
   min-width: 0;
+}
+.ct-admin__builder-shell.ct-grid .ct-admin__builder-support {
+  grid-column: 1 / -1;
+}
+/* Align rule-builder rail layout with admin shell sidebar breakpoint (980px). */
+@media (min-width: 980px) {
+  .ct-admin__builder-shell.ct-grid {
+    grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+  }
+
+  .ct-admin__builder-rail {
+    position: sticky;
+    top: var(--ct-space-4);
+    align-self: start;
+  }
 }
 .ct-admin__builder-sidebar,
 .ct-admin__builder-rail {
@@ -2542,8 +2561,10 @@ a.ct-admin__workspace-card:active {
   font-size: 0.86rem;
   color: var(--ct-theme-text-muted);
 }
-.ct-admin__builder-stepper-panel {
+.ct-admin__builder-rail {
   --ct-stack-gap: 0.85rem;
+  /* Vertical connector aligns to step-number center (li pad + button pad + half number width). */
+  --ct-builder-step-connector-x: calc(0.2rem + 0.66rem + 0.85rem);
 }
 .ct-admin__builder-flow-title {
   margin: 0;
@@ -2553,40 +2574,42 @@ a.ct-admin__workspace-card:active {
   letter-spacing: 0;
   color: var(--ct-theme-text-title);
 }
-.ct-admin__builder-stepper-panel .ct-admin__builder-steps {
-  --ct-stepper-arrow-gap: 1.5rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  column-gap: var(--ct-stepper-arrow-gap);
-  row-gap: 0.55rem;
+.ct-admin__builder-steps--vertical {
+  display: grid;
+  gap: 0;
 }
-.ct-admin__builder-stepper-panel .ct-admin__builder-steps > li {
+.ct-admin__builder-steps--vertical > li {
   position: relative;
   min-width: 0;
+  padding-left: 0.2rem;
 }
-.ct-admin__builder-stepper-panel .ct-admin__builder-steps > li:not(:last-child)::after {
-  content: '\u2192';
+.ct-admin__builder-steps--vertical > li + li {
+  margin-top: 0.42rem;
+  padding-top: 0.42rem;
+}
+.ct-admin__builder-steps--vertical > li + li::before {
+  content: '';
   position: absolute;
-  top: 50%;
-  left: calc(100% + 0.75rem);
-  transform: translate(-50%, -50%);
-  color: var(--ct-theme-text-subtle);
-  font-size: 0.95rem;
-  font-weight: 700;
-  pointer-events: none;
-  z-index: 1;
+  top: 0;
+  left: var(--ct-builder-step-connector-x);
+  width: 2px;
+  height: 0.42rem;
+  background: var(--ct-border-soft);
+  transform: translateY(-100%);
 }
-.ct-admin__builder-stepper-panel .ct-admin__step-button {
+.ct-admin__builder-rail .ct-admin__step-button {
   align-items: start;
-  min-height: 3.35rem;
+  min-height: 3.1rem;
   padding: 0.58rem 0.66rem;
 }
-.ct-admin__builder-stepper-panel .ct-admin__step-copy small {
+.ct-admin__builder-rail .ct-admin__step-copy small {
   display: block;
 }
-.ct-admin__builder-stepper-panel .ct-admin__builder-progress {
+.ct-admin__builder-rail .ct-admin__builder-progress {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   font-weight: 700;
+  line-height: 1.4;
   color: var(--ct-color-ink);
 }
 .ct-admin__builder-workbench-panel {
@@ -2752,14 +2775,6 @@ a.ct-admin__workspace-card:active {
     var(--ct-theme-surface-soft)
   );
   padding: 0.62rem 0.66rem;
-}
-.ct-admin__step-kicker {
-  margin: 0;
-  font-size: 0.73rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--ct-theme-text-subtle);
-  font-weight: 700;
 }
 .ct-admin__step-head h3 {
   margin: 0;
@@ -4107,13 +4122,8 @@ button.ct-admin__text-action {
     flex: 0 0 auto;
   }
 
-  .ct-admin__builder-stepper-panel .ct-admin__builder-steps,
   .ct-admin__builder-summary-list {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ct-admin__builder-stepper-panel .ct-admin__builder-steps > li:not(:last-child)::after {
-    display: none;
   }
 
   .ct-admin__builder-main .ct-admin__builder-step-nav #rule-builder-step-next {

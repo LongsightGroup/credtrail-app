@@ -23,6 +23,55 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
     };
     let activeRuleBuilderStepIndex = 0;
 
+    const prefersReducedMotion = () => {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    };
+
+    const isRuleBuilderMobileLayout = () => {
+      return window.matchMedia('(max-width: 979px)').matches;
+    };
+
+    const shouldScrollToActiveBuilderPanel = (panel) => {
+      if (!(panel instanceof HTMLElement)) {
+        return false;
+      }
+
+      if (isRuleBuilderMobileLayout()) {
+        return true;
+      }
+
+      const margin = 16;
+      const rect = panel.getBoundingClientRect();
+
+      return rect.top < margin || rect.bottom > window.innerHeight - margin;
+    };
+
+    const scrollActiveBuilderPanelIntoView = (panel) => {
+      if (!shouldScrollToActiveBuilderPanel(panel)) {
+        return;
+      }
+
+      panel.scrollIntoView({
+        block: 'nearest',
+        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+      });
+    };
+
+    const focusActiveBuilderPanelHeading = (panel) => {
+      if (!(panel instanceof HTMLElement)) {
+        return;
+      }
+
+      const heading = panel.querySelector('h3');
+
+      if (!(heading instanceof HTMLElement)) {
+        return;
+      }
+
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    };
+
     const isMetadataStepComplete = () => {
       return (
         getTextFieldValue('name').length > 0 &&
@@ -203,7 +252,12 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
 
         candidate.disabled = !reachable;
         candidate.classList.toggle('is-locked', !reachable);
-        candidate.setAttribute('aria-disabled', reachable ? 'false' : 'true');
+
+        if (reachable) {
+          candidate.removeAttribute('aria-disabled');
+        } else {
+          candidate.setAttribute('aria-disabled', 'true');
+        }
       });
 
       if (ruleBuilderStepPrevButton instanceof HTMLButtonElement) {
@@ -242,13 +296,14 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
         return;
       }
 
+      const previousIndex = activeRuleBuilderStepIndex;
       const nextIndex = Math.min(
         Math.max(requestedIndex, 0),
         ruleBuilderStepOrder.length - 1,
       );
+      const stepChanged = previousIndex !== nextIndex;
       activeRuleBuilderStepIndex = nextIndex;
       const activeStep = ruleBuilderStepOrder[nextIndex] ?? '';
-      const activeStepLabel = ruleBuilderStepLabels[activeStep] ?? 'Step';
 
       ruleBuilderStepPanels.forEach((panel) => {
         if (!(panel instanceof HTMLElement)) {
@@ -275,6 +330,16 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
       });
 
       syncRuleBuilderStepCompletion();
+
+      const activePanel = ruleBuilderStepPanels.find(
+        (panel) =>
+          panel instanceof HTMLElement && (panel.dataset.ruleStep ?? '') === activeStep,
+      );
+
+      if (stepChanged && activePanel instanceof HTMLElement) {
+        scrollActiveBuilderPanelIntoView(activePanel);
+        focusActiveBuilderPanelHeading(activePanel);
+      }
 
       if (activeStep === 'test') {
         applyTestFactPreset();

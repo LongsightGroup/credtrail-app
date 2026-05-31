@@ -448,16 +448,15 @@ export const institutionAdminRuleBuilderPage = (input: {
           </p>
         </div>
 
-        <section class="ct-admin__builder-shell ct-stack">
-          <section
-            class="ct-admin__panel ct-admin__builder-stepper-panel ct-stack"
-            aria-label="Rule builder workflow"
+        <section class="ct-admin__builder-shell ct-grid">
+          <nav
+            class="ct-admin__panel ct-admin__builder-rail ct-stack"
+            aria-label="Rule builder steps"
           >
-            <h2 class="ct-admin__builder-flow-title">Follow these steps in order</h2>
+            <h2 class="ct-admin__builder-flow-title">Steps</h2>
             <ol
-              id="rule-builder-stepper"
-              class="ct-admin__builder-steps"
-              aria-label="Rule builder steps"
+              id="rule-builder-steps"
+              class="ct-admin__builder-steps ct-admin__builder-steps--vertical"
             >
               <li>
                 <RuleBuilderStepButton
@@ -491,7 +490,7 @@ export const institutionAdminRuleBuilderPage = (input: {
             >
               Step 1 of 3 · Awarding pattern
             </p>
-          </section>
+          </nav>
 
           <div class="ct-admin__builder-main ct-stack">
             {ruleCloneOptions.length > 0 ? (
@@ -533,8 +532,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                   data-rule-step="metadata"
                 >
                   <section class="ct-admin__step-panel ct-admin__pattern-panel ct-stack">
-                    <p class="ct-admin__step-kicker">Step 1 of 3</p>
-                    <h3>Set up this rule</h3>
+                    <h3 tabindex={-1}>Set up this rule</h3>
                     <p class="ct-admin__step-panel-lead">
                       Choose the badge, LMS connection, and how learners earn it.
                     </p>
@@ -645,8 +643,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                   hidden
                 >
                   <header class="ct-admin__step-head ct-stack">
-                    <p class="ct-admin__step-kicker">Step 2 of 3</p>
-                    <h3>Awarding requirements</h3>
+                    <h3 tabindex={-1}>Awarding requirements</h3>
                     <p>Review what a learner needs to do before CredTrail awards the badge.</p>
                   </header>
                   <div class="ct-admin__builder-workbench ct-stack">
@@ -826,8 +823,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                   hidden
                 >
                   <header class="ct-admin__step-head ct-stack">
-                    <p class="ct-admin__step-kicker">Step 3 of 3</p>
-                    <h3>Test and submit</h3>
+                    <h3 tabindex={-1}>Test and submit</h3>
                     <p>Try the rule with a sample learner, then save the draft for review.</p>
                   </header>
                   <div class="ct-admin__builder-test-layout ct-stack">
