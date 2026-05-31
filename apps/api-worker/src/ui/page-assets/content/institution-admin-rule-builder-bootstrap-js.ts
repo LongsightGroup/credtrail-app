@@ -80,7 +80,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_BOOTSTRAP_JS = `
   const ruleBuilderApplyTestPresetButton = document.getElementById('rule-builder-apply-test-preset');
   const ruleBuilderTestOutput = document.getElementById('rule-builder-test-output');
   const ruleBuilderTestResult = document.getElementById('rule-builder-test-result');
-  const ruleBuilderStepPrevButton = document.getElementById('rule-builder-step-prev');
   const ruleBuilderStepNextButton = document.getElementById('rule-builder-step-next');
   const ruleBuilderStepProgress = document.getElementById('rule-builder-step-progress');
   const ruleBuilderStepCallout = document.getElementById('rule-builder-step-callout');

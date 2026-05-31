@@ -13,8 +13,9 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
     const ruleBuilderStepCallouts = {
       metadata:
         'Choose an awarding pattern, badge, and LMS connection, then select Continue.',
-      conditions: 'Confirm the requirements learners must meet, then select Continue.',
-      test: 'Test with a sample learner. When results look right, create the draft.',
+      conditions:
+        'Confirm the requirements learners must meet, then select Continue. To revise setup, select step 1 above.',
+      test: 'Test with a sample learner, then create the draft. To revise earlier steps, select a step label above.',
     };
     const ruleBuilderStepGateMessages = {
       metadata: 'Choose a badge template and LMS connection before continuing.',
@@ -51,7 +52,10 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
         return;
       }
 
-      panel.scrollIntoView({
+      const stepRow = panel.closest('[data-rule-step-row], .ct-admin__stepper-step');
+      const scrollTarget = stepRow instanceof HTMLElement ? stepRow : panel;
+
+      scrollTarget.scrollIntoView({
         block: 'nearest',
         behavior: prefersReducedMotion() ? 'auto' : 'smooth',
       });
@@ -210,21 +214,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
         return false;
       }
 
-      if (targetIndex <= activeRuleBuilderStepIndex) {
-        return true;
-      }
-
-      const completion = getRuleBuilderCompletionState();
-
-      for (let index = 0; index < targetIndex; index += 1) {
-        const stepName = ruleBuilderStepOrder[index] ?? '';
-
-        if (completion[stepName] !== true) {
-          return false;
-        }
-      }
-
-      return true;
+      return targetIndex < activeRuleBuilderStepIndex;
     };
 
     const showStepGateMessage = (stepName) => {
@@ -248,35 +238,38 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
 
         const targetStep = candidate.dataset.ruleStepTarget ?? '';
         const targetIndex = ruleBuilderStepOrder.indexOf(targetStep);
-        const reachable = canNavigateToStep(targetIndex);
+        const isCurrent = targetIndex === activeRuleBuilderStepIndex;
+        const isFuture = targetIndex > activeRuleBuilderStepIndex;
+        const canGoBack = canNavigateToStep(targetIndex);
 
-        candidate.disabled = !reachable;
-        candidate.classList.toggle('is-locked', !reachable);
+        candidate.disabled = isFuture;
+        candidate.classList.toggle('is-locked', isFuture);
+        candidate.classList.toggle('is-current-only', isCurrent);
 
-        if (reachable) {
+        if (canGoBack) {
           candidate.removeAttribute('aria-disabled');
-        } else {
+        } else if (isFuture) {
           candidate.setAttribute('aria-disabled', 'true');
+        } else {
+          candidate.removeAttribute('aria-disabled');
         }
       });
 
-      if (ruleBuilderStepPrevButton instanceof HTMLButtonElement) {
-        ruleBuilderStepPrevButton.disabled = activeRuleBuilderStepIndex === 0;
-      }
+      const isLastStep = activeRuleBuilderStepIndex >= ruleBuilderStepOrder.length - 1;
 
       if (ruleBuilderStepNextButton instanceof HTMLButtonElement) {
         const nextStep = ruleBuilderStepOrder[activeRuleBuilderStepIndex + 1] ?? '';
         const nextStepLabel = ruleBuilderStepLabels[nextStep] ?? '';
 
+        ruleBuilderStepNextButton.hidden = isLastStep;
         ruleBuilderStepNextButton.textContent =
           nextStepLabel.length > 0 ? 'Continue to ' + nextStepLabel : 'Continue';
-        ruleBuilderStepNextButton.disabled =
-          activeRuleBuilderStepIndex >= ruleBuilderStepOrder.length - 1 || !currentComplete;
+        ruleBuilderStepNextButton.disabled = !currentComplete;
       }
 
       if (ruleBuilderSubmitButton instanceof HTMLButtonElement) {
-        ruleBuilderSubmitButton.disabled =
-          activeRuleBuilderStepIndex < ruleBuilderStepOrder.length - 1 || !completion.test;
+        ruleBuilderSubmitButton.hidden = !isLastStep;
+        ruleBuilderSubmitButton.disabled = !completion.test;
       }
 
       if (ruleBuilderStepCallout instanceof HTMLElement) {
@@ -314,6 +307,15 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
         panel.hidden = !isActive;
       });
 
+      document.querySelectorAll('[data-rule-step-row]').forEach((candidate) => {
+        if (!(candidate instanceof HTMLElement)) {
+          return;
+        }
+
+        const isActive = (candidate.dataset.ruleStepRow ?? '') === activeStep;
+        candidate.classList.toggle('is-active', isActive);
+      });
+
       ruleBuilderStepButtons.forEach((candidate) => {
         if (!(candidate instanceof HTMLButtonElement)) {
           return;
@@ -348,16 +350,25 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
     };
 
     const tryNavigateToStep = (targetIndex) => {
-      if (!canNavigateToStep(targetIndex)) {
-        for (let index = 0; index < targetIndex; index += 1) {
-          const stepName = ruleBuilderStepOrder[index] ?? '';
+      if (targetIndex === activeRuleBuilderStepIndex) {
+        return true;
+      }
 
-          if (!isStepComplete(stepName)) {
-            showStepGateMessage(stepName);
-            break;
-          }
+      if (targetIndex > activeRuleBuilderStepIndex) {
+        const currentStep = ruleBuilderStepOrder[activeRuleBuilderStepIndex] ?? '';
+
+        if (!isStepComplete(currentStep)) {
+          showStepGateMessage(currentStep);
+        } else if (ruleBuilderStepCallout instanceof HTMLElement) {
+          ruleBuilderStepCallout.textContent =
+            'Use Continue below to move to the next step.';
+          ruleBuilderStepCallout.dataset.tone = 'warning';
         }
 
+        return false;
+      }
+
+      if (!canNavigateToStep(targetIndex)) {
         return false;
       }
 

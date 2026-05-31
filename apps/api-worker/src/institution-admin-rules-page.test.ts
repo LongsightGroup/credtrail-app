@@ -959,14 +959,20 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain(pageAssetPath("institutionAdminRuleBuilderJs"));
     expect(body).toContain("Define when learners earn this badge");
     expect(body).toContain('class="ct-admin-content ct-admin-content--rule-builder"');
-    expect(body).toContain('class="ct-admin__builder-shell ct-grid"');
+    expect(body).toContain('class="ct-admin__builder-shell ct-stack"');
     expect(body).toContain('aria-label="Rule builder steps"');
     expect(body).toContain('id="rule-builder-steps"');
     expect(body).not.toContain('id="rule-builder-stepper"');
-    expect(body).toContain("ct-admin__builder-rail");
-    expect(body).toContain("ct-admin__builder-steps--vertical");
-    expect(body.indexOf("ct-admin__builder-rail")).toBeLessThan(
-      body.indexOf("ct-admin__builder-main"),
+    expect(body).not.toContain("ct-admin__builder-rail");
+    expect(body).not.toContain("ct-admin__builder-main");
+    expect(body).toContain("ct-admin__builder-steps--vertical-stepper");
+    expect(body).toContain('data-rule-step-row="metadata"');
+    expect(body).toContain('class="ct-admin__stepper-header"');
+    expect(body).toContain('class="ct-admin__stepper-content"');
+    expect(body).not.toContain("ct-admin__builder-step-label");
+    expect(body).not.toContain("ct-admin__builder-step-panel");
+    expect(body).toMatch(
+      /class="ct-admin__stepper-step"[^>]*data-rule-step-row="metadata"[\s\S]*?class="ct-admin__stepper-header"[\s\S]*?class="ct-admin__stepper-content"[\s\S]*?id="builder-step-metadata"/,
     );
     expect(body).toContain('id="rule-create-form"');
     expect(body).toContain("tenantMembersApiPath");
@@ -976,7 +982,7 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).not.toContain('data-rule-step-target="review"');
     expect(body).toContain('id="rule-builder-condition-list"');
     expect(body).toContain('id="rule-builder-definition-json"');
-    expect(body).toContain('id="rule-builder-step-prev"');
+    expect(body).not.toContain('id="rule-builder-step-prev"');
     expect(body).toContain('id="rule-builder-step-next"');
     expect(body).toContain('id="rule-builder-submit"');
     expect(body).toContain('id="rule-builder-flow-list"');
@@ -995,6 +1001,20 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toMatch(
       /id="rule-builder-submit"[^>]*form="rule-create-form"[^>]*class="ct-admin__button"/,
     );
+    expect(body).toMatch(/id="rule-builder-submit"[^>]*hidden/);
+    expect(body).not.toMatch(/id="rule-builder-step-next"[^>]*hidden/);
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "ruleBuilderSubmitButton.hidden = !isLastStep",
+    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "ruleBuilderStepNextButton.hidden = isLastStep",
+    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "return targetIndex < activeRuleBuilderStepIndex",
+    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "Use Continue below to move to the next step",
+    );
     expect(body).toContain('id="rule-builder-test-preset"');
     expect(body).not.toContain('id="rule-builder-apply-test-preset"');
     expect(body).toContain('id="rule-builder-test-output"');
@@ -1003,7 +1023,7 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).not.toContain('id="rule-builder-simulate"');
     expect(body).not.toContain('id="rule-builder-simulate-output"');
     expect(body).not.toContain("Historical simulation");
-    expect(body).toContain('class="ct-admin__builder-flow-title">Steps</h2>');
+    expect(body).toContain('class="ct-admin__builder-steps-title">Build this rule</h2>');
     expect(body).not.toContain("Follow these steps in order");
     expect(body).not.toContain('class="ct-admin__step-kicker"');
     expect(body).toContain("Continue to Requirements");
@@ -1063,8 +1083,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
-    expect(body).toContain(">Badge Templates<");
     expect(body).toContain(">Templates</a>");
+    expect(body).toContain('class="ct-admin-sidebar__menu-chevron"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new" aria-current="page"');
     expect(body).toContain("&quot;rulesListPath&quot;:&quot;/tenants/tenant_123/admin/rules&quot;");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("window.location.assign(rulesListPath)");

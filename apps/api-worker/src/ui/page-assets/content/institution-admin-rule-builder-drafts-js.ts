@@ -198,12 +198,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
       });
     }
 
-    if (ruleBuilderStepPrevButton instanceof HTMLButtonElement) {
-      ruleBuilderStepPrevButton.addEventListener('click', () => {
-        tryNavigateToStep(activeRuleBuilderStepIndex - 1);
-      });
-    }
-
     if (ruleBuilderStepNextButton instanceof HTMLButtonElement) {
       ruleBuilderStepNextButton.addEventListener('click', () => {
         const currentStep = ruleBuilderStepOrder[activeRuleBuilderStepIndex] ?? '';

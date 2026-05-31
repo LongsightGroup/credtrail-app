@@ -162,21 +162,31 @@ export const buildInstitutionAdminSidebarSections = (
     ],
   },
   {
-    kind: "flat",
+    kind: "groups",
     label: "Reporting",
     icon: "analytics",
-    links: [
-      { href: paths.reportingPath, label: "Overview", isCurrent: view === "reporting" },
+    groups: [
       {
-        href: paths.reportingExplorePath,
-        label: "Explore",
-        isCurrent: view === "reportingExplore",
-      },
-      { href: paths.reportingTrendsPath, label: "Trends", isCurrent: view === "reportingTrends" },
-      {
-        href: paths.reportingReportsPath,
-        label: "Reports",
-        isCurrent: view === "reportingReports",
+        label: "Reporting",
+        defaultOpen: true,
+        links: [
+          { href: paths.reportingPath, label: "Overview", isCurrent: view === "reporting" },
+          {
+            href: paths.reportingExplorePath,
+            label: "Explore",
+            isCurrent: view === "reportingExplore",
+          },
+          {
+            href: paths.reportingTrendsPath,
+            label: "Trends",
+            isCurrent: view === "reportingTrends",
+          },
+          {
+            href: paths.reportingReportsPath,
+            label: "Reports",
+            isCurrent: view === "reportingReports",
+          },
+        ],
       },
     ],
   },

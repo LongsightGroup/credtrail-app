@@ -41,9 +41,14 @@ export const INSTITUTION_ADMIN_CSS = `
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin: 0 0.2rem 0.24rem;
-  padding: 0.2rem 0.45rem;
+  margin: 0.1rem 0.2rem 0.28rem;
+  padding: 0.15rem 0.45rem;
   color: var(--ct-theme-text-muted);
+  pointer-events: none;
+  user-select: none;
+}
+.ct-admin-sidebar__section:not(:first-child) .ct-admin-sidebar__section-header {
+  margin-top: 0.35rem;
 }
 .ct-admin-sidebar__section-title {
   min-width: 0;
@@ -59,9 +64,11 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin-sidebar__section-label {
   margin: 0;
-  font-size: 0.74rem;
-  font-weight: 650;
+  font-size: 0.68rem;
+  font-weight: 600;
   line-height: 1.2;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 .ct-admin-sidebar__menu,
 .ct-admin-sidebar__groups,
@@ -127,17 +134,19 @@ export const INSTITUTION_ADMIN_CSS = `
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ct-admin-sidebar__group-caret {
+.ct-admin-sidebar__menu-chevron {
   flex: 0 0 auto;
-  width: 0.42rem;
-  height: 0.42rem;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(-45deg);
+  width: 1rem;
+  height: 1rem;
+  margin-left: auto;
+  color: var(--ct-theme-text-muted);
   transition: transform var(--ct-duration-fast) var(--ct-ease-standard);
 }
-.ct-admin-sidebar__group-details[open] .ct-admin-sidebar__group-caret {
-  transform: rotate(45deg);
+.ct-admin-sidebar__group-details[open] .ct-admin-sidebar__menu-chevron {
+  transform: rotate(90deg);
+}
+.ct-admin-sidebar__group--flat .ct-admin-sidebar__link {
+  font-weight: 600;
 }
 .ct-admin-sidebar__group-content {
   margin: 0.16rem 0 0.45rem 1.04rem;
@@ -2475,26 +2484,24 @@ a.ct-admin__workspace-card:active {
 .ct-admin__builder-shell.ct-grid .ct-admin__builder-support {
   grid-column: 1 / -1;
 }
-/* Align rule-builder rail layout with admin shell sidebar breakpoint (980px). */
-@media (min-width: 980px) {
-  .ct-admin__builder-shell.ct-grid {
-    grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
-  }
-
-  .ct-admin__builder-rail {
-    position: sticky;
-    top: var(--ct-space-4);
-    align-self: start;
-  }
+.ct-admin__builder-shell.ct-stack {
+  --ct-stack-gap: var(--ct-space-4);
 }
-.ct-admin__builder-sidebar,
-.ct-admin__builder-rail {
-  position: static;
-}
-.ct-admin__builder-main {
+.ct-admin__builder-workbench-panel {
   min-width: 0;
   width: 100%;
-  --ct-stack-gap: var(--ct-space-5);
+  --ct-stack-gap: var(--ct-space-4);
+}
+.ct-admin__builder-workflow-head {
+  display: grid;
+  gap: 0.3rem;
+}
+.ct-admin__builder-steps-title {
+  margin: 0;
+  font-family: var(--ct-font-sans);
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--ct-theme-text-title);
 }
 .ct-admin__builder-step {
   --ct-stack-gap: var(--ct-space-4);
@@ -2561,56 +2568,117 @@ a.ct-admin__workspace-card:active {
   font-size: 0.86rem;
   color: var(--ct-theme-text-muted);
 }
-.ct-admin__builder-rail {
-  --ct-stack-gap: 0.85rem;
-  /* Vertical connector aligns to step-number center (li pad + button pad + half number width). */
-  --ct-builder-step-connector-x: calc(0.2rem + 0.66rem + 0.85rem);
-}
-.ct-admin__builder-flow-title {
+.ct-admin__builder-progress {
   margin: 0;
-  font-family: var(--ct-font-sans);
-  font-size: 0.98rem;
-  font-weight: 700;
-  letter-spacing: 0;
-  color: var(--ct-theme-text-title);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ct-theme-text-muted);
 }
-.ct-admin__builder-steps--vertical {
+.ct-admin__builder-steps--vertical-stepper {
   display: grid;
   gap: 0;
 }
-.ct-admin__builder-steps--vertical > li {
+.ct-admin__stepper-step {
   position: relative;
-  min-width: 0;
-  padding-left: 0.2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.7rem;
+  padding: 0 0 1.35rem 0.1rem;
+  --ct-stepper-icon-center: 0.85rem;
 }
-.ct-admin__builder-steps--vertical > li + li {
-  margin-top: 0.42rem;
-  padding-top: 0.42rem;
-}
-.ct-admin__builder-steps--vertical > li + li::before {
+.ct-admin__stepper-step:not(:last-child)::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: var(--ct-builder-step-connector-x);
+  top: 2.35rem;
+  bottom: 0;
+  left: var(--ct-stepper-icon-center);
   width: 2px;
-  height: 0.42rem;
+  transform: translateX(-50%);
   background: var(--ct-border-soft);
-  transform: translateY(-100%);
 }
-.ct-admin__builder-rail .ct-admin__step-button {
-  align-items: start;
-  min-height: 3.1rem;
-  padding: 0.58rem 0.66rem;
+.ct-admin__stepper-header {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
 }
-.ct-admin__builder-rail .ct-admin__step-copy small {
+.ct-admin__stepper-content {
+  min-width: 0;
+  padding-left: 2.65rem;
+}
+.ct-admin__stepper-step:not(.is-active) .ct-admin__stepper-content {
+  display: none;
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button {
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  min-height: auto;
+  padding: 0.2rem 0.45rem 0.2rem 0;
+  border: none;
+  border-radius: var(--ct-radius-sm);
+  background: transparent;
+  box-shadow: none;
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button:hover {
+  color: var(--ct-theme-text-title);
+  background: var(--ct-theme-surface-soft);
+  transform: none;
+  filter: none;
+  box-shadow: none;
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button:hover .ct-admin__step-copy strong {
+  color: var(--ct-theme-text-title);
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button:hover .ct-admin__step-copy small {
+  color: var(--ct-theme-text-muted);
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-copy small {
   display: block;
 }
-.ct-admin__builder-rail .ct-admin__builder-progress {
-  margin: 0;
-  font-size: 0.82rem;
-  font-weight: 700;
-  line-height: 1.4;
-  color: var(--ct-color-ink);
+.ct-admin__stepper-step:not(.is-active) .ct-admin__step-copy small {
+  display: none;
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-active {
+  color: var(--ct-theme-text-title);
+  background: transparent;
+  box-shadow: none;
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-active .ct-admin__step-number {
+  border-color: transparent;
+  background: var(--ct-theme-gradient-action);
+  color: var(--ct-theme-text-on-brand);
+  box-shadow: var(--ct-shadow-soft);
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-active .ct-admin__step-copy small {
+  color: var(--ct-theme-text-muted);
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-done {
+  border: none;
+  background: transparent;
+  color: var(--ct-theme-text-body);
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-done .ct-admin__step-number {
+  border-color: var(--ct-theme-border-success);
+  background: var(--ct-theme-surface-success);
+  color: var(--ct-theme-state-success);
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-active:hover {
+  color: var(--ct-theme-text-title);
+  background: var(--ct-theme-surface-soft);
+  transform: none;
+  filter: none;
+  box-shadow: none;
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-locked:hover,
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button:disabled:hover {
+  border: none;
+  background: transparent;
+  color: var(--ct-theme-text-body);
+  transform: none;
+  filter: none;
+  box-shadow: none;
 }
 .ct-admin__builder-workbench-panel {
   --ct-stack-gap: var(--ct-space-4);
@@ -2659,22 +2727,21 @@ a.ct-admin__workspace-card:active {
   line-height: 1.45;
   color: var(--ct-theme-text-muted);
 }
-.ct-admin__builder-main .ct-admin__builder-step-nav {
+.ct-admin__builder-workbench-panel .ct-admin__builder-step-nav {
   --ct-cluster-gap: 0.55rem;
-  justify-content: flex-start;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-md);
   background: var(--ct-theme-surface-shell);
   box-shadow: var(--ct-shadow-soft);
   padding: 0.62rem 0.66rem;
 }
-.ct-admin__builder-main .ct-admin__builder-step-nav #rule-builder-submit {
-  grid-column: 1 / -1;
-}
-.ct-admin__builder-main .ct-admin__builder-step-nav #rule-builder-step-next {
-  grid-column: 2;
+.ct-admin__builder-workbench-panel .ct-admin__builder-step-nav #rule-builder-submit[hidden],
+.ct-admin__builder-workbench-panel .ct-admin__builder-step-nav #rule-builder-step-next[hidden] {
+  display: none;
 }
 .ct-admin__builder-intro-grid.ct-grid {
   --ct-grid-gap: 0.7rem;
@@ -3280,7 +3347,7 @@ a.ct-admin__workspace-card:active {
     filter var(--ct-duration-fast) var(--ct-ease-standard);
 }
 @media (hover: hover) {
-  .ct-admin__form button:hover:not(:disabled),
+  .ct-admin__form button:not(.ct-admin__step-button):hover:not(:disabled),
   .ct-admin__button:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: var(--ct-shadow-soft);
@@ -3884,17 +3951,29 @@ button.ct-admin__text-action {
   display: none;
 }
 .ct-admin__builder-step-nav {
-  --ct-grid-gap: 0.5rem;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  --ct-cluster-gap: 0.55rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-md);
   background: var(--ct-theme-surface-shell);
   box-shadow: var(--ct-shadow-soft);
   padding: 0.58rem 0.62rem;
 }
-.ct-admin__builder-step-nav #rule-builder-submit {
-  grid-column: 1 / -1;
+.ct-admin__builder-step-nav #rule-builder-submit[hidden],
+.ct-admin__builder-step-nav #rule-builder-step-next[hidden] {
+  display: none;
+}
+.ct-admin__step-button.is-current-only {
+  cursor: default;
+}
+.ct-admin__step-button.is-current-only:hover {
+  background: transparent;
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-current-only:hover {
+  background: transparent;
 }
 .ct-admin__builder-steps {
   list-style: none;
@@ -4105,12 +4184,8 @@ button.ct-admin__text-action {
   .ct-admin__builder-inline,
   .ct-admin__builder-toolbar,
   .ct-admin__builder-step-nav {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ct-admin__builder-step-nav {
-    justify-items: stretch;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .ct-admin__add-disclosure-summary {
@@ -4124,10 +4199,6 @@ button.ct-admin__text-action {
 
   .ct-admin__builder-summary-list {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ct-admin__builder-main .ct-admin__builder-step-nav #rule-builder-step-next {
-    grid-column: 1 / -1;
   }
 
   .ct-admin__builder-flow-item,

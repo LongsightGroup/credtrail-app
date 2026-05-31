@@ -28,12 +28,6 @@ export type AdminSidebarSection =
       links: readonly AdminSidebarLinkItem[];
     }
   | {
-      kind: "flat";
-      label: string;
-      icon?: AdminSidebarSectionIcon;
-      links: readonly AdminSidebarLinkItem[];
-    }
-  | {
       kind: "groups";
       label: string;
       icon?: AdminSidebarSectionIcon;
@@ -47,6 +41,24 @@ export interface AdminSidebarFooterLink {
   target?: "_blank";
   rel?: string;
 }
+
+const AdminSidebarMenuChevron = (): HonoElement => {
+  return (
+    <svg
+      class="ct-admin-sidebar__menu-chevron"
+      viewBox="0 0 256 256"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="16"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <polyline points="96 48 176 128 96 208"></polyline>
+    </svg>
+  );
+};
 
 const AdminSidebarIcon = (input: { name: AdminSidebarSectionIcon }): HonoElement => {
   const iconProps = {
@@ -106,6 +118,26 @@ const AdminSidebarIcon = (input: { name: AdminSidebarSectionIcon }): HonoElement
   }
 };
 
+const renderSidebarLink = (
+  link: AdminSidebarLinkItem,
+  options?: { nested?: boolean | undefined },
+): HonoElement => {
+  const className =
+    options?.nested === true
+      ? "ct-admin-sidebar__link ct-admin-sidebar__link--nested"
+      : "ct-admin-sidebar__link";
+
+  return (
+    <a
+      class={className}
+      href={link.href}
+      aria-current={link.isCurrent === true ? "page" : undefined}
+    >
+      {link.label}
+    </a>
+  );
+};
+
 const renderSidebarLinks = (
   links: readonly AdminSidebarLinkItem[],
   options?: { nested?: boolean | undefined },
@@ -116,22 +148,7 @@ const renderSidebarLinks = (
       role="list"
     >
       {links.map((link) => {
-        const className =
-          options?.nested === true
-            ? "ct-admin-sidebar__link ct-admin-sidebar__link--nested"
-            : "ct-admin-sidebar__link";
-
-        return (
-          <li class="ct-admin-sidebar__menu-item">
-            <a
-              class={className}
-              href={link.href}
-              aria-current={link.isCurrent === true ? "page" : undefined}
-            >
-              {link.label}
-            </a>
-          </li>
-        );
+        return <li class="ct-admin-sidebar__menu-item">{renderSidebarLink(link, options)}</li>;
       })}
     </ul>
   );
@@ -139,6 +156,44 @@ const renderSidebarLinks = (
 
 const groupIsOpen = (group: AdminSidebarGroupItem): boolean => {
   return group.defaultOpen === true || group.links.some((link) => link.isCurrent === true);
+};
+
+const renderSidebarGroup = (
+  group: AdminSidebarGroupItem,
+  ids: { sectionIndex: number; groupIndex: number },
+): HonoElement => {
+  if (group.links.length === 1) {
+    const link = group.links[0];
+    if (link === undefined) {
+      return <></>;
+    }
+
+    return (
+      <li class="ct-admin-sidebar__group ct-admin-sidebar__group--flat">
+        {renderSidebarLink(link)}
+      </li>
+    );
+  }
+
+  const isOpen = groupIsOpen(group);
+  const groupContentId = `admin-sidebar-group-${ids.sectionIndex}-${ids.groupIndex}`;
+
+  return (
+    <li class="ct-admin-sidebar__group">
+      <details class="ct-admin-sidebar__group-details" open={isOpen}>
+        <summary class="ct-admin-sidebar__group-trigger" aria-controls={groupContentId}>
+          <span class="ct-admin-sidebar__group-title">
+            {group.icon === undefined ? null : <AdminSidebarIcon name={group.icon} />}
+            <span>{group.label}</span>
+          </span>
+          <AdminSidebarMenuChevron />
+        </summary>
+        <div id={groupContentId} class="ct-admin-sidebar__group-content">
+          {renderSidebarLinks(group.links, { nested: true })}
+        </div>
+      </details>
+    </li>
+  );
 };
 
 export const AdminSidebar = (input: {
@@ -165,37 +220,11 @@ export const AdminSidebar = (input: {
                   <span class="ct-admin-sidebar__section-label">{section.label}</span>
                 </span>
               </div>
-              {section.kind === "flat" ? renderSidebarLinks(section.links) : null}
-              {section.kind === "groups" ? (
-                <ul class="ct-admin-sidebar__groups" role="list">
-                  {section.groups.map((group, groupIndex) => {
-                    const isOpen = groupIsOpen(group);
-                    const groupContentId = `admin-sidebar-group-${sectionIndex}-${groupIndex}`;
-
-                    return (
-                      <li class="ct-admin-sidebar__group">
-                        <details class="ct-admin-sidebar__group-details" open={isOpen}>
-                          <summary
-                            class="ct-admin-sidebar__group-trigger"
-                            aria-controls={groupContentId}
-                          >
-                            <span class="ct-admin-sidebar__group-title">
-                              {group.icon === undefined ? null : (
-                                <AdminSidebarIcon name={group.icon} />
-                              )}
-                              <span>{group.label}</span>
-                            </span>
-                            <span class="ct-admin-sidebar__group-caret" aria-hidden="true"></span>
-                          </summary>
-                          <div id={groupContentId} class="ct-admin-sidebar__group-content">
-                            {renderSidebarLinks(group.links, { nested: true })}
-                          </div>
-                        </details>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
+              <ul class="ct-admin-sidebar__groups" role="list">
+                {section.groups.map((group, groupIndex) => {
+                  return renderSidebarGroup(group, { sectionIndex, groupIndex });
+                })}
+              </ul>
             </section>
           );
         })}
