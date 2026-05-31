@@ -31,14 +31,6 @@ export const INSTITUTION_ADMIN_BOOTSTRAP_JS = `
     parsedContext && typeof parsedContext.badgeRuleApiPath === 'string'
       ? parsedContext.badgeRuleApiPath
       : '';
-  const badgeRuleValueListApiPath =
-    parsedContext && typeof parsedContext.badgeRuleValueListApiPath === 'string'
-      ? parsedContext.badgeRuleValueListApiPath
-      : '';
-  const badgeRuleReviewQueueApiPath =
-    parsedContext && typeof parsedContext.badgeRuleReviewQueueApiPath === 'string'
-      ? parsedContext.badgeRuleReviewQueueApiPath
-      : '';
   const assertionsApiPathPrefix =
     parsedContext && typeof parsedContext.assertionsApiPathPrefix === 'string'
       ? parsedContext.assertionsApiPathPrefix
@@ -73,8 +65,6 @@ export const INSTITUTION_ADMIN_BOOTSTRAP_JS = `
     tenantAdminPath.length === 0 ||
     manualIssueApiPath.length === 0 ||
     badgeRuleApiPath.length === 0 ||
-    badgeRuleValueListApiPath.length === 0 ||
-    badgeRuleReviewQueueApiPath.length === 0 ||
     assertionsApiPathPrefix.length === 0 ||
     tenantMembersApiPath.length === 0 ||
     tenantUsersApiPathPrefix.length === 0
@@ -93,12 +83,6 @@ export const INSTITUTION_ADMIN_BOOTSTRAP_JS = `
   const ruleEvaluateForm = document.getElementById('rule-evaluate-form');
   const ruleEvaluateStatus = document.getElementById('rule-evaluate-status');
   const ruleActionStatus = document.getElementById('rule-action-status');
-  const ruleValueListForm = document.getElementById('rule-value-list-form');
-  const ruleValueListStatus = document.getElementById('rule-value-list-status');
-  const ruleValueListBody = document.getElementById('rule-value-list-body');
-  const ruleReviewQueueRefreshButton = document.getElementById('rule-review-queue-refresh');
-  const ruleReviewQueueStatus = document.getElementById('rule-review-queue-status');
-  const ruleReviewQueueBody = document.getElementById('rule-review-queue-body');
   const reportingFiltersForm = document.getElementById('reporting-filters-form');
   const reportingFiltersStatus = document.getElementById('reporting-filters-status');
   const membershipScopeForm = document.getElementById('membership-scope-form');
@@ -134,7 +118,6 @@ export const INSTITUTION_ADMIN_BOOTSTRAP_JS = `
   const breakGlassAccountForm = document.getElementById('break-glass-account-form');
   const breakGlassAccountStatus = document.getElementById('break-glass-account-status');
   const breakGlassAccountBody = document.getElementById('break-glass-account-body');
-  let ruleValueLists = [];
 
   const setStatus = (el, text, isError, tone = 'info') => {
     el.textContent = text;

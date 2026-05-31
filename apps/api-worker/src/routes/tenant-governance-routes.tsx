@@ -58,6 +58,10 @@ import {
   institutionAdminRuleTemplateEditorPage,
   institutionAdminRuleTemplatesPage,
 } from "../admin/institution-admin-page";
+import {
+  renderInstitutionAdminReviewQueueWorkspace,
+  renderInstitutionAdminRulesWorkspace,
+} from "../admin/institution-admin-workspace-renderers";
 import type { BadgeTemplateHistoryPanel } from "../admin/institution-admin-templates-page";
 import { AdminActions, AdminButtonLink, AdminPageHeader, AdminPanel } from "../admin/components";
 import { loadBadgeTemplateHistoryPayload } from "../badges/badge-template-history-payload";
@@ -66,6 +70,9 @@ import { registerBadgeTemplateEditorArtworkAdminRoutes } from "./badge-template-
 import { registerBadgeTemplateListAdminRoutes } from "./badge-template-list-admin-routes";
 import { registerTenantApiKeyAdminRoutes } from "./tenant-api-key-admin-routes";
 import { registerTenantIssuedBadgesAdminRoutes } from "./tenant-issued-badges-admin-routes";
+import { registerTenantReviewQueueAdminRoutes } from "./tenant-review-queue-admin-routes";
+import { registerTenantRuleValueListsAdminRoutes } from "./tenant-rule-value-lists-admin-routes";
+import type { IssueBadgeForTenant } from "./badge-rule-evaluation-types";
 import { registerTenantLmsConnectionAdminRoutes } from "./tenant-lms-connection-admin-routes";
 import { registerTenantAdminPageRoutes } from "./tenant-admin-page-routes";
 import { registerTenantAdminReportingPageRoutes } from "./tenant-admin-reporting-page-routes";
@@ -149,6 +156,7 @@ interface RegisterTenantGovernanceRoutesInput {
     },
   ) => Promise<Response | null>;
   assertionBelongsToTenant: (tenantId: string, assertionId: string) => boolean;
+  issueBadgeForTenant: IssueBadgeForTenant;
   ADMIN_ROLES: readonly TenantMembershipRole[];
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }
@@ -248,6 +256,7 @@ export const registerTenantGovernanceRoutes = (
     requireScopedOrgUnitPermission,
     requireDelegatedIssuingAuthorityPermission,
     assertionBelongsToTenant,
+    issueBadgeForTenant,
     ADMIN_ROLES,
     ISSUER_ROLES,
   } = input;
@@ -963,6 +972,40 @@ export const registerTenantGovernanceRoutes = (
           lifecycleMode: issuedBadgesQuery.lifecycleMode,
         },
       }),
+    );
+  };
+
+  const workspaceRendererDeps = {
+    resolveDatabase,
+    resolveInstitutionAdminAdminRole,
+    loadInstitutionAdminPageData,
+  };
+
+  const renderRulesWorkspace = async (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ): Promise<Response> => {
+    return renderInstitutionAdminRulesWorkspace(
+      c,
+      renderAppPage,
+      tenantId,
+      nextPath,
+      workspaceRendererDeps,
+    );
+  };
+
+  const renderReviewQueueWorkspace = async (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ): Promise<Response> => {
+    return renderInstitutionAdminReviewQueueWorkspace(
+      c,
+      renderAppPage,
+      tenantId,
+      nextPath,
+      workspaceRendererDeps,
     );
   };
 
@@ -1731,6 +1774,19 @@ export const registerTenantGovernanceRoutes = (
     resolveInstitutionAdminAdminRole,
   });
 
+  registerTenantReviewQueueAdminRoutes({
+    app,
+    resolveDatabase,
+    resolveInstitutionAdminAdminRole,
+    issueBadgeForTenant,
+  });
+
+  registerTenantRuleValueListsAdminRoutes({
+    app,
+    resolveDatabase,
+    resolveInstitutionAdminAdminRole,
+  });
+
   registerTenantAdminPageRoutes({
     app,
     ADMIN_ROLES,
@@ -1740,6 +1796,8 @@ export const registerTenantGovernanceRoutes = (
     renderInstitutionAdminWorkspace,
     renderInstitutionAdminApiKeysWorkspace,
     renderInstitutionAdminIssuedBadgesWorkspace,
+    renderInstitutionAdminReviewQueueWorkspace: renderReviewQueueWorkspace,
+    renderInstitutionAdminRulesWorkspace: renderRulesWorkspace,
     renderInstitutionAdminLmsConnectionsWorkspace,
     renderInstitutionAdminTemplatesWorkspace,
     renderInstitutionAdminTemplateEditorWorkspace,

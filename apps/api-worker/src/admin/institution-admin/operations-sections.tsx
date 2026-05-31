@@ -1,6 +1,5 @@
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
-  AdminActions,
   AdminButton,
   AdminCheckboxRow,
   AdminEmptyTableRow,
@@ -11,13 +10,21 @@ import {
   AdminStatusPill,
   AdminTable,
   IssuedBadgeRows,
+  ReviewQueueRows,
+  RuleValueListRows,
 } from "../components";
 import {
   buildIssuedBadgesPagePath,
   issuedBadgesAssertionPageUrl,
   tenantIssuedBadgeAdminRevokePath,
 } from "../issued-badges-admin-helpers";
-import type { InstitutionAdminIssuedBadgesWorkspace } from "./page-types";
+import { tenantReviewQueueAdminResolvePath } from "../review-queue-admin-helpers";
+import { tenantRuleValueListsAdminCreatePath } from "../rule-value-lists-admin-helpers";
+import type {
+  InstitutionAdminIssuedBadgesWorkspace,
+  InstitutionAdminReviewQueueWorkspace,
+  InstitutionAdminRuleValueListsWorkspace,
+} from "./page-types";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | readonly HonoElement[];
 
@@ -28,6 +35,8 @@ interface RenderInstitutionAdminOperationsSectionsInput {
   templateFilterOptions: HonoElement;
   activeOrgUnitOptions: HonoElement;
   issuedBadgesWorkspace?: InstitutionAdminIssuedBadgesWorkspace;
+  reviewQueueWorkspace?: InstitutionAdminReviewQueueWorkspace;
+  ruleValueListsWorkspace?: InstitutionAdminRuleValueListsWorkspace;
 }
 
 interface InstitutionAdminOperationsSections {
@@ -61,6 +70,7 @@ export const renderInstitutionAdminOperationsSections = (
       <AdminStatus id="manual-issue-status"></AdminStatus>
     </AdminPanel>
   );
+  const ruleValueListsCreatePath = tenantRuleValueListsAdminCreatePath(input.tenantId);
   const ruleValueListsPanelMarkup = (
     <AdminPanel id="rule-value-lists-panel">
       <h2>Rule Value Lists</h2>
@@ -68,7 +78,16 @@ export const renderInstitutionAdminOperationsSections = (
         Rule value lists are reusable sets of course IDs or badge-template IDs for rule conditions.
         They do not create badge templates.
       </p>
-      <AdminForm id="rule-value-list-form">
+      {input.ruleValueListsWorkspace?.listError !== null &&
+      input.ruleValueListsWorkspace?.listError !== undefined &&
+      input.ruleValueListsWorkspace.listError.length > 0 ? (
+        <AdminStatus data-tone="error">{input.ruleValueListsWorkspace.listError}</AdminStatus>
+      ) : input.ruleValueListsWorkspace?.listNotice !== null &&
+        input.ruleValueListsWorkspace?.listNotice !== undefined &&
+        input.ruleValueListsWorkspace.listNotice.length > 0 ? (
+        <AdminStatus data-tone="success">{input.ruleValueListsWorkspace.listNotice}</AdminStatus>
+      ) : null}
+      <AdminForm id="rule-value-list-form" method="post" action={ruleValueListsCreatePath}>
         <AdminField label="Label">
           <input name="label" type="text" required placeholder="Core CS sequence" />
         </AdminField>
@@ -89,9 +108,8 @@ export const renderInstitutionAdminOperationsSections = (
         </AdminField>
         <AdminButton type="submit">Create value list</AdminButton>
       </AdminForm>
-      <AdminStatus id="rule-value-list-status"></AdminStatus>
-      <AdminTable headers={["Label", "Kind", "Values"]} tbodyId="rule-value-list-body">
-        <AdminEmptyTableRow colSpan={3}>No rule value lists loaded yet.</AdminEmptyTableRow>
+      <AdminTable headers={["Label", "Kind", "Values"]}>
+        <RuleValueListRows valueLists={input.ruleValueListsWorkspace?.valueLists ?? []} />
       </AdminTable>
     </AdminPanel>
   );
@@ -207,6 +225,7 @@ export const renderInstitutionAdminOperationsSections = (
       <pre id="rule-governance-output" class="ct-admin__code-output" hidden></pre>
     </AdminPanel>
   );
+  const reviewQueueResolvePath = tenantReviewQueueAdminResolvePath(input.tenantId);
   const ruleReviewQueuePanelMarkup = (
     <AdminPanel id="rule-review-queue-panel" variant="table">
       <h2>Rule Review Queue</h2>
@@ -214,17 +233,24 @@ export const renderInstitutionAdminOperationsSections = (
         Missing-data evaluations that require a human issue-or-dismiss decision before a badge is
         created.
       </p>
-      <AdminActions>
-        <AdminButton id="rule-review-queue-refresh" type="button" size="tiny" variant="secondary">
-          Refresh review queue
-        </AdminButton>
-      </AdminActions>
-      <AdminStatus id="rule-review-queue-status">No review queue entries loaded yet.</AdminStatus>
-      <AdminTable
-        headers={["Evaluated", "Recipient", "Rule", "Summary", "Actions"]}
-        tbodyId="rule-review-queue-body"
-      >
-        <AdminEmptyTableRow colSpan={5}>No review queue entries loaded yet.</AdminEmptyTableRow>
+      {input.reviewQueueWorkspace?.listError !== null &&
+      input.reviewQueueWorkspace?.listError !== undefined &&
+      input.reviewQueueWorkspace.listError.length > 0 ? (
+        <AdminStatus data-tone="error">{input.reviewQueueWorkspace.listError}</AdminStatus>
+      ) : input.reviewQueueWorkspace?.listNotice !== null &&
+        input.reviewQueueWorkspace?.listNotice !== undefined &&
+        input.reviewQueueWorkspace.listNotice.length > 0 ? (
+        <AdminStatus data-tone="success">{input.reviewQueueWorkspace.listNotice}</AdminStatus>
+      ) : null}
+      <AdminTable headers={["Evaluated", "Recipient", "Rule", "Summary", "Actions"]}>
+        {input.reviewQueueWorkspace === undefined ? (
+          <AdminEmptyTableRow colSpan={5}>No pending review queue entries.</AdminEmptyTableRow>
+        ) : (
+          <ReviewQueueRows
+            entries={input.reviewQueueWorkspace.entries}
+            resolveActionPath={reviewQueueResolvePath}
+          />
+        )}
       </AdminTable>
     </AdminPanel>
   );

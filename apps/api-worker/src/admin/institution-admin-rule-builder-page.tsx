@@ -6,6 +6,7 @@ import type {
   TenantMembershipRole,
   TenantRecord,
 } from "@credtrail/db";
+import type { RuleValueListBuilderContextEntry } from "./rule-value-lists-presentation";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../ui/render-page";
 import {
@@ -223,6 +224,7 @@ export const institutionAdminRuleBuilderPage = (input: {
   badgeRules: readonly BadgeIssuanceRuleRecord[];
   badgeRuleVersions: readonly BadgeIssuanceRuleVersionRecord[];
   lmsConnections: readonly TenantLmsConnectionRecord[];
+  valueLists: readonly RuleValueListBuilderContextEntry[];
   selectedBadgeTemplateId?: string;
   switchOrganizationPath?: string | null;
 }): AppPage => {
@@ -249,13 +251,9 @@ export const institutionAdminRuleBuilderPage = (input: {
   const createApiKeyPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/api-keys`;
   const createOrgUnitPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/org-units`;
   const badgeRuleApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules`;
-  const badgeRuleValueListApiPath = `/v1/tenants/${encodeURIComponent(
-    input.tenant.id,
-  )}/badge-rule-value-lists`;
   const lmsConnectionsApiPath = `/v1/tenants/${encodeURIComponent(
     input.tenant.id,
   )}/lms/connections`;
-  const badgeRuleReviewQueueApiPath = `${badgeRuleApiPath}/review-queue`;
   const assertionsApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions`;
   const tenantMembersApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/members`;
   const tenantUsersApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/users`;
@@ -379,15 +377,14 @@ export const institutionAdminRuleBuilderPage = (input: {
     createApiKeyPath,
     createOrgUnitPath,
     badgeRuleApiPath,
-    badgeRuleValueListApiPath,
     lmsConnectionsApiPath,
-    badgeRuleReviewQueueApiPath,
     assertionsApiPathPrefix,
     tenantMembersApiPath,
     tenantUsersApiPathPrefix,
     ruleBuilderContext: {
       badgeTemplates: badgeTemplateCourseContext,
       fallbackCourseId: initialTestCourseId,
+      valueLists: input.valueLists,
       lmsConnections: connectedLmsConnections.map((connection) => ({
         id: connection.id,
         displayName: connection.displayName,
@@ -684,6 +681,11 @@ export const institutionAdminRuleBuilderPage = (input: {
                                 Each requirement describes what a learner must do.
                               </span>
                             </header>
+                            <p class="ct-admin__hint">
+                              Reusable course or template lists are managed on the{" "}
+                              <a href={rulesListPath}>Rules page</a>. Reload this builder after
+                              creating a new list there.
+                            </p>
                             <div class="ct-admin__builder-canvas-meta ct-cluster">
                               <span id="rule-builder-canvas-count" class="ct-admin__status-pill">
                                 0 requirements

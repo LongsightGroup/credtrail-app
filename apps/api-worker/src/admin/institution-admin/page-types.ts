@@ -19,6 +19,7 @@ import type {
   TenantReportingOverviewRecord,
   TenantReportingTrendRecord,
   DelegatedIssuingAuthorityGrantRecord,
+  BadgeIssuanceRuleValueListRecord,
 } from "@credtrail/db";
 import type {
   LearnerRecordImportBatchProgressSummary,
@@ -26,6 +27,7 @@ import type {
 } from "../../learner-record/learner-record-import";
 import type { LearnerRecordPresentationModel } from "../../learner-record/learner-record-presentation";
 import type { ReportingMetricEntry } from "../../reporting/metric-definitions";
+import type { BadgeRuleReviewQueueEntryView } from "../../badge-rule-review-queue-workspace";
 import type { PageAssetKey } from "../../ui/page-assets";
 
 export type InstitutionAdminView =
@@ -41,7 +43,6 @@ export type InstitutionAdminView =
   | "reportingTrends"
   | "reportingReports"
   | "rules"
-  | "access"
   | "accessMembers"
   | "accessGovernance"
   | "accessApiKeys"
@@ -67,7 +68,7 @@ export const INSTITUTION_ADMIN_VIEW_CONFIG = {
   },
   operationsReviewQueue: {
     titlePrefix: "Rule Review Queue · Institution Admin",
-    controller: "shared",
+    controller: "shell",
   },
   operationsIssuedBadges: {
     titlePrefix: "Issued Badges · Institution Admin",
@@ -96,10 +97,6 @@ export const INSTITUTION_ADMIN_VIEW_CONFIG = {
   },
   rules: {
     titlePrefix: "Rules · Institution Admin",
-    controller: "shared",
-  },
-  access: {
-    titlePrefix: "Access · Institution Admin",
     controller: "shared",
   },
   accessMembers: {
@@ -168,6 +165,18 @@ export interface InstitutionAdminIssuedBadgesWorkspace {
   listError: string | null;
   lifecycleAssertionId: string | null;
   lifecycleMode: "audit" | "revoke" | null;
+}
+
+export interface InstitutionAdminReviewQueueWorkspace {
+  entries: readonly BadgeRuleReviewQueueEntryView[];
+  listNotice: string | null;
+  listError: string | null;
+}
+
+export interface InstitutionAdminRuleValueListsWorkspace {
+  valueLists: readonly BadgeIssuanceRuleValueListRecord[];
+  listNotice: string | null;
+  listError: string | null;
 }
 
 export interface InstitutionAdminLmsConnectionsWorkspace {
@@ -243,6 +252,8 @@ export interface InstitutionAdminPageInput {
   learnerRecordImportWorkflow?: InstitutionAdminLearnerRecordImportWorkflow;
   apiKeysWorkspace?: InstitutionAdminApiKeysWorkspace;
   issuedBadgesWorkspace?: InstitutionAdminIssuedBadgesWorkspace;
+  reviewQueueWorkspace?: InstitutionAdminReviewQueueWorkspace;
+  ruleValueListsWorkspace?: InstitutionAdminRuleValueListsWorkspace;
   lmsConnectionsWorkspace?: InstitutionAdminLmsConnectionsWorkspace;
   switchOrganizationPath?: string | null;
 }

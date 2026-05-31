@@ -25,6 +25,7 @@ export interface ListBadgeIssuanceRuleValueListsInput {
   tenantId: string;
   kind?: "course_ids" | "badge_template_ids" | undefined;
   includeArchived?: boolean | undefined;
+  limit?: number | undefined;
 }
 
 interface BadgeIssuanceRuleValueListRow {
@@ -144,10 +145,10 @@ export const listBadgeIssuanceRuleValueLists = async (
   input: ListBadgeIssuanceRuleValueListsInput,
 ): Promise<BadgeIssuanceRuleValueListRecord[]> => {
   const includeArchived = input.includeArchived ?? false;
-  const listStatement = (): Promise<SqlQueryResult<BadgeIssuanceRuleValueListRow>> =>
-    db
-      .prepare(
-        `
+  const limitClause = input.limit === undefined ? "" : " LIMIT ?";
+  const listStatement = (): Promise<SqlQueryResult<BadgeIssuanceRuleValueListRow>> => {
+    const statement = db.prepare(
+      `
         SELECT
           id,
           tenant_id AS tenantId,
@@ -162,11 +163,26 @@ export const listBadgeIssuanceRuleValueLists = async (
         WHERE tenant_id = ?
           AND (CAST(? AS TEXT) IS NULL OR kind = ?)
           AND (? = 1 OR archived_at IS NULL)
-        ORDER BY created_at DESC, id DESC
+        ORDER BY created_at DESC, id DESC${limitClause}
       `,
+    );
+
+    if (input.limit === undefined) {
+      return statement
+        .bind(input.tenantId, input.kind ?? null, input.kind ?? null, includeArchived ? 1 : 0)
+        .all<BadgeIssuanceRuleValueListRow>();
+    }
+
+    return statement
+      .bind(
+        input.tenantId,
+        input.kind ?? null,
+        input.kind ?? null,
+        includeArchived ? 1 : 0,
+        input.limit,
       )
-      .bind(input.tenantId, input.kind ?? null, input.kind ?? null, includeArchived ? 1 : 0)
       .all<BadgeIssuanceRuleValueListRow>();
+  };
 
   const result = await listStatement();
 

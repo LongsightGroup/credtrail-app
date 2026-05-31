@@ -418,11 +418,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
     setBuilderStepState(0);
     syncSuggestedRuleName();
     applyTemplatePreset();
-    void loadRuleValueLists(null, {
-      quietSuccess: true,
-    }).then(() => {
-      refreshConditionCardValueListOptions();
-    });
+    refreshConditionCardValueListOptions();
     syncRuleBuilderSummary();
   }
 })();

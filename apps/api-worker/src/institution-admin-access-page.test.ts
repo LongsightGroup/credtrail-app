@@ -7,7 +7,7 @@ import { INSTITUTION_ADMIN_ORG_UNITS_JS } from "./ui/page-assets/content/institu
 import { pageAssetPath } from "./ui/page-assets";
 
 describe("GET /tenants/:tenantId/admin/access", () => {
-  it("renders the access workspace", async () => {
+  it("redirects the removed access overview to members", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -19,35 +19,12 @@ describe("GET /tenants/:tenantId/admin/access", () => {
       },
       env,
     );
-    const body = await response.text();
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(body).toContain(">Access<");
-    expect(body).toContain("Members");
-    expect(body).toContain('href="/tenants/tenant_123/admin/access/members"');
-    expect(body).toContain('aria-label="Open Members page"');
-    expect(body).not.toMatch(/>\s*Manage members\s*<\/a>/);
-    expect(body).toContain("Access pages");
-    expect(body).toContain("Governance");
-    expect(body).toContain('href="/tenants/tenant_123/admin/access/governance"');
-    expect(body).toContain('aria-label="Open Governance page"');
-    expect(body).toContain("API Keys");
-    expect(body).toContain("Org Units");
-    expect(body).toContain('href="/tenants/tenant_123/admin/access/api-keys"');
-    expect(body).toContain('aria-label="Open API Keys page"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/access/org-units"');
-    expect(body).toContain('aria-label="Open Org Units page"');
-    expect(body).not.toContain("Save scoped role");
-    expect(body).not.toContain('id="tenant-member-form"');
-    expect(body).not.toContain('id="membership-scope-form"');
-    expect(body).not.toContain('id="api-key-form"');
-    expect(body).not.toContain('id="org-unit-form"');
-    expect(body).not.toContain("Manual Issue Badge");
-    expect(body).not.toContain("Rule Value Lists");
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/access/members");
   });
 
-  it("renders enterprise auth settings inside the access workspace for enterprise tenants", async () => {
+  it("renders enterprise auth settings inside the governance page for enterprise tenants", async () => {
     const env = createEnv();
     mockedFindTenantById.mockResolvedValue({
       id: "tenant_123",
@@ -62,7 +39,7 @@ describe("GET /tenants/:tenantId/admin/access", () => {
     });
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/access",
+      "/tenants/tenant_123/admin/access/governance",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -80,8 +57,6 @@ describe("GET /tenants/:tenantId/admin/access", () => {
     expect(body).toContain("Legacy SAML compatibility");
     expect(body).toContain("Members");
     expect(body).toContain("Governance");
-    expect(body).toContain("API Keys");
-    expect(body).toContain("Org Units");
     expect(body).not.toContain("OIDC or SAML connection metadata");
     expect(body).not.toContain('name="enforceForRoles"');
     expect(body).not.toContain('<option value="saml">');

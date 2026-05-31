@@ -560,9 +560,7 @@ const renderInstitutionAdminPage = (
   const createOrgUnitPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/org-units`;
   const lmsConnectionsApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/lms/connections`;
   const badgeRuleApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules`;
-  const badgeRuleValueListApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rule-value-lists`;
   const badgeRulePreviewSimulationApiPath = `${badgeRuleApiPath}/preview-simulate`;
-  const badgeRuleReviewQueueApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules/review-queue`;
   const assertionsApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions`;
   const tenantUsersApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/users`;
   const showcasePath = `/showcase/${encodeURIComponent(input.tenant.id)}`;
@@ -694,9 +692,7 @@ const renderInstitutionAdminPage = (
     showcasePath,
     tenantMemberEmailsByUserId,
     badgeRuleApiPath,
-    badgeRuleValueListApiPath,
     badgeRulePreviewSimulationApiPath,
-    badgeRuleReviewQueueApiPath,
     assertionsApiPathPrefix,
     tenantMembersApiPath: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/members`,
     tenantUsersApiPathPrefix,
@@ -776,13 +772,10 @@ const renderInstitutionAdminPage = (
           <AdminStatusPill>{badgeTemplateCount} templates</AdminStatusPill>
         </div>
       </AdminWorkspaceCard>
-      <AdminWorkspaceCard href={accessPath} ariaLabel="Open Access workspace">
+      <AdminWorkspaceCard href={accessMembersPath} ariaLabel="Open Members workspace">
         <p class="ct-admin__eyebrow">Configuration</p>
-        <h2>Access</h2>
-        <p>
-          Manage permissions and enterprise auth here, with separate pages for API keys and org
-          structure.
-        </p>
+        <h2>People &amp; Access</h2>
+        <p>Manage members, governance delegation, API keys, LMS connections, and org structure.</p>
         <div class="ct-admin__workspace-stats ct-cluster">
           <AdminStatusPill>{tenantMemberCount} members</AdminStatusPill>
           <AdminStatusPill>{activeApiKeyCount} active keys</AdminStatusPill>
@@ -809,6 +802,12 @@ const renderInstitutionAdminPage = (
     ...(input.issuedBadgesWorkspace === undefined
       ? {}
       : { issuedBadgesWorkspace: input.issuedBadgesWorkspace }),
+    ...(input.reviewQueueWorkspace === undefined
+      ? {}
+      : { reviewQueueWorkspace: input.reviewQueueWorkspace }),
+    ...(input.ruleValueListsWorkspace === undefined
+      ? {}
+      : { ruleValueListsWorkspace: input.ruleValueListsWorkspace }),
   });
 
   const tenantMemberRoleSelectOptions = assignableTenantRoles.map((role) => (
@@ -822,7 +821,6 @@ const renderInstitutionAdminPage = (
     governanceGuidePanelMarkup,
     tenantMembersPanelMarkup,
     tenantMembersTableMarkup,
-    accessOverviewPanelMarkup,
     membershipScopePanelMarkup,
     membershipScopeTableMarkup,
     delegatedGrantPanelMarkup,
@@ -1078,19 +1076,6 @@ const renderInstitutionAdminPage = (
             </section>
           </>
         );
-      case "access":
-        return (
-          <>
-            {renderPageHeader(
-              "Access",
-              "Manage members, governance delegation, API keys, and org units from one workspace.",
-            )}
-            <section class="ct-admin ct-stack">
-              {accessOverviewPanelMarkup}
-              {enterpriseAuthPanelMarkup}
-            </section>
-          </>
-        );
       case "accessMembers":
         return (
           <>
@@ -1126,6 +1111,7 @@ const renderInstitutionAdminPage = (
               </aside>,
             )}
             <section class="ct-admin ct-stack">
+              {enterpriseAuthPanelMarkup}
               {governanceGuidePanelMarkup}
               {membershipScopeTableMarkup}
               {membershipScopePanelMarkup}
@@ -1254,10 +1240,6 @@ export const institutionAdminReportingReportsPage = (input: InstitutionAdminPage
 
 export const institutionAdminRulesPage = (input: InstitutionAdminPageInput): AppPage => {
   return renderInstitutionAdminPage(input, "rules");
-};
-
-export const institutionAdminAccessPage = (input: InstitutionAdminPageInput): AppPage => {
-  return renderInstitutionAdminPage(input, "access");
 };
 
 export const institutionAdminMembersPage = (input: InstitutionAdminPageInput): AppPage => {

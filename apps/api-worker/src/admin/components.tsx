@@ -1,6 +1,12 @@
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
-import type { TenantAssertionSummaryRecord } from "@credtrail/db";
+import type { BadgeIssuanceRuleValueListRecord, TenantAssertionSummaryRecord } from "@credtrail/db";
+import type { BadgeRuleReviewQueueEntryView } from "../badge-rule-review-queue-workspace";
+import { formatBadgeRuleReviewQueueSummary } from "../badge-rule-review-queue-workspace";
+import {
+  formatRuleValueListKind,
+  formatRuleValueListValuesSummary,
+} from "./rule-value-lists-presentation";
 import { adminStatusPillClass } from "./admin-status-pill-class";
 import { formatIsoTimestamp } from "../utils/display-format";
 export { AdminSidebar, type AdminSidebarFooterLink, type AdminSidebarSection } from "./sidebar";
@@ -729,6 +735,120 @@ export const IssuedBadgeRow = (input: {
         </div>
       </td>
     </tr>
+  );
+};
+
+export const RuleValueListRow = (input: {
+  valueList: BadgeIssuanceRuleValueListRecord;
+}): HonoElement => {
+  const valueList = input.valueList;
+  const valueSummary = formatRuleValueListValuesSummary(valueList.values);
+
+  return (
+    <tr data-rule-value-list-row="true">
+      <td>
+        <strong>{valueList.label}</strong>
+        <AdminMeta>{valueList.id}</AdminMeta>
+      </td>
+      <td>{formatRuleValueListKind(valueList.kind)}</td>
+      <td>
+        {valueSummary}
+        <AdminMeta>
+          {String(valueList.values.length)} value{valueList.values.length === 1 ? "" : "s"}
+        </AdminMeta>
+      </td>
+    </tr>
+  );
+};
+
+export const RuleValueListRows = (input: {
+  valueLists: readonly BadgeIssuanceRuleValueListRecord[];
+  emptyMessage?: string;
+}): HonoElement => {
+  if (input.valueLists.length === 0) {
+    return (
+      <AdminEmptyTableRow colSpan={3}>
+        {input.emptyMessage ?? "No reusable value lists yet."}
+      </AdminEmptyTableRow>
+    );
+  }
+
+  return (
+    <>
+      {input.valueLists.map((valueList) => (
+        <RuleValueListRow valueList={valueList} />
+      ))}
+    </>
+  );
+};
+
+export const ReviewQueueRow = (input: {
+  entry: BadgeRuleReviewQueueEntryView;
+  resolveActionPath: string;
+}): HonoElement => {
+  const entry = input.entry;
+  const ruleLabel = entry.ruleName ?? entry.ruleId;
+  const summaryText = formatBadgeRuleReviewQueueSummary(entry.evaluationSummary);
+  const isPending = entry.reviewStatus === "pending";
+
+  return (
+    <tr data-review-queue-row="true">
+      <td>{formatIsoTimestamp(entry.evaluatedAt)}</td>
+      <td>
+        <strong>{entry.recipientIdentity}</strong>
+      </td>
+      <td>
+        <strong>{ruleLabel}</strong>
+        <AdminMeta>{entry.ruleId}</AdminMeta>
+      </td>
+      <td>{summaryText}</td>
+      <td class="ct-admin__issued-actions-cell">
+        {isPending ? (
+          <div class="ct-admin__issued-actions ct-cluster">
+            <AdminForm method="post" action={input.resolveActionPath}>
+              <input type="hidden" name="evaluationId" value={entry.evaluationId} />
+              <input type="hidden" name="decision" value="issue" />
+              <input type="hidden" name="comment" value="Manual review approved by issuer" />
+              <AdminButton type="submit" size="tiny" variant="secondary">
+                Issue
+              </AdminButton>
+            </AdminForm>
+            <AdminForm method="post" action={input.resolveActionPath}>
+              <input type="hidden" name="evaluationId" value={entry.evaluationId} />
+              <input type="hidden" name="decision" value="dismiss" />
+              <input type="hidden" name="comment" value="Missing facts confirmed; no issue" />
+              <AdminButton type="submit" size="tiny" variant="ghost">
+                Dismiss
+              </AdminButton>
+            </AdminForm>
+          </div>
+        ) : (
+          <AdminMeta>Resolved</AdminMeta>
+        )}
+      </td>
+    </tr>
+  );
+};
+
+export const ReviewQueueRows = (input: {
+  entries: readonly BadgeRuleReviewQueueEntryView[];
+  resolveActionPath: string;
+  emptyMessage?: string;
+}): HonoElement => {
+  if (input.entries.length === 0) {
+    return (
+      <AdminEmptyTableRow colSpan={5}>
+        {input.emptyMessage ?? "No pending review queue entries."}
+      </AdminEmptyTableRow>
+    );
+  }
+
+  return (
+    <>
+      {input.entries.map((entry) => (
+        <ReviewQueueRow entry={entry} resolveActionPath={input.resolveActionPath} />
+      ))}
+    </>
   );
 };
 

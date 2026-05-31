@@ -13,6 +13,8 @@ import {
   mockedListLearnerRecordAssertionExportsDb,
   mockedListLearnerRecordEntriesDb,
   mockedListTenantAssertions,
+  mockedListBadgeIssuanceRuleEvaluations,
+  mockedFindBadgeIssuanceRuleById,
   mockedMarkLearnerRecordImportPreviewQueuedDb,
   mockedRecordAssertionLifecycleTransition,
   sampleLearnerRecordAssertionExport,
@@ -626,6 +628,51 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
 describe("GET /tenants/:tenantId/admin/operations/review-queue", () => {
   it("renders the rule review queue on its own page", async () => {
     const env = createEnv();
+    mockedListBadgeIssuanceRuleEvaluations.mockResolvedValueOnce([
+      {
+        id: "bre_123",
+        tenantId: "tenant_123",
+        ruleId: "brl_123",
+        versionId: "brv_123",
+        learnerId: "learner_123",
+        recipientIdentity: "learner@example.edu",
+        recipientIdentityType: "email",
+        matched: false,
+        issuanceStatus: "review_required",
+        assertionId: null,
+        evaluationJson: JSON.stringify({
+          evaluation: {
+            matched: false,
+            tree: {
+              type: "grade_threshold",
+              matched: false,
+              resultKind: "missing_data",
+              detail: "No grade facts were found for course_101",
+            },
+          },
+        }),
+        reviewStatus: "pending",
+        reviewDecision: null,
+        reviewComment: null,
+        reviewedByUserId: null,
+        reviewedAt: null,
+        evaluatedAt: "2026-02-17T00:00:00.000Z",
+        createdAt: "2026-02-17T00:00:00.000Z",
+      },
+    ]);
+    mockedFindBadgeIssuanceRuleById.mockResolvedValueOnce({
+      id: "brl_123",
+      tenantId: "tenant_123",
+      name: "CS101 Rule",
+      description: "Issue badge for CS101 completion and grade threshold.",
+      badgeTemplateId: "badge_template_001",
+      lmsProviderKind: "canvas",
+      lmsConnectionId: "lms_canvas",
+      activeVersionId: "brv_123",
+      createdByUserId: "usr_admin",
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    });
 
     const response = await app.request(
       "/tenants/tenant_123/admin/operations/review-queue",
@@ -639,12 +686,22 @@ describe("GET /tenants/:tenantId/admin/operations/review-queue", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Credential Operations");
     expect(body).toContain("Rule Review Queue");
-    expect(body).toContain('id="rule-review-queue-refresh"');
+    expect(body).toContain(
+      "Review pending badge decisions without mixing them into the rest of operations.",
+    );
+    expect(body).not.toContain('id="rule-review-queue-refresh"');
+    expect(body).not.toContain("No review queue entries loaded yet");
+    expect(body).toContain('method="post"');
+    expect(body).toContain("/tenants/tenant_123/admin/operations/review-queue/resolve");
+    expect(body).toContain("learner@example.edu");
+    expect(body).toContain("CS101 Rule");
+    expect(body).not.toContain("No pending review queue entries.");
     expect(body).not.toContain('id="manual-issue-form"');
     expect(body).not.toContain('id="issued-badges-filter-form"');
     expect(body).not.toContain('id="assertion-lifecycle-view-form"');
+    expect(body).toContain(pageAssetPath("institutionAdminShellJs"));
+    expect(body).not.toContain(pageAssetPath("institutionAdminJs"));
   });
 });
 

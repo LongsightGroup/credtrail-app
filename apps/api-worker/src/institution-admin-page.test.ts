@@ -100,11 +100,11 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain("Operations");
     expect(body).toContain("Reporting");
     expect(body).toContain("Rules");
-    expect(body).toContain("Access");
+    expect(body).toContain("People &amp; Access");
     expect(body).toContain("Analytics");
     expect(body).toContain("Management");
     expect(body).toContain("Configuration");
-    expect(body.match(/class="ct-admin-sidebar__section-icon"/g)?.length).toBe(4);
+    expect(body).not.toContain('class="ct-admin-sidebar__section-icon"');
     expect(body).toContain('class="ct-admin-sidebar__group-details"');
     expect(body).toContain("<summary");
     expect(body).not.toMatch(/class="ct-admin-sidebar__group-content"[^>]*hidden/);
@@ -112,7 +112,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain('aria-label="Open Issue &amp; Inspect workspace"');
     expect(body).toContain('aria-label="Open Reporting workspace"');
     expect(body).toContain('aria-label="Open Rules workspace"');
-    expect(body).toContain('aria-label="Open Access workspace"');
+    expect(body).toContain('aria-label="Open Members workspace"');
     expect(body).not.toMatch(/>\s*Open operations\s*<\/a>/);
     expect(body).not.toMatch(/>\s*Open reporting\s*<\/a>/);
     expect(body).not.toMatch(/>\s*Open rules\s*<\/a>/);
@@ -127,7 +127,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/rules"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/access"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/access/members"');
     expect(body).toContain('href="/showcase/tenant_123"');
     expect(body).toContain("/v1/tenants/tenant_123/assertions/manual-issue");
     expect(body).toContain("/v1/tenants/tenant_123/api-keys");
@@ -135,9 +135,8 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).not.toContain("/v1/tenants/tenant_123/badge-templates");
     expect(body).toContain("/v1/tenants/tenant_123/users");
     expect(body).toContain("/v1/tenants/tenant_123/badge-rules");
-    expect(body).toContain("/v1/tenants/tenant_123/badge-rule-value-lists");
     expect(body).toContain("/v1/tenants/tenant_123/badge-rules/preview-simulate");
-    expect(body).toContain("/v1/tenants/tenant_123/badge-rules/review-queue");
+    expect(body).not.toContain("/v1/tenants/tenant_123/badge-rules/review-queue");
     expect(body).toContain("admin@tenant-123.edu");
     expect(body).toContain('title="User ID: usr_admin"');
     expect(body).toContain("/assets/ui/foundation.");
@@ -222,6 +221,6 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).not.toContain("Enterprise Auth");
     expect(body).not.toContain("Login mode");
     expect(body).not.toContain('id="enterprise-auth-policy-form"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/access"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/access/members"');
   });
 });

@@ -54,6 +54,11 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     );
     expect(body).toContain("They do not create badge templates.");
     expect(body).toContain('id="rule-value-list-form"');
+    expect(body).toContain('method="post"');
+    expect(body).toContain('action="/tenants/tenant_123/admin/rules/value-lists"');
+    expect(body).not.toContain('id="rule-value-list-status"');
+    expect(body).not.toContain('id="rule-value-list-body"');
+    expect(body).not.toContain("badge-rule-value-lists");
     expect(body).toContain("Evaluate Rule");
     expect(body).toContain('id="rule-evaluate-form"');
     expect(body).toContain("Rule Governance Context");
@@ -1019,6 +1024,10 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).not.toContain('id="rule-builder-apply-test-preset"');
     expect(body).toContain('id="rule-builder-test-output"');
     expect(body).not.toContain('id="rule-builder-value-list-body"');
+    expect(body).not.toContain("badge-rule-value-lists");
+    expect(body).toContain("valueLists");
+    expect(body).toContain("Rules page");
+    expect(body).toContain("Reload this builder");
     expect(body).toContain('name="reviewOnMissingFacts"');
     expect(body).not.toContain('id="rule-builder-simulate"');
     expect(body).not.toContain('id="rule-builder-simulate-output"');

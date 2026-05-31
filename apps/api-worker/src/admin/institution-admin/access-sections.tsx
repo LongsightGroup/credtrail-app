@@ -8,9 +8,7 @@ import {
   AdminForm,
   AdminPanel,
   AdminStatus,
-  AdminStatusPill,
   AdminTable,
-  AdminWorkspaceCard,
 } from "../components";
 import { tenantApiKeyAdminCreatePath } from "../api-key-admin-helpers";
 import { tenantLmsConnectionAdminSavePath } from "../lms-connection-admin-helpers";
@@ -65,7 +63,6 @@ interface InstitutionAdminAccessSections {
   governanceGuidePanelMarkup: HonoElement;
   tenantMembersPanelMarkup: HonoElement;
   tenantMembersTableMarkup: HonoElement;
-  accessOverviewPanelMarkup: HonoElement;
   membershipScopePanelMarkup: HonoElement;
   membershipScopeTableMarkup: HonoElement;
   delegatedGrantPanelMarkup: HonoElement;
@@ -401,58 +398,6 @@ export const renderInstitutionAdminAccessSections = (
     </AdminPanel>
   );
 
-  const accessOverviewPanelMarkup = (
-    <section class="ct-admin__workspace-grid ct-grid" aria-label="Access pages">
-      <AdminWorkspaceCard href={input.accessMembersPath} ariaLabel="Open Members page">
-        <p class="ct-admin__eyebrow">People</p>
-        <h2>Members</h2>
-        <p>
-          Add colleagues by email, assign tenant roles, resend invites, and remove tenant access.
-        </p>
-        <div class="ct-admin__workspace-stats ct-cluster">
-          <AdminStatusPill>{input.tenantMemberCount} members</AdminStatusPill>
-        </div>
-      </AdminWorkspaceCard>
-      <AdminWorkspaceCard href={input.accessGovernancePath} ariaLabel="Open Governance page">
-        <p class="ct-admin__eyebrow">Delegation</p>
-        <h2>Governance</h2>
-        <p>Grant org-unit scoped roles and time-boxed badge authority.</p>
-        <div class="ct-admin__workspace-stats ct-cluster">
-          <AdminStatusPill>{input.scopedRoleCount} scoped roles</AdminStatusPill>
-          <AdminStatusPill>{input.delegatedAuthorityGrantCount} delegations</AdminStatusPill>
-        </div>
-      </AdminWorkspaceCard>
-      <AdminWorkspaceCard href={input.accessApiKeysPath} ariaLabel="Open API Keys page">
-        <p class="ct-admin__eyebrow">Integrations</p>
-        <h2>API Keys</h2>
-        <p>Create and revoke tenant API keys for trusted integrations.</p>
-        <div class="ct-admin__workspace-stats ct-cluster">
-          <AdminStatusPill>{input.activeApiKeyCount} active</AdminStatusPill>
-          <AdminStatusPill>{input.revokedApiKeyCount} revoked</AdminStatusPill>
-        </div>
-      </AdminWorkspaceCard>
-      <AdminWorkspaceCard
-        href={input.accessLmsConnectionsPath}
-        ariaLabel="Open LMS Connections page"
-      >
-        <p class="ct-admin__eyebrow">Gradebooks</p>
-        <h2>LMS Connections</h2>
-        <p>Connect Canvas or Sakai gradebook accounts used by badge awarding rules.</p>
-        <div class="ct-admin__workspace-stats ct-cluster">
-          <AdminStatusPill>{input.lmsConnectionCount} connections</AdminStatusPill>
-        </div>
-      </AdminWorkspaceCard>
-      <AdminWorkspaceCard href={input.accessOrgUnitsPath} ariaLabel="Open Org Units page">
-        <p class="ct-admin__eyebrow">Structure</p>
-        <h2>Org Units</h2>
-        <p>Maintain institution, college, department, and program hierarchy.</p>
-        <div class="ct-admin__workspace-stats ct-cluster">
-          <AdminStatusPill>{input.orgUnitCount} org units</AdminStatusPill>
-        </div>
-      </AdminWorkspaceCard>
-    </section>
-  );
-
   const membershipScopePanelMarkup = (
     <details id="membership-scope-panel" class="ct-admin__panel ct-admin__add-disclosure">
       <summary class="ct-admin__add-disclosure-summary">
@@ -603,7 +548,6 @@ export const renderInstitutionAdminAccessSections = (
     governanceGuidePanelMarkup,
     tenantMembersPanelMarkup,
     tenantMembersTableMarkup,
-    accessOverviewPanelMarkup,
     membershipScopePanelMarkup,
     membershipScopeTableMarkup,
     delegatedGrantPanelMarkup,

@@ -96,6 +96,12 @@ vi.mock("@credtrail/db", async () => {
     listLearnerRecordEntries: mockedListLearnerRecordEntries,
     listBadgeIssuanceRules: vi.fn(),
     listBadgeIssuanceRuleVersions: vi.fn(),
+    listBadgeIssuanceRuleEvaluations: vi.fn().mockResolvedValue([]),
+    listBadgeIssuanceRuleValueLists: vi.fn().mockResolvedValue([]),
+    createBadgeIssuanceRuleValueList: vi.fn(),
+    findBadgeIssuanceRuleEvaluationById: vi.fn(),
+    resolveBadgeIssuanceRuleEvaluationReview: vi.fn(),
+    findBadgeIssuanceRuleById: vi.fn().mockResolvedValue(null),
     listTenantReportingComparisons: mockedGetTenantReportingComparisons,
     listTenantBreakGlassAccounts: mockedListTenantBreakGlassAccounts,
     listTenantMembers: mockedListTenantMembers,
@@ -172,6 +178,12 @@ import {
   listAuditLogs,
   listBadgeIssuanceRules,
   listBadgeIssuanceRuleVersions,
+  listBadgeIssuanceRuleEvaluations,
+  listBadgeIssuanceRuleValueLists,
+  createBadgeIssuanceRuleValueList,
+  findBadgeIssuanceRuleEvaluationById,
+  resolveBadgeIssuanceRuleEvaluationReview,
+  findBadgeIssuanceRuleById,
   listBadgeTemplateImageRevisions,
   listBadgeTemplateImageRevisionCountsByTenant,
   listBadgeTemplateOwnershipEvents,
@@ -229,6 +241,16 @@ export const mockedListDelegatedIssuingAuthorityGrants = vi.mocked(
 );
 export const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
 export const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRuleVersions);
+export const mockedListBadgeIssuanceRuleEvaluations = vi.mocked(listBadgeIssuanceRuleEvaluations);
+export const mockedListBadgeIssuanceRuleValueLists = vi.mocked(listBadgeIssuanceRuleValueLists);
+export const mockedCreateBadgeIssuanceRuleValueList = vi.mocked(createBadgeIssuanceRuleValueList);
+export const mockedFindBadgeIssuanceRuleEvaluationById = vi.mocked(
+  findBadgeIssuanceRuleEvaluationById,
+);
+export const mockedResolveBadgeIssuanceRuleEvaluationReview = vi.mocked(
+  resolveBadgeIssuanceRuleEvaluationReview,
+);
+export const mockedFindBadgeIssuanceRuleById = vi.mocked(findBadgeIssuanceRuleById);
 export const mockedListBadgeTemplateImageRevisionCountsByTenant = vi.mocked(
   listBadgeTemplateImageRevisionCountsByTenant,
 );
@@ -699,6 +721,28 @@ beforeEach(() => {
       updatedAt: "2026-02-18T12:00:00.000Z",
     },
   ]);
+  mockedListBadgeIssuanceRuleEvaluations.mockReset();
+  mockedListBadgeIssuanceRuleEvaluations.mockResolvedValue([]);
+  mockedListBadgeIssuanceRuleValueLists.mockReset();
+  mockedListBadgeIssuanceRuleValueLists.mockResolvedValue([]);
+  mockedCreateBadgeIssuanceRuleValueList.mockReset();
+  mockedCreateBadgeIssuanceRuleValueList.mockResolvedValue({
+    id: "brvl_123",
+    tenantId: "tenant_123",
+    label: "Core CS sequence",
+    kind: "course_ids",
+    values: ["CS101", "CS102"],
+    createdByUserId: "usr_admin",
+    archivedAt: null,
+    createdAt: "2026-02-18T12:00:00.000Z",
+    updatedAt: "2026-02-18T12:00:00.000Z",
+  });
+  mockedFindBadgeIssuanceRuleEvaluationById.mockReset();
+  mockedFindBadgeIssuanceRuleEvaluationById.mockResolvedValue(null);
+  mockedResolveBadgeIssuanceRuleEvaluationReview.mockReset();
+  mockedResolveBadgeIssuanceRuleEvaluationReview.mockResolvedValue(null);
+  mockedFindBadgeIssuanceRuleById.mockReset();
+  mockedFindBadgeIssuanceRuleById.mockResolvedValue(null);
   mockedListTenantOrgUnits.mockReset();
   mockedListTenantOrgUnits.mockResolvedValue(sampleReportingOrgUnits());
   mockedListTenantMembershipOrgUnitScopes.mockReset();

@@ -12,16 +12,17 @@ import { parseBadgeTemplatePathParams, parseTenantPathParams } from "@credtrail/
 import type { Hono } from "hono";
 import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
 import {
-  institutionAdminAccessPage,
   institutionAdminBadgeStatusPage,
   institutionAdminDashboardPage,
   institutionAdminGovernancePage,
   institutionAdminMembersPage,
   institutionAdminOperationsPage,
-  institutionAdminOperationsReviewQueuePage,
   institutionAdminOrgUnitsPage,
-  institutionAdminRulesPage,
 } from "../admin/institution-admin-page";
+import {
+  loadTenantBadgeRuleValueLists,
+  toRuleValueListBuilderContextEntries,
+} from "../admin/rule-value-lists-presentation";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";
 import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
 import type { AppBindings, AppContext, AppEnv } from "../app";
@@ -58,6 +59,16 @@ interface RegisterTenantAdminPageRoutesInput {
     nextPath: string,
   ) => Promise<Response>;
   renderInstitutionAdminIssuedBadgesWorkspace: (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ) => Promise<Response>;
+  renderInstitutionAdminReviewQueueWorkspace: (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ) => Promise<Response>;
+  renderInstitutionAdminRulesWorkspace: (
     c: AppContext,
     tenantId: string,
     nextPath: string,
@@ -102,6 +113,8 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     renderInstitutionAdminWorkspace,
     renderInstitutionAdminApiKeysWorkspace,
     renderInstitutionAdminIssuedBadgesWorkspace,
+    renderInstitutionAdminReviewQueueWorkspace,
+    renderInstitutionAdminRulesWorkspace,
     renderInstitutionAdminLmsConnectionsWorkspace,
     renderInstitutionAdminTemplatesWorkspace,
     renderInstitutionAdminTemplateEditorWorkspace,
@@ -130,11 +143,10 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
 
   app.get("/tenants/:tenantId/admin/operations/review-queue", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
+    return renderInstitutionAdminReviewQueueWorkspace(
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/review-queue`,
-      institutionAdminOperationsReviewQueuePage,
     );
   });
 
@@ -159,11 +171,10 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
 
   app.get("/tenants/:tenantId/admin/rules", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
+    return renderInstitutionAdminRulesWorkspace(
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules`,
-      institutionAdminRulesPage,
     );
   });
 
@@ -190,12 +201,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
 
   app.get("/tenants/:tenantId/admin/access", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access`,
-      institutionAdminAccessPage,
-    );
+    return c.redirect(`/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access/members`);
   });
 
   app.get("/tenants/:tenantId/admin/access/members", async (c) => {
@@ -292,19 +298,26 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       );
     }
 
-    const [currentUser, badgeTemplates, badgeRules, lmsConnections, accessibleTenantContexts] =
-      await Promise.all([
-        findUserById(db, session.userId),
-        listBadgeTemplates(db, {
-          tenantId: pathParams.tenantId,
-          includeArchived: false,
-        }),
-        listBadgeIssuanceRules(db, {
-          tenantId: pathParams.tenantId,
-        }),
-        listTenantLmsConnections(db, pathParams.tenantId),
-        listAccessibleTenantContextsForUser(db, session.userId),
-      ]);
+    const [
+      currentUser,
+      badgeTemplates,
+      badgeRules,
+      lmsConnections,
+      accessibleTenantContexts,
+      valueLists,
+    ] = await Promise.all([
+      findUserById(db, session.userId),
+      listBadgeTemplates(db, {
+        tenantId: pathParams.tenantId,
+        includeArchived: false,
+      }),
+      listBadgeIssuanceRules(db, {
+        tenantId: pathParams.tenantId,
+      }),
+      listTenantLmsConnections(db, pathParams.tenantId),
+      listAccessibleTenantContextsForUser(db, session.userId),
+      loadTenantBadgeRuleValueLists(db, pathParams.tenantId),
+    ]);
     const badgeRuleVersionLists = await Promise.all(
       badgeRules.map(async (rule) =>
         listBadgeIssuanceRuleVersions(db, {
@@ -339,6 +352,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
         badgeRules,
         badgeRuleVersions,
         lmsConnections,
+        valueLists: toRuleValueListBuilderContextEntries(valueLists),
         ...(selectedBadgeTemplateId === undefined ? {} : { selectedBadgeTemplateId }),
         switchOrganizationPath,
       }),

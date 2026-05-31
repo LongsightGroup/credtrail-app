@@ -431,7 +431,9 @@ export const renderInstitutionAdminReportingSections = (
   });
   const reportingDefinitionRows =
     reportingMetrics.length === 0 ? (
-      <AdminEmptyTableRow colSpan={4}>No reporting definitions loaded yet.</AdminEmptyTableRow>
+      <AdminEmptyTableRow colSpan={4}>
+        No reporting metric definitions available.
+      </AdminEmptyTableRow>
     ) : (
       reportingMetrics.map((metric) => {
         return (

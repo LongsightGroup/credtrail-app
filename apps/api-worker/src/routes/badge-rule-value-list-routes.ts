@@ -1,11 +1,11 @@
 import {
   createAuditLog,
   createBadgeIssuanceRuleValueList,
-  listBadgeIssuanceRuleValueLists,
   type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
+import { loadTenantBadgeRuleValueLists } from "../admin/rule-value-lists-presentation";
 import {
   parseBadgeIssuanceRuleValueListQuery,
   parseCreateBadgeIssuanceRuleValueListRequest,
@@ -57,11 +57,15 @@ export const registerBadgeRuleValueListRoutes = (
       return roleCheck;
     }
 
-    const valueLists = await listBadgeIssuanceRuleValueLists(resolveDatabase(c.env), {
-      tenantId: pathParams.tenantId,
-      ...(query.kind === undefined ? {} : { kind: query.kind }),
-      includeArchived: false,
-    });
+    const valueLists =
+      query.kind === undefined
+        ? await loadTenantBadgeRuleValueLists(resolveDatabase(c.env), pathParams.tenantId, {
+            limit: "none",
+          })
+        : await loadTenantBadgeRuleValueLists(resolveDatabase(c.env), pathParams.tenantId, {
+            kind: query.kind,
+            limit: "none",
+          });
 
     return c.json({
       tenantId: pathParams.tenantId,

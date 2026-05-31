@@ -717,6 +717,7 @@ registerTenantGovernanceRoutes({
   requireScopedOrgUnitPermission,
   requireDelegatedIssuingAuthorityPermission,
   assertionBelongsToTenant,
+  issueBadgeForTenant,
   ADMIN_ROLES,
   ISSUER_ROLES,
 });
