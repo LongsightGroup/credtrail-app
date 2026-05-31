@@ -15,7 +15,6 @@ export type InstitutionAdminSidebarView =
   | "rules"
   | "rulesTemplates"
   | "rulesBuilder"
-  | "access"
   | "accessMembers"
   | "accessGovernance"
   | "accessApiKeys"
@@ -135,22 +134,17 @@ export const buildInstitutionAdminSidebarSections = (
     kind: "groups",
     groups: [
       {
-        label: "Badge Templates",
+        label: "Badge Program",
         links: [
           {
             href: paths.rulesTemplatesPath,
             label: "Templates",
             isCurrent: view === "rulesTemplates",
           },
-        ],
-      },
-      {
-        label: "Rules",
-        links: [
-          { href: paths.rulesWorkspacePath, label: "Rules Workspace", isCurrent: view === "rules" },
+          { href: paths.rulesWorkspacePath, label: "Rules", isCurrent: view === "rules" },
           {
             href: paths.ruleBuilderPath,
-            label: "Rule Builder",
+            label: "New Rule",
             isCurrent: view === "rulesBuilder",
           },
         ],
@@ -189,29 +183,18 @@ export const buildInstitutionAdminSidebarSections = (
       {
         label: "People & Access",
         links: [
-          { href: paths.accessPath, label: "Access", isCurrent: view === "access" },
           { href: paths.accessMembersPath, label: "Members", isCurrent: view === "accessMembers" },
           {
             href: paths.accessGovernancePath,
             label: "Governance",
             isCurrent: view === "accessGovernance",
           },
-          { href: paths.accessApiKeysPath, label: "API Keys", isCurrent: view === "accessApiKeys" },
-        ],
-      },
-      {
-        label: "Integrations",
-        links: [
           {
             href: paths.accessLmsConnectionsPath,
             label: "LMS Connections",
             isCurrent: view === "accessLmsConnections",
           },
-        ],
-      },
-      {
-        label: "Organization",
-        links: [
+          { href: paths.accessApiKeysPath, label: "API Keys", isCurrent: view === "accessApiKeys" },
           {
             href: paths.accessOrgUnitsPath,
             label: "Org Units",
