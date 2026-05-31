@@ -13,6 +13,7 @@ import {
   listTenantAuthProviders,
   listBadgeIssuanceRules,
   listBadgeIssuanceRuleVersions,
+  listBadgeTemplateImageRevisionCountsByTenant,
   listBadgeTemplates,
   listTenantApiKeys,
   listTenantAssertions,
@@ -77,7 +78,6 @@ import { registerTenantMembershipScopeRoutes } from "./tenant-membership-scope-r
 import { registerTenantDelegatedAuthorityRoutes } from "./tenant-delegated-authority-routes";
 import { registerTenantOrgUnitRoutes } from "./tenant-org-unit-routes";
 import { loadInstitutionAdminReportingPageData } from "./tenant-admin-reporting-data-loader";
-import { listOptionalBadgeTemplateImageRevisionCountsByTenant } from "./badge-template-image-revision-counts";
 import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
 import {
   prepareLearnerRecordImportSubmission,
@@ -592,7 +592,7 @@ export const registerTenantGovernanceRoutes = (
         tenantId,
         includeArchived: input.includeArchived,
       }),
-      listOptionalBadgeTemplateImageRevisionCountsByTenant(db, tenantId),
+      listBadgeTemplateImageRevisionCountsByTenant(db, tenantId),
     ]);
     const badgeTemplateImageRevisionCountsById = Object.fromEntries(
       badgeTemplateImageRevisionCounts.map((entry) => [entry.badgeTemplateId, entry.revisionCount]),
@@ -1263,7 +1263,7 @@ export const registerTenantGovernanceRoutes = (
     const db = resolveDatabase(c.env);
     const [badgeTemplate, imageRevisionCounts] = await Promise.all([
       findBadgeTemplateById(db, tenantId, badgeTemplateId),
-      listOptionalBadgeTemplateImageRevisionCountsByTenant(db, tenantId),
+      listBadgeTemplateImageRevisionCountsByTenant(db, tenantId),
     ]);
 
     if (badgeTemplate === null) {

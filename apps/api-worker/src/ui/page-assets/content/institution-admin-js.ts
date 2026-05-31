@@ -4,6 +4,7 @@ import { INSTITUTION_ADMIN_ISSUE_AUTH_JS } from "./institution-admin-issue-auth-
 import { INSTITUTION_ADMIN_MEMBERSHIP_JS } from "./institution-admin-membership-js";
 import { INSTITUTION_ADMIN_REPORTING_JS } from "./institution-admin-reporting-js";
 import { INSTITUTION_ADMIN_RULE_OPERATIONS_JS } from "./institution-admin-rule-operations-js";
+import { INSTITUTION_ADMIN_SIDEBAR_JS } from "./institution-admin-sidebar-js";
 
 export const INSTITUTION_ADMIN_JS = [
   INSTITUTION_ADMIN_BOOTSTRAP_JS,
@@ -11,5 +12,6 @@ export const INSTITUTION_ADMIN_JS = [
   INSTITUTION_ADMIN_ISSUE_AUTH_JS,
   INSTITUTION_ADMIN_MEMBERSHIP_JS,
   INSTITUTION_ADMIN_GOVERNANCE_TOOLS_JS,
+  INSTITUTION_ADMIN_SIDEBAR_JS,
   INSTITUTION_ADMIN_REPORTING_JS,
 ].join("\n");

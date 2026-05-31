@@ -1,9 +1,4 @@
-import {
-  captureSentryException,
-  logError,
-  logInfo,
-  type ObservabilityContext,
-} from "@credtrail/core-domain";
+import { logError, logInfo, type ObservabilityContext } from "@credtrail/core-domain";
 import type { Hono } from "hono";
 import type { AppBindings, AppEnv } from "../app";
 import { validateCsrfRequestOrigin } from "./csrf-protection";
@@ -95,21 +90,6 @@ export const registerCommonMiddleware = (input: RegisterCommonMiddlewareInput): 
   app.onError(async (error, c) => {
     const requestUrl = new URL(c.req.url);
     const details = error instanceof Error ? error.message : "Unknown error";
-
-    await captureSentryException({
-      context: observabilityContext(c.env),
-      dsn: c.env.SENTRY_DSN,
-      error,
-      message: "Unhandled API worker error",
-      tags: {
-        path: requestUrl.pathname,
-        method: c.req.method,
-      },
-      extra: {
-        status: 500,
-        environment: c.env.APP_ENV,
-      },
-    });
 
     logError(observabilityContext(c.env), "api_error", {
       method: c.req.method,

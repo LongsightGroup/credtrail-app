@@ -447,7 +447,7 @@ class FakeStatement {
 
     if (duplicateSubject !== undefined) {
       throw new Error(
-        "UNIQUE constraint failed: learner_profiles.tenant_id, learner_profiles.subject_id",
+        'duplicate key value violates unique constraint "learner_profiles_tenant_id_subject_id_key"',
       );
     }
 
@@ -516,7 +516,9 @@ class FakeStatement {
     });
 
     if (!profileExists) {
-      throw new Error("FOREIGN KEY constraint failed");
+      throw new Error(
+        'insert or update on table "learner_identities" violates foreign key constraint "learner_identities_tenant_id_learner_profile_id_fkey"',
+      );
     }
 
     const duplicateIdentity = this.db.learnerIdentities.find((row) => {
@@ -529,7 +531,7 @@ class FakeStatement {
 
     if (duplicateIdentity !== undefined) {
       throw new Error(
-        "UNIQUE constraint failed: learner_identities.tenant_id, learner_identities.identity_type, learner_identities.identity_value",
+        'duplicate key value violates unique constraint "learner_identities_tenant_id_identity_type_identity_value_key"',
       );
     }
 
@@ -542,7 +544,9 @@ class FakeStatement {
     });
 
     if (isPrimary === 1 && duplicatePrimary !== undefined) {
-      throw new Error("UNIQUE constraint failed: idx_learner_identities_primary_per_profile");
+      throw new Error(
+        'duplicate key value violates unique constraint "idx_learner_identities_primary_per_profile"',
+      );
     }
 
     this.db.learnerIdentities.push({
@@ -610,7 +614,9 @@ class FakeStatement {
     });
 
     if (!profileExists) {
-      throw new Error("FOREIGN KEY constraint failed");
+      throw new Error(
+        'insert or update on table "learner_record_entries" violates foreign key constraint "learner_record_entries_tenant_id_learner_profile_id_fkey"',
+      );
     }
 
     this.db.learnerRecordEntries.push({
@@ -1468,7 +1474,7 @@ class FakeAuthIdentityStatement {
 
     if (existingLink !== undefined) {
       throw new Error(
-        "UNIQUE constraint failed: auth_identity_links.auth_system, auth_identity_links.auth_user_id",
+        'duplicate key value violates unique constraint "auth_identity_links_auth_system_auth_user_id_key"',
       );
     }
 

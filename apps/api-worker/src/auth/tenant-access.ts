@@ -11,7 +11,6 @@ import {
   type TenantMembershipRole,
 } from "@credtrail/db";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "./auth-context";
-export { isUniqueConstraintError } from "../http/database-errors";
 
 export const ISSUER_ROLES: TenantMembershipRole[] = ["owner", "admin", "issuer"];
 export const TENANT_MEMBER_ROLES: TenantMembershipRole[] = ["owner", "admin", "issuer", "viewer"];

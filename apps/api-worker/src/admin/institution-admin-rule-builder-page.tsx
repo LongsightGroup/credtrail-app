@@ -19,8 +19,8 @@ import {
   AdminStatus,
   AdminTopbar,
   type AdminSidebarFooterLink,
-  type AdminSidebarSection,
 } from "./components";
+import { buildInstitutionAdminSidebarSectionsForTenant } from "./institution-admin-sidebar";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -245,7 +245,6 @@ export const institutionAdminRuleBuilderPage = (input: {
 
   const tenantAdminPath = `/tenants/${encodeURIComponent(input.tenant.id)}/admin`;
   const rulesListPath = `${tenantAdminPath}/rules`;
-  const ruleBuilderPath = `${tenantAdminPath}/rules/new`;
   const manualIssueApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions/manual-issue`;
   const createApiKeyPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/api-keys`;
   const createOrgUnitPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/org-units`;
@@ -401,70 +400,11 @@ export const institutionAdminRuleBuilderPage = (input: {
   const rulesWorkspacePath = `${tenantAdminPath}/rules`;
   const rulesTemplatesPath = `${rulesWorkspacePath}/templates`;
   const createTemplateForRulePath = `${rulesTemplatesPath}?returnTo=rule-builder`;
-  const operationsPath = `${tenantAdminPath}/operations`;
-  const operationsLearnerRecordsPath = `${operationsPath}/learner-records`;
-  const operationsLearnerRecordImportsPath = `${operationsPath}/learner-record-imports`;
-  const operationsReviewQueuePath = `${operationsPath}/review-queue`;
-  const operationsIssuedBadgesPath = `${operationsPath}/issued-badges`;
-  const operationsBadgeStatusPath = `${operationsPath}/badge-status`;
-  const reportingPath = `${tenantAdminPath}/reporting`;
-  const reportingExplorePath = `${reportingPath}/explore`;
-  const reportingTrendsPath = `${reportingPath}/trends`;
-  const reportingReportsPath = `${reportingPath}/reports`;
-  const accessPath = `${tenantAdminPath}/access`;
-  const accessMembersPath = `${accessPath}/members`;
-  const accessGovernancePath = `${accessPath}/governance`;
-  const accessApiKeysPath = `${accessPath}/api-keys`;
-  const accessOrgUnitsPath = `${accessPath}/org-units`;
-  const accessLmsConnectionsPath = `${accessPath}/lms-connections`;
-  const sidebarSections: readonly AdminSidebarSection[] = [
-    {
-      links: [{ href: tenantAdminPath, label: "Home" }],
-    },
-    {
-      label: "Operations",
-      links: [
-        { href: operationsPath, label: "Issue & Inspect" },
-        { href: operationsLearnerRecordsPath, label: "Learner Records", isSub: true },
-        {
-          href: operationsLearnerRecordImportsPath,
-          label: "Learner Record Imports",
-          isSub: true,
-        },
-        { href: operationsReviewQueuePath, label: "Review Queue", isSub: true },
-        { href: operationsIssuedBadgesPath, label: "Issued Badges", isSub: true },
-        { href: operationsBadgeStatusPath, label: "Badge Status", isSub: true },
-      ],
-    },
-    {
-      label: "Analytics",
-      links: [
-        { href: reportingPath, label: "Reporting" },
-        { href: reportingExplorePath, label: "Explore", isSub: true },
-        { href: reportingTrendsPath, label: "Trends", isSub: true },
-        { href: reportingReportsPath, label: "Reports", isSub: true },
-      ],
-    },
-    {
-      label: "Management",
-      links: [
-        { href: rulesWorkspacePath, label: "Rules" },
-        { href: rulesTemplatesPath, label: "Badge Templates", isSub: true },
-        { href: ruleBuilderPath, label: "Rule Builder", isCurrent: true, isSub: true },
-      ],
-    },
-    {
-      label: "Configuration",
-      links: [
-        { href: accessPath, label: "Access" },
-        { href: accessMembersPath, label: "Members", isSub: true },
-        { href: accessGovernancePath, label: "Governance", isSub: true },
-        { href: accessApiKeysPath, label: "API Keys", isSub: true },
-        { href: accessLmsConnectionsPath, label: "LMS Connections", isSub: true },
-        { href: accessOrgUnitsPath, label: "Org Units", isSub: true },
-      ],
-    },
-  ];
+  const accessLmsConnectionsPath = `${tenantAdminPath}/access/lms-connections`;
+  const sidebarSections = buildInstitutionAdminSidebarSectionsForTenant(
+    input.tenant.id,
+    "rulesBuilder",
+  );
   const sidebarFooterLinks: readonly AdminSidebarFooterLink[] = [
     {
       href: showcasePath,

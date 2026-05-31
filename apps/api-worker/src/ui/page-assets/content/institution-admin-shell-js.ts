@@ -1,24 +1,7 @@
-export const INSTITUTION_ADMIN_SHELL_JS = `
+import { INSTITUTION_ADMIN_SIDEBAR_JS } from "./institution-admin-sidebar-js";
+
+const INSTITUTION_ADMIN_SHELL_BEHAVIOR_JS = `
 (() => {
-  const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
-  const sidebar = document.querySelector('.ct-admin-sidebar');
-
-  if (sidebarToggle instanceof HTMLElement && sidebar instanceof HTMLElement) {
-    sidebarToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('ct-admin-sidebar--open');
-    });
-
-    document.addEventListener('click', (event) => {
-      if (
-        sidebar.classList.contains('ct-admin-sidebar--open') &&
-        !sidebar.contains(event.target) &&
-        event.target !== sidebarToggle
-      ) {
-        sidebar.classList.remove('ct-admin-sidebar--open');
-      }
-    });
-  }
-
   const actionMenuGap = 4;
   const viewportPadding = 8;
   let openActionMenuPopover = null;
@@ -156,3 +139,8 @@ export const INSTITUTION_ADMIN_SHELL_JS = `
   };
 })();
 `;
+
+export const INSTITUTION_ADMIN_SHELL_JS = [
+  INSTITUTION_ADMIN_SIDEBAR_JS,
+  INSTITUTION_ADMIN_SHELL_BEHAVIOR_JS,
+].join("\n");

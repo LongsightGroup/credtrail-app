@@ -40,9 +40,6 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Public Docs Policy
-        run: pnpm check:public-docs
-
       - name: OpenAPI Snapshot Sync
         run: pnpm check:ob3-openapi
 

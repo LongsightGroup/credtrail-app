@@ -59,7 +59,7 @@ Open-source Open Badges 3.0 platform with Cloudflare SaaS and Docker self-host r
 - **Database-backed queues** - Simple Postgres table for async jobs (issue_badge, revoke_badge)
 - **Monorepo structure** - Turborepo-based workspace with shared packages
 - **CI/CD pipeline** - Automated linting, type checking, and testing
-- **Observability** - Structured JSON logging with Sentry error tracking and Logpush export
+- **Observability** - Structured JSON logging with Logpush export
 - **Runtime profiles** - Cloudflare Workers (SaaS) and Node + Docker (self-host)
 
 ## App layout
@@ -109,15 +109,17 @@ Open-source Open Badges 3.0 platform with Cloudflare SaaS and Docker self-host r
 
 Run from the workspace root:
 
-- `pnpm check:public-docs`
 - `pnpm export:ob3-openapi`
 - `pnpm check:ob3-openapi`
+- `pnpm build:design-tokens`
+- `pnpm check:design-tokens`
 - `pnpm lint`
 - `pnpm lint:fix`
 - `pnpm format`
 - `pnpm format:check`
 - `pnpm typecheck`
 - `pnpm test`
+- `pnpm check`
 
 OB3 OpenAPI snapshot file: `docs/openapi/ims-ob-v3p0.openapi.json`
 
@@ -130,5 +132,3 @@ OB3 OpenAPI snapshot file: `docs/openapi/ims-ob-v3p0.openapi.json`
 ## Observability
 
 - Structured logs are emitted as JSON and can be exported through Logpush configuration.
-- Optional Sentry capture is enabled with `SENTRY_DSN`.
-- See `docs/OBSERVABILITY.md`.

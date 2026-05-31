@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  parseCompactJwsHeaderObject,
-  parseCompactJwsPayloadObject,
-  resolveOb3CredentialIdFromCompactJws,
-} from "./oauth-utils";
+import { resolveOb3CredentialIdFromCompactJws } from "./oauth-utils";
+import { parseCompactJwsHeaderObject, parseCompactJwsPayloadObject } from "../signing/compact-jws";
 
 const bytesToBase64UrlForTest = (bytes: Uint8Array): string => {
   let raw = "";

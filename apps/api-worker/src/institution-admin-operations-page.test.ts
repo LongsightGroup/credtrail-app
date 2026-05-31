@@ -43,7 +43,7 @@ describe("GET /tenants/:tenantId/admin/operations", () => {
     expect(body).toContain(">Issue &amp; Inspect<");
     expect(body).toContain("Manual Issue Badge");
     expect(body).toContain("Learner Records");
-    expect(body).toContain("Learner Record Imports");
+    expect(body).toContain(">Imports</a>");
     expect(body).toContain('id="manual-issue-form"');
     expect(body).toContain('href="/tenants/tenant_123/admin/operations/learner-records"');
     expect(body).toContain('href="/tenants/tenant_123/admin/operations/learner-record-imports"');
@@ -639,7 +639,7 @@ describe("GET /tenants/:tenantId/admin/operations/review-queue", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain(">Operations<");
+    expect(body).toContain("Credential Operations");
     expect(body).toContain("Rule Review Queue");
     expect(body).toContain('id="rule-review-queue-refresh"');
     expect(body).not.toContain('id="manual-issue-form"');

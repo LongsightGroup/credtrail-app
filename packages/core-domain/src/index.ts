@@ -902,11 +902,9 @@ export {
 } from "./r2";
 
 export {
-  captureSentryException,
   logError,
   logInfo,
   logWarn,
-  type CaptureSentryExceptionInput,
   type ObservabilityContext,
   type ObservabilityFields,
   type ObservabilityLevel,

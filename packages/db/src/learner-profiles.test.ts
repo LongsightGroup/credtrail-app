@@ -169,7 +169,7 @@ describe("learner profiles and identity aliases", () => {
         identityType: "email",
         identityValue: "first@umich.edu",
       }),
-    ).rejects.toThrow("UNIQUE constraint failed");
+    ).rejects.toThrow("duplicate key value violates unique constraint");
   });
 
   it("resolves to existing learner profile for repeated identity values", async () => {

@@ -10,7 +10,6 @@ export interface AppBindings {
   BADGE_OBJECTS: ImmutableCredentialStore;
   EMAIL?: SendEmail;
   PLATFORM_DOMAIN: string;
-  SENTRY_DSN?: string;
   TENANT_SIGNING_REGISTRY_JSON?: string;
   TENANT_SIGNING_KEY_HISTORY_JSON?: string;
   TENANT_REMOTE_SIGNER_REGISTRY_JSON?: string;

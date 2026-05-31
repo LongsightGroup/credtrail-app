@@ -12,7 +12,7 @@ Design baseline and token policy live in `docs/DESIGN_STYLE_GUIDE.md`.
 
 ## Asset Registry
 
-Page assets are registered in `apps/api-worker/src/ui/page-assets/index.ts`.
+Page assets are registered in `apps/api-worker/src/ui/page-assets/index.tsx`.
 
 - Every asset has:
   - `kind` (`style` or `script`)

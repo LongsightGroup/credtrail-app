@@ -7,7 +7,7 @@ import {
 } from "@credtrail/lti";
 import type { AppBindings } from "../app";
 import type { SqlDatabase } from "@credtrail/db";
-import { parseCompactJwsHeaderObject, parseCompactJwsPayloadObject } from "../http/compact-jws";
+import { parseCompactJwsHeaderObject, parseCompactJwsPayloadObject } from "../signing/compact-jws";
 import { asNonEmptyString } from "../utils/value-parsers";
 import {
   ltiAudienceIncludesClientId,

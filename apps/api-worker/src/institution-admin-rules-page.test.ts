@@ -246,7 +246,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).not.toContain('id="rule-evaluate-form"');
   });
 
-  it("renders the template list when image revision storage is not available yet", async () => {
+  it("fails loudly when image revision storage is not available", async () => {
     const env = createEnv();
     mockedListBadgeTemplateImageRevisionCountsByTenant.mockRejectedValueOnce(
       new Error('relation "badge_template_image_revisions" does not exist'),
@@ -261,12 +261,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       },
       env,
     );
-    const body = await response.text();
-
-    expect(response.status).toBe(200);
-    expect(body).toContain(">Badge Templates<");
-    expect(body).toContain('data-template-row-id="badge_template_001"');
-    expect(body).toContain('data-template-history-image-revision-count="0"');
+    expect(response.status).toBe(500);
   });
 
   it("renders a dedicated badge template editor page", async () => {
@@ -1057,7 +1052,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
-    expect(body).toContain(">Badge Templates</a>");
+    expect(body).toContain(">Badge Templates<");
+    expect(body).toContain(">Templates</a>");
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new" aria-current="page"');
     expect(body).toContain("&quot;rulesListPath&quot;:&quot;/tenants/tenant_123/admin/rules&quot;");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("window.location.assign(rulesListPath)");

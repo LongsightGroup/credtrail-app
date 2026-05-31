@@ -35,7 +35,6 @@ Optional:
 - `AWS_SES_REGION` (defaults to `S3_REGION` if omitted)
 - `TRANSACTIONAL_EMAIL_FROM_ADDRESS` (required when `EMAIL_PROVIDER=ses`)
 - `AWS_SES_CONFIGURATION_SET`
-- `SENTRY_DSN`
 
 Worker notes:
 

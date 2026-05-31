@@ -21,8 +21,8 @@ import {
   AdminTopbar,
   AdminWorkspaceCard,
   type AdminSidebarFooterLink,
-  type AdminSidebarSection,
 } from "../components";
+import { buildInstitutionAdminSidebarSectionsForTenant } from "../institution-admin-sidebar";
 import { lmsConnectionsPageUrl } from "../lms-connection-admin-helpers";
 import { TenantApiKeyAdminTableRow } from "../api-key-table-row";
 import { serializeJsonScriptContent } from "../institution-admin-shell";
@@ -68,9 +68,6 @@ const renderInstitutionAdminPage = (
   const operationsPath = `${tenantAdminPath}/operations`;
   const operationsLearnerRecordsPath = `${operationsPath}/learner-records`;
   const operationsLearnerRecordImportsPath = `${operationsPath}/learner-record-imports`;
-  const operationsReviewQueuePath = `${operationsPath}/review-queue`;
-  const operationsIssuedBadgesPath = `${operationsPath}/issued-badges`;
-  const operationsBadgeStatusPath = `${operationsPath}/badge-status`;
   const reportingPath = `${tenantAdminPath}/reporting`;
   const reportingExplorePath = `${reportingPath}/explore`;
   const reportingTrendsPath = `${reportingPath}/trends`;
@@ -715,124 +712,7 @@ const renderInstitutionAdminPage = (
         ? `/v1/tenants/${encodeURIComponent(input.tenant.id)}/break-glass-accounts`
         : "",
   });
-  const sidebarSections: readonly AdminSidebarSection[] = [
-    {
-      links: [{ href: tenantAdminPath, label: "Home", isCurrent: view === "home" }],
-    },
-    {
-      label: "Operations",
-      icon: "operations",
-      links: [
-        { href: operationsPath, label: "Issue & Inspect", isCurrent: view === "operations" },
-        {
-          href: operationsLearnerRecordsPath,
-          label: "Learner Records",
-          isCurrent: view === "operationsLearnerRecords",
-          isSub: true,
-        },
-        {
-          href: operationsLearnerRecordImportsPath,
-          label: "Learner Record Imports",
-          isCurrent: view === "operationsLearnerRecordImports",
-          isSub: true,
-        },
-        {
-          href: operationsReviewQueuePath,
-          label: "Review Queue",
-          isCurrent: view === "operationsReviewQueue",
-          isSub: true,
-        },
-        {
-          href: operationsIssuedBadgesPath,
-          label: "Issued Badges",
-          isCurrent: view === "operationsIssuedBadges",
-          isSub: true,
-        },
-        {
-          href: operationsBadgeStatusPath,
-          label: "Badge Status",
-          isCurrent: view === "operationsBadgeStatus",
-          isSub: true,
-        },
-      ],
-    },
-    {
-      label: "Analytics",
-      icon: "analytics",
-      links: [
-        { href: reportingPath, label: "Reporting", isCurrent: view === "reporting" },
-        {
-          href: reportingExplorePath,
-          label: "Explore",
-          isCurrent: view === "reportingExplore",
-          isSub: true,
-        },
-        {
-          href: reportingTrendsPath,
-          label: "Trends",
-          isCurrent: view === "reportingTrends",
-          isSub: true,
-        },
-        {
-          href: reportingReportsPath,
-          label: "Reports",
-          isCurrent: view === "reportingReports",
-          isSub: true,
-        },
-      ],
-    },
-    {
-      label: "Management",
-      icon: "management",
-      links: [
-        { href: rulesWorkspacePath, label: "Rules", isCurrent: view === "rules" },
-        {
-          href: rulesTemplatesPath,
-          label: "Badge Templates",
-          isCurrent: false,
-          isSub: true,
-        },
-        { href: ruleBuilderPath, label: "Rule Builder", isSub: true },
-      ],
-    },
-    {
-      label: "Configuration",
-      icon: "configuration",
-      links: [
-        { href: accessPath, label: "Access", isCurrent: view === "access" },
-        {
-          href: accessMembersPath,
-          label: "Members",
-          isCurrent: view === "accessMembers",
-          isSub: true,
-        },
-        {
-          href: accessGovernancePath,
-          label: "Governance",
-          isCurrent: view === "accessGovernance",
-          isSub: true,
-        },
-        {
-          href: accessApiKeysPath,
-          label: "API Keys",
-          isCurrent: view === "accessApiKeys",
-          isSub: true,
-        },
-        {
-          href: accessLmsConnectionsPath,
-          label: "LMS Connections",
-          isCurrent: view === "accessLmsConnections",
-          isSub: true,
-        },
-        {
-          href: accessOrgUnitsPath,
-          label: "Org Units",
-          isCurrent: view === "accessOrgUnits",
-          isSub: true,
-        },
-      ],
-    },
-  ];
+  const sidebarSections = buildInstitutionAdminSidebarSectionsForTenant(input.tenant.id, view);
   const sidebarFooterLinks: readonly AdminSidebarFooterLink[] = [
     {
       href: showcasePath,

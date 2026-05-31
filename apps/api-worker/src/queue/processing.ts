@@ -1,9 +1,4 @@
-import {
-  captureSentryException,
-  logError,
-  logInfo,
-  type ObservabilityContext,
-} from "@credtrail/core-domain";
+import { logError, logInfo, type ObservabilityContext } from "@credtrail/core-domain";
 import {
   completeJobQueueMessage,
   createAuditLog,
@@ -234,18 +229,6 @@ export const createProcessQueuedJobs = <TBindings, TContext extends { env: TBind
         result.succeeded += 1;
       } catch (error: unknown) {
         const detail = error instanceof Error ? error.message : "Unknown queue processing error";
-
-        await captureSentryException({
-          context: dependencies.observabilityContext(c.env),
-          dsn: (c.env as { SENTRY_DSN?: string }).SENTRY_DSN,
-          error,
-          message: "DB queue job processing failed",
-          extra: {
-            messageId: leasedMessage.id,
-            jobType: leasedMessage.jobType,
-            tenantId: leasedMessage.tenantId,
-          },
-        });
 
         logError(dependencies.observabilityContext(c.env), "queue_job_failed", {
           messageId: leasedMessage.id,

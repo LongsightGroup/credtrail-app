@@ -1,4 +1,3 @@
-import { captureSentryException } from "@credtrail/core-domain";
 import {
   findBadgeTemplateById,
   findAssertionByIdempotencyKey,
@@ -69,7 +68,6 @@ import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
 interface RegisterLtiRoutesInput {
   app: Hono<AppEnv>;
   resolveLtiIssuerRegistry: (context: AppContext) => Promise<LtiIssuerRegistry>;
-  observabilityContext: (bindings: AppBindings) => { service: string; environment: string };
   resolveDatabase: (bindings: AppBindings) => SqlDatabase;
   upsertTenantMembershipRole: (
     db: SqlDatabase,
@@ -409,7 +407,6 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
   const {
     app,
     resolveLtiIssuerRegistry,
-    observabilityContext,
     resolveDatabase,
     upsertTenantMembershipRole: upsertTenantMembershipRoleWithInput,
     sha256Hex,
@@ -422,17 +419,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
 
     try {
       registry = await resolveLtiIssuerRegistry(c);
-    } catch (error) {
-      await captureSentryException({
-        context: observabilityContext(c.env),
-        dsn: c.env.SENTRY_DSN,
-        error,
-        message: "LTI issuer registry configuration is invalid",
-        tags: {
-          path: LTI_OIDC_LOGIN_PATH,
-          method: c.req.method,
-        },
-      });
+    } catch {
       return c.json(
         {
           error: "LTI issuer registry configuration is invalid",
@@ -693,25 +680,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
         contextId: ltiSession.context.id,
         members,
       });
-    } catch (error) {
-      await captureSentryException({
-        context: observabilityContext(c.env),
-        dsn: c.env.SENTRY_DSN,
-        error,
-        message: "NRPS roster pull failed for LTI badge issuance",
-        tags: {
-          path: LTI_RESOURCE_LINK_ISSUE_PATH,
-          method: c.req.method,
-        },
-        extra: {
-          issuer: issuanceAction.issuer,
-          tenantId: issuanceAction.tenantId,
-          deploymentId: issuanceAction.deploymentId,
-          contextId: issuanceAction.contextId,
-          resourceLinkId: issuanceAction.resourceLinkId,
-        },
-      });
-
+    } catch {
       return c.json(
         {
           error: "NRPS roster request failed for this launch. Check issuer token settings.",
@@ -834,17 +803,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
 
     try {
       registry = await resolveLtiIssuerRegistry(c);
-    } catch (error) {
-      await captureSentryException({
-        context: observabilityContext(c.env),
-        dsn: c.env.SENTRY_DSN,
-        error,
-        message: "LTI issuer registry configuration is invalid",
-        tags: {
-          path: LTI_LAUNCH_PATH,
-          method: c.req.method,
-        },
-      });
+    } catch {
       return c.json(
         {
           error: "LTI issuer registry configuration is invalid",
@@ -865,22 +824,6 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     }).catch(async (error: unknown) => {
       if (!(error instanceof LtiLaunchVerificationError)) {
         throw error;
-      }
-
-      if (error.status === 401) {
-        await captureSentryException({
-          context: observabilityContext(c.env),
-          dsn: c.env.SENTRY_DSN,
-          error,
-          message: "Signed LTI launch verification failed",
-          tags: {
-            path: LTI_LAUNCH_PATH,
-            method: c.req.method,
-          },
-          extra: {
-            detail: error.detail,
-          },
-        });
       }
 
       return c.json(
@@ -944,22 +887,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
         sha256Hex,
         upsertTenantMembershipRole: upsertTenantMembershipRoleWithInput,
       });
-    } catch (error) {
-      await captureSentryException({
-        context: observabilityContext(c.env),
-        dsn: c.env.SENTRY_DSN,
-        error,
-        message: "LTI launch could not be linked to a local user/session",
-        tags: {
-          path: LTI_LAUNCH_PATH,
-          method: c.req.method,
-        },
-        extra: {
-          issuer: launchClaims.iss,
-          deploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
-          subjectId: launchClaims.sub,
-        },
-      });
+    } catch {
       return c.json(
         {
           error: "Unable to link LTI launch to local account",
@@ -985,24 +913,8 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
           badgeTemplateId: launchMessage.badgeTemplateId,
           createdByUserId: linkedAccount.userId,
         });
-      } catch (error) {
-        await captureSentryException({
-          context: observabilityContext(c.env),
-          dsn: c.env.SENTRY_DSN,
-          error,
-          message: "LTI resource-link placement persistence failed",
-          tags: {
-            path: LTI_LAUNCH_PATH,
-            method: c.req.method,
-          },
-          extra: {
-            issuer: launchClaims.iss,
-            tenantId,
-            deploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
-            resourceLinkId: launchMessage.resourceLinkId,
-            badgeTemplateId: launchMessage.badgeTemplateId,
-          },
-        });
+      } catch {
+        // Resource-link placement is best-effort; the launch session can still proceed.
       }
     }
 
@@ -1092,23 +1004,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
               }),
             });
           }
-        } catch (error) {
-          await captureSentryException({
-            context: observabilityContext(c.env),
-            dsn: c.env.SENTRY_DSN,
-            error,
-            message: "NRPS roster pull failed for signed LTI launch",
-            tags: {
-              path: LTI_LAUNCH_PATH,
-              method: c.req.method,
-            },
-            extra: {
-              issuer: launchClaims.iss,
-              tenantId,
-              deploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
-              contextMembershipsUrl: nrpsClaim.contextMembershipsUrl,
-            },
-          });
+        } catch {
           bulkIssuanceView = ltiEmptyBulkIssuanceView({
             status: "error",
             message: "NRPS roster request failed for this launch. Check issuer token settings.",

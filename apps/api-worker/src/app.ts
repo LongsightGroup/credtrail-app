@@ -644,7 +644,6 @@ const issueBadgeForTenant = createIssueBadgeForTenant<AppContext, AppBindings>({
 registerLtiRoutes({
   app,
   resolveLtiIssuerRegistry,
-  observabilityContext,
   resolveDatabase,
   upsertTenantMembershipRole,
   sha256Hex,

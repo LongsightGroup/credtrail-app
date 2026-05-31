@@ -1,6 +1,6 @@
 import type { JsonObject } from "@credtrail/core-domain";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
-import { parseCompactJwsHeaderObject, parseCompactJwsPayloadObject } from "../http/compact-jws";
+import { parseCompactJwsHeaderObject, parseCompactJwsPayloadObject } from "../signing/compact-jws";
 import {
   OB3_BASE_PATH,
   OB3_OAUTH_SUPPORTED_SCOPE_SET,
@@ -106,8 +106,6 @@ export const defaultOb3Profile = (input: {
     ...(input.email === undefined ? {} : { email: input.email, name: input.email }),
   };
 };
-
-export { parseCompactJwsHeaderObject, parseCompactJwsPayloadObject } from "../http/compact-jws";
 
 export const resolveOb3CredentialIdFromCompactJws = (compactJws: string): string => {
   const header = parseCompactJwsHeaderObject(compactJws);

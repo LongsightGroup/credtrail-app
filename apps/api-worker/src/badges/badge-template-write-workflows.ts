@@ -7,12 +7,19 @@ import {
   type TenantMembershipRole,
 } from "@credtrail/db";
 import type { CreateBadgeTemplateRequest, UpdateBadgeTemplateRequest } from "@credtrail/validation";
-import { isUniqueConstraintError } from "../http/database-errors";
 import { buildBadgeTemplateFieldChanges } from "./badge-template-audit-metadata";
 import { recordBadgeTemplateImageRevisionIfChanged } from "./badge-template-image-revision-recording";
 
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+};
+
 export const isBadgeTemplateSlugConflict = (error: unknown): boolean => {
-  return isUniqueConstraintError(error) && error.message.includes("badge_templates");
+  return (
+    isRecord(error) &&
+    error.code === "23505" &&
+    error.constraint === "badge_templates_tenant_id_slug_key"
+  );
 };
 
 export const createBadgeTemplateWithAudit = async (

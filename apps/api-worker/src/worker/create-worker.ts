@@ -1,9 +1,4 @@
-import {
-  captureSentryException,
-  logError,
-  logInfo,
-  type ObservabilityContext,
-} from "@credtrail/core-domain";
+import { logError, logInfo, type ObservabilityContext } from "@credtrail/core-domain";
 import type { Hono } from "hono";
 import type { AppBindings, AppEnv } from "../app";
 import type { ProcessQueueRunResult } from "../queue/processing";
@@ -47,17 +42,6 @@ export const createApiWorker = (
         });
       } catch (error: unknown) {
         const detail = error instanceof Error ? error.message : "Unknown queue processing failure";
-
-        await captureSentryException({
-          context: observabilityContext(appBindings),
-          dsn: appBindings.SENTRY_DSN,
-          error,
-          message: "Scheduled queue processing failed",
-          extra: {
-            cron: event.cron,
-            detail,
-          },
-        });
 
         logError(observabilityContext(appBindings), "scheduled_queue_processing_failed", {
           cron: event.cron,

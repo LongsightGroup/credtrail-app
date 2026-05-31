@@ -65,6 +65,18 @@ const withDerivedOrgUnitSlug = (input: unknown): unknown => {
   };
 };
 
+const isTenantOrgUnitSlugConflict = (error: unknown): boolean => {
+  return (
+    error !== null &&
+    typeof error === "object" &&
+    !Array.isArray(error) &&
+    "code" in error &&
+    "constraint" in error &&
+    error.code === "23505" &&
+    error.constraint === "tenant_org_units_tenant_id_slug_key"
+  );
+};
+
 export const registerTenantOrgUnitRoutes = (input: RegisterTenantOrgUnitRoutesInput): void => {
   const { app, resolveDatabase, requireTenantRole, ADMIN_ROLES, ISSUER_ROLES } = input;
 
@@ -148,7 +160,7 @@ export const registerTenantOrgUnitRoutes = (input: RegisterTenantOrgUnitRoutesIn
       );
     } catch (error: unknown) {
       if (error instanceof Error) {
-        if (error.message.includes("UNIQUE constraint failed")) {
+        if (isTenantOrgUnitSlugConflict(error)) {
           return c.json(
             {
               error: "An org unit with that URL key already exists.",

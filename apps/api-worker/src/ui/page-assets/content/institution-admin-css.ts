@@ -28,54 +28,22 @@ export const INSTITUTION_ADMIN_CSS = `
   border-bottom: 1px solid var(--ct-border-soft);
 }
 .ct-admin-sidebar__nav {
-  padding: 0.75rem 0;
+  padding: 0.75rem 0.45rem;
   display: grid;
-  gap: 0.2rem;
+  gap: 0.55rem;
   align-content: start;
 }
 .ct-admin-sidebar__section {
   min-width: 0;
-  margin: 0.08rem 0;
+  margin: 0;
 }
-.ct-admin-sidebar__section-summary {
+.ct-admin-sidebar__section-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin: 0 0.6rem;
-  padding: 0.54rem 0.65rem;
+  gap: 0.5rem;
+  margin: 0 0.2rem 0.24rem;
+  padding: 0.2rem 0.45rem;
   color: var(--ct-theme-text-muted);
-  cursor: pointer;
-  list-style: none;
-  border: 1px solid transparent;
-  border-radius: var(--ct-radius-sm);
-  transition:
-    background var(--ct-duration-fast) var(--ct-ease-standard),
-    border-color var(--ct-duration-fast) var(--ct-ease-standard),
-    color var(--ct-duration-fast) var(--ct-ease-standard);
-}
-.ct-admin-sidebar__section-summary::-webkit-details-marker {
-  display: none;
-}
-.ct-admin-sidebar__section-summary:hover {
-  background: var(--ct-theme-surface-soft);
-  color: var(--ct-theme-text-title);
-}
-.ct-admin-sidebar__section-summary:focus-visible {
-  outline: 2px solid var(--ct-theme-border-focus);
-  outline-offset: 2px;
-}
-.ct-admin-sidebar__section-caret {
-  flex: 0 0 auto;
-  width: 0.42rem;
-  height: 0.42rem;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(-45deg);
-  transition: transform var(--ct-duration-fast) var(--ct-ease-standard);
-}
-.ct-admin-sidebar__section[open] .ct-admin-sidebar__section-caret {
-  transform: rotate(45deg);
 }
 .ct-admin-sidebar__section-title {
   min-width: 0;
@@ -91,28 +59,97 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin-sidebar__section-label {
   margin: 0;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  font-weight: 700;
+  font-size: 0.74rem;
+  font-weight: 650;
   line-height: 1.2;
 }
-.ct-admin-sidebar__section-links {
-  display: grid;
-  gap: 0.1rem;
-  margin: 0.22rem 0 0.55rem 1.55rem;
-  padding-left: 0.62rem;
-  border-left: 1px solid var(--ct-border-soft);
+.ct-admin-sidebar__menu,
+.ct-admin-sidebar__groups,
+.ct-admin-sidebar__menu-sub {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
-.ct-admin-sidebar__section-links .ct-admin-sidebar__link {
-  margin-left: 0;
+.ct-admin-sidebar__menu,
+.ct-admin-sidebar__groups {
+  display: grid;
+  gap: 0.12rem;
+}
+.ct-admin-sidebar__group {
+  min-width: 0;
+}
+.ct-admin-sidebar__group-details {
+  min-width: 0;
+}
+.ct-admin-sidebar__group-trigger {
+  width: 100%;
+  min-height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0 0.65rem;
+  color: var(--ct-theme-text-body);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ct-radius-sm);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  list-style: none;
+  transition:
+    background var(--ct-duration-fast) var(--ct-ease-standard),
+    border-color var(--ct-duration-fast) var(--ct-ease-standard),
+    color var(--ct-duration-fast) var(--ct-ease-standard);
+}
+.ct-admin-sidebar__group-trigger::-webkit-details-marker {
+  display: none;
+}
+.ct-admin-sidebar__group-trigger:hover {
+  background: var(--ct-theme-surface-soft);
+  color: var(--ct-theme-text-title);
+}
+.ct-admin-sidebar__group-trigger:focus-visible {
+  outline: 2px solid var(--ct-theme-border-focus);
+  outline-offset: 2px;
+}
+.ct-admin-sidebar__group-title {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.ct-admin-sidebar__group-title span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ct-admin-sidebar__group-caret {
+  flex: 0 0 auto;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--ct-duration-fast) var(--ct-ease-standard);
+}
+.ct-admin-sidebar__group-details[open] .ct-admin-sidebar__group-caret {
+  transform: rotate(45deg);
+}
+.ct-admin-sidebar__group-content {
+  margin: 0.16rem 0 0.45rem 1.04rem;
+  padding-left: 0.64rem;
+  border-left: 1px solid var(--ct-border-soft);
 }
 .ct-admin-sidebar__link {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin: 0 0.6rem;
-  padding: 0.52rem 0.65rem;
+  min-height: 2rem;
+  padding: 0 0.65rem;
   font-size: 0.86rem;
   font-weight: 500;
   color: var(--ct-theme-text-body);
@@ -124,18 +161,23 @@ export const INSTITUTION_ADMIN_CSS = `
     color var(--ct-duration-fast) var(--ct-ease-standard),
     border-color var(--ct-duration-fast) var(--ct-ease-standard);
 }
+.ct-admin-sidebar__link:focus-visible {
+  outline: 2px solid var(--ct-theme-border-focus);
+  outline-offset: 2px;
+}
 .ct-admin-sidebar__link:hover {
   background: var(--ct-theme-surface-soft);
   color: var(--ct-theme-text-title);
 }
 .ct-admin-sidebar__link[aria-current='page'] {
   background: var(--ct-theme-surface-info);
-  border-color: var(--ct-theme-border-info);
+  border-color: transparent;
   color: var(--ct-brand-lake-700);
   font-weight: 600;
 }
-.ct-admin-sidebar__link--sub {
-  padding-left: 0.95rem;
+.ct-admin-sidebar__link--nested {
+  min-height: 1.88rem;
+  padding-inline: 0.62rem;
   font-size: 0.83rem;
 }
 .ct-admin-sidebar__link--external::after {
