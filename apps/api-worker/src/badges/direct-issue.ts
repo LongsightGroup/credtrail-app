@@ -28,6 +28,7 @@ import type {
   SignCredentialForDidInput,
   SignCredentialForDidResult,
 } from "../signing/credential-signer";
+import { asJsonObject } from "../utils/value-parsers";
 import {
   credentialStatusForAssertion,
   revocationStatusListUrlForTenant,
@@ -144,6 +145,30 @@ const projectTrustEdMetadataForIssuance = (
   return metadataResult.status === "valid"
     ? projectTrustEdMetadataToOb3(metadataResult.metadata)
     : emptyTrustEdOb3Projection();
+};
+
+const criteriaForIssuedAchievement = (
+  templateCriteriaUri: string | null,
+  projectedCriteria: unknown,
+): JsonObject | null => {
+  const projectedCriteriaObject = asJsonObject(projectedCriteria);
+
+  if (projectedCriteriaObject === null && templateCriteriaUri === null) {
+    return null;
+  }
+
+  const criteria: JsonObject =
+    projectedCriteriaObject === null ? {} : { ...projectedCriteriaObject };
+
+  if (criteria.type === undefined) {
+    criteria.type = "Criteria";
+  }
+
+  if (criteria.id === undefined && templateCriteriaUri !== null) {
+    criteria.id = templateCriteriaUri;
+  }
+
+  return criteria;
 };
 
 export const createIssueBadgeForTenant = <
@@ -263,6 +288,10 @@ export const createIssueBadgeForTenant = <
       badgeTemplate.trustedCredentialMetadataJson,
     );
     const trustEdProjection = projectTrustEdMetadataForIssuance(trustEdMetadataResult);
+    const criteria = criteriaForIssuedAchievement(
+      badgeTemplate.criteriaUri,
+      trustEdProjection.achievement.criteria,
+    );
 
     if (trustEdMetadataResult.status === "invalid") {
       logWarn(input.observabilityContext(context.env), "trusted_credential_metadata_invalid", {
@@ -305,14 +334,6 @@ export const createIssueBadgeForTenant = <
             ...(badgeTemplate.description === null
               ? {}
               : { description: badgeTemplate.description }),
-            ...(badgeTemplate.criteriaUri === null
-              ? {}
-              : {
-                  criteria: {
-                    id: badgeTemplate.criteriaUri,
-                    type: "Criteria",
-                  },
-                }),
             ...(badgeTemplate.imageUri === null
               ? {}
               : {
@@ -322,6 +343,7 @@ export const createIssueBadgeForTenant = <
                   },
                 }),
             ...trustEdProjection.achievement,
+            ...(criteria === null ? {} : { criteria }),
           },
           ...trustEdProjection.subject,
         },

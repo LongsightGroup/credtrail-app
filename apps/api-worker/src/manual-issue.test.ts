@@ -900,6 +900,74 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     ]);
   });
 
+  it("keeps template criteria URL when TrustEd metadata only provides criteria narrative", async () => {
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: "did:web:credtrail.test:tenant_123",
+    });
+    const env = {
+      ...createEnv(),
+      BADGE_OBJECTS: createInMemoryBadgeObjects(),
+      TENANT_SIGNING_REGISTRY_JSON: JSON.stringify({
+        "did:web:credtrail.test:tenant_123": {
+          tenantId: "tenant_123",
+          keyId: signingMaterial.keyId,
+          publicJwk: signingMaterial.publicJwk,
+          privateJwk: signingMaterial.privateJwk,
+        },
+      }),
+    };
+    const trustedCredentialMetadataJson = JSON.stringify({
+      ...completeTrustEdCredentialMetadataInput,
+      criteria: {
+        text: "API-authored criteria narrative.",
+        uri: null,
+      },
+    });
+
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue(undefined);
+    mockedFindBadgeTemplateById.mockResolvedValue(
+      sampleBadgeTemplate({
+        criteriaUri: "https://example.edu/template-criteria",
+        trustedCredentialMetadataJson,
+      }),
+    );
+    mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
+    mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
+    mockedNextAssertionStatusListIndex.mockResolvedValue(0);
+    mockedCreateAssertion.mockResolvedValue(sampleAssertion());
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/assertions/manual-issue",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/json",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: JSON.stringify({
+          badgeTemplateId: "badge_template_001",
+          recipientIdentity: "student@umich.edu",
+          recipientIdentityType: "email",
+          idempotencyKey: "idem-trusted-criteria",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<ManualIssueResponse>();
+    const credentialSubject = asJsonObject(body.credential.credentialSubject);
+    const achievement = asJsonObject(credentialSubject?.achievement);
+
+    expect(response.status).toBe(201);
+    expect(achievement?.criteria).toEqual(
+      expect.objectContaining({
+        id: "https://example.edu/template-criteria",
+        narrative: "API-authored criteria narrative.",
+      }),
+    );
+  });
+
   it("warns and issues without TrustEd fields when stored metadata is invalid", async () => {
     const signingMaterial = await generateTenantDidSigningMaterial({
       did: "did:web:credtrail.test:tenant_123",
