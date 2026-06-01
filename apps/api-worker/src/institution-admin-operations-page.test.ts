@@ -43,10 +43,11 @@ describe("GET /tenants/:tenantId/admin/operations", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain(">Issue &amp; Inspect<");
-    expect(body).toContain("Manual Issue Badge");
+    expect(body).not.toContain("Manual Issue Badge");
+    expect(body).toContain('href="/tenants/tenant_123/admin/operations/issue"');
     expect(body).toContain("Learner Records");
     expect(body).toContain(">Imports</a>");
-    expect(body).toContain('id="manual-issue-form"');
+    expect(body).not.toContain('id="manual-issue-form"');
     expect(body).toContain('href="/tenants/tenant_123/admin/operations/learner-records"');
     expect(body).toContain('href="/tenants/tenant_123/admin/operations/learner-record-imports"');
     expect(body).toContain("Review Queue");
@@ -60,6 +61,33 @@ describe("GET /tenants/:tenantId/admin/operations", () => {
     expect(body).not.toContain('id="issued-badges-filter-form"');
     expect(body).not.toContain("Create Tenant API Key");
     expect(body).not.toContain("Rule Value Lists");
+  });
+});
+
+describe("GET /tenants/:tenantId/admin/operations/issue", () => {
+  it("renders the manual issue form on a dedicated page", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/issue",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Issue Badge");
+    expect(body).toContain('id="manual-issue-form"');
+    expect(body).toContain('action="/tenants/tenant_123/admin/operations/manual-issue"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/operations"');
+    expect(body).toContain("Back to Issue &amp; Inspect");
+    expect(body).not.toContain('id="issued-badges-filter-form"');
+    expect(body).toContain(pageAssetPath("institutionAdminShellJs"));
+    expect(body).not.toContain(pageAssetPath("institutionAdminJs"));
   });
 });
 
@@ -775,8 +803,30 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
 
     expect(response.status).toBe(303);
     const location = response.headers.get("location") ?? "";
-    expect(location).toContain("listError=");
+    expect(location).toBe("/tenants/tenant_123/admin/operations/issued-badges");
+    expect(location).not.toContain("listError=");
+
+    const setCookieHeaders =
+      typeof response.headers.getSetCookie === "function"
+        ? response.headers.getSetCookie()
+        : [response.headers.get("set-cookie") ?? ""];
+    const flashCookies = setCookieHeaders.map((entry) => entry.split(";")[0]).join("; ");
+    expect(flashCookies).toContain("ct_admin_flash_list_message_tenant_123");
     expect(mockedListTenantAssertions).not.toHaveBeenCalled();
+
+    const pageResponse = await app.request(
+      location,
+      {
+        headers: {
+          Cookie: `better-auth.session_token=session-token; ${flashCookies}`,
+        },
+      },
+      env,
+    );
+    const body = await pageResponse.text();
+
+    expect(pageResponse.status).toBe(200);
+    expect(body).toContain("Invalid search filters");
   });
 
   it("shows the revoke form only for revoke lifecycle deep links", async () => {
@@ -870,7 +920,15 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
 
     expect(response.status).toBe(303);
     const location = response.headers.get("location") ?? "";
-    expect(location).toContain("listNotice=");
+    expect(location).toContain("/tenants/tenant_123/admin/operations/issued-badges");
+    expect(location).not.toContain("listNotice=");
+
+    const setCookieHeaders =
+      typeof response.headers.getSetCookie === "function"
+        ? response.headers.getSetCookie()
+        : [response.headers.get("set-cookie") ?? ""];
+    const flashCookies = setCookieHeaders.map((entry) => entry.split(";")[0]).join("; ");
+    expect(flashCookies).toContain("ct_admin_flash_list_message_tenant_123");
     expect(mockedRecordAssertionLifecycleTransition).toHaveBeenCalled();
   });
 

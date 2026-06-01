@@ -20,6 +20,15 @@ import { INSTITUTION_ADMIN_JS } from "./ui/page-assets/content/institution-admin
 import { INSTITUTION_ADMIN_RULE_BUILDER_JS } from "./ui/page-assets/content/institution-admin-rule-builder-js";
 import { pageAssetPath } from "./ui/page-assets";
 
+const adminFlashCookieHeader = (response: Response): string => {
+  const setCookieHeaders =
+    typeof response.headers.getSetCookie === "function"
+      ? response.headers.getSetCookie()
+      : [response.headers.get("set-cookie") ?? ""];
+
+  return setCookieHeaders.map((entry) => entry.split(";")[0]).join("; ");
+};
+
 describe("GET /tenants/:tenantId/admin/rules", () => {
   it("renders the rules workspace", async () => {
     const env = createEnv();
@@ -68,8 +77,10 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).toContain("Version ID: brv_123");
     expect(body).not.toContain("v1 (brv_123)");
     expect(body).toContain("Mark ready");
-    expect(INSTITUTION_ADMIN_JS).toContain("This does not activate the rule.");
-    expect(INSTITUTION_ADMIN_JS).toContain("Draft is ready for review. It is not active yet.");
+    expect(body).toContain("This does not activate the rule.");
+    expect(body).toContain('method="post"');
+    expect(body).toContain("/versions/brv_123/submit-approval");
+    expect(INSTITUTION_ADMIN_JS).not.toContain("This does not activate the rule.");
     expect(body).not.toContain("Badge Templates (1)");
     expect(body).not.toContain("Create Tenant API Key");
     expect(body).not.toContain("Issued Badges Ledger");
@@ -548,7 +559,8 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(location).toContain("q=typescript");
     expect(location).toContain("includeArchived=1");
     expect(location).toContain("returnTo=rule-builder");
-    expect(location).toContain("listError=Badge+template+not+found");
+    expect(location).not.toContain("listError=");
+    expect(adminFlashCookieHeader(response)).toContain("ct_admin_flash_list_message_tenant_123");
     expect(mockedUpdateBadgeTemplate).not.toHaveBeenCalled();
   });
 
@@ -582,7 +594,8 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(location).toContain("q=typescript");
     expect(location).toContain("includeArchived=1");
     expect(location).toContain("returnTo=rule-builder");
-    expect(location).toContain("listError=Badge+template+not+found");
+    expect(location).not.toContain("listError=");
+    expect(adminFlashCookieHeader(response)).toContain("ct_admin_flash_list_message_tenant_123");
   });
 
   it("POST archive redirects with a notice and preserves list filters", async () => {
@@ -610,9 +623,24 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(response.status).toBe(303);
     const location = decodeURIComponent(response.headers.get("location") ?? "");
     expect(location).toContain("/tenants/tenant_123/admin/rules/templates");
-    expect(location).toContain("listNotice=Badge+template+archived.");
+    expect(location).not.toContain("listNotice=");
     expect(location).toContain("q=typescript");
     expect(location).toContain("includeArchived=1");
+    expect(adminFlashCookieHeader(response)).toContain("ct_admin_flash_list_message_tenant_123");
+
+    const pageResponse = await app.request(
+      location,
+      {
+        headers: {
+          Cookie: `better-auth.session_token=session-token; ${adminFlashCookieHeader(response)}`,
+        },
+      },
+      env,
+    );
+    const body = await pageResponse.text();
+
+    expect(pageResponse.status).toBe(200);
+    expect(body).toContain("Badge template archived.");
     expect(mockedSetBadgeTemplateArchivedState).toHaveBeenCalledWith(fakeDb, {
       tenantId: "tenant_123",
       id: "badge_template_001",
@@ -663,7 +691,8 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(location).toContain("badgeTemplateId=badge_template_001");
     expect(location).toContain("q=typescript");
     expect(location).toContain("includeArchived=1");
-    expect(location).toContain("listNotice=Badge+image+restored.");
+    expect(location).not.toContain("listNotice=");
+    expect(adminFlashCookieHeader(response)).toContain("ct_admin_flash_list_message_tenant_123");
   });
 
   it("renders restore actions with list query context in the history dialog", async () => {
@@ -980,7 +1009,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
       /class="ct-admin__stepper-step"[^>]*data-rule-step-row="metadata"[\s\S]*?class="ct-admin__stepper-header"[\s\S]*?class="ct-admin__stepper-content"[\s\S]*?id="builder-step-metadata"/,
     );
     expect(body).toContain('id="rule-create-form"');
-    expect(body).toContain("tenantMembersApiPath");
+    expect(body).toContain("ruleBuilderContext");
+    expect(body).toContain("lmsConnectionsApiPath");
     expect(body).toContain('data-rule-step-target="metadata"');
     expect(body).toContain('data-rule-step-target="conditions"');
     expect(body).toContain('data-rule-step-target="test"');

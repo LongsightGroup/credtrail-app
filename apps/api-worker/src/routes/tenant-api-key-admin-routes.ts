@@ -12,11 +12,8 @@ import {
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import { setAdminFlashCookie } from "../admin/admin-flash";
-import {
-  apiKeysPageUrl,
-  buildApiKeysPagePath,
-  tenantApiKeyAdminRevokePath,
-} from "../admin/api-key-admin-helpers";
+import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
+import { buildApiKeysPagePath, tenantApiKeyAdminRevokePath } from "../admin/api-key-admin-helpers";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 
 interface RegisterTenantApiKeyAdminRoutesInput {
@@ -75,12 +72,15 @@ export const registerTenantApiKeyAdminRoutes = (
         scopes: parseScopesFromFormValue(formData.get("scopes")),
       });
     } catch {
-      return c.redirect(
-        apiKeysPageUrl(pathParams.tenantId, {
-          listError: "Enter a label and valid scopes for the API key.",
-        }),
-        303,
-      );
+      await setAdminListMessageFlash(c, {
+        tenantId: pathParams.tenantId,
+        userId: roleCheck.session.userId,
+        workspace: "access_api_keys",
+        tone: "error",
+        message: "Enter a label and valid scopes for the API key.",
+      });
+
+      return c.redirect(buildApiKeysPagePath(pathParams.tenantId), 303);
     }
 
     const { session, membershipRole } = roleCheck;
@@ -122,13 +122,15 @@ export const registerTenantApiKeyAdminRoutes = (
       userId: session.userId,
       value: rawApiKey,
     });
+    await setAdminListMessageFlash(c, {
+      tenantId: pathParams.tenantId,
+      userId: session.userId,
+      workspace: "access_api_keys",
+      tone: "success",
+      message: "API key created. Store the secret before leaving this page.",
+    });
 
-    return c.redirect(
-      apiKeysPageUrl(pathParams.tenantId, {
-        listNotice: "API key created. Store the secret before leaving this page.",
-      }),
-      303,
-    );
+    return c.redirect(buildApiKeysPagePath(pathParams.tenantId), 303);
   });
 
   app.post("/tenants/:tenantId/admin/access/api-keys/:apiKeyId/revoke", async (c) => {
@@ -162,11 +164,14 @@ export const registerTenantApiKeyAdminRoutes = (
       });
     }
 
-    return c.redirect(
-      apiKeysPageUrl(pathParams.tenantId, {
-        listNotice: revoked ? "API key revoked." : "API key was already revoked.",
-      }),
-      303,
-    );
+    await setAdminListMessageFlash(c, {
+      tenantId: pathParams.tenantId,
+      userId: session.userId,
+      workspace: "access_api_keys",
+      tone: "success",
+      message: revoked ? "API key revoked." : "API key was already revoked.",
+    });
+
+    return c.redirect(buildApiKeysPagePath(pathParams.tenantId), 303);
   });
 };

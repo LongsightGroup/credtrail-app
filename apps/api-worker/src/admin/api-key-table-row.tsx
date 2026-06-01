@@ -44,8 +44,7 @@ export const TenantApiKeyAdminTableRow = ({
           action={tenantApiKeyAdminRevokePath(tenantId, apiKey.id)}
           className="ct-admin__inline-form"
           dataAttributes={{
-            "data-api-key-revoke-form": "true",
-            "data-api-key-label": apiKey.label,
+            "data-confirm-message": `Revoke key "${apiKey.label}"? This action cannot be undone.`,
           }}
         >
           <AdminButton type="submit" variant="danger">

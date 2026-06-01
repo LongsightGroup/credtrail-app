@@ -7,13 +7,22 @@ import type {
 import type { HtmlEscapedString } from "hono/utils/html";
 import { formatIsoTimestamp } from "../../utils/display-format";
 import {
+  accessAuthenticationPageUrl,
+  tenantAccessBreakGlassAccountCreatePath,
+  tenantAccessBreakGlassAccountRevokePath,
+  tenantAccessEnterpriseAuthPolicyPath,
+  tenantAccessEnterpriseAuthProviderDeletePath,
+  tenantAccessEnterpriseAuthProviderSavePath,
+} from "../access-admin-helpers";
+import {
+  AdminActions,
   AdminButton,
+  AdminButtonLink,
   AdminCheckboxRow,
   AdminEmptyTableRow,
   AdminField,
   AdminForm,
   AdminMeta,
-  AdminStatus,
   AdminTable,
 } from "../components";
 
@@ -24,6 +33,7 @@ interface RenderEnterpriseAuthSectionInput {
   enterpriseAuthPolicy?: TenantAuthPolicyRecord | null | undefined;
   enterpriseAuthProviders?: readonly TenantAuthProviderRecord[] | undefined;
   breakGlassAccounts?: readonly TenantBreakGlassAccountRecord[] | undefined;
+  editProviderId?: string | null;
 }
 
 const formatJsonTextareaValue = (value: string): string => {
@@ -62,6 +72,12 @@ export const renderEnterpriseAuthSection = (
     (provider) => provider.id === enterpriseAuthPolicy.defaultProviderId,
   );
   const breakGlassAccounts = input.breakGlassAccounts ?? [];
+  const editingProvider =
+    input.editProviderId === null || input.editProviderId === undefined
+      ? null
+      : (supportedEnterpriseAuthProviders.find(
+          (provider) => provider.id === input.editProviderId,
+        ) ?? null);
   const enterpriseAuthProviderOptions = supportedEnterpriseAuthProviders.map((provider) => {
     return (
       <option value={provider.id} selected={enterpriseAuthPolicy.defaultProviderId === provider.id}>
@@ -87,32 +103,27 @@ export const renderEnterpriseAuthSection = (
             <td>{provider.enabled ? "Enabled" : "Disabled"}</td>
             <td>{formatIsoTimestamp(provider.updatedAt)}</td>
             <td>
-              <AdminButton
-                type="button"
-                size="tiny"
-                dataAttributes={{
-                  "data-enterprise-auth-edit-provider": "true",
-                  "data-provider-id": provider.id,
-                  "data-provider-protocol": provider.protocol,
-                  "data-provider-label": provider.label,
-                  "data-provider-enabled": provider.enabled ? "true" : "false",
-                  "data-provider-is-default": provider.isDefault ? "true" : "false",
-                  "data-provider-config-json": provider.configJson,
-                }}
-              >
-                Edit
-              </AdminButton>
-              <AdminButton
-                type="button"
-                size="tiny"
-                variant="danger"
-                dataAttributes={{
-                  "data-enterprise-auth-delete-provider-id": provider.id,
-                  "data-provider-label": provider.label,
-                }}
-              >
-                Delete
-              </AdminButton>
+              <AdminActions>
+                <AdminButtonLink
+                  href={accessAuthenticationPageUrl(input.tenant.id, { editProvider: provider.id })}
+                  size="tiny"
+                >
+                  Edit
+                </AdminButtonLink>
+                <AdminForm
+                  method="post"
+                  action={tenantAccessEnterpriseAuthProviderDeletePath(input.tenant.id)}
+                  className="ct-admin__inline-form"
+                  dataAttributes={{
+                    "data-confirm-message": `Delete ${provider.label}?`,
+                  }}
+                >
+                  <input type="hidden" name="providerId" value={provider.id} />
+                  <AdminButton type="submit" size="tiny" variant="danger">
+                    Delete
+                  </AdminButton>
+                </AdminForm>
+              </AdminActions>
             </td>
           </tr>
         );
@@ -135,17 +146,19 @@ export const renderEnterpriseAuthSection = (
             <td>{provider.enabled ? "Enabled" : "Disabled"}</td>
             <td>{formatIsoTimestamp(provider.updatedAt)}</td>
             <td>
-              <AdminButton
-                type="button"
-                size="tiny"
-                variant="danger"
+              <AdminForm
+                method="post"
+                action={tenantAccessEnterpriseAuthProviderDeletePath(input.tenant.id)}
+                className="ct-admin__inline-form"
                 dataAttributes={{
-                  "data-enterprise-auth-delete-provider-id": provider.id,
-                  "data-provider-label": provider.label,
+                  "data-confirm-message": `Delete legacy SAML entry “${provider.label}”?`,
                 }}
               >
-                Delete
-              </AdminButton>
+                <input type="hidden" name="providerId" value={provider.id} />
+                <AdminButton type="submit" size="tiny" variant="danger">
+                  Delete
+                </AdminButton>
+              </AdminForm>
             </td>
           </tr>
         );
@@ -159,7 +172,11 @@ export const renderEnterpriseAuthSection = (
         Hosted enterprise sign-in supports OIDC providers. Legacy SAML compatibility stays visible
         for cleanup only.
       </p>
-      <AdminForm id="enterprise-auth-policy-form">
+      <AdminForm
+        id="enterprise-auth-policy-form"
+        method="post"
+        action={tenantAccessEnterpriseAuthPolicyPath(input.tenant.id)}
+      >
         <AdminField label="Login mode">
           <select name="loginMode" required>
             <option value="local" selected={enterpriseAuthPolicy.loginMode === "local"}>
@@ -210,16 +227,26 @@ export const renderEnterpriseAuthSection = (
         </AdminCheckboxRow>
         <AdminButton type="submit">Save auth policy</AdminButton>
       </AdminForm>
-      <AdminStatus id="enterprise-auth-policy-status"></AdminStatus>
-      <AdminForm id="enterprise-auth-provider-form">
-        <input type="hidden" name="providerId" value="" />
+      <AdminForm
+        id="enterprise-auth-provider-form"
+        method="post"
+        action={tenantAccessEnterpriseAuthProviderSavePath(input.tenant.id)}
+      >
+        <input type="hidden" name="providerId" value={editingProvider?.id ?? ""} />
         <input type="hidden" name="protocol" value="oidc" />
         <p class="ct-admin__hint">
-          Add or edit hosted OIDC providers here. Use a new OIDC connection instead of modifying
-          legacy SAML settings.
+          {editingProvider === null
+            ? "Add a hosted OIDC provider here. Use a new OIDC connection instead of modifying legacy SAML settings."
+            : `Editing ${editingProvider.label}. Save changes or clear the form to add a new provider.`}
         </p>
         <AdminField label="OIDC provider label">
-          <input name="label" type="text" required placeholder="Campus OIDC" />
+          <input
+            name="label"
+            type="text"
+            required
+            placeholder="Campus OIDC"
+            value={editingProvider?.label ?? ""}
+          />
         </AdminField>
         <AdminField label="OIDC discovery or connection JSON">
           <textarea
@@ -229,24 +256,36 @@ export const renderEnterpriseAuthSection = (
             required
             spellcheck={false}
             placeholder='{"issuer":"https://idp.example.edu","clientId":"credtrail"}'
-          ></textarea>
+          >
+            {formatJsonTextareaValue(editingProvider?.configJson ?? "")}
+          </textarea>
         </AdminField>
         <AdminCheckboxRow>
-          <input name="enabled" type="checkbox" checked />
+          <input
+            name="enabled"
+            type="checkbox"
+            checked={editingProvider === null ? true : editingProvider.enabled}
+          />
           Provider enabled
         </AdminCheckboxRow>
         <AdminCheckboxRow>
-          <input name="isDefault" type="checkbox" />
+          <input name="isDefault" type="checkbox" checked={editingProvider?.isDefault === true} />
           Set as default provider
         </AdminCheckboxRow>
         <div class="ct-cluster">
-          <AdminButton type="submit">Save provider</AdminButton>
-          <AdminButton id="enterprise-auth-provider-reset" type="button" variant="secondary">
-            Clear form
+          <AdminButton type="submit">
+            {editingProvider === null ? "Save provider" : "Update provider"}
           </AdminButton>
+          {editingProvider === null ? null : (
+            <AdminButtonLink
+              href={accessAuthenticationPageUrl(input.tenant.id)}
+              variant="secondary"
+            >
+              Clear form
+            </AdminButtonLink>
+          )}
         </div>
       </AdminForm>
-      <AdminStatus id="enterprise-auth-provider-status"></AdminStatus>
       <AdminTable
         headers={["Provider", "Protocol", "Role", "Status", "Updated", "Actions"]}
         tbodyId="enterprise-auth-provider-body"
@@ -271,7 +310,11 @@ export const renderEnterpriseAuthSection = (
           Limit local fallback access to explicit accounts only. CredTrail emails setup links and
           records recent fallback usage.
         </p>
-        <AdminForm id="break-glass-account-form">
+        <AdminForm
+          id="break-glass-account-form"
+          method="post"
+          action={tenantAccessBreakGlassAccountCreatePath(input.tenant.id)}
+        >
           <AdminField label="Institution email">
             <input name="email" type="email" required placeholder="admin@institution.edu" />
           </AdminField>
@@ -281,7 +324,6 @@ export const renderEnterpriseAuthSection = (
           </AdminCheckboxRow>
           <AdminButton type="submit">Add break-glass account</AdminButton>
         </AdminForm>
-        <AdminStatus id="break-glass-account-status"></AdminStatus>
         <AdminTable
           headers={["Email", "Local status", "Last used", "Enrollment email", "Actions"]}
           tbodyId="break-glass-account-body"
@@ -314,17 +356,19 @@ export const renderEnterpriseAuthSection = (
                       : formatIsoTimestamp(account.lastEnrollmentEmailSentAt)}
                   </td>
                   <td>
-                    <AdminButton
-                      type="button"
-                      size="tiny"
-                      variant="danger"
+                    <AdminForm
+                      method="post"
+                      action={tenantAccessBreakGlassAccountRevokePath(input.tenant.id)}
+                      className="ct-admin__inline-form"
                       dataAttributes={{
-                        "data-break-glass-delete-user-id": account.userId,
-                        "data-break-glass-email": account.email,
+                        "data-confirm-message": `Revoke break-glass access for ${account.email}?`,
                       }}
                     >
-                      Revoke
-                    </AdminButton>
+                      <input type="hidden" name="userId" value={account.userId} />
+                      <AdminButton type="submit" size="tiny" variant="danger">
+                        Revoke
+                      </AdminButton>
+                    </AdminForm>
                   </td>
                 </tr>
               );

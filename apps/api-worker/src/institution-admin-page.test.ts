@@ -129,14 +129,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/members"');
     expect(body).toContain('href="/showcase/tenant_123"');
-    expect(body).toContain("/v1/tenants/tenant_123/assertions/manual-issue");
-    expect(body).toContain("/v1/tenants/tenant_123/api-keys");
-    expect(body).toContain("/v1/tenants/tenant_123/org-units");
-    expect(body).not.toContain("/v1/tenants/tenant_123/badge-templates");
-    expect(body).toContain("/v1/tenants/tenant_123/users");
-    expect(body).toContain("/v1/tenants/tenant_123/badge-rules");
-    expect(body).toContain("/v1/tenants/tenant_123/badge-rules/preview-simulate");
-    expect(body).not.toContain("/v1/tenants/tenant_123/badge-rules/review-queue");
+    expect(body).toContain('data-context-json="{}"');
     expect(body).toContain("admin@tenant-123.edu");
     expect(body).toContain('title="User ID: usr_admin"');
     expect(body).toContain("/assets/ui/foundation.");

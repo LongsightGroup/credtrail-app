@@ -45,9 +45,105 @@ export type InstitutionAdminView =
   | "rules"
   | "accessMembers"
   | "accessGovernance"
+  | "accessGovernanceDelegationNew"
+  | "accessAuthentication"
   | "accessApiKeys"
   | "accessOrgUnits"
-  | "accessLmsConnections";
+  | "accessLmsConnections"
+  | "accessLmsConnectionNew"
+  | "accessLmsConnectionEdit"
+  | "operationsManualIssue";
+
+const DEDICATED_ACCESS_SETUP_VIEWS: ReadonlySet<InstitutionAdminView> = new Set([
+  "accessGovernanceDelegationNew",
+  "accessAuthentication",
+  "accessLmsConnectionNew",
+  "accessLmsConnectionEdit",
+]);
+
+export const institutionAdminViewNeedsAccessSectionBundles = (
+  view: InstitutionAdminView,
+): boolean => {
+  return view.startsWith("access") && !DEDICATED_ACCESS_SETUP_VIEWS.has(view);
+};
+
+export const institutionAdminViewNeedsOperationsSectionBundles = (
+  view: InstitutionAdminView,
+): boolean => {
+  if (view === "operationsManualIssue") {
+    return false;
+  }
+
+  return view === "rules" || view === "operations" || view.startsWith("operations");
+};
+
+export const institutionAdminViewNeedsReportingSectionBundles = (
+  view: InstitutionAdminView,
+): boolean => {
+  return view.startsWith("reporting");
+};
+
+export const institutionAdminViewNeedsManagementSectionBundles = (
+  view: InstitutionAdminView,
+): boolean => {
+  return view === "rules" || view === "accessOrgUnits" || view === "accessApiKeys";
+};
+
+export const institutionAdminViewNeedsLearnerRecordSectionBundles = (
+  view: InstitutionAdminView,
+): boolean => {
+  return view === "operationsLearnerRecords" || view === "operationsLearnerRecordImports";
+};
+
+export const institutionAdminViewNeedsRuleTableRows = (view: InstitutionAdminView): boolean => {
+  return view === "rules";
+};
+
+export const institutionAdminViewNeedsLmsConnectionRows = (view: InstitutionAdminView): boolean => {
+  return view === "accessLmsConnections";
+};
+
+export const institutionAdminViewNeedsApiKeyRows = (view: InstitutionAdminView): boolean => {
+  return view === "accessApiKeys";
+};
+
+export const institutionAdminViewNeedsOrgUnitRows = (view: InstitutionAdminView): boolean => {
+  return view === "accessOrgUnits";
+};
+
+export const institutionAdminViewNeedsGovernanceTableRows = (
+  view: InstitutionAdminView,
+): boolean => {
+  return view === "accessGovernance";
+};
+
+export const institutionAdminViewNeedsTenantMemberRows = (view: InstitutionAdminView): boolean => {
+  return view === "accessMembers";
+};
+
+export const institutionAdminViewNeedsTemplateSelectOptions = (
+  view: InstitutionAdminView,
+): boolean => {
+  return (
+    view === "operationsManualIssue" || institutionAdminViewNeedsOperationsSectionBundles(view)
+  );
+};
+
+export const institutionAdminViewNeedsDelegationSelectOptions = (
+  view: InstitutionAdminView,
+): boolean => {
+  return view === "accessGovernanceDelegationNew" || view === "accessGovernance";
+};
+
+export const institutionAdminViewNeedsRuleSelectOptions = (view: InstitutionAdminView): boolean => {
+  return institutionAdminViewNeedsOperationsSectionBundles(view) || view === "rules";
+};
+
+export const institutionAdminViewNeedsRuleVersionIndexes = (
+  view: InstitutionAdminView,
+): boolean => {
+  return institutionAdminViewNeedsRuleSelectOptions(view) || view === "rules";
+};
 
 export const INSTITUTION_ADMIN_VIEW_CONFIG = {
   home: {
@@ -107,18 +203,38 @@ export const INSTITUTION_ADMIN_VIEW_CONFIG = {
     titlePrefix: "Governance Delegation · Institution Admin",
     controller: "shared",
   },
+  accessGovernanceDelegationNew: {
+    titlePrefix: "Add Delegated Authority · Institution Admin",
+    controller: "shell",
+  },
+  accessAuthentication: {
+    titlePrefix: "Authentication · Institution Admin",
+    controller: "shell",
+    extraAssets: ["institutionAdminAccessJs"],
+  },
   accessApiKeys: {
     titlePrefix: "API Keys · Institution Admin",
     controller: "shell",
-    extraAssets: ["institutionAdminApiKeysJs"],
+    extraAssets: ["institutionAdminAccessJs"],
   },
   accessOrgUnits: {
     titlePrefix: "Org Units · Institution Admin",
     controller: "shell",
-    extraAssets: ["institutionAdminOrgUnitsJs"],
   },
   accessLmsConnections: {
     titlePrefix: "LMS Connections · Institution Admin",
+    controller: "shell",
+  },
+  accessLmsConnectionNew: {
+    titlePrefix: "Connect LMS · Institution Admin",
+    controller: "shell",
+  },
+  accessLmsConnectionEdit: {
+    titlePrefix: "Edit LMS Connection · Institution Admin",
+    controller: "shell",
+  },
+  operationsManualIssue: {
+    titlePrefix: "Issue Badge · Institution Admin",
     controller: "shell",
   },
 } as const satisfies Record<
@@ -182,7 +298,47 @@ export interface InstitutionAdminRuleValueListsWorkspace {
 export interface InstitutionAdminLmsConnectionsWorkspace {
   listNotice: string | null;
   listError: string | null;
-  editConnectionId: string | null;
+}
+
+export interface InstitutionAdminLmsConnectionSetupWorkspace {
+  listNotice: string | null;
+  listError: string | null;
+}
+
+export interface InstitutionAdminAccessMembersWorkspace {
+  listNotice: string | null;
+  listError: string | null;
+}
+
+export interface InstitutionAdminAccessGovernanceWorkspace {
+  listNotice: string | null;
+  listError: string | null;
+}
+
+export interface InstitutionAdminAccessAuthenticationWorkspace {
+  listNotice: string | null;
+  listError: string | null;
+  editProviderId: string | null;
+}
+
+export interface InstitutionAdminAccessGovernanceDelegationWorkspace {
+  listNotice: string | null;
+  listError: string | null;
+}
+
+export interface InstitutionAdminAccessOrgUnitsWorkspace {
+  listNotice: string | null;
+  listError: string | null;
+}
+
+export interface InstitutionAdminOperationsWorkspace {
+  listNotice: string | null;
+  listError: string | null;
+}
+
+export interface InstitutionAdminManualIssueWorkspace {
+  listNotice: string | null;
+  listError: string | null;
 }
 
 export interface InstitutionAdminLearnerRecordImportWorkflow {
@@ -255,5 +411,22 @@ export interface InstitutionAdminPageInput {
   reviewQueueWorkspace?: InstitutionAdminReviewQueueWorkspace;
   ruleValueListsWorkspace?: InstitutionAdminRuleValueListsWorkspace;
   lmsConnectionsWorkspace?: InstitutionAdminLmsConnectionsWorkspace;
+  lmsConnectionSetupWorkspace?: InstitutionAdminLmsConnectionSetupWorkspace;
+  lmsConnectionSetupFormValues?: {
+    connectionId: string;
+    displayName: string;
+    providerKind: "canvas" | "sakai";
+    apiBaseUrl: string;
+    ltiIssuer: string;
+    ltiClientId: string;
+    ltiDeploymentId: string;
+  };
+  accessMembersWorkspace?: InstitutionAdminAccessMembersWorkspace;
+  accessGovernanceWorkspace?: InstitutionAdminAccessGovernanceWorkspace;
+  accessGovernanceDelegationWorkspace?: InstitutionAdminAccessGovernanceDelegationWorkspace;
+  accessAuthenticationWorkspace?: InstitutionAdminAccessAuthenticationWorkspace;
+  accessOrgUnitsWorkspace?: InstitutionAdminAccessOrgUnitsWorkspace;
+  operationsWorkspace?: InstitutionAdminOperationsWorkspace;
+  manualIssueWorkspace?: InstitutionAdminManualIssueWorkspace;
   switchOrganizationPath?: string | null;
 }

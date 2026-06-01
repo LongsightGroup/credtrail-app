@@ -8,6 +8,7 @@ const {
   mockedGetTenantReportingEngagementCounts,
   mockedListTenantAuthProviders,
   mockedListTenantBreakGlassAccounts,
+  mockedFindTenantLmsConnectionById,
   mockedListTenantLmsConnections,
   mockedListTenantMembers,
   mockedListImportLearnerRecordBatchQueueMessages,
@@ -31,6 +32,7 @@ const {
     mockedGetTenantReportingEngagementCounts: vi.fn(),
     mockedListTenantAuthProviders: vi.fn(),
     mockedListTenantBreakGlassAccounts: vi.fn(),
+    mockedFindTenantLmsConnectionById: vi.fn(),
     mockedListTenantLmsConnections: vi.fn(),
     mockedListTenantMembers: vi.fn(),
     mockedListImportLearnerRecordBatchQueueMessages: vi.fn(),
@@ -55,6 +57,7 @@ export {
   mockedFindLearnerProfileById,
   mockedFindLearnerProfileByIdentity,
   mockedFindTenantAuthPolicy,
+  mockedFindTenantLmsConnectionById,
   mockedGetTenantReportingComparisons,
   mockedGetTenantReportingEngagementCounts,
   mockedGetTenantReportingOverview,
@@ -107,6 +110,7 @@ vi.mock("@credtrail/db", async () => {
     listTenantMembers: mockedListTenantMembers,
     listTenantMembershipOrgUnitScopes: vi.fn(),
     listTenantAuthProviders: mockedListTenantAuthProviders,
+    findTenantLmsConnectionById: mockedFindTenantLmsConnectionById,
     listTenantLmsConnections: mockedListTenantLmsConnections,
     createAuditLog: vi.fn(),
     createBadgeTemplate: vi.fn(),
@@ -196,6 +200,7 @@ import {
   createTenantApiKey,
   revokeTenantApiKey,
   upsertTenantLmsConnection,
+  findTenantLmsConnectionById,
   listTenantLmsConnections,
   listTenantMembers,
   listTenantMembershipOrgUnitScopes,
@@ -268,6 +273,7 @@ export const mockedRecordAssertionLifecycleTransition = vi.mocked(
 export const mockedCreateTenantApiKey = vi.mocked(createTenantApiKey);
 export const mockedRevokeTenantApiKey = vi.mocked(revokeTenantApiKey);
 export const mockedUpsertTenantLmsConnection = vi.mocked(upsertTenantLmsConnection);
+export const mockedFindTenantLmsConnectionByIdDb = vi.mocked(findTenantLmsConnectionById);
 export const mockedListTenantLmsConnectionsDb = vi.mocked(listTenantLmsConnections);
 export const mockedListTenantMembersDb = vi.mocked(listTenantMembers);
 export const mockedListTenantMembershipOrgUnitScopes = vi.mocked(listTenantMembershipOrgUnitScopes);
@@ -826,7 +832,7 @@ beforeEach(() => {
     },
   ]);
   mockedListTenantLmsConnectionsDb.mockReset();
-  mockedListTenantLmsConnectionsDb.mockResolvedValue([
+  const lmsConnections = [
     sampleTenantLmsConnection({
       id: "lms_canvas",
       displayName: "Canvas Test",
@@ -837,7 +843,12 @@ beforeEach(() => {
       ltiClientId: "canvas-client",
       ltiDeploymentId: "canvas-deployment",
     }),
-  ]);
+  ];
+  mockedListTenantLmsConnectionsDb.mockResolvedValue(lmsConnections);
+  mockedFindTenantLmsConnectionByIdDb.mockReset();
+  mockedFindTenantLmsConnectionByIdDb.mockImplementation(async (_db, input) => {
+    return lmsConnections.find((connection) => connection.id === input.connectionId) ?? null;
+  });
   mockedListDelegatedIssuingAuthorityGrants.mockReset();
   mockedListDelegatedIssuingAuthorityGrants.mockResolvedValue([
     {

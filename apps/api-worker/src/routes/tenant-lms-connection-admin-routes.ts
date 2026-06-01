@@ -10,7 +10,10 @@ import {
   parseUpsertTenantLmsConnectionRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
+import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import {
+  buildLmsConnectionEditPath,
+  buildLmsConnectionNewPath,
   buildLmsConnectionsPagePath,
   lmsConnectionsPageUrl,
 } from "../admin/lms-connection-admin-helpers";
@@ -95,19 +98,26 @@ export const registerTenantLmsConnectionAdminRoutes = (
 
     let request: ReturnType<typeof parseUpsertTenantLmsConnectionRequest>;
 
+    const { session, membershipRole } = roleCheck;
+
     try {
       request = parseUpsertTenantLmsConnectionRequest(buildUpsertPayloadFromForm(formData));
     } catch {
+      await setAdminListMessageFlash(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        workspace: "access_lms_connections",
+        tone: "error",
+        message: "Check the connection name, provider, and server URL, then try again.",
+      });
+
       return c.redirect(
-        lmsConnectionsPageUrl(pathParams.tenantId, {
-          listError: "Check the connection name, provider, and server URL, then try again.",
-          ...(isUpdate ? { edit: connectionId } : {}),
-        }),
+        isUpdate
+          ? buildLmsConnectionEditPath(pathParams.tenantId, connectionId)
+          : buildLmsConnectionNewPath(pathParams.tenantId),
         303,
       );
     }
-
-    const { session, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
 
     if (isUpdate) {
@@ -117,12 +127,15 @@ export const registerTenantLmsConnectionAdminRoutes = (
       });
 
       if (existing === null) {
-        return c.redirect(
-          lmsConnectionsPageUrl(pathParams.tenantId, {
-            listError: "LMS connection not found.",
-          }),
-          303,
-        );
+        await setAdminListMessageFlash(c, {
+          tenantId: pathParams.tenantId,
+          userId: session.userId,
+          workspace: "access_lms_connections",
+          tone: "error",
+          message: "LMS connection not found.",
+        });
+
+        return c.redirect(lmsConnectionsPageUrl(pathParams.tenantId), 303);
       }
     }
 
@@ -144,11 +157,14 @@ export const registerTenantLmsConnectionAdminRoutes = (
       },
     });
 
-    return c.redirect(
-      lmsConnectionsPageUrl(pathParams.tenantId, {
-        listNotice: isUpdate ? "LMS connection updated." : "LMS connection saved.",
-      }),
-      303,
-    );
+    await setAdminListMessageFlash(c, {
+      tenantId: pathParams.tenantId,
+      userId: session.userId,
+      workspace: "access_lms_connections",
+      tone: "success",
+      message: isUpdate ? "LMS connection updated." : "LMS connection saved.",
+    });
+
+    return c.redirect(lmsConnectionsPageUrl(pathParams.tenantId), 303);
   });
 };

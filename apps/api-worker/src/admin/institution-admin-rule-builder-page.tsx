@@ -247,16 +247,10 @@ export const institutionAdminRuleBuilderPage = (input: {
 
   const tenantAdminPath = `/tenants/${encodeURIComponent(input.tenant.id)}/admin`;
   const rulesListPath = `${tenantAdminPath}/rules`;
-  const manualIssueApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions/manual-issue`;
-  const createApiKeyPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/api-keys`;
-  const createOrgUnitPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/org-units`;
   const badgeRuleApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules`;
   const lmsConnectionsApiPath = `/v1/tenants/${encodeURIComponent(
     input.tenant.id,
   )}/lms/connections`;
-  const assertionsApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions`;
-  const tenantMembersApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/members`;
-  const tenantUsersApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/users`;
   const showcasePath = `/showcase/${encodeURIComponent(input.tenant.id)}`;
   const switchOrganizationPath = input.switchOrganizationPath?.trim() ?? "";
   const userLabel = input.userEmail ?? input.userId;
@@ -373,14 +367,8 @@ export const institutionAdminRuleBuilderPage = (input: {
   const adminPageContextJson = serializeJsonScriptContent({
     tenantAdminPath,
     rulesListPath,
-    manualIssueApiPath,
-    createApiKeyPath,
-    createOrgUnitPath,
     badgeRuleApiPath,
     lmsConnectionsApiPath,
-    assertionsApiPathPrefix,
-    tenantMembersApiPath,
-    tenantUsersApiPathPrefix,
     ruleBuilderContext: {
       badgeTemplates: badgeTemplateCourseContext,
       fallbackCourseId: initialTestCourseId,
@@ -401,6 +389,7 @@ export const institutionAdminRuleBuilderPage = (input: {
   const sidebarSections = buildInstitutionAdminSidebarSectionsForTenant(
     input.tenant.id,
     "rulesBuilder",
+    input.tenant.planTier,
   );
   const sidebarFooterLinks: readonly AdminSidebarFooterLink[] = [
     {

@@ -12,6 +12,10 @@ import {
   parseUpdateBadgeTemplateRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
+import {
+  setAdminListMessageFlash,
+  type AdminListMessageTone,
+} from "../admin/admin-list-message-flash";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import {
   badgeTemplateListPageUrl,
@@ -72,6 +76,28 @@ const redirectToTemplateList = (
   const location = badgeTemplateListPageUrl(buildTemplateListPath(tenantId), listPageQuery, extra);
 
   return c.redirect(location, 303);
+};
+
+const redirectToTemplateListWithFlash = async (
+  c: AppContext,
+  input: {
+    tenantId: string;
+    userId: string;
+    listPageQuery: ReturnType<typeof parseBadgeTemplateListPageQuery>;
+    tone: AdminListMessageTone;
+    message: string;
+    extra?: Record<string, string>;
+  },
+): Promise<Response> => {
+  await setAdminListMessageFlash(c, {
+    tenantId: input.tenantId,
+    userId: input.userId,
+    workspace: "badge_templates",
+    tone: input.tone,
+    message: input.message,
+  });
+
+  return redirectToTemplateList(c, input.tenantId, input.listPageQuery, input.extra);
 };
 
 const redirectToTemplateEditor = (
@@ -152,8 +178,12 @@ export const registerBadgeTemplateListAdminRoutes = (
         ownerOrgUnitId: defaultInstitutionOrgUnitId(tenantId),
       });
     } catch {
-      return redirectToTemplateList(c, tenantId, listPageQuery, {
-        listError: "Enter a badge name before creating the template.",
+      return redirectToTemplateListWithFlash(c, {
+        tenantId,
+        userId: roleCheck.session.userId,
+        listPageQuery,
+        tone: "error",
+        message: "Enter a badge name before creating the template.",
       });
     }
 
@@ -190,8 +220,12 @@ export const registerBadgeTemplateListAdminRoutes = (
       );
     } catch (error: unknown) {
       if (isBadgeTemplateSlugConflict(error)) {
-        return redirectToTemplateList(c, tenantId, listPageQuery, {
-          listError: "A badge template with that URL key already exists. Try a more specific name.",
+        return redirectToTemplateListWithFlash(c, {
+          tenantId,
+          userId: session.userId,
+          listPageQuery,
+          tone: "error",
+          message: "A badge template with that URL key already exists. Try a more specific name.",
         });
       }
 
@@ -213,9 +247,13 @@ export const registerBadgeTemplateListAdminRoutes = (
         resolveDatabase,
         resolveInstitutionAdminAdminRole,
         requireScopedOrgUnitPermission,
-        notFound: () =>
-          redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
-            listError: "Badge template not found",
+        notFound: ({ session }) =>
+          redirectToTemplateListWithFlash(c, {
+            tenantId: pathParams.tenantId,
+            userId: session.userId,
+            listPageQuery,
+            tone: "error",
+            message: "Badge template not found",
           }),
       },
       async ({ db, session, membershipRole, template: existingTemplate }) => {
@@ -247,8 +285,12 @@ export const registerBadgeTemplateListAdminRoutes = (
           });
 
           if (template === null) {
-            return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
-              listError: "Badge template not found",
+            return redirectToTemplateListWithFlash(c, {
+              tenantId: pathParams.tenantId,
+              userId: session.userId,
+              listPageQuery,
+              tone: "error",
+              message: "Badge template not found",
             });
           }
 
@@ -284,12 +326,16 @@ export const registerBadgeTemplateListAdminRoutes = (
         resolveDatabase,
         resolveInstitutionAdminAdminRole,
         requireScopedOrgUnitPermission,
-        notFound: () =>
-          redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
-            listError: "Badge template not found",
+        notFound: ({ session }) =>
+          redirectToTemplateListWithFlash(c, {
+            tenantId: pathParams.tenantId,
+            userId: session.userId,
+            listPageQuery,
+            tone: "error",
+            message: "Badge template not found",
           }),
       },
-      async ({ db }) => {
+      async ({ db, session }) => {
         const updatedTemplate = await setBadgeTemplateArchivedState(db, {
           tenantId: pathParams.tenantId,
           id: pathParams.badgeTemplateId,
@@ -297,13 +343,21 @@ export const registerBadgeTemplateListAdminRoutes = (
         });
 
         if (updatedTemplate === null) {
-          return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
-            listError: "Badge template not found",
+          return redirectToTemplateListWithFlash(c, {
+            tenantId: pathParams.tenantId,
+            userId: session.userId,
+            listPageQuery,
+            tone: "error",
+            message: "Badge template not found",
           });
         }
 
-        return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
-          listNotice: archive ? "Badge template archived." : "Badge template restored.",
+        return redirectToTemplateListWithFlash(c, {
+          tenantId: pathParams.tenantId,
+          userId: session.userId,
+          listPageQuery,
+          tone: "success",
+          message: archive ? "Badge template archived." : "Badge template restored.",
         });
       },
     );
@@ -338,9 +392,13 @@ export const registerBadgeTemplateListAdminRoutes = (
           resolveDatabase,
           resolveInstitutionAdminAdminRole,
           requireScopedOrgUnitPermission,
-          notFound: () =>
-            redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
-              listError: "Badge template not found",
+          notFound: ({ session }) =>
+            redirectToTemplateListWithFlash(c, {
+              tenantId: pathParams.tenantId,
+              userId: session.userId,
+              listPageQuery,
+              tone: "error",
+              message: "Badge template not found",
             }),
         },
         async ({ db, session, membershipRole }) => {
@@ -354,24 +412,30 @@ export const registerBadgeTemplateListAdminRoutes = (
           });
 
           if ("status" in result) {
-            return redirectToTemplateList(c, pathParams.tenantId, listPageQuery, {
-              history: "1",
-              badgeTemplateId: pathParams.badgeTemplateId,
-              listError: result.message,
+            return redirectToTemplateListWithFlash(c, {
+              tenantId: pathParams.tenantId,
+              userId: session.userId,
+              listPageQuery,
+              tone: "error",
+              message: result.message,
+              extra: {
+                history: "1",
+                badgeTemplateId: pathParams.badgeTemplateId,
+              },
             });
           }
 
-          const historyUrl = badgeTemplateListPageUrl(
-            buildTemplateListPath(pathParams.tenantId),
+          return redirectToTemplateListWithFlash(c, {
+            tenantId: pathParams.tenantId,
+            userId: session.userId,
             listPageQuery,
-            {
+            tone: "success",
+            message: "Badge image restored.",
+            extra: {
               badgeTemplateId: pathParams.badgeTemplateId,
               history: "1",
-              listNotice: "Badge image restored.",
             },
-          );
-
-          return c.redirect(historyUrl, 303);
+          });
         },
       );
     },

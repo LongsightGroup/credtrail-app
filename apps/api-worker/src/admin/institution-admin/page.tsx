@@ -9,21 +9,40 @@ import { appPage, type AppPage } from "../../ui/render-page";
 import type { PageAssetKey } from "../../ui/page-assets";
 import { formatIsoTimestamp } from "../../utils/display-format";
 import {
+  tenantAccessDelegatedGrantRevokePath,
+  tenantAccessMemberInvitePath,
+  tenantAccessMemberRemovePath,
+  tenantAccessMemberRolePath,
+  tenantAccessMembershipScopeRemovePath,
+  tenantBadgeRuleActivateAdminPath,
+  tenantBadgeRuleDecisionAdminPath,
+  tenantBadgeRuleSubmitApprovalAdminPath,
+} from "../access-admin-helpers";
+import {
   AdminButton,
   AdminButtonLink,
   AdminActions,
   AdminEmptyTableRow,
+  AdminForm,
   AdminMeta,
+  AdminPanel,
   AdminPageHeader,
   AdminShell,
   AdminSidebar,
+  AdminStatus,
   AdminStatusPill,
   AdminTopbar,
   AdminWorkspaceCard,
   type AdminSidebarFooterLink,
 } from "../components";
 import { buildInstitutionAdminSidebarSectionsForTenant } from "../institution-admin-sidebar";
-import { lmsConnectionsPageUrl } from "../lms-connection-admin-helpers";
+import { buildLmsConnectionEditPath } from "../lms-connection-admin-helpers";
+import { renderDelegationSetupSection } from "./delegation-setup-section";
+import {
+  emptyLmsConnectionFormValues,
+  renderLmsConnectionSetupSection,
+} from "./lms-connection-setup-section";
+import { renderManualIssueSection } from "./manual-issue-section";
 import { TenantApiKeyAdminTableRow } from "../api-key-table-row";
 import { serializeJsonScriptContent } from "../institution-admin-shell";
 import { renderInstitutionAdminAccessSections } from "./access-sections";
@@ -33,6 +52,21 @@ import { renderInstitutionAdminManagementSections } from "./management-sections"
 import { renderInstitutionAdminOperationsSections } from "./operations-sections";
 import {
   INSTITUTION_ADMIN_VIEW_CONFIG,
+  institutionAdminViewNeedsAccessSectionBundles,
+  institutionAdminViewNeedsApiKeyRows,
+  institutionAdminViewNeedsDelegationSelectOptions,
+  institutionAdminViewNeedsGovernanceTableRows,
+  institutionAdminViewNeedsLearnerRecordSectionBundles,
+  institutionAdminViewNeedsLmsConnectionRows,
+  institutionAdminViewNeedsManagementSectionBundles,
+  institutionAdminViewNeedsOperationsSectionBundles,
+  institutionAdminViewNeedsOrgUnitRows,
+  institutionAdminViewNeedsReportingSectionBundles,
+  institutionAdminViewNeedsRuleSelectOptions,
+  institutionAdminViewNeedsRuleTableRows,
+  institutionAdminViewNeedsRuleVersionIndexes,
+  institutionAdminViewNeedsTemplateSelectOptions,
+  institutionAdminViewNeedsTenantMemberRows,
   type InstitutionAdminPageInput,
   type InstitutionAdminView,
 } from "./page-types";
@@ -43,6 +77,8 @@ export {
 } from "../institution-admin-templates-page";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
+
+const emptySectionMarkup = <></>;
 
 const formatDelegatedIssuingActionLabel = (action: string): string => {
   switch (action) {
@@ -66,8 +102,11 @@ const renderInstitutionAdminPage = (
   const versionsByRuleId = new Map<string, BadgeIssuanceRuleVersionRecord[]>();
   const tenantAdminPath = `/tenants/${encodeURIComponent(input.tenant.id)}/admin`;
   const operationsPath = `${tenantAdminPath}/operations`;
+  const operationsManualIssuePath = `${operationsPath}/issue`;
   const operationsLearnerRecordsPath = `${operationsPath}/learner-records`;
   const operationsLearnerRecordImportsPath = `${operationsPath}/learner-record-imports`;
+  const operationsReviewQueuePath = `${operationsPath}/review-queue`;
+  const operationsIssuedBadgesPath = `${operationsPath}/issued-badges`;
   const reportingPath = `${tenantAdminPath}/reporting`;
   const reportingExplorePath = `${reportingPath}/explore`;
   const reportingTrendsPath = `${reportingPath}/trends`;
@@ -77,6 +116,7 @@ const renderInstitutionAdminPage = (
   const accessPath = `${tenantAdminPath}/access`;
   const accessMembersPath = `${accessPath}/members`;
   const accessGovernancePath = `${accessPath}/governance`;
+  const accessAuthenticationPath = `${accessPath}/authentication`;
   const accessApiKeysPath = `${accessPath}/api-keys`;
   const accessOrgUnitsPath = `${accessPath}/org-units`;
   const accessLmsConnectionsPath = `${accessPath}/lms-connections`;
@@ -91,6 +131,24 @@ const renderInstitutionAdminPage = (
   const tenantMemberCount = String(input.tenantMembers.length);
   const scopedRoleCount = String(input.membershipOrgUnitScopes.length);
   const delegatedAuthorityGrantCount = String(input.delegatedIssuingAuthorityGrants.length);
+  const needsAccessSectionBundles = institutionAdminViewNeedsAccessSectionBundles(view);
+  const needsOperationsSectionBundles = institutionAdminViewNeedsOperationsSectionBundles(view);
+  const needsReportingSectionBundles = institutionAdminViewNeedsReportingSectionBundles(view);
+  const needsManagementSectionBundles = institutionAdminViewNeedsManagementSectionBundles(view);
+  const needsLearnerRecordSectionBundles =
+    institutionAdminViewNeedsLearnerRecordSectionBundles(view);
+  const needsRuleTableRows = institutionAdminViewNeedsRuleTableRows(view);
+  const needsLmsConnectionRows = institutionAdminViewNeedsLmsConnectionRows(view);
+  const needsApiKeyRows = institutionAdminViewNeedsApiKeyRows(view);
+  const needsOrgUnitRows = institutionAdminViewNeedsOrgUnitRows(view);
+  const needsGovernanceTableRows = institutionAdminViewNeedsGovernanceTableRows(view);
+  const needsTenantMemberRows = institutionAdminViewNeedsTenantMemberRows(view);
+  const needsTemplateSelectOptions = institutionAdminViewNeedsTemplateSelectOptions(view);
+  const needsDelegationSelectOptions = institutionAdminViewNeedsDelegationSelectOptions(view);
+  const needsRuleSelectOptions = institutionAdminViewNeedsRuleSelectOptions(view);
+  const needsRuleVersionIndexes = institutionAdminViewNeedsRuleVersionIndexes(view);
+  const needsOrgUnitParentOptions = view === "accessOrgUnits";
+  const needsIssuedBadgeFilters = view === "operationsIssuedBadges";
   const userLabel = input.userEmail ?? input.userId;
   const switchOrganizationPath = input.switchOrganizationPath?.trim() ?? "";
   const learnerRecordReview = input.learnerRecordReview ?? {
@@ -147,43 +205,47 @@ const renderInstitutionAdminPage = (
       .map((badgeTemplateId) => templateById.get(badgeTemplateId)?.title ?? badgeTemplateId)
       .join(", ");
   };
-  for (const version of input.badgeRuleVersions) {
-    const versions = versionsByRuleId.get(version.ruleId);
+  if (needsRuleVersionIndexes) {
+    for (const version of input.badgeRuleVersions) {
+      const versions = versionsByRuleId.get(version.ruleId);
 
-    if (versions === undefined) {
-      versionsByRuleId.set(version.ruleId, [version]);
-      continue;
+      if (versions === undefined) {
+        versionsByRuleId.set(version.ruleId, [version]);
+        continue;
+      }
+
+      versions.push(version);
     }
 
-    versions.push(version);
+    for (const versions of versionsByRuleId.values()) {
+      versions.sort((left, right) => right.versionNumber - left.versionNumber);
+    }
   }
 
-  for (const versions of versionsByRuleId.values()) {
-    versions.sort((left, right) => right.versionNumber - left.versionNumber);
-  }
+  const orgUnitRows = !needsOrgUnitRows ? (
+    emptySectionMarkup
+  ) : input.orgUnits.length === 0 ? (
+    <AdminEmptyTableRow colSpan={4}>No org units found.</AdminEmptyTableRow>
+  ) : (
+    input.orgUnits.map((orgUnit) => (
+      <tr>
+        <td>{orgUnit.displayName}</td>
+        <td>{orgUnit.unitType}</td>
+        <td>{orgUnit.id}</td>
+        <td>{orgUnit.isActive ? "Active" : "Inactive"}</td>
+      </tr>
+    ))
+  );
 
-  const orgUnitRows =
-    input.orgUnits.length === 0 ? (
-      <AdminEmptyTableRow colSpan={4}>No org units found.</AdminEmptyTableRow>
-    ) : (
-      input.orgUnits.map((orgUnit) => (
-        <tr>
-          <td>{orgUnit.displayName}</td>
-          <td>{orgUnit.unitType}</td>
-          <td>{orgUnit.id}</td>
-          <td>{orgUnit.isActive ? "Active" : "Inactive"}</td>
-        </tr>
-      ))
-    );
-
-  const apiKeyRows =
-    input.activeApiKeys.length === 0 ? (
-      <AdminEmptyTableRow colSpan={5}>No active API keys found.</AdminEmptyTableRow>
-    ) : (
-      input.activeApiKeys.map((apiKey) => (
-        <TenantApiKeyAdminTableRow tenantId={input.tenant.id} apiKey={apiKey} />
-      ))
-    );
+  const apiKeyRows = !needsApiKeyRows ? (
+    emptySectionMarkup
+  ) : input.activeApiKeys.length === 0 ? (
+    <AdminEmptyTableRow colSpan={5}>No active API keys found.</AdminEmptyTableRow>
+  ) : (
+    input.activeApiKeys.map((apiKey) => (
+      <TenantApiKeyAdminTableRow tenantId={input.tenant.id} apiKey={apiKey} />
+    ))
+  );
 
   const formatNullableTimestamp = (timestampIso: string | null): string => {
     return timestampIso === null ? "Not connected" : formatIsoTimestamp(timestampIso);
@@ -195,59 +257,61 @@ const renderInstitutionAdminPage = (
     return providerKind === "sakai" ? "Sakai" : "Canvas";
   };
 
-  const lmsConnectionRows =
-    input.lmsConnections.length === 0 ? (
-      <AdminEmptyTableRow colSpan={7}>No LMS connections configured yet.</AdminEmptyTableRow>
-    ) : (
-      input.lmsConnections.map((connection) => {
-        const connected = connection.accessToken !== null && connection.accessToken.length > 0;
-        const ltiDetails = [
-          connection.ltiIssuer === null ? null : `Issuer: ${connection.ltiIssuer}`,
-          connection.ltiClientId === null ? null : `Client: ${connection.ltiClientId}`,
-          connection.ltiDeploymentId === null ? null : `Deployment: ${connection.ltiDeploymentId}`,
-        ].filter((value): value is string => value !== null);
+  const lmsConnectionRows = !needsLmsConnectionRows ? (
+    emptySectionMarkup
+  ) : input.lmsConnections.length === 0 ? (
+    <AdminEmptyTableRow colSpan={7}>No LMS connections configured yet.</AdminEmptyTableRow>
+  ) : (
+    input.lmsConnections.map((connection) => {
+      const connected = connection.accessToken !== null && connection.accessToken.length > 0;
+      const ltiDetails = [
+        connection.ltiIssuer === null ? null : `Issuer: ${connection.ltiIssuer}`,
+        connection.ltiClientId === null ? null : `Client: ${connection.ltiClientId}`,
+        connection.ltiDeploymentId === null ? null : `Deployment: ${connection.ltiDeploymentId}`,
+      ].filter((value): value is string => value !== null);
 
-        return (
-          <tr>
-            <td>
-              <strong>{connection.displayName}</strong>
-              <AdminMeta>{connection.id}</AdminMeta>
-            </td>
-            <td>{formatLmsProviderLabel(connection.providerKind)}</td>
-            <td>
-              <span>{connection.apiBaseUrl}</span>
-            </td>
-            <td>
-              <AdminStatusPill tone={connected ? "active" : "warning"}>
-                {connected ? "Connected" : "Needs token"}
-              </AdminStatusPill>
-            </td>
-            <td>{formatNullableTimestamp(connection.connectedAt)}</td>
-            <td>
-              {ltiDetails.length === 0 ? (
-                <AdminMeta as="span">Not recorded</AdminMeta>
-              ) : (
-                ltiDetails.join(" · ")
-              )}
-            </td>
-            <td>
-              <AdminButtonLink
-                href={lmsConnectionsPageUrl(input.tenant.id, { edit: connection.id })}
-                size="tiny"
-                variant="secondary"
-              >
-                Edit
-              </AdminButtonLink>
-            </td>
-          </tr>
-        );
-      })
-    );
+      return (
+        <tr>
+          <td>
+            <strong>{connection.displayName}</strong>
+            <AdminMeta>{connection.id}</AdminMeta>
+          </td>
+          <td>{formatLmsProviderLabel(connection.providerKind)}</td>
+          <td>
+            <span>{connection.apiBaseUrl}</span>
+          </td>
+          <td>
+            <AdminStatusPill tone={connected ? "active" : "warning"}>
+              {connected ? "Connected" : "Needs token"}
+            </AdminStatusPill>
+          </td>
+          <td>{formatNullableTimestamp(connection.connectedAt)}</td>
+          <td>
+            {ltiDetails.length === 0 ? (
+              <AdminMeta as="span">Not recorded</AdminMeta>
+            ) : (
+              ltiDetails.join(" · ")
+            )}
+          </td>
+          <td>
+            <AdminButtonLink
+              href={buildLmsConnectionEditPath(input.tenant.id, connection.id)}
+              size="tiny"
+              variant="secondary"
+            >
+              Edit
+            </AdminButtonLink>
+          </td>
+        </tr>
+      );
+    })
+  );
 
-  const assignableTenantRoles: TenantMembershipRole[] =
-    input.membershipRole === "owner"
+  const assignableTenantRoles: TenantMembershipRole[] = needsTenantMemberRows
+    ? input.membershipRole === "owner"
       ? ["owner", "admin", "issuer", "viewer"]
-      : ["admin", "issuer", "viewer"];
+      : ["admin", "issuer", "viewer"]
+    : [];
   const tenantMemberRoleOptions = (selectedRole: TenantMembershipRole): HonoElement => {
     const roles: readonly TenantMembershipRole[] =
       input.membershipRole === "owner" ? assignableTenantRoles : ["admin", "issuer", "viewer"];
@@ -262,334 +326,346 @@ const renderInstitutionAdminPage = (
       </>
     );
   };
-  const tenantMemberRows =
-    input.tenantMembers.length === 0 ? (
-      <AdminEmptyTableRow colSpan={6}>No tenant members found.</AdminEmptyTableRow>
-    ) : (
-      input.tenantMembers.map((member) => {
-        const canManageMember =
-          member.userId !== input.userId &&
-          (input.membershipRole === "owner" || member.role !== "owner");
+  const tenantMemberRows = !needsTenantMemberRows ? (
+    emptySectionMarkup
+  ) : input.tenantMembers.length === 0 ? (
+    <AdminEmptyTableRow colSpan={6}>No tenant members found.</AdminEmptyTableRow>
+  ) : (
+    input.tenantMembers.map((member) => {
+      const canManageMember =
+        member.userId !== input.userId &&
+        (input.membershipRole === "owner" || member.role !== "owner");
 
-        return (
-          <tr>
-            <td>
-              <span class="ct-admin__member-identity">{member.email}</span>
-              <AdminMeta>{member.userId}</AdminMeta>
-            </td>
-            <td>
-              {canManageMember ? (
+      return (
+        <tr>
+          <td>
+            <span class="ct-admin__member-identity">{member.email}</span>
+            <AdminMeta>{member.userId}</AdminMeta>
+          </td>
+          <td>
+            {canManageMember ? (
+              <AdminForm
+                method="post"
+                action={tenantAccessMemberRolePath(input.tenant.id, member.userId)}
+                className="ct-admin__inline-form"
+              >
                 <select
+                  name="role"
                   aria-label={`Tenant role for ${member.email}`}
-                  data-tenant-member-role-user-id={member.userId}
-                  data-tenant-member-current-role={member.role}
+                  data-current-role={member.role}
+                  onchange="if(this.value!==this.dataset.currentRole)this.form.requestSubmit()"
                 >
                   {tenantMemberRoleOptions(member.role)}
                 </select>
-              ) : (
-                <AdminStatusPill>{member.role}</AdminStatusPill>
-              )}
-            </td>
-            <td>{formatIsoTimestamp(member.createdAt)}</td>
-            <td>{formatIsoTimestamp(member.updatedAt)}</td>
-            <td>{member.userId === input.userId ? "You" : "Member"}</td>
-            <td>
-              {canManageMember ? (
-                <AdminActions>
-                  <AdminButton
-                    type="button"
-                    size="tiny"
-                    variant="secondary"
-                    dataAttributes={{
-                      "data-tenant-member-invite-user-id": member.userId,
-                      "data-tenant-member-email": member.email,
-                    }}
-                  >
+              </AdminForm>
+            ) : (
+              <AdminStatusPill>{member.role}</AdminStatusPill>
+            )}
+          </td>
+          <td>{formatIsoTimestamp(member.createdAt)}</td>
+          <td>{formatIsoTimestamp(member.updatedAt)}</td>
+          <td>{member.userId === input.userId ? "You" : "Member"}</td>
+          <td>
+            {canManageMember ? (
+              <AdminActions>
+                <AdminForm
+                  method="post"
+                  action={tenantAccessMemberInvitePath(input.tenant.id, member.userId)}
+                  className="ct-admin__inline-form"
+                >
+                  <AdminButton type="submit" size="tiny" variant="secondary">
                     Resend invite
                   </AdminButton>
-                  <AdminButton
-                    type="button"
-                    size="tiny"
-                    variant="danger"
-                    dataAttributes={{
-                      "data-tenant-member-remove-user-id": member.userId,
-                      "data-tenant-member-email": member.email,
-                    }}
-                  >
-                    Remove
-                  </AdminButton>
-                </AdminActions>
-              ) : (
-                <AdminMeta as="span">
-                  {member.userId === input.userId ? "Current user" : "Owner action"}
-                </AdminMeta>
-              )}
-            </td>
-          </tr>
-        );
-      })
-    );
-
-  const membershipScopeRows =
-    input.membershipOrgUnitScopes.length === 0 ? (
-      <AdminEmptyTableRow colSpan={5}>No scoped roles assigned yet.</AdminEmptyTableRow>
-    ) : (
-      input.membershipOrgUnitScopes.map((scope) => {
-        const scopeLabel = orgUnitById.get(scope.orgUnitId)?.displayName ?? scope.orgUnitId;
-
-        return (
-          <tr>
-            <td>
-              <strong>{scope.userId}</strong>
-            </td>
-            <td>{renderOrgUnitSummary(scope.orgUnitId)}</td>
-            <td>
-              <AdminStatusPill>{scope.role}</AdminStatusPill>
-            </td>
-            <td>{formatIsoTimestamp(scope.updatedAt)}</td>
-            <td>
-              <AdminButton
-                type="button"
-                size="tiny"
-                variant="danger"
-                dataAttributes={{
-                  "data-membership-scope-remove-user-id": scope.userId,
-                  "data-membership-scope-remove-org-unit-id": scope.orgUnitId,
-                  "data-membership-scope-remove-label": `${scope.userId} · ${scopeLabel}`,
-                }}
-              >
-                Remove
-              </AdminButton>
-            </td>
-          </tr>
-        );
-      })
-    );
-
-  const delegatedGrantRows =
-    input.delegatedIssuingAuthorityGrants.length === 0 ? (
-      <AdminEmptyTableRow colSpan={6}>No delegated authority grants exist yet.</AdminEmptyTableRow>
-    ) : (
-      input.delegatedIssuingAuthorityGrants.map((grant) => {
-        const canRemove = grant.status === "active" || grant.status === "scheduled";
-        const statusMeta =
-          grant.status === "revoked"
-            ? grant.revokedAt === null
-              ? "Removed"
-              : `Removed ${formatIsoTimestamp(grant.revokedAt)}`
-            : `Ends ${formatIsoTimestamp(grant.endsAt)}`;
-        return (
-          <tr>
-            <td>
-              <strong>{grant.delegateUserId}</strong>
-              <AdminMeta>{grant.id}</AdminMeta>
-            </td>
-            <td>{renderOrgUnitSummary(grant.orgUnitId)}</td>
-            <td>
-              {grant.allowedActions
-                .map((action) => formatDelegatedIssuingActionLabel(action))
-                .join(", ")}
-              <AdminMeta>{renderBadgeTemplateScopeSummary(grant.badgeTemplateIds)}</AdminMeta>
-            </td>
-            <td>
-              <strong>{formatIsoTimestamp(grant.startsAt)}</strong>
-              <AdminMeta>Starts</AdminMeta>
-              <AdminMeta>Granted by {grant.delegatedByUserId ?? "system"}</AdminMeta>
-            </td>
-            <td>
-              <AdminStatusPill tone={grant.status}>{grant.status}</AdminStatusPill>
-              <AdminMeta>{statusMeta}</AdminMeta>
-              {grant.revokedReason === null ? null : (
-                <AdminMeta>Reason: {grant.revokedReason}</AdminMeta>
-              )}
-            </td>
-            <td>
-              {canRemove ? (
-                <AdminButton
-                  type="button"
-                  size="tiny"
-                  variant="danger"
+                </AdminForm>
+                <AdminForm
+                  method="post"
+                  action={tenantAccessMemberRemovePath(input.tenant.id, member.userId)}
+                  className="ct-admin__inline-form"
                   dataAttributes={{
-                    "data-delegated-grant-remove-user-id": grant.delegateUserId,
-                    "data-delegated-grant-remove-id": grant.id,
-                    "data-delegated-grant-remove-label": `${grant.delegateUserId} · ${grant.id}`,
+                    "data-confirm-message": `Remove tenant access for ${member.email}?`,
                   }}
                 >
+                  <AdminButton type="submit" size="tiny" variant="danger">
+                    Remove
+                  </AdminButton>
+                </AdminForm>
+              </AdminActions>
+            ) : (
+              <AdminMeta as="span">
+                {member.userId === input.userId ? "Current user" : "Owner action"}
+              </AdminMeta>
+            )}
+          </td>
+        </tr>
+      );
+    })
+  );
+
+  const membershipScopeRows = !needsGovernanceTableRows ? (
+    emptySectionMarkup
+  ) : input.membershipOrgUnitScopes.length === 0 ? (
+    <AdminEmptyTableRow colSpan={5}>No scoped roles assigned yet.</AdminEmptyTableRow>
+  ) : (
+    input.membershipOrgUnitScopes.map((scope) => {
+      const scopeLabel = orgUnitById.get(scope.orgUnitId)?.displayName ?? scope.orgUnitId;
+
+      return (
+        <tr>
+          <td>
+            <strong>{scope.userId}</strong>
+          </td>
+          <td>{renderOrgUnitSummary(scope.orgUnitId)}</td>
+          <td>
+            <AdminStatusPill>{scope.role}</AdminStatusPill>
+          </td>
+          <td>{formatIsoTimestamp(scope.updatedAt)}</td>
+          <td>
+            <AdminForm
+              method="post"
+              action={tenantAccessMembershipScopeRemovePath(input.tenant.id)}
+              className="ct-admin__inline-form"
+              dataAttributes={{
+                "data-confirm-message": `Remove scoped role for ${scope.userId} · ${scopeLabel}?`,
+              }}
+            >
+              <input type="hidden" name="userId" value={scope.userId} />
+              <input type="hidden" name="orgUnitId" value={scope.orgUnitId} />
+              <AdminButton type="submit" size="tiny" variant="danger">
+                Remove
+              </AdminButton>
+            </AdminForm>
+          </td>
+        </tr>
+      );
+    })
+  );
+
+  const delegatedGrantRows = !needsGovernanceTableRows ? (
+    emptySectionMarkup
+  ) : input.delegatedIssuingAuthorityGrants.length === 0 ? (
+    <AdminEmptyTableRow colSpan={6}>No delegated authority grants exist yet.</AdminEmptyTableRow>
+  ) : (
+    input.delegatedIssuingAuthorityGrants.map((grant) => {
+      const canRemove = grant.status === "active" || grant.status === "scheduled";
+      const statusMeta =
+        grant.status === "revoked"
+          ? grant.revokedAt === null
+            ? "Removed"
+            : `Removed ${formatIsoTimestamp(grant.revokedAt)}`
+          : `Ends ${formatIsoTimestamp(grant.endsAt)}`;
+      return (
+        <tr>
+          <td>
+            <strong>{grant.delegateUserId}</strong>
+            <AdminMeta>{grant.id}</AdminMeta>
+          </td>
+          <td>{renderOrgUnitSummary(grant.orgUnitId)}</td>
+          <td>
+            {grant.allowedActions
+              .map((action) => formatDelegatedIssuingActionLabel(action))
+              .join(", ")}
+            <AdminMeta>{renderBadgeTemplateScopeSummary(grant.badgeTemplateIds)}</AdminMeta>
+          </td>
+          <td>
+            <strong>{formatIsoTimestamp(grant.startsAt)}</strong>
+            <AdminMeta>Starts</AdminMeta>
+            <AdminMeta>Granted by {grant.delegatedByUserId ?? "system"}</AdminMeta>
+          </td>
+          <td>
+            <AdminStatusPill tone={grant.status}>{grant.status}</AdminStatusPill>
+            <AdminMeta>{statusMeta}</AdminMeta>
+            {grant.revokedReason === null ? null : (
+              <AdminMeta>Reason: {grant.revokedReason}</AdminMeta>
+            )}
+          </td>
+          <td>
+            {canRemove ? (
+              <AdminForm
+                method="post"
+                action={tenantAccessDelegatedGrantRevokePath(input.tenant.id)}
+                className="ct-admin__inline-form"
+                dataAttributes={{
+                  "data-confirm-message": `Remove delegation for ${grant.delegateUserId} · ${grant.id}?`,
+                }}
+              >
+                <input type="hidden" name="delegateUserId" value={grant.delegateUserId} />
+                <input type="hidden" name="grantId" value={grant.id} />
+                <AdminButton type="submit" size="tiny" variant="danger">
                   Remove
                 </AdminButton>
-              ) : (
-                <AdminMeta as="span">No action</AdminMeta>
+              </AdminForm>
+            ) : (
+              <AdminMeta as="span">No action</AdminMeta>
+            )}
+          </td>
+        </tr>
+      );
+    })
+  );
+
+  const ruleRows = !needsRuleTableRows ? (
+    emptySectionMarkup
+  ) : input.badgeRules.length === 0 ? (
+    <AdminEmptyTableRow colSpan={8}>
+      No badge rules found. <a href={ruleBuilderPath}>Create your first rule</a>.
+    </AdminEmptyTableRow>
+  ) : (
+    input.badgeRules.map((rule) => {
+      const templateTitle = templateById.get(rule.badgeTemplateId)?.title ?? rule.badgeTemplateId;
+      const versions = versionsByRuleId.get(rule.id) ?? [];
+      const latestVersion = versions[0] ?? null;
+      const actionButtons: HonoElement[] = [];
+
+      if (latestVersion !== null) {
+        if (latestVersion.status === "draft" || latestVersion.status === "rejected") {
+          actionButtons.push(
+            <AdminForm
+              method="post"
+              action={tenantBadgeRuleSubmitApprovalAdminPath(
+                input.tenant.id,
+                rule.id,
+                latestVersion.id,
               )}
-            </td>
-          </tr>
-        );
-      })
-    );
-
-  const ruleRows =
-    input.badgeRules.length === 0 ? (
-      <AdminEmptyTableRow colSpan={8}>
-        No badge rules found. <a href={ruleBuilderPath}>Create your first rule</a>.
-      </AdminEmptyTableRow>
-    ) : (
-      input.badgeRules.map((rule) => {
-        const templateTitle = templateById.get(rule.badgeTemplateId)?.title ?? rule.badgeTemplateId;
-        const versions = versionsByRuleId.get(rule.id) ?? [];
-        const latestVersion = versions[0] ?? null;
-        const submitApprovalPath =
-          latestVersion === null
-            ? null
-            : `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules/${encodeURIComponent(
-                rule.id,
-              )}/versions/${encodeURIComponent(latestVersion.id)}/submit-approval`;
-        const approvePath =
-          latestVersion === null
-            ? null
-            : `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules/${encodeURIComponent(
-                rule.id,
-              )}/versions/${encodeURIComponent(latestVersion.id)}/decision`;
-        const activatePath =
-          latestVersion === null
-            ? null
-            : `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules/${encodeURIComponent(
-                rule.id,
-              )}/versions/${encodeURIComponent(latestVersion.id)}/activate`;
-        const actionButtons: HonoElement[] = [];
-
-        if (latestVersion !== null) {
-          if (latestVersion.status === "draft" || latestVersion.status === "rejected") {
-            actionButtons.push(
-              <AdminButton
-                type="button"
-                size="tiny"
-                dataAttributes={{
-                  "data-rule-submit-path": submitApprovalPath ?? "",
-                  "data-rule-label": rule.name,
-                }}
-              >
+              className="ct-admin__inline-form"
+              dataAttributes={{
+                "data-confirm-message": `Mark draft version for "${rule.name}" ready for review? This does not activate the rule.`,
+              }}
+            >
+              <AdminButton type="submit" size="tiny">
                 Mark ready
-              </AdminButton>,
-            );
-          }
-
-          if (latestVersion.status === "pending_approval") {
-            actionButtons.push(
-              <AdminButton
-                type="button"
-                size="tiny"
-                dataAttributes={{
-                  "data-rule-decision-path": approvePath ?? "",
-                  "data-rule-decision": "approved",
-                  "data-rule-label": rule.name,
-                }}
-              >
-                Approve
-              </AdminButton>,
-            );
-            actionButtons.push(
-              <AdminButton
-                type="button"
-                size="tiny"
-                variant="danger"
-                dataAttributes={{
-                  "data-rule-decision-path": approvePath ?? "",
-                  "data-rule-decision": "rejected",
-                  "data-rule-label": rule.name,
-                }}
-              >
-                Reject
-              </AdminButton>,
-            );
-          }
-
-          if (latestVersion.status === "approved" || latestVersion.status === "active") {
-            actionButtons.push(
-              <AdminButton
-                type="button"
-                size="tiny"
-                dataAttributes={{
-                  "data-rule-activate-path": activatePath ?? "",
-                  "data-rule-label": rule.name,
-                }}
-              >
-                Activate
-              </AdminButton>,
-            );
-          }
+              </AdminButton>
+            </AdminForm>,
+          );
         }
 
+        if (latestVersion.status === "pending_approval") {
+          actionButtons.push(
+            <AdminForm
+              method="post"
+              action={tenantBadgeRuleDecisionAdminPath(input.tenant.id, rule.id, latestVersion.id)}
+              className="ct-admin__inline-form"
+              dataAttributes={{
+                "data-confirm-message": `Approve latest version for "${rule.name}"?`,
+              }}
+            >
+              <input type="hidden" name="decision" value="approved" />
+              <AdminButton type="submit" size="tiny">
+                Approve
+              </AdminButton>
+            </AdminForm>,
+          );
+          actionButtons.push(
+            <AdminForm
+              method="post"
+              action={tenantBadgeRuleDecisionAdminPath(input.tenant.id, rule.id, latestVersion.id)}
+              className="ct-admin__inline-form"
+              dataAttributes={{
+                "data-confirm-message": `Reject latest version for "${rule.name}"?`,
+              }}
+            >
+              <input type="hidden" name="decision" value="rejected" />
+              <AdminButton type="submit" size="tiny" variant="danger">
+                Reject
+              </AdminButton>
+            </AdminForm>,
+          );
+        }
+
+        if (latestVersion.status === "approved" || latestVersion.status === "active") {
+          actionButtons.push(
+            <AdminForm
+              method="post"
+              action={tenantBadgeRuleActivateAdminPath(input.tenant.id, rule.id, latestVersion.id)}
+              className="ct-admin__inline-form"
+              dataAttributes={{
+                "data-confirm-message": `Activate latest version for "${rule.name}"?`,
+              }}
+            >
+              <AdminButton type="submit" size="tiny">
+                Activate
+              </AdminButton>
+            </AdminForm>,
+          );
+        }
+      }
+
+      return (
+        <tr>
+          <td>
+            <strong>{rule.name}</strong>
+            <AdminMeta>{rule.id}</AdminMeta>
+          </td>
+          <td>{templateTitle}</td>
+          <td>{rule.lmsProviderKind}</td>
+          <td>{rule.activeVersionId ?? "none"}</td>
+          <td>
+            {latestVersion === null ? (
+              "none"
+            ) : (
+              <>
+                <strong>Version {String(latestVersion.versionNumber)}</strong>
+                <AdminMeta>Version ID: {latestVersion.id}</AdminMeta>
+              </>
+            )}
+          </td>
+          <td>
+            <AdminStatusPill tone={latestVersion?.status ?? "none"}>
+              {latestVersion?.status ?? "none"}
+            </AdminStatusPill>
+          </td>
+          <td>{formatIsoTimestamp(rule.updatedAt)}</td>
+          <td>
+            {actionButtons.length > 0 ? (
+              <AdminActions>{actionButtons}</AdminActions>
+            ) : (
+              <AdminMeta as="span">No actions</AdminMeta>
+            )}
+          </td>
+        </tr>
+      );
+    })
+  );
+
+  const badgeRuleApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules`;
+  const assertionsApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions`;
+  const showcasePath = `/showcase/${encodeURIComponent(input.tenant.id)}`;
+  const orgUnitParentOptions = needsOrgUnitParentOptions
+    ? input.orgUnits
+        .filter((orgUnit) => orgUnit.isActive)
+        .map((orgUnit) => {
+          return (
+            <option value={orgUnit.id} data-unit-type={orgUnit.unitType}>
+              {`${orgUnit.displayName} (${orgUnit.unitType})`}
+            </option>
+          );
+        })
+    : [];
+  const activeOrgUnitOptions =
+    needsOperationsSectionBundles || needsDelegationSelectOptions
+      ? input.orgUnits
+          .filter((orgUnit) => orgUnit.isActive)
+          .map((orgUnit) => {
+            return (
+              <option value={orgUnit.id}>{`${orgUnit.displayName} (${orgUnit.unitType})`}</option>
+            );
+          })
+      : [];
+  const tenantMemberOptions = needsDelegationSelectOptions
+    ? input.tenantMembers.map((member) => {
+        return <option value={member.userId}>{`${member.email} (${member.role})`}</option>;
+      })
+    : [];
+  const templateOptions = needsTemplateSelectOptions
+    ? input.badgeTemplates.map((template, index) => {
         return (
-          <tr>
-            <td>
-              <strong>{rule.name}</strong>
-              <AdminMeta>{rule.id}</AdminMeta>
-            </td>
-            <td>{templateTitle}</td>
-            <td>{rule.lmsProviderKind}</td>
-            <td>{rule.activeVersionId ?? "none"}</td>
-            <td>
-              {latestVersion === null ? (
-                "none"
-              ) : (
-                <>
-                  <strong>Version {String(latestVersion.versionNumber)}</strong>
-                  <AdminMeta>Version ID: {latestVersion.id}</AdminMeta>
-                </>
-              )}
-            </td>
-            <td>
-              <AdminStatusPill tone={latestVersion?.status ?? "none"}>
-                {latestVersion?.status ?? "none"}
-              </AdminStatusPill>
-            </td>
-            <td>{formatIsoTimestamp(rule.updatedAt)}</td>
-            <td>
-              {actionButtons.length > 0 ? (
-                <AdminActions>{actionButtons}</AdminActions>
-              ) : (
-                <AdminMeta as="span">No actions</AdminMeta>
-              )}
-            </td>
-          </tr>
+          <option value={template.id} selected={index === 0}>
+            {`${template.title} (${template.id})`}
+          </option>
         );
       })
-    );
-
-  const manualIssueApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions/manual-issue`;
-  const createApiKeyPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/api-keys`;
-  const createOrgUnitPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/org-units`;
-  const lmsConnectionsApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/lms/connections`;
-  const badgeRuleApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules`;
-  const badgeRulePreviewSimulationApiPath = `${badgeRuleApiPath}/preview-simulate`;
-  const assertionsApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions`;
-  const tenantUsersApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/users`;
-  const showcasePath = `/showcase/${encodeURIComponent(input.tenant.id)}`;
-  const orgUnitParentOptions = input.orgUnits
-    .filter((orgUnit) => orgUnit.isActive)
-    .map((orgUnit) => {
-      return (
-        <option value={orgUnit.id} data-unit-type={orgUnit.unitType}>
-          {`${orgUnit.displayName} (${orgUnit.unitType})`}
-        </option>
-      );
-    });
-  const activeOrgUnitOptions = input.orgUnits
-    .filter((orgUnit) => orgUnit.isActive)
-    .map((orgUnit) => {
-      return <option value={orgUnit.id}>{`${orgUnit.displayName} (${orgUnit.unitType})`}</option>;
-    });
-  const tenantMemberOptions = input.tenantMembers.map((member) => {
-    return <option value={member.userId}>{`${member.email} (${member.role})`}</option>;
-  });
-  const templateOptions = input.badgeTemplates.map((template, index) => {
-    return (
-      <option value={template.id} selected={index === 0}>
-        {`${template.title} (${template.id})`}
-      </option>
-    );
-  });
+    : [];
   const selectedBadgeTemplateFilterId = input.issuedBadgesWorkspace?.filters.badgeTemplateId ?? "";
-  const templateFilterOptions = (
+  const templateFilterOptions = needsIssuedBadgeFilters ? (
     <>
       <option value="" selected={selectedBadgeTemplateFilterId.length === 0}>
         All templates
@@ -600,24 +676,9 @@ const renderInstitutionAdminPage = (
         </option>
       ))}
     </>
+  ) : (
+    emptySectionMarkup
   );
-  const lmsEditConnectionId = input.lmsConnectionsWorkspace?.editConnectionId ?? null;
-  const lmsEditConnection =
-    lmsEditConnectionId === null
-      ? null
-      : (input.lmsConnections.find((connection) => connection.id === lmsEditConnectionId) ?? null);
-  const lmsConnectionFormValues =
-    lmsEditConnection === null
-      ? undefined
-      : {
-          connectionId: lmsEditConnection.id,
-          displayName: lmsEditConnection.displayName,
-          providerKind: lmsEditConnection.providerKind,
-          apiBaseUrl: lmsEditConnection.apiBaseUrl,
-          ltiIssuer: lmsEditConnection.ltiIssuer ?? "",
-          ltiClientId: lmsEditConnection.ltiClientId ?? "",
-          ltiDeploymentId: lmsEditConnection.ltiDeploymentId ?? "",
-        };
   const formatRuleOption = (
     rule: BadgeIssuanceRuleRecord,
     includeSelected: boolean,
@@ -642,26 +703,33 @@ const renderInstitutionAdminPage = (
       </option>
     );
   };
-  const ruleOptions = input.badgeRules.map((rule, index) => formatRuleOption(rule, true, index));
-  const templateSelectOptions =
-    templateOptions.length > 0 ? (
-      templateOptions
-    ) : (
-      <option value="">No badge templates available</option>
-    );
-  const activeOrgUnitSelectOptions =
-    activeOrgUnitOptions.length > 0 ? (
-      activeOrgUnitOptions
-    ) : (
-      <option value="">No active org units available</option>
-    );
-  const tenantMemberSelectOptions =
-    tenantMemberOptions.length > 0 ? (
-      tenantMemberOptions
-    ) : (
-      <option value="">No tenant members available</option>
-    );
-  const optionalBadgeTemplateScopeOptions = (
+  const ruleOptions = needsRuleSelectOptions
+    ? input.badgeRules.map((rule, index) => formatRuleOption(rule, true, index))
+    : [];
+  const templateSelectOptions = !needsTemplateSelectOptions ? (
+    emptySectionMarkup
+  ) : templateOptions.length > 0 ? (
+    templateOptions
+  ) : (
+    <option value="">No badge templates available</option>
+  );
+  const activeOrgUnitSelectOptions = !needsDelegationSelectOptions ? (
+    emptySectionMarkup
+  ) : activeOrgUnitOptions.length > 0 ? (
+    activeOrgUnitOptions
+  ) : (
+    <option value="">No active org units available</option>
+  );
+  const tenantMemberSelectOptions = !needsDelegationSelectOptions ? (
+    emptySectionMarkup
+  ) : tenantMemberOptions.length > 0 ? (
+    tenantMemberOptions
+  ) : (
+    <option value="">No tenant members available</option>
+  );
+  const optionalBadgeTemplateScopeOptions = !needsDelegationSelectOptions ? (
+    emptySectionMarkup
+  ) : (
     <>
       <option value="">All badge templates in the selected scope</option>
       {input.badgeTemplates.map((template) => (
@@ -669,46 +737,35 @@ const renderInstitutionAdminPage = (
       ))}
     </>
   );
-  const ruleSelectOptions =
-    ruleOptions.length > 0 ? ruleOptions : <option value="">No rules available</option>;
-  const authPolicyApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/auth-policy`;
-  const authProvidersApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/auth-providers`;
-  const enterpriseAuthPanelMarkup = renderEnterpriseAuthSection({
-    tenant: input.tenant,
-    enterpriseAuthPolicy: input.enterpriseAuthPolicy,
-    enterpriseAuthProviders: input.enterpriseAuthProviders,
-    breakGlassAccounts: input.breakGlassAccounts,
-  });
-  const tenantMemberEmailsByUserId = Object.fromEntries(
-    input.tenantMembers.map((member) => [member.userId, member.email]),
+  const ruleSelectOptions = !needsRuleSelectOptions ? (
+    emptySectionMarkup
+  ) : ruleOptions.length > 0 ? (
+    ruleOptions
+  ) : (
+    <option value="">No rules available</option>
   );
-  const adminPageContextJson = serializeJsonScriptContent({
-    tenantAdminPath,
-    manualIssueApiPath,
-    createApiKeyPath,
-    createOrgUnitPath,
-    lmsConnectionsApiPath,
-    ruleBuilderPath,
-    showcasePath,
-    tenantMemberEmailsByUserId,
-    badgeRuleApiPath,
-    badgeRulePreviewSimulationApiPath,
-    assertionsApiPathPrefix,
-    tenantMembersApiPath: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/members`,
-    tenantUsersApiPathPrefix,
-    reportingComparisonsApiPath: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/comparisons`,
-    reportingEngagementApiPath: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/engagement`,
-    reportingPagePath: reportingPath,
-    reportingOverviewApiPath: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/overview`,
-    reportingTrendsApiPath: `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/trends`,
-    authPolicyApiPath: input.tenant.planTier === "enterprise" ? authPolicyApiPath : "",
-    authProvidersApiPath: input.tenant.planTier === "enterprise" ? authProvidersApiPath : "",
-    breakGlassAccountsApiPath:
-      input.tenant.planTier === "enterprise"
-        ? `/v1/tenants/${encodeURIComponent(input.tenant.id)}/break-glass-accounts`
-        : "",
-  });
-  const sidebarSections = buildInstitutionAdminSidebarSectionsForTenant(input.tenant.id, view);
+  const adminPageContext = ((): Record<string, string> => {
+    if (view === "rules" || view === "operationsBadgeStatus") {
+      return {
+        badgeRuleApiPath,
+        assertionsApiPathPrefix,
+      };
+    }
+
+    if (view === "operationsIssuedBadges") {
+      return {
+        assertionsApiPathPrefix,
+      };
+    }
+
+    return {};
+  })();
+  const adminPageContextJson = serializeJsonScriptContent(adminPageContext);
+  const sidebarSections = buildInstitutionAdminSidebarSectionsForTenant(
+    input.tenant.id,
+    view,
+    input.tenant.planTier,
+  );
   const sidebarFooterLinks: readonly AdminSidebarFooterLink[] = [
     {
       href: showcasePath,
@@ -785,76 +842,140 @@ const renderInstitutionAdminPage = (
     </section>
   );
 
+  const operationsSections = needsOperationsSectionBundles
+    ? renderInstitutionAdminOperationsSections({
+        tenantId: input.tenant.id,
+        templateSelectOptions,
+        ruleSelectOptions,
+        templateFilterOptions,
+        activeOrgUnitOptions,
+        ...(input.issuedBadgesWorkspace === undefined
+          ? {}
+          : { issuedBadgesWorkspace: input.issuedBadgesWorkspace }),
+        ...(input.reviewQueueWorkspace === undefined
+          ? {}
+          : { reviewQueueWorkspace: input.reviewQueueWorkspace }),
+        ...(input.ruleValueListsWorkspace === undefined
+          ? {}
+          : { ruleValueListsWorkspace: input.ruleValueListsWorkspace }),
+        ...(input.operationsWorkspace === undefined
+          ? {}
+          : { operationsWorkspace: input.operationsWorkspace }),
+      })
+    : {
+        ruleValueListsPanelMarkup: emptySectionMarkup,
+        evaluateRulePanelMarkup: emptySectionMarkup,
+        badgeStatusPanelMarkup: emptySectionMarkup,
+        ruleGovernancePanelMarkup: emptySectionMarkup,
+        ruleReviewQueuePanelMarkup: emptySectionMarkup,
+        issuedBadgesPanelMarkup: emptySectionMarkup,
+      };
   const {
-    manualIssuePanelMarkup,
     ruleValueListsPanelMarkup,
     evaluateRulePanelMarkup,
     badgeStatusPanelMarkup,
     ruleGovernancePanelMarkup,
     ruleReviewQueuePanelMarkup,
     issuedBadgesPanelMarkup,
-  } = renderInstitutionAdminOperationsSections({
-    tenantId: input.tenant.id,
-    templateSelectOptions,
-    ruleSelectOptions,
-    templateFilterOptions,
-    activeOrgUnitOptions,
-    ...(input.issuedBadgesWorkspace === undefined
-      ? {}
-      : { issuedBadgesWorkspace: input.issuedBadgesWorkspace }),
-    ...(input.reviewQueueWorkspace === undefined
-      ? {}
-      : { reviewQueueWorkspace: input.reviewQueueWorkspace }),
-    ...(input.ruleValueListsWorkspace === undefined
-      ? {}
-      : { ruleValueListsWorkspace: input.ruleValueListsWorkspace }),
-  });
+  } = operationsSections;
 
-  const tenantMemberRoleSelectOptions = assignableTenantRoles.map((role) => (
-    <option value={role}>{role}</option>
-  ));
+  const tenantMemberRoleSelectOptions = needsTenantMemberRows
+    ? assignableTenantRoles.map((role) => <option value={role}>{role}</option>)
+    : [];
+  const accessSections = needsAccessSectionBundles
+    ? renderInstitutionAdminAccessSections({
+        accessMembersPath,
+        accessGovernancePath,
+        accessAuthenticationPath,
+        accessApiKeysPath,
+        accessOrgUnitsPath,
+        accessLmsConnectionsPath,
+        planTier: input.tenant.planTier,
+        tenantId: input.tenant.id,
+        tenantMemberCount,
+        scopedRoleCount,
+        delegatedAuthorityGrantCount,
+        activeApiKeyCount,
+        revokedApiKeyCount,
+        orgUnitCount,
+        lmsConnectionCount,
+        tenantMemberRoleSelectOptions,
+        tenantMemberRows,
+        orgUnitParentOptions,
+        tenantMemberSelectOptions,
+        activeOrgUnitSelectOptions,
+        optionalBadgeTemplateScopeOptions,
+        membershipScopeRows,
+        delegatedGrantRows,
+        lmsConnectionRows,
+        ...(input.apiKeysWorkspace === undefined
+          ? {}
+          : { apiKeysWorkspace: input.apiKeysWorkspace }),
+        ...(input.lmsConnectionsWorkspace === undefined
+          ? {}
+          : { lmsConnectionsWorkspace: input.lmsConnectionsWorkspace }),
+        ...(input.accessMembersWorkspace === undefined
+          ? {}
+          : { accessMembersWorkspace: input.accessMembersWorkspace }),
+        ...(input.accessGovernanceWorkspace === undefined
+          ? {}
+          : { accessGovernanceWorkspace: input.accessGovernanceWorkspace }),
+        ...(input.accessOrgUnitsWorkspace === undefined
+          ? {}
+          : { accessOrgUnitsWorkspace: input.accessOrgUnitsWorkspace }),
+      })
+    : {
+        apiKeyPanelMarkup: emptySectionMarkup,
+        lmsConnectionsActionsMarkup: emptySectionMarkup,
+        lmsConnectionsTableMarkup: emptySectionMarkup,
+        orgUnitPanelMarkup: emptySectionMarkup,
+        governanceGuidePanelMarkup: emptySectionMarkup,
+        governanceActionsMarkup: emptySectionMarkup,
+        tenantMembersPanelMarkup: emptySectionMarkup,
+        tenantMembersTableMarkup: emptySectionMarkup,
+        membershipScopePanelMarkup: emptySectionMarkup,
+        membershipScopeTableMarkup: emptySectionMarkup,
+        delegatedGrantTableMarkup: emptySectionMarkup,
+      };
   const {
     apiKeyPanelMarkup,
-    lmsConnectionsPanelMarkup,
+    lmsConnectionsActionsMarkup,
     lmsConnectionsTableMarkup,
     orgUnitPanelMarkup,
     governanceGuidePanelMarkup,
+    governanceActionsMarkup,
     tenantMembersPanelMarkup,
     tenantMembersTableMarkup,
     membershipScopePanelMarkup,
     membershipScopeTableMarkup,
-    delegatedGrantPanelMarkup,
     delegatedGrantTableMarkup,
-  } = renderInstitutionAdminAccessSections({
-    accessMembersPath,
-    accessGovernancePath,
-    accessApiKeysPath,
-    accessOrgUnitsPath,
-    accessLmsConnectionsPath,
-    tenantId: input.tenant.id,
-    tenantMemberCount,
-    scopedRoleCount,
-    delegatedAuthorityGrantCount,
-    activeApiKeyCount,
-    revokedApiKeyCount,
-    orgUnitCount,
-    lmsConnectionCount,
-    tenantMemberRoleSelectOptions,
-    tenantMemberRows,
-    orgUnitParentOptions,
-    tenantMemberSelectOptions,
-    activeOrgUnitSelectOptions,
-    optionalBadgeTemplateScopeOptions,
-    membershipScopeRows,
-    delegatedGrantRows,
-    lmsConnectionRows,
-    ...(input.apiKeysWorkspace === undefined ? {} : { apiKeysWorkspace: input.apiKeysWorkspace }),
-    ...(input.lmsConnectionsWorkspace === undefined
-      ? {}
-      : { lmsConnectionsWorkspace: input.lmsConnectionsWorkspace }),
-    ...(lmsConnectionFormValues === undefined ? {} : { lmsConnectionFormValues }),
-  });
+  } = accessSections;
 
+  const reportingSections = needsReportingSectionBundles
+    ? renderInstitutionAdminReportingSections({
+        input,
+        reportingPath,
+        reportingExplorePath,
+        reportingTrendsPath,
+        reportingReportsPath,
+      })
+    : {
+        reportingExecutiveSummaryMarkup: emptySectionMarkup,
+        reportingFocusAreaPanelMarkup: emptySectionMarkup,
+        reportingRankedChartsMarkup: emptySectionMarkup,
+        reportingDeepLinksMarkup: emptySectionMarkup,
+        reportingExploreSliceSummaryMarkup: emptySectionMarkup,
+        reportingOverviewPanelMarkup: emptySectionMarkup,
+        renderReportingTrendPanelMarkup: () => emptySectionMarkup,
+        reportingEngagementPanelMarkup: emptySectionMarkup,
+        reportingLowerStoryMarkup: emptySectionMarkup,
+        reportingDefinitionsPanelMarkup: emptySectionMarkup,
+        reportingDeferredPanelMarkup: emptySectionMarkup,
+        reportingTrendFiltersPanelMarkup: emptySectionMarkup,
+        reportingReportsLibraryMarkup: emptySectionMarkup,
+        reportingExportFiltersPanelMarkup: emptySectionMarkup,
+        reportingExportsPanelMarkup: emptySectionMarkup,
+      };
   const {
     reportingExecutiveSummaryMarkup,
     reportingFocusAreaPanelMarkup,
@@ -871,35 +992,53 @@ const renderInstitutionAdminPage = (
     reportingReportsLibraryMarkup,
     reportingExportFiltersPanelMarkup,
     reportingExportsPanelMarkup,
-  } = renderInstitutionAdminReportingSections({
-    input,
-    reportingPath,
-    reportingExplorePath,
-    reportingTrendsPath,
-    reportingReportsPath,
-  });
+  } = reportingSections;
 
+  const managementSections = needsManagementSectionBundles
+    ? renderInstitutionAdminManagementSections({
+        ruleCount,
+        hasBadgeRules,
+        ruleBuilderPath,
+        rulesTemplatesPath,
+        ruleRows,
+        ruleValueListsPanelMarkup,
+        evaluateRulePanelMarkup,
+        ruleGovernancePanelMarkup,
+        orgUnitCount,
+        orgUnitRows,
+        activeApiKeyCount,
+        revokedApiKeyCount,
+        apiKeyRows,
+      })
+    : {
+        badgeRulesTableMarkup: emptySectionMarkup,
+        ruleAdvancedToolsMarkup: emptySectionMarkup,
+        orgUnitsTableMarkup: emptySectionMarkup,
+        apiKeysTableMarkup: emptySectionMarkup,
+      };
   const {
     badgeRulesTableMarkup,
     ruleAdvancedToolsMarkup,
     orgUnitsTableMarkup,
     apiKeysTableMarkup,
-  } = renderInstitutionAdminManagementSections({
-    ruleCount,
-    hasBadgeRules,
-    ruleBuilderPath,
-    rulesTemplatesPath,
-    ruleRows,
-    ruleValueListsPanelMarkup,
-    evaluateRulePanelMarkup,
-    ruleGovernancePanelMarkup,
-    orgUnitCount,
-    orgUnitRows,
-    activeApiKeyCount,
-    revokedApiKeyCount,
-    apiKeyRows,
-  });
+  } = managementSections;
 
+  const learnerRecordSections = needsLearnerRecordSectionBundles
+    ? renderInstitutionAdminLearnerRecordSections({
+        tenantDisplayName: input.tenant.displayName,
+        operationsLearnerRecordsPath,
+        operationsLearnerRecordImportsPath,
+        learnerRecordReview,
+        learnerRecordImportWorkflow,
+      })
+    : {
+        learnerRecordReviewPanelMarkup: emptySectionMarkup,
+        renderLearnerRecordReviewSections: () => emptySectionMarkup,
+        learnerRecordImportPanelMarkup: emptySectionMarkup,
+        learnerRecordImportFeedbackMarkup: emptySectionMarkup,
+        learnerRecordImportSubmissionMarkup: emptySectionMarkup,
+        learnerRecordImportProgressMarkup: emptySectionMarkup,
+      };
   const {
     learnerRecordReviewPanelMarkup,
     renderLearnerRecordReviewSections,
@@ -907,13 +1046,7 @@ const renderInstitutionAdminPage = (
     learnerRecordImportFeedbackMarkup,
     learnerRecordImportSubmissionMarkup,
     learnerRecordImportProgressMarkup,
-  } = renderInstitutionAdminLearnerRecordSections({
-    tenantDisplayName: input.tenant.displayName,
-    operationsLearnerRecordsPath,
-    operationsLearnerRecordImportsPath,
-    learnerRecordReview,
-    learnerRecordImportWorkflow,
-  });
+  } = learnerRecordSections;
 
   const viewConfig = INSTITUTION_ADMIN_VIEW_CONFIG[view];
   const pageTitle = `${viewConfig.titlePrefix} · ${input.tenant.displayName}`;
@@ -932,9 +1065,39 @@ const renderInstitutionAdminPage = (
           <>
             {renderPageHeader(
               "Issue & Inspect",
-              "Issue badges here, then use dedicated pages for learner records, imports, review queue, issued badges, and badge status.",
+              "Open focused pages to issue badges, review learner records, manage the review queue, and inspect issued badges.",
             )}
-            <section class="ct-admin ct-stack">{manualIssuePanelMarkup}</section>
+            <section class="ct-admin ct-stack">
+              <AdminPanel id="operations-hub-actions" className="ct-cluster">
+                <AdminButtonLink href={operationsManualIssuePath}>Issue badge</AdminButtonLink>
+                <AdminButtonLink href={operationsLearnerRecordsPath} variant="secondary">
+                  Learner records
+                </AdminButtonLink>
+                <AdminButtonLink href={operationsReviewQueuePath} variant="secondary">
+                  Review queue
+                </AdminButtonLink>
+                <AdminButtonLink href={operationsIssuedBadgesPath} variant="secondary">
+                  Issued badges
+                </AdminButtonLink>
+              </AdminPanel>
+            </section>
+          </>
+        );
+      case "operationsManualIssue":
+        return (
+          <>
+            {renderPageHeader(
+              "Issue Badge",
+              "Issue a badge for one learner by choosing the template and recipient email.",
+            )}
+            <section class="ct-admin ct-stack">
+              {renderManualIssueSection({
+                tenantId: input.tenant.id,
+                templateSelectOptions,
+                listError: input.manualIssueWorkspace?.listError ?? null,
+                listNotice: input.manualIssueWorkspace?.listNotice ?? null,
+              })}
+            </section>
           </>
         );
       case "operationsLearnerRecords":
@@ -1111,12 +1274,89 @@ const renderInstitutionAdminPage = (
               </aside>,
             )}
             <section class="ct-admin ct-stack">
-              {enterpriseAuthPanelMarkup}
+              {input.accessGovernanceWorkspace?.listError !== null &&
+              input.accessGovernanceWorkspace?.listError !== undefined &&
+              input.accessGovernanceWorkspace.listError.length > 0 ? (
+                <AdminStatus data-tone="error">
+                  {input.accessGovernanceWorkspace.listError}
+                </AdminStatus>
+              ) : input.accessGovernanceWorkspace?.listNotice !== null &&
+                input.accessGovernanceWorkspace?.listNotice !== undefined &&
+                input.accessGovernanceWorkspace.listNotice.length > 0 ? (
+                <AdminStatus data-tone="success">
+                  {input.accessGovernanceWorkspace.listNotice}
+                </AdminStatus>
+              ) : null}
               {governanceGuidePanelMarkup}
+              {governanceActionsMarkup}
               {membershipScopeTableMarkup}
               {membershipScopePanelMarkup}
               {delegatedGrantTableMarkup}
-              {delegatedGrantPanelMarkup}
+            </section>
+          </>
+        );
+      case "accessGovernanceDelegationNew":
+        return (
+          <>
+            {renderPageHeader(
+              "Add Delegated Authority",
+              "Grant temporary badge authority without changing standing org-unit access.",
+            )}
+            <section class="ct-admin ct-stack">
+              {renderDelegationSetupSection({
+                tenantId: input.tenant.id,
+                tenantMemberSelectOptions,
+                activeOrgUnitSelectOptions,
+                optionalBadgeTemplateScopeOptions,
+                listError: input.accessGovernanceDelegationWorkspace?.listError ?? null,
+                listNotice: input.accessGovernanceDelegationWorkspace?.listNotice ?? null,
+              })}
+            </section>
+          </>
+        );
+      case "accessAuthentication":
+        return (
+          <>
+            {renderPageHeader(
+              "Authentication",
+              input.tenant.planTier === "enterprise"
+                ? "Configure institution sign-in, OIDC providers, and break-glass local accounts."
+                : "Enterprise authentication is available on the enterprise plan.",
+            )}
+            <section class="ct-admin ct-stack">
+              {input.tenant.planTier === "enterprise" ? (
+                <>
+                  {input.accessAuthenticationWorkspace?.listError !== null &&
+                  input.accessAuthenticationWorkspace?.listError !== undefined &&
+                  input.accessAuthenticationWorkspace.listError.length > 0 ? (
+                    <AdminStatus data-tone="error">
+                      {input.accessAuthenticationWorkspace.listError}
+                    </AdminStatus>
+                  ) : input.accessAuthenticationWorkspace?.listNotice !== null &&
+                    input.accessAuthenticationWorkspace?.listNotice !== undefined &&
+                    input.accessAuthenticationWorkspace.listNotice.length > 0 ? (
+                    <AdminStatus data-tone="success">
+                      {input.accessAuthenticationWorkspace.listNotice}
+                    </AdminStatus>
+                  ) : null}
+                  {renderEnterpriseAuthSection({
+                    tenant: input.tenant,
+                    enterpriseAuthPolicy: input.enterpriseAuthPolicy,
+                    enterpriseAuthProviders: input.enterpriseAuthProviders,
+                    breakGlassAccounts: input.breakGlassAccounts,
+                    editProviderId: input.accessAuthenticationWorkspace?.editProviderId ?? null,
+                  })}
+                </>
+              ) : (
+                <AdminPanel>
+                  <p>
+                    Upgrade to the enterprise plan to configure OIDC sign-in and break-glass access.
+                  </p>
+                  <AdminButtonLink href={accessMembersPath} variant="secondary">
+                    Back to members
+                  </AdminButtonLink>
+                </AdminPanel>
+              )}
             </section>
           </>
         );
@@ -1138,8 +1378,55 @@ const renderInstitutionAdminPage = (
               "Manage connected Canvas and Sakai gradebook accounts used by badge awarding rules.",
             )}
             <section class="ct-admin ct-stack">
-              {lmsConnectionsPanelMarkup}
+              {input.lmsConnectionsWorkspace?.listError !== null &&
+              input.lmsConnectionsWorkspace?.listError !== undefined &&
+              input.lmsConnectionsWorkspace.listError.length > 0 ? (
+                <AdminStatus data-tone="error">
+                  {input.lmsConnectionsWorkspace.listError}
+                </AdminStatus>
+              ) : input.lmsConnectionsWorkspace?.listNotice !== null &&
+                input.lmsConnectionsWorkspace?.listNotice !== undefined &&
+                input.lmsConnectionsWorkspace.listNotice.length > 0 ? (
+                <AdminStatus data-tone="success">
+                  {input.lmsConnectionsWorkspace.listNotice}
+                </AdminStatus>
+              ) : null}
+              {lmsConnectionsActionsMarkup}
               {lmsConnectionsTableMarkup}
+            </section>
+          </>
+        );
+      case "accessLmsConnectionNew":
+        return (
+          <>
+            {renderPageHeader(
+              "Connect LMS",
+              "Add a Canvas or Sakai gradebook connection for rule lookup.",
+            )}
+            <section class="ct-admin ct-stack">
+              {renderLmsConnectionSetupSection({
+                tenantId: input.tenant.id,
+                formValues: input.lmsConnectionSetupFormValues ?? emptyLmsConnectionFormValues(),
+                listError: input.lmsConnectionSetupWorkspace?.listError ?? null,
+                listNotice: input.lmsConnectionSetupWorkspace?.listNotice ?? null,
+              })}
+            </section>
+          </>
+        );
+      case "accessLmsConnectionEdit":
+        return (
+          <>
+            {renderPageHeader(
+              "Edit LMS Connection",
+              "Update connection details. Leave credential fields blank to keep saved secrets.",
+            )}
+            <section class="ct-admin ct-stack">
+              {renderLmsConnectionSetupSection({
+                tenantId: input.tenant.id,
+                formValues: input.lmsConnectionSetupFormValues ?? emptyLmsConnectionFormValues(),
+                listError: input.lmsConnectionSetupWorkspace?.listError ?? null,
+                listNotice: input.lmsConnectionSetupWorkspace?.listNotice ?? null,
+              })}
             </section>
           </>
         );
@@ -1250,12 +1537,36 @@ export const institutionAdminGovernancePage = (input: InstitutionAdminPageInput)
   return renderInstitutionAdminPage(input, "accessGovernance");
 };
 
+export const institutionAdminGovernanceDelegationNewPage = (
+  input: InstitutionAdminPageInput,
+): AppPage => {
+  return renderInstitutionAdminPage(input, "accessGovernanceDelegationNew");
+};
+
+export const institutionAdminAuthenticationPage = (input: InstitutionAdminPageInput): AppPage => {
+  return renderInstitutionAdminPage(input, "accessAuthentication");
+};
+
 export const institutionAdminApiKeysPage = (input: InstitutionAdminPageInput): AppPage => {
   return renderInstitutionAdminPage(input, "accessApiKeys");
 };
 
 export const institutionAdminLmsConnectionsPage = (input: InstitutionAdminPageInput): AppPage => {
   return renderInstitutionAdminPage(input, "accessLmsConnections");
+};
+
+export const institutionAdminLmsConnectionNewPage = (input: InstitutionAdminPageInput): AppPage => {
+  return renderInstitutionAdminPage(input, "accessLmsConnectionNew");
+};
+
+export const institutionAdminLmsConnectionEditPage = (
+  input: InstitutionAdminPageInput,
+): AppPage => {
+  return renderInstitutionAdminPage(input, "accessLmsConnectionEdit");
+};
+
+export const institutionAdminManualIssuePage = (input: InstitutionAdminPageInput): AppPage => {
+  return renderInstitutionAdminPage(input, "operationsManualIssue");
 };
 
 export const institutionAdminOrgUnitsPage = (input: InstitutionAdminPageInput): AppPage => {

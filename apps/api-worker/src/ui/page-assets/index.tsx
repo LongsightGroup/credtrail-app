@@ -12,14 +12,13 @@ import {
   type FontAssetSource,
 } from "./content/font-assets";
 import { FOUNDATION_CSS } from "./content/foundation-css";
-import { INSTITUTION_ADMIN_API_KEYS_JS } from "./content/institution-admin-api-keys-js";
+import { INSTITUTION_ADMIN_ACCESS_JS } from "./content/institution-admin-access-js";
 import { INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS } from "./content/institution-admin-badge-template-editor-js";
 import { INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_JS } from "./content/institution-admin-badge-template-list-js";
 import { INSTITUTION_ADMIN_CSS } from "./content/institution-admin-css";
 import { INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS } from "./content/institution-admin-template-editor-css";
 import { INSTITUTION_ADMIN_ISSUED_BADGES_JS } from "./content/institution-admin-issued-badges-js";
 import { INSTITUTION_ADMIN_JS } from "./content/institution-admin-js";
-import { INSTITUTION_ADMIN_ORG_UNITS_JS } from "./content/institution-admin-org-units-js";
 import { INSTITUTION_ADMIN_RULE_BUILDER_JS } from "./content/institution-admin-rule-builder-js";
 import { INSTITUTION_ADMIN_SHELL_JS } from "./content/institution-admin-shell-js";
 import { LEARNER_DASHBOARD_CSS } from "./content/learner-dashboard-css";
@@ -90,10 +89,10 @@ const PAGE_ASSET_SOURCES = {
     body: INSTITUTION_ADMIN_SHELL_JS,
     contentType: "text/javascript; charset=utf-8",
   },
-  institutionAdminApiKeysJs: {
+  institutionAdminAccessJs: {
     kind: "script",
-    stem: "institution-admin-api-keys",
-    body: INSTITUTION_ADMIN_API_KEYS_JS,
+    stem: "institution-admin-access",
+    body: INSTITUTION_ADMIN_ACCESS_JS,
     contentType: "text/javascript; charset=utf-8",
   },
   institutionAdminTemplateEditorCss: {
@@ -118,12 +117,6 @@ const PAGE_ASSET_SOURCES = {
     kind: "script",
     stem: "institution-admin-issued-badges",
     body: INSTITUTION_ADMIN_ISSUED_BADGES_JS,
-    contentType: "text/javascript; charset=utf-8",
-  },
-  institutionAdminOrgUnitsJs: {
-    kind: "script",
-    stem: "institution-admin-org-units",
-    body: INSTITUTION_ADMIN_ORG_UNITS_JS,
     contentType: "text/javascript; charset=utf-8",
   },
   institutionAdminRuleBuilderJs: {

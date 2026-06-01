@@ -11,6 +11,7 @@ import {
   parseTenantPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
+import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import {
   issuedBadgesPageUrl,
   parseIssuedBadgesPageQuery,
@@ -78,6 +79,28 @@ const readFilterFieldsFromForm = (
   }).filters;
 };
 
+const redirectIssuedBadgesWithFlash = async (
+  c: AppContext,
+  input: {
+    tenantId: string;
+    userId: string;
+    tone: "success" | "error";
+    message: string;
+    filters: ReturnType<typeof parseIssuedBadgesPageQuery>["filters"];
+    extra?: Record<string, string>;
+  },
+): Promise<Response> => {
+  await setAdminListMessageFlash(c, {
+    tenantId: input.tenantId,
+    userId: input.userId,
+    workspace: "issued_badges",
+    tone: input.tone,
+    message: input.message,
+  });
+
+  return c.redirect(issuedBadgesPageUrl(input.tenantId, input.filters, input.extra), 303);
+};
+
 export const registerTenantIssuedBadgesAdminRoutes = (
   input: RegisterTenantIssuedBadgesAdminRoutesInput,
 ): void => {
@@ -103,22 +126,26 @@ export const registerTenantIssuedBadgesAdminRoutes = (
     const assertionIdRaw = formData.get("assertionId");
     const assertionId = typeof assertionIdRaw === "string" ? assertionIdRaw.trim() : "";
 
+    const { session, membershipRole } = roleCheck;
+
     if (assertionId.length === 0) {
-      return c.redirect(
-        issuedBadgesPageUrl(pathParams.tenantId, filters, {
-          listError: "Choose a badge before revoking it.",
-        }),
-        303,
-      );
+      return redirectIssuedBadgesWithFlash(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "error",
+        message: "Choose a badge before revoking it.",
+        filters,
+      });
     }
 
     if (!assertionBelongsToTenant(pathParams.tenantId, assertionId)) {
-      return c.redirect(
-        issuedBadgesPageUrl(pathParams.tenantId, filters, {
-          listError: "Badge not found for this institution.",
-        }),
-        303,
-      );
+      return redirectIssuedBadgesWithFlash(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "error",
+        message: "Badge not found for this institution.",
+        filters,
+      });
     }
 
     let request: ReturnType<typeof parseAssertionLifecycleTransitionRequest>;
@@ -131,27 +158,30 @@ export const registerTenantIssuedBadgesAdminRoutes = (
         transitionSource: "manual",
       });
     } catch {
-      return c.redirect(
-        issuedBadgesPageUrl(pathParams.tenantId, filters, {
-          listError: "Choose a reason code before revoking this badge.",
+      return redirectIssuedBadgesWithFlash(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "error",
+        message: "Choose a reason code before revoking this badge.",
+        filters,
+        extra: {
           lifecycle: assertionId,
           lifecycleMode: "revoke",
-        }),
-        303,
-      );
+        },
+      });
     }
 
-    const { session, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const assertion = await findAssertionById(db, pathParams.tenantId, assertionId);
 
     if (assertion === null) {
-      return c.redirect(
-        issuedBadgesPageUrl(pathParams.tenantId, filters, {
-          listError: "Badge not found for this institution.",
-        }),
-        303,
-      );
+      return redirectIssuedBadgesWithFlash(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "error",
+        message: "Badge not found for this institution.",
+        filters,
+      });
     }
 
     const badgeTemplate = await findBadgeTemplateById(
@@ -161,12 +191,13 @@ export const registerTenantIssuedBadgesAdminRoutes = (
     );
 
     if (badgeTemplate === null) {
-      return c.redirect(
-        issuedBadgesPageUrl(pathParams.tenantId, filters, {
-          listError: "Badge template not found for this institution.",
-        }),
-        303,
-      );
+      return redirectIssuedBadgesWithFlash(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "error",
+        message: "Badge template not found for this institution.",
+        filters,
+      });
     }
 
     const requiredAction: DelegatedIssuingAuthorityAction = "revoke_badge";
@@ -181,14 +212,17 @@ export const registerTenantIssuedBadgesAdminRoutes = (
     });
 
     if (delegatedPermission !== null) {
-      return c.redirect(
-        issuedBadgesPageUrl(pathParams.tenantId, filters, {
-          listError: issuedBadgeRevokePermissionError,
+      return redirectIssuedBadgesWithFlash(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "error",
+        message: issuedBadgeRevokePermissionError,
+        filters,
+        extra: {
           lifecycle: assertionId,
           lifecycleMode: "revoke",
-        }),
-        303,
-      );
+        },
+      });
     }
 
     const transitionResult = await recordAssertionLifecycleTransition(db, {
@@ -203,14 +237,17 @@ export const registerTenantIssuedBadgesAdminRoutes = (
     });
 
     if (transitionResult.status === "invalid_transition") {
-      return c.redirect(
-        issuedBadgesPageUrl(pathParams.tenantId, filters, {
-          listError: transitionResult.message ?? "Lifecycle transition not allowed",
+      return redirectIssuedBadgesWithFlash(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "error",
+        message: transitionResult.message ?? "Lifecycle transition not allowed",
+        filters,
+        extra: {
           lifecycle: assertionId,
           lifecycleMode: "revoke",
-        }),
-        303,
-      );
+        },
+      });
     }
 
     const notice =
@@ -218,11 +255,12 @@ export const registerTenantIssuedBadgesAdminRoutes = (
         ? "Badge was already revoked."
         : "Badge revoked.";
 
-    return c.redirect(
-      issuedBadgesPageUrl(pathParams.tenantId, filters, {
-        listNotice: notice,
-      }),
-      303,
-    );
+    return redirectIssuedBadgesWithFlash(c, {
+      tenantId: pathParams.tenantId,
+      userId: session.userId,
+      tone: "success",
+      message: notice,
+      filters,
+    });
   });
 };

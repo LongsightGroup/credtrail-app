@@ -2,8 +2,6 @@ import {
   parseTenantAssertionListQuery,
   type TenantAssertionListQuery,
 } from "@credtrail/validation";
-import { capAdminListQueryMessage } from "./admin-list-message-flash";
-
 export type IssuedBadgeLifecycleMode = "audit" | "revoke";
 
 export interface IssuedBadgesPageFilterValues {
@@ -94,8 +92,6 @@ export const issuedBadgesPageUrl = (
 export interface ParsedIssuedBadgesPageQuery {
   filters: IssuedBadgesPageFilterValues;
   listQuery: TenantAssertionListQuery;
-  listNotice: string | null;
-  listError: string | null;
   lifecycleAssertionId: string | null;
   lifecycleMode: IssuedBadgeLifecycleMode | null;
 }
@@ -115,8 +111,6 @@ export const parseIssuedBadgesPageQuery = (query: {
   badgeTemplateId?: string;
   state?: string;
   limit?: string;
-  listNotice?: string;
-  listError?: string;
   lifecycle?: string;
   lifecycleMode?: string;
 }): ParsedIssuedBadgesPageQuery => {
@@ -139,8 +133,6 @@ export const parseIssuedBadgesPageQuery = (query: {
       limit: parsedListQuery.limit ?? 100,
     },
     listQuery: parsedListQuery,
-    listNotice: capAdminListQueryMessage(query.listNotice),
-    listError: capAdminListQueryMessage(query.listError),
     lifecycleAssertionId: lifecycleRaw.length > 0 ? lifecycleRaw : null,
     lifecycleMode,
   };

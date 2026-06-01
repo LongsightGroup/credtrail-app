@@ -37,9 +37,11 @@ export interface InstitutionAdminShellPaths {
   accessPath: string;
   accessMembersPath: string;
   accessGovernancePath: string;
+  accessAuthenticationPath: string;
   accessApiKeysPath: string;
   accessLmsConnectionsPath: string;
   accessOrgUnitsPath: string;
+  operationsManualIssuePath: string;
   showcasePath: string;
 }
 
@@ -113,7 +115,11 @@ export const renderInstitutionAdminShellPage = (input: {
         sidebar={
           <AdminSidebar
             brandHref={paths.tenantAdminPath}
-            sections={buildInstitutionAdminSidebarSectionsForTenant(input.tenant.id, input.view)}
+            sections={buildInstitutionAdminSidebarSectionsForTenant(
+              input.tenant.id,
+              input.view,
+              input.tenant.planTier,
+            )}
             footerLinks={buildSidebarFooterLinks({
               paths,
               ...(input.switchOrganizationPath === undefined

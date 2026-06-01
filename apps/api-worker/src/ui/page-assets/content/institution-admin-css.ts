@@ -2235,6 +2235,15 @@ a.ct-admin__workspace-card:active {
 .ct-admin__add-disclosure-form--lms-connection.ct-stack {
   max-width: 44rem;
 }
+.ct-admin__setup-form.ct-grid {
+  --ct-grid-gap: var(--ct-space-3);
+  grid-template-columns: minmax(0, 44rem);
+  align-items: start;
+  max-width: 44rem;
+}
+.ct-admin__setup-form.ct-stack {
+  max-width: 44rem;
+}
 .ct-admin__template-create-field--wide,
 .ct-admin__template-create-actions {
   grid-column: 1;

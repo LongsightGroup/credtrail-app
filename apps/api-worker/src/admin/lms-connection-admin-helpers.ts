@@ -2,6 +2,14 @@ export const buildLmsConnectionsPagePath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/access/lms-connections`;
 };
 
+export const buildLmsConnectionNewPath = (tenantId: string): string => {
+  return `${buildLmsConnectionsPagePath(tenantId)}/new`;
+};
+
+export const buildLmsConnectionEditPath = (tenantId: string, connectionId: string): string => {
+  return `${buildLmsConnectionsPagePath(tenantId)}/${encodeURIComponent(connectionId)}/edit`;
+};
+
 export const lmsConnectionsPageUrl = (tenantId: string, extra?: Record<string, string>): string => {
   const path = buildLmsConnectionsPagePath(tenantId);
   const query = new URLSearchParams();

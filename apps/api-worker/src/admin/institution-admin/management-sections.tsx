@@ -1,5 +1,5 @@
 import type { HtmlEscapedString } from "hono/utils/html";
-import { AdminButtonLink, AdminPanel, AdminStatus, AdminTable } from "../components";
+import { AdminButtonLink, AdminPanel, AdminTable } from "../components";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -61,7 +61,6 @@ export const renderInstitutionAdminManagementSections = (
       >
         {renderHonoElementList(input.ruleRows)}
       </AdminTable>
-      <AdminStatus id="rule-action-status"></AdminStatus>
     </AdminPanel>
   );
   const ruleAdvancedToolsMarkup = (

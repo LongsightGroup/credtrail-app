@@ -22,6 +22,7 @@ import { tenantReviewQueueAdminResolvePath } from "../review-queue-admin-helpers
 import { tenantRuleValueListsAdminCreatePath } from "../rule-value-lists-admin-helpers";
 import type {
   InstitutionAdminIssuedBadgesWorkspace,
+  InstitutionAdminOperationsWorkspace,
   InstitutionAdminReviewQueueWorkspace,
   InstitutionAdminRuleValueListsWorkspace,
 } from "./page-types";
@@ -37,10 +38,10 @@ interface RenderInstitutionAdminOperationsSectionsInput {
   issuedBadgesWorkspace?: InstitutionAdminIssuedBadgesWorkspace;
   reviewQueueWorkspace?: InstitutionAdminReviewQueueWorkspace;
   ruleValueListsWorkspace?: InstitutionAdminRuleValueListsWorkspace;
+  operationsWorkspace?: InstitutionAdminOperationsWorkspace;
 }
 
 interface InstitutionAdminOperationsSections {
-  manualIssuePanelMarkup: HonoElement;
   ruleValueListsPanelMarkup: HonoElement;
   evaluateRulePanelMarkup: HonoElement;
   badgeStatusPanelMarkup: HonoElement;
@@ -52,24 +53,6 @@ interface InstitutionAdminOperationsSections {
 export const renderInstitutionAdminOperationsSections = (
   input: RenderInstitutionAdminOperationsSectionsInput,
 ): InstitutionAdminOperationsSections => {
-  const manualIssuePanelMarkup = (
-    <AdminPanel id="manual-issue-panel">
-      <h2>Manual Issue Badge</h2>
-      <p>Issue a badge for a learner using this form.</p>
-      <AdminForm id="manual-issue-form">
-        <AdminField label="Badge template">
-          <select name="badgeTemplateId" required>
-            {input.templateSelectOptions}
-          </select>
-        </AdminField>
-        <AdminField label="Recipient email">
-          <input name="recipientIdentity" type="email" required placeholder="csev@umich.edu" />
-        </AdminField>
-        <AdminButton type="submit">Issue badge</AdminButton>
-      </AdminForm>
-      <AdminStatus id="manual-issue-status"></AdminStatus>
-    </AdminPanel>
-  );
   const ruleValueListsCreatePath = tenantRuleValueListsAdminCreatePath(input.tenantId);
   const ruleValueListsPanelMarkup = (
     <AdminPanel id="rule-value-lists-panel">
@@ -472,12 +455,10 @@ export const renderInstitutionAdminOperationsSections = (
           />
         )}
       </AdminTable>
-      <AdminStatus id="issued-badges-action-status"></AdminStatus>
     </AdminPanel>
   );
 
   return {
-    manualIssuePanelMarkup,
     ruleValueListsPanelMarkup,
     evaluateRulePanelMarkup,
     badgeStatusPanelMarkup,

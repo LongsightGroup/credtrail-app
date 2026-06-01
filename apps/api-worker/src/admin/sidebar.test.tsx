@@ -6,6 +6,7 @@ import { AdminSidebar } from "./sidebar";
 
 const renderSidebarHtml = (
   view: Parameters<typeof buildInstitutionAdminSidebarSectionsForTenant>[1],
+  planTier = "team",
 ): string => {
   return renderAppPageToString(
     appPage({
@@ -13,7 +14,7 @@ const renderSidebarHtml = (
       body: (
         <AdminSidebar
           brandHref="/tenants/tenant_123/admin"
-          sections={buildInstitutionAdminSidebarSectionsForTenant("tenant_123", view)}
+          sections={buildInstitutionAdminSidebarSectionsForTenant("tenant_123", view, planTier)}
           footerLinks={[]}
         />
       ),
@@ -55,6 +56,20 @@ describe("AdminSidebar", () => {
       /<details class="ct-admin-sidebar__group-details"[^>]*open[\s\S]*?People &amp; Access[\s\S]*?Members[\s\S]*?LMS Connections[\s\S]*?Org Units/,
     );
     expect(html).not.toMatch(/<a class="ct-admin-sidebar__link"[^>]*>Org Units<\/a>/);
+  });
+
+  it("hides authentication nav for non-enterprise tenants", () => {
+    const html = renderSidebarHtml("accessMembers", "team");
+
+    expect(html).not.toContain('href="/tenants/tenant_123/admin/access/authentication"');
+    expect(html).not.toContain(">Authentication<");
+  });
+
+  it("shows authentication nav for enterprise tenants", () => {
+    const html = renderSidebarHtml("accessMembers", "enterprise");
+
+    expect(html).toContain('href="/tenants/tenant_123/admin/access/authentication"');
+    expect(html).toContain(">Authentication<");
   });
 
   it("opens reporting and badge program groups when a child page is active", () => {

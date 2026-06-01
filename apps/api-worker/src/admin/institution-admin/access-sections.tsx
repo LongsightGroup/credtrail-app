@@ -4,15 +4,24 @@ import {
   AdminButtonLink,
   AdminCheckboxRow,
   AdminField,
-  AdminFieldset,
   AdminForm,
   AdminPanel,
   AdminStatus,
   AdminTable,
 } from "../components";
+import {
+  buildAccessAuthenticationAdminPath,
+  buildAccessGovernanceDelegationNewPath,
+  tenantAccessMemberCreatePath,
+  tenantAccessMembershipScopeSavePath,
+  tenantAccessOrgUnitCreatePath,
+} from "../access-admin-helpers";
 import { tenantApiKeyAdminCreatePath } from "../api-key-admin-helpers";
-import { tenantLmsConnectionAdminSavePath } from "../lms-connection-admin-helpers";
+import { buildLmsConnectionNewPath } from "../lms-connection-admin-helpers";
 import type {
+  InstitutionAdminAccessGovernanceWorkspace,
+  InstitutionAdminAccessMembersWorkspace,
+  InstitutionAdminAccessOrgUnitsWorkspace,
   InstitutionAdminApiKeysWorkspace,
   InstitutionAdminLmsConnectionsWorkspace,
 } from "./page-types";
@@ -22,9 +31,11 @@ type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | HonoElement[
 interface RenderInstitutionAdminAccessSectionsInput {
   accessMembersPath: string;
   accessGovernancePath: string;
+  accessAuthenticationPath: string;
   accessApiKeysPath: string;
   accessOrgUnitsPath: string;
   accessLmsConnectionsPath: string;
+  planTier: string;
   tenantMemberCount: string;
   scopedRoleCount: string;
   delegatedAuthorityGrantCount: string;
@@ -44,28 +55,22 @@ interface RenderInstitutionAdminAccessSectionsInput {
   tenantId: string;
   apiKeysWorkspace?: InstitutionAdminApiKeysWorkspace;
   lmsConnectionsWorkspace?: InstitutionAdminLmsConnectionsWorkspace;
-  lmsConnectionFormValues?: {
-    connectionId: string;
-    displayName: string;
-    providerKind: "canvas" | "sakai";
-    apiBaseUrl: string;
-    ltiIssuer: string;
-    ltiClientId: string;
-    ltiDeploymentId: string;
-  };
+  accessMembersWorkspace?: InstitutionAdminAccessMembersWorkspace;
+  accessGovernanceWorkspace?: InstitutionAdminAccessGovernanceWorkspace;
+  accessOrgUnitsWorkspace?: InstitutionAdminAccessOrgUnitsWorkspace;
 }
 
 interface InstitutionAdminAccessSections {
   apiKeyPanelMarkup: HonoElement;
-  lmsConnectionsPanelMarkup: HonoElement;
+  lmsConnectionsActionsMarkup: HonoElement;
   lmsConnectionsTableMarkup: HonoElement;
   orgUnitPanelMarkup: HonoElement;
   governanceGuidePanelMarkup: HonoElement;
+  governanceActionsMarkup: HonoElement;
   tenantMembersPanelMarkup: HonoElement;
   tenantMembersTableMarkup: HonoElement;
   membershipScopePanelMarkup: HonoElement;
   membershipScopeTableMarkup: HonoElement;
-  delegatedGrantPanelMarkup: HonoElement;
   delegatedGrantTableMarkup: HonoElement;
 }
 
@@ -81,8 +86,9 @@ export const renderInstitutionAdminAccessSections = (
 ): InstitutionAdminAccessSections => {
   const apiKeyFormOpen = input.apiKeysWorkspace?.openCreatePanel === true;
   const apiKeyRevealedSecret = input.apiKeysWorkspace?.revealedSecret ?? null;
-  const lmsFormValues = input.lmsConnectionFormValues;
-  const lmsEditing = (lmsFormValues?.connectionId.length ?? 0) > 0;
+  const lmsNewPath = buildLmsConnectionNewPath(input.tenantId);
+  const delegationNewPath = buildAccessGovernanceDelegationNewPath(input.tenantId);
+  const authenticationPath = buildAccessAuthenticationAdminPath(input.tenantId);
 
   const apiKeyPanelMarkup = (
     <details
@@ -128,140 +134,16 @@ export const renderInstitutionAdminAccessSections = (
     </details>
   );
 
-  const lmsConnectionsPanelMarkup = (
-    <details
-      id="lms-connection-panel"
-      class="ct-admin__panel ct-admin__add-disclosure"
-      open={lmsEditing ? true : undefined}
-    >
-      <summary class="ct-admin__add-disclosure-summary">
-        <span>
-          <strong id="lms-connection-form-title">
-            {lmsEditing ? "Edit LMS connection" : "Add LMS connection"}
-          </strong>
-          <small>Connect a tenant gradebook account for rule lookup.</small>
-        </span>
-        {addDisclosureControlMarkup}
-      </summary>
-      {input.lmsConnectionsWorkspace?.listError !== null &&
-      input.lmsConnectionsWorkspace?.listError !== undefined &&
-      input.lmsConnectionsWorkspace.listError.length > 0 ? (
-        <AdminStatus data-tone="error">{input.lmsConnectionsWorkspace.listError}</AdminStatus>
-      ) : input.lmsConnectionsWorkspace?.listNotice !== null &&
-        input.lmsConnectionsWorkspace?.listNotice !== undefined &&
-        input.lmsConnectionsWorkspace.listNotice.length > 0 ? (
-        <AdminStatus data-tone="success">{input.lmsConnectionsWorkspace.listNotice}</AdminStatus>
-      ) : null}
-      <AdminForm
-        id="lms-connection-form"
-        method="post"
-        action={tenantLmsConnectionAdminSavePath(input.tenantId)}
-        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--lms-connection ct-stack"
-      >
-        <input name="connectionId" type="hidden" value={lmsFormValues?.connectionId ?? ""} />
-        <AdminField label="Connection name">
-          <input
-            name="displayName"
-            type="text"
-            required
-            placeholder="TrySakai test server"
-            value={lmsFormValues?.displayName ?? ""}
-          />
-        </AdminField>
-        <AdminField label="Provider">
-          <select name="providerKind" required>
-            <option value="canvas" selected={lmsFormValues?.providerKind !== "sakai"}>
-              Canvas
-            </option>
-            <option value="sakai" selected={lmsFormValues?.providerKind === "sakai"}>
-              Sakai
-            </option>
-          </select>
-        </AdminField>
-        <AdminField label="API/server URL">
-          <input
-            name="apiBaseUrl"
-            type="url"
-            required
-            placeholder="https://lms.example.edu"
-            value={lmsFormValues?.apiBaseUrl ?? ""}
-          />
-        </AdminField>
-        <AdminField label="Credential or session value">
-          <input
-            name="accessToken"
-            type="password"
-            autocomplete="off"
-            placeholder={
-              lmsEditing
-                ? "Leave blank to keep existing credential"
-                : lmsFormValues?.providerKind === "sakai"
-                  ? "Paste Sakai SAKAIID session value"
-                  : "Paste Canvas access token"
-            }
-          />
-        </AdminField>
-        <details class="ct-admin__advanced-tools">
-          <summary>
-            <span>Advanced OAuth and LTI metadata</span>
-            <small>
-              Add refresh credentials or LTI identifiers only when this connection needs them.
-            </small>
-          </summary>
-          <div class="ct-admin__advanced-tools-body ct-grid">
-            <AdminField label="Refresh token (optional)">
-              <input name="refreshToken" type="password" autocomplete="off" />
-            </AdminField>
-            <AdminField label="Authorization endpoint (optional)">
-              <input
-                name="authorizationEndpoint"
-                type="url"
-                placeholder="https://lms.example.edu/login/oauth2/auth"
-              />
-            </AdminField>
-            <AdminField label="Token endpoint (optional)">
-              <input
-                name="tokenEndpoint"
-                type="url"
-                placeholder="https://lms.example.edu/login/oauth2/token"
-              />
-            </AdminField>
-            <AdminField label="OAuth client ID (optional)">
-              <input name="clientId" type="text" autocomplete="off" />
-            </AdminField>
-            <AdminField label="OAuth client secret (optional)">
-              <input name="clientSecret" type="password" autocomplete="off" />
-            </AdminField>
-            <AdminField label="LTI issuer (optional)">
-              <input name="ltiIssuer" type="url" value={lmsFormValues?.ltiIssuer ?? ""} />
-            </AdminField>
-            <AdminField label="LTI client ID (optional)">
-              <input name="ltiClientId" type="text" value={lmsFormValues?.ltiClientId ?? ""} />
-            </AdminField>
-            <AdminField label="LTI deployment ID (optional)">
-              <input
-                name="ltiDeploymentId"
-                type="text"
-                value={lmsFormValues?.ltiDeploymentId ?? ""}
-              />
-            </AdminField>
-          </div>
-        </details>
-        <AdminButton type="submit">
-          {lmsEditing ? "Save connection changes" : "Save and connect gradebook"}
-        </AdminButton>
-        {lmsEditing ? (
-          <AdminButtonLink href={input.accessLmsConnectionsPath} variant="secondary">
-            Cancel edit
-          </AdminButtonLink>
-        ) : null}
-      </AdminForm>
-      {lmsEditing ? (
+  const lmsConnectionsActionsMarkup = (
+    <AdminPanel id="lms-connection-actions" className="ct-cluster">
+      <div class="ct-stack">
         <p class="ct-admin__hint">
-          Editing connection details. Leave credential fields blank to keep saved secrets.
+          Connect Canvas or Sakai gradebook accounts on a dedicated setup page with optional OAuth
+          and LTI metadata.
         </p>
-      ) : null}
-    </details>
+        <AdminButtonLink href={lmsNewPath}>Connect LMS</AdminButtonLink>
+      </div>
+    </AdminPanel>
   );
 
   const lmsConnectionsTableMarkup = (
@@ -300,8 +182,19 @@ export const renderInstitutionAdminAccessSections = (
       <p class="ct-admin__hint">
         Hierarchy: college → institution, department → college, program → department.
       </p>
+      {input.accessOrgUnitsWorkspace?.listError !== null &&
+      input.accessOrgUnitsWorkspace?.listError !== undefined &&
+      input.accessOrgUnitsWorkspace.listError.length > 0 ? (
+        <AdminStatus data-tone="error">{input.accessOrgUnitsWorkspace.listError}</AdminStatus>
+      ) : input.accessOrgUnitsWorkspace?.listNotice !== null &&
+        input.accessOrgUnitsWorkspace?.listNotice !== undefined &&
+        input.accessOrgUnitsWorkspace.listNotice.length > 0 ? (
+        <AdminStatus data-tone="success">{input.accessOrgUnitsWorkspace.listNotice}</AdminStatus>
+      ) : null}
       <AdminForm
         id="org-unit-form"
+        method="post"
+        action={tenantAccessOrgUnitCreatePath(input.tenantId)}
         className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--org-unit ct-grid"
       >
         <AdminField label="Display name">
@@ -324,7 +217,6 @@ export const renderInstitutionAdminAccessSections = (
         <p class="ct-admin__hint">CredTrail creates the internal org key from the display name.</p>
         <AdminButton type="submit">Create org unit</AdminButton>
       </AdminForm>
-      <AdminStatus id="org-unit-status"></AdminStatus>
     </details>
   );
 
@@ -332,8 +224,8 @@ export const renderInstitutionAdminAccessSections = (
     <AdminPanel id="governance-panel">
       <h2>Before you delegate</h2>
       <p>
-        Use this page to give an existing tenant member limited access inside a selected org unit.
-        Choosing a parent org unit also covers the child units beneath it.
+        Use this page to review standing org-unit roles and time-boxed delegations. Choosing a
+        parent org unit also covers the child units beneath it.
       </p>
       <p class="ct-admin__hint">
         The selected member receives the access. This workflow does not create tenant membership, so
@@ -341,12 +233,23 @@ export const renderInstitutionAdminAccessSections = (
       </p>
       <ul>
         <li>Use a scoped role for standing access inside an org unit.</li>
-        <li>Use delegated authority for temporary badge actions with an end date.</li>
         <li>
-          Leave the badge template limit blank when the delegation should cover every template in
-          scope.
+          Use <a href={delegationNewPath}>delegated authority</a> for temporary badge actions with
+          an end date.
         </li>
+        {input.planTier === "enterprise" ? (
+          <li>
+            Configure institution sign-in on the <a href={authenticationPath}>Authentication</a>{" "}
+            page.
+          </li>
+        ) : null}
       </ul>
+    </AdminPanel>
+  );
+
+  const governanceActionsMarkup = (
+    <AdminPanel id="governance-actions" className="ct-cluster">
+      <AdminButtonLink href={delegationNewPath}>Add delegated authority</AdminButtonLink>
     </AdminPanel>
   );
 
@@ -359,8 +262,19 @@ export const renderInstitutionAdminAccessSections = (
         </span>
         {addDisclosureControlMarkup}
       </summary>
+      {input.accessMembersWorkspace?.listError !== null &&
+      input.accessMembersWorkspace?.listError !== undefined &&
+      input.accessMembersWorkspace.listError.length > 0 ? (
+        <AdminStatus data-tone="error">{input.accessMembersWorkspace.listError}</AdminStatus>
+      ) : input.accessMembersWorkspace?.listNotice !== null &&
+        input.accessMembersWorkspace?.listNotice !== undefined &&
+        input.accessMembersWorkspace.listNotice.length > 0 ? (
+        <AdminStatus data-tone="success">{input.accessMembersWorkspace.listNotice}</AdminStatus>
+      ) : null}
       <AdminForm
         id="tenant-member-form"
+        method="post"
+        action={tenantAccessMemberCreatePath(input.tenantId)}
         className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--member ct-grid"
       >
         <AdminField label="Institution email">
@@ -375,9 +289,8 @@ export const renderInstitutionAdminAccessSections = (
           <input name="sendInvite" type="checkbox" checked />
           Email sign-in invite now
         </AdminCheckboxRow>
-        <AdminButton type="submit">Save member</AdminButton>
+        <AdminButton type="submit">Add member</AdminButton>
       </AdminForm>
-      <AdminStatus id="tenant-member-status"></AdminStatus>
     </details>
   );
 
@@ -394,7 +307,6 @@ export const renderInstitutionAdminAccessSections = (
       >
         {input.tenantMemberRows}
       </AdminTable>
-      <AdminStatus id="tenant-member-list-status"></AdminStatus>
     </AdminPanel>
   );
 
@@ -409,6 +321,8 @@ export const renderInstitutionAdminAccessSections = (
       </summary>
       <AdminForm
         id="membership-scope-form"
+        method="post"
+        action={tenantAccessMembershipScopeSavePath(input.tenantId)}
         className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--governance ct-grid"
       >
         <AdminField label="Tenant member">
@@ -445,7 +359,6 @@ export const renderInstitutionAdminAccessSections = (
         </ul>
         <AdminButton type="submit">Save scoped role</AdminButton>
       </AdminForm>
-      <AdminStatus id="membership-scope-status"></AdminStatus>
     </details>
   );
 
@@ -459,71 +372,7 @@ export const renderInstitutionAdminAccessSections = (
       >
         {input.membershipScopeRows}
       </AdminTable>
-      <AdminStatus id="membership-scope-list-status"></AdminStatus>
     </AdminPanel>
-  );
-
-  const delegatedGrantPanelMarkup = (
-    <details id="delegated-grant-panel" class="ct-admin__panel ct-admin__add-disclosure">
-      <summary class="ct-admin__add-disclosure-summary">
-        <span>
-          <strong>Add delegated authority</strong>
-          <small>Grant temporary badge authority without changing standing access.</small>
-        </span>
-        {addDisclosureControlMarkup}
-      </summary>
-      <AdminForm
-        id="delegated-grant-form"
-        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--governance ct-grid"
-      >
-        <AdminField label="Delegate">
-          <select name="delegateUserId" required>
-            {input.tenantMemberSelectOptions}
-          </select>
-        </AdminField>
-        <p class="ct-admin__hint">Choose the tenant member receiving the delegation.</p>
-        <AdminField label="Org unit">
-          <select name="orgUnitId" required>
-            {input.activeOrgUnitSelectOptions}
-          </select>
-        </AdminField>
-        <AdminFieldset legend="Allowed badge actions">
-          <AdminCheckboxRow>
-            <input name="allowedAction" type="checkbox" value="issue_badge" checked />
-            Issue badges
-          </AdminCheckboxRow>
-          <AdminCheckboxRow>
-            <input name="allowedAction" type="checkbox" value="revoke_badge" />
-            Revoke badges
-          </AdminCheckboxRow>
-          <AdminCheckboxRow>
-            <input name="allowedAction" type="checkbox" value="manage_lifecycle" />
-            Change badge status
-          </AdminCheckboxRow>
-        </AdminFieldset>
-        <p class="ct-admin__hint">
-          “Change badge status” covers non-revocation lifecycle changes such as suspend, expire, or
-          restore.
-        </p>
-        <AdminField label="Limit to badge template (optional)">
-          <select name="badgeTemplateIds">{input.optionalBadgeTemplateScopeOptions}</select>
-        </AdminField>
-        <p class="ct-admin__hint">
-          Leave blank to allow all badge templates inside the selected org-unit scope.
-        </p>
-        <AdminField label="Ends at">
-          <input name="endsAt" type="datetime-local" required />
-        </AdminField>
-        <p class="ct-admin__hint">
-          Delegations are time-boxed. Choose when this authority should expire.
-        </p>
-        <AdminField label="Reason (optional)">
-          <input name="reason" type="text" placeholder="Coverage for spring term operations." />
-        </AdminField>
-        <AdminButton type="submit">Save delegation</AdminButton>
-      </AdminForm>
-      <AdminStatus id="delegated-grant-status"></AdminStatus>
-    </details>
   );
 
   const delegatedGrantTableMarkup = (
@@ -536,21 +385,20 @@ export const renderInstitutionAdminAccessSections = (
       >
         {input.delegatedGrantRows}
       </AdminTable>
-      <AdminStatus id="delegated-grant-list-status"></AdminStatus>
     </AdminPanel>
   );
 
   return {
     apiKeyPanelMarkup,
-    lmsConnectionsPanelMarkup,
+    lmsConnectionsActionsMarkup,
     lmsConnectionsTableMarkup,
     orgUnitPanelMarkup,
     governanceGuidePanelMarkup,
+    governanceActionsMarkup,
     tenantMembersPanelMarkup,
     tenantMembersTableMarkup,
     membershipScopePanelMarkup,
     membershipScopeTableMarkup,
-    delegatedGrantPanelMarkup,
     delegatedGrantTableMarkup,
   };
 };

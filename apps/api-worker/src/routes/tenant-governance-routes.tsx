@@ -40,8 +40,12 @@ import { appPage, type AppPage, renderAppPage } from "../ui/render-page";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import { consumeAdminFlashCookie } from "../admin/admin-flash";
 import {
+  consumeAdminListMessageFlash,
+  setAdminListMessageFlash,
+} from "../admin/admin-list-message-flash";
+import {
+  buildIssuedBadgesPagePath,
   issuedBadgesInvalidFiltersError,
-  issuedBadgesPageUrl,
   safeParseIssuedBadgesPageQuery,
   shouldLoadIssuedBadgesList,
 } from "../admin/issued-badges-admin-helpers";
@@ -54,14 +58,29 @@ import {
   institutionAdminDashboardPage,
   institutionAdminIssuedBadgesPage,
   institutionAdminLearnerRecordImportsPage,
-  institutionAdminLmsConnectionsPage,
   institutionAdminRuleTemplateEditorPage,
   institutionAdminRuleTemplatesPage,
 } from "../admin/institution-admin-page";
 import {
+  renderInstitutionAdminAuthenticationWorkspace,
+  renderInstitutionAdminGovernanceDelegationNewWorkspace,
+  renderInstitutionAdminGovernanceWorkspace,
+  renderInstitutionAdminLmsConnectionEditWorkspace,
+  renderInstitutionAdminLmsConnectionNewWorkspace,
+  renderInstitutionAdminLmsConnectionsWorkspace,
+  renderInstitutionAdminManualIssueWorkspace,
+  renderInstitutionAdminMembersWorkspace,
+  renderInstitutionAdminOperationsWorkspace,
+  renderInstitutionAdminOrgUnitsWorkspace,
   renderInstitutionAdminReviewQueueWorkspace,
   renderInstitutionAdminRulesWorkspace,
 } from "../admin/institution-admin-workspace-renderers";
+import { registerTenantAccessEnterpriseAdminRoutes } from "./tenant-access-enterprise-admin-routes";
+import { registerTenantAccessGovernanceAdminRoutes } from "./tenant-access-governance-admin-routes";
+import { registerTenantAccessMembersAdminRoutes } from "./tenant-access-members-admin-routes";
+import { registerTenantBadgeRuleActionsAdminRoutes } from "./tenant-badge-rule-actions-admin-routes";
+import { registerTenantOperationsAdminRoutes } from "./tenant-operations-admin-routes";
+import { registerTenantOrgUnitsAdminRoutes } from "./tenant-org-units-admin-routes";
 import type { BadgeTemplateHistoryPanel } from "../admin/institution-admin-templates-page";
 import { AdminActions, AdminButtonLink, AdminPageHeader, AdminPanel } from "../admin/components";
 import { loadBadgeTemplateHistoryPayload } from "../badges/badge-template-history-payload";
@@ -880,8 +899,11 @@ export const registerTenantGovernanceRoutes = (
     }
 
     const { pageData, session } = loaded;
-    const listNotice = (c.req.query("listNotice") ?? "").trim();
-    const listError = (c.req.query("listError") ?? "").trim();
+    const flash = await consumeAdminListMessageFlash(c, {
+      tenantId,
+      userId: session.userId,
+      workspace: "access_api_keys",
+    });
     const revealedSecret = await consumeAdminFlashCookie(c, {
       kind: "api_key_secret",
       tenantId,
@@ -894,10 +916,11 @@ export const registerTenantGovernanceRoutes = (
       institutionAdminApiKeysPage({
         ...pageData,
         apiKeysWorkspace: {
-          listNotice: listNotice.length > 0 ? listNotice : null,
-          listError: listError.length > 0 ? listError : null,
+          listNotice: flash?.tone === "success" ? flash.message : null,
+          listError: flash?.tone === "error" ? flash.message : null,
           revealedSecret,
-          openCreatePanel: revealedSecret !== null || listError.length > 0 || listNotice.length > 0,
+          openCreatePanel:
+            revealedSecret !== null || flash?.tone === "error" || flash?.tone === "success",
         },
       }),
     );
@@ -908,24 +931,6 @@ export const registerTenantGovernanceRoutes = (
     tenantId: string,
     nextPath: string,
   ): Promise<Response> => {
-    const parsedQuery = safeParseIssuedBadgesPageQuery(c.req.query());
-
-    if (!parsedQuery.ok) {
-      return c.redirect(
-        issuedBadgesPageUrl(
-          tenantId,
-          {
-            recipientQuery: "",
-            badgeTemplateId: "",
-            state: "",
-            limit: 100,
-          },
-          { listError: issuedBadgesInvalidFiltersError },
-        ),
-        303,
-      );
-    }
-
     const loaded = await loadInstitutionAdminWorkspacePageData({
       c,
       tenantId,
@@ -938,8 +943,27 @@ export const registerTenantGovernanceRoutes = (
       return loaded;
     }
 
-    const { pageData } = loaded;
+    const { pageData, session } = loaded;
+    const parsedQuery = safeParseIssuedBadgesPageQuery(c.req.query());
+
+    if (!parsedQuery.ok) {
+      await setAdminListMessageFlash(c, {
+        tenantId,
+        userId: session.userId,
+        workspace: "issued_badges",
+        tone: "error",
+        message: issuedBadgesInvalidFiltersError,
+      });
+
+      return c.redirect(buildIssuedBadgesPagePath(tenantId), 303);
+    }
+
     const issuedBadgesQuery = parsedQuery.value;
+    const flash = await consumeAdminListMessageFlash(c, {
+      tenantId,
+      userId: session.userId,
+      workspace: "issued_badges",
+    });
     const assertions = shouldLoadIssuedBadgesList(c.req.query())
       ? await listTenantAssertions(resolveDatabase(c.env), {
           tenantId,
@@ -966,8 +990,8 @@ export const registerTenantGovernanceRoutes = (
         issuedBadgesWorkspace: {
           filters: issuedBadgesQuery.filters,
           assertions,
-          listNotice: issuedBadgesQuery.listNotice,
-          listError: issuedBadgesQuery.listError,
+          listNotice: flash?.tone === "success" ? flash.message : null,
+          listError: flash?.tone === "error" ? flash.message : null,
           lifecycleAssertionId: issuedBadgesQuery.lifecycleAssertionId,
           lifecycleMode: issuedBadgesQuery.lifecycleMode,
         },
@@ -1009,41 +1033,63 @@ export const registerTenantGovernanceRoutes = (
     );
   };
 
-  const renderInstitutionAdminLmsConnectionsWorkspace = async (
+  const renderLmsConnectionsWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
+    renderInstitutionAdminLmsConnectionsWorkspace(
+      c,
+      renderAppPage,
+      tenantId,
+      nextPath,
+      workspaceRendererDeps,
+    );
+
+  const renderLmsConnectionNewWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
+    renderInstitutionAdminLmsConnectionNewWorkspace(
+      c,
+      renderAppPage,
+      tenantId,
+      nextPath,
+      workspaceRendererDeps,
+    );
+
+  const renderLmsConnectionEditWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
+    renderInstitutionAdminLmsConnectionEditWorkspace(
+      c,
+      renderAppPage,
+      tenantId,
+      nextPath,
+      workspaceRendererDeps,
+    );
+
+  const renderAuthenticationWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
+    renderInstitutionAdminAuthenticationWorkspace(
+      c,
+      renderAppPage,
+      tenantId,
+      nextPath,
+      workspaceRendererDeps,
+    );
+
+  const renderGovernanceDelegationNewWorkspace = (
     c: AppContext,
     tenantId: string,
     nextPath: string,
-  ): Promise<Response> => {
-    const loaded = await loadInstitutionAdminWorkspacePageData({
-      c,
-      tenantId,
-      nextPath,
-      resolveInstitutionAdminAdminRole,
-      loadInstitutionAdminPageData,
-    });
-
-    if (loaded instanceof Response) {
-      return loaded;
-    }
-
-    const { pageData } = loaded;
-    const listNotice = (c.req.query("listNotice") ?? "").trim();
-    const listError = (c.req.query("listError") ?? "").trim();
-    const editConnectionId = (c.req.query("edit") ?? "").trim();
-
-    return await renderInstitutionAdminWorkspacePage(
+  ) =>
+    renderInstitutionAdminGovernanceDelegationNewWorkspace(
       c,
       renderAppPage,
-      institutionAdminLmsConnectionsPage({
-        ...pageData,
-        lmsConnectionsWorkspace: {
-          listNotice: listNotice.length > 0 ? listNotice : null,
-          listError: listError.length > 0 ? listError : null,
-          editConnectionId: editConnectionId.length > 0 ? editConnectionId : null,
-        },
-      }),
+      tenantId,
+      nextPath,
+      workspaceRendererDeps,
     );
-  };
+
+  const renderManualIssueWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
+    renderInstitutionAdminManualIssueWorkspace(
+      c,
+      renderAppPage,
+      tenantId,
+      nextPath,
+      workspaceRendererDeps,
+    );
 
   const renderInstitutionAdminTemplatesWorkspace = async (
     c: AppContext,
@@ -1183,8 +1229,11 @@ export const registerTenantGovernanceRoutes = (
       }
     }
 
-    const listNotice = (c.req.query("listNotice") ?? "").trim();
-    const listError = (c.req.query("listError") ?? "").trim();
+    const flash = await consumeAdminListMessageFlash(c, {
+      tenantId,
+      userId: session.userId,
+      workspace: "badge_templates",
+    });
 
     c.header("Cache-Control", "no-store");
 
@@ -1200,8 +1249,8 @@ export const registerTenantGovernanceRoutes = (
           deepLinkHistoryTemplateId: autoOpenTemplateAuditTemplateId,
           deepLinkHistoryUnavailable,
           historyLoadError,
-          listNotice: listNotice.length > 0 ? listNotice : null,
-          listError: listError.length > 0 ? listError : null,
+          listNotice: flash?.tone === "success" ? flash.message : null,
+          listError: flash?.tone === "error" ? flash.message : null,
         },
         historyPanel,
       }),
@@ -1787,6 +1836,98 @@ export const registerTenantGovernanceRoutes = (
     resolveInstitutionAdminAdminRole,
   });
 
+  registerTenantAccessMembersAdminRoutes({
+    app,
+    assertRoleChangeAllowed,
+    canManageTenantRole,
+    membershipAuditAction,
+    requestInviteForTenantMember,
+    resolveDatabase,
+    resolveInstitutionAdminAdminRole,
+  });
+
+  registerTenantAccessGovernanceAdminRoutes({
+    app,
+    resolveDatabase,
+    resolveInstitutionAdminAdminRole,
+  });
+
+  registerTenantAccessEnterpriseAdminRoutes({
+    app,
+    resolveDatabase,
+    requireEnterpriseTenant,
+    ...(requestBreakGlassPasswordReset === undefined
+      ? {}
+      : {
+          requestBreakGlassPasswordReset: async (c, input) => {
+            const status = await requestBreakGlassPasswordReset(c, input);
+
+            if (status === "unavailable") {
+              return "failed";
+            }
+
+            return status;
+          },
+        }),
+    resolveInstitutionAdminAdminRole,
+  });
+
+  registerTenantOrgUnitsAdminRoutes({
+    app,
+    resolveDatabase,
+    resolveInstitutionAdminAdminRole,
+  });
+
+  registerTenantBadgeRuleActionsAdminRoutes({
+    app,
+    resolveDatabase,
+    resolveInstitutionAdminAdminRole,
+  });
+
+  registerTenantOperationsAdminRoutes({
+    app,
+    issueBadgeForTenant,
+    requireDelegatedIssuingAuthorityPermission,
+    resolveDatabase,
+    resolveInstitutionAdminAdminRole,
+  });
+
+  const renderMembersWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
+    renderInstitutionAdminMembersWorkspace(
+      c,
+      renderAppPage,
+      tenantId,
+      nextPath,
+      workspaceRendererDeps,
+    );
+
+  const renderGovernanceWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
+    renderInstitutionAdminGovernanceWorkspace(
+      c,
+      renderAppPage,
+      tenantId,
+      nextPath,
+      workspaceRendererDeps,
+    );
+
+  const renderOrgUnitsWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
+    renderInstitutionAdminOrgUnitsWorkspace(
+      c,
+      renderAppPage,
+      tenantId,
+      nextPath,
+      workspaceRendererDeps,
+    );
+
+  const renderOperationsWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
+    renderInstitutionAdminOperationsWorkspace(
+      c,
+      renderAppPage,
+      tenantId,
+      nextPath,
+      workspaceRendererDeps,
+    );
+
   registerTenantAdminPageRoutes({
     app,
     ADMIN_ROLES,
@@ -1794,11 +1935,20 @@ export const registerTenantGovernanceRoutes = (
     requireTenantRole,
     redirectToTenantLogin,
     renderInstitutionAdminWorkspace,
+    renderInstitutionAdminOperationsWorkspace: renderOperationsWorkspace,
+    renderInstitutionAdminMembersWorkspace: renderMembersWorkspace,
+    renderInstitutionAdminGovernanceWorkspace: renderGovernanceWorkspace,
+    renderInstitutionAdminOrgUnitsWorkspace: renderOrgUnitsWorkspace,
     renderInstitutionAdminApiKeysWorkspace,
     renderInstitutionAdminIssuedBadgesWorkspace,
     renderInstitutionAdminReviewQueueWorkspace: renderReviewQueueWorkspace,
     renderInstitutionAdminRulesWorkspace: renderRulesWorkspace,
-    renderInstitutionAdminLmsConnectionsWorkspace,
+    renderInstitutionAdminLmsConnectionsWorkspace: renderLmsConnectionsWorkspace,
+    renderInstitutionAdminLmsConnectionNewWorkspace: renderLmsConnectionNewWorkspace,
+    renderInstitutionAdminLmsConnectionEditWorkspace: renderLmsConnectionEditWorkspace,
+    renderInstitutionAdminAuthenticationWorkspace: renderAuthenticationWorkspace,
+    renderInstitutionAdminGovernanceDelegationNewWorkspace: renderGovernanceDelegationNewWorkspace,
+    renderInstitutionAdminManualIssueWorkspace: renderManualIssueWorkspace,
     renderInstitutionAdminTemplatesWorkspace,
     renderInstitutionAdminTemplateEditorWorkspace,
     resolveDatabase,

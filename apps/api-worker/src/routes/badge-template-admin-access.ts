@@ -36,7 +36,7 @@ export interface BadgeTemplateIssuerAccessInput {
       allowWhenNoScopes?: boolean;
     },
   ) => Promise<Response | null>;
-  notFound: () => Response;
+  notFound: (context: { session: { userId: string } }) => Response | Promise<Response>;
 }
 
 export interface BadgeTemplateIssuerAccessContext {
@@ -63,11 +63,11 @@ export const withBadgeTemplateIssuerAccess = async (
   const db = input.resolveDatabase(input.c.env);
   const template = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
 
-  if (template === null) {
-    return input.notFound();
-  }
-
   const { session, membershipRole } = roleCheck;
+
+  if (template === null) {
+    return input.notFound({ session });
+  }
   const scopeCheck = await input.requireScopedOrgUnitPermission(input.c, {
     db,
     tenantId: input.tenantId,
