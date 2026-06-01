@@ -567,9 +567,11 @@ export const PUBLIC_BADGE_CSS = `
 }
 
 .badge-wall__hero {
-  display: grid;
-  gap: 1rem;
-  padding: clamp(1.1rem, 2.5vw, 1.5rem);
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(1rem, 2vw, 1.4rem);
+  align-items: center;
+  padding: clamp(0.95rem, 2vw, 1.25rem);
   border: 1px solid var(--ct-theme-border-soft);
   border-radius: 1.25rem;
   background: var(--ct-theme-surface-card-strong);
@@ -579,7 +581,9 @@ export const PUBLIC_BADGE_CSS = `
 
 .badge-wall__hero-copy {
   display: grid;
-  gap: 0.65rem;
+  flex: 1 1 22rem;
+  min-width: min(100%, 18rem);
+  gap: 0.58rem;
   align-content: center;
 }
 
@@ -592,11 +596,12 @@ export const PUBLIC_BADGE_CSS = `
 
 .badge-wall__hero-image-frame {
   display: grid;
+  flex: 0 0 clamp(10rem, 21vw, 13rem);
   place-items: center;
-  width: min(100%, 15rem);
+  width: clamp(10rem, 21vw, 13rem);
   border: 1px solid var(--ct-theme-border-soft);
   border-radius: 1.15rem;
-  padding: 0.68rem;
+  padding: 0.5rem;
   background: linear-gradient(
     180deg,
     var(--ct-theme-surface-card-strong),
@@ -612,7 +617,7 @@ export const PUBLIC_BADGE_CSS = `
   aspect-ratio: 1;
   border: 1px solid var(--ct-theme-border-default);
   border-radius: 0.88rem;
-  padding: clamp(0.5rem, 2vw, 0.75rem);
+  padding: clamp(0.4rem, 1.2vw, 0.58rem);
   object-fit: contain;
   background: var(--ct-theme-surface-card-strong);
 }
@@ -920,16 +925,14 @@ export const PUBLIC_BADGE_CSS = `
   }
 }
 
-@media (min-width: 720px) {
-  .badge-wall__hero:has(.badge-wall__hero-image-frame) {
-    grid-template-columns: minmax(10rem, 15rem) 1fr;
-    align-items: center;
-  }
-}
-
 @media (max-width: 640px) {
+  .badge-wall__hero {
+    align-items: flex-start;
+  }
+
   .badge-wall__hero-image-frame {
-    width: min(100%, 12rem);
+    flex-basis: 9.5rem;
+    width: 9.5rem;
   }
 
   .badge-wall__summary {
