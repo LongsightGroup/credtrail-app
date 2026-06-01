@@ -111,7 +111,7 @@ export const tenantAccessBreakGlassAccountRevokePath = (tenantId: string): strin
 };
 
 export const tenantOperationsManualIssuePath = (tenantId: string): string => {
-  return `${buildOperationsAdminPath(tenantId)}/manual-issue`;
+  return buildOperationsManualIssuePath(tenantId);
 };
 
 export const accessGovernancePageUrl = (

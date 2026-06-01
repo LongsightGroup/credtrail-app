@@ -56,10 +56,10 @@ export const renderInstitutionAdminOperationsSections = (
   const ruleValueListsCreatePath = tenantRuleValueListsAdminCreatePath(input.tenantId);
   const ruleValueListsPanelMarkup = (
     <AdminPanel id="rule-value-lists-panel">
-      <h2>Rule Value Lists</h2>
+      <h2>Reusable Rule Lists</h2>
       <p>
-        Rule value lists are reusable sets of course IDs or badge-template IDs for rule conditions.
-        They do not create badge templates.
+        Optional shortcut for rules that check the same courses or badge templates. Skip this unless
+        you are repeating the same values across multiple rules.
       </p>
       {input.ruleValueListsWorkspace?.listError !== null &&
       input.ruleValueListsWorkspace?.listError !== undefined &&
@@ -98,8 +98,8 @@ export const renderInstitutionAdminOperationsSections = (
   );
   const evaluateRulePanelMarkup = (
     <AdminPanel>
-      <h2>Evaluate Rule</h2>
-      <p>Run rule evaluation in dry run mode before issuing for real.</p>
+      <h2>Test a Rule</h2>
+      <p>Check what a rule would do before issuing a real badge.</p>
       <AdminForm id="rule-evaluate-form">
         <AdminField label="Rule">
           <select name="ruleId" required>
@@ -191,8 +191,8 @@ export const renderInstitutionAdminOperationsSections = (
   );
   const ruleGovernancePanelMarkup = (
     <AdminPanel>
-      <h2>Rule Governance Context</h2>
-      <p>Inspect latest approval chain and rule audit events for operator drill-down.</p>
+      <h2>Approval and Audit History</h2>
+      <p>Review the latest approval steps and audit events for a rule.</p>
       <AdminForm id="rule-governance-form">
         <AdminField label="Rule">
           <select name="ruleId" required>
@@ -202,7 +202,7 @@ export const renderInstitutionAdminOperationsSections = (
         <AdminField label="Audit log limit">
           <input name="auditLimit" type="number" min="1" max="100" step="1" value="20" />
         </AdminField>
-        <AdminButton type="submit">Load governance context</AdminButton>
+        <AdminButton type="submit">Load history</AdminButton>
       </AdminForm>
       <AdminStatus id="rule-governance-status"></AdminStatus>
       <pre id="rule-governance-output" class="ct-admin__code-output" hidden></pre>

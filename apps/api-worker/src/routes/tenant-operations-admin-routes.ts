@@ -41,6 +41,14 @@ interface RegisterTenantOperationsAdminRoutesInput {
   >;
 }
 
+const registerOperationsManualIssuePost = (
+  app: Hono<AppEnv>,
+  path: string,
+  handler: (c: AppContext) => Promise<Response>,
+): void => {
+  app.post(path, handler);
+};
+
 export const registerTenantOperationsAdminRoutes = (
   input: RegisterTenantOperationsAdminRoutesInput,
 ): void => {
@@ -52,7 +60,7 @@ export const registerTenantOperationsAdminRoutes = (
     resolveInstitutionAdminAdminRole,
   } = input;
 
-  app.post("/tenants/:tenantId/admin/operations/manual-issue", async (c) => {
+  const handleManualIssuePost = async (c: AppContext): Promise<Response> => {
     const pathParams = parseTenantPathParams(c.req.param());
     const nextPath = buildOperationsManualIssuePath(pathParams.tenantId);
     const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
@@ -176,5 +184,16 @@ export const registerTenantOperationsAdminRoutes = (
     }
 
     return c.redirect(buildOperationsManualIssuePath(pathParams.tenantId), 303);
-  });
+  };
+
+  registerOperationsManualIssuePost(
+    app,
+    "/tenants/:tenantId/admin/operations/issue",
+    handleManualIssuePost,
+  );
+  registerOperationsManualIssuePost(
+    app,
+    "/tenants/:tenantId/admin/operations/manual-issue",
+    handleManualIssuePost,
+  );
 };

@@ -52,25 +52,24 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
     expect(body).toMatch(/>\s*Manage badge templates\s*<\/a>/);
-    expect(body).toContain("Advanced rule tools");
+    expect(body).toContain("Check a rule before issuing");
     expect(body).not.toContain("Create Badge Template");
     expect(body).not.toContain('id="badge-template-create-form"');
     expect(body).not.toContain("Manage Badge Template Images");
     expect(body).not.toContain('id="badge-template-image-upload-form"');
-    expect(body).toContain("Rule Value Lists");
-    expect(body).toContain(
-      "Rule value lists are reusable sets of course IDs or badge-template IDs for rule conditions.",
-    );
-    expect(body).toContain("They do not create badge templates.");
-    expect(body).toContain('id="rule-value-list-form"');
+    expect(body).not.toContain("Reusable Rule Lists");
+    expect(body).not.toContain("Optional shortcut for rules that check the same courses");
+    expect(body).not.toContain("Skip this unless");
+    expect(body).not.toContain('id="rule-value-list-form"');
     expect(body).toContain('method="post"');
-    expect(body).toContain('action="/tenants/tenant_123/admin/rules/value-lists"');
+    expect(body).not.toContain('action="/tenants/tenant_123/admin/rules/value-lists"');
     expect(body).not.toContain('id="rule-value-list-status"');
     expect(body).not.toContain('id="rule-value-list-body"');
     expect(body).not.toContain("badge-rule-value-lists");
-    expect(body).toContain("Evaluate Rule");
+    expect(body).toContain("Test a Rule");
     expect(body).toContain('id="rule-evaluate-form"');
-    expect(body).toContain("Rule Governance Context");
+    expect(body).not.toContain("Approval and Audit History");
+    expect(body).not.toContain('id="rule-governance-form"');
     expect(body).not.toContain("ct-grid--sidebar");
     expect(body).toContain("Badge Rules (1)");
     expect(body).toContain("Version 1");
@@ -256,9 +255,9 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       "initInstitutionAdminBadgeTemplateListPage",
     );
     expect(body).not.toContain("ct-grid--sidebar");
-    expect(body).not.toContain("Rule Value Lists");
+    expect(body).not.toContain("Reusable Rule Lists");
     expect(body).not.toContain('id="rule-value-list-form"');
-    expect(body).not.toContain("Evaluate Rule");
+    expect(body).not.toContain("Test a Rule");
     expect(body).not.toContain('id="rule-evaluate-form"');
   });
 

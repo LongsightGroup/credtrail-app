@@ -9,9 +9,7 @@ interface RenderInstitutionAdminManagementSectionsInput {
   ruleBuilderPath: string;
   rulesTemplatesPath: string;
   ruleRows: unknown;
-  ruleValueListsPanelMarkup: unknown;
   evaluateRulePanelMarkup: unknown;
-  ruleGovernancePanelMarkup: unknown;
   orgUnitCount: string;
   orgUnitRows: unknown;
   activeApiKeyCount: string;
@@ -66,21 +64,18 @@ export const renderInstitutionAdminManagementSections = (
   const ruleAdvancedToolsMarkup = (
     <details class="ct-admin__advanced-tools">
       <summary>
-        <span>Advanced rule tools</span>
+        <span>Check a rule before issuing</span>
         <small>
-          Use reusable value lists, dry-run evaluation, and governance after rules exist.
+          Use this only when you want to test what a rule would do before issuing a real badge.
         </small>
       </summary>
       {input.hasBadgeRules ? (
         <div class="ct-admin__advanced-tools-body ct-grid">
-          {renderHonoElementList(input.ruleValueListsPanelMarkup)}
           {renderHonoElementList(input.evaluateRulePanelMarkup)}
-          {renderHonoElementList(input.ruleGovernancePanelMarkup)}
         </div>
       ) : (
         <p class="ct-admin__hint">
-          Create a badge rule first. Evaluation and governance tools become useful once there is a
-          rule to test or approve.
+          Create a badge rule first. Testing becomes useful once there is a rule to review.
         </p>
       )}
     </details>

@@ -53,8 +53,9 @@ describe("POST /tenants/:tenantId/admin/rules/value-lists", () => {
     const body = await pageResponse.text();
 
     expect(pageResponse.status).toBe(200);
-    expect(body).toContain("Created reusable list");
-    expect(body).toContain("Core CS sequence");
+    expect(body).not.toContain("Created reusable list");
+    expect(body).not.toContain("Core CS sequence");
+    expect(body).not.toContain('id="rule-value-list-form"');
   });
 });
 

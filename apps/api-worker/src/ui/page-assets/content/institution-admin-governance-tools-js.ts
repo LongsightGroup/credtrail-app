@@ -35,7 +35,7 @@ export const INSTITUTION_ADMIN_GOVERNANCE_TOOLS_JS = `
   if (ruleGovernanceForm instanceof HTMLFormElement && ruleGovernanceStatus instanceof HTMLElement) {
     ruleGovernanceForm.addEventListener('submit', async (event) => {
       event.preventDefault();
-      setStatus(ruleGovernanceStatus, 'Loading rule governance context...', false);
+      setStatus(ruleGovernanceStatus, 'Loading approval and audit history...', false);
       setCodeOutput(ruleGovernanceOutput, '');
       const data = new FormData(ruleGovernanceForm);
       const ruleIdRaw = data.get('ruleId');
@@ -112,7 +112,7 @@ export const INSTITUTION_ADMIN_GOVERNANCE_TOOLS_JS = `
 
         setStatus(
           ruleGovernanceStatus,
-          'Governance context loaded: current approval step=' +
+          'History loaded: current approval step=' +
             (currentStep === null ? 'none' : String(currentStep)) +
             ', audit events=' +
             String(logCount) +
@@ -135,7 +135,7 @@ export const INSTITUTION_ADMIN_GOVERNANCE_TOOLS_JS = `
       } catch {
         setStatus(
           ruleGovernanceStatus,
-          'Unable to load rule governance context from this browser session.',
+          'Unable to load approval and audit history from this browser session.',
           true,
         );
       }

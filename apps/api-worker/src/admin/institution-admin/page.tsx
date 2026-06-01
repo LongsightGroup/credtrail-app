@@ -871,10 +871,8 @@ const renderInstitutionAdminPage = (
         issuedBadgesPanelMarkup: emptySectionMarkup,
       };
   const {
-    ruleValueListsPanelMarkup,
     evaluateRulePanelMarkup,
     badgeStatusPanelMarkup,
-    ruleGovernancePanelMarkup,
     ruleReviewQueuePanelMarkup,
     issuedBadgesPanelMarkup,
   } = operationsSections;
@@ -1001,9 +999,7 @@ const renderInstitutionAdminPage = (
         ruleBuilderPath,
         rulesTemplatesPath,
         ruleRows,
-        ruleValueListsPanelMarkup,
         evaluateRulePanelMarkup,
-        ruleGovernancePanelMarkup,
         orgUnitCount,
         orgUnitRows,
         activeApiKeyCount,
@@ -1231,7 +1227,7 @@ const renderInstitutionAdminPage = (
           <>
             {renderPageHeader(
               "Rules",
-              "Review awarding rules and use focused tools for rule logic, reusable lists, and governance context.",
+              "Review awarding rules, create new rules, and test a rule before issuing when needed.",
             )}
             <section class="ct-admin ct-stack">
               {badgeRulesTableMarkup}
