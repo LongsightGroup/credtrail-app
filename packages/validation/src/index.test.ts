@@ -46,6 +46,7 @@ import {
   parseCredentialPathParams,
   parseCreateBadgeTemplateRequest,
   parseGenerateBadgeTemplateImageRequest,
+  parseTrustEdCredentialMetadata,
   parseLearnerRecordImportBatchDefaults,
   parseLearnerRecordImportBatchPathParams,
   parseLearnerRecordImportProgressQuery,
@@ -1483,6 +1484,103 @@ describe("badge template parsers", () => {
   it("rejects empty update payloads", () => {
     expect(() => {
       parseUpdateBadgeTemplateRequest({});
+    }).toThrowError();
+  });
+
+  it("parses TrustEd credential metadata", () => {
+    const payload = parseTrustEdCredentialMetadata({
+      skills: [
+        {
+          name: "Applied data analysis",
+          identifierUri: "https://skills.example.edu/skills/applied-data-analysis",
+          source: "Example Skills Framework",
+        },
+      ],
+      frameworkAlignments: [
+        {
+          targetName: "Analyze civic datasets",
+          targetUri: "https://case.example.edu/frameworks/data-analysis/items/analyze-civic-data",
+          frameworkName: "Example CASE Framework",
+          frameworkUri: "https://case.example.edu/frameworks/data-analysis",
+        },
+      ],
+      issuerAuthority: {
+        name: "Middle States Commission on Higher Education",
+        uri: "https://www.msche.org/institution/0000/",
+        authorityType: "accreditor",
+      },
+      evidence: [
+        {
+          name: "Capstone analysis portfolio",
+          uri: "https://evidence.example.edu/learners/123/capstone",
+          description: "Portfolio evidence reviewed by the program faculty.",
+        },
+      ],
+      results: [{ value: "Pass", resultDate: "2026-05-18" }],
+      criteria: {
+        text: "Complete the applied analytics project and faculty review.",
+        uri: "https://credentials.example.edu/badges/applied-analytics/criteria",
+      },
+      assessments: [
+        {
+          description: "Faculty-scored applied analytics capstone.",
+          assessmentDate: "2026-05-18",
+        },
+      ],
+      achievementType: "Project",
+      rubrics: [
+        {
+          name: "Applied analytics rubric",
+          uri: "https://credentials.example.edu/rubrics/applied-analytics",
+        },
+      ],
+      duration: { value: "6 weeks" },
+      credits: { available: "3 credits", earned: "3 credits" },
+      endorsements: [
+        {
+          endorserName: "Regional Workforce Council",
+          endorserUri: "https://workforce.example.edu/endorsements/applied-analytics",
+        },
+      ],
+    });
+
+    expect(payload.skills[0]?.name).toBe("Applied data analysis");
+    expect(payload.results[0]?.resultDate).toBe("2026-05-18");
+  });
+
+  it("rejects invalid TrustEd credential metadata URLs and dates", () => {
+    expect(() => {
+      parseTrustEdCredentialMetadata({
+        skills: [{ name: "Applied data analysis", identifierUri: "not a url", source: null }],
+        frameworkAlignments: [],
+        issuerAuthority: null,
+        evidence: [],
+        results: [],
+        criteria: null,
+        assessments: [],
+        achievementType: "Project",
+        rubrics: [],
+        duration: null,
+        credits: null,
+        endorsements: [],
+      });
+    }).toThrowError();
+
+    expect(() => {
+      parseTrustEdCredentialMetadata({
+        skills: [],
+        frameworkAlignments: [],
+        issuerAuthority: null,
+        evidence: [],
+        results: [{ value: "Pass", resultDate: "May 18, 2026" }],
+        criteria: null,
+        assessments: [],
+        achievementType: "Project",
+        rubrics: [],
+        duration: null,
+        credits: null,
+        endorsements: [],
+      });
     }).toThrowError();
   });
 

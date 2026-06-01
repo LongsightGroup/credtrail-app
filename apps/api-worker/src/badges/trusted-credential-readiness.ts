@@ -1,3 +1,5 @@
+import type { TrustEdCredentialMetadata } from "@credtrail/validation";
+
 export type TrustEdCredentialReadinessStatus = "not_evaluated" | "incomplete" | "ready";
 export type TrustEdCredentialReadinessCheckCategory = "required" | "recommended";
 export type TrustEdCredentialReadinessCheckStatus = "satisfied" | "missing";
@@ -15,79 +17,7 @@ export type TrustEdCredentialReadinessCheckId =
   | "duration_credit"
   | "endorsement";
 
-export interface TrustEdCredentialSkill {
-  name: string | null;
-  identifierUri: string | null;
-  source: string | null;
-}
-
-export interface TrustEdCredentialFrameworkAlignment {
-  targetName: string | null;
-  targetUri: string | null;
-  frameworkName: string | null;
-  frameworkUri: string | null;
-}
-
-export interface TrustEdCredentialIssuerAuthority {
-  name: string | null;
-  uri: string | null;
-  authorityType: string | null;
-}
-
-export interface TrustEdCredentialEvidenceArtifact {
-  name: string | null;
-  uri: string | null;
-  description: string | null;
-}
-
-export interface TrustEdCredentialResult {
-  value: string | null;
-  resultDate: string | null;
-}
-
-export interface TrustEdCredentialCriteria {
-  text: string | null;
-  uri: string | null;
-}
-
-export interface TrustEdCredentialAssessment {
-  description: string | null;
-  assessmentDate: string | null;
-}
-
-export interface TrustEdCredentialRubric {
-  name: string | null;
-  uri: string | null;
-}
-
-export interface TrustEdCredentialDuration {
-  value: string | null;
-}
-
-export interface TrustEdCredentialCredits {
-  available: string | null;
-  earned: string | null;
-}
-
-export interface TrustEdCredentialEndorsement {
-  endorserName: string | null;
-  endorserUri: string | null;
-}
-
-export interface TrustEdCredentialMetadata {
-  skills: readonly TrustEdCredentialSkill[];
-  frameworkAlignments: readonly TrustEdCredentialFrameworkAlignment[];
-  issuerAuthority: TrustEdCredentialIssuerAuthority | null;
-  evidence: readonly TrustEdCredentialEvidenceArtifact[];
-  results: readonly TrustEdCredentialResult[];
-  criteria: TrustEdCredentialCriteria | null;
-  assessments: readonly TrustEdCredentialAssessment[];
-  achievementType: string | null;
-  rubrics: readonly TrustEdCredentialRubric[];
-  duration: TrustEdCredentialDuration | null;
-  credits: TrustEdCredentialCredits | null;
-  endorsements: readonly TrustEdCredentialEndorsement[];
-}
+export type { TrustEdCredentialMetadata } from "@credtrail/validation";
 
 export interface TrustEdCredentialReadinessCheck {
   id: TrustEdCredentialReadinessCheckId;
