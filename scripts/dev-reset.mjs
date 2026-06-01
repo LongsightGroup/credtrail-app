@@ -23,8 +23,8 @@ const main = async () => {
     WHERE lower(email) = lower(?)
       AND NOT EXISTS (
         SELECT 1
-        FROM tenant_memberships
-        WHERE tenant_memberships.user_id = users.id
+        FROM memberships
+        WHERE memberships.user_id = users.id
       )
     `,
     adminEmail,
