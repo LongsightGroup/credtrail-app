@@ -105,8 +105,6 @@ const renderInstitutionAdminPage = (
   const operationsManualIssuePath = `${operationsPath}/issue`;
   const operationsLearnerRecordsPath = `${operationsPath}/learner-records`;
   const operationsLearnerRecordImportsPath = `${operationsPath}/learner-record-imports`;
-  const operationsReviewQueuePath = `${operationsPath}/review-queue`;
-  const operationsIssuedBadgesPath = `${operationsPath}/issued-badges`;
   const reportingPath = `${tenantAdminPath}/reporting`;
   const reportingExplorePath = `${reportingPath}/explore`;
   const reportingTrendsPath = `${reportingPath}/trends`;
@@ -789,7 +787,7 @@ const renderInstitutionAdminPage = (
 
   const workspaceCardsMarkup = (
     <section class="ct-admin__workspace-grid ct-grid" aria-label="Institution admin workspaces">
-      <AdminWorkspaceCard href={operationsPath} ariaLabel="Open Issue & Inspect workspace">
+      <AdminWorkspaceCard href={operationsManualIssuePath} ariaLabel="Open Issue Badge workspace">
         <p class="ct-admin__eyebrow">Operations</p>
         <h2>Issue & Inspect</h2>
         <p>
@@ -1054,29 +1052,6 @@ const renderInstitutionAdminPage = (
           <>
             {renderPageHeader("Institution Admin", "Choose a workspace.")}
             <section class="ct-admin ct-stack">{workspaceCardsMarkup}</section>
-          </>
-        );
-      case "operations":
-        return (
-          <>
-            {renderPageHeader(
-              "Issue & Inspect",
-              "Open focused pages to issue badges, review learner records, manage the review queue, and inspect issued badges.",
-            )}
-            <section class="ct-admin ct-stack">
-              <AdminPanel id="operations-hub-actions" className="ct-cluster">
-                <AdminButtonLink href={operationsManualIssuePath}>Issue badge</AdminButtonLink>
-                <AdminButtonLink href={operationsLearnerRecordsPath} variant="secondary">
-                  Learner records
-                </AdminButtonLink>
-                <AdminButtonLink href={operationsReviewQueuePath} variant="secondary">
-                  Review queue
-                </AdminButtonLink>
-                <AdminButtonLink href={operationsIssuedBadgesPath} variant="secondary">
-                  Issued badges
-                </AdminButtonLink>
-              </AdminPanel>
-            </section>
           </>
         );
       case "operationsManualIssue":
@@ -1348,9 +1323,6 @@ const renderInstitutionAdminPage = (
                   <p>
                     Upgrade to the enterprise plan to configure OIDC sign-in and break-glass access.
                   </p>
-                  <AdminButtonLink href={accessMembersPath} variant="secondary">
-                    Back to members
-                  </AdminButtonLink>
                 </AdminPanel>
               )}
             </section>
@@ -1475,10 +1447,6 @@ const renderInstitutionAdminPage = (
 
 export const institutionAdminDashboardPage = (input: InstitutionAdminPageInput): AppPage => {
   return renderInstitutionAdminPage(input, "home");
-};
-
-export const institutionAdminOperationsPage = (input: InstitutionAdminPageInput): AppPage => {
-  return renderInstitutionAdminPage(input, "operations");
 };
 
 export const institutionAdminLearnerRecordsPage = (input: InstitutionAdminPageInput): AppPage => {

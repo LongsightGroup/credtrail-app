@@ -109,7 +109,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain("<summary");
     expect(body).not.toMatch(/class="ct-admin-sidebar__group-content"[^>]*hidden/);
     expect(body).not.toContain("data-sidebar-group-default-open");
-    expect(body).toContain('aria-label="Open Issue &amp; Inspect workspace"');
+    expect(body).toContain('aria-label="Open Issue Badge workspace"');
     expect(body).toContain('aria-label="Open Reporting workspace"');
     expect(body).toContain('aria-label="Open Rules workspace"');
     expect(body).toContain('aria-label="Open Members workspace"');
@@ -122,7 +122,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).not.toContain("Manual Issue Badge");
     expect(body).not.toContain("Create Tenant API Key");
     expect(body).not.toContain("Issued Badges Ledger");
-    expect(body).toContain('href="/tenants/tenant_123/admin/operations"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/operations/issue"');
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');

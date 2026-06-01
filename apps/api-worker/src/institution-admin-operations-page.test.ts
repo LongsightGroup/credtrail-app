@@ -26,7 +26,7 @@ import { INSTITUTION_ADMIN_JS } from "./ui/page-assets/content/institution-admin
 import { pageAssetPath } from "./ui/page-assets";
 
 describe("GET /tenants/:tenantId/admin/operations", () => {
-  it("renders the operations workspace", async () => {
+  it("redirects to the issue badge page", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -38,29 +38,9 @@ describe("GET /tenants/:tenantId/admin/operations", () => {
       },
       env,
     );
-    const body = await response.text();
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(body).toContain(">Issue &amp; Inspect<");
-    expect(body).not.toContain("Manual Issue Badge");
-    expect(body).toContain('href="/tenants/tenant_123/admin/operations/issue"');
-    expect(body).toContain("Learner Records");
-    expect(body).toContain(">Imports</a>");
-    expect(body).not.toContain('id="manual-issue-form"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/operations/learner-records"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/operations/learner-record-imports"');
-    expect(body).toContain("Review Queue");
-    expect(body).toContain("Issued Badges");
-    expect(body).toContain("Badge Status");
-    expect(body).toContain('href="/tenants/tenant_123/admin/operations/review-queue"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/operations/issued-badges"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/operations/badge-status"');
-    expect(body).not.toContain('id="assertion-lifecycle-view-form"');
-    expect(body).not.toContain('id="rule-review-queue-refresh"');
-    expect(body).not.toContain('id="issued-badges-filter-form"');
-    expect(body).not.toContain("Create Tenant API Key");
-    expect(body).not.toContain("Reusable Rule Lists");
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/operations/issue");
   });
 });
 
@@ -83,8 +63,7 @@ describe("GET /tenants/:tenantId/admin/operations/issue", () => {
     expect(body).toContain("Issue Badge");
     expect(body).toContain('id="manual-issue-form"');
     expect(body).toContain('action="/tenants/tenant_123/admin/operations/issue"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/operations"');
-    expect(body).toContain("Back to Issue &amp; Inspect");
+    expect(body).not.toMatch(/Back to /);
     expect(body).not.toContain('id="issued-badges-filter-form"');
     expect(body).toContain(pageAssetPath("institutionAdminShellJs"));
     expect(body).not.toContain(pageAssetPath("institutionAdminJs"));

@@ -86,7 +86,7 @@ describe("GET /tenants/:tenantId/admin/access", () => {
     expect(body).not.toContain(pageAssetPath("institutionAdminJs"));
   });
 
-  it("shows a members back link for non-enterprise tenants", async () => {
+  it("shows upgrade guidance without enterprise auth controls for non-enterprise tenants", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -102,8 +102,7 @@ describe("GET /tenants/:tenantId/admin/access", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("Upgrade to the enterprise plan");
-    expect(body).toContain('href="/tenants/tenant_123/admin/access/members"');
-    expect(body).toContain("Back to members");
+    expect(body).not.toContain("Back to members");
     expect(body).not.toContain('id="enterprise-auth-policy-form"');
     expect(body).toContain(pageAssetPath("institutionAdminShellJs"));
     expect(body).not.toContain(pageAssetPath("institutionAdminJs"));
@@ -495,7 +494,7 @@ describe("GET /tenants/:tenantId/admin/access/governance/delegations/new", () =>
     expect(body).toContain("Add Delegated Authority");
     expect(body).toContain('id="delegated-grant-form"');
     expect(body).toContain('action="/tenants/tenant_123/admin/access/governance/delegations"');
-    expect(body).toContain("Back to governance");
+    expect(body).not.toContain("Back to governance");
     expect(body).not.toContain('id="membership-scope-form"');
     expect(body).toContain(pageAssetPath("institutionAdminShellJs"));
     expect(body).not.toContain(pageAssetPath("institutionAdminJs"));

@@ -1,7 +1,6 @@
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
   AdminButton,
-  AdminButtonLink,
   AdminCheckboxRow,
   AdminField,
   AdminFieldset,
@@ -9,10 +8,7 @@ import {
   AdminPanel,
   AdminStatus,
 } from "../components";
-import {
-  buildAccessGovernanceAdminPath,
-  tenantAccessDelegatedGrantCreatePath,
-} from "../access-admin-helpers";
+import { tenantAccessDelegatedGrantCreatePath } from "../access-admin-helpers";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | readonly HonoElement[];
 
@@ -28,8 +24,6 @@ interface RenderDelegationSetupSectionInput {
 export const renderDelegationSetupSection = (
   input: RenderDelegationSetupSectionInput,
 ): HonoElement => {
-  const governancePath = buildAccessGovernanceAdminPath(input.tenantId);
-
   return (
     <AdminPanel id="delegation-setup-panel" className="ct-stack">
       {input.listError !== null && input.listError !== undefined && input.listError.length > 0 ? (
@@ -92,12 +86,7 @@ export const renderDelegationSetupSection = (
         <AdminField label="Reason (optional)">
           <input name="reason" type="text" placeholder="Coverage for spring term operations." />
         </AdminField>
-        <div class="ct-cluster">
-          <AdminButton type="submit">Save delegation</AdminButton>
-          <AdminButtonLink href={governancePath} variant="secondary">
-            Back to governance
-          </AdminButtonLink>
-        </div>
+        <AdminButton type="submit">Save delegation</AdminButton>
       </AdminForm>
     </AdminPanel>
   );

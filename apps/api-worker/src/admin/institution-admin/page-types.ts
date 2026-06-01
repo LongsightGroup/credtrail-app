@@ -32,7 +32,6 @@ import type { PageAssetKey } from "../../ui/page-assets";
 
 export type InstitutionAdminView =
   | "home"
-  | "operations"
   | "operationsLearnerRecords"
   | "operationsLearnerRecordImports"
   | "operationsReviewQueue"
@@ -74,7 +73,7 @@ export const institutionAdminViewNeedsOperationsSectionBundles = (
     return false;
   }
 
-  return view === "rules" || view === "operations" || view.startsWith("operations");
+  return view === "rules" || view.startsWith("operations");
 };
 
 export const institutionAdminViewNeedsReportingSectionBundles = (
@@ -149,10 +148,6 @@ export const INSTITUTION_ADMIN_VIEW_CONFIG = {
   home: {
     titlePrefix: "Institution Admin",
     controller: "shell",
-  },
-  operations: {
-    titlePrefix: "Issue & Inspect · Institution Admin",
-    controller: "shared",
   },
   operationsLearnerRecords: {
     titlePrefix: "Learner Records · Institution Admin",

@@ -1,13 +1,6 @@
 import type { HtmlEscapedString } from "hono/utils/html";
-import {
-  AdminButton,
-  AdminButtonLink,
-  AdminField,
-  AdminForm,
-  AdminPanel,
-  AdminStatus,
-} from "../components";
-import { buildOperationsAdminPath, tenantOperationsManualIssuePath } from "../access-admin-helpers";
+import { AdminButton, AdminField, AdminForm, AdminPanel, AdminStatus } from "../components";
+import { tenantOperationsManualIssuePath } from "../access-admin-helpers";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | readonly HonoElement[];
 
@@ -19,8 +12,6 @@ interface RenderManualIssueSectionInput {
 }
 
 export const renderManualIssueSection = (input: RenderManualIssueSectionInput): HonoElement => {
-  const operationsPath = buildOperationsAdminPath(input.tenantId);
-
   return (
     <AdminPanel id="manual-issue-panel">
       {input.listError !== null && input.listError !== undefined && input.listError.length > 0 ? (
@@ -44,12 +35,7 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
         <AdminField label="Recipient email">
           <input name="recipientIdentity" type="email" required placeholder="csev@umich.edu" />
         </AdminField>
-        <div class="ct-cluster">
-          <AdminButton type="submit">Issue badge</AdminButton>
-          <AdminButtonLink href={operationsPath} variant="secondary">
-            Back to Issue &amp; Inspect
-          </AdminButtonLink>
-        </div>
+        <AdminButton type="submit">Issue badge</AdminButton>
       </AdminForm>
     </AdminPanel>
   );

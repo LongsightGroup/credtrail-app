@@ -55,11 +55,6 @@ interface RegisterTenantAdminPageRoutesInput {
     nextPath: string,
     renderPage: (pageData: InstitutionAdminPageData) => AppPage,
   ) => Promise<Response>;
-  renderInstitutionAdminOperationsWorkspace: (
-    c: AppContext,
-    tenantId: string,
-    nextPath: string,
-  ) => Promise<Response>;
   renderInstitutionAdminMembersWorkspace: (
     c: AppContext,
     tenantId: string,
@@ -158,7 +153,6 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     requireTenantRole,
     redirectToTenantLogin,
     renderInstitutionAdminWorkspace,
-    renderInstitutionAdminOperationsWorkspace,
     renderInstitutionAdminMembersWorkspace,
     renderInstitutionAdminGovernanceWorkspace,
     renderInstitutionAdminGovernanceDelegationNewWorkspace,
@@ -189,11 +183,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
 
   app.get("/tenants/:tenantId/admin/operations", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminOperationsWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations`,
-    );
+    return c.redirect(`/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/issue`);
   });
 
   app.get("/tenants/:tenantId/admin/operations/issue", async (c) => {

@@ -20,7 +20,6 @@ import {
   institutionAdminLmsConnectionsPage,
   institutionAdminManualIssuePage,
   institutionAdminMembersPage,
-  institutionAdminOperationsPage,
   institutionAdminOperationsReviewQueuePage,
   institutionAdminOrgUnitsPage,
   institutionAdminRulesPage,
@@ -586,35 +585,5 @@ export const renderInstitutionAdminOrgUnitsWorkspace = async <
         listError: flash.listError,
       },
     }),
-  );
-};
-
-export const renderInstitutionAdminOperationsWorkspace = async <
-  TPageData extends InstitutionAdminPageInput,
->(
-  c: AppContext,
-  renderAppPageFn: typeof renderAppPage,
-  tenantId: string,
-  nextPath: string,
-  deps: InstitutionAdminWorkspaceRendererDeps<TPageData>,
-): Promise<Response> => {
-  const loaded = await loadInstitutionAdminWorkspacePageData({
-    c,
-    tenantId,
-    nextPath,
-    resolveInstitutionAdminAdminRole: deps.resolveInstitutionAdminAdminRole,
-    loadInstitutionAdminPageData: deps.loadInstitutionAdminPageData,
-  });
-
-  if (loaded instanceof Response) {
-    return loaded;
-  }
-
-  const { pageData } = loaded;
-
-  return await renderInstitutionAdminWorkspacePage(
-    c,
-    renderAppPageFn,
-    institutionAdminOperationsPage(pageData),
   );
 };

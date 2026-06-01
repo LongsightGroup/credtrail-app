@@ -1,16 +1,6 @@
 import type { HtmlEscapedString } from "hono/utils/html";
-import {
-  AdminButton,
-  AdminButtonLink,
-  AdminField,
-  AdminForm,
-  AdminPanel,
-  AdminStatus,
-} from "../components";
-import {
-  buildLmsConnectionsPagePath,
-  tenantLmsConnectionAdminSavePath,
-} from "../lms-connection-admin-helpers";
+import { AdminButton, AdminField, AdminForm, AdminPanel, AdminStatus } from "../components";
+import { tenantLmsConnectionAdminSavePath } from "../lms-connection-admin-helpers";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -35,7 +25,6 @@ export const renderLmsConnectionSetupSection = (
   input: RenderLmsConnectionSetupSectionInput,
 ): HonoElement => {
   const isUpdate = input.formValues.connectionId.length > 0;
-  const listPath = buildLmsConnectionsPagePath(input.tenantId);
 
   return (
     <AdminPanel id="lms-connection-setup-panel" className="ct-stack">
@@ -137,14 +126,9 @@ export const renderLmsConnectionSetupSection = (
             </AdminField>
           </div>
         </details>
-        <div class="ct-cluster">
-          <AdminButton type="submit">
-            {isUpdate ? "Save connection changes" : "Save and connect gradebook"}
-          </AdminButton>
-          <AdminButtonLink href={listPath} variant="secondary">
-            Back to LMS connections
-          </AdminButtonLink>
-        </div>
+        <AdminButton type="submit">
+          {isUpdate ? "Save connection changes" : "Save and connect gradebook"}
+        </AdminButton>
       </AdminForm>
       {isUpdate ? (
         <p class="ct-admin__hint">

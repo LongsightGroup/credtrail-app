@@ -16,6 +16,7 @@ import {
 import { app } from "./index";
 import { INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS } from "./ui/page-assets/content/institution-admin-badge-template-editor-js";
 import { INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_JS } from "./ui/page-assets/content/institution-admin-badge-template-list-js";
+import { INSTITUTION_ADMIN_CSS } from "./ui/page-assets/content/institution-admin-css";
 import { INSTITUTION_ADMIN_JS } from "./ui/page-assets/content/institution-admin-js";
 import { INSTITUTION_ADMIN_RULE_BUILDER_JS } from "./ui/page-assets/content/institution-admin-rule-builder-js";
 import { pageAssetPath } from "./ui/page-assets";
@@ -313,7 +314,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain(">Edit Badge Template<");
     expect(body).toContain("Prepare the badge details, artwork, criteria, and public record");
-    expect(body).toContain("Back to badge templates");
+    expect(body).not.toContain("Back to badge templates");
     expect(body).toContain('id="badge-template-editor-preview-frame"');
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/rules/templates/badge_template_001/image-upload"',
@@ -511,9 +512,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain(
-      'href="/tenants/tenant_123/admin/rules/templates?q=typescript&amp;includeArchived=1&amp;returnTo=rule-builder"',
-    );
+    expect(body).not.toContain("Back to badge templates");
     expect(body).toContain(
       'href="/tenants/tenant_123/admin/rules/templates?q=typescript&amp;includeArchived=1&amp;returnTo=rule-builder&amp;badgeTemplateId=badge_template_001&amp;history=1"',
     );
@@ -1168,6 +1167,15 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).not.toContain("ct-admin__builder-rail");
     expect(body).not.toContain("ct-admin__builder-main");
     expect(body).toContain("ct-admin__builder-steps--vertical-stepper");
+    expect(INSTITUTION_ADMIN_CSS).toContain(
+      ".ct-admin__stepper-step:not(.is-active) .ct-admin__step-copy small",
+    );
+    expect(INSTITUTION_ADMIN_CSS).not.toContain(
+      ".ct-admin__stepper-step:not(.is-active) .ct-admin__step-copy small {\n  display: none;",
+    );
+    expect(INSTITUTION_ADMIN_CSS).toContain(
+      ".ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-locked,\n.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button:disabled {\n  opacity: 1;",
+    );
     expect(body).toContain('data-rule-step-row="metadata"');
     expect(body).toContain('class="ct-admin__stepper-header"');
     expect(body).toContain('class="ct-admin__stepper-content"');
@@ -1247,7 +1255,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).not.toContain("Confirm the badge and Learning Management System source");
     expect(body).toContain('id="rule-builder-return-to-pattern"');
     expect(body).toContain("No requirements yet");
-    expect(body).toContain("Back to Step 1");
+    expect(body).toContain("Change pattern");
+    expect(body).not.toContain("Back to Step 1");
     expect(body).toContain("Advanced JSON tools");
     expect(body).not.toContain("Advanced tools and reusable lists");
     expect(body).not.toContain("Reusable lists");
@@ -1260,6 +1269,15 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("Choose the badge, LMS connection, and how learners earn it");
     expect(body).toContain('name="lmsConnectionId"');
     expect(body).toContain("Canvas Test (Canvas)");
+    expect(body).toContain('id="rule-builder-lms-status"');
+    expect(body).toContain('role="alert"');
+    expect(body).toContain('href="/tenants/tenant_123/admin/access/lms-connections"');
+    expect(body).toContain("Update LMS connection");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "Sakai blocked CredTrail from reading your site list (403).",
+    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("copy a fresh SAKAIID session value");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("setLmsLookupStatus(message, true)");
     expect(body).toContain("Need a new template?");
     expect(body).toContain("Create one in Badge Templates");
     expect(body).toContain(

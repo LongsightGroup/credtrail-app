@@ -577,6 +577,18 @@ export const institutionAdminRuleBuilderPage = (input: {
                               </a>
                             </div>
                           ) : null}
+                          <div
+                            id="rule-builder-lms-status"
+                            class="ct-admin__builder-lms-status ct-admin__builder-field-span"
+                            data-tone="info"
+                            role="alert"
+                            hidden={true}
+                          >
+                            <span data-rule-builder-lms-status-message="true"></span>
+                            <a class="ct-admin__text-action" href={accessLmsConnectionsPath}>
+                              Update LMS connection
+                            </a>
+                          </div>
                           <AdminField
                             label="Awarding pattern"
                             className="ct-admin__builder-field-span"
@@ -692,8 +704,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                                 No requirements yet
                               </p>
                               <p class="ct-admin__builder-empty-state__body">
-                                Go back to Step 1 and choose an awarding pattern, or add a
-                                requirement below.
+                                Choose an awarding pattern in Step 1, or add a requirement below.
                               </p>
                               <AdminButton
                                 type="button"
@@ -701,7 +712,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                                 size="tiny"
                                 variant="secondary"
                               >
-                                Back to Step 1
+                                Change pattern
                               </AdminButton>
                             </div>
                             <div

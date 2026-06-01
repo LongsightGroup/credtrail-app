@@ -2,7 +2,6 @@ import type { AdminSidebarSection } from "./sidebar";
 
 export type InstitutionAdminSidebarView =
   | "home"
-  | "operations"
   | "operationsLearnerRecords"
   | "operationsLearnerRecordImports"
   | "operationsReviewQueue"
@@ -135,11 +134,6 @@ export const buildInstitutionAdminSidebarSections = (
         {
           label: "Issuance",
           links: [
-            {
-              href: paths.operationsPath,
-              label: "Issue & Inspect",
-              isCurrent: view === "operations",
-            },
             {
               href: paths.operationsManualIssuePath,
               label: "Issue Badge",

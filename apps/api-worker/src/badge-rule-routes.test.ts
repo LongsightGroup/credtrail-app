@@ -672,6 +672,48 @@ describe("badge rule routes", () => {
     );
   });
 
+  it("returns actionable Sakai 403 guidance for course lookup failures", async () => {
+    const env = createEnv();
+    mockedFindTenantLmsConnectionById.mockResolvedValue(
+      sampleTenantLmsConnection({
+        displayName: "TrySakai",
+        providerKind: "sakai",
+        apiBaseUrl: "https://trysakai.example.edu",
+        accessToken: "sakai-session",
+        refreshToken: null,
+      }),
+    );
+    mockedCreateGradebookProvider.mockReturnValue({
+      kind: "sakai",
+      listCourses: () =>
+        Promise.reject(
+          new Error("Sakai gradebook API request failed (403) for /api/users/me/sites"),
+        ),
+      listAssignments: () => Promise.resolve([]),
+      listEnrollments: () => Promise.resolve([]),
+      listSubmissions: () => Promise.resolve([]),
+      listGrades: () => Promise.resolve([]),
+      listCompletions: () => Promise.resolve([]),
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/lms/connections/lms_123/courses?q=cs",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(502);
+    expect(body.error).toContain("Sakai blocked CredTrail from reading your site list (403).");
+    expect(body.error).toContain("copy a fresh SAKAIID session value");
+    expect(body.error).toContain("update this LMS connection");
+    expect(body.error).toContain("allow REST API access to Sites and Gradebook");
+  });
+
   it("creates reusable badge-rule value lists", async () => {
     const env = createEnv();
 

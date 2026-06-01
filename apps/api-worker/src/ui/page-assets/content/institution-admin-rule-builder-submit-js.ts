@@ -400,6 +400,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
 
     if (ruleBuilderLmsConnectionSelect instanceof HTMLSelectElement) {
       ruleBuilderLmsConnectionSelect.addEventListener('change', () => {
+        setLmsLookupStatus('', false);
         syncSelectedLmsProviderKind();
         refreshConditionCardValueListOptions();
         syncRuleBuilderSummary();

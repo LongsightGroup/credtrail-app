@@ -61,6 +61,41 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
       return payload;
     };
 
+    const sakaiSites403Message =
+      'Sakai blocked CredTrail from reading your site list (403). Sign in to Sakai with an account that can view the target site and gradebook, copy a fresh SAKAIID session value, then update this LMS connection. If it still fails, ask a Sakai administrator to allow REST API access to Sites and Gradebook.';
+
+    const lmsLookupErrorMessage = (error, fallback) => {
+      const message = error instanceof Error ? error.message : fallback;
+      const providerKind = getSelectedLmsProviderKind();
+
+      if (
+        providerKind === 'sakai' &&
+        message.includes('(403)') &&
+        message.includes('/api/users/me/sites')
+      ) {
+        return sakaiSites403Message;
+      }
+
+      return message;
+    };
+
+    const setLmsLookupStatus = (message, isError) => {
+      if (!(ruleBuilderLmsStatus instanceof HTMLElement)) {
+        return;
+      }
+
+      const messageElement = ruleBuilderLmsStatus.querySelector(
+        '[data-rule-builder-lms-status-message]',
+      );
+
+      ruleBuilderLmsStatus.hidden = message.length === 0;
+      ruleBuilderLmsStatus.dataset.tone = isError ? 'error' : 'info';
+
+      if (messageElement instanceof HTMLElement) {
+        messageElement.textContent = message;
+      }
+    };
+
     const coursesPath = (query) => {
       const connectionId = getSelectedLmsConnectionId();
 
@@ -121,6 +156,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
         return;
       }
 
+      setLmsLookupStatus('', false);
       select.disabled = true;
       setSelectOptions(select, [], 'Loading courses...', selectedValuesFromDataset(select), lmsCourseLabel, (course) => course.courseId);
       const payload = await fetchLmsJson(path);
@@ -177,6 +213,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
         return;
       }
 
+      setLmsLookupStatus('', false);
       itemSelect.disabled = true;
       setSelectOptions(itemSelect, [], 'Loading gradebook items...', selectedValuesFromDataset(itemSelect), lmsGradebookItemLabel, (item) => item.assignmentId);
       const payload = await fetchLmsJson(path);
@@ -205,7 +242,9 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
               void hydrateGradebookItemSelect(card, '');
             }
           }).catch((error) => {
-            setStatus(ruleCreateStatus, error instanceof Error ? error.message : 'Unable to load LMS courses.', true);
+            const message = lmsLookupErrorMessage(error, 'Unable to load LMS courses.');
+            setLmsLookupStatus(message, true);
+            setStatus(ruleCreateStatus, message, true);
           });
         }, 180);
       };
@@ -241,7 +280,9 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
           void hydrateGradebookItemSelect(card, query).then(() => {
             syncDefinitionJsonFromBuilder();
           }).catch((error) => {
-            setStatus(ruleCreateStatus, error instanceof Error ? error.message : 'Unable to load gradebook items.', true);
+            const message = lmsLookupErrorMessage(error, 'Unable to load gradebook items.');
+            setLmsLookupStatus(message, true);
+            setStatus(ruleCreateStatus, message, true);
           });
         }, 180);
       };

@@ -55,6 +55,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_BOOTSTRAP_JS = `
   const ruleBuilderDefinitionJson = document.getElementById('rule-builder-definition-json');
   const ruleBuilderTemplatePreset = document.getElementById('rule-builder-template-preset');
   const ruleBuilderLmsConnectionSelect = document.getElementById('rule-builder-lms-connection');
+  const ruleBuilderLmsStatus = document.getElementById('rule-builder-lms-status');
   const ruleBuilderLmsProviderKindInput = document.getElementById('rule-builder-lms-provider-kind');
   const ruleBuilderApplyTemplateButton = document.getElementById('rule-builder-apply-template');
   const ruleBuilderAddConditionButton = document.getElementById('rule-builder-add-condition');

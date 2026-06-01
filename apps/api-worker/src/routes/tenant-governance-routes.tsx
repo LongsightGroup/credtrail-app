@@ -70,7 +70,6 @@ import {
   renderInstitutionAdminLmsConnectionsWorkspace,
   renderInstitutionAdminManualIssueWorkspace,
   renderInstitutionAdminMembersWorkspace,
-  renderInstitutionAdminOperationsWorkspace,
   renderInstitutionAdminOrgUnitsWorkspace,
   renderInstitutionAdminReviewQueueWorkspace,
   renderInstitutionAdminRulesWorkspace,
@@ -1919,15 +1918,6 @@ export const registerTenantGovernanceRoutes = (
       workspaceRendererDeps,
     );
 
-  const renderOperationsWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
-    renderInstitutionAdminOperationsWorkspace(
-      c,
-      renderAppPage,
-      tenantId,
-      nextPath,
-      workspaceRendererDeps,
-    );
-
   registerTenantAdminPageRoutes({
     app,
     ADMIN_ROLES,
@@ -1935,7 +1925,6 @@ export const registerTenantGovernanceRoutes = (
     requireTenantRole,
     redirectToTenantLogin,
     renderInstitutionAdminWorkspace,
-    renderInstitutionAdminOperationsWorkspace: renderOperationsWorkspace,
     renderInstitutionAdminMembersWorkspace: renderMembersWorkspace,
     renderInstitutionAdminGovernanceWorkspace: renderGovernanceWorkspace,
     renderInstitutionAdminOrgUnitsWorkspace: renderOrgUnitsWorkspace,

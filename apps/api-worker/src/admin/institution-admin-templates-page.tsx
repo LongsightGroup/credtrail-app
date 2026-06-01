@@ -19,7 +19,6 @@ import {
 import type { BadgeTemplateHistoryTimelineEntry } from "../badges/badge-template-history";
 import {
   badgeTemplateHistoryHref,
-  buildBadgeTemplateListPageQuery,
   toBadgeTemplateClientRecord,
   type BadgeTemplateListPageQueryOptions,
 } from "./badge-template-admin-helpers";
@@ -601,11 +600,6 @@ export const institutionAdminRuleTemplateEditorPage = (
     includeArchived: (input.listPageQuery?.includeArchived ?? false) || template.isArchived,
     returnToRuleBuilder: input.listPageQuery?.returnToRuleBuilder ?? input.returnToRuleBuilder,
   };
-  const listPageQueryString = buildBadgeTemplateListPageQuery(listPageQuery).toString();
-  const rulesTemplatesHref =
-    listPageQueryString.length > 0
-      ? `${paths.rulesTemplatesPath}?${listPageQueryString}`
-      : paths.rulesTemplatesPath;
   const templateHistoryHref = badgeTemplateHistoryHref(
     paths.rulesTemplatesPath,
     template.id,
@@ -645,9 +639,6 @@ export const institutionAdminRuleTemplateEditorPage = (
           "Prepare the badge details, artwork, criteria, and public record before using it in rules.",
         )}
         <section class="ct-admin ct-stack">
-          <a class="ct-admin__text-action" href={rulesTemplatesHref}>
-            Back to badge templates
-          </a>
           <AdminPanel className="ct-admin__template-editor-overview">
             <BadgeTemplateEditorPreviewFrame template={template} />
             <div class="ct-admin__template-editor-summary">

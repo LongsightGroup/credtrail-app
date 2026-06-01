@@ -152,6 +152,24 @@ const resolvedProviderForTenantConnection = async (input: {
   }
 };
 
+const lmsLookupErrorMessage = (
+  connection: ResolvedGradebookProvider["connection"],
+  error: unknown,
+  fallback: string,
+): string => {
+  const rawMessage = error instanceof Error ? error.message : fallback;
+
+  if (
+    connection.providerKind === "sakai" &&
+    rawMessage.includes("(403)") &&
+    rawMessage.includes("/api/users/me/sites")
+  ) {
+    return "Sakai blocked CredTrail from reading your site list (403). Sign in to Sakai with an account that can view the target site and gradebook, copy a fresh SAKAIID session value, then update this LMS connection. If it still fails, ask a Sakai administrator to allow REST API access to Sites and Gradebook.";
+  }
+
+  return rawMessage;
+};
+
 const observedWorkflowStates = (submissions: readonly GradebookSubmissionRecord[]): Set<string> => {
   const states = new Set<string>();
 
@@ -314,7 +332,7 @@ export const registerTenantLmsConnectionRoutes = (
     } catch (error) {
       return c.json(
         {
-          error: error instanceof Error ? error.message : "Unable to search LMS courses",
+          error: lmsLookupErrorMessage(resolved.connection, error, "Unable to search LMS courses"),
         },
         502,
       );
@@ -356,7 +374,11 @@ export const registerTenantLmsConnectionRoutes = (
       } catch (error) {
         return c.json(
           {
-            error: error instanceof Error ? error.message : "Unable to list gradebook items",
+            error: lmsLookupErrorMessage(
+              resolved.connection,
+              error,
+              "Unable to list gradebook items",
+            ),
           },
           502,
         );
@@ -404,7 +426,11 @@ export const registerTenantLmsConnectionRoutes = (
       } catch (error) {
         return c.json(
           {
-            error: error instanceof Error ? error.message : "Unable to list workflow state options",
+            error: lmsLookupErrorMessage(
+              resolved.connection,
+              error,
+              "Unable to list workflow state options",
+            ),
           },
           502,
         );

@@ -2614,7 +2614,7 @@ a.ct-admin__workspace-card:active {
   display: block;
 }
 .ct-admin__stepper-step:not(.is-active) .ct-admin__step-copy small {
-  display: none;
+  color: var(--ct-theme-text-muted);
 }
 .ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-active {
   color: var(--ct-theme-text-title);
@@ -2693,6 +2693,27 @@ a.ct-admin__workspace-card:active {
   color: var(--ct-theme-text-muted);
   font-size: 0.86rem;
   line-height: 1.4;
+}
+.ct-admin__builder-lms-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ct-space-2);
+  align-items: flex-start;
+  margin: 0;
+  padding: var(--ct-space-3);
+  border: 1px solid var(--ct-theme-state-danger);
+  border-radius: var(--ct-radius-md);
+  background: var(--ct-theme-surface-danger);
+  color: var(--ct-theme-state-danger);
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+.ct-admin__builder-lms-status[hidden] {
+  display: none;
+}
+.ct-admin__builder-lms-status .ct-admin__text-action {
+  color: var(--ct-theme-state-danger);
 }
 .ct-admin__builder-test-result {
   margin-top: 0.35rem;
@@ -4051,6 +4072,25 @@ button.ct-admin__text-action {
   border-color: var(--ct-border-strong);
   background: var(--ct-theme-surface-info);
   color: var(--ct-theme-text-body);
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-locked,
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button:disabled {
+  opacity: 1;
+  color: var(--ct-theme-text-body);
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-locked .ct-admin__step-number,
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button:disabled .ct-admin__step-number {
+  border-color: var(--ct-border-soft);
+  background: var(--ct-theme-surface-soft);
+  color: var(--ct-theme-text-muted);
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-locked .ct-admin__step-copy strong,
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button:disabled .ct-admin__step-copy strong {
+  color: var(--ct-theme-text-title);
+}
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-locked .ct-admin__step-copy small,
+.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button:disabled .ct-admin__step-copy small {
+  color: var(--ct-theme-text-muted);
 }
 .ct-admin__builder-advanced {
   border: 1px solid var(--ct-border-soft);
