@@ -224,3 +224,101 @@ jobs:
 
             sleep 1
           done
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: credtrail
+          POSTGRES_PASSWORD: credtrail
+          POSTGRES_DB: credtrail
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U credtrail -d credtrail"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Configure local dev env
+        run: |
+          cp wrangler.local.jsonc.example wrangler.local.jsonc
+          cp .dev.vars.local.example .dev.vars.local
+
+      - name: Migrate and seed
+        env:
+          DATABASE_URL: postgres://credtrail:credtrail@127.0.0.1:5432/credtrail
+        run: |
+          pnpm db:migrate:postgres
+          pnpm dev:seed
+
+      - name: Run Playwright e2e
+        env:
+          CREDTRAIL_DEV_BASE_URL: http://127.0.0.1:8787
+        run: |
+          set -euo pipefail
+          mkdir -p output
+
+          pnpm exec wrangler dev \
+            --config wrangler.local.jsonc \
+            --env-file .dev.vars.local \
+            --port 8787 \
+            > output/wrangler-ci.log 2>&1 &
+          wrangler_pid="$!"
+
+          cleanup() {
+            kill "$wrangler_pid" >/dev/null 2>&1 || true
+            wait "$wrangler_pid" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          status=""
+          for attempt in $(seq 1 60); do
+            status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/healthz/dependencies || true)"
+
+            if [ "$status" = "200" ]; then
+              echo "Wrangler dependencies returned 200 on attempt $attempt."
+              break
+            fi
+
+            if [ "$attempt" = "60" ]; then
+              echo "Wrangler did not become ready (last dependencies status: ${status:-none})."
+              cat output/wrangler-ci.log
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          pnpm test:e2e
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-artifacts
+          path: |
+            output/playwright-report
+            test-results
+            output/wrangler-ci.log

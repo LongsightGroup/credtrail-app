@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -18,63 +18,8 @@ import {
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
+import { loadLocalDevEnv, requireEnv } from "./local-dev-env.mjs";
 import localDevDemoContract from "./local-dev-demo-contract";
-
-const loadLocalDevEnv = (cwd: string = process.cwd()): void => {
-  try {
-    const envPath = join(cwd, ".dev.vars.local");
-    const contents = readFileSync(envPath, "utf8");
-
-    for (const rawLine of contents.split(/\r?\n/g)) {
-      const line = rawLine.trim();
-
-      if (line.length === 0 || line.startsWith("#")) {
-        continue;
-      }
-
-      const separatorIndex = line.indexOf("=");
-
-      if (separatorIndex === -1) {
-        continue;
-      }
-
-      const key = line.slice(0, separatorIndex).trim();
-      let value = line.slice(separatorIndex + 1).trim();
-
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-
-      if (process.env[key] === undefined) {
-        process.env[key] = value;
-      }
-    }
-  } catch (error: unknown) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "ENOENT"
-    ) {
-      return;
-    }
-
-    throw error;
-  }
-};
-
-const requireEnv = (name: string): string => {
-  const value = process.env[name]?.trim();
-
-  if (value === undefined || value.length === 0) {
-    throw new Error(`${name} is required`);
-  }
-
-  return value;
-};
 
 loadLocalDevEnv();
 

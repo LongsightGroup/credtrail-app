@@ -1,5 +1,8 @@
 import { completeTrustEdCredentialMetadataInput } from "@credtrail/validation/testing";
 
+// Local dev seeding reuses the worker's public demo credential fixture so the
+// database row and R2 object stay byte-for-byte aligned with the served route.
+// If more scripts need this fixture, move it to a shared package.
 import { getSeededDemoTrustEdCredentialFixture } from "../apps/api-worker/src/badges/seeded-demo-trusted-credential-fixture";
 import {
   localDevDemoAdminEmail,
