@@ -120,8 +120,9 @@ and local Wrangler R2 emulation.
 
 One-command local bootstrap:
 - Run `pnpm dev:up` from `credtrail-app`. It copies missing local env/config
-  files, starts the Postgres-only compose service, runs migrations, seeds the
-  local demo world, starts Wrangler on `8787`, and prints a JSON ready block.
+  files, preflights the local Postgres port, starts the Postgres-only compose
+  service with healthcheck waiting, runs migrations, seeds the local demo world,
+  starts Wrangler on `8787`, and prints a JSON ready block.
 - Use `pnpm dev:status` to poll readiness. It exits non-zero until local
   Postgres and Wrangler are reachable.
 
@@ -140,6 +141,9 @@ Local-only files:
 
 Manual local database setup:
 - Ensure Postgres is listening on `127.0.0.1:5432`.
+- If another local Postgres already owns port `5432`, either stop it or update
+  `docker-compose.dev.yml`, `.dev.vars.local`, and `wrangler.local.jsonc` to use
+  the same alternate host port such as `5433`.
 - For a fresh local machine, create the local role/database if needed:
   `CREATE ROLE credtrail LOGIN PASSWORD 'credtrail';`
   `CREATE DATABASE credtrail OWNER credtrail;`

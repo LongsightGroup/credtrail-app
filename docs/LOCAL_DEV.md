@@ -15,10 +15,12 @@ This command:
 
 1. Copies `wrangler.local.jsonc.example` to `wrangler.local.jsonc` if missing.
 2. Copies `.dev.vars.local.example` to `.dev.vars.local` if missing.
-3. Starts the Postgres-only `docker-compose.dev.yml` service.
-4. Runs Postgres migrations.
-5. Runs the full local demo seed.
-6. Starts Wrangler on `http://127.0.0.1:8787`.
+3. Checks that host port `5432` is not already owned by another local Postgres.
+4. Starts the Postgres-only `docker-compose.dev.yml` service and waits for its
+   healthcheck.
+5. Runs Postgres migrations.
+6. Runs the full local demo seed.
+7. Starts Wrangler on `http://127.0.0.1:8787`.
 
 The command prints a JSON ready block with `baseUrl`, `tenantId`,
 `adminLoginUrl`, and named demo routes.
@@ -101,3 +103,41 @@ tests/e2e/
 ```
 
 Artifacts go under `output/`, which is gitignored.
+
+## Troubleshooting
+
+### Port 5432 Is Already In Use
+
+`docker-compose.dev.yml` binds local Postgres to `127.0.0.1:5432` by default.
+If Homebrew Postgres, Postgres.app, another Docker stack, or another CredTrail
+checkout is already listening there, `pnpm dev:up` stops before migrations and
+prints a port-collision error.
+
+Fix options:
+
+1. Stop the other Postgres process and rerun `pnpm dev:up`.
+2. Use a different CredTrail dev port, such as `5433`.
+
+For a custom port, keep these three values aligned:
+
+```yaml
+# docker-compose.dev.yml
+ports:
+  - "5433:5432"
+```
+
+```env
+# .dev.vars.local
+DATABASE_URL=postgres://credtrail:credtrail@127.0.0.1:5433/credtrail
+```
+
+```jsonc
+// wrangler.local.jsonc
+"localConnectionString": "postgres://credtrail:credtrail@127.0.0.1:5433/credtrail"
+```
+
+Then rerun:
+
+```bash
+pnpm dev:up
+```

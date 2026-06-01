@@ -18,7 +18,12 @@ const canConnect = (host, port) =>
 
 const main = async () => {
   const ready = localDevDefaults();
-  const postgresReady = await canConnect("127.0.0.1", 5432);
+  const databaseUrl = new URL(
+    process.env.DATABASE_URL?.trim() || "postgres://credtrail:credtrail@127.0.0.1:5432/credtrail",
+  );
+  const postgresHost = databaseUrl.hostname || "127.0.0.1";
+  const postgresPort = Number(databaseUrl.port || "5432");
+  const postgresReady = await canConnect(postgresHost, postgresPort);
   let wranglerReady = false;
 
   try {
@@ -31,7 +36,11 @@ const main = async () => {
   printReadyBlock({
     status: postgresReady && wranglerReady ? "ready" : "not_ready",
     checks: {
-      postgres: postgresReady ? "ok" : "unreachable",
+      postgres: {
+        status: postgresReady ? "ok" : "unreachable",
+        host: postgresHost,
+        port: postgresPort,
+      },
       wrangler: wranglerReady ? "ok" : "unreachable",
     },
   });
