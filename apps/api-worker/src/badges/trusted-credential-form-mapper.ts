@@ -143,10 +143,7 @@ const repeatableRowsFromForm = <ValueType extends Record<string, string | null>>
   return indexedRows.length > 0 ? indexedRows : oneWhenAny(legacyEntry);
 };
 
-export const trustEdMetadataFromForm = (
-  formData: FormData,
-  _existingMetadata?: TrustEdCredentialMetadata | null,
-): TrustEdCredentialMetadata => {
+export const trustEdMetadataFromForm = (formData: FormData): TrustEdCredentialMetadata => {
   const metadata = {
     skills: repeatableRowsFromForm(formData, "trustedSkills", ["name", "identifierUri", "source"], {
       name: nullableFormText(formData, "trustedSkillName"),

@@ -32,7 +32,6 @@ import {
   formHasTrustEdMetadataFields,
   trustEdMetadataFromForm,
 } from "../badges/trusted-credential-form-mapper";
-import { parseTrustEdCredentialMetadataJson } from "../badges/trusted-credential-metadata";
 import { withBadgeTemplateIssuerAccess } from "./badge-template-admin-access";
 
 interface RegisterBadgeTemplateListAdminRoutesInput {
@@ -268,10 +267,7 @@ export const registerBadgeTemplateListAdminRoutes = (
 
         try {
           const trustedCredentialMetadata = formHasTrustEdMetadataFields(formData)
-            ? trustEdMetadataFromForm(
-                formData,
-                parseTrustEdCredentialMetadataJson(existingTemplate.trustedCredentialMetadataJson),
-              )
+            ? trustEdMetadataFromForm(formData)
             : undefined;
           request = parseUpdateBadgeTemplateRequest({
             title: optionalFormText(formData, "title"),
