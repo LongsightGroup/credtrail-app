@@ -1,5 +1,5 @@
 import { completeTrustEdCredentialMetadataInput } from "@credtrail/validation/testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockedResolveBetterAuthPrincipal,
@@ -105,6 +105,13 @@ import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
 
+interface ConsoleLogSpy {
+  mockRestore: () => void;
+  mock: {
+    calls: unknown[][];
+  };
+}
+
 interface ErrorResponse {
   error: string;
 }
@@ -138,6 +145,7 @@ const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const fakeDb = {
   prepare: vi.fn(),
 } as unknown as SqlDatabase;
+let consoleLogSpy: ConsoleLogSpy | null = null;
 
 const createEnv = (): {
   APP_ENV: string;
@@ -160,6 +168,8 @@ const createEnv = (): {
 };
 
 beforeEach(() => {
+  consoleLogSpy?.mockRestore();
+  consoleLogSpy = null;
   mockedCreatePostgresDatabase.mockReset();
   mockedCreatePostgresDatabase.mockReturnValue(fakeDb);
   mockedResolveBetterAuthPrincipal.mockReset();
@@ -212,6 +222,11 @@ beforeEach(() => {
   mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
   mockedSendIssuanceEmailNotification.mockReset();
   mockedSendIssuanceEmailNotification.mockResolvedValue(undefined);
+});
+
+afterEach(() => {
+  consoleLogSpy?.mockRestore();
+  consoleLogSpy = null;
 });
 
 const sampleAssertion = (overrides?: {
@@ -883,6 +898,76 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
         name: "Regional Workforce Council",
       }),
     ]);
+  });
+
+  it("warns and issues without TrustEd fields when stored metadata is invalid", async () => {
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: "did:web:credtrail.test:tenant_123",
+    });
+    const env = {
+      ...createEnv(),
+      BADGE_OBJECTS: createInMemoryBadgeObjects(),
+      TENANT_SIGNING_REGISTRY_JSON: JSON.stringify({
+        "did:web:credtrail.test:tenant_123": {
+          tenantId: "tenant_123",
+          keyId: signingMaterial.keyId,
+          publicJwk: signingMaterial.publicJwk,
+          privateJwk: signingMaterial.privateJwk,
+        },
+      }),
+    };
+    consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue(undefined);
+    mockedFindBadgeTemplateById.mockResolvedValue(
+      sampleBadgeTemplate({ trustedCredentialMetadataJson: "{not-json" }),
+    );
+    mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
+    mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
+    mockedNextAssertionStatusListIndex.mockResolvedValue(0);
+    mockedCreateAssertion.mockResolvedValue(sampleAssertion());
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/assertions/manual-issue",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/json",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: JSON.stringify({
+          badgeTemplateId: "badge_template_001",
+          recipientIdentity: "student@umich.edu",
+          recipientIdentityType: "email",
+          idempotencyKey: "idem-trusted-invalid",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<ManualIssueResponse>();
+    const credentialSubject = asJsonObject(body.credential.credentialSubject);
+    const achievement = asJsonObject(credentialSubject?.achievement);
+    const warningPayloads = (consoleLogSpy.mock.calls as unknown[][])
+      .map((call) => (typeof call[0] === "string" ? (JSON.parse(call[0]) as unknown) : null))
+      .filter((entry): entry is Record<string, unknown> => {
+        return entry !== null && typeof entry === "object" && !Array.isArray(entry);
+      });
+
+    expect(response.status).toBe(201);
+    expect(achievement?.skill).toBeUndefined();
+    expect(achievement?.issuerAuthority).toBeUndefined();
+    expect(credentialSubject?.evidence).toBeUndefined();
+    expect(
+      warningPayloads.some((payload) => {
+        return (
+          payload.level === "warn" &&
+          payload.message === "trusted_credential_metadata_invalid" &&
+          payload.badgeTemplateId === "badge_template_001"
+        );
+      }),
+    ).toBe(true);
   });
 
   it("uses learner DID alias as credentialSubject.id when configured", async () => {

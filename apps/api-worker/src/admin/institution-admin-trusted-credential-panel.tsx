@@ -64,6 +64,14 @@ interface TrustEdTextareaField {
   maxLength: number;
 }
 
+type TrustEdField =
+  | (TrustEdTextField & {
+      kind: "text";
+    })
+  | (TrustEdTextareaField & {
+      kind: "textarea";
+    });
+
 const TrustEdTextField = (field: TrustEdTextField): HonoElement => {
   return (
     <AdminField label={field.label}>
@@ -93,6 +101,14 @@ const TrustEdTextareaField = (field: TrustEdTextareaField): HonoElement => {
   );
 };
 
+const TrustEdFieldControl = (field: TrustEdField): HonoElement => {
+  return field.kind === "textarea" ? (
+    <TrustEdTextareaField {...field} />
+  ) : (
+    <TrustEdTextField {...field} />
+  );
+};
+
 export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): HonoElement => {
   // v1 authoring exposes one row per repeatable field; saving writes at most one array entry.
   const metadataState = trustEdEditorMetadataState(template);
@@ -111,23 +127,32 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
   const missingRecommended = readiness.checks.filter((check) => {
     return check.category === "recommended" && check.status === "missing";
   });
-  const textFields: TrustEdTextField[] = [
-    { label: "Skill", name: "trustedSkillName", value: skill?.name, maxLength: 300 },
+  const fields: TrustEdField[] = [
+    { kind: "text", label: "Skill", name: "trustedSkillName", value: skill?.name, maxLength: 300 },
     {
+      kind: "text",
       label: "Skill URL",
       name: "trustedSkillIdentifierUri",
       value: skill?.identifierUri,
       type: "url",
       maxLength: 2048,
     },
-    { label: "Skill source", name: "trustedSkillSource", value: skill?.source, maxLength: 300 },
     {
+      kind: "text",
+      label: "Skill source",
+      name: "trustedSkillSource",
+      value: skill?.source,
+      maxLength: 300,
+    },
+    {
+      kind: "text",
       label: "Framework target",
       name: "trustedFrameworkTargetName",
       value: alignment?.targetName,
       maxLength: 300,
     },
     {
+      kind: "text",
       label: "Framework target URL",
       name: "trustedFrameworkTargetUri",
       value: alignment?.targetUri,
@@ -135,12 +160,14 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
       maxLength: 2048,
     },
     {
+      kind: "text",
       label: "Framework name",
       name: "trustedFrameworkName",
       value: alignment?.frameworkName,
       maxLength: 300,
     },
     {
+      kind: "text",
       label: "Framework URL",
       name: "trustedFrameworkUri",
       value: alignment?.frameworkUri,
@@ -148,12 +175,14 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
       maxLength: 2048,
     },
     {
+      kind: "text",
       label: "Awarding authority",
       name: "trustedIssuerAuthorityName",
       value: metadata.issuerAuthority?.name,
       maxLength: 300,
     },
     {
+      kind: "text",
       label: "Authority URL",
       name: "trustedIssuerAuthorityUri",
       value: metadata.issuerAuthority?.uri,
@@ -161,87 +190,29 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
       maxLength: 2048,
     },
     {
+      kind: "text",
       label: "Authority type",
       name: "trustedIssuerAuthorityType",
       value: metadata.issuerAuthority?.authorityType,
       maxLength: 300,
     },
     {
+      kind: "text",
       label: "Evidence name",
       name: "trustedEvidenceName",
       value: evidence?.name,
       maxLength: 300,
     },
     {
+      kind: "text",
       label: "Evidence URL",
       name: "trustedEvidenceUri",
       value: evidence?.uri,
       type: "url",
       maxLength: 2048,
     },
-    { label: "Result", name: "trustedResultValue", value: result?.value, maxLength: 300 },
-    { label: "Result date", name: "trustedResultDate", value: result?.resultDate, type: "date" },
     {
-      label: "Criteria URL",
-      name: "trustedCriteriaUri",
-      value: metadata.criteria?.uri ?? template.criteriaUri,
-      type: "url",
-      maxLength: 2048,
-    },
-    {
-      label: "Assessment date",
-      name: "trustedAssessmentDate",
-      value: assessment?.assessmentDate,
-      type: "date",
-    },
-    {
-      label: "Achievement type",
-      name: "trustedAchievementType",
-      value: metadata.achievementType,
-      maxLength: 300,
-    },
-    { label: "Rubric", name: "trustedRubricName", value: rubric?.name, maxLength: 300 },
-    {
-      label: "Rubric URL",
-      name: "trustedRubricUri",
-      value: rubric?.uri,
-      type: "url",
-      maxLength: 2048,
-    },
-    {
-      label: "Duration",
-      name: "trustedDurationValue",
-      value: metadata.duration?.value,
-      maxLength: 300,
-    },
-    {
-      label: "Credits available",
-      name: "trustedCreditsAvailable",
-      value: metadata.credits?.available,
-      maxLength: 300,
-    },
-    {
-      label: "Credits earned",
-      name: "trustedCreditsEarned",
-      value: metadata.credits?.earned,
-      maxLength: 300,
-    },
-    {
-      label: "Endorser",
-      name: "trustedEndorserName",
-      value: endorsement?.endorserName,
-      maxLength: 300,
-    },
-    {
-      label: "Endorser URL",
-      name: "trustedEndorserUri",
-      value: endorsement?.endorserUri,
-      type: "url",
-      maxLength: 2048,
-    },
-  ];
-  const textareaFields: TrustEdTextareaField[] = [
-    {
+      kind: "textarea",
       label: "Evidence description",
       name: "trustedEvidenceDescription",
       value: evidence?.description,
@@ -249,6 +220,21 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
       maxLength: 4000,
     },
     {
+      kind: "text",
+      label: "Result",
+      name: "trustedResultValue",
+      value: result?.value,
+      maxLength: 300,
+    },
+    {
+      kind: "text",
+      label: "Result date",
+      name: "trustedResultDate",
+      value: result?.resultDate,
+      type: "date",
+    },
+    {
+      kind: "textarea",
       label: "Criteria summary",
       name: "trustedCriteriaText",
       value: metadata.criteria?.text,
@@ -256,24 +242,87 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
       maxLength: 4000,
     },
     {
+      kind: "text",
+      label: "Criteria URL",
+      name: "trustedCriteriaUri",
+      value: metadata.criteria?.uri ?? template.criteriaUri,
+      type: "url",
+      maxLength: 2048,
+    },
+    {
+      kind: "textarea",
       label: "Assessment description",
       name: "trustedAssessmentDescription",
       value: assessment?.description,
       rows: 2,
       maxLength: 4000,
     },
+    {
+      kind: "text",
+      label: "Assessment date",
+      name: "trustedAssessmentDate",
+      value: assessment?.assessmentDate,
+      type: "date",
+    },
+    {
+      kind: "text",
+      label: "Achievement type",
+      name: "trustedAchievementType",
+      value: metadata.achievementType,
+      maxLength: 300,
+    },
+    {
+      kind: "text",
+      label: "Rubric",
+      name: "trustedRubricName",
+      value: rubric?.name,
+      maxLength: 300,
+    },
+    {
+      kind: "text",
+      label: "Rubric URL",
+      name: "trustedRubricUri",
+      value: rubric?.uri,
+      type: "url",
+      maxLength: 2048,
+    },
+    {
+      kind: "text",
+      label: "Duration",
+      name: "trustedDurationValue",
+      value: metadata.duration?.value,
+      maxLength: 300,
+    },
+    {
+      kind: "text",
+      label: "Credits available",
+      name: "trustedCreditsAvailable",
+      value: metadata.credits?.available,
+      maxLength: 300,
+    },
+    {
+      kind: "text",
+      label: "Credits earned",
+      name: "trustedCreditsEarned",
+      value: metadata.credits?.earned,
+      maxLength: 300,
+    },
+    {
+      kind: "text",
+      label: "Endorser",
+      name: "trustedEndorserName",
+      value: endorsement?.endorserName,
+      maxLength: 300,
+    },
+    {
+      kind: "text",
+      label: "Endorser URL",
+      name: "trustedEndorserUri",
+      value: endorsement?.endorserUri,
+      type: "url",
+      maxLength: 2048,
+    },
   ];
-  const evidenceDescriptionField = textareaFields[0];
-  const criteriaSummaryField = textareaFields[1];
-  const assessmentDescriptionField = textareaFields[2];
-
-  if (
-    evidenceDescriptionField === undefined ||
-    criteriaSummaryField === undefined ||
-    assessmentDescriptionField === undefined
-  ) {
-    throw new Error("TrustEd textarea field configuration is incomplete");
-  }
 
   return (
     <AdminPanel
@@ -330,20 +379,8 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
       <details class="ct-admin__template-editor-advanced" open={readiness.status !== "ready"}>
         <summary>TrustEd metadata</summary>
         <div class="ct-admin__template-editor-trusted-grid">
-          {textFields.slice(0, 12).map((field) => (
-            <TrustEdTextField {...field} />
-          ))}
-          <TrustEdTextareaField {...evidenceDescriptionField} />
-          {textFields.slice(12, 15).map((field) => (
-            <TrustEdTextField {...field} />
-          ))}
-          <TrustEdTextareaField {...criteriaSummaryField} />
-          {textFields.slice(15, 16).map((field) => (
-            <TrustEdTextField {...field} />
-          ))}
-          <TrustEdTextareaField {...assessmentDescriptionField} />
-          {textFields.slice(16).map((field) => (
-            <TrustEdTextField {...field} />
+          {fields.map((field) => (
+            <TrustEdFieldControl {...field} />
           ))}
         </div>
         <ul class="ct-admin__template-editor-trusted-checks">

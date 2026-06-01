@@ -36,7 +36,10 @@ import {
   recipientIdentifiersForIssueRequest,
   type DirectIssueBadgeRequest,
 } from "./recipient-identifiers";
-import { parseTrustEdCredentialMetadataJson } from "./trusted-credential-metadata";
+import {
+  parseTrustEdCredentialMetadataJsonResult,
+  type TrustEdCredentialMetadataParseResult,
+} from "./trusted-credential-metadata";
 import {
   projectTrustEdMetadataToOb3,
   type TrustEdCredentialOb3Projection,
@@ -139,6 +142,14 @@ const emptyTrustEdOb3Projection = (): TrustEdCredentialOb3Projection => {
     achievement: {},
     subject: {},
   };
+};
+
+const projectTrustEdMetadataForIssuance = (
+  metadataResult: TrustEdCredentialMetadataParseResult,
+): TrustEdCredentialOb3Projection => {
+  return metadataResult.status === "valid"
+    ? projectTrustEdMetadataToOb3(metadataResult.metadata)
+    : emptyTrustEdOb3Projection();
 };
 
 export const createIssueBadgeForTenant = <
@@ -254,13 +265,19 @@ export const createIssueBadgeForTenant = <
       ...(options?.issuerName === undefined ? {} : { name: options.issuerName }),
       ...(options?.issuerUrl === undefined ? {} : { url: options.issuerUrl }),
     };
-    const trustEdMetadata = parseTrustEdCredentialMetadataJson(
+    const trustEdMetadataResult = parseTrustEdCredentialMetadataJsonResult(
       badgeTemplate.trustedCredentialMetadataJson,
     );
-    const trustEdProjection =
-      trustEdMetadata === null
-        ? emptyTrustEdOb3Projection()
-        : projectTrustEdMetadataToOb3(trustEdMetadata);
+    const trustEdProjection = projectTrustEdMetadataForIssuance(trustEdMetadataResult);
+
+    if (trustEdMetadataResult.status === "invalid") {
+      logWarn(input.observabilityContext(context.env), "trusted_credential_metadata_invalid", {
+        tenantId,
+        badgeTemplateId: badgeTemplate.id,
+        detail: trustEdMetadataResult.error,
+      });
+    }
+
     const signedCredentialResult = await input.signCredentialForDid({
       context,
       did: issuerDid,
