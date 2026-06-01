@@ -18,8 +18,9 @@ const run = async (sql, ...bindings) => {
 };
 
 const main = async () => {
+  // Assertions restrict badge template deletion, so remove them before deleting
+  // the tenant and letting tenant-scoped cascades clean up the rest.
   await run("DELETE FROM assertions WHERE tenant_id = ?", tenantId);
-  await run("DELETE FROM learner_profiles WHERE tenant_id = ?", tenantId);
   await run("DELETE FROM tenants WHERE id = ?", tenantId);
   await run(
     `

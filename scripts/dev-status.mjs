@@ -25,10 +25,14 @@ const main = async () => {
   const postgresPort = Number(databaseUrl.port || "5432");
   const postgresReady = await canConnect(postgresHost, postgresPort);
   let wranglerReady = false;
+  let wranglerStatus = null;
 
   try {
-    const response = await fetch(ready.baseUrl, { redirect: "manual" });
-    wranglerReady = response.status > 0;
+    const response = await fetch(new URL("/healthz/dependencies", ready.baseUrl), {
+      redirect: "manual",
+    });
+    wranglerStatus = response.status;
+    wranglerReady = response.ok;
   } catch {
     wranglerReady = false;
   }
@@ -41,7 +45,11 @@ const main = async () => {
         host: postgresHost,
         port: postgresPort,
       },
-      wrangler: wranglerReady ? "ok" : "unreachable",
+      wrangler: {
+        status: wranglerReady ? "ok" : "unreachable",
+        httpStatus: wranglerStatus,
+        path: "/healthz/dependencies",
+      },
     },
   });
 

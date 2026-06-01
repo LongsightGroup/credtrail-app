@@ -50,6 +50,7 @@ pnpm dev:seed
 pnpm dev:reset
 pnpm dev:demo
 pnpm test:e2e
+pnpm dev:screenshot
 pnpm dev:down
 ```
 
@@ -59,10 +60,14 @@ pnpm dev:down
 - `dev:login-as` prints the development-only Better Auth login URL for the
   seeded admin.
 - `dev:seed` creates or refreshes the deterministic demo tenant.
-- `dev:reset` deletes the seeded tenant data and reseeds it.
+- `dev:reset` deletes the seeded tenant data and reseeds it. It does not purge
+  Better Auth session rows or magic-link rate-limit rows.
 - `dev:demo` runs a headed Playwright browser workflow that creates a badge
-  template and issues a badge through normal admin routes.
-- `test:e2e` runs the same browser surface headlessly for regression coverage.
+  template and issues a badge through normal admin routes. This is a local-only
+  guided demo, not a headless CI job.
+- `test:e2e` runs the read-only browser surface headlessly for regression
+  coverage.
+- `dev:screenshot` captures the public seeded credential route with Playwright.
 - `dev:down` stops the Postgres compose service.
 
 ## Seeded Demo Contract
@@ -118,6 +123,10 @@ tests/e2e/
 ```
 
 Artifacts go under `output/`, which is gitignored.
+
+`pnpm test:e2e` runs only the read-only Chromium project. The `@demo` workflow is
+reserved for `pnpm dev:demo` because it is intentionally headed and mutates the
+seeded demo by creating templates and issuing badges.
 
 ## Troubleshooting
 
