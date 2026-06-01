@@ -41,6 +41,7 @@ import {
   type TrustEdCredentialMetadataParseResult,
 } from "./trusted-credential-metadata";
 import {
+  emptyTrustEdOb3Projection,
   projectTrustEdMetadataToOb3,
   type TrustEdCredentialOb3Projection,
 } from "./trusted-credential-ob3-projection";
@@ -135,13 +136,6 @@ const ob3IdentityTypeFromRecipientIdentifierType = (
     case "did":
       return "ext:did";
   }
-};
-
-const emptyTrustEdOb3Projection = (): TrustEdCredentialOb3Projection => {
-  return {
-    achievement: {},
-    subject: {},
-  };
 };
 
 const projectTrustEdMetadataForIssuance = (

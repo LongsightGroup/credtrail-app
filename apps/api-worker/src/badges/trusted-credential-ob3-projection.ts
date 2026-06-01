@@ -7,6 +7,13 @@ export interface TrustEdCredentialOb3Projection {
   subject: JsonObject;
 }
 
+export const emptyTrustEdOb3Projection = (): TrustEdCredentialOb3Projection => {
+  return {
+    achievement: {},
+    subject: {},
+  };
+};
+
 export interface TrustEdNamedReferenceDetails {
   name: string | null;
   uri: string | null;
