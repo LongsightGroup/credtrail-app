@@ -10,6 +10,7 @@ export interface UpsertBadgeTemplateByIdInput {
   description?: string | undefined;
   criteriaUri?: string | undefined;
   imageUri?: string | undefined;
+  trustedCredentialMetadataJson?: string | undefined;
   createdByUserId?: string | undefined;
   ownerOrgUnitId?: string | undefined;
   governanceMetadataJson?: string | undefined;
@@ -23,6 +24,7 @@ export interface BadgeTemplateRecord {
   description: string | null;
   criteriaUri: string | null;
   imageUri: string | null;
+  trustedCredentialMetadataJson?: string | null;
   createdByUserId: string | null;
   ownerOrgUnitId: string;
   governanceMetadataJson: string | null;
@@ -38,6 +40,7 @@ export interface CreateBadgeTemplateInput {
   description?: string | undefined;
   criteriaUri?: string | undefined;
   imageUri?: string | undefined;
+  trustedCredentialMetadataJson?: string | undefined;
   createdByUserId?: string | undefined;
   ownerOrgUnitId?: string | undefined;
   governanceMetadataJson?: string | undefined;
@@ -56,6 +59,7 @@ export interface UpdateBadgeTemplateInput {
   description?: string | null | undefined;
   criteriaUri?: string | null | undefined;
   imageUri?: string | null | undefined;
+  trustedCredentialMetadataJson?: string | null | undefined;
 }
 
 export interface SetBadgeTemplateArchiveStateInput {
@@ -116,6 +120,7 @@ interface BadgeTemplateRow {
   description: string | null;
   criteriaUri: string | null;
   imageUri: string | null;
+  trustedCredentialMetadataJson?: string | null;
   createdByUserId: string | null;
   ownerOrgUnitId: string;
   governanceMetadataJson: string | null;
@@ -155,6 +160,7 @@ const mapBadgeTemplateRow = (row: BadgeTemplateRow): BadgeTemplateRecord => {
     description: row.description,
     criteriaUri: row.criteriaUri,
     imageUri: row.imageUri,
+    trustedCredentialMetadataJson: row.trustedCredentialMetadataJson ?? null,
     createdByUserId: row.createdByUserId,
     ownerOrgUnitId: row.ownerOrgUnitId,
     governanceMetadataJson: row.governanceMetadataJson,
@@ -308,6 +314,7 @@ export const upsertBadgeTemplateById = async (
         description,
         criteria_uri,
         image_uri,
+        trusted_credential_metadata_json,
         created_by_user_id,
         owner_org_unit_id,
         governance_metadata_json,
@@ -315,7 +322,7 @@ export const upsertBadgeTemplateById = async (
         created_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
       ON CONFLICT (id)
       DO UPDATE SET
         tenant_id = excluded.tenant_id,
@@ -324,6 +331,7 @@ export const upsertBadgeTemplateById = async (
         description = excluded.description,
         criteria_uri = excluded.criteria_uri,
         image_uri = excluded.image_uri,
+        trusted_credential_metadata_json = excluded.trusted_credential_metadata_json,
         created_by_user_id = excluded.created_by_user_id,
         owner_org_unit_id = badge_templates.owner_org_unit_id,
         governance_metadata_json = badge_templates.governance_metadata_json,
@@ -339,6 +347,7 @@ export const upsertBadgeTemplateById = async (
       input.description ?? null,
       input.criteriaUri ?? null,
       input.imageUri ?? null,
+      input.trustedCredentialMetadataJson ?? null,
       input.createdByUserId ?? null,
       ownerOrgUnitId,
       governanceMetadataJson,
@@ -398,6 +407,7 @@ export const createBadgeTemplate = async (
         description,
         criteria_uri,
         image_uri,
+        trusted_credential_metadata_json,
         created_by_user_id,
         owner_org_unit_id,
         governance_metadata_json,
@@ -405,7 +415,7 @@ export const createBadgeTemplate = async (
         created_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
     `,
     )
     .bind(
@@ -416,6 +426,7 @@ export const createBadgeTemplate = async (
       input.description ?? null,
       input.criteriaUri ?? null,
       input.imageUri ?? null,
+      input.trustedCredentialMetadataJson ?? null,
       input.createdByUserId ?? null,
       ownerOrgUnitId,
       governanceMetadataJson,
@@ -432,6 +443,7 @@ export const createBadgeTemplate = async (
     description: input.description ?? null,
     criteriaUri: input.criteriaUri ?? null,
     imageUri: input.imageUri ?? null,
+    trustedCredentialMetadataJson: input.trustedCredentialMetadataJson ?? null,
     createdByUserId: input.createdByUserId ?? null,
     ownerOrgUnitId,
     governanceMetadataJson,
@@ -469,6 +481,7 @@ export const listBadgeTemplates = async (
         description,
         criteria_uri AS criteriaUri,
         image_uri AS imageUri,
+        trusted_credential_metadata_json AS trustedCredentialMetadataJson,
         created_by_user_id AS createdByUserId,
         owner_org_unit_id AS ownerOrgUnitId,
         governance_metadata_json AS governanceMetadataJson,
@@ -488,6 +501,7 @@ export const listBadgeTemplates = async (
         description,
         criteria_uri AS criteriaUri,
         image_uri AS imageUri,
+        trusted_credential_metadata_json AS trustedCredentialMetadataJson,
         created_by_user_id AS createdByUserId,
         owner_org_unit_id AS ownerOrgUnitId,
         governance_metadata_json AS governanceMetadataJson,
@@ -522,6 +536,7 @@ export const findBadgeTemplateById = async (
         description,
         criteria_uri AS criteriaUri,
         image_uri AS imageUri,
+        trusted_credential_metadata_json AS trustedCredentialMetadataJson,
         created_by_user_id AS createdByUserId,
         owner_org_unit_id AS ownerOrgUnitId,
         governance_metadata_json AS governanceMetadataJson,
@@ -574,6 +589,11 @@ export const updateBadgeTemplate = async (
   if (input.imageUri !== undefined) {
     setClauses.push("image_uri = ?");
     params.push(input.imageUri);
+  }
+
+  if (input.trustedCredentialMetadataJson !== undefined) {
+    setClauses.push("trusted_credential_metadata_json = ?");
+    params.push(input.trustedCredentialMetadataJson);
   }
 
   if (setClauses.length === 0) {

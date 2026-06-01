@@ -25,6 +25,11 @@ const fieldReaders: ReadonlyArray<{
     read: (template) => template.criteriaUri,
   },
   { requestKey: "imageUri", field: "imageUri", read: (template) => template.imageUri },
+  {
+    requestKey: "trustedCredentialMetadata",
+    field: "trustedCredentialMetadata",
+    read: (template) => template.trustedCredentialMetadataJson ?? null,
+  },
 ];
 
 export const buildBadgeTemplateFieldChanges = (

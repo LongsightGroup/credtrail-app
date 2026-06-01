@@ -581,35 +581,6 @@ export const tenantExecutiveDashboardQuerySchema = z
     }
   });
 
-export const createBadgeTemplateRequestSchema = z.object({
-  slug: badgeTemplateSlugSchema,
-  title: badgeTemplateTitleSchema,
-  description: badgeTemplateDescriptionSchema.optional(),
-  criteriaUri: badgeTemplateUriSchema.optional(),
-  imageUri: badgeTemplateUriSchema.optional(),
-  ownerOrgUnitId: resourceIdSchema.optional(),
-});
-
-export const updateBadgeTemplateRequestSchema = z
-  .object({
-    slug: badgeTemplateSlugSchema.optional(),
-    title: badgeTemplateTitleSchema.optional(),
-    description: badgeTemplateDescriptionSchema.nullable().optional(),
-    criteriaUri: badgeTemplateUriSchema.nullable().optional(),
-    imageUri: badgeTemplateUriSchema.nullable().optional(),
-  })
-  .refine(
-    (payload) =>
-      payload.slug !== undefined ||
-      payload.title !== undefined ||
-      payload.description !== undefined ||
-      payload.criteriaUri !== undefined ||
-      payload.imageUri !== undefined,
-    {
-      message: "At least one badge template field must be provided",
-    },
-  );
-
 const trustedCredentialShortTextSchema = z.string().trim().min(1).max(300);
 const trustedCredentialDescriptionSchema = z.string().trim().min(1).max(4000);
 const trustedCredentialUriSchema = z.string().trim().url().max(2048);
@@ -688,6 +659,38 @@ export const trustedCredentialMetadataSchema = z.object({
   credits: trustedCredentialCreditsSchema.nullable(),
   endorsements: z.array(trustedCredentialEndorsementSchema).max(100),
 });
+
+export const createBadgeTemplateRequestSchema = z.object({
+  slug: badgeTemplateSlugSchema,
+  title: badgeTemplateTitleSchema,
+  description: badgeTemplateDescriptionSchema.optional(),
+  criteriaUri: badgeTemplateUriSchema.optional(),
+  imageUri: badgeTemplateUriSchema.optional(),
+  trustedCredentialMetadata: trustedCredentialMetadataSchema.optional(),
+  ownerOrgUnitId: resourceIdSchema.optional(),
+});
+
+export const updateBadgeTemplateRequestSchema = z
+  .object({
+    slug: badgeTemplateSlugSchema.optional(),
+    title: badgeTemplateTitleSchema.optional(),
+    description: badgeTemplateDescriptionSchema.nullable().optional(),
+    criteriaUri: badgeTemplateUriSchema.nullable().optional(),
+    imageUri: badgeTemplateUriSchema.nullable().optional(),
+    trustedCredentialMetadata: trustedCredentialMetadataSchema.nullable().optional(),
+  })
+  .refine(
+    (payload) =>
+      payload.slug !== undefined ||
+      payload.title !== undefined ||
+      payload.description !== undefined ||
+      payload.criteriaUri !== undefined ||
+      payload.imageUri !== undefined ||
+      payload.trustedCredentialMetadata !== undefined,
+    {
+      message: "At least one badge template field must be provided",
+    },
+  );
 
 export const badgeTemplateImageGenerationStylePresetSchema = z.enum([
   "institutional",

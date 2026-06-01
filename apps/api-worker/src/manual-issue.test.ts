@@ -760,6 +760,131 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     );
   });
 
+  it("includes TrustEd credential metadata in issued OB3 credentials", async () => {
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: "did:web:credtrail.test:tenant_123",
+    });
+    const env = {
+      ...createEnv(),
+      BADGE_OBJECTS: createInMemoryBadgeObjects(),
+      TENANT_SIGNING_REGISTRY_JSON: JSON.stringify({
+        "did:web:credtrail.test:tenant_123": {
+          tenantId: "tenant_123",
+          keyId: signingMaterial.keyId,
+          publicJwk: signingMaterial.publicJwk,
+          privateJwk: signingMaterial.privateJwk,
+        },
+      }),
+    };
+    const trustedCredentialMetadataJson = JSON.stringify({
+      skills: [
+        {
+          name: "Applied data analysis",
+          identifierUri: "https://skills.example.edu/skills/applied-data-analysis",
+          source: "Example Skills Framework",
+        },
+      ],
+      frameworkAlignments: [
+        {
+          targetName: "Analyze civic datasets",
+          targetUri: "https://case.example.edu/frameworks/data-analysis/items/analyze-civic-data",
+          frameworkName: "Example CASE Framework",
+          frameworkUri: "https://case.example.edu/frameworks/data-analysis",
+        },
+      ],
+      issuerAuthority: {
+        name: "Middle States Commission on Higher Education",
+        uri: "https://www.msche.org/institution/0000/",
+        authorityType: "accreditor",
+      },
+      evidence: [
+        {
+          name: "Capstone analysis portfolio",
+          uri: "https://evidence.example.edu/learners/123/capstone",
+          description: "Portfolio evidence reviewed by program faculty.",
+        },
+      ],
+      results: [{ value: "Pass", resultDate: "2026-05-18" }],
+      criteria: {
+        text: "Complete the applied analytics project and faculty review.",
+        uri: "https://credentials.example.edu/badges/applied-analytics/criteria",
+      },
+      assessments: [
+        {
+          description: "Faculty-scored applied analytics capstone.",
+          assessmentDate: "2026-05-18",
+        },
+      ],
+      achievementType: "Project",
+      rubrics: [],
+      duration: null,
+      credits: null,
+      endorsements: [],
+    });
+
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue(undefined);
+    mockedFindBadgeTemplateById.mockResolvedValue(
+      sampleBadgeTemplate({ trustedCredentialMetadataJson }),
+    );
+    mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
+    mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
+    mockedNextAssertionStatusListIndex.mockResolvedValue(0);
+    mockedCreateAssertion.mockResolvedValue(sampleAssertion());
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/assertions/manual-issue",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/json",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: JSON.stringify({
+          badgeTemplateId: "badge_template_001",
+          recipientIdentity: "student@umich.edu",
+          recipientIdentityType: "email",
+          idempotencyKey: "idem-trusted",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<ManualIssueResponse>();
+    const credentialSubject = asJsonObject(body.credential.credentialSubject);
+    const achievement = asJsonObject(credentialSubject?.achievement);
+
+    expect(response.status).toBe(201);
+    expect(achievement).toEqual(
+      expect.objectContaining({
+        achievementType: "Project",
+        criteria: expect.objectContaining({
+          id: "https://credentials.example.edu/badges/applied-analytics/criteria",
+          narrative: "Complete the applied analytics project and faculty review.",
+        }),
+      }),
+    );
+    expect(achievement?.alignment).toEqual([
+      expect.objectContaining({
+        targetName: "Analyze civic datasets",
+        targetUrl: "https://case.example.edu/frameworks/data-analysis/items/analyze-civic-data",
+        targetFramework: "Example CASE Framework",
+      }),
+    ]);
+    expect(credentialSubject?.evidence).toEqual([
+      expect.objectContaining({
+        id: "https://evidence.example.edu/learners/123/capstone",
+        name: "Capstone analysis portfolio",
+      }),
+    ]);
+    expect(credentialSubject?.result).toEqual([
+      expect.objectContaining({
+        value: "Pass",
+        resultDate: "2026-05-18",
+      }),
+    ]);
+  });
+
   it("uses learner DID alias as credentialSubject.id when configured", async () => {
     const signingMaterial = await generateTenantDidSigningMaterial({
       did: "did:web:credtrail.test:tenant_123",

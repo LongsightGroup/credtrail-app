@@ -38,6 +38,9 @@ export const createBadgeTemplateWithAudit = async (
     description: input.request.description,
     criteriaUri: input.request.criteriaUri,
     imageUri: input.request.imageUri,
+    ...(input.request.trustedCredentialMetadata === undefined
+      ? {}
+      : { trustedCredentialMetadataJson: JSON.stringify(input.request.trustedCredentialMetadata) }),
     ownerOrgUnitId: input.request.ownerOrgUnitId,
     createdByUserId: input.actorUserId,
   });
@@ -78,6 +81,14 @@ export const updateBadgeTemplateWithAudit = async (
     description: input.request.description,
     criteriaUri: input.request.criteriaUri,
     imageUri: input.request.imageUri,
+    ...(input.request.trustedCredentialMetadata === undefined
+      ? {}
+      : {
+          trustedCredentialMetadataJson:
+            input.request.trustedCredentialMetadata === null
+              ? null
+              : JSON.stringify(input.request.trustedCredentialMetadata),
+        }),
   });
 
   if (template === null) {

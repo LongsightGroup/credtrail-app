@@ -337,6 +337,10 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('value="typescript-foundations"');
     expect(body).toContain(">Criteria page URL<");
     expect(body).toContain('value="https://example.edu/criteria"');
+    expect(body).toContain('id="template-editor-trusted-credential"');
+    expect(body).toContain("TrustEd readiness");
+    expect(body).toContain("Save TrustEd metadata");
+    expect(body).toContain('name="trustedSkillName"');
     expect(body).toContain('id="template-editor-artwork"');
     expect(body).toContain('id="badge-template-editor-current-artwork"');
     expect(body).toContain('id="badge-template-editor-current-artwork-media"');
@@ -363,6 +367,9 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       'href="/tenants/tenant_123/admin/rules/templates?badgeTemplateId=badge_template_001&amp;history=1"',
     );
     expect(body.indexOf('id="template-editor-details"')).toBeLessThan(
+      body.indexOf('id="template-editor-trusted-credential"'),
+    );
+    expect(body.indexOf('id="template-editor-trusted-credential"')).toBeLessThan(
       body.indexOf('id="template-editor-artwork"'),
     );
     expect(body.indexOf('id="template-editor-artwork"')).toBeLessThan(
@@ -527,6 +534,69 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       description: null,
       criteriaUri: "https://example.edu/advanced-criteria",
     });
+  });
+
+  it("POST details saves TrustEd credential metadata", async () => {
+    const env = createEnv();
+
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleActiveBadgeTemplate);
+    mockedUpdateBadgeTemplate.mockResolvedValue(sampleActiveBadgeTemplate);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/templates/badge_template_001/details",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          title: "TypeScript Foundations",
+          slug: "typescript-foundations",
+          description: "Awarded for TypeScript basics.",
+          criteriaUri: "https://example.edu/criteria",
+          trustedSkillName: "Applied data analysis",
+          trustedSkillIdentifierUri: "https://skills.example.edu/skills/applied-data-analysis",
+          trustedSkillSource: "Example Skills Framework",
+          trustedFrameworkTargetName: "Analyze civic datasets",
+          trustedFrameworkTargetUri:
+            "https://case.example.edu/frameworks/data-analysis/items/analyze-civic-data",
+          trustedFrameworkName: "Example CASE Framework",
+          trustedFrameworkUri: "https://case.example.edu/frameworks/data-analysis",
+          trustedIssuerAuthorityName: "Middle States Commission on Higher Education",
+          trustedIssuerAuthorityUri: "https://www.msche.org/institution/0000/",
+          trustedIssuerAuthorityType: "accreditor",
+          trustedEvidenceName: "Capstone analysis portfolio",
+          trustedEvidenceUri: "https://evidence.example.edu/learners/123/capstone",
+          trustedEvidenceDescription: "Portfolio evidence reviewed by program faculty.",
+          trustedResultValue: "Pass",
+          trustedResultDate: "2026-05-18",
+          trustedCriteriaText: "Complete the applied analytics project and faculty review.",
+          trustedCriteriaUri: "https://credentials.example.edu/badges/applied-analytics/criteria",
+          trustedAssessmentDescription: "Faculty-scored applied analytics capstone.",
+          trustedAssessmentDate: "2026-05-18",
+          trustedAchievementType: "Project",
+          trustedRubricName: "Applied analytics rubric",
+          trustedRubricUri: "https://credentials.example.edu/rubrics/applied-analytics",
+          trustedDurationValue: "6 weeks",
+          trustedCreditsAvailable: "3 credits",
+          trustedCreditsEarned: "3 credits",
+          trustedEndorserName: "Regional Workforce Council",
+          trustedEndorserUri: "https://workforce.example.edu/endorsements/applied-analytics",
+        }),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(mockedUpdateBadgeTemplate).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        trustedCredentialMetadataJson: expect.stringContaining("Applied data analysis"),
+      }),
+    );
   });
 
   it("POST details preserves list filters when the template is not found before update", async () => {

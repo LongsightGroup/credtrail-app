@@ -242,6 +242,11 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
   display: grid;
   gap: 0.18rem;
 }
+.ct-admin__template-editor-section-header--split {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--ct-space-3);
+  align-items: start;
+}
 .ct-admin__template-editor-section-header h2 {
   margin: 0;
   color: var(--ct-theme-text-title);
@@ -260,6 +265,64 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
   grid-template-columns: minmax(0, 1fr);
   gap: var(--ct-space-3);
   align-items: end;
+}
+.ct-admin__template-editor-trusted-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ct-space-2);
+}
+.ct-admin__template-editor-trusted-summary > div {
+  display: grid;
+  gap: 0.1rem;
+  border: 1px solid var(--ct-border-subtle);
+  border-radius: var(--ct-radius-md);
+  padding: var(--ct-space-2);
+  background: var(--ct-theme-surface-soft);
+}
+.ct-admin__template-editor-trusted-summary strong {
+  color: var(--ct-theme-text-title);
+  font-size: 1.1rem;
+  line-height: 1.1;
+}
+.ct-admin__template-editor-trusted-summary span {
+  color: var(--ct-theme-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.ct-admin__template-editor-trusted-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ct-space-3);
+  margin-top: var(--ct-space-3);
+}
+.ct-admin__template-editor-trusted-checks {
+  display: grid;
+  gap: var(--ct-space-2);
+  margin: var(--ct-space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.ct-admin__template-editor-trusted-checks li {
+  display: grid;
+  gap: 0.16rem;
+  border: 1px solid var(--ct-border-subtle);
+  border-radius: var(--ct-radius-sm);
+  padding: var(--ct-space-2);
+  background: var(--ct-theme-surface-card-strong);
+}
+.ct-admin__template-editor-trusted-checks li[data-status='missing'] {
+  background: var(--ct-theme-surface-warning);
+  border-color: var(--ct-theme-state-warning-border);
+}
+.ct-admin__template-editor-trusted-checks strong {
+  color: var(--ct-theme-text-title);
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+.ct-admin__template-editor-trusted-checks span {
+  color: var(--ct-theme-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 .ct-admin__template-editor-fields--generation {
   grid-template-columns: minmax(13rem, 1fr) minmax(13rem, 1fr);
@@ -425,6 +488,12 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
 
   .ct-admin__template-editor-current-artwork,
   .ct-admin__template-editor-meta-list > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-admin__template-editor-section-header--split,
+  .ct-admin__template-editor-trusted-summary,
+  .ct-admin__template-editor-trusted-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 

@@ -1,80 +1,10 @@
+import { buildCompleteTrustEdCredentialMetadata } from "@credtrail/validation/testing";
 import { describe, expect, it } from "vitest";
 import {
   evaluateTrustEdCredentialReadiness,
   type TrustEdCredentialMetadata,
   type TrustEdCredentialReadinessCheckId,
 } from "./trusted-credential-readiness";
-
-const completeMetadata = (
-  overrides?: Partial<TrustEdCredentialMetadata>,
-): TrustEdCredentialMetadata => {
-  return {
-    skills: [
-      {
-        name: "Applied data analysis",
-        identifierUri: "https://skills.example.edu/skills/applied-data-analysis",
-        source: "Example Skills Framework",
-      },
-    ],
-    frameworkAlignments: [
-      {
-        targetName: "Analyze civic datasets",
-        targetUri: "https://case.example.edu/frameworks/data-analysis/items/analyze-civic-data",
-        frameworkName: "Example CASE Framework",
-        frameworkUri: "https://case.example.edu/frameworks/data-analysis",
-      },
-    ],
-    issuerAuthority: {
-      name: "Middle States Commission on Higher Education",
-      uri: "https://www.msche.org/institution/0000/",
-      authorityType: "accreditor",
-    },
-    evidence: [
-      {
-        name: "Capstone analysis portfolio",
-        uri: "https://evidence.example.edu/learners/123/capstone",
-        description: "Portfolio evidence reviewed by the program faculty.",
-      },
-    ],
-    results: [
-      {
-        value: "Pass",
-        resultDate: "2026-05-18",
-      },
-    ],
-    criteria: {
-      text: "Complete the applied analytics project and faculty review.",
-      uri: "https://credentials.example.edu/badges/applied-analytics/criteria",
-    },
-    assessments: [
-      {
-        description: "Faculty-scored applied analytics capstone.",
-        assessmentDate: "2026-05-18",
-      },
-    ],
-    achievementType: "Project",
-    rubrics: [
-      {
-        name: "Applied analytics rubric",
-        uri: "https://credentials.example.edu/rubrics/applied-analytics",
-      },
-    ],
-    duration: {
-      value: "6 weeks",
-    },
-    credits: {
-      available: "3 credits",
-      earned: "3 credits",
-    },
-    endorsements: [
-      {
-        endorserName: "Regional Workforce Council",
-        endorserUri: "https://workforce.example.edu/endorsements/applied-analytics",
-      },
-    ],
-    ...overrides,
-  };
-};
 
 const checkStatus = (
   metadata: TrustEdCredentialMetadata,
@@ -103,14 +33,14 @@ describe("TrustEd credential readiness", () => {
   });
 
   it("marks complete metadata as ready", () => {
-    const result = evaluateTrustEdCredentialReadiness(completeMetadata());
+    const result = evaluateTrustEdCredentialReadiness(buildCompleteTrustEdCredentialMetadata());
 
     expect(result.status).toBe("ready");
     expect(result.checks.every((check) => check.status === "satisfied")).toBe(true);
   });
 
   it("marks missing required metadata as incomplete with field-specific checks", () => {
-    const metadata = completeMetadata({
+    const metadata = buildCompleteTrustEdCredentialMetadata({
       skills: [],
       frameworkAlignments: [],
       issuerAuthority: null,
@@ -134,7 +64,7 @@ describe("TrustEd credential readiness", () => {
   });
 
   it("requires a linked framework alignment", () => {
-    const metadata = completeMetadata({
+    const metadata = buildCompleteTrustEdCredentialMetadata({
       frameworkAlignments: [
         {
           targetName: "Analyze civic datasets",
@@ -150,7 +80,7 @@ describe("TrustEd credential readiness", () => {
   });
 
   it("requires a result date", () => {
-    const metadata = completeMetadata({
+    const metadata = buildCompleteTrustEdCredentialMetadata({
       results: [
         {
           value: "Pass",
@@ -164,7 +94,7 @@ describe("TrustEd credential readiness", () => {
   });
 
   it("requires assessment description and date", () => {
-    const metadata = completeMetadata({
+    const metadata = buildCompleteTrustEdCredentialMetadata({
       assessments: [
         {
           description: "Faculty-scored applied analytics capstone.",
@@ -178,8 +108,8 @@ describe("TrustEd credential readiness", () => {
   });
 
   it("rejects non-specific achievement types", () => {
-    const abbreviated = completeMetadata({ achievementType: "N/A" });
-    const written = completeMetadata({ achievementType: "Not Applicable" });
+    const abbreviated = buildCompleteTrustEdCredentialMetadata({ achievementType: "N/A" });
+    const written = buildCompleteTrustEdCredentialMetadata({ achievementType: "Not Applicable" });
 
     expect(evaluateTrustEdCredentialReadiness(abbreviated).status).toBe("incomplete");
     expect(checkStatus(abbreviated, "achievement_type")).toBe("missing");
@@ -188,7 +118,7 @@ describe("TrustEd credential readiness", () => {
   });
 
   it("reports missing recommended metadata without blocking readiness", () => {
-    const metadata = completeMetadata({
+    const metadata = buildCompleteTrustEdCredentialMetadata({
       rubrics: [],
       duration: null,
       credits: null,
