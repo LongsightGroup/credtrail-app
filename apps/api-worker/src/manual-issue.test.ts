@@ -840,6 +840,49 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
         resultDate: "2026-05-18",
       }),
     ]);
+    expect(achievement?.skill).toEqual([
+      expect.objectContaining({
+        id: "https://skills.example.edu/skills/applied-data-analysis",
+        name: "Applied data analysis",
+        source: "Example Skills Framework",
+      }),
+    ]);
+    expect(achievement?.issuerAuthority).toEqual(
+      expect.objectContaining({
+        id: "https://www.msche.org/institution/0000/",
+        name: "Middle States Commission on Higher Education",
+        authorityType: "accreditor",
+      }),
+    );
+    expect(achievement?.assessment).toEqual([
+      expect.objectContaining({
+        description: "Faculty-scored applied analytics capstone.",
+        assessmentDate: "2026-05-18",
+      }),
+    ]);
+    expect(achievement?.rubric).toEqual([
+      expect.objectContaining({
+        id: "https://credentials.example.edu/rubrics/applied-analytics",
+        name: "Applied analytics rubric",
+      }),
+    ]);
+    expect(achievement?.duration).toEqual(
+      expect.objectContaining({
+        value: "6 weeks",
+      }),
+    );
+    expect(achievement?.creditValue).toEqual(
+      expect.objectContaining({
+        available: "3 credits",
+        earned: "3 credits",
+      }),
+    );
+    expect(achievement?.endorsement).toEqual([
+      expect.objectContaining({
+        id: "https://workforce.example.edu/endorsements/applied-analytics",
+        name: "Regional Workforce Council",
+      }),
+    ]);
   });
 
   it("uses learner DID alias as credentialSubject.id when configured", async () => {

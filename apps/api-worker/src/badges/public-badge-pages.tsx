@@ -48,12 +48,51 @@ interface TrustEdResultDetails {
   resultDate: string;
 }
 
+interface TrustEdSkillDetails {
+  name: string | null;
+  identifierUri: string | null;
+  source: string | null;
+}
+
+interface TrustEdIssuerAuthorityDetails {
+  name: string | null;
+  uri: string | null;
+  authorityType: string | null;
+}
+
+interface TrustEdAssessmentDetails {
+  description: string | null;
+  assessmentDate: string | null;
+}
+
+interface TrustEdNamedReferenceDetails {
+  name: string | null;
+  uri: string | null;
+}
+
+interface TrustEdCreditsDetails {
+  available: string | null;
+  earned: string | null;
+}
+
+interface TrustEdEndorsementDetails {
+  endorserName: string | null;
+  endorserUri: string | null;
+}
+
 interface TrustEdCredentialDetails {
   achievementType: string | null;
   criteriaUri: string | null;
   criteriaNarrative: string | null;
   alignments: TrustEdAlignmentDetails[];
+  skills: TrustEdSkillDetails[];
+  issuerAuthority: TrustEdIssuerAuthorityDetails | null;
+  assessments: TrustEdAssessmentDetails[];
   results: TrustEdResultDetails[];
+  rubrics: TrustEdNamedReferenceDetails[];
+  duration: string | null;
+  credits: TrustEdCreditsDetails | null;
+  endorsements: TrustEdEndorsementDetails[];
 }
 
 interface CreatePublicBadgePageRenderersInput {
@@ -848,7 +887,14 @@ export const createPublicBadgePageRenderers = (
       trustEdCredentialDetails.achievementType !== null ||
       trustEdCredentialDetails.criteriaNarrative !== null ||
       trustEdCredentialDetails.alignments.length > 0 ||
-      trustEdCredentialDetails.results.length > 0;
+      trustEdCredentialDetails.skills.length > 0 ||
+      trustEdCredentialDetails.issuerAuthority !== null ||
+      trustEdCredentialDetails.assessments.length > 0 ||
+      trustEdCredentialDetails.results.length > 0 ||
+      trustEdCredentialDetails.rubrics.length > 0 ||
+      trustEdCredentialDetails.duration !== null ||
+      trustEdCredentialDetails.credits !== null ||
+      trustEdCredentialDetails.endorsements.length > 0;
     const trustEdCredentialSection = !hasTrustEdCredentialDetails ? null : (
       <section class="public-badge__card public-badge__stack-sm">
         <div class="public-badge__section-heading-row">
@@ -899,6 +945,78 @@ export const createPublicBadgePageRenderers = (
               </dd>
             </>
           )}
+          {trustEdCredentialDetails.skills.length === 0 ? null : (
+            <>
+              <dt>Skills</dt>
+              <dd>
+                <ul class="public-badge__trust-list">
+                  {trustEdCredentialDetails.skills.map((skill) => {
+                    const label = skill.name ?? skill.identifierUri ?? "Represented skill";
+
+                    return (
+                      <li key={`${label}:${skill.identifierUri ?? ""}`}>
+                        {skill.identifierUri === null ? (
+                          <span>{label}</span>
+                        ) : (
+                          <a href={skill.identifierUri} target="_blank" rel="noopener noreferrer">
+                            {label}
+                          </a>
+                        )}
+                        {skill.source === null ? null : (
+                          <span class="public-badge__trust-muted"> ({skill.source})</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </dd>
+            </>
+          )}
+          {trustEdCredentialDetails.issuerAuthority === null ? null : (
+            <>
+              <dt>Issuer authority</dt>
+              <dd>
+                {trustEdCredentialDetails.issuerAuthority.uri === null ? (
+                  <span>{trustEdCredentialDetails.issuerAuthority.name ?? "Authority listed"}</span>
+                ) : (
+                  <a
+                    href={trustEdCredentialDetails.issuerAuthority.uri}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {trustEdCredentialDetails.issuerAuthority.name ??
+                      trustEdCredentialDetails.issuerAuthority.uri}
+                  </a>
+                )}
+                {trustEdCredentialDetails.issuerAuthority.authorityType === null ? null : (
+                  <span class="public-badge__trust-muted">
+                    {" "}
+                    ({trustEdCredentialDetails.issuerAuthority.authorityType})
+                  </span>
+                )}
+              </dd>
+            </>
+          )}
+          {trustEdCredentialDetails.assessments.length === 0 ? null : (
+            <>
+              <dt>Assessment</dt>
+              <dd>
+                <ul class="public-badge__trust-list">
+                  {trustEdCredentialDetails.assessments.map((assessment) => (
+                    <li key={`${assessment.description ?? ""}:${assessment.assessmentDate ?? ""}`}>
+                      {assessment.description ?? "Assessment"}
+                      {assessment.assessmentDate === null ? null : (
+                        <span class="public-badge__trust-muted">
+                          {" "}
+                          ({assessment.assessmentDate})
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </dd>
+            </>
+          )}
           {trustEdCredentialDetails.alignments.length === 0 ? null : (
             <>
               <dt>Framework alignment</dt>
@@ -920,6 +1038,82 @@ export const createPublicBadgePageRenderers = (
                           {label}
                         </a>
                         {framework}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </dd>
+            </>
+          )}
+          {trustEdCredentialDetails.rubrics.length === 0 ? null : (
+            <>
+              <dt>Rubric</dt>
+              <dd>
+                <ul class="public-badge__trust-list">
+                  {trustEdCredentialDetails.rubrics.map((rubric) => {
+                    const label = rubric.name ?? rubric.uri ?? "Rubric";
+
+                    return (
+                      <li key={`${label}:${rubric.uri ?? ""}`}>
+                        {rubric.uri === null ? (
+                          <span>{label}</span>
+                        ) : (
+                          <a href={rubric.uri} target="_blank" rel="noopener noreferrer">
+                            {label}
+                          </a>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </dd>
+            </>
+          )}
+          {trustEdCredentialDetails.duration === null ? null : (
+            <>
+              <dt>Duration</dt>
+              <dd>{trustEdCredentialDetails.duration}</dd>
+            </>
+          )}
+          {trustEdCredentialDetails.credits === null ? null : (
+            <>
+              <dt>Credits</dt>
+              <dd>
+                {[
+                  trustEdCredentialDetails.credits.available === null
+                    ? null
+                    : `Available: ${trustEdCredentialDetails.credits.available}`,
+                  trustEdCredentialDetails.credits.earned === null
+                    ? null
+                    : `Earned: ${trustEdCredentialDetails.credits.earned}`,
+                ]
+                  .filter((entry): entry is string => entry !== null)
+                  .join("; ")}
+              </dd>
+            </>
+          )}
+          {trustEdCredentialDetails.endorsements.length === 0 ? null : (
+            <>
+              <dt>Endorsement</dt>
+              <dd>
+                <ul class="public-badge__trust-list">
+                  {trustEdCredentialDetails.endorsements.map((endorsement) => {
+                    const label =
+                      endorsement.endorserName ?? endorsement.endorserUri ?? "Endorsement";
+
+                    return (
+                      <li key={`${label}:${endorsement.endorserUri ?? ""}`}>
+                        {endorsement.endorserUri === null ? (
+                          <span>{label}</span>
+                        ) : (
+                          <a
+                            href={endorsement.endorserUri}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {label}
+                          </a>
+                        )}
                       </li>
                     );
                   })}

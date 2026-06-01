@@ -9,6 +9,7 @@ import {
   evaluateTrustEdCredentialReadiness,
   type TrustEdCredentialReadinessResult,
 } from "./trusted-credential-readiness";
+import { projectTrustEdMetadataToOb3 } from "./trusted-credential-ob3-projection";
 
 const TENANT_ID = "tenant_123";
 const ASSERTION_ID = `${TENANT_ID}:assertion_trusted_demo`;
@@ -94,6 +95,8 @@ const createBadgeTemplate = (): BadgeTemplateRecord => {
 };
 
 const createCredential = (): JsonObject => {
+  const trustEdProjection = projectTrustEdMetadataToOb3(completeTrustEdCredentialMetadata());
+
   return {
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
@@ -116,41 +119,13 @@ const createCredential = (): JsonObject => {
         type: ["Achievement"],
         name: "Applied Analytics TrustEd Credential",
         description: "Awarded for demonstrated applied analytics skill with reviewed evidence.",
-        achievementType: "Project",
-        alignment: [
-          {
-            type: ["Alignment"],
-            targetName: "Analyze civic datasets",
-            targetUrl: "https://case.example.edu/frameworks/data-analysis/items/analyze-civic-data",
-            targetFramework: "Example CASE Framework",
-            frameworkUri: "https://case.example.edu/frameworks/data-analysis",
-          },
-        ],
-        criteria: {
-          id: "https://credentials.example.edu/badges/applied-analytics/criteria",
-          type: "Criteria",
-          narrative: "Complete the applied analytics project and faculty review.",
-        },
         image: {
           id: "https://credentials.example.edu/badges/applied-analytics/image.png",
           type: "Image",
         },
+        ...trustEdProjection.achievement,
       },
-      evidence: [
-        {
-          id: "https://evidence.example.edu/learners/123/capstone",
-          type: ["Evidence"],
-          name: "Capstone analysis portfolio",
-          description: "Portfolio evidence reviewed by the program faculty.",
-        },
-      ],
-      result: [
-        {
-          type: ["Result"],
-          value: "Pass",
-          resultDate: "2026-05-18",
-        },
-      ],
+      ...trustEdProjection.subject,
     },
   };
 };

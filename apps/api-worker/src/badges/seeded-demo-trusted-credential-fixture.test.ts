@@ -35,6 +35,38 @@ describe("seeded demo TrustEd credential fixture", () => {
       },
     ]);
     expect(trustDetails.results).toEqual([{ value: "Pass", resultDate: "2026-05-18" }]);
+    expect(trustDetails.skills).toEqual([
+      {
+        name: "Applied data analysis",
+        identifierUri: "https://skills.example.edu/skills/applied-data-analysis",
+        source: "Example Skills Framework",
+      },
+    ]);
+    expect(trustDetails.issuerAuthority).toEqual({
+      name: "Middle States Commission on Higher Education",
+      uri: "https://www.msche.org/institution/0000/",
+      authorityType: "accreditor",
+    });
+    expect(trustDetails.assessments).toEqual([
+      {
+        description: "Faculty-scored applied analytics capstone.",
+        assessmentDate: "2026-05-18",
+      },
+    ]);
+    expect(trustDetails.rubrics).toEqual([
+      {
+        name: "Applied analytics rubric",
+        uri: "https://credentials.example.edu/rubrics/applied-analytics",
+      },
+    ]);
+    expect(trustDetails.duration).toBe("6 weeks");
+    expect(trustDetails.credits).toEqual({ available: "3 credits", earned: "3 credits" });
+    expect(trustDetails.endorsements).toEqual([
+      {
+        endorserName: "Regional Workforce Council",
+        endorserUri: "https://workforce.example.edu/endorsements/applied-analytics",
+      },
+    ]);
     expect(evidenceDetails).toEqual([
       {
         uri: "https://evidence.example.edu/learners/123/capstone",

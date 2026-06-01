@@ -37,6 +37,7 @@ import {
   type DirectIssueBadgeRequest,
 } from "./recipient-identifiers";
 import { parseTrustEdCredentialMetadataJson } from "./trusted-credential-metadata";
+import { projectTrustEdMetadataToOb3 } from "./trusted-credential-ob3-projection";
 
 interface IssueBadgeBindings {
   BADGE_OBJECTS: ImmutableCredentialStore;
@@ -130,85 +131,22 @@ const ob3IdentityTypeFromRecipientIdentifierType = (
   }
 };
 
-const trustEdAlignmentObjects = (metadataJson: string | null | undefined): JsonObject[] => {
+const trustEdOb3Projection = (
+  metadataJson: string | null | undefined,
+): {
+  achievement: JsonObject;
+  subject: JsonObject;
+} => {
   const metadata = parseTrustEdCredentialMetadataJson(metadataJson);
 
   if (metadata === null) {
-    return [];
+    return {
+      achievement: {},
+      subject: {},
+    };
   }
 
-  return metadata.frameworkAlignments
-    .filter((alignment) => alignment.targetUri !== null)
-    .map((alignment) => {
-      return {
-        type: ["Alignment"],
-        targetUrl: alignment.targetUri,
-        ...(alignment.targetName === null ? {} : { targetName: alignment.targetName }),
-        ...(alignment.frameworkName === null ? {} : { targetFramework: alignment.frameworkName }),
-        ...(alignment.frameworkUri === null ? {} : { frameworkUri: alignment.frameworkUri }),
-      };
-    });
-};
-
-const trustEdEvidenceObjects = (metadataJson: string | null | undefined): JsonObject[] => {
-  const metadata = parseTrustEdCredentialMetadataJson(metadataJson);
-
-  if (metadata === null) {
-    return [];
-  }
-
-  return metadata.evidence
-    .filter((evidence) => evidence.uri !== null || evidence.name !== null)
-    .map((evidence) => {
-      return {
-        type: ["Evidence"],
-        ...(evidence.uri === null ? {} : { id: evidence.uri }),
-        ...(evidence.name === null ? {} : { name: evidence.name }),
-        ...(evidence.description === null ? {} : { description: evidence.description }),
-      };
-    });
-};
-
-const trustEdResultObjects = (metadataJson: string | null | undefined): JsonObject[] => {
-  const metadata = parseTrustEdCredentialMetadataJson(metadataJson);
-
-  if (metadata === null) {
-    return [];
-  }
-
-  return metadata.results
-    .filter((result) => result.value !== null && result.resultDate !== null)
-    .map((result) => {
-      return {
-        type: ["Result"],
-        value: result.value,
-        resultDate: result.resultDate,
-      };
-    });
-};
-
-const trustEdAchievementFields = (metadataJson: string | null | undefined): JsonObject => {
-  const metadata = parseTrustEdCredentialMetadataJson(metadataJson);
-
-  if (metadata === null) {
-    return {};
-  }
-
-  const alignment = trustEdAlignmentObjects(metadataJson);
-
-  return {
-    ...(metadata.achievementType === null ? {} : { achievementType: metadata.achievementType }),
-    ...(alignment.length === 0 ? {} : { alignment }),
-    ...(metadata.criteria === null
-      ? {}
-      : {
-          criteria: {
-            type: "Criteria",
-            ...(metadata.criteria.uri === null ? {} : { id: metadata.criteria.uri }),
-            ...(metadata.criteria.text === null ? {} : { narrative: metadata.criteria.text }),
-          },
-        }),
-  };
+  return projectTrustEdMetadataToOb3(metadata);
 };
 
 export const createIssueBadgeForTenant = <
@@ -324,11 +262,7 @@ export const createIssueBadgeForTenant = <
       ...(options?.issuerName === undefined ? {} : { name: options.issuerName }),
       ...(options?.issuerUrl === undefined ? {} : { url: options.issuerUrl }),
     };
-    const trustEdAchievement = trustEdAchievementFields(
-      badgeTemplate.trustedCredentialMetadataJson,
-    );
-    const trustEdEvidence = trustEdEvidenceObjects(badgeTemplate.trustedCredentialMetadataJson);
-    const trustEdResults = trustEdResultObjects(badgeTemplate.trustedCredentialMetadataJson);
+    const trustEdProjection = trustEdOb3Projection(badgeTemplate.trustedCredentialMetadataJson);
     const signedCredentialResult = await input.signCredentialForDid({
       context,
       did: issuerDid,
@@ -370,7 +304,6 @@ export const createIssueBadgeForTenant = <
                     type: "Criteria",
                   },
                 }),
-            ...trustEdAchievement,
             ...(badgeTemplate.imageUri === null
               ? {}
               : {
@@ -379,9 +312,9 @@ export const createIssueBadgeForTenant = <
                     type: "Image",
                   },
                 }),
+            ...trustEdProjection.achievement,
           },
-          ...(trustEdEvidence.length === 0 ? {} : { evidence: trustEdEvidence }),
-          ...(trustEdResults.length === 0 ? {} : { result: trustEdResults }),
+          ...trustEdProjection.subject,
         },
       },
     });

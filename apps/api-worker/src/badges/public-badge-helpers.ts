@@ -1,6 +1,8 @@
 import type { JsonObject } from "@credtrail/core-domain";
 import type { AssertionRecord } from "@credtrail/db";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
+import { trustEdCredentialDetailsFromOb3Credential } from "./trusted-credential-ob3-projection";
+import type { TrustEdCredentialDetails } from "./trusted-credential-ob3-projection";
 
 const IMS_GLOBAL_OB3_VALIDATOR_BASE_URL = "https://vc.1ed.tech/upload";
 
@@ -17,25 +19,7 @@ export interface EvidenceDetails {
   description: string | null;
 }
 
-export interface TrustEdAlignmentDetails {
-  targetUrl: string;
-  targetName: string | null;
-  targetFramework: string | null;
-  frameworkUri: string | null;
-}
-
-export interface TrustEdResultDetails {
-  value: string;
-  resultDate: string;
-}
-
-export interface TrustEdCredentialDetails {
-  achievementType: string | null;
-  criteriaUri: string | null;
-  criteriaNarrative: string | null;
-  alignments: TrustEdAlignmentDetails[];
-  results: TrustEdResultDetails[];
-}
+export type { TrustEdCredentialDetails } from "./trusted-credential-ob3-projection";
 
 export const githubUsernameFromUrl = (value: string): string | null => {
   try {
@@ -156,63 +140,8 @@ export const evidenceDetailsFromCredential = (credential: JsonObject): EvidenceD
   return singularEvidence === null ? [] : [singularEvidence];
 };
 
-const trustEdAlignmentDetailsFromValue = (value: unknown): TrustEdAlignmentDetails | null => {
-  const alignment = asJsonObject(value);
-  const targetUrl = asNonEmptyString(alignment?.targetUrl);
-
-  if (targetUrl === null) {
-    return null;
-  }
-
-  return {
-    targetUrl,
-    targetName: asNonEmptyString(alignment?.targetName),
-    targetFramework: asNonEmptyString(alignment?.targetFramework),
-    frameworkUri: asNonEmptyString(alignment?.frameworkUri),
-  };
-};
-
-const trustEdResultDetailsFromValue = (value: unknown): TrustEdResultDetails | null => {
-  const result = asJsonObject(value);
-  const resultValue = asNonEmptyString(result?.value);
-  const resultDate = asNonEmptyString(result?.resultDate);
-
-  if (resultValue === null || resultDate === null) {
-    return null;
-  }
-
-  return {
-    value: resultValue,
-    resultDate,
-  };
-};
-
-const arrayFromLinkedDataValue = (value: unknown): unknown[] => {
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  return value === undefined || value === null ? [] : [value];
-};
-
 export const trustEdCredentialDetailsFromCredential = (
   credential: JsonObject,
 ): TrustEdCredentialDetails => {
-  const credentialSubject = asJsonObject(credential.credentialSubject);
-  const achievement = asJsonObject(credentialSubject?.achievement);
-  const criteria = asJsonObject(achievement?.criteria);
-  const alignments = arrayFromLinkedDataValue(achievement?.alignment)
-    .map((entry) => trustEdAlignmentDetailsFromValue(entry))
-    .filter((entry): entry is TrustEdAlignmentDetails => entry !== null);
-  const results = arrayFromLinkedDataValue(credentialSubject?.result)
-    .map((entry) => trustEdResultDetailsFromValue(entry))
-    .filter((entry): entry is TrustEdResultDetails => entry !== null);
-
-  return {
-    achievementType: asNonEmptyString(achievement?.achievementType),
-    criteriaUri: linkedDataReferenceId(achievement?.criteria),
-    criteriaNarrative: asNonEmptyString(criteria?.narrative),
-    alignments,
-    results,
-  };
+  return trustEdCredentialDetailsFromOb3Credential(credential);
 };

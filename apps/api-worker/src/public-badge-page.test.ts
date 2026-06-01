@@ -566,6 +566,15 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).toContain("Complete the applied analytics project and faculty review.");
     expect(body).toContain("View criteria");
     expect(body).toContain("Pass on 2026-05-18");
+    expect(body).toContain("Applied data analysis");
+    expect(body).toContain("Example Skills Framework");
+    expect(body).toContain("Middle States Commission on Higher Education");
+    expect(body).toContain("accreditor");
+    expect(body).toContain("Faculty-scored applied analytics capstone.");
+    expect(body).toContain("Applied analytics rubric");
+    expect(body).toContain("6 weeks");
+    expect(body).toContain("Available: 3 credits; Earned: 3 credits");
+    expect(body).toContain("Regional Workforce Council");
     expect(body).toContain("Analyze civic datasets");
     expect(body).toContain("Example CASE Framework");
     expect(body).toContain(
