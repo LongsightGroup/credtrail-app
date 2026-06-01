@@ -1,3 +1,4 @@
+import { buildCompleteTrustEdCredentialMetadata } from "@credtrail/validation/testing";
 import { describe, expect, it } from "vitest";
 import {
   createEnv,
@@ -255,6 +256,8 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS).not.toContain(
       "initInstitutionAdminBadgeTemplateListPage",
     );
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS).toContain("dataset.trustedRepeatableTitle");
+    expect(INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS).not.toContain("querySelector('legend')");
     expect(body).not.toContain("ct-grid--sidebar");
     expect(body).not.toContain("Reusable Rule Lists");
     expect(body).not.toContain('id="rule-value-list-form"');
@@ -340,10 +343,15 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('value="https://example.edu/criteria"');
     expect(body).not.toContain('name="trustedCriteriaUri"');
     expect(body).toContain('id="template-editor-trusted-credential"');
-    expect(body).toContain("TrustEd authoring checklist");
+    expect(body).toContain("TrustEd readiness");
     expect(body).toContain("Issuance is not blocked by this advisory checklist.");
+    expect(body).toContain("Complete TrustEd checklist");
+    expect(body).toContain("Badge creation can continue without TrustEd metadata.");
+    expect(body).not.toContain("checks satisfied");
+    expect(body).toContain("No entries");
     expect(body).toContain("Save TrustEd metadata");
-    expect(body).toContain('name="trustedSkills[0].name"');
+    expect(body).not.toContain('name="trustedSkills[0].name"');
+    expect(body).toContain('name="trustedSkills[__INDEX__].name"');
     expect(body).toContain('data-trusted-repeatable-add="trustedSkills"');
     expect(body).toContain('id="template-editor-artwork"');
     expect(body).toContain('id="badge-template-editor-current-artwork"');
@@ -429,6 +437,50 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("Review and save this section to repair it.");
     expect(body).toContain("JSON");
     expect(body).not.toContain("Required TrustEd Credential checklist metadata is present");
+  });
+
+  it("surfaces incomplete TrustEd metadata with actionable preview and open editors", async () => {
+    const env = createEnv();
+    const incompleteMetadata = buildCompleteTrustEdCredentialMetadata({
+      skills: [],
+      frameworkAlignments: [],
+      issuerAuthority: null,
+      evidence: [],
+      results: [],
+      criteria: null,
+      assessments: [],
+      achievementType: null,
+    });
+
+    mockedFindBadgeTemplateById.mockResolvedValue({
+      ...sampleActiveBadgeTemplate,
+      trustedCredentialMetadataJson: JSON.stringify(incompleteMetadata),
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/templates/badge_template_001",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain('ct-admin__status-pill--warning">Incomplete</span>');
+    expect(body).toContain("Add at least one represented skill.");
+    expect(body).toContain("4 more required items in the checklist below.");
+    expect(body).toContain("checks satisfied");
+    expect(body).toMatch(
+      /<details[^>]*class="ct-admin__template-editor-advanced ct-admin__template-editor-trusted-editor"[^>]*\bopen\b/,
+    );
+    expect(body).toMatch(
+      /<details[^>]*data-trusted-repeatable="trustedSkills"[^>]*data-trusted-repeatable-title="Skill"[^>]*\bopen\b/,
+    );
+    expect(body).toContain('name="trustedSkills[0].name"');
+    expect(body).toContain('data-trusted-repeatable-title="Skill"');
   });
 
   it("renders all stored TrustEd repeatable metadata rows in the badge template editor", async () => {

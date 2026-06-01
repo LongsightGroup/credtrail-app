@@ -64,13 +64,6 @@ const trustedReadinessTone = (status: "not_evaluated" | "incomplete" | "ready"):
   }
 };
 
-const repeatableRows = <ValueType,>(
-  items: readonly ValueType[],
-  emptyRow: ValueType,
-): ValueType[] => {
-  return items.length > 0 ? [...items] : [emptyRow];
-};
-
 interface TrustEdTextField {
   label: string;
   name: string;
@@ -135,21 +128,51 @@ const TrustEdFieldControl = (field: TrustEdField): HonoElement => {
 interface TrustEdRepeatableGroup<RowValue> {
   groupName: string;
   title: string;
+  summary: string;
   addLabel: string;
-  rows: RowValue[];
+  rows: readonly RowValue[];
+  emptyRow: RowValue;
+  showEmptyRow: boolean;
+  open: boolean;
   fieldsForRow: (row: RowValue, index: number | "__INDEX__") => TrustEdField[];
 }
+
+const TRUSTED_MISSING_REQUIRED_PREVIEW_LIMIT = 4;
+
+const trustedRepeatableEntryLabel = (entryCount: number): string => {
+  if (entryCount === 0) {
+    return "No entries";
+  }
+
+  if (entryCount === 1) {
+    return "1 entry";
+  }
+
+  return `${String(entryCount)} entries`;
+};
 
 const TrustEdRepeatableGroup = <RowValue,>(
   group: TrustEdRepeatableGroup<RowValue>,
 ): HonoElement => {
+  const visibleRows =
+    group.rows.length > 0 ? [...group.rows] : group.showEmptyRow ? [group.emptyRow] : [];
+  const entryLabel = trustedRepeatableEntryLabel(group.rows.length);
+
   return (
-    <fieldset
+    <details
       class="ct-admin__template-editor-trusted-repeatable"
       data-trusted-repeatable={group.groupName}
-      data-trusted-repeatable-next-index={String(group.rows.length)}
+      data-trusted-repeatable-title={group.title}
+      data-trusted-repeatable-next-index={String(visibleRows.length)}
+      open={group.open}
     >
-      <legend class="ct-admin__template-editor-trusted-repeatable-title">{group.title}</legend>
+      <summary class="ct-admin__template-editor-trusted-repeatable-summary">
+        <span>
+          <strong>{group.title}</strong>
+          <small>{group.summary}</small>
+        </span>
+        <span class="ct-admin__status-pill">{entryLabel}</span>
+      </summary>
       <div class="ct-admin__template-editor-trusted-repeatable-header">
         <AdminButton
           type="button"
@@ -161,7 +184,7 @@ const TrustEdRepeatableGroup = <RowValue,>(
         </AdminButton>
       </div>
       <div class="ct-admin__template-editor-trusted-repeatable-rows">
-        {group.rows.map((row, index) => (
+        {visibleRows.map((row, index) => (
           <div
             class="ct-admin__template-editor-trusted-repeatable-row"
             data-trusted-repeatable-row={group.groupName}
@@ -204,13 +227,13 @@ const TrustEdRepeatableGroup = <RowValue,>(
             </AdminButton>
           </div>
           <div class="ct-admin__template-editor-trusted-grid">
-            {group.fieldsForRow({} as RowValue, "__INDEX__").map((field) => (
+            {group.fieldsForRow(group.emptyRow, "__INDEX__").map((field) => (
               <TrustEdFieldControl {...field} />
             ))}
           </div>
         </div>
       </template>
-    </fieldset>
+    </details>
   );
 };
 
@@ -284,12 +307,21 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
       maxLength: 300,
     },
   ];
+  const requiredCheckIds = new Set(missingRequired.map((check) => check.id));
+  const missingRequiredPreview = missingRequired.slice(0, TRUSTED_MISSING_REQUIRED_PREVIEW_LIMIT);
+  const hiddenMissingRequiredCount = missingRequired.length - missingRequiredPreview.length;
+  const trustEdEditorOpen =
+    metadataState.parseResult.status === "invalid" || readiness.status === "incomplete";
   const repeatableGroups: HonoElement[] = [
     <TrustEdRepeatableGroup
       groupName="trustedSkills"
       title="Skill"
+      summary="Skills or competencies represented by this badge."
       addLabel="Add skill"
-      rows={repeatableRows(metadata.skills, { name: null, identifierUri: null, source: null })}
+      rows={metadata.skills}
+      emptyRow={{ name: null, identifierUri: null, source: null }}
+      showEmptyRow={metadata.skills.length === 0 && requiredCheckIds.has("skills")}
+      open={metadata.skills.length > 0 || requiredCheckIds.has("skills")}
       fieldsForRow={(skill, index) => [
         {
           kind: "text",
@@ -318,13 +350,19 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
     <TrustEdRepeatableGroup
       groupName="trustedFrameworkAlignments"
       title="Framework alignment"
+      summary="External framework targets such as CASE, CTDL, or RSD."
       addLabel="Add alignment"
-      rows={repeatableRows(metadata.frameworkAlignments, {
+      rows={metadata.frameworkAlignments}
+      emptyRow={{
         targetName: null,
         targetUri: null,
         frameworkName: null,
         frameworkUri: null,
-      })}
+      }}
+      showEmptyRow={
+        metadata.frameworkAlignments.length === 0 && requiredCheckIds.has("framework_alignment")
+      }
+      open={metadata.frameworkAlignments.length > 0 || requiredCheckIds.has("framework_alignment")}
       fieldsForRow={(alignment, index) => [
         {
           kind: "text",
@@ -361,8 +399,12 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
     <TrustEdRepeatableGroup
       groupName="trustedEvidence"
       title="Evidence"
+      summary="Artifacts that support learner achievement."
       addLabel="Add evidence"
-      rows={repeatableRows(metadata.evidence, { name: null, uri: null, description: null })}
+      rows={metadata.evidence}
+      emptyRow={{ name: null, uri: null, description: null }}
+      showEmptyRow={metadata.evidence.length === 0 && requiredCheckIds.has("evidence")}
+      open={metadata.evidence.length > 0 || requiredCheckIds.has("evidence")}
       fieldsForRow={(evidence, index) => [
         {
           kind: "text",
@@ -392,8 +434,12 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
     <TrustEdRepeatableGroup
       groupName="trustedResults"
       title="Result"
+      summary="Result values and dates used for review."
       addLabel="Add result"
-      rows={repeatableRows(metadata.results, { value: null, resultDate: null })}
+      rows={metadata.results}
+      emptyRow={{ value: null, resultDate: null }}
+      showEmptyRow={metadata.results.length === 0 && requiredCheckIds.has("result")}
+      open={metadata.results.length > 0 || requiredCheckIds.has("result")}
       fieldsForRow={(result, index) => [
         {
           kind: "text",
@@ -414,8 +460,12 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
     <TrustEdRepeatableGroup
       groupName="trustedAssessments"
       title="Assessment"
+      summary="How the learner was assessed."
       addLabel="Add assessment"
-      rows={repeatableRows(metadata.assessments, { description: null, assessmentDate: null })}
+      rows={metadata.assessments}
+      emptyRow={{ description: null, assessmentDate: null }}
+      showEmptyRow={metadata.assessments.length === 0 && requiredCheckIds.has("assessment")}
+      open={metadata.assessments.length > 0 || requiredCheckIds.has("assessment")}
       fieldsForRow={(assessment, index) => [
         {
           kind: "textarea",
@@ -437,8 +487,12 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
     <TrustEdRepeatableGroup
       groupName="trustedRubrics"
       title="Rubric"
+      summary="Optional rubric details when applicable."
       addLabel="Add rubric"
-      rows={repeatableRows(metadata.rubrics, { name: null, uri: null })}
+      rows={metadata.rubrics}
+      emptyRow={{ name: null, uri: null }}
+      showEmptyRow={false}
+      open={metadata.rubrics.length > 0}
       fieldsForRow={(rubric, index) => [
         {
           kind: "text",
@@ -460,8 +514,12 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
     <TrustEdRepeatableGroup
       groupName="trustedEndorsements"
       title="Endorsement"
+      summary="Optional third-party endorsement details."
       addLabel="Add endorsement"
-      rows={repeatableRows(metadata.endorsements, { endorserName: null, endorserUri: null })}
+      rows={metadata.endorsements}
+      emptyRow={{ endorserName: null, endorserUri: null }}
+      showEmptyRow={false}
+      open={metadata.endorsements.length > 0}
       fieldsForRow={(endorsement, index) => [
         {
           kind: "text",
@@ -490,10 +548,10 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
     >
       <header class="ct-admin__template-editor-section-header ct-admin__template-editor-section-header--split">
         <div>
-          <h2>TrustEd authoring checklist</h2>
+          <h2>TrustEd readiness</h2>
           <p>
-            Add skills, evidence, results, assessment, and framework alignment for more inspectable
-            credentials. Issuance is not blocked by this advisory checklist.
+            Optional trust metadata for more inspectable credentials. Issuance is not blocked by
+            this advisory checklist.
           </p>
         </div>
         <span class={adminStatusPillClass(trustedReadinessTone(readiness.status))}>
@@ -509,6 +567,11 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
           Stored TrustEd metadata is invalid. Review and save this section to repair it.{" "}
           {metadataState.parseResult.error}
         </AdminStatus>
+      ) : readiness.status === "not_evaluated" ? (
+        <AdminStatus>
+          No TrustEd metadata is saved yet. Add it only when this badge needs TrustEd-ready public
+          details.
+        </AdminStatus>
       ) : missingRequired.length === 0 ? (
         <AdminStatus data-tone="success">
           Required TrustEd Credential checklist metadata is present for this template.
@@ -518,24 +581,57 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
           Add the missing required checklist metadata to make this template TrustEd-ready.
         </AdminStatus>
       )}
-      <div class="ct-admin__template-editor-trusted-summary">
-        <div>
-          <strong>
-            {String(readiness.checks.length - missingRequired.length - missingRecommended.length)}
-          </strong>
-          <span>checks satisfied</span>
-        </div>
-        <div>
-          <strong>{String(missingRequired.length)}</strong>
-          <span>required missing</span>
-        </div>
-        <div>
-          <strong>{String(missingRecommended.length)}</strong>
-          <span>recommended missing</span>
-        </div>
+      <div class="ct-admin__template-editor-trusted-card">
+        {readiness.status !== "not_evaluated" ? (
+          <div class="ct-admin__template-editor-trusted-summary">
+            <div>
+              <strong>
+                {String(
+                  readiness.checks.length - missingRequired.length - missingRecommended.length,
+                )}
+              </strong>
+              <span>checks satisfied</span>
+            </div>
+            <div>
+              <strong>{String(missingRequired.length)}</strong>
+              <span>required missing</span>
+            </div>
+            <div>
+              <strong>{String(missingRecommended.length)}</strong>
+              <span>recommended missing</span>
+            </div>
+          </div>
+        ) : null}
+        {readiness.status === "not_evaluated" ? (
+          <p class="ct-admin__template-editor-trusted-card-note">
+            Badge creation can continue without TrustEd metadata.
+          </p>
+        ) : missingRequired.length === 0 ? (
+          <p class="ct-admin__template-editor-trusted-card-note">
+            Required TrustEd fields are complete. Recommended fields stay optional.
+          </p>
+        ) : (
+          <>
+            <ul class="ct-admin__template-editor-trusted-missing">
+              {missingRequiredPreview.map((check) => (
+                <li>{check.message}</li>
+              ))}
+            </ul>
+            {hiddenMissingRequiredCount > 0 ? (
+              <p class="ct-admin__template-editor-trusted-missing-more">
+                {`${String(hiddenMissingRequiredCount)} more required ${
+                  hiddenMissingRequiredCount === 1 ? "item" : "items"
+                } in the checklist below.`}
+              </p>
+            ) : null}
+          </>
+        )}
       </div>
-      <details class="ct-admin__template-editor-advanced" open={readiness.status !== "ready"}>
-        <summary>TrustEd metadata</summary>
+      <details
+        class="ct-admin__template-editor-advanced ct-admin__template-editor-trusted-editor"
+        open={trustEdEditorOpen}
+      >
+        <summary>Complete TrustEd checklist</summary>
         <div class="ct-admin__template-editor-trusted-grid">
           {fields.map((field) => (
             <TrustEdFieldControl {...field} />
@@ -550,12 +646,12 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
             </li>
           ))}
         </ul>
+        <div class="ct-admin__template-editor-submit">
+          <AdminButton form="badge-template-edit-form" type="submit">
+            Save TrustEd metadata
+          </AdminButton>
+        </div>
       </details>
-      <div class="ct-admin__template-editor-submit">
-        <AdminButton form="badge-template-edit-form" type="submit">
-          Save TrustEd metadata
-        </AdminButton>
-      </div>
     </AdminPanel>
   );
 };

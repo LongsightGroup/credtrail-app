@@ -45,7 +45,12 @@ const INSTITUTION_ADMIN_BADGE_TEMPLATE_TRUSTED_REPEATABLE_JS = `
         row.dataset.trustedRepeatableIndex = String(index);
 
         if (label instanceof HTMLElement) {
-          const groupTitle = group.querySelector('legend')?.textContent?.trim() || 'Entry';
+          const groupTitle =
+            group.dataset.trustedRepeatableTitle ??
+            group
+              .querySelector('.ct-admin__template-editor-trusted-repeatable-summary strong')
+              ?.textContent?.trim() ??
+            'Entry';
           label.textContent = groupTitle + ' ' + String(index + 1);
         }
 

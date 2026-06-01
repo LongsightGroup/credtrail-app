@@ -271,6 +271,38 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--ct-space-2);
 }
+.ct-admin__template-editor-trusted-card {
+  display: grid;
+  gap: var(--ct-space-3);
+}
+.ct-admin__template-editor-trusted-card-note {
+  margin: 0;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+.ct-admin__template-editor-trusted-missing {
+  display: grid;
+  gap: var(--ct-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ct-admin__template-editor-trusted-missing li {
+  border: 1px solid var(--ct-theme-state-warning-border);
+  border-radius: var(--ct-radius-sm);
+  padding: var(--ct-space-2);
+  background: var(--ct-theme-surface-warning);
+  color: var(--ct-theme-text-body);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.ct-admin__template-editor-trusted-missing-more {
+  margin: 0;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
 .ct-admin__template-editor-trusted-summary > div {
   display: grid;
   gap: 0.1rem;
@@ -310,6 +342,37 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
   padding: var(--ct-space-3);
   background: var(--ct-theme-surface-soft);
 }
+.ct-admin__template-editor-trusted-repeatable-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--ct-space-3);
+  align-items: center;
+  cursor: pointer;
+}
+.ct-admin__template-editor-trusted-repeatable-summary strong,
+.ct-admin__template-editor-trusted-repeatable-summary small {
+  display: block;
+}
+.ct-admin__template-editor-trusted-repeatable-summary strong {
+  color: var(--ct-theme-text-title);
+  font-size: 0.86rem;
+  line-height: 1.3;
+}
+.ct-admin__template-editor-trusted-repeatable-summary small {
+  margin-top: 0.12rem;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.ct-admin__template-editor-trusted-repeatable:not([open]) {
+  background: var(--ct-theme-surface-card-strong);
+}
+.ct-admin__template-editor-trusted-repeatable:not([open])
+  .ct-admin__template-editor-trusted-repeatable-header,
+.ct-admin__template-editor-trusted-repeatable:not([open])
+  .ct-admin__template-editor-trusted-repeatable-rows {
+  display: none;
+}
 .ct-admin__template-editor-trusted-repeatable-header,
 .ct-admin__template-editor-trusted-repeatable-row-header {
   display: flex;
@@ -320,7 +383,6 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
 .ct-admin__template-editor-trusted-repeatable-header {
   justify-content: flex-end;
 }
-.ct-admin__template-editor-trusted-repeatable-title,
 .ct-admin__template-editor-trusted-repeatable-row-header span {
   min-width: 0;
   color: var(--ct-theme-text-title);
