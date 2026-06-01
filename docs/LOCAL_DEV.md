@@ -25,6 +25,21 @@ This command:
 The command prints a JSON ready block with `baseUrl`, `tenantId`,
 `adminLoginUrl`, and named demo routes.
 
+## Local Hostname Contract
+
+Local development uses one issuer hostname story:
+
+- App access URLs use `http://127.0.0.1:8787` by default for browser and agent
+  automation.
+- `http://localhost:8787` is also trusted for manual browser access.
+- `PLATFORM_DOMAIN` is `localhost`.
+- The seeded tenant uses `issuerDomain: "localhost"` and
+  `didWeb: "did:web:localhost"`.
+
+If you already have an older `wrangler.local.jsonc` copied from before this
+contract, update `PLATFORM_DOMAIN` to `localhost` and remove
+`credtrail.example` from `BETTER_AUTH_TRUSTED_ORIGINS`.
+
 ## Daily Commands
 
 ```bash
