@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { demoRoutes, firstDayTemplateName, learnerEmail } from "./helpers/demo-routes.mjs";
+import { demoRoutes, firstDayTemplateName, learnerEmail } from "./helpers/demo-routes";
 
 test("seeded admin can inspect the local demo world", async ({ page }) => {
   await page.goto(demoRoutes.admin);
@@ -35,7 +35,9 @@ test("@demo guided first-day workflow creates data through normal admin routes",
 
   await page.goto(demoRoutes.manualIssue);
   await page.getByLabel(/recipient email/i).fill(learnerEmail);
-  await page.getByLabel(/badge template/i).selectOption({ label: "Applied Analytics TrustEd Credential" });
+  await page
+    .getByLabel(/badge template/i)
+    .selectOption({ label: "Applied Analytics TrustEd Credential" });
   await page.getByRole("button", { name: /issue/i }).click();
   await expect(page.getByText(new RegExp(`Badge issued for ${learnerEmail}`, "i"))).toBeVisible();
 

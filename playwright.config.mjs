@@ -18,12 +18,12 @@ export default defineConfig({
   projects: [
     {
       name: "setup",
-      testMatch: /global\.setup\.mjs/,
+      testMatch: /global\.setup\.ts/,
     },
     {
       name: "chromium",
       dependencies: ["setup"],
-      testIgnore: /global\.setup\.mjs/,
+      testIgnore: /global\.setup\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         storageState: ".auth/admin.json",
@@ -33,7 +33,7 @@ export default defineConfig({
       name: "guided-demo",
       dependencies: ["setup"],
       grep: /@demo/,
-      testIgnore: /global\.setup\.mjs/,
+      testIgnore: /global\.setup\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         headless: false,

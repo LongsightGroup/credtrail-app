@@ -2,8 +2,7 @@ import { mkdir } from "node:fs/promises";
 
 import { test as setup } from "@playwright/test";
 
-const tenantId = process.env.CREDTRAIL_DEV_TENANT_ID || "tenant_123";
-const adminEmail = process.env.CREDTRAIL_DEV_ADMIN_EMAIL || "admin@credtrail.local";
+import { adminEmail, demoRoutes, tenantId } from "./helpers/demo-routes";
 
 setup("authenticate seeded admin", async ({ page, baseURL }) => {
   if (baseURL === undefined) {
@@ -13,7 +12,7 @@ setup("authenticate seeded admin", async ({ page, baseURL }) => {
   const loginUrl = new URL("/v1/dev/auth/login-as", baseURL);
   loginUrl.searchParams.set("tenantId", tenantId);
   loginUrl.searchParams.set("email", adminEmail);
-  loginUrl.searchParams.set("next", `/tenants/${encodeURIComponent(tenantId)}/admin`);
+  loginUrl.searchParams.set("next", demoRoutes.admin);
 
   await page.goto(loginUrl.toString());
   await page.waitForURL(/\/tenants\/[^/]+\/admin/);

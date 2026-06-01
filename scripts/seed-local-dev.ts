@@ -79,17 +79,19 @@ const requireEnv = (name: string): string => {
 loadLocalDevEnv();
 
 const databaseUrl = requireEnv("DATABASE_URL");
-const adminEmail = process.env.CREDTRAIL_DEV_ADMIN_EMAIL?.trim() || "admin@credtrail.local";
-const tenantId = process.env.CREDTRAIL_DEV_TENANT_ID?.trim() || "tenant_123";
 const tenantSlug = process.env.CREDTRAIL_DEV_TENANT_SLUG?.trim() || "demo-university";
 const db = createPostgresDatabase({ databaseUrl, connectionMode: "single-use" });
 const {
+  localDevDemoAdminEmail,
   localDevDemoLearnerEmail,
   localDevDemoRoutes,
   localDevDemoRule,
   localDevDemoTemplates,
+  localDevDemoTenantId,
   localDevDemoTrustedCredentialFixture,
 } = localDevDemoContract;
+const adminEmail = process.env.CREDTRAIL_DEV_ADMIN_EMAIL?.trim() || localDevDemoAdminEmail;
+const tenantId = process.env.CREDTRAIL_DEV_TENANT_ID?.trim() || localDevDemoTenantId;
 
 interface SeedLocalR2CredentialObjectResult {
   status: "seeded" | "skipped";

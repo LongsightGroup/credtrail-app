@@ -1,22 +1,18 @@
 import { completeTrustEdCredentialMetadataInput } from "@credtrail/validation/testing";
 
 import { getSeededDemoTrustEdCredentialFixture } from "../apps/api-worker/src/badges/seeded-demo-trusted-credential-fixture";
+import {
+  localDevDemoAdminEmail,
+  localDevDemoLearnerEmail,
+  localDevDemoRoutes,
+  localDevDemoTenantId,
+} from "./local-dev-demo-defaults.mjs";
 
-export const localDevDemoTenantId = "tenant_123";
-export const localDevDemoAdminEmail = "admin@credtrail.local";
-export const localDevDemoLearnerEmail = "learner@example.edu";
-
-export const localDevDemoRoutes = (tenantId: string = localDevDemoTenantId) => {
-  return {
-    admin: `/tenants/${encodeURIComponent(tenantId)}/admin`,
-    badgeTemplates: `/tenants/${encodeURIComponent(tenantId)}/admin/rules/templates`,
-    rules: `/tenants/${encodeURIComponent(tenantId)}/admin/rules`,
-    ruleBuilder: `/tenants/${encodeURIComponent(tenantId)}/admin/rules/new`,
-    manualIssue: `/tenants/${encodeURIComponent(tenantId)}/admin/operations/issue`,
-    issuedBadges: `/tenants/${encodeURIComponent(tenantId)}/admin/operations/issued-badges`,
-    reporting: `/tenants/${encodeURIComponent(tenantId)}/admin/reporting`,
-    publicTrustedCredential: "/badges/trusted-demo-credential",
-  };
+export {
+  localDevDemoAdminEmail,
+  localDevDemoLearnerEmail,
+  localDevDemoRoutes,
+  localDevDemoTenantId,
 };
 
 const incompleteTrustEdCredentialMetadataInput = {

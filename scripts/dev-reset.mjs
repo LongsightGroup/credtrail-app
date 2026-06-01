@@ -1,11 +1,15 @@
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { loadLocalDevEnv, requireEnv } from "./local-dev-env.mjs";
+import {
+  localDevDemoAdminEmail,
+  localDevDemoTenantId,
+} from "./local-dev-demo-defaults.mjs";
 
 loadLocalDevEnv();
 
-const tenantId = process.env.CREDTRAIL_DEV_TENANT_ID?.trim() || "tenant_123";
-const adminEmail = process.env.CREDTRAIL_DEV_ADMIN_EMAIL?.trim() || "admin@credtrail.local";
+const tenantId = process.env.CREDTRAIL_DEV_TENANT_ID?.trim() || localDevDemoTenantId;
+const adminEmail = process.env.CREDTRAIL_DEV_ADMIN_EMAIL?.trim() || localDevDemoAdminEmail;
 const databaseUrl = requireEnv("DATABASE_URL");
 const db = createPostgresDatabase({ databaseUrl, connectionMode: "single-use" });
 
