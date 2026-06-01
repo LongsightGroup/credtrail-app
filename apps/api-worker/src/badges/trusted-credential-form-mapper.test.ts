@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   formHasTrustEdMetadataFields,
-  trustedCredentialFieldNames,
   trustEdMetadataFromForm,
 } from "./trusted-credential-form-mapper";
 
@@ -9,11 +8,13 @@ describe("trusted credential form mapper", () => {
   it("detects TrustEd metadata fields independently from HTTP routes", () => {
     const emptyForm = new FormData();
     const trustedForm = new FormData();
+    const legacyForm = new FormData();
     trustedForm.set("trustedSkills[0].name", "Applied data analysis");
+    legacyForm.set("trustedSkillName", "Applied data analysis");
 
     expect(formHasTrustEdMetadataFields(emptyForm)).toBe(false);
     expect(formHasTrustEdMetadataFields(trustedForm)).toBe(true);
-    expect(trustedCredentialFieldNames).toContain("trustedAssessmentDescription");
+    expect(formHasTrustEdMetadataFields(legacyForm)).toBe(false);
   });
 
   it("maps admin form fields into normalized TrustEd metadata", () => {
@@ -90,7 +91,7 @@ describe("trusted credential form mapper", () => {
 
   it("omits empty optional objects and repeatable rows", () => {
     const formData = new FormData();
-    formData.set("trustedSkillName", "");
+    formData.set("trustedSkills[0].name", "");
     formData.set("trustedCriteriaText", " ");
 
     const metadata = trustEdMetadataFromForm(formData);

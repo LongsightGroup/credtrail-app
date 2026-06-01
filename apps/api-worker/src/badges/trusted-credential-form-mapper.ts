@@ -3,35 +3,6 @@ import {
   type TrustEdCredentialMetadata,
 } from "@credtrail/validation";
 
-export const trustedCredentialFieldNames = [
-  "trustedSkillName",
-  "trustedSkillIdentifierUri",
-  "trustedSkillSource",
-  "trustedFrameworkTargetName",
-  "trustedFrameworkTargetUri",
-  "trustedFrameworkName",
-  "trustedFrameworkUri",
-  "trustedIssuerAuthorityName",
-  "trustedIssuerAuthorityUri",
-  "trustedIssuerAuthorityType",
-  "trustedEvidenceName",
-  "trustedEvidenceUri",
-  "trustedEvidenceDescription",
-  "trustedResultValue",
-  "trustedResultDate",
-  "trustedCriteriaText",
-  "trustedAssessmentDescription",
-  "trustedAssessmentDate",
-  "trustedAchievementType",
-  "trustedRubricName",
-  "trustedRubricUri",
-  "trustedDurationValue",
-  "trustedCreditsAvailable",
-  "trustedCreditsEarned",
-  "trustedEndorserName",
-  "trustedEndorserUri",
-] as const;
-
 const optionalFormText = (formData: FormData, name: string): string | undefined => {
   const value = formData.get(name);
 
@@ -48,12 +19,6 @@ const nullableFormText = (formData: FormData, name: string): string | null => {
   return optionalFormText(formData, name) ?? null;
 };
 
-const oneWhenAny = <ValueType extends Record<string, string | null | undefined>>(
-  entry: ValueType,
-): ValueType[] => {
-  return Object.values(entry).some((value) => value !== null) ? [entry] : [];
-};
-
 const trustedCredentialRepeatableGroupNames = [
   "trustedSkills",
   "trustedFrameworkAlignments",
@@ -64,23 +29,24 @@ const trustedCredentialRepeatableGroupNames = [
   "trustedEndorsements",
 ] as const;
 
-const formHasIndexedTrustEdMetadataFields = (formData: FormData): boolean => {
-  const indexedFieldPattern = new RegExp(
-    `^(${trustedCredentialRepeatableGroupNames.join("|")})\\[\\d+\\]\\.`,
-  );
-
-  for (const key of formData.keys()) {
-    if (indexedFieldPattern.test(key)) {
-      return true;
-    }
-  }
-
-  return false;
-};
+const trustedCredentialScalarFieldNames = new Set<string>([
+  "trustedIssuerAuthorityName",
+  "trustedIssuerAuthorityUri",
+  "trustedIssuerAuthorityType",
+  "trustedCriteriaText",
+  "trustedAchievementType",
+  "trustedDurationValue",
+  "trustedCreditsAvailable",
+  "trustedCreditsEarned",
+]);
 
 const escapeRegExp = (value: string): string => {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
+
+const indexedFieldPattern = new RegExp(
+  `^(${trustedCredentialRepeatableGroupNames.join("|")})\\[\\d+\\]\\.`,
+);
 
 const indexedRowsFromForm = <FieldName extends string>(
   formData: FormData,
@@ -125,73 +91,49 @@ const indexedRowsFromForm = <FieldName extends string>(
 };
 
 export const formHasTrustEdMetadataFields = (formData: FormData): boolean => {
-  return (
-    trustedCredentialFieldNames.some((fieldName) => formData.has(fieldName)) ||
-    formHasIndexedTrustEdMetadataFields(formData)
-  );
+  for (const key of formData.keys()) {
+    if (trustedCredentialScalarFieldNames.has(key) || indexedFieldPattern.test(key)) {
+      return true;
+    }
+  }
+
+  return false;
 };
 
 const repeatableRowsFromForm = <ValueType extends Record<string, string | null>>(
   formData: FormData,
   groupName: string,
   fieldNames: readonly (keyof ValueType & string)[],
-  legacyEntry: ValueType,
 ): ValueType[] => {
-  const indexedRows = indexedRowsFromForm(formData, groupName, fieldNames) as ValueType[];
-
-  return indexedRows.length > 0 ? indexedRows : oneWhenAny(legacyEntry);
+  return indexedRowsFromForm(formData, groupName, fieldNames) as ValueType[];
 };
 
 export const trustEdMetadataFromForm = (formData: FormData): TrustEdCredentialMetadata => {
   const metadata = {
-    skills: repeatableRowsFromForm(formData, "trustedSkills", ["name", "identifierUri", "source"], {
-      name: nullableFormText(formData, "trustedSkillName"),
-      identifierUri: nullableFormText(formData, "trustedSkillIdentifierUri"),
-      source: nullableFormText(formData, "trustedSkillSource"),
-    }),
-    frameworkAlignments: repeatableRowsFromForm(
-      formData,
-      "trustedFrameworkAlignments",
-      ["targetName", "targetUri", "frameworkName", "frameworkUri"],
-      {
-        targetName: nullableFormText(formData, "trustedFrameworkTargetName"),
-        targetUri: nullableFormText(formData, "trustedFrameworkTargetUri"),
-        frameworkName: nullableFormText(formData, "trustedFrameworkName"),
-        frameworkUri: nullableFormText(formData, "trustedFrameworkUri"),
-      },
-    ),
+    skills: repeatableRowsFromForm(formData, "trustedSkills", ["name", "identifierUri", "source"]),
+    frameworkAlignments: repeatableRowsFromForm(formData, "trustedFrameworkAlignments", [
+      "targetName",
+      "targetUri",
+      "frameworkName",
+      "frameworkUri",
+    ]),
     issuerAuthority: {
       name: nullableFormText(formData, "trustedIssuerAuthorityName"),
       uri: nullableFormText(formData, "trustedIssuerAuthorityUri"),
       authorityType: nullableFormText(formData, "trustedIssuerAuthorityType"),
     },
-    evidence: repeatableRowsFromForm(formData, "trustedEvidence", ["name", "uri", "description"], {
-      name: nullableFormText(formData, "trustedEvidenceName"),
-      uri: nullableFormText(formData, "trustedEvidenceUri"),
-      description: nullableFormText(formData, "trustedEvidenceDescription"),
-    }),
-    results: repeatableRowsFromForm(formData, "trustedResults", ["value", "resultDate"], {
-      value: nullableFormText(formData, "trustedResultValue"),
-      resultDate: nullableFormText(formData, "trustedResultDate"),
-    }),
+    evidence: repeatableRowsFromForm(formData, "trustedEvidence", ["name", "uri", "description"]),
+    results: repeatableRowsFromForm(formData, "trustedResults", ["value", "resultDate"]),
     criteria: {
       text: nullableFormText(formData, "trustedCriteriaText"),
       uri: nullableFormText(formData, "criteriaUri"),
     },
-    assessments: repeatableRowsFromForm(
-      formData,
-      "trustedAssessments",
-      ["description", "assessmentDate"],
-      {
-        description: nullableFormText(formData, "trustedAssessmentDescription"),
-        assessmentDate: nullableFormText(formData, "trustedAssessmentDate"),
-      },
-    ),
+    assessments: repeatableRowsFromForm(formData, "trustedAssessments", [
+      "description",
+      "assessmentDate",
+    ]),
     achievementType: nullableFormText(formData, "trustedAchievementType"),
-    rubrics: repeatableRowsFromForm(formData, "trustedRubrics", ["name", "uri"], {
-      name: nullableFormText(formData, "trustedRubricName"),
-      uri: nullableFormText(formData, "trustedRubricUri"),
-    }),
+    rubrics: repeatableRowsFromForm(formData, "trustedRubrics", ["name", "uri"]),
     duration: {
       value: nullableFormText(formData, "trustedDurationValue"),
     },
@@ -199,15 +141,10 @@ export const trustEdMetadataFromForm = (formData: FormData): TrustEdCredentialMe
       available: nullableFormText(formData, "trustedCreditsAvailable"),
       earned: nullableFormText(formData, "trustedCreditsEarned"),
     },
-    endorsements: repeatableRowsFromForm(
-      formData,
-      "trustedEndorsements",
-      ["endorserName", "endorserUri"],
-      {
-        endorserName: nullableFormText(formData, "trustedEndorserName"),
-        endorserUri: nullableFormText(formData, "trustedEndorserUri"),
-      },
-    ),
+    endorsements: repeatableRowsFromForm(formData, "trustedEndorsements", [
+      "endorserName",
+      "endorserUri",
+    ]),
   };
 
   const issuerAuthority =
