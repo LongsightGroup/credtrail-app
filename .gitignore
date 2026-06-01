@@ -10,6 +10,7 @@ coverage/
 .local/
 .dev.vars.local
 wrangler.local.jsonc
+.auth/
 .beads/
 artifacts/
 .playwright-cli/

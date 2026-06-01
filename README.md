@@ -123,6 +123,24 @@ Run from the workspace root:
 
 OB3 OpenAPI snapshot file: `docs/openapi/ims-ob-v3p0.openapi.json`
 
+## Local development
+
+Use Wrangler local with local Postgres and Wrangler R2 emulation for daily app
+development:
+
+- First run: `pnpm dev:up`
+- Daily Wrangler watch after bootstrap: `pnpm dev`
+- Print health and demo routes: `pnpm dev:status`
+- Print the seeded admin login URL: `pnpm dev:login-as`
+- Reset and reseed demo data: `pnpm dev:reset`
+- Watch a headed browser create real demo data: `pnpm dev:demo`
+- Run browser regression checks: `pnpm test:e2e`
+
+The default seeded tenant is `tenant_123`; the seeded admin is
+`admin@credtrail.local`. The seed includes a public credential DB row and local
+Wrangler R2 object for `/badges/trusted-demo-credential`. See
+`docs/LOCAL_DEV.md` for the full local demo contract and troubleshooting notes.
+
 ## Self-host Docker
 
 - Build image: `docker build -t credtrail-app:local .`

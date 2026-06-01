@@ -1,0 +1,5 @@
+DATABASE_URL=postgres://credtrail:credtrail@127.0.0.1:5432/credtrail
+CREDTRAIL_DEV_BASE_URL=http://127.0.0.1:8787
+CREDTRAIL_DEV_ADMIN_EMAIL=admin@credtrail.local
+CREDTRAIL_DEV_TENANT_ID=tenant_123
+CREDTRAIL_DEV_TENANT_SLUG=demo-university

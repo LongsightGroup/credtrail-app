@@ -1,0 +1,103 @@
+import { completeTrustEdCredentialMetadataInput } from "@credtrail/validation/testing";
+
+import { getSeededDemoTrustEdCredentialFixture } from "../apps/api-worker/src/badges/seeded-demo-trusted-credential-fixture";
+
+export const localDevDemoTenantId = "tenant_123";
+export const localDevDemoAdminEmail = "admin@credtrail.local";
+export const localDevDemoLearnerEmail = "learner@example.edu";
+
+export const localDevDemoRoutes = (tenantId: string = localDevDemoTenantId) => {
+  return {
+    admin: `/tenants/${encodeURIComponent(tenantId)}/admin`,
+    badgeTemplates: `/tenants/${encodeURIComponent(tenantId)}/admin/rules/templates`,
+    rules: `/tenants/${encodeURIComponent(tenantId)}/admin/rules`,
+    ruleBuilder: `/tenants/${encodeURIComponent(tenantId)}/admin/rules/new`,
+    manualIssue: `/tenants/${encodeURIComponent(tenantId)}/admin/operations/issue`,
+    issuedBadges: `/tenants/${encodeURIComponent(tenantId)}/admin/operations/issued-badges`,
+    reporting: `/tenants/${encodeURIComponent(tenantId)}/admin/reporting`,
+    publicTrustedCredential: "/badges/trusted-demo-credential",
+  };
+};
+
+const incompleteTrustEdCredentialMetadataInput = {
+  ...completeTrustEdCredentialMetadataInput,
+  skills: [],
+  evidence: [],
+};
+
+export const localDevDemoTemplates = [
+  {
+    id: "badge_template_trusted_demo",
+    slug: "trusted-applied-analytics",
+    title: "Applied Analytics TrustEd Credential",
+    description: "Awarded for demonstrated applied analytics skill with reviewed evidence.",
+    criteriaUri: "https://credentials.example.edu/badges/applied-analytics/criteria",
+    imageUri: "https://credentials.example.edu/badges/applied-analytics/image.png",
+    trustedCredentialMetadataJson: JSON.stringify(completeTrustEdCredentialMetadataInput),
+  },
+  {
+    id: "badge_template_incomplete_trusted_demo",
+    slug: "incomplete-workforce-readiness",
+    title: "Workforce Readiness Credential",
+    description: "Seeded with intentionally incomplete TrustEd metadata for readiness QA.",
+    criteriaUri: "https://credentials.example.edu/badges/workforce-readiness/criteria",
+    imageUri: "https://credentials.example.edu/badges/workforce-readiness/image.png",
+    trustedCredentialMetadataJson: JSON.stringify(incompleteTrustEdCredentialMetadataInput),
+  },
+  {
+    id: "badge_template_foundations",
+    slug: "foundations",
+    title: "Foundations Badge",
+    description: "Awarded for completing the local demo foundations workflow.",
+    criteriaUri: "https://localhost/criteria/foundations",
+    imageUri: "https://credentials.example.edu/badges/foundations/image.png",
+    trustedCredentialMetadataJson: undefined,
+  },
+  {
+    id: "badge_template_capstone",
+    slug: "capstone",
+    title: "Capstone Badge",
+    description: "Awarded for demonstrating the capstone skill in the local demo environment.",
+    criteriaUri: "https://localhost/criteria/capstone",
+    imageUri: "https://credentials.example.edu/badges/capstone/image.png",
+    trustedCredentialMetadataJson: undefined,
+  },
+] as const;
+
+export const localDevDemoRule = {
+  name: "Local Demo: Applied Analytics Completion",
+  description: "Active seeded rule for first-day rule-builder and criteria-registry QA.",
+  badgeTemplateId: "badge_template_trusted_demo",
+  lmsProviderKind: "canvas" as const,
+  lmsConnectionId: "local-demo-lms",
+  definition: {
+    conditions: {
+      all: [
+        {
+          type: "course_completion",
+          courseId: "course-applied-analytics",
+          minCompletionPercent: 100,
+          requireCompleted: true,
+        },
+        {
+          type: "grade_threshold",
+          courseId: "course-applied-analytics",
+          scoreField: "final_score",
+          minScore: 85,
+        },
+      ],
+    },
+  },
+};
+
+export const localDevDemoTrustedCredentialFixture = getSeededDemoTrustEdCredentialFixture();
+
+export default {
+  localDevDemoAdminEmail,
+  localDevDemoLearnerEmail,
+  localDevDemoRoutes,
+  localDevDemoRule,
+  localDevDemoTemplates,
+  localDevDemoTenantId,
+  localDevDemoTrustedCredentialFixture,
+};

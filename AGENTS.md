@@ -118,6 +118,13 @@ Type safety is a release gate:
 Preferred local app runtime for manual QA is Wrangler local with local Postgres
 and local Wrangler R2 emulation.
 
+One-command local bootstrap:
+- Run `pnpm dev:up` from `credtrail-app`. It copies missing local env/config
+  files, starts the Postgres-only compose service, runs migrations, seeds the
+  local demo world, starts Wrangler on `8787`, and prints a JSON ready block.
+- Use `pnpm dev:status` to poll readiness. It exits non-zero until local
+  Postgres and Wrangler are reachable.
+
 Local-only files:
 - `wrangler.local.jsonc` is intentionally gitignored. It should define the local
   Worker entrypoint, `BADGE_OBJECTS` R2 binding, `APP_ENV=development`,
@@ -131,7 +138,7 @@ Local-only files:
   for scripts and fallback DB access, such as:
   `DATABASE_URL=postgres://credtrail:credtrail@127.0.0.1:5432/credtrail`
 
-Local database setup:
+Manual local database setup:
 - Ensure Postgres is listening on `127.0.0.1:5432`.
 - For a fresh local machine, create the local role/database if needed:
   `CREATE ROLE credtrail LOGIN PASSWORD 'credtrail';`
@@ -148,7 +155,9 @@ Run the app locally:
 Seed local demo data:
 - Run `pnpm dev:seed` after migrations.
 - The seed creates a local institution tenant, owner user, membership, org unit,
-  and badge templates for manual admin QA.
+  multiple badge templates, TrustEd metadata states, a seeded badge rule, a
+  learner profile, and a stable public credential DB row plus local Wrangler R2
+  object for manual admin QA.
 - Default seeded login identity:
   `admin@credtrail.local`
 - Default seeded tenant:
@@ -161,14 +170,18 @@ Local development login:
 - Do not define an `EMAIL` binding in local Wrangler config while debugging
   magic-link login. Development magic-link requests capture the URL and skip
   email delivery.
-- With Wrangler running, use `pnpm dev:login-link` to print a browser-ready
+- With Wrangler running, use `pnpm dev:login-as` to print a browser-ready
   local login URL for the seeded admin user.
 - Open the printed URL in a browser to establish the Better Auth session, then
   continue manual QA at `/tenants/tenant_123/admin`.
 
 Browser QA notes:
-- For local manual QA, use the seeded magic-link workflow above over adding ad
-  hoc cookies, direct session table writes, or bootstrap-token browser flows.
+- For local manual QA and agents, use `pnpm dev:login-as` or Playwright global
+  setup over ad hoc cookies, direct session table writes, or bootstrap-token
+  browser flows.
+- Run `pnpm dev:demo` to watch a headed Playwright browser create/edit demo data
+  through normal admin routes.
+- Run `pnpm test:e2e` for headless Playwright workflow checks.
 
 ## 6) Simplicity Rules (K.I.S.S.)
 
