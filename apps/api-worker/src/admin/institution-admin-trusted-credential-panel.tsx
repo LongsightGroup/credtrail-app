@@ -12,10 +12,25 @@ import { AdminButton, AdminField, AdminPanel, AdminStatus } from "./components";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
-const trustEdMetadataForParseResult = (
-  parseResult: TrustEdCredentialMetadataParseResult,
-): TrustEdCredentialMetadata => {
-  return parseResult.status === "valid" ? parseResult.metadata : emptyTrustEdCredentialMetadata();
+interface TrustEdEditorMetadataState {
+  parseResult: TrustEdCredentialMetadataParseResult;
+  formMetadata: TrustEdCredentialMetadata;
+  readinessMetadata: TrustEdCredentialMetadata | null;
+}
+
+const trustEdEditorMetadataState = (template: BadgeTemplateRecord): TrustEdEditorMetadataState => {
+  const parseResult = parseTrustEdCredentialMetadataJsonResult(
+    template.trustedCredentialMetadataJson,
+  );
+
+  return {
+    parseResult,
+    // Empty form metadata keeps authoring fields renderable for empty/invalid records.
+    formMetadata:
+      parseResult.status === "valid" ? parseResult.metadata : emptyTrustEdCredentialMetadata(),
+    // Null readiness metadata intentionally means "not evaluated"; an empty object would mean "evaluated, incomplete".
+    readinessMetadata: parseResult.status === "valid" ? parseResult.metadata : null,
+  };
 };
 
 const trustedReadinessTone = (status: "not_evaluated" | "incomplete" | "ready"): string => {
@@ -80,11 +95,9 @@ const TrustEdTextareaField = (field: TrustEdTextareaField): HonoElement => {
 
 export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): HonoElement => {
   // v1 authoring exposes one row per repeatable field; saving writes at most one array entry.
-  const metadataParseResult = parseTrustEdCredentialMetadataJsonResult(
-    template.trustedCredentialMetadataJson,
-  );
-  const metadata = trustEdMetadataForParseResult(metadataParseResult);
-  const readiness = evaluateTrustEdCredentialReadiness(metadataParseResult.metadata);
+  const metadataState = trustEdEditorMetadataState(template);
+  const metadata = metadataState.formMetadata;
+  const readiness = evaluateTrustEdCredentialReadiness(metadataState.readinessMetadata);
   const skill = firstOrNull(metadata.skills);
   const alignment = firstOrNull(metadata.frameworkAlignments);
   const evidence = firstOrNull(metadata.evidence);
@@ -284,10 +297,10 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
               : "Not evaluated"}
         </span>
       </header>
-      {metadataParseResult.status === "invalid" ? (
+      {metadataState.parseResult.status === "invalid" ? (
         <AdminStatus data-tone="error">
           Stored TrustEd metadata is invalid. Review and save this section to repair it.{" "}
-          {metadataParseResult.error}
+          {metadataState.parseResult.error}
         </AdminStatus>
       ) : missingRequired.length === 0 ? (
         <AdminStatus data-tone="success">

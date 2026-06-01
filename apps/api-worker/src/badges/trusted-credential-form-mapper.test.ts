@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { completeTrustEdCredentialMetadata } from "@credtrail/validation/testing";
 import {
   formHasTrustEdMetadataFields,
   trustedCredentialFieldNames,
@@ -82,5 +83,98 @@ describe("trusted credential form mapper", () => {
     expect(metadata.issuerAuthority).toBeNull();
     expect(metadata.duration).toBeNull();
     expect(metadata.credits).toBeNull();
+  });
+
+  it("preserves stored tail rows that the v1 single-row UI cannot edit", () => {
+    const formData = new FormData();
+    formData.set("trustedSkillName", "Edited skill");
+    formData.set("trustedFrameworkTargetUri", "https://case.example.edu/items/edited");
+    formData.set("trustedEvidenceUri", "");
+    formData.set("trustedResultValue", "Pass");
+    formData.set("trustedResultDate", "2026-05-18");
+    formData.set("trustedAssessmentDescription", "");
+    formData.set("trustedRubricName", "Edited rubric");
+    formData.set("trustedEndorserName", "");
+    const existingMetadata = {
+      ...completeTrustEdCredentialMetadata(),
+      skills: [
+        {
+          name: "Old first skill",
+          identifierUri: null,
+          source: null,
+        },
+        {
+          name: "Preserved skill",
+          identifierUri: "https://skills.example.edu/preserved",
+          source: "Existing source",
+        },
+      ],
+      frameworkAlignments: [
+        {
+          targetName: "Old target",
+          targetUri: "https://case.example.edu/items/old",
+          frameworkName: null,
+          frameworkUri: null,
+        },
+        {
+          targetName: "Preserved target",
+          targetUri: "https://case.example.edu/items/preserved",
+          frameworkName: "Preserved Framework",
+          frameworkUri: null,
+        },
+      ],
+      evidence: [
+        {
+          name: "Old evidence",
+          uri: "https://evidence.example.edu/old",
+          description: null,
+        },
+        {
+          name: "Preserved evidence",
+          uri: "https://evidence.example.edu/preserved",
+          description: "Existing evidence.",
+        },
+      ],
+      assessments: [
+        {
+          description: "Old assessment",
+          assessmentDate: "2026-05-18",
+        },
+        {
+          description: "Preserved assessment",
+          assessmentDate: "2026-05-19",
+        },
+      ],
+    };
+
+    const metadata = trustEdMetadataFromForm(formData, existingMetadata);
+
+    expect(metadata.skills).toEqual([
+      { name: "Edited skill", identifierUri: null, source: null },
+      {
+        name: "Preserved skill",
+        identifierUri: "https://skills.example.edu/preserved",
+        source: "Existing source",
+      },
+    ]);
+    expect(metadata.frameworkAlignments[1]).toEqual({
+      targetName: "Preserved target",
+      targetUri: "https://case.example.edu/items/preserved",
+      frameworkName: "Preserved Framework",
+      frameworkUri: null,
+    });
+    expect(metadata.evidence).toEqual([
+      {
+        name: "Preserved evidence",
+        uri: "https://evidence.example.edu/preserved",
+        description: "Existing evidence.",
+      },
+    ]);
+    expect(metadata.assessments).toEqual([
+      {
+        description: "Preserved assessment",
+        assessmentDate: "2026-05-19",
+      },
+    ]);
   });
 });
