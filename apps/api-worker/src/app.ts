@@ -18,6 +18,7 @@ import {
   evidenceDetailsFromCredential,
   recipientAvatarUrlFromAssertion,
   recipientDisplayNameFromAssertion,
+  trustEdCredentialDetailsFromCredential,
 } from "./badges/public-badge-helpers";
 import {
   badgeNameFromCredential,
@@ -320,6 +321,7 @@ const {
   recipientAvatarUrlFromAssertion,
   recipientDisplayNameFromAssertion,
   recipientFromCredential,
+  trustEdCredentialDetailsFromCredential,
 });
 
 const learnerDashboardPage = createLearnerDashboardPage({

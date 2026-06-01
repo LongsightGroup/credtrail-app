@@ -34,7 +34,10 @@ import {
   BadgeTemplateEditorPreviewFrame,
   BadgeTemplateEditorReadyStatus,
 } from "./badge-template-editor-artwork";
-import { parseTrustEdCredentialMetadataJson } from "../badges/trusted-credential-metadata";
+import {
+  emptyTrustEdCredentialMetadata,
+  parseTrustEdCredentialMetadataJson,
+} from "../badges/trusted-credential-metadata";
 import { evaluateTrustEdCredentialReadiness } from "../badges/trusted-credential-readiness";
 import type { TrustEdCredentialMetadata } from "@credtrail/validation";
 import {
@@ -54,21 +57,15 @@ type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
 const trustEdMetadataForTemplate = (template: BadgeTemplateRecord): TrustEdCredentialMetadata => {
   return (
-    parseTrustEdCredentialMetadataJson(template.trustedCredentialMetadataJson) ?? {
-      skills: [],
-      frameworkAlignments: [],
-      issuerAuthority: null,
-      evidence: [],
-      results: [],
-      criteria: null,
-      assessments: [],
-      achievementType: null,
-      rubrics: [],
-      duration: null,
-      credits: null,
-      endorsements: [],
-    }
+    parseTrustEdCredentialMetadataJson(template.trustedCredentialMetadataJson) ??
+    emptyTrustEdCredentialMetadata()
   );
+};
+
+const trustEdReadinessMetadataForTemplate = (
+  template: BadgeTemplateRecord,
+): TrustEdCredentialMetadata | null => {
+  return parseTrustEdCredentialMetadataJson(template.trustedCredentialMetadataJson);
 };
 
 const trustedReadinessTone = (status: "not_evaluated" | "incomplete" | "ready"): string => {
@@ -193,8 +190,11 @@ const renderTemplateCreatePanel = (rulesTemplatesPath: string): HonoElement => {
 };
 
 const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): HonoElement => {
+  // v1 authoring exposes one row per repeatable field; saving writes at most one array entry.
   const metadata = trustEdMetadataForTemplate(template);
-  const readiness = evaluateTrustEdCredentialReadiness(metadata);
+  const readiness = evaluateTrustEdCredentialReadiness(
+    trustEdReadinessMetadataForTemplate(template),
+  );
   const skill = firstOrNull(metadata.skills);
   const alignment = firstOrNull(metadata.frameworkAlignments);
   const evidence = firstOrNull(metadata.evidence);

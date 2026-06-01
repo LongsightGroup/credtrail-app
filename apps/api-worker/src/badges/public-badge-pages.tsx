@@ -36,6 +36,26 @@ interface EvidenceDetails {
   description: string | null;
 }
 
+interface TrustEdAlignmentDetails {
+  targetUrl: string;
+  targetName: string | null;
+  targetFramework: string | null;
+  frameworkUri: string | null;
+}
+
+interface TrustEdResultDetails {
+  value: string;
+  resultDate: string;
+}
+
+interface TrustEdCredentialDetails {
+  achievementType: string | null;
+  criteriaUri: string | null;
+  criteriaNarrative: string | null;
+  alignments: TrustEdAlignmentDetails[];
+  results: TrustEdResultDetails[];
+}
+
 interface CreatePublicBadgePageRenderersInput {
   asString: (value: unknown) => string | null;
   achievementDetailsFromCredential: (credential: JsonObject) => AchievementDetails;
@@ -60,6 +80,7 @@ interface CreatePublicBadgePageRenderersInput {
   recipientAvatarUrlFromAssertion: (assertion: AssertionRecord) => string | null;
   recipientDisplayNameFromAssertion: (assertion: AssertionRecord) => string | null;
   recipientFromCredential: (credential: JsonObject) => string;
+  trustEdCredentialDetailsFromCredential: (credential: JsonObject) => TrustEdCredentialDetails;
 }
 
 interface PublicBadgePageRenderers {
@@ -203,6 +224,7 @@ export const createPublicBadgePageRenderers = (
     recipientAvatarUrlFromAssertion,
     recipientDisplayNameFromAssertion,
     recipientFromCredential,
+    trustEdCredentialDetailsFromCredential,
   } = input;
   const VC_DATA_MODEL_V2_CONTEXT_URL = "https://www.w3.org/ns/credentials/v2";
   const nonEmptyText = (value: string | null): string | null => {
@@ -479,6 +501,7 @@ export const createPublicBadgePageRenderers = (
     const recipientAvatarUrl = recipientAvatarUrlFromAssertion(model.assertion);
     const achievementDetails = achievementDetailsFromCredential(model.credential);
     const evidenceDetails = evidenceDetailsFromCredential(model.credential);
+    const trustEdCredentialDetails = trustEdCredentialDetailsFromCredential(model.credential);
     const displayBadgeImageUri = model.badgeTemplateImageUri ?? achievementDetails.imageUri;
     const fallbackBadgeImageUri =
       model.badgeTemplateImageUri === null ? null : achievementDetails.imageUri;
@@ -821,6 +844,92 @@ export const createPublicBadgePageRenderers = (
           </ul>
         </section>
       );
+    const hasTrustEdCredentialDetails =
+      trustEdCredentialDetails.achievementType !== null ||
+      trustEdCredentialDetails.criteriaNarrative !== null ||
+      trustEdCredentialDetails.alignments.length > 0 ||
+      trustEdCredentialDetails.results.length > 0;
+    const trustEdCredentialSection = !hasTrustEdCredentialDetails ? null : (
+      <section class="public-badge__card public-badge__stack-sm">
+        <div class="public-badge__section-heading-row">
+          <h2 class="public-badge__section-title">Trust metadata</h2>
+          <span class="public-badge__metadata-badge">TrustEd-aligned</span>
+        </div>
+        <p class="public-badge__achievement-copy">
+          Structured credential data published inside this Open Badges 3.0 record.
+        </p>
+        <dl class="public-badge__trust-grid">
+          {trustEdCredentialDetails.achievementType === null ? null : (
+            <>
+              <dt>Achievement type</dt>
+              <dd>{trustEdCredentialDetails.achievementType}</dd>
+            </>
+          )}
+          {trustEdCredentialDetails.criteriaNarrative === null ? null : (
+            <>
+              <dt>Criteria</dt>
+              <dd>
+                {trustEdCredentialDetails.criteriaNarrative}
+                {trustEdCredentialDetails.criteriaUri === null ? null : (
+                  <>
+                    {" "}
+                    <a
+                      href={trustEdCredentialDetails.criteriaUri}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View criteria
+                    </a>
+                  </>
+                )}
+              </dd>
+            </>
+          )}
+          {trustEdCredentialDetails.results.length === 0 ? null : (
+            <>
+              <dt>Results</dt>
+              <dd>
+                <ul class="public-badge__trust-list">
+                  {trustEdCredentialDetails.results.map((result) => (
+                    <li key={`${result.value}:${result.resultDate}`}>
+                      {result.value} on {result.resultDate}
+                    </li>
+                  ))}
+                </ul>
+              </dd>
+            </>
+          )}
+          {trustEdCredentialDetails.alignments.length === 0 ? null : (
+            <>
+              <dt>Framework alignment</dt>
+              <dd>
+                <ul class="public-badge__trust-list">
+                  {trustEdCredentialDetails.alignments.map((alignment) => {
+                    const label = alignment.targetName ?? alignment.targetUrl;
+                    const framework =
+                      alignment.targetFramework === null ? null : (
+                        <span class="public-badge__trust-muted">
+                          {" "}
+                          ({alignment.targetFramework})
+                        </span>
+                      );
+
+                    return (
+                      <li key={alignment.targetUrl}>
+                        <a href={alignment.targetUrl} target="_blank" rel="noopener noreferrer">
+                          {label}
+                        </a>
+                        {framework}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </dd>
+            </>
+          )}
+        </dl>
+      </section>
+    );
 
     return appPage({
       title: pageTitle,
@@ -875,6 +984,8 @@ export const createPublicBadgePageRenderers = (
           </section>
 
           {evidenceSection}
+
+          {trustEdCredentialSection}
 
           <section class="public-badge__card public-badge__stack-sm public-badge__share">
             <div class="public-badge__share-main">

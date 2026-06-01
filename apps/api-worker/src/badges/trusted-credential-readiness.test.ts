@@ -1,4 +1,9 @@
-import { buildCompleteTrustEdCredentialMetadata } from "@credtrail/validation/testing";
+import {
+  buildCompleteTrustEdCredentialMetadata,
+  completeTrustEdCredentialMetadata,
+  completeTrustEdCredentialMetadataInput,
+} from "@credtrail/validation/testing";
+import { parseTrustEdCredentialMetadata } from "@credtrail/validation";
 import { describe, expect, it } from "vitest";
 import {
   evaluateTrustEdCredentialReadiness,
@@ -37,6 +42,15 @@ describe("TrustEd credential readiness", () => {
 
     expect(result.status).toBe("ready");
     expect(result.checks.every((check) => check.status === "satisfied")).toBe(true);
+  });
+
+  it("marks parsed fixture metadata as ready", () => {
+    const metadata = parseTrustEdCredentialMetadata(completeTrustEdCredentialMetadataInput);
+
+    expect(evaluateTrustEdCredentialReadiness(metadata).status).toBe("ready");
+    expect(evaluateTrustEdCredentialReadiness(completeTrustEdCredentialMetadata()).status).toBe(
+      "ready",
+    );
   });
 
   it("marks missing required metadata as incomplete with field-specific checks", () => {

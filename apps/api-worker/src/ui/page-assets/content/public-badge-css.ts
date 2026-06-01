@@ -256,6 +256,27 @@ export const PUBLIC_BADGE_CSS = `
   font-size: 1rem;
 }
 
+.public-badge__section-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.public-badge__metadata-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.18rem 0.58rem;
+  border: 1px solid color-mix(in srgb, var(--ct-brand-lake-500) 28%, var(--ct-theme-border-soft));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ct-brand-lake-500) 8%, var(--ct-theme-surface-card-strong));
+  color: var(--ct-brand-lake-700);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .public-badge__share {
   gap: 0.72rem;
 }
@@ -425,6 +446,35 @@ export const PUBLIC_BADGE_CSS = `
   margin: 0.2rem 0 0 0;
   color: var(--ct-theme-text-muted);
 }
+
+.public-badge__trust-grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(8rem, max-content) 1fr;
+  gap: 0.55rem 0.8rem;
+}
+
+.public-badge__trust-grid dt {
+  color: var(--ct-theme-text-body);
+  font-weight: 700;
+}
+
+.public-badge__trust-grid dd {
+  margin: 0;
+  color: var(--ct-theme-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.public-badge__trust-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.public-badge__trust-muted {
+  color: var(--ct-theme-text-muted);
+}
   
 .public-badge__technical summary {
   display: flex;
@@ -494,6 +544,10 @@ export const PUBLIC_BADGE_CSS = `
 
   .public-badge__share .public-badge__qr {
     justify-items: center;
+  }
+
+  .public-badge__trust-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

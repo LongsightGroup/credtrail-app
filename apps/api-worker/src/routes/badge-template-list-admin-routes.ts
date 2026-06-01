@@ -151,6 +151,7 @@ export const registerBadgeTemplateListAdminRoutes = (
     return optionalFormText(formData, name) ?? null;
   };
 
+  // Admin forms expose one row per repeatable field; keep arrays at length 0 or 1 until multi-entry UI exists.
   const oneWhenAny = <T extends Record<string, string | null>>(entry: T): T[] => {
     return Object.values(entry).some((value) => value !== null) ? [entry] : [];
   };

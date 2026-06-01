@@ -1,3 +1,4 @@
+import { completeTrustEdCredentialMetadataInput } from "@credtrail/validation/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -776,51 +777,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
         },
       }),
     };
-    const trustedCredentialMetadataJson = JSON.stringify({
-      skills: [
-        {
-          name: "Applied data analysis",
-          identifierUri: "https://skills.example.edu/skills/applied-data-analysis",
-          source: "Example Skills Framework",
-        },
-      ],
-      frameworkAlignments: [
-        {
-          targetName: "Analyze civic datasets",
-          targetUri: "https://case.example.edu/frameworks/data-analysis/items/analyze-civic-data",
-          frameworkName: "Example CASE Framework",
-          frameworkUri: "https://case.example.edu/frameworks/data-analysis",
-        },
-      ],
-      issuerAuthority: {
-        name: "Middle States Commission on Higher Education",
-        uri: "https://www.msche.org/institution/0000/",
-        authorityType: "accreditor",
-      },
-      evidence: [
-        {
-          name: "Capstone analysis portfolio",
-          uri: "https://evidence.example.edu/learners/123/capstone",
-          description: "Portfolio evidence reviewed by program faculty.",
-        },
-      ],
-      results: [{ value: "Pass", resultDate: "2026-05-18" }],
-      criteria: {
-        text: "Complete the applied analytics project and faculty review.",
-        uri: "https://credentials.example.edu/badges/applied-analytics/criteria",
-      },
-      assessments: [
-        {
-          description: "Faculty-scored applied analytics capstone.",
-          assessmentDate: "2026-05-18",
-        },
-      ],
-      achievementType: "Project",
-      rubrics: [],
-      duration: null,
-      credits: null,
-      endorsements: [],
-    });
+    const trustedCredentialMetadataJson = JSON.stringify(completeTrustEdCredentialMetadataInput);
 
     mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
     mockedTouchSession.mockResolvedValue(undefined);

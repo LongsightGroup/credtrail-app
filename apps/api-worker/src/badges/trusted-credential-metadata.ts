@@ -27,5 +27,10 @@ export const parseTrustEdCredentialMetadataJson = (
     return null;
   }
 
-  return parseTrustEdCredentialMetadata(JSON.parse(metadataJson) as unknown);
+  try {
+    const parsed: unknown = JSON.parse(metadataJson);
+    return parseTrustEdCredentialMetadata(parsed);
+  } catch {
+    return null;
+  }
 };

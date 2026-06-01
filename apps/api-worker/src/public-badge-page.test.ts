@@ -64,6 +64,7 @@ import {
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
+import { getSeededDemoTrustEdCredentialFixture } from "./badges/seeded-demo-trusted-credential-fixture";
 
 const mockedFindAssertionById = vi.mocked(findAssertionById);
 const mockedFindAssertionByPublicId = vi.mocked(findAssertionByPublicId);
@@ -540,6 +541,37 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).toContain("Validate Issuer (IMS)");
     expect(body).toContain("vc.1ed.tech/upload?validatorId=OB30Inspector");
     expect(body).toContain("&amp;uri=");
+  });
+
+  it("renders TrustEd-aligned metadata from the issued public credential", async () => {
+    const env = createEnv();
+    const seededDemo = getSeededDemoTrustEdCredentialFixture();
+
+    mockedFindAssertionByPublicId.mockResolvedValue(seededDemo.assertion);
+    mockedFindLearnerProfileById.mockResolvedValue(seededDemo.learnerProfile);
+    mockedFindBadgeTemplateById.mockResolvedValue(seededDemo.badgeTemplate);
+    mockedGetImmutableCredentialObject.mockResolvedValue(seededDemo.credential);
+
+    const response = await app.request(seededDemo.routeFamily.publicCredential, undefined, env);
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Trust metadata");
+    expect(body).toContain("TrustEd-aligned");
+    expect(body).toContain(
+      "Structured credential data published inside this Open Badges 3.0 record.",
+    );
+    expect(body).toContain("Achievement type");
+    expect(body).toContain("Project");
+    expect(body).toContain("Complete the applied analytics project and faculty review.");
+    expect(body).toContain("View criteria");
+    expect(body).toContain("Pass on 2026-05-18");
+    expect(body).toContain("Analyze civic datasets");
+    expect(body).toContain("Example CASE Framework");
+    expect(body).toContain(
+      "https://case.example.edu/frameworks/data-analysis/items/analyze-civic-data",
+    );
+    expect(body).toContain("Capstone analysis portfolio");
   });
 
   it("keeps public badge pages available after LMS course deletion", async () => {
