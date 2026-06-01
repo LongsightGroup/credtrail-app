@@ -338,7 +338,8 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain(">Criteria page URL<");
     expect(body).toContain('value="https://example.edu/criteria"');
     expect(body).toContain('id="template-editor-trusted-credential"');
-    expect(body).toContain("TrustEd readiness");
+    expect(body).toContain("TrustEd authoring checklist");
+    expect(body).toContain("Issuance is not blocked by this advisory checklist.");
     expect(body).toContain("Save TrustEd metadata");
     expect(body).toContain('name="trustedSkillName"');
     expect(body).toContain('id="template-editor-artwork"');
@@ -424,7 +425,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("Stored TrustEd metadata is invalid.");
     expect(body).toContain("Review and save this section to repair it.");
     expect(body).toContain("JSON");
-    expect(body).not.toContain("Required TrustEd Credential metadata is present");
+    expect(body).not.toContain("Required TrustEd Credential checklist metadata is present");
   });
 
   it("preserves list context in badge template editor navigation links", async () => {

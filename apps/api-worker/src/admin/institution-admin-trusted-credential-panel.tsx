@@ -283,10 +283,10 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
     >
       <header class="ct-admin__template-editor-section-header ct-admin__template-editor-section-header--split">
         <div>
-          <h2>TrustEd readiness</h2>
+          <h2>TrustEd authoring checklist</h2>
           <p>
-            Skills, evidence, results, assessment, and framework alignment for inspectable
-            credentials.
+            Add skills, evidence, results, assessment, and framework alignment for more inspectable
+            credentials. Issuance is not blocked by this advisory checklist.
           </p>
         </div>
         <span class={adminStatusPillClass(trustedReadinessTone(readiness.status))}>
@@ -304,11 +304,11 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
         </AdminStatus>
       ) : missingRequired.length === 0 ? (
         <AdminStatus data-tone="success">
-          Required TrustEd Credential metadata is present for this template.
+          Required TrustEd Credential checklist metadata is present for this template.
         </AdminStatus>
       ) : (
         <AdminStatus data-tone="warning">
-          Add the missing required metadata before issuing this as TrustEd-ready.
+          Add the missing required checklist metadata to make this template TrustEd-ready.
         </AdminStatus>
       )}
       <div class="ct-admin__template-editor-trusted-summary">
