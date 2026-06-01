@@ -337,6 +337,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('value="typescript-foundations"');
     expect(body).toContain(">Criteria page URL<");
     expect(body).toContain('value="https://example.edu/criteria"');
+    expect(body).not.toContain('name="trustedCriteriaUri"');
     expect(body).toContain('id="template-editor-trusted-credential"');
     expect(body).toContain("TrustEd authoring checklist");
     expect(body).toContain("Issuance is not blocked by this advisory checklist.");
@@ -665,7 +666,6 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
           "trustedResults[0].value": "Pass",
           "trustedResults[0].resultDate": "2026-05-18",
           trustedCriteriaText: "Complete the applied analytics project and faculty review.",
-          trustedCriteriaUri: "https://credentials.example.edu/badges/applied-analytics/criteria",
           "trustedAssessments[0].description": "Faculty-scored applied analytics capstone.",
           "trustedAssessments[0].assessmentDate": "2026-05-18",
           trustedAchievementType: "Project",
@@ -688,6 +688,12 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       fakeDb,
       expect.objectContaining({
         trustedCredentialMetadataJson: expect.stringContaining("Applied data analysis"),
+      }),
+    );
+    expect(mockedUpdateBadgeTemplate).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        trustedCredentialMetadataJson: expect.stringContaining("https://example.edu/criteria"),
       }),
     );
   });

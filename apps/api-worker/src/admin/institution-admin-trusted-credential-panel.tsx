@@ -18,18 +18,38 @@ interface TrustEdEditorMetadataState {
   readinessMetadata: TrustEdCredentialMetadata | null;
 }
 
+const metadataWithTemplateCriteriaUri = (
+  metadata: TrustEdCredentialMetadata,
+  templateCriteriaUri: string | null,
+): TrustEdCredentialMetadata => {
+  if (templateCriteriaUri === null || metadata.criteria?.uri !== null) {
+    return metadata;
+  }
+
+  return {
+    ...metadata,
+    criteria: {
+      text: metadata.criteria?.text ?? null,
+      uri: templateCriteriaUri,
+    },
+  };
+};
+
 const trustEdEditorMetadataState = (template: BadgeTemplateRecord): TrustEdEditorMetadataState => {
   const parseResult = parseTrustEdCredentialMetadataJsonResult(
     template.trustedCredentialMetadataJson,
   );
+  const validMetadata = parseResult.status === "valid" ? parseResult.metadata : null;
 
   return {
     parseResult,
     // Empty form metadata keeps authoring fields renderable for empty/invalid records.
-    formMetadata:
-      parseResult.status === "valid" ? parseResult.metadata : emptyTrustEdCredentialMetadata(),
+    formMetadata: validMetadata ?? emptyTrustEdCredentialMetadata(),
     // Null readiness metadata intentionally means "not evaluated"; an empty object would mean "evaluated, incomplete".
-    readinessMetadata: parseResult.status === "valid" ? parseResult.metadata : null,
+    readinessMetadata:
+      validMetadata === null
+        ? null
+        : metadataWithTemplateCriteriaUri(validMetadata, template.criteriaUri),
   };
 };
 
@@ -234,14 +254,6 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
       value: metadata.criteria?.text,
       rows: 2,
       maxLength: 4000,
-    },
-    {
-      kind: "text",
-      label: "Criteria URL",
-      name: "trustedCriteriaUri",
-      value: metadata.criteria?.uri ?? template.criteriaUri,
-      type: "url",
-      maxLength: 2048,
     },
     {
       kind: "text",

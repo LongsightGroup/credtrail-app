@@ -20,7 +20,6 @@ export const trustedCredentialFieldNames = [
   "trustedResultValue",
   "trustedResultDate",
   "trustedCriteriaText",
-  "trustedCriteriaUri",
   "trustedAssessmentDescription",
   "trustedAssessmentDate",
   "trustedAchievementType",
@@ -177,7 +176,7 @@ export const trustEdMetadataFromForm = (formData: FormData): TrustEdCredentialMe
     }),
     criteria: {
       text: nullableFormText(formData, "trustedCriteriaText"),
-      uri: nullableFormText(formData, "trustedCriteriaUri"),
+      uri: nullableFormText(formData, "criteriaUri"),
     },
     assessments: repeatableRowsFromForm(
       formData,

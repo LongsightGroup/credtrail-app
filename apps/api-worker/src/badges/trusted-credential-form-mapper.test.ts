@@ -43,7 +43,7 @@ describe("trusted credential form mapper", () => {
     formData.set("trustedResults[0].value", "Pass");
     formData.set("trustedResults[0].resultDate", "2026-05-18");
     formData.set("trustedCriteriaText", "Complete the project.");
-    formData.set("trustedCriteriaUri", "https://credentials.example.edu/criteria");
+    formData.set("criteriaUri", "https://credentials.example.edu/criteria");
     formData.set("trustedAssessments[0].description", "Faculty-scored capstone.");
     formData.set("trustedAssessments[0].assessmentDate", "2026-05-18");
     formData.set("trustedAchievementType", "Project");
@@ -79,6 +79,7 @@ describe("trusted credential form mapper", () => {
     expect(metadata.evidence[0]?.description).toBe("Reviewed by faculty.");
     expect(metadata.results).toEqual([{ value: "Pass", resultDate: "2026-05-18" }]);
     expect(metadata.criteria?.text).toBe("Complete the project.");
+    expect(metadata.criteria?.uri).toBe("https://credentials.example.edu/criteria");
     expect(metadata.assessments[0]?.description).toBe("Faculty-scored capstone.");
     expect(metadata.achievementType).toBe("Project");
     expect(metadata.rubrics[0]?.name).toBe("Applied analytics rubric");
