@@ -55,79 +55,147 @@ const oneWhenAny = <ValueType extends Record<string, string | null | undefined>>
   return Object.values(entry).some((value) => value !== null) ? [entry] : [];
 };
 
-const mergeEditableFirstRow = <ValueType extends Record<string, string | null | undefined>>(
-  entry: ValueType,
-  existingRows: readonly ValueType[] | undefined,
-): ValueType[] => {
-  // v1 renders and edits row 0 only. Preserve any stored tail rows until the UI supports multi-row editing.
-  return [...oneWhenAny(entry), ...(existingRows?.slice(1) ?? [])];
+const trustedCredentialRepeatableGroupNames = [
+  "trustedSkills",
+  "trustedFrameworkAlignments",
+  "trustedEvidence",
+  "trustedResults",
+  "trustedAssessments",
+  "trustedRubrics",
+  "trustedEndorsements",
+] as const;
+
+const formHasIndexedTrustEdMetadataFields = (formData: FormData): boolean => {
+  const indexedFieldPattern = new RegExp(
+    `^(${trustedCredentialRepeatableGroupNames.join("|")})\\[\\d+\\]\\.`,
+  );
+
+  for (const key of formData.keys()) {
+    if (indexedFieldPattern.test(key)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const escapeRegExp = (value: string): string => {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
+
+const indexedRowsFromForm = <FieldName extends string>(
+  formData: FormData,
+  groupName: string,
+  fieldNames: readonly FieldName[],
+): Array<Record<FieldName, string | null>> => {
+  const fieldNamePattern = fieldNames.map(escapeRegExp).join("|");
+  const keyPattern = new RegExp(`^${escapeRegExp(groupName)}\\[(\\d+)\\]\\.(${fieldNamePattern})$`);
+  const rows = new Map<number, Partial<Record<FieldName, string | null>>>();
+
+  for (const key of formData.keys()) {
+    const match = keyPattern.exec(key);
+
+    if (match === null) {
+      continue;
+    }
+
+    const rowIndex = Number.parseInt(match[1] ?? "", 10);
+    const fieldName = match[2] as FieldName | undefined;
+
+    if (!Number.isInteger(rowIndex) || fieldName === undefined) {
+      continue;
+    }
+
+    const row: Partial<Record<FieldName, string | null>> = rows.get(rowIndex) ?? {};
+    row[fieldName] = nullableFormText(formData, key);
+    rows.set(rowIndex, row);
+  }
+
+  return [...rows.entries()]
+    .sort(([leftIndex], [rightIndex]) => leftIndex - rightIndex)
+    .map(([, row]) => {
+      const completeRow = {} as Record<FieldName, string | null>;
+
+      for (const fieldName of fieldNames) {
+        completeRow[fieldName] = row[fieldName] ?? null;
+      }
+
+      return completeRow;
+    })
+    .filter((row) => Object.values(row).some((value) => value !== null));
 };
 
 export const formHasTrustEdMetadataFields = (formData: FormData): boolean => {
-  return trustedCredentialFieldNames.some((fieldName) => formData.has(fieldName));
+  return (
+    trustedCredentialFieldNames.some((fieldName) => formData.has(fieldName)) ||
+    formHasIndexedTrustEdMetadataFields(formData)
+  );
+};
+
+const repeatableRowsFromForm = <ValueType extends Record<string, string | null>>(
+  formData: FormData,
+  groupName: string,
+  fieldNames: readonly (keyof ValueType & string)[],
+  legacyEntry: ValueType,
+): ValueType[] => {
+  const indexedRows = indexedRowsFromForm(formData, groupName, fieldNames) as ValueType[];
+
+  return indexedRows.length > 0 ? indexedRows : oneWhenAny(legacyEntry);
 };
 
 export const trustEdMetadataFromForm = (
   formData: FormData,
-  existingMetadata?: TrustEdCredentialMetadata | null,
+  _existingMetadata?: TrustEdCredentialMetadata | null,
 ): TrustEdCredentialMetadata => {
   const metadata = {
-    skills: mergeEditableFirstRow(
-      {
-        name: nullableFormText(formData, "trustedSkillName"),
-        identifierUri: nullableFormText(formData, "trustedSkillIdentifierUri"),
-        source: nullableFormText(formData, "trustedSkillSource"),
-      },
-      existingMetadata?.skills,
-    ),
-    frameworkAlignments: mergeEditableFirstRow(
+    skills: repeatableRowsFromForm(formData, "trustedSkills", ["name", "identifierUri", "source"], {
+      name: nullableFormText(formData, "trustedSkillName"),
+      identifierUri: nullableFormText(formData, "trustedSkillIdentifierUri"),
+      source: nullableFormText(formData, "trustedSkillSource"),
+    }),
+    frameworkAlignments: repeatableRowsFromForm(
+      formData,
+      "trustedFrameworkAlignments",
+      ["targetName", "targetUri", "frameworkName", "frameworkUri"],
       {
         targetName: nullableFormText(formData, "trustedFrameworkTargetName"),
         targetUri: nullableFormText(formData, "trustedFrameworkTargetUri"),
         frameworkName: nullableFormText(formData, "trustedFrameworkName"),
         frameworkUri: nullableFormText(formData, "trustedFrameworkUri"),
       },
-      existingMetadata?.frameworkAlignments,
     ),
     issuerAuthority: {
       name: nullableFormText(formData, "trustedIssuerAuthorityName"),
       uri: nullableFormText(formData, "trustedIssuerAuthorityUri"),
       authorityType: nullableFormText(formData, "trustedIssuerAuthorityType"),
     },
-    evidence: mergeEditableFirstRow(
-      {
-        name: nullableFormText(formData, "trustedEvidenceName"),
-        uri: nullableFormText(formData, "trustedEvidenceUri"),
-        description: nullableFormText(formData, "trustedEvidenceDescription"),
-      },
-      existingMetadata?.evidence,
-    ),
-    results: mergeEditableFirstRow(
-      {
-        value: nullableFormText(formData, "trustedResultValue"),
-        resultDate: nullableFormText(formData, "trustedResultDate"),
-      },
-      existingMetadata?.results,
-    ),
+    evidence: repeatableRowsFromForm(formData, "trustedEvidence", ["name", "uri", "description"], {
+      name: nullableFormText(formData, "trustedEvidenceName"),
+      uri: nullableFormText(formData, "trustedEvidenceUri"),
+      description: nullableFormText(formData, "trustedEvidenceDescription"),
+    }),
+    results: repeatableRowsFromForm(formData, "trustedResults", ["value", "resultDate"], {
+      value: nullableFormText(formData, "trustedResultValue"),
+      resultDate: nullableFormText(formData, "trustedResultDate"),
+    }),
     criteria: {
       text: nullableFormText(formData, "trustedCriteriaText"),
       uri: nullableFormText(formData, "trustedCriteriaUri"),
     },
-    assessments: mergeEditableFirstRow(
+    assessments: repeatableRowsFromForm(
+      formData,
+      "trustedAssessments",
+      ["description", "assessmentDate"],
       {
         description: nullableFormText(formData, "trustedAssessmentDescription"),
         assessmentDate: nullableFormText(formData, "trustedAssessmentDate"),
       },
-      existingMetadata?.assessments,
     ),
     achievementType: nullableFormText(formData, "trustedAchievementType"),
-    rubrics: mergeEditableFirstRow(
-      {
-        name: nullableFormText(formData, "trustedRubricName"),
-        uri: nullableFormText(formData, "trustedRubricUri"),
-      },
-      existingMetadata?.rubrics,
-    ),
+    rubrics: repeatableRowsFromForm(formData, "trustedRubrics", ["name", "uri"], {
+      name: nullableFormText(formData, "trustedRubricName"),
+      uri: nullableFormText(formData, "trustedRubricUri"),
+    }),
     duration: {
       value: nullableFormText(formData, "trustedDurationValue"),
     },
@@ -135,12 +203,14 @@ export const trustEdMetadataFromForm = (
       available: nullableFormText(formData, "trustedCreditsAvailable"),
       earned: nullableFormText(formData, "trustedCreditsEarned"),
     },
-    endorsements: mergeEditableFirstRow(
+    endorsements: repeatableRowsFromForm(
+      formData,
+      "trustedEndorsements",
+      ["endorserName", "endorserUri"],
       {
         endorserName: nullableFormText(formData, "trustedEndorserName"),
         endorserUri: nullableFormText(formData, "trustedEndorserUri"),
       },
-      existingMetadata?.endorsements,
     ),
   };
 

@@ -295,6 +295,56 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
   gap: var(--ct-space-3);
   margin-top: var(--ct-space-3);
 }
+.ct-admin__template-editor-trusted-repeatables {
+  display: grid;
+  gap: var(--ct-space-3);
+  margin-top: var(--ct-space-3);
+}
+.ct-admin__template-editor-trusted-repeatable {
+  display: grid;
+  gap: var(--ct-space-2);
+  min-inline-size: 0;
+  margin: 0;
+  border: 1px solid var(--ct-border-subtle);
+  border-radius: var(--ct-radius-md);
+  padding: var(--ct-space-3);
+  background: var(--ct-theme-surface-soft);
+}
+.ct-admin__template-editor-trusted-repeatable-header,
+.ct-admin__template-editor-trusted-repeatable-row-header {
+  display: flex;
+  gap: var(--ct-space-2);
+  align-items: center;
+  justify-content: space-between;
+}
+.ct-admin__template-editor-trusted-repeatable-header {
+  justify-content: flex-end;
+}
+.ct-admin__template-editor-trusted-repeatable-title,
+.ct-admin__template-editor-trusted-repeatable-row-header span {
+  min-width: 0;
+  color: var(--ct-theme-text-title);
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.ct-admin__template-editor-trusted-repeatable-rows {
+  display: grid;
+  gap: var(--ct-space-2);
+}
+.ct-admin__template-editor-trusted-repeatable-row {
+  display: grid;
+  gap: var(--ct-space-2);
+  border-block-start: 1px solid var(--ct-border-subtle);
+  padding-block-start: var(--ct-space-2);
+}
+.ct-admin__template-editor-trusted-repeatable-row:first-child {
+  border-block-start: 0;
+  padding-block-start: 0;
+}
+.ct-admin__template-editor-trusted-repeatable-row .ct-admin__template-editor-trusted-grid {
+  margin-top: 0;
+}
 .ct-admin__template-editor-trusted-checks {
   display: grid;
   gap: var(--ct-space-2);

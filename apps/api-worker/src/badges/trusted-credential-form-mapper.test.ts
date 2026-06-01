@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { completeTrustEdCredentialMetadata } from "@credtrail/validation/testing";
 import {
   formHasTrustEdMetadataFields,
   trustedCredentialFieldNames,
@@ -10,7 +9,7 @@ describe("trusted credential form mapper", () => {
   it("detects TrustEd metadata fields independently from HTTP routes", () => {
     const emptyForm = new FormData();
     const trustedForm = new FormData();
-    trustedForm.set("trustedSkillName", "Applied data analysis");
+    trustedForm.set("trustedSkills[0].name", "Applied data analysis");
 
     expect(formHasTrustEdMetadataFields(emptyForm)).toBe(false);
     expect(formHasTrustEdMetadataFields(trustedForm)).toBe(true);
@@ -19,33 +18,45 @@ describe("trusted credential form mapper", () => {
 
   it("maps admin form fields into normalized TrustEd metadata", () => {
     const formData = new FormData();
-    formData.set("trustedSkillName", " Applied data analysis ");
-    formData.set("trustedSkillIdentifierUri", "https://skills.example.edu/applied-data");
-    formData.set("trustedSkillSource", "Example Skills Framework");
-    formData.set("trustedFrameworkTargetName", "Analyze civic datasets");
-    formData.set("trustedFrameworkTargetUri", "https://case.example.edu/items/analyze");
-    formData.set("trustedFrameworkName", "Example CASE Framework");
-    formData.set("trustedFrameworkUri", "https://case.example.edu/frameworks/data-analysis");
+    formData.set("trustedSkills[0].name", " Applied data analysis ");
+    formData.set("trustedSkills[0].identifierUri", "https://skills.example.edu/applied-data");
+    formData.set("trustedSkills[0].source", "Example Skills Framework");
+    formData.set("trustedSkills[1].name", "Stakeholder communication");
+    formData.set("trustedSkills[1].identifierUri", "https://skills.example.edu/communication");
+    formData.set("trustedSkills[1].source", "Example Skills Framework");
+    formData.set("trustedFrameworkAlignments[0].targetName", "Analyze civic datasets");
+    formData.set(
+      "trustedFrameworkAlignments[0].targetUri",
+      "https://case.example.edu/items/analyze",
+    );
+    formData.set("trustedFrameworkAlignments[0].frameworkName", "Example CASE Framework");
+    formData.set(
+      "trustedFrameworkAlignments[0].frameworkUri",
+      "https://case.example.edu/frameworks/data-analysis",
+    );
     formData.set("trustedIssuerAuthorityName", "Middle States Commission");
     formData.set("trustedIssuerAuthorityUri", "https://www.msche.org/institution/0000/");
     formData.set("trustedIssuerAuthorityType", "accreditor");
-    formData.set("trustedEvidenceName", "Capstone analysis portfolio");
-    formData.set("trustedEvidenceUri", "https://evidence.example.edu/123");
-    formData.set("trustedEvidenceDescription", "Reviewed by faculty.");
-    formData.set("trustedResultValue", "Pass");
-    formData.set("trustedResultDate", "2026-05-18");
+    formData.set("trustedEvidence[0].name", "Capstone analysis portfolio");
+    formData.set("trustedEvidence[0].uri", "https://evidence.example.edu/123");
+    formData.set("trustedEvidence[0].description", "Reviewed by faculty.");
+    formData.set("trustedResults[0].value", "Pass");
+    formData.set("trustedResults[0].resultDate", "2026-05-18");
     formData.set("trustedCriteriaText", "Complete the project.");
     formData.set("trustedCriteriaUri", "https://credentials.example.edu/criteria");
-    formData.set("trustedAssessmentDescription", "Faculty-scored capstone.");
-    formData.set("trustedAssessmentDate", "2026-05-18");
+    formData.set("trustedAssessments[0].description", "Faculty-scored capstone.");
+    formData.set("trustedAssessments[0].assessmentDate", "2026-05-18");
     formData.set("trustedAchievementType", "Project");
-    formData.set("trustedRubricName", "Applied analytics rubric");
-    formData.set("trustedRubricUri", "https://credentials.example.edu/rubrics/applied");
+    formData.set("trustedRubrics[0].name", "Applied analytics rubric");
+    formData.set("trustedRubrics[0].uri", "https://credentials.example.edu/rubrics/applied");
     formData.set("trustedDurationValue", "6 weeks");
     formData.set("trustedCreditsAvailable", "3 credits");
     formData.set("trustedCreditsEarned", "3 credits");
-    formData.set("trustedEndorserName", "Regional Workforce Council");
-    formData.set("trustedEndorserUri", "https://workforce.example.edu/endorsements/applied");
+    formData.set("trustedEndorsements[0].endorserName", "Regional Workforce Council");
+    formData.set(
+      "trustedEndorsements[0].endorserUri",
+      "https://workforce.example.edu/endorsements/applied",
+    );
 
     const metadata = trustEdMetadataFromForm(formData);
 
@@ -53,6 +64,11 @@ describe("trusted credential form mapper", () => {
       {
         name: "Applied data analysis",
         identifierUri: "https://skills.example.edu/applied-data",
+        source: "Example Skills Framework",
+      },
+      {
+        name: "Stakeholder communication",
+        identifierUri: "https://skills.example.edu/communication",
         source: "Example Skills Framework",
       },
     ]);
@@ -85,95 +101,34 @@ describe("trusted credential form mapper", () => {
     expect(metadata.credits).toBeNull();
   });
 
-  it("preserves stored tail rows that the v1 single-row UI cannot edit", () => {
+  it("keeps sparse indexed rows in submitted order and omits removed rows", () => {
     const formData = new FormData();
-    formData.set("trustedSkillName", "Edited skill");
-    formData.set("trustedFrameworkTargetUri", "https://case.example.edu/items/edited");
-    formData.set("trustedEvidenceUri", "");
-    formData.set("trustedResultValue", "Pass");
-    formData.set("trustedResultDate", "2026-05-18");
-    formData.set("trustedAssessmentDescription", "");
-    formData.set("trustedRubricName", "Edited rubric");
-    formData.set("trustedEndorserName", "");
-    const existingMetadata = {
-      ...completeTrustEdCredentialMetadata(),
-      skills: [
-        {
-          name: "Old first skill",
-          identifierUri: null,
-          source: null,
-        },
-        {
-          name: "Preserved skill",
-          identifierUri: "https://skills.example.edu/preserved",
-          source: "Existing source",
-        },
-      ],
-      frameworkAlignments: [
-        {
-          targetName: "Old target",
-          targetUri: "https://case.example.edu/items/old",
-          frameworkName: null,
-          frameworkUri: null,
-        },
-        {
-          targetName: "Preserved target",
-          targetUri: "https://case.example.edu/items/preserved",
-          frameworkName: "Preserved Framework",
-          frameworkUri: null,
-        },
-      ],
-      evidence: [
-        {
-          name: "Old evidence",
-          uri: "https://evidence.example.edu/old",
-          description: null,
-        },
-        {
-          name: "Preserved evidence",
-          uri: "https://evidence.example.edu/preserved",
-          description: "Existing evidence.",
-        },
-      ],
-      assessments: [
-        {
-          description: "Old assessment",
-          assessmentDate: "2026-05-18",
-        },
-        {
-          description: "Preserved assessment",
-          assessmentDate: "2026-05-19",
-        },
-      ],
-    };
+    formData.set("trustedSkills[1].name", "Second visible skill");
+    formData.set("trustedSkills[1].identifierUri", "");
+    formData.set("trustedSkills[3].name", "Fourth visible skill");
+    formData.set("trustedSkills[3].source", "Imported framework");
+    formData.set("trustedEvidence[2].uri", "https://evidence.example.edu/kept");
+    formData.set("trustedEvidence[2].description", "The first two rows were removed in the UI.");
 
-    const metadata = trustEdMetadataFromForm(formData, existingMetadata);
+    const metadata = trustEdMetadataFromForm(formData);
 
     expect(metadata.skills).toEqual([
-      { name: "Edited skill", identifierUri: null, source: null },
       {
-        name: "Preserved skill",
-        identifierUri: "https://skills.example.edu/preserved",
-        source: "Existing source",
+        name: "Second visible skill",
+        identifierUri: null,
+        source: null,
+      },
+      {
+        name: "Fourth visible skill",
+        identifierUri: null,
+        source: "Imported framework",
       },
     ]);
-    expect(metadata.frameworkAlignments[1]).toEqual({
-      targetName: "Preserved target",
-      targetUri: "https://case.example.edu/items/preserved",
-      frameworkName: "Preserved Framework",
-      frameworkUri: null,
-    });
     expect(metadata.evidence).toEqual([
       {
-        name: "Preserved evidence",
-        uri: "https://evidence.example.edu/preserved",
-        description: "Existing evidence.",
-      },
-    ]);
-    expect(metadata.assessments).toEqual([
-      {
-        description: "Preserved assessment",
-        assessmentDate: "2026-05-19",
+        name: null,
+        uri: "https://evidence.example.edu/kept",
+        description: "The first two rows were removed in the UI.",
       },
     ]);
   });

@@ -341,7 +341,8 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("TrustEd authoring checklist");
     expect(body).toContain("Issuance is not blocked by this advisory checklist.");
     expect(body).toContain("Save TrustEd metadata");
-    expect(body).toContain('name="trustedSkillName"');
+    expect(body).toContain('name="trustedSkills[0].name"');
+    expect(body).toContain('data-trusted-repeatable-add="trustedSkills"');
     expect(body).toContain('id="template-editor-artwork"');
     expect(body).toContain('id="badge-template-editor-current-artwork"');
     expect(body).toContain('id="badge-template-editor-current-artwork-media"');
@@ -426,6 +427,56 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("Review and save this section to repair it.");
     expect(body).toContain("JSON");
     expect(body).not.toContain("Required TrustEd Credential checklist metadata is present");
+  });
+
+  it("renders all stored TrustEd repeatable metadata rows in the badge template editor", async () => {
+    const env = createEnv();
+
+    mockedFindBadgeTemplateById.mockResolvedValue({
+      ...sampleActiveBadgeTemplate,
+      trustedCredentialMetadataJson: JSON.stringify({
+        skills: [
+          {
+            name: "Applied data analysis",
+            identifierUri: "https://skills.example.edu/applied-data",
+            source: "Example Skills Framework",
+          },
+          {
+            name: "Stakeholder communication",
+            identifierUri: "https://skills.example.edu/communication",
+            source: "Example Skills Framework",
+          },
+        ],
+        frameworkAlignments: [],
+        issuerAuthority: null,
+        evidence: [],
+        results: [],
+        criteria: null,
+        assessments: [],
+        achievementType: null,
+        rubrics: [],
+        duration: null,
+        credits: null,
+        endorsements: [],
+      }),
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/templates/badge_template_001",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Applied data analysis");
+    expect(body).toContain("Stakeholder communication");
+    expect(body).toContain('name="trustedSkills[1].name"');
+    expect(body).toContain('data-trusted-repeatable-remove="trustedSkills"');
   });
 
   it("preserves list context in badge template editor navigation links", async () => {
@@ -595,34 +646,37 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
           slug: "typescript-foundations",
           description: "Awarded for TypeScript basics.",
           criteriaUri: "https://example.edu/criteria",
-          trustedSkillName: "Applied data analysis",
-          trustedSkillIdentifierUri: "https://skills.example.edu/skills/applied-data-analysis",
-          trustedSkillSource: "Example Skills Framework",
-          trustedFrameworkTargetName: "Analyze civic datasets",
-          trustedFrameworkTargetUri:
+          "trustedSkills[0].name": "Applied data analysis",
+          "trustedSkills[0].identifierUri":
+            "https://skills.example.edu/skills/applied-data-analysis",
+          "trustedSkills[0].source": "Example Skills Framework",
+          "trustedFrameworkAlignments[0].targetName": "Analyze civic datasets",
+          "trustedFrameworkAlignments[0].targetUri":
             "https://case.example.edu/frameworks/data-analysis/items/analyze-civic-data",
-          trustedFrameworkName: "Example CASE Framework",
-          trustedFrameworkUri: "https://case.example.edu/frameworks/data-analysis",
+          "trustedFrameworkAlignments[0].frameworkName": "Example CASE Framework",
+          "trustedFrameworkAlignments[0].frameworkUri":
+            "https://case.example.edu/frameworks/data-analysis",
           trustedIssuerAuthorityName: "Middle States Commission on Higher Education",
           trustedIssuerAuthorityUri: "https://www.msche.org/institution/0000/",
           trustedIssuerAuthorityType: "accreditor",
-          trustedEvidenceName: "Capstone analysis portfolio",
-          trustedEvidenceUri: "https://evidence.example.edu/learners/123/capstone",
-          trustedEvidenceDescription: "Portfolio evidence reviewed by program faculty.",
-          trustedResultValue: "Pass",
-          trustedResultDate: "2026-05-18",
+          "trustedEvidence[0].name": "Capstone analysis portfolio",
+          "trustedEvidence[0].uri": "https://evidence.example.edu/learners/123/capstone",
+          "trustedEvidence[0].description": "Portfolio evidence reviewed by program faculty.",
+          "trustedResults[0].value": "Pass",
+          "trustedResults[0].resultDate": "2026-05-18",
           trustedCriteriaText: "Complete the applied analytics project and faculty review.",
           trustedCriteriaUri: "https://credentials.example.edu/badges/applied-analytics/criteria",
-          trustedAssessmentDescription: "Faculty-scored applied analytics capstone.",
-          trustedAssessmentDate: "2026-05-18",
+          "trustedAssessments[0].description": "Faculty-scored applied analytics capstone.",
+          "trustedAssessments[0].assessmentDate": "2026-05-18",
           trustedAchievementType: "Project",
-          trustedRubricName: "Applied analytics rubric",
-          trustedRubricUri: "https://credentials.example.edu/rubrics/applied-analytics",
+          "trustedRubrics[0].name": "Applied analytics rubric",
+          "trustedRubrics[0].uri": "https://credentials.example.edu/rubrics/applied-analytics",
           trustedDurationValue: "6 weeks",
           trustedCreditsAvailable: "3 credits",
           trustedCreditsEarned: "3 credits",
-          trustedEndorserName: "Regional Workforce Council",
-          trustedEndorserUri: "https://workforce.example.edu/endorsements/applied-analytics",
+          "trustedEndorsements[0].endorserName": "Regional Workforce Council",
+          "trustedEndorsements[0].endorserUri":
+            "https://workforce.example.edu/endorsements/applied-analytics",
         }),
         redirect: "manual",
       },

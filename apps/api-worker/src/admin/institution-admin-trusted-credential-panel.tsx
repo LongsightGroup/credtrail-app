@@ -44,8 +44,11 @@ const trustedReadinessTone = (status: "not_evaluated" | "incomplete" | "ready"):
   }
 };
 
-const firstOrNull = <ValueType,>(items: readonly ValueType[]): ValueType | null => {
-  return items[0] ?? null;
+const repeatableRows = <ValueType,>(
+  items: readonly ValueType[],
+  emptyRow: ValueType,
+): ValueType[] => {
+  return items.length > 0 ? [...items] : [emptyRow];
 };
 
 interface TrustEdTextField {
@@ -109,18 +112,92 @@ const TrustEdFieldControl = (field: TrustEdField): HonoElement => {
   );
 };
 
+interface TrustEdRepeatableGroup<RowValue> {
+  groupName: string;
+  title: string;
+  addLabel: string;
+  rows: RowValue[];
+  fieldsForRow: (row: RowValue, index: number | "__INDEX__") => TrustEdField[];
+}
+
+const TrustEdRepeatableGroup = <RowValue,>(
+  group: TrustEdRepeatableGroup<RowValue>,
+): HonoElement => {
+  return (
+    <fieldset
+      class="ct-admin__template-editor-trusted-repeatable"
+      data-trusted-repeatable={group.groupName}
+      data-trusted-repeatable-next-index={String(group.rows.length)}
+    >
+      <legend class="ct-admin__template-editor-trusted-repeatable-title">{group.title}</legend>
+      <div class="ct-admin__template-editor-trusted-repeatable-header">
+        <AdminButton
+          type="button"
+          variant="secondary"
+          size="tiny"
+          dataAttributes={{ "data-trusted-repeatable-add": group.groupName }}
+        >
+          {group.addLabel}
+        </AdminButton>
+      </div>
+      <div class="ct-admin__template-editor-trusted-repeatable-rows">
+        {group.rows.map((row, index) => (
+          <div
+            class="ct-admin__template-editor-trusted-repeatable-row"
+            data-trusted-repeatable-row={group.groupName}
+            data-trusted-repeatable-index={String(index)}
+          >
+            <div class="ct-admin__template-editor-trusted-repeatable-row-header">
+              <span>{`${group.title} ${index + 1}`}</span>
+              <AdminButton
+                type="button"
+                variant="ghost"
+                size="tiny"
+                dataAttributes={{ "data-trusted-repeatable-remove": group.groupName }}
+              >
+                Remove
+              </AdminButton>
+            </div>
+            <div class="ct-admin__template-editor-trusted-grid">
+              {group.fieldsForRow(row, index).map((field) => (
+                <TrustEdFieldControl {...field} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <template data-trusted-repeatable-template={group.groupName}>
+        <div
+          class="ct-admin__template-editor-trusted-repeatable-row"
+          data-trusted-repeatable-row={group.groupName}
+          data-trusted-repeatable-index="__INDEX__"
+        >
+          <div class="ct-admin__template-editor-trusted-repeatable-row-header">
+            <span>{`${group.title} __ROW_NUMBER__`}</span>
+            <AdminButton
+              type="button"
+              variant="ghost"
+              size="tiny"
+              dataAttributes={{ "data-trusted-repeatable-remove": group.groupName }}
+            >
+              Remove
+            </AdminButton>
+          </div>
+          <div class="ct-admin__template-editor-trusted-grid">
+            {group.fieldsForRow({} as RowValue, "__INDEX__").map((field) => (
+              <TrustEdFieldControl {...field} />
+            ))}
+          </div>
+        </div>
+      </template>
+    </fieldset>
+  );
+};
+
 export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): HonoElement => {
-  // v1 authoring exposes one row per repeatable field; saving writes at most one array entry.
   const metadataState = trustEdEditorMetadataState(template);
   const metadata = metadataState.formMetadata;
   const readiness = evaluateTrustEdCredentialReadiness(metadataState.readinessMetadata);
-  const skill = firstOrNull(metadata.skills);
-  const alignment = firstOrNull(metadata.frameworkAlignments);
-  const evidence = firstOrNull(metadata.evidence);
-  const result = firstOrNull(metadata.results);
-  const assessment = firstOrNull(metadata.assessments);
-  const rubric = firstOrNull(metadata.rubrics);
-  const endorsement = firstOrNull(metadata.endorsements);
   const missingRequired = readiness.checks.filter((check) => {
     return check.category === "required" && check.status === "missing";
   });
@@ -128,52 +205,6 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
     return check.category === "recommended" && check.status === "missing";
   });
   const fields: TrustEdField[] = [
-    { kind: "text", label: "Skill", name: "trustedSkillName", value: skill?.name, maxLength: 300 },
-    {
-      kind: "text",
-      label: "Skill URL",
-      name: "trustedSkillIdentifierUri",
-      value: skill?.identifierUri,
-      type: "url",
-      maxLength: 2048,
-    },
-    {
-      kind: "text",
-      label: "Skill source",
-      name: "trustedSkillSource",
-      value: skill?.source,
-      maxLength: 300,
-    },
-    {
-      kind: "text",
-      label: "Framework target",
-      name: "trustedFrameworkTargetName",
-      value: alignment?.targetName,
-      maxLength: 300,
-    },
-    {
-      kind: "text",
-      label: "Framework target URL",
-      name: "trustedFrameworkTargetUri",
-      value: alignment?.targetUri,
-      type: "url",
-      maxLength: 2048,
-    },
-    {
-      kind: "text",
-      label: "Framework name",
-      name: "trustedFrameworkName",
-      value: alignment?.frameworkName,
-      maxLength: 300,
-    },
-    {
-      kind: "text",
-      label: "Framework URL",
-      name: "trustedFrameworkUri",
-      value: alignment?.frameworkUri,
-      type: "url",
-      maxLength: 2048,
-    },
     {
       kind: "text",
       label: "Awarding authority",
@@ -197,43 +228,6 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
       maxLength: 300,
     },
     {
-      kind: "text",
-      label: "Evidence name",
-      name: "trustedEvidenceName",
-      value: evidence?.name,
-      maxLength: 300,
-    },
-    {
-      kind: "text",
-      label: "Evidence URL",
-      name: "trustedEvidenceUri",
-      value: evidence?.uri,
-      type: "url",
-      maxLength: 2048,
-    },
-    {
-      kind: "textarea",
-      label: "Evidence description",
-      name: "trustedEvidenceDescription",
-      value: evidence?.description,
-      rows: 2,
-      maxLength: 4000,
-    },
-    {
-      kind: "text",
-      label: "Result",
-      name: "trustedResultValue",
-      value: result?.value,
-      maxLength: 300,
-    },
-    {
-      kind: "text",
-      label: "Result date",
-      name: "trustedResultDate",
-      value: result?.resultDate,
-      type: "date",
-    },
-    {
       kind: "textarea",
       label: "Criteria summary",
       name: "trustedCriteriaText",
@@ -250,41 +244,11 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
       maxLength: 2048,
     },
     {
-      kind: "textarea",
-      label: "Assessment description",
-      name: "trustedAssessmentDescription",
-      value: assessment?.description,
-      rows: 2,
-      maxLength: 4000,
-    },
-    {
-      kind: "text",
-      label: "Assessment date",
-      name: "trustedAssessmentDate",
-      value: assessment?.assessmentDate,
-      type: "date",
-    },
-    {
       kind: "text",
       label: "Achievement type",
       name: "trustedAchievementType",
       value: metadata.achievementType,
       maxLength: 300,
-    },
-    {
-      kind: "text",
-      label: "Rubric",
-      name: "trustedRubricName",
-      value: rubric?.name,
-      maxLength: 300,
-    },
-    {
-      kind: "text",
-      label: "Rubric URL",
-      name: "trustedRubricUri",
-      value: rubric?.uri,
-      type: "url",
-      maxLength: 2048,
     },
     {
       kind: "text",
@@ -307,21 +271,203 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
       value: metadata.credits?.earned,
       maxLength: 300,
     },
-    {
-      kind: "text",
-      label: "Endorser",
-      name: "trustedEndorserName",
-      value: endorsement?.endorserName,
-      maxLength: 300,
-    },
-    {
-      kind: "text",
-      label: "Endorser URL",
-      name: "trustedEndorserUri",
-      value: endorsement?.endorserUri,
-      type: "url",
-      maxLength: 2048,
-    },
+  ];
+  const repeatableGroups: HonoElement[] = [
+    <TrustEdRepeatableGroup
+      groupName="trustedSkills"
+      title="Skill"
+      addLabel="Add skill"
+      rows={repeatableRows(metadata.skills, { name: null, identifierUri: null, source: null })}
+      fieldsForRow={(skill, index) => [
+        {
+          kind: "text",
+          label: "Skill",
+          name: `trustedSkills[${index}].name`,
+          value: skill.name,
+          maxLength: 300,
+        },
+        {
+          kind: "text",
+          label: "Skill URL",
+          name: `trustedSkills[${index}].identifierUri`,
+          value: skill.identifierUri,
+          type: "url",
+          maxLength: 2048,
+        },
+        {
+          kind: "text",
+          label: "Skill source",
+          name: `trustedSkills[${index}].source`,
+          value: skill.source,
+          maxLength: 300,
+        },
+      ]}
+    />,
+    <TrustEdRepeatableGroup
+      groupName="trustedFrameworkAlignments"
+      title="Framework alignment"
+      addLabel="Add alignment"
+      rows={repeatableRows(metadata.frameworkAlignments, {
+        targetName: null,
+        targetUri: null,
+        frameworkName: null,
+        frameworkUri: null,
+      })}
+      fieldsForRow={(alignment, index) => [
+        {
+          kind: "text",
+          label: "Framework target",
+          name: `trustedFrameworkAlignments[${index}].targetName`,
+          value: alignment.targetName,
+          maxLength: 300,
+        },
+        {
+          kind: "text",
+          label: "Framework target URL",
+          name: `trustedFrameworkAlignments[${index}].targetUri`,
+          value: alignment.targetUri,
+          type: "url",
+          maxLength: 2048,
+        },
+        {
+          kind: "text",
+          label: "Framework name",
+          name: `trustedFrameworkAlignments[${index}].frameworkName`,
+          value: alignment.frameworkName,
+          maxLength: 300,
+        },
+        {
+          kind: "text",
+          label: "Framework URL",
+          name: `trustedFrameworkAlignments[${index}].frameworkUri`,
+          value: alignment.frameworkUri,
+          type: "url",
+          maxLength: 2048,
+        },
+      ]}
+    />,
+    <TrustEdRepeatableGroup
+      groupName="trustedEvidence"
+      title="Evidence"
+      addLabel="Add evidence"
+      rows={repeatableRows(metadata.evidence, { name: null, uri: null, description: null })}
+      fieldsForRow={(evidence, index) => [
+        {
+          kind: "text",
+          label: "Evidence name",
+          name: `trustedEvidence[${index}].name`,
+          value: evidence.name,
+          maxLength: 300,
+        },
+        {
+          kind: "text",
+          label: "Evidence URL",
+          name: `trustedEvidence[${index}].uri`,
+          value: evidence.uri,
+          type: "url",
+          maxLength: 2048,
+        },
+        {
+          kind: "textarea",
+          label: "Evidence description",
+          name: `trustedEvidence[${index}].description`,
+          value: evidence.description,
+          rows: 2,
+          maxLength: 4000,
+        },
+      ]}
+    />,
+    <TrustEdRepeatableGroup
+      groupName="trustedResults"
+      title="Result"
+      addLabel="Add result"
+      rows={repeatableRows(metadata.results, { value: null, resultDate: null })}
+      fieldsForRow={(result, index) => [
+        {
+          kind: "text",
+          label: "Result",
+          name: `trustedResults[${index}].value`,
+          value: result.value,
+          maxLength: 300,
+        },
+        {
+          kind: "text",
+          label: "Result date",
+          name: `trustedResults[${index}].resultDate`,
+          value: result.resultDate,
+          type: "date",
+        },
+      ]}
+    />,
+    <TrustEdRepeatableGroup
+      groupName="trustedAssessments"
+      title="Assessment"
+      addLabel="Add assessment"
+      rows={repeatableRows(metadata.assessments, { description: null, assessmentDate: null })}
+      fieldsForRow={(assessment, index) => [
+        {
+          kind: "textarea",
+          label: "Assessment description",
+          name: `trustedAssessments[${index}].description`,
+          value: assessment.description,
+          rows: 2,
+          maxLength: 4000,
+        },
+        {
+          kind: "text",
+          label: "Assessment date",
+          name: `trustedAssessments[${index}].assessmentDate`,
+          value: assessment.assessmentDate,
+          type: "date",
+        },
+      ]}
+    />,
+    <TrustEdRepeatableGroup
+      groupName="trustedRubrics"
+      title="Rubric"
+      addLabel="Add rubric"
+      rows={repeatableRows(metadata.rubrics, { name: null, uri: null })}
+      fieldsForRow={(rubric, index) => [
+        {
+          kind: "text",
+          label: "Rubric",
+          name: `trustedRubrics[${index}].name`,
+          value: rubric.name,
+          maxLength: 300,
+        },
+        {
+          kind: "text",
+          label: "Rubric URL",
+          name: `trustedRubrics[${index}].uri`,
+          value: rubric.uri,
+          type: "url",
+          maxLength: 2048,
+        },
+      ]}
+    />,
+    <TrustEdRepeatableGroup
+      groupName="trustedEndorsements"
+      title="Endorsement"
+      addLabel="Add endorsement"
+      rows={repeatableRows(metadata.endorsements, { endorserName: null, endorserUri: null })}
+      fieldsForRow={(endorsement, index) => [
+        {
+          kind: "text",
+          label: "Endorser",
+          name: `trustedEndorsements[${index}].endorserName`,
+          value: endorsement.endorserName,
+          maxLength: 300,
+        },
+        {
+          kind: "text",
+          label: "Endorser URL",
+          name: `trustedEndorsements[${index}].endorserUri`,
+          value: endorsement.endorserUri,
+          type: "url",
+          maxLength: 2048,
+        },
+      ]}
+    />,
   ];
 
   return (
@@ -383,6 +529,7 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
             <TrustEdFieldControl {...field} />
           ))}
         </div>
+        <div class="ct-admin__template-editor-trusted-repeatables">{repeatableGroups}</div>
         <ul class="ct-admin__template-editor-trusted-checks">
           {readiness.checks.map((check) => (
             <li data-status={check.status} data-category={check.category}>
