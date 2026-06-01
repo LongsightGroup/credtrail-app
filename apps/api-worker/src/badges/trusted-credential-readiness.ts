@@ -93,6 +93,7 @@ const hasCriteria = (metadata: TrustEdCredentialMetadata): boolean => {
 };
 
 const hasAssessment = (metadata: TrustEdCredentialMetadata): boolean => {
+  // Projection publishes partial assessment data; readiness requires both fields so the authoring checklist stays strict.
   return metadata.assessments.some(
     (assessment) => hasText(assessment.description) && hasText(assessment.assessmentDate),
   );
