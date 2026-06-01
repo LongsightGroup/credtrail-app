@@ -1,6 +1,7 @@
 import type { AccessibleTenantContextRecord, TenantMembershipRole } from "@credtrail/db";
 import type { RequestedTenantContext } from "./auth-context";
 import { tenantIdFromNextPath } from "./better-auth-runtime";
+import { isSafeRedirectPath } from "./redirect-paths";
 
 export interface AccessibleTenantContextView extends AccessibleTenantContextRecord {
   preferredPath: string;
@@ -48,7 +49,7 @@ export const toAccessibleTenantContextViews = (
 export const buildOrganizationsPath = (nextPath?: string | null): string => {
   const normalizedNextPath = nextPath?.trim() ?? "";
 
-  if (!normalizedNextPath.startsWith("/")) {
+  if (!isSafeRedirectPath(normalizedNextPath)) {
     return "/account/organizations";
   }
 
@@ -71,7 +72,7 @@ export const resolveChosenTenantLocation = (input: {
   const normalizedNextPath = input.nextPath?.trim() ?? "";
   const nextTenantId = tenantIdFromNextPath(normalizedNextPath);
 
-  if (normalizedNextPath.startsWith("/") && nextTenantId === context.tenantId) {
+  if (isSafeRedirectPath(normalizedNextPath) && nextTenantId === context.tenantId) {
     return normalizedNextPath;
   }
 

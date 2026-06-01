@@ -36,6 +36,7 @@ import {
   resolveTenantContextSelection,
   toAccessibleTenantContextViews,
 } from "../auth/tenant-context-selection";
+import { normalizeSafeRedirectPath } from "../auth/redirect-paths";
 import { sessionCookieSecure, sha256Hex } from "../utils/crypto";
 
 const MAGIC_LINK_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
@@ -329,7 +330,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
       userId: user.id,
     });
     const fallbackNextPath = `/tenants/${encodeURIComponent(tenantId)}/admin`;
-    const nextPath = requestedNextPath.startsWith("/") ? requestedNextPath : fallbackNextPath;
+    const nextPath = normalizeSafeRedirectPath(requestedNextPath, fallbackNextPath);
 
     return c.redirect(nextPath, 302);
   });
@@ -457,7 +458,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     });
 
     if (result.status === "authenticated") {
-      return c.redirect(nextPath.startsWith("/") ? nextPath : "/auth/resolve", 302);
+      return c.redirect(normalizeSafeRedirectPath(nextPath, "/auth/resolve"), 302);
     }
 
     if (result.status === "two_factor_required") {
@@ -655,7 +656,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
       path: "/",
     });
     const fallbackPath = "/auth/resolve";
-    return c.redirect(nextPath.startsWith("/") ? nextPath : fallbackPath, 302);
+    return c.redirect(normalizeSafeRedirectPath(nextPath, fallbackPath), 302);
   });
 
   app.post("/v1/auth/magic-link/request", async (c) => {
@@ -939,7 +940,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
 
     const nextPathRaw = c.req.query("next");
     const fallbackPath = "/auth/resolve";
-    const nextPath = nextPathRaw?.startsWith("/") === true ? nextPathRaw : fallbackPath;
+    const nextPath = normalizeSafeRedirectPath(nextPathRaw, fallbackPath);
 
     return c.redirect(nextPath, 302);
   });

@@ -121,6 +121,10 @@ describe("tenant context selection", () => {
     expect(buildOrganizationsPath("/somewhere")).toBe("/account/organizations?next=%2Fsomewhere");
   });
 
+  it("does not preserve protocol-relative next parameters for chooser paths", () => {
+    expect(buildOrganizationsPath("//evil.example/path")).toBe("/account/organizations");
+  });
+
   it("resolves chosen tenant destination from explicit selection", () => {
     expect(
       resolveChosenTenantLocation({
@@ -136,5 +140,15 @@ describe("tenant context selection", () => {
         nextPath: "/showcase/tenant_viewer",
       }),
     ).toBe("/tenants/tenant_viewer/learner/dashboard");
+  });
+
+  it("falls back to preferred tenant destination for protocol-relative selected next paths", () => {
+    expect(
+      resolveChosenTenantLocation({
+        contexts: sampleContexts(),
+        tenantId: "tenant_admin",
+        nextPath: "//evil.example/tenants/tenant_admin/admin",
+      }),
+    ).toBe("/tenants/tenant_admin/admin");
   });
 });

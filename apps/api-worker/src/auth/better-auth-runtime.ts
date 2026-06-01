@@ -17,6 +17,7 @@ import {
 import { magicLink, twoFactor } from "better-auth/plugins";
 import { genericOAuth, type GenericOAuthConfig } from "better-auth/plugins/generic-oauth";
 import type { BetterAuthRuntimeConfig } from "./better-auth-config";
+import { isSafeRedirectPath } from "./redirect-paths";
 
 const BETTER_AUTH_BASE_PATH = "/api/auth";
 const REQUESTED_TENANT_COOKIE_NAME = "credtrail_requested_tenant";
@@ -526,7 +527,7 @@ export const parseHostedMagicLinkToken = (
 };
 
 export const tenantIdFromNextPath = (nextPath: string | undefined): string | null => {
-  if (!nextPath?.startsWith("/")) {
+  if (!isSafeRedirectPath(nextPath)) {
     return null;
   }
 

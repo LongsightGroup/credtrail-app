@@ -13,6 +13,7 @@ import {
   type BetterAuthResolvedSession,
 } from "./better-auth-adapter";
 import { findBetterAuthSessionByToken } from "./better-auth-runtime";
+import { normalizeSafeRedirectPath } from "./redirect-paths";
 import type { AuthenticatedPrincipal } from "./auth-context";
 
 export const BREAK_GLASS_PENDING_MFA_COOKIE_NAME = "credtrail_break_glass_pending_mfa";
@@ -125,13 +126,7 @@ export interface BreakGlassPolicyAdapter<
 }
 
 const normalizeNextPath = (tenantId: string, nextPath: string | undefined): string => {
-  const trimmed = nextPath?.trim() ?? "";
-
-  if (trimmed.startsWith("/")) {
-    return trimmed;
-  }
-
-  return `/tenants/${encodeURIComponent(tenantId)}/admin`;
+  return normalizeSafeRedirectPath(nextPath, `/tenants/${encodeURIComponent(tenantId)}/admin`);
 };
 
 export const buildLocalLoginPath = (input: {

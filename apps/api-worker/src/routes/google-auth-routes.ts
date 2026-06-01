@@ -3,6 +3,7 @@ import type { Hono } from "hono";
 import { BETTER_AUTH_BASE_PATH, tenantIdFromNextPath } from "../auth/better-auth-runtime";
 import { applyBetterAuthResponseHeaders } from "../auth/better-auth-bridge";
 import type { EnterpriseSsoAdapter } from "../auth/enterprise-sso-adapter";
+import { isSafeRedirectPath, normalizeSafeRedirectPath } from "../auth/redirect-paths";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 
 interface RegisterGoogleAuthRoutesInput {
@@ -19,7 +20,7 @@ interface RegisterGoogleAuthRoutesInput {
 }
 
 const normalizeHostedLoginNextPath = (nextPath: string): string => {
-  return nextPath.startsWith("/") ? nextPath : "/auth/resolve";
+  return normalizeSafeRedirectPath(nextPath, "/auth/resolve");
 };
 
 const googleLoginRedirectPath = (input: {
@@ -44,7 +45,7 @@ const googleLoginRedirectPath = (input: {
 const authResolveCallbackPath = (nextPath: string): string => {
   const url = new URL("/auth/resolve", "https://credtrail.local");
 
-  if (nextPath.startsWith("/") && nextPath !== "/auth/resolve") {
+  if (isSafeRedirectPath(nextPath) && nextPath !== "/auth/resolve") {
     url.searchParams.set("next", nextPath);
   }
 

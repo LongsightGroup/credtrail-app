@@ -15,6 +15,7 @@ import type { GenericOAuthConfig } from "better-auth/plugins/generic-oauth";
 import { buildBetterAuthRouteResponse } from "./better-auth-bridge";
 import type { BetterAuthRuntimeConfig } from "./better-auth-config";
 import { buildLocalLoginPath } from "./break-glass-policy";
+import { normalizeSafeRedirectPath } from "./redirect-paths";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "./auth-context";
 
 export interface EnterpriseSsoProviderOption {
@@ -122,13 +123,7 @@ const redirectResponse = (location: string): Response => {
 };
 
 const normalizeNextPath = (_tenantId: string, nextPath: string | undefined): string => {
-  const trimmed = nextPath?.trim() ?? "";
-
-  if (trimmed.startsWith("/")) {
-    return trimmed;
-  }
-
-  return "/auth/resolve";
+  return normalizeSafeRedirectPath(nextPath, "/auth/resolve");
 };
 
 const buildTenantLoginPath = (input: {

@@ -703,6 +703,21 @@ describe("magic-link auth routes", () => {
     expect(betterAuthProvider.requestMagicLink).not.toHaveBeenCalled();
   });
 
+  it("does not redirect local development login-as to protocol-relative next paths", async () => {
+    const { app: isolatedApp } = await loadAppWithMockedHostedAuthProviders();
+
+    const response = await isolatedApp.request(
+      "/v1/dev/auth/login-as?tenantId=tenant_123&email=learner%40example.edu&next=%2F%2Fevil.example%2Fpath",
+      {
+        method: "GET",
+      },
+      createEnv("development"),
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin");
+  });
+
   it("does not expose the local CLI login-as API outside development", async () => {
     const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
 

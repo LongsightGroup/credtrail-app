@@ -20,6 +20,10 @@ export const AUTH_LOGIN_JS = `
     statusEl.dataset.tone = tone;
   };
 
+  const isSafeRedirectPath = (path) => {
+    return typeof path === 'string' && path.startsWith('/') && !path.startsWith('//');
+  };
+
   const ensureTurnstile = () => {
     if (!(turnstileEl instanceof HTMLElement)) {
       return;
@@ -161,7 +165,7 @@ export const AUTH_LOGIN_JS = `
         body: JSON.stringify({
           email,
           ...(tenantId.length === 0 ? {} : { tenantId }),
-          ...(next.length > 0 && next.startsWith('/') ? { nextPath: next } : {}),
+          ...(isSafeRedirectPath(next) ? { nextPath: next } : {}),
           ...(turnstileToken.length === 0 ? {} : { turnstileToken }),
           ...(preferredLocale.length === 0 ? {} : { preferredLocale }),
           ...(preferredTimeZone.length === 0 ? {} : { preferredTimeZone }),
@@ -184,7 +188,7 @@ export const AUTH_LOGIN_JS = `
         if (payload && payload.turnstileRequired === true) {
           ensureTurnstile();
         }
-        if (payload && typeof payload.loginPath === 'string' && payload.loginPath.startsWith('/')) {
+        if (payload && isSafeRedirectPath(payload.loginPath)) {
           window.location.assign(payload.loginPath);
           return;
         }
@@ -210,7 +214,7 @@ export const AUTH_LOGIN_JS = `
 
       if (payload && typeof payload.magicLinkUrl === 'string' && payload.magicLinkUrl.length > 0) {
         const url = new URL(payload.magicLinkUrl);
-        if (next.length > 0 && next.startsWith('/')) {
+        if (isSafeRedirectPath(next)) {
           url.searchParams.set('next', next);
         }
         devLinkEl.innerHTML = '<a href="' + url.toString() + '">Open sign-in link (development helper)</a>';

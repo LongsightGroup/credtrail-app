@@ -20,6 +20,7 @@ import {
   parseHostedMagicLinkToken,
 } from "../auth/better-auth-runtime";
 import { createEnterpriseSsoAdapter } from "../auth/enterprise-sso-adapter";
+import { normalizeSafeRedirectPath } from "../auth/redirect-paths";
 import { sendMagicLinkEmailNotification } from "../notifications/send-magic-link-email";
 import { sendMemberInviteEmailNotification } from "../notifications/send-member-invite-email";
 import { sendPasswordResetEmailNotification } from "../notifications/send-password-reset-email";
@@ -368,7 +369,7 @@ export const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindin
   resolveDatabase,
   requestMagicLink: async (context, input) => {
     const defaultNextPath = "/auth/resolve";
-    const nextPath = input.nextPath?.startsWith("/") === true ? input.nextPath : defaultNextPath;
+    const nextPath = normalizeSafeRedirectPath(input.nextPath, defaultNextPath);
     const expiresAt = addSecondsToIso(new Date().toISOString(), MAGIC_LINK_TTL_SECONDS);
     let deliveryStatus: "sent" | "skipped" | "failed" = "skipped";
     let debugMagicLinkToken: string | undefined;
