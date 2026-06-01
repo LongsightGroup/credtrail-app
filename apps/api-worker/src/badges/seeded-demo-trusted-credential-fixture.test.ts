@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { completeTrustEdCredentialMetadata } from "@credtrail/validation/testing";
 
 import {
   getSeededDemoTrustEdCredentialFixture,
@@ -8,6 +9,7 @@ import {
   evidenceDetailsFromCredential,
   trustEdCredentialDetailsFromCredential,
 } from "./public-badge-helpers";
+import { projectTrustEdMetadataToOb3 } from "./trusted-credential-ob3-projection";
 
 describe("seeded demo TrustEd credential fixture", () => {
   it("exports a canonical public credential slice with TrustEd-aligned metadata", () => {
@@ -77,5 +79,34 @@ describe("seeded demo TrustEd credential fixture", () => {
     expect(SEEDED_DEMO_TRUSTED_CREDENTIAL_VERIFY_COMMAND).toContain(
       "seeded-demo-trusted-credential-fixture.test.ts",
     );
+  });
+
+  it("derives issued TrustEd fields from the shared OB3 projection", () => {
+    const fixture = getSeededDemoTrustEdCredentialFixture();
+    const expectedProjection = projectTrustEdMetadataToOb3(completeTrustEdCredentialMetadata());
+    const credentialSubject = fixture.credential.credentialSubject;
+
+    expect(typeof credentialSubject).toBe("object");
+    expect(Array.isArray(credentialSubject)).toBe(false);
+
+    if (
+      credentialSubject === null ||
+      typeof credentialSubject !== "object" ||
+      Array.isArray(credentialSubject)
+    ) {
+      throw new Error("credentialSubject must be an object");
+    }
+
+    const achievement = credentialSubject.achievement;
+
+    expect(typeof achievement).toBe("object");
+    expect(Array.isArray(achievement)).toBe(false);
+
+    if (achievement === null || typeof achievement !== "object" || Array.isArray(achievement)) {
+      throw new Error("achievement must be an object");
+    }
+
+    expect(achievement).toEqual(expect.objectContaining(expectedProjection.achievement));
+    expect(credentialSubject).toEqual(expect.objectContaining(expectedProjection.subject));
   });
 });

@@ -389,6 +389,44 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     );
   });
 
+  it("surfaces invalid stored TrustEd metadata in the badge template editor", async () => {
+    const env = createEnv();
+
+    mockedFindBadgeTemplateById.mockResolvedValue({
+      id: "badge_template_001",
+      tenantId: "tenant_123",
+      slug: "typescript-foundations",
+      title: "TypeScript Foundations",
+      description: "Awarded for TypeScript basics.",
+      criteriaUri: "https://example.edu/criteria",
+      imageUri: "https://example.edu/badges/typescript.png",
+      trustedCredentialMetadataJson: "{not-json",
+      createdByUserId: "usr_admin",
+      ownerOrgUnitId: "tenant_123:org:institution",
+      governanceMetadataJson: null,
+      isArchived: false,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/templates/badge_template_001",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Stored TrustEd metadata is invalid.");
+    expect(body).toContain("Review and save this section to repair it.");
+    expect(body).toContain("JSON");
+    expect(body).not.toContain("Required TrustEd Credential metadata is present");
+  });
+
   it("preserves list context in badge template editor navigation links", async () => {
     const env = createEnv();
 
