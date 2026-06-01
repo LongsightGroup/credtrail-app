@@ -37,7 +37,10 @@ import {
   type DirectIssueBadgeRequest,
 } from "./recipient-identifiers";
 import { parseTrustEdCredentialMetadataJson } from "./trusted-credential-metadata";
-import { projectTrustEdMetadataToOb3 } from "./trusted-credential-ob3-projection";
+import {
+  projectTrustEdMetadataToOb3,
+  type TrustEdCredentialOb3Projection,
+} from "./trusted-credential-ob3-projection";
 
 interface IssueBadgeBindings {
   BADGE_OBJECTS: ImmutableCredentialStore;
@@ -131,22 +134,11 @@ const ob3IdentityTypeFromRecipientIdentifierType = (
   }
 };
 
-const trustEdOb3Projection = (
-  metadataJson: string | null | undefined,
-): {
-  achievement: JsonObject;
-  subject: JsonObject;
-} => {
-  const metadata = parseTrustEdCredentialMetadataJson(metadataJson);
-
-  if (metadata === null) {
-    return {
-      achievement: {},
-      subject: {},
-    };
-  }
-
-  return projectTrustEdMetadataToOb3(metadata);
+const emptyTrustEdOb3Projection = (): TrustEdCredentialOb3Projection => {
+  return {
+    achievement: {},
+    subject: {},
+  };
 };
 
 export const createIssueBadgeForTenant = <
@@ -262,7 +254,13 @@ export const createIssueBadgeForTenant = <
       ...(options?.issuerName === undefined ? {} : { name: options.issuerName }),
       ...(options?.issuerUrl === undefined ? {} : { url: options.issuerUrl }),
     };
-    const trustEdProjection = trustEdOb3Projection(badgeTemplate.trustedCredentialMetadataJson);
+    const trustEdMetadata = parseTrustEdCredentialMetadataJson(
+      badgeTemplate.trustedCredentialMetadataJson,
+    );
+    const trustEdProjection =
+      trustEdMetadata === null
+        ? emptyTrustEdOb3Projection()
+        : projectTrustEdMetadataToOb3(trustEdMetadata);
     const signedCredentialResult = await input.signCredentialForDid({
       context,
       did: issuerDid,

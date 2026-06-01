@@ -20,80 +20,13 @@ import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../ui/render-page";
 import type { VerificationViewModel } from "./public-badge-model";
 import { badgeInitialsFromName } from "./pdf";
+import type {
+  AchievementDetails,
+  EvidenceDetails,
+  TrustEdCredentialDetails,
+} from "./public-badge-helpers";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
-
-interface AchievementDetails {
-  badgeClassUri: string | null;
-  description: string | null;
-  criteriaUri: string | null;
-  imageUri: string | null;
-}
-
-interface EvidenceDetails {
-  uri: string;
-  name: string | null;
-  description: string | null;
-}
-
-interface TrustEdAlignmentDetails {
-  targetUrl: string;
-  targetName: string | null;
-  targetFramework: string | null;
-  frameworkUri: string | null;
-}
-
-interface TrustEdResultDetails {
-  value: string;
-  resultDate: string;
-}
-
-interface TrustEdSkillDetails {
-  name: string | null;
-  identifierUri: string | null;
-  source: string | null;
-}
-
-interface TrustEdIssuerAuthorityDetails {
-  name: string | null;
-  uri: string | null;
-  authorityType: string | null;
-}
-
-interface TrustEdAssessmentDetails {
-  description: string | null;
-  assessmentDate: string | null;
-}
-
-interface TrustEdNamedReferenceDetails {
-  name: string | null;
-  uri: string | null;
-}
-
-interface TrustEdCreditsDetails {
-  available: string | null;
-  earned: string | null;
-}
-
-interface TrustEdEndorsementDetails {
-  endorserName: string | null;
-  endorserUri: string | null;
-}
-
-interface TrustEdCredentialDetails {
-  achievementType: string | null;
-  criteriaUri: string | null;
-  criteriaNarrative: string | null;
-  alignments: TrustEdAlignmentDetails[];
-  skills: TrustEdSkillDetails[];
-  issuerAuthority: TrustEdIssuerAuthorityDetails | null;
-  assessments: TrustEdAssessmentDetails[];
-  results: TrustEdResultDetails[];
-  rubrics: TrustEdNamedReferenceDetails[];
-  duration: string | null;
-  credits: TrustEdCreditsDetails | null;
-  endorsements: TrustEdEndorsementDetails[];
-}
 
 interface CreatePublicBadgePageRenderersInput {
   asString: (value: unknown) => string | null;
