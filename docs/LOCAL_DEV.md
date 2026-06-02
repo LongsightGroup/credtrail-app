@@ -99,10 +99,23 @@ The seed creates:
 - A DB row and local Wrangler R2 credential object for
   `/badges/trusted-demo-credential`.
 
-The R2 object is written with `wrangler r2 object put --local --persist-to
-.wrangler/state`, which is the same local persistence directory used by the
-Wrangler dev runtime. Set `CREDTRAIL_DEV_SEED_R2=false` only when you want to
-seed database rows without touching local R2.
+`pnpm dev:seed` seeds the database and writes the R2 object with
+`wrangler r2 object put --local --persist-to .wrangler/state`. Set
+`CREDTRAIL_DEV_SEED_R2=false` only when you want to seed database rows without
+touching local R2.
+
+When Wrangler is already running, seed the same public credential through the
+Worker binding instead:
+
+```bash
+curl -fsS -X POST \
+  http://127.0.0.1:8787/v1/dev/storage/seed-trusted-demo-credential
+```
+
+Use `pnpm dev:seed` for the full database and demo contract refresh. Use the
+HTTP route when the database is already seeded and you only need to refresh the
+R2 object through the exact `BADGE_OBJECTS` binding that the running app reads.
+CI uses this HTTP route after starting Wrangler and before `pnpm test:e2e`.
 
 ## Browser QA
 
