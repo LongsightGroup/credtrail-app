@@ -5,12 +5,16 @@ test("public trusted demo credential route resolves when local credential storag
 }) => {
   const response = await page.goto("/badges/trusted-demo-credential");
 
-  if (response?.status() === 500) {
+  if (
+    response?.status() === 500 &&
+    process.env.CREDTRAIL_DEV_SEED_R2?.trim().toLowerCase() === "false"
+  ) {
     test.skip(
       true,
-      "The seeded DB row exists, but the local R2 credential object is created by pnpm dev:demo/manual issuance.",
+      "CREDTRAIL_DEV_SEED_R2=false skips the local R2 credential object required by this route.",
     );
   }
 
+  expect(response?.ok()).toBe(true);
   await expect(page.getByText(/Applied Analytics TrustEd Credential/i)).toBeVisible();
 });
