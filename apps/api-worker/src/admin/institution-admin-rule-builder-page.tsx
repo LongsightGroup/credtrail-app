@@ -622,6 +622,30 @@ export const institutionAdminRuleBuilderPage = (input: {
                         </div>
                         <input type="hidden" name="name" id="rule-builder-name" value="" />
                       </section>
+                      <footer id="rule-builder-step-footer" class="ct-admin__builder-step-footer">
+                        <p
+                          id="rule-builder-step-callout"
+                          class="ct-admin__builder-step-callout"
+                          aria-live="polite"
+                        >
+                          Choose an awarding pattern, badge, and LMS connection, then select
+                          Continue.
+                        </p>
+                        <div class="ct-admin__builder-step-nav ct-cluster">
+                          <AdminButton id="rule-builder-step-next" type="button" size="tiny">
+                            Continue to Requirements
+                          </AdminButton>
+                          <AdminButton
+                            id="rule-builder-submit"
+                            type="submit"
+                            form="rule-create-form"
+                            hidden={true}
+                          >
+                            Create rule draft
+                          </AdminButton>
+                        </div>
+                        <AdminStatus id="rule-create-status"></AdminStatus>
+                      </footer>
                     </section>
                   </div>
                 </li>
@@ -964,30 +988,6 @@ export const institutionAdminRuleBuilderPage = (input: {
                 </li>
               </ol>
             </AdminForm>
-
-            <footer class="ct-admin__builder-step-footer ct-stack">
-              <p
-                id="rule-builder-step-callout"
-                class="ct-admin__builder-step-callout"
-                aria-live="polite"
-              >
-                Choose an awarding pattern, badge, and LMS connection, then select Continue.
-              </p>
-              <div class="ct-admin__builder-step-nav ct-cluster">
-                <AdminButton id="rule-builder-step-next" type="button" size="tiny">
-                  Continue to Requirements
-                </AdminButton>
-                <AdminButton
-                  id="rule-builder-submit"
-                  type="submit"
-                  form="rule-create-form"
-                  hidden={true}
-                >
-                  Create rule draft
-                </AdminButton>
-              </div>
-              <AdminStatus id="rule-create-status"></AdminStatus>
-            </footer>
           </section>
 
           <details class="ct-admin__panel ct-admin__builder-guide ct-admin__builder-support">

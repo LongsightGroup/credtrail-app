@@ -1219,6 +1219,9 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).not.toContain("ct-admin__builder-rail");
     expect(body).not.toContain("ct-admin__builder-main");
     expect(body).toContain("ct-admin__builder-steps--vertical-stepper");
+    expect(body).toMatch(
+      /id="builder-step-metadata"[\s\S]*?id="rule-builder-step-footer"[\s\S]*?id="rule-builder-step-next"[\s\S]*?data-rule-step-row="conditions"/,
+    );
     expect(INSTITUTION_ADMIN_CSS).toContain(
       ".ct-admin__stepper-step:not(.is-active) .ct-admin__step-copy small",
     );
@@ -1272,11 +1275,19 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "ruleBuilderStepNextButton.hidden = isLastStep",
     );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("ruleBuilderStepFooter");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "activePanel.append(ruleBuilderStepFooter)",
+    );
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "return targetIndex < activeRuleBuilderStepIndex",
     );
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "Use Continue below to move to the next step",
+    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("Choose ' + article + missingLabels[0]");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "and an ' + missingLabels[1] + ' before continuing",
     );
     expect(body).toContain('id="rule-builder-test-preset"');
     expect(body).not.toContain('id="rule-builder-apply-test-preset"');

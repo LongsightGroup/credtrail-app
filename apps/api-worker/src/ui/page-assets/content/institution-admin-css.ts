@@ -2660,9 +2660,14 @@ a.ct-admin__workspace-card:active {
   --ct-stack-gap: var(--ct-space-4);
 }
 .ct-admin__builder-step-footer {
-  --ct-stack-gap: 0.7rem;
-  padding-top: var(--ct-space-4);
-  border-top: 1px solid var(--ct-border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding-top: 0.1rem;
+}
+.ct-admin__builder-step-footer > .ct-admin__status {
+  width: 100%;
 }
 .ct-admin__builder-draft-actions.ct-cluster {
   --ct-cluster-gap: 0.55rem;
@@ -2729,12 +2734,7 @@ a.ct-admin__workspace-card:active {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
-  border: 1px solid var(--ct-border-soft);
-  border-radius: var(--ct-radius-md);
-  background: var(--ct-theme-surface-shell);
-  box-shadow: var(--ct-shadow-soft);
-  padding: 0.62rem 0.66rem;
+  justify-content: flex-start;
 }
 .ct-admin__builder-workbench-panel .ct-admin__builder-step-nav #rule-builder-submit[hidden],
 .ct-admin__builder-workbench-panel .ct-admin__builder-step-nav #rule-builder-step-next[hidden] {
@@ -3952,12 +3952,7 @@ button.ct-admin__text-action {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
-  border: 1px solid var(--ct-border-soft);
-  border-radius: var(--ct-radius-md);
-  background: var(--ct-theme-surface-shell);
-  box-shadow: var(--ct-shadow-soft);
-  padding: 0.58rem 0.62rem;
+  justify-content: flex-start;
 }
 .ct-admin__builder-step-nav #rule-builder-submit[hidden],
 .ct-admin__builder-step-nav #rule-builder-step-next[hidden] {

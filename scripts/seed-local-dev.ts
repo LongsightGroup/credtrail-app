@@ -25,7 +25,8 @@ import localDevDemoContract from "./local-dev-demo-contract";
 loadLocalDevEnv();
 
 const databaseUrl = requireEnv("DATABASE_URL");
-const tenantSlug = process.env.CREDTRAIL_DEV_TENANT_SLUG?.trim() || "demo-university";
+const requestedTenantId = process.env.CREDTRAIL_DEV_TENANT_ID?.trim();
+const requestedTenantSlug = process.env.CREDTRAIL_DEV_TENANT_SLUG?.trim();
 const db = createPostgresDatabase({ databaseUrl, connectionMode: "single-use" });
 const {
   localDevDemoAdminEmail,
@@ -38,7 +39,6 @@ const {
   localDevDemoTrustedCredentialFixture,
 } = localDevDemoContract;
 const adminEmail = process.env.CREDTRAIL_DEV_ADMIN_EMAIL?.trim() || localDevDemoAdminEmail;
-const tenantId = process.env.CREDTRAIL_DEV_TENANT_ID?.trim() || localDevDemoTenantId;
 
 interface SeedLocalR2CredentialObjectResult {
   status: "seeded" | "skipped";
@@ -46,6 +46,46 @@ interface SeedLocalR2CredentialObjectResult {
   key: string;
   persistTo: string;
   detail?: string | undefined;
+}
+
+interface LocalDevSeedTenantConfig {
+  tenantId: string;
+  tenantSlug: string;
+  displayName: string;
+  issuerDomain: string;
+  didWeb: string;
+  fixtureSuffix: string;
+  lmsDisplayName: string;
+  lmsProviderKind: "canvas" | "sakai";
+  lmsApiBaseUrl: string;
+  lmsAuthorizationEndpoint?: string | undefined;
+  lmsTokenEndpoint?: string | undefined;
+  lmsClientId?: string | undefined;
+  lmsScope?: string | undefined;
+  seedTrustedCredential: boolean;
+}
+
+interface SeedLocalTenantResult {
+  tenantId: string;
+  tenantSlug: string;
+  adminEmail: string;
+  adminUserId: string;
+  learnerEmail: string;
+  learnerProfileId: string;
+  badgeTemplateIds: string[];
+  lmsConnectionId: string;
+  badgeRule: {
+    id: string | null;
+    activeVersionId: string | null;
+    name: string;
+  };
+  publicCredential?: {
+    publicId: string;
+    route: string;
+    r2Object: SeedLocalR2CredentialObjectResult;
+  };
+  loginNextPath: string;
+  demoRoutes: ReturnType<typeof localDevDemoRoutes>;
 }
 
 const shouldSeedLocalR2 = (): boolean => {
@@ -127,31 +167,86 @@ const seedLocalR2CredentialObject = (
   }
 };
 
-const main = async (): Promise<void> => {
+const scopedFixtureId = (baseId: string, suffix: string): string => {
+  return suffix.length === 0 ? baseId : `${baseId}_${suffix}`;
+};
+
+const scopedFixtureSlug = (baseSlug: string, suffix: string): string => {
+  return suffix.length === 0 ? baseSlug : `${baseSlug}-${suffix}`;
+};
+
+const buildSeedTenantConfigs = (): LocalDevSeedTenantConfig[] => {
+  const hasRequestedTenant = requestedTenantId !== undefined && requestedTenantId.length > 0;
+  const primaryTenantId = requestedTenantId ?? localDevDemoTenantId;
+  const primaryTenantSlug = requestedTenantSlug ?? "demo-university";
+  const primarySuffix = primaryTenantId === localDevDemoTenantId ? "" : primaryTenantId;
+  const configs: LocalDevSeedTenantConfig[] = [
+    {
+      tenantId: primaryTenantId,
+      tenantSlug: primaryTenantSlug,
+      displayName: "Demo University",
+      issuerDomain: primarySuffix.length === 0 ? "localhost" : `${primaryTenantId}.localhost`,
+      didWeb:
+        primarySuffix.length === 0 ? "did:web:localhost" : `did:web:${primaryTenantId}.localhost`,
+      fixtureSuffix: primarySuffix,
+      lmsDisplayName: localDevDemoLmsConnection.displayName,
+      lmsProviderKind: localDevDemoLmsConnection.providerKind,
+      lmsApiBaseUrl: localDevDemoLmsConnection.apiBaseUrl,
+      lmsAuthorizationEndpoint: localDevDemoLmsConnection.authorizationEndpoint,
+      lmsTokenEndpoint: localDevDemoLmsConnection.tokenEndpoint,
+      lmsClientId: localDevDemoLmsConnection.clientId,
+      lmsScope: localDevDemoLmsConnection.scope,
+      seedTrustedCredential: primarySuffix.length === 0,
+    },
+  ];
+
+  if (!hasRequestedTenant && process.env.CREDTRAIL_DEV_SEED_SAKAI?.trim() !== "false") {
+    configs.push({
+      tenantId: "sakai",
+      tenantSlug: "sakai",
+      displayName: "Sakai Demo University",
+      issuerDomain: "sakai.localhost",
+      didWeb: "did:web:sakai.localhost",
+      fixtureSuffix: "sakai",
+      lmsDisplayName: "Local Demo Sakai",
+      lmsProviderKind: "sakai",
+      lmsApiBaseUrl: "https://sakai.localhost.invalid",
+      lmsClientId: "local-demo-sakai-client",
+      lmsScope: "site.upd",
+      seedTrustedCredential: false,
+    });
+  }
+
+  return configs;
+};
+
+const seedLocalTenant = async (
+  config: LocalDevSeedTenantConfig,
+): Promise<SeedLocalTenantResult> => {
   await upsertTenant(db, {
-    id: tenantId,
-    slug: tenantSlug,
-    displayName: "Demo University",
+    id: config.tenantId,
+    slug: config.tenantSlug,
+    displayName: config.displayName,
     planTier: "institution",
-    issuerDomain: "localhost",
-    didWeb: "did:web:localhost",
+    issuerDomain: config.issuerDomain,
+    didWeb: config.didWeb,
     isActive: true,
   });
 
-  const ownerOrgUnitId = await ensureInstitutionOrgUnitForTenant(db, tenantId);
+  const ownerOrgUnitId = await ensureInstitutionOrgUnitForTenant(db, config.tenantId);
   const adminUser = await upsertUserByEmail(db, adminEmail);
 
   await upsertTenantMembershipRole(db, {
-    tenantId,
+    tenantId: config.tenantId,
     userId: adminUser.id,
     role: "owner",
   });
 
   for (const template of localDevDemoTemplates) {
     await upsertBadgeTemplateById(db, {
-      id: template.id,
-      tenantId,
-      slug: template.slug,
+      id: scopedFixtureId(template.id, config.fixtureSuffix),
+      tenantId: config.tenantId,
+      slug: scopedFixtureSlug(template.slug, config.fixtureSuffix),
       title: template.title,
       description: template.description,
       criteriaUri: template.criteriaUri,
@@ -163,30 +258,39 @@ const main = async (): Promise<void> => {
     });
   }
 
+  const lmsConnectionId = scopedFixtureId(localDevDemoLmsConnection.id, config.fixtureSuffix);
+
   await upsertTenantLmsConnection(db, {
-    ...localDevDemoLmsConnection,
-    tenantId,
+    id: lmsConnectionId,
+    tenantId: config.tenantId,
+    displayName: config.lmsDisplayName,
+    providerKind: config.lmsProviderKind,
+    apiBaseUrl: config.lmsApiBaseUrl,
+    authorizationEndpoint: config.lmsAuthorizationEndpoint,
+    tokenEndpoint: config.lmsTokenEndpoint,
+    clientId: config.lmsClientId,
+    scope: config.lmsScope,
   });
 
-  const existingRules = await listBadgeIssuanceRules(db, { tenantId });
+  const existingRules = await listBadgeIssuanceRules(db, { tenantId: config.tenantId });
   let seededRule = existingRules.find((rule) => rule.name === localDevDemoRule.name) ?? null;
   let seededRuleVersionId = seededRule?.activeVersionId ?? null;
 
   if (seededRule === null) {
     const createdRule = await createBadgeIssuanceRule(db, {
-      tenantId,
+      tenantId: config.tenantId,
       name: localDevDemoRule.name,
       description: localDevDemoRule.description,
-      badgeTemplateId: localDevDemoRule.badgeTemplateId,
-      lmsProviderKind: localDevDemoRule.lmsProviderKind,
-      lmsConnectionId: localDevDemoRule.lmsConnectionId,
+      badgeTemplateId: scopedFixtureId(localDevDemoRule.badgeTemplateId, config.fixtureSuffix),
+      lmsProviderKind: config.lmsProviderKind,
+      lmsConnectionId,
       ruleJson: JSON.stringify(localDevDemoRule.definition),
       changeSummary: "Seeded local demo rule",
       createdByUserId: adminUser.id,
     });
 
     const activeVersion = await activateBadgeIssuanceRuleVersion(db, {
-      tenantId,
+      tenantId: config.tenantId,
       ruleId: createdRule.rule.id,
       versionId: createdRule.version.id,
       actorUserId: adminUser.id,
@@ -198,67 +302,95 @@ const main = async (): Promise<void> => {
   }
 
   const learnerProfile = await resolveLearnerProfileForIdentity(db, {
-    tenantId,
+    tenantId: config.tenantId,
     identityType: "email",
     identityValue: localDevDemoLearnerEmail,
     displayName: "Ada Lovelace",
   });
 
   const trustedDemo = localDevDemoTrustedCredentialFixture;
-  const existingTrustedAssertion = await findAssertionByPublicId(db, trustedDemo.publicId);
+  let publicCredential: SeedLocalTenantResult["publicCredential"];
 
-  if (existingTrustedAssertion === null) {
-    await createAssertion(db, {
-      id: trustedDemo.assertionId,
-      tenantId,
+  if (config.seedTrustedCredential) {
+    const existingTrustedAssertion = await findAssertionByPublicId(db, trustedDemo.publicId);
+
+    if (existingTrustedAssertion === null) {
+      await createAssertion(db, {
+        id: trustedDemo.assertionId,
+        tenantId: config.tenantId,
+        publicId: trustedDemo.publicId,
+        learnerProfileId: learnerProfile.id,
+        badgeTemplateId: trustedDemo.badgeTemplateId,
+        recipientIdentity: localDevDemoLearnerEmail,
+        recipientIdentityType: "email",
+        vcR2Key: trustedDemo.assertion.vcR2Key,
+        statusListIndex: trustedDemo.assertion.statusListIndex ?? 7,
+        idempotencyKey: trustedDemo.assertion.idempotencyKey,
+        issuedAt: trustedDemo.assertion.issuedAt,
+        issuedByUserId: adminUser.id,
+        recipientIdentifiers: [
+          {
+            identifierType: "emailAddress",
+            identifierValue: localDevDemoLearnerEmail,
+          },
+        ],
+      });
+    }
+
+    const localR2Seed = seedLocalR2CredentialObject(
+      process.env.CREDTRAIL_DEV_R2_BUCKET?.trim() || "credtrail-badges-local",
+      trustedDemo.assertion.vcR2Key,
+      trustedDemo.credential,
+    );
+
+    publicCredential = {
       publicId: trustedDemo.publicId,
-      learnerProfileId: learnerProfile.id,
-      badgeTemplateId: trustedDemo.badgeTemplateId,
-      recipientIdentity: localDevDemoLearnerEmail,
-      recipientIdentityType: "email",
-      vcR2Key: trustedDemo.assertion.vcR2Key,
-      statusListIndex: trustedDemo.assertion.statusListIndex ?? 7,
-      idempotencyKey: trustedDemo.assertion.idempotencyKey,
-      issuedAt: trustedDemo.assertion.issuedAt,
-      issuedByUserId: adminUser.id,
-      recipientIdentifiers: [
-        {
-          identifierType: "emailAddress",
-          identifierValue: localDevDemoLearnerEmail,
-        },
-      ],
-    });
+      route: trustedDemo.routeFamily.publicCredential,
+      r2Object: localR2Seed,
+    };
   }
 
-  const localR2Seed = seedLocalR2CredentialObject(
-    process.env.CREDTRAIL_DEV_R2_BUCKET?.trim() || "credtrail-badges-local",
-    trustedDemo.assertion.vcR2Key,
-    trustedDemo.credential,
-  );
+  return {
+    tenantId: config.tenantId,
+    tenantSlug: config.tenantSlug,
+    adminEmail,
+    adminUserId: adminUser.id,
+    learnerEmail: localDevDemoLearnerEmail,
+    learnerProfileId: learnerProfile.id,
+    badgeTemplateIds: localDevDemoTemplates.map((template) =>
+      scopedFixtureId(template.id, config.fixtureSuffix),
+    ),
+    lmsConnectionId,
+    badgeRule: {
+      id: seededRule?.id ?? null,
+      activeVersionId: seededRuleVersionId,
+      name: localDevDemoRule.name,
+    },
+    publicCredential,
+    loginNextPath: `/tenants/${encodeURIComponent(config.tenantId)}/admin`,
+    demoRoutes: localDevDemoRoutes(config.tenantId),
+  };
+};
+
+const main = async (): Promise<void> => {
+  const seededTenants: SeedLocalTenantResult[] = [];
+
+  for (const config of buildSeedTenantConfigs()) {
+    seededTenants.push(await seedLocalTenant(config));
+  }
+
+  const primaryTenant = seededTenants[0];
+
+  if (primaryTenant === undefined) {
+    throw new Error("No local dev tenants were seeded.");
+  }
 
   console.log(
     JSON.stringify(
       {
         status: "seeded",
-        tenantId,
-        tenantSlug,
-        adminEmail,
-        adminUserId: adminUser.id,
-        learnerEmail: localDevDemoLearnerEmail,
-        learnerProfileId: learnerProfile.id,
-        badgeTemplateIds: localDevDemoTemplates.map((template) => template.id),
-        badgeRule: {
-          id: seededRule?.id ?? null,
-          activeVersionId: seededRuleVersionId,
-          name: localDevDemoRule.name,
-        },
-        publicCredential: {
-          publicId: trustedDemo.publicId,
-          route: trustedDemo.routeFamily.publicCredential,
-          r2Object: localR2Seed,
-        },
-        loginNextPath: `/tenants/${encodeURIComponent(tenantId)}/admin`,
-        demoRoutes: localDevDemoRoutes(tenantId),
+        ...primaryTenant,
+        seededTenants,
       },
       null,
       2,

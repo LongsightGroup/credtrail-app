@@ -161,7 +161,13 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
         }
 
         if (missingLabels.length > 0) {
-          return 'Choose a ' + missingLabels.join(' and ') + ' before continuing.';
+          if (missingLabels.length === 1) {
+            const article = missingLabels[0] === 'LMS connection' ? 'an ' : 'a ';
+
+            return 'Choose ' + article + missingLabels[0] + ' before continuing.';
+          }
+
+          return 'Choose a ' + missingLabels[0] + ' and an ' + missingLabels[1] + ' before continuing.';
         }
       }
 
@@ -337,6 +343,14 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
         (panel) =>
           panel instanceof HTMLElement && (panel.dataset.ruleStep ?? '') === activeStep,
       );
+
+      if (
+        ruleBuilderStepFooter instanceof HTMLElement &&
+        activePanel instanceof HTMLElement &&
+        ruleBuilderStepFooter.parentElement !== activePanel
+      ) {
+        activePanel.append(ruleBuilderStepFooter);
+      }
 
       if (stepChanged && activePanel instanceof HTMLElement) {
         scrollActiveBuilderPanelIntoView(activePanel);
