@@ -271,7 +271,7 @@ export const renderInstitutionAdminOperationsSections = (
           <input
             name="recipientQuery"
             type="text"
-            placeholder="csev@umich.edu or tenant_123:assertion_456"
+            placeholder="recipient@example.com or tenant_123:assertion_456"
             value={issuedBadgesFilters.recipientQuery}
           />
         </AdminField>

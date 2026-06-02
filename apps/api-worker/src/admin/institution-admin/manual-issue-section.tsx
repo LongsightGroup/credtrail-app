@@ -33,7 +33,12 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
           </select>
         </AdminField>
         <AdminField label="Recipient email">
-          <input name="recipientIdentity" type="email" required placeholder="csev@umich.edu" />
+          <input
+            name="recipientIdentity"
+            type="email"
+            required
+            placeholder="recipient@example.com"
+          />
         </AdminField>
         <AdminButton type="submit">Issue badge</AdminButton>
       </AdminForm>
