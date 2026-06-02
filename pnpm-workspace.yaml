@@ -5,6 +5,16 @@ minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
   # CredTrail is a co-author on @lti-tool/core, so we can safely consume coordinated releases immediately.
   - "@lti-tool/core"
+  # Wrangler updates unblock local Cloudflare compatibility checks and are verified before commit.
+  - "@cloudflare/workers-types"
+  - "wrangler"
+  - "workerd"
+  - "miniflare"
+  - "@cloudflare/workerd-darwin-64"
+  - "@cloudflare/workerd-darwin-arm64"
+  - "@cloudflare/workerd-linux-64"
+  - "@cloudflare/workerd-linux-arm64"
+  - "@cloudflare/workerd-windows-64"
 blockExoticSubdeps: true
 ignoredBuiltDependencies:
   - esbuild

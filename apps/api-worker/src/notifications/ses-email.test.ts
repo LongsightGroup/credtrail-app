@@ -55,6 +55,36 @@ describe("buildSesSendEmailInput", () => {
       },
     });
   });
+
+  it("formats structured recipient addresses for SES", () => {
+    const input = buildSesSendEmailInput({
+      from: "no-reply@example.edu",
+      to: [
+        {
+          email: "learner@example.edu",
+          name: "Learner Example",
+        },
+        "second@example.edu",
+      ],
+      cc: {
+        email: "registrar@example.edu",
+        name: "Registrar",
+      },
+      bcc: {
+        email: "audit@example.edu",
+        name: "",
+      },
+      subject: "Issued badge",
+      text: "A badge was issued.",
+    });
+
+    expect(input.Destination?.ToAddresses).toEqual([
+      '"Learner Example" <learner@example.edu>',
+      "second@example.edu",
+    ]);
+    expect(input.Destination?.CcAddresses).toEqual(['"Registrar" <registrar@example.edu>']);
+    expect(input.Destination?.BccAddresses).toEqual(["audit@example.edu"]);
+  });
 });
 
 describe("createSesEmailBinding", () => {

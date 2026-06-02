@@ -18,16 +18,6 @@ export interface CreateSesEmailBindingInput {
   configurationSetName?: string | undefined;
 }
 
-const addressList = (input: string | string[] | undefined): string[] | undefined => {
-  if (input === undefined) {
-    return undefined;
-  }
-
-  const values = Array.isArray(input) ? input : [input];
-  const normalized = values.map((value) => value.trim()).filter((value) => value.length > 0);
-  return normalized.length === 0 ? undefined : normalized;
-};
-
 const escapeDisplayName = (name: string): string => {
   return name.replace(/["\\]/g, (match) => {
     return `\\${match}`;
@@ -47,6 +37,20 @@ const formatEmailAddress = (address: string | EmailAddress): string => {
   }
 
   return `"${escapeDisplayName(name)}" <${email}>`;
+};
+
+const addressList = (
+  input: string | EmailAddress | (string | EmailAddress)[] | undefined,
+): string[] | undefined => {
+  if (input === undefined) {
+    return undefined;
+  }
+
+  const values = Array.isArray(input) ? input : [input];
+  const normalized = values
+    .map((value) => formatEmailAddress(value).trim())
+    .filter((value) => value.length > 0);
+  return normalized.length === 0 ? undefined : normalized;
 };
 
 export const buildSesSendEmailInput = (

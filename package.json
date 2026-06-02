@@ -28,7 +28,7 @@
     "check": "pnpm check:design-tokens && pnpm check:ob3-openapi && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:scripts"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260508.1",
+    "@cloudflare/workers-types": "^4.20260602.1",
     "@playwright/test": "^1.60.0",
     "@sphereon/oid4vci-client": "^0.20.1",
     "@types/jsonld": "^1.5.15",
@@ -40,7 +40,7 @@
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.5",
-    "wrangler": "^4.90.0"
+    "wrangler": "^4.97.0"
   },
   "dependencies": {
     "better-auth": "1.6.9"
