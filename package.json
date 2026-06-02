@@ -17,7 +17,6 @@
     "dev:seed": "pnpm exec tsx scripts/seed-local-dev.ts",
     "dev:login-as": "node scripts/create-local-login-url.mjs",
     "dev:demo": "node scripts/run-local-demo.mjs",
-    "dev:screenshot": "pnpm exec playwright test --config playwright.config.mjs --project chromium public-badge.spec.mjs --screenshot=on",
     "test:e2e": "pnpm exec playwright test --config playwright.config.mjs --project chromium",
     "lint": "node scripts/run-oxlint.mjs --deny-warnings",
     "lint:fix": "node scripts/run-oxlint.mjs --fix --fix-suggestions --deny-warnings",

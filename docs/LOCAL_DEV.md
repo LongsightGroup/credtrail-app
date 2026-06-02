@@ -50,7 +50,6 @@ pnpm dev:seed
 pnpm dev:reset
 pnpm dev:demo
 pnpm test:e2e
-pnpm dev:screenshot
 pnpm dev:down
 ```
 
@@ -67,7 +66,6 @@ pnpm dev:down
   guided demo, not a headless CI job.
 - `test:e2e` runs the read-only browser surface headlessly for regression
   coverage.
-- `dev:screenshot` captures the public seeded credential route with Playwright.
 - `dev:down` stops the Postgres compose service.
 
 ## Seeded Demo Contract
