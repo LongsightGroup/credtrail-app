@@ -14,8 +14,8 @@ test("local Wrangler example uses localhost issuer config", async () => {
 test("local seed uses the same localhost issuer identity", async () => {
   const source = await readFile(new URL("./seed-local-dev.ts", import.meta.url), "utf8");
 
-  assert.match(source, /issuerDomain:\s*"localhost"/);
-  assert.match(source, /didWeb:\s*"did:web:localhost"/);
+  assert.match(source, /issuerDomain:\s*primarySuffix\.length === 0 \? "localhost"/);
+  assert.match(source, /primarySuffix\.length === 0 \? "did:web:localhost"/);
 });
 
 test("local seed creates the LMS connection before the seeded badge rule", async () => {
