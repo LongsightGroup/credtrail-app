@@ -1076,7 +1076,7 @@ const renderInstitutionAdminPage = (
           <>
             {renderPageHeader(
               "Learner Records",
-              "Review one learner’s unified record without overloading operations with a broader learner-search or ingest surface.",
+              "Look up one learner by profile ID or email to review badges and record entries.",
             )}
             <section class="ct-admin ct-stack">
               {learnerRecordReviewPanelMarkup}

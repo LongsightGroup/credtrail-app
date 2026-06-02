@@ -117,7 +117,7 @@ describe("GET /tenants/:tenantId/admin/operations/learner-records", () => {
     expect(body).toContain("Load learner record");
     expect(body).toContain('name="learnerProfileId"');
     expect(body).toContain('name="email"');
-    expect(body).toContain("Choose one learner");
+    expect(body).not.toContain("Choose one learner");
     expect(body).not.toContain("No learner record found");
   });
 

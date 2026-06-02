@@ -134,16 +134,7 @@ export const renderInstitutionAdminLearnerRecordSections = (
 
   const renderLearnerRecordReviewSections = (): HonoElement => {
     if (learnerRecordReview.lookupState === "idle") {
-      return (
-        <AdminPanel>
-          <h2>Choose one learner</h2>
-          <p>
-            Use a learner profile ID or learner email already associated with this tenant to review
-            one unified learner record. This page is intentionally bounded and does not try to be a
-            full learner-search or ingest workspace.
-          </p>
-        </AdminPanel>
-      );
+      return <></>;
     }
 
     if (learnerRecordReview.lookupState === "unresolved") {
