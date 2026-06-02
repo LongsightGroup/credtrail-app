@@ -314,6 +314,9 @@ jobs:
             sleep 1
           done
 
+          curl -fsS -X POST \
+            http://127.0.0.1:8787/v1/dev/storage/seed-trusted-demo-credential
+
           pnpm test:e2e
 
       - name: Upload Playwright artifacts

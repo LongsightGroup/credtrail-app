@@ -107,6 +107,9 @@ const fakeDb = {
 
 const createEnv = (
   appEnv: string,
+  overrides?: Partial<{
+    BADGE_OBJECTS: R2Bucket;
+  }>,
 ): {
   APP_ENV: string;
   DATABASE_URL: string;
@@ -124,7 +127,7 @@ const createEnv = (
     ...(appEnv === "production"
       ? { HYPERDRIVE: { connectionString: "postgres://hyperdrive-test.local/db" } as Hyperdrive }
       : {}),
-    BADGE_OBJECTS: {} as R2Bucket,
+    BADGE_OBJECTS: overrides?.BADGE_OBJECTS ?? ({} as R2Bucket),
     PLATFORM_DOMAIN: "credtrail.test",
   };
 };
@@ -718,6 +721,43 @@ describe("magic-link auth routes", () => {
     expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin");
   });
 
+  it("seeds the trusted demo credential through the development-only R2 binding route", async () => {
+    const { app: isolatedApp } = await loadAppWithMockedHostedAuthProviders();
+    const put = vi.fn<R2Bucket["put"]>(async () => ({ key: "seeded" }) as R2Object);
+
+    const response = await isolatedApp.request(
+      "/v1/dev/storage/seed-trusted-demo-credential",
+      {
+        method: "POST",
+      },
+      createEnv("development", {
+        BADGE_OBJECTS: {
+          put,
+        } as unknown as R2Bucket,
+      }),
+    );
+    const body = await response.json<{
+      status: string;
+      key: string;
+    }>();
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe("seeded");
+    expect(body.key).toBe(
+      "tenants/tenant_123/assertions/tenant_123%3Aassertion_trusted_demo.jsonld",
+    );
+    expect(put).toHaveBeenCalledWith(
+      body.key,
+      expect.stringContaining("Applied Analytics TrustEd Credential"),
+      {
+        httpMetadata: {
+          contentType: "application/ld+json",
+          cacheControl: "public, max-age=31536000, immutable",
+        },
+      },
+    );
+  });
+
   it("does not expose the local CLI login-as API outside development", async () => {
     const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
 
@@ -732,6 +772,26 @@ describe("magic-link auth routes", () => {
     expect(response.status).toBe(404);
     expect(mockedFindUserByEmail).not.toHaveBeenCalled();
     expect(betterAuthProvider.requestMagicLink).not.toHaveBeenCalled();
+  });
+
+  it("does not expose the local trusted demo storage seed route outside development", async () => {
+    const { app: isolatedApp } = await loadAppWithMockedHostedAuthProviders();
+    const put = vi.fn<R2Bucket["put"]>(async () => ({ key: "seeded" }) as R2Object);
+
+    const response = await isolatedApp.request(
+      "/v1/dev/storage/seed-trusted-demo-credential",
+      {
+        method: "POST",
+      },
+      createEnv("production", {
+        BADGE_OBJECTS: {
+          put,
+        } as unknown as R2Bucket,
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(put).not.toHaveBeenCalled();
   });
 
   it("rejects local hosted magic-link requests when enterprise SSO is required", async () => {

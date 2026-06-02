@@ -52,6 +52,10 @@ const shouldSeedLocalR2 = (): boolean => {
   return process.env.CREDTRAIL_DEV_SEED_R2?.trim().toLowerCase() !== "false";
 };
 
+const wranglerLocalR2ObjectPath = (bucketName: string, key: string): string => {
+  return `${bucketName}/${key.replaceAll("%", "%25")}`;
+};
+
 const seedLocalR2CredentialObject = (
   bucketName: string,
   key: string,
@@ -83,7 +87,7 @@ const seedLocalR2CredentialObject = (
         "r2",
         "object",
         "put",
-        `${bucketName}/${key}`,
+        wranglerLocalR2ObjectPath(bucketName, key),
         "--file",
         tempFile,
         "--content-type",

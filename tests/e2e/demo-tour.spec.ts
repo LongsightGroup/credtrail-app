@@ -12,7 +12,9 @@ test("seeded admin can inspect the local demo world", async ({ page }) => {
   await expect(page.getByText("Foundations Badge")).toBeVisible();
 
   await page.goto(demoRoutes.rules);
-  await expect(page.getByText("Local Demo: Applied Analytics Completion")).toBeVisible();
+  await expect(
+    page.getByText("Local Demo: Applied Analytics Completion", { exact: true }),
+  ).toBeVisible();
 });
 
 test("@demo guided first-day workflow creates data through normal admin routes", async ({

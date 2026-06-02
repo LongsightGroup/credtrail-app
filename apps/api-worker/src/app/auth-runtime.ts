@@ -324,6 +324,38 @@ const createDevelopmentMagicLinkSession = async (
 const resolveCurrentBetterAuthSession = async (
   context: AppContext,
 ): Promise<import("../auth/better-auth-adapter").BetterAuthResolvedSession | null> => {
+  const resolveDevelopmentSession = async (): Promise<
+    import("../auth/better-auth-adapter").BetterAuthResolvedSession | null
+  > => {
+    if (context.env.APP_ENV !== "development") {
+      return null;
+    }
+
+    const runtimeConfig = createBetterAuthRuntimeConfig(context.env);
+    const sessionToken = getCookie(context, runtimeConfig.session.cookieName)?.trim();
+
+    if (sessionToken === undefined || sessionToken.length === 0) {
+      return null;
+    }
+
+    const session = await findBetterAuthSessionByToken(resolveDatabase(context.env), sessionToken);
+
+    if (session === null || new Date(session.expiresAt).getTime() <= Date.now()) {
+      return null;
+    }
+
+    return {
+      sessionToken,
+      sessionId: session.sessionId,
+      accountId: null,
+      expiresAt: session.expiresAt,
+      user: {
+        id: session.userId,
+        email: session.userEmail,
+        emailVerified: session.userEmailVerified,
+      },
+    };
+  };
   const { auth } = createBetterAuthRuntime(context);
   const response = await auth.handler(
     createBetterAuthRequest(context, "/get-session", {
@@ -332,7 +364,7 @@ const resolveCurrentBetterAuthSession = async (
   );
 
   if (!response.ok) {
-    return null;
+    return resolveDevelopmentSession();
   }
 
   applyBetterAuthResponseHeaders(context, response);
@@ -350,7 +382,7 @@ const resolveCurrentBetterAuthSession = async (
   } | null>();
 
   if (payload === null) {
-    return null;
+    return resolveDevelopmentSession();
   }
 
   return {

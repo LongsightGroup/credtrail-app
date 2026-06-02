@@ -38,6 +38,7 @@ import {
 } from "../auth/tenant-context-selection";
 import { normalizeSafeRedirectPath } from "../auth/redirect-paths";
 import { sessionCookieSecure, sha256Hex } from "../utils/crypto";
+import { getSeededDemoTrustEdCredentialFixture } from "../badges/seeded-demo-trusted-credential-fixture";
 
 const MAGIC_LINK_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const MAGIC_LINK_RATE_LIMIT_PRUNE_MS = 24 * 60 * 60 * 1000;
@@ -333,6 +334,31 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     const nextPath = normalizeSafeRedirectPath(requestedNextPath, fallbackNextPath);
 
     return c.redirect(nextPath, 302);
+  });
+
+  app.post("/v1/dev/storage/seed-trusted-demo-credential", async (c) => {
+    if (c.env.APP_ENV !== "development") {
+      return c.json(
+        {
+          error: "Not found",
+        },
+        404,
+      );
+    }
+
+    const fixture = getSeededDemoTrustEdCredentialFixture();
+
+    await c.env.BADGE_OBJECTS.put(fixture.assertion.vcR2Key, JSON.stringify(fixture.credential), {
+      httpMetadata: {
+        contentType: "application/ld+json",
+        cacheControl: "public, max-age=31536000, immutable",
+      },
+    });
+
+    return c.json({
+      status: "seeded",
+      key: fixture.assertion.vcR2Key,
+    });
   });
 
   app.get("/login", async (c) => {
