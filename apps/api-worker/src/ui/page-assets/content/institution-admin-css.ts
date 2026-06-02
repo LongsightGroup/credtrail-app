@@ -28,7 +28,7 @@ export const INSTITUTION_ADMIN_CSS = `
   border-bottom: 1px solid var(--ct-border-soft);
 }
 .ct-admin-sidebar__nav {
-  padding: 0.9rem 0.72rem;
+  padding: 0.9rem 1.25rem;
   display: grid;
   gap: 0.28rem;
   align-content: start;
@@ -56,13 +56,14 @@ export const INSTITUTION_ADMIN_CSS = `
   min-width: 0;
 }
 .ct-admin-sidebar__group-trigger {
+  box-sizing: border-box;
   width: 100%;
   min-height: 2.12rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.7rem;
-  padding: 0 0.82rem 0 0.66rem;
+  padding: 0 0.35rem 0 0.5rem;
   color: var(--ct-theme-text-body);
   background: transparent;
   border: 1px solid transparent;
@@ -103,9 +104,10 @@ export const INSTITUTION_ADMIN_CSS = `
 }
 .ct-admin-sidebar__menu-chevron {
   flex: 0 0 auto;
-  width: 0.94rem;
-  height: 0.94rem;
+  width: 0.88rem;
+  height: 0.88rem;
   margin-left: auto;
+  margin-inline-end: 0.1rem;
   color: var(--ct-theme-text-muted);
   transition: transform var(--ct-duration-fast) var(--ct-ease-standard);
 }
