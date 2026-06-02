@@ -17,3 +17,19 @@ test("local seed uses the same localhost issuer identity", async () => {
   assert.match(source, /issuerDomain:\s*"localhost"/);
   assert.match(source, /didWeb:\s*"did:web:localhost"/);
 });
+
+test("local seed creates the LMS connection before the seeded badge rule", async () => {
+  const contractSource = await readFile(
+    new URL("./local-dev-demo-contract.ts", import.meta.url),
+    "utf8",
+  );
+  const seedSource = await readFile(new URL("./seed-local-dev.ts", import.meta.url), "utf8");
+  const lmsConnectionIndex = seedSource.indexOf("await upsertTenantLmsConnection");
+  const ruleIndex = seedSource.indexOf("await createBadgeIssuanceRule");
+
+  assert.match(contractSource, /id:\s*localDevDemoRule\.lmsConnectionId/);
+  assert.match(contractSource, /lmsConnectionId:\s*"local-demo-lms"/);
+  assert.notEqual(lmsConnectionIndex, -1);
+  assert.notEqual(ruleIndex, -1);
+  assert.ok(lmsConnectionIndex < ruleIndex);
+});

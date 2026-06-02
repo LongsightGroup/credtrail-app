@@ -89,10 +89,22 @@ export const localDevDemoRule = {
   },
 };
 
+export const localDevDemoLmsConnection = {
+  id: localDevDemoRule.lmsConnectionId,
+  displayName: "Local Demo Canvas",
+  providerKind: localDevDemoRule.lmsProviderKind,
+  apiBaseUrl: "https://canvas.localhost.invalid",
+  authorizationEndpoint: "https://canvas.localhost.invalid/login/oauth2/auth",
+  tokenEndpoint: "https://canvas.localhost.invalid/login/oauth2/token",
+  clientId: "local-demo-client",
+  scope: "url:GET|/api/v1/courses url:GET|/api/v1/courses/:course_id/assignments",
+} as const;
+
 export const localDevDemoTrustedCredentialFixture = getSeededDemoTrustEdCredentialFixture();
 
 export default {
   localDevDemoAdminEmail,
+  localDevDemoLmsConnection,
   localDevDemoLearnerEmail,
   localDevDemoRoutes,
   localDevDemoRule,

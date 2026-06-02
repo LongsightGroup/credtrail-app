@@ -13,6 +13,7 @@ import {
   resolveLearnerProfileForIdentity,
   upsertBadgeTemplateById,
   upsertTenant,
+  upsertTenantLmsConnection,
   upsertTenantMembershipRole,
   upsertUserByEmail,
 } from "@credtrail/db";
@@ -29,6 +30,7 @@ const db = createPostgresDatabase({ databaseUrl, connectionMode: "single-use" })
 const {
   localDevDemoAdminEmail,
   localDevDemoLearnerEmail,
+  localDevDemoLmsConnection,
   localDevDemoRoutes,
   localDevDemoRule,
   localDevDemoTemplates,
@@ -156,6 +158,11 @@ const main = async (): Promise<void> => {
       governanceMetadataJson: '{"source":"local_dev_seed","stability":"institution_registry"}',
     });
   }
+
+  await upsertTenantLmsConnection(db, {
+    ...localDevDemoLmsConnection,
+    tenantId,
+  });
 
   const existingRules = await listBadgeIssuanceRules(db, { tenantId });
   let seededRule = existingRules.find((rule) => rule.name === localDevDemoRule.name) ?? null;
