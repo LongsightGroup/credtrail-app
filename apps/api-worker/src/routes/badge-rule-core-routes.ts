@@ -5,6 +5,9 @@ import {
   listAuditLogs,
   listBadgeIssuanceRules,
   listBadgeIssuanceRuleVersions,
+  updateBadgeIssuanceRuleDraft,
+  type BadgeIssuanceRuleRecord,
+  type BadgeIssuanceRuleVersionRecord,
   type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
@@ -14,6 +17,7 @@ import {
   parseBadgeIssuanceRulePathParams,
   parseCreateBadgeIssuanceRuleRequest,
   parseTenantPathParams,
+  parseUpdateBadgeIssuanceRuleDraftRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
@@ -101,6 +105,158 @@ const validateRuleReferencesAgainstConnection = async (input: {
   }
 };
 
+type BadgeRuleDraftRequest =
+  | ReturnType<typeof parseCreateBadgeIssuanceRuleRequest>
+  | ReturnType<typeof parseUpdateBadgeIssuanceRuleDraftRequest>;
+
+interface PersistedBadgeRuleDraft {
+  rule: BadgeIssuanceRuleRecord;
+  version: BadgeIssuanceRuleVersionRecord;
+}
+
+type PersistBadgeRuleDraftPersistenceResult =
+  | {
+      status: "persisted";
+      draft: PersistedBadgeRuleDraft;
+    }
+  | {
+      status: "not_found" | "not_editable";
+    };
+
+type PersistBadgeRuleDraftResult =
+  | {
+      status: "ok";
+      draft: PersistedBadgeRuleDraft;
+      definition: BadgeRuleDraftRequest["definition"];
+    }
+  | {
+      status: "error";
+      statusCode: 404 | 409 | 422 | 502;
+      error: string;
+    };
+
+const persistBadgeRuleDraft = async (input: {
+  db: SqlDatabase;
+  tenantId: string;
+  request: BadgeRuleDraftRequest;
+  session: SessionRecord;
+  membershipRole: TenantMembershipRole;
+  missingLmsConnectionMessage: string;
+  auditAction: "badge_rule.created" | "badge_rule.draft_updated";
+  persist: (resolved: {
+    resolvedProvider: ResolvedGradebookProvider;
+    ruleJson: string;
+  }) => Promise<PersistBadgeRuleDraftPersistenceResult>;
+}): Promise<PersistBadgeRuleDraftResult> => {
+  let resolvedDefinition: Parameters<typeof extractBadgeIssuanceRuleRequirements>[0];
+
+  try {
+    resolvedDefinition = await resolveBadgeIssuanceRuleDefinitionValueLists(
+      input.db,
+      input.tenantId,
+      input.request.definition,
+    );
+  } catch (error) {
+    return {
+      status: "error",
+      statusCode: 422,
+      error: error instanceof Error ? error.message : "Failed to resolve rule value lists",
+    };
+  }
+
+  let resolvedProvider: ResolvedGradebookProvider;
+
+  try {
+    resolvedProvider = await resolveGradebookProviderWithConnection({
+      db: input.db,
+      tenantId: input.tenantId,
+      lmsConnectionId: input.request.lmsConnectionId,
+      nowIso: new Date().toISOString(),
+    });
+  } catch (error) {
+    if (
+      error instanceof GradebookProviderResolutionError &&
+      (error.reason === "missing_connection" || error.reason === "not_found")
+    ) {
+      return {
+        status: "error",
+        statusCode: 422,
+        error: input.missingLmsConnectionMessage,
+      };
+    }
+
+    return {
+      status: "error",
+      statusCode: 409,
+      error: error instanceof Error ? error.message : "Unable to use LMS connection",
+    };
+  }
+
+  try {
+    await validateRuleReferencesAgainstConnection({
+      provider: resolvedProvider.provider,
+      definition: resolvedDefinition,
+    });
+  } catch (error) {
+    if (error instanceof BadgeRuleLmsReferenceError) {
+      return {
+        status: "error",
+        statusCode: error.statusCode,
+        error: error.message,
+      };
+    }
+
+    return {
+      status: "error",
+      statusCode: 502,
+      error: "Failed to validate LMS references",
+    };
+  }
+
+  const persisted = await input.persist({
+    resolvedProvider,
+    ruleJson: JSON.stringify(input.request.definition),
+  });
+
+  if (persisted.status !== "persisted") {
+    if (persisted.status === "not_found") {
+      return {
+        status: "error",
+        statusCode: 404,
+        error: "Badge rule not found",
+      };
+    }
+
+    return {
+      status: "error",
+      statusCode: 409,
+      error: "Only never-active draft or rejected rules can be edited from the builder.",
+    };
+  }
+
+  await createAuditLog(input.db, {
+    tenantId: input.tenantId,
+    actorUserId: input.session.userId,
+    action: input.auditAction,
+    targetType: "badge_rule",
+    targetId: persisted.draft.rule.id,
+    metadata: {
+      role: input.membershipRole,
+      versionId: persisted.draft.version.id,
+      versionNumber: persisted.draft.version.versionNumber,
+      status: persisted.draft.version.status,
+      lmsConnectionId: resolvedProvider.connection.id,
+      lmsProviderKind: resolvedProvider.connection.providerKind,
+    },
+  });
+
+  return {
+    status: "ok",
+    draft: persisted.draft,
+    definition: input.request.definition,
+  };
+};
+
 interface RegisterBadgeRuleCoreRoutesInput {
   app: Hono<AppEnv>;
   resolveDatabase: (bindings: AppBindings) => SqlDatabase;
@@ -118,6 +274,8 @@ interface RegisterBadgeRuleCoreRoutesInput {
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }
 
+// Badge rule authoring APIs are issuer-capable for automation and non-admin
+// authoring tools. The server-rendered admin builder remains owner/admin-only.
 export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesInput): void => {
   const { app, resolveDatabase, requireTenantRole, ISSUER_ROLES } = input;
 
@@ -162,112 +320,139 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
 
     const { session, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
-
-    let resolvedDefinition;
-
-    try {
-      resolvedDefinition = await resolveBadgeIssuanceRuleDefinitionValueLists(
-        db,
-        tenantParams.tenantId,
-        request.definition,
-      );
-    } catch (error) {
-      return c.json(
-        {
-          error: error instanceof Error ? error.message : "Failed to resolve rule value lists",
-        },
-        422,
-      );
-    }
-
-    let resolvedProvider: ResolvedGradebookProvider;
-
-    try {
-      resolvedProvider = await resolveGradebookProviderWithConnection({
-        db,
-        tenantId: tenantParams.tenantId,
-        lmsConnectionId: request.lmsConnectionId,
-        nowIso: new Date().toISOString(),
-      });
-    } catch (error) {
-      if (
-        error instanceof GradebookProviderResolutionError &&
-        (error.reason === "missing_connection" || error.reason === "not_found")
-      ) {
-        return c.json(
-          {
-            error: "Select a connected LMS gradebook source before creating a rule.",
-          },
-          422,
-        );
-      }
-
-      return c.json(
-        {
-          error: error instanceof Error ? error.message : "Unable to use LMS connection",
-        },
-        409,
-      );
-    }
-
-    try {
-      await validateRuleReferencesAgainstConnection({
-        provider: resolvedProvider.provider,
-        definition: resolvedDefinition,
-      });
-    } catch (error) {
-      if (error instanceof BadgeRuleLmsReferenceError) {
-        return c.json({ error: error.message }, error.statusCode);
-      }
-
-      return c.json(
-        {
-          error: "Failed to validate LMS references",
-        },
-        502,
-      );
-    }
-
-    const definitionJson = JSON.stringify(request.definition);
-    const created = await createBadgeIssuanceRule(db, {
+    const persisted = await persistBadgeRuleDraft({
+      db,
       tenantId: tenantParams.tenantId,
-      name: request.name,
-      description: request.description,
-      badgeTemplateId: request.badgeTemplateId,
-      lmsProviderKind: resolvedProvider.connection.providerKind,
-      lmsConnectionId: resolvedProvider.connection.id,
-      ruleJson: definitionJson,
-      approvalChain: request.approvalChain,
-      changeSummary: request.changeSummary,
-      createdByUserId: session.userId,
-    });
+      request,
+      session,
+      membershipRole,
+      missingLmsConnectionMessage:
+        "Select a connected LMS gradebook source before creating a rule.",
+      auditAction: "badge_rule.created",
+      persist: async ({ resolvedProvider, ruleJson }) => {
+        const draft = await createBadgeIssuanceRule(db, {
+          tenantId: tenantParams.tenantId,
+          name: request.name,
+          description: request.description,
+          badgeTemplateId: request.badgeTemplateId,
+          lmsProviderKind: resolvedProvider.connection.providerKind,
+          lmsConnectionId: resolvedProvider.connection.id,
+          ruleJson,
+          approvalChain: request.approvalChain,
+          changeSummary: request.changeSummary,
+          createdByUserId: session.userId,
+        });
 
-    await createAuditLog(db, {
-      tenantId: tenantParams.tenantId,
-      actorUserId: session.userId,
-      action: "badge_rule.created",
-      targetType: "badge_rule",
-      targetId: created.rule.id,
-      metadata: {
-        role: membershipRole,
-        versionId: created.version.id,
-        versionNumber: created.version.versionNumber,
-        status: created.version.status,
-        lmsConnectionId: resolvedProvider.connection.id,
-        lmsProviderKind: resolvedProvider.connection.providerKind,
+        return {
+          status: "persisted",
+          draft,
+        };
       },
     });
+
+    if (persisted.status === "error") {
+      return c.json(
+        {
+          error: persisted.error,
+        },
+        persisted.statusCode,
+      );
+    }
 
     return c.json(
       {
         tenantId: tenantParams.tenantId,
-        rule: created.rule,
+        rule: persisted.draft.rule,
         version: {
-          ...created.version,
-          definition: request.definition,
+          ...persisted.draft.version,
+          definition: persisted.definition,
         },
       },
       201,
+    );
+  });
+
+  app.post("/v1/tenants/:tenantId/badge-rules/:ruleId/draft", async (c) => {
+    const pathParams = parseBadgeIssuanceRulePathParams(c.req.param());
+    let request;
+
+    try {
+      request = parseUpdateBadgeIssuanceRuleDraftRequest(await c.req.json<unknown>());
+    } catch {
+      return c.json(
+        {
+          error: "Invalid badge issuance rule draft payload",
+        },
+        400,
+      );
+    }
+
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const db = resolveDatabase(c.env);
+    const persisted = await persistBadgeRuleDraft({
+      db,
+      tenantId: pathParams.tenantId,
+      request,
+      session,
+      membershipRole,
+      missingLmsConnectionMessage:
+        "Select a connected LMS gradebook source before saving a rule draft.",
+      auditAction: "badge_rule.draft_updated",
+      persist: async ({ resolvedProvider, ruleJson }) => {
+        const description = request.description?.trim();
+        const updated = await updateBadgeIssuanceRuleDraft(db, {
+          tenantId: pathParams.tenantId,
+          ruleId: pathParams.ruleId,
+          name: request.name,
+          ...(description === undefined || description.length === 0 ? {} : { description }),
+          badgeTemplateId: request.badgeTemplateId,
+          lmsProviderKind: resolvedProvider.connection.providerKind,
+          lmsConnectionId: resolvedProvider.connection.id,
+          ruleJson,
+          approvalChain: request.approvalChain,
+          changeSummary: request.changeSummary,
+          createdByUserId: session.userId,
+        });
+
+        if (updated.status !== "updated") {
+          return updated;
+        }
+
+        return {
+          status: "persisted",
+          draft: {
+            rule: updated.rule,
+            version: updated.version,
+          },
+        };
+      },
+    });
+
+    if (persisted.status === "error") {
+      return c.json(
+        {
+          error: persisted.error,
+        },
+        persisted.statusCode,
+      );
+    }
+
+    return c.json(
+      {
+        tenantId: pathParams.tenantId,
+        rule: persisted.draft.rule,
+        version: {
+          ...persisted.draft.version,
+          definition: persisted.definition,
+        },
+      },
+      200,
     );
   });
 

@@ -1,15 +1,18 @@
 import {
   activateBadgeIssuanceRuleVersion,
   createAuditLog,
+  deleteDraftBadgeIssuanceRule,
   decideBadgeIssuanceRuleVersion,
   findBadgeIssuanceRuleVersionById,
   listBadgeIssuanceRuleVersionApprovalSteps,
   submitBadgeIssuanceRuleVersionForApproval,
+  tenantMembershipRoleSatisfiesMinimumRole,
   type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
+  parseBadgeIssuanceRulePathParams,
   parseBadgeIssuanceRuleVersionPathParams,
   parseDecideBadgeIssuanceRuleVersionRequest,
 } from "@credtrail/validation";
@@ -34,20 +37,6 @@ interface RegisterTenantBadgeRuleActionsAdminRoutesInput {
       }
   >;
 }
-
-const TENANT_ROLE_RANK: Record<TenantMembershipRole, number> = {
-  viewer: 0,
-  issuer: 1,
-  admin: 2,
-  owner: 3,
-};
-
-const roleSatisfiesMinimumRole = (
-  actorRole: TenantMembershipRole,
-  requiredRole: TenantMembershipRole,
-): boolean => {
-  return TENANT_ROLE_RANK[actorRole] >= TENANT_ROLE_RANK[requiredRole];
-};
 
 const redirectToRules = async (
   c: AppContext,
@@ -222,7 +211,9 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       });
     }
 
-    if (!roleSatisfiesMinimumRole(membershipRole, currentApprovalStep.requiredRole)) {
+    if (
+      !tenantMembershipRoleSatisfiesMinimumRole(membershipRole, currentApprovalStep.requiredRole)
+    ) {
       return redirectToRules(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
@@ -347,6 +338,65 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       userId: session.userId,
       tone: "success",
       message: "Rule version activated.",
+    });
+  });
+
+  app.post("/tenants/:tenantId/admin/rules/:ruleId/delete", async (c) => {
+    const pathParams = parseBadgeIssuanceRulePathParams(c.req.param());
+    const nextPath = buildRulesAdminPath(pathParams.tenantId);
+    const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const db = resolveDatabase(c.env);
+    const deleted = await deleteDraftBadgeIssuanceRule(db, {
+      tenantId: pathParams.tenantId,
+      ruleId: pathParams.ruleId,
+    });
+
+    if (deleted.status === "not_found") {
+      return redirectToRules(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "error",
+        message: "That rule was not found.",
+      });
+    }
+
+    if (deleted.status === "not_deletable") {
+      return redirectToRules(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "error",
+        message: "Only never-active draft or rejected rules can be deleted.",
+      });
+    }
+
+    await createAuditLog(db, {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action: "badge_rule.deleted",
+      targetType: "badge_rule",
+      targetId: deleted.rule.id,
+      metadata: {
+        role: membershipRole,
+        ruleName: deleted.rule.name,
+        versions: deleted.versions.map((version) => ({
+          id: version.id,
+          versionNumber: version.versionNumber,
+          status: version.status,
+        })),
+      },
+    });
+
+    return redirectToRules(c, {
+      tenantId: pathParams.tenantId,
+      userId: session.userId,
+      tone: "success",
+      message: "Draft rule deleted.",
     });
   });
 };

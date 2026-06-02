@@ -1,8 +1,11 @@
-import type {
-  BadgeIssuanceRuleRecord,
-  BadgeIssuanceRuleVersionRecord,
-  TenantLmsConnectionRecord,
-  TenantMembershipRole,
+import {
+  canDeleteBadgeIssuanceRuleDraft,
+  canEditBadgeIssuanceRuleDraft,
+  latestBadgeIssuanceRuleVersion,
+  type BadgeIssuanceRuleRecord,
+  type BadgeIssuanceRuleVersionRecord,
+  type TenantLmsConnectionRecord,
+  type TenantMembershipRole,
 } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../../ui/render-page";
@@ -15,10 +18,12 @@ import {
   tenantAccessMemberRolePath,
   tenantAccessMembershipScopeRemovePath,
   tenantBadgeRuleActivateAdminPath,
+  tenantBadgeRuleDeleteAdminPath,
   tenantBadgeRuleDecisionAdminPath,
   tenantBadgeRuleSubmitApprovalAdminPath,
 } from "../access-admin-helpers";
 import {
+  AdminActionMenu,
   AdminButton,
   AdminButtonLink,
   AdminActions,
@@ -511,12 +516,15 @@ const renderInstitutionAdminPage = (
     input.badgeRules.map((rule) => {
       const templateTitle = templateById.get(rule.badgeTemplateId)?.title ?? rule.badgeTemplateId;
       const versions = versionsByRuleId.get(rule.id) ?? [];
-      const latestVersion = versions[0] ?? null;
-      const actionButtons: HonoElement[] = [];
+      const latestVersion = latestBadgeIssuanceRuleVersion(versions);
+      const isEditableRule = canEditBadgeIssuanceRuleDraft(rule, versions);
+      const canDeleteRule = canDeleteBadgeIssuanceRuleDraft(rule, versions);
+      const editRulePath = `${rulesWorkspacePath}/${encodeURIComponent(rule.id)}/edit`;
+      const menuActions: HonoElement[] = [];
 
       if (latestVersion !== null) {
         if (latestVersion.status === "draft" || latestVersion.status === "rejected") {
-          actionButtons.push(
+          menuActions.push(
             <AdminForm
               method="post"
               action={tenantBadgeRuleSubmitApprovalAdminPath(
@@ -529,15 +537,15 @@ const renderInstitutionAdminPage = (
                 "data-confirm-message": `Mark draft version for "${rule.name}" ready for review? This does not activate the rule.`,
               }}
             >
-              <AdminButton type="submit" size="tiny">
+              <button type="submit" class="ct-admin__action-menu-item">
                 Mark ready
-              </AdminButton>
+              </button>
             </AdminForm>,
           );
         }
 
         if (latestVersion.status === "pending_approval") {
-          actionButtons.push(
+          menuActions.push(
             <AdminForm
               method="post"
               action={tenantBadgeRuleDecisionAdminPath(input.tenant.id, rule.id, latestVersion.id)}
@@ -547,12 +555,12 @@ const renderInstitutionAdminPage = (
               }}
             >
               <input type="hidden" name="decision" value="approved" />
-              <AdminButton type="submit" size="tiny">
+              <button type="submit" class="ct-admin__action-menu-item">
                 Approve
-              </AdminButton>
+              </button>
             </AdminForm>,
           );
-          actionButtons.push(
+          menuActions.push(
             <AdminForm
               method="post"
               action={tenantBadgeRuleDecisionAdminPath(input.tenant.id, rule.id, latestVersion.id)}
@@ -562,15 +570,18 @@ const renderInstitutionAdminPage = (
               }}
             >
               <input type="hidden" name="decision" value="rejected" />
-              <AdminButton type="submit" size="tiny" variant="danger">
+              <button
+                type="submit"
+                class="ct-admin__action-menu-item ct-admin__action-menu-item--danger"
+              >
                 Reject
-              </AdminButton>
+              </button>
             </AdminForm>,
           );
         }
 
         if (latestVersion.status === "approved" || latestVersion.status === "active") {
-          actionButtons.push(
+          menuActions.push(
             <AdminForm
               method="post"
               action={tenantBadgeRuleActivateAdminPath(input.tenant.id, rule.id, latestVersion.id)}
@@ -579,18 +590,44 @@ const renderInstitutionAdminPage = (
                 "data-confirm-message": `Activate latest version for "${rule.name}"?`,
               }}
             >
-              <AdminButton type="submit" size="tiny">
+              <button type="submit" class="ct-admin__action-menu-item">
                 Activate
-              </AdminButton>
+              </button>
             </AdminForm>,
           );
         }
       }
 
+      if (canDeleteRule) {
+        menuActions.push(
+          <AdminForm
+            method="post"
+            action={tenantBadgeRuleDeleteAdminPath(input.tenant.id, rule.id)}
+            className="ct-admin__action-menu-form"
+            dataAttributes={{
+              "data-confirm-message": `Delete draft rule "${rule.name}"? This removes its draft and rejected versions.`,
+            }}
+          >
+            <button
+              type="submit"
+              class="ct-admin__action-menu-item ct-admin__action-menu-item--danger"
+            >
+              Delete
+            </button>
+          </AdminForm>,
+        );
+      }
+
       return (
         <tr>
           <td>
-            <strong>{rule.name}</strong>
+            {isEditableRule ? (
+              <a class="ct-admin__rule-name-link" href={editRulePath}>
+                <strong>{rule.name}</strong>
+              </a>
+            ) : (
+              <strong>{rule.name}</strong>
+            )}
             <AdminMeta>{rule.id}</AdminMeta>
           </td>
           <td>{templateTitle}</td>
@@ -613,8 +650,22 @@ const renderInstitutionAdminPage = (
           </td>
           <td>{formatIsoTimestamp(rule.updatedAt)}</td>
           <td>
-            {actionButtons.length > 0 ? (
-              <AdminActions>{actionButtons}</AdminActions>
+            {isEditableRule || menuActions.length > 0 ? (
+              <AdminActions>
+                {isEditableRule ? (
+                  <AdminButtonLink href={editRulePath} variant="secondary" size="tiny">
+                    Edit
+                  </AdminButtonLink>
+                ) : null}
+                {menuActions.length > 0 ? (
+                  <AdminActionMenu
+                    menuId={`badge-rule-action-menu-${rule.id}`}
+                    ariaLabel={`More actions for ${rule.name}`}
+                  >
+                    {menuActions}
+                  </AdminActionMenu>
+                ) : null}
+              </AdminActions>
             ) : (
               <AdminMeta as="span">No actions</AdminMeta>
             )}
@@ -1205,6 +1256,15 @@ const renderInstitutionAdminPage = (
               "Review awarding rules, create new rules, and test a rule before issuing when needed.",
             )}
             <section class="ct-admin ct-stack">
+              {input.rulesWorkspace?.listError !== null &&
+              input.rulesWorkspace?.listError !== undefined &&
+              input.rulesWorkspace.listError.length > 0 ? (
+                <AdminStatus tone="error">{input.rulesWorkspace.listError}</AdminStatus>
+              ) : input.rulesWorkspace?.listNotice !== null &&
+                input.rulesWorkspace?.listNotice !== undefined &&
+                input.rulesWorkspace.listNotice.length > 0 ? (
+                <AdminStatus tone="success">{input.rulesWorkspace.listNotice}</AdminStatus>
+              ) : null}
               {badgeRulesTableMarkup}
               {ruleAdvancedToolsMarkup}
             </section>

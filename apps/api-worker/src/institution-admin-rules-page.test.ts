@@ -1,18 +1,26 @@
+import type { BadgeIssuanceRuleRecord, BadgeIssuanceRuleVersionRecord } from "@credtrail/db";
 import { buildCompleteTrustEdCredentialMetadata } from "@credtrail/validation/testing";
 import { describe, expect, it } from "vitest";
 import {
   createEnv,
   fakeDb,
+  mockedCreateAuditLogDb,
   mockedCreateBadgeTemplate,
+  mockedDeleteDraftBadgeIssuanceRuleDb,
   mockedFindBadgeTemplateById,
   mockedFindBadgeTemplateImageRevisionById,
+  mockedFindBadgeIssuanceRuleById,
+  mockedFindTenantMembership,
   mockedListAccessibleTenantContextsForUser,
+  mockedListBadgeIssuanceRules,
+  mockedListBadgeIssuanceRuleVersions,
   mockedListBadgeTemplateImageRevisionCountsByTenant,
   mockedListBadgeTemplateImageRevisions,
   mockedListBadgeTemplates,
   mockedCountBadgeTemplateImageRevisions,
   mockedSetBadgeTemplateArchivedState,
   mockedUpdateBadgeTemplate,
+  sampleMembership,
 } from "./institution-admin-page-test-utils";
 import { app } from "./index";
 import { INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS } from "./ui/page-assets/content/institution-admin-badge-template-editor-js";
@@ -85,6 +93,273 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).not.toContain("Badge Templates (1)");
     expect(body).not.toContain("Create Tenant API Key");
     expect(body).not.toContain("Issued Badges Ledger");
+  });
+
+  it("shows visible edit links and eligible delete actions for draft and rejected rules", async () => {
+    const env = createEnv();
+    const makeRule = (
+      id: string,
+      name: string,
+      activeVersionId: string | null,
+    ): BadgeIssuanceRuleRecord => ({
+      id,
+      tenantId: "tenant_123",
+      name,
+      description: null,
+      badgeTemplateId: "badge_template_001",
+      lmsProviderKind: "canvas",
+      lmsConnectionId: "lms_canvas",
+      activeVersionId,
+      createdByUserId: "usr_admin",
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    });
+    const makeVersion = (
+      ruleId: string,
+      status: BadgeIssuanceRuleVersionRecord["status"],
+      versionNumber = 1,
+    ): BadgeIssuanceRuleVersionRecord => ({
+      id: `${ruleId}_v${String(versionNumber)}`,
+      tenantId: "tenant_123",
+      ruleId,
+      versionNumber,
+      status,
+      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+      changeSummary: "Initial draft",
+      createdByUserId: "usr_admin",
+      approvedByUserId: null,
+      approvedAt: null,
+      activatedByUserId: status === "active" ? "usr_admin" : null,
+      activatedAt: status === "active" ? "2026-02-18T12:30:00.000Z" : null,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    });
+    const versionsByRuleId = new Map<string, BadgeIssuanceRuleVersionRecord[]>([
+      ["brl_draft", [makeVersion("brl_draft", "draft")]],
+      ["brl_rejected", [makeVersion("brl_rejected", "rejected")]],
+      ["brl_pending", [makeVersion("brl_pending", "pending_approval")]],
+      ["brl_approved", [makeVersion("brl_approved", "approved")]],
+      ["brl_active", [makeVersion("brl_active", "active")]],
+      [
+        "brl_historical",
+        [makeVersion("brl_historical", "rejected", 2), makeVersion("brl_historical", "active")],
+      ],
+    ]);
+
+    mockedListBadgeIssuanceRules.mockResolvedValue([
+      makeRule("brl_draft", "Draft cleanup rule", null),
+      makeRule("brl_rejected", "Rejected cleanup rule", null),
+      makeRule("brl_pending", "Pending protected rule", null),
+      makeRule("brl_approved", "Approved protected rule", null),
+      makeRule("brl_active", "Active protected rule", "brl_active_v1"),
+      makeRule("brl_historical", "Historical protected rule", "brl_historical_v1"),
+    ]);
+    mockedListBadgeIssuanceRuleVersions.mockImplementation(async (_db, input) => {
+      return versionsByRuleId.get(input.ruleId) ?? [];
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain(
+      '<a class="ct-admin__rule-name-link" href="/tenants/tenant_123/admin/rules/brl_draft/edit"><strong>Draft cleanup rule</strong></a>',
+    );
+    expect(body).toContain(
+      '<a class="ct-admin__rule-name-link" href="/tenants/tenant_123/admin/rules/brl_rejected/edit"><strong>Rejected cleanup rule</strong></a>',
+    );
+    expect(body).toContain(
+      'class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary" href="/tenants/tenant_123/admin/rules/brl_draft/edit"',
+    );
+    expect(body).toContain(
+      'class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary" href="/tenants/tenant_123/admin/rules/brl_rejected/edit"',
+    );
+    expect(body).toContain('action="/tenants/tenant_123/admin/rules/brl_draft/delete"');
+    expect(body).toContain('action="/tenants/tenant_123/admin/rules/brl_rejected/delete"');
+    expect(body).toContain(
+      'data-confirm-message="Delete draft rule &quot;Draft cleanup rule&quot;? This removes its draft and rejected versions."',
+    );
+    expect(body).toContain("data-action-menu-trigger=");
+    expect(body).toContain("data-action-menu-panel");
+    expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_pending/edit");
+    expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_pending/delete");
+    expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_approved/edit");
+    expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_approved/delete");
+    expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_active/edit");
+    expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_active/delete");
+    expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_historical/edit");
+    expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_historical/delete");
+  });
+});
+
+describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
+  it("deletes eligible draft rules, audits the deletion, and shows a success flash", async () => {
+    const env = createEnv();
+    const deletedRule: BadgeIssuanceRuleRecord = {
+      id: "brl_draft",
+      tenantId: "tenant_123",
+      name: "Draft cleanup rule",
+      description: null,
+      badgeTemplateId: "badge_template_001",
+      lmsProviderKind: "canvas",
+      lmsConnectionId: "lms_canvas",
+      activeVersionId: null,
+      createdByUserId: "usr_admin",
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    };
+    const deletedVersion: BadgeIssuanceRuleVersionRecord = {
+      id: "brv_draft",
+      tenantId: "tenant_123",
+      ruleId: "brl_draft",
+      versionNumber: 1,
+      status: "draft",
+      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+      changeSummary: "Initial draft",
+      createdByUserId: "usr_admin",
+      approvedByUserId: null,
+      approvedAt: null,
+      activatedByUserId: null,
+      activatedAt: null,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    };
+
+    mockedDeleteDraftBadgeIssuanceRuleDb.mockResolvedValue({
+      status: "deleted",
+      rule: deletedRule,
+      versions: [deletedVersion],
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/brl_draft/delete",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/rules");
+    expect(mockedDeleteDraftBadgeIssuanceRuleDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_draft",
+    });
+    expect(mockedCreateAuditLogDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      actorUserId: "usr_admin",
+      action: "badge_rule.deleted",
+      targetType: "badge_rule",
+      targetId: "brl_draft",
+      metadata: {
+        role: "admin",
+        ruleName: "Draft cleanup rule",
+        versions: [
+          {
+            id: "brv_draft",
+            versionNumber: 1,
+            status: "draft",
+          },
+        ],
+      },
+    });
+
+    const flashCookie = adminFlashCookieHeader(response);
+    const flashResponse = await app.request(
+      "/tenants/tenant_123/admin/rules",
+      {
+        headers: {
+          Cookie: `better-auth.session_token=session-token; ${flashCookie}`,
+        },
+      },
+      env,
+    );
+    const flashBody = await flashResponse.text();
+
+    expect(flashResponse.status).toBe(200);
+    expect(flashBody).toContain("Draft rule deleted.");
+  });
+
+  it("blocks delete attempts for protected rules and shows an error flash", async () => {
+    const env = createEnv();
+    mockedDeleteDraftBadgeIssuanceRuleDb.mockResolvedValue({
+      status: "not_deletable",
+      rule: {
+        id: "brl_active",
+        tenantId: "tenant_123",
+        name: "Active protected rule",
+        description: null,
+        badgeTemplateId: "badge_template_001",
+        lmsProviderKind: "canvas",
+        lmsConnectionId: "lms_canvas",
+        activeVersionId: "brv_active",
+        createdByUserId: "usr_admin",
+        createdAt: "2026-02-18T12:00:00.000Z",
+        updatedAt: "2026-02-18T12:00:00.000Z",
+      },
+      versions: [
+        {
+          id: "brv_active",
+          tenantId: "tenant_123",
+          ruleId: "brl_active",
+          versionNumber: 1,
+          status: "active",
+          ruleJson:
+            '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+          changeSummary: "Initial draft",
+          createdByUserId: "usr_admin",
+          approvedByUserId: "usr_admin",
+          approvedAt: "2026-02-18T12:20:00.000Z",
+          activatedByUserId: "usr_admin",
+          activatedAt: "2026-02-18T12:30:00.000Z",
+          createdAt: "2026-02-18T12:00:00.000Z",
+          updatedAt: "2026-02-18T12:30:00.000Z",
+        },
+      ],
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/brl_active/delete",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/rules");
+    expect(mockedCreateAuditLogDb).not.toHaveBeenCalled();
+
+    const flashCookie = adminFlashCookieHeader(response);
+    const flashResponse = await app.request(
+      "/tenants/tenant_123/admin/rules",
+      {
+        headers: {
+          Cookie: `better-auth.session_token=session-token; ${flashCookie}`,
+        },
+      },
+      env,
+    );
+    const flashBody = await flashResponse.text();
+
+    expect(flashResponse.status).toBe(200);
+    expect(flashBody).toContain("Only never-active draft or rejected rules can be deleted.");
   });
 });
 
@@ -1478,5 +1753,181 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain(
       "/account/organizations?next=%2Ftenants%2Ftenant_123%2Fadmin%2Frules%2Fnew",
     );
+  });
+});
+
+describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
+  it("loads eligible draft rule settings into the builder and keeps retesting available", async () => {
+    const env = createEnv();
+    const editRule: BadgeIssuanceRuleRecord = {
+      id: "brl_draft",
+      tenantId: "tenant_123",
+      name: "Draft QA Rule",
+      description: "Fix the score threshold before review.",
+      badgeTemplateId: "badge_template_001",
+      lmsProviderKind: "canvas",
+      lmsConnectionId: "lms_canvas",
+      activeVersionId: null,
+      createdByUserId: "usr_admin",
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:10:00.000Z",
+    };
+    const editVersion: BadgeIssuanceRuleVersionRecord = {
+      id: "brv_draft_2",
+      tenantId: "tenant_123",
+      ruleId: "brl_draft",
+      versionNumber: 2,
+      status: "rejected",
+      ruleJson:
+        '{"conditions":{"type":"assignment_submission","courseId":"course_101","assignmentId":"assignment_1","minScore":90},"options":{"reviewOnMissingFacts":true}}',
+      changeSummary: "Raise final assignment score",
+      createdByUserId: "usr_admin",
+      approvedByUserId: null,
+      approvedAt: null,
+      activatedByUserId: null,
+      activatedAt: null,
+      createdAt: "2026-02-18T12:10:00.000Z",
+      updatedAt: "2026-02-18T12:10:00.000Z",
+    };
+
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(editRule);
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([editVersion]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/brl_draft/edit",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(mockedListBadgeIssuanceRules).not.toHaveBeenCalled();
+    expect(mockedListBadgeIssuanceRuleVersions).toHaveBeenCalledTimes(1);
+    expect(mockedListBadgeIssuanceRuleVersions).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_draft",
+    });
+    expect(body).toContain("Edit Badge Awarding Rule");
+    expect(body).toContain(
+      "Review the current settings, test changes, then save a new draft version.",
+    );
+    expect(body).toContain(
+      "Try the rule with a sample learner, then save a new draft version for review.",
+    );
+    expect(body).toContain('id="rule-builder-test"');
+    expect(body).toContain("Save changes as draft");
+    expect(body).not.toContain("Copy existing rule settings");
+    expect(body).toContain('value="Draft QA Rule"');
+    expect(body).toContain('data-rule-builder-preserve-name="true"');
+    expect(body).toContain('value="Fix the score threshold before review."');
+    expect(body).toContain(
+      '<option value="badge_template_001" selected="">TypeScript Foundations (badge_template_001)</option>',
+    );
+    expect(body).toContain(
+      '<option value="lms_canvas" data-provider-kind="canvas" selected="">Canvas Test (Canvas)</option>',
+    );
+    expect(body).toContain("&quot;editRule&quot;:{&quot;id&quot;:&quot;brl_draft&quot;");
+    expect(body).toContain("&quot;latestVersionStatus&quot;:&quot;rejected&quot;");
+    expect(body).toContain("&quot;assignmentId&quot;:&quot;assignment_1&quot;");
+    expect(body).toContain("&quot;minScore&quot;:90");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "const ruleBuilderSubmitApiPath = isRuleBuilderEditMode",
+    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "badgeRuleApiPath + '/' + encodeURIComponent(editRuleContext.id) + '/draft'",
+    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("New draft version saved.");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("Rule draft created.");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("New draft version saved: ");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("Rule draft created: ");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "New draft version saved via visual builder",
+    );
+  });
+
+  it("keeps the admin builder restricted to owner and admin roles", async () => {
+    const env = createEnv();
+    mockedFindTenantMembership.mockResolvedValue(sampleMembership("issuer"));
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/brl_draft/edit",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    expect(response.status).toBe(403);
+    expect(mockedFindBadgeIssuanceRuleById).not.toHaveBeenCalled();
+  });
+
+  it("redirects protected rules back to the rules page with an error flash", async () => {
+    const env = createEnv();
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue({
+      id: "brl_active",
+      tenantId: "tenant_123",
+      name: "Active protected rule",
+      description: null,
+      badgeTemplateId: "badge_template_001",
+      lmsProviderKind: "canvas",
+      lmsConnectionId: "lms_canvas",
+      activeVersionId: "brv_active",
+      createdByUserId: "usr_admin",
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    });
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
+      {
+        id: "brv_active",
+        tenantId: "tenant_123",
+        ruleId: "brl_active",
+        versionNumber: 1,
+        status: "active",
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+        changeSummary: "Initial draft",
+        createdByUserId: "usr_admin",
+        approvedByUserId: "usr_admin",
+        approvedAt: "2026-02-18T12:20:00.000Z",
+        activatedByUserId: "usr_admin",
+        activatedAt: "2026-02-18T12:30:00.000Z",
+        createdAt: "2026-02-18T12:00:00.000Z",
+        updatedAt: "2026-02-18T12:30:00.000Z",
+      },
+    ]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/brl_active/edit",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/rules");
+
+    const flashCookie = adminFlashCookieHeader(response);
+    const flashResponse = await app.request(
+      "/tenants/tenant_123/admin/rules",
+      {
+        headers: {
+          Cookie: `better-auth.session_token=session-token; ${flashCookie}`,
+        },
+      },
+      env,
+    );
+    const flashBody = await flashResponse.text();
+
+    expect(flashResponse.status).toBe(200);
+    expect(flashBody).toContain("Only never-active draft or rejected rules can be edited.");
   });
 });

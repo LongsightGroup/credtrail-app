@@ -90,6 +90,10 @@ export const tenantBadgeRuleActivateAdminPath = (
   return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(versionId)}/activate`;
 };
 
+export const tenantBadgeRuleDeleteAdminPath = (tenantId: string, ruleId: string): string => {
+  return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/delete`;
+};
+
 export const tenantAccessEnterpriseAuthPolicyPath = (tenantId: string): string => {
   return `${buildAccessAuthenticationAdminPath(tenantId)}/policy`;
 };

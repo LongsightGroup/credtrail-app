@@ -4,10 +4,12 @@ type PostgresConnectionMode = "pool" | "single-use";
 
 interface QueryExecutor {
   query(sql: string, params: readonly unknown[]): Promise<readonly unknown[]>;
+  transaction?<T>(callback: (queryExecutor: QueryExecutor) => Promise<T>): Promise<T>;
 }
 
 type PgPoolLike = import("pg").Pool;
 type PgClientLike = import("pg").Client;
+type PgPoolClientLike = import("pg").PoolClient;
 
 const UNQUOTED_ALIAS_PATTERN = /\bAS\s+([A-Za-z_][A-Za-z0-9_]*)/gi;
 
@@ -73,6 +75,14 @@ const loadPgPool = async (databaseUrl: string): Promise<PgPoolLike> => {
 
 const createPgQueryExecutor = (databaseUrl: string): QueryExecutor => {
   const poolPromise = loadPgPool(databaseUrl);
+  const createClientExecutor = (client: PgPoolClientLike): QueryExecutor => {
+    return {
+      async query(sql, params) {
+        const result = await client.query(sql, [...params]);
+        return result.rows as readonly unknown[];
+      },
+    };
+  };
 
   return {
     async query(sql, params) {
@@ -80,10 +90,35 @@ const createPgQueryExecutor = (databaseUrl: string): QueryExecutor => {
       const result = await pool.query(sql, [...params]);
       return result.rows as readonly unknown[];
     },
+    async transaction(callback) {
+      const pool = await poolPromise;
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+        const result = await callback(createClientExecutor(client));
+        await client.query("COMMIT");
+        return result;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
   };
 };
 
 const createSingleUsePgQueryExecutor = (databaseUrl: string): QueryExecutor => {
+  const createClientExecutor = (client: PgClientLike): QueryExecutor => {
+    return {
+      async query(sql, params) {
+        const result = await client.query(sql, [...params]);
+        return result.rows as readonly unknown[];
+      },
+    };
+  };
+
   return {
     async query(sql, params) {
       const pgModule = await import("pg");
@@ -95,6 +130,25 @@ const createSingleUsePgQueryExecutor = (databaseUrl: string): QueryExecutor => {
         await client.connect();
         const result = await client.query(sql, [...params]);
         return result.rows as readonly unknown[];
+      } finally {
+        await client.end();
+      }
+    },
+    async transaction(callback) {
+      const pgModule = await import("pg");
+      const client: PgClientLike = new pgModule.Client({
+        connectionString: databaseUrl,
+      });
+
+      try {
+        await client.connect();
+        await client.query("BEGIN");
+        const result = await callback(createClientExecutor(client));
+        await client.query("COMMIT");
+        return result;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
       } finally {
         await client.end();
       }
@@ -178,6 +232,16 @@ class PostgresDatabase implements SqlDatabase {
 
   prepare(sql: string): SqlPreparedStatement {
     return new PostgresPreparedStatement(this.queryExecutor, sql);
+  }
+
+  async transaction<T>(callback: (db: SqlDatabase) => Promise<T>): Promise<T> {
+    if (typeof this.queryExecutor.transaction !== "function") {
+      throw new Error("Postgres query executor does not support transactions");
+    }
+
+    return this.queryExecutor.transaction(async (queryExecutor) => {
+      return callback(new PostgresDatabase(queryExecutor));
+    });
   }
 }
 

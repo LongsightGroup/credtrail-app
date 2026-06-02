@@ -23,6 +23,7 @@ const {
   mockedGetTenantReportingTrends,
   mockedResolveBetterAuthPrincipal,
   mockedResolveBetterAuthRequestedTenant,
+  mockedDeleteDraftBadgeIssuanceRule,
 } = vi.hoisted(() => {
   return {
     mockedFindLearnerProfileById: vi.fn(),
@@ -47,11 +48,13 @@ const {
     mockedGetTenantReportingTrends: vi.fn(),
     mockedResolveBetterAuthPrincipal: vi.fn(),
     mockedResolveBetterAuthRequestedTenant: vi.fn(),
+    mockedDeleteDraftBadgeIssuanceRule: vi.fn(),
   };
 });
 
 export {
   mockedCreateLearnerRecordImportPreview,
+  mockedDeleteDraftBadgeIssuanceRule,
   mockedEnqueueJobQueueMessageOnce,
   mockedFindActiveLearnerRecordImportPreview,
   mockedFindLearnerProfileById,
@@ -101,6 +104,7 @@ vi.mock("@credtrail/db", async () => {
     listBadgeIssuanceRuleVersions: vi.fn(),
     listBadgeIssuanceRuleEvaluations: vi.fn().mockResolvedValue([]),
     listBadgeIssuanceRuleValueLists: vi.fn().mockResolvedValue([]),
+    deleteDraftBadgeIssuanceRule: mockedDeleteDraftBadgeIssuanceRule,
     createBadgeIssuanceRuleValueList: vi.fn(),
     findBadgeIssuanceRuleEvaluationById: vi.fn(),
     resolveBadgeIssuanceRuleEvaluationReview: vi.fn(),
@@ -185,6 +189,7 @@ import {
   listBadgeIssuanceRuleEvaluations,
   listBadgeIssuanceRuleValueLists,
   createBadgeIssuanceRuleValueList,
+  deleteDraftBadgeIssuanceRule,
   findBadgeIssuanceRuleEvaluationById,
   resolveBadgeIssuanceRuleEvaluationReview,
   findBadgeIssuanceRuleById,
@@ -229,6 +234,7 @@ export const mockedFindBadgeTemplateImageRevisionById = vi.mocked(
 export const mockedSetBadgeTemplateArchivedState = vi.mocked(setBadgeTemplateArchivedState);
 export const mockedCreateBadgeTemplate = vi.mocked(createBadgeTemplate);
 export const mockedUpdateBadgeTemplate = vi.mocked(updateBadgeTemplate);
+export const mockedCreateAuditLogDb = vi.mocked(createAuditLog);
 export const mockedListAuditLogs = vi.mocked(listAuditLogs);
 export const mockedListBadgeTemplateImageRevisions = vi.mocked(listBadgeTemplateImageRevisions);
 export const mockedListBadgeTemplateOwnershipEvents = vi.mocked(listBadgeTemplateOwnershipEvents);
@@ -249,6 +255,7 @@ export const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRu
 export const mockedListBadgeIssuanceRuleEvaluations = vi.mocked(listBadgeIssuanceRuleEvaluations);
 export const mockedListBadgeIssuanceRuleValueLists = vi.mocked(listBadgeIssuanceRuleValueLists);
 export const mockedCreateBadgeIssuanceRuleValueList = vi.mocked(createBadgeIssuanceRuleValueList);
+export const mockedDeleteDraftBadgeIssuanceRuleDb = vi.mocked(deleteDraftBadgeIssuanceRule);
 export const mockedFindBadgeIssuanceRuleEvaluationById = vi.mocked(
   findBadgeIssuanceRuleEvaluationById,
 );
@@ -624,8 +631,8 @@ beforeEach(() => {
   mockedListBadgeTemplateImageRevisions.mockResolvedValue([]);
   mockedCountBadgeTemplateImageRevisions.mockReset();
   mockedCountBadgeTemplateImageRevisions.mockResolvedValue(0);
-  vi.mocked(createAuditLog).mockReset();
-  vi.mocked(createAuditLog).mockResolvedValue({
+  mockedCreateAuditLogDb.mockReset();
+  mockedCreateAuditLogDb.mockResolvedValue({
     id: "aud_test",
     tenantId: "tenant_123",
     actorUserId: "usr_admin",
@@ -743,6 +750,8 @@ beforeEach(() => {
     createdAt: "2026-02-18T12:00:00.000Z",
     updatedAt: "2026-02-18T12:00:00.000Z",
   });
+  mockedDeleteDraftBadgeIssuanceRuleDb.mockReset();
+  mockedDeleteDraftBadgeIssuanceRuleDb.mockResolvedValue({ status: "not_found" });
   mockedFindBadgeIssuanceRuleEvaluationById.mockReset();
   mockedFindBadgeIssuanceRuleEvaluationById.mockResolvedValue(null);
   mockedResolveBadgeIssuanceRuleEvaluationReview.mockReset();

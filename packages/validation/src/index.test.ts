@@ -25,6 +25,7 @@ import {
   parseTenantLmsConnectionPathParams,
   parseUpsertTenantLmsConnectionRequest,
   parseCreateBadgeIssuanceRuleRequest,
+  parseUpdateBadgeIssuanceRuleDraftRequest,
   parseCreateBadgeIssuanceRuleValueListRequest,
   parseCreateBadgeIssuanceRuleVersionRequest,
   parseBadgeIssuanceRuleReviewQueueQuery,
@@ -1087,6 +1088,20 @@ describe("badge issuance rule parsers", () => {
       ],
       changeSummary: "Limit issuance to spring term",
     });
+    const updateDraftRequest = parseUpdateBadgeIssuanceRuleDraftRequest({
+      name: "CS101 Excellence Rule Revised",
+      description: "",
+      badgeTemplateId: "badge_template_cs101",
+      lmsConnectionId: "lms_123",
+      definition: createRequest.definition,
+      approvalChain: [
+        {
+          requiredRole: "admin",
+          label: "Registrar approval",
+        },
+      ],
+      changeSummary: "Tighten course completion rule",
+    });
     const decisionRequest = parseDecideBadgeIssuanceRuleVersionRequest({
       decision: "approved",
       comment: "Meets institutional governance requirements",
@@ -1164,6 +1179,8 @@ describe("badge issuance rule parsers", () => {
     expect(createRequest.approvalChain?.[0]?.requiredRole).toBe("issuer");
     expect(JSON.stringify(createRequest.definition.conditions)).toContain("survey_completion");
     expect(JSON.stringify(createRequest.definition.conditions)).toContain("custom_field");
+    expect(updateDraftRequest.name).toBe("CS101 Excellence Rule Revised");
+    expect(updateDraftRequest.description).toBe("");
     expect(versionRequest.changeSummary).toContain("spring");
     expect(versionRequest.approvalChain).toHaveLength(1);
     expect(decisionRequest.decision).toBe("approved");

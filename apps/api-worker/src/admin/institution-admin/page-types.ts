@@ -284,6 +284,11 @@ export interface InstitutionAdminReviewQueueWorkspace {
   listError: string | null;
 }
 
+export interface InstitutionAdminRulesWorkspace {
+  listNotice: string | null;
+  listError: string | null;
+}
+
 export interface InstitutionAdminRuleValueListsWorkspace {
   valueLists: readonly BadgeIssuanceRuleValueListRecord[];
   listNotice: string | null;
@@ -404,6 +409,7 @@ export interface InstitutionAdminPageInput {
   apiKeysWorkspace?: InstitutionAdminApiKeysWorkspace;
   issuedBadgesWorkspace?: InstitutionAdminIssuedBadgesWorkspace;
   reviewQueueWorkspace?: InstitutionAdminReviewQueueWorkspace;
+  rulesWorkspace?: InstitutionAdminRulesWorkspace;
   ruleValueListsWorkspace?: InstitutionAdminRuleValueListsWorkspace;
   lmsConnectionsWorkspace?: InstitutionAdminLmsConnectionsWorkspace;
   lmsConnectionSetupWorkspace?: InstitutionAdminLmsConnectionSetupWorkspace;

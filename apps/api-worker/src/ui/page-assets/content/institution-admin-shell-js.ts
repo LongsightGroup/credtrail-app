@@ -1,6 +1,6 @@
 import { INSTITUTION_ADMIN_SIDEBAR_JS } from "./institution-admin-sidebar-js";
 
-const INSTITUTION_ADMIN_SHELL_BEHAVIOR_JS = `
+export const INSTITUTION_ADMIN_SHELL_BEHAVIOR_JS = `
 (() => {
   const actionMenuGap = 4;
   const viewportPadding = 8;

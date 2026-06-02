@@ -30,6 +30,7 @@ vi.mock("@credtrail/db", async () => {
     createBadgeIssuanceRule: vi.fn(),
     createBadgeIssuanceRuleValueList: vi.fn(),
     createBadgeIssuanceRuleVersion: vi.fn(),
+    updateBadgeIssuanceRuleDraft: vi.fn(),
     submitBadgeIssuanceRuleVersionForApproval: vi.fn(),
     decideBadgeIssuanceRuleVersion: vi.fn(),
     activateBadgeIssuanceRuleVersion: vi.fn(),
@@ -124,6 +125,7 @@ import {
   listTenantLmsConnections,
   resolveBadgeIssuanceRuleEvaluationReview,
   submitBadgeIssuanceRuleVersionForApproval,
+  updateBadgeIssuanceRuleDraft,
   upsertTenantLmsConnection,
   type AuditLogRecord,
   type BadgeIssuanceRuleEvaluationRecord,
@@ -144,6 +146,7 @@ const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
 const mockedCreateBadgeIssuanceRule = vi.mocked(createBadgeIssuanceRule);
 const mockedCreateBadgeIssuanceRuleVersion = vi.mocked(createBadgeIssuanceRuleVersion);
+const mockedUpdateBadgeIssuanceRuleDraft = vi.mocked(updateBadgeIssuanceRuleDraft);
 const mockedCreateBadgeIssuanceRuleValueList = vi.mocked(createBadgeIssuanceRuleValueList);
 const mockedSubmitBadgeIssuanceRuleVersionForApproval = vi.mocked(
   submitBadgeIssuanceRuleVersionForApproval,
@@ -425,6 +428,7 @@ beforeEach(() => {
   mockedCreateBadgeIssuanceRuleValueList.mockReset();
   mockedCreateBadgeIssuanceRuleValueList.mockResolvedValue(sampleValueListRecord());
   mockedCreateBadgeIssuanceRuleVersion.mockReset();
+  mockedUpdateBadgeIssuanceRuleDraft.mockReset();
   mockedSubmitBadgeIssuanceRuleVersionForApproval.mockReset();
   mockedDecideBadgeIssuanceRuleVersion.mockReset();
   mockedActivateBadgeIssuanceRuleVersion.mockReset();
@@ -546,6 +550,146 @@ describe("badge rule routes", () => {
     expect(response.status).toBe(201);
     expect(mockedCreateBadgeIssuanceRule).toHaveBeenCalledTimes(1);
     expect(mockedCreateAuditLog).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets issuer-role API clients save editable badge issuance rule changes as a new draft version", async () => {
+    const env = createEnv();
+    const updatedVersion = sampleVersion({
+      id: "brv_124",
+      versionNumber: 2,
+      ruleJson: JSON.stringify({
+        conditions: {
+          type: "assignment_submission",
+          courseId: "course_101",
+          assignmentId: "assignment_1",
+          minScore: 90,
+        },
+      }),
+    });
+    mockedUpdateBadgeIssuanceRuleDraft.mockResolvedValue({
+      status: "updated",
+      rule: sampleRule({
+        name: "CS101 Rule Revised",
+        activeVersionId: null,
+      }),
+      version: updatedVersion,
+    });
+    mockedFindTenantMembership.mockResolvedValue(sampleMembership({ role: "issuer" }));
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules/brl_123/draft",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "CS101 Rule Revised",
+          description: "",
+          badgeTemplateId: "badge_template_cs101",
+          lmsConnectionId: "lms_123",
+          definition: {
+            conditions: {
+              type: "assignment_submission",
+              courseId: "course_101",
+              assignmentId: "assignment_1",
+              minScore: 90,
+            },
+          },
+          approvalChain: [
+            {
+              requiredRole: "admin",
+              label: "Registrar review",
+            },
+          ],
+          changeSummary: "Retuned assignment score threshold",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{
+      version: {
+        id: string;
+        versionNumber: number;
+        definition: { conditions: { minScore?: number } };
+      };
+    }>();
+
+    expect(response.status).toBe(200);
+    expect(mockedUpdateBadgeIssuanceRuleDraft).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_123",
+      name: "CS101 Rule Revised",
+      badgeTemplateId: "badge_template_cs101",
+      lmsProviderKind: "canvas",
+      lmsConnectionId: "lms_123",
+      ruleJson: JSON.stringify({
+        conditions: {
+          type: "assignment_submission",
+          courseId: "course_101",
+          assignmentId: "assignment_1",
+          minScore: 90,
+        },
+      }),
+      approvalChain: [
+        {
+          requiredRole: "admin",
+          label: "Registrar review",
+        },
+      ],
+      changeSummary: "Retuned assignment score threshold",
+      createdByUserId: "usr_123",
+    });
+    expect(body.version.id).toBe("brv_124");
+    expect(body.version.versionNumber).toBe(2);
+    expect(body.version.definition.conditions.minScore).toBe(90);
+    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        action: "badge_rule.draft_updated",
+        targetId: "brl_123",
+      }),
+    );
+  });
+
+  it("returns conflict when saving a protected badge issuance rule draft", async () => {
+    const env = createEnv();
+    mockedUpdateBadgeIssuanceRuleDraft.mockResolvedValue({
+      status: "not_editable",
+      rule: sampleRule(),
+      versions: [sampleVersion({ status: "active" })],
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules/brl_123/draft",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "CS101 Rule Revised",
+          badgeTemplateId: "badge_template_cs101",
+          lmsConnectionId: "lms_123",
+          definition: {
+            conditions: {
+              type: "grade_threshold",
+              courseId: "course_101",
+              minScore: 80,
+            },
+          },
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toContain("never-active draft or rejected");
   });
 
   it("lists LMS connections without returning secrets", async () => {

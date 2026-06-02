@@ -6,6 +6,7 @@ export const ADMIN_LIST_MESSAGE_MAX_LENGTH = 200;
 export type AdminListMessageWorkspace =
   | "rules"
   | "operations_review_queue"
+  | "rule_value_lists"
   | "issued_badges"
   | "access_members"
   | "access_governance"

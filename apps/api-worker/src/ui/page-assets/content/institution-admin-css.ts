@@ -3518,6 +3518,13 @@ a.ct-admin__workspace-card:active {
   align-items: center;
   min-height: 2.75rem;
 }
+.ct-admin__table .ct-admin__rule-name-link {
+  display: inline;
+  min-height: 0;
+  color: var(--ct-theme-text-title);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
 .ct-admin__empty {
   color: var(--ct-color-ink-soft);
   text-align: center;

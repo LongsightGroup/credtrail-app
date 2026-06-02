@@ -226,6 +226,10 @@ export const institutionAdminRuleBuilderPage = (input: {
   lmsConnections: readonly TenantLmsConnectionRecord[];
   valueLists: readonly RuleValueListBuilderContextEntry[];
   selectedBadgeTemplateId?: string;
+  editRule?: {
+    rule: BadgeIssuanceRuleRecord;
+    latestVersion: BadgeIssuanceRuleVersionRecord;
+  };
   switchOrganizationPath?: string | null;
 }): AppPage => {
   const versionsByRuleId = new Map<string, BadgeIssuanceRuleVersionRecord[]>();
@@ -254,8 +258,23 @@ export const institutionAdminRuleBuilderPage = (input: {
   const showcasePath = `/showcase/${encodeURIComponent(input.tenant.id)}`;
   const switchOrganizationPath = input.switchOrganizationPath?.trim() ?? "";
   const userLabel = input.userEmail ?? input.userId;
+  const editRule = input.editRule ?? null;
+  const isEditMode = editRule !== null;
 
-  const selectedBadgeTemplateId = input.selectedBadgeTemplateId ?? null;
+  const editDefinition = (() => {
+    if (editRule === null) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(editRule.latestVersion.ruleJson) as unknown;
+    } catch {
+      return null;
+    }
+  })();
+
+  const selectedBadgeTemplateId =
+    editRule?.rule.badgeTemplateId ?? input.selectedBadgeTemplateId ?? null;
   const hasSelectedBadgeTemplate =
     selectedBadgeTemplateId !== null &&
     input.badgeTemplates.some((template) => template.id === selectedBadgeTemplateId);
@@ -305,7 +324,13 @@ export const institutionAdminRuleBuilderPage = (input: {
     return connectedLmsConnections[0]?.id ?? "";
   };
 
-  const defaultLmsConnectionId = inferDefaultLmsConnectionId();
+  const editLmsConnectionId =
+    editRule?.rule.lmsConnectionId !== null &&
+    editRule?.rule.lmsConnectionId !== undefined &&
+    connectedLmsConnections.some((connection) => connection.id === editRule.rule.lmsConnectionId)
+      ? editRule.rule.lmsConnectionId
+      : null;
+  const defaultLmsConnectionId = editLmsConnectionId ?? inferDefaultLmsConnectionId();
   const defaultLmsConnection =
     connectedLmsConnections.find((connection) => connection.id === defaultLmsConnectionId) ??
     connectedLmsConnections[0] ??
@@ -373,6 +398,20 @@ export const institutionAdminRuleBuilderPage = (input: {
       badgeTemplates: badgeTemplateCourseContext,
       fallbackCourseId: initialTestCourseId,
       valueLists: input.valueLists,
+      editRule:
+        editRule === null
+          ? null
+          : {
+              id: editRule.rule.id,
+              name: editRule.rule.name,
+              description: editRule.rule.description,
+              badgeTemplateId: editRule.rule.badgeTemplateId,
+              lmsConnectionId: editRule.rule.lmsConnectionId,
+              latestVersionId: editRule.latestVersion.id,
+              latestVersionNumber: editRule.latestVersion.versionNumber,
+              latestVersionStatus: editRule.latestVersion.status,
+              definition: editDefinition,
+            },
       lmsConnections: connectedLmsConnections.map((connection) => ({
         id: connection.id,
         displayName: connection.displayName,
@@ -428,14 +467,16 @@ export const institutionAdminRuleBuilderPage = (input: {
         contentClassName="ct-admin-content ct-admin-content--rule-builder"
       >
         <div class="ct-admin-page-header ct-admin-page-header--compact">
-          <h1>Badge Awarding Rule</h1>
+          <h1>{isEditMode ? "Edit Badge Awarding Rule" : "Badge Awarding Rule"}</h1>
           <p>
-            Define when learners earn this badge. Complete each step, then save a draft for review.
+            {isEditMode
+              ? "Review the current settings, test changes, then save a new draft version."
+              : "Define when learners earn this badge. Complete each step, then save a draft for review."}
           </p>
         </div>
 
         <section class="ct-admin__builder-shell ct-stack">
-          {ruleCloneOptions.length > 0 ? (
+          {!isEditMode && ruleCloneOptions.length > 0 ? (
             <details class="ct-admin__builder-clone ct-stack">
               <summary>Copy existing rule settings</summary>
               <p class="ct-admin__hint">
@@ -616,11 +657,18 @@ export const institutionAdminRuleBuilderPage = (input: {
                             <input
                               name="description"
                               type="text"
+                              value={editRule?.rule.description ?? ""}
                               placeholder="Award when learner completes the course with strong performance."
                             />
                           </AdminField>
                         </div>
-                        <input type="hidden" name="name" id="rule-builder-name" value="" />
+                        <input
+                          type="hidden"
+                          name="name"
+                          id="rule-builder-name"
+                          value={editRule?.rule.name ?? ""}
+                          data-rule-builder-preserve-name={isEditMode ? "true" : "false"}
+                        />
                       </section>
                       <footer id="rule-builder-step-footer" class="ct-admin__builder-step-footer">
                         <p
@@ -641,7 +689,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                             form="rule-create-form"
                             hidden={true}
                           >
-                            Create rule draft
+                            {isEditMode ? "Save changes as draft" : "Create rule draft"}
                           </AdminButton>
                         </div>
                         <AdminStatus id="rule-create-status"></AdminStatus>
@@ -857,7 +905,11 @@ export const institutionAdminRuleBuilderPage = (input: {
                       stepNumber={3}
                       target="test"
                       title="Test and submit"
-                      description="Try the rule, then save the draft."
+                      description={
+                        isEditMode
+                          ? "Try the rule, then save a new draft version."
+                          : "Try the rule, then save the draft."
+                      }
                     />
                   </div>
                   <div class="ct-admin__stepper-content">
@@ -869,7 +921,11 @@ export const institutionAdminRuleBuilderPage = (input: {
                     >
                       <header class="ct-admin__step-head ct-stack">
                         <h3 tabindex={-1}>Test and submit</h3>
-                        <p>Try the rule with a sample learner, then save the draft for review.</p>
+                        <p>
+                          {isEditMode
+                            ? "Try the rule with a sample learner, then save a new draft version for review."
+                            : "Try the rule with a sample learner, then save the draft for review."}
+                        </p>
                       </header>
                       <div class="ct-admin__builder-test-layout ct-stack">
                         <AdminFieldset legend="Test with learner">

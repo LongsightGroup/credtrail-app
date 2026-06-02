@@ -1,7 +1,10 @@
 import type { SqlDatabase, TenantMembershipRole } from "@credtrail/db";
 import {
+  canEditBadgeIssuanceRuleDraft,
+  findBadgeIssuanceRuleById,
   findTenantById,
   findUserById,
+  latestBadgeIssuanceRuleVersion,
   listAccessibleTenantContextsForUser,
   listBadgeIssuanceRules,
   listBadgeIssuanceRuleVersions,
@@ -9,6 +12,7 @@ import {
   listTenantLmsConnections,
 } from "@credtrail/db";
 import {
+  parseBadgeIssuanceRulePathParams,
   parseBadgeTemplatePathParams,
   parseTenantLmsConnectionPathParams,
   parseTenantPathParams,
@@ -27,6 +31,7 @@ import {
 } from "../admin/rule-value-lists-presentation";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";
 import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
+import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import type { AppPage } from "../ui/render-page";
 import { renderAppPage } from "../ui/render-page";
@@ -361,6 +366,8 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     );
   });
 
+  // These builder pages live in the institution-admin shell, so they require
+  // owner/admin access even though badge-rule authoring APIs also allow issuers.
   app.get("/tenants/:tenantId/admin/rules/new", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
     const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
@@ -463,6 +470,124 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
         lmsConnections,
         valueLists: toRuleValueListBuilderContextEntries(valueLists),
         ...(selectedBadgeTemplateId === undefined ? {} : { selectedBadgeTemplateId }),
+        switchOrganizationPath,
+      }),
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/rules/:ruleId/edit", async (c) => {
+    const pathParams = parseBadgeIssuanceRulePathParams(c.req.param());
+    const nextPath = `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules/${encodeURIComponent(
+      pathParams.ruleId,
+    )}/edit`;
+    const rulesPath = `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules`;
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+
+    if (roleCheck instanceof Response) {
+      if (roleCheck.status === 401) {
+        return redirectToTenantLogin(c, pathParams.tenantId, nextPath);
+      }
+
+      if (roleCheck.status === 423) {
+        return c.redirect(
+          buildLocalTwoFactorPath({
+            tenantId: pathParams.tenantId,
+            nextPath,
+            setup: true,
+            reason: "break_glass_mfa_setup_pending",
+          }),
+          302,
+        );
+      }
+
+      if (roleCheck.status === 403) {
+        c.header("Cache-Control", "no-store");
+        return renderAppPage(c, adminRoleRequiredPage(pathParams.tenantId), 403);
+      }
+
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const db = resolveDatabase(c.env);
+    const tenant = await findTenantById(db, pathParams.tenantId);
+
+    if (tenant === null) {
+      return c.json(
+        {
+          error: "Tenant not found",
+        },
+        404,
+      );
+    }
+
+    const editRule = await findBadgeIssuanceRuleById(db, pathParams.tenantId, pathParams.ruleId);
+
+    if (editRule === null) {
+      await setAdminListMessageFlash(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        workspace: "rules",
+        tone: "error",
+        message: "That rule was not found.",
+      });
+
+      return c.redirect(rulesPath, 303);
+    }
+
+    const editRuleVersions = await listBadgeIssuanceRuleVersions(db, {
+      tenantId: pathParams.tenantId,
+      ruleId: pathParams.ruleId,
+    });
+    const latestVersion = latestBadgeIssuanceRuleVersion(editRuleVersions);
+
+    if (!canEditBadgeIssuanceRuleDraft(editRule, editRuleVersions) || latestVersion === null) {
+      await setAdminListMessageFlash(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        workspace: "rules",
+        tone: "error",
+        message: "Only never-active draft or rejected rules can be edited.",
+      });
+
+      return c.redirect(rulesPath, 303);
+    }
+
+    const [currentUser, badgeTemplates, lmsConnections, accessibleTenantContexts, valueLists] =
+      await Promise.all([
+        findUserById(db, session.userId),
+        listBadgeTemplates(db, {
+          tenantId: pathParams.tenantId,
+          includeArchived: false,
+        }),
+        listTenantLmsConnections(db, pathParams.tenantId),
+        listAccessibleTenantContextsForUser(db, session.userId),
+        loadTenantBadgeRuleValueLists(db, pathParams.tenantId),
+      ]);
+    const requestUrl = new URL(c.req.url);
+    const switchOrganizationPath =
+      accessibleTenantContexts.length > 1
+        ? buildOrganizationsPath(`${requestUrl.pathname}${requestUrl.search}`)
+        : null;
+
+    c.header("Cache-Control", "no-store");
+
+    return renderAppPage(
+      c,
+      institutionAdminRuleBuilderPage({
+        tenant,
+        userId: session.userId,
+        ...(currentUser?.email === undefined ? {} : { userEmail: currentUser.email }),
+        membershipRole,
+        badgeTemplates,
+        badgeRules: [editRule],
+        badgeRuleVersions: editRuleVersions,
+        lmsConnections,
+        valueLists: toRuleValueListBuilderContextEntries(valueLists),
+        editRule: {
+          rule: editRule,
+          latestVersion,
+        },
         switchOrganizationPath,
       }),
     );

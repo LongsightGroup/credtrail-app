@@ -38,4 +38,25 @@ export interface SqlPreparedStatement {
 
 export interface SqlDatabase {
   prepare(sql: string): SqlPreparedStatement;
+  transaction?<T>(callback: (db: SqlDatabase) => Promise<T>): Promise<T>;
 }
+
+export const runSqlTransaction = async <T>(
+  db: SqlDatabase,
+  callback: (db: SqlDatabase) => Promise<T>,
+): Promise<T> => {
+  if (typeof db.transaction === "function") {
+    return db.transaction(callback);
+  }
+
+  await db.prepare("BEGIN").run();
+
+  try {
+    const result = await callback(db);
+    await db.prepare("COMMIT").run();
+    return result;
+  } catch (error) {
+    await db.prepare("ROLLBACK").run();
+    throw error;
+  }
+};

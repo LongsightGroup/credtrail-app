@@ -9,6 +9,7 @@ import {
   listBadgeIssuanceRuleVersionApprovalSteps,
   listBadgeIssuanceRuleVersions,
   submitBadgeIssuanceRuleVersionForApproval,
+  tenantMembershipRoleSatisfiesMinimumRole,
   type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
@@ -49,20 +50,6 @@ interface RuleDefinitionDiffChange {
   before: unknown;
   after: unknown;
 }
-
-const TENANT_ROLE_RANK: Record<TenantMembershipRole, number> = {
-  viewer: 0,
-  issuer: 1,
-  admin: 2,
-  owner: 3,
-};
-
-const roleSatisfiesMinimumRole = (
-  actorRole: TenantMembershipRole,
-  requiredRole: TenantMembershipRole,
-): boolean => {
-  return TENANT_ROLE_RANK[actorRole] >= TENANT_ROLE_RANK[requiredRole];
-};
 
 const isJsonRecord = (value: unknown): value is Record<string, unknown> => {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -478,7 +465,9 @@ export const registerBadgeRuleVersionRoutes = (
       );
     }
 
-    if (!roleSatisfiesMinimumRole(membershipRole, currentApprovalStep.requiredRole)) {
+    if (
+      !tenantMembershipRoleSatisfiesMinimumRole(membershipRole, currentApprovalStep.requiredRole)
+    ) {
       return c.json(
         {
           error: `Current approval step requires role ${currentApprovalStep.requiredRole}`,

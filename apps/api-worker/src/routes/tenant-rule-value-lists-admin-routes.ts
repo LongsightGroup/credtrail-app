@@ -57,7 +57,7 @@ export const registerTenantRuleValueListsAdminRoutes = (
       await setAdminListMessageFlash(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
-        workspace: "rules",
+        workspace: "rule_value_lists",
         tone,
         message,
       });

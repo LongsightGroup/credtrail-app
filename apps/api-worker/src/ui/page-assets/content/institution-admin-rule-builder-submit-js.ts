@@ -267,9 +267,10 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
 
     ruleCreateForm.addEventListener('submit', async (event) => {
       event.preventDefault();
-      setStatus(ruleCreateStatus, 'Creating rule draft...', false);
+      const savingMessage = isRuleBuilderEditMode ? 'Saving rule changes...' : 'Creating rule draft...';
+      setStatus(ruleCreateStatus, savingMessage, false);
       setCodeOutput(ruleBuilderTestOutput, '');
-      syncRuleBuilderSummary('Creating rule draft...');
+      syncRuleBuilderSummary(savingMessage);
 
       const name = getTextFieldValue('name');
       const description = getTextFieldValue('description');
@@ -326,14 +327,19 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
       const issuanceLabel = definitionWithOptions.options.issuanceTiming.replaceAll('_', ' ');
 
       if (changeSummary.length === 0) {
-        changeSummary = 'Rule created via visual builder; issuance timing: ' + issuanceLabel + '.';
+        changeSummary =
+          (isRuleBuilderEditMode
+            ? 'New draft version saved via visual builder; issuance timing: '
+            : 'Rule created via visual builder; issuance timing: ') +
+          issuanceLabel +
+          '.';
       } else if (!changeSummary.toLowerCase().includes('issuance timing')) {
         changeSummary =
           changeSummary + ' Issuance timing: ' + issuanceLabel + '.';
       }
 
       try {
-        const response = await fetch(badgeRuleApiPath, {
+        const response = await fetch(ruleBuilderSubmitApiPath, {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
@@ -356,26 +362,25 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
           return;
         }
 
-        const ruleId = payload && payload.rule && typeof payload.rule.id === 'string' ? payload.rule.id : '';
-        const versionId =
-          payload && payload.version && typeof payload.version.id === 'string'
-            ? payload.version.id
-            : '';
+        const successMessage = isRuleBuilderEditMode
+          ? 'New draft version saved.'
+          : 'Rule draft created.';
         setStatus(
           ruleCreateStatus,
-          'Rule draft created: ' + ruleId + (versionId.length > 0 ? ' (' + versionId + ')' : ''),
+          successMessage,
           false,
           'success',
         );
-        syncRuleBuilderSummary(
-          'Rule draft created: ' + ruleId + (versionId.length > 0 ? ' (' + versionId + ')' : ''),
-        );
+        syncRuleBuilderSummary(successMessage);
         setTimeout(() => {
           window.location.assign(rulesListPath);
         }, 900);
       } catch {
-        setStatus(ruleCreateStatus, 'Unable to create rule draft from this browser session.', true);
-        syncRuleBuilderSummary('Unable to create rule draft from this browser session.');
+        const message = isRuleBuilderEditMode
+          ? 'Unable to save rule changes from this browser session.'
+          : 'Unable to create rule draft from this browser session.';
+        setStatus(ruleCreateStatus, message, true);
+        syncRuleBuilderSummary(message);
       }
     });
 
@@ -417,8 +422,37 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
     }
 
     setBuilderStepState(0);
-    syncSuggestedRuleName();
-    applyTemplatePreset();
+
+    if (isRuleBuilderEditMode) {
+      if (typeof editRuleContext.name === 'string') {
+        setRuleCreateFieldValue('name', editRuleContext.name);
+      }
+
+      if (typeof editRuleContext.description === 'string') {
+        setRuleCreateFieldValue('description', editRuleContext.description);
+      }
+
+      if (typeof editRuleContext.badgeTemplateId === 'string') {
+        setRuleCreateFieldValue('badgeTemplateId', editRuleContext.badgeTemplateId);
+      }
+
+      if (typeof editRuleContext.lmsConnectionId === 'string') {
+        setRuleCreateFieldValue('lmsConnectionId', editRuleContext.lmsConnectionId);
+        syncSelectedLmsProviderKind();
+      }
+
+      if (editRuleContext.definition && typeof editRuleContext.definition === 'object') {
+        ruleBuilderDefinitionJson.value = JSON.stringify(editRuleContext.definition, null, 2);
+        applyDefinitionToBuilder(editRuleContext.definition, 'Saved rule settings');
+      } else {
+        setStatus(ruleCreateStatus, 'Saved rule JSON could not be loaded into the builder.', true);
+        syncRuleBuilderSummary('Saved rule JSON could not be loaded into the builder.');
+      }
+    } else {
+      syncSuggestedRuleName();
+      applyTemplatePreset();
+    }
+
     refreshConditionCardValueListOptions();
     syncRuleBuilderSummary();
   }

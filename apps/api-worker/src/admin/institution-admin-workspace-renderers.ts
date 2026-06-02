@@ -126,10 +126,14 @@ export const renderInstitutionAdminRulesWorkspace = async <
     renderAppPageFn,
     institutionAdminRulesPage({
       ...pageData,
-      ruleValueListsWorkspace: {
-        valueLists,
+      rulesWorkspace: {
         listNotice: flash.listNotice,
         listError: flash.listError,
+      },
+      ruleValueListsWorkspace: {
+        valueLists,
+        listNotice: null,
+        listError: null,
       },
     }),
   );

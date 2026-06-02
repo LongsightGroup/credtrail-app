@@ -1380,6 +1380,16 @@ export const createBadgeIssuanceRuleRequestSchema = z.object({
   changeSummary: z.string().trim().min(1).max(1000).optional(),
 });
 
+export const updateBadgeIssuanceRuleDraftRequestSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(2000).optional(),
+  badgeTemplateId: resourceIdSchema,
+  lmsConnectionId: resourceIdSchema,
+  definition: badgeIssuanceRuleDefinitionSchema,
+  approvalChain: badgeIssuanceRuleApprovalChainSchema.optional(),
+  changeSummary: z.string().trim().min(1).max(1000).optional(),
+});
+
 export const createBadgeIssuanceRuleVersionRequestSchema = z.object({
   definition: badgeIssuanceRuleDefinitionSchema,
   approvalChain: badgeIssuanceRuleApprovalChainSchema.optional(),
@@ -2043,6 +2053,9 @@ export type BadgeIssuanceRuleLmsProviderKind = z.infer<
 export type BadgeIssuanceRuleValueListKind = z.infer<typeof badgeIssuanceRuleValueListKindSchema>;
 export type BadgeIssuanceRuleDefinition = z.infer<typeof badgeIssuanceRuleDefinitionSchema>;
 export type CreateBadgeIssuanceRuleRequest = z.infer<typeof createBadgeIssuanceRuleRequestSchema>;
+export type UpdateBadgeIssuanceRuleDraftRequest = z.infer<
+  typeof updateBadgeIssuanceRuleDraftRequestSchema
+>;
 export type CreateBadgeIssuanceRuleVersionRequest = z.infer<
   typeof createBadgeIssuanceRuleVersionRequestSchema
 >;
@@ -2521,6 +2534,12 @@ export const parseCreateBadgeIssuanceRuleRequest = (
   input: unknown,
 ): CreateBadgeIssuanceRuleRequest => {
   return createBadgeIssuanceRuleRequestSchema.parse(input);
+};
+
+export const parseUpdateBadgeIssuanceRuleDraftRequest = (
+  input: unknown,
+): UpdateBadgeIssuanceRuleDraftRequest => {
+  return updateBadgeIssuanceRuleDraftRequestSchema.parse(input);
 };
 
 export const parseBadgeIssuanceRuleVersionDiffQuery = (

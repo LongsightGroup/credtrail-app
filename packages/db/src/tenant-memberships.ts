@@ -4,6 +4,27 @@ import type { TenantPlanTier } from "./tenants";
 
 export type TenantMembershipRole = "owner" | "admin" | "issuer" | "viewer";
 
+export const TENANT_MEMBERSHIP_ROLE_RANK: Record<TenantMembershipRole, number> = {
+  viewer: 0,
+  issuer: 1,
+  admin: 2,
+  owner: 3,
+};
+
+export const isTenantMembershipRole = (value: unknown): value is TenantMembershipRole => {
+  return (
+    typeof value === "string" &&
+    Object.prototype.hasOwnProperty.call(TENANT_MEMBERSHIP_ROLE_RANK, value)
+  );
+};
+
+export const tenantMembershipRoleSatisfiesMinimumRole = (
+  actorRole: TenantMembershipRole,
+  requiredRole: TenantMembershipRole,
+): boolean => {
+  return TENANT_MEMBERSHIP_ROLE_RANK[actorRole] >= TENANT_MEMBERSHIP_ROLE_RANK[requiredRole];
+};
+
 export interface TenantMembershipRecord {
   tenantId: string;
   userId: string;

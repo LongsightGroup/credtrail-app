@@ -13,6 +13,18 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
       typeof parsedContext.ruleBuilderContext === 'object'
         ? parsedContext.ruleBuilderContext
         : null;
+    const editRuleContext =
+      ruleBuilderContext &&
+      ruleBuilderContext.editRule &&
+      typeof ruleBuilderContext.editRule === 'object' &&
+      !Array.isArray(ruleBuilderContext.editRule) &&
+      typeof ruleBuilderContext.editRule.id === 'string'
+        ? ruleBuilderContext.editRule
+        : null;
+    const isRuleBuilderEditMode = editRuleContext !== null;
+    const ruleBuilderSubmitApiPath = isRuleBuilderEditMode
+      ? badgeRuleApiPath + '/' + encodeURIComponent(editRuleContext.id) + '/draft'
+      : badgeRuleApiPath;
     const badgeTemplateCourseMap = new Map();
     const badgeTemplatesContext =
       ruleBuilderContext && Array.isArray(ruleBuilderContext.badgeTemplates)
@@ -435,6 +447,16 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
     };
 
     const syncSuggestedRuleName = () => {
+      const ruleNameField = getRuleCreateField('name');
+
+      if (
+        ruleNameField instanceof HTMLInputElement &&
+        ruleNameField.dataset.ruleBuilderPreserveName === 'true' &&
+        ruleNameField.value.trim().length > 0
+      ) {
+        return;
+      }
+
       const suggestedName = buildSuggestedRuleName();
       setRuleCreateFieldValue('name', suggestedName);
     };

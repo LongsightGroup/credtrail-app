@@ -1,6 +1,15 @@
 import { createPrefixedId } from "./shared-helpers";
-import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "./tenant-scope";
-import type { TenantMembershipRole } from "./tenant-memberships";
+import {
+  runSqlTransaction,
+  type SqlDatabase,
+  type SqlQueryResult,
+  type SqlRunResult,
+} from "./tenant-scope";
+import {
+  isTenantMembershipRole,
+  tenantMembershipRoleSatisfiesMinimumRole,
+  type TenantMembershipRole,
+} from "./tenant-memberships";
 
 export type BadgeIssuanceRuleLmsProviderKind =
   | "canvas"
@@ -101,6 +110,20 @@ export interface CreateBadgeIssuanceRuleInput {
 export interface CreateBadgeIssuanceRuleVersionInput {
   tenantId: string;
   ruleId: string;
+  ruleJson: string;
+  approvalChain?: BadgeIssuanceRuleApprovalChainStepInput[] | undefined;
+  changeSummary?: string | undefined;
+  createdByUserId?: string | undefined;
+}
+
+export interface UpdateBadgeIssuanceRuleDraftInput {
+  tenantId: string;
+  ruleId: string;
+  name: string;
+  description?: string | undefined;
+  badgeTemplateId: string;
+  lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
+  lmsConnectionId: string;
   ruleJson: string;
   approvalChain?: BadgeIssuanceRuleApprovalChainStepInput[] | undefined;
   changeSummary?: string | undefined;
@@ -242,20 +265,6 @@ const BADGE_ISSUANCE_RULE_APPROVAL_EVENT_ACTIONS = new Set<BadgeIssuanceRuleAppr
   "rejected",
 ]);
 
-const TENANT_ROLE_RANK: Record<TenantMembershipRole, number> = {
-  viewer: 0,
-  issuer: 1,
-  admin: 2,
-  owner: 3,
-};
-
-const roleSatisfiesMinimumRole = (
-  actorRole: TenantMembershipRole,
-  requiredRole: TenantMembershipRole,
-): boolean => {
-  return TENANT_ROLE_RANK[actorRole] >= TENANT_ROLE_RANK[requiredRole];
-};
-
 const mapBadgeIssuanceRuleRow = (row: BadgeIssuanceRuleRow): BadgeIssuanceRuleRecord => {
   return {
     id: row.id,
@@ -333,6 +342,36 @@ export interface CreateBadgeIssuanceRuleResult {
   rule: BadgeIssuanceRuleRecord;
   version: BadgeIssuanceRuleVersionRecord;
 }
+
+export type UpdateBadgeIssuanceRuleDraftResult =
+  | {
+      status: "updated";
+      rule: BadgeIssuanceRuleRecord;
+      version: BadgeIssuanceRuleVersionRecord;
+    }
+  | {
+      status: "not_found";
+    }
+  | {
+      status: "not_editable";
+      rule: BadgeIssuanceRuleRecord;
+      versions: BadgeIssuanceRuleVersionRecord[];
+    };
+
+export type DeleteDraftBadgeIssuanceRuleResult =
+  | {
+      status: "deleted";
+      rule: BadgeIssuanceRuleRecord;
+      versions: BadgeIssuanceRuleVersionRecord[];
+    }
+  | {
+      status: "not_found";
+    }
+  | {
+      status: "not_deletable";
+      rule: BadgeIssuanceRuleRecord;
+      versions: BadgeIssuanceRuleVersionRecord[];
+    };
 
 export const findBadgeIssuanceRuleById = async (
   db: SqlDatabase,
@@ -617,6 +656,43 @@ export const findActiveBadgeIssuanceRuleVersion = async (
   return BADGE_ISSUANCE_RULE_VERSION_STATUSES.has(version.status) ? version : null;
 };
 
+const DRAFT_EDITABLE_BADGE_ISSUANCE_RULE_VERSION_STATUSES: ReadonlySet<BadgeIssuanceRuleVersionStatus> =
+  new Set(["draft", "rejected"]);
+
+export const latestBadgeIssuanceRuleVersion = (
+  versions: readonly BadgeIssuanceRuleVersionRecord[],
+): BadgeIssuanceRuleVersionRecord | null => {
+  return (
+    versions.slice().sort((left, right) => right.versionNumber - left.versionNumber)[0] ?? null
+  );
+};
+
+export const canEditBadgeIssuanceRuleDraft = (
+  rule: BadgeIssuanceRuleRecord,
+  versions: readonly BadgeIssuanceRuleVersionRecord[],
+): boolean => {
+  const latestVersion = latestBadgeIssuanceRuleVersion(versions);
+
+  return (
+    rule.activeVersionId === null &&
+    latestVersion !== null &&
+    DRAFT_EDITABLE_BADGE_ISSUANCE_RULE_VERSION_STATUSES.has(latestVersion.status)
+  );
+};
+
+export const canDeleteBadgeIssuanceRuleDraft = (
+  rule: BadgeIssuanceRuleRecord,
+  versions: readonly BadgeIssuanceRuleVersionRecord[],
+): boolean => {
+  return (
+    rule.activeVersionId === null &&
+    versions.length > 0 &&
+    versions.every((version) =>
+      DRAFT_EDITABLE_BADGE_ISSUANCE_RULE_VERSION_STATUSES.has(version.status),
+    )
+  );
+};
+
 const DEFAULT_BADGE_ISSUANCE_RULE_APPROVAL_CHAIN: readonly BadgeIssuanceRuleApprovalChainStepInput[] =
   [
     {
@@ -636,8 +712,10 @@ const normalizeBadgeIssuanceRuleApprovalChain = (
   }
 
   for (const step of normalizedChain) {
-    if (!(step.requiredRole in TENANT_ROLE_RANK)) {
-      throw new Error(`Unsupported tenant role in approval chain: ${step.requiredRole}`);
+    const requiredRole: unknown = step.requiredRole;
+
+    if (!isTenantMembershipRole(requiredRole)) {
+      throw new Error(`Unsupported tenant role in approval chain: ${String(requiredRole)}`);
     }
   }
 
@@ -766,7 +844,7 @@ const ensureBadgeIssuanceRuleApprovalStepsInitialized = async (
   return listBadgeIssuanceRuleVersionApprovalSteps(db, input);
 };
 
-export const createBadgeIssuanceRule = async (
+const createBadgeIssuanceRuleInDatabase = async (
   db: SqlDatabase,
   input: CreateBadgeIssuanceRuleInput,
 ): Promise<CreateBadgeIssuanceRuleResult> => {
@@ -869,7 +947,16 @@ export const createBadgeIssuanceRule = async (
   };
 };
 
-export const createBadgeIssuanceRuleVersion = async (
+export const createBadgeIssuanceRule = async (
+  db: SqlDatabase,
+  input: CreateBadgeIssuanceRuleInput,
+): Promise<CreateBadgeIssuanceRuleResult> => {
+  return runSqlTransaction(db, async (transactionDb) =>
+    createBadgeIssuanceRuleInDatabase(transactionDb, input),
+  );
+};
+
+const createBadgeIssuanceRuleVersionInDatabase = async (
   db: SqlDatabase,
   input: CreateBadgeIssuanceRuleVersionInput,
 ): Promise<BadgeIssuanceRuleVersionRecord> => {
@@ -952,6 +1039,138 @@ export const createBadgeIssuanceRuleVersion = async (
   }
 
   return version;
+};
+
+export const createBadgeIssuanceRuleVersion = async (
+  db: SqlDatabase,
+  input: CreateBadgeIssuanceRuleVersionInput,
+): Promise<BadgeIssuanceRuleVersionRecord> => {
+  return runSqlTransaction(db, async (transactionDb) =>
+    createBadgeIssuanceRuleVersionInDatabase(transactionDb, input),
+  );
+};
+
+export const updateBadgeIssuanceRuleDraft = async (
+  db: SqlDatabase,
+  input: UpdateBadgeIssuanceRuleDraftInput,
+): Promise<UpdateBadgeIssuanceRuleDraftResult> => {
+  const existingRule = await findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId);
+
+  if (existingRule === null) {
+    return { status: "not_found" };
+  }
+
+  const versions = await listBadgeIssuanceRuleVersions(db, {
+    tenantId: input.tenantId,
+    ruleId: input.ruleId,
+  });
+
+  if (!canEditBadgeIssuanceRuleDraft(existingRule, versions)) {
+    return {
+      status: "not_editable",
+      rule: existingRule,
+      versions,
+    };
+  }
+
+  const nowIso = new Date().toISOString();
+
+  // Product decision: editing from the builder preserves history by appending a new draft version.
+  return runSqlTransaction(db, async (transactionDb) => {
+    const updateRuleStatement = (): Promise<SqlRunResult> =>
+      transactionDb
+        .prepare(
+          `
+          UPDATE badge_issuance_rules
+          SET
+            name = ?,
+            description = ?,
+            badge_template_id = ?,
+            lms_provider_kind = ?,
+            lms_connection_id = ?,
+            updated_at = ?
+          WHERE tenant_id = ?
+            AND id = ?
+        `,
+        )
+        .bind(
+          input.name,
+          input.description ?? null,
+          input.badgeTemplateId,
+          input.lmsProviderKind,
+          input.lmsConnectionId,
+          nowIso,
+          input.tenantId,
+          input.ruleId,
+        )
+        .run();
+
+    await updateRuleStatement();
+
+    const version = await createBadgeIssuanceRuleVersionInDatabase(transactionDb, {
+      tenantId: input.tenantId,
+      ruleId: input.ruleId,
+      ruleJson: input.ruleJson,
+      approvalChain: input.approvalChain,
+      changeSummary: input.changeSummary,
+      createdByUserId: input.createdByUserId,
+    });
+    const rule = await findBadgeIssuanceRuleById(transactionDb, input.tenantId, input.ruleId);
+
+    if (rule === null) {
+      throw new Error(`Unable to update badge issuance rule "${input.ruleId}"`);
+    }
+
+    return {
+      status: "updated",
+      rule,
+      version,
+    };
+  });
+};
+
+export const deleteDraftBadgeIssuanceRule = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    ruleId: string;
+  },
+): Promise<DeleteDraftBadgeIssuanceRuleResult> => {
+  const existingRule = await findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId);
+
+  if (existingRule === null) {
+    return { status: "not_found" };
+  }
+
+  const versions = await listBadgeIssuanceRuleVersions(db, {
+    tenantId: input.tenantId,
+    ruleId: input.ruleId,
+  });
+
+  if (!canDeleteBadgeIssuanceRuleDraft(existingRule, versions)) {
+    return {
+      status: "not_deletable",
+      rule: existingRule,
+      versions,
+    };
+  }
+
+  await db
+    .prepare(
+      `
+      DELETE FROM badge_issuance_rules
+      WHERE tenant_id = ?
+        AND id = ?
+    `,
+    )
+    .bind(input.tenantId, input.ruleId)
+    .run();
+
+  return {
+    status: "deleted",
+    rule: existingRule,
+    versions,
+  };
 };
 
 export const submitBadgeIssuanceRuleVersionForApproval = async (
@@ -1082,7 +1301,7 @@ export const decideBadgeIssuanceRuleVersion = async (
     return null;
   }
 
-  if (!roleSatisfiesMinimumRole(input.actorRole, currentStep.requiredRole)) {
+  if (!tenantMembershipRoleSatisfiesMinimumRole(input.actorRole, currentStep.requiredRole)) {
     throw new Error(
       `Role ${input.actorRole} does not satisfy required approval role ${currentStep.requiredRole}`,
     );
