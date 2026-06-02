@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:17-alpine
         env:
           POSTGRES_USER: credtrail
           POSTGRES_PASSWORD: credtrail
@@ -90,9 +90,9 @@ jobs:
             -e POSTGRES_USER=credtrail \
             -e POSTGRES_PASSWORD=credtrail \
             -e POSTGRES_DB=credtrail \
-            postgres:16-alpine
+            postgres:17-alpine
 
-          docker run --rm --network credtrail-ci-net postgres:16-alpine sh -ceu '
+          docker run --rm --network credtrail-ci-net postgres:17-alpine sh -ceu '
             for _ in $(seq 1 30); do
               pg_isready -h credtrail-ci-postgres -U credtrail -d credtrail && exit 0
               sleep 1
@@ -160,7 +160,7 @@ jobs:
           docker run --rm \
             --network credtrail-ci-net \
             -e DATABASE_URL="$DATABASE_URL" \
-            postgres:16-alpine sh -ceu "
+            postgres:17-alpine sh -ceu "
               psql \"\$DATABASE_URL\" -v ON_ERROR_STOP=1 -c \"
                 INSERT INTO job_queue_messages (
                   id,
@@ -210,7 +210,7 @@ jobs:
             queue_status="$(docker run --rm \
               --network credtrail-ci-net \
               -e DATABASE_URL="$DATABASE_URL" \
-              postgres:16-alpine sh -ceu "
+              postgres:17-alpine sh -ceu "
                 psql \"\$DATABASE_URL\" -tAc \
                   \"SELECT status FROM job_queue_messages WHERE id = 'job-ci-smoke-1';\"
               " | tr -d '[:space:]' || true)"
@@ -232,7 +232,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:17-alpine
         env:
           POSTGRES_USER: credtrail
           POSTGRES_PASSWORD: credtrail
