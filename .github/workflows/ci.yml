@@ -57,6 +57,9 @@ jobs:
           TEST_DATABASE_URL: postgresql://credtrail:credtrail@127.0.0.1:5432/credtrail
         run: pnpm test
 
+      - name: Script Tests
+        run: pnpm test:scripts
+
       - name: Build Docker image
         run: docker build -f Dockerfile -t credtrail-ci:${{ github.sha }} .
 

@@ -25,7 +25,8 @@
     "format:check": "pnpm exec oxfmt --check \"apps/**/*.ts\" \"apps/**/*.tsx\" \"packages/**/*.ts\" \"packages/**/*.tsx\" \"vitest.config.ts\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "pnpm check:design-tokens && pnpm check:ob3-openapi && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test"
+    "test:scripts": "node --test scripts/*.test.mjs",
+    "check": "pnpm check:design-tokens && pnpm check:ob3-openapi && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:scripts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260508.1",
