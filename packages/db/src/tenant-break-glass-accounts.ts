@@ -17,7 +17,7 @@ const tenantBreakGlassSelectSql = `
       WHEN auth_account.id IS NULL OR auth_account.password IS NULL THEN 0
       ELSE 1
     END AS localCredentialEnabled,
-    COALESCE(auth_user.two_factor_enabled, 0) AS twoFactorEnabled
+    COALESCE(auth_user.two_factor_enabled, FALSE) AS twoFactorEnabled
   FROM tenant_break_glass_accounts AS account
   INNER JOIN users
     ON users.id = account.user_id

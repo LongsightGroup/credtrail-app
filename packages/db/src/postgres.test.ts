@@ -1,18 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 
 import { createPostgresDatabase } from "./postgres";
+import { describeDbIntegration, requireTestDatabaseUrl } from "./postgres-test-support";
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const describeWithDatabase = testDatabaseUrl === undefined ? describe.skip : describe;
-const getTestDatabaseUrl = (): string => {
-  if (testDatabaseUrl === undefined) {
-    throw new Error("TEST_DATABASE_URL is required");
-  }
-
-  return testDatabaseUrl;
-};
-
-describeWithDatabase("postgres adapter integration", () => {
+describeDbIntegration("postgres adapter integration", () => {
   it.each([
     { label: "pg pool", connectionMode: "pool" as const },
     { label: "pg single-use", connectionMode: "single-use" as const },
@@ -21,7 +12,7 @@ describeWithDatabase("postgres adapter integration", () => {
     async ({ connectionMode }) => {
       const tableName = `test_adapter_users_${crypto.randomUUID().replace(/-/g, "")}`;
       const db = createPostgresDatabase({
-        databaseUrl: getTestDatabaseUrl(),
+        databaseUrl: requireTestDatabaseUrl(),
         connectionMode,
       });
 

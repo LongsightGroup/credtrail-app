@@ -52,6 +52,11 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Migrate test database
+        env:
+          DATABASE_URL: postgresql://credtrail:credtrail@127.0.0.1:5432/credtrail
+        run: pnpm db:migrate:postgres
+
       - name: Test
         env:
           TEST_DATABASE_URL: postgresql://credtrail:credtrail@127.0.0.1:5432/credtrail

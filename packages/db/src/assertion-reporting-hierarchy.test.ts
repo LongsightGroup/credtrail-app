@@ -1,115 +1,11 @@
-/* oxlint-disable no-unused-vars */
-import { readFileSync } from "node:fs";
-
 import { describe, expect, it } from "vitest";
-import * as dbModule from "./index";
+
+import { summarizeTenantReportingHierarchyRows } from "./index";
 import * as validationModule from "../../validation/src/index";
 
-import {
-  ASSERTION_ENGAGEMENT_EVENT_TYPES,
-  addLearnerIdentityAlias,
-  type AccessibleTenantContextRecord,
-  countTenantMembershipsByRole,
-  createLearnerRecordImportContext,
-  createLearnerRecordEntry,
-  createTenantAuthProvider,
-  createAuthIdentityLink,
-  createLearnerProfile,
-  enqueueJobQueueMessageOnce,
-  findActiveTenantBreakGlassAccountByEmail,
-  findLearnerRecordImportContextByEntryId,
-  listLearnerRecordEntries,
-  listLearnerRecordAssertionExports,
-  listImportLearnerRecordBatchQueueMessages,
-  findTenantAuthPolicy,
-  listAccessibleTenantContextsForUser,
-  listTenantAuthProviders,
-  listTenantMembers,
-  findLearnerProfileByIdentity,
-  findTenantAuthProviderById,
-  findAuthIdentityLinkByAuthUserId,
-  findAuthIdentityLinkByCredtrailUserId,
-  findUserByEmail,
-  listTenantBreakGlassAccounts,
-  listLearnerIdentitiesByProfile,
-  markLearnerRecordImportPreviewQueued,
-  markTenantBreakGlassAccountUsed,
-  markTenantBreakGlassEnrollmentEmailSent,
-  normalizeLearnerIdentityValue,
-  patchLearnerRecordEntry,
-  removeTenantMembership,
-  retryFailedImportLearnerRecordBatchQueueMessages,
-  revokeTenantBreakGlassAccount,
-  resolveTenantAuthPolicy,
-  resolveLearnerProfileForIdentity,
-  resolveLearnerProfileFromSaml,
-  resolveAssertionReportingAttribution,
-  summarizeTenantExecutiveRollup,
-  summarizeTenantReportingComparisonRows,
-  summarizeTenantReportingOverviewRows,
-  summarizeTenantReportingTrendRows,
-  updateTenantAuthProvider,
-  upsertTenantMembershipRole,
-  upsertTenantBreakGlassAccount,
-  upsertTenantAuthPolicy,
-  upsertUserByEmail,
-  type LearnerIdentityType,
-  type SqlDatabase,
-  type SqlExecutionMeta,
-  type SqlQueryResult,
-  type SqlRunResult,
-} from "./index";
-import { REPORTING_METRIC_DEFINITIONS } from "../../../apps/api-worker/src/reporting/metric-definitions";
-
-import {
-  createFakeAuthIdentityDb,
-  createFakeDb,
-  createFakeTenantAuthDb,
-  type FakeSqlDatabase,
-} from "./test-support";
+const parseTenantReportingHierarchyQuery = validationModule.parseTenantReportingHierarchyQuery;
 
 describe("hierarchy reporting foundation", () => {
-  const summarizeTenantReportingHierarchyRows = (
-    dbModule as {
-      summarizeTenantReportingHierarchyRows?: (input: {
-        rows: readonly {
-          assertionId: string;
-          badgeTemplateId: string;
-          orgUnitId: string;
-          issuedAt: string;
-          eventType:
-            | "public_badge_view"
-            | "verification_view"
-            | "share_click"
-            | "learner_claim"
-            | "wallet_accept"
-            | null;
-          occurredAt: string | null;
-        }[];
-        orgUnits: readonly {
-          id: string;
-          unitType: "institution" | "college" | "department" | "program";
-          displayName: string;
-          parentOrgUnitId: string | null;
-        }[];
-        query: {
-          from?: string;
-          to?: string;
-          focusOrgUnitId?: string;
-          level: "institution" | "college" | "department" | "program";
-        };
-        scopedRootOrgUnitIds?: readonly string[];
-      }) => unknown;
-    }
-  ).summarizeTenantReportingHierarchyRows;
-
-  const parseTenantReportingHierarchyQuery = (
-    validationModule as {
-      parseTenantReportingHierarchyQuery?: (input: unknown) => unknown;
-      parseTenantReportingComparisonQuery: (input: unknown) => unknown;
-    }
-  ).parseTenantReportingHierarchyQuery;
-
   const orgUnits = [
     {
       id: "org_institution",
@@ -168,8 +64,6 @@ describe("hierarchy reporting foundation", () => {
   ];
 
   it("rolls leaf-attributed reporting rows into institution, college, department, and program groupings", () => {
-    expect(summarizeTenantReportingHierarchyRows).toBeTypeOf("function");
-
     const rows = [
       {
         assertionId: "assertion_1",
@@ -206,7 +100,7 @@ describe("hierarchy reporting foundation", () => {
     ];
 
     expect(
-      summarizeTenantReportingHierarchyRows?.({
+      summarizeTenantReportingHierarchyRows({
         rows,
         orgUnits,
         query: {
@@ -222,7 +116,7 @@ describe("hierarchy reporting foundation", () => {
     ]);
 
     expect(
-      summarizeTenantReportingHierarchyRows?.({
+      summarizeTenantReportingHierarchyRows({
         rows,
         orgUnits,
         query: {
@@ -243,7 +137,7 @@ describe("hierarchy reporting foundation", () => {
     ]);
 
     expect(
-      summarizeTenantReportingHierarchyRows?.({
+      summarizeTenantReportingHierarchyRows({
         rows,
         orgUnits,
         query: {
@@ -269,7 +163,7 @@ describe("hierarchy reporting foundation", () => {
     ]);
 
     expect(
-      summarizeTenantReportingHierarchyRows?.({
+      summarizeTenantReportingHierarchyRows({
         rows,
         orgUnits,
         query: {
@@ -296,10 +190,8 @@ describe("hierarchy reporting foundation", () => {
   });
 
   it("adds an explicit hierarchy query contract without redefining exact-match orgUnitId filters", () => {
-    expect(parseTenantReportingHierarchyQuery).toBeTypeOf("function");
-
     expect(
-      parseTenantReportingHierarchyQuery?.({
+      parseTenantReportingHierarchyQuery({
         from: "2026-03-01",
         to: "2026-03-31",
         focusOrgUnitId: "org_college_science",
@@ -328,8 +220,6 @@ describe("hierarchy reporting foundation", () => {
   });
 
   it("keeps Phase 10 raw counts and distinct-assertion rates intact after subtree filtering", () => {
-    expect(summarizeTenantReportingHierarchyRows).toBeTypeOf("function");
-
     const rows = [
       {
         assertionId: "assertion_1",
@@ -374,7 +264,7 @@ describe("hierarchy reporting foundation", () => {
     ];
 
     expect(
-      summarizeTenantReportingHierarchyRows?.({
+      summarizeTenantReportingHierarchyRows({
         rows,
         orgUnits,
         query: {

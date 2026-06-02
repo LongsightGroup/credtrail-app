@@ -3,13 +3,18 @@ import type { SqlDatabase, SqlPreparedStatement, SqlQueryResult, SqlRunResult } 
 type PostgresConnectionMode = "pool" | "single-use";
 
 interface QueryExecutor {
-  query(sql: string, params: readonly unknown[]): Promise<readonly unknown[]>;
+  query(sql: string, params: readonly unknown[]): Promise<PostgresQueryResult>;
   transaction?<T>(callback: (queryExecutor: QueryExecutor) => Promise<T>): Promise<T>;
 }
 
 type PgPoolLike = import("pg").Pool;
 type PgClientLike = import("pg").Client;
 type PgPoolClientLike = import("pg").PoolClient;
+
+interface PostgresQueryResult {
+  rows: readonly unknown[];
+  rowCount: number;
+}
 
 const UNQUOTED_ALIAS_PATTERN = /\bAS\s+([A-Za-z_][A-Za-z0-9_]*)/gi;
 
@@ -73,13 +78,17 @@ const loadPgPool = async (databaseUrl: string): Promise<PgPoolLike> => {
   });
 };
 
-const createPgQueryExecutor = (databaseUrl: string): QueryExecutor => {
-  const poolPromise = loadPgPool(databaseUrl);
+const createPgQueryExecutor = (databaseUrl: string, existingPool?: PgPoolLike): QueryExecutor => {
+  const poolPromise =
+    existingPool === undefined ? loadPgPool(databaseUrl) : Promise.resolve(existingPool);
   const createClientExecutor = (client: PgPoolClientLike): QueryExecutor => {
     return {
       async query(sql, params) {
         const result = await client.query(sql, [...params]);
-        return result.rows as readonly unknown[];
+        return {
+          rows: result.rows as readonly unknown[],
+          rowCount: result.rowCount ?? 0,
+        };
       },
     };
   };
@@ -88,7 +97,10 @@ const createPgQueryExecutor = (databaseUrl: string): QueryExecutor => {
     async query(sql, params) {
       const pool = await poolPromise;
       const result = await pool.query(sql, [...params]);
-      return result.rows as readonly unknown[];
+      return {
+        rows: result.rows as readonly unknown[],
+        rowCount: result.rowCount ?? 0,
+      };
     },
     async transaction(callback) {
       const pool = await poolPromise;
@@ -114,7 +126,10 @@ const createSingleUsePgQueryExecutor = (databaseUrl: string): QueryExecutor => {
     return {
       async query(sql, params) {
         const result = await client.query(sql, [...params]);
-        return result.rows as readonly unknown[];
+        return {
+          rows: result.rows as readonly unknown[],
+          rowCount: result.rowCount ?? 0,
+        };
       },
     };
   };
@@ -129,7 +144,10 @@ const createSingleUsePgQueryExecutor = (databaseUrl: string): QueryExecutor => {
       try {
         await client.connect();
         const result = await client.query(sql, [...params]);
-        return result.rows as readonly unknown[];
+        return {
+          rows: result.rows as readonly unknown[],
+          rowCount: result.rowCount ?? 0,
+        };
       } finally {
         await client.end();
       }
@@ -194,20 +212,20 @@ class PostgresPreparedStatement implements SqlPreparedStatement {
 
   async run(): Promise<SqlRunResult> {
     const startedAt = Date.now();
-    const rows = await this.executeQuery<Record<string, unknown>>();
+    const result = await this.execute();
 
     return {
       success: true,
       meta: {
-        rowsWritten: rows.length,
+        rowsWritten: result.rowCount,
         durationMs: Date.now() - startedAt,
       },
     };
   }
 
   private async executeQuery<T>(): Promise<T[]> {
-    const sql = normalizeSqlForPostgres(this.sql);
-    const rows = await this.queryExecutor.query(sql, this.params);
+    const result = await this.execute();
+    const rows = result.rows;
 
     if (this.aliasMap.size === 0) {
       return rows as T[];
@@ -220,6 +238,11 @@ class PostgresPreparedStatement implements SqlPreparedStatement {
 
       return remapRowAliases(row, this.aliasMap);
     }) as T[];
+  }
+
+  private async execute(): Promise<PostgresQueryResult> {
+    const sql = normalizeSqlForPostgres(this.sql);
+    return this.queryExecutor.query(sql, this.params);
   }
 }
 
@@ -248,6 +271,8 @@ class PostgresDatabase implements SqlDatabase {
 export interface CreatePostgresDatabaseOptions {
   databaseUrl: string;
   connectionMode?: PostgresConnectionMode;
+  /** Reuse an existing pool (integration tests only). */
+  pool?: PgPoolLike;
 }
 
 export const createPostgresDatabase = (options: CreatePostgresDatabaseOptions): SqlDatabase => {
@@ -260,7 +285,7 @@ export const createPostgresDatabase = (options: CreatePostgresDatabaseOptions): 
   const queryExecutor =
     options.connectionMode === "single-use"
       ? createSingleUsePgQueryExecutor(trimmedUrl)
-      : createPgQueryExecutor(trimmedUrl);
+      : createPgQueryExecutor(trimmedUrl, options.pool);
 
   return new PostgresDatabase(queryExecutor);
 };

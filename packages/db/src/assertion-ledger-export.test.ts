@@ -1,659 +1,356 @@
-/* oxlint-disable no-unused-vars */
-import { readFileSync } from "node:fs";
-
-import { describe, expect, it } from "vitest";
-import * as dbModule from "./index";
-import * as validationModule from "../../validation/src/index";
+import { expect, it } from "vitest";
 
 import {
-  ASSERTION_ENGAGEMENT_EVENT_TYPES,
-  addLearnerIdentityAlias,
-  type AccessibleTenantContextRecord,
-  countTenantMembershipsByRole,
-  createLearnerRecordImportContext,
-  createLearnerRecordEntry,
-  createTenantAuthProvider,
-  createAuthIdentityLink,
-  createLearnerProfile,
-  enqueueJobQueueMessageOnce,
-  findActiveTenantBreakGlassAccountByEmail,
-  findLearnerRecordImportContextByEntryId,
-  listLearnerRecordEntries,
-  listLearnerRecordAssertionExports,
-  listImportLearnerRecordBatchQueueMessages,
-  findTenantAuthPolicy,
-  listAccessibleTenantContextsForUser,
-  listTenantAuthProviders,
-  listTenantMembers,
-  findLearnerProfileByIdentity,
-  findTenantAuthProviderById,
-  findAuthIdentityLinkByAuthUserId,
-  findAuthIdentityLinkByCredtrailUserId,
-  findUserByEmail,
-  listTenantBreakGlassAccounts,
-  listLearnerIdentitiesByProfile,
-  markLearnerRecordImportPreviewQueued,
-  markTenantBreakGlassAccountUsed,
-  markTenantBreakGlassEnrollmentEmailSent,
-  normalizeLearnerIdentityValue,
-  patchLearnerRecordEntry,
-  removeTenantMembership,
-  retryFailedImportLearnerRecordBatchQueueMessages,
-  revokeTenantBreakGlassAccount,
-  resolveTenantAuthPolicy,
-  resolveLearnerProfileForIdentity,
-  resolveLearnerProfileFromSaml,
-  resolveAssertionReportingAttribution,
-  summarizeTenantExecutiveRollup,
-  summarizeTenantReportingComparisonRows,
-  summarizeTenantReportingOverviewRows,
-  summarizeTenantReportingTrendRows,
-  updateTenantAuthProvider,
-  upsertTenantMembershipRole,
-  upsertTenantBreakGlassAccount,
-  upsertTenantAuthPolicy,
+  listTenantAssertionLedgerExportRows,
+  SYNCHRONOUS_EXPORT_ROW_LIMIT,
   upsertUserByEmail,
-  type LearnerIdentityType,
   type SqlDatabase,
-  type SqlExecutionMeta,
-  type SqlQueryResult,
-  type SqlRunResult,
 } from "./index";
-import { REPORTING_METRIC_DEFINITIONS } from "../../../apps/api-worker/src/reporting/metric-definitions";
-
 import {
-  createFakeAuthIdentityDb,
-  createFakeDb,
-  createFakeTenantAuthDb,
-  type FakeSqlDatabase,
-} from "./test-support";
+  cleanupTestResources,
+  createTestTenantFixture,
+  describeDbIntegration,
+  seedAssertion,
+  seedAssertionAttribution,
+  seedBadgeTemplate,
+  seedLedgerOrgTree,
+  seedLifecycleEvent,
+  uniqueTestId,
+} from "./postgres-test-support";
 
-describe("ledger export foundation", () => {
-  type LedgerExportRow = {
-    assertionId: string;
-    tenantId: string;
-    publicId: string | null;
-    badgeTemplateId: string;
-    badgeTitle: string;
-    recipientIdentity: string;
-    recipientIdentityType: "email" | "email_sha256" | "did" | "url";
-    issuedAt: string;
-    issuedByUserId: string | null;
-    revokedAt: string | null;
-    state: "active" | "suspended" | "revoked" | "expired";
-    source: "default_active" | "assertion_revocation" | "lifecycle_event";
-    reasonCode:
-      | "administrative_hold"
-      | "policy_violation"
-      | "appeal_pending"
-      | "appeal_resolved"
-      | "credential_expired"
-      | "issuer_requested"
-      | "other"
-      | null;
-    reason: string | null;
-    transitionedAt: string | null;
-    orgUnitId: string;
-    orgUnitDisplayName: string;
-    attributionSource: "ownership_event" | "historical_backfill";
-    currentInstitutionName: string | null;
-    currentCollegeName: string | null;
-    currentDepartmentName: string | null;
-    currentProgramName: string | null;
+const seedLedgerRows = async (): Promise<{
+  db: SqlDatabase;
+  tenantId: string;
+  issuerUserId: string;
+  badgeTemplateId: string;
+  assertionMatchId: string;
+  microbiologyProgramId: string;
+}> => {
+  const fixture = await createTestTenantFixture({
+    displayName: "CredTrail University",
+  });
+  const orgTree = await seedLedgerOrgTree(fixture.db, fixture.tenantId);
+  const issuer = await upsertUserByEmail(fixture.db, `${uniqueTestId("issuer")}@example.edu`);
+  const badgeTemplateId = await seedBadgeTemplate(fixture.db, {
+    tenantId: fixture.tenantId,
+    title: "Foundations of Microbiology",
+  });
+  const assertionMatchId = uniqueTestId("assertion_match");
+  const oldAssertionId = uniqueTestId("assertion_old_issue_date");
+  const revokedAssertionId = uniqueTestId("assertion_wrong_state");
+  const otherLeafAssertionId = uniqueTestId("assertion_wrong_leaf");
+
+  await seedAssertion(fixture.db, {
+    id: assertionMatchId,
+    tenantId: fixture.tenantId,
+    publicId: uniqueTestId("public_match"),
+    badgeTemplateId,
+    recipientIdentity: "learner.one@example.edu",
+    issuedAt: "2026-03-10T15:45:00.000Z",
+    issuedByUserId: issuer.id,
+  });
+  await seedAssertionAttribution(fixture.db, {
+    assertionId: assertionMatchId,
+    tenantId: fixture.tenantId,
+    badgeTemplateId,
+    orgUnitId: orgTree.microbiologyProgramId,
+    attributionSource: "historical_backfill",
+    attributedAt: "2026-03-10T15:45:00.000Z",
+  });
+  await seedLifecycleEvent(fixture.db, {
+    tenantId: fixture.tenantId,
+    assertionId: assertionMatchId,
+    fromState: "active",
+    toState: "suspended",
+    reasonCode: "administrative_hold",
+    reason: "Paused during registrar review",
+    transitionedAt: "2026-03-12T10:15:00.000Z",
+  });
+
+  await seedAssertion(fixture.db, {
+    id: oldAssertionId,
+    tenantId: fixture.tenantId,
+    publicId: uniqueTestId("public_old"),
+    badgeTemplateId,
+    recipientIdentity: "learner.old@example.edu",
+    issuedAt: "2026-02-01T09:00:00.000Z",
+    issuedByUserId: issuer.id,
+  });
+  await seedAssertionAttribution(fixture.db, {
+    assertionId: oldAssertionId,
+    tenantId: fixture.tenantId,
+    badgeTemplateId,
+    orgUnitId: orgTree.microbiologyProgramId,
+    attributionSource: "historical_backfill",
+    attributedAt: "2026-02-01T09:00:00.000Z",
+  });
+  await seedLifecycleEvent(fixture.db, {
+    tenantId: fixture.tenantId,
+    assertionId: oldAssertionId,
+    fromState: "active",
+    toState: "suspended",
+    reasonCode: "administrative_hold",
+    reason: "Paused during registrar review",
+    transitionedAt: "2026-03-12T10:15:00.000Z",
+  });
+
+  await seedAssertion(fixture.db, {
+    id: revokedAssertionId,
+    tenantId: fixture.tenantId,
+    publicId: uniqueTestId("public_revoked"),
+    badgeTemplateId,
+    recipientIdentity: "learner.revoked@example.edu",
+    issuedAt: "2026-03-11T08:00:00.000Z",
+    issuedByUserId: issuer.id,
+    revokedAt: "2026-03-15T00:00:00.000Z",
+  });
+  await seedAssertionAttribution(fixture.db, {
+    assertionId: revokedAssertionId,
+    tenantId: fixture.tenantId,
+    badgeTemplateId,
+    orgUnitId: orgTree.microbiologyProgramId,
+    attributionSource: "issuance_snapshot",
+    attributedAt: "2026-03-11T08:00:00.000Z",
+  });
+  await seedLifecycleEvent(fixture.db, {
+    tenantId: fixture.tenantId,
+    assertionId: revokedAssertionId,
+    fromState: "suspended",
+    toState: "revoked",
+    reasonCode: "issuer_requested",
+    reason: "Credential revoked after policy violation",
+    transitionedAt: "2026-03-15T00:00:00.000Z",
+  });
+
+  await seedAssertion(fixture.db, {
+    id: otherLeafAssertionId,
+    tenantId: fixture.tenantId,
+    publicId: uniqueTestId("public_other_leaf"),
+    badgeTemplateId,
+    recipientIdentity: "learner.two@example.edu",
+    issuedAt: "2026-03-11T09:00:00.000Z",
+    issuedByUserId: issuer.id,
+  });
+  await seedAssertionAttribution(fixture.db, {
+    assertionId: otherLeafAssertionId,
+    tenantId: fixture.tenantId,
+    badgeTemplateId,
+    orgUnitId: orgTree.biochemistryProgramId,
+    attributionSource: "historical_backfill",
+    attributedAt: "2026-03-11T09:00:00.000Z",
+  });
+  await seedLifecycleEvent(fixture.db, {
+    tenantId: fixture.tenantId,
+    assertionId: otherLeafAssertionId,
+    fromState: "active",
+    toState: "suspended",
+    reasonCode: "administrative_hold",
+    reason: "Paused during registrar review",
+    transitionedAt: "2026-03-12T10:15:00.000Z",
+  });
+
+  return {
+    db: fixture.db,
+    tenantId: fixture.tenantId,
+    issuerUserId: issuer.id,
+    badgeTemplateId,
+    assertionMatchId,
+    microbiologyProgramId: orgTree.microbiologyProgramId,
   };
+};
 
-  type LedgerExportResult =
-    | {
-        status: "ok";
-        rowLimit: number;
-        rows: LedgerExportRow[];
-      }
-    | {
-        status: "too_large";
-        rowLimit: number;
-      };
-
-  type FakeLedgerExportRow = {
-    assertionId: string;
-    tenantId: string;
-    publicId: string | null;
-    badgeTemplateId: string;
-    badgeTitle: string;
-    recipientIdentity: string;
-    recipientIdentityType: "email" | "email_sha256" | "did" | "url";
-    issuedAt: string;
-    issuedByUserId: string | null;
-    revokedAt: string | null;
-    latestToState: "active" | "suspended" | "revoked" | "expired" | null;
-    latestReasonCode:
-      | "administrative_hold"
-      | "policy_violation"
-      | "appeal_pending"
-      | "appeal_resolved"
-      | "credential_expired"
-      | "issuer_requested"
-      | "other"
-      | null;
-    latestReason: string | null;
-    latestTransitionedAt: string | null;
-    orgUnitId: string;
-    orgUnitDisplayName: string;
-    attributionSource: "ownership_event" | "historical_backfill";
-    currentInstitutionName: string | null;
-    currentCollegeName: string | null;
-    currentDepartmentName: string | null;
-    currentProgramName: string | null;
-  };
-
-  type FakeLedgerOrgUnitRow = {
-    id: string;
-    tenantId: string;
-    unitType: "institution" | "college" | "department" | "program";
-    slug: string;
-    displayName: string;
-    parentOrgUnitId: string | null;
-    createdByUserId: string | null;
-    isActive: number | boolean;
-    createdAt: string;
-    updatedAt: string;
-  };
-
-  class FakeLedgerExportStatement {
-    private readonly sql: string;
-    private readonly db: FakeLedgerExportDatabase;
-    private boundParams: unknown[] = [];
-
-    constructor(db: FakeLedgerExportDatabase, sql: string) {
-      this.db = db;
-      this.sql = sql;
-    }
-
-    bind(...params: unknown[]): this {
-      this.boundParams = params;
-      return this;
-    }
-
-    first<T>(): Promise<T | null> {
-      throw new Error(`Unsupported first SQL in fake ledger export DB: ${this.normalizedSql()}`);
-    }
-
-    run(): Promise<SqlRunResult> {
-      throw new Error(`Unsupported run SQL in fake ledger export DB: ${this.normalizedSql()}`);
-    }
-
-    all<T>(): Promise<SqlQueryResult<T>> {
-      const normalizedSql = this.normalizedSql();
-
-      if (
-        normalizedSql.includes("FROM assertions") &&
-        normalizedSql.includes("LEFT JOIN assertion_reporting_attributions attribution") &&
-        normalizedSql.includes("attribution.assertion_id IS NULL")
-      ) {
-        return Promise.resolve({
-          success: true,
-          meta: {} as SqlExecutionMeta,
-          results: [] as T[],
-        });
-      }
-
-      if (normalizedSql.includes("FROM badge_template_ownership_events")) {
-        return Promise.resolve({
-          success: true,
-          meta: {} as SqlExecutionMeta,
-          results: [] as T[],
-        });
-      }
-
-      if (
-        normalizedSql.includes("FROM assertions") &&
-        normalizedSql.includes("assertion_reporting_attributions")
-      ) {
-        return Promise.resolve({
-          success: true,
-          meta: {} as SqlExecutionMeta,
-          results: this.selectLedgerRows() as T[],
-        });
-      }
-
-      if (normalizedSql.includes("FROM tenant_org_units")) {
-        return Promise.resolve({
-          success: true,
-          meta: {} as SqlExecutionMeta,
-          results: this.selectOrgUnits() as T[],
-        });
-      }
-
-      throw new Error(`Unsupported all SQL in fake ledger export DB: ${normalizedSql}`);
-    }
-
-    private normalizedSql(): string {
-      return this.sql.replace(/\s+/g, " ").trim();
-    }
-
-    private selectLedgerRows(): FakeLedgerExportRow[] {
-      let paramIndex = 0;
-      const tenantId = this.expectString(this.boundParams[paramIndex], "tenantId");
-      paramIndex += 1;
-
-      let issuedFrom: string | undefined;
-      let issuedTo: string | undefined;
-      let badgeTemplateId: string | undefined;
-      let orgUnitId: string | undefined;
-      let state: string | undefined;
-      let recipientQuery: string | undefined;
-
-      const normalizedSql = this.normalizedSql();
-
-      if (normalizedSql.includes("assertions.issued_at >= ?")) {
-        issuedFrom = this.expectString(this.boundParams[paramIndex], "issuedFrom");
-        paramIndex += 1;
-      }
-
-      if (normalizedSql.includes("assertions.issued_at <= ?")) {
-        issuedTo = this.expectString(this.boundParams[paramIndex], "issuedTo");
-        paramIndex += 1;
-      }
-
-      if (
-        normalizedSql.includes("assertions.badge_template_id = ?") ||
-        normalizedSql.includes("attribution.badge_template_id = ?")
-      ) {
-        badgeTemplateId = this.expectString(this.boundParams[paramIndex], "badgeTemplateId");
-        paramIndex += 1;
-      }
-
-      if (normalizedSql.includes("attribution.org_unit_id = ?")) {
-        orgUnitId = this.expectString(this.boundParams[paramIndex], "orgUnitId");
-        paramIndex += 1;
-      }
-
-      if (normalizedSql.includes("LOWER(assertions.recipient_identity) LIKE ?")) {
-        recipientQuery = this.expectString(this.boundParams[paramIndex], "recipientQuery");
-        paramIndex += 3;
-      }
-
-      if (normalizedSql.includes("CASE") || normalizedSql.includes("COALESCE(lifecycle.to_state")) {
-        state = this.expectString(this.boundParams[paramIndex], "state");
-        paramIndex += 1;
-      }
-
-      let queryLimit = Number.POSITIVE_INFINITY;
-      const maybeLimit = this.boundParams[paramIndex];
-
-      if (typeof maybeLimit === "number") {
-        queryLimit = maybeLimit;
-      }
-
-      return this.db.rows
-        .filter((row) => row.tenantId === tenantId)
-        .filter((row) => (issuedFrom === undefined ? true : row.issuedAt >= issuedFrom))
-        .filter((row) => (issuedTo === undefined ? true : row.issuedAt <= issuedTo))
-        .filter((row) =>
-          badgeTemplateId === undefined ? true : row.badgeTemplateId === badgeTemplateId,
-        )
-        .filter((row) => (orgUnitId === undefined ? true : row.orgUnitId === orgUnitId))
-        .filter((row) => (state === undefined ? true : this.resolveState(row).state === state))
-        .filter((row) => {
-          if (recipientQuery === undefined) {
-            return true;
-          }
-
-          const normalizedQuery = recipientQuery.toLowerCase().replace(/%/g, "");
-          return (
-            row.recipientIdentity.toLowerCase().includes(normalizedQuery) ||
-            row.assertionId.toLowerCase().includes(normalizedQuery) ||
-            (row.publicId ?? "").toLowerCase().includes(normalizedQuery)
-          );
-        })
-        .sort((left, right) => {
-          if (left.issuedAt === right.issuedAt) {
-            return right.assertionId.localeCompare(left.assertionId);
-          }
-
-          return right.issuedAt.localeCompare(left.issuedAt);
-        })
-        .slice(0, queryLimit);
-    }
-
-    private selectOrgUnits(): FakeLedgerOrgUnitRow[] {
-      const tenantId = this.expectString(this.boundParams[0], "tenantId");
-      const includeInactive = this.boundParams[1] === 1;
-
-      return this.db.orgUnits.filter((row) => {
-        return (
-          row.tenantId === tenantId &&
-          (includeInactive || row.isActive === 1 || row.isActive === true)
-        );
-      });
-    }
-
-    private resolveState(row: FakeLedgerExportRow): Pick<LedgerExportRow, "state" | "source"> {
-      if (row.revokedAt !== null && row.latestToState === "revoked") {
-        return {
-          state: "revoked",
-          source: "lifecycle_event",
-        };
-      }
-
-      if (row.revokedAt !== null) {
-        return {
-          state: "revoked",
-          source: "assertion_revocation",
-        };
-      }
-
-      if (row.latestToState !== null) {
-        return {
-          state: row.latestToState,
-          source: "lifecycle_event",
-        };
-      }
-
-      return {
-        state: "active",
-        source: "default_active",
-      };
-    }
-
-    private expectString(value: unknown, label: string): string {
-      if (typeof value !== "string") {
-        throw new Error(`Expected ${label} to be a string in fake ledger export DB`);
-      }
-
-      return value;
-    }
-  }
-
-  class FakeLedgerExportDatabase {
-    constructor(
-      readonly rows: FakeLedgerExportRow[],
-      readonly orgUnits: FakeLedgerOrgUnitRow[],
-    ) {}
-
-    prepare(sql: string): FakeLedgerExportStatement {
-      return new FakeLedgerExportStatement(this, sql);
-    }
-  }
-
-  const createFakeLedgerExportDb = (rows: FakeLedgerExportRow[]): SqlDatabase => {
-    const orgUnits: FakeLedgerOrgUnitRow[] = [
-      {
-        id: "org_institution",
-        tenantId: "tenant_export",
-        unitType: "institution",
-        slug: "credtrail-university",
-        displayName: "CredTrail University",
-        parentOrgUnitId: null,
-        createdByUserId: "user_admin",
-        isActive: 1,
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      },
-      {
-        id: "org_college_science",
-        tenantId: "tenant_export",
-        unitType: "college",
-        slug: "science",
-        displayName: "College of Science",
-        parentOrgUnitId: "org_institution",
-        createdByUserId: "user_admin",
-        isActive: 1,
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      },
-      {
-        id: "org_department_biology",
-        tenantId: "tenant_export",
-        unitType: "department",
-        slug: "biology",
-        displayName: "Biology Department",
-        parentOrgUnitId: "org_college_science",
-        createdByUserId: "user_admin",
-        isActive: 1,
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      },
-      {
-        id: "org_program_microbiology",
-        tenantId: "tenant_export",
-        unitType: "program",
-        slug: "microbiology",
-        displayName: "Microbiology Program",
-        parentOrgUnitId: "org_department_biology",
-        createdByUserId: "user_admin",
-        isActive: 1,
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      },
-      {
-        id: "org_program_biochemistry",
-        tenantId: "tenant_export",
-        unitType: "program",
-        slug: "biochemistry",
-        displayName: "Biochemistry Program",
-        parentOrgUnitId: "org_department_biology",
-        createdByUserId: "user_admin",
-        isActive: 1,
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      },
-    ];
-
-    return new FakeLedgerExportDatabase(rows, orgUnits) as unknown as SqlDatabase;
-  };
-
-  const listTenantAssertionLedgerExportRows = (
-    dbModule as {
-      listTenantAssertionLedgerExportRows?: (
-        db: SqlDatabase,
-        input: {
-          tenantId: string;
-          issuedFrom?: string;
-          issuedTo?: string;
-          badgeTemplateId?: string;
-          orgUnitId?: string;
-          state?: "active" | "suspended" | "revoked" | "expired";
-          recipientQuery?: string;
-        },
-      ) => Promise<LedgerExportResult>;
-      SYNCHRONOUS_EXPORT_ROW_LIMIT?: number;
-    }
-  ).listTenantAssertionLedgerExportRows;
-
-  const synchronousExportRowLimit =
-    (dbModule as { SYNCHRONOUS_EXPORT_ROW_LIMIT?: number }).SYNCHRONOUS_EXPORT_ROW_LIMIT ?? 5000;
-
-  const baseLedgerRows: FakeLedgerExportRow[] = [
-    {
-      assertionId: "assertion_match",
-      tenantId: "tenant_export",
-      publicId: "public_match",
-      badgeTemplateId: "badge_template_science",
-      badgeTitle: "Foundations of Microbiology",
-      recipientIdentity: "learner.one@example.edu",
-      recipientIdentityType: "email",
-      issuedAt: "2026-03-10T15:45:00.000Z",
-      issuedByUserId: "user_issuer",
-      revokedAt: null,
-      latestToState: "suspended",
-      latestReasonCode: "administrative_hold",
-      latestReason: "Paused during registrar review",
-      latestTransitionedAt: "2026-03-12T10:15:00.000Z",
-      orgUnitId: "org_program_microbiology",
-      orgUnitDisplayName: "Microbiology Program",
-      attributionSource: "historical_backfill",
-      currentInstitutionName: "CredTrail University",
-      currentCollegeName: "College of Science",
-      currentDepartmentName: "Biology Department",
-      currentProgramName: "Microbiology Program",
-    },
-    {
-      assertionId: "assertion_old_issue_date",
-      tenantId: "tenant_export",
-      publicId: "public_old",
-      badgeTemplateId: "badge_template_science",
-      badgeTitle: "Foundations of Microbiology",
-      recipientIdentity: "learner.old@example.edu",
-      recipientIdentityType: "email",
-      issuedAt: "2026-02-01T09:00:00.000Z",
-      issuedByUserId: "user_issuer",
-      revokedAt: null,
-      latestToState: "suspended",
-      latestReasonCode: "administrative_hold",
-      latestReason: "Paused during registrar review",
-      latestTransitionedAt: "2026-03-12T10:15:00.000Z",
-      orgUnitId: "org_program_microbiology",
-      orgUnitDisplayName: "Microbiology Program",
-      attributionSource: "historical_backfill",
-      currentInstitutionName: "CredTrail University",
-      currentCollegeName: "College of Science",
-      currentDepartmentName: "Biology Department",
-      currentProgramName: "Microbiology Program",
-    },
-    {
-      assertionId: "assertion_wrong_state",
-      tenantId: "tenant_export",
-      publicId: "public_revoked",
-      badgeTemplateId: "badge_template_science",
-      badgeTitle: "Foundations of Microbiology",
-      recipientIdentity: "learner.revoked@example.edu",
-      recipientIdentityType: "email",
-      issuedAt: "2026-03-11T08:00:00.000Z",
-      issuedByUserId: "user_issuer",
-      revokedAt: "2026-03-15T00:00:00.000Z",
-      latestToState: "revoked",
-      latestReasonCode: "issuer_requested",
-      latestReason: "Credential revoked after policy violation",
-      latestTransitionedAt: "2026-03-15T00:00:00.000Z",
-      orgUnitId: "org_program_microbiology",
-      orgUnitDisplayName: "Microbiology Program",
-      attributionSource: "ownership_event",
-      currentInstitutionName: "CredTrail University",
-      currentCollegeName: "College of Science",
-      currentDepartmentName: "Biology Department",
-      currentProgramName: "Microbiology Program",
-    },
-    {
-      assertionId: "assertion_wrong_leaf",
-      tenantId: "tenant_export",
-      publicId: "public_other_leaf",
-      badgeTemplateId: "badge_template_science",
-      badgeTitle: "Foundations of Microbiology",
-      recipientIdentity: "learner.two@example.edu",
-      recipientIdentityType: "email",
-      issuedAt: "2026-03-11T09:00:00.000Z",
-      issuedByUserId: "user_issuer",
-      revokedAt: null,
-      latestToState: "suspended",
-      latestReasonCode: "administrative_hold",
-      latestReason: "Paused during registrar review",
-      latestTransitionedAt: "2026-03-12T10:15:00.000Z",
-      orgUnitId: "org_program_biochemistry",
-      orgUnitDisplayName: "Biochemistry Program",
-      attributionSource: "historical_backfill",
-      currentInstitutionName: "CredTrail University",
-      currentCollegeName: "College of Science",
-      currentDepartmentName: "Biology Department",
-      currentProgramName: "Biochemistry Program",
-    },
-  ];
-
+describeDbIntegration("ledger export foundation", () => {
   it("filters ledger export rows by issued date, template, state, and exact-match leaf orgUnitId", async () => {
-    expect(listTenantAssertionLedgerExportRows).toBeTypeOf("function");
+    const fixture = await seedLedgerRows();
 
-    const result = await listTenantAssertionLedgerExportRows?.(
-      createFakeLedgerExportDb(baseLedgerRows),
-      {
-        tenantId: "tenant_export",
+    try {
+      const result = await listTenantAssertionLedgerExportRows(fixture.db, {
+        tenantId: fixture.tenantId,
         issuedFrom: "2026-03-01",
         issuedTo: "2026-03-31",
-        badgeTemplateId: "badge_template_science",
-        orgUnitId: "org_program_microbiology",
+        badgeTemplateId: fixture.badgeTemplateId,
+        orgUnitId: fixture.microbiologyProgramId,
         state: "suspended",
-      },
-    );
+      });
 
-    expect(result).toEqual({
-      status: "ok",
-      rowLimit: synchronousExportRowLimit,
-      rows: [
-        expect.objectContaining({
-          assertionId: "assertion_match",
-          orgUnitId: "org_program_microbiology",
-          state: "suspended",
-        }),
-      ],
-    });
+      expect(result).toEqual({
+        status: "ok",
+        rowLimit: SYNCHRONOUS_EXPORT_ROW_LIMIT,
+        rows: [
+          expect.objectContaining({
+            assertionId: fixture.assertionMatchId,
+            orgUnitId: fixture.microbiologyProgramId,
+            state: "suspended",
+          }),
+        ],
+      });
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.issuerUserId],
+      });
+    }
   });
 
   it("returns stable leaf attribution, lifecycle details, and current-tree lineage convenience fields", async () => {
-    expect(listTenantAssertionLedgerExportRows).toBeTypeOf("function");
+    const fixture = await seedLedgerRows();
 
-    const result = await listTenantAssertionLedgerExportRows?.(
-      createFakeLedgerExportDb(baseLedgerRows),
-      {
-        tenantId: "tenant_export",
+    try {
+      const result = await listTenantAssertionLedgerExportRows(fixture.db, {
+        tenantId: fixture.tenantId,
         recipientQuery: "learner.one",
-      },
-    );
+      });
 
-    expect(result).toEqual({
-      status: "ok",
-      rowLimit: synchronousExportRowLimit,
-      rows: [
-        expect.objectContaining({
-          assertionId: "assertion_match",
-          publicId: "public_match",
-          badgeTemplateId: "badge_template_science",
-          badgeTitle: "Foundations of Microbiology",
-          recipientIdentity: "learner.one@example.edu",
-          recipientIdentityType: "email",
-          issuedAt: "2026-03-10T15:45:00.000Z",
-          issuedByUserId: "user_issuer",
-          orgUnitId: "org_program_microbiology",
-          orgUnitDisplayName: "Microbiology Program",
-          attributionSource: "historical_backfill",
-          state: "suspended",
-          source: "lifecycle_event",
-          reasonCode: "administrative_hold",
-          reason: "Paused during registrar review",
-          transitionedAt: "2026-03-12T10:15:00.000Z",
-          currentInstitutionName: "CredTrail University",
-          currentCollegeName: "College of Science",
-          currentDepartmentName: "Biology Department",
-          currentProgramName: "Microbiology Program",
-        }),
-      ],
-    });
+      expect(result).toEqual({
+        status: "ok",
+        rowLimit: SYNCHRONOUS_EXPORT_ROW_LIMIT,
+        rows: [
+          expect.objectContaining({
+            assertionId: fixture.assertionMatchId,
+            badgeTemplateId: fixture.badgeTemplateId,
+            badgeTitle: "Foundations of Microbiology",
+            recipientIdentity: "learner.one@example.edu",
+            recipientIdentityType: "email",
+            issuedAt: "2026-03-10T15:45:00.000Z",
+            orgUnitId: fixture.microbiologyProgramId,
+            orgUnitDisplayName: "Microbiology Program",
+            attributionSource: "historical_backfill",
+            state: "suspended",
+            source: "lifecycle_event",
+            reasonCode: "administrative_hold",
+            reason: "Paused during registrar review",
+            transitionedAt: "2026-03-12T10:15:00.000Z",
+            currentInstitutionName: "CredTrail University Institution",
+            currentCollegeName: "College of Science",
+            currentDepartmentName: "Biology Department",
+            currentProgramName: "Microbiology Program",
+          }),
+        ],
+      });
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.issuerUserId],
+      });
+    }
   });
 
   it("returns an explicit too_large status above the synchronous export cap", async () => {
-    expect(listTenantAssertionLedgerExportRows).toBeTypeOf("function");
-
-    const firstBaseLedgerRow = baseLedgerRows[0];
-
-    if (firstBaseLedgerRow === undefined) {
-      throw new Error("Expected at least one base ledger row fixture");
-    }
-
-    const overCapRows = Array.from({ length: synchronousExportRowLimit + 1 }, (_, index) => ({
-      ...firstBaseLedgerRow,
-      assertionId: `assertion_${index}`,
-      publicId: `public_${index}`,
-      recipientIdentity: `learner.${index}@example.edu`,
-      issuedAt: `2026-03-10T15:${String(index % 60).padStart(2, "0")}:00.000Z`,
-    }));
-
-    const result = await listTenantAssertionLedgerExportRows?.(
-      createFakeLedgerExportDb(overCapRows),
-      {
-        tenantId: "tenant_export",
-      },
-    );
-
-    expect(result).toEqual({
-      status: "too_large",
-      rowLimit: synchronousExportRowLimit,
+    const fixture = await createTestTenantFixture({
+      displayName: "CredTrail University",
     });
+    const orgTree = await seedLedgerOrgTree(fixture.db, fixture.tenantId);
+    const badgeTemplateId = await seedBadgeTemplate(fixture.db, {
+      tenantId: fixture.tenantId,
+      title: "Foundations of Microbiology",
+    });
+    const idPrefix = uniqueTestId("assertion_bulk");
+    const publicPrefix = uniqueTestId("public_bulk");
+    const vcPrefix = `tenants/${fixture.tenantId}/assertions/${idPrefix}`;
+    const idempotencyPrefix = uniqueTestId("idem_bulk");
+    const nowIso = new Date().toISOString();
+
+    try {
+      await fixture.db
+        .prepare(
+          `
+          INSERT INTO assertions (
+            id,
+            tenant_id,
+            public_id,
+            learner_profile_id,
+            badge_template_id,
+            recipient_identity,
+            recipient_identity_type,
+            vc_r2_key,
+            status_list_index,
+            idempotency_key,
+            issued_at,
+            issued_by_user_id,
+            revoked_at,
+            created_at,
+            updated_at
+          )
+          SELECT
+            ? || series.value::text,
+            ?,
+            ? || series.value::text,
+            NULL,
+            ?,
+            'learner.' || series.value::text || '@example.edu',
+            'email',
+            ? || series.value::text || '.jsonld',
+            series.value,
+            ? || series.value::text,
+            '2026-03-10T15:00:00.000Z',
+            NULL,
+            NULL,
+            ?,
+            ?
+          FROM generate_series(1, ?) AS series(value)
+        `,
+        )
+        .bind(
+          idPrefix,
+          fixture.tenantId,
+          publicPrefix,
+          badgeTemplateId,
+          vcPrefix,
+          idempotencyPrefix,
+          nowIso,
+          nowIso,
+          SYNCHRONOUS_EXPORT_ROW_LIMIT + 1,
+        )
+        .run();
+
+      await fixture.db
+        .prepare(
+          `
+          INSERT INTO assertion_reporting_attributions (
+            assertion_id,
+            tenant_id,
+            badge_template_id,
+            org_unit_id,
+            attribution_source,
+            attributed_at,
+            created_at,
+            updated_at
+          )
+          SELECT
+            ? || series.value::text,
+            ?,
+            ?,
+            ?,
+            'historical_backfill',
+            '2026-03-10T15:00:00.000Z',
+            ?,
+            ?
+          FROM generate_series(1, ?) AS series(value)
+        `,
+        )
+        .bind(
+          idPrefix,
+          fixture.tenantId,
+          badgeTemplateId,
+          orgTree.microbiologyProgramId,
+          nowIso,
+          nowIso,
+          SYNCHRONOUS_EXPORT_ROW_LIMIT + 1,
+        )
+        .run();
+
+      const result = await listTenantAssertionLedgerExportRows(fixture.db, {
+        tenantId: fixture.tenantId,
+      });
+
+      expect(result).toEqual({
+        status: "too_large",
+        rowLimit: SYNCHRONOUS_EXPORT_ROW_LIMIT,
+      });
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+      });
+    }
   });
 });
