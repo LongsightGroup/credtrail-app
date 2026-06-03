@@ -884,7 +884,10 @@ describe("LTI 1.3 core launch flow", () => {
     expect(response.headers.get("set-cookie") ?? "").toContain("SameSite=None");
     expect(response.headers.get("set-cookie") ?? "").toContain("Secure");
     const body = await response.text();
-    expect(body).toContain("Review badge progress for this course");
+    expect(body).toContain("CredTrail could not load badge progress");
+    expect(body).toContain("Open CredTrail dashboard");
+    expect(body).toContain("lti_session_handoff=");
+    expect(body).not.toContain("<h1>Review badge progress for this course</h1>");
     expect(betterAuthProvider.createLtiSession).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -1108,8 +1111,10 @@ describe("LTI 1.3 core launch flow", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("set-cookie")).toContain("better-auth.session_token=");
-    expect(body).toContain("CredTrail is connected");
-    expect(body).toContain("Your LMS account is linked and this browser is signed in.");
+    expect(body).toContain("CredTrail could not load this LMS roster");
+    expect(body).toContain(
+      "Open CredTrail or ask an administrator to check the LMS roster connection.",
+    );
     expect(body).toContain("issuer");
     expect(body).toContain("LtiResourceLinkRequest");
     expect(body).toContain("/tenants/tenant_123/learner/dashboard");
@@ -1965,11 +1970,13 @@ describe("LTI 1.3 core launch flow", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("CredTrail is connected");
+    expect(body).toContain("CredTrail could not load this LMS roster");
     expect(body).toContain("Issue badges from course roster");
     expect(body).toContain(
       "This LMS launch did not include a learner roster, so CredTrail cannot issue badges from this tool yet.",
     );
+    expect(body).toContain("Open CredTrail dashboard");
+    expect(body).toContain("lti_session_handoff=");
   });
 
   it("accepts a learner launch and links local account session with email claim", async () => {

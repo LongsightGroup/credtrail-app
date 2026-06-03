@@ -57,17 +57,49 @@ const LtiDeepLinkForm = ({
   );
 };
 
-const ltiLaunchTitle = (input: {
+type LtiLaunchViewMode =
+  | "learner"
+  | "bulkReady"
+  | "bulkDegraded"
+  | "courseSummaryReady"
+  | "courseSummaryDegraded"
+  | "connected";
+
+const ltiLaunchViewMode = (input: {
   roleKind: LtiRoleKind;
-  launchDisplayName: string | null;
   bulkIssuanceView: LtiBulkIssuanceView | null;
   courseBadgeSummaryView: LtiCourseBadgeSummaryView | null;
-}): string => {
-  if (input.roleKind === "instructor" && input.bulkIssuanceView?.status === "ready") {
-    return "Issue badges from this LMS course";
+}): LtiLaunchViewMode => {
+  if (input.roleKind === "learner") {
+    return "learner";
+  }
+
+  if (input.roleKind === "instructor" && input.bulkIssuanceView !== null) {
+    return input.bulkIssuanceView.status === "ready" ? "bulkReady" : "bulkDegraded";
   }
 
   if (input.roleKind === "instructor" && input.courseBadgeSummaryView !== null) {
+    return input.courseBadgeSummaryView.status === "ready"
+      ? "courseSummaryReady"
+      : "courseSummaryDegraded";
+  }
+
+  return "connected";
+};
+
+const ltiLaunchTitle = (input: {
+  mode: LtiLaunchViewMode;
+  launchDisplayName: string | null;
+}): string => {
+  if (input.mode === "bulkReady") {
+    return "Issue badges from this LMS course";
+  }
+
+  if (input.mode === "bulkDegraded") {
+    return "CredTrail could not load this LMS roster";
+  }
+
+  if (input.mode === "courseSummaryReady") {
     if (input.launchDisplayName !== null) {
       return `Hi, ${input.launchDisplayName}`;
     }
@@ -75,27 +107,35 @@ const ltiLaunchTitle = (input: {
     return "Review badge progress for this course";
   }
 
-  if (input.roleKind === "learner") {
+  if (input.mode === "courseSummaryDegraded") {
+    return "CredTrail could not load badge progress";
+  }
+
+  if (input.mode === "learner") {
     return "Open your CredTrail dashboard";
   }
 
   return "CredTrail is connected";
 };
 
-const ltiLaunchSubtitle = (input: {
-  roleKind: LtiRoleKind;
-  bulkIssuanceView: LtiBulkIssuanceView | null;
-  courseBadgeSummaryView: LtiCourseBadgeSummaryView | null;
-}): string => {
-  if (input.roleKind === "instructor" && input.bulkIssuanceView?.status === "ready") {
+const ltiLaunchSubtitle = (input: { mode: LtiLaunchViewMode }): string => {
+  if (input.mode === "bulkReady") {
     return "Select learners below to issue the badge placed in this LMS tool.";
   }
 
-  if (input.roleKind === "instructor" && input.courseBadgeSummaryView !== null) {
+  if (input.mode === "bulkDegraded") {
+    return "Open CredTrail or ask an administrator to check the LMS roster connection.";
+  }
+
+  if (input.mode === "courseSummaryReady") {
     return "Review badge progress for this course from the LMS roster.";
   }
 
-  if (input.roleKind === "learner") {
+  if (input.mode === "courseSummaryDegraded") {
+    return "Open CredTrail or ask an administrator to check the LMS roster connection.";
+  }
+
+  if (input.mode === "learner") {
     return "Your LMS account is linked and this browser is signed in.";
   }
 
@@ -551,20 +591,27 @@ export const ltiLaunchResultPage = (input: {
   bulkIssuanceView: LtiBulkIssuanceView | null;
   courseBadgeSummaryView: LtiCourseBadgeSummaryView | null;
 }): AppPage => {
+  const mode = ltiLaunchViewMode(input);
   const showDashboardAction =
-    input.roleKind !== "instructor" ||
-    (input.bulkIssuanceView?.status !== "ready" && input.courseBadgeSummaryView === null);
+    mode === "learner" ||
+    mode === "connected" ||
+    mode === "bulkDegraded" ||
+    mode === "courseSummaryDegraded";
   const scripts =
     input.courseBadgeSummaryView === null ? undefined : (["ltiCourseSummaryJs"] as const);
+  const title = ltiLaunchTitle({
+    mode,
+    launchDisplayName: input.launchDisplayName,
+  });
 
   return ltiPage({
-    title: `${ltiLaunchTitle(input)} | CredTrail`,
+    title: `${title} | CredTrail`,
     ...(scripts === undefined ? {} : { scripts }),
     body: (
       <section class="lti-launch">
         <header class="lti-launch__hero">
-          <h1>{ltiLaunchTitle(input)}</h1>
-          <p>{ltiLaunchSubtitle(input)}</p>
+          <h1>{title}</h1>
+          <p>{ltiLaunchSubtitle({ mode })}</p>
         </header>
         <BulkIssuanceSection view={input.bulkIssuanceView} />
         <CourseBadgeSummarySection view={input.courseBadgeSummaryView} />
