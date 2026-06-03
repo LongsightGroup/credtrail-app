@@ -126,13 +126,21 @@ export const buildInstitutionAdminSidebarSections = (
   return [
     {
       kind: "links",
-      links: [{ href: paths.tenantAdminPath, label: "Home", isCurrent: view === "home" }],
+      links: [
+        {
+          href: paths.tenantAdminPath,
+          label: "Home",
+          icon: "home",
+          isCurrent: view === "home",
+        },
+      ],
     },
     {
       kind: "groups",
       groups: [
         {
           label: "Issuance",
+          icon: "issuance",
           links: [
             {
               href: paths.operationsManualIssuePath,
@@ -158,6 +166,7 @@ export const buildInstitutionAdminSidebarSections = (
         },
         {
           label: "Learner Records",
+          icon: "learnerRecords",
           links: [
             {
               href: paths.operationsLearnerRecordsPath,
@@ -178,6 +187,7 @@ export const buildInstitutionAdminSidebarSections = (
       groups: [
         {
           label: "Badge Program",
+          icon: "badgeProgram",
           links: [
             {
               href: paths.rulesTemplatesPath,
@@ -199,6 +209,7 @@ export const buildInstitutionAdminSidebarSections = (
       groups: [
         {
           label: "Reporting",
+          icon: "reporting",
           links: [
             { href: paths.reportingPath, label: "Overview", isCurrent: view === "reporting" },
             {
@@ -225,6 +236,7 @@ export const buildInstitutionAdminSidebarSections = (
       groups: [
         {
           label: "People & Access",
+          icon: "peopleAccess",
           links: peopleAndAccessLinks,
         },
       ],

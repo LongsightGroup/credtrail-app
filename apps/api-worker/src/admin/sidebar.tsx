@@ -2,14 +2,24 @@ import type { HtmlEscapedString } from "hono/utils/html";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
+export type AdminSidebarNavIconName =
+  | "home"
+  | "issuance"
+  | "learnerRecords"
+  | "badgeProgram"
+  | "reporting"
+  | "peopleAccess";
+
 export interface AdminSidebarLinkItem {
   href: string;
   label: string;
+  icon?: AdminSidebarNavIconName;
   isCurrent?: boolean;
 }
 
 export interface AdminSidebarGroupItem {
   label: string;
+  icon: AdminSidebarNavIconName;
   links: readonly AdminSidebarLinkItem[];
   defaultOpen?: boolean;
 }
@@ -31,6 +41,70 @@ export interface AdminSidebarFooterLink {
   target?: "_blank";
   rel?: string;
 }
+
+const AdminSidebarNavIcon = (input: { name: AdminSidebarNavIconName }): HonoElement => {
+  const iconProps = {
+    class: "ct-admin-sidebar__nav-icon",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    "stroke-width": "1.75",
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+    "aria-hidden": "true",
+    focusable: "false",
+  };
+
+  switch (input.name) {
+    case "home":
+      return (
+        <svg {...iconProps}>
+          <path d="m3 10 9-7 9 7"></path>
+          <path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"></path>
+        </svg>
+      );
+    case "issuance":
+      return (
+        <svg {...iconProps}>
+          <path d="m22 2-7 20-4-9-9-4Z"></path>
+          <path d="M22 2 11 13"></path>
+        </svg>
+      );
+    case "learnerRecords":
+      return (
+        <svg {...iconProps}>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+      );
+    case "badgeProgram":
+      return (
+        <svg {...iconProps}>
+          <circle cx="12" cy="8" r="5"></circle>
+          <path d="M8.5 13.5 7 21l5-2.5L17 21l-1.5-7.5"></path>
+        </svg>
+      );
+    case "reporting":
+      return (
+        <svg {...iconProps}>
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+      );
+    case "peopleAccess":
+      return (
+        <svg {...iconProps}>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="10" cy="8" r="3"></circle>
+          <path d="M20 8v6"></path>
+          <path d="M23 11h-6"></path>
+        </svg>
+      );
+  }
+};
 
 const AdminSidebarMenuChevron = (): HonoElement => {
   return (
@@ -65,7 +139,10 @@ const renderSidebarLink = (
       href={link.href}
       aria-current={link.isCurrent === true ? "page" : undefined}
     >
-      {link.label}
+      {link.icon === undefined || options?.nested === true ? null : (
+        <AdminSidebarNavIcon name={link.icon} />
+      )}
+      <span class="ct-admin-sidebar__link-label">{link.label}</span>
     </a>
   );
 };
@@ -115,6 +192,7 @@ const renderSidebarGroup = (
       <details class="ct-admin-sidebar__group-details" open={isOpen}>
         <summary class="ct-admin-sidebar__group-trigger" aria-controls={groupContentId}>
           <span class="ct-admin-sidebar__group-title">
+            <AdminSidebarNavIcon name={group.icon} />
             <span>{group.label}</span>
           </span>
           <AdminSidebarMenuChevron />

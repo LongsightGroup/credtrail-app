@@ -23,9 +23,12 @@ const renderSidebarHtml = (
 };
 
 describe("AdminSidebar", () => {
-  it("renders Kumo-style chevrons only on multi-link collapsible groups", () => {
+  it("renders nav icons on home and group triggers only", () => {
     const html = renderSidebarHtml("home");
 
+    expect(html).toContain('class="ct-admin-sidebar__nav-icon"');
+    const iconCount = html.match(/class="ct-admin-sidebar__nav-icon"/g)?.length;
+    expect(iconCount).toBe(6);
     expect(html).toContain('class="ct-admin-sidebar__menu-chevron"');
     expect(html).toContain('class="ct-admin-sidebar__group-details"');
     expect(html).toContain("Issuance");

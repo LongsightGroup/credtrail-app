@@ -96,11 +96,25 @@ export const INSTITUTION_ADMIN_CSS = `
   align-items: center;
   gap: 0.56rem;
 }
-.ct-admin-sidebar__group-title span:last-child {
+.ct-admin-sidebar__group-title span:last-child,
+.ct-admin-sidebar__link-label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.ct-admin-sidebar__nav-icon {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  color: var(--ct-theme-text-muted);
+}
+.ct-admin-sidebar__group-trigger:hover .ct-admin-sidebar__nav-icon,
+.ct-admin-sidebar__link:hover .ct-admin-sidebar__nav-icon {
+  color: var(--ct-theme-text-body);
+}
+.ct-admin-sidebar__link[aria-current='page'] .ct-admin-sidebar__nav-icon {
+  color: var(--ct-brand-lake-700);
 }
 .ct-admin-sidebar__menu-chevron {
   flex: 0 0 auto;

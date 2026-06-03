@@ -104,7 +104,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain("Analytics");
     expect(body).toContain("Management");
     expect(body).toContain("Configuration");
-    expect(body).not.toContain('class="ct-admin-sidebar__section-icon"');
+    expect(body).toContain('class="ct-admin-sidebar__nav-icon"');
     expect(body).toContain('class="ct-admin-sidebar__group-details"');
     expect(body).toContain("<summary");
     expect(body).not.toMatch(/class="ct-admin-sidebar__group-content"[^>]*hidden/);
