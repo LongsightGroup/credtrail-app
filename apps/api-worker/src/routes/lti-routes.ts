@@ -1,11 +1,14 @@
 import {
   findBadgeTemplateById,
+  listAssertionsByBadgeTemplatesAndRecipientEmails,
   listAssertionLifecycleStatesByAssertionIds,
   listAssertionsByIdempotencyKeys,
   listBadgeTemplates,
   listLtiResourceLinkPlacementsForContext,
+  normalizeEmail,
   upsertLtiDeployment,
   upsertLtiResourceLinkPlacement,
+  type AssertionRecord,
   type AssertionLifecycleState,
   type BadgeTemplateRecord,
   type LtiResourceLinkPlacementRecord,
@@ -29,6 +32,7 @@ import {
   ltiLaunchFormInputFromRequest,
   ltiLearnerDashboardPath,
   ltiLoginInputFromRequest,
+  ltiDisplayNameFromClaims,
   normalizeLtiIssuer,
   type LtiIssuerRegistryEntry,
   type LtiIssuerRegistry,
@@ -264,15 +268,52 @@ const courseBadgeSummaryStatusLabel = (
   return status.charAt(0).toUpperCase() + status.slice(1);
 };
 
-const ltiBadgeTemplateDetailPath = (tenantId: string, badgeTemplateId: string): string => {
-  return `/tenants/${encodeURIComponent(tenantId)}/admin/rules/templates/${encodeURIComponent(
-    badgeTemplateId,
-  )}`;
+const ltiLearnerIssuedBadgesPath = (input: {
+  tenantId: string;
+  email: string;
+  badgeTemplateId?: string;
+  assertionId?: string;
+}): string => {
+  const query = new URLSearchParams({ recipientQuery: input.email });
+
+  if (input.badgeTemplateId !== undefined) {
+    query.set("badgeTemplateId", input.badgeTemplateId);
+  }
+
+  if (input.assertionId !== undefined) {
+    query.set("lifecycle", input.assertionId);
+    query.set("lifecycleMode", "audit");
+  }
+
+  query.set("source", "lti-course-summary");
+
+  return `/tenants/${encodeURIComponent(input.tenantId)}/admin/operations/issued-badges?${query.toString()}`;
 };
 
-const ltiLearnerIssuedBadgesPath = (tenantId: string, email: string): string => {
-  const query = new URLSearchParams({ recipientQuery: email });
-  return `/tenants/${encodeURIComponent(tenantId)}/admin/operations/issued-badges?${query.toString()}`;
+const ltiBadgeCourseSetupPath = (input: {
+  tenantId: string;
+  badgeTemplateId: string;
+  contextId: string;
+  resourceLinkId: string;
+  courseContextTitle: string | null;
+}): string => {
+  const query = new URLSearchParams({
+    ltiContextId: input.contextId,
+    ltiResourceLinkId: input.resourceLinkId,
+    source: "lti-course-summary",
+  });
+
+  if (input.courseContextTitle !== null) {
+    query.set("ltiCourse", input.courseContextTitle);
+  }
+
+  return `/tenants/${encodeURIComponent(input.tenantId)}/admin/rules/templates/${encodeURIComponent(
+    input.badgeTemplateId,
+  )}?${query.toString()}`;
+};
+
+const ltiBadgeRecipientKey = (badgeTemplateId: string, recipientEmail: string): string => {
+  return `${badgeTemplateId}:${normalizeEmail(recipientEmail)}`;
 };
 
 const uniqueCoursePlacementsByBadgeTemplate = (
@@ -354,9 +395,30 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
   const assertionsByIdempotencyKey = new Map(
     assertions.map((assertion) => [assertion.idempotencyKey, assertion]),
   );
+  const matchingRecipientAssertions = await listAssertionsByBadgeTemplatesAndRecipientEmails(
+    input.db,
+    {
+      tenantId: input.tenantId,
+      badgeTemplateIds: placements.map((placement) => placement.badgeTemplateId),
+      recipientEmails: learnerMembers
+        .map((member) => member.email)
+        .filter((email): email is string => email !== null),
+    },
+  );
+  const matchingRecipientAssertionsByBadgeRecipient = new Map<string, AssertionRecord>();
+
+  for (const assertion of matchingRecipientAssertions) {
+    const key = ltiBadgeRecipientKey(assertion.badgeTemplateId, assertion.recipientIdentity);
+
+    if (!matchingRecipientAssertionsByBadgeRecipient.has(key)) {
+      matchingRecipientAssertionsByBadgeRecipient.set(key, assertion);
+    }
+  }
   const lifecycleStates = await listAssertionLifecycleStatesByAssertionIds(input.db, {
     tenantId: input.tenantId,
-    assertionIds: assertions.map((assertion) => assertion.id),
+    assertionIds: Array.from(
+      new Set([...assertions, ...matchingRecipientAssertions].map((assertion) => assertion.id)),
+    ),
   });
   const lifecycleStatesByAssertionId = new Map(
     lifecycleStates.map((lifecycle) => [lifecycle.assertionId, lifecycle]),
@@ -364,12 +426,21 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
   const rows: Array<LtiCourseBadgeSummaryView["rows"][number]> = [];
 
   for (const candidate of keyedCandidates) {
-    const assertion = assertionsByIdempotencyKey.get(candidate.idempotencyKey) ?? null;
+    const placementAssertion = assertionsByIdempotencyKey.get(candidate.idempotencyKey) ?? null;
+    const matchingRecipientAssertion =
+      candidate.member.email === null
+        ? null
+        : (matchingRecipientAssertionsByBadgeRecipient.get(
+            ltiBadgeRecipientKey(candidate.template.id, candidate.member.email),
+          ) ?? null);
+    const assertion = placementAssertion ?? matchingRecipientAssertion;
     const lifecycle = assertion === null ? null : lifecycleStatesByAssertionId.get(assertion.id);
     const status =
       assertion === null ? "not_issued" : courseBadgeSummaryStatus(lifecycle?.state ?? null);
     const learnerName =
       candidate.member.displayName ?? candidate.member.email ?? candidate.member.userId;
+    const assertionId = assertion?.id;
+    const placementContextId = candidate.placement.contextId ?? input.contextId;
 
     rows.push({
       learnerUserId: candidate.member.userId,
@@ -378,13 +449,30 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
       learnerDetailPath:
         candidate.member.email === null
           ? null
-          : ltiLearnerIssuedBadgesPath(input.tenantId, candidate.member.email),
+          : ltiLearnerIssuedBadgesPath({
+              tenantId: input.tenantId,
+              email: candidate.member.email,
+              badgeTemplateId: candidate.template.id,
+              ...(assertionId === undefined ? {} : { assertionId }),
+            }),
       badgeTemplateId: candidate.template.id,
       badgeTitle: candidate.template.title,
-      badgeDetailPath: ltiBadgeTemplateDetailPath(input.tenantId, candidate.template.id),
+      badgeDetailPath: ltiBadgeCourseSetupPath({
+        tenantId: input.tenantId,
+        badgeTemplateId: candidate.template.id,
+        contextId: placementContextId,
+        resourceLinkId: candidate.placement.resourceLinkId,
+        courseContextTitle: input.courseContextTitle,
+      }),
       status,
       statusLabel: courseBadgeSummaryStatusLabel(status),
-      assertionId: assertion?.id ?? null,
+      statusDetail:
+        assertion === null
+          ? "No issued badge record found for this learner and badge."
+          : placementAssertion === null
+            ? "Issued for this learner and badge outside this LMS placement."
+            : "Issued from this LMS badge placement.",
+      assertionId: assertionId ?? null,
       issuedAt: assertion?.issuedAt ?? null,
     });
   }
@@ -1316,6 +1404,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
         subjectId: launchClaims.sub,
         targetLinkUri: launchMessage.resolvedTargetLinkUri,
         messageType: launchMessage.messageType,
+        launchDisplayName: ltiDisplayNameFromClaims(launchClaims) ?? null,
         dashboardPath,
         bulkIssuanceView,
         courseBadgeSummaryView,

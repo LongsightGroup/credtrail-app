@@ -59,6 +59,7 @@ const LtiDeepLinkForm = ({
 
 const ltiLaunchTitle = (input: {
   roleKind: LtiRoleKind;
+  launchDisplayName: string | null;
   bulkIssuanceView: LtiBulkIssuanceView | null;
   courseBadgeSummaryView: LtiCourseBadgeSummaryView | null;
 }): string => {
@@ -67,6 +68,10 @@ const ltiLaunchTitle = (input: {
   }
 
   if (input.roleKind === "instructor" && input.courseBadgeSummaryView !== null) {
+    if (input.launchDisplayName !== null) {
+      return `Hi, ${input.launchDisplayName}`;
+    }
+
     return "Review badge progress for this course";
   }
 
@@ -87,7 +92,7 @@ const ltiLaunchSubtitle = (input: {
   }
 
   if (input.roleKind === "instructor" && input.courseBadgeSummaryView !== null) {
-    return "View learners and badge status from the LMS course roster.";
+    return "Review badge progress for this course from the LMS roster.";
   }
 
   if (input.roleKind === "learner") {
@@ -179,6 +184,7 @@ export interface LtiCourseBadgeSummaryRow {
   badgeDetailPath: string;
   status: "issued" | "not_issued" | "suspended" | "revoked" | "expired";
   statusLabel: string;
+  statusDetail: string;
   assertionId: string | null;
   issuedAt: string | null;
 }
@@ -453,6 +459,7 @@ const CourseBadgeSummarySection = (input: {
                       row.learnerEmail ?? "",
                       row.badgeTitle,
                       row.statusLabel,
+                      row.statusDetail,
                     ].join(" ");
 
                     return (
@@ -473,6 +480,10 @@ const CourseBadgeSummarySection = (input: {
                               rel="noopener noreferrer"
                             >
                               {row.learnerName}
+                              <span class="lti-launch__sr-only">
+                                {" "}
+                                badge record for {row.badgeTitle}
+                              </span>
                             </a>
                           )}
                         </td>
@@ -480,14 +491,25 @@ const CourseBadgeSummarySection = (input: {
                         <td>
                           <a href={row.badgeDetailPath} target="_blank" rel="noopener noreferrer">
                             {row.badgeTitle}
+                            <span class="lti-launch__sr-only"> badge setup for this course</span>
                           </a>
                         </td>
                         <td>
-                          <span
-                            class={`lti-launch__status-pill lti-launch__status-pill--${row.status}`}
-                          >
-                            {row.statusLabel}
-                          </span>
+                          <div class="lti-launch__status-stack">
+                            <span
+                              class={`lti-launch__status-pill lti-launch__status-pill--${row.status}`}
+                            >
+                              {row.statusLabel}
+                            </span>
+                            {row.issuedAt === null ? null : (
+                              <span class="lti-launch__summary-timestamp">
+                                Issued {row.issuedAt}
+                              </span>
+                            )}
+                            <span class="lti-launch__summary-status-detail">
+                              {row.statusDetail}
+                            </span>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -524,6 +546,7 @@ export const ltiLaunchResultPage = (input: {
   subjectId: string;
   targetLinkUri: string;
   messageType: string;
+  launchDisplayName: string | null;
   dashboardPath: string;
   bulkIssuanceView: LtiBulkIssuanceView | null;
   courseBadgeSummaryView: LtiCourseBadgeSummaryView | null;

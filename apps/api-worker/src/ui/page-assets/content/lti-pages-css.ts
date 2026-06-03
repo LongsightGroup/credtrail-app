@@ -5,6 +5,18 @@ export const LTI_PAGES_CSS = `
   max-width: 58rem;
 }
 
+.lti-launch__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .lti-launch__hero {
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-lg);
@@ -269,6 +281,23 @@ export const LTI_PAGES_CSS = `
   border-color: var(--ct-theme-border-danger);
   background: var(--ct-theme-surface-danger);
   color: var(--ct-theme-state-danger);
+}
+
+.lti-launch__status-stack {
+  display: grid;
+  gap: 0.22rem;
+  justify-items: start;
+}
+
+.lti-launch__summary-timestamp,
+.lti-launch__summary-status-detail {
+  color: var(--ct-theme-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.lti-launch__summary-status-detail {
+  max-width: 22rem;
 }
 
 @media (max-width: 760px) {
