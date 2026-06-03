@@ -1,11 +1,9 @@
 import {
   findBadgeTemplateById,
-  findAssertionByIdempotencyKey,
   listAssertionLifecycleStatesByAssertionIds,
   listAssertionsByIdempotencyKeys,
   listBadgeTemplates,
   listLtiResourceLinkPlacementsForContext,
-  resolveAssertionLifecycleState,
   upsertLtiDeployment,
   upsertLtiResourceLinkPlacement,
   type AssertionLifecycleState,
@@ -539,30 +537,45 @@ const ltiRosterIssuedBadgeStatesByUserId = async (input: {
   learnerMembers: readonly LtiNrpsMember[];
 }): Promise<Map<string, LtiRosterIssuedBadgeState>> => {
   const statesByUserId = new Map<string, LtiRosterIssuedBadgeState>();
+  const keyedMembers = await Promise.all(
+    input.learnerMembers.map(async (member) => {
+      const idempotencyKey = await ltiIssuanceIdempotencyKey(
+        input.sha256Hex,
+        input.action,
+        member.userId,
+      );
 
-  for (const member of input.learnerMembers) {
-    const idempotencyKey = await ltiIssuanceIdempotencyKey(
-      input.sha256Hex,
-      input.action,
-      member.userId,
-    );
-    const assertion = await findAssertionByIdempotencyKey(
-      input.db,
-      input.action.tenantId,
-      idempotencyKey,
-    );
+      return {
+        member,
+        idempotencyKey,
+      };
+    }),
+  );
+  const assertions = await listAssertionsByIdempotencyKeys(input.db, {
+    tenantId: input.action.tenantId,
+    idempotencyKeys: keyedMembers.map((keyedMember) => keyedMember.idempotencyKey),
+  });
+  const assertionsByIdempotencyKey = new Map(
+    assertions.map((assertion) => [assertion.idempotencyKey, assertion]),
+  );
+  const lifecycleStates = await listAssertionLifecycleStatesByAssertionIds(input.db, {
+    tenantId: input.action.tenantId,
+    assertionIds: assertions.map((assertion) => assertion.id),
+  });
+  const lifecycleStatesByAssertionId = new Map(
+    lifecycleStates.map((lifecycle) => [lifecycle.assertionId, lifecycle]),
+  );
+
+  for (const keyedMember of keyedMembers) {
+    const assertion = assertionsByIdempotencyKey.get(keyedMember.idempotencyKey) ?? null;
 
     if (assertion === null) {
       continue;
     }
 
-    const lifecycle = await resolveAssertionLifecycleState(
-      input.db,
-      input.action.tenantId,
-      assertion.id,
-    );
+    const lifecycle = lifecycleStatesByAssertionId.get(assertion.id);
 
-    statesByUserId.set(member.userId, {
+    statesByUserId.set(keyedMember.member.userId, {
       assertionId: assertion.id,
       issuedAt: assertion.issuedAt,
       lifecycleState: lifecycle?.state ?? null,

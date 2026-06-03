@@ -11,7 +11,6 @@ vi.mock("@credtrail/db", async () => {
     ensureTenantMembership: vi.fn(),
     findAuthIdentityLinkByAuthUserId: vi.fn(),
     findAuthIdentityLinkByCredtrailUserId: vi.fn(),
-    findAssertionByIdempotencyKey: vi.fn(),
     findBadgeTemplateById: vi.fn(),
     findLearnerProfileByIdentity: vi.fn(),
     findUserById: vi.fn(),
@@ -20,7 +19,6 @@ vi.mock("@credtrail/db", async () => {
     listBadgeTemplates: vi.fn(),
     listLtiIssuerRegistrations: vi.fn(),
     listLtiResourceLinkPlacementsForContext: vi.fn(),
-    resolveAssertionLifecycleState: vi.fn(),
     upsertLtiDeployment: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
     upsertLtiResourceLinkPlacement: vi.fn(),
@@ -41,7 +39,6 @@ import {
   ensureTenantMembership,
   findAuthIdentityLinkByAuthUserId,
   findAuthIdentityLinkByCredtrailUserId,
-  findAssertionByIdempotencyKey,
   findBadgeTemplateById,
   findLearnerProfileByIdentity,
   findUserById,
@@ -50,7 +47,6 @@ import {
   listBadgeTemplates,
   listLtiIssuerRegistrations,
   listLtiResourceLinkPlacementsForContext,
-  resolveAssertionLifecycleState,
   resolveLearnerProfileForIdentity,
   type AssertionRecord,
   upsertLtiResourceLinkPlacement,
@@ -78,7 +74,6 @@ const mockedFindAuthIdentityLinkByAuthUserId = vi.mocked(findAuthIdentityLinkByA
 const mockedFindAuthIdentityLinkByCredtrailUserId = vi.mocked(
   findAuthIdentityLinkByCredtrailUserId,
 );
-const mockedFindAssertionByIdempotencyKey = vi.mocked(findAssertionByIdempotencyKey);
 const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
 const mockedFindLearnerProfileByIdentity = vi.mocked(findLearnerProfileByIdentity);
 const mockedFindUserById = vi.mocked(findUserById);
@@ -91,7 +86,6 @@ const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
 const mockedListLtiResourceLinkPlacementsForContext = vi.mocked(
   listLtiResourceLinkPlacementsForContext,
 );
-const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
 const mockedResolveLearnerProfileForIdentity = vi.mocked(resolveLearnerProfileForIdentity);
 const mockedUpsertLtiResourceLinkPlacement = vi.mocked(upsertLtiResourceLinkPlacement);
 const mockedUpsertTenantMembershipRole = vi.mocked(upsertTenantMembershipRole);
@@ -572,17 +566,6 @@ describe("LTI 1.3 core launch flow", () => {
     mockedListAssertionLifecycleStatesByAssertionIds.mockResolvedValue([]);
     mockedListLtiResourceLinkPlacementsForContext.mockReset();
     mockedListLtiResourceLinkPlacementsForContext.mockResolvedValue([]);
-    mockedFindAssertionByIdempotencyKey.mockReset();
-    mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
-    mockedResolveAssertionLifecycleState.mockReset();
-    mockedResolveAssertionLifecycleState.mockResolvedValue({
-      state: "active",
-      source: "default_active",
-      reasonCode: null,
-      reason: null,
-      transitionedAt: null,
-      revokedAt: null,
-    });
     mockedFindBadgeTemplateById.mockReset();
     mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
     mockedUpsertLtiResourceLinkPlacement.mockReset();
@@ -1286,7 +1269,6 @@ describe("LTI 1.3 core launch flow", () => {
       tenantId,
       assertionIds: ["tenant_123:assertion_existing"],
     });
-    expect(mockedFindAssertionByIdempotencyKey).not.toHaveBeenCalled();
     expect(mockedUpsertLtiResourceLinkPlacement).not.toHaveBeenCalled();
   });
 
@@ -1462,7 +1444,23 @@ describe("LTI 1.3 core launch flow", () => {
     const env = createLtiEnv();
     const rosterTargetLinkUri = `${targetLinkUri}?badgeTemplateId=badge_template_001`;
     const existingAssertion = sampleAssertionRecord();
-    mockedFindAssertionByIdempotencyKey.mockResolvedValue(existingAssertion);
+    mockedListAssertionsByIdempotencyKeys.mockImplementation(async (_db, input) => [
+      {
+        ...existingAssertion,
+        idempotencyKey: input.idempotencyKeys[0] ?? "lti:test",
+      },
+    ]);
+    mockedListAssertionLifecycleStatesByAssertionIds.mockResolvedValue([
+      {
+        assertionId: existingAssertion.id,
+        state: "active",
+        source: "default_active",
+        reasonCode: null,
+        reason: null,
+        transitionedAt: null,
+        revokedAt: null,
+      },
+    ]);
     const getMembers = vi.fn().mockResolvedValue([
       {
         userId: "learner-001",
@@ -1540,16 +1538,17 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain(`Already issued: ${existingAssertion.id}`);
     expect(body).toContain("Selectable learners");
     expect(body).toMatch(/value="learner-001"[^>]*disabled/);
-    expect(mockedFindAssertionByIdempotencyKey).toHaveBeenCalledWith(
+    expect(mockedListAssertionsByIdempotencyKeys).toHaveBeenCalledWith(
       fakeDb,
-      tenantId,
-      expect.stringMatching(/^lti:[a-f0-9]{64}$/),
+      expect.objectContaining({
+        tenantId,
+        idempotencyKeys: [expect.stringMatching(/^lti:[a-f0-9]{64}$/)],
+      }),
     );
-    expect(mockedResolveAssertionLifecycleState).toHaveBeenCalledWith(
-      fakeDb,
+    expect(mockedListAssertionLifecycleStatesByAssertionIds).toHaveBeenCalledWith(fakeDb, {
       tenantId,
-      existingAssertion.id,
-    );
+      assertionIds: [existingAssertion.id],
+    });
   });
 
   it("issues selected LMS roster learners through the LTI resource-link action", async () => {
