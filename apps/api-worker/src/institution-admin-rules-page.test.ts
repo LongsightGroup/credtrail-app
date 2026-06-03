@@ -1646,7 +1646,7 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
-    expect(body).toContain(">Templates</a>");
+    expect(body).toContain('class="ct-admin-sidebar__link-label">Templates</span>');
     expect(body).toContain('class="ct-admin-sidebar__menu-chevron"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new" aria-current="page"');
     expect(body).toContain("&quot;rulesListPath&quot;:&quot;/tenants/tenant_123/admin/rules&quot;");
