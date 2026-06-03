@@ -1272,7 +1272,7 @@ describe("LTI 1.3 core launch flow", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("Issue badges from Sakai roster");
-    expect(body).toContain("Loaded 1 learner members from LMS NRPS roster.");
+    expect(body).toContain("Loaded 1 learner from LMS NRPS roster.");
     expect(body).toContain("badge_template_001");
     expect(body).toContain("learner-one@example.edu");
     expect(body).toContain("Issued in this launch item");
@@ -1657,7 +1657,7 @@ describe("LTI 1.3 core launch flow", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Loaded 1 learner members from LMS NRPS roster.");
+    expect(body).toContain("Loaded 1 learner from LMS NRPS roster.");
     expect(createSession).toHaveBeenCalledWith(launchPayload);
     expect(getMembers).toHaveBeenCalledWith(
       expect.objectContaining({

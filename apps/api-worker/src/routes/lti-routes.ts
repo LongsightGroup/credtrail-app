@@ -989,7 +989,9 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
                 });
           bulkIssuanceView = ltiBulkIssuanceViewFromRoster({
             roster,
-            message: `Loaded ${String(roster.learnerMembers.length)} learner members from LMS NRPS roster.`,
+            message: `Loaded ${String(roster.learnerMembers.length)} learner${
+              roster.learnerMembers.length === 1 ? "" : "s"
+            } from LMS NRPS roster.`,
             badgeTemplateId,
             courseContextTitle,
             courseContextId,

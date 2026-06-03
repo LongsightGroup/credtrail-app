@@ -220,7 +220,7 @@ const BulkIssuanceSection = (input: { view: LtiBulkIssuanceView | null }): HonoE
           {view.members.length === 0 ? (
             <tr>
               <td colspan={canIssue ? 7 : 6} class="lti-launch__bulk-empty">
-                No learner members returned by LMS roster for this launch.
+                No learners returned by LMS roster for this launch.
               </td>
             </tr>
           ) : (
@@ -254,7 +254,7 @@ const BulkIssuanceSection = (input: { view: LtiBulkIssuanceView | null }): HonoE
     <LtiLaunchCard stack={true}>
       <h2 class="lti-launch__bulk-title">Issue badges from Sakai roster</h2>
       <p class="lti-launch__hint">
-        Select learner members from the Sakai roster and issue the placed badge.
+        Select learners from the Sakai roster and issue the placed badge.
       </p>
       <p class={`lti-launch__bulk-status lti-launch__bulk-status--${view.status}`}>
         {view.message}
@@ -279,7 +279,7 @@ const BulkIssuanceSection = (input: { view: LtiBulkIssuanceView | null }): HonoE
               value: view.contextMembershipsUrl ?? "Not provided",
             },
             {
-              label: "Learner members",
+              label: "Learners",
               value: `${String(view.learnerCount)} of ${String(view.totalCount)}`,
             },
             {
@@ -304,8 +304,8 @@ const BulkIssuanceSection = (input: { view: LtiBulkIssuanceView | null }): HonoE
           <div class="lti-launch__bulk-actions">
             {missingEmailCount === 0 ? null : (
               <p class="lti-launch__hint">
-                {String(missingEmailCount)} learner member{missingEmailCount === 1 ? "" : "s"}{" "}
-                cannot be selected because Sakai did not provide an email address.
+                {String(missingEmailCount)} learner{missingEmailCount === 1 ? "" : "s"} cannot be
+                selected because Sakai did not provide an email address.
               </p>
             )}
             <LtiSubmitButton disabled={selectableCount === 0}>
