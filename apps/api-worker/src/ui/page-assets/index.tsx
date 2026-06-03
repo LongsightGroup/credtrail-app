@@ -23,6 +23,7 @@ import { INSTITUTION_ADMIN_RULE_BUILDER_JS } from "./content/institution-admin-r
 import { INSTITUTION_ADMIN_SHELL_JS } from "./content/institution-admin-shell-js";
 import { LEARNER_DASHBOARD_CSS } from "./content/learner-dashboard-css";
 import { LEARNER_RECORD_CSS } from "./content/learner-record-css";
+import { LTI_COURSE_SUMMARY_JS } from "./content/lti-course-summary-js";
 import { LTI_PAGES_CSS } from "./content/lti-pages-css";
 import { LTI_POST_MESSAGE_STORAGE_JS } from "./content/lti-post-message-storage-js";
 import { PUBLIC_BADGE_CSS } from "./content/public-badge-css";
@@ -142,6 +143,12 @@ const PAGE_ASSET_SOURCES = {
     stem: "lti-pages",
     body: LTI_PAGES_CSS,
     contentType: "text/css; charset=utf-8",
+  },
+  ltiCourseSummaryJs: {
+    kind: "script",
+    stem: "lti-course-summary",
+    body: LTI_COURSE_SUMMARY_JS,
+    contentType: "text/javascript; charset=utf-8",
   },
   ltiPostMessageStorageJs: {
     kind: "script",

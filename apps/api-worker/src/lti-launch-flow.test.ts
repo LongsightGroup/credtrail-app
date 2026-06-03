@@ -15,8 +15,11 @@ vi.mock("@credtrail/db", async () => {
     findBadgeTemplateById: vi.fn(),
     findLearnerProfileByIdentity: vi.fn(),
     findUserById: vi.fn(),
+    listAssertionLifecycleStatesByAssertionIds: vi.fn(),
+    listAssertionsByIdempotencyKeys: vi.fn(),
     listBadgeTemplates: vi.fn(),
     listLtiIssuerRegistrations: vi.fn(),
+    listLtiResourceLinkPlacementsForContext: vi.fn(),
     resolveAssertionLifecycleState: vi.fn(),
     upsertLtiDeployment: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
@@ -42,8 +45,11 @@ import {
   findBadgeTemplateById,
   findLearnerProfileByIdentity,
   findUserById,
+  listAssertionLifecycleStatesByAssertionIds,
+  listAssertionsByIdempotencyKeys,
   listBadgeTemplates,
   listLtiIssuerRegistrations,
+  listLtiResourceLinkPlacementsForContext,
   resolveAssertionLifecycleState,
   resolveLearnerProfileForIdentity,
   type AssertionRecord,
@@ -52,6 +58,7 @@ import {
   upsertUserByEmail,
   type LearnerProfileRecord,
   type LtiIssuerRegistrationRecord,
+  type LtiResourceLinkPlacementRecord,
   type SqlDatabase,
   type TenantMembershipRecord,
 } from "@credtrail/db";
@@ -75,8 +82,15 @@ const mockedFindAssertionByIdempotencyKey = vi.mocked(findAssertionByIdempotency
 const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
 const mockedFindLearnerProfileByIdentity = vi.mocked(findLearnerProfileByIdentity);
 const mockedFindUserById = vi.mocked(findUserById);
+const mockedListAssertionLifecycleStatesByAssertionIds = vi.mocked(
+  listAssertionLifecycleStatesByAssertionIds,
+);
+const mockedListAssertionsByIdempotencyKeys = vi.mocked(listAssertionsByIdempotencyKeys);
 const mockedListBadgeTemplates = vi.mocked(listBadgeTemplates);
 const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
+const mockedListLtiResourceLinkPlacementsForContext = vi.mocked(
+  listLtiResourceLinkPlacementsForContext,
+);
 const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
 const mockedResolveLearnerProfileForIdentity = vi.mocked(resolveLearnerProfileForIdentity);
 const mockedUpsertLtiResourceLinkPlacement = vi.mocked(upsertLtiResourceLinkPlacement);
@@ -409,6 +423,25 @@ const sampleAssertionRecord = (overrides?: Partial<AssertionRecord>): AssertionR
   };
 };
 
+const sampleLtiResourceLinkPlacement = (
+  overrides?: Partial<LtiResourceLinkPlacementRecord>,
+): LtiResourceLinkPlacementRecord => {
+  return {
+    id: "lti_place_123",
+    tenantId: "tenant_123",
+    issuer: "https://canvas.example.edu",
+    clientId: "canvas-client-123",
+    deploymentId: "deployment-123",
+    contextId: "course-123",
+    resourceLinkId: "resource-link-placed-badge",
+    badgeTemplateId: "badge_template_001",
+    createdByUserId: "usr_lti_123",
+    createdAt: "2026-02-10T22:00:00.000Z",
+    updatedAt: "2026-02-10T22:00:00.000Z",
+    ...overrides,
+  };
+};
+
 const bytesToBase64UrlForTest = (bytes: Uint8Array): string => {
   let raw = "";
 
@@ -533,6 +566,12 @@ describe("LTI 1.3 core launch flow", () => {
     );
     mockedListBadgeTemplates.mockReset();
     mockedListBadgeTemplates.mockResolvedValue([sampleBadgeTemplate()]);
+    mockedListAssertionsByIdempotencyKeys.mockReset();
+    mockedListAssertionsByIdempotencyKeys.mockResolvedValue([]);
+    mockedListAssertionLifecycleStatesByAssertionIds.mockReset();
+    mockedListAssertionLifecycleStatesByAssertionIds.mockResolvedValue([]);
+    mockedListLtiResourceLinkPlacementsForContext.mockReset();
+    mockedListLtiResourceLinkPlacementsForContext.mockResolvedValue([]);
     mockedFindAssertionByIdempotencyKey.mockReset();
     mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
     mockedResolveAssertionLifecycleState.mockReset();
@@ -855,8 +894,7 @@ describe("LTI 1.3 core launch flow", () => {
     expect(response.headers.get("set-cookie") ?? "").toContain("SameSite=None");
     expect(response.headers.get("set-cookie") ?? "").toContain("Secure");
     const body = await response.text();
-    expect(body).toContain("lti_session_handoff=");
-    expect(body).toContain('target="_blank"');
+    expect(body).toContain("Review badge progress for this course");
     expect(betterAuthProvider.createLtiSession).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -1080,11 +1118,12 @@ describe("LTI 1.3 core launch flow", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("set-cookie")).toContain("better-auth.session_token=");
-    expect(body).toContain("LTI 1.3 launch complete");
-    expect(body).toContain("Instructor");
+    expect(body).toContain("CredTrail is connected");
+    expect(body).toContain("Your LMS account is linked and this browser is signed in.");
     expect(body).toContain("issuer");
     expect(body).toContain("LtiResourceLinkRequest");
     expect(body).toContain("/tenants/tenant_123/learner/dashboard");
+    expect(body).toContain("Launch troubleshooting details");
     expect(body).toContain("lti_session_handoff=");
     expect(body).toContain('target="_blank"');
     expect(body).toContain("/assets/ui/foundation.");
@@ -1115,6 +1154,140 @@ describe("LTI 1.3 core launch flow", () => {
       badgeTemplateId: "badge_template_001",
       createdByUserId: linkedUserId,
     });
+  });
+
+  it("renders course badge summary for instructor leftnav launches", async () => {
+    const env = createLtiEnv();
+    mockedListLtiResourceLinkPlacementsForContext.mockResolvedValue([
+      sampleLtiResourceLinkPlacement({
+        contextId: "course-123",
+        resourceLinkId: "resource-link-placed-badge",
+      }),
+    ]);
+    mockedListAssertionsByIdempotencyKeys.mockResolvedValue([sampleAssertionRecord()]);
+    mockedListAssertionLifecycleStatesByAssertionIds.mockResolvedValue([
+      {
+        assertionId: "tenant_123:assertion_existing",
+        state: "active",
+        source: "default_active",
+        reasonCode: null,
+        reason: null,
+        transitionedAt: null,
+        revokedAt: null,
+      },
+    ]);
+    const getMembers = vi.fn().mockResolvedValue([
+      {
+        userId: "learner-001",
+        name: "Learner One",
+        email: "learner-one@example.edu",
+        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+        status: "Active",
+      },
+      {
+        userId: "teacher-001",
+        name: "Instructor One",
+        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
+        status: "Active",
+      },
+    ]);
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembers });
+    const loginResponse = await isolatedApp.request(
+      `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
+        "opaque-login-hint",
+      )}&target_link_uri=${encodeURIComponent(targetLinkUri)}&lti_deployment_id=${encodeURIComponent(
+        deploymentId,
+      )}`,
+      undefined,
+      env,
+    );
+    const loginUrl = new URL(loginResponse.headers.get("location") ?? "");
+    const nowEpochSeconds = Math.floor(Date.now() / 1000);
+    const idToken = compactJwsForTest({
+      header: {
+        alg: "RS256",
+        typ: "JWT",
+      },
+      payload: {
+        iss: issuer,
+        sub: "instructor-001",
+        aud: clientId,
+        exp: nowEpochSeconds + 300,
+        iat: nowEpochSeconds - 10,
+        nonce: loginUrl.searchParams.get("nonce") ?? "",
+        "https://purl.imsglobal.org/spec/lti/claim/deployment_id": deploymentId,
+        "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiResourceLinkRequest",
+        "https://purl.imsglobal.org/spec/lti/claim/version": "1.3.0",
+        "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": targetLinkUri,
+        "https://purl.imsglobal.org/spec/lti/claim/resource_link": {
+          id: "resource-link-leftnav",
+        },
+        "https://purl.imsglobal.org/spec/lti/claim/context": {
+          id: "course-123",
+          title: "TypeScript 101",
+        },
+        "https://purl.imsglobal.org/spec/lti/claim/roles": [
+          "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor",
+        ],
+        "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice": {
+          context_memberships_url: "https://canvas.example.edu/api/lti/courses/123/names_and_roles",
+          service_versions: ["2.0"],
+        },
+      },
+    });
+
+    const response = await isolatedApp.request(
+      "/v1/lti/launch",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          id_token: idToken,
+          state: loginUrl.searchParams.get("state") ?? "",
+        }).toString(),
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Review badge progress for this course");
+    expect(body).toContain("Course badge summary");
+    expect(body).toContain("TypeScript 101");
+    expect(body).toContain("Learner One");
+    expect(body).toContain("learner-one@example.edu");
+    expect(body).toContain("TypeScript Foundations");
+    expect(body).toContain("Issued");
+    expect(body).toContain("data-lti-course-summary-search");
+    expect(body).toContain("/assets/ui/lti-course-summary.");
+    expect(body).toContain(
+      "/tenants/tenant_123/admin/operations/issued-badges?recipientQuery=learner-one%40example.edu",
+    );
+    expect(body).toContain("/tenants/tenant_123/admin/rules/templates/badge_template_001");
+    expect(body).not.toContain('name="learner_user_id"');
+    expect(body).not.toContain("Select learners and issue the badge placed in this LMS tool.");
+    expect(mockedListLtiResourceLinkPlacementsForContext).toHaveBeenCalledWith(fakeDb, {
+      tenantId,
+      issuer,
+      clientId,
+      deploymentId,
+      contextId: "course-123",
+    });
+    expect(mockedListAssertionsByIdempotencyKeys).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId,
+        idempotencyKeys: expect.arrayContaining([expect.stringMatching(/^lti:/)]),
+      }),
+    );
+    expect(mockedListAssertionLifecycleStatesByAssertionIds).toHaveBeenCalledWith(fakeDb, {
+      tenantId,
+      assertionIds: ["tenant_123:assertion_existing"],
+    });
+    expect(mockedFindAssertionByIdempotencyKey).not.toHaveBeenCalled();
+    expect(mockedUpsertLtiResourceLinkPlacement).not.toHaveBeenCalled();
   });
 
   it("rejects resource-link placement when badge template is not tenant-owned and active", async () => {
@@ -1271,8 +1444,9 @@ describe("LTI 1.3 core launch flow", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Issue badges from Sakai roster");
-    expect(body).toContain("Loaded 1 learner from LMS NRPS roster.");
+    expect(body).toContain("Issue badges from this LMS course");
+    expect(body).toContain("Issue badges from course roster");
+    expect(body).toContain("Loaded 1 learner from LMS roster.");
     expect(body).toContain("badge_template_001");
     expect(body).toContain("learner-one@example.edu");
     expect(body).toContain("Issued in this launch item");
@@ -1284,7 +1458,7 @@ describe("LTI 1.3 core launch flow", () => {
     expect(getMembers).toHaveBeenCalledTimes(1);
   });
 
-  it("marks already issued Sakai roster learners on refreshed LTI launches", async () => {
+  it("marks already issued LMS roster learners on refreshed LTI launches", async () => {
     const env = createLtiEnv();
     const rosterTargetLinkUri = `${targetLinkUri}?badgeTemplateId=badge_template_001`;
     const existingAssertion = sampleAssertionRecord();
@@ -1378,7 +1552,7 @@ describe("LTI 1.3 core launch flow", () => {
     );
   });
 
-  it("issues selected Sakai roster learners through the LTI resource-link action", async () => {
+  it("issues selected LMS roster learners through the LTI resource-link action", async () => {
     const env = createLtiEnv();
     const rosterTargetLinkUri = `${targetLinkUri}?badgeTemplateId=badge_template_001`;
     const getMembers = vi.fn().mockResolvedValue([
@@ -1493,8 +1667,8 @@ describe("LTI 1.3 core launch flow", () => {
     expect(issueResponse.status).toBe(200);
     expect(issueBody).toContain("Badge issuance complete");
     expect(issueBody).toContain("Badge issued.");
-    expect(issueBody).toContain("Sakai did not provide an email address.");
-    expect(issueBody).toContain("Learner is not present in the current Sakai learner roster.");
+    expect(issueBody).toContain("The LMS did not provide an email address.");
+    expect(issueBody).toContain("Learner is not present in the current LMS roster.");
     expect(issueBadgeForTenant).toHaveBeenCalledTimes(1);
     expect(issueBadgeForTenant).toHaveBeenCalledWith(
       expect.anything(),
@@ -1657,7 +1831,7 @@ describe("LTI 1.3 core launch flow", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Loaded 1 learner from LMS NRPS roster.");
+    expect(body).toContain("Review badge progress for this course");
     expect(createSession).toHaveBeenCalledWith(launchPayload);
     expect(getMembers).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1728,8 +1902,11 @@ describe("LTI 1.3 core launch flow", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Issue badges from Sakai roster");
-    expect(body).toContain("LMS launch did not include NRPS names/roles service claim details.");
+    expect(body).toContain("CredTrail is connected");
+    expect(body).toContain("Issue badges from course roster");
+    expect(body).toContain(
+      "This LMS launch did not include a learner roster, so CredTrail cannot issue badges from this tool yet.",
+    );
   });
 
   it("accepts a learner launch and links local account session with email claim", async () => {
@@ -1793,7 +1970,7 @@ describe("LTI 1.3 core launch flow", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Learner");
+    expect(body).toContain("Open your CredTrail dashboard");
     expect(body).toContain("viewer");
     expect(mockedUpsertUserByEmail).toHaveBeenCalledWith(fakeDb, "Learner@Example.edu");
     expect(mockedAddLearnerIdentityAlias).toHaveBeenCalledWith(

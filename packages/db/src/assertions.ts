@@ -195,6 +195,20 @@ export interface ListTenantAssertionsInput {
   limit?: number | undefined;
 }
 
+export interface ListAssertionsByIdempotencyKeysInput {
+  tenantId: string;
+  idempotencyKeys: readonly string[];
+}
+
+export interface AssertionLifecycleStateByAssertionIdRecord extends ResolveAssertionLifecycleStateResult {
+  assertionId: string;
+}
+
+export interface ListAssertionLifecycleStatesByAssertionIdsInput {
+  tenantId: string;
+  assertionIds: readonly string[];
+}
+
 export type AssertionReportingAttributionSource =
   | "issuance_snapshot"
   | "historical_backfill"
@@ -698,6 +712,22 @@ const ASSERTION_LIFECYCLE_ALLOWED_TRANSITIONS: Record<
   suspended: new Set<AssertionLifecycleState>(["active", "revoked", "expired"]),
   expired: new Set<AssertionLifecycleState>(["active", "revoked"]),
   revoked: new Set<AssertionLifecycleState>(),
+};
+
+const uniqueNonEmptyStrings = (values: readonly string[]): string[] => {
+  return Array.from(
+    new Set(values.map((value) => value.trim()).filter((value) => value.length > 0)),
+  );
+};
+
+const chunkValues = <T>(values: readonly T[], chunkSize: number): T[][] => {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < values.length; index += chunkSize) {
+    chunks.push(values.slice(index, index + chunkSize));
+  }
+
+  return chunks;
 };
 
 const assertionLifecycleStateFromRecords = (input: {
@@ -1825,6 +1855,53 @@ export const findAssertionByIdempotencyKey = async (
   return mapAssertionRow(row);
 };
 
+export const listAssertionsByIdempotencyKeys = async (
+  db: SqlDatabase,
+  input: ListAssertionsByIdempotencyKeysInput,
+): Promise<AssertionRecord[]> => {
+  const idempotencyKeys = uniqueNonEmptyStrings(input.idempotencyKeys);
+
+  if (idempotencyKeys.length === 0) {
+    return [];
+  }
+
+  const assertions: AssertionRecord[] = [];
+
+  for (const keyChunk of chunkValues(idempotencyKeys, 400)) {
+    const keyPlaceholders = keyChunk.map(() => "?").join(", ");
+    const result = await db
+      .prepare(
+        `
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          public_id AS publicId,
+          learner_profile_id AS learnerProfileId,
+          badge_template_id AS badgeTemplateId,
+          recipient_identity AS recipientIdentity,
+          recipient_identity_type AS recipientIdentityType,
+          vc_r2_key AS vcR2Key,
+          status_list_index AS statusListIndex,
+          idempotency_key AS idempotencyKey,
+          issued_at AS issuedAt,
+          issued_by_user_id AS issuedByUserId,
+          revoked_at AS revokedAt,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM assertions
+        WHERE tenant_id = ?
+          AND idempotency_key IN (${keyPlaceholders})
+      `,
+      )
+      .bind(input.tenantId, ...keyChunk)
+      .all<AssertionRow>();
+
+    assertions.push(...result.results.map((row) => mapAssertionRow(row)));
+  }
+
+  return assertions;
+};
+
 export const findAssertionByPublicId = async (
   db: SqlDatabase,
   publicId: string,
@@ -1984,6 +2061,76 @@ export const resolveAssertionLifecycleState = async (
     assertion,
     latestEvent,
   });
+};
+
+export const listAssertionLifecycleStatesByAssertionIds = async (
+  db: SqlDatabase,
+  input: ListAssertionLifecycleStatesByAssertionIdsInput,
+): Promise<AssertionLifecycleStateByAssertionIdRecord[]> => {
+  const assertionIds = uniqueNonEmptyStrings(input.assertionIds);
+
+  if (assertionIds.length === 0) {
+    return [];
+  }
+
+  const states: AssertionLifecycleStateByAssertionIdRecord[] = [];
+
+  for (const assertionIdChunk of chunkValues(assertionIds, 400)) {
+    const assertionIdPlaceholders = assertionIdChunk.map(() => "?").join(", ");
+    const result = await db
+      .prepare(
+        `
+        SELECT
+          assertions.id AS assertionId,
+          assertions.revoked_at AS revokedAt,
+          lifecycle.to_state AS latestToState,
+          lifecycle.reason_code AS latestReasonCode,
+          lifecycle.reason AS latestReason,
+          lifecycle.transitioned_at AS latestTransitionedAt
+        FROM assertions
+        LEFT JOIN assertion_lifecycle_events lifecycle
+          ON lifecycle.id = (
+            SELECT ale.id
+            FROM assertion_lifecycle_events ale
+            WHERE ale.tenant_id = assertions.tenant_id
+              AND ale.assertion_id = assertions.id
+            ORDER BY ale.transitioned_at DESC, ale.created_at DESC, ale.id DESC
+            LIMIT 1
+          )
+        WHERE assertions.tenant_id = ?
+          AND assertions.id IN (${assertionIdPlaceholders})
+      `,
+      )
+      .bind(input.tenantId, ...assertionIdChunk)
+      .all<{
+        assertionId: string;
+        revokedAt: string | null;
+        latestToState: AssertionLifecycleState | null;
+        latestReasonCode: AssertionLifecycleReasonCode | null;
+        latestReason: string | null;
+        latestTransitionedAt: string | null;
+      }>();
+
+    states.push(
+      ...result.results.map((row) => {
+        const lifecycle = resolveAssertionLifecycleProjection({
+          revokedAt: row.revokedAt,
+          latestToState: row.latestToState,
+          latestReasonCode: row.latestReasonCode,
+          latestReason: row.latestReason,
+          latestTransitionedAt: row.latestTransitionedAt,
+        });
+
+        return {
+          assertionId: row.assertionId,
+          ...lifecycle,
+          revokedAt: row.revokedAt,
+        };
+      }),
+    );
+  }
+
+  return states;
 };
 
 export const recordAssertionLifecycleTransition = async (

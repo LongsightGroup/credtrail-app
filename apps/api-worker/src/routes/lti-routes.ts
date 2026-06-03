@@ -1,11 +1,16 @@
 import {
   findBadgeTemplateById,
   findAssertionByIdempotencyKey,
+  listAssertionLifecycleStatesByAssertionIds,
+  listAssertionsByIdempotencyKeys,
   listBadgeTemplates,
+  listLtiResourceLinkPlacementsForContext,
   resolveAssertionLifecycleState,
   upsertLtiDeployment,
   upsertLtiResourceLinkPlacement,
   type AssertionLifecycleState,
+  type BadgeTemplateRecord,
+  type LtiResourceLinkPlacementRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -32,11 +37,7 @@ import {
 } from "../lti/lti-helpers";
 import { createCredTrailLtiTool } from "../lti/credtrail-lti-tool";
 import { linkLtiLaunchAccount } from "../lti/launch-account-linking";
-import {
-  badgeTemplateIdFromTargetLinkUri,
-  LtiLaunchMessageError,
-  resolveLtiLaunchMessage,
-} from "../lti/launch-message";
+import { LtiLaunchMessageError, resolveLtiLaunchMessage } from "../lti/launch-message";
 import {
   LtiLaunchVerificationError,
   ltiIssuerHasSignedLaunchConfig,
@@ -60,6 +61,7 @@ import {
   ltiRosterIssuanceResultPage,
   ltiPostMessageStorageRedirectPage,
   type LtiBulkIssuanceView,
+  type LtiCourseBadgeSummaryView,
   type LtiRosterIssuanceResultEntry,
   type LtiDeepLinkSelectionPageInput,
 } from "../lti/pages";
@@ -221,6 +223,187 @@ const ltiBulkIssuanceViewWithAction = (
     ...view,
     issuanceActionPath: LTI_RESOURCE_LINK_ISSUE_PATH,
     issuanceActionToken: input.issuanceActionToken,
+  };
+};
+
+const ltiEmptyCourseBadgeSummaryView = (input: {
+  status: "unavailable" | "error";
+  message: string;
+  courseContextTitle: string | null;
+}): LtiCourseBadgeSummaryView => {
+  return {
+    status: input.status,
+    message: input.message,
+    courseContextTitle: input.courseContextTitle,
+    learnerCount: 0,
+    badgeCount: 0,
+    issuedCount: 0,
+    rows: [],
+  };
+};
+
+const courseBadgeSummaryStatus = (
+  lifecycleState: AssertionLifecycleState | null,
+): LtiCourseBadgeSummaryView["rows"][number]["status"] => {
+  if (lifecycleState === null || lifecycleState === "active") {
+    return "issued";
+  }
+
+  return lifecycleState;
+};
+
+const courseBadgeSummaryStatusLabel = (
+  status: LtiCourseBadgeSummaryView["rows"][number]["status"],
+): string => {
+  if (status === "not_issued") {
+    return "Not issued";
+  }
+
+  if (status === "issued") {
+    return "Issued";
+  }
+
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
+
+const ltiBadgeTemplateDetailPath = (tenantId: string, badgeTemplateId: string): string => {
+  return `/tenants/${encodeURIComponent(tenantId)}/admin/rules/templates/${encodeURIComponent(
+    badgeTemplateId,
+  )}`;
+};
+
+const ltiLearnerIssuedBadgesPath = (tenantId: string, email: string): string => {
+  const query = new URLSearchParams({ recipientQuery: email });
+  return `/tenants/${encodeURIComponent(tenantId)}/admin/operations/issued-badges?${query.toString()}`;
+};
+
+const uniqueCoursePlacementsByBadgeTemplate = (
+  placements: readonly LtiResourceLinkPlacementRecord[],
+): LtiResourceLinkPlacementRecord[] => {
+  const seenBadgeTemplateIds = new Set<string>();
+  const uniquePlacements: LtiResourceLinkPlacementRecord[] = [];
+
+  for (const placement of placements) {
+    if (seenBadgeTemplateIds.has(placement.badgeTemplateId)) {
+      continue;
+    }
+
+    seenBadgeTemplateIds.add(placement.badgeTemplateId);
+    uniquePlacements.push(placement);
+  }
+
+  return uniquePlacements;
+};
+
+const ltiCourseBadgeSummaryViewFromRoster = async (input: {
+  db: SqlDatabase;
+  sha256Hex: (value: string) => Promise<string>;
+  tenantId: string;
+  issuer: string;
+  clientId: string;
+  deploymentId: string;
+  contextId: string;
+  courseContextTitle: string | null;
+  roster: LtiNrpsRoster;
+  placements: readonly LtiResourceLinkPlacementRecord[];
+  badgeTemplates: readonly BadgeTemplateRecord[];
+}): Promise<LtiCourseBadgeSummaryView> => {
+  const learnerMembers = input.roster.learnerMembers;
+  const templatesById = new Map(input.badgeTemplates.map((template) => [template.id, template]));
+  const placements = uniqueCoursePlacementsByBadgeTemplate(input.placements).filter((placement) =>
+    templatesById.has(placement.badgeTemplateId),
+  );
+  const candidates = placements.flatMap((placement) => {
+    const template = templatesById.get(placement.badgeTemplateId);
+
+    if (template === undefined) {
+      return [];
+    }
+
+    return learnerMembers.map((member) => ({
+      member,
+      placement,
+      template,
+    }));
+  });
+  const keyedCandidates = await Promise.all(
+    candidates.map(async (candidate) => {
+      const lookupContext = {
+        tenantId: input.tenantId,
+        issuer: input.issuer,
+        clientId: input.clientId,
+        deploymentId: input.deploymentId,
+        contextId: candidate.placement.contextId ?? input.contextId,
+        resourceLinkId: candidate.placement.resourceLinkId,
+        badgeTemplateId: candidate.placement.badgeTemplateId,
+      };
+      const idempotencyKey = await ltiIssuanceIdempotencyKey(
+        input.sha256Hex,
+        lookupContext,
+        candidate.member.userId,
+      );
+
+      return {
+        ...candidate,
+        idempotencyKey,
+      };
+    }),
+  );
+  const assertions = await listAssertionsByIdempotencyKeys(input.db, {
+    tenantId: input.tenantId,
+    idempotencyKeys: keyedCandidates.map((candidate) => candidate.idempotencyKey),
+  });
+  const assertionsByIdempotencyKey = new Map(
+    assertions.map((assertion) => [assertion.idempotencyKey, assertion]),
+  );
+  const lifecycleStates = await listAssertionLifecycleStatesByAssertionIds(input.db, {
+    tenantId: input.tenantId,
+    assertionIds: assertions.map((assertion) => assertion.id),
+  });
+  const lifecycleStatesByAssertionId = new Map(
+    lifecycleStates.map((lifecycle) => [lifecycle.assertionId, lifecycle]),
+  );
+  const rows: Array<LtiCourseBadgeSummaryView["rows"][number]> = [];
+
+  for (const candidate of keyedCandidates) {
+    const assertion = assertionsByIdempotencyKey.get(candidate.idempotencyKey) ?? null;
+    const lifecycle = assertion === null ? null : lifecycleStatesByAssertionId.get(assertion.id);
+    const status =
+      assertion === null ? "not_issued" : courseBadgeSummaryStatus(lifecycle?.state ?? null);
+    const learnerName =
+      candidate.member.displayName ?? candidate.member.email ?? candidate.member.userId;
+
+    rows.push({
+      learnerUserId: candidate.member.userId,
+      learnerName,
+      learnerEmail: candidate.member.email,
+      learnerDetailPath:
+        candidate.member.email === null
+          ? null
+          : ltiLearnerIssuedBadgesPath(input.tenantId, candidate.member.email),
+      badgeTemplateId: candidate.template.id,
+      badgeTitle: candidate.template.title,
+      badgeDetailPath: ltiBadgeTemplateDetailPath(input.tenantId, candidate.template.id),
+      status,
+      statusLabel: courseBadgeSummaryStatusLabel(status),
+      assertionId: assertion?.id ?? null,
+      issuedAt: assertion?.issuedAt ?? null,
+    });
+  }
+
+  return {
+    status: "ready",
+    message:
+      placements.length === 0
+        ? "No badges have been placed in this LMS course yet."
+        : `Showing badge progress for ${String(placements.length)} badge${
+            placements.length === 1 ? "" : "s"
+          } in this course.`,
+    courseContextTitle: input.courseContextTitle,
+    learnerCount: learnerMembers.length,
+    badgeCount: placements.length,
+    issuedCount: rows.filter((row) => row.status === "issued").length,
+    rows,
   };
 };
 
@@ -683,7 +866,8 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     } catch {
       return c.json(
         {
-          error: "NRPS roster request failed for this launch. Check issuer token settings.",
+          error:
+            "CredTrail could not load the learner roster from the LMS. Check the LMS connection settings.",
         },
         502,
       );
@@ -703,14 +887,14 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
           displayName: null,
           email: null,
           status: "skipped",
-          message: "Learner is not present in the current Sakai learner roster.",
+          message: "Learner is not present in the current LMS roster.",
           assertionId: null,
         });
         continue;
       }
 
       if (member.email === null) {
-        results.push(skippedLtiIssuanceResult(member, "Sakai did not provide an email address."));
+        results.push(skippedLtiIssuanceResult(member, "The LMS did not provide an email address."));
         continue;
       }
 
@@ -750,7 +934,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
           message:
             issuance.status === "issued"
               ? "Badge issued."
-              : "Badge was already issued for this Sakai learner.",
+              : "Badge was already issued for this learner.",
           assertionId: issuance.assertionId,
         });
       } catch (error) {
@@ -938,6 +1122,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     })();
     c.header("Cache-Control", "no-store");
     let bulkIssuanceView: LtiBulkIssuanceView | null = null;
+    let courseBadgeSummaryView: LtiCourseBadgeSummaryView | null = null;
 
     if (launchMessage.kind === "resource-link" && launchMessage.roleKind === "instructor") {
       const nrpsClaim = parseLtiNrpsNamesRoleServiceClaim(launchClaims);
@@ -945,18 +1130,18 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       const courseContextTitle =
         asNonEmptyString(contextClaim?.title) ?? asNonEmptyString(contextClaim?.label) ?? null;
       const courseContextId = asNonEmptyString(contextClaim?.id);
-      const badgeTemplateId = badgeTemplateIdFromTargetLinkUri(launchMessage.resolvedTargetLinkUri);
 
-      if (nrpsClaim === null) {
+      if (launchMessage.badgeTemplateId !== null && nrpsClaim === null) {
         bulkIssuanceView = ltiEmptyBulkIssuanceView({
           status: "unavailable",
-          message: "LMS launch did not include NRPS names/roles service claim details.",
-          badgeTemplateId,
+          message:
+            "This LMS launch did not include a learner roster, so CredTrail cannot issue badges from this tool yet.",
+          badgeTemplateId: launchMessage.badgeTemplateId,
           courseContextTitle,
           courseContextId,
           contextMembershipsUrl: null,
         });
-      } else {
+      } else if (launchMessage.badgeTemplateId !== null && nrpsClaim !== null) {
         try {
           const members = await ltiTool.getMembers(ltiLaunchSession);
           const roster = ltiNrpsRosterFromCoreMembers({
@@ -991,8 +1176,8 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
             roster,
             message: `Loaded ${String(roster.learnerMembers.length)} learner${
               roster.learnerMembers.length === 1 ? "" : "s"
-            } from LMS NRPS roster.`,
-            badgeTemplateId,
+            } from LMS roster.`,
+            badgeTemplateId: launchMessage.badgeTemplateId,
             courseContextTitle,
             courseContextId,
             contextMembershipsUrl: nrpsClaim.contextMembershipsUrl,
@@ -1009,12 +1194,73 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
         } catch {
           bulkIssuanceView = ltiEmptyBulkIssuanceView({
             status: "error",
-            message: "NRPS roster request failed for this launch. Check issuer token settings.",
-            badgeTemplateId,
+            message:
+              "CredTrail could not load the learner roster from the LMS. Check the LMS connection settings.",
+            badgeTemplateId: launchMessage.badgeTemplateId,
             courseContextTitle,
             courseContextId,
             contextMembershipsUrl: nrpsClaim.contextMembershipsUrl,
           });
+        }
+      } else if (nrpsClaim === null) {
+        courseBadgeSummaryView = ltiEmptyCourseBadgeSummaryView({
+          status: "unavailable",
+          message:
+            "CredTrail could not load the learner roster from the LMS. Ask an administrator to check the LMS connection settings.",
+          courseContextTitle,
+        });
+      } else {
+        const summaryContextId = courseContextId ?? ltiLaunchSession.context.id;
+
+        if (summaryContextId.length === 0) {
+          courseBadgeSummaryView = ltiEmptyCourseBadgeSummaryView({
+            status: "unavailable",
+            message:
+              "CredTrail could not identify this LMS course. Ask an administrator to check the LMS tool setup.",
+            courseContextTitle,
+          });
+        } else {
+          try {
+            const members = await ltiTool.getMembers(ltiLaunchSession);
+            const roster = ltiNrpsRosterFromCoreMembers({
+              contextId: summaryContextId,
+              members,
+            });
+            const [placements, badgeTemplates] = await Promise.all([
+              listLtiResourceLinkPlacementsForContext(db, {
+                tenantId,
+                issuer: launchClaims.iss,
+                clientId: issuerEntry.clientId,
+                deploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
+                contextId: summaryContextId,
+              }),
+              listBadgeTemplates(db, {
+                tenantId,
+                includeArchived: false,
+              }),
+            ]);
+
+            courseBadgeSummaryView = await ltiCourseBadgeSummaryViewFromRoster({
+              db,
+              sha256Hex,
+              tenantId,
+              issuer: launchClaims.iss,
+              clientId: issuerEntry.clientId,
+              deploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
+              contextId: summaryContextId,
+              courseContextTitle,
+              roster,
+              placements,
+              badgeTemplates,
+            });
+          } catch {
+            courseBadgeSummaryView = ltiEmptyCourseBadgeSummaryView({
+              status: "error",
+              message:
+                "CredTrail could not load badge progress for this course. Ask an administrator to check the LMS connection settings.",
+              courseContextTitle,
+            });
+          }
         }
       }
     }
@@ -1059,6 +1305,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
         messageType: launchMessage.messageType,
         dashboardPath,
         bulkIssuanceView,
+        courseBadgeSummaryView,
       }),
     );
   });

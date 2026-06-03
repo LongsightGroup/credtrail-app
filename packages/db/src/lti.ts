@@ -117,6 +117,14 @@ export interface UpsertLtiResourceLinkPlacementInput {
   createdByUserId?: string | null;
 }
 
+export interface ListLtiResourceLinkPlacementsForContextInput {
+  tenantId: string;
+  issuer: string;
+  clientId: string;
+  deploymentId: string;
+  contextId: string;
+}
+
 interface LtiIssuerRegistrationRow {
   issuer: string;
   tenantId: string;
@@ -927,4 +935,39 @@ export const findLtiResourceLinkPlacement = async (
   const row = await findStatement();
 
   return row === null ? null : mapLtiResourceLinkPlacementRow(row);
+};
+
+export const listLtiResourceLinkPlacementsForContext = async (
+  db: SqlDatabase,
+  input: ListLtiResourceLinkPlacementsForContextInput,
+): Promise<LtiResourceLinkPlacementRecord[]> => {
+  const normalizedIssuer = normalizeLtiIssuer(input.issuer);
+  const result = await db
+    .prepare(
+      `
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          issuer,
+          client_id AS clientId,
+          deployment_id AS deploymentId,
+          context_id AS contextId,
+          resource_link_id AS resourceLinkId,
+          badge_template_id AS badgeTemplateId,
+          created_by_user_id AS createdByUserId,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM lti_resource_link_placements
+        WHERE tenant_id = ?
+          AND issuer = ?
+          AND client_id = ?
+          AND deployment_id = ?
+          AND context_id = ?
+        ORDER BY created_at DESC, id DESC
+      `,
+    )
+    .bind(input.tenantId, normalizedIssuer, input.clientId, input.deploymentId, input.contextId)
+    .all<LtiResourceLinkPlacementRow>();
+
+  return result.results.map((row) => mapLtiResourceLinkPlacementRow(row));
 };
