@@ -51,6 +51,12 @@ export interface ListBadgeTemplatesInput {
   includeArchived: boolean;
 }
 
+export interface ListBadgeTemplatesByIdsInput {
+  tenantId: string;
+  badgeTemplateIds: readonly string[];
+  includeArchived: boolean;
+}
+
 export interface UpdateBadgeTemplateInput {
   tenantId: string;
   id: string;
@@ -186,6 +192,22 @@ const mapBadgeTemplateOwnershipEventRow = (
     transferredAt: row.transferredAt,
     createdAt: row.createdAt,
   };
+};
+
+const uniqueNonEmptyStrings = (values: readonly string[]): string[] => {
+  return Array.from(
+    new Set(values.map((value) => value.trim()).filter((value) => value.length > 0)),
+  );
+};
+
+const chunkValues = <T>(values: readonly T[], chunkSize: number): T[][] => {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < values.length; index += chunkSize) {
+    chunks.push(values.slice(index, index + chunkSize));
+  }
+
+  return chunks;
 };
 
 interface CreateBadgeTemplateOwnershipEventInput {
@@ -518,6 +540,55 @@ export const listBadgeTemplates = async (
   const rows = result.results;
 
   return rows.map((row) => mapBadgeTemplateRow(row));
+};
+
+export const listBadgeTemplatesByIds = async (
+  db: SqlDatabase,
+  input: ListBadgeTemplatesByIdsInput,
+): Promise<BadgeTemplateRecord[]> => {
+  const badgeTemplateIds = uniqueNonEmptyStrings(input.badgeTemplateIds);
+
+  if (badgeTemplateIds.length === 0) {
+    return [];
+  }
+
+  const templates: BadgeTemplateRecord[] = [];
+
+  for (const badgeTemplateIdChunk of chunkValues(badgeTemplateIds, 400)) {
+    const badgeTemplateIdPlaceholders = badgeTemplateIdChunk.map(() => "?").join(", ");
+    const archivedClause = input.includeArchived ? "" : "AND is_archived = 0";
+    const result = await db
+      .prepare(
+        `
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          slug,
+          title,
+          description,
+          criteria_uri AS criteriaUri,
+          image_uri AS imageUri,
+          trusted_credential_metadata_json AS trustedCredentialMetadataJson,
+          created_by_user_id AS createdByUserId,
+          owner_org_unit_id AS ownerOrgUnitId,
+          governance_metadata_json AS governanceMetadataJson,
+          is_archived AS isArchived,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM badge_templates
+        WHERE tenant_id = ?
+          AND id IN (${badgeTemplateIdPlaceholders})
+          ${archivedClause}
+        ORDER BY created_at DESC
+      `,
+      )
+      .bind(input.tenantId, ...badgeTemplateIdChunk)
+      .all<BadgeTemplateRow>();
+
+    templates.push(...result.results.map((row) => mapBadgeTemplateRow(row)));
+  }
+
+  return templates;
 };
 
 export const findBadgeTemplateById = async (

@@ -4,6 +4,7 @@ import {
   listAssertionLifecycleStatesByAssertionIds,
   listAssertionsByIdempotencyKeys,
   listBadgeTemplates,
+  listBadgeTemplatesByIds,
   listLtiResourceLinkPlacementsForContext,
   normalizeEmail,
   upsertLtiDeployment,
@@ -316,22 +317,49 @@ const ltiBadgeRecipientKey = (badgeTemplateId: string, recipientEmail: string): 
   return `${badgeTemplateId}:${normalizeEmail(recipientEmail)}`;
 };
 
-const uniqueCoursePlacementsByBadgeTemplate = (
-  placements: readonly LtiResourceLinkPlacementRecord[],
-): LtiResourceLinkPlacementRecord[] => {
-  const seenBadgeTemplateIds = new Set<string>();
-  const uniquePlacements: LtiResourceLinkPlacementRecord[] = [];
+const ltiCanOpenAdminDetailLinks = (membershipRole: TenantMembershipRole): boolean => {
+  return membershipRole === "owner" || membershipRole === "admin";
+};
 
-  for (const placement of placements) {
-    if (seenBadgeTemplateIds.has(placement.badgeTemplateId)) {
+interface LtiCourseBadgeTemplatePlacementGroup {
+  badgeTemplateId: string;
+  template: BadgeTemplateRecord;
+  placements: readonly LtiResourceLinkPlacementRecord[];
+}
+
+const ltiCoursePlacementGroupsByBadgeTemplate = (input: {
+  placements: readonly LtiResourceLinkPlacementRecord[];
+  templatesById: ReadonlyMap<string, BadgeTemplateRecord>;
+}): LtiCourseBadgeTemplatePlacementGroup[] => {
+  const placementsByBadgeTemplateId = new Map<string, LtiResourceLinkPlacementRecord[]>();
+
+  for (const placement of input.placements) {
+    if (!input.templatesById.has(placement.badgeTemplateId)) {
       continue;
     }
 
-    seenBadgeTemplateIds.add(placement.badgeTemplateId);
-    uniquePlacements.push(placement);
+    const placementsForTemplate = placementsByBadgeTemplateId.get(placement.badgeTemplateId) ?? [];
+    placementsForTemplate.push(placement);
+    placementsByBadgeTemplateId.set(placement.badgeTemplateId, placementsForTemplate);
   }
 
-  return uniquePlacements;
+  const groups: LtiCourseBadgeTemplatePlacementGroup[] = [];
+
+  for (const [badgeTemplateId, placementsForTemplate] of placementsByBadgeTemplateId.entries()) {
+    const template = input.templatesById.get(badgeTemplateId);
+
+    if (template === undefined) {
+      continue;
+    }
+
+    groups.push({
+      badgeTemplateId,
+      template,
+      placements: placementsForTemplate,
+    });
+  }
+
+  return groups;
 };
 
 const ltiCourseBadgeSummaryViewFromRoster = async (input: {
@@ -346,51 +374,58 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
   roster: LtiNrpsRoster;
   placements: readonly LtiResourceLinkPlacementRecord[];
   badgeTemplates: readonly BadgeTemplateRecord[];
+  canOpenAdminLinks: boolean;
 }): Promise<LtiCourseBadgeSummaryView> => {
   const learnerMembers = input.roster.learnerMembers;
   const templatesById = new Map(input.badgeTemplates.map((template) => [template.id, template]));
-  const placements = uniqueCoursePlacementsByBadgeTemplate(input.placements).filter((placement) =>
-    templatesById.has(placement.badgeTemplateId),
-  );
-  const candidates = placements.flatMap((placement) => {
-    const template = templatesById.get(placement.badgeTemplateId);
-
-    if (template === undefined) {
-      return [];
-    }
-
+  const placementGroups = ltiCoursePlacementGroupsByBadgeTemplate({
+    placements: input.placements,
+    templatesById,
+  });
+  const candidates = placementGroups.flatMap((placementGroup) => {
     return learnerMembers.map((member) => ({
       member,
-      placement,
-      template,
+      placementGroup,
+      template: placementGroup.template,
     }));
   });
   const keyedCandidates = await Promise.all(
     candidates.map(async (candidate) => {
-      const lookupContext = {
-        tenantId: input.tenantId,
-        issuer: input.issuer,
-        clientId: input.clientId,
-        deploymentId: input.deploymentId,
-        contextId: candidate.placement.contextId ?? input.contextId,
-        resourceLinkId: candidate.placement.resourceLinkId,
-        badgeTemplateId: candidate.placement.badgeTemplateId,
-      };
-      const idempotencyKey = await ltiIssuanceIdempotencyKey(
-        input.sha256Hex,
-        lookupContext,
-        candidate.member.userId,
+      const placementKeys = await Promise.all(
+        candidate.placementGroup.placements.map(async (placement) => {
+          const lookupContext = {
+            tenantId: input.tenantId,
+            issuer: input.issuer,
+            clientId: input.clientId,
+            deploymentId: input.deploymentId,
+            contextId: placement.contextId ?? input.contextId,
+            resourceLinkId: placement.resourceLinkId,
+            badgeTemplateId: placement.badgeTemplateId,
+          };
+          const idempotencyKey = await ltiIssuanceIdempotencyKey(
+            input.sha256Hex,
+            lookupContext,
+            candidate.member.userId,
+          );
+
+          return {
+            placement,
+            idempotencyKey,
+          };
+        }),
       );
 
       return {
         ...candidate,
-        idempotencyKey,
+        placementKeys,
       };
     }),
   );
   const assertions = await listAssertionsByIdempotencyKeys(input.db, {
     tenantId: input.tenantId,
-    idempotencyKeys: keyedCandidates.map((candidate) => candidate.idempotencyKey),
+    idempotencyKeys: keyedCandidates.flatMap((candidate) =>
+      candidate.placementKeys.map((placementKey) => placementKey.idempotencyKey),
+    ),
   });
   const assertionsByIdempotencyKey = new Map(
     assertions.map((assertion) => [assertion.idempotencyKey, assertion]),
@@ -399,7 +434,7 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
     input.db,
     {
       tenantId: input.tenantId,
-      badgeTemplateIds: placements.map((placement) => placement.badgeTemplateId),
+      badgeTemplateIds: placementGroups.map((placementGroup) => placementGroup.badgeTemplateId),
       recipientEmails: learnerMembers
         .map((member) => member.email)
         .filter((email): email is string => email !== null),
@@ -426,7 +461,14 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
   const rows: Array<LtiCourseBadgeSummaryView["rows"][number]> = [];
 
   for (const candidate of keyedCandidates) {
-    const placementAssertion = assertionsByIdempotencyKey.get(candidate.idempotencyKey) ?? null;
+    const placementAssertionMatch =
+      candidate.placementKeys.find((placementKey) =>
+        assertionsByIdempotencyKey.has(placementKey.idempotencyKey),
+      ) ?? null;
+    const placementAssertion =
+      placementAssertionMatch === null
+        ? null
+        : (assertionsByIdempotencyKey.get(placementAssertionMatch.idempotencyKey) ?? null);
     const matchingRecipientAssertion =
       candidate.member.email === null
         ? null
@@ -440,14 +482,16 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
     const learnerName =
       candidate.member.displayName ?? candidate.member.email ?? candidate.member.userId;
     const assertionId = assertion?.id;
-    const placementContextId = candidate.placement.contextId ?? input.contextId;
+    const linkedPlacement =
+      placementAssertionMatch?.placement ?? candidate.placementGroup.placements[0] ?? null;
+    const placementContextId = linkedPlacement?.contextId ?? input.contextId;
 
     rows.push({
       learnerUserId: candidate.member.userId,
       learnerName,
       learnerEmail: candidate.member.email,
       learnerDetailPath:
-        candidate.member.email === null
+        !input.canOpenAdminLinks || candidate.member.email === null
           ? null
           : ltiLearnerIssuedBadgesPath({
               tenantId: input.tenantId,
@@ -457,13 +501,15 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
             }),
       badgeTemplateId: candidate.template.id,
       badgeTitle: candidate.template.title,
-      badgeDetailPath: ltiBadgeCourseSetupPath({
-        tenantId: input.tenantId,
-        badgeTemplateId: candidate.template.id,
-        contextId: placementContextId,
-        resourceLinkId: candidate.placement.resourceLinkId,
-        courseContextTitle: input.courseContextTitle,
-      }),
+      badgeDetailPath: input.canOpenAdminLinks
+        ? ltiBadgeCourseSetupPath({
+            tenantId: input.tenantId,
+            badgeTemplateId: candidate.template.id,
+            contextId: placementContextId,
+            resourceLinkId: linkedPlacement?.resourceLinkId ?? "",
+            courseContextTitle: input.courseContextTitle,
+          })
+        : null,
       status,
       statusLabel: courseBadgeSummaryStatusLabel(status),
       statusDetail:
@@ -471,7 +517,7 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
           ? "No issued badge record found for this learner and badge."
           : placementAssertion === null
             ? "Issued for this learner and badge outside this LMS placement."
-            : "Issued from this LMS badge placement.",
+            : "Issued from an LMS badge placement in this course.",
       assertionId: assertionId ?? null,
       issuedAt: assertion?.issuedAt ?? null,
     });
@@ -480,14 +526,14 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
   return {
     status: "ready",
     message:
-      placements.length === 0
+      placementGroups.length === 0
         ? "No badges have been placed in this LMS course yet."
-        : `Showing badge progress for ${String(placements.length)} badge${
-            placements.length === 1 ? "" : "s"
+        : `Showing badge progress for ${String(placementGroups.length)} badge${
+            placementGroups.length === 1 ? "" : "s"
           } in this course.`,
     courseContextTitle: input.courseContextTitle,
     learnerCount: learnerMembers.length,
-    badgeCount: placements.length,
+    badgeCount: placementGroups.length,
     issuedCount: rows.filter((row) => row.status === "issued").length,
     rows,
   };
@@ -1327,19 +1373,18 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
               contextId: summaryContextId,
               members,
             });
-            const [placements, badgeTemplates] = await Promise.all([
-              listLtiResourceLinkPlacementsForContext(db, {
-                tenantId,
-                issuer: launchClaims.iss,
-                clientId: issuerEntry.clientId,
-                deploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
-                contextId: summaryContextId,
-              }),
-              listBadgeTemplates(db, {
-                tenantId,
-                includeArchived: false,
-              }),
-            ]);
+            const placements = await listLtiResourceLinkPlacementsForContext(db, {
+              tenantId,
+              issuer: launchClaims.iss,
+              clientId: issuerEntry.clientId,
+              deploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
+              contextId: summaryContextId,
+            });
+            const badgeTemplates = await listBadgeTemplatesByIds(db, {
+              tenantId,
+              badgeTemplateIds: placements.map((placement) => placement.badgeTemplateId),
+              includeArchived: false,
+            });
 
             courseBadgeSummaryView = await ltiCourseBadgeSummaryViewFromRoster({
               db,
@@ -1353,6 +1398,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
               roster,
               placements,
               badgeTemplates,
+              canOpenAdminLinks: ltiCanOpenAdminDetailLinks(linkedAccount.membershipRole),
             });
           } catch {
             courseBadgeSummaryView = ltiEmptyCourseBadgeSummaryView({

@@ -221,7 +221,7 @@ export interface LtiCourseBadgeSummaryRow {
   learnerDetailPath: string | null;
   badgeTemplateId: string;
   badgeTitle: string;
-  badgeDetailPath: string;
+  badgeDetailPath: string | null;
   status: "issued" | "not_issued" | "suspended" | "revoked" | "expired";
   statusLabel: string;
   statusDetail: string;
@@ -438,7 +438,7 @@ const CourseBadgeSummarySection = (input: {
                 value: view.badgeCount,
               },
               {
-                label: "Issued badges",
+                label: "Currently issued",
                 value: view.issuedCount,
               },
             ]}
@@ -529,10 +529,14 @@ const CourseBadgeSummarySection = (input: {
                         </td>
                         <td>{row.learnerEmail ?? "Not provided"}</td>
                         <td>
-                          <a href={row.badgeDetailPath} target="_blank" rel="noopener noreferrer">
-                            {row.badgeTitle}
-                            <span class="lti-launch__sr-only"> badge setup for this course</span>
-                          </a>
+                          {row.badgeDetailPath === null ? (
+                            row.badgeTitle
+                          ) : (
+                            <a href={row.badgeDetailPath} target="_blank" rel="noopener noreferrer">
+                              {row.badgeTitle}
+                              <span class="lti-launch__sr-only"> badge setup for this course</span>
+                            </a>
+                          )}
                         </td>
                         <td>
                           <div class="lti-launch__status-stack">

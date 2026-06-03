@@ -18,6 +18,7 @@ vi.mock("@credtrail/db", async () => {
     listAssertionLifecycleStatesByAssertionIds: vi.fn(),
     listAssertionsByIdempotencyKeys: vi.fn(),
     listBadgeTemplates: vi.fn(),
+    listBadgeTemplatesByIds: vi.fn(),
     listLtiIssuerRegistrations: vi.fn(),
     listLtiResourceLinkPlacementsForContext: vi.fn(),
     upsertLtiDeployment: vi.fn(),
@@ -47,6 +48,7 @@ import {
   listAssertionLifecycleStatesByAssertionIds,
   listAssertionsByIdempotencyKeys,
   listBadgeTemplates,
+  listBadgeTemplatesByIds,
   listLtiIssuerRegistrations,
   listLtiResourceLinkPlacementsForContext,
   resolveLearnerProfileForIdentity,
@@ -87,6 +89,7 @@ const mockedListAssertionLifecycleStatesByAssertionIds = vi.mocked(
 );
 const mockedListAssertionsByIdempotencyKeys = vi.mocked(listAssertionsByIdempotencyKeys);
 const mockedListBadgeTemplates = vi.mocked(listBadgeTemplates);
+const mockedListBadgeTemplatesByIds = vi.mocked(listBadgeTemplatesByIds);
 const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
 const mockedListLtiResourceLinkPlacementsForContext = vi.mocked(
   listLtiResourceLinkPlacementsForContext,
@@ -565,6 +568,8 @@ describe("LTI 1.3 core launch flow", () => {
     );
     mockedListBadgeTemplates.mockReset();
     mockedListBadgeTemplates.mockResolvedValue([sampleBadgeTemplate()]);
+    mockedListBadgeTemplatesByIds.mockReset();
+    mockedListBadgeTemplatesByIds.mockResolvedValue([sampleBadgeTemplate()]);
     mockedListAssertionsByBadgeTemplatesAndRecipientEmails.mockReset();
     mockedListAssertionsByBadgeTemplatesAndRecipientEmails.mockResolvedValue([]);
     mockedListAssertionsByIdempotencyKeys.mockReset();
@@ -1153,10 +1158,25 @@ describe("LTI 1.3 core launch flow", () => {
 
   it("renders course badge summary for instructor leftnav launches", async () => {
     const env = createLtiEnv();
+    mockedEnsureTenantMembership.mockResolvedValueOnce({
+      membership: sampleTenantMembership({
+        tenantId,
+        userId: linkedUserId,
+        role: "admin",
+      }),
+      created: false,
+    });
     mockedListLtiResourceLinkPlacementsForContext.mockResolvedValue([
       sampleLtiResourceLinkPlacement({
         contextId: "course-123",
         resourceLinkId: "resource-link-placed-badge",
+      }),
+      sampleLtiResourceLinkPlacement({
+        id: "lti_place_older",
+        contextId: "course-123",
+        resourceLinkId: "resource-link-older-badge",
+        createdAt: "2026-02-09T22:00:00.000Z",
+        updatedAt: "2026-02-09T22:00:00.000Z",
       }),
     ]);
     const placementAssertion = sampleAssertionRecord({
@@ -1173,12 +1193,16 @@ describe("LTI 1.3 core launch flow", () => {
       badgeTemplateId: "badge_template_001",
       issuedAt: "2026-02-12T14:00:00.000Z",
     });
-    mockedListAssertionsByIdempotencyKeys.mockImplementation(async (_db, input) => [
-      {
-        ...placementAssertion,
-        idempotencyKey: input.idempotencyKeys[0] ?? "lti:test",
-      },
-    ]);
+    mockedListAssertionsByIdempotencyKeys.mockImplementation(async (_db, input) => {
+      const olderPlacementKey = input.idempotencyKeys[1] ?? input.idempotencyKeys[0] ?? "lti:test";
+
+      return [
+        {
+          ...placementAssertion,
+          idempotencyKey: olderPlacementKey,
+        },
+      ];
+    });
     mockedListAssertionsByBadgeTemplatesAndRecipientEmails.mockResolvedValue([
       placementAssertion,
       matchingRecipientAssertion,
@@ -1299,7 +1323,7 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain("TypeScript Foundations");
     expect(body).toContain("Issued");
     expect(body).toContain("Issued 2026-02-11T14:00:00.000Z");
-    expect(body).toContain("Issued from this LMS badge placement.");
+    expect(body).toContain("Issued from an LMS badge placement in this course.");
     expect(body).toContain("Issued 2026-02-12T14:00:00.000Z");
     expect(body).toContain("Issued for this learner and badge outside this LMS placement.");
     expect(body).toContain("data-lti-course-summary-search");
@@ -1322,11 +1346,22 @@ describe("LTI 1.3 core launch flow", () => {
       deploymentId,
       contextId: "course-123",
     });
+    expect(mockedListBadgeTemplates).not.toHaveBeenCalled();
+    expect(mockedListBadgeTemplatesByIds).toHaveBeenCalledWith(fakeDb, {
+      tenantId,
+      badgeTemplateIds: ["badge_template_001", "badge_template_001"],
+      includeArchived: false,
+    });
     expect(mockedListAssertionsByIdempotencyKeys).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
         tenantId,
-        idempotencyKeys: expect.arrayContaining([expect.stringMatching(/^lti:/)]),
+        idempotencyKeys: [
+          expect.stringMatching(/^lti:/),
+          expect.stringMatching(/^lti:/),
+          expect.stringMatching(/^lti:/),
+          expect.stringMatching(/^lti:/),
+        ],
       }),
     );
     expect(mockedListAssertionsByBadgeTemplatesAndRecipientEmails).toHaveBeenCalledWith(fakeDb, {
@@ -1338,6 +1373,7 @@ describe("LTI 1.3 core launch flow", () => {
       tenantId,
       assertionIds: ["tenant_123:assertion_existing", "tenant_123:assertion_manual"],
     });
+    expect(body).toContain("resource-link-older-badge");
     expect(mockedUpsertLtiResourceLinkPlacement).not.toHaveBeenCalled();
   });
 
