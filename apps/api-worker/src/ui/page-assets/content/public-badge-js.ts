@@ -57,7 +57,7 @@ export const PUBLIC_BADGE_JS = `
         try {
           const response = await fetch(credentialJsonUrl, {
             headers: {
-              accept: 'application/ld+json, application/json',
+              accept: 'application/vc+ld+json, application/ld+json, application/json',
             },
           });
 

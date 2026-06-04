@@ -17,6 +17,7 @@ import type {
 } from "@credtrail/db";
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
+import { VC_JSON_LD_MEDIA_TYPE } from "../http/vc-media-types";
 import { appPage, type AppPage } from "../ui/render-page";
 import type { VerificationViewModel } from "./public-badge-model";
 import { badgeInitialsFromName } from "./pdf";
@@ -831,7 +832,7 @@ export const createPublicBadgePageRenderers = (
         imageUrl: socialImageUrl,
         extraHeadContent: (
           <>
-            <link rel="alternate" type="application/ld+json" href={ob3JsonUrl} />
+            <link rel="alternate" type={VC_JSON_LD_MEDIA_TYPE} href={ob3JsonUrl} />
             <link rel="alternate" type="application/json" href={summaryUrl} />
           </>
         ),

@@ -453,7 +453,7 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).toContain("QR code for OpenID4VCI credential offer endpoint");
     expect(body).toContain("Open Badges 3.0 JSON");
     expect(body).toContain(
-      '<link rel="alternate" type="application/ld+json" href="http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/jsonld"',
+      '<link rel="alternate" type="application/vc+ld+json" href="http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/jsonld"',
     );
     expect(body).toContain(
       '<link rel="alternate" type="application/json" href="http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/summary"',
@@ -802,7 +802,7 @@ describe("GET /badges/:badgeIdentifier", () => {
     const pdfBody = await pdfResponse.arrayBuffer();
 
     expect(jsonldResponse.status).toBe(200);
-    expect(jsonldResponse.headers.get("content-type")).toContain("application/ld+json");
+    expect(jsonldResponse.headers.get("content-type")).toContain("application/vc+ld+json");
     expect(jsonldBody).toContain('"OpenBadgeCredential"');
     expect(pdfResponse.status).toBe(200);
     expect(pdfResponse.headers.get("content-type")).toContain("application/pdf");

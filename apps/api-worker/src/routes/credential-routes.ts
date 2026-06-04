@@ -11,6 +11,7 @@ import {
 import type { Hono } from "hono";
 import { parseCredentialPathParams, parseTenantPathParams } from "@credtrail/validation";
 import type { AppBindings, AppContext, AppEnv } from "../app";
+import { VC_JSON_LD_CONTENT_TYPE } from "../http/vc-media-types";
 
 interface VerificationAssertion {
   id: string;
@@ -462,7 +463,7 @@ export const registerCredentialRoutes = <
     download: boolean,
   ): Response => {
     c.header("Cache-Control", "no-store");
-    c.header("Content-Type", "application/ld+json; charset=utf-8");
+    c.header("Content-Type", VC_JSON_LD_CONTENT_TYPE);
     const checkedAt = new Date().toISOString();
     const baseLifecycle = summarizeCredentialLifecycleVerification(
       model.credential,
@@ -630,7 +631,7 @@ export const registerCredentialRoutes = <
     }
 
     c.header("Cache-Control", "no-store");
-    c.header("Content-Type", "application/ld+json; charset=utf-8");
+    c.header("Content-Type", VC_JSON_LD_CONTENT_TYPE);
     return c.body(JSON.stringify(signedStatusListCredential.credential, null, 2));
   });
 

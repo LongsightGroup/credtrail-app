@@ -174,7 +174,7 @@ describe("GET /credentials/v1/:credentialId/download", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("content-type")).toContain("application/ld+json");
+    expect(response.headers.get("content-type")).toContain("application/vc+ld+json");
     expect(response.headers.get("content-disposition")).toContain("attachment; filename=");
     expect(response.headers.get("x-credtrail-credential-state")).toBe("active");
     expect(body).toContain('"OpenBadgeCredential"');
@@ -412,7 +412,7 @@ describe("GET /credentials/v1/:credentialId/jsonld", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("content-type")).toContain("application/ld+json");
+    expect(response.headers.get("content-type")).toContain("application/vc+ld+json");
     expect(response.headers.get("content-disposition")).toBeNull();
     expect(response.headers.get("x-credtrail-credential-state")).toBe("active");
     expect(body).toContain('"OpenBadgeCredential"');

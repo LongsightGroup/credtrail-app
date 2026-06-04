@@ -206,7 +206,7 @@ describe("GET /credentials/v1/status-lists/:tenantId/revocation", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("content-type")).toContain("application/ld+json");
+    expect(response.headers.get("content-type")).toContain("application/vc+ld+json");
     expect(asString(credential.id)).toBe(
       "http://localhost/credentials/v1/status-lists/tenant_123/revocation",
     );
