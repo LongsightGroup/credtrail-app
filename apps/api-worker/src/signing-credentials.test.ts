@@ -17,8 +17,6 @@ vi.mock("@credtrail/db/postgres", () => {
 
 import {
   type JsonObject,
-  type P256PrivateJwk,
-  type P256PublicJwk,
   generateTenantDidSigningMaterial,
   signCredentialWithDataIntegrityProof,
 } from "@credtrail/core-domain";
@@ -30,6 +28,7 @@ import {
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
+import { generateP256SigningMaterial } from "./test-support/p256-signing-material";
 
 interface ErrorResponse {
   error: string;
@@ -111,41 +110,6 @@ const sampleTenantSigningRegistration = (
   };
 };
 
-const requireJwkString = (value: string | undefined, field: string): string => {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`Missing ${field} in exported JWK`);
-  }
-
-  return value;
-};
-
-const generateP256SigningMaterial = async (
-  kid = "key-p256",
-): Promise<{ publicJwk: P256PublicJwk; privateJwk: P256PrivateJwk }> => {
-  const generated = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
-    "sign",
-    "verify",
-  ]);
-  const exportedPublicJwk = await crypto.subtle.exportKey("jwk", generated.publicKey);
-  const exportedPrivateJwk = await crypto.subtle.exportKey("jwk", generated.privateKey);
-
-  const publicJwk: P256PublicJwk = {
-    kty: "EC",
-    crv: "P-256",
-    x: requireJwkString(exportedPublicJwk.x, "x"),
-    y: requireJwkString(exportedPublicJwk.y, "y"),
-    kid,
-  };
-  const privateJwk: P256PrivateJwk = {
-    ...publicJwk,
-    d: requireJwkString(exportedPrivateJwk.d, "d"),
-  };
-
-  return {
-    publicJwk,
-    privateJwk,
-  };
-};
 describe("POST /v1/signing/credentials", () => {
   beforeEach(() => {
     mockedFindTenantSigningRegistrationByDid.mockReset();
@@ -386,55 +350,6 @@ describe("POST /v1/signing/credentials", () => {
     expect(response.status).toBe(201);
     expect(asString(proof?.type)).toBe("DataIntegrityProof");
     expect(asString(proof?.cryptosuite)).toBe("eddsa-rdfc-2022");
-  });
-
-  it("returns 422 when DataIntegrity cryptosuite and key type do not match", async () => {
-    const env = createEnv();
-    const signingMaterial = await generateP256SigningMaterial("key-p256");
-    const did = "did:web:credtrail.test:sakai";
-
-    mockedFindTenantSigningRegistrationByDid.mockResolvedValue(
-      sampleTenantSigningRegistration({
-        tenantId: "sakai",
-        did,
-        keyId: "key-p256",
-        publicJwkJson: JSON.stringify(signingMaterial.publicJwk),
-        privateJwkJson: JSON.stringify(signingMaterial.privateJwk),
-      }),
-    );
-
-    const response = await app.request(
-      "/v1/signing/credentials",
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          did,
-          proofType: "DataIntegrityProof",
-          cryptosuite: "eddsa-rdfc-2022",
-          credential: {
-            "@context": [
-              "https://www.w3.org/ns/credentials/v2",
-              "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
-            ],
-            type: ["VerifiableCredential"],
-            issuer: did,
-            credentialSubject: {
-              id: "urn:credtrail:subject:test",
-            },
-          },
-        }),
-      },
-      env,
-    );
-    const body = await response.json<ErrorResponse>();
-
-    expect(response.status).toBe(422);
-    expect(body.error).toBe(
-      "DataIntegrity eddsa-rdfc-2022 signing requires an Ed25519 private key",
-    );
   });
 
   it("returns 422 when signing key is not Ed25519", async () => {

@@ -18,8 +18,6 @@ vi.mock("@credtrail/db/postgres", () => {
 
 import {
   type JsonObject,
-  type P256PrivateJwk,
-  type P256PublicJwk,
   generateTenantDidSigningMaterial,
   signCredentialWithDataIntegrityProof,
 } from "@credtrail/core-domain";
@@ -33,6 +31,7 @@ import {
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
+import { generateP256SigningMaterial } from "./test-support/p256-signing-material";
 
 interface ErrorResponse {
   error: string;
@@ -115,42 +114,6 @@ const sampleTenantSigningRegistration = (
     createdAt: "2026-02-10T22:00:00.000Z",
     updatedAt: "2026-02-10T22:00:00.000Z",
     ...overrides,
-  };
-};
-
-const requireJwkString = (value: string | undefined, field: string): string => {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`Missing ${field} in exported JWK`);
-  }
-
-  return value;
-};
-
-const generateP256SigningMaterial = async (
-  kid = "key-p256",
-): Promise<{ publicJwk: P256PublicJwk; privateJwk: P256PrivateJwk }> => {
-  const generated = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
-    "sign",
-    "verify",
-  ]);
-  const exportedPublicJwk = await crypto.subtle.exportKey("jwk", generated.publicKey);
-  const exportedPrivateJwk = await crypto.subtle.exportKey("jwk", generated.privateKey);
-
-  const publicJwk: P256PublicJwk = {
-    kty: "EC",
-    crv: "P-256",
-    x: requireJwkString(exportedPublicJwk.x, "x"),
-    y: requireJwkString(exportedPublicJwk.y, "y"),
-    kid,
-  };
-  const privateJwk: P256PrivateJwk = {
-    ...publicJwk,
-    d: requireJwkString(exportedPrivateJwk.d, "d"),
-  };
-
-  return {
-    publicJwk,
-    privateJwk,
   };
 };
 

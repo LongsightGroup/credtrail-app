@@ -34,6 +34,8 @@ export const didDocumentForSigningEntry = (input: {
   }
 
   if (isP256SigningPublicJwk(input.signingEntry.publicJwk)) {
+    // Some tenant registries may still publish P-256 DID/JWKS material. That
+    // publication path does not imply CredTrail can issue with P-256 in v1.
     const didDocument: JsonObject = {
       "@context": ["https://www.w3.org/ns/did/v1", "https://w3id.org/security/suites/jws-2020/v1"],
       id: input.did,

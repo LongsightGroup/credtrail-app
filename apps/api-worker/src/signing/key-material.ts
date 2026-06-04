@@ -10,6 +10,8 @@ export type Ed25519SigningPublicJwk = Extract<
   TenantSigningRegistryEntry["publicJwk"],
   { kty: "OKP"; crv: "Ed25519" }
 >;
+// P-256 remains registry/DID-publication-only in v1. CredTrail issuance signs
+// with Ed25519 DataIntegrityProof and rejects P-256 private keys.
 export type P256SigningPublicJwk = Extract<
   TenantSigningRegistryEntry["publicJwk"],
   { kty: "EC"; crv: "P-256" }

@@ -73,6 +73,7 @@ import {
   parsePresentationVerifyRequest,
   parseAssertionLifecycleTransitionRequest,
   parseAssertionPathParams,
+  isValidationParseError,
   parseMagicLinkRequest,
   parseMagicLinkVerifyRequest,
   parseMigrationBatchPathParams,
@@ -1362,14 +1363,20 @@ describe("parseSignCredentialRequest", () => {
   });
 
   it("rejects non did:web identifiers", () => {
-    expect(() => {
+    let thrownError: unknown = null;
+
+    try {
       parseSignCredentialRequest({
         did: "did:key:z6Mk...",
         credential: {
           id: "urn:vc:1",
         },
       });
-    }).toThrowError();
+    } catch (error) {
+      thrownError = error;
+    }
+
+    expect(isValidationParseError(thrownError)).toBe(true);
   });
 
   it("accepts DataIntegrity signing requests without an explicit cryptosuite", () => {

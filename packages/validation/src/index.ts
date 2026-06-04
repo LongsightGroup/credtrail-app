@@ -7,6 +7,10 @@ export interface JsonObject {
   [key: string]: JsonValue;
 }
 
+export const isValidationParseError = (error: unknown): error is z.ZodError => {
+  return error instanceof z.ZodError;
+};
+
 export const queueJobTypeSchema = z.enum([
   "issue_badge",
   "revoke_badge",

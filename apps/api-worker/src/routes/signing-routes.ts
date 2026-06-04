@@ -5,7 +5,11 @@ import {
   type JsonObject,
 } from "@credtrail/core-domain";
 import type { Hono } from "hono";
-import { parseKeyGenerationRequest, parseSignCredentialRequest } from "@credtrail/validation";
+import {
+  isValidationParseError,
+  parseKeyGenerationRequest,
+  parseSignCredentialRequest,
+} from "@credtrail/validation";
 import type { AppContext, AppEnv } from "../app";
 
 type SupportedCredentialProofType = "DataIntegrityProof";
@@ -71,13 +75,17 @@ export const registerSigningRoutes = (input: RegisterSigningRoutesInput): void =
 
     try {
       request = parseSignCredentialRequest(payload);
-    } catch {
-      return c.json(
-        {
-          error: "Invalid credential signing request payload",
-        },
-        400,
-      );
+    } catch (error) {
+      if (isValidationParseError(error)) {
+        return c.json(
+          {
+            error: "Invalid credential signing request payload",
+          },
+          400,
+        );
+      }
+
+      throw error;
     }
 
     const signingResult = await signCredentialForDid({

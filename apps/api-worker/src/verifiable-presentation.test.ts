@@ -523,19 +523,19 @@ describe("Verifiable Presentation endpoints", () => {
     const credentials = Array.isArray(body.credentials)
       ? body.credentials.map((entry) => asJsonObject(entry))
       : [];
-    const proofFormats = credentials
-      .map((entry) => asJsonObject(entry?.proof))
-      .map((proof) => asString(proof?.format))
-      .filter((format): format is string => format !== null);
 
     expect(response.status).toBe(200);
     expect(body.status).toBe("valid");
     expect(body.credentialCount).toBe(2);
+    expect(credentials).toHaveLength(2);
     expect(asString(asJsonObject(asJsonObject(body.holder)?.proof)?.status)).toBe("valid");
-    expect(proofFormats).toEqual(
-      expect.arrayContaining(["DataIntegrityProof", "DataIntegrityProof"]),
-    );
-    expect(credentials.every((entry) => asString(entry?.status) === "valid")).toBe(true);
+    for (const credential of credentials) {
+      const proof = asJsonObject(credential?.proof);
+
+      expect(asString(credential?.status)).toBe("valid");
+      expect(asString(proof?.format)).toBe("DataIntegrityProof");
+      expect(asString(proof?.status)).toBe("valid");
+    }
   });
 
   it("returns invalid when VP credential subject does not match holder DID", async () => {

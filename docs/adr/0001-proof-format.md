@@ -76,3 +76,4 @@ If `DataIntegrityProof` with `eddsa-rdfc-2022` proves non-viable during implemen
 - Signing, verification, status-list credentials, and verifiable presentations target `DataIntegrityProof` with `eddsa-rdfc-2022`.
 - R2 credential storage remains JSON-LD with embedded linked-data proof objects.
 - `Ed25519Signature2020`, JWT-VC, and `ecdsa-sd-2023` are out of v1 issuance scope unless a follow-up ADR is accepted.
+- P-256 tenant registry key material may still be published in DID documents and JWKS for existing tenant configuration continuity, but CredTrail v1 issuance rejects P-256 private keys.
