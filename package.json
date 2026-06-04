@@ -28,7 +28,7 @@
     "check": "pnpm check:design-tokens && pnpm check:ob3-openapi && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:scripts"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260602.1",
+    "@cloudflare/workers-types": "^4.20260604.1",
     "@playwright/test": "^1.60.0",
     "@sphereon/oid4vci-client": "^0.20.1",
     "@types/jsonld": "^1.5.15",
@@ -36,18 +36,18 @@
     "oxfmt": "0.48.0",
     "oxlint": "1.63.0",
     "oxlint-tsgolint": "0.22.1",
-    "style-dictionary": "^5.4.0",
-    "tsx": "^4.21.0",
+    "style-dictionary": "^5.4.1",
+    "tsx": "^4.22.3",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.5",
+    "vitest": "^4.1.7",
     "wrangler": "^4.97.0"
   },
   "dependencies": {
-    "better-auth": "1.6.9"
+    "better-auth": "1.6.11"
   },
   "pnpm": {
     "overrides": {
-      "jose": "6.2.1",
+      "jose": "6.2.3",
       "zod": "4.4.3"
     }
   }
