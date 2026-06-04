@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  type DataIntegritySignedCredential,
   type JsonObject,
   createDidDocument,
   createDidWeb,
@@ -221,6 +222,36 @@ describe("credential signing", () => {
     const isValid = await verifyCredentialProofWithDataIntegrity({
       credential: signedCredential,
       publicJwk: wrongSigningMaterial.publicJwk,
+    });
+
+    expect(isValid).toBe(false);
+  });
+
+  it("returns false for unsupported runtime DataIntegrityProof cryptosuites", async () => {
+    const did = createDidWeb({
+      host: "issuers.credtrail.org",
+      pathSegments: ["tenant-unsupported-cryptosuite"],
+    });
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did,
+    });
+    const signedCredential = await signCredentialWithDataIntegrityProof({
+      credential: sampleCredential(did, "urn:uuid:vc-unsupported-cryptosuite"),
+      privateJwk: signingMaterial.privateJwk,
+      verificationMethod: `${did}#${signingMaterial.keyId}`,
+      cryptosuite: "eddsa-rdfc-2022",
+    });
+    const malformedCredential = {
+      ...signedCredential,
+      proof: {
+        ...signedCredential.proof,
+        cryptosuite: "ecdsa-sd-2023",
+      },
+    } as unknown as DataIntegritySignedCredential;
+
+    const isValid = await verifyCredentialProofWithDataIntegrity({
+      credential: malformedCredential,
+      publicJwk: signingMaterial.publicJwk,
     });
 
     expect(isValid).toBe(false);
