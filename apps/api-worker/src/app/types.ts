@@ -23,6 +23,7 @@ export interface AppBindings {
   GOOGLE_OAUTH_CLIENT_ID?: string;
   GOOGLE_OAUTH_CLIENT_SECRET?: string;
   GITHUB_TOKEN?: string;
+  BOOTSTRAP_ADMIN_TOKEN?: string;
   JOB_PROCESSOR_TOKEN?: string;
   LTI_ISSUER_REGISTRY_JSON?: string;
   LTI_STATE_SIGNING_SECRET?: string;

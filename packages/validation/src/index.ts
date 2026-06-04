@@ -110,6 +110,12 @@ export const signCredentialRequestSchema = z
     }
   });
 
+export const bootstrapSigningRegistrationRequestSchema = z.object({
+  keyId: z.string().trim().min(1).max(128),
+  publicJwk: ed25519PublicJwkSchema,
+  privateJwk: ed25519PrivateJwkSchema.optional(),
+});
+
 export const tenantIdSchema = z.string().min(1);
 export const resourceIdSchema = z.string().min(1);
 export const userIdSchema = z.string().min(1);
@@ -1860,6 +1866,9 @@ export const queueEnvelopeSchema = z.object({
 export type QueueJob = z.infer<typeof queueJobSchema>;
 export type KeyGenerationRequest = z.infer<typeof keyGenerationRequestSchema>;
 export type SignCredentialRequest = z.infer<typeof signCredentialRequestSchema>;
+export type BootstrapSigningRegistrationRequest = z.infer<
+  typeof bootstrapSigningRegistrationRequestSchema
+>;
 export type TenantSigningRegistry = z.infer<typeof tenantSigningRegistrySchema>;
 export type TenantSigningRegistryEntry = z.infer<typeof tenantSigningRegistryEntrySchema>;
 export type MagicLinkRequest = z.infer<typeof magicLinkRequestSchema>;
@@ -2104,6 +2113,12 @@ export const parseKeyGenerationRequest = (input: unknown): KeyGenerationRequest 
 
 export const parseSignCredentialRequest = (input: unknown): SignCredentialRequest => {
   return signCredentialRequestSchema.parse(input);
+};
+
+export const parseBootstrapSigningRegistrationRequest = (
+  input: unknown,
+): BootstrapSigningRegistrationRequest => {
+  return bootstrapSigningRegistrationRequestSchema.parse(input);
 };
 
 export const parseTenantSigningRegistry = (input: unknown): TenantSigningRegistry => {

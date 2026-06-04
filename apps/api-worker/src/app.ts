@@ -88,6 +88,7 @@ import {
 } from "./notifications/send-issuance-email";
 import { registerAssertionRoutes } from "./routes/assertion-routes";
 import { registerAuthRoutes } from "./routes/auth-routes";
+import { registerBootstrapAdminRoutes } from "./routes/bootstrap-admin-routes";
 import { registerBadgeTemplateImageRoutes } from "./routes/badge-template-image-routes";
 import { registerBadgeRuleRoutes } from "./routes/badge-rule-routes";
 import { registerCredentialRoutes } from "./routes/credential-routes";
@@ -500,6 +501,11 @@ registerHealthRoutes({
   resolveDatabase,
   serviceName: API_SERVICE_NAME,
   storageReadinessProbeKey: STORAGE_READINESS_PROBE_KEY,
+});
+
+registerBootstrapAdminRoutes({
+  app,
+  resolveDatabase,
 });
 
 registerOb3Routes({
