@@ -100,7 +100,8 @@ const createCredential = (): JsonObject => {
   return {
     "@context": [
       "https://www.w3.org/ns/credentials/v2",
-      "https://purl.imsglobal.org/spec/ob/v3p0/context.json",
+      "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+      "https://credtrail.org/ns/trusted-credential/v1",
     ],
     id: `urn:credtrail:assertion:${encodeURIComponent(ASSERTION_ID)}`,
     type: ["VerifiableCredential", "OpenBadgeCredential"],

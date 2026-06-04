@@ -1,19 +1,13 @@
 import {
   signCredentialWithDataIntegrityProof,
-  signCredentialWithEd25519Signature2020,
   type DataIntegrityCryptosuite,
   type JsonObject,
 } from "@credtrail/core-domain";
 import type { TenantSigningRegistryEntry } from "@credtrail/validation";
-import {
-  isEd25519SigningPrivateJwk,
-  isP256SigningPrivateJwk,
-  toEd25519PrivateJwk,
-  toP256PrivateJwk,
-} from "./key-material";
+import { isEd25519SigningPrivateJwk, toEd25519PrivateJwk } from "./key-material";
 import type { RemoteSignerRegistryEntry } from "./registry";
 
-export type SupportedCredentialProofType = "Ed25519Signature2020" | "DataIntegrityProof";
+export type SupportedCredentialProofType = "DataIntegrityProof";
 
 export interface SignCredentialForDidInput<ContextType> {
   context: ContextType;
@@ -158,15 +152,13 @@ const signCredentialWithRemoteSigner = async (input: {
     };
   }
 
-  if (input.proofType === "DataIntegrityProof" && input.cryptosuite !== undefined) {
-    const signedCryptosuite = input.asNonEmptyString(signedProof.cryptosuite);
+  const signedCryptosuite = input.asNonEmptyString(signedProof.cryptosuite);
 
-    if (signedCryptosuite !== input.cryptosuite) {
-      return {
-        status: "error",
-        reason: "remote signer proof cryptosuite does not match requested cryptosuite",
-      };
-    }
+  if (signedCryptosuite !== input.cryptosuite) {
+    return {
+      status: "error",
+      reason: "remote signer proof cryptosuite does not match requested cryptosuite",
+    };
   }
 
   return {
@@ -194,84 +186,27 @@ export const createSignCredentialForDid = <ContextType>(
 
     const verificationMethod = `${request.did}#${signingEntry.keyId}`;
 
-    if (request.proofType === "DataIntegrityProof" && request.cryptosuite === undefined) {
-      return {
-        status: "error",
-        statusCode: 400,
-        error: "DataIntegrityProof signing requires a cryptosuite value",
-        did: request.did,
-      };
-    }
+    const cryptosuite = request.cryptosuite ?? "eddsa-rdfc-2022";
 
     if (signingEntry.privateJwk !== undefined) {
-      let signedCredential: JsonObject;
-
-      if (request.proofType === "DataIntegrityProof") {
-        const cryptosuite = request.cryptosuite;
-
-        if (cryptosuite === undefined) {
-          return {
-            status: "error",
-            statusCode: 400,
-            error: "DataIntegrityProof signing requires a cryptosuite value",
-            did: request.did,
-          };
-        }
-
-        if (cryptosuite === "eddsa-rdfc-2022") {
-          if (!isEd25519SigningPrivateJwk(signingEntry.privateJwk)) {
-            return {
-              status: "error",
-              statusCode: 422,
-              error: "DataIntegrity eddsa-rdfc-2022 signing requires an Ed25519 private key",
-              did: request.did,
-            };
-          }
-
-          signedCredential = await signCredentialWithDataIntegrityProof({
-            credential: request.credential,
-            privateJwk: toEd25519PrivateJwk(signingEntry.privateJwk),
-            verificationMethod,
-            cryptosuite,
-            ...(request.createdAt === undefined ? {} : { createdAt: request.createdAt }),
-          });
-        } else {
-          if (!isP256SigningPrivateJwk(signingEntry.privateJwk)) {
-            return {
-              status: "error",
-              statusCode: 422,
-              error: "DataIntegrity ecdsa-sd-2023 signing requires a P-256 private key",
-              did: request.did,
-            };
-          }
-
-          signedCredential = await signCredentialWithDataIntegrityProof({
-            credential: request.credential,
-            privateJwk: toP256PrivateJwk(signingEntry.privateJwk),
-            verificationMethod,
-            cryptosuite,
-            ...(request.createdAt === undefined ? {} : { createdAt: request.createdAt }),
-          });
-        }
-      } else {
-        if (!isEd25519SigningPrivateJwk(signingEntry.privateJwk)) {
-          return {
-            status: "error",
-            statusCode: 422,
-            error:
-              request.ed25519KeyRequirementError ??
-              "Credential signing endpoint requires an Ed25519 private key",
-            did: request.did,
-          };
-        }
-
-        signedCredential = await signCredentialWithEd25519Signature2020({
-          credential: request.credential,
-          privateJwk: toEd25519PrivateJwk(signingEntry.privateJwk),
-          verificationMethod,
-          ...(request.createdAt === undefined ? {} : { createdAt: request.createdAt }),
-        });
+      if (!isEd25519SigningPrivateJwk(signingEntry.privateJwk)) {
+        return {
+          status: "error",
+          statusCode: 422,
+          error:
+            request.ed25519KeyRequirementError ??
+            "DataIntegrity eddsa-rdfc-2022 signing requires an Ed25519 private key",
+          did: request.did,
+        };
       }
+
+      const signedCredential = await signCredentialWithDataIntegrityProof({
+        credential: request.credential,
+        privateJwk: toEd25519PrivateJwk(signingEntry.privateJwk),
+        verificationMethod,
+        cryptosuite,
+        ...(request.createdAt === undefined ? {} : { createdAt: request.createdAt }),
+      });
 
       return {
         status: "ok",
@@ -300,7 +235,7 @@ export const createSignCredentialForDid = <ContextType>(
       verificationMethod,
       credential: request.credential,
       proofType: request.proofType,
-      ...(request.cryptosuite === undefined ? {} : { cryptosuite: request.cryptosuite }),
+      cryptosuite,
       ...(request.createdAt === undefined ? {} : { createdAt: request.createdAt }),
       remoteSigner,
       asJsonObject: input.asJsonObject,

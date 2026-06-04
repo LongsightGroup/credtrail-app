@@ -193,7 +193,8 @@ interface RegisterCredentialRoutesInput<
     context: AppContext;
     did: string;
     credential: JsonObject;
-    proofType: "Ed25519Signature2020" | "DataIntegrityProof";
+    proofType: "DataIntegrityProof";
+    cryptosuite: "eddsa-rdfc-2022";
     createdAt?: string;
     missingPrivateKeyError?: string;
     ed25519KeyRequirementError?: string;
@@ -606,7 +607,8 @@ export const registerCredentialRoutes = <
       context: c,
       did: issuerDid,
       credential: statusListCredentialInput.credential,
-      proofType: "Ed25519Signature2020",
+      proofType: "DataIntegrityProof",
+      cryptosuite: "eddsa-rdfc-2022",
       createdAt: statusListCredentialInput.issuedAt,
       missingPrivateKeyError:
         "Tenant DID is missing private signing key material and no remote signer is configured",

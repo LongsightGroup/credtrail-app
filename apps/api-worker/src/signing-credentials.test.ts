@@ -20,7 +20,7 @@ import {
   type P256PrivateJwk,
   type P256PublicJwk,
   generateTenantDidSigningMaterial,
-  signCredentialWithEd25519Signature2020,
+  signCredentialWithDataIntegrityProof,
 } from "@credtrail/core-domain";
 import {
   findTenantSigningRegistrationByDid,
@@ -178,7 +178,10 @@ describe("POST /v1/signing/credentials", () => {
         body: JSON.stringify({
           did: signingMaterial.did,
           credential: {
-            "@context": ["https://www.w3.org/ns/credentials/v2"],
+            "@context": [
+              "https://www.w3.org/ns/credentials/v2",
+              "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+            ],
             type: ["VerifiableCredential"],
             issuer: signingMaterial.did,
             credentialSubject: {
@@ -233,7 +236,7 @@ describe("POST /v1/signing/credentials", () => {
         );
       }
 
-      const signedCredential = await signCredentialWithEd25519Signature2020({
+      const signedCredential = await signCredentialWithDataIntegrityProof({
         credential: unsignedCredential,
         privateJwk: signingMaterial.privateJwk,
         verificationMethod,
@@ -272,7 +275,10 @@ describe("POST /v1/signing/credentials", () => {
         body: JSON.stringify({
           did: signingMaterial.did,
           credential: {
-            "@context": ["https://www.w3.org/ns/credentials/v2"],
+            "@context": [
+              "https://www.w3.org/ns/credentials/v2",
+              "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+            ],
             type: ["VerifiableCredential"],
             issuer: signingMaterial.did,
             credentialSubject: {
@@ -294,20 +300,9 @@ describe("POST /v1/signing/credentials", () => {
     fetchSpy.mockRestore();
   });
 
-  it("signs DataIntegrity credentials with ecdsa-sd-2023 when DID has P-256 key material", async () => {
+  it("rejects ecdsa-sd-2023 signing requests", async () => {
     const env = createEnv();
-    const signingMaterial = await generateP256SigningMaterial("key-p256");
     const did = "did:web:credtrail.test:sakai";
-
-    mockedFindTenantSigningRegistrationByDid.mockResolvedValue(
-      sampleTenantSigningRegistration({
-        tenantId: "sakai",
-        did,
-        keyId: "key-p256",
-        publicJwkJson: JSON.stringify(signingMaterial.publicJwk),
-        privateJwkJson: JSON.stringify(signingMaterial.privateJwk),
-      }),
-    );
 
     const response = await app.request(
       "/v1/signing/credentials",
@@ -321,7 +316,10 @@ describe("POST /v1/signing/credentials", () => {
           proofType: "DataIntegrityProof",
           cryptosuite: "ecdsa-sd-2023",
           credential: {
-            "@context": ["https://www.w3.org/ns/credentials/v2"],
+            "@context": [
+              "https://www.w3.org/ns/credentials/v2",
+              "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+            ],
             type: ["VerifiableCredential"],
             issuer: did,
             credentialSubject: {
@@ -332,13 +330,10 @@ describe("POST /v1/signing/credentials", () => {
       },
       env,
     );
-    const body = await response.json<JsonObject>();
-    const signedCredential = asJsonObject(body.credential);
-    const proof = asJsonObject(signedCredential?.proof);
+    const body = await response.json<ErrorResponse>();
 
-    expect(response.status).toBe(201);
-    expect(asString(proof?.type)).toBe("DataIntegrityProof");
-    expect(asString(proof?.cryptosuite)).toBe("ecdsa-sd-2023");
+    expect(response.status).toBe(400);
+    expect(body.error).toContain("Invalid");
   });
 
   it("signs DataIntegrity credentials with eddsa-rdfc-2022 when DID has Ed25519 key material", async () => {
@@ -370,7 +365,10 @@ describe("POST /v1/signing/credentials", () => {
           proofType: "DataIntegrityProof",
           cryptosuite: "eddsa-rdfc-2022",
           credential: {
-            "@context": ["https://www.w3.org/ns/credentials/v2"],
+            "@context": [
+              "https://www.w3.org/ns/credentials/v2",
+              "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+            ],
             type: ["VerifiableCredential"],
             issuer: signingMaterial.did,
             credentialSubject: {
@@ -417,7 +415,10 @@ describe("POST /v1/signing/credentials", () => {
           proofType: "DataIntegrityProof",
           cryptosuite: "eddsa-rdfc-2022",
           credential: {
-            "@context": ["https://www.w3.org/ns/credentials/v2"],
+            "@context": [
+              "https://www.w3.org/ns/credentials/v2",
+              "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+            ],
             type: ["VerifiableCredential"],
             issuer: did,
             credentialSubject: {
@@ -461,7 +462,10 @@ describe("POST /v1/signing/credentials", () => {
         body: JSON.stringify({
           did,
           credential: {
-            "@context": ["https://www.w3.org/ns/credentials/v2"],
+            "@context": [
+              "https://www.w3.org/ns/credentials/v2",
+              "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+            ],
             type: ["VerifiableCredential"],
             issuer: did,
             credentialSubject: {
@@ -475,6 +479,8 @@ describe("POST /v1/signing/credentials", () => {
     const body = await response.json<ErrorResponse>();
 
     expect(response.status).toBe(422);
-    expect(body.error).toBe("Credential signing endpoint requires an Ed25519 private key");
+    expect(body.error).toBe(
+      "DataIntegrity eddsa-rdfc-2022 signing requires an Ed25519 private key",
+    );
   });
 });

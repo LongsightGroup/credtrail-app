@@ -2,7 +2,6 @@ import type { JsonObject } from "@credtrail/core-domain";
 import { bytesToBase64Url } from "../utils/crypto";
 
 const BITSTRING_STATUS_LIST_CONTEXT = "https://www.w3.org/ns/credentials/status/v1";
-const ED25519_SIGNATURE_2020_CONTEXT = "https://w3id.org/security/suites/ed25519-2020/v1";
 const MINIMUM_STATUS_LIST_ENTRIES = 131_072;
 const MINIMUM_STATUS_LIST_BYTES = MINIMUM_STATUS_LIST_ENTRIES / 8;
 
@@ -149,11 +148,7 @@ export const buildRevocationStatusListCredential = async (
   return {
     issuedAt,
     credential: {
-      "@context": [
-        "https://www.w3.org/ns/credentials/v2",
-        BITSTRING_STATUS_LIST_CONTEXT,
-        ED25519_SIGNATURE_2020_CONTEXT,
-      ],
+      "@context": ["https://www.w3.org/ns/credentials/v2", BITSTRING_STATUS_LIST_CONTEXT],
       id: statusListCredentialUrl,
       type: ["VerifiableCredential", "BitstringStatusListCredential"],
       issuer: input.issuerDid,

@@ -93,18 +93,10 @@ export const signCredentialRequestSchema = z
   .object({
     did: didWebSchema,
     credential: jsonObjectSchema,
-    proofType: z.enum(["Ed25519Signature2020", "DataIntegrityProof"]).optional(),
-    cryptosuite: z.enum(["eddsa-rdfc-2022", "ecdsa-sd-2023"]).optional(),
+    proofType: z.literal("DataIntegrityProof").optional(),
+    cryptosuite: z.literal("eddsa-rdfc-2022").optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.proofType === "DataIntegrityProof" && value.cryptosuite === undefined) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["cryptosuite"],
-        message: "cryptosuite is required when proofType is DataIntegrityProof",
-      });
-    }
-
     if (value.proofType !== "DataIntegrityProof" && value.cryptosuite !== undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

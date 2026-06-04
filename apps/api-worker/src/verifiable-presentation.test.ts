@@ -64,13 +64,10 @@ vi.mock("./auth/better-auth-adapter", async () => {
 
 import {
   type JsonObject,
-  type P256PrivateJwk,
-  type P256PublicJwk,
   encodeJwkPublicKeyMultibase,
   generateTenantDidSigningMaterial,
   getImmutableCredentialObject,
   signCredentialWithDataIntegrityProof,
-  signCredentialWithEd25519Signature2020,
 } from "@credtrail/core-domain";
 import {
   findAssertionById,
@@ -144,7 +141,6 @@ const VC_V2_CONTEXT_DOCUMENT = {
     proofValue: "https://w3id.org/security#proofValue",
     cryptosuite: "https://w3id.org/security#cryptosuite",
     DataIntegrityProof: "https://w3id.org/security#DataIntegrityProof",
-    Ed25519Signature2020: "https://w3id.org/security#Ed25519Signature2020",
     name: "http://schema.org/name",
     achievement: "https://purl.imsglobal.org/spec/ob/v3p0#achievement",
   },
@@ -306,42 +302,6 @@ const sampleLearnerBadge = (
   };
 };
 
-const requireJwkString = (value: string | undefined, field: string): string => {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`Missing ${field} in exported JWK`);
-  }
-
-  return value;
-};
-
-const generateP256SigningMaterial = async (
-  kid = "key-p256",
-): Promise<{ publicJwk: P256PublicJwk; privateJwk: P256PrivateJwk }> => {
-  const generated = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
-    "sign",
-    "verify",
-  ]);
-  const exportedPublicJwk = await crypto.subtle.exportKey("jwk", generated.publicKey);
-  const exportedPrivateJwk = await crypto.subtle.exportKey("jwk", generated.privateKey);
-
-  const publicJwk: P256PublicJwk = {
-    kty: "EC",
-    crv: "P-256",
-    x: requireJwkString(exportedPublicJwk.x, "x"),
-    y: requireJwkString(exportedPublicJwk.y, "y"),
-    kid,
-  };
-  const privateJwk: P256PrivateJwk = {
-    ...publicJwk,
-    d: requireJwkString(exportedPrivateJwk.d, "d"),
-  };
-
-  return {
-    publicJwk,
-    privateJwk,
-  };
-};
-
 const createDidKeyHolderMaterial = async (): Promise<{
   did: string;
   verificationMethod: string;
@@ -384,13 +344,17 @@ describe("Verifiable Presentation endpoints", () => {
     mockedListLearnerBadgeSummaries.mockResolvedValue([sampleLearnerBadge()]);
     mockedFindAssertionById.mockResolvedValue(sampleAssertion());
     mockedGetImmutableCredentialObject.mockResolvedValue({
-      "@context": ["https://www.w3.org/ns/credentials/v2"],
+      "@context": [
+        "https://www.w3.org/ns/credentials/v2",
+        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+      ],
       type: ["VerifiableCredential", "OpenBadgeCredential"],
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
       issuer: "did:web:credtrail.test:tenant_123",
       validFrom: "2026-02-10T22:00:00.000Z",
       credentialSubject: {
         id: holder.did,
+        type: ["AchievementSubject"],
         achievement: {
           type: ["Achievement"],
           name: "TypeScript Foundations",
@@ -457,59 +421,70 @@ describe("Verifiable Presentation endpoints", () => {
     expect(mockedFindAssertionById).not.toHaveBeenCalled();
   });
 
-  it("verifies VP holder proof and mixed EdDSA/ECDSA credential proofs", async () => {
+  it("verifies VP holder proof and multiple EdDSA credential proofs", async () => {
     const holder = await createDidKeyHolderMaterial();
-    const ed25519Issuer = await generateTenantDidSigningMaterial({
+    const firstIssuer = await generateTenantDidSigningMaterial({
       did: "did:web:credtrail.test:tenant_123",
     });
-    const p256IssuerKeys = await generateP256SigningMaterial("key-p256");
-    const p256IssuerDid = "did:web:credtrail.test:tenant_123:p256";
+    const secondIssuer = await generateTenantDidSigningMaterial({
+      did: "did:web:credtrail.test:tenant_123:second",
+    });
 
-    const ed25519Credential = await signCredentialWithEd25519Signature2020({
+    const firstCredential = await signCredentialWithDataIntegrityProof({
       credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+        ],
         type: ["VerifiableCredential", "OpenBadgeCredential"],
-        id: "urn:credtrail:credential:ed25519",
-        issuer: ed25519Issuer.did,
+        id: "urn:credtrail:credential:first",
+        issuer: firstIssuer.did,
         validFrom: "2026-02-10T22:00:00.000Z",
         credentialSubject: {
           id: holder.did,
+          type: ["AchievementSubject"],
           achievement: {
             type: ["Achievement"],
-            name: "Ed25519 Badge",
+            name: "First Badge",
           },
         },
       },
-      privateJwk: ed25519Issuer.privateJwk,
-      verificationMethod: ed25519Issuer.did + "#" + ed25519Issuer.keyId,
+      privateJwk: firstIssuer.privateJwk,
+      verificationMethod: firstIssuer.did + "#" + firstIssuer.keyId,
     });
 
-    const ecdsaCredential = await signCredentialWithDataIntegrityProof({
+    const secondCredential = await signCredentialWithDataIntegrityProof({
       credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+        ],
         type: ["VerifiableCredential", "OpenBadgeCredential"],
-        id: "urn:credtrail:credential:ecdsa",
-        issuer: p256IssuerDid,
+        id: "urn:credtrail:credential:second",
+        issuer: secondIssuer.did,
         validFrom: "2026-02-10T22:00:00.000Z",
         credentialSubject: {
           id: holder.did,
+          type: ["AchievementSubject"],
           achievement: {
             type: ["Achievement"],
-            name: "ECDSA Badge",
+            name: "Second Badge",
           },
         },
       },
-      privateJwk: p256IssuerKeys.privateJwk,
-      verificationMethod: p256IssuerDid + "#key-p256",
-      cryptosuite: "ecdsa-sd-2023",
+      privateJwk: secondIssuer.privateJwk,
+      verificationMethod: secondIssuer.did + "#" + secondIssuer.keyId,
     });
 
-    const presentation = await signCredentialWithEd25519Signature2020({
+    const presentation = await signCredentialWithDataIntegrityProof({
       credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+        ],
         type: ["VerifiablePresentation"],
         holder: holder.did,
-        verifiableCredential: [ed25519Credential, ecdsaCredential],
+        verifiableCredential: [firstCredential, secondCredential],
       },
       privateJwk: holder.privateJwk,
       verificationMethod: holder.verificationMethod,
@@ -518,15 +493,15 @@ describe("Verifiable Presentation endpoints", () => {
     const env = {
       ...createEnv(),
       TENANT_SIGNING_REGISTRY_JSON: JSON.stringify({
-        [ed25519Issuer.did]: {
+        [firstIssuer.did]: {
           tenantId: "tenant_123",
-          keyId: ed25519Issuer.keyId,
-          publicJwk: ed25519Issuer.publicJwk,
+          keyId: firstIssuer.keyId,
+          publicJwk: firstIssuer.publicJwk,
         },
-        [p256IssuerDid]: {
+        [secondIssuer.did]: {
           tenantId: "tenant_123",
-          keyId: "key-p256",
-          publicJwk: p256IssuerKeys.publicJwk,
+          keyId: secondIssuer.keyId,
+          publicJwk: secondIssuer.publicJwk,
         },
       }),
     };
@@ -558,7 +533,7 @@ describe("Verifiable Presentation endpoints", () => {
     expect(body.credentialCount).toBe(2);
     expect(asString(asJsonObject(asJsonObject(body.holder)?.proof)?.status)).toBe("valid");
     expect(proofFormats).toEqual(
-      expect.arrayContaining(["Ed25519Signature2020", "DataIntegrityProof"]),
+      expect.arrayContaining(["DataIntegrityProof", "DataIntegrityProof"]),
     );
     expect(credentials.every((entry) => asString(entry?.status) === "valid")).toBe(true);
   });
@@ -569,15 +544,19 @@ describe("Verifiable Presentation endpoints", () => {
       did: "did:web:credtrail.test:tenant_123",
     });
 
-    const credential = await signCredentialWithEd25519Signature2020({
+    const credential = await signCredentialWithDataIntegrityProof({
       credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+        ],
         type: ["VerifiableCredential", "OpenBadgeCredential"],
         id: "urn:credtrail:credential:mismatch",
         issuer: issuer.did,
         validFrom: "2026-02-10T22:00:00.000Z",
         credentialSubject: {
           id: "did:key:z6MkpresentationMismatchHolder",
+          type: ["AchievementSubject"],
           achievement: {
             type: ["Achievement"],
             name: "Mismatch Badge",
@@ -588,9 +567,12 @@ describe("Verifiable Presentation endpoints", () => {
       verificationMethod: issuer.did + "#" + issuer.keyId,
     });
 
-    const presentation = await signCredentialWithEd25519Signature2020({
+    const presentation = await signCredentialWithDataIntegrityProof({
       credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+        ],
         type: ["VerifiablePresentation"],
         holder: holder.did,
         verifiableCredential: [credential],

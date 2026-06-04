@@ -1346,7 +1346,7 @@ describe("parseSignCredentialRequest", () => {
     expect(payload.did).toBe("did:web:issuers.credtrail.org:tenant-a");
   });
 
-  it("accepts DataIntegrity signing requests with cryptosuite", () => {
+  it("accepts DataIntegrity signing requests with the eddsa-rdfc-2022 cryptosuite", () => {
     const payload = parseSignCredentialRequest({
       did: "did:web:issuers.credtrail.org:tenant-a",
       credential: {
@@ -1354,11 +1354,11 @@ describe("parseSignCredentialRequest", () => {
         type: ["VerifiableCredential"],
       },
       proofType: "DataIntegrityProof",
-      cryptosuite: "ecdsa-sd-2023",
+      cryptosuite: "eddsa-rdfc-2022",
     });
 
     expect(payload.proofType).toBe("DataIntegrityProof");
-    expect(payload.cryptosuite).toBe("ecdsa-sd-2023");
+    expect(payload.cryptosuite).toBe("eddsa-rdfc-2022");
   });
 
   it("rejects non did:web identifiers", () => {
@@ -1372,14 +1372,27 @@ describe("parseSignCredentialRequest", () => {
     }).toThrowError();
   });
 
-  it("rejects DataIntegrity signing requests without cryptosuite", () => {
+  it("accepts DataIntegrity signing requests without an explicit cryptosuite", () => {
+    const payload = parseSignCredentialRequest({
+      did: "did:web:issuers.credtrail.org:tenant-a",
+      credential: {
+        id: "urn:vc:1",
+      },
+      proofType: "DataIntegrityProof",
+    });
+
+    expect(payload.proofType).toBe("DataIntegrityProof");
+    expect(payload.cryptosuite).toBeUndefined();
+  });
+
+  it("rejects legacy proof types", () => {
     expect(() => {
       parseSignCredentialRequest({
         did: "did:web:issuers.credtrail.org:tenant-a",
         credential: {
           id: "urn:vc:1",
         },
-        proofType: "DataIntegrityProof",
+        proofType: "Ed25519Signature2020",
       });
     }).toThrowError();
   });

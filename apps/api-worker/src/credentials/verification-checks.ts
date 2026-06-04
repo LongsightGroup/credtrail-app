@@ -44,6 +44,9 @@ export interface CredentialLifecycleVerificationSummary {
 
 export const VC_DATA_MODEL_CONTEXT_URL = "https://www.w3.org/ns/credentials/v2";
 export const VC_DATA_MODEL_V1_CONTEXT_URL = "https://www.w3.org/2018/credentials/v1";
+const OB3_CONTEXT_URL = "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json";
+const VC_CREDENTIAL_STATUS_CONTEXT_URL = "https://www.w3.org/ns/credentials/status/v1";
+const CREDTRAIL_TRUSTED_CREDENTIAL_CONTEXT_URL = "https://credtrail.org/ns/trusted-credential/v1";
 
 const JSON_LD_KEYWORDS = new Set([
   "@base",
@@ -118,6 +121,104 @@ const OB3_SAFE_MODE_KNOWN_TERMS = new Set([
   "endorsement",
   "endorsementJwt",
   "subject",
+]);
+
+const JSON_LD_CONTEXT_URL_KNOWN_TERMS: ReadonlyMap<string, readonly string[]> = new Map([
+  [
+    VC_DATA_MODEL_CONTEXT_URL,
+    [
+      "DataIntegrityProof",
+      "VerifiableCredential",
+      "VerifiablePresentation",
+      "credentialSchema",
+      "credentialStatus",
+      "credentialSubject",
+      "description",
+      "domain",
+      "evidence",
+      "expirationDate",
+      "issuanceDate",
+      "issuer",
+      "name",
+      "proof",
+      "proofPurpose",
+      "validFrom",
+      "validUntil",
+    ],
+  ],
+  [
+    OB3_CONTEXT_URL,
+    [
+      "Achievement",
+      "AchievementSubject",
+      "Alignment",
+      "Criteria",
+      "Evidence",
+      "IdentityObject",
+      "Image",
+      "OpenBadgeCredential",
+      "Profile",
+      "Result",
+      "achievement",
+      "achievementType",
+      "alignment",
+      "caption",
+      "criteria",
+      "description",
+      "frameworkUri",
+      "hashed",
+      "identityHash",
+      "identityType",
+      "image",
+      "identifier",
+      "name",
+      "narrative",
+      "result",
+      "targetFramework",
+      "targetName",
+      "targetUrl",
+      "url",
+      "value",
+    ],
+  ],
+  [
+    VC_CREDENTIAL_STATUS_CONTEXT_URL,
+    [
+      "BitstringStatusList",
+      "BitstringStatusListCredential",
+      "BitstringStatusListEntry",
+      "encodedList",
+      "statusListCredential",
+      "statusListIndex",
+      "statusPurpose",
+    ],
+  ],
+  [
+    CREDTRAIL_TRUSTED_CREDENTIAL_CONTEXT_URL,
+    [
+      "Assessment",
+      "CreditValue",
+      "Duration",
+      "Endorsement",
+      "IssuerAuthority",
+      "Rubric",
+      "Skill",
+      "assessment",
+      "assessmentDate",
+      "authorityType",
+      "available",
+      "creditValue",
+      "duration",
+      "earned",
+      "endorsement",
+      "issuerAuthority",
+      "resultDate",
+      "rubric",
+      "skill",
+      "source",
+      "value",
+    ],
+  ],
 ]);
 
 interface CreateCredentialVerificationChecksInput<ContextType> {
@@ -251,6 +352,23 @@ export const createCredentialVerificationChecks = <ContextType>(
     }
   };
 
+  const collectKnownContextUrlTerms = (
+    contextUrls: readonly string[],
+    terms: Set<string>,
+  ): void => {
+    for (const contextUrl of contextUrls) {
+      const contextTerms = JSON_LD_CONTEXT_URL_KNOWN_TERMS.get(contextUrl);
+
+      if (contextTerms === undefined) {
+        continue;
+      }
+
+      for (const term of contextTerms) {
+        terms.add(term);
+      }
+    }
+  };
+
   const collectUnknownJsonLdTerms = (
     value: unknown,
     path: string,
@@ -310,6 +428,7 @@ export const createCredentialVerificationChecks = <ContextType>(
     }
 
     const knownTerms = new Set<string>(OB3_SAFE_MODE_KNOWN_TERMS);
+    collectKnownContextUrlTerms(contextUrls, knownTerms);
     collectInlineContextTerms(context, knownTerms);
 
     const unknownTermPaths: string[] = [];

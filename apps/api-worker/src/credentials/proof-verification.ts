@@ -1,17 +1,13 @@
 import {
   verifyCredentialProofWithDataIntegrity,
-  verifyCredentialProofWithEd25519Signature2020,
   type Ed25519PublicJwk,
   type JsonObject,
-  type P256PublicJwk,
 } from "@credtrail/core-domain";
 import type { TenantSigningRegistryEntry } from "@credtrail/validation";
 import { issuerIdentifierFromCredential } from "../badges/credential-display";
 import {
   isEd25519SigningPublicJwk,
-  isP256SigningPublicJwk,
   toEd25519PublicJwk,
-  toP256PublicJwk,
   type SigningPublicJwk,
 } from "../signing/key-material";
 import type { HistoricalSigningKeyEntry } from "../signing/registry";
@@ -96,44 +92,10 @@ export const createCredentialProofVerificationHelpers = <ContextType>(
     verificationMethod: string;
     publicJwk: SigningPublicJwk;
   }): Promise<CredentialProofVerificationSummary> => {
-    if (request.proofType === "Ed25519Signature2020") {
-      if (!isEd25519SigningPublicJwk(request.publicJwk)) {
-        return {
-          status: "invalid",
-          format: request.proofType,
-          cryptosuite: null,
-          verificationMethod: request.verificationMethod,
-          reason: "Ed25519Signature2020 requires an Ed25519 public key",
-        };
-      }
-
-      const isValid = await verifyCredentialProofWithEd25519Signature2020({
-        credential: {
-          ...request.credential,
-          proof: {
-            type: "Ed25519Signature2020",
-            created: asString(request.proof.created) ?? "",
-            proofPurpose: "assertionMethod",
-            verificationMethod: request.verificationMethod,
-            proofValue: request.proofValue,
-          },
-        },
-        publicJwk: toEd25519PublicJwk(request.publicJwk),
-      });
-
-      return {
-        status: isValid ? "valid" : "invalid",
-        format: request.proofType,
-        cryptosuite: null,
-        verificationMethod: request.verificationMethod,
-        reason: isValid ? null : "signature verification failed",
-      };
-    }
-
     if (request.proofType === "DataIntegrityProof") {
       const cryptosuite = asNonEmptyString(request.proof.cryptosuite);
 
-      if (cryptosuite !== "eddsa-rdfc-2022" && cryptosuite !== "ecdsa-sd-2023") {
+      if (cryptosuite !== "eddsa-rdfc-2022") {
         return {
           status: "invalid",
           format: request.proofType,
@@ -143,33 +105,17 @@ export const createCredentialProofVerificationHelpers = <ContextType>(
         };
       }
 
-      let verificationPublicJwk: Ed25519PublicJwk | P256PublicJwk;
-
-      if (cryptosuite === "eddsa-rdfc-2022") {
-        if (!isEd25519SigningPublicJwk(request.publicJwk)) {
-          return {
-            status: "invalid",
-            format: request.proofType,
-            cryptosuite,
-            verificationMethod: request.verificationMethod,
-            reason: "eddsa-rdfc-2022 requires an Ed25519 public key",
-          };
-        }
-
-        verificationPublicJwk = toEd25519PublicJwk(request.publicJwk);
-      } else {
-        if (!isP256SigningPublicJwk(request.publicJwk)) {
-          return {
-            status: "invalid",
-            format: request.proofType,
-            cryptosuite,
-            verificationMethod: request.verificationMethod,
-            reason: "ecdsa-sd-2023 requires a P-256 public key",
-          };
-        }
-
-        verificationPublicJwk = toP256PublicJwk(request.publicJwk);
+      if (!isEd25519SigningPublicJwk(request.publicJwk)) {
+        return {
+          status: "invalid",
+          format: request.proofType,
+          cryptosuite,
+          verificationMethod: request.verificationMethod,
+          reason: "eddsa-rdfc-2022 requires an Ed25519 public key",
+        };
       }
+
+      const verificationPublicJwk: Ed25519PublicJwk = toEd25519PublicJwk(request.publicJwk);
 
       const isValid = await verifyCredentialProofWithDataIntegrity({
         credential: {

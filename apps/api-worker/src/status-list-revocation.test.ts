@@ -21,7 +21,7 @@ import {
   type P256PrivateJwk,
   type P256PublicJwk,
   generateTenantDidSigningMaterial,
-  signCredentialWithEd25519Signature2020,
+  signCredentialWithDataIntegrityProof,
 } from "@credtrail/core-domain";
 import {
   findTenantSigningRegistrationByDid,
@@ -251,7 +251,6 @@ describe("GET /credentials/v1/status-lists/:tenantId/revocation", () => {
       expect.arrayContaining([
         "https://www.w3.org/ns/credentials/v2",
         "https://www.w3.org/ns/credentials/status/v1",
-        "https://w3id.org/security/suites/ed25519-2020/v1",
       ]),
     );
     expect(credential.type).toEqual(["VerifiableCredential", "BitstringStatusListCredential"]);
@@ -353,7 +352,7 @@ describe("GET /credentials/v1/status-lists/:tenantId/revocation", () => {
         );
       }
 
-      const signedCredential = await signCredentialWithEd25519Signature2020({
+      const signedCredential = await signCredentialWithDataIntegrityProof({
         credential: unsignedCredential,
         privateJwk: signingMaterial.privateJwk,
         verificationMethod,

@@ -31,12 +31,9 @@ vi.mock("@credtrail/db/postgres", () => {
 
 import {
   type JsonObject,
-  type P256PrivateJwk,
-  type P256PublicJwk,
   generateTenantDidSigningMaterial,
   getImmutableCredentialObject,
   signCredentialWithDataIntegrityProof,
-  signCredentialWithEd25519Signature2020,
 } from "@credtrail/core-domain";
 import {
   recordAssertionEngagementEvent,
@@ -239,41 +236,6 @@ const sampleAssertionEngagementEvent = (
   };
 };
 
-const requireJwkString = (value: string | undefined, field: string): string => {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`Missing ${field} in exported JWK`);
-  }
-
-  return value;
-};
-
-const generateP256SigningMaterial = async (
-  kid = "key-p256",
-): Promise<{ publicJwk: P256PublicJwk; privateJwk: P256PrivateJwk }> => {
-  const generated = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
-    "sign",
-    "verify",
-  ]);
-  const exportedPublicJwk = await crypto.subtle.exportKey("jwk", generated.publicKey);
-  const exportedPrivateJwk = await crypto.subtle.exportKey("jwk", generated.privateKey);
-
-  const publicJwk: P256PublicJwk = {
-    kty: "EC",
-    crv: "P-256",
-    x: requireJwkString(exportedPublicJwk.x, "x"),
-    y: requireJwkString(exportedPublicJwk.y, "y"),
-    kid,
-  };
-  const privateJwk: P256PrivateJwk = {
-    ...publicJwk,
-    d: requireJwkString(exportedPrivateJwk.d, "d"),
-  };
-
-  return {
-    publicJwk,
-    privateJwk,
-  };
-};
 describe("GET /credentials/v1/:credentialId", () => {
   beforeEach(() => {
     mockedFindAssertionById.mockReset();
@@ -288,13 +250,17 @@ describe("GET /credentials/v1/:credentialId", () => {
       keyId: "key-status-list",
     });
     const credential: JsonObject = {
-      "@context": ["https://www.w3.org/ns/credentials/v2"],
+      "@context": [
+        "https://www.w3.org/ns/credentials/v2",
+        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+      ],
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
       type: ["VerifiableCredential", "OpenBadgeCredential"],
       issuer: "did:web:credtrail.test:tenant_123",
       validFrom: "2026-02-10T22:00:00.000Z",
       credentialSubject: {
         id: "mailto:learner@example.edu",
+        type: ["AchievementSubject"],
         achievement: {
           id: "urn:credtrail:badge:001",
           type: ["Achievement"],
@@ -447,7 +413,10 @@ describe("GET /credentials/v1/:credentialId", () => {
       keyId: "key-status-list",
     });
     const credential: JsonObject = {
-      "@context": ["https://www.w3.org/ns/credentials/v2"],
+      "@context": [
+        "https://www.w3.org/ns/credentials/v2",
+        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+      ],
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
       type: ["VerifiableCredential", "OpenBadgeCredential"],
       issuer: "did:web:credtrail.test:tenant_123",
@@ -535,7 +504,10 @@ describe("GET /credentials/v1/:credentialId", () => {
   it("marks credential status as expired when validUntil has passed", async () => {
     const env = createEnv();
     const credential: JsonObject = {
-      "@context": ["https://www.w3.org/ns/credentials/v2"],
+      "@context": [
+        "https://www.w3.org/ns/credentials/v2",
+        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+      ],
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
       type: ["VerifiableCredential", "OpenBadgeCredential"],
       validUntil: "2025-01-01T00:00:00.000Z",
@@ -564,7 +536,10 @@ describe("GET /credentials/v1/:credentialId", () => {
   it("marks jsonLdSafeMode as invalid when unknown terms are present", async () => {
     const env = createEnv();
     const credential: JsonObject = {
-      "@context": ["https://www.w3.org/ns/credentials/v2"],
+      "@context": [
+        "https://www.w3.org/ns/credentials/v2",
+        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+      ],
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
       type: ["VerifiableCredential", "OpenBadgeCredential"],
       issuer: "did:web:credtrail.test:tenant_123",
@@ -594,10 +569,186 @@ describe("GET /credentials/v1/:credentialId", () => {
     expect(body.verification.checks.jsonLdSafeMode.reason).toContain("unknownTerm");
   });
 
+  it("trusts CredTrail TrustEd terms when the pinned TrustEd context is present", async () => {
+    const env = createEnv();
+    const credential: JsonObject = {
+      "@context": [
+        "https://www.w3.org/ns/credentials/v2",
+        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+        "https://credtrail.org/ns/trusted-credential/v1",
+      ],
+      id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
+      type: ["VerifiableCredential", "OpenBadgeCredential"],
+      issuer: {
+        id: "did:web:credtrail.test:tenant_123",
+        type: ["Profile"],
+        name: "CredTrail Test College",
+        url: "https://credtrail.test",
+      },
+      validFrom: "2026-02-10T22:00:00.000Z",
+      credentialSubject: {
+        id: "mailto:learner@example.edu",
+        type: ["AchievementSubject"],
+        identifier: {
+          identityHash: "sha256:learner",
+          identityType: "email",
+          hashed: true,
+        },
+        achievement: {
+          id: "https://credtrail.test/badges/applied-analytics",
+          type: ["Achievement"],
+          name: "Applied Analytics",
+          achievementType: "Project",
+          alignment: [
+            {
+              type: ["Alignment"],
+              targetUrl: "https://skills.example.edu/skills/applied-data",
+              targetName: "Analyze civic datasets",
+              targetFramework: "Example CASE Framework",
+              frameworkUri: "https://case.example.edu/frameworks/analytics",
+            },
+          ],
+          criteria: {
+            type: "Criteria",
+            narrative: "Complete the applied analytics project and faculty review.",
+          },
+          skill: [
+            {
+              type: ["Skill"],
+              id: "https://skills.example.edu/applied-data",
+              name: "Applied data analysis",
+              source: "Example Skills Framework",
+            },
+          ],
+          issuerAuthority: {
+            type: ["IssuerAuthority"],
+            id: "https://www.msche.org/institution/0000/",
+            name: "Middle States Commission on Higher Education",
+            authorityType: "accreditor",
+          },
+          assessment: [
+            {
+              type: ["Assessment"],
+              description: "Faculty-scored applied analytics capstone.",
+              assessmentDate: "2026-05-18",
+            },
+          ],
+          rubric: [
+            {
+              type: ["Rubric"],
+              id: "https://credentials.example.edu/rubrics/applied-analytics",
+              name: "Applied analytics rubric",
+            },
+          ],
+          duration: {
+            type: ["Duration"],
+            value: "6 weeks",
+          },
+          creditValue: {
+            type: ["CreditValue"],
+            available: "3 credits",
+            earned: "3 credits",
+          },
+          endorsement: [
+            {
+              type: ["Endorsement"],
+              id: "https://workforce.example.edu/council",
+              name: "Regional Workforce Council",
+            },
+          ],
+        },
+        result: [
+          {
+            type: ["Result"],
+            value: "Pass",
+            resultDate: "2026-05-18",
+          },
+        ],
+        evidence: [
+          {
+            type: ["Evidence"],
+            id: "https://evidence.example.edu/learners/123/capstone",
+            name: "Capstone analysis portfolio",
+            description: "Portfolio evidence reviewed by program faculty.",
+          },
+        ],
+      },
+    };
+
+    mockedFindAssertionById.mockResolvedValue(
+      sampleAssertion({
+        statusListIndex: null,
+      }),
+    );
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+
+    const response = await app.request(
+      "/credentials/v1/tenant_123%3Aassertion_456",
+      undefined,
+      env,
+    );
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.checks.jsonLdSafeMode.status).toBe("valid");
+    expect(body.verification.checks.jsonLdSafeMode.reason).toBeNull();
+  });
+
+  it("does not trust CredTrail TrustEd terms when the TrustEd context is missing", async () => {
+    const env = createEnv();
+    const credential: JsonObject = {
+      "@context": [
+        "https://www.w3.org/ns/credentials/v2",
+        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+      ],
+      id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
+      type: ["VerifiableCredential", "OpenBadgeCredential"],
+      issuer: "did:web:credtrail.test:tenant_123",
+      validFrom: "2026-02-10T22:00:00.000Z",
+      credentialSubject: {
+        id: "mailto:learner@example.edu",
+        type: ["AchievementSubject"],
+        achievement: {
+          id: "https://credtrail.test/badges/applied-analytics",
+          type: ["Achievement"],
+          name: "Applied Analytics",
+          skill: [
+            {
+              type: ["Skill"],
+              name: "Applied data analysis",
+              source: "Example Skills Framework",
+            },
+          ],
+        },
+      },
+    };
+
+    mockedFindAssertionById.mockResolvedValue(
+      sampleAssertion({
+        statusListIndex: null,
+      }),
+    );
+    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+
+    const response = await app.request(
+      "/credentials/v1/tenant_123%3Aassertion_456",
+      undefined,
+      env,
+    );
+    const body = await response.json<VerificationResponse>();
+
+    expect(response.status).toBe(200);
+    expect(body.verification.checks.jsonLdSafeMode.status).toBe("invalid");
+    expect(body.verification.checks.jsonLdSafeMode.reason).toContain("skill");
+  });
+
   it("marks credentialSchema as invalid when 1EdTech validator type is missing", async () => {
     const env = createEnv();
     const credential: JsonObject = {
-      "@context": ["https://www.w3.org/ns/credentials/v2"],
+      "@context": [
+        "https://www.w3.org/ns/credentials/v2",
+        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+      ],
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
       type: ["VerifiableCredential", "OpenBadgeCredential"],
       issuer: "did:web:credtrail.test:tenant_123",
@@ -650,7 +801,10 @@ describe("GET /credentials/v1/:credentialId", () => {
       ),
     );
     const credential: JsonObject = {
-      "@context": ["https://www.w3.org/ns/credentials/v2"],
+      "@context": [
+        "https://www.w3.org/ns/credentials/v2",
+        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+      ],
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
       type: ["VerifiableCredential", "OpenBadgeCredential"],
       issuer: "did:web:credtrail.test:tenant_123",
@@ -702,7 +856,10 @@ describe("GET /credentials/v1/:credentialId", () => {
       ),
     );
     const credential: JsonObject = {
-      "@context": ["https://www.w3.org/ns/credentials/v2"],
+      "@context": [
+        "https://www.w3.org/ns/credentials/v2",
+        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+      ],
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
       type: ["VerifiableCredential", "OpenBadgeCredential"],
       issuer: "did:web:credtrail.test:tenant_123",
@@ -742,12 +899,16 @@ describe("GET /credentials/v1/:credentialId", () => {
   it("marks credentialSubject as invalid when id and identifier are missing", async () => {
     const env = createEnv();
     const credential: JsonObject = {
-      "@context": ["https://www.w3.org/ns/credentials/v2"],
+      "@context": [
+        "https://www.w3.org/ns/credentials/v2",
+        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+      ],
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
       type: ["VerifiableCredential", "OpenBadgeCredential"],
       issuer: "did:web:credtrail.test:tenant_123",
       validFrom: "2026-02-10T22:00:00.000Z",
       credentialSubject: {
+        type: ["AchievementSubject"],
         achievement: {
           id: "urn:credtrail:badge:001",
           type: ["Achievement"],
@@ -780,7 +941,10 @@ describe("GET /credentials/v1/:credentialId", () => {
   it("marks credentialSubject as invalid when OpenBadgeCredential omits achievement details", async () => {
     const env = createEnv();
     const credential: JsonObject = {
-      "@context": ["https://www.w3.org/ns/credentials/v2"],
+      "@context": [
+        "https://www.w3.org/ns/credentials/v2",
+        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+      ],
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
       type: ["VerifiableCredential", "OpenBadgeCredential"],
       issuer: "did:web:credtrail.test:tenant_123",
@@ -814,7 +978,10 @@ describe("GET /credentials/v1/:credentialId", () => {
   it("marks dates as invalid when validFrom is in the future", async () => {
     const env = createEnv();
     const credential: JsonObject = {
-      "@context": ["https://www.w3.org/ns/credentials/v2"],
+      "@context": [
+        "https://www.w3.org/ns/credentials/v2",
+        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+      ],
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
       type: ["VerifiableCredential", "OpenBadgeCredential"],
       issuer: "did:web:credtrail.test:tenant_123",
@@ -846,20 +1013,24 @@ describe("GET /credentials/v1/:credentialId", () => {
     expect(body.verification.checks.dates.validFrom).toBe("2999-01-01T00:00:00.000Z");
   });
 
-  it("verifies Ed25519Signature2020 proofs when issuer signing keys are resolvable", async () => {
+  it("verifies DataIntegrityProof proofs when issuer signing keys are resolvable", async () => {
     const env = createEnv();
     const signingMaterial = await generateTenantDidSigningMaterial({
       did: "did:web:credtrail.test:tenant_123",
       keyId: "key-1",
     });
-    const credential = await signCredentialWithEd25519Signature2020({
+    const credential = await signCredentialWithDataIntegrityProof({
       credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+        ],
         id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
         type: ["VerifiableCredential", "OpenBadgeCredential"],
         issuer: signingMaterial.did,
         credentialSubject: {
           id: "mailto:learner@example.edu",
+          type: ["AchievementSubject"],
           achievement: {
             id: "urn:credtrail:badge:001",
             type: ["Achievement"],
@@ -893,7 +1064,7 @@ describe("GET /credentials/v1/:credentialId", () => {
 
     expect(response.status).toBe(200);
     expect(body.verification.proof.status).toBe("valid");
-    expect(body.verification.proof.format).toBe("Ed25519Signature2020");
+    expect(body.verification.proof.format).toBe("DataIntegrityProof");
     expect(body.verification.proof.verificationMethod).toBe(
       "did:web:credtrail.test:tenant_123#key-1",
     );
@@ -905,14 +1076,18 @@ describe("GET /credentials/v1/:credentialId", () => {
       did: "did:web:credtrail.test:tenant_123",
       keyId: "key-1",
     });
-    const signedCredential = await signCredentialWithEd25519Signature2020({
+    const signedCredential = await signCredentialWithDataIntegrityProof({
       credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+        ],
         id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
         type: ["VerifiableCredential", "OpenBadgeCredential"],
         issuer: signingMaterial.did,
         credentialSubject: {
           id: "mailto:learner@example.edu",
+          type: ["AchievementSubject"],
           achievement: {
             id: "urn:credtrail:badge:001",
             type: ["Achievement"],
@@ -962,62 +1137,9 @@ describe("GET /credentials/v1/:credentialId", () => {
 
     expect(response.status).toBe(200);
     expect(body.verification.proof.status).toBe("valid");
-    expect(body.verification.proof.format).toBe("Ed25519Signature2020");
+    expect(body.verification.proof.format).toBe("DataIntegrityProof");
     expect(body.verification.proof.verificationMethod).toBe(
       "did:web:credtrail.test:tenant_123#key-1",
-    );
-  });
-
-  it("verifies DataIntegrityProof ecdsa-sd-2023 proofs when issuer signing keys are resolvable", async () => {
-    const env = createEnv();
-    const signingMaterial = await generateP256SigningMaterial("key-p256");
-    const did = "did:web:credtrail.test:tenant_123";
-    const credential = await signCredentialWithDataIntegrityProof({
-      credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
-        id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
-        type: ["VerifiableCredential", "OpenBadgeCredential"],
-        issuer: did,
-        credentialSubject: {
-          id: "mailto:learner@example.edu",
-          achievement: {
-            id: "urn:credtrail:badge:001",
-            type: ["Achievement"],
-            name: "Sakai Contributor",
-          },
-        },
-      },
-      privateJwk: signingMaterial.privateJwk,
-      verificationMethod: `${did}#${signingMaterial.publicJwk.kid ?? "key-p256"}`,
-      cryptosuite: "ecdsa-sd-2023",
-      createdAt: "2026-02-11T00:00:00.000Z",
-    });
-
-    mockedFindAssertionById.mockResolvedValue(sampleAssertion());
-    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
-    mockedFindTenantSigningRegistrationByDid.mockResolvedValue(
-      sampleTenantSigningRegistration({
-        tenantId: "tenant_123",
-        did,
-        keyId: signingMaterial.publicJwk.kid ?? "key-p256",
-        publicJwkJson: JSON.stringify(signingMaterial.publicJwk),
-        privateJwkJson: JSON.stringify(signingMaterial.privateJwk),
-      }),
-    );
-
-    const response = await app.request(
-      "/credentials/v1/tenant_123%3Aassertion_456",
-      undefined,
-      env,
-    );
-    const body = await response.json<VerificationResponse>();
-
-    expect(response.status).toBe(200);
-    expect(body.verification.proof.status).toBe("valid");
-    expect(body.verification.proof.format).toBe("DataIntegrityProof");
-    expect(body.verification.proof.cryptosuite).toBe("ecdsa-sd-2023");
-    expect(body.verification.proof.verificationMethod).toBe(
-      "did:web:credtrail.test:tenant_123#key-p256",
     );
   });
 
@@ -1029,12 +1151,16 @@ describe("GET /credentials/v1/:credentialId", () => {
     });
     const credential = await signCredentialWithDataIntegrityProof({
       credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+        ],
         id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
         type: ["VerifiableCredential", "OpenBadgeCredential"],
         issuer: signingMaterial.did,
         credentialSubject: {
           id: "mailto:learner@example.edu",
+          type: ["AchievementSubject"],
           achievement: {
             id: "urn:credtrail:badge:001",
             type: ["Achievement"],
@@ -1076,117 +1202,24 @@ describe("GET /credentials/v1/:credentialId", () => {
     );
   });
 
-  it("verifies DataIntegrityProof credentials with both EdDSA and ECDSA cryptosuites through the same endpoint", async () => {
-    const env = createEnv();
-    const assertDataIntegrityVerification = async (input: {
-      credential: JsonObject;
-      registration: TenantSigningRegistrationRecord;
-      cryptosuite: "eddsa-rdfc-2022" | "ecdsa-sd-2023";
-    }): Promise<void> => {
-      mockedFindAssertionById.mockResolvedValue(sampleAssertion());
-      mockedGetImmutableCredentialObject.mockResolvedValue(input.credential);
-      mockedFindTenantSigningRegistrationByDid.mockResolvedValue(input.registration);
-
-      const response = await app.request(
-        "/credentials/v1/tenant_123%3Aassertion_456",
-        undefined,
-        env,
-      );
-      const body = await response.json<VerificationResponse>();
-
-      expect(response.status).toBe(200);
-      expect(body.verification.proof.status).toBe("valid");
-      expect(body.verification.proof.format).toBe("DataIntegrityProof");
-      expect(body.verification.proof.cryptosuite).toBe(input.cryptosuite);
-    };
-
-    const did = "did:web:credtrail.test:tenant_123";
-    const ecdsaSigningMaterial = await generateP256SigningMaterial("key-p256-interchangeable");
-    const ecdsaCredential = await signCredentialWithDataIntegrityProof({
-      credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
-        id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
-        type: ["VerifiableCredential", "OpenBadgeCredential"],
-        issuer: did,
-        credentialSubject: {
-          id: "mailto:learner@example.edu",
-          achievement: {
-            id: "urn:credtrail:badge:001",
-            type: ["Achievement"],
-            name: "Sakai Contributor",
-          },
-        },
-      },
-      privateJwk: ecdsaSigningMaterial.privateJwk,
-      verificationMethod: `${did}#${ecdsaSigningMaterial.publicJwk.kid ?? "key-p256-interchangeable"}`,
-      cryptosuite: "ecdsa-sd-2023",
-      createdAt: "2026-02-11T00:00:00.000Z",
-    });
-
-    await assertDataIntegrityVerification({
-      credential: ecdsaCredential,
-      registration: sampleTenantSigningRegistration({
-        tenantId: "tenant_123",
-        did,
-        keyId: ecdsaSigningMaterial.publicJwk.kid ?? "key-p256-interchangeable",
-        publicJwkJson: JSON.stringify(ecdsaSigningMaterial.publicJwk),
-        privateJwkJson: JSON.stringify(ecdsaSigningMaterial.privateJwk),
-      }),
-      cryptosuite: "ecdsa-sd-2023",
-    });
-
-    const eddsaSigningMaterial = await generateTenantDidSigningMaterial({
-      did,
-      keyId: "key-ed25519-interchangeable",
-    });
-    const eddsaCredential = await signCredentialWithDataIntegrityProof({
-      credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
-        id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
-        type: ["VerifiableCredential", "OpenBadgeCredential"],
-        issuer: did,
-        credentialSubject: {
-          id: "mailto:learner@example.edu",
-          achievement: {
-            id: "urn:credtrail:badge:001",
-            type: ["Achievement"],
-            name: "Sakai Contributor",
-          },
-        },
-      },
-      privateJwk: eddsaSigningMaterial.privateJwk,
-      verificationMethod: `${did}#${eddsaSigningMaterial.keyId}`,
-      cryptosuite: "eddsa-rdfc-2022",
-      createdAt: "2026-02-11T00:00:00.000Z",
-    });
-
-    await assertDataIntegrityVerification({
-      credential: eddsaCredential,
-      registration: sampleTenantSigningRegistration({
-        tenantId: "tenant_123",
-        did,
-        keyId: eddsaSigningMaterial.keyId,
-        publicJwkJson: JSON.stringify(eddsaSigningMaterial.publicJwk),
-        privateJwkJson: JSON.stringify(eddsaSigningMaterial.privateJwk),
-      }),
-      cryptosuite: "eddsa-rdfc-2022",
-    });
-  });
-
   it("returns invalid when proof verificationMethod DID does not match issuer DID", async () => {
     const env = createEnv();
     const signingMaterial = await generateTenantDidSigningMaterial({
       did: "did:web:credtrail.test:tenant_123",
       keyId: "key-1",
     });
-    const credential = await signCredentialWithEd25519Signature2020({
+    const credential = await signCredentialWithDataIntegrityProof({
       credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+        ],
         id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
         type: ["VerifiableCredential", "OpenBadgeCredential"],
         issuer: "did:web:credtrail.test:tenant_mismatch",
         credentialSubject: {
           id: "mailto:learner@example.edu",
+          type: ["AchievementSubject"],
           achievement: {
             id: "urn:credtrail:badge:001",
             type: ["Achievement"],
@@ -1231,14 +1264,18 @@ describe("GET /credentials/v1/:credentialId", () => {
       did: "did:web:credtrail.test:tenant_123",
       keyId: "key-1",
     });
-    const credential = await signCredentialWithEd25519Signature2020({
+    const credential = await signCredentialWithDataIntegrityProof({
       credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+        ],
         id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
         type: ["VerifiableCredential", "OpenBadgeCredential"],
         issuer: signingMaterial.did,
         credentialSubject: {
           id: "mailto:learner@example.edu",
+          type: ["AchievementSubject"],
           achievement: {
             id: "urn:credtrail:badge:001",
             type: ["Achievement"],
@@ -1297,14 +1334,18 @@ describe("GET /credentials/v1/:credentialId", () => {
         ],
       }),
     };
-    const credential = await signCredentialWithEd25519Signature2020({
+    const credential = await signCredentialWithDataIntegrityProof({
       credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+        ],
         id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
         type: ["VerifiableCredential", "OpenBadgeCredential"],
         issuer: oldSigningMaterial.did,
         credentialSubject: {
           id: "mailto:learner@example.edu",
+          type: ["AchievementSubject"],
           achievement: {
             id: "urn:credtrail:badge:001",
             type: ["Achievement"],
@@ -1349,14 +1390,18 @@ describe("GET /credentials/v1/:credentialId", () => {
       did: "did:web:credtrail.test:tenant_123",
       keyId: "key-1",
     });
-    const credential = await signCredentialWithEd25519Signature2020({
+    const credential = await signCredentialWithDataIntegrityProof({
       credential: {
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+        ],
         id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
         type: ["VerifiableCredential", "OpenBadgeCredential"],
         issuer: signingMaterial.did,
         credentialSubject: {
           id: "mailto:learner@example.edu",
+          type: ["AchievementSubject"],
           achievement: {
             id: "urn:credtrail:badge:001",
             type: ["Achievement"],

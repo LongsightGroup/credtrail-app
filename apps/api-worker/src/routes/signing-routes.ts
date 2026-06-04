@@ -8,14 +8,14 @@ import type { Hono } from "hono";
 import { parseKeyGenerationRequest, parseSignCredentialRequest } from "@credtrail/validation";
 import type { AppContext, AppEnv } from "../app";
 
-type SupportedCredentialProofType = "Ed25519Signature2020" | "DataIntegrityProof";
+type SupportedCredentialProofType = "DataIntegrityProof";
 
 interface SignCredentialForDidInput {
   context: AppContext;
   did: string;
   credential: JsonObject;
   proofType: SupportedCredentialProofType;
-  cryptosuite?: DataIntegrityCryptosuite;
+  cryptosuite: DataIntegrityCryptosuite;
 }
 
 type SignCredentialForDidResult =
@@ -67,14 +67,25 @@ export const registerSigningRoutes = (input: RegisterSigningRoutesInput): void =
 
   app.post("/v1/signing/credentials", async (c) => {
     const payload = await c.req.json<unknown>();
-    const request = parseSignCredentialRequest(payload);
-    const proofType = request.proofType ?? "Ed25519Signature2020";
+    let request: ReturnType<typeof parseSignCredentialRequest>;
+
+    try {
+      request = parseSignCredentialRequest(payload);
+    } catch {
+      return c.json(
+        {
+          error: "Invalid credential signing request payload",
+        },
+        400,
+      );
+    }
+
     const signingResult = await signCredentialForDid({
       context: c,
       did: request.did,
       credential: request.credential,
-      proofType,
-      ...(request.cryptosuite === undefined ? {} : { cryptosuite: request.cryptosuite }),
+      proofType: request.proofType ?? "DataIntegrityProof",
+      cryptosuite: request.cryptosuite ?? "eddsa-rdfc-2022",
     });
 
     if (signingResult.status !== "ok") {

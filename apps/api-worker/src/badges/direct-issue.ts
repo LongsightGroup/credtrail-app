@@ -120,7 +120,7 @@ const issuanceEmailNotificationsEnabled = (bindings: IssueBadgeBindings): boolea
 const VC_DATA_MODEL_V2_CONTEXT_URL = "https://www.w3.org/ns/credentials/v2";
 const OB3_CONTEXT_URL = "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json";
 const VC_STATUS_LIST_CONTEXT_URL = "https://www.w3.org/ns/credentials/status/v1";
-const ED25519_SIGNATURE_2020_CONTEXT_URL = "https://w3id.org/security/suites/ed25519-2020/v1";
+const CREDTRAIL_TRUSTED_CREDENTIAL_CONTEXT_URL = "https://credtrail.org/ns/trusted-credential/v1";
 
 const ob3IdentityTypeFromRecipientIdentifierType = (
   recipientIdentifierType: RecipientIdentifierType,
@@ -145,6 +145,14 @@ const projectTrustEdMetadataForIssuance = (
   return metadataResult.status === "valid"
     ? projectTrustEdMetadataToOb3(metadataResult.metadata)
     : emptyTrustEdOb3Projection();
+};
+
+const trustEdProjectionHasExtensionTerms = (
+  projection: TrustEdCredentialOb3Projection,
+): boolean => {
+  return (
+    Object.keys(projection.achievement).length > 0 || Object.keys(projection.subject).length > 0
+  );
 };
 
 const criteriaForIssuedAchievement = (
@@ -311,12 +319,14 @@ export const createIssueBadgeForTenant = <
         "Tenant DID is missing private signing key material and no remote signer is configured",
       ed25519KeyRequirementError: "Tenant issuance requires an Ed25519 private key",
       credential: {
-        "@context": [
-          VC_DATA_MODEL_V2_CONTEXT_URL,
-          OB3_CONTEXT_URL,
-          VC_STATUS_LIST_CONTEXT_URL,
-          ED25519_SIGNATURE_2020_CONTEXT_URL,
-        ],
+        "@context": trustEdProjectionHasExtensionTerms(trustEdProjection)
+          ? [
+              VC_DATA_MODEL_V2_CONTEXT_URL,
+              OB3_CONTEXT_URL,
+              VC_STATUS_LIST_CONTEXT_URL,
+              CREDTRAIL_TRUSTED_CREDENTIAL_CONTEXT_URL,
+            ]
+          : [VC_DATA_MODEL_V2_CONTEXT_URL, OB3_CONTEXT_URL, VC_STATUS_LIST_CONTEXT_URL],
         id: `urn:credtrail:assertion:${encodeURIComponent(assertionId)}`,
         type: ["VerifiableCredential", "OpenBadgeCredential"],
         name: badgeTemplate.title,

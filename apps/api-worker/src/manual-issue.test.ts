@@ -632,7 +632,6 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
         "https://www.w3.org/ns/credentials/v2",
         "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
         "https://www.w3.org/ns/credentials/status/v1",
-        "https://w3id.org/security/suites/ed25519-2020/v1",
       ]),
     );
     expect(firstIssuer).toEqual(

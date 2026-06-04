@@ -1,7 +1,6 @@
 import {
   decodeJwkPublicKeyMultibase,
   verifyCredentialProofWithDataIntegrity,
-  verifyCredentialProofWithEd25519Signature2020,
   type Ed25519PublicJwk,
   type JsonObject,
 } from "@credtrail/core-domain";
@@ -279,30 +278,6 @@ export const createPresentationVerificationHelpers = <ContextType>(
         cryptosuite: input.asNonEmptyString(proof.cryptosuite),
         verificationMethod,
         reason: "holder DID did:key value is not a valid Ed25519 multibase key",
-      };
-    }
-
-    if (proofType === "Ed25519Signature2020") {
-      const isValid = await verifyCredentialProofWithEd25519Signature2020({
-        credential: {
-          ...presentation,
-          proof: {
-            type: "Ed25519Signature2020",
-            created: input.asString(proof.created) ?? "",
-            proofPurpose: "assertionMethod",
-            verificationMethod,
-            proofValue,
-          },
-        },
-        publicJwk: holderPublicJwk,
-      });
-
-      return {
-        status: isValid ? "valid" : "invalid",
-        format: proofType,
-        cryptosuite: null,
-        verificationMethod,
-        reason: isValid ? null : "signature verification failed",
       };
     }
 

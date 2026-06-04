@@ -81,15 +81,7 @@ export interface CreateDidDocumentInput {
   publicJwk: Ed25519PublicJwk;
 }
 
-export interface Ed25519Signature2020Proof extends JsonObject {
-  type: "Ed25519Signature2020";
-  created: string;
-  proofPurpose: "assertionMethod";
-  verificationMethod: string;
-  proofValue: string;
-}
-
-export type DataIntegrityCryptosuite = "eddsa-rdfc-2022" | "ecdsa-sd-2023";
+export type DataIntegrityCryptosuite = "eddsa-rdfc-2022";
 
 export interface DataIntegrityProof extends JsonObject {
   type: "DataIntegrityProof";
@@ -100,13 +92,6 @@ export interface DataIntegrityProof extends JsonObject {
   proofValue: string;
 }
 
-interface SigningProofOptions extends JsonObject {
-  type: "Ed25519Signature2020";
-  created: string;
-  proofPurpose: "assertionMethod";
-  verificationMethod: string;
-}
-
 interface DataIntegritySigningProofOptions extends JsonObject {
   type: "DataIntegrityProof";
   cryptosuite: DataIntegrityCryptosuite;
@@ -115,37 +100,21 @@ interface DataIntegritySigningProofOptions extends JsonObject {
   verificationMethod: string;
 }
 
-export type SignedCredential = JsonObject & {
-  proof: Ed25519Signature2020Proof;
-};
-
 export type DataIntegritySignedCredential = JsonObject & {
   proof: DataIntegrityProof;
 };
 
-export interface SignCredentialInput {
+export interface SignCredentialWithDataIntegrityProofInput {
   credential: JsonObject;
   privateJwk: Ed25519PrivateJwk;
   verificationMethod: string;
+  cryptosuite?: DataIntegrityCryptosuite;
   createdAt?: string;
-}
-
-export interface SignCredentialWithDataIntegrityProofInput {
-  credential: JsonObject;
-  privateJwk: Ed25519PrivateJwk | P256PrivateJwk;
-  verificationMethod: string;
-  cryptosuite: DataIntegrityCryptosuite;
-  createdAt?: string;
-}
-
-export interface VerifyCredentialInput {
-  credential: SignedCredential;
-  publicJwk: Ed25519PublicJwk;
 }
 
 export interface VerifyCredentialWithDataIntegrityProofInput {
   credential: DataIntegritySignedCredential;
-  publicJwk: Ed25519PublicJwk | P256PublicJwk;
+  publicJwk: Ed25519PublicJwk;
 }
 
 const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -283,64 +252,12 @@ const base58Decode = (value: string): Uint8Array => {
   return decoded;
 };
 
-const canonicalizeJson = (value: JsonValue): string => {
-  if (value === null) {
-    return "null";
-  }
-
-  if (typeof value === "boolean") {
-    return value ? "true" : "false";
-  }
-
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) {
-      throw new Error("Credential payload contains a non-finite number");
-    }
-
-    return JSON.stringify(value);
-  }
-
-  if (typeof value === "string") {
-    return JSON.stringify(value);
-  }
-
-  if (Array.isArray(value)) {
-    const serializedItems = value.map((item) => canonicalizeJson(item));
-    return `[${serializedItems.join(",")}]`;
-  }
-
-  const keys = Object.keys(value).sort((left, right) => left.localeCompare(right));
-  const serializedPairs = keys.map((key) => {
-    const entryValue = value[key];
-
-    if (entryValue === undefined) {
-      throw new Error("Credential payload contains an undefined object field");
-    }
-
-    return `${JSON.stringify(key)}:${canonicalizeJson(entryValue)}`;
-  });
-
-  return `{${serializedPairs.join(",")}}`;
-};
-
 const importEd25519PrivateKey = async (privateJwk: Ed25519PrivateJwk): Promise<CryptoKey> => {
   return crypto.subtle.importKey("jwk", privateJwk, { name: "Ed25519" }, false, ["sign"]);
 };
 
 const importEd25519PublicKey = async (publicJwk: Ed25519PublicJwk): Promise<CryptoKey> => {
   return crypto.subtle.importKey("jwk", publicJwk, { name: "Ed25519" }, false, ["verify"]);
-};
-
-const importP256PrivateKey = async (privateJwk: P256PrivateJwk): Promise<CryptoKey> => {
-  return crypto.subtle.importKey("jwk", privateJwk, { name: "ECDSA", namedCurve: "P-256" }, false, [
-    "sign",
-  ]);
-};
-
-const importP256PublicKey = async (publicJwk: P256PublicJwk): Promise<CryptoKey> => {
-  return crypto.subtle.importKey("jwk", publicJwk, { name: "ECDSA", namedCurve: "P-256" }, false, [
-    "verify",
-  ]);
 };
 
 const isEd25519PublicJwk = (value: unknown): value is Ed25519PublicJwk => {
@@ -354,28 +271,6 @@ const isEd25519PublicJwk = (value: unknown): value is Ed25519PublicJwk => {
 
 const isEd25519PrivateJwk = (value: unknown): value is Ed25519PrivateJwk => {
   if (!isEd25519PublicJwk(value)) {
-    return false;
-  }
-
-  return typeof (value as { d?: unknown }).d === "string";
-};
-
-const isP256PublicJwk = (value: unknown): value is P256PublicJwk => {
-  if (value === null || typeof value !== "object") {
-    return false;
-  }
-
-  const jwk = value as Record<string, unknown>;
-  return (
-    jwk.kty === "EC" &&
-    jwk.crv === "P-256" &&
-    typeof jwk.x === "string" &&
-    typeof jwk.y === "string"
-  );
-};
-
-const isP256PrivateJwk = (value: unknown): value is P256PrivateJwk => {
-  if (!isP256PublicJwk(value)) {
     return false;
   }
 
@@ -445,19 +340,10 @@ const unsignedCredential = (credential: JsonObject): JsonObject => {
   return nextCredential;
 };
 
-const proofEnvelope = (created: string, verificationMethod: string): SigningProofOptions => {
-  return {
-    type: "Ed25519Signature2020",
-    created,
-    proofPurpose: "assertionMethod",
-    verificationMethod,
-  };
-};
-
 const dataIntegrityProofEnvelope = (
   created: string,
   verificationMethod: string,
-  cryptosuite: DataIntegrityCryptosuite,
+  cryptosuite: DataIntegrityCryptosuite = "eddsa-rdfc-2022",
 ): DataIntegritySigningProofOptions => {
   return {
     type: "DataIntegrityProof",
@@ -468,75 +354,435 @@ const dataIntegrityProofEnvelope = (
   };
 };
 
-const legacySigningPayload = (credential: JsonObject, proof: JsonObject): Uint8Array => {
-  const canonicalCredential = canonicalizeJson(unsignedCredential(credential));
-  const canonicalProof = canonicalizeJson(proof);
-  return new TextEncoder().encode(`${canonicalCredential}.${canonicalProof}`);
-};
-
 interface JsonLdRemoteDocument {
   contextUrl?: string;
   documentUrl: string;
   document: unknown;
 }
 
-const jsonLdContextCache = new Map<string, Promise<JsonLdRemoteDocument>>();
+const XSD_DATETIME = "http://www.w3.org/2001/XMLSchema#dateTime";
+const XSD_BOOLEAN = "https://www.w3.org/2001/XMLSchema#boolean";
+const XSD_ANY_URI = "https://www.w3.org/2001/XMLSchema#anyURI";
+const VC_VOCAB = "https://www.w3.org/2018/credentials#";
+const VC_STATUS_VOCAB = "https://www.w3.org/ns/credentials/status#";
+const OB_VOCAB = "https://purl.imsglobal.org/spec/vc/ob/vocab.html#";
+const SECURITY_VOCAB = "https://w3id.org/security#";
+
+const dataIntegrityProofContext = (): JsonObject => {
+  return {
+    "@protected": true,
+    id: "@id",
+    type: "@type",
+    challenge: `${SECURITY_VOCAB}challenge`,
+    created: {
+      "@id": "http://purl.org/dc/terms/created",
+      "@type": XSD_DATETIME,
+    },
+    cryptosuite: {
+      "@id": `${SECURITY_VOCAB}cryptosuite`,
+      "@type": `${SECURITY_VOCAB}cryptosuiteString`,
+    },
+    domain: `${SECURITY_VOCAB}domain`,
+    expires: {
+      "@id": `${SECURITY_VOCAB}expiration`,
+      "@type": XSD_DATETIME,
+    },
+    nonce: `${SECURITY_VOCAB}nonce`,
+    proofPurpose: {
+      "@id": `${SECURITY_VOCAB}proofPurpose`,
+      "@type": "@vocab",
+      "@context": {
+        "@protected": true,
+        id: "@id",
+        type: "@type",
+        assertionMethod: {
+          "@id": `${SECURITY_VOCAB}assertionMethod`,
+          "@type": "@id",
+          "@container": "@set",
+        },
+        authentication: {
+          "@id": `${SECURITY_VOCAB}authenticationMethod`,
+          "@type": "@id",
+          "@container": "@set",
+        },
+      },
+    },
+    proofValue: {
+      "@id": `${SECURITY_VOCAB}proofValue`,
+      "@type": `${SECURITY_VOCAB}multibase`,
+    },
+    verificationMethod: {
+      "@id": `${SECURITY_VOCAB}verificationMethod`,
+      "@type": "@id",
+    },
+  };
+};
+
+const pinnedJsonLdContexts: ReadonlyMap<string, JsonObject> = new Map<string, JsonObject>([
+  [
+    "https://www.w3.org/ns/credentials/v2",
+    {
+      "@context": {
+        "@protected": true,
+        id: "@id",
+        type: "@type",
+        name: "https://schema.org/name",
+        description: "https://schema.org/description",
+        VerifiableCredential: {
+          "@id": `${VC_VOCAB}VerifiableCredential`,
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            credentialStatus: {
+              "@id": `${VC_VOCAB}credentialStatus`,
+              "@type": "@id",
+            },
+            credentialSubject: {
+              "@id": `${VC_VOCAB}credentialSubject`,
+              "@type": "@id",
+            },
+            description: "https://schema.org/description",
+            issuer: {
+              "@id": `${VC_VOCAB}issuer`,
+              "@type": "@id",
+            },
+            name: "https://schema.org/name",
+            proof: {
+              "@id": `${SECURITY_VOCAB}proof`,
+              "@type": "@id",
+              "@container": "@graph",
+            },
+            validFrom: {
+              "@id": `${VC_VOCAB}validFrom`,
+              "@type": XSD_DATETIME,
+            },
+          },
+        },
+        VerifiablePresentation: {
+          "@id": `${VC_VOCAB}VerifiablePresentation`,
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            holder: {
+              "@id": `${VC_VOCAB}holder`,
+              "@type": "@id",
+            },
+            proof: {
+              "@id": `${SECURITY_VOCAB}proof`,
+              "@type": "@id",
+              "@container": "@graph",
+            },
+            verifiableCredential: {
+              "@id": `${VC_VOCAB}verifiableCredential`,
+              "@type": "@id",
+              "@container": "@graph",
+              "@context": null,
+            },
+          },
+        },
+        DataIntegrityProof: {
+          "@id": `${SECURITY_VOCAB}DataIntegrityProof`,
+          "@context": dataIntegrityProofContext(),
+        },
+        BitstringStatusListCredential: `${VC_STATUS_VOCAB}BitstringStatusListCredential`,
+        BitstringStatusList: {
+          "@id": `${VC_STATUS_VOCAB}BitstringStatusList`,
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            encodedList: {
+              "@id": `${VC_STATUS_VOCAB}encodedList`,
+              "@type": `${SECURITY_VOCAB}multibase`,
+            },
+            statusPurpose: `${VC_STATUS_VOCAB}statusPurpose`,
+          },
+        },
+        BitstringStatusListEntry: {
+          "@id": `${VC_STATUS_VOCAB}BitstringStatusListEntry`,
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            statusListCredential: {
+              "@id": `${VC_STATUS_VOCAB}statusListCredential`,
+              "@type": "@id",
+            },
+            statusListIndex: `${VC_STATUS_VOCAB}statusListIndex`,
+            statusPurpose: `${VC_STATUS_VOCAB}statusPurpose`,
+          },
+        },
+      },
+    },
+  ],
+  [
+    "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+    {
+      "@context": {
+        "@protected": true,
+        id: "@id",
+        type: "@type",
+        OpenBadgeCredential: `${OB_VOCAB}OpenBadgeCredential`,
+        Profile: {
+          "@id": `${OB_VOCAB}Profile`,
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            image: {
+              "@id": `${OB_VOCAB}image`,
+              "@type": "@id",
+            },
+            name: "https://schema.org/name",
+            url: {
+              "@id": "https://schema.org/url",
+              "@type": XSD_ANY_URI,
+            },
+          },
+        },
+        AchievementSubject: {
+          "@id": `${OB_VOCAB}AchievementSubject`,
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            achievement: `${OB_VOCAB}achievement`,
+            evidence: {
+              "@id": `${VC_VOCAB}evidence`,
+              "@container": "@set",
+            },
+            identifier: {
+              "@id": `${OB_VOCAB}identifier`,
+              "@container": "@set",
+            },
+            result: {
+              "@id": `${OB_VOCAB}result`,
+              "@container": "@set",
+            },
+          },
+        },
+        Achievement: {
+          "@id": `${OB_VOCAB}Achievement`,
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            achievementType: `${OB_VOCAB}achievementType`,
+            alignment: {
+              "@id": `${OB_VOCAB}alignment`,
+              "@container": "@set",
+            },
+            criteria: {
+              "@id": `${OB_VOCAB}Criteria`,
+              "@type": "@id",
+            },
+            description: "https://schema.org/description",
+            image: {
+              "@id": `${OB_VOCAB}image`,
+              "@type": "@id",
+            },
+            name: "https://schema.org/name",
+          },
+        },
+        Alignment: {
+          "@id": "https://schema.org/AlignmentObject",
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            frameworkUri: {
+              "@id": "https://schema.org/targetUrl",
+              "@type": XSD_ANY_URI,
+            },
+            targetFramework: "https://schema.org/targetFramework",
+            targetName: "https://schema.org/targetName",
+            targetUrl: {
+              "@id": "https://schema.org/targetUrl",
+              "@type": XSD_ANY_URI,
+            },
+          },
+        },
+        Criteria: {
+          "@id": `${OB_VOCAB}Criteria`,
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            narrative: `${OB_VOCAB}narrative`,
+          },
+        },
+        Evidence: {
+          "@id": `${OB_VOCAB}Evidence`,
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            description: "https://schema.org/description",
+            name: "https://schema.org/name",
+          },
+        },
+        IdentityObject: {
+          "@id": `${OB_VOCAB}IdentityObject`,
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            hashed: {
+              "@id": `${OB_VOCAB}hashed`,
+              "@type": XSD_BOOLEAN,
+            },
+            identityHash: `${OB_VOCAB}identityHash`,
+            identityType: `${OB_VOCAB}identityType`,
+          },
+        },
+        Image: {
+          "@id": `${OB_VOCAB}Image`,
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            caption: "https://schema.org/caption",
+          },
+        },
+        Result: {
+          "@id": `${OB_VOCAB}Result`,
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            value: "https://schema.org/value",
+          },
+        },
+        description: "https://schema.org/description",
+        image: {
+          "@id": `${OB_VOCAB}image`,
+          "@type": "@id",
+        },
+        name: "https://schema.org/name",
+        url: {
+          "@id": "https://schema.org/url",
+          "@type": XSD_ANY_URI,
+        },
+      },
+    },
+  ],
+  [
+    "https://www.w3.org/ns/credentials/status/v1",
+    {
+      "@context": {
+        "@protected": true,
+        id: "@id",
+        type: "@type",
+        BitstringStatusListCredential: `${VC_STATUS_VOCAB}BitstringStatusListCredential`,
+        BitstringStatusList: {
+          "@id": `${VC_STATUS_VOCAB}BitstringStatusList`,
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            encodedList: {
+              "@id": `${VC_STATUS_VOCAB}encodedList`,
+              "@type": `${SECURITY_VOCAB}multibase`,
+            },
+            statusPurpose: `${VC_STATUS_VOCAB}statusPurpose`,
+          },
+        },
+        BitstringStatusListEntry: {
+          "@id": `${VC_STATUS_VOCAB}BitstringStatusListEntry`,
+          "@context": {
+            "@protected": true,
+            id: "@id",
+            type: "@type",
+            statusListCredential: {
+              "@id": `${VC_STATUS_VOCAB}statusListCredential`,
+              "@type": "@id",
+            },
+            statusListIndex: `${VC_STATUS_VOCAB}statusListIndex`,
+            statusPurpose: `${VC_STATUS_VOCAB}statusPurpose`,
+          },
+        },
+      },
+    },
+  ],
+  [
+    "https://credtrail.org/ns/trusted-credential/v1",
+    {
+      "@context": {
+        "@protected": true,
+        id: "@id",
+        type: "@type",
+        Assessment: `${OB_VOCAB}Assessment`,
+        CreditValue: `${OB_VOCAB}CreditValue`,
+        Duration: `${OB_VOCAB}Duration`,
+        Endorsement: `${OB_VOCAB}Endorsement`,
+        IssuerAuthority: `${OB_VOCAB}IssuerAuthority`,
+        Rubric: `${OB_VOCAB}Rubric`,
+        Skill: `${OB_VOCAB}Skill`,
+        assessment: {
+          "@id": `${OB_VOCAB}assessment`,
+          "@container": "@set",
+        },
+        assessmentDate: `${OB_VOCAB}assessmentDate`,
+        authorityType: `${OB_VOCAB}authorityType`,
+        available: `${OB_VOCAB}available`,
+        creditValue: `${OB_VOCAB}creditValue`,
+        duration: `${OB_VOCAB}duration`,
+        earned: `${OB_VOCAB}earned`,
+        endorsement: {
+          "@id": `${OB_VOCAB}endorsement`,
+          "@container": "@set",
+        },
+        issuerAuthority: `${OB_VOCAB}issuerAuthority`,
+        resultDate: {
+          "@id": `${OB_VOCAB}resultDate`,
+          "@type": XSD_DATETIME,
+        },
+        rubric: {
+          "@id": `${OB_VOCAB}rubric`,
+          "@container": "@set",
+        },
+        skill: {
+          "@id": `${OB_VOCAB}skill`,
+          "@container": "@set",
+        },
+        source: "https://schema.org/sourceOrganization",
+        value: "https://schema.org/value",
+      },
+    },
+  ],
+]);
 
 const jsonLdDocumentLoader = async (
   url: string,
   callback?: (error: Error | null, remoteDocument: JsonLdRemoteDocument) => void,
 ): Promise<JsonLdRemoteDocument> => {
-  const cached = jsonLdContextCache.get(url);
+  const document = pinnedJsonLdContexts.get(url);
 
-  if (cached !== undefined) {
-    const cachedDocument = await cached;
-
-    if (callback !== undefined) {
-      callback(null, cachedDocument);
-    }
-
-    return cachedDocument;
-  }
-
-  const next = (async (): Promise<JsonLdRemoteDocument> => {
-    const response = await fetch(url, {
-      headers: {
-        accept: "application/ld+json, application/json;q=0.9, */*;q=0.8",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Unable to load JSON-LD context: ${url} (${String(response.status)})`);
-    }
-
-    const document = await response.json();
-
-    return {
-      documentUrl: url,
-      document,
-    };
-  })();
-
-  jsonLdContextCache.set(url, next);
-
-  try {
-    const loadedDocument = await next;
+  if (document === undefined) {
+    const error = new Error(`Unsupported JSON-LD context: ${url}`);
 
     if (callback !== undefined) {
-      callback(null, loadedDocument);
-    }
-
-    return loadedDocument;
-  } catch (error) {
-    jsonLdContextCache.delete(url);
-    if (callback !== undefined && error instanceof Error) {
       callback(error, {
         documentUrl: url,
         document: {},
       });
     }
+
     throw error;
   }
+
+  const remoteDocument = {
+    documentUrl: url,
+    document,
+  };
+
+  if (callback !== undefined) {
+    callback(null, remoteDocument);
+  }
+
+  return remoteDocument;
 };
 
 const canonicalizedJsonLd = async (value: JsonObject): Promise<string> => {
@@ -549,7 +795,7 @@ const canonicalizedJsonLd = async (value: JsonObject): Promise<string> => {
   return canonize(value as Record<string, unknown>, {
     algorithm: "URDNA2015",
     format: "application/n-quads",
-    safe: false,
+    safe: true,
     documentLoader: jsonLdDocumentLoader,
   });
 };
@@ -561,7 +807,7 @@ const sha256Bytes = async (bytes: Uint8Array): Promise<Uint8Array> => {
 
 const linkedDataProofOptionsWithContext = (
   credential: JsonObject,
-  proof: SigningProofOptions,
+  proof: DataIntegritySigningProofOptions,
 ): JsonObject => {
   const context = credential["@context"];
 
@@ -578,15 +824,16 @@ const linkedDataProofOptionsWithContext = (
   return {
     "@context": context as JsonValue,
     type: proof.type,
+    cryptosuite: proof.cryptosuite,
     created: proof.created,
     proofPurpose: proof.proofPurpose,
     verificationMethod: proof.verificationMethod,
   };
 };
 
-const linkedDataProofSigningPayload = async (
+const dataIntegrityProofSigningPayload = async (
   credential: JsonObject,
-  proof: SigningProofOptions,
+  proof: DataIntegritySigningProofOptions,
 ): Promise<Uint8Array> => {
   const canonicalProof = await canonicalizedJsonLd(
     linkedDataProofOptionsWithContext(credential, proof),
@@ -695,13 +942,18 @@ export const generateTenantDidSigningMaterial = async (
   };
 };
 
-export const signCredentialWithEd25519Signature2020 = async (
-  input: SignCredentialInput,
-): Promise<SignedCredential> => {
+export const signCredentialWithDataIntegrityProof = async (
+  input: SignCredentialWithDataIntegrityProofInput,
+): Promise<DataIntegritySignedCredential> => {
   const created = input.createdAt ?? new Date().toISOString();
-  const proof = proofEnvelope(created, input.verificationMethod);
+  const proof = dataIntegrityProofEnvelope(created, input.verificationMethod, input.cryptosuite);
+  const payload = await dataIntegrityProofSigningPayload(input.credential, proof);
+
+  if (!isEd25519PrivateJwk(input.privateJwk)) {
+    throw new Error("eddsa-rdfc-2022 requires an Ed25519 private JWK");
+  }
+
   const privateKey = await importEd25519PrivateKey(input.privateJwk);
-  const payload = await linkedDataProofSigningPayload(input.credential, proof);
   const signatureBuffer = await crypto.subtle.sign(
     { name: "Ed25519" },
     privateKey,
@@ -712,112 +964,10 @@ export const signCredentialWithEd25519Signature2020 = async (
   return {
     ...unsignedCredential(input.credential),
     proof: {
-      type: proof.type,
-      created: proof.created,
-      proofPurpose: proof.proofPurpose,
-      verificationMethod: proof.verificationMethod,
+      ...proof,
       proofValue: `z${base58Encode(signature)}`,
     },
   };
-};
-
-export const verifyCredentialProofWithEd25519Signature2020 = async (
-  input: VerifyCredentialInput,
-): Promise<boolean> => {
-  const proof = input.credential.proof;
-
-  if (!proof.proofValue.startsWith("z")) {
-    return false;
-  }
-
-  const publicKey = await importEd25519PublicKey(input.publicJwk);
-  const signature = base58Decode(proof.proofValue.slice(1));
-
-  const linkedDataPayload = await linkedDataProofSigningPayload(input.credential, {
-    type: proof.type,
-    created: proof.created,
-    proofPurpose: proof.proofPurpose,
-    verificationMethod: proof.verificationMethod,
-  });
-
-  const linkedDataValid = await crypto.subtle.verify(
-    { name: "Ed25519" },
-    publicKey,
-    toArrayBuffer(signature),
-    toArrayBuffer(linkedDataPayload),
-  );
-
-  if (linkedDataValid) {
-    return true;
-  }
-
-  // Backward compatibility for credentials signed before RDF dataset canonicalization.
-  const fallbackPayload = legacySigningPayload(input.credential, {
-    type: proof.type,
-    created: proof.created,
-    proofPurpose: proof.proofPurpose,
-    verificationMethod: proof.verificationMethod,
-  });
-
-  return crypto.subtle.verify(
-    { name: "Ed25519" },
-    publicKey,
-    toArrayBuffer(signature),
-    toArrayBuffer(fallbackPayload),
-  );
-};
-
-export const signCredentialWithDataIntegrityProof = async (
-  input: SignCredentialWithDataIntegrityProofInput,
-): Promise<DataIntegritySignedCredential> => {
-  const created = input.createdAt ?? new Date().toISOString();
-  const proof = dataIntegrityProofEnvelope(created, input.verificationMethod, input.cryptosuite);
-  const payload = legacySigningPayload(input.credential, proof);
-
-  switch (input.cryptosuite) {
-    case "eddsa-rdfc-2022": {
-      if (!isEd25519PrivateJwk(input.privateJwk)) {
-        throw new Error("eddsa-rdfc-2022 requires an Ed25519 private JWK");
-      }
-
-      const privateKey = await importEd25519PrivateKey(input.privateJwk);
-      const signatureBuffer = await crypto.subtle.sign(
-        { name: "Ed25519" },
-        privateKey,
-        toArrayBuffer(payload),
-      );
-      const signature = new Uint8Array(signatureBuffer);
-
-      return {
-        ...unsignedCredential(input.credential),
-        proof: {
-          ...proof,
-          proofValue: `z${base58Encode(signature)}`,
-        },
-      };
-    }
-    case "ecdsa-sd-2023": {
-      if (!isP256PrivateJwk(input.privateJwk)) {
-        throw new Error("ecdsa-sd-2023 requires a P-256 private JWK");
-      }
-
-      const privateKey = await importP256PrivateKey(input.privateJwk);
-      const signatureBuffer = await crypto.subtle.sign(
-        { name: "ECDSA", hash: "SHA-256" },
-        privateKey,
-        toArrayBuffer(payload),
-      );
-      const signature = new Uint8Array(signatureBuffer);
-
-      return {
-        ...unsignedCredential(input.credential),
-        proof: {
-          ...proof,
-          proofValue: `z${base58Encode(signature)}`,
-        },
-      };
-    }
-  }
 };
 
 export const verifyCredentialProofWithDataIntegrity = async (
@@ -829,7 +979,7 @@ export const verifyCredentialProofWithDataIntegrity = async (
     return false;
   }
 
-  const payload = legacySigningPayload(input.credential, {
+  const payload = await dataIntegrityProofSigningPayload(input.credential, {
     type: proof.type,
     cryptosuite: proof.cryptosuite,
     created: proof.created,
@@ -847,19 +997,6 @@ export const verifyCredentialProofWithDataIntegrity = async (
       const publicKey = await importEd25519PublicKey(input.publicJwk);
       return crypto.subtle.verify(
         { name: "Ed25519" },
-        publicKey,
-        toArrayBuffer(signature),
-        toArrayBuffer(payload),
-      );
-    }
-    case "ecdsa-sd-2023": {
-      if (!isP256PublicJwk(input.publicJwk)) {
-        return false;
-      }
-
-      const publicKey = await importP256PublicKey(input.publicJwk);
-      return crypto.subtle.verify(
-        { name: "ECDSA", hash: "SHA-256" },
         publicKey,
         toArrayBuffer(signature),
         toArrayBuffer(payload),

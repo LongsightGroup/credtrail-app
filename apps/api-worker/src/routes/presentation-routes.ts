@@ -1,5 +1,5 @@
 import {
-  signCredentialWithEd25519Signature2020,
+  signCredentialWithDataIntegrityProof,
   type Ed25519PrivateJwk,
   type ImmutableCredentialStore,
   type JsonObject,
@@ -230,7 +230,7 @@ export const registerPresentationRoutes = (input: RegisterPresentationRoutesInpu
       );
     }
 
-    const presentation = await signCredentialWithEd25519Signature2020({
+    const presentation = await signCredentialWithDataIntegrityProof({
       credential: {
         "@context": [VC_DATA_MODEL_CONTEXT_URL],
         type: ["VerifiablePresentation"],
@@ -239,6 +239,7 @@ export const registerPresentationRoutes = (input: RegisterPresentationRoutesInpu
       },
       privateJwk: holderPrivateJwk,
       verificationMethod,
+      cryptosuite: "eddsa-rdfc-2022",
     });
 
     c.header("Cache-Control", "no-store");
