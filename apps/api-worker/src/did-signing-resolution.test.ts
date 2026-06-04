@@ -130,7 +130,11 @@ describe("DID signing resolution from Postgres registration", () => {
 
     expect(response.status).toBe(200);
     expect(asString(body.id)).toBe("did:web:localhost");
-    expect(asString(firstVerificationMethod?.type)).toBe("Ed25519VerificationKey2020");
+    expect(body["@context"]).toEqual([
+      "https://www.w3.org/ns/did/v1",
+      "https://w3id.org/security/multikey/v1",
+    ]);
+    expect(asString(firstVerificationMethod?.type)).toBe("Multikey");
     expect(asString(firstVerificationMethod?.publicKeyMultibase)).toBe(
       encodeJwkPublicKeyMultibase(signingMaterial.publicJwk),
     );

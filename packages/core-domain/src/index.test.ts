@@ -70,7 +70,11 @@ describe("credential signing", () => {
     });
 
     expect(didDocument.id).toBe(did);
-    expect(didDocument.verificationMethod[0].type).toBe("Ed25519VerificationKey2020");
+    expect(didDocument["@context"]).toEqual([
+      "https://www.w3.org/ns/did/v1",
+      "https://w3id.org/security/multikey/v1",
+    ]);
+    expect(didDocument.verificationMethod[0].type).toBe("Multikey");
     expect(didDocument.verificationMethod[0].publicKeyMultibase).toContain("z");
     expect(signedCredential.proof.type).toBe("DataIntegrityProof");
     expect(signedCredential.proof.cryptosuite).toBe("eddsa-rdfc-2022");

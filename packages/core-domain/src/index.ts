@@ -58,16 +58,13 @@ export interface GenerateTenantDidSigningMaterialInput {
 
 export interface DidVerificationMethod {
   id: string;
-  type: "Ed25519VerificationKey2020";
+  type: "Multikey";
   controller: string;
   publicKeyMultibase: string;
 }
 
 export interface DidDocument {
-  "@context": readonly [
-    "https://www.w3.org/ns/did/v1",
-    "https://w3id.org/security/suites/ed25519-2020/v1",
-  ];
+  "@context": readonly ["https://www.w3.org/ns/did/v1", "https://w3id.org/security/multikey/v1"];
   id: string;
   verificationMethod: readonly [DidVerificationMethod];
   assertionMethod: readonly [string];
@@ -514,15 +511,12 @@ export const createDidDocument = (input: CreateDidDocumentInput): DidDocument =>
   const publicKeyMultibase = encodeJwkPublicKeyMultibase(input.publicJwk);
 
   return {
-    "@context": [
-      "https://www.w3.org/ns/did/v1",
-      "https://w3id.org/security/suites/ed25519-2020/v1",
-    ],
+    "@context": ["https://www.w3.org/ns/did/v1", "https://w3id.org/security/multikey/v1"],
     id: input.did,
     verificationMethod: [
       {
         id: verificationMethodId,
-        type: "Ed25519VerificationKey2020",
+        type: "Multikey",
         controller: input.did,
         publicKeyMultibase,
       },

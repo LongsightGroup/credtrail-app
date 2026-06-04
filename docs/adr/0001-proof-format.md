@@ -30,6 +30,8 @@ Options considered:
 
 For v1, CredTrail issues and verifies JSON-LD Verifiable Credentials using `DataIntegrityProof` with `cryptosuite: "eddsa-rdfc-2022"`.
 
+Issuer `did:web` documents publish Ed25519 public keys as `Multikey` verification methods with `publicKeyMultibase` values. CredTrail does not publish new Ed25519 issuer keys as `Ed25519VerificationKey2020`.
+
 CredTrail does not issue JWT-VCs, `Ed25519Signature2020`, or `ecdsa-sd-2023` credentials in v1.
 
 Verification support follows the same single-path policy: the public verifier validates `DataIntegrityProof` credentials with `eddsa-rdfc-2022` and reports other proof formats as unsupported.
@@ -37,6 +39,7 @@ Verification support follows the same single-path policy: the public verifier va
 ## Rationale
 
 - Matches the current Open Badges 3.0 Linked Data Proof direction.
+- Matches the current W3C Data Integrity EdDSA key representation instead of the legacy Ed25519-2020 verification method.
 - Keeps one standards path for signing, storage, revocation, verification, and presentation workflows.
 - Avoids carrying legacy proof formats before CredTrail has any legacy customers or credentials.
 - Fits the `did:web` + Ed25519 issuer key model without adding a second key family.
@@ -74,6 +77,7 @@ If `DataIntegrityProof` with `eddsa-rdfc-2022` proves non-viable during implemen
 ## Consequences
 
 - Signing, verification, status-list credentials, and verifiable presentations target `DataIntegrityProof` with `eddsa-rdfc-2022`.
+- Issuer DID documents use `Multikey` verification methods for Ed25519 keys.
 - R2 credential storage remains JSON-LD with embedded linked-data proof objects.
 - `Ed25519Signature2020`, JWT-VC, and `ecdsa-sd-2023` are out of v1 issuance scope unless a follow-up ADR is accepted.
 - P-256 tenant registry key material may still be published in DID documents and JWKS for existing tenant configuration continuity, but CredTrail v1 issuance rejects P-256 private keys.
