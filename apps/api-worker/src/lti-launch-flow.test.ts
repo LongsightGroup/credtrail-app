@@ -1366,6 +1366,124 @@ describe("LTI 1.3 core launch flow", () => {
     expect(mockedUpsertLtiResourceLinkPlacement).not.toHaveBeenCalled();
   });
 
+  it("renders course badge summary without admin links for issuer instructors", async () => {
+    const env = createLtiEnv();
+    mockedListLtiResourceLinkPlacementsForContext.mockResolvedValue([
+      sampleLtiResourceLinkPlacement({
+        contextId: "course-123",
+        resourceLinkId: "resource-link-placed-badge",
+      }),
+    ]);
+    const issuedAssertion = sampleAssertionRecord({
+      id: "tenant_123:assertion_existing",
+      idempotencyKey: "lti:placement-issued",
+      recipientIdentity: "learner-one@example.edu",
+      badgeTemplateId: "badge_template_001",
+      issuedAt: "2026-02-11T14:00:00.000Z",
+    });
+    mockedListAssertionsByBadgeTemplatesAndRecipientEmails.mockResolvedValue([issuedAssertion]);
+    mockedListAssertionLifecycleStatesByAssertionIds.mockResolvedValue([
+      {
+        assertionId: "tenant_123:assertion_existing",
+        state: "active",
+        source: "default_active",
+        reasonCode: null,
+        reason: null,
+        transitionedAt: null,
+        revokedAt: null,
+      },
+    ]);
+    const getMembers = vi.fn().mockResolvedValue([
+      {
+        userId: "learner-001",
+        name: "Learner One",
+        email: "learner-one@example.edu",
+        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+        status: "Active",
+      },
+      {
+        userId: "teacher-001",
+        name: "Instructor One",
+        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
+        status: "Active",
+      },
+    ]);
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembers });
+    const loginResponse = await isolatedApp.request(
+      `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
+        "opaque-login-hint",
+      )}&target_link_uri=${encodeURIComponent(targetLinkUri)}&lti_deployment_id=${encodeURIComponent(
+        deploymentId,
+      )}`,
+      undefined,
+      env,
+    );
+    const loginUrl = new URL(loginResponse.headers.get("location") ?? "");
+    const nowEpochSeconds = Math.floor(Date.now() / 1000);
+    const idToken = compactJwsForTest({
+      header: {
+        alg: "RS256",
+        typ: "JWT",
+      },
+      payload: {
+        iss: issuer,
+        sub: "instructor-001",
+        name: "Instructor One",
+        aud: clientId,
+        exp: nowEpochSeconds + 300,
+        iat: nowEpochSeconds - 10,
+        nonce: loginUrl.searchParams.get("nonce") ?? "",
+        "https://purl.imsglobal.org/spec/lti/claim/deployment_id": deploymentId,
+        "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiResourceLinkRequest",
+        "https://purl.imsglobal.org/spec/lti/claim/version": "1.3.0",
+        "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": targetLinkUri,
+        "https://purl.imsglobal.org/spec/lti/claim/resource_link": {
+          id: "resource-link-leftnav",
+        },
+        "https://purl.imsglobal.org/spec/lti/claim/context": {
+          id: "course-123",
+          title: "TypeScript 101",
+        },
+        "https://purl.imsglobal.org/spec/lti/claim/roles": [
+          "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor",
+        ],
+        "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice": {
+          context_memberships_url: "https://canvas.example.edu/api/lti/courses/123/names_and_roles",
+          service_versions: ["2.0"],
+        },
+      },
+    });
+
+    const response = await isolatedApp.request(
+      "/v1/lti/launch",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          id_token: idToken,
+          state: loginUrl.searchParams.get("state") ?? "",
+        }).toString(),
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Course badge summary");
+    expect(body).toContain("Learner One");
+    expect(body).toContain("TypeScript Foundations");
+    expect(body).toContain("Issued Feb 11, 2026, 2:00 PM UTC");
+    expect(body).not.toContain("/tenants/tenant_123/admin/operations/issued-badges");
+    expect(body).not.toContain("/tenants/tenant_123/admin/rules/templates/badge_template_001");
+    expect(mockedUpsertTenantMembershipRole).toHaveBeenCalledWith(fakeDb, {
+      tenantId,
+      userId: linkedUserId,
+      role: "issuer",
+    });
+  });
+
   it("rejects resource-link placement when badge template is not tenant-owned and active", async () => {
     mockedFindBadgeTemplateById.mockResolvedValue(null);
     const env = createLtiEnv();
