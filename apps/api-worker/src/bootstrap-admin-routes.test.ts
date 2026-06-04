@@ -6,6 +6,7 @@ vi.mock("@credtrail/db", async () => {
   return {
     ...actual,
     findTenantSigningRegistrationByDid: vi.fn(),
+    upsertTenant: vi.fn(),
     upsertTenantSigningRegistration: vi.fn(),
   };
 });
@@ -19,6 +20,7 @@ vi.mock("@credtrail/db/postgres", () => {
 import { generateTenantDidSigningMaterial, type JsonObject } from "@credtrail/core-domain";
 import {
   findTenantSigningRegistrationByDid,
+  upsertTenant,
   upsertTenantSigningRegistration,
   type SqlDatabase,
   type TenantSigningRegistrationRecord,
@@ -28,6 +30,7 @@ import { app } from "./index";
 
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const mockedFindTenantSigningRegistrationByDid = vi.mocked(findTenantSigningRegistrationByDid);
+const mockedUpsertTenant = vi.mocked(upsertTenant);
 const mockedUpsertTenantSigningRegistration = vi.mocked(upsertTenantSigningRegistration);
 
 const fakeDb = {
@@ -82,6 +85,7 @@ describe("bootstrap admin signing registration routes", () => {
     mockedCreatePostgresDatabase.mockReturnValue(fakeDb);
     mockedFindTenantSigningRegistrationByDid.mockReset();
     mockedFindTenantSigningRegistrationByDid.mockResolvedValue(null);
+    mockedUpsertTenant.mockReset();
     mockedUpsertTenantSigningRegistration.mockReset();
   });
 
@@ -124,6 +128,15 @@ describe("bootstrap admin signing registration routes", () => {
     expect(body.did).toBe("did:web:credtrail.test");
     expect(body.tenantId).toBe("platform");
     expect(didDocument.id).toBe("did:web:credtrail.test");
+    expect(mockedUpsertTenant).toHaveBeenCalledWith(fakeDb, {
+      id: "platform",
+      slug: "platform",
+      displayName: "CredTrail Platform",
+      planTier: "enterprise",
+      issuerDomain: "credtrail.test",
+      didWeb: "did:web:credtrail.test",
+      isActive: true,
+    });
     expect(mockedUpsertTenantSigningRegistration).toHaveBeenCalledWith(fakeDb, {
       tenantId: "platform",
       did: "did:web:credtrail.test",
@@ -170,6 +183,7 @@ describe("bootstrap admin signing registration routes", () => {
     );
 
     expect(response.status).toBe(201);
+    expect(mockedUpsertTenant).not.toHaveBeenCalled();
     expect(mockedUpsertTenantSigningRegistration).toHaveBeenCalledWith(fakeDb, {
       tenantId: "sakai",
       did: "did:web:credtrail.test:sakai",

@@ -1,6 +1,7 @@
 import { createDidDocument, createDidWeb, type Ed25519PublicJwk } from "@credtrail/core-domain";
 import {
   upsertTenantSigningRegistration,
+  upsertTenant,
   type SqlDatabase,
   type TenantSigningRegistrationRecord,
 } from "@credtrail/db";
@@ -111,7 +112,17 @@ export const registerBootstrapAdminRoutes = (input: RegisterBootstrapAdminRoutes
     }
 
     const did = createDidWeb({ host: c.env.PLATFORM_DOMAIN });
-    const registration = await upsertTenantSigningRegistration(resolveDatabase(c.env), {
+    const db = resolveDatabase(c.env);
+    await upsertTenant(db, {
+      id: "platform",
+      slug: "platform",
+      displayName: "CredTrail Platform",
+      planTier: "enterprise",
+      issuerDomain: c.env.PLATFORM_DOMAIN,
+      didWeb: did,
+      isActive: true,
+    });
+    const registration = await upsertTenantSigningRegistration(db, {
       tenantId: "platform",
       did,
       keyId: request.keyId,
