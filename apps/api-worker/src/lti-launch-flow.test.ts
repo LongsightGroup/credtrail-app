@@ -1193,18 +1193,16 @@ describe("LTI 1.3 core launch flow", () => {
       badgeTemplateId: "badge_template_001",
       issuedAt: "2026-02-12T14:00:00.000Z",
     });
-    mockedListAssertionsByIdempotencyKeys.mockImplementation(async (_db, input) => {
-      const olderPlacementKey = input.idempotencyKeys[1] ?? input.idempotencyKeys[0] ?? "lti:test";
-
-      return [
-        {
-          ...placementAssertion,
-          idempotencyKey: olderPlacementKey,
-        },
-      ];
+    const olderMatchingRecipientAssertion = sampleAssertionRecord({
+      id: "tenant_123:assertion_manual_older",
+      idempotencyKey: "manual:direct-issued-older",
+      recipientIdentity: "learner-two@example.edu",
+      badgeTemplateId: "badge_template_001",
+      issuedAt: "2026-02-10T14:00:00.000Z",
     });
     mockedListAssertionsByBadgeTemplatesAndRecipientEmails.mockResolvedValue([
       placementAssertion,
+      olderMatchingRecipientAssertion,
       matchingRecipientAssertion,
     ]);
     mockedListAssertionLifecycleStatesByAssertionIds.mockResolvedValue([
@@ -1324,10 +1322,10 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain("Issued");
     expect(body).toContain('dateTime="2026-02-11T14:00:00.000Z"');
     expect(body).toContain("Issued Feb 11, 2026, 2:00 PM UTC");
-    expect(body).toContain("Issued from an LMS badge placement in this course.");
+    expect(body).toContain("Issued for this learner and badge.");
     expect(body).toContain('dateTime="2026-02-12T14:00:00.000Z"');
     expect(body).toContain("Issued Feb 12, 2026, 2:00 PM UTC");
-    expect(body).toContain("Issued for this learner and badge outside this LMS placement.");
+    expect(body).not.toContain("Issued Feb 10, 2026, 2:00 PM UTC");
     expect(body).toContain("data-lti-course-summary-search");
     expect(body).toContain("/assets/ui/lti-course-summary.");
     expect(body).toContain(
@@ -1354,18 +1352,7 @@ describe("LTI 1.3 core launch flow", () => {
       badgeTemplateIds: ["badge_template_001", "badge_template_001"],
       includeArchived: false,
     });
-    expect(mockedListAssertionsByIdempotencyKeys).toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        tenantId,
-        idempotencyKeys: [
-          expect.stringMatching(/^lti:/),
-          expect.stringMatching(/^lti:/),
-          expect.stringMatching(/^lti:/),
-          expect.stringMatching(/^lti:/),
-        ],
-      }),
-    );
+    expect(mockedListAssertionsByIdempotencyKeys).not.toHaveBeenCalled();
     expect(mockedListAssertionsByBadgeTemplatesAndRecipientEmails).toHaveBeenCalledWith(fakeDb, {
       tenantId,
       badgeTemplateIds: ["badge_template_001"],
@@ -1375,7 +1362,7 @@ describe("LTI 1.3 core launch flow", () => {
       tenantId,
       assertionIds: ["tenant_123:assertion_existing", "tenant_123:assertion_manual"],
     });
-    expect(body).toContain("resource-link-older-badge");
+    expect(body).toContain("resource-link-placed-badge");
     expect(mockedUpsertLtiResourceLinkPlacement).not.toHaveBeenCalled();
   });
 

@@ -122,6 +122,10 @@ type LtiIssuanceIdempotencyKeyContext = Pick<
 type LtiRosterIssuanceLookupContext = LtiIssuanceIdempotencyKeyContext &
   Pick<LtiIssuanceActionPayload, "tenantId">;
 
+interface LtiIssuanceIdempotencyKeyPrefix {
+  value: string;
+}
+
 const ltiPostMessageStorageRedirectInput = (input: {
   authorizationRedirectUrl: string;
   storageTarget: string | undefined;
@@ -317,6 +321,32 @@ const ltiBadgeRecipientKey = (badgeTemplateId: string, recipientEmail: string): 
   return `${badgeTemplateId}:${normalizeEmail(recipientEmail)}`;
 };
 
+const newestAssertion = (
+  current: AssertionRecord | undefined,
+  candidate: AssertionRecord,
+): AssertionRecord => {
+  if (current === undefined) {
+    return candidate;
+  }
+
+  const currentIssuedAt = Date.parse(current.issuedAt);
+  const candidateIssuedAt = Date.parse(candidate.issuedAt);
+
+  if (Number.isFinite(candidateIssuedAt) && Number.isFinite(currentIssuedAt)) {
+    if (candidateIssuedAt !== currentIssuedAt) {
+      return candidateIssuedAt > currentIssuedAt ? candidate : current;
+    }
+  } else if (Number.isFinite(candidateIssuedAt)) {
+    return candidate;
+  } else if (Number.isFinite(currentIssuedAt)) {
+    return current;
+  } else if (candidate.issuedAt !== current.issuedAt) {
+    return candidate.issuedAt > current.issuedAt ? candidate : current;
+  }
+
+  return candidate.id > current.id ? candidate : current;
+};
+
 const ltiCanOpenAdminDetailLinks = (membershipRole: TenantMembershipRole): boolean => {
   return membershipRole === "owner" || membershipRole === "admin";
 };
@@ -364,11 +394,7 @@ const ltiCoursePlacementGroupsByBadgeTemplate = (input: {
 
 const ltiCourseBadgeSummaryViewFromRoster = async (input: {
   db: SqlDatabase;
-  sha256Hex: (value: string) => Promise<string>;
   tenantId: string;
-  issuer: string;
-  clientId: string;
-  deploymentId: string;
   contextId: string;
   courseContextTitle: string | null;
   roster: LtiNrpsRoster;
@@ -389,47 +415,6 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
       template: placementGroup.template,
     }));
   });
-  const keyedCandidates = await Promise.all(
-    candidates.map(async (candidate) => {
-      const placementKeys = await Promise.all(
-        candidate.placementGroup.placements.map(async (placement) => {
-          const lookupContext = {
-            tenantId: input.tenantId,
-            issuer: input.issuer,
-            clientId: input.clientId,
-            deploymentId: input.deploymentId,
-            contextId: placement.contextId ?? input.contextId,
-            resourceLinkId: placement.resourceLinkId,
-            badgeTemplateId: placement.badgeTemplateId,
-          };
-          const idempotencyKey = await ltiIssuanceIdempotencyKey(
-            input.sha256Hex,
-            lookupContext,
-            candidate.member.userId,
-          );
-
-          return {
-            placement,
-            idempotencyKey,
-          };
-        }),
-      );
-
-      return {
-        ...candidate,
-        placementKeys,
-      };
-    }),
-  );
-  const assertions = await listAssertionsByIdempotencyKeys(input.db, {
-    tenantId: input.tenantId,
-    idempotencyKeys: keyedCandidates.flatMap((candidate) =>
-      candidate.placementKeys.map((placementKey) => placementKey.idempotencyKey),
-    ),
-  });
-  const assertionsByIdempotencyKey = new Map(
-    assertions.map((assertion) => [assertion.idempotencyKey, assertion]),
-  );
   const matchingRecipientAssertions = await listAssertionsByBadgeTemplatesAndRecipientEmails(
     input.db,
     {
@@ -445,14 +430,19 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
   for (const assertion of matchingRecipientAssertions) {
     const key = ltiBadgeRecipientKey(assertion.badgeTemplateId, assertion.recipientIdentity);
 
-    if (!matchingRecipientAssertionsByBadgeRecipient.has(key)) {
-      matchingRecipientAssertionsByBadgeRecipient.set(key, assertion);
-    }
+    matchingRecipientAssertionsByBadgeRecipient.set(
+      key,
+      newestAssertion(matchingRecipientAssertionsByBadgeRecipient.get(key), assertion),
+    );
   }
   const lifecycleStates = await listAssertionLifecycleStatesByAssertionIds(input.db, {
     tenantId: input.tenantId,
     assertionIds: Array.from(
-      new Set([...assertions, ...matchingRecipientAssertions].map((assertion) => assertion.id)),
+      new Set(
+        Array.from(matchingRecipientAssertionsByBadgeRecipient.values()).map(
+          (assertion) => assertion.id,
+        ),
+      ),
     ),
   });
   const lifecycleStatesByAssertionId = new Map(
@@ -460,30 +450,21 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
   );
   const rows: Array<LtiCourseBadgeSummaryView["rows"][number]> = [];
 
-  for (const candidate of keyedCandidates) {
-    const placementAssertionMatch =
-      candidate.placementKeys.find((placementKey) =>
-        assertionsByIdempotencyKey.has(placementKey.idempotencyKey),
-      ) ?? null;
-    const placementAssertion =
-      placementAssertionMatch === null
-        ? null
-        : (assertionsByIdempotencyKey.get(placementAssertionMatch.idempotencyKey) ?? null);
+  for (const candidate of candidates) {
     const matchingRecipientAssertion =
       candidate.member.email === null
         ? null
         : (matchingRecipientAssertionsByBadgeRecipient.get(
             ltiBadgeRecipientKey(candidate.template.id, candidate.member.email),
           ) ?? null);
-    const assertion = placementAssertion ?? matchingRecipientAssertion;
+    const assertion = matchingRecipientAssertion;
     const lifecycle = assertion === null ? null : lifecycleStatesByAssertionId.get(assertion.id);
     const status =
       assertion === null ? "not_issued" : courseBadgeSummaryStatus(lifecycle?.state ?? null);
     const learnerName =
       candidate.member.displayName ?? candidate.member.email ?? candidate.member.userId;
     const assertionId = assertion?.id;
-    const linkedPlacement =
-      placementAssertionMatch?.placement ?? candidate.placementGroup.placements[0] ?? null;
+    const linkedPlacement = candidate.placementGroup.placements[0] ?? null;
     const placementContextId = linkedPlacement?.contextId ?? input.contextId;
 
     rows.push({
@@ -515,9 +496,7 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
       statusDetail:
         assertion === null
           ? "No issued badge record found for this learner and badge."
-          : placementAssertion === null
-            ? "Issued for this learner and badge outside this LMS placement."
-            : "Issued from an LMS badge placement in this course.",
+          : "Issued for this learner and badge.",
       assertionId: assertionId ?? null,
       issuedAt: assertion?.issuedAt ?? null,
     });
@@ -644,22 +623,27 @@ const ltiSessionMatchesIssuanceAction = (
   );
 };
 
-const ltiIssuanceIdempotencyKey = async (
-  sha256Hex: (value: string) => Promise<string>,
+const ltiIssuanceIdempotencyKeyPrefix = (
   action: LtiIssuanceIdempotencyKeyContext,
-  learnerUserId: string,
-): Promise<string> => {
-  const digest = await sha256Hex(
-    [
+): LtiIssuanceIdempotencyKeyPrefix => {
+  return {
+    value: [
       action.issuer,
       action.clientId,
       action.deploymentId,
       action.contextId,
       action.resourceLinkId,
       action.badgeTemplateId,
-      learnerUserId,
     ].join("|"),
-  );
+  };
+};
+
+const ltiIssuanceIdempotencyKeyFromPrefix = async (
+  sha256Hex: (value: string) => Promise<string>,
+  prefix: LtiIssuanceIdempotencyKeyPrefix,
+  learnerUserId: string,
+): Promise<string> => {
+  const digest = await sha256Hex(`${prefix.value}|${learnerUserId}`);
 
   return `lti:${digest}`;
 };
@@ -671,11 +655,12 @@ const ltiRosterIssuedBadgeStatesByUserId = async (input: {
   learnerMembers: readonly LtiNrpsMember[];
 }): Promise<Map<string, LtiRosterIssuedBadgeState>> => {
   const statesByUserId = new Map<string, LtiRosterIssuedBadgeState>();
+  const idempotencyKeyPrefix = ltiIssuanceIdempotencyKeyPrefix(input.action);
   const keyedMembers = await Promise.all(
     input.learnerMembers.map(async (member) => {
-      const idempotencyKey = await ltiIssuanceIdempotencyKey(
+      const idempotencyKey = await ltiIssuanceIdempotencyKeyFromPrefix(
         input.sha256Hex,
-        input.action,
+        idempotencyKeyPrefix,
         member.userId,
       );
 
@@ -1024,6 +1009,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       roster.learnerMembers.map((member): [string, LtiNrpsMember] => [member.userId, member]),
     );
     const results: LtiRosterIssuanceResultEntry[] = [];
+    const idempotencyKeyPrefix = ltiIssuanceIdempotencyKeyPrefix(issuanceAction);
 
     for (const learnerUserId of selectedLearnerUserIds) {
       const member = learnersByUserId.get(learnerUserId);
@@ -1059,7 +1045,11 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
                 },
               ],
             }),
-        idempotencyKey: await ltiIssuanceIdempotencyKey(sha256Hex, issuanceAction, member.userId),
+        idempotencyKey: await ltiIssuanceIdempotencyKeyFromPrefix(
+          sha256Hex,
+          idempotencyKeyPrefix,
+          member.userId,
+        ),
       };
       const issueOptions =
         member.displayName === null ? {} : { recipientDisplayName: member.displayName };
@@ -1388,11 +1378,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
 
             courseBadgeSummaryView = await ltiCourseBadgeSummaryViewFromRoster({
               db,
-              sha256Hex,
               tenantId,
-              issuer: launchClaims.iss,
-              clientId: issuerEntry.clientId,
-              deploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
               contextId: summaryContextId,
               courseContextTitle,
               roster,
