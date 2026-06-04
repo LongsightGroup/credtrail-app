@@ -166,6 +166,39 @@ describe("credential signing", () => {
     expect(isValid).toBe(true);
   });
 
+  it("signs and verifies credentials with VC v2 validUntil and credentialSchema terms", async () => {
+    const did = createDidWeb({
+      host: "issuers.credtrail.org",
+      pathSegments: ["tenant-schema"],
+    });
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did,
+    });
+    const signedCredential = await signCredentialWithDataIntegrityProof({
+      credential: {
+        ...sampleCredential(did, "urn:uuid:vc-schema"),
+        validFrom: "2026-02-10T22:00:00.000Z",
+        validUntil: "2027-02-10T22:00:00.000Z",
+        credentialSchema: [
+          {
+            id: "https://credtrail.example/schemas/open-badge-credential.json",
+            type: "1EdTechJsonSchemaValidator2019",
+          },
+        ],
+      },
+      privateJwk: signingMaterial.privateJwk,
+      verificationMethod: `${did}#${signingMaterial.keyId}`,
+      cryptosuite: "eddsa-rdfc-2022",
+    });
+
+    const isValid = await verifyCredentialProofWithDataIntegrity({
+      credential: signedCredential,
+      publicJwk: signingMaterial.publicJwk,
+    });
+
+    expect(isValid).toBe(true);
+  });
+
   it("fails DataIntegrityProof verification with mismatched key material", async () => {
     const did = createDidWeb({
       host: "issuers.credtrail.org",

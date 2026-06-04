@@ -79,8 +79,8 @@ Expected result:
 
 ## Cryptosuite support
 
-Credential proofs inside VP verification support:
+Holder and embedded credential proofs inside VP verification support:
 
-- `Ed25519Signature2020`
-- `DataIntegrityProof` with `eddsa-rdfc-2022`
-- `DataIntegrityProof` with `ecdsa-sd-2023`
+- `DataIntegrityProof` with `cryptosuite: "eddsa-rdfc-2022"`
+
+Other proof formats, including `Ed25519Signature2020`, JWT-VC, and `ecdsa-sd-2023`, are outside v1 support.

@@ -426,6 +426,7 @@ const pinnedJsonLdContexts: ReadonlyMap<string, JsonObject> = new Map<string, Js
         "@protected": true,
         id: "@id",
         type: "@type",
+        "1EdTechJsonSchemaValidator2019": `${OB_VOCAB}1EdTechJsonSchemaValidator2019`,
         name: "https://schema.org/name",
         description: "https://schema.org/description",
         VerifiableCredential: {
@@ -436,6 +437,10 @@ const pinnedJsonLdContexts: ReadonlyMap<string, JsonObject> = new Map<string, Js
             type: "@type",
             credentialStatus: {
               "@id": `${VC_VOCAB}credentialStatus`,
+              "@type": "@id",
+            },
+            credentialSchema: {
+              "@id": `${VC_VOCAB}credentialSchema`,
               "@type": "@id",
             },
             credentialSubject: {
@@ -455,6 +460,10 @@ const pinnedJsonLdContexts: ReadonlyMap<string, JsonObject> = new Map<string, Js
             },
             validFrom: {
               "@id": `${VC_VOCAB}validFrom`,
+              "@type": XSD_DATETIME,
+            },
+            validUntil: {
+              "@id": `${VC_VOCAB}validUntil`,
               "@type": XSD_DATETIME,
             },
           },

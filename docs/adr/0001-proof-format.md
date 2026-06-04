@@ -1,6 +1,6 @@
 # ADR-0001: Proof Format for Open Badges 3.0 Credentials
 
-- Status: Accepted
+- Status: Accepted, amended 2026-06-04
 - Date: 2026-02-10
 - Decision owner: Foundation (Days 1-15)
 - Related issue: `credtrail-vxf`
@@ -8,65 +8,71 @@
 
 ## Context
 
-The v1 platform issues Open Badges 3.0 credentials as Verifiable Credentials and must pick a single proof format.
+The v1 platform issues Open Badges 3.0 credentials as JSON-LD Verifiable Credentials and must keep a single proof format.
 
 Constraints from product and architecture:
 
 - Open Badges 3.0 only for v1.
 - `did:web` issuer identity with per-tenant Ed25519 keys.
 - Server-rendered product with Cloudflare Workers, Postgres, R2, and queue processing.
-- Single-path implementation policy for v1 (no parallel implementations for the same capability).
-- PRD requirement to decide between `Ed25519Signature2020` and JWT-VC before foundation completion.
+- Single-path implementation policy for v1.
+- Current 1EdTech Open Badges 3.0 Linked Data Proof certification expectations.
+- No existing CredTrail customers, integrations, or issued credentials require legacy proof compatibility.
 
 Options considered:
 
-1. JSON-LD VC with `Ed25519Signature2020` (Data Integrity proof in embedded `proof` object).
-2. JWT-VC (`vc+ld+jwt`) using JWS envelope.
+1. JSON-LD VC with `DataIntegrityProof` and `eddsa-rdfc-2022`.
+2. JSON-LD VC with legacy `Ed25519Signature2020`.
+3. JWT-VC (`vc+ld+jwt`) using a JWS envelope.
+4. Multiple proof formats in parallel.
 
 ## Decision
 
-For v1, we will issue and verify JSON-LD Verifiable Credentials using `Ed25519Signature2020`.
+For v1, CredTrail issues and verifies JSON-LD Verifiable Credentials using `DataIntegrityProof` with `cryptosuite: "eddsa-rdfc-2022"`.
 
-We will not implement JWT-VC issuance in v1.
+CredTrail does not issue JWT-VCs, `Ed25519Signature2020`, or `ecdsa-sd-2023` credentials in v1.
+
+Verification support follows the same single-path policy: the public verifier validates `DataIntegrityProof` credentials with `eddsa-rdfc-2022` and reports other proof formats as unsupported.
 
 ## Rationale
 
-- Matches the current PRD credential model and `.jsonld` distribution path directly.
-- Keeps one standards path for signing, storage, and verification in foundation.
-- Avoids dual-format verification complexity in public verifier and revocation flows.
-- Fits the current `did:web` + Ed25519 direction without adding parallel token handling.
-- Minimizes implementation risk for the first release while keeping a future extension path.
+- Matches the current Open Badges 3.0 Linked Data Proof direction.
+- Keeps one standards path for signing, storage, revocation, verification, and presentation workflows.
+- Avoids carrying legacy proof formats before CredTrail has any legacy customers or credentials.
+- Fits the `did:web` + Ed25519 issuer key model without adding a second key family.
+- Avoids JWT-specific parsing, validation, and verifier behavior in the first release.
+- Reduces dependency and maintenance pressure by keeping the canonicalization and proof model narrowly scoped.
 
 ## Cost
 
-- Short-term implementation cost: low to medium.
-- Additional cost for v1 from this decision: none beyond planned signing and verification work.
-- Avoided cost: no JWT-specific issuance, parsing, and verifier support in v1.
+- Short-term implementation cost: medium, because signing and verification must use JSON-LD canonicalization for Data Integrity proofs.
+- Additional v1 operating cost: one proof model and one key family.
+- Avoided cost: no JWT issuance, no legacy proof verification path, and no parallel ECDSA credential path.
 
 ## Complexity
 
-- Net complexity is lower than supporting both formats.
-- Canonicalization and linked-data signing complexity remains, but it is confined to one path and one test surface.
-- Operational complexity is reduced because all issued credentials share one representation and proof model.
+- Net complexity is lower than supporting several formats.
+- JSON-LD canonicalization remains the main complexity, but it is confined to one implementation and one conformance surface.
+- Pinned JSON-LD contexts are required so Workers do not fetch remote context documents during signing or verification.
 
 ## Migration Impact
 
-- No immediate migration needed for v1, since this is a pre-launch decision.
-- If JWT-VC is added later, existing credentials remain valid and unchanged in R2 as immutable records.
-- Any future multi-format support must be additive and include verifier compatibility tests for legacy `Ed25519Signature2020` credentials.
+- No customer migration is required because this decision was amended before production customers or production-issued credentials.
+- Any future import of externally issued badges must be handled as an import/interoperability feature, not as CredTrail issuance policy.
+- If CredTrail later accepts additional proof formats, support must be additive, explicitly scoped, and covered by verifier compatibility tests.
 
 ## Rollback Plan
 
-If `Ed25519Signature2020` proves non-viable during implementation:
+If `DataIntegrityProof` with `eddsa-rdfc-2022` proves non-viable during implementation or certification:
 
-1. Open a new ADR proposing JWT-VC as the replacement or additional format.
-2. Keep existing issued credentials verifiable (no rewrite of stored credentials).
-3. Add dual verification support first, then optionally add new-format issuance.
-4. Gate format selection by tenant or issuance date only after compatibility tests pass.
-5. Announce the transition and freeze new issuance format changes until verification stability is confirmed.
+1. Open a new ADR proposing the replacement proof format.
+2. Keep any already issued credentials verifiable where feasible.
+3. Add verifier support before changing issuance.
+4. Gate any format transition by issuance date or tenant only after compatibility tests pass.
+5. Freeze new proof-format changes until verification stability is confirmed.
 
 ## Consequences
 
-- `credtrail-wm4` and downstream signing work should target `Ed25519Signature2020` only.
-- Verification APIs and R2 storage should assume embedded linked-data proof objects in v1.
-- No JWT-VC acceptance criteria should be added to v1 scope unless a follow-up ADR is accepted.
+- Signing, verification, status-list credentials, and verifiable presentations target `DataIntegrityProof` with `eddsa-rdfc-2022`.
+- R2 credential storage remains JSON-LD with embedded linked-data proof objects.
+- `Ed25519Signature2020`, JWT-VC, and `ecdsa-sd-2023` are out of v1 issuance scope unless a follow-up ADR is accepted.

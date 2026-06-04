@@ -6,12 +6,11 @@ This document describes how `GET /credentials/v1/:credentialId` verifies Open Ba
 
 The verifier accepts:
 
-- `Ed25519Signature2020`
-- `DataIntegrityProof` with `cryptosuite`:
-  - `eddsa-rdfc-2022`
-  - `ecdsa-sd-2023`
+- `DataIntegrityProof` with `cryptosuite: "eddsa-rdfc-2022"`
 
 Proof format and cryptosuite results are returned in `verification.proof`.
+
+Other proof formats, including `Ed25519Signature2020`, JWT-VC, and `ecdsa-sd-2023`, are outside v1 support and are reported as unsupported.
 
 ## Key Resolution
 
@@ -37,8 +36,8 @@ If required fields are missing from a disclosed credential, `verification.checks
 
 ## Related Tests
 
-- `apps/api-worker/src/index.test.ts`
-  - `verifies DataIntegrityProof ecdsa-sd-2023 proofs when issuer signing keys are resolvable`
+- `apps/api-worker/src/credential-verification.test.ts`
+  - `verifies DataIntegrityProof proofs when issuer signing keys are resolvable`
   - `verifies DataIntegrityProof eddsa-rdfc-2022 proofs when issuer signing keys are resolvable`
-  - `verifies DataIntegrityProof credentials with both EdDSA and ECDSA cryptosuites through the same endpoint`
+  - `returns invalid when proof verificationMethod DID does not match issuer DID`
   - `marks credentialSubject as invalid when OpenBadgeCredential omits achievement details`
