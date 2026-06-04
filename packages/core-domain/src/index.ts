@@ -1,6 +1,7 @@
 import jsonld from "jsonld";
 
 import { pinnedJsonLdContexts } from "./pinned-json-ld-contexts";
+export { pinnedJsonLdContextTermSets } from "./pinned-json-ld-contexts";
 
 export type QueueJobType =
   | "issue_badge"
@@ -587,6 +588,12 @@ export const verifyCredentialProofWithDataIntegrity = async (
     return false;
   }
 
+  const runtimeCryptosuite: string = proof.cryptosuite;
+
+  if (runtimeCryptosuite !== "eddsa-rdfc-2022") {
+    return false;
+  }
+
   const payload = await dataIntegrityProofSigningPayload(input.credential, {
     type: proof.type,
     cryptosuite: proof.cryptosuite,
@@ -596,23 +603,17 @@ export const verifyCredentialProofWithDataIntegrity = async (
   });
   const signature = base58Decode(proof.proofValue.slice(1));
 
-  switch (proof.cryptosuite as string) {
-    case "eddsa-rdfc-2022": {
-      if (!isEd25519PublicJwk(input.publicJwk)) {
-        return false;
-      }
-
-      const publicKey = await importEd25519PublicKey(input.publicJwk);
-      return crypto.subtle.verify(
-        { name: "Ed25519" },
-        publicKey,
-        toArrayBuffer(signature),
-        toArrayBuffer(payload),
-      );
-    }
-    default:
-      return false;
+  if (!isEd25519PublicJwk(input.publicJwk)) {
+    return false;
   }
+
+  const publicKey = await importEd25519PublicKey(input.publicJwk);
+  return crypto.subtle.verify(
+    { name: "Ed25519" },
+    publicKey,
+    toArrayBuffer(signature),
+    toArrayBuffer(payload),
+  );
 };
 
 export const encodeJwkPublicKeyMultibase = (publicJwk: Ed25519PublicJwk): string => {

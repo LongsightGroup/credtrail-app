@@ -435,6 +435,8 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
     mockedFindAssertionByIdempotencyKey.mockReset();
     mockedResolveLearnerProfileForIdentity.mockReset();
+    mockedResolveAssertionLifecycleState.mockReset();
+    mockedResolveAssertionLifecycleState.mockResolvedValue(sampleLifecycle());
     mockedNextAssertionStatusListIndex.mockReset();
     mockedCreateAssertion.mockReset();
     mockedCreateAuditLog.mockReset();
@@ -744,7 +746,10 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
     mockedNextAssertionStatusListIndex.mockResolvedValue(0);
-    mockedCreateAssertion.mockResolvedValue(sampleAssertion());
+    const issuedAssertion = sampleAssertion({
+      statusListIndex: null,
+    });
+    mockedCreateAssertion.mockResolvedValue(issuedAssertion);
 
     const response = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -822,10 +827,17 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       env,
     );
     const body = await response.json<ManualIssueResponse>();
+    const contextEntries = Array.isArray(body.credential["@context"])
+      ? body.credential["@context"]
+      : [];
     const credentialSubject = asJsonObject(body.credential.credentialSubject);
     const achievement = asJsonObject(credentialSubject?.achievement);
+    const proof = asJsonObject(body.credential.proof);
 
     expect(response.status).toBe(201);
+    expect(contextEntries).toContain("https://credtrail.org/ns/trusted-credential/v1");
+    expect(asString(proof?.type)).toBe("DataIntegrityProof");
+    expect(asString(proof?.cryptosuite)).toBe("eddsa-rdfc-2022");
     expect(achievement).toEqual(
       expect.objectContaining({
         achievementType: "Project",

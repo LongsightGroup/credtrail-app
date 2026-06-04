@@ -569,8 +569,12 @@ describe("GET /credentials/v1/:credentialId", () => {
     expect(body.verification.checks.jsonLdSafeMode.reason).toContain("unknownTerm");
   });
 
-  it("trusts CredTrail TrustEd terms when the pinned TrustEd context is present", async () => {
+  it("verifies signed TrustEd credentials when the pinned TrustEd context is present", async () => {
     const env = createEnv();
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: "did:web:credtrail.test:tenant_123",
+      keyId: "key-trusted",
+    });
     const credential: JsonObject = {
       "@context": [
         "https://www.w3.org/ns/credentials/v2",
@@ -580,7 +584,7 @@ describe("GET /credentials/v1/:credentialId", () => {
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
       type: ["VerifiableCredential", "OpenBadgeCredential"],
       issuer: {
-        id: "did:web:credtrail.test:tenant_123",
+        id: signingMaterial.did,
         type: ["Profile"],
         name: "CredTrail Test College",
         url: "https://credtrail.test",
@@ -590,6 +594,7 @@ describe("GET /credentials/v1/:credentialId", () => {
         id: "mailto:learner@example.edu",
         type: ["AchievementSubject"],
         identifier: {
+          type: "IdentityObject",
           identityHash: "sha256:learner",
           identityType: "email",
           hashed: true,
@@ -674,13 +679,29 @@ describe("GET /credentials/v1/:credentialId", () => {
         ],
       },
     };
+    const signedCredential = await signCredentialWithDataIntegrityProof({
+      credential,
+      privateJwk: signingMaterial.privateJwk,
+      verificationMethod: `${signingMaterial.did}#${signingMaterial.keyId}`,
+      cryptosuite: "eddsa-rdfc-2022",
+      createdAt: "2026-02-11T00:00:00.000Z",
+    });
 
     mockedFindAssertionById.mockResolvedValue(
       sampleAssertion({
         statusListIndex: null,
       }),
     );
-    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
+    mockedGetImmutableCredentialObject.mockResolvedValue(signedCredential);
+    mockedFindTenantSigningRegistrationByDid.mockResolvedValue(
+      sampleTenantSigningRegistration({
+        tenantId: "tenant_123",
+        did: signingMaterial.did,
+        keyId: signingMaterial.keyId,
+        publicJwkJson: JSON.stringify(signingMaterial.publicJwk),
+        privateJwkJson: JSON.stringify(signingMaterial.privateJwk),
+      }),
+    );
 
     const response = await app.request(
       "/credentials/v1/tenant_123%3Aassertion_456",
@@ -692,6 +713,9 @@ describe("GET /credentials/v1/:credentialId", () => {
     expect(response.status).toBe(200);
     expect(body.verification.checks.jsonLdSafeMode.status).toBe("valid");
     expect(body.verification.checks.jsonLdSafeMode.reason).toBeNull();
+    expect(body.verification.proof.status).toBe("valid");
+    expect(body.verification.proof.format).toBe("DataIntegrityProof");
+    expect(body.verification.proof.cryptosuite).toBe("eddsa-rdfc-2022");
   });
 
   it("does not trust CredTrail TrustEd terms when the TrustEd context is missing", async () => {

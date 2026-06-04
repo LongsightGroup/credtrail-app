@@ -37,7 +37,6 @@ If required fields are missing from a disclosed credential, `verification.checks
 ## Related Tests
 
 - `apps/api-worker/src/credential-verification.test.ts`
-  - `verifies DataIntegrityProof proofs when issuer signing keys are resolvable`
   - `verifies DataIntegrityProof eddsa-rdfc-2022 proofs when issuer signing keys are resolvable`
   - `returns invalid when proof verificationMethod DID does not match issuer DID`
   - `marks credentialSubject as invalid when OpenBadgeCredential omits achievement details`

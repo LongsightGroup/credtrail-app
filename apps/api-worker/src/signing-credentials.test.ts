@@ -297,7 +297,7 @@ describe("POST /v1/signing/credentials", () => {
     const body = await response.json<ErrorResponse>();
 
     expect(response.status).toBe(400);
-    expect(body.error).toContain("Invalid");
+    expect(body.error).toBe("Invalid credential signing request payload");
   });
 
   it("signs DataIntegrity credentials with eddsa-rdfc-2022 when DID has Ed25519 key material", async () => {
