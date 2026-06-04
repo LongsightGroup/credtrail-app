@@ -4,6 +4,7 @@ import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../ui/render-page";
 import type { PageAssetKey } from "../ui/page-assets";
+import { formatIsoTimestamp } from "../utils/display-format";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -546,9 +547,9 @@ const CourseBadgeSummarySection = (input: {
                               {row.statusLabel}
                             </span>
                             {row.issuedAt === null ? null : (
-                              <span class="lti-launch__summary-timestamp">
-                                Issued {row.issuedAt}
-                              </span>
+                              <time class="lti-launch__summary-timestamp" dateTime={row.issuedAt}>
+                                Issued {formatIsoTimestamp(row.issuedAt)} UTC
+                              </time>
                             )}
                             <span class="lti-launch__summary-status-detail">
                               {row.statusDetail}

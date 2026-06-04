@@ -1322,9 +1322,11 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain("learner-two@example.edu");
     expect(body).toContain("TypeScript Foundations");
     expect(body).toContain("Issued");
-    expect(body).toContain("Issued 2026-02-11T14:00:00.000Z");
+    expect(body).toContain('dateTime="2026-02-11T14:00:00.000Z"');
+    expect(body).toContain("Issued Feb 11, 2026, 2:00 PM UTC");
     expect(body).toContain("Issued from an LMS badge placement in this course.");
-    expect(body).toContain("Issued 2026-02-12T14:00:00.000Z");
+    expect(body).toContain('dateTime="2026-02-12T14:00:00.000Z"');
+    expect(body).toContain("Issued Feb 12, 2026, 2:00 PM UTC");
     expect(body).toContain("Issued for this learner and badge outside this LMS placement.");
     expect(body).toContain("data-lti-course-summary-search");
     expect(body).toContain("/assets/ui/lti-course-summary.");
