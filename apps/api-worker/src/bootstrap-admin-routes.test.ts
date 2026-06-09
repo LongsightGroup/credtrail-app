@@ -6,6 +6,7 @@ vi.mock("@credtrail/db", async () => {
   return {
     ...actual,
     findTenantSigningRegistrationByDid: vi.fn(),
+    upsertBadgeTemplateById: vi.fn(),
     upsertTenant: vi.fn(),
     upsertTenantSigningRegistration: vi.fn(),
   };
@@ -19,10 +20,13 @@ vi.mock("@credtrail/db/postgres", () => {
 
 import { generateTenantDidSigningMaterial, type JsonObject } from "@credtrail/core-domain";
 import {
+  upsertBadgeTemplateById,
   findTenantSigningRegistrationByDid,
   upsertTenant,
   upsertTenantSigningRegistration,
+  type BadgeTemplateRecord,
   type SqlDatabase,
+  type TenantRecord,
   type TenantSigningRegistrationRecord,
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
@@ -30,6 +34,7 @@ import { app } from "./index";
 
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const mockedFindTenantSigningRegistrationByDid = vi.mocked(findTenantSigningRegistrationByDid);
+const mockedUpsertBadgeTemplateById = vi.mocked(upsertBadgeTemplateById);
 const mockedUpsertTenant = vi.mocked(upsertTenant);
 const mockedUpsertTenantSigningRegistration = vi.mocked(upsertTenantSigningRegistration);
 
@@ -72,6 +77,41 @@ const sampleRegistration = (
   };
 };
 
+const sampleTenant = (overrides?: Partial<TenantRecord>): TenantRecord => {
+  return {
+    id: "sakai",
+    slug: "sakai",
+    displayName: "Sakai Project",
+    planTier: "team",
+    issuerDomain: "sakai.credtrail.test",
+    didWeb: "did:web:credtrail.test:sakai",
+    isActive: true,
+    createdAt: "2026-06-04T12:00:00.000Z",
+    updatedAt: "2026-06-04T12:00:00.000Z",
+    ...overrides,
+  };
+};
+
+const sampleBadgeTemplate = (overrides?: Partial<BadgeTemplateRecord>): BadgeTemplateRecord => {
+  return {
+    id: "badge_template_sakai_1000",
+    tenantId: "sakai",
+    slug: "sakai-1000-commits-contributor",
+    title: "Sakai 1000+ Commits Contributor",
+    description: "Awarded for contributing at least 1000 commits.",
+    criteriaUri: "https://github.com/sakaiproject/sakai",
+    imageUri: "https://avatars.githubusercontent.com/u/429529?s=200&v=4",
+    trustedCredentialMetadataJson: null,
+    createdByUserId: null,
+    ownerOrgUnitId: "sakai:org:institution",
+    governanceMetadataJson: '{"stability":"institution_registry"}',
+    isArchived: false,
+    createdAt: "2026-06-04T12:00:00.000Z",
+    updatedAt: "2026-06-04T12:00:00.000Z",
+    ...overrides,
+  };
+};
+
 const asJsonObject = (value: unknown): JsonObject => {
   expect(value).not.toBeNull();
   expect(typeof value).toBe("object");
@@ -85,8 +125,46 @@ describe("bootstrap admin signing registration routes", () => {
     mockedCreatePostgresDatabase.mockReturnValue(fakeDb);
     mockedFindTenantSigningRegistrationByDid.mockReset();
     mockedFindTenantSigningRegistrationByDid.mockResolvedValue(null);
+    mockedUpsertBadgeTemplateById.mockReset();
     mockedUpsertTenant.mockReset();
     mockedUpsertTenantSigningRegistration.mockReset();
+  });
+
+  it("upserts a tenant for existing bootstrap scripts", async () => {
+    mockedUpsertTenant.mockResolvedValue(sampleTenant());
+
+    const response = await app.request(
+      "/v1/admin/tenants/sakai",
+      {
+        method: "PUT",
+        headers: {
+          authorization: "Bearer bootstrap-secret",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          slug: "sakai",
+          displayName: "Sakai Project",
+          planTier: "team",
+          issuerDomain: "sakai.credtrail.test",
+          isActive: true,
+        }),
+      },
+      createEnv(),
+    );
+    const body = await response.json<JsonObject>();
+
+    expect(response.status).toBe(201);
+    expect(body.tenantId).toBe("sakai");
+    expect(body.didWeb).toBe("did:web:credtrail.test:sakai");
+    expect(mockedUpsertTenant).toHaveBeenCalledWith(fakeDb, {
+      id: "sakai",
+      slug: "sakai",
+      displayName: "Sakai Project",
+      planTier: "team",
+      issuerDomain: "sakai.credtrail.test",
+      didWeb: "did:web:credtrail.test:sakai",
+      isActive: true,
+    });
   });
 
   it("registers the platform root did:web signing material", async () => {
@@ -194,6 +272,42 @@ describe("bootstrap admin signing registration routes", () => {
     const upsertInput = mockedUpsertTenantSigningRegistration.mock.calls[0]?.[1];
     expect(upsertInput).toBeDefined();
     expect(JSON.parse(upsertInput?.privateJwkJson ?? "{}")).toEqual(signingMaterial.privateJwk);
+  });
+
+  it("upserts a badge template for existing bootstrap scripts", async () => {
+    mockedUpsertBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
+
+    const response = await app.request(
+      "/v1/admin/tenants/sakai/badge-templates/badge_template_sakai_1000",
+      {
+        method: "PUT",
+        headers: {
+          authorization: "Bearer bootstrap-secret",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          slug: "sakai-1000-commits-contributor",
+          title: "Sakai 1000+ Commits Contributor",
+          description: "Awarded for contributing at least 1000 commits.",
+          criteriaUri: "https://github.com/sakaiproject/sakai",
+          imageUri: "https://avatars.githubusercontent.com/u/429529?s=200&v=4",
+        }),
+      },
+      createEnv(),
+    );
+    const body = await response.json<JsonObject>();
+
+    expect(response.status).toBe(201);
+    expect(body.id).toBe("badge_template_sakai_1000");
+    expect(mockedUpsertBadgeTemplateById).toHaveBeenCalledWith(fakeDb, {
+      id: "badge_template_sakai_1000",
+      tenantId: "sakai",
+      slug: "sakai-1000-commits-contributor",
+      title: "Sakai 1000+ Commits Contributor",
+      description: "Awarded for contributing at least 1000 commits.",
+      criteriaUri: "https://github.com/sakaiproject/sakai",
+      imageUri: "https://avatars.githubusercontent.com/u/429529?s=200&v=4",
+    });
   });
 
   it("hides bootstrap routes when the bootstrap token is not configured", async () => {

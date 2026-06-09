@@ -136,6 +136,13 @@ export const learnerRecordSourceSystemSchema = z.enum([
   "badge_assertion",
   "learner_self_reported",
 ]);
+export const bootstrapTenantRequestSchema = z.object({
+  slug: z.string().trim().min(1).max(128),
+  displayName: z.string().trim().min(1).max(200),
+  planTier: tenantPlanTierSchema,
+  issuerDomain: z.string().trim().min(1).max(255),
+  isActive: z.boolean().optional(),
+});
 export const learnerRecordTypeSchema = z.enum([
   "badge",
   "course",
@@ -1900,6 +1907,7 @@ export const queueEnvelopeSchema = z.object({
 export type QueueJob = z.infer<typeof queueJobSchema>;
 export type KeyGenerationRequest = z.infer<typeof keyGenerationRequestSchema>;
 export type SignCredentialRequest = z.infer<typeof signCredentialRequestSchema>;
+export type BootstrapTenantRequest = z.infer<typeof bootstrapTenantRequestSchema>;
 export type BootstrapSigningRegistrationRequest = z.infer<
   typeof bootstrapSigningRegistrationRequestSchema
 >;
@@ -2147,6 +2155,10 @@ export const parseKeyGenerationRequest = (input: unknown): KeyGenerationRequest 
 
 export const parseSignCredentialRequest = (input: unknown): SignCredentialRequest => {
   return signCredentialRequestSchema.parse(input);
+};
+
+export const parseBootstrapTenantRequest = (input: unknown): BootstrapTenantRequest => {
+  return bootstrapTenantRequestSchema.parse(input);
 };
 
 export const parseBootstrapSigningRegistrationRequest = (

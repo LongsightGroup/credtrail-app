@@ -1,14 +1,21 @@
 import { createDidDocument, createDidWeb, type Ed25519PublicJwk } from "@credtrail/core-domain";
 import {
+  upsertBadgeTemplateById,
   upsertTenantSigningRegistration,
   upsertTenant,
+  type BadgeTemplateRecord,
   type SqlDatabase,
+  type TenantRecord,
   type TenantSigningRegistrationRecord,
 } from "@credtrail/db";
 import {
   isValidationParseError,
+  parseBootstrapTenantRequest,
   parseBootstrapSigningRegistrationRequest,
+  parseCreateBadgeTemplateRequest,
+  type BootstrapTenantRequest,
   type BootstrapSigningRegistrationRequest,
+  type CreateBadgeTemplateRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import type { AppContext, AppEnv } from "../app";
@@ -42,6 +49,63 @@ const authorizeBootstrapAdminRequest = (c: AppContext): Response | null => {
   return null;
 };
 
+const validationErrorResponse = (
+  c: AppContext,
+  input: {
+    error: string;
+    issues: { path: (string | number | symbol)[]; message: string }[];
+  },
+): Response => {
+  return c.json(
+    {
+      error: input.error,
+      details: input.issues.map((issue) => ({
+        path: issue.path.map((segment) => String(segment)),
+        message: issue.message,
+      })),
+    },
+    400,
+  );
+};
+
+const readBootstrapTenantRequest = async (
+  c: AppContext,
+): Promise<BootstrapTenantRequest | Response> => {
+  const payload = await c.req.json<unknown>();
+
+  try {
+    return parseBootstrapTenantRequest(payload);
+  } catch (error) {
+    if (isValidationParseError(error)) {
+      return validationErrorResponse(c, {
+        error: "Invalid tenant bootstrap payload",
+        issues: error.issues,
+      });
+    }
+
+    throw error;
+  }
+};
+
+const readBadgeTemplateRequest = async (
+  c: AppContext,
+): Promise<CreateBadgeTemplateRequest | Response> => {
+  const payload = await c.req.json<unknown>();
+
+  try {
+    return parseCreateBadgeTemplateRequest(payload);
+  } catch (error) {
+    if (isValidationParseError(error)) {
+      return validationErrorResponse(c, {
+        error: "Invalid badge template bootstrap payload",
+        issues: error.issues,
+      });
+    }
+
+    throw error;
+  }
+};
+
 const readSigningRegistrationRequest = async (
   c: AppContext,
 ): Promise<BootstrapSigningRegistrationRequest | Response> => {
@@ -51,16 +115,10 @@ const readSigningRegistrationRequest = async (
     return parseBootstrapSigningRegistrationRequest(payload);
   } catch (error) {
     if (isValidationParseError(error)) {
-      return c.json(
-        {
-          error: "Invalid signing registration payload",
-          details: error.issues.map((issue) => ({
-            path: issue.path.map((segment) => String(segment)),
-            message: issue.message,
-          })),
-        },
-        400,
-      );
+      return validationErrorResponse(c, {
+        error: "Invalid signing registration payload",
+        issues: error.issues,
+      });
     }
 
     throw error;
@@ -95,8 +153,66 @@ const signingRegistrationResponse = (input: {
   };
 };
 
+const tenantBootstrapResponse = (tenant: TenantRecord): Record<string, unknown> => {
+  return {
+    tenantId: tenant.id,
+    slug: tenant.slug,
+    displayName: tenant.displayName,
+    planTier: tenant.planTier,
+    issuerDomain: tenant.issuerDomain,
+    didWeb: tenant.didWeb,
+    isActive: tenant.isActive,
+    createdAt: tenant.createdAt,
+    updatedAt: tenant.updatedAt,
+  };
+};
+
+const badgeTemplateBootstrapResponse = (template: BadgeTemplateRecord): Record<string, unknown> => {
+  return {
+    id: template.id,
+    tenantId: template.tenantId,
+    slug: template.slug,
+    title: template.title,
+    description: template.description,
+    criteriaUri: template.criteriaUri,
+    imageUri: template.imageUri,
+    ownerOrgUnitId: template.ownerOrgUnitId,
+    isArchived: template.isArchived,
+    createdAt: template.createdAt,
+    updatedAt: template.updatedAt,
+  };
+};
+
 export const registerBootstrapAdminRoutes = (input: RegisterBootstrapAdminRoutesInput): void => {
   const { app, resolveDatabase } = input;
+
+  app.put("/v1/admin/tenants/:tenantId", async (c): Promise<Response> => {
+    const authorizationFailure = authorizeBootstrapAdminRequest(c);
+
+    if (authorizationFailure !== null) {
+      return authorizationFailure;
+    }
+
+    const request = await readBootstrapTenantRequest(c);
+
+    if (request instanceof Response) {
+      return request;
+    }
+
+    const tenantId = c.req.param("tenantId");
+    const did = createDidWeb({ host: c.env.PLATFORM_DOMAIN, pathSegments: [tenantId] });
+    const tenant = await upsertTenant(resolveDatabase(c.env), {
+      id: tenantId,
+      slug: request.slug,
+      displayName: request.displayName,
+      planTier: request.planTier,
+      issuerDomain: request.issuerDomain,
+      didWeb: did,
+      isActive: request.isActive ?? true,
+    });
+
+    return c.json(tenantBootstrapResponse(tenant), 201);
+  });
 
   app.put("/v1/admin/platform/signing-registration", async (c): Promise<Response> => {
     const authorizationFailure = authorizeBootstrapAdminRequest(c);
@@ -162,4 +278,37 @@ export const registerBootstrapAdminRoutes = (input: RegisterBootstrapAdminRoutes
 
     return c.json(signingRegistrationResponse({ did, registration, request }), 201);
   });
+
+  app.put(
+    "/v1/admin/tenants/:tenantId/badge-templates/:badgeTemplateId",
+    async (c): Promise<Response> => {
+      const authorizationFailure = authorizeBootstrapAdminRequest(c);
+
+      if (authorizationFailure !== null) {
+        return authorizationFailure;
+      }
+
+      const request = await readBadgeTemplateRequest(c);
+
+      if (request instanceof Response) {
+        return request;
+      }
+
+      const template = await upsertBadgeTemplateById(resolveDatabase(c.env), {
+        id: c.req.param("badgeTemplateId"),
+        tenantId: c.req.param("tenantId"),
+        slug: request.slug,
+        title: request.title,
+        ...(request.description === undefined ? {} : { description: request.description }),
+        ...(request.criteriaUri === undefined ? {} : { criteriaUri: request.criteriaUri }),
+        ...(request.imageUri === undefined ? {} : { imageUri: request.imageUri }),
+        ...(request.trustedCredentialMetadata === undefined
+          ? {}
+          : { trustedCredentialMetadataJson: JSON.stringify(request.trustedCredentialMetadata) }),
+        ...(request.ownerOrgUnitId === undefined ? {} : { ownerOrgUnitId: request.ownerOrgUnitId }),
+      });
+
+      return c.json(badgeTemplateBootstrapResponse(template), 201);
+    },
+  );
 };
