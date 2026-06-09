@@ -95,9 +95,15 @@ interface ProcessQueuedJobsDependencies<TBindings, TContext extends { env: TBind
       recipientIdentity: string;
       recipientIdentityType: IssueBadgeQueueJob["payload"]["recipientIdentityType"];
       recipientIdentifiers?: IssueBadgeQueueJob["payload"]["recipientIdentifiers"];
+      recipientDisplayName?: string;
+      issuerImageUri?: string;
       idempotencyKey?: string;
     },
     issuedByUserId?: string,
+    options?: {
+      recipientDisplayName?: string;
+      issuerImageUri?: string;
+    },
   ) => Promise<unknown>;
   processBadgeTemplateImageGenerationJob: (
     context: TContext,
@@ -121,6 +127,12 @@ const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
           recipientIdentity: job.payload.recipientIdentity,
           recipientIdentityType: job.payload.recipientIdentityType,
           recipientIdentifiers: job.payload.recipientIdentifiers,
+          ...(job.payload.recipientDisplayName === undefined
+            ? {}
+            : { recipientDisplayName: job.payload.recipientDisplayName }),
+          ...(job.payload.issuerImageUri === undefined
+            ? {}
+            : { issuerImageUri: job.payload.issuerImageUri }),
           idempotencyKey: job.idempotencyKey,
         },
         job.payload.requestedByUserId,

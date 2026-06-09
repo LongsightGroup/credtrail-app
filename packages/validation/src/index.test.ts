@@ -141,6 +141,8 @@ describe("parseQueueJob", () => {
             identifier: "student-123",
           },
         ],
+        recipientDisplayName: "Learner Example",
+        issuerImageUri: "https://issuer.example.edu/logo.svg",
         requestedAt: "2026-02-10T15:00:00.000Z",
       },
       idempotencyKey: "idem_abc",
@@ -153,6 +155,8 @@ describe("parseQueueJob", () => {
     }
 
     expect(job.payload.recipientIdentifiers).toHaveLength(2);
+    expect(job.payload.recipientDisplayName).toBe("Learner Example");
+    expect(job.payload.issuerImageUri).toBe("https://issuer.example.edu/logo.svg");
   });
 
   it("accepts a valid revoke_badge queue payload", () => {
@@ -226,9 +230,13 @@ describe("issue/revoke request parsers", () => {
           identifier: "canvas-user-44",
         },
       ],
+      recipientDisplayName: "Learner Example",
+      issuerImageUri: "https://issuer.example.edu/logo.svg",
     });
 
     expect(request.recipientIdentifiers).toHaveLength(2);
+    expect(request.recipientDisplayName).toBe("Learner Example");
+    expect(request.issuerImageUri).toBe("https://issuer.example.edu/logo.svg");
   });
 
   it("rejects invalid recipient identifier entries", () => {

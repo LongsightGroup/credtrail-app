@@ -99,6 +99,7 @@ export interface DirectIssueBadgeOptions {
   recipientDisplayName?: string;
   issuerName?: string;
   issuerUrl?: string;
+  issuerImageUri?: string;
 }
 
 export interface DirectIssueBadgeResult {
@@ -289,13 +290,12 @@ export const createIssueBadgeForTenant = <
 
     const requestBaseUrl = new URL(context.req.url);
     const credentialBaseUrl = canonicalCredentialBaseUrl(context.env, context.req.url);
+    const recipientDisplayName = options?.recipientDisplayName ?? request.recipientDisplayName;
     const learnerProfile = await resolveLearnerProfileForIdentity(db, {
       tenantId,
       identityType: request.recipientIdentityType,
       identityValue: request.recipientIdentity,
-      ...(options?.recipientDisplayName === undefined
-        ? {}
-        : { displayName: options.recipientDisplayName }),
+      ...(recipientDisplayName === undefined ? {} : { displayName: recipientDisplayName }),
     });
     const issuedAt = new Date().toISOString();
     const assertionId = createTenantScopedId(tenantId);
@@ -319,11 +319,21 @@ export const createIssueBadgeForTenant = <
       };
     });
     const issuerUrl = options?.issuerUrl ?? issuerUrlFromTenantDomain(tenant.issuerDomain);
+    const issuerImageUri = options?.issuerImageUri ?? request.issuerImageUri;
     const issuer = {
       id: issuerDid,
       type: "Profile",
       name: options?.issuerName ?? tenant.displayName,
       ...(issuerUrl === undefined ? {} : { url: issuerUrl }),
+      ...(issuerImageUri === undefined
+        ? {}
+        : {
+            image: {
+              id: issuerImageUri,
+              type: "Image",
+              caption: `${options?.issuerName ?? tenant.displayName} logo`,
+            },
+          }),
     };
     const trustEdMetadataResult = parseTrustEdCredentialMetadataJsonResult(
       badgeTemplate.trustedCredentialMetadataJson,
@@ -369,6 +379,7 @@ export const createIssueBadgeForTenant = <
         credentialSubject: {
           id: learnerDidSubjectId,
           type: ["AchievementSubject"],
+          ...(learnerProfile.displayName === null ? {} : { name: learnerProfile.displayName }),
           identifier: credentialSubjectIdentifiers,
           achievement: {
             id: `urn:credtrail:badge-template:${encodeURIComponent(badgeTemplate.id)}`,

@@ -7,6 +7,8 @@ export type DirectIssueBadgeRequest = Pick<
   | "recipientIdentity"
   | "recipientIdentityType"
   | "recipientIdentifiers"
+  | "recipientDisplayName"
+  | "issuerImageUri"
   | "idempotencyKey"
 >;
 

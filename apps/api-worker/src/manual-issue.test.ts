@@ -596,7 +596,9 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     mockedTouchSession.mockResolvedValue(undefined);
     mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
     mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
-    mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
+    mockedResolveLearnerProfileForIdentity.mockResolvedValue(
+      sampleLearnerProfile({ displayName: "@student" }),
+    );
     mockedNextAssertionStatusListIndex.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
     mockedCreateAssertion.mockResolvedValue(sampleAssertion());
 
@@ -613,6 +615,8 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
           badgeTemplateId: "badge_template_001",
           recipientIdentity: "student@umich.edu",
           recipientIdentityType: "email",
+          recipientDisplayName: "@student",
+          issuerImageUri: "https://tenant-123.credtrail.test/logo.svg",
           idempotencyKey: "idem-1",
         }),
       },
@@ -641,16 +645,19 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     const secondBody = await secondIssueResponse.json<ManualIssueResponse>();
 
     const firstSubjectId = asString(asJsonObject(firstBody.credential.credentialSubject)?.id);
+    const firstCredentialSubject = asJsonObject(firstBody.credential.credentialSubject);
     const secondSubjectId = asString(asJsonObject(secondBody.credential.credentialSubject)?.id);
-    const firstIdentifierEntries = asJsonObject(firstBody.credential.credentialSubject)?.identifier;
+    const firstIdentifierEntries = firstCredentialSubject?.identifier;
     const firstCredentialContexts = firstBody.credential["@context"];
     const firstIssuer = asJsonObject(firstBody.credential.issuer);
+    const firstIssuerImage = asJsonObject(firstIssuer?.image);
     const firstCredentialSubjectType = asJsonObject(firstBody.credential.credentialSubject)?.type;
 
     expect(firstIssueResponse.status).toBe(201);
     expect(secondIssueResponse.status).toBe(201);
     expect(firstSubjectId).toBe("urn:credtrail:learner:tenant_123:lpr_123");
     expect(secondSubjectId).toBe("urn:credtrail:learner:tenant_123:lpr_123");
+    expect(asString(firstCredentialSubject?.name)).toBe("@student");
     expect(Array.isArray(firstCredentialContexts)).toBe(true);
     expect(firstCredentialContexts).toEqual(
       expect.arrayContaining([
@@ -665,6 +672,13 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
         type: "Profile",
         name: "Tenant 123",
         url: "https://tenant-123.credtrail.test",
+      }),
+    );
+    expect(firstIssuerImage).toEqual(
+      expect.objectContaining({
+        id: "https://tenant-123.credtrail.test/logo.svg",
+        type: "Image",
+        caption: "Tenant 123 logo",
       }),
     );
     expect(Array.isArray(firstCredentialSubjectType)).toBe(true);
@@ -690,6 +704,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       tenantId: "tenant_123",
       identityType: "email",
       identityValue: "student@umich.edu",
+      displayName: "@student",
     });
     expect(mockedResolveLearnerProfileForIdentity).toHaveBeenNthCalledWith(2, fakeDb, {
       tenantId: "tenant_123",

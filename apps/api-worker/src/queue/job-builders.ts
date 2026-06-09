@@ -25,6 +25,16 @@ export const issueBadgeQueueJobFromRequest = (
         : {
             recipientIdentifiers: request.recipientIdentifiers,
           }),
+      ...(request.recipientDisplayName === undefined
+        ? {}
+        : {
+            recipientDisplayName: request.recipientDisplayName,
+          }),
+      ...(request.issuerImageUri === undefined
+        ? {}
+        : {
+            issuerImageUri: request.issuerImageUri,
+          }),
       requestedAt: new Date().toISOString(),
       ...(request.requestedByUserId === undefined
         ? {}

@@ -113,6 +113,8 @@ describe("POST /v1/issue and /v1/revoke", () => {
               identifier: "student-123",
             },
           ],
+          recipientDisplayName: "Learner Example",
+          issuerImageUri: "https://issuer.example.edu/logo.svg",
           requestedByUserId: "usr_issuer",
         }),
       },
@@ -140,6 +142,8 @@ describe("POST /v1/issue and /v1/revoke", () => {
             identifier: "student-123",
           },
         ],
+        recipientDisplayName: "Learner Example",
+        issuerImageUri: "https://issuer.example.edu/logo.svg",
       },
     });
   });
