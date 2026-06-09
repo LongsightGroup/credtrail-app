@@ -554,14 +554,22 @@ export const AdminFieldset = ({
 
 export const AdminActions = ({
   align = "start",
+  className,
   children,
 }: PropsWithChildren<{
   align?: "start" | "end";
+  className?: string;
 }>): HonoElement => {
   const classNames = ["ct-admin__actions"];
 
   if (align === "end") {
     classNames.push("ct-admin__actions--end");
+  }
+
+  const extraClass = normalizedExtraClass(className);
+
+  if (extraClass !== undefined) {
+    classNames.push(extraClass);
   }
 
   return <div class={classNames.join(" ")}>{children}</div>;

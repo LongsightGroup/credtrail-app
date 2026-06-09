@@ -170,6 +170,8 @@ stripes, and nested card stacks on routine admin pages.
 - Admin buttons stay content-sized in grid and cluster layouts; avoid stretching link-buttons to full row width unless that is intentional.
 - Group admin action links and adjacent submit buttons in `AdminActions` so layout containers do not accidentally stretch or resize controls. `AdminActions` owns row spacing (`0.45rem` gap). Use `align="end"` only when the action row should hug the trailing edge of a flex row.
 - Keep `ct-cluster` for mixed metadata rows (headings, pills, labels beside actions). Do not replace those with `AdminActions`.
+- Rule builder and other dense toolbars may pass a feature `className` to `AdminActions` (for example `ct-admin__builder-toolbar`) when responsive CSS still keys off that hook.
+- Table review queues may keep `ct-admin__issued-actions` for stacked row actions instead of `AdminActions`.
 
 ## 8) Migration Policy
 

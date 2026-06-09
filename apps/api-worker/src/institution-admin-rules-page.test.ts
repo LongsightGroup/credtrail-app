@@ -1531,6 +1531,9 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toMatch(
       /id="rule-builder-add-condition"[^>]*class="ct-admin__button ct-admin__button--tiny"/,
     );
+    expect(body).toContain('class="ct-admin__actions ct-admin__builder-toolbar"');
+    expect(body).toContain('class="ct-admin__actions ct-admin__builder-step-nav"');
+    expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__builder-grid.ct-grid");
     expect(body).toContain('id="rule-builder-require-every-requirement"');
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-require-every-requirement");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("prefers-reduced-motion: reduce");

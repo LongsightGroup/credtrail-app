@@ -10,6 +10,7 @@ import type { RuleValueListBuilderContextEntry } from "./rule-value-lists-presen
 import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../ui/render-page";
 import {
+  AdminActions,
   AdminButton,
   AdminCheckboxRow,
   AdminField,
@@ -159,7 +160,7 @@ const RuleBuilderConditionCardTemplate = (): HonoElement => {
             <span class="ct-admin__condition-drag" title="Drag to reorder" aria-hidden="true">
               Move
             </span>
-            <div class="ct-admin__condition-actions ct-cluster">
+            <AdminActions className="ct-admin__condition-actions">
               <AdminButton
                 type="button"
                 size="tiny"
@@ -186,7 +187,7 @@ const RuleBuilderConditionCardTemplate = (): HonoElement => {
               >
                 Remove
               </AdminButton>
-            </div>
+            </AdminActions>
           </div>
           <p class="ct-admin__condition-summary">Requirement details will appear here.</p>
         </header>
@@ -483,7 +484,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                 Preload settings from a rule you already use, then review the badge, source, and
                 requirements before submitting.
               </p>
-              <div class="ct-admin__builder-inline ct-cluster">
+              <AdminActions className="ct-admin__builder-inline">
                 <select
                   id="rule-builder-clone-rule"
                   name="cloneRuleId"
@@ -504,7 +505,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                 >
                   Copy settings
                 </AdminButton>
-              </div>
+              </AdminActions>
             </details>
           ) : null}
           <section class="ct-admin__panel ct-admin__builder-workbench-panel ct-stack">
@@ -679,7 +680,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                           Choose an awarding pattern, badge, and LMS connection, then select
                           Continue.
                         </p>
-                        <div class="ct-admin__builder-step-nav ct-cluster">
+                        <AdminActions className="ct-admin__builder-step-nav">
                           <AdminButton id="rule-builder-step-next" type="button" size="tiny">
                             Continue to Requirements
                           </AdminButton>
@@ -691,7 +692,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                           >
                             {isEditMode ? "Save changes as draft" : "Create rule draft"}
                           </AdminButton>
-                        </div>
+                        </AdminActions>
                         <AdminStatus id="rule-create-status"></AdminStatus>
                       </footer>
                     </section>
@@ -719,7 +720,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                       </header>
                       <div class="ct-admin__builder-workbench ct-stack">
                         <div class="ct-admin__builder-workbench-main ct-stack">
-                          <div class="ct-admin__builder-toolbar ct-cluster">
+                          <AdminActions className="ct-admin__builder-toolbar">
                             <input
                               id="rule-builder-root-logic"
                               name="rootLogic"
@@ -746,7 +747,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                             >
                               Require every requirement
                             </AdminButton>
-                          </div>
+                          </AdminActions>
                           <section class="ct-admin__builder-canvas ct-stack">
                             <header class="ct-admin__builder-canvas-header ct-cluster">
                               <strong>Requirements</strong>
@@ -890,11 +891,11 @@ export const institutionAdminRuleBuilderPage = (input: {
                             spellcheck={false}
                           ></textarea>
                         </AdminField>
-                        <div class="ct-admin__builder-inline ct-cluster">
+                        <AdminActions className="ct-admin__builder-inline">
                           <AdminButton id="rule-builder-apply-json" type="button" size="tiny">
                             Apply JSON
                           </AdminButton>
-                        </div>
+                        </AdminActions>
                       </details>
                     </section>
                   </div>
@@ -1051,7 +1052,7 @@ export const institutionAdminRuleBuilderPage = (input: {
             <div class="ct-admin__builder-support-grid ct-grid">
               <section class="ct-admin__builder-support-section ct-stack">
                 <h3>Import and export</h3>
-                <div class="ct-admin__builder-toolbar ct-cluster">
+                <AdminActions className="ct-admin__builder-toolbar">
                   <AdminButton
                     type="button"
                     id="rule-builder-export-json"
@@ -1074,7 +1075,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                     accept="application/json"
                     hidden
                   />
-                </div>
+                </AdminActions>
                 <p class="ct-admin__hint">
                   Export JSON to move the rule definition between sessions, or import a saved
                   definition.

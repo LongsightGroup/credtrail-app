@@ -1,5 +1,6 @@
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
+  AdminActions,
   AdminButton,
   AdminButtonLink,
   AdminCheckboxRow,
@@ -135,15 +136,17 @@ export const renderInstitutionAdminAccessSections = (
   );
 
   const lmsConnectionsActionsMarkup = (
-    <AdminPanel id="lms-connection-actions" className="ct-cluster">
+    <AdminPanel id="lms-connection-actions">
       <div class="ct-stack">
         <p class="ct-admin__hint">
           Connect Canvas or Sakai gradebook accounts on a dedicated setup page with optional OAuth
           and LTI metadata.
         </p>
-        <AdminButtonLink href={lmsNewPath} variant="secondary">
-          Connect LMS
-        </AdminButtonLink>
+        <AdminActions>
+          <AdminButtonLink href={lmsNewPath} variant="secondary">
+            Connect LMS
+          </AdminButtonLink>
+        </AdminActions>
       </div>
     </AdminPanel>
   );
@@ -250,10 +253,12 @@ export const renderInstitutionAdminAccessSections = (
   );
 
   const governanceActionsMarkup = (
-    <AdminPanel id="governance-actions" className="ct-cluster">
-      <AdminButtonLink href={delegationNewPath} variant="secondary">
-        Add delegated authority
-      </AdminButtonLink>
+    <AdminPanel id="governance-actions">
+      <AdminActions>
+        <AdminButtonLink href={delegationNewPath} variant="secondary">
+          Add delegated authority
+        </AdminButtonLink>
+      </AdminActions>
     </AdminPanel>
   );
 
