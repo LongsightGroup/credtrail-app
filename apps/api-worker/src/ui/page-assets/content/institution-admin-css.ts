@@ -3342,6 +3342,7 @@ a.ct-admin__workspace-card:active {
   appearance: none;
   align-items: center;
   justify-content: center;
+  justify-self: start;
   border: none;
   border-radius: var(--ct-radius-sm);
   min-height: 2.45rem;
@@ -3718,6 +3719,9 @@ a.ct-admin__workspace-card:active {
 .ct-admin__actions {
   display: inline-flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  justify-self: start;
   gap: 0.32rem;
 }
 .ct-admin__template-actions {

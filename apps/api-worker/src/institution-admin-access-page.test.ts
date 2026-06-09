@@ -407,6 +407,9 @@ describe("GET /tenants/:tenantId/admin/access/lms-connections", () => {
     expect(body).toContain("LMS Connections");
     expect(body).not.toContain('id="lms-connection-form"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/lms-connections/new"');
+    expect(body).toContain(
+      'class="ct-admin__button ct-admin__button--secondary" href="/tenants/tenant_123/admin/access/lms-connections/new"',
+    );
     expect(body).not.toContain("institution-admin-lms-connections.js");
     expect(body).toContain("/tenants/tenant_123/admin/access/lms-connections/lms_canvas/edit");
   });

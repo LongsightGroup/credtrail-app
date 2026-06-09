@@ -107,6 +107,7 @@ export const renderEnterpriseAuthSection = (
                 <AdminButtonLink
                   href={accessAuthenticationPageUrl(input.tenant.id, { editProvider: provider.id })}
                   size="tiny"
+                  variant="secondary"
                 >
                   Edit
                 </AdminButtonLink>

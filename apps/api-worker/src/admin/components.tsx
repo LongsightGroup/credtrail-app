@@ -34,10 +34,11 @@ export type AdminPanelVariant = "default" | "table" | "nested";
 
 export const adminButtonClass = (input?: {
   variant?: AdminButtonVariant | undefined;
+  defaultVariant?: AdminButtonVariant | undefined;
   size?: AdminButtonSize | undefined;
   extraClass?: string | undefined;
 }): string => {
-  const variant = input?.variant ?? "primary";
+  const variant = input?.variant ?? input?.defaultVariant ?? "primary";
   const size = input?.size ?? "default";
   const classNames = ["ct-admin__button"];
 
@@ -174,7 +175,12 @@ export const AdminButtonLink = ({
 }>): HonoElement => {
   return (
     <a
-      class={adminButtonClass({ variant, size, extraClass: className })}
+      class={adminButtonClass({
+        variant,
+        defaultVariant: "secondary",
+        size,
+        extraClass: className,
+      })}
       href={href}
       target={target}
       rel={rel}
@@ -671,6 +677,7 @@ export const IssuedBadgeActions = (input: {
     <AdminActionBar ariaLabel={`Actions for assertion ${input.assertionId}`}>
       <AdminButtonLink
         href={input.viewBadgeHref}
+        variant="primary"
         size="tiny"
         target="_blank"
         rel="noopener noreferrer"

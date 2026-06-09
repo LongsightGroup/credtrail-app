@@ -141,7 +141,9 @@ export const renderInstitutionAdminAccessSections = (
           Connect Canvas or Sakai gradebook accounts on a dedicated setup page with optional OAuth
           and LTI metadata.
         </p>
-        <AdminButtonLink href={lmsNewPath}>Connect LMS</AdminButtonLink>
+        <AdminButtonLink href={lmsNewPath} variant="secondary">
+          Connect LMS
+        </AdminButtonLink>
       </div>
     </AdminPanel>
   );
@@ -249,7 +251,9 @@ export const renderInstitutionAdminAccessSections = (
 
   const governanceActionsMarkup = (
     <AdminPanel id="governance-actions" className="ct-cluster">
-      <AdminButtonLink href={delegationNewPath}>Add delegated authority</AdminButtonLink>
+      <AdminButtonLink href={delegationNewPath} variant="secondary">
+        Add delegated authority
+      </AdminButtonLink>
     </AdminPanel>
   );
 
