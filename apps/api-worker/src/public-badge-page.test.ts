@@ -430,6 +430,7 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).toContain("Download .jsonld VC");
     expect(body).toContain("OpenID4VCI Offer");
     expect(body).toContain("Add to Browser Wallet");
+    expect(body).toMatch(/<button[^>]*id="chapi-store-button"[^>]*hidden/);
     expect(body).toContain("Claim in Wallet");
     expect(body).toContain("Open in DCC Learner Wallet");
     expect(body).toContain("Wallet, downloads, and advanced tools");

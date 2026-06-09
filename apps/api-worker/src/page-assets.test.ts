@@ -3,6 +3,7 @@ import { createContext, Script } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { app } from "./index";
 import { INSTITUTION_ADMIN_SHELL_JS } from "./ui/page-assets/content/institution-admin-shell-js";
+import { PUBLIC_BADGE_JS } from "./ui/page-assets/content/public-badge-js";
 import { pageAssetPath, type PageAssetKey } from "./ui/page-assets";
 
 const createEnv = (): {
@@ -202,6 +203,12 @@ describe("GET /assets/ui/:assetFilename", () => {
     expect(body).not.toContain("const ruleValueListBody = null");
     expect(body).not.toContain("ruleValueListBody instanceof HTMLElement");
     expect(body).not.toContain("innerHTML");
+  });
+
+  it("keeps browser wallet import progressively enhanced with wallet fallbacks", () => {
+    expect(PUBLIC_BADGE_JS).toContain("chapiButton.hidden = false");
+    expect(PUBLIC_BADGE_JS).toContain("DCC Learner Wallet");
+    expect(PUBLIC_BADGE_JS).toContain("Download .jsonld VC");
   });
 
   it("positions shared admin action panels next to their trigger", () => {

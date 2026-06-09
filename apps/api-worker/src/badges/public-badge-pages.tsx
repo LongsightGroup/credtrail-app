@@ -107,6 +107,7 @@ const PublicBadgeButton = ({
   variant,
   dataCopyValue,
   dataCredentialJsonUrl,
+  hidden,
   children,
 }: PropsWithChildren<{
   id?: string;
@@ -114,6 +115,7 @@ const PublicBadgeButton = ({
   variant?: PublicBadgeButtonVariant;
   dataCopyValue?: string;
   dataCredentialJsonUrl?: string;
+  hidden?: boolean;
 }>): HonoElement => {
   return (
     <button
@@ -122,6 +124,7 @@ const PublicBadgeButton = ({
       type={type}
       data-copy-value={dataCopyValue}
       data-credential-json-url={dataCredentialJsonUrl}
+      hidden={hidden}
     >
       {children}
     </button>
@@ -700,6 +703,7 @@ export const createPublicBadgePageRenderers = (
             id="chapi-store-button"
             type="button"
             dataCredentialJsonUrl={ob3JsonPath}
+            hidden
           >
             Add to Browser Wallet
           </PublicBadgeButton>

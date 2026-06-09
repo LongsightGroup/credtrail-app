@@ -43,17 +43,13 @@ export const PUBLIC_BADGE_JS = `
   const chapiStatus = document.getElementById('chapi-store-status');
 
   if (chapiButton instanceof HTMLButtonElement && chapiStatus instanceof HTMLElement) {
+    const credentialsApi = navigator.credentials;
+    const canStoreCredential = credentialsApi !== undefined && typeof credentialsApi.store === 'function';
     const credentialJsonUrl = chapiButton.dataset.credentialJsonUrl;
 
-    if (typeof credentialJsonUrl === 'string' && credentialJsonUrl.length > 0) {
+    if (canStoreCredential && typeof credentialJsonUrl === 'string' && credentialJsonUrl.length > 0) {
+      chapiButton.hidden = false;
       chapiButton.addEventListener('click', async () => {
-        const credentialsApi = navigator.credentials;
-
-        if (credentialsApi === undefined || typeof credentialsApi.store !== 'function') {
-          chapiStatus.textContent = 'Browser wallet API unavailable; use Download .jsonld VC.';
-          return;
-        }
-
         try {
           const response = await fetch(credentialJsonUrl, {
             headers: {
@@ -62,7 +58,7 @@ export const PUBLIC_BADGE_JS = `
           });
 
           if (!response.ok) {
-            chapiStatus.textContent = 'Unable to load credential for browser wallet import.';
+            chapiStatus.textContent = 'Unable to load credential. Use Download .jsonld VC.';
             return;
           }
 
@@ -74,7 +70,8 @@ export const PUBLIC_BADGE_JS = `
           });
           chapiStatus.textContent = 'Credential sent to browser wallet.';
         } catch {
-          chapiStatus.textContent = 'Browser wallet import failed; use Download .jsonld VC.';
+          chapiStatus.textContent =
+            'No browser wallet accepted this credential. Use DCC Learner Wallet or Download .jsonld VC.';
         }
       });
     }
