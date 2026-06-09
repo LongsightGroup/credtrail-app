@@ -13,6 +13,7 @@ import {
   createAuditLog,
   findAssertionByIdempotencyKey,
   findBadgeTemplateById,
+  findTenantById,
   listLearnerIdentitiesByProfile,
   nextAssertionStatusListIndex,
   resolveAssertionLifecycleState,
@@ -70,6 +71,16 @@ const canonicalCredentialBaseUrl = (bindings: IssueBadgeBindings, requestUrl: st
   }
 
   return `https://${platformDomain}`;
+};
+
+const issuerUrlFromTenantDomain = (issuerDomain: string): string | undefined => {
+  const trimmedDomain = issuerDomain.trim();
+
+  if (trimmedDomain.length === 0) {
+    return undefined;
+  }
+
+  return `https://${trimmedDomain}`;
 };
 
 interface IssueBadgeHttpErrorPayload {
@@ -210,10 +221,17 @@ export const createIssueBadgeForTenant = <
   ): Promise<DirectIssueBadgeResult> => {
     const db = input.resolveDatabase(context.env);
     const badgeTemplate = await findBadgeTemplateById(db, tenantId, request.badgeTemplateId);
+    const tenant = await findTenantById(db, tenantId);
 
     if (badgeTemplate === null) {
       throw new input.HttpErrorResponseClass(404, {
         error: "Badge template not found",
+      });
+    }
+
+    if (tenant === null) {
+      throw new input.HttpErrorResponseClass(404, {
+        error: "Tenant not found",
       });
     }
 
@@ -300,11 +318,12 @@ export const createIssueBadgeForTenant = <
         identityType: ob3IdentityTypeFromRecipientIdentifierType(entry.identifierType),
       };
     });
+    const issuerUrl = options?.issuerUrl ?? issuerUrlFromTenantDomain(tenant.issuerDomain);
     const issuer = {
       id: issuerDid,
       type: "Profile",
-      ...(options?.issuerName === undefined ? {} : { name: options.issuerName }),
-      ...(options?.issuerUrl === undefined ? {} : { url: options.issuerUrl }),
+      name: options?.issuerName ?? tenant.displayName,
+      ...(issuerUrl === undefined ? {} : { url: issuerUrl }),
     };
     const trustEdMetadataResult = parseTrustEdCredentialMetadataJsonResult(
       badgeTemplate.trustedCredentialMetadataJson,

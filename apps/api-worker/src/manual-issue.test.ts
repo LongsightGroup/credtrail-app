@@ -28,6 +28,7 @@ vi.mock("@credtrail/db", async () => {
     findActiveSessionByHash: mockedFindActiveSessionByHash,
     findAssertionByIdempotencyKey: vi.fn(),
     findBadgeTemplateById: vi.fn(),
+    findTenantById: vi.fn(),
     findTenantMembership: vi.fn(),
     findTenantSigningRegistrationByDid: vi.fn(),
     findUserById: vi.fn(),
@@ -82,6 +83,7 @@ import {
   findActiveDelegatedIssuingAuthorityGrantForAction,
   findAssertionByIdempotencyKey,
   findBadgeTemplateById,
+  findTenantById,
   findTenantMembership,
   findTenantSigningRegistrationByDid,
   findUserById,
@@ -98,6 +100,7 @@ import {
   type LearnerProfileRecord,
   type SessionRecord,
   type SqlDatabase,
+  type TenantRecord,
   type TenantMembershipRecord,
   type ResolveAssertionLifecycleStateResult,
 } from "@credtrail/db";
@@ -125,6 +128,7 @@ interface ManualIssueResponse {
 
 const mockedFindAssertionByIdempotencyKey = vi.mocked(findAssertionByIdempotencyKey);
 const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
+const mockedFindTenantById = vi.mocked(findTenantById);
 const mockedFindActiveDelegatedIssuingAuthorityGrantForAction = vi.mocked(
   findActiveDelegatedIssuingAuthorityGrantForAction,
 );
@@ -212,6 +216,8 @@ beforeEach(() => {
   mockedTouchSession.mockReset();
   mockedFindBadgeTemplateById.mockReset();
   mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
+  mockedFindTenantById.mockReset();
+  mockedFindTenantById.mockResolvedValue(sampleTenant());
   mockedFindAssertionByIdempotencyKey.mockReset();
   mockedResolveLearnerProfileForIdentity.mockReset();
   mockedResolveAssertionLifecycleState.mockReset();
@@ -301,6 +307,21 @@ const sampleSession = (overrides?: { tenantId?: string; userId?: string }): Sess
     lastSeenAt: "2026-02-10T22:00:00.000Z",
     revokedAt: null,
     createdAt: "2026-02-10T22:00:00.000Z",
+  };
+};
+
+const sampleTenant = (overrides?: Partial<TenantRecord>): TenantRecord => {
+  return {
+    id: "tenant_123",
+    slug: "tenant-123",
+    displayName: "Tenant 123",
+    planTier: "institution",
+    issuerDomain: "tenant-123.credtrail.test",
+    didWeb: "did:web:credtrail.test:tenant_123",
+    isActive: true,
+    createdAt: "2026-02-10T22:00:00.000Z",
+    updatedAt: "2026-02-10T22:00:00.000Z",
+    ...overrides,
   };
 };
 
@@ -433,6 +454,8 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     mockedTouchSession.mockReset();
     mockedFindBadgeTemplateById.mockReset();
     mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
+    mockedFindTenantById.mockReset();
+    mockedFindTenantById.mockResolvedValue(sampleTenant());
     mockedFindAssertionByIdempotencyKey.mockReset();
     mockedResolveLearnerProfileForIdentity.mockReset();
     mockedResolveAssertionLifecycleState.mockReset();
@@ -640,6 +663,8 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       expect.objectContaining({
         id: "did:web:credtrail.test:tenant_123",
         type: "Profile",
+        name: "Tenant 123",
+        url: "https://tenant-123.credtrail.test",
       }),
     );
     expect(Array.isArray(firstCredentialSubjectType)).toBe(true);
