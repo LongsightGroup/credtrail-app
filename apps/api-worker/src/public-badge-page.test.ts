@@ -450,7 +450,26 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).not.toContain("openbadgesvalidator.imsglobal.org/?url=");
     expect(body).not.toContain("vc.1ed.tech/upload?validatorId=OB30Inspector");
     expect(body).toContain("api.qrserver.com/v1/create-qr-code");
-    expect(body).toContain("QR code for OpenID4VCI credential offer endpoint");
+    expect(body).toContain("QR code for DCC Learner Wallet claim request");
+    const qrImageSrc = body
+      .match(/src="(https:\/\/api\.qrserver\.com\/v1\/create-qr-code\/[^"]+)"/)?.[1]
+      ?.replaceAll("&amp;", "&");
+    expect(qrImageSrc).toBeDefined();
+    const qrPayload = new URL(qrImageSrc ?? "").searchParams.get("data");
+    expect(qrPayload).not.toBeNull();
+    const qrPayloadUrl = new URL(qrPayload ?? "");
+    expect(qrPayloadUrl.origin).toBe("https://lcw.app");
+    expect(qrPayloadUrl.pathname).toBe("/request");
+    const dccRequest = JSON.parse(qrPayloadUrl.searchParams.get("request") ?? "{}") as {
+      credentialRequestOrigin?: unknown;
+      protocols?: {
+        vcapi?: unknown;
+      };
+    };
+    expect(dccRequest.credentialRequestOrigin).toBe("http://localhost");
+    expect(dccRequest.protocols?.vcapi).toBe(
+      "http://localhost/credentials/v1/dcc/exchanges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
+    );
     expect(body).toContain("Open Badges 3.0 JSON");
     expect(body).toContain(
       '<link rel="alternate" type="application/vc+ld+json" href="http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/jsonld"',

@@ -663,7 +663,7 @@ export const createPublicBadgePageRenderers = (
     qrCodeImageUrl.searchParams.set("size", "220x220");
     qrCodeImageUrl.searchParams.set("format", "svg");
     qrCodeImageUrl.searchParams.set("margin", "0");
-    qrCodeImageUrl.searchParams.set("data", walletOfferUrl);
+    qrCodeImageUrl.searchParams.set("data", dccWalletDeepLinkUrl.toString());
     const linkedInProfileSharePath = `/badges/${encodeURIComponent(
       walletOfferBadgeIdentifier,
     )}/share/linkedin-profile`;
@@ -904,7 +904,7 @@ export const createPublicBadgePageRenderers = (
               <img
                 class="public-badge__qr-image"
                 src={qrCodeImageUrl.toString()}
-                alt="QR code for OpenID4VCI credential offer endpoint"
+                alt="QR code for DCC Learner Wallet claim request"
                 loading="lazy"
               />
               <figcaption class="public-badge__qr-caption">
