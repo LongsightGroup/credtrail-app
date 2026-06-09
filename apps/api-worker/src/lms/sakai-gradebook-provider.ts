@@ -139,6 +139,29 @@ const deriveCourseScorePercent = (
   return asNumber(courseGrade.calculatedGrade);
 };
 
+const isCompletedGradebookItem = (grade: SakaiGradebookMatrixStudentGrade | undefined): boolean => {
+  if (grade === undefined) {
+    return false;
+  }
+
+  return grade.excused === true || (grade.grade !== null && grade.grade.trim().length > 0);
+};
+
+const deriveGradebookItemCompletionPercent = (
+  columns: readonly SakaiGradebookMatrixColumn[],
+  student: SakaiGradebookMatrixStudent,
+): number | null => {
+  if (columns.length === 0) {
+    return null;
+  }
+
+  const completedItems = columns.filter((column) => {
+    return isCompletedGradebookItem(student.gradesByAssignmentId[column.id]);
+  }).length;
+
+  return (completedItems / columns.length) * 100;
+};
+
 const parseMatrixColumn = (candidate: unknown): SakaiGradebookMatrixColumn | null => {
   const column = asJsonObject(candidate);
 
@@ -311,7 +334,6 @@ export const createSakaiGradebookProvider = (
     const response = await fetchImpl(requestUrl.toString(), {
       method: "GET",
       headers: {
-        authorization: `Bearer ${config.accessToken}`,
         cookie: `SAKAIID=${config.accessToken}`,
         accept: "application/json",
       },
@@ -431,15 +453,15 @@ export const createSakaiGradebookProvider = (
       return matrix.students
         .filter((student) => input.learnerId === undefined || student.learnerId === input.learnerId)
         .map((student) => {
-          const percentScore = deriveCourseScorePercent(student.courseGrade);
-          const completed = percentScore !== null;
+          const completionPercent = deriveGradebookItemCompletionPercent(matrix.columns, student);
+          const completed = completionPercent !== null && completionPercent >= 100;
           return {
             courseId: matrix.siteId,
             learnerId: student.learnerId,
             completed,
-            completedAt: completed ? null : null,
-            completionPercent: percentScore,
-            sourceState: completed ? "graded" : null,
+            completedAt: null,
+            completionPercent,
+            sourceState: completionPercent === null ? null : "gradebook_items",
           };
         });
     },

@@ -148,7 +148,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
               {
                 type: 'course_completion',
                 courseId: primaryCourseId,
-                requireCompleted: true,
+                minCompletionPercent: 100,
               },
             ],
           },
@@ -159,7 +159,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
               {
                 type: 'course_completion',
                 courseId: primaryCourseId,
-                requireCompleted: true,
+                minCompletionPercent: 100,
               },
             ],
           },
@@ -170,7 +170,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
               {
                 type: 'course_completion',
                 courseId: primaryCourseId,
-                requireCompleted: true,
+                minCompletionPercent: 100,
               },
               {
                 type: 'grade_threshold',
@@ -222,7 +222,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
               {
                 type: 'course_completion',
                 courseId: primaryCourseId,
-                requireCompleted: true,
+                minCompletionPercent: 100,
               },
               {
                 type: 'time_window',
@@ -253,7 +253,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
               {
                 type: 'course_completion',
                 courseId: nextCourseId,
-                requireCompleted: true,
+                minCompletionPercent: 100,
               },
             ],
           },
@@ -283,7 +283,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SETUP_JS = `
     };
     const conditionTypeHelpText = {
       course_completion:
-        'Learner must have completed a course, with an optional minimum completion percent.',
+        'Learner must complete all gradebook items, or a configured percentage of them.',
       grade_threshold:
         'Learner score must meet the configured minimum and/or maximum threshold.',
       program_completion:

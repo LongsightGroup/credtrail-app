@@ -126,10 +126,17 @@ export const renderInstitutionAdminOperationsSections = (
             value="92"
           />
         </AdminField>
-        <AdminCheckboxRow>
-          <input name="completed" type="checkbox" checked />
-          Learner completed course
-        </AdminCheckboxRow>
+        <AdminField label="Gradebook items completed %">
+          <input
+            name="completionPercent"
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            required
+            value="100"
+          />
+        </AdminField>
         <AdminCheckboxRow>
           <input name="dryRun" type="checkbox" checked />
           Dry run (don’t issue badge)

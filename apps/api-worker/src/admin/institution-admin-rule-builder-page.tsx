@@ -769,26 +769,6 @@ export const institutionAdminRuleBuilderPage = (input: {
                               </span>
                             </div>
                             <div
-                              id="rule-builder-condition-empty"
-                              class="ct-admin__builder-empty-state ct-stack"
-                              role="status"
-                            >
-                              <p class="ct-admin__builder-empty-state__title">
-                                No requirements yet
-                              </p>
-                              <p class="ct-admin__builder-empty-state__body">
-                                Choose an awarding pattern in Step 1, or add a requirement below.
-                              </p>
-                              <AdminButton
-                                type="button"
-                                id="rule-builder-return-to-pattern"
-                                size="tiny"
-                                variant="secondary"
-                              >
-                                Change pattern
-                              </AdminButton>
-                            </div>
-                            <div
                               id="rule-builder-condition-list"
                               class="ct-admin__builder-condition-list ct-stack"
                             ></div>
@@ -825,8 +805,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                             <div>
                               <dt>Course completion</dt>
                               <dd>
-                                Matches when course completion facts show learner completion and
-                                optional minimum percent.
+                                Matches when gradebook items show full completion or the minimum
+                                percentage you set.
                               </dd>
                             </div>
                             <div>
@@ -944,14 +924,6 @@ export const institutionAdminRuleBuilderPage = (input: {
                               value="learner@example.edu"
                             />
                           </AdminField>
-                          <AdminField label="Sample course ID">
-                            <input
-                              name="testCourseId"
-                              type="text"
-                              value={initialTestCourseId}
-                              placeholder="Course ID from your LMS"
-                            />
-                          </AdminField>
                           <AdminField label="Sample final score">
                             <input
                               name="testFinalScore"
@@ -962,10 +934,16 @@ export const institutionAdminRuleBuilderPage = (input: {
                               value="92"
                             />
                           </AdminField>
-                          <AdminCheckboxRow>
-                            <input name="testCompleted" type="checkbox" checked />
-                            Learner completed course
-                          </AdminCheckboxRow>
+                          <AdminField label="Sample gradebook items completed %">
+                            <input
+                              name="testCompletionPercent"
+                              type="number"
+                              min={0}
+                              max={100}
+                              step="0.01"
+                              value="100"
+                            />
+                          </AdminField>
                           <select id="rule-builder-test-preset" name="testPreset" hidden>
                             <option value="canvas_course_grade" selected>
                               Canvas course + grade

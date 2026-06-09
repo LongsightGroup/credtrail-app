@@ -76,27 +76,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CSS = `
 .ct-admin__pattern-panel p {
   margin: 0;
 }
-.ct-admin__builder-empty-state {
-  --ct-stack-gap: 0.55rem;
-  align-items: start;
-  padding: 0.85rem 0.9rem;
-  border-radius: var(--ct-radius-md);
-  border: 1px dashed var(--ct-theme-border-info);
-  background: var(--ct-theme-surface-info);
-}
-.ct-admin__builder-empty-state__title {
-  margin: 0;
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: var(--ct-color-ink);
-}
-.ct-admin__builder-empty-state__body {
-  margin: 0;
-  max-width: 42ch;
-  font-size: 0.86rem;
-  line-height: 1.45;
-  color: var(--ct-theme-text-muted);
-}
 .ct-admin__builder-step-callout[data-tone='warning'] {
   color: var(--ct-theme-state-warning);
   font-weight: 600;

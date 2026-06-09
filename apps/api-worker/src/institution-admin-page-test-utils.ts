@@ -24,6 +24,10 @@ const {
   mockedResolveBetterAuthPrincipal,
   mockedResolveBetterAuthRequestedTenant,
   mockedDeleteDraftBadgeIssuanceRule,
+  mockedDecideBadgeIssuanceRuleVersion,
+  mockedFindBadgeIssuanceRuleVersionById,
+  mockedListBadgeIssuanceRuleVersionApprovalSteps,
+  mockedSubmitBadgeIssuanceRuleVersionForApproval,
 } = vi.hoisted(() => {
   return {
     mockedFindLearnerProfileById: vi.fn(),
@@ -49,6 +53,10 @@ const {
     mockedResolveBetterAuthPrincipal: vi.fn(),
     mockedResolveBetterAuthRequestedTenant: vi.fn(),
     mockedDeleteDraftBadgeIssuanceRule: vi.fn(),
+    mockedDecideBadgeIssuanceRuleVersion: vi.fn(),
+    mockedFindBadgeIssuanceRuleVersionById: vi.fn(),
+    mockedListBadgeIssuanceRuleVersionApprovalSteps: vi.fn(),
+    mockedSubmitBadgeIssuanceRuleVersionForApproval: vi.fn(),
   };
 });
 
@@ -76,6 +84,10 @@ export {
   mockedMarkLearnerRecordImportPreviewQueued,
   mockedResolveBetterAuthPrincipal,
   mockedResolveBetterAuthRequestedTenant,
+  mockedDecideBadgeIssuanceRuleVersion,
+  mockedFindBadgeIssuanceRuleVersionById,
+  mockedListBadgeIssuanceRuleVersionApprovalSteps,
+  mockedSubmitBadgeIssuanceRuleVersionForApproval,
 };
 
 vi.mock("@credtrail/db", async () => {
@@ -102,6 +114,10 @@ vi.mock("@credtrail/db", async () => {
     listLearnerRecordEntries: mockedListLearnerRecordEntries,
     listBadgeIssuanceRules: vi.fn(),
     listBadgeIssuanceRuleVersions: vi.fn(),
+    findBadgeIssuanceRuleVersionById: mockedFindBadgeIssuanceRuleVersionById,
+    submitBadgeIssuanceRuleVersionForApproval: mockedSubmitBadgeIssuanceRuleVersionForApproval,
+    listBadgeIssuanceRuleVersionApprovalSteps: mockedListBadgeIssuanceRuleVersionApprovalSteps,
+    decideBadgeIssuanceRuleVersion: mockedDecideBadgeIssuanceRuleVersion,
     listBadgeIssuanceRuleEvaluations: vi.fn().mockResolvedValue([]),
     listBadgeIssuanceRuleValueLists: vi.fn().mockResolvedValue([]),
     deleteDraftBadgeIssuanceRule: mockedDeleteDraftBadgeIssuanceRule,
@@ -186,6 +202,10 @@ import {
   listAuditLogs,
   listBadgeIssuanceRules,
   listBadgeIssuanceRuleVersions,
+  findBadgeIssuanceRuleVersionById,
+  submitBadgeIssuanceRuleVersionForApproval,
+  listBadgeIssuanceRuleVersionApprovalSteps,
+  decideBadgeIssuanceRuleVersion,
   listBadgeIssuanceRuleEvaluations,
   listBadgeIssuanceRuleValueLists,
   createBadgeIssuanceRuleValueList,
@@ -252,6 +272,14 @@ export const mockedListDelegatedIssuingAuthorityGrants = vi.mocked(
 );
 export const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
 export const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRuleVersions);
+export const mockedFindBadgeIssuanceRuleVersionByIdDb = vi.mocked(findBadgeIssuanceRuleVersionById);
+export const mockedSubmitBadgeIssuanceRuleVersionForApprovalDb = vi.mocked(
+  submitBadgeIssuanceRuleVersionForApproval,
+);
+export const mockedListBadgeIssuanceRuleVersionApprovalStepsDb = vi.mocked(
+  listBadgeIssuanceRuleVersionApprovalSteps,
+);
+export const mockedDecideBadgeIssuanceRuleVersionDb = vi.mocked(decideBadgeIssuanceRuleVersion);
 export const mockedListBadgeIssuanceRuleEvaluations = vi.mocked(listBadgeIssuanceRuleEvaluations);
 export const mockedListBadgeIssuanceRuleValueLists = vi.mocked(listBadgeIssuanceRuleValueLists);
 export const mockedCreateBadgeIssuanceRuleValueList = vi.mocked(createBadgeIssuanceRuleValueList);
@@ -734,6 +762,14 @@ beforeEach(() => {
       updatedAt: "2026-02-18T12:00:00.000Z",
     },
   ]);
+  mockedFindBadgeIssuanceRuleVersionByIdDb.mockReset();
+  mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(null);
+  mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockReset();
+  mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockResolvedValue(null);
+  mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockReset();
+  mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([]);
+  mockedDecideBadgeIssuanceRuleVersionDb.mockReset();
+  mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue(null);
   mockedListBadgeIssuanceRuleEvaluations.mockReset();
   mockedListBadgeIssuanceRuleEvaluations.mockResolvedValue([]);
   mockedListBadgeIssuanceRuleValueLists.mockReset();

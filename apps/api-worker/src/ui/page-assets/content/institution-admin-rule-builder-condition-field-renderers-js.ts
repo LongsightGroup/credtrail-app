@@ -128,7 +128,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_FIELD_RENDERERS_JS = `
         createCourseSearchField('courseId'),
         createCourseSelectField('Course', 'courseId', selectedCourseId, false),
         createConditionField(
-          'Minimum completion % (optional)',
+          'Gradebook items completed at least %',
           createConditionInput('number', {
             'data-field': 'minCompletionPercent',
             min: '0',
@@ -136,7 +136,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_FIELD_RENDERERS_JS = `
             step: '0.01',
           }),
         ),
-        createConditionCheckbox('requireCompleted', 'Course must be completed', true),
       ]);
 
       setFieldOnCard(
@@ -147,12 +146,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_FIELD_RENDERERS_JS = `
       setFieldOnCard(
         card,
         'minCompletionPercent',
-        typeof seed.minCompletionPercent === 'number' ? String(seed.minCompletionPercent) : '',
-      );
-      setCheckboxOnCard(
-        card,
-        'requireCompleted',
-        seed.requireCompleted === undefined ? true : Boolean(seed.requireCompleted),
+        typeof seed.minCompletionPercent === 'number' ? String(seed.minCompletionPercent) : '100',
       );
       bindExclusiveFieldPair(card, 'courseId', 'courseListId');
       bindSearchableCourseSelect(card, 'courseId');

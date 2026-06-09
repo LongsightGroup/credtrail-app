@@ -152,7 +152,7 @@ export const INSTITUTION_ADMIN_GOVERNANCE_TOOLS_JS = `
       const recipientIdentityRaw = data.get('recipientIdentity');
       const courseIdRaw = data.get('courseId');
       const finalScoreRaw = data.get('finalScore');
-      const completed = data.get('completed') !== null;
+      const completionPercentRaw = data.get('completionPercent');
       const dryRun = data.get('dryRun') !== null;
       const ruleId = typeof ruleIdRaw === 'string' ? ruleIdRaw.trim() : '';
       const learnerId = typeof learnerIdRaw === 'string' ? learnerIdRaw.trim() : '';
@@ -163,6 +163,9 @@ export const INSTITUTION_ADMIN_GOVERNANCE_TOOLS_JS = `
       const courseId = typeof courseIdRaw === 'string' ? courseIdRaw.trim() : '';
       const finalScoreText = typeof finalScoreRaw === 'string' ? finalScoreRaw.trim() : '';
       const finalScore = Number(finalScoreText);
+      const completionPercentText =
+        typeof completionPercentRaw === 'string' ? completionPercentRaw.trim() : '';
+      const completionPercent = Number(completionPercentText);
 
       if (
         ruleId.length === 0 ||
@@ -180,6 +183,19 @@ export const INSTITUTION_ADMIN_GOVERNANCE_TOOLS_JS = `
 
       if (!Number.isFinite(finalScore) || finalScore < 0 || finalScore > 100) {
         setStatus(ruleEvaluateStatus, 'Final score must be a number between 0 and 100.', true);
+        return;
+      }
+
+      if (
+        !Number.isFinite(completionPercent) ||
+        completionPercent < 0 ||
+        completionPercent > 100
+      ) {
+        setStatus(
+          ruleEvaluateStatus,
+          'Gradebook items completed must be a number between 0 and 100.',
+          true,
+        );
         return;
       }
 
@@ -216,8 +232,8 @@ export const INSTITUTION_ADMIN_GOVERNANCE_TOOLS_JS = `
                 {
                   courseId,
                   learnerId,
-                  completed,
-                  completionPercent: completed ? 100 : 0,
+                  completed: completionPercent >= 100,
+                  completionPercent,
                 },
               ],
             },

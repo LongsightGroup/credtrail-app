@@ -1,18 +1,20 @@
 import type { AppBindings } from "../app";
 
 const CLOUDFLARE_TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
+const CLOUDFLARE_WEB_ANALYTICS_SCRIPT_ORIGIN = "https://static.cloudflareinsights.com";
+const CLOUDFLARE_WEB_ANALYTICS_BEACON_ORIGIN = "https://cloudflareinsights.com";
 const STRICT_TRANSPORT_SECURITY = "max-age=31536000; includeSubDomains";
 
 const BASE_CONTENT_SECURITY_POLICY_DIRECTIVES = {
   "default-src": ["'self'"],
   "base-uri": ["'none'"],
   "object-src": ["'none'"],
-  "script-src": ["'self'", "'report-sample'"],
+  "script-src": ["'self'", "'report-sample'", CLOUDFLARE_WEB_ANALYTICS_SCRIPT_ORIGIN],
   "script-src-attr": ["'none'"],
   "style-src": ["'self'"],
   "img-src": ["'self'", "data:", "blob:", "https:", "http:"],
   "font-src": ["'self'"],
-  "connect-src": ["'self'"],
+  "connect-src": ["'self'", CLOUDFLARE_WEB_ANALYTICS_BEACON_ORIGIN],
   "frame-src": ["'self'"],
   "form-action": ["'self'"],
 } as const satisfies Record<string, readonly string[]>;

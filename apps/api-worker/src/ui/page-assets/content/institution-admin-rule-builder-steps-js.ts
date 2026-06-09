@@ -375,7 +375,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_STEPS_JS = `
           showStepGateMessage(currentStep);
         } else if (ruleBuilderStepCallout instanceof HTMLElement) {
           ruleBuilderStepCallout.textContent =
-            'Use Continue below to move to the next step.';
+            'Use the Continue button at the bottom of the current step before opening this step.';
           ruleBuilderStepCallout.dataset.tone = 'warning';
         }
 

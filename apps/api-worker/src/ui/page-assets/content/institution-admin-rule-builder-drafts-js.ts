@@ -46,7 +46,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
       setRuleCreateFieldValue('testRecipientIdentity', recipientIdentity);
 
       if (presetKey === 'program_completion') {
-        setRuleCreateFieldValue('testCourseId', courseId);
         setRuleCreateFieldValue('testFinalScore', '92');
         setRuleCreateFieldValue(
           'testFactsJson',
@@ -66,7 +65,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
           ),
         );
       } else if (presetKey === 'assignment_submission') {
-        setRuleCreateFieldValue('testCourseId', courseId);
         setRuleCreateFieldValue('testFinalScore', '88');
         setRuleCreateFieldValue(
           'testFactsJson',
@@ -88,7 +86,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
           ),
         );
       } else if (presetKey === 'prerequisite_chain' || presetKey === 'prerequisite_badge') {
-        setRuleCreateFieldValue('testCourseId', nextCourseId);
         setRuleCreateFieldValue('testFinalScore', '95');
         setRuleCreateFieldValue(
           'testFactsJson',
@@ -101,7 +98,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
           ),
         );
       } else if (presetKey === 'survey_completion') {
-        setRuleCreateFieldValue('testCourseId', courseId);
         setRuleCreateFieldValue('testFinalScore', '92');
         setRuleCreateFieldValue(
           'testFactsJson',
@@ -122,7 +118,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
           ),
         );
       } else if (presetKey === 'custom_field') {
-        setRuleCreateFieldValue('testCourseId', courseId);
         setRuleCreateFieldValue('testFinalScore', '92');
         setRuleCreateFieldValue(
           'testFactsJson',
@@ -141,15 +136,9 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
           ),
         );
       } else {
-        setRuleCreateFieldValue('testCourseId', courseId);
         setRuleCreateFieldValue('testFinalScore', '92');
+        setRuleCreateFieldValue('testCompletionPercent', '100');
         setRuleCreateFieldValue('testFactsJson', '');
-      }
-
-      const testCompletedField = getRuleCreateField('testCompleted');
-
-      if (testCompletedField instanceof HTMLInputElement) {
-        testCompletedField.checked = true;
       }
 
       ruleBuilderLastTestSummary = 'Not run';
@@ -207,13 +196,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
           return;
         }
 
-        tryNavigateToStep(activeRuleBuilderStepIndex + 1);
-      });
-    }
-
-    if (ruleBuilderReturnToPatternButton instanceof HTMLButtonElement) {
-      ruleBuilderReturnToPatternButton.addEventListener('click', () => {
-        tryNavigateToStep(0);
+        setBuilderStepState(activeRuleBuilderStepIndex + 1);
       });
     }
 
@@ -238,7 +221,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_DRAFTS_JS = `
         addConditionToCanvas({
           type: 'course_completion',
           courseId: getDefaultCourseId() || getCoursePlaceholder(),
-          requireCompleted: true,
+          minCompletionPercent: 100,
           negate: false,
         });
       });

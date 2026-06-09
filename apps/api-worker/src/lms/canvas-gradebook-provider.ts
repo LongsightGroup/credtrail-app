@@ -213,40 +213,53 @@ const parseGradeRecord = (courseId: string, candidate: unknown): GradebookGradeR
 
 const parseCompletionRecord = (
   courseId: string,
-  candidate: unknown,
+  enrollment: GradebookEnrollmentRecord,
+  assignments: readonly GradebookAssignmentRecord[],
+  submissions: readonly GradebookSubmissionRecord[],
 ): GradebookCompletionRecord | null => {
-  const enrollment = asJsonObject(candidate);
-
-  if (enrollment === null) {
-    return null;
+  if (assignments.length === 0) {
+    return {
+      courseId,
+      learnerId: enrollment.learnerId,
+      completed: false,
+      completedAt: null,
+      completionPercent: null,
+      sourceState: null,
+    };
   }
 
-  const learnerId = asIdentifier(enrollment.user_id);
-  const enrollmentState = asString(enrollment.enrollment_state);
-  const grades = asJsonObject(enrollment.grades);
+  const completedAssignmentIds = new Set(
+    submissions
+      .filter((submission) => submission.learnerId === enrollment.learnerId)
+      .filter((submission) => {
+        if (submission.missing === true) {
+          return false;
+        }
 
-  if (learnerId === null) {
-    return null;
-  }
-
-  const normalizedState = enrollmentState?.toLowerCase() ?? null;
-  const completed =
-    normalizedState === "completed" ||
-    normalizedState === "concluded" ||
-    normalizedState === "inactive";
+        return (
+          submission.score !== null ||
+          submission.submittedAt !== null ||
+          submission.gradedAt !== null ||
+          submission.workflowState === "submitted" ||
+          submission.workflowState === "graded" ||
+          submission.workflowState === "pending_review"
+        );
+      })
+      .map((submission) => submission.assignmentId),
+  );
+  const assignmentIds = new Set(assignments.map((assignment) => assignment.assignmentId));
+  const completedItems = [...completedAssignmentIds].filter((assignmentId) => {
+    return assignmentIds.has(assignmentId);
+  }).length;
+  const completionPercent = (completedItems / assignments.length) * 100;
 
   return {
     courseId,
-    learnerId,
-    completed,
-    completedAt: completed
-      ? (asIsoTimestamp(enrollment.completed_at) ??
-        asIsoTimestamp(enrollment.updated_at) ??
-        asIsoTimestamp(enrollment.last_activity_at))
-      : null,
-    completionPercent:
-      grades === null ? null : (asNumber(grades.final_score) ?? asNumber(grades.current_score)),
-    sourceState: enrollmentState,
+    learnerId: enrollment.learnerId,
+    completed: completionPercent >= 100,
+    completedAt: null,
+    completionPercent,
+    sourceState: "gradebook_items",
   };
 };
 
@@ -256,6 +269,37 @@ export const createCanvasGradebookProvider = (
   const { config } = input;
   const fetchImpl = input.fetchImpl ?? fetch;
   const apiBaseUrl = ensureHttpBaseUrl(config.apiBaseUrl);
+  const rawEnrollmentsCache = new Map<string, Promise<readonly unknown[]>>();
+  const assignmentsCache = new Map<string, Promise<readonly GradebookAssignmentRecord[]>>();
+  const submissionsCache = new Map<string, Promise<readonly GradebookSubmissionRecord[]>>();
+
+  const readCachedArray = <T>(
+    cache: Map<string, Promise<readonly T[]>>,
+    key: string,
+    load: () => Promise<readonly T[]>,
+  ): Promise<readonly T[]> => {
+    const cached = cache.get(key);
+
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const pending = load();
+    cache.set(key, pending);
+    return pending;
+  };
+
+  const enrollmentCacheKey = (input: { courseId: string; learnerId?: string }): string => {
+    return JSON.stringify([input.courseId, input.learnerId ?? null]);
+  };
+
+  const submissionsCacheKey = (input: {
+    courseId: string;
+    assignmentId?: string;
+    learnerId?: string;
+  }): string => {
+    return JSON.stringify([input.courseId, input.assignmentId ?? null, input.learnerId ?? null]);
+  };
 
   const requestArray = async (
     path: string,
@@ -297,15 +341,86 @@ export const createCanvasGradebookProvider = (
     courseId: string;
     learnerId?: string;
   }): Promise<readonly unknown[]> => {
+    return readCachedArray(rawEnrollmentsCache, enrollmentCacheKey(input), async () => {
+      const query = new URLSearchParams();
+      query.set("per_page", "100");
+      query.append("type[]", "StudentEnrollment");
+
+      if (input.learnerId !== undefined) {
+        query.append("student_ids[]", input.learnerId);
+      }
+
+      return requestArray(
+        `/api/v1/courses/${encodeURIComponent(input.courseId)}/enrollments`,
+        query,
+      );
+    });
+  };
+
+  const listAssignmentsForCourse = async (
+    courseId: string,
+  ): Promise<readonly GradebookAssignmentRecord[]> => {
+    return readCachedArray(assignmentsCache, courseId, async () => {
+      const query = new URLSearchParams();
+      query.set("per_page", "100");
+      const assignments = await requestArray(
+        `/api/v1/courses/${encodeURIComponent(courseId)}/assignments`,
+        query,
+      );
+      const normalizedAssignments = assignments
+        .map((assignment) => parseAssignmentRecord(courseId, assignment))
+        .filter((assignment): assignment is GradebookAssignmentRecord => assignment !== null);
+      return normalizedAssignments;
+    });
+  };
+
+  const fetchSubmissions = async (input: {
+    courseId: string;
+    assignmentId?: string;
+    learnerId?: string;
+  }): Promise<readonly GradebookSubmissionRecord[]> => {
     const query = new URLSearchParams();
     query.set("per_page", "100");
-    query.append("type[]", "StudentEnrollment");
+
+    if (input.assignmentId !== undefined) {
+      query.append("assignment_ids[]", input.assignmentId);
+    }
 
     if (input.learnerId !== undefined) {
       query.append("student_ids[]", input.learnerId);
     }
 
-    return requestArray(`/api/v1/courses/${encodeURIComponent(input.courseId)}/enrollments`, query);
+    const submissions = await requestArray(
+      `/api/v1/courses/${encodeURIComponent(input.courseId)}/students/submissions`,
+      query,
+    );
+    const normalizedSubmissions = submissions
+      .map((submission) => parseSubmissionRecord(input.courseId, submission))
+      .filter((submission): submission is GradebookSubmissionRecord => submission !== null);
+    return normalizedSubmissions;
+  };
+
+  const listSubmissionsForCourse = async (input: {
+    courseId: string;
+    assignmentId?: string;
+    learnerId?: string;
+  }): Promise<readonly GradebookSubmissionRecord[]> => {
+    if (input.assignmentId !== undefined) {
+      const allSubmissionsKey = submissionsCacheKey({
+        courseId: input.courseId,
+        ...(input.learnerId !== undefined ? { learnerId: input.learnerId } : {}),
+      });
+      const allSubmissions = submissionsCache.get(allSubmissionsKey);
+
+      if (allSubmissions !== undefined) {
+        const submissions = await allSubmissions;
+        return submissions.filter((submission) => submission.assignmentId === input.assignmentId);
+      }
+    }
+
+    return readCachedArray(submissionsCache, submissionsCacheKey(input), async () => {
+      return fetchSubmissions(input);
+    });
   };
 
   return {
@@ -321,16 +436,7 @@ export const createCanvasGradebookProvider = (
       return normalizedCourses;
     },
     listAssignments: async (input): Promise<readonly GradebookAssignmentRecord[]> => {
-      const query = new URLSearchParams();
-      query.set("per_page", "100");
-      const assignments = await requestArray(
-        `/api/v1/courses/${encodeURIComponent(input.courseId)}/assignments`,
-        query,
-      );
-      const normalizedAssignments = assignments
-        .map((assignment) => parseAssignmentRecord(input.courseId, assignment))
-        .filter((assignment): assignment is GradebookAssignmentRecord => assignment !== null);
-      return normalizedAssignments;
+      return listAssignmentsForCourse(input.courseId);
     },
     listEnrollments: async (input): Promise<readonly GradebookEnrollmentRecord[]> => {
       const enrollments = await listRawEnrollments(input);
@@ -340,25 +446,7 @@ export const createCanvasGradebookProvider = (
       return normalizedEnrollments;
     },
     listSubmissions: async (input): Promise<readonly GradebookSubmissionRecord[]> => {
-      const query = new URLSearchParams();
-      query.set("per_page", "100");
-
-      if (input.assignmentId !== undefined) {
-        query.append("assignment_ids[]", input.assignmentId);
-      }
-
-      if (input.learnerId !== undefined) {
-        query.append("student_ids[]", input.learnerId);
-      }
-
-      const submissions = await requestArray(
-        `/api/v1/courses/${encodeURIComponent(input.courseId)}/students/submissions`,
-        query,
-      );
-      const normalizedSubmissions = submissions
-        .map((submission) => parseSubmissionRecord(input.courseId, submission))
-        .filter((submission): submission is GradebookSubmissionRecord => submission !== null);
-      return normalizedSubmissions;
+      return listSubmissionsForCourse(input);
     },
     listGrades: async (input): Promise<readonly GradebookGradeRecord[]> => {
       const enrollments = await listRawEnrollments(input);
@@ -368,9 +456,21 @@ export const createCanvasGradebookProvider = (
       return normalizedGrades;
     },
     listCompletions: async (input): Promise<readonly GradebookCompletionRecord[]> => {
-      const enrollments = await listRawEnrollments(input);
-      const normalizedCompletions = enrollments
-        .map((enrollment) => parseCompletionRecord(input.courseId, enrollment))
+      const [rawEnrollments, assignments, submissions] = await Promise.all([
+        listRawEnrollments(input),
+        listAssignmentsForCourse(input.courseId),
+        listSubmissionsForCourse({
+          courseId: input.courseId,
+          ...(input.learnerId !== undefined ? { learnerId: input.learnerId } : {}),
+        }),
+      ]);
+      const normalizedEnrollments = rawEnrollments
+        .map((enrollment) => parseEnrollmentRecord(input.courseId, enrollment))
+        .filter((enrollment): enrollment is GradebookEnrollmentRecord => enrollment !== null);
+      const normalizedCompletions = normalizedEnrollments
+        .map((enrollment) =>
+          parseCompletionRecord(input.courseId, enrollment, assignments, submissions),
+        )
         .filter((completion): completion is GradebookCompletionRecord => completion !== null);
       return normalizedCompletions;
     },

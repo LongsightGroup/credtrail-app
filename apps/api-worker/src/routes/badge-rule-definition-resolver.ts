@@ -107,12 +107,7 @@ function resolveCourseListCondition(
     return {
       type: "course_completion" as const,
       courseId,
-      ...(condition.requireCompleted === undefined
-        ? {}
-        : { requireCompleted: condition.requireCompleted }),
-      ...(condition.minCompletionPercent === undefined
-        ? {}
-        : { minCompletionPercent: condition.minCompletionPercent }),
+      minCompletionPercent: condition.minCompletionPercent,
     };
   });
 

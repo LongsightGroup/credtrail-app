@@ -66,12 +66,12 @@ export const tenantAccessOrgUnitCreatePath = (tenantId: string): string => {
   return `${buildAccessOrgUnitsAdminPath(tenantId)}/create`;
 };
 
-export const tenantBadgeRuleSubmitApprovalAdminPath = (
+export const tenantBadgeRuleApproveDraftAdminPath = (
   tenantId: string,
   ruleId: string,
   versionId: string,
 ): string => {
-  return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(versionId)}/submit-approval`;
+  return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(versionId)}/approve-draft`;
 };
 
 export const tenantBadgeRuleDecisionAdminPath = (

@@ -25,17 +25,13 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
 
         condition = {
           type: 'course_completion',
-          requireCompleted: readCheckboxFromCard(card, 'requireCompleted'),
+          minCompletionPercent: minCompletionPercent ?? 100,
           ...(courseListId.length > 0
             ? { courseListId }
             : {
                 courseId: courseId.length > 0 ? courseId : 'COURSE_ID',
               }),
         };
-
-        if (minCompletionPercent !== null) {
-          condition.minCompletionPercent = minCompletionPercent;
-        }
       } else if (conditionType === 'grade_threshold') {
         const courseId = readFieldFromCard(card, 'courseId');
         const courseListId = readFieldFromCard(card, 'courseListId');
@@ -265,7 +261,13 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
       }
 
       if (leaf.type === 'course_completion') {
-        return 'Course ' + (leaf.courseId ?? leaf.courseListId ?? 'selected') + ' must be complete.';
+        return (
+          'At least ' +
+          String(leaf.minCompletionPercent ?? 100) +
+          '% of gradebook items in ' +
+          (leaf.courseId ?? leaf.courseListId ?? 'selected course') +
+          ' must be complete.'
+        );
       }
 
       if (leaf.type === 'grade_threshold') {
@@ -511,24 +513,21 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
       return Array.from(entries.values());
     };
 
-    const buildSampleFactsPreview = (conditions) => {
-      const advancedFactsJson = getTextFieldValue('testFactsJson');
-
-      if (advancedFactsJson.length > 0) {
-        try {
-          return JSON.stringify(JSON.parse(advancedFactsJson), null, 2);
-        } catch {
-          return 'Advanced facts JSON is invalid.';
-        }
-      }
-
+    const buildSampleFactsFromConditions = (conditions) => {
       const learnerId = getTextFieldValue('testLearnerId') || 'canvas:12345';
-      const courseId = getTextFieldValue('testCourseId') || getDefaultCourseId() || getCoursePlaceholder();
+      const courseId = getDefaultCourseId() || getCoursePlaceholder();
       const parsedFinalScore = Number(getTextFieldValue('testFinalScore'));
       const finalScore =
         Number.isFinite(parsedFinalScore) && parsedFinalScore >= 0 && parsedFinalScore <= 100
           ? parsedFinalScore
           : 92;
+      const parsedCompletionPercent = Number(getTextFieldValue('testCompletionPercent'));
+      const completionPercent =
+        Number.isFinite(parsedCompletionPercent) &&
+        parsedCompletionPercent >= 0 &&
+        parsedCompletionPercent <= 100
+          ? parsedCompletionPercent
+          : 100;
       const facts = {
         grades: [],
         completions: [],
@@ -560,8 +559,8 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
             facts.completions.push({
               courseId: entryCourseId,
               learnerId,
-              completed: getCheckboxFieldValue('testCompleted'),
-              completionPercent: getCheckboxFieldValue('testCompleted') ? 100 : 0,
+              completed: completionPercent >= 100,
+              completionPercent,
             });
           });
           return;
@@ -604,7 +603,21 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_MODEL_JS = `
         }
       });
 
-      return JSON.stringify(facts, null, 2);
+      return facts;
+    };
+
+    const buildSampleFactsPreview = (conditions) => {
+      const advancedFactsJson = getTextFieldValue('testFactsJson');
+
+      if (advancedFactsJson.length > 0) {
+        try {
+          return JSON.stringify(JSON.parse(advancedFactsJson), null, 2);
+        } catch {
+          return 'Advanced facts JSON is invalid.';
+        }
+      }
+
+      return JSON.stringify(buildSampleFactsFromConditions(conditions), null, 2);
     };
 
     const renderSourceReadiness = () => {

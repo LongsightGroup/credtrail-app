@@ -293,26 +293,14 @@ const evaluatePredicate = (
         };
       }
 
-      const requireCompleted = condition.requireCompleted ?? true;
-
-      if (requireCompleted && !completion.completed) {
-        return {
-          type: "course_completion",
-          matched: false,
-          detail: `Course ${courseId} is not marked completed`,
-          resultKind: "failed_condition",
-        };
-      }
-
       if (
-        condition.minCompletionPercent !== undefined &&
-        (completion.completionPercent === null ||
-          completion.completionPercent < condition.minCompletionPercent)
+        completion.completionPercent === null ||
+        completion.completionPercent < condition.minCompletionPercent
       ) {
         return {
           type: "course_completion",
           matched: false,
-          detail: `Completion percent for course ${courseId} is below ${String(condition.minCompletionPercent)}`,
+          detail: `Gradebook item completion for course ${courseId} is below ${String(condition.minCompletionPercent)}%`,
           resultKind: "failed_condition",
         };
       }

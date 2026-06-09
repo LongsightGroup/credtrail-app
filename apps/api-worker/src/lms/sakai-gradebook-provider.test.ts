@@ -11,24 +11,29 @@ const createMockFetch = (
   routes: readonly MockRoute[],
 ): {
   fetchImpl: typeof fetch;
-  requests: string[];
+  requests: { pathWithQuery: string; authorization: string | null; cookie: string | null }[];
 } => {
   const routeMap = new Map<string, MockRoute>(
     routes.map((route) => {
       return [route.pathWithQuery, route];
     }),
   );
-  const requests: string[] = [];
+  const requests: { pathWithQuery: string; authorization: string | null; cookie: string | null }[] =
+    [];
 
   const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const request = input instanceof Request ? input : new Request(input, init);
     const requestUrl = new URL(request.url);
     const routeKey = `${requestUrl.pathname}${requestUrl.search}`;
-    requests.push(routeKey);
+    requests.push({
+      pathWithQuery: routeKey,
+      authorization: request.headers.get("authorization"),
+      cookie: request.headers.get("cookie"),
+    });
     const route = routeMap.get(routeKey);
 
     if (
-      request.headers.get("authorization") !== "Bearer sakai-token" ||
+      request.headers.get("authorization") !== null ||
       request.headers.get("cookie") !== "SAKAIID=sakai-token"
     ) {
       return Promise.resolve(
@@ -75,7 +80,7 @@ const createMockFetch = (
 
 describe("createSakaiGradebookProvider", () => {
   it("maps Sakai API responses to normalized records", async () => {
-    const { fetchImpl } = createMockFetch([
+    const { fetchImpl, requests } = createMockFetch([
       {
         pathWithQuery: "/api/users/me/sites",
         responseBody: {
@@ -102,6 +107,13 @@ describe("createSakaiGradebookProvider", () => {
               name: "Capstone Project",
               points: 100,
               dueDate: "2026-02-10T00:00:00.000Z",
+              released: true,
+            },
+            {
+              id: "assignment-2",
+              name: "Reflection",
+              points: 10,
+              dueDate: "2026-02-17T00:00:00.000Z",
               released: true,
             },
           ],
@@ -145,6 +157,9 @@ describe("createSakaiGradebookProvider", () => {
     const grades = await provider.listGrades({ courseId: "site-1" });
     const completions = await provider.listCompletions({ courseId: "site-1" });
 
+    expect(requests.every((request) => request.authorization === null)).toBe(true);
+    expect(requests.every((request) => request.cookie === "SAKAIID=sakai-token")).toBe(true);
+
     expect(courses).toEqual([
       {
         courseId: "site-1",
@@ -164,6 +179,14 @@ describe("createSakaiGradebookProvider", () => {
         workflowState: "published",
         pointsPossible: 100,
         dueAt: "2026-02-10T00:00:00.000Z",
+      },
+      {
+        assignmentId: "assignment-2",
+        courseId: "site-1",
+        title: "Reflection",
+        workflowState: "published",
+        pointsPossible: 10,
+        dueAt: "2026-02-17T00:00:00.000Z",
       },
     ]);
 
@@ -207,10 +230,71 @@ describe("createSakaiGradebookProvider", () => {
       {
         courseId: "site-1",
         learnerId: "learner-1",
+        completed: false,
+        completedAt: null,
+        completionPercent: 50,
+        sourceState: "gradebook_items",
+      },
+    ]);
+  });
+
+  it("marks Sakai course completion only when every gradebook item is completed", async () => {
+    const { fetchImpl } = createMockFetch([
+      {
+        pathWithQuery: "/api/sites/site-1/grading/full-gradebook",
+        responseBody: {
+          siteId: "site-1",
+          columns: [
+            {
+              id: "assignment-1",
+              name: "Capstone Project",
+            },
+            {
+              id: "assignment-2",
+              name: "Reflection",
+            },
+          ],
+          students: [
+            {
+              userEid: "learner-1",
+              courseGrade: {
+                calculatedGrade: "92",
+              },
+              grades: {
+                "assignment-1": {
+                  grade: "95",
+                  gradeReleased: true,
+                  excused: false,
+                },
+                "assignment-2": {
+                  grade: null,
+                  gradeReleased: true,
+                  excused: true,
+                },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const provider = createSakaiGradebookProvider({
+      config: {
+        kind: "sakai",
+        apiBaseUrl: "https://sakai.example.edu",
+        accessToken: "sakai-token",
+      },
+      fetchImpl,
+    });
+
+    await expect(provider.listCompletions({ courseId: "site-1" })).resolves.toEqual([
+      {
+        courseId: "site-1",
+        learnerId: "learner-1",
         completed: true,
         completedAt: null,
-        completionPercent: 92,
-        sourceState: "graded",
+        completionPercent: 100,
+        sourceState: "gradebook_items",
       },
     ]);
   });
@@ -242,7 +326,7 @@ describe("createSakaiGradebookProvider", () => {
 
     expect(
       requests.filter(
-        (pathWithQuery) => pathWithQuery === "/api/sites/site-1/grading/full-gradebook",
+        (request) => request.pathWithQuery === "/api/sites/site-1/grading/full-gradebook",
       ),
     ).toHaveLength(1);
   });

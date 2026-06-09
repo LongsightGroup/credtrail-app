@@ -343,14 +343,6 @@ export const createPublicBadgePageRenderers = (
         );
       }
       case "course_completion": {
-        const completionTarget =
-          condition.minCompletionPercent === undefined
-            ? ""
-            : ` and reach at least ${String(condition.minCompletionPercent)}% completion`;
-        const completionRequirement =
-          condition.requireCompleted === false
-            ? "Completion does not need to be marked complete"
-            : "The course must be marked complete";
         const courseLabel =
           condition.courseId ??
           (condition.courseListId === undefined
@@ -358,8 +350,8 @@ export const createPublicBadgePageRenderers = (
             : `course list ${condition.courseListId}`);
         return (
           <li>
-            For course {courseLabel}, {completionRequirement}
-            {completionTarget}.
+            For course {courseLabel}, at least {String(condition.minCompletionPercent)}% of
+            gradebook items must be completed.
           </li>
         );
       }

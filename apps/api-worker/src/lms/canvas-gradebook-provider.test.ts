@@ -7,17 +7,24 @@ interface MockRoute {
   status?: number;
 }
 
-const createMockFetch = (routes: readonly MockRoute[]): typeof fetch => {
+interface RecordingMockFetch {
+  fetchImpl: typeof fetch;
+  requests: string[];
+}
+
+const createRecordingMockFetch = (routes: readonly MockRoute[]): RecordingMockFetch => {
   const routeMap = new Map<string, MockRoute>(
     routes.map((route) => {
       return [route.pathWithQuery, route];
     }),
   );
+  const requests: string[] = [];
 
-  return ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const request = input instanceof Request ? input : new Request(input, init);
     const requestUrl = new URL(request.url);
     const routeKey = `${requestUrl.pathname}${requestUrl.search}`;
+    requests.push(routeKey);
     const route = routeMap.get(routeKey);
 
     if (route === undefined) {
@@ -61,6 +68,15 @@ const createMockFetch = (routes: readonly MockRoute[]): typeof fetch => {
       }),
     );
   }) as typeof fetch;
+
+  return {
+    fetchImpl,
+    requests,
+  };
+};
+
+const createMockFetch = (routes: readonly MockRoute[]): typeof fetch => {
+  return createRecordingMockFetch(routes).fetchImpl;
 };
 
 describe("createCanvasGradebookProvider", () => {
@@ -154,6 +170,21 @@ describe("createCanvasGradebookProvider", () => {
             {
               user_id: null,
               assignment_id: 8,
+            },
+          ],
+        },
+        {
+          pathWithQuery: "/api/v1/courses/course-42/students/submissions?per_page=100",
+          responseBody: [
+            {
+              user_id: 11,
+              assignment_id: 7,
+              workflow_state: "graded",
+              score: 96.5,
+              submitted_at: "2026-02-04T00:00:00.000Z",
+              graded_at: "2026-02-05T00:00:00.000Z",
+              late: false,
+              missing: false,
             },
           ],
         },
@@ -269,18 +300,18 @@ describe("createCanvasGradebookProvider", () => {
       {
         courseId: "course-42",
         learnerId: "11",
-        completed: false,
+        completed: true,
         completedAt: null,
-        completionPercent: 90,
-        sourceState: "active",
+        completionPercent: 100,
+        sourceState: "gradebook_items",
       },
       {
         courseId: "course-42",
         learnerId: "12",
-        completed: true,
-        completedAt: "2026-02-10T00:00:00.000Z",
-        completionPercent: 96.5,
-        sourceState: "concluded",
+        completed: false,
+        completedAt: null,
+        completionPercent: 0,
+        sourceState: "gradebook_items",
       },
     ]);
   });
@@ -329,5 +360,91 @@ describe("createCanvasGradebookProvider", () => {
     await expect(provider.listCourses()).rejects.toThrowError(
       "Canvas gradebook API response must be a JSON array for /api/v1/courses",
     );
+  });
+
+  it("reuses all-submissions completion fetches for assignment submission lookups", async () => {
+    const mockFetch = createRecordingMockFetch([
+      {
+        pathWithQuery:
+          "/api/v1/courses/course-42/enrollments?per_page=100&type%5B%5D=StudentEnrollment&student_ids%5B%5D=11",
+        responseBody: [
+          {
+            user_id: 11,
+            enrollment_state: "active",
+            type: "StudentEnrollment",
+          },
+        ],
+      },
+      {
+        pathWithQuery: "/api/v1/courses/course-42/assignments?per_page=100",
+        responseBody: [
+          {
+            id: 7,
+            name: "Capstone Project",
+            workflow_state: "published",
+            points_possible: 100,
+          },
+        ],
+      },
+      {
+        pathWithQuery:
+          "/api/v1/courses/course-42/students/submissions?per_page=100&student_ids%5B%5D=11",
+        responseBody: [
+          {
+            user_id: 11,
+            assignment_id: 7,
+            workflow_state: "graded",
+            score: 96.5,
+            graded_at: "2026-02-05T00:00:00.000Z",
+            missing: false,
+          },
+        ],
+      },
+    ]);
+    const provider = createCanvasGradebookProvider({
+      config: {
+        kind: "canvas",
+        apiBaseUrl: "https://canvas.example.edu",
+        accessToken: "canvas-token",
+      },
+      fetchImpl: mockFetch.fetchImpl,
+    });
+
+    await provider.listCompletions({
+      courseId: "course-42",
+      learnerId: "11",
+    });
+    const submissions = await provider.listSubmissions({
+      courseId: "course-42",
+      assignmentId: "7",
+      learnerId: "11",
+    });
+
+    expect(submissions).toEqual([
+      {
+        courseId: "course-42",
+        assignmentId: "7",
+        learnerId: "11",
+        workflowState: "graded",
+        score: 96.5,
+        submittedAt: null,
+        gradedAt: "2026-02-05T00:00:00.000Z",
+        late: null,
+        missing: false,
+      },
+    ]);
+    expect(
+      mockFetch.requests.filter((request) => {
+        return (
+          request ===
+          "/api/v1/courses/course-42/students/submissions?per_page=100&student_ids%5B%5D=11"
+        );
+      }),
+    ).toHaveLength(1);
+    expect(
+      mockFetch.requests.some((request) => {
+        return request.includes("assignment_ids%5B%5D=7");
+      }),
+    ).toBe(false);
   });
 });

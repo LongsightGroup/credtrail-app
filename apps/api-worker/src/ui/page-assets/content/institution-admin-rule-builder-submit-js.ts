@@ -35,10 +35,8 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
       const learnerId = getTextFieldValue('testLearnerId');
       const recipientIdentity = getTextFieldValue('testRecipientIdentity').toLowerCase();
       const lmsConnectionId = getTextFieldValue('lmsConnectionId');
-      const sampleCourseId = getTextFieldValue('testCourseId');
       const sampleFinalScoreText = getTextFieldValue('testFinalScore');
       const testFactsJson = getTextFieldValue('testFactsJson');
-      const testCompleted = getCheckboxFieldValue('testCompleted');
 
       if (learnerId.length === 0 || recipientIdentity.length === 0) {
         const message = 'Test mode requires learner ID and recipient email.';
@@ -77,7 +75,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
           syncRuleBuilderSummary(message);
           return;
         }
-      } else if (sampleCourseId.length > 0) {
+      } else {
         const sampleFinalScore = Number(sampleFinalScoreText);
 
         if (!Number.isFinite(sampleFinalScore) || sampleFinalScore < 0 || sampleFinalScore > 100) {
@@ -91,23 +89,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
           return;
         }
 
-        facts = {
-          grades: [
-            {
-              courseId: sampleCourseId,
-              learnerId,
-              finalScore: sampleFinalScore,
-            },
-          ],
-          completions: [
-            {
-              courseId: sampleCourseId,
-              learnerId,
-              completed: testCompleted,
-              completionPercent: testCompleted ? 100 : 0,
-            },
-          ],
-        };
+        facts = buildSampleFactsFromConditions(readConditionsForPreview());
       }
 
       try {
@@ -390,12 +372,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUBMIT_JS = `
       badgeTemplateField.addEventListener('change', () => {
         syncSuggestedRuleName();
         syncRuleBuilderSummary();
-
-        const courseId = getDefaultCourseId();
-
-        if (courseId.length > 0) {
-          setRuleCreateFieldValue('testCourseId', courseId);
-        }
 
         if (ruleBuilderTemplatePreset instanceof HTMLSelectElement) {
           applyTemplatePreset();

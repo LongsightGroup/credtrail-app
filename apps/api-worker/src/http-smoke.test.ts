@@ -96,8 +96,10 @@ describe("security headers", () => {
     expectDirectiveContains(directives, "object-src", "'none'");
     expectDirectiveContains(directives, "script-src", "'self'");
     expectDirectiveContains(directives, "script-src", "'report-sample'");
+    expectDirectiveContains(directives, "script-src", "https://static.cloudflareinsights.com");
     expectDirectiveContains(directives, "script-src-attr", "'none'");
     expectDirectiveContains(directives, "style-src", "'self'");
+    expectDirectiveContains(directives, "connect-src", "https://cloudflareinsights.com");
     expectDirectiveOmits(directives, "script-src", "https://challenges.cloudflare.com");
     expectDirectiveOmits(directives, "style-src", "'unsafe-inline'");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");

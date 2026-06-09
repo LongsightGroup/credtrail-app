@@ -139,10 +139,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUMMARY_JS = `
         }
       });
 
-      if (ruleBuilderConditionEmpty instanceof HTMLElement) {
-        ruleBuilderConditionEmpty.hidden = cards.length > 0;
-      }
-
       if (ruleBuilderCanvasCount instanceof HTMLElement) {
         ruleBuilderCanvasCount.textContent =
           String(cards.length) + (cards.length === 1 ? ' requirement' : ' requirements');
@@ -571,7 +567,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_SUMMARY_JS = `
         addConditionToCanvas({
           type: 'course_completion',
           courseId: getDefaultCourseId() || getCoursePlaceholder(),
-          requireCompleted: true,
+          minCompletionPercent: 100,
           negate: false,
         });
       }

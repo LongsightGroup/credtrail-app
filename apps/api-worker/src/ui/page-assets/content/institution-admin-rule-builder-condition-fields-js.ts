@@ -184,14 +184,17 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_FIELDS_JS = `
             : typeof condition.courseId === 'string' && condition.courseId.length > 0
               ? condition.courseId
               : 'the course';
-        const completionLabel =
-          condition.requireCompleted === false ? 'started ' : 'completed ';
-        const minPercent =
+        const completionPercent =
           typeof condition.minCompletionPercent === 'number'
-            ? ' with at least ' + String(condition.minCompletionPercent) + '% completion'
-            : '';
+            ? condition.minCompletionPercent
+            : 100;
 
-        return 'Learner has ' + completionLabel + courseLabel + minPercent;
+        return (
+          'Learner has completed at least ' +
+          String(completionPercent) +
+          '% of gradebook items in ' +
+          courseLabel
+        );
       }
 
       if (condition.type === 'grade_threshold') {

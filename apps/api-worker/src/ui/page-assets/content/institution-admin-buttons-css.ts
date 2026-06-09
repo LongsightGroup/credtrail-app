@@ -75,6 +75,7 @@ export const INSTITUTION_ADMIN_BUTTONS_CSS = `
     background: var(--ct-theme-surface-danger);
   }
 
+  .ct-admin__form button.ct-admin__button--danger:hover:not(:disabled),
   .ct-admin__button--danger:hover:not(:disabled) {
     background: #ffe8e3;
     border-color: rgba(173, 61, 49, 0.34);
@@ -267,6 +268,12 @@ export const INSTITUTION_ADMIN_BUTTONS_CSS = `
   justify-content: flex-start;
   justify-self: start;
   gap: 0.45rem;
+}
+.ct-admin__table .ct-admin__actions {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.32rem;
+  white-space: nowrap;
 }
 .ct-admin__actions--end {
   justify-content: flex-end;

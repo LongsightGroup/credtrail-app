@@ -1169,7 +1169,7 @@ describe("badge rule routes", () => {
                 {
                   type: "course_completion",
                   courseId: "course_101",
-                  requireCompleted: true,
+                  minCompletionPercent: 100,
                 },
                 {
                   type: "grade_threshold",
@@ -1190,6 +1190,7 @@ describe("badge rule routes", () => {
                 courseId: "course_101",
                 learnerId: "learner_123",
                 completed: true,
+                completionPercent: 100,
               },
             ],
             grades: [
@@ -1316,7 +1317,7 @@ describe("badge rule routes", () => {
                 {
                   type: "course_completion",
                   courseListId: "brvl_123",
-                  requireCompleted: true,
+                  minCompletionPercent: 100,
                 },
                 {
                   type: "grade_threshold",
@@ -1337,6 +1338,7 @@ describe("badge rule routes", () => {
                 courseId: "course_101",
                 learnerId: "learner_123",
                 completed: true,
+                completionPercent: 100,
               },
             ],
             grades: [
@@ -1426,7 +1428,7 @@ describe("badge rule routes", () => {
                 {
                   type: "course_completion",
                   courseId: "course_101",
-                  requireCompleted: true,
+                  minCompletionPercent: 100,
                 },
                 {
                   type: "grade_threshold",
@@ -1567,7 +1569,7 @@ describe("badge rule routes", () => {
                 {
                   type: "course_completion",
                   courseId: "course_101",
-                  requireCompleted: true,
+                  minCompletionPercent: 100,
                 },
                 {
                   type: "grade_threshold",
@@ -1662,7 +1664,7 @@ describe("badge rule routes", () => {
               {
                 type: "course_completion",
                 courseId: "course_101",
-                requireCompleted: true,
+                minCompletionPercent: 100,
               },
               {
                 type: "grade_threshold",

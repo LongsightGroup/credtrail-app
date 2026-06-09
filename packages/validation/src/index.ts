@@ -1186,17 +1186,51 @@ const badgeIssuanceRuleGradeThresholdConditionSchema = z
     }
   });
 
-const badgeIssuanceRuleCourseCompletionConditionSchema = z
-  .object({
-    type: z.literal("course_completion"),
-    courseId: z.string().trim().min(1).max(255).optional(),
-    courseListId: resourceIdSchema.optional(),
-    requireCompleted: z.boolean().optional(),
-    minCompletionPercent: z.number().finite().min(0).max(100).optional(),
-  })
-  .superRefine((value, ctx) => {
-    badgeIssuanceRuleCourseReferenceRefinement(value, ctx);
-  });
+const normalizeBadgeIssuanceRuleCourseCompletionConditionInput = (input: unknown): unknown => {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return input;
+  }
+
+  const candidate = input as {
+    type?: unknown;
+    requireCompleted?: unknown;
+    minCompletionPercent?: unknown;
+  };
+
+  if (candidate.type !== "course_completion") {
+    return input;
+  }
+
+  const condition: {
+    type?: unknown;
+    requireCompleted?: unknown;
+    minCompletionPercent?: unknown;
+  } = { ...candidate };
+  delete condition.requireCompleted;
+
+  if (condition.minCompletionPercent !== undefined) {
+    return condition;
+  }
+
+  return {
+    ...condition,
+    minCompletionPercent: candidate.requireCompleted === false ? 0 : 100,
+  };
+};
+
+const badgeIssuanceRuleCourseCompletionConditionSchema = z.preprocess(
+  normalizeBadgeIssuanceRuleCourseCompletionConditionInput,
+  z
+    .object({
+      type: z.literal("course_completion"),
+      courseId: z.string().trim().min(1).max(255).optional(),
+      courseListId: resourceIdSchema.optional(),
+      minCompletionPercent: z.number().finite().min(0).max(100),
+    })
+    .superRefine((value, ctx) => {
+      badgeIssuanceRuleCourseReferenceRefinement(value, ctx);
+    }),
+);
 
 const badgeIssuanceRuleProgramCompletionConditionSchema = z
   .object({
