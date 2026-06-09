@@ -56,6 +56,22 @@ interface IssueBadgeBindings {
   TRANSACTIONAL_EMAIL_FROM_NAME?: string | undefined;
 }
 
+const canonicalCredentialBaseUrl = (bindings: IssueBadgeBindings, requestUrl: string): string => {
+  const requestBaseUrl = new URL(requestUrl);
+  const platformDomain = bindings.PLATFORM_DOMAIN.trim();
+
+  if (
+    platformDomain.length === 0 ||
+    platformDomain === "localhost" ||
+    platformDomain.startsWith("localhost:") ||
+    platformDomain === requestBaseUrl.host
+  ) {
+    return requestBaseUrl.origin;
+  }
+
+  return `https://${platformDomain}`;
+};
+
 interface IssueBadgeHttpErrorPayload {
   error: string;
   did?: string | undefined;
@@ -254,6 +270,7 @@ export const createIssueBadgeForTenant = <
     });
 
     const requestBaseUrl = new URL(context.req.url);
+    const credentialBaseUrl = canonicalCredentialBaseUrl(context.env, context.req.url);
     const learnerProfile = await resolveLearnerProfileForIdentity(db, {
       tenantId,
       identityType: request.recipientIdentityType,
@@ -265,10 +282,7 @@ export const createIssueBadgeForTenant = <
     const issuedAt = new Date().toISOString();
     const assertionId = createTenantScopedId(tenantId);
     const statusListIndex = await nextAssertionStatusListIndex(db, tenantId);
-    const statusListCredentialUrl = revocationStatusListUrlForTenant(
-      requestBaseUrl.toString(),
-      tenantId,
-    );
+    const statusListCredentialUrl = revocationStatusListUrlForTenant(credentialBaseUrl, tenantId);
     const learnerIdentities = await listLearnerIdentitiesByProfile(db, tenantId, learnerProfile.id);
     const learnerDidSubjectId =
       learnerIdentities.find((identity) => identity.identityType === "did")?.identityValue ??

@@ -831,11 +831,15 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       ? body.credential["@context"]
       : [];
     const credentialSubject = asJsonObject(body.credential.credentialSubject);
+    const credentialStatus = asJsonObject(body.credential.credentialStatus);
     const achievement = asJsonObject(credentialSubject?.achievement);
     const proof = asJsonObject(body.credential.proof);
 
     expect(response.status).toBe(201);
     expect(contextEntries).toContain("https://credtrail.org/ns/trusted-credential/v1");
+    expect(asString(credentialStatus?.statusListCredential)).toBe(
+      "https://credtrail.test/credentials/v1/status-lists/tenant_123/revocation",
+    );
     expect(asString(proof?.type)).toBe("DataIntegrityProof");
     expect(asString(proof?.cryptosuite)).toBe("eddsa-rdfc-2022");
     expect(achievement).toEqual(
