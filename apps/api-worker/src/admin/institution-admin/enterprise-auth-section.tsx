@@ -273,7 +273,7 @@ export const renderEnterpriseAuthSection = (
           <input name="isDefault" type="checkbox" checked={editingProvider?.isDefault === true} />
           Set as default provider
         </AdminCheckboxRow>
-        <div class="ct-cluster">
+        <AdminActions>
           <AdminButton type="submit">
             {editingProvider === null ? "Save provider" : "Update provider"}
           </AdminButton>
@@ -285,7 +285,7 @@ export const renderEnterpriseAuthSection = (
               Clear form
             </AdminButtonLink>
           )}
-        </div>
+        </AdminActions>
       </AdminForm>
       <AdminTable
         headers={["Provider", "Protocol", "Role", "Status", "Updated", "Actions"]}

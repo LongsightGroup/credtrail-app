@@ -2,6 +2,7 @@ import type { HtmlEscapedString } from "hono/utils/html";
 import type { LearnerRecordImportRowReport } from "../../learner-record/learner-record-import";
 import { formatIsoTimestamp } from "../../utils/display-format";
 import {
+  AdminActions,
   AdminButton,
   AdminButtonLink,
   AdminCtaLink,
@@ -162,7 +163,7 @@ export const renderInstitutionAdminLearnerRecordSections = (
           These links point to the real Phase 27 runtime endpoints for the selected learner. They do
           not imply transcript exchange or full CLR conformance.
         </p>
-        <div class="ct-admin__workspace-actions">
+        <AdminActions>
           {learnerRecordReview.exportPath === null ? null : (
             <AdminCtaLink href={learnerRecordReview.exportPath}>
               Download native portable export
@@ -173,7 +174,7 @@ export const renderInstitutionAdminLearnerRecordSections = (
               Open standards mapping
             </AdminCtaLink>
           )}
-        </div>
+        </AdminActions>
       </AdminPanel>
     );
 
@@ -250,12 +251,12 @@ export const renderInstitutionAdminLearnerRecordSections = (
             placeholder="learner@example.edu"
           />
         </AdminField>
-        <div class="ct-admin__workspace-actions">
+        <AdminActions>
           <AdminButton type="submit">Load learner record</AdminButton>
           <AdminButtonLink href={operationsLearnerRecordsPath} variant="secondary">
             Clear lookup
           </AdminButtonLink>
-        </div>
+        </AdminActions>
       </AdminForm>
     </AdminPanel>
   );
@@ -377,9 +378,9 @@ export const renderInstitutionAdminLearnerRecordSections = (
               name="batchId"
               value={learnerRecordImportWorkflow.submission.queueForm.batchId}
             />
-            <div class="ct-admin__workspace-actions">
+            <AdminActions>
               <AdminButton type="submit">Queue reviewed import</AdminButton>
-            </div>
+            </AdminActions>
           </AdminForm>
         )}
         <AdminTable
@@ -480,11 +481,11 @@ export const renderInstitutionAdminLearnerRecordSections = (
         matching org-unit and badge-template context when current organization data supports it.
         Pathway labels stay explicit imported metadata.
       </p>
-      <div class="ct-admin__workspace-actions">
+      <AdminActions>
         <AdminCtaLink href={learnerRecordImportWorkflow.templatePath}>
           Download CSV template
         </AdminCtaLink>
-      </div>
+      </AdminActions>
       <AdminForm
         method="post"
         encType="multipart/form-data"
@@ -525,9 +526,9 @@ export const renderInstitutionAdminLearnerRecordSections = (
         <p class="ct-admin__hint">
           Defaults come from the current org-unit structure and badge-template ownership.
         </p>
-        <div class="ct-admin__workspace-actions">
+        <AdminActions>
           <AdminButton type="submit">Preview import</AdminButton>
-        </div>
+        </AdminActions>
       </AdminForm>
     </AdminPanel>
   );

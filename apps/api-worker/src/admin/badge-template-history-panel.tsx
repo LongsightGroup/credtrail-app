@@ -5,7 +5,7 @@ import type { BadgeTemplateHistoryTimelineEntry } from "../badges/badge-template
 import type { BadgeTemplateListPageQueryOptions } from "./badge-template-admin-helpers";
 import { buildBadgeTemplateListPageQuery } from "./badge-template-admin-helpers";
 import { formatIsoTimestamp } from "../utils/display-format";
-import { AdminButton, AdminForm } from "./components";
+import { AdminActions, AdminButton, AdminForm } from "./components";
 
 const badgeTemplateImageRevisionSourceLabel = (
   sourceType: BadgeTemplateImageRevisionRecord["sourceType"],
@@ -104,7 +104,7 @@ export const BadgeTemplateImageRevisionList = ({
                 {previousImageUri.length > 0 ? "Restore the previous image" : "Restore to no image"}
               </span>
             </div>
-            <div class="ct-admin__image-revision-actions">
+            <AdminActions align="end">
               {previousImageUri.length > 0 ? (
                 <a
                   class="ct-admin__text-action"
@@ -120,7 +120,7 @@ export const BadgeTemplateImageRevisionList = ({
                   Restore
                 </AdminButton>
               </AdminForm>
-            </div>
+            </AdminActions>
           </div>
         );
       })}

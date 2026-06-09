@@ -7,6 +7,7 @@ import {
 } from "../../reporting/reporting-page-filters";
 import { formatIsoTimestamp } from "../../utils/display-format";
 import {
+  AdminActions,
   AdminButton,
   AdminButtonLink,
   AdminEmptyTableRow,
@@ -182,7 +183,7 @@ export const renderInstitutionAdminReportingSections = (
         Download CSV files for the selected filters. These links preserve issue date, badge,
         organization, and lifecycle state selections.
       </p>
-      <div class="ct-cluster">
+      <AdminActions>
         <AdminButtonLink href={reportingOverviewExportHref} variant="secondary">
           Overview CSV
         </AdminButtonLink>
@@ -198,7 +199,7 @@ export const renderInstitutionAdminReportingSections = (
         <AdminButtonLink href={reportingOrgUnitComparisonExportHref} variant="secondary">
           Org-unit comparisons CSV
         </AdminButtonLink>
-      </div>
+      </AdminActions>
       <p class="ct-admin__hint">
         Recipient-level ledger export stays in Operations for owner/admin users and does not appear
         in the reporting workspace.
@@ -719,14 +720,14 @@ export const renderInstitutionAdminReportingSections = (
           <AdminStatusPill>{state === "rich" ? "Top rows" : "Current view"}</AdminStatusPill>
         </div>
         {visualMarkup}
-        <div class="ct-admin__reporting-highlight-actions">
+        <AdminActions>
           <AdminButtonLink href={input.actionHref} variant="secondary">
             Open Explore
           </AdminButtonLink>
           <AdminButtonLink href={input.exportHref} variant="ghost">
             Export CSV
           </AdminButtonLink>
-        </div>
+        </AdminActions>
       </AdminPanel>
     );
   };
@@ -793,12 +794,12 @@ export const renderInstitutionAdminReportingSections = (
             </option>
           </select>
         </AdminField>
-        <div class="ct-cluster">
+        <AdminActions>
           <AdminButton type="submit">Apply filters</AdminButton>
           <AdminButtonLink href={resetPath} variant="secondary">
             Reset
           </AdminButtonLink>
-        </div>
+        </AdminActions>
       </AdminForm>
       <p
         id="reporting-filters-status"
@@ -1095,11 +1096,11 @@ export const renderInstitutionAdminReportingSections = (
           ))}
         </div>
       )}
-      <div class="ct-admin__reporting-highlight-actions">
+      <AdminActions>
         <AdminButtonLink href={reportingExploreHref} variant="secondary">
           Open Explore
         </AdminButtonLink>
-      </div>
+      </AdminActions>
     </AdminPanel>
   );
   const reportingDeepLinksMarkup = (
@@ -1131,14 +1132,14 @@ export const renderInstitutionAdminReportingSections = (
         Reserved for named reports that preserve filters, audience, and export intent. For now, use
         Highlights for the default read and Explore for the exact table workspace.
       </p>
-      <div class="ct-admin__reporting-highlight-actions">
+      <AdminActions>
         <AdminButtonLink href={reportingPath} variant="secondary">
           Open Highlights
         </AdminButtonLink>
         <AdminButtonLink href={reportingExploreHref} variant="ghost">
           Open Explore
         </AdminButtonLink>
-      </div>
+      </AdminActions>
     </AdminPanel>
   );
   const reportingCustomReportsPanelMarkup = (
@@ -1154,14 +1155,14 @@ export const renderInstitutionAdminReportingSections = (
         Custom report builders and reusable export profiles are planned. Current filters still
         travel through Explore, Trends, and Reports.
       </p>
-      <div class="ct-admin__reporting-highlight-actions">
+      <AdminActions>
         <AdminButtonLink href={reportingExploreHref} variant="secondary">
           Build from Explore
         </AdminButtonLink>
         <AdminButtonLink href={reportingReportsExportsHref} variant="ghost">
           Export current view
         </AdminButtonLink>
-      </div>
+      </AdminActions>
     </AdminPanel>
   );
   const reportingReportsLibraryMarkup = (

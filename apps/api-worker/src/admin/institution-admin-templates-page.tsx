@@ -6,6 +6,7 @@ import type {
 } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
+  AdminActions,
   AdminButton,
   AdminButtonLink,
   AdminCheckboxRow,
@@ -652,7 +653,7 @@ export const institutionAdminRuleTemplateEditorPage = (
                     "Add a short description so learners and public viewers know what this badge represents."}
                 </p>
               </div>
-              <div class="ct-admin__template-editor-summary-actions">
+              <AdminActions>
                 <AdminButtonLink
                   href={badgeTemplateShowcaseHref(input.tenant.id, template.id)}
                   variant="secondary"
@@ -669,7 +670,7 @@ export const institutionAdminRuleTemplateEditorPage = (
                 >
                   View criteria
                 </AdminButtonLink>
-              </div>
+              </AdminActions>
             </div>
           </AdminPanel>
           {renderTemplateEditorFields({

@@ -1,5 +1,5 @@
 import type { HtmlEscapedString } from "hono/utils/html";
-import { AdminButtonLink, AdminPanel, AdminTable } from "../components";
+import { AdminActions, AdminButtonLink, AdminPanel, AdminTable } from "../components";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -37,14 +37,14 @@ export const renderInstitutionAdminManagementSections = (
       <p>
         Create and review the rules that award badges from LMS activity and other verified facts.
       </p>
-      <div class="ct-admin__workspace-actions">
+      <AdminActions>
         <AdminButtonLink href={input.ruleBuilderPath} variant="secondary">
           Create badge rule
         </AdminButtonLink>
         <AdminButtonLink href={input.rulesTemplatesPath} variant="ghost">
           Manage badge templates
         </AdminButtonLink>
-      </div>
+      </AdminActions>
       <AdminTable
         headers={[
           "Rule",

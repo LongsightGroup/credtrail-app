@@ -552,8 +552,19 @@ export const AdminFieldset = ({
   );
 };
 
-export const AdminActions = ({ children }: PropsWithChildren): HonoElement => {
-  return <div class="ct-admin__actions">{children}</div>;
+export const AdminActions = ({
+  align = "start",
+  children,
+}: PropsWithChildren<{
+  align?: "start" | "end";
+}>): HonoElement => {
+  const classNames = ["ct-admin__actions"];
+
+  if (align === "end") {
+    classNames.push("ct-admin__actions--end");
+  }
+
+  return <div class={classNames.join(" ")}>{children}</div>;
 };
 
 export const AdminStatus = ({

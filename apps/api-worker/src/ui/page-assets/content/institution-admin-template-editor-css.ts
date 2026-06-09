@@ -74,13 +74,6 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
-.ct-admin__template-editor-summary-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ct-space-2);
-  align-items: center;
-  min-width: 0;
-}
 .ct-admin__template-editor-page-panel {
   display: grid;
   gap: var(--ct-space-3);

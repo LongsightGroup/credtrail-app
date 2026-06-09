@@ -59,6 +59,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).toContain(">Rules<");
     expect(body).not.toContain("Rule Builder Workspace");
     expect(body).toMatch(/>\s*Create badge rule\s*<\/a>/);
+    expect(body).toContain('class="ct-admin__actions"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
     expect(body).toMatch(/>\s*Manage badge templates\s*<\/a>/);
@@ -419,7 +420,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).not.toContain('id="badge-template-editor-history-link"');
     expect(body).not.toContain('data-template-edit-template-id="badge_template_001"');
     expect(body).not.toContain('data-template-manage-image-template-id="badge_template_001"');
-    expect(body).toContain('class="ct-admin__template-actions"');
+    expect(body).toContain('class="ct-admin__actions"');
     expect(body).toContain(
       'class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary" href="/tenants/tenant_123/admin/rules/templates/badge_template_001"',
     );

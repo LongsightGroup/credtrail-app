@@ -9,6 +9,7 @@ import {
 import {
   AdminActionMenu,
   AdminActionMenuLink,
+  AdminActions,
   AdminButtonLink,
   AdminForm,
   AdminStatusPill,
@@ -93,7 +94,7 @@ export const BadgeTemplateAdminTableRow = ({
       </td>
       <td>{formatIsoTimestamp(template.updatedAt)}</td>
       <td>
-        <div class="ct-admin__template-actions">
+        <AdminActions>
           <AdminButtonLink
             href={badgeTemplateAdminEditorHref(tenantId, template.id)}
             variant="secondary"
@@ -154,7 +155,7 @@ export const BadgeTemplateAdminTableRow = ({
               </AdminForm>
             )}
           </AdminActionMenu>
-        </div>
+        </AdminActions>
       </td>
     </tr>
   );

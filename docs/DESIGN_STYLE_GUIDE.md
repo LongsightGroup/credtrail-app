@@ -168,6 +168,8 @@ stripes, and nested card stacks on routine admin pages.
 - When introducing a new visual pattern, add/update tokens before duplicating raw values.
 - Admin link-buttons default to secondary. Use an explicit primary variant only when navigation is the one clear CTA for that region.
 - Admin buttons stay content-sized in grid and cluster layouts; avoid stretching link-buttons to full row width unless that is intentional.
+- Group admin action links and adjacent submit buttons in `AdminActions` so layout containers do not accidentally stretch or resize controls. `AdminActions` owns row spacing (`0.45rem` gap). Use `align="end"` only when the action row should hug the trailing edge of a flex row.
+- Keep `ct-cluster` for mixed metadata rows (headings, pills, labels beside actions). Do not replace those with `AdminActions`.
 
 ## 8) Migration Policy
 
