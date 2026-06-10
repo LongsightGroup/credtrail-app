@@ -14,6 +14,7 @@ import {
   AdminForm,
   AdminStatusPill,
 } from "./components";
+import { AdminLinkedImageWithFallback } from "./image-fallback";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -66,20 +67,15 @@ export const BadgeTemplateAdminTableRow = ({
         {template.imageUri === null ? (
           <span class="ct-admin__template-placeholder">No image</span>
         ) : (
-          <a
-            class="ct-admin__template-image-link"
+          <AdminLinkedImageWithFallback
             href={template.imageUri}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Open full size image for ${template.title}`}
-          >
-            <img
-              class="ct-admin__template-image"
-              src={template.imageUri}
-              alt={`${template.title} artwork`}
-              loading="lazy"
-            />
-          </a>
+            linkClassName="ct-admin__template-image-link"
+            imageClassName="ct-admin__template-image"
+            placeholderClassName="ct-admin__template-placeholder"
+            ariaLabel={`Open full size image for ${template.title}`}
+            alt={`${template.title} artwork`}
+            placeholderText="Image unavailable"
+          />
         )}
       </td>
       <td>

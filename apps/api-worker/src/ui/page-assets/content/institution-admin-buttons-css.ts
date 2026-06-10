@@ -302,3 +302,18 @@ export const INSTITUTION_ADMIN_BUTTONS_RESPONSIVE_CSS = `
     justify-self: stretch;
   }
 `;
+
+export const INSTITUTION_ADMIN_BUTTONS_COARSE_POINTER_CSS = `
+  .ct-admin__button,
+  .ct-admin__form button,
+  .ct-admin__cta-link {
+    min-height: 2.75rem;
+  }
+
+  .ct-admin__button--tiny,
+  .ct-admin__issued-actions .ct-admin__button {
+    min-height: 2.5rem;
+    height: auto;
+    max-height: none;
+  }
+`;

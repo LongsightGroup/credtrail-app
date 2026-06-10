@@ -6,6 +6,7 @@ import type { BadgeTemplateListPageQueryOptions } from "./badge-template-admin-h
 import { buildBadgeTemplateListPageQuery } from "./badge-template-admin-helpers";
 import { formatIsoTimestamp } from "../utils/display-format";
 import { AdminActions, AdminButton, AdminForm } from "./components";
+import { AdminLinkedImageWithFallback } from "./image-fallback";
 
 const badgeTemplateImageRevisionSourceLabel = (
   sourceType: BadgeTemplateImageRevisionRecord["sourceType"],
@@ -76,20 +77,15 @@ export const BadgeTemplateImageRevisionList = ({
         return (
           <div class="ct-admin__image-revision-item" key={revision.id}>
             {previousImageUri.length > 0 ? (
-              <a
-                class="ct-admin__image-revision-thumbnail-link"
+              <AdminLinkedImageWithFallback
                 href={previousImageUri}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Open full size previous badge image"
-              >
-                <img
-                  class="ct-admin__image-revision-thumbnail"
-                  src={previousImageUri}
-                  alt="Previous badge artwork"
-                  loading="lazy"
-                />
-              </a>
+                linkClassName="ct-admin__image-revision-thumbnail-link"
+                imageClassName="ct-admin__image-revision-thumbnail"
+                placeholderClassName="ct-admin__image-revision-thumbnail-link ct-admin__image-revision-thumbnail-link--empty"
+                ariaLabel="Open full size previous badge image"
+                alt="Previous badge artwork"
+                placeholderText="Image unavailable"
+              />
             ) : (
               <span class="ct-admin__image-revision-thumbnail-link ct-admin__image-revision-thumbnail-link--empty">
                 No image

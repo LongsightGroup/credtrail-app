@@ -9,6 +9,11 @@ ${GENERATED_DESIGN_TOKENS_CSS}
   color-scheme: light;
 }
 
+html {
+  background: var(--ct-theme-surface-canvas);
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -17,6 +22,8 @@ body {
   font-family: var(--ct-font-sans);
   font-size: 1rem;
   font-kerning: normal;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 h1,
@@ -39,6 +46,7 @@ select {
 
 p {
   line-height: 1.6;
+  text-wrap: pretty;
 }
 
 main {
@@ -59,6 +67,11 @@ a {
 
 a:hover {
   color: var(--ct-theme-link-hover);
+}
+
+::selection {
+  background: rgba(240, 194, 81, 0.36);
+  color: var(--ct-theme-text-title);
 }
 
 @keyframes ct-shell-enter {
@@ -188,11 +201,14 @@ body[data-variant='admin'] main {
 @media (max-width: 780px), (pointer: coarse) {
   .ct-checkbox-row {
     align-items: flex-start;
+    min-height: 2.75rem;
+    padding-block: 0.35rem;
   }
 
   .ct-checkbox-row input[type='checkbox'] {
-    width: 2.75rem;
-    height: 2.75rem;
+    width: 1.2rem;
+    height: 1.2rem;
+    margin-top: 0.12rem;
   }
 }
 
