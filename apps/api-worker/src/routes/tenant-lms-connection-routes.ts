@@ -71,6 +71,10 @@ const assignmentMatches = (
   ]);
 };
 
+/** Admin LMS pickers load results into HTML selects; keep HTTP payloads bounded. */
+const LMS_PICKER_MAX_COURSES = 100;
+const LMS_PICKER_MAX_GRADEBOOK_ITEMS = 200;
+
 const workflowStateLabel = (value: string): string => {
   return value
     .split("_")
@@ -322,7 +326,7 @@ export const registerTenantLmsConnectionRoutes = (
         await (query.q === undefined
           ? resolved.provider.listCourses()
           : resolved.provider.listCourses({ searchTerm: query.q }))
-      ).slice(0, 100);
+      ).slice(0, LMS_PICKER_MAX_COURSES);
 
       return c.json({
         tenantId: pathParams.tenantId,
@@ -363,7 +367,7 @@ export const registerTenantLmsConnectionRoutes = (
       try {
         const items = (await resolved.provider.listAssignments({ courseId: pathParams.courseId }))
           .filter((assignment) => assignmentMatches(query.q, assignment))
-          .slice(0, 200);
+          .slice(0, LMS_PICKER_MAX_GRADEBOOK_ITEMS);
 
         return c.json({
           tenantId: pathParams.tenantId,

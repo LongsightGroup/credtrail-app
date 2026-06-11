@@ -1,4 +1,9 @@
 import { asJsonObject, asNonEmptyString, asString } from "../utils/value-parsers";
+import {
+  CANVAS_GRADEBOOK_FULL_MAX_PAGES,
+  CANVAS_PICKER_MAX_PAGES,
+  fetchCanvasJsonArrayPages,
+} from "./canvas-link-pagination";
 import type {
   CanvasGradebookProviderConfig,
   GradebookAssignmentRecord,
@@ -14,10 +19,6 @@ interface CreateCanvasGradebookProviderInput {
   config: CanvasGradebookProviderConfig;
   fetchImpl?: typeof fetch;
 }
-
-const asJsonArray = (value: unknown): readonly unknown[] | null => {
-  return Array.isArray(value) ? value : null;
-};
 
 const asIdentifier = (value: unknown): string | null => {
   if (typeof value === "string") {
@@ -303,38 +304,19 @@ export const createCanvasGradebookProvider = (
 
   const requestArray = async (
     path: string,
-    query?: URLSearchParams,
+    query: URLSearchParams | undefined,
+    maxPages: number,
+    onMaxPages: "truncate" | "throw",
   ): Promise<readonly unknown[]> => {
-    const requestUrl = new URL(path, apiBaseUrl);
-
-    if (query !== undefined && query.size > 0) {
-      requestUrl.search = query.toString();
-    }
-
-    const response = await fetchImpl(requestUrl.toString(), {
-      method: "GET",
-      headers: {
-        authorization: `Bearer ${config.accessToken}`,
-        accept: "application/json",
-      },
+    return fetchCanvasJsonArrayPages({
+      apiBaseUrl,
+      fetchImpl,
+      accessToken: config.accessToken,
+      path,
+      ...(query !== undefined ? { query } : {}),
+      maxPages,
+      onMaxPages,
     });
-
-    if (!response.ok) {
-      throw new Error(
-        `Canvas gradebook API request failed (${String(response.status)}) for ${requestUrl.pathname}`,
-      );
-    }
-
-    const body = await response.json<unknown>().catch(() => null);
-    const payload = asJsonArray(body);
-
-    if (payload === null) {
-      throw new Error(
-        `Canvas gradebook API response must be a JSON array for ${requestUrl.pathname}`,
-      );
-    }
-
-    return payload;
   };
 
   const listRawEnrollments = async (input: {
@@ -353,6 +335,8 @@ export const createCanvasGradebookProvider = (
       return requestArray(
         `/api/v1/courses/${encodeURIComponent(input.courseId)}/enrollments`,
         query,
+        CANVAS_GRADEBOOK_FULL_MAX_PAGES,
+        "throw",
       );
     });
   };
@@ -366,6 +350,8 @@ export const createCanvasGradebookProvider = (
       const assignments = await requestArray(
         `/api/v1/courses/${encodeURIComponent(courseId)}/assignments`,
         query,
+        CANVAS_GRADEBOOK_FULL_MAX_PAGES,
+        "throw",
       );
       const normalizedAssignments = assignments
         .map((assignment) => parseAssignmentRecord(courseId, assignment))
@@ -393,6 +379,8 @@ export const createCanvasGradebookProvider = (
     const submissions = await requestArray(
       `/api/v1/courses/${encodeURIComponent(input.courseId)}/students/submissions`,
       query,
+      CANVAS_GRADEBOOK_FULL_MAX_PAGES,
+      "throw",
     );
     const normalizedSubmissions = submissions
       .map((submission) => parseSubmissionRecord(input.courseId, submission))
@@ -429,7 +417,12 @@ export const createCanvasGradebookProvider = (
       const query = new URLSearchParams();
       query.set("per_page", "100");
       query.set("enrollment_state", "active");
-      const courses = await requestArray("/api/v1/courses", query);
+      const courses = await requestArray(
+        "/api/v1/courses",
+        query,
+        CANVAS_PICKER_MAX_PAGES,
+        "truncate",
+      );
       const normalizedCourses = courses
         .map((course) => parseCourseRecord(course))
         .filter((course): course is GradebookCourseRecord => course !== null);

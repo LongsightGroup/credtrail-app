@@ -4,6 +4,7 @@ import { createCanvasGradebookProvider } from "./canvas-gradebook-provider";
 interface MockRoute {
   pathWithQuery: string;
   responseBody: unknown;
+  headers?: Record<string, string>;
   status?: number;
 }
 
@@ -64,6 +65,7 @@ const createRecordingMockFetch = (routes: readonly MockRoute[]): RecordingMockFe
         status: route.status ?? 200,
         headers: {
           "content-type": "application/json",
+          ...route.headers,
         },
       }),
     );
@@ -313,6 +315,82 @@ describe("createCanvasGradebookProvider", () => {
         completionPercent: 0,
         sourceState: "gradebook_items",
       },
+    ]);
+  });
+
+  it("does not follow pagination links when listing courses", async () => {
+    const mockFetch = createRecordingMockFetch([
+      {
+        pathWithQuery: "/api/v1/courses?per_page=100&enrollment_state=active",
+        headers: {
+          link: '<https://canvas.example.edu/api/v1/courses?page=2&per_page=100>; rel="next"',
+        },
+        responseBody: [
+          {
+            id: 42,
+            name: "CS 101",
+            course_code: "CS101",
+            workflow_state: "available",
+          },
+        ],
+      },
+    ]);
+    const provider = createCanvasGradebookProvider({
+      config: {
+        kind: "canvas",
+        apiBaseUrl: "https://canvas.example.edu",
+        accessToken: "canvas-token",
+      },
+      fetchImpl: mockFetch.fetchImpl,
+    });
+
+    const courses = await provider.listCourses();
+
+    expect(courses.map((course) => course.courseId)).toEqual(["42"]);
+    expect(mockFetch.requests).toEqual(["/api/v1/courses?per_page=100&enrollment_state=active"]);
+  });
+
+  it("follows canvas pagination links when listing gradebook items", async () => {
+    const mockFetch = createRecordingMockFetch([
+      {
+        pathWithQuery: "/api/v1/courses/course-42/assignments?per_page=100",
+        headers: {
+          link: '<https://canvas.example.edu/api/v1/courses/course-42/assignments?page=2&per_page=100>; rel="next"',
+        },
+        responseBody: [
+          {
+            id: 7,
+            name: "Capstone Project",
+            workflow_state: "published",
+          },
+        ],
+      },
+      {
+        pathWithQuery: "/api/v1/courses/course-42/assignments?page=2&per_page=100",
+        responseBody: [
+          {
+            id: 8,
+            name: "Final Exam",
+            workflow_state: "published",
+          },
+        ],
+      },
+    ]);
+    const provider = createCanvasGradebookProvider({
+      config: {
+        kind: "canvas",
+        apiBaseUrl: "https://canvas.example.edu",
+        accessToken: "canvas-token",
+      },
+      fetchImpl: mockFetch.fetchImpl,
+    });
+
+    const assignments = await provider.listAssignments({ courseId: "course-42" });
+
+    expect(assignments.map((assignment) => assignment.assignmentId)).toEqual(["7", "8"]);
+    expect(mockFetch.requests).toEqual([
+      "/api/v1/courses/course-42/assignments?per_page=100",
+      "/api/v1/courses/course-42/assignments?page=2&per_page=100",
     ]);
   });
 
