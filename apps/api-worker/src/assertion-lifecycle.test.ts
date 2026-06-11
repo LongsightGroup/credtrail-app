@@ -683,7 +683,7 @@ describe("GET /v1/tenants/:tenantId/assertions/ledger-export.csv", () => {
       );
 
       const response = await app.request(
-        "/v1/tenants/tenant_123/assertions/ledger-export.csv?issuedFrom=2026-02-01&issuedTo=2026-02-29&recipientQuery=learner",
+        "/v1/tenants/tenant_123/assertions/ledger-export.csv?issuedFrom=2026-02-01&issuedTo=2026-02-28&recipientQuery=learner",
         {
           method: "GET",
           headers: {
@@ -707,7 +707,7 @@ describe("GET /v1/tenants/:tenantId/assertions/ledger-export.csv", () => {
     expect(mockedListTenantAssertionLedgerExportRows).toHaveBeenCalledWith(fakeDb, {
       tenantId: "tenant_123",
       issuedFrom: "2026-02-01",
-      issuedTo: "2026-02-29",
+      issuedTo: "2026-02-28",
       badgeTemplateId: undefined,
       orgUnitId: undefined,
       recipientQuery: "learner",

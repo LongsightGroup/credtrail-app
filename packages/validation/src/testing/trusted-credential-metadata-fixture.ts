@@ -1,4 +1,7 @@
-import { parseTrustEdCredentialMetadata, type TrustEdCredentialMetadata } from "../index";
+import {
+  parseTrustEdCredentialMetadata,
+  type TrustEdCredentialMetadata,
+} from "../trusted-credential";
 
 export const completeTrustEdCredentialMetadataInput = {
   skills: [

@@ -47,7 +47,6 @@ import {
   parseCredentialPathParams,
   parseCreateBadgeTemplateRequest,
   parseGenerateBadgeTemplateImageRequest,
-  parseTrustEdCredentialMetadata,
   parseLearnerRecordImportBatchDefaults,
   parseLearnerRecordImportBatchPathParams,
   parseLearnerRecordImportProgressQuery,
@@ -102,7 +101,6 @@ import {
   parseTenantReportingHierarchyQuery,
   parseTenantReportingTrendQuery,
 } from "./index";
-import { completeTrustEdCredentialMetadataInput } from "./testing";
 
 describe("parseQueueJob", () => {
   it("accepts a valid issue_badge queue payload", () => {
@@ -1574,49 +1572,6 @@ describe("badge template parsers", () => {
   it("rejects empty update payloads", () => {
     expect(() => {
       parseUpdateBadgeTemplateRequest({});
-    }).toThrowError();
-  });
-
-  it("parses TrustEd credential metadata", () => {
-    const payload = parseTrustEdCredentialMetadata(completeTrustEdCredentialMetadataInput);
-
-    expect(payload.skills[0]?.name).toBe("Applied data analysis");
-    expect(payload.results[0]?.resultDate).toBe("2026-05-18");
-  });
-
-  it("rejects invalid TrustEd credential metadata URLs and dates", () => {
-    expect(() => {
-      parseTrustEdCredentialMetadata({
-        skills: [{ name: "Applied data analysis", identifierUri: "not a url", source: null }],
-        frameworkAlignments: [],
-        issuerAuthority: null,
-        evidence: [],
-        results: [],
-        criteria: null,
-        assessments: [],
-        achievementType: "Project",
-        rubrics: [],
-        duration: null,
-        credits: null,
-        endorsements: [],
-      });
-    }).toThrowError();
-
-    expect(() => {
-      parseTrustEdCredentialMetadata({
-        skills: [],
-        frameworkAlignments: [],
-        issuerAuthority: null,
-        evidence: [],
-        results: [{ value: "Pass", resultDate: "May 18, 2026" }],
-        criteria: null,
-        assessments: [],
-        achievementType: "Project",
-        rubrics: [],
-        duration: null,
-        credits: null,
-        endorsements: [],
-      });
     }).toThrowError();
   });
 
