@@ -5,6 +5,27 @@ import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../ui/render-page";
 import type { PageAssetKey } from "../ui/page-assets";
 import { formatIsoTimestamp } from "../utils/display-format";
+import {
+  ltiLaunchViewMode,
+  type InstructorResourceLinkViews,
+  type LtiBulkIssuanceRosterMember,
+  type LtiBulkIssuanceView,
+  type LtiCourseBadgeSummaryView,
+  type LtiDeepLinkSelectionPageInput,
+  type LtiDeepLinkSelectionOption,
+  type LtiLaunchViewMode,
+  type LtiRosterIssuanceResultEntry,
+} from "./view-models";
+
+export type {
+  InstructorResourceLinkViews,
+  LtiBulkIssuanceRosterMember,
+  LtiBulkIssuanceView,
+  LtiCourseBadgeSummaryRow,
+  LtiCourseBadgeSummaryView,
+  LtiDeepLinkSelectionPageInput,
+  LtiRosterIssuanceResultEntry,
+} from "./view-models";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -56,36 +77,6 @@ const LtiDeepLinkForm = ({
       {children}
     </form>
   );
-};
-
-type LtiLaunchViewMode =
-  | "learner"
-  | "bulkReady"
-  | "bulkDegraded"
-  | "courseSummaryReady"
-  | "courseSummaryDegraded"
-  | "connected";
-
-const ltiLaunchViewMode = (input: {
-  roleKind: LtiRoleKind;
-  bulkIssuanceView: LtiBulkIssuanceView | null;
-  courseBadgeSummaryView: LtiCourseBadgeSummaryView | null;
-}): LtiLaunchViewMode => {
-  if (input.roleKind === "learner") {
-    return "learner";
-  }
-
-  if (input.roleKind === "instructor" && input.bulkIssuanceView !== null) {
-    return input.bulkIssuanceView.status === "ready" ? "bulkReady" : "bulkDegraded";
-  }
-
-  if (input.roleKind === "instructor" && input.courseBadgeSummaryView !== null) {
-    return input.courseBadgeSummaryView.status === "ready"
-      ? "courseSummaryReady"
-      : "courseSummaryDegraded";
-  }
-
-  return "connected";
 };
 
 const ltiLaunchTitle = (input: {
@@ -181,96 +172,12 @@ export const ltiPostMessageStorageRedirectPage = (input: {
         data-state={input.state}
         data-nonce={input.nonce}
       >
-        <header class="lti-launch__hero">
-          <h1>Continuing LTI launch</h1>
-        </header>
+        <p class="lti-launch__sr-only" role="status" aria-live="polite">
+          Continuing LTI launch.
+        </p>
       </section>
     ),
   });
-};
-
-export interface LtiBulkIssuanceRosterMember {
-  userId: string;
-  sourcedId: string | null;
-  displayName: string | null;
-  email: string | null;
-  roleSummary: string;
-  status: string | null;
-  issuedAssertionId: string | null;
-  issuedAt: string | null;
-  issuanceLifecycleState: "active" | "suspended" | "revoked" | "expired" | null;
-}
-
-export interface LtiBulkIssuanceView {
-  status: "ready" | "unavailable" | "error";
-  message: string;
-  badgeTemplateId: string | null;
-  courseContextTitle: string | null;
-  courseContextId: string | null;
-  contextMembershipsUrl: string | null;
-  learnerCount: number;
-  totalCount: number;
-  issuanceActionPath: string | null;
-  issuanceActionToken: string | null;
-  members: readonly LtiBulkIssuanceRosterMember[];
-}
-
-export interface LtiCourseBadgeSummaryRow {
-  learnerUserId: string;
-  learnerName: string;
-  learnerEmail: string | null;
-  learnerDetailPath: string | null;
-  badgeTemplateId: string;
-  badgeTitle: string;
-  badgeDetailPath: string | null;
-  status: "issued" | "not_issued" | "suspended" | "revoked" | "expired";
-  statusLabel: string;
-  statusDetail: string;
-  assertionId: string | null;
-  issuedAt: string | null;
-}
-
-export interface LtiCourseBadgeSummaryView {
-  status: "ready" | "unavailable" | "error";
-  message: string;
-  courseContextTitle: string | null;
-  learnerCount: number;
-  badgeCount: number;
-  issuedCount: number;
-  rows: readonly LtiCourseBadgeSummaryRow[];
-}
-
-export interface LtiRosterIssuanceResultEntry {
-  userId: string;
-  displayName: string | null;
-  email: string | null;
-  status: "issued" | "already_issued" | "skipped" | "failed";
-  message: string;
-  assertionId: string | null;
-}
-
-interface LtiDeepLinkSelectionBaseInput {
-  tenantId: string;
-  userId: string;
-  membershipRole: TenantMembershipRole;
-  issuer: string;
-  deploymentId: string;
-  deepLinkReturnUrl: string;
-  targetLinkUri: string;
-}
-
-interface LtiDeepLinkSelectionOption {
-  badgeTemplateId: string;
-  title: string;
-  description: string | null;
-  launchUrl: string;
-}
-
-export type LtiDeepLinkSelectionPageInput = LtiDeepLinkSelectionBaseInput & {
-  mode: "signed";
-  signedSelectionActionUrl: string;
-  ltiSessionId: string;
-  options: readonly LtiDeepLinkSelectionOption[];
 };
 
 const BulkIssuanceSection = (input: { view: LtiBulkIssuanceView | null }): HonoElement | null => {
@@ -412,18 +319,28 @@ const CourseBadgeSummarySection = (input: {
     new Map(view.rows.map((row): [string, string] => [row.badgeTemplateId, row.badgeTitle])),
   ).map(([badgeTemplateId, badgeTitle]) => ({ badgeTemplateId, badgeTitle }));
   const hasRows = view.rows.length > 0;
+  const hasPlacedBadges = view.badgeCount > 0;
+  const showPlacementGuidance = !hasPlacedBadges && view.canPlaceBadgesFromLti;
 
   return (
     <LtiLaunchCard stack={true}>
       <div class="lti-launch__course-summary" data-lti-course-summary>
         <header class="lti-launch__section-head">
           <h2 class="lti-launch__bulk-title">Course badge summary</h2>
-          <p class="lti-launch__hint">Search learners, badges, or status in this course.</p>
+          <p class="lti-launch__hint">
+            {hasRows
+              ? "Search learners, badges, or status in this course."
+              : hasPlacedBadges
+                ? "Badge placements exist, but no learner badge rows are available yet."
+                : showPlacementGuidance
+                  ? "Place a CredTrail badge from your LMS content picker to start badging this course."
+                  : "No badge placements are available for this LMS course yet."}
+          </p>
         </header>
         <p class={`lti-launch__bulk-status lti-launch__bulk-status--${view.status}`}>
           {view.message}
         </p>
-        <dl class="lti-launch__bulk-meta lti-launch__bulk-meta--summary">
+        <dl class="lti-launch__course-summary-stats">
           <DetailRows
             rows={[
               {
@@ -480,101 +397,100 @@ const CourseBadgeSummarySection = (input: {
             </p>
           </div>
         ) : null}
-        <div class="lti-launch__bulk-table-wrap">
-          <table class="lti-launch__bulk-table lti-launch__summary-table">
-            <caption>Badge progress for learners in this LMS course</caption>
-            <thead>
-              <tr>
-                <th scope="col">Learner</th>
-                <th scope="col">Email</th>
-                <th scope="col">Badge</th>
-                <th scope="col">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {hasRows ? (
-                <>
-                  {view.rows.map((row) => {
-                    const searchText = [
-                      row.learnerName,
-                      row.learnerEmail ?? "",
-                      row.badgeTitle,
-                      row.statusLabel,
-                      row.statusDetail,
-                    ].join(" ");
-
-                    return (
-                      <tr
-                        key={`${row.learnerUserId}:${row.badgeTemplateId}`}
-                        data-lti-course-summary-row
-                        data-search-text={searchText}
-                        data-badge-template-id={row.badgeTemplateId}
-                        data-status={row.status}
-                      >
-                        <td>
-                          {row.learnerDetailPath === null ? (
-                            row.learnerName
-                          ) : (
-                            <a
-                              href={row.learnerDetailPath}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {row.learnerName}
-                              <span class="lti-launch__sr-only">
-                                {" "}
-                                badge record for {row.badgeTitle}
-                              </span>
-                            </a>
-                          )}
-                        </td>
-                        <td>{row.learnerEmail ?? "Not provided"}</td>
-                        <td>
-                          {row.badgeDetailPath === null ? (
-                            row.badgeTitle
-                          ) : (
-                            <a href={row.badgeDetailPath} target="_blank" rel="noopener noreferrer">
-                              {row.badgeTitle}
-                              <span class="lti-launch__sr-only"> badge setup for this course</span>
-                            </a>
-                          )}
-                        </td>
-                        <td>
-                          <div class="lti-launch__status-stack">
-                            <span
-                              class={`lti-launch__status-pill lti-launch__status-pill--${row.status}`}
-                            >
-                              {row.statusLabel}
-                            </span>
-                            {row.issuedAt === null ? null : (
-                              <time class="lti-launch__summary-timestamp" dateTime={row.issuedAt}>
-                                Issued {formatIsoTimestamp(row.issuedAt)} UTC
-                              </time>
-                            )}
-                            <span class="lti-launch__summary-status-detail">
-                              {row.statusDetail}
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  <tr data-lti-course-summary-empty hidden>
-                    <td colspan={4} class="lti-launch__bulk-empty">
-                      No learners or badges match those filters.
-                    </td>
-                  </tr>
-                </>
-              ) : (
+        {hasRows ? (
+          <div class="lti-launch__bulk-table-wrap">
+            <table class="lti-launch__bulk-table lti-launch__summary-table">
+              <caption>Badge progress for learners in this LMS course</caption>
+              <thead>
                 <tr>
+                  <th scope="col">Learner</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">Badge</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {view.rows.map((row) => {
+                  const searchText = [
+                    row.learnerName,
+                    row.learnerEmail ?? "",
+                    row.badgeTitle,
+                    row.statusLabel,
+                    row.statusDetail,
+                  ].join(" ");
+
+                  return (
+                    <tr
+                      key={`${row.learnerUserId}:${row.badgeTemplateId}`}
+                      data-lti-course-summary-row
+                      data-search-text={searchText}
+                      data-badge-template-id={row.badgeTemplateId}
+                      data-status={row.status}
+                    >
+                      <td>
+                        {row.learnerDetailPath === null ? (
+                          row.learnerName
+                        ) : (
+                          <a href={row.learnerDetailPath} target="_blank" rel="noopener noreferrer">
+                            {row.learnerName}
+                            <span class="lti-launch__sr-only">
+                              {" "}
+                              badge record for {row.badgeTitle}
+                            </span>
+                          </a>
+                        )}
+                      </td>
+                      <td>{row.learnerEmail ?? "Not provided"}</td>
+                      <td>
+                        {row.badgeDetailPath === null ? (
+                          row.badgeTitle
+                        ) : (
+                          <a href={row.badgeDetailPath} target="_blank" rel="noopener noreferrer">
+                            {row.badgeTitle}
+                            <span class="lti-launch__sr-only"> badge setup for this course</span>
+                          </a>
+                        )}
+                      </td>
+                      <td>
+                        <div class="lti-launch__status-stack">
+                          <span
+                            class={`lti-launch__status-pill lti-launch__status-pill--${row.status}`}
+                          >
+                            {row.statusLabel}
+                          </span>
+                          {row.issuedAt === null ? null : (
+                            <time class="lti-launch__summary-timestamp" dateTime={row.issuedAt}>
+                              Issued {formatIsoTimestamp(row.issuedAt)} UTC
+                            </time>
+                          )}
+                          <span class="lti-launch__summary-status-detail">{row.statusDetail}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                <tr data-lti-course-summary-empty hidden>
                   <td colspan={4} class="lti-launch__bulk-empty">
-                    No course badge rows are available yet.
+                    No learners or badges match those filters.
                   </td>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div class="lti-launch__course-summary-empty">
+            <strong>
+              {hasPlacedBadges ? "No learner badge rows yet" : "No badges placed yet"}
+            </strong>
+            <p>
+              {hasPlacedBadges
+                ? "CredTrail could not build learner badge rows for this course. Try again after roster and badge data are available."
+                : showPlacementGuidance
+                  ? "Use the LMS add-content or external-tool flow, choose CredTrail, then select a badge template. After the badge is placed, launch it from this course to issue it from the roster."
+                  : "Once a badge is placed in this course, instructors will see learner badge status here."}
+            </p>
+          </div>
+        )}
       </div>
     </LtiLaunchCard>
   );
@@ -593,17 +509,20 @@ export const ltiLaunchResultPage = (input: {
   messageType: string;
   launchDisplayName: string | null;
   dashboardPath: string;
-  bulkIssuanceView: LtiBulkIssuanceView | null;
-  courseBadgeSummaryView: LtiCourseBadgeSummaryView | null;
+  instructorViews: InstructorResourceLinkViews | null;
 }): AppPage => {
-  const mode = ltiLaunchViewMode(input);
+  const mode = ltiLaunchViewMode({
+    roleKind: input.roleKind,
+    instructorViews: input.instructorViews,
+  });
+  const bulkIssuanceView = input.instructorViews?.bulkIssuanceView ?? null;
+  const courseBadgeSummaryView = input.instructorViews?.courseBadgeSummaryView ?? null;
   const showDashboardAction =
     mode === "learner" ||
     mode === "connected" ||
     mode === "bulkDegraded" ||
     mode === "courseSummaryDegraded";
-  const scripts =
-    input.courseBadgeSummaryView === null ? undefined : (["ltiCourseSummaryJs"] as const);
+  const scripts = courseBadgeSummaryView === null ? undefined : (["ltiCourseSummaryJs"] as const);
   const title = ltiLaunchTitle({
     mode,
     launchDisplayName: input.launchDisplayName,
@@ -618,8 +537,8 @@ export const ltiLaunchResultPage = (input: {
           <h1>{title}</h1>
           <p>{ltiLaunchSubtitle({ mode })}</p>
         </header>
-        <BulkIssuanceSection view={input.bulkIssuanceView} />
-        <CourseBadgeSummarySection view={input.courseBadgeSummaryView} />
+        <BulkIssuanceSection view={bulkIssuanceView} />
+        <CourseBadgeSummarySection view={courseBadgeSummaryView} />
         {showDashboardAction ? (
           <LtiLaunchCard stack={true}>
             <p class="lti-launch__hint">Continue in CredTrail when you are ready.</p>

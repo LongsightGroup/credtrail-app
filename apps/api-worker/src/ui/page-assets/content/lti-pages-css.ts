@@ -193,18 +193,47 @@ export const LTI_PAGES_CSS = `
   gap: var(--ct-space-3);
 }
 
-.lti-launch__bulk-meta--summary {
+.lti-launch__course-summary-stats {
+  margin: 0;
+  display: grid;
   grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
   gap: 0.75rem;
 }
 
-.lti-launch__bulk-meta--summary dt {
-  font-size: 0.84rem;
+.lti-launch__course-summary-stats > div,
+.lti-launch__course-summary-stats dt,
+.lti-launch__course-summary-stats dd {
+  margin: 0;
 }
 
-.lti-launch__bulk-meta--summary dd {
+.lti-launch__course-summary-stats dt {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--ct-theme-text-muted);
+}
+
+.lti-launch__course-summary-stats dd {
+  margin-top: 0.18rem;
   color: var(--ct-theme-text-title);
   font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.lti-launch__course-summary-empty {
+  border: 1px solid var(--ct-border-soft);
+  border-radius: var(--ct-radius-md);
+  padding: var(--ct-space-4);
+  background: var(--ct-theme-surface-muted);
+}
+
+.lti-launch__course-summary-empty strong {
+  display: block;
+  color: var(--ct-theme-text-title);
+}
+
+.lti-launch__course-summary-empty p {
+  margin: 0.35rem 0 0 0;
+  color: var(--ct-theme-text-muted);
 }
 
 .lti-launch__summary-controls {

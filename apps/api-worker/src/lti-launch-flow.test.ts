@@ -960,6 +960,9 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain('data-nonce="mock-lti-nonce"');
     expect(body).toContain(`data-platform-origin="${new URL(authorizationEndpoint).origin}"`);
     expect(body).toContain('data-storage-target="_parent"');
+    expect(body).toContain('role="status"');
+    expect(body).toContain("Continuing LTI launch.");
+    expect(body).not.toContain("<h1>Continuing LTI launch</h1>");
 
     const scriptResponse = await isolatedApp.request(scriptPath ?? "", undefined, env);
     const script = await scriptResponse.text();
