@@ -54,7 +54,6 @@ import {
 import { createCredentialProofVerificationHelpers } from "./credentials/proof-verification";
 import { registerCommonMiddleware } from "./http/common-middleware";
 import { createLoadJsonObjectFromUrl } from "./http/json-object-loader";
-import { registerPageAssetRoutes } from "./ui/page-assets";
 import { registerAppPageRenderer } from "./ui/render-page";
 import { createSignCredentialForDid } from "./signing/credential-signer";
 import {
@@ -481,10 +480,6 @@ registerCommonMiddleware({
 });
 
 registerAppPageRenderer(app);
-
-registerPageAssetRoutes({
-  app,
-});
 
 registerGoogleAuthRoutes({
   app,

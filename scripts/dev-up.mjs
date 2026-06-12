@@ -91,33 +91,19 @@ const main = async () => {
 
   printReadyBlock({ status: "starting" });
 
-  const wrangler = spawn(
-    "pnpm",
-    [
-      "exec",
-      "wrangler",
-      "dev",
-      "--config",
-      "wrangler.local.jsonc",
-      "--env-file",
-      ".dev.vars.local",
-      "--port",
-      "8787",
-    ],
-    {
-      stdio: "inherit",
-      env: process.env,
-    },
-  );
+  const devServer = spawn("pnpm", ["dev"], {
+    stdio: "inherit",
+    env: process.env,
+  });
 
   const stop = () => {
-    wrangler.kill("SIGINT");
+    devServer.kill("SIGINT");
   };
 
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);
 
-  wrangler.on("exit", (code) => {
+  devServer.on("exit", (code) => {
     process.exitCode = code ?? 0;
   });
 };

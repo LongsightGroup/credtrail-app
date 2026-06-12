@@ -27,6 +27,7 @@
     "workers/**/*.tsx",
     "packages/**/*.ts",
     "packages/**/*.tsx",
+    "vite.config.mts",
     "vitest.config.ts"
   ]
 }

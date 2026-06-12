@@ -1,23 +1,14 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { createContext, Script } from "node:vm";
 import { describe, expect, it } from "vitest";
-import { app } from "./index";
 import { INSTITUTION_ADMIN_SHELL_JS } from "./ui/page-assets/content/institution-admin-shell-js";
 import { PUBLIC_BADGE_JS } from "./ui/page-assets/content/public-badge-js";
 import { pageAssetPath, type PageAssetKey } from "./ui/page-assets";
 
-const createEnv = (): {
-  APP_ENV: string;
-  DATABASE_URL: string;
-  BADGE_OBJECTS: R2Bucket;
-  PLATFORM_DOMAIN: string;
-} => {
-  return {
-    APP_ENV: "test",
-    DATABASE_URL: "postgres://credtrail-test.local/db",
-    BADGE_OBJECTS: {} as R2Bucket,
-    PLATFORM_DOMAIN: "credtrail.test",
-  };
+const readGeneratedAsset = (assetKey: PageAssetKey): string => {
+  const publicAssetPath = pageAssetPath(assetKey).replace(/^\//, "");
+
+  return readFileSync(new URL(`../public/${publicAssetPath}`, import.meta.url), "utf8");
 };
 
 type ShellEventListener = (event: {
@@ -119,9 +110,8 @@ class FakeBrowserElement {
   }
 }
 
-describe("GET /assets/ui/:assetFilename", () => {
-  it("serves registered page assets with immutable caching headers", async () => {
-    const env = createEnv();
+describe("page asset manifest", () => {
+  it("points registered page assets at generated static files", () => {
     const assetKeys: readonly PageAssetKey[] = [
       "foundationCss",
       "authLoginCss",
@@ -142,18 +132,30 @@ describe("GET /assets/ui/:assetFilename", () => {
     ];
 
     for (const assetKey of assetKeys) {
-      const response = await app.request(pageAssetPath(assetKey), undefined, env);
-      const expectedContentType = assetKey.endsWith("Css") ? "text/css" : "text/javascript";
+      const path = pageAssetPath(assetKey);
 
-      expect(response.status).toBe(200);
-      expect(response.headers.get("cache-control")).toContain("immutable");
-      expect(response.headers.get("x-content-type-options")).toBe("nosniff");
-      expect(response.headers.get("content-type")).toContain(expectedContentType);
+      expect(path).toMatch(/^\/assets\/ui\/.+\.[a-f0-9]{10}\.(?:css|js)$/);
+      expect(readGeneratedAsset(assetKey).length).toBeGreaterThan(0);
     }
   });
 
-  it("serves JavaScript assets that parse as browser scripts", async () => {
-    const env = createEnv();
+  it("emits static asset caching headers", () => {
+    const headers = readFileSync(new URL("../public/_headers", import.meta.url), "utf8");
+
+    expect(headers).toContain("/assets/ui/*");
+    expect(headers).toContain("Cache-Control: public, max-age=31536000, immutable");
+    expect(headers).toContain("X-Content-Type-Options: nosniff");
+  });
+
+  it("emits foundation CSS with a fingerprinted Newsreader font file", () => {
+    const foundationCss = readGeneratedAsset("foundationCss");
+
+    expect(foundationCss).toContain('font-family: "Newsreader"');
+    expect(foundationCss).toMatch(/\/assets\/ui\/fonts\/newsreader-latin\.[a-f0-9]{10}\.woff2/);
+    expect(foundationCss).not.toContain("base64");
+  });
+
+  it("emits JavaScript assets that parse as browser scripts", () => {
     const scriptAssetKeys: readonly PageAssetKey[] = [
       "authLoginJs",
       "institutionAdminJs",
@@ -168,10 +170,8 @@ describe("GET /assets/ui/:assetFilename", () => {
     ];
 
     for (const assetKey of scriptAssetKeys) {
-      const response = await app.request(pageAssetPath(assetKey), undefined, env);
-      const body = await response.text();
+      const body = readGeneratedAsset(assetKey);
 
-      expect(response.status).toBe(200);
       expect(() => new Script(body, { filename: `${String(assetKey)}.js` })).not.toThrow();
     }
   });
@@ -192,13 +192,8 @@ describe("GET /assets/ui/:assetFilename", () => {
     }
   });
 
-  it("does not carry the old rule-value-list null shim in the rule builder asset", async () => {
-    const response = await app.request(
-      pageAssetPath("institutionAdminRuleBuilderJs"),
-      undefined,
-      createEnv(),
-    );
-    const body = await response.text();
+  it("does not carry the old rule-value-list null shim in the rule builder asset", () => {
+    const body = readGeneratedAsset("institutionAdminRuleBuilderJs");
 
     expect(body).not.toContain("const ruleValueListBody = null");
     expect(body).not.toContain("ruleValueListBody instanceof HTMLElement");
@@ -296,11 +291,5 @@ describe("GET /assets/ui/:assetFilename", () => {
     });
     closeOnScrollListener?.({});
     expect(popover.wasHidden()).toBe(true);
-  });
-
-  it("returns 404 for unknown page assets", async () => {
-    const response = await app.request("/assets/ui/does-not-exist.js", undefined, createEnv());
-
-    expect(response.status).toBe(404);
   });
 });

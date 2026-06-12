@@ -66,6 +66,7 @@ import type { LTISession } from "@lti-tool/core";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
+import { LTI_POST_MESSAGE_STORAGE_JS } from "./ui/page-assets/content/lti-post-message-storage-js";
 
 interface ErrorResponse {
   error: string;
@@ -964,11 +965,9 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain("Continuing LTI launch.");
     expect(body).not.toContain("<h1>Continuing LTI launch</h1>");
 
-    const scriptResponse = await isolatedApp.request(scriptPath ?? "", undefined, env);
-    const script = await scriptResponse.text();
+    expect(scriptPath).toMatch(/^\/assets\/ui\/lti-post-message-storage\.[a-f0-9]{10}\.js$/);
+    const script = LTI_POST_MESSAGE_STORAGE_JS;
 
-    expect(scriptResponse.status).toBe(200);
-    expect(scriptResponse.headers.get("cache-control")).toContain("immutable");
     expect(script).toContain("lti.put_data");
     expect(script).toContain("org.sakailms.lti.prelaunch");
     expect(script).toContain("JSON.stringify(message)");

@@ -396,15 +396,8 @@ describe("magic-link auth routes", () => {
     expect(stylesheetPath).not.toBeNull();
     expect(scriptPath).not.toBeNull();
 
-    const stylesheetResponse = await app.request(stylesheetPath ?? "", undefined, env);
-    const scriptResponse = await app.request(scriptPath ?? "", undefined, env);
-
-    expect(stylesheetResponse.status).toBe(200);
-    expect(stylesheetResponse.headers.get("content-type")).toContain("text/css");
-    expect(stylesheetResponse.headers.get("cache-control")).toContain("immutable");
-    expect(scriptResponse.status).toBe(200);
-    expect(scriptResponse.headers.get("content-type")).toContain("text/javascript");
-    expect(scriptResponse.headers.get("cache-control")).toContain("immutable");
+    expect(stylesheetPath).toMatch(/^\/assets\/ui\/auth-login\.[a-f0-9]{10}\.css$/);
+    expect(scriptPath).toMatch(/^\/assets\/ui\/auth-login\.[a-f0-9]{10}\.js$/);
   });
 
   it("renders email-first login without a visible tenant field", async () => {
