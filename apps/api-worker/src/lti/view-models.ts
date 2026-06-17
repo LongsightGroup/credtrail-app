@@ -13,10 +13,19 @@ export interface LtiBulkIssuanceRosterMember {
   issuanceLifecycleState: "active" | "suspended" | "revoked" | "expired" | null;
 }
 
+export interface LtiBadgeSummaryCard {
+  badgeTemplateId: string;
+  title: string;
+  summary: string;
+  imageUri: string | null;
+  criteriaPath: string;
+  statusLabel: string;
+}
+
 export interface LtiBulkIssuanceView {
   status: "ready" | "unavailable" | "error";
   message: string;
-  badgeTemplateId: string | null;
+  selectedBadge: LtiBadgeSummaryCard;
   courseContextTitle: string | null;
   courseContextId: string | null;
   contextMembershipsUrl: string | null;
@@ -42,14 +51,6 @@ export interface LtiCourseBadgeSummaryRow {
   issuedAt: string | null;
 }
 
-export interface LtiCourseBadgeSummaryBadge {
-  badgeTemplateId: string;
-  title: string;
-  summary: string;
-  imageUri: string | null;
-  criteriaPath: string;
-}
-
 export interface LtiCourseBadgeSummaryView {
   status: "ready" | "unavailable" | "error";
   message: string;
@@ -58,7 +59,7 @@ export interface LtiCourseBadgeSummaryView {
   badgeCount: number;
   issuedCount: number;
   canPlaceBadgesFromLti: boolean;
-  badges: readonly LtiCourseBadgeSummaryBadge[];
+  badges: readonly LtiBadgeSummaryCard[];
   rows: readonly LtiCourseBadgeSummaryRow[];
 }
 
@@ -98,7 +99,6 @@ export type LtiDeepLinkSelectionPageInput = LtiDeepLinkSelectionBaseInput & {
 export type InstructorResourceLinkMode =
   | {
       kind: "bulk";
-      badgeTemplateId: string;
     }
   | {
       kind: "course-summary";

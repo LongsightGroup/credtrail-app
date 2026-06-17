@@ -23,8 +23,8 @@ import type { ResolvedLtiLaunchMessage } from "./launch-message";
 import { ltiNrpsRosterFromCoreMembers, parseLtiNrpsNamesRoleServiceClaim } from "./nrps";
 import { ltiRosterIssuedBadgeStatesByUserId } from "./roster-issuance-helpers";
 import type {
-  InstructorResourceLinkMode,
   InstructorResourceLinkViews,
+  LtiBadgeSummaryCard,
   LtiBulkIssuanceView,
   LtiCourseBadgeSummaryView,
 } from "./view-models";
@@ -34,12 +34,19 @@ type InstructorResourceLinkLaunchMessage = Extract<
   { kind: "resource-link" }
 >;
 
-export interface ResolveInstructorResourceLinkViewsInput {
+type BulkInstructorResourceLinkLaunchMessage = InstructorResourceLinkLaunchMessage & {
+  badgeTemplateId: string;
+};
+
+type CourseSummaryInstructorResourceLinkLaunchMessage = InstructorResourceLinkLaunchMessage & {
+  badgeTemplateId: null;
+};
+
+interface ResolveInstructorResourceLinkViewsBaseInput {
   db: SqlDatabase;
   env: AppBindings;
   tenantId: string;
   launchClaims: LtiLaunchClaims;
-  launchMessage: InstructorResourceLinkLaunchMessage;
   ltiLaunchSession: LTISession;
   ltiTool: LTITool;
   issuerClientId: string;
@@ -49,25 +56,30 @@ export interface ResolveInstructorResourceLinkViewsInput {
   sessionHandoffTtlSeconds: number;
 }
 
-const instructorResourceLinkMode = (
-  launchMessage: InstructorResourceLinkLaunchMessage,
-): InstructorResourceLinkMode => {
-  if (launchMessage.badgeTemplateId !== null) {
-    return {
-      kind: "bulk",
-      badgeTemplateId: launchMessage.badgeTemplateId,
-    };
-  }
+type BulkInstructorResourceLinkViewsInput = ResolveInstructorResourceLinkViewsBaseInput & {
+  launchMessage: BulkInstructorResourceLinkLaunchMessage;
+  launchedBadgeTemplate: BadgeTemplateRecord;
+};
 
-  return {
-    kind: "course-summary",
-  };
+type CourseSummaryInstructorResourceLinkViewsInput = ResolveInstructorResourceLinkViewsBaseInput & {
+  launchMessage: CourseSummaryInstructorResourceLinkLaunchMessage;
+  launchedBadgeTemplate?: never;
+};
+
+export type ResolveInstructorResourceLinkViewsInput =
+  | BulkInstructorResourceLinkViewsInput
+  | CourseSummaryInstructorResourceLinkViewsInput;
+
+const isBulkInstructorResourceLinkViewsInput = (
+  input: ResolveInstructorResourceLinkViewsInput,
+): input is BulkInstructorResourceLinkViewsInput => {
+  return input.launchMessage.badgeTemplateId !== null;
 };
 
 const ltiBulkIssuanceViewFromRoster = (input: {
   roster: ReturnType<typeof ltiNrpsRosterFromCoreMembers>;
   message: string;
-  badgeTemplateId: string | null;
+  selectedBadge: LtiBadgeSummaryCard;
   courseContextTitle: string | null;
   courseContextId: string | null;
   contextMembershipsUrl: string;
@@ -99,7 +111,7 @@ const ltiBulkIssuanceViewFromRoster = (input: {
   return {
     status: "ready",
     message: input.message,
-    badgeTemplateId: input.badgeTemplateId,
+    selectedBadge: input.selectedBadge,
     courseContextTitle: input.courseContextTitle,
     courseContextId: input.courseContextId ?? input.roster.contextId,
     contextMembershipsUrl: input.contextMembershipsUrl,
@@ -114,7 +126,7 @@ const ltiBulkIssuanceViewFromRoster = (input: {
 const ltiEmptyBulkIssuanceView = (input: {
   status: "unavailable" | "error";
   message: string;
-  badgeTemplateId: string | null;
+  selectedBadge: LtiBadgeSummaryCard;
   courseContextTitle: string | null;
   courseContextId: string | null;
   contextMembershipsUrl: string | null;
@@ -122,7 +134,7 @@ const ltiEmptyBulkIssuanceView = (input: {
   return {
     status: input.status,
     message: input.message,
-    badgeTemplateId: input.badgeTemplateId,
+    selectedBadge: input.selectedBadge,
     courseContextTitle: input.courseContextTitle,
     courseContextId: input.courseContextId,
     contextMembershipsUrl: input.contextMembershipsUrl,
@@ -273,6 +285,25 @@ const ltiCanPlaceBadgesFromLti = (membershipRole: TenantMembershipRole): boolean
 
 const LTI_BADGE_QUALIFICATION_SUMMARY_FALLBACK =
   "Open criteria to review how learners qualify for this badge.";
+const LTI_BADGE_SUMMARY_ACTIVE_STATUS_LABEL = "Active";
+
+const ltiBadgeTemplateSummary = (badgeTemplate: BadgeTemplateRecord): string => {
+  return asNonEmptyString(badgeTemplate.description) ?? LTI_BADGE_QUALIFICATION_SUMMARY_FALLBACK;
+};
+
+const ltiBadgeSummaryCardFromTemplate = (input: {
+  tenantId: string;
+  badgeTemplate: BadgeTemplateRecord;
+}): LtiBadgeSummaryCard => {
+  return {
+    badgeTemplateId: input.badgeTemplate.id,
+    title: input.badgeTemplate.title,
+    summary: ltiBadgeTemplateSummary(input.badgeTemplate),
+    imageUri: input.badgeTemplate.imageUri,
+    criteriaPath: badgeTemplateCriteriaRegistryHref(input.tenantId, input.badgeTemplate.id),
+    statusLabel: LTI_BADGE_SUMMARY_ACTIVE_STATUS_LABEL,
+  };
+};
 
 interface LtiCourseBadgeTemplatePlacementGroup {
   badgeTemplateId: string;
@@ -320,20 +351,10 @@ const ltiCourseBadgeOverview = (input: {
   placementGroups: readonly LtiCourseBadgeTemplatePlacementGroup[];
 }): LtiCourseBadgeSummaryView["badges"] => {
   return input.placementGroups.map((placementGroup) => {
-    const summary =
-      asNonEmptyString(placementGroup.template.description) ??
-      LTI_BADGE_QUALIFICATION_SUMMARY_FALLBACK;
-
-    return {
-      badgeTemplateId: placementGroup.badgeTemplateId,
-      title: placementGroup.template.title,
-      summary,
-      imageUri: placementGroup.template.imageUri,
-      criteriaPath: badgeTemplateCriteriaRegistryHref(
-        input.tenantId,
-        placementGroup.badgeTemplateId,
-      ),
-    };
+    return ltiBadgeSummaryCardFromTemplate({
+      tenantId: input.tenantId,
+      badgeTemplate: placementGroup.template,
+    });
   });
 };
 
@@ -480,7 +501,7 @@ const resolveBulkIssuanceView = async (input: {
   ltiTool: LTITool;
   issuerClientId: string;
   linkedUserId: string;
-  badgeTemplateId: string;
+  selectedBadge: LtiBadgeSummaryCard;
   courseContextTitle: string | null;
   courseContextId: string | null;
   contextMembershipsUrl: string;
@@ -503,7 +524,7 @@ const resolveBulkIssuanceView = async (input: {
           deploymentId: input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
           contextId: issuanceActionContextId,
           resourceLinkId: input.launchMessage.resourceLinkId,
-          badgeTemplateId: input.badgeTemplateId,
+          badgeTemplateId: input.selectedBadge.badgeTemplateId,
           issuedByUserId: input.linkedUserId,
         }
       : null;
@@ -528,7 +549,7 @@ const resolveBulkIssuanceView = async (input: {
     message: `Loaded ${String(roster.learnerMembers.length)} learner${
       roster.learnerMembers.length === 1 ? "" : "s"
     } from LMS roster.`,
-    badgeTemplateId: input.badgeTemplateId,
+    selectedBadge: input.selectedBadge,
     courseContextTitle: input.courseContextTitle,
     courseContextId: input.courseContextId,
     contextMembershipsUrl: input.contextMembershipsUrl,
@@ -597,17 +618,24 @@ export const resolveInstructorResourceLinkViews = async (
   const courseContextTitle =
     asNonEmptyString(contextClaim?.title) ?? asNonEmptyString(contextClaim?.label) ?? null;
   const courseContextId = asNonEmptyString(contextClaim?.id);
-  const mode = instructorResourceLinkMode(input.launchMessage);
 
-  if (nrpsClaim === null) {
-    if (mode.kind === "bulk") {
+  if (isBulkInstructorResourceLinkViewsInput(input)) {
+    const mode = {
+      kind: "bulk",
+    } as const;
+    const selectedBadge = ltiBadgeSummaryCardFromTemplate({
+      tenantId: input.tenantId,
+      badgeTemplate: input.launchedBadgeTemplate,
+    });
+
+    if (nrpsClaim === null) {
       return {
         mode,
         bulkIssuanceView: ltiEmptyBulkIssuanceView({
           status: "unavailable",
           message:
             "This LMS launch did not include a learner roster, so CredTrail cannot issue badges from this tool yet.",
-          badgeTemplateId: mode.badgeTemplateId,
+          selectedBadge,
           courseContextTitle,
           courseContextId,
           contextMembershipsUrl: null,
@@ -616,19 +644,6 @@ export const resolveInstructorResourceLinkViews = async (
       };
     }
 
-    return {
-      mode,
-      bulkIssuanceView: null,
-      courseBadgeSummaryView: ltiEmptyCourseBadgeSummaryView({
-        status: "unavailable",
-        message:
-          "CredTrail could not load the learner roster from the LMS. Ask an administrator to check the LMS connection settings.",
-        courseContextTitle,
-      }),
-    };
-  }
-
-  if (mode.kind === "bulk") {
     try {
       return {
         mode,
@@ -642,7 +657,7 @@ export const resolveInstructorResourceLinkViews = async (
           ltiTool: input.ltiTool,
           issuerClientId: input.issuerClientId,
           linkedUserId: input.linkedUserId,
-          badgeTemplateId: mode.badgeTemplateId,
+          selectedBadge,
           courseContextTitle,
           courseContextId,
           contextMembershipsUrl: nrpsClaim.contextMembershipsUrl,
@@ -654,7 +669,7 @@ export const resolveInstructorResourceLinkViews = async (
     } catch (error) {
       logLtiWarning("Could not build bulk issuance view from LMS roster", {
         tenantId: input.tenantId,
-        badgeTemplateId: mode.badgeTemplateId,
+        badgeTemplateId: selectedBadge.badgeTemplateId,
         detail: error instanceof Error ? error.message : "unknown error",
       });
 
@@ -664,7 +679,7 @@ export const resolveInstructorResourceLinkViews = async (
           status: "error",
           message:
             "CredTrail could not load the learner roster from the LMS. Check the LMS connection settings.",
-          badgeTemplateId: mode.badgeTemplateId,
+          selectedBadge,
           courseContextTitle,
           courseContextId,
           contextMembershipsUrl: nrpsClaim.contextMembershipsUrl,
@@ -672,6 +687,23 @@ export const resolveInstructorResourceLinkViews = async (
         courseBadgeSummaryView: null,
       };
     }
+  }
+
+  const mode = {
+    kind: "course-summary",
+  } as const;
+
+  if (nrpsClaim === null) {
+    return {
+      mode,
+      bulkIssuanceView: null,
+      courseBadgeSummaryView: ltiEmptyCourseBadgeSummaryView({
+        status: "unavailable",
+        message:
+          "CredTrail could not load the learner roster from the LMS. Ask an administrator to check the LMS connection settings.",
+        courseContextTitle,
+      }),
+    };
   }
 
   const summaryContextId = courseContextId ?? input.ltiLaunchSession.context.id;

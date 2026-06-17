@@ -373,6 +373,7 @@ const sampleBadgeTemplate = (overrides?: {
   id?: string;
   title?: string;
   description?: string | null;
+  imageUri?: string | null;
 }): {
   id: string;
   tenantId: string;
@@ -393,9 +394,13 @@ const sampleBadgeTemplate = (overrides?: {
     tenantId: "tenant_123",
     slug: "typescript-foundations",
     title: overrides?.title ?? "TypeScript Foundations",
-    description: overrides?.description ?? "Awarded for completing TypeScript fundamentals.",
+    description:
+      overrides?.description === undefined
+        ? "Awarded for completing TypeScript fundamentals."
+        : overrides.description,
     criteriaUri: "https://example.edu/criteria",
-    imageUri: "https://example.edu/image.png",
+    imageUri:
+      overrides?.imageUri === undefined ? "https://example.edu/image.png" : overrides.imageUri,
     createdByUserId: "usr_123",
     ownerOrgUnitId: "tenant_123:org:institution",
     governanceMetadataJson: null,
@@ -1610,6 +1615,7 @@ describe("LTI 1.3 core launch flow", () => {
       payload: {
         iss: issuer,
         sub: "instructor-001",
+        name: "Instructor One",
         aud: clientId,
         exp: nowEpochSeconds + 300,
         iat: nowEpochSeconds - 10,
@@ -1652,8 +1658,21 @@ describe("LTI 1.3 core launch flow", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Issue badges from this LMS course");
+    expect(body).toContain("Hi, Instructor One");
+    expect(body).toContain(
+      "Review the selected badge, then choose learners from this course roster to issue it.",
+    );
     expect(body).toContain("Issue badges from course roster");
+    expect(body).toContain("lti-launch__selected-badge");
+    expect(body).toContain("TypeScript Foundations");
+    expect(body).toContain("Awarded for completing TypeScript fundamentals.");
+    expect(body).toContain('src="https://example.edu/image.png"');
+    expect(body).toContain('alt="TypeScript Foundations badge artwork"');
+    expect(body).toContain("/showcase/tenant_123/criteria?badgeTemplateId=badge_template_001");
+    expect(body).toContain("Active");
+    expect(body.indexOf("lti-launch__selected-badge")).toBeLessThan(
+      body.indexOf('class="lti-launch__bulk-table"'),
+    );
     expect(body).toContain("Loaded 1 learner from LMS roster.");
     expect(body).toContain("badge_template_001");
     expect(body).toContain("learner-one@example.edu");
@@ -2070,6 +2089,13 @@ describe("LTI 1.3 core launch flow", () => {
   it("renders unavailable NRPS state when launch omits the service claim", async () => {
     const env = createLtiEnv();
     const rosterTargetLinkUri = `${targetLinkUri}?badgeTemplateId=badge_template_001`;
+    mockedFindBadgeTemplateById.mockResolvedValue(
+      sampleBadgeTemplate({
+        title: "Governance Design",
+        description: null,
+        imageUri: null,
+      }),
+    );
     const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool();
     const loginResponse = await isolatedApp.request(
       `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
@@ -2129,6 +2155,15 @@ describe("LTI 1.3 core launch flow", () => {
     expect(response.status).toBe(200);
     expect(body).toContain("CredTrail could not load this LMS roster");
     expect(body).toContain("Issue badges from course roster");
+    expect(body).toContain("lti-launch__selected-badge");
+    expect(body).toContain("Governance Design");
+    expect(body).toContain("GD");
+    expect(body).toContain("Open criteria to review how learners qualify for this badge.");
+    expect(body).toContain("/showcase/tenant_123/criteria?badgeTemplateId=badge_template_001");
+    expect(body).toContain("Active");
+    expect(body.indexOf("lti-launch__selected-badge")).toBeLessThan(
+      body.indexOf('class="lti-launch__bulk-table"'),
+    );
     expect(body).toContain(
       "This LMS launch did not include a learner roster, so CredTrail cannot issue badges from this tool yet.",
     );
