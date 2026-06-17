@@ -15,6 +15,7 @@ import { LTI_CLAIM_CONTEXT, LTI_CLAIM_DEPLOYMENT_ID, type LtiLaunchClaims } from
 import type { LTISession, LTITool } from "@lti-tool/core";
 import type { AppBindings } from "../app";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
+import { badgeTemplateCriteriaRegistryHref } from "../badges/badge-template-public-links";
 import { LTI_RESOURCE_LINK_ISSUE_PATH } from "./constants";
 import { createLtiIssuanceActionToken } from "./issuance-action-token";
 import { logLtiWarning } from "./log";
@@ -159,6 +160,7 @@ const ltiEmptyCourseBadgeSummaryView = (input: {
     badgeCount: 0,
     issuedCount: 0,
     canPlaceBadgesFromLti: false,
+    badges: [],
     rows: [],
   };
 };
@@ -269,6 +271,9 @@ const ltiCanPlaceBadgesFromLti = (membershipRole: TenantMembershipRole): boolean
   return membershipRole === "owner" || membershipRole === "admin" || membershipRole === "issuer";
 };
 
+const LTI_BADGE_QUALIFICATION_SUMMARY_FALLBACK =
+  "Open criteria to review how learners qualify for this badge.";
+
 interface LtiCourseBadgeTemplatePlacementGroup {
   badgeTemplateId: string;
   template: BadgeTemplateRecord;
@@ -310,6 +315,28 @@ const ltiCoursePlacementGroupsByBadgeTemplate = (input: {
   return groups;
 };
 
+const ltiCourseBadgeOverview = (input: {
+  tenantId: string;
+  placementGroups: readonly LtiCourseBadgeTemplatePlacementGroup[];
+}): LtiCourseBadgeSummaryView["badges"] => {
+  return input.placementGroups.map((placementGroup) => {
+    const summary =
+      asNonEmptyString(placementGroup.template.description) ??
+      LTI_BADGE_QUALIFICATION_SUMMARY_FALLBACK;
+
+    return {
+      badgeTemplateId: placementGroup.badgeTemplateId,
+      title: placementGroup.template.title,
+      summary,
+      imageUri: placementGroup.template.imageUri,
+      criteriaPath: badgeTemplateCriteriaRegistryHref(
+        input.tenantId,
+        placementGroup.badgeTemplateId,
+      ),
+    };
+  });
+};
+
 const ltiCourseBadgeSummaryViewFromRoster = async (input: {
   db: SqlDatabase;
   tenantId: string;
@@ -326,6 +353,10 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
   const placementGroups = ltiCoursePlacementGroupsByBadgeTemplate({
     placements: input.placements,
     templatesById,
+  });
+  const badges = ltiCourseBadgeOverview({
+    tenantId: input.tenantId,
+    placementGroups,
   });
   const candidates = placementGroups.flatMap((placementGroup) => {
     return learnerMembers.map((member) => ({
@@ -434,6 +465,7 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
     badgeCount: placementGroups.length,
     issuedCount: rows.filter((row) => row.status === "issued").length,
     canPlaceBadgesFromLti: input.canPlaceBadgesFromLti,
+    badges,
     rows,
   };
 };

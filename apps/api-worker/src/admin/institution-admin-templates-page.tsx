@@ -28,17 +28,17 @@ import {
   BadgeTemplateImageRevisionList,
 } from "./badge-template-history-panel";
 import {
+  badgeTemplateCriteriaRegistryHref,
+  badgeTemplateShowcaseHref,
+} from "../badges/badge-template-public-links";
+import {
   BadgeTemplateEditorArtworkActions,
   BadgeTemplateEditorCurrentArtwork,
   BadgeTemplateEditorPreviewFrame,
   BadgeTemplateEditorReadyStatus,
 } from "./badge-template-editor-artwork";
 import { renderTrustEdCredentialPanel } from "./institution-admin-trusted-credential-panel";
-import {
-  BadgeTemplateAdminTableRow,
-  badgeTemplateCriteriaRegistryHref,
-  badgeTemplateShowcaseHref,
-} from "./badge-template-table-row";
+import { BadgeTemplateAdminTableRow } from "./badge-template-table-row";
 import {
   buildInstitutionAdminShellPaths,
   renderInstitutionAdminPageHeader,

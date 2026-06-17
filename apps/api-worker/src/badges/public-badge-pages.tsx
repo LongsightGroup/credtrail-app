@@ -26,6 +26,12 @@ import type {
   EvidenceDetails,
   TrustEdCredentialDetails,
 } from "./public-badge-helpers";
+import {
+  badgeTemplateCriteriaRegistryHref,
+  badgeTemplateShowcaseHref,
+  tenantBadgeCriteriaRegistryHref,
+  tenantBadgeShowcaseHref,
+} from "./badge-template-public-links";
 import { PublicBadgeTrustEdCredentialSection } from "./public-badge-trusted-credential-section";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -743,9 +749,10 @@ export const createPublicBadgePageRenderers = (
           </a>
         </p>
       );
-    const criteriaRegistryPath = `/showcase/${encodeURIComponent(
+    const criteriaRegistryPath = badgeTemplateCriteriaRegistryHref(
       model.assertion.tenantId,
-    )}/criteria?badgeTemplateId=${encodeURIComponent(model.assertion.badgeTemplateId)}`;
+      model.assertion.badgeTemplateId,
+    );
     const criteriaRegistrySection = (
       <p class="public-badge__achievement-copy">
         Governance: <a href={criteriaRegistryPath}>View public criteria registry entry</a>
@@ -985,10 +992,8 @@ export const createPublicBadgePageRenderers = (
         : `${filterLabel ?? "Credentials"} · ${displayTenantName}`;
     const badgeWallPath =
       filterBadgeTemplateId === null
-        ? `/showcase/${encodeURIComponent(tenantId)}`
-        : `/showcase/${encodeURIComponent(tenantId)}?badgeTemplateId=${encodeURIComponent(
-            filterBadgeTemplateId,
-          )}`;
+        ? tenantBadgeShowcaseHref(tenantId)
+        : badgeTemplateShowcaseHref(tenantId, filterBadgeTemplateId);
     const canonicalUrl = new URL(badgeWallPath, requestUrl).toString();
     const subtitle =
       filterBadgeTemplateId === null
@@ -996,10 +1001,8 @@ export const createPublicBadgePageRenderers = (
         : `Publicly verified credentials for ${filterLabel ?? "this badge"}.`;
     const criteriaRegistryPath =
       filterBadgeTemplateId === null
-        ? `/showcase/${encodeURIComponent(tenantId)}/criteria`
-        : `/showcase/${encodeURIComponent(tenantId)}/criteria?badgeTemplateId=${encodeURIComponent(
-            filterBadgeTemplateId,
-          )}`;
+        ? tenantBadgeCriteriaRegistryHref(tenantId)
+        : badgeTemplateCriteriaRegistryHref(tenantId, filterBadgeTemplateId);
     const pageTitle = `${title} | CredTrail`;
     const socialImageUrl =
       entries
@@ -1146,10 +1149,8 @@ export const createPublicBadgePageRenderers = (
     const title = `Badge Criteria Registry · ${tenantId}`;
     const criteriaRegistryPath =
       filterBadgeTemplateId === null
-        ? `/showcase/${encodeURIComponent(tenantId)}/criteria`
-        : `/showcase/${encodeURIComponent(tenantId)}/criteria?badgeTemplateId=${encodeURIComponent(
-            filterBadgeTemplateId,
-          )}`;
+        ? tenantBadgeCriteriaRegistryHref(tenantId)
+        : badgeTemplateCriteriaRegistryHref(tenantId, filterBadgeTemplateId);
     const canonicalUrl = new URL(criteriaRegistryPath, requestUrl).toString();
     const subtitle =
       filterBadgeTemplateId === null
@@ -1177,9 +1178,7 @@ export const createPublicBadgePageRenderers = (
             ownerOrgUnit === null
               ? template.ownerOrgUnitId
               : `${ownerOrgUnit.displayName} (${ownerOrgUnit.unitType})`;
-          const templateShowcasePath = `/showcase/${encodeURIComponent(
-            tenantId,
-          )}?badgeTemplateId=${encodeURIComponent(template.id)}`;
+          const templateShowcasePath = badgeTemplateShowcaseHref(tenantId, template.id);
           const criteriaLink =
             template.criteriaUri === null ? (
               <span class="criteria-registry__muted">

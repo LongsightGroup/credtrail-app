@@ -10,6 +10,7 @@ import {
   type InstructorResourceLinkViews,
   type LtiBulkIssuanceRosterMember,
   type LtiBulkIssuanceView,
+  type LtiCourseBadgeSummaryBadge,
   type LtiCourseBadgeSummaryView,
   type LtiDeepLinkSelectionPageInput,
   type LtiDeepLinkSelectionOption,
@@ -21,6 +22,7 @@ export type {
   InstructorResourceLinkViews,
   LtiBulkIssuanceRosterMember,
   LtiBulkIssuanceView,
+  LtiCourseBadgeSummaryBadge,
   LtiCourseBadgeSummaryRow,
   LtiCourseBadgeSummaryView,
   LtiDeepLinkSelectionPageInput,
@@ -150,6 +152,17 @@ const DetailRows = (input: {
       ))}
     </>
   );
+};
+
+const ltiBadgeInitials = (title: string): string => {
+  const initials = title
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join("");
+
+  return initials.length > 0 ? initials : "B";
 };
 
 export const ltiPostMessageStorageRedirectPage = (input: {
@@ -307,6 +320,55 @@ const BulkIssuanceSection = (input: { view: LtiBulkIssuanceView | null }): HonoE
   );
 };
 
+const CourseBadgeOverviewSection = (input: {
+  badges: readonly LtiCourseBadgeSummaryBadge[];
+}): HonoElement | null => {
+  if (input.badges.length === 0) {
+    return null;
+  }
+
+  return (
+    <section class="lti-launch__badge-overview" aria-labelledby="lti-course-badges-title">
+      <header class="lti-launch__badge-overview-head">
+        <h3 id="lti-course-badges-title">Badges in this course</h3>
+        <p class="lti-launch__hint">Open a badge to review criteria and qualification rules.</p>
+      </header>
+      <ul class="lti-launch__badge-list">
+        {input.badges.map((badge, index) => (
+          <li class="lti-launch__badge-item" key={badge.badgeTemplateId}>
+            <div class="lti-launch__badge-media" aria-hidden={badge.imageUri === null}>
+              {badge.imageUri === null ? (
+                <span class="lti-launch__badge-placeholder">{ltiBadgeInitials(badge.title)}</span>
+              ) : (
+                <img
+                  class="lti-launch__badge-image"
+                  src={badge.imageUri}
+                  alt={`${badge.title} badge artwork`}
+                  width={72}
+                  height={72}
+                  loading={index === 0 ? undefined : "lazy"}
+                />
+              )}
+            </div>
+            <div class="lti-launch__badge-copy">
+              <div class="lti-launch__badge-title-row">
+                <h4>
+                  <a href={badge.criteriaPath} target="_blank" rel="noopener noreferrer">
+                    {badge.title}
+                    <span class="lti-launch__sr-only"> criteria and rules</span>
+                  </a>
+                </h4>
+                <span class="lti-launch__status-pill lti-launch__status-pill--active">Active</span>
+              </div>
+              <p>{badge.summary}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+};
+
 const CourseBadgeSummarySection = (input: {
   view: LtiCourseBadgeSummaryView | null;
 }): HonoElement | null => {
@@ -315,9 +377,10 @@ const CourseBadgeSummarySection = (input: {
   }
 
   const view = input.view;
-  const badgeOptions = Array.from(
-    new Map(view.rows.map((row): [string, string] => [row.badgeTemplateId, row.badgeTitle])),
-  ).map(([badgeTemplateId, badgeTitle]) => ({ badgeTemplateId, badgeTitle }));
+  const badgeOptions = view.badges.map((badge) => ({
+    badgeTemplateId: badge.badgeTemplateId,
+    badgeTitle: badge.title,
+  }));
   const hasRows = view.rows.length > 0;
   const hasPlacedBadges = view.badgeCount > 0;
   const showPlacementGuidance = !hasPlacedBadges && view.canPlaceBadgesFromLti;
@@ -362,6 +425,7 @@ const CourseBadgeSummarySection = (input: {
             ]}
           />
         </dl>
+        <CourseBadgeOverviewSection badges={view.badges} />
         {hasRows ? (
           <div class="lti-launch__summary-controls">
             <label class="lti-launch__summary-field">

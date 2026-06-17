@@ -7,6 +7,10 @@ import {
   type BadgeTemplateListPageQueryOptions,
 } from "./badge-template-admin-helpers";
 import {
+  badgeTemplateCriteriaRegistryHref,
+  badgeTemplateShowcaseHref,
+} from "../badges/badge-template-public-links";
+import {
   AdminActionMenu,
   AdminActionMenuLink,
   AdminActions,
@@ -17,21 +21,6 @@ import {
 import { AdminLinkedImageWithFallback } from "./image-fallback";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
-
-export const badgeTemplateShowcaseHref = (tenantId: string, badgeTemplateId: string): string => {
-  return `/showcase/${encodeURIComponent(tenantId)}?badgeTemplateId=${encodeURIComponent(
-    badgeTemplateId,
-  )}`;
-};
-
-export const badgeTemplateCriteriaRegistryHref = (
-  tenantId: string,
-  badgeTemplateId: string,
-): string => {
-  return `/showcase/${encodeURIComponent(tenantId)}/criteria?badgeTemplateId=${encodeURIComponent(
-    badgeTemplateId,
-  )}`;
-};
 
 export const badgeTemplateAdminEditorHref = (tenantId: string, badgeTemplateId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/rules/templates/${encodeURIComponent(

@@ -42,6 +42,14 @@ export interface LtiCourseBadgeSummaryRow {
   issuedAt: string | null;
 }
 
+export interface LtiCourseBadgeSummaryBadge {
+  badgeTemplateId: string;
+  title: string;
+  summary: string;
+  imageUri: string | null;
+  criteriaPath: string;
+}
+
 export interface LtiCourseBadgeSummaryView {
   status: "ready" | "unavailable" | "error";
   message: string;
@@ -50,6 +58,7 @@ export interface LtiCourseBadgeSummaryView {
   badgeCount: number;
   issuedCount: number;
   canPlaceBadgesFromLti: boolean;
+  badges: readonly LtiCourseBadgeSummaryBadge[];
   rows: readonly LtiCourseBadgeSummaryRow[];
 }
 

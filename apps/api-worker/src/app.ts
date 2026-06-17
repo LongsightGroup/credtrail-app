@@ -36,6 +36,10 @@ import {
   revocationStatusListUrlForTenant,
 } from "./badges/revocation-status";
 import { createPublicBadgePageRenderers } from "./badges/public-badge-pages";
+import {
+  badgeTemplateCriteriaRegistryHref,
+  badgeTemplateShowcaseHref,
+} from "./badges/badge-template-public-links";
 import { createIssueBadgeForTenant } from "./badges/direct-issue";
 import { processBadgeTemplateImageGenerationJob } from "./badges/badge-template-image-generation";
 import {
@@ -407,10 +411,11 @@ const publicBadgeSummaryPayload = (
   const credentialDownloadPath = `${publicBadgePath}/download`;
   const credentialPdfDownloadPath = `${publicBadgePath}/download.pdf`;
   const walletOfferPath = `/credentials/v1/offers/${encodeURIComponent(assertion.publicId ?? assertion.id)}`;
-  const showcasePath = `/showcase/${encodeURIComponent(assertion.tenantId)}?badgeTemplateId=${encodeURIComponent(assertion.badgeTemplateId)}`;
-  const criteriaRegistryPath = `/showcase/${encodeURIComponent(
+  const showcasePath = badgeTemplateShowcaseHref(assertion.tenantId, assertion.badgeTemplateId);
+  const criteriaRegistryPath = badgeTemplateCriteriaRegistryHref(
     assertion.tenantId,
-  )}/criteria?badgeTemplateId=${encodeURIComponent(assertion.badgeTemplateId)}`;
+    assertion.badgeTemplateId,
+  );
   const verificationLabel = model.lifecycle.state === "active" ? "verified" : model.lifecycle.state;
 
   return {

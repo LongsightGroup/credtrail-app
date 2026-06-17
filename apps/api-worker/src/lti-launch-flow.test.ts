@@ -1321,6 +1321,16 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain("Learner Two");
     expect(body).toContain("learner-two@example.edu");
     expect(body).toContain("TypeScript Foundations");
+    expect(body).toContain("Badges in this course");
+    expect(body.indexOf("Badges in this course")).toBeLessThan(
+      body.indexOf("data-lti-course-summary-search"),
+    );
+    expect(body).toContain("Awarded for completing TypeScript fundamentals.");
+    expect(body).toContain('src="https://example.edu/image.png"');
+    expect(body).toContain("/showcase/tenant_123/criteria?badgeTemplateId=badge_template_001");
+    expect(
+      body.match(/\/showcase\/tenant_123\/criteria\?badgeTemplateId=badge_template_001/g) ?? [],
+    ).toHaveLength(1);
     expect(body).toContain("Issued");
     expect(body).toContain('dateTime="2026-02-11T14:00:00.000Z"');
     expect(body).toContain("Issued Feb 11, 2026, 2:00 PM UTC");
@@ -1476,6 +1486,8 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain("Course badge summary");
     expect(body).toContain("Learner One");
     expect(body).toContain("TypeScript Foundations");
+    expect(body).toContain("Badges in this course");
+    expect(body).toContain("/showcase/tenant_123/criteria?badgeTemplateId=badge_template_001");
     expect(body).toContain("Issued Feb 11, 2026, 2:00 PM UTC");
     expect(body).not.toContain("/tenants/tenant_123/admin/operations/issued-badges");
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/templates/badge_template_001");
