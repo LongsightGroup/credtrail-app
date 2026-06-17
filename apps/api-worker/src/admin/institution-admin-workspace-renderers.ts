@@ -10,6 +10,7 @@ import {
   setAdminListMessageFlash,
   type AdminListMessageWorkspace,
 } from "./admin-list-message-flash";
+import { consumeAdminManualIssueFlash } from "./manual-issue-flash";
 import { parseTenantLmsConnectionPathParams } from "@credtrail/validation";
 import {
   institutionAdminAuthenticationPage,
@@ -65,7 +66,10 @@ const readListWorkspaceFlash = async (
     userId: string;
     workspace: AdminListMessageWorkspace;
   },
-): Promise<{ listNotice: string | null; listError: string | null }> => {
+): Promise<{
+  listNotice: string | null;
+  listError: string | null;
+}> => {
   const flash = await consumeAdminListMessageFlash(c, {
     tenantId: input.tenantId,
     userId: input.userId,
@@ -532,21 +536,35 @@ export const renderInstitutionAdminManualIssueWorkspace = async <
   }
 
   const { pageData, session } = loaded;
-  const flash = await readListWorkspaceFlash(c, {
+  const flash = await consumeAdminManualIssueFlash(c, {
     tenantId,
     userId: session.userId,
-    workspace: "operations_manual_issue",
   });
+  const manualIssueWorkspace =
+    flash === null
+      ? {
+          listNotice: null,
+          listError: null,
+          successLinks: null,
+        }
+      : flash.tone === "error"
+        ? {
+            listNotice: null,
+            listError: flash.message,
+            successLinks: null,
+          }
+        : {
+            listNotice: flash.message,
+            listError: null,
+            successLinks: flash.successLinks ?? null,
+          };
 
   return await renderInstitutionAdminWorkspacePage(
     c,
     renderAppPageFn,
     institutionAdminManualIssuePage({
       ...pageData,
-      manualIssueWorkspace: {
-        listNotice: flash.listNotice,
-        listError: flash.listError,
-      },
+      manualIssueWorkspace,
     }),
   );
 };

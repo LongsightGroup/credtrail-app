@@ -1,5 +1,6 @@
 import {
   createAuditLog,
+  findAssertionById,
   findBadgeTemplateById,
   type SqlDatabase,
   type TenantMembershipRole,
@@ -7,9 +8,13 @@ import {
 import { parseManualIssueBadgeRequest, parseTenantPathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
 import { readOptionalFormField } from "../admin/admin-form-helpers";
-import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import { buildOperationsManualIssuePath } from "../admin/access-admin-helpers";
+import {
+  buildAdminManualIssueSuccessLinks,
+  setAdminManualIssueFlash,
+} from "../admin/manual-issue-flash";
 import type { AppBindings, AppContext, AppEnv } from "../app";
+import { publicBadgePathForAssertion } from "../badges/public-badge-model";
 import { isIssueBadgeHttpError, type IssueBadgeForTenant } from "./badge-rule-evaluation-types";
 
 interface RegisterTenantOperationsAdminRoutesInput {
@@ -91,10 +96,9 @@ export const registerTenantOperationsAdminRoutes = (
         ],
       });
     } catch {
-      await setAdminListMessageFlash(c, {
+      await setAdminManualIssueFlash(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
-        workspace: "operations_manual_issue",
         tone: "error",
         message: "Recipient email and badge template are required.",
       });
@@ -106,10 +110,9 @@ export const registerTenantOperationsAdminRoutes = (
     const template = await findBadgeTemplateById(db, pathParams.tenantId, request.badgeTemplateId);
 
     if (template === null) {
-      await setAdminListMessageFlash(c, {
+      await setAdminManualIssueFlash(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
-        workspace: "operations_manual_issue",
         tone: "error",
         message: "Choose a badge template that belongs to this organization.",
       });
@@ -147,6 +150,11 @@ export const registerTenantOperationsAdminRoutes = (
         issueRequest,
         session.userId,
       );
+      const assertion = await findAssertionById(db, pathParams.tenantId, result.assertionId);
+
+      if (assertion === null) {
+        throw new Error(`Issued assertion "${result.assertionId}" could not be loaded`);
+      }
 
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
@@ -162,22 +170,21 @@ export const registerTenantOperationsAdminRoutes = (
         },
       });
 
-      await setAdminListMessageFlash(c, {
+      await setAdminManualIssueFlash(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
-        workspace: "operations_manual_issue",
         tone: "success",
-        message: `Badge issued for ${request.recipientIdentity}. Open /badges/${result.assertionId} to review it.`,
+        message: `Badge issued for ${request.recipientIdentity}.`,
+        successLinks: buildAdminManualIssueSuccessLinks(publicBadgePathForAssertion(assertion)),
       });
     } catch (error: unknown) {
       const message = isIssueBadgeHttpError(error)
         ? error.payload.error
         : "Unable to issue the badge from this form.";
 
-      await setAdminListMessageFlash(c, {
+      await setAdminManualIssueFlash(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
-        workspace: "operations_manual_issue",
         tone: "error",
         message,
       });

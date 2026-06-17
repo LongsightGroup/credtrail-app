@@ -28,6 +28,7 @@ import type {
 import type { LearnerRecordPresentationModel } from "../../learner-record/learner-record-presentation";
 import type { ReportingMetricEntry } from "../../reporting/metric-definitions";
 import type { BadgeRuleReviewQueueEntryView } from "../../badge-rule-review-queue-workspace";
+import type { AdminManualIssueSuccessLinks } from "../manual-issue-flash";
 import type { PageAssetKey } from "../../ui/page-assets";
 
 export type InstitutionAdminView =
@@ -339,6 +340,7 @@ export interface InstitutionAdminOperationsWorkspace {
 export interface InstitutionAdminManualIssueWorkspace {
   listNotice: string | null;
   listError: string | null;
+  successLinks: AdminManualIssueSuccessLinks | null;
 }
 
 export interface InstitutionAdminLearnerRecordImportWorkflow {

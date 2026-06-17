@@ -106,7 +106,10 @@ export const consumeAdminListMessageFlash = async (
     userId: string;
     workspace: AdminListMessageWorkspace;
   },
-): Promise<{ tone: AdminListMessageTone; message: string } | null> => {
+): Promise<{
+  tone: AdminListMessageTone;
+  message: string;
+} | null> => {
   const raw = await consumeAdminFlashCookie(c, {
     kind: LIST_MESSAGE_FLASH_KIND,
     tenantId: input.tenantId,

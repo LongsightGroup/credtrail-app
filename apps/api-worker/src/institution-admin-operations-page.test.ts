@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createEnv,
   fakeDb,
@@ -19,11 +19,32 @@ import {
   mockedRecordAssertionLifecycleTransition,
   sampleLearnerRecordAssertionExport,
 } from "./institution-admin-page-test-utils";
+
+const { mockedIssueBadgeForTenant } = vi.hoisted(() => {
+  return {
+    mockedIssueBadgeForTenant: vi.fn(),
+  };
+});
+
+vi.mock("./badges/direct-issue", async () => {
+  const actual =
+    await vi.importActual<typeof import("./badges/direct-issue")>("./badges/direct-issue");
+
+  return {
+    ...actual,
+    createIssueBadgeForTenant: vi.fn(() => mockedIssueBadgeForTenant),
+  };
+});
+
 import { app } from "./index";
 import { getSeededDemoLearnerRecordFixture } from "./learner-record/seeded-demo-learner-record-fixture";
 import { INSTITUTION_ADMIN_ISSUED_BADGES_JS } from "./ui/page-assets/content/institution-admin-issued-badges-js";
 import { INSTITUTION_ADMIN_JS } from "./ui/page-assets/content/institution-admin-js";
 import { pageAssetPath } from "./ui/page-assets";
+
+beforeEach(() => {
+  mockedIssueBadgeForTenant.mockReset();
+});
 
 describe("GET /tenants/:tenantId/admin/operations", () => {
   it("redirects to the issue badge page", async () => {
@@ -94,6 +115,106 @@ describe("POST /tenants/:tenantId/admin/operations/manual-issue", () => {
 
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/operations/issue");
+  });
+
+  it("redirects successful manual issue posts with public next-step links", async () => {
+    const env = createEnv();
+    const assertion = sampleLearnerRecordAssertionExport();
+
+    mockedFindBadgeTemplateById.mockResolvedValueOnce({
+      id: assertion.badgeTemplateId,
+      tenantId: assertion.tenantId,
+      slug: "applied-analytics",
+      title: assertion.badgeTitle,
+      description: assertion.badgeDescription,
+      criteriaUri: assertion.badgeCriteriaUri,
+      imageUri: assertion.badgeImageUri,
+      createdByUserId: "usr_admin",
+      ownerOrgUnitId: "tenant_123:org:institution",
+      governanceMetadataJson: null,
+      isArchived: false,
+      createdAt: assertion.createdAt,
+      updatedAt: assertion.updatedAt,
+    });
+    mockedIssueBadgeForTenant.mockResolvedValue({
+      status: "issued",
+      assertionId: assertion.assertionId,
+    });
+    mockedFindAssertionById.mockResolvedValueOnce({
+      id: assertion.assertionId,
+      tenantId: assertion.tenantId,
+      publicId: assertion.assertionPublicId,
+      learnerProfileId: assertion.learnerProfileId,
+      badgeTemplateId: assertion.badgeTemplateId,
+      recipientIdentity: assertion.recipientIdentity,
+      recipientIdentityType: assertion.recipientIdentityType,
+      vcR2Key: assertion.vcR2Key,
+      statusListIndex: assertion.statusListIndex,
+      idempotencyKey: assertion.idempotencyKey,
+      issuedAt: assertion.issuedAt,
+      issuedByUserId: assertion.issuedByUserId,
+      revokedAt: assertion.revokedAt,
+      createdAt: assertion.createdAt,
+      updatedAt: assertion.updatedAt,
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/manual-issue",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          badgeTemplateId: assertion.badgeTemplateId,
+          recipientIdentity: assertion.recipientIdentity,
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/operations/issue");
+
+    const setCookieHeaders =
+      typeof response.headers.getSetCookie === "function"
+        ? response.headers.getSetCookie()
+        : [response.headers.get("set-cookie") ?? ""];
+    const flashCookie = setCookieHeaders
+      .map((entry) => entry.split(";")[0] ?? "")
+      .find((entry) => entry.startsWith("ct_admin_flash_list_message_tenant_123="));
+
+    expect(flashCookie).toBeDefined();
+
+    const issuePageResponse = await app.request(
+      "/tenants/tenant_123/admin/operations/issue",
+      {
+        headers: {
+          Cookie: `better-auth.session_token=session-token; ${flashCookie ?? ""}`,
+        },
+      },
+      env,
+    );
+    const body = await issuePageResponse.text();
+
+    expect(issuePageResponse.status).toBe(200);
+    expect(body).toContain("Badge issued for learner@example.edu.");
+    expect(body).toContain('href="/badges/public_assertion_456"');
+    expect(body).toContain('href="/badges/public_assertion_456/verification"');
+    expect(body).toContain('href="/badges/public_assertion_456/jsonld"');
+    expect(mockedIssueBadgeForTenant).toHaveBeenCalledWith(
+      expect.anything(),
+      "tenant_123",
+      expect.objectContaining({
+        badgeTemplateId: assertion.badgeTemplateId,
+        recipientIdentity: assertion.recipientIdentity,
+        recipientIdentityType: assertion.recipientIdentityType,
+      }),
+      "usr_admin",
+    );
   });
 });
 

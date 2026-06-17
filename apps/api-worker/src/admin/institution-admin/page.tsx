@@ -838,9 +838,8 @@ const renderInstitutionAdminPage = (
 
   const workspaceCardsMarkup = (
     <section class="ct-admin__workspace-grid ct-grid" aria-label="Institution admin workspaces">
-      <AdminWorkspaceCard href={operationsManualIssuePath} ariaLabel="Open Issue Badge workspace">
-        <p class="ct-admin__eyebrow">Operations</p>
-        <h2>Issue & Inspect</h2>
+      <AdminWorkspaceCard href={operationsManualIssuePath} ariaLabel="Open Issuance workspace">
+        <h2>Issuance</h2>
         <p>
           Issue badges, route manual review, inspect issued badges, and update badge status across
           focused pages.
@@ -850,22 +849,15 @@ const renderInstitutionAdminPage = (
           <AdminStatusPill>{ruleCount} rules</AdminStatusPill>
         </div>
       </AdminWorkspaceCard>
-      <AdminWorkspaceCard href={reportingPath} ariaLabel="Open Reporting workspace">
-        <p class="ct-admin__eyebrow">Analytics</p>
-        <h2>Reporting</h2>
-        <p>
-          Track issuance volume and badge status with filters, definitions, and clear source notes.
-        </p>
-        <div class="ct-admin__workspace-stats ct-cluster">
-          <AdminStatusPill>Issued {reportingOverview?.counts.issued ?? 0}</AdminStatusPill>
-          <AdminStatusPill>
-            Pending review {reportingOverview?.counts.pendingReview ?? 0}
-          </AdminStatusPill>
-        </div>
+      <AdminWorkspaceCard
+        href={operationsLearnerRecordsPath}
+        ariaLabel="Open Learner Records workspace"
+      >
+        <h2>Learner Records</h2>
+        <p>View, import, and export learner records.</p>
       </AdminWorkspaceCard>
-      <AdminWorkspaceCard href={rulesWorkspacePath} ariaLabel="Open Rules workspace">
-        <p class="ct-admin__eyebrow">Management</p>
-        <h2>Rules</h2>
+      <AdminWorkspaceCard href={rulesWorkspacePath} ariaLabel="Open Badge Program workspace">
+        <h2>Badge Program</h2>
         <p>
           Review awarding rules, maintain reusable lists, and open focused pages for builder and
           template maintenance.
@@ -878,8 +870,19 @@ const renderInstitutionAdminPage = (
           <AdminStatusPill>{badgeTemplateCount} templates</AdminStatusPill>
         </div>
       </AdminWorkspaceCard>
-      <AdminWorkspaceCard href={accessMembersPath} ariaLabel="Open Members workspace">
-        <p class="ct-admin__eyebrow">Configuration</p>
+      <AdminWorkspaceCard href={reportingPath} ariaLabel="Open Reporting workspace">
+        <h2>Reporting</h2>
+        <p>
+          Track issuance volume and badge status with filters, definitions, and clear source notes.
+        </p>
+        <div class="ct-admin__workspace-stats ct-cluster">
+          <AdminStatusPill>Issued {reportingOverview?.counts.issued ?? 0}</AdminStatusPill>
+          <AdminStatusPill>
+            Pending review {reportingOverview?.counts.pendingReview ?? 0}
+          </AdminStatusPill>
+        </div>
+      </AdminWorkspaceCard>
+      <AdminWorkspaceCard href={accessMembersPath} ariaLabel="Open People & Access workspace">
         <h2>People &amp; Access</h2>
         <p>Manage members, governance delegation, API keys, LMS connections, and org structure.</p>
         <div class="ct-admin__workspace-stats ct-cluster">
@@ -1118,6 +1121,7 @@ const renderInstitutionAdminPage = (
                 templateSelectOptions,
                 listError: input.manualIssueWorkspace?.listError ?? null,
                 listNotice: input.manualIssueWorkspace?.listNotice ?? null,
+                successLinks: input.manualIssueWorkspace?.successLinks ?? null,
               })}
             </section>
           </>
