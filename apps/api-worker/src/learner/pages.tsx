@@ -313,7 +313,7 @@ const BadgeCard = (input: {
           class="learner-dashboard__claim-form"
         >
           <LearnerButton type="submit" variant="secondary">
-            Claim from dashboard
+            Claim and share badge
           </LearnerButton>
         </form>
       )}

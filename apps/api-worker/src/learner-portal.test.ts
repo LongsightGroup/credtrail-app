@@ -474,7 +474,7 @@ describe("GET /tenants/:tenantId/learner/dashboard", () => {
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22");
     expect(body).toContain("/badges/public_assertion_999");
     expect(body).toContain("View public badge");
-    expect(body).toContain("Claim from dashboard");
+    expect(body).toContain("Claim and share badge");
     expect(body).toContain("Verified");
     expect(body).toContain("Revoked");
     expect(body).toContain("Profile settings");
@@ -989,7 +989,7 @@ describe("POST /tenants/:tenantId/learner/settings/did", () => {
   });
 });
 
-describe("POST /tenants/:tenantId/learner/badges/:assertionId/claim", () => {
+describe("GET and POST /tenants/:tenantId/learner/badges/:assertionId/claim", () => {
   beforeEach(() => {
     mockedFindUserById.mockReset();
     mockedFindUserById.mockResolvedValue(sampleUserRecord());
@@ -997,7 +997,7 @@ describe("POST /tenants/:tenantId/learner/badges/:assertionId/claim", () => {
     mockedListLearnerBadgeSummaries.mockResolvedValue([sampleLearnerBadge()]);
   });
 
-  it("records an explicit learner claim and redirects back to the dashboard", async () => {
+  it("records an explicit learner claim and redirects to the public share section", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -1015,8 +1015,8 @@ describe("POST /tenants/:tenantId/learner/badges/:assertionId/claim", () => {
     const redirectUrl = new URL(response.headers.get("location") ?? "", "http://localhost");
 
     expect(response.status).toBe(303);
-    expect(redirectUrl.pathname).toBe("/tenants/tenant_123/learner/dashboard");
-    expect(redirectUrl.searchParams.get("claimStatus")).toBe("recorded");
+    expect(redirectUrl.pathname).toBe("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22");
+    expect(redirectUrl.hash).toBe("#share-this-credential");
     expect(mockedRecordAssertionEngagementEvent).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
@@ -1053,6 +1053,80 @@ describe("POST /tenants/:tenantId/learner/badges/:assertionId/claim", () => {
     const redirectUrl = new URL(response.headers.get("location") ?? "", "http://localhost");
 
     expect(response.status).toBe(303);
-    expect(redirectUrl.searchParams.get("claimStatus")).toBe("already_recorded");
+    expect(redirectUrl.pathname).toBe("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22");
+    expect(redirectUrl.hash).toBe("#share-this-credential");
+  });
+
+  it("lets GET claim fallback navigate to the public share section without recording a claim", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_456/claim",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    const redirectUrl = new URL(response.headers.get("location") ?? "", "http://localhost");
+
+    expect(response.status).toBe(303);
+    expect(redirectUrl.pathname).toBe("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22");
+    expect(redirectUrl.hash).toBe("#share-this-credential");
+    expect(mockedRecordAssertionEngagementEvent).not.toHaveBeenCalled();
+  });
+
+  it("redirects GET fallback to the dashboard when the learner cannot claim the badge", async () => {
+    const env = createEnv();
+
+    mockedListLearnerBadgeSummaries.mockResolvedValueOnce([
+      sampleLearnerBadge({
+        revokedAt: "2026-02-12T10:00:00.000Z",
+      }),
+    ]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_456/claim",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    const redirectUrl = new URL(response.headers.get("location") ?? "", "http://localhost");
+
+    expect(response.status).toBe(303);
+    expect(redirectUrl.pathname).toBe("/tenants/tenant_123/learner/dashboard");
+    expect(redirectUrl.searchParams.get("claimStatus")).toBe("invalid");
+    expect(mockedRecordAssertionEngagementEvent).not.toHaveBeenCalled();
+  });
+
+  it("redirects POST claim to the dashboard when the learner does not own the badge", async () => {
+    const env = createEnv();
+
+    mockedListLearnerBadgeSummaries.mockResolvedValueOnce([]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_456/claim",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    const redirectUrl = new URL(response.headers.get("location") ?? "", "http://localhost");
+
+    expect(response.status).toBe(303);
+    expect(redirectUrl.pathname).toBe("/tenants/tenant_123/learner/dashboard");
+    expect(redirectUrl.searchParams.get("claimStatus")).toBe("invalid");
+    expect(mockedRecordAssertionEngagementEvent).not.toHaveBeenCalled();
   });
 });

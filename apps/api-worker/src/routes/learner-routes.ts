@@ -13,6 +13,7 @@ import {
   recordAssertionEngagementEvent,
   removeLearnerIdentityAliasesByType,
   resolveLearnerProfileForIdentity,
+  type LearnerBadgeSummaryRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -174,6 +175,79 @@ const learnerClaimStatusNoticeFromQuery = (
     default:
       return null;
   }
+};
+
+const learnerClaimInvalidDashboardRedirectUrl = (input: {
+  requestUrl: string;
+  tenantId: string;
+}): string => {
+  const dashboardUrl = new URL(
+    `/tenants/${encodeURIComponent(input.tenantId)}/learner/dashboard`,
+    input.requestUrl,
+  );
+  dashboardUrl.searchParams.set("claimStatus", "invalid");
+  return dashboardUrl.toString();
+};
+
+const learnerBadgeSharePath = (badge: {
+  assertionId: string;
+  assertionPublicId: string | null;
+}): string => {
+  return `/badges/${encodeURIComponent(
+    badge.assertionPublicId ?? badge.assertionId,
+  )}#share-this-credential`;
+};
+
+type LearnerClaimTarget =
+  | {
+      status: "ok";
+      badge: LearnerBadgeSummaryRecord;
+    }
+  | {
+      status: "invalid";
+      redirectUrl: string;
+    };
+
+const resolveLearnerClaimTarget = async (input: {
+  db: SqlDatabase;
+  requestUrl: string;
+  tenantId: string;
+  userId: string;
+  assertionId: string;
+}): Promise<LearnerClaimTarget> => {
+  const invalidTarget = (): LearnerClaimTarget => {
+    return {
+      status: "invalid",
+      redirectUrl: learnerClaimInvalidDashboardRedirectUrl({
+        requestUrl: input.requestUrl,
+        tenantId: input.tenantId,
+      }),
+    };
+  };
+
+  const user = await findUserById(input.db, input.userId);
+
+  if (user === null) {
+    return invalidTarget();
+  }
+
+  const badges = await listLearnerBadgeSummaries(input.db, {
+    tenantId: input.tenantId,
+    userId: input.userId,
+  });
+  const badge =
+    badges.find(
+      (candidate) => candidate.assertionId === input.assertionId && candidate.revokedAt === null,
+    ) ?? null;
+
+  if (badge === null) {
+    return invalidTarget();
+  }
+
+  return {
+    status: "ok",
+    badge,
+  };
 };
 
 const learnerBadgeClaimStateFromEvents = (
@@ -352,6 +426,29 @@ export const registerLearnerRoutes = <DidNotice>(
     );
   });
 
+  app.get("/tenants/:tenantId/learner/badges/:assertionId/claim", async (c): Promise<Response> => {
+    const pathParams = parseAssertionPathParams(c.req.param());
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, TENANT_MEMBER_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const claimTarget = await resolveLearnerClaimTarget({
+      db: resolveDatabase(c.env),
+      requestUrl: c.req.url,
+      tenantId: pathParams.tenantId,
+      userId: roleCheck.principal.userId,
+      assertionId: pathParams.assertionId,
+    });
+
+    if (claimTarget.status === "invalid") {
+      return c.redirect(claimTarget.redirectUrl, 303);
+    }
+
+    return c.redirect(learnerBadgeSharePath(claimTarget.badge), 303);
+  });
+
   app.post("/tenants/:tenantId/learner/badges/:assertionId/claim", async (c): Promise<Response> => {
     const pathParams = parseAssertionPathParams(c.req.param());
     const roleCheck = await requireTenantRole(c, pathParams.tenantId, TENANT_MEMBER_ROLES);
@@ -360,37 +457,20 @@ export const registerLearnerRoutes = <DidNotice>(
       return roleCheck;
     }
 
-    const dashboardUrl = new URL(
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/learner/dashboard`,
-      c.req.url,
-    );
     const db = resolveDatabase(c.env);
-    const user = await findUserById(db, roleCheck.principal.userId);
-
-    if (user === null) {
-      return c.json(
-        {
-          error: "Authenticated user not found",
-        },
-        404,
-      );
-    }
-
-    const badges = await listLearnerBadgeSummaries(db, {
+    const claimTarget = await resolveLearnerClaimTarget({
+      db,
+      requestUrl: c.req.url,
       tenantId: pathParams.tenantId,
       userId: roleCheck.principal.userId,
+      assertionId: pathParams.assertionId,
     });
-    const badge = badges.find(
-      (candidate) =>
-        candidate.assertionId === pathParams.assertionId && candidate.revokedAt === null,
-    );
 
-    if (badge === undefined) {
-      dashboardUrl.searchParams.set("claimStatus", "invalid");
-      return c.redirect(dashboardUrl.toString(), 303);
+    if (claimTarget.status === "invalid") {
+      return c.redirect(claimTarget.redirectUrl, 303);
     }
 
-    const result = await recordAssertionEngagementEvent(db, {
+    await recordAssertionEngagementEvent(db, {
       tenantId: pathParams.tenantId,
       assertionId: pathParams.assertionId,
       eventType: "learner_claim",
@@ -399,11 +479,7 @@ export const registerLearnerRoutes = <DidNotice>(
       occurredAt: new Date().toISOString(),
     });
 
-    dashboardUrl.searchParams.set(
-      "claimStatus",
-      result.status === "already_recorded" ? "already_recorded" : "recorded",
-    );
-    return c.redirect(dashboardUrl.toString(), 303);
+    return c.redirect(learnerBadgeSharePath(claimTarget.badge), 303);
   });
 
   app.post("/tenants/:tenantId/learner/settings/did", async (c): Promise<Response> => {

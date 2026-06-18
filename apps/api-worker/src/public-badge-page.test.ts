@@ -419,6 +419,7 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).toContain("Ada Lovelace");
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/verification");
     expect(body).toContain("Share this credential");
+    expect(body).toContain('id="share-this-credential"');
     expect(body).toContain("Copy public URL");
     expect(body).toContain("Summary JSON");
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/summary");

@@ -59,7 +59,7 @@ export const LearnerBadgeSummarySection = (input: {
                           class="lti-launch__claim-form"
                         >
                           <button type="submit" class="lti-launch__claim-button">
-                            Claim Badge
+                            Claim and share badge
                           </button>
                         </form>
                       )}

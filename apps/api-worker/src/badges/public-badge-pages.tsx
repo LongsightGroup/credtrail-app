@@ -881,7 +881,10 @@ export const createPublicBadgePageRenderers = (
 
           {trustEdCredentialSection}
 
-          <section class="public-badge__card public-badge__stack-sm public-badge__share">
+          <section
+            id="share-this-credential"
+            class="public-badge__card public-badge__stack-sm public-badge__share"
+          >
             <div class="public-badge__share-main">
               <h2 class="public-badge__section-title">Share this credential</h2>
               <p class="public-badge__achievement-copy">
