@@ -19,7 +19,11 @@ export interface LtiBadgeSummaryCard {
   summary: string;
   imageUri: string | null;
   criteriaPath: string;
-  statusLabel: string;
+}
+
+export interface LtiBadgeSummaryStatus {
+  label: string;
+  modifier: "active" | "issued" | "not_issued";
 }
 
 export interface LtiBulkIssuanceView {
@@ -63,6 +67,20 @@ export interface LtiCourseBadgeSummaryView {
   rows: readonly LtiCourseBadgeSummaryRow[];
 }
 
+export interface LtiLearnerBadgeSummaryItem {
+  badge: LtiBadgeSummaryCard;
+  status: LtiBadgeSummaryStatus;
+  issuedAt: string | null;
+  claimActionPath: string | null;
+}
+
+export interface LtiLearnerBadgeSummaryView {
+  scope: "course" | "selected";
+  status: "ready" | "unavailable" | "error";
+  message: string;
+  badges: readonly LtiLearnerBadgeSummaryItem[];
+}
+
 export interface LtiRosterIssuanceResultEntry {
   userId: string;
   displayName: string | null;
@@ -96,22 +114,21 @@ export type LtiDeepLinkSelectionPageInput = LtiDeepLinkSelectionBaseInput & {
   options: readonly LtiDeepLinkSelectionOption[];
 };
 
-export type InstructorResourceLinkMode =
+export type InstructorResourceLinkViews =
   | {
       kind: "bulk";
+      bulkIssuanceView: LtiBulkIssuanceView;
+      courseBadgeSummaryView: null;
     }
   | {
       kind: "course-summary";
+      bulkIssuanceView: null;
+      courseBadgeSummaryView: LtiCourseBadgeSummaryView;
     };
-
-export interface InstructorResourceLinkViews {
-  mode: InstructorResourceLinkMode;
-  bulkIssuanceView: LtiBulkIssuanceView | null;
-  courseBadgeSummaryView: LtiCourseBadgeSummaryView | null;
-}
 
 export type LtiLaunchViewMode =
   | "learner"
+  | "learnerDegraded"
   | "bulkReady"
   | "bulkDegraded"
   | "courseSummaryReady"
@@ -121,26 +138,21 @@ export type LtiLaunchViewMode =
 export const ltiLaunchViewMode = (input: {
   roleKind: LtiRoleKind;
   instructorViews: InstructorResourceLinkViews | null;
+  learnerView: LtiLearnerBadgeSummaryView | null;
 }): LtiLaunchViewMode => {
   if (input.roleKind === "learner") {
-    return "learner";
+    return input.learnerView?.status === "ready" ? "learner" : "learnerDegraded";
   }
 
   if (input.instructorViews === null) {
     return "connected";
   }
 
-  if (
-    input.instructorViews.mode.kind === "bulk" &&
-    input.instructorViews.bulkIssuanceView !== null
-  ) {
+  if (input.instructorViews.kind === "bulk") {
     return input.instructorViews.bulkIssuanceView.status === "ready" ? "bulkReady" : "bulkDegraded";
   }
 
-  if (
-    input.instructorViews.mode.kind === "course-summary" &&
-    input.instructorViews.courseBadgeSummaryView !== null
-  ) {
+  if (input.instructorViews.kind === "course-summary") {
     return input.instructorViews.courseBadgeSummaryView.status === "ready"
       ? "courseSummaryReady"
       : "courseSummaryDegraded";

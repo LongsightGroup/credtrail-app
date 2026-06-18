@@ -1,7 +1,6 @@
 import {
   findBadgeTemplateById,
   listBadgeTemplates,
-  type BadgeTemplateRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -11,7 +10,6 @@ import { renderAppPage } from "../ui/render-page";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
 import { LTI_SESSION_HANDOFF_TTL_SECONDS } from "./constants";
 import { ltiDeepLinkSelectionInput } from "./deep-linking-helpers";
-import { resolveInstructorResourceLinkViews } from "./instructor-launch-views";
 import { linkLtiLaunchAccount, type LinkedLtiLaunchAccount } from "./launch-account-linking";
 import {
   LtiLaunchMessageError,
@@ -27,6 +25,16 @@ import {
   upsertLtiLaunchResourceLinkPlacement,
   type UpsertLtiLaunchResourceLinkPlacementResult,
 } from "./resource-link-placement";
+import {
+  resolveLtiResourceLinkLaunchViews,
+  type LtiResourceLinkLaunchViews,
+} from "./resource-link-launch-views";
+import type {
+  CourseResourceLinkLaunchMessage,
+  ResourceLinkLaunchMessage,
+  SelectedResourceLinkLaunchMessage,
+  ValidatedResourceLinkLaunch,
+} from "./resource-link-launch-types";
 import { createLtiSessionHandoffToken } from "./session-handoff";
 import { logLtiWarning } from "./log";
 import {
@@ -36,7 +44,6 @@ import {
   type LtiIssuerRegistry,
 } from "./lti-helpers";
 import { ltiDeepLinkSelectionPage, ltiLaunchResultPage } from "./pages";
-import type { InstructorResourceLinkViews } from "./view-models";
 
 export interface HandleLtiLaunchPostInput {
   c: AppContext;
@@ -71,34 +78,11 @@ interface EstablishedLtiLaunchSession {
   createdSession: LtiAuthenticatedPrincipal;
 }
 
-type ResourceLinkLaunchMessage = Extract<ResolvedLtiLaunchMessage, { kind: "resource-link" }>;
-
 type DeepLinkingLaunchMessage = Extract<ResolvedLtiLaunchMessage, { kind: "deep-linking" }>;
-
-type BulkResourceLinkLaunchMessage = ResourceLinkLaunchMessage & {
-  badgeTemplateId: string;
-};
-
-type CourseSummaryResourceLinkLaunchMessage = ResourceLinkLaunchMessage & {
-  badgeTemplateId: null;
-};
 
 interface ValidatedDeepLinkingLaunch {
   launchMessage: DeepLinkingLaunchMessage;
 }
-
-interface ValidatedBulkResourceLinkLaunch {
-  launchMessage: BulkResourceLinkLaunchMessage;
-  launchedBadgeTemplate: BadgeTemplateRecord;
-}
-
-interface ValidatedCourseSummaryResourceLinkLaunch {
-  launchMessage: CourseSummaryResourceLinkLaunchMessage;
-}
-
-type ValidatedResourceLinkLaunch =
-  | ValidatedBulkResourceLinkLaunch
-  | ValidatedCourseSummaryResourceLinkLaunch;
 
 type ValidatedLtiLaunchMessage = ValidatedDeepLinkingLaunch | ValidatedResourceLinkLaunch;
 
@@ -196,17 +180,18 @@ const validateLaunchedResourceLinkBadgeTemplate = async (input: {
 }): Promise<ValidatedResourceLinkLaunch | Response> => {
   if (input.launchMessage.badgeTemplateId === null) {
     return {
+      kind: "course",
       launchMessage: {
         ...input.launchMessage,
         badgeTemplateId: null,
-      },
+      } satisfies CourseResourceLinkLaunchMessage,
     };
   }
 
   const launchMessage = {
     ...input.launchMessage,
     badgeTemplateId: input.launchMessage.badgeTemplateId,
-  };
+  } satisfies SelectedResourceLinkLaunchMessage;
   const launchedBadgeTemplate = await findBadgeTemplateById(
     input.db,
     input.tenantId,
@@ -223,6 +208,7 @@ const validateLaunchedResourceLinkBadgeTemplate = async (input: {
   }
 
   return {
+    kind: "selected",
     launchMessage,
     launchedBadgeTemplate,
   };
@@ -289,10 +275,10 @@ const recordLaunchedResourceLinkPlacement = async (input: {
   tenantId: string;
   issuerEntryClientId: string;
   launchClaims: ResolvedLtiLaunch["launchClaims"];
-  launchMessage: ResourceLinkLaunchMessage;
+  launch: ValidatedResourceLinkLaunch;
   linkedUserId: string;
 }): Promise<UpsertLtiLaunchResourceLinkPlacementResult | null> => {
-  if (input.launchMessage.badgeTemplateId === null) {
+  if (input.launch.kind === "course") {
     return null;
   }
 
@@ -302,9 +288,9 @@ const recordLaunchedResourceLinkPlacement = async (input: {
     issuer: input.launchClaims.iss,
     clientId: input.issuerEntryClientId,
     deploymentId: input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
-    contextId: input.launchMessage.resourceContextId,
-    resourceLinkId: input.launchMessage.resourceLinkId,
-    badgeTemplateId: input.launchMessage.badgeTemplateId,
+    contextId: input.launch.launchMessage.resourceContextId,
+    resourceLinkId: input.launch.launchMessage.resourceLinkId,
+    badgeTemplateId: input.launch.launchMessage.badgeTemplateId,
     createdByUserId: input.linkedUserId,
   });
 };
@@ -331,57 +317,6 @@ const buildLtiLaunchDashboardPath = async (input: {
   );
 
   return `${dashboardUrl.pathname}${dashboardUrl.search}`;
-};
-
-type ResolveLtiLaunchInstructorViewsBaseInput = {
-  c: AppContext;
-  db: SqlDatabase;
-  tenantId: string;
-  launchClaims: ResolvedLtiLaunch["launchClaims"];
-  resolvedLaunch: ResolvedLtiLaunch;
-  issuerEntryClientId: string;
-  linkedUserId: string;
-  membershipRole: TenantMembershipRole;
-  sha256Hex: (value: string) => Promise<string>;
-};
-
-type ResolveLtiLaunchInstructorViewsInput =
-  | (ResolveLtiLaunchInstructorViewsBaseInput & ValidatedBulkResourceLinkLaunch)
-  | (ResolveLtiLaunchInstructorViewsBaseInput & ValidatedCourseSummaryResourceLinkLaunch);
-
-const resolveLtiLaunchInstructorViews = async (
-  input: ResolveLtiLaunchInstructorViewsInput,
-): Promise<InstructorResourceLinkViews | null> => {
-  if (input.launchMessage.roleKind !== "instructor") {
-    return null;
-  }
-
-  const baseInput = {
-    db: input.db,
-    env: input.c.env,
-    tenantId: input.tenantId,
-    launchClaims: input.launchClaims,
-    ltiLaunchSession: input.resolvedLaunch.ltiLaunchSession,
-    ltiTool: input.resolvedLaunch.ltiTool,
-    issuerClientId: input.issuerEntryClientId,
-    linkedUserId: input.linkedUserId,
-    membershipRole: input.membershipRole,
-    sha256Hex: input.sha256Hex,
-    sessionHandoffTtlSeconds: LTI_SESSION_HANDOFF_TTL_SECONDS,
-  };
-
-  if ("launchedBadgeTemplate" in input) {
-    return resolveInstructorResourceLinkViews({
-      ...baseInput,
-      launchMessage: input.launchMessage,
-      launchedBadgeTemplate: input.launchedBadgeTemplate,
-    });
-  }
-
-  return resolveInstructorResourceLinkViews({
-    ...baseInput,
-    launchMessage: input.launchMessage,
-  });
 };
 
 const renderLtiDeepLinkingLaunchResponse = async (input: {
@@ -424,7 +359,7 @@ const renderLtiLaunchPostResponse = async (input: {
   launchMessage: ResourceLinkLaunchMessage;
   linkedAccount: LinkedLtiLaunchAccount;
   dashboardPath: string;
-  instructorViews: InstructorResourceLinkViews | null;
+  resourceLinkViews: LtiResourceLinkLaunchViews;
 }): Promise<Response> => {
   return renderAppPage(
     input.c,
@@ -441,7 +376,8 @@ const renderLtiLaunchPostResponse = async (input: {
       messageType: input.launchMessage.messageType,
       launchDisplayName: ltiDisplayNameFromClaims(input.launchClaims) ?? null,
       dashboardPath: input.dashboardPath,
-      instructorViews: input.instructorViews,
+      instructorViews: input.resourceLinkViews.instructorViews,
+      learnerView: input.resourceLinkViews.learnerView,
     }),
   );
 };
@@ -555,7 +491,7 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
     tenantId,
     issuerEntryClientId: resolvedLaunch.issuerEntry.clientId,
     launchClaims: resolvedLaunch.launchClaims,
-    launchMessage: validatedResourceLinkLaunch.launchMessage,
+    launch: validatedResourceLinkLaunch,
     linkedUserId: establishedSession.linkedAccount.userId,
   });
 
@@ -575,29 +511,44 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
     createdSession: establishedSession.createdSession,
   });
 
-  const instructorViewsBaseInput = {
-    c: input.c,
-    db,
-    tenantId,
-    launchClaims: resolvedLaunch.launchClaims,
-    resolvedLaunch,
-    issuerEntryClientId: resolvedLaunch.issuerEntry.clientId,
-    linkedUserId: establishedSession.linkedAccount.userId,
-    membershipRole: establishedSession.linkedAccount.membershipRole,
-    sha256Hex: input.sha256Hex,
-  };
+  let resourceLinkViews: LtiResourceLinkLaunchViews;
 
-  const instructorViews =
-    "launchedBadgeTemplate" in validatedResourceLinkLaunch
-      ? await resolveLtiLaunchInstructorViews({
-          ...instructorViewsBaseInput,
-          launchMessage: validatedResourceLinkLaunch.launchMessage,
-          launchedBadgeTemplate: validatedResourceLinkLaunch.launchedBadgeTemplate,
-        })
-      : await resolveLtiLaunchInstructorViews({
-          ...instructorViewsBaseInput,
-          launchMessage: validatedResourceLinkLaunch.launchMessage,
-        });
+  if (validatedResourceLinkLaunch.launchMessage.roleKind === "instructor") {
+    resourceLinkViews = await resolveLtiResourceLinkLaunchViews({
+      kind: "instructor",
+      input: {
+        db,
+        env: input.c.env,
+        tenantId,
+        launchClaims: resolvedLaunch.launchClaims,
+        launch: validatedResourceLinkLaunch,
+        ltiLaunchSession: resolvedLaunch.ltiLaunchSession,
+        ltiTool: resolvedLaunch.ltiTool,
+        issuerClientId: resolvedLaunch.issuerEntry.clientId,
+        linkedUserId: establishedSession.linkedAccount.userId,
+        membershipRole: establishedSession.linkedAccount.membershipRole,
+        sha256Hex: input.sha256Hex,
+        sessionHandoffTtlSeconds: LTI_SESSION_HANDOFF_TTL_SECONDS,
+      },
+    });
+  } else if (validatedResourceLinkLaunch.launchMessage.roleKind === "learner") {
+    resourceLinkViews = await resolveLtiResourceLinkLaunchViews({
+      kind: "learner",
+      input: {
+        db,
+        tenantId,
+        launchClaims: resolvedLaunch.launchClaims,
+        launch: validatedResourceLinkLaunch,
+        ltiLaunchSession: resolvedLaunch.ltiLaunchSession,
+        issuerClientId: resolvedLaunch.issuerEntry.clientId,
+        linkedUserId: establishedSession.linkedAccount.userId,
+      },
+    });
+  } else {
+    resourceLinkViews = await resolveLtiResourceLinkLaunchViews({
+      kind: "unknown",
+    });
+  }
 
   return renderLtiLaunchPostResponse({
     c: input.c,
@@ -606,6 +557,6 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
     launchMessage: validatedResourceLinkLaunch.launchMessage,
     linkedAccount: establishedSession.linkedAccount,
     dashboardPath,
-    instructorViews,
+    resourceLinkViews,
   });
 };

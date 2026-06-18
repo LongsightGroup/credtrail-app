@@ -1,13 +1,9 @@
 import {
   listAssertionsByBadgeTemplatesAndRecipientEmails,
   listAssertionLifecycleStatesByAssertionIds,
-  listBadgeTemplatesByIds,
-  listLtiResourceLinkPlacementsForContext,
   normalizeEmail,
   type AssertionLifecycleState,
   type AssertionRecord,
-  type BadgeTemplateRecord,
-  type LtiResourceLinkPlacementRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -15,32 +11,27 @@ import { LTI_CLAIM_CONTEXT, LTI_CLAIM_DEPLOYMENT_ID, type LtiLaunchClaims } from
 import type { LTISession, LTITool } from "@lti-tool/core";
 import type { AppBindings } from "../app";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
-import { badgeTemplateCriteriaRegistryHref } from "../badges/badge-template-public-links";
 import { LTI_RESOURCE_LINK_ISSUE_PATH } from "./constants";
+import {
+  ltiCourseContextIdFromLaunch,
+  resolveOrderedCourseBadgeTemplatesForContext,
+  type LtiCourseBadgeTemplatePlacementGroup,
+} from "./course-badge-placements";
 import { createLtiIssuanceActionToken } from "./issuance-action-token";
 import { logLtiWarning } from "./log";
-import type { ResolvedLtiLaunchMessage } from "./launch-message";
 import { ltiNrpsRosterFromCoreMembers, parseLtiNrpsNamesRoleServiceClaim } from "./nrps";
+import type {
+  ResourceLinkLaunchMessage,
+  ValidatedResourceLinkLaunch,
+} from "./resource-link-launch-types";
 import { ltiRosterIssuedBadgeStatesByUserId } from "./roster-issuance-helpers";
+import { ltiBadgeSummaryCardFromTemplate, newestAssertion } from "./badge-summary-helpers";
 import type {
   InstructorResourceLinkViews,
   LtiBadgeSummaryCard,
   LtiBulkIssuanceView,
   LtiCourseBadgeSummaryView,
 } from "./view-models";
-
-type InstructorResourceLinkLaunchMessage = Extract<
-  ResolvedLtiLaunchMessage,
-  { kind: "resource-link" }
->;
-
-type BulkInstructorResourceLinkLaunchMessage = InstructorResourceLinkLaunchMessage & {
-  badgeTemplateId: string;
-};
-
-type CourseSummaryInstructorResourceLinkLaunchMessage = InstructorResourceLinkLaunchMessage & {
-  badgeTemplateId: null;
-};
 
 interface ResolveInstructorResourceLinkViewsBaseInput {
   db: SqlDatabase;
@@ -56,25 +47,10 @@ interface ResolveInstructorResourceLinkViewsBaseInput {
   sessionHandoffTtlSeconds: number;
 }
 
-type BulkInstructorResourceLinkViewsInput = ResolveInstructorResourceLinkViewsBaseInput & {
-  launchMessage: BulkInstructorResourceLinkLaunchMessage;
-  launchedBadgeTemplate: BadgeTemplateRecord;
-};
-
-type CourseSummaryInstructorResourceLinkViewsInput = ResolveInstructorResourceLinkViewsBaseInput & {
-  launchMessage: CourseSummaryInstructorResourceLinkLaunchMessage;
-  launchedBadgeTemplate?: never;
-};
-
 export type ResolveInstructorResourceLinkViewsInput =
-  | BulkInstructorResourceLinkViewsInput
-  | CourseSummaryInstructorResourceLinkViewsInput;
-
-const isBulkInstructorResourceLinkViewsInput = (
-  input: ResolveInstructorResourceLinkViewsInput,
-): input is BulkInstructorResourceLinkViewsInput => {
-  return input.launchMessage.badgeTemplateId !== null;
-};
+  ResolveInstructorResourceLinkViewsBaseInput & {
+    launch: ValidatedResourceLinkLaunch;
+  };
 
 const ltiBulkIssuanceViewFromRoster = (input: {
   roster: ReturnType<typeof ltiNrpsRosterFromCoreMembers>;
@@ -249,101 +225,12 @@ const ltiBadgeRecipientKey = (badgeTemplateId: string, recipientEmail: string): 
   return `${badgeTemplateId}:${normalizeEmail(recipientEmail)}`;
 };
 
-const newestAssertion = (
-  current: AssertionRecord | undefined,
-  candidate: AssertionRecord,
-): AssertionRecord => {
-  if (current === undefined) {
-    return candidate;
-  }
-
-  const currentIssuedAt = Date.parse(current.issuedAt);
-  const candidateIssuedAt = Date.parse(candidate.issuedAt);
-
-  if (Number.isFinite(candidateIssuedAt) && Number.isFinite(currentIssuedAt)) {
-    if (candidateIssuedAt !== currentIssuedAt) {
-      return candidateIssuedAt > currentIssuedAt ? candidate : current;
-    }
-  } else if (Number.isFinite(candidateIssuedAt)) {
-    return candidate;
-  } else if (Number.isFinite(currentIssuedAt)) {
-    return current;
-  } else if (candidate.issuedAt !== current.issuedAt) {
-    return candidate.issuedAt > current.issuedAt ? candidate : current;
-  }
-
-  return candidate.id > current.id ? candidate : current;
-};
-
 const ltiCanOpenAdminDetailLinks = (membershipRole: TenantMembershipRole): boolean => {
   return membershipRole === "owner" || membershipRole === "admin";
 };
 
 const ltiCanPlaceBadgesFromLti = (membershipRole: TenantMembershipRole): boolean => {
   return membershipRole === "owner" || membershipRole === "admin" || membershipRole === "issuer";
-};
-
-const LTI_BADGE_QUALIFICATION_SUMMARY_FALLBACK =
-  "Open criteria to review how learners qualify for this badge.";
-const LTI_BADGE_SUMMARY_ACTIVE_STATUS_LABEL = "Active";
-
-const ltiBadgeTemplateSummary = (badgeTemplate: BadgeTemplateRecord): string => {
-  return asNonEmptyString(badgeTemplate.description) ?? LTI_BADGE_QUALIFICATION_SUMMARY_FALLBACK;
-};
-
-const ltiBadgeSummaryCardFromTemplate = (input: {
-  tenantId: string;
-  badgeTemplate: BadgeTemplateRecord;
-}): LtiBadgeSummaryCard => {
-  return {
-    badgeTemplateId: input.badgeTemplate.id,
-    title: input.badgeTemplate.title,
-    summary: ltiBadgeTemplateSummary(input.badgeTemplate),
-    imageUri: input.badgeTemplate.imageUri,
-    criteriaPath: badgeTemplateCriteriaRegistryHref(input.tenantId, input.badgeTemplate.id),
-    statusLabel: LTI_BADGE_SUMMARY_ACTIVE_STATUS_LABEL,
-  };
-};
-
-interface LtiCourseBadgeTemplatePlacementGroup {
-  badgeTemplateId: string;
-  template: BadgeTemplateRecord;
-  placements: readonly LtiResourceLinkPlacementRecord[];
-}
-
-const ltiCoursePlacementGroupsByBadgeTemplate = (input: {
-  placements: readonly LtiResourceLinkPlacementRecord[];
-  templatesById: ReadonlyMap<string, BadgeTemplateRecord>;
-}): LtiCourseBadgeTemplatePlacementGroup[] => {
-  const placementsByBadgeTemplateId = new Map<string, LtiResourceLinkPlacementRecord[]>();
-
-  for (const placement of input.placements) {
-    if (!input.templatesById.has(placement.badgeTemplateId)) {
-      continue;
-    }
-
-    const placementsForTemplate = placementsByBadgeTemplateId.get(placement.badgeTemplateId) ?? [];
-    placementsForTemplate.push(placement);
-    placementsByBadgeTemplateId.set(placement.badgeTemplateId, placementsForTemplate);
-  }
-
-  const groups: LtiCourseBadgeTemplatePlacementGroup[] = [];
-
-  for (const [badgeTemplateId, placementsForTemplate] of placementsByBadgeTemplateId.entries()) {
-    const template = input.templatesById.get(badgeTemplateId);
-
-    if (template === undefined) {
-      continue;
-    }
-
-    groups.push({
-      badgeTemplateId,
-      template,
-      placements: placementsForTemplate,
-    });
-  }
-
-  return groups;
 };
 
 const ltiCourseBadgeOverview = (input: {
@@ -364,17 +251,12 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
   contextId: string;
   courseContextTitle: string | null;
   roster: ReturnType<typeof ltiNrpsRosterFromCoreMembers>;
-  placements: readonly LtiResourceLinkPlacementRecord[];
-  badgeTemplates: readonly BadgeTemplateRecord[];
+  placementGroups: readonly LtiCourseBadgeTemplatePlacementGroup[];
   canPlaceBadgesFromLti: boolean;
   canOpenAdminLinks: boolean;
 }): Promise<LtiCourseBadgeSummaryView> => {
   const learnerMembers = input.roster.learnerMembers;
-  const templatesById = new Map(input.badgeTemplates.map((template) => [template.id, template]));
-  const placementGroups = ltiCoursePlacementGroupsByBadgeTemplate({
-    placements: input.placements,
-    templatesById,
-  });
+  const placementGroups = input.placementGroups;
   const badges = ltiCourseBadgeOverview({
     tenantId: input.tenantId,
     placementGroups,
@@ -435,8 +317,8 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
     const learnerName =
       candidate.member.displayName ?? candidate.member.email ?? candidate.member.userId;
     const assertionId = assertion?.id;
-    const linkedPlacement = candidate.placementGroup.placements[0] ?? null;
-    const placementContextId = linkedPlacement?.contextId ?? input.contextId;
+    const linkedPlacement = candidate.placementGroup.primaryPlacement;
+    const placementContextId = linkedPlacement.contextId ?? input.contextId;
 
     rows.push({
       learnerUserId: candidate.member.userId,
@@ -458,7 +340,7 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
             tenantId: input.tenantId,
             badgeTemplateId: candidate.template.id,
             contextId: placementContextId,
-            resourceLinkId: linkedPlacement?.resourceLinkId ?? "",
+            resourceLinkId: linkedPlacement.resourceLinkId,
             courseContextTitle: input.courseContextTitle,
           })
         : null,
@@ -496,7 +378,7 @@ const resolveBulkIssuanceView = async (input: {
   env: AppBindings;
   tenantId: string;
   launchClaims: LtiLaunchClaims;
-  launchMessage: InstructorResourceLinkLaunchMessage;
+  launchMessage: ResourceLinkLaunchMessage;
   ltiLaunchSession: LTISession;
   ltiTool: LTITool;
   issuerClientId: string;
@@ -579,22 +461,19 @@ const resolveCourseBadgeSummaryView = async (input: {
   courseContextTitle: string | null;
   summaryContextId: string;
 }): Promise<LtiCourseBadgeSummaryView> => {
-  const members = await input.ltiTool.getMembers(input.ltiLaunchSession);
+  const [members, courseBadges] = await Promise.all([
+    input.ltiTool.getMembers(input.ltiLaunchSession),
+    resolveOrderedCourseBadgeTemplatesForContext({
+      db: input.db,
+      tenantId: input.tenantId,
+      launchClaims: input.launchClaims,
+      issuerClientId: input.issuerClientId,
+      contextId: input.summaryContextId,
+    }),
+  ]);
   const roster = ltiNrpsRosterFromCoreMembers({
     contextId: input.summaryContextId,
     members,
-  });
-  const placements = await listLtiResourceLinkPlacementsForContext(input.db, {
-    tenantId: input.tenantId,
-    issuer: input.launchClaims.iss,
-    clientId: input.issuerClientId,
-    deploymentId: input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
-    contextId: input.summaryContextId,
-  });
-  const badgeTemplates = await listBadgeTemplatesByIds(input.db, {
-    tenantId: input.tenantId,
-    badgeTemplateIds: placements.map((placement) => placement.badgeTemplateId),
-    includeArchived: false,
   });
 
   return ltiCourseBadgeSummaryViewFromRoster({
@@ -603,8 +482,7 @@ const resolveCourseBadgeSummaryView = async (input: {
     contextId: input.summaryContextId,
     courseContextTitle: input.courseContextTitle,
     roster,
-    placements,
-    badgeTemplates,
+    placementGroups: courseBadges.placementGroups,
     canPlaceBadgesFromLti: ltiCanPlaceBadgesFromLti(input.membershipRole),
     canOpenAdminLinks: ltiCanOpenAdminDetailLinks(input.membershipRole),
   });
@@ -619,18 +497,15 @@ export const resolveInstructorResourceLinkViews = async (
     asNonEmptyString(contextClaim?.title) ?? asNonEmptyString(contextClaim?.label) ?? null;
   const courseContextId = asNonEmptyString(contextClaim?.id);
 
-  if (isBulkInstructorResourceLinkViewsInput(input)) {
-    const mode = {
-      kind: "bulk",
-    } as const;
+  if (input.launch.kind === "selected") {
     const selectedBadge = ltiBadgeSummaryCardFromTemplate({
       tenantId: input.tenantId,
-      badgeTemplate: input.launchedBadgeTemplate,
+      badgeTemplate: input.launch.launchedBadgeTemplate,
     });
 
     if (nrpsClaim === null) {
       return {
-        mode,
+        kind: "bulk",
         bulkIssuanceView: ltiEmptyBulkIssuanceView({
           status: "unavailable",
           message:
@@ -646,13 +521,13 @@ export const resolveInstructorResourceLinkViews = async (
 
     try {
       return {
-        mode,
+        kind: "bulk",
         bulkIssuanceView: await resolveBulkIssuanceView({
           db: input.db,
           env: input.env,
           tenantId: input.tenantId,
           launchClaims: input.launchClaims,
-          launchMessage: input.launchMessage,
+          launchMessage: input.launch.launchMessage,
           ltiLaunchSession: input.ltiLaunchSession,
           ltiTool: input.ltiTool,
           issuerClientId: input.issuerClientId,
@@ -674,7 +549,7 @@ export const resolveInstructorResourceLinkViews = async (
       });
 
       return {
-        mode,
+        kind: "bulk",
         bulkIssuanceView: ltiEmptyBulkIssuanceView({
           status: "error",
           message:
@@ -689,13 +564,9 @@ export const resolveInstructorResourceLinkViews = async (
     }
   }
 
-  const mode = {
-    kind: "course-summary",
-  } as const;
-
   if (nrpsClaim === null) {
     return {
-      mode,
+      kind: "course-summary",
       bulkIssuanceView: null,
       courseBadgeSummaryView: ltiEmptyCourseBadgeSummaryView({
         status: "unavailable",
@@ -706,11 +577,14 @@ export const resolveInstructorResourceLinkViews = async (
     };
   }
 
-  const summaryContextId = courseContextId ?? input.ltiLaunchSession.context.id;
+  const summaryContextId = ltiCourseContextIdFromLaunch({
+    launchMessage: input.launch.launchMessage,
+    ltiLaunchSession: input.ltiLaunchSession,
+  });
 
   if (summaryContextId.length === 0) {
     return {
-      mode,
+      kind: "course-summary",
       bulkIssuanceView: null,
       courseBadgeSummaryView: ltiEmptyCourseBadgeSummaryView({
         status: "unavailable",
@@ -723,7 +597,7 @@ export const resolveInstructorResourceLinkViews = async (
 
   try {
     return {
-      mode,
+      kind: "course-summary",
       bulkIssuanceView: null,
       courseBadgeSummaryView: await resolveCourseBadgeSummaryView({
         db: input.db,
@@ -745,7 +619,7 @@ export const resolveInstructorResourceLinkViews = async (
     });
 
     return {
-      mode,
+      kind: "course-summary",
       bulkIssuanceView: null,
       courseBadgeSummaryView: ltiEmptyCourseBadgeSummaryView({
         status: "error",

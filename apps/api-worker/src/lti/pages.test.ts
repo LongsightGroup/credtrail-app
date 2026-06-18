@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { renderAppPageToString } from "../ui/render-page";
 import { ltiLaunchResultPage } from "./pages";
-import type { LtiBadgeSummaryCard, LtiBulkIssuanceView } from "./view-models";
+import type {
+  LtiBadgeSummaryCard,
+  LtiBulkIssuanceView,
+  LtiLearnerBadgeSummaryView,
+} from "./view-models";
 
 type LtiLaunchResultPageInput = Parameters<typeof ltiLaunchResultPage>[0];
 
@@ -12,7 +16,6 @@ const sampleSelectedBadge = (overrides: Partial<LtiBadgeSummaryCard> = {}): LtiB
     summary: "Awarded for completing TypeScript fundamentals.",
     imageUri: "https://example.edu/badges/typescript.png",
     criteriaPath: "/showcase/tenant_123/criteria?badgeTemplateId=badge_template_001",
-    statusLabel: "Active",
     ...overrides,
   };
 };
@@ -64,8 +67,9 @@ const sampleLaunchResultInput = (
     messageType: "LtiResourceLinkRequest",
     launchDisplayName: "Instructor One",
     dashboardPath: "/tenants/tenant_123/learner/dashboard",
+    learnerView: null,
     instructorViews: {
-      mode: { kind: "bulk" },
+      kind: "bulk",
       bulkIssuanceView: sampleBulkIssuanceView(),
       courseBadgeSummaryView: null,
     },
@@ -73,7 +77,154 @@ const sampleLaunchResultInput = (
   };
 };
 
+const sampleLearnerBadgeSummaryView = (
+  overrides: Partial<LtiLearnerBadgeSummaryView> = {},
+): LtiLearnerBadgeSummaryView => {
+  return {
+    scope: "course",
+    status: "ready",
+    message: "Showing 2 active badges in this course.",
+    badges: [
+      {
+        badge: sampleSelectedBadge({
+          badgeTemplateId: "badge_template_001",
+          title: "TypeScript Foundations",
+        }),
+        status: {
+          label: "Issued",
+          modifier: "issued",
+        },
+        issuedAt: "2026-02-11T14:00:00.000Z",
+        claimActionPath: "/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_existing/claim",
+      },
+      {
+        badge: sampleSelectedBadge({
+          badgeTemplateId: "badge_template_002",
+          title: "Governance Design",
+          summary: "Open criteria to review how learners qualify for this badge.",
+          imageUri: null,
+          criteriaPath: "/showcase/tenant_123/criteria?badgeTemplateId=badge_template_002",
+        }),
+        status: {
+          label: "Not issued",
+          modifier: "not_issued",
+        },
+        issuedAt: null,
+        claimActionPath: null,
+      },
+    ],
+    ...overrides,
+  };
+};
+
 describe("ltiLaunchResultPage", () => {
+  it("renders learner greeting, dashboard handoff, badge rows, and no troubleshooting details", () => {
+    const html = renderAppPageToString(
+      ltiLaunchResultPage(
+        sampleLaunchResultInput({
+          roleKind: "learner",
+          membershipRole: "viewer",
+          launchDisplayName: "Jennifer Truman",
+          instructorViews: null,
+          learnerView: sampleLearnerBadgeSummaryView(),
+        }),
+      ),
+    );
+
+    expect(html).toContain("Hi, Jennifer Truman");
+    expect(html).toContain("Open CredTrail dashboard");
+    expect(html).toContain("Badges in this course");
+    expect(html).toContain("TypeScript Foundations");
+    expect(html).toContain("Governance Design");
+    expect(html).toContain('src="https://example.edu/badges/typescript.png"');
+    expect(html).toContain("GD");
+    expect(html).toContain("Issued");
+    expect(html).toContain("Issued Feb 11, 2026, 2:00 PM UTC");
+    expect(html).toContain('method="post"');
+    expect(html).toContain(
+      'action="/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_existing/claim"',
+    );
+    expect(html).toContain("Claim Badge");
+    expect(html).toContain("Not issued");
+    expect(html).toContain("Not issued yet.");
+    expect(html).not.toContain("Launch troubleshooting details");
+    expect(html).not.toContain("Claim from dashboard");
+  });
+
+  it("renders degraded learner launch health in the hero without troubleshooting details", () => {
+    const html = renderAppPageToString(
+      ltiLaunchResultPage(
+        sampleLaunchResultInput({
+          roleKind: "learner",
+          membershipRole: "viewer",
+          launchDisplayName: "Jennifer Truman",
+          instructorViews: null,
+          learnerView: sampleLearnerBadgeSummaryView({
+            status: "error",
+            message:
+              "CredTrail could not load badge details for this LMS launch. Open your dashboard to continue.",
+            badges: [],
+          }),
+        }),
+      ),
+    );
+
+    expect(html).toContain("CredTrail could not load badge details");
+    expect(html).toContain(
+      "Your LMS account is linked. Open your dashboard to review issued badges and sharing options.",
+    );
+    expect(html).toContain("Open CredTrail dashboard");
+    expect(html).toContain(
+      "CredTrail could not load badge details for this LMS launch. Open your dashboard to continue.",
+    );
+    expect(html).not.toContain("<h1>Hi, Jennifer Truman</h1>");
+    expect(html).not.toContain("Launch troubleshooting details");
+  });
+
+  it("renders selected learner badge fallback copy without a claim action when not issued", () => {
+    const html = renderAppPageToString(
+      ltiLaunchResultPage(
+        sampleLaunchResultInput({
+          roleKind: "learner",
+          membershipRole: "viewer",
+          launchDisplayName: null,
+          instructorViews: null,
+          learnerView: sampleLearnerBadgeSummaryView({
+            scope: "selected",
+            message: "Review the badge selected for this LMS lesson.",
+            badges: [
+              {
+                badge: sampleSelectedBadge({
+                  badgeTemplateId: "badge_template_002",
+                  title: "Governance Design",
+                  summary: "Open criteria to review how learners qualify for this badge.",
+                  imageUri: null,
+                  criteriaPath: "/showcase/tenant_123/criteria?badgeTemplateId=badge_template_002",
+                }),
+                status: {
+                  label: "Not issued",
+                  modifier: "not_issued",
+                },
+                issuedAt: null,
+                claimActionPath: null,
+              },
+            ],
+          }),
+        }),
+      ),
+    );
+
+    expect(html).toContain("Your CredTrail badges");
+    expect(html).toContain("Selected badge");
+    expect(html).toContain("Governance Design");
+    expect(html).toContain("Open criteria to review how learners qualify for this badge.");
+    expect(html).toContain("/showcase/tenant_123/criteria?badgeTemplateId=badge_template_002");
+    expect(html).toContain("GD");
+    expect(html).toContain("Not issued");
+    expect(html).not.toContain("Claim Badge");
+    expect(html).not.toContain("Launch troubleshooting details");
+  });
+
   it("renders selected badge context before the bulk issuance roster", () => {
     const html = renderAppPageToString(ltiLaunchResultPage(sampleLaunchResultInput()));
 
@@ -102,7 +253,7 @@ describe("ltiLaunchResultPage", () => {
           targetLinkUri:
             "https://credtrail.example.edu/v1/lti/launch?badgeTemplateId=badge_template_002",
           instructorViews: {
-            mode: { kind: "bulk" },
+            kind: "bulk",
             bulkIssuanceView: sampleBulkIssuanceView({
               status: "unavailable",
               message:
@@ -143,7 +294,7 @@ describe("ltiLaunchResultPage", () => {
           launchDisplayName: "Instructor One",
         }),
         instructorViews: {
-          mode: { kind: "course-summary" },
+          kind: "course-summary",
           bulkIssuanceView: null,
           courseBadgeSummaryView: {
             status: "ready",
@@ -193,8 +344,9 @@ describe("ltiLaunchResultPage", () => {
         messageType: "LtiResourceLinkRequest",
         launchDisplayName: "Instructor One",
         dashboardPath: "/tenants/tenant_123/learner/dashboard",
+        learnerView: null,
         instructorViews: {
-          mode: { kind: "course-summary" },
+          kind: "course-summary",
           bulkIssuanceView: null,
           courseBadgeSummaryView: {
             status: "ready",
@@ -211,7 +363,6 @@ describe("ltiLaunchResultPage", () => {
                 summary: "Awarded for completing TypeScript fundamentals.",
                 imageUri: "https://example.edu/badges/typescript.png",
                 criteriaPath: "/showcase/tenant_123/criteria?badgeTemplateId=badge_template_001",
-                statusLabel: "Active",
               },
               {
                 badgeTemplateId: "badge_template_002",
@@ -219,7 +370,6 @@ describe("ltiLaunchResultPage", () => {
                 summary: "Open criteria to review how learners qualify for this badge.",
                 imageUri: null,
                 criteriaPath: "/showcase/tenant_123/criteria?badgeTemplateId=badge_template_002",
-                statusLabel: "Active",
               },
             ],
             rows: [],
