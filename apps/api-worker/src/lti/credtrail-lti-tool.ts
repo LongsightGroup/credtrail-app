@@ -1,10 +1,12 @@
-import { LTITool } from "@lti-tool/core";
+import { LTITool, type LTIConfig } from "@lti-tool/core";
 import { createLtiToolKey, findActiveLtiToolKey, type SqlDatabase } from "@credtrail/db";
 import { ltiStateSigningSecret } from "./lti-helpers";
 import { CredTrailLtiStorage } from "./credtrail-lti-storage";
 import type { AppBindings } from "../app";
 
 const LTI_TOOL_KEY_ID = "credtrail-lti-main";
+
+type DynamicRegistrationConfig = NonNullable<LTIConfig["dynamicRegistration"]>;
 
 const rsaAlgorithm: RsaHashedImportParams | RsaHashedKeyGenParams = {
   name: "RSASSA-PKCS1-v1_5",
@@ -75,6 +77,7 @@ export const createCredTrailLtiTool = async (input: {
   db: SqlDatabase;
   env: AppBindings;
   defaultTenantId?: string | undefined;
+  dynamicRegistration?: DynamicRegistrationConfig | undefined;
 }): Promise<LTITool> => {
   const keyPair = await loadOrCreateLtiToolKeyPair(input.db);
 
@@ -89,5 +92,8 @@ export const createCredTrailLtiTool = async (input: {
       stateExpirationSeconds: 600,
       nonceExpirationSeconds: 600,
     },
+    ...(input.dynamicRegistration === undefined
+      ? {}
+      : { dynamicRegistration: input.dynamicRegistration }),
   });
 };

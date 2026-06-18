@@ -23,6 +23,7 @@ import {
   findLtiIssuerRegistryEntry,
 } from "../lti/deep-linking-helpers";
 import { createCredTrailLtiTool } from "../lti/credtrail-lti-tool";
+import { registerLtiDynamicRegistrationRoutes } from "../lti/dynamic-registration-routes";
 import { handleLtiLaunchPost } from "../lti/launch-post-handler";
 import { executeLtiRosterIssuance, LtiRosterIssuanceError } from "../lti/roster-issuance";
 import { verifyLtiIssuanceActionToken } from "../lti/issuance-action-token";
@@ -189,6 +190,11 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       env: c.env,
     });
     return c.json(await ltiTool.getJWKS());
+  });
+
+  registerLtiDynamicRegistrationRoutes({
+    app,
+    resolveDatabase,
   });
 
   app.post(LTI_DEEP_LINKING_SELECT_PATH, async (c): Promise<Response> => {

@@ -37,6 +37,10 @@ import {
 } from "./institution-admin-workspace";
 import { loadTenantBadgeRuleValueLists } from "./rule-value-lists-presentation";
 import { loadBadgeRuleReviewQueueEntries } from "../badge-rule-review-queue-workspace";
+import {
+  createLtiDynamicRegistrationInviteToken,
+  ltiDynamicRegistrationUrl,
+} from "../lti/dynamic-registration-invite";
 
 interface InstitutionAdminWorkspaceRendererDeps<TPageData extends InstitutionAdminPageInput> {
   resolveDatabase: (bindings: AppBindings) => SqlDatabase;
@@ -94,6 +98,27 @@ const readListWorkspaceFlash = async (
     listNotice: flash.message,
     listError: null,
   };
+};
+
+const createTenantLtiDynamicRegistrationUrl = async (
+  env: AppBindings,
+  tenantId: string,
+): Promise<string | null> => {
+  const signingSecret = env.LTI_STATE_SIGNING_SECRET?.trim();
+
+  if (signingSecret === undefined || signingSecret.length === 0) {
+    return null;
+  }
+
+  const inviteToken = await createLtiDynamicRegistrationInviteToken(env, {
+    tenantId,
+  });
+
+  return ltiDynamicRegistrationUrl({
+    platformDomain: env.PLATFORM_DOMAIN,
+    tenantId,
+    inviteToken,
+  });
 };
 
 export const renderInstitutionAdminRulesWorkspace = async <
@@ -382,6 +407,7 @@ export const renderInstitutionAdminLmsConnectionsWorkspace = async <
     userId: session.userId,
     workspace: "access_lms_connections",
   });
+  const dynamicRegistrationUrl = await createTenantLtiDynamicRegistrationUrl(c.env, tenantId);
 
   return await renderInstitutionAdminWorkspacePage(
     c,
@@ -391,6 +417,7 @@ export const renderInstitutionAdminLmsConnectionsWorkspace = async <
       lmsConnectionsWorkspace: {
         listNotice: flash.listNotice,
         listError: flash.listError,
+        ltiDynamicRegistrationUrl: dynamicRegistrationUrl,
       },
     }),
   );

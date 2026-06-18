@@ -88,6 +88,8 @@ export const renderInstitutionAdminAccessSections = (
   const apiKeyFormOpen = input.apiKeysWorkspace?.openCreatePanel === true;
   const apiKeyRevealedSecret = input.apiKeysWorkspace?.revealedSecret ?? null;
   const lmsNewPath = buildLmsConnectionNewPath(input.tenantId);
+  const ltiDynamicRegistrationUrl =
+    input.lmsConnectionsWorkspace?.ltiDynamicRegistrationUrl ?? null;
   const delegationNewPath = buildAccessGovernanceDelegationNewPath(input.tenantId);
   const authenticationPath = buildAccessAuthenticationAdminPath(input.tenantId);
 
@@ -142,6 +144,26 @@ export const renderInstitutionAdminAccessSections = (
           Connect Canvas or Sakai gradebook accounts on a dedicated setup page with optional OAuth
           and LTI metadata.
         </p>
+        {ltiDynamicRegistrationUrl !== null && ltiDynamicRegistrationUrl.length > 0 ? (
+          <div class="ct-admin__form ct-stack">
+            <AdminField label="LTI dynamic registration URL">
+              <input
+                id="lti-dynamic-registration-url"
+                type="url"
+                value={ltiDynamicRegistrationUrl}
+                readOnly={true}
+                aria-describedby="lti-dynamic-registration-help"
+              />
+            </AdminField>
+            <p id="lti-dynamic-registration-help" class="ct-admin__hint">
+              Tenant-scoped registration link for Canvas and Sakai. Expires after 7 days.
+            </p>
+          </div>
+        ) : (
+          <p class="ct-admin__hint">
+            LTI dynamic registration URL is unavailable until LTI signing is configured.
+          </p>
+        )}
         <AdminActions>
           <AdminButtonLink href={lmsNewPath} variant="secondary">
             Connect LMS

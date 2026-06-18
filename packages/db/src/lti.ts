@@ -22,6 +22,23 @@ export interface UpsertLtiIssuerRegistrationInput {
   clientSecret?: string | undefined;
 }
 
+export class LtiIssuerTenantConflictError extends Error {
+  constructor(
+    readonly issuer: string,
+    readonly existingTenantId: string,
+    readonly requestedTenantId: string,
+  ) {
+    super("LTI issuer is already registered to a different tenant");
+    this.name = "LtiIssuerTenantConflictError";
+  }
+}
+
+export const isLtiIssuerTenantConflictError = (
+  error: unknown,
+): error is LtiIssuerTenantConflictError => {
+  return error instanceof LtiIssuerTenantConflictError;
+};
+
 export interface LtiDeploymentRecord {
   id: string;
   issuer: string;
@@ -313,6 +330,7 @@ export const upsertLtiIssuerRegistration = async (
           token_endpoint = COALESCE(excluded.token_endpoint, lti_issuer_registrations.token_endpoint),
           client_secret = COALESCE(excluded.client_secret, lti_issuer_registrations.client_secret),
           updated_at = excluded.updated_at
+        WHERE lti_issuer_registrations.tenant_id = excluded.tenant_id
       `,
       )
       .bind(
@@ -356,6 +374,10 @@ export const upsertLtiIssuerRegistration = async (
 
   if (row === null) {
     throw new Error(`Unable to upsert LTI issuer registration "${normalizedIssuer}"`);
+  }
+
+  if (row.tenantId !== input.tenantId) {
+    throw new LtiIssuerTenantConflictError(normalizedIssuer, row.tenantId, input.tenantId);
   }
 
   return mapLtiIssuerRegistrationRow(row);

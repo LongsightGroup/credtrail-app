@@ -237,6 +237,10 @@ export const tenantPathParamsSchema = z.object({
   tenantId: tenantIdSchema,
 });
 
+export const ltiDynamicRegistrationPathParamsSchema = tenantPathParamsSchema.extend({
+  inviteToken: z.string().min(1),
+});
+
 export const badgeTemplatePathParamsSchema = tenantPathParamsSchema.extend({
   badgeTemplateId: resourceIdSchema,
 });
@@ -1906,6 +1910,9 @@ export type GenerateBadgeTemplateImageQueueJob = z.infer<
 >;
 export type ManualIssueBadgeRequest = z.infer<typeof manualIssueBadgeRequestSchema>;
 export type TenantPathParams = z.infer<typeof tenantPathParamsSchema>;
+export type LtiDynamicRegistrationPathParams = z.infer<
+  typeof ltiDynamicRegistrationPathParamsSchema
+>;
 export type LearnerRecordImportBatchPathParams = z.infer<
   typeof learnerRecordImportBatchPathParamsSchema
 >;
@@ -2201,6 +2208,12 @@ export const parseManualIssueBadgeRequest = (input: unknown): ManualIssueBadgeRe
 
 export const parseTenantPathParams = (input: unknown): TenantPathParams => {
   return tenantPathParamsSchema.parse(input);
+};
+
+export const parseLtiDynamicRegistrationPathParams = (
+  input: unknown,
+): LtiDynamicRegistrationPathParams => {
+  return ltiDynamicRegistrationPathParamsSchema.parse(input);
 };
 
 export const parseMigrationBatchPathParams = (input: unknown): MigrationBatchPathParams => {

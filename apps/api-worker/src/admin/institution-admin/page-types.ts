@@ -299,6 +299,7 @@ export interface InstitutionAdminRuleValueListsWorkspace {
 export interface InstitutionAdminLmsConnectionsWorkspace {
   listNotice: string | null;
   listError: string | null;
+  ltiDynamicRegistrationUrl: string | null;
 }
 
 export interface InstitutionAdminLmsConnectionSetupWorkspace {
