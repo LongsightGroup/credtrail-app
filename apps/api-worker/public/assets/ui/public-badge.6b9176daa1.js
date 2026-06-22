@@ -1,4 +1,4 @@
-export const PUBLIC_BADGE_JS = `
+
 (() => {
   const heroImages = document.querySelectorAll('.public-badge__hero-image');
 
@@ -171,4 +171,3 @@ export const PUBLIC_BADGE_JS = `
     });
   }
 })();
-`;

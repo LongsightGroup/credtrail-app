@@ -11,20 +11,33 @@ const publicBadgeButtonClass = (variant: PublicBadgeButtonVariant = "secondary")
     : "public-badge__button";
 };
 
+const joinClassNames = (...classNames: Array<string | undefined>): string => {
+  return classNames
+    .filter((className) => className !== undefined && className.length > 0)
+    .join(" ");
+};
+
 export const PublicBadgeButtonLink = ({
   href,
   variant,
+  class: className,
   target,
   rel,
   children,
 }: PropsWithChildren<{
   href: string;
   variant?: PublicBadgeButtonVariant;
+  class?: string;
   target?: "_blank";
   rel?: string;
 }>): HonoElement => {
   return (
-    <a class={publicBadgeButtonClass(variant)} href={href} target={target} rel={rel}>
+    <a
+      class={joinClassNames(publicBadgeButtonClass(variant), className)}
+      href={href}
+      target={target}
+      rel={rel}
+    >
       {children}
     </a>
   );
@@ -74,6 +87,34 @@ export const PublicBadgeTextLink = ({
     <a class="public-badge__text-link" href={href} target={target} rel={rel}>
       {children}
     </a>
+  );
+};
+
+export const PublicBadgeTextButton = ({
+  id,
+  type = "button",
+  dataCopyValue,
+  dataCredentialJsonUrl,
+  hidden,
+  children,
+}: PropsWithChildren<{
+  id?: string;
+  type?: "button" | "submit";
+  dataCopyValue?: string;
+  dataCredentialJsonUrl?: string;
+  hidden?: boolean;
+}>): HonoElement => {
+  return (
+    <button
+      id={id}
+      class="public-badge__text-button"
+      type={type}
+      data-copy-value={dataCopyValue}
+      data-credential-json-url={dataCredentialJsonUrl}
+      hidden={hidden}
+    >
+      {children}
+    </button>
   );
 };
 

@@ -15,7 +15,9 @@ import type {
 } from "./public-badge-renderer-types";
 import type { VerificationViewModel } from "./public-badge-model";
 import { PublicBadgeTrustEdCredentialSection } from "./public-badge-trusted-credential-section";
-import { PublicBadgeButton, PublicBadgeButtonLink, PublicBadgeTextLink } from "./public-badge-ui";
+import { PublicBadgeShareSection } from "./public-badge-share-section";
+import { PublicBadgeTextButton } from "./public-badge-ui";
+import { buildPublicBadgeWalletImportUrls } from "./wallet-import-urls";
 
 export const createPublicBadgePage = (
   input: CreatePublicBadgePageRenderersInput,
@@ -141,20 +143,15 @@ export const createPublicBadgePage = (
     const credentialPdfDownloadPath = `${publicBadgePath}/download.pdf`;
     const credentialPdfDownloadUrl = new URL(credentialPdfDownloadPath, requestUrl).toString();
     const walletOfferBadgeIdentifier = model.assertion.publicId ?? model.assertion.id;
-    const walletOfferPath = `/credentials/v1/offers/${encodeURIComponent(walletOfferBadgeIdentifier)}`;
-    const walletOfferUrl = new URL(walletOfferPath, requestUrl).toString();
-    const walletDeepLinkUrl = new URL("openid-credential-offer://");
-    walletDeepLinkUrl.searchParams.set("credential_offer_uri", walletOfferUrl);
-    const dccExchangePath = `/credentials/v1/dcc/exchanges/${encodeURIComponent(walletOfferBadgeIdentifier)}`;
-    const dccExchangeUrl = new URL(dccExchangePath, requestUrl).toString();
-    const dccInvitationRequest = {
-      credentialRequestOrigin: new URL(requestUrl).origin,
-      protocols: {
-        vcapi: dccExchangeUrl,
-      },
-    };
-    const dccWalletDeepLinkUrl = new URL("https://lcw.app/request");
-    dccWalletDeepLinkUrl.searchParams.set("request", JSON.stringify(dccInvitationRequest));
+    const walletImportUrls = buildPublicBadgeWalletImportUrls(
+      requestUrl,
+      walletOfferBadgeIdentifier,
+    );
+    const walletOfferPath = walletImportUrls.walletOfferPath;
+    const walletOfferUrl = walletImportUrls.walletOfferUrl;
+    const walletDeepLinkUrl = walletImportUrls.walletDeepLinkUrl;
+    const dccExchangePath = walletImportUrls.dccExchangePath;
+    const dccExchangeUrl = walletImportUrls.dccExchangeUrl;
     const isVcV2Credential = hasContextUrl(
       model.credential["@context"],
       VC_DATA_MODEL_V2_CONTEXT_URL,
@@ -237,67 +234,12 @@ export const createPublicBadgePage = (
           <dd>{issuerValidationTechnicalDetail}</dd>
         </>
       );
-    const qrCodeImageUrl = new URL("https://api.qrserver.com/v1/create-qr-code/");
-    qrCodeImageUrl.searchParams.set("size", "220x220");
-    qrCodeImageUrl.searchParams.set("format", "svg");
-    qrCodeImageUrl.searchParams.set("margin", "0");
-    qrCodeImageUrl.searchParams.set("data", dccWalletDeepLinkUrl.toString());
-    const linkedInProfileSharePath = `/badges/${encodeURIComponent(
-      walletOfferBadgeIdentifier,
-    )}/share/linkedin-profile`;
     const linkedInFeedSharePath = `/badges/${encodeURIComponent(
       walletOfferBadgeIdentifier,
     )}/share/linkedin-feed`;
-    const moreWaysSection = (
-      <details class="public-badge__share-more">
-        <summary>More ways to save and share</summary>
-        <div class="public-badge__share-groups">
-          <section class="public-badge__share-group">
-            <h3 class="public-badge__share-group-title">Save to a wallet</h3>
-            <div class="public-badge__wallet-panel">
-              <figure class="public-badge__qr">
-                <img
-                  class="public-badge__qr-image"
-                  src={qrCodeImageUrl.toString()}
-                  alt="QR code for DCC Learner Wallet claim request"
-                  loading="lazy"
-                />
-                <figcaption class="public-badge__qr-caption">
-                  Scan to claim in a compatible wallet.
-                </figcaption>
-              </figure>
-              <div class="public-badge__actions public-badge__actions--grid">
-                <PublicBadgeButtonLink href={walletDeepLinkUrl.toString()}>
-                  Claim in Wallet
-                </PublicBadgeButtonLink>
-                <PublicBadgeButtonLink href={dccWalletDeepLinkUrl.toString()}>
-                  DCC Learner Wallet
-                </PublicBadgeButtonLink>
-                <PublicBadgeButton
-                  id="chapi-store-button"
-                  type="button"
-                  dataCredentialJsonUrl={ob3JsonPath}
-                  hidden
-                >
-                  Add to Browser Wallet
-                </PublicBadgeButton>
-              </div>
-            </div>
-          </section>
-          <section class="public-badge__share-group">
-            <h3 class="public-badge__share-group-title">Downloads</h3>
-            <div class="public-badge__actions public-badge__actions--grid public-badge__actions--pair">
-              <PublicBadgeButtonLink href={credentialPdfDownloadPath}>
-                Download PDF
-              </PublicBadgeButtonLink>
-              <PublicBadgeButtonLink href={credentialDownloadPath}>
-                JSON-LD download
-              </PublicBadgeButtonLink>
-            </div>
-          </section>
-        </div>
-      </details>
-    );
+    const linkedInProfileSharePath = `/badges/${encodeURIComponent(
+      walletOfferBadgeIdentifier,
+    )}/share/linkedin-profile`;
     const issuedAt = `${formatIsoTimestamp(model.assertion.issuedAt)} UTC`;
     const issuerLine =
       issuerUrl === null ? (
@@ -462,44 +404,33 @@ export const createPublicBadgePage = (
 
           {trustEdCredentialSection}
 
-          <section
-            id="share-this-credential"
-            class="public-badge__card public-badge__stack-sm public-badge__share"
-          >
-            <h2 class="public-badge__section-title">Share this credential</h2>
-            <p class="public-badge__achievement-copy">
-              Add it to your LinkedIn profile or copy the public link. Recruiters and other
-              reviewers can verify the issuer, evidence, and technical details on this page.
-            </p>
-            <div class="public-badge__actions public-badge__actions--primary">
-              <PublicBadgeButtonLink href={linkedInProfileSharePath} variant="primary">
-                Add to LinkedIn Profile
-              </PublicBadgeButtonLink>
-              <PublicBadgeButton
-                id="copy-badge-url-button"
-                type="button"
-                dataCopyValue={publicBadgeUrl}
-              >
-                Copy public URL
-              </PublicBadgeButton>
-            </div>
-            <p class="public-badge__share-feed-link">
-              <PublicBadgeTextLink
-                href={linkedInFeedSharePath}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Share to LinkedIn feed
-              </PublicBadgeTextLink>
-            </p>
-            {moreWaysSection}
-            <p id="copy-badge-url-status" class="public-badge__copy-status" aria-live="polite"></p>
-            <p id="chapi-store-status" class="public-badge__copy-status" aria-live="polite"></p>
-          </section>
+          <PublicBadgeShareSection
+            linkedInProfileSharePath={linkedInProfileSharePath}
+            linkedInFeedSharePath={linkedInFeedSharePath}
+            walletQrCodePath={walletImportUrls.walletQrCodePath}
+            walletDeepLinkUrl={walletDeepLinkUrl}
+            ob3JsonPath={ob3JsonPath}
+          />
 
           <details class="public-badge__card public-badge__technical">
             <summary>Technical details</summary>
             <dl class="public-badge__technical-grid">
+              <dt>Public page URL</dt>
+              <dd class="public-badge__technical-url-row">
+                <a href={publicBadgeUrl}>{publicBadgeUrl}</a>
+                <PublicBadgeTextButton
+                  id="copy-badge-url-technical-button"
+                  type="button"
+                  dataCopyValue={publicBadgeUrl}
+                >
+                  Copy
+                </PublicBadgeTextButton>
+                <p
+                  id="copy-badge-url-status"
+                  class="public-badge__copy-status"
+                  aria-live="polite"
+                ></p>
+              </dd>
               <dt>Issuer ID</dt>
               <dd>{issuerIdentifier ?? "Not available"}</dd>
               <dt>Recipient identity</dt>

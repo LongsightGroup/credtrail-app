@@ -285,6 +285,16 @@ export const PUBLIC_BADGE_CSS = `
   margin: 0;
 }
 
+.public-badge__share-actions {
+  display: grid;
+  gap: 0.45rem;
+  justify-items: start;
+}
+
+.public-badge__share-actions .public-badge__button--primary {
+  width: auto;
+}
+
 .public-badge__text-link {
   color: var(--ct-theme-link);
   font-weight: 600;
@@ -297,6 +307,32 @@ export const PUBLIC_BADGE_CSS = `
   color: var(--ct-theme-link-hover, var(--ct-theme-link));
   text-decoration-color: currentColor;
 }
+
+.public-badge__text-button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ct-theme-link);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--ct-theme-link) 35%, transparent);
+  text-underline-offset: 0.14em;
+  cursor: pointer;
+}
+
+.public-badge__text-button:hover {
+  color: var(--ct-theme-link-hover, var(--ct-theme-link));
+  text-decoration-color: currentColor;
+}
+
+.public-badge__link-row {
+  margin: 0;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
   
 .public-badge__achievement-copy {
   margin: 0;
@@ -308,25 +344,6 @@ export const PUBLIC_BADGE_CSS = `
   flex-wrap: wrap;
   gap: 0.52rem;
   align-items: center;
-}
-
-.public-badge__actions--primary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.public-badge__actions--primary .public-badge__button {
-  font-weight: 700;
-}
-
-.public-badge__actions--grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-  gap: 0.52rem;
-}
-
-.public-badge__actions--pair {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .public-badge__button {
@@ -371,6 +388,12 @@ export const PUBLIC_BADGE_CSS = `
   background: var(--ct-theme-gradient-action-hover);
   color: var(--ct-theme-text-on-brand);
 }
+
+.public-badge__button--compact {
+  min-height: 2.35rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.82rem;
+}
   
 .public-badge__copy-status {
   margin: 0;
@@ -407,9 +430,49 @@ export const PUBLIC_BADGE_CSS = `
   color: var(--ct-theme-text-body);
 }
 
+.public-badge__wallet-paths {
+  display: grid;
+  gap: 1rem;
+}
+
+.public-badge__wallet-path-title {
+  margin: 0 0 0.55rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ct-theme-text-body);
+}
+
+.public-badge__wallet-path-copy {
+  margin: 0 0 0.55rem;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.public-badge__wallet-path--phone {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.public-badge__wallet-path--device {
+  display: grid;
+  gap: 0.45rem;
+  justify-items: start;
+}
+
+.public-badge__wallet-browser-row {
+  margin-top: 0.1rem;
+}
+
 .public-badge__wallet-panel {
   display: grid;
   gap: 0.85rem;
+}
+
+.public-badge__wallet-actions {
+  display: grid;
+  gap: 0.45rem;
+  justify-items: start;
 }
 
 .public-badge__validator-note {
@@ -418,20 +481,23 @@ export const PUBLIC_BADGE_CSS = `
   font-size: 0.88rem;
   line-height: 1.35;
 }
+
+.public-badge__technical-url-row {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.public-badge__technical-url-row .public-badge__text-button {
+  justify-self: start;
+}
   
 .public-badge__qr {
   margin: 0;
   display: grid;
+  gap: 0.55rem;
+  width: fit-content;
+  max-width: 100%;
   justify-items: start;
-  gap: 0.4rem;
-  border: 1px solid var(--ct-theme-border-soft);
-  border-radius: var(--public-badge-panel-radius);
-  padding: var(--public-badge-panel-padding);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--ct-theme-surface-card-strong) 92%, var(--ct-theme-surface-soft)),
-    var(--ct-theme-surface-soft)
-  );
 }
   
 .public-badge__qr-image {
@@ -446,9 +512,11 @@ export const PUBLIC_BADGE_CSS = `
 }
   
 .public-badge__qr-caption {
+  margin: 0;
   color: var(--ct-theme-text-muted);
   font-size: 0.84rem;
-  line-height: 1.35;
+  line-height: 1.45;
+  max-width: 16rem;
 }
   
 .public-badge__evidence-list {
@@ -565,10 +633,25 @@ export const PUBLIC_BADGE_CSS = `
     align-items: start;
   }
 
-  .public-badge__wallet-panel {
+  .public-badge__wallet-path--device {
+    display: none;
+  }
+
+  .public-badge__qr {
     grid-template-columns: auto minmax(0, 1fr);
-    align-items: start;
-    gap: 1rem;
+    align-items: center;
+    gap: 0.85rem 1rem;
+    width: auto;
+    max-width: 28rem;
+  }
+
+  .public-badge__qr-image {
+    width: 9rem;
+    height: 9rem;
+  }
+
+  .public-badge__qr-caption {
+    max-width: none;
   }
 }
 
@@ -576,21 +659,6 @@ export const PUBLIC_BADGE_CSS = `
   .public-badge__status {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .public-badge__actions,
-  .public-badge__actions--primary,
-  .public-badge__actions--grid,
-  .public-badge__actions--pair {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .public-badge__button {
-    width: 100%;
-  }
-
-  .public-badge__wallet-panel .public-badge__qr {
-    justify-items: center;
   }
 
   .public-badge__trust-grid {

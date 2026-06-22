@@ -420,25 +420,32 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/verification");
     expect(body).toContain("Share this credential");
     expect(body).toContain('id="share-this-credential"');
-    expect(body).toContain("Copy public URL");
+    expect(body).not.toContain("Copy public URL");
+    expect(body).not.toContain("Anyone can verify the issuer");
+    expect(body).toContain("Public page URL");
+    expect(body).toContain('id="copy-badge-url-technical-button"');
     expect(body).toContain("Summary JSON");
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/summary");
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/download");
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/download.pdf");
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/jsonld");
     expect(body).toContain("/credentials/v1/offers/40a6dc92-85ec-4cb0-8a50-afb2ae700e22");
-    expect(body).toContain("Download PDF");
-    expect(body).toContain("JSON-LD download");
+    expect(body).not.toContain(">PDF</a>");
+    expect(body).toContain("Open Badges 3.0 JSON");
     expect(body).toContain("OpenID4VCI offer");
-    expect(body).toContain("Add to Browser Wallet");
-    expect(body).toMatch(/<button[^>]*id="chapi-store-button"[^>]*hidden/);
-    expect(body).toContain("Claim in Wallet");
-    expect(body).toContain("DCC Learner Wallet");
-    expect(body).toContain("More ways to save and share");
-    expect(body).toContain("Save to a wallet");
+    expect(body).not.toContain("Add to Browser Wallet");
+    expect(body).toMatch(/id="chapi-store-row"[^>]*hidden/);
+    expect(body).toContain('id="chapi-store-link"');
+    expect(body).toContain("Save in this browser");
+    expect(body).toContain("Open in wallet app");
+    expect(body).not.toContain("Claim in Wallet");
+    expect(body).not.toContain("DCC Learner Wallet");
+    expect(body).toContain("Wallet &amp; downloads");
+    expect(body).toContain("On your phone");
+    expect(body).toContain("On this device");
+    expect(body).not.toContain("Digital Credentials Consortium");
     expect(body).toContain("openid-credential-offer:");
     expect(body).toContain("credential_offer_uri=");
-    expect(body).toContain("https://lcw.app/request?request=");
     expect(body).toContain("/credentials/v1/dcc/exchanges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22");
     expect(body).toContain("Add to LinkedIn Profile");
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/share/linkedin-profile");
@@ -451,27 +458,10 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).not.toContain("Validate Issuer (IMS)");
     expect(body).not.toContain("openbadgesvalidator.imsglobal.org/?url=");
     expect(body).not.toContain("vc.1ed.tech/upload?validatorId=OB30Inspector");
-    expect(body).toContain("api.qrserver.com/v1/create-qr-code");
-    expect(body).toContain("QR code for DCC Learner Wallet claim request");
-    const qrImageSrc = body
-      .match(/src="(https:\/\/api\.qrserver\.com\/v1\/create-qr-code\/[^"]+)"/)?.[1]
-      ?.replaceAll("&amp;", "&");
-    expect(qrImageSrc).toBeDefined();
-    const qrPayload = new URL(qrImageSrc ?? "").searchParams.get("data");
-    expect(qrPayload).not.toBeNull();
-    const qrPayloadUrl = new URL(qrPayload ?? "");
-    expect(qrPayloadUrl.origin).toBe("https://lcw.app");
-    expect(qrPayloadUrl.pathname).toBe("/request");
-    const dccRequest = JSON.parse(qrPayloadUrl.searchParams.get("request") ?? "{}") as {
-      credentialRequestOrigin?: unknown;
-      protocols?: {
-        vcapi?: unknown;
-      };
-    };
-    expect(dccRequest.credentialRequestOrigin).toBe("http://localhost");
-    expect(dccRequest.protocols?.vcapi).toBe(
-      "http://localhost/credentials/v1/dcc/exchanges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
-    );
+    expect(body).not.toContain("api.qrserver.com");
+    expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/wallet-qr.svg");
+    expect(body).toContain("QR code to import this credential into your wallet");
+    expect(body).toContain("Scan with your phone camera or wallet app.");
     expect(body).toContain("Open Badges 3.0 JSON");
     expect(body).toContain(
       '<link rel="alternate" type="application/vc+ld+json" href="http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/jsonld"',
@@ -520,6 +510,38 @@ describe("GET /badges/:badgeIdentifier", () => {
         occurredAt: expect.stringMatching(/^20/),
       }),
     );
+  });
+
+  it("returns a self-hosted wallet QR SVG for public badge pages", async () => {
+    const env = createEnv();
+
+    mockedFindAssertionByPublicId.mockResolvedValue(sampleAssertion());
+    mockedGetImmutableCredentialObject.mockResolvedValue({
+      "@context": ["https://www.w3.org/ns/credentials/v2"],
+      id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
+      type: ["VerifiableCredential", "OpenBadgeCredential"],
+      issuer: {
+        id: "did:web:credtrail.test:tenant_123",
+        name: "Example University",
+      },
+      credentialSubject: {
+        achievement: {
+          name: "TypeScript Foundations",
+        },
+      },
+    } satisfies JsonObject);
+
+    const response = await app.request(
+      "/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/wallet-qr.svg",
+      undefined,
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("image/svg+xml");
+    expect(body).toContain("<svg");
+    expect(body).toContain("</svg>");
   });
 
   it("shows IMS validation links for non-VC-v2 credentials", async () => {

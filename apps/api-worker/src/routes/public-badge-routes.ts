@@ -15,6 +15,8 @@ import type { ImmutableCredentialStore, JsonObject } from "@credtrail/core-domai
 import type { Hono } from "hono";
 import { parseTenantPathParams } from "@credtrail/validation";
 import { badgeNameFromCredential, issuerNameFromCredential } from "../badges/credential-display";
+import { buildPublicBadgeWalletImportUrls } from "../badges/wallet-import-urls";
+import { renderWalletQrCodeSvg, walletQrCodePayloadFromDeepLink } from "../badges/wallet-qr-code";
 import type { AppBindings, AppEnv } from "../app";
 import { renderAppPage, type AppPage } from "../ui/render-page";
 import type {
@@ -244,6 +246,33 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     }
 
     return c.redirect(`/badges/${encodeURIComponent(badgeIdentifier)}`, 308);
+  });
+
+  app.get("/badges/:badgeIdentifier/wallet-qr.svg", async (c) => {
+    const badgeIdentifier = c.req.param("badgeIdentifier");
+    const result = await loadPublicBadgeViewModel(
+      resolveDatabase(c.env),
+      c.env.BADGE_OBJECTS,
+      badgeIdentifier,
+    );
+
+    if (result.status === "not_found") {
+      return c.text("Badge not found", 404);
+    }
+
+    if (result.status === "redirect") {
+      return c.redirect(`${result.canonicalPath}/wallet-qr.svg`, 308);
+    }
+
+    const canonicalBadgeIdentifier = result.value.assertion.publicId ?? result.value.assertion.id;
+    const walletImportUrls = buildPublicBadgeWalletImportUrls(c.req.url, canonicalBadgeIdentifier);
+    const svg = renderWalletQrCodeSvg(
+      walletQrCodePayloadFromDeepLink(walletImportUrls.walletDeepLinkUrl),
+    );
+
+    c.header("Cache-Control", "public, max-age=300");
+    c.header("Content-Type", "image/svg+xml; charset=utf-8");
+    return c.body(svg);
   });
 
   app.get("/badges/:badgeIdentifier", async (c) => {
