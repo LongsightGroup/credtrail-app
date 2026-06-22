@@ -12,6 +12,27 @@ import type {
 } from "./public-badge-renderer-types";
 import { createRuleDefinitionSummaryMarkup } from "./public-badge-rule-summary";
 
+type ApprovalStepStatus = "approved" | "pending" | "queued" | "rejected";
+
+const humanizeApprovalStepStatus = (status: ApprovalStepStatus): string => {
+  switch (status) {
+    case "approved":
+      return "Approved";
+    case "rejected":
+      return "Rejected";
+    case "pending":
+      return "Pending";
+    case "queued":
+      return "Queued";
+    default:
+      return status;
+  }
+};
+
+const isGenericApprovalStepLabel = (label: string): boolean => {
+  return label === "Administrative approval" || /^Step \d+$/.test(label);
+};
+
 export const createTenantBadgeCriteriaRegistryPage = (
   input: CreatePublicBadgePageRenderersInput,
 ): PublicBadgePageRenderers["tenantBadgeCriteriaRegistryPage"] => {
@@ -70,31 +91,17 @@ export const createTenantBadgeCriteriaRegistryPage = (
                 {template.criteriaUri}
               </a>
             );
-          const templateRecordDetails = (
-            <details class="criteria-registry__details">
-              <summary>
-                {template.governanceMetadataJson === null
-                  ? "Badge record details"
-                  : "Badge record details and raw metadata"}
-              </summary>
-              <div class="criteria-registry__details-body criteria-registry__stack-sm">
-                <p class="criteria-registry__muted">Template ID: {template.id}</p>
-              </div>
-              {template.governanceMetadataJson === null ? null : (
-                <pre class="criteria-registry__pre">{template.governanceMetadataJson}</pre>
-              )}
-            </details>
-          );
-          const ownershipHistorySection =
-            entry.ownershipEvents.length === 0 ? (
-              <p class="criteria-registry__muted">
-                No published ownership changes are recorded for this badge yet.
-              </p>
-            ) : (
-              <details class="criteria-registry__details">
-                <summary>View ownership transfer history</summary>
+          const ownershipTransferEvents = entry.ownershipEvents.filter((event) => {
+            return event.reasonCode !== "initial_assignment";
+          });
+          const ownershipTransferHistoryMarkup =
+            ownershipTransferEvents.length === 0 ? null : (
+              <>
+                <p>
+                  <strong>Ownership transfer history</strong>
+                </p>
                 <ol class="criteria-registry__timeline">
-                  {entry.ownershipEvents.map((event) => {
+                  {ownershipTransferEvents.map((event) => {
                     const fromOrgUnit =
                       event.fromOrgUnitId === null
                         ? null
@@ -122,8 +129,24 @@ export const createTenantBadgeCriteriaRegistryPage = (
                     );
                   })}
                 </ol>
-              </details>
+              </>
             );
+          const templateRecordDetails = (
+            <details class="criteria-registry__details">
+              <summary>
+                {template.governanceMetadataJson === null
+                  ? "Badge record details"
+                  : "Badge record details and raw metadata"}
+              </summary>
+              <div class="criteria-registry__details-body criteria-registry__stack-sm">
+                <p class="criteria-registry__muted">Template ID: {template.id}</p>
+                {ownershipTransferHistoryMarkup}
+              </div>
+              {template.governanceMetadataJson === null ? null : (
+                <pre class="criteria-registry__pre">{template.governanceMetadataJson}</pre>
+              )}
+            </details>
+          );
           const rulesSection =
             entry.rules.length === 0 ? (
               <p class="criteria-registry__muted">
@@ -168,13 +191,21 @@ export const createTenantBadgeCriteriaRegistryPage = (
                           step.label === null || step.label.trim().length === 0
                             ? `Step ${String(step.stepNumber)}`
                             : step.label;
+                        const isDecided = step.status === "approved" || step.status === "rejected";
+                        const headline = isDecided
+                          ? humanizeApprovalStepStatus(step.status)
+                          : reviewLabel;
+                        const showStepLabelInDetails =
+                          ruleEntry.approvalSteps.length > 1 ||
+                          !isGenericApprovalStepLabel(reviewLabel);
 
                         return (
                           <li key={step.id}>
                             <p>
-                              <strong>{reviewLabel}</strong> · status <strong>{step.status}</strong>
+                              <strong>{headline}</strong>
                             </p>
                             <p class="criteria-registry__muted">
+                              {showStepLabelInDetails ? `${reviewLabel} · ` : ""}
                               Required role: {step.requiredRole} · Reviewed by {actor} · {decidedAt}
                             </p>
                           </li>
@@ -303,10 +334,9 @@ export const createTenantBadgeCriteriaRegistryPage = (
               <section class="criteria-registry__section">
                 <h3>Governance and ownership</h3>
                 <p class="criteria-registry__muted">
-                  This section shows who is responsible for the badge and any published changes to
-                  ownership.
+                  Current ownership is listed above. Expand record details for template identifiers,
+                  ownership transfer history, and published metadata.
                 </p>
-                {ownershipHistorySection}
                 {templateRecordDetails}
               </section>
             </article>
