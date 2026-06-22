@@ -5,6 +5,7 @@ import {
   createLearnerProfile,
   findLearnerProfileById,
   findLearnerProfileByIdentity,
+  listAuditLogs,
   listLearnerIdentitiesByProfile,
   moveLearnerIdentityAliasToProfile,
   normalizeLearnerIdentityValue,
@@ -15,6 +16,8 @@ import {
   cleanupTestResources,
   createTestTenantFixture,
   describeDbIntegration,
+  seedAssertion,
+  seedBadgeTemplate,
 } from "./postgres-test-support";
 
 describe("normalizeLearnerIdentityValue", () => {
@@ -288,6 +291,44 @@ describeDbIntegration("learner profiles and identity aliases", () => {
     }
   });
 
+  it("updates primary and verified flags when move is called on the same profile", async () => {
+    const fixture = await createTestTenantFixture();
+
+    try {
+      const profile = await createLearnerProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        primaryIdentityType: "email",
+        primaryIdentityValue: "student@umich.edu",
+        primaryIdentityVerified: false,
+      });
+
+      const updated = await moveLearnerIdentityAliasToProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        learnerProfileId: profile.id,
+        identityType: "email",
+        identityValue: "student@umich.edu",
+        isPrimary: true,
+        isVerified: true,
+      });
+
+      expect(updated.isPrimary).toBe(true);
+      expect(updated.isVerified).toBe(true);
+
+      const identities = await listLearnerIdentitiesByProfile(
+        fixture.db,
+        fixture.tenantId,
+        profile.id,
+      );
+      expect(identities).toHaveLength(1);
+      expect(identities[0]?.isPrimary).toBe(true);
+      expect(identities[0]?.isVerified).toBe(true);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+      });
+    }
+  });
+
   it("attaches a new identity alias when none exists yet", async () => {
     const fixture = await createTestTenantFixture();
 
@@ -375,6 +416,100 @@ describeDbIntegration("learner profiles and identity aliases", () => {
         staleProfile.id,
       );
       expect(deletedStaleProfile).toBeNull();
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+      });
+    }
+  });
+
+  it("writes an audit log when an identity is reparented", async () => {
+    const fixture = await createTestTenantFixture();
+
+    try {
+      const selectedProfile = await createLearnerProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        primaryIdentityType: "email",
+        primaryIdentityValue: "student@umich.edu",
+        primaryIdentityVerified: true,
+      });
+      await createLearnerProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        primaryIdentityType: "saml_subject",
+        primaryIdentityValue: "canvas-audit-subject",
+        primaryIdentityVerified: true,
+      });
+
+      const movedIdentity = await moveLearnerIdentityAliasToProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        learnerProfileId: selectedProfile.id,
+        identityType: "saml_subject",
+        identityValue: "canvas-audit-subject",
+        isPrimary: false,
+        isVerified: true,
+      });
+
+      const auditLogs = await listAuditLogs(fixture.db, {
+        tenantId: fixture.tenantId,
+        action: "learner_identity.reparented",
+        targetType: "learner_identity",
+        targetId: movedIdentity.id,
+        limit: 5,
+      });
+
+      expect(auditLogs).toHaveLength(1);
+      expect(auditLogs[0]?.metadataJson).toContain(selectedProfile.id);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+      });
+    }
+  });
+
+  it("does not delete a stale profile when it still has issued assertions", async () => {
+    const fixture = await createTestTenantFixture();
+
+    try {
+      const selectedProfile = await createLearnerProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        primaryIdentityType: "email",
+        primaryIdentityValue: "student@umich.edu",
+        primaryIdentityVerified: true,
+      });
+      const staleProfile = await createLearnerProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        primaryIdentityType: "saml_subject",
+        primaryIdentityValue: "canvas-assertion-subject",
+        primaryIdentityVerified: true,
+      });
+      const badgeTemplateId = await seedBadgeTemplate(fixture.db, {
+        tenantId: fixture.tenantId,
+        title: "Follow-up badge",
+      });
+
+      await seedAssertion(fixture.db, {
+        tenantId: fixture.tenantId,
+        badgeTemplateId,
+        learnerProfileId: staleProfile.id,
+        recipientIdentity: "student@umich.edu",
+        issuedAt: "2026-01-01T00:00:00.000Z",
+      });
+
+      await moveLearnerIdentityAliasToProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        learnerProfileId: selectedProfile.id,
+        identityType: "saml_subject",
+        identityValue: "canvas-assertion-subject",
+        isPrimary: false,
+        isVerified: true,
+      });
+
+      const retainedStaleProfile = await findLearnerProfileById(
+        fixture.db,
+        fixture.tenantId,
+        staleProfile.id,
+      );
+      expect(retainedStaleProfile?.id).toBe(staleProfile.id);
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],

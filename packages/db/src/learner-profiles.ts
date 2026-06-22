@@ -1,3 +1,4 @@
+import { createAuditLog } from "./audit-logs";
 import { createPrefixedId } from "./shared-helpers";
 import { runSqlTransaction, type SqlDatabase } from "./tenant-scope";
 import { normalizeEmail } from "./users";
@@ -80,6 +81,7 @@ export interface MoveLearnerIdentityAliasToProfileInput {
   identityValue: string;
   isPrimary?: boolean | undefined;
   isVerified?: boolean | undefined;
+  actorUserId?: string | undefined;
 }
 
 export interface FindLearnerProfileByIdentityInput {
@@ -436,6 +438,58 @@ const deleteOrphanLearnerProfileIfUnreferenced = async (
     .run();
 };
 
+const syncLearnerIdentityFlagsOnProfile = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    learnerProfileId: string;
+    identityType: LearnerIdentityType;
+    identityValue: string;
+    isPrimary: boolean;
+    isVerified: boolean;
+  },
+): Promise<LearnerIdentityRecord> => {
+  const nowIso = new Date().toISOString();
+
+  if (input.isPrimary) {
+    await demotePrimaryIdentitiesOnProfile(db, input.tenantId, input.learnerProfileId, nowIso);
+  }
+
+  await db
+    .prepare(
+      `
+      UPDATE learner_identities
+      SET is_primary = ?,
+          is_verified = ?,
+          updated_at = ?
+      WHERE tenant_id = ?
+        AND identity_type = ?
+        AND identity_value = ?
+    `,
+    )
+    .bind(
+      input.isPrimary ? 1 : 0,
+      input.isVerified ? 1 : 0,
+      nowIso,
+      input.tenantId,
+      input.identityType,
+      input.identityValue,
+    )
+    .run();
+
+  const updatedIdentity = await findLearnerIdentityByTypeValue(db, {
+    tenantId: input.tenantId,
+    identityType: input.identityType,
+    identityValue: input.identityValue,
+  });
+
+  if (updatedIdentity === null) {
+    throw new Error("Failed to update learner identity flags on profile");
+  }
+
+  return updatedIdentity;
+};
+
 export const moveLearnerIdentityAliasToProfile = async (
   db: SqlDatabase,
   input: MoveLearnerIdentityAliasToProfileInput,
@@ -456,7 +510,21 @@ export const moveLearnerIdentityAliasToProfile = async (
 
     if (existingIdentity !== null) {
       if (existingIdentity.learnerProfileId === input.learnerProfileId) {
-        return existingIdentity;
+        if (
+          existingIdentity.isPrimary === isPrimary &&
+          existingIdentity.isVerified === isVerified
+        ) {
+          return existingIdentity;
+        }
+
+        return syncLearnerIdentityFlagsOnProfile(transactionDb, {
+          tenantId: input.tenantId,
+          learnerProfileId: input.learnerProfileId,
+          identityType: input.identityType,
+          identityValue: normalizedIdentityValue,
+          isPrimary,
+          isVerified,
+        });
       }
 
       const previousProfileId = existingIdentity.learnerProfileId;
@@ -494,6 +562,21 @@ export const moveLearnerIdentityAliasToProfile = async (
           normalizedIdentityValue,
         )
         .run();
+
+      await createAuditLog(transactionDb, {
+        tenantId: input.tenantId,
+        ...(input.actorUserId === undefined ? {} : { actorUserId: input.actorUserId }),
+        action: "learner_identity.reparented",
+        targetType: "learner_identity",
+        targetId: existingIdentity.id,
+        metadata: {
+          fromLearnerProfileId: previousProfileId,
+          toLearnerProfileId: input.learnerProfileId,
+          identityType: input.identityType,
+          identityValue: normalizedIdentityValue,
+        },
+        occurredAt: nowIso,
+      });
 
       await deleteOrphanLearnerProfileIfUnreferenced(
         transactionDb,

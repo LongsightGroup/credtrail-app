@@ -546,6 +546,8 @@ export const registerLearnerRoutes = <DidNotice>(
       identityValue: normalizedEmail,
     });
 
+    // Learner-initiated email linking returns conflict instead of auto-reparenting.
+    // LTI launch repair uses moveLearnerIdentityAliasToProfile for stale identity cleanup.
     if (existingProfile !== null && existingProfile.id !== learnerProfile.id) {
       return c.json(
         {
@@ -647,6 +649,7 @@ export const registerLearnerRoutes = <DidNotice>(
       identityValue: proof.identityValue,
     });
 
+    // Identity-link proof completion also rejects cross-profile conflicts instead of reparenting.
     if (existingProfile !== null && existingProfile.id !== proof.learnerProfileId) {
       return c.json(
         {
