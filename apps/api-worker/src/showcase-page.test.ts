@@ -133,7 +133,8 @@ describe("GET /showcase/:tenantId", () => {
     expect(body).toContain("Sakai Distinguished Contributor");
     expect(body).toContain("github.com/ottenhoff.png");
     expect(body).toContain("View credential");
-    expect(body).toContain("Copy link");
+    expect(body).toContain('aria-label="Copy link"');
+    expect(body).toContain('class="badge-wall__icon-button"');
     expect(body).toContain('rel="stylesheet" href="/assets/ui/public-badge.');
     expect(PUBLIC_BADGE_CSS).toContain(".badge-wall__hero-link:hover");
     expect(PUBLIC_BADGE_CSS).toContain(".badge-wall__button--primary:hover");

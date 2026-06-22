@@ -16,7 +16,7 @@ import type {
 import type { VerificationViewModel } from "./public-badge-model";
 import { PublicBadgeTrustEdCredentialSection } from "./public-badge-trusted-credential-section";
 import { PublicBadgeShareSection } from "./public-badge-share-section";
-import { PublicBadgeTextButton } from "./public-badge-ui";
+import { PublicBadgeCopyIconButton } from "./public-badge-ui";
 import { buildPublicBadgeWalletImportUrls } from "./wallet-import-urls";
 
 export const createPublicBadgePage = (
@@ -417,14 +417,14 @@ export const createPublicBadgePage = (
             <dl class="public-badge__technical-grid">
               <dt>Public page URL</dt>
               <dd class="public-badge__technical-url-row">
-                <a href={publicBadgeUrl}>{publicBadgeUrl}</a>
-                <PublicBadgeTextButton
-                  id="copy-badge-url-technical-button"
-                  type="button"
-                  dataCopyValue={publicBadgeUrl}
-                >
-                  Copy
-                </PublicBadgeTextButton>
+                <span class="public-badge__technical-url-inline">
+                  <a href={publicBadgeUrl}>{publicBadgeUrl}</a>
+                  <PublicBadgeCopyIconButton
+                    id="copy-badge-url-technical-button"
+                    ariaLabel="Copy link"
+                    dataCopyValue={publicBadgeUrl}
+                  />
+                </span>
                 <p
                   id="copy-badge-url-status"
                   class="public-badge__copy-status"

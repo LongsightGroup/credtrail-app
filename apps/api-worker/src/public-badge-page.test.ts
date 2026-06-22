@@ -424,6 +424,8 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).not.toContain("Anyone can verify the issuer");
     expect(body).toContain("Public page URL");
     expect(body).toContain('id="copy-badge-url-technical-button"');
+    expect(body).toContain('aria-label="Copy link"');
+    expect(body).toContain('class="public-badge__icon-button"');
     expect(body).toContain("Summary JSON");
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/summary");
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/download");

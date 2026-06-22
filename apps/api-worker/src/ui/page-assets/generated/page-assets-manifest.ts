@@ -77,10 +77,10 @@ export const PAGE_ASSET_MANIFEST = {
   },
   publicBadgeCss: {
     kind: "style",
-    path: "/assets/ui/public-badge.92c7cc15d2.css",
+    path: "/assets/ui/public-badge.52703ad8fa.css",
   },
   publicBadgeJs: {
     kind: "script",
-    path: "/assets/ui/public-badge.6b9176daa1.js",
+    path: "/assets/ui/public-badge.d76dc7bf44.js",
   },
 } as const;

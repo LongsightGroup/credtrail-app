@@ -147,7 +147,7 @@ export const PUBLIC_BADGE_JS = `
 
   void revealBrowserWalletImport();
 
-  const copyWallButtons = document.querySelectorAll('.badge-wall__button[data-copy-value]');
+  const copyWallButtons = document.querySelectorAll('.badge-wall__icon-button[data-copy-value]');
 
   for (const button of copyWallButtons) {
     if (!(button instanceof HTMLButtonElement)) {

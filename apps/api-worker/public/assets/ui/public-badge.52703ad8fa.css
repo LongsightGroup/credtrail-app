@@ -487,8 +487,52 @@
   gap: 0.35rem;
 }
 
-.public-badge__technical-url-row .public-badge__text-button {
-  justify-self: start;
+.public-badge__technical-url-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+
+.public-badge__technical-url-inline > a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.public-badge__icon-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  appearance: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--public-badge-panel-inner-radius, 0.35rem);
+  background: transparent;
+  color: var(--ct-theme-text-muted);
+  cursor: pointer;
+  transition:
+    background var(--ct-duration-fast, 120ms) var(--ct-ease-standard, ease),
+    color var(--ct-duration-fast, 120ms) var(--ct-ease-standard, ease);
+}
+
+.public-badge__icon-button:hover {
+  background: var(--ct-theme-surface-info);
+  color: var(--ct-theme-link);
+}
+
+.public-badge__icon-button:focus-visible {
+  outline: 2px solid var(--ct-theme-border-focus);
+  outline-offset: 1px;
+}
+
+.public-badge__icon-button-graphic {
+  width: 0.95rem;
+  height: 0.95rem;
+  stroke-width: 1.35;
 }
   
 .public-badge__qr {
@@ -1007,6 +1051,47 @@
 .badge-wall__button--primary:hover {
   color: var(--ct-theme-link-hover);
   border-color: var(--ct-theme-link);
+}
+
+.badge-wall__icon-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  appearance: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  min-height: 2.2rem;
+  padding: 0;
+  border: 1px solid var(--ct-theme-border-default);
+  border-radius: 0.55rem;
+  background: var(--ct-theme-surface-card-strong);
+  color: var(--ct-theme-text-muted);
+  cursor: pointer;
+  transition:
+    transform var(--ct-duration-fast) var(--ct-ease-standard),
+    box-shadow var(--ct-duration-fast) var(--ct-ease-standard),
+    border-color var(--ct-duration-fast) var(--ct-ease-standard),
+    color var(--ct-duration-fast) var(--ct-ease-standard);
+}
+
+.badge-wall__icon-button:hover {
+  color: var(--ct-theme-text-body);
+  transform: translateY(-1px);
+  box-shadow: var(--ct-theme-shadow-soft);
+  border-color: var(--ct-theme-border-strong);
+}
+
+.badge-wall__icon-button:focus-visible {
+  outline: 2px solid var(--ct-theme-border-focus);
+  outline-offset: 1px;
+}
+
+.badge-wall__icon-button-graphic {
+  width: 0.95rem;
+  height: 0.95rem;
+  stroke-width: 1.35;
 }
 
 .badge-wall__copy-status {
