@@ -22,7 +22,12 @@ export const PublicBadgeShareSection = (input: {
         Add it to your LinkedIn profile so recruiters can find it.
       </p>
       <div class="public-badge__share-actions">
-        <PublicBadgeButtonLink href={input.linkedInProfileSharePath} variant="primary">
+        <PublicBadgeButtonLink
+          href={input.linkedInProfileSharePath}
+          variant="primary"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           Add to LinkedIn Profile
         </PublicBadgeButtonLink>
         <p class="public-badge__share-feed-link">
@@ -59,7 +64,11 @@ export const PublicBadgeShareSection = (input: {
                 Open your wallet app to import this credential.
               </p>
               <p class="public-badge__link-row">
-                <PublicBadgeTextLink href={input.walletDeepLinkUrl}>
+                <PublicBadgeTextLink
+                  href={input.walletDeepLinkUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   Open in wallet app
                 </PublicBadgeTextLink>
               </p>

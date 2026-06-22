@@ -440,6 +440,9 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).toContain('id="chapi-store-link"');
     expect(body).toContain("Save in this browser");
     expect(body).toContain("Open in wallet app");
+    expect(body).toMatch(
+      /href="openid-credential-offer:\/\/\?credential_offer_uri=[^"]+" target="_blank" rel="noopener noreferrer"[^>]*>\s*Open in wallet app/,
+    );
     expect(body).not.toContain("Claim in Wallet");
     expect(body).not.toContain("DCC Learner Wallet");
     expect(body).toContain("Wallet &amp; downloads");
@@ -451,6 +454,9 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).toContain("/credentials/v1/dcc/exchanges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22");
     expect(body).toContain("Add to LinkedIn Profile");
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/share/linkedin-profile");
+    expect(body).toContain(
+      'href="/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/share/linkedin-profile" target="_blank" rel="noopener noreferrer"',
+    );
     expect(body).toContain("Share to LinkedIn feed");
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/share/linkedin-feed");
     expect(body).not.toContain("linkedin.com/profile/add");
@@ -586,6 +592,9 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).toContain("Validate Issuer (IMS)");
     expect(body).toContain("vc.1ed.tech/upload?validatorId=OB30Inspector");
     expect(body).toContain("&amp;uri=");
+    expect(body).toMatch(
+      /href="https:\/\/vc\.1ed\.tech\/upload\?validatorId=OB30Inspector&amp;uri=[^"]+" target="_blank" rel="noopener noreferrer"/,
+    );
   });
 
   it("renders TrustEd-aligned metadata from the issued public credential", async () => {

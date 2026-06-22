@@ -213,20 +213,26 @@ export const createPublicBadgePage = (
       badgeClassValidatorUrl === null ? (
         <span>Not available (badge class URI is not a web URL).</span>
       ) : (
-        <a href={badgeClassValidatorUrl}>{badgeClassValidatorUrl}</a>
+        <a href={badgeClassValidatorUrl} target="_blank" rel="noopener noreferrer">
+          {badgeClassValidatorUrl}
+        </a>
       );
     const issuerValidationTechnicalDetail =
       issuerValidatorUrl === null ? (
         <span>Not available (issuer URL is not published).</span>
       ) : (
-        <a href={issuerValidatorUrl}>{issuerValidatorUrl}</a>
+        <a href={issuerValidatorUrl} target="_blank" rel="noopener noreferrer">
+          {issuerValidatorUrl}
+        </a>
       );
     const imsTechnicalDetailRows =
       assertionValidatorUrl === null ? null : (
         <>
           <dt>IMS assertion validation</dt>
           <dd>
-            <a href={assertionValidatorUrl}>{assertionValidatorUrl}</a>
+            <a href={assertionValidatorUrl} target="_blank" rel="noopener noreferrer">
+              {assertionValidatorUrl}
+            </a>
           </dd>
           <dt>IMS badge class validation</dt>
           <dd>{badgeClassValidationTechnicalDetail}</dd>
