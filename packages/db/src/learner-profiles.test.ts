@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   addLearnerIdentityAlias,
   createLearnerProfile,
+  findLearnerProfileById,
   findLearnerProfileByIdentity,
   listLearnerIdentitiesByProfile,
+  moveLearnerIdentityAliasToProfile,
   normalizeLearnerIdentityValue,
   resolveLearnerProfileForIdentity,
   resolveLearnerProfileFromSaml,
@@ -170,6 +172,209 @@ describeDbIntegration("learner profiles and identity aliases", () => {
         first.id,
       );
       expect(identities).toHaveLength(1);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+      });
+    }
+  });
+
+  it("moves an identity alias from a stale learner profile to the selected profile", async () => {
+    const fixture = await createTestTenantFixture();
+
+    try {
+      const selectedProfile = await createLearnerProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        primaryIdentityType: "email",
+        primaryIdentityValue: "student@umich.edu",
+        primaryIdentityVerified: true,
+      });
+      const staleProfile = await createLearnerProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        primaryIdentityType: "saml_subject",
+        primaryIdentityValue: "canvas-subject-123",
+        primaryIdentityVerified: true,
+      });
+      const staleProfileId = staleProfile.id;
+
+      const movedIdentity = await moveLearnerIdentityAliasToProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        learnerProfileId: selectedProfile.id,
+        identityType: "saml_subject",
+        identityValue: "canvas-subject-123",
+        isPrimary: false,
+        isVerified: true,
+      });
+
+      expect(movedIdentity.learnerProfileId).toBe(selectedProfile.id);
+
+      const resolvedBySubject = await findLearnerProfileByIdentity(fixture.db, {
+        tenantId: fixture.tenantId,
+        identityType: "saml_subject",
+        identityValue: "canvas-subject-123",
+      });
+      expect(resolvedBySubject?.id).toBe(selectedProfile.id);
+
+      const staleIdentities = await listLearnerIdentitiesByProfile(
+        fixture.db,
+        fixture.tenantId,
+        staleProfileId,
+      );
+      expect(staleIdentities).toHaveLength(0);
+
+      const deletedStaleProfile = await findLearnerProfileById(
+        fixture.db,
+        fixture.tenantId,
+        staleProfileId,
+      );
+      expect(deletedStaleProfile).toBeNull();
+
+      const selectedIdentities = await listLearnerIdentitiesByProfile(
+        fixture.db,
+        fixture.tenantId,
+        selectedProfile.id,
+      );
+      expect(selectedIdentities.map((identity) => identity.identityType)).toEqual([
+        "email",
+        "saml_subject",
+      ]);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+      });
+    }
+  });
+
+  it("returns the existing identity when move is called on the same profile", async () => {
+    const fixture = await createTestTenantFixture();
+
+    try {
+      const profile = await createLearnerProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        primaryIdentityType: "email",
+        primaryIdentityValue: "student@umich.edu",
+        primaryIdentityVerified: true,
+      });
+
+      const first = await moveLearnerIdentityAliasToProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        learnerProfileId: profile.id,
+        identityType: "email",
+        identityValue: "student@umich.edu",
+        isPrimary: true,
+        isVerified: true,
+      });
+      const second = await moveLearnerIdentityAliasToProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        learnerProfileId: profile.id,
+        identityType: "email",
+        identityValue: "student@umich.edu",
+        isPrimary: true,
+        isVerified: true,
+      });
+
+      expect(second.id).toBe(first.id);
+
+      const identities = await listLearnerIdentitiesByProfile(
+        fixture.db,
+        fixture.tenantId,
+        profile.id,
+      );
+      expect(identities).toHaveLength(1);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+      });
+    }
+  });
+
+  it("attaches a new identity alias when none exists yet", async () => {
+    const fixture = await createTestTenantFixture();
+
+    try {
+      const profile = await createLearnerProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        primaryIdentityType: "email",
+        primaryIdentityValue: "student@umich.edu",
+        primaryIdentityVerified: true,
+      });
+
+      const attached = await moveLearnerIdentityAliasToProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        learnerProfileId: profile.id,
+        identityType: "saml_subject",
+        identityValue: "canvas-subject-456",
+        isPrimary: false,
+        isVerified: true,
+      });
+
+      expect(attached.learnerProfileId).toBe(profile.id);
+      expect(attached.identityType).toBe("saml_subject");
+
+      const identities = await listLearnerIdentitiesByProfile(
+        fixture.db,
+        fixture.tenantId,
+        profile.id,
+      );
+      expect(identities).toHaveLength(2);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+      });
+    }
+  });
+
+  it("moves a primary identity and demotes other primaries on the target profile", async () => {
+    const fixture = await createTestTenantFixture();
+
+    try {
+      const targetProfile = await createLearnerProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        primaryIdentityType: "email",
+        primaryIdentityValue: "student@umich.edu",
+        primaryIdentityVerified: true,
+      });
+      const staleProfile = await createLearnerProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        primaryIdentityType: "saml_subject",
+        primaryIdentityValue: "canvas-primary-subject",
+        primaryIdentityVerified: true,
+      });
+
+      await addLearnerIdentityAlias(fixture.db, {
+        tenantId: fixture.tenantId,
+        learnerProfileId: targetProfile.id,
+        identityType: "sourced_id",
+        identityValue: "sourced-123",
+        isPrimary: true,
+        isVerified: true,
+      });
+
+      await moveLearnerIdentityAliasToProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        learnerProfileId: targetProfile.id,
+        identityType: "saml_subject",
+        identityValue: "canvas-primary-subject",
+        isPrimary: true,
+        isVerified: true,
+      });
+
+      const identities = await listLearnerIdentitiesByProfile(
+        fixture.db,
+        fixture.tenantId,
+        targetProfile.id,
+      );
+      const primaryIdentities = identities.filter((identity) => identity.isPrimary);
+
+      expect(primaryIdentities).toHaveLength(1);
+      expect(primaryIdentities[0]?.identityType).toBe("saml_subject");
+
+      const deletedStaleProfile = await findLearnerProfileById(
+        fixture.db,
+        fixture.tenantId,
+        staleProfile.id,
+      );
+      expect(deletedStaleProfile).toBeNull();
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],

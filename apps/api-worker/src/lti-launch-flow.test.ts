@@ -23,6 +23,7 @@ vi.mock("@credtrail/db", async () => {
     listLearnerBadgeSummaries: vi.fn(),
     listLtiIssuerRegistrations: vi.fn(),
     listLtiResourceLinkPlacementsForContext: vi.fn(),
+    moveLearnerIdentityAliasToProfile: vi.fn(),
     resolveLearnerProfileFromSaml: vi.fn(),
     recordAssertionEngagementEvent: vi.fn(),
     upsertLtiDeployment: vi.fn(),
@@ -57,6 +58,7 @@ import {
   listLearnerBadgeSummaries,
   listLtiIssuerRegistrations,
   listLtiResourceLinkPlacementsForContext,
+  moveLearnerIdentityAliasToProfile,
   resolveLearnerProfileFromSaml,
   recordAssertionEngagementEvent,
   resolveLearnerProfileForIdentity,
@@ -106,6 +108,7 @@ const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
 const mockedListLtiResourceLinkPlacementsForContext = vi.mocked(
   listLtiResourceLinkPlacementsForContext,
 );
+const mockedMoveLearnerIdentityAliasToProfile = vi.mocked(moveLearnerIdentityAliasToProfile);
 const mockedResolveLearnerProfileFromSaml = vi.mocked(resolveLearnerProfileFromSaml);
 const mockedRecordAssertionEngagementEvent = vi.mocked(recordAssertionEngagementEvent);
 const mockedResolveLearnerProfileForIdentity = vi.mocked(resolveLearnerProfileForIdentity);
@@ -648,6 +651,18 @@ describe("LTI 1.3 core launch flow", () => {
     mockedListLtiResourceLinkPlacementsForContext.mockResolvedValue([]);
     mockedFindBadgeTemplateById.mockReset();
     mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
+    mockedMoveLearnerIdentityAliasToProfile.mockReset();
+    mockedMoveLearnerIdentityAliasToProfile.mockImplementation(async (_db, input) => ({
+      id: "lid_moved_123",
+      tenantId: input.tenantId,
+      learnerProfileId: input.learnerProfileId,
+      identityType: input.identityType,
+      identityValue: input.identityValue,
+      isPrimary: input.isPrimary ?? false,
+      isVerified: input.isVerified ?? true,
+      createdAt: "2026-02-10T22:00:00.000Z",
+      updatedAt: "2026-02-10T22:00:00.000Z",
+    }));
     mockedFindClaimableLearnerBadgeSummary.mockReset();
     mockedFindClaimableLearnerBadgeSummary.mockResolvedValue(
       sampleLearnerBadgeSummary({
@@ -2378,7 +2393,16 @@ describe("LTI 1.3 core launch flow", () => {
       displayName: "Learner One",
     });
     expect(mockedUpsertUserByEmail).toHaveBeenCalledWith(fakeDb, "Learner@Example.edu");
-    expect(mockedAddLearnerIdentityAlias).toHaveBeenCalledWith(
+    expect(mockedMoveLearnerIdentityAliasToProfile).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId,
+        learnerProfileId: "lpr_123",
+        identityType: "saml_subject",
+        identityValue: "https://canvas.example.edu::user-456",
+      }),
+    );
+    expect(mockedMoveLearnerIdentityAliasToProfile).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
         tenantId,
@@ -2387,6 +2411,7 @@ describe("LTI 1.3 core launch flow", () => {
         identityValue: "sourced-learner-456",
       }),
     );
+    expect(mockedAddLearnerIdentityAlias).not.toHaveBeenCalled();
     expect(mockedUpsertTenantMembershipRole).not.toHaveBeenCalled();
   });
 
@@ -2430,20 +2455,16 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).not.toContain("Unable to link LTI launch to local account");
     expect(mockedResolveLearnerProfileFromSaml).not.toHaveBeenCalled();
     expect(mockedResolveLearnerProfileForIdentity).not.toHaveBeenCalled();
-    expect(mockedAddLearnerIdentityAlias).not.toHaveBeenCalledWith(
+    expect(mockedMoveLearnerIdentityAliasToProfile).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
+        tenantId,
+        learnerProfileId: existingEmailProfile.id,
         identityType: "saml_subject",
         identityValue: "https://canvas.example.edu::canvas-user-claim",
       }),
     );
-    expect(mockedAddLearnerIdentityAlias).not.toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        identityType: "email",
-        identityValue: "learner@example.edu",
-      }),
-    );
+    expect(mockedAddLearnerIdentityAlias).not.toHaveBeenCalled();
   });
 
   it("renders learner left-nav badge summary for all active course placements", async () => {

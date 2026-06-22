@@ -1,5 +1,5 @@
 import { createPrefixedId } from "./shared-helpers";
-import type { SqlDatabase } from "./tenant-scope";
+import { runSqlTransaction, type SqlDatabase } from "./tenant-scope";
 import { normalizeEmail } from "./users";
 
 export type LearnerIdentityType =
@@ -71,6 +71,15 @@ export interface RemoveLearnerIdentityAliasesByTypeInput {
   tenantId: string;
   learnerProfileId: string;
   identityType: LearnerIdentityType;
+}
+
+export interface MoveLearnerIdentityAliasToProfileInput {
+  tenantId: string;
+  learnerProfileId: string;
+  identityType: LearnerIdentityType;
+  identityValue: string;
+  isPrimary?: boolean | undefined;
+  isVerified?: boolean | undefined;
 }
 
 export interface FindLearnerProfileByIdentityInput {
@@ -323,6 +332,199 @@ export const removeLearnerIdentityAliasesByType = async (
   return result.meta.rowsWritten ?? 0;
 };
 
+interface FindLearnerIdentityByTypeValueInput {
+  tenantId: string;
+  identityType: LearnerIdentityType;
+  identityValue: string;
+}
+
+const findLearnerIdentityByTypeValue = async (
+  db: SqlDatabase,
+  input: FindLearnerIdentityByTypeValueInput,
+): Promise<LearnerIdentityRecord | null> => {
+  const normalizedIdentityValue = normalizeLearnerIdentityValue(
+    input.identityType,
+    input.identityValue,
+  );
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        id,
+        tenant_id AS tenantId,
+        learner_profile_id AS learnerProfileId,
+        identity_type AS identityType,
+        identity_value AS identityValue,
+        is_primary AS isPrimary,
+        is_verified AS isVerified,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM learner_identities
+      WHERE tenant_id = ?
+        AND identity_type = ?
+        AND identity_value = ?
+      LIMIT 1
+    `,
+    )
+    .bind(input.tenantId, input.identityType, normalizedIdentityValue)
+    .first<LearnerIdentityRow>();
+
+  return row === null ? null : mapLearnerIdentityRow(row);
+};
+
+const demotePrimaryIdentitiesOnProfile = async (
+  db: SqlDatabase,
+  tenantId: string,
+  learnerProfileId: string,
+  updatedAtIso: string,
+): Promise<void> => {
+  await db
+    .prepare(
+      `
+      UPDATE learner_identities
+      SET is_primary = 0,
+          updated_at = ?
+      WHERE tenant_id = ?
+        AND learner_profile_id = ?
+    `,
+    )
+    .bind(updatedAtIso, tenantId, learnerProfileId)
+    .run();
+};
+
+const deleteOrphanLearnerProfileIfUnreferenced = async (
+  db: SqlDatabase,
+  tenantId: string,
+  learnerProfileId: string,
+): Promise<void> => {
+  await db
+    .prepare(
+      `
+      DELETE FROM learner_profiles
+      WHERE tenant_id = ?
+        AND id = ?
+        AND NOT EXISTS (
+          SELECT 1
+          FROM learner_identities
+          WHERE tenant_id = ?
+            AND learner_profile_id = ?
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM assertions
+          WHERE tenant_id = ?
+            AND learner_profile_id = ?
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM learner_record_entries
+          WHERE tenant_id = ?
+            AND learner_profile_id = ?
+        )
+    `,
+    )
+    .bind(
+      tenantId,
+      learnerProfileId,
+      tenantId,
+      learnerProfileId,
+      tenantId,
+      learnerProfileId,
+      tenantId,
+      learnerProfileId,
+    )
+    .run();
+};
+
+export const moveLearnerIdentityAliasToProfile = async (
+  db: SqlDatabase,
+  input: MoveLearnerIdentityAliasToProfileInput,
+): Promise<LearnerIdentityRecord> => {
+  const normalizedIdentityValue = normalizeLearnerIdentityValue(
+    input.identityType,
+    input.identityValue,
+  );
+  const isPrimary = input.isPrimary ?? false;
+  const isVerified = input.isVerified ?? true;
+
+  return runSqlTransaction(db, async (transactionDb) => {
+    const existingIdentity = await findLearnerIdentityByTypeValue(transactionDb, {
+      tenantId: input.tenantId,
+      identityType: input.identityType,
+      identityValue: normalizedIdentityValue,
+    });
+
+    if (existingIdentity !== null) {
+      if (existingIdentity.learnerProfileId === input.learnerProfileId) {
+        return existingIdentity;
+      }
+
+      const previousProfileId = existingIdentity.learnerProfileId;
+      const nowIso = new Date().toISOString();
+
+      if (isPrimary) {
+        await demotePrimaryIdentitiesOnProfile(
+          transactionDb,
+          input.tenantId,
+          input.learnerProfileId,
+          nowIso,
+        );
+      }
+
+      await transactionDb
+        .prepare(
+          `
+          UPDATE learner_identities
+          SET learner_profile_id = ?,
+              is_primary = ?,
+              is_verified = ?,
+              updated_at = ?
+          WHERE tenant_id = ?
+            AND identity_type = ?
+            AND identity_value = ?
+        `,
+        )
+        .bind(
+          input.learnerProfileId,
+          isPrimary ? 1 : 0,
+          isVerified ? 1 : 0,
+          nowIso,
+          input.tenantId,
+          input.identityType,
+          normalizedIdentityValue,
+        )
+        .run();
+
+      await deleteOrphanLearnerProfileIfUnreferenced(
+        transactionDb,
+        input.tenantId,
+        previousProfileId,
+      );
+
+      const movedIdentity = await findLearnerIdentityByTypeValue(transactionDb, {
+        tenantId: input.tenantId,
+        identityType: input.identityType,
+        identityValue: normalizedIdentityValue,
+      });
+
+      if (movedIdentity === null) {
+        throw new Error("Failed to move learner identity alias to the requested profile");
+      }
+
+      return movedIdentity;
+    }
+
+    return addLearnerIdentityAlias(transactionDb, {
+      tenantId: input.tenantId,
+      learnerProfileId: input.learnerProfileId,
+      identityType: input.identityType,
+      identityValue: normalizedIdentityValue,
+      isPrimary,
+      isVerified,
+    });
+  });
+};
+
 export const createLearnerProfile = async (
   db: SqlDatabase,
   input: CreateLearnerProfileInput,
@@ -506,7 +708,7 @@ export const resolveLearnerProfileFromSaml = async (
 
     if (profileByVerifiedEmail !== null) {
       if (samlSubject !== null) {
-        await addLearnerIdentityAlias(db, {
+        await moveLearnerIdentityAliasToProfile(db, {
           tenantId: input.tenantId,
           learnerProfileId: profileByVerifiedEmail.id,
           identityType: "saml_subject",
@@ -543,7 +745,7 @@ export const resolveLearnerProfileFromSaml = async (
   });
 
   if (samlSubject !== null && email !== null) {
-    await addLearnerIdentityAlias(db, {
+    await moveLearnerIdentityAliasToProfile(db, {
       tenantId: input.tenantId,
       learnerProfileId: createdProfile.id,
       identityType: "email",
