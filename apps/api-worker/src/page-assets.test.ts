@@ -203,7 +203,7 @@ describe("page asset manifest", () => {
   it("keeps browser wallet import progressively enhanced with wallet fallbacks", () => {
     expect(PUBLIC_BADGE_JS).toContain("chapiButton.hidden = false");
     expect(PUBLIC_BADGE_JS).toContain("DCC Learner Wallet");
-    expect(PUBLIC_BADGE_JS).toContain("Download .jsonld VC");
+    expect(PUBLIC_BADGE_JS).toContain("JSON-LD download");
   });
 
   it("positions shared admin action panels next to their trigger", () => {

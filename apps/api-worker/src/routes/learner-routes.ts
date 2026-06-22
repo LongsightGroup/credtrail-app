@@ -3,6 +3,7 @@ import {
   createLearnerIdentityLinkProof,
   findLearnerIdentityLinkProofByHash,
   findLearnerProfileByIdentity,
+  findClaimableLearnerBadgeSummary,
   findUserById,
   isLearnerIdentityLinkProofValid,
   listAssertionEngagementEvents,
@@ -13,7 +14,6 @@ import {
   recordAssertionEngagementEvent,
   removeLearnerIdentityAliasesByType,
   resolveLearnerProfileForIdentity,
-  type LearnerBadgeSummaryRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -198,58 +198,6 @@ const learnerBadgeSharePath = (badge: {
   )}#share-this-credential`;
 };
 
-type LearnerClaimTarget =
-  | {
-      status: "ok";
-      badge: LearnerBadgeSummaryRecord;
-    }
-  | {
-      status: "invalid";
-      redirectUrl: string;
-    };
-
-const resolveLearnerClaimTarget = async (input: {
-  db: SqlDatabase;
-  requestUrl: string;
-  tenantId: string;
-  userId: string;
-  assertionId: string;
-}): Promise<LearnerClaimTarget> => {
-  const invalidTarget = (): LearnerClaimTarget => {
-    return {
-      status: "invalid",
-      redirectUrl: learnerClaimInvalidDashboardRedirectUrl({
-        requestUrl: input.requestUrl,
-        tenantId: input.tenantId,
-      }),
-    };
-  };
-
-  const user = await findUserById(input.db, input.userId);
-
-  if (user === null) {
-    return invalidTarget();
-  }
-
-  const badges = await listLearnerBadgeSummaries(input.db, {
-    tenantId: input.tenantId,
-    userId: input.userId,
-  });
-  const badge =
-    badges.find(
-      (candidate) => candidate.assertionId === input.assertionId && candidate.revokedAt === null,
-    ) ?? null;
-
-  if (badge === null) {
-    return invalidTarget();
-  }
-
-  return {
-    status: "ok",
-    badge,
-  };
-};
-
 const learnerBadgeClaimStateFromEvents = (
   events: Awaited<ReturnType<typeof listAssertionEngagementEvents>>,
 ): LearnerDashboardBadge["claimState"] => {
@@ -280,6 +228,45 @@ export const registerLearnerRoutes = <DidNotice>(
     learnerDashboardPage,
     learnerRecordPage,
   } = input;
+
+  const learnerBadgeClaimHandler = async (c: AppContext): Promise<Response> => {
+    const pathParams = parseAssertionPathParams(c.req.param());
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, TENANT_MEMBER_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const db = resolveDatabase(c.env);
+    const badge = await findClaimableLearnerBadgeSummary(db, {
+      tenantId: pathParams.tenantId,
+      userId: roleCheck.principal.userId,
+      assertionId: pathParams.assertionId,
+    });
+
+    if (badge === null) {
+      return c.redirect(
+        learnerClaimInvalidDashboardRedirectUrl({
+          requestUrl: c.req.url,
+          tenantId: pathParams.tenantId,
+        }),
+        303,
+      );
+    }
+
+    if (c.req.method === "POST") {
+      await recordAssertionEngagementEvent(db, {
+        tenantId: pathParams.tenantId,
+        assertionId: pathParams.assertionId,
+        eventType: "learner_claim",
+        actorType: "learner",
+        channel: "learner_dashboard",
+        occurredAt: new Date().toISOString(),
+      });
+    }
+
+    return c.redirect(learnerBadgeSharePath(badge), 303);
+  };
 
   app.get("/tenants/:tenantId/learner/dashboard", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
@@ -426,61 +413,8 @@ export const registerLearnerRoutes = <DidNotice>(
     );
   });
 
-  app.get("/tenants/:tenantId/learner/badges/:assertionId/claim", async (c): Promise<Response> => {
-    const pathParams = parseAssertionPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, TENANT_MEMBER_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const claimTarget = await resolveLearnerClaimTarget({
-      db: resolveDatabase(c.env),
-      requestUrl: c.req.url,
-      tenantId: pathParams.tenantId,
-      userId: roleCheck.principal.userId,
-      assertionId: pathParams.assertionId,
-    });
-
-    if (claimTarget.status === "invalid") {
-      return c.redirect(claimTarget.redirectUrl, 303);
-    }
-
-    return c.redirect(learnerBadgeSharePath(claimTarget.badge), 303);
-  });
-
-  app.post("/tenants/:tenantId/learner/badges/:assertionId/claim", async (c): Promise<Response> => {
-    const pathParams = parseAssertionPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, TENANT_MEMBER_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const db = resolveDatabase(c.env);
-    const claimTarget = await resolveLearnerClaimTarget({
-      db,
-      requestUrl: c.req.url,
-      tenantId: pathParams.tenantId,
-      userId: roleCheck.principal.userId,
-      assertionId: pathParams.assertionId,
-    });
-
-    if (claimTarget.status === "invalid") {
-      return c.redirect(claimTarget.redirectUrl, 303);
-    }
-
-    await recordAssertionEngagementEvent(db, {
-      tenantId: pathParams.tenantId,
-      assertionId: pathParams.assertionId,
-      eventType: "learner_claim",
-      actorType: "learner",
-      channel: "learner_dashboard",
-      occurredAt: new Date().toISOString(),
-    });
-
-    return c.redirect(learnerBadgeSharePath(claimTarget.badge), 303);
-  });
+  app.get("/tenants/:tenantId/learner/badges/:assertionId/claim", learnerBadgeClaimHandler);
+  app.post("/tenants/:tenantId/learner/badges/:assertionId/claim", learnerBadgeClaimHandler);
 
   app.post("/tenants/:tenantId/learner/settings/did", async (c): Promise<Response> => {
     const pathParams = parseTenantPathParams(c.req.param());

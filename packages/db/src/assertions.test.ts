@@ -59,10 +59,9 @@ describeDbIntegration("assertion batch lookups", () => {
         idempotencyKeys: [matchingKey, matchingKey, secondMatchingKey, otherTenantKey, ""],
       });
 
-      expect(assertions.map((assertion) => assertion.id).sort()).toEqual([
-        matchingAssertionId,
-        secondMatchingAssertionId,
-      ]);
+      expect(assertions.map((assertion) => assertion.id).sort()).toEqual(
+        [matchingAssertionId, secondMatchingAssertionId].sort(),
+      );
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId, otherFixture.tenantId],

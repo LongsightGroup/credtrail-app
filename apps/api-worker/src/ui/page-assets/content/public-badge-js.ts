@@ -58,7 +58,7 @@ export const PUBLIC_BADGE_JS = `
           });
 
           if (!response.ok) {
-            chapiStatus.textContent = 'Unable to load credential. Use Download .jsonld VC.';
+            chapiStatus.textContent = 'Unable to load credential. Use JSON-LD download.';
             return;
           }
 
@@ -71,7 +71,7 @@ export const PUBLIC_BADGE_JS = `
           chapiStatus.textContent = 'Credential sent to browser wallet.';
         } catch {
           chapiStatus.textContent =
-            'No browser wallet accepted this credential. Use DCC Learner Wallet or Download .jsonld VC.';
+            'No browser wallet accepted this credential. Use DCC Learner Wallet or JSON-LD download.';
         }
       });
     }

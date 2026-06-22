@@ -137,6 +137,23 @@ const PublicBadgeButton = ({
   );
 };
 
+const PublicBadgeTextLink = ({
+  href,
+  target,
+  rel,
+  children,
+}: PropsWithChildren<{
+  href: string;
+  target?: "_blank";
+  rel?: string;
+}>): HonoElement => {
+  return (
+    <a class="public-badge__text-link" href={href} target={target} rel={rel}>
+      {children}
+    </a>
+  );
+};
+
 const BadgeWallButtonLink = ({
   href,
   variant,
@@ -600,43 +617,34 @@ export const createPublicBadgePageRenderers = (
       isVcV2Credential || issuerValidationTargetUrl === null
         ? null
         : imsOb3ValidatorUrl(issuerValidationTargetUrl);
-    const validatorLinks =
-      assertionValidatorUrl === null ? null : (
-        <>
-          <PublicBadgeButtonLink
-            href={assertionValidatorUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Validate Assertion (IMS)
-          </PublicBadgeButtonLink>
-          {badgeClassValidatorUrl === null ? null : (
-            <PublicBadgeButtonLink
-              href={badgeClassValidatorUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Validate Badge Class (IMS)
-            </PublicBadgeButtonLink>
-          )}
-          {issuerValidatorUrl === null ? null : (
-            <PublicBadgeButtonLink
-              href={issuerValidatorUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Validate Issuer (IMS)
-            </PublicBadgeButtonLink>
-          )}
-        </>
-      );
     const validatorToolsMarkup =
       assertionValidatorUrl === null ? null : (
-        <div class="public-badge__validator-block">
+        <div class="public-badge__technical-tools">
+          <h3 class="public-badge__technical-tools-title">IMS validation tools</h3>
           <p class="public-badge__validator-note">
             Use IMS tools to validate the published JSON and issuer records.
           </p>
-          <div class="public-badge__validator-links">{validatorLinks}</div>
+          <ul class="public-badge__technical-link-list">
+            <li>
+              <a href={assertionValidatorUrl} target="_blank" rel="noopener noreferrer">
+                Validate Assertion (IMS)
+              </a>
+            </li>
+            {badgeClassValidatorUrl === null ? null : (
+              <li>
+                <a href={badgeClassValidatorUrl} target="_blank" rel="noopener noreferrer">
+                  Validate Badge Class (IMS)
+                </a>
+              </li>
+            )}
+            {issuerValidatorUrl === null ? null : (
+              <li>
+                <a href={issuerValidatorUrl} target="_blank" rel="noopener noreferrer">
+                  Validate Issuer (IMS)
+                </a>
+              </li>
+            )}
+          </ul>
           <p class="public-badge__validator-note">
             IMS validator expects JSON/image targets. Validate using the Open Badges 3.0 JSON URL,
             not this HTML page URL.
@@ -679,42 +687,54 @@ export const createPublicBadgePageRenderers = (
     const linkedInFeedSharePath = `/badges/${encodeURIComponent(
       walletOfferBadgeIdentifier,
     )}/share/linkedin-feed`;
-    const advancedActionsSection = (
-      <details class="public-badge__actions-details">
-        <summary>Wallet, downloads, and advanced tools</summary>
-        <div class="public-badge__actions public-badge__actions--secondary">
-          <PublicBadgeButtonLink href={walletDeepLinkUrl.toString()}>
-            Claim in Wallet
-          </PublicBadgeButtonLink>
-          <PublicBadgeButtonLink href={dccWalletDeepLinkUrl.toString()}>
-            Open in DCC Learner Wallet
-          </PublicBadgeButtonLink>
-          <PublicBadgeButtonLink
-            href={linkedInFeedSharePath}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Share on LinkedIn Feed
-          </PublicBadgeButtonLink>
-          <PublicBadgeButtonLink href={ob3JsonPath}>Open Badges 3.0 JSON</PublicBadgeButtonLink>
-          <PublicBadgeButtonLink href={summaryPath}>Summary JSON</PublicBadgeButtonLink>
-          <PublicBadgeButtonLink href={credentialDownloadPath}>
-            Download .jsonld VC
-          </PublicBadgeButtonLink>
-          <PublicBadgeButtonLink href={credentialPdfDownloadPath}>
-            Download PDF
-          </PublicBadgeButtonLink>
-          <PublicBadgeButtonLink href={walletOfferPath}>OpenID4VCI Offer</PublicBadgeButtonLink>
-          <PublicBadgeButton
-            id="chapi-store-button"
-            type="button"
-            dataCredentialJsonUrl={ob3JsonPath}
-            hidden
-          >
-            Add to Browser Wallet
-          </PublicBadgeButton>
+    const moreWaysSection = (
+      <details class="public-badge__share-more">
+        <summary>More ways to save and share</summary>
+        <div class="public-badge__share-groups">
+          <section class="public-badge__share-group">
+            <h3 class="public-badge__share-group-title">Save to a wallet</h3>
+            <div class="public-badge__wallet-panel">
+              <figure class="public-badge__qr">
+                <img
+                  class="public-badge__qr-image"
+                  src={qrCodeImageUrl.toString()}
+                  alt="QR code for DCC Learner Wallet claim request"
+                  loading="lazy"
+                />
+                <figcaption class="public-badge__qr-caption">
+                  Scan to claim in a compatible wallet.
+                </figcaption>
+              </figure>
+              <div class="public-badge__actions public-badge__actions--grid">
+                <PublicBadgeButtonLink href={walletDeepLinkUrl.toString()}>
+                  Claim in Wallet
+                </PublicBadgeButtonLink>
+                <PublicBadgeButtonLink href={dccWalletDeepLinkUrl.toString()}>
+                  DCC Learner Wallet
+                </PublicBadgeButtonLink>
+                <PublicBadgeButton
+                  id="chapi-store-button"
+                  type="button"
+                  dataCredentialJsonUrl={ob3JsonPath}
+                  hidden
+                >
+                  Add to Browser Wallet
+                </PublicBadgeButton>
+              </div>
+            </div>
+          </section>
+          <section class="public-badge__share-group">
+            <h3 class="public-badge__share-group-title">Downloads</h3>
+            <div class="public-badge__actions public-badge__actions--grid public-badge__actions--pair">
+              <PublicBadgeButtonLink href={credentialPdfDownloadPath}>
+                Download PDF
+              </PublicBadgeButtonLink>
+              <PublicBadgeButtonLink href={credentialDownloadPath}>
+                JSON-LD download
+              </PublicBadgeButtonLink>
+            </div>
+          </section>
         </div>
-        {validatorToolsMarkup}
       </details>
     );
     const issuedAt = `${formatIsoTimestamp(model.assertion.issuedAt)} UTC`;
@@ -885,46 +905,35 @@ export const createPublicBadgePageRenderers = (
             id="share-this-credential"
             class="public-badge__card public-badge__stack-sm public-badge__share"
           >
-            <div class="public-badge__share-main">
-              <h2 class="public-badge__section-title">Share this credential</h2>
-              <p class="public-badge__achievement-copy">
-                Add it to your LinkedIn profile or copy the public link. Recruiters and other
-                reviewers can verify the issuer, evidence, and technical details on this page.
-              </p>
-              <div class="public-badge__actions public-badge__actions--primary">
-                <PublicBadgeButtonLink href={linkedInProfileSharePath} variant="primary">
-                  Add to LinkedIn Profile
-                </PublicBadgeButtonLink>
-                <PublicBadgeButton
-                  id="copy-badge-url-button"
-                  type="button"
-                  dataCopyValue={publicBadgeUrl}
-                >
-                  Copy public URL
-                </PublicBadgeButton>
-              </div>
-              <p class="public-badge__achievement-copy">
-                Prefer a wallet? Scan the QR code or use the wallet tools below.
-              </p>
-              {advancedActionsSection}
-              <p
-                id="copy-badge-url-status"
-                class="public-badge__copy-status"
-                aria-live="polite"
-              ></p>
-              <p id="chapi-store-status" class="public-badge__copy-status" aria-live="polite"></p>
+            <h2 class="public-badge__section-title">Share this credential</h2>
+            <p class="public-badge__achievement-copy">
+              Add it to your LinkedIn profile or copy the public link. Recruiters and other
+              reviewers can verify the issuer, evidence, and technical details on this page.
+            </p>
+            <div class="public-badge__actions public-badge__actions--primary">
+              <PublicBadgeButtonLink href={linkedInProfileSharePath} variant="primary">
+                Add to LinkedIn Profile
+              </PublicBadgeButtonLink>
+              <PublicBadgeButton
+                id="copy-badge-url-button"
+                type="button"
+                dataCopyValue={publicBadgeUrl}
+              >
+                Copy public URL
+              </PublicBadgeButton>
             </div>
-            <figure class="public-badge__qr">
-              <img
-                class="public-badge__qr-image"
-                src={qrCodeImageUrl.toString()}
-                alt="QR code for DCC Learner Wallet claim request"
-                loading="lazy"
-              />
-              <figcaption class="public-badge__qr-caption">
-                Scan to claim this credential in a compatible wallet.
-              </figcaption>
-            </figure>
+            <p class="public-badge__share-feed-link">
+              <PublicBadgeTextLink
+                href={linkedInFeedSharePath}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Share to LinkedIn feed
+              </PublicBadgeTextLink>
+            </p>
+            {moreWaysSection}
+            <p id="copy-badge-url-status" class="public-badge__copy-status" aria-live="polite"></p>
+            <p id="chapi-store-status" class="public-badge__copy-status" aria-live="polite"></p>
           </section>
 
           <details class="public-badge__card public-badge__technical">
@@ -972,6 +981,7 @@ export const createPublicBadgePageRenderers = (
               </dd>
               {imsTechnicalDetailRows}
             </dl>
+            {validatorToolsMarkup}
           </details>
         </article>
       ),

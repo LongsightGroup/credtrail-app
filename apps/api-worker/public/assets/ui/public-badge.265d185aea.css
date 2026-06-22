@@ -281,9 +281,21 @@
   gap: 0.72rem;
 }
 
-.public-badge__share-main {
-  display: grid;
-  gap: 0.62rem;
+.public-badge__share-feed-link {
+  margin: 0;
+}
+
+.public-badge__text-link {
+  color: var(--ct-theme-link);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--ct-theme-link) 35%, transparent);
+  text-underline-offset: 0.14em;
+}
+
+.public-badge__text-link:hover {
+  color: var(--ct-theme-link-hover, var(--ct-theme-link));
+  text-decoration-color: currentColor;
 }
   
 .public-badge__achievement-copy {
@@ -298,12 +310,23 @@
   align-items: center;
 }
 
+.public-badge__actions--primary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .public-badge__actions--primary .public-badge__button {
   font-weight: 700;
 }
 
-.public-badge__actions--secondary {
-  margin-top: 0.48rem;
+.public-badge__actions--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.52rem;
+}
+
+.public-badge__actions--pair {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .public-badge__button {
@@ -355,23 +378,13 @@
   font-size: 0.88rem;
 }
 
-.public-badge__actions-details {
-  border: 1px solid var(--ct-theme-border-soft);
-  border-radius: var(--public-badge-panel-radius);
-  padding: var(--public-badge-panel-padding) calc(var(--public-badge-panel-padding) + 0.1rem);
-  background: linear-gradient(
-    180deg,
-    var(--ct-theme-surface-card-strong),
-    var(--ct-theme-surface-info)
-  );
+.public-badge__share-more {
+  margin-top: 0.15rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--ct-theme-border-soft);
 }
 
-.public-badge__actions-details[open] {
-  border-color: var(--ct-theme-border-default);
-  box-shadow: var(--ct-theme-shadow-soft);
-}
-
-.public-badge__actions-details summary {
+.public-badge__share-more summary {
   display: flex;
   align-items: center;
   min-height: 2.75rem;
@@ -381,17 +394,24 @@
   font-size: 0.92rem;
 }
 
-.public-badge__validator-block {
-  margin-top: 0.72rem;
+.public-badge__share-groups {
   display: grid;
-  gap: 0.48rem;
+  gap: 1rem;
+  margin-top: 0.55rem;
 }
 
-.public-badge__validator-links {
-  display: grid;
-  gap: 0.48rem;
+.public-badge__share-group-title {
+  margin: 0 0 0.55rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ct-theme-text-body);
 }
-  
+
+.public-badge__wallet-panel {
+  display: grid;
+  gap: 0.85rem;
+}
+
 .public-badge__validator-note {
   margin: 0;
   color: var(--ct-theme-text-muted);
@@ -400,7 +420,7 @@
 }
   
 .public-badge__qr {
-  margin: 0.08rem 0 0;
+  margin: 0;
   display: grid;
   justify-items: start;
   gap: 0.4rem;
@@ -501,6 +521,33 @@
   overflow-wrap: anywhere;
 }
 
+.public-badge__technical-tools {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--ct-theme-border-soft);
+  display: grid;
+  gap: 0.55rem;
+}
+
+.public-badge__technical-tools-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ct-theme-text-body);
+}
+
+.public-badge__technical-link-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.public-badge__technical-link-list a {
+  font-weight: 600;
+  color: var(--ct-theme-link);
+}
+
 @keyframes public-badge-enter {
   from {
     opacity: 0;
@@ -517,13 +564,11 @@
     grid-template-columns: minmax(260px, 340px) 1fr;
     align-items: start;
   }
-}
 
-@media (min-width: 980px) {
-  .public-badge__share {
-    grid-template-columns: minmax(0, 1fr) auto;
-    column-gap: 1rem;
+  .public-badge__wallet-panel {
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: start;
+    gap: 1rem;
   }
 }
 
@@ -533,8 +578,10 @@
     align-items: flex-start;
   }
 
-  .public-badge__actions {
-    display: grid;
+  .public-badge__actions,
+  .public-badge__actions--primary,
+  .public-badge__actions--grid,
+  .public-badge__actions--pair {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -542,7 +589,7 @@
     width: 100%;
   }
 
-  .public-badge__share .public-badge__qr {
+  .public-badge__wallet-panel .public-badge__qr {
     justify-items: center;
   }
 

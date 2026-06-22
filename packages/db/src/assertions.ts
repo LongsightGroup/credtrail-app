@@ -187,6 +187,12 @@ export interface ListLearnerBadgeSummariesInput {
   userId: string;
 }
 
+export interface FindClaimableLearnerBadgeSummaryInput {
+  tenantId: string;
+  userId: string;
+  assertionId: string;
+}
+
 export interface ListTenantAssertionsInput {
   tenantId: string;
   badgeTemplateId?: string | undefined;
@@ -2353,16 +2359,42 @@ export const recordAssertionLifecycleTransition = async (
   };
 };
 
-export const listLearnerBadgeSummaries = async (
+const learnerBadgeSummarySelectClause = `
+  SELECT
+    assertions.id AS assertionId,
+    assertions.public_id AS assertionPublicId,
+    assertions.tenant_id AS tenantId,
+    assertions.badge_template_id AS badgeTemplateId,
+    badge_templates.title AS badgeTitle,
+    badge_templates.description AS badgeDescription,
+    assertions.issued_at AS issuedAt,
+    assertions.revoked_at AS revokedAt
+`;
+
+const learnerBadgeSummaryFromClause = `
+  FROM assertions
+  INNER JOIN badge_templates
+    ON badge_templates.tenant_id = assertions.tenant_id
+    AND badge_templates.id = assertions.badge_template_id
+`;
+
+interface LearnerBadgeSummaryAccessContext {
+  tenantId: string;
+  learnerProfileId: string | null;
+  emailAliases: readonly string[];
+}
+
+const resolveLearnerBadgeSummaryAccessContext = async (
   db: SqlDatabase,
   input: ListLearnerBadgeSummariesInput,
-): Promise<LearnerBadgeSummaryRecord[]> => {
+): Promise<LearnerBadgeSummaryAccessContext | null> => {
   const user = await findUserById(db, input.userId);
 
   if (user === null) {
-    return [];
+    return null;
   }
 
+  const normalizedUserEmail = normalizeEmail(user.email);
   const learnerProfile = await findLearnerProfileByIdentity(db, {
     tenantId: input.tenantId,
     identityType: "email",
@@ -2370,37 +2402,15 @@ export const listLearnerBadgeSummaries = async (
   });
 
   if (learnerProfile === null) {
-    const legacyResult = await db
-      .prepare(
-        `
-        SELECT
-          assertions.id AS assertionId,
-          assertions.public_id AS assertionPublicId,
-          assertions.tenant_id AS tenantId,
-          assertions.badge_template_id AS badgeTemplateId,
-          badge_templates.title AS badgeTitle,
-          badge_templates.description AS badgeDescription,
-          assertions.issued_at AS issuedAt,
-          assertions.revoked_at AS revokedAt
-        FROM assertions
-        INNER JOIN badge_templates
-          ON badge_templates.tenant_id = assertions.tenant_id
-          AND badge_templates.id = assertions.badge_template_id
-        WHERE assertions.tenant_id = ?
-          AND assertions.recipient_identity_type = 'email'
-          AND LOWER(assertions.recipient_identity) = ?
-        ORDER BY assertions.issued_at DESC
-      `,
-      )
-      .bind(input.tenantId, normalizeEmail(user.email))
-      .all<LearnerBadgeSummaryRow>();
-
-    return legacyResult.results.map((row) => mapLearnerBadgeSummaryRow(row));
+    return {
+      tenantId: input.tenantId,
+      learnerProfileId: null,
+      emailAliases: [normalizedUserEmail],
+    };
   }
 
   const identities = await listLearnerIdentitiesByProfile(db, input.tenantId, learnerProfile.id);
-  const emailAliases = new Set<string>();
-  emailAliases.add(normalizeEmail(user.email));
+  const emailAliases = new Set<string>([normalizedUserEmail]);
 
   for (const identity of identities) {
     if (identity.identityType === "email") {
@@ -2408,25 +2418,48 @@ export const listLearnerBadgeSummaries = async (
     }
   }
 
-  const aliasList = Array.from(emailAliases);
-  const emailPlaceholders = aliasList.map(() => "?").join(", ");
-  const params: unknown[] = [input.tenantId, learnerProfile.id, ...aliasList];
+  return {
+    tenantId: input.tenantId,
+    learnerProfileId: learnerProfile.id,
+    emailAliases: Array.from(emailAliases),
+  };
+};
+
+const listLearnerBadgeSummariesForAccessContext = async (
+  db: SqlDatabase,
+  access: LearnerBadgeSummaryAccessContext,
+): Promise<LearnerBadgeSummaryRecord[]> => {
+  if (access.learnerProfileId === null) {
+    const primaryEmail = access.emailAliases[0];
+
+    if (primaryEmail === undefined) {
+      return [];
+    }
+
+    const legacyResult = await db
+      .prepare(
+        `
+        ${learnerBadgeSummarySelectClause}
+        ${learnerBadgeSummaryFromClause}
+        WHERE assertions.tenant_id = ?
+          AND assertions.recipient_identity_type = 'email'
+          AND LOWER(assertions.recipient_identity) = ?
+        ORDER BY assertions.issued_at DESC
+      `,
+      )
+      .bind(access.tenantId, primaryEmail)
+      .all<LearnerBadgeSummaryRow>();
+
+    return legacyResult.results.map((row) => mapLearnerBadgeSummaryRow(row));
+  }
+
+  const emailPlaceholders = access.emailAliases.map(() => "?").join(", ");
+  const params: unknown[] = [access.tenantId, access.learnerProfileId, ...access.emailAliases];
   const result = await db
     .prepare(
       `
-      SELECT
-        assertions.id AS assertionId,
-        assertions.public_id AS assertionPublicId,
-        assertions.tenant_id AS tenantId,
-        assertions.badge_template_id AS badgeTemplateId,
-        badge_templates.title AS badgeTitle,
-        badge_templates.description AS badgeDescription,
-        assertions.issued_at AS issuedAt,
-        assertions.revoked_at AS revokedAt
-      FROM assertions
-      INNER JOIN badge_templates
-        ON badge_templates.tenant_id = assertions.tenant_id
-        AND badge_templates.id = assertions.badge_template_id
+      ${learnerBadgeSummarySelectClause}
+      ${learnerBadgeSummaryFromClause}
       WHERE assertions.tenant_id = ?
         AND (
           assertions.learner_profile_id = ?
@@ -2442,6 +2475,92 @@ export const listLearnerBadgeSummaries = async (
     .all<LearnerBadgeSummaryRow>();
 
   return result.results.map((row) => mapLearnerBadgeSummaryRow(row));
+};
+
+const findClaimableLearnerBadgeSummaryForAccessContext = async (
+  db: SqlDatabase,
+  access: LearnerBadgeSummaryAccessContext,
+  assertionId: string,
+): Promise<LearnerBadgeSummaryRecord | null> => {
+  if (access.learnerProfileId === null) {
+    const primaryEmail = access.emailAliases[0];
+
+    if (primaryEmail === undefined) {
+      return null;
+    }
+
+    const row = await db
+      .prepare(
+        `
+        ${learnerBadgeSummarySelectClause}
+        ${learnerBadgeSummaryFromClause}
+        WHERE assertions.tenant_id = ?
+          AND assertions.id = ?
+          AND assertions.revoked_at IS NULL
+          AND assertions.recipient_identity_type = 'email'
+          AND LOWER(assertions.recipient_identity) = ?
+      `,
+      )
+      .bind(access.tenantId, assertionId, primaryEmail)
+      .first<LearnerBadgeSummaryRow>();
+
+    return row === null ? null : mapLearnerBadgeSummaryRow(row);
+  }
+
+  const emailPlaceholders = access.emailAliases.map(() => "?").join(", ");
+  const params: unknown[] = [
+    access.tenantId,
+    assertionId,
+    access.learnerProfileId,
+    ...access.emailAliases,
+  ];
+  const row = await db
+    .prepare(
+      `
+      ${learnerBadgeSummarySelectClause}
+      ${learnerBadgeSummaryFromClause}
+      WHERE assertions.tenant_id = ?
+        AND assertions.id = ?
+        AND assertions.revoked_at IS NULL
+        AND (
+          assertions.learner_profile_id = ?
+          OR (
+            assertions.recipient_identity_type = 'email'
+            AND LOWER(assertions.recipient_identity) IN (${emailPlaceholders})
+          )
+        )
+    `,
+    )
+    .bind(...params)
+    .first<LearnerBadgeSummaryRow>();
+
+  return row === null ? null : mapLearnerBadgeSummaryRow(row);
+};
+
+export const listLearnerBadgeSummaries = async (
+  db: SqlDatabase,
+  input: ListLearnerBadgeSummariesInput,
+): Promise<LearnerBadgeSummaryRecord[]> => {
+  const access = await resolveLearnerBadgeSummaryAccessContext(db, input);
+
+  if (access === null) {
+    return [];
+  }
+
+  return listLearnerBadgeSummariesForAccessContext(db, access);
+};
+
+export const findClaimableLearnerBadgeSummary = async (
+  db: SqlDatabase,
+  input: FindClaimableLearnerBadgeSummaryInput,
+): Promise<LearnerBadgeSummaryRecord | null> => {
+  const access = await resolveLearnerBadgeSummaryAccessContext(db, input);
+
+  if (access === null) {
+    return null;
+  }
+
+  return findClaimableLearnerBadgeSummaryForAccessContext(db, access, input.assertionId);
 };
 
 export const listLearnerRecordAssertionExports = async (

@@ -19,6 +19,7 @@ vi.mock("@credtrail/db", async () => {
     findLearnerProfileByIdentity: vi.fn(),
     findTenantMembership: vi.fn(),
     findUserById: vi.fn(),
+    findClaimableLearnerBadgeSummary: vi.fn(),
     listAssertionEngagementEvents: vi.fn(),
     listAccessibleTenantContextsForUser: vi.fn(),
     listLearnerBadgeSummaries: vi.fn(),
@@ -61,6 +62,7 @@ import {
   findLearnerProfileByIdentity,
   findTenantMembership,
   findUserById,
+  findClaimableLearnerBadgeSummary,
   listAssertionEngagementEvents,
   listAccessibleTenantContextsForUser,
   listLearnerBadgeSummaries,
@@ -92,6 +94,7 @@ const mockedFindLearnerProfileById = vi.mocked(findLearnerProfileById);
 const mockedFindLearnerProfileByIdentity = vi.mocked(findLearnerProfileByIdentity);
 const mockedFindTenantMembership = vi.mocked(findTenantMembership);
 const mockedFindUserById = vi.mocked(findUserById);
+const mockedFindClaimableLearnerBadgeSummary = vi.mocked(findClaimableLearnerBadgeSummary);
 const mockedListAssertionEngagementEvents = vi.mocked(listAssertionEngagementEvents);
 const mockedListAccessibleTenantContextsForUser = vi.mocked(listAccessibleTenantContextsForUser);
 const mockedListLearnerBadgeSummaries = vi.mocked(listLearnerBadgeSummaries);
@@ -991,10 +994,8 @@ describe("POST /tenants/:tenantId/learner/settings/did", () => {
 
 describe("GET and POST /tenants/:tenantId/learner/badges/:assertionId/claim", () => {
   beforeEach(() => {
-    mockedFindUserById.mockReset();
-    mockedFindUserById.mockResolvedValue(sampleUserRecord());
-    mockedListLearnerBadgeSummaries.mockReset();
-    mockedListLearnerBadgeSummaries.mockResolvedValue([sampleLearnerBadge()]);
+    mockedFindClaimableLearnerBadgeSummary.mockReset();
+    mockedFindClaimableLearnerBadgeSummary.mockResolvedValue(sampleLearnerBadge());
   });
 
   it("records an explicit learner claim and redirects to the public share section", async () => {
@@ -1081,11 +1082,7 @@ describe("GET and POST /tenants/:tenantId/learner/badges/:assertionId/claim", ()
   it("redirects GET fallback to the dashboard when the learner cannot claim the badge", async () => {
     const env = createEnv();
 
-    mockedListLearnerBadgeSummaries.mockResolvedValueOnce([
-      sampleLearnerBadge({
-        revokedAt: "2026-02-12T10:00:00.000Z",
-      }),
-    ]);
+    mockedFindClaimableLearnerBadgeSummary.mockResolvedValueOnce(null);
 
     const response = await app.request(
       "/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_456/claim",
@@ -1108,7 +1105,7 @@ describe("GET and POST /tenants/:tenantId/learner/badges/:assertionId/claim", ()
   it("redirects POST claim to the dashboard when the learner does not own the badge", async () => {
     const env = createEnv();
 
-    mockedListLearnerBadgeSummaries.mockResolvedValueOnce([]);
+    mockedFindClaimableLearnerBadgeSummary.mockResolvedValueOnce(null);
 
     const response = await app.request(
       "/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_456/claim",
