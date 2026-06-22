@@ -360,7 +360,7 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
     message:
       placementGroups.length === 0
         ? "No badges have been placed in this LMS course yet."
-        : `Showing badge progress for ${String(placementGroups.length)} badge${
+        : `Showing progress for ${String(placementGroups.length)} badge placement${
             placementGroups.length === 1 ? "" : "s"
           } in this course.`,
     courseContextTitle: input.courseContextTitle,

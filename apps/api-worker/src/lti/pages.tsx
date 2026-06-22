@@ -119,14 +119,19 @@ const ltiLaunchSubtitle = (input: { mode: LtiLaunchViewMode }): string => {
   }
 
   if (input.mode === "learner") {
-    return "Your LMS account is linked and this browser is signed in.";
+    return "Your LMS account is linked to CredTrail.";
   }
 
   if (input.mode === "learnerDegraded") {
     return "Your LMS account is linked. Open your dashboard to review issued badges and sharing options.";
   }
 
-  return "Your LMS account is linked and this browser is signed in.";
+  return "Your LMS account is linked to CredTrail.";
+};
+
+const ltiSessionHandoffTokenFromPath = (path: string): string | null => {
+  const url = new URL(path, "https://credtrail.local");
+  return url.searchParams.get("lti_session_handoff");
 };
 
 export const ltiPostMessageStorageRedirectPage = (input: {
@@ -191,6 +196,9 @@ export const ltiLaunchResultPage = (input: {
     mode,
     launchDisplayName: input.launchDisplayName,
   });
+  const sessionHandoffToken = isLearnerMode
+    ? ltiSessionHandoffTokenFromPath(input.dashboardPath)
+    : null;
 
   return ltiPage({
     title: `${title} | CredTrail`,
@@ -213,7 +221,10 @@ export const ltiLaunchResultPage = (input: {
             </p>
           </LtiLaunchCard>
         ) : null}
-        <LearnerBadgeSummarySection view={input.learnerView} />
+        <LearnerBadgeSummarySection
+          view={input.learnerView}
+          sessionHandoffToken={sessionHandoffToken}
+        />
         {isLearnerMode ? null : (
           <details class="lti-launch__technical-details">
             <summary>Launch troubleshooting details</summary>

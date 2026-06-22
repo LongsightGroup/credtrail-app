@@ -322,8 +322,9 @@ describe("ltiLaunchResultPage", () => {
     expect(html).toContain("Demo1 123 456 SP24");
     expect(html).toContain("<dt>Learners</dt>");
     expect(html).toContain("<dd>3</dd>");
-    expect(html).toContain("<dt>Badges</dt>");
+    expect(html).toContain("<dt>Badge placements</dt>");
     expect(html).toContain("<dd>0</dd>");
+    expect(html).toContain("<dt>Issued credentials</dt>");
     expect(html).not.toContain("Search learners, badges, or status in this course.");
     expect(html).not.toContain("Badges in this course");
     expect(html).not.toContain("data-lti-course-summary-search");
@@ -350,7 +351,7 @@ describe("ltiLaunchResultPage", () => {
           bulkIssuanceView: null,
           courseBadgeSummaryView: {
             status: "ready",
-            message: "Showing badge progress for 2 badges in this course.",
+            message: "Showing progress for 2 badge placements in this course.",
             courseContextTitle: "Demo1 123 456 SP24",
             learnerCount: 0,
             badgeCount: 2,

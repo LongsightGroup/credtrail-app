@@ -65,7 +65,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   ltiPagesCss: {
     kind: "style",
-    path: "/assets/ui/lti-pages.d3fdb90069.css",
+    path: "/assets/ui/lti-pages.3488931fc8.css",
   },
   ltiCourseSummaryJs: {
     kind: "script",

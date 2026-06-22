@@ -195,6 +195,38 @@ const CourseBadgeOverviewSection = (input: {
   );
 };
 
+const CourseSummaryStats = (input: {
+  learnerCount: number;
+  badgeCount: number;
+  issuedCount: number;
+}): HonoElement => {
+  const rows = [
+    {
+      label: "Learners",
+      value: input.learnerCount,
+    },
+    {
+      label: "Badge placements",
+      value: input.badgeCount,
+    },
+    {
+      label: "Issued credentials",
+      value: input.issuedCount,
+    },
+  ] as const;
+
+  return (
+    <dl class="lti-launch__course-summary-stats">
+      {rows.map((row) => (
+        <div class="lti-launch__course-summary-stat">
+          <dt>{row.label}</dt>
+          <dd>{String(row.value)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+};
+
 export const CourseBadgeSummarySection = (input: {
   view: LtiCourseBadgeSummaryView | null;
 }): HonoElement | null => {
@@ -229,28 +261,15 @@ export const CourseBadgeSummarySection = (input: {
         <p class={`lti-launch__bulk-status lti-launch__bulk-status--${view.status}`}>
           {view.message}
         </p>
-        <dl class="lti-launch__course-summary-stats">
-          <DetailRows
-            rows={[
-              {
-                label: "Course",
-                value: view.courseContextTitle ?? "Not provided",
-              },
-              {
-                label: "Learners",
-                value: view.learnerCount,
-              },
-              {
-                label: "Badges",
-                value: view.badgeCount,
-              },
-              {
-                label: "Currently issued",
-                value: view.issuedCount,
-              },
-            ]}
-          />
-        </dl>
+        <div class="lti-launch__course-summary-context">
+          <span>Course</span>
+          <strong>{view.courseContextTitle ?? "Not provided"}</strong>
+        </div>
+        <CourseSummaryStats
+          learnerCount={view.learnerCount}
+          badgeCount={view.badgeCount}
+          issuedCount={view.issuedCount}
+        />
         <CourseBadgeOverviewSection badges={view.badges} />
         {hasRows ? (
           <div class="lti-launch__summary-controls">

@@ -2,8 +2,9 @@ import {
   addLearnerIdentityAlias,
   ensureTenantMembership,
   findLearnerProfileByIdentity,
-  resolveLearnerProfileForIdentity,
+  resolveLearnerProfileFromSaml,
   upsertUserByEmail,
+  type LearnerProfileRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -16,12 +17,51 @@ import {
   ltiSourcedIdFromClaims,
   ltiSyntheticEmail,
 } from "./lti-helpers";
+import { logLtiWarning } from "./log";
 
 export interface LinkedLtiLaunchAccount {
   learnerProfileId: string;
   userId: string;
   membershipRole: TenantMembershipRole;
 }
+
+const addLtiIdentityAliasIfAvailable = async (input: {
+  db: SqlDatabase;
+  tenantId: string;
+  learnerProfile: LearnerProfileRecord;
+  identityType: "saml_subject" | "sourced_id";
+  identityValue: string;
+  isPrimary: boolean;
+}): Promise<void> => {
+  const existingProfile = await findLearnerProfileByIdentity(input.db, {
+    tenantId: input.tenantId,
+    identityType: input.identityType,
+    identityValue: input.identityValue,
+  });
+
+  if (existingProfile === null) {
+    await addLearnerIdentityAlias(input.db, {
+      tenantId: input.tenantId,
+      learnerProfileId: input.learnerProfile.id,
+      identityType: input.identityType,
+      identityValue: input.identityValue,
+      isPrimary: input.isPrimary,
+      isVerified: true,
+    });
+    return;
+  }
+
+  if (existingProfile.id === input.learnerProfile.id) {
+    return;
+  }
+
+  logLtiWarning("LTI identity alias is already linked to a different learner profile", {
+    tenantId: input.tenantId,
+    identityType: input.identityType,
+    selectedLearnerProfileId: input.learnerProfile.id,
+    existingLearnerProfileId: existingProfile.id,
+  });
+};
 
 export const linkLtiLaunchAccount = async (input: {
   db: SqlDatabase;
@@ -47,26 +87,33 @@ export const linkLtiLaunchAccount = async (input: {
     input.launchClaims.sub,
   );
   const displayName = ltiDisplayNameFromClaims(input.launchClaims);
-  const learnerProfile = await resolveLearnerProfileForIdentity(input.db, {
-    tenantId: input.tenantId,
-    identityType: "saml_subject",
-    identityValue: federatedSubject,
-    ...(displayName === undefined ? {} : { displayName }),
-  });
   const claimedEmail = ltiEmailFromClaims(input.launchClaims);
+  const existingEmailProfile =
+    claimedEmail === null
+      ? null
+      : await findLearnerProfileByIdentity(input.db, {
+          tenantId: input.tenantId,
+          identityType: "email",
+          identityValue: claimedEmail,
+        });
+  let learnerProfile: LearnerProfileRecord;
+  let resolvedLearnerProfileStrategy: "saml_subject" | "verified_email" | "created" | null = null;
+
+  if (existingEmailProfile !== null) {
+    learnerProfile = existingEmailProfile;
+  } else {
+    const resolvedLearnerProfileResult = await resolveLearnerProfileFromSaml(input.db, {
+      tenantId: input.tenantId,
+      samlSubject: federatedSubject,
+      ...(claimedEmail === null ? {} : { email: claimedEmail }),
+      ...(displayName === undefined ? {} : { displayName }),
+    });
+    learnerProfile = resolvedLearnerProfileResult.profile;
+    resolvedLearnerProfileStrategy = resolvedLearnerProfileResult.strategy;
+  }
 
   if (claimedEmail !== null) {
-    const existingEmailProfile = await findLearnerProfileByIdentity(input.db, {
-      tenantId: input.tenantId,
-      identityType: "email",
-      identityValue: claimedEmail,
-    });
-
-    if (existingEmailProfile !== null && existingEmailProfile.id !== learnerProfile.id) {
-      throw new Error("LTI email claim is already linked to a different learner profile");
-    }
-
-    if (existingEmailProfile === null) {
+    if (existingEmailProfile === null && resolvedLearnerProfileStrategy === "saml_subject") {
       await addLearnerIdentityAlias(input.db, {
         tenantId: input.tenantId,
         learnerProfileId: learnerProfile.id,
@@ -78,29 +125,26 @@ export const linkLtiLaunchAccount = async (input: {
     }
   }
 
+  await addLtiIdentityAliasIfAvailable({
+    db: input.db,
+    tenantId: input.tenantId,
+    learnerProfile,
+    identityType: "saml_subject",
+    identityValue: federatedSubject,
+    isPrimary: claimedEmail === null,
+  });
+
   const sourcedId = ltiSourcedIdFromClaims(input.launchClaims);
 
   if (sourcedId !== null) {
-    const existingSourcedIdProfile = await findLearnerProfileByIdentity(input.db, {
+    await addLtiIdentityAliasIfAvailable({
+      db: input.db,
       tenantId: input.tenantId,
+      learnerProfile,
       identityType: "sourced_id",
       identityValue: sourcedId,
+      isPrimary: false,
     });
-
-    if (existingSourcedIdProfile !== null && existingSourcedIdProfile.id !== learnerProfile.id) {
-      throw new Error("LTI sourcedId claim is already linked to a different learner profile");
-    }
-
-    if (existingSourcedIdProfile === null) {
-      await addLearnerIdentityAlias(input.db, {
-        tenantId: input.tenantId,
-        learnerProfileId: learnerProfile.id,
-        identityType: "sourced_id",
-        identityValue: sourcedId,
-        isPrimary: false,
-        isVerified: true,
-      });
-    }
   }
 
   const user = await upsertUserByEmail(

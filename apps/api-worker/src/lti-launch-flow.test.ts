@@ -12,6 +12,7 @@ vi.mock("@credtrail/db", async () => {
     findAuthIdentityLinkByAuthUserId: vi.fn(),
     findAuthIdentityLinkByCredtrailUserId: vi.fn(),
     findBadgeTemplateById: vi.fn(),
+    findClaimableLearnerBadgeSummary: vi.fn(),
     findLearnerProfileByIdentity: vi.fn(),
     findUserById: vi.fn(),
     listAssertionsByBadgeTemplatesAndRecipientEmails: vi.fn(),
@@ -22,6 +23,8 @@ vi.mock("@credtrail/db", async () => {
     listLearnerBadgeSummaries: vi.fn(),
     listLtiIssuerRegistrations: vi.fn(),
     listLtiResourceLinkPlacementsForContext: vi.fn(),
+    resolveLearnerProfileFromSaml: vi.fn(),
+    recordAssertionEngagementEvent: vi.fn(),
     upsertLtiDeployment: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
     upsertLtiResourceLinkPlacement: vi.fn(),
@@ -43,6 +46,7 @@ import {
   findAuthIdentityLinkByAuthUserId,
   findAuthIdentityLinkByCredtrailUserId,
   findBadgeTemplateById,
+  findClaimableLearnerBadgeSummary,
   findLearnerProfileByIdentity,
   findUserById,
   listAssertionsByBadgeTemplatesAndRecipientEmails,
@@ -53,6 +57,8 @@ import {
   listLearnerBadgeSummaries,
   listLtiIssuerRegistrations,
   listLtiResourceLinkPlacementsForContext,
+  resolveLearnerProfileFromSaml,
+  recordAssertionEngagementEvent,
   resolveLearnerProfileForIdentity,
   type AssertionRecord,
   type LearnerBadgeSummaryRecord,
@@ -83,6 +89,7 @@ const mockedFindAuthIdentityLinkByCredtrailUserId = vi.mocked(
   findAuthIdentityLinkByCredtrailUserId,
 );
 const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
+const mockedFindClaimableLearnerBadgeSummary = vi.mocked(findClaimableLearnerBadgeSummary);
 const mockedFindLearnerProfileByIdentity = vi.mocked(findLearnerProfileByIdentity);
 const mockedFindUserById = vi.mocked(findUserById);
 const mockedListAssertionsByBadgeTemplatesAndRecipientEmails = vi.mocked(
@@ -99,6 +106,8 @@ const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
 const mockedListLtiResourceLinkPlacementsForContext = vi.mocked(
   listLtiResourceLinkPlacementsForContext,
 );
+const mockedResolveLearnerProfileFromSaml = vi.mocked(resolveLearnerProfileFromSaml);
+const mockedRecordAssertionEngagementEvent = vi.mocked(recordAssertionEngagementEvent);
 const mockedResolveLearnerProfileForIdentity = vi.mocked(resolveLearnerProfileForIdentity);
 const mockedUpsertLtiResourceLinkPlacement = vi.mocked(upsertLtiResourceLinkPlacement);
 const mockedUpsertTenantMembershipRole = vi.mocked(upsertTenantMembershipRole);
@@ -195,6 +204,20 @@ const fakeDbPrepare = vi.fn((sql: string) => {
               userEmail: user?.email ?? null,
               userEmailVerified: user?.email_verified ?? false,
             } as T);
+      }
+
+      if (
+        normalizedSql.includes("FROM memberships") &&
+        normalizedSql.includes("WHERE tenant_id = ?") &&
+        normalizedSql.includes("AND user_id = ?")
+      ) {
+        return {
+          tenantId: coerceBoundText(params[0]),
+          userId: coerceBoundText(params[1]),
+          role: "viewer",
+          createdAt: "2026-02-10T22:00:00.000Z",
+          updatedAt: "2026-02-10T22:00:00.000Z",
+        } as T;
       }
 
       throw new Error(`Unhandled fakeDb first() SQL: ${normalizedSql}`);
@@ -332,6 +355,21 @@ const loadAppWithMockedAuthProviders = async (
     createMagicLinkSession: vi.fn(),
     createLtiSession: vi.fn(
       (context: Parameters<typeof setCookie>[0], input: { tenantId: string; userId: string }) => {
+        if (!authUsers.some((user) => user.id === input.userId)) {
+          authUsers.push({
+            id: input.userId,
+            email: "learner@example.edu",
+            email_verified: true,
+          });
+        }
+        authSessions.push({
+          id: "ba_ses_adapter",
+          token: "better-lti-session",
+          user_id: input.userId,
+          expires_at: "2026-02-11T22:00:00.000Z",
+          ip_address: null,
+          user_agent: null,
+        });
         setCookie(context, "better-auth.session_token", "better-lti-session", {
           httpOnly: true,
           sameSite: "None",
@@ -610,6 +648,26 @@ describe("LTI 1.3 core launch flow", () => {
     mockedListLtiResourceLinkPlacementsForContext.mockResolvedValue([]);
     mockedFindBadgeTemplateById.mockReset();
     mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
+    mockedFindClaimableLearnerBadgeSummary.mockReset();
+    mockedFindClaimableLearnerBadgeSummary.mockResolvedValue(
+      sampleLearnerBadgeSummary({
+        assertionId: "tenant_123:assertion_existing",
+      }),
+    );
+    mockedRecordAssertionEngagementEvent.mockReset();
+    mockedRecordAssertionEngagementEvent.mockResolvedValue({
+      status: "recorded",
+      event: {
+        id: "aee_claim_123",
+        tenantId,
+        assertionId: "tenant_123:assertion_existing",
+        eventType: "learner_claim",
+        actorType: "learner",
+        channel: "learner_dashboard",
+        occurredAt: "2026-02-11T14:00:00.000Z",
+        createdAt: "2026-02-11T14:00:00.000Z",
+      },
+    });
     mockedUpsertLtiResourceLinkPlacement.mockReset();
     mockedUpsertLtiResourceLinkPlacement.mockResolvedValue({
       id: "lti_place_123",
@@ -623,6 +681,11 @@ describe("LTI 1.3 core launch flow", () => {
       createdByUserId: linkedUserId,
       createdAt: "2026-02-10T22:00:00.000Z",
       updatedAt: "2026-02-10T22:00:00.000Z",
+    });
+    mockedResolveLearnerProfileFromSaml.mockReset();
+    mockedResolveLearnerProfileFromSaml.mockResolvedValue({
+      profile: sampleLearnerProfile(),
+      strategy: "created",
     });
     mockedResolveLearnerProfileForIdentity.mockReset();
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
@@ -1252,11 +1315,11 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain("/assets/ui/foundation.");
     expect(body).toContain("/assets/ui/lti-pages.");
     expect(body).not.toContain(".lti-launch__hero {");
-    expect(mockedResolveLearnerProfileForIdentity).toHaveBeenCalledWith(fakeDb, {
+    expect(mockedResolveLearnerProfileFromSaml).toHaveBeenCalledWith(fakeDb, {
       tenantId,
-      identityType: "saml_subject",
-      identityValue: "https://canvas.example.edu::user-123",
+      samlSubject: "https://canvas.example.edu::user-123",
     });
+    expect(mockedResolveLearnerProfileForIdentity).not.toHaveBeenCalled();
     expect(mockedUpsertUserByEmail).toHaveBeenCalledWith(
       fakeDb,
       expect.stringContaining("@credtrail-lti.local"),
@@ -2295,6 +2358,7 @@ describe("LTI 1.3 core launch flow", () => {
       env,
       resourceLinkId: "resource-link-456",
       subjectId: "user-456",
+      name: "Learner One",
       email: "Learner@Example.edu",
       sourcedId: "sourced-learner-456",
     });
@@ -2307,6 +2371,12 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain("Open CredTrail dashboard");
     expect(body).toContain("CredTrail could not identify this LMS course");
     expect(body).not.toContain("Launch troubleshooting details");
+    expect(mockedResolveLearnerProfileFromSaml).toHaveBeenCalledWith(fakeDb, {
+      tenantId,
+      samlSubject: "https://canvas.example.edu::user-456",
+      email: "Learner@Example.edu",
+      displayName: "Learner One",
+    });
     expect(mockedUpsertUserByEmail).toHaveBeenCalledWith(fakeDb, "Learner@Example.edu");
     expect(mockedAddLearnerIdentityAlias).toHaveBeenCalledWith(
       fakeDb,
@@ -2318,6 +2388,62 @@ describe("LTI 1.3 core launch flow", () => {
       }),
     );
     expect(mockedUpsertTenantMembershipRole).not.toHaveBeenCalled();
+  });
+
+  it("links a learner LTI launch to an existing issued-email learner profile", async () => {
+    const env = createLtiEnv();
+    const existingEmailProfile = sampleLearnerProfile({
+      id: "lpr_email_existing",
+      subjectId: "urn:credtrail:learner:tenant_123:lpr_email_existing",
+    });
+    const staleLtiProfile = sampleLearnerProfile({
+      id: "lpr_stale_lti",
+      subjectId: "urn:credtrail:learner:tenant_123:lpr_stale_lti",
+    });
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool();
+
+    mockedFindLearnerProfileByIdentity.mockImplementation(async (_db, input) => {
+      if (input.identityType === "email" && input.identityValue === "learner@example.edu") {
+        return existingEmailProfile;
+      }
+
+      if (
+        input.identityType === "saml_subject" &&
+        input.identityValue === "https://canvas.example.edu::canvas-user-claim"
+      ) {
+        return staleLtiProfile;
+      }
+
+      return null;
+    });
+
+    const { response, body } = await launchLearnerResourceLinkForTest({
+      isolatedApp,
+      env,
+      resourceLinkId: "resource-link-claim",
+      subjectId: "canvas-user-claim",
+      name: "Learner Claim",
+      email: "learner@example.edu",
+    });
+
+    expect(response.status).toBe(200);
+    expect(body).not.toContain("Unable to link LTI launch to local account");
+    expect(mockedResolveLearnerProfileFromSaml).not.toHaveBeenCalled();
+    expect(mockedResolveLearnerProfileForIdentity).not.toHaveBeenCalled();
+    expect(mockedAddLearnerIdentityAlias).not.toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        identityType: "saml_subject",
+        identityValue: "https://canvas.example.edu::canvas-user-claim",
+      }),
+    );
+    expect(mockedAddLearnerIdentityAlias).not.toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        identityType: "email",
+        identityValue: "learner@example.edu",
+      }),
+    );
   });
 
   it("renders learner left-nav badge summary for all active course placements", async () => {
@@ -2397,6 +2523,9 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain(
       "/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_existing/claim",
     );
+    expect(body).toContain(
+      "/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_existing/claim?lti_session_handoff=",
+    );
     expect(body).toContain("Not issued");
     expect(body).toContain("Not issued yet.");
     expect(body).not.toContain("Launch troubleshooting details");
@@ -2473,8 +2602,39 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain(
       "/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_existing/claim",
     );
+    expect(body).toContain(
+      "/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_existing/claim?lti_session_handoff=",
+    );
     expect(body).not.toContain("Launch troubleshooting details");
     expect(body).not.toContain("/tenants/tenant_123/admin/");
+    const claimAction = body.match(
+      /action="([^"]*\/tenants\/tenant_123\/learner\/badges\/tenant_123%3Aassertion_existing\/claim\?lti_session_handoff=[^"]+)"/,
+    )?.[1];
+    expect(claimAction).toBeDefined();
+
+    const claimResponse = await isolatedApp.request(
+      claimAction === undefined ? "/" : claimAction.replaceAll("&amp;", "&"),
+      {
+        method: "POST",
+      },
+      env,
+    );
+
+    expect(claimResponse.status).toBe(303);
+    expect(claimResponse.headers.get("location")).toContain(
+      "/badges/public_badge_001#share-this-credential",
+    );
+    expect(claimResponse.headers.get("set-cookie")).toContain("better-auth.session_token=");
+    expect(mockedRecordAssertionEngagementEvent).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId,
+        assertionId: "tenant_123:assertion_existing",
+        eventType: "learner_claim",
+        actorType: "learner",
+        channel: "learner_dashboard",
+      }),
+    );
     expect(mockedUpsertLtiResourceLinkPlacement).toHaveBeenCalledWith(fakeDb, {
       tenantId,
       issuer,

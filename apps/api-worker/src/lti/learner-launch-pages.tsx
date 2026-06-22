@@ -4,6 +4,7 @@ import type { LtiLearnerBadgeSummaryView } from "./view-models";
 
 export const LearnerBadgeSummarySection = (input: {
   view: LtiLearnerBadgeSummaryView | null;
+  sessionHandoffToken?: string | null;
 }): HonoElement | null => {
   if (input.view === null) {
     return null;
@@ -13,6 +14,15 @@ export const LearnerBadgeSummarySection = (input: {
   const title = view.scope === "selected" ? "Selected badge" : "Badges in this course";
   const emptyTitle =
     view.scope === "selected" ? "No selected badge details" : "No badges placed yet";
+  const claimActionPath = (path: string): string => {
+    if (input.sessionHandoffToken === undefined || input.sessionHandoffToken === null) {
+      return path;
+    }
+
+    const actionUrl = new URL(path, "https://credtrail.local");
+    actionUrl.searchParams.set("lti_session_handoff", input.sessionHandoffToken);
+    return `${actionUrl.pathname}${actionUrl.search}`;
+  };
 
   return (
     <LtiLaunchCard stack={true}>
@@ -55,7 +65,7 @@ export const LearnerBadgeSummarySection = (input: {
                       {item.claimActionPath === null ? null : (
                         <form
                           method="post"
-                          action={item.claimActionPath}
+                          action={claimActionPath(item.claimActionPath)}
                           class="lti-launch__claim-form"
                         >
                           <button type="submit" class="lti-launch__claim-button">

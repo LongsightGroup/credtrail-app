@@ -39,8 +39,10 @@ import { createLtiSessionHandoffToken } from "./session-handoff";
 import { logLtiWarning } from "./log";
 import {
   ltiDisplayNameFromClaims,
+  ltiEmailFromClaims,
   ltiLaunchFormInputFromRequest,
   ltiLearnerDashboardPath,
+  ltiSourcedIdFromClaims,
   type LtiIssuerRegistry,
 } from "./lti-helpers";
 import { ltiDeepLinkSelectionPage, ltiLaunchResultPage } from "./pages";
@@ -255,8 +257,16 @@ const establishLtiLaunchSession = async (input: {
       sha256Hex: input.sha256Hex,
       upsertTenantMembershipRole: input.upsertTenantMembershipRole,
     });
-  } catch {
-    throw new Error("Unable to link LTI launch to local account");
+  } catch (error) {
+    logLtiWarning("Unable to link LTI launch to local account", {
+      tenantId: input.tenantId,
+      roleKind: input.launchMessage.roleKind,
+      issuer: input.launchClaims.iss,
+      hasEmailClaim: ltiEmailFromClaims(input.launchClaims) !== null,
+      hasSourcedIdClaim: ltiSourcedIdFromClaims(input.launchClaims) !== null,
+      detail: error instanceof Error ? error.message : "unknown error",
+    });
+    throw error;
   }
 
   const createdSession = await input.createLtiSession(input.c, {
@@ -461,13 +471,19 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
       upsertTenantMembershipRole: input.upsertTenantMembershipRole,
       createLtiSession: input.createLtiSession,
     });
-  } catch {
-    return input.c.json(
-      {
-        error: "Unable to link LTI launch to local account",
-      },
-      500,
-    );
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "unknown error";
+    const body =
+      input.c.env.APP_ENV === "production"
+        ? {
+            error: "Unable to link LTI launch to local account",
+          }
+        : {
+            error: "Unable to link LTI launch to local account",
+            detail,
+          };
+
+    return input.c.json(body, 500);
   }
 
   input.c.header("Cache-Control", "no-store");

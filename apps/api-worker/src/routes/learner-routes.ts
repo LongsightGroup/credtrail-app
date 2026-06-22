@@ -231,6 +231,11 @@ export const registerLearnerRoutes = <DidNotice>(
 
   const learnerBadgeClaimHandler = async (c: AppContext): Promise<Response> => {
     const pathParams = parseAssertionPathParams(c.req.param());
+    await consumeLtiSessionHandoff({
+      context: c,
+      tenantId: pathParams.tenantId,
+      resolveDatabase,
+    });
     const roleCheck = await requireTenantRole(c, pathParams.tenantId, TENANT_MEMBER_ROLES);
 
     if (roleCheck instanceof Response) {
