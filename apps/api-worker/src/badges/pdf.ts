@@ -7,6 +7,8 @@ import {
   type PDFPage,
 } from "pdf-lib";
 
+import { createQrCodeMatrix } from "./qr-code";
+
 export const badgeInitialsFromName = (badgeName: string): string => {
   const trimmedName = badgeName.trim();
 
@@ -431,11 +433,11 @@ const drawPdfLinkBlock = (
     labelSize: 9.2,
     labelColor: options.labelColor,
     valueFont: options.valueFont,
-    valueSize: 10.2,
+    valueSize: 9.6,
     valueColor: options.valueColor,
-    lineHeight: 12.2,
+    lineHeight: 11.4,
     maxWidth: options.maxWidth,
-    gapAfter: 8,
+    gapAfter: 7,
     labelGap: 11,
   });
 };
@@ -531,6 +533,53 @@ const drawPdfCenteredText = (
     size: options.size,
     color: options.color,
   });
+};
+
+const drawPdfQrCode = (
+  page: PDFPage,
+  payload: string,
+  frame: {
+    x: number;
+    y: number;
+    size: number;
+  },
+  options: {
+    fill: ReturnType<typeof rgb>;
+    border: ReturnType<typeof rgb>;
+    moduleColor: ReturnType<typeof rgb>;
+  },
+): void => {
+  const qr = createQrCodeMatrix(payload);
+
+  page.drawRectangle({
+    x: frame.x,
+    y: frame.y,
+    width: frame.size,
+    height: frame.size,
+    color: options.fill,
+    borderWidth: 1,
+    borderColor: options.border,
+  });
+
+  const moduleCount = qr.moduleCount;
+  const padding = 5;
+  const moduleSize = (frame.size - padding * 2) / moduleCount;
+
+  for (let row = 0; row < moduleCount; row += 1) {
+    for (let column = 0; column < moduleCount; column += 1) {
+      if (qr.modules[row]?.[column] !== true) {
+        continue;
+      }
+
+      page.drawRectangle({
+        x: frame.x + padding + column * moduleSize,
+        y: frame.y + padding + (moduleCount - row - 1) * moduleSize,
+        width: moduleSize,
+        height: moduleSize,
+        color: options.moduleColor,
+      });
+    }
+  }
 };
 
 export const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Promise<Uint8Array> => {
@@ -796,8 +845,8 @@ export const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Prom
     labelGap: 12,
   });
 
-  const lowerPanelY = 204;
-  const lowerPanelHeight = 188;
+  const lowerPanelY = 184;
+  const lowerPanelHeight = 224;
   const lowerPanelGap = 16;
   const lowerPanelWidth = (heroFrame.width - lowerPanelGap) / 2;
   const verificationFrame = {
@@ -825,7 +874,7 @@ export const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Prom
   });
 
   page.drawText("Verification references", {
-    x: verificationFrame.x + 16,
+    x: verificationFrame.x + 18,
     y: verificationFrame.y + verificationFrame.height - 26,
     size: 13,
     color: colors.ink,
@@ -837,9 +886,9 @@ export const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Prom
       "Share the public badge page for reviewers and use the JSON endpoints for direct checks.",
       regularFont,
       9.6,
-      verificationFrame.width - 32,
+      verificationFrame.width - 36,
     ),
-    verificationFrame.x + 16,
+    verificationFrame.x + 18,
     verificationFrame.y + verificationFrame.height - 44,
     {
       font: regularFont,
@@ -850,53 +899,55 @@ export const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Prom
   );
 
   let verificationY = verificationFrame.y + verificationFrame.height - 78;
+  const verificationContentX = verificationFrame.x + 18;
+  const verificationContentWidth = verificationFrame.width - 36;
   verificationY = drawPdfLinkBlock(
     page,
     "Public badge page",
     input.publicBadgeUrl,
-    verificationFrame.x + 16,
+    verificationContentX,
     verificationY,
     {
       labelFont: boldFont,
       valueFont: regularFont,
       labelColor: colors.subtle,
       valueColor: colors.ink,
-      maxWidth: verificationFrame.width - 32,
+      maxWidth: verificationContentWidth,
     },
   );
-  verificationY -= 6;
+  verificationY -= 5;
   verificationY = drawPdfLinkBlock(
     page,
     "Verification endpoint",
     input.verificationUrl,
-    verificationFrame.x + 16,
+    verificationContentX,
     verificationY,
     {
       labelFont: boldFont,
       valueFont: regularFont,
       labelColor: colors.subtle,
       valueColor: colors.ink,
-      maxWidth: verificationFrame.width - 32,
+      maxWidth: verificationContentWidth,
     },
   );
-  verificationY -= 6;
+  verificationY -= 5;
   drawPdfLinkBlock(
     page,
     "Open Badges JSON-LD",
     input.ob3JsonUrl,
-    verificationFrame.x + 16,
+    verificationContentX,
     verificationY,
     {
       labelFont: boldFont,
       valueFont: regularFont,
       labelColor: colors.subtle,
       valueColor: colors.ink,
-      maxWidth: verificationFrame.width - 32,
+      maxWidth: verificationContentWidth,
     },
   );
 
   page.drawText("Record details", {
-    x: recordFrame.x + 16,
+    x: recordFrame.x + 18,
     y: recordFrame.y + recordFrame.height - 26,
     size: 13,
     color: colors.ink,
@@ -908,9 +959,9 @@ export const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Prom
       "Technical identifiers from the signed credential and assertion record.",
       regularFont,
       9.6,
-      recordFrame.width - 32,
+      recordFrame.width - 36,
     ),
-    recordFrame.x + 16,
+    recordFrame.x + 18,
     recordFrame.y + recordFrame.height - 44,
     {
       font: regularFont,
@@ -921,7 +972,9 @@ export const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Prom
   );
 
   let recordY = recordFrame.y + recordFrame.height - 78;
-  recordY = drawPdfField(page, "Credential status", input.status, recordFrame.x + 16, recordY, {
+  const recordContentX = recordFrame.x + 18;
+  const recordContentWidth = recordFrame.width - 36;
+  recordY = drawPdfField(page, "Credential status", input.status, recordContentX, recordY, {
     labelFont: boldFont,
     labelSize: 9.2,
     labelColor: colors.subtle,
@@ -929,7 +982,7 @@ export const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Prom
     valueSize: 11.4,
     valueColor: colors.ink,
     lineHeight: 13,
-    maxWidth: recordFrame.width - 32,
+    maxWidth: recordContentWidth,
     gapAfter: 8,
     labelGap: 12,
   });
@@ -937,56 +990,56 @@ export const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Prom
     page,
     "Recipient identifier",
     input.recipientIdentifier,
-    recordFrame.x + 16,
+    recordContentX,
     recordY,
     {
       labelFont: boldFont,
       labelSize: 9.2,
       labelColor: colors.subtle,
       valueFont: regularFont,
-      valueSize: 10.2,
+      valueSize: 9.6,
       valueColor: colors.ink,
-      lineHeight: 11.8,
-      maxWidth: recordFrame.width - 32,
-      gapAfter: 8,
+      lineHeight: 11.2,
+      maxWidth: recordContentWidth,
+      gapAfter: 7,
       labelGap: 11,
     },
   );
-  recordY = drawPdfField(page, "Assertion ID", input.assertionId, recordFrame.x + 16, recordY, {
+  recordY = drawPdfField(page, "Assertion ID", input.assertionId, recordContentX, recordY, {
     labelFont: boldFont,
     labelSize: 9.2,
     labelColor: colors.subtle,
     valueFont: regularFont,
-    valueSize: 10.2,
+    valueSize: 9.6,
     valueColor: colors.ink,
-    lineHeight: 11.8,
-    maxWidth: recordFrame.width - 32,
-    gapAfter: 8,
+    lineHeight: 11.2,
+    maxWidth: recordContentWidth,
+    gapAfter: 7,
     labelGap: 11,
   });
-  recordY = drawPdfField(page, "Credential ID", input.credentialId, recordFrame.x + 16, recordY, {
+  recordY = drawPdfField(page, "Credential ID", input.credentialId, recordContentX, recordY, {
     labelFont: boldFont,
     labelSize: 9.2,
     labelColor: colors.subtle,
     valueFont: regularFont,
-    valueSize: 10.2,
+    valueSize: 9.6,
     valueColor: colors.ink,
-    lineHeight: 11.8,
-    maxWidth: recordFrame.width - 32,
-    gapAfter: 8,
+    lineHeight: 11.2,
+    maxWidth: recordContentWidth,
+    gapAfter: 7,
     labelGap: 11,
   });
 
   if (input.revokedAt !== undefined) {
-    drawPdfField(page, "Revoked at", input.revokedAt, recordFrame.x + 16, recordY, {
+    drawPdfField(page, "Revoked at", input.revokedAt, recordContentX, recordY, {
       labelFont: boldFont,
       labelSize: 9.2,
       labelColor: colors.subtle,
       valueFont: regularFont,
-      valueSize: 10.2,
+      valueSize: 9.6,
       valueColor: colors.ink,
-      lineHeight: 11.8,
-      maxWidth: recordFrame.width - 32,
+      lineHeight: 11.2,
+      maxWidth: recordContentWidth,
       gapAfter: 0,
       labelGap: 11,
     });
@@ -994,9 +1047,9 @@ export const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Prom
 
   const noteFrame = {
     x: contentMargin,
-    y: 108,
+    y: 86,
     width: pageWidth - contentMargin * 2,
-    height: 72,
+    height: 82,
   };
   drawPdfPanel(page, noteFrame, {
     fill: colors.noteTint,
@@ -1016,15 +1069,35 @@ export const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Prom
     color: colors.ink,
     font: boldFont,
   });
+
+  const qrFrame = {
+    x: noteFrame.x + noteFrame.width - 76,
+    y: noteFrame.y + 12,
+    size: 52,
+  };
+  const qrLabel = "Scan to verify online";
+  page.drawText(qrLabel, {
+    x: qrFrame.x + (qrFrame.size - boldFont.widthOfTextAtSize(qrLabel, 6.8)) / 2,
+    y: qrFrame.y + qrFrame.size + 5,
+    size: 6.8,
+    color: colors.subtle,
+    font: boldFont,
+  });
+  drawPdfQrCode(page, input.publicBadgeUrl, qrFrame, {
+    fill: colors.panel,
+    border: colors.borderStrong,
+    moduleColor: colors.ink,
+  });
+
   drawPdfTextLines(
     page,
     wrapPdfText(
       input.revokedAt === undefined
-        ? "Use the public badge page for human review, then rely on the verification endpoint or Open Badges JSON-LD URL above for direct system checks."
+        ? "For a quick review, open the public badge page. For an automated check, use the verification endpoint or the JSON-LD link above."
         : "This credential has changed lifecycle state. Confirm the current status with the public badge page or the verification endpoint above before relying on this copy.",
       regularFont,
       10.2,
-      noteFrame.width - 36,
+      qrFrame.x - noteFrame.x - 36,
     ),
     noteFrame.x + 18,
     noteFrame.y + 32,
