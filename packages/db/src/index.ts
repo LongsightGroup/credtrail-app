@@ -9,6 +9,7 @@ export * from "./badge-issuance-rule-value-lists";
 export * from "./dedicated-db-provisioning";
 export * from "./delegated-issuing-authority";
 export * from "./job-queue";
+export * from "./learner-badge-summaries";
 export * from "./learner-identity-link-proofs";
 export * from "./learner-profiles";
 export * from "./learner-records";
