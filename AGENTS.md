@@ -5,7 +5,7 @@ This file defines execution standards for humans and coding agents working in th
 ## 1) Product and Stack Guardrails
 
 - Language: TypeScript everywhere.
-- Runtime: Cloudflare Workers.
+- Runtime: Cloudflare Workers for SaaS, plus the ADR-approved Node self-host runtime profile.
 - Framework: Hono.
 - Data: Postgres.
 - Object storage: Cloudflare R2.
@@ -14,7 +14,7 @@ This file defines execution standards for humans and coding agents working in th
   feature-local JavaScript.
 - React is out of scope.
 - Standards scope: Open Badges 3.0 only.
-- Architecture policy: single-path implementation in v1. No dual runtimes, no parallel frameworks, no "either/or" code paths for the same capability.
+- Architecture policy: single product implementation in v1. Do not add parallel frameworks or either/or code paths for the same capability. Runtime-specific adapters must stay limited to the accepted SaaS Worker and Node self-host profiles.
 
 If a proposed change conflicts with these guardrails, open an ADR before implementation.
 

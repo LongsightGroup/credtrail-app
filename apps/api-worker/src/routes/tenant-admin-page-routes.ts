@@ -18,7 +18,6 @@ import {
   parseTenantPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import { accessAuthenticationPageUrl } from "../admin/access-admin-helpers";
 import { buildLmsConnectionEditPath } from "../admin/lms-connection-admin-helpers";
 import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
 import {
@@ -258,11 +257,6 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     );
   });
 
-  app.get("/tenants/:tenantId/admin/access", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return c.redirect(`/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access/members`);
-  });
-
   app.get("/tenants/:tenantId/admin/access/members", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
     return renderInstitutionAdminMembersWorkspace(
@@ -272,24 +266,8 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     );
   });
 
-  app.get("/tenants/:tenantId/admin/access/governance/enterprise-auth", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return c.redirect(accessAuthenticationPageUrl(pathParams.tenantId), 302);
-  });
-
   app.get("/tenants/:tenantId/admin/access/governance", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
-    const editProviderId = (c.req.query("editProvider") ?? "").trim();
-
-    if (editProviderId.length > 0) {
-      return c.redirect(
-        accessAuthenticationPageUrl(pathParams.tenantId, {
-          editProvider: editProviderId,
-        }),
-        302,
-      );
-    }
-
     return renderInstitutionAdminGovernanceWorkspace(
       c,
       pathParams.tenantId,

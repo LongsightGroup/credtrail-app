@@ -1,6 +1,6 @@
 # CredTrail App
 
-Open-source Open Badges 3.0 platform with Cloudflare SaaS and Docker self-host runtime profiles.
+Open-source Open Badges 3.0 platform with Cloudflare Workers SaaS and Docker self-host runtime profiles.
 
 **Standards-compliant verifiable credential issuance and verification for educational achievements.**
 

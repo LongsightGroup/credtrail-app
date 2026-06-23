@@ -15,7 +15,7 @@ const adminFlashCookieHeader = (response: Response): string => {
 };
 
 describe("GET /tenants/:tenantId/admin/access", () => {
-  it("redirects the removed access overview to members", async () => {
+  it("does not keep the removed access overview route alive", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -28,8 +28,7 @@ describe("GET /tenants/:tenantId/admin/access", () => {
       env,
     );
 
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/access/members");
+    expect(response.status).toBe(404);
   });
 
   it("renders enterprise auth settings on the authentication page for enterprise tenants", async () => {
@@ -153,7 +152,7 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
     expect(body).not.toContain('id="enterprise-auth-provider-form"');
   });
 
-  it("redirects the legacy enterprise auth page path to authentication", async () => {
+  it("does not keep the legacy enterprise auth page path alive", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -167,13 +166,10 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
       env,
     );
 
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      "/tenants/tenant_123/admin/access/authentication",
-    );
+    expect(response.status).toBe(404);
   });
 
-  it("redirects legacy editProvider query params to the authentication page", async () => {
+  it("ignores removed editProvider compatibility query params on governance", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -186,11 +182,10 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
       },
       env,
     );
+    const body = await response.text();
 
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      "/tenants/tenant_123/admin/access/authentication?editProvider=auth_prov_123",
-    );
+    expect(response.status).toBe(200);
+    expect(body).toContain("Governance Delegation");
   });
 });
 
@@ -502,19 +497,8 @@ describe("GET /tenants/:tenantId/admin/access/governance/delegations/new", () =>
 });
 
 describe("POST /tenants/:tenantId/admin/access/governance/enterprise-auth/policy", () => {
-  it("accepts legacy enterprise auth policy posts and redirects to authentication", async () => {
+  it("does not keep the legacy enterprise auth policy post route alive", async () => {
     const env = createEnv();
-    mockedFindTenantById.mockResolvedValue({
-      id: "tenant_123",
-      slug: "tenant-123",
-      displayName: "Tenant 123",
-      planTier: "enterprise",
-      issuerDomain: "tenant-123.credtrail.test",
-      didWeb: "did:web:credtrail.test:tenant_123",
-      isActive: true,
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:00:00.000Z",
-    });
 
     const response = await app.request(
       "/tenants/tenant_123/admin/access/governance/enterprise-auth/policy",
@@ -533,10 +517,7 @@ describe("POST /tenants/:tenantId/admin/access/governance/enterprise-auth/policy
       env,
     );
 
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(
-      "/tenants/tenant_123/admin/access/authentication",
-    );
+    expect(response.status).toBe(404);
   });
 });
 
