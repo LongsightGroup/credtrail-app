@@ -2540,7 +2540,7 @@ describe("LTI 1.3 core launch flow", () => {
       body.match(/\/showcase\/tenant_123\/criteria\?badgeTemplateId=badge_template_001/g) ?? [],
     ).toHaveLength(1);
     expect(body).toContain("Issued Feb 11, 2026, 2:00 PM UTC");
-    expect(body).toContain("Claim and share badge");
+    expect(body).toContain("Claim badge and open sharing options");
     expect(body).toContain(
       "/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_existing/claim",
     );
@@ -2619,7 +2619,7 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain('src="https://example.edu/image.png"');
     expect(body).toContain("/showcase/tenant_123/criteria?badgeTemplateId=badge_template_001");
     expect(body).toContain("Issued Feb 11, 2026, 2:00 PM UTC");
-    expect(body).toContain("Claim and share badge");
+    expect(body).toContain("Claim badge and open sharing options");
     expect(body).toContain(
       "/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_existing/claim",
     );
@@ -2643,7 +2643,7 @@ describe("LTI 1.3 core launch flow", () => {
 
     expect(claimResponse.status).toBe(303);
     expect(claimResponse.headers.get("location")).toContain(
-      "/badges/public_badge_001#share-this-credential",
+      "/badges/public_badge_001?claimStatus=recorded#share-this-credential",
     );
     expect(claimResponse.headers.get("set-cookie")).toContain("better-auth.session_token=");
     expect(mockedRecordAssertionEngagementEvent).toHaveBeenCalledWith(

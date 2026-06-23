@@ -5,19 +5,44 @@ import {
   PublicBadgeTextLink,
 } from "./public-badge-ui";
 
+export type PublicBadgeClaimStatusNotice = "recorded" | "already_recorded";
+
+const claimStatusLabel = (notice: PublicBadgeClaimStatusNotice): string => {
+  return notice === "recorded" ? "Claim recorded" : "Claim already recorded";
+};
+
+const claimStatusCopy = (notice: PublicBadgeClaimStatusNotice): string => {
+  return notice === "recorded"
+    ? "Credential claim recorded in CredTrail. You can share this public verification page now."
+    : "Credential claim was already recorded in CredTrail. You can keep sharing this public verification page.";
+};
+
 export const PublicBadgeShareSection = (input: {
   linkedInProfileSharePath: string;
   linkedInFeedSharePath: string;
   walletQrCodePath: string;
   walletDeepLinkUrl: string;
   ob3JsonPath: string;
+  claimStatusNotice: PublicBadgeClaimStatusNotice | null;
 }): HonoElement => {
+  const claimStatusNotice = input.claimStatusNotice;
+
   return (
     <section
       id="share-this-credential"
       class="public-badge__card public-badge__stack-sm public-badge__share"
     >
-      <h2 class="public-badge__section-title">Share this credential</h2>
+      <header class="public-badge__section-heading-row">
+        <h2 class="public-badge__section-title">Share this credential</h2>
+        {claimStatusNotice === null ? null : (
+          <span class="public-badge__metadata-badge" role="status" aria-live="polite">
+            {claimStatusLabel(claimStatusNotice)}
+          </span>
+        )}
+      </header>
+      {claimStatusNotice === null ? null : (
+        <p class="public-badge__achievement-copy">{claimStatusCopy(claimStatusNotice)}</p>
+      )}
       <p class="public-badge__achievement-copy">
         Add it to your LinkedIn profile so recruiters can find it.
       </p>

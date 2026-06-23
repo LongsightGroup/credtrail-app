@@ -144,7 +144,7 @@ describe("ltiLaunchResultPage", () => {
     expect(html).toContain(
       'action="/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_existing/claim"',
     );
-    expect(html).toContain("Claim and share badge");
+    expect(html).toContain("Claim badge and open sharing options");
     expect(html).toContain("Not issued");
     expect(html).toContain("Not issued yet.");
     expect(html).not.toContain("Launch troubleshooting details");
@@ -221,7 +221,7 @@ describe("ltiLaunchResultPage", () => {
     expect(html).toContain("/showcase/tenant_123/criteria?badgeTemplateId=badge_template_002");
     expect(html).toContain("GD");
     expect(html).toContain("Not issued");
-    expect(html).not.toContain("Claim and share badge");
+    expect(html).not.toContain("Claim badge and open sharing options");
     expect(html).not.toContain("Launch troubleshooting details");
   });
 
