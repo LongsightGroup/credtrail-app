@@ -15,6 +15,7 @@ vi.mock("@credtrail/db", async () => {
     findClaimableLearnerBadgeSummary: vi.fn(),
     findLearnerProfileByIdentity: vi.fn(),
     findUserById: vi.fn(),
+    listAssertionEngagementEvents: vi.fn(),
     listAssertionsByBadgeTemplatesAndRecipientEmails: vi.fn(),
     listAssertionLifecycleStatesByAssertionIds: vi.fn(),
     listAssertionsByIdempotencyKeys: vi.fn(),
@@ -50,6 +51,7 @@ import {
   findClaimableLearnerBadgeSummary,
   findLearnerProfileByIdentity,
   findUserById,
+  listAssertionEngagementEvents,
   listAssertionsByBadgeTemplatesAndRecipientEmails,
   listAssertionLifecycleStatesByAssertionIds,
   listAssertionsByIdempotencyKeys,
@@ -94,6 +96,7 @@ const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
 const mockedFindClaimableLearnerBadgeSummary = vi.mocked(findClaimableLearnerBadgeSummary);
 const mockedFindLearnerProfileByIdentity = vi.mocked(findLearnerProfileByIdentity);
 const mockedFindUserById = vi.mocked(findUserById);
+const mockedListAssertionEngagementEvents = vi.mocked(listAssertionEngagementEvents);
 const mockedListAssertionsByBadgeTemplatesAndRecipientEmails = vi.mocked(
   listAssertionsByBadgeTemplatesAndRecipientEmails,
 );
@@ -641,6 +644,8 @@ describe("LTI 1.3 core launch flow", () => {
     mockedListBadgeTemplatesByIds.mockResolvedValue([sampleBadgeTemplate()]);
     mockedListLearnerBadgeSummaries.mockReset();
     mockedListLearnerBadgeSummaries.mockResolvedValue([]);
+    mockedListAssertionEngagementEvents.mockReset();
+    mockedListAssertionEngagementEvents.mockResolvedValue([]);
     mockedListAssertionsByBadgeTemplatesAndRecipientEmails.mockReset();
     mockedListAssertionsByBadgeTemplatesAndRecipientEmails.mockResolvedValue([]);
     mockedListAssertionsByIdempotencyKeys.mockReset();

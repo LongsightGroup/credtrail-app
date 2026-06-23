@@ -1,6 +1,9 @@
 import {
+  listAssertionEngagementEvents,
   listAssertionLifecycleStatesByAssertionIds,
   listLearnerBadgeSummaries,
+  type AssertionEngagementEventRecord,
+  type AssertionLifecycleState,
   type BadgeTemplateRecord,
   type LearnerBadgeSummaryRecord,
   type SqlDatabase,
@@ -20,6 +23,7 @@ import type {
 } from "./resource-link-launch-types";
 import type {
   LtiBadgeSummaryStatus,
+  LtiLearnerBadgeClaimState,
   LtiLearnerBadgeSummaryItem,
   LtiLearnerBadgeSummaryView,
 } from "./view-models";
@@ -41,6 +45,15 @@ const learnerClaimActionPath = (input: { tenantId: string; assertionId: string }
   return `/tenants/${encodeURIComponent(input.tenantId)}/learner/badges/${encodeURIComponent(
     input.assertionId,
   )}/claim`;
+};
+
+const learnerBadgeSharePath = (badge: {
+  assertionId: string;
+  assertionPublicId: string | null;
+}): string => {
+  return `/badges/${encodeURIComponent(
+    badge.assertionPublicId ?? badge.assertionId,
+  )}#share-this-credential`;
 };
 
 const LTI_LEARNER_BADGE_ISSUED_STATUS: LtiBadgeSummaryStatus = {
@@ -71,6 +84,55 @@ const learnerBadgeSummariesByTemplate = (
   return summariesByBadgeTemplateId;
 };
 
+const learnerBadgeClaimStateFromEvents = (
+  events: readonly AssertionEngagementEventRecord[],
+): LtiLearnerBadgeClaimState => {
+  if (events.some((event) => event.eventType === "wallet_accept")) {
+    return "accepted";
+  }
+
+  if (events.some((event) => event.eventType === "learner_claim")) {
+    return "claimed";
+  }
+
+  return "claimable";
+};
+
+const learnerBadgeSummaryIsIssued = (input: {
+  summary: LearnerBadgeSummaryRecord;
+  lifecycleState: AssertionLifecycleState;
+}): boolean => {
+  return input.summary.revokedAt === null && input.lifecycleState === "active";
+};
+
+const learnerBadgeClaimStatesByAssertionId = async (input: {
+  db: SqlDatabase;
+  tenantId: string;
+  summaries: readonly LearnerBadgeSummaryRecord[];
+  lifecycleStatesByAssertionId: ReadonlyMap<string, { state: AssertionLifecycleState }>;
+}): Promise<ReadonlyMap<string, LtiLearnerBadgeClaimState>> => {
+  const issuedSummaries = input.summaries.filter((summary) =>
+    learnerBadgeSummaryIsIssued({
+      summary,
+      lifecycleState:
+        input.lifecycleStatesByAssertionId.get(summary.assertionId)?.state ?? "active",
+    }),
+  );
+  const claimStateEntries = await Promise.all(
+    issuedSummaries.map(async (summary) => {
+      const events = await listAssertionEngagementEvents(input.db, {
+        tenantId: input.tenantId,
+        assertionId: summary.assertionId,
+        limit: 10,
+      });
+
+      return [summary.assertionId, learnerBadgeClaimStateFromEvents(events)] as const;
+    }),
+  );
+
+  return new Map(claimStateEntries);
+};
+
 const learnerBadgeSummaryItems = async (input: {
   db: SqlDatabase;
   tenantId: string;
@@ -96,6 +158,12 @@ const learnerBadgeSummaryItems = async (input: {
   const lifecycleStatesByAssertionId = new Map(
     lifecycleStates.map((lifecycle) => [lifecycle.assertionId, lifecycle]),
   );
+  const claimStatesByAssertionId = await learnerBadgeClaimStatesByAssertionId({
+    db: input.db,
+    tenantId: input.tenantId,
+    summaries: matchedSummaries,
+    lifecycleStatesByAssertionId,
+  });
 
   return input.badgeTemplates.map((badgeTemplate) => {
     const summary = summariesByTemplate.get(badgeTemplate.id) ?? null;
@@ -103,7 +171,16 @@ const learnerBadgeSummaryItems = async (input: {
       summary === null
         ? null
         : (lifecycleStatesByAssertionId.get(summary.assertionId)?.state ?? "active");
-    const isIssued = summary !== null && summary.revokedAt === null && lifecycleState === "active";
+    const isIssued =
+      summary !== null &&
+      learnerBadgeSummaryIsIssued({
+        summary,
+        lifecycleState: lifecycleState ?? "active",
+      });
+    const claimState =
+      isIssued && summary !== null
+        ? (claimStatesByAssertionId.get(summary.assertionId) ?? "claimable")
+        : null;
 
     return {
       badge: ltiBadgeSummaryCardFromTemplate({
@@ -112,13 +189,15 @@ const learnerBadgeSummaryItems = async (input: {
       }),
       status: isIssued ? LTI_LEARNER_BADGE_ISSUED_STATUS : LTI_LEARNER_BADGE_NOT_ISSUED_STATUS,
       issuedAt: isIssued ? summary.issuedAt : null,
+      claimState,
       claimActionPath:
-        isIssued && summary !== null
+        claimState === "claimable" && summary !== null
           ? learnerClaimActionPath({
               tenantId: input.tenantId,
               assertionId: summary.assertionId,
             })
           : null,
+      sharePath: isIssued && summary !== null ? learnerBadgeSharePath(summary) : null,
     };
   });
 };

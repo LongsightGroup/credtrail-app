@@ -73,6 +73,18 @@ export const LearnerBadgeSummarySection = (input: {
                           </button>
                         </form>
                       )}
+                      {item.claimActionPath !== null || item.sharePath === null ? null : (
+                        <div class="lti-launch__claimed-actions">
+                          {item.claimState === "accepted" ? (
+                            <span class="lti-launch__claim-state">Accepted in wallet</span>
+                          ) : item.claimState === "claimed" ? (
+                            <span class="lti-launch__claim-state">Claim recorded in CredTrail</span>
+                          ) : null}
+                          <a class="lti-launch__share-link" href={item.sharePath}>
+                            Open sharing options
+                          </a>
+                        </div>
+                      )}
                     </div>
                   }
                 />

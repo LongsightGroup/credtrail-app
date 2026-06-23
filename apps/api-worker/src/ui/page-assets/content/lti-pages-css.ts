@@ -378,6 +378,18 @@ export const LTI_PAGES_CSS = `
   margin: 0;
 }
 
+.lti-launch__claimed-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.lti-launch__claim-state {
+  color: var(--ct-theme-text-muted);
+  font-weight: 800;
+}
+
 .lti-launch__claim-button {
   min-height: 2.3rem;
   border: 1px solid var(--ct-theme-border-danger);
@@ -395,6 +407,11 @@ export const LTI_PAGES_CSS = `
   border-color: var(--ct-theme-state-danger);
   outline: 2px solid var(--ct-theme-border-danger);
   outline-offset: 2px;
+}
+
+.lti-launch__share-link {
+  color: var(--ct-theme-link);
+  font-weight: 800;
 }
 
 .lti-launch__badge-placeholder {

@@ -95,7 +95,9 @@ const sampleLearnerBadgeSummaryView = (
           modifier: "issued",
         },
         issuedAt: "2026-02-11T14:00:00.000Z",
+        claimState: "claimable",
         claimActionPath: "/tenants/tenant_123/learner/badges/tenant_123%3Aassertion_existing/claim",
+        sharePath: "/badges/public_badge_001#share-this-credential",
       },
       {
         badge: sampleSelectedBadge({
@@ -110,7 +112,9 @@ const sampleLearnerBadgeSummaryView = (
           modifier: "not_issued",
         },
         issuedAt: null,
+        claimState: null,
         claimActionPath: null,
+        sharePath: null,
       },
     ],
     ...overrides,
@@ -149,6 +153,40 @@ describe("ltiLaunchResultPage", () => {
     expect(html).toContain("Not issued yet.");
     expect(html).not.toContain("Launch troubleshooting details");
     expect(html).not.toContain("Claim from dashboard");
+  });
+
+  it("renders an already-claimed learner badge as a share link instead of a claim action", () => {
+    const html = renderAppPageToString(
+      ltiLaunchResultPage(
+        sampleLaunchResultInput({
+          roleKind: "learner",
+          membershipRole: "viewer",
+          launchDisplayName: "Jennifer Truman",
+          instructorViews: null,
+          learnerView: sampleLearnerBadgeSummaryView({
+            badges: [
+              {
+                badge: sampleSelectedBadge(),
+                status: {
+                  label: "Issued",
+                  modifier: "issued",
+                },
+                issuedAt: "2026-02-11T14:00:00.000Z",
+                claimState: "claimed",
+                claimActionPath: null,
+                sharePath: "/badges/public_badge_001#share-this-credential",
+              },
+            ],
+          }),
+        }),
+      ),
+    );
+
+    expect(html).toContain("Claim recorded in CredTrail");
+    expect(html).toContain('href="/badges/public_badge_001#share-this-credential"');
+    expect(html).toContain("Open sharing options");
+    expect(html).not.toContain("Claim badge and open sharing options");
+    expect(html).not.toContain('method="post"');
   });
 
   it("renders degraded learner launch health in the hero without troubleshooting details", () => {
@@ -206,7 +244,9 @@ describe("ltiLaunchResultPage", () => {
                   modifier: "not_issued",
                 },
                 issuedAt: null,
+                claimState: null,
                 claimActionPath: null,
+                sharePath: null,
               },
             ],
           }),

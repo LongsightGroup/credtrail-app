@@ -67,11 +67,15 @@ export interface LtiCourseBadgeSummaryView {
   rows: readonly LtiCourseBadgeSummaryRow[];
 }
 
+export type LtiLearnerBadgeClaimState = "claimable" | "claimed" | "accepted";
+
 export interface LtiLearnerBadgeSummaryItem {
   badge: LtiBadgeSummaryCard;
   status: LtiBadgeSummaryStatus;
   issuedAt: string | null;
+  claimState: LtiLearnerBadgeClaimState | null;
   claimActionPath: string | null;
+  sharePath: string | null;
 }
 
 export interface LtiLearnerBadgeSummaryView {
