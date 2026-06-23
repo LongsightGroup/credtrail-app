@@ -15,26 +15,9 @@ import type {
 } from "./public-badge-renderer-types";
 import type { VerificationViewModel } from "./public-badge-model";
 import { PublicBadgeTrustEdCredentialSection } from "./public-badge-trusted-credential-section";
-import {
-  PublicBadgeShareSection,
-  type PublicBadgeClaimStatusNotice,
-} from "./public-badge-share-section";
+import { PublicBadgeShareSection } from "./public-badge-share-section";
 import { PublicBadgeCopyIconButton } from "./public-badge-ui";
 import { buildPublicBadgeWalletImportUrls } from "./wallet-import-urls";
-
-const publicBadgeClaimStatusNoticeFromRequestUrl = (
-  requestUrl: string,
-): PublicBadgeClaimStatusNotice | null => {
-  const value = new URL(requestUrl).searchParams.get("claimStatus");
-
-  switch (value) {
-    case "recorded":
-    case "already_recorded":
-      return value;
-    default:
-      return null;
-  }
-};
 
 export const createPublicBadgePage = (
   input: CreatePublicBadgePageRenderersInput,
@@ -263,7 +246,6 @@ export const createPublicBadgePage = (
     const linkedInProfileSharePath = `/badges/${encodeURIComponent(
       walletOfferBadgeIdentifier,
     )}/share/linkedin-profile`;
-    const claimStatusNotice = publicBadgeClaimStatusNoticeFromRequestUrl(requestUrl);
     const issuedAt = `${formatIsoTimestamp(model.assertion.issuedAt)} UTC`;
     const issuerLine =
       issuerUrl === null ? (
@@ -434,7 +416,6 @@ export const createPublicBadgePage = (
             walletQrCodePath={walletImportUrls.walletQrCodePath}
             walletDeepLinkUrl={walletDeepLinkUrl}
             ob3JsonPath={ob3JsonPath}
-            claimStatusNotice={claimStatusNotice}
           />
 
           <details class="public-badge__card public-badge__technical">

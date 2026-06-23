@@ -192,19 +192,10 @@ const learnerClaimInvalidDashboardRedirectUrl = (input: {
 const learnerBadgeSharePath = (badge: {
   assertionId: string;
   assertionPublicId: string | null;
-  claimStatus?: "recorded" | "already_recorded" | null;
 }): string => {
-  const shareUrl = new URL(
-    `/badges/${encodeURIComponent(badge.assertionPublicId ?? badge.assertionId)}`,
-    "https://credtrail.local",
-  );
-
-  if (badge.claimStatus !== undefined && badge.claimStatus !== null) {
-    shareUrl.searchParams.set("claimStatus", badge.claimStatus);
-  }
-
-  shareUrl.hash = "share-this-credential";
-  return `${shareUrl.pathname}${shareUrl.search}${shareUrl.hash}`;
+  return `/badges/${encodeURIComponent(
+    badge.assertionPublicId ?? badge.assertionId,
+  )}#share-this-credential`;
 };
 
 const learnerBadgeClaimStateFromEvents = (
@@ -268,25 +259,18 @@ export const registerLearnerRoutes = <DidNotice>(
       );
     }
 
-    const claimResult =
-      c.req.method === "POST"
-        ? await recordAssertionEngagementEvent(db, {
-            tenantId: pathParams.tenantId,
-            assertionId: pathParams.assertionId,
-            eventType: "learner_claim",
-            actorType: "learner",
-            channel: "learner_dashboard",
-            occurredAt: new Date().toISOString(),
-          })
-        : null;
+    if (c.req.method === "POST") {
+      await recordAssertionEngagementEvent(db, {
+        tenantId: pathParams.tenantId,
+        assertionId: pathParams.assertionId,
+        eventType: "learner_claim",
+        actorType: "learner",
+        channel: "learner_dashboard",
+        occurredAt: new Date().toISOString(),
+      });
+    }
 
-    return c.redirect(
-      learnerBadgeSharePath({
-        ...badge,
-        claimStatus: claimResult?.status ?? null,
-      }),
-      303,
-    );
+    return c.redirect(learnerBadgeSharePath(badge), 303);
   };
 
   app.get("/tenants/:tenantId/learner/dashboard", async (c) => {

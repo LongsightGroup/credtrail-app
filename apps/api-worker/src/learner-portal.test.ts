@@ -1017,7 +1017,7 @@ describe("GET and POST /tenants/:tenantId/learner/badges/:assertionId/claim", ()
 
     expect(response.status).toBe(303);
     expect(redirectUrl.pathname).toBe("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22");
-    expect(redirectUrl.searchParams.get("claimStatus")).toBe("recorded");
+    expect(redirectUrl.searchParams.get("claimStatus")).toBeNull();
     expect(redirectUrl.hash).toBe("#share-this-credential");
     expect(mockedRecordAssertionEngagementEvent).toHaveBeenCalledWith(
       fakeDb,
@@ -1056,7 +1056,7 @@ describe("GET and POST /tenants/:tenantId/learner/badges/:assertionId/claim", ()
 
     expect(response.status).toBe(303);
     expect(redirectUrl.pathname).toBe("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22");
-    expect(redirectUrl.searchParams.get("claimStatus")).toBe("already_recorded");
+    expect(redirectUrl.searchParams.get("claimStatus")).toBeNull();
     expect(redirectUrl.hash).toBe("#share-this-credential");
   });
 

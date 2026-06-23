@@ -2643,7 +2643,7 @@ describe("LTI 1.3 core launch flow", () => {
 
     expect(claimResponse.status).toBe(303);
     expect(claimResponse.headers.get("location")).toContain(
-      "/badges/public_badge_001?claimStatus=recorded#share-this-credential",
+      "/badges/public_badge_001#share-this-credential",
     );
     expect(claimResponse.headers.get("set-cookie")).toContain("better-auth.session_token=");
     expect(mockedRecordAssertionEngagementEvent).toHaveBeenCalledWith(

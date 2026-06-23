@@ -520,19 +520,6 @@ describe("GET /badges/:badgeIdentifier", () => {
         occurredAt: expect.stringMatching(/^20/),
       }),
     );
-
-    const claimedResponse = await app.request(
-      "/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22?claimStatus=recorded",
-      undefined,
-      env,
-    );
-    const claimedBody = await claimedResponse.text();
-
-    expect(claimedResponse.status).toBe(200);
-    expect(claimedBody).toContain("Claim recorded");
-    expect(claimedBody).toContain(
-      "Credential claim recorded in CredTrail. You can share this public verification page now.",
-    );
   });
 
   it("returns a self-hosted wallet QR SVG for public badge pages", async () => {
