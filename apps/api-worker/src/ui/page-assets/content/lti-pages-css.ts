@@ -270,6 +270,7 @@ export const LTI_PAGES_CSS = `
 
 .lti-launch__course-summary {
   display: grid;
+  container-type: inline-size;
   gap: var(--ct-space-3);
 }
 
@@ -428,12 +429,17 @@ export const LTI_PAGES_CSS = `
 .lti-launch__summary-field {
   display: grid;
   gap: 0.3rem;
+  min-inline-size: 0;
   color: var(--ct-theme-text-title);
   font-weight: 600;
 }
 
 .lti-launch__summary-field input,
 .lti-launch__summary-field select {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
   min-height: 2.5rem;
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-sm);
@@ -517,9 +523,29 @@ export const LTI_PAGES_CSS = `
   max-width: 22rem;
 }
 
+@container (max-width: 42rem) {
+  .lti-launch__summary-controls {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .lti-launch__summary-field:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .lti-launch__summary-count {
+    justify-self: start;
+  }
+}
+
+@container (max-width: 30rem) {
+  .lti-launch__summary-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 760px) {
   .lti-launch__summary-controls {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .lti-launch__badge-summary {
