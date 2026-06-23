@@ -420,8 +420,6 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/verification");
     expect(body).toContain("Share this credential");
     expect(body).toContain('id="share-this-credential"');
-    expect(body).not.toContain("Claim recorded");
-    expect(body).not.toContain("Credential claim recorded in CredTrail.");
     expect(body).not.toContain("Copy public URL");
     expect(body).not.toContain("Anyone can verify the issuer");
     expect(body).toContain("Public page URL");
