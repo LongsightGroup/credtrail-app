@@ -188,6 +188,7 @@ export const buildInstitutionAdminSidebarSections = (
         {
           label: "Badge Program",
           icon: "badgeProgram",
+          defaultOpen: view === "rulesBuilder",
           links: [
             {
               href: paths.rulesTemplatesPath,
@@ -195,11 +196,6 @@ export const buildInstitutionAdminSidebarSections = (
               isCurrent: view === "rulesTemplates",
             },
             { href: paths.rulesWorkspacePath, label: "Rules", isCurrent: view === "rules" },
-            {
-              href: paths.ruleBuilderPath,
-              label: "New Rule",
-              isCurrent: view === "rulesBuilder",
-            },
           ],
         },
       ],

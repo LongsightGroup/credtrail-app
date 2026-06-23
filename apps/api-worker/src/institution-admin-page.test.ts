@@ -70,7 +70,7 @@ describe("GET /tenants/:tenantId/admin", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("No badge rules found.");
-    expect(body).toContain("/tenants/tenant_123/admin/rules/new");
+    expect(body).toContain('href="/tenants/tenant_123/admin/rules"');
     expect(body).toContain("Create your first rule.");
   });
 
@@ -131,7 +131,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/rules/new"');
+    expect(body).not.toContain('class="ct-admin-sidebar__link-label">New Rule</span>');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/members"');
     expect(body).toContain('href="/showcase/tenant_123"');
     expect(body).toContain('data-context-json="{}"');

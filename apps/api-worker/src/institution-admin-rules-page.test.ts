@@ -1853,7 +1853,11 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
     expect(body).toContain('class="ct-admin-sidebar__link-label">Templates</span>');
     expect(body).toContain('class="ct-admin-sidebar__menu-chevron"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/rules/new" aria-current="page"');
+    expect(body).toMatch(
+      /<details class="ct-admin-sidebar__group-details"[^>]*open[\s\S]*?Badge Program[\s\S]*?Templates[\s\S]*?Rules/,
+    );
+    expect(body).not.toContain('class="ct-admin-sidebar__link-label">New Rule</span>');
+    expect(body).not.toContain('href="/tenants/tenant_123/admin/rules/new" aria-current="page"');
     expect(body).toContain("&quot;rulesListPath&quot;:&quot;/tenants/tenant_123/admin/rules&quot;");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("window.location.assign(rulesListPath)");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain(

@@ -41,15 +41,16 @@ describe("AdminSidebar", () => {
     expect(detailsCount).toBe(5);
   });
 
-  it("combines badge templates and rule authoring in one badge program group", () => {
+  it("keeps badge template and rule list navigation in one badge program group", () => {
     const html = renderSidebarHtml("rulesBuilder");
 
     expect(html).toMatch(
-      /<details class="ct-admin-sidebar__group-details"[^>]*open[\s\S]*?Badge Program[\s\S]*?Templates[\s\S]*?Rules[\s\S]*?New Rule/,
+      /<details class="ct-admin-sidebar__group-details"[^>]*open[\s\S]*?Badge Program[\s\S]*?Templates[\s\S]*?Rules/,
     );
     expect(html).toContain('href="/tenants/tenant_123/admin/rules/templates"');
     expect(html).toContain('href="/tenants/tenant_123/admin/rules"');
-    expect(html).toContain('href="/tenants/tenant_123/admin/rules/new"');
+    expect(html).not.toContain('href="/tenants/tenant_123/admin/rules/new"');
+    expect(html).not.toContain(">New Rule<");
   });
 
   it("keeps org units inside people and access instead of a standalone group", () => {
@@ -83,7 +84,8 @@ describe("AdminSidebar", () => {
       /<details class="ct-admin-sidebar__group-details"[^>]*open[\s\S]*?Reporting[\s\S]*?Explore/,
     );
     expect(rulesHtml).toMatch(
-      /<details class="ct-admin-sidebar__group-details"[^>]*open[\s\S]*?Badge Program[\s\S]*?New Rule/,
+      /<details class="ct-admin-sidebar__group-details"[^>]*open[\s\S]*?Badge Program[\s\S]*?Rules/,
     );
+    expect(rulesHtml).not.toContain(">New Rule<");
   });
 });
