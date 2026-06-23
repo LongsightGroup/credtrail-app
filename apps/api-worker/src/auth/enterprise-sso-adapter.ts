@@ -3,7 +3,6 @@ import {
   ensureTenantMembership,
   findTenantAuthProviderById,
   findTenantById,
-  isHostedEnterpriseAuthProviderSupported,
   listTenantAuthProviders,
   resolveTenantAuthPolicy,
   type SqlDatabase,
@@ -300,10 +299,6 @@ const toGenericOAuthConfig = (provider: TenantAuthProviderRecord): GenericOAuthC
 };
 
 const isRuntimeCapableEnterpriseProvider = (provider: TenantAuthProviderRecord): boolean => {
-  if (!isHostedEnterpriseAuthProviderSupported(provider)) {
-    return false;
-  }
-
   return toGenericOAuthConfig(provider) !== null;
 };
 
@@ -541,27 +536,6 @@ export const createEnterpriseSsoAdapter = <
       );
     }
 
-    if (!isHostedEnterpriseAuthProviderSupported(provider)) {
-      await createAuditLog(db, {
-        tenantId: request.tenantId,
-        action: "auth.sso_start_failed",
-        targetType: "tenant_auth_provider",
-        targetId: provider.id,
-        metadata: {
-          reason: "protocol_not_supported_in_runtime",
-          protocol: provider.protocol,
-        },
-      });
-
-      return redirectResponse(
-        buildTenantLoginPath({
-          tenantId: request.tenantId,
-          nextPath: normalizedNextPath,
-          reason: "sso_unavailable",
-        }),
-      );
-    }
-
     const oauthConfig = toGenericOAuthConfig(provider);
 
     if (oauthConfig === null) {
@@ -699,10 +673,7 @@ export const createEnterpriseSsoAdapter = <
       requestedTenant.tenantId,
       request.providerId,
     );
-    const oauthConfig =
-      provider !== null && isHostedEnterpriseAuthProviderSupported(provider)
-        ? toGenericOAuthConfig(provider)
-        : null;
+    const oauthConfig = provider !== null ? toGenericOAuthConfig(provider) : null;
 
     if (provider === null || oauthConfig === null) {
       return redirectResponse(

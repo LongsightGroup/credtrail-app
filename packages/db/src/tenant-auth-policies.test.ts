@@ -20,7 +20,6 @@ import {
   upsertTenantAuthPolicy,
   upsertTenantBreakGlassAccount,
   upsertTenantMembershipRole,
-  upsertTenantSsoSamlConfiguration,
   upsertUserByEmail,
   type SqlDatabase,
 } from "./index";
@@ -154,92 +153,6 @@ describeDbIntegration("tenant auth policy and provider helpers", () => {
         backupProviderId,
       );
       expect(backupProvider?.enabled).toBe(false);
-    } finally {
-      await cleanupTestResources(fixture.db, {
-        tenantIds: [fixture.tenantId],
-      });
-    }
-  });
-
-  it("rejects new hosted SAML provider writes while preserving legacy compatibility reads", async () => {
-    const fixture = await createTestTenantFixture();
-    const providerId = uniqueTestId("tap_oidc");
-
-    try {
-      await expect(
-        createTenantAuthProvider(fixture.db, {
-          id: uniqueTestId("tap_saml"),
-          tenantId: fixture.tenantId,
-          protocol: "saml",
-          label: "Campus SAML",
-          enabled: true,
-          isDefault: true,
-          configJson: '{"ssoLoginUrl":"https://idp.example.edu/sso"}',
-        }),
-      ).rejects.toThrow("Hosted enterprise sign-in currently supports OIDC providers only.");
-
-      await createTenantAuthProvider(fixture.db, {
-        id: providerId,
-        tenantId: fixture.tenantId,
-        protocol: "oidc",
-        label: "Campus OIDC",
-        enabled: true,
-        isDefault: true,
-        configJson: '{"issuer":"https://idp.example.edu"}',
-      });
-
-      await expect(
-        updateTenantAuthProvider(fixture.db, {
-          tenantId: fixture.tenantId,
-          providerId,
-          protocol: "saml",
-          label: "Campus SAML",
-          enabled: true,
-          isDefault: true,
-          configJson: '{"ssoLoginUrl":"https://idp.example.edu/sso"}',
-        }),
-      ).rejects.toThrow("Hosted enterprise sign-in currently supports OIDC providers only.");
-    } finally {
-      await cleanupTestResources(fixture.db, {
-        tenantIds: [fixture.tenantId],
-      });
-    }
-  });
-
-  it("bridges legacy SAML configuration into the provider and policy model", async () => {
-    const fixture = await createTestTenantFixture();
-
-    try {
-      await upsertTenantSsoSamlConfiguration(fixture.db, {
-        tenantId: fixture.tenantId,
-        idpEntityId: "https://idp.example.edu/entity",
-        ssoLoginUrl: "https://idp.example.edu/sso/login",
-        idpCertificatePem: "-----BEGIN CERTIFICATE-----\\nabc\\n-----END CERTIFICATE-----",
-        idpMetadataUrl: "https://idp.example.edu/metadata",
-        spEntityId: "https://credtrail.example.edu/saml/sp",
-        assertionConsumerServiceUrl: "https://credtrail.example.edu/saml/acs",
-        nameIdFormat: "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
-        enforced: true,
-      });
-
-      const policy = await findTenantAuthPolicy(fixture.db, fixture.tenantId);
-      const providers = await listTenantAuthProviders(fixture.db, fixture.tenantId);
-
-      expect(policy?.loginMode).toBe("sso_required");
-      expect(policy?.defaultProviderId).toBe(`${fixture.tenantId}:provider:saml-default`);
-      expect(providers).toEqual([
-        expect.objectContaining({
-          id: `${fixture.tenantId}:provider:saml-default`,
-          protocol: "saml",
-          isDefault: true,
-          enabled: true,
-          label: "Legacy SAML (compatibility only)",
-        }),
-      ]);
-
-      const configJson = providers[0]?.configJson ?? "{}";
-      expect(configJson).toContain("idpEntityId");
-      expect(configJson).toContain("idpCertificatePem");
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],

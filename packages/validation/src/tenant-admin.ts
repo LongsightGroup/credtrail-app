@@ -145,17 +145,6 @@ export const createTenantBreakGlassAccountRequestSchema = z.object({
   sendEnrollmentEmail: z.boolean().optional(),
 });
 
-export const upsertTenantSsoSamlConfigurationRequestSchema = z.object({
-  idpEntityId: z.string().trim().min(1).max(512),
-  ssoLoginUrl: z.string().url().max(2048),
-  idpCertificatePem: z.string().trim().min(1).max(32000),
-  idpMetadataUrl: z.string().url().max(2048).optional(),
-  spEntityId: z.string().trim().min(1).max(512),
-  assertionConsumerServiceUrl: z.string().url().max(2048),
-  nameIdFormat: z.string().trim().min(1).max(255).optional(),
-  enforced: z.boolean().optional(),
-});
-
 export const upsertTenantCanvasGradebookIntegrationRequestSchema = z.object({
   apiBaseUrl: z.string().url().max(2048),
   authorizationEndpoint: z.string().url().max(2048),
@@ -254,10 +243,6 @@ export type CreateTenantBreakGlassAccountRequest = z.infer<
   typeof createTenantBreakGlassAccountRequestSchema
 >;
 
-export type UpsertTenantSsoSamlConfigurationRequest = z.infer<
-  typeof upsertTenantSsoSamlConfigurationRequestSchema
->;
-
 export type UpsertTenantCanvasGradebookIntegrationRequest = z.infer<
   typeof upsertTenantCanvasGradebookIntegrationRequestSchema
 >;
@@ -354,12 +339,6 @@ export const parseCreateTenantBreakGlassAccountRequest = (
   input: unknown,
 ): CreateTenantBreakGlassAccountRequest => {
   return createTenantBreakGlassAccountRequestSchema.parse(input);
-};
-
-export const parseUpsertTenantSsoSamlConfigurationRequest = (
-  input: unknown,
-): UpsertTenantSsoSamlConfigurationRequest => {
-  return upsertTenantSsoSamlConfigurationRequestSchema.parse(input);
 };
 
 export const parseUpsertTenantCanvasGradebookIntegrationRequest = (

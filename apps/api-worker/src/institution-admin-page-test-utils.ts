@@ -928,18 +928,6 @@ beforeEach(() => {
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     },
-    {
-      id: "tap_saml",
-      tenantId: "tenant_123",
-      protocol: "saml",
-      label: "Legacy SAML",
-      enabled: true,
-      isDefault: false,
-      configJson:
-        '{"ssoLoginUrl":"https://idp.example.edu/sso","idpEntityId":"https://idp.example.edu/entity"}',
-      createdAt: "2026-02-18T12:05:00.000Z",
-      updatedAt: "2026-02-18T12:05:00.000Z",
-    },
   ]);
   mockedListTenantBreakGlassAccounts.mockReset();
   mockedListTenantBreakGlassAccounts.mockResolvedValue([

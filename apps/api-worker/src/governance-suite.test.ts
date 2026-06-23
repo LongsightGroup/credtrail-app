@@ -177,7 +177,6 @@ vi.mock("@credtrail/db", async () => {
     createDelegatedIssuingAuthorityGrant: vi.fn(),
     createTenantApiKey: vi.fn(),
     createTenantOrgUnit: vi.fn(),
-    deleteTenantSsoSamlConfiguration: vi.fn(),
     enqueueJobQueueMessageOnce: vi.fn(),
     findActiveDelegatedIssuingAuthorityGrantForAction: vi.fn(),
     findActiveLearnerRecordImportPreview: vi.fn(),
@@ -190,7 +189,6 @@ vi.mock("@credtrail/db", async () => {
     findTenantAuthPolicy: vi.fn(),
     findTenantMembership: vi.fn(),
     findTenantById: vi.fn(),
-    findTenantSsoSamlConfiguration: vi.fn(),
     findUserById: vi.fn(),
     findUsersByIds: vi.fn(),
     getTenantReportingEngagementCounts: vi.fn(),
@@ -228,7 +226,6 @@ vi.mock("@credtrail/db", async () => {
     touchSession: mockedTouchSession,
     transferBadgeTemplateOwnership: vi.fn(),
     updateBadgeTemplate: vi.fn(),
-    upsertTenantSsoSamlConfiguration: vi.fn(),
     upsertTenantMembershipRole: vi.fn(),
     upsertTenantMembershipOrgUnitScope: vi.fn(),
     upsertUserByEmail: vi.fn(),
@@ -266,7 +263,6 @@ import {
   createDelegatedIssuingAuthorityGrant,
   createTenantApiKey,
   createTenantOrgUnit,
-  deleteTenantSsoSamlConfiguration,
   enqueueJobQueueMessageOnce,
   findActiveDelegatedIssuingAuthorityGrantForAction,
   findActiveLearnerRecordImportPreview,
@@ -278,7 +274,6 @@ import {
   findTenantAuthPolicy,
   findTenantMembership,
   findTenantById,
-  findTenantSsoSamlConfiguration,
   findUserById,
   findUsersByIds,
   getTenantReportingEngagementCounts,
@@ -314,7 +309,6 @@ import {
   revokeDelegatedIssuingAuthorityGrant,
   transferBadgeTemplateOwnership,
   updateBadgeTemplate,
-  upsertTenantSsoSamlConfiguration,
   upsertTenantMembershipRole,
   upsertTenantMembershipOrgUnitScope,
   upsertUserByEmail,
@@ -330,7 +324,6 @@ import {
   type TenantMembershipRecord,
   type TenantMemberRecord,
   type TenantOrgUnitRecord,
-  type TenantSsoSamlConfigurationRecord,
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
@@ -350,7 +343,6 @@ const mockedCreateLearnerRecordImportPreview = vi.mocked(createLearnerRecordImpo
 const mockedCreateDelegatedIssuingAuthorityGrant = vi.mocked(createDelegatedIssuingAuthorityGrant);
 const mockedCreateTenantApiKey = vi.mocked(createTenantApiKey);
 const mockedCreateTenantOrgUnit = vi.mocked(createTenantOrgUnit);
-const mockedDeleteTenantSsoSamlConfiguration = vi.mocked(deleteTenantSsoSamlConfiguration);
 const mockedFindActiveDelegatedIssuingAuthorityGrantForAction = vi.mocked(
   findActiveDelegatedIssuingAuthorityGrantForAction,
 );
@@ -367,7 +359,6 @@ const mockedFindLearnerProfileByIdentity = vi.mocked(findLearnerProfileByIdentit
 const mockedFindTenantAuthPolicy = vi.mocked(findTenantAuthPolicy);
 const mockedFindTenantMembership = vi.mocked(findTenantMembership);
 const mockedFindTenantById = vi.mocked(findTenantById);
-const mockedFindTenantSsoSamlConfiguration = vi.mocked(findTenantSsoSamlConfiguration);
 const mockedFindUserById = vi.mocked(findUserById);
 const mockedFindUsersByIds = vi.mocked(findUsersByIds);
 const mockedGetTenantReportingEngagementCounts = vi.mocked(getTenantReportingEngagementCounts);
@@ -410,7 +401,6 @@ const mockedRevokeTenantApiKey = vi.mocked(revokeTenantApiKey);
 const mockedRevokeTenantBreakGlassAccount = vi.mocked(revokeTenantBreakGlassAccount);
 const mockedRevokeDelegatedIssuingAuthorityGrant = vi.mocked(revokeDelegatedIssuingAuthorityGrant);
 const mockedTransferBadgeTemplateOwnership = vi.mocked(transferBadgeTemplateOwnership);
-const mockedUpsertTenantSsoSamlConfiguration = vi.mocked(upsertTenantSsoSamlConfiguration);
 const mockedUpsertTenantMembershipRole = vi.mocked(upsertTenantMembershipRole);
 const mockedUpsertTenantMembershipOrgUnitScope = vi.mocked(upsertTenantMembershipOrgUnitScope);
 const mockedUpsertUserByEmail = vi.mocked(upsertUserByEmail);
@@ -519,8 +509,6 @@ beforeEach(() => {
   mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership());
   mockedFindTenantById.mockReset();
   mockedFindTenantById.mockResolvedValue(sampleTenant());
-  mockedFindTenantSsoSamlConfiguration.mockReset();
-  mockedFindTenantSsoSamlConfiguration.mockResolvedValue(null);
   mockedFindUserById.mockReset();
   mockedFindUserById.mockResolvedValue({
     id: "usr_123",
@@ -791,11 +779,7 @@ beforeEach(() => {
   mockedCreateTenantOrgUnit.mockReset();
   mockedCreateTenantApiKey.mockReset();
   mockedCreateTenantApiKey.mockResolvedValue(sampleTenantApiKey());
-  mockedDeleteTenantSsoSamlConfiguration.mockReset();
-  mockedDeleteTenantSsoSamlConfiguration.mockResolvedValue(false);
   mockedTransferBadgeTemplateOwnership.mockReset();
-  mockedUpsertTenantSsoSamlConfiguration.mockReset();
-  mockedUpsertTenantSsoSamlConfiguration.mockResolvedValue(sampleTenantSsoSamlConfiguration());
   mockedUpsertTenantMembershipOrgUnitScope.mockReset();
   mockedRemoveTenantMembershipOrgUnitScope.mockReset();
   mockedRemoveTenantMembershipOrgUnitScope.mockResolvedValue(false);
@@ -883,25 +867,6 @@ const sampleTenantApiKey = (overrides?: Partial<TenantApiKeyRecord>): TenantApiK
     expiresAt: null,
     lastUsedAt: null,
     revokedAt: null,
-    createdAt: "2026-02-10T22:00:00.000Z",
-    updatedAt: "2026-02-10T22:00:00.000Z",
-    ...overrides,
-  };
-};
-
-const sampleTenantSsoSamlConfiguration = (
-  overrides?: Partial<TenantSsoSamlConfigurationRecord>,
-): TenantSsoSamlConfigurationRecord => {
-  return {
-    tenantId: "tenant_123",
-    idpEntityId: "https://idp.example.edu/entity",
-    ssoLoginUrl: "https://idp.example.edu/sso/login",
-    idpCertificatePem: "-----BEGIN CERTIFICATE-----\\nabc\\n-----END CERTIFICATE-----",
-    idpMetadataUrl: "https://idp.example.edu/metadata",
-    spEntityId: "https://credtrail.test/saml/sp",
-    assertionConsumerServiceUrl: "https://credtrail.test/saml/acs",
-    nameIdFormat: "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
-    enforced: true,
     createdAt: "2026-02-10T22:00:00.000Z",
     updatedAt: "2026-02-10T22:00:00.000Z",
     ...overrides,
@@ -2640,68 +2605,6 @@ describe("org unit and badge ownership governance endpoints", () => {
         targetType: "org_unit",
       }),
     );
-  });
-
-  it("upserts enterprise tenant SAML SSO configuration and writes audit log", async () => {
-    const env = createEnv();
-
-    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: "admin" }));
-    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
-    mockedTouchSession.mockResolvedValue(undefined);
-    mockedFindTenantById.mockResolvedValue(sampleTenant({ planTier: "enterprise" }));
-    mockedUpsertTenantSsoSamlConfiguration.mockResolvedValue(sampleTenantSsoSamlConfiguration());
-
-    const response = await app.request(
-      "/v1/tenants/tenant_123/sso/saml",
-      {
-        method: "PUT",
-        headers: {
-          Origin: "http://localhost",
-          "Content-Type": "application/json",
-          Cookie: "better-auth.session_token=session-token",
-        },
-        body: JSON.stringify({
-          idpEntityId: "https://idp.example.edu/entity",
-          ssoLoginUrl: "https://idp.example.edu/sso/login",
-          idpCertificatePem: "-----BEGIN CERTIFICATE-----\\nabc\\n-----END CERTIFICATE-----",
-          idpMetadataUrl: "https://idp.example.edu/metadata",
-          spEntityId: "https://credtrail.test/saml/sp",
-          assertionConsumerServiceUrl: "https://credtrail.test/saml/acs",
-          nameIdFormat: "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
-          enforced: true,
-        }),
-      },
-      env,
-    );
-    const body = await response.json<Record<string, unknown>>();
-
-    expect(response.status).toBe(410);
-    expect(body.error).toContain("deprecated");
-    expect(mockedUpsertTenantSsoSamlConfiguration).not.toHaveBeenCalled();
-  });
-
-  it("returns 403 for SAML SSO configuration on non-enterprise plans", async () => {
-    const env = createEnv();
-
-    mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: "admin" }));
-    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
-    mockedTouchSession.mockResolvedValue(undefined);
-    mockedFindTenantById.mockResolvedValue(sampleTenant({ planTier: "team" }));
-
-    const response = await app.request(
-      "/v1/tenants/tenant_123/sso/saml",
-      {
-        method: "GET",
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const body = await response.json<ErrorResponse>();
-
-    expect(response.status).toBe(403);
-    expect(body.error).toContain("enterprise");
   });
 
   it("creates tenant API keys for admin roles and writes audit log", async () => {

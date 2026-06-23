@@ -3,7 +3,7 @@
 This document covers the enterprise and programmatic controls added for `badging-wc8`:
 
 - API key management for programmatic queue ingress
-- Enterprise SAML SSO configuration storage
+- Enterprise OIDC auth policy and provider management
 - Dedicated database provisioning request workflow
 
 ## 1) Tenant API Keys (Programmatic Access)
@@ -34,23 +34,24 @@ Key behavior:
 - Last-used timestamp is updated on successful authenticated requests.
 - Revoked/expired keys are rejected.
 
-## 2) Enterprise SAML SSO Configuration
+## 2) Enterprise OIDC Auth
 
-Tenant admins can read, write, and delete SAML IdP config for enterprise tenants.
+Enterprise tenants configure hosted OIDC providers and auth policy through admin UI and API routes.
 
 Endpoints:
 
-- `GET /v1/tenants/:tenantId/sso/saml`
-- `PUT /v1/tenants/:tenantId/sso/saml`
-- `DELETE /v1/tenants/:tenantId/sso/saml`
+- `GET /v1/tenants/:tenantId/auth-policy`
+- `PUT /v1/tenants/:tenantId/auth-policy`
+- `GET /v1/tenants/:tenantId/auth-providers`
+- `POST /v1/tenants/:tenantId/auth-providers`
+- `PUT /v1/tenants/:tenantId/auth-providers/:providerId`
+- `DELETE /v1/tenants/:tenantId/auth-providers/:providerId`
 
 Guardrails:
 
 - Access requires tenant `owner` or `admin` role.
 - Tenant plan must be `enterprise`.
-
-Stored fields include IdP entity ID, login URL, certificate PEM, optional metadata URL,
-SP entity ID, ACS URL, NameID format, and enforcement flag.
+- Hosted enterprise sign-in supports OIDC providers only.
 
 ## 3) Dedicated DB Provisioning Workflow
 

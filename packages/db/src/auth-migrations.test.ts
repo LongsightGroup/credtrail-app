@@ -19,7 +19,7 @@ describe("better auth core migration", () => {
     expect(sql).not.toContain("CREATE TABLE IF NOT EXISTS sessions");
   });
 
-  it("adds tenant auth policy and provider migrations with legacy SAML backfill", () => {
+  it("adds tenant auth policy and provider migrations", () => {
     const policySql = readFileSync(
       new URL("../migrations/0026_tenant_auth_policies.sql", import.meta.url),
       "utf8",
@@ -28,19 +28,22 @@ describe("better auth core migration", () => {
       new URL("../migrations/0027_tenant_auth_providers.sql", import.meta.url),
       "utf8",
     );
-    const backfillSql = readFileSync(
-      new URL("../migrations/0028_backfill_legacy_saml_auth_providers.sql", import.meta.url),
-      "utf8",
-    );
 
     expect(policySql).toContain("CREATE TABLE IF NOT EXISTS tenant_auth_policies");
     expect(policySql).toContain("CHECK (login_mode IN ('local', 'hybrid', 'sso_required'))");
     expect(providerSql).toContain("CREATE TABLE IF NOT EXISTS tenant_auth_providers");
-    expect(providerSql).toContain("CHECK (protocol IN ('oidc', 'saml'))");
     expect(providerSql).toContain("idx_tenant_auth_providers_default_per_tenant");
-    expect(backfillSql).toContain("INSERT INTO tenant_auth_providers");
-    expect(backfillSql).toContain("tenant_sso_saml_configurations");
-    expect(backfillSql).toContain("tenant_auth_policies");
+  });
+
+  it("drops tenant SAML SSO configuration and restricts auth providers to OIDC", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0048_drop_tenant_sso_saml_configurations.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("DELETE FROM tenant_auth_providers");
+    expect(sql).toContain("DROP TABLE IF EXISTS tenant_sso_saml_configurations");
+    expect(sql).toContain("CHECK (protocol IN ('oidc'))");
   });
 
   it("adds Better Auth enterprise SSO indexes without changing CredTrail-owned tables", () => {

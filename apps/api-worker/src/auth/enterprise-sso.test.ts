@@ -188,40 +188,6 @@ describe("enterprise SSO adapter", () => {
     ]);
   });
 
-  it("fails closed when a sso_required tenant only has a compatibility-only SAML default", async () => {
-    mockedResolveTenantAuthPolicy.mockResolvedValue(
-      samplePolicy({
-        defaultProviderId: "tap_saml",
-      }),
-    );
-    mockedListTenantAuthProviders.mockResolvedValue([
-      sampleProvider({
-        id: "tap_saml",
-        protocol: "saml",
-        label: "Legacy SAML",
-        configJson: '{"idpEntityId":"https://idp.example.edu"}',
-      }),
-    ]);
-
-    const adapter = createEnterpriseSsoAdapter({
-      resolveDatabase: () => fakeDb,
-      createBetterAuthRuntime: vi.fn(),
-      createBetterAuthRequest: vi.fn(),
-      resolveAuthenticatedPrincipal: vi.fn(),
-      resolveRequestedTenantContext: vi.fn(),
-      rememberRequestedTenant: vi.fn(),
-    });
-
-    const result = await adapter.resolveLoginExperience(createContext(), {
-      tenantId: "tenant_123",
-      nextPath: "/tenants/tenant_123/admin",
-    });
-
-    expect(result.enterpriseProviders).toEqual([]);
-    expect(result.autoStartPath).toBeNull();
-    expect(result.notice).toContain("supported hosted OIDC provider");
-  });
-
   it("starts tenant-aware OIDC sign-in through Better Auth and preserves redirect state cookies", async () => {
     const rememberRequestedTenant = vi.fn();
     const createBetterAuthRequest = vi.fn((_: FakeContext, path: string, init?: RequestInit) => {
@@ -310,56 +276,7 @@ describe("enterprise SSO adapter", () => {
     );
   });
 
-  it("fails closed for compatibility-only SAML providers and records an explicit unsupported audit reason", async () => {
-    mockedResolveTenantAuthPolicy.mockResolvedValue(
-      samplePolicy({
-        defaultProviderId: "tap_saml",
-      }),
-    );
-    mockedListTenantAuthProviders.mockResolvedValue([
-      sampleProvider({
-        id: "tap_saml",
-        protocol: "saml",
-        label: "Legacy SAML",
-        configJson: '{"idpEntityId":"https://idp.example.edu"}',
-      }),
-    ]);
-    const createBetterAuthRuntime = vi.fn();
-    const adapter = createEnterpriseSsoAdapter({
-      resolveDatabase: () => fakeDb,
-      createBetterAuthRuntime,
-      createBetterAuthRequest: vi.fn(),
-      resolveAuthenticatedPrincipal: vi.fn(),
-      resolveRequestedTenantContext: vi.fn(),
-      rememberRequestedTenant: vi.fn(),
-    });
-
-    const response = await adapter.start(createContext(), {
-      tenantId: "tenant_123",
-      providerId: "tap_saml",
-      nextPath: "/tenants/tenant_123/admin",
-    });
-
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      "/login?tenantId=tenant_123&next=%2Ftenants%2Ftenant_123%2Fadmin&reason=sso_unavailable",
-    );
-    expect(createBetterAuthRuntime).not.toHaveBeenCalled();
-    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        tenantId: "tenant_123",
-        action: "auth.sso_start_failed",
-        targetId: "tap_saml",
-        metadata: expect.objectContaining({
-          reason: "protocol_not_supported_in_runtime",
-          protocol: "saml",
-        }),
-      }),
-    );
-  });
-
-  it("audits malformed OIDC providers separately from unsupported SAML compatibility entries", async () => {
+  it("audits malformed OIDC providers when SSO start cannot proceed", async () => {
     mockedListTenantAuthProviders.mockResolvedValue([
       sampleProvider({
         configJson: '{"issuer":"https://idp.example.edu"}',

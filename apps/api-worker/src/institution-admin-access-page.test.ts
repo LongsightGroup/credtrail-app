@@ -61,15 +61,10 @@ describe("GET /tenants/:tenantId/admin/access", () => {
     expect(body).toContain("Enterprise Auth");
     expect(body).toContain("Login mode");
     expect(body).toContain("Campus OIDC");
-    expect(body).toContain("Hosted enterprise sign-in supports OIDC providers.");
-    expect(body).toContain("Legacy SAML compatibility");
-    expect(body).toContain('name="providerId" value="tap_saml"');
-    expect(body).toContain("Delete legacy SAML entry");
+    expect(body).toContain("Configure hosted OIDC providers for institution sign-in.");
     expect(body).toContain("Members");
     expect(body).toContain("Governance");
-    expect(body).not.toContain("OIDC or SAML connection metadata");
     expect(body).not.toContain('name="enforceForRoles"');
-    expect(body).not.toContain('<option value="saml">');
     expect(body).toContain('id="enterprise-auth-policy-form"');
     expect(body).toContain('id="enterprise-auth-provider-form"');
     expect(body).toContain("Break-glass local accounts");

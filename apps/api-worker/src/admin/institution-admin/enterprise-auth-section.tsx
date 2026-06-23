@@ -62,23 +62,12 @@ export const renderEnterpriseAuthSection = (
     updatedAt: "",
   };
   const enterpriseAuthProviders = input.enterpriseAuthProviders ?? [];
-  const supportedEnterpriseAuthProviders = enterpriseAuthProviders.filter(
-    (provider) => provider.protocol === "oidc",
-  );
-  const legacySamlProviders = enterpriseAuthProviders.filter(
-    (provider) => provider.protocol === "saml",
-  );
-  const legacyDefaultProvider = legacySamlProviders.find(
-    (provider) => provider.id === enterpriseAuthPolicy.defaultProviderId,
-  );
   const breakGlassAccounts = input.breakGlassAccounts ?? [];
   const editingProvider =
     input.editProviderId === null || input.editProviderId === undefined
       ? null
-      : (supportedEnterpriseAuthProviders.find(
-          (provider) => provider.id === input.editProviderId,
-        ) ?? null);
-  const enterpriseAuthProviderOptions = supportedEnterpriseAuthProviders.map((provider) => {
+      : (enterpriseAuthProviders.find((provider) => provider.id === input.editProviderId) ?? null);
+  const enterpriseAuthProviderOptions = enterpriseAuthProviders.map((provider) => {
     return (
       <option value={provider.id} selected={enterpriseAuthPolicy.defaultProviderId === provider.id}>
         {provider.label}
@@ -86,12 +75,12 @@ export const renderEnterpriseAuthSection = (
     );
   });
   const enterpriseAuthProviderRows =
-    supportedEnterpriseAuthProviders.length === 0 ? (
+    enterpriseAuthProviders.length === 0 ? (
       <AdminEmptyTableRow colSpan={6}>
         No OIDC enterprise providers configured yet.
       </AdminEmptyTableRow>
     ) : (
-      supportedEnterpriseAuthProviders.map((provider) => {
+      enterpriseAuthProviders.map((provider) => {
         return (
           <tr>
             <td>
@@ -130,49 +119,11 @@ export const renderEnterpriseAuthSection = (
         );
       })
     );
-  const legacySamlRows =
-    legacySamlProviders.length === 0 ? (
-      <AdminEmptyTableRow colSpan={5}>
-        No legacy SAML compatibility entries detected.
-      </AdminEmptyTableRow>
-    ) : (
-      legacySamlProviders.map((provider) => {
-        return (
-          <tr>
-            <td>
-              <strong>{provider.label}</strong>
-              <AdminMeta>{provider.id}</AdminMeta>
-            </td>
-            <td>{provider.isDefault ? "Default" : "Secondary"}</td>
-            <td>{provider.enabled ? "Enabled" : "Disabled"}</td>
-            <td>{formatIsoTimestamp(provider.updatedAt)}</td>
-            <td>
-              <AdminForm
-                method="post"
-                action={tenantAccessEnterpriseAuthProviderDeletePath(input.tenant.id)}
-                className="ct-admin__inline-form"
-                dataAttributes={{
-                  "data-confirm-message": `Delete legacy SAML entry “${provider.label}”?`,
-                }}
-              >
-                <input type="hidden" name="providerId" value={provider.id} />
-                <AdminButton type="submit" size="tiny" variant="danger">
-                  Delete
-                </AdminButton>
-              </AdminForm>
-            </td>
-          </tr>
-        );
-      })
-    );
 
   return (
     <article id="enterprise-auth-panel" class="ct-admin__panel ct-stack">
       <h2>Enterprise Auth</h2>
-      <p>
-        Hosted enterprise sign-in supports OIDC providers. Legacy SAML compatibility stays visible
-        for cleanup only.
-      </p>
+      <p>Configure hosted OIDC providers for institution sign-in.</p>
       <AdminForm
         id="enterprise-auth-policy-form"
         method="post"
@@ -204,12 +155,6 @@ export const renderEnterpriseAuthSection = (
           SSO enforcement applies to the tenant login experience. Role-specific enforcement is not
           configurable in the hosted runtime.
         </p>
-        {legacyDefaultProvider === undefined ? null : (
-          <p class="ct-admin__hint">
-            This tenant still references <strong>{legacyDefaultProvider.label}</strong> as a legacy
-            default. Choose an OIDC provider before requiring institution sign-in.
-          </p>
-        )}
         <AdminCheckboxRow>
           <input
             name="breakGlassEnabled"
@@ -237,7 +182,7 @@ export const renderEnterpriseAuthSection = (
         <input type="hidden" name="protocol" value="oidc" />
         <p class="ct-admin__hint">
           {editingProvider === null
-            ? "Add a hosted OIDC provider here. Use a new OIDC connection instead of modifying legacy SAML settings."
+            ? "Add a hosted OIDC provider here."
             : `Editing ${editingProvider.label}. Save changes or clear the form to add a new provider.`}
         </p>
         <AdminField label="OIDC provider label">
@@ -293,18 +238,6 @@ export const renderEnterpriseAuthSection = (
       >
         {enterpriseAuthProviderRows}
       </AdminTable>
-      {legacySamlProviders.length === 0 ? null : (
-        <section class="ct-stack" aria-labelledby="legacy-saml-title">
-          <h3 id="legacy-saml-title">Legacy SAML compatibility</h3>
-          <p>
-            These entries remain visible so you can audit or remove older SAML setup after an OIDC
-            cutover. They are not editable from the hosted provider workflow.
-          </p>
-          <AdminTable headers={["Legacy entry", "Role", "Status", "Updated", "Actions"]}>
-            {legacySamlRows}
-          </AdminTable>
-        </section>
-      )}
       <section class="ct-stack" aria-labelledby="break-glass-accounts-title">
         <h3 id="break-glass-accounts-title">Break-glass local accounts</h3>
         <p>

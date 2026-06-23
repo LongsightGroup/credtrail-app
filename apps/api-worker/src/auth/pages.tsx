@@ -8,7 +8,7 @@ type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 interface EnterpriseProviderView {
   id: string;
   label: string;
-  protocol: "oidc" | "saml";
+  protocol: "oidc";
   isDefault: boolean;
   startPath: string;
 }

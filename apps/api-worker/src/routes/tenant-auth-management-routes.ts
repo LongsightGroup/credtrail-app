@@ -2,15 +2,11 @@ import {
   createAuditLog,
   createTenantAuthProvider,
   deleteTenantAuthProvider,
-  deleteTenantSsoSamlConfiguration,
   findTenantAuthProviderById,
-  findTenantSsoSamlConfiguration,
   listTenantAuthProviders,
   resolveTenantAuthPolicy,
   updateTenantAuthProvider,
   upsertTenantAuthPolicy,
-  HOSTED_ENTERPRISE_OIDC_ONLY_ERROR,
-  isHostedEnterpriseAuthProviderSupported,
   type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
@@ -20,7 +16,6 @@ import {
   parseTenantPathParams,
   parseUpsertTenantAuthPolicyRequest,
   parseUpsertTenantAuthProviderRequest,
-  parseUpsertTenantSsoSamlConfigurationRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
@@ -47,15 +42,6 @@ interface RegisterTenantAuthManagementRoutesInput {
   ADMIN_ROLES: readonly TenantMembershipRole[];
 }
 
-const LEGACY_SAML_DEPRECATED_ERROR =
-  "Legacy SAML configuration is deprecated for hosted enterprise sign-in. Configure an OIDC provider instead.";
-const LEGACY_SAML_COMPATIBILITY_NOTICE =
-  "Legacy SAML compatibility remains visible for cleanup only. Configure an OIDC provider for hosted enterprise sign-in.";
-const LEGACY_SAML_EDIT_BLOCKED_ERROR =
-  "Legacy SAML compatibility entries are not editable from the supported enterprise auth workflow. Configure a new OIDC provider instead or delete the legacy entry.";
-const LEGACY_SAML_DEFAULT_PROVIDER_ERROR =
-  "Default enterprise provider must be an OIDC provider. Legacy SAML compatibility entries cannot be selected.";
-
 const serializeTenantAuthPolicy = (
   policy: Awaited<ReturnType<typeof resolveTenantAuthPolicy>>,
 ): Record<string, unknown> => {
@@ -73,8 +59,6 @@ const serializeTenantAuthPolicy = (
 const serializeTenantAuthProvider = (
   provider: Awaited<ReturnType<typeof listTenantAuthProviders>>[number],
 ): Record<string, unknown> => {
-  const compatibilityOnly = !isHostedEnterpriseAuthProviderSupported(provider);
-
   return {
     id: provider.id,
     tenantId: provider.tenantId,
@@ -85,9 +69,6 @@ const serializeTenantAuthProvider = (
     configJson: provider.configJson,
     createdAt: provider.createdAt,
     updatedAt: provider.updatedAt,
-    supportedInHostedRuntime: !compatibilityOnly,
-    compatibilityOnly,
-    ...(compatibilityOnly ? { notice: LEGACY_SAML_COMPATIBILITY_NOTICE } : {}),
   };
 };
 
@@ -95,117 +76,6 @@ export const registerTenantAuthManagementRoutes = (
   input: RegisterTenantAuthManagementRoutesInput,
 ): void => {
   const { app, resolveDatabase, requireEnterpriseTenant, requireTenantRole, ADMIN_ROLES } = input;
-
-  app.get("/v1/tenants/:tenantId/sso/saml", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const db = resolveDatabase(c.env);
-    const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
-
-    if (enterpriseCheck !== null) {
-      return enterpriseCheck;
-    }
-
-    const configuration = await findTenantSsoSamlConfiguration(db, pathParams.tenantId);
-
-    if (configuration === null) {
-      return c.json(
-        {
-          error: "SAML SSO configuration not found",
-        },
-        404,
-      );
-    }
-
-    return c.json({
-      tenantId: pathParams.tenantId,
-      deprecated: true,
-      notice: LEGACY_SAML_COMPATIBILITY_NOTICE,
-      configuration,
-    });
-  });
-
-  app.put("/v1/tenants/:tenantId/sso/saml", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    let request: ReturnType<typeof parseUpsertTenantSsoSamlConfigurationRequest>;
-
-    try {
-      request = parseUpsertTenantSsoSamlConfigurationRequest(await c.req.json<unknown>());
-    } catch {
-      return c.json(
-        {
-          error: "Invalid SAML SSO configuration payload",
-        },
-        400,
-      );
-    }
-
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const { session, membershipRole } = roleCheck;
-    const db = resolveDatabase(c.env);
-    const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
-
-    if (enterpriseCheck !== null) {
-      return enterpriseCheck;
-    }
-    void request;
-    void session;
-    void membershipRole;
-
-    return c.json(
-      {
-        error: LEGACY_SAML_DEPRECATED_ERROR,
-      },
-      410,
-    );
-  });
-
-  app.delete("/v1/tenants/:tenantId/sso/saml", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const { session, membershipRole } = roleCheck;
-    const db = resolveDatabase(c.env);
-    const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
-
-    if (enterpriseCheck !== null) {
-      return enterpriseCheck;
-    }
-
-    const removed = await deleteTenantSsoSamlConfiguration(db, pathParams.tenantId);
-
-    if (removed) {
-      await createAuditLog(db, {
-        tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
-        action: "tenant.sso_saml_configuration_deleted",
-        targetType: "tenant_sso_saml_configuration",
-        targetId: pathParams.tenantId,
-        metadata: {
-          role: membershipRole,
-        },
-      });
-    }
-
-    return c.json({
-      tenantId: pathParams.tenantId,
-      removed,
-    });
-  });
 
   app.get("/v1/tenants/:tenantId/auth-policy", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
@@ -266,15 +136,6 @@ export const registerTenantAuthManagementRoutes = (
         return c.json(
           {
             error: "Default auth provider not found",
-          },
-          400,
-        );
-      }
-
-      if (!isHostedEnterpriseAuthProviderSupported(provider)) {
-        return c.json(
-          {
-            error: LEGACY_SAML_DEFAULT_PROVIDER_ERROR,
           },
           400,
         );
@@ -354,15 +215,6 @@ export const registerTenantAuthManagementRoutes = (
 
     if (enterpriseCheck !== null) {
       return enterpriseCheck;
-    }
-
-    if (request.protocol !== "oidc") {
-      return c.json(
-        {
-          error: HOSTED_ENTERPRISE_OIDC_ONLY_ERROR,
-        },
-        400,
-      );
     }
 
     const provider = await createTenantAuthProvider(db, {
@@ -445,24 +297,6 @@ export const registerTenantAuthManagementRoutes = (
           error: "Tenant auth provider not found",
         },
         404,
-      );
-    }
-
-    if (!isHostedEnterpriseAuthProviderSupported(existingProvider)) {
-      return c.json(
-        {
-          error: LEGACY_SAML_EDIT_BLOCKED_ERROR,
-        },
-        400,
-      );
-    }
-
-    if (request.protocol !== "oidc") {
-      return c.json(
-        {
-          error: HOSTED_ENTERPRISE_OIDC_ONLY_ERROR,
-        },
-        400,
       );
     }
 

@@ -4,7 +4,6 @@ import {
   deleteTenantAuthProvider,
   ensureTenantMembership,
   findTenantAuthProviderById,
-  isHostedEnterpriseAuthProviderSupported,
   revokeTenantBreakGlassAccount,
   updateTenantAuthProvider,
   upsertTenantAuthPolicy,
@@ -53,9 +52,6 @@ interface RegisterTenantAccessEnterpriseAdminRoutesInput {
       }
   >;
 }
-
-const LEGACY_SAML_DEFAULT_PROVIDER_ERROR =
-  "Default enterprise provider must be an OIDC provider. Legacy SAML compatibility entries cannot be selected.";
 
 const redirectToAuthentication = async (
   c: AppContext,
@@ -157,15 +153,6 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
             message: "Default auth provider not found.",
           });
         }
-
-        if (!isHostedEnterpriseAuthProviderSupported(provider)) {
-          return redirectToAuthentication(c, {
-            tenantId: pathParams.tenantId,
-            userId: session.userId,
-            tone: "error",
-            message: LEGACY_SAML_DEFAULT_PROVIDER_ERROR,
-          });
-        }
       }
 
       const policy = await upsertTenantAuthPolicy(db, {
@@ -258,16 +245,6 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
             userId: session.userId,
             tone: "error",
             message: "Enterprise auth provider not found.",
-          });
-        }
-
-        if (!isHostedEnterpriseAuthProviderSupported(existing)) {
-          return redirectToAuthentication(c, {
-            tenantId: pathParams.tenantId,
-            userId: session.userId,
-            tone: "error",
-            message:
-              "Legacy SAML compatibility entries are not editable here. Configure a new OIDC provider instead.",
           });
         }
 
@@ -382,16 +359,6 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
           userId: session.userId,
           tone: "error",
           message: "Enterprise auth provider not found.",
-        });
-      }
-
-      if (!isHostedEnterpriseAuthProviderSupported(existing)) {
-        return redirectToAuthentication(c, {
-          tenantId: pathParams.tenantId,
-          userId: session.userId,
-          tone: "error",
-          message:
-            "Legacy SAML compatibility entries are not removable from this workflow. Contact support if cleanup is required.",
         });
       }
 
