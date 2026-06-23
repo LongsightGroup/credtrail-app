@@ -62,7 +62,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
     };
 
     const sakaiSites403Message =
-      'Sakai blocked CredTrail from reading your site list (403). Sign in to Sakai with an account that can view the target site and gradebook, copy a fresh SAKAIID session value, then update this LMS connection. If it still fails, ask a Sakai administrator to allow REST API access to Sites and Gradebook.';
+      'Sakai blocked CredTrail from reading your site list (403). Save a Sakai username and password for an account that can view the target site and gradebook, then try again. If it still fails, ask a Sakai administrator to allow REST API access to Sites and Gradebook.';
 
     const lmsLookupErrorMessage = (error, fallback) => {
       const message = error instanceof Error ? error.message : fallback;

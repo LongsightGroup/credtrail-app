@@ -1,5 +1,12 @@
 import type { HtmlEscapedString } from "hono/utils/html";
-import { AdminButton, AdminField, AdminForm, AdminPanel, AdminStatus } from "../components";
+import {
+  AdminButton,
+  AdminField,
+  AdminFieldset,
+  AdminForm,
+  AdminPanel,
+  AdminStatus,
+} from "../components";
 import { tenantLmsConnectionAdminSavePath } from "../lms-connection-admin-helpers";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -9,6 +16,7 @@ export interface LmsConnectionFormValues {
   displayName: string;
   providerKind: "canvas" | "sakai";
   apiBaseUrl: string;
+  sakaiUsername: string;
   ltiIssuer: string;
   ltiClientId: string;
   ltiDeploymentId: string;
@@ -70,20 +78,39 @@ export const renderLmsConnectionSetupSection = (
             value={input.formValues.apiBaseUrl}
           />
         </AdminField>
-        <AdminField label="Credential or session value">
-          <input
-            name="accessToken"
-            type="password"
-            autocomplete="off"
-            placeholder={
-              isUpdate
-                ? "Leave blank to keep existing credential"
-                : input.formValues.providerKind === "sakai"
-                  ? "Paste Sakai SAKAIID session value"
-                  : "Paste Canvas access token"
-            }
-          />
-        </AdminField>
+        <AdminFieldset legend="Connection credentials">
+          <p class="ct-admin__hint">
+            For Sakai, save an admin username and password. CredTrail creates and refreshes the
+            Sakai session internally when it reads gradebook data.
+          </p>
+          <AdminField label="Canvas access token">
+            <input
+              name="accessToken"
+              type="password"
+              autocomplete="off"
+              placeholder={isUpdate ? "Leave blank to keep existing token" : "Paste Canvas token"}
+            />
+          </AdminField>
+          <AdminField label="Sakai username">
+            <input
+              id="sakai-username"
+              name="sakaiUsername"
+              type="text"
+              autocomplete="username"
+              placeholder="Sakai admin username"
+              value={input.formValues.sakaiUsername}
+            />
+          </AdminField>
+          <AdminField label="Sakai password">
+            <input
+              id="sakai-password"
+              name="sakaiPassword"
+              type="password"
+              autocomplete="current-password"
+              placeholder={isUpdate ? "Leave blank to keep existing password" : "Sakai password"}
+            />
+          </AdminField>
+        </AdminFieldset>
         <details class="ct-admin__advanced-tools">
           <summary>
             <span>Advanced OAuth and LTI metadata</span>
@@ -127,7 +154,7 @@ export const renderLmsConnectionSetupSection = (
           </div>
         </details>
         <AdminButton type="submit">
-          {isUpdate ? "Save connection changes" : "Save and connect gradebook"}
+          {isUpdate ? "Save connection changes" : "Save LMS connection"}
         </AdminButton>
       </AdminForm>
       {isUpdate ? (
@@ -146,6 +173,7 @@ export const emptyLmsConnectionFormValues = (): LmsConnectionFormValues => {
     displayName: "",
     providerKind: "canvas",
     apiBaseUrl: "",
+    sakaiUsername: "",
     ltiIssuer: "",
     ltiClientId: "",
     ltiDeploymentId: "",
@@ -157,6 +185,7 @@ export const lmsConnectionFormValuesFromRecord = (connection: {
   displayName: string;
   providerKind: "canvas" | "sakai";
   apiBaseUrl: string;
+  clientId: string | null;
   ltiIssuer: string | null;
   ltiClientId: string | null;
   ltiDeploymentId: string | null;
@@ -166,6 +195,7 @@ export const lmsConnectionFormValuesFromRecord = (connection: {
     displayName: connection.displayName,
     providerKind: connection.providerKind,
     apiBaseUrl: connection.apiBaseUrl,
+    sakaiUsername: connection.providerKind === "sakai" ? (connection.clientId ?? "") : "",
     ltiIssuer: connection.ltiIssuer ?? "",
     ltiClientId: connection.ltiClientId ?? "",
     ltiDeploymentId: connection.ltiDeploymentId ?? "",

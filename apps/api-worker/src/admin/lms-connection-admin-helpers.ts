@@ -1,3 +1,5 @@
+import type { TenantLmsConnectionRecord } from "@credtrail/db";
+
 export const buildLmsConnectionsPagePath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/access/lms-connections`;
 };
@@ -29,4 +31,18 @@ export const lmsConnectionsPageUrl = (tenantId: string, extra?: Record<string, s
 
 export const tenantLmsConnectionAdminSavePath = (tenantId: string): string => {
   return buildLmsConnectionsPagePath(tenantId);
+};
+
+export const isLmsConnectionReady = (connection: TenantLmsConnectionRecord): boolean => {
+  if (connection.accessToken !== null && connection.accessToken.length > 0) {
+    return true;
+  }
+
+  return (
+    connection.providerKind === "sakai" &&
+    connection.clientId !== null &&
+    connection.clientId.length > 0 &&
+    connection.clientSecret !== null &&
+    connection.clientSecret.length > 0
+  );
 };

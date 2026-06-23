@@ -61,6 +61,8 @@ const buildUpsertPayloadFromForm = (formData: FormData): Record<string, string> 
     "tokenEndpoint",
     "clientId",
     "clientSecret",
+    "sakaiUsername",
+    "sakaiPassword",
     "scope",
     "ltiIssuer",
     "ltiClientId",

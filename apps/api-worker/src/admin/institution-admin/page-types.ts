@@ -421,6 +421,7 @@ export interface InstitutionAdminPageInput {
     displayName: string;
     providerKind: "canvas" | "sakai";
     apiBaseUrl: string;
+    sakaiUsername: string;
     ltiIssuer: string;
     ltiClientId: string;
     ltiDeploymentId: string;

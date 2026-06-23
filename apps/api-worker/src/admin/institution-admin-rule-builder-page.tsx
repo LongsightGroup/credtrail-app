@@ -23,6 +23,7 @@ import {
   type AdminSidebarFooterLink,
 } from "./components";
 import { buildInstitutionAdminSidebarSectionsForTenant } from "./institution-admin-sidebar";
+import { isLmsConnectionReady } from "./lms-connection-admin-helpers";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -287,8 +288,8 @@ export const institutionAdminRuleBuilderPage = (input: {
   const supportedLmsConnections = input.lmsConnections.filter(
     (connection) => connection.providerKind === "canvas" || connection.providerKind === "sakai",
   );
-  const connectedLmsConnections = supportedLmsConnections.filter(
-    (connection) => connection.accessToken !== null && connection.accessToken.length > 0,
+  const connectedLmsConnections = supportedLmsConnections.filter((connection) =>
+    isLmsConnectionReady(connection),
   );
   const hasUnusableLmsConnections =
     supportedLmsConnections.length > 0 && connectedLmsConnections.length === 0;
@@ -580,7 +581,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                               {connectedLmsConnections.length === 0 ? (
                                 <option value="">
                                   {hasUnusableLmsConnections
-                                    ? "LMS connection needs a session or token"
+                                    ? "LMS connection needs credentials"
                                     : "No LMS connection configured"}
                                 </option>
                               ) : (
@@ -609,7 +610,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                             <div class="ct-admin__builder-prereq ct-admin__builder-field-span">
                               <span>
                                 {hasUnusableLmsConnections
-                                  ? "The saved LMS connection is not usable yet. Add a Canvas access token or Sakai SAKAIID session value before building rules."
+                                  ? "The saved LMS connection is not usable yet. Add a Canvas token or Sakai username and password before building rules."
                                   : "Create an LMS connection before building rules."}
                               </span>
                               <a class="ct-admin__text-action" href={accessLmsConnectionsPath}>

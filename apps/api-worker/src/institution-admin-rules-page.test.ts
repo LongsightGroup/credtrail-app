@@ -1819,7 +1819,7 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "Sakai blocked CredTrail from reading your site list (403).",
     );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("copy a fresh SAKAIID session value");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("Save a Sakai username and password");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("setLmsLookupStatus(message, true)");
     expect(body).toContain("Need a new template?");
     expect(body).toContain("Create one in Badge Templates");

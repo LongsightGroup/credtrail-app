@@ -176,23 +176,39 @@ export const tenantLmsConnectionPathParamsSchema = tenantPathParamsSchema.extend
   connectionId: resourceIdSchema,
 });
 
-export const upsertTenantLmsConnectionRequestSchema = z.object({
-  displayName: z.string().trim().min(1).max(120),
-  providerKind: tenantLmsConnectionProviderKindSchema,
-  apiBaseUrl: z.string().url().max(2048),
-  authorizationEndpoint: z.string().url().max(2048).optional(),
-  tokenEndpoint: z.string().url().max(2048).optional(),
-  clientId: z.string().trim().min(1).max(512).optional(),
-  clientSecret: z.string().trim().min(1).max(2048).optional(),
-  scope: z.string().trim().min(1).max(2048).optional(),
-  accessToken: z.string().trim().min(1).max(4096).optional(),
-  refreshToken: z.string().trim().min(1).max(4096).optional(),
-  accessTokenExpiresAt: isoTimestampSchema.optional(),
-  refreshTokenExpiresAt: isoTimestampSchema.optional(),
-  ltiIssuer: z.string().url().max(2048).optional(),
-  ltiClientId: z.string().trim().min(1).max(512).optional(),
-  ltiDeploymentId: z.string().trim().min(1).max(512).optional(),
-});
+export const upsertTenantLmsConnectionRequestSchema = z
+  .object({
+    displayName: z.string().trim().min(1).max(120),
+    providerKind: tenantLmsConnectionProviderKindSchema,
+    apiBaseUrl: z.string().url().max(2048),
+    authorizationEndpoint: z.string().url().max(2048).optional(),
+    tokenEndpoint: z.string().url().max(2048).optional(),
+    clientId: z.string().trim().min(1).max(512).optional(),
+    clientSecret: z.string().trim().min(1).max(2048).optional(),
+    sakaiUsername: z.string().trim().min(1).max(512).optional(),
+    sakaiPassword: z.string().trim().min(1).max(2048).optional(),
+    scope: z.string().trim().min(1).max(2048).optional(),
+    accessToken: z.string().trim().min(1).max(4096).optional(),
+    refreshToken: z.string().trim().min(1).max(4096).optional(),
+    accessTokenExpiresAt: isoTimestampSchema.optional(),
+    refreshTokenExpiresAt: isoTimestampSchema.optional(),
+    ltiIssuer: z.string().url().max(2048).optional(),
+    ltiClientId: z.string().trim().min(1).max(512).optional(),
+    ltiDeploymentId: z.string().trim().min(1).max(512).optional(),
+  })
+  .transform((request) => {
+    const { sakaiUsername, sakaiPassword, ...normalizedRequest } = request;
+
+    if (normalizedRequest.providerKind !== "sakai") {
+      return normalizedRequest;
+    }
+
+    return {
+      ...normalizedRequest,
+      ...(sakaiUsername === undefined ? {} : { clientId: sakaiUsername }),
+      ...(sakaiPassword === undefined ? {} : { clientSecret: sakaiPassword }),
+    };
+  });
 
 export const tenantLmsConnectionCourseSearchQuerySchema = z.object({
   q: z.string().trim().min(1).max(255).optional(),

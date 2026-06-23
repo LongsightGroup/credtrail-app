@@ -94,7 +94,8 @@ describe("tenant LMS connection parsers", () => {
       displayName: "TrySakai",
       providerKind: "sakai",
       apiBaseUrl: "https://trysakai.example.edu",
-      accessToken: "sakai-session",
+      sakaiUsername: "sakai-admin",
+      sakaiPassword: "sakai-password",
       ltiIssuer: "https://trysakai.example.edu",
       ltiClientId: "client-123",
       ltiDeploymentId: "deployment-123",
@@ -119,6 +120,10 @@ describe("tenant LMS connection parsers", () => {
     });
 
     expect(request.providerKind).toBe("sakai");
+    expect(request.clientId).toBe("sakai-admin");
+    expect(request.clientSecret).toBe("sakai-password");
+    expect(request).not.toHaveProperty("sakaiUsername");
+    expect(request).not.toHaveProperty("sakaiPassword");
     expect(request.ltiDeploymentId).toBe("deployment-123");
     expect(connectionParams.connectionId).toBe("lms_123");
     expect(courseParams.courseId).toBe("course_101");

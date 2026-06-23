@@ -712,6 +712,7 @@ describe("badge rule routes", () => {
     expect(response.status).toBe(200);
     expect(body.connections[0]?.displayName).toBe("Canvas Test");
     expect(body.connections[0]?.hasAccessToken).toBe(true);
+    expect(body.connections[0]?.hasStoredCredential).toBe(true);
     expect(body.connections[0]).not.toHaveProperty("accessToken");
     expect(body.connections[0]).not.toHaveProperty("clientSecret");
   });
@@ -732,7 +733,8 @@ describe("badge rule routes", () => {
           displayName: "TrySakai",
           providerKind: "sakai",
           apiBaseUrl: "https://trysakai.example.edu",
-          accessToken: "sakai-session",
+          sakaiUsername: "sakai-admin",
+          sakaiPassword: "sakai-password",
           ltiIssuer: "https://trysakai.example.edu",
           ltiClientId: "client-123",
           ltiDeploymentId: "deployment-123",
@@ -750,7 +752,8 @@ describe("badge rule routes", () => {
       displayName: "TrySakai",
       providerKind: "sakai",
       apiBaseUrl: "https://trysakai.example.edu",
-      accessToken: "sakai-session",
+      clientId: "sakai-admin",
+      clientSecret: "sakai-password",
       ltiIssuer: "https://trysakai.example.edu",
       ltiClientId: "client-123",
       ltiDeploymentId: "deployment-123",
@@ -853,8 +856,8 @@ describe("badge rule routes", () => {
 
     expect(response.status).toBe(502);
     expect(body.error).toContain("Sakai blocked CredTrail from reading your site list (403).");
-    expect(body.error).toContain("copy a fresh SAKAIID session value");
-    expect(body.error).toContain("update this LMS connection");
+    expect(body.error).toContain("Save a Sakai username and password");
+    expect(body.error).toContain("then try again");
     expect(body.error).toContain("allow REST API access to Sites and Gradebook");
   });
 

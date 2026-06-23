@@ -41,7 +41,7 @@ import {
   type AdminSidebarFooterLink,
 } from "../components";
 import { buildInstitutionAdminSidebarSectionsForTenant } from "../institution-admin-sidebar";
-import { buildLmsConnectionEditPath } from "../lms-connection-admin-helpers";
+import { buildLmsConnectionEditPath, isLmsConnectionReady } from "../lms-connection-admin-helpers";
 import { renderDelegationSetupSection } from "./delegation-setup-section";
 import {
   emptyLmsConnectionFormValues,
@@ -266,7 +266,7 @@ const renderInstitutionAdminPage = (
     <AdminEmptyTableRow colSpan={7}>No LMS connections configured yet.</AdminEmptyTableRow>
   ) : (
     input.lmsConnections.map((connection) => {
-      const connected = connection.accessToken !== null && connection.accessToken.length > 0;
+      const connected = isLmsConnectionReady(connection);
       const ltiDetails = [
         connection.ltiIssuer === null ? null : `Issuer: ${connection.ltiIssuer}`,
         connection.ltiClientId === null ? null : `Client: ${connection.ltiClientId}`,
@@ -285,7 +285,7 @@ const renderInstitutionAdminPage = (
           </td>
           <td>
             <AdminStatusPill tone={connected ? "active" : "warning"}>
-              {connected ? "Connected" : "Needs token"}
+              {connected ? "Connected" : "Needs credentials"}
             </AdminStatusPill>
           </td>
           <td>{formatNullableTimestamp(connection.connectedAt)}</td>

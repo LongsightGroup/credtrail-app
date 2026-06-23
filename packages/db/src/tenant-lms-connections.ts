@@ -179,7 +179,16 @@ export const upsertTenantLmsConnection = async (
 ): Promise<TenantLmsConnectionRecord> => {
   const connectionId = input.id ?? createPrefixedId("lms");
   const nowIso = new Date().toISOString();
-  const connectedAt = input.accessToken === undefined || input.accessToken === null ? null : nowIso;
+  const hasAccessToken = input.accessToken !== undefined && input.accessToken !== null;
+  const hasSakaiPasswordCredentials =
+    input.providerKind === "sakai" &&
+    input.clientId !== undefined &&
+    input.clientId !== null &&
+    input.clientSecret !== undefined &&
+    input.clientSecret !== null;
+  const connectedAt = hasAccessToken || hasSakaiPasswordCredentials ? nowIso : null;
+  const accessTokenExpiresAt =
+    input.accessTokenExpiresAt ?? (hasSakaiPasswordCredentials ? nowIso : null);
   const upsertStatement = (): Promise<SqlRunResult> =>
     db
       .prepare(
@@ -241,7 +250,7 @@ export const upsertTenantLmsConnection = async (
         input.scope ?? null,
         input.accessToken ?? null,
         input.refreshToken ?? null,
-        input.accessTokenExpiresAt ?? null,
+        accessTokenExpiresAt,
         input.refreshTokenExpiresAt ?? null,
         connectedAt,
         input.ltiIssuer ?? null,

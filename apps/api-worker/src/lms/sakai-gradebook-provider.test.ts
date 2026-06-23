@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createSakaiGradebookProvider } from "./sakai-gradebook-provider";
+import {
+  createSakaiGradebookProvider,
+  createSakaiSession,
+  sakaiCookieHeaderFromAccessToken,
+} from "./sakai-gradebook-provider";
 
 interface MockRoute {
   pathWithQuery: string;
@@ -9,6 +13,7 @@ interface MockRoute {
 
 const createMockFetch = (
   routes: readonly MockRoute[],
+  expectedCookie = "SAKAIID=sakai-token",
 ): {
   fetchImpl: typeof fetch;
   requests: { pathWithQuery: string; authorization: string | null; cookie: string | null }[];
@@ -34,7 +39,7 @@ const createMockFetch = (
 
     if (
       request.headers.get("authorization") !== null ||
-      request.headers.get("cookie") !== "SAKAIID=sakai-token"
+      request.headers.get("cookie") !== expectedCookie
     ) {
       return Promise.resolve(
         new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -79,6 +84,60 @@ const createMockFetch = (
 };
 
 describe("createSakaiGradebookProvider", () => {
+  it("creates a Sakai session from username and password", async () => {
+    const requests: Array<{
+      pathWithQuery: string;
+      method: string;
+      body: string;
+      contentType: string | null;
+    }> = [];
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const request = input instanceof Request ? input : new Request(input, init);
+      const requestUrl = new URL(request.url);
+      requests.push({
+        pathWithQuery: `${requestUrl.pathname}${requestUrl.search}`,
+        method: request.method,
+        body: await request.text(),
+        contentType: request.headers.get("content-type"),
+      });
+
+      return new Response("sakai-session-id", {
+        status: 201,
+        headers: {
+          "set-cookie": "SAKAIID=sakai-session-id; Path=/; HttpOnly",
+          "content-type": "text/plain",
+        },
+      });
+    }) as typeof fetch;
+
+    await expect(
+      createSakaiSession({
+        apiBaseUrl: "https://sakai.example.edu",
+        username: "sakai-admin",
+        password: "sakai-password",
+        fetchImpl,
+      }),
+    ).resolves.toEqual({
+      sessionId: "sakai-session-id",
+      cookieHeader: "SAKAIID=sakai-session-id",
+    });
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({
+      pathWithQuery: "/direct/session/new",
+      method: "POST",
+      body: "_username=sakai-admin&_password=sakai-password",
+    });
+    expect(requests[0]?.contentType).toContain("application/x-www-form-urlencoded");
+  });
+
+  it("normalizes raw and full Sakai session cookie values", () => {
+    expect(sakaiCookieHeaderFromAccessToken("sakai-token")).toBe("SAKAIID=sakai-token");
+    expect(sakaiCookieHeaderFromAccessToken("JSESSIONID=sakai-session.Sakai; Path=/")).toBe(
+      "JSESSIONID=sakai-session.Sakai",
+    );
+  });
+
   it("maps Sakai API responses to normalized records", async () => {
     const { fetchImpl, requests } = createMockFetch([
       {
@@ -236,6 +295,46 @@ describe("createSakaiGradebookProvider", () => {
         sourceState: "gradebook_items",
       },
     ]);
+  });
+
+  it("uses stored Sakai cookie headers without wrapping them", async () => {
+    const { fetchImpl, requests } = createMockFetch(
+      [
+        {
+          pathWithQuery: "/api/users/me/sites",
+          responseBody: {
+            sites: [
+              {
+                id: "site-1",
+                title: "CS 101",
+              },
+            ],
+          },
+        },
+      ],
+      "JSESSIONID=sakai-session.Sakai",
+    );
+
+    const provider = createSakaiGradebookProvider({
+      config: {
+        kind: "sakai",
+        apiBaseUrl: "https://sakai.example.edu",
+        accessToken: "JSESSIONID=sakai-session.Sakai",
+      },
+      fetchImpl,
+    });
+
+    await expect(provider.listCourses()).resolves.toEqual([
+      {
+        courseId: "site-1",
+        title: "CS 101",
+        courseCode: null,
+        workflowState: null,
+        startsAt: null,
+        endsAt: null,
+      },
+    ]);
+    expect(requests[0]?.cookie).toBe("JSESSIONID=sakai-session.Sakai");
   });
 
   it("marks Sakai course completion only when every gradebook item is completed", async () => {

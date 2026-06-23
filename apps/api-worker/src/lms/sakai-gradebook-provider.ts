@@ -15,6 +15,18 @@ interface CreateSakaiGradebookProviderInput {
   fetchImpl?: typeof fetch;
 }
 
+export interface CreateSakaiSessionInput {
+  apiBaseUrl: string;
+  username: string;
+  password: string;
+  fetchImpl?: typeof fetch;
+}
+
+export interface SakaiSessionLoginResult {
+  sessionId: string;
+  cookieHeader: string;
+}
+
 interface SakaiGradebookMatrix {
   siteId: string;
   gradebookUid: string;
@@ -114,6 +126,189 @@ const ensureHttpBaseUrl = (candidate: string): URL => {
   }
 
   return parsed;
+};
+
+const isSakaiSessionCookieName = (cookieName: string): boolean => {
+  return cookieName === "SAKAIID" || cookieName === "JSESSIONID";
+};
+
+const stripSetCookieAttributes = (setCookieValue: string): string | null => {
+  const cookiePair = setCookieValue.split(";")[0]?.trim();
+
+  if (cookiePair === undefined || cookiePair.length === 0) {
+    return null;
+  }
+
+  const equalsIndex = cookiePair.indexOf("=");
+
+  if (equalsIndex <= 0 || equalsIndex === cookiePair.length - 1) {
+    return null;
+  }
+
+  const cookieName = cookiePair.slice(0, equalsIndex);
+
+  return isSakaiSessionCookieName(cookieName) ? cookiePair : null;
+};
+
+const parseSetCookieHeader = (headerValue: string | null): string | null => {
+  if (headerValue === null || headerValue.trim().length === 0) {
+    return null;
+  }
+
+  const cookieCandidates = headerValue.split(/,(?=\s*[^;,=\s]+=)/u);
+
+  for (const cookieCandidate of cookieCandidates) {
+    const cookieHeader = stripSetCookieAttributes(cookieCandidate);
+
+    if (cookieHeader !== null) {
+      return cookieHeader;
+    }
+  }
+
+  return null;
+};
+
+const parseSessionIdFromCookieHeader = (cookieHeader: string): string | null => {
+  const equalsIndex = cookieHeader.indexOf("=");
+
+  if (equalsIndex <= 0 || equalsIndex === cookieHeader.length - 1) {
+    return null;
+  }
+
+  const value = cookieHeader.slice(equalsIndex + 1).trim();
+
+  return value.length === 0 ? null : (value.split(".")[0] ?? value);
+};
+
+const parseSessionIdFromJsonObject = (candidate: unknown): string | null => {
+  const parsed = asJsonObject(candidate);
+
+  if (parsed === null) {
+    return null;
+  }
+
+  return (
+    asNonEmptyString(parsed.id) ??
+    asNonEmptyString(parsed.sessionId) ??
+    asNonEmptyString(parsed.sessionid) ??
+    asNonEmptyString(parsed.entityId)
+  );
+};
+
+const parseSessionIdFromBody = (body: string): string | null => {
+  const trimmed = body.trim();
+
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+
+    if (typeof parsed === "string") {
+      return asNonEmptyString(parsed);
+    }
+
+    const jsonSessionId = parseSessionIdFromJsonObject(parsed);
+
+    if (jsonSessionId !== null) {
+      return jsonSessionId;
+    }
+  } catch {
+    // Sakai commonly returns the session id as text/plain.
+  }
+
+  return trimmed.replace(/^"|"$/gu, "");
+};
+
+const parseSessionIdFromLocation = (headerValue: string | null, apiBaseUrl: URL): string | null => {
+  if (headerValue === null || headerValue.trim().length === 0) {
+    return null;
+  }
+
+  let parsed: URL;
+
+  try {
+    parsed = new URL(headerValue, apiBaseUrl);
+  } catch {
+    return null;
+  }
+
+  const lastPathSegment = parsed.pathname
+    .split("/")
+    .filter((part) => part.length > 0)
+    .at(-1);
+
+  if (lastPathSegment === undefined) {
+    return null;
+  }
+
+  const withoutFormatSuffix = lastPathSegment.replace(/\.(json|xml|html|form)$/u, "");
+
+  return withoutFormatSuffix.length === 0 ? null : decodeURIComponent(withoutFormatSuffix);
+};
+
+export const sakaiCookieHeaderFromAccessToken = (accessToken: string): string => {
+  const trimmed = accessToken.trim();
+  const setCookiePair = stripSetCookieAttributes(trimmed);
+
+  if (setCookiePair !== null) {
+    return setCookiePair;
+  }
+
+  if (/^[^=;,\s]+=.+/u.test(trimmed)) {
+    return trimmed
+      .split(";")
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0 && /^[^=;,\s]+=.+/u.test(part))
+      .join("; ");
+  }
+
+  return `SAKAIID=${trimmed}`;
+};
+
+export const createSakaiSession = async (
+  input: CreateSakaiSessionInput,
+): Promise<SakaiSessionLoginResult> => {
+  const fetchImpl = input.fetchImpl ?? fetch;
+  const apiBaseUrl = ensureHttpBaseUrl(input.apiBaseUrl);
+  const loginUrl = new URL("/direct/session/new", apiBaseUrl);
+  const body = new URLSearchParams({
+    _username: input.username,
+    _password: input.password,
+  });
+  const response = await fetchImpl(loginUrl.toString(), {
+    method: "POST",
+    headers: {
+      accept: "text/plain, application/json",
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+  const responseBody = await response.text();
+
+  if (!response.ok) {
+    throw new Error(
+      `Sakai session login failed (${String(response.status)}) for ${loginUrl.pathname}`,
+    );
+  }
+
+  const cookieHeader = parseSetCookieHeader(response.headers.get("set-cookie"));
+  const sessionId =
+    parseSessionIdFromBody(responseBody) ??
+    parseSessionIdFromLocation(response.headers.get("location"), apiBaseUrl) ??
+    response.headers.get("entityid") ??
+    response.headers.get("x-entity-id") ??
+    (cookieHeader === null ? null : parseSessionIdFromCookieHeader(cookieHeader));
+
+  if (sessionId === null || sessionId.length === 0) {
+    throw new Error("Sakai session login succeeded but did not return a session id");
+  }
+
+  return {
+    sessionId,
+    cookieHeader: cookieHeader ?? `SAKAIID=${sessionId}`,
+  };
 };
 
 const deriveCourseScorePercent = (
@@ -323,6 +518,7 @@ export const createSakaiGradebookProvider = (
   const fetchImpl = input.fetchImpl ?? fetch;
   const apiBaseUrl = ensureHttpBaseUrl(config.apiBaseUrl);
   const matrixRequestCache = new Map<string, Promise<SakaiGradebookMatrix>>();
+  const cookieHeader = sakaiCookieHeaderFromAccessToken(config.accessToken);
 
   const requestJson = async (path: string, query?: URLSearchParams): Promise<unknown> => {
     const requestUrl = new URL(path, apiBaseUrl);
@@ -334,7 +530,7 @@ export const createSakaiGradebookProvider = (
     const response = await fetchImpl(requestUrl.toString(), {
       method: "GET",
       headers: {
-        cookie: `SAKAIID=${config.accessToken}`,
+        cookie: cookieHeader,
         accept: "application/json",
       },
     });

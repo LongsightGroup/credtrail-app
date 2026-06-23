@@ -338,7 +338,8 @@ describe("GET /tenants/:tenantId/admin/access/api-keys", () => {
           displayName: "Sakai QA",
           providerKind: "sakai",
           apiBaseUrl: "https://sakai.example.edu",
-          accessToken: "sakai-token",
+          sakaiUsername: "sakai-admin",
+          sakaiPassword: "sakai-password",
         }).toString(),
         redirect: "manual",
       },
@@ -541,6 +542,9 @@ describe("GET /tenants/:tenantId/admin/access/lms-connections/new", () => {
     expect(body).toContain('id="lms-connection-form"');
     expect(body).toContain('method="post"');
     expect(body).toContain('action="/tenants/tenant_123/admin/access/lms-connections"');
+    expect(body).toContain('name="sakaiUsername"');
+    expect(body).toContain('name="sakaiPassword"');
+    expect(body).toContain("CredTrail creates and refreshes");
   });
 });
 

@@ -7,6 +7,9 @@ import {
 import { refreshCanvasAccessToken } from "../lms/canvas-oauth";
 import { createGradebookProvider } from "../lms/gradebook-provider";
 import type { GradebookProvider } from "../lms/gradebook-types";
+import { createSakaiSession } from "../lms/sakai-gradebook-provider";
+
+const SAKAI_SESSION_CACHE_TTL_SECONDS = 20 * 60;
 
 const isAccessTokenExpired = (accessTokenExpiresAt: string | null, nowIso: string): boolean => {
   if (accessTokenExpiresAt === null) {
@@ -19,6 +22,38 @@ const isAccessTokenExpired = (accessTokenExpiresAt: string | null, nowIso: strin
   return Number.isFinite(expiryMs) && Number.isFinite(nowMs) && nowMs >= expiryMs;
 };
 
+const addSecondsToIso = (timestampIso: string, seconds: number): string => {
+  return new Date(Date.parse(timestampIso) + seconds * 1000).toISOString();
+};
+
+const hasStoredAccessToken = (connection: TenantLmsConnectionRecord): boolean => {
+  return connection.accessToken !== null && connection.accessToken.length > 0;
+};
+
+const hasSakaiPasswordCredentials = (
+  connection: TenantLmsConnectionRecord,
+): connection is TenantLmsConnectionRecord & {
+  providerKind: "sakai";
+  clientId: string;
+  clientSecret: string;
+} => {
+  return (
+    connection.providerKind === "sakai" &&
+    connection.clientId !== null &&
+    connection.clientId.length > 0 &&
+    connection.clientSecret !== null &&
+    connection.clientSecret.length > 0
+  );
+};
+
+export const isTenantLmsConnectionUsable = (connection: TenantLmsConnectionRecord): boolean => {
+  if (connection.providerKind === "sakai") {
+    return hasStoredAccessToken(connection) || hasSakaiPasswordCredentials(connection);
+  }
+
+  return hasStoredAccessToken(connection);
+};
+
 export interface PublicTenantLmsConnection {
   id: string;
   tenantId: string;
@@ -27,6 +62,7 @@ export interface PublicTenantLmsConnection {
   apiBaseUrl: string;
   status: "connected" | "needs_token";
   hasAccessToken: boolean;
+  hasStoredCredential: boolean;
   hasRefreshToken: boolean;
   connectedAt: string | null;
   accessTokenExpiresAt: string | null;
@@ -60,7 +96,8 @@ export const isClientGradebookProviderResolutionError = (
 export const publicTenantLmsConnection = (
   connection: TenantLmsConnectionRecord,
 ): PublicTenantLmsConnection => {
-  const hasAccessToken = connection.accessToken !== null && connection.accessToken.length > 0;
+  const hasAccessToken = hasStoredAccessToken(connection);
+  const hasStoredCredential = isTenantLmsConnectionUsable(connection);
   const hasRefreshToken = connection.refreshToken !== null && connection.refreshToken.length > 0;
 
   return {
@@ -69,8 +106,9 @@ export const publicTenantLmsConnection = (
     displayName: connection.displayName,
     providerKind: connection.providerKind,
     apiBaseUrl: connection.apiBaseUrl,
-    status: hasAccessToken ? "connected" : "needs_token",
+    status: hasStoredCredential ? "connected" : "needs_token",
     hasAccessToken,
+    hasStoredCredential,
     hasRefreshToken,
     connectedAt: connection.connectedAt,
     accessTokenExpiresAt: connection.accessTokenExpiresAt,
@@ -94,6 +132,38 @@ export const createGradebookProviderForConnection = async (input: {
   nowIso: string;
 }): Promise<GradebookProvider> => {
   let accessToken = input.connection.accessToken;
+
+  if (input.connection.providerKind === "sakai") {
+    const hasUsableCachedSession =
+      accessToken !== null &&
+      accessToken.length > 0 &&
+      !isAccessTokenExpired(input.connection.accessTokenExpiresAt, input.nowIso);
+
+    if (!hasUsableCachedSession) {
+      if (!hasSakaiPasswordCredentials(input.connection)) {
+        throw new Error(
+          "Sakai LMS connection needs a Sakai username and password before CredTrail can read the gradebook.",
+        );
+      }
+
+      const username = input.connection.clientId;
+      const password = input.connection.clientSecret;
+
+      const session = await createSakaiSession({
+        apiBaseUrl: input.connection.apiBaseUrl,
+        username,
+        password,
+      });
+      const refreshed = await updateTenantLmsConnectionTokens(input.db, {
+        tenantId: input.connection.tenantId,
+        connectionId: input.connection.id,
+        accessToken: session.cookieHeader,
+        accessTokenExpiresAt: addSecondsToIso(input.nowIso, SAKAI_SESSION_CACHE_TTL_SECONDS),
+      });
+
+      accessToken = refreshed?.accessToken ?? session.cookieHeader;
+    }
+  }
 
   if (accessToken === null || accessToken.length === 0) {
     throw new Error("LMS connection has no access token. Connect the gradebook source first.");
