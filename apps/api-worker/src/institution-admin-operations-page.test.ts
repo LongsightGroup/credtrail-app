@@ -297,7 +297,7 @@ describe("GET /tenants/:tenantId/admin/operations/learner-records", () => {
       identityType: "email",
       identityValue: "ottenhoff@longsight.com",
     });
-    expect(mockedFindLearnerProfileByIdDb).not.toHaveBeenCalled();
+    expect(mockedFindLearnerProfileByIdDb).not.toHaveBeenCalledWith(fakeDb, "tenant_123", "");
   });
 
   it("can verify a seeded-demo learner review on the normal admin operations route", async () => {
