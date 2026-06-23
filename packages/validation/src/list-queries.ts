@@ -4,7 +4,12 @@ import {
   learnerRecordTrustLevelSchema,
   resourceIdSchema,
 } from "./primitives.js";
-import { assertionLifecycleStateSchema, tenantPathParamsSchema } from "./path-params.js";
+import { tenantPathParamsSchema } from "./path-params.js";
+import {
+  optionalBlankStringToUndefined,
+  refineAssertionIssuedDateRange,
+  tenantAssertionRecordFilterQueryShape,
+} from "./assertion-record-filter-queries.js";
 
 export const badgeTemplateListQuerySchema = z.object({
   includeArchived: z.preprocess((input) => {
@@ -172,46 +177,15 @@ export const learnerRecordStandardsMappingQuerySchema = z.object({
   profile: learnerRecordExportProfileSchema.default("clr_alignment_json"),
 });
 
-const optionalBlankStringToUndefined = (input: unknown): unknown => {
-  if (typeof input !== "string") {
-    return input;
-  }
-
-  const trimmed = input.trim();
-  return trimmed.length === 0 ? undefined : trimmed;
-};
-
-const assertionListDateSchema = z.iso.date();
-
 export const tenantAssertionListQuerySchema = z
   .object({
-    issuedFrom: z.preprocess(optionalBlankStringToUndefined, assertionListDateSchema.optional()),
-    issuedTo: z.preprocess(optionalBlankStringToUndefined, assertionListDateSchema.optional()),
-    badgeTemplateId: z.preprocess(optionalBlankStringToUndefined, resourceIdSchema.optional()),
-    orgUnitId: z.preprocess(optionalBlankStringToUndefined, resourceIdSchema.optional()),
-    recipientQuery: z.preprocess(
-      optionalBlankStringToUndefined,
-      z.string().min(1).max(320).optional(),
-    ),
-    state: z.preprocess(optionalBlankStringToUndefined, assertionLifecycleStateSchema.optional()),
+    ...tenantAssertionRecordFilterQueryShape,
     limit: z.preprocess(
       optionalBlankStringToUndefined,
       z.coerce.number().int().min(1).max(500).optional(),
     ),
   })
-  .superRefine((value, ctx) => {
-    if (value.issuedFrom === undefined || value.issuedTo === undefined) {
-      return;
-    }
-
-    if (value.issuedFrom > value.issuedTo) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["issuedTo"],
-        message: "issuedTo must be on or after issuedFrom",
-      });
-    }
-  });
+  .superRefine(refineAssertionIssuedDateRange);
 // --- inferred types and parsers ---
 export type LearnerRecordExportPathParams = z.infer<typeof learnerRecordExportPathParamsSchema>;
 

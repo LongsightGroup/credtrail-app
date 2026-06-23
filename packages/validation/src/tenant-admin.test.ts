@@ -241,6 +241,17 @@ describe("enterprise governance request parsers", () => {
       state: "suspended",
       recipientQuery: "learner.one@example.edu",
     });
+
+    expect(
+      parseTenantAssertionLedgerExportQuery({
+        issuedFrom: "",
+        issuedTo: "",
+        badgeTemplateId: "",
+        orgUnitId: "",
+        state: "",
+        recipientQuery: " ",
+      }),
+    ).toEqual({});
   });
 
   it("rejects invalid tenant assertion ledger export query values", () => {

@@ -26,6 +26,10 @@ import {
 } from "@credtrail/validation";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import { buildTenantAssertionLedgerCsvExport } from "../reporting/ledger-export";
+import {
+  tenantAssertionLedgerExportDbInput,
+  tenantAssertionListDbInput,
+} from "./assertion-list-query";
 
 type DirectIssueBadgeRequest = Pick<
   ManualIssueBadgeRequest,
@@ -132,23 +136,6 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
     });
   };
 
-  const listAssertionsForTenant = (
-    c: AppContext,
-    tenantId: string,
-    query: TenantAssertionListQuery,
-  ): ReturnType<typeof listTenantAssertions> => {
-    return listTenantAssertions(resolveDatabase(c.env), {
-      tenantId,
-      ...(query.issuedFrom === undefined ? {} : { issuedFrom: query.issuedFrom }),
-      ...(query.issuedTo === undefined ? {} : { issuedTo: query.issuedTo }),
-      ...(query.badgeTemplateId === undefined ? {} : { badgeTemplateId: query.badgeTemplateId }),
-      ...(query.orgUnitId === undefined ? {} : { orgUnitId: query.orgUnitId }),
-      ...(query.recipientQuery === undefined ? {} : { recipientQuery: query.recipientQuery }),
-      ...(query.state === undefined ? {} : { state: query.state }),
-      ...(query.limit === undefined ? {} : { limit: query.limit }),
-    });
-  };
-
   app.post("/v1/tenants/:tenantId/assertions/manual-issue", async (c): Promise<Response> => {
     const pathParams = parseTenantPathParams(c.req.param());
     const payload = await c.req.json<unknown>();
@@ -219,7 +206,10 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
       return roleCheck;
     }
 
-    const assertions = await listAssertionsForTenant(c, pathParams.tenantId, query);
+    const assertions = await listTenantAssertions(
+      resolveDatabase(c.env),
+      tenantAssertionListDbInput(pathParams.tenantId, query),
+    );
 
     c.header("Cache-Control", "no-store");
 
@@ -258,15 +248,10 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
       return roleCheck;
     }
 
-    const exportResult = await listTenantAssertionLedgerExportRows(resolveDatabase(c.env), {
-      tenantId: pathParams.tenantId,
-      issuedFrom: query.issuedFrom,
-      issuedTo: query.issuedTo,
-      badgeTemplateId: query.badgeTemplateId,
-      orgUnitId: query.orgUnitId,
-      state: query.state,
-      recipientQuery: query.recipientQuery,
-    });
+    const exportResult = await listTenantAssertionLedgerExportRows(
+      resolveDatabase(c.env),
+      tenantAssertionLedgerExportDbInput(pathParams.tenantId, query),
+    );
     const exportParts = buildTenantAssertionLedgerCsvExport(exportResult);
 
     if (exportParts.status === "too_large") {

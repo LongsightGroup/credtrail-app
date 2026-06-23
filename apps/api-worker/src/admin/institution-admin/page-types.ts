@@ -275,8 +275,7 @@ export interface InstitutionAdminIssuedBadgesWorkspace {
     state: string;
     limit: number;
   };
-  assertions: readonly TenantAssertionSummaryRecord[];
-  searchSubmitted: boolean;
+  assertions: readonly TenantAssertionSummaryRecord[] | null;
   listNotice: string | null;
   listError: string | null;
   lifecycleAssertionId: string | null;

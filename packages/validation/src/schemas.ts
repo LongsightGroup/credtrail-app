@@ -4,6 +4,7 @@ export * from "./primitives.js";
 export * from "./path-params.js";
 export * from "./list-queries.js";
 export * from "./reporting-queries.js";
+export * from "./assertion-record-filter-queries.js";
 export * from "./badge-template.js";
 export * from "./learner-record.js";
 export * from "./tenant-admin.js";

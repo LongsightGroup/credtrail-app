@@ -14,40 +14,55 @@ export interface IssuedBadgesPageFilterValues {
   limit: number;
 }
 
+const issuedBadgesDefaultLimit = 100;
+
 export const buildIssuedBadgesPagePath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/operations/issued-badges`;
+};
+
+const issuedBadgesTextFilterNames = [
+  "issuedFrom",
+  "issuedTo",
+  "recipientQuery",
+  "badgeTemplateId",
+  "orgUnitId",
+  "state",
+] as const;
+
+type IssuedBadgesTextFilterName = (typeof issuedBadgesTextFilterNames)[number];
+
+const issuedBadgesPageTextFilterNames = issuedBadgesTextFilterNames;
+
+const issuedBadgesLedgerExportTextFilterNames: readonly IssuedBadgesTextFilterName[] = [
+  "issuedFrom",
+  "issuedTo",
+  "badgeTemplateId",
+  "orgUnitId",
+  "state",
+  "recipientQuery",
+];
+
+const appendIssuedBadgesTextFilterParams = (
+  query: URLSearchParams,
+  filters: IssuedBadgesPageFilterValues,
+  fieldNames: readonly IssuedBadgesTextFilterName[],
+): void => {
+  for (const fieldName of fieldNames) {
+    const value = filters[fieldName];
+
+    if (value.length > 0) {
+      query.set(fieldName, value);
+    }
+  }
 };
 
 export const buildIssuedBadgesPageQuery = (
   filters: IssuedBadgesPageFilterValues,
 ): URLSearchParams => {
   const query = new URLSearchParams();
+  appendIssuedBadgesTextFilterParams(query, filters, issuedBadgesPageTextFilterNames);
 
-  if (filters.issuedFrom.length > 0) {
-    query.set("issuedFrom", filters.issuedFrom);
-  }
-
-  if (filters.issuedTo.length > 0) {
-    query.set("issuedTo", filters.issuedTo);
-  }
-
-  if (filters.recipientQuery.length > 0) {
-    query.set("recipientQuery", filters.recipientQuery);
-  }
-
-  if (filters.badgeTemplateId.length > 0) {
-    query.set("badgeTemplateId", filters.badgeTemplateId);
-  }
-
-  if (filters.orgUnitId.length > 0) {
-    query.set("orgUnitId", filters.orgUnitId);
-  }
-
-  if (filters.state.length > 0) {
-    query.set("state", filters.state);
-  }
-
-  if (filters.limit !== 100) {
+  if (filters.limit !== issuedBadgesDefaultLimit) {
     query.set("limit", String(filters.limit));
   }
 
@@ -80,30 +95,7 @@ export const issuedBadgesLedgerExportUrl = (
   filters: IssuedBadgesPageFilterValues,
 ): string => {
   const query = new URLSearchParams();
-
-  if (filters.issuedFrom.length > 0) {
-    query.set("issuedFrom", filters.issuedFrom);
-  }
-
-  if (filters.issuedTo.length > 0) {
-    query.set("issuedTo", filters.issuedTo);
-  }
-
-  if (filters.badgeTemplateId.length > 0) {
-    query.set("badgeTemplateId", filters.badgeTemplateId);
-  }
-
-  if (filters.orgUnitId.length > 0) {
-    query.set("orgUnitId", filters.orgUnitId);
-  }
-
-  if (filters.state.length > 0) {
-    query.set("state", filters.state);
-  }
-
-  if (filters.recipientQuery.length > 0) {
-    query.set("recipientQuery", filters.recipientQuery);
-  }
+  appendIssuedBadgesTextFilterParams(query, filters, issuedBadgesLedgerExportTextFilterNames);
 
   const path = `/v1/tenants/${encodeURIComponent(tenantId)}/assertions/ledger-export.csv`;
   const queryString = query.toString();
@@ -194,7 +186,7 @@ export const parseIssuedBadgesPageQuery = (query: {
       badgeTemplateId: parsedListQuery.badgeTemplateId ?? "",
       orgUnitId: parsedListQuery.orgUnitId ?? "",
       state: parsedListQuery.state ?? "",
-      limit: parsedListQuery.limit ?? 100,
+      limit: parsedListQuery.limit ?? issuedBadgesDefaultLimit,
     },
     listQuery: parsedListQuery,
     lifecycleAssertionId: lifecycleRaw.length > 0 ? lifecycleRaw : null,

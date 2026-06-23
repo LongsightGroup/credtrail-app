@@ -1,31 +1,15 @@
 import { z } from "zod";
 import { orgUnitTypeSchema, resourceIdSchema } from "./primitives.js";
-import { assertionLifecycleStateSchema } from "./path-params.js";
+import {
+  refineAssertionIssuedDateRange,
+  tenantAssertionRecordFilterQueryShape,
+} from "./assertion-record-filter-queries.js";
 
 const reportingDateSchema = z.iso.date();
 
 export const tenantAssertionLedgerExportQuerySchema = z
-  .object({
-    issuedFrom: reportingDateSchema.optional(),
-    issuedTo: reportingDateSchema.optional(),
-    badgeTemplateId: resourceIdSchema.optional(),
-    orgUnitId: resourceIdSchema.optional(),
-    state: assertionLifecycleStateSchema.optional(),
-    recipientQuery: z.string().trim().min(1).max(320).optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (value.issuedFrom === undefined || value.issuedTo === undefined) {
-      return;
-    }
-
-    if (value.issuedFrom > value.issuedTo) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["issuedTo"],
-        message: "issuedTo must be on or after issuedFrom",
-      });
-    }
-  });
+  .object(tenantAssertionRecordFilterQueryShape)
+  .superRefine(refineAssertionIssuedDateRange);
 
 export const tenantReportingOverviewQuerySchema = z
   .object({

@@ -240,6 +240,7 @@ import {
   type LearnerRecordAssertionExportRecord,
   type LearnerRecordEntryRecord,
   type SqlDatabase,
+  type TenantAssertionSummaryRecord,
   type TenantLmsConnectionRecord,
   type TenantMembershipRecord,
   type TenantMemberRecord,
@@ -407,6 +408,32 @@ export const sampleLearnerRecordAssertionExport = (
     issuerName: "CredTrail University",
     createdAt: "2026-03-24T15:00:00.000Z",
     updatedAt: "2026-03-24T15:00:00.000Z",
+    ...overrides,
+  };
+};
+
+export const sampleTenantAssertionSummary = (
+  overrides?: Partial<TenantAssertionSummaryRecord>,
+): TenantAssertionSummaryRecord => {
+  const assertion = sampleLearnerRecordAssertionExport();
+
+  return {
+    assertionId: assertion.assertionId,
+    tenantId: assertion.tenantId,
+    publicId: assertion.assertionPublicId,
+    badgeTemplateId: assertion.badgeTemplateId,
+    badgeTitle: assertion.badgeTitle,
+    badgeImageUri: assertion.badgeImageUri,
+    recipientIdentity: assertion.recipientIdentity,
+    recipientIdentityType: assertion.recipientIdentityType,
+    issuedAt: assertion.issuedAt,
+    issuedByUserId: assertion.issuedByUserId,
+    revokedAt: assertion.revokedAt,
+    state: "active",
+    source: "default_active",
+    reasonCode: null,
+    reason: null,
+    transitionedAt: null,
     ...overrides,
   };
 };

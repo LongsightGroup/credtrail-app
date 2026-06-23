@@ -260,9 +260,9 @@ export const renderInstitutionAdminOperationsSections = (
     input.issuedBadgesWorkspace?.lifecycleAssertionId !== null &&
     input.issuedBadgesWorkspace?.lifecycleAssertionId !== undefined;
   const showIssuedBadgeRevokeForm = input.issuedBadgesWorkspace?.lifecycleMode === "revoke";
+  const issuedBadgesAssertions = input.issuedBadgesWorkspace?.assertions ?? null;
   const showIssuedBadgesExportAction =
-    input.issuedBadgesWorkspace?.searchSubmitted === true &&
-    input.issuedBadgesWorkspace.assertions.length > 0;
+    issuedBadgesAssertions !== null && issuedBadgesAssertions.length > 0;
   const issuedBadgesExportHref = issuedBadgesLedgerExportUrl(input.tenantId, issuedBadgesFilters);
   const issuedBadgesPanelMarkup = (
     <AdminPanel id="issued-badges-panel" variant="table">
@@ -413,14 +413,13 @@ export const renderInstitutionAdminOperationsSections = (
         </AdminForm>
       </section>
       <AdminTable headers={["Issued", "Recipient", "Template", "State", "Assertion", "Actions"]}>
-        {input.issuedBadgesWorkspace === undefined ||
-        !input.issuedBadgesWorkspace.searchSubmitted ? (
+        {issuedBadgesAssertions === null ? (
           <AdminEmptyTableRow colSpan={6}>
             Use the search form above to load issued badges.
           </AdminEmptyTableRow>
         ) : (
           <IssuedBadgeRows
-            assertions={input.issuedBadgesWorkspace.assertions}
+            assertions={issuedBadgesAssertions}
             auditLifecycleHrefForAssertion={(assertionId) =>
               issuedBadgesAssertionPageUrl(
                 input.tenantId,

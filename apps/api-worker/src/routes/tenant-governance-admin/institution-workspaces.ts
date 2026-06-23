@@ -37,6 +37,7 @@ import {
 import type { InstitutionAdminView } from "../../admin/institution-admin/page-types";
 import type { TenantGovernanceAdminAuth } from "./auth";
 import type { TenantGovernanceAdminPageDataLoaders } from "./page-data";
+import { tenantAssertionListDbInput } from "../assertion-list-query";
 
 export type TenantGovernanceInstitutionAdminWorkspaces = ReturnType<
   typeof createTenantGovernanceInstitutionAdminWorkspaces
@@ -161,33 +162,12 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       userId: session.userId,
       workspace: "issued_badges",
     });
-    const searchSubmitted = shouldLoadIssuedBadgesList(c.req.query());
-    const assertions = searchSubmitted
-      ? await listTenantAssertions(resolveDatabase(c.env), {
-          tenantId,
-          ...(issuedBadgesQuery.listQuery.issuedFrom === undefined
-            ? {}
-            : { issuedFrom: issuedBadgesQuery.listQuery.issuedFrom }),
-          ...(issuedBadgesQuery.listQuery.issuedTo === undefined
-            ? {}
-            : { issuedTo: issuedBadgesQuery.listQuery.issuedTo }),
-          ...(issuedBadgesQuery.listQuery.badgeTemplateId === undefined
-            ? {}
-            : { badgeTemplateId: issuedBadgesQuery.listQuery.badgeTemplateId }),
-          ...(issuedBadgesQuery.listQuery.orgUnitId === undefined
-            ? {}
-            : { orgUnitId: issuedBadgesQuery.listQuery.orgUnitId }),
-          ...(issuedBadgesQuery.listQuery.recipientQuery === undefined
-            ? {}
-            : { recipientQuery: issuedBadgesQuery.listQuery.recipientQuery }),
-          ...(issuedBadgesQuery.listQuery.state === undefined
-            ? {}
-            : { state: issuedBadgesQuery.listQuery.state }),
-          ...(issuedBadgesQuery.listQuery.limit === undefined
-            ? {}
-            : { limit: issuedBadgesQuery.listQuery.limit }),
-        })
-      : [];
+    const assertions = shouldLoadIssuedBadgesList(c.req.query())
+      ? await listTenantAssertions(
+          resolveDatabase(c.env),
+          tenantAssertionListDbInput(tenantId, issuedBadgesQuery.listQuery),
+        )
+      : null;
 
     return await renderInstitutionAdminWorkspacePage(
       c,
@@ -197,7 +177,6 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
         issuedBadgesWorkspace: {
           filters: issuedBadgesQuery.filters,
           assertions,
-          searchSubmitted,
           listNotice: flash?.tone === "success" ? flash.message : null,
           listError: flash?.tone === "error" ? flash.message : null,
           lifecycleAssertionId: issuedBadgesQuery.lifecycleAssertionId,
