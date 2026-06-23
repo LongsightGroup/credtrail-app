@@ -276,6 +276,30 @@ describe("GET /tenants/:tenantId/admin/operations/learner-records", () => {
     expect(mockedFindLearnerProfileByIdDb).toHaveBeenCalledWith(fakeDb, "tenant_123", "lpr_123");
   });
 
+  it("treats a blank learner profile id as absent when searching by email", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/learner-records?learnerProfileId=&email=ottenhoff%40longsight.com",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Learner overview");
+    expect(mockedFindLearnerProfileByIdentityDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      identityType: "email",
+      identityValue: "ottenhoff@longsight.com",
+    });
+    expect(mockedFindLearnerProfileByIdDb).not.toHaveBeenCalled();
+  });
+
   it("can verify a seeded-demo learner review on the normal admin operations route", async () => {
     const seededDemo = getSeededDemoLearnerRecordFixture();
 

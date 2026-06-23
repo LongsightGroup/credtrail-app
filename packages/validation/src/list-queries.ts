@@ -99,41 +99,55 @@ export const learnerRecordEntryListQuerySchema = z.object({
   status: learnerRecordStatusSchema.optional(),
 });
 
-export const adminLearnerRecordReviewQuerySchema = z
-  .object({
-    learnerProfileId: z
-      .preprocess((input) => {
-        if (typeof input !== "string") {
-          return input;
-        }
+const adminLearnerRecordReviewQueryFields = ["learnerProfileId", "email"] as const;
 
-        const trimmed = input.trim();
-        return trimmed.length === 0 ? undefined : trimmed;
-      }, resourceIdSchema)
-      .optional(),
-    email: z
-      .preprocess((input) => {
-        if (typeof input !== "string") {
-          return input;
-        }
+const normalizeAdminLearnerRecordReviewQuery = (input: unknown): unknown => {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    return input;
+  }
 
-        const trimmed = input.trim();
-        return trimmed.length === 0 ? undefined : trimmed;
-      }, z.string().email().max(320))
-      .optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (value.learnerProfileId !== undefined && value.email !== undefined) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["learnerProfileId"],
-        message: "Provide learnerProfileId or email, not both",
-      });
+  const normalized: Record<string, unknown> = { ...(input as Record<string, unknown>) };
+
+  for (const field of adminLearnerRecordReviewQueryFields) {
+    const value = normalized[field];
+
+    if (typeof value !== "string") {
+      continue;
     }
-    if (value.learnerProfileId === undefined && value.email === undefined) {
-      return;
+
+    const trimmed = value.trim();
+
+    if (trimmed.length === 0) {
+      delete normalized[field];
+      continue;
     }
-  });
+
+    normalized[field] = trimmed;
+  }
+
+  return normalized;
+};
+
+export const adminLearnerRecordReviewQuerySchema = z.preprocess(
+  normalizeAdminLearnerRecordReviewQuery,
+  z
+    .object({
+      learnerProfileId: resourceIdSchema.optional(),
+      email: z.string().email().max(320).optional(),
+    })
+    .superRefine((value, ctx) => {
+      if (value.learnerProfileId !== undefined && value.email !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["learnerProfileId"],
+          message: "Provide learnerProfileId or email, not both",
+        });
+      }
+      if (value.learnerProfileId === undefined && value.email === undefined) {
+        return;
+      }
+    }),
+);
 
 export const learnerRecordExportProfileSchema = z.enum([
   "native_portable_json",

@@ -268,6 +268,22 @@ describe("learner-record parsers", () => {
       email: "learner@example.edu",
     });
 
+    expect(
+      parseAdminLearnerRecordReviewQuery({
+        learnerProfileId: "",
+        email: " learner@example.edu ",
+      }),
+    ).toEqual({
+      email: "learner@example.edu",
+    });
+
+    expect(
+      parseAdminLearnerRecordReviewQuery({
+        learnerProfileId: " ",
+        email: "",
+      }),
+    ).toEqual({});
+
     expect(parseAdminLearnerRecordReviewQuery({})).toEqual({});
   });
 
