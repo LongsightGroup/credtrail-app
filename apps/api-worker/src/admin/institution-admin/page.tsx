@@ -1168,8 +1168,8 @@ const renderInstitutionAdminPage = (
         return (
           <>
             {renderPageHeader(
-              "Issued Badges",
-              "Search issued badges and take audit or revocation actions from one page.",
+              "Badge Records",
+              "Search issued badge records and take audit or revocation actions from one page.",
             )}
             <section class="ct-admin ct-stack">{issuedBadgesPanelMarkup}</section>
           </>

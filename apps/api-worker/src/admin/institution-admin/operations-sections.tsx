@@ -257,7 +257,7 @@ export const renderInstitutionAdminOperationsSections = (
   const showIssuedBadgeRevokeForm = input.issuedBadgesWorkspace?.lifecycleMode === "revoke";
   const issuedBadgesPanelMarkup = (
     <AdminPanel id="issued-badges-panel" variant="table">
-      <h2>Issued Badges Ledger</h2>
+      <h2>Badge Records</h2>
       <p>Tenant-wide assertion log with direct audit and revocation actions.</p>
       {input.issuedBadgesWorkspace?.listError !== null &&
       input.issuedBadgesWorkspace?.listError !== undefined &&

@@ -163,7 +163,7 @@ export const INSTITUTION_ADMIN_VIEW_CONFIG = {
     controller: "shell",
   },
   operationsIssuedBadges: {
-    titlePrefix: "Issued Badges · Institution Admin",
+    titlePrefix: "Badge Records · Institution Admin",
     controller: "shell",
     extraAssets: ["institutionAdminIssuedBadgesJs"],
   },

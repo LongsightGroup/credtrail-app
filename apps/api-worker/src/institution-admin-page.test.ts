@@ -125,7 +125,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).not.toContain("Enterprise Auth");
     expect(body).not.toContain("Manual Issue Badge");
     expect(body).not.toContain("Create Tenant API Key");
-    expect(body).not.toContain("Issued Badges Ledger");
+    expect(body).not.toContain('id="issued-badges-panel"');
     expect(body).toContain('href="/tenants/tenant_123/admin/operations/issue"');
     expect(body).toContain('href="/tenants/tenant_123/admin/operations/learner-records"');
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');

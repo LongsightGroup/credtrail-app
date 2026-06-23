@@ -879,7 +879,7 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
 
     expect(mockedListTenantAssertions).not.toHaveBeenCalled();
     expect(response.status).toBe(200);
-    expect(body).toContain("Issued Badges");
+    expect(body).toContain("Badge Records");
     expect(body).toContain('id="issued-badges-filter-form"');
     expect(body).toContain('id="issued-badge-lifecycle-panel"');
     expect(body).toContain('id="issued-badge-revoke-form"');

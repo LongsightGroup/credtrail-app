@@ -154,7 +154,7 @@ export const buildInstitutionAdminSidebarSections = (
             },
             {
               href: paths.operationsIssuedBadgesPath,
-              label: "Issued Badges",
+              label: "Badge Records",
               isCurrent: view === "operationsIssuedBadges",
             },
             {

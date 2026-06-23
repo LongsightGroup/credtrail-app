@@ -103,7 +103,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     );
     expect(body).not.toContain("Badge Templates (1)");
     expect(body).not.toContain("Create Tenant API Key");
-    expect(body).not.toContain("Issued Badges Ledger");
+    expect(body).not.toContain('id="issued-badges-panel"');
   });
 
   it("shows visible edit links and eligible delete actions for draft and rejected rules", async () => {
