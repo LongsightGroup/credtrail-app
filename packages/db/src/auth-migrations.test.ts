@@ -44,6 +44,8 @@ describe("better auth core migration", () => {
     expect(sql).toContain("DELETE FROM tenant_auth_providers");
     expect(sql).toContain("DROP TABLE IF EXISTS tenant_sso_saml_configurations");
     expect(sql).toContain("CHECK (protocol IN ('oidc'))");
+    expect(sql).toContain("DROP CONSTRAINT IF EXISTS tenant_auth_providers_protocol_check");
+    expect(sql).not.toContain("PRAGMA");
   });
 
   it("adds Better Auth enterprise SSO indexes without changing CredTrail-owned tables", () => {
