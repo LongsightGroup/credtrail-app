@@ -261,7 +261,6 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
   };
 
   const handleOfferByBadgeIdentifier = async (
-    c: AppContext,
     requestUrl: string,
     db: SqlDatabase,
     badgeObjects: ImmutableCredentialStore,
@@ -511,7 +510,6 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
 
   app.get("/credentials/v1/offers/:badgeIdentifier", async (c) => {
     return handleOfferByBadgeIdentifier(
-      c,
       c.req.url,
       resolveDatabase(c.env),
       c.env.BADGE_OBJECTS,

@@ -70,6 +70,8 @@ Required compiler behavior:
 - `noImplicitOverride: true`
 - `useUnknownInCatchVariables: true`
 - `noFallthroughCasesInSwitch: true`
+- `noUnusedLocals: true`
+- `noUnusedParameters: true`
 
 Rules:
 - Do not use `any` in application code.
