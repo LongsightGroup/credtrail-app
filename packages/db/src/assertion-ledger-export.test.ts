@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 
 import {
+  listTenantAssertions,
   listTenantAssertionLedgerExportRows,
   SYNCHRONOUS_EXPORT_ROW_LIMIT,
   upsertUserByEmail,
@@ -160,6 +161,33 @@ const seedLedgerRows = async (): Promise<{
 };
 
 describeDbIntegration("ledger export foundation", () => {
+  it("filters badge record rows by issued date, template, state, and exact-match leaf orgUnitId", async () => {
+    const fixture = await seedLedgerRows();
+
+    try {
+      const result = await listTenantAssertions(fixture.db, {
+        tenantId: fixture.tenantId,
+        issuedFrom: "2026-03-01",
+        issuedTo: "2026-03-31",
+        badgeTemplateId: fixture.badgeTemplateId,
+        orgUnitId: fixture.microbiologyProgramId,
+        state: "suspended",
+      });
+
+      expect(result).toEqual([
+        expect.objectContaining({
+          assertionId: fixture.assertionMatchId,
+          state: "suspended",
+        }),
+      ]);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.issuerUserId],
+      });
+    }
+  });
+
   it("filters ledger export rows by issued date, template, state, and exact-match leaf orgUnitId", async () => {
     const fixture = await seedLedgerRows();
 

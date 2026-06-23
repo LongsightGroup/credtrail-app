@@ -181,18 +181,37 @@ const optionalBlankStringToUndefined = (input: unknown): unknown => {
   return trimmed.length === 0 ? undefined : trimmed;
 };
 
-export const tenantAssertionListQuerySchema = z.object({
-  badgeTemplateId: z.preprocess(optionalBlankStringToUndefined, resourceIdSchema.optional()),
-  recipientQuery: z.preprocess(
-    optionalBlankStringToUndefined,
-    z.string().min(1).max(320).optional(),
-  ),
-  state: z.preprocess(optionalBlankStringToUndefined, assertionLifecycleStateSchema.optional()),
-  limit: z.preprocess(
-    optionalBlankStringToUndefined,
-    z.coerce.number().int().min(1).max(500).optional(),
-  ),
-});
+const assertionListDateSchema = z.iso.date();
+
+export const tenantAssertionListQuerySchema = z
+  .object({
+    issuedFrom: z.preprocess(optionalBlankStringToUndefined, assertionListDateSchema.optional()),
+    issuedTo: z.preprocess(optionalBlankStringToUndefined, assertionListDateSchema.optional()),
+    badgeTemplateId: z.preprocess(optionalBlankStringToUndefined, resourceIdSchema.optional()),
+    orgUnitId: z.preprocess(optionalBlankStringToUndefined, resourceIdSchema.optional()),
+    recipientQuery: z.preprocess(
+      optionalBlankStringToUndefined,
+      z.string().min(1).max(320).optional(),
+    ),
+    state: z.preprocess(optionalBlankStringToUndefined, assertionLifecycleStateSchema.optional()),
+    limit: z.preprocess(
+      optionalBlankStringToUndefined,
+      z.coerce.number().int().min(1).max(500).optional(),
+    ),
+  })
+  .superRefine((value, ctx) => {
+    if (value.issuedFrom === undefined || value.issuedTo === undefined) {
+      return;
+    }
+
+    if (value.issuedFrom > value.issuedTo) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["issuedTo"],
+        message: "issuedTo must be on or after issuedFrom",
+      });
+    }
+  });
 // --- inferred types and parsers ---
 export type LearnerRecordExportPathParams = z.infer<typeof learnerRecordExportPathParamsSchema>;
 

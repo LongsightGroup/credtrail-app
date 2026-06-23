@@ -161,27 +161,42 @@ describe("enterprise governance request parsers", () => {
   it("parses tenant assertion list query filters and bounds", () => {
     const defaultQuery = parseTenantAssertionListQuery({});
     const filteredQuery = parseTenantAssertionListQuery({
+      issuedFrom: "2026-03-01",
+      issuedTo: "2026-03-31",
       badgeTemplateId: "badge_template_001",
+      orgUnitId: "tenant_123:org:department-cs",
       recipientQuery: "csev@umich.edu",
       state: "revoked",
       limit: "125",
     });
     const blankQuery = parseTenantAssertionListQuery({
+      issuedFrom: "",
+      issuedTo: "",
       badgeTemplateId: "",
+      orgUnitId: "",
       recipientQuery: " ",
       state: "",
       limit: "",
     });
 
+    expect(defaultQuery.issuedFrom).toBeUndefined();
+    expect(defaultQuery.issuedTo).toBeUndefined();
     expect(defaultQuery.badgeTemplateId).toBeUndefined();
+    expect(defaultQuery.orgUnitId).toBeUndefined();
     expect(defaultQuery.recipientQuery).toBeUndefined();
     expect(defaultQuery.state).toBeUndefined();
     expect(defaultQuery.limit).toBeUndefined();
+    expect(filteredQuery.issuedFrom).toBe("2026-03-01");
+    expect(filteredQuery.issuedTo).toBe("2026-03-31");
     expect(filteredQuery.badgeTemplateId).toBe("badge_template_001");
+    expect(filteredQuery.orgUnitId).toBe("tenant_123:org:department-cs");
     expect(filteredQuery.recipientQuery).toBe("csev@umich.edu");
     expect(filteredQuery.state).toBe("revoked");
     expect(filteredQuery.limit).toBe(125);
+    expect(blankQuery.issuedFrom).toBeUndefined();
+    expect(blankQuery.issuedTo).toBeUndefined();
     expect(blankQuery.badgeTemplateId).toBeUndefined();
+    expect(blankQuery.orgUnitId).toBeUndefined();
     expect(blankQuery.recipientQuery).toBeUndefined();
     expect(blankQuery.state).toBeUndefined();
     expect(blankQuery.limit).toBeUndefined();
@@ -197,6 +212,13 @@ describe("enterprise governance request parsers", () => {
     expect(() => {
       parseTenantAssertionListQuery({
         limit: "0",
+      });
+    }).toThrow(/./);
+
+    expect(() => {
+      parseTenantAssertionListQuery({
+        issuedFrom: "2026-03-31",
+        issuedTo: "2026-03-01",
       });
     }).toThrow(/./);
   });

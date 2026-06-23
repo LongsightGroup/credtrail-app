@@ -122,7 +122,10 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
 
   const parseAssertionListQuery = (c: AppContext): TenantAssertionListQuery => {
     return parseTenantAssertionListQuery({
+      issuedFrom: c.req.query("issuedFrom"),
+      issuedTo: c.req.query("issuedTo"),
       badgeTemplateId: c.req.query("badgeTemplateId"),
+      orgUnitId: c.req.query("orgUnitId"),
       recipientQuery: c.req.query("recipientQuery"),
       state: c.req.query("state"),
       limit: c.req.query("limit"),
@@ -136,7 +139,10 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
   ): ReturnType<typeof listTenantAssertions> => {
     return listTenantAssertions(resolveDatabase(c.env), {
       tenantId,
+      ...(query.issuedFrom === undefined ? {} : { issuedFrom: query.issuedFrom }),
+      ...(query.issuedTo === undefined ? {} : { issuedTo: query.issuedTo }),
       ...(query.badgeTemplateId === undefined ? {} : { badgeTemplateId: query.badgeTemplateId }),
+      ...(query.orgUnitId === undefined ? {} : { orgUnitId: query.orgUnitId }),
       ...(query.recipientQuery === undefined ? {} : { recipientQuery: query.recipientQuery }),
       ...(query.state === undefined ? {} : { state: query.state }),
       ...(query.limit === undefined ? {} : { limit: query.limit }),

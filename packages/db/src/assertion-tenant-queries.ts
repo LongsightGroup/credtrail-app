@@ -92,13 +92,32 @@ export const listTenantAssertions = async (
   db: SqlDatabase,
   input: ListTenantAssertionsInput,
 ): Promise<TenantAssertionSummaryRecord[]> => {
+  if (input.orgUnitId !== undefined) {
+    await backfillAssertionReportingAttributionsForTenant(db, input.tenantId);
+  }
+
   const queryLimit = Math.max(1, Math.min(input.limit ?? 100, 500));
   const whereClauses = ["assertions.tenant_id = ?"];
   const params: unknown[] = [input.tenantId];
 
+  if (input.issuedFrom !== undefined) {
+    whereClauses.push("assertions.issued_at >= ?");
+    params.push(normalizeReportingDateBoundary(input.issuedFrom, "start"));
+  }
+
+  if (input.issuedTo !== undefined) {
+    whereClauses.push("assertions.issued_at <= ?");
+    params.push(normalizeReportingDateBoundary(input.issuedTo, "end"));
+  }
+
   if (input.badgeTemplateId !== undefined) {
     whereClauses.push("assertions.badge_template_id = ?");
     params.push(input.badgeTemplateId);
+  }
+
+  if (input.orgUnitId !== undefined) {
+    whereClauses.push("attribution.org_unit_id = ?");
+    params.push(input.orgUnitId);
   }
 
   if (input.recipientQuery !== undefined) {
@@ -150,6 +169,12 @@ export const listTenantAssertions = async (
         INNER JOIN badge_templates
           ON badge_templates.tenant_id = assertions.tenant_id
           AND badge_templates.id = assertions.badge_template_id
+        ${
+          input.orgUnitId === undefined
+            ? ""
+            : `INNER JOIN assertion_reporting_attributions attribution
+          ON attribution.assertion_id = assertions.id`
+        }
         LEFT JOIN assertion_lifecycle_events lifecycle
           ON lifecycle.id = (
             SELECT ale.id

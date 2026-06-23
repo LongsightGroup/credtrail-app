@@ -66,14 +66,20 @@ const readOptionalFormField = (formData: FormData, name: string): string | undef
 const readFilterFieldsFromForm = (
   formData: FormData,
 ): ReturnType<typeof parseIssuedBadgesPageQuery>["filters"] => {
+  const issuedFrom = readOptionalFormField(formData, "issuedFrom");
+  const issuedTo = readOptionalFormField(formData, "issuedTo");
   const recipientQuery = readOptionalFormField(formData, "recipientQuery");
   const badgeTemplateId = readOptionalFormField(formData, "badgeTemplateId");
+  const orgUnitId = readOptionalFormField(formData, "orgUnitId");
   const state = readOptionalFormField(formData, "state");
   const limitRaw = formData.get("limit");
 
   return parseIssuedBadgesPageQuery({
+    ...(issuedFrom === undefined ? {} : { issuedFrom }),
+    ...(issuedTo === undefined ? {} : { issuedTo }),
     ...(recipientQuery === undefined ? {} : { recipientQuery }),
     ...(badgeTemplateId === undefined ? {} : { badgeTemplateId }),
+    ...(orgUnitId === undefined ? {} : { orgUnitId }),
     ...(state === undefined ? {} : { state }),
     limit: typeof limitRaw === "string" && limitRaw.trim().length > 0 ? limitRaw.trim() : "100",
   }).filters;

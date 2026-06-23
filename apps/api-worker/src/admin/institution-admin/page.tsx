@@ -694,8 +694,12 @@ const renderInstitutionAdminPage = (
       ? input.orgUnits
           .filter((orgUnit) => orgUnit.isActive)
           .map((orgUnit) => {
+            const selectedOrgUnitFilterId = input.issuedBadgesWorkspace?.filters.orgUnitId ?? "";
+
             return (
-              <option value={orgUnit.id}>{`${orgUnit.displayName} (${orgUnit.unitType})`}</option>
+              <option value={orgUnit.id} selected={orgUnit.id === selectedOrgUnitFilterId}>
+                {`${orgUnit.displayName} (${orgUnit.unitType})`}
+              </option>
             );
           })
       : [];

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { TenantAssertionSummaryRecord } from "@credtrail/db";
 import {
   createEnv,
   fakeDb,
@@ -19,6 +20,32 @@ import {
   mockedRecordAssertionLifecycleTransition,
   sampleLearnerRecordAssertionExport,
 } from "./institution-admin-page-test-utils";
+
+const sampleTenantAssertionSummary = (
+  overrides?: Partial<TenantAssertionSummaryRecord>,
+): TenantAssertionSummaryRecord => {
+  const assertion = sampleLearnerRecordAssertionExport();
+
+  return {
+    assertionId: assertion.assertionId,
+    tenantId: assertion.tenantId,
+    publicId: assertion.assertionPublicId,
+    badgeTemplateId: assertion.badgeTemplateId,
+    badgeTitle: assertion.badgeTitle,
+    badgeImageUri: assertion.badgeImageUri,
+    recipientIdentity: assertion.recipientIdentity,
+    recipientIdentityType: assertion.recipientIdentityType,
+    issuedAt: assertion.issuedAt,
+    issuedByUserId: assertion.issuedByUserId,
+    revokedAt: assertion.revokedAt,
+    state: "active",
+    source: "default_active",
+    reasonCode: null,
+    reason: null,
+    transitionedAt: null,
+    ...overrides,
+  };
+};
 
 const { mockedIssueBadgeForTenant } = vi.hoisted(() => {
   return {
@@ -905,9 +932,17 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     expect(response.status).toBe(200);
     expect(body).toContain("Badge Records");
     expect(body).toContain('id="issued-badges-filter-form"');
+    expect(body).toContain('name="issuedFrom" type="date"');
+    expect(body).toContain('name="issuedTo" type="date"');
+    expect(body).toContain('name="orgUnitId"');
     expect(body).toContain('id="issued-badge-lifecycle-panel"');
     expect(body).toContain('id="issued-badge-revoke-form"');
     expect(body).not.toContain("issuedBadgeRowsPath");
+    expect(body).not.toContain('id="issued-badges-export-form"');
+    expect(body).not.toContain("Ledger export");
+    expect(body).not.toContain("Export matching CSV");
+    expect(body).not.toContain("pending_review");
+    expect(body).toContain("Use the search form above to load issued badges.");
     expect(body).toContain('method="get"');
     expect(body).toContain("/tenants/tenant_123/admin/operations/issued-badges");
     expect(body).toContain('method="post"');
@@ -944,7 +979,7 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     const env = createEnv();
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/operations/issued-badges?recipientQuery=&badgeTemplateId=&state=&limit=100",
+      "/tenants/tenant_123/admin/operations/issued-badges?issuedFrom=&issuedTo=&recipientQuery=&badgeTemplateId=&orgUnitId=&state=&limit=100",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -958,6 +993,65 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
       tenantId: "tenant_123",
       limit: 100,
     });
+  });
+
+  it("applies shared badge record filters and exports matching rows from the same query", async () => {
+    const env = createEnv();
+
+    mockedListTenantAssertions.mockResolvedValueOnce([sampleTenantAssertionSummary()]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/issued-badges?issuedFrom=2026-03-01&issuedTo=2026-03-31&recipientQuery=learner&badgeTemplateId=badge_template_001&orgUnitId=tenant_123%3Aorg%3Adepartment-cs&state=active&limit=25",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(mockedListTenantAssertions).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      issuedFrom: "2026-03-01",
+      issuedTo: "2026-03-31",
+      badgeTemplateId: "badge_template_001",
+      orgUnitId: "tenant_123:org:department-cs",
+      recipientQuery: "learner",
+      state: "active",
+      limit: 25,
+    });
+    expect(body).toContain("Export matching CSV");
+    expect(body).toContain(
+      'href="/v1/tenants/tenant_123/assertions/ledger-export.csv?issuedFrom=2026-03-01&amp;issuedTo=2026-03-31&amp;badgeTemplateId=badge_template_001&amp;orgUnitId=tenant_123%3Aorg%3Adepartment-cs&amp;state=active&amp;recipientQuery=learner"',
+    );
+    expect(body).not.toContain(
+      'href="/v1/tenants/tenant_123/assertions/ledger-export.csv?issuedFrom=2026-03-01&amp;issuedTo=2026-03-31&amp;badgeTemplateId=badge_template_001&amp;orgUnitId=tenant_123%3Aorg%3Adepartment-cs&amp;state=active&amp;recipientQuery=learner&amp;limit=25"',
+    );
+    expect(body).toContain("Direct CSV export is capped at 5000 rows");
+    expect(body).not.toContain('id="issued-badges-export-form"');
+    expect(body).not.toContain("Ledger export");
+  });
+
+  it("does not show the matching export action when search returns no rows", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/issued-badges?recipientQuery=missing@example.edu",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(mockedListTenantAssertions).toHaveBeenCalledTimes(1);
+    expect(body).toContain("No assertions matched the selected filters.");
+    expect(body).not.toContain("Export matching CSV");
   });
 
   it("redirects with a list error when issued badge filters are invalid", async () => {
@@ -1000,6 +1094,27 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
 
     expect(pageResponse.status).toBe(200);
     expect(body).toContain("Invalid search filters");
+  });
+
+  it("redirects with a list error when issued badge date filters are invalid", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/issued-badges?issuedFrom=2026-03-31&issuedTo=2026-03-01&limit=100",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "/tenants/tenant_123/admin/operations/issued-badges",
+    );
+    expect(mockedListTenantAssertions).not.toHaveBeenCalled();
   });
 
   it("shows the revoke form only for revoke lifecycle deep links", async () => {
@@ -1105,11 +1220,13 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     expect(mockedRecordAssertionLifecycleTransition).toHaveBeenCalled();
   });
 
-  it("renders a separate admin ledger export form with audit filters", async () => {
+  it("keeps ledger export controls unified with the badge records search", async () => {
     const env = createEnv();
 
+    mockedListTenantAssertions.mockResolvedValueOnce([sampleTenantAssertionSummary()]);
+
     const response = await app.request(
-      "/tenants/tenant_123/admin/operations/issued-badges",
+      "/tenants/tenant_123/admin/operations/issued-badges?recipientQuery=learner@example.edu",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -1120,19 +1237,10 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain('id="issued-badges-export-form"');
-    expect(body).toContain('action="/v1/tenants/tenant_123/assertions/ledger-export.csv"');
-    expect(body).toContain('method="get"');
-    expect(body).toContain('name="issuedFrom" type="date"');
-    expect(body).toContain('name="issuedTo" type="date"');
-    expect(body).toContain('name="badgeTemplateId"');
-    expect(body).toContain('name="orgUnitId"');
-    expect(body).toContain('name="state"');
-    expect(body).toContain('name="recipientQuery"');
-    expect(body).toContain('type="text"');
-    expect(body).toContain("Synchronous CSV export is capped at 5000 rows");
-    expect(body).toContain("Ancestor lineage columns reflect the current org tree only");
-    expect(body).toContain("stable leaf attribution remains the historical contract");
+    expect(body).not.toContain('id="issued-badges-export-form"');
+    expect(body).not.toContain("Export ledger CSV");
+    expect(body).not.toContain("Ancestor lineage columns reflect the current org tree only");
+    expect(body).toContain("Export matching CSV");
   });
 });
 

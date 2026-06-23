@@ -161,12 +161,22 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       userId: session.userId,
       workspace: "issued_badges",
     });
-    const assertions = shouldLoadIssuedBadgesList(c.req.query())
+    const searchSubmitted = shouldLoadIssuedBadgesList(c.req.query());
+    const assertions = searchSubmitted
       ? await listTenantAssertions(resolveDatabase(c.env), {
           tenantId,
+          ...(issuedBadgesQuery.listQuery.issuedFrom === undefined
+            ? {}
+            : { issuedFrom: issuedBadgesQuery.listQuery.issuedFrom }),
+          ...(issuedBadgesQuery.listQuery.issuedTo === undefined
+            ? {}
+            : { issuedTo: issuedBadgesQuery.listQuery.issuedTo }),
           ...(issuedBadgesQuery.listQuery.badgeTemplateId === undefined
             ? {}
             : { badgeTemplateId: issuedBadgesQuery.listQuery.badgeTemplateId }),
+          ...(issuedBadgesQuery.listQuery.orgUnitId === undefined
+            ? {}
+            : { orgUnitId: issuedBadgesQuery.listQuery.orgUnitId }),
           ...(issuedBadgesQuery.listQuery.recipientQuery === undefined
             ? {}
             : { recipientQuery: issuedBadgesQuery.listQuery.recipientQuery }),
@@ -187,6 +197,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
         issuedBadgesWorkspace: {
           filters: issuedBadgesQuery.filters,
           assertions,
+          searchSubmitted,
           listNotice: flash?.tone === "success" ? flash.message : null,
           listError: flash?.tone === "error" ? flash.message : null,
           lifecycleAssertionId: issuedBadgesQuery.lifecycleAssertionId,

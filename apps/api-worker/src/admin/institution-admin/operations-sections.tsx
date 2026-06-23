@@ -1,13 +1,14 @@
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
+  AdminActions,
   AdminButton,
+  AdminButtonLink,
   AdminCheckboxRow,
   AdminEmptyTableRow,
   AdminField,
   AdminForm,
   AdminPanel,
   AdminStatus,
-  AdminStatusPill,
   AdminTable,
   IssuedBadgeRows,
   ReviewQueueRows,
@@ -16,6 +17,7 @@ import {
 import {
   buildIssuedBadgesPagePath,
   issuedBadgesAssertionPageUrl,
+  issuedBadgesLedgerExportUrl,
   tenantIssuedBadgeAdminRevokePath,
 } from "../issued-badges-admin-helpers";
 import { tenantReviewQueueAdminResolvePath } from "../review-queue-admin-helpers";
@@ -245,8 +247,11 @@ export const renderInstitutionAdminOperationsSections = (
     </AdminPanel>
   );
   const issuedBadgesFilters = input.issuedBadgesWorkspace?.filters ?? {
+    issuedFrom: "",
+    issuedTo: "",
     recipientQuery: "",
     badgeTemplateId: "",
+    orgUnitId: "",
     state: "",
     limit: 100,
   };
@@ -255,6 +260,10 @@ export const renderInstitutionAdminOperationsSections = (
     input.issuedBadgesWorkspace?.lifecycleAssertionId !== null &&
     input.issuedBadgesWorkspace?.lifecycleAssertionId !== undefined;
   const showIssuedBadgeRevokeForm = input.issuedBadgesWorkspace?.lifecycleMode === "revoke";
+  const showIssuedBadgesExportAction =
+    input.issuedBadgesWorkspace?.searchSubmitted === true &&
+    input.issuedBadgesWorkspace.assertions.length > 0;
+  const issuedBadgesExportHref = issuedBadgesLedgerExportUrl(input.tenantId, issuedBadgesFilters);
   const issuedBadgesPanelMarkup = (
     <AdminPanel id="issued-badges-panel" variant="table">
       <h2>Badge Records</h2>
@@ -274,6 +283,12 @@ export const renderInstitutionAdminOperationsSections = (
         action={issuedBadgesPagePath}
         className="ct-admin__form ct-admin__form--inline ct-grid"
       >
+        <AdminField label="Issued from">
+          <input name="issuedFrom" type="date" value={issuedBadgesFilters.issuedFrom} />
+        </AdminField>
+        <AdminField label="Issued to">
+          <input name="issuedTo" type="date" value={issuedBadgesFilters.issuedTo} />
+        </AdminField>
         <AdminField label="Recipient / assertion search">
           <input
             name="recipientQuery"
@@ -284,6 +299,14 @@ export const renderInstitutionAdminOperationsSections = (
         </AdminField>
         <AdminField label="Badge template">
           <select name="badgeTemplateId">{input.templateFilterOptions}</select>
+        </AdminField>
+        <AdminField label="Org unit">
+          <select name="orgUnitId">
+            <option value="" selected={issuedBadgesFilters.orgUnitId.length === 0}>
+              All org units
+            </option>
+            {input.activeOrgUnitOptions}
+          </select>
         </AdminField>
         <AdminField label="Lifecycle state">
           <select name="state">
@@ -316,68 +339,19 @@ export const renderInstitutionAdminOperationsSections = (
         </AdminField>
         <AdminButton type="submit">Search issued badges</AdminButton>
       </AdminForm>
-      <AdminPanel as="section" variant="nested">
-        <div class="ct-cluster">
-          <h3>Ledger export</h3>
-          <AdminStatusPill>Owner/admin only</AdminStatusPill>
-        </div>
-        <p>
-          Download an audit-focused CSV directly from the operations workspace. This export stays
-          separate from the browser-loaded ledger list and runs as a plain server-side attachment
-          response.
-        </p>
-        <AdminForm
-          id="issued-badges-export-form"
-          method="get"
-          action={`/v1/tenants/${input.tenantId}/assertions/ledger-export.csv`}
-          className="ct-admin__form ct-admin__form--inline ct-grid"
-        >
-          <AdminField label="Issued from">
-            <input name="issuedFrom" type="date" />
-          </AdminField>
-          <AdminField label="Issued to">
-            <input name="issuedTo" type="date" />
-          </AdminField>
-          <AdminField label="Badge template">
-            <select name="badgeTemplateId">
-              <option value="">All templates</option>
-              {input.templateFilterOptions}
-            </select>
-          </AdminField>
-          <AdminField label="Org unit">
-            <select name="orgUnitId">
-              <option value="">All org units</option>
-              {input.activeOrgUnitOptions}
-            </select>
-          </AdminField>
-          <AdminField label="Lifecycle state">
-            <select name="state">
-              <option value="">All current states</option>
-              <option value="active">active</option>
-              <option value="suspended">suspended</option>
-              <option value="revoked">revoked</option>
-              <option value="expired">expired</option>
-              <option value="pending_review">pending review</option>
-            </select>
-          </AdminField>
-          <AdminField label="Recipient / assertion search">
-            <input
-              name="recipientQuery"
-              type="text"
-              placeholder="Filter by recipient, identifier, or assertion ID"
-            />
-          </AdminField>
-          <AdminButton type="submit">Export ledger CSV</AdminButton>
-        </AdminForm>
-        <p class="ct-admin__hint">
-          Synchronous CSV export is capped at 5000 rows. Narrow the filters above if the export is
-          too large for direct download.
-        </p>
-        <p class="ct-admin__hint">
-          Ancestor lineage columns reflect the current org tree only, while stable leaf attribution
-          remains the historical contract for audit use.
-        </p>
-      </AdminPanel>
+      {showIssuedBadgesExportAction ? (
+        <>
+          <AdminActions>
+            <AdminButtonLink href={issuedBadgesExportHref} variant="secondary">
+              Export matching CSV
+            </AdminButtonLink>
+          </AdminActions>
+          <p class="ct-admin__hint">
+            Direct CSV export is capped at 5000 rows. Narrow the filters above if the export is too
+            large for direct download.
+          </p>
+        </>
+      ) : null}
       <section
         id="issued-badge-lifecycle-panel"
         class="ct-admin__inline-action-panel ct-stack"
@@ -410,8 +384,11 @@ export const renderInstitutionAdminOperationsSections = (
             type="hidden"
             value={input.issuedBadgesWorkspace?.lifecycleAssertionId ?? ""}
           />
+          <input name="issuedFrom" type="hidden" value={issuedBadgesFilters.issuedFrom} />
+          <input name="issuedTo" type="hidden" value={issuedBadgesFilters.issuedTo} />
           <input name="recipientQuery" type="hidden" value={issuedBadgesFilters.recipientQuery} />
           <input name="badgeTemplateId" type="hidden" value={issuedBadgesFilters.badgeTemplateId} />
+          <input name="orgUnitId" type="hidden" value={issuedBadgesFilters.orgUnitId} />
           <input name="state" type="hidden" value={issuedBadgesFilters.state} />
           <input name="limit" type="hidden" value={String(issuedBadgesFilters.limit)} />
           <AdminField label="Reason code">
@@ -436,7 +413,8 @@ export const renderInstitutionAdminOperationsSections = (
         </AdminForm>
       </section>
       <AdminTable headers={["Issued", "Recipient", "Template", "State", "Assertion", "Actions"]}>
-        {input.issuedBadgesWorkspace === undefined ? (
+        {input.issuedBadgesWorkspace === undefined ||
+        !input.issuedBadgesWorkspace.searchSubmitted ? (
           <AdminEmptyTableRow colSpan={6}>
             Use the search form above to load issued badges.
           </AdminEmptyTableRow>

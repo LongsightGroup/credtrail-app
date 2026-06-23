@@ -161,7 +161,10 @@ export interface RecordAssertionRevocationResult {
 
 export interface ListTenantAssertionsInput {
   tenantId: string;
+  issuedFrom?: string | undefined;
+  issuedTo?: string | undefined;
   badgeTemplateId?: string | undefined;
+  orgUnitId?: string | undefined;
   recipientQuery?: string | undefined;
   state?: AssertionLifecycleState | undefined;
   limit?: number | undefined;

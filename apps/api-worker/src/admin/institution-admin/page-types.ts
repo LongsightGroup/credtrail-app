@@ -267,12 +267,16 @@ export interface InstitutionAdminApiKeysWorkspace {
 
 export interface InstitutionAdminIssuedBadgesWorkspace {
   filters: {
+    issuedFrom: string;
+    issuedTo: string;
     recipientQuery: string;
     badgeTemplateId: string;
+    orgUnitId: string;
     state: string;
     limit: number;
   };
   assertions: readonly TenantAssertionSummaryRecord[];
+  searchSubmitted: boolean;
   listNotice: string | null;
   listError: string | null;
   lifecycleAssertionId: string | null;

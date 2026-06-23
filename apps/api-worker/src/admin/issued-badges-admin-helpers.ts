@@ -5,8 +5,11 @@ import {
 export type IssuedBadgeLifecycleMode = "audit" | "revoke";
 
 export interface IssuedBadgesPageFilterValues {
+  issuedFrom: string;
+  issuedTo: string;
   recipientQuery: string;
   badgeTemplateId: string;
+  orgUnitId: string;
   state: string;
   limit: number;
 }
@@ -20,12 +23,24 @@ export const buildIssuedBadgesPageQuery = (
 ): URLSearchParams => {
   const query = new URLSearchParams();
 
+  if (filters.issuedFrom.length > 0) {
+    query.set("issuedFrom", filters.issuedFrom);
+  }
+
+  if (filters.issuedTo.length > 0) {
+    query.set("issuedTo", filters.issuedTo);
+  }
+
   if (filters.recipientQuery.length > 0) {
     query.set("recipientQuery", filters.recipientQuery);
   }
 
   if (filters.badgeTemplateId.length > 0) {
     query.set("badgeTemplateId", filters.badgeTemplateId);
+  }
+
+  if (filters.orgUnitId.length > 0) {
+    query.set("orgUnitId", filters.orgUnitId);
   }
 
   if (filters.state.length > 0) {
@@ -40,8 +55,11 @@ export const buildIssuedBadgesPageQuery = (
 };
 
 const issuedBadgesSearchFieldNames = [
+  "issuedFrom",
+  "issuedTo",
   "recipientQuery",
   "badgeTemplateId",
+  "orgUnitId",
   "state",
   "limit",
 ] as const;
@@ -55,6 +73,42 @@ export const shouldLoadIssuedBadgesList = (
     (fieldName) =>
       Object.prototype.hasOwnProperty.call(query, fieldName) && query[fieldName] !== undefined,
   );
+};
+
+export const issuedBadgesLedgerExportUrl = (
+  tenantId: string,
+  filters: IssuedBadgesPageFilterValues,
+): string => {
+  const query = new URLSearchParams();
+
+  if (filters.issuedFrom.length > 0) {
+    query.set("issuedFrom", filters.issuedFrom);
+  }
+
+  if (filters.issuedTo.length > 0) {
+    query.set("issuedTo", filters.issuedTo);
+  }
+
+  if (filters.badgeTemplateId.length > 0) {
+    query.set("badgeTemplateId", filters.badgeTemplateId);
+  }
+
+  if (filters.orgUnitId.length > 0) {
+    query.set("orgUnitId", filters.orgUnitId);
+  }
+
+  if (filters.state.length > 0) {
+    query.set("state", filters.state);
+  }
+
+  if (filters.recipientQuery.length > 0) {
+    query.set("recipientQuery", filters.recipientQuery);
+  }
+
+  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/assertions/ledger-export.csv`;
+  const queryString = query.toString();
+
+  return queryString.length > 0 ? `${path}?${queryString}` : path;
 };
 
 export const issuedBadgesAssertionPageUrl = (
@@ -108,16 +162,22 @@ const parseLifecycleMode = (raw: string | undefined): IssuedBadgeLifecycleMode |
 };
 
 export const parseIssuedBadgesPageQuery = (query: {
+  issuedFrom?: string;
+  issuedTo?: string;
   recipientQuery?: string;
   badgeTemplateId?: string;
+  orgUnitId?: string;
   state?: string;
   limit?: string;
   lifecycle?: string;
   lifecycleMode?: string;
 }): ParsedIssuedBadgesPageQuery => {
   const parsedListQuery: TenantAssertionListQuery = parseTenantAssertionListQuery({
+    issuedFrom: query.issuedFrom,
+    issuedTo: query.issuedTo,
     recipientQuery: query.recipientQuery,
     badgeTemplateId: query.badgeTemplateId,
+    orgUnitId: query.orgUnitId,
     state: query.state,
     limit: query.limit,
   });
@@ -128,8 +188,11 @@ export const parseIssuedBadgesPageQuery = (query: {
 
   return {
     filters: {
+      issuedFrom: parsedListQuery.issuedFrom ?? "",
+      issuedTo: parsedListQuery.issuedTo ?? "",
       recipientQuery: parsedListQuery.recipientQuery ?? "",
       badgeTemplateId: parsedListQuery.badgeTemplateId ?? "",
+      orgUnitId: parsedListQuery.orgUnitId ?? "",
       state: parsedListQuery.state ?? "",
       limit: parsedListQuery.limit ?? 100,
     },
@@ -150,7 +213,7 @@ export const safeParseIssuedBadgesPageQuery = (
 };
 
 export const issuedBadgesInvalidFiltersError =
-  "Invalid search filters. Check state and limit, then try again.";
+  "Invalid search filters. Check dates, state, and limit, then try again.";
 
 export const tenantIssuedBadgeAdminRevokePath = (tenantId: string): string => {
   return `${buildIssuedBadgesPagePath(tenantId)}/revoke`;
