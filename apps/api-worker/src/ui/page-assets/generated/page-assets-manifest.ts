@@ -37,7 +37,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminTemplateEditorCss: {
     kind: "style",
-    path: "/assets/ui/institution-admin-template-editor.592866ef03.css",
+    path: "/assets/ui/institution-admin-template-editor.ace275d1ac.css",
   },
   institutionAdminBadgeTemplateListJs: {
     kind: "script",

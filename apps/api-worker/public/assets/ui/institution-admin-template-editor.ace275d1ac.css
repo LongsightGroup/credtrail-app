@@ -459,6 +459,17 @@
 .ct-admin__template-editor-advanced > .ct-admin__field {
   margin-top: var(--ct-space-2);
 }
+.ct-admin__template-editor-inline-edit {
+  display: inline-grid;
+  gap: var(--ct-space-2);
+  margin-left: var(--ct-space-2);
+  vertical-align: baseline;
+}
+.ct-admin__template-editor-inline-edit[open] {
+  display: grid;
+  margin-top: var(--ct-space-2);
+  margin-left: 0;
+}
 .ct-admin__template-editor-submit {
   display: flex;
   justify-content: flex-start;
@@ -487,6 +498,9 @@
   color: var(--ct-theme-text-body);
   font-size: 0.84rem;
   line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.ct-admin__template-editor-meta-list dd > span {
   overflow-wrap: anywhere;
 }
 .ct-admin__template-editor-link-row {

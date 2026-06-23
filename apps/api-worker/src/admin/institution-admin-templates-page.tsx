@@ -274,7 +274,27 @@ const renderTemplateEditorFields = (input: {
           <dl class="ct-admin__template-editor-meta-list">
             <div>
               <dt>URL key</dt>
-              <dd>{template.slug}</dd>
+              <dd>
+                <span>{template.slug}</span>
+                <details class="ct-admin__template-editor-advanced ct-admin__template-editor-inline-edit">
+                  <summary aria-label="Edit URL key">Edit</summary>
+                  <AdminField label="URL key">
+                    <input
+                      form="badge-template-edit-form"
+                      name="slug"
+                      type="text"
+                      required
+                      maxlength={120}
+                      value={template.slug}
+                    />
+                  </AdminField>
+                  <div class="ct-admin__template-editor-submit">
+                    <AdminButton form="badge-template-edit-form" type="submit" variant="secondary">
+                      Save URL key
+                    </AdminButton>
+                  </div>
+                </details>
+              </dd>
             </div>
             <div>
               <dt>Activity</dt>
@@ -283,24 +303,6 @@ const renderTemplateEditorFields = (input: {
               </dd>
             </div>
           </dl>
-          <details class="ct-admin__template-editor-advanced">
-            <summary>Edit URL key</summary>
-            <AdminField label="URL key">
-              <input
-                form="badge-template-edit-form"
-                name="slug"
-                type="text"
-                required
-                maxlength={120}
-                value={template.slug}
-              />
-            </AdminField>
-            <div class="ct-admin__template-editor-submit">
-              <AdminButton form="badge-template-edit-form" type="submit" variant="secondary">
-                Save URL key
-              </AdminButton>
-            </div>
-          </details>
           <div class="ct-admin__template-editor-link-row">
             <a
               id="badge-template-editor-public-link"

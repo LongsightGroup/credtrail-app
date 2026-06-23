@@ -550,8 +550,8 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
         <div>
           <h2>TrustEd readiness</h2>
           <p>
-            Optional trust metadata for more inspectable credentials. Issuance is not blocked by
-            this advisory checklist.
+            Add TrustEd-ready public details only if this badge needs them. You can still issue the
+            badge without them.
           </p>
         </div>
         <span class={adminStatusPillClass(trustedReadinessTone(readiness.status))}>
@@ -568,10 +568,7 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
           {metadataState.parseResult.error}
         </AdminStatus>
       ) : readiness.status === "not_evaluated" ? (
-        <AdminStatus>
-          No TrustEd metadata is saved yet. Add it only when this badge needs TrustEd-ready public
-          details.
-        </AdminStatus>
+        <AdminStatus>No TrustEd details have been added yet.</AdminStatus>
       ) : missingRequired.length === 0 ? (
         <AdminStatus data-tone="success">
           Required TrustEd Credential checklist metadata is present for this template.
@@ -604,7 +601,7 @@ export const renderTrustEdCredentialPanel = (template: BadgeTemplateRecord): Hon
         ) : null}
         {readiness.status === "not_evaluated" ? (
           <p class="ct-admin__template-editor-trusted-card-note">
-            Badge creation can continue without TrustEd metadata.
+            TrustEd details are optional for this badge.
           </p>
         ) : missingRequired.length === 0 ? (
           <p class="ct-admin__template-editor-trusted-card-note">

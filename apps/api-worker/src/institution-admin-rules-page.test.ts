@@ -796,6 +796,10 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     );
     expect(body).toContain('name="badgeTemplateId" value="badge_template_001"');
     expect(body).toContain(">URL key<");
+    expect(body).toMatch(
+      /<dt>URL key<\/dt>\s*<dd>\s*<span>typescript-foundations<\/span>\s*<details class="ct-admin__template-editor-advanced ct-admin__template-editor-inline-edit">/,
+    );
+    expect(body).toContain('<summary aria-label="Edit URL key">Edit</summary>');
     expect(body).toContain('name="slug" type="text" required="" maxlength="120"');
     expect(body).toContain('value="typescript-foundations"');
     expect(body).toContain(">Criteria page URL<");
@@ -803,10 +807,13 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).not.toContain('name="trustedCriteriaUri"');
     expect(body).toContain('id="template-editor-trusted-credential"');
     expect(body).toContain("TrustEd readiness");
-    expect(body).toContain("Issuance is not blocked by this advisory checklist.");
+    expect(body).toContain(
+      "Add TrustEd-ready public details only if this badge needs them. You can still issue the",
+    );
     expect(body).toContain("Complete TrustEd checklist");
-    expect(body).toContain("Badge creation can continue without TrustEd metadata.");
+    expect(body).toContain("TrustEd details are optional for this badge.");
     expect(body).not.toContain("checks satisfied");
+    expect(body).toContain("No TrustEd details have been added yet.");
     expect(body).toContain("No entries");
     expect(body).toContain("Save TrustEd metadata");
     expect(body).not.toContain('name="trustedSkills[0].name"');
