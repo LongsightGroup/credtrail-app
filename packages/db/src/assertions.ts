@@ -6,7 +6,6 @@ import {
   buildLearnerProfileOrEmailAccessFilter,
 } from "./learner-assertion-access-sql";
 import { listLearnerIdentitiesByProfile } from "./learner-profiles";
-import type { RecipientIdentifierInput } from "./learner-profiles";
 import {
   insertAssertionRecipientIdentifiers,
   uniqueRecipientIdentifiers,
@@ -15,517 +14,107 @@ export { listRecipientIdentifiersForAssertion } from "./assertion-recipient-iden
 import { assertValidIsoTimestamp, createPrefixedId } from "./shared-helpers";
 import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "./tenant-scope";
 import { listTenantOrgUnits } from "./tenant-org-units";
-import type { OrgUnitType, TenantOrgUnitRecord } from "./tenant-org-units";
+import type { TenantOrgUnitRecord } from "./tenant-org-units";
 import { normalizeEmail } from "./users";
 
-export interface AssertionRecord {
-  id: string;
-  tenantId: string;
-  publicId: string | null;
-  learnerProfileId: string | null;
-  badgeTemplateId: string;
-  recipientIdentity: string;
-  recipientIdentityType: "email" | "email_sha256" | "did" | "url";
-  vcR2Key: string;
-  statusListIndex: number | null;
-  idempotencyKey: string;
-  issuedAt: string;
-  issuedByUserId: string | null;
-  revokedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+export type {
+  AssertionRecord,
+  LearnerRecordAssertionExportRecord,
+  ListLearnerRecordAssertionExportsInput,
+  AssertionLifecycleState,
+  AssertionLifecycleTransitionSource,
+  AssertionLifecycleReasonCode,
+  AssertionLifecycleEventRecord,
+  ListAssertionLifecycleEventsInput,
+  ResolveAssertionLifecycleStateResult,
+  RecordAssertionLifecycleTransitionInput,
+  RecordAssertionLifecycleTransitionResult,
+  PublicBadgeWallEntryRecord,
+  CreateAssertionInput,
+  AssertionStatusListEntryRecord,
+  RecordAssertionRevocationInput,
+  RecordAssertionRevocationResult,
+  ListTenantAssertionsInput,
+  ListAssertionsByIdempotencyKeysInput,
+  ListAssertionsByBadgeTemplatesAndRecipientEmailsInput,
+  AssertionLifecycleStateByAssertionIdRecord,
+  ListAssertionLifecycleStatesByAssertionIdsInput,
+  AssertionEngagementEventType,
+  AssertionEngagementActorType,
+  AssertionEngagementEventRecord,
+  RecordAssertionEngagementEventInput,
+  RecordAssertionEngagementEventResult,
+  ListAssertionEngagementEventsInput,
+  TenantAssertionSummaryRecord,
+  ListTenantAssertionLedgerExportRowsInput,
+  TenantAssertionLedgerExportRowRecord,
+  TenantAssertionLedgerExportResult,
+  ListPublicBadgeWallEntriesInput,
+} from "./assertion-types.js";
+export {
+  ASSERTION_ENGAGEMENT_EVENT_TYPES,
+  SYNCHRONOUS_EXPORT_ROW_LIMIT,
+} from "./assertion-types.js";
+import { SYNCHRONOUS_EXPORT_ROW_LIMIT } from "./assertion-types.js";
+import {
+  resolveAssertionReportingAttribution,
+  summarizeTenantReportingComparisonRows,
+  summarizeTenantReportingEngagementCounts,
+  summarizeTenantReportingOverviewRows,
+  summarizeTenantReportingTrendRows,
+  summarizeTenantExecutiveRollup,
+} from "./assertion-reporting-summaries.js";
+import type {
+  AssertionEngagementActorType,
+  AssertionEngagementEventRecord,
+  AssertionEngagementEventType,
+  AssertionLifecycleEventRecord,
+  AssertionLifecycleReasonCode,
+  AssertionLifecycleState,
+  AssertionLifecycleStateByAssertionIdRecord,
+  AssertionLifecycleTransitionSource,
+  AssertionRecord,
+  AssertionReportingAttributionRecord,
+  AssertionReportingAttributionSource,
+  LearnerRecordAssertionExportRecord,
+  ListAssertionLifecycleEventsInput,
+  ListAssertionLifecycleStatesByAssertionIdsInput,
+  ListAssertionsByBadgeTemplatesAndRecipientEmailsInput,
+  ListAssertionsByIdempotencyKeysInput,
+  ListLearnerRecordAssertionExportsInput,
+  ListTenantAssertionLedgerExportRowsInput,
+  ListTenantAssertionsInput,
+  PublicBadgeWallEntryRecord,
+  RecordAssertionLifecycleTransitionInput,
+  RecordAssertionLifecycleTransitionResult,
+  ResolveAssertionLifecycleStateResult,
+  TenantAssertionLedgerExportResult,
+  TenantAssertionLedgerExportRowRecord,
+  TenantAssertionSummaryRecord,
+  ListAssertionEngagementEventsInput,
+  RecordAssertionEngagementEventInput,
+  RecordAssertionEngagementEventResult,
+  GetTenantReportingEngagementCountsInput,
+  TenantReportingEngagementCounts,
+  GetTenantReportingTrendsInput,
+  TenantReportingTrendRecord,
+  ListTenantReportingComparisonsInput,
+  TenantReportingComparisonRowRecord,
+  GetTenantExecutiveRollupInput,
+  GetTenantExecutiveRollupResult,
+  GetTenantReportingOverviewInput,
+  TenantReportingOverviewRecord,
+  ListPublicBadgeWallEntriesInput,
+  CreateAssertionInput,
+  AssertionStatusListEntryRecord,
+  RecordAssertionRevocationInput,
+  RecordAssertionRevocationResult,
+} from "./assertion-types.js";
 
-export interface LearnerRecordAssertionExportRecord {
-  assertionId: string;
-  assertionPublicId: string | null;
-  tenantId: string;
-  learnerProfileId: string | null;
-  badgeTemplateId: string;
-  badgeTitle: string;
-  badgeDescription: string | null;
-  badgeCriteriaUri: string | null;
-  badgeImageUri: string | null;
-  recipientIdentity: string;
-  recipientIdentityType: "email" | "email_sha256" | "did" | "url";
-  vcR2Key: string;
-  statusListIndex: number | null;
-  idempotencyKey: string;
-  issuedAt: string;
-  issuedByUserId: string | null;
-  revokedAt: string | null;
-  issuerName: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ListLearnerRecordAssertionExportsInput {
-  tenantId: string;
-  learnerProfileId: string;
-}
-
-export type AssertionLifecycleState = "active" | "suspended" | "revoked" | "expired";
-
-export type AssertionLifecycleTransitionSource = "manual" | "automation";
-
-export type AssertionLifecycleReasonCode =
-  | "administrative_hold"
-  | "policy_violation"
-  | "appeal_pending"
-  | "appeal_resolved"
-  | "credential_expired"
-  | "issuer_requested"
-  | "other";
-
-export interface AssertionLifecycleEventRecord {
-  id: string;
-  tenantId: string;
-  assertionId: string;
-  fromState: AssertionLifecycleState;
-  toState: AssertionLifecycleState;
-  reasonCode: AssertionLifecycleReasonCode;
-  reason: string | null;
-  transitionSource: AssertionLifecycleTransitionSource;
-  actorUserId: string | null;
-  transitionedAt: string;
-  createdAt: string;
-}
-
-export interface ListAssertionLifecycleEventsInput {
-  tenantId: string;
-  assertionId: string;
-  limit?: number | undefined;
-}
-
-export interface ResolveAssertionLifecycleStateResult {
-  state: AssertionLifecycleState;
-  source: "assertion_revocation" | "lifecycle_event" | "default_active";
-  reasonCode: AssertionLifecycleReasonCode | null;
-  reason: string | null;
-  transitionedAt: string | null;
-  revokedAt: string | null;
-}
-
-export interface RecordAssertionLifecycleTransitionInput {
-  tenantId: string;
-  assertionId: string;
-  toState: AssertionLifecycleState;
-  reasonCode: AssertionLifecycleReasonCode;
-  reason?: string | undefined;
-  transitionSource: AssertionLifecycleTransitionSource;
-  actorUserId?: string | undefined;
-  transitionedAt: string;
-}
-
-export interface RecordAssertionLifecycleTransitionResult {
-  status: "transitioned" | "already_in_state" | "invalid_transition";
-  fromState: AssertionLifecycleState;
-  toState: AssertionLifecycleState;
-  currentState: AssertionLifecycleState;
-  event: AssertionLifecycleEventRecord | null;
-  message: string | null;
-}
-
-export interface PublicBadgeWallEntryRecord {
-  assertionId: string;
-  assertionPublicId: string;
-  tenantId: string;
-  badgeTemplateId: string;
-  badgeTitle: string;
-  badgeDescription: string | null;
-  badgeImageUri: string | null;
-  recipientIdentity: string;
-  recipientIdentityType: "email" | "email_sha256" | "did" | "url";
-  issuedAt: string;
-  revokedAt: string | null;
-}
-
-export interface CreateAssertionInput {
-  id: string;
-  tenantId: string;
-  publicId?: string | undefined;
-  learnerProfileId?: string | undefined;
-  badgeTemplateId: string;
-  recipientIdentity: string;
-  recipientIdentityType: "email" | "email_sha256" | "did" | "url";
-  vcR2Key: string;
-  statusListIndex: number;
-  idempotencyKey: string;
-  issuedAt: string;
-  issuedByUserId?: string | undefined;
-  recipientIdentifiers?: readonly RecipientIdentifierInput[];
-}
-
-export interface AssertionStatusListEntryRecord {
-  statusListIndex: number;
-  revokedAt: string | null;
-}
-
-export interface RecordAssertionRevocationInput {
-  tenantId: string;
-  assertionId: string;
-  revocationId: string;
-  reason: string;
-  idempotencyKey: string;
-  revokedByUserId?: string | undefined;
-  revokedAt: string;
-}
-
-export interface RecordAssertionRevocationResult {
-  status: "revoked" | "already_revoked";
-  revokedAt: string;
-}
-
-export interface ListTenantAssertionsInput {
-  tenantId: string;
-  badgeTemplateId?: string | undefined;
-  recipientQuery?: string | undefined;
-  state?: AssertionLifecycleState | undefined;
-  limit?: number | undefined;
-}
-
-export interface ListAssertionsByIdempotencyKeysInput {
-  tenantId: string;
-  idempotencyKeys: readonly string[];
-}
-
-export interface ListAssertionsByBadgeTemplatesAndRecipientEmailsInput {
-  tenantId: string;
-  badgeTemplateIds: readonly string[];
-  recipientEmails: readonly string[];
-}
-
-export interface AssertionLifecycleStateByAssertionIdRecord extends ResolveAssertionLifecycleStateResult {
-  assertionId: string;
-}
-
-export interface ListAssertionLifecycleStatesByAssertionIdsInput {
-  tenantId: string;
-  assertionIds: readonly string[];
-}
-
-export type AssertionReportingAttributionSource =
-  | "issuance_snapshot"
-  | "historical_backfill"
-  | "current_owner_fallback";
-
-export interface AssertionReportingAttributionRecord {
-  assertionId: string;
-  tenantId: string;
-  badgeTemplateId: string;
-  orgUnitId: string;
-  attributionSource: AssertionReportingAttributionSource;
-  attributedAt: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export const ASSERTION_ENGAGEMENT_EVENT_TYPES = [
-  "public_badge_view",
-  "verification_view",
-  "share_click",
+const ONE_SHOT_ASSERTION_ENGAGEMENT_EVENT_TYPES = new Set<AssertionEngagementEventType>([
   "learner_claim",
   "wallet_accept",
-] as const;
-
-export type AssertionEngagementEventType = (typeof ASSERTION_ENGAGEMENT_EVENT_TYPES)[number];
-
-export type AssertionEngagementActorType = "anonymous" | "learner" | "wallet" | "system";
-
-export interface AssertionEngagementEventRecord {
-  id: string;
-  tenantId: string;
-  assertionId: string;
-  eventType: AssertionEngagementEventType;
-  actorType: AssertionEngagementActorType;
-  channel: string | null;
-  occurredAt: string;
-  createdAt: string;
-}
-
-export interface RecordAssertionEngagementEventInput {
-  tenantId: string;
-  assertionId: string;
-  eventType: AssertionEngagementEventType;
-  actorType: AssertionEngagementActorType;
-  channel?: string | undefined;
-  occurredAt: string;
-}
-
-export interface RecordAssertionEngagementEventResult {
-  status: "recorded" | "already_recorded";
-  event: AssertionEngagementEventRecord;
-}
-
-export interface ListAssertionEngagementEventsInput {
-  tenantId: string;
-  assertionId: string;
-  limit?: number | undefined;
-}
-
-export type TenantReportingLifecycleFilter = AssertionLifecycleState | "pending_review";
-
-export interface TenantReportingOverviewFilters {
-  issuedFrom?: string | undefined;
-  issuedTo?: string | undefined;
-  badgeTemplateId?: string | undefined;
-  orgUnitId?: string | undefined;
-  state?: TenantReportingLifecycleFilter | undefined;
-}
-
-export interface GetTenantReportingOverviewInput extends TenantReportingOverviewFilters {
-  tenantId: string;
-}
-
-export interface TenantReportingOverviewCounts {
-  issued: number;
-  active: number;
-  suspended: number;
-  revoked: number;
-  pendingReview: number;
-  claimRate?: number | undefined;
-  shareRate?: number | undefined;
-}
-
-export interface TenantReportingOverviewRecord {
-  tenantId: string;
-  filters: {
-    issuedFrom: string | null;
-    issuedTo: string | null;
-    badgeTemplateId: string | null;
-    orgUnitId: string | null;
-    state: TenantReportingLifecycleFilter | null;
-  };
-  counts: TenantReportingOverviewCounts;
-  generatedAt: string;
-}
-
-export interface TenantReportingEngagementFilters {
-  from?: string | undefined;
-  to?: string | undefined;
-  badgeTemplateId?: string | undefined;
-  orgUnitId?: string | undefined;
-  state?: TenantReportingLifecycleFilter | undefined;
-}
-
-export interface TenantReportingHierarchyQuery {
-  from?: string | undefined;
-  to?: string | undefined;
-  badgeTemplateId?: string | undefined;
-  orgUnitId?: string | undefined;
-  state?: TenantReportingLifecycleFilter | undefined;
-  focusOrgUnitId?: string | undefined;
-  level: OrgUnitType;
-}
-
-export interface TenantReportingHierarchySourceRow {
-  assertionId: string;
-  badgeTemplateId: string;
-  orgUnitId: string;
-  issuedAt: string;
-  eventType: AssertionEngagementEventType | null;
-  occurredAt: string | null;
-}
-
-export interface TenantReportingHierarchyOrgUnitRecord {
-  id: string;
-  unitType: OrgUnitType;
-  displayName: string;
-  parentOrgUnitId: string | null;
-}
-
-export interface TenantReportingHierarchyGroupRecord {
-  level: OrgUnitType;
-  orgUnitId: string;
-  displayName: string;
-  parentOrgUnitId: string | null;
-  issuedCount: number;
-  publicBadgeViewCount: number;
-  verificationViewCount: number;
-  shareClickCount: number;
-  learnerClaimCount: number;
-  walletAcceptCount: number;
-  claimRate: number;
-  shareRate: number;
-}
-
-export interface TenantExecutiveRollupQuery {
-  from?: string | undefined;
-  to?: string | undefined;
-  badgeTemplateId?: string | undefined;
-  orgUnitId?: string | undefined;
-  state?: TenantReportingLifecycleFilter | undefined;
-  focusOrgUnitId: string;
-  comparisonLevel: OrgUnitType;
-}
-
-export interface TenantExecutiveRollupRecord {
-  focusOrgUnitId: string;
-  focusDisplayName: string;
-  focusParentOrgUnitId: string | null;
-  focusUnitType: OrgUnitType;
-  comparisonLevel: OrgUnitType;
-  focusLineageOrgUnitIds: string[];
-  filters: {
-    from: string | null;
-    to: string | null;
-    badgeTemplateId: string | null;
-    orgUnitId: string | null;
-    state: TenantReportingLifecycleFilter | null;
-  };
-  rows: TenantReportingHierarchyGroupRecord[];
-}
-
-export interface GetTenantExecutiveRollupInput extends TenantReportingEngagementFilters {
-  tenantId: string;
-  focusOrgUnitId: string;
-  comparisonLevel: OrgUnitType;
-  scopedRootOrgUnitIds?: readonly string[] | undefined;
-}
-
-export interface GetTenantExecutiveRollupResult extends TenantExecutiveRollupRecord {
-  tenantId: string;
-  generatedAt: string;
-}
-
-export interface GetTenantReportingEngagementCountsInput extends TenantReportingEngagementFilters {
-  tenantId: string;
-}
-
-export interface TenantReportingEngagementCounts {
-  issuedCount: number;
-  publicBadgeViewCount: number;
-  verificationViewCount: number;
-  shareClickCount: number;
-  learnerClaimCount: number;
-  walletAcceptCount: number;
-  claimRate: number;
-  shareRate: number;
-}
-
-export type TenantReportingTrendBucket = "day";
-
-export interface GetTenantReportingTrendsInput extends TenantReportingEngagementFilters {
-  tenantId: string;
-  bucket: TenantReportingTrendBucket;
-}
-
-export interface TenantReportingTrendBucketRecord {
-  bucketStart: string;
-  issuedCount: number;
-  publicBadgeViewCount: number;
-  verificationViewCount: number;
-  shareClickCount: number;
-  learnerClaimCount: number;
-  walletAcceptCount: number;
-}
-
-export interface TenantReportingTrendRecord {
-  tenantId: string;
-  filters: {
-    from: string | null;
-    to: string | null;
-    badgeTemplateId: string | null;
-    orgUnitId: string | null;
-    state: TenantReportingLifecycleFilter | null;
-  };
-  bucket: TenantReportingTrendBucket;
-  series: TenantReportingTrendBucketRecord[];
-  generatedAt: string;
-}
-
-export type TenantReportingComparisonGroupBy = "badgeTemplate" | "orgUnit";
-
-export interface ListTenantReportingComparisonsInput extends TenantReportingEngagementFilters {
-  tenantId: string;
-  groupBy: TenantReportingComparisonGroupBy;
-}
-
-export interface TenantReportingComparisonRowRecord {
-  groupBy: TenantReportingComparisonGroupBy;
-  groupId: string;
-  issuedCount: number;
-  publicBadgeViewCount: number;
-  verificationViewCount: number;
-  shareClickCount: number;
-  learnerClaimCount: number;
-  walletAcceptCount: number;
-  claimRate: number;
-  shareRate: number;
-}
-
-export interface TenantAssertionSummaryRecord {
-  assertionId: string;
-  tenantId: string;
-  publicId: string | null;
-  badgeTemplateId: string;
-  badgeTitle: string;
-  badgeImageUri: string | null;
-  recipientIdentity: string;
-  recipientIdentityType: "email" | "email_sha256" | "did" | "url";
-  issuedAt: string;
-  issuedByUserId: string | null;
-  revokedAt: string | null;
-  state: AssertionLifecycleState;
-  source: ResolveAssertionLifecycleStateResult["source"];
-  reasonCode: AssertionLifecycleReasonCode | null;
-  reason: string | null;
-  transitionedAt: string | null;
-}
-
-export const SYNCHRONOUS_EXPORT_ROW_LIMIT = 5000;
-
-export interface ListTenantAssertionLedgerExportRowsInput {
-  tenantId: string;
-  issuedFrom?: string | undefined;
-  issuedTo?: string | undefined;
-  badgeTemplateId?: string | undefined;
-  orgUnitId?: string | undefined;
-  state?: AssertionLifecycleState | undefined;
-  recipientQuery?: string | undefined;
-}
-
-export interface TenantAssertionLedgerExportRowRecord {
-  assertionId: string;
-  tenantId: string;
-  publicId: string | null;
-  badgeTemplateId: string;
-  badgeTitle: string;
-  recipientIdentity: string;
-  recipientIdentityType: "email" | "email_sha256" | "did" | "url";
-  issuedAt: string;
-  issuedByUserId: string | null;
-  revokedAt: string | null;
-  state: AssertionLifecycleState;
-  source: ResolveAssertionLifecycleStateResult["source"];
-  reasonCode: AssertionLifecycleReasonCode | null;
-  reason: string | null;
-  transitionedAt: string | null;
-  orgUnitId: string;
-  orgUnitDisplayName: string;
-  attributionSource: AssertionReportingAttributionSource;
-  currentInstitutionName: string | null;
-  currentCollegeName: string | null;
-  currentDepartmentName: string | null;
-  currentProgramName: string | null;
-}
-
-export type TenantAssertionLedgerExportResult =
-  | {
-      status: "ok";
-      rowLimit: number;
-      rows: TenantAssertionLedgerExportRowRecord[];
-    }
-  | {
-      status: "too_large";
-      rowLimit: number;
-    };
-
-export interface ListPublicBadgeWallEntriesInput {
-  tenantId: string;
-  badgeTemplateId?: string | undefined;
-  limit?: number | undefined;
-}
+]);
 
 interface AssertionRow {
   id: string;
@@ -761,729 +350,40 @@ const assertionLifecycleStateFromRecords = (input: {
   };
 };
 
-const tenantReportingCountsZero = (): TenantReportingOverviewCounts => {
-  return {
-    issued: 0,
-    active: 0,
-    suspended: 0,
-    revoked: 0,
-    pendingReview: 0,
-  };
-};
-
-const tenantReportingLifecycleFromRow = (
-  row: Pick<TenantReportingOverviewRow, "revokedAt" | "latestToState">,
-): AssertionLifecycleState => {
-  if (row.revokedAt !== null) {
-    return "revoked";
-  }
-
-  return row.latestToState ?? "active";
-};
-
-export const resolveAssertionReportingAttribution = (input: {
-  issuedAt: string;
-  currentOwnerOrgUnitId: string;
-  ownershipEvents: readonly Pick<
-    BadgeTemplateOwnershipEventRecord,
-    "toOrgUnitId" | "transferredAt"
-  >[];
-}): {
-  orgUnitId: string;
-  attributionSource: AssertionReportingAttributionSource;
-  attributedAt: string;
-} => {
-  const issuedAtMs = Date.parse(input.issuedAt);
-
-  if (!Number.isFinite(issuedAtMs)) {
-    throw new Error("issuedAt must be a valid ISO timestamp");
-  }
-
-  const matchedEvent = [...input.ownershipEvents]
-    .filter((event) => {
-      const transferredAtMs = Date.parse(event.transferredAt);
-      return Number.isFinite(transferredAtMs) && transferredAtMs <= issuedAtMs;
-    })
-    .sort((left, right) => right.transferredAt.localeCompare(left.transferredAt))[0];
-
-  if (matchedEvent !== undefined) {
-    return {
-      orgUnitId: matchedEvent.toOrgUnitId,
-      attributionSource: "historical_backfill",
-      attributedAt: input.issuedAt,
-    };
-  }
-
-  return {
-    orgUnitId: input.currentOwnerOrgUnitId,
-    attributionSource: "current_owner_fallback",
-    attributedAt: input.issuedAt,
-  };
-};
-
-export const summarizeTenantReportingOverviewRows = (
-  rows: readonly TenantReportingOverviewRow[],
-  stateFilter?: TenantReportingLifecycleFilter,
-): TenantReportingOverviewCounts => {
-  const filteredRows =
-    stateFilter === undefined
-      ? rows
-      : rows.filter((row) => {
-          const lifecycleState = tenantReportingLifecycleFromRow(row);
-
-          if (stateFilter === "pending_review") {
-            return lifecycleState === "suspended" && row.latestReasonCode === "appeal_pending";
-          }
-
-          return lifecycleState === stateFilter;
-        });
-
-  const counts = tenantReportingCountsZero();
-  counts.issued = filteredRows.length;
-
-  for (const row of filteredRows) {
-    const lifecycleState = tenantReportingLifecycleFromRow(row);
-
-    if (lifecycleState === "active") {
-      counts.active += 1;
-    } else if (lifecycleState === "suspended") {
-      counts.suspended += 1;
-    } else if (lifecycleState === "revoked") {
-      counts.revoked += 1;
-    }
-
-    if (lifecycleState === "suspended" && row.latestReasonCode === "appeal_pending") {
-      counts.pendingReview += 1;
-    }
-  }
-
-  return counts;
-};
-
-interface TenantReportingEngagementCountTarget {
-  publicBadgeViewCount: number;
-  verificationViewCount: number;
-  shareClickCount: number;
-  learnerClaimCount: number;
-  walletAcceptCount: number;
-}
-
-interface TenantReportingEngagementAggregate {
-  issuedAssertionIds: Set<string>;
-  shareEngagedAssertionIds: Set<string>;
-  claimEngagedAssertionIds: Set<string>;
-  counts: TenantReportingEngagementCountTarget;
-}
-
-const ONE_SHOT_ASSERTION_ENGAGEMENT_EVENT_TYPES = new Set<AssertionEngagementEventType>([
-  "learner_claim",
-  "wallet_accept",
-]);
-
-const tenantReportingEngagementCountsZero = (): TenantReportingEngagementCounts => {
-  return {
-    issuedCount: 0,
-    publicBadgeViewCount: 0,
-    verificationViewCount: 0,
-    shareClickCount: 0,
-    learnerClaimCount: 0,
-    walletAcceptCount: 0,
-    claimRate: 0,
-    shareRate: 0,
-  };
-};
-
-const tenantReportingTrendBucketZero = (bucketStart: string): TenantReportingTrendBucketRecord => {
-  return {
-    bucketStart,
-    issuedCount: 0,
-    publicBadgeViewCount: 0,
-    verificationViewCount: 0,
-    shareClickCount: 0,
-    learnerClaimCount: 0,
-    walletAcceptCount: 0,
-  };
-};
-
-const tenantReportingComparisonRowZero = (
-  groupBy: TenantReportingComparisonGroupBy,
-  groupId: string,
-): TenantReportingComparisonRowRecord => {
-  return {
-    groupBy,
-    groupId,
-    issuedCount: 0,
-    publicBadgeViewCount: 0,
-    verificationViewCount: 0,
-    shareClickCount: 0,
-    learnerClaimCount: 0,
-    walletAcceptCount: 0,
-    claimRate: 0,
-    shareRate: 0,
-  };
-};
-
-const ORG_UNIT_HIERARCHY_DEPTH: Record<OrgUnitType, number> = {
-  institution: 0,
-  college: 1,
-  department: 2,
-  program: 3,
-};
-
-const createTenantReportingEngagementAggregate = (): TenantReportingEngagementAggregate => {
-  return {
-    issuedAssertionIds: new Set<string>(),
-    shareEngagedAssertionIds: new Set<string>(),
-    claimEngagedAssertionIds: new Set<string>(),
-    counts: {
-      publicBadgeViewCount: 0,
-      verificationViewCount: 0,
-      shareClickCount: 0,
-      learnerClaimCount: 0,
-      walletAcceptCount: 0,
-    },
-  };
-};
-
-const incrementTenantReportingEngagementCount = (
-  target: TenantReportingEngagementCountTarget,
-  eventType: AssertionEngagementEventType,
-): void => {
-  if (eventType === "public_badge_view") {
-    target.publicBadgeViewCount += 1;
-  } else if (eventType === "verification_view") {
-    target.verificationViewCount += 1;
-  } else if (eventType === "share_click") {
-    target.shareClickCount += 1;
-  } else if (eventType === "learner_claim") {
-    target.learnerClaimCount += 1;
-  } else if (eventType === "wallet_accept") {
-    target.walletAcceptCount += 1;
-  }
-};
-
-const dateKeyFromTimestamp = (value: string): string => {
-  const parsed = new Date(value);
-
-  if (!Number.isFinite(parsed.getTime())) {
-    throw new Error(`Invalid reporting timestamp: ${value}`);
-  }
-
-  return parsed.toISOString().slice(0, 10);
-};
-
-const normalizeReportingDateKey = (value: string, boundary: "start" | "end"): string => {
-  return normalizeReportingDateBoundary(value, boundary).slice(0, 10);
-};
-
-const isTimestampWithinReportingRange = (
-  timestamp: string,
-  from: string | undefined,
-  to: string | undefined,
-): boolean => {
-  const dateKey = dateKeyFromTimestamp(timestamp);
-
-  if (from !== undefined && dateKey < from) {
-    return false;
-  }
-
-  if (to !== undefined && dateKey > to) {
-    return false;
-  }
-
-  return true;
-};
-
-const matchesTenantReportingEngagementFilters = (
-  row: Pick<
-    TenantReportingEngagementRow,
-    "badgeTemplateId" | "orgUnitId" | "revokedAt" | "latestToState" | "latestReasonCode"
-  >,
-  input: Pick<TenantReportingEngagementFilters, "badgeTemplateId" | "orgUnitId" | "state">,
-): boolean => {
-  if (input.badgeTemplateId !== undefined && row.badgeTemplateId !== input.badgeTemplateId) {
-    return false;
-  }
-
-  if (input.orgUnitId !== undefined && row.orgUnitId !== input.orgUnitId) {
-    return false;
-  }
-
-  if (input.state !== undefined) {
-    const lifecycleState = tenantReportingLifecycleFromRow(row);
-
-    if (input.state === "pending_review") {
-      return lifecycleState === "suspended" && row.latestReasonCode === "appeal_pending";
-    }
-
-    if (lifecycleState !== input.state) {
-      return false;
-    }
-  }
-
-  return true;
-};
-
-const buildReportingDateSeries = (from: string, to: string): string[] => {
-  if (from > to) {
-    throw new Error("Reporting trend range must start on or before the end date");
-  }
-
-  const bucketKeys: string[] = [];
-  const current = new Date(`${from}T00:00:00.000Z`);
-  const end = new Date(`${to}T00:00:00.000Z`);
-
-  while (current.getTime() <= end.getTime()) {
-    bucketKeys.push(current.toISOString().slice(0, 10));
-    current.setUTCDate(current.getUTCDate() + 1);
-  }
-
-  return bucketKeys;
-};
-
-const resolveTenantReportingTrendRange = (
-  rows: readonly TenantReportingEngagementRow[],
-  input: Pick<TenantReportingEngagementFilters, "from" | "to">,
-): { from: string; to: string } | null => {
-  const explicitFrom = input.from?.trim();
-  const explicitTo = input.to?.trim();
-  const derivedKeys = rows.flatMap((row) => {
-    const keys = [dateKeyFromTimestamp(row.issuedAt)];
-
-    if (row.occurredAt !== null) {
-      keys.push(dateKeyFromTimestamp(row.occurredAt));
-    }
-
-    return keys;
-  });
-
-  if (derivedKeys.length === 0 && explicitFrom === undefined && explicitTo === undefined) {
-    return null;
-  }
-
-  const sortedKeys = [...derivedKeys].sort((left, right) => left.localeCompare(right));
-
-  return {
-    from:
-      explicitFrom === undefined
-        ? (sortedKeys[0] ?? normalizeReportingDateKey(explicitTo!, "start"))
-        : normalizeReportingDateKey(explicitFrom, "start"),
-    to:
-      explicitTo === undefined
-        ? (sortedKeys.at(-1) ?? normalizeReportingDateKey(explicitFrom!, "end"))
-        : normalizeReportingDateKey(explicitTo, "end"),
-  };
-};
-
-const applyTenantReportingEngagementEvent = (
-  aggregate: TenantReportingEngagementAggregate,
-  assertionId: string,
-  eventType: AssertionEngagementEventType,
-): void => {
-  incrementTenantReportingEngagementCount(aggregate.counts, eventType);
-
-  if (eventType === "share_click") {
-    aggregate.shareEngagedAssertionIds.add(assertionId);
-  }
-
-  if (eventType === "learner_claim" || eventType === "wallet_accept") {
-    aggregate.claimEngagedAssertionIds.add(assertionId);
-  }
-};
-
-const finalizeTenantReportingEngagementCounts = (
-  aggregate: TenantReportingEngagementAggregate,
-): TenantReportingEngagementCounts => {
-  const issuedCount = aggregate.issuedAssertionIds.size;
-  const counts = tenantReportingEngagementCountsZero();
-
-  counts.issuedCount = issuedCount;
-  counts.publicBadgeViewCount = aggregate.counts.publicBadgeViewCount;
-  counts.verificationViewCount = aggregate.counts.verificationViewCount;
-  counts.shareClickCount = aggregate.counts.shareClickCount;
-  counts.learnerClaimCount = aggregate.counts.learnerClaimCount;
-  counts.walletAcceptCount = aggregate.counts.walletAcceptCount;
-  counts.shareRate = issuedCount === 0 ? 0 : aggregate.shareEngagedAssertionIds.size / issuedCount;
-  counts.claimRate = issuedCount === 0 ? 0 : aggregate.claimEngagedAssertionIds.size / issuedCount;
-
-  return counts;
-};
-
-const summarizeTenantReportingEngagementCounts = (
-  rows: readonly TenantReportingEngagementRow[],
-  input: TenantReportingEngagementFilters,
-): TenantReportingEngagementCounts => {
-  const aggregate = createTenantReportingEngagementAggregate();
-
-  for (const row of rows) {
-    if (!matchesTenantReportingEngagementFilters(row, input)) {
-      continue;
-    }
-
-    if (!isTimestampWithinReportingRange(row.issuedAt, input.from, input.to)) {
-      continue;
-    }
-
-    aggregate.issuedAssertionIds.add(row.assertionId);
-
-    if (
-      row.eventType !== null &&
-      row.occurredAt !== null &&
-      isTimestampWithinReportingRange(row.occurredAt, input.from, input.to)
-    ) {
-      applyTenantReportingEngagementEvent(aggregate, row.assertionId, row.eventType);
-    }
-  }
-
-  return finalizeTenantReportingEngagementCounts(aggregate);
-};
-
-export const summarizeTenantReportingTrendRows = (
-  rows: readonly TenantReportingEngagementRow[],
-  input: TenantReportingEngagementFilters & { bucket: TenantReportingTrendBucket },
-): TenantReportingTrendBucketRecord[] => {
-  if (input.bucket !== "day") {
-    throw new Error("Unsupported reporting trend bucket");
-  }
-
-  const filteredRows = rows.filter((row) => matchesTenantReportingEngagementFilters(row, input));
-  const range = resolveTenantReportingTrendRange(filteredRows, input);
-
-  if (range === null) {
-    return [];
-  }
-
-  const bucketMap = new Map<
-    string,
-    TenantReportingTrendBucketRecord & { issuedAssertionIds: Set<string> }
-  >();
-
-  for (const bucketStart of buildReportingDateSeries(range.from, range.to)) {
-    bucketMap.set(bucketStart, {
-      ...tenantReportingTrendBucketZero(bucketStart),
-      issuedAssertionIds: new Set<string>(),
-    });
-  }
-
-  for (const row of filteredRows) {
-    if (isTimestampWithinReportingRange(row.issuedAt, range.from, range.to)) {
-      const issueBucket = bucketMap.get(dateKeyFromTimestamp(row.issuedAt));
-      issueBucket?.issuedAssertionIds.add(row.assertionId);
-    }
-
-    if (
-      row.eventType !== null &&
-      row.occurredAt !== null &&
-      isTimestampWithinReportingRange(row.occurredAt, range.from, range.to)
-    ) {
-      const eventBucket = bucketMap.get(dateKeyFromTimestamp(row.occurredAt));
-
-      if (eventBucket !== undefined) {
-        incrementTenantReportingEngagementCount(eventBucket, row.eventType);
-      }
-    }
-  }
-
-  return Array.from(bucketMap.values()).map((bucket) => {
-    return {
-      bucketStart: bucket.bucketStart,
-      issuedCount: bucket.issuedAssertionIds.size,
-      publicBadgeViewCount: bucket.publicBadgeViewCount,
-      verificationViewCount: bucket.verificationViewCount,
-      shareClickCount: bucket.shareClickCount,
-      learnerClaimCount: bucket.learnerClaimCount,
-      walletAcceptCount: bucket.walletAcceptCount,
-    };
-  });
-};
-
-export const summarizeTenantReportingComparisonRows = (
-  rows: readonly TenantReportingEngagementRow[],
-  input: TenantReportingEngagementFilters & {
-    groupBy: TenantReportingComparisonGroupBy;
-  },
-): TenantReportingComparisonRowRecord[] => {
-  const groups = new Map<
-    string,
-    {
-      row: TenantReportingComparisonRowRecord;
-      aggregate: TenantReportingEngagementAggregate;
-    }
-  >();
-
-  for (const row of rows) {
-    if (!matchesTenantReportingEngagementFilters(row, input)) {
-      continue;
-    }
-
-    if (!isTimestampWithinReportingRange(row.issuedAt, input.from, input.to)) {
-      continue;
-    }
-
-    const groupId = input.groupBy === "badgeTemplate" ? row.badgeTemplateId : row.orgUnitId;
-    const group =
-      groups.get(groupId) ??
-      (() => {
-        const created = {
-          row: tenantReportingComparisonRowZero(input.groupBy, groupId),
-          aggregate: createTenantReportingEngagementAggregate(),
-        };
-        groups.set(groupId, created);
-        return created;
-      })();
-
-    group.aggregate.issuedAssertionIds.add(row.assertionId);
-
-    if (
-      row.eventType !== null &&
-      row.occurredAt !== null &&
-      isTimestampWithinReportingRange(row.occurredAt, input.from, input.to)
-    ) {
-      applyTenantReportingEngagementEvent(group.aggregate, row.assertionId, row.eventType);
-    }
-  }
-
-  return Array.from(groups.values())
-    .map((group) => {
-      const counts = finalizeTenantReportingEngagementCounts(group.aggregate);
-      return {
-        ...group.row,
-        issuedCount: counts.issuedCount,
-        publicBadgeViewCount: counts.publicBadgeViewCount,
-        verificationViewCount: counts.verificationViewCount,
-        shareClickCount: counts.shareClickCount,
-        learnerClaimCount: counts.learnerClaimCount,
-        walletAcceptCount: counts.walletAcceptCount,
-        claimRate: counts.claimRate,
-        shareRate: counts.shareRate,
-      };
-    })
-    .sort((left, right) => {
-      if (right.issuedCount !== left.issuedCount) {
-        return right.issuedCount - left.issuedCount;
-      }
-
-      return left.groupId.localeCompare(right.groupId);
-    });
-};
-
-const getReportingHierarchyOrgUnitOrThrow = (
-  orgUnitsById: ReadonlyMap<string, TenantReportingHierarchyOrgUnitRecord>,
-  orgUnitId: string,
-): TenantReportingHierarchyOrgUnitRecord => {
-  const orgUnit = orgUnitsById.get(orgUnitId);
-
-  if (orgUnit === undefined) {
-    throw new Error(`Org unit ${orgUnitId} is missing from the reporting hierarchy`);
-  }
-
-  return orgUnit;
-};
-
-const listReportingHierarchyLineage = (
-  orgUnitsById: ReadonlyMap<string, TenantReportingHierarchyOrgUnitRecord>,
-  orgUnitId: string,
-): TenantReportingHierarchyOrgUnitRecord[] => {
-  const lineage: TenantReportingHierarchyOrgUnitRecord[] = [];
-  const visited = new Set<string>();
-  let currentOrgUnitId: string | null = orgUnitId;
-
-  while (currentOrgUnitId !== null) {
-    if (visited.has(currentOrgUnitId)) {
-      throw new Error(`Detected an org-unit cycle while resolving hierarchy for ${orgUnitId}`);
-    }
-
-    visited.add(currentOrgUnitId);
-
-    const orgUnit = getReportingHierarchyOrgUnitOrThrow(orgUnitsById, currentOrgUnitId);
-    lineage.push(orgUnit);
-    currentOrgUnitId = orgUnit.parentOrgUnitId;
-  }
-
-  return lineage;
-};
-
-const isReportingHierarchyLineageWithinRoot = (
-  lineage: readonly TenantReportingHierarchyOrgUnitRecord[],
-  rootOrgUnitId: string,
-): boolean => {
-  return lineage.some((orgUnit) => orgUnit.id === rootOrgUnitId);
-};
-
-export const summarizeTenantReportingHierarchyRows = (input: {
-  rows: readonly TenantReportingHierarchySourceRow[];
-  orgUnits: readonly TenantReportingHierarchyOrgUnitRecord[];
-  query: TenantReportingHierarchyQuery;
-  scopedRootOrgUnitIds?: readonly string[] | undefined;
-}): TenantReportingHierarchyGroupRecord[] => {
-  const orgUnitsById = new Map(
-    input.orgUnits.map((orgUnit) => {
-      return [orgUnit.id, orgUnit] as const;
-    }),
-  );
-  const focusOrgUnit =
-    input.query.focusOrgUnitId === undefined
-      ? null
-      : getReportingHierarchyOrgUnitOrThrow(orgUnitsById, input.query.focusOrgUnitId);
-
-  if (
-    focusOrgUnit !== null &&
-    ORG_UNIT_HIERARCHY_DEPTH[focusOrgUnit.unitType] > ORG_UNIT_HIERARCHY_DEPTH[input.query.level]
-  ) {
-    throw new Error("focusOrgUnitId must be at or above the requested hierarchy level");
-  }
-
-  const scopedRootOrgUnitIds = Array.from(new Set(input.scopedRootOrgUnitIds ?? []));
-  for (const scopedRootOrgUnitId of scopedRootOrgUnitIds) {
-    getReportingHierarchyOrgUnitOrThrow(orgUnitsById, scopedRootOrgUnitId);
-  }
-
-  const groups = new Map<
-    string,
-    {
-      orgUnit: TenantReportingHierarchyOrgUnitRecord;
-      aggregate: TenantReportingEngagementAggregate;
-    }
-  >();
-
-  for (const row of input.rows) {
-    if (
-      input.query.badgeTemplateId !== undefined &&
-      row.badgeTemplateId !== input.query.badgeTemplateId
-    ) {
-      continue;
-    }
-
-    if (input.query.orgUnitId !== undefined && row.orgUnitId !== input.query.orgUnitId) {
-      continue;
-    }
-
-    if (!isTimestampWithinReportingRange(row.issuedAt, input.query.from, input.query.to)) {
-      continue;
-    }
-
-    const lineage = listReportingHierarchyLineage(orgUnitsById, row.orgUnitId);
-
-    if (focusOrgUnit !== null && !isReportingHierarchyLineageWithinRoot(lineage, focusOrgUnit.id)) {
-      continue;
-    }
-
-    if (
-      scopedRootOrgUnitIds.length > 0 &&
-      !scopedRootOrgUnitIds.some((scopedRootOrgUnitId) => {
-        return isReportingHierarchyLineageWithinRoot(lineage, scopedRootOrgUnitId);
-      })
-    ) {
-      continue;
-    }
-
-    const targetOrgUnit = lineage.find((orgUnit) => orgUnit.unitType === input.query.level);
-
-    if (targetOrgUnit === undefined) {
-      continue;
-    }
-
-    const group =
-      groups.get(targetOrgUnit.id) ??
-      (() => {
-        const created = {
-          orgUnit: targetOrgUnit,
-          aggregate: createTenantReportingEngagementAggregate(),
-        };
-        groups.set(targetOrgUnit.id, created);
-        return created;
-      })();
-
-    group.aggregate.issuedAssertionIds.add(row.assertionId);
-
-    if (
-      row.eventType !== null &&
-      row.occurredAt !== null &&
-      isTimestampWithinReportingRange(row.occurredAt, input.query.from, input.query.to)
-    ) {
-      applyTenantReportingEngagementEvent(group.aggregate, row.assertionId, row.eventType);
-    }
-  }
-
-  return Array.from(groups.values())
-    .map((group) => {
-      const counts = finalizeTenantReportingEngagementCounts(group.aggregate);
-      return {
-        level: input.query.level,
-        orgUnitId: group.orgUnit.id,
-        displayName: group.orgUnit.displayName,
-        parentOrgUnitId: group.orgUnit.parentOrgUnitId,
-        issuedCount: counts.issuedCount,
-        publicBadgeViewCount: counts.publicBadgeViewCount,
-        verificationViewCount: counts.verificationViewCount,
-        shareClickCount: counts.shareClickCount,
-        learnerClaimCount: counts.learnerClaimCount,
-        walletAcceptCount: counts.walletAcceptCount,
-        claimRate: counts.claimRate,
-        shareRate: counts.shareRate,
-      };
-    })
-    .sort((left, right) => {
-      if (right.issuedCount !== left.issuedCount) {
-        return right.issuedCount - left.issuedCount;
-      }
-
-      return left.orgUnitId.localeCompare(right.orgUnitId);
-    });
-};
-
-export const summarizeTenantExecutiveRollup = (input: {
-  rows: readonly TenantReportingHierarchySourceRow[];
-  orgUnits: readonly TenantReportingHierarchyOrgUnitRecord[];
-  query: TenantExecutiveRollupQuery;
-  scopedRootOrgUnitIds?: readonly string[] | undefined;
-}): TenantExecutiveRollupRecord => {
-  const orgUnitsById = new Map(
-    input.orgUnits.map((orgUnit) => {
-      return [orgUnit.id, orgUnit] as const;
-    }),
-  );
-  const focusOrgUnit = getReportingHierarchyOrgUnitOrThrow(
-    orgUnitsById,
-    input.query.focusOrgUnitId,
-  );
-  const focusLineageOrgUnitIds = listReportingHierarchyLineage(
-    orgUnitsById,
-    input.query.focusOrgUnitId,
-  )
-    .map((orgUnit) => orgUnit.id)
-    .reverse();
-
-  return {
-    focusOrgUnitId: focusOrgUnit.id,
-    focusDisplayName: focusOrgUnit.displayName,
-    focusParentOrgUnitId: focusOrgUnit.parentOrgUnitId,
-    focusUnitType: focusOrgUnit.unitType,
-    comparisonLevel: input.query.comparisonLevel,
-    focusLineageOrgUnitIds,
-    filters: {
-      from: input.query.from ?? null,
-      to: input.query.to ?? null,
-      badgeTemplateId: input.query.badgeTemplateId ?? null,
-      orgUnitId: input.query.orgUnitId ?? null,
-      state: input.query.state ?? null,
-    },
-    rows: summarizeTenantReportingHierarchyRows({
-      rows: input.rows,
-      orgUnits: input.orgUnits,
-      query: {
-        from: input.query.from,
-        to: input.query.to,
-        badgeTemplateId: input.query.badgeTemplateId,
-        orgUnitId: input.query.orgUnitId,
-        state: input.query.state,
-        focusOrgUnitId: input.query.focusOrgUnitId,
-        level: input.query.comparisonLevel,
-      },
-      scopedRootOrgUnitIds: input.scopedRootOrgUnitIds,
-    }),
-  };
-};
+export {
+  resolveAssertionReportingAttribution,
+  summarizeTenantReportingOverviewRows,
+  summarizeTenantReportingTrendRows,
+  summarizeTenantReportingComparisonRows,
+  summarizeTenantReportingHierarchyRows,
+  summarizeTenantExecutiveRollup,
+} from "./assertion-reporting-summaries.js";
+export type {
+  AssertionReportingAttributionSource,
+  TenantReportingLifecycleFilter,
+  TenantReportingOverviewFilters,
+  GetTenantReportingOverviewInput,
+  TenantReportingOverviewCounts,
+  TenantReportingOverviewRecord,
+  TenantReportingEngagementFilters,
+  TenantReportingHierarchyQuery,
+  TenantReportingHierarchySourceRow,
+  TenantReportingHierarchyOrgUnitRecord,
+  TenantReportingHierarchyGroupRecord,
+  TenantExecutiveRollupQuery,
+  TenantExecutiveRollupRecord,
+  GetTenantExecutiveRollupInput,
+  GetTenantExecutiveRollupResult,
+  GetTenantReportingEngagementCountsInput,
+  TenantReportingEngagementCounts,
+  TenantReportingTrendBucket,
+  GetTenantReportingTrendsInput,
+  TenantReportingTrendBucketRecord,
+  TenantReportingTrendRecord,
+  TenantReportingComparisonGroupBy,
+  ListTenantReportingComparisonsInput,
+  TenantReportingComparisonRowRecord,
+} from "./assertion-types.js";
 
 const resolveAssertionLifecycleProjection = (input: {
   revokedAt: string | null;

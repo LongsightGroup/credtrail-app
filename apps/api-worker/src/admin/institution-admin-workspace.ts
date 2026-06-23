@@ -13,6 +13,7 @@ export interface LoadInstitutionAdminWorkspaceInput<TPageData> {
   c: AppContext;
   tenantId: string;
   nextPath: string;
+  view?: import("./institution-admin/page-types").InstitutionAdminView;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
     tenantId: string,
@@ -23,6 +24,10 @@ export interface LoadInstitutionAdminWorkspaceInput<TPageData> {
     tenantId: string,
     sessionUserId: string,
     membershipRole: TenantMembershipRole,
+    options?: {
+      view?: import("./institution-admin/page-types").InstitutionAdminView;
+      badgeTemplatesIncludeArchived?: boolean;
+    },
   ) => Promise<TPageData | Response>;
 }
 
@@ -52,6 +57,7 @@ export const loadInstitutionAdminWorkspacePageData = async <TPageData>(
     input.tenantId,
     session.userId,
     membershipRole,
+    input.view === undefined ? {} : { view: input.view },
   );
 
   if (pageData instanceof Response) {
