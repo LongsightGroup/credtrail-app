@@ -940,6 +940,26 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     expect(mockedListTenantAssertions).toHaveBeenCalledTimes(1);
   });
 
+  it("loads all issued badges when the default search form is submitted", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/issued-badges?recipientQuery=&badgeTemplateId=&state=&limit=100",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedListTenantAssertions).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      limit: 100,
+    });
+  });
+
   it("redirects with a list error when issued badge filters are invalid", async () => {
     const env = createEnv();
 

@@ -172,17 +172,26 @@ export const learnerRecordStandardsMappingQuerySchema = z.object({
   profile: learnerRecordExportProfileSchema.default("clr_alignment_json"),
 });
 
-export const tenantAssertionListQuerySchema = z.object({
-  badgeTemplateId: resourceIdSchema.optional(),
-  recipientQuery: z.string().trim().min(1).max(320).optional(),
-  state: assertionLifecycleStateSchema.optional(),
-  limit: z.preprocess((input) => {
-    if (input === undefined || input === "") {
-      return undefined;
-    }
-
+const optionalBlankStringToUndefined = (input: unknown): unknown => {
+  if (typeof input !== "string") {
     return input;
-  }, z.coerce.number().int().min(1).max(500).optional()),
+  }
+
+  const trimmed = input.trim();
+  return trimmed.length === 0 ? undefined : trimmed;
+};
+
+export const tenantAssertionListQuerySchema = z.object({
+  badgeTemplateId: z.preprocess(optionalBlankStringToUndefined, resourceIdSchema.optional()),
+  recipientQuery: z.preprocess(
+    optionalBlankStringToUndefined,
+    z.string().min(1).max(320).optional(),
+  ),
+  state: z.preprocess(optionalBlankStringToUndefined, assertionLifecycleStateSchema.optional()),
+  limit: z.preprocess(
+    optionalBlankStringToUndefined,
+    z.coerce.number().int().min(1).max(500).optional(),
+  ),
 });
 // --- inferred types and parsers ---
 export type LearnerRecordExportPathParams = z.infer<typeof learnerRecordExportPathParamsSchema>;

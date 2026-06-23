@@ -161,6 +161,12 @@ describe("enterprise governance request parsers", () => {
       state: "revoked",
       limit: "125",
     });
+    const blankQuery = parseTenantAssertionListQuery({
+      badgeTemplateId: "",
+      recipientQuery: " ",
+      state: "",
+      limit: "",
+    });
 
     expect(defaultQuery.badgeTemplateId).toBeUndefined();
     expect(defaultQuery.recipientQuery).toBeUndefined();
@@ -170,6 +176,10 @@ describe("enterprise governance request parsers", () => {
     expect(filteredQuery.recipientQuery).toBe("csev@umich.edu");
     expect(filteredQuery.state).toBe("revoked");
     expect(filteredQuery.limit).toBe(125);
+    expect(blankQuery.badgeTemplateId).toBeUndefined();
+    expect(blankQuery.recipientQuery).toBeUndefined();
+    expect(blankQuery.state).toBeUndefined();
+    expect(blankQuery.limit).toBeUndefined();
   });
 
   it("rejects invalid tenant assertion list query values", () => {

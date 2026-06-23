@@ -39,20 +39,21 @@ export const buildIssuedBadgesPageQuery = (
   return query;
 };
 
-export const shouldLoadIssuedBadgesList = (query: {
-  recipientQuery?: string;
-  badgeTemplateId?: string;
-  state?: string;
-  limit?: string;
-}): boolean => {
-  const recipientQuery = (query.recipientQuery ?? "").trim();
-  const badgeTemplateId = (query.badgeTemplateId ?? "").trim();
-  const state = (query.state ?? "").trim();
-  const limitRaw = (query.limit ?? "").trim();
-  const hasLimitOverride = limitRaw.length > 0 && limitRaw !== "100";
+const issuedBadgesSearchFieldNames = [
+  "recipientQuery",
+  "badgeTemplateId",
+  "state",
+  "limit",
+] as const;
 
-  return (
-    recipientQuery.length > 0 || badgeTemplateId.length > 0 || state.length > 0 || hasLimitOverride
+type IssuedBadgesSearchFieldName = (typeof issuedBadgesSearchFieldNames)[number];
+
+export const shouldLoadIssuedBadgesList = (
+  query: Partial<Record<IssuedBadgesSearchFieldName, string | undefined>>,
+): boolean => {
+  return issuedBadgesSearchFieldNames.some(
+    (fieldName) =>
+      Object.prototype.hasOwnProperty.call(query, fieldName) && query[fieldName] !== undefined,
   );
 };
 
