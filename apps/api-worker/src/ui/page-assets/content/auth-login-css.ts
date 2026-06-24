@@ -298,43 +298,8 @@ export const AUTH_LOGIN_CSS = `
 }
 
 .ct-login__submit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   gap: 0.55rem;
-  border: none;
   border-radius: var(--ct-radius-md);
-  min-height: 2.75rem;
-  padding: 0.6rem 1rem;
-  font-family: var(--ct-font-sans);
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--ct-theme-text-on-brand);
-  background: var(--ct-theme-gradient-action);
-  cursor: pointer;
-  text-decoration: none;
-  transition:
-    transform var(--ct-duration-fast) var(--ct-ease-standard),
-    box-shadow var(--ct-duration-fast) var(--ct-ease-standard),
-    background var(--ct-duration-fast) var(--ct-ease-standard);
-}
-
-.ct-login__submit:hover:not(:disabled) {
-  transform: translateY(-1px);
-  background: var(--ct-theme-gradient-action-hover);
-  box-shadow: var(--ct-theme-shadow-soft);
-}
-
-.ct-login__submit:disabled {
-  opacity: 0.62;
-  cursor: not-allowed;
-}
-
-.ct-login__submit:focus-visible {
-  outline: none;
-  box-shadow:
-    var(--ct-focus-ring),
-    var(--ct-theme-shadow-soft);
 }
 
 .ct-login__submit--google {

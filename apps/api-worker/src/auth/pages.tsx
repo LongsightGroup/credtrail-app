@@ -1,6 +1,7 @@
 import { appPage, type AppPage } from "../ui/render-page";
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
+import { CtButton, CtButtonLink } from "../ui/actions";
 import type { AccessibleTenantContextView } from "./tenant-context-selection";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -36,9 +37,9 @@ const authPage = (input: {
 
 const LoginSubmitButton = ({ children }: PropsWithChildren): HonoElement => {
   return (
-    <button type="submit" class="ct-login__submit">
+    <CtButton type="submit" className="ct-login__submit" variant="primary" size="lg">
       {children}
-    </button>
+    </CtButton>
   );
 };
 
@@ -51,9 +52,14 @@ const LoginActionLink = ({
   className?: string | undefined;
 }>): HonoElement => {
   return (
-    <a class={className ?? "ct-login__submit"} href={href}>
+    <CtButtonLink
+      className={className ?? "ct-login__submit"}
+      href={href}
+      variant="primary"
+      size="lg"
+    >
       {children}
-    </a>
+    </CtButtonLink>
   );
 };
 

@@ -1,6 +1,7 @@
 import type { LearnerBadgeSummaryRecord } from "@credtrail/db";
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
+import { CtActionGroup, CtButton, type CtActionVariant } from "../ui/actions";
 import { appPage, type AppPage } from "../ui/render-page";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -19,6 +20,17 @@ const learnerButtonClass = (variant: LearnerButtonVariant): string => {
   return `learner-dashboard__button learner-dashboard__button--${variant}`;
 };
 
+const learnerButtonVariantToCtVariant = (variant: LearnerButtonVariant): CtActionVariant => {
+  switch (variant) {
+    case "primary":
+      return "primary";
+    case "secondary":
+      return "secondary";
+    case "ghost":
+      return "quiet";
+  }
+};
+
 const LearnerButton = ({
   type = "button",
   variant,
@@ -32,14 +44,21 @@ const LearnerButton = ({
   value?: string;
 }>): HonoElement => {
   return (
-    <button type={type} name={name} value={value} class={learnerButtonClass(variant)}>
+    <CtButton
+      type={type}
+      variant={learnerButtonVariantToCtVariant(variant)}
+      size="lg"
+      className={learnerButtonClass(variant)}
+      name={name}
+      value={value}
+    >
       {children}
-    </button>
+    </CtButton>
   );
 };
 
 const LearnerButtonRow = ({ children }: PropsWithChildren): HonoElement => {
-  return <div class="learner-dashboard__button-row">{children}</div>;
+  return <CtActionGroup className="learner-dashboard__button-row">{children}</CtActionGroup>;
 };
 
 export const learnerDidSettingsNoticeFromQuery = (

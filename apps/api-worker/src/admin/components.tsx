@@ -4,6 +4,14 @@ import type { BadgeIssuanceRuleValueListRecord, TenantAssertionSummaryRecord } f
 import type { BadgeRuleReviewQueueEntryView } from "../badge-rule-review-queue-workspace";
 import { formatBadgeRuleReviewQueueSummary } from "../badge-rule-review-queue-workspace";
 import {
+  CtActionGroup,
+  CtButton,
+  CtButtonLink,
+  type CtActionSize,
+  type CtActionVariant,
+  type CtDataAttributes,
+} from "../ui/actions";
+import {
   formatRuleValueListKind,
   formatRuleValueListValuesSummary,
 } from "./rule-value-lists-presentation";
@@ -18,7 +26,7 @@ export type AdminButtonSize = "default" | "tiny";
 
 type ButtonType = "button" | "submit" | "reset";
 type FormMethod = "get" | "post";
-type DataAttributes = Partial<Record<`data-${string}`, string>>;
+type DataAttributes = CtDataAttributes;
 
 export interface AdminTopbarChip {
   label: string;
@@ -55,6 +63,26 @@ export const adminButtonClass = (input?: {
   }
 
   return classNames.join(" ");
+};
+
+const adminButtonVariantToCtVariant = (
+  variant: AdminButtonVariant | undefined,
+): CtActionVariant => {
+  switch (variant) {
+    case "secondary":
+      return "secondary";
+    case "ghost":
+      return "quiet";
+    case "danger":
+      return "danger";
+    case "primary":
+    case undefined:
+      return "primary";
+  }
+};
+
+const adminButtonSizeToCtSize = (size: AdminButtonSize | undefined): CtActionSize => {
+  return size === "tiny" ? "sm" : "md";
 };
 
 const normalizedExtraClass = (className: string | undefined): string | undefined => {
@@ -137,19 +165,21 @@ export const AdminButton = ({
   dataAttributes?: DataAttributes;
 }>): HonoElement => {
   return (
-    <button
+    <CtButton
       id={id}
       type={type}
       form={form}
-      formaction={formAction}
-      class={adminButtonClass({ variant, size, extraClass: className })}
+      formAction={formAction}
+      variant={adminButtonVariantToCtVariant(variant)}
+      size={adminButtonSizeToCtSize(size)}
+      className={adminButtonClass({ variant, size, extraClass: className })}
       disabled={disabled}
       hidden={hidden}
-      aria-label={ariaLabel}
-      {...(dataAttributes ?? {})}
+      ariaLabel={ariaLabel}
+      dataAttributes={dataAttributes}
     >
       {children}
-    </button>
+    </CtButton>
   );
 };
 
@@ -174,21 +204,23 @@ export const AdminButtonLink = ({
   dataAttributes?: DataAttributes;
 }>): HonoElement => {
   return (
-    <a
-      class={adminButtonClass({
+    <CtButtonLink
+      href={href}
+      variant={adminButtonVariantToCtVariant(variant ?? "secondary")}
+      size={adminButtonSizeToCtSize(size)}
+      target={target}
+      rel={rel}
+      className={adminButtonClass({
         variant,
         defaultVariant: "secondary",
         size,
         extraClass: className,
       })}
-      href={href}
-      target={target}
-      rel={rel}
-      aria-label={ariaLabel}
-      {...(dataAttributes ?? {})}
+      ariaLabel={ariaLabel}
+      dataAttributes={dataAttributes}
     >
       {children}
-    </a>
+    </CtButtonLink>
   );
 };
 
@@ -572,7 +604,7 @@ export const AdminActions = ({
     classNames.push(extraClass);
   }
 
-  return <div class={classNames.join(" ")}>{children}</div>;
+  return <CtActionGroup className={classNames.join(" ")}>{children}</CtActionGroup>;
 };
 
 export const AdminStatus = ({

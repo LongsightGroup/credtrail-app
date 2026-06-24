@@ -391,22 +391,7 @@ export const LTI_PAGES_CSS = `
 }
 
 .lti-launch__claim-button {
-  min-height: 2.3rem;
-  border: 1px solid var(--ct-theme-border-danger);
-  border-radius: var(--ct-radius-sm);
-  padding: 0.43rem 0.72rem;
-  background: var(--ct-theme-surface-danger);
-  color: var(--ct-theme-state-danger);
-  font: inherit;
   font-weight: 800;
-  cursor: pointer;
-}
-
-.lti-launch__claim-button:hover,
-.lti-launch__claim-button:focus-visible {
-  border-color: var(--ct-theme-state-danger);
-  outline: 2px solid var(--ct-theme-border-danger);
-  outline-offset: 2px;
 }
 
 .lti-launch__share-link {

@@ -324,29 +324,7 @@
 }
 
 .learner-dashboard__button {
-  min-height: 2.75rem;
-  padding: 0.55rem 0.95rem;
-  border: 1px solid transparent;
-  border-radius: 0.6rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.learner-dashboard__button--primary {
-  color: #f9fcff;
-  background: linear-gradient(115deg, #00274c 0%, #0b5aa9 85%);
-}
-
-.learner-dashboard__button--ghost {
-  border-color: rgba(0, 39, 76, 0.18);
-  color: #12375e;
-  background: rgba(255, 255, 255, 0.92);
-}
-
-.learner-dashboard__button--secondary {
-  border-color: rgba(11, 90, 169, 0.2);
-  color: #12375e;
-  background: linear-gradient(180deg, rgba(255, 252, 244, 0.98), rgba(244, 249, 255, 0.96));
+  flex: 0 0 auto;
 }
 
 .learner-dashboard__badge-grid {

@@ -67,7 +67,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).toContain(">Rules<");
     expect(body).not.toContain("Rule Builder Workspace");
     expect(body).toMatch(/>\s*Create badge rule\s*<\/a>/);
-    expect(body).toContain('class="ct-admin__actions"');
+    expect(body).toMatch(/class="[^"]*ct-admin__actions[^"]*ct-action-group/);
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
     expect(body).toMatch(/>\s*Manage badge templates\s*<\/a>/);
@@ -187,11 +187,11 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).toContain(
       '<a class="ct-admin__rule-name-link" href="/tenants/tenant_123/admin/rules/brl_rejected/edit"><strong>Rejected cleanup rule</strong></a>',
     );
-    expect(body).toContain(
-      'class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary" href="/tenants/tenant_123/admin/rules/brl_draft/edit"',
+    expect(body).toMatch(
+      /class="[^"]*ct-admin__button[^"]*ct-admin__button--tiny[^"]*ct-admin__button--secondary[^"]*ct-action--secondary[^"]*ct-action--sm[^"]*" href="\/tenants\/tenant_123\/admin\/rules\/brl_draft\/edit"/,
     );
-    expect(body).toContain(
-      'class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary" href="/tenants/tenant_123/admin/rules/brl_rejected/edit"',
+    expect(body).toMatch(
+      /class="[^"]*ct-admin__button[^"]*ct-admin__button--tiny[^"]*ct-admin__button--secondary[^"]*ct-action--secondary[^"]*ct-action--sm[^"]*" href="\/tenants\/tenant_123\/admin\/rules\/brl_rejected\/edit"/,
     );
     expect(body).toContain('action="/tenants/tenant_123/admin/rules/brl_draft/delete"');
     expect(body).toContain('action="/tenants/tenant_123/admin/rules/brl_rejected/delete"');
@@ -603,9 +603,9 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).not.toContain('id="badge-template-editor-history-link"');
     expect(body).not.toContain('data-template-edit-template-id="badge_template_001"');
     expect(body).not.toContain('data-template-manage-image-template-id="badge_template_001"');
-    expect(body).toContain('class="ct-admin__actions"');
-    expect(body).toContain(
-      'class="ct-admin__button ct-admin__button--tiny ct-admin__button--secondary" href="/tenants/tenant_123/admin/rules/templates/badge_template_001"',
+    expect(body).toMatch(/class="[^"]*ct-admin__actions[^"]*ct-action-group/);
+    expect(body).toMatch(
+      /class="[^"]*ct-admin__button[^"]*ct-admin__button--tiny[^"]*ct-admin__button--secondary[^"]*ct-action--secondary[^"]*ct-action--sm[^"]*" href="\/tenants\/tenant_123\/admin\/rules\/templates\/badge_template_001"/,
     );
     expect(body).not.toContain("ct-admin__template-primary-action");
     expect(body).toContain("Edit template");
@@ -1697,9 +1697,7 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_CSS).toContain(
       ".ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-locked,\n.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button:disabled {\n  opacity: 1;",
     );
-    expect(INSTITUTION_ADMIN_CSS).toContain(
-      ".ct-admin__form button.ct-admin__button--danger:hover:not(:disabled),",
-    );
+    expect(INSTITUTION_ADMIN_CSS).not.toContain(".ct-admin__form button");
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__table .ct-admin__actions");
     expect(INSTITUTION_ADMIN_CSS).toContain("flex-wrap: nowrap;");
     expect(body).toContain('data-rule-step-row="metadata"');
@@ -1724,10 +1722,14 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('id="rule-builder-submit"');
     expect(body).toContain('id="rule-builder-flow-list"');
     expect(body).toMatch(
-      /id="rule-builder-add-condition"[^>]*class="ct-admin__button ct-admin__button--tiny"/,
+      /id="rule-builder-add-condition"[^>]*class="[^"]*ct-admin__button[^"]*ct-admin__button--tiny[^"]*ct-action--sm/,
     );
-    expect(body).toContain('class="ct-admin__actions ct-admin__builder-toolbar"');
-    expect(body).toContain('class="ct-admin__actions ct-admin__builder-step-nav"');
+    expect(body).toMatch(
+      /class="[^"]*ct-admin__actions[^"]*ct-admin__builder-toolbar[^"]*ct-action-group/,
+    );
+    expect(body).toMatch(
+      /class="[^"]*ct-admin__actions[^"]*ct-admin__builder-step-nav[^"]*ct-action-group/,
+    );
     expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__builder-grid.ct-grid");
     expect(body).toContain('id="rule-builder-require-every-requirement"');
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-require-every-requirement");
@@ -1736,10 +1738,10 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("setRuleBuilderRootLogic('all')");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("data-rule-builder-root-logic-option");
     expect(body).toMatch(
-      /id="rule-builder-step-next"[^>]*class="ct-admin__button ct-admin__button--tiny"/,
+      /id="rule-builder-step-next"[^>]*class="[^"]*ct-admin__button[^"]*ct-admin__button--tiny[^"]*ct-action--sm/,
     );
     expect(body).toMatch(
-      /id="rule-builder-submit"[^>]*form="rule-create-form"[^>]*class="ct-admin__button"/,
+      /id="rule-builder-submit"[^>]*form="rule-create-form"[^>]*class="[^"]*ct-admin__button[^"]*ct-action--primary/,
     );
     expect(body).toMatch(/id="rule-builder-submit"[^>]*hidden/);
     expect(body).not.toMatch(/id="rule-builder-step-next"[^>]*hidden/);

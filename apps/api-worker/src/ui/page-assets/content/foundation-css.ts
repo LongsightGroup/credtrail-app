@@ -1,9 +1,11 @@
 import { GENERATED_DESIGN_TOKENS_CSS } from "./generated/design-tokens-css";
+import { ACTIONS_CSS } from "./actions-css";
 import { FONT_FACE_CSS } from "./font-assets";
 
 export const FOUNDATION_CSS = `
 ${FONT_FACE_CSS}
 ${GENERATED_DESIGN_TOKENS_CSS}
+${ACTIONS_CSS}
 
 :root {
   color-scheme: light;

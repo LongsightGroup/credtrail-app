@@ -12,6 +12,7 @@ import { registerBootstrapAdminRoutes } from "../routes/bootstrap-admin-routes";
 import { registerBadgeTemplateImageRoutes } from "../routes/badge-template-image-routes";
 import { registerBadgeRuleRoutes } from "../routes/badge-rule-routes";
 import { registerCredentialRoutes } from "../routes/credential-routes";
+import { registerDesignSystemRoutes } from "../routes/design-system-routes";
 import { registerDidRoutes } from "../routes/did-routes";
 import { registerLearnerRoutes } from "../routes/learner-routes";
 import { registerLearnerRecordExportRoutes } from "../routes/learner-record-export-routes";
@@ -68,6 +69,7 @@ export const registerRoutes = (input: RegisterRoutesInput): void => {
   registerAppPageRenderer(input.app);
 
   registerGoogleAuthRoutes(input);
+  registerDesignSystemRoutes(input);
 
   registerHealthRoutes({
     app: input.app,

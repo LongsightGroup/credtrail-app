@@ -295,38 +295,6 @@
   width: auto;
 }
 
-.public-badge__text-link {
-  color: var(--ct-theme-link);
-  font-weight: 600;
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--ct-theme-link) 35%, transparent);
-  text-underline-offset: 0.14em;
-}
-
-.public-badge__text-link:hover {
-  color: var(--ct-theme-link-hover, var(--ct-theme-link));
-  text-decoration-color: currentColor;
-}
-
-.public-badge__text-button {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--ct-theme-link);
-  font: inherit;
-  font-weight: 600;
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--ct-theme-link) 35%, transparent);
-  text-underline-offset: 0.14em;
-  cursor: pointer;
-}
-
-.public-badge__text-button:hover {
-  color: var(--ct-theme-link-hover, var(--ct-theme-link));
-  text-decoration-color: currentColor;
-}
-
 .public-badge__link-row {
   margin: 0;
   color: var(--ct-theme-text-muted);
@@ -346,55 +314,6 @@
   align-items: center;
 }
 
-.public-badge__button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--ct-theme-border-default);
-  border-radius: 0.7rem;
-  min-height: 2.75rem;
-  padding: 0.6rem 0.9rem;
-  text-decoration: none;
-  font-size: 0.84rem;
-  line-height: 1.2;
-  font-weight: 600;
-  color: var(--ct-theme-text-body);
-  background: linear-gradient(
-    180deg,
-    var(--ct-theme-surface-card-strong),
-    var(--ct-theme-surface-info)
-  );
-  cursor: pointer;
-  transition:
-    transform var(--ct-duration-fast) var(--ct-ease-standard),
-    box-shadow var(--ct-duration-fast) var(--ct-ease-standard),
-    border-color var(--ct-duration-fast) var(--ct-ease-standard);
-}
-
-.public-badge__button:hover {
-  color: var(--ct-theme-text-body);
-  transform: translateY(-1px);
-  box-shadow: var(--ct-theme-shadow-soft);
-  border-color: var(--ct-theme-border-strong);
-}
-  
-.public-badge__button--primary {
-  border-color: transparent;
-  background: var(--ct-theme-gradient-action);
-  color: var(--ct-theme-text-on-brand);
-}
-
-.public-badge__button--primary:hover {
-  background: var(--ct-theme-gradient-action-hover);
-  color: var(--ct-theme-text-on-brand);
-}
-
-.public-badge__button--compact {
-  min-height: 2.35rem;
-  padding: 0.45rem 0.75rem;
-  font-size: 0.82rem;
-}
-  
 .public-badge__copy-status {
   margin: 0;
   color: var(--ct-theme-text-muted);
@@ -1010,47 +929,11 @@
 }
 
 .badge-wall__button {
-  display: inline-flex;
   flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  appearance: none;
-  border: 1px solid var(--ct-theme-border-default);
-  border-radius: 0.55rem;
-  min-height: 2.2rem;
-  height: 2.2rem;
-  padding: 0 0.7rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--ct-theme-text-muted);
-  background: var(--ct-theme-surface-card-strong);
-  cursor: pointer;
-  text-decoration: none;
-  transition:
-    transform var(--ct-duration-fast) var(--ct-ease-standard),
-    box-shadow var(--ct-duration-fast) var(--ct-ease-standard),
-    border-color var(--ct-duration-fast) var(--ct-ease-standard),
-    color var(--ct-duration-fast) var(--ct-ease-standard);
-}
-
-.badge-wall__button:hover {
-  color: var(--ct-theme-text-body);
-  transform: translateY(-1px);
-  box-shadow: var(--ct-theme-shadow-soft);
-  border-color: var(--ct-theme-border-strong);
 }
 
 .badge-wall__button--primary {
-  color: var(--ct-theme-link);
-  border-color: var(--ct-theme-border-info);
-  background: var(--ct-theme-surface-info);
   font-weight: 700;
-}
-
-.badge-wall__button--primary:hover {
-  color: var(--ct-theme-link-hover);
-  border-color: var(--ct-theme-link);
 }
 
 .badge-wall__icon-button {

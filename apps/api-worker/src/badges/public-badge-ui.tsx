@@ -1,5 +1,12 @@
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
+import {
+  CtButton,
+  CtButtonLink,
+  CtTextButton,
+  type CtActionVariant,
+  type CtDataAttributes,
+} from "../ui/actions";
 
 export type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -9,6 +16,12 @@ const publicBadgeButtonClass = (variant: PublicBadgeButtonVariant = "secondary")
   return variant === "primary"
     ? "public-badge__button public-badge__button--primary"
     : "public-badge__button";
+};
+
+const publicBadgeVariantToCtVariant = (
+  variant: PublicBadgeButtonVariant | undefined,
+): CtActionVariant => {
+  return variant === "primary" ? "primary" : "secondary";
 };
 
 const joinClassNames = (...classNames: Array<string | undefined>): string => {
@@ -54,14 +67,16 @@ export const PublicBadgeButtonLink = ({
   rel?: string;
 }>): HonoElement => {
   return (
-    <a
-      class={joinClassNames(publicBadgeButtonClass(variant), className)}
+    <CtButtonLink
+      className={joinClassNames(publicBadgeButtonClass(variant), className)}
       href={href}
+      variant={publicBadgeVariantToCtVariant(variant)}
+      size="lg"
       target={target}
       rel={rel}
     >
       {children}
-    </a>
+    </CtButtonLink>
   );
 };
 
@@ -81,17 +96,25 @@ export const PublicBadgeButton = ({
   dataCredentialJsonUrl?: string;
   hidden?: boolean;
 }>): HonoElement => {
+  const dataAttributes: CtDataAttributes = {
+    ...(dataCopyValue === undefined ? {} : { "data-copy-value": dataCopyValue }),
+    ...(dataCredentialJsonUrl === undefined
+      ? {}
+      : { "data-credential-json-url": dataCredentialJsonUrl }),
+  };
+
   return (
-    <button
+    <CtButton
       id={id}
-      class={publicBadgeButtonClass(variant)}
+      className={publicBadgeButtonClass(variant)}
       type={type}
-      data-copy-value={dataCopyValue}
-      data-credential-json-url={dataCredentialJsonUrl}
+      variant={publicBadgeVariantToCtVariant(variant)}
+      size="lg"
+      dataAttributes={dataAttributes}
       hidden={hidden}
     >
       {children}
-    </button>
+    </CtButton>
   );
 };
 
@@ -106,9 +129,9 @@ export const PublicBadgeTextLink = ({
   rel?: string;
 }>): HonoElement => {
   return (
-    <a class="public-badge__text-link" href={href} target={target} rel={rel}>
+    <CtTextButton className="public-badge__text-link" href={href} target={target} rel={rel}>
       {children}
-    </a>
+    </CtTextButton>
   );
 };
 
@@ -126,17 +149,23 @@ export const PublicBadgeTextButton = ({
   dataCredentialJsonUrl?: string;
   hidden?: boolean;
 }>): HonoElement => {
+  const dataAttributes: CtDataAttributes = {
+    ...(dataCopyValue === undefined ? {} : { "data-copy-value": dataCopyValue }),
+    ...(dataCredentialJsonUrl === undefined
+      ? {}
+      : { "data-credential-json-url": dataCredentialJsonUrl }),
+  };
+
   return (
-    <button
+    <CtTextButton
       id={id}
-      class="public-badge__text-button"
+      className="public-badge__text-button"
       type={type}
-      data-copy-value={dataCopyValue}
-      data-credential-json-url={dataCredentialJsonUrl}
+      dataAttributes={dataAttributes}
       hidden={hidden}
     >
       {children}
-    </button>
+    </CtTextButton>
   );
 };
 
@@ -174,9 +203,14 @@ export const BadgeWallButtonLink = ({
     variant === "primary" ? "badge-wall__button badge-wall__button--primary" : "badge-wall__button";
 
   return (
-    <a class={className} href={href}>
+    <CtButtonLink
+      className={className}
+      href={href}
+      variant={publicBadgeVariantToCtVariant(variant)}
+      size="compact"
+    >
       {children}
-    </a>
+    </CtButtonLink>
   );
 };
 

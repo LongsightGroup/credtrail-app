@@ -75,7 +75,9 @@ describe("BadgeTemplateImageRevisionList", () => {
     expect(html).toContain('method="post"');
     expect(html).toContain("/restore?q=legacy&amp;includeArchived=1");
     expect(html).toContain("Restore");
-    expect(html).toContain('class="ct-admin__actions ct-admin__actions--end"');
+    expect(html).toMatch(
+      /class="[^"]*ct-admin__actions[^"]*ct-admin__actions--end[^"]*ct-action-group/,
+    );
     expect(html).toContain("Uploaded");
   });
 });

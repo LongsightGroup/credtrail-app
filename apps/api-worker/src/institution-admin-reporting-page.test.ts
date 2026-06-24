@@ -392,9 +392,11 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(exportsResponse.status).toBe(200);
     expect(exportsBody).toContain("Report Library");
     expect(exportsBody).toContain("Export CSV");
-    expect(exportsBody).toContain('class="ct-admin__actions"');
+    expect(exportsBody).toMatch(/class="[^"]*ct-admin__actions[^"]*ct-action-group/);
     expect(exportsBody).toContain("Overview CSV");
-    expect(exportsBody).toContain('class="ct-admin__button ct-admin__button--secondary"');
+    expect(exportsBody).toMatch(
+      /class="[^"]*ct-admin__button[^"]*ct-admin__button--secondary[^"]*ct-action--secondary/,
+    );
     expect(exportsBody).not.toContain("Reporting Overview");
   });
 

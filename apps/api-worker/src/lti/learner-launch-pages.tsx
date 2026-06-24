@@ -1,4 +1,5 @@
 import { formatIsoTimestamp } from "../utils/display-format";
+import { CtButton } from "../ui/actions";
 import { BadgeSummaryContent, type HonoElement, LtiLaunchCard } from "./launch-page-components";
 import type { LtiLearnerBadgeSummaryView } from "./view-models";
 
@@ -68,9 +69,14 @@ export const LearnerBadgeSummarySection = (input: {
                           action={claimActionPath(item.claimActionPath)}
                           class="lti-launch__claim-form"
                         >
-                          <button type="submit" class="lti-launch__claim-button">
+                          <CtButton
+                            type="submit"
+                            className="lti-launch__claim-button"
+                            variant="danger"
+                            size="sm"
+                          >
                             Claim badge and open sharing options
-                          </button>
+                          </CtButton>
                         </form>
                       )}
                       {item.claimActionPath !== null || item.sharePath === null ? null : (

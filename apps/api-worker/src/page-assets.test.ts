@@ -153,6 +153,17 @@ describe("page asset manifest", () => {
     expect(foundationCss).toContain('font-family: "Newsreader"');
     expect(foundationCss).toMatch(/\/assets\/ui\/fonts\/newsreader-latin\.[a-f0-9]{10}\.woff2/);
     expect(foundationCss).not.toContain("base64");
+    expect(foundationCss).toContain(".ct-action");
+    expect(foundationCss).toContain(".ct-action-group");
+    expect(foundationCss).toContain(".ct-action--danger");
+  });
+
+  it("keeps admin form buttons from bypassing the action primitive contract", () => {
+    const institutionAdminCss = readGeneratedAsset("institutionAdminCss");
+
+    expect(institutionAdminCss).not.toContain(".ct-admin__form button {");
+    expect(institutionAdminCss).not.toContain(".ct-admin__form button:not(.ct-admin__step-button)");
+    expect(institutionAdminCss).not.toContain(".ct-admin__form button:focus-visible");
   });
 
   it("emits JavaScript assets that parse as browser scripts", () => {

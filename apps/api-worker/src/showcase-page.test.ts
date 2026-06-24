@@ -137,7 +137,8 @@ describe("GET /showcase/:tenantId", () => {
     expect(body).toContain('class="badge-wall__icon-button"');
     expect(body).toContain('rel="stylesheet" href="/assets/ui/public-badge.');
     expect(PUBLIC_BADGE_CSS).toContain(".badge-wall__hero-link:hover");
-    expect(PUBLIC_BADGE_CSS).toContain(".badge-wall__button--primary:hover");
+    expect(PUBLIC_BADGE_CSS).toContain(".badge-wall__button--primary");
+    expect(PUBLIC_BADGE_CSS).not.toContain(".badge-wall__button--primary:hover");
     expect(mockedListPublicBadgeWallEntries).toHaveBeenCalledWith(fakeDb, {
       tenantId: "sakai",
       badgeTemplateId: "badge_template_sakai_1000",
