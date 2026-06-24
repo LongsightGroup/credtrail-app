@@ -16,7 +16,7 @@ import {
   type BadgeIssuanceRuleSubmissionFact,
   type BadgeIssuanceRuleSurveyCompletionFact,
 } from "../rules/engine";
-import { resolveGradebookProvider } from "./tenant-lms-connection-helpers";
+import { resolveGradebookProvider } from "../lms/gradebook-provider-resolution";
 
 export const loadRuleFacts = async (input: {
   db: SqlDatabase;

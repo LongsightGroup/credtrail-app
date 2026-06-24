@@ -26,3 +26,16 @@ export const asNonEmptyString = (value: unknown): string | null => {
   const trimmed = candidate.trim();
   return trimmed.length === 0 ? null : trimmed;
 };
+
+export const normalizeUniqueStringList = (value: unknown): readonly string[] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized = value
+    .map((item) => asNonEmptyString(item))
+    .filter((item): item is string => item !== null)
+    .filter((item, index, allItems) => allItems.indexOf(item) === index);
+
+  return normalized.length === 0 ? undefined : normalized;
+};

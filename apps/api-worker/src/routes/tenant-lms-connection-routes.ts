@@ -17,13 +17,17 @@ import {
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
-import type { GradebookAssignmentRecord, GradebookSubmissionRecord } from "../lms/gradebook-types";
+import {
+  listGradebookItemsForCourse,
+  listWorkflowStatesForAssignment,
+  lmsLookupErrorMessage,
+} from "../lms/gradebook-picker";
 import {
   GradebookProviderResolutionError,
   publicTenantLmsConnection,
   type ResolvedGradebookProvider,
   resolveGradebookProviderWithConnection,
-} from "./tenant-lms-connection-helpers";
+} from "../lms/gradebook-provider-resolution";
 
 interface RegisterTenantLmsConnectionRoutesInput {
   app: Hono<AppEnv>;
@@ -43,93 +47,8 @@ interface RegisterTenantLmsConnectionRoutesInput {
   ADMIN_ROLES: readonly TenantMembershipRole[];
 }
 
-export interface WorkflowStateOption {
-  value: string;
-  label: string;
-  source: "default" | "observed";
-  preselected: boolean;
-}
-
-const searchMatches = (query: string | undefined, values: readonly (string | null)[]): boolean => {
-  if (query === undefined || query.trim().length === 0) {
-    return true;
-  }
-
-  const normalizedQuery = query.trim().toLowerCase();
-  return values.some((value) => value !== null && value.toLowerCase().includes(normalizedQuery));
-};
-
-export const assignmentMatches = (
-  query: string | undefined,
-  assignment: GradebookAssignmentRecord,
-): boolean => {
-  return searchMatches(query, [
-    assignment.assignmentId,
-    assignment.courseId,
-    assignment.title,
-    assignment.workflowState,
-  ]);
-};
-
 /** Admin LMS pickers load results into HTML selects; keep HTTP payloads bounded. */
 const LMS_PICKER_MAX_COURSES = 100;
-export const LMS_PICKER_MAX_GRADEBOOK_ITEMS = 200;
-
-const workflowStateLabel = (value: string): string => {
-  return value
-    .split("_")
-    .map((part) => (part.length === 0 ? part : part[0]?.toUpperCase() + part.slice(1)))
-    .join(" ");
-};
-
-export const defaultWorkflowStates = (
-  providerKind: "canvas" | "sakai",
-): readonly WorkflowStateOption[] => {
-  if (providerKind === "canvas") {
-    return [
-      { value: "submitted", label: "Submitted", source: "default", preselected: true },
-      { value: "unsubmitted", label: "Unsubmitted", source: "default", preselected: false },
-      { value: "graded", label: "Graded", source: "default", preselected: true },
-      { value: "pending_review", label: "Pending review", source: "default", preselected: false },
-    ];
-  }
-
-  return [{ value: "graded", label: "Graded", source: "default", preselected: true }];
-};
-
-export const mergeWorkflowStates = (input: {
-  defaults: readonly WorkflowStateOption[];
-  observedStates: Iterable<string>;
-}): WorkflowStateOption[] => {
-  const byValue = new Map<string, WorkflowStateOption>();
-
-  for (const option of input.defaults) {
-    byValue.set(option.value, option);
-  }
-
-  for (const observedState of input.observedStates) {
-    const value = observedState.trim();
-
-    if (value.length === 0 || byValue.has(value)) {
-      continue;
-    }
-
-    byValue.set(value, {
-      value,
-      label: workflowStateLabel(value),
-      source: "observed",
-      preselected: false,
-    });
-  }
-
-  return Array.from(byValue.values()).sort((left, right) => {
-    if (left.source !== right.source) {
-      return left.source === "default" ? -1 : 1;
-    }
-
-    return left.label.localeCompare(right.label);
-  });
-};
 
 const resolvedProviderForTenantConnection = async (input: {
   db: SqlDatabase;
@@ -154,38 +73,6 @@ const resolvedProviderForTenantConnection = async (input: {
       { status },
     );
   }
-};
-
-export const lmsLookupErrorMessage = (
-  connection: ResolvedGradebookProvider["connection"],
-  error: unknown,
-  fallback: string,
-): string => {
-  const rawMessage = error instanceof Error ? error.message : fallback;
-
-  if (
-    connection.providerKind === "sakai" &&
-    rawMessage.includes("(403)") &&
-    rawMessage.includes("/api/users/me/sites")
-  ) {
-    return "Sakai blocked CredTrail from reading your site list (403). Save a Sakai username and password for an account that can view the target site and gradebook, then try again. If it still fails, ask a Sakai administrator to allow REST API access to Sites and Gradebook.";
-  }
-
-  return rawMessage;
-};
-
-export const observedWorkflowStates = (
-  submissions: readonly GradebookSubmissionRecord[],
-): Set<string> => {
-  const states = new Set<string>();
-
-  for (const submission of submissions) {
-    if (submission.workflowState !== null && submission.workflowState.length > 0) {
-      states.add(submission.workflowState);
-    }
-  }
-
-  return states;
 };
 
 export const registerTenantLmsConnectionRoutes = (
@@ -367,9 +254,11 @@ export const registerTenantLmsConnectionRoutes = (
       }
 
       try {
-        const items = (await resolved.provider.listAssignments({ courseId: pathParams.courseId }))
-          .filter((assignment) => assignmentMatches(query.q, assignment))
-          .slice(0, LMS_PICKER_MAX_GRADEBOOK_ITEMS);
+        const items = await listGradebookItemsForCourse({
+          provider: resolved.provider,
+          courseId: pathParams.courseId,
+          query: query.q,
+        });
 
         return c.json({
           tenantId: pathParams.tenantId,
@@ -413,13 +302,11 @@ export const registerTenantLmsConnectionRoutes = (
       }
 
       try {
-        const submissions = await resolved.provider.listSubmissions({
+        const states = await listWorkflowStatesForAssignment({
+          provider: resolved.provider,
+          connection: resolved.connection,
           courseId: pathParams.courseId,
           assignmentId: pathParams.assignmentId,
-        });
-        const states = mergeWorkflowStates({
-          defaults: defaultWorkflowStates(resolved.connection.providerKind),
-          observedStates: observedWorkflowStates(submissions),
         });
 
         return c.json({

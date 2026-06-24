@@ -4,10 +4,10 @@ import {
   type SqlDatabase,
   type TenantLmsConnectionRecord,
 } from "@credtrail/db";
-import { refreshCanvasAccessToken } from "../lms/canvas-oauth";
-import { createGradebookProvider } from "../lms/gradebook-provider";
-import type { GradebookProvider } from "../lms/gradebook-types";
-import { createSakaiSession } from "../lms/sakai-gradebook-provider";
+import { refreshCanvasAccessToken } from "./canvas-oauth";
+import { createGradebookProvider } from "./gradebook-provider";
+import type { GradebookProvider } from "./gradebook-types";
+import { createSakaiSession } from "./sakai-gradebook-provider";
 
 const SAKAI_SESSION_CACHE_TTL_SECONDS = 20 * 60;
 

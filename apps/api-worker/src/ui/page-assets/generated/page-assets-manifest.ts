@@ -53,7 +53,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminRuleBuilderJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-rule-builder.3c7a9273b0.js",
+    path: "/assets/ui/institution-admin-rule-builder.342c0cb694.js",
   },
   learnerRecordCss: {
     kind: "style",
@@ -73,7 +73,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   ltiDeepLinkSetupJs: {
     kind: "script",
-    path: "/assets/ui/lti-deep-link-setup.e66f461dd2.js",
+    path: "/assets/ui/lti-deep-link-setup.16981f0a24.js",
   },
   ltiPostMessageStorageJs: {
     kind: "script",

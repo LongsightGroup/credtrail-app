@@ -15,6 +15,7 @@ import {
   type BadgeIssuanceRuleDefinition,
 } from "@credtrail/validation";
 import type { LTISession } from "@lti-tool/core";
+import { normalizeUniqueStringList } from "../utils/value-parsers";
 import { normalizeLtiIssuer } from "./lti-helpers";
 
 export type LtiCourseBadgeSetupPreset =
@@ -114,13 +115,6 @@ const boundedPercent = (value: number | undefined): number | undefined => {
   return Math.min(100, Math.max(0, value));
 };
 
-const normalizedWorkflowStates = (values: readonly string[] | undefined): string[] | undefined => {
-  const normalized = values
-    ?.map((value) => value.trim())
-    .filter((value, index, allValues) => value.length > 0 && allValues.indexOf(value) === index);
-  return normalized === undefined || normalized.length === 0 ? undefined : normalized;
-};
-
 const ruleTitle = (value: string): string => {
   return value.length <= 200 ? value : `${value.slice(0, 197)}...`;
 };
@@ -214,7 +208,7 @@ export const ltiCourseBadgeSetupRuleDefinition = (
       if (assignmentId === undefined) {
         return null;
       }
-      const workflowStates = normalizedWorkflowStates(request.workflowStates) ?? ["graded"];
+      const workflowStates = normalizeUniqueStringList(request.workflowStates) ?? ["graded"];
 
       return parseBadgeIssuanceRuleDefinition({
         conditions: {

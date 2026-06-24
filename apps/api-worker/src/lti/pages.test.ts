@@ -152,11 +152,12 @@ describe("ltiDeepLinkSelectionPage", () => {
     expect(html).toContain("/assets/ui/lti-deep-link-setup.");
     expect(html).toContain('data-lti-gradebook-setup="true"');
     expect(html).toContain(
-      'data-lti-gradebook-items-url="/v1/lti/deep-linking/sessions/lti-session-123/gradebook-items"',
+      'data-lti-gradebook-api-base="/v1/lti/deep-linking/sessions/lti-session-123"',
     );
     expect(html).toContain("Search gradebook item");
     expect(html).toContain("assignment/assessment/activity");
-    expect(html).toContain('name="gradebook_item_id" type="hidden"');
+    expect(html).toContain('name="gradebook_item_id"');
+    expect(html).toContain('data-lti-gradebook-item-select="true"');
     expect(html).toContain('name="workflow_states"');
     expect(html).toContain("Loading gradebook items...");
     expect(html).not.toContain("Gradebook item or assignment ID");

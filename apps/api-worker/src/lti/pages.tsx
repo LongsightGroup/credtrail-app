@@ -345,8 +345,7 @@ const DeepLinkOption = (input: {
     <article
       class="lti-deep-link__option"
       data-lti-gradebook-setup="true"
-      data-lti-gradebook-items-url={`${gradebookLookupBase}/gradebook-items`}
-      data-lti-workflow-states-url-base={`${gradebookLookupBase}/gradebook-items`}
+      data-lti-gradebook-api-base={gradebookLookupBase}
     >
       <h2>{input.option.title}</h2>
       <p class="lti-deep-link__meta">Template ID: {input.option.badgeTemplateId}</p>
@@ -399,12 +398,8 @@ const DeepLinkOption = (input: {
                 placeholder="Search by gradebook item, assignment, assessment, or activity title"
                 dataAttributes={{ "data-lti-gradebook-item-query": "true" }}
               />
-              <CtInput
-                name="gradebook_item_id"
-                type="hidden"
-                dataAttributes={{ "data-lti-gradebook-item-hidden": "true" }}
-              />
               <CtSelect
+                name="gradebook_item_id"
                 describedBy={itemHintId}
                 dataAttributes={{ "data-lti-gradebook-item-select": "true" }}
               >

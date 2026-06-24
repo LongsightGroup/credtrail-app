@@ -10,57 +10,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
       return title + (courseCode.length > 0 ? ' · ' + courseCode : '') + (courseId.length > 0 ? ' (' + courseId + ')' : '');
     };
 
-    const lmsGradebookItemLabel = (item) => {
-      if (!item || typeof item !== 'object') {
-        return 'Untitled item';
-      }
-
-      const title = typeof item.title === 'string' && item.title.length > 0 ? item.title : 'Untitled item';
-      const itemId = typeof item.assignmentId === 'string' ? item.assignmentId : '';
-      const points = typeof item.pointsPossible === 'number' ? ' · ' + String(item.pointsPossible) + ' pts' : '';
-      return title + points + (itemId.length > 0 ? ' (' + itemId + ')' : '');
-    };
-
-    const selectedValuesFromDataset = (select) => {
-      const rawValues = select.dataset.selectedValues ?? select.dataset.selectedValue ?? '';
-      return rawValues
-        .split(',')
-        .map((value) => value.trim())
-        .filter((value) => value.length > 0);
-    };
-
-    const setSelectOptions = (select, entries, emptyLabel, selectedValues, labelForEntry, valueForEntry) => {
-      const selectedSet = new Set(selectedValues);
-      const options = [];
-      const placeholder = document.createElement('option');
-      placeholder.value = '';
-      placeholder.textContent = emptyLabel;
-      placeholder.disabled = select.required;
-      placeholder.selected = selectedSet.size === 0;
-      options.push(placeholder);
-
-      entries.forEach((entry) => {
-        const option = document.createElement('option');
-        option.value = valueForEntry(entry);
-        option.textContent = labelForEntry(entry);
-        option.selected = selectedSet.has(option.value);
-        options.push(option);
-      });
-
-      select.replaceChildren(...options);
-    };
-
-    const fetchLmsJson = async (path) => {
-      const response = await fetch(path);
-      const payload = await parseJsonBody(response);
-
-      if (!response.ok) {
-        throw new Error(errorDetailFromPayload(payload));
-      }
-
-      return payload;
-    };
-
     const sakaiSites403Message =
       'Sakai blocked CredTrail from reading your site list (403). Save a Sakai username and password for an account that can view the target site and gradebook, then try again. If it still fails, ask a Sakai administrator to allow REST API access to Sites and Gradebook.';
 
@@ -151,17 +100,17 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
       const path = coursesPath(query);
 
       if (path.length === 0) {
-        setSelectOptions(select, [], 'Select an LMS connection first', [], lmsCourseLabel, (course) => course.courseId);
+        lmsSetSelectOptions(select, [], 'Select an LMS connection first', [], lmsCourseLabel, (course) => course.courseId);
         select.disabled = true;
         return;
       }
 
       setLmsLookupStatus('', false);
       select.disabled = true;
-      setSelectOptions(select, [], 'Loading courses...', selectedValuesFromDataset(select), lmsCourseLabel, (course) => course.courseId);
-      const payload = await fetchLmsJson(path);
+      lmsSetSelectOptions(select, [], 'Loading courses...', lmsSelectedValuesForSelect(select), lmsCourseLabel, (course) => course.courseId);
+      const payload = await lmsFetchJson(path, 'Request failed');
       const courses = payload && Array.isArray(payload.courses) ? payload.courses : [];
-      setSelectOptions(select, courses, courses.length === 0 ? 'No matching courses' : 'Select course', selectedValuesFromDataset(select), lmsCourseLabel, (course) => course.courseId);
+      lmsSetSelectOptions(select, courses, courses.length === 0 ? 'No matching courses' : 'Select course', lmsSelectedValuesForSelect(select), lmsCourseLabel, (course) => course.courseId);
       select.disabled = false;
     };
 
@@ -170,30 +119,11 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
       const assignmentId = readFieldFromCard(card, 'assignmentId');
       const stateSelect = card.querySelector('[data-lms-workflow-state-select]');
 
-      if (!(stateSelect instanceof HTMLSelectElement)) {
-        return;
-      }
-
-      const path = workflowStatesPath(courseId, assignmentId);
-
-      if (path.length === 0) {
-        setSelectOptions(stateSelect, [], 'Select gradebook item first', [], (state) => state.label, (state) => state.value);
-        stateSelect.disabled = true;
-        return;
-      }
-
-      stateSelect.disabled = true;
-      const selectedValues = selectedValuesFromDataset(stateSelect);
-      const payload = await fetchLmsJson(path);
-      const states = payload && Array.isArray(payload.states) ? payload.states : [];
-      const defaults =
-        selectedValues.length > 0
-          ? selectedValues
-          : states
-              .filter((state) => state && state.preselected === true && typeof state.value === 'string')
-              .map((state) => state.value);
-      setSelectOptions(stateSelect, states, states.length === 0 ? 'No workflow states available' : 'Select workflow states', defaults, (state) => state.label, (state) => state.value);
-      stateSelect.disabled = false;
+      await lmsHydrateWorkflowStateSelect({
+        stateSelect,
+        workflowStatesUrl: workflowStatesPath(courseId, assignmentId),
+        fallbackMessage: 'Unable to load workflow states.',
+      });
     };
 
     const hydrateGradebookItemSelect = async (card, query) => {
@@ -207,19 +137,20 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
       const path = gradebookItemsPath(courseId, query);
 
       if (path.length === 0) {
-        setSelectOptions(itemSelect, [], 'Select course first', [], lmsGradebookItemLabel, (item) => item.assignmentId);
+        lmsSetSelectOptions(itemSelect, [], 'Select course first', [], lmsGradebookItemLabel, (item) => item.assignmentId);
         itemSelect.disabled = true;
         await hydrateWorkflowStateSelect(card);
         return;
       }
 
       setLmsLookupStatus('', false);
-      itemSelect.disabled = true;
-      setSelectOptions(itemSelect, [], 'Loading gradebook items...', selectedValuesFromDataset(itemSelect), lmsGradebookItemLabel, (item) => item.assignmentId);
-      const payload = await fetchLmsJson(path);
-      const items = payload && Array.isArray(payload.items) ? payload.items : [];
-      setSelectOptions(itemSelect, items, items.length === 0 ? 'No matching gradebook items' : 'Select gradebook item', selectedValuesFromDataset(itemSelect), lmsGradebookItemLabel, (item) => item.assignmentId);
-      itemSelect.disabled = false;
+      await lmsHydrateGradebookItemSelect({
+        itemSelect,
+        itemsUrl: path,
+        query: '',
+        fallbackMessage: 'Unable to load gradebook items.',
+        workflowStatesUrlForAssignment: (assignmentId) => workflowStatesPath(courseId, assignmentId),
+      });
       await hydrateWorkflowStateSelect(card);
     };
 
@@ -231,12 +162,10 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
         return;
       }
 
-      let timer = 0;
-      const refresh = () => {
-        const query = courseSearch instanceof HTMLInputElement ? courseSearch.value : '';
-        window.clearTimeout(timer);
-        timer = window.setTimeout(() => {
-          void hydrateCourseSelect(courseSelect, query).then(() => {
+      const refresh = lmsBindDebouncedSearch({
+        searchInput: courseSearch,
+        onInput: () =>
+          hydrateCourseSelect(courseSelect, courseSearch instanceof HTMLInputElement ? courseSearch.value : '').then(() => {
             syncDefinitionJsonFromBuilder();
             if (fieldName === 'courseId') {
               void hydrateGradebookItemSelect(card, '');
@@ -245,9 +174,8 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
             const message = lmsLookupErrorMessage(error, 'Unable to load LMS courses.');
             setLmsLookupStatus(message, true);
             setStatus(ruleCreateStatus, message, true);
-          });
-        }, 180);
-      };
+          }),
+      });
 
       courseSelect.addEventListener('change', () => {
         courseSelect.dataset.selectedValue = courseSelect.value;
@@ -256,10 +184,6 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
           void hydrateGradebookItemSelect(card, '');
         }
       });
-
-      if (courseSearch instanceof HTMLInputElement) {
-        courseSearch.addEventListener('input', refresh);
-      }
 
       refresh();
     };
@@ -272,20 +196,17 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
         return;
       }
 
-      let timer = 0;
-      const refresh = () => {
-        const query = itemSearch instanceof HTMLInputElement ? itemSearch.value : '';
-        window.clearTimeout(timer);
-        timer = window.setTimeout(() => {
-          void hydrateGradebookItemSelect(card, query).then(() => {
+      lmsBindDebouncedSearch({
+        searchInput: itemSearch,
+        onInput: () =>
+          hydrateGradebookItemSelect(card, itemSearch instanceof HTMLInputElement ? itemSearch.value : '').then(() => {
             syncDefinitionJsonFromBuilder();
           }).catch((error) => {
             const message = lmsLookupErrorMessage(error, 'Unable to load gradebook items.');
             setLmsLookupStatus(message, true);
             setStatus(ruleCreateStatus, message, true);
-          });
-        }, 180);
-      };
+          }),
+      });
 
       itemSelect.addEventListener('change', () => {
         itemSelect.dataset.selectedValue = itemSelect.value;
@@ -293,9 +214,5 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_LMS_PICKER_JS = `
           syncDefinitionJsonFromBuilder();
         });
       });
-
-      if (itemSearch instanceof HTMLInputElement) {
-        itemSearch.addEventListener('input', refresh);
-      }
     };
 `;

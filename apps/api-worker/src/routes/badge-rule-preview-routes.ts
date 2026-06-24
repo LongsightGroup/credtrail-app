@@ -23,7 +23,7 @@ import {
   parseFactsFromEvaluationRecord,
 } from "./badge-rule-evaluation-helpers";
 import { loadRuleFacts } from "./badge-rule-facts-loader";
-import { isClientGradebookProviderResolutionError } from "./tenant-lms-connection-helpers";
+import { isClientGradebookProviderResolutionError } from "../lms/gradebook-provider-resolution";
 
 interface RegisterBadgeRulePreviewRoutesInput {
   app: Hono<AppEnv>;

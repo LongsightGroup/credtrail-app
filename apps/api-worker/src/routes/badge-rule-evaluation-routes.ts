@@ -33,7 +33,7 @@ import {
 } from "./badge-rule-evaluation-types";
 import { registerBadgeRulePreviewRoutes } from "./badge-rule-preview-routes";
 import { registerBadgeRuleReviewQueueRoutes } from "./badge-rule-review-queue-routes";
-import { isClientGradebookProviderResolutionError } from "./tenant-lms-connection-helpers";
+import { isClientGradebookProviderResolutionError } from "../lms/gradebook-provider-resolution";
 
 interface RegisterBadgeRuleEvaluationRoutesInput {
   app: Hono<AppEnv>;

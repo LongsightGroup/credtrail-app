@@ -28,7 +28,7 @@ import {
   GradebookProviderResolutionError,
   resolveGradebookProviderWithConnection,
   type ResolvedGradebookProvider,
-} from "./tenant-lms-connection-helpers";
+} from "../lms/gradebook-provider-resolution";
 
 class BadgeRuleLmsReferenceError extends Error {
   public readonly statusCode: 422 | 502;
