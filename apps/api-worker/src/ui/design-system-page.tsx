@@ -5,6 +5,7 @@ import {
   CtButton,
   CtButtonLink,
   CtTextButton,
+  CtTextLink,
   type CtActionSize,
   type CtActionVariant,
 } from "./actions";
@@ -68,7 +69,7 @@ export const renderDesignSystemPage = (): AppPage => {
               <CtButtonLink href="/design-system" variant="secondary" size="md">
                 View details
               </CtButtonLink>
-              <CtTextButton href="/design-system">Review source</CtTextButton>
+              <CtTextLink href="/design-system">Review source</CtTextLink>
               <CtTextButton type="button">Copy URL</CtTextButton>
             </CtActionGroup>
           </article>

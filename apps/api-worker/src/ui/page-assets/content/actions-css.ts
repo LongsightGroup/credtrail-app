@@ -108,24 +108,24 @@ export const ACTIONS_CSS = `
 }
 
 @media (hover: hover) {
-  .ct-action:hover:not(:disabled, [aria-disabled='true']) {
+  .ct-action:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: var(--ct-theme-shadow-soft, var(--ct-shadow-soft));
     filter: brightness(1.03);
   }
 
-  .ct-action--secondary:hover:not(:disabled, [aria-disabled='true']) {
+  .ct-action--secondary:hover:not(:disabled) {
     color: var(--ct-color-ink);
     border-color: var(--ct-border-strong);
   }
 
-  .ct-action--quiet:hover:not(:disabled, [aria-disabled='true']) {
+  .ct-action--quiet:hover:not(:disabled) {
     color: var(--ct-theme-text-body);
     border-color: var(--ct-border-strong);
     background: var(--ct-theme-surface-info);
   }
 
-  .ct-action--danger:hover:not(:disabled, [aria-disabled='true']) {
+  .ct-action--danger:hover:not(:disabled) {
     border-color: rgba(173, 61, 49, 0.34);
     background: #ffe8e3;
     color: #8f1c13;
@@ -133,7 +133,7 @@ export const ACTIONS_CSS = `
     filter: none;
   }
 
-  .ct-action--text:hover:not(:disabled, [aria-disabled='true']) {
+  .ct-action--text:hover:not(:disabled) {
     transform: none;
     box-shadow: none;
     filter: none;
@@ -158,14 +158,13 @@ export const ACTIONS_CSS = `
   box-shadow: none;
 }
 
-.ct-action:active:not(:disabled, [aria-disabled='true']) {
+.ct-action:active:not(:disabled) {
   transform: translateY(0);
   box-shadow: none;
   filter: none;
 }
 
-.ct-action:disabled,
-.ct-action[aria-disabled='true'] {
+.ct-action:disabled {
   opacity: 0.66;
   cursor: not-allowed;
 }

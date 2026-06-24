@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { AdminActions, AdminButton, AdminButtonLink } from "../admin/components";
 import { PublicBadgeButton, PublicBadgeButtonLink } from "../badges/public-badge-ui";
-import { CtActionGroup, CtButton, CtButtonLink, CtTextButton, ctActionClass } from "./actions";
+import {
+  CtActionGroup,
+  CtButton,
+  CtButtonLink,
+  CtTextButton,
+  CtTextLink,
+  ctActionClass,
+} from "./actions";
 import { renderDesignSystemPage } from "./design-system-page";
 import { renderAppPageToString } from "./render-page";
 
@@ -66,7 +73,6 @@ describe("CredTrail action primitives", () => {
         size="lg"
         target="_blank"
         rel="noopener noreferrer"
-        disabled={true}
         ariaLabel="Open records"
         dataAttributes={{ "data-records-link": "true" }}
       >
@@ -77,31 +83,35 @@ describe("CredTrail action primitives", () => {
     expect(html).toContain('href="/records"');
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer"');
-    expect(html).toContain('aria-disabled="true"');
     expect(html).toContain('aria-label="Open records"');
     expect(html).toContain('data-records-link="true"');
     expect(html).toContain("ct-action--secondary");
     expect(html).toContain("ct-action--lg");
   });
 
-  it("renders text actions as buttons or links", () => {
-    const buttonHtml = renderToString(
+  it("renders text button actions as buttons", () => {
+    const html = renderToString(
       <CtTextButton id="copy-url" dataAttributes={{ "data-copy-value": "https://credtrail.org" }}>
         Copy URL
       </CtTextButton>,
     );
-    const linkHtml = renderToString(
-      <CtTextButton href="/source" target="_blank" rel="noopener noreferrer">
+
+    expect(html).toContain("<button");
+    expect(html).toContain("ct-action--text");
+    expect(html).toContain('data-copy-value="https://credtrail.org"');
+  });
+
+  it("renders text link actions as links", () => {
+    const html = renderToString(
+      <CtTextLink href="/source" target="_blank" rel="noopener noreferrer">
         Review source
-      </CtTextButton>,
+      </CtTextLink>,
     );
 
-    expect(buttonHtml).toContain("<button");
-    expect(buttonHtml).toContain("ct-action--text");
-    expect(buttonHtml).toContain('data-copy-value="https://credtrail.org"');
-    expect(linkHtml).toContain("<a");
-    expect(linkHtml).toContain('href="/source"');
-    expect(linkHtml).toContain('target="_blank"');
+    expect(html).toContain("<a");
+    expect(html).toContain("ct-action--text");
+    expect(html).toContain('href="/source"');
+    expect(html).toContain('target="_blank"');
   });
 
   it("renders labeled action groups as accessible groups", () => {

@@ -4,6 +4,7 @@ import {
   CtButton,
   CtButtonLink,
   CtTextButton,
+  CtTextLink,
   type CtActionVariant,
   type CtDataAttributes,
 } from "../ui/actions";
@@ -129,9 +130,9 @@ export const PublicBadgeTextLink = ({
   rel?: string;
 }>): HonoElement => {
   return (
-    <CtTextButton className="public-badge__text-link" href={href} target={target} rel={rel}>
+    <CtTextLink className="public-badge__text-link" href={href} target={target} rel={rel}>
       {children}
-    </CtTextButton>
+    </CtTextLink>
   );
 };
 

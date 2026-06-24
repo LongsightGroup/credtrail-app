@@ -94,7 +94,6 @@ export const CtButtonLink = ({
   size,
   target,
   rel,
-  disabled,
   hidden,
   className,
   ariaLabel,
@@ -106,7 +105,6 @@ export const CtButtonLink = ({
   size?: CtActionSize | undefined;
   target?: "_blank" | undefined;
   rel?: string | undefined;
-  disabled?: boolean | undefined;
   hidden?: boolean | undefined;
   className?: string | undefined;
   ariaLabel?: string | undefined;
@@ -119,7 +117,6 @@ export const CtButtonLink = ({
       target={target}
       rel={rel}
       aria-label={ariaLabel}
-      aria-disabled={disabled === true ? "true" : undefined}
       hidden={hidden}
       {...(dataAttributes ?? {})}
     >
@@ -131,9 +128,6 @@ export const CtButtonLink = ({
 export const CtTextButton = ({
   id,
   type = "button",
-  href,
-  target,
-  rel,
   disabled,
   hidden,
   className,
@@ -143,9 +137,6 @@ export const CtTextButton = ({
 }: PropsWithChildren<{
   id?: string | undefined;
   type?: CtButtonType | undefined;
-  href?: string | undefined;
-  target?: "_blank" | undefined;
-  rel?: string | undefined;
   disabled?: boolean | undefined;
   hidden?: boolean | undefined;
   className?: string | undefined;
@@ -159,24 +150,6 @@ export const CtTextButton = ({
     className,
   });
 
-  if (href !== undefined) {
-    return (
-      <a
-        id={id}
-        class={actionClass}
-        href={href}
-        target={target}
-        rel={rel}
-        aria-label={ariaLabel}
-        aria-disabled={disabled === true ? "true" : undefined}
-        hidden={hidden}
-        {...(dataAttributes ?? {})}
-      >
-        {children}
-      </a>
-    );
-  }
-
   return (
     <button
       id={id}
@@ -189,6 +162,47 @@ export const CtTextButton = ({
     >
       {children}
     </button>
+  );
+};
+
+export const CtTextLink = ({
+  id,
+  href,
+  target,
+  rel,
+  hidden,
+  className,
+  ariaLabel,
+  dataAttributes,
+  children,
+}: PropsWithChildren<{
+  id?: string | undefined;
+  href: string;
+  target?: "_blank" | undefined;
+  rel?: string | undefined;
+  hidden?: boolean | undefined;
+  className?: string | undefined;
+  ariaLabel?: string | undefined;
+  dataAttributes?: CtDataAttributes | undefined;
+}>): HonoElement => {
+  return (
+    <a
+      id={id}
+      class={ctActionClass({
+        variant: "quiet",
+        size: "compact",
+        text: true,
+        className,
+      })}
+      href={href}
+      target={target}
+      rel={rel}
+      hidden={hidden}
+      aria-label={ariaLabel}
+      {...(dataAttributes ?? {})}
+    >
+      {children}
+    </a>
   );
 };
 
