@@ -1,7 +1,9 @@
 import {
   createBadgeIssuanceRuleWithConnection,
+  createAuditLog,
   listTenantLmsConnections,
   runSqlTransaction,
+  submitBadgeIssuanceRuleVersionForApproval,
   upsertLtiResourceLinkPlacement,
   type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleVersionRecord,
@@ -9,6 +11,7 @@ import {
   type LtiResourceLinkPlacementRecord,
   type SqlDatabase,
   type TenantLmsConnectionRecord,
+  type TenantMembershipRole,
 } from "@credtrail/db";
 import {
   parseBadgeIssuanceRuleDefinition,
@@ -254,6 +257,8 @@ export const createCourseBadgePlacementRule = async (input: {
   contextId: string | null;
   resourceLinkId: string;
   createdByUserId: string;
+  createdByRole: TenantMembershipRole;
+  delegatedGrantId?: string | undefined;
   setupRequest: LtiCourseBadgeSetupRequest;
 }): Promise<CreateCourseBadgePlacementRuleResult> => {
   const courseId = input.ltiSession.context.id.trim();
@@ -314,6 +319,19 @@ export const createCourseBadgePlacementRule = async (input: {
       changeSummary: "Created from LTI Deep Linking course badge setup.",
       createdByUserId: input.createdByUserId,
     });
+    const submittedVersion = await submitBadgeIssuanceRuleVersionForApproval(transactionDb, {
+      tenantId: input.tenantId,
+      ruleId: rule.rule.id,
+      versionId: rule.version.id,
+      actorUserId: input.createdByUserId,
+      actorRole: input.createdByRole,
+      comment: "Submitted from LTI Deep Linking course badge setup.",
+    });
+
+    if (submittedVersion === null) {
+      throw new Error("Unable to submit LTI-created course rule version for approval");
+    }
+
     const placement = await upsertLtiResourceLinkPlacement(transactionDb, {
       tenantId: input.tenantId,
       issuer: input.issuer,
@@ -325,9 +343,37 @@ export const createCourseBadgePlacementRule = async (input: {
       ruleId: rule.rule.id,
       createdByUserId: input.createdByUserId,
     });
+    const auditMetadata = {
+      badgeTemplateId: input.badgeTemplate.id,
+      ruleVersionId: submittedVersion.id,
+      ltiIssuer: normalizeLtiIssuer(input.issuer),
+      ltiClientId: input.clientId,
+      ltiDeploymentId: input.deploymentId,
+      ltiContextId: input.contextId,
+      ltiResourceLinkId: input.resourceLinkId,
+      delegatedGrantId: input.delegatedGrantId ?? null,
+      lmsConnectionId: lmsConnection.id,
+    };
+    await createAuditLog(transactionDb, {
+      tenantId: input.tenantId,
+      actorUserId: input.createdByUserId,
+      action: "lti.course_badge_setup_submitted",
+      targetType: "badge_issuance_rule",
+      targetId: rule.rule.id,
+      metadata: auditMetadata,
+    });
+    await createAuditLog(transactionDb, {
+      tenantId: input.tenantId,
+      actorUserId: input.createdByUserId,
+      action: "lti.resource_link_placement_upserted",
+      targetType: "lti_resource_link_placement",
+      targetId: placement.id,
+      metadata: auditMetadata,
+    });
 
     return {
-      ...rule,
+      rule: rule.rule,
+      version: submittedVersion,
       placement,
     };
   });

@@ -205,8 +205,8 @@ export const ltiAudienceIncludesClientId = (
   return audienceClaim.includes(clientId);
 };
 
-export const ltiMembershipRoleFromRoleKind = (roleKind: LtiRoleKind): TenantMembershipRole => {
-  return roleKind === "instructor" ? "issuer" : "viewer";
+export const ltiMembershipRoleFromRoleKind = (_roleKind: LtiRoleKind): TenantMembershipRole => {
+  return "viewer";
 };
 
 export const ltiFederatedSubjectIdentity = (issuer: string, subjectId: string): string => {

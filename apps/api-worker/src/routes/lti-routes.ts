@@ -28,6 +28,7 @@ import {
   ltiCourseBadgeSetupRuleDefinition,
   parseLtiCourseBadgeSetupPreset,
 } from "../lti/course-badge-setup";
+import { resolveLtiCourseBadgeAuthority } from "../lti/course-badge-governance";
 import { createLtiCourseBadgeSetupToken } from "../lti/course-badge-setup-token";
 import { registerLtiDynamicRegistrationRoutes } from "../lti/dynamic-registration-routes";
 import { registerLtiGradebookLookupRoutes } from "../lti/gradebook-lookup-routes";
@@ -324,6 +325,32 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
           error: "LTI launch session is missing linked user context",
         },
         400,
+      );
+    }
+
+    if (!ltiSession.isInstructor) {
+      return c.json(
+        {
+          error: "LTI course badge setup requires an instructor Deep Linking session",
+        },
+        403,
+      );
+    }
+
+    const authority = await resolveLtiCourseBadgeAuthority(db, {
+      tenantId: issuerMatch.entry.tenantId,
+      userId: persistedSession.userId,
+      badgeTemplate,
+      requiredAction: "configure_course_rule",
+    });
+
+    if (!authority.ok) {
+      return c.json(
+        {
+          error: authority.message,
+          reason: authority.reason,
+        },
+        403,
       );
     }
 

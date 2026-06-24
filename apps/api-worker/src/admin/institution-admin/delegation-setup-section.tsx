@@ -62,10 +62,20 @@ export const renderDelegationSetupSection = (
             value="manage_lifecycle"
             label="Change badge status"
           />
+          <AdminCheckboxRow
+            name="allowedAction"
+            value="place_lti_badge"
+            label="Place LTI course badges"
+          />
+          <AdminCheckboxRow
+            name="allowedAction"
+            value="configure_course_rule"
+            label="Configure course badge rules"
+          />
         </AdminFieldset>
         <p class="ct-admin__hint">
-          “Change badge status” covers non-revocation lifecycle changes such as suspend, expire, or
-          restore.
+          Course badge setup grants let an LTI instructor place approved templates and submit course
+          rules for review without becoming a tenant issuer.
         </p>
         <AdminField label="Limit to badge template (optional)">
           <CtSelect name="badgeTemplateIds">{input.optionalBadgeTemplateScopeOptions}</CtSelect>

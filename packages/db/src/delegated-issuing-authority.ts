@@ -4,7 +4,12 @@ import { findTenantMembership } from "./tenant-memberships";
 import { findTenantOrgUnitById } from "./tenant-org-units";
 import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "./tenant-scope";
 
-export type DelegatedIssuingAuthorityAction = "issue_badge" | "revoke_badge" | "manage_lifecycle";
+export type DelegatedIssuingAuthorityAction =
+  | "issue_badge"
+  | "revoke_badge"
+  | "manage_lifecycle"
+  | "place_lti_badge"
+  | "configure_course_rule";
 
 export type DelegatedIssuingAuthorityGrantStatus = "scheduled" | "active" | "expired" | "revoked";
 
@@ -123,6 +128,8 @@ const DELEGATED_ISSUING_AUTHORITY_ACTIONS = new Set<DelegatedIssuingAuthorityAct
   "issue_badge",
   "revoke_badge",
   "manage_lifecycle",
+  "place_lti_badge",
+  "configure_course_rule",
 ]);
 
 const normalizeDelegatedIssuingAuthorityActions = (
@@ -166,7 +173,9 @@ const parseDelegatedIssuingAuthorityActionsJson = (
       typeof candidate !== "string" ||
       (candidate !== "issue_badge" &&
         candidate !== "revoke_badge" &&
-        candidate !== "manage_lifecycle")
+        candidate !== "manage_lifecycle" &&
+        candidate !== "place_lti_badge" &&
+        candidate !== "configure_course_rule")
     ) {
       throw new Error(
         `delegated_issuing_authority_grants.allowed_actions_json contains unsupported action: ${String(candidate)}`,

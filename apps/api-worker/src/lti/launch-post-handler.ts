@@ -2,6 +2,7 @@ import {
   attachLtiLaunchSessionPrincipal,
   findBadgeTemplateById,
   listBadgeTemplates,
+  type BadgeTemplateRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -11,6 +12,7 @@ import { renderAppPage } from "../ui/render-page";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
 import { LTI_SESSION_HANDOFF_TTL_SECONDS } from "./constants";
 import { createCourseBadgePlacementRule } from "./course-badge-setup";
+import { resolveLtiCourseBadgeAuthority } from "./course-badge-governance";
 import {
   verifyLtiCourseBadgeSetupToken,
   type LtiCourseBadgeSetupPayload,
@@ -98,6 +100,30 @@ interface PreparedResourceLinkLaunch {
   launch: ValidatedResourceLinkLaunch;
   placementResult: UpsertLtiLaunchResourceLinkPlacementResult | null;
 }
+
+const ltiInstructorPlaceableBadgeTemplates = async (input: {
+  db: SqlDatabase;
+  tenantId: string;
+  userId: string;
+  badgeTemplates: readonly BadgeTemplateRecord[];
+}): Promise<BadgeTemplateRecord[]> => {
+  const placeableTemplates: BadgeTemplateRecord[] = [];
+
+  for (const badgeTemplate of input.badgeTemplates) {
+    const authority = await resolveLtiCourseBadgeAuthority(input.db, {
+      tenantId: input.tenantId,
+      userId: input.userId,
+      badgeTemplate,
+      requiredAction: "place_lti_badge",
+    });
+
+    if (authority.ok) {
+      placeableTemplates.push(badgeTemplate);
+    }
+  }
+
+  return placeableTemplates;
+};
 
 const isValidatedDeepLinkingLaunch = (
   launch: ValidatedLtiLaunchMessage,
@@ -353,6 +379,7 @@ const prepareLaunchedResourceLinkPlacement = async (input: {
   resolvedLaunch: ResolvedLtiLaunch;
   launch: ValidatedResourceLinkLaunch;
   linkedUserId: string;
+  linkedMembershipRole: TenantMembershipRole;
 }): Promise<PreparedResourceLinkLaunch | Response> => {
   if (input.launch.kind !== "selected" || input.launch.launchMessage.setupToken === null) {
     return {
@@ -400,6 +427,23 @@ const prepareLaunchedResourceLinkPlacement = async (input: {
     );
   }
 
+  const authority = await resolveLtiCourseBadgeAuthority(input.db, {
+    tenantId: input.tenantId,
+    userId: input.linkedUserId,
+    badgeTemplate: input.launch.launchedBadgeTemplate,
+    requiredAction: "configure_course_rule",
+  });
+
+  if (!authority.ok) {
+    return input.c.json(
+      {
+        error: authority.message,
+        reason: authority.reason,
+      },
+      403,
+    );
+  }
+
   const setupResult = await createCourseBadgePlacementRule({
     db: input.db,
     tenantId: input.tenantId,
@@ -411,6 +455,8 @@ const prepareLaunchedResourceLinkPlacement = async (input: {
     contextId: input.launch.launchMessage.resourceContextId,
     resourceLinkId: input.launch.launchMessage.resourceLinkId,
     createdByUserId: input.linkedUserId,
+    createdByRole: input.linkedMembershipRole,
+    delegatedGrantId: authority.grant.id,
     setupRequest: setup.setupRequest,
   });
 
@@ -475,6 +521,12 @@ const renderLtiDeepLinkingLaunchResponse = async (input: {
     tenantId: input.tenantId,
     includeArchived: false,
   });
+  const placeableBadgeTemplates = await ltiInstructorPlaceableBadgeTemplates({
+    db: input.db,
+    tenantId: input.tenantId,
+    userId: input.linkedAccount.userId,
+    badgeTemplates,
+  });
 
   return renderAppPage(
     input.c,
@@ -489,7 +541,7 @@ const renderLtiDeepLinkingLaunchResponse = async (input: {
         deepLinkReturnUrl: input.launchMessage.deepLinkingSettings.deepLinkReturnUrl,
         targetLinkUri: input.launchMessage.resolvedTargetLinkUri,
         ltiLaunchSession: input.resolvedLaunch.ltiLaunchSession,
-        badgeTemplates,
+        badgeTemplates: placeableBadgeTemplates,
       }),
     ),
   );
@@ -643,6 +695,7 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
     resolvedLaunch,
     launch: validatedLaunchMessage,
     linkedUserId: establishedSession.linkedAccount.userId,
+    linkedMembershipRole: establishedSession.linkedAccount.membershipRole,
   });
 
   if (preparedResourceLinkLaunch instanceof Response) {
