@@ -84,6 +84,15 @@ export const buildInstitutionAdminViewResources = (
   resourceInput: BuildInstitutionAdminViewResourcesInput,
 ): InstitutionAdminViewResources => {
   const { input, paths, view, viewDefinition } = resourceInput;
+  const builtView = viewDefinition.build?.({ input, paths });
+
+  if (builtView !== undefined) {
+    return {
+      adminPageContextJson: serializeJsonScriptContent(builtView.adminPageContext),
+      viewContent: builtView.viewContent,
+    };
+  }
+
   const templateById = new Map(input.badgeTemplates.map((template) => [template.id, template]));
   const orgUnitById = new Map(input.orgUnits.map((orgUnit) => [orgUnit.id, orgUnit]));
   const versionsByRuleId = new Map<string, BadgeIssuanceRuleVersionRecord[]>();

@@ -61,7 +61,7 @@ const institutionAdminDatasetsForView = (
   const datasets = new Set<InstitutionAdminDataset>();
   const needs = INSTITUTION_ADMIN_VIEW_REGISTRY[view].dataNeeds;
 
-  if (needs.templateSelectOptions) {
+  if (needs.templateSelectOptions || needs.issuedBadgeFilters) {
     datasets.add("badgeTemplates");
   }
 
@@ -69,7 +69,8 @@ const institutionAdminDatasetsForView = (
     needs.orgUnitRows ||
     needs.delegationSelectOptions ||
     needs.governanceTableRows ||
-    needs.tenantMemberRows
+    needs.tenantMemberRows ||
+    needs.issuedBadgeFilters
   ) {
     datasets.add("orgUnits");
   }

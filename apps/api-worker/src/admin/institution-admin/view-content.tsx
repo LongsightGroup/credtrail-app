@@ -1,6 +1,7 @@
 import type { Child } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { AdminPageHeader, AdminPanel, AdminStatus } from "../components";
+import type { buildInstitutionAdminViewPaths } from "./view-paths";
 import { renderDelegationSetupSection } from "./delegation-setup-section";
 import { renderEnterpriseAuthSection } from "./enterprise-auth-section";
 import {
@@ -9,6 +10,7 @@ import {
 } from "./lms-connection-setup-section";
 import { renderManualIssueSection } from "./manual-issue-section";
 import type { InstitutionAdminPageInput, InstitutionAdminView } from "./page-types";
+import { OPERATIONS_ISSUED_BADGES_VIEW } from "./views/operations-issued-badges";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 type RenderedNode = Child;
@@ -105,11 +107,22 @@ export interface InstitutionAdminViewDataNeeds {
 }
 
 export interface InstitutionAdminViewDefinition {
+  build?: (input: InstitutionAdminViewBuildInput) => InstitutionAdminBuiltView;
   controller: "shared" | "shell";
   dataNeeds: InstitutionAdminViewDataNeeds;
   extraAssets?: readonly import("../../ui/page-assets").PageAssetKey[];
-  render: (content: InstitutionAdminViewContentInput) => RenderedNode;
+  render?: (content: InstitutionAdminViewContentInput) => RenderedNode;
   titlePrefix: string;
+}
+
+export interface InstitutionAdminViewBuildInput {
+  input: InstitutionAdminPageInput;
+  paths: ReturnType<typeof buildInstitutionAdminViewPaths>;
+}
+
+export interface InstitutionAdminBuiltView {
+  adminPageContext: Record<string, string>;
+  viewContent: RenderedNode;
 }
 
 const DEFAULT_VIEW_DATA_NEEDS = {
@@ -132,7 +145,7 @@ const DEFAULT_VIEW_DATA_NEEDS = {
   issuedBadgeFilters: false,
 } as const;
 
-const viewDataNeeds = (
+export const viewDataNeeds = (
   overrides: Partial<InstitutionAdminViewDataNeeds>,
 ): InstitutionAdminViewDataNeeds => {
   return {
@@ -257,29 +270,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
       );
     },
   },
-  operationsIssuedBadges: {
-    titlePrefix: "Badge Records · Institution Admin",
-    controller: "shell",
-    extraAssets: ["institutionAdminIssuedBadgesJs"],
-    dataNeeds: viewDataNeeds({
-      operationsSectionBundles: true,
-      templateSelectOptions: true,
-      ruleSelectOptions: true,
-      ruleVersionIndexes: true,
-      issuedBadgeFilters: true,
-    }),
-    render: (content) => {
-      return (
-        <>
-          {renderPageHeader(
-            "Badge Records",
-            "Search issued badge records and take audit or revocation actions from one page.",
-          )}
-          <section class="ct-admin ct-stack">{content.operations.issuedBadgesPanelMarkup}</section>
-        </>
-      );
-    },
-  },
+  operationsIssuedBadges: OPERATIONS_ISSUED_BADGES_VIEW,
   operationsBadgeStatus: {
     titlePrefix: "Badge Status · Institution Admin",
     controller: "shared",
@@ -721,5 +712,11 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
 export const renderInstitutionAdminViewContent = (
   content: InstitutionAdminViewContentInput,
 ): RenderedNode => {
-  return INSTITUTION_ADMIN_VIEW_REGISTRY[content.view].render(content);
+  const render = INSTITUTION_ADMIN_VIEW_REGISTRY[content.view].render;
+
+  if (render === undefined) {
+    throw new Error(`Institution admin view ${content.view} does not use shared content rendering`);
+  }
+
+  return render(content);
 };
