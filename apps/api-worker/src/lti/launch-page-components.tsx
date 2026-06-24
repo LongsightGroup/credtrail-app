@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
+import { CtButton } from "../ui/actions";
 import type { LtiBadgeSummaryCard, LtiBadgeSummaryStatus } from "./view-models";
 
 export type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -23,9 +24,9 @@ export const LtiSubmitButton = ({
   disabled?: boolean;
 }>): HonoElement => {
   return (
-    <button type="submit" disabled={disabled === true}>
+    <CtButton type="submit" disabled={disabled === true}>
       {children}
-    </button>
+    </CtButton>
   );
 };
 

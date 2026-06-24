@@ -32,6 +32,7 @@ export const badgeTemplateDeepLinkContentItem = (input: {
   description: string | null;
   launchUrl: string;
   badgeTemplateId: string;
+  ruleId?: string | undefined;
 }): DeepLinkingContentItem => {
   return {
     type: "ltiResourceLink",
@@ -40,6 +41,7 @@ export const badgeTemplateDeepLinkContentItem = (input: {
     url: input.launchUrl,
     custom: {
       badgeTemplateId: input.badgeTemplateId,
+      ...(input.ruleId === undefined ? {} : { ruleId: input.ruleId }),
     },
   };
 };
@@ -63,12 +65,23 @@ export const ltiDeepLinkSelectionInput = (input: {
   const options = input.badgeTemplates.map((badgeTemplate) => {
     const launchUrl = new URL(input.targetLinkUri);
     launchUrl.searchParams.set("badgeTemplateId", badgeTemplate.id);
+    const advancedSetupUrl = new URL(
+      `/tenants/${encodeURIComponent(input.tenantId)}/admin/rules/new`,
+      input.requestUrl,
+    );
+    advancedSetupUrl.searchParams.set("badgeTemplateId", badgeTemplate.id);
+    advancedSetupUrl.searchParams.set("source", "lti-deep-link");
+
+    if (input.ltiLaunchSession.context.id.trim().length > 0) {
+      advancedSetupUrl.searchParams.set("ltiContextId", input.ltiLaunchSession.context.id.trim());
+    }
 
     return {
       badgeTemplateId: badgeTemplate.id,
       title: badgeTemplate.title,
       description: badgeTemplate.description,
       launchUrl: launchUrl.toString(),
+      advancedSetupUrl: `${advancedSetupUrl.pathname}${advancedSetupUrl.search}`,
     };
   });
   const common = {

@@ -619,14 +619,37 @@
   margin-top: 0.25rem;
 }
 
-.lti-deep-link__form button {
-  border: none;
+.lti-deep-link__setup {
+  display: grid;
+  gap: var(--ct-space-3);
+  margin: 0;
+  padding: var(--ct-space-4);
+  border: 1px solid var(--ct-theme-border-subtle);
   border-radius: var(--ct-radius-md);
-  padding: 0.5rem 0.9rem;
+}
+
+.lti-deep-link__setup legend {
+  padding: 0 var(--ct-space-2);
   font-weight: 700;
-  color: var(--ct-theme-text-on-brand);
-  background: var(--ct-theme-gradient-action);
-  cursor: pointer;
+  color: var(--ct-theme-text);
+}
+
+.lti-deep-link__criteria {
+  display: grid;
+  gap: var(--ct-space-2);
+}
+
+.lti-deep-link__setup-fields {
+  display: grid;
+  gap: var(--ct-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.lti-deep-link__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ct-space-2);
+  align-items: center;
 }
 
 .lti-deep-link__notice {

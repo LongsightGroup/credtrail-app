@@ -20,6 +20,7 @@ export const upsertLtiLaunchResourceLinkPlacement = async (input: {
   contextId: string | null;
   resourceLinkId: string;
   badgeTemplateId: string;
+  ruleId?: string | null | undefined;
   createdByUserId: string;
 }): Promise<UpsertLtiLaunchResourceLinkPlacementResult> => {
   if (input.contextId === null || input.contextId.trim().length === 0) {
@@ -44,6 +45,7 @@ export const upsertLtiLaunchResourceLinkPlacement = async (input: {
       contextId: input.contextId,
       resourceLinkId: input.resourceLinkId,
       badgeTemplateId: input.badgeTemplateId,
+      ruleId: input.ruleId ?? null,
       createdByUserId: input.createdByUserId,
     });
 

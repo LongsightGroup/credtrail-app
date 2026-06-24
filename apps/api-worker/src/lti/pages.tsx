@@ -1,7 +1,8 @@
 import type { TenantMembershipRole } from "@credtrail/db";
 import type { LtiRoleKind } from "@credtrail/lti";
 import type { PropsWithChildren } from "hono/jsx";
-import { CtForm, CtInput } from "../ui/forms";
+import { CtButtonLink } from "../ui/actions";
+import { CtCheckboxField, CtField, CtFieldHint, CtForm, CtInput } from "../ui/forms";
 import { appPage, type AppPage } from "../ui/render-page";
 import type { PageAssetKey } from "../ui/page-assets";
 import { BulkIssuanceSection, CourseBadgeSummarySection } from "./instructor-launch-pages";
@@ -330,7 +331,12 @@ const DeepLinkOption = (input: {
   option: LtiDeepLinkSelectionOption;
   signedSelectionActionUrl: string;
   ltiSessionId: string;
+  userId: string;
 }): HonoElement => {
+  const thresholdHintId = `score-threshold-hint-${input.option.badgeTemplateId}`;
+  const itemHintId = `gradebook-item-hint-${input.option.badgeTemplateId}`;
+  const completionHintId = `completion-percent-hint-${input.option.badgeTemplateId}`;
+
   return (
     <article class="lti-deep-link__option">
       <h2>{input.option.title}</h2>
@@ -349,7 +355,89 @@ const DeepLinkOption = (input: {
       <LtiDeepLinkForm action={input.signedSelectionActionUrl}>
         <CtInput type="hidden" name="lti_session_id" value={input.ltiSessionId} />
         <CtInput type="hidden" name="badge_template_id" value={input.option.badgeTemplateId} />
-        <LtiSubmitButton>Place Template in LMS</LtiSubmitButton>
+        <CtInput type="hidden" name="created_by_user_id" value={input.userId} />
+        <fieldset class="lti-deep-link__setup">
+          <legend>Course earning criteria</legend>
+          <div class="lti-deep-link__criteria">
+            <CtCheckboxField
+              type="radio"
+              name="criteria_preset"
+              value="manual_instructor_approval"
+              label="Manual instructor approval"
+              checked={true}
+            />
+            <CtCheckboxField
+              type="radio"
+              name="criteria_preset"
+              value="final_course_score_threshold"
+              label="Final course score threshold"
+            />
+            <CtCheckboxField
+              type="radio"
+              name="criteria_preset"
+              value="gradebook_item_score_threshold"
+              label="Gradebook item score threshold"
+            />
+            <CtCheckboxField
+              type="radio"
+              name="criteria_preset"
+              value="assignment_submitted_or_graded"
+              label="Assignment or assessment submitted or graded"
+            />
+            <CtCheckboxField
+              type="radio"
+              name="criteria_preset"
+              value="completion_percentage"
+              label="Course completion percentage"
+            />
+          </div>
+          <div class="lti-deep-link__setup-fields">
+            <CtField label="Score threshold" compact={true}>
+              <CtInput
+                name="score_threshold"
+                type="number"
+                value="80"
+                min="0"
+                max="100"
+                step="0.01"
+                describedBy={thresholdHintId}
+              />
+              <CtFieldHint id={thresholdHintId}>Used by score threshold presets.</CtFieldHint>
+            </CtField>
+            <CtField label="Gradebook item or assignment ID" compact={true}>
+              <CtInput
+                name="gradebook_item_id"
+                type="text"
+                placeholder="assignment-123"
+                describedBy={itemHintId}
+              />
+              <CtFieldHint id={itemHintId}>Used by gradebook and assignment presets.</CtFieldHint>
+            </CtField>
+            <CtField label="Completion percentage" compact={true}>
+              <CtInput
+                name="completion_percent"
+                type="number"
+                value="100"
+                min="0"
+                max="100"
+                step="0.01"
+                describedBy={completionHintId}
+              />
+              <CtFieldHint id={completionHintId}>Used by the completion preset.</CtFieldHint>
+            </CtField>
+          </div>
+        </fieldset>
+        <div class="lti-deep-link__actions">
+          <LtiSubmitButton>Save setup and place badge</LtiSubmitButton>
+          <CtButtonLink
+            href={input.option.advancedSetupUrl}
+            variant="secondary"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Advanced setup in CredTrail
+          </CtButtonLink>
+        </div>
       </LtiDeepLinkForm>
     </article>
   );
@@ -391,6 +479,7 @@ export const ltiDeepLinkSelectionPage = (input: LtiDeepLinkSelectionPageInput): 
                 option={option}
                 signedSelectionActionUrl={input.signedSelectionActionUrl}
                 ltiSessionId={input.ltiSessionId}
+                userId={input.userId}
               />
             ))
           )}

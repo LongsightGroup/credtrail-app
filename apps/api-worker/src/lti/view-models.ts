@@ -109,6 +109,7 @@ export interface LtiDeepLinkSelectionOption {
   title: string;
   description: string | null;
   launchUrl: string;
+  advancedSetupUrl: string;
 }
 
 export type LtiDeepLinkSelectionPageInput = LtiDeepLinkSelectionBaseInput & {

@@ -30,6 +30,7 @@ export type ResolvedLtiLaunchMessage =
       resourceLinkId: string;
       resourceContextId: string | null;
       badgeTemplateId: string | null;
+      ruleId: string | null;
     }
   | {
       kind: "deep-linking";
@@ -124,6 +125,16 @@ export const badgeTemplateIdFromTargetLinkUri = (targetLinkUri: string): string 
   }
 };
 
+export const ruleIdFromTargetLinkUri = (targetLinkUri: string): string | null => {
+  try {
+    const parsed = new URL(targetLinkUri);
+    const ruleId = parsed.searchParams.get("ruleId")?.trim() ?? "";
+    return ruleId.length === 0 ? null : ruleId;
+  } catch {
+    return null;
+  }
+};
+
 export const resolveLtiLaunchMessage = (input: {
   launchClaims: LtiLaunchClaims;
   launchState: LtiLaunchState;
@@ -153,6 +164,9 @@ export const resolveLtiLaunchMessage = (input: {
       badgeTemplateId:
         asNonEmptyString(asJsonObject(input.launchClaims[LTI_CLAIM_CUSTOM])?.badgeTemplateId) ??
         badgeTemplateIdFromTargetLinkUri(resolvedTargetLinkUri),
+      ruleId:
+        asNonEmptyString(asJsonObject(input.launchClaims[LTI_CLAIM_CUSTOM])?.ruleId) ??
+        ruleIdFromTargetLinkUri(resolvedTargetLinkUri),
     };
   }
 

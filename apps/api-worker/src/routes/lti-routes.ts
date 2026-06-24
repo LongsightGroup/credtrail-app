@@ -23,6 +23,10 @@ import {
   findLtiIssuerRegistryEntry,
 } from "../lti/deep-linking-helpers";
 import { createCredTrailLtiTool } from "../lti/credtrail-lti-tool";
+import {
+  createCourseBadgePlacementRule,
+  type LtiCourseBadgeSetupPreset,
+} from "../lti/course-badge-setup";
 import { registerLtiDynamicRegistrationRoutes } from "../lti/dynamic-registration-routes";
 import { handleLtiLaunchPost } from "../lti/launch-post-handler";
 import { executeLtiRosterIssuance, LtiRosterIssuanceError } from "../lti/roster-issuance";
@@ -40,6 +44,40 @@ import {
   selectedLearnerUserIdsFromForm,
 } from "../lti/roster-issuance-helpers";
 import { asNonEmptyString } from "../utils/value-parsers";
+
+const LTI_COURSE_BADGE_SETUP_PRESETS = new Set<LtiCourseBadgeSetupPreset>([
+  "manual_instructor_approval",
+  "final_course_score_threshold",
+  "gradebook_item_score_threshold",
+  "assignment_submitted_or_graded",
+  "completion_percentage",
+]);
+
+const ltiCourseBadgeSetupPresetFromForm = (
+  value: FormDataEntryValue | null,
+): LtiCourseBadgeSetupPreset | null => {
+  const normalized = asNonEmptyString(value);
+
+  if (
+    normalized === null ||
+    !LTI_COURSE_BADGE_SETUP_PRESETS.has(normalized as LtiCourseBadgeSetupPreset)
+  ) {
+    return null;
+  }
+
+  return normalized as LtiCourseBadgeSetupPreset;
+};
+
+const optionalNumberFromForm = (value: FormDataEntryValue | null): number | undefined => {
+  const normalized = asNonEmptyString(value);
+
+  if (normalized === null) {
+    return undefined;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
 
 interface RegisterLtiRoutesInput {
   app: Hono<AppEnv>;
@@ -201,11 +239,13 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     const form = await c.req.formData();
     const ltiSessionId = asNonEmptyString(form.get("lti_session_id"));
     const badgeTemplateId = asNonEmptyString(form.get("badge_template_id"));
+    const createdByUserId = asNonEmptyString(form.get("created_by_user_id")) ?? undefined;
+    const criteriaPreset = ltiCourseBadgeSetupPresetFromForm(form.get("criteria_preset"));
 
-    if (ltiSessionId === null || badgeTemplateId === null) {
+    if (ltiSessionId === null || badgeTemplateId === null || criteriaPreset === null) {
       return c.json(
         {
-          error: "lti_session_id and badge_template_id are required",
+          error: "lti_session_id, badge_template_id, and criteria_preset are required",
         },
         400,
       );
@@ -258,11 +298,40 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       );
     }
 
+    const setupResult = await createCourseBadgePlacementRule({
+      db,
+      tenantId: issuerMatch.entry.tenantId,
+      issuer: ltiSession.platform.issuer,
+      clientId: ltiSession.platform.clientId,
+      deploymentId: ltiSession.platform.deploymentId,
+      ltiSession,
+      badgeTemplate,
+      createdByUserId,
+      setupRequest: {
+        preset: criteriaPreset,
+        scoreThreshold: optionalNumberFromForm(form.get("score_threshold")),
+        gradebookItemId: asNonEmptyString(form.get("gradebook_item_id")) ?? undefined,
+        completionPercent: optionalNumberFromForm(form.get("completion_percent")),
+      },
+    });
+
+    if (!setupResult.ok) {
+      return c.json(
+        {
+          error: setupResult.message,
+          reason: setupResult.reason,
+        },
+        400,
+      );
+    }
+
     const launchUrl = new URL(ltiSession.launch.target);
     launchUrl.searchParams.set("badgeTemplateId", badgeTemplate.id);
+    launchUrl.searchParams.set("ruleId", setupResult.rule.id);
     const responseHtml = await ltiTool.createDeepLinkingResponse(ltiSession, [
       badgeTemplateDeepLinkContentItem({
         badgeTemplateId: badgeTemplate.id,
+        ruleId: setupResult.rule.id,
         title: badgeTemplate.title,
         description: badgeTemplate.description,
         launchUrl: launchUrl.toString(),

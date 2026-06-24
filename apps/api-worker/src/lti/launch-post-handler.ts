@@ -301,6 +301,7 @@ const recordLaunchedResourceLinkPlacement = async (input: {
     contextId: input.launch.launchMessage.resourceContextId,
     resourceLinkId: input.launch.launchMessage.resourceLinkId,
     badgeTemplateId: input.launch.launchMessage.badgeTemplateId,
+    ruleId: input.launch.launchMessage.ruleId,
     createdByUserId: input.linkedUserId,
   });
 };

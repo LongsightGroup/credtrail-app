@@ -186,6 +186,14 @@ describe("page asset manifest", () => {
     expect(templateEditorCss).toContain(".ct-admin__template-editor-body .ct-input[type='file']");
   });
 
+  it("keeps LTI Deep Linking setup buttons on primitive action contracts", () => {
+    const ltiPagesCss = readGeneratedAsset("ltiPagesCss");
+
+    expect(ltiPagesCss).not.toContain(".lti-deep-link__form button {");
+    expect(ltiPagesCss).toContain(".lti-deep-link__setup");
+    expect(ltiPagesCss).toContain(".lti-deep-link__actions");
+  });
+
   it("emits JavaScript assets that parse as browser scripts", () => {
     const scriptAssetKeys: readonly PageAssetKey[] = [
       "authLoginJs",

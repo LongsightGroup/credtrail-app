@@ -117,6 +117,7 @@ export interface LtiResourceLinkPlacementRecord {
   contextId: string | null;
   resourceLinkId: string;
   badgeTemplateId: string;
+  ruleId: string | null;
   createdByUserId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -131,6 +132,7 @@ export interface UpsertLtiResourceLinkPlacementInput {
   contextId?: string | null | undefined;
   resourceLinkId: string;
   badgeTemplateId: string;
+  ruleId?: string | null | undefined;
   createdByUserId?: string | null;
 }
 
@@ -204,6 +206,7 @@ interface LtiResourceLinkPlacementRow {
   contextId: string | null;
   resourceLinkId: string;
   badgeTemplateId: string;
+  ruleId: string | null;
   createdByUserId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -288,6 +291,7 @@ const mapLtiResourceLinkPlacementRow = (
     contextId: row.contextId,
     resourceLinkId: row.resourceLinkId,
     badgeTemplateId: row.badgeTemplateId,
+    ruleId: row.ruleId,
     createdByUserId: row.createdByUserId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -872,16 +876,18 @@ export const upsertLtiResourceLinkPlacement = async (
           context_id,
           resource_link_id,
           badge_template_id,
+          rule_id,
           created_by_user_id,
           created_at,
           updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (issuer, client_id, deployment_id, resource_link_id)
         DO UPDATE SET
           tenant_id = excluded.tenant_id,
           context_id = excluded.context_id,
           badge_template_id = excluded.badge_template_id,
+          rule_id = COALESCE(excluded.rule_id, lti_resource_link_placements.rule_id),
           created_by_user_id = COALESCE(excluded.created_by_user_id, lti_resource_link_placements.created_by_user_id),
           updated_at = excluded.updated_at
       `,
@@ -895,6 +901,7 @@ export const upsertLtiResourceLinkPlacement = async (
         input.contextId ?? null,
         input.resourceLinkId,
         input.badgeTemplateId,
+        input.ruleId ?? null,
         input.createdByUserId ?? null,
         nowIso,
         nowIso,
@@ -940,6 +947,7 @@ export const findLtiResourceLinkPlacement = async (
           context_id AS contextId,
           resource_link_id AS resourceLinkId,
           badge_template_id AS badgeTemplateId,
+          rule_id AS ruleId,
           created_by_user_id AS createdByUserId,
           created_at AS createdAt,
           updated_at AS updatedAt
@@ -976,6 +984,7 @@ export const listLtiResourceLinkPlacementsForContext = async (
           context_id AS contextId,
           resource_link_id AS resourceLinkId,
           badge_template_id AS badgeTemplateId,
+          rule_id AS ruleId,
           created_by_user_id AS createdByUserId,
           created_at AS createdAt,
           updated_at AS updatedAt
