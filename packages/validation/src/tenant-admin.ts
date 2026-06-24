@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { jsonObjectSchema } from "./json.js";
+import { governanceMetadataSchema } from "./governance-metadata.js";
 import {
   isoTimestampSchema,
   orgUnitDisplayNameSchema,
@@ -91,7 +91,7 @@ export const transferBadgeTemplateOwnershipRequestSchema = z.object({
   toOrgUnitId: resourceIdSchema,
   reasonCode: badgeTemplateOwnershipTransferReasonCodeSchema,
   reason: z.string().trim().min(1).max(512).optional(),
-  governanceMetadata: jsonObjectSchema.optional(),
+  governanceMetadata: governanceMetadataSchema.optional(),
   transferredAt: isoTimestampSchema.optional(),
 });
 

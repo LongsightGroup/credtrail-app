@@ -14,6 +14,8 @@ vi.mock("@credtrail/db", async () => {
     createBadgeIssuanceRuleWithConnection: vi.fn(),
     ensureTenantMembership: vi.fn(),
     findActiveDelegatedIssuingAuthorityGrantForAction: vi.fn(),
+    findDelegatedIssuingAuthorityGrantFromActiveGrants: vi.fn(),
+    listActiveDelegatedIssuingAuthorityGrantsForUser: vi.fn(),
     findAuthIdentityLinkByAuthUserId: vi.fn(),
     findAuthIdentityLinkByCredtrailUserId: vi.fn(),
     findBadgeTemplateById: vi.fn(),
@@ -59,6 +61,7 @@ import {
   createBadgeIssuanceRuleWithConnection,
   ensureTenantMembership,
   findActiveDelegatedIssuingAuthorityGrantForAction,
+  findDelegatedIssuingAuthorityGrantFromActiveGrants,
   findAuthIdentityLinkByAuthUserId,
   findAuthIdentityLinkByCredtrailUserId,
   findBadgeTemplateById,
@@ -70,6 +73,7 @@ import {
   listAssertionsByBadgeTemplatesAndRecipientEmails,
   listAssertionLifecycleStatesByAssertionIds,
   listAssertionsByIdempotencyKeys,
+  listActiveDelegatedIssuingAuthorityGrantsForUser,
   listBadgeTemplates,
   listBadgeTemplatesByIds,
   listLearnerBadgeSummaries,
@@ -121,6 +125,12 @@ const mockedCreateBadgeIssuanceRuleWithConnection = vi.mocked(
 const mockedEnsureTenantMembership = vi.mocked(ensureTenantMembership);
 const mockedFindActiveDelegatedIssuingAuthorityGrantForAction = vi.mocked(
   findActiveDelegatedIssuingAuthorityGrantForAction,
+);
+const mockedFindDelegatedIssuingAuthorityGrantFromActiveGrants = vi.mocked(
+  findDelegatedIssuingAuthorityGrantFromActiveGrants,
+);
+const mockedListActiveDelegatedIssuingAuthorityGrantsForUser = vi.mocked(
+  listActiveDelegatedIssuingAuthorityGrantsForUser,
 );
 const mockedFindAuthIdentityLinkByAuthUserId = vi.mocked(findAuthIdentityLinkByAuthUserId);
 const mockedFindAuthIdentityLinkByCredtrailUserId = vi.mocked(
@@ -517,13 +527,7 @@ const sampleDelegatedIssuingAuthorityGrant = (
     delegateUserId: "usr_lti_123",
     delegatedByUserId: "usr_admin_123",
     orgUnitId: "tenant_123:org:institution",
-    allowedActions: [
-      "issue_badge",
-      "revoke_badge",
-      "manage_lifecycle",
-      "place_lti_badge",
-      "configure_course_rule",
-    ],
+    allowedActions: ["issue_badge", "revoke_badge", "manage_lifecycle", "configure_course_rule"],
     badgeTemplateIds: ["badge_template_001"],
     startsAt: "2026-02-01T00:00:00.000Z",
     endsAt: "2026-06-01T00:00:00.000Z",
@@ -870,6 +874,27 @@ describe("LTI 1.3 core launch flow", () => {
     mockedFindActiveDelegatedIssuingAuthorityGrantForAction.mockResolvedValue(
       sampleDelegatedIssuingAuthorityGrant(),
     );
+    mockedListActiveDelegatedIssuingAuthorityGrantsForUser.mockReset();
+    mockedListActiveDelegatedIssuingAuthorityGrantsForUser.mockResolvedValue([
+      sampleDelegatedIssuingAuthorityGrant(),
+    ]);
+    mockedFindDelegatedIssuingAuthorityGrantFromActiveGrants.mockReset();
+    mockedFindDelegatedIssuingAuthorityGrantFromActiveGrants.mockImplementation(
+      async (_db, grants, input) => {
+        for (const grant of grants) {
+          if (
+            grant.allowedActions.includes(input.requiredAction) &&
+            (grant.badgeTemplateIds.length === 0 ||
+              grant.badgeTemplateIds.includes(input.badgeTemplateId)) &&
+            grant.orgUnitId === input.orgUnitId
+          ) {
+            return grant;
+          }
+        }
+
+        return null;
+      },
+    );
     mockedFindLtiLaunchSessionById.mockReset();
     mockedFindLtiLaunchSessionById.mockResolvedValue(sampleLtiLaunchSessionRecord());
     mockedAttachLtiLaunchSessionPrincipal.mockReset();
@@ -1011,6 +1036,82 @@ describe("LTI 1.3 core launch flow", () => {
     });
     env.LTI_STATE_SIGNING_SECRET = "test-lti-state-secret";
     return env;
+  };
+
+  const performInstructorDeepLinkingLaunch = async (input?: {
+    deepLinkReturnUrl?: string;
+    deepLinkingData?: string;
+  }): Promise<{
+    response: Response;
+    body: string;
+    loginUrl: URL;
+    isolatedApp: Awaited<ReturnType<typeof loadAppWithMockedSignedLtiTool>>["app"];
+    env: ReturnType<typeof createLtiEnv>;
+  }> => {
+    const env = createLtiEnv();
+    const deepLinkReturnUrl =
+      input?.deepLinkReturnUrl ?? "https://canvas.example.edu/api/lti/deep_link_return";
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool();
+    const loginResponse = await isolatedApp.request(
+      `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
+        "opaque-login-hint",
+      )}&target_link_uri=${encodeURIComponent(targetLinkUri)}&lti_deployment_id=${encodeURIComponent(
+        deploymentId,
+      )}`,
+      undefined,
+      env,
+    );
+    const loginUrl = new URL(loginResponse.headers.get("location") ?? "");
+    const nowEpochSeconds = Math.floor(Date.now() / 1000);
+    const idToken = compactJwsForTest({
+      header: {
+        alg: "RS256",
+        typ: "JWT",
+      },
+      payload: {
+        iss: issuer,
+        sub: "user-999",
+        aud: clientId,
+        exp: nowEpochSeconds + 300,
+        iat: nowEpochSeconds - 10,
+        nonce: loginUrl.searchParams.get("nonce") ?? "",
+        "https://purl.imsglobal.org/spec/lti/claim/deployment_id": deploymentId,
+        "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiDeepLinkingRequest",
+        "https://purl.imsglobal.org/spec/lti/claim/version": "1.3.0",
+        "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": targetLinkUri,
+        "https://purl.imsglobal.org/spec/lti/claim/roles": [
+          "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor",
+        ],
+        "https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings": {
+          deep_link_return_url: deepLinkReturnUrl,
+          accept_types: ["ltiResourceLink"],
+          ...(input?.deepLinkingData === undefined ? {} : { data: input.deepLinkingData }),
+        },
+      },
+    });
+    const response = await isolatedApp.request(
+      "/v1/lti/launch",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          id_token: idToken,
+          state: loginUrl.searchParams.get("state") ?? "",
+        }).toString(),
+      },
+      env,
+    );
+    const body = await response.text();
+
+    return {
+      response,
+      body,
+      loginUrl,
+      isolatedApp,
+      env,
+    };
   };
 
   const ltiSessionFromClaims = (claims: Record<string, unknown>): LTISession => {
@@ -3010,65 +3111,11 @@ describe("LTI 1.3 core launch flow", () => {
   });
 
   it("accepts instructor deep linking launch and renders badge template placement forms", async () => {
-    const env = createLtiEnv();
     const deepLinkReturnUrl = "https://canvas.example.edu/api/lti/deep_link_return";
-    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool();
-    const loginResponse = await isolatedApp.request(
-      `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
-        "opaque-login-hint",
-      )}&target_link_uri=${encodeURIComponent(targetLinkUri)}&lti_deployment_id=${encodeURIComponent(
-        deploymentId,
-      )}`,
-      undefined,
-      env,
-    );
-    const loginLocation = loginResponse.headers.get("location");
-    const loginUrl = new URL(loginLocation ?? "");
-    const state = loginUrl.searchParams.get("state") ?? "";
-    const nonce = loginUrl.searchParams.get("nonce") ?? "";
-    const nowEpochSeconds = Math.floor(Date.now() / 1000);
-    const idToken = compactJwsForTest({
-      header: {
-        alg: "RS256",
-        typ: "JWT",
-      },
-      payload: {
-        iss: issuer,
-        sub: "user-999",
-        aud: clientId,
-        exp: nowEpochSeconds + 300,
-        iat: nowEpochSeconds - 10,
-        nonce,
-        "https://purl.imsglobal.org/spec/lti/claim/deployment_id": deploymentId,
-        "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiDeepLinkingRequest",
-        "https://purl.imsglobal.org/spec/lti/claim/version": "1.3.0",
-        "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": targetLinkUri,
-        "https://purl.imsglobal.org/spec/lti/claim/roles": [
-          "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor",
-        ],
-        "https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings": {
-          deep_link_return_url: deepLinkReturnUrl,
-          accept_types: ["ltiResourceLink"],
-          data: "opaque-deep-link-state",
-        },
-      },
+    const { response, body } = await performInstructorDeepLinkingLaunch({
+      deepLinkReturnUrl,
+      deepLinkingData: "opaque-deep-link-state",
     });
-
-    const response = await isolatedApp.request(
-      "/v1/lti/launch",
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          id_token: idToken,
-          state,
-        }).toString(),
-      },
-      env,
-    );
-    const body = await response.text();
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
@@ -3091,13 +3138,11 @@ describe("LTI 1.3 core launch flow", () => {
       tenantId,
       includeArchived: false,
     });
-    expect(mockedFindActiveDelegatedIssuingAuthorityGrantForAction).toHaveBeenCalledWith(fakeDb, {
+    expect(mockedListActiveDelegatedIssuingAuthorityGrantsForUser).toHaveBeenCalledWith(fakeDb, {
       tenantId,
       userId: linkedUserId,
-      orgUnitId: "tenant_123:org:institution",
-      badgeTemplateId: "badge_template_001",
-      requiredAction: "place_lti_badge",
     });
+    expect(mockedFindActiveDelegatedIssuingAuthorityGrantForAction).not.toHaveBeenCalled();
   });
 
   it("filters Deep Linking templates that are not instructor-placeable", async () => {
@@ -3106,136 +3151,27 @@ describe("LTI 1.3 core launch flow", () => {
         governanceMetadataJson: JSON.stringify({ ltiInstructorPlacement: { enabled: false } }),
       }),
     ]);
-    const env = createLtiEnv();
-    const deepLinkReturnUrl = "https://canvas.example.edu/api/lti/deep_link_return";
-    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool();
-    const loginResponse = await isolatedApp.request(
-      `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
-        "opaque-login-hint",
-      )}&target_link_uri=${encodeURIComponent(targetLinkUri)}&lti_deployment_id=${encodeURIComponent(
-        deploymentId,
-      )}`,
-      undefined,
-      env,
-    );
-    const loginUrl = new URL(loginResponse.headers.get("location") ?? "");
-    const nowEpochSeconds = Math.floor(Date.now() / 1000);
-    const idToken = compactJwsForTest({
-      header: {
-        alg: "RS256",
-        typ: "JWT",
-      },
-      payload: {
-        iss: issuer,
-        sub: "user-999",
-        aud: clientId,
-        exp: nowEpochSeconds + 300,
-        iat: nowEpochSeconds - 10,
-        nonce: loginUrl.searchParams.get("nonce") ?? "",
-        "https://purl.imsglobal.org/spec/lti/claim/deployment_id": deploymentId,
-        "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiDeepLinkingRequest",
-        "https://purl.imsglobal.org/spec/lti/claim/version": "1.3.0",
-        "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": targetLinkUri,
-        "https://purl.imsglobal.org/spec/lti/claim/roles": [
-          "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor",
-        ],
-        "https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings": {
-          deep_link_return_url: deepLinkReturnUrl,
-          accept_types: ["ltiResourceLink"],
-        },
-      },
-    });
-
-    const response = await isolatedApp.request(
-      "/v1/lti/launch",
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          id_token: idToken,
-          state: loginUrl.searchParams.get("state") ?? "",
-        }).toString(),
-      },
-      env,
-    );
-    const body = await response.text();
+    const { response, body } = await performInstructorDeepLinkingLaunch();
 
     expect(response.status).toBe(200);
     expect(body).toContain("Select badge template placement");
     expect(body).not.toContain("TypeScript Foundations");
+    expect(mockedListActiveDelegatedIssuingAuthorityGrantsForUser).not.toHaveBeenCalled();
     expect(mockedFindActiveDelegatedIssuingAuthorityGrantForAction).not.toHaveBeenCalled();
   });
 
   it("filters Deep Linking templates when the instructor lacks a placement grant", async () => {
-    mockedFindActiveDelegatedIssuingAuthorityGrantForAction.mockResolvedValue(null);
-    const env = createLtiEnv();
-    const deepLinkReturnUrl = "https://canvas.example.edu/api/lti/deep_link_return";
-    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool();
-    const loginResponse = await isolatedApp.request(
-      `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
-        "opaque-login-hint",
-      )}&target_link_uri=${encodeURIComponent(targetLinkUri)}&lti_deployment_id=${encodeURIComponent(
-        deploymentId,
-      )}`,
-      undefined,
-      env,
-    );
-    const loginUrl = new URL(loginResponse.headers.get("location") ?? "");
-    const nowEpochSeconds = Math.floor(Date.now() / 1000);
-    const idToken = compactJwsForTest({
-      header: {
-        alg: "RS256",
-        typ: "JWT",
-      },
-      payload: {
-        iss: issuer,
-        sub: "user-999",
-        aud: clientId,
-        exp: nowEpochSeconds + 300,
-        iat: nowEpochSeconds - 10,
-        nonce: loginUrl.searchParams.get("nonce") ?? "",
-        "https://purl.imsglobal.org/spec/lti/claim/deployment_id": deploymentId,
-        "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiDeepLinkingRequest",
-        "https://purl.imsglobal.org/spec/lti/claim/version": "1.3.0",
-        "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": targetLinkUri,
-        "https://purl.imsglobal.org/spec/lti/claim/roles": [
-          "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor",
-        ],
-        "https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings": {
-          deep_link_return_url: deepLinkReturnUrl,
-          accept_types: ["ltiResourceLink"],
-        },
-      },
-    });
-
-    const response = await isolatedApp.request(
-      "/v1/lti/launch",
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          id_token: idToken,
-          state: loginUrl.searchParams.get("state") ?? "",
-        }).toString(),
-      },
-      env,
-    );
-    const body = await response.text();
+    mockedListActiveDelegatedIssuingAuthorityGrantsForUser.mockResolvedValue([]);
+    const { response, body } = await performInstructorDeepLinkingLaunch();
 
     expect(response.status).toBe(200);
     expect(body).toContain("Select badge template placement");
     expect(body).not.toContain("TypeScript Foundations");
-    expect(mockedFindActiveDelegatedIssuingAuthorityGrantForAction).toHaveBeenCalledWith(fakeDb, {
+    expect(mockedListActiveDelegatedIssuingAuthorityGrantsForUser).toHaveBeenCalledWith(fakeDb, {
       tenantId,
       userId: linkedUserId,
-      orgUnitId: "tenant_123:org:institution",
-      badgeTemplateId: "badge_template_001",
-      requiredAction: "place_lti_badge",
     });
+    expect(mockedFindActiveDelegatedIssuingAuthorityGrantForAction).not.toHaveBeenCalled();
   });
 
   it("returns a signed Deep Linking response for selected templates through lti-tool core", async () => {

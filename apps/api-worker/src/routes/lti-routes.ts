@@ -4,7 +4,6 @@ import {
   listBadgeTemplates,
   upsertLtiDeployment,
   type SqlDatabase,
-  type TenantMembershipRole,
 } from "@credtrail/db";
 import { parseLtiOidcLoginInitiationRequest } from "@credtrail/lti";
 import type { Hono } from "hono";
@@ -66,18 +65,6 @@ interface RegisterLtiRoutesInput {
   app: Hono<AppEnv>;
   resolveLtiIssuerRegistry: (context: AppContext) => Promise<LtiIssuerRegistry>;
   resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  upsertTenantMembershipRole: (
-    db: SqlDatabase,
-    input: {
-      tenantId: string;
-      userId: string;
-      role: TenantMembershipRole;
-    },
-  ) => Promise<{
-    membership: {
-      role: TenantMembershipRole;
-    };
-  }>;
   sha256Hex: (value: string) => Promise<string>;
   createLtiSession: (
     context: AppContext,
@@ -101,7 +88,6 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     app,
     resolveLtiIssuerRegistry,
     resolveDatabase,
-    upsertTenantMembershipRole: upsertTenantMembershipRoleWithInput,
     sha256Hex,
     createLtiSession,
     issueBadgeForTenant,
@@ -341,7 +327,6 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       tenantId: issuerMatch.entry.tenantId,
       userId: persistedSession.userId,
       badgeTemplate,
-      requiredAction: "configure_course_rule",
     });
 
     if (!authority.ok) {
@@ -503,7 +488,6 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       c,
       resolveLtiIssuerRegistry,
       resolveDatabase,
-      upsertTenantMembershipRole: upsertTenantMembershipRoleWithInput,
       sha256Hex,
       createLtiSession,
     });

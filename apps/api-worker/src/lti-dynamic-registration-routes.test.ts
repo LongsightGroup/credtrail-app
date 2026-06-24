@@ -1,11 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { Hono } from "hono";
 import type { LTIConfig } from "@lti-tool/core";
-import {
-  LtiIssuerTenantConflictError,
-  type SqlDatabase,
-  type TenantMembershipRole,
-} from "@credtrail/db";
+import { LtiIssuerTenantConflictError, type SqlDatabase } from "@credtrail/db";
 import type { AppBindings, AppEnv } from "./app";
 import { registerLtiRoutes } from "./routes/lti-routes";
 import {
@@ -55,11 +51,6 @@ const createRouteApp = (): Hono<AppEnv> => {
     app,
     resolveLtiIssuerRegistry: async () => ({}),
     resolveDatabase: () => fakeDb,
-    upsertTenantMembershipRole: async () => ({
-      membership: {
-        role: "viewer" as TenantMembershipRole,
-      },
-    }),
     sha256Hex: async () => "hash",
     createLtiSession: async () => {
       throw new Error("createLtiSession is not used by dynamic registration tests");

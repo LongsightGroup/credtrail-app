@@ -2,7 +2,6 @@ import {
   attachLtiLaunchSessionPrincipal,
   findBadgeTemplateById,
   listBadgeTemplates,
-  type BadgeTemplateRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -12,7 +11,10 @@ import { renderAppPage } from "../ui/render-page";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
 import { LTI_SESSION_HANDOFF_TTL_SECONDS } from "./constants";
 import { createCourseBadgePlacementRule } from "./course-badge-setup";
-import { resolveLtiCourseBadgeAuthority } from "./course-badge-governance";
+import {
+  resolveLtiCourseBadgeAuthority,
+  listLtiInstructorPlaceableBadgeTemplates,
+} from "./course-badge-governance";
 import {
   verifyLtiCourseBadgeSetupToken,
   type LtiCourseBadgeSetupPayload,
@@ -59,18 +61,6 @@ export interface HandleLtiLaunchPostInput {
   c: AppContext;
   resolveLtiIssuerRegistry: (context: AppContext) => Promise<LtiIssuerRegistry>;
   resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  upsertTenantMembershipRole: (
-    db: SqlDatabase,
-    input: {
-      tenantId: string;
-      userId: string;
-      role: TenantMembershipRole;
-    },
-  ) => Promise<{
-    membership: {
-      role: TenantMembershipRole;
-    };
-  }>;
   sha256Hex: (value: string) => Promise<string>;
   createLtiSession: (
     context: AppContext,
@@ -100,30 +90,6 @@ interface PreparedResourceLinkLaunch {
   launch: ValidatedResourceLinkLaunch;
   placementResult: UpsertLtiLaunchResourceLinkPlacementResult | null;
 }
-
-const ltiInstructorPlaceableBadgeTemplates = async (input: {
-  db: SqlDatabase;
-  tenantId: string;
-  userId: string;
-  badgeTemplates: readonly BadgeTemplateRecord[];
-}): Promise<BadgeTemplateRecord[]> => {
-  const placeableTemplates: BadgeTemplateRecord[] = [];
-
-  for (const badgeTemplate of input.badgeTemplates) {
-    const authority = await resolveLtiCourseBadgeAuthority(input.db, {
-      tenantId: input.tenantId,
-      userId: input.userId,
-      badgeTemplate,
-      requiredAction: "place_lti_badge",
-    });
-
-    if (authority.ok) {
-      placeableTemplates.push(badgeTemplate);
-    }
-  }
-
-  return placeableTemplates;
-};
 
 const isValidatedDeepLinkingLaunch = (
   launch: ValidatedLtiLaunchMessage,
@@ -281,7 +247,6 @@ const establishLtiLaunchSession = async (input: {
   launchMessage: ResolvedLtiLaunchMessage;
   ltiLaunchSession: ResolvedLtiLaunch["ltiLaunchSession"];
   sha256Hex: (value: string) => Promise<string>;
-  upsertTenantMembershipRole: HandleLtiLaunchPostInput["upsertTenantMembershipRole"];
   createLtiSession: HandleLtiLaunchPostInput["createLtiSession"];
 }): Promise<EstablishedLtiLaunchSession> => {
   let linkedAccount: LinkedLtiLaunchAccount;
@@ -291,9 +256,7 @@ const establishLtiLaunchSession = async (input: {
       db: input.db,
       tenantId: input.tenantId,
       launchClaims: input.launchClaims,
-      roleKind: input.launchMessage.roleKind,
       sha256Hex: input.sha256Hex,
-      upsertTenantMembershipRole: input.upsertTenantMembershipRole,
     });
   } catch (error) {
     logLtiWarning("Unable to link LTI launch to local account", {
@@ -431,7 +394,6 @@ const prepareLaunchedResourceLinkPlacement = async (input: {
     tenantId: input.tenantId,
     userId: input.linkedUserId,
     badgeTemplate: input.launch.launchedBadgeTemplate,
-    requiredAction: "configure_course_rule",
   });
 
   if (!authority.ok) {
@@ -521,8 +483,7 @@ const renderLtiDeepLinkingLaunchResponse = async (input: {
     tenantId: input.tenantId,
     includeArchived: false,
   });
-  const placeableBadgeTemplates = await ltiInstructorPlaceableBadgeTemplates({
-    db: input.db,
+  const placeableBadgeTemplates = await listLtiInstructorPlaceableBadgeTemplates(input.db, {
     tenantId: input.tenantId,
     userId: input.linkedAccount.userId,
     badgeTemplates,
@@ -654,7 +615,6 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
       launchMessage: validatedLaunchMessage.launchMessage,
       ltiLaunchSession: resolvedLaunch.ltiLaunchSession,
       sha256Hex: input.sha256Hex,
-      upsertTenantMembershipRole: input.upsertTenantMembershipRole,
       createLtiSession: input.createLtiSession,
     });
   } catch (error) {

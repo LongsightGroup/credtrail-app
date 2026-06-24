@@ -1,9 +1,5 @@
 import type { JsonObject } from "@credtrail/core-domain";
-import {
-  findTenantSigningRegistrationByDid,
-  listLtiIssuerRegistrations,
-  upsertTenantMembershipRole,
-} from "@credtrail/db";
+import { findTenantSigningRegistrationByDid, listLtiIssuerRegistrations } from "@credtrail/db";
 import { Hono } from "hono";
 import {
   credentialDownloadFilename,
@@ -375,7 +371,6 @@ registerRoutes({
   ADMIN_ROLES,
   ISSUER_ROLES,
   resolveLtiIssuerRegistry,
-  upsertTenantMembershipRole,
   createLtiSession: (context, input) => {
     return betterAuthProvider.createLtiSession(context, input);
   },

@@ -8,12 +8,11 @@ import {
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import type { LtiLaunchClaims, LtiRoleKind } from "@credtrail/lti";
+import type { LtiLaunchClaims } from "@credtrail/lti";
 import {
   ltiDisplayNameFromClaims,
   ltiEmailFromClaims,
   ltiFederatedSubjectIdentity,
-  ltiMembershipRoleFromRoleKind,
   ltiSourcedIdFromClaims,
   ltiSyntheticEmail,
 } from "./lti-helpers";
@@ -28,20 +27,7 @@ export const linkLtiLaunchAccount = async (input: {
   db: SqlDatabase;
   tenantId: string;
   launchClaims: LtiLaunchClaims;
-  roleKind: LtiRoleKind;
   sha256Hex: (value: string) => Promise<string>;
-  upsertTenantMembershipRole: (
-    db: SqlDatabase,
-    input: {
-      tenantId: string;
-      userId: string;
-      role: TenantMembershipRole;
-    },
-  ) => Promise<{
-    membership: {
-      role: TenantMembershipRole;
-    };
-  }>;
 }): Promise<LinkedLtiLaunchAccount> => {
   const federatedSubject = ltiFederatedSubjectIdentity(
     input.launchClaims.iss,
@@ -113,21 +99,10 @@ export const linkLtiLaunchAccount = async (input: {
     claimedEmail ?? (await ltiSyntheticEmail(input.tenantId, federatedSubject, input.sha256Hex)),
   );
   const membershipResult = await ensureTenantMembership(input.db, input.tenantId, user.id);
-  let membershipRole = membershipResult.membership.role;
-  const desiredRole = ltiMembershipRoleFromRoleKind(input.roleKind);
-
-  if (desiredRole === "issuer" && membershipRole === "viewer") {
-    const promotedMembership = await input.upsertTenantMembershipRole(input.db, {
-      tenantId: input.tenantId,
-      userId: user.id,
-      role: desiredRole,
-    });
-    membershipRole = promotedMembership.membership.role;
-  }
 
   return {
     learnerProfileId: learnerProfile.id,
     userId: user.id,
-    membershipRole,
+    membershipRole: membershipResult.membership.role,
   };
 };

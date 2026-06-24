@@ -1,10 +1,14 @@
 import {
   findActiveDelegatedIssuingAuthorityGrantForAction,
+  findDelegatedIssuingAuthorityGrantFromActiveGrants,
+  listActiveDelegatedIssuingAuthorityGrantsForUser,
   type BadgeTemplateRecord,
-  type DelegatedIssuingAuthorityAction,
   type DelegatedIssuingAuthorityGrantRecord,
   type SqlDatabase,
 } from "@credtrail/db";
+import { isLtiInstructorPlacementEnabled } from "@credtrail/validation";
+
+export const LTI_COURSE_BADGE_SETUP_ACTION = "configure_course_rule" as const;
 
 export type LtiCourseBadgeAuthorityFailureReason =
   | "template_not_placeable"
@@ -21,44 +25,12 @@ export type LtiCourseBadgeAuthorityResult =
       message: string;
     };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-};
-
-export const parseLtiInstructorPlacementEnabled = (
-  governanceMetadataJson: string | null,
-): boolean => {
-  if (governanceMetadataJson === null) {
-    return false;
-  }
-
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(governanceMetadataJson) as unknown;
-  } catch {
-    return false;
-  }
-
-  if (!isRecord(parsed)) {
-    return false;
-  }
-
-  const placement = parsed.ltiInstructorPlacement;
-
-  if (!isRecord(placement)) {
-    return false;
-  }
-
-  return placement.enabled === true;
-};
-
 export const isLtiInstructorPlaceableBadgeTemplate = (
   badgeTemplate: BadgeTemplateRecord,
 ): boolean => {
   return (
     !badgeTemplate.isArchived &&
-    parseLtiInstructorPlacementEnabled(badgeTemplate.governanceMetadataJson)
+    isLtiInstructorPlacementEnabled(badgeTemplate.governanceMetadataJson)
   );
 };
 
@@ -68,7 +40,6 @@ export const resolveLtiCourseBadgeAuthority = async (
     tenantId: string;
     userId: string;
     badgeTemplate: BadgeTemplateRecord;
-    requiredAction: DelegatedIssuingAuthorityAction;
     atIso?: string | undefined;
   },
 ): Promise<LtiCourseBadgeAuthorityResult> => {
@@ -85,7 +56,7 @@ export const resolveLtiCourseBadgeAuthority = async (
     userId: input.userId,
     orgUnitId: input.badgeTemplate.ownerOrgUnitId,
     badgeTemplateId: input.badgeTemplate.id,
-    requiredAction: input.requiredAction,
+    requiredAction: LTI_COURSE_BADGE_SETUP_ACTION,
     ...(input.atIso === undefined ? {} : { atIso: input.atIso }),
   });
 
@@ -102,4 +73,48 @@ export const resolveLtiCourseBadgeAuthority = async (
     ok: true,
     grant,
   };
+};
+
+export const listLtiInstructorPlaceableBadgeTemplates = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    userId: string;
+    badgeTemplates: readonly BadgeTemplateRecord[];
+    atIso?: string | undefined;
+  },
+): Promise<BadgeTemplateRecord[]> => {
+  const placeableByMetadata = input.badgeTemplates.filter(isLtiInstructorPlaceableBadgeTemplate);
+
+  if (placeableByMetadata.length === 0) {
+    return [];
+  }
+
+  const grants = await listActiveDelegatedIssuingAuthorityGrantsForUser(db, {
+    tenantId: input.tenantId,
+    userId: input.userId,
+    ...(input.atIso === undefined ? {} : { atIso: input.atIso }),
+  });
+  const orgUnitScopeCache = new Map<string, boolean>();
+  const authorizedTemplates: BadgeTemplateRecord[] = [];
+
+  for (const badgeTemplate of placeableByMetadata) {
+    const grant = await findDelegatedIssuingAuthorityGrantFromActiveGrants(
+      db,
+      grants,
+      {
+        tenantId: input.tenantId,
+        orgUnitId: badgeTemplate.ownerOrgUnitId,
+        badgeTemplateId: badgeTemplate.id,
+        requiredAction: LTI_COURSE_BADGE_SETUP_ACTION,
+      },
+      orgUnitScopeCache,
+    );
+
+    if (grant !== null) {
+      authorizedTemplates.push(badgeTemplate);
+    }
+  }
+
+  return authorizedTemplates;
 };

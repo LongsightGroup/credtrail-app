@@ -6,23 +6,34 @@ vi.mock("@credtrail/db", async () => {
   return {
     ...actual,
     findActiveDelegatedIssuingAuthorityGrantForAction: vi.fn(),
+    findDelegatedIssuingAuthorityGrantFromActiveGrants: vi.fn(),
+    listActiveDelegatedIssuingAuthorityGrantsForUser: vi.fn(),
   };
 });
 
 import {
   findActiveDelegatedIssuingAuthorityGrantForAction,
+  findDelegatedIssuingAuthorityGrantFromActiveGrants,
+  listActiveDelegatedIssuingAuthorityGrantsForUser,
   type BadgeTemplateRecord,
   type DelegatedIssuingAuthorityGrantRecord,
   type SqlDatabase,
 } from "@credtrail/db";
+import { isLtiInstructorPlacementEnabled } from "@credtrail/validation";
 import {
   isLtiInstructorPlaceableBadgeTemplate,
-  parseLtiInstructorPlacementEnabled,
+  listLtiInstructorPlaceableBadgeTemplates,
   resolveLtiCourseBadgeAuthority,
 } from "./course-badge-governance";
 
 const mockedFindActiveDelegatedIssuingAuthorityGrantForAction = vi.mocked(
   findActiveDelegatedIssuingAuthorityGrantForAction,
+);
+const mockedFindDelegatedIssuingAuthorityGrantFromActiveGrants = vi.mocked(
+  findDelegatedIssuingAuthorityGrantFromActiveGrants,
+);
+const mockedListActiveDelegatedIssuingAuthorityGrantsForUser = vi.mocked(
+  listActiveDelegatedIssuingAuthorityGrantsForUser,
 );
 
 const fakeDb = {} as SqlDatabase;
@@ -52,7 +63,7 @@ const sampleGrant = (
   delegateUserId: "usr_lti_123",
   delegatedByUserId: "usr_admin_123",
   orgUnitId: "tenant_123:org:department-cs",
-  allowedActions: ["place_lti_badge", "configure_course_rule"],
+  allowedActions: ["configure_course_rule"],
   badgeTemplateIds: ["badge_template_001"],
   startsAt: "2026-02-01T00:00:00.000Z",
   endsAt: "2026-06-01T00:00:00.000Z",
@@ -68,18 +79,20 @@ const sampleGrant = (
 describe("LTI course badge governance", () => {
   beforeEach(() => {
     mockedFindActiveDelegatedIssuingAuthorityGrantForAction.mockReset();
+    mockedFindDelegatedIssuingAuthorityGrantFromActiveGrants.mockReset();
+    mockedListActiveDelegatedIssuingAuthorityGrantsForUser.mockReset();
   });
 
   it("requires explicit instructor placement metadata", () => {
     expect(
-      parseLtiInstructorPlacementEnabled(
+      isLtiInstructorPlacementEnabled(
         JSON.stringify({ ltiInstructorPlacement: { enabled: true } }),
       ),
     ).toBe(true);
-    expect(parseLtiInstructorPlacementEnabled(null)).toBe(false);
-    expect(parseLtiInstructorPlacementEnabled("{not-json")).toBe(false);
+    expect(isLtiInstructorPlacementEnabled(null)).toBe(false);
+    expect(isLtiInstructorPlacementEnabled("{not-json")).toBe(false);
     expect(
-      parseLtiInstructorPlacementEnabled(
+      isLtiInstructorPlacementEnabled(
         JSON.stringify({ ltiInstructorPlacement: { enabled: false } }),
       ),
     ).toBe(false);
@@ -96,7 +109,6 @@ describe("LTI course badge governance", () => {
       tenantId: "tenant_123",
       userId: "usr_lti_123",
       badgeTemplate: sampleBadgeTemplate(),
-      requiredAction: "configure_course_rule",
     });
 
     expect(result).toEqual({
@@ -117,7 +129,6 @@ describe("LTI course badge governance", () => {
       tenantId: "tenant_123",
       userId: "usr_lti_123",
       badgeTemplate: sampleBadgeTemplate({ governanceMetadataJson: null }),
-      requiredAction: "place_lti_badge",
     });
 
     expect(result).toMatchObject({
@@ -134,12 +145,27 @@ describe("LTI course badge governance", () => {
       tenantId: "tenant_123",
       userId: "usr_lti_123",
       badgeTemplate: sampleBadgeTemplate(),
-      requiredAction: "place_lti_badge",
     });
 
     expect(result).toMatchObject({
       ok: false,
       reason: "missing_delegated_authority",
     });
+  });
+
+  it("lists instructor-placeable templates after one active grant lookup", async () => {
+    const grant = sampleGrant();
+    mockedListActiveDelegatedIssuingAuthorityGrantsForUser.mockResolvedValueOnce([grant]);
+    mockedFindDelegatedIssuingAuthorityGrantFromActiveGrants.mockResolvedValueOnce(grant);
+
+    const templates = await listLtiInstructorPlaceableBadgeTemplates(fakeDb, {
+      tenantId: "tenant_123",
+      userId: "usr_lti_123",
+      badgeTemplates: [sampleBadgeTemplate()],
+    });
+
+    expect(templates).toHaveLength(1);
+    expect(mockedListActiveDelegatedIssuingAuthorityGrantsForUser).toHaveBeenCalledTimes(1);
+    expect(mockedFindActiveDelegatedIssuingAuthorityGrantForAction).not.toHaveBeenCalled();
   });
 });

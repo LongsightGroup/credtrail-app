@@ -8,7 +8,6 @@ export type DelegatedIssuingAuthorityAction =
   | "issue_badge"
   | "revoke_badge"
   | "manage_lifecycle"
-  | "place_lti_badge"
   | "configure_course_rule";
 
 export type DelegatedIssuingAuthorityGrantStatus = "scheduled" | "active" | "expired" | "revoked";
@@ -128,7 +127,6 @@ const DELEGATED_ISSUING_AUTHORITY_ACTIONS = new Set<DelegatedIssuingAuthorityAct
   "issue_badge",
   "revoke_badge",
   "manage_lifecycle",
-  "place_lti_badge",
   "configure_course_rule",
 ]);
 
@@ -174,7 +172,6 @@ const parseDelegatedIssuingAuthorityActionsJson = (
       (candidate !== "issue_badge" &&
         candidate !== "revoke_badge" &&
         candidate !== "manage_lifecycle" &&
-        candidate !== "place_lti_badge" &&
         candidate !== "configure_course_rule")
     ) {
       throw new Error(
@@ -912,75 +909,93 @@ export const listDelegatedIssuingAuthorityGrantEvents = async (
   return result.results.map((row) => mapDelegatedIssuingAuthorityGrantEventRow(row));
 };
 
+const delegatedGrantAuthorizesAction = async (
+  db: SqlDatabase,
+  grant: DelegatedIssuingAuthorityGrantRecord,
+  input: Omit<ResolveDelegatedIssuingAuthorityInput, "userId" | "atIso">,
+  orgUnitScopeCache?: Map<string, boolean>,
+): Promise<boolean> => {
+  if (!grant.allowedActions.includes(input.requiredAction)) {
+    return false;
+  }
+
+  if (
+    grant.badgeTemplateIds.length > 0 &&
+    !grant.badgeTemplateIds.includes(input.badgeTemplateId)
+  ) {
+    return false;
+  }
+
+  const scopeCacheKey = `${grant.orgUnitId}::${input.orgUnitId}`;
+  const cachedScope = orgUnitScopeCache?.get(scopeCacheKey);
+
+  if (cachedScope !== undefined) {
+    return cachedScope;
+  }
+
+  const orgUnitAllowed = await isOrgUnitWithinDelegatedAuthorityScope(
+    db,
+    input.tenantId,
+    input.orgUnitId,
+    grant.orgUnitId,
+  );
+
+  orgUnitScopeCache?.set(scopeCacheKey, orgUnitAllowed);
+
+  return orgUnitAllowed;
+};
+
+export const listActiveDelegatedIssuingAuthorityGrantsForUser = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    userId: string;
+    atIso?: string | undefined;
+  },
+): Promise<DelegatedIssuingAuthorityGrantRecord[]> => {
+  return listDelegatedIssuingAuthorityGrants(db, {
+    tenantId: input.tenantId,
+    delegateUserId: input.userId,
+    includeExpired: false,
+    includeRevoked: false,
+    ...(input.atIso === undefined ? {} : { nowIso: input.atIso }),
+  });
+};
+
+export const findDelegatedIssuingAuthorityGrantFromActiveGrants = async (
+  db: SqlDatabase,
+  grants: readonly DelegatedIssuingAuthorityGrantRecord[],
+  input: Omit<ResolveDelegatedIssuingAuthorityInput, "userId" | "atIso">,
+  orgUnitScopeCache?: Map<string, boolean>,
+): Promise<DelegatedIssuingAuthorityGrantRecord | null> => {
+  for (const grant of grants) {
+    if (await delegatedGrantAuthorizesAction(db, grant, input, orgUnitScopeCache)) {
+      return grant;
+    }
+  }
+
+  return null;
+};
+
 export const findActiveDelegatedIssuingAuthorityGrantForAction = async (
   db: SqlDatabase,
   input: ResolveDelegatedIssuingAuthorityInput,
 ): Promise<DelegatedIssuingAuthorityGrantRecord | null> => {
   const atIso = input.atIso ?? new Date().toISOString();
   assertValidIsoTimestamp(atIso, "atIso");
-  await recordExpiredDelegatedIssuingAuthorityGrantEvents(db, input.tenantId, atIso);
 
-  const listStatement = (): Promise<SqlQueryResult<DelegatedIssuingAuthorityGrantRow>> =>
-    db
-      .prepare(
-        `
-        SELECT
-          id,
-          tenant_id AS tenantId,
-          delegate_user_id AS delegateUserId,
-          delegated_by_user_id AS delegatedByUserId,
-          org_unit_id AS orgUnitId,
-          allowed_actions_json AS allowedActionsJson,
-          starts_at AS startsAt,
-          ends_at AS endsAt,
-          revoked_at AS revokedAt,
-          revoked_by_user_id AS revokedByUserId,
-          revoked_reason AS revokedReason,
-          created_at AS createdAt,
-          updated_at AS updatedAt
-        FROM delegated_issuing_authority_grants
-        WHERE tenant_id = ?
-          AND delegate_user_id = ?
-          AND revoked_at IS NULL
-          AND starts_at <= ?
-          AND ends_at >= ?
-        ORDER BY starts_at ASC, created_at ASC
-      `,
-      )
-      .bind(input.tenantId, input.userId, atIso, atIso)
-      .all<DelegatedIssuingAuthorityGrantRow>();
+  const grants = await listActiveDelegatedIssuingAuthorityGrantsForUser(db, {
+    tenantId: input.tenantId,
+    userId: input.userId,
+    atIso,
+  });
 
-  const result = await listStatement();
-
-  for (const row of result.results) {
-    const grant = await mapDelegatedIssuingAuthorityGrantRow(db, row, atIso);
-
-    if (!grant.allowedActions.includes(input.requiredAction)) {
-      continue;
-    }
-
-    const orgUnitAllowed = await isOrgUnitWithinDelegatedAuthorityScope(
-      db,
-      input.tenantId,
-      input.orgUnitId,
-      grant.orgUnitId,
-    );
-
-    if (!orgUnitAllowed) {
-      continue;
-    }
-
-    if (
-      grant.badgeTemplateIds.length > 0 &&
-      !grant.badgeTemplateIds.includes(input.badgeTemplateId)
-    ) {
-      continue;
-    }
-
-    return grant;
-  }
-
-  return null;
+  return findDelegatedIssuingAuthorityGrantFromActiveGrants(db, grants, {
+    tenantId: input.tenantId,
+    orgUnitId: input.orgUnitId,
+    badgeTemplateId: input.badgeTemplateId,
+    requiredAction: input.requiredAction,
+  });
 };
 
 export const hasDelegatedIssuingAuthorityAccess = async (

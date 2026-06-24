@@ -64,13 +64,8 @@ export const renderDelegationSetupSection = (
           />
           <AdminCheckboxRow
             name="allowedAction"
-            value="place_lti_badge"
-            label="Place LTI course badges"
-          />
-          <AdminCheckboxRow
-            name="allowedAction"
             value="configure_course_rule"
-            label="Configure course badge rules"
+            label="Set up LTI course badges"
           />
         </AdminFieldset>
         <p class="ct-admin__hint">

@@ -1,5 +1,5 @@
-import type { LtiIssuerRegistrationRecord, TenantMembershipRole } from "@credtrail/db";
-import { LTI_CLAIM_LIS, type LtiLaunchClaims, type LtiRoleKind } from "@credtrail/lti";
+import type { LtiIssuerRegistrationRecord } from "@credtrail/db";
+import { LTI_CLAIM_LIS, type LtiLaunchClaims } from "@credtrail/lti";
 import type { AppBindings, AppContext } from "../app";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
 
@@ -203,10 +203,6 @@ export const ltiAudienceIncludesClientId = (
   }
 
   return audienceClaim.includes(clientId);
-};
-
-export const ltiMembershipRoleFromRoleKind = (_roleKind: LtiRoleKind): TenantMembershipRole => {
-  return "viewer";
 };
 
 export const ltiFederatedSubjectIdentity = (issuer: string, subjectId: string): string => {

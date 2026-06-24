@@ -6,6 +6,7 @@ export * from "./list-queries.js";
 export * from "./reporting-queries.js";
 export * from "./assertion-record-filter-queries.js";
 export * from "./badge-template.js";
+export * from "./governance-metadata.js";
 export * from "./learner-record.js";
 export * from "./tenant-admin.js";
 export * from "./badge-rules.js";
