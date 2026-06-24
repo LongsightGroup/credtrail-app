@@ -2,7 +2,7 @@ import type { TenantMembershipRole } from "@credtrail/db";
 import type { LtiRoleKind } from "@credtrail/lti";
 import type { PropsWithChildren } from "hono/jsx";
 import { CtButtonLink } from "../ui/actions";
-import { CtCheckboxField, CtField, CtFieldHint, CtForm, CtInput } from "../ui/forms";
+import { CtCheckboxField, CtField, CtFieldHint, CtForm, CtInput, CtSelect } from "../ui/forms";
 import { appPage, type AppPage } from "../ui/render-page";
 import type { PageAssetKey } from "../ui/page-assets";
 import { LTI_COURSE_BADGE_SETUP_PRESETS } from "./course-badge-setup";
@@ -336,9 +336,18 @@ const DeepLinkOption = (input: {
   const thresholdHintId = `score-threshold-hint-${input.option.badgeTemplateId}`;
   const itemHintId = `gradebook-item-hint-${input.option.badgeTemplateId}`;
   const completionHintId = `completion-percent-hint-${input.option.badgeTemplateId}`;
+  const workflowHintId = `workflow-state-hint-${input.option.badgeTemplateId}`;
+  const gradebookLookupBase = `/v1/lti/deep-linking/sessions/${encodeURIComponent(
+    input.ltiSessionId,
+  )}`;
 
   return (
-    <article class="lti-deep-link__option">
+    <article
+      class="lti-deep-link__option"
+      data-lti-gradebook-setup="true"
+      data-lti-gradebook-items-url={`${gradebookLookupBase}/gradebook-items`}
+      data-lti-workflow-states-url-base={`${gradebookLookupBase}/gradebook-items`}
+    >
       <h2>{input.option.title}</h2>
       <p class="lti-deep-link__meta">Template ID: {input.option.badgeTemplateId}</p>
       {input.option.description === null ? (
@@ -369,6 +378,9 @@ const DeepLinkOption = (input: {
             ))}
           </div>
           <div class="lti-deep-link__setup-fields">
+            <div class="lti-deep-link__notice" data-lti-gradebook-status role="status" hidden>
+              <span data-lti-gradebook-status-message></span>
+            </div>
             <CtField label="Score threshold" compact={true}>
               <CtInput
                 name="score_threshold"
@@ -381,14 +393,40 @@ const DeepLinkOption = (input: {
               />
               <CtFieldHint id={thresholdHintId}>Used by score threshold presets.</CtFieldHint>
             </CtField>
-            <CtField label="Gradebook item or assignment ID" compact={true}>
+            <CtField label="Search gradebook item" compact={true}>
+              <CtInput
+                type="search"
+                placeholder="Search by gradebook item, assignment, assessment, or activity title"
+                dataAttributes={{ "data-lti-gradebook-item-query": "true" }}
+              />
               <CtInput
                 name="gradebook_item_id"
-                type="text"
-                placeholder="assignment-123"
-                describedBy={itemHintId}
+                type="hidden"
+                dataAttributes={{ "data-lti-gradebook-item-hidden": "true" }}
               />
-              <CtFieldHint id={itemHintId}>Used by gradebook and assignment presets.</CtFieldHint>
+              <CtSelect
+                describedBy={itemHintId}
+                dataAttributes={{ "data-lti-gradebook-item-select": "true" }}
+              >
+                <option value="">Loading gradebook items...</option>
+              </CtSelect>
+              <CtFieldHint id={itemHintId}>
+                Used by gradebook item score and assignment/assessment/activity presets.
+              </CtFieldHint>
+            </CtField>
+            <CtField label="Workflow states" compact={true}>
+              <CtSelect
+                name="workflow_states"
+                multiple={true}
+                size={4}
+                describedBy={workflowHintId}
+                dataAttributes={{ "data-lti-workflow-state-select": "true" }}
+              >
+                <option value="">Select a gradebook item first</option>
+              </CtSelect>
+              <CtFieldHint id={workflowHintId}>
+                Used by the assignment/assessment/activity submitted or graded preset.
+              </CtFieldHint>
             </CtField>
             <CtField label="Completion percentage" compact={true}>
               <CtInput
@@ -423,6 +461,7 @@ const DeepLinkOption = (input: {
 export const ltiDeepLinkSelectionPage = (input: LtiDeepLinkSelectionPageInput): AppPage => {
   return ltiPage({
     title: "LTI Deep Linking | CredTrail",
+    scripts: ["ltiDeepLinkSetupJs"],
     body: (
       <section class="lti-deep-link">
         <header class="lti-deep-link__hero">

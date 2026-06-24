@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderAppPageToString } from "../ui/render-page";
-import { ltiLaunchResultPage } from "./pages";
+import { ltiDeepLinkSelectionPage, ltiLaunchResultPage } from "./pages";
 import type {
   LtiBadgeSummaryCard,
   LtiBulkIssuanceView,
@@ -120,6 +120,48 @@ const sampleLearnerBadgeSummaryView = (
     ...overrides,
   };
 };
+
+describe("ltiDeepLinkSelectionPage", () => {
+  it("renders the setup form with Sakai gradebook evidence pickers", () => {
+    const html = renderAppPageToString(
+      ltiDeepLinkSelectionPage({
+        issuer: "https://canvas.example.edu",
+        deploymentId: "deployment_123",
+        tenantId: "tenant_123",
+        userId: "usr_lti_123",
+        membershipRole: "issuer",
+        ltiSessionId: "lti-session-123",
+        deepLinkReturnUrl: "https://canvas.example.edu/deep-link-return",
+        targetLinkUri: "https://credtrail.example.edu/v1/lti/launch",
+        mode: "signed",
+        signedSelectionActionUrl: "/v1/lti/deep-linking/select",
+        options: [
+          {
+            badgeTemplateId: "badge_template_001",
+            title: "TypeScript Foundations",
+            description: "Awarded for completing TypeScript fundamentals.",
+            launchUrl:
+              "https://credtrail.example.edu/v1/lti/launch?badgeTemplateId=badge_template_001",
+            advancedSetupUrl:
+              "/tenants/tenant_123/admin/rules/new?badgeTemplateId=badge_template_001",
+          },
+        ],
+      }),
+    );
+
+    expect(html).toContain("/assets/ui/lti-deep-link-setup.");
+    expect(html).toContain('data-lti-gradebook-setup="true"');
+    expect(html).toContain(
+      'data-lti-gradebook-items-url="/v1/lti/deep-linking/sessions/lti-session-123/gradebook-items"',
+    );
+    expect(html).toContain("Search gradebook item");
+    expect(html).toContain("assignment/assessment/activity");
+    expect(html).toContain('name="gradebook_item_id" type="hidden"');
+    expect(html).toContain('name="workflow_states"');
+    expect(html).toContain("Loading gradebook items...");
+    expect(html).not.toContain("Gradebook item or assignment ID");
+  });
+});
 
 describe("ltiLaunchResultPage", () => {
   it("renders learner greeting, dashboard handoff, badge rows, and no troubleshooting details", () => {

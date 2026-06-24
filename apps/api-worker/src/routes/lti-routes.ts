@@ -2,12 +2,15 @@ import {
   findBadgeTemplateById,
   findLtiLaunchSessionById,
   listBadgeTemplates,
+  listTenantLmsConnections,
   upsertLtiDeployment,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import { parseLtiOidcLoginInitiationRequest } from "@credtrail/lti";
+import { parseTenantLmsConnectionCourseSearchQuery } from "@credtrail/validation";
 import type { Hono } from "hono";
+import type { LTISession } from "@lti-tool/core";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import { renderAppPage } from "../ui/render-page";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
@@ -26,6 +29,7 @@ import {
 import { createCredTrailLtiTool } from "../lti/credtrail-lti-tool";
 import {
   ltiCourseBadgeSetupRuleDefinition,
+  matchingSakaiLmsConnection,
   parseLtiCourseBadgeSetupPreset,
 } from "../lti/course-badge-setup";
 import { createLtiCourseBadgeSetupToken } from "../lti/course-badge-setup-token";
@@ -45,6 +49,15 @@ import {
   ltiSessionMatchesIssuanceAction,
   selectedLearnerUserIdsFromForm,
 } from "../lti/roster-issuance-helpers";
+import { createGradebookProviderForConnection } from "./tenant-lms-connection-helpers";
+import {
+  assignmentMatches,
+  defaultWorkflowStates,
+  LMS_PICKER_MAX_GRADEBOOK_ITEMS,
+  lmsLookupErrorMessage,
+  mergeWorkflowStates,
+  observedWorkflowStates,
+} from "./tenant-lms-connection-routes";
 import { asNonEmptyString } from "../utils/value-parsers";
 
 const LTI_COURSE_BADGE_SETUP_TOKEN_TTL_SECONDS = 60 * 60;
@@ -59,6 +72,23 @@ const optionalNumberFromForm = (value: FormDataEntryValue | null): number | unde
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : undefined;
 };
+
+const nonEmptyStringArrayFromForm = (
+  values: readonly FormDataEntryValue[],
+): string[] | undefined => {
+  const normalized = values
+    .map((value) => asNonEmptyString(value))
+    .filter((value): value is string => value !== null)
+    .filter((value, index, allValues) => allValues.indexOf(value) === index);
+  return normalized.length === 0 ? undefined : normalized;
+};
+
+interface ResolvedLtiGradebookLookup {
+  tenantId: string;
+  ltiSession: LTISession;
+  connection: NonNullable<ReturnType<typeof matchingSakaiLmsConnection>>;
+  provider: Awaited<ReturnType<typeof createGradebookProviderForConnection>>;
+}
 
 interface RegisterLtiRoutesInput {
   app: Hono<AppEnv>;
@@ -104,6 +134,129 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     createLtiSession,
     issueBadgeForTenant,
   } = input;
+
+  const resolveLtiGradebookLookup = async (
+    c: AppContext,
+    ltiSessionId: string,
+  ): Promise<ResolvedLtiGradebookLookup | Response> => {
+    const db = resolveDatabase(c.env);
+    const persistedSession = await findLtiLaunchSessionById(db, ltiSessionId);
+
+    if (persistedSession === null) {
+      return c.json(
+        {
+          error: "LTI Deep Linking session was not found or is no longer active",
+        },
+        404,
+      );
+    }
+
+    let ltiSession: LTISession;
+
+    try {
+      ltiSession = JSON.parse(persistedSession.dataJson) as LTISession;
+    } catch {
+      return c.json({ error: "LTI launch session data is invalid" }, 400);
+    }
+
+    if (ltiSession.services?.deepLinking === undefined) {
+      return c.json(
+        {
+          error: "LTI Deep Linking session was not found or is no longer active",
+        },
+        404,
+      );
+    }
+
+    if (ltiSession.isInstructor !== true) {
+      return c.json({ error: "LTI instructor role is required for gradebook lookup" }, 403);
+    }
+
+    if (persistedSession.userId === null) {
+      return c.json(
+        {
+          error: "LTI launch session is missing linked user context",
+        },
+        400,
+      );
+    }
+
+    const tenantId = persistedSession.tenantId;
+
+    if (tenantId === null) {
+      return c.json(
+        {
+          error: "LTI launch session is missing tenant context",
+        },
+        400,
+      );
+    }
+
+    if (ltiSession.context.id.trim().length === 0) {
+      return c.json(
+        {
+          error: "LTI course context is required for gradebook lookup",
+        },
+        400,
+      );
+    }
+
+    const issuerRegistry = await resolveLtiIssuerRegistry(c);
+    const issuerMatch = findLtiIssuerRegistryEntry(
+      issuerRegistry,
+      ltiSession.platform.issuer,
+      ltiSession.platform.clientId,
+    );
+
+    if (issuerMatch === null || issuerMatch.entry.tenantId !== tenantId) {
+      return c.json(
+        {
+          error: "LTI issuer registration was not found for this Deep Linking session",
+        },
+        404,
+      );
+    }
+
+    const connections = await listTenantLmsConnections(db, tenantId);
+    const connection = matchingSakaiLmsConnection(connections, {
+      issuer: ltiSession.platform.issuer,
+      clientId: ltiSession.platform.clientId,
+      deploymentId: ltiSession.platform.deploymentId,
+    });
+
+    if (connection === null) {
+      return c.json(
+        {
+          error:
+            "CredTrail could not find a Sakai gradebook connection linked to this LTI launch. Add a Sakai LMS connection with matching issuer, client, and deployment before using gradebook evidence.",
+        },
+        409,
+      );
+    }
+
+    try {
+      return {
+        tenantId,
+        ltiSession,
+        connection,
+        provider: await createGradebookProviderForConnection({
+          db,
+          connection,
+          nowIso: new Date().toISOString(),
+        }),
+      };
+    } catch (error) {
+      return c.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Sakai gradebook access is unavailable. Save Sakai username and password credentials for an account that can view the target site and gradebook.",
+        },
+        409,
+      );
+    }
+  };
 
   const ltiOidcLoginHandler = async (c: AppContext): Promise<Response> => {
     let registry: LtiIssuerRegistry;
@@ -216,6 +369,98 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     resolveDatabase,
   });
 
+  app.get("/v1/lti/deep-linking/sessions/:ltiSessionId/gradebook-items", async (c) => {
+    const ltiSessionId = asNonEmptyString(c.req.param("ltiSessionId"));
+
+    if (ltiSessionId === null) {
+      return c.json({ error: "ltiSessionId is required" }, 400);
+    }
+
+    const resolved = await resolveLtiGradebookLookup(c, ltiSessionId);
+
+    if (resolved instanceof Response) {
+      return resolved;
+    }
+
+    const query = parseTenantLmsConnectionCourseSearchQuery(c.req.query());
+
+    try {
+      const items = (
+        await resolved.provider.listAssignments({
+          courseId: resolved.ltiSession.context.id,
+        })
+      )
+        .filter((assignment) => assignmentMatches(query.q, assignment))
+        .slice(0, LMS_PICKER_MAX_GRADEBOOK_ITEMS);
+
+      return c.json({
+        tenantId: resolved.tenantId,
+        connectionId: resolved.connection.id,
+        courseId: resolved.ltiSession.context.id,
+        items,
+      });
+    } catch (error) {
+      return c.json(
+        {
+          error: lmsLookupErrorMessage(
+            resolved.connection,
+            error,
+            "Unable to list Sakai gradebook items",
+          ),
+        },
+        502,
+      );
+    }
+  });
+
+  app.get(
+    "/v1/lti/deep-linking/sessions/:ltiSessionId/gradebook-items/:assignmentId/workflow-states",
+    async (c) => {
+      const ltiSessionId = asNonEmptyString(c.req.param("ltiSessionId"));
+      const assignmentId = asNonEmptyString(c.req.param("assignmentId"));
+
+      if (ltiSessionId === null || assignmentId === null) {
+        return c.json({ error: "ltiSessionId and assignmentId are required" }, 400);
+      }
+
+      const resolved = await resolveLtiGradebookLookup(c, ltiSessionId);
+
+      if (resolved instanceof Response) {
+        return resolved;
+      }
+
+      try {
+        const submissions = await resolved.provider.listSubmissions({
+          courseId: resolved.ltiSession.context.id,
+          assignmentId,
+        });
+        const states = mergeWorkflowStates({
+          defaults: defaultWorkflowStates(resolved.connection.providerKind),
+          observedStates: observedWorkflowStates(submissions),
+        });
+
+        return c.json({
+          tenantId: resolved.tenantId,
+          connectionId: resolved.connection.id,
+          courseId: resolved.ltiSession.context.id,
+          assignmentId,
+          states,
+        });
+      } catch (error) {
+        return c.json(
+          {
+            error: lmsLookupErrorMessage(
+              resolved.connection,
+              error,
+              "Unable to list workflow state options",
+            ),
+          },
+          502,
+        );
+      }
+    },
+  );
+
   app.post(LTI_DEEP_LINKING_SELECT_PATH, async (c): Promise<Response> => {
     const form = await c.req.formData();
     const ltiSessionId = asNonEmptyString(form.get("lti_session_id"));
@@ -296,6 +541,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       scoreThreshold: optionalNumberFromForm(form.get("score_threshold")),
       gradebookItemId: asNonEmptyString(form.get("gradebook_item_id")) ?? undefined,
       completionPercent: optionalNumberFromForm(form.get("completion_percent")),
+      workflowStates: nonEmptyStringArrayFromForm(form.getAll("workflow_states")),
     };
     const ruleDefinition = ltiCourseBadgeSetupRuleDefinition(contextId, setupRequest);
 

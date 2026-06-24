@@ -40,6 +40,17 @@ const optionalString = (value: unknown): string | undefined => {
   return typeof value === "string" && value.trim().length > 0 ? value : undefined;
 };
 
+const optionalStringArray = (value: unknown): readonly string[] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized = value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter((item, index, allItems) => item.length > 0 && allItems.indexOf(item) === index);
+  return normalized.length === 0 ? undefined : normalized;
+};
+
 const parseSetupRequest = (value: unknown): LtiCourseBadgeSetupRequest | null => {
   if (value === null || typeof value !== "object") {
     return null;
@@ -57,6 +68,7 @@ const parseSetupRequest = (value: unknown): LtiCourseBadgeSetupRequest | null =>
     scoreThreshold: optionalNumber(candidate.scoreThreshold),
     gradebookItemId: optionalString(candidate.gradebookItemId),
     completionPercent: optionalNumber(candidate.completionPercent),
+    workflowStates: optionalStringArray(candidate.workflowStates),
   };
 };
 

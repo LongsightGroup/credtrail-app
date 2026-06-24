@@ -65,11 +65,15 @@ export const PAGE_ASSET_MANIFEST = {
   },
   ltiPagesCss: {
     kind: "style",
-    path: "/assets/ui/lti-pages.df36d75d0c.css",
+    path: "/assets/ui/lti-pages.04608bafbf.css",
   },
   ltiCourseSummaryJs: {
     kind: "script",
     path: "/assets/ui/lti-course-summary.418df1a55e.js",
+  },
+  ltiDeepLinkSetupJs: {
+    kind: "script",
+    path: "/assets/ui/lti-deep-link-setup.e66f461dd2.js",
   },
   ltiPostMessageStorageJs: {
     kind: "script",

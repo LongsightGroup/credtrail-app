@@ -29,6 +29,7 @@ export interface LtiCourseBadgeSetupRequest {
   scoreThreshold?: number | undefined;
   gradebookItemId?: string | undefined;
   completionPercent?: number | undefined;
+  workflowStates?: readonly string[] | undefined;
 }
 
 export interface LtiCourseBadgeSetupPresetSpec {
@@ -113,6 +114,13 @@ const boundedPercent = (value: number | undefined): number | undefined => {
   return Math.min(100, Math.max(0, value));
 };
 
+const normalizedWorkflowStates = (values: readonly string[] | undefined): string[] | undefined => {
+  const normalized = values
+    ?.map((value) => value.trim())
+    .filter((value, index, allValues) => value.length > 0 && allValues.indexOf(value) === index);
+  return normalized === undefined || normalized.length === 0 ? undefined : normalized;
+};
+
 const ruleTitle = (value: string): string => {
   return value.length <= 200 ? value : `${value.slice(0, 197)}...`;
 };
@@ -123,7 +131,7 @@ const ltiContextTitle = (ltiSession: LTISession): string => {
     : ltiSession.context.id;
 };
 
-const matchingSakaiLmsConnection = (
+export const matchingSakaiLmsConnection = (
   connections: readonly TenantLmsConnectionRecord[],
   input: {
     issuer: string;
@@ -206,6 +214,7 @@ export const ltiCourseBadgeSetupRuleDefinition = (
       if (assignmentId === undefined) {
         return null;
       }
+      const workflowStates = normalizedWorkflowStates(request.workflowStates) ?? ["graded"];
 
       return parseBadgeIssuanceRuleDefinition({
         conditions: {
@@ -213,7 +222,7 @@ export const ltiCourseBadgeSetupRuleDefinition = (
           courseId,
           assignmentId,
           requireSubmitted: true,
-          workflowStates: ["submitted", "graded", "returned"],
+          workflowStates,
         },
         options: {
           reviewOnMissingFacts: true,

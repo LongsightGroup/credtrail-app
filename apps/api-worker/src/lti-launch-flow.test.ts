@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setCookie } from "hono/cookie";
 
+const mockedCreateGradebookProvider = vi.hoisted(() => vi.fn());
+
 vi.mock("@credtrail/db", async () => {
   const actual = await vi.importActual<typeof import("@credtrail/db")>("@credtrail/db");
 
@@ -44,6 +46,12 @@ vi.mock("@credtrail/db", async () => {
 vi.mock("@credtrail/db/postgres", () => {
   return {
     createPostgresDatabase: vi.fn(),
+  };
+});
+
+vi.mock("./lms/gradebook-provider", () => {
+  return {
+    createGradebookProvider: mockedCreateGradebookProvider,
   };
 });
 
@@ -644,6 +652,48 @@ const sampleLtiLaunchSessionRecord = (
   };
 };
 
+const sampleDeepLinkingLtiSession = (overrides?: Partial<LTISession>): LTISession => {
+  return {
+    id: "lti-session-123",
+    jwtPayload: {},
+    user: {
+      id: "user-999",
+      roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
+    },
+    context: {
+      id: "course-123",
+      label: "TS101",
+      title: "TypeScript 101",
+    },
+    platform: {
+      issuer: "https://canvas.example.edu",
+      clientId: "canvas-client-123",
+      deploymentId: "deployment-123",
+      name: "Canvas",
+    },
+    launch: {
+      target: "https://tool.example.edu/v1/lti/launch",
+    },
+    services: {
+      deepLinking: {
+        returnUrl: "https://canvas.example.edu/api/lti/deep_link_return",
+        acceptTypes: ["ltiResourceLink"],
+        acceptPresentationDocumentTargets: [],
+        acceptMultiple: false,
+        autoCreate: false,
+      },
+    },
+    customParameters: {},
+    isAdmin: false,
+    isInstructor: true,
+    isStudent: false,
+    isAssignmentAndGradesAvailable: false,
+    isDeepLinkingAvailable: true,
+    isNameAndRolesAvailable: false,
+    ...overrides,
+  };
+};
+
 const bytesToBase64UrlForTest = (bytes: Uint8Array): string => {
   let raw = "";
 
@@ -727,6 +777,39 @@ describe("LTI 1.3 core launch flow", () => {
     fakeDbPrepare.mockClear();
     mockedCreatePostgresDatabase.mockReset();
     mockedCreatePostgresDatabase.mockReturnValue(fakeDb);
+    mockedCreateGradebookProvider.mockReset();
+    mockedCreateGradebookProvider.mockReturnValue({
+      kind: "sakai",
+      listCourses: () => Promise.resolve([]),
+      listAssignments: () =>
+        Promise.resolve([
+          {
+            assignmentId: "assignment_1",
+            courseId: "course-123",
+            title: "Final project",
+            workflowState: "published",
+            pointsPossible: 100,
+            dueAt: null,
+          },
+        ]),
+      listEnrollments: () => Promise.resolve([]),
+      listSubmissions: () =>
+        Promise.resolve([
+          {
+            courseId: "course-123",
+            assignmentId: "assignment_1",
+            learnerId: "learner-001",
+            workflowState: "returned",
+            score: 95,
+            submittedAt: "2026-02-10T22:00:00.000Z",
+            gradedAt: "2026-02-10T22:00:00.000Z",
+            late: null,
+            missing: null,
+          },
+        ]),
+      listGrades: () => Promise.resolve([]),
+      listCompletions: () => Promise.resolve([]),
+    });
     mockedCreateAuthIdentityLink.mockReset();
     mockedCreateAuthIdentityLink.mockImplementation(
       async (_db, input): Promise<(typeof authIdentityLinks)[number]> => {
@@ -2911,6 +2994,154 @@ describe("LTI 1.3 core launch flow", () => {
       ruleId: "brl_lti_rule_123",
       createdByUserId: linkedUserId,
     });
+  });
+
+  it("lists Sakai gradebook items for an instructor Deep Linking setup session", async () => {
+    const env = createLtiEnv();
+    mockedFindLtiLaunchSessionById.mockResolvedValue(
+      sampleLtiLaunchSessionRecord({
+        dataJson: JSON.stringify(sampleDeepLinkingLtiSession()),
+      }),
+    );
+    mockedListTenantLmsConnections.mockResolvedValue([
+      sampleTenantLmsConnection({
+        accessToken: "JSESSIONID=sakai-session.Sakai",
+      }),
+    ]);
+
+    const response = await app.request(
+      "/v1/lti/deep-linking/sessions/lti-session-123/gradebook-items?q=final",
+      undefined,
+      env,
+    );
+    const body = await response.json<{
+      tenantId: string;
+      connectionId: string;
+      courseId: string;
+      items: Array<{ assignmentId: string; title: string }>;
+    }>();
+
+    expect(response.status).toBe(200);
+    expect(body.tenantId).toBe(tenantId);
+    expect(body.connectionId).toBe("lms_sakai_001");
+    expect(body.courseId).toBe("course-123");
+    expect(body.items).toEqual([
+      expect.objectContaining({
+        assignmentId: "assignment_1",
+        title: "Final project",
+      }),
+    ]);
+  });
+
+  it("lists known workflow states for a selected Sakai gradebook item", async () => {
+    const env = createLtiEnv();
+    mockedFindLtiLaunchSessionById.mockResolvedValue(
+      sampleLtiLaunchSessionRecord({
+        dataJson: JSON.stringify(sampleDeepLinkingLtiSession()),
+      }),
+    );
+    mockedListTenantLmsConnections.mockResolvedValue([
+      sampleTenantLmsConnection({
+        accessToken: "JSESSIONID=sakai-session.Sakai",
+      }),
+    ]);
+
+    const response = await app.request(
+      "/v1/lti/deep-linking/sessions/lti-session-123/gradebook-items/assignment_1/workflow-states",
+      undefined,
+      env,
+    );
+    const body = await response.json<{
+      states: Array<{ value: string; source: string; preselected: boolean }>;
+    }>();
+
+    expect(response.status).toBe(200);
+    expect(body.states).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: "graded", source: "default", preselected: true }),
+        expect.objectContaining({ value: "returned", source: "observed", preselected: false }),
+      ]),
+    );
+  });
+
+  it("returns fallback guidance when no matching Sakai gradebook connection exists", async () => {
+    const env = createLtiEnv();
+    mockedFindLtiLaunchSessionById.mockResolvedValue(
+      sampleLtiLaunchSessionRecord({
+        dataJson: JSON.stringify(sampleDeepLinkingLtiSession()),
+      }),
+    );
+    mockedListTenantLmsConnections.mockResolvedValue([]);
+
+    const response = await app.request(
+      "/v1/lti/deep-linking/sessions/lti-session-123/gradebook-items",
+      undefined,
+      env,
+    );
+    const body = await response.json<ErrorResponse>();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toContain("could not find a Sakai gradebook connection");
+    expect(body.error).toContain("matching issuer, client, and deployment");
+  });
+
+  it("returns fallback guidance when the Sakai connection lacks usable credentials", async () => {
+    const env = createLtiEnv();
+    mockedFindLtiLaunchSessionById.mockResolvedValue(
+      sampleLtiLaunchSessionRecord({
+        dataJson: JSON.stringify(sampleDeepLinkingLtiSession()),
+      }),
+    );
+    mockedListTenantLmsConnections.mockResolvedValue([sampleTenantLmsConnection()]);
+
+    const response = await app.request(
+      "/v1/lti/deep-linking/sessions/lti-session-123/gradebook-items",
+      undefined,
+      env,
+    );
+    const body = await response.json<ErrorResponse>();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toContain("Sakai username and password");
+    expect(mockedCreateGradebookProvider).not.toHaveBeenCalled();
+  });
+
+  it("returns actionable Sakai permission guidance when gradebook lookup is blocked", async () => {
+    const env = createLtiEnv();
+    mockedFindLtiLaunchSessionById.mockResolvedValue(
+      sampleLtiLaunchSessionRecord({
+        dataJson: JSON.stringify(sampleDeepLinkingLtiSession()),
+      }),
+    );
+    mockedListTenantLmsConnections.mockResolvedValue([
+      sampleTenantLmsConnection({
+        accessToken: "JSESSIONID=sakai-session.Sakai",
+      }),
+    ]);
+    mockedCreateGradebookProvider.mockReturnValue({
+      kind: "sakai",
+      listCourses: () => Promise.resolve([]),
+      listAssignments: () =>
+        Promise.reject(
+          new Error("Sakai gradebook API request failed (403) for /api/users/me/sites"),
+        ),
+      listEnrollments: () => Promise.resolve([]),
+      listSubmissions: () => Promise.resolve([]),
+      listGrades: () => Promise.resolve([]),
+      listCompletions: () => Promise.resolve([]),
+    });
+
+    const response = await app.request(
+      "/v1/lti/deep-linking/sessions/lti-session-123/gradebook-items",
+      undefined,
+      env,
+    );
+    const body = await response.json<ErrorResponse>();
+
+    expect(response.status).toBe(502);
+    expect(body.error).toContain("Sakai blocked CredTrail from reading your site list (403).");
+    expect(body.error).toContain("Save a Sakai username and password");
+    expect(body.error).toContain("allow REST API access to Sites and Gradebook");
   });
 
   it("accepts instructor deep linking launch and renders badge template placement forms", async () => {

@@ -43,7 +43,7 @@ interface RegisterTenantLmsConnectionRoutesInput {
   ADMIN_ROLES: readonly TenantMembershipRole[];
 }
 
-interface WorkflowStateOption {
+export interface WorkflowStateOption {
   value: string;
   label: string;
   source: "default" | "observed";
@@ -59,7 +59,7 @@ const searchMatches = (query: string | undefined, values: readonly (string | nul
   return values.some((value) => value !== null && value.toLowerCase().includes(normalizedQuery));
 };
 
-const assignmentMatches = (
+export const assignmentMatches = (
   query: string | undefined,
   assignment: GradebookAssignmentRecord,
 ): boolean => {
@@ -73,7 +73,7 @@ const assignmentMatches = (
 
 /** Admin LMS pickers load results into HTML selects; keep HTTP payloads bounded. */
 const LMS_PICKER_MAX_COURSES = 100;
-const LMS_PICKER_MAX_GRADEBOOK_ITEMS = 200;
+export const LMS_PICKER_MAX_GRADEBOOK_ITEMS = 200;
 
 const workflowStateLabel = (value: string): string => {
   return value
@@ -82,7 +82,7 @@ const workflowStateLabel = (value: string): string => {
     .join(" ");
 };
 
-const defaultWorkflowStates = (
+export const defaultWorkflowStates = (
   providerKind: "canvas" | "sakai",
 ): readonly WorkflowStateOption[] => {
   if (providerKind === "canvas") {
@@ -97,7 +97,7 @@ const defaultWorkflowStates = (
   return [{ value: "graded", label: "Graded", source: "default", preselected: true }];
 };
 
-const mergeWorkflowStates = (input: {
+export const mergeWorkflowStates = (input: {
   defaults: readonly WorkflowStateOption[];
   observedStates: Iterable<string>;
 }): WorkflowStateOption[] => {
@@ -156,7 +156,7 @@ const resolvedProviderForTenantConnection = async (input: {
   }
 };
 
-const lmsLookupErrorMessage = (
+export const lmsLookupErrorMessage = (
   connection: ResolvedGradebookProvider["connection"],
   error: unknown,
   fallback: string,
@@ -174,7 +174,9 @@ const lmsLookupErrorMessage = (
   return rawMessage;
 };
 
-const observedWorkflowStates = (submissions: readonly GradebookSubmissionRecord[]): Set<string> => {
+export const observedWorkflowStates = (
+  submissions: readonly GradebookSubmissionRecord[],
+): Set<string> => {
   const states = new Set<string>();
 
   for (const submission of submissions) {

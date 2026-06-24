@@ -653,12 +653,19 @@ export const LTI_PAGES_CSS = `
 }
 
 .lti-deep-link__notice {
+  grid-column: 1 / -1;
   margin: 0;
   padding: 0.75rem;
   border-radius: 0.7rem;
   border: 1px solid var(--ct-theme-border-warning);
   background: var(--ct-theme-surface-warning);
   color: var(--ct-theme-state-warning);
+}
+
+.lti-deep-link__notice[data-tone="error"] {
+  border-color: var(--ct-theme-border-danger);
+  background: var(--ct-theme-surface-danger);
+  color: var(--ct-theme-state-danger);
 }
 
 .lti-deep-link__empty {

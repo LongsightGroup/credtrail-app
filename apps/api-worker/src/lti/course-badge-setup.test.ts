@@ -62,6 +62,7 @@ describe("ltiCourseBadgeSetupRuleDefinition", () => {
       ltiCourseBadgeSetupRuleDefinition("course-123", {
         preset: "assignment_submitted_or_graded",
         gradebookItemId: "assignment-2",
+        workflowStates: ["submitted", "graded"],
       }),
     ).toMatchObject({
       conditions: {
@@ -69,7 +70,24 @@ describe("ltiCourseBadgeSetupRuleDefinition", () => {
         courseId: "course-123",
         assignmentId: "assignment-2",
         requireSubmitted: true,
-        workflowStates: ["submitted", "graded", "returned"],
+        workflowStates: ["submitted", "graded"],
+      },
+    });
+  });
+
+  it("defaults assignment submitted or graded to Sakai graded workflow evidence", () => {
+    expect(
+      ltiCourseBadgeSetupRuleDefinition("course-123", {
+        preset: "assignment_submitted_or_graded",
+        gradebookItemId: "assignment-2",
+      }),
+    ).toMatchObject({
+      conditions: {
+        type: "assignment_submission",
+        courseId: "course-123",
+        assignmentId: "assignment-2",
+        requireSubmitted: true,
+        workflowStates: ["graded"],
       },
     });
   });
