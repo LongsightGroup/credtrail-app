@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdminActions, AdminButton, AdminButtonLink } from "./components";
+import { AdminActions, AdminButton, AdminButtonLink } from "./actions";
 
 const renderToString = (node: { toString(): string }): string => {
   return node.toString();

@@ -77,7 +77,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   publicBadgeCss: {
     kind: "style",
-    path: "/assets/ui/public-badge.d447b35654.css",
+    path: "/assets/ui/public-badge.3794aeb8ec.css",
   },
   publicBadgeJs: {
     kind: "script",

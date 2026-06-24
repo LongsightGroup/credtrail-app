@@ -633,9 +633,6 @@ export const PUBLIC_BADGE_CSS = `
   .public-badge__card {
     animation: none;
   }
-  .public-badge__button {
-    transition: none;
-  }
 }
 
 .badge-wall {

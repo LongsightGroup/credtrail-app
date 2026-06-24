@@ -3,30 +3,25 @@ import type { HtmlEscapedString } from "hono/utils/html";
 import type { BadgeIssuanceRuleValueListRecord, TenantAssertionSummaryRecord } from "@credtrail/db";
 import type { BadgeRuleReviewQueueEntryView } from "../badge-rule-review-queue-workspace";
 import { formatBadgeRuleReviewQueueSummary } from "../badge-rule-review-queue-workspace";
-import {
-  CtActionGroup,
-  CtButton,
-  CtButtonLink,
-  type CtActionSize,
-  type CtDataAttributes,
-  type CtLegacyActionVariant,
-  ctActionVariantFromLegacy,
-} from "../ui/actions";
+import type { CtDataAttributes } from "../ui/actions";
+import { AdminButton, AdminButtonLink } from "./actions";
 import {
   formatRuleValueListKind,
   formatRuleValueListValuesSummary,
 } from "./rule-value-lists-presentation";
 import { adminStatusPillClass } from "./admin-status-pill-class";
 import { formatIsoTimestamp } from "../utils/display-format";
+export {
+  AdminActions,
+  AdminButton,
+  AdminButtonLink,
+  adminButtonClass,
+  type AdminButtonSize,
+  type AdminButtonVariant,
+} from "./actions";
 export { AdminSidebar, type AdminSidebarFooterLink, type AdminSidebarSection } from "./sidebar";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
-
-export type AdminButtonVariant = Extract<
-  CtLegacyActionVariant,
-  "primary" | "secondary" | "ghost" | "danger"
->;
-export type AdminButtonSize = "default" | "tiny";
 
 type ButtonType = "button" | "submit" | "reset";
 type FormMethod = "get" | "post";
@@ -43,20 +38,6 @@ export interface AdminTableHeader {
 }
 
 export type AdminPanelVariant = "default" | "table" | "nested";
-
-export const adminButtonClass = (input?: { extraClass?: string | undefined }): string => {
-  const classNames = ["ct-admin__button"];
-
-  if (input?.extraClass !== undefined && input.extraClass.trim().length > 0) {
-    classNames.push(input.extraClass.trim());
-  }
-
-  return classNames.join(" ");
-};
-
-const adminButtonSizeToCtSize = (size: AdminButtonSize | undefined): CtActionSize => {
-  return size === "tiny" ? "sm" : "md";
-};
 
 const normalizedExtraClass = (className: string | undefined): string | undefined => {
   const normalizedClassName = className?.trim();
@@ -109,87 +90,6 @@ export const adminMetricCardClass = (input?: {
   }
 
   return classNames.join(" ");
-};
-
-export const AdminButton = ({
-  id,
-  type = "button",
-  variant,
-  size,
-  disabled,
-  hidden,
-  form,
-  formAction,
-  className,
-  ariaLabel,
-  dataAttributes,
-  children,
-}: PropsWithChildren<{
-  id?: string;
-  type?: ButtonType;
-  variant?: AdminButtonVariant;
-  size?: AdminButtonSize;
-  disabled?: boolean;
-  hidden?: boolean;
-  form?: string;
-  formAction?: string;
-  className?: string;
-  ariaLabel?: string;
-  dataAttributes?: DataAttributes;
-}>): HonoElement => {
-  return (
-    <CtButton
-      id={id}
-      type={type}
-      form={form}
-      formAction={formAction}
-      variant={ctActionVariantFromLegacy(variant)}
-      size={adminButtonSizeToCtSize(size)}
-      className={adminButtonClass({ extraClass: className })}
-      disabled={disabled}
-      hidden={hidden}
-      ariaLabel={ariaLabel}
-      dataAttributes={dataAttributes}
-    >
-      {children}
-    </CtButton>
-  );
-};
-
-export const AdminButtonLink = ({
-  href,
-  variant,
-  size,
-  target,
-  rel,
-  className,
-  ariaLabel,
-  dataAttributes,
-  children,
-}: PropsWithChildren<{
-  href: string;
-  variant?: AdminButtonVariant;
-  size?: AdminButtonSize;
-  target?: "_blank";
-  rel?: string;
-  className?: string;
-  ariaLabel?: string;
-  dataAttributes?: DataAttributes;
-}>): HonoElement => {
-  return (
-    <CtButtonLink
-      href={href}
-      variant={ctActionVariantFromLegacy(variant, "secondary")}
-      size={adminButtonSizeToCtSize(size)}
-      target={target}
-      rel={rel}
-      className={adminButtonClass({ extraClass: className })}
-      ariaLabel={ariaLabel}
-      dataAttributes={dataAttributes}
-    >
-      {children}
-    </CtButtonLink>
-  );
 };
 
 export const AdminPageHeader = ({
@@ -549,33 +449,6 @@ export const AdminFieldset = ({
       <legend>{legend}</legend>
       {children}
     </fieldset>
-  );
-};
-
-export const AdminActions = ({
-  align = "start",
-  className,
-  children,
-}: PropsWithChildren<{
-  align?: "start" | "end";
-  className?: string;
-}>): HonoElement => {
-  const classNames: string[] = [];
-
-  if (align === "end") {
-    classNames.push("ct-admin__actions--end");
-  }
-
-  const extraClass = normalizedExtraClass(className);
-
-  if (extraClass !== undefined) {
-    classNames.push(extraClass);
-  }
-
-  return (
-    <CtActionGroup className={classNames.length === 0 ? undefined : classNames.join(" ")}>
-      {children}
-    </CtActionGroup>
   );
 };
 

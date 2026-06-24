@@ -633,9 +633,6 @@
   .public-badge__card {
     animation: none;
   }
-  .public-badge__button {
-    transition: none;
-  }
 }
 
 .badge-wall {
