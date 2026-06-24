@@ -101,7 +101,7 @@ export const listTenantAssertions = async (
 
   const queryLimit = Math.max(1, Math.min(input.limit ?? 100, 500));
   const { whereClauses, params } = buildAssertionRecordFilterSql(input, {
-    badgeTemplateColumn: "assertions.badge_template_id",
+    context: "ledger",
   });
 
   const listStatement = (): Promise<SqlQueryResult<TenantAssertionSummaryRow>> =>
@@ -158,7 +158,7 @@ export const listTenantAssertionLedgerExportRows = async (
   await backfillAssertionReportingAttributionsForTenant(db, input.tenantId);
 
   const { whereClauses, params } = buildAssertionRecordFilterSql(input, {
-    badgeTemplateColumn: "assertions.badge_template_id",
+    context: "ledger",
   });
 
   const rowLimit = SYNCHRONOUS_EXPORT_ROW_LIMIT;

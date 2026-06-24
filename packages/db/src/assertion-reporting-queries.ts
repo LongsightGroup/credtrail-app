@@ -41,7 +41,7 @@ export const listTenantReportingEngagementRows = async (
       orgUnitId: input.orgUnitId,
     },
     {
-      badgeTemplateColumn: "attribution.badge_template_id",
+      context: "reporting",
       includeLifecycleStatePredicate: false,
     },
   );
@@ -183,7 +183,7 @@ export const getTenantReportingOverview = async (
       orgUnitId: input.orgUnitId,
     },
     {
-      badgeTemplateColumn: "assertions.badge_template_id",
+      context: "ledger",
       includeLifecycleStatePredicate: false,
     },
   );

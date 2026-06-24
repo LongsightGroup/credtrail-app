@@ -12,7 +12,7 @@ export interface AssertionRecordFilterSqlInput {
 }
 
 export interface AssertionRecordFilterSqlOptions {
-  badgeTemplateColumn: "assertions.badge_template_id" | "attribution.badge_template_id";
+  context: "ledger" | "reporting";
   includeLifecycleStatePredicate?: boolean;
 }
 
@@ -24,6 +24,12 @@ export interface AssertionRecordFilterSql {
 export const assertionReportingAttributionJoinSql = `
         INNER JOIN assertion_reporting_attributions attribution
           ON attribution.assertion_id = assertions.id`;
+
+const assertionBadgeTemplateColumnForContext = (
+  context: AssertionRecordFilterSqlOptions["context"],
+): "assertions.badge_template_id" | "attribution.badge_template_id" => {
+  return context === "reporting" ? "attribution.badge_template_id" : "assertions.badge_template_id";
+};
 
 export const buildAssertionRecordFilterSql = (
   input: AssertionRecordFilterSqlInput,
@@ -43,7 +49,7 @@ export const buildAssertionRecordFilterSql = (
   }
 
   if (input.badgeTemplateId !== undefined) {
-    whereClauses.push(`${options.badgeTemplateColumn} = ?`);
+    whereClauses.push(`${assertionBadgeTemplateColumnForContext(options.context)} = ?`);
     params.push(input.badgeTemplateId);
   }
 
