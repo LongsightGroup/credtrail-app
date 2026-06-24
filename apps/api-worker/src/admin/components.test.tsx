@@ -32,8 +32,21 @@ describe("admin action wrappers", () => {
     expect(linkHtml).toContain("ct-admin__button");
     expect(linkHtml).not.toContain("ct-admin__button--");
     expect(linkHtml).toContain("ct-action--quiet");
+    expect(linkHtml).toContain("ct-action--sm");
     expect(groupHtml).toContain("ct-admin__actions--end");
     expect(groupHtml).toContain("ct-action-group");
+  });
+
+  it("renders admin link buttons with primitive action visual variants", () => {
+    const html = renderToString(
+      <AdminButtonLink href="/admin/badges" variant="primary" size="tiny">
+        Open
+      </AdminButtonLink>,
+    );
+
+    expect(html).toContain('class="ct-admin__button ct-action ct-action--primary ct-action--sm"');
+    expect(html).not.toContain("ct-admin__button--primary");
+    expect(html).not.toContain("ct-admin__button--tiny");
   });
 });
 

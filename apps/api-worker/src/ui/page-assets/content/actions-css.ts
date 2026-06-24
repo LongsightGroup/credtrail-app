@@ -1,5 +1,12 @@
 export const ACTIONS_CSS = `
 .ct-action {
+  --ct-action-color: var(--ct-theme-text-on-brand);
+  --ct-action-background: var(--ct-theme-gradient-action);
+  --ct-action-border: transparent;
+  --ct-action-hover-color: var(--ct-theme-text-on-brand);
+  --ct-action-hover-background: var(--ct-theme-gradient-action-hover);
+  --ct-action-hover-border: transparent;
+
   display: inline-flex;
   box-sizing: border-box;
   appearance: none;
@@ -10,8 +17,10 @@ export const ACTIONS_CSS = `
   min-inline-size: 0;
   min-block-size: 2.45rem;
   padding: 0.5rem 0.78rem;
-  border: 1px solid transparent;
+  border: 1px solid var(--ct-action-border);
   border-radius: var(--ct-radius-sm);
+  color: var(--ct-action-color);
+  background: var(--ct-action-background);
   font-family: var(--ct-font-sans);
   font-size: 0.82rem;
   font-weight: 650;
@@ -30,30 +39,43 @@ export const ACTIONS_CSS = `
 }
 
 .ct-action--primary {
-  color: var(--ct-theme-text-on-brand);
-  background: var(--ct-theme-gradient-action);
+  --ct-action-color: var(--ct-theme-text-on-brand);
+  --ct-action-background: var(--ct-theme-gradient-action);
+  --ct-action-border: transparent;
+  --ct-action-hover-color: var(--ct-theme-text-on-brand);
+  --ct-action-hover-background: var(--ct-theme-gradient-action-hover);
+  --ct-action-hover-border: transparent;
 }
 
 .ct-action--secondary {
-  color: var(--ct-color-ink);
-  border-color: var(--ct-border-strong);
-  background: linear-gradient(
+  --ct-action-color: var(--ct-color-ink);
+  --ct-action-background: linear-gradient(
     180deg,
     var(--ct-theme-surface-card-strong),
     var(--ct-theme-surface-info)
   );
+  --ct-action-border: var(--ct-border-strong);
+  --ct-action-hover-color: var(--ct-color-ink);
+  --ct-action-hover-background: var(--ct-action-background);
+  --ct-action-hover-border: var(--ct-border-strong);
 }
 
 .ct-action--quiet {
-  color: var(--ct-theme-text-body);
-  border-color: var(--ct-border-soft);
-  background: var(--ct-theme-surface-card-strong);
+  --ct-action-color: var(--ct-theme-text-body);
+  --ct-action-background: var(--ct-theme-surface-card-strong);
+  --ct-action-border: var(--ct-border-soft);
+  --ct-action-hover-color: var(--ct-theme-text-body);
+  --ct-action-hover-background: var(--ct-theme-surface-info);
+  --ct-action-hover-border: var(--ct-border-strong);
 }
 
 .ct-action--danger {
-  color: var(--ct-theme-state-danger);
-  border-color: var(--ct-theme-border-danger);
-  background: var(--ct-theme-surface-danger);
+  --ct-action-color: var(--ct-theme-state-danger);
+  --ct-action-background: var(--ct-theme-surface-danger);
+  --ct-action-border: var(--ct-theme-border-danger);
+  --ct-action-hover-color: #8f1c13;
+  --ct-action-hover-background: #ffe8e3;
+  --ct-action-hover-border: rgba(173, 61, 49, 0.34);
 }
 
 .ct-action--sm {
@@ -82,12 +104,17 @@ export const ACTIONS_CSS = `
 }
 
 .ct-action--text {
+  --ct-action-color: var(--ct-theme-link);
+  --ct-action-background: transparent;
+  --ct-action-border: transparent;
+  --ct-action-hover-color: var(--ct-theme-link-hover, var(--ct-theme-link));
+  --ct-action-hover-background: transparent;
+  --ct-action-hover-border: transparent;
+
   min-block-size: 0;
   padding: 0;
   border: 0;
   border-radius: 0;
-  background: transparent;
-  color: var(--ct-theme-link);
   font: inherit;
   font-weight: 650;
   text-align: inherit;
@@ -109,26 +136,15 @@ export const ACTIONS_CSS = `
 
 @media (hover: hover) {
   .ct-action:hover:not(:disabled) {
+    color: var(--ct-action-hover-color);
+    border-color: var(--ct-action-hover-border);
+    background: var(--ct-action-hover-background);
     transform: translateY(-1px);
     box-shadow: var(--ct-theme-shadow-soft, var(--ct-shadow-soft));
     filter: brightness(1.03);
   }
 
-  .ct-action--secondary:hover:not(:disabled) {
-    color: var(--ct-color-ink);
-    border-color: var(--ct-border-strong);
-  }
-
-  .ct-action--quiet:hover:not(:disabled) {
-    color: var(--ct-theme-text-body);
-    border-color: var(--ct-border-strong);
-    background: var(--ct-theme-surface-info);
-  }
-
   .ct-action--danger:hover:not(:disabled) {
-    border-color: rgba(173, 61, 49, 0.34);
-    background: #ffe8e3;
-    color: #8f1c13;
     box-shadow: 0 8px 16px rgba(173, 61, 49, 0.08);
     filter: none;
   }
@@ -137,7 +153,6 @@ export const ACTIONS_CSS = `
     transform: none;
     box-shadow: none;
     filter: none;
-    color: var(--ct-theme-link-hover, var(--ct-theme-link));
     text-decoration-color: currentColor;
   }
 }
@@ -182,9 +197,12 @@ export const ACTIONS_CSS = `
 
 @media (forced-colors: active) {
   .ct-action {
-    border-color: ButtonBorder;
-    color: ButtonText;
-    background: ButtonFace;
+    --ct-action-color: ButtonText;
+    --ct-action-background: ButtonFace;
+    --ct-action-border: ButtonBorder;
+    --ct-action-hover-color: ButtonText;
+    --ct-action-hover-background: ButtonFace;
+    --ct-action-hover-border: ButtonBorder;
   }
 
   .ct-action:focus-visible {

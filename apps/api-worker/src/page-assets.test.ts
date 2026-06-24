@@ -3,12 +3,44 @@ import { createContext, Script } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { INSTITUTION_ADMIN_SHELL_JS } from "./ui/page-assets/content/institution-admin-shell-js";
 import { PUBLIC_BADGE_JS } from "./ui/page-assets/content/public-badge-js";
+import { ACTIONS_CSS } from "./ui/page-assets/content/actions-css";
 import { pageAssetPath, type PageAssetKey } from "./ui/page-assets";
 
 const readGeneratedAsset = (assetKey: PageAssetKey): string => {
   const publicAssetPath = pageAssetPath(assetKey).replace(/^\//, "");
 
   return readFileSync(new URL(`../public/${publicAssetPath}`, import.meta.url), "utf8");
+};
+
+const cssRuleBody = (css: string, selector: string): string => {
+  const ruleStart = css.indexOf(`${selector} {`);
+
+  if (ruleStart === -1) {
+    return "";
+  }
+
+  const bodyStart = css.indexOf("{", ruleStart);
+  const bodyEnd = css.indexOf("}", bodyStart);
+
+  return bodyStart === -1 || bodyEnd === -1 ? "" : css.slice(bodyStart + 1, bodyEnd);
+};
+
+const cssRulesMatchingSelector = (
+  css: string,
+  predicate: (selector: string) => boolean,
+): readonly string[] => {
+  return Array.from(css.matchAll(/(?<selector>[^{}]+)\{(?<body>[^{}]+)\}/g))
+    .filter((match) => {
+      const selector = match.groups?.selector;
+
+      return selector?.split(",").some((entry) => predicate(entry.trim())) === true;
+    })
+    .map((match) => {
+      const selector = match.groups?.selector ?? "";
+      const body = match.groups?.body ?? "";
+
+      return `${selector.trim()} {${body}}`;
+    });
 };
 
 type ShellEventListener = (event: {
@@ -162,6 +194,34 @@ describe("page asset manifest", () => {
     expect(foundationCss).toContain(".ct-select");
     expect(foundationCss).toContain(".ct-textarea");
     expect(foundationCss).toContain(".ct-checkbox-field");
+  });
+
+  it("keeps action hover colors owned by action primitives", () => {
+    const actionHoverRule = cssRuleBody(ACTIONS_CSS, ".ct-action:hover:not(:disabled)");
+    const primaryRule = cssRuleBody(ACTIONS_CSS, ".ct-action--primary");
+    const textRule = cssRuleBody(ACTIONS_CSS, ".ct-action--text");
+    const nonTextActionCss = ACTIONS_CSS.replace(textRule, "");
+
+    expect(actionHoverRule).toContain("color: var(--ct-action-hover-color)");
+    expect(actionHoverRule).toContain("background: var(--ct-action-hover-background)");
+    expect(actionHoverRule).toContain("border-color: var(--ct-action-hover-border)");
+    expect(primaryRule).toContain("--ct-action-hover-color: var(--ct-theme-text-on-brand)");
+    expect(primaryRule).toContain(
+      "--ct-action-hover-background: var(--ct-theme-gradient-action-hover)",
+    );
+    expect(textRule).toContain(
+      "--ct-action-hover-color: var(--ct-theme-link-hover, var(--ct-theme-link))",
+    );
+    expect(nonTextActionCss).not.toContain("--ct-theme-link-hover");
+  });
+
+  it("keeps broad foundation link hover rules from targeting action links", () => {
+    const foundationCss = readGeneratedAsset("foundationCss");
+    const broadLinkHoverRules = cssRulesMatchingSelector(foundationCss, (selector) => {
+      return /(^|[\s>+~])a:hover\b/.test(selector);
+    }).filter((rule) => !rule.includes(":not(.ct-action)") && !rule.startsWith("a:hover {"));
+
+    expect(broadLinkHoverRules).toEqual([]);
   });
 
   it("keeps admin forms from bypassing primitive action and field contracts", () => {

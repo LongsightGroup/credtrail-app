@@ -75,8 +75,8 @@ describe("CredTrail action primitives", () => {
     const html = renderToString(
       <CtButtonLink
         href="/records"
-        variant="secondary"
-        size="lg"
+        variant="primary"
+        size="sm"
         target="_blank"
         rel="noopener noreferrer"
         ariaLabel="Open records"
@@ -91,8 +91,8 @@ describe("CredTrail action primitives", () => {
     expect(html).toContain('rel="noopener noreferrer"');
     expect(html).toContain('aria-label="Open records"');
     expect(html).toContain('data-records-link="true"');
-    expect(html).toContain("ct-action--secondary");
-    expect(html).toContain("ct-action--lg");
+    expect(html).toContain('class="ct-action ct-action--primary ct-action--sm"');
+    expect(html).not.toContain("ct-admin__button");
   });
 
   it("renders text button actions as buttons", () => {

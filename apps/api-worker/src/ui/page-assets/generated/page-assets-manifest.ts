@@ -1,7 +1,7 @@
 export const PAGE_ASSET_MANIFEST = {
   foundationCss: {
     kind: "style",
-    path: "/assets/ui/foundation.3db6cce38f.css",
+    path: "/assets/ui/foundation.f8e1fcd9a3.css",
   },
   authLoginCss: {
     kind: "style",
