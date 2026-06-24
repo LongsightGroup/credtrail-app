@@ -5,10 +5,10 @@ import {
   CtButton,
   CtButtonLink,
   type CtActionSize,
-  type CtDataAttributes,
   type CtLegacyActionVariant,
   ctActionVariantFromLegacy,
 } from "../ui/actions";
+import type { CtDataAttributes } from "../ui/jsx-utils";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 

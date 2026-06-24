@@ -7,6 +7,7 @@ import {
   AdminPanel,
   AdminStatus,
 } from "../components";
+import { CtInput, CtSelect } from "../../ui/forms";
 import { tenantLmsConnectionAdminSavePath } from "../lms-connection-admin-helpers";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -49,9 +50,9 @@ export const renderLmsConnectionSetupSection = (
         action={tenantLmsConnectionAdminSavePath(input.tenantId)}
         className="ct-admin__form ct-admin__setup-form ct-stack"
       >
-        <input name="connectionId" type="hidden" value={input.formValues.connectionId} />
+        <CtInput name="connectionId" type="hidden" value={input.formValues.connectionId} />
         <AdminField label="Connection name">
-          <input
+          <CtInput
             name="displayName"
             type="text"
             required
@@ -60,17 +61,17 @@ export const renderLmsConnectionSetupSection = (
           />
         </AdminField>
         <AdminField label="Provider">
-          <select name="providerKind" required>
+          <CtSelect name="providerKind" required>
             <option value="canvas" selected={input.formValues.providerKind !== "sakai"}>
               Canvas
             </option>
             <option value="sakai" selected={input.formValues.providerKind === "sakai"}>
               Sakai
             </option>
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="API/server URL">
-          <input
+          <CtInput
             name="apiBaseUrl"
             type="url"
             required
@@ -84,7 +85,7 @@ export const renderLmsConnectionSetupSection = (
             Sakai session internally when it reads gradebook data.
           </p>
           <AdminField label="Canvas access token">
-            <input
+            <CtInput
               name="accessToken"
               type="password"
               autocomplete="off"
@@ -92,7 +93,7 @@ export const renderLmsConnectionSetupSection = (
             />
           </AdminField>
           <AdminField label="Sakai username">
-            <input
+            <CtInput
               id="sakai-username"
               name="sakaiUsername"
               type="text"
@@ -102,7 +103,7 @@ export const renderLmsConnectionSetupSection = (
             />
           </AdminField>
           <AdminField label="Sakai password">
-            <input
+            <CtInput
               id="sakai-password"
               name="sakaiPassword"
               type="password"
@@ -120,36 +121,40 @@ export const renderLmsConnectionSetupSection = (
           </summary>
           <div class="ct-admin__advanced-tools-body ct-grid">
             <AdminField label="Refresh token (optional)">
-              <input name="refreshToken" type="password" autocomplete="off" />
+              <CtInput name="refreshToken" type="password" autocomplete="off" />
             </AdminField>
             <AdminField label="Authorization endpoint (optional)">
-              <input
+              <CtInput
                 name="authorizationEndpoint"
                 type="url"
                 placeholder="https://lms.example.edu/login/oauth2/auth"
               />
             </AdminField>
             <AdminField label="Token endpoint (optional)">
-              <input
+              <CtInput
                 name="tokenEndpoint"
                 type="url"
                 placeholder="https://lms.example.edu/login/oauth2/token"
               />
             </AdminField>
             <AdminField label="OAuth client ID (optional)">
-              <input name="clientId" type="text" autocomplete="off" />
+              <CtInput name="clientId" type="text" autocomplete="off" />
             </AdminField>
             <AdminField label="OAuth client secret (optional)">
-              <input name="clientSecret" type="password" autocomplete="off" />
+              <CtInput name="clientSecret" type="password" autocomplete="off" />
             </AdminField>
             <AdminField label="LTI issuer (optional)">
-              <input name="ltiIssuer" type="url" value={input.formValues.ltiIssuer} />
+              <CtInput name="ltiIssuer" type="url" value={input.formValues.ltiIssuer} />
             </AdminField>
             <AdminField label="LTI client ID (optional)">
-              <input name="ltiClientId" type="text" value={input.formValues.ltiClientId} />
+              <CtInput name="ltiClientId" type="text" value={input.formValues.ltiClientId} />
             </AdminField>
             <AdminField label="LTI deployment ID (optional)">
-              <input name="ltiDeploymentId" type="text" value={input.formValues.ltiDeploymentId} />
+              <CtInput
+                name="ltiDeploymentId"
+                type="text"
+                value={input.formValues.ltiDeploymentId}
+              />
             </AdminField>
           </div>
         </details>

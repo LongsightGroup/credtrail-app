@@ -14,6 +14,7 @@ import {
   ReviewQueueRows,
   RuleValueListRows,
 } from "../components";
+import { CtInput, CtSelect, CtTextarea } from "../../ui/forms";
 import {
   buildIssuedBadgesPagePath,
   issuedBadgesAssertionPageUrl,
@@ -98,13 +99,13 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
         className="ct-admin__form ct-admin__form--inline ct-grid"
       >
         <AdminField label="Issued from">
-          <input name="issuedFrom" type="date" value={issuedBadgesFilters.issuedFrom} />
+          <CtInput name="issuedFrom" type="date" value={issuedBadgesFilters.issuedFrom} />
         </AdminField>
         <AdminField label="Issued to">
-          <input name="issuedTo" type="date" value={issuedBadgesFilters.issuedTo} />
+          <CtInput name="issuedTo" type="date" value={issuedBadgesFilters.issuedTo} />
         </AdminField>
         <AdminField label="Recipient / assertion search">
-          <input
+          <CtInput
             name="recipientQuery"
             type="text"
             placeholder="recipient@example.com or tenant_123:assertion_456"
@@ -112,18 +113,18 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
           />
         </AdminField>
         <AdminField label="Badge template">
-          <select name="badgeTemplateId">{input.templateFilterOptions}</select>
+          <CtSelect name="badgeTemplateId">{input.templateFilterOptions}</CtSelect>
         </AdminField>
         <AdminField label="Org unit">
-          <select name="orgUnitId">
+          <CtSelect name="orgUnitId">
             <option value="" selected={issuedBadgesFilters.orgUnitId.length === 0}>
               All org units
             </option>
             {input.activeOrgUnitOptions}
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="Lifecycle state">
-          <select name="state">
+          <CtSelect name="state">
             <option value="" selected={issuedBadgesFilters.state.length === 0}>
               All states
             </option>
@@ -139,10 +140,10 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
             <option value="expired" selected={issuedBadgesFilters.state === "expired"}>
               expired
             </option>
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="Limit">
-          <input
+          <CtInput
             name="limit"
             type="number"
             min="1"
@@ -193,29 +194,33 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
           className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--issued-revoke ct-grid"
           hidden={!showIssuedBadgeRevokeForm}
         >
-          <input
+          <CtInput
             name="assertionId"
             type="hidden"
             value={input.issuedBadgesWorkspace?.lifecycleAssertionId ?? ""}
           />
-          <input name="issuedFrom" type="hidden" value={issuedBadgesFilters.issuedFrom} />
-          <input name="issuedTo" type="hidden" value={issuedBadgesFilters.issuedTo} />
-          <input name="recipientQuery" type="hidden" value={issuedBadgesFilters.recipientQuery} />
-          <input name="badgeTemplateId" type="hidden" value={issuedBadgesFilters.badgeTemplateId} />
-          <input name="orgUnitId" type="hidden" value={issuedBadgesFilters.orgUnitId} />
-          <input name="state" type="hidden" value={issuedBadgesFilters.state} />
-          <input name="limit" type="hidden" value={String(issuedBadgesFilters.limit)} />
+          <CtInput name="issuedFrom" type="hidden" value={issuedBadgesFilters.issuedFrom} />
+          <CtInput name="issuedTo" type="hidden" value={issuedBadgesFilters.issuedTo} />
+          <CtInput name="recipientQuery" type="hidden" value={issuedBadgesFilters.recipientQuery} />
+          <CtInput
+            name="badgeTemplateId"
+            type="hidden"
+            value={issuedBadgesFilters.badgeTemplateId}
+          />
+          <CtInput name="orgUnitId" type="hidden" value={issuedBadgesFilters.orgUnitId} />
+          <CtInput name="state" type="hidden" value={issuedBadgesFilters.state} />
+          <CtInput name="limit" type="hidden" value={String(issuedBadgesFilters.limit)} />
           <AdminField label="Reason code">
-            <select name="reasonCode" required>
+            <CtSelect name="reasonCode" required>
               <option value="issuer_requested">issuer requested</option>
               <option value="administrative_hold">administrative hold</option>
               <option value="policy_violation">policy violation</option>
               <option value="appeal_pending">appeal pending</option>
               <option value="other">other</option>
-            </select>
+            </CtSelect>
           </AdminField>
           <AdminField label="Reason details">
-            <input
+            <CtInput
               name="reason"
               type="text"
               placeholder="Explain why this badge should be revoked."
@@ -279,22 +284,16 @@ export const renderInstitutionAdminOperationsSections = (
       ) : null}
       <AdminForm id="rule-value-list-form" method="post" action={ruleValueListsCreatePath}>
         <AdminField label="Label">
-          <input name="label" type="text" required placeholder="Core CS sequence" />
+          <CtInput name="label" type="text" required placeholder="Core CS sequence" />
         </AdminField>
         <AdminField label="List kind">
-          <select name="kind" required>
+          <CtSelect name="kind" required>
             <option value="course_ids">Course IDs</option>
             <option value="badge_template_ids">Badge template IDs</option>
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="Values (comma separated)">
-          <textarea
-            name="values"
-            rows={4}
-            required
-            spellcheck={false}
-            placeholder="CS101, CS102, CS103"
-          ></textarea>
+          <CtTextarea name="values" rows={4} required placeholder="CS101, CS102, CS103" />
         </AdminField>
         <AdminButton type="submit">Create value list</AdminButton>
       </AdminForm>
@@ -309,21 +308,26 @@ export const renderInstitutionAdminOperationsSections = (
       <p>Check what a rule would do before issuing a real badge.</p>
       <AdminForm id="rule-evaluate-form">
         <AdminField label="Rule">
-          <select name="ruleId" required>
+          <CtSelect name="ruleId" required>
             {input.ruleSelectOptions}
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="Learner ID">
-          <input name="learnerId" type="text" required placeholder="canvas:12345" />
+          <CtInput name="learnerId" type="text" required placeholder="canvas:12345" />
         </AdminField>
         <AdminField label="Recipient email">
-          <input name="recipientIdentity" type="email" required placeholder="learner@example.edu" />
+          <CtInput
+            name="recipientIdentity"
+            type="email"
+            required
+            placeholder="learner@example.edu"
+          />
         </AdminField>
         <AdminField label="Course ID for provided facts">
-          <input name="courseId" type="text" required placeholder="CS101" />
+          <CtInput name="courseId" type="text" required placeholder="CS101" />
         </AdminField>
         <AdminField label="Final score for provided facts">
-          <input
+          <CtInput
             name="finalScore"
             type="number"
             min="0"
@@ -334,7 +338,7 @@ export const renderInstitutionAdminOperationsSections = (
           />
         </AdminField>
         <AdminField label="Gradebook items completed %">
-          <input
+          <CtInput
             name="completionPercent"
             type="number"
             min="0"
@@ -344,10 +348,7 @@ export const renderInstitutionAdminOperationsSections = (
             value="100"
           />
         </AdminField>
-        <AdminCheckboxRow>
-          <input name="dryRun" type="checkbox" checked />
-          Dry run (don’t issue badge)
-        </AdminCheckboxRow>
+        <AdminCheckboxRow name="dryRun" label="Dry run (don't issue badge)" checked />
         <AdminButton type="submit">Evaluate rule</AdminButton>
       </AdminForm>
       <AdminStatus id="rule-evaluate-status"></AdminStatus>
@@ -362,7 +363,7 @@ export const renderInstitutionAdminOperationsSections = (
       </p>
       <AdminForm id="assertion-lifecycle-view-form">
         <AdminField label="Assertion ID">
-          <input name="assertionId" type="text" required placeholder="tenant_123:assertion_456" />
+          <CtInput name="assertionId" type="text" required placeholder="tenant_123:assertion_456" />
         </AdminField>
         <AdminButton type="submit">Load lifecycle</AdminButton>
       </AdminForm>
@@ -370,18 +371,18 @@ export const renderInstitutionAdminOperationsSections = (
       <pre id="assertion-lifecycle-output" class="ct-admin__code-output" hidden></pre>
       <AdminForm id="assertion-lifecycle-transition-form">
         <AdminField label="Assertion ID">
-          <input name="assertionId" type="text" required placeholder="tenant_123:assertion_456" />
+          <CtInput name="assertionId" type="text" required placeholder="tenant_123:assertion_456" />
         </AdminField>
         <AdminField label="Transition to">
-          <select name="toState" required>
+          <CtSelect name="toState" required>
             <option value="active">active</option>
             <option value="suspended">suspended</option>
             <option value="revoked">revoked</option>
             <option value="expired">expired</option>
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="Reason code">
-          <select name="reasonCode" required>
+          <CtSelect name="reasonCode" required>
             <option value="administrative_hold">administrative_hold</option>
             <option value="policy_violation">policy_violation</option>
             <option value="appeal_pending">appeal_pending</option>
@@ -389,10 +390,10 @@ export const renderInstitutionAdminOperationsSections = (
             <option value="credential_expired">credential_expired</option>
             <option value="issuer_requested">issuer_requested</option>
             <option value="other">other</option>
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="Reason details (optional)">
-          <input
+          <CtInput
             name="reason"
             type="text"
             placeholder="Explain why this transition is being applied."
@@ -409,12 +410,12 @@ export const renderInstitutionAdminOperationsSections = (
       <p>Review the latest approval steps and audit events for a rule.</p>
       <AdminForm id="rule-governance-form">
         <AdminField label="Rule">
-          <select name="ruleId" required>
+          <CtSelect name="ruleId" required>
             {input.ruleSelectOptions}
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="Audit log limit">
-          <input name="auditLimit" type="number" min="1" max="100" step="1" value="20" />
+          <CtInput name="auditLimit" type="number" min="1" max="100" step="1" value="20" />
         </AdminField>
         <AdminButton type="submit">Load history</AdminButton>
       </AdminForm>

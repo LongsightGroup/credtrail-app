@@ -3,8 +3,8 @@ import type { HtmlEscapedString } from "hono/utils/html";
 import type { BadgeIssuanceRuleValueListRecord, TenantAssertionSummaryRecord } from "@credtrail/db";
 import type { BadgeRuleReviewQueueEntryView } from "../badge-rule-review-queue-workspace";
 import { formatBadgeRuleReviewQueueSummary } from "../badge-rule-review-queue-workspace";
-import type { CtDataAttributes } from "../ui/forms";
-import { CtCheckboxField, CtField, CtForm } from "../ui/forms";
+import type { CtDataAttributes } from "../ui/jsx-utils";
+import { CtCheckboxField, CtField, CtForm, CtInput, type CtCheckboxType } from "../ui/forms";
 import { AdminButton, AdminButtonLink } from "./actions";
 import {
   formatRuleValueListKind,
@@ -419,24 +419,58 @@ export const AdminForm = ({
 };
 
 export const AdminField = ({
+  id,
   label,
   className,
+  inline,
+  compact,
   children,
 }: PropsWithChildren<{
+  id?: string;
   label: string;
   className?: string;
+  inline?: boolean;
+  compact?: boolean;
 }>): HonoElement => {
   const classes = className === undefined ? "ct-admin__field" : `ct-admin__field ${className}`;
   return (
-    <CtField label={label} className={classes}>
+    <CtField id={id} label={label} className={classes} inline={inline} compact={compact}>
       {children}
     </CtField>
   );
 };
 
-export const AdminCheckboxRow = ({ children }: PropsWithChildren): HonoElement => {
+export const AdminCheckboxRow = ({
+  name,
+  value,
+  label,
+  checked,
+  type = "checkbox",
+  disabled,
+  form,
+  dataAttributes,
+}: {
+  name: string;
+  label: string;
+  value?: string;
+  checked?: boolean;
+  type?: CtCheckboxType;
+  disabled?: boolean;
+  form?: string;
+  dataAttributes?: DataAttributes;
+}): HonoElement => {
   return (
-    <CtCheckboxField className="ct-admin__checkbox-row ct-checkbox-row">{children}</CtCheckboxField>
+    <CtCheckboxField
+      name={name}
+      value={value}
+      label={label}
+      checked={checked}
+      type={type}
+      disabled={disabled}
+      form={form}
+      dataAttributes={dataAttributes}
+      className="ct-admin__checkbox-row"
+    />
   );
 };
 
@@ -711,17 +745,17 @@ export const ReviewQueueRow = (input: {
         {isPending ? (
           <div class="ct-admin__issued-actions ct-cluster">
             <AdminForm method="post" action={input.resolveActionPath}>
-              <input type="hidden" name="evaluationId" value={entry.evaluationId} />
-              <input type="hidden" name="decision" value="issue" />
-              <input type="hidden" name="comment" value="Manual review approved by issuer" />
+              <CtInput type="hidden" name="evaluationId" value={entry.evaluationId} />
+              <CtInput type="hidden" name="decision" value="issue" />
+              <CtInput type="hidden" name="comment" value="Manual review approved by issuer" />
               <AdminButton type="submit" size="tiny" variant="secondary">
                 Issue
               </AdminButton>
             </AdminForm>
             <AdminForm method="post" action={input.resolveActionPath}>
-              <input type="hidden" name="evaluationId" value={entry.evaluationId} />
-              <input type="hidden" name="decision" value="dismiss" />
-              <input type="hidden" name="comment" value="Missing facts confirmed; no issue" />
+              <CtInput type="hidden" name="evaluationId" value={entry.evaluationId} />
+              <CtInput type="hidden" name="decision" value="dismiss" />
+              <CtInput type="hidden" name="comment" value="Missing facts confirmed; no issue" />
               <AdminButton type="submit" size="tiny" variant="ghost">
                 Dismiss
               </AdminButton>

@@ -48,10 +48,7 @@ export const FORMS_CSS = `
 
 .ct-input,
 .ct-select,
-.ct-textarea,
-.ct-field > input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not(.ct-input),
-.ct-field > select:not(.ct-select),
-.ct-field > textarea:not(.ct-textarea) {
+.ct-textarea {
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -82,8 +79,7 @@ export const FORMS_CSS = `
   font-size: 0.82rem;
 }
 
-.ct-select,
-.ct-field > select:not(.ct-select) {
+.ct-select {
   -webkit-appearance: none;
   appearance: none;
   background-image:
@@ -99,17 +95,14 @@ export const FORMS_CSS = `
   padding-right: 2.15rem;
 }
 
-.ct-select[multiple],
-.ct-field > select[multiple]:not(.ct-select) {
+.ct-select[multiple] {
   min-height: 5.5rem;
   background-image: none;
   padding-right: 0.72rem;
 }
 
 .ct-input::placeholder,
-.ct-textarea::placeholder,
-.ct-field > input::placeholder,
-.ct-field > textarea::placeholder {
+.ct-textarea::placeholder {
   color: var(--ct-theme-text-muted);
   opacity: 1;
 }
@@ -122,10 +115,7 @@ export const FORMS_CSS = `
 
 .ct-input:focus-visible,
 .ct-select:focus-visible,
-.ct-textarea:focus-visible,
-.ct-field > input:not([type='checkbox']):not([type='radio']):not([type='hidden']):focus-visible,
-.ct-field > select:focus-visible,
-.ct-field > textarea:focus-visible {
+.ct-textarea:focus-visible {
   outline: none;
   border-color: var(--ct-theme-border-focus);
   box-shadow: var(--ct-focus-ring);
@@ -136,37 +126,25 @@ export const FORMS_CSS = `
 .ct-textarea:user-invalid,
 .ct-input.user-invalid-fallback,
 .ct-select.user-invalid-fallback,
-.ct-textarea.user-invalid-fallback,
-.ct-field > input:not([type='checkbox']):not([type='radio']):not([type='hidden']):user-invalid,
-.ct-field > select:user-invalid,
-.ct-field > textarea:user-invalid,
-.ct-field > input:not([type='checkbox']):not([type='radio']):not([type='hidden']).user-invalid-fallback,
-.ct-field > select.user-invalid-fallback,
-.ct-field > textarea.user-invalid-fallback {
+.ct-textarea.user-invalid-fallback {
   border-color: var(--ct-theme-state-danger);
   background: var(--ct-theme-surface-danger);
 }
 
 .ct-input:disabled,
 .ct-select:disabled,
-.ct-textarea:disabled,
-.ct-field > input:disabled,
-.ct-field > select:disabled,
-.ct-field > textarea:disabled {
+.ct-textarea:disabled {
   cursor: not-allowed;
   opacity: 0.68;
 }
 
 .ct-input[readonly],
-.ct-textarea[readonly],
-.ct-field > input[readonly],
-.ct-field > textarea[readonly] {
+.ct-textarea[readonly] {
   background: var(--ct-theme-surface-soft);
   color: var(--ct-theme-text-muted);
 }
 
-.ct-textarea,
-.ct-field > textarea:not(.ct-textarea) {
+.ct-textarea {
   min-height: 5.5rem;
   resize: vertical;
   font-family: var(--ct-font-mono);
@@ -197,9 +175,7 @@ export const FORMS_CSS = `
   line-height: 1.35;
 }
 
-.ct-checkbox-field__control,
-.ct-checkbox-row input[type='checkbox'],
-.ct-checkbox-row input[type='radio'] {
+.ct-checkbox-field__control {
   margin: 0;
   width: 1.2rem;
   height: 1.2rem;
@@ -207,23 +183,18 @@ export const FORMS_CSS = `
   accent-color: var(--ct-theme-link);
 }
 
-.ct-checkbox-field__control:focus-visible,
-.ct-checkbox-row input[type='checkbox']:focus-visible,
-.ct-checkbox-row input[type='radio']:focus-visible {
+.ct-checkbox-field__control:focus-visible {
   outline: 2px solid var(--ct-theme-border-focus);
   outline-offset: 2px;
 }
 
 @media (max-width: 780px), (pointer: coarse) {
   .ct-input,
-  .ct-select,
-  .ct-field > input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not(.ct-input),
-  .ct-field > select:not(.ct-select) {
+  .ct-select {
     min-height: 2.75rem;
   }
 
-  .ct-checkbox-field,
-  .ct-checkbox-row {
+  .ct-checkbox-field {
     align-items: flex-start;
     min-height: 2.75rem;
     padding-block: 0.35rem;

@@ -794,13 +794,15 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/rules/templates/badge_template_001/details"',
     );
-    expect(body).toContain('name="badgeTemplateId" value="badge_template_001"');
+    expect(body).toContain('name="badgeTemplateId" type="hidden" value="badge_template_001"');
     expect(body).toContain(">URL key<");
     expect(body).toMatch(
       /<dt>URL key<\/dt>\s*<dd>\s*<span>typescript-foundations<\/span>\s*<details class="ct-admin__template-editor-advanced ct-admin__template-editor-inline-edit">/,
     );
     expect(body).toContain('<summary aria-label="Edit URL key">Edit</summary>');
-    expect(body).toContain('name="slug" type="text" required="" maxlength="120"');
+    expect(body).toContain('name="slug" type="text"');
+    expect(body).toContain('maxlength="120"');
+    expect(body).toContain('required=""');
     expect(body).toContain('value="typescript-foundations"');
     expect(body).toContain(">Criteria page URL<");
     expect(body).toContain('value="https://example.edu/criteria"');

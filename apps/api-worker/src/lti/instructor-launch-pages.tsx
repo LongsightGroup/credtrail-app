@@ -1,5 +1,5 @@
 import { formatIsoTimestamp } from "../utils/display-format";
-import { CtField, CtInput, CtSelect } from "../ui/forms";
+import { CtField, CtForm, CtCheckboxControl, CtInput, CtSelect } from "../ui/forms";
 import { LTI_ACTIVE_BADGE_SUMMARY_STATUS } from "./badge-summary-helpers";
 import {
   BadgeSummaryContent,
@@ -87,11 +87,11 @@ export const BulkIssuanceSection = (input: {
               <tr key={member.userId}>
                 {canIssue ? (
                   <td>
-                    <input
-                      type="checkbox"
+                    <CtCheckboxControl
                       name="learner_user_id"
                       value={member.userId}
                       disabled={member.email === null || member.issuedAssertionId !== null}
+                      ariaLabel={`Select ${member.displayName ?? member.userId}`}
                     />
                   </td>
                 ) : null}
@@ -137,8 +137,12 @@ export const BulkIssuanceSection = (input: {
         />
       </dl>
       {canIssue ? (
-        <form method="post" action={view.issuanceActionPath ?? ""} class="lti-launch__bulk-form">
-          <input
+        <CtForm
+          method="post"
+          action={view.issuanceActionPath ?? ""}
+          className="lti-launch__bulk-form"
+        >
+          <CtInput
             type="hidden"
             name="issuance_action_token"
             value={view.issuanceActionToken ?? ""}
@@ -155,7 +159,7 @@ export const BulkIssuanceSection = (input: {
               Issue selected badges
             </LtiSubmitButton>
           </div>
-        </form>
+        </CtForm>
       ) : (
         table
       )}

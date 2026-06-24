@@ -274,7 +274,7 @@ const MagicLinkEmailSignIn = (input: {
         reason={input.reason}
       />
       <CtForm id="magic-link-login-form" className="ct-login__form ct-stack">
-        <input
+        <CtInput
           id="magic-link-login-tenant"
           name="tenantId"
           type="hidden"
@@ -287,7 +287,7 @@ const MagicLinkEmailSignIn = (input: {
           <p class="ct-login__tenant-selection-title">Choose your institution</p>
           <div id="magic-link-tenant-options" class="ct-login__tenant-options"></div>
         </div>
-        <input name="next" type="hidden" value={input.nextPath} />
+        <CtInput name="next" type="hidden" value={input.nextPath} />
         <MagicLinkTurnstile siteKey={input.turnstileSiteKey} />
         <LoginSubmitButton>Continue</LoginSubmitButton>
       </CtForm>
@@ -454,8 +454,8 @@ export const organizationChooserPage = (input: {
                         </p>
                       </div>
                       <form method="post" action="/account/organizations/select">
-                        <input type="hidden" name="tenantId" value={organization.tenantId} />
-                        <input type="hidden" name="next" value={input.nextPath} />
+                        <CtInput type="hidden" name="tenantId" value={organization.tenantId} />
+                        <CtInput type="hidden" name="next" value={input.nextPath} />
                         <LoginSubmitButton>{isCurrent ? "Reopen" : "Continue"}</LoginSubmitButton>
                       </form>
                     </li>
@@ -533,8 +533,8 @@ export const localBreakGlassLoginPage = (input: {
                 method="post"
                 action="/auth/local/sign-in"
               >
-                <input type="hidden" name="tenantId" value={input.tenantId} />
-                <input type="hidden" name="next" value={input.nextPath} />
+                <CtInput type="hidden" name="tenantId" value={input.tenantId} />
+                <CtInput type="hidden" name="next" value={input.nextPath} />
                 <CtField label="Institution email" className="ct-login__field ct-stack">
                   <CtInput name="email" type="email" required placeholder="name@institution.edu" />
                 </CtField>
@@ -562,8 +562,8 @@ export const localBreakGlassLoginPage = (input: {
                 method="post"
                 action="/auth/local/reset-password/request"
               >
-                <input type="hidden" name="tenantId" value={input.tenantId} />
-                <input type="hidden" name="next" value={input.nextPath} />
+                <CtInput type="hidden" name="tenantId" value={input.tenantId} />
+                <CtInput type="hidden" name="next" value={input.nextPath} />
                 <CtField label="Institution email" className="ct-login__field ct-stack">
                   <CtInput name="email" type="email" required placeholder="name@institution.edu" />
                 </CtField>
@@ -609,9 +609,9 @@ export const localResetPasswordPage = (input: {
               method="post"
               action="/auth/local/reset-password"
             >
-              <input type="hidden" name="tenantId" value={input.tenantId} />
-              <input type="hidden" name="next" value={input.nextPath} />
-              <input type="hidden" name="token" value={input.token} />
+              <CtInput type="hidden" name="tenantId" value={input.tenantId} />
+              <CtInput type="hidden" name="next" value={input.nextPath} />
+              <CtInput type="hidden" name="token" value={input.token} />
               <CtField label="New password" className="ct-login__field ct-stack">
                 <CtInput name="newPassword" type="password" required minlength={8} />
               </CtField>
@@ -642,8 +642,8 @@ const LocalTwoFactorEnrollment = (input: {
         method="post"
         action="/auth/local/two-factor/setup"
       >
-        <input type="hidden" name="tenantId" value={input.tenantId} />
-        <input type="hidden" name="next" value={input.nextPath} />
+        <CtInput type="hidden" name="tenantId" value={input.tenantId} />
+        <CtInput type="hidden" name="next" value={input.nextPath} />
         <CtField label="Current password" className="ct-login__field ct-stack">
           <CtInput name="password" type="password" required />
         </CtField>
@@ -704,8 +704,8 @@ export const localTwoFactorPage = (input: {
               method="post"
               action="/auth/local/two-factor/verify"
             >
-              <input type="hidden" name="tenantId" value={input.tenantId} />
-              <input type="hidden" name="next" value={input.nextPath} />
+              <CtInput type="hidden" name="tenantId" value={input.tenantId} />
+              <CtInput type="hidden" name="next" value={input.nextPath} />
               <CtField label="Authenticator code" className="ct-login__field ct-stack">
                 <CtInput
                   name="code"

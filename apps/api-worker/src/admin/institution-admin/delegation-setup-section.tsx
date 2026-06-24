@@ -8,6 +8,7 @@ import {
   AdminPanel,
   AdminStatus,
 } from "../components";
+import { CtInput, CtSelect } from "../../ui/forms";
 import { tenantAccessDelegatedGrantCreatePath } from "../access-admin-helpers";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | readonly HonoElement[];
@@ -40,51 +41,46 @@ export const renderDelegationSetupSection = (
         className="ct-admin__form ct-admin__setup-form ct-grid"
       >
         <AdminField label="Delegate">
-          <select name="delegateUserId" required>
+          <CtSelect name="delegateUserId" required>
             {input.tenantMemberSelectOptions}
-          </select>
+          </CtSelect>
         </AdminField>
         <p class="ct-admin__hint">
           Choose the tenant member receiving the delegation. They must already belong to this
           tenant.
         </p>
         <AdminField label="Org unit">
-          <select name="orgUnitId" required>
+          <CtSelect name="orgUnitId" required>
             {input.activeOrgUnitSelectOptions}
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminFieldset legend="Allowed badge actions">
-          <AdminCheckboxRow>
-            <input name="allowedAction" type="checkbox" value="issue_badge" checked />
-            Issue badges
-          </AdminCheckboxRow>
-          <AdminCheckboxRow>
-            <input name="allowedAction" type="checkbox" value="revoke_badge" />
-            Revoke badges
-          </AdminCheckboxRow>
-          <AdminCheckboxRow>
-            <input name="allowedAction" type="checkbox" value="manage_lifecycle" />
-            Change badge status
-          </AdminCheckboxRow>
+          <AdminCheckboxRow name="allowedAction" value="issue_badge" label="Issue badges" checked />
+          <AdminCheckboxRow name="allowedAction" value="revoke_badge" label="Revoke badges" />
+          <AdminCheckboxRow
+            name="allowedAction"
+            value="manage_lifecycle"
+            label="Change badge status"
+          />
         </AdminFieldset>
         <p class="ct-admin__hint">
           “Change badge status” covers non-revocation lifecycle changes such as suspend, expire, or
           restore.
         </p>
         <AdminField label="Limit to badge template (optional)">
-          <select name="badgeTemplateIds">{input.optionalBadgeTemplateScopeOptions}</select>
+          <CtSelect name="badgeTemplateIds">{input.optionalBadgeTemplateScopeOptions}</CtSelect>
         </AdminField>
         <p class="ct-admin__hint">
           Leave blank to allow all badge templates inside the selected org-unit scope.
         </p>
         <AdminField label="Ends at">
-          <input name="endsAt" type="datetime-local" required />
+          <CtInput name="endsAt" type="datetime-local" required />
         </AdminField>
         <p class="ct-admin__hint">
           Delegations are time-boxed. Choose when this authority should expire.
         </p>
         <AdminField label="Reason (optional)">
-          <input name="reason" type="text" placeholder="Coverage for spring term operations." />
+          <CtInput name="reason" type="text" placeholder="Coverage for spring term operations." />
         </AdminField>
         <AdminButton type="submit">Save delegation</AdminButton>
       </AdminForm>

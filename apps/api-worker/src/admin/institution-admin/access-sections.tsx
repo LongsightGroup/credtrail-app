@@ -10,6 +10,7 @@ import {
   AdminStatus,
   AdminTable,
 } from "../components";
+import { CtInput, CtSelect } from "../../ui/forms";
 import {
   buildAccessAuthenticationAdminPath,
   buildAccessGovernanceDelegationNewPath,
@@ -122,10 +123,10 @@ export const renderInstitutionAdminAccessSections = (
         className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--api-key ct-grid"
       >
         <AdminField label="Label">
-          <input name="label" type="text" required value="Institution integration key" />
+          <CtInput name="label" type="text" required value="Institution integration key" />
         </AdminField>
         <AdminField label="Scopes (comma separated)">
-          <input name="scopes" type="text" value="queue.issue, queue.revoke" />
+          <CtInput name="scopes" type="text" value="queue.issue, queue.revoke" />
         </AdminField>
         <AdminButton type="submit">Create API key</AdminButton>
       </AdminForm>
@@ -147,12 +148,12 @@ export const renderInstitutionAdminAccessSections = (
         {ltiDynamicRegistrationUrl !== null && ltiDynamicRegistrationUrl.length > 0 ? (
           <div class="ct-admin__form ct-stack">
             <AdminField label="LTI dynamic registration URL">
-              <input
+              <CtInput
                 id="lti-dynamic-registration-url"
                 type="url"
                 value={ltiDynamicRegistrationUrl}
-                readOnly={true}
-                aria-describedby="lti-dynamic-registration-help"
+                readonly
+                describedBy="lti-dynamic-registration-help"
               />
             </AdminField>
             <p id="lti-dynamic-registration-help" class="ct-admin__hint">
@@ -225,21 +226,21 @@ export const renderInstitutionAdminAccessSections = (
         className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--org-unit ct-grid"
       >
         <AdminField label="Display name">
-          <input name="displayName" type="text" required placeholder="College of Engineering" />
+          <CtInput name="displayName" type="text" required placeholder="College of Engineering" />
         </AdminField>
         <AdminField label="Unit type">
-          <select name="unitType" required>
+          <CtSelect name="unitType" required>
             <option value="college">College</option>
             <option value="department">Department</option>
             <option value="program">Program</option>
             <option value="institution">Institution</option>
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="Parent org unit">
-          <select name="parentOrgUnitId">
+          <CtSelect name="parentOrgUnitId">
             <option value="">None</option>
             {input.orgUnitParentOptions}
-          </select>
+          </CtSelect>
         </AdminField>
         <p class="ct-admin__hint">CredTrail creates the internal org key from the display name.</p>
         <AdminButton type="submit">Create org unit</AdminButton>
@@ -309,17 +310,14 @@ export const renderInstitutionAdminAccessSections = (
         className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--member ct-grid"
       >
         <AdminField label="Institution email">
-          <input name="email" type="email" required placeholder="colleague@institution.edu" />
+          <CtInput name="email" type="email" required placeholder="colleague@institution.edu" />
         </AdminField>
         <AdminField label="Tenant role">
-          <select name="role" required>
+          <CtSelect name="role" required>
             {input.tenantMemberRoleSelectOptions}
-          </select>
+          </CtSelect>
         </AdminField>
-        <AdminCheckboxRow>
-          <input name="sendInvite" type="checkbox" checked />
-          Email sign-in invite now
-        </AdminCheckboxRow>
+        <AdminCheckboxRow name="sendInvite" label="Email sign-in invite now" checked />
         <AdminButton type="submit">Add member</AdminButton>
       </AdminForm>
     </details>
@@ -357,24 +355,24 @@ export const renderInstitutionAdminAccessSections = (
         className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--governance ct-grid"
       >
         <AdminField label="Tenant member">
-          <select name="userId" required>
+          <CtSelect name="userId" required>
             {input.tenantMemberSelectOptions}
-          </select>
+          </CtSelect>
         </AdminField>
         <p class="ct-admin__hint">
           Choose the person receiving access. They must already belong to this tenant.
         </p>
         <AdminField label="Org unit">
-          <select name="orgUnitId" required>
+          <CtSelect name="orgUnitId" required>
             {input.activeOrgUnitSelectOptions}
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="Scoped role">
-          <select name="role" required>
+          <CtSelect name="role" required>
             <option value="viewer">viewer</option>
             <option value="issuer">issuer</option>
             <option value="admin">admin</option>
-          </select>
+          </CtSelect>
         </AdminField>
         <ul>
           <li>

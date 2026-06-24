@@ -13,6 +13,7 @@ import {
   AdminStatus,
   AdminTable,
 } from "../components";
+import { CtInput, CtSelect } from "../../ui/forms";
 import type {
   InstitutionAdminLearnerRecordImportWorkflow,
   InstitutionAdminLearnerRecordReview,
@@ -236,7 +237,7 @@ export const renderInstitutionAdminLearnerRecordSections = (
       </p>
       <AdminForm method="get" action={operationsLearnerRecordsPath}>
         <AdminField label="Learner profile ID">
-          <input
+          <CtInput
             name="learnerProfileId"
             type="text"
             value={learnerRecordReview.lookup.learnerProfileId ?? ""}
@@ -244,7 +245,7 @@ export const renderInstitutionAdminLearnerRecordSections = (
           />
         </AdminField>
         <AdminField label="Learner email">
-          <input
+          <CtInput
             name="email"
             type="email"
             value={learnerRecordReview.lookup.email ?? ""}
@@ -373,7 +374,7 @@ export const renderInstitutionAdminLearnerRecordSections = (
             action={learnerRecordImportWorkflow.applyPath}
             className="ct-admin__form ct-admin__review-action-form"
           >
-            <input
+            <CtInput
               type="hidden"
               name="batchId"
               value={learnerRecordImportWorkflow.submission.queueForm.batchId}
@@ -493,7 +494,7 @@ export const renderInstitutionAdminLearnerRecordSections = (
         className="ct-admin__form ct-stack"
       >
         <AdminField label="Batch default trust level">
-          <select name="defaultTrustLevel">
+          <CtSelect name="defaultTrustLevel">
             <option
               value="issuer_verified"
               selected={
@@ -510,10 +511,10 @@ export const renderInstitutionAdminLearnerRecordSections = (
             >
               learner supplemental
             </option>
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="Default issuer name">
-          <input
+          <CtInput
             name="defaultIssuerName"
             type="text"
             value={learnerRecordImportWorkflow.defaults.defaultIssuerName}
@@ -521,7 +522,7 @@ export const renderInstitutionAdminLearnerRecordSections = (
           />
         </AdminField>
         <AdminField label="CSV file">
-          <input name="file" type="file" accept=".csv,text/csv" />
+          <CtInput name="file" type="file" accept=".csv,text/csv" />
         </AdminField>
         <p class="ct-admin__hint">
           Defaults come from the current org-unit structure and badge-template ownership.

@@ -93,7 +93,7 @@ export const renderDesignSystemPage = (): AppPage => {
           <CtForm className="ct-design-system__form-grid">
             <article class="ct-design-system__example">
               <h3>Inputs and selects</h3>
-              <CtField label="Required text input" hint="Visible labels stay attached to controls.">
+              <CtField label="Required text input">
                 <CtInput
                   name="exampleText"
                   type="text"

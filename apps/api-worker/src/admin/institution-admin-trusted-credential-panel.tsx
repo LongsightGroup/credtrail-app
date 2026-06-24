@@ -9,6 +9,7 @@ import {
 import { evaluateTrustEdCredentialReadiness } from "../badges/trusted-credential-readiness";
 import { adminStatusPillClass } from "./admin-status-pill-class";
 import { AdminButton, AdminField, AdminPanel, AdminStatus } from "./components";
+import { CtInput, CtTextarea } from "../ui/forms";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -91,7 +92,7 @@ type TrustEdField =
 const TrustEdTextField = (field: TrustEdTextField): HonoElement => {
   return (
     <AdminField label={field.label}>
-      <input
+      <CtInput
         form="badge-template-edit-form"
         name={field.name}
         type={field.type ?? "text"}
@@ -105,14 +106,13 @@ const TrustEdTextField = (field: TrustEdTextField): HonoElement => {
 const TrustEdTextareaField = (field: TrustEdTextareaField): HonoElement => {
   return (
     <AdminField label={field.label}>
-      <textarea
+      <CtTextarea
         form="badge-template-edit-form"
         name={field.name}
         rows={field.rows}
         maxlength={field.maxLength}
-      >
-        {field.value ?? ""}
-      </textarea>
+        value={field.value ?? ""}
+      />
     </AdminField>
   );
 };

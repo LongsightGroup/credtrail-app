@@ -128,7 +128,7 @@ const renderTemplateCreatePanel = (rulesTemplatesPath: string): HonoElement => {
             autocomplete="off"
             describedBy="badge-template-create-title-hint"
           />
-          <CtFieldHint id="badge-template-create-title-hint" className="ct-admin__field-hint">
+          <CtFieldHint id="badge-template-create-title-hint">
             The name administrators, learners, and public viewers will see.
           </CtFieldHint>
         </AdminField>
@@ -140,7 +140,7 @@ const renderTemplateCreatePanel = (rulesTemplatesPath: string): HonoElement => {
             variant="prose"
             describedBy="badge-template-create-description-hint"
           />
-          <CtFieldHint id="badge-template-create-description-hint" className="ct-admin__field-hint">
+          <CtFieldHint id="badge-template-create-description-hint">
             Optional short summary shown with issued badge records.
           </CtFieldHint>
         </AdminField>
@@ -199,7 +199,7 @@ const renderTemplateEditorFields = (input: {
             </AdminStatus>
           )}
           <div class="ct-admin__template-editor-fields">
-            <input
+            <CtInput
               form="badge-template-edit-form"
               type="hidden"
               name="badgeTemplateId"
@@ -218,7 +218,6 @@ const renderTemplateEditorFields = (input: {
             <AdminField label="Description">
               <CtTextarea
                 form="badge-template-edit-form"
-                className="ct-admin__template-editor-prose-textarea"
                 name="description"
                 rows={3}
                 maxlength={2000}
@@ -281,7 +280,7 @@ const renderTemplateEditorFields = (input: {
                 <details class="ct-admin__template-editor-advanced ct-admin__template-editor-inline-edit">
                   <summary aria-label="Edit URL key">Edit</summary>
                   <AdminField label="URL key">
-                    <input
+                    <CtInput
                       form="badge-template-edit-form"
                       name="slug"
                       type="text"
@@ -474,22 +473,19 @@ const renderBadgeTemplatesTable = (input: {
         className="ct-admin__form ct-admin__form--inline ct-grid"
       >
         <AdminField label="Search">
-          <input
+          <CtInput
             name="q"
             type="search"
             value={input.badgeTemplatesPage.searchQuery}
             placeholder="Search badge templates"
           />
         </AdminField>
-        <AdminCheckboxRow>
-          <input
-            type="checkbox"
-            name="includeArchived"
-            value="1"
-            checked={input.badgeTemplatesPage.includeArchived}
-          />
-          Include archived templates
-        </AdminCheckboxRow>
+        <AdminCheckboxRow
+          name="includeArchived"
+          value="1"
+          label="Include archived templates"
+          checked={input.badgeTemplatesPage.includeArchived}
+        />
         <AdminButton type="submit">Apply filters</AdminButton>
         {input.badgeTemplatesPage.searchQuery.length > 0 ||
         input.badgeTemplatesPage.includeArchived ? (

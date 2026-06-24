@@ -2085,7 +2085,7 @@ describe("LTI 1.3 core launch flow", () => {
       env,
     );
     const launchBody = await launchResponse.text();
-    const actionToken = /name="issuance_action_token" value="([^"]+)"/.exec(launchBody)?.[1];
+    const actionToken = /name="issuance_action_token"[^>]*value="([^"]+)"/.exec(launchBody)?.[1];
 
     expect(actionToken).toBeTruthy();
 

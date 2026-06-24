@@ -44,19 +44,35 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CONDITION_FIELD_RENDERERS_JS = `
     };
 
     const createConditionField = (labelText, control, styled) => {
-      const label = document.createElement('label');
-      label.className = styled === false ? '' : 'ct-admin__field ct-admin__condition-field';
-      label.append(labelText, control);
-      return label;
+      const field = document.createElement('label');
+      field.className = styled === false ? '' : 'ct-field ct-admin__field ct-admin__condition-field';
+      const fieldLabel = document.createElement('span');
+      fieldLabel.className = 'ct-field__label';
+      fieldLabel.textContent = labelText;
+      if (control.tagName === 'INPUT' && control.type !== 'checkbox' && control.type !== 'radio') {
+        control.classList.add('ct-input', 'ct-field__control');
+      }
+      if (control.tagName === 'SELECT') {
+        control.classList.add('ct-select', 'ct-field__control');
+      }
+      if (control.tagName === 'TEXTAREA') {
+        control.classList.add('ct-textarea', 'ct-field__control');
+      }
+      field.append(fieldLabel, control);
+      return field;
     };
 
     const createConditionCheckbox = (fieldName, labelText, checked) => {
-      const label = document.createElement('label');
+      const field = document.createElement('label');
       const checkbox = createConditionInput('checkbox', { 'data-field': fieldName });
+      checkbox.className = 'ct-checkbox-field__control';
       checkbox.checked = checked;
-      label.className = 'ct-admin__checkbox-row ct-checkbox-row';
-      label.append(checkbox, labelText);
-      return label;
+      const fieldLabel = document.createElement('span');
+      fieldLabel.className = 'ct-checkbox-field__label';
+      fieldLabel.textContent = labelText;
+      field.className = 'ct-checkbox-field ct-admin__checkbox-row';
+      field.append(checkbox, fieldLabel);
+      return field;
     };
 
     const replaceConditionFields = (fieldsContainer, fields) => {

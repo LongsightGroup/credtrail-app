@@ -235,11 +235,6 @@ export const INSTITUTION_ADMIN_FORMS_CSS = `
   margin: 0;
   padding: 0 var(--ct-space-4) var(--ct-space-4);
 }
-.ct-admin__field-hint {
-  color: var(--ct-theme-text-subtle);
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
 .ct-admin__fieldset {
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-md);
@@ -274,15 +269,6 @@ export const INSTITUTION_ADMIN_FORMS_CSS = `
 .ct-admin__table select:disabled {
   cursor: not-allowed;
   opacity: 0.68;
-}
-.ct-admin__template-editor-body input[type='file'] {
-  width: 100%;
-  border: 1px dashed var(--ct-border-soft);
-  border-radius: var(--ct-radius-md);
-  padding: 0.55rem 0.72rem;
-  background: var(--ct-theme-surface-soft);
-  font-size: 0.86rem;
-  min-height: auto;
 }
 `;
 

@@ -17,6 +17,7 @@ import {
   AdminStatusPill,
   AdminTable,
 } from "../components";
+import { CtInput, CtSelect } from "../../ui/forms";
 import type { InstitutionAdminPageInput } from "./page-types";
 import {
   REPORTING_RATE_MIN_ISSUED,
@@ -757,25 +758,25 @@ export const renderInstitutionAdminReportingSections = (
         }}
       >
         <AdminField label="Issued from">
-          <input name="issuedFrom" type="date" value={reportingIssuedFromValue} />
+          <CtInput name="issuedFrom" type="date" value={reportingIssuedFromValue} />
         </AdminField>
         <AdminField label="Issued to">
-          <input name="issuedTo" type="date" value={reportingIssuedToValue} />
+          <CtInput name="issuedTo" type="date" value={reportingIssuedToValue} />
         </AdminField>
         <AdminField label="Badge template">
-          <select name="badgeTemplateId">
+          <CtSelect name="badgeTemplateId">
             <option value="">All templates</option>
             {reportingTemplateFilterOptions}
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="Org unit">
-          <select name="orgUnitId">
+          <CtSelect name="orgUnitId">
             <option value="">All org units</option>
             {reportingOrgUnitOptions}
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="Lifecycle state">
-          <select name="state">
+          <CtSelect name="state">
             <option value="">All current states</option>
             <option value="active" selected={reportingState === "active"}>
               active
@@ -792,7 +793,7 @@ export const renderInstitutionAdminReportingSections = (
             <option value="pending_review" selected={reportingState === "pending_review"}>
               pending review
             </option>
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminActions>
           <AdminButton type="submit">Apply filters</AdminButton>

@@ -6,8 +6,8 @@ import {
   CtTextButton,
   CtTextLink,
   type CtActionVariant,
-  type CtDataAttributes,
 } from "../ui/actions";
+import type { CtDataAttributes } from "../ui/jsx-utils";
 
 export type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 

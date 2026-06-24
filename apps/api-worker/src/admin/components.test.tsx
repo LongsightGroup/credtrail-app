@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AdminActions, AdminButton, AdminButtonLink } from "./actions";
 import { AdminCheckboxRow, AdminField, AdminForm } from "./components";
+import { CtInput } from "../ui/forms";
 
 const renderToString = (node: { toString(): string }): string => {
   return node.toString();
@@ -41,19 +42,16 @@ describe("admin form wrappers", () => {
     const formHtml = renderToString(
       <AdminForm id="admin-form" method="post" action="/admin/save">
         <AdminField label="Title">
-          <input name="title" type="text" />
+          <CtInput name="title" type="text" />
         </AdminField>
-        <AdminCheckboxRow>
-          <input name="enabled" type="checkbox" value="1" />
-          Enabled
-        </AdminCheckboxRow>
+        <AdminCheckboxRow name="enabled" value="1" label="Enabled" />
       </AdminForm>,
     );
 
     expect(formHtml).toContain("ct-admin__form ct-stack ct-form");
     expect(formHtml).toContain("ct-admin__field ct-field");
     expect(formHtml).toContain("ct-field__label");
-    expect(formHtml).toContain("ct-admin__checkbox-row ct-checkbox-row ct-checkbox-field");
+    expect(formHtml).toContain("ct-admin__checkbox-row ct-checkbox-field");
     expect(formHtml).toContain('name="enabled"');
     expect(formHtml).toContain('type="checkbox"');
   });

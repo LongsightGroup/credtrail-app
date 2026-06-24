@@ -1,7 +1,7 @@
 export const PAGE_ASSET_MANIFEST = {
   foundationCss: {
     kind: "style",
-    path: "/assets/ui/foundation.6023536e4d.css",
+    path: "/assets/ui/foundation.3db6cce38f.css",
   },
   authLoginCss: {
     kind: "style",
@@ -21,7 +21,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminCss: {
     kind: "style",
-    path: "/assets/ui/institution-admin.05ee510741.css",
+    path: "/assets/ui/institution-admin.4a21f3960c.css",
   },
   institutionAdminJs: {
     kind: "script",
@@ -37,7 +37,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminTemplateEditorCss: {
     kind: "style",
-    path: "/assets/ui/institution-admin-template-editor.ace275d1ac.css",
+    path: "/assets/ui/institution-admin-template-editor.4646f6644b.css",
   },
   institutionAdminBadgeTemplateListJs: {
     kind: "script",
@@ -53,7 +53,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminRuleBuilderJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-rule-builder.67559ec759.js",
+    path: "/assets/ui/institution-admin-rule-builder.3c7a9273b0.js",
   },
   learnerRecordCss: {
     kind: "style",

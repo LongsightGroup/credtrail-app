@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CtCheckboxControl,
   CtCheckboxField,
   CtField,
   CtFieldError,
@@ -78,12 +79,14 @@ describe("CredTrail form primitives", () => {
 
   it("renders hints, errors, and labeled described-by controls", () => {
     const html = renderToString(
-      <CtField label="Issuer URL" htmlFor="issuer-url" hint="Use HTTPS." error="Enter a URL.">
+      <CtField label="Issuer URL">
         <CtInput id="issuer-url" name="issuerUrl" type="url" />
+        <CtFieldHint>Use HTTPS.</CtFieldHint>
+        <CtFieldError>Enter a URL.</CtFieldError>
       </CtField>,
     );
 
-    expect(html).toContain('<label class="ct-field__label" for="issuer-url">');
+    expect(html).toContain('<span class="ct-field__label">Issuer URL</span>');
     expect(html).toContain("Use HTTPS.");
     expect(html).toContain("ct-field__hint");
     expect(html).toContain("Enter a URL.");
@@ -118,6 +121,9 @@ describe("CredTrail form primitives", () => {
     const radioHtml = renderToString(
       <CtCheckboxField name="mode" type="radio" value="draft" label="Save draft" />,
     );
+    const controlHtml = renderToString(
+      <CtCheckboxControl name="learner_user_id" value="learner-001" ariaLabel="Select learner" />,
+    );
 
     expect(checkboxHtml).toContain("ct-checkbox-field");
     expect(checkboxHtml).toContain('name="notify"');
@@ -127,6 +133,11 @@ describe("CredTrail form primitives", () => {
     expect(radioHtml).toContain('name="mode"');
     expect(radioHtml).toContain('type="radio"');
     expect(radioHtml).toContain('value="draft"');
+    expect(controlHtml).toContain('name="learner_user_id"');
+    expect(controlHtml).toContain('type="checkbox"');
+    expect(controlHtml).toContain('aria-label="Select learner"');
+    expect(controlHtml).toContain("ct-checkbox-field__control");
+    expect(controlHtml).not.toContain('class="ct-checkbox-field"');
   });
 
   it("renders standalone hint and error helpers", () => {
@@ -141,6 +152,24 @@ describe("CredTrail form primitives", () => {
     expect(html).toContain("ct-field__hint");
     expect(html).toContain('id="error-id"');
     expect(html).toContain("ct-field__error");
+  });
+
+  it("wires described-by between field hints and controls", () => {
+    const html = renderToString(
+      <CtField label="Institution email">
+        <CtInput
+          id="institution-email"
+          name="email"
+          type="email"
+          describedBy="institution-email-hint"
+        />
+        <CtFieldHint id="institution-email-hint">Use your work email.</CtFieldHint>
+      </CtField>,
+    );
+
+    expect(html).toContain('aria-describedby="institution-email-hint"');
+    expect(html).toContain('id="institution-email-hint"');
+    expect(html).toContain("Use your work email.");
   });
 
   it("renders the design-system form gallery", () => {

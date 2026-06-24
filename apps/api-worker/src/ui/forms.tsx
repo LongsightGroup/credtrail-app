@@ -1,7 +1,12 @@
-import type { PropsWithChildren } from "hono/jsx";
-import type { HtmlEscapedString } from "hono/utils/html";
-
-type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
+import type { PropsWithChildren, Child } from "hono/jsx";
+import {
+  classNames,
+  describedByValue,
+  type CtDataAttributes,
+  type HonoElement,
+  type HonoFragmentChildren,
+  normalizedClassName,
+} from "./jsx-utils";
 
 export type CtFormMethod = "get" | "post";
 export type CtInputType =
@@ -14,37 +19,22 @@ export type CtInputType =
   | "tel"
   | "date"
   | "datetime-local"
-  | "file";
+  | "file"
+  | "hidden";
 export type CtTextareaVariant = "default" | "prose" | "code";
 export type CtCheckboxType = "checkbox" | "radio";
-export type CtDataAttributes = Partial<Record<`data-${string}`, string>>;
 
-const normalizedClassName = (className: string | undefined): string | undefined => {
-  const normalized = className?.trim();
-
-  return normalized === undefined || normalized.length === 0 ? undefined : normalized;
-};
-
-const classNames = (...entries: Array<string | undefined>): string => {
-  return entries.filter((entry) => entry !== undefined && entry.length > 0).join(" ");
-};
-
-const describedByValue = (
-  describedBy: string | readonly string[] | undefined,
+const controlClassNames = (
+  className: string | undefined,
+  ...controlClasses: string[]
 ): string | undefined => {
-  if (describedBy === undefined) {
-    return undefined;
+  const normalized = normalizedClassName(className);
+
+  if (controlClasses.length === 0) {
+    return normalized;
   }
 
-  if (typeof describedBy !== "string") {
-    const ids = describedBy.map((entry) => entry.trim()).filter((entry) => entry.length > 0);
-
-    return ids.length === 0 ? undefined : ids.join(" ");
-  }
-
-  const normalized = describedBy?.trim();
-
-  return normalized === undefined || normalized.length === 0 ? undefined : normalized;
+  return classNames(normalized, ...controlClasses);
 };
 
 export const CtForm = ({
@@ -113,11 +103,6 @@ export const CtFieldError = ({
 export const CtField = ({
   id,
   label,
-  htmlFor,
-  hint,
-  hintId,
-  error,
-  errorId,
   inline,
   compact,
   className,
@@ -125,45 +110,22 @@ export const CtField = ({
 }: PropsWithChildren<{
   id?: string | undefined;
   label: string;
-  htmlFor?: string | undefined;
-  hint?: string | undefined;
-  hintId?: string | undefined;
-  error?: string | undefined;
-  errorId?: string | undefined;
   inline?: boolean | undefined;
   compact?: boolean | undefined;
   className?: string | undefined;
 }>): HonoElement => {
-  const fieldClass = classNames(
-    normalizedClassName(className),
-    "ct-field",
-    inline === true ? "ct-field--inline" : undefined,
-    compact === true ? "ct-field--compact" : undefined,
-  );
-  const labelContent = <span class="ct-field__label">{label}</span>;
-  const hintContent = hint === undefined ? null : <CtFieldHint id={hintId}>{hint}</CtFieldHint>;
-  const errorContent =
-    error === undefined ? null : <CtFieldError id={errorId}>{error}</CtFieldError>;
-
-  if (htmlFor !== undefined) {
-    return (
-      <div id={id} class={fieldClass}>
-        <label class="ct-field__label" for={htmlFor}>
-          {label}
-        </label>
-        {hintContent}
-        {children}
-        {errorContent}
-      </div>
-    );
-  }
-
   return (
-    <label id={id} class={fieldClass}>
-      {labelContent}
-      {hintContent}
+    <label
+      id={id}
+      class={classNames(
+        normalizedClassName(className),
+        "ct-field",
+        inline === true ? "ct-field--inline" : undefined,
+        compact === true ? "ct-field--compact" : undefined,
+      )}
+    >
+      <span class="ct-field__label">{label}</span>
       {children}
-      {errorContent}
     </label>
   );
 };
@@ -226,6 +188,11 @@ export const CtInput = ({
   describedBy?: string | readonly string[] | undefined;
   dataAttributes?: CtDataAttributes | undefined;
 }): HonoElement => {
+  const inputClass =
+    type === "hidden"
+      ? normalizedClassName(className)
+      : controlClassNames(className, "ct-input", "ct-field__control");
+
   return (
     <input
       id={id}
@@ -247,7 +214,7 @@ export const CtInput = ({
       step={step}
       accept={accept}
       inputmode={inputmode}
-      class={classNames(normalizedClassName(className), "ct-input", "ct-field__control")}
+      class={inputClass}
       aria-label={ariaLabel}
       aria-describedby={describedByValue(describedBy)}
       {...(dataAttributes ?? {})}
@@ -324,6 +291,8 @@ export const CtTextarea = ({
   );
 };
 
+export type CtSelectChildren = Child | readonly Child[] | HonoFragmentChildren;
+
 export const CtSelect = ({
   id,
   name,
@@ -336,9 +305,10 @@ export const CtSelect = ({
   className,
   ariaLabel,
   describedBy,
+  onchange,
   dataAttributes,
   children,
-}: PropsWithChildren<{
+}: {
   id?: string | undefined;
   name?: string | undefined;
   required?: boolean | undefined;
@@ -350,8 +320,10 @@ export const CtSelect = ({
   className?: string | undefined;
   ariaLabel?: string | undefined;
   describedBy?: string | readonly string[] | undefined;
+  onchange?: string | undefined;
   dataAttributes?: CtDataAttributes | undefined;
-}>): HonoElement => {
+  children?: CtSelectChildren;
+}): HonoElement => {
   return (
     <select
       id={id}
@@ -362,13 +334,59 @@ export const CtSelect = ({
       multiple={multiple}
       size={size}
       form={form}
-      class={classNames(normalizedClassName(className), "ct-select", "ct-field__control")}
+      class={controlClassNames(className, "ct-select", "ct-field__control")}
       aria-label={ariaLabel}
       aria-describedby={describedByValue(describedBy)}
+      onchange={onchange}
       {...(dataAttributes ?? {})}
     >
       {children}
     </select>
+  );
+};
+
+export const CtCheckboxControl = ({
+  id,
+  name,
+  type = "checkbox",
+  value,
+  checked,
+  required,
+  disabled,
+  form,
+  className,
+  ariaLabel,
+  describedBy,
+  dataAttributes,
+}: {
+  id?: string | undefined;
+  name: string;
+  type?: CtCheckboxType | undefined;
+  value?: string | undefined;
+  checked?: boolean | undefined;
+  required?: boolean | undefined;
+  disabled?: boolean | undefined;
+  form?: string | undefined;
+  className?: string | undefined;
+  ariaLabel?: string | undefined;
+  describedBy?: string | readonly string[] | undefined;
+  dataAttributes?: CtDataAttributes | undefined;
+}): HonoElement => {
+  return (
+    <input
+      id={id}
+      name={name}
+      type={type}
+      value={value}
+      checked={checked}
+      required={required}
+      disabled={disabled}
+      form={form}
+      class={controlClassNames(className, "ct-checkbox-field__control")}
+      aria-label={ariaLabel}
+      aria-describedby={describedByValue(describedBy)}
+      {...(dataAttributes ?? {})}
+    />
   );
 };
 
@@ -382,40 +400,30 @@ export const CtCheckboxField = ({
   required,
   disabled,
   hidden,
+  form,
   className,
   ariaLabel,
   describedBy,
   dataAttributes,
-  children,
-}: PropsWithChildren<{
+}: {
   id?: string | undefined;
-  name?: string | undefined;
+  name: string;
   type?: CtCheckboxType | undefined;
   value?: string | undefined;
-  label?: string | undefined;
+  label: string;
   checked?: boolean | undefined;
   required?: boolean | undefined;
   disabled?: boolean | undefined;
   hidden?: boolean | undefined;
+  form?: string | undefined;
   className?: string | undefined;
   ariaLabel?: string | undefined;
   describedBy?: string | readonly string[] | undefined;
   dataAttributes?: CtDataAttributes | undefined;
-}>): HonoElement => {
-  if (name === undefined && label === undefined && children !== undefined) {
-    return (
-      <label
-        class={classNames(normalizedClassName(className), "ct-checkbox-field")}
-        hidden={hidden}
-      >
-        {children}
-      </label>
-    );
-  }
-
+}): HonoElement => {
   return (
     <label class={classNames(normalizedClassName(className), "ct-checkbox-field")} hidden={hidden}>
-      <input
+      <CtCheckboxControl
         id={id}
         name={name}
         type={type}
@@ -423,12 +431,12 @@ export const CtCheckboxField = ({
         checked={checked}
         required={required}
         disabled={disabled}
-        class="ct-checkbox-field__control"
-        aria-label={ariaLabel}
-        aria-describedby={describedByValue(describedBy)}
-        {...(dataAttributes ?? {})}
+        form={form}
+        ariaLabel={ariaLabel}
+        describedBy={describedBy}
+        dataAttributes={dataAttributes}
       />
-      <span class="ct-checkbox-field__label">{label ?? children}</span>
+      <span class="ct-checkbox-field__label">{label}</span>
     </label>
   );
 };

@@ -3,6 +3,7 @@ import type { BadgeTemplateRecord } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { adminStatusPillClass } from "./admin-status-pill-class";
 import { AdminButton, AdminField, AdminForm, AdminStatus } from "./components";
+import { CtInput, CtSelect } from "../ui/forms";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -157,10 +158,10 @@ export const BadgeTemplateEditorArtworkActions = ({
               encType="multipart/form-data"
               className="ct-admin__form ct-admin__template-editor-subform"
             >
-              <input type="hidden" name="badgeTemplateId" value={template.id} />
+              <CtInput type="hidden" name="badgeTemplateId" value={template.id} />
               <div class="ct-admin__template-editor-fields ct-admin__template-editor-fields--upload">
                 <AdminField label="Image file">
-                  <input
+                  <CtInput
                     name="file"
                     type="file"
                     required
@@ -180,25 +181,25 @@ export const BadgeTemplateEditorArtworkActions = ({
               id="badge-template-image-generation-form"
               className="ct-admin__form ct-admin__template-editor-subform"
             >
-              <input type="hidden" name="badgeTemplateId" value={template.id} />
+              <CtInput type="hidden" name="badgeTemplateId" value={template.id} />
               <div class="ct-admin__template-editor-fields ct-admin__template-editor-fields--generation">
                 <AdminField label="Style">
-                  <select name="stylePreset" required>
+                  <CtSelect name="stylePreset" required>
                     <option value="institutional">Institutional</option>
                     <option value="technical">Technical</option>
                     <option value="academic">Academic</option>
                     <option value="open_source">Open source</option>
                     <option value="minimal">Minimal</option>
-                  </select>
+                  </CtSelect>
                 </AdminField>
                 <AdminField label="Accent">
-                  <input name="accentColor" type="text" placeholder="Sakai blue" maxlength={80} />
+                  <CtInput name="accentColor" type="text" placeholder="Sakai blue" maxlength={80} />
                 </AdminField>
                 <AdminField
                   label="Prompt notes"
                   className="ct-admin__template-editor-generation-prompt"
                 >
-                  <input
+                  <CtInput
                     name="promptNotes"
                     type="text"
                     placeholder="Shield, milestone, stars"
@@ -218,7 +219,7 @@ export const BadgeTemplateEditorArtworkActions = ({
               className="ct-admin__form"
               hidden
             >
-              <input
+              <CtInput
                 type="hidden"
                 name="generationId"
                 id="badge-template-image-generation-apply-generation-id"

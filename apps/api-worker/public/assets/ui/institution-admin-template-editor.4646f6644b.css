@@ -509,76 +509,11 @@
   gap: var(--ct-space-2);
   align-items: center;
 }
-.ct-admin__template-editor-body input:not([type='checkbox']):not([type='hidden']),
-.ct-admin__template-editor-body select,
-.ct-admin__template-editor-body textarea {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  border: 1px solid var(--ct-border-strong);
-  border-radius: var(--ct-radius-md);
-  min-height: 2.75rem;
-  padding: 0.65rem 0.72rem;
-  background: var(--ct-theme-surface-card-strong);
-  color: var(--ct-theme-text-body);
-  font-family: var(--ct-font-sans);
-  font-size: 0.92rem;
-  line-height: 1.2;
-  box-shadow: inset 0 1px 0 rgba(7, 26, 49, 0.03);
-  transition:
-    border-color var(--ct-duration-fast) var(--ct-ease-standard),
-    box-shadow var(--ct-duration-fast) var(--ct-ease-standard),
-    background var(--ct-duration-fast) var(--ct-ease-standard);
-}
-.ct-admin__template-editor-body select {
-  -webkit-appearance: none;
-  appearance: none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--ct-theme-text-muted) 50%),
-    linear-gradient(135deg, var(--ct-theme-text-muted) 50%, transparent 50%);
-  background-position:
-    calc(100% - 0.96rem) 52%,
-    calc(100% - 0.72rem) 52%;
-  background-repeat: no-repeat;
-  background-size:
-    0.28rem 0.28rem,
-    0.28rem 0.28rem;
-  padding-right: 2.15rem;
-}
-.ct-admin__template-editor-body input:not([type='checkbox']):not([type='hidden']):focus,
-.ct-admin__template-editor-body select:focus,
-.ct-admin__template-editor-body textarea:focus {
-  outline: none;
-  border-color: var(--ct-theme-border-focus);
-  box-shadow: var(--ct-focus-ring);
-}
-.ct-admin__template-editor-body input:not([type='checkbox']):not([type='hidden']):user-invalid,
-.ct-admin__template-editor-body select:user-invalid,
-.ct-admin__template-editor-body textarea:user-invalid,
-.ct-admin__template-editor-body input:not([type='checkbox']):not([type='hidden']).user-invalid-fallback,
-.ct-admin__template-editor-body select.user-invalid-fallback,
-.ct-admin__template-editor-body textarea.user-invalid-fallback {
-  border-color: var(--ct-theme-state-danger);
-  background: var(--ct-theme-surface-danger);
-}
-.ct-admin__template-editor-body select:disabled {
+.ct-admin__template-editor-body .ct-select:disabled {
   cursor: progress;
   opacity: 0.68;
 }
-.ct-admin__template-editor-body textarea {
-  min-height: 5.5rem;
-  resize: vertical;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.84rem;
-  line-height: 1.35;
-}
-.ct-admin__template-editor-body .ct-admin__template-editor-prose-textarea {
-  font-family: var(--ct-font-sans);
-  font-size: 0.92rem;
-  line-height: 1.45;
-}
-.ct-admin__template-editor-body input[type='file'] {
+.ct-admin__template-editor-body .ct-input[type='file'] {
   width: 100%;
   border: 1px dashed var(--ct-border-soft);
   border-radius: var(--ct-radius-md);

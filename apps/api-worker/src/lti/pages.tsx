@@ -1,6 +1,7 @@
 import type { TenantMembershipRole } from "@credtrail/db";
 import type { LtiRoleKind } from "@credtrail/lti";
 import type { PropsWithChildren } from "hono/jsx";
+import { CtForm, CtInput } from "../ui/forms";
 import { appPage, type AppPage } from "../ui/render-page";
 import type { PageAssetKey } from "../ui/page-assets";
 import { BulkIssuanceSection, CourseBadgeSummarySection } from "./instructor-launch-pages";
@@ -52,9 +53,9 @@ const LtiDeepLinkForm = ({
   action: string;
 }>): HonoElement => {
   return (
-    <form method="post" action={action} class="lti-deep-link__form">
+    <CtForm method="post" action={action} className="lti-deep-link__form">
       {children}
-    </form>
+    </CtForm>
   );
 };
 
@@ -346,8 +347,8 @@ const DeepLinkOption = (input: {
         </a>
       </p>
       <LtiDeepLinkForm action={input.signedSelectionActionUrl}>
-        <input type="hidden" name="lti_session_id" value={input.ltiSessionId} />
-        <input type="hidden" name="badge_template_id" value={input.option.badgeTemplateId} />
+        <CtInput type="hidden" name="lti_session_id" value={input.ltiSessionId} />
+        <CtInput type="hidden" name="badge_template_id" value={input.option.badgeTemplateId} />
         <LtiSubmitButton>Place Template in LMS</LtiSubmitButton>
       </LtiDeepLinkForm>
     </article>

@@ -25,6 +25,7 @@ import {
   AdminMeta,
   AdminTable,
 } from "../components";
+import { CtInput, CtSelect, CtTextarea } from "../../ui/forms";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -108,7 +109,7 @@ export const renderEnterpriseAuthSection = (
                     "data-confirm-message": `Delete ${provider.label}?`,
                   }}
                 >
-                  <input type="hidden" name="providerId" value={provider.id} />
+                  <CtInput type="hidden" name="providerId" value={provider.id} />
                   <AdminButton type="submit" size="tiny" variant="danger">
                     Delete
                   </AdminButton>
@@ -130,7 +131,7 @@ export const renderEnterpriseAuthSection = (
         action={tenantAccessEnterpriseAuthPolicyPath(input.tenant.id)}
       >
         <AdminField label="Login mode">
-          <select name="loginMode" required>
+          <CtSelect name="loginMode" required>
             <option value="local" selected={enterpriseAuthPolicy.loginMode === "local"}>
               Local only
             </option>
@@ -143,34 +144,28 @@ export const renderEnterpriseAuthSection = (
             >
               SSO required
             </option>
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="Default provider">
-          <select name="defaultProviderId">
+          <CtSelect name="defaultProviderId">
             <option value="">No default provider</option>
             {enterpriseAuthProviderOptions}
-          </select>
+          </CtSelect>
         </AdminField>
         <p class="ct-admin__hint">
           SSO enforcement applies to the tenant login experience. Role-specific enforcement is not
           configurable in the hosted runtime.
         </p>
-        <AdminCheckboxRow>
-          <input
-            name="breakGlassEnabled"
-            type="checkbox"
-            checked={enterpriseAuthPolicy.breakGlassEnabled}
-          />
-          Break-glass local access enabled
-        </AdminCheckboxRow>
-        <AdminCheckboxRow>
-          <input
-            name="localMfaRequired"
-            type="checkbox"
-            checked={enterpriseAuthPolicy.localMfaRequired}
-          />
-          Require MFA for local access
-        </AdminCheckboxRow>
+        <AdminCheckboxRow
+          name="breakGlassEnabled"
+          label="Break-glass local access enabled"
+          checked={enterpriseAuthPolicy.breakGlassEnabled}
+        />
+        <AdminCheckboxRow
+          name="localMfaRequired"
+          label="Require MFA for local access"
+          checked={enterpriseAuthPolicy.localMfaRequired}
+        />
         <AdminButton type="submit">Save auth policy</AdminButton>
       </AdminForm>
       <AdminForm
@@ -178,15 +173,15 @@ export const renderEnterpriseAuthSection = (
         method="post"
         action={tenantAccessEnterpriseAuthProviderSavePath(input.tenant.id)}
       >
-        <input type="hidden" name="providerId" value={editingProvider?.id ?? ""} />
-        <input type="hidden" name="protocol" value="oidc" />
+        <CtInput type="hidden" name="providerId" value={editingProvider?.id ?? ""} />
+        <CtInput type="hidden" name="protocol" value="oidc" />
         <p class="ct-admin__hint">
           {editingProvider === null
             ? "Add a hosted OIDC provider here."
             : `Editing ${editingProvider.label}. Save changes or clear the form to add a new provider.`}
         </p>
         <AdminField label="OIDC provider label">
-          <input
+          <CtInput
             name="label"
             type="text"
             required
@@ -195,29 +190,26 @@ export const renderEnterpriseAuthSection = (
           />
         </AdminField>
         <AdminField label="OIDC discovery or connection JSON">
-          <textarea
+          <CtTextarea
             id="enterprise-auth-provider-config-json"
             name="configJson"
             rows={8}
             required
-            spellcheck={false}
+            variant="code"
             placeholder='{"issuer":"https://idp.example.edu","clientId":"credtrail"}'
-          >
-            {formatJsonTextareaValue(editingProvider?.configJson ?? "")}
-          </textarea>
-        </AdminField>
-        <AdminCheckboxRow>
-          <input
-            name="enabled"
-            type="checkbox"
-            checked={editingProvider === null ? true : editingProvider.enabled}
+            value={formatJsonTextareaValue(editingProvider?.configJson ?? "")}
           />
-          Provider enabled
-        </AdminCheckboxRow>
-        <AdminCheckboxRow>
-          <input name="isDefault" type="checkbox" checked={editingProvider?.isDefault === true} />
-          Set as default provider
-        </AdminCheckboxRow>
+        </AdminField>
+        <AdminCheckboxRow
+          name="enabled"
+          label="Provider enabled"
+          checked={editingProvider === null ? true : editingProvider.enabled}
+        />
+        <AdminCheckboxRow
+          name="isDefault"
+          label="Set as default provider"
+          checked={editingProvider?.isDefault === true}
+        />
         <AdminActions>
           <AdminButton type="submit">
             {editingProvider === null ? "Save provider" : "Update provider"}
@@ -250,12 +242,13 @@ export const renderEnterpriseAuthSection = (
           action={tenantAccessBreakGlassAccountCreatePath(input.tenant.id)}
         >
           <AdminField label="Institution email">
-            <input name="email" type="email" required placeholder="admin@institution.edu" />
+            <CtInput name="email" type="email" required placeholder="admin@institution.edu" />
           </AdminField>
-          <AdminCheckboxRow>
-            <input name="sendEnrollmentEmail" type="checkbox" checked />
-            Email setup or password-reset link now
-          </AdminCheckboxRow>
+          <AdminCheckboxRow
+            name="sendEnrollmentEmail"
+            label="Email setup or password-reset link now"
+            checked
+          />
           <AdminButton type="submit">Add break-glass account</AdminButton>
         </AdminForm>
         <AdminTable
@@ -298,7 +291,7 @@ export const renderEnterpriseAuthSection = (
                         "data-confirm-message": `Revoke break-glass access for ${account.email}?`,
                       }}
                     >
-                      <input type="hidden" name="userId" value={account.userId} />
+                      <CtInput type="hidden" name="userId" value={account.userId} />
                       <AdminButton type="submit" size="tiny" variant="danger">
                         Revoke
                       </AdminButton>

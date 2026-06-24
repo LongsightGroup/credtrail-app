@@ -8,6 +8,7 @@ import {
   AdminPanel,
   AdminStatus,
 } from "../components";
+import { CtInput, CtSelect } from "../../ui/forms";
 import { tenantOperationsManualIssuePath } from "../access-admin-helpers";
 import type { AdminManualIssueSuccessLinks } from "../manual-issue-flash";
 
@@ -70,12 +71,12 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
         className="ct-admin__form ct-admin__setup-form ct-stack"
       >
         <AdminField label="Badge template">
-          <select name="badgeTemplateId" required>
+          <CtSelect name="badgeTemplateId" required>
             {input.templateSelectOptions}
-          </select>
+          </CtSelect>
         </AdminField>
         <AdminField label="Recipient email">
-          <input
+          <CtInput
             name="recipientIdentity"
             type="email"
             required

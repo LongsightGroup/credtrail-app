@@ -175,6 +175,17 @@ describe("page asset manifest", () => {
     expect(institutionAdminCss).not.toContain(".ct-admin__form textarea {");
   });
 
+  it("keeps template editor forms on primitive class contracts", () => {
+    const templateEditorCss = readGeneratedAsset("institutionAdminTemplateEditorCss");
+
+    expect(templateEditorCss).not.toContain(
+      ".ct-admin__template-editor-body input:not([type='checkbox'])",
+    );
+    expect(templateEditorCss).not.toContain(".ct-admin__template-editor-body select,");
+    expect(templateEditorCss).not.toContain(".ct-admin__template-editor-body textarea {");
+    expect(templateEditorCss).toContain(".ct-admin__template-editor-body .ct-input[type='file']");
+  });
+
   it("emits JavaScript assets that parse as browser scripts", () => {
     const scriptAssetKeys: readonly PageAssetKey[] = [
       "authLoginJs",

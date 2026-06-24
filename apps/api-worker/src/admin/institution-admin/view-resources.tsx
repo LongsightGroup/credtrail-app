@@ -32,6 +32,7 @@ import {
   AdminStatusPill,
   AdminWorkspaceCard,
 } from "../components";
+import { CtInput, CtSelect } from "../../ui/forms";
 import { buildLmsConnectionEditPath, isLmsConnectionReady } from "../lms-connection-admin-helpers";
 import { TenantApiKeyAdminTableRow } from "../api-key-table-row";
 import { serializeJsonScriptContent } from "../institution-admin-shell";
@@ -325,14 +326,14 @@ export const buildInstitutionAdminViewResources = (
                 action={tenantAccessMemberRolePath(input.tenant.id, member.userId)}
                 className="ct-admin__inline-form"
               >
-                <select
+                <CtSelect
                   name="role"
-                  aria-label={`Tenant role for ${member.email}`}
-                  data-current-role={member.role}
+                  ariaLabel={`Tenant role for ${member.email}`}
                   onchange="if(this.value!==this.dataset.currentRole)this.form.requestSubmit()"
+                  dataAttributes={{ "data-current-role": member.role }}
                 >
                   {tenantMemberRoleOptions(member.role)}
-                </select>
+                </CtSelect>
               </AdminForm>
             ) : (
               <AdminStatusPill>{member.role}</AdminStatusPill>
@@ -404,8 +405,8 @@ export const buildInstitutionAdminViewResources = (
                 "data-confirm-message": `Remove scoped role for ${scope.userId} · ${scopeLabel}?`,
               }}
             >
-              <input type="hidden" name="userId" value={scope.userId} />
-              <input type="hidden" name="orgUnitId" value={scope.orgUnitId} />
+              <CtInput type="hidden" name="userId" value={scope.userId} />
+              <CtInput type="hidden" name="orgUnitId" value={scope.orgUnitId} />
               <AdminButton type="submit" size="tiny" variant="danger">
                 Remove
               </AdminButton>
@@ -464,8 +465,8 @@ export const buildInstitutionAdminViewResources = (
                   "data-confirm-message": `Remove delegation for ${grant.delegateUserId} · ${grant.id}?`,
                 }}
               >
-                <input type="hidden" name="delegateUserId" value={grant.delegateUserId} />
-                <input type="hidden" name="grantId" value={grant.id} />
+                <CtInput type="hidden" name="delegateUserId" value={grant.delegateUserId} />
+                <CtInput type="hidden" name="grantId" value={grant.id} />
                 <AdminButton type="submit" size="tiny" variant="danger">
                   Remove
                 </AdminButton>
@@ -527,7 +528,7 @@ export const buildInstitutionAdminViewResources = (
                 "data-confirm-message": `Approve latest version for "${rule.name}"?`,
               }}
             >
-              <input type="hidden" name="decision" value="approved" />
+              <CtInput type="hidden" name="decision" value="approved" />
               <button type="submit" class="ct-admin__action-menu-item">
                 Approve
               </button>
@@ -542,7 +543,7 @@ export const buildInstitutionAdminViewResources = (
                 "data-confirm-message": `Reject latest version for "${rule.name}"?`,
               }}
             >
-              <input type="hidden" name="decision" value="rejected" />
+              <CtInput type="hidden" name="decision" value="rejected" />
               <button
                 type="submit"
                 class="ct-admin__action-menu-item ct-admin__action-menu-item--danger"

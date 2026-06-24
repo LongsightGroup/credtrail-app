@@ -203,12 +203,6 @@ ${INSTITUTION_ADMIN_REPORTING_CSS}
 }
 ${INSTITUTION_ADMIN_FORMS_CSS}
 ${INSTITUTION_ADMIN_RULE_BUILDER_CSS}
-.ct-admin__checkbox-row {
-  font-size: 0.92rem;
-}
-.ct-admin__checkbox-row input[type='checkbox'] {
-  margin: 0;
-}
 ${INSTITUTION_ADMIN_BUTTONS_CSS}
 .ct-admin__status {
   margin: 0;

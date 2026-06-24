@@ -128,14 +128,14 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
     expect(body).toContain("Scoped Roles");
     expect(body).toContain("Current Scoped Roles (1)");
     expect(body).toContain('action="/tenants/tenant_123/admin/access/governance/scopes/remove"');
-    expect(body).toContain('name="userId" value="usr_issuer"');
+    expect(body).toContain('name="userId" type="hidden" value="usr_issuer"');
     expect(body).toContain("Current Delegations (1)");
     expect(body).not.toContain('id="delegated-grant-panel"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/governance/delegations/new"');
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/access/governance/delegations/revoke"',
     );
-    expect(body).toContain('name="grantId" value="dag_123"');
+    expect(body).toContain('name="grantId" type="hidden" value="dag_123"');
     expect(body.indexOf('id="membership-scope-body"')).toBeLessThan(
       body.indexOf('id="membership-scope-panel"'),
     );

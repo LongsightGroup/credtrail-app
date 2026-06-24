@@ -22,6 +22,7 @@ import {
   AdminTopbar,
   type AdminSidebarFooterLink,
 } from "./components";
+import { CtInput, CtSelect, CtTextarea } from "../ui/forms";
 import { buildInstitutionAdminSidebarSectionsForTenant } from "./institution-admin-sidebar";
 import { isLmsConnectionReady } from "./lms-connection-admin-helpers";
 
@@ -196,16 +197,17 @@ const RuleBuilderConditionCardTemplate = (): HonoElement => {
           <summary>Edit requirement details</summary>
           <div class="ct-admin__condition-header-fields ct-admin__builder-grid ct-grid">
             <AdminField label="Requirement type">
-              <select class="ct-admin__condition-type">
+              <CtSelect className="ct-admin__condition-type">
                 {ruleBuilderConditionTypes.map((conditionType) => (
                   <option value={conditionType.value}>{conditionType.label}</option>
                 ))}
-              </select>
+              </CtSelect>
             </AdminField>
-            <AdminCheckboxRow>
-              <input type="checkbox" data-field="negate" />
-              Exclude learners who match this requirement
-            </AdminCheckboxRow>
+            <AdminCheckboxRow
+              name="negate"
+              label="Exclude learners who match this requirement"
+              dataAttributes={{ "data-field": "negate" }}
+            />
           </div>
           <div class="ct-admin__condition-fields ct-admin__builder-grid ct-grid"></div>
         </details>
@@ -486,10 +488,10 @@ export const institutionAdminRuleBuilderPage = (input: {
                 requirements before submitting.
               </p>
               <AdminActions className="ct-admin__builder-inline">
-                <select
+                <CtSelect
                   id="rule-builder-clone-rule"
                   name="cloneRuleId"
-                  aria-label="Rule to copy settings from"
+                  ariaLabel="Rule to copy settings from"
                 >
                   <option value="">Select rule to copy</option>
                   {ruleCloneOptions.map((option) => (
@@ -497,7 +499,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </CtSelect>
                 <AdminButton
                   id="rule-builder-clone-load"
                   type="button"
@@ -548,7 +550,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                         </p>
                         <div class="ct-admin__builder-grid ct-grid">
                           <AdminField label="Badge template">
-                            <select name="badgeTemplateId" required>
+                            <CtSelect name="badgeTemplateId" required>
                               {templateOptions.length === 0 ? (
                                 <option value="">No badge templates available</option>
                               ) : (
@@ -562,7 +564,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                                   </option>
                                 ))
                               )}
-                            </select>
+                            </CtSelect>
                           </AdminField>
                           <p class="ct-admin__hint ct-admin__builder-field-span">
                             Need a new template?{" "}
@@ -572,7 +574,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                             .
                           </p>
                           <AdminField label="LMS connection">
-                            <select
+                            <CtSelect
                               id="rule-builder-lms-connection"
                               name="lmsConnectionId"
                               required
@@ -598,8 +600,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                                   </option>
                                 ))
                               )}
-                            </select>
-                            <input
+                            </CtSelect>
+                            <CtInput
                               id="rule-builder-lms-provider-kind"
                               name="lmsProviderKind"
                               type="hidden"
@@ -636,7 +638,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                             label="Awarding pattern"
                             className="ct-admin__builder-field-span"
                           >
-                            <select id="rule-builder-template-preset" name="templatePreset">
+                            <CtSelect id="rule-builder-template-preset" name="templatePreset">
                               <option value="course_completion">Course completed</option>
                               <option value="course_and_grade" selected>
                                 Course completed + minimum score
@@ -650,13 +652,13 @@ export const institutionAdminRuleBuilderPage = (input: {
                                 Prerequisite badge required
                               </option>
                               <option value="time_limited">Date-limited earning window</option>
-                            </select>
+                            </CtSelect>
                           </AdminField>
                           <AdminField
                             label="Description (optional)"
                             className="ct-admin__builder-field-span"
                           >
-                            <input
+                            <CtInput
                               name="description"
                               type="text"
                               value={editRule?.rule.description ?? ""}
@@ -664,12 +666,14 @@ export const institutionAdminRuleBuilderPage = (input: {
                             />
                           </AdminField>
                         </div>
-                        <input
+                        <CtInput
                           type="hidden"
                           name="name"
                           id="rule-builder-name"
                           value={editRule?.rule.name ?? ""}
-                          data-rule-builder-preserve-name={isEditMode ? "true" : "false"}
+                          dataAttributes={{
+                            "data-rule-builder-preserve-name": isEditMode ? "true" : "false",
+                          }}
                         />
                       </section>
                       <footer id="rule-builder-step-footer" class="ct-admin__builder-step-footer">
@@ -722,7 +726,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                       <div class="ct-admin__builder-workbench ct-stack">
                         <div class="ct-admin__builder-workbench-main ct-stack">
                           <AdminActions className="ct-admin__builder-toolbar">
-                            <input
+                            <CtInput
                               id="rule-builder-root-logic"
                               name="rootLogic"
                               type="hidden"
@@ -865,12 +869,12 @@ export const institutionAdminRuleBuilderPage = (input: {
                       <details class="ct-admin__builder-advanced ct-stack">
                         <summary>Generated rule JSON</summary>
                         <AdminField label="Rule JSON (expert override)">
-                          <textarea
+                          <CtTextarea
                             id="rule-builder-definition-json"
                             name="definitionJson"
                             rows={12}
-                            spellcheck={false}
-                          ></textarea>
+                            variant="code"
+                          />
                         </AdminField>
                         <AdminActions className="ct-admin__builder-inline">
                           <AdminButton id="rule-builder-apply-json" type="button" size="tiny">
@@ -916,36 +920,36 @@ export const institutionAdminRuleBuilderPage = (input: {
                             test.
                           </p>
                           <AdminField label="Learner ID">
-                            <input name="testLearnerId" type="text" value="canvas:12345" />
+                            <CtInput name="testLearnerId" type="text" value="canvas:12345" />
                           </AdminField>
                           <AdminField label="Recipient email">
-                            <input
+                            <CtInput
                               name="testRecipientIdentity"
                               type="email"
                               value="learner@example.edu"
                             />
                           </AdminField>
                           <AdminField label="Sample final score">
-                            <input
+                            <CtInput
                               name="testFinalScore"
                               type="number"
-                              min={0}
-                              max={100}
+                              min="0"
+                              max="100"
                               step="0.01"
                               value="92"
                             />
                           </AdminField>
                           <AdminField label="Sample gradebook items completed %">
-                            <input
+                            <CtInput
                               name="testCompletionPercent"
                               type="number"
-                              min={0}
-                              max={100}
+                              min="0"
+                              max="100"
                               step="0.01"
                               value="100"
                             />
                           </AdminField>
-                          <select id="rule-builder-test-preset" name="testPreset" hidden>
+                          <CtSelect id="rule-builder-test-preset" name="testPreset" hidden>
                             <option value="canvas_course_grade" selected>
                               Canvas course + grade
                             </option>
@@ -954,7 +958,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                             <option value="survey_completion">Survey completion</option>
                             <option value="prerequisite_badge">Prerequisite badge</option>
                             <option value="custom_field">Custom field</option>
-                          </select>
+                          </CtSelect>
                           <div class="ct-admin__builder-test-actions">
                             <AdminButton id="rule-builder-test" type="button" size="tiny">
                               Test with learner
@@ -972,12 +976,12 @@ export const institutionAdminRuleBuilderPage = (input: {
                         <details class="ct-admin__builder-advanced ct-stack">
                           <summary>Advanced test facts</summary>
                           <AdminField label="Advanced facts JSON (optional)">
-                            <textarea
+                            <CtTextarea
                               name="testFactsJson"
                               rows={6}
-                              spellcheck={false}
+                              variant="code"
                               placeholder='{"grades":[{"courseId":"CS101","learnerId":"canvas:12345","finalScore":92}]}'
-                            ></textarea>
+                            />
                           </AdminField>
                         </details>
                       </div>
@@ -992,30 +996,30 @@ export const institutionAdminRuleBuilderPage = (input: {
                         <div class="ct-admin__builder-review-layout ct-grid">
                           <div class="ct-stack">
                             <AdminField label="Reviewer roles (optional)">
-                              <input
+                              <CtInput
                                 name="approvalRoles"
                                 type="text"
                                 placeholder="Leave blank for admin review"
                               />
                             </AdminField>
                             <AdminField label="Issuance timing">
-                              <select name="issuanceTiming">
+                              <CtSelect name="issuanceTiming">
                                 <option value="immediate">Immediate</option>
                                 <option value="manual">Manual review trigger</option>
                                 <option value="end_of_term">End of term batch</option>
-                              </select>
+                              </CtSelect>
                             </AdminField>
                             <AdminField label="Change summary (optional)">
-                              <input
+                              <CtInput
                                 name="changeSummary"
                                 type="text"
                                 placeholder="Initial draft for committee review."
                               />
                             </AdminField>
-                            <AdminCheckboxRow>
-                              <input name="reviewOnMissingFacts" type="checkbox" />
-                              Send missing-data cases to human review
-                            </AdminCheckboxRow>
+                            <AdminCheckboxRow
+                              name="reviewOnMissingFacts"
+                              label="Send missing-data cases to human review"
+                            />
                           </div>
                         </div>
                       </details>
@@ -1048,7 +1052,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                   >
                     Import JSON
                   </AdminButton>
-                  <input
+                  <CtInput
                     id="rule-builder-import-file"
                     type="file"
                     accept="application/json"

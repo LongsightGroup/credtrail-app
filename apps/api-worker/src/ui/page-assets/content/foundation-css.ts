@@ -188,34 +188,6 @@ body[data-variant='admin'] main {
   color: var(--ct-theme-text-muted);
 }
 
-.ct-checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: var(--ct-space-2);
-}
-
-.ct-checkbox-row input[type='checkbox'] {
-  margin: 0;
-  width: 1.2rem;
-  height: 1.2rem;
-  flex: 0 0 auto;
-  accent-color: var(--ct-theme-link);
-}
-
-@media (max-width: 780px), (pointer: coarse) {
-  .ct-checkbox-row {
-    align-items: flex-start;
-    min-height: 2.75rem;
-    padding-block: 0.35rem;
-  }
-
-  .ct-checkbox-row input[type='checkbox'] {
-    width: 1.2rem;
-    height: 1.2rem;
-    margin-top: 0.12rem;
-  }
-}
-
 @media (max-width: 980px) {
   .ct-grid--sidebar {
     grid-template-columns: minmax(0, 1fr);

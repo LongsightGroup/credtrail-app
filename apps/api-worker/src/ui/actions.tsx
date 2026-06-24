@@ -1,13 +1,12 @@
 import type { PropsWithChildren } from "hono/jsx";
-import type { HtmlEscapedString } from "hono/utils/html";
+import { type CtDataAttributes, type HonoElement, normalizedClassName } from "./jsx-utils";
 
-type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
+export type { CtDataAttributes } from "./jsx-utils";
 
 export type CtActionVariant = "primary" | "secondary" | "quiet" | "danger";
 export type CtLegacyActionVariant = CtActionVariant | "ghost";
 export type CtActionSize = "sm" | "md" | "lg" | "compact";
 export type CtButtonType = "button" | "submit" | "reset";
-export type CtDataAttributes = Partial<Record<`data-${string}`, string>>;
 
 export interface CtActionClassInput {
   variant?: CtActionVariant | undefined;
@@ -15,12 +14,6 @@ export interface CtActionClassInput {
   text?: boolean | undefined;
   className?: string | undefined;
 }
-
-const normalizedClassName = (className: string | undefined): string | undefined => {
-  const normalized = className?.trim();
-
-  return normalized === undefined || normalized.length === 0 ? undefined : normalized;
-};
 
 export const ctActionClass = (input: CtActionClassInput = {}): string => {
   const variant = input.variant ?? "primary";
