@@ -231,7 +231,7 @@ describe("GET /tenants/:tenantId/admin/operations/learner-records", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("Learner Records");
-    expect(body).toMatch(/class="[^"]*ct-admin__actions[^"]*ct-action-group/);
+    expect(body).toMatch(/class="[^"]*ct-action-group/);
     expect(body).toContain("Load learner record");
     expect(body).toContain('name="learnerProfileId"');
     expect(body).toContain('name="email"');
@@ -364,7 +364,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
 
     expect(response.status).toBe(200);
     expect(body).toContain("Learner Record Imports");
-    expect(body).toMatch(/class="[^"]*ct-admin__actions[^"]*ct-action-group/);
+    expect(body).toMatch(/class="[^"]*ct-action-group/);
     expect(body).toContain("Download CSV template");
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/operations/learner-record-imports/preview"',

@@ -784,7 +784,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CSS = `
   cursor: grab;
   user-select: none;
 }
-.ct-admin__actions.ct-admin__condition-actions {
+.ct-admin__condition-actions.ct-action-group {
   gap: 0.36rem;
 }
 .ct-admin__condition-header-fields.ct-grid {

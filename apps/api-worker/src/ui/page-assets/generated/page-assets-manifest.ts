@@ -21,7 +21,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminCss: {
     kind: "style",
-    path: "/assets/ui/institution-admin.faf87952b9.css",
+    path: "/assets/ui/institution-admin.bc56e6f83c.css",
   },
   institutionAdminJs: {
     kind: "script",

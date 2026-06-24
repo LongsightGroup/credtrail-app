@@ -572,7 +572,7 @@ export const AdminActions = ({
   align?: "start" | "end";
   className?: string;
 }>): HonoElement => {
-  const classNames = ["ct-admin__actions"];
+  const classNames: string[] = [];
 
   if (align === "end") {
     classNames.push("ct-admin__actions--end");
@@ -584,7 +584,11 @@ export const AdminActions = ({
     classNames.push(extraClass);
   }
 
-  return <CtActionGroup className={classNames.join(" ")}>{children}</CtActionGroup>;
+  return (
+    <CtActionGroup className={classNames.length === 0 ? undefined : classNames.join(" ")}>
+      {children}
+    </CtActionGroup>
+  );
 };
 
 export const AdminStatus = ({

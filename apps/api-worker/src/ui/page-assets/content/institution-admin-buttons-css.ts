@@ -24,11 +24,6 @@ export const INSTITUTION_ADMIN_BUTTONS_CSS = `
   transform: translateY(0);
 }
 
-.ct-admin__actions .ct-admin__button,
-.ct-admin__actions .ct-admin__cta-link {
-  border-radius: var(--ct-radius-sm);
-}
-
 .ct-admin__issued-actions {
   display: grid;
   justify-items: start;
@@ -133,15 +128,7 @@ export const INSTITUTION_ADMIN_BUTTONS_CSS = `
 .ct-admin__action-menu-item--danger {
   color: var(--ct-theme-state-danger);
 }
-.ct-admin__actions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-start;
-  justify-self: start;
-  gap: 0.45rem;
-}
-.ct-admin__table .ct-admin__actions {
+.ct-admin__table .ct-action-group {
   flex-wrap: nowrap;
   align-items: center;
   gap: 0.32rem;

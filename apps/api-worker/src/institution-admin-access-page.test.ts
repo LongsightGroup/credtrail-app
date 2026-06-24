@@ -142,9 +142,7 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
     expect(body.indexOf('id="governance-actions"')).toBeLessThan(
       body.indexOf('id="delegated-grant-body"'),
     );
-    expect(body).toMatch(
-      /id="governance-actions"[\s\S]*?class="[^"]*ct-admin__actions[^"]*ct-action-group/,
-    );
+    expect(body).toMatch(/id="governance-actions"[\s\S]*?class="[^"]*ct-action-group/);
     expect(body).not.toContain("Tenant member user ID");
     expect(body).not.toContain("Delegate user ID");
     expect(body).not.toContain("Limit to badge template IDs");
@@ -404,9 +402,7 @@ describe("GET /tenants/:tenantId/admin/access/lms-connections", () => {
     expect(body).toMatch(
       /class="[^"]*ct-admin__button[^"]*ct-action--secondary[^"]*" href="\/tenants\/tenant_123\/admin\/access\/lms-connections\/new"/,
     );
-    expect(body).toMatch(
-      /id="lms-connection-actions"[\s\S]*?class="[^"]*ct-admin__actions[^"]*ct-action-group/,
-    );
+    expect(body).toMatch(/id="lms-connection-actions"[\s\S]*?class="[^"]*ct-action-group/);
     expect(body).not.toContain("institution-admin-lms-connections.js");
     expect(body).toContain("/tenants/tenant_123/admin/access/lms-connections/lms_canvas/edit");
   });
