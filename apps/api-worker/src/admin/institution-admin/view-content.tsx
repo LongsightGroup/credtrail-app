@@ -16,50 +16,64 @@ type RenderedNode = Child;
 export interface InstitutionAdminViewContentInput {
   input: InstitutionAdminPageInput;
   view: InstitutionAdminView;
-  workspaceCardsMarkup: RenderedNode;
-  templateSelectOptions: HonoElement;
-  tenantMemberSelectOptions: HonoElement;
-  activeOrgUnitSelectOptions: HonoElement;
-  optionalBadgeTemplateScopeOptions: HonoElement;
-  learnerRecordReviewPanelMarkup: RenderedNode;
-  renderLearnerRecordReviewSections: () => RenderedNode;
-  learnerRecordImportPanelMarkup: RenderedNode;
-  learnerRecordImportFeedbackMarkup: RenderedNode;
-  learnerRecordImportSubmissionMarkup: RenderedNode;
-  learnerRecordImportProgressMarkup: RenderedNode;
-  ruleReviewQueuePanelMarkup: RenderedNode;
-  issuedBadgesPanelMarkup: RenderedNode;
-  badgeStatusPanelMarkup: RenderedNode;
-  reportingExecutiveSummaryMarkup: RenderedNode;
-  reportingFocusAreaPanelMarkup: RenderedNode;
-  reportingRankedChartsMarkup: RenderedNode;
-  reportingDeepLinksMarkup: RenderedNode;
-  reportingExploreSliceSummaryMarkup: RenderedNode;
-  reportingOverviewPanelMarkup: RenderedNode;
-  renderReportingTrendPanelMarkup: (input: { includeDetailedTable: boolean }) => RenderedNode;
-  reportingEngagementPanelMarkup: RenderedNode;
-  reportingLowerStoryMarkup: RenderedNode;
-  reportingDefinitionsPanelMarkup: RenderedNode;
-  reportingDeferredPanelMarkup: RenderedNode;
-  reportingTrendFiltersPanelMarkup: RenderedNode;
-  reportingReportsLibraryMarkup: RenderedNode;
-  reportingExportFiltersPanelMarkup: RenderedNode;
-  reportingExportsPanelMarkup: RenderedNode;
-  badgeRulesTableMarkup: RenderedNode;
-  ruleAdvancedToolsMarkup: RenderedNode;
-  tenantMembersPanelMarkup: RenderedNode;
-  tenantMembersTableMarkup: RenderedNode;
-  governanceGuidePanelMarkup: RenderedNode;
-  governanceActionsMarkup: RenderedNode;
-  membershipScopeTableMarkup: RenderedNode;
-  membershipScopePanelMarkup: RenderedNode;
-  delegatedGrantTableMarkup: RenderedNode;
-  apiKeyPanelMarkup: RenderedNode;
-  apiKeysTableMarkup: RenderedNode;
-  lmsConnectionsActionsMarkup: RenderedNode;
-  lmsConnectionsTableMarkup: RenderedNode;
-  orgUnitPanelMarkup: RenderedNode;
-  orgUnitsTableMarkup: RenderedNode;
+  home: {
+    workspaceCardsMarkup: RenderedNode;
+  };
+  controls: {
+    activeOrgUnitSelectOptions: HonoElement;
+    optionalBadgeTemplateScopeOptions: HonoElement;
+    templateSelectOptions: HonoElement;
+    tenantMemberSelectOptions: HonoElement;
+  };
+  learnerRecords: {
+    learnerRecordImportFeedbackMarkup: RenderedNode;
+    learnerRecordImportPanelMarkup: RenderedNode;
+    learnerRecordImportProgressMarkup: RenderedNode;
+    learnerRecordImportSubmissionMarkup: RenderedNode;
+    learnerRecordReviewPanelMarkup: RenderedNode;
+    renderLearnerRecordReviewSections: () => RenderedNode;
+  };
+  operations: {
+    badgeStatusPanelMarkup: RenderedNode;
+    issuedBadgesPanelMarkup: RenderedNode;
+    ruleReviewQueuePanelMarkup: RenderedNode;
+  };
+  reporting: {
+    renderReportingTrendPanelMarkup: (input: { includeDetailedTable: boolean }) => RenderedNode;
+    reportingDeepLinksMarkup: RenderedNode;
+    reportingDeferredPanelMarkup: RenderedNode;
+    reportingDefinitionsPanelMarkup: RenderedNode;
+    reportingEngagementPanelMarkup: RenderedNode;
+    reportingExecutiveSummaryMarkup: RenderedNode;
+    reportingExportFiltersPanelMarkup: RenderedNode;
+    reportingExploreSliceSummaryMarkup: RenderedNode;
+    reportingExportsPanelMarkup: RenderedNode;
+    reportingFocusAreaPanelMarkup: RenderedNode;
+    reportingLowerStoryMarkup: RenderedNode;
+    reportingOverviewPanelMarkup: RenderedNode;
+    reportingRankedChartsMarkup: RenderedNode;
+    reportingReportsLibraryMarkup: RenderedNode;
+    reportingTrendFiltersPanelMarkup: RenderedNode;
+  };
+  rules: {
+    badgeRulesTableMarkup: RenderedNode;
+    ruleAdvancedToolsMarkup: RenderedNode;
+  };
+  access: {
+    apiKeyPanelMarkup: RenderedNode;
+    apiKeysTableMarkup: RenderedNode;
+    delegatedGrantTableMarkup: RenderedNode;
+    governanceActionsMarkup: RenderedNode;
+    governanceGuidePanelMarkup: RenderedNode;
+    lmsConnectionsActionsMarkup: RenderedNode;
+    lmsConnectionsTableMarkup: RenderedNode;
+    membershipScopePanelMarkup: RenderedNode;
+    membershipScopeTableMarkup: RenderedNode;
+    orgUnitPanelMarkup: RenderedNode;
+    orgUnitsTableMarkup: RenderedNode;
+    tenantMembersPanelMarkup: RenderedNode;
+    tenantMembersTableMarkup: RenderedNode;
+  };
 }
 
 const renderPageHeader = (
@@ -136,7 +150,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
       return (
         <>
           {renderPageHeader("Institution Admin", "Choose a workspace.")}
-          <section class="ct-admin ct-stack">{content.workspaceCardsMarkup}</section>
+          <section class="ct-admin ct-stack">{content.home.workspaceCardsMarkup}</section>
         </>
       );
     },
@@ -158,7 +172,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
           <section class="ct-admin ct-stack">
             {renderManualIssueSection({
               tenantId: input.tenant.id,
-              templateSelectOptions: content.templateSelectOptions,
+              templateSelectOptions: content.controls.templateSelectOptions,
               listError: input.manualIssueWorkspace?.listError ?? null,
               listNotice: input.manualIssueWorkspace?.listNotice ?? null,
               successLinks: input.manualIssueWorkspace?.successLinks ?? null,
@@ -186,8 +200,8 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             "Look up one learner by profile ID or email to review badges and record entries.",
           )}
           <section class="ct-admin ct-stack">
-            {content.learnerRecordReviewPanelMarkup}
-            {content.renderLearnerRecordReviewSections()}
+            {content.learnerRecords.learnerRecordReviewPanelMarkup}
+            {content.learnerRecords.renderLearnerRecordReviewSections()}
           </section>
         </>
       );
@@ -211,10 +225,10 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             "Import learner-record CSVs with one trust default, honest smart defaults, and queue-backed progress.",
           )}
           <section class="ct-admin ct-stack">
-            {content.learnerRecordImportPanelMarkup}
-            {content.learnerRecordImportFeedbackMarkup}
-            {content.learnerRecordImportSubmissionMarkup}
-            {content.learnerRecordImportProgressMarkup}
+            {content.learnerRecords.learnerRecordImportPanelMarkup}
+            {content.learnerRecords.learnerRecordImportFeedbackMarkup}
+            {content.learnerRecords.learnerRecordImportSubmissionMarkup}
+            {content.learnerRecords.learnerRecordImportProgressMarkup}
           </section>
         </>
       );
@@ -236,7 +250,9 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             "Rule Review Queue",
             "Review pending badge decisions without mixing them into the rest of operations.",
           )}
-          <section class="ct-admin ct-stack">{content.ruleReviewQueuePanelMarkup}</section>
+          <section class="ct-admin ct-stack">
+            {content.operations.ruleReviewQueuePanelMarkup}
+          </section>
         </>
       );
     },
@@ -259,7 +275,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             "Badge Records",
             "Search issued badge records and take audit or revocation actions from one page.",
           )}
-          <section class="ct-admin ct-stack">{content.issuedBadgesPanelMarkup}</section>
+          <section class="ct-admin ct-stack">{content.operations.issuedBadgesPanelMarkup}</section>
         </>
       );
     },
@@ -280,7 +296,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             "Badge Status",
             "Look up a badge, inspect its current state, and apply status changes with a reason.",
           )}
-          <section class="ct-admin ct-stack">{content.badgeStatusPanelMarkup}</section>
+          <section class="ct-admin ct-stack">{content.operations.badgeStatusPanelMarkup}</section>
         </>
       );
     },
@@ -302,11 +318,11 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             <section class="ct-admin__reporting-presentation-shell ct-admin__reporting-presentation-shell--highlights ct-stack">
               <section class="ct-admin__reporting-primary-story ct-stack">
                 <section class="ct-admin__reporting-first-screen ct-stack">
-                  {content.reportingExecutiveSummaryMarkup}
+                  {content.reporting.reportingExecutiveSummaryMarkup}
                 </section>
-                {content.reportingFocusAreaPanelMarkup}
-                {content.reportingRankedChartsMarkup}
-                {content.reportingDeepLinksMarkup}
+                {content.reporting.reportingFocusAreaPanelMarkup}
+                {content.reporting.reportingRankedChartsMarkup}
+                {content.reporting.reportingDeepLinksMarkup}
               </section>
             </section>
           </section>
@@ -328,14 +344,14 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             "Filter the report, scan concise previews, and open exact detail only when needed.",
           )}
           <section class="ct-admin ct-stack">
-            {content.reportingExploreSliceSummaryMarkup}
+            {content.reporting.reportingExploreSliceSummaryMarkup}
             <section class="ct-admin__reporting-explore-workspace ct-stack">
-              {content.reportingOverviewPanelMarkup}
-              {content.renderReportingTrendPanelMarkup({ includeDetailedTable: false })}
-              {content.reportingEngagementPanelMarkup}
-              {content.reportingLowerStoryMarkup}
-              {content.reportingDefinitionsPanelMarkup}
-              {content.reportingDeferredPanelMarkup}
+              {content.reporting.reportingOverviewPanelMarkup}
+              {content.reporting.renderReportingTrendPanelMarkup({ includeDetailedTable: false })}
+              {content.reporting.reportingEngagementPanelMarkup}
+              {content.reporting.reportingLowerStoryMarkup}
+              {content.reporting.reportingDefinitionsPanelMarkup}
+              {content.reporting.reportingDeferredPanelMarkup}
             </section>
           </section>
         </>
@@ -356,8 +372,8 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             "Use the focused trend page for exact daily counts behind the overview chart.",
           )}
           <section class="ct-admin ct-stack">
-            {content.reportingTrendFiltersPanelMarkup}
-            {content.renderReportingTrendPanelMarkup({ includeDetailedTable: true })}
+            {content.reporting.reportingTrendFiltersPanelMarkup}
+            {content.reporting.renderReportingTrendPanelMarkup({ includeDetailedTable: true })}
           </section>
         </>
       );
@@ -377,9 +393,9 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             "Use one focused page for saved report shortcuts, custom report setup, and CSV exports.",
           )}
           <section class="ct-admin ct-stack">
-            {content.reportingReportsLibraryMarkup}
-            {content.reportingExportFiltersPanelMarkup}
-            {content.reportingExportsPanelMarkup}
+            {content.reporting.reportingReportsLibraryMarkup}
+            {content.reporting.reportingExportFiltersPanelMarkup}
+            {content.reporting.reportingExportsPanelMarkup}
           </section>
         </>
       );
@@ -414,8 +430,8 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
               input.rulesWorkspace.listNotice.length > 0 ? (
               <AdminStatus tone="success">{input.rulesWorkspace.listNotice}</AdminStatus>
             ) : null}
-            {content.badgeRulesTableMarkup}
-            {content.ruleAdvancedToolsMarkup}
+            {content.rules.badgeRulesTableMarkup}
+            {content.rules.ruleAdvancedToolsMarkup}
           </section>
         </>
       );
@@ -443,8 +459,8 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             </aside>,
           )}
           <section class="ct-admin ct-stack">
-            {content.tenantMembersPanelMarkup}
-            {content.tenantMembersTableMarkup}
+            {content.access.tenantMembersPanelMarkup}
+            {content.access.tenantMembersTableMarkup}
           </section>
         </>
       );
@@ -487,11 +503,11 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
                 {input.accessGovernanceWorkspace.listNotice}
               </AdminStatus>
             ) : null}
-            {content.governanceGuidePanelMarkup}
-            {content.governanceActionsMarkup}
-            {content.membershipScopeTableMarkup}
-            {content.membershipScopePanelMarkup}
-            {content.delegatedGrantTableMarkup}
+            {content.access.governanceGuidePanelMarkup}
+            {content.access.governanceActionsMarkup}
+            {content.access.membershipScopeTableMarkup}
+            {content.access.membershipScopePanelMarkup}
+            {content.access.delegatedGrantTableMarkup}
           </section>
         </>
       );
@@ -514,9 +530,9 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
           <section class="ct-admin ct-stack">
             {renderDelegationSetupSection({
               tenantId: input.tenant.id,
-              tenantMemberSelectOptions: content.tenantMemberSelectOptions,
-              activeOrgUnitSelectOptions: content.activeOrgUnitSelectOptions,
-              optionalBadgeTemplateScopeOptions: content.optionalBadgeTemplateScopeOptions,
+              tenantMemberSelectOptions: content.controls.tenantMemberSelectOptions,
+              activeOrgUnitSelectOptions: content.controls.activeOrgUnitSelectOptions,
+              optionalBadgeTemplateScopeOptions: content.controls.optionalBadgeTemplateScopeOptions,
               listError: input.accessGovernanceDelegationWorkspace?.listError ?? null,
               listNotice: input.accessGovernanceDelegationWorkspace?.listNotice ?? null,
             })}
@@ -590,8 +606,8 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
         <>
           {renderPageHeader("API Keys", "Create, review, and revoke tenant API keys.")}
           <section class="ct-admin ct-stack">
-            {content.apiKeyPanelMarkup}
-            {content.apiKeysTableMarkup}
+            {content.access.apiKeyPanelMarkup}
+            {content.access.apiKeysTableMarkup}
           </section>
         </>
       );
@@ -624,8 +640,8 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
                 {input.lmsConnectionsWorkspace.listNotice}
               </AdminStatus>
             ) : null}
-            {content.lmsConnectionsActionsMarkup}
-            {content.lmsConnectionsTableMarkup}
+            {content.access.lmsConnectionsActionsMarkup}
+            {content.access.lmsConnectionsTableMarkup}
           </section>
         </>
       );
@@ -693,8 +709,8 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
         <>
           {renderPageHeader("Org Units", "Create and review org structure.")}
           <section class="ct-admin ct-stack">
-            {content.orgUnitPanelMarkup}
-            {content.orgUnitsTableMarkup}
+            {content.access.orgUnitPanelMarkup}
+            {content.access.orgUnitsTableMarkup}
           </section>
         </>
       );
