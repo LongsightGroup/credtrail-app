@@ -1054,18 +1054,27 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(offerResponse.status).toBe(200);
     const offerPayload = await offerResponse.text();
 
+    const offerPayloadBuffer = Buffer.from(offerPayload, "utf8");
     let offerRequestCount = 0;
     const server = createServer((request, response) => {
       if (request.url === "/wallet-offer") {
         offerRequestCount += 1;
-        response.writeHead(200, { "content-type": "application/json" });
-        response.end(offerPayload);
+        response.writeHead(200, {
+          "content-type": "application/json; charset=utf-8",
+          "content-length": String(offerPayloadBuffer.byteLength),
+          connection: "close",
+        });
+        response.end(offerPayloadBuffer);
         return;
       }
-      response.writeHead(404);
+      response.writeHead(404, {
+        "content-length": "0",
+        connection: "close",
+      });
       response.end();
     });
 
+    server.keepAliveTimeout = 0;
     server.listen(0, "127.0.0.1");
     await once(server, "listening");
 
@@ -1106,8 +1115,15 @@ describe("GET /badges/:badgeIdentifier", () => {
       );
       expect(credtrailOffer.preAuthorizedCode).toBe(sphereonOffer.preAuthorizedCode);
     } finally {
-      server.close();
-      await once(server, "close");
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error === undefined) {
+            resolve();
+            return;
+          }
+          reject(error);
+        });
+      });
     }
   });
 
