@@ -70,20 +70,85 @@ const renderPageHeader = (
   return <AdminPageHeader title={title} description={description} note={noteMarkup} />;
 };
 
-export const renderInstitutionAdminViewContent = (
-  content: InstitutionAdminViewContentInput,
-): RenderedNode => {
-  const { input, view } = content;
+export interface InstitutionAdminViewDataNeeds {
+  accessSectionBundles: boolean;
+  operationsSectionBundles: boolean;
+  reportingSectionBundles: boolean;
+  managementSectionBundles: boolean;
+  learnerRecordSectionBundles: boolean;
+  ruleTableRows: boolean;
+  lmsConnectionRows: boolean;
+  apiKeyRows: boolean;
+  orgUnitRows: boolean;
+  governanceTableRows: boolean;
+  tenantMemberRows: boolean;
+  templateSelectOptions: boolean;
+  delegationSelectOptions: boolean;
+  ruleSelectOptions: boolean;
+  ruleVersionIndexes: boolean;
+  orgUnitParentOptions: boolean;
+  issuedBadgeFilters: boolean;
+}
 
-  switch (view) {
-    case "home":
+export interface InstitutionAdminViewDefinition {
+  controller: "shared" | "shell";
+  dataNeeds: InstitutionAdminViewDataNeeds;
+  extraAssets?: readonly import("../../ui/page-assets").PageAssetKey[];
+  render: (content: InstitutionAdminViewContentInput) => RenderedNode;
+  titlePrefix: string;
+}
+
+const DEFAULT_VIEW_DATA_NEEDS = {
+  accessSectionBundles: false,
+  operationsSectionBundles: false,
+  reportingSectionBundles: false,
+  managementSectionBundles: false,
+  learnerRecordSectionBundles: false,
+  ruleTableRows: false,
+  lmsConnectionRows: false,
+  apiKeyRows: false,
+  orgUnitRows: false,
+  governanceTableRows: false,
+  tenantMemberRows: false,
+  templateSelectOptions: false,
+  delegationSelectOptions: false,
+  ruleSelectOptions: false,
+  ruleVersionIndexes: false,
+  orgUnitParentOptions: false,
+  issuedBadgeFilters: false,
+} as const;
+
+const viewDataNeeds = (
+  overrides: Partial<InstitutionAdminViewDataNeeds>,
+): InstitutionAdminViewDataNeeds => {
+  return {
+    ...DEFAULT_VIEW_DATA_NEEDS,
+    ...overrides,
+  };
+};
+
+export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
+  home: {
+    titlePrefix: "Institution Admin",
+    controller: "shell",
+    dataNeeds: viewDataNeeds({}),
+    render: (content) => {
       return (
         <>
           {renderPageHeader("Institution Admin", "Choose a workspace.")}
           <section class="ct-admin ct-stack">{content.workspaceCardsMarkup}</section>
         </>
       );
-    case "operationsManualIssue":
+    },
+  },
+  operationsManualIssue: {
+    titlePrefix: "Issue Badge · Institution Admin",
+    controller: "shell",
+    dataNeeds: viewDataNeeds({
+      templateSelectOptions: true,
+    }),
+    render: (content) => {
+      const { input } = content;
       return (
         <>
           {renderPageHeader(
@@ -101,7 +166,19 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "operationsLearnerRecords":
+    },
+  },
+  operationsLearnerRecords: {
+    titlePrefix: "Learner Records · Institution Admin",
+    controller: "shell",
+    dataNeeds: viewDataNeeds({
+      operationsSectionBundles: true,
+      learnerRecordSectionBundles: true,
+      templateSelectOptions: true,
+      ruleSelectOptions: true,
+      ruleVersionIndexes: true,
+    }),
+    render: (content) => {
       return (
         <>
           {renderPageHeader(
@@ -114,7 +191,19 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "operationsLearnerRecordImports":
+    },
+  },
+  operationsLearnerRecordImports: {
+    titlePrefix: "Learner Record Imports · Institution Admin",
+    controller: "shell",
+    dataNeeds: viewDataNeeds({
+      operationsSectionBundles: true,
+      learnerRecordSectionBundles: true,
+      templateSelectOptions: true,
+      ruleSelectOptions: true,
+      ruleVersionIndexes: true,
+    }),
+    render: (content) => {
       return (
         <>
           {renderPageHeader(
@@ -129,7 +218,18 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "operationsReviewQueue":
+    },
+  },
+  operationsReviewQueue: {
+    titlePrefix: "Rule Review Queue · Institution Admin",
+    controller: "shell",
+    dataNeeds: viewDataNeeds({
+      operationsSectionBundles: true,
+      templateSelectOptions: true,
+      ruleSelectOptions: true,
+      ruleVersionIndexes: true,
+    }),
+    render: (content) => {
       return (
         <>
           {renderPageHeader(
@@ -139,7 +239,20 @@ export const renderInstitutionAdminViewContent = (
           <section class="ct-admin ct-stack">{content.ruleReviewQueuePanelMarkup}</section>
         </>
       );
-    case "operationsIssuedBadges":
+    },
+  },
+  operationsIssuedBadges: {
+    titlePrefix: "Badge Records · Institution Admin",
+    controller: "shell",
+    extraAssets: ["institutionAdminIssuedBadgesJs"],
+    dataNeeds: viewDataNeeds({
+      operationsSectionBundles: true,
+      templateSelectOptions: true,
+      ruleSelectOptions: true,
+      ruleVersionIndexes: true,
+      issuedBadgeFilters: true,
+    }),
+    render: (content) => {
       return (
         <>
           {renderPageHeader(
@@ -149,7 +262,18 @@ export const renderInstitutionAdminViewContent = (
           <section class="ct-admin ct-stack">{content.issuedBadgesPanelMarkup}</section>
         </>
       );
-    case "operationsBadgeStatus":
+    },
+  },
+  operationsBadgeStatus: {
+    titlePrefix: "Badge Status · Institution Admin",
+    controller: "shared",
+    dataNeeds: viewDataNeeds({
+      operationsSectionBundles: true,
+      templateSelectOptions: true,
+      ruleSelectOptions: true,
+      ruleVersionIndexes: true,
+    }),
+    render: (content) => {
       return (
         <>
           {renderPageHeader(
@@ -159,7 +283,15 @@ export const renderInstitutionAdminViewContent = (
           <section class="ct-admin ct-stack">{content.badgeStatusPanelMarkup}</section>
         </>
       );
-    case "reporting":
+    },
+  },
+  reporting: {
+    titlePrefix: "Reporting · Institution Admin",
+    controller: "shared",
+    dataNeeds: viewDataNeeds({
+      reportingSectionBundles: true,
+    }),
+    render: (content) => {
       return (
         <>
           {renderPageHeader(
@@ -180,7 +312,15 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "reportingExplore":
+    },
+  },
+  reportingExplore: {
+    titlePrefix: "Reporting Explore · Institution Admin",
+    controller: "shared",
+    dataNeeds: viewDataNeeds({
+      reportingSectionBundles: true,
+    }),
+    render: (content) => {
       return (
         <>
           {renderPageHeader(
@@ -200,7 +340,15 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "reportingTrends":
+    },
+  },
+  reportingTrends: {
+    titlePrefix: "Trend Detail · Reporting · Institution Admin",
+    controller: "shared",
+    dataNeeds: viewDataNeeds({
+      reportingSectionBundles: true,
+    }),
+    render: (content) => {
       return (
         <>
           {renderPageHeader(
@@ -213,7 +361,15 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "reportingReports":
+    },
+  },
+  reportingReports: {
+    titlePrefix: "Report Library · Reporting · Institution Admin",
+    controller: "shared",
+    dataNeeds: viewDataNeeds({
+      reportingSectionBundles: true,
+    }),
+    render: (content) => {
       return (
         <>
           {renderPageHeader(
@@ -227,7 +383,21 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "rules":
+    },
+  },
+  rules: {
+    titlePrefix: "Rules · Institution Admin",
+    controller: "shared",
+    dataNeeds: viewDataNeeds({
+      operationsSectionBundles: true,
+      managementSectionBundles: true,
+      ruleTableRows: true,
+      templateSelectOptions: true,
+      ruleSelectOptions: true,
+      ruleVersionIndexes: true,
+    }),
+    render: (content) => {
+      const { input } = content;
       return (
         <>
           {renderPageHeader(
@@ -249,7 +419,16 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "accessMembers":
+    },
+  },
+  accessMembers: {
+    titlePrefix: "Members · Institution Admin",
+    controller: "shared",
+    dataNeeds: viewDataNeeds({
+      accessSectionBundles: true,
+      tenantMemberRows: true,
+    }),
+    render: (content) => {
       return (
         <>
           {renderPageHeader(
@@ -269,7 +448,18 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "accessGovernance":
+    },
+  },
+  accessGovernance: {
+    titlePrefix: "Governance Delegation · Institution Admin",
+    controller: "shared",
+    dataNeeds: viewDataNeeds({
+      accessSectionBundles: true,
+      governanceTableRows: true,
+      delegationSelectOptions: true,
+    }),
+    render: (content) => {
+      const { input } = content;
       return (
         <>
           {renderPageHeader(
@@ -305,7 +495,16 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "accessGovernanceDelegationNew":
+    },
+  },
+  accessGovernanceDelegationNew: {
+    titlePrefix: "Add Delegated Authority · Institution Admin",
+    controller: "shell",
+    dataNeeds: viewDataNeeds({
+      delegationSelectOptions: true,
+    }),
+    render: (content) => {
+      const { input } = content;
       return (
         <>
           {renderPageHeader(
@@ -324,7 +523,15 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "accessAuthentication":
+    },
+  },
+  accessAuthentication: {
+    titlePrefix: "Authentication · Institution Admin",
+    controller: "shell",
+    extraAssets: ["institutionAdminAccessJs"],
+    dataNeeds: viewDataNeeds({}),
+    render: (content) => {
+      const { input } = content;
       return (
         <>
           {renderPageHeader(
@@ -367,7 +574,18 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "accessApiKeys":
+    },
+  },
+  accessApiKeys: {
+    titlePrefix: "API Keys · Institution Admin",
+    controller: "shell",
+    extraAssets: ["institutionAdminAccessJs"],
+    dataNeeds: viewDataNeeds({
+      accessSectionBundles: true,
+      managementSectionBundles: true,
+      apiKeyRows: true,
+    }),
+    render: (content) => {
       return (
         <>
           {renderPageHeader("API Keys", "Create, review, and revoke tenant API keys.")}
@@ -377,7 +595,17 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "accessLmsConnections":
+    },
+  },
+  accessLmsConnections: {
+    titlePrefix: "LMS Connections · Institution Admin",
+    controller: "shell",
+    dataNeeds: viewDataNeeds({
+      accessSectionBundles: true,
+      lmsConnectionRows: true,
+    }),
+    render: (content) => {
+      const { input } = content;
       return (
         <>
           {renderPageHeader(
@@ -401,7 +629,14 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "accessLmsConnectionNew":
+    },
+  },
+  accessLmsConnectionNew: {
+    titlePrefix: "Connect LMS · Institution Admin",
+    controller: "shell",
+    dataNeeds: viewDataNeeds({}),
+    render: (content) => {
+      const { input } = content;
       return (
         <>
           {renderPageHeader(
@@ -418,7 +653,14 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "accessLmsConnectionEdit":
+    },
+  },
+  accessLmsConnectionEdit: {
+    titlePrefix: "Edit LMS Connection · Institution Admin",
+    controller: "shell",
+    dataNeeds: viewDataNeeds({}),
+    render: (content) => {
+      const { input } = content;
       return (
         <>
           {renderPageHeader(
@@ -435,7 +677,18 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-    case "accessOrgUnits":
+    },
+  },
+  accessOrgUnits: {
+    titlePrefix: "Org Units · Institution Admin",
+    controller: "shell",
+    dataNeeds: viewDataNeeds({
+      accessSectionBundles: true,
+      managementSectionBundles: true,
+      orgUnitRows: true,
+      orgUnitParentOptions: true,
+    }),
+    render: (content) => {
       return (
         <>
           {renderPageHeader("Org Units", "Create and review org structure.")}
@@ -445,5 +698,12 @@ export const renderInstitutionAdminViewContent = (
           </section>
         </>
       );
-  }
+    },
+  },
+} as const satisfies Record<InstitutionAdminView, InstitutionAdminViewDefinition>;
+
+export const renderInstitutionAdminViewContent = (
+  content: InstitutionAdminViewContentInput,
+): RenderedNode => {
+  return INSTITUTION_ADMIN_VIEW_REGISTRY[content.view].render(content);
 };

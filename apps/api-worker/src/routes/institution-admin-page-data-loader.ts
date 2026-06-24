@@ -19,17 +19,7 @@ import {
 } from "@credtrail/db";
 import { institutionAdminDashboardPage } from "../admin/institution-admin/page";
 import type { InstitutionAdminView } from "../admin/institution-admin/page-types";
-import {
-  institutionAdminViewNeedsApiKeyRows,
-  institutionAdminViewNeedsDelegationSelectOptions,
-  institutionAdminViewNeedsGovernanceTableRows,
-  institutionAdminViewNeedsLmsConnectionRows,
-  institutionAdminViewNeedsOrgUnitRows,
-  institutionAdminViewNeedsRuleTableRows,
-  institutionAdminViewNeedsRuleVersionIndexes,
-  institutionAdminViewNeedsTemplateSelectOptions,
-  institutionAdminViewNeedsTenantMemberRows,
-} from "../admin/institution-admin/view-data-needs";
+import { INSTITUTION_ADMIN_VIEW_REGISTRY } from "../admin/institution-admin/view-content";
 import type { AppBindings, AppContext } from "../app";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";
 
@@ -69,49 +59,44 @@ const institutionAdminDatasetsForView = (
   view: InstitutionAdminView,
 ): ReadonlySet<InstitutionAdminDataset> => {
   const datasets = new Set<InstitutionAdminDataset>();
+  const needs = INSTITUTION_ADMIN_VIEW_REGISTRY[view].dataNeeds;
 
-  if (institutionAdminViewNeedsTemplateSelectOptions(view)) {
+  if (needs.templateSelectOptions) {
     datasets.add("badgeTemplates");
   }
 
   if (
-    institutionAdminViewNeedsOrgUnitRows(view) ||
-    institutionAdminViewNeedsDelegationSelectOptions(view) ||
-    institutionAdminViewNeedsGovernanceTableRows(view) ||
-    institutionAdminViewNeedsTenantMemberRows(view)
+    needs.orgUnitRows ||
+    needs.delegationSelectOptions ||
+    needs.governanceTableRows ||
+    needs.tenantMemberRows
   ) {
     datasets.add("orgUnits");
   }
 
-  if (institutionAdminViewNeedsGovernanceTableRows(view)) {
+  if (needs.governanceTableRows) {
     datasets.add("tenantMembers");
     datasets.add("membershipOrgUnitScopes");
   }
 
-  if (institutionAdminViewNeedsTenantMemberRows(view)) {
+  if (needs.tenantMemberRows) {
     datasets.add("tenantMembers");
     datasets.add("membershipOrgUnitScopes");
   }
 
-  if (
-    institutionAdminViewNeedsGovernanceTableRows(view) ||
-    institutionAdminViewNeedsDelegationSelectOptions(view)
-  ) {
+  if (needs.governanceTableRows || needs.delegationSelectOptions) {
     datasets.add("delegatedGrants");
   }
 
-  if (institutionAdminViewNeedsApiKeyRows(view)) {
+  if (needs.apiKeyRows) {
     datasets.add("apiKeys");
   }
 
-  if (institutionAdminViewNeedsLmsConnectionRows(view)) {
+  if (needs.lmsConnectionRows) {
     datasets.add("lmsConnections");
   }
 
-  if (
-    institutionAdminViewNeedsRuleTableRows(view) ||
-    institutionAdminViewNeedsRuleVersionIndexes(view)
-  ) {
+  if (needs.ruleTableRows || needs.ruleVersionIndexes) {
     datasets.add("badgeRules");
     datasets.add("badgeRuleVersions");
   }

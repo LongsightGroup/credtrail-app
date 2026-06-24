@@ -29,7 +29,6 @@ import type { LearnerRecordPresentationModel } from "../../learner-record/learne
 import type { ReportingMetricEntry } from "../../reporting/metric-definitions";
 import type { BadgeRuleReviewQueueEntryView } from "../../badge-rule-review-queue-workspace";
 import type { AdminManualIssueSuccessLinks } from "../manual-issue-flash";
-import type { PageAssetKey } from "../../ui/page-assets";
 
 export type InstitutionAdminView =
   | "home"
@@ -53,103 +52,6 @@ export type InstitutionAdminView =
   | "accessLmsConnectionNew"
   | "accessLmsConnectionEdit"
   | "operationsManualIssue";
-
-export const INSTITUTION_ADMIN_VIEW_CONFIG = {
-  home: {
-    titlePrefix: "Institution Admin",
-    controller: "shell",
-  },
-  operationsLearnerRecords: {
-    titlePrefix: "Learner Records · Institution Admin",
-    controller: "shell",
-  },
-  operationsLearnerRecordImports: {
-    titlePrefix: "Learner Record Imports · Institution Admin",
-    controller: "shell",
-  },
-  operationsReviewQueue: {
-    titlePrefix: "Rule Review Queue · Institution Admin",
-    controller: "shell",
-  },
-  operationsIssuedBadges: {
-    titlePrefix: "Badge Records · Institution Admin",
-    controller: "shell",
-    extraAssets: ["institutionAdminIssuedBadgesJs"],
-  },
-  operationsBadgeStatus: {
-    titlePrefix: "Badge Status · Institution Admin",
-    controller: "shared",
-  },
-  reporting: {
-    titlePrefix: "Reporting · Institution Admin",
-    controller: "shared",
-  },
-  reportingExplore: {
-    titlePrefix: "Reporting Explore · Institution Admin",
-    controller: "shared",
-  },
-  reportingTrends: {
-    titlePrefix: "Trend Detail · Reporting · Institution Admin",
-    controller: "shared",
-  },
-  reportingReports: {
-    titlePrefix: "Report Library · Reporting · Institution Admin",
-    controller: "shared",
-  },
-  rules: {
-    titlePrefix: "Rules · Institution Admin",
-    controller: "shared",
-  },
-  accessMembers: {
-    titlePrefix: "Members · Institution Admin",
-    controller: "shared",
-  },
-  accessGovernance: {
-    titlePrefix: "Governance Delegation · Institution Admin",
-    controller: "shared",
-  },
-  accessGovernanceDelegationNew: {
-    titlePrefix: "Add Delegated Authority · Institution Admin",
-    controller: "shell",
-  },
-  accessAuthentication: {
-    titlePrefix: "Authentication · Institution Admin",
-    controller: "shell",
-    extraAssets: ["institutionAdminAccessJs"],
-  },
-  accessApiKeys: {
-    titlePrefix: "API Keys · Institution Admin",
-    controller: "shell",
-    extraAssets: ["institutionAdminAccessJs"],
-  },
-  accessOrgUnits: {
-    titlePrefix: "Org Units · Institution Admin",
-    controller: "shell",
-  },
-  accessLmsConnections: {
-    titlePrefix: "LMS Connections · Institution Admin",
-    controller: "shell",
-  },
-  accessLmsConnectionNew: {
-    titlePrefix: "Connect LMS · Institution Admin",
-    controller: "shell",
-  },
-  accessLmsConnectionEdit: {
-    titlePrefix: "Edit LMS Connection · Institution Admin",
-    controller: "shell",
-  },
-  operationsManualIssue: {
-    titlePrefix: "Issue Badge · Institution Admin",
-    controller: "shell",
-  },
-} as const satisfies Record<
-  InstitutionAdminView,
-  {
-    controller: "shared" | "shell";
-    extraAssets?: readonly PageAssetKey[];
-    titlePrefix: string;
-  }
->;
 
 export interface InstitutionAdminLearnerRecordReview {
   lookup: {

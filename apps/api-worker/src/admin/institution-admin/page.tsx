@@ -46,14 +46,13 @@ import { renderInstitutionAdminAccessSections } from "./access-sections";
 import { renderInstitutionAdminLearnerRecordSections } from "./learner-record-sections";
 import { renderInstitutionAdminManagementSections } from "./management-sections";
 import { renderInstitutionAdminOperationsSections } from "./operations-sections";
-import {
-  INSTITUTION_ADMIN_VIEW_CONFIG,
-  type InstitutionAdminPageInput,
-  type InstitutionAdminView,
-} from "./page-types";
-import { institutionAdminViewDataNeeds } from "./view-data-needs";
+import type { InstitutionAdminPageInput, InstitutionAdminView } from "./page-types";
 import { renderInstitutionAdminReportingSections } from "./reporting-sections";
-import { renderInstitutionAdminViewContent } from "./view-content";
+import {
+  INSTITUTION_ADMIN_VIEW_REGISTRY,
+  renderInstitutionAdminViewContent,
+  type InstitutionAdminViewDefinition,
+} from "./view-content";
 import { buildInstitutionAdminViewPaths } from "./view-paths";
 export {
   institutionAdminRuleTemplateEditorPage,
@@ -121,7 +120,8 @@ const renderInstitutionAdminPage = (
   const tenantMemberCount = String(input.tenantMembers.length);
   const scopedRoleCount = String(input.membershipOrgUnitScopes.length);
   const delegatedAuthorityGrantCount = String(input.delegatedIssuingAuthorityGrants.length);
-  const viewDataNeeds = institutionAdminViewDataNeeds(view);
+  const viewDefinition: InstitutionAdminViewDefinition = INSTITUTION_ADMIN_VIEW_REGISTRY[view];
+  const viewDataNeeds = viewDefinition.dataNeeds;
   const needsAccessSectionBundles = viewDataNeeds.accessSectionBundles;
   const needsOperationsSectionBundles = viewDataNeeds.operationsSectionBundles;
   const needsReportingSectionBundles = viewDataNeeds.reportingSectionBundles;
@@ -1076,8 +1076,7 @@ const renderInstitutionAdminPage = (
     learnerRecordImportProgressMarkup,
   } = learnerRecordSections;
 
-  const viewConfig = INSTITUTION_ADMIN_VIEW_CONFIG[view];
-  const pageTitle = `${viewConfig.titlePrefix} · ${input.tenant.displayName}`;
+  const pageTitle = `${viewDefinition.titlePrefix} · ${input.tenant.displayName}`;
 
   const viewContent = renderInstitutionAdminViewContent({
     input,
@@ -1129,8 +1128,8 @@ const renderInstitutionAdminPage = (
   });
   const pageAssets: PageAssetKey[] = [
     "institutionAdminCss",
-    viewConfig.controller === "shared" ? "institutionAdminJs" : "institutionAdminShellJs",
-    ...("extraAssets" in viewConfig ? viewConfig.extraAssets : []),
+    viewDefinition.controller === "shared" ? "institutionAdminJs" : "institutionAdminShellJs",
+    ...(viewDefinition.extraAssets ?? []),
   ];
 
   return appPage({
