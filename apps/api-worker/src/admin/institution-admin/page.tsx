@@ -7,6 +7,7 @@ import {
   type TenantLmsConnectionRecord,
   type TenantMembershipRole,
 } from "@credtrail/db";
+import type { Child } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { appPage, type AppPage } from "../../ui/render-page";
 import type { PageAssetKey } from "../../ui/page-assets";
@@ -30,11 +31,8 @@ import {
   AdminEmptyTableRow,
   AdminForm,
   AdminMeta,
-  AdminPanel,
-  AdminPageHeader,
   AdminShell,
   AdminSidebar,
-  AdminStatus,
   AdminStatusPill,
   AdminTopbar,
   AdminWorkspaceCard,
@@ -42,40 +40,21 @@ import {
 } from "../components";
 import { buildInstitutionAdminSidebarSectionsForTenant } from "../institution-admin-sidebar";
 import { buildLmsConnectionEditPath, isLmsConnectionReady } from "../lms-connection-admin-helpers";
-import { renderDelegationSetupSection } from "./delegation-setup-section";
-import {
-  emptyLmsConnectionFormValues,
-  renderLmsConnectionSetupSection,
-} from "./lms-connection-setup-section";
-import { renderManualIssueSection } from "./manual-issue-section";
 import { TenantApiKeyAdminTableRow } from "../api-key-table-row";
 import { serializeJsonScriptContent } from "../institution-admin-shell";
 import { renderInstitutionAdminAccessSections } from "./access-sections";
-import { renderEnterpriseAuthSection } from "./enterprise-auth-section";
 import { renderInstitutionAdminLearnerRecordSections } from "./learner-record-sections";
 import { renderInstitutionAdminManagementSections } from "./management-sections";
 import { renderInstitutionAdminOperationsSections } from "./operations-sections";
 import {
   INSTITUTION_ADMIN_VIEW_CONFIG,
-  institutionAdminViewNeedsAccessSectionBundles,
-  institutionAdminViewNeedsApiKeyRows,
-  institutionAdminViewNeedsDelegationSelectOptions,
-  institutionAdminViewNeedsGovernanceTableRows,
-  institutionAdminViewNeedsLearnerRecordSectionBundles,
-  institutionAdminViewNeedsLmsConnectionRows,
-  institutionAdminViewNeedsManagementSectionBundles,
-  institutionAdminViewNeedsOperationsSectionBundles,
-  institutionAdminViewNeedsOrgUnitRows,
-  institutionAdminViewNeedsReportingSectionBundles,
-  institutionAdminViewNeedsRuleSelectOptions,
-  institutionAdminViewNeedsRuleTableRows,
-  institutionAdminViewNeedsRuleVersionIndexes,
-  institutionAdminViewNeedsTemplateSelectOptions,
-  institutionAdminViewNeedsTenantMemberRows,
   type InstitutionAdminPageInput,
   type InstitutionAdminView,
 } from "./page-types";
+import { institutionAdminViewDataNeeds } from "./view-data-needs";
 import { renderInstitutionAdminReportingSections } from "./reporting-sections";
+import { renderInstitutionAdminViewContent } from "./view-content";
+import { buildInstitutionAdminViewPaths } from "./view-paths";
 export {
   institutionAdminRuleTemplateEditorPage,
   institutionAdminRuleTemplatesPage,
@@ -84,6 +63,10 @@ export {
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
 const emptySectionMarkup = <></>;
+
+const asChild = (node: unknown): Child => {
+  return node as Child;
+};
 
 const formatDelegatedIssuingActionLabel = (action: string): string => {
   switch (action) {
@@ -105,25 +88,29 @@ const renderInstitutionAdminPage = (
   const templateById = new Map(input.badgeTemplates.map((template) => [template.id, template]));
   const orgUnitById = new Map(input.orgUnits.map((orgUnit) => [orgUnit.id, orgUnit]));
   const versionsByRuleId = new Map<string, BadgeIssuanceRuleVersionRecord[]>();
-  const tenantAdminPath = `/tenants/${encodeURIComponent(input.tenant.id)}/admin`;
-  const operationsPath = `${tenantAdminPath}/operations`;
-  const operationsManualIssuePath = `${operationsPath}/issue`;
-  const operationsLearnerRecordsPath = `${operationsPath}/learner-records`;
-  const operationsLearnerRecordImportsPath = `${operationsPath}/learner-record-imports`;
-  const reportingPath = `${tenantAdminPath}/reporting`;
-  const reportingExplorePath = `${reportingPath}/explore`;
-  const reportingTrendsPath = `${reportingPath}/trends`;
-  const reportingReportsPath = `${reportingPath}/reports`;
-  const rulesWorkspacePath = `${tenantAdminPath}/rules`;
-  const rulesTemplatesPath = `${rulesWorkspacePath}/templates`;
-  const accessPath = `${tenantAdminPath}/access`;
-  const accessMembersPath = `${accessPath}/members`;
-  const accessGovernancePath = `${accessPath}/governance`;
-  const accessAuthenticationPath = `${accessPath}/authentication`;
-  const accessApiKeysPath = `${accessPath}/api-keys`;
-  const accessOrgUnitsPath = `${accessPath}/org-units`;
-  const accessLmsConnectionsPath = `${accessPath}/lms-connections`;
-  const ruleBuilderPath = `${tenantAdminPath}/rules/new`;
+  const paths = buildInstitutionAdminViewPaths(input.tenant.id);
+  const {
+    tenantAdminPath,
+    operationsManualIssuePath,
+    operationsLearnerRecordsPath,
+    operationsLearnerRecordImportsPath,
+    reportingPath,
+    reportingExplorePath,
+    reportingTrendsPath,
+    reportingReportsPath,
+    rulesWorkspacePath,
+    rulesTemplatesPath,
+    accessMembersPath,
+    accessGovernancePath,
+    accessAuthenticationPath,
+    accessApiKeysPath,
+    accessOrgUnitsPath,
+    accessLmsConnectionsPath,
+    ruleBuilderPath,
+    badgeRuleApiPath,
+    assertionsApiPathPrefix,
+    showcasePath,
+  } = paths;
   const badgeTemplateCount = String(input.badgeTemplates.length);
   const orgUnitCount = String(input.orgUnits.length);
   const lmsConnectionCount = String(input.lmsConnections.length);
@@ -134,24 +121,24 @@ const renderInstitutionAdminPage = (
   const tenantMemberCount = String(input.tenantMembers.length);
   const scopedRoleCount = String(input.membershipOrgUnitScopes.length);
   const delegatedAuthorityGrantCount = String(input.delegatedIssuingAuthorityGrants.length);
-  const needsAccessSectionBundles = institutionAdminViewNeedsAccessSectionBundles(view);
-  const needsOperationsSectionBundles = institutionAdminViewNeedsOperationsSectionBundles(view);
-  const needsReportingSectionBundles = institutionAdminViewNeedsReportingSectionBundles(view);
-  const needsManagementSectionBundles = institutionAdminViewNeedsManagementSectionBundles(view);
-  const needsLearnerRecordSectionBundles =
-    institutionAdminViewNeedsLearnerRecordSectionBundles(view);
-  const needsRuleTableRows = institutionAdminViewNeedsRuleTableRows(view);
-  const needsLmsConnectionRows = institutionAdminViewNeedsLmsConnectionRows(view);
-  const needsApiKeyRows = institutionAdminViewNeedsApiKeyRows(view);
-  const needsOrgUnitRows = institutionAdminViewNeedsOrgUnitRows(view);
-  const needsGovernanceTableRows = institutionAdminViewNeedsGovernanceTableRows(view);
-  const needsTenantMemberRows = institutionAdminViewNeedsTenantMemberRows(view);
-  const needsTemplateSelectOptions = institutionAdminViewNeedsTemplateSelectOptions(view);
-  const needsDelegationSelectOptions = institutionAdminViewNeedsDelegationSelectOptions(view);
-  const needsRuleSelectOptions = institutionAdminViewNeedsRuleSelectOptions(view);
-  const needsRuleVersionIndexes = institutionAdminViewNeedsRuleVersionIndexes(view);
-  const needsOrgUnitParentOptions = view === "accessOrgUnits";
-  const needsIssuedBadgeFilters = view === "operationsIssuedBadges";
+  const viewDataNeeds = institutionAdminViewDataNeeds(view);
+  const needsAccessSectionBundles = viewDataNeeds.accessSectionBundles;
+  const needsOperationsSectionBundles = viewDataNeeds.operationsSectionBundles;
+  const needsReportingSectionBundles = viewDataNeeds.reportingSectionBundles;
+  const needsManagementSectionBundles = viewDataNeeds.managementSectionBundles;
+  const needsLearnerRecordSectionBundles = viewDataNeeds.learnerRecordSectionBundles;
+  const needsRuleTableRows = viewDataNeeds.ruleTableRows;
+  const needsLmsConnectionRows = viewDataNeeds.lmsConnectionRows;
+  const needsApiKeyRows = viewDataNeeds.apiKeyRows;
+  const needsOrgUnitRows = viewDataNeeds.orgUnitRows;
+  const needsGovernanceTableRows = viewDataNeeds.governanceTableRows;
+  const needsTenantMemberRows = viewDataNeeds.tenantMemberRows;
+  const needsTemplateSelectOptions = viewDataNeeds.templateSelectOptions;
+  const needsDelegationSelectOptions = viewDataNeeds.delegationSelectOptions;
+  const needsRuleSelectOptions = viewDataNeeds.ruleSelectOptions;
+  const needsRuleVersionIndexes = viewDataNeeds.ruleVersionIndexes;
+  const needsOrgUnitParentOptions = viewDataNeeds.orgUnitParentOptions;
+  const needsIssuedBadgeFilters = viewDataNeeds.issuedBadgeFilters;
   const userLabel = input.userEmail ?? input.userId;
   const switchOrganizationPath = input.switchOrganizationPath?.trim() ?? "";
   const learnerRecordReview = input.learnerRecordReview ?? {
@@ -675,9 +662,6 @@ const renderInstitutionAdminPage = (
     })
   );
 
-  const badgeRuleApiPath = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/badge-rules`;
-  const assertionsApiPathPrefix = `/v1/tenants/${encodeURIComponent(input.tenant.id)}/assertions`;
-  const showcasePath = `/showcase/${encodeURIComponent(input.tenant.id)}`;
   const orgUnitParentOptions = needsOrgUnitParentOptions
     ? input.orgUnits
         .filter((orgUnit) => orgUnit.isActive)
@@ -762,21 +746,21 @@ const renderInstitutionAdminPage = (
   const templateSelectOptions = !needsTemplateSelectOptions ? (
     emptySectionMarkup
   ) : templateOptions.length > 0 ? (
-    templateOptions
+    <>{templateOptions}</>
   ) : (
     <option value="">No badge templates available</option>
   );
   const activeOrgUnitSelectOptions = !needsDelegationSelectOptions ? (
     emptySectionMarkup
   ) : activeOrgUnitOptions.length > 0 ? (
-    activeOrgUnitOptions
+    <>{activeOrgUnitOptions}</>
   ) : (
     <option value="">No active org units available</option>
   );
   const tenantMemberSelectOptions = !needsDelegationSelectOptions ? (
     emptySectionMarkup
   ) : tenantMemberOptions.length > 0 ? (
-    tenantMemberOptions
+    <>{tenantMemberOptions}</>
   ) : (
     <option value="">No tenant members available</option>
   );
@@ -793,7 +777,7 @@ const renderInstitutionAdminPage = (
   const ruleSelectOptions = !needsRuleSelectOptions ? (
     emptySectionMarkup
   ) : ruleOptions.length > 0 ? (
-    ruleOptions
+    <>{ruleOptions}</>
   ) : (
     <option value="">No rules available</option>
   );
@@ -831,14 +815,6 @@ const renderInstitutionAdminPage = (
       ? [{ href: switchOrganizationPath, label: "Switch organization" }]
       : []),
   ];
-
-  const renderPageHeader = (
-    title: string,
-    description: string,
-    noteMarkup: HonoElement | null = null,
-  ): HonoElement => {
-    return <AdminPageHeader title={title} description={description} note={noteMarkup} />;
-  };
 
   const workspaceCardsMarkup = (
     <section class="ct-admin__workspace-grid ct-grid" aria-label="Institution admin workspaces">
@@ -1103,381 +1079,54 @@ const renderInstitutionAdminPage = (
   const viewConfig = INSTITUTION_ADMIN_VIEW_CONFIG[view];
   const pageTitle = `${viewConfig.titlePrefix} · ${input.tenant.displayName}`;
 
-  const viewContent = (() => {
-    switch (view) {
-      case "home":
-        return (
-          <>
-            {renderPageHeader("Institution Admin", "Choose a workspace.")}
-            <section class="ct-admin ct-stack">{workspaceCardsMarkup}</section>
-          </>
-        );
-      case "operationsManualIssue":
-        return (
-          <>
-            {renderPageHeader(
-              "Issue Badge",
-              "Issue a badge for one learner by choosing the template and recipient email.",
-            )}
-            <section class="ct-admin ct-stack">
-              {renderManualIssueSection({
-                tenantId: input.tenant.id,
-                templateSelectOptions,
-                listError: input.manualIssueWorkspace?.listError ?? null,
-                listNotice: input.manualIssueWorkspace?.listNotice ?? null,
-                successLinks: input.manualIssueWorkspace?.successLinks ?? null,
-              })}
-            </section>
-          </>
-        );
-      case "operationsLearnerRecords":
-        return (
-          <>
-            {renderPageHeader(
-              "Learner Records",
-              "Look up one learner by profile ID or email to review badges and record entries.",
-            )}
-            <section class="ct-admin ct-stack">
-              {learnerRecordReviewPanelMarkup}
-              {renderLearnerRecordReviewSections()}
-            </section>
-          </>
-        );
-      case "operationsLearnerRecordImports":
-        return (
-          <>
-            {renderPageHeader(
-              "Learner Record Imports",
-              "Import learner-record CSVs with one trust default, honest smart defaults, and queue-backed progress.",
-            )}
-            <section class="ct-admin ct-stack">
-              {learnerRecordImportPanelMarkup}
-              {learnerRecordImportFeedbackMarkup}
-              {learnerRecordImportSubmissionMarkup}
-              {learnerRecordImportProgressMarkup}
-            </section>
-          </>
-        );
-      case "operationsReviewQueue":
-        return (
-          <>
-            {renderPageHeader(
-              "Rule Review Queue",
-              "Review pending badge decisions without mixing them into the rest of operations.",
-            )}
-            <section class="ct-admin ct-stack">{ruleReviewQueuePanelMarkup}</section>
-          </>
-        );
-      case "operationsIssuedBadges":
-        return (
-          <>
-            {renderPageHeader(
-              "Badge Records",
-              "Search issued badge records and take audit or revocation actions from one page.",
-            )}
-            <section class="ct-admin ct-stack">{issuedBadgesPanelMarkup}</section>
-          </>
-        );
-      case "operationsBadgeStatus":
-        return (
-          <>
-            {renderPageHeader(
-              "Badge Status",
-              "Look up a badge, inspect its current state, and apply status changes with a reason.",
-            )}
-            <section class="ct-admin ct-stack">{badgeStatusPanelMarkup}</section>
-          </>
-        );
-      case "reporting":
-        return (
-          <>
-            {renderPageHeader(
-              "Reporting",
-              "Start with the current view, then open detail only when you need it.",
-            )}
-            <section class="ct-admin ct-stack">
-              <section class="ct-admin__reporting-presentation-shell ct-admin__reporting-presentation-shell--highlights ct-stack">
-                <section class="ct-admin__reporting-primary-story ct-stack">
-                  <section class="ct-admin__reporting-first-screen ct-stack">
-                    {reportingExecutiveSummaryMarkup}
-                  </section>
-                  {reportingFocusAreaPanelMarkup}
-                  {reportingRankedChartsMarkup}
-                  {reportingDeepLinksMarkup}
-                </section>
-              </section>
-            </section>
-          </>
-        );
-      case "reportingExplore":
-        return (
-          <>
-            {renderPageHeader(
-              "Reporting Explore",
-              "Filter the report, scan concise previews, and open exact detail only when needed.",
-            )}
-            <section class="ct-admin ct-stack">
-              {reportingExploreSliceSummaryMarkup}
-              <section class="ct-admin__reporting-explore-workspace ct-stack">
-                {reportingOverviewPanelMarkup}
-                {renderReportingTrendPanelMarkup({ includeDetailedTable: false })}
-                {reportingEngagementPanelMarkup}
-                {reportingLowerStoryMarkup}
-                {reportingDefinitionsPanelMarkup}
-                {reportingDeferredPanelMarkup}
-              </section>
-            </section>
-          </>
-        );
-      case "reportingTrends":
-        return (
-          <>
-            {renderPageHeader(
-              "Trend Detail",
-              "Use the focused trend page for exact daily counts behind the overview chart.",
-            )}
-            <section class="ct-admin ct-stack">
-              {reportingTrendFiltersPanelMarkup}
-              {renderReportingTrendPanelMarkup({ includeDetailedTable: true })}
-            </section>
-          </>
-        );
-      case "reportingReports":
-        return (
-          <>
-            {renderPageHeader(
-              "Report Library",
-              "Use one focused page for saved report shortcuts, custom report setup, and CSV exports.",
-            )}
-            <section class="ct-admin ct-stack">
-              {reportingReportsLibraryMarkup}
-              {reportingExportFiltersPanelMarkup}
-              {reportingExportsPanelMarkup}
-            </section>
-          </>
-        );
-      case "rules":
-        return (
-          <>
-            {renderPageHeader(
-              "Rules",
-              "Review awarding rules, create new rules, and test a rule before issuing when needed.",
-            )}
-            <section class="ct-admin ct-stack">
-              {input.rulesWorkspace?.listError !== null &&
-              input.rulesWorkspace?.listError !== undefined &&
-              input.rulesWorkspace.listError.length > 0 ? (
-                <AdminStatus tone="error">{input.rulesWorkspace.listError}</AdminStatus>
-              ) : input.rulesWorkspace?.listNotice !== null &&
-                input.rulesWorkspace?.listNotice !== undefined &&
-                input.rulesWorkspace.listNotice.length > 0 ? (
-                <AdminStatus tone="success">{input.rulesWorkspace.listNotice}</AdminStatus>
-              ) : null}
-              {badgeRulesTableMarkup}
-              {ruleAdvancedToolsMarkup}
-            </section>
-          </>
-        );
-      case "accessMembers":
-        return (
-          <>
-            {renderPageHeader(
-              "Members",
-              "Add colleagues, assign tenant roles, resend invites, and remove tenant access.",
-              <aside class="ct-admin-page-header__note">
-                <h2>Tenant-level access</h2>
-                <p>
-                  Use owner/admin roles for administration. Use issuer/viewer roles when someone
-                  does not need full tenant control.
-                </p>
-              </aside>,
-            )}
-            <section class="ct-admin ct-stack">
-              {tenantMembersPanelMarkup}
-              {tenantMembersTableMarkup}
-            </section>
-          </>
-        );
-      case "accessGovernance":
-        return (
-          <>
-            {renderPageHeader(
-              "Governance Delegation",
-              "Grant org-unit access and time-boxed badge authority with direct removal from the current assignments list.",
-              <aside class="ct-admin-page-header__note">
-                <h2>Choose the smallest access</h2>
-                <p>
-                  Use scoped roles for standing access. Use delegated authority when someone only
-                  needs temporary badge operations.
-                </p>
-              </aside>,
-            )}
-            <section class="ct-admin ct-stack">
-              {input.accessGovernanceWorkspace?.listError !== null &&
-              input.accessGovernanceWorkspace?.listError !== undefined &&
-              input.accessGovernanceWorkspace.listError.length > 0 ? (
-                <AdminStatus data-tone="error">
-                  {input.accessGovernanceWorkspace.listError}
-                </AdminStatus>
-              ) : input.accessGovernanceWorkspace?.listNotice !== null &&
-                input.accessGovernanceWorkspace?.listNotice !== undefined &&
-                input.accessGovernanceWorkspace.listNotice.length > 0 ? (
-                <AdminStatus data-tone="success">
-                  {input.accessGovernanceWorkspace.listNotice}
-                </AdminStatus>
-              ) : null}
-              {governanceGuidePanelMarkup}
-              {governanceActionsMarkup}
-              {membershipScopeTableMarkup}
-              {membershipScopePanelMarkup}
-              {delegatedGrantTableMarkup}
-            </section>
-          </>
-        );
-      case "accessGovernanceDelegationNew":
-        return (
-          <>
-            {renderPageHeader(
-              "Add Delegated Authority",
-              "Grant temporary badge authority without changing standing org-unit access.",
-            )}
-            <section class="ct-admin ct-stack">
-              {renderDelegationSetupSection({
-                tenantId: input.tenant.id,
-                tenantMemberSelectOptions,
-                activeOrgUnitSelectOptions,
-                optionalBadgeTemplateScopeOptions,
-                listError: input.accessGovernanceDelegationWorkspace?.listError ?? null,
-                listNotice: input.accessGovernanceDelegationWorkspace?.listNotice ?? null,
-              })}
-            </section>
-          </>
-        );
-      case "accessAuthentication":
-        return (
-          <>
-            {renderPageHeader(
-              "Authentication",
-              input.tenant.planTier === "enterprise"
-                ? "Configure institution sign-in, OIDC providers, and break-glass local accounts."
-                : "Enterprise authentication is available on the enterprise plan.",
-            )}
-            <section class="ct-admin ct-stack">
-              {input.tenant.planTier === "enterprise" ? (
-                <>
-                  {input.accessAuthenticationWorkspace?.listError !== null &&
-                  input.accessAuthenticationWorkspace?.listError !== undefined &&
-                  input.accessAuthenticationWorkspace.listError.length > 0 ? (
-                    <AdminStatus data-tone="error">
-                      {input.accessAuthenticationWorkspace.listError}
-                    </AdminStatus>
-                  ) : input.accessAuthenticationWorkspace?.listNotice !== null &&
-                    input.accessAuthenticationWorkspace?.listNotice !== undefined &&
-                    input.accessAuthenticationWorkspace.listNotice.length > 0 ? (
-                    <AdminStatus data-tone="success">
-                      {input.accessAuthenticationWorkspace.listNotice}
-                    </AdminStatus>
-                  ) : null}
-                  {renderEnterpriseAuthSection({
-                    tenant: input.tenant,
-                    enterpriseAuthPolicy: input.enterpriseAuthPolicy,
-                    enterpriseAuthProviders: input.enterpriseAuthProviders,
-                    breakGlassAccounts: input.breakGlassAccounts,
-                    editProviderId: input.accessAuthenticationWorkspace?.editProviderId ?? null,
-                  })}
-                </>
-              ) : (
-                <AdminPanel>
-                  <p>
-                    Upgrade to the enterprise plan to configure OIDC sign-in and break-glass access.
-                  </p>
-                </AdminPanel>
-              )}
-            </section>
-          </>
-        );
-      case "accessApiKeys":
-        return (
-          <>
-            {renderPageHeader("API Keys", "Create, review, and revoke tenant API keys.")}
-            <section class="ct-admin ct-stack">
-              {apiKeyPanelMarkup}
-              {apiKeysTableMarkup}
-            </section>
-          </>
-        );
-      case "accessLmsConnections":
-        return (
-          <>
-            {renderPageHeader(
-              "LMS Connections",
-              "Manage connected Canvas and Sakai gradebook accounts used by badge awarding rules.",
-            )}
-            <section class="ct-admin ct-stack">
-              {input.lmsConnectionsWorkspace?.listError !== null &&
-              input.lmsConnectionsWorkspace?.listError !== undefined &&
-              input.lmsConnectionsWorkspace.listError.length > 0 ? (
-                <AdminStatus data-tone="error">
-                  {input.lmsConnectionsWorkspace.listError}
-                </AdminStatus>
-              ) : input.lmsConnectionsWorkspace?.listNotice !== null &&
-                input.lmsConnectionsWorkspace?.listNotice !== undefined &&
-                input.lmsConnectionsWorkspace.listNotice.length > 0 ? (
-                <AdminStatus data-tone="success">
-                  {input.lmsConnectionsWorkspace.listNotice}
-                </AdminStatus>
-              ) : null}
-              {lmsConnectionsActionsMarkup}
-              {lmsConnectionsTableMarkup}
-            </section>
-          </>
-        );
-      case "accessLmsConnectionNew":
-        return (
-          <>
-            {renderPageHeader(
-              "Connect LMS",
-              "Add a Canvas or Sakai gradebook connection for rule lookup.",
-            )}
-            <section class="ct-admin ct-stack">
-              {renderLmsConnectionSetupSection({
-                tenantId: input.tenant.id,
-                formValues: input.lmsConnectionSetupFormValues ?? emptyLmsConnectionFormValues(),
-                listError: input.lmsConnectionSetupWorkspace?.listError ?? null,
-                listNotice: input.lmsConnectionSetupWorkspace?.listNotice ?? null,
-              })}
-            </section>
-          </>
-        );
-      case "accessLmsConnectionEdit":
-        return (
-          <>
-            {renderPageHeader(
-              "Edit LMS Connection",
-              "Update connection details. Leave credential fields blank to keep saved secrets.",
-            )}
-            <section class="ct-admin ct-stack">
-              {renderLmsConnectionSetupSection({
-                tenantId: input.tenant.id,
-                formValues: input.lmsConnectionSetupFormValues ?? emptyLmsConnectionFormValues(),
-                listError: input.lmsConnectionSetupWorkspace?.listError ?? null,
-                listNotice: input.lmsConnectionSetupWorkspace?.listNotice ?? null,
-              })}
-            </section>
-          </>
-        );
-      case "accessOrgUnits":
-        return (
-          <>
-            {renderPageHeader("Org Units", "Create and review org structure.")}
-            <section class="ct-admin ct-stack">
-              {orgUnitPanelMarkup}
-              {orgUnitsTableMarkup}
-            </section>
-          </>
-        );
-    }
-  })();
+  const viewContent = renderInstitutionAdminViewContent({
+    input,
+    view,
+    workspaceCardsMarkup,
+    templateSelectOptions,
+    tenantMemberSelectOptions,
+    activeOrgUnitSelectOptions,
+    optionalBadgeTemplateScopeOptions,
+    learnerRecordReviewPanelMarkup,
+    renderLearnerRecordReviewSections,
+    learnerRecordImportPanelMarkup,
+    learnerRecordImportFeedbackMarkup,
+    learnerRecordImportSubmissionMarkup,
+    learnerRecordImportProgressMarkup,
+    ruleReviewQueuePanelMarkup: asChild(ruleReviewQueuePanelMarkup),
+    issuedBadgesPanelMarkup: asChild(issuedBadgesPanelMarkup),
+    badgeStatusPanelMarkup: asChild(badgeStatusPanelMarkup),
+    reportingExecutiveSummaryMarkup,
+    reportingFocusAreaPanelMarkup,
+    reportingRankedChartsMarkup,
+    reportingDeepLinksMarkup,
+    reportingExploreSliceSummaryMarkup,
+    reportingOverviewPanelMarkup,
+    renderReportingTrendPanelMarkup,
+    reportingEngagementPanelMarkup,
+    reportingLowerStoryMarkup,
+    reportingDefinitionsPanelMarkup,
+    reportingDeferredPanelMarkup,
+    reportingTrendFiltersPanelMarkup,
+    reportingReportsLibraryMarkup,
+    reportingExportFiltersPanelMarkup,
+    reportingExportsPanelMarkup,
+    badgeRulesTableMarkup,
+    ruleAdvancedToolsMarkup,
+    tenantMembersPanelMarkup,
+    tenantMembersTableMarkup,
+    governanceGuidePanelMarkup,
+    governanceActionsMarkup,
+    membershipScopeTableMarkup,
+    membershipScopePanelMarkup,
+    delegatedGrantTableMarkup,
+    apiKeyPanelMarkup,
+    apiKeysTableMarkup,
+    lmsConnectionsActionsMarkup,
+    lmsConnectionsTableMarkup,
+    orgUnitPanelMarkup,
+    orgUnitsTableMarkup,
+  });
   const pageAssets: PageAssetKey[] = [
     "institutionAdminCss",
     viewConfig.controller === "shared" ? "institutionAdminJs" : "institutionAdminShellJs",

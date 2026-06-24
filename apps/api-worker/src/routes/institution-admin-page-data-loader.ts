@@ -18,6 +18,7 @@ import {
   type TenantMembershipRole,
 } from "@credtrail/db";
 import { institutionAdminDashboardPage } from "../admin/institution-admin/page";
+import type { InstitutionAdminView } from "../admin/institution-admin/page-types";
 import {
   institutionAdminViewNeedsApiKeyRows,
   institutionAdminViewNeedsDelegationSelectOptions,
@@ -28,8 +29,7 @@ import {
   institutionAdminViewNeedsRuleVersionIndexes,
   institutionAdminViewNeedsTemplateSelectOptions,
   institutionAdminViewNeedsTenantMemberRows,
-  type InstitutionAdminView,
-} from "../admin/institution-admin/page-types";
+} from "../admin/institution-admin/view-data-needs";
 import type { AppBindings, AppContext } from "../app";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";
 
