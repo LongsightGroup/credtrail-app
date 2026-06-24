@@ -2,12 +2,15 @@ import type { LTISession, LTITool } from "@lti-tool/core";
 import type { AppContext } from "../app";
 import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
 import type { DirectIssueBadgeResult } from "../badges/direct-issue";
+import type { SqlDatabase } from "@credtrail/db";
 import type { LtiIssuanceActionPayload } from "./issuance-action-token";
 import { logLtiWarning } from "./log";
 import { ltiNrpsRosterFromCoreMembers, type LtiNrpsMember } from "./nrps";
+import { evaluateLtiRosterMemberIssuanceEligibility } from "./roster-eligibility";
 import {
   ltiIssuanceIdempotencyKeyFromPrefix,
   ltiIssuanceIdempotencyKeyPrefix,
+  ltiRosterIssuedBadgeStatesByUserId,
   skippedLtiIssuanceResult,
 } from "./roster-issuance-helpers";
 import type { LtiRosterIssuanceResultEntry } from "./view-models";
@@ -24,6 +27,7 @@ export class LtiRosterIssuanceError extends Error {
 
 export interface ExecuteLtiRosterIssuanceInput {
   c: AppContext;
+  db: SqlDatabase;
   ltiTool: LTITool;
   ltiSession: LTISession;
   issuanceAction: LtiIssuanceActionPayload;
@@ -78,6 +82,13 @@ export const executeLtiRosterIssuance = async (
   );
   const results: LtiRosterIssuanceResultEntry[] = [];
   const idempotencyKeyPrefix = ltiIssuanceIdempotencyKeyPrefix(input.issuanceAction);
+  const issuedBadgeStatesByUserId = await ltiRosterIssuedBadgeStatesByUserId({
+    db: input.db,
+    sha256Hex: input.sha256Hex,
+    action: input.issuanceAction,
+    learnerMembers: roster.learnerMembers,
+  });
+  const nowIso = new Date().toISOString();
 
   for (const learnerUserId of input.selectedLearnerUserIds) {
     const member = learnersByUserId.get(learnerUserId);
@@ -96,6 +107,24 @@ export const executeLtiRosterIssuance = async (
 
     if (member.email === null) {
       results.push(skippedLtiIssuanceResult(member, "The LMS did not provide an email address."));
+      continue;
+    }
+
+    const eligibility = await evaluateLtiRosterMemberIssuanceEligibility({
+      db: input.db,
+      issuanceAction: input.issuanceAction,
+      member,
+      issuedState: issuedBadgeStatesByUserId.get(member.userId) ?? null,
+      nowIso,
+    });
+
+    if (eligibility.status === "already_issued") {
+      results.push(skippedLtiIssuanceResult(member, "Badge was already issued for this learner."));
+      continue;
+    }
+
+    if (!eligibility.eligibleForIssuance) {
+      results.push(skippedLtiIssuanceResult(member, eligibility.detail));
       continue;
     }
 

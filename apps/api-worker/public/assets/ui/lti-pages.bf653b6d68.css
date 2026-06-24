@@ -471,12 +471,21 @@
   color: var(--ct-theme-state-success);
 }
 
+.lti-launch__status-pill--eligible {
+  border-color: var(--ct-theme-border-success);
+  background: var(--ct-theme-surface-success);
+  color: var(--ct-theme-state-success);
+}
+
 .lti-launch__status-pill--not_issued {
   border-color: var(--ct-border-soft);
   background: var(--ct-theme-surface-soft);
   color: var(--ct-theme-text-muted);
 }
 
+.lti-launch__status-pill--rule_pending,
+.lti-launch__status-pill--unavailable,
+.lti-launch__status-pill--missing_evidence,
 .lti-launch__status-pill--suspended,
 .lti-launch__status-pill--expired {
   border-color: var(--ct-theme-border-warning);
@@ -484,6 +493,7 @@
   color: var(--ct-theme-state-warning);
 }
 
+.lti-launch__status-pill--not_yet_eligible,
 .lti-launch__status-pill--revoked {
   border-color: var(--ct-theme-border-danger);
   background: var(--ct-theme-surface-danger);

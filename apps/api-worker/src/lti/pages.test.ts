@@ -42,6 +42,10 @@ const sampleBulkIssuanceView = (
         email: "learner-one@example.edu",
         roleSummary: "Learner",
         status: "Active",
+        eligibilityStatus: "eligible",
+        eligibilityLabel: "Eligible",
+        eligibilityDetail: "Meets the active badge rule.",
+        eligibleForIssuance: true,
         issuedAssertionId: null,
         issuedAt: null,
         issuanceLifecycleState: null,
@@ -325,6 +329,9 @@ describe("ltiLaunchResultPage", () => {
     expect(html.indexOf("lti-launch__selected-badge")).toBeLessThan(
       html.indexOf('class="lti-launch__bulk-table"'),
     );
+    expect(html).toContain("Eligibility");
+    expect(html).toContain("Eligible");
+    expect(html).toContain("Meets the active badge rule.");
     expect(html).toContain('name="issuance_action_token"');
     expect(html).toContain('name="learner_user_id"');
   });

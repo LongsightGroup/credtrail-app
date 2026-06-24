@@ -8,6 +8,16 @@ export interface LtiBulkIssuanceRosterMember {
   email: string | null;
   roleSummary: string;
   status: string | null;
+  eligibilityStatus:
+    | "eligible"
+    | "not_yet_eligible"
+    | "missing_evidence"
+    | "already_issued"
+    | "rule_pending"
+    | "unavailable";
+  eligibilityLabel: string;
+  eligibilityDetail: string;
+  eligibleForIssuance: boolean;
   issuedAssertionId: string | null;
   issuedAt: string | null;
   issuanceLifecycleState: "active" | "suspended" | "revoked" | "expired" | null;

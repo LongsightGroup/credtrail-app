@@ -450,6 +450,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     try {
       issuanceResult = await executeLtiRosterIssuance({
         c,
+        db,
         ltiTool,
         ltiSession,
         issuanceAction,

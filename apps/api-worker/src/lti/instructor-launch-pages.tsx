@@ -50,9 +50,7 @@ export const BulkIssuanceSection = (input: {
   const alreadyIssuedCount = view.members.filter(
     (member) => member.issuedAssertionId !== null,
   ).length;
-  const selectableCount = view.members.filter(
-    (member) => member.email !== null && member.issuedAssertionId === null,
-  ).length;
+  const selectableCount = view.members.filter((member) => member.eligibleForIssuance).length;
   const badgeIssuanceStatus = (member: LtiBulkIssuanceRosterMember): string => {
     if (member.issuedAssertionId === null) {
       return "Not issued";
@@ -72,13 +70,14 @@ export const BulkIssuanceSection = (input: {
             {canIssue ? <th>Select</th> : null}
             <th>Learner</th>
             <th>Email</th>
+            <th>Eligibility</th>
             <th>Badge</th>
           </tr>
         </thead>
         <tbody>
           {view.members.length === 0 ? (
             <tr>
-              <td colspan={canIssue ? 4 : 3} class="lti-launch__bulk-empty">
+              <td colspan={canIssue ? 5 : 4} class="lti-launch__bulk-empty">
                 No learners returned by LMS roster for this launch.
               </td>
             </tr>
@@ -90,13 +89,25 @@ export const BulkIssuanceSection = (input: {
                     <CtCheckboxControl
                       name="learner_user_id"
                       value={member.userId}
-                      disabled={member.email === null || member.issuedAssertionId !== null}
+                      disabled={!member.eligibleForIssuance}
                       ariaLabel={`Select ${member.displayName ?? member.userId}`}
                     />
                   </td>
                 ) : null}
                 <td>{member.displayName ?? member.userId}</td>
                 <td>{member.email ?? "Not provided"}</td>
+                <td>
+                  <div class="lti-launch__status-stack">
+                    <span
+                      class={`lti-launch__status-pill lti-launch__status-pill--${member.eligibilityStatus}`}
+                    >
+                      {member.eligibilityLabel}
+                    </span>
+                    <span class="lti-launch__summary-status-detail">
+                      {member.eligibilityDetail}
+                    </span>
+                  </div>
+                </td>
                 <td>{badgeIssuanceStatus(member)}</td>
               </tr>
             ))

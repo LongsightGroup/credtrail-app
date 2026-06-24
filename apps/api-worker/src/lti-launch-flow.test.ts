@@ -13,12 +13,15 @@ vi.mock("@credtrail/db", async () => {
     createBadgeIssuanceRule: vi.fn(),
     createBadgeIssuanceRuleWithConnection: vi.fn(),
     ensureTenantMembership: vi.fn(),
+    findActiveBadgeIssuanceRuleVersion: vi.fn(),
     findActiveDelegatedIssuingAuthorityGrantForAction: vi.fn(),
     findDelegatedIssuingAuthorityGrantFromActiveGrants: vi.fn(),
     listActiveDelegatedIssuingAuthorityGrantsForUser: vi.fn(),
     findAuthIdentityLinkByAuthUserId: vi.fn(),
     findAuthIdentityLinkByCredtrailUserId: vi.fn(),
+    findBadgeIssuanceRuleById: vi.fn(),
     findBadgeTemplateById: vi.fn(),
+    findLtiResourceLinkPlacement: vi.fn(),
     findLtiLaunchSessionById: vi.fn(),
     findClaimableLearnerBadgeSummary: vi.fn(),
     findLearnerProfileByIdentity: vi.fn(),
@@ -52,6 +55,10 @@ vi.mock("@credtrail/db/postgres", () => {
   };
 });
 
+vi.mock("./routes/badge-rule-facts-loader", () => ({
+  loadRuleFacts: vi.fn(),
+}));
+
 import {
   addLearnerIdentityAlias,
   attachLtiLaunchSessionPrincipal,
@@ -60,11 +67,14 @@ import {
   createBadgeIssuanceRule,
   createBadgeIssuanceRuleWithConnection,
   ensureTenantMembership,
+  findActiveBadgeIssuanceRuleVersion,
   findActiveDelegatedIssuingAuthorityGrantForAction,
   findDelegatedIssuingAuthorityGrantFromActiveGrants,
   findAuthIdentityLinkByAuthUserId,
   findAuthIdentityLinkByCredtrailUserId,
+  findBadgeIssuanceRuleById,
   findBadgeTemplateById,
+  findLtiResourceLinkPlacement,
   findLtiLaunchSessionById,
   findClaimableLearnerBadgeSummary,
   findLearnerProfileByIdentity,
@@ -107,6 +117,7 @@ import type { LTISession } from "@lti-tool/core";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
+import { loadRuleFacts } from "./routes/badge-rule-facts-loader";
 import { LTI_POST_MESSAGE_STORAGE_JS } from "./ui/page-assets/content/lti-post-message-storage-js";
 import { createLtiCourseBadgeSetupToken } from "./lti/course-badge-setup-token";
 
@@ -123,6 +134,7 @@ const mockedCreateBadgeIssuanceRuleWithConnection = vi.mocked(
   createBadgeIssuanceRuleWithConnection,
 );
 const mockedEnsureTenantMembership = vi.mocked(ensureTenantMembership);
+const mockedFindActiveBadgeIssuanceRuleVersion = vi.mocked(findActiveBadgeIssuanceRuleVersion);
 const mockedFindActiveDelegatedIssuingAuthorityGrantForAction = vi.mocked(
   findActiveDelegatedIssuingAuthorityGrantForAction,
 );
@@ -136,7 +148,9 @@ const mockedFindAuthIdentityLinkByAuthUserId = vi.mocked(findAuthIdentityLinkByA
 const mockedFindAuthIdentityLinkByCredtrailUserId = vi.mocked(
   findAuthIdentityLinkByCredtrailUserId,
 );
+const mockedFindBadgeIssuanceRuleById = vi.mocked(findBadgeIssuanceRuleById);
 const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
+const mockedFindLtiResourceLinkPlacement = vi.mocked(findLtiResourceLinkPlacement);
 const mockedFindLtiLaunchSessionById = vi.mocked(findLtiLaunchSessionById);
 const mockedFindClaimableLearnerBadgeSummary = vi.mocked(findClaimableLearnerBadgeSummary);
 const mockedFindLearnerProfileByIdentity = vi.mocked(findLearnerProfileByIdentity);
@@ -169,6 +183,7 @@ const mockedUpsertLtiLaunchSession = vi.mocked(upsertLtiLaunchSession);
 const mockedUpsertTenantMembershipRole = vi.mocked(upsertTenantMembershipRole);
 const mockedUpsertUserByEmail = vi.mocked(upsertUserByEmail);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
+const mockedLoadRuleFacts = vi.mocked(loadRuleFacts);
 
 interface AuthUserRow {
   id: string;
@@ -862,6 +877,51 @@ describe("LTI 1.3 core launch flow", () => {
       rule: sampleBadgeIssuanceRule(),
       version: sampleBadgeIssuanceRuleVersion(),
     });
+    mockedFindBadgeIssuanceRuleById.mockReset();
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(
+      sampleBadgeIssuanceRule({
+        activeVersionId: "brlv_lti_rule_123_v1",
+      }),
+    );
+    mockedFindActiveBadgeIssuanceRuleVersion.mockReset();
+    mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(
+      sampleBadgeIssuanceRuleVersion({
+        status: "active",
+      }),
+    );
+    mockedFindLtiResourceLinkPlacement.mockReset();
+    mockedFindLtiResourceLinkPlacement.mockResolvedValue({
+      id: "lti_place_123",
+      tenantId,
+      issuer,
+      clientId,
+      deploymentId,
+      contextId: "course-42",
+      resourceLinkId: "resource-link-123",
+      badgeTemplateId: "badge_template_001",
+      ruleId: "brl_lti_rule_123",
+      createdByUserId: linkedUserId,
+      createdAt: "2026-02-10T22:00:00.000Z",
+      updatedAt: "2026-02-10T22:00:00.000Z",
+    });
+    mockedLoadRuleFacts.mockReset();
+    mockedLoadRuleFacts.mockImplementation(async (_input) => ({
+      learnerId: "learner-001",
+      nowIso: "2026-02-10T22:00:00.000Z",
+      grades: [
+        {
+          courseId: "course-123",
+          learnerId: "learner-001",
+          currentScore: 92,
+          finalScore: 92,
+        },
+      ],
+      completions: [],
+      submissions: [],
+      surveyCompletions: [],
+      customFields: [],
+      earnedBadgeTemplateIds: [],
+    }));
     mockedSubmitBadgeIssuanceRuleVersionForApproval.mockReset();
     mockedSubmitBadgeIssuanceRuleVersionForApproval.mockResolvedValue(
       sampleBadgeIssuanceRuleVersion({

@@ -25,6 +25,11 @@ import type {
   ValidatedResourceLinkLaunch,
 } from "./resource-link-launch-types";
 import { ltiRosterIssuedBadgeStatesByUserId } from "./roster-issuance-helpers";
+import {
+  evaluateLtiRosterMemberEligibility,
+  resolveLtiRosterEligibilityRuleContext,
+  type LtiRosterEligibilityResult,
+} from "./roster-eligibility";
 import { ltiBadgeSummaryCardFromTemplate, newestAssertion } from "./badge-summary-helpers";
 import type {
   InstructorResourceLinkViews,
@@ -67,9 +72,21 @@ const ltiBulkIssuanceViewFromRoster = (input: {
       lifecycleState: AssertionLifecycleState | null;
     }
   >;
+  eligibilityByUserId: ReadonlyMap<string, LtiRosterEligibilityResult>;
 }): LtiBulkIssuanceView => {
   const learnerMembers = input.roster.learnerMembers.map((member) => {
     const issuedState = input.issuedBadgeStatesByUserId.get(member.userId) ?? null;
+    const eligibility =
+      input.eligibilityByUserId.get(member.userId) ??
+      ({
+        status: issuedState === null ? "rule_pending" : "already_issued",
+        label: issuedState === null ? "Rule pending" : "Already issued",
+        detail:
+          issuedState === null
+            ? "No active course rule is linked to this placement."
+            : "Badge was already issued for this learner.",
+        eligibleForIssuance: false,
+      } satisfies LtiRosterEligibilityResult);
 
     return {
       userId: member.userId,
@@ -78,6 +95,10 @@ const ltiBulkIssuanceViewFromRoster = (input: {
       email: member.email,
       roleSummary: member.roleSummary,
       status: member.status,
+      eligibilityStatus: eligibility.status,
+      eligibilityLabel: eligibility.label,
+      eligibilityDetail: eligibility.detail,
+      eligibleForIssuance: eligibility.eligibleForIssuance,
       issuedAssertionId: issuedState?.assertionId ?? null,
       issuedAt: issuedState?.issuedAt ?? null,
       issuanceLifecycleState: issuedState?.lifecycleState ?? null,
@@ -426,16 +447,48 @@ const resolveBulkIssuanceView = async (input: {
           action: issuanceActionInput,
           learnerMembers: roster.learnerMembers,
         });
+  const ruleContext = await resolveLtiRosterEligibilityRuleContext({
+    db: input.db,
+    tenantId: input.tenantId,
+    issuer: input.launchClaims.iss,
+    clientId: input.issuerClientId,
+    deploymentId: input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
+    resourceLinkId: input.launchMessage.resourceLinkId,
+    launchRuleId: input.launchMessage.ruleId,
+  });
+  const nowIso = new Date().toISOString();
+  const eligibilityEntries = await Promise.all(
+    roster.learnerMembers.map(async (member) => {
+      const eligibility = await evaluateLtiRosterMemberEligibility({
+        db: input.db,
+        tenantId: input.tenantId,
+        ruleId: ruleContext.ruleId,
+        member,
+        issuedState: issuedBadgeStatesByUserId.get(member.userId) ?? null,
+        nowIso,
+      });
+
+      return [member.userId, eligibility] as const;
+    }),
+  );
+  const eligibilityByUserId = new Map(eligibilityEntries);
+  const unavailableCount = eligibilityEntries.filter(
+    ([, eligibility]) => eligibility.status === "unavailable",
+  ).length;
   let bulkIssuanceView = ltiBulkIssuanceViewFromRoster({
     roster,
-    message: `Loaded ${String(roster.learnerMembers.length)} learner${
-      roster.learnerMembers.length === 1 ? "" : "s"
-    } from LMS roster.`,
+    message:
+      unavailableCount === 0
+        ? `Loaded ${String(roster.learnerMembers.length)} learner${
+            roster.learnerMembers.length === 1 ? "" : "s"
+          } from LMS roster.`
+        : "CredTrail loaded the LMS roster, but Sakai gradebook evidence is unavailable for one or more learners.",
     selectedBadge: input.selectedBadge,
     courseContextTitle: input.courseContextTitle,
     courseContextId: input.courseContextId,
     contextMembershipsUrl: input.contextMembershipsUrl,
     issuedBadgeStatesByUserId,
+    eligibilityByUserId,
   });
 
   if (issuanceActionInput !== null) {
