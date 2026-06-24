@@ -1,4 +1,4 @@
-import type { JsonObject, ObservabilityContext } from "@credtrail/core-domain";
+import type { JsonObject } from "@credtrail/core-domain";
 import {
   findTenantSigningRegistrationByDid,
   listLtiIssuerRegistrations,
@@ -36,10 +36,7 @@ import {
   revocationStatusListUrlForTenant,
 } from "./badges/revocation-status";
 import { createPublicBadgePageRenderers } from "./badges/public-badge-pages";
-import {
-  badgeTemplateCriteriaRegistryHref,
-  badgeTemplateShowcaseHref,
-} from "./badges/badge-template-public-links";
+import { publicBadgeSummaryPayload as buildPublicBadgeSummaryPayload } from "./badges/public-badge-summary-payload";
 import { createIssueBadgeForTenant } from "./badges/direct-issue";
 import { processBadgeTemplateImageGenerationJob } from "./badges/badge-template-image-generation";
 import {
@@ -49,7 +46,6 @@ import {
   loadVerificationViewModel,
   parseTenantScopedCredentialId,
   publicBadgePathForAssertion,
-  type VerificationViewModel,
 } from "./badges/public-badge-model";
 import {
   VC_DATA_MODEL_CONTEXT_URL,
@@ -77,12 +73,8 @@ import {
 import { createOAuthTokenHelpers } from "./ob3/oauth-token-helpers";
 import { createOb3ErrorResponses } from "./ob3/error-responses";
 import { createOb3AccessTokenAuthenticator } from "./ob3/access-token-auth";
-import { ob3ServiceDescriptionDocument as ob3ServiceDescriptionDocumentFromRequest } from "./ob3/service-description";
-import {
-  ltiIssuerRegistryFromStoredRows,
-  parseLtiIssuerRegistryFromEnv,
-  type LtiIssuerRegistry,
-} from "./lti/lti-helpers";
+import { ob3ServiceDescriptionDocument } from "./ob3/service-description-runtime";
+import { createResolveLtiIssuerRegistry } from "./lti/lti-issuer-registry";
 import { createLearnerDashboardPage, learnerDidSettingsNoticeFromQuery } from "./learner/pages";
 import { createLearnerRecordPage } from "./learner/learner-record-page";
 import {
@@ -134,6 +126,7 @@ import {
   verifiableCredentialObjectsFromPresentation as verifiableCredentialObjectsFromPresentationHelper,
 } from "./presentation/verification-helpers";
 import { resolveDatabase } from "./app/database";
+import { API_SERVICE_NAME, observabilityContext } from "./app/observability";
 import {
   betterAuthProvider,
   breakGlassPolicyAdapter,
@@ -149,13 +142,14 @@ import {
   resolveRequestedTenantContext,
 } from "./app/auth-runtime";
 import type { AppBindings, AppContext, AppEnv } from "./app/types";
+import { HttpErrorResponse } from "./http/http-error-response";
+import { walletCredentialOfferPayload } from "./oid4vci/wallet-credential-offer-payload";
 
 export type { AppBindings, AppContext, AppEnv } from "./app/types";
 
 export const app = new Hono<AppEnv>();
 export { sendIssuanceEmailNotification };
 export type { SendIssuanceEmailNotificationInput };
-const API_SERVICE_NAME = "api-worker";
 const LEARNER_IDENTITY_LINK_TTL_SECONDS = 10 * 60;
 const OID4VCI_PRE_AUTH_CODE_TTL_SECONDS = 10 * 60;
 const OID4VCI_ACCESS_TOKEN_TTL_SECONDS = 10 * 60;
@@ -163,22 +157,10 @@ const SAKAI_SHOWCASE_TENANT_ID = "sakai";
 const SAKAI_SHOWCASE_TEMPLATE_ID = "badge_template_sakai_1000";
 const STORAGE_READINESS_PROBE_KEY = "__credtrail__/healthz/dependency-probe.jsonld";
 
-const observabilityContext = (bindings: AppBindings): ObservabilityContext => {
-  return {
-    service: API_SERVICE_NAME,
-    environment: bindings.APP_ENV,
-  };
-};
-
-const resolveLtiIssuerRegistry = async (c: AppContext): Promise<LtiIssuerRegistry> => {
-  const envRegistry = parseLtiIssuerRegistryFromEnv(c.env.LTI_ISSUER_REGISTRY_JSON);
-  const dbRows = await listLtiIssuerRegistrations(resolveDatabase(c.env));
-  const dbRegistry = ltiIssuerRegistryFromStoredRows(dbRows);
-  return {
-    ...envRegistry,
-    ...dbRegistry,
-  };
-};
+const resolveLtiIssuerRegistry = createResolveLtiIssuerRegistry({
+  resolveDatabase,
+  listLtiIssuerRegistrations,
+});
 
 const {
   resolveSigningEntryForDid,
@@ -198,20 +180,6 @@ const {
   resolvePendingBreakGlassTenantId: pendingBreakGlassTenantFromCookie,
   resolveDatabase,
 });
-
-const ob3ServiceDescriptionDocument = (c: AppContext): JsonObject => {
-  return ob3ServiceDescriptionDocumentFromRequest({
-    requestUrl: c.req.url,
-    discoveryTitle: c.env.OB3_DISCOVERY_TITLE,
-    termsOfServiceUrl: c.env.OB3_TERMS_OF_SERVICE_URL,
-    privacyPolicyUrl: c.env.OB3_PRIVACY_POLICY_URL,
-    imageUrl: c.env.OB3_IMAGE_URL,
-    oauthRegistrationUrl: c.env.OB3_OAUTH_REGISTRATION_URL,
-    oauthAuthorizationUrl: c.env.OB3_OAUTH_AUTHORIZATION_URL,
-    oauthTokenUrl: c.env.OB3_OAUTH_TOKEN_URL,
-    oauthRefreshUrl: c.env.OB3_OAUTH_REFRESH_URL,
-  });
-};
 
 const { oauthErrorJson, oauthTokenErrorJson, oauthTokenSuccessJson, ob3ErrorJson } =
   createOb3ErrorResponses<AppContext>();
@@ -281,27 +249,6 @@ const { verifyPresentationHolderProofSummary, verifyCredentialInPresentation } =
     summarizeCredentialLifecycleVerification,
   });
 
-class HttpErrorResponse extends Error {
-  public readonly statusCode: 400 | 404 | 409 | 422 | 500 | 502;
-
-  public readonly payload: {
-    error: string;
-    did?: string | undefined;
-  };
-
-  public constructor(
-    statusCode: 400 | 404 | 409 | 422 | 500 | 502,
-    payload: {
-      error: string;
-      did?: string | undefined;
-    },
-  ) {
-    super(payload.error);
-    this.statusCode = statusCode;
-    this.payload = payload;
-  }
-}
-
 const {
   publicBadgeNotFoundPage,
   publicBadgePage,
@@ -335,149 +282,6 @@ const learnerDashboardPage = createLearnerDashboardPage({
 const learnerRecordPage = createLearnerRecordPage({
   formatIsoTimestamp,
 });
-
-const walletCredentialOfferPayload = (
-  requestUrl: string,
-  model: VerificationViewModel,
-  options?: {
-    preAuthorizedCode?: string | undefined;
-    offerExpiresAt?: string | undefined;
-    tokenEndpointPath?: string | undefined;
-    credentialEndpointPath?: string | undefined;
-  },
-): Record<string, unknown> => {
-  const assertion = model.assertion;
-  const requestBaseUrl = new URL(requestUrl);
-  const publicBadgePath = `/badges/${encodeURIComponent(assertion.publicId ?? assertion.id)}`;
-  const verificationPath = `${publicBadgePath}/verification`;
-  const credentialJsonldPath = `${publicBadgePath}/jsonld`;
-  const credentialDownloadPath = `${publicBadgePath}/download`;
-  const preAuthorizedCode =
-    options?.preAuthorizedCode ?? `public-badge:${assertion.publicId ?? assertion.id}`;
-  const tokenEndpointPath = options?.tokenEndpointPath ?? "/credentials/v1/token";
-  const credentialEndpointPath = options?.credentialEndpointPath ?? "/credentials/v1/credentials";
-
-  return {
-    credential_issuer: requestBaseUrl.origin,
-    credential_endpoint: new URL(credentialEndpointPath, requestBaseUrl).toString(),
-    credential_configuration_ids: ["OpenBadgeCredential"],
-    grants: {
-      "urn:ietf:params:oauth:grant-type:pre-authorized_code": {
-        "pre-authorized_code": preAuthorizedCode,
-        tx_code_required: false,
-      },
-    },
-    credentials: [
-      {
-        format: "ldp_vc",
-        types: ["VerifiableCredential", "OpenBadgeCredential"],
-      },
-    ],
-    x_credtrail: {
-      token_endpoint: new URL(tokenEndpointPath, requestBaseUrl).toString(),
-      credential_endpoint: new URL(credentialEndpointPath, requestBaseUrl).toString(),
-      public_badge_url: new URL(publicBadgePath, requestBaseUrl).toString(),
-      verification_url: new URL(verificationPath, requestBaseUrl).toString(),
-      credential_jsonld_url: new URL(credentialJsonldPath, requestBaseUrl).toString(),
-      credential_download_url: new URL(credentialDownloadPath, requestBaseUrl).toString(),
-      ...(options?.offerExpiresAt === undefined
-        ? {}
-        : {
-            offer_expires_at: options.offerExpiresAt,
-          }),
-    },
-  };
-};
-
-const publicBadgeSummaryPayload = (
-  requestUrl: string,
-  model: VerificationViewModel,
-): Record<string, unknown> => {
-  const requestBaseUrl = new URL(requestUrl);
-  const assertion = model.assertion;
-  const achievementDetails = achievementDetailsFromCredential(model.credential);
-  const badgeName = badgeNameFromCredential(model.credential);
-  const recipientDisplayName =
-    model.recipientDisplayName ?? recipientDisplayNameFromAssertion(assertion);
-  const recipientAvatarUrl = recipientAvatarUrlFromAssertion(assertion);
-  const issuerName = issuerNameFromCredential(model.credential);
-  const issuerId = issuerIdentifierFromCredential(model.credential);
-  const issuerUrl = issuerUrlFromCredential(model.credential);
-  const recipientId = recipientFromCredential(model.credential);
-  const publicBadgePath = `/badges/${encodeURIComponent(assertion.publicId ?? assertion.id)}`;
-  const summaryPath = `${publicBadgePath}/summary`;
-  const verificationPath = `${publicBadgePath}/verification`;
-  const ob3JsonPath = `${publicBadgePath}/jsonld`;
-  const credentialDownloadPath = `${publicBadgePath}/download`;
-  const credentialPdfDownloadPath = `${publicBadgePath}/download.pdf`;
-  const walletOfferPath = `/credentials/v1/offers/${encodeURIComponent(assertion.publicId ?? assertion.id)}`;
-  const showcasePath = badgeTemplateShowcaseHref(assertion.tenantId, assertion.badgeTemplateId);
-  const criteriaRegistryPath = badgeTemplateCriteriaRegistryHref(
-    assertion.tenantId,
-    assertion.badgeTemplateId,
-  );
-  const verificationLabel = model.lifecycle.state === "active" ? "verified" : model.lifecycle.state;
-
-  return {
-    badge: {
-      assertionId: assertion.id,
-      publicBadgeId: assertion.publicId ?? assertion.id,
-      tenantId: assertion.tenantId,
-      badgeTemplateId: assertion.badgeTemplateId,
-      name: badgeName,
-      description: achievementDetails.description,
-      badgeClassId: achievementDetails.badgeClassUri,
-      criteriaUri: achievementDetails.criteriaUri,
-      imageUri: achievementDetails.imageUri,
-      issuedAt: assertion.issuedAt,
-      issuedAtLabel: `${formatIsoTimestamp(assertion.issuedAt)} UTC`,
-    },
-    recipient: {
-      identity: assertion.recipientIdentity,
-      identityType: assertion.recipientIdentityType,
-      id: recipientId,
-      displayName: recipientDisplayName,
-      avatarUrl: recipientAvatarUrl,
-    },
-    issuer: {
-      name: issuerName,
-      id: issuerId,
-      url: issuerUrl,
-    },
-    lifecycle: {
-      state: model.lifecycle.state,
-      source: model.lifecycle.source,
-      reasonCode: model.lifecycle.reasonCode,
-      reason: model.lifecycle.reason,
-      transitionedAt: model.lifecycle.transitionedAt,
-      revokedAt: model.lifecycle.revokedAt,
-    },
-    verification: {
-      label: verificationLabel,
-      isValid: model.lifecycle.state === "active",
-    },
-    links: {
-      badgePagePath: publicBadgePath,
-      badgePageUrl: new URL(publicBadgePath, requestBaseUrl).toString(),
-      summaryPath,
-      summaryUrl: new URL(summaryPath, requestBaseUrl).toString(),
-      verificationPath,
-      verificationUrl: new URL(verificationPath, requestBaseUrl).toString(),
-      ob3JsonPath,
-      ob3JsonUrl: new URL(ob3JsonPath, requestBaseUrl).toString(),
-      credentialDownloadPath,
-      credentialDownloadUrl: new URL(credentialDownloadPath, requestBaseUrl).toString(),
-      credentialPdfDownloadPath,
-      credentialPdfDownloadUrl: new URL(credentialPdfDownloadPath, requestBaseUrl).toString(),
-      walletOfferPath,
-      walletOfferUrl: new URL(walletOfferPath, requestBaseUrl).toString(),
-      showcasePath,
-      showcaseUrl: new URL(showcasePath, requestBaseUrl).toString(),
-      criteriaRegistryPath,
-      criteriaRegistryUrl: new URL(criteriaRegistryPath, requestBaseUrl).toString(),
-    },
-  };
-};
 
 registerCommonMiddleware({
   app,
@@ -604,7 +408,13 @@ registerPublicBadgeRoutes({
   loadPublicBadgeViewModel,
   publicBadgeNotFoundPage,
   publicBadgePage,
-  publicBadgeSummaryPayload,
+  publicBadgeSummaryPayload: (requestUrl, model) => {
+    return buildPublicBadgeSummaryPayload({
+      requestUrl,
+      model,
+      formatIsoTimestamp,
+    });
+  },
   tenantBadgeWallPage,
   tenantBadgeCriteriaRegistryPage,
   asNonEmptyString,

@@ -12,11 +12,11 @@ import type {
   TenantReportingOverviewRecord,
   TenantReportingTrendRecord,
 } from "./assertion-types.js";
-import { normalizeReportingDateBoundary } from "./assertion-internal.js";
 import type {
   TenantReportingEngagementRow,
   TenantReportingOverviewRow,
 } from "./assertion-internal.js";
+import { buildAssertionRecordFilterSql } from "./assertion-record-filter-sql.js";
 import { backfillAssertionReportingAttributionsForTenant } from "./assertion-reporting-attribution.js";
 import {
   summarizeTenantReportingComparisonRows,
@@ -32,28 +32,19 @@ export const listTenantReportingEngagementRows = async (
 ): Promise<TenantReportingEngagementRow[]> => {
   await backfillAssertionReportingAttributionsForTenant(db, input.tenantId);
 
-  const whereClauses = ["assertions.tenant_id = ?"];
-  const params: unknown[] = [input.tenantId];
-
-  if (input.from !== undefined) {
-    whereClauses.push("assertions.issued_at >= ?");
-    params.push(normalizeReportingDateBoundary(input.from, "start"));
-  }
-
-  if (input.to !== undefined) {
-    whereClauses.push("assertions.issued_at <= ?");
-    params.push(normalizeReportingDateBoundary(input.to, "end"));
-  }
-
-  if (input.badgeTemplateId !== undefined) {
-    whereClauses.push("attribution.badge_template_id = ?");
-    params.push(input.badgeTemplateId);
-  }
-
-  if (input.orgUnitId !== undefined) {
-    whereClauses.push("attribution.org_unit_id = ?");
-    params.push(input.orgUnitId);
-  }
+  const { whereClauses, params } = buildAssertionRecordFilterSql(
+    {
+      tenantId: input.tenantId,
+      issuedFrom: input.from,
+      issuedTo: input.to,
+      badgeTemplateId: input.badgeTemplateId,
+      orgUnitId: input.orgUnitId,
+    },
+    {
+      badgeTemplateColumn: "attribution.badge_template_id",
+      includeLifecycleStatePredicate: false,
+    },
+  );
 
   const listStatement = (): Promise<SqlQueryResult<TenantReportingEngagementRow>> =>
     db
@@ -183,28 +174,19 @@ export const getTenantReportingOverview = async (
 ): Promise<TenantReportingOverviewRecord> => {
   await backfillAssertionReportingAttributionsForTenant(db, input.tenantId);
 
-  const whereClauses = ["assertions.tenant_id = ?"];
-  const params: unknown[] = [input.tenantId];
-
-  if (input.issuedFrom !== undefined) {
-    whereClauses.push("assertions.issued_at >= ?");
-    params.push(normalizeReportingDateBoundary(input.issuedFrom, "start"));
-  }
-
-  if (input.issuedTo !== undefined) {
-    whereClauses.push("assertions.issued_at <= ?");
-    params.push(normalizeReportingDateBoundary(input.issuedTo, "end"));
-  }
-
-  if (input.badgeTemplateId !== undefined) {
-    whereClauses.push("assertions.badge_template_id = ?");
-    params.push(input.badgeTemplateId);
-  }
-
-  if (input.orgUnitId !== undefined) {
-    whereClauses.push("attribution.org_unit_id = ?");
-    params.push(input.orgUnitId);
-  }
+  const { whereClauses, params } = buildAssertionRecordFilterSql(
+    {
+      tenantId: input.tenantId,
+      issuedFrom: input.issuedFrom,
+      issuedTo: input.issuedTo,
+      badgeTemplateId: input.badgeTemplateId,
+      orgUnitId: input.orgUnitId,
+    },
+    {
+      badgeTemplateColumn: "assertions.badge_template_id",
+      includeLifecycleStatePredicate: false,
+    },
+  );
 
   const overviewStatement = (): Promise<SqlQueryResult<TenantReportingOverviewRow>> =>
     db

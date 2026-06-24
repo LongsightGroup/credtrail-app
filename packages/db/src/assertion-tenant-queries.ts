@@ -9,7 +9,6 @@ import { normalizeEmail } from "./users";
 import type { SqlDatabase, SqlQueryResult } from "./tenant-scope";
 import { SYNCHRONOUS_EXPORT_ROW_LIMIT } from "./assertion-types.js";
 import type {
-  AssertionLifecycleState,
   LearnerRecordAssertionExportRecord,
   ListLearnerRecordAssertionExportsInput,
   ListTenantAssertionLedgerExportRowsInput,
@@ -21,7 +20,6 @@ import {
   mapLearnerRecordAssertionExportRow,
   mapTenantAssertionLedgerExportRow,
   mapTenantAssertionSummaryRow,
-  normalizeReportingDateBoundary,
 } from "./assertion-internal.js";
 import type {
   LearnerRecordAssertionExportRow,
@@ -29,79 +27,10 @@ import type {
   TenantAssertionSummaryRow,
 } from "./assertion-internal.js";
 import { backfillAssertionReportingAttributionsForTenant } from "./assertion-reporting-attribution.js";
-
-interface TenantAssertionRecordFilterSqlInput {
-  tenantId: string;
-  issuedFrom?: string | undefined;
-  issuedTo?: string | undefined;
-  badgeTemplateId?: string | undefined;
-  orgUnitId?: string | undefined;
-  recipientQuery?: string | undefined;
-  state?: AssertionLifecycleState | undefined;
-}
-
-interface TenantAssertionRecordFilterSql {
-  whereClauses: string[];
-  params: unknown[];
-}
-
-const assertionReportingAttributionJoinSql = `
-        INNER JOIN assertion_reporting_attributions attribution
-          ON attribution.assertion_id = assertions.id`;
-
-const buildTenantAssertionRecordFilterSql = (
-  input: TenantAssertionRecordFilterSqlInput,
-): TenantAssertionRecordFilterSql => {
-  const whereClauses = ["assertions.tenant_id = ?"];
-  const params: unknown[] = [input.tenantId];
-
-  if (input.issuedFrom !== undefined) {
-    whereClauses.push("assertions.issued_at >= ?");
-    params.push(normalizeReportingDateBoundary(input.issuedFrom, "start"));
-  }
-
-  if (input.issuedTo !== undefined) {
-    whereClauses.push("assertions.issued_at <= ?");
-    params.push(normalizeReportingDateBoundary(input.issuedTo, "end"));
-  }
-
-  if (input.badgeTemplateId !== undefined) {
-    whereClauses.push("assertions.badge_template_id = ?");
-    params.push(input.badgeTemplateId);
-  }
-
-  if (input.orgUnitId !== undefined) {
-    whereClauses.push("attribution.org_unit_id = ?");
-    params.push(input.orgUnitId);
-  }
-
-  if (input.recipientQuery !== undefined) {
-    const normalizedQuery = `%${input.recipientQuery.trim().toLowerCase()}%`;
-    whereClauses.push(
-      `(
-        LOWER(assertions.recipient_identity) LIKE ?
-        OR LOWER(assertions.id) LIKE ?
-        OR LOWER(COALESCE(assertions.public_id, '')) LIKE ?
-      )`,
-    );
-    params.push(normalizedQuery, normalizedQuery, normalizedQuery);
-  }
-
-  if (input.state !== undefined) {
-    whereClauses.push(
-      `(
-        CASE
-          WHEN assertions.revoked_at IS NOT NULL THEN 'revoked'
-          WHEN lifecycle.to_state IS NOT NULL THEN lifecycle.to_state
-          ELSE 'active'
-        END
-      ) = ?`,
-    );
-    params.push(input.state);
-  }
-
-  return { whereClauses, params };
-};
+import {
+  assertionReportingAttributionJoinSql,
+  buildAssertionRecordFilterSql,
+} from "./assertion-record-filter-sql.js";
 
 export const listLearnerRecordAssertionExports = async (
   db: SqlDatabase,
@@ -171,7 +100,9 @@ export const listTenantAssertions = async (
   }
 
   const queryLimit = Math.max(1, Math.min(input.limit ?? 100, 500));
-  const { whereClauses, params } = buildTenantAssertionRecordFilterSql(input);
+  const { whereClauses, params } = buildAssertionRecordFilterSql(input, {
+    badgeTemplateColumn: "assertions.badge_template_id",
+  });
 
   const listStatement = (): Promise<SqlQueryResult<TenantAssertionSummaryRow>> =>
     db
@@ -226,7 +157,9 @@ export const listTenantAssertionLedgerExportRows = async (
 ): Promise<TenantAssertionLedgerExportResult> => {
   await backfillAssertionReportingAttributionsForTenant(db, input.tenantId);
 
-  const { whereClauses, params } = buildTenantAssertionRecordFilterSql(input);
+  const { whereClauses, params } = buildAssertionRecordFilterSql(input, {
+    badgeTemplateColumn: "assertions.badge_template_id",
+  });
 
   const rowLimit = SYNCHRONOUS_EXPORT_ROW_LIMIT;
   const listStatement = (): Promise<SqlQueryResult<TenantAssertionLedgerExportRow>> =>
