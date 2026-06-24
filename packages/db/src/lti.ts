@@ -101,6 +101,12 @@ export interface UpsertLtiLaunchSessionInput {
   expiresAt: string;
 }
 
+export interface AttachLtiLaunchSessionPrincipalInput {
+  id: string;
+  tenantId: string;
+  userId: string;
+}
+
 export interface LtiDynamicRegistrationSessionRecord {
   id: string;
   dataJson: string;
@@ -670,6 +676,36 @@ export const upsertLtiLaunchSession = async (
 
   if (session === null) {
     throw new Error(`Unable to upsert LTI launch session "${input.id}"`);
+  }
+
+  return session;
+};
+
+export const attachLtiLaunchSessionPrincipal = async (
+  db: SqlDatabase,
+  input: AttachLtiLaunchSessionPrincipalInput,
+): Promise<LtiLaunchSessionRecord> => {
+  const nowIso = new Date().toISOString();
+  const updateStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        UPDATE lti_launch_sessions
+        SET tenant_id = ?,
+            user_id = ?,
+            updated_at = ?
+        WHERE id = ?
+      `,
+      )
+      .bind(input.tenantId, input.userId, nowIso, input.id)
+      .run();
+
+  await updateStatement();
+
+  const session = await findLtiLaunchSessionById(db, input.id);
+
+  if (session === null) {
+    throw new Error(`Unable to attach principal to LTI launch session "${input.id}"`);
   }
 
   return session;

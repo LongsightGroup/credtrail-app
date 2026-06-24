@@ -15,7 +15,6 @@ type LtiCourseBadgeSetupTokenBindings = Pick<AppBindings, "LTI_STATE_SIGNING_SEC
 
 export interface LtiCourseBadgeSetupPayload {
   tenantId: string;
-  ltiSessionId: string;
   issuer: string;
   clientId: string;
   deploymentId: string;
@@ -71,7 +70,6 @@ const parseLtiCourseBadgeSetupPayload = (value: unknown): LtiCourseBadgeSetupPay
 
   if (
     !isNonEmptyString(candidate.tenantId) ||
-    !isNonEmptyString(candidate.ltiSessionId) ||
     !isNonEmptyString(candidate.issuer) ||
     !isNonEmptyString(candidate.clientId) ||
     !isNonEmptyString(candidate.deploymentId) ||
@@ -86,7 +84,6 @@ const parseLtiCourseBadgeSetupPayload = (value: unknown): LtiCourseBadgeSetupPay
 
   return {
     tenantId: candidate.tenantId,
-    ltiSessionId: candidate.ltiSessionId,
     issuer: candidate.issuer,
     clientId: candidate.clientId,
     deploymentId: candidate.deploymentId,
@@ -105,7 +102,6 @@ export const createLtiCourseBadgeSetupToken = async (
 ): Promise<string> => {
   return createSignedJsonToken(courseBadgeSetupSigningSecret(env), {
     tenantId: input.tenantId,
-    ltiSessionId: input.ltiSessionId,
     issuer: input.issuer,
     clientId: input.clientId,
     deploymentId: input.deploymentId,

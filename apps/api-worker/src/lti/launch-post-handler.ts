@@ -1,7 +1,7 @@
 import {
+  attachLtiLaunchSessionPrincipal,
   findBadgeTemplateById,
   listBadgeTemplates,
-  upsertLtiLaunchSession,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -52,8 +52,6 @@ import {
   type LtiIssuerRegistry,
 } from "./lti-helpers";
 import { ltiDeepLinkSelectionPage, ltiLaunchResultPage } from "./pages";
-
-const LTI_LAUNCH_SESSION_TTL_SECONDS = 60 * 60;
 
 export interface HandleLtiLaunchPostInput {
   c: AppContext;
@@ -287,15 +285,10 @@ const establishLtiLaunchSession = async (input: {
     tenantId: input.tenantId,
     userId: linkedAccount.userId,
   });
-  await upsertLtiLaunchSession(input.db, {
+  await attachLtiLaunchSessionPrincipal(input.db, {
     id: input.ltiLaunchSession.id,
-    issuer: input.ltiLaunchSession.platform.issuer,
-    clientId: input.ltiLaunchSession.platform.clientId,
-    deploymentId: input.ltiLaunchSession.platform.deploymentId,
     tenantId: input.tenantId,
     userId: linkedAccount.userId,
-    dataJson: JSON.stringify(input.ltiLaunchSession),
-    expiresAt: new Date(Date.now() + LTI_LAUNCH_SESSION_TTL_SECONDS * 1000).toISOString(),
   });
 
   return {

@@ -22,7 +22,7 @@ import {
   type BadgeIssuanceRuleVersionNumberRow,
 } from "./badge-issuance-rule-reads.js";
 
-export const createBadgeIssuanceRuleInDatabase = async (
+export const createBadgeIssuanceRuleWithConnection = async (
   db: SqlDatabase,
   input: CreateBadgeIssuanceRuleInput,
 ): Promise<CreateBadgeIssuanceRuleResult> => {
@@ -130,7 +130,7 @@ export const createBadgeIssuanceRule = async (
   input: CreateBadgeIssuanceRuleInput,
 ): Promise<CreateBadgeIssuanceRuleResult> => {
   return runSqlTransaction(db, async (transactionDb) =>
-    createBadgeIssuanceRuleInDatabase(transactionDb, input),
+    createBadgeIssuanceRuleWithConnection(transactionDb, input),
   );
 };
 

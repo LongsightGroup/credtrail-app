@@ -321,7 +321,6 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
 
     const setupToken = await createLtiCourseBadgeSetupToken(c.env, {
       tenantId: issuerMatch.entry.tenantId,
-      ltiSessionId: ltiSession.id,
       issuer: ltiSession.platform.issuer,
       clientId: ltiSession.platform.clientId,
       deploymentId: ltiSession.platform.deploymentId,

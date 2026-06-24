@@ -1,5 +1,5 @@
 import {
-  createBadgeIssuanceRuleInDatabase,
+  createBadgeIssuanceRuleWithConnection,
   listTenantLmsConnections,
   runSqlTransaction,
   upsertLtiResourceLinkPlacement,
@@ -298,7 +298,7 @@ export const createCourseBadgePlacementRule = async (input: {
   }
 
   const created = await runSqlTransaction(input.db, async (transactionDb) => {
-    const rule = await createBadgeIssuanceRuleInDatabase(transactionDb, {
+    const rule = await createBadgeIssuanceRuleWithConnection(transactionDb, {
       tenantId: input.tenantId,
       name: ruleTitle(
         `Sakai course rule: ${ltiContextTitle(input.ltiSession)} · ${input.badgeTemplate.title}`,

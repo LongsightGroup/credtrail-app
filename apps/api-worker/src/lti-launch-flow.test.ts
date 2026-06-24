@@ -7,9 +7,10 @@ vi.mock("@credtrail/db", async () => {
   return {
     ...actual,
     addLearnerIdentityAlias: vi.fn(),
+    attachLtiLaunchSessionPrincipal: vi.fn(),
     createAuthIdentityLink: vi.fn(),
     createBadgeIssuanceRule: vi.fn(),
-    createBadgeIssuanceRuleInDatabase: vi.fn(),
+    createBadgeIssuanceRuleWithConnection: vi.fn(),
     ensureTenantMembership: vi.fn(),
     findAuthIdentityLinkByAuthUserId: vi.fn(),
     findAuthIdentityLinkByCredtrailUserId: vi.fn(),
@@ -48,9 +49,10 @@ vi.mock("@credtrail/db/postgres", () => {
 
 import {
   addLearnerIdentityAlias,
+  attachLtiLaunchSessionPrincipal,
   createAuthIdentityLink,
   createBadgeIssuanceRule,
-  createBadgeIssuanceRuleInDatabase,
+  createBadgeIssuanceRuleWithConnection,
   ensureTenantMembership,
   findAuthIdentityLinkByAuthUserId,
   findAuthIdentityLinkByCredtrailUserId,
@@ -101,9 +103,12 @@ interface ErrorResponse {
 }
 
 const mockedAddLearnerIdentityAlias = vi.mocked(addLearnerIdentityAlias);
+const mockedAttachLtiLaunchSessionPrincipal = vi.mocked(attachLtiLaunchSessionPrincipal);
 const mockedCreateAuthIdentityLink = vi.mocked(createAuthIdentityLink);
 const mockedCreateBadgeIssuanceRule = vi.mocked(createBadgeIssuanceRule);
-const mockedCreateBadgeIssuanceRuleInDatabase = vi.mocked(createBadgeIssuanceRuleInDatabase);
+const mockedCreateBadgeIssuanceRuleWithConnection = vi.mocked(
+  createBadgeIssuanceRuleWithConnection,
+);
 const mockedEnsureTenantMembership = vi.mocked(ensureTenantMembership);
 const mockedFindAuthIdentityLinkByAuthUserId = vi.mocked(findAuthIdentityLinkByAuthUserId);
 const mockedFindAuthIdentityLinkByCredtrailUserId = vi.mocked(
@@ -786,13 +791,21 @@ describe("LTI 1.3 core launch flow", () => {
       rule: sampleBadgeIssuanceRule(),
       version: sampleBadgeIssuanceRuleVersion(),
     });
-    mockedCreateBadgeIssuanceRuleInDatabase.mockReset();
-    mockedCreateBadgeIssuanceRuleInDatabase.mockResolvedValue({
+    mockedCreateBadgeIssuanceRuleWithConnection.mockReset();
+    mockedCreateBadgeIssuanceRuleWithConnection.mockResolvedValue({
       rule: sampleBadgeIssuanceRule(),
       version: sampleBadgeIssuanceRuleVersion(),
     });
     mockedFindLtiLaunchSessionById.mockReset();
     mockedFindLtiLaunchSessionById.mockResolvedValue(sampleLtiLaunchSessionRecord());
+    mockedAttachLtiLaunchSessionPrincipal.mockReset();
+    mockedAttachLtiLaunchSessionPrincipal.mockImplementation(async (_db, input) =>
+      sampleLtiLaunchSessionRecord({
+        id: input.id,
+        tenantId: input.tenantId,
+        userId: input.userId,
+      }),
+    );
     mockedUpsertLtiLaunchSession.mockReset();
     mockedUpsertLtiLaunchSession.mockImplementation(async (_db, input) =>
       sampleLtiLaunchSessionRecord({
@@ -2840,7 +2853,6 @@ describe("LTI 1.3 core launch flow", () => {
     const env = createLtiEnv();
     const setupToken = await createLtiCourseBadgeSetupToken(env, {
       tenantId,
-      ltiSessionId: "deep-link-session-123",
       issuer,
       clientId,
       deploymentId,
@@ -2869,7 +2881,7 @@ describe("LTI 1.3 core launch flow", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(mockedCreateBadgeIssuanceRuleInDatabase).toHaveBeenCalledWith(
+    expect(mockedCreateBadgeIssuanceRuleWithConnection).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
         tenantId,
@@ -2879,7 +2891,7 @@ describe("LTI 1.3 core launch flow", () => {
         createdByUserId: linkedUserId,
       }),
     );
-    const createRuleInput = mockedCreateBadgeIssuanceRuleInDatabase.mock.calls[0]?.[1];
+    const createRuleInput = mockedCreateBadgeIssuanceRuleWithConnection.mock.calls[0]?.[1];
     expect(JSON.parse(createRuleInput?.ruleJson ?? "{}")).toMatchObject({
       conditions: {
         type: "grade_threshold",
@@ -3067,7 +3079,7 @@ describe("LTI 1.3 core launch flow", () => {
     expect(mockedFindLtiLaunchSessionById).toHaveBeenCalledWith(fakeDb, ltiSession.id);
     expect(mockedListTenantLmsConnections).not.toHaveBeenCalled();
     expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
-    expect(mockedCreateBadgeIssuanceRuleInDatabase).not.toHaveBeenCalled();
+    expect(mockedCreateBadgeIssuanceRuleWithConnection).not.toHaveBeenCalled();
     expect(createDeepLinkingResponse).toHaveBeenCalledWith(ltiSession, [
       expect.objectContaining({
         type: "ltiResourceLink",
