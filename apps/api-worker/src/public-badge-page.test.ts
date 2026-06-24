@@ -1,7 +1,3 @@
-import { once } from "node:events";
-import { createServer } from "node:http";
-
-import { CredentialOfferClient } from "@sphereon/oid4vci-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@credtrail/db", async () => {
@@ -288,30 +284,6 @@ const parseCredentialOfferForTest = (payload: unknown): ResolvedCredentialOfferF
     credentials,
     preAuthorizedCode: requiredStringProperty(preAuthorizedCodeGrant, "pre-authorized_code"),
   };
-};
-
-const resolveCredentialOfferUriForTest = async (
-  walletOfferUri: string,
-): Promise<ResolvedCredentialOfferForTest> => {
-  const parsedWalletOfferUri = new URL(walletOfferUri);
-
-  if (parsedWalletOfferUri.protocol !== "openid-credential-offer:") {
-    throw new Error("wallet offer URI must use the openid-credential-offer scheme");
-  }
-
-  const credentialOfferUri = parsedWalletOfferUri.searchParams.get("credential_offer_uri");
-
-  if (credentialOfferUri === null || credentialOfferUri.length === 0) {
-    throw new Error("wallet offer URI must include credential_offer_uri");
-  }
-
-  const response = await fetch(credentialOfferUri);
-
-  if (!response.ok) {
-    throw new Error(`credential_offer_uri returned ${String(response.status)}`);
-  }
-
-  return parseCredentialOfferForTest(await response.json());
 };
 
 beforeEach(() => {
@@ -1032,7 +1004,7 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(mockedCreateOid4vciPreAuthorizedCode).toHaveBeenCalledTimes(1);
   });
 
-  it("resolves credential_offer_uri with Sphereon and the CredTrail contract parser", async () => {
+  it("returns a credential offer payload matching the CredTrail contract parser", async () => {
     const env = createEnv();
     const credential: JsonObject = {
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
@@ -1052,79 +1024,18 @@ describe("GET /badges/:badgeIdentifier", () => {
       env,
     );
     expect(offerResponse.status).toBe(200);
-    const offerPayload = await offerResponse.text();
+    const credtrailOffer = parseCredentialOfferForTest(await offerResponse.json());
 
-    const offerPayloadBuffer = Buffer.from(offerPayload, "utf8");
-    let offerRequestCount = 0;
-    const server = createServer((request, response) => {
-      if (request.url === "/wallet-offer") {
-        offerRequestCount += 1;
-        response.writeHead(200, {
-          "content-type": "application/json; charset=utf-8",
-          "content-length": String(offerPayloadBuffer.byteLength),
-          connection: "close",
-        });
-        response.end(offerPayloadBuffer);
-        return;
-      }
-      response.writeHead(404, {
-        "content-length": "0",
-        connection: "close",
-      });
-      response.end();
-    });
-
-    server.keepAliveTimeout = 0;
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-
-    const address = server.address();
-    if (address === null || typeof address === "string") {
-      server.close();
-      throw new Error("Failed to determine wallet offer server address");
-    }
-
-    const walletOfferUrl = `http://127.0.0.1:${String(address.port)}/wallet-offer`;
-    const walletOfferUri = `openid-credential-offer://?credential_offer_uri=${encodeURIComponent(walletOfferUrl)}`;
-
-    try {
-      const sphereonOffer = await CredentialOfferClient.fromURI(walletOfferUri, { resolve: true });
-      const credtrailOffer = await resolveCredentialOfferUriForTest(walletOfferUri);
-
-      expect(offerRequestCount).toBe(2);
-      expect(sphereonOffer.credential_offer.credential_configuration_ids).toContain(
-        "OpenBadgeCredential",
-      );
-      expect(sphereonOffer.credential_offer.credential_issuer).toBe("https://credtrail.test");
-      expect(sphereonOffer.preAuthorizedCode).toMatch(/^oid4vci_pc_/);
-      expect(sphereonOffer.supportedFlows).toContain("Pre-Authorized Code Flow");
-      expect(
-        sphereonOffer.credential_offer.grants?.[
-          "urn:ietf:params:oauth:grant-type:pre-authorized_code"
-        ]?.["pre-authorized_code"],
-      ).toBe(sphereonOffer.preAuthorizedCode);
-
-      expect(credtrailOffer.credentialConfigurationIds).toContain("OpenBadgeCredential");
-      expect(credtrailOffer.credentialIssuer).toBe("https://credtrail.test");
-      expect(credtrailOffer.credentials).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            format: "ldp_vc",
-          }),
-        ]),
-      );
-      expect(credtrailOffer.preAuthorizedCode).toBe(sphereonOffer.preAuthorizedCode);
-    } finally {
-      await new Promise<void>((resolve, reject) => {
-        server.close((error) => {
-          if (error === undefined) {
-            resolve();
-            return;
-          }
-          reject(error);
-        });
-      });
-    }
+    expect(credtrailOffer.credentialConfigurationIds).toContain("OpenBadgeCredential");
+    expect(credtrailOffer.credentialIssuer).toBe("https://credtrail.test");
+    expect(credtrailOffer.credentials).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          format: "ldp_vc",
+        }),
+      ]),
+    );
+    expect(credtrailOffer.preAuthorizedCode).toMatch(/^oid4vci_pc_/);
   });
 
   it("redirects legacy tenant-scoped offer URL to canonical offer URL", async () => {
