@@ -11,18 +11,12 @@ import {
 
 export type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
-export type PublicBadgeButtonVariant = "primary" | "secondary";
+export type PublicBadgeButtonVariant = Extract<CtActionVariant, "primary" | "secondary">;
 
 const publicBadgeButtonClass = (variant: PublicBadgeButtonVariant = "secondary"): string => {
   return variant === "primary"
     ? "public-badge__button public-badge__button--primary"
     : "public-badge__button";
-};
-
-const publicBadgeVariantToCtVariant = (
-  variant: PublicBadgeButtonVariant | undefined,
-): CtActionVariant => {
-  return variant === "primary" ? "primary" : "secondary";
 };
 
 const joinClassNames = (...classNames: Array<string | undefined>): string => {
@@ -71,7 +65,7 @@ export const PublicBadgeButtonLink = ({
     <CtButtonLink
       className={joinClassNames(publicBadgeButtonClass(variant), className)}
       href={href}
-      variant={publicBadgeVariantToCtVariant(variant)}
+      variant={variant ?? "secondary"}
       size="lg"
       target={target}
       rel={rel}
@@ -109,7 +103,7 @@ export const PublicBadgeButton = ({
       id={id}
       className={publicBadgeButtonClass(variant)}
       type={type}
-      variant={publicBadgeVariantToCtVariant(variant)}
+      variant={variant ?? "secondary"}
       size="lg"
       dataAttributes={dataAttributes}
       hidden={hidden}
@@ -204,12 +198,7 @@ export const BadgeWallButtonLink = ({
     variant === "primary" ? "badge-wall__button badge-wall__button--primary" : "badge-wall__button";
 
   return (
-    <CtButtonLink
-      className={className}
-      href={href}
-      variant={publicBadgeVariantToCtVariant(variant)}
-      size="compact"
-    >
+    <CtButtonLink className={className} href={href} variant={variant ?? "secondary"} size="compact">
       {children}
     </CtButtonLink>
   );

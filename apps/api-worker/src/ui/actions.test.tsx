@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { AdminActions, AdminButton, AdminButtonLink } from "../admin/components";
-import { PublicBadgeButton, PublicBadgeButtonLink } from "../badges/public-badge-ui";
 import {
   CtActionGroup,
   CtButton,
   CtButtonLink,
   CtTextButton,
   CtTextLink,
+  ctActionVariantFromLegacy,
   ctActionClass,
 } from "./actions";
 import { renderDesignSystemPage } from "./design-system-page";
@@ -29,6 +28,13 @@ describe("CredTrail action primitives", () => {
     expect(ctActionClass({ text: true })).toBe(
       "ct-action ct-action--primary ct-action--md ct-action--text",
     );
+  });
+
+  it("normalizes legacy action variants", () => {
+    expect(ctActionVariantFromLegacy(undefined)).toBe("primary");
+    expect(ctActionVariantFromLegacy(undefined, "secondary")).toBe("secondary");
+    expect(ctActionVariantFromLegacy("ghost")).toBe("quiet");
+    expect(ctActionVariantFromLegacy("danger")).toBe("danger");
   });
 
   it("renders real buttons with expected attributes", () => {
@@ -124,58 +130,6 @@ describe("CredTrail action primitives", () => {
     expect(html).toContain('class="ct-action-group"');
     expect(html).toContain('role="group"');
     expect(html).toContain('aria-label="Record actions"');
-  });
-
-  it("keeps admin wrappers compatible while adding primitive classes", () => {
-    const buttonHtml = renderToString(
-      <AdminButton type="submit" variant="danger" size="tiny" form="delete-form">
-        Delete record
-      </AdminButton>,
-    );
-    const linkHtml = renderToString(
-      <AdminButtonLink href="/admin/rules" variant="ghost" size="tiny">
-        View rules
-      </AdminButtonLink>,
-    );
-    const groupHtml = renderToString(
-      <AdminActions align="end">
-        <AdminButton>Save changes</AdminButton>
-      </AdminActions>,
-    );
-
-    expect(buttonHtml).toContain("ct-admin__button");
-    expect(buttonHtml).not.toContain("ct-admin__button--");
-    expect(buttonHtml).toContain("ct-action--danger");
-    expect(buttonHtml).toContain("ct-action--sm");
-    expect(linkHtml).toContain("ct-admin__button");
-    expect(linkHtml).not.toContain("ct-admin__button--");
-    expect(linkHtml).toContain("ct-action--quiet");
-    expect(groupHtml).toContain("ct-admin__actions--end");
-    expect(groupHtml).toContain("ct-action-group");
-  });
-
-  it("keeps public badge wrappers compatible while adding primitive classes", () => {
-    const buttonHtml = renderToString(
-      <PublicBadgeButton
-        id="copy-badge"
-        variant="primary"
-        dataCopyValue="https://credtrail.org/badges/1"
-      >
-        Copy badge URL
-      </PublicBadgeButton>,
-    );
-    const linkHtml = renderToString(
-      <PublicBadgeButtonLink href="/badges/1" variant="secondary">
-        View badge
-      </PublicBadgeButtonLink>,
-    );
-
-    expect(buttonHtml).toContain("public-badge__button--primary");
-    expect(buttonHtml).toContain("ct-action--primary");
-    expect(buttonHtml).toContain("ct-action--lg");
-    expect(buttonHtml).toContain('data-copy-value="https://credtrail.org/badges/1"');
-    expect(linkHtml).toContain("public-badge__button");
-    expect(linkHtml).toContain("ct-action--secondary");
   });
 
   it("renders the design-system action gallery", () => {

@@ -8,8 +8,9 @@ import {
   CtButton,
   CtButtonLink,
   type CtActionSize,
-  type CtActionVariant,
   type CtDataAttributes,
+  type CtLegacyActionVariant,
+  ctActionVariantFromLegacy,
 } from "../ui/actions";
 import {
   formatRuleValueListKind,
@@ -21,7 +22,10 @@ export { AdminSidebar, type AdminSidebarFooterLink, type AdminSidebarSection } f
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
-export type AdminButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type AdminButtonVariant = Extract<
+  CtLegacyActionVariant,
+  "primary" | "secondary" | "ghost" | "danger"
+>;
 export type AdminButtonSize = "default" | "tiny";
 
 type ButtonType = "button" | "submit" | "reset";
@@ -48,22 +52,6 @@ export const adminButtonClass = (input?: { extraClass?: string | undefined }): s
   }
 
   return classNames.join(" ");
-};
-
-const adminButtonVariantToCtVariant = (
-  variant: AdminButtonVariant | undefined,
-): CtActionVariant => {
-  switch (variant) {
-    case "secondary":
-      return "secondary";
-    case "ghost":
-      return "quiet";
-    case "danger":
-      return "danger";
-    case "primary":
-    case undefined:
-      return "primary";
-  }
 };
 
 const adminButtonSizeToCtSize = (size: AdminButtonSize | undefined): CtActionSize => {
@@ -155,7 +143,7 @@ export const AdminButton = ({
       type={type}
       form={form}
       formAction={formAction}
-      variant={adminButtonVariantToCtVariant(variant)}
+      variant={ctActionVariantFromLegacy(variant)}
       size={adminButtonSizeToCtSize(size)}
       className={adminButtonClass({ extraClass: className })}
       disabled={disabled}
@@ -191,7 +179,7 @@ export const AdminButtonLink = ({
   return (
     <CtButtonLink
       href={href}
-      variant={adminButtonVariantToCtVariant(variant ?? "secondary")}
+      variant={ctActionVariantFromLegacy(variant, "secondary")}
       size={adminButtonSizeToCtSize(size)}
       target={target}
       rel={rel}

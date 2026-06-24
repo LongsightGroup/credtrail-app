@@ -1,7 +1,7 @@
 import type { LearnerBadgeSummaryRecord } from "@credtrail/db";
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
-import { CtActionGroup, CtButton, type CtActionVariant } from "../ui/actions";
+import { CtActionGroup, CtButton } from "../ui/actions";
 import { appPage, type AppPage } from "../ui/render-page";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -13,49 +13,6 @@ export type LearnerBadgeClaimState = "claimable" | "claimed" | "accepted";
 export interface LearnerDashboardBadge extends LearnerBadgeSummaryRecord {
   claimState: LearnerBadgeClaimState;
 }
-
-type LearnerButtonVariant = "primary" | "secondary" | "ghost";
-
-const learnerButtonClass = (): string => {
-  return "learner-dashboard__button";
-};
-
-const learnerButtonVariantToCtVariant = (variant: LearnerButtonVariant): CtActionVariant => {
-  switch (variant) {
-    case "primary":
-      return "primary";
-    case "secondary":
-      return "secondary";
-    case "ghost":
-      return "quiet";
-  }
-};
-
-const LearnerButton = ({
-  type = "button",
-  variant,
-  name,
-  value,
-  children,
-}: PropsWithChildren<{
-  type?: "button" | "submit";
-  variant: LearnerButtonVariant;
-  name?: string;
-  value?: string;
-}>): HonoElement => {
-  return (
-    <CtButton
-      type={type}
-      variant={learnerButtonVariantToCtVariant(variant)}
-      size="lg"
-      className={learnerButtonClass()}
-      name={name}
-      value={value}
-    >
-      {children}
-    </CtButton>
-  );
-};
 
 const LearnerButtonRow = ({ children }: PropsWithChildren): HonoElement => {
   return <CtActionGroup className="learner-dashboard__button-row">{children}</CtActionGroup>;
@@ -224,12 +181,24 @@ const LearnerDidSettings = (input: {
               />
             </label>
             <LearnerButtonRow>
-              <LearnerButton type="submit" variant="primary">
+              <CtButton
+                type="submit"
+                variant="primary"
+                size="lg"
+                className="learner-dashboard__button"
+              >
                 Save DID
-              </LearnerButton>
-              <LearnerButton type="submit" name="did" value="" variant="ghost">
+              </CtButton>
+              <CtButton
+                type="submit"
+                name="did"
+                value=""
+                variant="quiet"
+                size="lg"
+                className="learner-dashboard__button"
+              >
                 Clear DID
-              </LearnerButton>
+              </CtButton>
             </LearnerButtonRow>
           </form>
         </div>
@@ -331,9 +300,14 @@ const BadgeCard = (input: {
           )}/claim`}
           class="learner-dashboard__claim-form"
         >
-          <LearnerButton type="submit" variant="secondary">
+          <CtButton
+            type="submit"
+            variant="secondary"
+            size="lg"
+            className="learner-dashboard__button"
+          >
             Claim badge and open sharing options
-          </LearnerButton>
+          </CtButton>
         </form>
       )}
       <p class="learner-dashboard__badge-url">{publicBadgeUrl}</p>
