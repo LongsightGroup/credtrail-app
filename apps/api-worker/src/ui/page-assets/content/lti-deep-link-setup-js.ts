@@ -28,7 +28,7 @@ ${LMS_GRADEBOOK_PICKER_PRIMITIVES_JS}
     const workflowStatesUrl =
       apiBase.length === 0 || assignmentId.length === 0
         ? ''
-        : apiBase + '/' + encodeURIComponent(assignmentId) + '/workflow-states';
+        : apiBase + '/gradebook-items/' + encodeURIComponent(assignmentId) + '/workflow-states';
 
     await lmsHydrateWorkflowStateSelect({
       stateSelect,

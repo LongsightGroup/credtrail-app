@@ -73,7 +73,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   ltiDeepLinkSetupJs: {
     kind: "script",
-    path: "/assets/ui/lti-deep-link-setup.16981f0a24.js",
+    path: "/assets/ui/lti-deep-link-setup.1025609b6c.js",
   },
   ltiPostMessageStorageJs: {
     kind: "script",

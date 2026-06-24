@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { createContext, Script } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { INSTITUTION_ADMIN_SHELL_JS } from "./ui/page-assets/content/institution-admin-shell-js";
+import { LTI_DEEP_LINK_SETUP_JS } from "./ui/page-assets/content/lti-deep-link-setup-js";
 import { PUBLIC_BADGE_JS } from "./ui/page-assets/content/public-badge-js";
 import { ACTIONS_CSS } from "./ui/page-assets/content/actions-css";
 import { pageAssetPath, type PageAssetKey } from "./ui/page-assets";
@@ -252,6 +253,21 @@ describe("page asset manifest", () => {
     expect(ltiPagesCss).not.toContain(".lti-deep-link__form button {");
     expect(ltiPagesCss).toContain(".lti-deep-link__setup");
     expect(ltiPagesCss).toContain(".lti-deep-link__actions");
+  });
+
+  it("keeps LTI gradebook picker URLs aligned with lookup routes", () => {
+    const generatedScript = readGeneratedAsset("ltiDeepLinkSetupJs");
+
+    expect(LTI_DEEP_LINK_SETUP_JS).toContain("apiBase + '/gradebook-items'");
+    expect(LTI_DEEP_LINK_SETUP_JS).toContain(
+      "apiBase + '/gradebook-items/' + encodeURIComponent(assignmentId) + '/workflow-states'",
+    );
+    expect(generatedScript).toContain(
+      "apiBase + '/gradebook-items/' + encodeURIComponent(assignmentId) + '/workflow-states'",
+    );
+    expect(generatedScript).not.toContain(
+      "apiBase + '/' + encodeURIComponent(assignmentId) + '/workflow-states'",
+    );
   });
 
   it("emits JavaScript assets that parse as browser scripts", () => {
