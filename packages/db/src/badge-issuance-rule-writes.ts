@@ -22,7 +22,7 @@ import {
   type BadgeIssuanceRuleVersionNumberRow,
 } from "./badge-issuance-rule-reads.js";
 
-const createBadgeIssuanceRuleInDatabase = async (
+export const createBadgeIssuanceRuleInDatabase = async (
   db: SqlDatabase,
   input: CreateBadgeIssuanceRuleInput,
 ): Promise<CreateBadgeIssuanceRuleResult> => {

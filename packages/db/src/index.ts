@@ -15,6 +15,7 @@ export * from "./learner-profiles";
 export * from "./learner-records";
 export * from "./learner-record-imports";
 export * from "./lti";
+export * from "./lti-resource-link-placements";
 export * from "./oauth";
 export * from "./oid4vci";
 export * from "./ob3-resources";

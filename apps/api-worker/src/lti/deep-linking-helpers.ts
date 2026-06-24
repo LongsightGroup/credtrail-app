@@ -33,6 +33,7 @@ export const badgeTemplateDeepLinkContentItem = (input: {
   launchUrl: string;
   badgeTemplateId: string;
   ruleId?: string | undefined;
+  setupToken?: string | undefined;
 }): DeepLinkingContentItem => {
   return {
     type: "ltiResourceLink",
@@ -42,6 +43,7 @@ export const badgeTemplateDeepLinkContentItem = (input: {
     custom: {
       badgeTemplateId: input.badgeTemplateId,
       ...(input.ruleId === undefined ? {} : { ruleId: input.ruleId }),
+      ...(input.setupToken === undefined ? {} : { setupToken: input.setupToken }),
     },
   };
 };

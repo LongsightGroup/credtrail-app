@@ -1,6 +1,7 @@
 import {
   findBadgeTemplateById,
   listBadgeTemplates,
+  upsertLtiLaunchSession,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -9,6 +10,11 @@ import type { AppBindings, AppContext } from "../app";
 import { renderAppPage } from "../ui/render-page";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
 import { LTI_SESSION_HANDOFF_TTL_SECONDS } from "./constants";
+import { createCourseBadgePlacementRule } from "./course-badge-setup";
+import {
+  verifyLtiCourseBadgeSetupToken,
+  type LtiCourseBadgeSetupPayload,
+} from "./course-badge-setup-token";
 import { ltiDeepLinkSelectionInput } from "./deep-linking-helpers";
 import { linkLtiLaunchAccount, type LinkedLtiLaunchAccount } from "./launch-account-linking";
 import {
@@ -46,6 +52,8 @@ import {
   type LtiIssuerRegistry,
 } from "./lti-helpers";
 import { ltiDeepLinkSelectionPage, ltiLaunchResultPage } from "./pages";
+
+const LTI_LAUNCH_SESSION_TTL_SECONDS = 60 * 60;
 
 export interface HandleLtiLaunchPostInput {
   c: AppContext;
@@ -87,6 +95,11 @@ interface ValidatedDeepLinkingLaunch {
 }
 
 type ValidatedLtiLaunchMessage = ValidatedDeepLinkingLaunch | ValidatedResourceLinkLaunch;
+
+interface PreparedResourceLinkLaunch {
+  launch: ValidatedResourceLinkLaunch;
+  placementResult: UpsertLtiLaunchResourceLinkPlacementResult | null;
+}
 
 const isValidatedDeepLinkingLaunch = (
   launch: ValidatedLtiLaunchMessage,
@@ -242,6 +255,7 @@ const establishLtiLaunchSession = async (input: {
   tenantId: string;
   launchClaims: ResolvedLtiLaunch["launchClaims"];
   launchMessage: ResolvedLtiLaunchMessage;
+  ltiLaunchSession: ResolvedLtiLaunch["ltiLaunchSession"];
   sha256Hex: (value: string) => Promise<string>;
   upsertTenantMembershipRole: HandleLtiLaunchPostInput["upsertTenantMembershipRole"];
   createLtiSession: HandleLtiLaunchPostInput["createLtiSession"];
@@ -272,6 +286,16 @@ const establishLtiLaunchSession = async (input: {
   const createdSession = await input.createLtiSession(input.c, {
     tenantId: input.tenantId,
     userId: linkedAccount.userId,
+  });
+  await upsertLtiLaunchSession(input.db, {
+    id: input.ltiLaunchSession.id,
+    issuer: input.ltiLaunchSession.platform.issuer,
+    clientId: input.ltiLaunchSession.platform.clientId,
+    deploymentId: input.ltiLaunchSession.platform.deploymentId,
+    tenantId: input.tenantId,
+    userId: linkedAccount.userId,
+    dataJson: JSON.stringify(input.ltiLaunchSession),
+    expiresAt: new Date(Date.now() + LTI_LAUNCH_SESSION_TTL_SECONDS * 1000).toISOString(),
   });
 
   return {
@@ -304,6 +328,121 @@ const recordLaunchedResourceLinkPlacement = async (input: {
     ruleId: input.launch.launchMessage.ruleId,
     createdByUserId: input.linkedUserId,
   });
+};
+
+const ltiCourseBadgeSetupMatchesLaunch = (input: {
+  setup: LtiCourseBadgeSetupPayload;
+  tenantId: string;
+  issuerEntryClientId: string;
+  launchClaims: ResolvedLtiLaunch["launchClaims"];
+  launch: ValidatedResourceLinkLaunch;
+}): boolean => {
+  if (input.launch.kind !== "selected") {
+    return false;
+  }
+
+  return (
+    input.setup.tenantId === input.tenantId &&
+    input.setup.issuer === input.launchClaims.iss &&
+    input.setup.clientId === input.issuerEntryClientId &&
+    input.setup.deploymentId === input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID] &&
+    input.setup.contextId === input.launch.launchMessage.resourceContextId &&
+    input.setup.badgeTemplateId === input.launch.launchMessage.badgeTemplateId
+  );
+};
+
+const prepareLaunchedResourceLinkPlacement = async (input: {
+  c: AppContext;
+  db: SqlDatabase;
+  tenantId: string;
+  issuerEntryClientId: string;
+  launchClaims: ResolvedLtiLaunch["launchClaims"];
+  resolvedLaunch: ResolvedLtiLaunch;
+  launch: ValidatedResourceLinkLaunch;
+  linkedUserId: string;
+}): Promise<PreparedResourceLinkLaunch | Response> => {
+  if (input.launch.kind !== "selected" || input.launch.launchMessage.setupToken === null) {
+    return {
+      launch: input.launch,
+      placementResult: await recordLaunchedResourceLinkPlacement({
+        db: input.db,
+        tenantId: input.tenantId,
+        issuerEntryClientId: input.issuerEntryClientId,
+        launchClaims: input.launchClaims,
+        launch: input.launch,
+        linkedUserId: input.linkedUserId,
+      }),
+    };
+  }
+
+  const setup = await verifyLtiCourseBadgeSetupToken(
+    input.c.env,
+    input.launch.launchMessage.setupToken,
+  );
+
+  if (input.launch.launchMessage.roleKind !== "instructor") {
+    return input.c.json(
+      {
+        error: "LTI course badge setup requires an instructor resource-link launch",
+      },
+      403,
+    );
+  }
+
+  if (
+    setup === null ||
+    !ltiCourseBadgeSetupMatchesLaunch({
+      setup,
+      tenantId: input.tenantId,
+      issuerEntryClientId: input.issuerEntryClientId,
+      launchClaims: input.launchClaims,
+      launch: input.launch,
+    })
+  ) {
+    return input.c.json(
+      {
+        error: "LTI course badge setup token does not match this resource-link launch",
+      },
+      400,
+    );
+  }
+
+  const setupResult = await createCourseBadgePlacementRule({
+    db: input.db,
+    tenantId: input.tenantId,
+    issuer: input.launchClaims.iss,
+    clientId: input.issuerEntryClientId,
+    deploymentId: input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
+    ltiSession: input.resolvedLaunch.ltiLaunchSession,
+    badgeTemplate: input.launch.launchedBadgeTemplate,
+    contextId: input.launch.launchMessage.resourceContextId,
+    resourceLinkId: input.launch.launchMessage.resourceLinkId,
+    createdByUserId: input.linkedUserId,
+    setupRequest: setup.setupRequest,
+  });
+
+  if (!setupResult.ok) {
+    return input.c.json(
+      {
+        error: setupResult.message,
+        reason: setupResult.reason,
+      },
+      400,
+    );
+  }
+
+  return {
+    launch: {
+      ...input.launch,
+      launchMessage: {
+        ...input.launch.launchMessage,
+        ruleId: setupResult.rule.id,
+      },
+    },
+    placementResult: {
+      ok: true,
+    },
+  };
 };
 
 const buildLtiLaunchDashboardPath = async (input: {
@@ -468,6 +607,7 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
       tenantId,
       launchClaims: resolvedLaunch.launchClaims,
       launchMessage: validatedLaunchMessage.launchMessage,
+      ltiLaunchSession: resolvedLaunch.ltiLaunchSession,
       sha256Hex: input.sha256Hex,
       upsertTenantMembershipRole: input.upsertTenantMembershipRole,
       createLtiSession: input.createLtiSession,
@@ -501,16 +641,23 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
     });
   }
 
-  const validatedResourceLinkLaunch = validatedLaunchMessage;
-
-  const placementResult = await recordLaunchedResourceLinkPlacement({
+  const preparedResourceLinkLaunch = await prepareLaunchedResourceLinkPlacement({
+    c: input.c,
     db,
     tenantId,
     issuerEntryClientId: resolvedLaunch.issuerEntry.clientId,
     launchClaims: resolvedLaunch.launchClaims,
-    launch: validatedResourceLinkLaunch,
+    resolvedLaunch,
+    launch: validatedLaunchMessage,
     linkedUserId: establishedSession.linkedAccount.userId,
   });
+
+  if (preparedResourceLinkLaunch instanceof Response) {
+    return preparedResourceLinkLaunch;
+  }
+
+  const validatedResourceLinkLaunch = preparedResourceLinkLaunch.launch;
+  const placementResult = preparedResourceLinkLaunch.placementResult;
 
   if (placementResult !== null && !placementResult.ok) {
     logLtiWarning("LTI launch continuing without recording resource-link placement", {

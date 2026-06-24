@@ -1,5 +1,6 @@
 import {
   findBadgeTemplateById,
+  findLtiLaunchSessionById,
   listBadgeTemplates,
   upsertLtiDeployment,
   type SqlDatabase,
@@ -24,9 +25,10 @@ import {
 } from "../lti/deep-linking-helpers";
 import { createCredTrailLtiTool } from "../lti/credtrail-lti-tool";
 import {
-  createCourseBadgePlacementRule,
-  type LtiCourseBadgeSetupPreset,
+  ltiCourseBadgeSetupRuleDefinition,
+  parseLtiCourseBadgeSetupPreset,
 } from "../lti/course-badge-setup";
+import { createLtiCourseBadgeSetupToken } from "../lti/course-badge-setup-token";
 import { registerLtiDynamicRegistrationRoutes } from "../lti/dynamic-registration-routes";
 import { handleLtiLaunchPost } from "../lti/launch-post-handler";
 import { executeLtiRosterIssuance, LtiRosterIssuanceError } from "../lti/roster-issuance";
@@ -45,28 +47,7 @@ import {
 } from "../lti/roster-issuance-helpers";
 import { asNonEmptyString } from "../utils/value-parsers";
 
-const LTI_COURSE_BADGE_SETUP_PRESETS = new Set<LtiCourseBadgeSetupPreset>([
-  "manual_instructor_approval",
-  "final_course_score_threshold",
-  "gradebook_item_score_threshold",
-  "assignment_submitted_or_graded",
-  "completion_percentage",
-]);
-
-const ltiCourseBadgeSetupPresetFromForm = (
-  value: FormDataEntryValue | null,
-): LtiCourseBadgeSetupPreset | null => {
-  const normalized = asNonEmptyString(value);
-
-  if (
-    normalized === null ||
-    !LTI_COURSE_BADGE_SETUP_PRESETS.has(normalized as LtiCourseBadgeSetupPreset)
-  ) {
-    return null;
-  }
-
-  return normalized as LtiCourseBadgeSetupPreset;
-};
+const LTI_COURSE_BADGE_SETUP_TOKEN_TTL_SECONDS = 60 * 60;
 
 const optionalNumberFromForm = (value: FormDataEntryValue | null): number | undefined => {
   const normalized = asNonEmptyString(value);
@@ -239,8 +220,9 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     const form = await c.req.formData();
     const ltiSessionId = asNonEmptyString(form.get("lti_session_id"));
     const badgeTemplateId = asNonEmptyString(form.get("badge_template_id"));
-    const createdByUserId = asNonEmptyString(form.get("created_by_user_id")) ?? undefined;
-    const criteriaPreset = ltiCourseBadgeSetupPresetFromForm(form.get("criteria_preset"));
+    const criteriaPreset = parseLtiCourseBadgeSetupPreset(
+      asNonEmptyString(form.get("criteria_preset")),
+    );
 
     if (ltiSessionId === null || badgeTemplateId === null || criteriaPreset === null) {
       return c.json(
@@ -298,40 +280,66 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       );
     }
 
-    const setupResult = await createCourseBadgePlacementRule({
-      db,
-      tenantId: issuerMatch.entry.tenantId,
-      issuer: ltiSession.platform.issuer,
-      clientId: ltiSession.platform.clientId,
-      deploymentId: ltiSession.platform.deploymentId,
-      ltiSession,
-      badgeTemplate,
-      createdByUserId,
-      setupRequest: {
-        preset: criteriaPreset,
-        scoreThreshold: optionalNumberFromForm(form.get("score_threshold")),
-        gradebookItemId: asNonEmptyString(form.get("gradebook_item_id")) ?? undefined,
-        completionPercent: optionalNumberFromForm(form.get("completion_percent")),
-      },
-    });
+    const contextId = ltiSession.context.id.trim();
 
-    if (!setupResult.ok) {
+    if (contextId.length === 0) {
       return c.json(
         {
-          error: setupResult.message,
-          reason: setupResult.reason,
+          error: "LTI course context is required for course badge setup",
         },
         400,
       );
     }
 
+    const setupRequest = {
+      preset: criteriaPreset,
+      scoreThreshold: optionalNumberFromForm(form.get("score_threshold")),
+      gradebookItemId: asNonEmptyString(form.get("gradebook_item_id")) ?? undefined,
+      completionPercent: optionalNumberFromForm(form.get("completion_percent")),
+    };
+    const ruleDefinition = ltiCourseBadgeSetupRuleDefinition(contextId, setupRequest);
+
+    if (ruleDefinition === null) {
+      return c.json(
+        {
+          error: "Choose a criterion and provide the required threshold or gradebook item.",
+        },
+        400,
+      );
+    }
+
+    const persistedSession = await findLtiLaunchSessionById(db, ltiSession.id);
+
+    if (persistedSession?.userId === null || persistedSession?.userId === undefined) {
+      return c.json(
+        {
+          error: "LTI launch session is missing linked user context",
+        },
+        400,
+      );
+    }
+
+    const setupToken = await createLtiCourseBadgeSetupToken(c.env, {
+      tenantId: issuerMatch.entry.tenantId,
+      ltiSessionId: ltiSession.id,
+      issuer: ltiSession.platform.issuer,
+      clientId: ltiSession.platform.clientId,
+      deploymentId: ltiSession.platform.deploymentId,
+      contextId,
+      badgeTemplateId: badgeTemplate.id,
+      setupRequest: {
+        ...setupRequest,
+      },
+      ttlSeconds: LTI_COURSE_BADGE_SETUP_TOKEN_TTL_SECONDS,
+    });
+
     const launchUrl = new URL(ltiSession.launch.target);
     launchUrl.searchParams.set("badgeTemplateId", badgeTemplate.id);
-    launchUrl.searchParams.set("ruleId", setupResult.rule.id);
+    launchUrl.searchParams.set("setupToken", setupToken);
     const responseHtml = await ltiTool.createDeepLinkingResponse(ltiSession, [
       badgeTemplateDeepLinkContentItem({
         badgeTemplateId: badgeTemplate.id,
-        ruleId: setupResult.rule.id,
+        setupToken,
         title: badgeTemplate.title,
         description: badgeTemplate.description,
         launchUrl: launchUrl.toString(),

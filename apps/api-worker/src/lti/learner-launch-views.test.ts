@@ -101,6 +101,7 @@ const sampleSelectedLaunch = (
       resourceContextId: "course-123",
       badgeTemplateId: badgeTemplate.id,
       ruleId: null,
+      setupToken: null,
     },
     launchedBadgeTemplate: badgeTemplate,
   };

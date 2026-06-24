@@ -1,9 +1,12 @@
 import {
-  createBadgeIssuanceRule,
+  createBadgeIssuanceRuleInDatabase,
   listTenantLmsConnections,
+  runSqlTransaction,
+  upsertLtiResourceLinkPlacement,
   type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleVersionRecord,
   type BadgeTemplateRecord,
+  type LtiResourceLinkPlacementRecord,
   type SqlDatabase,
   type TenantLmsConnectionRecord,
 } from "@credtrail/db";
@@ -28,12 +31,63 @@ export interface LtiCourseBadgeSetupRequest {
   completionPercent?: number | undefined;
 }
 
+export interface LtiCourseBadgeSetupPresetSpec {
+  value: LtiCourseBadgeSetupPreset;
+  label: string;
+  checkedByDefault?: boolean | undefined;
+}
+
+export const LTI_COURSE_BADGE_SETUP_PRESETS: readonly LtiCourseBadgeSetupPresetSpec[] = [
+  {
+    value: "manual_instructor_approval",
+    label: "Manual instructor approval",
+    checkedByDefault: true,
+  },
+  {
+    value: "final_course_score_threshold",
+    label: "Final course score threshold",
+  },
+  {
+    value: "gradebook_item_score_threshold",
+    label: "Gradebook item score threshold",
+  },
+  {
+    value: "assignment_submitted_or_graded",
+    label: "Assignment or assessment submitted or graded",
+  },
+  {
+    value: "completion_percentage",
+    label: "Course completion percentage",
+  },
+];
+
+const isLtiCourseBadgeSetupPreset = (value: string): value is LtiCourseBadgeSetupPreset => {
+  return LTI_COURSE_BADGE_SETUP_PRESETS.some((preset) => preset.value === value);
+};
+
+export const parseLtiCourseBadgeSetupPreset = (
+  value: string | null | undefined,
+): LtiCourseBadgeSetupPreset | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const normalized = value.trim();
+
+  if (!isLtiCourseBadgeSetupPreset(normalized)) {
+    return null;
+  }
+
+  return normalized;
+};
+
 export type CreateCourseBadgePlacementRuleResult =
   | {
       ok: true;
       rule: BadgeIssuanceRuleRecord;
       version: BadgeIssuanceRuleVersionRecord;
       lmsConnection: TenantLmsConnectionRecord;
+      placement: LtiResourceLinkPlacementRecord;
       definition: BadgeIssuanceRuleDefinition;
     }
   | {
@@ -194,7 +248,9 @@ export const createCourseBadgePlacementRule = async (input: {
   deploymentId: string;
   ltiSession: LTISession;
   badgeTemplate: BadgeTemplateRecord;
-  createdByUserId?: string | undefined;
+  contextId: string | null;
+  resourceLinkId: string;
+  createdByUserId: string;
   setupRequest: LtiCourseBadgeSetupRequest;
 }): Promise<CreateCourseBadgePlacementRuleResult> => {
   const courseId = input.ltiSession.context.id.trim();
@@ -241,18 +297,36 @@ export const createCourseBadgePlacementRule = async (input: {
     };
   }
 
-  const created = await createBadgeIssuanceRule(input.db, {
-    tenantId: input.tenantId,
-    name: ruleTitle(
-      `Sakai course rule: ${ltiContextTitle(input.ltiSession)} · ${input.badgeTemplate.title}`,
-    ),
-    description: `Created from LTI Deep Linking for ${ltiContextTitle(input.ltiSession)}.`,
-    badgeTemplateId: input.badgeTemplate.id,
-    lmsProviderKind: "sakai",
-    lmsConnectionId: lmsConnection.id,
-    ruleJson: JSON.stringify(definition),
-    changeSummary: "Created from LTI Deep Linking course badge setup.",
-    ...(input.createdByUserId === undefined ? {} : { createdByUserId: input.createdByUserId }),
+  const created = await runSqlTransaction(input.db, async (transactionDb) => {
+    const rule = await createBadgeIssuanceRuleInDatabase(transactionDb, {
+      tenantId: input.tenantId,
+      name: ruleTitle(
+        `Sakai course rule: ${ltiContextTitle(input.ltiSession)} · ${input.badgeTemplate.title}`,
+      ),
+      description: `Created from LTI Deep Linking for ${ltiContextTitle(input.ltiSession)}.`,
+      badgeTemplateId: input.badgeTemplate.id,
+      lmsProviderKind: "sakai",
+      lmsConnectionId: lmsConnection.id,
+      ruleJson: JSON.stringify(definition),
+      changeSummary: "Created from LTI Deep Linking course badge setup.",
+      createdByUserId: input.createdByUserId,
+    });
+    const placement = await upsertLtiResourceLinkPlacement(transactionDb, {
+      tenantId: input.tenantId,
+      issuer: input.issuer,
+      clientId: input.clientId,
+      deploymentId: input.deploymentId,
+      contextId: input.contextId,
+      resourceLinkId: input.resourceLinkId,
+      badgeTemplateId: input.badgeTemplate.id,
+      ruleId: rule.rule.id,
+      createdByUserId: input.createdByUserId,
+    });
+
+    return {
+      ...rule,
+      placement,
+    };
   });
 
   return {
@@ -260,6 +334,7 @@ export const createCourseBadgePlacementRule = async (input: {
     rule: created.rule,
     version: created.version,
     lmsConnection,
+    placement: created.placement,
     definition,
   };
 };

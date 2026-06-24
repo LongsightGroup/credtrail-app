@@ -9,6 +9,7 @@ export {
 } from "./badge-issuance-rule-approvals.js";
 export {
   createBadgeIssuanceRule,
+  createBadgeIssuanceRuleInDatabase,
   createBadgeIssuanceRuleVersion,
   updateBadgeIssuanceRuleDraft,
   deleteDraftBadgeIssuanceRule,

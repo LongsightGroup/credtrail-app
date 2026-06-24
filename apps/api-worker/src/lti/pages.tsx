@@ -5,6 +5,7 @@ import { CtButtonLink } from "../ui/actions";
 import { CtCheckboxField, CtField, CtFieldHint, CtForm, CtInput } from "../ui/forms";
 import { appPage, type AppPage } from "../ui/render-page";
 import type { PageAssetKey } from "../ui/page-assets";
+import { LTI_COURSE_BADGE_SETUP_PRESETS } from "./course-badge-setup";
 import { BulkIssuanceSection, CourseBadgeSummarySection } from "./instructor-launch-pages";
 import { LearnerBadgeSummarySection } from "./learner-launch-pages";
 import {
@@ -331,7 +332,6 @@ const DeepLinkOption = (input: {
   option: LtiDeepLinkSelectionOption;
   signedSelectionActionUrl: string;
   ltiSessionId: string;
-  userId: string;
 }): HonoElement => {
   const thresholdHintId = `score-threshold-hint-${input.option.badgeTemplateId}`;
   const itemHintId = `gradebook-item-hint-${input.option.badgeTemplateId}`;
@@ -355,41 +355,18 @@ const DeepLinkOption = (input: {
       <LtiDeepLinkForm action={input.signedSelectionActionUrl}>
         <CtInput type="hidden" name="lti_session_id" value={input.ltiSessionId} />
         <CtInput type="hidden" name="badge_template_id" value={input.option.badgeTemplateId} />
-        <CtInput type="hidden" name="created_by_user_id" value={input.userId} />
         <fieldset class="lti-deep-link__setup">
           <legend>Course earning criteria</legend>
           <div class="lti-deep-link__criteria">
-            <CtCheckboxField
-              type="radio"
-              name="criteria_preset"
-              value="manual_instructor_approval"
-              label="Manual instructor approval"
-              checked={true}
-            />
-            <CtCheckboxField
-              type="radio"
-              name="criteria_preset"
-              value="final_course_score_threshold"
-              label="Final course score threshold"
-            />
-            <CtCheckboxField
-              type="radio"
-              name="criteria_preset"
-              value="gradebook_item_score_threshold"
-              label="Gradebook item score threshold"
-            />
-            <CtCheckboxField
-              type="radio"
-              name="criteria_preset"
-              value="assignment_submitted_or_graded"
-              label="Assignment or assessment submitted or graded"
-            />
-            <CtCheckboxField
-              type="radio"
-              name="criteria_preset"
-              value="completion_percentage"
-              label="Course completion percentage"
-            />
+            {LTI_COURSE_BADGE_SETUP_PRESETS.map((preset) => (
+              <CtCheckboxField
+                type="radio"
+                name="criteria_preset"
+                value={preset.value}
+                label={preset.label}
+                checked={preset.checkedByDefault === true}
+              />
+            ))}
           </div>
           <div class="lti-deep-link__setup-fields">
             <CtField label="Score threshold" compact={true}>
@@ -479,7 +456,6 @@ export const ltiDeepLinkSelectionPage = (input: LtiDeepLinkSelectionPageInput): 
                 option={option}
                 signedSelectionActionUrl={input.signedSelectionActionUrl}
                 ltiSessionId={input.ltiSessionId}
-                userId={input.userId}
               />
             ))
           )}
