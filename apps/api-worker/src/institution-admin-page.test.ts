@@ -48,9 +48,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain('class="ct-admin-content"');
     expect(body).toContain('class="ct-admin-page-header"');
     expect(body).toContain('class="ct-admin__panel ct-stack"');
-    expect(body).toMatch(
-      /class="[^"]*ct-admin__button[^"]*ct-admin__button--secondary[^"]*ct-action--secondary/,
-    );
+    expect(body).toMatch(/class="[^"]*ct-admin__button[^"]*ct-action--secondary/);
     expect(body).not.toContain('style="');
   });
 

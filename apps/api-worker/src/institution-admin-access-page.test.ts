@@ -402,7 +402,7 @@ describe("GET /tenants/:tenantId/admin/access/lms-connections", () => {
     expect(body).not.toContain('id="lms-connection-form"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/lms-connections/new"');
     expect(body).toMatch(
-      /class="[^"]*ct-admin__button[^"]*ct-admin__button--secondary[^"]*ct-action--secondary[^"]*" href="\/tenants\/tenant_123\/admin\/access\/lms-connections\/new"/,
+      /class="[^"]*ct-admin__button[^"]*ct-action--secondary[^"]*" href="\/tenants\/tenant_123\/admin\/access\/lms-connections\/new"/,
     );
     expect(body).toMatch(
       /id="lms-connection-actions"[\s\S]*?class="[^"]*ct-admin__actions[^"]*ct-action-group/,

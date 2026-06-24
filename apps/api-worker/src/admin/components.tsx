@@ -40,23 +40,8 @@ export interface AdminTableHeader {
 
 export type AdminPanelVariant = "default" | "table" | "nested";
 
-export const adminButtonClass = (input?: {
-  variant?: AdminButtonVariant | undefined;
-  defaultVariant?: AdminButtonVariant | undefined;
-  size?: AdminButtonSize | undefined;
-  extraClass?: string | undefined;
-}): string => {
-  const variant = input?.variant ?? input?.defaultVariant ?? "primary";
-  const size = input?.size ?? "default";
+export const adminButtonClass = (input?: { extraClass?: string | undefined }): string => {
   const classNames = ["ct-admin__button"];
-
-  if (size === "tiny") {
-    classNames.push("ct-admin__button--tiny");
-  }
-
-  if (variant !== "primary") {
-    classNames.push(`ct-admin__button--${variant}`);
-  }
 
   if (input?.extraClass !== undefined && input.extraClass.trim().length > 0) {
     classNames.push(input.extraClass.trim());
@@ -172,7 +157,7 @@ export const AdminButton = ({
       formAction={formAction}
       variant={adminButtonVariantToCtVariant(variant)}
       size={adminButtonSizeToCtSize(size)}
-      className={adminButtonClass({ variant, size, extraClass: className })}
+      className={adminButtonClass({ extraClass: className })}
       disabled={disabled}
       hidden={hidden}
       ariaLabel={ariaLabel}
@@ -210,12 +195,7 @@ export const AdminButtonLink = ({
       size={adminButtonSizeToCtSize(size)}
       target={target}
       rel={rel}
-      className={adminButtonClass({
-        variant,
-        defaultVariant: "secondary",
-        size,
-        extraClass: className,
-      })}
+      className={adminButtonClass({ extraClass: className })}
       ariaLabel={ariaLabel}
       dataAttributes={dataAttributes}
     >

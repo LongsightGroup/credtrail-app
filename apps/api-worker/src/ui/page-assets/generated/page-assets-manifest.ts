@@ -17,7 +17,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   designSystemCss: {
     kind: "style",
-    path: "/assets/ui/design-system.dfe364323c.css",
+    path: "/assets/ui/design-system.efd3799925.css",
   },
   institutionAdminCss: {
     kind: "style",

@@ -5,6 +5,10 @@ import { renderAppPage } from "../ui/render-page";
 
 export const registerDesignSystemRoutes = (input: { app: Hono<AppEnv> }): void => {
   input.app.get("/design-system", (c) => {
+    if (c.env.APP_ENV !== "development") {
+      return c.notFound();
+    }
+
     return renderAppPage(c, renderDesignSystemPage());
   });
 };

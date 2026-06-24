@@ -16,8 +16,8 @@ export interface LearnerDashboardBadge extends LearnerBadgeSummaryRecord {
 
 type LearnerButtonVariant = "primary" | "secondary" | "ghost";
 
-const learnerButtonClass = (variant: LearnerButtonVariant): string => {
-  return `learner-dashboard__button learner-dashboard__button--${variant}`;
+const learnerButtonClass = (): string => {
+  return "learner-dashboard__button";
 };
 
 const learnerButtonVariantToCtVariant = (variant: LearnerButtonVariant): CtActionVariant => {
@@ -48,7 +48,7 @@ const LearnerButton = ({
       type={type}
       variant={learnerButtonVariantToCtVariant(variant)}
       size="lg"
-      className={learnerButtonClass(variant)}
+      className={learnerButtonClass()}
       name={name}
       value={value}
     >

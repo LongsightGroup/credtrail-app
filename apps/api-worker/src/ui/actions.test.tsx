@@ -144,11 +144,11 @@ describe("CredTrail action primitives", () => {
     );
 
     expect(buttonHtml).toContain("ct-admin__button");
-    expect(buttonHtml).toContain("ct-admin__button--tiny");
-    expect(buttonHtml).toContain("ct-admin__button--danger");
+    expect(buttonHtml).not.toContain("ct-admin__button--");
     expect(buttonHtml).toContain("ct-action--danger");
     expect(buttonHtml).toContain("ct-action--sm");
-    expect(linkHtml).toContain("ct-admin__button--ghost");
+    expect(linkHtml).toContain("ct-admin__button");
+    expect(linkHtml).not.toContain("ct-admin__button--");
     expect(linkHtml).toContain("ct-action--quiet");
     expect(groupHtml).toContain("ct-admin__actions");
     expect(groupHtml).toContain("ct-action-group");
