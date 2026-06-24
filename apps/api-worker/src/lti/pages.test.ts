@@ -431,4 +431,54 @@ describe("ltiLaunchResultPage", () => {
     expect(html).toContain("Active");
     expect(html).toContain("No learner badge rows yet");
   });
+
+  it("renders course-summary filters with form primitives when rows exist", () => {
+    const html = renderAppPageToString(
+      ltiLaunchResultPage({
+        ...sampleLaunchResultInput({
+          targetLinkUri: "https://credtrail.example.edu/v1/lti/launch",
+          membershipRole: "admin",
+          launchDisplayName: "Instructor One",
+        }),
+        instructorViews: {
+          kind: "course-summary",
+          bulkIssuanceView: null,
+          courseBadgeSummaryView: {
+            status: "ready",
+            message: "Showing progress for 1 badge placement in this course.",
+            courseContextTitle: "Demo1 123 456 SP24",
+            learnerCount: 1,
+            badgeCount: 1,
+            issuedCount: 1,
+            canPlaceBadgesFromLti: true,
+            badges: [sampleSelectedBadge()],
+            rows: [
+              {
+                learnerUserId: "learner-001",
+                learnerName: "Learner One",
+                learnerEmail: "learner-one@example.edu",
+                learnerDetailPath: null,
+                badgeTemplateId: "badge_template_001",
+                badgeTitle: "TypeScript Foundations",
+                badgeDetailPath: "/showcase/tenant_123/criteria?badgeTemplateId=badge_template_001",
+                status: "issued",
+                statusLabel: "Issued",
+                statusDetail: "Issued 2026-02-11T14:00:00.000Z",
+                assertionId: "tenant_123:assertion_existing",
+                issuedAt: "2026-02-11T14:00:00.000Z",
+              },
+            ],
+          },
+        },
+      }),
+    );
+
+    expect(html).toContain("data-lti-course-summary-search");
+    expect(html).toContain("data-lti-course-summary-badge-filter");
+    expect(html).toContain("data-lti-course-summary-status-filter");
+    expect(html).toContain("lti-launch__summary-field ct-field ct-field--compact");
+    expect(html).toContain("ct-input ct-field__control");
+    expect(html).toContain("ct-select ct-field__control");
+    expect(html).toContain("Learner One");
+  });
 });

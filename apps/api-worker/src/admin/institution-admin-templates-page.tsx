@@ -45,6 +45,7 @@ import {
   renderInstitutionAdminShellPage,
 } from "./institution-admin-shell";
 import type { AppPage } from "../ui/render-page";
+import { CtFieldHint, CtInput, CtTextarea } from "../ui/forms";
 import { formatIsoTimestamp } from "../utils/display-format";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -119,28 +120,29 @@ const renderTemplateCreatePanel = (rulesTemplatesPath: string): HonoElement => {
         className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--template-create ct-grid"
       >
         <AdminField label="Badge name">
-          <input
+          <CtInput
             name="title"
             type="text"
             required
             maxlength={200}
             autocomplete="off"
-            aria-describedby="badge-template-create-title-hint"
+            describedBy="badge-template-create-title-hint"
           />
-          <span id="badge-template-create-title-hint" class="ct-admin__field-hint">
+          <CtFieldHint id="badge-template-create-title-hint" className="ct-admin__field-hint">
             The name administrators, learners, and public viewers will see.
-          </span>
+          </CtFieldHint>
         </AdminField>
         <AdminField label="Description" className="ct-admin__template-create-field--wide">
-          <textarea
+          <CtTextarea
             name="description"
             rows={3}
             maxlength={2000}
-            aria-describedby="badge-template-create-description-hint"
-          ></textarea>
-          <span id="badge-template-create-description-hint" class="ct-admin__field-hint">
+            variant="prose"
+            describedBy="badge-template-create-description-hint"
+          />
+          <CtFieldHint id="badge-template-create-description-hint" className="ct-admin__field-hint">
             Optional short summary shown with issued badge records.
-          </span>
+          </CtFieldHint>
         </AdminField>
         <div class="ct-admin__template-create-actions">
           <AdminButton type="submit">Create and add artwork</AdminButton>
@@ -204,7 +206,7 @@ const renderTemplateEditorFields = (input: {
               value={template.id}
             />
             <AdminField label="Badge name">
-              <input
+              <CtInput
                 form="badge-template-edit-form"
                 name="title"
                 type="text"
@@ -214,18 +216,18 @@ const renderTemplateEditorFields = (input: {
               />
             </AdminField>
             <AdminField label="Description">
-              <textarea
+              <CtTextarea
                 form="badge-template-edit-form"
-                class="ct-admin__template-editor-prose-textarea"
+                className="ct-admin__template-editor-prose-textarea"
                 name="description"
                 rows={3}
                 maxlength={2000}
-              >
-                {template.description ?? ""}
-              </textarea>
+                variant="prose"
+                value={template.description ?? ""}
+              />
             </AdminField>
             <AdminField label="Criteria page URL">
-              <input
+              <CtInput
                 form="badge-template-edit-form"
                 name="criteriaUri"
                 type="url"

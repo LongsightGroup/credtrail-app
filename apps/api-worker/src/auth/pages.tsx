@@ -2,6 +2,7 @@ import { appPage, type AppPage } from "../ui/render-page";
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { CtButton, CtButtonLink } from "../ui/actions";
+import { CtField, CtForm, CtInput } from "../ui/forms";
 import type { AccessibleTenantContextView } from "./tenant-context-selection";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -272,17 +273,16 @@ const MagicLinkEmailSignIn = (input: {
         nextPath={input.nextPath}
         reason={input.reason}
       />
-      <form id="magic-link-login-form" class="ct-login__form ct-stack">
+      <CtForm id="magic-link-login-form" className="ct-login__form ct-stack">
         <input
           id="magic-link-login-tenant"
           name="tenantId"
           type="hidden"
           value={input.effectiveTenantId}
         />
-        <label class="ct-login__field ct-stack">
-          <span>Institution email</span>
-          <input name="email" type="email" required placeholder="name@institution.edu" />
-        </label>
+        <CtField label="Institution email" className="ct-login__field ct-stack">
+          <CtInput name="email" type="email" required placeholder="name@institution.edu" />
+        </CtField>
         <div id="magic-link-tenant-selection" class="ct-login__tenant-selection ct-stack" hidden>
           <p class="ct-login__tenant-selection-title">Choose your institution</p>
           <div id="magic-link-tenant-options" class="ct-login__tenant-options"></div>
@@ -290,7 +290,7 @@ const MagicLinkEmailSignIn = (input: {
         <input name="next" type="hidden" value={input.nextPath} />
         <MagicLinkTurnstile siteKey={input.turnstileSiteKey} />
         <LoginSubmitButton>Continue</LoginSubmitButton>
-      </form>
+      </CtForm>
       <p class="ct-login__help">Sign-in links expire in 10 minutes.</p>
       <p id="magic-link-login-status" class="ct-login__status" hidden></p>
       <p id="magic-link-dev-link" class="ct-login__dev"></p>
@@ -528,24 +528,26 @@ export const localBreakGlassLoginPage = (input: {
               <h2 id="break-glass-local-title" class="ct-login__form-title">
                 Sign in with local credentials
               </h2>
-              <form class="ct-login__form ct-stack" method="post" action="/auth/local/sign-in">
+              <CtForm
+                className="ct-login__form ct-stack"
+                method="post"
+                action="/auth/local/sign-in"
+              >
                 <input type="hidden" name="tenantId" value={input.tenantId} />
                 <input type="hidden" name="next" value={input.nextPath} />
-                <label class="ct-login__field ct-stack">
-                  <span>Institution email</span>
-                  <input name="email" type="email" required placeholder="name@institution.edu" />
-                </label>
-                <label class="ct-login__field ct-stack">
-                  <span>Password</span>
-                  <input
+                <CtField label="Institution email" className="ct-login__field ct-stack">
+                  <CtInput name="email" type="email" required placeholder="name@institution.edu" />
+                </CtField>
+                <CtField label="Password" className="ct-login__field ct-stack">
+                  <CtInput
                     name="password"
                     type="password"
                     required
                     placeholder="Your local break-glass password"
                   />
-                </label>
+                </CtField>
                 <LoginSubmitButton>Continue with local access</LoginSubmitButton>
-              </form>
+              </CtForm>
             </section>
             <section class="ct-stack" aria-labelledby="break-glass-reset-title">
               <h2 id="break-glass-reset-title" class="ct-login__form-title">
@@ -555,19 +557,18 @@ export const localBreakGlassLoginPage = (input: {
                 If your account is already allowlisted, CredTrail can email you a password-setup
                 link.
               </p>
-              <form
-                class="ct-login__form ct-stack"
+              <CtForm
+                className="ct-login__form ct-stack"
                 method="post"
                 action="/auth/local/reset-password/request"
               >
                 <input type="hidden" name="tenantId" value={input.tenantId} />
                 <input type="hidden" name="next" value={input.nextPath} />
-                <label class="ct-login__field ct-stack">
-                  <span>Institution email</span>
-                  <input name="email" type="email" required placeholder="name@institution.edu" />
-                </label>
+                <CtField label="Institution email" className="ct-login__field ct-stack">
+                  <CtInput name="email" type="email" required placeholder="name@institution.edu" />
+                </CtField>
                 <LoginSubmitButton>Email setup link</LoginSubmitButton>
-              </form>
+              </CtForm>
             </section>
             <p class="ct-login__back">
               <a href={localLoginPath({ tenantId: input.tenantId, nextPath: input.nextPath })}>
@@ -603,16 +604,19 @@ export const localResetPasswordPage = (input: {
           </div>
           <div class="ct-login__form-wrap ct-stack">
             <LocalNotice notice={notice} />
-            <form class="ct-login__form ct-stack" method="post" action="/auth/local/reset-password">
+            <CtForm
+              className="ct-login__form ct-stack"
+              method="post"
+              action="/auth/local/reset-password"
+            >
               <input type="hidden" name="tenantId" value={input.tenantId} />
               <input type="hidden" name="next" value={input.nextPath} />
               <input type="hidden" name="token" value={input.token} />
-              <label class="ct-login__field ct-stack">
-                <span>New password</span>
-                <input name="newPassword" type="password" required minlength={8} />
-              </label>
+              <CtField label="New password" className="ct-login__field ct-stack">
+                <CtInput name="newPassword" type="password" required minlength={8} />
+              </CtField>
               <LoginSubmitButton>Save password</LoginSubmitButton>
-            </form>
+            </CtForm>
           </div>
         </div>
       </section>
@@ -633,15 +637,18 @@ const LocalTwoFactorEnrollment = (input: {
 }): HonoElement => {
   if (input.setup === null || input.setup === undefined) {
     return (
-      <form class="ct-login__form ct-stack" method="post" action="/auth/local/two-factor/setup">
+      <CtForm
+        className="ct-login__form ct-stack"
+        method="post"
+        action="/auth/local/two-factor/setup"
+      >
         <input type="hidden" name="tenantId" value={input.tenantId} />
         <input type="hidden" name="next" value={input.nextPath} />
-        <label class="ct-login__field ct-stack">
-          <span>Current password</span>
-          <input name="password" type="password" required />
-        </label>
+        <CtField label="Current password" className="ct-login__field ct-stack">
+          <CtInput name="password" type="password" required />
+        </CtField>
         <LoginSubmitButton>Generate authenticator setup</LoginSubmitButton>
-      </form>
+      </CtForm>
     );
   }
 
@@ -692,25 +699,24 @@ export const localTwoFactorPage = (input: {
               nextPath={input.nextPath}
               setup={input.setup}
             />
-            <form
-              class="ct-login__form ct-stack"
+            <CtForm
+              className="ct-login__form ct-stack"
               method="post"
               action="/auth/local/two-factor/verify"
             >
               <input type="hidden" name="tenantId" value={input.tenantId} />
               <input type="hidden" name="next" value={input.nextPath} />
-              <label class="ct-login__field ct-stack">
-                <span>Authenticator code</span>
-                <input
+              <CtField label="Authenticator code" className="ct-login__field ct-stack">
+                <CtInput
                   name="code"
                   type="text"
                   inputmode="numeric"
                   autocomplete="one-time-code"
                   required
                 />
-              </label>
+              </CtField>
               <LoginSubmitButton>Verify and continue</LoginSubmitButton>
-            </form>
+            </CtForm>
           </div>
         </div>
       </section>

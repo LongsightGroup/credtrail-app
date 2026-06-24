@@ -301,18 +301,10 @@
 }
 
 .learner-dashboard__did-label {
-  font-weight: 600;
-  display: grid;
-  gap: 0.3rem;
   color: var(--learner-ink);
 }
 
 .learner-dashboard__did-input {
-  min-height: 2.9rem;
-  padding: 0.72rem 0.82rem;
-  border: 1px solid var(--learner-line-strong);
-  border-radius: 0.6rem;
-  font-size: 0.95rem;
   color: var(--learner-ink);
   background: rgba(255, 255, 255, 0.96);
 }

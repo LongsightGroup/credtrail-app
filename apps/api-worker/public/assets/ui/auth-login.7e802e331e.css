@@ -189,33 +189,10 @@
   --ct-stack-gap: 0.3rem;
 }
 
-.ct-login__field span {
+.ct-login__field .ct-field__label {
   font-size: 0.84rem;
   color: var(--ct-theme-text-title);
   font-weight: 600;
-}
-
-.ct-login__field input {
-  border: 1px solid var(--ct-theme-border-default);
-  border-radius: var(--ct-radius-md);
-  min-height: 2.75rem;
-  padding: 0.6rem 0.75rem;
-  font-size: 0.92rem;
-  color: var(--ct-theme-text-body);
-  background: var(--ct-theme-surface-card-strong);
-  transition:
-    border-color var(--ct-duration-fast) var(--ct-ease-standard),
-    box-shadow var(--ct-duration-fast) var(--ct-ease-standard);
-}
-
-.ct-login__field input:hover {
-  border-color: var(--ct-theme-border-strong);
-}
-
-.ct-login__field input:focus {
-  outline: none;
-  border-color: var(--ct-brand-lake-700);
-  box-shadow: var(--ct-focus-ring);
 }
 
 .ct-login__tenant-selection {

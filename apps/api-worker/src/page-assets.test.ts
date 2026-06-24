@@ -156,14 +156,23 @@ describe("page asset manifest", () => {
     expect(foundationCss).toContain(".ct-action");
     expect(foundationCss).toContain(".ct-action-group");
     expect(foundationCss).toContain(".ct-action--danger");
+    expect(foundationCss).toContain(".ct-form");
+    expect(foundationCss).toContain(".ct-field");
+    expect(foundationCss).toContain(".ct-input");
+    expect(foundationCss).toContain(".ct-select");
+    expect(foundationCss).toContain(".ct-textarea");
+    expect(foundationCss).toContain(".ct-checkbox-field");
   });
 
-  it("keeps admin form buttons from bypassing the action primitive contract", () => {
+  it("keeps admin forms from bypassing primitive action and field contracts", () => {
     const institutionAdminCss = readGeneratedAsset("institutionAdminCss");
 
     expect(institutionAdminCss).not.toContain(".ct-admin__form button {");
     expect(institutionAdminCss).not.toContain(".ct-admin__form button:not(.ct-admin__step-button)");
     expect(institutionAdminCss).not.toContain(".ct-admin__form button:focus-visible");
+    expect(institutionAdminCss).not.toContain(".ct-admin__form input:not([type='checkbox'])");
+    expect(institutionAdminCss).not.toContain(".ct-admin__form select,");
+    expect(institutionAdminCss).not.toContain(".ct-admin__form textarea {");
   });
 
   it("emits JavaScript assets that parse as browser scripts", () => {

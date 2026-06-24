@@ -1,11 +1,11 @@
 export const PAGE_ASSET_MANIFEST = {
   foundationCss: {
     kind: "style",
-    path: "/assets/ui/foundation.b2454c0c8e.css",
+    path: "/assets/ui/foundation.6023536e4d.css",
   },
   authLoginCss: {
     kind: "style",
-    path: "/assets/ui/auth-login.1761bcfbb5.css",
+    path: "/assets/ui/auth-login.7e802e331e.css",
   },
   authLoginJs: {
     kind: "script",
@@ -17,11 +17,11 @@ export const PAGE_ASSET_MANIFEST = {
   },
   designSystemCss: {
     kind: "style",
-    path: "/assets/ui/design-system.efd3799925.css",
+    path: "/assets/ui/design-system.518036499a.css",
   },
   institutionAdminCss: {
     kind: "style",
-    path: "/assets/ui/institution-admin.bc56e6f83c.css",
+    path: "/assets/ui/institution-admin.05ee510741.css",
   },
   institutionAdminJs: {
     kind: "script",
@@ -61,11 +61,11 @@ export const PAGE_ASSET_MANIFEST = {
   },
   learnerDashboardCss: {
     kind: "style",
-    path: "/assets/ui/learner-dashboard.16ee76be77.css",
+    path: "/assets/ui/learner-dashboard.525eecf160.css",
   },
   ltiPagesCss: {
     kind: "style",
-    path: "/assets/ui/lti-pages.f4d776b0e1.css",
+    path: "/assets/ui/lti-pages.bc848c1a82.css",
   },
   ltiCourseSummaryJs: {
     kind: "script",

@@ -65,6 +65,12 @@
   grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
 }
 
+.ct-design-system__form-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
 .ct-design-system__example {
   display: grid;
   gap: 0.65rem;

@@ -3,7 +3,8 @@ import type { HtmlEscapedString } from "hono/utils/html";
 import type { BadgeIssuanceRuleValueListRecord, TenantAssertionSummaryRecord } from "@credtrail/db";
 import type { BadgeRuleReviewQueueEntryView } from "../badge-rule-review-queue-workspace";
 import { formatBadgeRuleReviewQueueSummary } from "../badge-rule-review-queue-workspace";
-import type { CtDataAttributes } from "../ui/actions";
+import type { CtDataAttributes } from "../ui/forms";
+import { CtCheckboxField, CtField, CtForm } from "../ui/forms";
 import { AdminButton, AdminButtonLink } from "./actions";
 import {
   formatRuleValueListKind,
@@ -403,17 +404,17 @@ export const AdminForm = ({
   hidden?: boolean;
 }>): HonoElement => {
   return (
-    <form
+    <CtForm
       id={id}
       method={method}
       action={action}
-      enctype={encType}
-      class={className}
+      encType={encType}
+      className={className}
       hidden={hidden}
-      {...(dataAttributes ?? {})}
+      dataAttributes={dataAttributes}
     >
       {children}
-    </form>
+    </CtForm>
   );
 };
 
@@ -427,15 +428,16 @@ export const AdminField = ({
 }>): HonoElement => {
   const classes = className === undefined ? "ct-admin__field" : `ct-admin__field ${className}`;
   return (
-    <label class={classes}>
-      {label}
+    <CtField label={label} className={classes}>
       {children}
-    </label>
+    </CtField>
   );
 };
 
 export const AdminCheckboxRow = ({ children }: PropsWithChildren): HonoElement => {
-  return <label class="ct-admin__checkbox-row ct-checkbox-row">{children}</label>;
+  return (
+    <CtCheckboxField className="ct-admin__checkbox-row ct-checkbox-row">{children}</CtCheckboxField>
+  );
 };
 
 export const AdminFieldset = ({

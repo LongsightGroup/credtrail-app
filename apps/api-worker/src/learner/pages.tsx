@@ -2,6 +2,7 @@ import type { LearnerBadgeSummaryRecord } from "@credtrail/db";
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { CtActionGroup, CtButton } from "../ui/actions";
+import { CtField, CtForm, CtInput } from "../ui/forms";
 import { appPage, type AppPage } from "../ui/render-page";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -165,21 +166,20 @@ const LearnerDidSettings = (input: {
           <p class="learner-dashboard__subtle">
             Supported methods: <code>did:key</code>, <code>did:web</code>, and <code>did:ion</code>.
           </p>
-          <form
+          <CtForm
             method="post"
             action={`/tenants/${encodeURIComponent(input.tenantId)}/learner/settings/did`}
-            class="learner-dashboard__did-form"
+            className="learner-dashboard__did-form"
           >
-            <label class="learner-dashboard__did-label">
-              Learner DID
-              <input
+            <CtField label="Learner DID" className="learner-dashboard__did-label">
+              <CtInput
                 name="did"
                 type="text"
                 value={input.learnerDid ?? ""}
                 placeholder="did:key:z6Mk..."
-                class="learner-dashboard__did-input"
+                className="learner-dashboard__did-input"
               />
-            </label>
+            </CtField>
             <LearnerButtonRow>
               <CtButton
                 type="submit"
@@ -200,7 +200,7 @@ const LearnerDidSettings = (input: {
                 Clear DID
               </CtButton>
             </LearnerButtonRow>
-          </form>
+          </CtForm>
         </div>
       </details>
     </section>

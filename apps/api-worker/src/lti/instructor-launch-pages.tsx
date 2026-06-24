@@ -1,4 +1,5 @@
 import { formatIsoTimestamp } from "../utils/display-format";
+import { CtField, CtInput, CtSelect } from "../ui/forms";
 import { LTI_ACTIVE_BADGE_SUMMARY_STATUS } from "./badge-summary-helpers";
 import {
   BadgeSummaryContent,
@@ -273,34 +274,31 @@ export const CourseBadgeSummarySection = (input: {
         <CourseBadgeOverviewSection badges={view.badges} />
         {hasRows ? (
           <div class="lti-launch__summary-controls">
-            <label class="lti-launch__summary-field">
-              <span>Search</span>
-              <input
+            <CtField label="Search" className="lti-launch__summary-field" compact>
+              <CtInput
                 type="search"
-                data-lti-course-summary-search
+                dataAttributes={{ "data-lti-course-summary-search": "true" }}
                 placeholder="Learner, email, badge, or status"
               />
-            </label>
-            <label class="lti-launch__summary-field">
-              <span>Badge</span>
-              <select data-lti-course-summary-badge-filter>
+            </CtField>
+            <CtField label="Badge" className="lti-launch__summary-field" compact>
+              <CtSelect dataAttributes={{ "data-lti-course-summary-badge-filter": "true" }}>
                 <option value="">All badges</option>
                 {badgeOptions.map((badge) => (
                   <option value={badge.badgeTemplateId}>{badge.badgeTitle}</option>
                 ))}
-              </select>
-            </label>
-            <label class="lti-launch__summary-field">
-              <span>Status</span>
-              <select data-lti-course-summary-status-filter>
+              </CtSelect>
+            </CtField>
+            <CtField label="Status" className="lti-launch__summary-field" compact>
+              <CtSelect dataAttributes={{ "data-lti-course-summary-status-filter": "true" }}>
                 <option value="">All statuses</option>
                 <option value="issued">Issued</option>
                 <option value="not_issued">Not issued</option>
                 <option value="suspended">Suspended</option>
                 <option value="revoked">Revoked</option>
                 <option value="expired">Expired</option>
-              </select>
-            </label>
+              </CtSelect>
+            </CtField>
             <p class="lti-launch__summary-count">
               <span data-lti-course-summary-count>{String(view.rows.length)}</span> rows
             </p>
