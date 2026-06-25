@@ -475,7 +475,6 @@ const resolveBulkIssuanceView = async (input: {
     members: roster.learnerMembers,
     issuedStatesByUserId: issuedBadgeStatesByUserId,
     nowIso: new Date().toISOString(),
-    memberEligibilityPolicy: "full",
   });
   let bulkIssuanceView = ltiBulkIssuanceViewFromRoster({
     roster,

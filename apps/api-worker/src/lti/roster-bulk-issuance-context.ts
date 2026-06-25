@@ -7,6 +7,7 @@ import {
 } from "./issuance-behavior";
 import {
   evaluateLtiRosterMembersEligibility,
+  LTI_ROSTER_NO_RULE_LINKED_DETAIL,
   ltiBulkIssuanceRosterLoadedMessage,
   ltiRosterAlreadyIssuedEligibilityDetail,
   prepareLtiRosterEligibilityEvaluationContext,
@@ -26,19 +27,64 @@ export interface LtiRosterBulkIssuanceContext {
   rosterLoadedMessage: string;
 }
 
-const issuanceBehaviorFromBulkPreparation = (
-  ruleResolution: LtiRosterEligibilityRuleResolution,
-  prepared: LtiRosterEligibilityPreparedEvaluation | null,
-): LtiRosterIssuanceBehavior => {
+export type LtiRosterRuleIssuanceContext =
+  | {
+      ruleResolution: Exclude<LtiRosterEligibilityRuleResolution, { status: "resolved" }>;
+      prepared: null;
+      issuanceBehavior: LtiRosterIssuanceBehavior;
+    }
+  | {
+      ruleResolution: Extract<LtiRosterEligibilityRuleResolution, { status: "resolved" }>;
+      prepared: LtiRosterEligibilityPreparedEvaluation;
+      issuanceBehavior: LtiRosterIssuanceBehavior;
+    };
+
+export const prepareLtiRosterRuleIssuanceContext = async (input: {
+  db: SqlDatabase;
+  tenantId: string;
+  issuer: string;
+  clientId: string;
+  deploymentId: string;
+  resourceLinkId: string;
+  launchRuleId: string | null;
+}): Promise<LtiRosterRuleIssuanceContext> => {
+  const ruleResolution = await resolveLtiRosterEligibilityRuleContext({
+    db: input.db,
+    tenantId: input.tenantId,
+    issuer: input.issuer,
+    clientId: input.clientId,
+    deploymentId: input.deploymentId,
+    resourceLinkId: input.resourceLinkId,
+    launchRuleId: input.launchRuleId,
+  });
+
   if (ruleResolution.status === "unavailable") {
-    return ltiRosterUnavailableIssuanceBehavior(ruleResolution.detail);
+    return {
+      ruleResolution,
+      prepared: null,
+      issuanceBehavior: ltiRosterUnavailableIssuanceBehavior(ruleResolution.detail),
+    };
   }
 
   if (ruleResolution.status === "rule_pending") {
-    return ltiRosterRulePendingIssuanceBehavior(ruleResolution.detail);
+    return {
+      ruleResolution,
+      prepared: null,
+      issuanceBehavior: ltiRosterRulePendingIssuanceBehavior(ruleResolution.detail),
+    };
   }
 
-  return prepared!.issuanceBehavior;
+  const prepared = await prepareLtiRosterEligibilityEvaluationContext({
+    db: input.db,
+    tenantId: input.tenantId,
+    ruleId: ruleResolution.ruleId,
+  });
+
+  return {
+    ruleResolution,
+    prepared,
+    issuanceBehavior: prepared.issuanceBehavior,
+  };
 };
 
 export const prepareLtiRosterBulkIssuanceContext = async (input: {
@@ -52,55 +98,29 @@ export const prepareLtiRosterBulkIssuanceContext = async (input: {
   members: readonly LtiNrpsMember[];
   issuedStatesByUserId: ReadonlyMap<string, LtiRosterIssuedBadgeStateForEligibility>;
   nowIso: string;
-  memberEligibilityPolicy: "full" | "skip_when_manual_blocked";
 }): Promise<LtiRosterBulkIssuanceContext> => {
-  const ruleResolution = await resolveLtiRosterEligibilityRuleContext({
+  const ruleContext = await prepareLtiRosterRuleIssuanceContext(input);
+  const eligibilityByUserId = await evaluateLtiRosterMembersEligibility({
     db: input.db,
     tenantId: input.tenantId,
-    issuer: input.issuer,
-    clientId: input.clientId,
-    deploymentId: input.deploymentId,
-    resourceLinkId: input.resourceLinkId,
-    launchRuleId: input.launchRuleId,
+    ruleResolution: ruleContext.ruleResolution,
+    members: input.members,
+    issuedStatesByUserId: input.issuedStatesByUserId,
+    nowIso: input.nowIso,
+    prepared: ruleContext.prepared,
   });
-  const prepared =
-    ruleResolution.status === "resolved"
-      ? await prepareLtiRosterEligibilityEvaluationContext({
-          db: input.db,
-          tenantId: input.tenantId,
-          ruleId: ruleResolution.ruleId,
-        })
-      : null;
-  const issuanceBehavior = issuanceBehaviorFromBulkPreparation(ruleResolution, prepared);
-  const shouldEvaluateMembers =
-    input.memberEligibilityPolicy === "full" || issuanceBehavior.manualIssuanceAllowed;
-  const eligibilityByUserId = shouldEvaluateMembers
-    ? await evaluateLtiRosterMembersEligibility({
-        db: input.db,
-        tenantId: input.tenantId,
-        ruleResolution,
-        members: input.members,
-        issuedStatesByUserId: input.issuedStatesByUserId,
-        nowIso: input.nowIso,
-        prepared,
-      })
-    : new Map<string, LtiRosterEligibilityResult>();
-  const eligibilityResults = shouldEvaluateMembers
-    ? input.members.map((member) => {
-        const eligibility = eligibilityByUserId.get(member.userId);
+  const eligibilityResults = input.members.map((member) => {
+    const eligibility = eligibilityByUserId.get(member.userId);
 
-        if (eligibility === undefined) {
-          throw new Error(`Missing roster eligibility for learner ${member.userId}`);
-        }
+    if (eligibility === undefined) {
+      throw new Error(`Missing roster eligibility for learner ${member.userId}`);
+    }
 
-        return eligibility;
-      })
-    : [];
+    return eligibility;
+  });
 
   return {
-    ruleResolution,
-    prepared,
-    issuanceBehavior,
+    ...ruleContext,
     eligibilityByUserId,
     rosterLoadedMessage: ltiBulkIssuanceRosterLoadedMessage({
       learnerCount: input.members.length,
@@ -111,25 +131,31 @@ export const prepareLtiRosterBulkIssuanceContext = async (input: {
 
 export const ltiRosterIssuanceSkipDetail = (input: {
   issuedState: LtiRosterIssuedBadgeStateForEligibility | null;
-  bulkContext: Pick<
-    LtiRosterBulkIssuanceContext,
-    "ruleResolution" | "prepared" | "issuanceBehavior"
-  >;
+  ruleContext: LtiRosterRuleIssuanceContext;
 }): string | null => {
   if (input.issuedState !== null) {
     return ltiRosterAlreadyIssuedEligibilityDetail(input.issuedState);
   }
 
-  if (input.bulkContext.ruleResolution.status !== "resolved") {
-    return rosterMemberEligibilityFromRuleResolution(input.bulkContext.ruleResolution).detail;
+  const { ruleContext } = input;
+
+  if (ruleContext.ruleResolution.status !== "resolved") {
+    return rosterMemberEligibilityFromRuleResolution(ruleContext.ruleResolution).detail;
+  }
+
+  if (ruleContext.prepared === null) {
+    return LTI_ROSTER_NO_RULE_LINKED_DETAIL;
+  }
+
+  if (ruleContext.prepared.status === "rule_pending") {
+    return ruleContext.prepared.detail;
   }
 
   if (
-    input.bulkContext.prepared !== null &&
-    input.bulkContext.prepared.status === "ready" &&
-    !input.bulkContext.issuanceBehavior.manualIssuanceAllowed
+    ruleContext.prepared.status === "ready" &&
+    !ruleContext.issuanceBehavior.manualIssuanceAllowed
   ) {
-    return input.bulkContext.issuanceBehavior.detail;
+    return ruleContext.issuanceBehavior.detail;
   }
 
   return null;

@@ -13,9 +13,10 @@ import {
   skippedLtiIssuanceResult,
 } from "./roster-issuance-helpers";
 import {
+  prepareLtiRosterRuleIssuanceContext,
   ltiRosterIssuanceSkipDetail,
-  prepareLtiRosterBulkIssuanceContext,
 } from "./roster-bulk-issuance-context";
+import { evaluateLtiRosterMembersEligibility } from "./roster-eligibility";
 import type { LtiRosterIssuanceResultEntry } from "./view-models";
 
 export class LtiRosterIssuanceError extends Error {
@@ -91,7 +92,7 @@ export const executeLtiRosterIssuance = async (
     action: input.issuanceAction,
     learnerMembers: roster.learnerMembers,
   });
-  const bulkContext = await prepareLtiRosterBulkIssuanceContext({
+  const ruleContext = await prepareLtiRosterRuleIssuanceContext({
     db: input.db,
     tenantId: input.issuanceAction.tenantId,
     issuer: input.issuanceAction.issuer,
@@ -99,11 +100,18 @@ export const executeLtiRosterIssuance = async (
     deploymentId: input.issuanceAction.deploymentId,
     resourceLinkId: input.issuanceAction.resourceLinkId,
     launchRuleId: null,
-    members: roster.learnerMembers,
-    issuedStatesByUserId: issuedBadgeStatesByUserId,
-    nowIso: new Date().toISOString(),
-    memberEligibilityPolicy: "skip_when_manual_blocked",
   });
+  const eligibilityByUserId = ruleContext.issuanceBehavior.manualIssuanceAllowed
+    ? await evaluateLtiRosterMembersEligibility({
+        db: input.db,
+        tenantId: input.issuanceAction.tenantId,
+        ruleResolution: ruleContext.ruleResolution,
+        members: roster.learnerMembers,
+        issuedStatesByUserId: issuedBadgeStatesByUserId,
+        nowIso: new Date().toISOString(),
+        prepared: ruleContext.prepared,
+      })
+    : new Map();
 
   for (const learnerUserId of input.selectedLearnerUserIds) {
     const member = learnersByUserId.get(learnerUserId);
@@ -123,7 +131,7 @@ export const executeLtiRosterIssuance = async (
     const issuedState = issuedBadgeStatesByUserId.get(member.userId) ?? null;
     const skipDetail = ltiRosterIssuanceSkipDetail({
       issuedState,
-      bulkContext,
+      ruleContext,
     });
 
     if (skipDetail !== null) {
@@ -131,7 +139,7 @@ export const executeLtiRosterIssuance = async (
       continue;
     }
 
-    const eligibility = bulkContext.eligibilityByUserId.get(member.userId);
+    const eligibility = eligibilityByUserId.get(member.userId);
 
     if (eligibility === undefined || !eligibility.eligibleForIssuance) {
       results.push(

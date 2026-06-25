@@ -26,6 +26,7 @@ import { ltiRosterIssuanceBehaviorFromRuleDefinition } from "./issuance-behavior
 import {
   ltiRosterIssuanceSkipDetail,
   prepareLtiRosterBulkIssuanceContext,
+  prepareLtiRosterRuleIssuanceContext,
 } from "./roster-bulk-issuance-context";
 import { LTI_ROSTER_NO_RULE_LINKED_DETAIL } from "./roster-eligibility";
 import {
@@ -75,7 +76,6 @@ const bulkContextInput = (
   members: [sampleLtiRosterMember()],
   issuedStatesByUserId: new Map(),
   nowIso,
-  memberEligibilityPolicy: "full",
   ...overrides,
 });
 
@@ -99,18 +99,18 @@ describe("LTI roster bulk issuance context", () => {
           issuedAt: nowIso,
           lifecycleState: null,
         },
-        bulkContext: {
-          ruleResolution: { status: "resolved", ruleId: "brl_123" },
+        ruleContext: {
+          ruleResolution: {
+            status: "unavailable",
+            detail: "Rule context is not needed for already-issued learners.",
+          },
           prepared: null,
-          issuanceBehavior: ltiRosterIssuanceBehaviorFromRuleDefinition({
-            conditions: {
-              type: "grade_threshold",
-              courseId: "course-123",
-              scoreField: "final_score",
-              minScore: 85,
-            },
-            options: { issuanceTiming: "manual" },
-          }),
+          issuanceBehavior: {
+            key: "unavailable",
+            label: "Unavailable",
+            detail: "Rule context is not needed for already-issued learners.",
+            manualIssuanceAllowed: false,
+          },
         },
       });
 
@@ -120,7 +120,7 @@ describe("LTI roster bulk issuance context", () => {
     it("returns unresolved rule detail", () => {
       const detail = ltiRosterIssuanceSkipDetail({
         issuedState: null,
-        bulkContext: {
+        ruleContext: {
           ruleResolution: {
             status: "unavailable",
             detail: "CredTrail could not load the course placement for this resource link.",
@@ -150,7 +150,7 @@ describe("LTI roster bulk issuance context", () => {
       });
       const detail = ltiRosterIssuanceSkipDetail({
         issuedState: null,
-        bulkContext: {
+        ruleContext: {
           ruleResolution: { status: "resolved", ruleId: "brl_123" },
           prepared: {
             status: "ready",
@@ -188,7 +188,7 @@ describe("LTI roster bulk issuance context", () => {
       expect(
         ltiRosterIssuanceSkipDetail({
           issuedState: null,
-          bulkContext: {
+          ruleContext: {
             ruleResolution: { status: "resolved", ruleId: "brl_123" },
             prepared: {
               status: "ready",
@@ -210,35 +210,67 @@ describe("LTI roster bulk issuance context", () => {
         }),
       ).toBeNull();
     });
+
+    it("returns pending prepared rule detail before per-member eligibility", () => {
+      const detail = ltiRosterIssuanceSkipDetail({
+        issuedState: null,
+        ruleContext: {
+          ruleResolution: { status: "resolved", ruleId: "brl_123" },
+          prepared: {
+            status: "rule_pending",
+            detail: "Rule is waiting for review and activation.",
+            issuanceBehavior: {
+              key: "rule_pending",
+              label: "Rule pending",
+              detail: "Rule is waiting for review and activation.",
+              manualIssuanceAllowed: false,
+            },
+          },
+          issuanceBehavior: {
+            key: "rule_pending",
+            label: "Rule pending",
+            detail: "Rule is waiting for review and activation.",
+            manualIssuanceAllowed: false,
+          },
+        },
+      });
+
+      expect(detail).toBe("Rule is waiting for review and activation.");
+    });
   });
 
-  describe("prepareLtiRosterBulkIssuanceContext memberEligibilityPolicy", () => {
-    it("skips fact loading when manual issuance is blocked", async () => {
+  describe("prepareLtiRosterRuleIssuanceContext", () => {
+    it("derives automatic behavior without loading learner facts", async () => {
       mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(
         sampleRuleVersionWithTiming("immediate"),
       );
 
-      const context = await prepareLtiRosterBulkIssuanceContext(
-        bulkContextInput({
-          memberEligibilityPolicy: "skip_when_manual_blocked",
-        }),
-      );
+      const context = await prepareLtiRosterRuleIssuanceContext(bulkContextInput());
 
       expect(context.issuanceBehavior.key).toBe("immediate");
-      expect(context.eligibilityByUserId.size).toBe(0);
       expect(mockedLoadRuleFacts).not.toHaveBeenCalled();
     });
 
-    it("evaluates member eligibility under the full policy", async () => {
+    it("uses shared no-rule-linked detail for unresolved placements", async () => {
+      mockedFindLtiResourceLinkPlacement.mockResolvedValue(null);
+
+      const context = await prepareLtiRosterRuleIssuanceContext(bulkContextInput());
+
+      expect(context.ruleResolution).toMatchObject({
+        status: "rule_pending",
+        detail: LTI_ROSTER_NO_RULE_LINKED_DETAIL,
+      });
+      expect(context.issuanceBehavior.detail).toBe(LTI_ROSTER_NO_RULE_LINKED_DETAIL);
+    });
+  });
+
+  describe("prepareLtiRosterBulkIssuanceContext", () => {
+    it("evaluates member eligibility for rendering even when manual issuance is blocked", async () => {
       mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(
         sampleRuleVersionWithTiming("immediate"),
       );
 
-      const context = await prepareLtiRosterBulkIssuanceContext(
-        bulkContextInput({
-          memberEligibilityPolicy: "full",
-        }),
-      );
+      const context = await prepareLtiRosterBulkIssuanceContext(bulkContextInput());
 
       expect(context.eligibilityByUserId.get("learner-001")).toMatchObject({
         status: "eligible",
@@ -246,16 +278,12 @@ describe("LTI roster bulk issuance context", () => {
       expect(mockedLoadRuleFacts).toHaveBeenCalledOnce();
     });
 
-    it("evaluates member eligibility for manual rules under skip_when_manual_blocked", async () => {
+    it("evaluates member eligibility for manual rules", async () => {
       mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(
         sampleRuleVersionWithTiming("manual"),
       );
 
-      const context = await prepareLtiRosterBulkIssuanceContext(
-        bulkContextInput({
-          memberEligibilityPolicy: "skip_when_manual_blocked",
-        }),
-      );
+      const context = await prepareLtiRosterBulkIssuanceContext(bulkContextInput());
 
       expect(context.eligibilityByUserId.get("learner-001")).toMatchObject({
         status: "eligible",
@@ -263,7 +291,7 @@ describe("LTI roster bulk issuance context", () => {
       expect(mockedLoadRuleFacts).toHaveBeenCalledOnce();
     });
 
-    it("uses shared no-rule-linked detail for unresolved placements", async () => {
+    it("returns unresolved placement eligibility for rendering", async () => {
       mockedFindLtiResourceLinkPlacement.mockResolvedValue(null);
 
       const context = await prepareLtiRosterBulkIssuanceContext(bulkContextInput());
@@ -273,6 +301,10 @@ describe("LTI roster bulk issuance context", () => {
         detail: LTI_ROSTER_NO_RULE_LINKED_DETAIL,
       });
       expect(context.issuanceBehavior.detail).toBe(LTI_ROSTER_NO_RULE_LINKED_DETAIL);
+      expect(context.eligibilityByUserId.get("learner-001")).toMatchObject({
+        status: "rule_pending",
+        detail: LTI_ROSTER_NO_RULE_LINKED_DETAIL,
+      });
     });
   });
 });
