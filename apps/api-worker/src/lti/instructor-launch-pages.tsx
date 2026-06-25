@@ -44,13 +44,19 @@ export const BulkIssuanceSection = (input: {
   const view = input.view;
   const canIssue =
     view.status === "ready" &&
+    view.manualIssuanceAllowed &&
     view.issuanceActionPath !== null &&
     view.issuanceActionToken !== null;
   const missingEmailCount = view.members.filter((member) => member.email === null).length;
   const alreadyIssuedCount = view.members.filter(
     (member) => member.issuedAssertionId !== null,
   ).length;
-  const selectableCount = view.members.filter((member) => member.eligibleForIssuance).length;
+  const eligibleCount = view.members.filter(
+    (member) => member.eligibilityStatus === "eligible",
+  ).length;
+  const selectableCount = canIssue
+    ? view.members.filter((member) => member.eligibleForIssuance).length
+    : 0;
   const badgeIssuanceStatus = (member: LtiBulkIssuanceRosterMember): string => {
     if (member.issuedAssertionId === null) {
       return "Not issued";
@@ -120,7 +126,7 @@ export const BulkIssuanceSection = (input: {
   return (
     <LtiLaunchCard stack={true}>
       <h2 class="lti-launch__bulk-title">Issue badges from course roster</h2>
-      <p class="lti-launch__hint">Select learners and issue the badge placed in this LMS tool.</p>
+      <p class="lti-launch__hint">{view.issuanceBehaviorDetail}</p>
       <SelectedBulkBadgeSection badge={view.selectedBadge} />
       <p class={`lti-launch__bulk-status lti-launch__bulk-status--${view.status}`}>
         {view.message}
@@ -141,8 +147,12 @@ export const BulkIssuanceSection = (input: {
               value: `${String(alreadyIssuedCount)} of ${String(view.learnerCount)}`,
             },
             {
-              label: "Selectable learners",
-              value: selectableCount,
+              label: "Issuance behavior",
+              value: view.issuanceBehaviorLabel,
+            },
+            {
+              label: canIssue ? "Selectable learners" : "Eligible learners",
+              value: canIssue ? selectableCount : eligibleCount,
             },
           ]}
         />

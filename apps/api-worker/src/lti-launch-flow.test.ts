@@ -55,7 +55,7 @@ vi.mock("@credtrail/db/postgres", () => {
   };
 });
 
-vi.mock("./routes/badge-rule-facts-loader", () => ({
+vi.mock("./rules/badge-rule-facts-loader", () => ({
   loadRuleFacts: vi.fn(),
 }));
 
@@ -117,7 +117,7 @@ import type { LTISession } from "@lti-tool/core";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
-import { loadRuleFacts } from "./routes/badge-rule-facts-loader";
+import { loadRuleFacts } from "./rules/badge-rule-facts-loader";
 import { LTI_POST_MESSAGE_STORAGE_JS } from "./ui/page-assets/content/lti-post-message-storage-js";
 import { createLtiCourseBadgeSetupToken } from "./lti/course-badge-setup-token";
 
@@ -635,6 +635,7 @@ const sampleBadgeIssuanceRuleVersion = (
         minScore: 85,
       },
       options: {
+        issuanceTiming: "manual",
         reviewOnMissingFacts: true,
       },
     }),
@@ -2510,7 +2511,7 @@ describe("LTI 1.3 core launch flow", () => {
     expect(issueResponse.status).toBe(200);
     expect(issueBody).toContain("Badge issuance complete");
     expect(issueBody).toContain("Badge issued.");
-    expect(issueBody).toContain("The LMS did not provide an email address.");
+    expect(issueBody).toContain("The LMS did not provide an email address for this learner.");
     expect(issueBody).toContain("Learner is not present in the current LMS roster.");
     expect(issueBadgeForTenant).toHaveBeenCalledTimes(1);
     expect(issueBadgeForTenant).toHaveBeenCalledWith(

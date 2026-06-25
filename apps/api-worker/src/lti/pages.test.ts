@@ -32,6 +32,10 @@ const sampleBulkIssuanceView = (
     contextMembershipsUrl: "https://canvas.example.edu/api/lti/courses/42/names_and_roles",
     learnerCount: 1,
     totalCount: 1,
+    issuanceBehaviorKey: "manual",
+    issuanceBehaviorLabel: "Instructor confirmation",
+    issuanceBehaviorDetail: "Eligible learners can be selected and issued from this course roster.",
+    manualIssuanceAllowed: true,
     issuanceActionPath: "/v1/lti/resource-link/issue",
     issuanceActionToken: "token_123",
     members: [
@@ -332,8 +336,64 @@ describe("ltiLaunchResultPage", () => {
     expect(html).toContain("Eligibility");
     expect(html).toContain("Eligible");
     expect(html).toContain("Meets the active badge rule.");
+    expect(html).toContain("Instructor confirmation");
     expect(html).toContain('name="issuance_action_token"');
     expect(html).toContain('name="learner_user_id"');
+  });
+
+  it("hides roster issue controls for automatic rules", () => {
+    const html = renderAppPageToString(
+      ltiLaunchResultPage(
+        sampleLaunchResultInput({
+          instructorViews: {
+            kind: "bulk",
+            bulkIssuanceView: sampleBulkIssuanceView({
+              issuanceBehaviorKey: "immediate",
+              issuanceBehaviorLabel: "Automatic",
+              issuanceBehaviorDetail:
+                "This badge is awarded automatically when learners meet the active rule. Roster issuing is not available for this placement.",
+              manualIssuanceAllowed: false,
+              issuanceActionPath: null,
+              issuanceActionToken: null,
+            }),
+            courseBadgeSummaryView: null,
+          },
+        }),
+      ),
+    );
+
+    expect(html).toContain("Automatic");
+    expect(html).toContain("awarded automatically");
+    expect(html).toContain("Eligible learners");
+    expect(html).not.toContain('name="issuance_action_token"');
+    expect(html).not.toContain('name="learner_user_id"');
+  });
+
+  it("hides roster issue controls for end-of-term rules", () => {
+    const html = renderAppPageToString(
+      ltiLaunchResultPage(
+        sampleLaunchResultInput({
+          instructorViews: {
+            kind: "bulk",
+            bulkIssuanceView: sampleBulkIssuanceView({
+              issuanceBehaviorKey: "end_of_term",
+              issuanceBehaviorLabel: "End-of-term batch",
+              issuanceBehaviorDetail:
+                "This badge is handled through end-of-term batch issuance. Roster issuing is not available for this placement.",
+              manualIssuanceAllowed: false,
+              issuanceActionPath: null,
+              issuanceActionToken: null,
+            }),
+            courseBadgeSummaryView: null,
+          },
+        }),
+      ),
+    );
+
+    expect(html).toContain("End-of-term batch");
+    expect(html).toContain("end-of-term batch issuance");
+    expect(html).not.toContain('name="issuance_action_token"');
+    expect(html).not.toContain('name="learner_user_id"');
   });
 
   it("renders selected badge fallback copy and placeholder artwork", () => {
@@ -358,6 +418,11 @@ describe("ltiLaunchResultPage", () => {
               contextMembershipsUrl: null,
               learnerCount: 0,
               totalCount: 0,
+              issuanceBehaviorKey: "unavailable",
+              issuanceBehaviorLabel: "Unavailable",
+              issuanceBehaviorDetail:
+                "This LMS launch did not include a learner roster, so CredTrail cannot issue badges from this tool yet.",
+              manualIssuanceAllowed: false,
               issuanceActionPath: null,
               issuanceActionToken: null,
               members: [],

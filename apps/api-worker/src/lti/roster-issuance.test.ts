@@ -13,7 +13,7 @@ vi.mock("@credtrail/db", async () => {
   };
 });
 
-vi.mock("../routes/badge-rule-facts-loader", () => ({
+vi.mock("../rules/badge-rule-facts-loader", () => ({
   loadRuleFacts: vi.fn(),
 }));
 
@@ -23,14 +23,17 @@ import {
   findLtiResourceLinkPlacement,
   listAssertionLifecycleStatesByAssertionIds,
   listAssertionsByIdempotencyKeys,
-  type BadgeIssuanceRuleRecord,
-  type BadgeIssuanceRuleVersionRecord,
-  type LtiResourceLinkPlacementRecord,
   type SqlDatabase,
 } from "@credtrail/db";
 import type { LTISession, LTITool } from "@lti-tool/core";
-import { loadRuleFacts } from "../routes/badge-rule-facts-loader";
+import { loadRuleFacts } from "../rules/badge-rule-facts-loader";
 import { executeLtiRosterIssuance } from "./roster-issuance";
+import {
+  sampleLtiRosterBadgeRule,
+  sampleLtiRosterBadgeRuleVersion,
+  sampleLtiRosterResourceLinkPlacement,
+  sampleLtiRosterRuleEvaluationFacts,
+} from "./roster-eligibility-test-fixtures";
 
 const mockedFindActiveBadgeIssuanceRuleVersion = vi.mocked(findActiveBadgeIssuanceRuleVersion);
 const mockedFindBadgeIssuanceRuleById = vi.mocked(findBadgeIssuanceRuleById);
@@ -42,69 +45,6 @@ const mockedListAssertionsByIdempotencyKeys = vi.mocked(listAssertionsByIdempote
 const mockedLoadRuleFacts = vi.mocked(loadRuleFacts);
 
 const fakeDb = {} as SqlDatabase;
-
-const sampleRule = (overrides?: Partial<BadgeIssuanceRuleRecord>): BadgeIssuanceRuleRecord => ({
-  id: "brl_123",
-  tenantId: "tenant_123",
-  name: "Course rule",
-  description: null,
-  badgeTemplateId: "badge_template_001",
-  lmsProviderKind: "sakai",
-  lmsConnectionId: "lms_sakai_001",
-  activeVersionId: "brv_123",
-  createdByUserId: "usr_123",
-  createdAt: "2026-02-10T22:00:00.000Z",
-  updatedAt: "2026-02-10T22:00:00.000Z",
-  ...overrides,
-});
-
-const sampleVersion = (
-  overrides?: Partial<BadgeIssuanceRuleVersionRecord>,
-): BadgeIssuanceRuleVersionRecord => ({
-  id: "brv_123",
-  tenantId: "tenant_123",
-  ruleId: "brl_123",
-  versionNumber: 1,
-  status: "active",
-  ruleJson: JSON.stringify({
-    conditions: {
-      type: "grade_threshold",
-      courseId: "course-123",
-      scoreField: "final_score",
-      minScore: 85,
-    },
-    options: {
-      reviewOnMissingFacts: true,
-    },
-  }),
-  changeSummary: null,
-  createdByUserId: "usr_123",
-  approvedByUserId: "usr_admin_123",
-  approvedAt: "2026-02-10T22:00:00.000Z",
-  activatedByUserId: "usr_admin_123",
-  activatedAt: "2026-02-10T22:00:00.000Z",
-  createdAt: "2026-02-10T22:00:00.000Z",
-  updatedAt: "2026-02-10T22:00:00.000Z",
-  ...overrides,
-});
-
-const samplePlacement = (
-  overrides?: Partial<LtiResourceLinkPlacementRecord>,
-): LtiResourceLinkPlacementRecord => ({
-  id: "lti_place_123",
-  tenantId: "tenant_123",
-  issuer: "https://sakai.example.edu",
-  clientId: "client-123",
-  deploymentId: "deployment-123",
-  contextId: "course-123",
-  resourceLinkId: "resource-link-123",
-  badgeTemplateId: "badge_template_001",
-  ruleId: "brl_123",
-  createdByUserId: "usr_instructor_123",
-  createdAt: "2026-02-10T22:00:00.000Z",
-  updatedAt: "2026-02-10T22:00:00.000Z",
-  ...overrides,
-});
 
 const ltiSession = {
   id: "lti-session-123",
@@ -129,23 +69,23 @@ const ltiTool = {
 
 const appContext = {} as Parameters<typeof executeLtiRosterIssuance>[0]["c"];
 
-const facts = (finalScore: number) => ({
-  learnerId: "learner-001",
-  nowIso: "2026-02-10T22:00:00.000Z",
-  grades: [
-    {
-      courseId: "course-123",
-      learnerId: "learner-001",
-      currentScore: finalScore,
-      finalScore,
-    },
-  ],
-  completions: [],
-  submissions: [],
-  surveyCompletions: [],
-  customFields: [],
-  earnedBadgeTemplateIds: [],
-});
+const sampleRuleVersionWithTiming = (
+  issuanceTiming: "immediate" | "manual" | "end_of_term",
+): ReturnType<typeof sampleLtiRosterBadgeRuleVersion> =>
+  sampleLtiRosterBadgeRuleVersion({
+    ruleJson: JSON.stringify({
+      conditions: {
+        type: "grade_threshold",
+        courseId: "course-123",
+        scoreField: "final_score",
+        minScore: 85,
+      },
+      options: {
+        issuanceTiming,
+        reviewOnMissingFacts: true,
+      },
+    }),
+  });
 
 describe("executeLtiRosterIssuance eligibility guard", () => {
   beforeEach(() => {
@@ -161,11 +101,11 @@ describe("executeLtiRosterIssuance eligibility guard", () => {
       },
     ]);
     mockedFindActiveBadgeIssuanceRuleVersion.mockReset();
-    mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(sampleVersion());
+    mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(sampleLtiRosterBadgeRuleVersion());
     mockedFindBadgeIssuanceRuleById.mockReset();
-    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleRule());
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleLtiRosterBadgeRule());
     mockedFindLtiResourceLinkPlacement.mockReset();
-    mockedFindLtiResourceLinkPlacement.mockResolvedValue(samplePlacement());
+    mockedFindLtiResourceLinkPlacement.mockResolvedValue(sampleLtiRosterResourceLinkPlacement());
     mockedListAssertionLifecycleStatesByAssertionIds.mockReset();
     mockedListAssertionLifecycleStatesByAssertionIds.mockResolvedValue([]);
     mockedListAssertionsByIdempotencyKeys.mockReset();
@@ -174,7 +114,7 @@ describe("executeLtiRosterIssuance eligibility guard", () => {
   });
 
   it("issues eligible selected learners", async () => {
-    mockedLoadRuleFacts.mockResolvedValue(facts(92));
+    mockedLoadRuleFacts.mockResolvedValue(sampleLtiRosterRuleEvaluationFacts(92));
     const issueBadgeForTenant = vi.fn().mockResolvedValue({
       status: "issued",
       assertionId: "assertion_123",
@@ -207,10 +147,12 @@ describe("executeLtiRosterIssuance eligibility guard", () => {
       assertionId: "assertion_123",
     });
     expect(issueBadgeForTenant).toHaveBeenCalledOnce();
+    expect(mockedFindLtiResourceLinkPlacement).toHaveBeenCalledOnce();
+    expect(mockedFindBadgeIssuanceRuleById).toHaveBeenCalledOnce();
   });
 
   it("skips ineligible selected learners", async () => {
-    mockedLoadRuleFacts.mockResolvedValue(facts(72));
+    mockedLoadRuleFacts.mockResolvedValue(sampleLtiRosterRuleEvaluationFacts(72));
     const issueBadgeForTenant = vi.fn();
 
     const result = await executeLtiRosterIssuance({
@@ -240,5 +182,120 @@ describe("executeLtiRosterIssuance eligibility guard", () => {
     });
     expect(result.results[0]?.message).toContain("below minimum");
     expect(issueBadgeForTenant).not.toHaveBeenCalled();
+  });
+
+  it("refuses edited form payloads under automatic rules", async () => {
+    mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(
+      sampleRuleVersionWithTiming("immediate"),
+    );
+    const issueBadgeForTenant = vi.fn();
+
+    const result = await executeLtiRosterIssuance({
+      c: appContext,
+      db: fakeDb,
+      ltiTool,
+      ltiSession,
+      issuanceAction: {
+        tenantId: "tenant_123",
+        ltiSessionId: "lti-session-123",
+        issuer: "https://sakai.example.edu",
+        clientId: "client-123",
+        deploymentId: "deployment-123",
+        contextId: "course-123",
+        resourceLinkId: "resource-link-123",
+        badgeTemplateId: "badge_template_001",
+        issuedByUserId: "usr_instructor_123",
+        exp: 1780000000,
+      },
+      selectedLearnerUserIds: ["learner-001"],
+      sha256Hex: async () => "digest_123",
+      issueBadgeForTenant,
+    });
+
+    expect(result.results[0]).toMatchObject({
+      status: "skipped",
+    });
+    expect(result.results[0]?.message).toContain("awarded automatically");
+    expect(issueBadgeForTenant).not.toHaveBeenCalled();
+    expect(mockedLoadRuleFacts).not.toHaveBeenCalled();
+  });
+
+  it("refuses edited form payloads under end-of-term rules", async () => {
+    mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(
+      sampleRuleVersionWithTiming("end_of_term"),
+    );
+    const issueBadgeForTenant = vi.fn();
+
+    const result = await executeLtiRosterIssuance({
+      c: appContext,
+      db: fakeDb,
+      ltiTool,
+      ltiSession,
+      issuanceAction: {
+        tenantId: "tenant_123",
+        ltiSessionId: "lti-session-123",
+        issuer: "https://sakai.example.edu",
+        clientId: "client-123",
+        deploymentId: "deployment-123",
+        contextId: "course-123",
+        resourceLinkId: "resource-link-123",
+        badgeTemplateId: "badge_template_001",
+        issuedByUserId: "usr_instructor_123",
+        exp: 1780000000,
+      },
+      selectedLearnerUserIds: ["learner-001"],
+      sha256Hex: async () => "digest_123",
+      issueBadgeForTenant,
+    });
+
+    expect(result.results[0]).toMatchObject({
+      status: "skipped",
+    });
+    expect(result.results[0]?.message).toContain("end-of-term batch");
+    expect(issueBadgeForTenant).not.toHaveBeenCalled();
+    expect(mockedLoadRuleFacts).not.toHaveBeenCalled();
+  });
+
+  it("skips learners without email using eligibility messaging", async () => {
+    mockedGetMembers.mockResolvedValue([
+      {
+        status: "Active",
+        name: "Learner One",
+        email: null,
+        userId: "learner-001",
+        lisPersonSourcedId: "sourced-learner-001",
+        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+      },
+    ]);
+    const issueBadgeForTenant = vi.fn();
+
+    const result = await executeLtiRosterIssuance({
+      c: appContext,
+      db: fakeDb,
+      ltiTool,
+      ltiSession,
+      issuanceAction: {
+        tenantId: "tenant_123",
+        ltiSessionId: "lti-session-123",
+        issuer: "https://sakai.example.edu",
+        clientId: "client-123",
+        deploymentId: "deployment-123",
+        contextId: "course-123",
+        resourceLinkId: "resource-link-123",
+        badgeTemplateId: "badge_template_001",
+        issuedByUserId: "usr_instructor_123",
+        exp: 1780000000,
+      },
+      selectedLearnerUserIds: ["learner-001"],
+      sha256Hex: async () => "digest_123",
+      issueBadgeForTenant,
+    });
+
+    expect(result.results[0]).toMatchObject({
+      status: "skipped",
+    });
+    expect(result.results[0]?.message).toContain("email address");
+    expect(issueBadgeForTenant).not.toHaveBeenCalled();
+    expect(mockedLoadRuleFacts).not.toHaveBeenCalled();
   });
 });

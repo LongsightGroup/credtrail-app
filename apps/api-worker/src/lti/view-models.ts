@@ -1,5 +1,7 @@
 import type { TenantMembershipRole } from "@credtrail/db";
 import type { LtiRoleKind } from "@credtrail/lti";
+import type { LtiRosterIssuanceBehaviorKey } from "./issuance-behavior";
+import type { LtiRosterEligibilityStatus } from "./roster-eligibility";
 
 export interface LtiBulkIssuanceRosterMember {
   userId: string;
@@ -8,13 +10,7 @@ export interface LtiBulkIssuanceRosterMember {
   email: string | null;
   roleSummary: string;
   status: string | null;
-  eligibilityStatus:
-    | "eligible"
-    | "not_yet_eligible"
-    | "missing_evidence"
-    | "already_issued"
-    | "rule_pending"
-    | "unavailable";
+  eligibilityStatus: LtiRosterEligibilityStatus;
   eligibilityLabel: string;
   eligibilityDetail: string;
   eligibleForIssuance: boolean;
@@ -45,6 +41,10 @@ export interface LtiBulkIssuanceView {
   contextMembershipsUrl: string | null;
   learnerCount: number;
   totalCount: number;
+  issuanceBehaviorKey: LtiRosterIssuanceBehaviorKey;
+  issuanceBehaviorLabel: string;
+  issuanceBehaviorDetail: string;
+  manualIssuanceAllowed: boolean;
   issuanceActionPath: string | null;
   issuanceActionToken: string | null;
   members: readonly LtiBulkIssuanceRosterMember[];

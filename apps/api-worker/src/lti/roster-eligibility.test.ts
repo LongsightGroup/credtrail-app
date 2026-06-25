@@ -11,7 +11,7 @@ vi.mock("@credtrail/db", async () => {
   };
 });
 
-vi.mock("../routes/badge-rule-facts-loader", () => ({
+vi.mock("../rules/badge-rule-facts-loader", () => ({
   loadRuleFacts: vi.fn(),
 }));
 
@@ -19,16 +19,22 @@ import {
   findActiveBadgeIssuanceRuleVersion,
   findBadgeIssuanceRuleById,
   findLtiResourceLinkPlacement,
-  type BadgeIssuanceRuleRecord,
-  type BadgeIssuanceRuleVersionRecord,
   type SqlDatabase,
 } from "@credtrail/db";
-import { loadRuleFacts } from "../routes/badge-rule-facts-loader";
-import type { LtiNrpsMember } from "./nrps";
+import { loadRuleFacts } from "../rules/badge-rule-facts-loader";
 import {
   evaluateLtiRosterMemberEligibility,
+  evaluateLtiRosterMembersEligibility,
+  ltiBulkIssuanceRosterLoadedMessage,
+  prepareLtiRosterEligibilityEvaluationContext,
   resolveLtiRosterEligibilityRuleContext,
 } from "./roster-eligibility";
+import {
+  sampleLtiRosterBadgeRule,
+  sampleLtiRosterBadgeRuleVersion,
+  sampleLtiRosterMember,
+  sampleLtiRosterRuleEvaluationFacts,
+} from "./roster-eligibility-test-fixtures";
 
 const mockedFindActiveBadgeIssuanceRuleVersion = vi.mocked(findActiveBadgeIssuanceRuleVersion);
 const mockedFindBadgeIssuanceRuleById = vi.mocked(findBadgeIssuanceRuleById);
@@ -37,93 +43,14 @@ const mockedLoadRuleFacts = vi.mocked(loadRuleFacts);
 
 const fakeDb = {} as SqlDatabase;
 
-const sampleMember = (overrides?: Partial<LtiNrpsMember>): LtiNrpsMember => ({
-  userId: "learner-001",
-  sourcedId: "sourced-learner-001",
-  displayName: "Learner One",
-  email: "learner-one@example.edu",
-  status: "Active",
-  pictureUrl: null,
-  roles: ["Learner"],
-  roleSummary: "Learner",
-  isLearner: true,
-  ...overrides,
-});
-
-const sampleRule = (overrides?: Partial<BadgeIssuanceRuleRecord>): BadgeIssuanceRuleRecord => ({
-  id: "brl_123",
-  tenantId: "tenant_123",
-  name: "Course rule",
-  description: null,
-  badgeTemplateId: "badge_template_001",
-  lmsProviderKind: "sakai",
-  lmsConnectionId: "lms_sakai_001",
-  activeVersionId: "brv_123",
-  createdByUserId: "usr_123",
-  createdAt: "2026-02-10T22:00:00.000Z",
-  updatedAt: "2026-02-10T22:00:00.000Z",
-  ...overrides,
-});
-
-const sampleVersion = (
-  overrides?: Partial<BadgeIssuanceRuleVersionRecord>,
-): BadgeIssuanceRuleVersionRecord => ({
-  id: "brv_123",
-  tenantId: "tenant_123",
-  ruleId: "brl_123",
-  versionNumber: 1,
-  status: "active",
-  ruleJson: JSON.stringify({
-    conditions: {
-      type: "grade_threshold",
-      courseId: "course-123",
-      scoreField: "final_score",
-      minScore: 85,
-    },
-    options: {
-      reviewOnMissingFacts: true,
-    },
-  }),
-  changeSummary: null,
-  createdByUserId: "usr_123",
-  approvedByUserId: "usr_admin_123",
-  approvedAt: "2026-02-10T22:00:00.000Z",
-  activatedByUserId: "usr_admin_123",
-  activatedAt: "2026-02-10T22:00:00.000Z",
-  createdAt: "2026-02-10T22:00:00.000Z",
-  updatedAt: "2026-02-10T22:00:00.000Z",
-  ...overrides,
-});
-
-const facts = (finalScore: number | null) => ({
-  learnerId: "learner-001",
-  nowIso: "2026-02-10T22:00:00.000Z",
-  grades:
-    finalScore === null
-      ? []
-      : [
-          {
-            courseId: "course-123",
-            learnerId: "learner-001",
-            currentScore: finalScore,
-            finalScore,
-          },
-        ],
-  completions: [],
-  submissions: [],
-  surveyCompletions: [],
-  customFields: [],
-  earnedBadgeTemplateIds: [],
-});
-
 describe("LTI roster eligibility", () => {
   beforeEach(() => {
     mockedFindActiveBadgeIssuanceRuleVersion.mockReset();
     mockedFindBadgeIssuanceRuleById.mockReset();
     mockedFindLtiResourceLinkPlacement.mockReset();
     mockedLoadRuleFacts.mockReset();
-    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleRule());
-    mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(sampleVersion());
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleLtiRosterBadgeRule());
+    mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(sampleLtiRosterBadgeRuleVersion());
   });
 
   it("uses the launch rule id before placement lookup", async () => {
@@ -137,18 +64,39 @@ describe("LTI roster eligibility", () => {
       launchRuleId: "brl_launch",
     });
 
-    expect(result.ruleId).toBe("brl_launch");
+    expect(result).toEqual({
+      status: "resolved",
+      ruleId: "brl_launch",
+    });
     expect(mockedFindLtiResourceLinkPlacement).not.toHaveBeenCalled();
   });
 
+  it("marks placement lookup failures as unavailable", async () => {
+    mockedFindLtiResourceLinkPlacement.mockRejectedValue(new Error("database unavailable"));
+
+    const result = await resolveLtiRosterEligibilityRuleContext({
+      db: fakeDb,
+      tenantId: "tenant_123",
+      issuer: "https://sakai.example.edu",
+      clientId: "client-123",
+      deploymentId: "deployment-123",
+      resourceLinkId: "resource-link-123",
+      launchRuleId: null,
+    });
+
+    expect(result).toMatchObject({
+      status: "unavailable",
+    });
+  });
+
   it("marks learners with passing rule facts as eligible", async () => {
-    mockedLoadRuleFacts.mockResolvedValue(facts(92));
+    mockedLoadRuleFacts.mockResolvedValue(sampleLtiRosterRuleEvaluationFacts(92));
 
     const result = await evaluateLtiRosterMemberEligibility({
       db: fakeDb,
       tenantId: "tenant_123",
-      ruleId: "brl_123",
-      member: sampleMember(),
+      ruleResolution: { status: "resolved", ruleId: "brl_123" },
+      member: sampleLtiRosterMember(),
       issuedState: null,
       nowIso: "2026-02-10T22:00:00.000Z",
     });
@@ -161,13 +109,13 @@ describe("LTI roster eligibility", () => {
   });
 
   it("marks learners with failing rule facts as not yet eligible", async () => {
-    mockedLoadRuleFacts.mockResolvedValue(facts(72));
+    mockedLoadRuleFacts.mockResolvedValue(sampleLtiRosterRuleEvaluationFacts(72));
 
     const result = await evaluateLtiRosterMemberEligibility({
       db: fakeDb,
       tenantId: "tenant_123",
-      ruleId: "brl_123",
-      member: sampleMember(),
+      ruleResolution: { status: "resolved", ruleId: "brl_123" },
+      member: sampleLtiRosterMember(),
       issuedState: null,
       nowIso: "2026-02-10T22:00:00.000Z",
     });
@@ -181,13 +129,13 @@ describe("LTI roster eligibility", () => {
   });
 
   it("marks missing gradebook facts as missing evidence", async () => {
-    mockedLoadRuleFacts.mockResolvedValue(facts(null));
+    mockedLoadRuleFacts.mockResolvedValue(sampleLtiRosterRuleEvaluationFacts(null));
 
     const result = await evaluateLtiRosterMemberEligibility({
       db: fakeDb,
       tenantId: "tenant_123",
-      ruleId: "brl_123",
-      member: sampleMember(),
+      ruleResolution: { status: "resolved", ruleId: "brl_123" },
+      member: sampleLtiRosterMember(),
       issuedState: null,
       nowIso: "2026-02-10T22:00:00.000Z",
     });
@@ -205,8 +153,8 @@ describe("LTI roster eligibility", () => {
     const result = await evaluateLtiRosterMemberEligibility({
       db: fakeDb,
       tenantId: "tenant_123",
-      ruleId: "brl_123",
-      member: sampleMember(),
+      ruleResolution: { status: "resolved", ruleId: "brl_123" },
+      member: sampleLtiRosterMember(),
       issuedState: null,
       nowIso: "2026-02-10T22:00:00.000Z",
     });
@@ -222,8 +170,8 @@ describe("LTI roster eligibility", () => {
     const result = await evaluateLtiRosterMemberEligibility({
       db: fakeDb,
       tenantId: "tenant_123",
-      ruleId: "brl_123",
-      member: sampleMember(),
+      ruleResolution: { status: "resolved", ruleId: "brl_123" },
+      member: sampleLtiRosterMember(),
       issuedState: {
         assertionId: "assertion_123",
         issuedAt: "2026-02-10T22:00:00.000Z",
@@ -238,5 +186,91 @@ describe("LTI roster eligibility", () => {
       eligibleForIssuance: false,
     });
     expect(mockedFindBadgeIssuanceRuleById).not.toHaveBeenCalled();
+  });
+
+  it("prepares rule context once for roster batch evaluation", async () => {
+    mockedLoadRuleFacts.mockResolvedValue(sampleLtiRosterRuleEvaluationFacts(92));
+    const members = [
+      sampleLtiRosterMember({ userId: "learner-001" }),
+      sampleLtiRosterMember({ userId: "learner-002", email: "learner-two@example.edu" }),
+    ];
+
+    const eligibilityByUserId = await evaluateLtiRosterMembersEligibility({
+      db: fakeDb,
+      tenantId: "tenant_123",
+      ruleResolution: { status: "resolved", ruleId: "brl_123" },
+      members,
+      issuedStatesByUserId: new Map(),
+      nowIso: "2026-02-10T22:00:00.000Z",
+    });
+
+    expect(eligibilityByUserId.get("learner-001")).toMatchObject({ status: "eligible" });
+    expect(eligibilityByUserId.get("learner-002")).toMatchObject({ status: "eligible" });
+    expect(mockedFindBadgeIssuanceRuleById).toHaveBeenCalledTimes(1);
+    expect(mockedFindActiveBadgeIssuanceRuleVersion).toHaveBeenCalledTimes(1);
+    expect(mockedLoadRuleFacts).toHaveBeenCalledTimes(2);
+  });
+
+  it("preserves already-issued learners when placement lookup fails", async () => {
+    const eligibilityByUserId = await evaluateLtiRosterMembersEligibility({
+      db: fakeDb,
+      tenantId: "tenant_123",
+      ruleResolution: {
+        status: "unavailable",
+        detail: "CredTrail could not load the course placement for this resource link.",
+      },
+      members: [sampleLtiRosterMember()],
+      issuedStatesByUserId: new Map([
+        [
+          "learner-001",
+          {
+            assertionId: "assertion_123",
+            issuedAt: "2026-02-10T22:00:00.000Z",
+            lifecycleState: null,
+          },
+        ],
+      ]),
+      nowIso: "2026-02-10T22:00:00.000Z",
+    });
+
+    expect(eligibilityByUserId.get("learner-001")).toMatchObject({
+      status: "already_issued",
+    });
+    expect(mockedFindBadgeIssuanceRuleById).not.toHaveBeenCalled();
+  });
+
+  it("uses provider-agnostic roster loaded messaging when evidence is unavailable", () => {
+    const message = ltiBulkIssuanceRosterLoadedMessage({
+      learnerCount: 2,
+      eligibilityResults: [
+        {
+          status: "eligible",
+          label: "Eligible",
+          detail: "Meets the active badge rule.",
+          eligibleForIssuance: true,
+        },
+        {
+          status: "unavailable",
+          label: "Unavailable",
+          detail: "Gradebook unavailable.",
+          eligibleForIssuance: false,
+        },
+      ],
+    });
+
+    expect(message).toContain("rule evidence could not be loaded");
+    expect(message).not.toContain("Sakai");
+  });
+
+  it("requires a resolved rule id to prepare evaluation context", async () => {
+    await expect(
+      prepareLtiRosterEligibilityEvaluationContext({
+        db: fakeDb,
+        tenantId: "tenant_123",
+        ruleId: "brl_123",
+      }),
+    ).resolves.toMatchObject({
+      status: "ready",
+    });
   });
 });

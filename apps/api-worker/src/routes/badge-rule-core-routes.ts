@@ -23,7 +23,7 @@ import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import type { GradebookProvider } from "../lms/gradebook-types";
 import { extractBadgeIssuanceRuleRequirements } from "../rules/engine";
-import { resolveBadgeIssuanceRuleDefinitionValueLists } from "./badge-rule-definition-resolver";
+import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
 import {
   GradebookProviderResolutionError,
   resolveGradebookProviderWithConnection,

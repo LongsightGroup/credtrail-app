@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   evaluateBadgeIssuanceRuleDefinition,
   extractBadgeIssuanceRuleRequirements,
+  primaryEvaluationDetail,
   summarizeBadgeIssuanceRuleEvaluation,
 } from "./engine";
 import { parseCreateBadgeIssuanceRuleRequest } from "@credtrail/validation";
@@ -257,5 +258,29 @@ describe("badge issuance rule engine", () => {
     expect(result.matched).toBe(true);
     expect(JSON.stringify(result.tree)).toContain("exit_survey");
     expect(JSON.stringify(result.tree)).toContain("cohortYear");
+  });
+
+  it("prefers missing-data detail when summarizing evaluation trees", () => {
+    const detail = primaryEvaluationDetail({
+      type: "all",
+      matched: false,
+      detail: "All conditions must match.",
+      children: [
+        {
+          type: "grade_threshold",
+          matched: false,
+          detail: "Final score is below minimum.",
+          resultKind: "failed_condition",
+        },
+        {
+          type: "grade_threshold",
+          matched: false,
+          detail: "No final score is available.",
+          resultKind: "missing_data",
+        },
+      ],
+    });
+
+    expect(detail).toBe("No final score is available.");
   });
 });

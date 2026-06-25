@@ -23,9 +23,9 @@ import {
 import {
   resolveRuleDefinition,
   resolveBadgeIssuanceRuleDefinitionValueLists,
-} from "./badge-rule-definition-resolver";
+} from "../rules/badge-rule-definition-resolver";
 import { badgeRuleEvaluationOutcome } from "./badge-rule-evaluation-helpers";
-import { loadRuleFacts } from "./badge-rule-facts-loader";
+import { loadRuleFacts } from "../rules/badge-rule-facts-loader";
 import {
   isIssueBadgeHttpError,
   type DirectIssueBadgeResult,

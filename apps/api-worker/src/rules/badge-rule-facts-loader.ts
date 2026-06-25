@@ -15,7 +15,7 @@ import {
   type BadgeIssuanceRuleGradeFact,
   type BadgeIssuanceRuleSubmissionFact,
   type BadgeIssuanceRuleSurveyCompletionFact,
-} from "../rules/engine";
+} from "./engine";
 import { resolveGradebookProvider } from "../lms/gradebook-provider-resolution";
 
 export const loadRuleFacts = async (input: {

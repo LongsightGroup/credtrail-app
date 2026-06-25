@@ -17,12 +17,12 @@ import {
   summarizeBadgeIssuanceRuleEvaluation,
   type BadgeIssuanceRuleEvaluationFacts,
 } from "../rules/engine";
-import { resolveBadgeIssuanceRuleDefinitionValueLists } from "./badge-rule-definition-resolver";
+import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
 import {
   badgeRuleEvaluationOutcome,
   parseFactsFromEvaluationRecord,
 } from "./badge-rule-evaluation-helpers";
-import { loadRuleFacts } from "./badge-rule-facts-loader";
+import { loadRuleFacts } from "../rules/badge-rule-facts-loader";
 import { isClientGradebookProviderResolutionError } from "../lms/gradebook-provider-resolution";
 
 interface RegisterBadgeRulePreviewRoutesInput {

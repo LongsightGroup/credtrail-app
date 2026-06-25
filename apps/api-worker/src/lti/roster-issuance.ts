@@ -6,13 +6,16 @@ import type { SqlDatabase } from "@credtrail/db";
 import type { LtiIssuanceActionPayload } from "./issuance-action-token";
 import { logLtiWarning } from "./log";
 import { ltiNrpsRosterFromCoreMembers, type LtiNrpsMember } from "./nrps";
-import { evaluateLtiRosterMemberIssuanceEligibility } from "./roster-eligibility";
 import {
   ltiIssuanceIdempotencyKeyFromPrefix,
   ltiIssuanceIdempotencyKeyPrefix,
   ltiRosterIssuedBadgeStatesByUserId,
   skippedLtiIssuanceResult,
 } from "./roster-issuance-helpers";
+import {
+  ltiRosterIssuanceSkipDetail,
+  prepareLtiRosterBulkIssuanceContext,
+} from "./roster-bulk-issuance-context";
 import type { LtiRosterIssuanceResultEntry } from "./view-models";
 
 export class LtiRosterIssuanceError extends Error {
@@ -88,7 +91,19 @@ export const executeLtiRosterIssuance = async (
     action: input.issuanceAction,
     learnerMembers: roster.learnerMembers,
   });
-  const nowIso = new Date().toISOString();
+  const bulkContext = await prepareLtiRosterBulkIssuanceContext({
+    db: input.db,
+    tenantId: input.issuanceAction.tenantId,
+    issuer: input.issuanceAction.issuer,
+    clientId: input.issuanceAction.clientId,
+    deploymentId: input.issuanceAction.deploymentId,
+    resourceLinkId: input.issuanceAction.resourceLinkId,
+    launchRuleId: null,
+    members: roster.learnerMembers,
+    issuedStatesByUserId: issuedBadgeStatesByUserId,
+    nowIso: new Date().toISOString(),
+    memberEligibilityPolicy: "skip_when_manual_blocked",
+  });
 
   for (const learnerUserId of input.selectedLearnerUserIds) {
     const member = learnersByUserId.get(learnerUserId);
@@ -105,32 +120,39 @@ export const executeLtiRosterIssuance = async (
       continue;
     }
 
-    if (member.email === null) {
-      results.push(skippedLtiIssuanceResult(member, "The LMS did not provide an email address."));
-      continue;
-    }
-
-    const eligibility = await evaluateLtiRosterMemberIssuanceEligibility({
-      db: input.db,
-      issuanceAction: input.issuanceAction,
-      member,
-      issuedState: issuedBadgeStatesByUserId.get(member.userId) ?? null,
-      nowIso,
+    const issuedState = issuedBadgeStatesByUserId.get(member.userId) ?? null;
+    const skipDetail = ltiRosterIssuanceSkipDetail({
+      issuedState,
+      bulkContext,
     });
 
-    if (eligibility.status === "already_issued") {
-      results.push(skippedLtiIssuanceResult(member, "Badge was already issued for this learner."));
+    if (skipDetail !== null) {
+      results.push(skippedLtiIssuanceResult(member, skipDetail));
       continue;
     }
 
-    if (!eligibility.eligibleForIssuance) {
+    const eligibility = bulkContext.eligibilityByUserId.get(member.userId);
+
+    if (eligibility === undefined || !eligibility.eligibleForIssuance) {
+      results.push(
+        skippedLtiIssuanceResult(
+          member,
+          eligibility?.detail ?? "Learner is not eligible for badge issuance.",
+        ),
+      );
+      continue;
+    }
+
+    const recipientEmail = member.email;
+
+    if (recipientEmail === null) {
       results.push(skippedLtiIssuanceResult(member, eligibility.detail));
       continue;
     }
 
     const request: DirectIssueBadgeRequest = {
       badgeTemplateId: input.issuanceAction.badgeTemplateId,
-      recipientIdentity: member.email,
+      recipientIdentity: recipientEmail,
       recipientIdentityType: "email",
       ...(member.sourcedId === null
         ? {}

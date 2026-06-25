@@ -619,3 +619,17 @@ export const summarizeBadgeIssuanceRuleEvaluation = (
   visit(evaluation.tree);
   return summary;
 };
+
+export const primaryEvaluationDetail = (node: BadgeIssuanceRuleEvaluationNode): string => {
+  if (node.children === undefined || node.children.length === 0) {
+    return node.detail;
+  }
+
+  const preferredChild =
+    node.children.find((child) => child.resultKind === "missing_data") ??
+    node.children.find((child) => child.resultKind === "failed_condition") ??
+    node.children.find((child) => !child.matched) ??
+    node.children[0];
+
+  return preferredChild === undefined ? node.detail : primaryEvaluationDetail(preferredChild);
+};

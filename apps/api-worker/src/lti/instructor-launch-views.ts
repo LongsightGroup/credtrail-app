@@ -25,11 +25,8 @@ import type {
   ValidatedResourceLinkLaunch,
 } from "./resource-link-launch-types";
 import { ltiRosterIssuedBadgeStatesByUserId } from "./roster-issuance-helpers";
-import {
-  evaluateLtiRosterMemberEligibility,
-  resolveLtiRosterEligibilityRuleContext,
-  type LtiRosterEligibilityResult,
-} from "./roster-eligibility";
+import { prepareLtiRosterBulkIssuanceContext } from "./roster-bulk-issuance-context";
+import type { LtiRosterEligibilityResult } from "./roster-eligibility";
 import { ltiBadgeSummaryCardFromTemplate, newestAssertion } from "./badge-summary-helpers";
 import type {
   InstructorResourceLinkViews,
@@ -37,6 +34,11 @@ import type {
   LtiBulkIssuanceView,
   LtiCourseBadgeSummaryView,
 } from "./view-models";
+import {
+  ltiRosterRulePendingIssuanceBehavior,
+  ltiRosterUnavailableIssuanceBehavior,
+  type LtiRosterIssuanceBehavior,
+} from "./issuance-behavior";
 
 interface ResolveInstructorResourceLinkViewsBaseInput {
   db: SqlDatabase;
@@ -64,6 +66,7 @@ const ltiBulkIssuanceViewFromRoster = (input: {
   courseContextTitle: string | null;
   courseContextId: string | null;
   contextMembershipsUrl: string;
+  issuanceBehavior: LtiRosterIssuanceBehavior;
   issuedBadgeStatesByUserId: ReadonlyMap<
     string,
     {
@@ -76,17 +79,11 @@ const ltiBulkIssuanceViewFromRoster = (input: {
 }): LtiBulkIssuanceView => {
   const learnerMembers = input.roster.learnerMembers.map((member) => {
     const issuedState = input.issuedBadgeStatesByUserId.get(member.userId) ?? null;
-    const eligibility =
-      input.eligibilityByUserId.get(member.userId) ??
-      ({
-        status: issuedState === null ? "rule_pending" : "already_issued",
-        label: issuedState === null ? "Rule pending" : "Already issued",
-        detail:
-          issuedState === null
-            ? "No active course rule is linked to this placement."
-            : "Badge was already issued for this learner.",
-        eligibleForIssuance: false,
-      } satisfies LtiRosterEligibilityResult);
+    const eligibility = input.eligibilityByUserId.get(member.userId);
+
+    if (eligibility === undefined) {
+      throw new Error(`Missing roster eligibility for learner ${member.userId}`);
+    }
 
     return {
       userId: member.userId,
@@ -114,6 +111,10 @@ const ltiBulkIssuanceViewFromRoster = (input: {
     contextMembershipsUrl: input.contextMembershipsUrl,
     learnerCount: learnerMembers.length,
     totalCount: input.roster.members.length,
+    issuanceBehaviorKey: input.issuanceBehavior.key,
+    issuanceBehaviorLabel: input.issuanceBehavior.label,
+    issuanceBehaviorDetail: input.issuanceBehavior.detail,
+    manualIssuanceAllowed: input.issuanceBehavior.manualIssuanceAllowed,
     issuanceActionPath: null,
     issuanceActionToken: null,
     members: learnerMembers,
@@ -137,6 +138,16 @@ const ltiEmptyBulkIssuanceView = (input: {
     contextMembershipsUrl: input.contextMembershipsUrl,
     learnerCount: 0,
     totalCount: 0,
+    issuanceBehaviorKey:
+      input.status === "unavailable"
+        ? ltiRosterUnavailableIssuanceBehavior(input.message).key
+        : ltiRosterRulePendingIssuanceBehavior(input.message).key,
+    issuanceBehaviorLabel:
+      input.status === "unavailable"
+        ? ltiRosterUnavailableIssuanceBehavior(input.message).label
+        : ltiRosterRulePendingIssuanceBehavior(input.message).label,
+    issuanceBehaviorDetail: input.message,
+    manualIssuanceAllowed: false,
     issuanceActionPath: null,
     issuanceActionToken: null,
     members: [],
@@ -417,22 +428,20 @@ const resolveBulkIssuanceView = async (input: {
     members,
   });
   const issuanceActionContextId = input.courseContextId ?? input.ltiLaunchSession.context.id;
-  const issuanceActionInput =
+  const rosterIssuanceLookupContext =
     issuanceActionContextId.length > 0
       ? {
           tenantId: input.tenantId,
-          ltiSessionId: input.ltiLaunchSession.id,
           issuer: input.launchClaims.iss,
           clientId: input.issuerClientId,
           deploymentId: input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
           contextId: issuanceActionContextId,
           resourceLinkId: input.launchMessage.resourceLinkId,
           badgeTemplateId: input.selectedBadge.badgeTemplateId,
-          issuedByUserId: input.linkedUserId,
         }
       : null;
   const issuedBadgeStatesByUserId =
-    issuanceActionInput === null
+    rosterIssuanceLookupContext === null
       ? new Map<
           string,
           {
@@ -444,10 +453,18 @@ const resolveBulkIssuanceView = async (input: {
       : await ltiRosterIssuedBadgeStatesByUserId({
           db: input.db,
           sha256Hex: input.sha256Hex,
-          action: issuanceActionInput,
+          action: rosterIssuanceLookupContext,
           learnerMembers: roster.learnerMembers,
         });
-  const ruleContext = await resolveLtiRosterEligibilityRuleContext({
+  const issuanceActionInput =
+    rosterIssuanceLookupContext === null
+      ? null
+      : {
+          ...rosterIssuanceLookupContext,
+          ltiSessionId: input.ltiLaunchSession.id,
+          issuedByUserId: input.linkedUserId,
+        };
+  const bulkContext = await prepareLtiRosterBulkIssuanceContext({
     db: input.db,
     tenantId: input.tenantId,
     issuer: input.launchClaims.iss,
@@ -455,43 +472,24 @@ const resolveBulkIssuanceView = async (input: {
     deploymentId: input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
     resourceLinkId: input.launchMessage.resourceLinkId,
     launchRuleId: input.launchMessage.ruleId,
+    members: roster.learnerMembers,
+    issuedStatesByUserId: issuedBadgeStatesByUserId,
+    nowIso: new Date().toISOString(),
+    memberEligibilityPolicy: "full",
   });
-  const nowIso = new Date().toISOString();
-  const eligibilityEntries = await Promise.all(
-    roster.learnerMembers.map(async (member) => {
-      const eligibility = await evaluateLtiRosterMemberEligibility({
-        db: input.db,
-        tenantId: input.tenantId,
-        ruleId: ruleContext.ruleId,
-        member,
-        issuedState: issuedBadgeStatesByUserId.get(member.userId) ?? null,
-        nowIso,
-      });
-
-      return [member.userId, eligibility] as const;
-    }),
-  );
-  const eligibilityByUserId = new Map(eligibilityEntries);
-  const unavailableCount = eligibilityEntries.filter(
-    ([, eligibility]) => eligibility.status === "unavailable",
-  ).length;
   let bulkIssuanceView = ltiBulkIssuanceViewFromRoster({
     roster,
-    message:
-      unavailableCount === 0
-        ? `Loaded ${String(roster.learnerMembers.length)} learner${
-            roster.learnerMembers.length === 1 ? "" : "s"
-          } from LMS roster.`
-        : "CredTrail loaded the LMS roster, but Sakai gradebook evidence is unavailable for one or more learners.",
+    message: bulkContext.rosterLoadedMessage,
     selectedBadge: input.selectedBadge,
     courseContextTitle: input.courseContextTitle,
     courseContextId: input.courseContextId,
     contextMembershipsUrl: input.contextMembershipsUrl,
+    issuanceBehavior: bulkContext.issuanceBehavior,
     issuedBadgeStatesByUserId,
-    eligibilityByUserId,
+    eligibilityByUserId: bulkContext.eligibilityByUserId,
   });
 
-  if (issuanceActionInput !== null) {
+  if (issuanceActionInput !== null && bulkContext.issuanceBehavior.manualIssuanceAllowed) {
     bulkIssuanceView = ltiBulkIssuanceViewWithAction(bulkIssuanceView, {
       issuanceActionToken: await createLtiIssuanceActionToken(input.env, {
         ...issuanceActionInput,

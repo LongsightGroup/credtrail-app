@@ -3,20 +3,27 @@ import {
   findBadgeIssuanceRuleById,
   findLtiResourceLinkPlacement,
   type AssertionLifecycleState,
+  type BadgeIssuanceRuleRecord,
   type SqlDatabase,
 } from "@credtrail/db";
-import type { LtiIssuanceActionPayload } from "./issuance-action-token";
+import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import type { LtiNrpsMember } from "./nrps";
+import { logLtiWarning } from "./log";
 import {
   evaluateBadgeIssuanceRuleDefinition,
+  primaryEvaluationDetail,
   summarizeBadgeIssuanceRuleEvaluation,
-  type BadgeIssuanceRuleEvaluationNode,
 } from "../rules/engine";
-import { loadRuleFacts } from "../routes/badge-rule-facts-loader";
+import { loadRuleFacts } from "../rules/badge-rule-facts-loader";
 import {
   resolveBadgeIssuanceRuleDefinitionValueLists,
   resolveRuleDefinition,
-} from "../routes/badge-rule-definition-resolver";
+} from "../rules/badge-rule-definition-resolver";
+import {
+  ltiRosterIssuanceBehaviorFromRuleDefinition,
+  ltiRosterRulePendingIssuanceBehavior,
+  type LtiRosterIssuanceBehavior,
+} from "./issuance-behavior";
 
 export type LtiRosterEligibilityStatus =
   | "eligible"
@@ -39,9 +46,29 @@ export interface LtiRosterEligibilityResult {
   eligibleForIssuance: boolean;
 }
 
-interface LtiRosterEligibilityRuleContext {
-  ruleId: string | null;
-}
+export type LtiRosterEligibilityRuleResolution =
+  | { status: "resolved"; ruleId: string }
+  | { status: "rule_pending"; detail: string }
+  | { status: "unavailable"; detail: string };
+
+export type LtiRosterEligibilityPreparedEvaluation =
+  | {
+      status: "ready";
+      lmsProviderKind: BadgeIssuanceRuleRecord["lmsProviderKind"];
+      lmsConnectionId: string | null;
+      definition: BadgeIssuanceRuleDefinition;
+      issuanceBehavior: LtiRosterIssuanceBehavior;
+    }
+  | {
+      status: "rule_pending";
+      detail: string;
+      issuanceBehavior: LtiRosterIssuanceBehavior;
+    };
+
+export const LTI_ROSTER_NO_RULE_LINKED_DETAIL =
+  "No active course rule is linked to this placement.";
+const PLACEMENT_LOOKUP_FAILED_DETAIL =
+  "CredTrail could not load the course placement for this resource link.";
 
 const statusResult = (
   status: LtiRosterEligibilityStatus,
@@ -65,18 +92,31 @@ const statusResult = (
   };
 };
 
-const firstLeafDetail = (node: BadgeIssuanceRuleEvaluationNode): string => {
-  if (node.children === undefined || node.children.length === 0) {
-    return node.detail;
+export const ltiBulkIssuanceRosterLoadedMessage = (input: {
+  learnerCount: number;
+  eligibilityResults: readonly LtiRosterEligibilityResult[];
+}): string => {
+  const unavailableCount = input.eligibilityResults.filter(
+    (eligibility) => eligibility.status === "unavailable",
+  ).length;
+
+  if (unavailableCount === 0) {
+    return `Loaded ${String(input.learnerCount)} learner${
+      input.learnerCount === 1 ? "" : "s"
+    } from LMS roster.`;
   }
 
-  const preferredChild =
-    node.children.find((child) => child.resultKind === "missing_data") ??
-    node.children.find((child) => child.resultKind === "failed_condition") ??
-    node.children.find((child) => !child.matched) ??
-    node.children[0];
+  return "CredTrail loaded the LMS roster, but rule evidence could not be loaded for one or more learners.";
+};
 
-  return preferredChild === undefined ? node.detail : firstLeafDetail(preferredChild);
+export const rosterMemberEligibilityFromRuleResolution = (
+  ruleResolution: Exclude<LtiRosterEligibilityRuleResolution, { status: "resolved" }>,
+): LtiRosterEligibilityResult => {
+  return statusResult(
+    ruleResolution.status === "unavailable" ? "unavailable" : "rule_pending",
+    ruleResolution.detail,
+    false,
+  );
 };
 
 export const resolveLtiRosterEligibilityRuleContext = async (input: {
@@ -87,9 +127,10 @@ export const resolveLtiRosterEligibilityRuleContext = async (input: {
   deploymentId: string;
   resourceLinkId: string;
   launchRuleId: string | null;
-}): Promise<LtiRosterEligibilityRuleContext> => {
+}): Promise<LtiRosterEligibilityRuleResolution> => {
   if (input.launchRuleId !== null) {
     return {
+      status: "resolved",
       ruleId: input.launchRuleId,
     };
   }
@@ -103,47 +144,122 @@ export const resolveLtiRosterEligibilityRuleContext = async (input: {
       deploymentId: input.deploymentId,
       resourceLinkId: input.resourceLinkId,
     });
-  } catch {
+  } catch (error) {
+    logLtiWarning("Could not resolve LTI resource link placement for roster eligibility", {
+      tenantId: input.tenantId,
+      resourceLinkId: input.resourceLinkId,
+      detail: error instanceof Error ? error.message : "unknown error",
+    });
+
     return {
-      ruleId: null,
+      status: "unavailable",
+      detail: PLACEMENT_LOOKUP_FAILED_DETAIL,
     };
   }
 
-  if (placement === null || placement.tenantId !== input.tenantId) {
+  if (placement === null || placement.tenantId !== input.tenantId || placement.ruleId === null) {
     return {
-      ruleId: null,
+      status: "rule_pending",
+      detail: LTI_ROSTER_NO_RULE_LINKED_DETAIL,
     };
   }
 
   return {
+    status: "resolved",
     ruleId: placement.ruleId,
   };
 };
 
-export const evaluateLtiRosterMemberEligibility = async (input: {
+export const prepareLtiRosterEligibilityEvaluationContext = async (input: {
   db: SqlDatabase;
   tenantId: string;
-  ruleId: string | null;
-  member: LtiNrpsMember;
-  issuedState: LtiRosterIssuedBadgeStateForEligibility | null;
-  nowIso: string;
-}): Promise<LtiRosterEligibilityResult> => {
-  if (input.issuedState !== null) {
-    return statusResult(
-      "already_issued",
-      input.issuedState.lifecycleState === null || input.issuedState.lifecycleState === "active"
-        ? "Badge was already issued for this learner."
-        : `Badge was already issued and is ${input.issuedState.lifecycleState}.`,
-      false,
-    );
+  ruleId: string;
+}): Promise<LtiRosterEligibilityPreparedEvaluation> => {
+  const rule = await findBadgeIssuanceRuleById(input.db, input.tenantId, input.ruleId);
+
+  if (rule === null) {
+    return {
+      status: "rule_pending",
+      detail: LTI_ROSTER_NO_RULE_LINKED_DETAIL,
+      issuanceBehavior: ltiRosterRulePendingIssuanceBehavior(LTI_ROSTER_NO_RULE_LINKED_DETAIL),
+    };
   }
 
-  if (input.ruleId === null) {
-    return statusResult(
-      "rule_pending",
-      "No active course rule is linked to this placement.",
-      false,
-    );
+  const activeVersion = await findActiveBadgeIssuanceRuleVersion(input.db, {
+    tenantId: input.tenantId,
+    ruleId: rule.id,
+  });
+
+  if (activeVersion === null) {
+    return {
+      status: "rule_pending",
+      detail: "Rule is waiting for review and activation.",
+      issuanceBehavior: ltiRosterRulePendingIssuanceBehavior(
+        "Rule is waiting for review and activation.",
+      ),
+    };
+  }
+
+  const definition = await resolveBadgeIssuanceRuleDefinitionValueLists(
+    input.db,
+    input.tenantId,
+    resolveRuleDefinition(activeVersion.ruleJson),
+  );
+
+  return {
+    status: "ready",
+    lmsProviderKind: rule.lmsProviderKind,
+    lmsConnectionId: rule.lmsConnectionId,
+    definition,
+    issuanceBehavior: ltiRosterIssuanceBehaviorFromRuleDefinition(definition),
+  };
+};
+
+const eligibilityFromEvaluation = (
+  evaluation: ReturnType<typeof evaluateBadgeIssuanceRuleDefinition>,
+): LtiRosterEligibilityResult => {
+  if (evaluation.matched) {
+    return statusResult("eligible", "Meets the active badge rule.", true);
+  }
+
+  const summary = summarizeBadgeIssuanceRuleEvaluation(evaluation);
+  const detail = primaryEvaluationDetail(evaluation.tree);
+
+  if (summary.missingDataCount > 0) {
+    return statusResult("missing_evidence", detail, false);
+  }
+
+  return statusResult("not_yet_eligible", detail, false);
+};
+
+export const ltiRosterAlreadyIssuedEligibilityDetail = (
+  issuedState: LtiRosterIssuedBadgeStateForEligibility,
+): string =>
+  issuedState.lifecycleState === null || issuedState.lifecycleState === "active"
+    ? "Badge was already issued for this learner."
+    : `Badge was already issued and is ${issuedState.lifecycleState}.`;
+
+const alreadyIssuedEligibilityResult = (
+  issuedState: LtiRosterIssuedBadgeStateForEligibility,
+): LtiRosterEligibilityResult => {
+  return statusResult(
+    "already_issued",
+    ltiRosterAlreadyIssuedEligibilityDetail(issuedState),
+    false,
+  );
+};
+
+const memberEligibilityBeforeRuleEvaluation = (input: {
+  member: LtiNrpsMember;
+  issuedState: LtiRosterIssuedBadgeStateForEligibility | null;
+  prepared: LtiRosterEligibilityPreparedEvaluation;
+}): LtiRosterEligibilityResult | null => {
+  if (input.issuedState !== null) {
+    return alreadyIssuedEligibilityResult(input.issuedState);
+  }
+
+  if (input.prepared.status === "rule_pending") {
+    return statusResult("rule_pending", input.prepared.detail, false);
   }
 
   if (input.member.email === null) {
@@ -154,56 +270,52 @@ export const evaluateLtiRosterMemberEligibility = async (input: {
     );
   }
 
-  const rule = await findBadgeIssuanceRuleById(input.db, input.tenantId, input.ruleId);
+  return null;
+};
 
-  if (rule === null) {
-    return statusResult(
-      "rule_pending",
-      "No active course rule is linked to this placement.",
-      false,
-    );
-  }
+const ltiNrpsMemberWithEmail = (
+  member: LtiNrpsMember,
+): member is LtiNrpsMember & { email: string } => {
+  return member.email !== null;
+};
 
-  const activeVersion = await findActiveBadgeIssuanceRuleVersion(input.db, {
-    tenantId: input.tenantId,
-    ruleId: rule.id,
+const evaluateLtiRosterMemberEligibilityWithPreparedContext = async (input: {
+  db: SqlDatabase;
+  tenantId: string;
+  member: LtiNrpsMember;
+  issuedState: LtiRosterIssuedBadgeStateForEligibility | null;
+  nowIso: string;
+  prepared: LtiRosterEligibilityPreparedEvaluation;
+}): Promise<LtiRosterEligibilityResult> => {
+  const earlyResult = memberEligibilityBeforeRuleEvaluation({
+    member: input.member,
+    issuedState: input.issuedState,
+    prepared: input.prepared,
   });
 
-  if (activeVersion === null) {
-    return statusResult("rule_pending", "Rule is waiting for review and activation.", false);
+  if (earlyResult !== null) {
+    return earlyResult;
+  }
+
+  if (input.prepared.status !== "ready" || !ltiNrpsMemberWithEmail(input.member)) {
+    return statusResult("rule_pending", LTI_ROSTER_NO_RULE_LINKED_DETAIL, false);
   }
 
   try {
-    const definition = await resolveBadgeIssuanceRuleDefinitionValueLists(
-      input.db,
-      input.tenantId,
-      resolveRuleDefinition(activeVersion.ruleJson),
-    );
     const facts = await loadRuleFacts({
       db: input.db,
       tenantId: input.tenantId,
-      lmsProviderKind: rule.lmsProviderKind,
-      lmsConnectionId: rule.lmsConnectionId ?? undefined,
+      lmsProviderKind: input.prepared.lmsProviderKind,
+      lmsConnectionId: input.prepared.lmsConnectionId ?? undefined,
       learnerId: input.member.userId,
       recipientIdentity: input.member.email,
       recipientIdentityType: "email",
-      definition,
+      definition: input.prepared.definition,
       nowIso: input.nowIso,
     });
-    const evaluation = evaluateBadgeIssuanceRuleDefinition(definition, facts);
+    const evaluation = evaluateBadgeIssuanceRuleDefinition(input.prepared.definition, facts);
 
-    if (evaluation.matched) {
-      return statusResult("eligible", "Meets the active badge rule.", true);
-    }
-
-    const summary = summarizeBadgeIssuanceRuleEvaluation(evaluation);
-    const detail = firstLeafDetail(evaluation.tree);
-
-    if (summary.missingDataCount > 0) {
-      return statusResult("missing_evidence", detail, false);
-    }
-
-    return statusResult("not_yet_eligible", detail, false);
+    return eligibilityFromEvaluation(evaluation);
   } catch (error) {
     return statusResult(
       "unavailable",
@@ -215,29 +327,102 @@ export const evaluateLtiRosterMemberEligibility = async (input: {
   }
 };
 
-export const evaluateLtiRosterMemberIssuanceEligibility = async (input: {
+export const evaluateLtiRosterMemberEligibility = async (input: {
   db: SqlDatabase;
-  issuanceAction: LtiIssuanceActionPayload;
+  tenantId: string;
+  ruleResolution: LtiRosterEligibilityRuleResolution;
   member: LtiNrpsMember;
   issuedState: LtiRosterIssuedBadgeStateForEligibility | null;
   nowIso: string;
 }): Promise<LtiRosterEligibilityResult> => {
-  const ruleContext = await resolveLtiRosterEligibilityRuleContext({
+  if (input.issuedState !== null) {
+    return alreadyIssuedEligibilityResult(input.issuedState);
+  }
+
+  if (input.ruleResolution.status !== "resolved") {
+    return rosterMemberEligibilityFromRuleResolution(input.ruleResolution);
+  }
+
+  const prepared = await prepareLtiRosterEligibilityEvaluationContext({
     db: input.db,
-    tenantId: input.issuanceAction.tenantId,
-    issuer: input.issuanceAction.issuer,
-    clientId: input.issuanceAction.clientId,
-    deploymentId: input.issuanceAction.deploymentId,
-    resourceLinkId: input.issuanceAction.resourceLinkId,
-    launchRuleId: null,
+    tenantId: input.tenantId,
+    ruleId: input.ruleResolution.ruleId,
   });
 
-  return evaluateLtiRosterMemberEligibility({
+  return evaluateLtiRosterMemberEligibilityWithPreparedContext({
     db: input.db,
-    tenantId: input.issuanceAction.tenantId,
-    ruleId: ruleContext.ruleId,
+    tenantId: input.tenantId,
     member: input.member,
     issuedState: input.issuedState,
     nowIso: input.nowIso,
+    prepared,
   });
+};
+
+export const evaluateLtiRosterMembersEligibility = async (input: {
+  db: SqlDatabase;
+  tenantId: string;
+  ruleResolution: LtiRosterEligibilityRuleResolution;
+  members: readonly LtiNrpsMember[];
+  issuedStatesByUserId: ReadonlyMap<string, LtiRosterIssuedBadgeStateForEligibility>;
+  nowIso: string;
+  prepared?: LtiRosterEligibilityPreparedEvaluation | null;
+}): Promise<Map<string, LtiRosterEligibilityResult>> => {
+  if (input.ruleResolution.status !== "resolved") {
+    const unresolvedResult = rosterMemberEligibilityFromRuleResolution(input.ruleResolution);
+
+    return new Map(
+      input.members.map((member) => {
+        const issuedState = input.issuedStatesByUserId.get(member.userId) ?? null;
+
+        return [
+          member.userId,
+          issuedState === null ? unresolvedResult : alreadyIssuedEligibilityResult(issuedState),
+        ] as const;
+      }),
+    );
+  }
+
+  const prepared =
+    input.prepared ??
+    (await prepareLtiRosterEligibilityEvaluationContext({
+      db: input.db,
+      tenantId: input.tenantId,
+      ruleId: input.ruleResolution.ruleId,
+    }));
+
+  return evaluateLtiRosterMembersEligibilityWithPreparedContext({
+    db: input.db,
+    tenantId: input.tenantId,
+    prepared,
+    members: input.members,
+    issuedStatesByUserId: input.issuedStatesByUserId,
+    nowIso: input.nowIso,
+  });
+};
+
+const evaluateLtiRosterMembersEligibilityWithPreparedContext = async (input: {
+  db: SqlDatabase;
+  tenantId: string;
+  prepared: LtiRosterEligibilityPreparedEvaluation;
+  members: readonly LtiNrpsMember[];
+  issuedStatesByUserId: ReadonlyMap<string, LtiRosterIssuedBadgeStateForEligibility>;
+  nowIso: string;
+}): Promise<Map<string, LtiRosterEligibilityResult>> => {
+  const eligibilityEntries = await Promise.all(
+    input.members.map(async (member) => {
+      const eligibility = await evaluateLtiRosterMemberEligibilityWithPreparedContext({
+        db: input.db,
+        tenantId: input.tenantId,
+        member,
+        issuedState: input.issuedStatesByUserId.get(member.userId) ?? null,
+        nowIso: input.nowIso,
+        prepared: input.prepared,
+      });
+
+      return [member.userId, eligibility] as const;
+    }),
+  );
+
+  return new Map(eligibilityEntries);
 };
