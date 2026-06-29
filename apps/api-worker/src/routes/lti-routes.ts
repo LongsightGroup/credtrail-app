@@ -5,7 +5,11 @@ import {
   upsertLtiDeployment,
   type SqlDatabase,
 } from "@credtrail/db";
-import { createLtiPostMessageStorageRedirect, parseLtiLoginInitiation } from "@lti-tool/core";
+import {
+  createLtiPostMessageStorageRedirect,
+  parseLtiLoginInitiation,
+  resolveLtiServiceCapabilities,
+} from "@lti-tool/core";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import { renderAppPage } from "../ui/render-page";
@@ -234,8 +238,10 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       env: c.env,
     });
     const ltiSession = await ltiTool.getSession(ltiSessionId);
+    const ltiCapabilities =
+      ltiSession === undefined ? null : resolveLtiServiceCapabilities(ltiSession);
 
-    if (ltiSession === undefined || ltiSession.services?.deepLinking === undefined) {
+    if (ltiSession === undefined || ltiCapabilities?.deepLinking.available !== true) {
       return c.json(
         {
           error: "LTI Deep Linking session was not found or is no longer active",

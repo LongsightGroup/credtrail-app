@@ -68,9 +68,7 @@ describe("parsePersistedLtiSessionDataJson", () => {
         clientId: "canvas-client-123",
         deploymentId: "deployment-123",
       },
-      services: {
-        deepLinking: session.services.deepLinking,
-      },
+      hasDeepLinkingService: true,
       isInstructor: true,
     });
   });

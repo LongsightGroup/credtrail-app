@@ -89,8 +89,8 @@ importers:
         specifier: ^2.0.4
         version: 2.0.4(hono@4.12.23)
       '@lti-tool/core':
-        specifier: file:../../vendor/lti-tool-core-1.1.4-longsight.5.tgz
-        version: file:vendor/lti-tool-core-1.1.4-longsight.5.tgz
+        specifier: file:../../vendor/lti-tool-core-1.1.4-longsight.6.tgz
+        version: file:vendor/lti-tool-core-1.1.4-longsight.6.tgz
       csv-stringify:
         specifier: ^6.7.0
         version: 6.7.0
@@ -1069,8 +1069,8 @@ packages:
     peerDependencies:
       tslib: '2'
 
-  '@lti-tool/core@file:vendor/lti-tool-core-1.1.4-longsight.5.tgz':
-    resolution: {integrity: sha512-aAnCxq3l8JJlE9mhI/CnfvLBXXZQOwE8rsvS1IP9X7wTeH7SpiTUdjoaQ6pedU9a5CdWGCIrQc2jci1OYvFhsg==, tarball: file:vendor/lti-tool-core-1.1.4-longsight.5.tgz}
+  '@lti-tool/core@file:vendor/lti-tool-core-1.1.4-longsight.6.tgz':
+    resolution: {integrity: sha512-2jdj9gmhf22tP78s/4f0TxFAWan4FmkGotJx5TGGtUJ45V8IO0cnZ0jvLrpQTZYyqhazK8sSlS3AYnINBdovNw==, tarball: file:vendor/lti-tool-core-1.1.4-longsight.6.tgz}
     version: 1.1.4
     peerDependencies:
       pino: ^9.11.0
@@ -3599,7 +3599,7 @@ snapshots:
       '@jsonjoy.com/codegen': 17.67.0(tslib@2.8.1)
       tslib: 2.8.1
 
-  '@lti-tool/core@file:vendor/lti-tool-core-1.1.4-longsight.5.tgz':
+  '@lti-tool/core@file:vendor/lti-tool-core-1.1.4-longsight.6.tgz':
     dependencies:
       jose: 6.2.3
       zod: 4.4.3

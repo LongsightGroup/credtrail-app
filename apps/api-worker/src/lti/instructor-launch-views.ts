@@ -10,7 +10,7 @@ import {
 import {
   LTI_CLAIM_CONTEXT,
   LTI_CLAIM_DEPLOYMENT_ID,
-  getLtiNrpsService,
+  resolveLtiServiceCapabilities,
   type LTI13JwtPayload as LtiLaunchClaims,
   type LTISession,
   type LTITool,
@@ -548,7 +548,8 @@ const logLtiNrpsRosterFailure = (input: {
 export const resolveInstructorResourceLinkViews = async (
   input: ResolveInstructorResourceLinkViewsInput,
 ): Promise<InstructorResourceLinkViews> => {
-  const nrpsService = getLtiNrpsService(input.ltiLaunchSession);
+  const serviceCapabilities = resolveLtiServiceCapabilities(input.ltiLaunchSession);
+  const contextMembershipsUrl = serviceCapabilities.nrps.membershipUrl ?? null;
   const contextClaim = asJsonObject(input.launchClaims[LTI_CLAIM_CONTEXT]);
   const courseContextTitle =
     asNonEmptyString(contextClaim?.title) ?? asNonEmptyString(contextClaim?.label) ?? null;
@@ -587,7 +588,7 @@ export const resolveInstructorResourceLinkViews = async (
           selectedBadge,
           courseContextTitle,
           courseContextId,
-          contextMembershipsUrl: nrpsService?.membershipUrl ?? null,
+          contextMembershipsUrl,
         }),
         courseBadgeSummaryView: null,
       };
@@ -609,7 +610,7 @@ export const resolveInstructorResourceLinkViews = async (
           selectedBadge,
           courseContextTitle,
           courseContextId,
-          contextMembershipsUrl: nrpsService?.membershipUrl ?? "",
+          contextMembershipsUrl: contextMembershipsUrl ?? "",
           sha256Hex: input.sha256Hex,
           sessionHandoffTtlSeconds: input.sessionHandoffTtlSeconds,
         }),
@@ -631,7 +632,7 @@ export const resolveInstructorResourceLinkViews = async (
           selectedBadge,
           courseContextTitle,
           courseContextId,
-          contextMembershipsUrl: nrpsService?.membershipUrl ?? null,
+          contextMembershipsUrl,
         }),
         courseBadgeSummaryView: null,
       };

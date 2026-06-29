@@ -4,7 +4,7 @@ import {
   type SqlDatabase,
   type TenantLmsConnectionRecord,
 } from "@credtrail/db";
-import { parsePersistedLtiSession } from "@lti-tool/core";
+import { parsePersistedLtiSession, resolveLtiServiceCapabilities } from "@lti-tool/core";
 import { createGradebookProviderForConnection } from "../lms/gradebook-provider-resolution";
 import type { GradebookProvider } from "../lms/gradebook-types";
 import { findLtiIssuerRegistryEntry } from "./deep-linking-helpers";
@@ -20,9 +20,7 @@ export interface LtiGradebookLookupSession {
     clientId: string;
     deploymentId: string;
   };
-  services?: {
-    deepLinking?: unknown;
-  };
+  hasDeepLinkingService: boolean;
   isInstructor?: boolean;
 }
 
@@ -47,6 +45,8 @@ export const parsePersistedLtiSessionDataJson = (
     return null;
   }
 
+  const capabilities = resolveLtiServiceCapabilities(session);
+
   return {
     context: {
       id: session.context.id,
@@ -56,13 +56,7 @@ export const parsePersistedLtiSessionDataJson = (
       clientId: session.platform.clientId,
       deploymentId: session.platform.deploymentId,
     },
-    ...(session.services?.deepLinking === undefined
-      ? {}
-      : {
-          services: {
-            deepLinking: session.services.deepLinking,
-          },
-        }),
+    hasDeepLinkingService: capabilities.deepLinking.available,
     isInstructor: session.isInstructor,
   };
 };
@@ -88,7 +82,7 @@ export const resolveLtiGradebookLookup = async (input: {
     return { status: 400, error: "LTI launch session data is invalid" };
   }
 
-  if (ltiSession.services?.deepLinking === undefined) {
+  if (!ltiSession.hasDeepLinkingService) {
     return {
       status: 404,
       error: "LTI Deep Linking session was not found or is no longer active",
