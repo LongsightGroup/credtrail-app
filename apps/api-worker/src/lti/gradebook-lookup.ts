@@ -4,6 +4,7 @@ import {
   type SqlDatabase,
   type TenantLmsConnectionRecord,
 } from "@credtrail/db";
+import { parsePersistedLtiSession } from "@lti-tool/core";
 import { createGradebookProviderForConnection } from "../lms/gradebook-provider-resolution";
 import type { GradebookProvider } from "../lms/gradebook-types";
 import { findLtiIssuerRegistryEntry } from "./deep-linking-helpers";
@@ -37,62 +38,32 @@ export type LtiGradebookLookupFailure = {
   error: string;
 };
 
-const asRecord = (value: unknown): Record<string, unknown> | null => {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-
-  return value as Record<string, unknown>;
-};
-
 export const parsePersistedLtiSessionDataJson = (
   dataJson: string,
 ): LtiGradebookLookupSession | null => {
-  let parsed: unknown;
+  const session = parsePersistedLtiSession(dataJson);
 
-  try {
-    parsed = JSON.parse(dataJson);
-  } catch {
-    return null;
-  }
-
-  const candidate = asRecord(parsed);
-  const context = asRecord(candidate?.context);
-  const platform = asRecord(candidate?.platform);
-  const services = asRecord(candidate?.services);
-  const contextId = context?.id;
-  const issuer = platform?.issuer;
-  const clientId = platform?.clientId;
-  const deploymentId = platform?.deploymentId;
-
-  if (
-    typeof contextId !== "string" ||
-    typeof issuer !== "string" ||
-    typeof clientId !== "string" ||
-    typeof deploymentId !== "string"
-  ) {
+  if (session === undefined) {
     return null;
   }
 
   return {
     context: {
-      id: contextId,
+      id: session.context.id,
     },
     platform: {
-      issuer,
-      clientId,
-      deploymentId,
+      issuer: session.platform.issuer,
+      clientId: session.platform.clientId,
+      deploymentId: session.platform.deploymentId,
     },
-    ...(services === null
+    ...(session.services?.deepLinking === undefined
       ? {}
       : {
           services: {
-            deepLinking: services.deepLinking,
+            deepLinking: session.services.deepLinking,
           },
         }),
-    ...(typeof candidate?.isInstructor === "boolean"
-      ? { isInstructor: candidate.isInstructor }
-      : {}),
+    isInstructor: session.isInstructor,
   };
 };
 

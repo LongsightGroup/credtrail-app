@@ -7,6 +7,12 @@ import type {
   LTIStorage,
 } from "@lti-tool/core";
 import {
+  parsePersistedLtiDynamicRegistrationSession,
+  parsePersistedLtiSession,
+  serializeLtiDynamicRegistrationSession,
+  serializeLtiSession,
+} from "@lti-tool/core";
+import {
   consumeLtiLaunchNonce,
   deleteLtiDynamicRegistrationSessionById,
   findLtiDeploymentByIssuerClientDeployment,
@@ -23,10 +29,6 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import { normalizeLtiIssuer } from "./lti-helpers";
-import {
-  parsePersistedLtiDynamicRegistrationSession,
-  parsePersistedLtiSession,
-} from "./persisted-lti-session";
 
 const SESSION_TTL_SECONDS = 60 * 60;
 
@@ -58,7 +60,8 @@ const toClient = async (
   db: SqlDatabase,
   registration: LtiIssuerRegistrationRecord,
 ): Promise<LTIClient> => {
-  const endpoints = requirePlatformEndpoints(registration);
+  const tokenUrl = registration.tokenEndpoint ?? "";
+  const jwksUrl = registration.platformJwksEndpoint ?? "";
   const deployments = await listLtiDeploymentsForIssuer(db, registration.issuer);
 
   return {
@@ -67,8 +70,8 @@ const toClient = async (
     iss: normalizeLtiIssuer(registration.issuer),
     clientId: registration.clientId,
     authUrl: registration.authorizationEndpoint,
-    tokenUrl: endpoints.tokenUrl,
-    jwksUrl: endpoints.jwksUrl,
+    tokenUrl,
+    jwksUrl,
     deployments: deployments.map((deployment) => ({
       id: deployment.id,
       deploymentId: deployment.deploymentId,
@@ -101,10 +104,12 @@ export class CredTrailLtiStorage implements LTIStorage {
   }
 
   async getClientById(clientId: string): Promise<LTIClient | undefined> {
-    const normalizedClientId = normalizeLtiIssuer(clientId);
+    const normalizedCandidate = normalizeLtiIssuer(clientId);
     const registrations = await listLtiIssuerRegistrations(this.db);
     const registration = registrations.find(
-      (candidate) => normalizeLtiIssuer(candidate.issuer) === normalizedClientId,
+      (candidate) =>
+        candidate.clientId === clientId ||
+        normalizeLtiIssuer(candidate.issuer) === normalizedCandidate,
     );
 
     if (registration === undefined) {
@@ -256,7 +261,7 @@ export class CredTrailLtiStorage implements LTIStorage {
       issuer: session.platform.issuer,
       clientId: session.platform.clientId,
       deploymentId: session.platform.deploymentId,
-      dataJson: JSON.stringify(session),
+      dataJson: serializeLtiSession(session),
       expiresAt: addSeconds(SESSION_TTL_SECONDS),
     });
 
@@ -345,7 +350,7 @@ export class CredTrailLtiStorage implements LTIStorage {
   ): Promise<void> {
     await upsertLtiDynamicRegistrationSession(this.db, {
       id: sessionId,
-      dataJson: JSON.stringify(session),
+      dataJson: serializeLtiDynamicRegistrationSession(session),
       expiresAt: new Date(session.expiresAt).toISOString(),
     });
   }

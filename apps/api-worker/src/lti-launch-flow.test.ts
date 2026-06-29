@@ -113,7 +113,7 @@ import {
   type TenantLmsConnectionRecord,
   type TenantMembershipRecord,
 } from "@credtrail/db";
-import type { LTISession } from "@lti-tool/core";
+import { LtiServiceError, type LTISession } from "@lti-tool/core";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
@@ -1268,7 +1268,7 @@ describe("LTI 1.3 core launch flow", () => {
 
   const loadAppWithMockedSignedLtiTool = async (options?: {
     authorizationEndpoint?: string;
-    getMembers?: ReturnType<typeof vi.fn>;
+    getMembersDetailed?: ReturnType<typeof vi.fn>;
     getSession?: ReturnType<typeof vi.fn>;
     issueBadgeForTenant?: ReturnType<typeof vi.fn>;
   }): Promise<
@@ -1277,8 +1277,9 @@ describe("LTI 1.3 core launch flow", () => {
         handleLogin: ReturnType<typeof vi.fn>;
         verifyLaunchDetailed: ReturnType<typeof vi.fn>;
         createSession: ReturnType<typeof vi.fn>;
+        createSessionFromVerifiedLaunch: ReturnType<typeof vi.fn>;
         getSession: ReturnType<typeof vi.fn>;
-        getMembers: ReturnType<typeof vi.fn>;
+        getMembersDetailed: ReturnType<typeof vi.fn>;
       };
     }
   > => {
@@ -1296,11 +1297,28 @@ describe("LTI 1.3 core launch flow", () => {
         redirectUrl.searchParams.set("nonce", "mock-lti-nonce");
         return redirectUrl.toString();
       }),
-      verifyLaunchDetailed: vi.fn(async (idToken: string) => {
-        const payload = parseCompactJwtPayloadForTest(idToken);
-        return {
-          success: true,
-          launch: {
+      verifyLaunchDetailed: vi.fn(
+        async (
+          idToken: string,
+          _state: string,
+          verifyOptions?: {
+            authorizeVerifiedLaunch?: (launch: Record<string, unknown>) =>
+              | Promise<{
+                  success: boolean;
+                  data?: unknown;
+                  code?: string;
+                  message?: string;
+                }>
+              | {
+                  success: boolean;
+                  data?: unknown;
+                  code?: string;
+                  message?: string;
+                };
+          },
+        ) => {
+          const payload = parseCompactJwtPayloadForTest(idToken);
+          const launch = {
             payload,
             issuer,
             clientId,
@@ -1313,19 +1331,68 @@ describe("LTI 1.3 core launch flow", () => {
               payload["https://purl.imsglobal.org/spec/lti/claim/deployment_id"],
               deploymentId,
             ),
-          },
-        };
-      }),
+          };
+
+          if (verifyOptions?.authorizeVerifiedLaunch === undefined) {
+            return {
+              success: true,
+              launch,
+            };
+          }
+
+          const authorization = await verifyOptions.authorizeVerifiedLaunch(launch);
+
+          if (!authorization.success) {
+            return {
+              success: false,
+              error: new Error(authorization.message ?? "Verified launch authorization failed"),
+            };
+          }
+
+          return {
+            success: true,
+            launch: {
+              ...launch,
+              authorization: authorization.data,
+            },
+          };
+        },
+      ),
       createSession: vi.fn(async (claims: Record<string, unknown>) => {
         latestSession = ltiSessionFromClaims(claims);
         return latestSession;
       }),
+      createSessionFromVerifiedLaunch: vi.fn(
+        async (launch: { payload: Record<string, unknown> }) => {
+          latestSession = ltiSessionFromClaims(launch.payload);
+          return latestSession;
+        },
+      ),
       getSession:
         options?.getSession ??
         vi.fn(async (sessionId: string) =>
           latestSession !== null && latestSession.id === sessionId ? latestSession : undefined,
         ),
-      getMembers: options?.getMembers ?? vi.fn().mockResolvedValue([]),
+      getMembersDetailed:
+        options?.getMembersDetailed ??
+        vi.fn(async (session: LTISession) => {
+          if (session.services?.nrps?.membershipUrl === undefined) {
+            return {
+              success: false,
+              error: new LtiServiceError({
+                code: "service_not_available",
+                serviceKind: "nrps",
+                operation: "getMembers",
+                message: "NRPS membership service is not available for this session",
+              }),
+            };
+          }
+
+          return {
+            success: true,
+            data: [],
+          };
+        }),
     };
     const result = await loadAppWithMockedAuthProviders(() => {
       if (options?.issueBadgeForTenant !== undefined) {
@@ -1855,29 +1922,32 @@ describe("LTI 1.3 core launch flow", () => {
         revokedAt: null,
       },
     ]);
-    const getMembers = vi.fn().mockResolvedValue([
-      {
-        userId: "learner-001",
-        name: "Learner One",
-        email: "learner-one@example.edu",
-        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
-        status: "Active",
-      },
-      {
-        userId: "learner-002",
-        name: "Learner Two",
-        email: "learner-two@example.edu",
-        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
-        status: "Active",
-      },
-      {
-        userId: "teacher-001",
-        name: "Instructor One",
-        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
-        status: "Active",
-      },
-    ]);
-    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembers });
+    const getMembersDetailed = vi.fn().mockResolvedValue({
+      success: true,
+      data: [
+        {
+          userId: "learner-001",
+          name: "Learner One",
+          email: "learner-one@example.edu",
+          roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+          status: "Active",
+        },
+        {
+          userId: "learner-002",
+          name: "Learner Two",
+          email: "learner-two@example.edu",
+          roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+          status: "Active",
+        },
+        {
+          userId: "teacher-001",
+          name: "Instructor One",
+          roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
+          status: "Active",
+        },
+      ],
+    });
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembersDetailed });
     const loginResponse = await isolatedApp.request(
       `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
         "opaque-login-hint",
@@ -2033,22 +2103,25 @@ describe("LTI 1.3 core launch flow", () => {
         revokedAt: null,
       },
     ]);
-    const getMembers = vi.fn().mockResolvedValue([
-      {
-        userId: "learner-001",
-        name: "Learner One",
-        email: "learner-one@example.edu",
-        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
-        status: "Active",
-      },
-      {
-        userId: "teacher-001",
-        name: "Instructor One",
-        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
-        status: "Active",
-      },
-    ]);
-    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembers });
+    const getMembersDetailed = vi.fn().mockResolvedValue({
+      success: true,
+      data: [
+        {
+          userId: "learner-001",
+          name: "Learner One",
+          email: "learner-one@example.edu",
+          roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+          status: "Active",
+        },
+        {
+          userId: "teacher-001",
+          name: "Instructor One",
+          roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
+          status: "Active",
+        },
+      ],
+    });
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembersDetailed });
     const loginResponse = await isolatedApp.request(
       `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
         "opaque-login-hint",
@@ -2195,23 +2268,26 @@ describe("LTI 1.3 core launch flow", () => {
   it("pulls NRPS roster for instructor launch and renders bulk issuance view", async () => {
     const env = createLtiEnv();
     const rosterTargetLinkUri = `${targetLinkUri}?badgeTemplateId=badge_template_001`;
-    const getMembers = vi.fn().mockResolvedValue([
-      {
-        userId: "learner-001",
-        name: "Learner One",
-        email: "learner-one@example.edu",
-        lisPersonSourcedId: "sourced-learner-001",
-        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
-        status: "Active",
-      },
-      {
-        userId: "teacher-001",
-        name: "Instructor One",
-        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
-        status: "Active",
-      },
-    ]);
-    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembers });
+    const getMembersDetailed = vi.fn().mockResolvedValue({
+      success: true,
+      data: [
+        {
+          userId: "learner-001",
+          name: "Learner One",
+          email: "learner-one@example.edu",
+          lisPersonSourcedId: "sourced-learner-001",
+          roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+          status: "Active",
+        },
+        {
+          userId: "teacher-001",
+          name: "Instructor One",
+          roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
+          status: "Active",
+        },
+      ],
+    });
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembersDetailed });
     const loginResponse = await isolatedApp.request(
       `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
         "opaque-login-hint",
@@ -2301,7 +2377,7 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain('name="issuance_action_token"');
     expect(body).toContain('name="learner_user_id"');
     expect(body).toContain("Issue selected badges");
-    expect(getMembers).toHaveBeenCalledTimes(1);
+    expect(getMembersDetailed).toHaveBeenCalledTimes(1);
   });
 
   it("marks already issued LMS roster learners on refreshed LTI launches", async () => {
@@ -2325,17 +2401,20 @@ describe("LTI 1.3 core launch flow", () => {
         revokedAt: null,
       },
     ]);
-    const getMembers = vi.fn().mockResolvedValue([
-      {
-        userId: "learner-001",
-        name: "Learner One",
-        email: "learner-one@example.edu",
-        lisPersonSourcedId: "sourced-learner-001",
-        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
-        status: "Active",
-      },
-    ]);
-    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembers });
+    const getMembersDetailed = vi.fn().mockResolvedValue({
+      success: true,
+      data: [
+        {
+          userId: "learner-001",
+          name: "Learner One",
+          email: "learner-one@example.edu",
+          lisPersonSourcedId: "sourced-learner-001",
+          roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+          status: "Active",
+        },
+      ],
+    });
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembersDetailed });
     const loginResponse = await isolatedApp.request(
       `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
         "opaque-login-hint",
@@ -2418,22 +2497,25 @@ describe("LTI 1.3 core launch flow", () => {
   it("issues selected LMS roster learners through the LTI resource-link action", async () => {
     const env = createLtiEnv();
     const rosterTargetLinkUri = `${targetLinkUri}?badgeTemplateId=badge_template_001`;
-    const getMembers = vi.fn().mockResolvedValue([
-      {
-        userId: "learner-001",
-        name: "Learner One",
-        email: "learner-one@example.edu",
-        lisPersonSourcedId: "sourced-learner-001",
-        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
-        status: "Active",
-      },
-      {
-        userId: "learner-no-email",
-        name: "Learner No Email",
-        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
-        status: "Active",
-      },
-    ]);
+    const getMembersDetailed = vi.fn().mockResolvedValue({
+      success: true,
+      data: [
+        {
+          userId: "learner-001",
+          name: "Learner One",
+          email: "learner-one@example.edu",
+          lisPersonSourcedId: "sourced-learner-001",
+          roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+          status: "Active",
+        },
+        {
+          userId: "learner-no-email",
+          name: "Learner No Email",
+          roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+          status: "Active",
+        },
+      ],
+    });
     const issueBadgeForTenant = vi.fn(async () => ({
       status: "issued" as const,
       tenantId,
@@ -2443,7 +2525,7 @@ describe("LTI 1.3 core launch flow", () => {
       credential: {},
     }));
     const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({
-      getMembers,
+      getMembersDetailed,
       issueBadgeForTenant,
     });
     const loginResponse = await isolatedApp.request(
@@ -2553,7 +2635,7 @@ describe("LTI 1.3 core launch flow", () => {
         recipientDisplayName: "Learner One",
       },
     );
-    expect(getMembers).toHaveBeenCalledTimes(2);
+    expect(getMembersDetailed).toHaveBeenCalledTimes(2);
   });
 
   it("rejects LTI roster issuance without a valid action token", async () => {

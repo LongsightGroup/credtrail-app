@@ -98,7 +98,23 @@ const sampleLtiLaunchSessionRecord = (
 const sampleDeepLinkingLtiSession = (overrides?: Partial<LTISession>): LTISession => {
   return {
     id: "lti-session-123",
-    jwtPayload: {},
+    jwtPayload: {
+      iss: "https://canvas.example.edu",
+      sub: "user-999",
+      aud: "canvas-client-123",
+      exp: 1_800_000_000,
+      iat: 1_700_000_000,
+      nonce: "nonce-123",
+      "https://purl.imsglobal.org/spec/lti/claim/deployment_id": "deployment-123",
+      "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiDeepLinkingRequest",
+      "https://purl.imsglobal.org/spec/lti/claim/version": "1.3.0",
+      "https://purl.imsglobal.org/spec/lti/claim/target_link_uri":
+        "https://tool.example.edu/v1/lti/launch",
+      "https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings": {
+        deep_link_return_url: "https://canvas.example.edu/api/lti/deep_link_return",
+        accept_types: ["ltiResourceLink"],
+      },
+    },
     user: {
       id: "user-999",
       roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],

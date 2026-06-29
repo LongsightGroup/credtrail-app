@@ -5,7 +5,7 @@ import type { DirectIssueBadgeResult } from "../badges/direct-issue";
 import type { SqlDatabase } from "@credtrail/db";
 import type { LtiIssuanceActionPayload } from "./issuance-action-token";
 import { logLtiWarning } from "./log";
-import { ltiNrpsRosterFromCoreMembers, type LtiNrpsMember } from "./nrps";
+import { loadLtiNrpsRoster, type LtiNrpsMember } from "./nrps";
 import {
   ltiIssuanceIdempotencyKeyFromPrefix,
   ltiIssuanceIdempotencyKeyPrefix,
@@ -61,19 +61,17 @@ export interface ExecuteLtiRosterIssuanceResult {
 export const executeLtiRosterIssuance = async (
   input: ExecuteLtiRosterIssuanceInput,
 ): Promise<ExecuteLtiRosterIssuanceResult> => {
-  let roster;
+  const rosterResult = await loadLtiNrpsRoster({
+    ltiTool: input.ltiTool,
+    ltiSession: input.ltiSession,
+    contextId: input.ltiSession.context.id,
+  });
 
-  try {
-    const members = await input.ltiTool.getMembers(input.ltiSession);
-    roster = ltiNrpsRosterFromCoreMembers({
-      contextId: input.ltiSession.context.id,
-      members,
-    });
-  } catch (error) {
+  if (!rosterResult.success) {
     logLtiWarning("Could not load LMS roster for resource-link badge issuance", {
       tenantId: input.issuanceAction.tenantId,
       ltiSessionId: input.issuanceAction.ltiSessionId,
-      detail: error instanceof Error ? error.message : "unknown error",
+      ...rosterResult.failure.logDetail,
     });
 
     throw new LtiRosterIssuanceError(
@@ -81,6 +79,7 @@ export const executeLtiRosterIssuance = async (
     );
   }
 
+  const roster = rosterResult.roster;
   const learnersByUserId = new Map(
     roster.learnerMembers.map((member): [string, LtiNrpsMember] => [member.userId, member]),
   );

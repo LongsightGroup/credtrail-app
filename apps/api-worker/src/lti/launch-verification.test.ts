@@ -3,6 +3,7 @@ import type {
   LTISession,
   LTITool,
   LtiLaunchVerificationResult,
+  LtiVerifiedLaunch,
 } from "@lti-tool/core";
 import { LtiLaunchVerificationError as CoreLtiLaunchVerificationError } from "@lti-tool/core";
 import type { SqlDatabase } from "@credtrail/db";
@@ -30,14 +31,6 @@ const signedLaunchRegistry: LtiIssuerRegistry = {
     tenantId: "tenant-123",
     platformJwksEndpoint: "https://canvas.example.edu/api/lti/security/jwks",
     tokenEndpoint: "https://canvas.example.edu/login/oauth2/token",
-  },
-};
-
-const unsignedLaunchRegistry: LtiIssuerRegistry = {
-  [issuer]: {
-    authorizationEndpoint: "https://canvas.example.edu/api/lti/authorize_redirect",
-    clientId,
-    tenantId: "tenant-123",
   },
 };
 
@@ -99,43 +92,101 @@ const sampleSession = (payload: LTI13JwtPayload, verifiedClientId: string): LTIS
 
 const fakeLtiTool = (input: {
   verificationResult: LtiLaunchVerificationResult;
-  createSession?: LTITool["createSession"];
+  createSessionFromVerifiedLaunch?: LTITool["createSessionFromVerifiedLaunch"];
 }): LTITool => {
+  type VerifyLaunchDetailedOptions = {
+    readonly authorizeVerifiedLaunch?: (launch: LtiVerifiedLaunch) =>
+      | {
+          readonly success: true;
+          readonly data: unknown;
+        }
+      | {
+          readonly success: false;
+          readonly code: string;
+          readonly message?: string;
+        }
+      | Promise<
+          | {
+              readonly success: true;
+              readonly data: unknown;
+            }
+          | {
+              readonly success: false;
+              readonly code: string;
+              readonly message?: string;
+            }
+        >;
+  };
+
   return {
-    verifyLaunchDetailed: vi.fn(async () => input.verificationResult),
-    createSession: input.createSession ?? vi.fn(),
+    verifyLaunchDetailed: vi.fn(
+      async (
+        _idToken: string,
+        _state: string,
+        options?: VerifyLaunchDetailedOptions,
+      ): Promise<LtiLaunchVerificationResult> => {
+        if (!input.verificationResult.success || options?.authorizeVerifiedLaunch === undefined) {
+          return input.verificationResult;
+        }
+
+        const authorization = await options.authorizeVerifiedLaunch(
+          input.verificationResult.launch,
+        );
+
+        if (!authorization.success) {
+          return {
+            success: false,
+            error: new CoreLtiLaunchVerificationError(
+              "verified_launch_authorization_failed",
+              authorization.message ??
+                `Verified launch authorization failed: ${authorization.code}`,
+              authorization,
+            ),
+          };
+        }
+
+        return {
+          success: true,
+          launch: {
+            ...input.verificationResult.launch,
+            authorization: authorization.data,
+          } as LtiVerifiedLaunch,
+        };
+      },
+    ),
+    createSessionFromVerifiedLaunch: input.createSessionFromVerifiedLaunch ?? vi.fn(),
   } as unknown as LTITool;
 };
 
 describe("resolveLtiLaunch", () => {
-  it("passes the verified client id into session creation for multi-audience launches", async () => {
+  it("creates sessions from the verified launch for multi-audience launches", async () => {
     const payload = sampleLaunchPayload({
       aud: ["other-client", clientId],
     });
-    const createSession = vi.fn(
-      async (sessionPayload: LTI13JwtPayload, verifiedClientId?: string) =>
-        sampleSession(sessionPayload, verifiedClientId ?? "missing-client-id"),
+    const createSessionFromVerifiedLaunch = vi.fn(async (launch: LtiVerifiedLaunch) =>
+      sampleSession(launch.payload, launch.clientId),
     );
+    const launch = {
+      payload,
+      issuer,
+      clientId,
+      deploymentId,
+      targetLinkUri,
+      launchConfig: {
+        iss: issuer,
+        clientId,
+        deploymentId,
+        authUrl: "https://canvas.example.edu/api/lti/authorize_redirect",
+        tokenUrl: "https://canvas.example.edu/login/oauth2/token",
+        jwksUrl: "https://canvas.example.edu/api/lti/security/jwks",
+      },
+    } satisfies LtiVerifiedLaunch;
     const ltiTool = fakeLtiTool({
       verificationResult: {
         success: true,
-        launch: {
-          payload,
-          issuer,
-          clientId,
-          deploymentId,
-          targetLinkUri,
-          launchConfig: {
-            iss: issuer,
-            clientId,
-            deploymentId,
-            authUrl: "https://canvas.example.edu/api/lti/authorize_redirect",
-            tokenUrl: "https://canvas.example.edu/login/oauth2/token",
-            jwksUrl: "https://canvas.example.edu/api/lti/security/jwks",
-          },
-        },
+        launch,
       },
-      createSession,
+      createSessionFromVerifiedLaunch,
     });
 
     const resolvedLaunch = await resolveLtiLaunch({
@@ -147,7 +198,12 @@ describe("resolveLtiLaunch", () => {
       createLtiTool: vi.fn(async () => ltiTool),
     });
 
-    expect(createSession).toHaveBeenCalledWith(payload, clientId);
+    expect(createSessionFromVerifiedLaunch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload,
+        clientId,
+      }),
+    );
     expect(resolvedLaunch.ltiLaunchSession.platform.clientId).toBe(clientId);
   });
 
@@ -155,7 +211,7 @@ describe("resolveLtiLaunch", () => {
     const payload = sampleLaunchPayload({
       aud: "unexpected-client",
     });
-    const createSession = vi.fn();
+    const createSessionFromVerifiedLaunch = vi.fn();
     const ltiTool = fakeLtiTool({
       verificationResult: {
         success: true,
@@ -175,7 +231,7 @@ describe("resolveLtiLaunch", () => {
           },
         },
       },
-      createSession,
+      createSessionFromVerifiedLaunch,
     });
 
     await expect(
@@ -191,7 +247,7 @@ describe("resolveLtiLaunch", () => {
       status: 400,
       message: "No issuer registration configured for verified LTI launch",
     });
-    expect(createSession).not.toHaveBeenCalled();
+    expect(createSessionFromVerifiedLaunch).not.toHaveBeenCalled();
   });
 
   it("maps ambiguous core launch config failures to a generic 401 verification failure", async () => {
@@ -221,36 +277,22 @@ describe("resolveLtiLaunch", () => {
     });
   });
 
-  it("returns 501 only after a verified issuer is known to lack signed-launch endpoints", async () => {
-    const payload = sampleLaunchPayload();
-    const createSession = vi.fn();
+  it("maps core missing signed-launch endpoint failures to 501 setup errors", async () => {
     const ltiTool = fakeLtiTool({
       verificationResult: {
-        success: true,
-        launch: {
-          payload,
-          issuer,
-          clientId,
-          deploymentId,
-          targetLinkUri,
-          launchConfig: {
-            iss: issuer,
-            clientId,
-            deploymentId,
-            authUrl: "https://canvas.example.edu/api/lti/authorize_redirect",
-            tokenUrl: "https://canvas.example.edu/login/oauth2/token",
-            jwksUrl: "https://canvas.example.edu/api/lti/security/jwks",
-          },
-        },
+        success: false,
+        error: new CoreLtiLaunchVerificationError(
+          "launch_config_missing_jwks_endpoint",
+          "Launch client is missing a JWKS endpoint",
+        ),
       },
-      createSession,
     });
 
     await expect(
       resolveLtiLaunch({
         idToken: "opaque-id-token",
         state: "opaque-state",
-        registry: unsignedLaunchRegistry,
+        registry: signedLaunchRegistry,
         db: fakeDb,
         env: fakeEnv,
         createLtiTool: vi.fn(async () => ltiTool),
@@ -260,6 +302,5 @@ describe("resolveLtiLaunch", () => {
       message:
         "LTI issuer requires platform JWKS and token endpoint configuration for signed launches",
     });
-    expect(createSession).not.toHaveBeenCalled();
   });
 });

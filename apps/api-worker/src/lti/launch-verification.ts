@@ -3,6 +3,7 @@ import type {
   LTISession,
   LTITool,
   LtiLaunchVerificationError as CoreLtiLaunchVerificationError,
+  LtiVerifiedLaunch,
 } from "@lti-tool/core";
 import type { AppBindings } from "../app";
 import type { SqlDatabase } from "@credtrail/db";
@@ -44,8 +45,15 @@ const statusForCoreVerificationError = (error: CoreLtiLaunchVerificationError): 
     case "jwt_decode_failed":
     case "missing_issuer":
     case "missing_deployment_id":
+    case "verified_launch_authorization_failed":
       return 400;
+    case "launch_config_missing_jwks_endpoint":
+    case "launch_config_missing_token_endpoint":
+    case "launch_client_not_found":
+    case "launch_config_invalid":
+    case "launch_config_lookup_failed":
     case "launch_config_not_found":
+    case "launch_deployment_not_found":
     case "invalid_audience":
     case "invalid_payload":
     case "issuer_mismatch":
@@ -60,11 +68,35 @@ const statusForCoreVerificationError = (error: CoreLtiLaunchVerificationError): 
   }
 };
 
-const findVerifiedIssuerEntry = (
+const statusForLaunchVerificationError = (
+  error: CoreLtiLaunchVerificationError,
+): 400 | 401 | 501 => {
+  switch (error.code) {
+    case "launch_config_missing_jwks_endpoint":
+    case "launch_config_missing_token_endpoint":
+      return 501;
+    default:
+      return statusForCoreVerificationError(error);
+  }
+};
+
+const messageForLaunchVerificationError = (error: CoreLtiLaunchVerificationError): string => {
+  switch (error.code) {
+    case "launch_config_missing_jwks_endpoint":
+    case "launch_config_missing_token_endpoint":
+      return "LTI issuer requires platform JWKS and token endpoint configuration for signed launches";
+    case "verified_launch_authorization_failed":
+      return error.message;
+    default:
+      return "LTI launch verification failed";
+  }
+};
+
+const findAuthorizedIssuerEntry = (
   registry: LtiIssuerRegistry,
   issuer: string,
   clientId: string,
-): { issuer: string; entry: LtiIssuerRegistryEntry } | null => {
+): { readonly issuer: string; readonly entry: LtiIssuerRegistryEntry } | undefined => {
   const normalizedIssuer = normalizeLtiIssuer(issuer);
 
   for (const [candidateIssuer, entry] of Object.entries(registry)) {
@@ -76,7 +108,38 @@ const findVerifiedIssuerEntry = (
     }
   }
 
-  return null;
+  return undefined;
+};
+
+type LtiLaunchAuthorization = {
+  readonly issuer: string;
+  readonly entry: LtiIssuerRegistryEntry;
+};
+
+type AuthorizedLtiLaunch = LtiVerifiedLaunch & {
+  readonly authorization: LtiLaunchAuthorization;
+};
+
+const authorizeVerifiedLaunchForRegistry = (
+  registry: LtiIssuerRegistry,
+  launch: LtiVerifiedLaunch,
+):
+  | { success: true; data: LtiLaunchAuthorization }
+  | { success: false; code: string; message: string } => {
+  const issuerMatch = findAuthorizedIssuerEntry(registry, launch.issuer, launch.clientId);
+
+  if (issuerMatch === undefined) {
+    return {
+      success: false,
+      code: "issuer_registration_not_configured",
+      message: "No issuer registration configured for verified LTI launch",
+    };
+  }
+
+  return {
+    success: true,
+    data: issuerMatch,
+  };
 };
 
 export interface ResolvedLtiLaunch {
@@ -107,46 +170,26 @@ export const resolveLtiLaunch = async (input: {
     env: input.env,
   });
 
-  const verificationResult = await ltiTool.verifyLaunchDetailed(input.idToken, input.state);
+  const verificationResult = await ltiTool.verifyLaunchDetailed(input.idToken, input.state, {
+    authorizeVerifiedLaunch: (launch) => authorizeVerifiedLaunchForRegistry(input.registry, launch),
+  });
 
   if (!verificationResult.success) {
-    const status = statusForCoreVerificationError(verificationResult.error);
+    const status = statusForLaunchVerificationError(verificationResult.error);
     throw new LtiLaunchVerificationError(
       status,
-      "LTI launch verification failed",
+      messageForLaunchVerificationError(verificationResult.error),
       verificationErrorDetail(verificationResult.error),
     );
   }
 
-  const issuerMatch = findVerifiedIssuerEntry(
-    input.registry,
-    verificationResult.launch.issuer,
-    verificationResult.launch.clientId,
-  );
-
-  if (issuerMatch === null) {
-    throw new LtiLaunchVerificationError(
-      400,
-      "No issuer registration configured for verified LTI launch",
-    );
-  }
-
-  if (!ltiIssuerHasSignedLaunchConfig(issuerMatch.entry)) {
-    throw new LtiLaunchVerificationError(
-      501,
-      "LTI issuer requires platform JWKS and token endpoint configuration for signed launches",
-    );
-  }
-
   const launchClaims = verificationResult.launch.payload;
-  const ltiLaunchSession = await ltiTool.createSession(
-    verificationResult.launch.payload,
-    verificationResult.launch.clientId,
-  );
+  const ltiLaunchSession = await ltiTool.createSessionFromVerifiedLaunch(verificationResult.launch);
+  const authorizedLaunch: AuthorizedLtiLaunch = verificationResult.launch;
 
   return {
-    issuer: issuerMatch.issuer,
-    issuerEntry: issuerMatch.entry,
+    issuer: authorizedLaunch.authorization.issuer,
+    issuerEntry: authorizedLaunch.authorization.entry,
     launchClaims,
     ltiLaunchSession,
     ltiTool,

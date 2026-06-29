@@ -62,9 +62,9 @@ const ltiSession = {
   },
 } as LTISession;
 
-const mockedGetMembers = vi.fn();
+const mockedGetMembersDetailed = vi.fn();
 const ltiTool = {
-  getMembers: mockedGetMembers,
+  getMembersDetailed: mockedGetMembersDetailed,
 } as unknown as LTITool;
 
 const appContext = {} as Parameters<typeof executeLtiRosterIssuance>[0]["c"];
@@ -89,17 +89,20 @@ const sampleRuleVersionWithTiming = (
 
 describe("executeLtiRosterIssuance eligibility guard", () => {
   beforeEach(() => {
-    mockedGetMembers.mockReset();
-    mockedGetMembers.mockResolvedValue([
-      {
-        status: "Active",
-        name: "Learner One",
-        email: "learner-one@example.edu",
-        userId: "learner-001",
-        lisPersonSourcedId: "sourced-learner-001",
-        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
-      },
-    ]);
+    mockedGetMembersDetailed.mockReset();
+    mockedGetMembersDetailed.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          status: "Active",
+          name: "Learner One",
+          email: "learner-one@example.edu",
+          userId: "learner-001",
+          lisPersonSourcedId: "sourced-learner-001",
+          roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+        },
+      ],
+    });
     mockedFindActiveBadgeIssuanceRuleVersion.mockReset();
     mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(sampleLtiRosterBadgeRuleVersion());
     mockedFindBadgeIssuanceRuleById.mockReset();
@@ -257,16 +260,19 @@ describe("executeLtiRosterIssuance eligibility guard", () => {
   });
 
   it("skips learners without email using eligibility messaging", async () => {
-    mockedGetMembers.mockResolvedValue([
-      {
-        status: "Active",
-        name: "Learner One",
-        email: null,
-        userId: "learner-001",
-        lisPersonSourcedId: "sourced-learner-001",
-        roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
-      },
-    ]);
+    mockedGetMembersDetailed.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          status: "Active",
+          name: "Learner One",
+          email: null,
+          userId: "learner-001",
+          lisPersonSourcedId: "sourced-learner-001",
+          roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+        },
+      ],
+    });
     const issueBadgeForTenant = vi.fn();
 
     const result = await executeLtiRosterIssuance({
