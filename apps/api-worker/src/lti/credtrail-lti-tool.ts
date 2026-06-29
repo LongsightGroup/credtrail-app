@@ -1,4 +1,4 @@
-import { LTITool, type LTIConfig } from "@lti-tool/core";
+import { LTITool, importLtiToolKeyPairFromJwk, type LTIConfig } from "@lti-tool/core";
 import { createLtiToolKey, findActiveLtiToolKey, type SqlDatabase } from "@credtrail/db";
 import { ltiStateSigningSecret } from "./lti-helpers";
 import { CredTrailLtiStorage } from "./credtrail-lti-storage";
@@ -8,9 +8,11 @@ const LTI_TOOL_KEY_ID = "credtrail-lti-main";
 
 type DynamicRegistrationConfig = NonNullable<LTIConfig["dynamicRegistration"]>;
 
-const rsaAlgorithm: RsaHashedImportParams | RsaHashedKeyGenParams = {
+const rsaAlgorithm: RsaHashedKeyGenParams = {
   name: "RSASSA-PKCS1-v1_5",
   hash: "SHA-256",
+  modulusLength: 2048,
+  publicExponent: new Uint8Array([1, 0, 1]),
 };
 
 const generateRsaSigningKeyPair = async (): Promise<{
@@ -18,17 +20,15 @@ const generateRsaSigningKeyPair = async (): Promise<{
   publicJwk: JsonWebKey;
   privateJwk: JsonWebKey;
 }> => {
-  const keyPair = await crypto.subtle.generateKey(
-    {
-      ...rsaAlgorithm,
-      modulusLength: 2048,
-      publicExponent: new Uint8Array([1, 0, 1]),
-    },
-    true,
-    ["sign", "verify"],
-  );
-  const publicJwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
-  const privateJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
+  const keyPair = await crypto.subtle.generateKey(rsaAlgorithm, true, ["sign", "verify"]);
+  const publicJwk = {
+    ...(await crypto.subtle.exportKey("jwk", keyPair.publicKey)),
+    kid: LTI_TOOL_KEY_ID,
+  };
+  const privateJwk = {
+    ...(await crypto.subtle.exportKey("jwk", keyPair.privateKey)),
+    kid: LTI_TOOL_KEY_ID,
+  };
 
   return {
     keyPair,
@@ -38,18 +38,16 @@ const generateRsaSigningKeyPair = async (): Promise<{
 };
 
 const importStoredKeyPair = async (input: {
-  publicJwkJson: string;
+  keyId: string;
   privateJwkJson: string;
 }): Promise<CryptoKeyPair> => {
-  const publicJwk = JSON.parse(input.publicJwkJson) as JsonWebKey;
-  const privateJwk = JSON.parse(input.privateJwkJson) as JsonWebKey;
-  const publicKey = await crypto.subtle.importKey("jwk", publicJwk, rsaAlgorithm, true, ["verify"]);
-  const privateKey = await crypto.subtle.importKey("jwk", privateJwk, rsaAlgorithm, true, ["sign"]);
+  const privateJwk = JSON.parse(input.privateJwkJson) as JsonWebKey & { kid?: string };
+  const imported = await importLtiToolKeyPairFromJwk({
+    ...privateJwk,
+    kid: typeof privateJwk.kid === "string" ? privateJwk.kid : input.keyId,
+  });
 
-  return {
-    publicKey,
-    privateKey,
-  };
+  return imported.keyPair;
 };
 
 const loadOrCreateLtiToolKeyPair = async (db: SqlDatabase): Promise<CryptoKeyPair> => {
@@ -57,7 +55,7 @@ const loadOrCreateLtiToolKeyPair = async (db: SqlDatabase): Promise<CryptoKeyPai
 
   if (activeKey !== null) {
     return importStoredKeyPair({
-      publicJwkJson: activeKey.publicJwkJson,
+      keyId: activeKey.keyId,
       privateJwkJson: activeKey.privateJwkJson,
     });
   }
