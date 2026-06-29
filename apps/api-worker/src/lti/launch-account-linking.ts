@@ -8,7 +8,7 @@ import {
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import type { LtiLaunchClaims } from "@credtrail/lti";
+import type { LTI13JwtPayload as LtiLaunchClaims } from "@lti-tool/core";
 import {
   ltiDisplayNameFromClaims,
   ltiEmailFromClaims,

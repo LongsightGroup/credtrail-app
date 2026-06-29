@@ -20,8 +20,11 @@ import {
   type LearnerBadgeSummaryRecord,
   type SqlDatabase,
 } from "@credtrail/db";
-import { LTI_MESSAGE_TYPE_RESOURCE_LINK_REQUEST, type LtiLaunchClaims } from "@credtrail/lti";
-import type { LTISession } from "@lti-tool/core";
+import {
+  LTI_MESSAGE_TYPE_RESOURCE_LINK_REQUEST,
+  type LTI13JwtPayload as LtiLaunchClaims,
+  type LTISession,
+} from "@lti-tool/core";
 import { resolveLearnerResourceLinkView } from "./learner-launch-views";
 import type { ValidatedSelectedResourceLinkLaunch } from "./resource-link-launch-types";
 

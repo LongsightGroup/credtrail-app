@@ -1,12 +1,13 @@
 import type { TenantMembershipRole } from "@credtrail/db";
-import type { LtiRoleKind } from "@credtrail/lti";
 import type { LtiRosterIssuanceBehaviorKey } from "./issuance-behavior";
 import type { LtiRosterEligibilityStatus } from "./roster-eligibility";
+
+export type LtiRoleKind = "instructor" | "learner" | "unknown";
 
 export interface LtiBulkIssuanceRosterMember {
   userId: string;
   sourcedId: string | null;
-  displayName: string | null;
+  displayName: string;
   email: string | null;
   roleSummary: string;
   status: string | null;

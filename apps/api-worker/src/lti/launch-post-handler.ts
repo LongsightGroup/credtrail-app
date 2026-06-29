@@ -5,7 +5,7 @@ import {
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import { LTI_CLAIM_DEPLOYMENT_ID } from "@credtrail/lti";
+import { LTI_CLAIM_DEPLOYMENT_ID } from "@lti-tool/core";
 import type { AppBindings, AppContext } from "../app";
 import { renderAppPage } from "../ui/render-page";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
@@ -164,17 +164,13 @@ const verifyLtiLaunchPost = async (input: {
     registry: input.registry,
     db: input.db,
     env: input.c.env,
-    nowIso: new Date().toISOString(),
   });
 };
 
 const resolveLtiLaunchPostMessage = (input: {
   resolvedLaunch: ResolvedLtiLaunch;
 }): ResolvedLtiLaunchMessage => {
-  return resolveLtiLaunchMessage({
-    launchClaims: input.resolvedLaunch.launchClaims,
-    launchState: input.resolvedLaunch.launchState,
-  });
+  return resolveLtiLaunchMessage(input.resolvedLaunch.launchClaims);
 };
 
 const validateLaunchedResourceLinkBadgeTemplate = async (input: {

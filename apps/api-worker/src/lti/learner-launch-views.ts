@@ -8,8 +8,7 @@ import {
   type LearnerBadgeSummaryRecord,
   type SqlDatabase,
 } from "@credtrail/db";
-import type { LtiLaunchClaims } from "@credtrail/lti";
-import type { LTISession } from "@lti-tool/core";
+import type { LTI13JwtPayload as LtiLaunchClaims, LTISession } from "@lti-tool/core";
 import { logLtiWarning } from "./log";
 import { ltiBadgeSummaryCardFromTemplate, newestByIssuedAt } from "./badge-summary-helpers";
 import {

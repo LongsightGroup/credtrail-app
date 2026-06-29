@@ -96,11 +96,11 @@ export const BulkIssuanceSection = (input: {
                       name="learner_user_id"
                       value={member.userId}
                       disabled={!member.eligibleForIssuance}
-                      ariaLabel={`Select ${member.displayName ?? member.userId}`}
+                      ariaLabel={`Select ${member.displayName}`}
                     />
                   </td>
                 ) : null}
-                <td>{member.displayName ?? member.userId}</td>
+                <td>{member.displayName}</td>
                 <td>{member.email ?? "Not provided"}</td>
                 <td>
                   <div class="lti-launch__status-stack">

@@ -7,8 +7,13 @@ import {
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import { LTI_CLAIM_CONTEXT, LTI_CLAIM_DEPLOYMENT_ID, type LtiLaunchClaims } from "@credtrail/lti";
-import type { LTISession, LTITool } from "@lti-tool/core";
+import {
+  LTI_CLAIM_CONTEXT,
+  LTI_CLAIM_DEPLOYMENT_ID,
+  type LTI13JwtPayload as LtiLaunchClaims,
+  type LTISession,
+  type LTITool,
+} from "@lti-tool/core";
 import type { AppBindings } from "../app";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
 import { LTI_RESOURCE_LINK_ISSUE_PATH } from "./constants";
@@ -346,8 +351,7 @@ const ltiCourseBadgeSummaryViewFromRoster = async (input: {
     const lifecycle = assertion === null ? null : lifecycleStatesByAssertionId.get(assertion.id);
     const status =
       assertion === null ? "not_issued" : courseBadgeSummaryStatus(lifecycle?.state ?? null);
-    const learnerName =
-      candidate.member.displayName ?? candidate.member.email ?? candidate.member.userId;
+    const learnerName = candidate.member.displayName;
     const assertionId = assertion?.id;
     const linkedPlacement = candidate.placementGroup.primaryPlacement;
     const placementContextId = linkedPlacement.contextId ?? input.contextId;

@@ -5,7 +5,7 @@ import {
   upsertLtiDeployment,
   type SqlDatabase,
 } from "@credtrail/db";
-import { parseLtiOidcLoginInitiationRequest } from "@credtrail/lti";
+import { createLtiPostMessageStorageRedirect, parseLtiLoginInitiation } from "@lti-tool/core";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import { renderAppPage } from "../ui/render-page";
@@ -40,7 +40,6 @@ import {
   type LtiIssuerRegistry,
 } from "../lti/lti-helpers";
 import { ltiIssuerHasSignedLaunchConfig } from "../lti/launch-verification";
-import { ltiPostMessageStorageRedirectInput } from "../lti/post-message-storage";
 import { ltiRosterIssuanceResultPage, ltiPostMessageStorageRedirectPage } from "../lti/pages";
 import {
   ltiSessionMatchesIssuanceAction,
@@ -110,7 +109,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     let loginRequest;
 
     try {
-      loginRequest = parseLtiOidcLoginInitiationRequest(await ltiLoginInputFromRequest(c));
+      loginRequest = parseLtiLoginInitiation(await ltiLoginInputFromRequest(c));
     } catch {
       return c.json(
         {
@@ -175,9 +174,11 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
         ? {}
         : { lti_message_hint: loginRequest.lti_message_hint }),
     });
-    const postMessageStorageInput = ltiPostMessageStorageRedirectInput({
+    const postMessageStorageInput = createLtiPostMessageStorageRedirect({
       authorizationRedirectUrl: authRedirectUrl,
-      storageTarget: loginRequest.lti_storage_target,
+      ...(loginRequest.lti_storage_target === undefined
+        ? {}
+        : { storageTarget: loginRequest.lti_storage_target }),
     });
 
     if (postMessageStorageInput !== null) {

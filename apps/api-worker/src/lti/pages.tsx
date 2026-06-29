@@ -1,5 +1,4 @@
 import type { TenantMembershipRole } from "@credtrail/db";
-import type { LtiRoleKind } from "@credtrail/lti";
 import type { PropsWithChildren } from "hono/jsx";
 import { CtButtonLink } from "../ui/actions";
 import { CtCheckboxField, CtField, CtFieldHint, CtForm, CtInput, CtSelect } from "../ui/forms";
@@ -21,6 +20,7 @@ import {
   type LtiDeepLinkSelectionOption,
   type LtiLearnerBadgeSummaryView,
   type LtiLaunchViewMode,
+  type LtiRoleKind,
   type LtiRosterIssuanceResultEntry,
 } from "./view-models";
 

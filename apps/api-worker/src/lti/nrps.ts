@@ -1,7 +1,11 @@
-import { LTI_CLAIM_NRPS_NAMES_ROLE_SERVICE, type LtiLaunchClaims } from "@credtrail/lti";
+import {
+  LTI_CLAIM_NRPS_NAMES_ROLE_SERVICE,
+  getLtiMemberDisplayName,
+  isLtiMemberLearner,
+  type LTI13JwtPayload as LtiLaunchClaims,
+  type Member as CoreNrpsMember,
+} from "@lti-tool/core";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
-
-const NRPS_LEARNER_ROLE_MARKERS = ["#learner", "#student"];
 
 const asJsonArray = (value: unknown): readonly unknown[] | null => {
   return Array.isArray(value) ? value : null;
@@ -32,7 +36,7 @@ export interface LtiNrpsNamesRoleServiceClaim {
 export interface LtiNrpsMember {
   userId: string;
   sourcedId: string | null;
-  displayName: string | null;
+  displayName: string;
   email: string | null;
   status: string | null;
   pictureUrl: string | null;
@@ -47,38 +51,17 @@ export interface LtiNrpsRoster {
   learnerMembers: readonly LtiNrpsMember[];
 }
 
-interface CoreNrpsMember {
-  status: string;
-  name?: string | undefined;
-  picture?: string | undefined;
-  givenName?: string | undefined;
-  familyName?: string | undefined;
-  email?: string | undefined;
-  userId: string;
-  lisPersonSourcedId?: string | undefined;
-  roles: string[];
-}
-
 const ltiNrpsMemberFromCoreMember = (member: CoreNrpsMember): LtiNrpsMember => {
-  const normalizedRoles = member.roles.map((role) => role.toLowerCase());
-  const isLearner = normalizedRoles.some((role) =>
-    NRPS_LEARNER_ROLE_MARKERS.some((marker) => role.includes(marker)),
-  );
-  const derivedDisplayName = [member.givenName, member.familyName]
-    .filter((entry): entry is string => entry !== undefined && entry.trim().length > 0)
-    .join(" ")
-    .trim();
-
   return {
     userId: member.userId,
     sourcedId: member.lisPersonSourcedId ?? null,
-    displayName: member.name ?? (derivedDisplayName.length === 0 ? null : derivedDisplayName),
+    displayName: getLtiMemberDisplayName(member),
     email: member.email ?? null,
     status: member.status,
     pictureUrl: member.picture ?? null,
     roles: member.roles,
     roleSummary: roleSummary(member.roles),
-    isLearner,
+    isLearner: isLtiMemberLearner(member),
   };
 };
 

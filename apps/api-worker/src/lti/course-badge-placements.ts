@@ -5,8 +5,11 @@ import {
   type LtiResourceLinkPlacementRecord,
   type SqlDatabase,
 } from "@credtrail/db";
-import { LTI_CLAIM_DEPLOYMENT_ID, type LtiLaunchClaims } from "@credtrail/lti";
-import type { LTISession } from "@lti-tool/core";
+import {
+  LTI_CLAIM_DEPLOYMENT_ID,
+  type LTI13JwtPayload as LtiLaunchClaims,
+  type LTISession,
+} from "@lti-tool/core";
 import type { ResourceLinkLaunchMessage } from "./resource-link-launch-types";
 
 export interface LtiCourseBadgeTemplatePlacementGroup {

@@ -178,16 +178,13 @@ export const executeLtiRosterIssuance = async (
         member.userId,
       ),
     };
-    const issueOptions =
-      member.displayName === null ? {} : { recipientDisplayName: member.displayName };
-
     try {
       const issuance = await input.issueBadgeForTenant(
         input.c,
         input.issuanceAction.tenantId,
         request,
         input.issuanceAction.issuedByUserId,
-        issueOptions,
+        { recipientDisplayName: member.displayName },
       );
 
       results.push({

@@ -12,9 +12,9 @@ COPY tsconfig.json vitest.config.ts .oxlintrc.json ./
 COPY apps/api-worker/package.json ./apps/api-worker/package.json
 COPY packages/core-domain/package.json ./packages/core-domain/package.json
 COPY packages/db/package.json ./packages/db/package.json
-COPY packages/lti/package.json ./packages/lti/package.json
 COPY packages/ui-components/package.json ./packages/ui-components/package.json
 COPY packages/validation/package.json ./packages/validation/package.json
+COPY vendor/lti-tool-core-1.1.4-longsight.0.tgz ./vendor/lti-tool-core-1.1.4-longsight.0.tgz
 
 RUN pnpm install --frozen-lockfile
 

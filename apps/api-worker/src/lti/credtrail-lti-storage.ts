@@ -23,6 +23,10 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import { normalizeLtiIssuer } from "./lti-helpers";
+import {
+  parsePersistedLtiDynamicRegistrationSession,
+  parsePersistedLtiSession,
+} from "./persisted-lti-session";
 
 const SESSION_TTL_SECONDS = 60 * 60;
 
@@ -243,7 +247,7 @@ export class CredTrailLtiStorage implements LTIStorage {
       return undefined;
     }
 
-    return JSON.parse(session.dataJson) as LTISession;
+    return parsePersistedLtiSession(session.dataJson);
   }
 
   async addSession(session: LTISession): Promise<string> {
@@ -355,7 +359,7 @@ export class CredTrailLtiStorage implements LTIStorage {
       return undefined;
     }
 
-    return JSON.parse(session.dataJson) as LTIDynamicRegistrationSession;
+    return parsePersistedLtiDynamicRegistrationSession(session.dataJson);
   }
 
   async deleteRegistrationSession(sessionId: string): Promise<void> {

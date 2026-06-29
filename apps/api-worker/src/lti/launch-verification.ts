@@ -1,30 +1,19 @@
-import type { LTISession, LTITool } from "@lti-tool/core";
-import {
-  LTI_CLAIM_DEPLOYMENT_ID,
-  LTI_CLAIM_TARGET_LINK_URI,
-  parseLtiLaunchClaims,
-  type LtiLaunchClaims,
-} from "@credtrail/lti";
+import type {
+  LTI13JwtPayload as LtiLaunchClaims,
+  LTISession,
+  LTITool,
+  LtiLaunchVerificationError as CoreLtiLaunchVerificationError,
+} from "@lti-tool/core";
 import type { AppBindings } from "../app";
 import type { SqlDatabase } from "@credtrail/db";
-import { parseCompactJwsHeaderObject, parseCompactJwsPayloadObject } from "../signing/compact-jws";
-import { asNonEmptyString } from "../utils/value-parsers";
 import {
-  ltiAudienceIncludesClientId,
-  normalizeAbsoluteUrlForComparison,
   normalizeLtiIssuer,
   type LtiIssuerRegistry,
   type LtiIssuerRegistryEntry,
 } from "./lti-helpers";
 import { createCredTrailLtiTool } from "./credtrail-lti-tool";
 
-export interface LtiLaunchState {
-  iss: string;
-  clientId: string;
-  nonce: string;
-  targetLinkUri: string;
-  ltiDeploymentId?: string | undefined;
-}
+type CreateCredTrailLtiTool = typeof createCredTrailLtiTool;
 
 export class LtiLaunchVerificationError extends Error {
   readonly status: 400 | 401 | 501;
@@ -49,11 +38,51 @@ const verificationErrorDetail = (error: unknown): string => {
     .slice(0, 500);
 };
 
+const statusForCoreVerificationError = (error: CoreLtiLaunchVerificationError): 400 | 401 => {
+  switch (error.code) {
+    case "invalid_launch_parameters":
+    case "jwt_decode_failed":
+    case "missing_issuer":
+    case "missing_deployment_id":
+      return 400;
+    case "launch_config_not_found":
+    case "invalid_audience":
+    case "invalid_payload":
+    case "issuer_mismatch":
+    case "jwt_verification_failed":
+    case "nonce_mismatch":
+    case "nonce_replay":
+    case "state_verification_failed":
+    case "target_link_uri_mismatch":
+    case "unknown_error":
+    case "untrusted_audience":
+      return 401;
+  }
+};
+
+const findVerifiedIssuerEntry = (
+  registry: LtiIssuerRegistry,
+  issuer: string,
+  clientId: string,
+): { issuer: string; entry: LtiIssuerRegistryEntry } | null => {
+  const normalizedIssuer = normalizeLtiIssuer(issuer);
+
+  for (const [candidateIssuer, entry] of Object.entries(registry)) {
+    if (normalizeLtiIssuer(candidateIssuer) === normalizedIssuer && entry.clientId === clientId) {
+      return {
+        issuer: normalizeLtiIssuer(candidateIssuer),
+        entry,
+      };
+    }
+  }
+
+  return null;
+};
+
 export interface ResolvedLtiLaunch {
   issuer: string;
   issuerEntry: LtiIssuerRegistryEntry;
   launchClaims: LtiLaunchClaims;
-  launchState: LtiLaunchState;
   ltiLaunchSession: LTISession;
   ltiTool: LTITool;
 }
@@ -71,144 +100,54 @@ export const resolveLtiLaunch = async (input: {
   registry: LtiIssuerRegistry;
   db: SqlDatabase;
   env: AppBindings;
-  nowIso: string;
+  createLtiTool?: CreateCredTrailLtiTool;
 }): Promise<ResolvedLtiLaunch> => {
-  const idTokenHeader = parseCompactJwsHeaderObject(input.idToken);
-  const idTokenPayload = parseCompactJwsPayloadObject(input.idToken);
+  const ltiTool = await (input.createLtiTool ?? createCredTrailLtiTool)({
+    db: input.db,
+    env: input.env,
+  });
 
-  if (idTokenHeader === null || idTokenPayload === null) {
+  const verificationResult = await ltiTool.verifyLaunchDetailed(input.idToken, input.state);
+
+  if (!verificationResult.success) {
+    const status = statusForCoreVerificationError(verificationResult.error);
     throw new LtiLaunchVerificationError(
-      400,
-      "id_token must be a compact JWT with valid JSON header and payload",
+      status,
+      "LTI launch verification failed",
+      verificationErrorDetail(verificationResult.error),
     );
   }
 
-  const unverifiedIssuer = asNonEmptyString(idTokenPayload.iss);
+  const issuerMatch = findVerifiedIssuerEntry(
+    input.registry,
+    verificationResult.launch.issuer,
+    verificationResult.launch.clientId,
+  );
 
-  if (unverifiedIssuer === null) {
-    throw new LtiLaunchVerificationError(400, "id_token is missing issuer");
-  }
-
-  const issuer = normalizeLtiIssuer(unverifiedIssuer);
-  const issuerEntry = input.registry[issuer];
-
-  if (issuerEntry === undefined) {
+  if (issuerMatch === null) {
     throw new LtiLaunchVerificationError(
       400,
-      "No issuer registration configured for id_token issuer",
+      "No issuer registration configured for verified LTI launch",
     );
   }
 
-  const algorithm = asNonEmptyString(idTokenHeader.alg);
-
-  if (algorithm === null || algorithm.toLowerCase() === "none") {
-    throw new LtiLaunchVerificationError(
-      400,
-      'id_token must specify a JOSE alg and must not use "none"',
-    );
-  }
-
-  if (!ltiIssuerHasSignedLaunchConfig(issuerEntry)) {
+  if (!ltiIssuerHasSignedLaunchConfig(issuerMatch.entry)) {
     throw new LtiLaunchVerificationError(
       501,
       "LTI issuer requires platform JWKS and token endpoint configuration for signed launches",
     );
   }
 
-  const ltiTool = await createCredTrailLtiTool({
-    db: input.db,
-    env: input.env,
-    defaultTenantId: issuerEntry.tenantId,
-  });
-
-  let launchClaims: LtiLaunchClaims;
-  let ltiLaunchSession: LTISession;
-
-  try {
-    const verifiedPayload = await ltiTool.verifyLaunch(input.idToken, input.state);
-    launchClaims = parseLtiLaunchClaims(verifiedPayload);
-    const verifiedSession = await ltiTool.createSession(verifiedPayload);
-    ltiLaunchSession = {
-      ...verifiedSession,
-      platform: {
-        ...verifiedSession.platform,
-        clientId: issuerEntry.clientId,
-      },
-    };
-  } catch (error) {
-    throw new LtiLaunchVerificationError(
-      401,
-      "LTI launch verification failed",
-      verificationErrorDetail(error),
-    );
-  }
-
-  const signedTargetLinkUri = launchClaims[LTI_CLAIM_TARGET_LINK_URI];
-
-  if (signedTargetLinkUri === undefined) {
-    throw new LtiLaunchVerificationError(
-      400,
-      "id_token target_link_uri is required for signed LTI launch",
-    );
-  }
-
-  const launchState: LtiLaunchState = {
-    iss: normalizeLtiIssuer(launchClaims.iss),
-    clientId: issuerEntry.clientId,
-    nonce: launchClaims.nonce,
-    targetLinkUri: signedTargetLinkUri,
-    ltiDeploymentId: launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
-  };
-
-  if (!ltiAudienceIncludesClientId(launchClaims.aud, launchState.clientId)) {
-    throw new LtiLaunchVerificationError(400, "id_token aud does not include configured client_id");
-  }
-
-  if (launchClaims.nonce !== launchState.nonce) {
-    throw new LtiLaunchVerificationError(400, "id_token nonce does not match launch state nonce");
-  }
-
-  const nowEpochSeconds = Math.floor(Date.parse(input.nowIso) / 1000);
-
-  if (launchClaims.exp <= nowEpochSeconds) {
-    throw new LtiLaunchVerificationError(400, "id_token is expired");
-  }
-
-  if (launchClaims.iat > nowEpochSeconds + 60) {
-    throw new LtiLaunchVerificationError(400, "id_token iat is in the future");
-  }
-
-  if (
-    launchState.ltiDeploymentId !== undefined &&
-    launchClaims[LTI_CLAIM_DEPLOYMENT_ID] !== launchState.ltiDeploymentId
-  ) {
-    throw new LtiLaunchVerificationError(
-      400,
-      "id_token deployment_id does not match launch initiation",
-    );
-  }
-
-  const targetLinkUriClaim = launchClaims[LTI_CLAIM_TARGET_LINK_URI];
-  const normalizedStateTargetLinkUri = normalizeAbsoluteUrlForComparison(launchState.targetLinkUri);
-  const normalizedClaimTargetLinkUri =
-    targetLinkUriClaim === undefined ? null : normalizeAbsoluteUrlForComparison(targetLinkUriClaim);
-
-  if (
-    targetLinkUriClaim !== undefined &&
-    normalizedStateTargetLinkUri !== null &&
-    normalizedClaimTargetLinkUri !== normalizedStateTargetLinkUri
-  ) {
-    throw new LtiLaunchVerificationError(
-      400,
-      "id_token target_link_uri does not match launch initiation",
-    );
-  }
+  const launchClaims = verificationResult.launch.payload;
+  const ltiLaunchSession = await ltiTool.createSession(
+    verificationResult.launch.payload,
+    verificationResult.launch.clientId,
+  );
 
   return {
-    issuer,
-    issuerEntry,
+    issuer: issuerMatch.issuer,
+    issuerEntry: issuerMatch.entry,
     launchClaims,
-    launchState,
     ltiLaunchSession,
     ltiTool,
   };

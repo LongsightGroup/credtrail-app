@@ -1,19 +1,14 @@
 import {
-  LTI_CLAIM_CONTEXT,
-  LTI_CLAIM_DEEP_LINKING_SETTINGS,
-  LTI_CLAIM_MESSAGE_TYPE,
-  LTI_CLAIM_RESOURCE_LINK,
-  LTI_CLAIM_TARGET_LINK_URI,
+  LTI_CLAIM_CUSTOM,
   LTI_MESSAGE_TYPE_DEEP_LINKING_REQUEST,
   LTI_MESSAGE_TYPE_RESOURCE_LINK_REQUEST,
-  resolveLtiRoleKind,
-  type LtiLaunchClaims,
-  type LtiRoleKind,
-} from "@credtrail/lti";
-import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
-import type { LtiLaunchState } from "./launch-verification";
-
-const LTI_CLAIM_CUSTOM = "https://purl.imsglobal.org/spec/lti/claim/custom";
+  LtiLaunchMessageResolutionError,
+  resolveLtiLaunchMessage as resolveCoreLtiLaunchMessage,
+  type LTI13JwtPayload as LtiLaunchClaims,
+  type LtiRoleKind as CoreLtiRoleKind,
+} from "@lti-tool/core";
+import { asNonEmptyString } from "../utils/value-parsers";
+import type { LtiRoleKind } from "./view-models";
 
 export interface LtiDeepLinkingSettings {
   deepLinkReturnUrl: string;
@@ -51,71 +46,6 @@ export class LtiLaunchMessageError extends Error {
   }
 }
 
-const parseDeepLinkingSettings = (claimValue: unknown): LtiDeepLinkingSettings | null => {
-  const settings = asJsonObject(claimValue);
-
-  if (settings === null) {
-    return null;
-  }
-
-  const deepLinkReturnUrl = asNonEmptyString(settings.deep_link_return_url);
-
-  if (deepLinkReturnUrl === null) {
-    return null;
-  }
-
-  let parsedDeepLinkReturnUrl: URL;
-
-  try {
-    parsedDeepLinkReturnUrl = new URL(deepLinkReturnUrl);
-  } catch {
-    return null;
-  }
-
-  if (
-    parsedDeepLinkReturnUrl.protocol !== "https:" &&
-    parsedDeepLinkReturnUrl.protocol !== "http:"
-  ) {
-    return null;
-  }
-
-  let data: string | undefined;
-
-  if (settings.data !== undefined) {
-    const parsedData = asNonEmptyString(settings.data);
-
-    if (parsedData === null) {
-      return null;
-    }
-
-    data = parsedData;
-  }
-
-  let acceptTypes: string[] | undefined;
-
-  if (settings.accept_types !== undefined) {
-    if (!Array.isArray(settings.accept_types)) {
-      return null;
-    }
-
-    const normalizedAcceptTypes = settings.accept_types
-      .map((entry) => asNonEmptyString(entry))
-      .filter((entry): entry is string => entry !== null);
-
-    if (normalizedAcceptTypes.length !== settings.accept_types.length) {
-      return null;
-    }
-
-    acceptTypes = normalizedAcceptTypes;
-  }
-
-  return {
-    deepLinkReturnUrl: parsedDeepLinkReturnUrl.toString(),
-    ...(data === undefined ? {} : { data }),
-    ...(acceptTypes === undefined ? {} : { acceptTypes }),
-  };
-};
-
 export const badgeTemplateIdFromTargetLinkUri = (targetLinkUri: string): string | null => {
   try {
     const parsed = new URL(targetLinkUri);
@@ -146,64 +76,69 @@ export const setupTokenFromTargetLinkUri = (targetLinkUri: string): string | nul
   }
 };
 
-export const resolveLtiLaunchMessage = (input: {
-  launchClaims: LtiLaunchClaims;
-  launchState: LtiLaunchState;
-}): ResolvedLtiLaunchMessage => {
-  const messageType = input.launchClaims[LTI_CLAIM_MESSAGE_TYPE];
-  const targetLinkUriClaim = input.launchClaims[LTI_CLAIM_TARGET_LINK_URI];
-  const resolvedTargetLinkUri = targetLinkUriClaim ?? input.launchState.targetLinkUri;
-  const roleKind = resolveLtiRoleKind(input.launchClaims);
+const credTrailRoleKindFromCoreRoleKinds = (roleKinds: readonly CoreLtiRoleKind[]): LtiRoleKind => {
+  if (
+    roleKinds.includes("instructor") ||
+    roleKinds.includes("content-developer") ||
+    roleKinds.includes("administrator")
+  ) {
+    return "instructor";
+  }
 
-  if (messageType === LTI_MESSAGE_TYPE_RESOURCE_LINK_REQUEST) {
-    const resourceLinkClaim = input.launchClaims[LTI_CLAIM_RESOURCE_LINK];
+  if (roleKinds.includes("learner")) {
+    return "learner";
+  }
 
-    if (resourceLinkClaim === undefined || asNonEmptyString(resourceLinkClaim.id) === null) {
-      throw new LtiLaunchMessageError(
-        400,
-        "id_token for LtiResourceLinkRequest must include resource_link.id",
-      );
+  return "unknown";
+};
+
+export const resolveLtiLaunchMessage = (
+  launchClaims: LtiLaunchClaims,
+): ResolvedLtiLaunchMessage => {
+  let coreLaunchMessage: ReturnType<typeof resolveCoreLtiLaunchMessage>;
+
+  try {
+    coreLaunchMessage = resolveCoreLtiLaunchMessage(launchClaims);
+  } catch (error) {
+    if (error instanceof LtiLaunchMessageResolutionError) {
+      throw new LtiLaunchMessageError(400, error.message);
     }
+
+    throw error;
+  }
+
+  const resolvedTargetLinkUri = coreLaunchMessage.targetLinkUri;
+  const roleKind = credTrailRoleKindFromCoreRoleKinds(coreLaunchMessage.roleKinds);
+
+  if (coreLaunchMessage.kind === "resource-link") {
+    const customParameters = launchClaims[LTI_CLAIM_CUSTOM] ?? {};
 
     return {
       kind: "resource-link",
-      messageType,
+      messageType: LTI_MESSAGE_TYPE_RESOURCE_LINK_REQUEST,
       roleKind,
       resolvedTargetLinkUri,
-      resourceLinkId: resourceLinkClaim.id,
-      resourceContextId: asNonEmptyString(asJsonObject(input.launchClaims[LTI_CLAIM_CONTEXT])?.id),
+      resourceLinkId: coreLaunchMessage.resourceLink.id,
+      resourceContextId: coreLaunchMessage.context?.id ?? null,
       badgeTemplateId:
-        asNonEmptyString(asJsonObject(input.launchClaims[LTI_CLAIM_CUSTOM])?.badgeTemplateId) ??
+        asNonEmptyString(customParameters.badgeTemplateId) ??
         badgeTemplateIdFromTargetLinkUri(resolvedTargetLinkUri),
       ruleId:
-        asNonEmptyString(asJsonObject(input.launchClaims[LTI_CLAIM_CUSTOM])?.ruleId) ??
-        ruleIdFromTargetLinkUri(resolvedTargetLinkUri),
+        asNonEmptyString(customParameters.ruleId) ?? ruleIdFromTargetLinkUri(resolvedTargetLinkUri),
       setupToken:
-        asNonEmptyString(asJsonObject(input.launchClaims[LTI_CLAIM_CUSTOM])?.setupToken) ??
+        asNonEmptyString(customParameters.setupToken) ??
         setupTokenFromTargetLinkUri(resolvedTargetLinkUri),
     };
   }
 
-  if (messageType === LTI_MESSAGE_TYPE_DEEP_LINKING_REQUEST) {
+  if (coreLaunchMessage.kind === "deep-linking") {
     if (roleKind !== "instructor") {
       throw new LtiLaunchMessageError(403, "LtiDeepLinkingRequest requires instructor role");
     }
 
-    const deepLinkingSettings = parseDeepLinkingSettings(
-      input.launchClaims[LTI_CLAIM_DEEP_LINKING_SETTINGS],
-    );
+    const deepLinkingSettings = coreLaunchMessage.deepLinkingSettings;
 
-    if (deepLinkingSettings === null) {
-      throw new LtiLaunchMessageError(
-        400,
-        "id_token for LtiDeepLinkingRequest must include deep_linking_settings.deep_link_return_url",
-      );
-    }
-
-    if (
-      deepLinkingSettings.acceptTypes !== undefined &&
-      !deepLinkingSettings.acceptTypes.includes("ltiResourceLink")
-    ) {
+    if (!deepLinkingSettings.acceptTypes.includes("ltiResourceLink")) {
       throw new LtiLaunchMessageError(
         400,
         "deep_linking_settings.accept_types must include ltiResourceLink",
@@ -212,12 +147,16 @@ export const resolveLtiLaunchMessage = (input: {
 
     return {
       kind: "deep-linking",
-      messageType,
+      messageType: LTI_MESSAGE_TYPE_DEEP_LINKING_REQUEST,
       roleKind,
       resolvedTargetLinkUri,
-      deepLinkingSettings,
+      deepLinkingSettings: {
+        deepLinkReturnUrl: deepLinkingSettings.returnUrl,
+        ...(deepLinkingSettings.data === undefined ? {} : { data: deepLinkingSettings.data }),
+        acceptTypes: deepLinkingSettings.acceptTypes,
+      },
     };
   }
 
-  throw new LtiLaunchMessageError(400, `Unsupported LTI message_type: ${messageType}`);
+  throw new LtiLaunchMessageError(400, "Unsupported LTI message_type");
 };

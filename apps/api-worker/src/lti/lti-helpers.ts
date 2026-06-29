@@ -1,5 +1,5 @@
 import type { LtiIssuerRegistrationRecord } from "@credtrail/db";
-import { LTI_CLAIM_LIS, type LtiLaunchClaims } from "@credtrail/lti";
+import { LTI_CLAIM_LIS, type LTI13JwtPayload as LtiLaunchClaims } from "@lti-tool/core";
 import type { AppBindings, AppContext } from "../app";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
 
@@ -192,17 +192,6 @@ export const ltiStateSigningSecret = (
   }
 
   return configuredSecret;
-};
-
-export const ltiAudienceIncludesClientId = (
-  audienceClaim: LtiLaunchClaims["aud"],
-  clientId: string,
-): boolean => {
-  if (typeof audienceClaim === "string") {
-    return audienceClaim === clientId;
-  }
-
-  return audienceClaim.includes(clientId);
 };
 
 export const ltiFederatedSubjectIdentity = (issuer: string, subjectId: string): string => {
