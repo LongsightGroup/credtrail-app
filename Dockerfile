@@ -14,7 +14,7 @@ COPY packages/core-domain/package.json ./packages/core-domain/package.json
 COPY packages/db/package.json ./packages/db/package.json
 COPY packages/ui-components/package.json ./packages/ui-components/package.json
 COPY packages/validation/package.json ./packages/validation/package.json
-COPY vendor/lti-tool-core-1.1.4-longsight.0.tgz ./vendor/lti-tool-core-1.1.4-longsight.0.tgz
+COPY vendor/lti-tool-core-1.1.4-longsight.6.tgz ./vendor/lti-tool-core-1.1.4-longsight.6.tgz
 
 RUN pnpm install --frozen-lockfile
 
