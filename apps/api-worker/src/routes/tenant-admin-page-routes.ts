@@ -18,6 +18,10 @@ import {
   parseTenantPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
+import {
+  badgeTemplateAdminEditorHref,
+  buildBadgeTemplateListPath,
+} from "../admin/badge-template-admin-helpers";
 import { buildLmsConnectionEditPath } from "../admin/lms-connection-admin-helpers";
 import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
 import {
@@ -241,7 +245,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     return renderInstitutionAdminTemplatesWorkspace(
       c,
       pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules/templates`,
+      buildBadgeTemplateListPath(pathParams.tenantId),
     );
   });
 
@@ -251,9 +255,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       c,
       pathParams.tenantId,
       pathParams.badgeTemplateId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules/templates/${encodeURIComponent(
-        pathParams.badgeTemplateId,
-      )}`,
+      badgeTemplateAdminEditorHref(pathParams.tenantId, pathParams.badgeTemplateId),
     );
   });
 

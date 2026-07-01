@@ -20,6 +20,18 @@ export const buildIssuedBadgesPagePath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/operations/issued-badges`;
 };
 
+export const emptyIssuedBadgesPageFilterValues = (): IssuedBadgesPageFilterValues => {
+  return {
+    issuedFrom: "",
+    issuedTo: "",
+    recipientQuery: "",
+    badgeTemplateId: "",
+    orgUnitId: "",
+    state: "",
+    limit: issuedBadgesDefaultLimit,
+  };
+};
+
 const issuedBadgesTextFilterNames = [
   "issuedFrom",
   "issuedTo",

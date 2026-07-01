@@ -14,6 +14,10 @@ import {
 } from "./course-badge-placements";
 import type { LtiNrpsRoster } from "./nrps";
 import { ltiBadgeSummaryCardFromTemplate, newestAssertion } from "./badge-summary-helpers";
+import {
+  ltiCourseSummaryBadgeSetupPath,
+  ltiCourseSummaryIssuedBadgesPath,
+} from "./lti-admin-links";
 import type { LtiCourseBadgeSummaryView } from "./view-models";
 
 type ResolveCourseBadgePlacements = typeof resolveOrderedCourseBadgeTemplatesForContext;
@@ -87,50 +91,6 @@ const courseBadgeSummaryStatusLabel = (
   }
 
   return status.charAt(0).toUpperCase() + status.slice(1);
-};
-
-const ltiLearnerIssuedBadgesPath = (input: {
-  tenantId: string;
-  email: string;
-  badgeTemplateId?: string;
-  assertionId?: string;
-}): string => {
-  const query = new URLSearchParams({ recipientQuery: input.email });
-
-  if (input.badgeTemplateId !== undefined) {
-    query.set("badgeTemplateId", input.badgeTemplateId);
-  }
-
-  if (input.assertionId !== undefined) {
-    query.set("lifecycle", input.assertionId);
-    query.set("lifecycleMode", "audit");
-  }
-
-  query.set("source", "lti-course-summary");
-
-  return `/tenants/${encodeURIComponent(input.tenantId)}/admin/operations/issued-badges?${query.toString()}`;
-};
-
-const ltiBadgeCourseSetupPath = (input: {
-  tenantId: string;
-  badgeTemplateId: string;
-  contextId: string;
-  resourceLinkId: string;
-  courseContextTitle: string | null;
-}): string => {
-  const query = new URLSearchParams({
-    ltiContextId: input.contextId,
-    ltiResourceLinkId: input.resourceLinkId,
-    source: "lti-course-summary",
-  });
-
-  if (input.courseContextTitle !== null) {
-    query.set("ltiCourse", input.courseContextTitle);
-  }
-
-  return `/tenants/${encodeURIComponent(input.tenantId)}/admin/rules/templates/${encodeURIComponent(
-    input.badgeTemplateId,
-  )}?${query.toString()}`;
 };
 
 const ltiBadgeRecipientKey = (badgeTemplateId: string, recipientEmail: string): string => {
@@ -244,7 +204,7 @@ const ltiCourseBadgeSummaryViewFromRoster = async (
       learnerDetailPath:
         !input.canOpenAdminLinks || candidate.member.email === null
           ? null
-          : ltiLearnerIssuedBadgesPath({
+          : ltiCourseSummaryIssuedBadgesPath({
               tenantId: input.tenantId,
               email: candidate.member.email,
               badgeTemplateId: candidate.template.id,
@@ -253,7 +213,7 @@ const ltiCourseBadgeSummaryViewFromRoster = async (
       badgeTemplateId: candidate.template.id,
       badgeTitle: candidate.template.title,
       badgeDetailPath: input.canOpenAdminLinks
-        ? ltiBadgeCourseSetupPath({
+        ? ltiCourseSummaryBadgeSetupPath({
             tenantId: input.tenantId,
             badgeTemplateId: candidate.template.id,
             contextId: placementContextId,

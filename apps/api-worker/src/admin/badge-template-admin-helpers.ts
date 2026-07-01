@@ -17,6 +17,14 @@ export interface BadgeTemplateListPageQueryOptions {
   returnToRuleBuilder: boolean;
 }
 
+export const buildBadgeTemplateListPath = (tenantId: string): string => {
+  return `/tenants/${encodeURIComponent(tenantId)}/admin/rules/templates`;
+};
+
+export const badgeTemplateAdminEditorHref = (tenantId: string, badgeTemplateId: string): string => {
+  return `${buildBadgeTemplateListPath(tenantId)}/${encodeURIComponent(badgeTemplateId)}`;
+};
+
 export const toBadgeTemplateClientRecord = (
   template: BadgeTemplateRecord,
 ): BadgeTemplateClientRecord => {

@@ -5,6 +5,7 @@ import type {
 } from "@credtrail/db";
 import { parseBadgeTemplatePathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
+import { badgeTemplateAdminEditorHref } from "../admin/badge-template-admin-helpers";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import {
   applyBadgeTemplateGeneratedImage,
@@ -40,19 +41,13 @@ interface RegisterBadgeTemplateEditorArtworkAdminRoutesInput {
   >;
 }
 
-const buildTemplateEditorPath = (tenantId: string, badgeTemplateId: string): string => {
-  return `/tenants/${encodeURIComponent(tenantId)}/admin/rules/templates/${encodeURIComponent(
-    badgeTemplateId,
-  )}`;
-};
-
 const redirectToTemplateEditor = (
   c: AppContext,
   tenantId: string,
   badgeTemplateId: string,
   query: Record<string, string>,
 ): Response => {
-  const location = new URL(buildTemplateEditorPath(tenantId, badgeTemplateId), c.req.url);
+  const location = new URL(badgeTemplateAdminEditorHref(tenantId, badgeTemplateId), c.req.url);
 
   for (const [key, value] of Object.entries(query)) {
     if (value.length > 0) {
@@ -71,7 +66,10 @@ export const registerBadgeTemplateEditorArtworkAdminRoutes = (
 
   app.post("/tenants/:tenantId/admin/rules/templates/:badgeTemplateId/image-upload", async (c) => {
     const pathParams = parseBadgeTemplatePathParams(c.req.param());
-    const editorPath = buildTemplateEditorPath(pathParams.tenantId, pathParams.badgeTemplateId);
+    const editorPath = badgeTemplateAdminEditorHref(
+      pathParams.tenantId,
+      pathParams.badgeTemplateId,
+    );
 
     return withBadgeTemplateIssuerAccess(
       {
@@ -133,7 +131,10 @@ export const registerBadgeTemplateEditorArtworkAdminRoutes = (
     "/tenants/:tenantId/admin/rules/templates/:badgeTemplateId/image-generations/apply",
     async (c) => {
       const pathParams = parseBadgeTemplatePathParams(c.req.param());
-      const editorPath = buildTemplateEditorPath(pathParams.tenantId, pathParams.badgeTemplateId);
+      const editorPath = badgeTemplateAdminEditorHref(
+        pathParams.tenantId,
+        pathParams.badgeTemplateId,
+      );
 
       return withBadgeTemplateIssuerAccess(
         {

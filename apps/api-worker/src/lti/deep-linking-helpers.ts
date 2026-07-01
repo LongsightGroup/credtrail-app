@@ -1,6 +1,7 @@
 import type { DeepLinkingContentItem, LTISession } from "@longsightgroup/lti-tool";
 import type { TenantMembershipRole } from "@credtrail/db";
 import { LTI_DEEP_LINKING_SELECT_PATH } from "./constants";
+import { ltiDeepLinkAdvancedSetupPath } from "./lti-admin-links";
 import type { LtiDeepLinkSelectionPageInput } from "./view-models";
 
 export const badgeTemplateDeepLinkContentItem = (input: {
@@ -43,23 +44,18 @@ export const ltiDeepLinkSelectionInput = (input: {
   const options = input.badgeTemplates.map((badgeTemplate) => {
     const launchUrl = new URL(input.targetLinkUri);
     launchUrl.searchParams.set("badgeTemplateId", badgeTemplate.id);
-    const advancedSetupUrl = new URL(
-      `/tenants/${encodeURIComponent(input.tenantId)}/admin/rules/new`,
-      input.requestUrl,
-    );
-    advancedSetupUrl.searchParams.set("badgeTemplateId", badgeTemplate.id);
-    advancedSetupUrl.searchParams.set("source", "lti-deep-link");
-
-    if (input.ltiLaunchSession.context.id.trim().length > 0) {
-      advancedSetupUrl.searchParams.set("ltiContextId", input.ltiLaunchSession.context.id.trim());
-    }
 
     return {
       badgeTemplateId: badgeTemplate.id,
       title: badgeTemplate.title,
       description: badgeTemplate.description,
       launchUrl: launchUrl.toString(),
-      advancedSetupUrl: `${advancedSetupUrl.pathname}${advancedSetupUrl.search}`,
+      advancedSetupUrl: ltiDeepLinkAdvancedSetupPath({
+        requestUrl: input.requestUrl,
+        tenantId: input.tenantId,
+        badgeTemplateId: badgeTemplate.id,
+        contextId: input.ltiLaunchSession.context.id,
+      }),
     };
   });
   const common = {

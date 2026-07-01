@@ -3,6 +3,7 @@ import type { BadgeTemplateRecord } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { formatIsoTimestamp } from "../utils/display-format";
 import {
+  badgeTemplateAdminEditorHref,
   buildBadgeTemplateListPageQuery,
   type BadgeTemplateListPageQueryOptions,
 } from "./badge-template-admin-helpers";
@@ -21,12 +22,6 @@ import {
 import { AdminLinkedImageWithFallback } from "./image-fallback";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
-
-export const badgeTemplateAdminEditorHref = (tenantId: string, badgeTemplateId: string): string => {
-  return `/tenants/${encodeURIComponent(tenantId)}/admin/rules/templates/${encodeURIComponent(
-    badgeTemplateId,
-  )}`;
-};
 
 export const BadgeTemplateAdminTableRow = ({
   tenantId,

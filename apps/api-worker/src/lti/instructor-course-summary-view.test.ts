@@ -268,11 +268,14 @@ describe("resolveInstructorCourseBadgeSummaryView", () => {
         issuedAt: null,
       }),
     ]);
-    expect(view.rows[0]?.learnerDetailPath).toContain(
-      "/tenants/tenant_123/admin/operations/issued-badges?",
+    expect(view.rows[0]?.learnerDetailPath).toBe(
+      "/tenants/tenant_123/admin/operations/issued-badges?recipientQuery=learner-one%40example.edu&badgeTemplateId=badge_template_001&lifecycle=assertion-001&lifecycleMode=audit&source=lti-course-summary",
     );
-    expect(view.rows[0]?.badgeDetailPath).toContain(
-      "/tenants/tenant_123/admin/rules/templates/badge_template_001?",
+    expect(view.rows[1]?.learnerDetailPath).toBe(
+      "/tenants/tenant_123/admin/operations/issued-badges?recipientQuery=learner-two%40example.edu&badgeTemplateId=badge_template_001&source=lti-course-summary",
+    );
+    expect(view.rows[0]?.badgeDetailPath).toBe(
+      "/tenants/tenant_123/admin/rules/templates/badge_template_001?ltiContextId=course-123&ltiResourceLinkId=resource-link-123&source=lti-course-summary&ltiCourse=Course+123",
     );
   });
 

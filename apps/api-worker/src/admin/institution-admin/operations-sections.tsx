@@ -17,6 +17,7 @@ import {
 import { CtInput, CtSelect, CtTextarea } from "../../ui/forms";
 import {
   buildIssuedBadgesPagePath,
+  emptyIssuedBadgesPageFilterValues,
   issuedBadgesAssertionPageUrl,
   issuedBadgesLedgerExportUrl,
   tenantIssuedBadgeAdminRevokePath,
@@ -61,15 +62,8 @@ export interface RenderIssuedBadgesPanelInput {
 }
 
 export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): HonoElement => {
-  const issuedBadgesFilters = input.issuedBadgesWorkspace?.filters ?? {
-    issuedFrom: "",
-    issuedTo: "",
-    recipientQuery: "",
-    badgeTemplateId: "",
-    orgUnitId: "",
-    state: "",
-    limit: 100,
-  };
+  const issuedBadgesFilters =
+    input.issuedBadgesWorkspace?.filters ?? emptyIssuedBadgesPageFilterValues();
   const issuedBadgesPagePath = buildIssuedBadgesPagePath(input.tenantId);
   const showIssuedBadgeLifecyclePanel =
     input.issuedBadgesWorkspace?.lifecycleAssertionId !== null &&

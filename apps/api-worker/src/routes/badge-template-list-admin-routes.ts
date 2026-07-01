@@ -18,7 +18,9 @@ import {
 } from "../admin/admin-list-message-flash";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import {
+  badgeTemplateAdminEditorHref,
   badgeTemplateListPageUrl,
+  buildBadgeTemplateListPath,
   deriveUniqueBadgeTemplateSlug,
   parseBadgeTemplateListPageQuery,
 } from "../admin/badge-template-admin-helpers";
@@ -63,21 +65,17 @@ interface RegisterBadgeTemplateListAdminRoutesInput {
   >;
 }
 
-const buildTemplateListPath = (tenantId: string): string => {
-  return `/tenants/${encodeURIComponent(tenantId)}/admin/rules/templates`;
-};
-
-const buildTemplateEditorPath = (tenantId: string, badgeTemplateId: string): string => {
-  return `${buildTemplateListPath(tenantId)}/${encodeURIComponent(badgeTemplateId)}`;
-};
-
 const redirectToTemplateList = (
   c: AppContext,
   tenantId: string,
   listPageQuery: ReturnType<typeof parseBadgeTemplateListPageQuery>,
   extra?: Record<string, string>,
 ): Response => {
-  const location = badgeTemplateListPageUrl(buildTemplateListPath(tenantId), listPageQuery, extra);
+  const location = badgeTemplateListPageUrl(
+    buildBadgeTemplateListPath(tenantId),
+    listPageQuery,
+    extra,
+  );
 
   return c.redirect(location, 303);
 };
@@ -111,7 +109,7 @@ const redirectToTemplateEditor = (
   query: Record<string, string>,
   hash?: string,
 ): Response => {
-  const location = new URL(buildTemplateEditorPath(tenantId, badgeTemplateId), c.req.url);
+  const location = new URL(badgeTemplateAdminEditorHref(tenantId, badgeTemplateId), c.req.url);
 
   for (const [key, value] of Object.entries(query)) {
     if (value.length > 0) {
@@ -156,7 +154,7 @@ export const registerBadgeTemplateListAdminRoutes = (
   app.post("/tenants/:tenantId/admin/rules/templates", async (c) => {
     const tenantId = c.req.param("tenantId").trim();
     const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
-    const listPath = buildTemplateListPath(tenantId);
+    const listPath = buildBadgeTemplateListPath(tenantId);
     const roleCheck = await resolveInstitutionAdminAdminRole(c, tenantId, listPath);
 
     if (roleCheck instanceof Response) {
@@ -240,7 +238,10 @@ export const registerBadgeTemplateListAdminRoutes = (
   app.post("/tenants/:tenantId/admin/rules/templates/:badgeTemplateId/details", async (c) => {
     const pathParams = parseBadgeTemplatePathParams(c.req.param());
     const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
-    const editorPath = buildTemplateEditorPath(pathParams.tenantId, pathParams.badgeTemplateId);
+    const editorPath = badgeTemplateAdminEditorHref(
+      pathParams.tenantId,
+      pathParams.badgeTemplateId,
+    );
 
     return withBadgeTemplateIssuerAccess(
       {
@@ -330,7 +331,7 @@ export const registerBadgeTemplateListAdminRoutes = (
         c,
         tenantId: pathParams.tenantId,
         badgeTemplateId: pathParams.badgeTemplateId,
-        nextPath: buildTemplateListPath(pathParams.tenantId),
+        nextPath: buildBadgeTemplateListPath(pathParams.tenantId),
         resolveDatabase,
         resolveInstitutionAdminAdminRole,
         requireScopedOrgUnitPermission,
@@ -396,7 +397,7 @@ export const registerBadgeTemplateListAdminRoutes = (
           c,
           tenantId: pathParams.tenantId,
           badgeTemplateId: pathParams.badgeTemplateId,
-          nextPath: buildTemplateListPath(pathParams.tenantId),
+          nextPath: buildBadgeTemplateListPath(pathParams.tenantId),
           resolveDatabase,
           resolveInstitutionAdminAdminRole,
           requireScopedOrgUnitPermission,

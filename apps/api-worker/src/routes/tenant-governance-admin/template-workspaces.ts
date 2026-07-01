@@ -14,7 +14,10 @@ import {
   institutionAdminRuleTemplatesPage,
 } from "../../admin/institution-admin-page";
 import type { BadgeTemplateHistoryPanel } from "../../admin/institution-admin-templates-page";
-import { parseBadgeTemplateListPageQuery } from "../../admin/badge-template-admin-helpers";
+import {
+  buildBadgeTemplateListPath,
+  parseBadgeTemplateListPageQuery,
+} from "../../admin/badge-template-admin-helpers";
 import { loadBadgeTemplateHistoryPayload } from "../../badges/badge-template-history-payload";
 import type { TenantGovernanceAdminAuth } from "./auth";
 import type { TenantGovernanceAdminPageDataLoaders } from "./page-data";
@@ -349,7 +352,7 @@ export const createTenantGovernanceTemplateAdminWorkspaces = (input: {
     ]);
 
     if (badgeTemplate === null) {
-      return c.redirect(`/tenants/${encodeURIComponent(tenantId)}/admin/rules/templates`, 302);
+      return c.redirect(buildBadgeTemplateListPath(tenantId), 302);
     }
 
     const revisionCount =
