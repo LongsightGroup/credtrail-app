@@ -180,13 +180,14 @@ export const handleResourceLinkLaunch = async (input: {
   }
 
   const preparedResourceLinkLaunch = preparedResourceLinkLaunchResult.value;
+  const attemptedPlacementResult = preparedResourceLinkLaunch.placementResult;
 
-  if (preparedResourceLinkLaunch.placementResult !== null) {
+  if (attemptedPlacementResult?.ok === false) {
     logResourceLinkPlacementFailure({
       c: input.c,
       tenantId: input.tenantId,
       launch: preparedResourceLinkLaunch.launch,
-      placementResult: preparedResourceLinkLaunch.placementResult,
+      placementResult: attemptedPlacementResult,
     });
   }
 

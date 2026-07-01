@@ -262,61 +262,6 @@ const buildLtiLaunchDashboardPath = async (input: {
   return `${dashboardUrl.pathname}${dashboardUrl.search}`;
 };
 
-const resourceLinkViewsForLaunch = async (input: {
-  c: AppContext;
-  db: SqlDatabase;
-  tenantId: string;
-  launchClaims: ResolvedLtiLaunch["launchClaims"];
-  resolvedLaunch: ResolvedLtiLaunch;
-  validatedResourceLinkLaunch: ValidatedResourceLinkLaunch;
-  linkedAccount: LinkedLtiLaunchAccount;
-  sha256Hex: (value: string) => Promise<string>;
-}): ReturnType<typeof resolveLtiResourceLinkLaunchViews> => {
-  const ltiLog = ltiLogger(input.c);
-  const roleKind = input.validatedResourceLinkLaunch.launchMessage.roleKind;
-
-  if (roleKind === "instructor") {
-    return resolveLtiResourceLinkLaunchViews({
-      kind: "instructor",
-      input: {
-        db: input.db,
-        env: input.c.env,
-        tenantId: input.tenantId,
-        launchClaims: input.launchClaims,
-        launch: input.validatedResourceLinkLaunch,
-        ltiLaunchSession: input.resolvedLaunch.ltiLaunchSession,
-        ltiTool: input.resolvedLaunch.ltiTool,
-        issuerClientId: input.resolvedLaunch.issuerEntry.clientId,
-        linkedUserId: input.linkedAccount.userId,
-        membershipRole: input.linkedAccount.membershipRole,
-        ltiLog,
-        sha256Hex: input.sha256Hex,
-        sessionHandoffTtlSeconds: LTI_SESSION_HANDOFF_TTL_SECONDS,
-      },
-    });
-  }
-
-  if (roleKind === "learner") {
-    return resolveLtiResourceLinkLaunchViews({
-      kind: "learner",
-      input: {
-        db: input.db,
-        tenantId: input.tenantId,
-        launchClaims: input.launchClaims,
-        launch: input.validatedResourceLinkLaunch,
-        ltiLaunchSession: input.resolvedLaunch.ltiLaunchSession,
-        issuerClientId: input.resolvedLaunch.issuerEntry.clientId,
-        linkedUserId: input.linkedAccount.userId,
-        ltiLog,
-      },
-    });
-  }
-
-  return resolveLtiResourceLinkLaunchViews({
-    kind: "unknown",
-  });
-};
-
 /**
  * Renders CredTrail's product UI for a verified LTI Resource Link launch.
  */
@@ -338,15 +283,17 @@ export const renderLtiResourceLinkLaunchResponse = async (input: {
       tenantId: input.tenantId,
       createdSession: input.establishedSession.createdSession,
     }),
-    resourceLinkViewsForLaunch({
-      c: input.c,
+    resolveLtiResourceLinkLaunchViews({
       db: input.db,
+      env: input.c.env,
       tenantId: input.tenantId,
       launchClaims: input.launchClaims,
       resolvedLaunch: input.resolvedLaunch,
       validatedResourceLinkLaunch: input.validatedResourceLinkLaunch,
       linkedAccount: input.linkedAccount,
+      ltiLog: ltiLogger(input.c),
       sha256Hex: input.sha256Hex,
+      sessionHandoffTtlSeconds: LTI_SESSION_HANDOFF_TTL_SECONDS,
     }),
   ]);
 
