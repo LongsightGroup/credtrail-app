@@ -10,9 +10,9 @@ import {
 } from "@longsightgroup/lti-tool";
 import { describe, expect, it } from "vitest";
 import {
+  createInstructorBulkIssuanceViewResolver,
   emptyInstructorBulkIssuanceView,
   resolveInstructorBulkIssuanceView,
-  type InstructorBulkIssuanceViewDependencies,
 } from "./instructor-bulk-issuance-view";
 import type { LtiRosterBulkIssuanceContext } from "./roster-bulk-issuance-context";
 import type { LtiRosterIssuanceBehavior } from "./issuance-behavior";
@@ -192,8 +192,8 @@ const bulkContext = (issuanceBehavior: LtiRosterIssuanceBehavior): LtiRosterBulk
 };
 
 const resolveViewInput = (
-  overrides: Partial<Parameters<typeof resolveInstructorBulkIssuanceView>[1]> = {},
-): Parameters<typeof resolveInstructorBulkIssuanceView>[1] => {
+  overrides: Partial<Parameters<typeof resolveInstructorBulkIssuanceView>[0]> = {},
+): Parameters<typeof resolveInstructorBulkIssuanceView>[0] => {
   return {
     db: fakeDb,
     env: { LTI_STATE_SIGNING_SECRET: "test-lti-state-secret" },
@@ -242,7 +242,7 @@ describe("emptyInstructorBulkIssuanceView", () => {
 
 describe("resolveInstructorBulkIssuanceView", () => {
   it("builds a ready roster view without an action token when manual issuance is disallowed", async () => {
-    const dependencies: InstructorBulkIssuanceViewDependencies = {
+    const resolveWithTestDependencies = createInstructorBulkIssuanceViewResolver({
       loadIssuedBadgeStatesByUserId: async (lookup) => {
         expect(lookup.action.contextId).toBe(contextId);
         expect(lookup.learnerMembers.map((member) => member.userId)).toEqual(["learner-001"]);
@@ -266,9 +266,9 @@ describe("resolveInstructorBulkIssuanceView", () => {
           `Unexpected issuance token for ${env.LTI_STATE_SIGNING_SECRET ?? ""}:${tokenInput.badgeTemplateId}`,
         );
       },
-    };
+    });
 
-    const view = await resolveInstructorBulkIssuanceView(dependencies, resolveViewInput());
+    const view = await resolveWithTestDependencies(resolveViewInput());
 
     expect(view).toMatchObject({
       status: "ready",
@@ -291,7 +291,7 @@ describe("resolveInstructorBulkIssuanceView", () => {
   });
 
   it("attaches an issuance action when manual issuance is allowed", async () => {
-    const dependencies: InstructorBulkIssuanceViewDependencies = {
+    const resolveWithTestDependencies = createInstructorBulkIssuanceViewResolver({
       loadIssuedBadgeStatesByUserId: async (lookup) => {
         expect(lookup.action.badgeTemplateId).toBe(selectedBadge.badgeTemplateId);
         return new Map();
@@ -313,9 +313,9 @@ describe("resolveInstructorBulkIssuanceView", () => {
         });
         return "issuance-token-123";
       },
-    };
+    });
 
-    const view = await resolveInstructorBulkIssuanceView(dependencies, resolveViewInput());
+    const view = await resolveWithTestDependencies(resolveViewInput());
 
     expect(view.issuanceActionPath).toBe("/v1/lti/resource-link/issue");
     expect(view.issuanceActionToken).toBe("issuance-token-123");

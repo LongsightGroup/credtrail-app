@@ -20,23 +20,29 @@ type ResolveCourseBadgePlacements = typeof resolveOrderedCourseBadgeTemplatesFor
 type ListBadgeTemplateRecipientAssertions = typeof listAssertionsByBadgeTemplatesAndRecipientEmails;
 type ListAssertionLifecycleStates = typeof listAssertionLifecycleStatesByAssertionIds;
 
-/**
- * Dependencies used to assemble the instructor course badge summary view.
- */
-export interface InstructorCourseSummaryViewDependencies {
+type InstructorCourseSummaryViewDependencies = {
   readonly resolveCourseBadgePlacements: ResolveCourseBadgePlacements;
   readonly listBadgeTemplateRecipientAssertions: ListBadgeTemplateRecipientAssertions;
   readonly listAssertionLifecycleStates: ListAssertionLifecycleStates;
-}
+};
 
 /**
- * Production dependencies for instructor course badge summary view assembly.
+ * Input for building the instructor course badge summary view for a course-level resource-link launch.
  */
-export const instructorCourseSummaryViewDependencies: InstructorCourseSummaryViewDependencies = {
-  resolveCourseBadgePlacements: resolveOrderedCourseBadgeTemplatesForContext,
-  listBadgeTemplateRecipientAssertions: listAssertionsByBadgeTemplatesAndRecipientEmails,
-  listAssertionLifecycleStates: listAssertionLifecycleStatesByAssertionIds,
-};
+export interface ResolveInstructorCourseBadgeSummaryViewInput {
+  db: SqlDatabase;
+  tenantId: string;
+  launchClaims: LtiLaunchClaims;
+  issuerClientId: string;
+  membershipRole: TenantMembershipRole;
+  courseContextTitle: string | null;
+  summaryContextId: string;
+  roster: LtiNrpsRoster;
+}
+
+type InstructorCourseBadgeSummaryViewResolver = (
+  input: ResolveInstructorCourseBadgeSummaryViewInput,
+) => Promise<LtiCourseBadgeSummaryView>;
 
 /**
  * Builds a degraded instructor course badge summary view.
@@ -284,21 +290,9 @@ const ltiCourseBadgeSummaryViewFromRoster = async (
   };
 };
 
-/**
- * Builds the instructor course badge summary view for a course-level resource-link launch.
- */
-export const resolveInstructorCourseBadgeSummaryView = async (
+const resolveInstructorCourseBadgeSummaryViewWithDependencies = async (
   dependencies: InstructorCourseSummaryViewDependencies,
-  input: {
-    db: SqlDatabase;
-    tenantId: string;
-    launchClaims: LtiLaunchClaims;
-    issuerClientId: string;
-    membershipRole: TenantMembershipRole;
-    courseContextTitle: string | null;
-    summaryContextId: string;
-    roster: LtiNrpsRoster;
-  },
+  input: ResolveInstructorCourseBadgeSummaryViewInput,
 ): Promise<LtiCourseBadgeSummaryView> => {
   const courseBadges = await dependencies.resolveCourseBadgePlacements({
     db: input.db,
@@ -319,3 +313,22 @@ export const resolveInstructorCourseBadgeSummaryView = async (
     canOpenAdminLinks: ltiCanOpenAdminDetailLinks(input.membershipRole),
   });
 };
+
+/**
+ * Creates an instructor course badge summary view resolver with explicit dependency replacements.
+ */
+export const createInstructorCourseBadgeSummaryViewResolver = (
+  dependencies: InstructorCourseSummaryViewDependencies,
+): InstructorCourseBadgeSummaryViewResolver => {
+  return (input) => resolveInstructorCourseBadgeSummaryViewWithDependencies(dependencies, input);
+};
+
+/**
+ * Builds the instructor course badge summary view for a course-level resource-link launch.
+ */
+export const resolveInstructorCourseBadgeSummaryView =
+  createInstructorCourseBadgeSummaryViewResolver({
+    resolveCourseBadgePlacements: resolveOrderedCourseBadgeTemplatesForContext,
+    listBadgeTemplateRecipientAssertions: listAssertionsByBadgeTemplatesAndRecipientEmails,
+    listAssertionLifecycleStates: listAssertionLifecycleStatesByAssertionIds,
+  });

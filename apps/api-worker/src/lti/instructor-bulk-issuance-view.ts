@@ -27,23 +27,38 @@ type LoadIssuedBadgeStatesByUserId = typeof ltiRosterIssuedBadgeStatesByUserId;
 type PrepareBulkIssuanceContext = typeof prepareLtiRosterBulkIssuanceContext;
 type CreateIssuanceActionToken = typeof createLtiIssuanceActionToken;
 
-/**
- * Dependencies used to assemble the instructor bulk issuance view.
- */
-export interface InstructorBulkIssuanceViewDependencies {
+type InstructorBulkIssuanceViewDependencies = {
   readonly loadIssuedBadgeStatesByUserId: LoadIssuedBadgeStatesByUserId;
   readonly prepareBulkIssuanceContext: PrepareBulkIssuanceContext;
   readonly createIssuanceActionToken: CreateIssuanceActionToken;
-}
+};
 
 /**
- * Production dependencies for instructor bulk issuance view assembly.
+ * Input for building the ready instructor bulk issuance view for a selected resource-link launch.
  */
-export const instructorBulkIssuanceViewDependencies: InstructorBulkIssuanceViewDependencies = {
-  loadIssuedBadgeStatesByUserId: ltiRosterIssuedBadgeStatesByUserId,
-  prepareBulkIssuanceContext: prepareLtiRosterBulkIssuanceContext,
-  createIssuanceActionToken: createLtiIssuanceActionToken,
-};
+export interface ResolveInstructorBulkIssuanceViewInput {
+  db: SqlDatabase;
+  env: Pick<AppBindings, "LTI_STATE_SIGNING_SECRET">;
+  tenantId: string;
+  launchClaims: LtiLaunchClaims;
+  launchMessage: ResourceLinkLaunchMessage;
+  ltiLaunchSession: LTISession;
+  roster: LtiNrpsRoster;
+  issuerClientId: string;
+  linkedUserId: string;
+  selectedBadge: LtiBadgeSummaryCard;
+  courseContextTitle: string | null;
+  courseContextId: string | null;
+  contextMembershipsUrl: string;
+  sha256Hex: (value: string) => Promise<string>;
+  sessionHandoffTtlSeconds: number;
+  nowIso: string;
+  ltiLog?: AppLogger | undefined;
+}
+
+type InstructorBulkIssuanceViewResolver = (
+  input: ResolveInstructorBulkIssuanceViewInput,
+) => Promise<LtiBulkIssuanceView>;
 
 const ltiBulkIssuanceViewFromRoster = (input: {
   roster: LtiNrpsRoster;
@@ -149,30 +164,9 @@ const ltiBulkIssuanceViewWithAction = (
   };
 };
 
-/**
- * Builds the ready instructor bulk issuance view for a selected resource-link launch.
- */
-export const resolveInstructorBulkIssuanceView = async (
+const resolveInstructorBulkIssuanceViewWithDependencies = async (
   dependencies: InstructorBulkIssuanceViewDependencies,
-  input: {
-    db: SqlDatabase;
-    env: Pick<AppBindings, "LTI_STATE_SIGNING_SECRET">;
-    tenantId: string;
-    launchClaims: LtiLaunchClaims;
-    launchMessage: ResourceLinkLaunchMessage;
-    ltiLaunchSession: LTISession;
-    roster: LtiNrpsRoster;
-    issuerClientId: string;
-    linkedUserId: string;
-    selectedBadge: LtiBadgeSummaryCard;
-    courseContextTitle: string | null;
-    courseContextId: string | null;
-    contextMembershipsUrl: string;
-    sha256Hex: (value: string) => Promise<string>;
-    sessionHandoffTtlSeconds: number;
-    nowIso: string;
-    ltiLog?: AppLogger | undefined;
-  },
+  input: ResolveInstructorBulkIssuanceViewInput,
 ): Promise<LtiBulkIssuanceView> => {
   const issuanceActionContextId = input.courseContextId ?? input.ltiLaunchSession.context.id;
   const rosterIssuanceLookupContext =
@@ -240,3 +234,21 @@ export const resolveInstructorBulkIssuanceView = async (
 
   return bulkIssuanceView;
 };
+
+/**
+ * Creates an instructor bulk issuance view resolver with explicit dependency replacements.
+ */
+export const createInstructorBulkIssuanceViewResolver = (
+  dependencies: InstructorBulkIssuanceViewDependencies,
+): InstructorBulkIssuanceViewResolver => {
+  return (input) => resolveInstructorBulkIssuanceViewWithDependencies(dependencies, input);
+};
+
+/**
+ * Builds the ready instructor bulk issuance view for a selected resource-link launch.
+ */
+export const resolveInstructorBulkIssuanceView = createInstructorBulkIssuanceViewResolver({
+  loadIssuedBadgeStatesByUserId: ltiRosterIssuedBadgeStatesByUserId,
+  prepareBulkIssuanceContext: prepareLtiRosterBulkIssuanceContext,
+  createIssuanceActionToken: createLtiIssuanceActionToken,
+});

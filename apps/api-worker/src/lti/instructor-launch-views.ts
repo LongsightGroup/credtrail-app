@@ -12,12 +12,10 @@ import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
 import { ltiCourseContextIdFromLaunch } from "./course-badge-placements";
 import {
   emptyInstructorBulkIssuanceView,
-  instructorBulkIssuanceViewDependencies,
   resolveInstructorBulkIssuanceView,
 } from "./instructor-bulk-issuance-view";
 import {
   emptyInstructorCourseBadgeSummaryView,
-  instructorCourseSummaryViewDependencies,
   resolveInstructorCourseBadgeSummaryView,
 } from "./instructor-course-summary-view";
 import { loadLtiNrpsRoster, type LtiNrpsRoster, type LtiNrpsRosterLoadFailure } from "./nrps";
@@ -212,28 +210,25 @@ const resolveSelectedInstructorResourceLinkViews = async (
     }),
     onSuccess: async (roster) => ({
       kind: "bulk",
-      bulkIssuanceView: await resolveInstructorBulkIssuanceView(
-        instructorBulkIssuanceViewDependencies,
-        {
-          db: input.db,
-          env: input.env,
-          tenantId: input.tenantId,
-          launchClaims: input.launchClaims,
-          launchMessage: input.launch.launchMessage,
-          ltiLaunchSession: input.ltiLaunchSession,
-          roster,
-          issuerClientId: input.issuerClientId,
-          linkedUserId: input.linkedUserId,
-          selectedBadge,
-          courseContextTitle: launchContext.courseContextTitle,
-          courseContextId: launchContext.courseContextId,
-          contextMembershipsUrl: launchContext.contextMembershipsUrl ?? "",
-          sha256Hex: input.sha256Hex,
-          sessionHandoffTtlSeconds: input.sessionHandoffTtlSeconds,
-          nowIso: new Date().toISOString(),
-          ltiLog: input.ltiLog,
-        },
-      ),
+      bulkIssuanceView: await resolveInstructorBulkIssuanceView({
+        db: input.db,
+        env: input.env,
+        tenantId: input.tenantId,
+        launchClaims: input.launchClaims,
+        launchMessage: input.launch.launchMessage,
+        ltiLaunchSession: input.ltiLaunchSession,
+        roster,
+        issuerClientId: input.issuerClientId,
+        linkedUserId: input.linkedUserId,
+        selectedBadge,
+        courseContextTitle: launchContext.courseContextTitle,
+        courseContextId: launchContext.courseContextId,
+        contextMembershipsUrl: launchContext.contextMembershipsUrl ?? "",
+        sha256Hex: input.sha256Hex,
+        sessionHandoffTtlSeconds: input.sessionHandoffTtlSeconds,
+        nowIso: new Date().toISOString(),
+        ltiLog: input.ltiLog,
+      }),
       courseBadgeSummaryView: null,
     }),
   });
@@ -293,19 +288,16 @@ const resolveCourseInstructorResourceLinkViews = async (
     onSuccess: async (roster) => ({
       kind: "course-summary",
       bulkIssuanceView: null,
-      courseBadgeSummaryView: await resolveInstructorCourseBadgeSummaryView(
-        instructorCourseSummaryViewDependencies,
-        {
-          db: input.db,
-          tenantId: input.tenantId,
-          launchClaims: input.launchClaims,
-          issuerClientId: input.issuerClientId,
-          membershipRole: input.membershipRole,
-          courseContextTitle: launchContext.courseContextTitle,
-          summaryContextId,
-          roster,
-        },
-      ),
+      courseBadgeSummaryView: await resolveInstructorCourseBadgeSummaryView({
+        db: input.db,
+        tenantId: input.tenantId,
+        launchClaims: input.launchClaims,
+        issuerClientId: input.issuerClientId,
+        membershipRole: input.membershipRole,
+        courseContextTitle: launchContext.courseContextTitle,
+        summaryContextId,
+        roster,
+      }),
     }),
   });
 };

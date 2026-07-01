@@ -15,9 +15,9 @@ import {
 import { describe, expect, it } from "vitest";
 import type { LtiCourseBadgeTemplatePlacementGroup } from "./course-badge-placements";
 import {
+  createInstructorCourseBadgeSummaryViewResolver,
   emptyInstructorCourseBadgeSummaryView,
   resolveInstructorCourseBadgeSummaryView,
-  type InstructorCourseSummaryViewDependencies,
 } from "./instructor-course-summary-view";
 import type { LtiNrpsMember, LtiNrpsRoster } from "./nrps";
 
@@ -153,10 +153,12 @@ const assertion = (overrides: Partial<AssertionRecord> = {}): AssertionRecord =>
   };
 };
 
-const dependencies = (): InstructorCourseSummaryViewDependencies => {
+const resolveWithTestDependencies = (): ReturnType<
+  typeof createInstructorCourseBadgeSummaryViewResolver
+> => {
   const group = placementGroup();
 
-  return {
+  return createInstructorCourseBadgeSummaryViewResolver({
     resolveCourseBadgePlacements: async (input) => {
       expect(input.contextId).toBe(contextId);
       expect(input.issuerClientId).toBe(clientId);
@@ -191,12 +193,12 @@ const dependencies = (): InstructorCourseSummaryViewDependencies => {
         },
       ];
     },
-  };
+  });
 };
 
 const resolveViewInput = (
-  overrides: Partial<Parameters<typeof resolveInstructorCourseBadgeSummaryView>[1]> = {},
-): Parameters<typeof resolveInstructorCourseBadgeSummaryView>[1] => {
+  overrides: Partial<Parameters<typeof resolveInstructorCourseBadgeSummaryView>[0]> = {},
+): Parameters<typeof resolveInstructorCourseBadgeSummaryView>[0] => {
   return {
     db: fakeDb,
     tenantId,
@@ -234,10 +236,7 @@ describe("emptyInstructorCourseBadgeSummaryView", () => {
 
 describe("resolveInstructorCourseBadgeSummaryView", () => {
   it("builds issued and not-issued rows with admin links for tenant admins", async () => {
-    const view = await resolveInstructorCourseBadgeSummaryView(
-      dependencies(),
-      resolveViewInput({ membershipRole: "admin" }),
-    );
+    const view = await resolveWithTestDependencies()(resolveViewInput({ membershipRole: "admin" }));
 
     expect(view).toMatchObject({
       status: "ready",
@@ -278,8 +277,7 @@ describe("resolveInstructorCourseBadgeSummaryView", () => {
   });
 
   it("allows issuer placement without exposing admin detail links", async () => {
-    const view = await resolveInstructorCourseBadgeSummaryView(
-      dependencies(),
+    const view = await resolveWithTestDependencies()(
       resolveViewInput({ membershipRole: "issuer" }),
     );
 
