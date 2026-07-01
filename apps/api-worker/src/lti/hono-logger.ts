@@ -1,7 +1,7 @@
 import type { ObservabilityFields } from "@credtrail/core-domain";
 import type { AppContext } from "../app";
 import { ltiLogger } from "./log";
-import { redactLtiProtocolSecrets } from "./redaction";
+import { ltiErrorDetail } from "./redaction";
 
 interface CreateLtiHonoLoggerInput {
   c: AppContext;
@@ -19,18 +19,6 @@ const isLogRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 };
 
-const errorDetail = (error: unknown): string | undefined => {
-  if (error instanceof Error) {
-    return redactLtiProtocolSecrets(error.message);
-  }
-
-  if (typeof error === "string") {
-    return redactLtiProtocolSecrets(error);
-  }
-
-  return undefined;
-};
-
 const honoLogFields = (input: unknown): ObservabilityFields => {
   if (!isLogRecord(input)) {
     return {};
@@ -44,7 +32,7 @@ const honoLogFields = (input: unknown): ObservabilityFields => {
   }
 
   const error = input.error;
-  const detail = errorDetail(error);
+  const detail = ltiErrorDetail(error);
 
   if (detail !== undefined) {
     fields.detail = detail;

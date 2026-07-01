@@ -13,3 +13,18 @@ export const redactLtiProtocolSecrets = (value: string): string => {
 
   return redacted.slice(0, LTI_PROTOCOL_SECRET_REDACTION_LIMIT);
 };
+
+/**
+ * Extracts a safe, redacted diagnostic detail from an unknown LTI error value.
+ */
+export const ltiErrorDetail = (error: unknown): string | undefined => {
+  if (error instanceof Error) {
+    return redactLtiProtocolSecrets(error.message);
+  }
+
+  if (typeof error === "string") {
+    return redactLtiProtocolSecrets(error);
+  }
+
+  return undefined;
+};

@@ -13,7 +13,7 @@ import {
   type LtiIssuerRegistry,
   type LtiIssuerRegistryEntry,
 } from "./lti-helpers";
-import { redactLtiProtocolSecrets } from "./redaction";
+import { ltiErrorDetail } from "./redaction";
 
 export class LtiLaunchVerificationError extends Error {
   readonly status: 400 | 401 | 501;
@@ -26,14 +26,6 @@ export class LtiLaunchVerificationError extends Error {
     this.detail = detail;
   }
 }
-
-const verificationErrorDetail = (error: unknown): string => {
-  if (!(error instanceof Error)) {
-    return "unknown verification error";
-  }
-
-  return redactLtiProtocolSecrets(error.message);
-};
 
 const statusForCoreVerificationError = (error: CoreLtiLaunchVerificationError): 400 | 401 => {
   switch (error.code) {
@@ -94,7 +86,7 @@ export const ltiLaunchVerificationErrorFromCoreError = (
   return new LtiLaunchVerificationError(
     statusForLaunchVerificationError(error),
     messageForLaunchVerificationError(error),
-    verificationErrorDetail(error),
+    ltiErrorDetail(error),
   );
 };
 

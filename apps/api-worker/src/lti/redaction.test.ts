@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { redactLtiProtocolSecrets } from "./redaction";
+import { ltiErrorDetail, redactLtiProtocolSecrets } from "./redaction";
 
 describe("redactLtiProtocolSecrets", () => {
   it("redacts id_token and state values from free-text messages", () => {
@@ -18,5 +18,21 @@ describe("redactLtiProtocolSecrets", () => {
 
   it("limits diagnostic length after redaction", () => {
     expect(redactLtiProtocolSecrets(`id_token=secret ${"x".repeat(600)}`)).toHaveLength(500);
+  });
+});
+
+describe("ltiErrorDetail", () => {
+  it("extracts and redacts Error messages", () => {
+    expect(ltiErrorDetail(new Error("Launch failed id_token=secret"))).toBe(
+      "Launch failed id_token=[redacted]",
+    );
+  });
+
+  it("extracts and redacts string errors", () => {
+    expect(ltiErrorDetail("Launch failed state=secret")).toBe("Launch failed state=[redacted]");
+  });
+
+  it("ignores unsupported thrown values", () => {
+    expect(ltiErrorDetail({ message: "Launch failed id_token=secret" })).toBeUndefined();
   });
 });
