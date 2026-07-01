@@ -9,11 +9,8 @@ import {
 import { createLtiCourseBadgeSetupToken } from "./course-badge-setup-token";
 import { resolveLtiCourseBadgeAuthority } from "./course-badge-governance";
 import { createCredTrailLtiTool } from "./credtrail-lti-tool";
-import {
-  badgeTemplateDeepLinkContentItem,
-  findLtiIssuerRegistryEntry,
-} from "./deep-linking-helpers";
-import type { LtiIssuerRegistry } from "./lti-helpers";
+import { badgeTemplateDeepLinkContentItem } from "./deep-linking-helpers";
+import { findLtiIssuerRegistryEntry, type LtiIssuerRegistry } from "./lti-helpers";
 
 const LTI_COURSE_BADGE_SETUP_TOKEN_TTL_SECONDS = 60 * 60;
 

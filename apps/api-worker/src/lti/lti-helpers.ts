@@ -19,6 +19,30 @@ const isLikelyEmailAddress = (value: string): boolean => {
 
 export { normalizeLtiIssuer };
 
+/**
+ * Finds an LTI issuer registry entry by normalized issuer and client identifier.
+ */
+export const findLtiIssuerRegistryEntry = (
+  registry: LtiIssuerRegistry,
+  issuer: string,
+  clientId: string,
+): { readonly issuer: string; readonly entry: LtiIssuerRegistryEntry } | null => {
+  const normalizedIssuer = normalizeLtiIssuer(issuer);
+
+  for (const [candidateIssuer, entry] of Object.entries(registry)) {
+    const normalizedCandidateIssuer = normalizeLtiIssuer(candidateIssuer);
+
+    if (normalizedCandidateIssuer === normalizedIssuer && entry.clientId === clientId) {
+      return {
+        issuer: normalizedCandidateIssuer,
+        entry,
+      };
+    }
+  }
+
+  return null;
+};
+
 export const isAbsoluteHttpUrl = (value: string): boolean => {
   try {
     const parsed = new URL(value);

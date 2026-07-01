@@ -7,9 +7,8 @@ import {
 import { parsePersistedLtiSession, resolveLtiServiceCapabilities } from "@longsightgroup/lti-tool";
 import { createGradebookProviderForConnection } from "../lms/gradebook-provider-resolution";
 import type { GradebookProvider } from "../lms/gradebook-types";
-import { findLtiIssuerRegistryEntry } from "./deep-linking-helpers";
 import { matchingSakaiLmsConnection } from "./course-badge-setup";
-import type { LtiIssuerRegistry } from "./lti-helpers";
+import { findLtiIssuerRegistryEntry, type LtiIssuerRegistry } from "./lti-helpers";
 
 export interface LtiGradebookLookupSession {
   context: {

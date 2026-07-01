@@ -9,7 +9,7 @@ import type {
   LtiVerifyLaunchOptions,
 } from "@longsightgroup/lti-tool";
 import {
-  normalizeLtiIssuer,
+  findLtiIssuerRegistryEntry,
   type LtiIssuerRegistry,
   type LtiIssuerRegistryEntry,
 } from "./lti-helpers";
@@ -90,25 +90,6 @@ export const ltiLaunchVerificationErrorFromCoreError = (
   );
 };
 
-const findAuthorizedIssuerEntry = (
-  registry: LtiIssuerRegistry,
-  issuer: string,
-  clientId: string,
-): { readonly issuer: string; readonly entry: LtiIssuerRegistryEntry } | undefined => {
-  const normalizedIssuer = normalizeLtiIssuer(issuer);
-
-  for (const [candidateIssuer, entry] of Object.entries(registry)) {
-    if (normalizeLtiIssuer(candidateIssuer) === normalizedIssuer && entry.clientId === clientId) {
-      return {
-        issuer: normalizeLtiIssuer(candidateIssuer),
-        entry,
-      };
-    }
-  }
-
-  return undefined;
-};
-
 /**
  * CredTrail tenant authorization attached to an otherwise verified LTI launch.
  */
@@ -126,9 +107,9 @@ export const authorizeVerifiedLaunchForRegistry = (
 ):
   | { success: true; data: LtiLaunchAuthorization }
   | { success: false; code: string; message: string } => {
-  const issuerMatch = findAuthorizedIssuerEntry(registry, launch.issuer, launch.clientId);
+  const issuerMatch = findLtiIssuerRegistryEntry(registry, launch.issuer, launch.clientId);
 
-  if (issuerMatch === undefined) {
+  if (issuerMatch === null) {
     return {
       success: false,
       code: "issuer_registration_not_configured",

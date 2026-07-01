@@ -1,31 +1,7 @@
 import type { DeepLinkingContentItem, LTISession } from "@longsightgroup/lti-tool";
 import type { TenantMembershipRole } from "@credtrail/db";
 import { LTI_DEEP_LINKING_SELECT_PATH } from "./constants";
-import {
-  normalizeLtiIssuer,
-  type LtiIssuerRegistry,
-  type LtiIssuerRegistryEntry,
-} from "./lti-helpers";
 import type { LtiDeepLinkSelectionPageInput } from "./view-models";
-
-export const findLtiIssuerRegistryEntry = (
-  registry: LtiIssuerRegistry,
-  issuer: string,
-  clientId: string,
-): { issuer: string; entry: LtiIssuerRegistryEntry } | null => {
-  const normalizedIssuer = normalizeLtiIssuer(issuer);
-
-  for (const [candidateIssuer, entry] of Object.entries(registry)) {
-    if (normalizeLtiIssuer(candidateIssuer) === normalizedIssuer && entry.clientId === clientId) {
-      return {
-        issuer: normalizeLtiIssuer(candidateIssuer),
-        entry,
-      };
-    }
-  }
-
-  return null;
-};
 
 export const badgeTemplateDeepLinkContentItem = (input: {
   title: string;
