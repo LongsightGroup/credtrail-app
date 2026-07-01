@@ -1,9 +1,10 @@
 import type { SqlDatabase } from "@credtrail/db";
+import { jwksRouteHandler } from "@longsightgroup/lti-tool/hono";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import { LTI_JWKS_PATH } from "./constants";
 import { createCredTrailLtiTool } from "./credtrail-lti-tool";
-import { ltiLogger } from "./log";
+import { createLtiHonoLogger } from "./hono-logger";
 
 interface RegisterLtiJwksRouteInput {
   app: Hono<AppEnv>;
@@ -14,25 +15,22 @@ const serveLtiJwks = async (
   c: AppContext,
   resolveDatabase: (bindings: AppBindings) => SqlDatabase,
 ): Promise<Response> => {
-  try {
-    const ltiTool = await createCredTrailLtiTool({
-      db: resolveDatabase(c.env),
-      env: c.env,
-    });
+  return jwksRouteHandler({
+    getJWKS: async () => {
+      const ltiTool = await createCredTrailLtiTool({
+        db: resolveDatabase(c.env),
+        env: c.env,
+      });
 
-    return c.json(await ltiTool.getJWKS());
-  } catch (error) {
-    ltiLogger(c)?.error("lti_jwks_failed", {
-      detail: error instanceof Error ? error.message : "unknown error",
-    });
-
-    return c.json(
-      {
-        error: "Internal server error",
+      return ltiTool.getJWKS();
+    },
+    logger: createLtiHonoLogger({
+      c,
+      messageOverrides: {
+        "JWKS endpoint error": "lti_jwks_failed",
       },
-      500,
-    );
-  }
+    }),
+  })(c, async () => undefined);
 };
 
 export const registerLtiJwksRoute = (input: RegisterLtiJwksRouteInput): void => {

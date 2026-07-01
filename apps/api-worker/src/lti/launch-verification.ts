@@ -92,6 +92,16 @@ const messageForLaunchVerificationError = (error: CoreLtiLaunchVerificationError
   }
 };
 
+export const ltiLaunchVerificationErrorFromCoreError = (
+  error: CoreLtiLaunchVerificationError,
+): LtiLaunchVerificationError => {
+  return new LtiLaunchVerificationError(
+    statusForLaunchVerificationError(error),
+    messageForLaunchVerificationError(error),
+    verificationErrorDetail(error),
+  );
+};
+
 const findAuthorizedIssuerEntry = (
   registry: LtiIssuerRegistry,
   issuer: string,
@@ -181,12 +191,7 @@ export const resolveLtiLaunch = async (input: {
   });
 
   if (!verificationResult.success) {
-    const status = statusForLaunchVerificationError(verificationResult.error);
-    throw new LtiLaunchVerificationError(
-      status,
-      messageForLaunchVerificationError(verificationResult.error),
-      verificationErrorDetail(verificationResult.error),
-    );
+    throw ltiLaunchVerificationErrorFromCoreError(verificationResult.error);
   }
 
   const launchClaims = verificationResult.launch.payload;

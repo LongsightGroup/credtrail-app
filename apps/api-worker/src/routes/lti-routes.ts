@@ -98,6 +98,9 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     issueBadgeForTenant,
   } = input;
 
+  // Kept local instead of lti-tool/hono loginRouteHandler because CredTrail's
+  // login path does not colocate launch at /v1/lti/oidc/launch and this handler
+  // owns issuer/deployment policy before protocol redirect.
   const ltiOidcLoginHandler = async (c: AppContext): Promise<Response> => {
     let registry: LtiIssuerRegistry;
 

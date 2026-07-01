@@ -61,6 +61,8 @@ export const registerLtiDynamicRegistrationRoutes = (
 ): void => {
   const { app, resolveDatabase } = input;
 
+  // Kept local instead of lti-tool/hono dynamic registration handlers so
+  // tenant invite validation and CredTrail's 409 conflict mapping remain intact.
   app.get(LTI_DYNAMIC_REGISTRATION_ROUTE_PATH, async (c): Promise<Response> => {
     return handleLtiDynamicRegistrationRequest(c, resolveDatabase, async (context) => {
       const initiateResult = await initiateLtiDynamicRegistration(context, c.req.query());

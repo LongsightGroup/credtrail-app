@@ -31,7 +31,10 @@ const isValidatedDeepLinkingLaunch = (
   return launch.launchMessage.kind === "deep-linking";
 };
 
-const responseFromProductFailure = (c: AppContext, failure: ProductFlowFailure): Response => {
+export const responseFromProductFailure = (
+  c: AppContext,
+  failure: ProductFlowFailure,
+): Response => {
   return c.json(failure.body, failure.status);
 };
 
@@ -74,7 +77,10 @@ const accountLinkingFailure = (c: AppContext, error: unknown): ProductFlowFailur
   };
 };
 
-const establishLtiLaunchSession = async (input: {
+/**
+ * Links the verified LTI launch to CredTrail identity and creates a browser auth session.
+ */
+export const createCredTrailAuthSessionFromLtiLaunch = async (input: {
   c: AppContext;
   db: HandleVerifiedLtiLaunchInput["db"];
   tenantId: string;
@@ -123,59 +129,50 @@ const establishLtiLaunchSession = async (input: {
 };
 
 /**
- * CredTrail product decisions after an LTI launch is cryptographically verified.
+ * Handles CredTrail product behavior for a verified LTI Deep Linking launch.
  */
-export const handleVerifiedLtiLaunch: HandleVerifiedLtiLaunch = async (input) => {
-  const validatedLaunchResult = await validateResolvedLtiLaunchMessage({
-    db: input.db,
-    tenantId: input.tenantId,
-    launchMessage: input.launchMessage,
-  });
-
-  if (!validatedLaunchResult.ok) {
-    return responseFromProductFailure(input.c, validatedLaunchResult.failure);
-  }
-
-  const validatedLaunchMessage = validatedLaunchResult.value;
-  const establishedSessionResult = await establishLtiLaunchSession({
+export const handleDeepLinkingLaunch = async (input: {
+  c: AppContext;
+  db: HandleVerifiedLtiLaunchInput["db"];
+  tenantId: string;
+  resolvedLaunch: ResolvedLtiLaunch;
+  launchMessage: Extract<ValidatedLtiLaunchMessage, { launchMessage: { kind: "deep-linking" } }>;
+  establishedSession: EstablishedLtiLaunchSession;
+}): Promise<Response> => {
+  return renderLtiDeepLinkingLaunchResponse({
     c: input.c,
     db: input.db,
     tenantId: input.tenantId,
     launchClaims: input.resolvedLaunch.launchClaims,
-    launchMessage: validatedLaunchMessage.launchMessage,
-    ltiLaunchSession: input.resolvedLaunch.ltiLaunchSession,
-    sha256Hex: input.sha256Hex,
-    createLtiSession: input.createLtiSession,
+    launchMessage: input.launchMessage.launchMessage,
+    resolvedLaunch: input.resolvedLaunch,
+    linkedAccount: input.establishedSession.linkedAccount,
   });
+};
 
-  if (!establishedSessionResult.ok) {
-    return responseFromProductFailure(input.c, establishedSessionResult.failure);
-  }
-
-  input.c.header("Cache-Control", "no-store");
-
-  if (isValidatedDeepLinkingLaunch(validatedLaunchMessage)) {
-    return renderLtiDeepLinkingLaunchResponse({
-      c: input.c,
-      db: input.db,
-      tenantId: input.tenantId,
-      launchClaims: input.resolvedLaunch.launchClaims,
-      launchMessage: validatedLaunchMessage.launchMessage,
-      resolvedLaunch: input.resolvedLaunch,
-      linkedAccount: establishedSessionResult.value.linkedAccount,
-    });
-  }
-
+/**
+ * Handles CredTrail product behavior for a verified LTI Resource Link launch.
+ */
+export const handleResourceLinkLaunch = async (input: {
+  c: AppContext;
+  db: HandleVerifiedLtiLaunchInput["db"];
+  tenantId: string;
+  resolvedLaunch: ResolvedLtiLaunch;
+  launchClaims: ResolvedLtiLaunch["launchClaims"];
+  launch: Exclude<ValidatedLtiLaunchMessage, { launchMessage: { kind: "deep-linking" } }>;
+  establishedSession: EstablishedLtiLaunchSession;
+  sha256Hex: (value: string) => Promise<string>;
+}): Promise<Response> => {
   const preparedResourceLinkLaunchResult = await prepareLaunchedResourceLinkPlacement({
     c: input.c,
     db: input.db,
     tenantId: input.tenantId,
     issuerEntryClientId: input.resolvedLaunch.issuerEntry.clientId,
-    launchClaims: input.resolvedLaunch.launchClaims,
+    launchClaims: input.launchClaims,
     resolvedLaunch: input.resolvedLaunch,
-    launch: validatedLaunchMessage,
-    linkedUserId: establishedSessionResult.value.linkedAccount.userId,
-    linkedMembershipRole: establishedSessionResult.value.linkedAccount.membershipRole,
+    launch: input.launch,
+    linkedUserId: input.establishedSession.linkedAccount.userId,
+    linkedMembershipRole: input.establishedSession.linkedAccount.membershipRole,
   });
 
   if (!preparedResourceLinkLaunchResult.ok) {
@@ -197,12 +194,67 @@ export const handleVerifiedLtiLaunch: HandleVerifiedLtiLaunch = async (input) =>
     c: input.c,
     db: input.db,
     tenantId: input.tenantId,
-    launchClaims: input.resolvedLaunch.launchClaims,
+    launchClaims: input.launchClaims,
     launchMessage: preparedResourceLinkLaunch.launch.launchMessage,
-    linkedAccount: establishedSessionResult.value.linkedAccount,
-    establishedSession: establishedSessionResult.value,
+    linkedAccount: input.establishedSession.linkedAccount,
+    establishedSession: input.establishedSession,
     resolvedLaunch: input.resolvedLaunch,
     validatedResourceLinkLaunch: preparedResourceLinkLaunch.launch,
+    sha256Hex: input.sha256Hex,
+  });
+};
+
+/**
+ * CredTrail product decisions after an LTI launch is cryptographically verified.
+ */
+export const handleVerifiedLtiLaunch: HandleVerifiedLtiLaunch = async (input) => {
+  const validatedLaunchResult = await validateResolvedLtiLaunchMessage({
+    db: input.db,
+    tenantId: input.tenantId,
+    launchMessage: input.launchMessage,
+  });
+
+  if (!validatedLaunchResult.ok) {
+    return responseFromProductFailure(input.c, validatedLaunchResult.failure);
+  }
+
+  const validatedLaunchMessage = validatedLaunchResult.value;
+  const establishedSessionResult = await createCredTrailAuthSessionFromLtiLaunch({
+    c: input.c,
+    db: input.db,
+    tenantId: input.tenantId,
+    launchClaims: input.resolvedLaunch.launchClaims,
+    launchMessage: validatedLaunchMessage.launchMessage,
+    ltiLaunchSession: input.resolvedLaunch.ltiLaunchSession,
+    sha256Hex: input.sha256Hex,
+    createLtiSession: input.createLtiSession,
+  });
+
+  if (!establishedSessionResult.ok) {
+    return responseFromProductFailure(input.c, establishedSessionResult.failure);
+  }
+
+  input.c.header("Cache-Control", "no-store");
+
+  if (isValidatedDeepLinkingLaunch(validatedLaunchMessage)) {
+    return handleDeepLinkingLaunch({
+      c: input.c,
+      db: input.db,
+      tenantId: input.tenantId,
+      resolvedLaunch: input.resolvedLaunch,
+      launchMessage: validatedLaunchMessage,
+      establishedSession: establishedSessionResult.value,
+    });
+  }
+
+  return handleResourceLinkLaunch({
+    c: input.c,
+    db: input.db,
+    tenantId: input.tenantId,
+    launchClaims: input.resolvedLaunch.launchClaims,
+    resolvedLaunch: input.resolvedLaunch,
+    launch: validatedLaunchMessage,
+    establishedSession: establishedSessionResult.value,
     sha256Hex: input.sha256Hex,
   });
 };

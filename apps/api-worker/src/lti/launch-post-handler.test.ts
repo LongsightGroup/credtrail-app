@@ -1,5 +1,12 @@
 import type { SqlDatabase } from "@credtrail/db";
-import { LTI_MESSAGE_TYPE_DEEP_LINKING_REQUEST, type LtiToolPort } from "@longsightgroup/lti-tool";
+import type {
+  LTISession,
+  LtiAuthorizedLaunch,
+  LtiLaunchVerificationResult,
+  LtiToolPort,
+  LtiVerifyLaunchOptions,
+} from "@longsightgroup/lti-tool";
+import { LtiLaunchMessageResolutionError } from "@longsightgroup/lti-tool";
 import {
   createFakeLtiAdvantage,
   testSession,
@@ -9,9 +16,7 @@ import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 import type { AppBindings, AppEnv } from "../app";
 import type { LtiAuthenticatedPrincipal } from "../auth/auth-provider";
-import { handleLtiLaunchPost } from "./launch-post-handler";
-import type { ResolvedLtiLaunchMessage } from "./launch-message";
-import type { ResolvedLtiLaunch } from "./launch-verification";
+import { handleLtiLaunchFailureResponse, handleLtiLaunchPost } from "./launch-post-handler";
 import type { LtiIssuerRegistry, LtiIssuerRegistryEntry } from "./lti-helpers";
 
 const issuer = "https://canvas.example.edu";
@@ -38,15 +43,7 @@ const fakeEnv: AppBindings = {
 };
 const tokenEndpoint = "https://canvas.example.edu/login/oauth2/token";
 const platformJwksEndpoint = "https://canvas.example.edu/api/lti/security/jwks";
-
-const fakeLtiTool: LtiToolPort = {
-  getJWKS: vi.fn(async () => ({ keys: [] })),
-  handleLogin: vi.fn(async () => "https://canvas.example.edu/login"),
-  verifyLaunch: vi.fn(),
-  createSessionFromVerifiedLaunch: vi.fn(async () => testSession()),
-  getSession: vi.fn(async () => undefined),
-  createAdvantage: vi.fn(() => createFakeLtiAdvantage()),
-};
+const validJwtForSchema = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.c2lnbmF0dXJl";
 
 const verifiedLaunch = testVerifiedLaunch({
   launchConfig: {
@@ -58,29 +55,70 @@ const verifiedLaunch = testVerifiedLaunch({
     jwksUrl: platformJwksEndpoint,
   },
 });
-const fakeResolvedLaunch: ResolvedLtiLaunch = {
-  issuer,
-  issuerEntry,
-  launchClaims: verifiedLaunch.payload,
-  ltiLaunchSession: testSession({
-    platform: {
-      issuer,
-      clientId: issuerEntry.clientId,
-      deploymentId: verifiedLaunch.deploymentId,
-      name: "Canvas",
-    },
-  }),
-  ltiTool: fakeLtiTool,
-};
-const fakeLaunchMessage: ResolvedLtiLaunchMessage = {
-  kind: "deep-linking",
-  messageType: LTI_MESSAGE_TYPE_DEEP_LINKING_REQUEST,
-  roleKind: "instructor",
-  resolvedTargetLinkUri: "https://credtrail.example.edu/v1/lti/launch",
-  deepLinkingSettings: {
-    deepLinkReturnUrl: "https://canvas.example.edu/deep-linking/return",
-    acceptTypes: ["ltiResourceLink"],
+const fakeLtiSession = testSession({
+  id: "lti-session-123",
+  // SAFETY: testVerifiedLaunch returns a parsed LTI payload. LTISession stores it
+  // behind jose's broader JWTPayload shape, whose optional fields are stricter
+  // under exactOptionalPropertyTypes than the package fixture type.
+  jwtPayload: verifiedLaunch.payload as LTISession["jwtPayload"],
+  platform: {
+    issuer,
+    clientId: issuerEntry.clientId,
+    deploymentId: verifiedLaunch.deploymentId,
+    name: "Canvas",
   },
+  launch: {
+    target: verifiedLaunch.targetLinkUri,
+  },
+});
+
+const createFakeLtiTool = (): LtiToolPort => {
+  async function verifyLaunch(
+    _idToken: string,
+    _state: string,
+  ): Promise<LtiLaunchVerificationResult>;
+  async function verifyLaunch<TAuthorization>(
+    _idToken: string,
+    _state: string,
+    options: LtiVerifyLaunchOptions<TAuthorization>,
+  ): Promise<LtiLaunchVerificationResult<LtiAuthorizedLaunch<TAuthorization>>>;
+  async function verifyLaunch<TAuthorization>(
+    _idToken: string,
+    _state: string,
+    options?: LtiVerifyLaunchOptions<TAuthorization>,
+  ): Promise<
+    LtiLaunchVerificationResult | LtiLaunchVerificationResult<LtiAuthorizedLaunch<TAuthorization>>
+  > {
+    if (options?.authorizeVerifiedLaunch === undefined) {
+      return {
+        success: true,
+        launch: verifiedLaunch,
+      };
+    }
+
+    const authorization = await options.authorizeVerifiedLaunch(verifiedLaunch);
+
+    if (!authorization.success) {
+      throw new Error(authorization.message ?? "Verified launch authorization failed");
+    }
+
+    return {
+      success: true,
+      launch: {
+        ...verifiedLaunch,
+        authorization: authorization.data,
+      },
+    };
+  }
+
+  return {
+    getJWKS: vi.fn(async () => ({ keys: [] })),
+    handleLogin: vi.fn(async () => "https://canvas.example.edu/login"),
+    verifyLaunch,
+    createSessionFromVerifiedLaunch: vi.fn(async () => fakeLtiSession),
+    getSession: vi.fn(async () => undefined),
+    createAdvantage: vi.fn(() => createFakeLtiAdvantage()),
+  };
 };
 
 describe("handleLtiLaunchPost", () => {
@@ -100,20 +138,22 @@ describe("handleLtiLaunchPost", () => {
         sha256Hex,
         createLtiSession,
         handleVerifiedLtiLaunch,
-        protocolHandlers: {
-          readLaunchForm: vi.fn(async () => ({
-            idToken: "opaque-id-token",
-            state: "opaque-state",
-          })),
-          resolveLaunch: vi.fn(async () => fakeResolvedLaunch),
-          resolveLaunchMessage: vi.fn(() => fakeLaunchMessage),
-        },
+        createLtiTool: vi.fn(async () => createFakeLtiTool()),
       }),
     );
 
     const response = await app.request(
       "https://credtrail.example.edu/v1/lti/launch",
-      { method: "POST" },
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          id_token: validJwtForSchema,
+          state: "opaque-state",
+        }).toString(),
+      },
       fakeEnv,
     );
 
@@ -121,12 +161,42 @@ describe("handleLtiLaunchPost", () => {
       c: expect.anything(),
       db: fakeDb,
       tenantId: "tenant-123",
-      resolvedLaunch: fakeResolvedLaunch,
-      launchMessage: fakeLaunchMessage,
+      resolvedLaunch: {
+        issuer,
+        issuerEntry,
+        launchClaims: verifiedLaunch.payload,
+        ltiLaunchSession: fakeLtiSession,
+        ltiTool: expect.anything(),
+      },
+      launchMessage: expect.objectContaining({
+        kind: "resource-link",
+      }),
       sha256Hex,
       createLtiSession,
     });
     expect(response.status).toBe(202);
     await expect(response.text()).resolves.toBe("product-flow");
+  });
+
+  it("maps package launch message resolution failures to a bad request response", async () => {
+    const app = new Hono<AppEnv>();
+
+    app.get("/failure", (c) =>
+      handleLtiLaunchFailureResponse(
+        c,
+        new LtiLaunchMessageResolutionError(
+          "missing_resource_link",
+          "LtiResourceLinkRequest requires resource_link.id",
+        ),
+      ),
+    );
+
+    const response = await app.request("https://credtrail.example.edu/failure", undefined, fakeEnv);
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual({
+      error: "LtiResourceLinkRequest requires resource_link.id",
+    });
   });
 });
