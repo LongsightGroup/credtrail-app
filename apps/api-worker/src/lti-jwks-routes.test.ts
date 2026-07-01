@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SqlDatabase } from "@credtrail/db";
 import type { AppBindings, AppEnv } from "./app";
+import { LTI_JWKS_PATH } from "./lti/constants";
 import { registerLtiRoutes } from "./routes/lti-routes";
 
 const { mockedCreateCredTrailLtiTool } = vi.hoisted(() => {
@@ -70,7 +71,7 @@ describe("LTI JWKS route", () => {
       getJWKS,
     });
 
-    const response = await createRouteApp().request("/v1/lti/jwks", undefined, fakeEnv);
+    const response = await createRouteApp().request(LTI_JWKS_PATH, undefined, fakeEnv);
     const body = await response.json<typeof jwks>();
 
     expect(response.status).toBe(200);
@@ -85,7 +86,7 @@ describe("LTI JWKS route", () => {
   it("returns a generic 500 response when JWKS resolution fails", async () => {
     mockedCreateCredTrailLtiTool.mockRejectedValue(new Error("key storage unavailable"));
 
-    const response = await createRouteApp().request("/v1/lti/jwks", undefined, fakeEnv);
+    const response = await createRouteApp().request(LTI_JWKS_PATH, undefined, fakeEnv);
     const body = await response.json<{ error: string }>();
 
     expect(response.status).toBe(500);

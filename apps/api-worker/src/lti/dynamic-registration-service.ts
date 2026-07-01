@@ -7,7 +7,7 @@ import {
 import type { SqlDatabase } from "@credtrail/db";
 import { parseLtiDynamicRegistrationPathParams } from "@credtrail/validation";
 import type { AppBindings } from "../app";
-import { LTI_LAUNCH_PATH, LTI_OIDC_LOGIN_PATH } from "./constants";
+import { LTI_JWKS_PATH, LTI_LAUNCH_PATH, LTI_OIDC_LOGIN_PATH } from "./constants";
 import {
   createCredTrailLtiDynamicRegistration,
   type DynamicRegistrationConfig,
@@ -96,7 +96,7 @@ export const buildLtiDynamicRegistrationConfig = (
     description: "CredTrail badge and credential issuing for LMS courses.",
     loginUri: publicPlatformUrl(env, LTI_OIDC_LOGIN_PATH),
     launchUri: launchUrl,
-    jwksUri: publicPlatformUrl(env, "/v1/lti/jwks"),
+    jwksUri: publicPlatformUrl(env, LTI_JWKS_PATH),
     deepLinkingUri: launchUrl,
     platforms: {
       canvas: {

@@ -1,6 +1,7 @@
 import type { SqlDatabase } from "@credtrail/db";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
+import { LTI_JWKS_PATH } from "./constants";
 import { createCredTrailLtiTool } from "./credtrail-lti-tool";
 
 interface RegisterLtiJwksRouteInput {
@@ -32,7 +33,7 @@ const serveLtiJwks = async (
 export const registerLtiJwksRoute = (input: RegisterLtiJwksRouteInput): void => {
   const { app, resolveDatabase } = input;
 
-  app.get("/v1/lti/jwks", async (c): Promise<Response> => {
+  app.get(LTI_JWKS_PATH, async (c): Promise<Response> => {
     return serveLtiJwks(c, resolveDatabase);
   });
 };

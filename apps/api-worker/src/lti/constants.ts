@@ -1,5 +1,6 @@
 export const LTI_OIDC_LOGIN_PATH = "/v1/lti/oidc/login";
 export const LTI_LAUNCH_PATH = "/v1/lti/launch";
+export const LTI_JWKS_PATH = "/v1/lti/jwks";
 export const LTI_DEEP_LINKING_SELECT_PATH = "/v1/lti/deep-linking/select";
 export const LTI_RESOURCE_LINK_ISSUE_PATH = "/v1/lti/resource-link/issue";
 export const LTI_OIDC_SCOPE = "openid";
