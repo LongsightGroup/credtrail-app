@@ -55,7 +55,7 @@ describe("loadLtiNrpsRoster", () => {
         learnerMembers: [
           {
             userId: "learner-001",
-            sourcedId: "sourced-learner-001",
+            lisPersonSourcedId: "sourced-learner-001",
             displayName: "Learner One",
             email: "learner-one@example.edu",
             isLearner: true,

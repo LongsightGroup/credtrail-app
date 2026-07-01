@@ -104,14 +104,13 @@ const placementGroup = (): LtiCourseBadgeTemplatePlacementGroup => {
 const learnerMember = (overrides: Partial<LtiNrpsMember> = {}): LtiNrpsMember => {
   return {
     userId: "learner-001",
-    sourcedId: "sourced-learner-001",
+    lisPersonSourcedId: "sourced-learner-001",
     displayName: "Learner One",
     email: "learner-one@example.edu",
     status: "Active",
-    pictureUrl: null,
     roles: ["Learner"],
-    roleSummary: "Learner",
     isLearner: true,
+    isInstructor: false,
     ...overrides,
   };
 };
@@ -120,7 +119,7 @@ const roster = (): LtiNrpsRoster => {
   const learnerOne = learnerMember();
   const learnerTwo = learnerMember({
     userId: "learner-002",
-    sourcedId: "sourced-learner-002",
+    lisPersonSourcedId: "sourced-learner-002",
     displayName: "Learner Two",
     email: "learner-two@example.edu",
   });

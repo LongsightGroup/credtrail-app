@@ -7,25 +7,7 @@ import {
   type ResolvedLtiNrpsRosterMember,
 } from "@longsightgroup/lti-tool";
 
-const roleSummary = (roles: readonly string[]): string => {
-  if (roles.length === 0) {
-    return "";
-  }
-
-  return roles.join(", ");
-};
-
-export interface LtiNrpsMember {
-  userId: string;
-  sourcedId: string | null;
-  displayName: string;
-  email: string | null;
-  status: string | null;
-  pictureUrl: string | null;
-  roles: readonly string[];
-  roleSummary: string;
-  isLearner: boolean;
-}
+export type LtiNrpsMember = ResolvedLtiNrpsRosterMember;
 
 export interface LtiNrpsRoster {
   contextId: string | null;
@@ -59,32 +41,16 @@ export type LtiNrpsRosterLoadResult =
       failure: LtiNrpsRosterLoadFailure;
     };
 
-const ltiNrpsMemberFromResolvedMember = (member: ResolvedLtiNrpsRosterMember): LtiNrpsMember => {
-  return {
-    userId: member.userId,
-    sourcedId: member.lisPersonSourcedId ?? null,
-    displayName: member.displayName,
-    email: member.email ?? null,
-    status: member.status,
-    pictureUrl: member.picture ?? null,
-    roles: member.roles,
-    roleSummary: roleSummary(member.roles),
-    isLearner: member.isLearner,
-  };
-};
-
 const ltiNrpsRosterFromCoreMembers = (input: {
   contextId: string | null;
   members: Parameters<typeof resolveLtiNrpsRoster>[0];
 }): LtiNrpsRoster => {
   const resolvedRoster = resolveLtiNrpsRoster(input.members);
-  const members = resolvedRoster.members.map((member) => ltiNrpsMemberFromResolvedMember(member));
-  const learnerUserIds = new Set(resolvedRoster.learnerMembers.map((member) => member.userId));
 
   return {
     contextId: input.contextId,
-    members,
-    learnerMembers: members.filter((member) => learnerUserIds.has(member.userId)),
+    members: resolvedRoster.members,
+    learnerMembers: resolvedRoster.learnerMembers,
   };
 };
 

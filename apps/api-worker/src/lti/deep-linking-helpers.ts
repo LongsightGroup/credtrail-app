@@ -1,4 +1,8 @@
-import type { DeepLinkingContentItem, LTISession } from "@longsightgroup/lti-tool";
+import {
+  createLtiResourceLinkContentItem,
+  type DeepLinkingContentItem,
+  type LTISession,
+} from "@longsightgroup/lti-tool";
 import type { TenantMembershipRole } from "@credtrail/db";
 import { LTI_DEEP_LINKING_SELECT_PATH } from "./constants";
 import { ltiDeepLinkAdvancedSetupPath } from "./lti-admin-links";
@@ -12,8 +16,7 @@ export const badgeTemplateDeepLinkContentItem = (input: {
   ruleId?: string | undefined;
   setupToken?: string | undefined;
 }): DeepLinkingContentItem => {
-  return {
-    type: "ltiResourceLink",
+  return createLtiResourceLinkContentItem({
     title: input.title,
     text: input.description ?? `CredTrail badge template ${input.title} (${input.badgeTemplateId})`,
     url: input.launchUrl,
@@ -22,7 +25,7 @@ export const badgeTemplateDeepLinkContentItem = (input: {
       ...(input.ruleId === undefined ? {} : { ruleId: input.ruleId }),
       ...(input.setupToken === undefined ? {} : { setupToken: input.setupToken }),
     },
-  };
+  });
 };
 
 export const ltiDeepLinkSelectionInput = (input: {

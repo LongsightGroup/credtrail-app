@@ -153,7 +153,7 @@ export const executeLtiRosterIssuance = async (
 
     const recipientEmail = member.email;
 
-    if (recipientEmail === null) {
+    if (recipientEmail === undefined) {
       results.push(skippedLtiIssuanceResult(member, eligibility.detail));
       continue;
     }
@@ -162,13 +162,13 @@ export const executeLtiRosterIssuance = async (
       badgeTemplateId: input.issuanceAction.badgeTemplateId,
       recipientIdentity: recipientEmail,
       recipientIdentityType: "email",
-      ...(member.sourcedId === null
+      ...(member.lisPersonSourcedId === undefined
         ? {}
         : {
             recipientIdentifiers: [
               {
                 identifierType: "sourcedId",
-                identifier: member.sourcedId,
+                identifier: member.lisPersonSourcedId,
               },
             ],
           }),
@@ -190,7 +190,7 @@ export const executeLtiRosterIssuance = async (
       results.push({
         userId: member.userId,
         displayName: member.displayName,
-        email: member.email,
+        email: member.email ?? null,
         status: issuance.status,
         message:
           issuance.status === "issued"
@@ -202,7 +202,7 @@ export const executeLtiRosterIssuance = async (
       results.push({
         userId: member.userId,
         displayName: member.displayName,
-        email: member.email,
+        email: member.email ?? null,
         status: "failed",
         message: error instanceof Error ? error.message : "Badge issuance failed.",
         assertionId: null,

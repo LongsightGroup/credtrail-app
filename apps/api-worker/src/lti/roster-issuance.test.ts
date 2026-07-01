@@ -267,7 +267,6 @@ describe("executeLtiRosterIssuance eligibility guard", () => {
         {
           status: "Active",
           name: "Learner One",
-          email: null,
           userId: "learner-001",
           lisPersonSourcedId: "sourced-learner-001",
           roles: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],

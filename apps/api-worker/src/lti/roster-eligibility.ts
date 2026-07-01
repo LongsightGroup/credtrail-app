@@ -263,7 +263,7 @@ const memberEligibilityBeforeRuleEvaluation = (input: {
     return statusResult("rule_pending", input.prepared.detail, false);
   }
 
-  if (input.member.email === null) {
+  if (input.member.email === undefined) {
     return statusResult(
       "unavailable",
       "The LMS did not provide an email address for this learner.",
@@ -276,8 +276,8 @@ const memberEligibilityBeforeRuleEvaluation = (input: {
 
 const ltiNrpsMemberWithEmail = (
   member: LtiNrpsMember,
-): member is LtiNrpsMember & { email: string } => {
-  return member.email !== null;
+): member is LtiNrpsMember & Required<Pick<LtiNrpsMember, "email">> => {
+  return member.email !== undefined;
 };
 
 const evaluateLtiRosterMemberEligibilityWithPreparedContext = async (input: {

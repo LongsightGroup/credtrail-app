@@ -153,7 +153,7 @@ const ltiCourseBadgeSummaryViewFromRoster = async (
       badgeTemplateIds: placementGroups.map((placementGroup) => placementGroup.badgeTemplateId),
       recipientEmails: learnerMembers
         .map((member) => member.email)
-        .filter((email): email is string => email !== null),
+        .filter((email): email is string => email !== undefined),
     },
   );
   const matchingRecipientAssertionsByBadgeRecipient = new Map<string, AssertionRecord>();
@@ -183,7 +183,7 @@ const ltiCourseBadgeSummaryViewFromRoster = async (
 
   for (const candidate of candidates) {
     const matchingRecipientAssertion =
-      candidate.member.email === null
+      candidate.member.email === undefined
         ? null
         : (matchingRecipientAssertionsByBadgeRecipient.get(
             ltiBadgeRecipientKey(candidate.template.id, candidate.member.email),
@@ -200,9 +200,9 @@ const ltiCourseBadgeSummaryViewFromRoster = async (
     rows.push({
       learnerUserId: candidate.member.userId,
       learnerName,
-      learnerEmail: candidate.member.email,
+      learnerEmail: candidate.member.email ?? null,
       learnerDetailPath:
-        !input.canOpenAdminLinks || candidate.member.email === null
+        !input.canOpenAdminLinks || candidate.member.email === undefined
           ? null
           : ltiCourseSummaryIssuedBadgesPath({
               tenantId: input.tenantId,

@@ -6,7 +6,7 @@ export type LtiRoleKind = "instructor" | "learner" | "unknown";
 
 export interface LtiBulkIssuanceRosterMember {
   userId: string;
-  sourcedId: string | null;
+  lisPersonSourcedId?: string;
   displayName: string;
   email: string | null;
   roleSummary: string;

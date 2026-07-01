@@ -45,14 +45,13 @@ const selectedBadge: LtiBadgeSummaryCard = {
 const learnerMember = (overrides: Partial<LtiNrpsMember> = {}): LtiNrpsMember => {
   return {
     userId: "learner-001",
-    sourcedId: "sourced-learner-001",
+    lisPersonSourcedId: "sourced-learner-001",
     displayName: "Learner One",
     email: "learner-one@example.edu",
     status: "Active",
-    pictureUrl: null,
     roles: ["Learner"],
-    roleSummary: "Learner",
     isLearner: true,
+    isInstructor: false,
     ...overrides,
   };
 };
@@ -64,8 +63,8 @@ const roster = (): LtiNrpsRoster => {
     displayName: "Instructor One",
     email: "instructor@example.edu",
     roles: ["Instructor"],
-    roleSummary: "Instructor",
     isLearner: false,
+    isInstructor: true,
   });
 
   return {

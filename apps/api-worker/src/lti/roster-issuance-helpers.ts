@@ -77,13 +77,13 @@ export const ltiIssuanceIdempotencyKeyFromPrefix = async (
 };
 
 export const skippedLtiIssuanceResult = (
-  member: Pick<LtiNrpsMember, "userId" | "displayName" | "email">,
+  member: Pick<LtiNrpsMember, "userId" | "displayName"> & Pick<Partial<LtiNrpsMember>, "email">,
   message: string,
 ): LtiRosterIssuanceResultEntry => {
   return {
     userId: member.userId,
     displayName: member.displayName,
-    email: member.email,
+    email: member.email ?? null,
     status: "skipped",
     message,
     assertionId: null,

@@ -60,6 +60,14 @@ type InstructorBulkIssuanceViewResolver = (
   input: ResolveInstructorBulkIssuanceViewInput,
 ) => Promise<LtiBulkIssuanceView>;
 
+const ltiRosterRoleSummary = (roles: readonly string[]): string => {
+  if (roles.length === 0) {
+    return "";
+  }
+
+  return roles.join(", ");
+};
+
 const ltiBulkIssuanceViewFromRoster = (input: {
   roster: LtiNrpsRoster;
   message: string;
@@ -81,10 +89,12 @@ const ltiBulkIssuanceViewFromRoster = (input: {
 
     return {
       userId: member.userId,
-      sourcedId: member.sourcedId,
+      ...(member.lisPersonSourcedId === undefined
+        ? {}
+        : { lisPersonSourcedId: member.lisPersonSourcedId }),
       displayName: member.displayName,
-      email: member.email,
-      roleSummary: member.roleSummary,
+      email: member.email ?? null,
+      roleSummary: ltiRosterRoleSummary(member.roles),
       status: member.status,
       eligibilityStatus: eligibility.status,
       eligibilityLabel: eligibility.label,
