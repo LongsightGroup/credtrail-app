@@ -14,7 +14,7 @@ import {
   type LTI13JwtPayload as LtiLaunchClaims,
   type LTISession,
   type LTITool,
-} from "@lti-tool/core";
+} from "@longsightgroup/lti-tool";
 import type { AppBindings } from "../app";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
 import { LTI_RESOURCE_LINK_ISSUE_PATH } from "./constants";

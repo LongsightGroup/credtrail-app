@@ -5,22 +5,21 @@ import type {
   LTILaunchConfig,
   LTISession,
   LTIStorage,
-} from "@lti-tool/core";
+} from "@longsightgroup/lti-tool";
 import {
   parsePersistedLtiDynamicRegistrationSession,
   parsePersistedLtiSession,
   serializeLtiDynamicRegistrationSession,
   serializeLtiSession,
-} from "@lti-tool/core";
+} from "@longsightgroup/lti-tool";
 import {
-  consumeLtiLaunchNonce,
   deleteLtiDynamicRegistrationSessionById,
   findLtiDeploymentByIssuerClientDeployment,
   findLtiDynamicRegistrationSessionById,
   findLtiLaunchSessionById,
   listLtiDeploymentsForIssuer,
   listLtiIssuerRegistrations,
-  storeLtiLaunchNonce,
+  recordLtiLaunchNonceUse,
   upsertLtiDeployment,
   upsertLtiDynamicRegistrationSession,
   upsertLtiIssuerRegistration,
@@ -31,6 +30,7 @@ import {
 import { normalizeLtiIssuer } from "./lti-helpers";
 
 const SESSION_TTL_SECONDS = 60 * 60;
+const NONCE_TTL_SECONDS = 10 * 60;
 
 const addSeconds = (seconds: number): string => {
   return new Date(Date.now() + seconds * 1000).toISOString();
@@ -178,7 +178,10 @@ export class CredTrailLtiStorage implements LTIStorage {
     }));
   }
 
-  async getDeployment(clientId: string, deploymentId: string): Promise<LTIDeployment | undefined> {
+  async getDeploymentByPlatformId(
+    clientId: string,
+    deploymentId: string,
+  ): Promise<LTIDeployment | undefined> {
     const client = await this.getClientById(clientId);
 
     if (client === undefined) {
@@ -221,7 +224,7 @@ export class CredTrailLtiStorage implements LTIStorage {
     return created.id;
   }
 
-  async updateDeployment(
+  async updateDeploymentById(
     clientId: string,
     deploymentId: string,
     deployment: Partial<LTIDeployment>,
@@ -241,7 +244,7 @@ export class CredTrailLtiStorage implements LTIStorage {
     });
   }
 
-  async deleteDeployment(_clientId: string, _deploymentId: string): Promise<void> {
+  async deleteDeploymentById(_clientId: string, _deploymentId: string): Promise<void> {
     throw new Error("Deleting LTI deployments through CredTrailLtiStorage is not implemented");
   }
 
@@ -268,12 +271,13 @@ export class CredTrailLtiStorage implements LTIStorage {
     return session.id;
   }
 
-  async storeNonce(nonce: string, expiresAt: Date): Promise<void> {
-    await storeLtiLaunchNonce(this.db, nonce, expiresAt.toISOString());
-  }
-
   async validateNonce(nonce: string): Promise<boolean> {
-    return consumeLtiLaunchNonce(this.db, nonce, new Date().toISOString());
+    const consumedAt = new Date();
+    return recordLtiLaunchNonceUse(this.db, {
+      nonce,
+      consumedAt: consumedAt.toISOString(),
+      expiresAt: new Date(consumedAt.getTime() + NONCE_TTL_SECONDS * 1000).toISOString(),
+    });
   }
 
   async getLaunchConfig(

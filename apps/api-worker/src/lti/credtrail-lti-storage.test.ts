@@ -5,6 +5,7 @@ const {
   mockedFindLtiLaunchSessionById,
   mockedListLtiDeploymentsForIssuer,
   mockedListLtiIssuerRegistrations,
+  mockedRecordLtiLaunchNonceUse,
   mockedUpsertLtiDeployment,
   mockedUpsertLtiIssuerRegistration,
 } = vi.hoisted(() => {
@@ -13,6 +14,7 @@ const {
     mockedFindLtiLaunchSessionById: vi.fn(),
     mockedListLtiDeploymentsForIssuer: vi.fn(),
     mockedListLtiIssuerRegistrations: vi.fn(),
+    mockedRecordLtiLaunchNonceUse: vi.fn(),
     mockedUpsertLtiDeployment: vi.fn(),
     mockedUpsertLtiIssuerRegistration: vi.fn(),
   };
@@ -27,6 +29,7 @@ vi.mock("@credtrail/db", async () => {
     findLtiLaunchSessionById: mockedFindLtiLaunchSessionById,
     listLtiDeploymentsForIssuer: mockedListLtiDeploymentsForIssuer,
     listLtiIssuerRegistrations: mockedListLtiIssuerRegistrations,
+    recordLtiLaunchNonceUse: mockedRecordLtiLaunchNonceUse,
     upsertLtiDeployment: mockedUpsertLtiDeployment,
     upsertLtiIssuerRegistration: mockedUpsertLtiIssuerRegistration,
   };
@@ -40,7 +43,7 @@ import {
   type LtiLaunchSessionRecord,
   type SqlDatabase,
 } from "@credtrail/db";
-import type { LTIDynamicRegistrationSession, LTISession } from "@lti-tool/core";
+import type { LTIDynamicRegistrationSession, LTISession } from "@longsightgroup/lti-tool";
 import { CredTrailLtiStorage } from "./credtrail-lti-storage";
 
 const fakeDb = {} as SqlDatabase;
@@ -197,11 +200,13 @@ describe("CredTrailLtiStorage dynamic registration writes", () => {
     mockedFindLtiLaunchSessionById.mockReset();
     mockedListLtiDeploymentsForIssuer.mockReset();
     mockedListLtiIssuerRegistrations.mockReset();
+    mockedRecordLtiLaunchNonceUse.mockReset();
     mockedUpsertLtiDeployment.mockReset();
     mockedUpsertLtiIssuerRegistration.mockReset();
     mockedListLtiDeploymentsForIssuer.mockResolvedValue([]);
     mockedFindLtiDynamicRegistrationSessionById.mockResolvedValue(null);
     mockedFindLtiLaunchSessionById.mockResolvedValue(null);
+    mockedRecordLtiLaunchNonceUse.mockResolvedValue(true);
     mockedUpsertLtiIssuerRegistration.mockResolvedValue(sampleRegistration());
     mockedUpsertLtiDeployment.mockResolvedValue(sampleDeployment());
   });
@@ -307,6 +312,29 @@ describe("CredTrailLtiStorage dynamic registration writes", () => {
     const storage = new CredTrailLtiStorage(fakeDb);
 
     await expect(storage.getSession("lti-session-1")).resolves.toBeUndefined();
+  });
+
+  it("records launch nonce use atomically for replay protection", async () => {
+    const storage = new CredTrailLtiStorage(fakeDb);
+
+    await expect(storage.validateNonce("nonce-1")).resolves.toBe(true);
+
+    expect(mockedRecordLtiLaunchNonceUse).toHaveBeenCalledWith(fakeDb, {
+      nonce: "nonce-1",
+      consumedAt: expect.any(String),
+      expiresAt: expect.any(String),
+    });
+    const recorded = mockedRecordLtiLaunchNonceUse.mock.calls[0]?.[1] as
+      | {
+          consumedAt: string;
+          expiresAt: string;
+        }
+      | undefined;
+
+    expect(recorded).not.toBeUndefined();
+    expect(Date.parse(recorded?.expiresAt ?? "")).toBeGreaterThan(
+      Date.parse(recorded?.consumedAt ?? ""),
+    );
   });
 
   it("round-trips valid dynamic registration sessions through the storage interface", async () => {

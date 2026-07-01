@@ -24,7 +24,7 @@ import {
   LTI_MESSAGE_TYPE_RESOURCE_LINK_REQUEST,
   type LTI13JwtPayload as LtiLaunchClaims,
   type LTISession,
-} from "@lti-tool/core";
+} from "@longsightgroup/lti-tool";
 import { resolveLearnerResourceLinkView } from "./learner-launch-views";
 import type { ValidatedSelectedResourceLinkLaunch } from "./resource-link-launch-types";
 

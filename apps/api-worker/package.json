@@ -11,11 +11,11 @@
     "@credtrail/ui-components": "workspace:*",
     "@credtrail/validation": "workspace:*",
     "@hono/node-server": "^2.0.4",
-    "@lti-tool/core": "file:../../vendor/lti-tool-core-1.1.4-longsight.6.tgz",
+    "@longsightgroup/lti-tool": "0.1.0",
     "csv-stringify": "^6.7.0",
     "d3-scale": "^4.0.2",
     "d3-shape": "^3.2.0",
-    "hono": "^4.12.23",
+    "hono": "^4.12.27",
     "jose": "6.2.3",
     "pdf-lib": "^1.17.1",
     "qrcode-generator": "2.0.4"

@@ -9,7 +9,7 @@ import {
   LTI_CLAIM_DEPLOYMENT_ID,
   type LTI13JwtPayload as LtiLaunchClaims,
   type LTISession,
-} from "@lti-tool/core";
+} from "@longsightgroup/lti-tool";
 import type { ResourceLinkLaunchMessage } from "./resource-link-launch-types";
 
 export interface LtiCourseBadgeTemplatePlacementGroup {

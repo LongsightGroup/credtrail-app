@@ -34,7 +34,7 @@ import {
   type SqlDatabase,
   type TenantLmsConnectionRecord,
 } from "@credtrail/db";
-import type { LTISession } from "@lti-tool/core";
+import type { LTISession } from "@longsightgroup/lti-tool";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 import { app } from "./index";
 

@@ -1,4 +1,9 @@
-import { LTITool, importLtiToolKeyPairFromJwk, type LTIConfig } from "@lti-tool/core";
+import {
+  LtiDynamicRegistration,
+  LTITool,
+  importLtiToolKeyPairFromJwk,
+  type LTIConfig,
+} from "@longsightgroup/lti-tool";
 import { createLtiToolKey, findActiveLtiToolKey, type SqlDatabase } from "@credtrail/db";
 import { ltiStateSigningSecret } from "./lti-helpers";
 import { CredTrailLtiStorage } from "./credtrail-lti-storage";
@@ -71,15 +76,19 @@ const loadOrCreateLtiToolKeyPair = async (db: SqlDatabase): Promise<CryptoKeyPai
   return generated.keyPair;
 };
 
-export const createCredTrailLtiTool = async (input: {
+export interface CreateCredTrailLtiToolInput {
   db: SqlDatabase;
   env: AppBindings;
   defaultTenantId?: string | undefined;
   dynamicRegistration?: DynamicRegistrationConfig | undefined;
-}): Promise<LTITool> => {
+}
+
+export const createCredTrailLtiConfig = async (
+  input: CreateCredTrailLtiToolInput,
+): Promise<LTIConfig> => {
   const keyPair = await loadOrCreateLtiToolKeyPair(input.db);
 
-  return new LTITool({
+  return {
     stateSecret: new TextEncoder().encode(ltiStateSigningSecret(input.env)),
     keyPair,
     storage: new CredTrailLtiStorage(input.db, {
@@ -93,5 +102,17 @@ export const createCredTrailLtiTool = async (input: {
     ...(input.dynamicRegistration === undefined
       ? {}
       : { dynamicRegistration: input.dynamicRegistration }),
-  });
+  };
+};
+
+export const createCredTrailLtiTool = async (
+  input: CreateCredTrailLtiToolInput,
+): Promise<LTITool> => {
+  return new LTITool(await createCredTrailLtiConfig(input));
+};
+
+export const createCredTrailLtiDynamicRegistration = async (
+  input: CreateCredTrailLtiToolInput,
+): Promise<LtiDynamicRegistration> => {
+  return new LtiDynamicRegistration(await createCredTrailLtiConfig(input));
 };

@@ -4,8 +4,8 @@ import type {
   LTITool,
   LtiLaunchVerificationResult,
   LtiVerifiedLaunch,
-} from "@lti-tool/core";
-import { LtiLaunchVerificationError as CoreLtiLaunchVerificationError } from "@lti-tool/core";
+} from "@longsightgroup/lti-tool";
+import { LtiLaunchVerificationError as CoreLtiLaunchVerificationError } from "@longsightgroup/lti-tool";
 import type { SqlDatabase } from "@credtrail/db";
 import { describe, expect, it, vi } from "vitest";
 import type { AppBindings } from "../app";
@@ -119,7 +119,7 @@ const fakeLtiTool = (input: {
   };
 
   return {
-    verifyLaunchDetailed: vi.fn(
+    verifyLaunch: vi.fn(
       async (
         _idToken: string,
         _state: string,

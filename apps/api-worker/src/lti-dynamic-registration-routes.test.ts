@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { Hono } from "hono";
-import type { LTIConfig } from "@lti-tool/core";
+import { LtiServiceError, type LTIConfig } from "@longsightgroup/lti-tool";
 import { LtiIssuerTenantConflictError, type SqlDatabase } from "@credtrail/db";
 import type { AppBindings, AppEnv } from "./app";
 import { registerLtiRoutes } from "./routes/lti-routes";
@@ -11,15 +11,15 @@ import {
 
 type DynamicRegistrationConfig = NonNullable<LTIConfig["dynamicRegistration"]>;
 
-const { mockedCreateCredTrailLtiTool } = vi.hoisted(() => {
+const { mockedCreateCredTrailLtiDynamicRegistration } = vi.hoisted(() => {
   return {
-    mockedCreateCredTrailLtiTool: vi.fn(),
+    mockedCreateCredTrailLtiDynamicRegistration: vi.fn(),
   };
 });
 
 vi.mock("./lti/credtrail-lti-tool", () => {
   return {
-    createCredTrailLtiTool: mockedCreateCredTrailLtiTool,
+    createCredTrailLtiDynamicRegistration: mockedCreateCredTrailLtiDynamicRegistration,
   };
 });
 
@@ -65,8 +65,16 @@ const createRouteApp = (): Hono<AppEnv> => {
 
 const createToolMock = (): DynamicRegistrationToolMock => {
   return {
-    initiateDynamicRegistration: vi.fn(async () => "<form>registration</form>"),
-    completeDynamicRegistration: vi.fn(async () => "<html>complete</html>"),
+    initiateDynamicRegistration: vi.fn(async () => ({
+      success: true,
+      data: "<form>registration</form>",
+    })),
+    completeDynamicRegistration: vi.fn(async () => ({
+      success: true,
+      data: {
+        html: "<html>complete</html>",
+      },
+    })),
   };
 };
 
@@ -116,7 +124,7 @@ const createCompletionBody = (): FormData => {
 
 describe("LTI dynamic registration routes", () => {
   beforeEach(() => {
-    mockedCreateCredTrailLtiTool.mockReset();
+    mockedCreateCredTrailLtiDynamicRegistration.mockReset();
   });
 
   it("rejects missing or invalid invite tokens", async () => {
@@ -131,7 +139,7 @@ describe("LTI dynamic registration routes", () => {
 
     expect(response.status).toBe(403);
     expect(body.error).toBe("Invalid or expired LTI dynamic registration link");
-    expect(mockedCreateCredTrailLtiTool).not.toHaveBeenCalled();
+    expect(mockedCreateCredTrailLtiDynamicRegistration).not.toHaveBeenCalled();
   });
 
   it("rejects valid invites used for the wrong tenant path", async () => {
@@ -150,14 +158,14 @@ describe("LTI dynamic registration routes", () => {
 
     expect(response.status).toBe(403);
     expect(body.error).toBe("Invalid or expired LTI dynamic registration link");
-    expect(mockedCreateCredTrailLtiTool).not.toHaveBeenCalled();
+    expect(mockedCreateCredTrailLtiDynamicRegistration).not.toHaveBeenCalled();
   });
 
   it("initiates dynamic registration with tenant-scoped canonical URLs", async () => {
     const app = createRouteApp();
     const env = createEnv();
     const tool = createToolMock();
-    mockedCreateCredTrailLtiTool.mockResolvedValue(tool);
+    mockedCreateCredTrailLtiDynamicRegistration.mockResolvedValue(tool);
     const requestUrl = await createInviteUrl({
       env,
       tenantId: "tenant-a",
@@ -176,9 +184,9 @@ describe("LTI dynamic registration routes", () => {
       },
       new URL(requestUrl).pathname,
     );
-    expect(mockedCreateCredTrailLtiTool).toHaveBeenCalledTimes(1);
+    expect(mockedCreateCredTrailLtiDynamicRegistration).toHaveBeenCalledTimes(1);
 
-    const toolInput = mockedCreateCredTrailLtiTool.mock.calls[0]?.[0] as {
+    const toolInput = mockedCreateCredTrailLtiDynamicRegistration.mock.calls[0]?.[0] as {
       defaultTenantId: string;
       dynamicRegistration: DynamicRegistrationConfig;
     };
@@ -197,7 +205,7 @@ describe("LTI dynamic registration routes", () => {
     const app = createRouteApp();
     const env = createEnv();
     const tool = createToolMock();
-    mockedCreateCredTrailLtiTool.mockResolvedValue(tool);
+    mockedCreateCredTrailLtiDynamicRegistration.mockResolvedValue(tool);
 
     const response = await app.request(
       await createCompletionUrl(env),
@@ -223,9 +231,22 @@ describe("LTI dynamic registration routes", () => {
     const env = createEnv();
     const tool = createToolMock();
     tool.completeDynamicRegistration
-      .mockResolvedValueOnce("<html>complete</html>")
-      .mockRejectedValueOnce(new Error("Invalid or expired registration session"));
-    mockedCreateCredTrailLtiTool.mockResolvedValue(tool);
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          html: "<html>complete</html>",
+        },
+      })
+      .mockResolvedValueOnce({
+        success: false,
+        error: new LtiServiceError({
+          code: "platform_request_failed",
+          serviceKind: "dynamic_registration",
+          operation: "completeDynamicRegistration",
+          message: "Invalid or expired registration session",
+        }),
+      });
+    mockedCreateCredTrailLtiDynamicRegistration.mockResolvedValue(tool);
     const requestUrl = await createCompletionUrl(env);
 
     const firstResponse = await app.request(
@@ -255,10 +276,22 @@ describe("LTI dynamic registration routes", () => {
     const app = createRouteApp();
     const env = createEnv();
     const tool = createToolMock();
-    tool.completeDynamicRegistration.mockRejectedValueOnce(
-      new LtiIssuerTenantConflictError("https://canvas.test", "tenant-b", "tenant-a"),
+    const conflict = new LtiIssuerTenantConflictError(
+      "https://canvas.test",
+      "tenant-b",
+      "tenant-a",
     );
-    mockedCreateCredTrailLtiTool.mockResolvedValue(tool);
+    tool.completeDynamicRegistration.mockResolvedValueOnce({
+      success: false,
+      error: new LtiServiceError({
+        code: "platform_request_failed",
+        serviceKind: "dynamic_registration",
+        operation: "completeDynamicRegistration",
+        message: conflict.message,
+        cause: conflict,
+      }),
+    });
+    mockedCreateCredTrailLtiDynamicRegistration.mockResolvedValue(tool);
 
     const response = await app.request(
       await createCompletionUrl(env),

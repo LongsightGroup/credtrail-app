@@ -1,14 +1,15 @@
 import {
   DynamicRegistrationFormSchema,
   RegistrationRequestSchema,
-  type LTITool,
+  formatLtiServiceError,
+  type LtiDynamicRegistration,
   type LTIConfig,
-} from "@lti-tool/core";
+} from "@longsightgroup/lti-tool";
 import { isLtiIssuerTenantConflictError, type SqlDatabase } from "@credtrail/db";
 import { parseLtiDynamicRegistrationPathParams } from "@credtrail/validation";
 import type { AppBindings } from "../app";
 import { LTI_LAUNCH_PATH, LTI_OIDC_LOGIN_PATH } from "./constants";
-import { createCredTrailLtiTool } from "./credtrail-lti-tool";
+import { createCredTrailLtiDynamicRegistration } from "./credtrail-lti-tool";
 import {
   createLtiDynamicRegistrationInviteToken,
   ltiDynamicRegistrationPath,
@@ -51,7 +52,7 @@ export interface LtiDynamicRegistrationContext {
   tenantId: string;
   inviteToken: string;
   registrationCallbackPath: string;
-  ltiTool: LTITool;
+  dynamicRegistration: LtiDynamicRegistration;
 }
 
 const serviceFailure = (
@@ -172,7 +173,7 @@ export const openLtiDynamicRegistrationContext = async (input: {
     return serviceFailure("invalid_invite", "Invalid or expired LTI dynamic registration link");
   }
 
-  const ltiTool = await createCredTrailLtiTool({
+  const dynamicRegistration = await createCredTrailLtiDynamicRegistration({
     db: input.db,
     env: input.env,
     defaultTenantId: pathParams.tenantId,
@@ -186,7 +187,7 @@ export const openLtiDynamicRegistrationContext = async (input: {
       pathParams.tenantId,
       pathParams.inviteToken,
     ),
-    ltiTool,
+    dynamicRegistration,
   });
 };
 
@@ -202,19 +203,16 @@ export const initiateLtiDynamicRegistration = async (
     return serviceFailure("invalid_initiate_request", "Invalid LTI dynamic registration request");
   }
 
-  try {
-    const responseHtml = await context.ltiTool.initiateDynamicRegistration(
-      registrationRequest,
-      context.registrationCallbackPath,
-    );
+  const result = await context.dynamicRegistration.initiateDynamicRegistration(
+    registrationRequest,
+    context.registrationCallbackPath,
+  );
 
-    return serviceSuccess(responseHtml);
-  } catch (error) {
-    return serviceFailure(
-      "initiate_failed",
-      error instanceof Error ? error.message : "Unable to initiate LTI dynamic registration",
-    );
+  if (!result.success) {
+    return serviceFailure("initiate_failed", formatLtiServiceError(result.error));
   }
+
+  return serviceSuccess(result.data);
 };
 
 export const completeLtiDynamicRegistration = async (
@@ -233,17 +231,17 @@ export const completeLtiDynamicRegistration = async (
     return serviceFailure("invalid_completion", "Invalid LTI dynamic registration completion");
   }
 
-  try {
-    const responseHtml = await context.ltiTool.completeDynamicRegistration(dynamicRegistrationForm);
-    return serviceSuccess(responseHtml);
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unable to complete LTI dynamic registration";
+  const result =
+    await context.dynamicRegistration.completeDynamicRegistration(dynamicRegistrationForm);
 
-    if (isLtiIssuerTenantConflictError(error)) {
+  if (!result.success) {
+    const errorMessage = formatLtiServiceError(result.error);
+
+    if (isLtiIssuerTenantConflictError(result.error.cause)) {
       return serviceFailure("issuer_tenant_conflict", errorMessage);
     }
-
     return serviceFailure("complete_failed", errorMessage);
   }
+
+  return serviceSuccess(result.data.html);
 };

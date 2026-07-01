@@ -5,7 +5,7 @@ import {
   type LTITool,
   resolveLtiNrpsRoster,
   type ResolvedLtiNrpsRosterMember,
-} from "@lti-tool/core";
+} from "@longsightgroup/lti-tool";
 
 const roleSummary = (roles: readonly string[]): string => {
   if (roles.length === 0) {
@@ -110,7 +110,7 @@ export const loadLtiNrpsRoster = async (input: {
   ltiSession: LTISession;
   contextId: string | null;
 }): Promise<LtiNrpsRosterLoadResult> => {
-  const membersResult = await input.ltiTool.getMembersDetailed(input.ltiSession);
+  const membersResult = await input.ltiTool.createAdvantage(input.ltiSession).getMembers();
 
   if (!membersResult.success) {
     return {

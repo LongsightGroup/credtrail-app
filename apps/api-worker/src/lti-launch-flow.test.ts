@@ -113,7 +113,7 @@ import {
   type TenantLmsConnectionRecord,
   type TenantMembershipRecord,
 } from "@credtrail/db";
-import { LtiServiceError, type LTISession } from "@lti-tool/core";
+import { LtiServiceError, type LTISession } from "@longsightgroup/lti-tool";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
@@ -1268,18 +1268,18 @@ describe("LTI 1.3 core launch flow", () => {
 
   const loadAppWithMockedSignedLtiTool = async (options?: {
     authorizationEndpoint?: string;
-    getMembersDetailed?: ReturnType<typeof vi.fn>;
+    getMembers?: ReturnType<typeof vi.fn>;
     getSession?: ReturnType<typeof vi.fn>;
     issueBadgeForTenant?: ReturnType<typeof vi.fn>;
   }): Promise<
     Awaited<ReturnType<typeof loadAppWithMockedAuthProviders>> & {
       ltiTool: {
         handleLogin: ReturnType<typeof vi.fn>;
-        verifyLaunchDetailed: ReturnType<typeof vi.fn>;
+        verifyLaunch: ReturnType<typeof vi.fn>;
         createSession: ReturnType<typeof vi.fn>;
         createSessionFromVerifiedLaunch: ReturnType<typeof vi.fn>;
         getSession: ReturnType<typeof vi.fn>;
-        getMembersDetailed: ReturnType<typeof vi.fn>;
+        createAdvantage: ReturnType<typeof vi.fn>;
       };
     }
   > => {
@@ -1297,7 +1297,7 @@ describe("LTI 1.3 core launch flow", () => {
         redirectUrl.searchParams.set("nonce", "mock-lti-nonce");
         return redirectUrl.toString();
       }),
-      verifyLaunchDetailed: vi.fn(
+      verifyLaunch: vi.fn(
         async (
           idToken: string,
           _state: string,
@@ -1373,26 +1373,28 @@ describe("LTI 1.3 core launch flow", () => {
         vi.fn(async (sessionId: string) =>
           latestSession !== null && latestSession.id === sessionId ? latestSession : undefined,
         ),
-      getMembersDetailed:
-        options?.getMembersDetailed ??
-        vi.fn(async (session: LTISession) => {
-          if (session.services?.nrps?.membershipUrl === undefined) {
-            return {
-              success: false,
-              error: new LtiServiceError({
-                code: "service_not_available",
-                serviceKind: "nrps",
-                operation: "getMembers",
-                message: "NRPS membership service is not available for this session",
-              }),
-            };
-          }
+      createAdvantage: vi.fn((session: LTISession) => ({
+        getMembers:
+          options?.getMembers ??
+          vi.fn(async () => {
+            if (session.services?.nrps?.membershipUrl === undefined) {
+              return {
+                success: false,
+                error: new LtiServiceError({
+                  code: "service_not_available",
+                  serviceKind: "nrps",
+                  operation: "getMembers",
+                  message: "NRPS membership service is not available for this session",
+                }),
+              };
+            }
 
-          return {
-            success: true,
-            data: [],
-          };
-        }),
+            return {
+              success: true,
+              data: [],
+            };
+          }),
+      })),
     };
     const result = await loadAppWithMockedAuthProviders(() => {
       if (options?.issueBadgeForTenant !== undefined) {
@@ -1922,7 +1924,7 @@ describe("LTI 1.3 core launch flow", () => {
         revokedAt: null,
       },
     ]);
-    const getMembersDetailed = vi.fn().mockResolvedValue({
+    const getMembers = vi.fn().mockResolvedValue({
       success: true,
       data: [
         {
@@ -1947,7 +1949,7 @@ describe("LTI 1.3 core launch flow", () => {
         },
       ],
     });
-    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembersDetailed });
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembers });
     const loginResponse = await isolatedApp.request(
       `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
         "opaque-login-hint",
@@ -2103,7 +2105,7 @@ describe("LTI 1.3 core launch flow", () => {
         revokedAt: null,
       },
     ]);
-    const getMembersDetailed = vi.fn().mockResolvedValue({
+    const getMembers = vi.fn().mockResolvedValue({
       success: true,
       data: [
         {
@@ -2121,7 +2123,7 @@ describe("LTI 1.3 core launch flow", () => {
         },
       ],
     });
-    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembersDetailed });
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembers });
     const loginResponse = await isolatedApp.request(
       `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
         "opaque-login-hint",
@@ -2268,7 +2270,7 @@ describe("LTI 1.3 core launch flow", () => {
   it("pulls NRPS roster for instructor launch and renders bulk issuance view", async () => {
     const env = createLtiEnv();
     const rosterTargetLinkUri = `${targetLinkUri}?badgeTemplateId=badge_template_001`;
-    const getMembersDetailed = vi.fn().mockResolvedValue({
+    const getMembers = vi.fn().mockResolvedValue({
       success: true,
       data: [
         {
@@ -2287,7 +2289,7 @@ describe("LTI 1.3 core launch flow", () => {
         },
       ],
     });
-    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembersDetailed });
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembers });
     const loginResponse = await isolatedApp.request(
       `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
         "opaque-login-hint",
@@ -2377,7 +2379,7 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain('name="issuance_action_token"');
     expect(body).toContain('name="learner_user_id"');
     expect(body).toContain("Issue selected badges");
-    expect(getMembersDetailed).toHaveBeenCalledTimes(1);
+    expect(getMembers).toHaveBeenCalledTimes(1);
   });
 
   it("marks already issued LMS roster learners on refreshed LTI launches", async () => {
@@ -2401,7 +2403,7 @@ describe("LTI 1.3 core launch flow", () => {
         revokedAt: null,
       },
     ]);
-    const getMembersDetailed = vi.fn().mockResolvedValue({
+    const getMembers = vi.fn().mockResolvedValue({
       success: true,
       data: [
         {
@@ -2414,7 +2416,7 @@ describe("LTI 1.3 core launch flow", () => {
         },
       ],
     });
-    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembersDetailed });
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({ getMembers });
     const loginResponse = await isolatedApp.request(
       `/v1/lti/oidc/login?iss=${encodeURIComponent(issuer)}&login_hint=${encodeURIComponent(
         "opaque-login-hint",
@@ -2497,7 +2499,7 @@ describe("LTI 1.3 core launch flow", () => {
   it("issues selected LMS roster learners through the LTI resource-link action", async () => {
     const env = createLtiEnv();
     const rosterTargetLinkUri = `${targetLinkUri}?badgeTemplateId=badge_template_001`;
-    const getMembersDetailed = vi.fn().mockResolvedValue({
+    const getMembers = vi.fn().mockResolvedValue({
       success: true,
       data: [
         {
@@ -2525,7 +2527,7 @@ describe("LTI 1.3 core launch flow", () => {
       credential: {},
     }));
     const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool({
-      getMembersDetailed,
+      getMembers,
       issueBadgeForTenant,
     });
     const loginResponse = await isolatedApp.request(
@@ -2635,7 +2637,7 @@ describe("LTI 1.3 core launch flow", () => {
         recipientDisplayName: "Learner One",
       },
     );
-    expect(getMembersDetailed).toHaveBeenCalledTimes(2);
+    expect(getMembers).toHaveBeenCalledTimes(2);
   });
 
   it("rejects LTI roster issuance without a valid action token", async () => {
@@ -3253,15 +3255,18 @@ describe("LTI 1.3 core launch flow", () => {
       isNameAndRolesAvailable: false,
     };
     const getSession = vi.fn().mockResolvedValue(ltiSession);
-    const createDeepLinkingResponse = vi
-      .fn()
-      .mockResolvedValue("<!DOCTYPE html><html><body>signed deep link</body></html>");
+    const createDeepLinkingResponse = vi.fn().mockResolvedValue({
+      success: true,
+      data: "<!DOCTYPE html><html><body>signed deep link</body></html>",
+    });
     const { app: isolatedApp } = await loadAppWithMockedAuthProviders(() => {
       vi.doMock("./lti/credtrail-lti-tool", () => {
         return {
           createCredTrailLtiTool: vi.fn(async () => ({
             getSession,
-            createDeepLinkingResponse,
+            createAdvantage: vi.fn(() => ({
+              createDeepLinkingResponse,
+            })),
           })),
         };
       });
@@ -3293,7 +3298,7 @@ describe("LTI 1.3 core launch flow", () => {
     expect(mockedListTenantLmsConnections).not.toHaveBeenCalled();
     expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
     expect(mockedCreateBadgeIssuanceRuleWithConnection).not.toHaveBeenCalled();
-    expect(createDeepLinkingResponse).toHaveBeenCalledWith(ltiSession, [
+    expect(createDeepLinkingResponse).toHaveBeenCalledWith([
       expect.objectContaining({
         type: "ltiResourceLink",
         title: "TypeScript Foundations",
@@ -3352,15 +3357,18 @@ describe("LTI 1.3 core launch flow", () => {
       isNameAndRolesAvailable: false,
     };
     const getSession = vi.fn().mockResolvedValue(ltiSession);
-    const createDeepLinkingResponse = vi
-      .fn()
-      .mockResolvedValue("<!DOCTYPE html><html><body>signed deep link</body></html>");
+    const createDeepLinkingResponse = vi.fn().mockResolvedValue({
+      success: true,
+      data: "<!DOCTYPE html><html><body>signed deep link</body></html>",
+    });
     const { app: isolatedApp } = await loadAppWithMockedAuthProviders(() => {
       vi.doMock("./lti/credtrail-lti-tool", () => {
         return {
           createCredTrailLtiTool: vi.fn(async () => ({
             getSession,
-            createDeepLinkingResponse,
+            createAdvantage: vi.fn(() => ({
+              createDeepLinkingResponse,
+            })),
           })),
         };
       });

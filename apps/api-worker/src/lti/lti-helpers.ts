@@ -1,5 +1,5 @@
 import type { LtiIssuerRegistrationRecord } from "@credtrail/db";
-import { LTI_CLAIM_LIS, type LTI13JwtPayload as LtiLaunchClaims } from "@lti-tool/core";
+import { LTI_CLAIM_LIS, type LTI13JwtPayload as LtiLaunchClaims } from "@longsightgroup/lti-tool";
 import type { AppBindings, AppContext } from "../app";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
 

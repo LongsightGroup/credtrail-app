@@ -6,7 +6,7 @@ import {
   resolveLtiLaunchMessage as resolveCoreLtiLaunchMessage,
   type LTI13JwtPayload as LtiLaunchClaims,
   type LtiRoleKind as CoreLtiRoleKind,
-} from "@lti-tool/core";
+} from "@longsightgroup/lti-tool";
 import { asNonEmptyString } from "../utils/value-parsers";
 import type { LtiRoleKind } from "./view-models";
 

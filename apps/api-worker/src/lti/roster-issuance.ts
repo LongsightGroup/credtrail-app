@@ -1,4 +1,4 @@
-import type { LTISession, LTITool } from "@lti-tool/core";
+import type { LTISession, LTITool } from "@longsightgroup/lti-tool";
 import type { AppContext } from "../app";
 import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
 import type { DirectIssueBadgeResult } from "../badges/direct-issue";

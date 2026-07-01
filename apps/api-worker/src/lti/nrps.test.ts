@@ -3,7 +3,7 @@ import {
   type LtiServiceErrorCode,
   type LTISession,
   type LTITool,
-} from "@lti-tool/core";
+} from "@longsightgroup/lti-tool";
 import { describe, expect, it, vi } from "vitest";
 import { loadLtiNrpsRoster } from "./nrps";
 
@@ -20,14 +20,16 @@ const ltiSession = {
   },
 } as LTISession;
 
-const ltiToolWithMembersResult = (getMembersDetailed: ReturnType<typeof vi.fn>): LTITool =>
+const ltiToolWithMembersResult = (getMembers: ReturnType<typeof vi.fn>): LTITool =>
   ({
-    getMembersDetailed,
+    createAdvantage: vi.fn(() => ({
+      getMembers,
+    })),
   }) as unknown as LTITool;
 
 describe("loadLtiNrpsRoster", () => {
   it("maps core members into the CredTrail roster view model", async () => {
-    const getMembersDetailed = vi.fn().mockResolvedValue({
+    const getMembers = vi.fn().mockResolvedValue({
       success: true,
       data: [
         {
@@ -48,7 +50,7 @@ describe("loadLtiNrpsRoster", () => {
     });
 
     const result = await loadLtiNrpsRoster({
-      ltiTool: ltiToolWithMembersResult(getMembersDetailed),
+      ltiTool: ltiToolWithMembersResult(getMembers),
       ltiSession,
       contextId: "course-123",
     });
@@ -71,7 +73,7 @@ describe("loadLtiNrpsRoster", () => {
   });
 
   it("returns unavailable when core reports no NRPS service", async () => {
-    const getMembersDetailed = vi.fn().mockResolvedValue({
+    const getMembers = vi.fn().mockResolvedValue({
       success: false,
       error: new LtiServiceError({
         code: "service_not_available",
@@ -82,7 +84,7 @@ describe("loadLtiNrpsRoster", () => {
     });
 
     const result = await loadLtiNrpsRoster({
-      ltiTool: ltiToolWithMembersResult(getMembersDetailed),
+      ltiTool: ltiToolWithMembersResult(getMembers),
       ltiSession,
       contextId: "course-123",
     });
@@ -102,7 +104,7 @@ describe("loadLtiNrpsRoster", () => {
   });
 
   it("preserves structured core service error detail for LMS failures", async () => {
-    const getMembersDetailed = vi.fn().mockResolvedValue({
+    const getMembers = vi.fn().mockResolvedValue({
       success: false,
       error: new LtiServiceError({
         code: "platform_request_failed",
@@ -117,7 +119,7 @@ describe("loadLtiNrpsRoster", () => {
     });
 
     const result = await loadLtiNrpsRoster({
-      ltiTool: ltiToolWithMembersResult(getMembersDetailed),
+      ltiTool: ltiToolWithMembersResult(getMembers),
       ltiSession,
       contextId: "course-123",
     });
@@ -145,7 +147,7 @@ describe("loadLtiNrpsRoster", () => {
     "token_request_failed",
     "platform_response_invalid",
   ] satisfies readonly LtiServiceErrorCode[])("maps %s to an error roster state", async (code) => {
-    const getMembersDetailed = vi.fn().mockResolvedValue({
+    const getMembers = vi.fn().mockResolvedValue({
       success: false,
       error: new LtiServiceError({
         code,
@@ -156,7 +158,7 @@ describe("loadLtiNrpsRoster", () => {
     });
 
     const result = await loadLtiNrpsRoster({
-      ltiTool: ltiToolWithMembersResult(getMembersDetailed),
+      ltiTool: ltiToolWithMembersResult(getMembers),
       ltiSession,
       contextId: "course-123",
     });

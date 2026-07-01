@@ -26,4 +26,4 @@ Content item launch URL includes `badgeTemplateId=<template-id>` on the tool tar
 
 ## Security Note
 
-Deep-link response JWTs are generated through `@lti-tool/core` using the active CredTrail LTI tool key. Production issuer registrations must include the platform JWKS endpoint and token endpoint so launches are verified as signed LTI 1.3 messages before CredTrail returns a signed Deep Linking response.
+Deep-link response JWTs are generated through `@longsightgroup/lti-tool` using the active CredTrail LTI tool key. Production issuer registrations must include the platform JWKS endpoint and token endpoint so launches are verified as signed LTI 1.3 messages before CredTrail returns a signed Deep Linking response.

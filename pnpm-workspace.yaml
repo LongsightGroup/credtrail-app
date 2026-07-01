@@ -3,8 +3,8 @@ packages:
   - packages/*
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
-  # CredTrail is a co-author on @lti-tool/core, so we can safely consume coordinated releases immediately.
-  - "@lti-tool/core"
+  # CredTrail is a co-author on @longsightgroup/lti-tool, so we can safely consume coordinated releases immediately.
+  - "@longsightgroup/lti-tool"
   # Wrangler updates unblock local Cloudflare compatibility checks and are verified before commit.
   - "@cloudflare/workers-types"
   - "wrangler"

@@ -1,4 +1,4 @@
-import type { DeepLinkingContentItem, LTISession } from "@lti-tool/core";
+import type { DeepLinkingContentItem, LTISession } from "@longsightgroup/lti-tool";
 import type { TenantMembershipRole } from "@credtrail/db";
 import { LTI_DEEP_LINKING_SELECT_PATH } from "./constants";
 import {

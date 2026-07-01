@@ -4,7 +4,7 @@ import {
   type SqlDatabase,
   type TenantLmsConnectionRecord,
 } from "@credtrail/db";
-import { parsePersistedLtiSession, resolveLtiServiceCapabilities } from "@lti-tool/core";
+import { parsePersistedLtiSession, resolveLtiServiceCapabilities } from "@longsightgroup/lti-tool";
 import { createGradebookProviderForConnection } from "../lms/gradebook-provider-resolution";
 import type { GradebookProvider } from "../lms/gradebook-types";
 import { findLtiIssuerRegistryEntry } from "./deep-linking-helpers";

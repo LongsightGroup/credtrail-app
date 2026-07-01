@@ -4,7 +4,7 @@ import {
   type AssertionLifecycleState,
   type SqlDatabase,
 } from "@credtrail/db";
-import type { LTISession } from "@lti-tool/core";
+import type { LTISession } from "@longsightgroup/lti-tool";
 import type { LtiIssuanceActionPayload } from "./issuance-action-token";
 import type { LtiNrpsMember } from "./nrps";
 import type { LtiRosterIssuanceResultEntry } from "./view-models";

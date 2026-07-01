@@ -17,7 +17,7 @@ import {
   parseBadgeIssuanceRuleDefinition,
   type BadgeIssuanceRuleDefinition,
 } from "@credtrail/validation";
-import type { LTISession } from "@lti-tool/core";
+import type { LTISession } from "@longsightgroup/lti-tool";
 import { normalizeUniqueStringList } from "../utils/value-parsers";
 import { normalizeLtiIssuer } from "./lti-helpers";
 

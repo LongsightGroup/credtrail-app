@@ -4,7 +4,7 @@ import type {
   LTITool,
   LtiLaunchVerificationError as CoreLtiLaunchVerificationError,
   LtiVerifiedLaunch,
-} from "@lti-tool/core";
+} from "@longsightgroup/lti-tool";
 import type { AppBindings } from "../app";
 import type { SqlDatabase } from "@credtrail/db";
 import {
@@ -170,7 +170,7 @@ export const resolveLtiLaunch = async (input: {
     env: input.env,
   });
 
-  const verificationResult = await ltiTool.verifyLaunchDetailed(input.idToken, input.state, {
+  const verificationResult = await ltiTool.verifyLaunch(input.idToken, input.state, {
     authorizeVerifiedLaunch: (launch) => authorizeVerifiedLaunchForRegistry(input.registry, launch),
   });
 

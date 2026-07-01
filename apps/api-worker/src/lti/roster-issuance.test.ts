@@ -25,7 +25,7 @@ import {
   listAssertionsByIdempotencyKeys,
   type SqlDatabase,
 } from "@credtrail/db";
-import type { LTISession, LTITool } from "@lti-tool/core";
+import type { LTISession, LTITool } from "@longsightgroup/lti-tool";
 import { loadRuleFacts } from "../rules/badge-rule-facts-loader";
 import { executeLtiRosterIssuance } from "./roster-issuance";
 import {
@@ -62,9 +62,11 @@ const ltiSession = {
   },
 } as LTISession;
 
-const mockedGetMembersDetailed = vi.fn();
+const mockedGetMembers = vi.fn();
 const ltiTool = {
-  getMembersDetailed: mockedGetMembersDetailed,
+  createAdvantage: vi.fn(() => ({
+    getMembers: mockedGetMembers,
+  })),
 } as unknown as LTITool;
 
 const appContext = {} as Parameters<typeof executeLtiRosterIssuance>[0]["c"];
@@ -89,8 +91,8 @@ const sampleRuleVersionWithTiming = (
 
 describe("executeLtiRosterIssuance eligibility guard", () => {
   beforeEach(() => {
-    mockedGetMembersDetailed.mockReset();
-    mockedGetMembersDetailed.mockResolvedValue({
+    mockedGetMembers.mockReset();
+    mockedGetMembers.mockResolvedValue({
       success: true,
       data: [
         {
@@ -260,7 +262,7 @@ describe("executeLtiRosterIssuance eligibility guard", () => {
   });
 
   it("skips learners without email using eligibility messaging", async () => {
-    mockedGetMembersDetailed.mockResolvedValue({
+    mockedGetMembers.mockResolvedValue({
       success: true,
       data: [
         {

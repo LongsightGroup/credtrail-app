@@ -625,6 +625,37 @@ export const consumeLtiLaunchNonce = async (
   return result.results.length > 0;
 };
 
+export const recordLtiLaunchNonceUse = async (
+  db: SqlDatabase,
+  input: {
+    nonce: string;
+    expiresAt: string;
+    consumedAt: string;
+  },
+): Promise<boolean> => {
+  const insertStatement = (): Promise<SqlQueryResult<{ nonce: string }>> =>
+    db
+      .prepare(
+        `
+        INSERT INTO lti_launch_nonces (
+          nonce,
+          expires_at,
+          consumed_at
+        )
+        VALUES (?, ?, ?)
+        ON CONFLICT (nonce)
+        DO NOTHING
+        RETURNING nonce
+      `,
+      )
+      .bind(input.nonce, input.expiresAt, input.consumedAt)
+      .all<{ nonce: string }>();
+
+  const result = await insertStatement();
+
+  return result.results.length > 0;
+};
+
 export const upsertLtiLaunchSession = async (
   db: SqlDatabase,
   input: UpsertLtiLaunchSessionInput,

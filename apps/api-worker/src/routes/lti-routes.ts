@@ -7,9 +7,10 @@ import {
 } from "@credtrail/db";
 import {
   createLtiPostMessageStorageRedirect,
+  formatLtiServiceError,
   parseLtiLoginInitiation,
   resolveLtiServiceCapabilities,
-} from "@lti-tool/core";
+} from "@longsightgroup/lti-tool";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import { renderAppPage } from "../ui/render-page";
@@ -362,7 +363,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     const launchUrl = new URL(ltiSession.launch.target);
     launchUrl.searchParams.set("badgeTemplateId", badgeTemplate.id);
     launchUrl.searchParams.set("setupToken", setupToken);
-    const responseHtml = await ltiTool.createDeepLinkingResponse(ltiSession, [
+    const deepLinkingResult = await ltiTool.createAdvantage(ltiSession).createDeepLinkingResponse([
       badgeTemplateDeepLinkContentItem({
         badgeTemplateId: badgeTemplate.id,
         setupToken,
@@ -372,8 +373,17 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       }),
     ]);
 
+    if (!deepLinkingResult.success) {
+      return c.json(
+        {
+          error: formatLtiServiceError(deepLinkingResult.error),
+        },
+        502,
+      );
+    }
+
     c.header("Cache-Control", "no-store");
-    return c.body(responseHtml, 200, {
+    return c.body(deepLinkingResult.data, 200, {
       "Content-Type": "text/html; charset=UTF-8",
     });
   });
