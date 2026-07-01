@@ -111,7 +111,10 @@ const findAuthorizedIssuerEntry = (
   return undefined;
 };
 
-type LtiLaunchAuthorization = {
+/**
+ * CredTrail tenant authorization attached to an otherwise verified LTI launch.
+ */
+export type LtiLaunchAuthorization = {
   readonly issuer: string;
   readonly entry: LtiIssuerRegistryEntry;
 };
@@ -120,7 +123,10 @@ type AuthorizedLtiLaunch = LtiVerifiedLaunch & {
   readonly authorization: LtiLaunchAuthorization;
 };
 
-const authorizeVerifiedLaunchForRegistry = (
+/**
+ * Authorizes a cryptographically verified LTI launch against CredTrail's issuer registry.
+ */
+export const authorizeVerifiedLaunchForRegistry = (
   registry: LtiIssuerRegistry,
   launch: LtiVerifiedLaunch,
 ):

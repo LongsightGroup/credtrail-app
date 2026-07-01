@@ -66,6 +66,7 @@ export interface HandleLtiLaunchPostInput {
     context: AppContext,
     input: LtiSessionInput,
   ) => Promise<LtiAuthenticatedPrincipal>;
+  launchCallbacks?: LtiLaunchProductCallbacks;
 }
 
 interface ValidatedLtiLaunchPostForm {
@@ -534,7 +535,37 @@ const renderLtiLaunchPostResponse = async (input: {
   );
 };
 
+/**
+ * CredTrail product policy callbacks used after the LTI protocol launch is verified.
+ *
+ * The default implementation keeps the existing CredTrail behavior, while the interface gives
+ * package-provided Hono launch handlers a narrow future surface for product-owned decisions.
+ */
+export interface LtiLaunchProductCallbacks {
+  validateResolvedLaunchMessage: typeof validateResolvedLtiLaunchMessage;
+  establishLaunchSession: typeof establishLtiLaunchSession;
+  renderDeepLinkingLaunchResponse: typeof renderLtiDeepLinkingLaunchResponse;
+  prepareResourceLinkLaunch: typeof prepareLaunchedResourceLinkPlacement;
+  resolveResourceLinkLaunchViews: typeof resolveLtiResourceLinkLaunchViews;
+  renderResourceLinkLaunchResponse: typeof renderLtiLaunchPostResponse;
+}
+
+/**
+ * Builds the default CredTrail launch product callbacks.
+ */
+export const createCredTrailLtiLaunchProductCallbacks = (): LtiLaunchProductCallbacks => {
+  return {
+    validateResolvedLaunchMessage: validateResolvedLtiLaunchMessage,
+    establishLaunchSession: establishLtiLaunchSession,
+    renderDeepLinkingLaunchResponse: renderLtiDeepLinkingLaunchResponse,
+    prepareResourceLinkLaunch: prepareLaunchedResourceLinkPlacement,
+    resolveResourceLinkLaunchViews: resolveLtiResourceLinkLaunchViews,
+    renderResourceLinkLaunchResponse: renderLtiLaunchPostResponse,
+  };
+};
+
 export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Promise<Response> => {
+  const launchCallbacks = input.launchCallbacks ?? createCredTrailLtiLaunchProductCallbacks();
   const formValidation = validateLtiLaunchPostForm(
     input.c,
     await ltiLaunchFormInputFromRequest(input.c),
@@ -589,7 +620,7 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
   }
 
   const tenantId = resolvedLaunch.issuerEntry.tenantId;
-  const validatedLaunchMessage = await validateResolvedLtiLaunchMessage({
+  const validatedLaunchMessage = await launchCallbacks.validateResolvedLaunchMessage({
     c: input.c,
     db,
     tenantId,
@@ -603,7 +634,7 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
   let establishedSession: EstablishedLtiLaunchSession;
 
   try {
-    establishedSession = await establishLtiLaunchSession({
+    establishedSession = await launchCallbacks.establishLaunchSession({
       c: input.c,
       db,
       tenantId,
@@ -631,7 +662,7 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
   input.c.header("Cache-Control", "no-store");
 
   if (isValidatedDeepLinkingLaunch(validatedLaunchMessage)) {
-    return renderLtiDeepLinkingLaunchResponse({
+    return launchCallbacks.renderDeepLinkingLaunchResponse({
       c: input.c,
       db,
       tenantId,
@@ -642,7 +673,7 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
     });
   }
 
-  const preparedResourceLinkLaunch = await prepareLaunchedResourceLinkPlacement({
+  const preparedResourceLinkLaunch = await launchCallbacks.prepareResourceLinkLaunch({
     c: input.c,
     db,
     tenantId,
@@ -680,7 +711,7 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
   let resourceLinkViews: LtiResourceLinkLaunchViews;
 
   if (validatedResourceLinkLaunch.launchMessage.roleKind === "instructor") {
-    resourceLinkViews = await resolveLtiResourceLinkLaunchViews({
+    resourceLinkViews = await launchCallbacks.resolveResourceLinkLaunchViews({
       kind: "instructor",
       input: {
         db,
@@ -698,7 +729,7 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
       },
     });
   } else if (validatedResourceLinkLaunch.launchMessage.roleKind === "learner") {
-    resourceLinkViews = await resolveLtiResourceLinkLaunchViews({
+    resourceLinkViews = await launchCallbacks.resolveResourceLinkLaunchViews({
       kind: "learner",
       input: {
         db,
@@ -711,12 +742,12 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
       },
     });
   } else {
-    resourceLinkViews = await resolveLtiResourceLinkLaunchViews({
+    resourceLinkViews = await launchCallbacks.resolveResourceLinkLaunchViews({
       kind: "unknown",
     });
   }
 
-  return renderLtiLaunchPostResponse({
+  return launchCallbacks.renderResourceLinkLaunchResponse({
     c: input.c,
     tenantId,
     launchClaims: resolvedLaunch.launchClaims,
