@@ -15,11 +15,11 @@ import {
 import { handleVerifiedLtiLaunch, type HandleVerifiedLtiLaunch } from "./launch-product-flow";
 import {
   authorizeVerifiedLaunchForRegistry,
-  createVerificationThrowingLtiTool,
   LtiLaunchVerificationError,
   type LtiLaunchAuthorization,
   type ResolvedLtiLaunch,
 } from "./launch-verification";
+import { createVerificationThrowingLtiTool } from "./lti-protocol-adapters";
 import type { LtiIssuerRegistry } from "./lti-helpers";
 
 type CreateCredTrailLtiToolForLaunch = (input: CreateCredTrailLtiToolInput) => Promise<LtiToolPort>;
@@ -136,6 +136,8 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
     db,
     env: input.c.env,
   });
+  // @longsightgroup/lti-tool/hono launch handlers translate thrown verification
+  // failures through onError; CredTrail policy stays result-based before this boundary.
   const protocolTool = createVerificationThrowingLtiTool(ltiTool);
 
   const renderAuthorizedPackageLaunch = (context: {
