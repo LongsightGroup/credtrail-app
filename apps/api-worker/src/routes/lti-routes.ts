@@ -6,11 +6,13 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import {
+  createNoopLogger,
   createLtiPostMessageStorageRedirect,
   formatLtiServiceError,
   parseLtiLoginInitiation,
   resolveLtiServiceCapabilities,
 } from "@longsightgroup/lti-tool";
+import { jwksRouteHandler } from "@longsightgroup/lti-tool/hono";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import { renderAppPage } from "../ui/render-page";
@@ -197,12 +199,17 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
   app.get(LTI_OIDC_LOGIN_PATH, ltiOidcLoginHandler);
   app.post(LTI_OIDC_LOGIN_PATH, ltiOidcLoginHandler);
 
-  app.get("/v1/lti/jwks", async (c): Promise<Response> => {
-    const ltiTool = await createCredTrailLtiTool({
-      db: resolveDatabase(c.env),
-      env: c.env,
-    });
-    return c.json(await ltiTool.getJWKS());
+  app.get("/v1/lti/jwks", (c, next) => {
+    return jwksRouteHandler({
+      getJWKS: async () => {
+        const ltiTool = await createCredTrailLtiTool({
+          db: resolveDatabase(c.env),
+          env: c.env,
+        });
+        return ltiTool.getJWKS();
+      },
+      logger: createNoopLogger(),
+    })(c, next);
   });
 
   registerLtiDynamicRegistrationRoutes({
