@@ -10,7 +10,6 @@ import {
 } from "@credtrail/db";
 import type { LTI13JwtPayload as LtiLaunchClaims, LTISession } from "@longsightgroup/lti-tool";
 import type { AppLogger } from "../app/observability";
-import { logLtiWarning } from "./log";
 import { ltiBadgeSummaryCardFromTemplate, newestByIssuedAt } from "./badge-summary-helpers";
 import {
   ltiCourseContextIdFromLaunch,
@@ -35,7 +34,7 @@ interface ResolveLearnerResourceLinkViewBaseInput {
   ltiLaunchSession: LTISession;
   issuerClientId: string;
   linkedUserId: string;
-  logger?: AppLogger | undefined;
+  ltiLog?: AppLogger | undefined;
 }
 
 export type ResolveLearnerResourceLinkViewInput = ResolveLearnerResourceLinkViewBaseInput & {
@@ -285,7 +284,7 @@ export const resolveLearnerResourceLinkView = async (
       launch,
     });
   } catch (error) {
-    logLtiWarning(input.logger, "Could not build learner badge summary view", {
+    input.ltiLog?.warn("Could not build learner badge summary view", {
       tenantId: input.tenantId,
       badgeTemplateId: launch.launchMessage.badgeTemplateId ?? "",
       detail: error instanceof Error ? error.message : "unknown error",

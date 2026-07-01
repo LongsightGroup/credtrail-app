@@ -20,7 +20,7 @@ import {
   validateLaunchedResourceLinkBadgeTemplate,
 } from "./launch-resource-link-flow";
 import type { ResolvedLtiLaunch } from "./launch-verification";
-import { logLtiWarning } from "./log";
+import { ltiLogger } from "./log";
 import { ltiEmailFromClaims, ltiSourcedIdFromClaims } from "./lti-helpers";
 
 export type { HandleVerifiedLtiLaunch, HandleVerifiedLtiLaunchInput };
@@ -94,7 +94,7 @@ const establishLtiLaunchSession = async (input: {
       sha256Hex: input.sha256Hex,
     });
   } catch (error) {
-    logLtiWarning(input.c.get("appLogger"), "Unable to link LTI launch to local account", {
+    ltiLogger(input.c)?.warn("Unable to link LTI launch to local account", {
       tenantId: input.tenantId,
       roleKind: input.launchMessage.roleKind,
       issuer: input.launchClaims.iss,
@@ -186,10 +186,10 @@ export const handleVerifiedLtiLaunch: HandleVerifiedLtiLaunch = async (input) =>
 
   if (preparedResourceLinkLaunch.placementResult !== null) {
     logResourceLinkPlacementFailure({
+      c: input.c,
       tenantId: input.tenantId,
       launch: preparedResourceLinkLaunch.launch,
       placementResult: preparedResourceLinkLaunch.placementResult,
-      logger: input.c.get("appLogger"),
     });
   }
 

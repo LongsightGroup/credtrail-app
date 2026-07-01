@@ -20,7 +20,7 @@ import {
   productFlowSuccess,
 } from "./launch-product-types";
 import type { ResolvedLtiLaunch } from "./launch-verification";
-import { logLtiWarning } from "./log";
+import { ltiLogger } from "./log";
 import { ltiDisplayNameFromClaims, ltiLearnerDashboardPath } from "./lti-helpers";
 import {
   upsertLtiLaunchResourceLinkPlacement,
@@ -87,7 +87,7 @@ const recordLaunchedResourceLinkPlacement = async (input: {
   launchClaims: ResolvedLtiLaunch["launchClaims"];
   launch: ValidatedResourceLinkLaunch;
   linkedUserId: string;
-  logger?: AppLogger | undefined;
+  ltiLog?: AppLogger | undefined;
 }): Promise<UpsertLtiLaunchResourceLinkPlacementResult | null> => {
   if (input.launch.kind === "course") {
     return null;
@@ -104,7 +104,7 @@ const recordLaunchedResourceLinkPlacement = async (input: {
     badgeTemplateId: input.launch.launchMessage.badgeTemplateId,
     ruleId: input.launch.launchMessage.ruleId,
     createdByUserId: input.linkedUserId,
-    logger: input.logger,
+    ltiLog: input.ltiLog,
   });
 };
 
@@ -145,7 +145,7 @@ export const prepareLaunchedResourceLinkPlacement = async (
         launchClaims: input.launchClaims,
         launch: input.launch,
         linkedUserId: input.linkedUserId,
-        logger: input.c.get("appLogger"),
+        ltiLog: ltiLogger(input.c),
       }),
     });
   }
@@ -272,6 +272,7 @@ const resourceLinkViewsForLaunch = async (input: {
   linkedAccount: LinkedLtiLaunchAccount;
   sha256Hex: (value: string) => Promise<string>;
 }): ReturnType<typeof resolveLtiResourceLinkLaunchViews> => {
+  const ltiLog = ltiLogger(input.c);
   const roleKind = input.validatedResourceLinkLaunch.launchMessage.roleKind;
 
   if (roleKind === "instructor") {
@@ -288,7 +289,7 @@ const resourceLinkViewsForLaunch = async (input: {
         issuerClientId: input.resolvedLaunch.issuerEntry.clientId,
         linkedUserId: input.linkedAccount.userId,
         membershipRole: input.linkedAccount.membershipRole,
-        logger: input.c.get("appLogger"),
+        ltiLog,
         sha256Hex: input.sha256Hex,
         sessionHandoffTtlSeconds: LTI_SESSION_HANDOFF_TTL_SECONDS,
       },
@@ -306,7 +307,7 @@ const resourceLinkViewsForLaunch = async (input: {
         ltiLaunchSession: input.resolvedLaunch.ltiLaunchSession,
         issuerClientId: input.resolvedLaunch.issuerEntry.clientId,
         linkedUserId: input.linkedAccount.userId,
-        logger: input.c.get("appLogger"),
+        ltiLog,
       },
     });
   }
@@ -374,16 +375,16 @@ export const renderLtiResourceLinkLaunchResponse = async (input: {
  * Logs non-fatal Resource Link placement write failures after launch rendering can continue.
  */
 export const logResourceLinkPlacementFailure = (input: {
+  c: AppContext;
   tenantId: string;
   launch: ValidatedResourceLinkLaunch;
   placementResult: UpsertLtiLaunchResourceLinkPlacementResult;
-  logger?: AppLogger | undefined;
 }): void => {
   if (input.placementResult.ok) {
     return;
   }
 
-  logLtiWarning(input.logger, "LTI launch continuing without recording resource-link placement", {
+  ltiLogger(input.c)?.warn("LTI launch continuing without recording resource-link placement", {
     tenantId: input.tenantId,
     resourceLinkId: input.launch.launchMessage.resourceLinkId,
     badgeTemplateId: input.launch.launchMessage.badgeTemplateId ?? "",

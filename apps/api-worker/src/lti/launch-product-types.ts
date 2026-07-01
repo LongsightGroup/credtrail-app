@@ -1,6 +1,5 @@
 import type { SqlDatabase, TenantMembershipRole } from "@credtrail/db";
 import type { AppContext } from "../app";
-import type { AppLogger } from "../app/observability";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
 import type { LinkedLtiLaunchAccount } from "./launch-account-linking";
 import type { ResolvedLtiLaunchMessage } from "./launch-message";
@@ -70,7 +69,6 @@ export interface PrepareLaunchedResourceLinkPlacementInput {
   launch: ValidatedResourceLinkLaunch;
   linkedUserId: string;
   linkedMembershipRole: TenantMembershipRole;
-  logger?: AppLogger | undefined;
 }
 
 export const productFlowSuccess = <TValue>(value: TValue): ProductFlowResult<TValue> => ({

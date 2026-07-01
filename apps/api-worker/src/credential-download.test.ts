@@ -48,7 +48,6 @@ vi.mock("./lti/credtrail-lti-tool", () => {
 
   return {
     createCredTrailLtiTool: createTool,
-    resolveCredTrailLtiTool: createTool,
   };
 });
 

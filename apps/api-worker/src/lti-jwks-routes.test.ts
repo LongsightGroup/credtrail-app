@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SqlDatabase } from "@credtrail/db";
-import type { AppBindings, AppContext, AppEnv } from "./app";
+import type { AppBindings, AppEnv } from "./app";
 import { createAppLogger } from "./app/observability";
 import { LTI_JWKS_PATH } from "./lti/constants";
 import { registerLtiRoutes } from "./routes/lti-routes";
@@ -15,15 +15,6 @@ const { mockedCreateCredTrailLtiTool } = vi.hoisted(() => {
 vi.mock("./lti/credtrail-lti-tool", () => {
   return {
     createCredTrailLtiTool: mockedCreateCredTrailLtiTool,
-    resolveCredTrailLtiTool: async (
-      c: AppContext,
-      resolveDatabase: (bindings: AppBindings) => SqlDatabase,
-    ) => {
-      return mockedCreateCredTrailLtiTool({
-        db: resolveDatabase(c.env),
-        env: c.env,
-      });
-    },
   };
 });
 

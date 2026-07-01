@@ -1397,7 +1397,6 @@ describe("LTI 1.3 core launch flow", () => {
       vi.doMock("./lti/credtrail-lti-tool", () => {
         return {
           createCredTrailLtiTool: vi.fn(async () => ltiTool),
-          resolveCredTrailLtiTool: vi.fn(async () => ltiTool),
         };
       });
     });
@@ -3256,7 +3255,6 @@ describe("LTI 1.3 core launch flow", () => {
 
         return {
           createCredTrailLtiTool: createTool,
-          resolveCredTrailLtiTool: createTool,
         };
       });
     });
@@ -3361,7 +3359,6 @@ describe("LTI 1.3 core launch flow", () => {
 
         return {
           createCredTrailLtiTool: createTool,
-          resolveCredTrailLtiTool: createTool,
         };
       });
     });

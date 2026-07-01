@@ -25,7 +25,6 @@ import {
   type LtiCourseBadgeTemplatePlacementGroup,
 } from "./course-badge-placements";
 import { createLtiIssuanceActionToken } from "./issuance-action-token";
-import { logLtiWarning } from "./log";
 import { loadLtiNrpsRoster, type LtiNrpsRoster, type LtiNrpsRosterLoadFailure } from "./nrps";
 import type {
   ResourceLinkLaunchMessage,
@@ -57,7 +56,7 @@ interface ResolveInstructorResourceLinkViewsBaseInput {
   issuerClientId: string;
   linkedUserId: string;
   membershipRole: TenantMembershipRole;
-  logger?: AppLogger | undefined;
+  ltiLog?: AppLogger | undefined;
   sha256Hex: (value: string) => Promise<string>;
   sessionHandoffTtlSeconds: number;
 }
@@ -428,7 +427,7 @@ const resolveBulkIssuanceView = async (input: {
   contextMembershipsUrl: string;
   sha256Hex: (value: string) => Promise<string>;
   sessionHandoffTtlSeconds: number;
-  logger?: AppLogger | undefined;
+  ltiLog?: AppLogger | undefined;
 }): Promise<LtiBulkIssuanceView> => {
   const issuanceActionContextId = input.courseContextId ?? input.ltiLaunchSession.context.id;
   const rosterIssuanceLookupContext =
@@ -478,7 +477,7 @@ const resolveBulkIssuanceView = async (input: {
     members: input.roster.learnerMembers,
     issuedStatesByUserId: issuedBadgeStatesByUserId,
     nowIso: new Date().toISOString(),
-    logger: input.logger,
+    ltiLog: input.ltiLog,
   });
   let bulkIssuanceView = ltiBulkIssuanceViewFromRoster({
     roster: input.roster,
@@ -540,9 +539,9 @@ const logLtiNrpsRosterFailure = (input: {
   failure: LtiNrpsRosterLoadFailure;
   badgeTemplateId?: string;
   summaryContextId?: string;
-  logger?: AppLogger | undefined;
+  ltiLog?: AppLogger | undefined;
 }): void => {
-  logLtiWarning(input.logger, input.message, {
+  input.ltiLog?.warn(input.message, {
     tenantId: input.tenantId,
     ...(input.badgeTemplateId === undefined ? {} : { badgeTemplateId: input.badgeTemplateId }),
     ...(input.summaryContextId === undefined ? {} : { summaryContextId: input.summaryContextId }),
@@ -579,7 +578,7 @@ export const resolveInstructorResourceLinkViews = async (
           tenantId: input.tenantId,
           badgeTemplateId: selectedBadge.badgeTemplateId,
           failure: rosterResult.failure,
-          logger: input.logger,
+          ltiLog: input.ltiLog,
         });
       }
 
@@ -619,12 +618,12 @@ export const resolveInstructorResourceLinkViews = async (
           contextMembershipsUrl: contextMembershipsUrl ?? "",
           sha256Hex: input.sha256Hex,
           sessionHandoffTtlSeconds: input.sessionHandoffTtlSeconds,
-          logger: input.logger,
+          ltiLog: input.ltiLog,
         }),
         courseBadgeSummaryView: null,
       };
     } catch (error) {
-      logLtiWarning(input.logger, "Could not build bulk issuance view from LMS roster", {
+      input.ltiLog?.warn("Could not build bulk issuance view from LMS roster", {
         tenantId: input.tenantId,
         badgeTemplateId: selectedBadge.badgeTemplateId,
         detail: error instanceof Error ? error.message : "unknown error",
@@ -677,7 +676,7 @@ export const resolveInstructorResourceLinkViews = async (
         tenantId: input.tenantId,
         summaryContextId,
         failure: rosterResult.failure,
-        logger: input.logger,
+        ltiLog: input.ltiLog,
       });
     }
 
@@ -709,7 +708,7 @@ export const resolveInstructorResourceLinkViews = async (
       }),
     };
   } catch (error) {
-    logLtiWarning(input.logger, "Could not build course badge summary view", {
+    input.ltiLog?.warn("Could not build course badge summary view", {
       tenantId: input.tenantId,
       summaryContextId,
       detail: error instanceof Error ? error.message : "unknown error",

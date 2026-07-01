@@ -6,7 +6,10 @@ import {
   type ObservabilityFields,
   type ObservabilityLevel,
 } from "@credtrail/core-domain";
-import type { AppBindings } from "./types";
+import type { Context } from "hono";
+import type { AppBindings, AppEnv } from "./types";
+
+type AppContext = Context<AppEnv>;
 
 export const API_SERVICE_NAME = "api-worker";
 
@@ -26,8 +29,12 @@ export interface AppLogger {
 
 export interface ObservabilityContextVariables {
   requestId: string;
-  appLogger: AppLogger;
+  appLogger?: AppLogger;
 }
+
+export const optionalAppLogger = (c: AppContext): AppLogger | undefined => {
+  return c.get("appLogger");
+};
 
 type AppLogWriter = (
   level: ObservabilityLevel,

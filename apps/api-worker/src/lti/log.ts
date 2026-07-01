@@ -1,13 +1,6 @@
-import type { ObservabilityFields } from "@credtrail/core-domain";
-import type { AppLogger } from "../app/observability";
+import type { AppContext } from "../app";
+import { optionalAppLogger, type AppLogger } from "../app/observability";
 
-export const logLtiWarning = (
-  logger: AppLogger | undefined,
-  message: string,
-  context: ObservabilityFields,
-): void => {
-  logger?.warn(message, {
-    component: "lti",
-    ...context,
-  });
+export const ltiLogger = (c: AppContext): AppLogger | undefined => {
+  return optionalAppLogger(c)?.child({ component: "lti" });
 };

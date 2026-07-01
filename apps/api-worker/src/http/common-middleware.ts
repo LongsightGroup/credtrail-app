@@ -4,6 +4,7 @@ import type { AppBindings, AppEnv } from "../app";
 import {
   createAppLogger,
   observabilityContext as defaultObservabilityContext,
+  optionalAppLogger,
 } from "../app/observability";
 import { validateCsrfRequestOrigin } from "./csrf-protection";
 import { applySecurityHeaders } from "./security-headers";
@@ -123,7 +124,7 @@ export const registerCommonMiddleware = (input: RegisterCommonMiddlewareInput): 
     const details = error instanceof Error ? error.message : "Unknown error";
     const requestId = c.get("requestId") ?? requestIdFromHeader(c.req.header(REQUEST_ID_HEADER));
     const appLogger =
-      c.get("appLogger") ??
+      optionalAppLogger(c) ??
       createAppLogger({
         context: defaultObservabilityContext(c.env),
         fields: {
