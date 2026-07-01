@@ -5,6 +5,7 @@ import { LtiLaunchMessageResolutionError } from "@longsightgroup/lti-tool";
 import { customLaunchRouteHandler } from "@longsightgroup/lti-tool/hono";
 import type { AppBindings, AppContext } from "../app";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
+import { jsonError } from "../http/json-responses";
 import { createCredTrailLtiTool, type CreateCredTrailLtiToolInput } from "./credtrail-lti-tool";
 import { createLtiHonoLogger } from "./hono-logger";
 import {
@@ -49,11 +50,11 @@ export const handleLtiLaunchFailureResponse = (c: AppContext, error: unknown): R
   }
 
   if (error instanceof LtiLaunchMessageError) {
-    return c.json({ error: error.message }, error.status);
+    return jsonError(c, error.status, error.message);
   }
 
   if (error instanceof LtiLaunchMessageResolutionError) {
-    return c.json({ error: error.message }, 400);
+    return jsonError(c, 400, error.message);
   }
 
   if (isValidationParseError(error)) {

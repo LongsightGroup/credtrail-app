@@ -17,6 +17,7 @@ import {
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
+import { jsonError } from "../http/json-responses";
 import {
   listGradebookItemsForCourse,
   listWorkflowStatesForAssignment,
@@ -104,7 +105,7 @@ export const registerTenantLmsConnectionRoutes = (
     try {
       request = parseUpsertTenantLmsConnectionRequest(await c.req.json<unknown>());
     } catch {
-      return c.json({ error: "Invalid LMS connection payload" }, 400);
+      return jsonError(c, 400, "Invalid LMS connection payload");
     }
 
     const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
@@ -149,7 +150,7 @@ export const registerTenantLmsConnectionRoutes = (
     try {
       request = parseUpsertTenantLmsConnectionRequest(await c.req.json<unknown>());
     } catch {
-      return c.json({ error: "Invalid LMS connection payload" }, 400);
+      return jsonError(c, 400, "Invalid LMS connection payload");
     }
 
     const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
@@ -162,7 +163,7 @@ export const registerTenantLmsConnectionRoutes = (
     const existing = await findTenantLmsConnectionById(db, pathParams);
 
     if (existing === null) {
-      return c.json({ error: "LMS connection not found" }, 404);
+      return jsonError(c, 404, "LMS connection not found");
     }
 
     const { session, membershipRole } = roleCheck;

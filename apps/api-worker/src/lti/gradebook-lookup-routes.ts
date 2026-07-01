@@ -2,6 +2,7 @@ import { parseTenantLmsConnectionCourseSearchQuery } from "@credtrail/validation
 import type { SqlDatabase } from "@credtrail/db";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
+import { jsonError } from "../http/json-responses";
 import {
   listGradebookItemsForCourse,
   listWorkflowStatesForAssignment,
@@ -26,7 +27,7 @@ export const registerLtiGradebookLookupRoutes = (
     const ltiSessionId = asNonEmptyString(c.req.param("ltiSessionId"));
 
     if (ltiSessionId === null) {
-      return c.json({ error: "ltiSessionId is required" }, 400);
+      return jsonError(c, 400, "ltiSessionId is required");
     }
 
     const resolved = await resolveLtiGradebookLookup({
@@ -37,7 +38,7 @@ export const registerLtiGradebookLookupRoutes = (
     });
 
     if ("error" in resolved) {
-      return c.json({ error: resolved.error }, resolved.status);
+      return jsonError(c, resolved.status, resolved.error);
     }
 
     const query = parseTenantLmsConnectionCourseSearchQuery(c.req.query());
@@ -76,7 +77,7 @@ export const registerLtiGradebookLookupRoutes = (
       const assignmentId = asNonEmptyString(c.req.param("assignmentId"));
 
       if (ltiSessionId === null || assignmentId === null) {
-        return c.json({ error: "ltiSessionId and assignmentId are required" }, 400);
+        return jsonError(c, 400, "ltiSessionId and assignmentId are required");
       }
 
       const resolved = await resolveLtiGradebookLookup({
@@ -87,7 +88,7 @@ export const registerLtiGradebookLookupRoutes = (
       });
 
       if ("error" in resolved) {
-        return c.json({ error: resolved.error }, resolved.status);
+        return jsonError(c, resolved.status, resolved.error);
       }
 
       try {

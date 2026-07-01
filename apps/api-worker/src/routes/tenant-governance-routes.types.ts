@@ -1,17 +1,17 @@
-import type {
-  DelegatedIssuingAuthorityAction,
-  SessionRecord,
-  SqlDatabase,
-  TenantMembershipOrgUnitScopeRole,
-  TenantMembershipRole,
-} from "@credtrail/db";
+import type { TenantMembershipRole } from "@credtrail/db";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type {
+  RequireDelegatedIssuingAuthorityPermission,
+  RequireScopedOrgUnitPermission,
+  RequireTenantRole,
+  ResolveDatabase,
+} from "../app/route-deps";
 import type { IssueBadgeForTenant } from "./badge-rule-evaluation-types";
 
 export interface RegisterTenantGovernanceRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   defaultInstitutionOrgUnitId: (tenantId: string) => string;
   requestTenantMemberInvite?: (
     c: AppContext,
@@ -33,41 +33,9 @@ export interface RegisterTenantGovernanceRoutesInput {
   ) => Promise<"sent" | "unavailable">;
   generateOpaqueToken: () => string;
   sha256Hex: (value: string) => Promise<string>;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
-  requireScopedOrgUnitPermission: (
-    c: AppContext,
-    input: {
-      db: SqlDatabase;
-      tenantId: string;
-      userId: string;
-      membershipRole: TenantMembershipRole;
-      orgUnitId: string;
-      requiredRole: TenantMembershipOrgUnitScopeRole;
-      allowWhenNoScopes?: boolean;
-    },
-  ) => Promise<Response | null>;
-  requireDelegatedIssuingAuthorityPermission: (
-    c: AppContext,
-    input: {
-      db: SqlDatabase;
-      tenantId: string;
-      userId: string;
-      membershipRole: TenantMembershipRole;
-      ownerOrgUnitId: string;
-      badgeTemplateId: string;
-      requiredAction: DelegatedIssuingAuthorityAction;
-    },
-  ) => Promise<Response | null>;
+  requireTenantRole: RequireTenantRole;
+  requireScopedOrgUnitPermission: RequireScopedOrgUnitPermission;
+  requireDelegatedIssuingAuthorityPermission: RequireDelegatedIssuingAuthorityPermission;
   assertionBelongsToTenant: (tenantId: string, assertionId: string) => boolean;
   issueBadgeForTenant: IssueBadgeForTenant;
   ADMIN_ROLES: readonly TenantMembershipRole[];
