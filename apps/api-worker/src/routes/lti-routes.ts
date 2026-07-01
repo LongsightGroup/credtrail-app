@@ -6,13 +6,11 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import {
-  createNoopLogger,
   createLtiPostMessageStorageRedirect,
   formatLtiServiceError,
   parseLtiLoginInitiation,
   resolveLtiServiceCapabilities,
 } from "@longsightgroup/lti-tool";
-import { jwksRouteHandler } from "@longsightgroup/lti-tool/hono";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import { renderAppPage } from "../ui/render-page";
@@ -38,6 +36,7 @@ import { resolveLtiCourseBadgeAuthority } from "../lti/course-badge-governance";
 import { createLtiCourseBadgeSetupToken } from "../lti/course-badge-setup-token";
 import { registerLtiDynamicRegistrationRoutes } from "../lti/dynamic-registration-routes";
 import { registerLtiGradebookLookupRoutes } from "../lti/gradebook-lookup-routes";
+import { registerLtiJwksRoute } from "../lti/jwks-routes";
 import { handleLtiLaunchPost } from "../lti/launch-post-handler";
 import { executeLtiRosterIssuance, LtiRosterIssuanceError } from "../lti/roster-issuance";
 import { verifyLtiIssuanceActionToken } from "../lti/issuance-action-token";
@@ -199,17 +198,9 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
   app.get(LTI_OIDC_LOGIN_PATH, ltiOidcLoginHandler);
   app.post(LTI_OIDC_LOGIN_PATH, ltiOidcLoginHandler);
 
-  app.get("/v1/lti/jwks", (c, next) => {
-    return jwksRouteHandler({
-      getJWKS: async () => {
-        const ltiTool = await createCredTrailLtiTool({
-          db: resolveDatabase(c.env),
-          env: c.env,
-        });
-        return ltiTool.getJWKS();
-      },
-      logger: createNoopLogger(),
-    })(c, next);
+  registerLtiJwksRoute({
+    app,
+    resolveDatabase,
   });
 
   registerLtiDynamicRegistrationRoutes({

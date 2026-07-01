@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SqlDatabase } from "@credtrail/db";
 import type { AppBindings, AppEnv } from "./app";
 import { registerLtiRoutes } from "./routes/lti-routes";
@@ -48,7 +48,11 @@ const createRouteApp = (): Hono<AppEnv> => {
 };
 
 describe("LTI JWKS route", () => {
-  it("serves the CredTrail LTI tool JWKS through the package Hono handler", async () => {
+  beforeEach(() => {
+    mockedCreateCredTrailLtiTool.mockReset();
+  });
+
+  it("serves the CredTrail LTI tool JWKS", async () => {
     const jwks = {
       keys: [
         {
@@ -76,5 +80,17 @@ describe("LTI JWKS route", () => {
       env: fakeEnv,
     });
     expect(getJWKS).toHaveBeenCalledOnce();
+  });
+
+  it("returns a generic 500 response when JWKS resolution fails", async () => {
+    mockedCreateCredTrailLtiTool.mockRejectedValue(new Error("key storage unavailable"));
+
+    const response = await createRouteApp().request("/v1/lti/jwks", undefined, fakeEnv);
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({
+      error: "Internal server error",
+    });
   });
 });
