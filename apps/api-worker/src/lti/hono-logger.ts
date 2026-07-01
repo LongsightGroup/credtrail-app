@@ -1,18 +1,19 @@
 import type { ObservabilityFields } from "@credtrail/core-domain";
 import type { AppContext } from "../app";
 import { ltiLogger } from "./log";
+import { redactLtiProtocolSecrets } from "./redaction";
 
 interface CreateLtiHonoLoggerInput {
   c: AppContext;
   messageOverrides?: Readonly<Record<string, string>>;
 }
 
-const redactProtocolSecrets = (value: string): string => {
-  return value
-    .replace(/id_token=[^,\s)]+/gi, "id_token=[redacted]")
-    .replace(/state=[^,\s)]+/gi, "state=[redacted]")
-    .slice(0, 500);
-};
+/**
+ * Logger surface expected by @longsightgroup/lti-tool/hono route handlers.
+ */
+interface LtiHonoPackageLogger {
+  error(fields: unknown, message?: unknown): void;
+}
 
 const isLogRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -20,11 +21,11 @@ const isLogRecord = (value: unknown): value is Record<string, unknown> => {
 
 const errorDetail = (error: unknown): string | undefined => {
   if (error instanceof Error) {
-    return redactProtocolSecrets(error.message);
+    return redactLtiProtocolSecrets(error.message);
   }
 
   if (typeof error === "string") {
-    return redactProtocolSecrets(error);
+    return redactLtiProtocolSecrets(error);
   }
 
   return undefined;
@@ -59,11 +60,11 @@ const honoLogFields = (input: unknown): ObservabilityFields => {
 /**
  * Adapts the lti-tool Hono package logger shape to CredTrail's request logger.
  */
-export const createLtiHonoLogger = (input: CreateLtiHonoLoggerInput) => {
+export const createLtiHonoLogger = (input: CreateLtiHonoLoggerInput): LtiHonoPackageLogger => {
   const logger = ltiLogger(input.c);
 
-  const honoLogger = {
-    error(fields: unknown, message?: unknown): void {
+  return {
+    error(fields, message): void {
       if (logger === undefined) {
         return;
       }
@@ -73,11 +74,4 @@ export const createLtiHonoLogger = (input: CreateLtiHonoLoggerInput) => {
       logger.error(appMessage, honoLogFields(fields));
     },
   };
-
-  // SAFETY: @longsightgroup/lti-tool/hono only calls logger.error(fields, message)
-  // in the handlers CredTrail wires here. The adapter intentionally exposes that
-  // narrow pino-compatible surface while preserving CredTrail's logger contract.
-  return honoLogger as Parameters<
-    typeof import("@longsightgroup/lti-tool/hono").jwksRouteHandler
-  >[0]["logger"];
 };

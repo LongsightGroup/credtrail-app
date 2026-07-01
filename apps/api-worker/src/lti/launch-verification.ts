@@ -1,20 +1,19 @@
 import type {
   LTI13JwtPayload as LtiLaunchClaims,
   LTISession,
+  LtiAuthorizedLaunch,
+  LtiLaunchVerificationResult,
   LtiToolPort,
   LtiLaunchVerificationError as CoreLtiLaunchVerificationError,
   LtiVerifiedLaunch,
+  LtiVerifyLaunchOptions,
 } from "@longsightgroup/lti-tool";
-import type { AppBindings } from "../app";
-import type { SqlDatabase } from "@credtrail/db";
 import {
   normalizeLtiIssuer,
   type LtiIssuerRegistry,
   type LtiIssuerRegistryEntry,
 } from "./lti-helpers";
-import { createCredTrailLtiTool } from "./credtrail-lti-tool";
-
-type CreateCredTrailLtiTool = typeof createCredTrailLtiTool;
+import { redactLtiProtocolSecrets } from "./redaction";
 
 export class LtiLaunchVerificationError extends Error {
   readonly status: 400 | 401 | 501;
@@ -33,10 +32,7 @@ const verificationErrorDetail = (error: unknown): string => {
     return "unknown verification error";
   }
 
-  return error.message
-    .replace(/id_token=[^,\s)]+/gi, "id_token=[redacted]")
-    .replace(/state=[^,\s)]+/gi, "state=[redacted]")
-    .slice(0, 500);
+  return redactLtiProtocolSecrets(error.message);
 };
 
 const statusForCoreVerificationError = (error: CoreLtiLaunchVerificationError): 400 | 401 => {
@@ -129,10 +125,6 @@ export type LtiLaunchAuthorization = {
   readonly entry: LtiIssuerRegistryEntry;
 };
 
-type AuthorizedLtiLaunch = LtiVerifiedLaunch & {
-  readonly authorization: LtiLaunchAuthorization;
-};
-
 /**
  * Authorizes a cryptographically verified LTI launch against CredTrail's issuer registry.
  */
@@ -173,36 +165,44 @@ export const ltiIssuerHasSignedLaunchConfig = (issuerEntry: {
   return issuerEntry.platformJwksEndpoint !== undefined && issuerEntry.tokenEndpoint !== undefined;
 };
 
-export const resolveLtiLaunch = async (input: {
-  idToken: string;
-  state: string;
-  registry: LtiIssuerRegistry;
-  db: SqlDatabase;
-  env: AppBindings;
-  createLtiTool?: CreateCredTrailLtiTool;
-}): Promise<ResolvedLtiLaunch> => {
-  const ltiTool = await (input.createLtiTool ?? createCredTrailLtiTool)({
-    db: input.db,
-    env: input.env,
-  });
+/**
+ * Adapts a result-based LTI tool to the throw-on-failure contract used by Hono route handlers.
+ */
+export const createVerificationThrowingLtiTool = (ltiTool: LtiToolPort): LtiToolPort => {
+  async function verifyLaunchOrThrow(
+    idToken: string,
+    state: string,
+  ): Promise<LtiLaunchVerificationResult>;
+  async function verifyLaunchOrThrow<TAuthorization>(
+    idToken: string,
+    state: string,
+    options: LtiVerifyLaunchOptions<TAuthorization>,
+  ): Promise<LtiLaunchVerificationResult<LtiAuthorizedLaunch<TAuthorization>>>;
+  async function verifyLaunchOrThrow<TAuthorization>(
+    idToken: string,
+    state: string,
+    options?: LtiVerifyLaunchOptions<TAuthorization>,
+  ): Promise<
+    LtiLaunchVerificationResult | LtiLaunchVerificationResult<LtiAuthorizedLaunch<TAuthorization>>
+  > {
+    const verificationResult =
+      options === undefined
+        ? await ltiTool.verifyLaunch(idToken, state)
+        : await ltiTool.verifyLaunch(idToken, state, options);
 
-  const verificationResult = await ltiTool.verifyLaunch(input.idToken, input.state, {
-    authorizeVerifiedLaunch: (launch) => authorizeVerifiedLaunchForRegistry(input.registry, launch),
-  });
+    if (!verificationResult.success) {
+      throw ltiLaunchVerificationErrorFromCoreError(verificationResult.error);
+    }
 
-  if (!verificationResult.success) {
-    throw ltiLaunchVerificationErrorFromCoreError(verificationResult.error);
+    return verificationResult;
   }
 
-  const launchClaims = verificationResult.launch.payload;
-  const ltiLaunchSession = await ltiTool.createSessionFromVerifiedLaunch(verificationResult.launch);
-  const authorizedLaunch: AuthorizedLtiLaunch = verificationResult.launch;
-
   return {
-    issuer: authorizedLaunch.authorization.issuer,
-    issuerEntry: authorizedLaunch.authorization.entry,
-    launchClaims,
-    ltiLaunchSession,
-    ltiTool,
+    getJWKS: () => ltiTool.getJWKS(),
+    handleLogin: (params) => ltiTool.handleLogin(params),
+    verifyLaunch: verifyLaunchOrThrow,
+    createSessionFromVerifiedLaunch: (launch) => ltiTool.createSessionFromVerifiedLaunch(launch),
+    getSession: (sessionId) => ltiTool.getSession(sessionId),
+    createAdvantage: (session) => ltiTool.createAdvantage(session),
   };
 };

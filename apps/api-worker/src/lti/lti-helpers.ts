@@ -299,24 +299,3 @@ export const ltiLoginInputFromRequest = async (c: AppContext): Promise<Record<st
         }),
   };
 };
-
-export const ltiLaunchFormInputFromRequest = async (
-  c: AppContext,
-): Promise<{ idToken: string | null; state: string | null }> => {
-  const contentType = c.req.header("content-type") ?? "";
-
-  if (!contentType.toLowerCase().includes("application/x-www-form-urlencoded")) {
-    return {
-      idToken: null,
-      state: null,
-    };
-  }
-
-  const rawBody = await c.req.text();
-  const formData = new URLSearchParams(rawBody);
-
-  return {
-    idToken: formData.get("id_token"),
-    state: formData.get("state"),
-  };
-};

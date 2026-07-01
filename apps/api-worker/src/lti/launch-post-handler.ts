@@ -1,11 +1,5 @@
 import type { SqlDatabase } from "@credtrail/db";
-import type {
-  LtiAuthorizedLaunch,
-  LtiLaunchVerificationResult,
-  LTISession,
-  LtiToolPort,
-  LtiVerifyLaunchOptions,
-} from "@longsightgroup/lti-tool";
+import type { LtiAuthorizedLaunch, LTISession, LtiToolPort } from "@longsightgroup/lti-tool";
 import { LtiLaunchMessageResolutionError } from "@longsightgroup/lti-tool";
 import { customLaunchRouteHandler } from "@longsightgroup/lti-tool/hono";
 import type { AppBindings, AppContext } from "../app";
@@ -20,7 +14,7 @@ import {
 import { handleVerifiedLtiLaunch, type HandleVerifiedLtiLaunch } from "./launch-product-flow";
 import {
   authorizeVerifiedLaunchForRegistry,
-  ltiLaunchVerificationErrorFromCoreError,
+  createVerificationThrowingLtiTool,
   LtiLaunchVerificationError,
   type LtiLaunchAuthorization,
   type ResolvedLtiLaunch,
@@ -41,17 +35,6 @@ export interface HandleLtiLaunchPostInput {
   handleVerifiedLtiLaunch?: HandleVerifiedLtiLaunch;
   createLtiTool?: CreateCredTrailLtiToolForLaunch;
 }
-
-const loadLtiLaunchRegistry = async (
-  c: AppContext,
-  resolveLtiIssuerRegistry: HandleLtiLaunchPostInput["resolveLtiIssuerRegistry"],
-): Promise<LtiIssuerRegistry> => {
-  try {
-    return await resolveLtiIssuerRegistry(c);
-  } catch {
-    throw new Error("LTI issuer registry configuration is invalid");
-  }
-};
 
 const isPackageValidationError = (error: unknown): boolean => {
   return error instanceof Error && error.name === "ZodError";
@@ -91,45 +74,6 @@ export const handleLtiLaunchFailureResponse = (c: AppContext, error: unknown): R
     },
     500,
   );
-};
-
-const createVerificationThrowingLtiTool = (ltiTool: LtiToolPort): LtiToolPort => {
-  async function verifyLaunchOrThrow(
-    idToken: string,
-    state: string,
-  ): Promise<LtiLaunchVerificationResult>;
-  async function verifyLaunchOrThrow<TAuthorization>(
-    idToken: string,
-    state: string,
-    options: LtiVerifyLaunchOptions<TAuthorization>,
-  ): Promise<LtiLaunchVerificationResult<LtiAuthorizedLaunch<TAuthorization>>>;
-  async function verifyLaunchOrThrow<TAuthorization>(
-    idToken: string,
-    state: string,
-    options?: LtiVerifyLaunchOptions<TAuthorization>,
-  ): Promise<
-    LtiLaunchVerificationResult | LtiLaunchVerificationResult<LtiAuthorizedLaunch<TAuthorization>>
-  > {
-    const verificationResult =
-      options === undefined
-        ? await ltiTool.verifyLaunch(idToken, state)
-        : await ltiTool.verifyLaunch(idToken, state, options);
-
-    if (!verificationResult.success) {
-      throw ltiLaunchVerificationErrorFromCoreError(verificationResult.error);
-    }
-
-    return verificationResult;
-  }
-
-  return {
-    getJWKS: () => ltiTool.getJWKS(),
-    handleLogin: (params) => ltiTool.handleLogin(params),
-    verifyLaunch: verifyLaunchOrThrow,
-    createSessionFromVerifiedLaunch: (launch) => ltiTool.createSessionFromVerifiedLaunch(launch),
-    getSession: (sessionId) => ltiTool.getSession(sessionId),
-    createAdvantage: (session) => ltiTool.createAdvantage(session),
-  };
 };
 
 const resolvedLaunchFromAuthorizedContext = (input: {
@@ -180,7 +124,7 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
   let registry: LtiIssuerRegistry;
 
   try {
-    registry = await loadLtiLaunchRegistry(input.c, input.resolveLtiIssuerRegistry);
+    registry = await input.resolveLtiIssuerRegistry(input.c);
   } catch {
     return input.c.json(
       {
@@ -196,36 +140,30 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
     env: input.c.env,
   });
   const protocolTool = createVerificationThrowingLtiTool(ltiTool);
+
+  const renderAuthorizedPackageLaunch = (context: {
+    launch: LtiAuthorizedLaunch<LtiLaunchAuthorization>;
+    session: LTISession;
+  }): Promise<Response> => {
+    return handleAuthorizedPackageLaunch({
+      c: input.c,
+      db,
+      ltiTool,
+      launch: context.launch,
+      session: context.session,
+      launchMessage: resolveLtiLaunchMessage(context.launch.payload),
+      sha256Hex: input.sha256Hex,
+      createLtiSession: input.createLtiSession,
+      handleVerifiedLtiLaunch: runVerifiedLaunch,
+    });
+  };
+
   const handler = customLaunchRouteHandler<LtiLaunchAuthorization>({
     ltiTool: protocolTool,
     logger: createLtiHonoLogger({ c: input.c }),
     authorizeLaunch: (launch) => authorizeVerifiedLaunchForRegistry(registry, launch),
-    renderResourceLink: (context) => {
-      return handleAuthorizedPackageLaunch({
-        c: input.c,
-        db,
-        ltiTool,
-        launch: context.launch,
-        session: context.session,
-        launchMessage: resolveLtiLaunchMessage(context.launch.payload),
-        sha256Hex: input.sha256Hex,
-        createLtiSession: input.createLtiSession,
-        handleVerifiedLtiLaunch: runVerifiedLaunch,
-      });
-    },
-    renderDeepLinkingRequest: (context) => {
-      return handleAuthorizedPackageLaunch({
-        c: input.c,
-        db,
-        ltiTool,
-        launch: context.launch,
-        session: context.session,
-        launchMessage: resolveLtiLaunchMessage(context.launch.payload),
-        sha256Hex: input.sha256Hex,
-        createLtiSession: input.createLtiSession,
-        handleVerifiedLtiLaunch: runVerifiedLaunch,
-      });
-    },
+    renderResourceLink: renderAuthorizedPackageLaunch,
+    renderDeepLinkingRequest: renderAuthorizedPackageLaunch,
     onError: ({ error }) => handleLtiLaunchFailureResponse(input.c, error),
   });
 

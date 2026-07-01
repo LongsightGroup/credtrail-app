@@ -1,28 +1,24 @@
 import type {
   LTI13JwtPayload,
-  LTISession,
-  LTITool,
+  LtiAuthorizedLaunch,
   LtiLaunchVerificationResult,
+  LtiToolPort,
   LtiVerifiedLaunch,
+  LtiVerifyLaunchOptions,
 } from "@longsightgroup/lti-tool";
 import { LtiLaunchVerificationError as CoreLtiLaunchVerificationError } from "@longsightgroup/lti-tool";
-import type { SqlDatabase } from "@credtrail/db";
+import { createFakeLtiAdvantage, testSession } from "@longsightgroup/lti-tool/testing";
 import { describe, expect, it, vi } from "vitest";
-import type { AppBindings } from "../app";
 import type { LtiIssuerRegistry } from "./lti-helpers";
-import { authorizeVerifiedLaunchForRegistry, resolveLtiLaunch } from "./launch-verification";
+import {
+  authorizeVerifiedLaunchForRegistry,
+  createVerificationThrowingLtiTool,
+} from "./launch-verification";
 
 const issuer = "https://canvas.example.edu";
 const clientId = "canvas-client-123";
 const deploymentId = "deployment-123";
 const targetLinkUri = "https://credtrail.example.edu/v1/lti/launch";
-
-const fakeDb = {} as SqlDatabase;
-const fakeEnv = {
-  APP_ENV: "test",
-  PLATFORM_DOMAIN: "credtrail.example.edu",
-  BADGE_OBJECTS: {},
-} as AppBindings;
 
 const signedLaunchRegistry: LtiIssuerRegistry = {
   [issuer]: {
@@ -58,104 +54,71 @@ const sampleLaunchPayload = (overrides?: { aud?: LTI13JwtPayload["aud"] }): LTI1
   return payload;
 };
 
-const sampleSession = (payload: LTI13JwtPayload, verifiedClientId: string): LTISession => {
+const verificationAuthorizationFailure = (input: {
+  message?: string | undefined;
+  code: string;
+  cause: unknown;
+}): LtiLaunchVerificationResult => {
   return {
-    jwtPayload: payload as LTISession["jwtPayload"],
-    id: "lti-session-123",
-    user: {
-      id: "instructor-123",
-      roles: [],
-    },
-    context: {
-      id: "course-123",
-      label: "COURSE123",
-      title: "Course 123",
-    },
-    platform: {
-      issuer,
-      clientId: verifiedClientId,
-      deploymentId,
-      name: "Canvas",
-    },
-    launch: {
-      target: targetLinkUri,
-    },
-    customParameters: {},
-    isAdmin: false,
-    isInstructor: true,
-    isStudent: false,
-    isAssignmentAndGradesAvailable: false,
-    isDeepLinkingAvailable: false,
-    isNameAndRolesAvailable: false,
+    success: false,
+    error: new CoreLtiLaunchVerificationError(
+      "verified_launch_authorization_failed",
+      input.message ?? `Verified launch authorization failed: ${input.code}`,
+      input.cause,
+    ),
   };
 };
 
-const fakeLtiTool = (input: {
-  verificationResult: LtiLaunchVerificationResult;
-  createSessionFromVerifiedLaunch?: LTITool["createSessionFromVerifiedLaunch"];
-}): LTITool => {
-  type VerifyLaunchDetailedOptions = {
-    readonly authorizeVerifiedLaunch?: (launch: LtiVerifiedLaunch) =>
-      | {
-          readonly success: true;
-          readonly data: unknown;
-        }
-      | {
-          readonly success: false;
-          readonly code: string;
-          readonly message?: string;
-        }
-      | Promise<
-          | {
-              readonly success: true;
-              readonly data: unknown;
-            }
-          | {
-              readonly success: false;
-              readonly code: string;
-              readonly message?: string;
-            }
-        >;
-  };
+const fakeLtiTool = (input: { verificationResult: LtiLaunchVerificationResult }): LtiToolPort => {
+  async function verifyLaunch(
+    _idToken: string,
+    _state: string,
+  ): Promise<LtiLaunchVerificationResult>;
+  async function verifyLaunch<TAuthorization>(
+    _idToken: string,
+    _state: string,
+    options: LtiVerifyLaunchOptions<TAuthorization>,
+  ): Promise<LtiLaunchVerificationResult<LtiAuthorizedLaunch<TAuthorization>>>;
+  async function verifyLaunch<TAuthorization>(
+    _idToken: string,
+    _state: string,
+    options?: LtiVerifyLaunchOptions<TAuthorization>,
+  ): Promise<
+    LtiLaunchVerificationResult | LtiLaunchVerificationResult<LtiAuthorizedLaunch<TAuthorization>>
+  > {
+    if (!input.verificationResult.success || options?.authorizeVerifiedLaunch === undefined) {
+      return input.verificationResult;
+    }
+
+    const authorization = await options.authorizeVerifiedLaunch(input.verificationResult.launch);
+
+    if (!authorization.success) {
+      return verificationAuthorizationFailure({
+        message: authorization.message,
+        code: authorization.code,
+        cause: authorization,
+      });
+    }
+
+    const authorizedLaunch: LtiAuthorizedLaunch<TAuthorization> = {
+      ...input.verificationResult.launch,
+      authorization: authorization.data,
+    };
+
+    return {
+      success: true,
+      launch: authorizedLaunch,
+    };
+  }
 
   return {
-    verifyLaunch: vi.fn(
-      async (
-        _idToken: string,
-        _state: string,
-        options?: VerifyLaunchDetailedOptions,
-      ): Promise<LtiLaunchVerificationResult> => {
-        if (!input.verificationResult.success || options?.authorizeVerifiedLaunch === undefined) {
-          return input.verificationResult;
-        }
-
-        const authorization = await options.authorizeVerifiedLaunch(
-          input.verificationResult.launch,
-        );
-
-        if (!authorization.success) {
-          return {
-            success: false,
-            error: new CoreLtiLaunchVerificationError(
-              "verified_launch_authorization_failed",
-              authorization.message ??
-                `Verified launch authorization failed: ${authorization.code}`,
-              authorization,
-            ),
-          };
-        }
-
-        return {
-          success: true,
-          launch: {
-            ...input.verificationResult.launch,
-            authorization: authorization.data,
-          } as LtiVerifiedLaunch,
-        };
-      },
-    ),
-    createSessionFromVerifiedLaunch: input.createSessionFromVerifiedLaunch ?? vi.fn(),
-  } as unknown as LTITool;
+    getJWKS: vi.fn(async () => ({ keys: [] })),
+    handleLogin: vi.fn(async () => "https://canvas.example.edu/api/lti/authorize_redirect"),
+    verifyLaunch,
+    createSessionFromVerifiedLaunch: vi.fn(async () => testSession()),
+    getSession: vi.fn(async () => undefined),
+    createAdvantage: vi.fn(() => createFakeLtiAdvantage()),
+  };
 };
 
 describe("authorizeVerifiedLaunchForRegistry", () => {
@@ -212,14 +175,11 @@ describe("authorizeVerifiedLaunchForRegistry", () => {
   });
 });
 
-describe("resolveLtiLaunch", () => {
-  it("creates sessions from the verified launch for multi-audience launches", async () => {
+describe("createVerificationThrowingLtiTool", () => {
+  it("returns authorized launches for multi-audience payloads", async () => {
     const payload = sampleLaunchPayload({
       aud: ["other-client", clientId],
     });
-    const createSessionFromVerifiedLaunch = vi.fn(async (launch: LtiVerifiedLaunch) =>
-      sampleSession(launch.payload, launch.clientId),
-    );
     const launch = {
       payload,
       issuer,
@@ -235,96 +195,80 @@ describe("resolveLtiLaunch", () => {
         jwksUrl: "https://canvas.example.edu/api/lti/security/jwks",
       },
     } satisfies LtiVerifiedLaunch;
-    const ltiTool = fakeLtiTool({
-      verificationResult: {
-        success: true,
-        launch,
-      },
-      createSessionFromVerifiedLaunch,
-    });
-
-    const resolvedLaunch = await resolveLtiLaunch({
-      idToken: "opaque-id-token",
-      state: "opaque-state",
-      registry: signedLaunchRegistry,
-      db: fakeDb,
-      env: fakeEnv,
-      createLtiTool: vi.fn(async () => ltiTool),
-    });
-
-    expect(createSessionFromVerifiedLaunch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payload,
-        clientId,
+    const ltiTool = createVerificationThrowingLtiTool(
+      fakeLtiTool({
+        verificationResult: {
+          success: true,
+          launch,
+        },
       }),
     );
-    expect(resolvedLaunch.ltiLaunchSession.platform.clientId).toBe(clientId);
+
+    const verificationResult = await ltiTool.verifyLaunch("opaque-id-token", "opaque-state", {
+      authorizeVerifiedLaunch: (verifiedLaunch) =>
+        authorizeVerifiedLaunchForRegistry(signedLaunchRegistry, verifiedLaunch),
+    });
+
+    expect(verificationResult).toMatchObject({
+      success: true,
+      launch: {
+        clientId,
+      },
+    });
   });
 
   it("rejects a verified launch when the issuer and client pair is not registered", async () => {
     const payload = sampleLaunchPayload({
       aud: "unexpected-client",
     });
-    const createSessionFromVerifiedLaunch = vi.fn();
-    const ltiTool = fakeLtiTool({
-      verificationResult: {
-        success: true,
-        launch: {
-          payload,
-          issuer,
-          clientId: "unexpected-client",
-          deploymentId,
-          targetLinkUri,
-          launchConfig: {
-            iss: issuer,
+    const ltiTool = createVerificationThrowingLtiTool(
+      fakeLtiTool({
+        verificationResult: {
+          success: true,
+          launch: {
+            payload,
+            issuer,
             clientId: "unexpected-client",
             deploymentId,
-            authUrl: "https://canvas.example.edu/api/lti/authorize_redirect",
-            tokenUrl: "https://canvas.example.edu/login/oauth2/token",
-            jwksUrl: "https://canvas.example.edu/api/lti/security/jwks",
+            targetLinkUri,
+            launchConfig: {
+              iss: issuer,
+              clientId: "unexpected-client",
+              deploymentId,
+              authUrl: "https://canvas.example.edu/api/lti/authorize_redirect",
+              tokenUrl: "https://canvas.example.edu/login/oauth2/token",
+              jwksUrl: "https://canvas.example.edu/api/lti/security/jwks",
+            },
           },
         },
-      },
-      createSessionFromVerifiedLaunch,
-    });
+      }),
+    );
 
     await expect(
-      resolveLtiLaunch({
-        idToken: "opaque-id-token",
-        state: "opaque-state",
-        registry: signedLaunchRegistry,
-        db: fakeDb,
-        env: fakeEnv,
-        createLtiTool: vi.fn(async () => ltiTool),
+      ltiTool.verifyLaunch("opaque-id-token", "opaque-state", {
+        authorizeVerifiedLaunch: (verifiedLaunch) =>
+          authorizeVerifiedLaunchForRegistry(signedLaunchRegistry, verifiedLaunch),
       }),
     ).rejects.toMatchObject({
       status: 400,
       message: "No issuer registration configured for verified LTI launch",
     });
-    expect(createSessionFromVerifiedLaunch).not.toHaveBeenCalled();
   });
 
   it("maps ambiguous core launch config failures to a generic 401 verification failure", async () => {
-    const ltiTool = fakeLtiTool({
-      verificationResult: {
-        success: false,
-        error: new CoreLtiLaunchVerificationError(
-          "launch_config_not_found",
-          "Launch config not found for issuer id_token=secret state=secret",
-        ),
-      },
-    });
-
-    await expect(
-      resolveLtiLaunch({
-        idToken: "opaque-id-token",
-        state: "opaque-state",
-        registry: signedLaunchRegistry,
-        db: fakeDb,
-        env: fakeEnv,
-        createLtiTool: vi.fn(async () => ltiTool),
+    const ltiTool = createVerificationThrowingLtiTool(
+      fakeLtiTool({
+        verificationResult: {
+          success: false,
+          error: new CoreLtiLaunchVerificationError(
+            "launch_config_not_found",
+            "Launch config not found for issuer id_token=secret state=secret",
+          ),
+        },
       }),
-    ).rejects.toMatchObject({
+    );
+
+    await expect(ltiTool.verifyLaunch("opaque-id-token", "opaque-state")).rejects.toMatchObject({
       status: 401,
       message: "LTI launch verification failed",
       detail: "Launch config not found for issuer id_token=[redacted] state=[redacted]",
@@ -332,26 +276,19 @@ describe("resolveLtiLaunch", () => {
   });
 
   it("maps core missing signed-launch endpoint failures to 501 setup errors", async () => {
-    const ltiTool = fakeLtiTool({
-      verificationResult: {
-        success: false,
-        error: new CoreLtiLaunchVerificationError(
-          "launch_config_missing_jwks_endpoint",
-          "Launch client is missing a JWKS endpoint",
-        ),
-      },
-    });
-
-    await expect(
-      resolveLtiLaunch({
-        idToken: "opaque-id-token",
-        state: "opaque-state",
-        registry: signedLaunchRegistry,
-        db: fakeDb,
-        env: fakeEnv,
-        createLtiTool: vi.fn(async () => ltiTool),
+    const ltiTool = createVerificationThrowingLtiTool(
+      fakeLtiTool({
+        verificationResult: {
+          success: false,
+          error: new CoreLtiLaunchVerificationError(
+            "launch_config_missing_jwks_endpoint",
+            "Launch client is missing a JWKS endpoint",
+          ),
+        },
       }),
-    ).rejects.toMatchObject({
+    );
+
+    await expect(ltiTool.verifyLaunch("opaque-id-token", "opaque-state")).rejects.toMatchObject({
       status: 501,
       message:
         "LTI issuer requires platform JWKS and token endpoint configuration for signed launches",
