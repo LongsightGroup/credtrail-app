@@ -7,4 +7,5 @@ export const LTI_OIDC_RESPONSE_TYPE = "id_token";
 export const LTI_OIDC_RESPONSE_MODE = "form_post";
 export const LTI_OIDC_PROMPT = "none";
 export const LTI_STATE_TTL_SECONDS = 10 * 60;
+export const LTI_NONCE_TTL_SECONDS = 10 * 60;
 export const LTI_SESSION_HANDOFF_TTL_SECONDS = 10 * 60;

@@ -576,55 +576,6 @@ export const findActiveLtiToolKey = async (db: SqlDatabase): Promise<LtiToolKeyR
   return row === null ? null : mapLtiToolKeyRow(row);
 };
 
-export const storeLtiLaunchNonce = async (
-  db: SqlDatabase,
-  nonce: string,
-  expiresAt: string,
-): Promise<void> => {
-  const insertStatement = (): Promise<SqlRunResult> =>
-    db
-      .prepare(
-        `
-        INSERT INTO lti_launch_nonces (
-          nonce,
-          expires_at
-        )
-        VALUES (?, ?)
-        ON CONFLICT (nonce)
-        DO NOTHING
-      `,
-      )
-      .bind(nonce, expiresAt)
-      .run();
-
-  await insertStatement();
-};
-
-export const consumeLtiLaunchNonce = async (
-  db: SqlDatabase,
-  nonce: string,
-  nowIso: string,
-): Promise<boolean> => {
-  const updateStatement = (): Promise<SqlQueryResult<{ nonce: string }>> =>
-    db
-      .prepare(
-        `
-        UPDATE lti_launch_nonces
-        SET consumed_at = ?
-        WHERE nonce = ?
-          AND consumed_at IS NULL
-          AND expires_at > ?
-        RETURNING nonce
-      `,
-      )
-      .bind(nowIso, nonce, nowIso)
-      .all<{ nonce: string }>();
-
-  const result = await updateStatement();
-
-  return result.results.length > 0;
-};
-
 export const recordLtiLaunchNonceUse = async (
   db: SqlDatabase,
   input: {

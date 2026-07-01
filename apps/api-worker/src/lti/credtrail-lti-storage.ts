@@ -19,6 +19,7 @@ import {
   findLtiLaunchSessionById,
   listLtiDeploymentsForIssuer,
   listLtiIssuerRegistrations,
+  normalizeLtiIssuer,
   recordLtiLaunchNonceUse,
   upsertLtiDeployment,
   upsertLtiDynamicRegistrationSession,
@@ -27,27 +28,23 @@ import {
   type LtiIssuerRegistrationRecord,
   type SqlDatabase,
 } from "@credtrail/db";
-import { normalizeLtiIssuer } from "./lti-helpers";
+import { LTI_NONCE_TTL_SECONDS } from "./constants";
 
 const SESSION_TTL_SECONDS = 60 * 60;
-const NONCE_TTL_SECONDS = 10 * 60;
 
 const addSeconds = (seconds: number): string => {
   return new Date(Date.now() + seconds * 1000).toISOString();
 };
 
-const requirePlatformEndpoints = (
+const completePlatformEndpoints = (
   registration: LtiIssuerRegistrationRecord,
-): {
-  tokenUrl: string;
-  jwksUrl: string;
-} => {
+): { tokenUrl: string; jwksUrl: string } | undefined => {
   if (registration.tokenEndpoint === null) {
-    throw new Error(`LTI issuer "${registration.issuer}" is missing token endpoint`);
+    return undefined;
   }
 
   if (registration.platformJwksEndpoint === null) {
-    throw new Error(`LTI issuer "${registration.issuer}" is missing platform JWKS endpoint`);
+    return undefined;
   }
 
   return {
@@ -59,9 +56,13 @@ const requirePlatformEndpoints = (
 const toClient = async (
   db: SqlDatabase,
   registration: LtiIssuerRegistrationRecord,
-): Promise<LTIClient> => {
-  const tokenUrl = registration.tokenEndpoint ?? "";
-  const jwksUrl = registration.platformJwksEndpoint ?? "";
+): Promise<LTIClient | undefined> => {
+  const endpoints = completePlatformEndpoints(registration);
+
+  if (endpoints === undefined) {
+    return undefined;
+  }
+
   const deployments = await listLtiDeploymentsForIssuer(db, registration.issuer);
 
   return {
@@ -70,8 +71,8 @@ const toClient = async (
     iss: normalizeLtiIssuer(registration.issuer),
     clientId: registration.clientId,
     authUrl: registration.authorizationEndpoint,
-    tokenUrl,
-    jwksUrl,
+    tokenUrl: endpoints.tokenUrl,
+    jwksUrl: endpoints.jwksUrl,
     deployments: deployments.map((deployment) => ({
       id: deployment.id,
       deploymentId: deployment.deploymentId,
@@ -86,31 +87,34 @@ export class CredTrailLtiStorage implements LTIStorage {
     private readonly db: SqlDatabase,
     private readonly options: {
       defaultTenantId?: string | undefined;
+      nonceTtlSeconds?: number | undefined;
     } = {},
   ) {}
 
   async listClients(): Promise<Omit<LTIClient, "deployments">[]> {
     const registrations = await listLtiIssuerRegistrations(this.db);
-    const clients = await Promise.all(
-      registrations
-        .filter(
-          (registration) =>
-            registration.tokenEndpoint !== null && registration.platformJwksEndpoint !== null,
-        )
-        .map((registration) => toClient(this.db, registration)),
+    const candidates = await Promise.all(
+      registrations.map((registration) => toClient(this.db, registration)),
     );
+    const clients = candidates.flatMap((client) => (client === undefined ? [] : [client]));
 
     return clients.map(({ deployments: _deployments, ...client }) => client);
   }
 
-  async getClientById(clientId: string): Promise<LTIClient | undefined> {
+  private async findRegistrationForClient(
+    clientId: string,
+  ): Promise<LtiIssuerRegistrationRecord | undefined> {
     const normalizedCandidate = normalizeLtiIssuer(clientId);
     const registrations = await listLtiIssuerRegistrations(this.db);
-    const registration = registrations.find(
+    return registrations.find(
       (candidate) =>
         candidate.clientId === clientId ||
         normalizeLtiIssuer(candidate.issuer) === normalizedCandidate,
     );
+  }
+
+  async getClientById(clientId: string): Promise<LTIClient | undefined> {
+    const registration = await this.findRegistrationForClient(clientId);
 
     if (registration === undefined) {
       return undefined;
@@ -142,7 +146,7 @@ export class CredTrailLtiStorage implements LTIStorage {
     clientId: string,
     client: Partial<Omit<LTIClient, "id" | "deployments">>,
   ): Promise<void> {
-    const existing = await this.getClientById(clientId);
+    const existing = await this.findRegistrationForClient(clientId);
 
     if (existing === undefined) {
       throw new Error(`LTI client not found: ${clientId}`);
@@ -155,12 +159,12 @@ export class CredTrailLtiStorage implements LTIStorage {
     }
 
     await upsertLtiIssuerRegistration(this.db, {
-      issuer: client.iss ?? existing.iss,
+      issuer: client.iss ?? normalizeLtiIssuer(existing.issuer),
       tenantId,
-      authorizationEndpoint: client.authUrl ?? existing.authUrl,
+      authorizationEndpoint: client.authUrl ?? existing.authorizationEndpoint,
       clientId: client.clientId ?? existing.clientId,
-      platformJwksEndpoint: client.jwksUrl ?? existing.jwksUrl,
-      tokenEndpoint: client.tokenUrl ?? existing.tokenUrl,
+      platformJwksEndpoint: client.jwksUrl ?? existing.platformJwksEndpoint ?? undefined,
+      tokenEndpoint: client.tokenUrl ?? existing.tokenEndpoint ?? undefined,
     });
   }
 
@@ -273,10 +277,12 @@ export class CredTrailLtiStorage implements LTIStorage {
 
   async validateNonce(nonce: string): Promise<boolean> {
     const consumedAt = new Date();
+    const nonceTtlSeconds = this.options.nonceTtlSeconds ?? LTI_NONCE_TTL_SECONDS;
+
     return recordLtiLaunchNonceUse(this.db, {
       nonce,
       consumedAt: consumedAt.toISOString(),
-      expiresAt: new Date(consumedAt.getTime() + NONCE_TTL_SECONDS * 1000).toISOString(),
+      expiresAt: new Date(consumedAt.getTime() + nonceTtlSeconds * 1000).toISOString(),
     });
   }
 
@@ -297,7 +303,11 @@ export class CredTrailLtiStorage implements LTIStorage {
       return undefined;
     }
 
-    const endpoints = requirePlatformEndpoints(registration);
+    const endpoints = completePlatformEndpoints(registration);
+
+    if (endpoints === undefined) {
+      return undefined;
+    }
     const deployment =
       (await findLtiDeploymentByIssuerClientDeployment(this.db, {
         issuer: normalizedIssuer,

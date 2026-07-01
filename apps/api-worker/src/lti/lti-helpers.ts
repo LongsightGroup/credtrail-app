@@ -1,4 +1,4 @@
-import type { LtiIssuerRegistrationRecord } from "@credtrail/db";
+import { normalizeLtiIssuer, type LtiIssuerRegistrationRecord } from "@credtrail/db";
 import { LTI_CLAIM_LIS, type LTI13JwtPayload as LtiLaunchClaims } from "@longsightgroup/lti-tool";
 import type { AppBindings, AppContext } from "../app";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
@@ -17,9 +17,7 @@ const isLikelyEmailAddress = (value: string): boolean => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 };
 
-export const normalizeLtiIssuer = (issuer: string): string => {
-  return issuer.trim().replace(/\/+$/g, "");
-};
+export { normalizeLtiIssuer };
 
 export const isAbsoluteHttpUrl = (value: string): boolean => {
   try {

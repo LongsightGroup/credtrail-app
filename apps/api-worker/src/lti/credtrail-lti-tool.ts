@@ -7,11 +7,12 @@ import {
 import { createLtiToolKey, findActiveLtiToolKey, type SqlDatabase } from "@credtrail/db";
 import { ltiStateSigningSecret } from "./lti-helpers";
 import { CredTrailLtiStorage } from "./credtrail-lti-storage";
+import { LTI_NONCE_TTL_SECONDS, LTI_STATE_TTL_SECONDS } from "./constants";
 import type { AppBindings } from "../app";
 
 const LTI_TOOL_KEY_ID = "credtrail-lti-main";
 
-type DynamicRegistrationConfig = NonNullable<LTIConfig["dynamicRegistration"]>;
+export type DynamicRegistrationConfig = NonNullable<LTIConfig["dynamicRegistration"]>;
 
 const rsaAlgorithm: RsaHashedKeyGenParams = {
   name: "RSASSA-PKCS1-v1_5",
@@ -93,11 +94,12 @@ export const createCredTrailLtiConfig = async (
     keyPair,
     storage: new CredTrailLtiStorage(input.db, {
       defaultTenantId: input.defaultTenantId,
+      nonceTtlSeconds: LTI_NONCE_TTL_SECONDS,
     }),
     security: {
       keyId: LTI_TOOL_KEY_ID,
-      stateExpirationSeconds: 600,
-      nonceExpirationSeconds: 600,
+      stateExpirationSeconds: LTI_STATE_TTL_SECONDS,
+      nonceExpirationSeconds: LTI_NONCE_TTL_SECONDS,
     },
     ...(input.dynamicRegistration === undefined
       ? {}

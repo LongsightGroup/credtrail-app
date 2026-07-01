@@ -25,9 +25,10 @@ import {
   listAssertionsByIdempotencyKeys,
   type SqlDatabase,
 } from "@credtrail/db";
-import type { LTISession, LTITool } from "@longsightgroup/lti-tool";
+import type { LTISession } from "@longsightgroup/lti-tool";
 import { loadRuleFacts } from "../rules/badge-rule-facts-loader";
 import { executeLtiRosterIssuance } from "./roster-issuance";
+import { mockLtiToolWithGetMembers } from "./test-support/lti-tool-mocks";
 import {
   sampleLtiRosterBadgeRule,
   sampleLtiRosterBadgeRuleVersion,
@@ -63,11 +64,7 @@ const ltiSession = {
 } as LTISession;
 
 const mockedGetMembers = vi.fn();
-const ltiTool = {
-  createAdvantage: vi.fn(() => ({
-    getMembers: mockedGetMembers,
-  })),
-} as unknown as LTITool;
+const ltiTool = mockLtiToolWithGetMembers(mockedGetMembers);
 
 const appContext = {} as Parameters<typeof executeLtiRosterIssuance>[0]["c"];
 

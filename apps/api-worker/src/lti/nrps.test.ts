@@ -2,10 +2,10 @@ import {
   LtiServiceError,
   type LtiServiceErrorCode,
   type LTISession,
-  type LTITool,
 } from "@longsightgroup/lti-tool";
 import { describe, expect, it, vi } from "vitest";
 import { loadLtiNrpsRoster } from "./nrps";
+import { mockLtiToolWithGetMembers } from "./test-support/lti-tool-mocks";
 
 const ltiSession = {
   id: "lti-session-123",
@@ -19,13 +19,6 @@ const ltiSession = {
     deploymentId: "deployment-123",
   },
 } as LTISession;
-
-const ltiToolWithMembersResult = (getMembers: ReturnType<typeof vi.fn>): LTITool =>
-  ({
-    createAdvantage: vi.fn(() => ({
-      getMembers,
-    })),
-  }) as unknown as LTITool;
 
 describe("loadLtiNrpsRoster", () => {
   it("maps core members into the CredTrail roster view model", async () => {
@@ -50,7 +43,7 @@ describe("loadLtiNrpsRoster", () => {
     });
 
     const result = await loadLtiNrpsRoster({
-      ltiTool: ltiToolWithMembersResult(getMembers),
+      ltiTool: mockLtiToolWithGetMembers(getMembers),
       ltiSession,
       contextId: "course-123",
     });
@@ -84,7 +77,7 @@ describe("loadLtiNrpsRoster", () => {
     });
 
     const result = await loadLtiNrpsRoster({
-      ltiTool: ltiToolWithMembersResult(getMembers),
+      ltiTool: mockLtiToolWithGetMembers(getMembers),
       ltiSession,
       contextId: "course-123",
     });
@@ -119,7 +112,7 @@ describe("loadLtiNrpsRoster", () => {
     });
 
     const result = await loadLtiNrpsRoster({
-      ltiTool: ltiToolWithMembersResult(getMembers),
+      ltiTool: mockLtiToolWithGetMembers(getMembers),
       ltiSession,
       contextId: "course-123",
     });
@@ -158,7 +151,7 @@ describe("loadLtiNrpsRoster", () => {
     });
 
     const result = await loadLtiNrpsRoster({
-      ltiTool: ltiToolWithMembersResult(getMembers),
+      ltiTool: mockLtiToolWithGetMembers(getMembers),
       ltiSession,
       contextId: "course-123",
     });

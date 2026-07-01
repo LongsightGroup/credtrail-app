@@ -3,21 +3,22 @@ import {
   RegistrationRequestSchema,
   formatLtiServiceError,
   type LtiDynamicRegistration,
-  type LTIConfig,
 } from "@longsightgroup/lti-tool";
-import { isLtiIssuerTenantConflictError, type SqlDatabase } from "@credtrail/db";
+import type { SqlDatabase } from "@credtrail/db";
 import { parseLtiDynamicRegistrationPathParams } from "@credtrail/validation";
 import type { AppBindings } from "../app";
 import { LTI_LAUNCH_PATH, LTI_OIDC_LOGIN_PATH } from "./constants";
-import { createCredTrailLtiDynamicRegistration } from "./credtrail-lti-tool";
+import {
+  createCredTrailLtiDynamicRegistration,
+  type DynamicRegistrationConfig,
+} from "./credtrail-lti-tool";
+import { ltiServiceErrorIndicatesIssuerTenantConflict } from "./lti-service-failures";
 import {
   createLtiDynamicRegistrationInviteToken,
   ltiDynamicRegistrationPath,
   ltiDynamicRegistrationUrl,
   verifyLtiDynamicRegistrationInviteToken,
 } from "./dynamic-registration-invite";
-
-type DynamicRegistrationConfig = NonNullable<LTIConfig["dynamicRegistration"]>;
 
 export const LTI_DYNAMIC_REGISTRATION_ROUTE_PATH =
   "/v1/tenants/:tenantId/lti/dynamic-registration/:inviteToken";
@@ -237,7 +238,7 @@ export const completeLtiDynamicRegistration = async (
   if (!result.success) {
     const errorMessage = formatLtiServiceError(result.error);
 
-    if (isLtiIssuerTenantConflictError(result.error.cause)) {
+    if (ltiServiceErrorIndicatesIssuerTenantConflict(result.error)) {
       return serviceFailure("issuer_tenant_conflict", errorMessage);
     }
     return serviceFailure("complete_failed", errorMessage);

@@ -113,7 +113,11 @@ import {
   type TenantLmsConnectionRecord,
   type TenantMembershipRecord,
 } from "@credtrail/db";
-import { LtiServiceError, type LTISession } from "@longsightgroup/lti-tool";
+import type { LTISession } from "@longsightgroup/lti-tool";
+import {
+  mockLtiToolCreateAdvantageForSession,
+  mockLtiToolWithDeepLinking,
+} from "./lti/test-support/lti-tool-mocks";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
@@ -1373,28 +1377,9 @@ describe("LTI 1.3 core launch flow", () => {
         vi.fn(async (sessionId: string) =>
           latestSession !== null && latestSession.id === sessionId ? latestSession : undefined,
         ),
-      createAdvantage: vi.fn((session: LTISession) => ({
-        getMembers:
-          options?.getMembers ??
-          vi.fn(async () => {
-            if (session.services?.nrps?.membershipUrl === undefined) {
-              return {
-                success: false,
-                error: new LtiServiceError({
-                  code: "service_not_available",
-                  serviceKind: "nrps",
-                  operation: "getMembers",
-                  message: "NRPS membership service is not available for this session",
-                }),
-              };
-            }
-
-            return {
-              success: true,
-              data: [],
-            };
-          }),
-      })),
+      createAdvantage: mockLtiToolCreateAdvantageForSession(
+        options?.getMembers === undefined ? {} : { getMembers: options.getMembers },
+      ),
     };
     const result = await loadAppWithMockedAuthProviders(() => {
       if (options?.issueBadgeForTenant !== undefined) {
@@ -3262,12 +3247,12 @@ describe("LTI 1.3 core launch flow", () => {
     const { app: isolatedApp } = await loadAppWithMockedAuthProviders(() => {
       vi.doMock("./lti/credtrail-lti-tool", () => {
         return {
-          createCredTrailLtiTool: vi.fn(async () => ({
-            getSession,
-            createAdvantage: vi.fn(() => ({
+          createCredTrailLtiTool: vi.fn(async () =>
+            mockLtiToolWithDeepLinking({
+              getSession,
               createDeepLinkingResponse,
-            })),
-          })),
+            }),
+          ),
         };
       });
     });
@@ -3364,12 +3349,12 @@ describe("LTI 1.3 core launch flow", () => {
     const { app: isolatedApp } = await loadAppWithMockedAuthProviders(() => {
       vi.doMock("./lti/credtrail-lti-tool", () => {
         return {
-          createCredTrailLtiTool: vi.fn(async () => ({
-            getSession,
-            createAdvantage: vi.fn(() => ({
+          createCredTrailLtiTool: vi.fn(async () =>
+            mockLtiToolWithDeepLinking({
+              getSession,
               createDeepLinkingResponse,
-            })),
-          })),
+            }),
+          ),
         };
       });
     });
