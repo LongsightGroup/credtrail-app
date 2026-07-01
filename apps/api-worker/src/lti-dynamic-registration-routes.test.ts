@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { Hono } from "hono";
 import { LtiServiceError, type LTIConfig } from "@longsightgroup/lti-tool";
-import { LtiIssuerTenantConflictError, type SqlDatabase } from "@credtrail/db";
+import type { SqlDatabase } from "@credtrail/db";
 import type { AppBindings, AppEnv } from "./app";
 import { registerLtiRoutes } from "./routes/lti-routes";
 import {
@@ -276,19 +276,13 @@ describe("LTI dynamic registration routes", () => {
     const app = createRouteApp();
     const env = createEnv();
     const tool = createToolMock();
-    const conflict = new LtiIssuerTenantConflictError(
-      "https://canvas.test",
-      "tenant-b",
-      "tenant-a",
-    );
     tool.completeDynamicRegistration.mockResolvedValueOnce({
       success: false,
       error: new LtiServiceError({
-        code: "platform_request_failed",
+        code: "storage_conflict",
         serviceKind: "dynamic_registration",
         operation: "completeDynamicRegistration",
-        message: conflict.message,
-        cause: conflict,
+        message: "LTI issuer is already registered to a different tenant",
       }),
     });
     mockedCreateCredTrailLtiDynamicRegistration.mockResolvedValue(tool);

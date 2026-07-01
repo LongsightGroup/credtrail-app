@@ -7,7 +7,7 @@ import {
 import { createLtiToolKey, findActiveLtiToolKey, type SqlDatabase } from "@credtrail/db";
 import { ltiStateSigningSecret } from "./lti-helpers";
 import { CredTrailLtiStorage } from "./credtrail-lti-storage";
-import { LTI_NONCE_TTL_SECONDS, LTI_STATE_TTL_SECONDS } from "./constants";
+import { LTI_STATE_TTL_SECONDS } from "./constants";
 import type { AppBindings } from "../app";
 
 const LTI_TOOL_KEY_ID = "credtrail-lti-main";
@@ -94,12 +94,10 @@ export const createCredTrailLtiConfig = async (
     keyPair,
     storage: new CredTrailLtiStorage(input.db, {
       defaultTenantId: input.defaultTenantId,
-      nonceTtlSeconds: LTI_NONCE_TTL_SECONDS,
     }),
     security: {
       keyId: LTI_TOOL_KEY_ID,
       stateExpirationSeconds: LTI_STATE_TTL_SECONDS,
-      nonceExpirationSeconds: LTI_NONCE_TTL_SECONDS,
     },
     ...(input.dynamicRegistration === undefined
       ? {}

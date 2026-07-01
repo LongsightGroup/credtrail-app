@@ -43,7 +43,11 @@ import {
   type LtiLaunchSessionRecord,
   type SqlDatabase,
 } from "@credtrail/db";
-import type { LTIDynamicRegistrationSession, LTISession } from "@longsightgroup/lti-tool";
+import {
+  LtiStorageConflictError,
+  type LTIDynamicRegistrationSession,
+  type LTISession,
+} from "@longsightgroup/lti-tool";
 import { CredTrailLtiStorage } from "./credtrail-lti-storage";
 
 const fakeDb = {} as SqlDatabase;
@@ -276,7 +280,7 @@ describe("CredTrailLtiStorage dynamic registration writes", () => {
         tokenUrl: "https://canvas.test/login/oauth2/token",
         jwksUrl: "https://canvas.test/api/lti/security/jwks",
       }),
-    ).rejects.toThrow("LTI issuer is already registered to a different tenant");
+    ).rejects.toThrow(LtiStorageConflictError);
     expect(mockedUpsertLtiIssuerRegistration).toHaveBeenCalledTimes(1);
   });
 

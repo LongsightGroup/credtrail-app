@@ -1,7 +1,7 @@
 import type {
   LTI13JwtPayload as LtiLaunchClaims,
   LTISession,
-  LTITool,
+  LtiToolPort,
   LtiLaunchVerificationError as CoreLtiLaunchVerificationError,
   LtiVerifiedLaunch,
 } from "@longsightgroup/lti-tool";
@@ -147,7 +147,7 @@ export interface ResolvedLtiLaunch {
   issuerEntry: LtiIssuerRegistryEntry;
   launchClaims: LtiLaunchClaims;
   ltiLaunchSession: LTISession;
-  ltiTool: LTITool;
+  ltiTool: LtiToolPort;
 }
 
 export const ltiIssuerHasSignedLaunchConfig = (issuerEntry: {

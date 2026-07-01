@@ -7,6 +7,7 @@ import type {
   LTIStorage,
 } from "@longsightgroup/lti-tool";
 import {
+  LtiStorageConflictError,
   parsePersistedLtiDynamicRegistrationSession,
   parsePersistedLtiSession,
   serializeLtiDynamicRegistrationSession,
@@ -19,6 +20,7 @@ import {
   findLtiLaunchSessionById,
   listLtiDeploymentsForIssuer,
   listLtiIssuerRegistrations,
+  isLtiIssuerTenantConflictError,
   normalizeLtiIssuer,
   recordLtiLaunchNonceUse,
   upsertLtiDeployment,
@@ -82,6 +84,25 @@ const toClient = async (
   };
 };
 
+const storeIssuerRegistration = async (
+  db: SqlDatabase,
+  input: Parameters<typeof upsertLtiIssuerRegistration>[1],
+): ReturnType<typeof upsertLtiIssuerRegistration> => {
+  try {
+    return await upsertLtiIssuerRegistration(db, input);
+  } catch (error) {
+    if (isLtiIssuerTenantConflictError(error)) {
+      throw new LtiStorageConflictError({
+        operation: "upsertLtiIssuerRegistration",
+        message: error.message,
+        cause: error,
+      });
+    }
+
+    throw error;
+  }
+};
+
 export class CredTrailLtiStorage implements LTIStorage {
   constructor(
     private readonly db: SqlDatabase,
@@ -130,7 +151,7 @@ export class CredTrailLtiStorage implements LTIStorage {
       throw new Error("defaultTenantId is required to add LTI clients through storage");
     }
 
-    await upsertLtiIssuerRegistration(this.db, {
+    await storeIssuerRegistration(this.db, {
       issuer: client.iss,
       tenantId,
       authorizationEndpoint: client.authUrl,
@@ -158,7 +179,7 @@ export class CredTrailLtiStorage implements LTIStorage {
       throw new Error("defaultTenantId is required to update LTI clients through storage");
     }
 
-    await upsertLtiIssuerRegistration(this.db, {
+    await storeIssuerRegistration(this.db, {
       issuer: client.iss ?? normalizeLtiIssuer(existing.issuer),
       tenantId,
       authorizationEndpoint: client.authUrl ?? existing.authorizationEndpoint,
@@ -343,7 +364,7 @@ export class CredTrailLtiStorage implements LTIStorage {
       throw new Error("defaultTenantId is required to save LTI launch configs");
     }
 
-    await upsertLtiIssuerRegistration(this.db, {
+    await storeIssuerRegistration(this.db, {
       issuer: launchConfig.iss,
       tenantId,
       authorizationEndpoint: launchConfig.authUrl,

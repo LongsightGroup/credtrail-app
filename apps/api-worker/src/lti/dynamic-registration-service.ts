@@ -12,7 +12,6 @@ import {
   createCredTrailLtiDynamicRegistration,
   type DynamicRegistrationConfig,
 } from "./credtrail-lti-tool";
-import { ltiServiceErrorIndicatesIssuerTenantConflict } from "./lti-service-failures";
 import {
   createLtiDynamicRegistrationInviteToken,
   ltiDynamicRegistrationPath,
@@ -238,7 +237,7 @@ export const completeLtiDynamicRegistration = async (
   if (!result.success) {
     const errorMessage = formatLtiServiceError(result.error);
 
-    if (ltiServiceErrorIndicatesIssuerTenantConflict(result.error)) {
+    if (result.error.code === "storage_conflict") {
       return serviceFailure("issuer_tenant_conflict", errorMessage);
     }
     return serviceFailure("complete_failed", errorMessage);

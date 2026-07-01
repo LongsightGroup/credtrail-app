@@ -89,8 +89,8 @@ importers:
         specifier: ^2.0.4
         version: 2.0.4(hono@4.12.27)
       '@longsightgroup/lti-tool':
-        specifier: 0.1.0
-        version: 0.1.0(hono@4.12.27)
+        specifier: 0.1.1
+        version: 0.1.1(hono@4.12.27)
       csv-stringify:
         specifier: ^6.7.0
         version: 6.7.0
@@ -1069,8 +1069,8 @@ packages:
     peerDependencies:
       tslib: '2'
 
-  '@longsightgroup/lti-tool@0.1.0':
-    resolution: {integrity: sha512-00nwPpCjAPfRL7nXLY3vWXn8wRqCAhlDpQCW5VRZ5M/ED36uWA5SmdmLaX2RjhUqWa7w/COoFKdGeGbZDrrzSw==}
+  '@longsightgroup/lti-tool@0.1.1':
+    resolution: {integrity: sha512-7vdJcR/mif1AO2eP9w+UXWdEuFkMbKO4dGhjLEtAliSMnvkvZuIxCMm/J+8DqEzvfKKiWmKCZs306yqru3Tv9Q==}
     peerDependencies:
       '@aws-sdk/client-dynamodb': ^3.1076.0
       '@aws-sdk/util-dynamodb': ^3.996.5
@@ -3620,7 +3620,7 @@ snapshots:
       '@jsonjoy.com/codegen': 17.67.0(tslib@2.8.1)
       tslib: 2.8.1
 
-  '@longsightgroup/lti-tool@0.1.0(hono@4.12.27)':
+  '@longsightgroup/lti-tool@0.1.1(hono@4.12.27)':
     dependencies:
       jose: 6.2.3
       lru-cache: 11.5.1

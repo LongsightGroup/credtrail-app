@@ -13,7 +13,7 @@ import {
   resolveLtiServiceCapabilities,
   type LTI13JwtPayload as LtiLaunchClaims,
   type LTISession,
-  type LTITool,
+  type LtiToolPort,
 } from "@longsightgroup/lti-tool";
 import type { AppBindings } from "../app";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
@@ -52,7 +52,7 @@ interface ResolveInstructorResourceLinkViewsBaseInput {
   tenantId: string;
   launchClaims: LtiLaunchClaims;
   ltiLaunchSession: LTISession;
-  ltiTool: LTITool;
+  ltiTool: LtiToolPort;
   issuerClientId: string;
   linkedUserId: string;
   membershipRole: TenantMembershipRole;

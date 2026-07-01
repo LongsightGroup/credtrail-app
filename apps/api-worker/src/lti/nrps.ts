@@ -2,7 +2,7 @@ import {
   type LtiServiceError,
   type LtiServiceErrorCode,
   type LTISession,
-  type LTITool,
+  type LtiToolPort,
   resolveLtiNrpsRoster,
   type ResolvedLtiNrpsRosterMember,
 } from "@longsightgroup/lti-tool";
@@ -106,7 +106,7 @@ const ltiNrpsRosterLoadFailureLogDetail = (
 };
 
 export const loadLtiNrpsRoster = async (input: {
-  ltiTool: LTITool;
+  ltiTool: LtiToolPort;
   ltiSession: LTISession;
   contextId: string | null;
 }): Promise<LtiNrpsRosterLoadResult> => {
