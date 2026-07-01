@@ -39,27 +39,29 @@ const fakeEnv: AppBindings = {
   PLATFORM_DOMAIN: "credtrail.test",
 };
 
-const createRouteApp = (): Hono<AppEnv> => {
+const createRouteApp = (input: { withLogger?: boolean } = {}): Hono<AppEnv> => {
   const app = new Hono<AppEnv>();
 
-  app.use("*", async (c, next) => {
-    c.set("requestId", "test-request");
-    c.set(
-      "appLogger",
-      createAppLogger({
-        context: {
-          service: "api-worker",
-          environment: "test",
-        },
-        fields: {
-          requestId: "test-request",
-          method: c.req.method,
-          path: new URL(c.req.url).pathname,
-        },
-      }),
-    );
-    await next();
-  });
+  if (input.withLogger !== false) {
+    app.use("*", async (c, next) => {
+      c.set("requestId", "test-request");
+      c.set(
+        "appLogger",
+        createAppLogger({
+          context: {
+            service: "api-worker",
+            environment: "test",
+          },
+          fields: {
+            requestId: "test-request",
+            method: c.req.method,
+            path: new URL(c.req.url).pathname,
+          },
+        }),
+      );
+      await next();
+    });
+  }
 
   registerLtiRoutes({
     app,
@@ -140,5 +142,22 @@ describe("LTI JWKS route", () => {
       component: "lti",
       detail: "key storage unavailable",
     });
+  });
+
+  it("returns a generic 500 response when request logging is not registered", async () => {
+    mockedCreateCredTrailLtiTool.mockRejectedValue(new Error("key storage unavailable"));
+
+    const response = await createRouteApp({ withLogger: false }).request(
+      LTI_JWKS_PATH,
+      undefined,
+      fakeEnv,
+    );
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({
+      error: "Internal server error",
+    });
+    expect(consoleError).not.toHaveBeenCalled();
   });
 });
