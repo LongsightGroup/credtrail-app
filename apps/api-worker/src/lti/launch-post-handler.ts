@@ -1,4 +1,5 @@
 import type { SqlDatabase } from "@credtrail/db";
+import { isValidationParseError } from "@credtrail/validation";
 import type { LtiAuthorizedLaunch, LTISession, LtiToolPort } from "@longsightgroup/lti-tool";
 import { LtiLaunchMessageResolutionError } from "@longsightgroup/lti-tool";
 import { customLaunchRouteHandler } from "@longsightgroup/lti-tool/hono";
@@ -36,10 +37,6 @@ export interface HandleLtiLaunchPostInput {
   createLtiTool?: CreateCredTrailLtiToolForLaunch;
 }
 
-const isPackageValidationError = (error: unknown): boolean => {
-  return error instanceof Error && error.name === "ZodError";
-};
-
 export const handleLtiLaunchFailureResponse = (c: AppContext, error: unknown): Response => {
   if (error instanceof LtiLaunchVerificationError) {
     return c.json(
@@ -59,7 +56,7 @@ export const handleLtiLaunchFailureResponse = (c: AppContext, error: unknown): R
     return c.json({ error: error.message }, 400);
   }
 
-  if (isPackageValidationError(error)) {
+  if (isValidationParseError(error)) {
     return c.json(
       {
         error: "Invalid launch parameters",

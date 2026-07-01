@@ -1,4 +1,5 @@
 import type { SqlDatabase } from "@credtrail/db";
+import { parseTenantPathParams } from "@credtrail/validation";
 import type {
   LTISession,
   LtiAuthorizedLaunch,
@@ -197,6 +198,31 @@ describe("handleLtiLaunchPost", () => {
     expect(response.status).toBe(400);
     expect(body).toEqual({
       error: "LtiResourceLinkRequest requires resource_link.id",
+    });
+  });
+
+  it("maps validation parse failures to invalid launch parameters", async () => {
+    const app = new Hono<AppEnv>();
+    let parseFailure: unknown;
+
+    try {
+      parseTenantPathParams({});
+    } catch (error: unknown) {
+      parseFailure = error;
+    }
+
+    if (parseFailure === undefined) {
+      throw new Error("Expected tenant path params parsing to fail");
+    }
+
+    app.get("/failure", (c) => handleLtiLaunchFailureResponse(c, parseFailure));
+
+    const response = await app.request("https://credtrail.example.edu/failure", undefined, fakeEnv);
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual({
+      error: "Invalid launch parameters",
     });
   });
 });
