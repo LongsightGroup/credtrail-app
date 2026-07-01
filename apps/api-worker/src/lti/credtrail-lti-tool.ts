@@ -2,9 +2,15 @@ import {
   LtiDynamicRegistration,
   LTITool,
   importLtiToolKeyPairFromJwk,
+  type JWKS,
   type LTIConfig,
 } from "@longsightgroup/lti-tool";
-import { createLtiToolKey, findActiveLtiToolKey, type SqlDatabase } from "@credtrail/db";
+import {
+  createLtiToolKey,
+  findActiveLtiToolKey,
+  type LtiToolKeyRecord,
+  type SqlDatabase,
+} from "@credtrail/db";
 import { ltiStateSigningSecret } from "./lti-helpers";
 import { CredTrailLtiStorage } from "./credtrail-lti-storage";
 import { LTI_STATE_TTL_SECONDS } from "./constants";
@@ -43,38 +49,124 @@ const generateRsaSigningKeyPair = async (): Promise<{
   };
 };
 
+interface StoredJwkRecord {
+  readonly [key: string]: unknown;
+  readonly kid?: string | undefined;
+}
+
+const parseStoredLtiToolJwk = (input: {
+  keyId: string;
+  jwkJson: string;
+  keyKind: "private" | "public";
+}): StoredJwkRecord => {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(input.jwkJson) as unknown;
+  } catch (cause: unknown) {
+    throw new Error(`Stored LTI tool ${input.keyKind} JWK is not valid JSON`, { cause });
+  }
+
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`Stored LTI tool ${input.keyKind} JWK must be a JSON object`);
+  }
+
+  // SAFETY: the object boundary has been checked above; JWK fields remain unknown
+  // until Web Crypto/package import validates private key material.
+  const record = parsed as Record<string, unknown>;
+
+  if (typeof record.kty !== "string" || record.kty.trim().length === 0) {
+    throw new Error(`Stored LTI tool ${input.keyKind} JWK is missing kty`);
+  }
+
+  return {
+    ...record,
+    kid: typeof record.kid === "string" && record.kid.trim().length > 0 ? record.kid : input.keyId,
+  };
+};
+
 const importStoredKeyPair = async (input: {
   keyId: string;
   privateJwkJson: string;
 }): Promise<CryptoKeyPair> => {
-  const privateJwk = JSON.parse(input.privateJwkJson) as JsonWebKey & { kid?: string };
+  const privateJwk = parseStoredLtiToolJwk({
+    keyId: input.keyId,
+    jwkJson: input.privateJwkJson,
+    keyKind: "private",
+  });
+
+  // SAFETY: importLtiToolKeyPairFromJwk performs the cryptographic JWK validation
+  // that TypeScript cannot express for the parsed JSON object.
   const imported = await importLtiToolKeyPairFromJwk({
     ...privateJwk,
-    kid: typeof privateJwk.kid === "string" ? privateJwk.kid : input.keyId,
-  });
+  } as JsonWebKey & { kid?: string });
 
   return imported.keyPair;
 };
 
-const loadOrCreateLtiToolKeyPair = async (db: SqlDatabase): Promise<CryptoKeyPair> => {
+interface LoadedLtiToolKey {
+  readonly key: LtiToolKeyRecord;
+  readonly generatedKeyPair?: CryptoKeyPair | undefined;
+}
+
+const loadOrCreateLtiToolKey = async (db: SqlDatabase): Promise<LoadedLtiToolKey> => {
   const activeKey = await findActiveLtiToolKey(db);
 
   if (activeKey !== null) {
-    return importStoredKeyPair({
-      keyId: activeKey.keyId,
-      privateJwkJson: activeKey.privateJwkJson,
-    });
+    return { key: activeKey };
   }
 
   const generated = await generateRsaSigningKeyPair();
-  await createLtiToolKey(db, {
+  const key = await createLtiToolKey(db, {
     keyId: LTI_TOOL_KEY_ID,
     publicJwkJson: JSON.stringify(generated.publicJwk),
     privateJwkJson: JSON.stringify(generated.privateJwk),
     isActive: true,
   });
 
-  return generated.keyPair;
+  return {
+    key,
+    generatedKeyPair: generated.keyPair,
+  };
+};
+
+const loadOrCreateLtiToolKeyPair = async (db: SqlDatabase): Promise<CryptoKeyPair> => {
+  const loaded = await loadOrCreateLtiToolKey(db);
+
+  if (loaded.generatedKeyPair !== undefined) {
+    return loaded.generatedKeyPair;
+  }
+
+  return importStoredKeyPair({
+    keyId: loaded.key.keyId,
+    privateJwkJson: loaded.key.privateJwkJson,
+  });
+};
+
+/**
+ * Resolves the public CredTrail LTI tool JWKS without constructing the full LTI protocol facade.
+ *
+ * The helper still owns first-use key creation so the public endpoint can bootstrap a new
+ * environment, but steady-state reads only project the stored public JWK.
+ */
+export const getCredTrailLtiToolJwks = async (db: SqlDatabase): Promise<JWKS> => {
+  const loaded = await loadOrCreateLtiToolKey(db);
+  const publicJwk = parseStoredLtiToolJwk({
+    keyId: loaded.key.keyId,
+    jwkJson: loaded.key.publicJwkJson,
+    keyKind: "public",
+  });
+
+  return {
+    keys: [
+      {
+        ...publicJwk,
+        use: "sig",
+        alg: "RS256",
+        kid: LTI_TOOL_KEY_ID,
+      },
+    ],
+  };
 };
 
 export interface CreateCredTrailLtiToolInput {
