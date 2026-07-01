@@ -10,7 +10,7 @@ import type { SqlDatabase } from "@credtrail/db";
 import { describe, expect, it, vi } from "vitest";
 import type { AppBindings } from "../app";
 import type { LtiIssuerRegistry } from "./lti-helpers";
-import { resolveLtiLaunch } from "./launch-verification";
+import { authorizeVerifiedLaunchForRegistry, resolveLtiLaunch } from "./launch-verification";
 
 const issuer = "https://canvas.example.edu";
 const clientId = "canvas-client-123";
@@ -157,6 +157,60 @@ const fakeLtiTool = (input: {
     createSessionFromVerifiedLaunch: input.createSessionFromVerifiedLaunch ?? vi.fn(),
   } as unknown as LTITool;
 };
+
+describe("authorizeVerifiedLaunchForRegistry", () => {
+  it("authorizes a verified launch when the issuer and client are registered", () => {
+    const authorization = authorizeVerifiedLaunchForRegistry(signedLaunchRegistry, {
+      payload: sampleLaunchPayload(),
+      issuer,
+      clientId,
+      deploymentId,
+      targetLinkUri,
+      launchConfig: {
+        iss: issuer,
+        clientId,
+        deploymentId,
+        authUrl: "https://canvas.example.edu/api/lti/authorize_redirect",
+        tokenUrl: "https://canvas.example.edu/login/oauth2/token",
+        jwksUrl: "https://canvas.example.edu/api/lti/security/jwks",
+      },
+    });
+
+    expect(authorization).toEqual({
+      success: true,
+      data: {
+        issuer,
+        entry: signedLaunchRegistry[issuer],
+      },
+    });
+  });
+
+  it("rejects a verified launch when the issuer and client pair is not registered", () => {
+    const authorization = authorizeVerifiedLaunchForRegistry(signedLaunchRegistry, {
+      payload: sampleLaunchPayload({
+        aud: "unexpected-client",
+      }),
+      issuer,
+      clientId: "unexpected-client",
+      deploymentId,
+      targetLinkUri,
+      launchConfig: {
+        iss: issuer,
+        clientId: "unexpected-client",
+        deploymentId,
+        authUrl: "https://canvas.example.edu/api/lti/authorize_redirect",
+        tokenUrl: "https://canvas.example.edu/login/oauth2/token",
+        jwksUrl: "https://canvas.example.edu/api/lti/security/jwks",
+      },
+    });
+
+    expect(authorization).toEqual({
+      success: false,
+      code: "issuer_registration_not_configured",
+      message: "No issuer registration configured for verified LTI launch",
+    });
+  });
+});
 
 describe("resolveLtiLaunch", () => {
   it("creates sessions from the verified launch for multi-audience launches", async () => {
