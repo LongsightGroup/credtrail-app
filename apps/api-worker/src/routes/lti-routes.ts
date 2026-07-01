@@ -23,7 +23,7 @@ import { registerLtiJwksRoute } from "../lti/jwks-routes";
 import { handleLtiLaunchPost } from "../lti/launch-post-handler";
 import {
   ltiLoginInputFromRequest,
-  normalizeLtiIssuer,
+  resolveLtiLoginIssuer,
   type LtiIssuerRegistry,
 } from "../lti/lti-helpers";
 import { ltiIssuerHasSignedLaunchConfig } from "../lti/launch-verification";
@@ -92,9 +92,9 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       );
     }
 
-    const issuerEntry = registry[normalizeLtiIssuer(loginRequest.iss)];
+    const loginIssuer = resolveLtiLoginIssuer(registry, loginRequest);
 
-    if (issuerEntry === undefined) {
+    if (loginIssuer.status === "unknown_issuer") {
       return c.json(
         {
           error: "Unknown LTI issuer",
@@ -103,9 +103,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       );
     }
 
-    const clientId = loginRequest.client_id ?? issuerEntry.clientId;
-
-    if (loginRequest.client_id !== undefined && loginRequest.client_id !== issuerEntry.clientId) {
+    if (loginIssuer.status === "client_id_mismatch") {
       return c.json(
         {
           error: "client_id does not match configured issuer registration",
@@ -113,6 +111,9 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
         400,
       );
     }
+
+    const issuerEntry = loginIssuer.entry;
+    const clientId = loginIssuer.clientId;
 
     if (!ltiIssuerHasSignedLaunchConfig(issuerEntry)) {
       return c.json(
@@ -127,7 +128,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     const db = resolveDatabase(c.env);
     const deploymentId = loginRequest.lti_deployment_id ?? "default";
     await upsertLtiDeployment(db, {
-      issuer: loginRequest.iss,
+      issuer: loginIssuer.issuer,
       clientId,
       deploymentId,
     });
@@ -137,7 +138,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       defaultTenantId: issuerEntry.tenantId,
     });
     const authRedirectUrl = await ltiTool.handleLogin({
-      iss: normalizeLtiIssuer(loginRequest.iss),
+      iss: loginIssuer.issuer,
       client_id: clientId,
       launchUrl: new URL(LTI_LAUNCH_PATH, c.req.url),
       login_hint: loginRequest.login_hint,
