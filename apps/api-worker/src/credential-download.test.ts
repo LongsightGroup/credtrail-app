@@ -30,22 +30,25 @@ vi.mock("@credtrail/db/postgres", () => {
 });
 
 vi.mock("./lti/credtrail-lti-tool", () => {
+  const createTool = vi.fn(async () => ({
+    handleLogin: vi.fn(async (input: Record<string, unknown>) => {
+      const issuer = String(input.iss);
+      const redirectUrl = new URL(`${issuer}/api/lti/authorize_redirect`);
+      redirectUrl.searchParams.set("scope", "openid");
+      redirectUrl.searchParams.set("response_type", "id_token");
+      redirectUrl.searchParams.set("response_mode", "form_post");
+      redirectUrl.searchParams.set("prompt", "none");
+      redirectUrl.searchParams.set("client_id", String(input.client_id));
+      redirectUrl.searchParams.set("redirect_uri", "http://localhost/v1/lti/launch");
+      redirectUrl.searchParams.set("state", "mock-lti-state");
+      redirectUrl.searchParams.set("nonce", "mock-lti-nonce");
+      return redirectUrl.toString();
+    }),
+  }));
+
   return {
-    createCredTrailLtiTool: vi.fn(async () => ({
-      handleLogin: vi.fn(async (input: Record<string, unknown>) => {
-        const issuer = String(input.iss);
-        const redirectUrl = new URL(`${issuer}/api/lti/authorize_redirect`);
-        redirectUrl.searchParams.set("scope", "openid");
-        redirectUrl.searchParams.set("response_type", "id_token");
-        redirectUrl.searchParams.set("response_mode", "form_post");
-        redirectUrl.searchParams.set("prompt", "none");
-        redirectUrl.searchParams.set("client_id", String(input.client_id));
-        redirectUrl.searchParams.set("redirect_uri", "http://localhost/v1/lti/launch");
-        redirectUrl.searchParams.set("state", "mock-lti-state");
-        redirectUrl.searchParams.set("nonce", "mock-lti-nonce");
-        return redirectUrl.toString();
-      }),
-    })),
+    createCredTrailLtiTool: createTool,
+    resolveCredTrailLtiTool: createTool,
   };
 });
 

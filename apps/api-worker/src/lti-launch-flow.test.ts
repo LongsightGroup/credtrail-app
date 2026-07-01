@@ -1397,6 +1397,7 @@ describe("LTI 1.3 core launch flow", () => {
       vi.doMock("./lti/credtrail-lti-tool", () => {
         return {
           createCredTrailLtiTool: vi.fn(async () => ltiTool),
+          resolveCredTrailLtiTool: vi.fn(async () => ltiTool),
         };
       });
     });
@@ -3246,13 +3247,16 @@ describe("LTI 1.3 core launch flow", () => {
     });
     const { app: isolatedApp } = await loadAppWithMockedAuthProviders(() => {
       vi.doMock("./lti/credtrail-lti-tool", () => {
+        const createTool = vi.fn(async () =>
+          mockLtiToolWithDeepLinking({
+            getSession,
+            createDeepLinkingResponse,
+          }),
+        );
+
         return {
-          createCredTrailLtiTool: vi.fn(async () =>
-            mockLtiToolWithDeepLinking({
-              getSession,
-              createDeepLinkingResponse,
-            }),
-          ),
+          createCredTrailLtiTool: createTool,
+          resolveCredTrailLtiTool: createTool,
         };
       });
     });
@@ -3348,13 +3352,16 @@ describe("LTI 1.3 core launch flow", () => {
     });
     const { app: isolatedApp } = await loadAppWithMockedAuthProviders(() => {
       vi.doMock("./lti/credtrail-lti-tool", () => {
+        const createTool = vi.fn(async () =>
+          mockLtiToolWithDeepLinking({
+            getSession,
+            createDeepLinkingResponse,
+          }),
+        );
+
         return {
-          createCredTrailLtiTool: vi.fn(async () =>
-            mockLtiToolWithDeepLinking({
-              getSession,
-              createDeepLinkingResponse,
-            }),
-          ),
+          createCredTrailLtiTool: createTool,
+          resolveCredTrailLtiTool: createTool,
         };
       });
     });

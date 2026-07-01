@@ -1,4 +1,5 @@
 import { upsertLtiResourceLinkPlacement, type SqlDatabase } from "@credtrail/db";
+import type { AppLogger } from "../app/observability";
 import { logLtiWarning } from "./log";
 
 export type UpsertLtiLaunchResourceLinkPlacementResult =
@@ -22,13 +23,18 @@ export const upsertLtiLaunchResourceLinkPlacement = async (input: {
   badgeTemplateId: string;
   ruleId?: string | null | undefined;
   createdByUserId: string;
+  logger?: AppLogger | undefined;
 }): Promise<UpsertLtiLaunchResourceLinkPlacementResult> => {
   if (input.contextId === null || input.contextId.trim().length === 0) {
-    logLtiWarning("Skipping resource-link placement upsert because LMS context id is missing", {
-      tenantId: input.tenantId,
-      resourceLinkId: input.resourceLinkId,
-      badgeTemplateId: input.badgeTemplateId,
-    });
+    logLtiWarning(
+      input.logger,
+      "Skipping resource-link placement upsert because LMS context id is missing",
+      {
+        tenantId: input.tenantId,
+        resourceLinkId: input.resourceLinkId,
+        badgeTemplateId: input.badgeTemplateId,
+      },
+    );
 
     return {
       ok: false,
@@ -55,7 +61,7 @@ export const upsertLtiLaunchResourceLinkPlacement = async (input: {
   } catch (error) {
     const detail = error instanceof Error ? error.message : "unknown error";
 
-    logLtiWarning("Resource-link placement upsert failed", {
+    logLtiWarning(input.logger, "Resource-link placement upsert failed", {
       tenantId: input.tenantId,
       contextId: input.contextId,
       resourceLinkId: input.resourceLinkId,

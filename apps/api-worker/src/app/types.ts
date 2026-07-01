@@ -2,6 +2,7 @@ import type { ImmutableCredentialStore } from "@credtrail/core-domain";
 import type { Context } from "hono";
 import type { AuthContextVariables } from "../auth/auth-context";
 import type { BadgeTemplateImageGenerationAiBinding } from "../badges/badge-template-image-generation";
+import type { ObservabilityContextVariables } from "./observability";
 
 export interface AppBindings {
   APP_ENV: string;
@@ -42,7 +43,7 @@ export interface AppBindings {
 
 export interface AppEnv {
   Bindings: AppBindings;
-  Variables: AuthContextVariables;
+  Variables: AuthContextVariables & ObservabilityContextVariables;
 }
 
 export type AppContext = Context<AppEnv>;

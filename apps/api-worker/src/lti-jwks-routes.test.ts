@@ -1,7 +1,8 @@
 import { Hono } from "hono";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SqlDatabase } from "@credtrail/db";
-import type { AppBindings, AppEnv } from "./app";
+import type { AppBindings, AppContext, AppEnv } from "./app";
+import { createAppLogger } from "./app/observability";
 import { LTI_JWKS_PATH } from "./lti/constants";
 import { registerLtiRoutes } from "./routes/lti-routes";
 
@@ -14,6 +15,15 @@ const { mockedCreateCredTrailLtiTool } = vi.hoisted(() => {
 vi.mock("./lti/credtrail-lti-tool", () => {
   return {
     createCredTrailLtiTool: mockedCreateCredTrailLtiTool,
+    resolveCredTrailLtiTool: async (
+      c: AppContext,
+      resolveDatabase: (bindings: AppBindings) => SqlDatabase,
+    ) => {
+      return mockedCreateCredTrailLtiTool({
+        db: resolveDatabase(c.env),
+        env: c.env,
+      });
+    },
   };
 });
 
@@ -32,6 +42,25 @@ const fakeEnv: AppBindings = {
 const createRouteApp = (): Hono<AppEnv> => {
   const app = new Hono<AppEnv>();
 
+  app.use("*", async (c, next) => {
+    c.set("requestId", "test-request");
+    c.set(
+      "appLogger",
+      createAppLogger({
+        context: {
+          service: "api-worker",
+          environment: "test",
+        },
+        fields: {
+          requestId: "test-request",
+          method: c.req.method,
+          path: new URL(c.req.url).pathname,
+        },
+      }),
+    );
+    await next();
+  });
+
   registerLtiRoutes({
     app,
     resolveLtiIssuerRegistry: async () => ({}),
@@ -49,8 +78,15 @@ const createRouteApp = (): Hono<AppEnv> => {
 };
 
 describe("LTI JWKS route", () => {
+  let consoleError: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     mockedCreateCredTrailLtiTool.mockReset();
+    consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    consoleError.mockRestore();
   });
 
   it("serves the CredTrail LTI tool JWKS", async () => {
@@ -92,6 +128,17 @@ describe("LTI JWKS route", () => {
     expect(response.status).toBe(500);
     expect(body).toEqual({
       error: "Internal server error",
+    });
+    const errorRecord = JSON.parse(String(consoleError.mock.calls[0]?.[0])) as Record<
+      string,
+      unknown
+    >;
+    expect(errorRecord).toMatchObject({
+      level: "error",
+      message: "lti_jwks_failed",
+      requestId: "test-request",
+      component: "lti",
+      detail: "key storage unavailable",
     });
   });
 });

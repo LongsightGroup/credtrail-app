@@ -7,6 +7,7 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
+import type { AppLogger } from "../app/observability";
 import type { LtiNrpsMember } from "./nrps";
 import { logLtiWarning } from "./log";
 import {
@@ -127,6 +128,7 @@ export const resolveLtiRosterEligibilityRuleContext = async (input: {
   deploymentId: string;
   resourceLinkId: string;
   launchRuleId: string | null;
+  logger?: AppLogger | undefined;
 }): Promise<LtiRosterEligibilityRuleResolution> => {
   if (input.launchRuleId !== null) {
     return {
@@ -145,11 +147,15 @@ export const resolveLtiRosterEligibilityRuleContext = async (input: {
       resourceLinkId: input.resourceLinkId,
     });
   } catch (error) {
-    logLtiWarning("Could not resolve LTI resource link placement for roster eligibility", {
-      tenantId: input.tenantId,
-      resourceLinkId: input.resourceLinkId,
-      detail: error instanceof Error ? error.message : "unknown error",
-    });
+    logLtiWarning(
+      input.logger,
+      "Could not resolve LTI resource link placement for roster eligibility",
+      {
+        tenantId: input.tenantId,
+        resourceLinkId: input.resourceLinkId,
+        detail: error instanceof Error ? error.message : "unknown error",
+      },
+    );
 
     return {
       status: "unavailable",
@@ -367,6 +373,7 @@ export const evaluateLtiRosterMembersEligibility = async (input: {
   issuedStatesByUserId: ReadonlyMap<string, LtiRosterIssuedBadgeStateForEligibility>;
   nowIso: string;
   prepared?: LtiRosterEligibilityPreparedEvaluation | null;
+  logger?: AppLogger | undefined;
 }): Promise<Map<string, LtiRosterEligibilityResult>> => {
   if (input.ruleResolution.status !== "resolved") {
     const unresolvedResult = rosterMemberEligibilityFromRuleResolution(input.ruleResolution);

@@ -68,11 +68,15 @@ export const executeLtiRosterIssuance = async (
   });
 
   if (!rosterResult.success) {
-    logLtiWarning("Could not load LMS roster for resource-link badge issuance", {
-      tenantId: input.issuanceAction.tenantId,
-      ltiSessionId: input.issuanceAction.ltiSessionId,
-      ...rosterResult.failure.logDetail,
-    });
+    logLtiWarning(
+      input.c.get("appLogger"),
+      "Could not load LMS roster for resource-link badge issuance",
+      {
+        tenantId: input.issuanceAction.tenantId,
+        ltiSessionId: input.issuanceAction.ltiSessionId,
+        ...rosterResult.failure.logDetail,
+      },
+    );
 
     throw new LtiRosterIssuanceError(
       "CredTrail could not load the learner roster from the LMS. Check the LMS connection settings.",
@@ -99,6 +103,7 @@ export const executeLtiRosterIssuance = async (
     deploymentId: input.issuanceAction.deploymentId,
     resourceLinkId: input.issuanceAction.resourceLinkId,
     launchRuleId: null,
+    logger: input.c.get("appLogger"),
   });
   const eligibilityByUserId = ruleContext.issuanceBehavior.manualIssuanceAllowed
     ? await evaluateLtiRosterMembersEligibility({
@@ -108,6 +113,7 @@ export const executeLtiRosterIssuance = async (
         members: roster.learnerMembers,
         issuedStatesByUserId: issuedBadgeStatesByUserId,
         nowIso: new Date().toISOString(),
+        logger: input.c.get("appLogger"),
         prepared: ruleContext.prepared,
       })
     : new Map();

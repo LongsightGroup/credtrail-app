@@ -8,7 +8,7 @@ import { createLtiToolKey, findActiveLtiToolKey, type SqlDatabase } from "@credt
 import { ltiStateSigningSecret } from "./lti-helpers";
 import { CredTrailLtiStorage } from "./credtrail-lti-storage";
 import { LTI_STATE_TTL_SECONDS } from "./constants";
-import type { AppBindings } from "../app";
+import type { AppBindings, AppContext } from "../app";
 
 const LTI_TOOL_KEY_ID = "credtrail-lti-main";
 
@@ -109,6 +109,18 @@ export const createCredTrailLtiTool = async (
   input: CreateCredTrailLtiToolInput,
 ): Promise<LTITool> => {
   return new LTITool(await createCredTrailLtiConfig(input));
+};
+
+export const resolveCredTrailLtiTool = async (
+  c: AppContext,
+  resolveDatabase: (bindings: AppBindings) => SqlDatabase,
+  options: Omit<CreateCredTrailLtiToolInput, "db" | "env"> = {},
+): Promise<LTITool> => {
+  return createCredTrailLtiTool({
+    db: resolveDatabase(c.env),
+    env: c.env,
+    ...options,
+  });
 };
 
 export const createCredTrailLtiDynamicRegistration = async (

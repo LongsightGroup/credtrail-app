@@ -2,7 +2,7 @@ import type { SqlDatabase } from "@credtrail/db";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import { LTI_JWKS_PATH } from "./constants";
-import { createCredTrailLtiTool } from "./credtrail-lti-tool";
+import { resolveCredTrailLtiTool } from "./credtrail-lti-tool";
 
 interface RegisterLtiJwksRouteInput {
   app: Hono<AppEnv>;
@@ -14,13 +14,15 @@ const serveLtiJwks = async (
   resolveDatabase: (bindings: AppBindings) => SqlDatabase,
 ): Promise<Response> => {
   try {
-    const ltiTool = await createCredTrailLtiTool({
-      db: resolveDatabase(c.env),
-      env: c.env,
-    });
+    const ltiTool = await resolveCredTrailLtiTool(c, resolveDatabase);
 
     return c.json(await ltiTool.getJWKS());
-  } catch {
+  } catch (error) {
+    c.get("appLogger").error("lti_jwks_failed", {
+      component: "lti",
+      detail: error instanceof Error ? error.message : "unknown error",
+    });
+
     return c.json(
       {
         error: "Internal server error",

@@ -1,6 +1,7 @@
 import { findBadgeTemplateById, type SqlDatabase } from "@credtrail/db";
 import { LTI_CLAIM_DEPLOYMENT_ID } from "@longsightgroup/lti-tool";
 import type { AppContext } from "../app";
+import type { AppLogger } from "../app/observability";
 import { renderAppPage } from "../ui/render-page";
 import { LTI_SESSION_HANDOFF_TTL_SECONDS } from "./constants";
 import { createCourseBadgePlacementRule } from "./course-badge-setup";
@@ -86,6 +87,7 @@ const recordLaunchedResourceLinkPlacement = async (input: {
   launchClaims: ResolvedLtiLaunch["launchClaims"];
   launch: ValidatedResourceLinkLaunch;
   linkedUserId: string;
+  logger?: AppLogger | undefined;
 }): Promise<UpsertLtiLaunchResourceLinkPlacementResult | null> => {
   if (input.launch.kind === "course") {
     return null;
@@ -102,6 +104,7 @@ const recordLaunchedResourceLinkPlacement = async (input: {
     badgeTemplateId: input.launch.launchMessage.badgeTemplateId,
     ruleId: input.launch.launchMessage.ruleId,
     createdByUserId: input.linkedUserId,
+    logger: input.logger,
   });
 };
 
@@ -142,6 +145,7 @@ export const prepareLaunchedResourceLinkPlacement = async (
         launchClaims: input.launchClaims,
         launch: input.launch,
         linkedUserId: input.linkedUserId,
+        logger: input.c.get("appLogger"),
       }),
     });
   }
@@ -284,6 +288,7 @@ const resourceLinkViewsForLaunch = async (input: {
         issuerClientId: input.resolvedLaunch.issuerEntry.clientId,
         linkedUserId: input.linkedAccount.userId,
         membershipRole: input.linkedAccount.membershipRole,
+        logger: input.c.get("appLogger"),
         sha256Hex: input.sha256Hex,
         sessionHandoffTtlSeconds: LTI_SESSION_HANDOFF_TTL_SECONDS,
       },
@@ -301,6 +306,7 @@ const resourceLinkViewsForLaunch = async (input: {
         ltiLaunchSession: input.resolvedLaunch.ltiLaunchSession,
         issuerClientId: input.resolvedLaunch.issuerEntry.clientId,
         linkedUserId: input.linkedAccount.userId,
+        logger: input.c.get("appLogger"),
       },
     });
   }
@@ -371,12 +377,13 @@ export const logResourceLinkPlacementFailure = (input: {
   tenantId: string;
   launch: ValidatedResourceLinkLaunch;
   placementResult: UpsertLtiLaunchResourceLinkPlacementResult;
+  logger?: AppLogger | undefined;
 }): void => {
   if (input.placementResult.ok) {
     return;
   }
 
-  logLtiWarning("LTI launch continuing without recording resource-link placement", {
+  logLtiWarning(input.logger, "LTI launch continuing without recording resource-link placement", {
     tenantId: input.tenantId,
     resourceLinkId: input.launch.launchMessage.resourceLinkId,
     badgeTemplateId: input.launch.launchMessage.badgeTemplateId ?? "",

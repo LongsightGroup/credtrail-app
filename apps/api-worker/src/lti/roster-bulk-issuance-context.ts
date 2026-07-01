@@ -1,4 +1,5 @@
 import type { SqlDatabase } from "@credtrail/db";
+import type { AppLogger } from "../app/observability";
 import type { LtiNrpsMember } from "./nrps";
 import {
   ltiRosterRulePendingIssuanceBehavior,
@@ -47,6 +48,7 @@ export const prepareLtiRosterRuleIssuanceContext = async (input: {
   deploymentId: string;
   resourceLinkId: string;
   launchRuleId: string | null;
+  logger?: AppLogger | undefined;
 }): Promise<LtiRosterRuleIssuanceContext> => {
   const ruleResolution = await resolveLtiRosterEligibilityRuleContext({
     db: input.db,
@@ -56,6 +58,7 @@ export const prepareLtiRosterRuleIssuanceContext = async (input: {
     deploymentId: input.deploymentId,
     resourceLinkId: input.resourceLinkId,
     launchRuleId: input.launchRuleId,
+    logger: input.logger,
   });
 
   if (ruleResolution.status === "unavailable") {
@@ -98,6 +101,7 @@ export const prepareLtiRosterBulkIssuanceContext = async (input: {
   members: readonly LtiNrpsMember[];
   issuedStatesByUserId: ReadonlyMap<string, LtiRosterIssuedBadgeStateForEligibility>;
   nowIso: string;
+  logger?: AppLogger | undefined;
 }): Promise<LtiRosterBulkIssuanceContext> => {
   const ruleContext = await prepareLtiRosterRuleIssuanceContext(input);
   const eligibilityByUserId = await evaluateLtiRosterMembersEligibility({

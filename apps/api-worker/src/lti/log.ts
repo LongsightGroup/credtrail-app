@@ -1,6 +1,13 @@
+import type { ObservabilityFields } from "@credtrail/core-domain";
+import type { AppLogger } from "../app/observability";
+
 export const logLtiWarning = (
+  logger: AppLogger | undefined,
   message: string,
-  context: Record<string, string | number | boolean>,
+  context: ObservabilityFields,
 ): void => {
-  console.error(`[lti] ${message}`, context);
+  logger?.warn(message, {
+    component: "lti",
+    ...context,
+  });
 };

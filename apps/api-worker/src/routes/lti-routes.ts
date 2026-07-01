@@ -27,7 +27,7 @@ import {
   badgeTemplateDeepLinkContentItem,
   findLtiIssuerRegistryEntry,
 } from "../lti/deep-linking-helpers";
-import { createCredTrailLtiTool } from "../lti/credtrail-lti-tool";
+import { resolveCredTrailLtiTool } from "../lti/credtrail-lti-tool";
 import {
   ltiCourseBadgeSetupRuleDefinition,
   parseLtiCourseBadgeSetupPreset,
@@ -164,9 +164,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
       clientId,
       deploymentId,
     });
-    const ltiTool = await createCredTrailLtiTool({
-      db,
-      env: c.env,
+    const ltiTool = await resolveCredTrailLtiTool(c, resolveDatabase, {
       defaultTenantId: issuerEntry.tenantId,
     });
     const authRedirectUrl = await ltiTool.handleLogin({
@@ -232,10 +230,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     }
 
     const db = resolveDatabase(c.env);
-    const ltiTool = await createCredTrailLtiTool({
-      db,
-      env: c.env,
-    });
+    const ltiTool = await resolveCredTrailLtiTool(c, resolveDatabase);
     const ltiSession = await ltiTool.getSession(ltiSessionId);
     const ltiCapabilities =
       ltiSession === undefined ? null : resolveLtiServiceCapabilities(ltiSession);
@@ -412,10 +407,7 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
     }
 
     const db = resolveDatabase(c.env);
-    const ltiTool = await createCredTrailLtiTool({
-      db,
-      env: c.env,
-    });
+    const ltiTool = await resolveCredTrailLtiTool(c, resolveDatabase);
     const ltiSession = await ltiTool.getSession(issuanceAction.ltiSessionId);
 
     if (ltiSession === undefined) {

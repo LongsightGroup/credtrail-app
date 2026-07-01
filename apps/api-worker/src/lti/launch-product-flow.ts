@@ -94,7 +94,7 @@ const establishLtiLaunchSession = async (input: {
       sha256Hex: input.sha256Hex,
     });
   } catch (error) {
-    logLtiWarning("Unable to link LTI launch to local account", {
+    logLtiWarning(input.c.get("appLogger"), "Unable to link LTI launch to local account", {
       tenantId: input.tenantId,
       roleKind: input.launchMessage.roleKind,
       issuer: input.launchClaims.iss,
@@ -189,6 +189,7 @@ export const handleVerifiedLtiLaunch: HandleVerifiedLtiLaunch = async (input) =>
       tenantId: input.tenantId,
       launch: preparedResourceLinkLaunch.launch,
       placementResult: preparedResourceLinkLaunch.placementResult,
+      logger: input.c.get("appLogger"),
     });
   }
 

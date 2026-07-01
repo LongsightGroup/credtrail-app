@@ -66,7 +66,9 @@ const ltiSession = {
 const mockedGetMembers = vi.fn();
 const ltiTool = mockLtiToolWithGetMembers(mockedGetMembers);
 
-const appContext = {} as Parameters<typeof executeLtiRosterIssuance>[0]["c"];
+const appContext = {
+  get: () => undefined,
+} as unknown as Parameters<typeof executeLtiRosterIssuance>[0]["c"];
 
 const sampleRuleVersionWithTiming = (
   issuanceTiming: "immediate" | "manual" | "end_of_term",
