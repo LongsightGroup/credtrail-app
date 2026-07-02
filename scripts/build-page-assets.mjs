@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Script } from "node:vm";
+import { assembleScriptAsset } from "../apps/api-worker/src/ui/page-assets/assemble-script-asset.ts";
 import { assembleStyleAsset } from "../apps/api-worker/src/ui/page-assets/assemble-style-asset.ts";
 import {
   FONT_ASSET_SOURCES,
@@ -62,8 +64,12 @@ const readStyleAssetBody = (sources) => {
   return assembleStyleAsset(sources, readPageAssetContentFile, replaceFontPaths);
 };
 
-const readScriptAssetBody = (sources) => {
-  return sources.map((sourcePath) => readPageAssetScriptContentFile(sourcePath)).join("\n");
+const readScriptAssetBody = (source) => {
+  const body = assembleScriptAsset(source, readPageAssetScriptContentFile);
+
+  new Script(body, { filename: `${source.stem}.source.js` });
+
+  return body;
 };
 
 const pageManifestEntries = [];
@@ -73,7 +79,7 @@ for (const [key, source] of Object.entries(PAGE_ASSET_BUILD_SOURCES)) {
   const body =
     source.kind === "style"
       ? readStyleAssetBody(source.sources)
-      : readScriptAssetBody(source.sources);
+      : readScriptAssetBody(source);
   const filename = `${source.stem}.${hashBody(body)}.${extension}`;
   const path = `/assets/ui/${filename}`;
 

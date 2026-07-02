@@ -1,4 +1,3 @@
-
 (() => {
   const contextElement = document.getElementById('ct-admin-context');
 

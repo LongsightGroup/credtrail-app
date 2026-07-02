@@ -1,5 +1,3 @@
-
-(() => {
   const contextElement = document.getElementById('ct-admin-context');
 
   if (!(contextElement instanceof HTMLElement)) {

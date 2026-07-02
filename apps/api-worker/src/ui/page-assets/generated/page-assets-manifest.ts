@@ -25,7 +25,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin.c0b6449d53.js",
+    path: "/assets/ui/institution-admin.e87814e4b2.js",
   },
   institutionAdminShellJs: {
     kind: "script",
@@ -41,11 +41,11 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminBadgeTemplateListJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-badge-template-list.23d1d9355b.js",
+    path: "/assets/ui/institution-admin-badge-template-list.33ffe915a3.js",
   },
   institutionAdminBadgeTemplateEditorJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-badge-template-editor.32176aeb37.js",
+    path: "/assets/ui/institution-admin-badge-template-editor.b1560ed337.js",
   },
   institutionAdminIssuedBadgesJs: {
     kind: "script",
@@ -53,7 +53,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminRuleBuilderJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-rule-builder.bd40b72ad8.js",
+    path: "/assets/ui/institution-admin-rule-builder.74193108a1.js",
   },
   learnerRecordCss: {
     kind: "style",

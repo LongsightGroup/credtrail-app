@@ -432,4 +432,3 @@
     refreshConditionCardValueListOptions();
     syncRuleBuilderSummary();
   }
-})();

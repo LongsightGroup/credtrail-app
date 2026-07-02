@@ -1,3 +1,4 @@
+import { assembleScriptAsset } from "./ui/page-assets/assemble-script-asset";
 import { assembleStyleAsset } from "./ui/page-assets/assemble-style-asset";
 import { PAGE_ASSET_BUILD_SOURCES } from "./ui/page-assets/build-registry";
 import {
@@ -25,5 +26,5 @@ export const readScriptAssetSource = (assetKey: PageAssetKey): string => {
     throw new Error(`${assetKey} is not a script asset`);
   }
 
-  return source.sources.map((sourcePath) => readPageAssetScriptContentFile(sourcePath)).join("\n");
+  return assembleScriptAsset(source, readPageAssetScriptContentFile);
 };

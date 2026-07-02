@@ -1,4 +1,3 @@
-
 (() => {
   const contextElement = document.getElementById('ct-admin-context');
 
@@ -203,6 +202,5 @@ if (badgeTemplateTableBody instanceof HTMLElement) {
     }
   });
 }
-
 
 })();

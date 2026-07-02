@@ -85,4 +85,3 @@
     syncReportingFocusTarget();
     window.addEventListener('hashchange', syncReportingFocusTarget);
   }
-})();

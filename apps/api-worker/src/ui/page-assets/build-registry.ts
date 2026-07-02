@@ -12,6 +12,7 @@ export interface StylePageAssetBuildSource {
 export interface ScriptPageAssetBuildSource {
   readonly kind: "script";
   readonly stem: string;
+  readonly wrapper?: "iife";
   readonly sources: readonly string[];
 }
 
@@ -78,6 +79,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   institutionAdminJs: {
     kind: "script",
     stem: "institution-admin",
+    wrapper: "iife",
     sources: [
       "institution-admin-bootstrap.js",
       "institution-admin-rule-operations.js",
@@ -106,17 +108,18 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   institutionAdminBadgeTemplateListJs: {
     kind: "script",
     stem: "institution-admin-badge-template-list",
+    wrapper: "iife",
     sources: [
       "institution-admin-badge-template-shared-bootstrap.js",
       "institution-admin-badge-template-history-core.js",
       "institution-admin-badge-template-image-fallback.js",
       "institution-admin-badge-template-list-history.js",
-      "close-iife.js",
     ],
   },
   institutionAdminBadgeTemplateEditorJs: {
     kind: "script",
     stem: "institution-admin-badge-template-editor",
+    wrapper: "iife",
     sources: [
       "institution-admin-badge-template-shared-bootstrap.js",
       "institution-admin-badge-template-editor-records.js",
@@ -124,7 +127,6 @@ export const PAGE_ASSET_BUILD_SOURCES = {
       "institution-admin-badge-template-image-helpers.js",
       "institution-admin-badge-template-image-workflow.js",
       "institution-admin-badge-template-trusted-repeatable.js",
-      "close-iife.js",
     ],
   },
   institutionAdminIssuedBadgesJs: {
@@ -135,6 +137,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   institutionAdminRuleBuilderJs: {
     kind: "script",
     stem: "institution-admin-rule-builder",
+    wrapper: "iife",
     sources: [
       "institution-admin-rule-builder-bootstrap.js",
       "admin-status-pill-class-helper.js",
@@ -165,7 +168,8 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   ltiDeepLinkSetupJs: {
     kind: "script",
     stem: "lti-deep-link-setup",
-    sources: ["open-iife.js", "lms-gradebook-picker-primitives.js", "lti-deep-link-setup.js"],
+    wrapper: "iife",
+    sources: ["lms-gradebook-picker-primitives.js", "lti-deep-link-setup.js"],
   },
   ltiPostMessageStorageJs: {
     kind: "script",

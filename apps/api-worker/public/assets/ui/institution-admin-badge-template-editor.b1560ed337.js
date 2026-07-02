@@ -1,4 +1,3 @@
-
 (() => {
   const contextElement = document.getElementById('ct-admin-context');
 
@@ -588,6 +587,5 @@ document.addEventListener("click", (event) => {
     }
   }
 });
-
 
 })();

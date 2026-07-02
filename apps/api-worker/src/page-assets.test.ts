@@ -2,11 +2,16 @@ import { readdirSync, readFileSync } from "node:fs";
 import { createContext, Script } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { readScriptAssetSource, readStyleSourceFile } from "./page-asset-test-utils";
+import { PAGE_ASSET_BUILD_SOURCES } from "./ui/page-assets/build-registry";
 import { pageAssetPath, type PageAssetKey } from "./ui/page-assets";
 
 const INSTITUTION_ADMIN_SHELL_JS = readScriptAssetSource("institutionAdminShellJs");
 const LTI_DEEP_LINK_SETUP_JS = readScriptAssetSource("ltiDeepLinkSetupJs");
 const PUBLIC_BADGE_JS = readScriptAssetSource("publicBadgeJs");
+
+const scriptAssetKeys = Object.entries(PAGE_ASSET_BUILD_SOURCES).flatMap(([assetKey, source]) => {
+  return source.kind === "script" ? [assetKey as PageAssetKey] : [];
+});
 
 const readGeneratedAsset = (assetKey: PageAssetKey): string => {
   const publicAssetPath = pageAssetPath(assetKey).replace(/^\//, "");
@@ -273,23 +278,18 @@ describe("page asset manifest", () => {
   });
 
   it("emits JavaScript assets that parse as browser scripts", () => {
-    const scriptAssetKeys: readonly PageAssetKey[] = [
-      "authLoginJs",
-      "institutionAdminJs",
-      "institutionAdminShellJs",
-      "institutionAdminAccessJs",
-      "institutionAdminBadgeTemplateListJs",
-      "institutionAdminBadgeTemplateEditorJs",
-      "institutionAdminIssuedBadgesJs",
-      "institutionAdminRuleBuilderJs",
-      "ltiPostMessageStorageJs",
-      "publicBadgeJs",
-    ];
-
     for (const assetKey of scriptAssetKeys) {
       const body = readGeneratedAsset(assetKey);
 
       expect(() => new Script(body, { filename: `${String(assetKey)}.js` })).not.toThrow();
+    }
+  });
+
+  it("assembles JavaScript sources into parseable browser scripts", () => {
+    for (const assetKey of scriptAssetKeys) {
+      const body = readScriptAssetSource(assetKey);
+
+      expect(() => new Script(body, { filename: `${String(assetKey)}.source.js` })).not.toThrow();
     }
   });
 
@@ -300,6 +300,9 @@ describe("page asset manifest", () => {
     });
 
     expect(adminScriptFiles.length).toBeGreaterThan(0);
+    expect(readdirSync(assetContentDir)).not.toEqual(
+      expect.arrayContaining(["open-iife.js", "close-iife.js"]),
+    );
 
     for (const fileName of adminScriptFiles) {
       const source = readFileSync(new URL(fileName, assetContentDir), "utf8");
