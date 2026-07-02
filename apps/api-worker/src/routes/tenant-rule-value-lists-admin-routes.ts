@@ -2,7 +2,6 @@ import {
   createAuditLog,
   createBadgeIssuanceRuleValueList,
   type SessionRecord,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
@@ -17,11 +16,12 @@ import {
   tenantRuleValueListsAdminCreatePath,
 } from "../admin/rule-value-lists-admin-helpers";
 import { parseCommaSeparatedAdminValues } from "../admin/rule-value-lists-presentation";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 
 interface RegisterTenantRuleValueListsAdminRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
     tenantId: string,

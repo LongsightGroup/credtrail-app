@@ -4,20 +4,20 @@ import {
   findLearnerProfileByIdentity,
   listImportLearnerRecordBatchQueueMessages,
   type LearnerRecordTrustLevel,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import { parseLearnerRecordImportBatchDefaults } from "@credtrail/validation";
-import { renderAppPage } from "../../ui/render-page";
-import type { AppContext, AppBindings } from "../../app";
 import { institutionAdminLearnerRecordImportsPage } from "../../admin/institution-admin-page";
+import type { AppContext } from "../../app";
+import type { ResolveDatabase } from "../../app/route-deps";
+import { loadLearnerRecordExportBundle } from "../../learner-record/learner-record-export";
 import {
   prepareLearnerRecordImportSubmission,
   queueReviewedLearnerRecordImportPreview,
   summarizeLearnerRecordImportProgress,
 } from "../../learner-record/learner-record-import";
 import { createLearnerRecordPresentation } from "../../learner-record/learner-record-presentation";
-import { loadLearnerRecordExportBundle } from "../../learner-record/learner-record-export";
+import { renderAppPage } from "../../ui/render-page";
 import type { InstitutionAdminPageData } from "../institution-admin-page-data-loader";
 import type { TenantGovernanceAdminPageDataLoaders } from "./page-data";
 
@@ -45,7 +45,7 @@ export type TenantGovernanceLearnerRecordImportAdmin = ReturnType<
 >;
 
 export const createTenantGovernanceLearnerRecordImportAdmin = (input: {
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   loadInstitutionAdminPageData: TenantGovernanceAdminPageDataLoaders["loadInstitutionAdminPageData"];
 }) => {
   const { resolveDatabase, loadInstitutionAdminPageData } = input;

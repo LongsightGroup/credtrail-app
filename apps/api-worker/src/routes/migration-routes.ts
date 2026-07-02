@@ -1,37 +1,37 @@
 import {
   enqueueJobQueueMessage,
   findLearnerProfileByIdentity,
-  listImportMigrationBatchQueueMessages,
   listBadgeTemplates,
+  listImportMigrationBatchQueueMessages,
   retryFailedImportMigrationBatchQueueMessages,
   type ImportMigrationBatchQueueMessageRecord,
   type LearnerIdentityType,
-  type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import type { Hono } from "hono";
 import {
   ob2ImportConversionRequestSchema,
   parseMigrationBatchPathParams,
   parseMigrationBatchRetryRequest,
-  parseMigrationProgressQuery,
   parseMigrationBatchUploadQuery,
+  parseMigrationProgressQuery,
   parseOb2ImportConversionRequest,
   parseTenantPathParams,
 } from "@credtrail/validation";
+import type { Hono } from "hono";
 import type { AppContext, AppEnv } from "../app";
-import {
-  type Ob2ImportConversionResult,
-  Ob2ImportError,
-  prepareOb2ImportConversion,
-} from "../migrations/ob2-import";
+import type { RequireTenantRole } from "../app/route-deps";
 import {
   MigrationBatchFileParseError,
   parseMigrationBatchUploadFile,
   type MigrationBatchFileFormat,
 } from "../migrations/batch-upload";
 import { CredlyExportFileParseError, parseCredlyExportFile } from "../migrations/credly-export";
+import {
+  Ob2ImportError,
+  prepareOb2ImportConversion,
+  type Ob2ImportConversionResult,
+} from "../migrations/ob2-import";
 import {
   ParchmentExportFileParseError,
   parseParchmentExportFile,
@@ -40,17 +40,7 @@ import {
 interface RegisterMigrationRoutesInput {
   app: Hono<AppEnv>;
   resolveDatabase: (bindings: AppContext["env"]) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  requireTenantRole: RequireTenantRole;
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }
 

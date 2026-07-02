@@ -20,15 +20,16 @@ import {
   parseUpdateBadgeIssuanceRuleDraftRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
-import type { GradebookProvider } from "../lms/gradebook-types";
-import { extractBadgeIssuanceRuleRequirements } from "../rules/engine";
-import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
+import type { AppEnv } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import {
   GradebookProviderResolutionError,
   resolveGradebookProviderWithConnection,
   type ResolvedGradebookProvider,
 } from "../lms/gradebook-provider-resolution";
+import type { GradebookProvider } from "../lms/gradebook-types";
+import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
+import { extractBadgeIssuanceRuleRequirements } from "../rules/engine";
 
 class BadgeRuleLmsReferenceError extends Error {
   public readonly statusCode: 422 | 502;
@@ -259,18 +260,8 @@ const persistBadgeRuleDraft = async (input: {
 
 interface RegisterBadgeRuleCoreRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }
 

@@ -1,3 +1,4 @@
+import type { ImmutableCredentialStore, JsonObject } from "@credtrail/core-domain";
 import {
   listBadgeIssuanceRuleVersionApprovalEvents,
   listBadgeIssuanceRuleVersionApprovalSteps,
@@ -11,19 +12,19 @@ import {
   resolveAssertionLifecycleState,
   type SqlDatabase,
 } from "@credtrail/db";
-import type { ImmutableCredentialStore, JsonObject } from "@credtrail/core-domain";
-import type { Hono } from "hono";
 import { parseTenantPathParams } from "@credtrail/validation";
+import type { Hono } from "hono";
+import type { AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import { badgeNameFromCredential, issuerNameFromCredential } from "../badges/credential-display";
-import { buildPublicBadgeWalletImportUrls } from "../badges/wallet-import-urls";
-import { renderWalletQrCodeSvg, walletQrCodePayloadFromDeepLink } from "../badges/wallet-qr-code";
-import type { AppBindings, AppEnv } from "../app";
-import { renderAppPage, type AppPage } from "../ui/render-page";
 import type {
   PublicBadgeCriteriaRegistryViewModel,
   PublicBadgeCriteriaRuleViewRecord,
   PublicBadgeWallEntryViewRecord,
 } from "../badges/public-badge-pages";
+import { buildPublicBadgeWalletImportUrls } from "../badges/wallet-import-urls";
+import { renderWalletQrCodeSvg, walletQrCodePayloadFromDeepLink } from "../badges/wallet-qr-code";
+import { renderAppPage, type AppPage } from "../ui/render-page";
 import { linkedInAddToProfileUrl } from "../utils/display-format";
 import { asString } from "../utils/value-parsers";
 
@@ -39,7 +40,7 @@ interface PublicBadgeRouteValue {
 
 interface RegisterPublicBadgeRoutesInput<PublicBadgeValue extends PublicBadgeRouteValue> {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   loadPublicBadgeViewModel: (
     db: SqlDatabase,
     badgeObjects: ImmutableCredentialStore,

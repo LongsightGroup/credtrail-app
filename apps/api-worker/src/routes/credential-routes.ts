@@ -8,9 +8,10 @@ import {
   recordAssertionEngagementEvent,
   type SqlDatabase,
 } from "@credtrail/db";
-import type { Hono } from "hono";
 import { parseCredentialPathParams, parseTenantPathParams } from "@credtrail/validation";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { Hono } from "hono";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import { VC_JSON_LD_CONTENT_TYPE } from "../http/vc-media-types";
 
 interface VerificationAssertion {
@@ -128,7 +129,7 @@ interface RegisterCredentialRoutesInput<
   CredentialValue extends JsonObject,
 > {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   loadVerificationViewModel: (
     db: SqlDatabase,
     store: ImmutableCredentialStore,

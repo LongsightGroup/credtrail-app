@@ -18,13 +18,14 @@ import {
   parseUpdateTenantMemberRoleRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import { readOptionalFormField } from "../admin/admin-form-helpers";
-import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import {
   buildAccessMembersAdminPath,
   tenantAccessMemberCreatePath,
 } from "../admin/access-admin-helpers";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import { readOptionalFormField } from "../admin/admin-form-helpers";
+import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 
 type TenantMemberInviteResult = {
   deliveryStatus: "sent" | "skipped" | "failed";
@@ -67,7 +68,7 @@ interface RegisterTenantAccessMembersAdminRoutesInput {
       sendInvite: boolean;
     },
   ) => Promise<TenantMemberInviteResult>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
     tenantId: string,

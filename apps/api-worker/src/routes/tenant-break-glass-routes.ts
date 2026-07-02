@@ -6,7 +6,6 @@ import {
   revokeTenantBreakGlassAccount,
   upsertTenantBreakGlassAccount,
   upsertUserByEmail,
-  type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -16,7 +15,9 @@ import {
   parseTenantUserPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import { breakGlassPasswordResetEnrollmentStatus } from "../auth/break-glass-policy";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 
 interface RegisterTenantBreakGlassRoutesInput {
   app: Hono<AppEnv>;
@@ -34,18 +35,8 @@ interface RegisterTenantBreakGlassRoutesInput {
     tenantId: string,
     db: SqlDatabase,
   ) => Promise<Response | null>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
   ADMIN_ROLES: readonly TenantMembershipRole[];
 }
 
@@ -116,13 +107,15 @@ export const registerTenantBreakGlassRoutes = (
       userId: user.id,
       createdByUserId: session.userId,
     });
-    const passwordResetStatus =
-      request.sendEnrollmentEmail === false || requestBreakGlassPasswordReset === undefined
-        ? "skipped"
-        : await requestBreakGlassPasswordReset(c, {
-            tenantId: pathParams.tenantId,
-            email: request.email,
-          });
+    const passwordResetStatus = await breakGlassPasswordResetEnrollmentStatus(
+      requestBreakGlassPasswordReset,
+      c,
+      {
+        tenantId: pathParams.tenantId,
+        email: request.email,
+        sendEnrollmentEmail: request.sendEnrollmentEmail !== false,
+      },
+    );
 
     if (membershipResult.created) {
       await createAuditLog(db, {

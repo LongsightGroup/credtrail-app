@@ -3,17 +3,14 @@ import {
   createAuditLog,
   findAssertionById,
   findBadgeTemplateById,
-  listTenantAssertions,
-  listTenantAssertionLedgerExportRows,
   listAssertionLifecycleEvents,
+  listTenantAssertionLedgerExportRows,
+  listTenantAssertions,
   recordAssertionLifecycleTransition,
   resolveAssertionLifecycleState,
   type DelegatedIssuingAuthorityAction,
-  type SessionRecord,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import type { Hono } from "hono";
 import {
   parseAssertionLifecycleTransitionRequest,
   parseAssertionPathParams,
@@ -24,7 +21,13 @@ import {
   type ManualIssueBadgeRequest,
   type TenantAssertionListQuery,
 } from "@credtrail/validation";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { Hono } from "hono";
+import type { AppContext, AppEnv } from "../app";
+import type {
+  RequireDelegatedIssuingAuthorityPermission,
+  RequireTenantRole,
+  ResolveDatabase,
+} from "../app/route-deps";
 import { buildTenantAssertionLedgerCsvExport } from "../reporting/ledger-export";
 import {
   tenantAssertionLedgerExportDbInput,
@@ -59,30 +62,9 @@ interface DirectIssueBadgeResult {
 
 interface RegisterAssertionRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
-  requireDelegatedIssuingAuthorityPermission: (
-    c: AppContext,
-    input: {
-      db: SqlDatabase;
-      tenantId: string;
-      userId: string;
-      membershipRole: TenantMembershipRole;
-      ownerOrgUnitId: string;
-      badgeTemplateId: string;
-      requiredAction: DelegatedIssuingAuthorityAction;
-    },
-  ) => Promise<Response | null>;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
+  requireDelegatedIssuingAuthorityPermission: RequireDelegatedIssuingAuthorityPermission;
   assertionBelongsToTenant: (tenantId: string, assertionId: string) => boolean;
   issueBadgeForTenant: (
     c: AppContext,

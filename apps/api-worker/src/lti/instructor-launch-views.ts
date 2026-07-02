@@ -9,6 +9,7 @@ import {
 import type { AppBindings } from "../app";
 import type { AppLogger } from "../app/observability";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
+import { ltiBadgeSummaryCardFromTemplate } from "./badge-summary-helpers";
 import { ltiCourseContextIdFromLaunch } from "./course-badge-placements";
 import {
   emptyInstructorBulkIssuanceView,
@@ -25,8 +26,7 @@ import type {
   ValidatedResourceLinkLaunch,
   ValidatedSelectedResourceLinkLaunch,
 } from "./resource-link-launch-types";
-import { ltiBadgeSummaryCardFromTemplate } from "./badge-summary-helpers";
-import type { InstructorResourceLinkViews } from "./view-models";
+import type { InstructorResourceLinkViews, LtiBadgeSummaryCard } from "./view-models";
 
 type InstructorBulkResourceLinkViews = Extract<InstructorResourceLinkViews, { kind: "bulk" }>;
 type InstructorCourseSummaryResourceLinkViews = Extract<
@@ -114,7 +114,11 @@ const logInstructorNrpsViewBuildFailure = (input: {
   });
 };
 
-const withInstructorNrpsRoster = async <View extends InstructorResourceLinkViews>(input: {
+/**
+ * Loads an instructor NRPS roster once, applies shared logging, and maps the
+ * result through mode-specific view builders.
+ */
+const resolveInstructorNrpsView = async <View>(input: {
   tenantId: string;
   ltiTool: LtiToolPort;
   ltiLaunchSession: LTISession;
@@ -123,9 +127,9 @@ const withInstructorNrpsRoster = async <View extends InstructorResourceLinkViews
   buildFailureLogMessage: string;
   logContext: InstructorNrpsLogContext;
   ltiLog?: AppLogger | undefined;
-  onFailure: (failure: LtiNrpsRosterLoadFailure) => View;
-  onBuildError: () => View;
-  onSuccess: (roster: LtiNrpsRoster) => Promise<View>;
+  viewFromNrpsFailure: (failure: LtiNrpsRosterLoadFailure) => View;
+  viewFromBuildError: () => View;
+  viewFromRoster: (roster: LtiNrpsRoster) => Promise<View>;
 }): Promise<View> => {
   const rosterResult = await loadLtiNrpsRoster({
     ltiTool: input.ltiTool,
@@ -144,11 +148,11 @@ const withInstructorNrpsRoster = async <View extends InstructorResourceLinkViews
       });
     }
 
-    return input.onFailure(rosterResult.failure);
+    return input.viewFromNrpsFailure(rosterResult.failure);
   }
 
   try {
-    return await input.onSuccess(rosterResult.roster);
+    return await input.viewFromRoster(rosterResult.roster);
   } catch (error: unknown) {
     logInstructorNrpsViewBuildFailure({
       message: input.buildFailureLogMessage,
@@ -158,9 +162,73 @@ const withInstructorNrpsRoster = async <View extends InstructorResourceLinkViews
       ltiLog: input.ltiLog,
     });
 
-    return input.onBuildError();
+    return input.viewFromBuildError();
   }
 };
+
+const bulkViewsForNrpsFailure = (input: {
+  failure: LtiNrpsRosterLoadFailure;
+  selectedBadge: LtiBadgeSummaryCard;
+  launchContext: InstructorLaunchViewContext;
+}): InstructorBulkResourceLinkViews => ({
+  kind: "bulk",
+  bulkIssuanceView: emptyInstructorBulkIssuanceView({
+    status: input.failure.status,
+    message:
+      input.failure.status === "unavailable"
+        ? "This LMS launch did not include a learner roster, so CredTrail cannot issue badges from this tool yet."
+        : "CredTrail could not load the learner roster from the LMS. Check the LMS connection settings.",
+    selectedBadge: input.selectedBadge,
+    courseContextTitle: input.launchContext.courseContextTitle,
+    courseContextId: input.launchContext.courseContextId,
+    contextMembershipsUrl: input.launchContext.contextMembershipsUrl,
+  }),
+  courseBadgeSummaryView: null,
+});
+
+const bulkViewsForBuildError = (input: {
+  selectedBadge: LtiBadgeSummaryCard;
+  launchContext: InstructorLaunchViewContext;
+}): InstructorBulkResourceLinkViews => ({
+  kind: "bulk",
+  bulkIssuanceView: emptyInstructorBulkIssuanceView({
+    status: "error",
+    message:
+      "CredTrail could not load the learner roster from the LMS. Check the LMS connection settings.",
+    selectedBadge: input.selectedBadge,
+    courseContextTitle: input.launchContext.courseContextTitle,
+    courseContextId: input.launchContext.courseContextId,
+    contextMembershipsUrl: input.launchContext.contextMembershipsUrl,
+  }),
+  courseBadgeSummaryView: null,
+});
+
+const courseSummaryViewsForNrpsFailure = (input: {
+  failure: LtiNrpsRosterLoadFailure;
+  launchContext: InstructorLaunchViewContext;
+}): InstructorCourseSummaryResourceLinkViews => ({
+  kind: "course-summary",
+  bulkIssuanceView: null,
+  courseBadgeSummaryView: emptyInstructorCourseBadgeSummaryView({
+    status: input.failure.status,
+    message:
+      "CredTrail could not load the learner roster from the LMS. Ask an administrator to check the LMS connection settings.",
+    courseContextTitle: input.launchContext.courseContextTitle,
+  }),
+});
+
+const courseSummaryViewsForBuildError = (input: {
+  launchContext: InstructorLaunchViewContext;
+}): InstructorCourseSummaryResourceLinkViews => ({
+  kind: "course-summary",
+  bulkIssuanceView: null,
+  courseBadgeSummaryView: emptyInstructorCourseBadgeSummaryView({
+    status: "error",
+    message:
+      "CredTrail could not load badge progress for this course. Ask an administrator to check the LMS connection settings.",
+    courseContextTitle: input.launchContext.courseContextTitle,
+  }),
+});
 
 const resolveSelectedInstructorResourceLinkViews = async (
   input: ResolveSelectedInstructorResourceLinkViewsInput,
@@ -170,45 +238,21 @@ const resolveSelectedInstructorResourceLinkViews = async (
     tenantId: input.tenantId,
     badgeTemplate: input.launch.launchedBadgeTemplate,
   });
+  const logContext = { badgeTemplateId: selectedBadge.badgeTemplateId };
 
-  return withInstructorNrpsRoster<InstructorBulkResourceLinkViews>({
+  return resolveInstructorNrpsView({
     tenantId: input.tenantId,
     ltiTool: input.ltiTool,
     ltiLaunchSession: input.ltiLaunchSession,
     rosterContextId: launchContext.courseContextId ?? input.ltiLaunchSession.context.id ?? null,
     nrpsFailureLogMessage: "Could not load LMS roster for bulk issuance view",
     buildFailureLogMessage: "Could not build bulk issuance view from LMS roster",
-    logContext: { badgeTemplateId: selectedBadge.badgeTemplateId },
+    logContext,
     ltiLog: input.ltiLog,
-    onFailure: (failure) => ({
-      kind: "bulk",
-      bulkIssuanceView: emptyInstructorBulkIssuanceView({
-        status: failure.status,
-        message:
-          failure.status === "unavailable"
-            ? "This LMS launch did not include a learner roster, so CredTrail cannot issue badges from this tool yet."
-            : "CredTrail could not load the learner roster from the LMS. Check the LMS connection settings.",
-        selectedBadge,
-        courseContextTitle: launchContext.courseContextTitle,
-        courseContextId: launchContext.courseContextId,
-        contextMembershipsUrl: launchContext.contextMembershipsUrl,
-      }),
-      courseBadgeSummaryView: null,
-    }),
-    onBuildError: () => ({
-      kind: "bulk",
-      bulkIssuanceView: emptyInstructorBulkIssuanceView({
-        status: "error",
-        message:
-          "CredTrail could not load the learner roster from the LMS. Check the LMS connection settings.",
-        selectedBadge,
-        courseContextTitle: launchContext.courseContextTitle,
-        courseContextId: launchContext.courseContextId,
-        contextMembershipsUrl: launchContext.contextMembershipsUrl,
-      }),
-      courseBadgeSummaryView: null,
-    }),
-    onSuccess: async (roster) => ({
+    viewFromNrpsFailure: (failure) =>
+      bulkViewsForNrpsFailure({ failure, selectedBadge, launchContext }),
+    viewFromBuildError: () => bulkViewsForBuildError({ selectedBadge, launchContext }),
+    viewFromRoster: async (roster) => ({
       kind: "bulk",
       bulkIssuanceView: await resolveInstructorBulkIssuanceView({
         db: input.db,
@@ -256,36 +300,20 @@ const resolveCourseInstructorResourceLinkViews = async (
     };
   }
 
-  return withInstructorNrpsRoster<InstructorCourseSummaryResourceLinkViews>({
+  const logContext = { summaryContextId };
+
+  return resolveInstructorNrpsView({
     tenantId: input.tenantId,
     ltiTool: input.ltiTool,
     ltiLaunchSession: input.ltiLaunchSession,
     rosterContextId: summaryContextId,
     nrpsFailureLogMessage: "Could not load LMS roster for course badge summary view",
     buildFailureLogMessage: "Could not build course badge summary view",
-    logContext: { summaryContextId },
+    logContext,
     ltiLog: input.ltiLog,
-    onFailure: (failure) => ({
-      kind: "course-summary",
-      bulkIssuanceView: null,
-      courseBadgeSummaryView: emptyInstructorCourseBadgeSummaryView({
-        status: failure.status,
-        message:
-          "CredTrail could not load the learner roster from the LMS. Ask an administrator to check the LMS connection settings.",
-        courseContextTitle: launchContext.courseContextTitle,
-      }),
-    }),
-    onBuildError: () => ({
-      kind: "course-summary",
-      bulkIssuanceView: null,
-      courseBadgeSummaryView: emptyInstructorCourseBadgeSummaryView({
-        status: "error",
-        message:
-          "CredTrail could not load badge progress for this course. Ask an administrator to check the LMS connection settings.",
-        courseContextTitle: launchContext.courseContextTitle,
-      }),
-    }),
-    onSuccess: async (roster) => ({
+    viewFromNrpsFailure: (failure) => courseSummaryViewsForNrpsFailure({ failure, launchContext }),
+    viewFromBuildError: () => courseSummaryViewsForBuildError({ launchContext }),
+    viewFromRoster: async (roster) => ({
       kind: "course-summary",
       bulkIssuanceView: null,
       courseBadgeSummaryView: await resolveInstructorCourseBadgeSummaryView({

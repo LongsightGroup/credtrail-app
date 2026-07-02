@@ -16,16 +16,9 @@ import {
 } from "@credtrail/db";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "../auth/auth-context";
 import {
-  OB3_BASE_PATH,
-  OB3_DISCOVERY_CACHE_CONTROL,
-  OB3_DISCOVERY_PATH,
-  OB3_OAUTH_SCOPE_CREDENTIAL_READONLY,
-  OB3_OAUTH_SCOPE_CREDENTIAL_UPSERT,
-  OB3_OAUTH_SCOPE_PROFILE_READONLY,
-  OB3_OAUTH_SCOPE_PROFILE_UPDATE,
-  OB3_OAUTH_SUPPORTED_SCOPE_URIS,
   OAUTH_ACCESS_TOKEN_TTL_SECONDS,
   OAUTH_AUTHORIZATION_CODE_TTL_SECONDS,
   OAUTH_GRANT_TYPE_AUTHORIZATION_CODE,
@@ -35,6 +28,14 @@ import {
   OAUTH_TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_BASIC,
   OAUTH_TOKEN_TYPE_HINT_ACCESS_TOKEN,
   OAUTH_TOKEN_TYPE_HINT_REFRESH_TOKEN,
+  OB3_BASE_PATH,
+  OB3_DISCOVERY_CACHE_CONTROL,
+  OB3_DISCOVERY_PATH,
+  OB3_OAUTH_SCOPE_CREDENTIAL_READONLY,
+  OB3_OAUTH_SCOPE_CREDENTIAL_UPSERT,
+  OB3_OAUTH_SCOPE_PROFILE_READONLY,
+  OB3_OAUTH_SCOPE_PROFILE_UPDATE,
+  OB3_OAUTH_SUPPORTED_SCOPE_URIS,
 } from "../ob3/constants";
 import {
   allScopesSupported,
@@ -44,8 +45,8 @@ import {
   isSubset,
   normalizeOb3Profile,
   normalizeSinceQueryParam,
-  ob3CredentialsLinkHeader,
   oauthRedirectUriWithParams,
+  ob3CredentialsLinkHeader,
   parseOAuthClientMetadata,
   parsePositiveIntegerQueryParam,
   parseStringArray,
@@ -63,7 +64,7 @@ interface OAuthAccessTokenContext {
 
 interface RegisterOb3RoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   resolveAuthenticatedPrincipal: (context: AppContext) => Promise<AuthenticatedPrincipal | null>;
   resolveRequestedTenantContext: (context: AppContext) => Promise<RequestedTenantContext | null>;
   observabilityContext: (bindings: AppBindings) => ObservabilityContext;

@@ -1,26 +1,18 @@
-import { listTenantAssertions, type SqlDatabase, type TenantMembershipRole } from "@credtrail/db";
-import { renderAppPage, type AppPage } from "../../ui/render-page";
-import type { AppContext, AppBindings } from "../../app";
+import { listTenantAssertions, type TenantMembershipRole } from "@credtrail/db";
 import { consumeAdminFlashCookie } from "../../admin/admin-flash";
 import {
   consumeAdminListMessageFlash,
   setAdminListMessageFlash,
 } from "../../admin/admin-list-message-flash";
 import {
-  buildIssuedBadgesPagePath,
-  issuedBadgesInvalidFiltersError,
-  safeParseIssuedBadgesPageQuery,
-  shouldLoadIssuedBadgesList,
-} from "../../admin/issued-badges-admin-helpers";
-import {
-  loadInstitutionAdminWorkspacePageData,
-  renderInstitutionAdminWorkspacePage,
-} from "../../admin/institution-admin-workspace";
-import {
   institutionAdminApiKeysPage,
   institutionAdminDashboardPage,
   institutionAdminIssuedBadgesPage,
 } from "../../admin/institution-admin-page";
+import {
+  loadInstitutionAdminWorkspacePageData,
+  renderInstitutionAdminWorkspacePage,
+} from "../../admin/institution-admin-workspace";
 import {
   renderInstitutionAdminAuthenticationWorkspace,
   renderInstitutionAdminGovernanceDelegationNewWorkspace,
@@ -35,16 +27,25 @@ import {
   renderInstitutionAdminRulesWorkspace,
 } from "../../admin/institution-admin-workspace-renderers";
 import type { InstitutionAdminView } from "../../admin/institution-admin/page-types";
+import {
+  buildIssuedBadgesPagePath,
+  issuedBadgesInvalidFiltersError,
+  safeParseIssuedBadgesPageQuery,
+  shouldLoadIssuedBadgesList,
+} from "../../admin/issued-badges-admin-helpers";
+import type { AppContext } from "../../app";
+import type { ResolveDatabase } from "../../app/route-deps";
+import { renderAppPage, type AppPage } from "../../ui/render-page";
+import { tenantAssertionListDbInput } from "../assertion-list-query";
 import type { TenantGovernanceAdminAuth } from "./auth";
 import type { TenantGovernanceAdminPageDataLoaders } from "./page-data";
-import { tenantAssertionListDbInput } from "../assertion-list-query";
 
 export type TenantGovernanceInstitutionAdminWorkspaces = ReturnType<
   typeof createTenantGovernanceInstitutionAdminWorkspaces
 >;
 
 export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: TenantGovernanceAdminAuth["resolveInstitutionAdminAdminRole"];
   loadInstitutionAdminPageData: TenantGovernanceAdminPageDataLoaders["loadInstitutionAdminPageData"];
 }) => {

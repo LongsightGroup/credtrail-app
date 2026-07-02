@@ -3,7 +3,7 @@ import {
   findLtiIssuerRegistryEntry,
   resolveLtiLoginIssuer,
   type LtiIssuerRegistry,
-} from "./lti-helpers";
+} from "./lti-issuer-registry";
 
 const registry: LtiIssuerRegistry = {
   "https://canvas.example.edu": {

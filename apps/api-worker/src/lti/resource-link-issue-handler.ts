@@ -1,5 +1,6 @@
-import { findBadgeTemplateById, type SqlDatabase } from "@credtrail/db";
-import type { AppBindings, AppContext } from "../app";
+import { findBadgeTemplateById } from "@credtrail/db";
+import type { AppContext } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import type { DirectIssueBadgeResult } from "../badges/direct-issue";
 import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
 import { renderAppPage } from "../ui/render-page";
@@ -22,7 +23,7 @@ import {
  */
 export interface HandleLtiResourceLinkIssueInput {
   readonly c: AppContext;
-  readonly resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   readonly sha256Hex: (value: string) => Promise<string>;
   readonly issueBadgeForTenant: (
     c: AppContext,

@@ -4,28 +4,28 @@ import {
   findActiveBadgeIssuanceRuleVersion,
   findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleVersionById,
-  type SessionRecord,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import type { Hono } from "hono";
 import {
   parseBadgeIssuanceRulePathParams,
   parseEvaluateBadgeIssuanceRuleRequest,
   type BadgeIssuanceRuleDefinition,
 } from "@credtrail/validation";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { Hono } from "hono";
+import type { AppEnv } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
+import { isClientGradebookProviderResolutionError } from "../lms/gradebook-provider-resolution";
+import {
+  resolveBadgeIssuanceRuleDefinitionValueLists,
+  resolveRuleDefinition,
+} from "../rules/badge-rule-definition-resolver";
+import { loadRuleFacts } from "../rules/badge-rule-facts-loader";
 import {
   evaluateBadgeIssuanceRuleDefinition,
   summarizeBadgeIssuanceRuleEvaluation,
   type BadgeIssuanceRuleEvaluationFacts,
 } from "../rules/engine";
-import {
-  resolveRuleDefinition,
-  resolveBadgeIssuanceRuleDefinitionValueLists,
-} from "../rules/badge-rule-definition-resolver";
 import { badgeRuleEvaluationOutcome } from "./badge-rule-evaluation-helpers";
-import { loadRuleFacts } from "../rules/badge-rule-facts-loader";
 import {
   isIssueBadgeHttpError,
   type DirectIssueBadgeResult,
@@ -33,22 +33,11 @@ import {
 } from "./badge-rule-evaluation-types";
 import { registerBadgeRulePreviewRoutes } from "./badge-rule-preview-routes";
 import { registerBadgeRuleReviewQueueRoutes } from "./badge-rule-review-queue-routes";
-import { isClientGradebookProviderResolutionError } from "../lms/gradebook-provider-resolution";
 
 interface RegisterBadgeRuleEvaluationRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
   issueBadgeForTenant: IssueBadgeForTenant;
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }

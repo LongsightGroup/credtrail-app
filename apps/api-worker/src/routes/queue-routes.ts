@@ -2,20 +2,20 @@ import {
   enqueueJobQueueMessage,
   findActiveTenantApiKeyByHash,
   touchTenantApiKeyLastUsedAt,
-  type SqlDatabase,
 } from "@credtrail/db";
-import type { Hono } from "hono";
 import {
   parseIssueBadgeRequest,
+  parseProcessQueueRequest,
   parseProgrammaticIssueBadgeRequest,
   parseProgrammaticRevokeBadgeRequest,
-  parseProcessQueueRequest,
   parseRevokeBadgeRequest,
   type IssueBadgeQueueJob,
   type ProcessQueueRequest,
   type RevokeBadgeQueueJob,
 } from "@credtrail/validation";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { Hono } from "hono";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 
 interface IssueBadgeQueueEnvelope {
   assertionId: string;
@@ -49,7 +49,7 @@ interface ValidationIssue {
 
 interface RegisterQueueRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   sha256Hex: (value: string) => Promise<string>;
   readJsonBodyOrEmptyObject: (c: AppContext) => Promise<unknown>;
   processQueuedJobs: (c: AppContext, input: ProcessQueueConfig) => Promise<ProcessQueueRunResult>;

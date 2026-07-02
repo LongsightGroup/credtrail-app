@@ -18,7 +18,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AppBindings, AppEnv } from "../app";
 import type { LtiAuthenticatedPrincipal } from "../auth/auth-provider";
 import { handleLtiLaunchFailureResponse, handleLtiLaunchPost } from "./launch-post-handler";
-import type { LtiIssuerRegistry, LtiIssuerRegistryEntry } from "./lti-helpers";
+import type { LtiIssuerRegistry, LtiIssuerRegistryEntry } from "./lti-issuer-registry";
 
 const issuer = "https://canvas.example.edu";
 const issuerEntry: LtiIssuerRegistryEntry = {

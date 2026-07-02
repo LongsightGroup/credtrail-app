@@ -1,7 +1,7 @@
 import { parseTenantLmsConnectionCourseSearchQuery } from "@credtrail/validation";
-import type { SqlDatabase } from "@credtrail/db";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import { jsonError } from "../http/json-responses";
 import {
   listGradebookItemsForCourse,
@@ -9,13 +9,13 @@ import {
   lmsLookupErrorMessage,
 } from "../lms/gradebook-picker";
 import { asNonEmptyString } from "../utils/value-parsers";
-import type { LtiIssuerRegistry } from "./lti-helpers";
 import { resolveLtiGradebookLookup } from "./gradebook-lookup";
+import type { LtiIssuerRegistry } from "./lti-issuer-registry";
 
 interface RegisterLtiGradebookLookupRoutesInput {
   app: Hono<AppEnv>;
   resolveLtiIssuerRegistry: (context: AppContext) => Promise<LtiIssuerRegistry>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
 }
 
 export const registerLtiGradebookLookupRoutes = (

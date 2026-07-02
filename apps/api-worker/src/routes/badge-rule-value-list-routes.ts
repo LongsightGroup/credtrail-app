@@ -1,33 +1,22 @@
 import {
   createAuditLog,
   createBadgeIssuanceRuleValueList,
-  type SessionRecord,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import { loadTenantBadgeRuleValueLists } from "../admin/rule-value-lists-presentation";
 import {
   parseBadgeIssuanceRuleValueListQuery,
   parseCreateBadgeIssuanceRuleValueListRequest,
   parseTenantPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import { loadTenantBadgeRuleValueLists } from "../admin/rule-value-lists-presentation";
+import type { AppEnv } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 
 interface RegisterBadgeRuleValueListRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }
 

@@ -1,12 +1,9 @@
-import type {
-  SqlDatabase,
-  TenantMembershipOrgUnitScopeRole,
-  TenantMembershipRole,
-} from "@credtrail/db";
+import type { TenantMembershipRole } from "@credtrail/db";
 import { parseBadgeTemplatePathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
 import { badgeTemplateAdminEditorHref } from "../admin/badge-template-admin-helpers";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { RequireScopedOrgUnitPermission, ResolveDatabase } from "../app/route-deps";
 import {
   applyBadgeTemplateGeneratedImage,
   uploadBadgeTemplateImage,
@@ -15,19 +12,8 @@ import { withBadgeTemplateIssuerAccess } from "./badge-template-admin-access";
 
 interface RegisterBadgeTemplateEditorArtworkAdminRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireScopedOrgUnitPermission: (
-    c: AppContext,
-    input: {
-      db: SqlDatabase;
-      tenantId: string;
-      userId: string;
-      membershipRole: TenantMembershipRole;
-      orgUnitId: string;
-      requiredRole: TenantMembershipOrgUnitScopeRole;
-      allowWhenNoScopes?: boolean;
-    },
-  ) => Promise<Response | null>;
+  resolveDatabase: ResolveDatabase;
+  requireScopedOrgUnitPermission: RequireScopedOrgUnitPermission;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
     tenantId: string,

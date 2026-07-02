@@ -1,6 +1,6 @@
 import {
-  createBadgeIssuanceRuleWithConnection,
   createAuditLog,
+  createBadgeIssuanceRuleWithConnection,
   listTenantLmsConnections,
   runSqlTransaction,
   submitBadgeIssuanceRuleVersionForApproval,
@@ -19,7 +19,7 @@ import {
 } from "@credtrail/validation";
 import type { LTISession } from "@longsightgroup/lti-tool";
 import { normalizeUniqueStringList } from "../utils/value-parsers";
-import { normalizeLtiIssuer } from "./lti-helpers";
+import { normalizeLtiIssuer } from "./lti-issuer-registry";
 
 export type LtiCourseBadgeSetupPreset =
   | "manual_instructor_approval"

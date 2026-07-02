@@ -8,6 +8,11 @@ import type { AppBindings } from "../app";
 import type { AppLogger } from "../app/observability";
 import { LTI_RESOURCE_LINK_ISSUE_PATH } from "./constants";
 import { createLtiIssuanceActionToken } from "./issuance-action-token";
+import {
+  ltiRosterRulePendingIssuanceBehavior,
+  ltiRosterUnavailableIssuanceBehavior,
+  type LtiRosterIssuanceBehavior,
+} from "./issuance-behavior";
 import type { LtiNrpsRoster } from "./nrps";
 import type { ResourceLinkLaunchMessage } from "./resource-link-launch-types";
 import { prepareLtiRosterBulkIssuanceContext } from "./roster-bulk-issuance-context";
@@ -16,21 +21,12 @@ import type {
   LtiRosterIssuedBadgeStateForEligibility,
 } from "./roster-eligibility";
 import { ltiRosterIssuedBadgeStatesByUserId } from "./roster-issuance-helpers";
-import {
-  ltiRosterRulePendingIssuanceBehavior,
-  ltiRosterUnavailableIssuanceBehavior,
-  type LtiRosterIssuanceBehavior,
-} from "./issuance-behavior";
 import type { LtiBadgeSummaryCard, LtiBulkIssuanceView } from "./view-models";
 
-type LoadIssuedBadgeStatesByUserId = typeof ltiRosterIssuedBadgeStatesByUserId;
-type PrepareBulkIssuanceContext = typeof prepareLtiRosterBulkIssuanceContext;
-type CreateIssuanceActionToken = typeof createLtiIssuanceActionToken;
-
 type InstructorBulkIssuanceViewDependencies = {
-  readonly loadIssuedBadgeStatesByUserId: LoadIssuedBadgeStatesByUserId;
-  readonly prepareBulkIssuanceContext: PrepareBulkIssuanceContext;
-  readonly createIssuanceActionToken: CreateIssuanceActionToken;
+  readonly loadIssuedBadgeStatesByUserId: typeof ltiRosterIssuedBadgeStatesByUserId;
+  readonly prepareBulkIssuanceContext: typeof prepareLtiRosterBulkIssuanceContext;
+  readonly createIssuanceActionToken: typeof createLtiIssuanceActionToken;
 };
 
 /**
@@ -55,10 +51,6 @@ export interface ResolveInstructorBulkIssuanceViewInput {
   nowIso: string;
   ltiLog?: AppLogger | undefined;
 }
-
-type InstructorBulkIssuanceViewResolver = (
-  input: ResolveInstructorBulkIssuanceViewInput,
-) => Promise<LtiBulkIssuanceView>;
 
 const ltiRosterRoleSummary = (roles: readonly string[]): string => {
   if (roles.length === 0) {
@@ -245,20 +237,24 @@ const resolveInstructorBulkIssuanceViewWithDependencies = async (
   return bulkIssuanceView;
 };
 
+const defaultInstructorBulkIssuanceViewDependencies: InstructorBulkIssuanceViewDependencies = {
+  loadIssuedBadgeStatesByUserId: ltiRosterIssuedBadgeStatesByUserId,
+  prepareBulkIssuanceContext: prepareLtiRosterBulkIssuanceContext,
+  createIssuanceActionToken: createLtiIssuanceActionToken,
+};
+
 /**
  * Creates an instructor bulk issuance view resolver with explicit dependency replacements.
  */
 export const createInstructorBulkIssuanceViewResolver = (
   dependencies: InstructorBulkIssuanceViewDependencies,
-): InstructorBulkIssuanceViewResolver => {
+): ((input: ResolveInstructorBulkIssuanceViewInput) => Promise<LtiBulkIssuanceView>) => {
   return (input) => resolveInstructorBulkIssuanceViewWithDependencies(dependencies, input);
 };
 
 /**
  * Builds the ready instructor bulk issuance view for a selected resource-link launch.
  */
-export const resolveInstructorBulkIssuanceView = createInstructorBulkIssuanceViewResolver({
-  loadIssuedBadgeStatesByUserId: ltiRosterIssuedBadgeStatesByUserId,
-  prepareBulkIssuanceContext: prepareLtiRosterBulkIssuanceContext,
-  createIssuanceActionToken: createLtiIssuanceActionToken,
-});
+export const resolveInstructorBulkIssuanceView = createInstructorBulkIssuanceViewResolver(
+  defaultInstructorBulkIssuanceViewDependencies,
+);

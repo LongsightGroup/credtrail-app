@@ -7,7 +7,6 @@ import {
   resolveTenantAuthPolicy,
   updateTenantAuthProvider,
   upsertTenantAuthPolicy,
-  type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -18,27 +17,18 @@ import {
   parseUpsertTenantAuthProviderRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 
 interface RegisterTenantAuthManagementRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   requireEnterpriseTenant: (
     c: AppContext,
     tenantId: string,
     db: SqlDatabase,
   ) => Promise<Response | null>;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  requireTenantRole: RequireTenantRole;
   ADMIN_ROLES: readonly TenantMembershipRole[];
 }
 

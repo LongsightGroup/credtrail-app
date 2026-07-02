@@ -3,7 +3,8 @@ import { isValidationParseError } from "@credtrail/validation";
 import type { LtiAuthorizedLaunch, LTISession, LtiToolPort } from "@longsightgroup/lti-tool";
 import { LtiLaunchMessageResolutionError } from "@longsightgroup/lti-tool";
 import { customLaunchRouteHandler } from "@longsightgroup/lti-tool/hono";
-import type { AppBindings, AppContext } from "../app";
+import type { AppContext } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
 import { jsonError } from "../http/json-responses";
 import { createCredTrailLtiTool, type CreateCredTrailLtiToolInput } from "./credtrail-lti-tool";
@@ -20,15 +21,15 @@ import {
   type LtiLaunchAuthorization,
   type ResolvedLtiLaunch,
 } from "./launch-verification";
+import type { LtiIssuerRegistry } from "./lti-issuer-registry";
 import { createVerificationThrowingLtiTool } from "./lti-protocol-adapters";
-import type { LtiIssuerRegistry } from "./lti-helpers";
 
 type CreateCredTrailLtiToolForLaunch = (input: CreateCredTrailLtiToolInput) => Promise<LtiToolPort>;
 
 export interface HandleLtiLaunchPostInput {
   c: AppContext;
   resolveLtiIssuerRegistry: (context: AppContext) => Promise<LtiIssuerRegistry>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   sha256Hex: (value: string) => Promise<string>;
   createLtiSession: (
     context: AppContext,

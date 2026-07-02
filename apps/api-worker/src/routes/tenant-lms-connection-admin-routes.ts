@@ -2,7 +2,6 @@ import {
   createAuditLog,
   findTenantLmsConnectionById,
   upsertTenantLmsConnection,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
@@ -17,11 +16,12 @@ import {
   buildLmsConnectionsPagePath,
   lmsConnectionsPageUrl,
 } from "../admin/lms-connection-admin-helpers";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 
 interface RegisterTenantLmsConnectionAdminRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
     tenantId: string,

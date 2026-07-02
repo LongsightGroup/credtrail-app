@@ -1,6 +1,7 @@
-import type { SessionRecord, SqlDatabase, TenantMembershipRole } from "@credtrail/db";
+import type { SqlDatabase } from "@credtrail/db";
 import { parseTenantPathParams } from "@credtrail/validation";
-import type { AppBindings, AppContext } from "../app";
+import type { AppContext } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { ISSUER_ROLES, resolveTenantReportingAccess } from "../auth/tenant-access";
 
 type ReportingAccess = NonNullable<Awaited<ReturnType<typeof resolveTenantReportingAccess>>>;
@@ -12,18 +13,8 @@ export interface ReportingRouteAccess {
 }
 
 export interface ReportingRouteAccessDeps {
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
 }
 
 export const createReportingRouteAccessResolver = (deps: ReportingRouteAccessDeps) => {

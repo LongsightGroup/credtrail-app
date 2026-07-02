@@ -1,6 +1,5 @@
 import {
   retryFailedImportLearnerRecordBatchQueueMessages,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
@@ -10,7 +9,8 @@ import {
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import { institutionAdminLearnerRecordsPage } from "../admin/institution-admin-page";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import type { AppPage } from "../ui/render-page";
 import { renderAppPage } from "../ui/render-page";
 
@@ -47,18 +47,8 @@ interface RegisterTenantLearnerRecordAdminRoutesInput {
     membershipRole: TenantMembershipRole,
     workflow?: LearnerRecordImportWorkflowInput,
   ) => Promise<Response>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: { userId: string };
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
 }
 
 export const registerTenantLearnerRecordAdminRoutes = (

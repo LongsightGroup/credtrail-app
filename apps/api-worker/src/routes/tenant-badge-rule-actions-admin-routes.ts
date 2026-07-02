@@ -1,8 +1,8 @@
 import {
   activateBadgeIssuanceRuleVersion,
   createAuditLog,
-  deleteDraftBadgeIssuanceRule,
   decideBadgeIssuanceRuleVersion,
+  deleteDraftBadgeIssuanceRule,
   findBadgeIssuanceRuleVersionById,
   listBadgeIssuanceRuleVersionApprovalSteps,
   submitBadgeIssuanceRuleVersionForApproval,
@@ -18,14 +18,15 @@ import {
   parseDecideBadgeIssuanceRuleVersionRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
+import { buildRulesAdminPath } from "../admin/access-admin-helpers";
 import { readOptionalFormField } from "../admin/admin-form-helpers";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
-import { buildRulesAdminPath } from "../admin/access-admin-helpers";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 
 interface RegisterTenantBadgeRuleActionsAdminRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
     tenantId: string,

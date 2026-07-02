@@ -8,9 +8,10 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import type { Hono } from "hono";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import type { VerificationViewModel } from "../badges/public-badge-model";
 import { VC_DATA_MODEL_CONTEXT_URL } from "../credentials/verification-checks";
-import type { AppBindings, AppContext, AppEnv } from "../app";
 
 const PRE_AUTHORIZED_CODE_GRANT = "urn:ietf:params:oauth:grant-type:pre-authorized_code";
 const OID4VCI_TOKEN_ENDPOINT_PATH = "/credentials/v1/token";
@@ -19,7 +20,7 @@ const DCC_VCAPI_EXCHANGE_ENDPOINT_PREFIX = "/credentials/v1/dcc/exchanges";
 
 interface RegisterOid4vciRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   loadPublicBadgeViewModel: (
     db: SqlDatabase,
     badgeObjects: ImmutableCredentialStore,

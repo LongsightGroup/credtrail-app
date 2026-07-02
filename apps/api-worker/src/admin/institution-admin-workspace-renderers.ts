@@ -1,17 +1,15 @@
-import {
-  findTenantLmsConnectionById,
-  type SqlDatabase,
-  type TenantMembershipRole,
-} from "@credtrail/db";
+import { findTenantLmsConnectionById, type TenantMembershipRole } from "@credtrail/db";
+import { parseTenantLmsConnectionPathParams } from "@credtrail/validation";
+import type { AppContext } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
+import { loadBadgeRuleReviewQueueEntries } from "../badge-rule-review-queue-workspace";
+import { buildTenantLtiDynamicRegistrationInviteUrl } from "../lti/dynamic-registration-service";
 import type { renderAppPage } from "../ui/render-page";
-import type { AppBindings, AppContext } from "../app";
 import {
   consumeAdminListMessageFlash,
   setAdminListMessageFlash,
   type AdminListMessageWorkspace,
 } from "./admin-list-message-flash";
-import { consumeAdminManualIssueFlash } from "./manual-issue-flash";
-import { parseTenantLmsConnectionPathParams } from "@credtrail/validation";
 import {
   institutionAdminAuthenticationPage,
   institutionAdminGovernanceDelegationNewPage,
@@ -25,22 +23,21 @@ import {
   institutionAdminOrgUnitsPage,
   institutionAdminRulesPage,
 } from "./institution-admin-page";
-import { lmsConnectionsPageUrl } from "./lms-connection-admin-helpers";
+import {
+  loadInstitutionAdminWorkspacePageData,
+  renderInstitutionAdminWorkspacePage,
+} from "./institution-admin-workspace";
 import {
   emptyLmsConnectionFormValues,
   lmsConnectionFormValuesFromRecord,
 } from "./institution-admin/lms-connection-setup-section";
 import type { InstitutionAdminPageInput } from "./institution-admin/page-types";
-import {
-  loadInstitutionAdminWorkspacePageData,
-  renderInstitutionAdminWorkspacePage,
-} from "./institution-admin-workspace";
+import { lmsConnectionsPageUrl } from "./lms-connection-admin-helpers";
+import { consumeAdminManualIssueFlash } from "./manual-issue-flash";
 import { loadTenantBadgeRuleValueLists } from "./rule-value-lists-presentation";
-import { loadBadgeRuleReviewQueueEntries } from "../badge-rule-review-queue-workspace";
-import { buildTenantLtiDynamicRegistrationInviteUrl } from "../lti/dynamic-registration-service";
 
 interface InstitutionAdminWorkspaceRendererDeps<TPageData extends InstitutionAdminPageInput> {
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
     tenantId: string,

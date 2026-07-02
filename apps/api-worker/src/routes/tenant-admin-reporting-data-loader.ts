@@ -9,13 +9,12 @@ import {
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
   listTenantReportingComparisons,
-  type SqlDatabase,
   type TenantMembershipRole,
   type TenantReportingLifecycleFilter,
 } from "@credtrail/db";
-import { renderAppPage, type AppPage } from "../ui/render-page";
 import { institutionAdminDashboardPage } from "../admin/institution-admin-page";
-import type { AppBindings, AppContext } from "../app";
+import type { AppContext } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import { resolveTenantReportingAccess } from "../auth/tenant-access";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";
 import { buildReportingMetricEntries } from "../reporting/metric-definitions";
@@ -25,6 +24,7 @@ import {
   toReportingOverviewFilters,
   toReportingTrendFilters,
 } from "../reporting/reporting-page-filters";
+import { renderAppPage, type AppPage } from "../ui/render-page";
 
 type InstitutionAdminPageData = Parameters<typeof institutionAdminDashboardPage>[0];
 type ReportingComparisonRow = Awaited<ReturnType<typeof listTenantReportingComparisons>>[number];
@@ -40,7 +40,7 @@ interface LoadInstitutionAdminReportingPageDataInput {
   badgeTemplateId?: string | undefined;
   orgUnitId?: string | undefined;
   state?: TenantReportingLifecycleFilter | undefined;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   loadInstitutionAdminPageData: (
     c: AppContext,
     tenantId: string,

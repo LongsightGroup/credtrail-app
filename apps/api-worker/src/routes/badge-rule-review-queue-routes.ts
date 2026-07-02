@@ -1,30 +1,21 @@
-import type { Hono } from "hono";
+import type { TenantMembershipRole } from "@credtrail/db";
 import {
   parseBadgeIssuanceRuleEvaluationPathParams,
   parseBadgeIssuanceRuleReviewQueueQuery,
   parseResolveBadgeIssuanceRuleReviewRequest,
   parseTenantPathParams,
 } from "@credtrail/validation";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { Hono } from "hono";
+import type { AppEnv } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { resolveBadgeRuleReviewQueueEntry } from "../badge-rule-review-queue-resolve";
 import { loadBadgeRuleReviewQueueForApi } from "../badge-rule-review-queue-workspace";
 import type { DirectIssueBadgeResult, IssueBadgeForTenant } from "./badge-rule-evaluation-types";
-import type { SessionRecord, SqlDatabase, TenantMembershipRole } from "@credtrail/db";
 
 interface RegisterBadgeRuleReviewQueueRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
   issueBadgeForTenant: IssueBadgeForTenant;
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }

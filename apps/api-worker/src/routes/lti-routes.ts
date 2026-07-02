@@ -1,9 +1,9 @@
-import type { SqlDatabase } from "@credtrail/db";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
-import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
 import type { DirectIssueBadgeResult } from "../badges/direct-issue";
+import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
 import {
   LTI_DEEP_LINKING_SELECT_PATH,
   LTI_LAUNCH_PATH,
@@ -14,14 +14,14 @@ import { registerLtiDynamicRegistrationRoutes } from "../lti/dynamic-registratio
 import { registerLtiGradebookLookupRoutes } from "../lti/gradebook-lookup-routes";
 import { registerLtiJwksRoute } from "../lti/jwks-routes";
 import { handleLtiLaunchPost } from "../lti/launch-post-handler";
-import type { LtiIssuerRegistry } from "../lti/lti-helpers";
+import type { LtiIssuerRegistry } from "../lti/lti-issuer-registry";
 import { registerLtiOidcLoginRoutes } from "../lti/lti-oidc-login-handler";
 import { handleLtiResourceLinkIssue } from "../lti/resource-link-issue-handler";
 
 interface RegisterLtiRoutesInput {
   app: Hono<AppEnv>;
   resolveLtiIssuerRegistry: (context: AppContext) => Promise<LtiIssuerRegistry>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   sha256Hex: (value: string) => Promise<string>;
   createLtiSession: (
     context: AppContext,

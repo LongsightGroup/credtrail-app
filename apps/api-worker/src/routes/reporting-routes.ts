@@ -1,4 +1,4 @@
-import type { SessionRecord, SqlDatabase, TenantMembershipRole } from "@credtrail/db";
+import type { TenantMembershipRole } from "@credtrail/db";
 import {
   parseTenantReportingComparisonQuery,
   parseTenantReportingHierarchyQuery,
@@ -6,7 +6,14 @@ import {
   parseTenantReportingTrendQuery,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
+import {
+  toReportingComparisonFilters,
+  toReportingEngagementFilters,
+  toReportingHierarchyFilters,
+  toReportingTrendFilters,
+} from "../reporting/reporting-page-filters";
 import {
   buildReportingComparisonCsvResponse,
   buildReportingEngagementCsvResponse,
@@ -20,28 +27,12 @@ import {
   loadReportingTrendsPayload,
   ReportingServiceError,
 } from "../reporting/reporting-service";
-import {
-  toReportingComparisonFilters,
-  toReportingEngagementFilters,
-  toReportingHierarchyFilters,
-  toReportingTrendFilters,
-} from "../reporting/reporting-page-filters";
 import { createReportingRouteAccessResolver } from "./reporting-route-access";
 
 interface RegisterReportingRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
   ADMIN_ROLES: readonly TenantMembershipRole[];
 }
 

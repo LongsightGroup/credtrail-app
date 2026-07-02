@@ -11,10 +11,11 @@ import {
   type TenantMembershipRole,
 } from "@credtrail/db";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "./auth-context";
+import { isTenantAdminRole, membershipHasRole } from "./tenant-role-policy";
 
-export const ISSUER_ROLES: TenantMembershipRole[] = ["owner", "admin", "issuer"];
+export { ADMIN_ROLES, ISSUER_ROLES } from "./tenant-role-policy";
+
 export const TENANT_MEMBER_ROLES: TenantMembershipRole[] = ["owner", "admin", "issuer", "viewer"];
-export const ADMIN_ROLES: TenantMembershipRole[] = ["owner", "admin"];
 export const REPORTING_SCOPE_ROLES: TenantMembershipOrgUnitScopeRole[] = ["admin", "issuer"];
 export const EXECUTIVE_SCOPE_ROLES: TenantMembershipOrgUnitScopeRole[] = [
   "admin",
@@ -79,7 +80,7 @@ interface TenantAccessHelpers<ContextType extends TenantAccessContext<BindingsTy
   >;
   requireScopedOrgUnitPermission: (
     context: ContextType,
-    input: {
+    request: {
       db: SqlDatabase;
       tenantId: string;
       userId: string;
@@ -91,7 +92,7 @@ interface TenantAccessHelpers<ContextType extends TenantAccessContext<BindingsTy
   ) => Promise<Response | null>;
   requireDelegatedIssuingAuthorityPermission: (
     context: ContextType,
-    input: {
+    request: {
       db: SqlDatabase;
       tenantId: string;
       userId: string;
@@ -102,13 +103,6 @@ interface TenantAccessHelpers<ContextType extends TenantAccessContext<BindingsTy
     },
   ) => Promise<Response | null>;
 }
-
-const hasRequiredRole = (
-  membershipRole: TenantMembershipRole,
-  allowedRoles: readonly TenantMembershipRole[],
-): boolean => {
-  return allowedRoles.includes(membershipRole);
-};
 
 export const resolveTenantReportingAccess = async (input: {
   db: SqlDatabase;
@@ -241,7 +235,7 @@ export const requirePrincipalTenantRole = async <
     );
   }
 
-  if (!hasRequiredRole(membership.role, input.allowedRoles)) {
+  if (!membershipHasRole(membership.role, input.allowedRoles)) {
     return input.context.json(
       {
         error: "Insufficient role for requested action",
@@ -258,7 +252,7 @@ export const requirePrincipalTenantRole = async <
 };
 
 const canBypassOrgScopeChecks = (membershipRole: TenantMembershipRole): boolean => {
-  return membershipRole === "owner" || membershipRole === "admin";
+  return isTenantAdminRole(membershipRole);
 };
 
 const sessionCompatibilityFromPrincipal = (

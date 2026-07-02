@@ -1,9 +1,9 @@
-import type { SessionRecord, SqlDatabase, TenantMembershipRole } from "@credtrail/db";
+import type { TenantMembershipRole } from "@credtrail/db";
 import { parseTenantExecutiveDashboardQuery, parseTenantPathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
 
-import type { AppBindings, AppContext, AppEnv } from "../app";
-import { renderAppPage } from "../ui/render-page";
+import type { AppContext, AppEnv } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import {
   renderExecutiveDashboardPage,
   renderExecutiveUnavailablePage,
@@ -13,21 +13,12 @@ import {
   loadTenantExecutiveDashboard,
   type TenantExecutiveDashboardRecord,
 } from "../executive/executive-rollup-loader";
+import { renderAppPage } from "../ui/render-page";
 
 interface RegisterExecutiveRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
   TENANT_MEMBER_ROLES: readonly TenantMembershipRole[];
 }
 

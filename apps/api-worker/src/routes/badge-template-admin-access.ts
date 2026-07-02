@@ -2,17 +2,17 @@ import {
   findBadgeTemplateById,
   type BadgeTemplateRecord,
   type SqlDatabase,
-  type TenantMembershipOrgUnitScopeRole,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import type { AppBindings, AppContext } from "../app";
+import type { AppContext } from "../app";
+import type { RequireScopedOrgUnitPermission, ResolveDatabase } from "../app/route-deps";
 
 export interface BadgeTemplateIssuerAccessInput {
   c: AppContext;
   tenantId: string;
   badgeTemplateId: string;
   nextPath: string;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
     tenantId: string,
@@ -24,18 +24,7 @@ export interface BadgeTemplateIssuerAccessInput {
         membershipRole: TenantMembershipRole;
       }
   >;
-  requireScopedOrgUnitPermission: (
-    c: AppContext,
-    input: {
-      db: SqlDatabase;
-      tenantId: string;
-      userId: string;
-      membershipRole: TenantMembershipRole;
-      orgUnitId: string;
-      requiredRole: TenantMembershipOrgUnitScopeRole;
-      allowWhenNoScopes?: boolean;
-    },
-  ) => Promise<Response | null>;
+  requireScopedOrgUnitPermission: RequireScopedOrgUnitPermission;
   notFound: (context: { session: { userId: string } }) => Response | Promise<Response>;
 }
 

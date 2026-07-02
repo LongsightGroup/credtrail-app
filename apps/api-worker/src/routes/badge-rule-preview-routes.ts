@@ -1,44 +1,30 @@
-import {
-  listBadgeIssuanceRuleEvaluations,
-  type SessionRecord,
-  type SqlDatabase,
-  type TenantMembershipRole,
-} from "@credtrail/db";
-import type { Hono } from "hono";
+import { listBadgeIssuanceRuleEvaluations, type TenantMembershipRole } from "@credtrail/db";
 import {
   parsePreviewEvaluateBadgeIssuanceRuleRequest,
   parsePreviewSimulateBadgeIssuanceRuleRequest,
   parseTenantPathParams,
   type BadgeIssuanceRuleDefinition,
 } from "@credtrail/validation";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { Hono } from "hono";
+import type { AppEnv } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
+import { isClientGradebookProviderResolutionError } from "../lms/gradebook-provider-resolution";
+import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
+import { loadRuleFacts } from "../rules/badge-rule-facts-loader";
 import {
   evaluateBadgeIssuanceRuleDefinition,
   summarizeBadgeIssuanceRuleEvaluation,
   type BadgeIssuanceRuleEvaluationFacts,
 } from "../rules/engine";
-import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
 import {
   badgeRuleEvaluationOutcome,
   parseFactsFromEvaluationRecord,
 } from "./badge-rule-evaluation-helpers";
-import { loadRuleFacts } from "../rules/badge-rule-facts-loader";
-import { isClientGradebookProviderResolutionError } from "../lms/gradebook-provider-resolution";
 
 interface RegisterBadgeRulePreviewRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }
 

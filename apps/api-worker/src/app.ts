@@ -68,7 +68,7 @@ import { createOAuthTokenHelpers } from "./ob3/oauth-token-helpers";
 import { createOb3ErrorResponses } from "./ob3/error-responses";
 import { createOb3AccessTokenAuthenticator } from "./ob3/access-token-auth";
 import { ob3ServiceDescriptionDocument } from "./ob3/service-description-runtime";
-import { createResolveLtiIssuerRegistry } from "./lti/lti-issuer-registry";
+import { createResolveLtiIssuerRegistry } from "./lti/lti-issuer-registry-resolver";
 import { createLearnerDashboardPage, learnerDidSettingsNoticeFromQuery } from "./learner/pages";
 import { createLearnerRecordPage } from "./learner/learner-record-page";
 import {

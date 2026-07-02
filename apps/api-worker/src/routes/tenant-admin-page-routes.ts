@@ -1,4 +1,4 @@
-import type { SqlDatabase, TenantMembershipRole } from "@credtrail/db";
+import type { TenantMembershipRole } from "@credtrail/db";
 import {
   canEditBadgeIssuanceRuleDraft,
   findBadgeIssuanceRuleById,
@@ -18,24 +18,25 @@ import {
   parseTenantPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
+import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import {
   badgeTemplateAdminEditorHref,
   buildBadgeTemplateListPath,
 } from "../admin/badge-template-admin-helpers";
-import { buildLmsConnectionEditPath } from "../admin/lms-connection-admin-helpers";
-import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
 import {
   institutionAdminBadgeStatusPage,
   institutionAdminDashboardPage,
 } from "../admin/institution-admin-page";
+import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
+import { buildLmsConnectionEditPath } from "../admin/lms-connection-admin-helpers";
 import {
   loadTenantBadgeRuleValueLists,
   toRuleValueListBuilderContextEntries,
 } from "../admin/rule-value-lists-presentation";
-import { buildOrganizationsPath } from "../auth/tenant-context-selection";
+import type { AppContext, AppEnv } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
-import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import { buildOrganizationsPath } from "../auth/tenant-context-selection";
 import type { AppPage } from "../ui/render-page";
 import { renderAppPage } from "../ui/render-page";
 
@@ -45,17 +46,7 @@ interface RegisterTenantAdminPageRoutesInput {
   app: Hono<AppEnv>;
   ADMIN_ROLES: readonly TenantMembershipRole[];
   adminRoleRequiredPage: (tenantId: string) => AppPage;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: { userId: string };
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  requireTenantRole: RequireTenantRole;
   redirectToTenantLogin: (c: AppContext, tenantId: string, nextPath: string) => Response;
   renderInstitutionAdminWorkspace: (
     c: AppContext,
@@ -139,7 +130,7 @@ interface RegisterTenantAdminPageRoutesInput {
     badgeTemplateId: string,
     nextPath: string,
   ) => Promise<Response>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
     tenantId: string,

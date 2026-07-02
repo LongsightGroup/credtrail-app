@@ -8,7 +8,6 @@ import {
   revokeTenantBreakGlassAccount,
   upsertTenantMembershipRole,
   upsertUserByEmail,
-  type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -19,7 +18,8 @@ import {
   parseUpdateTenantMemberRoleRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 
 type TenantMemberInviteResult = {
   deliveryStatus: "sent" | "skipped" | "failed";
@@ -62,18 +62,8 @@ interface RegisterTenantMemberManagementRoutesInput {
       sendInvite: boolean;
     },
   ) => Promise<TenantMemberInviteResult>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
   ADMIN_ROLES: readonly TenantMembershipRole[];
 }
 

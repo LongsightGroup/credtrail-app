@@ -1,22 +1,23 @@
+import type { SessionRecord, TenantMembershipRole } from "@credtrail/db";
 import {
   parseResolveBadgeIssuanceRuleReviewRequest,
   parseTenantPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
 import { readOptionalFormField } from "../admin/admin-form-helpers";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import {
   buildReviewQueuePagePath,
   tenantReviewQueueAdminResolvePath,
 } from "../admin/review-queue-admin-helpers";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import { resolveBadgeRuleReviewQueueEntry } from "../badge-rule-review-queue-resolve";
 import type { IssueBadgeForTenant } from "./badge-rule-evaluation-types";
-import type { SessionRecord, SqlDatabase, TenantMembershipRole } from "@credtrail/db";
 
 interface RegisterTenantReviewQueueAdminRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
     tenantId: string,

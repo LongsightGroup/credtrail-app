@@ -152,15 +152,13 @@ const assertion = (overrides: Partial<AssertionRecord> = {}): AssertionRecord =>
   };
 };
 
-const resolveWithTestDependencies = (): ReturnType<
-  typeof createInstructorCourseBadgeSummaryViewResolver
-> => {
+const createResolveWithTestDependencies = () => {
   const group = placementGroup();
 
   return createInstructorCourseBadgeSummaryViewResolver({
-    resolveCourseBadgePlacements: async (input) => {
-      expect(input.contextId).toBe(contextId);
-      expect(input.issuerClientId).toBe(clientId);
+    resolveCourseBadgePlacements: async (placementInput) => {
+      expect(placementInput.contextId).toBe(contextId);
+      expect(placementInput.issuerClientId).toBe(clientId);
       return {
         contextId,
         placements: group.placements,
@@ -168,18 +166,18 @@ const resolveWithTestDependencies = (): ReturnType<
         placementGroups: [group],
       };
     },
-    listBadgeTemplateRecipientAssertions: async (db, input) => {
+    listBadgeTemplateRecipientAssertions: async (db, assertionInput) => {
       expect(db).toBe(fakeDb);
-      expect(input).toMatchObject({
+      expect(assertionInput).toMatchObject({
         tenantId,
         badgeTemplateIds: [badgeTemplateId],
         recipientEmails: ["learner-one@example.edu", "learner-two@example.edu"],
       });
       return [assertion()];
     },
-    listAssertionLifecycleStates: async (db, input) => {
+    listAssertionLifecycleStates: async (db, lifecycleInput) => {
       expect(db).toBe(fakeDb);
-      expect(input.assertionIds).toEqual(["assertion-001"]);
+      expect(lifecycleInput.assertionIds).toEqual(["assertion-001"]);
       return [
         {
           assertionId: "assertion-001",
@@ -235,7 +233,9 @@ describe("emptyInstructorCourseBadgeSummaryView", () => {
 
 describe("resolveInstructorCourseBadgeSummaryView", () => {
   it("builds issued and not-issued rows with admin links for tenant admins", async () => {
-    const view = await resolveWithTestDependencies()(resolveViewInput({ membershipRole: "admin" }));
+    const view = await createResolveWithTestDependencies()(
+      resolveViewInput({ membershipRole: "admin" }),
+    );
 
     expect(view).toMatchObject({
       status: "ready",
@@ -279,7 +279,7 @@ describe("resolveInstructorCourseBadgeSummaryView", () => {
   });
 
   it("allows issuer placement without exposing admin detail links", async () => {
-    const view = await resolveWithTestDependencies()(
+    const view = await createResolveWithTestDependencies()(
       resolveViewInput({ membershipRole: "issuer" }),
     );
 

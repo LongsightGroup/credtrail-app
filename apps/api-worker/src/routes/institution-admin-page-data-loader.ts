@@ -14,13 +14,13 @@ import {
   listTenantMembers,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import { institutionAdminDashboardPage } from "../admin/institution-admin/page";
 import type { InstitutionAdminView } from "../admin/institution-admin/page-types";
 import { INSTITUTION_ADMIN_VIEW_REGISTRY } from "../admin/institution-admin/view-content";
-import type { AppBindings, AppContext } from "../app";
+import type { AppContext } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";
 
 export type InstitutionAdminPageData = Parameters<typeof institutionAdminDashboardPage>[0];
@@ -30,7 +30,7 @@ export interface LoadInstitutionAdminShellDataInput {
   tenantId: string;
   sessionUserId: string;
   membershipRole: TenantMembershipRole;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
 }
 
 export type InstitutionAdminShellData = Pick<

@@ -1,6 +1,7 @@
-import type { SessionRecord, SqlDatabase, TenantMembershipRole } from "@credtrail/db";
+import type { TenantMembershipRole } from "@credtrail/db";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { registerBadgeRuleCoreRoutes } from "./badge-rule-core-routes";
 import { registerBadgeRuleEvaluationRoutes } from "./badge-rule-evaluation-routes";
 import { registerBadgeRuleValueListRoutes } from "./badge-rule-value-list-routes";
@@ -20,18 +21,8 @@ interface DirectIssueBadgeResult {
 
 interface RegisterBadgeRuleRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
   issueBadgeForTenant: (
     c: AppContext,
     tenantId: string,

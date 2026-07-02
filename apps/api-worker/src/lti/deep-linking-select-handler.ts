@@ -1,16 +1,17 @@
-import { findLtiLaunchSessionById, listBadgeTemplates, type SqlDatabase } from "@credtrail/db";
+import { findLtiLaunchSessionById, listBadgeTemplates } from "@credtrail/db";
 import { formatLtiServiceError, resolveLtiServiceCapabilities } from "@longsightgroup/lti-tool";
-import type { AppBindings, AppContext } from "../app";
+import type { AppContext } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import { asNonEmptyString, normalizeUniqueStringList } from "../utils/value-parsers";
+import { resolveLtiCourseBadgeAuthority } from "./course-badge-governance";
 import {
   ltiCourseBadgeSetupRuleDefinition,
   parseLtiCourseBadgeSetupPreset,
 } from "./course-badge-setup";
 import { createLtiCourseBadgeSetupToken } from "./course-badge-setup-token";
-import { resolveLtiCourseBadgeAuthority } from "./course-badge-governance";
 import { createCredTrailLtiTool } from "./credtrail-lti-tool";
 import { badgeTemplateDeepLinkContentItem } from "./deep-linking-helpers";
-import { findLtiIssuerRegistryEntry, type LtiIssuerRegistry } from "./lti-helpers";
+import { findLtiIssuerRegistryEntry, type LtiIssuerRegistry } from "./lti-issuer-registry";
 
 const LTI_COURSE_BADGE_SETUP_TOKEN_TTL_SECONDS = 60 * 60;
 
@@ -31,7 +32,7 @@ const optionalNumberFromForm = (value: FormDataEntryValue | null): number | unde
 export interface HandleLtiDeepLinkingSelectInput {
   readonly c: AppContext;
   readonly resolveLtiIssuerRegistry: (context: AppContext) => Promise<LtiIssuerRegistry>;
-  readonly resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
 }
 
 /**

@@ -1,19 +1,20 @@
 import {
   countAuthMagicLinkRateLimitAttempts,
-  listAccessibleTenantContextsForUser,
   findTenantMembership,
   findUserByEmail,
+  listAccessibleTenantContextsForUser,
   pruneAuthMagicLinkRateLimitAttempts,
   recordAuthMagicLinkRateLimitAttempt,
   type AuthMagicLinkRateLimitDimension,
   type SqlDatabase,
 } from "@credtrail/db";
-import { appPage, renderAppPage } from "../ui/render-page";
+import { parseMagicLinkRequest, parseMagicLinkVerifyRequest } from "@credtrail/validation";
 import type { Hono } from "hono";
 import { deleteCookie, setCookie } from "hono/cookie";
-import { parseMagicLinkRequest, parseMagicLinkVerifyRequest } from "@credtrail/validation";
 import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "../auth/auth-context";
+import type { RequestMagicLinkInput, RequestMagicLinkResult } from "../auth/auth-provider";
 import { tenantIdFromNextPath } from "../auth/better-auth-runtime";
 import {
   BREAK_GLASS_PENDING_MFA_COOKIE_NAME,
@@ -22,8 +23,6 @@ import {
   type BreakGlassPolicyAdapter,
 } from "../auth/break-glass-policy";
 import type { EnterpriseSsoAdapter } from "../auth/enterprise-sso-adapter";
-import type { RequestMagicLinkInput, RequestMagicLinkResult } from "../auth/auth-provider";
-import { turnstileConfigured, verifyTurnstileToken } from "../auth/turnstile";
 import {
   localBreakGlassLoginPage,
   localResetPasswordPage,
@@ -31,14 +30,16 @@ import {
   magicLinkLoginPage,
   organizationChooserPage,
 } from "../auth/pages";
+import { normalizeSafeRedirectPath } from "../auth/redirect-paths";
 import {
   resolveChosenTenantLocation,
   resolveTenantContextSelection,
   toAccessibleTenantContextViews,
 } from "../auth/tenant-context-selection";
-import { normalizeSafeRedirectPath } from "../auth/redirect-paths";
-import { sessionCookieSecure, sha256Hex } from "../utils/crypto";
+import { turnstileConfigured, verifyTurnstileToken } from "../auth/turnstile";
 import { getSeededDemoTrustEdCredentialFixture } from "../badges/seeded-demo-trusted-credential-fixture";
+import { appPage, renderAppPage } from "../ui/render-page";
+import { sessionCookieSecure, sha256Hex } from "../utils/crypto";
 
 const MAGIC_LINK_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const MAGIC_LINK_RATE_LIMIT_PRUNE_MS = 24 * 60 * 60 * 1000;
@@ -102,7 +103,7 @@ const hostedSocialProvidersForLogin = (
 
 interface RegisterAuthRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   requestMagicLink: (
     c: AppContext,
     input: RequestMagicLinkInput,

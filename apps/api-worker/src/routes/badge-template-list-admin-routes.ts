@@ -1,8 +1,6 @@
 import {
   listBadgeTemplates,
   setBadgeTemplateArchivedState,
-  type SqlDatabase,
-  type TenantMembershipOrgUnitScopeRole,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
@@ -16,7 +14,6 @@ import {
   setAdminListMessageFlash,
   type AdminListMessageTone,
 } from "../admin/admin-list-message-flash";
-import type { AppBindings, AppContext, AppEnv } from "../app";
 import {
   badgeTemplateAdminEditorHref,
   badgeTemplateListPageUrl,
@@ -24,6 +21,8 @@ import {
   deriveUniqueBadgeTemplateSlug,
   parseBadgeTemplateListPageQuery,
 } from "../admin/badge-template-admin-helpers";
+import type { AppContext, AppEnv } from "../app";
+import type { RequireScopedOrgUnitPermission, ResolveDatabase } from "../app/route-deps";
 import { restoreBadgeTemplateImageRevision } from "../badges/badge-template-image-revision-restore";
 import {
   createBadgeTemplateWithAudit,
@@ -38,20 +37,9 @@ import { withBadgeTemplateIssuerAccess } from "./badge-template-admin-access";
 
 interface RegisterBadgeTemplateListAdminRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   defaultInstitutionOrgUnitId: (tenantId: string) => string;
-  requireScopedOrgUnitPermission: (
-    c: AppContext,
-    input: {
-      db: SqlDatabase;
-      tenantId: string;
-      userId: string;
-      membershipRole: TenantMembershipRole;
-      orgUnitId: string;
-      requiredRole: TenantMembershipOrgUnitScopeRole;
-      allowWhenNoScopes?: boolean;
-    },
-  ) => Promise<Response | null>;
+  requireScopedOrgUnitPermission: RequireScopedOrgUnitPermission;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
     tenantId: string,

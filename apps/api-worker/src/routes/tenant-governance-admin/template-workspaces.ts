@@ -1,24 +1,24 @@
 import {
   findBadgeTemplateById,
-  listBadgeTemplateImageRevisions,
   listBadgeTemplateImageRevisionCountsByTenant,
+  listBadgeTemplateImageRevisions,
   listBadgeTemplates,
   type TenantMembershipRole,
-  type SqlDatabase,
 } from "@credtrail/db";
-import { renderAppPage } from "../../ui/render-page";
-import type { AppContext, AppBindings } from "../../app";
 import { consumeAdminListMessageFlash } from "../../admin/admin-list-message-flash";
+import {
+  buildBadgeTemplateListPath,
+  parseBadgeTemplateListPageQuery,
+} from "../../admin/badge-template-admin-helpers";
 import {
   institutionAdminRuleTemplateEditorPage,
   institutionAdminRuleTemplatesPage,
 } from "../../admin/institution-admin-page";
 import type { BadgeTemplateHistoryPanel } from "../../admin/institution-admin-templates-page";
-import {
-  buildBadgeTemplateListPath,
-  parseBadgeTemplateListPageQuery,
-} from "../../admin/badge-template-admin-helpers";
+import type { AppContext } from "../../app";
+import type { ResolveDatabase } from "../../app/route-deps";
 import { loadBadgeTemplateHistoryPayload } from "../../badges/badge-template-history-payload";
+import { renderAppPage } from "../../ui/render-page";
 import type { TenantGovernanceAdminAuth } from "./auth";
 import type { TenantGovernanceAdminPageDataLoaders } from "./page-data";
 
@@ -31,7 +31,7 @@ type InstitutionAdminRuleTemplatesPageData = Parameters<
 >[0];
 
 export const createTenantGovernanceTemplateAdminWorkspaces = (input: {
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: TenantGovernanceAdminAuth["resolveInstitutionAdminAdminRole"];
   loadInstitutionAdminShellData: TenantGovernanceAdminPageDataLoaders["loadInstitutionAdminShellData"];
 }) => {

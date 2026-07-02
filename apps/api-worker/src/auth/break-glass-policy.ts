@@ -6,15 +6,15 @@ import {
   resolveTenantAuthPolicy,
   type SqlDatabase,
 } from "@credtrail/db";
-import { applyBetterAuthResponseHeaders } from "./better-auth-bridge";
-import type { BetterAuthRuntimeConfig } from "./better-auth-config";
+import type { AuthenticatedPrincipal } from "./auth-context";
 import {
   resolveAuthenticatedPrincipalFromSession,
   type BetterAuthResolvedSession,
 } from "./better-auth-adapter";
+import { applyBetterAuthResponseHeaders } from "./better-auth-bridge";
+import type { BetterAuthRuntimeConfig } from "./better-auth-config";
 import { findBetterAuthSessionByToken } from "./better-auth-runtime";
 import { normalizeSafeRedirectPath } from "./redirect-paths";
-import type { AuthenticatedPrincipal } from "./auth-context";
 
 export const BREAK_GLASS_PENDING_MFA_COOKIE_NAME = "credtrail_break_glass_pending_mfa";
 
@@ -124,6 +124,37 @@ export interface BreakGlassPolicyAdapter<
     },
   ) => Promise<"complete" | "rejected">;
 }
+
+export type BreakGlassPasswordResetEnrollmentStatus = "sent" | "skipped" | "failed";
+
+export const breakGlassPasswordResetEnrollmentStatus = async <ContextType>(
+  requestBreakGlassPasswordReset:
+    | ((
+        context: ContextType,
+        input: {
+          tenantId: string;
+          email: string;
+        },
+      ) => Promise<"sent" | "unavailable">)
+    | undefined,
+  context: ContextType,
+  input: {
+    tenantId: string;
+    email: string;
+    sendEnrollmentEmail: boolean;
+  },
+): Promise<BreakGlassPasswordResetEnrollmentStatus> => {
+  if (!input.sendEnrollmentEmail || requestBreakGlassPasswordReset === undefined) {
+    return "skipped";
+  }
+
+  const status = await requestBreakGlassPasswordReset(context, {
+    tenantId: input.tenantId,
+    email: input.email,
+  });
+
+  return status === "unavailable" ? "failed" : status;
+};
 
 const normalizeNextPath = (tenantId: string, nextPath: string | undefined): string => {
   return normalizeSafeRedirectPath(nextPath, `/tenants/${encodeURIComponent(tenantId)}/admin`);

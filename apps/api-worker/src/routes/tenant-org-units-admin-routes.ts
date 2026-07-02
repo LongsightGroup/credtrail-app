@@ -2,19 +2,19 @@ import {
   createAuditLog,
   createTenantOrgUnit,
   type SessionRecord,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import { parseCreateTenantOrgUnitRequest, parseTenantPathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
+import { buildAccessOrgUnitsAdminPath } from "../admin/access-admin-helpers";
 import { deriveSlugFromDisplayName, readOptionalFormField } from "../admin/admin-form-helpers";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
-import { buildAccessOrgUnitsAdminPath } from "../admin/access-admin-helpers";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 
 interface RegisterTenantOrgUnitsAdminRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
     tenantId: string,

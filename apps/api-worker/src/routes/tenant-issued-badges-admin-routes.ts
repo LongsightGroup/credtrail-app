@@ -3,7 +3,6 @@ import {
   findBadgeTemplateById,
   recordAssertionLifecycleTransition,
   type DelegatedIssuingAuthorityAction,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
@@ -17,26 +16,19 @@ import {
   parseIssuedBadgesPageQuery,
   tenantIssuedBadgeAdminRevokePath,
 } from "../admin/issued-badges-admin-helpers";
+import type { AppContext, AppEnv } from "../app";
+import type {
+  RequireDelegatedIssuingAuthorityPermission,
+  ResolveDatabase,
+} from "../app/route-deps";
 
 const issuedBadgeRevokePermissionError =
   "You do not have permission to revoke this badge for the selected template.";
-import type { AppBindings, AppContext, AppEnv } from "../app";
 
 interface RegisterTenantIssuedBadgesAdminRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireDelegatedIssuingAuthorityPermission: (
-    c: AppContext,
-    input: {
-      db: SqlDatabase;
-      tenantId: string;
-      userId: string;
-      membershipRole: TenantMembershipRole;
-      ownerOrgUnitId: string;
-      badgeTemplateId: string;
-      requiredAction: DelegatedIssuingAuthorityAction;
-    },
-  ) => Promise<Response | null>;
+  resolveDatabase: ResolveDatabase;
+  requireDelegatedIssuingAuthorityPermission: RequireDelegatedIssuingAuthorityPermission;
   assertionBelongsToTenant: (tenantId: string, assertionId: string) => boolean;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,

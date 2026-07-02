@@ -1,15 +1,15 @@
 import type {
+  LtiLaunchVerificationError as CoreLtiLaunchVerificationError,
   LTI13JwtPayload as LtiLaunchClaims,
   LTISession,
   LtiToolPort,
-  LtiLaunchVerificationError as CoreLtiLaunchVerificationError,
   LtiVerifiedLaunch,
 } from "@longsightgroup/lti-tool";
 import {
   findLtiIssuerRegistryEntry,
   type LtiIssuerRegistry,
   type LtiIssuerRegistryEntry,
-} from "./lti-helpers";
+} from "./lti-issuer-registry";
 import { ltiErrorDetail } from "./redaction";
 
 export class LtiLaunchVerificationError extends Error {

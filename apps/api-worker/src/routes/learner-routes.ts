@@ -1,24 +1,21 @@
 import {
   addLearnerIdentityAlias,
   createLearnerIdentityLinkProof,
+  findClaimableLearnerBadgeSummary,
   findLearnerIdentityLinkProofByHash,
   findLearnerProfileByIdentity,
-  findClaimableLearnerBadgeSummary,
   findUserById,
   isLearnerIdentityLinkProofValid,
-  listAssertionEngagementEvents,
   listAccessibleTenantContextsForUser,
+  listAssertionEngagementEvents,
   listLearnerBadgeSummaries,
   listLearnerIdentitiesByProfile,
   markLearnerIdentityLinkProofUsed,
   recordAssertionEngagementEvent,
   removeLearnerIdentityAliasesByType,
   resolveLearnerProfileForIdentity,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import { setCookie } from "hono/cookie";
-import type { Hono } from "hono";
 import {
   parseAssertionPathParams,
   parseLearnerDidSettingsRequest,
@@ -26,33 +23,24 @@ import {
   parseLearnerIdentityLinkVerifyRequest,
   parseTenantPathParams,
 } from "@credtrail/validation";
-import type { AppBindings, AppContext, AppEnv } from "../app";
-import { renderAppPage, type AppPage } from "../ui/render-page";
-import type { AuthenticatedPrincipal, RequestedTenantContext } from "../auth/auth-context";
-import { createBetterAuthRuntimeConfig } from "../auth/better-auth-config";
+import type { Hono } from "hono";
+import { setCookie } from "hono/cookie";
+import type { AppContext, AppEnv } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { resolveAuthenticatedPrincipalFromSession } from "../auth/better-auth-adapter";
+import { createBetterAuthRuntimeConfig } from "../auth/better-auth-config";
 import { findBetterAuthSessionByToken } from "../auth/better-auth-runtime";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";
-import { verifyLtiSessionHandoffToken } from "../lti/session-handoff";
-import type { LearnerDashboardBadge } from "../learner/pages";
 import { loadLearnerRecordExportBundle } from "../learner-record/learner-record-export";
 import { createLearnerRecordPresentation } from "../learner-record/learner-record-presentation";
+import type { LearnerDashboardBadge } from "../learner/pages";
+import { verifyLtiSessionHandoffToken } from "../lti/session-handoff";
+import { renderAppPage, type AppPage } from "../ui/render-page";
 
 interface RegisterLearnerRoutesInput<DidNotice> {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    context: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        principal: AuthenticatedPrincipal;
-        requestedTenant: RequestedTenantContext;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
   TENANT_MEMBER_ROLES: readonly TenantMembershipRole[];
   addSecondsToIso: (isoTimestamp: string, seconds: number) => string;
   generateOpaqueToken: () => string;
@@ -83,7 +71,7 @@ const LTI_SESSION_HANDOFF_QUERY_PARAM = "lti_session_handoff";
 const consumeLtiSessionHandoff = async (input: {
   context: AppContext;
   tenantId: string;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
 }): Promise<{
   sanitizedRequestUrl: string;
   consumed: boolean;

@@ -2,51 +2,32 @@ import {
   createBadgeTemplateImageGeneration,
   findBadgeTemplateById,
   findBadgeTemplateImageGenerationById,
-  type SqlDatabase,
-  type TenantMembershipOrgUnitScopeRole,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import type { Hono } from "hono";
 import {
   parseBadgeTemplateImageGenerationPathParams,
   parseBadgeTemplatePathParams,
   parseGenerateBadgeTemplateImageRequest,
 } from "@credtrail/validation";
-import type { AppBindings, AppContext, AppEnv } from "../app";
-import type { AuthenticatedPrincipal } from "../auth/auth-context";
-import { loadBadgeTemplateImage } from "../badges/template-image-storage";
+import type { Hono } from "hono";
+import type { AppEnv } from "../app";
+import type {
+  RequireScopedOrgUnitPermission,
+  RequireTenantRole,
+  ResolveDatabase,
+} from "../app/route-deps";
 import {
   buildBadgeTemplateImagePrompt,
   completeBadgeTemplateImageGeneration,
   isBadgeTemplateImageGenerationConfigured,
 } from "../badges/badge-template-image-generation";
+import { loadBadgeTemplateImage } from "../badges/template-image-storage";
 
 interface RegisterBadgeTemplateImageRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        principal: AuthenticatedPrincipal;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
-  requireScopedOrgUnitPermission: (
-    c: AppContext,
-    input: {
-      db: SqlDatabase;
-      tenantId: string;
-      userId: string;
-      membershipRole: TenantMembershipRole;
-      orgUnitId: string;
-      requiredRole: TenantMembershipOrgUnitScopeRole;
-      allowWhenNoScopes?: boolean;
-    },
-  ) => Promise<Response | null>;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
+  requireScopedOrgUnitPermission: RequireScopedOrgUnitPermission;
   ADMIN_ROLES: readonly TenantMembershipRole[];
 }
 

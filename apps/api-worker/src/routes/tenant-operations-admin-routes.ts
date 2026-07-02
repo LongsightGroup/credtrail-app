@@ -2,37 +2,29 @@ import {
   createAuditLog,
   findAssertionById,
   findBadgeTemplateById,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import { parseManualIssueBadgeRequest, parseTenantPathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
-import { readOptionalFormField } from "../admin/admin-form-helpers";
 import { buildOperationsManualIssuePath } from "../admin/access-admin-helpers";
+import { readOptionalFormField } from "../admin/admin-form-helpers";
 import {
   buildAdminManualIssueSuccessLinks,
   setAdminManualIssueFlash,
 } from "../admin/manual-issue-flash";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type {
+  RequireDelegatedIssuingAuthorityPermission,
+  ResolveDatabase,
+} from "../app/route-deps";
 import { publicBadgePathForAssertion } from "../badges/public-badge-model";
 import { isIssueBadgeHttpError, type IssueBadgeForTenant } from "./badge-rule-evaluation-types";
 
 interface RegisterTenantOperationsAdminRoutesInput {
   app: Hono<AppEnv>;
   issueBadgeForTenant: IssueBadgeForTenant;
-  requireDelegatedIssuingAuthorityPermission: (
-    c: AppContext,
-    input: {
-      db: SqlDatabase;
-      tenantId: string;
-      userId: string;
-      membershipRole: TenantMembershipRole;
-      ownerOrgUnitId: string;
-      badgeTemplateId: string;
-      requiredAction: "issue_badge";
-    },
-  ) => Promise<Response | null>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  requireDelegatedIssuingAuthorityPermission: RequireDelegatedIssuingAuthorityPermission;
+  resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
     tenantId: string,

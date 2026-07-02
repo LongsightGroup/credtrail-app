@@ -1,31 +1,29 @@
-import { upsertLtiDeployment, type SqlDatabase } from "@credtrail/db";
+import { upsertLtiDeployment } from "@credtrail/db";
 import {
   createLtiPostMessageStorageRedirect,
   parseLtiLoginInitiation,
 } from "@longsightgroup/lti-tool";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import { renderAppPage } from "../ui/render-page";
 import { LTI_LAUNCH_PATH, LTI_OIDC_LOGIN_PATH } from "./constants";
 import { createCredTrailLtiTool } from "./credtrail-lti-tool";
 import { ltiIssuerHasSignedLaunchConfig } from "./launch-verification";
-import {
-  ltiLoginInputFromRequest,
-  resolveLtiLoginIssuer,
-  type LtiIssuerRegistry,
-} from "./lti-helpers";
+import { resolveLtiLoginIssuer, type LtiIssuerRegistry } from "./lti-issuer-registry";
+import { ltiLoginInputFromRequest } from "./lti-oidc-login-request";
 import { ltiPostMessageStorageRedirectPage } from "./pages";
 
 export interface HandleLtiOidcLoginInput {
   readonly c: AppContext;
   readonly resolveLtiIssuerRegistry: (context: AppContext) => Promise<LtiIssuerRegistry>;
-  readonly resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
 }
 
 export interface RegisterLtiOidcLoginRoutesInput {
   readonly app: Hono<AppEnv>;
   readonly resolveLtiIssuerRegistry: (context: AppContext) => Promise<LtiIssuerRegistry>;
-  readonly resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
 }
 
 /**

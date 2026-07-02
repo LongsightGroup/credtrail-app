@@ -1,13 +1,13 @@
-import { logWarn } from "@credtrail/core-domain";
 import type { ObservabilityContext } from "@credtrail/core-domain";
-import type { SqlDatabase } from "@credtrail/db";
+import { logWarn } from "@credtrail/core-domain";
 import type { Hono } from "hono";
 import type { AppBindings, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 
 interface RegisterHealthRoutesInput {
   app: Hono<AppEnv>;
   observabilityContext: (bindings: AppBindings) => ObservabilityContext;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   serviceName: string;
   storageReadinessProbeKey: string;
 }

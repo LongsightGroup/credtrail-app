@@ -11,29 +11,29 @@ import { registerTenantAuthManagementRoutes } from "./tenant-auth-management-rou
 import { registerTenantBadgeRuleActionsAdminRoutes } from "./tenant-badge-rule-actions-admin-routes";
 import { registerTenantBreakGlassRoutes } from "./tenant-break-glass-routes";
 import { registerTenantDelegatedAuthorityRoutes } from "./tenant-delegated-authority-routes";
-import { registerTenantIssuedBadgesAdminRoutes } from "./tenant-issued-badges-admin-routes";
-import { registerTenantLearnerRecordAdminRoutes } from "./tenant-learner-record-admin-routes";
-import { registerTenantLmsConnectionAdminRoutes } from "./tenant-lms-connection-admin-routes";
-import { registerTenantMemberManagementRoutes } from "./tenant-member-management-routes";
-import { registerTenantMembershipScopeRoutes } from "./tenant-membership-scope-routes";
-import { registerTenantOperationsAdminRoutes } from "./tenant-operations-admin-routes";
-import { registerTenantOrgUnitRoutes } from "./tenant-org-unit-routes";
-import { registerTenantOrgUnitsAdminRoutes } from "./tenant-org-units-admin-routes";
-import { registerTenantReviewQueueAdminRoutes } from "./tenant-review-queue-admin-routes";
-import { registerTenantRuleValueListsAdminRoutes } from "./tenant-rule-value-lists-admin-routes";
-import {
-  assertRoleChangeAllowed,
-  canManageTenantRole,
-  membershipAuditAction,
-} from "./tenant-member-policy";
-import type { RegisterTenantGovernanceRoutesInput } from "./tenant-governance-routes.types";
 import { createTenantGovernanceAdminAuth } from "./tenant-governance-admin/auth";
 import { createTenantGovernanceInstitutionAdminWorkspaces } from "./tenant-governance-admin/institution-workspaces";
 import { createTenantGovernanceLearnerRecordImportAdmin } from "./tenant-governance-admin/learner-record-import";
 import { createTenantGovernanceAdminPageDataLoaders } from "./tenant-governance-admin/page-data";
 import { createTenantGovernanceReportingAdminWorkspaces } from "./tenant-governance-admin/reporting-workspaces";
 import { createTenantGovernanceTemplateAdminWorkspaces } from "./tenant-governance-admin/template-workspaces";
+import type { RegisterTenantGovernanceRoutesInput } from "./tenant-governance-routes.types";
 import { adminRoleRequiredPage } from "./tenant-governance-shared-pages";
+import { registerTenantIssuedBadgesAdminRoutes } from "./tenant-issued-badges-admin-routes";
+import { registerTenantLearnerRecordAdminRoutes } from "./tenant-learner-record-admin-routes";
+import { registerTenantLmsConnectionAdminRoutes } from "./tenant-lms-connection-admin-routes";
+import { registerTenantMemberManagementRoutes } from "./tenant-member-management-routes";
+import {
+  assertRoleChangeAllowed,
+  canManageTenantRole,
+  membershipAuditAction,
+} from "./tenant-member-policy";
+import { registerTenantMembershipScopeRoutes } from "./tenant-membership-scope-routes";
+import { registerTenantOperationsAdminRoutes } from "./tenant-operations-admin-routes";
+import { registerTenantOrgUnitRoutes } from "./tenant-org-unit-routes";
+import { registerTenantOrgUnitsAdminRoutes } from "./tenant-org-units-admin-routes";
+import { registerTenantReviewQueueAdminRoutes } from "./tenant-review-queue-admin-routes";
+import { registerTenantRuleValueListsAdminRoutes } from "./tenant-rule-value-lists-admin-routes";
 
 export type { RegisterTenantGovernanceRoutesInput } from "./tenant-governance-routes.types";
 export {
@@ -139,17 +139,7 @@ export const registerTenantGovernanceRoutes = (
     requireEnterpriseTenant: auth.requireEnterpriseTenant,
     ...(input.requestBreakGlassPasswordReset === undefined
       ? {}
-      : {
-          requestBreakGlassPasswordReset: async (c, request) => {
-            const status = await input.requestBreakGlassPasswordReset?.(c, request);
-
-            if (status === "unavailable") {
-              return "failed";
-            }
-
-            return status ?? "failed";
-          },
-        }),
+      : { requestBreakGlassPasswordReset: input.requestBreakGlassPasswordReset }),
     resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
   });
 

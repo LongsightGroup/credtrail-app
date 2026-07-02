@@ -1,19 +1,17 @@
 import {
   createLearnerRecordEntry,
-  listLearnerRecordEntries,
   listImportLearnerRecordBatchQueueMessages,
+  listLearnerRecordEntries,
   patchLearnerRecordEntry,
   retryFailedImportLearnerRecordBatchQueueMessages,
-  type SessionRecord,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
   parseCreateLearnerRecordEntryRequest,
-  parseLearnerRecordImportBatchDefaults,
-  parseLearnerRecordImportBatchPathParams,
   parseLearnerRecordEntryListQuery,
   parseLearnerRecordEntryPathParams,
+  parseLearnerRecordImportBatchDefaults,
+  parseLearnerRecordImportBatchPathParams,
   parseLearnerRecordImportProgressQuery,
   parseLearnerRecordImportRetryRequest,
   parseLearnerRecordImportUploadQuery,
@@ -22,29 +20,20 @@ import {
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppEnv } from "../app";
+import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
+import { mapLearnerRecordEntryToCanonicalLearnerRecordItem } from "../learner-record/learner-record-contract";
 import {
   buildLearnerRecordImportTemplateCsv,
   enqueueLearnerRecordImportBatch,
   prepareLearnerRecordImportSubmission,
   summarizeLearnerRecordImportProgress,
 } from "../learner-record/learner-record-import";
-import { mapLearnerRecordEntryToCanonicalLearnerRecordItem } from "../learner-record/learner-record-contract";
 
 interface RegisterLearnerRecordRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
-  requireTenantRole: (
-    c: AppContext,
-    tenantId: string,
-    allowedRoles: readonly TenantMembershipRole[],
-  ) => Promise<
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-    | Response
-  >;
+  resolveDatabase: ResolveDatabase;
+  requireTenantRole: RequireTenantRole;
   ADMIN_ROLES: readonly TenantMembershipRole[];
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }

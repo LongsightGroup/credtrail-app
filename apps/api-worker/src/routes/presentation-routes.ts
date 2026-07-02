@@ -4,18 +4,14 @@ import {
   type ImmutableCredentialStore,
   type JsonObject,
 } from "@credtrail/core-domain";
-import {
-  findAssertionById,
-  listLearnerBadgeSummaries,
-  type AssertionRecord,
-  type SqlDatabase,
-} from "@credtrail/db";
-import type { Hono } from "hono";
+import { findAssertionById, listLearnerBadgeSummaries, type AssertionRecord } from "@credtrail/db";
 import {
   parsePresentationCreateRequest,
   parsePresentationVerifyRequest,
 } from "@credtrail/validation";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { Hono } from "hono";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "../auth/auth-context";
 
 interface PresentationHolderProofSummary {
@@ -28,7 +24,7 @@ interface PresentationCredentialVerificationResult {
 
 interface RegisterPresentationRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   resolveAuthenticatedPrincipal: (context: AppContext) => Promise<AuthenticatedPrincipal | null>;
   resolveRequestedTenantContext: (context: AppContext) => Promise<RequestedTenantContext | null>;
   parseTenantScopedCredentialId: (credentialId: string) => {

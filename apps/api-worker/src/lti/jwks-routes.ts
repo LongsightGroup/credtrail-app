@@ -1,15 +1,15 @@
-import type { SqlDatabase } from "@credtrail/db";
 import type { JWKS } from "@longsightgroup/lti-tool";
 import { jwksRouteHandler } from "@longsightgroup/lti-tool/hono";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import { LTI_JWKS_PATH } from "./constants";
 import { getCredTrailLtiToolJwks } from "./credtrail-lti-tool";
 import { createLtiHonoLogger } from "./hono-logger";
 
 interface RegisterLtiJwksRouteInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
 }
 
 const LTI_JWKS_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -20,7 +20,7 @@ interface LtiJwksCacheEntry {
 }
 
 const createLtiJwksResolver = (
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase,
+  resolveDatabase: ResolveDatabase,
 ): ((c: AppContext) => Promise<JWKS>) => {
   let cacheEntry: LtiJwksCacheEntry | undefined;
 

@@ -1,7 +1,7 @@
 import type { LTI13JwtPayload } from "@longsightgroup/lti-tool";
 import { describe, expect, it } from "vitest";
-import type { LtiIssuerRegistry } from "./lti-helpers";
 import { authorizeVerifiedLaunchForRegistry } from "./launch-verification";
+import type { LtiIssuerRegistry } from "./lti-issuer-registry";
 
 const issuer = "https://canvas.example.edu";
 const clientId = "canvas-client-123";

@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
-import type { SqlDatabase } from "@credtrail/db";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 import {
   LTI_DYNAMIC_REGISTRATION_COMPLETE_ROUTE_PATH,
   LTI_DYNAMIC_REGISTRATION_ROUTE_PATH,
@@ -14,7 +14,7 @@ import {
 
 interface RegisterLtiDynamicRegistrationRoutesInput {
   app: Hono<AppEnv>;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
 }
 
 const respondWithLtiDynamicRegistrationFailure = (
@@ -31,7 +31,7 @@ const respondWithLtiDynamicRegistrationFailure = (
 
 const handleLtiDynamicRegistrationRequest = async (
   c: AppContext,
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase,
+  resolveDatabase: ResolveDatabase,
   run: (context: LtiDynamicRegistrationContext) => Promise<Response | { html: string }>,
 ): Promise<Response> => {
   const contextResult = await openLtiDynamicRegistrationContext({

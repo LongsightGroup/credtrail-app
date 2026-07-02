@@ -2,7 +2,6 @@ import {
   createAuditLog,
   createTenantApiKey,
   revokeTenantApiKey,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
@@ -14,12 +13,13 @@ import type { Hono } from "hono";
 import { setAdminFlashCookie } from "../admin/admin-flash";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import { buildApiKeysPagePath, tenantApiKeyAdminRevokePath } from "../admin/api-key-admin-helpers";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import type { ResolveDatabase } from "../app/route-deps";
 
 interface RegisterTenantApiKeyAdminRoutesInput {
   app: Hono<AppEnv>;
   generateOpaqueToken: () => string;
-  resolveDatabase: (bindings: AppBindings) => SqlDatabase;
+  resolveDatabase: ResolveDatabase;
   sha256Hex: (value: string) => Promise<string>;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,

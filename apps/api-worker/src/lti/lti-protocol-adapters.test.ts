@@ -9,8 +9,8 @@ import type {
 import { LtiLaunchVerificationError as CoreLtiLaunchVerificationError } from "@longsightgroup/lti-tool";
 import { createFakeLtiAdvantage, testSession } from "@longsightgroup/lti-tool/testing";
 import { describe, expect, it, vi } from "vitest";
-import type { LtiIssuerRegistry } from "./lti-helpers";
 import { authorizeVerifiedLaunchForRegistry } from "./launch-verification";
+import type { LtiIssuerRegistry } from "./lti-issuer-registry";
 import { createVerificationThrowingLtiTool } from "./lti-protocol-adapters";
 
 const issuer = "https://canvas.example.edu";
