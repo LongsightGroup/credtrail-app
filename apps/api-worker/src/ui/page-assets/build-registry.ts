@@ -1,6 +1,9 @@
 import type { StylePageAssetSource } from "./assemble-style-asset";
-import { renderAdminStatusPillClassBrowserHelper } from "../../admin/admin-status-pill-class";
 import { FONT_ASSET_SOURCES } from "./content/font-assets";
+import {
+  ADMIN_STATUS_PILL_CLASS_SCRIPT_SOURCE,
+  type ScriptPageAssetSource,
+} from "./script-asset-fragments";
 
 export type { StylePageAssetMediaGroup, StylePageAssetSource } from "./assemble-style-asset";
 
@@ -17,18 +20,6 @@ export interface ScriptPageAssetBuildSource {
 }
 
 export type PageAssetBuildSource = StylePageAssetBuildSource | ScriptPageAssetBuildSource;
-
-export type ScriptPageAssetSource =
-  | string
-  | {
-      readonly sourceName: string;
-      readonly body: string;
-    };
-
-const ADMIN_STATUS_PILL_CLASS_SCRIPT_SOURCE: ScriptPageAssetSource = {
-  sourceName: "admin-status-pill-class-helper.js",
-  body: renderAdminStatusPillClassBrowserHelper(),
-};
 
 export const PAGE_ASSET_BUILD_SOURCES = {
   foundationCss: {

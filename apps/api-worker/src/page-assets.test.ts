@@ -4,6 +4,10 @@ import { describe, expect, it } from "vitest";
 import { readScriptAssetSource, readStyleSourceFile } from "./page-asset-test-utils";
 import { PAGE_ASSET_BUILD_SOURCES } from "./ui/page-assets/build-registry";
 import { pageAssetPath, type PageAssetKey } from "./ui/page-assets";
+import {
+  ADMIN_STATUS_PILL_CLASS_SCRIPT_SOURCE,
+  scriptPageAssetSourceName,
+} from "./ui/page-assets/script-asset-fragments";
 
 const INSTITUTION_ADMIN_SHELL_JS = readScriptAssetSource("institutionAdminShellJs");
 const LTI_DEEP_LINK_SETUP_JS = readScriptAssetSource("ltiDeepLinkSetupJs");
@@ -291,6 +295,15 @@ describe("page asset manifest", () => {
 
       expect(() => new Script(body, { filename: `${String(assetKey)}.source.js` })).not.toThrow();
     }
+  });
+
+  it("keeps generated JavaScript fragment names visible in assembled sources", () => {
+    const body = readScriptAssetSource("institutionAdminRuleBuilderJs");
+
+    expect(scriptPageAssetSourceName(ADMIN_STATUS_PILL_CLASS_SCRIPT_SOURCE)).toBe(
+      "admin-status-pill-class-helper.js",
+    );
+    expect(body).toContain("/* admin-status-pill-class-helper.js */");
   });
 
   it("keeps admin browser controllers split into focused source files", () => {
