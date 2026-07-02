@@ -7,7 +7,15 @@ import type {
 import { ltiLaunchVerificationErrorFromCoreError } from "./launch-verification";
 
 /**
- * Adapts a result-based LTI tool to the throw-on-failure contract used by package Hono handlers.
+ * Forces LTI launch verification failures through customLaunchRouteHandler.onError.
+ *
+ * @longsightgroup/lti-tool 0.1.1's verifyLaunchRequest returns its own canned
+ * verification-failure response before customLaunchRouteHandler can apply app
+ * error policy. Throwing here lets CredTrail map verification failures to its
+ * 400/401/501 responses in onError.
+ *
+ * TODO(lti-tool): delete this adapter when customLaunchRouteHandler exposes a
+ * verification-failure hook.
  */
 export const createVerificationThrowingLtiTool = (ltiTool: LtiToolPort): LtiToolPort => {
   async function verifyLaunchOrThrow(
