@@ -5,6 +5,7 @@ import {
   LtiLaunchMessageResolutionError,
   resolveLtiLaunchMessage as resolveCoreLtiLaunchMessage,
   type LTI13JwtPayload as LtiLaunchClaims,
+  type ResolvedLtiLaunchMessage as CoreResolvedLtiLaunchMessage,
   type LtiRoleKind as CoreLtiRoleKind,
 } from "@longsightgroup/lti-tool";
 import { asNonEmptyString } from "../utils/value-parsers";
@@ -107,6 +108,17 @@ export const resolveLtiLaunchMessage = (
     throw error;
   }
 
+  return resolveCredTrailLtiLaunchMessage({
+    launchClaims,
+    coreLaunchMessage,
+  });
+};
+
+export const resolveCredTrailLtiLaunchMessage = (input: {
+  launchClaims: LtiLaunchClaims;
+  coreLaunchMessage: CoreResolvedLtiLaunchMessage;
+}): ResolvedLtiLaunchMessage => {
+  const { coreLaunchMessage, launchClaims } = input;
   const resolvedTargetLinkUri = coreLaunchMessage.targetLinkUri;
   const roleKind = credTrailRoleKindFromCoreRoleKinds(coreLaunchMessage.roleKinds);
 

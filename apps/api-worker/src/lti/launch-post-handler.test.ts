@@ -17,7 +17,7 @@ import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 import type { AppBindings, AppEnv } from "../app";
 import type { LtiAuthenticatedPrincipal } from "../auth/auth-provider";
-import { handleLtiLaunchFailureResponse, handleLtiLaunchPost } from "./launch-post-handler";
+import { handleLtiLaunchPost, renderLtiLaunchError } from "./launch-post-handler";
 import type { LtiIssuerRegistry, LtiIssuerRegistryEntry } from "./lti-issuer-registry";
 
 const issuer = "https://canvas.example.edu";
@@ -183,7 +183,7 @@ describe("handleLtiLaunchPost", () => {
     const app = new Hono<AppEnv>();
 
     app.get("/failure", (c) =>
-      handleLtiLaunchFailureResponse(
+      renderLtiLaunchError(
         c,
         new LtiLaunchMessageResolutionError(
           "missing_resource_link",
@@ -215,7 +215,7 @@ describe("handleLtiLaunchPost", () => {
       throw new Error("Expected tenant path params parsing to fail");
     }
 
-    app.get("/failure", (c) => handleLtiLaunchFailureResponse(c, parseFailure));
+    app.get("/failure", (c) => renderLtiLaunchError(c, parseFailure));
 
     const response = await app.request("https://credtrail.example.edu/failure", undefined, fakeEnv);
     const body = await response.json<{ error: string }>();

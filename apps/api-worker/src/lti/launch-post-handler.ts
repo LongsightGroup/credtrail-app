@@ -5,6 +5,7 @@ import type {
   LtiLaunchVerificationError as CoreLtiLaunchVerificationError,
   LTISession,
   LtiToolPort,
+  ResolvedLtiLaunchMessage as CoreResolvedLtiLaunchMessage,
 } from "@longsightgroup/lti-tool";
 import { LtiLaunchMessageResolutionError } from "@longsightgroup/lti-tool";
 import { customLaunchRouteHandler } from "@longsightgroup/lti-tool/hono";
@@ -14,11 +15,7 @@ import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-pr
 import { jsonError } from "../http/json-responses";
 import { createCredTrailLtiTool, type CreateCredTrailLtiToolInput } from "./credtrail-lti-tool";
 import { createLtiHonoLogger } from "./hono-logger";
-import {
-  LtiLaunchMessageError,
-  resolveLtiLaunchMessage,
-  type ResolvedLtiLaunchMessage,
-} from "./launch-message";
+import { LtiLaunchMessageError, resolveCredTrailLtiLaunchMessage } from "./launch-message";
 import { handleVerifiedLtiLaunch, type HandleVerifiedLtiLaunch } from "./launch-product-flow";
 import {
   authorizeVerifiedLaunchForRegistry,
@@ -44,7 +41,7 @@ export interface HandleLtiLaunchPostInput {
   createLtiTool?: CreateCredTrailLtiToolForLaunch;
 }
 
-export const handleLtiLaunchFailureResponse = (c: AppContext, error: unknown): Response => {
+export const renderLtiLaunchError = (c: AppContext, error: unknown): Response => {
   if (error instanceof LtiLaunchVerificationError) {
     return c.json(
       {
@@ -80,11 +77,11 @@ export const handleLtiLaunchFailureResponse = (c: AppContext, error: unknown): R
   );
 };
 
-const handleLtiLaunchVerificationFailureResponse = (
+const renderLtiLaunchVerificationFailure = (
   c: AppContext,
   error: CoreLtiLaunchVerificationError,
 ): Response => {
-  return handleLtiLaunchFailureResponse(c, ltiLaunchVerificationErrorFromCoreError(error));
+  return renderLtiLaunchError(c, ltiLaunchVerificationErrorFromCoreError(error));
 };
 
 const resolvedLaunchFromAuthorizedContext = (input: {
@@ -107,7 +104,7 @@ const handleAuthorizedPackageLaunch = async (input: {
   ltiTool: LtiToolPort;
   launch: LtiAuthorizedLaunch<LtiLaunchAuthorization>;
   session: LTISession;
-  launchMessage: ResolvedLtiLaunchMessage;
+  packageLaunchMessage: CoreResolvedLtiLaunchMessage;
   sha256Hex: (value: string) => Promise<string>;
   createLtiSession: HandleLtiLaunchPostInput["createLtiSession"];
   handleVerifiedLtiLaunch: HandleVerifiedLtiLaunch;
@@ -123,7 +120,10 @@ const handleAuthorizedPackageLaunch = async (input: {
     db: input.db,
     tenantId: resolvedLaunch.issuerEntry.tenantId,
     resolvedLaunch,
-    launchMessage: input.launchMessage,
+    launchMessage: resolveCredTrailLtiLaunchMessage({
+      launchClaims: input.launch.payload,
+      coreLaunchMessage: input.packageLaunchMessage,
+    }),
     sha256Hex: input.sha256Hex,
     createLtiSession: input.createLtiSession,
   });
@@ -154,6 +154,7 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
   const renderAuthorizedPackageLaunch = (context: {
     launch: LtiAuthorizedLaunch<LtiLaunchAuthorization>;
     session: LTISession;
+    message: CoreResolvedLtiLaunchMessage;
   }): Promise<Response> => {
     return handleAuthorizedPackageLaunch({
       c: input.c,
@@ -161,7 +162,7 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
       ltiTool,
       launch: context.launch,
       session: context.session,
-      launchMessage: resolveLtiLaunchMessage(context.launch.payload),
+      packageLaunchMessage: context.message,
       sha256Hex: input.sha256Hex,
       createLtiSession: input.createLtiSession,
       handleVerifiedLtiLaunch: runVerifiedLaunch,
@@ -172,11 +173,10 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
     ltiTool,
     logger: createLtiHonoLogger({ c: input.c }),
     authorizeLaunch: (launch) => authorizeVerifiedLaunchForRegistry(registry, launch),
-    onVerificationFailure: ({ error }) =>
-      handleLtiLaunchVerificationFailureResponse(input.c, error),
+    onVerificationFailure: ({ error }) => renderLtiLaunchVerificationFailure(input.c, error),
     renderResourceLink: renderAuthorizedPackageLaunch,
     renderDeepLinkingRequest: renderAuthorizedPackageLaunch,
-    onError: ({ error }) => handleLtiLaunchFailureResponse(input.c, error),
+    onError: ({ error }) => renderLtiLaunchError(input.c, error),
   });
 
   return handler(input.c, async () => undefined);
