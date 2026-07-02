@@ -1,49 +1,30 @@
-  const contextElement = document.getElementById('ct-admin-context');
+const parsedContext = readAdminContext();
 
-  if (!(contextElement instanceof HTMLElement)) {
-    return;
-  }
+if (!parsedContext) {
+  return;
+}
 
-  const contextJson =
-    contextElement.dataset.contextJson ??
-    (contextElement instanceof HTMLScriptElement ? contextElement.textContent : null) ??
-    '{}';
+const tenantAdminPath =
+  typeof parsedContext.tenantAdminPath === "string" ? parsedContext.tenantAdminPath : "";
+const rulesListPath =
+  typeof parsedContext.rulesListPath === "string" ? parsedContext.rulesListPath : "";
+const badgeRuleApiPath =
+  typeof parsedContext.badgeRuleApiPath === "string" ? parsedContext.badgeRuleApiPath : "";
+const lmsConnectionsApiPath =
+  typeof parsedContext.lmsConnectionsApiPath === "string"
+    ? parsedContext.lmsConnectionsApiPath
+    : "";
 
-  let parsedContext;
+if (
+  tenantAdminPath.length === 0 ||
+  rulesListPath.length === 0 ||
+  badgeRuleApiPath.length === 0 ||
+  lmsConnectionsApiPath.length === 0
+) {
+  return;
+}
 
-  try {
-    parsedContext = JSON.parse(contextJson);
-  } catch {
-    return;
-  }
-
-  const tenantAdminPath =
-    parsedContext && typeof parsedContext.tenantAdminPath === 'string'
-      ? parsedContext.tenantAdminPath
-      : '';
-  const rulesListPath =
-    parsedContext && typeof parsedContext.rulesListPath === 'string'
-      ? parsedContext.rulesListPath
-      : '';
-  const badgeRuleApiPath =
-    parsedContext && typeof parsedContext.badgeRuleApiPath === 'string'
-      ? parsedContext.badgeRuleApiPath
-      : '';
-  const lmsConnectionsApiPath =
-    parsedContext && typeof parsedContext.lmsConnectionsApiPath === 'string'
-      ? parsedContext.lmsConnectionsApiPath
-      : '';
-
-  if (
-    tenantAdminPath.length === 0 ||
-    rulesListPath.length === 0 ||
-    badgeRuleApiPath.length === 0 ||
-    lmsConnectionsApiPath.length === 0
-  ) {
-    return;
-  }
-
-  const ruleCreateForm = document.getElementById('rule-create-form');
+const ruleCreateForm = document.getElementById("rule-create-form");
   const ruleCreateStatus = document.getElementById('rule-create-status');
   const ruleBuilderConditionList = document.getElementById('rule-builder-condition-list');
   const ruleBuilderConditionCardTemplate = document.getElementById(
@@ -108,33 +89,4 @@
     Array.isArray(ruleBuilderContext.valueLists)
       ? ruleBuilderContext.valueLists
       : [];
-  let ruleValueLists = initialRuleValueLists;
-
-  const setStatus = (el, text, isError, tone = 'info') => {
-    el.textContent = text;
-    el.dataset.tone = isError ? 'error' : tone;
-  };
-  const parseJsonBody = async (response) => {
-    try {
-      return await response.json();
-    } catch {
-      return null;
-    }
-  };
-  const errorDetailFromPayload = (payload) => {
-    return payload && typeof payload.error === 'string' ? payload.error : 'Request failed';
-  };
-  const setCodeOutput = (el, value) => {
-    if (!(el instanceof HTMLElement)) {
-      return;
-    }
-
-    if (typeof value !== 'string' || value.length === 0) {
-      el.hidden = true;
-      el.textContent = '';
-      return;
-    }
-
-    el.hidden = false;
-    el.textContent = value;
-  };
+let ruleValueLists = initialRuleValueLists;

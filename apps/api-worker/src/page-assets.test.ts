@@ -285,7 +285,7 @@ describe("page asset manifest", () => {
     }
   });
 
-  it("assembles JavaScript sources into parseable browser scripts", () => {
+  it("assembles JavaScript fragments into parseable browser scripts", () => {
     for (const assetKey of scriptAssetKeys) {
       const body = readScriptAssetSource(assetKey);
 
@@ -294,14 +294,18 @@ describe("page asset manifest", () => {
   });
 
   it("keeps admin browser controllers split into focused source files", () => {
-    const assetContentDir = new URL("./ui/page-assets/content-js/", import.meta.url);
+    const assetContentDir = new URL("./ui/page-assets/content/js/", import.meta.url);
     const adminScriptFiles = readdirSync(assetContentDir).filter((fileName) => {
       return fileName.startsWith("institution-admin") && fileName.endsWith(".js");
     });
 
     expect(adminScriptFiles.length).toBeGreaterThan(0);
     expect(readdirSync(assetContentDir)).not.toEqual(
-      expect.arrayContaining(["open-iife.js", "close-iife.js"]),
+      expect.arrayContaining([
+        "open-iife.js",
+        "close-iife.js",
+        "admin-status-pill-class-helper.js",
+      ]),
     );
 
     for (const fileName of adminScriptFiles) {
@@ -309,6 +313,18 @@ describe("page asset manifest", () => {
       const lineCount = source.split("\n").length;
 
       expect(lineCount).toBeLessThan(1000);
+    }
+  });
+
+  it("keeps authored JavaScript fragments free of inline IIFE wrappers", () => {
+    const assetContentDir = new URL("./ui/page-assets/content/js/", import.meta.url);
+    const jsFiles = readdirSync(assetContentDir).filter((fileName) => fileName.endsWith(".js"));
+
+    for (const fileName of jsFiles) {
+      const source = readFileSync(new URL(fileName, assetContentDir), "utf8").trim();
+
+      expect(source).not.toMatch(/^\(\(\)\s*=>\s*\{/);
+      expect(source).not.toMatch(/\}\)\(\);\s*$/);
     }
   });
 

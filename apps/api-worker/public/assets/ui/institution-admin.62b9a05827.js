@@ -1,98 +1,114 @@
 (() => {
-  const contextElement = document.getElementById('ct-admin-context');
+const readAdminContext = () => {
+  const contextElement = document.getElementById("ct-admin-context");
 
   if (!(contextElement instanceof HTMLElement)) {
-    return;
+    return null;
   }
 
   const contextJson =
     contextElement.dataset.contextJson ??
     (contextElement instanceof HTMLScriptElement ? contextElement.textContent : null) ??
-    '{}';
-
-  let parsedContext;
+    "{}";
 
   try {
-    parsedContext = JSON.parse(contextJson);
+    const parsedContext = JSON.parse(contextJson);
+
+    return parsedContext && typeof parsedContext === "object" ? parsedContext : null;
   } catch {
+    return null;
+  }
+};
+
+const setStatus = (el, text, isError, tone = "info") => {
+  if (!(el instanceof HTMLElement)) {
     return;
   }
 
-  const badgeRuleApiPath =
-    parsedContext && typeof parsedContext.badgeRuleApiPath === 'string'
-      ? parsedContext.badgeRuleApiPath
-      : '';
-  const assertionsApiPathPrefix =
-    parsedContext && typeof parsedContext.assertionsApiPathPrefix === 'string'
-      ? parsedContext.assertionsApiPathPrefix
-      : '';
+  el.textContent = text;
+  el.dataset.tone = isError ? "error" : tone;
+};
 
-  const ruleEvaluateForm = document.getElementById('rule-evaluate-form');
-  const ruleEvaluateStatus = document.getElementById('rule-evaluate-status');
-  const reportingFiltersForm = document.getElementById('reporting-filters-form');
-  const reportingFiltersStatus = document.getElementById('reporting-filters-status');
-  const assertionLifecycleViewForm = document.getElementById('assertion-lifecycle-view-form');
-  const assertionLifecycleViewStatus = document.getElementById('assertion-lifecycle-view-status');
-  const assertionLifecycleOutput = document.getElementById('assertion-lifecycle-output');
-  const assertionLifecycleTransitionForm = document.getElementById(
-    'assertion-lifecycle-transition-form',
-  );
-  const assertionLifecycleTransitionStatus = document.getElementById(
-    'assertion-lifecycle-transition-status',
-  );
-  const ruleGovernanceForm = document.getElementById('rule-governance-form');
-  const ruleGovernanceStatus = document.getElementById('rule-governance-status');
-  const ruleGovernanceOutput = document.getElementById('rule-governance-output');
+const parseJsonBody = async (response) => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
 
-  const setStatus = (el, text, isError, tone = 'info') => {
-    el.textContent = text;
-    el.dataset.tone = isError ? 'error' : tone;
-  };
-  const parseJsonBody = async (response) => {
-    try {
-      return await response.json();
-    } catch {
-      return null;
+const errorDetailFromPayload = (payload) => {
+  return payload && typeof payload.error === "string" ? payload.error : "Request failed";
+};
+
+const setCodeOutput = (el, value) => {
+  if (!(el instanceof HTMLElement)) {
+    return;
+  }
+
+  if (typeof value !== "string" || value.length === 0) {
+    el.hidden = true;
+    el.textContent = "";
+    return;
+  }
+
+  el.hidden = false;
+  el.textContent = value;
+};
+
+const parsedContext = readAdminContext();
+
+if (!parsedContext) {
+  return;
+}
+
+const badgeRuleApiPath =
+  parsedContext && typeof parsedContext.badgeRuleApiPath === "string"
+    ? parsedContext.badgeRuleApiPath
+    : "";
+const assertionsApiPathPrefix =
+  parsedContext && typeof parsedContext.assertionsApiPathPrefix === "string"
+    ? parsedContext.assertionsApiPathPrefix
+    : "";
+
+const ruleEvaluateForm = document.getElementById("rule-evaluate-form");
+const ruleEvaluateStatus = document.getElementById("rule-evaluate-status");
+const reportingFiltersForm = document.getElementById("reporting-filters-form");
+const reportingFiltersStatus = document.getElementById("reporting-filters-status");
+const assertionLifecycleViewForm = document.getElementById("assertion-lifecycle-view-form");
+const assertionLifecycleViewStatus = document.getElementById("assertion-lifecycle-view-status");
+const assertionLifecycleOutput = document.getElementById("assertion-lifecycle-output");
+const assertionLifecycleTransitionForm = document.getElementById(
+  "assertion-lifecycle-transition-form",
+);
+const assertionLifecycleTransitionStatus = document.getElementById(
+  "assertion-lifecycle-transition-status",
+);
+const ruleGovernanceForm = document.getElementById("rule-governance-form");
+const ruleGovernanceStatus = document.getElementById("rule-governance-status");
+const ruleGovernanceOutput = document.getElementById("rule-governance-output");
+
+const fillLifecycleAssertionIdInputs = (assertionId) => {
+  if (typeof assertionId !== "string" || assertionId.length === 0) {
+    return;
+  }
+
+  if (assertionLifecycleViewForm instanceof HTMLFormElement) {
+    const lifecycleInput = assertionLifecycleViewForm.elements.namedItem("assertionId");
+
+    if (lifecycleInput instanceof HTMLInputElement) {
+      lifecycleInput.value = assertionId;
     }
-  };
-  const errorDetailFromPayload = (payload) => {
-    return payload && typeof payload.error === 'string' ? payload.error : 'Request failed';
-  };
-  const setCodeOutput = (el, value) => {
-    if (!(el instanceof HTMLElement)) {
-      return;
+  }
+
+  if (assertionLifecycleTransitionForm instanceof HTMLFormElement) {
+    const transitionInput = assertionLifecycleTransitionForm.elements.namedItem("assertionId");
+
+    if (transitionInput instanceof HTMLInputElement) {
+      transitionInput.value = assertionId;
     }
-
-    if (typeof value !== 'string' || value.length === 0) {
-      el.hidden = true;
-      el.textContent = '';
-      return;
-    }
-
-    el.hidden = false;
-    el.textContent = value;
-  };
-  const fillLifecycleAssertionIdInputs = (assertionId) => {
-    if (typeof assertionId !== 'string' || assertionId.length === 0) {
-      return;
-    }
-
-    if (assertionLifecycleViewForm instanceof HTMLFormElement) {
-      const lifecycleInput = assertionLifecycleViewForm.elements.namedItem('assertionId');
-
-      if (lifecycleInput instanceof HTMLInputElement) {
-        lifecycleInput.value = assertionId;
-      }
-    }
-
-    if (assertionLifecycleTransitionForm instanceof HTMLFormElement) {
-      const transitionInput = assertionLifecycleTransitionForm.elements.namedItem('assertionId');
-
-      if (transitionInput instanceof HTMLInputElement) {
-        transitionInput.value = assertionId;
-      }
-    }
-  };
+  }
+};
 
 const loadAssertionLifecycle = async (
   assertionId,
@@ -242,156 +258,152 @@ const transitionAssertionLifecycle = async ({
   }
 };
 
-(() => {
-  const actionMenuGap = 4;
-  const viewportPadding = 8;
-  let openActionMenuPopover = null;
-  let openActionMenuTrigger = null;
+const actionMenuGap = 4;
+const viewportPadding = 8;
+let openActionMenuPopover = null;
+let openActionMenuTrigger = null;
 
-  const findActionMenuPanel = (trigger) => {
-    if (!(trigger instanceof HTMLElement)) {
-      return null;
-    }
+const findActionMenuPanel = (trigger) => {
+  if (!(trigger instanceof HTMLElement)) {
+    return null;
+  }
 
-    const menuId = trigger.getAttribute("data-action-menu-trigger") || "";
-    if (menuId.length === 0) {
-      return null;
-    }
+  const menuId = trigger.getAttribute("data-action-menu-trigger") || "";
+  if (menuId.length === 0) {
+    return null;
+  }
 
-    const candidate = document.getElementById(menuId);
-    return candidate instanceof HTMLElement ? candidate : null;
-  };
+  const candidate = document.getElementById(menuId);
+  return candidate instanceof HTMLElement ? candidate : null;
+};
 
-  const positionActionMenuPopover = (popover, trigger) => {
-    if (!(popover instanceof HTMLElement) || !(trigger instanceof HTMLElement)) {
-      return;
-    }
+const positionActionMenuPopover = (popover, trigger) => {
+  if (!(popover instanceof HTMLElement) || !(trigger instanceof HTMLElement)) {
+    return;
+  }
 
-    const triggerRect = trigger.getBoundingClientRect();
-    const popoverRect = popover.getBoundingClientRect();
-    const popoverWidth = Math.max(popoverRect.width, 0);
-    const popoverHeight = Math.max(popoverRect.height, 0);
-    const minLeft = viewportPadding;
-    const maxLeft = Math.max(minLeft, window.innerWidth - popoverWidth - viewportPadding);
-    const preferredLeft = triggerRect.right - popoverWidth;
-    const minTop = viewportPadding;
-    const maxTop = Math.max(minTop, window.innerHeight - popoverHeight - viewportPadding);
-    const belowTop = triggerRect.bottom + actionMenuGap;
-    const aboveTop = triggerRect.top - popoverHeight - actionMenuGap;
-    const hasBelowSpace = belowTop + popoverHeight <= window.innerHeight - viewportPadding;
-    const hasAboveSpace = aboveTop >= viewportPadding;
-    const preferredTop = hasBelowSpace || !hasAboveSpace ? belowTop : aboveTop;
+  const triggerRect = trigger.getBoundingClientRect();
+  const popoverRect = popover.getBoundingClientRect();
+  const popoverWidth = Math.max(popoverRect.width, 0);
+  const popoverHeight = Math.max(popoverRect.height, 0);
+  const minLeft = viewportPadding;
+  const maxLeft = Math.max(minLeft, window.innerWidth - popoverWidth - viewportPadding);
+  const preferredLeft = triggerRect.right - popoverWidth;
+  const minTop = viewportPadding;
+  const maxTop = Math.max(minTop, window.innerHeight - popoverHeight - viewportPadding);
+  const belowTop = triggerRect.bottom + actionMenuGap;
+  const aboveTop = triggerRect.top - popoverHeight - actionMenuGap;
+  const hasBelowSpace = belowTop + popoverHeight <= window.innerHeight - viewportPadding;
+  const hasAboveSpace = aboveTop >= viewportPadding;
+  const preferredTop = hasBelowSpace || !hasAboveSpace ? belowTop : aboveTop;
 
-    popover.style.position = "fixed";
-    popover.style.top = Math.min(Math.max(preferredTop, minTop), maxTop) + "px";
-    popover.style.left = Math.min(Math.max(preferredLeft, minLeft), maxLeft) + "px";
-    popover.style.right = "auto";
-    popover.style.bottom = "auto";
-  };
+  popover.style.position = "fixed";
+  popover.style.top = Math.min(Math.max(preferredTop, minTop), maxTop) + "px";
+  popover.style.left = Math.min(Math.max(preferredLeft, minLeft), maxLeft) + "px";
+  popover.style.right = "auto";
+  popover.style.bottom = "auto";
+};
 
-  const closeOpenActionMenuPopover = () => {
-    if (openActionMenuPopover instanceof HTMLElement) {
-      openActionMenuPopover.hidden = true;
-      openActionMenuPopover.removeAttribute("data-open");
-    }
+const closeOpenActionMenuPopover = () => {
+  if (openActionMenuPopover instanceof HTMLElement) {
+    openActionMenuPopover.hidden = true;
+    openActionMenuPopover.removeAttribute("data-open");
+  }
 
-    if (openActionMenuTrigger instanceof HTMLElement) {
-      openActionMenuTrigger.setAttribute("aria-expanded", "false");
-    }
+  if (openActionMenuTrigger instanceof HTMLElement) {
+    openActionMenuTrigger.setAttribute("aria-expanded", "false");
+  }
 
-    openActionMenuPopover = null;
-    openActionMenuTrigger = null;
-  };
+  openActionMenuPopover = null;
+  openActionMenuTrigger = null;
+};
 
-  const openActionMenu = (trigger, popover) => {
+const openActionMenu = (trigger, popover) => {
+  closeOpenActionMenuPopover();
+
+  popover.hidden = false;
+  popover.setAttribute("data-open", "true");
+  trigger.setAttribute("aria-expanded", "true");
+  openActionMenuPopover = popover;
+  openActionMenuTrigger = trigger;
+  positionActionMenuPopover(popover, trigger);
+};
+
+const toggleActionMenu = (trigger, popover) => {
+  if (openActionMenuPopover === popover) {
     closeOpenActionMenuPopover();
+    return;
+  }
 
-    popover.hidden = false;
-    popover.setAttribute("data-open", "true");
-    trigger.setAttribute("aria-expanded", "true");
-    openActionMenuPopover = popover;
-    openActionMenuTrigger = trigger;
-    positionActionMenuPopover(popover, trigger);
-  };
+  openActionMenu(trigger, popover);
+};
 
-  const toggleActionMenu = (trigger, popover) => {
-    if (openActionMenuPopover === popover) {
-      closeOpenActionMenuPopover();
-      return;
+const closeActionMenuPopover = (element) => {
+  if (!(element instanceof Element)) {
+    return;
+  }
+
+  const popover = element.closest(".ct-admin__action-menu-popover");
+  if (popover instanceof HTMLElement && popover === openActionMenuPopover) {
+    closeOpenActionMenuPopover();
+  }
+};
+
+document.addEventListener("click", (event) => {
+  const target = event.target;
+
+  if (!(target instanceof Element)) {
+    return;
+  }
+
+  const trigger = target.closest("[data-action-menu-trigger]");
+  if (trigger instanceof HTMLElement) {
+    const popover = findActionMenuPanel(trigger);
+    if (popover instanceof HTMLElement) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleActionMenu(trigger, popover);
     }
+    return;
+  }
 
-    openActionMenu(trigger, popover);
-  };
+  if (openActionMenuPopover instanceof HTMLElement && !openActionMenuPopover.contains(target)) {
+    closeOpenActionMenuPopover();
+  }
+});
 
-  const closeActionMenuPopover = (element) => {
-    if (!(element instanceof Element)) {
-      return;
-    }
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeOpenActionMenuPopover();
+  }
+});
 
-    const popover = element.closest(".ct-admin__action-menu-popover");
-    if (popover instanceof HTMLElement && popover === openActionMenuPopover) {
-      closeOpenActionMenuPopover();
-    }
-  };
+document.addEventListener(
+  "scroll",
+  () => {
+    closeOpenActionMenuPopover();
+  },
+  { capture: true, passive: true },
+);
 
-  document.addEventListener("click", (event) => {
-    const target = event.target;
+window.CredTrailAdminActionMenus = {
+  close: closeActionMenuPopover,
+  position: positionActionMenuPopover,
+};
 
-    if (!(target instanceof Element)) {
-      return;
-    }
+document.querySelectorAll("form[data-confirm-message]").forEach((form) => {
+  if (!(form instanceof HTMLFormElement)) {
+    return;
+  }
 
-    const trigger = target.closest("[data-action-menu-trigger]");
-    if (trigger instanceof HTMLElement) {
-      const popover = findActionMenuPanel(trigger);
-      if (popover instanceof HTMLElement) {
-        event.preventDefault();
-        event.stopPropagation();
-        toggleActionMenu(trigger, popover);
-      }
-      return;
-    }
+  form.addEventListener("submit", (event) => {
+    const message = form.dataset.confirmMessage ?? "Continue?";
 
-    if (openActionMenuPopover instanceof HTMLElement && !openActionMenuPopover.contains(target)) {
-      closeOpenActionMenuPopover();
+    if (!window.confirm(message)) {
+      event.preventDefault();
     }
   });
-
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      closeOpenActionMenuPopover();
-    }
-  });
-
-  document.addEventListener(
-    "scroll",
-    () => {
-      closeOpenActionMenuPopover();
-    },
-    { capture: true, passive: true },
-  );
-
-  window.CredTrailAdminActionMenus = {
-    close: closeActionMenuPopover,
-    position: positionActionMenuPopover,
-  };
-})();
-
-(() => {
-  document.querySelectorAll("form[data-confirm-message]").forEach((form) => {
-    if (!(form instanceof HTMLFormElement)) {
-      return;
-    }
-
-    form.addEventListener("submit", (event) => {
-      const message = form.dataset.confirmMessage ?? "Continue?";
-
-      if (!window.confirm(message)) {
-        event.preventDefault();
-      }
-    });
-  });
-})();
+});
 
 if (
   assertionLifecycleViewForm instanceof HTMLFormElement &&
@@ -658,26 +670,24 @@ if (ruleEvaluateForm instanceof HTMLFormElement && ruleEvaluateStatus instanceof
   });
 }
 
-(() => {
-  const sidebarToggle = document.querySelector("[data-sidebar-toggle]");
-  const sidebar = document.querySelector(".ct-admin-sidebar");
+const sidebarToggle = document.querySelector("[data-sidebar-toggle]");
+const sidebar = document.querySelector(".ct-admin-sidebar");
 
-  if (sidebarToggle instanceof HTMLElement && sidebar instanceof HTMLElement) {
-    sidebarToggle.addEventListener("click", () => {
-      sidebar.classList.toggle("ct-admin-sidebar--open");
-    });
+if (sidebarToggle instanceof HTMLElement && sidebar instanceof HTMLElement) {
+  sidebarToggle.addEventListener("click", () => {
+    sidebar.classList.toggle("ct-admin-sidebar--open");
+  });
 
-    document.addEventListener("click", (event) => {
-      if (
-        sidebar.classList.contains("ct-admin-sidebar--open") &&
-        !sidebar.contains(event.target) &&
-        event.target !== sidebarToggle
-      ) {
-        sidebar.classList.remove("ct-admin-sidebar--open");
-      }
-    });
-  }
-})();
+  document.addEventListener("click", (event) => {
+    if (
+      sidebar.classList.contains("ct-admin-sidebar--open") &&
+      !sidebar.contains(event.target) &&
+      event.target !== sidebarToggle
+    ) {
+      sidebar.classList.remove("ct-admin-sidebar--open");
+    }
+  });
+}
 
 
   if (reportingFiltersForm instanceof HTMLFormElement) {

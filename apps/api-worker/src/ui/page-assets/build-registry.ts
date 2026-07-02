@@ -1,4 +1,5 @@
 import type { StylePageAssetSource } from "./assemble-style-asset";
+import { renderAdminStatusPillClassBrowserHelper } from "../../admin/admin-status-pill-class";
 import { FONT_ASSET_SOURCES } from "./content/font-assets";
 
 export type { StylePageAssetMediaGroup, StylePageAssetSource } from "./assemble-style-asset";
@@ -12,11 +13,22 @@ export interface StylePageAssetBuildSource {
 export interface ScriptPageAssetBuildSource {
   readonly kind: "script";
   readonly stem: string;
-  readonly wrapper?: "iife";
-  readonly sources: readonly string[];
+  readonly sources: readonly ScriptPageAssetSource[];
 }
 
 export type PageAssetBuildSource = StylePageAssetBuildSource | ScriptPageAssetBuildSource;
+
+export type ScriptPageAssetSource =
+  | string
+  | {
+      readonly sourceName: string;
+      readonly body: string;
+    };
+
+const ADMIN_STATUS_PILL_CLASS_SCRIPT_SOURCE: ScriptPageAssetSource = {
+  sourceName: "admin-status-pill-class-helper.js",
+  body: renderAdminStatusPillClassBrowserHelper(),
+};
 
 export const PAGE_ASSET_BUILD_SOURCES = {
   foundationCss: {
@@ -31,7 +43,11 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     ],
   },
   authLoginCss: { kind: "style", stem: "auth-login", sources: ["auth-login.css"] },
-  authLoginJs: { kind: "script", stem: "auth-login", sources: ["auth-login.js"] },
+  authLoginJs: {
+    kind: "script",
+    stem: "auth-login",
+    sources: ["auth-login.js"],
+  },
   executiveDashboardCss: {
     kind: "style",
     stem: "executive-dashboard",
@@ -79,8 +95,8 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   institutionAdminJs: {
     kind: "script",
     stem: "institution-admin",
-    wrapper: "iife",
     sources: [
+      "admin-browser-primitives.js",
       "institution-admin-bootstrap.js",
       "institution-admin-rule-operations.js",
       "institution-admin-shell-behavior.js",
@@ -108,8 +124,8 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   institutionAdminBadgeTemplateListJs: {
     kind: "script",
     stem: "institution-admin-badge-template-list",
-    wrapper: "iife",
     sources: [
+      "admin-browser-primitives.js",
       "institution-admin-badge-template-shared-bootstrap.js",
       "institution-admin-badge-template-history-core.js",
       "institution-admin-badge-template-image-fallback.js",
@@ -119,8 +135,8 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   institutionAdminBadgeTemplateEditorJs: {
     kind: "script",
     stem: "institution-admin-badge-template-editor",
-    wrapper: "iife",
     sources: [
+      "admin-browser-primitives.js",
       "institution-admin-badge-template-shared-bootstrap.js",
       "institution-admin-badge-template-editor-records.js",
       "institution-admin-badge-template-history-core.js",
@@ -132,15 +148,15 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   institutionAdminIssuedBadgesJs: {
     kind: "script",
     stem: "institution-admin-issued-badges",
-    sources: ["institution-admin-issued-badges.js"],
+    sources: ["admin-browser-primitives.js", "institution-admin-issued-badges.js"],
   },
   institutionAdminRuleBuilderJs: {
     kind: "script",
     stem: "institution-admin-rule-builder",
-    wrapper: "iife",
     sources: [
+      "admin-browser-primitives.js",
       "institution-admin-rule-builder-bootstrap.js",
-      "admin-status-pill-class-helper.js",
+      ADMIN_STATUS_PILL_CLASS_SCRIPT_SOURCE,
       "institution-admin-rule-builder-setup.js",
       "institution-admin-rule-builder-steps.js",
       "institution-admin-rule-builder-condition-fields.js",
@@ -168,7 +184,6 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   ltiDeepLinkSetupJs: {
     kind: "script",
     stem: "lti-deep-link-setup",
-    wrapper: "iife",
     sources: ["lms-gradebook-picker-primitives.js", "lti-deep-link-setup.js"],
   },
   ltiPostMessageStorageJs: {
@@ -185,7 +200,11 @@ export const PAGE_ASSET_BUILD_SOURCES = {
       "public-badge-criteria-registry.css",
     ],
   },
-  publicBadgeJs: { kind: "script", stem: "public-badge", sources: ["public-badge.js"] },
+  publicBadgeJs: {
+    kind: "script",
+    stem: "public-badge",
+    sources: ["public-badge.js"],
+  },
 } as const satisfies Record<string, PageAssetBuildSource>;
 
 export { FONT_ASSET_SOURCES };

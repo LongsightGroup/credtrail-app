@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 export const PAGE_ASSET_CONTENT_DIR = join(dirname(fileURLToPath(import.meta.url)), "content");
 export const PAGE_ASSET_SCRIPT_CONTENT_DIR = join(
   dirname(fileURLToPath(import.meta.url)),
-  "content-js",
+  "content",
+  "js",
 );
 
 export const readPageAssetContentFile = (sourcePath: string): string => {

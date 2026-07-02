@@ -1,50 +1,88 @@
 (() => {
-  const contextElement = document.getElementById('ct-admin-context');
+const readAdminContext = () => {
+  const contextElement = document.getElementById("ct-admin-context");
 
   if (!(contextElement instanceof HTMLElement)) {
-    return;
+    return null;
   }
 
   const contextJson =
     contextElement.dataset.contextJson ??
     (contextElement instanceof HTMLScriptElement ? contextElement.textContent : null) ??
-    '{}';
-
-  let parsedContext;
+    "{}";
 
   try {
-    parsedContext = JSON.parse(contextJson);
+    const parsedContext = JSON.parse(contextJson);
+
+    return parsedContext && typeof parsedContext === "object" ? parsedContext : null;
   } catch {
+    return null;
+  }
+};
+
+const setStatus = (el, text, isError, tone = "info") => {
+  if (!(el instanceof HTMLElement)) {
     return;
   }
 
-  const tenantAdminPath =
-    parsedContext && typeof parsedContext.tenantAdminPath === 'string'
-      ? parsedContext.tenantAdminPath
-      : '';
-  const rulesListPath =
-    parsedContext && typeof parsedContext.rulesListPath === 'string'
-      ? parsedContext.rulesListPath
-      : '';
-  const badgeRuleApiPath =
-    parsedContext && typeof parsedContext.badgeRuleApiPath === 'string'
-      ? parsedContext.badgeRuleApiPath
-      : '';
-  const lmsConnectionsApiPath =
-    parsedContext && typeof parsedContext.lmsConnectionsApiPath === 'string'
-      ? parsedContext.lmsConnectionsApiPath
-      : '';
+  el.textContent = text;
+  el.dataset.tone = isError ? "error" : tone;
+};
 
-  if (
-    tenantAdminPath.length === 0 ||
-    rulesListPath.length === 0 ||
-    badgeRuleApiPath.length === 0 ||
-    lmsConnectionsApiPath.length === 0
-  ) {
+const parseJsonBody = async (response) => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const errorDetailFromPayload = (payload) => {
+  return payload && typeof payload.error === "string" ? payload.error : "Request failed";
+};
+
+const setCodeOutput = (el, value) => {
+  if (!(el instanceof HTMLElement)) {
     return;
   }
 
-  const ruleCreateForm = document.getElementById('rule-create-form');
+  if (typeof value !== "string" || value.length === 0) {
+    el.hidden = true;
+    el.textContent = "";
+    return;
+  }
+
+  el.hidden = false;
+  el.textContent = value;
+};
+
+const parsedContext = readAdminContext();
+
+if (!parsedContext) {
+  return;
+}
+
+const tenantAdminPath =
+  typeof parsedContext.tenantAdminPath === "string" ? parsedContext.tenantAdminPath : "";
+const rulesListPath =
+  typeof parsedContext.rulesListPath === "string" ? parsedContext.rulesListPath : "";
+const badgeRuleApiPath =
+  typeof parsedContext.badgeRuleApiPath === "string" ? parsedContext.badgeRuleApiPath : "";
+const lmsConnectionsApiPath =
+  typeof parsedContext.lmsConnectionsApiPath === "string"
+    ? parsedContext.lmsConnectionsApiPath
+    : "";
+
+if (
+  tenantAdminPath.length === 0 ||
+  rulesListPath.length === 0 ||
+  badgeRuleApiPath.length === 0 ||
+  lmsConnectionsApiPath.length === 0
+) {
+  return;
+}
+
+const ruleCreateForm = document.getElementById("rule-create-form");
   const ruleCreateStatus = document.getElementById('rule-create-status');
   const ruleBuilderConditionList = document.getElementById('rule-builder-condition-list');
   const ruleBuilderConditionCardTemplate = document.getElementById(
@@ -109,38 +147,8 @@
     Array.isArray(ruleBuilderContext.valueLists)
       ? ruleBuilderContext.valueLists
       : [];
-  let ruleValueLists = initialRuleValueLists;
-
-  const setStatus = (el, text, isError, tone = 'info') => {
-    el.textContent = text;
-    el.dataset.tone = isError ? 'error' : tone;
-  };
-  const parseJsonBody = async (response) => {
-    try {
-      return await response.json();
-    } catch {
-      return null;
-    }
-  };
-  const errorDetailFromPayload = (payload) => {
-    return payload && typeof payload.error === 'string' ? payload.error : 'Request failed';
-  };
-  const setCodeOutput = (el, value) => {
-    if (!(el instanceof HTMLElement)) {
-      return;
-    }
-
-    if (typeof value !== 'string' || value.length === 0) {
-      el.hidden = true;
-      el.textContent = '';
-      return;
-    }
-
-    el.hidden = false;
-    el.textContent = value;
-  };
-
-const adminStatusPillClass = (tone) => {
+let ruleValueLists = initialRuleValueLists;
+var adminStatusPillClass = function adminStatusPillClass(tone) {
   const normalizedTone = typeof tone === "string" ? tone.trim() : "";
   return normalizedTone.length === 0
     ? "ct-admin__status-pill"
