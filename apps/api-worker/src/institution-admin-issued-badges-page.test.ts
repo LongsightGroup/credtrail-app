@@ -10,9 +10,11 @@ import {
   sampleTenantAssertionSummary,
 } from "./institution-admin-page-test-utils";
 import { app } from "./index";
-import { INSTITUTION_ADMIN_ISSUED_BADGES_JS } from "./ui/page-assets/content/institution-admin-issued-badges-js";
-import { INSTITUTION_ADMIN_JS } from "./ui/page-assets/content/institution-admin-js";
+import { readScriptAssetSource } from "./page-asset-test-utils";
 import { pageAssetPath } from "./ui/page-assets";
+
+const INSTITUTION_ADMIN_ISSUED_BADGES_JS = readScriptAssetSource("institutionAdminIssuedBadgesJs");
+const INSTITUTION_ADMIN_JS = readScriptAssetSource("institutionAdminJs");
 
 describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
   it("renders the issued badges ledger on its own page", async () => {

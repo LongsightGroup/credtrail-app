@@ -1,6 +1,9 @@
 import { assembleStyleAsset } from "./ui/page-assets/assemble-style-asset";
 import { PAGE_ASSET_BUILD_SOURCES } from "./ui/page-assets/build-registry";
-import { readPageAssetContentFile } from "./ui/page-assets/page-asset-content";
+import {
+  readPageAssetContentFile,
+  readPageAssetScriptContentFile,
+} from "./ui/page-assets/page-asset-content";
 import type { PageAssetKey } from "./ui/page-assets";
 
 export const readStyleSourceFile = readPageAssetContentFile;
@@ -13,4 +16,14 @@ export const readStyleAssetSource = (assetKey: PageAssetKey): string => {
   }
 
   return assembleStyleAsset(source.sources, readStyleSourceFile);
+};
+
+export const readScriptAssetSource = (assetKey: PageAssetKey): string => {
+  const source = PAGE_ASSET_BUILD_SOURCES[assetKey];
+
+  if (source.kind !== "script") {
+    throw new Error(`${assetKey} is not a script asset`);
+  }
+
+  return source.sources.map((sourcePath) => readPageAssetScriptContentFile(sourcePath)).join("\n");
 };

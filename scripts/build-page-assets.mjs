@@ -7,7 +7,10 @@ import {
   FONT_ASSET_SOURCES,
   PAGE_ASSET_BUILD_SOURCES,
 } from "../apps/api-worker/src/ui/page-assets/build-registry.ts";
-import { readPageAssetContentFile } from "../apps/api-worker/src/ui/page-assets/page-asset-content.ts";
+import {
+  readPageAssetContentFile,
+  readPageAssetScriptContentFile,
+} from "../apps/api-worker/src/ui/page-assets/page-asset-content.ts";
 
 const repoRoot = dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
 const publicRoot = join(repoRoot, "apps/api-worker/public");
@@ -59,11 +62,18 @@ const readStyleAssetBody = (sources) => {
   return assembleStyleAsset(sources, readPageAssetContentFile, replaceFontPaths);
 };
 
+const readScriptAssetBody = (sources) => {
+  return sources.map((sourcePath) => readPageAssetScriptContentFile(sourcePath)).join("\n");
+};
+
 const pageManifestEntries = [];
 
 for (const [key, source] of Object.entries(PAGE_ASSET_BUILD_SOURCES)) {
   const extension = source.kind === "style" ? "css" : "js";
-  const body = source.kind === "style" ? readStyleAssetBody(source.sources) : source.body;
+  const body =
+    source.kind === "style"
+      ? readStyleAssetBody(source.sources)
+      : readScriptAssetBody(source.sources);
   const filename = `${source.stem}.${hashBody(body)}.${extension}`;
   const path = `/assets/ui/${filename}`;
 

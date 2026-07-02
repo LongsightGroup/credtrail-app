@@ -1,11 +1,12 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { createContext, Script } from "node:vm";
 import { describe, expect, it } from "vitest";
-import { readStyleSourceFile } from "./page-asset-test-utils";
-import { INSTITUTION_ADMIN_SHELL_JS } from "./ui/page-assets/content/institution-admin-shell-js";
-import { LTI_DEEP_LINK_SETUP_JS } from "./ui/page-assets/content/lti-deep-link-setup-js";
-import { PUBLIC_BADGE_JS } from "./ui/page-assets/content/public-badge-js";
+import { readScriptAssetSource, readStyleSourceFile } from "./page-asset-test-utils";
 import { pageAssetPath, type PageAssetKey } from "./ui/page-assets";
+
+const INSTITUTION_ADMIN_SHELL_JS = readScriptAssetSource("institutionAdminShellJs");
+const LTI_DEEP_LINK_SETUP_JS = readScriptAssetSource("ltiDeepLinkSetupJs");
+const PUBLIC_BADGE_JS = readScriptAssetSource("publicBadgeJs");
 
 const readGeneratedAsset = (assetKey: PageAssetKey): string => {
   const publicAssetPath = pageAssetPath(assetKey).replace(/^\//, "");
@@ -293,9 +294,9 @@ describe("page asset manifest", () => {
   });
 
   it("keeps admin browser controllers split into focused source files", () => {
-    const assetContentDir = new URL("./ui/page-assets/content/", import.meta.url);
+    const assetContentDir = new URL("./ui/page-assets/content-js/", import.meta.url);
     const adminScriptFiles = readdirSync(assetContentDir).filter((fileName) => {
-      return fileName.startsWith("institution-admin") && fileName.endsWith("-js.ts");
+      return fileName.startsWith("institution-admin") && fileName.endsWith(".js");
     });
 
     expect(adminScriptFiles.length).toBeGreaterThan(0);

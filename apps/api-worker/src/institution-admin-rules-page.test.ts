@@ -31,14 +31,18 @@ import {
   sampleMembership,
 } from "./institution-admin-page-test-utils";
 import { app } from "./index";
-import { readStyleAssetSource } from "./page-asset-test-utils";
-import { INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS } from "./ui/page-assets/content/institution-admin-badge-template-editor-js";
-import { INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_JS } from "./ui/page-assets/content/institution-admin-badge-template-list-js";
-import { INSTITUTION_ADMIN_JS } from "./ui/page-assets/content/institution-admin-js";
-import { INSTITUTION_ADMIN_RULE_BUILDER_JS } from "./ui/page-assets/content/institution-admin-rule-builder-js";
+import { readScriptAssetSource, readStyleAssetSource } from "./page-asset-test-utils";
 import { pageAssetPath } from "./ui/page-assets";
 
 const INSTITUTION_ADMIN_CSS = readStyleAssetSource("institutionAdminCss");
+const INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS = readScriptAssetSource(
+  "institutionAdminBadgeTemplateEditorJs",
+);
+const INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_JS = readScriptAssetSource(
+  "institutionAdminBadgeTemplateListJs",
+);
+const INSTITUTION_ADMIN_JS = readScriptAssetSource("institutionAdminJs");
+const INSTITUTION_ADMIN_RULE_BUILDER_JS = readScriptAssetSource("institutionAdminRuleBuilderJs");
 
 const adminFlashCookieHeader = (response: Response): string => {
   const setCookieHeaders =
@@ -1735,7 +1739,7 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-require-every-requirement");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("prefers-reduced-motion: reduce");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("shouldScrollToActiveBuilderPanel");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("setRuleBuilderRootLogic('all')");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toMatch(/setRuleBuilderRootLogic\(["']all["']\)/);
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("data-rule-builder-root-logic-option");
     expect(body).toMatch(
       /id="rule-builder-step-next"[^>]*class="[^"]*ct-admin__button[^"]*ct-action--sm/,
@@ -1761,9 +1765,11 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "setBuilderStepState(activeRuleBuilderStepIndex + 1)",
     );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("Choose ' + article + missingLabels[0]");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "and an ' + missingLabels[1] + ' before continuing",
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toMatch(
+      /Choose ["'] \+ article \+ missingLabels\[0\]/,
+    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toMatch(
+      /and an ["'] \+ missingLabels\[1\] \+ ["'] before continuing/,
     );
     expect(body).toContain('id="rule-builder-test-preset"');
     expect(body).not.toContain('id="rule-builder-apply-test-preset"');

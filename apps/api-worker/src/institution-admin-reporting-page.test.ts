@@ -15,12 +15,12 @@ import {
   sampleMembership,
 } from "./institution-admin-page-test-utils";
 import { app } from "./index";
-import { readStyleAssetSource } from "./page-asset-test-utils";
+import { readScriptAssetSource, readStyleAssetSource } from "./page-asset-test-utils";
 import { getSeededDemoReportingRouteFixture } from "./reporting/seeded-demo-reporting-fixture";
-import { INSTITUTION_ADMIN_JS } from "./ui/page-assets/content/institution-admin-js";
 import { pageAssetPath } from "./ui/page-assets";
 
 const INSTITUTION_ADMIN_CSS = readStyleAssetSource("institutionAdminCss");
+const INSTITUTION_ADMIN_JS = readScriptAssetSource("institutionAdminJs");
 
 describe("GET /tenants/:tenantId/admin/reporting", () => {
   it("returns a normalized 403 page when reporting access is missing", async () => {

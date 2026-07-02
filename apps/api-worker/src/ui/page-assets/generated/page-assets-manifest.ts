@@ -9,7 +9,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   authLoginJs: {
     kind: "script",
-    path: "/assets/ui/auth-login.bece9d0262.js",
+    path: "/assets/ui/auth-login.2c9087c6b6.js",
   },
   executiveDashboardCss: {
     kind: "style",
@@ -25,15 +25,15 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin.ee9c131f0b.js",
+    path: "/assets/ui/institution-admin.c0b6449d53.js",
   },
   institutionAdminShellJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-shell.e94837d37e.js",
+    path: "/assets/ui/institution-admin-shell.8654bbc869.js",
   },
   institutionAdminAccessJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-access.498e99c71c.js",
+    path: "/assets/ui/institution-admin-access.7c3d619da5.js",
   },
   institutionAdminTemplateEditorCss: {
     kind: "style",
@@ -41,19 +41,19 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminBadgeTemplateListJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-badge-template-list.67a22f9a89.js",
+    path: "/assets/ui/institution-admin-badge-template-list.23d1d9355b.js",
   },
   institutionAdminBadgeTemplateEditorJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-badge-template-editor.4718cf0d18.js",
+    path: "/assets/ui/institution-admin-badge-template-editor.32176aeb37.js",
   },
   institutionAdminIssuedBadgesJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-issued-badges.30d03f0ddf.js",
+    path: "/assets/ui/institution-admin-issued-badges.05de92c705.js",
   },
   institutionAdminRuleBuilderJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-rule-builder.342c0cb694.js",
+    path: "/assets/ui/institution-admin-rule-builder.bd40b72ad8.js",
   },
   learnerRecordCss: {
     kind: "style",
@@ -69,15 +69,15 @@ export const PAGE_ASSET_MANIFEST = {
   },
   ltiCourseSummaryJs: {
     kind: "script",
-    path: "/assets/ui/lti-course-summary.418df1a55e.js",
+    path: "/assets/ui/lti-course-summary.6cb76b572a.js",
   },
   ltiDeepLinkSetupJs: {
     kind: "script",
-    path: "/assets/ui/lti-deep-link-setup.1025609b6c.js",
+    path: "/assets/ui/lti-deep-link-setup.d8291d5823.js",
   },
   ltiPostMessageStorageJs: {
     kind: "script",
-    path: "/assets/ui/lti-post-message-storage.d57ed565ed.js",
+    path: "/assets/ui/lti-post-message-storage.76d22df2cb.js",
   },
   publicBadgeCss: {
     kind: "style",
@@ -85,6 +85,6 @@ export const PAGE_ASSET_MANIFEST = {
   },
   publicBadgeJs: {
     kind: "script",
-    path: "/assets/ui/public-badge.d76dc7bf44.js",
+    path: "/assets/ui/public-badge.81438ba4dd.js",
   },
 } as const;

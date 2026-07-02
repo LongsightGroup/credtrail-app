@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createEnv, mockedFindTenantById } from "./institution-admin-page-test-utils";
 import { app } from "./index";
-import { INSTITUTION_ADMIN_ACCESS_JS } from "./ui/page-assets/content/institution-admin-access-js";
-import { INSTITUTION_ADMIN_JS } from "./ui/page-assets/content/institution-admin-js";
+import { readScriptAssetSource } from "./page-asset-test-utils";
 import { pageAssetPath } from "./ui/page-assets";
+
+const INSTITUTION_ADMIN_ACCESS_JS = readScriptAssetSource("institutionAdminAccessJs");
+const INSTITUTION_ADMIN_JS = readScriptAssetSource("institutionAdminJs");
 
 const adminFlashCookieHeader = (response: Response): string => {
   const setCookieHeaders =

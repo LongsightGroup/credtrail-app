@@ -1,17 +1,5 @@
 import type { StylePageAssetSource } from "./assemble-style-asset";
-import { AUTH_LOGIN_JS } from "./content/auth-login-js";
 import { FONT_ASSET_SOURCES } from "./content/font-assets";
-import { INSTITUTION_ADMIN_ACCESS_JS } from "./content/institution-admin-access-js";
-import { INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS } from "./content/institution-admin-badge-template-editor-js";
-import { INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_JS } from "./content/institution-admin-badge-template-list-js";
-import { INSTITUTION_ADMIN_ISSUED_BADGES_JS } from "./content/institution-admin-issued-badges-js";
-import { INSTITUTION_ADMIN_JS } from "./content/institution-admin-js";
-import { INSTITUTION_ADMIN_RULE_BUILDER_JS } from "./content/institution-admin-rule-builder-js";
-import { INSTITUTION_ADMIN_SHELL_JS } from "./content/institution-admin-shell-js";
-import { LTI_COURSE_SUMMARY_JS } from "./content/lti-course-summary-js";
-import { LTI_DEEP_LINK_SETUP_JS } from "./content/lti-deep-link-setup-js";
-import { LTI_POST_MESSAGE_STORAGE_JS } from "./content/lti-post-message-storage-js";
-import { PUBLIC_BADGE_JS } from "./content/public-badge-js";
 
 export type { StylePageAssetMediaGroup, StylePageAssetSource } from "./assemble-style-asset";
 
@@ -24,7 +12,7 @@ export interface StylePageAssetBuildSource {
 export interface ScriptPageAssetBuildSource {
   readonly kind: "script";
   readonly stem: string;
-  readonly body: string;
+  readonly sources: readonly string[];
 }
 
 export type PageAssetBuildSource = StylePageAssetBuildSource | ScriptPageAssetBuildSource;
@@ -42,7 +30,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     ],
   },
   authLoginCss: { kind: "style", stem: "auth-login", sources: ["auth-login.css"] },
-  authLoginJs: { kind: "script", stem: "auth-login", body: AUTH_LOGIN_JS },
+  authLoginJs: { kind: "script", stem: "auth-login", sources: ["auth-login.js"] },
   executiveDashboardCss: {
     kind: "style",
     stem: "executive-dashboard",
@@ -87,16 +75,28 @@ export const PAGE_ASSET_BUILD_SOURCES = {
       "institution-admin-breakpoints.css",
     ],
   },
-  institutionAdminJs: { kind: "script", stem: "institution-admin", body: INSTITUTION_ADMIN_JS },
+  institutionAdminJs: {
+    kind: "script",
+    stem: "institution-admin",
+    sources: [
+      "institution-admin-bootstrap.js",
+      "institution-admin-rule-operations.js",
+      "institution-admin-shell-behavior.js",
+      "institution-admin-access.js",
+      "institution-admin-governance-tools.js",
+      "institution-admin-sidebar.js",
+      "institution-admin-reporting.js",
+    ],
+  },
   institutionAdminShellJs: {
     kind: "script",
     stem: "institution-admin-shell",
-    body: INSTITUTION_ADMIN_SHELL_JS,
+    sources: ["institution-admin-sidebar.js", "institution-admin-shell-behavior.js"],
   },
   institutionAdminAccessJs: {
     kind: "script",
     stem: "institution-admin-access",
-    body: INSTITUTION_ADMIN_ACCESS_JS,
+    sources: ["institution-admin-access.js"],
   },
   institutionAdminTemplateEditorCss: {
     kind: "style",
@@ -106,22 +106,49 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   institutionAdminBadgeTemplateListJs: {
     kind: "script",
     stem: "institution-admin-badge-template-list",
-    body: INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_JS,
+    sources: [
+      "institution-admin-badge-template-shared-bootstrap.js",
+      "institution-admin-badge-template-history-core.js",
+      "institution-admin-badge-template-image-fallback.js",
+      "institution-admin-badge-template-list-history.js",
+      "close-iife.js",
+    ],
   },
   institutionAdminBadgeTemplateEditorJs: {
     kind: "script",
     stem: "institution-admin-badge-template-editor",
-    body: INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS,
+    sources: [
+      "institution-admin-badge-template-shared-bootstrap.js",
+      "institution-admin-badge-template-editor-records.js",
+      "institution-admin-badge-template-history-core.js",
+      "institution-admin-badge-template-image-helpers.js",
+      "institution-admin-badge-template-image-workflow.js",
+      "institution-admin-badge-template-trusted-repeatable.js",
+      "close-iife.js",
+    ],
   },
   institutionAdminIssuedBadgesJs: {
     kind: "script",
     stem: "institution-admin-issued-badges",
-    body: INSTITUTION_ADMIN_ISSUED_BADGES_JS,
+    sources: ["institution-admin-issued-badges.js"],
   },
   institutionAdminRuleBuilderJs: {
     kind: "script",
     stem: "institution-admin-rule-builder",
-    body: INSTITUTION_ADMIN_RULE_BUILDER_JS,
+    sources: [
+      "institution-admin-rule-builder-bootstrap.js",
+      "admin-status-pill-class-helper.js",
+      "institution-admin-rule-builder-setup.js",
+      "institution-admin-rule-builder-steps.js",
+      "institution-admin-rule-builder-condition-fields.js",
+      "institution-admin-rule-builder-condition-field-renderers.js",
+      "lms-gradebook-picker-primitives.js",
+      "institution-admin-rule-builder-lms-picker.js",
+      "institution-admin-rule-builder-condition-model.js",
+      "institution-admin-rule-builder-summary.js",
+      "institution-admin-rule-builder-drafts.js",
+      "institution-admin-rule-builder-submit.js",
+    ],
   },
   learnerRecordCss: { kind: "style", stem: "learner-record", sources: ["learner-record.css"] },
   learnerDashboardCss: {
@@ -133,17 +160,17 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   ltiCourseSummaryJs: {
     kind: "script",
     stem: "lti-course-summary",
-    body: LTI_COURSE_SUMMARY_JS,
+    sources: ["lti-course-summary.js"],
   },
   ltiDeepLinkSetupJs: {
     kind: "script",
     stem: "lti-deep-link-setup",
-    body: LTI_DEEP_LINK_SETUP_JS,
+    sources: ["open-iife.js", "lms-gradebook-picker-primitives.js", "lti-deep-link-setup.js"],
   },
   ltiPostMessageStorageJs: {
     kind: "script",
     stem: "lti-post-message-storage",
-    body: LTI_POST_MESSAGE_STORAGE_JS,
+    sources: ["lti-post-message-storage.js"],
   },
   publicBadgeCss: {
     kind: "style",
@@ -154,7 +181,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
       "public-badge-criteria-registry.css",
     ],
   },
-  publicBadgeJs: { kind: "script", stem: "public-badge", body: PUBLIC_BADGE_JS },
+  publicBadgeJs: { kind: "script", stem: "public-badge", sources: ["public-badge.js"] },
 } as const satisfies Record<string, PageAssetBuildSource>;
 
 export { FONT_ASSET_SOURCES };

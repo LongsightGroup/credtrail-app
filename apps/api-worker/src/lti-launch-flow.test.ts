@@ -122,12 +122,14 @@ import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
 import { loadRuleFacts } from "./rules/badge-rule-facts-loader";
-import { LTI_POST_MESSAGE_STORAGE_JS } from "./ui/page-assets/content/lti-post-message-storage-js";
+import { readScriptAssetSource } from "./page-asset-test-utils";
 import { createLtiCourseBadgeSetupToken } from "./lti/course-badge-setup-token";
 
 interface ErrorResponse {
   error: string;
 }
+
+const LTI_POST_MESSAGE_STORAGE_JS = readScriptAssetSource("ltiPostMessageStorageJs");
 
 const mockedAddLearnerIdentityAlias = vi.mocked(addLearnerIdentityAlias);
 const mockedAttachLtiLaunchSessionPrincipal = vi.mocked(attachLtiLaunchSessionPrincipal);
