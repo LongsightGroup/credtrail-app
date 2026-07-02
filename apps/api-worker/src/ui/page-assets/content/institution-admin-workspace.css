@@ -1,0 +1,83 @@
+
+/* Admin content styles */
+.ct-admin {
+  --ct-stack-gap: var(--ct-space-4);
+}
+.ct-admin__eyebrow {
+  margin: 0;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--ct-theme-text-subtle);
+}
+.ct-admin__workspace-grid.ct-grid {
+  --ct-grid-gap: 0.9rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.ct-admin__workspace-card {
+  --ct-stack-gap: 0.7rem;
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  padding: 1rem;
+  border-radius: var(--ct-radius-lg);
+  border: 1px solid var(--ct-border-soft);
+  background: var(--ct-theme-surface-card-strong);
+  box-shadow: var(--ct-shadow-soft);
+  transition:
+    background var(--ct-duration-fast) var(--ct-ease-standard),
+    border-color var(--ct-duration-fast) var(--ct-ease-standard),
+    box-shadow var(--ct-duration-fast) var(--ct-ease-standard);
+}
+a.ct-admin__workspace-card {
+  cursor: pointer;
+}
+a.ct-admin__workspace-card:hover {
+  border-color: var(--ct-theme-border-info);
+  background: var(--ct-theme-surface-info);
+  box-shadow: var(--ct-shadow-card);
+}
+a.ct-admin__workspace-card:focus-visible {
+  outline: 2px solid var(--ct-theme-border-focus);
+  outline-offset: 3px;
+  border-color: var(--ct-theme-border-info);
+  background: var(--ct-theme-surface-info);
+}
+a.ct-admin__workspace-card:active {
+  border-color: var(--ct-brand-lake-600);
+}
+.ct-admin__workspace-card h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.ct-admin__workspace-card p {
+  margin: 0;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.9rem;
+}
+.ct-admin__workspace-stats {
+  --ct-cluster-gap: 0.4rem;
+}
+.ct-admin__metric-grid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+.ct-admin__metric-grid--rates {
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+.ct-admin__metric-card {
+  padding: 1rem;
+  border-radius: var(--ct-radius-lg);
+  border: 1px solid var(--ct-border-soft);
+  background: var(--ct-theme-surface-card);
+  box-shadow: var(--ct-shadow-soft);
+}
+.ct-admin__metric-card--rate {
+  background: var(--ct-theme-surface-info);
+}
+.ct-admin__metric-value {
+  font-size: 2rem;
+  line-height: 1;
+}

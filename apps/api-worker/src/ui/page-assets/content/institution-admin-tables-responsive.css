@@ -1,0 +1,22 @@
+
+  .ct-admin__table select {
+    min-height: 2.75rem;
+  }
+
+  .ct-admin__panel {
+    padding: 0.85rem;
+  }
+
+  .ct-admin__panel--table {
+    padding: 0.7rem;
+  }
+
+  .ct-admin__table th,
+  .ct-admin__table td {
+    padding: 0.72rem 0.65rem;
+  }
+
+  .ct-admin__image-revision-item {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }

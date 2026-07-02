@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import { INSTITUTION_ADMIN_SHELL_JS } from "./ui/page-assets/content/institution-admin-shell-js";
 import { LTI_DEEP_LINK_SETUP_JS } from "./ui/page-assets/content/lti-deep-link-setup-js";
 import { PUBLIC_BADGE_JS } from "./ui/page-assets/content/public-badge-js";
-import { ACTIONS_CSS } from "./ui/page-assets/content/actions-css";
 import { pageAssetPath, type PageAssetKey } from "./ui/page-assets";
 
 const readGeneratedAsset = (assetKey: PageAssetKey): string => {
@@ -198,10 +197,14 @@ describe("page asset manifest", () => {
   });
 
   it("keeps action hover colors owned by action primitives", () => {
-    const actionHoverRule = cssRuleBody(ACTIONS_CSS, ".ct-action:hover:not(:disabled)");
-    const primaryRule = cssRuleBody(ACTIONS_CSS, ".ct-action--primary");
-    const textRule = cssRuleBody(ACTIONS_CSS, ".ct-action--text");
-    const nonTextActionCss = ACTIONS_CSS.replace(textRule, "");
+    const actionsCss = readFileSync(
+      new URL("./ui/page-assets/content/actions.css", import.meta.url),
+      "utf8",
+    );
+    const actionHoverRule = cssRuleBody(actionsCss, ".ct-action:hover:not(:disabled)");
+    const primaryRule = cssRuleBody(actionsCss, ".ct-action--primary");
+    const textRule = cssRuleBody(actionsCss, ".ct-action--text");
+    const nonTextActionCss = actionsCss.replace(textRule, "");
 
     expect(actionHoverRule).toContain("color: var(--ct-action-hover-color)");
     expect(actionHoverRule).toContain("background: var(--ct-action-hover-background)");

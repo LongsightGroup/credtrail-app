@@ -1,0 +1,9 @@
+
+  .ct-admin__cta-link {
+    min-height: 2.75rem;
+  }
+
+  .ct-admin__issued-actions .ct-admin__button {
+    height: auto;
+    max-height: none;
+  }

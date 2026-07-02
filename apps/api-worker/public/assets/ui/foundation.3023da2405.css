@@ -1,5 +1,4 @@
 
-
 @font-face {
   font-family: "Newsreader";
   src: url("/assets/ui/fonts/newsreader-latin.01817351be.woff2") format("woff2");
@@ -7,7 +6,6 @@
   font-weight: 400 700;
   font-display: swap;
 }
-
 
 /**
  * Do not edit directly, this file was auto-generated.
@@ -528,6 +526,7 @@
     padding-block: 0.35rem;
   }
 }
+
 
 
 :root {

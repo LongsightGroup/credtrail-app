@@ -1,4 +1,4 @@
-export const PUBLIC_BADGE_CSS = `
+
 .public-badge-not-found {
   display: grid;
   gap: 1rem;
@@ -1298,4 +1298,3 @@ export const PUBLIC_BADGE_CSS = `
     align-items: start;
   }
 }
-`;

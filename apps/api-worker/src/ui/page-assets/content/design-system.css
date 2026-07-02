@@ -1,4 +1,4 @@
-export const DESIGN_SYSTEM_CSS = `
+
 .ct-design-system {
   display: grid;
   gap: 1.35rem;
@@ -99,4 +99,3 @@ export const DESIGN_SYSTEM_CSS = `
     grid-template-columns: minmax(0, 1fr);
   }
 }
-`;

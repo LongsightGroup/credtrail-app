@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -11,6 +11,7 @@ const repoRoot = dirname(fileURLToPath(new URL("../package.json", import.meta.ur
 const publicRoot = join(repoRoot, "apps/api-worker/public");
 const assetRoot = join(publicRoot, "assets/ui");
 const fontAssetRoot = join(assetRoot, "fonts");
+const cssSourceRoot = join(repoRoot, "apps/api-worker/src/ui/page-assets/content");
 const manifestPath = join(
   repoRoot,
   "apps/api-worker/src/ui/page-assets/generated/page-assets-manifest.ts",
@@ -53,11 +54,21 @@ const replaceFontPaths = (body) => {
   return nextBody;
 };
 
+const readStyleAssetBody = async (sourcePaths) => {
+  const sourceBodies = [];
+
+  for (const sourcePath of sourcePaths) {
+    sourceBodies.push(await readFile(join(cssSourceRoot, sourcePath), "utf8"));
+  }
+
+  return replaceFontPaths(sourceBodies.join("\n"));
+};
+
 const pageManifestEntries = [];
 
 for (const [key, source] of Object.entries(PAGE_ASSET_BUILD_SOURCES)) {
   const extension = source.kind === "style" ? "css" : "js";
-  const body = source.kind === "style" ? replaceFontPaths(source.body) : source.body;
+  const body = source.kind === "style" ? await readStyleAssetBody(source.sourcePaths) : source.body;
   const filename = `${source.stem}.${hashBody(body)}.${extension}`;
   const path = `/assets/ui/${filename}`;
 

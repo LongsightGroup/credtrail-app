@@ -27,8 +27,9 @@ import {
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
-import { PUBLIC_BADGE_CSS } from "./ui/page-assets/content/public-badge-css";
+import { readStyleAssetSource } from "./page-asset-test-utils";
 
+const PUBLIC_BADGE_CSS = readStyleAssetSource("publicBadgeCss");
 const mockedListPublicBadgeWallEntries = vi.mocked(listPublicBadgeWallEntries);
 const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);

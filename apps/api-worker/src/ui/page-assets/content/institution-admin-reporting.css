@@ -1,4 +1,4 @@
-export const INSTITUTION_ADMIN_REPORTING_CSS = `
+
 .ct-admin__reporting-bar-value {
   --ct-reporting-bar-ratio: 0;
   display: grid;
@@ -1541,4 +1541,3 @@ export const INSTITUTION_ADMIN_REPORTING_CSS = `
     padding-inline: 0.5rem;
   }
 }
-`;

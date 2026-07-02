@@ -1,4 +1,4 @@
-export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
+
 .ct-admin__template-editor-identity-form {
   display: none;
 }
@@ -557,4 +557,3 @@ export const INSTITUTION_ADMIN_TEMPLATE_EDITOR_CSS = `
     max-width: 8rem;
   }
 }
-`;

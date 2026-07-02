@@ -1,4 +1,4 @@
-export const LEARNER_DASHBOARD_CSS = `.learner-dashboard {
+.learner-dashboard {
   --learner-ink: #12314f;
   --learner-ink-soft: #47627d;
   --learner-line: rgba(0, 39, 76, 0.14);
@@ -473,4 +473,4 @@ export const LEARNER_DASHBOARD_CSS = `.learner-dashboard {
   color: #577089;
   font-size: 0.87rem;
   overflow-wrap: anywhere;
-}`;
+}

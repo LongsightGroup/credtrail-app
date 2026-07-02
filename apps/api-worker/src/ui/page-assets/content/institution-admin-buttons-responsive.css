@@ -1,0 +1,13 @@
+
+  .ct-admin__builder-inline > .ct-admin__button,
+  .ct-admin__builder-toolbar .ct-admin__button,
+  .ct-admin__builder-step-nav .ct-admin__button,
+  .ct-admin__builder-step-nav #rule-builder-submit {
+    width: 100%;
+  }
+
+  .ct-admin__actions--end {
+    width: 100%;
+    justify-content: flex-start;
+    justify-self: stretch;
+  }

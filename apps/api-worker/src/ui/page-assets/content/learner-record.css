@@ -1,4 +1,4 @@
-export const LEARNER_RECORD_CSS = String.raw`
+
 .learner-record {
   --ct-learner-record-border: rgba(10, 44, 79, 0.12);
   --ct-learner-record-shadow: 0 10px 24px rgba(10, 35, 62, 0.08);
@@ -274,4 +274,3 @@ export const LEARNER_RECORD_CSS = String.raw`
     justify-content: start;
   }
 }
-`;

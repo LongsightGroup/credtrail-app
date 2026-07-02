@@ -1,4 +1,4 @@
-export const FORMS_CSS = `
+
 .ct-form {
   min-width: 0;
 }
@@ -200,4 +200,3 @@ export const FORMS_CSS = `
     padding-block: 0.35rem;
   }
 }
-`;

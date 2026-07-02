@@ -1,4 +1,4 @@
-export const LTI_PAGES_CSS = `
+
 .lti-launch {
   display: grid;
   gap: var(--ct-space-4);
@@ -758,4 +758,3 @@ export const LTI_PAGES_CSS = `
 .lti-registration__empty {
   padding: 0.75rem;
 }
-`;

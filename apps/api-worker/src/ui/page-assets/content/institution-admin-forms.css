@@ -1,4 +1,4 @@
-export const INSTITUTION_ADMIN_FORMS_CSS = `
+
 .ct-admin__form {
   --ct-stack-gap: 0.65rem;
   min-width: 0;
@@ -270,25 +270,3 @@ export const INSTITUTION_ADMIN_FORMS_CSS = `
   cursor: not-allowed;
   opacity: 0.68;
 }
-`;
-
-export const INSTITUTION_ADMIN_FORMS_RESPONSIVE_CSS = `
-  .ct-admin__form--inline.ct-grid,
-  .ct-admin__add-disclosure-form.ct-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ct-admin__add-disclosure-summary {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .ct-admin__add-disclosure-control {
-    flex: 0 0 auto;
-    width: 100%;
-  }
-
-  .ct-admin__add-disclosure-control {
-    min-height: 2.75rem;
-  }
-`;

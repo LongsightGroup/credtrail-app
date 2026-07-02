@@ -1,4 +1,4 @@
-export const ACTIONS_CSS = `
+
 .ct-action {
   --ct-action-color: var(--ct-theme-text-on-brand);
   --ct-action-background: var(--ct-theme-gradient-action);
@@ -209,4 +209,3 @@ export const ACTIONS_CSS = `
     outline-color: Highlight;
   }
 }
-`;

@@ -1856,16 +1856,6 @@ export const fontAssetPath = (key: FontAssetKey): string => {
   return `${FONT_ASSET_BASE_PATH}/${asset.filename}`;
 };
 
-export const FONT_FACE_CSS = `
-@font-face {
-  font-family: "Newsreader";
-  src: url("${fontAssetPath("newsreader")}") format("woff2");
-  font-style: normal;
-  font-weight: 400 700;
-  font-display: swap;
-}
-`;
-
 export const decodeFontAssetBody = (bodyBase64: string): Uint8Array => {
   const binary = atob(bodyBase64);
   const bytes = new Uint8Array(binary.length);

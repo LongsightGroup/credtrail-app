@@ -1,4 +1,4 @@
-export const INSTITUTION_ADMIN_RULE_BUILDER_CSS = `
+
 .ct-admin__builder-grid {
   --ct-grid-gap: 0.65rem;
 }
@@ -936,7 +936,7 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CSS = `
   color: var(--ct-theme-state-success);
 }
 .ct-admin__step-button.is-done .ct-admin__step-copy strong::after {
-  content: ' \u2713';
+  content: ' ✓';
   font-weight: 800;
 }
 .ct-admin__step-button.is-active {
@@ -1074,36 +1074,3 @@ export const INSTITUTION_ADMIN_RULE_BUILDER_CSS = `
   color: var(--ct-theme-state-danger);
 }
 
-`;
-
-export const INSTITUTION_ADMIN_RULE_BUILDER_RESPONSIVE_CSS = `
-  .ct-admin__builder-grid.ct-grid,
-  .ct-admin__condition-fields.ct-grid,
-  .ct-admin__condition-header-fields.ct-grid,
-  .ct-admin__builder-intro-grid.ct-grid,
-  .ct-admin__builder-workbench.ct-grid,
-  .ct-admin__builder-test-layout.ct-grid,
-  .ct-admin__builder-review-layout.ct-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ct-admin__builder-inline,
-  .ct-admin__builder-toolbar,
-  .ct-admin__builder-step-nav {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .ct-admin__builder-summary-list {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ct-admin__builder-flow-item,
-  .ct-admin__builder-flow-item:first-child {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ct-admin__builder-flow-connector {
-    justify-self: start;
-  }
-`;

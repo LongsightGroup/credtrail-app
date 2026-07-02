@@ -1,4 +1,4 @@
-export const INSTITUTION_ADMIN_TABLES_CSS = `
+
 .ct-admin__inline-action-panel {
   padding: var(--ct-space-4);
   border: 1px solid var(--ct-border-soft);
@@ -354,28 +354,3 @@ button.ct-admin__text-action {
   padding: 0.75rem;
   background: var(--ct-theme-surface-soft);
 }
-`;
-
-export const INSTITUTION_ADMIN_TABLES_RESPONSIVE_CSS = `
-  .ct-admin__table select {
-    min-height: 2.75rem;
-  }
-
-  .ct-admin__panel {
-    padding: 0.85rem;
-  }
-
-  .ct-admin__panel--table {
-    padding: 0.7rem;
-  }
-
-  .ct-admin__table th,
-  .ct-admin__table td {
-    padding: 0.72rem 0.65rem;
-  }
-
-  .ct-admin__image-revision-item {
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-`;

@@ -1,4 +1,4 @@
-export const AUTH_LOGIN_CSS = `
+
 .ct-login {
   --ct-stack-gap: var(--ct-space-4);
   width: min(100%, 54rem);
@@ -451,4 +451,3 @@ export const AUTH_LOGIN_CSS = `
     font-size: 1.45rem;
   }
 }
-`;

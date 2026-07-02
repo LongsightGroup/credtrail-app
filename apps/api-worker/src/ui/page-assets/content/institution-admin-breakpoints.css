@@ -1,0 +1,23 @@
+
+}
+@media (max-width: 1180px) {
+  .ct-admin__workspace-grid.ct-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-admin__builder-sidebar {
+    position: static;
+    top: auto;
+  }
+}
+@media (max-width: 980px) {
+  .ct-admin__layout.ct-grid--sidebar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (min-width: 980px) {
+  .ct-admin__layout {
+    align-items: start;
+  }
+}
+

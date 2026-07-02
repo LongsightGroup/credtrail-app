@@ -1,4 +1,4 @@
-export const INSTITUTION_ADMIN_SHELL_CSS = `
+
 /* ── Admin shell layout ── */
 .ct-admin-shell {
   display: grid;
@@ -391,11 +391,3 @@ export const INSTITUTION_ADMIN_SHELL_CSS = `
   }
 }
 
-`;
-
-export const INSTITUTION_ADMIN_SHELL_COARSE_POINTER_CSS = `
-  .ct-admin-sidebar__group-trigger,
-  .ct-admin-sidebar__link {
-    min-height: 2.75rem;
-  }
-`;

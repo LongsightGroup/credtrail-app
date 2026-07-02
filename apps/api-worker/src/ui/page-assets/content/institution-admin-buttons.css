@@ -1,4 +1,4 @@
-export const INSTITUTION_ADMIN_BUTTONS_CSS = `
+
 .ct-admin__button {
   justify-self: start;
 }
@@ -139,30 +139,3 @@ export const INSTITUTION_ADMIN_BUTTONS_CSS = `
   justify-self: end;
   flex: 0 0 auto;
 }
-`;
-
-export const INSTITUTION_ADMIN_BUTTONS_RESPONSIVE_CSS = `
-  .ct-admin__builder-inline > .ct-admin__button,
-  .ct-admin__builder-toolbar .ct-admin__button,
-  .ct-admin__builder-step-nav .ct-admin__button,
-  .ct-admin__builder-step-nav #rule-builder-submit {
-    width: 100%;
-  }
-
-  .ct-admin__actions--end {
-    width: 100%;
-    justify-content: flex-start;
-    justify-self: stretch;
-  }
-`;
-
-export const INSTITUTION_ADMIN_BUTTONS_COARSE_POINTER_CSS = `
-  .ct-admin__cta-link {
-    min-height: 2.75rem;
-  }
-
-  .ct-admin__issued-actions .ct-admin__button {
-    height: auto;
-    max-height: none;
-  }
-`;

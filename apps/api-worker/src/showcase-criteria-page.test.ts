@@ -40,8 +40,9 @@ import {
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 import { app } from "./index";
-import { PUBLIC_BADGE_CSS } from "./ui/page-assets/content/public-badge-css";
+import { readStyleAssetSource } from "./page-asset-test-utils";
 
+const PUBLIC_BADGE_CSS = readStyleAssetSource("publicBadgeCss");
 const mockedListBadgeTemplates = vi.mocked(listBadgeTemplates);
 const mockedListTenantOrgUnits = vi.mocked(listTenantOrgUnits);
 const mockedListBadgeTemplateOwnershipEvents = vi.mocked(listBadgeTemplateOwnershipEvents);

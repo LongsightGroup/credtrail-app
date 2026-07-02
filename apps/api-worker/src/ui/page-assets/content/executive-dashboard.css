@@ -1,4 +1,4 @@
-export const EXECUTIVE_DASHBOARD_CSS = String.raw`
+
 .executive-dashboard {
   --ct-executive-shell: rgba(255, 255, 255, 0.92);
   --ct-executive-shell-strong: rgba(255, 255, 255, 0.97);
@@ -750,4 +750,3 @@ export const EXECUTIVE_DASHBOARD_CSS = String.raw`
     grid-template-columns: minmax(0, 1fr);
   }
 }
-`;

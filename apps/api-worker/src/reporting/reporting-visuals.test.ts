@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { INSTITUTION_ADMIN_CSS } from "../ui/page-assets/content/institution-admin-css";
+import { readStyleAssetSource } from "../page-asset-test-utils";
 import { renderReporting } from "./reporting-visuals";
+
+const INSTITUTION_ADMIN_CSS = readStyleAssetSource("institutionAdminCss");
 
 const renderReportingString = (input: Parameters<typeof renderReporting>[0]): string => {
   return (renderReporting(input) as { toString(): string }).toString();

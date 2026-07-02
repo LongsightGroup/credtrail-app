@@ -1,5 +1,4 @@
 
-
 /* ── Admin shell layout ── */
 .ct-admin-shell {
   display: grid;
@@ -393,7 +392,8 @@
 }
 
 
-/* ── Legacy admin content styles ── */
+
+/* Admin content styles */
 .ct-admin {
   --ct-stack-gap: var(--ct-space-4);
 }
@@ -475,6 +475,7 @@ a.ct-admin__workspace-card:active {
   font-size: 2rem;
   line-height: 1;
 }
+
 
 .ct-admin__reporting-bar-value {
   --ct-reporting-bar-ratio: 0;
@@ -2019,6 +2020,7 @@ a.ct-admin__workspace-card:active {
   }
 }
 
+
 .ct-admin__cta-link {
   display: inline-flex;
   align-items: center;
@@ -2114,6 +2116,7 @@ a.ct-admin__workspace-card:active {
   --ct-stack-gap: var(--ct-space-4);
   min-width: 0;
 }
+
 
 .ct-admin__form {
   --ct-stack-gap: 0.65rem;
@@ -3606,6 +3609,7 @@ a.ct-admin__workspace-card:active {
   flex: 0 0 auto;
 }
 
+
 .ct-admin__status {
   margin: 0;
   font-size: 0.88rem;
@@ -3650,6 +3654,7 @@ a.ct-admin__workspace-card:active {
   overflow: auto;
   max-height: 14rem;
 }
+
 
 .ct-admin__inline-action-panel {
   padding: var(--ct-space-4);
@@ -4007,8 +4012,10 @@ button.ct-admin__text-action {
   background: var(--ct-theme-surface-soft);
 }
 
+
 /* ── Responsive breakpoints ── */
 @media (max-width: 780px) {
+
 
   .ct-admin__form--inline.ct-grid,
   .ct-admin__add-disclosure-form.ct-grid {
@@ -4097,8 +4104,10 @@ button.ct-admin__text-action {
     flex-wrap: wrap;
   }
 
+
 }
 @media (pointer: coarse) {
+
 
   .ct-admin-sidebar__group-trigger,
   .ct-admin-sidebar__link {
@@ -4114,6 +4123,7 @@ button.ct-admin__text-action {
     height: auto;
     max-height: none;
   }
+
 
 }
 @media (max-width: 1180px) {
