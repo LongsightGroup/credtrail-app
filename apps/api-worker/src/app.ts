@@ -98,6 +98,7 @@ import {
 import { resolveDatabase } from "./app/database";
 import { API_SERVICE_NAME, observabilityContext } from "./app/observability";
 import { registerRoutes } from "./app/register-routes";
+import type { AppDeps } from "./app/app-deps";
 import {
   betterAuthProvider,
   breakGlassPolicyAdapter,
@@ -282,8 +283,7 @@ export const processScheduledQueue = (env: AppBindings): Promise<ProcessQueueRun
   return processQueuedJobs({ env } as AppContext, processQueueInputWithDefaults({}));
 };
 
-registerRoutes({
-  app,
+const appDeps: AppDeps = {
   observabilityContext,
   resolveDatabase,
   serviceName: API_SERVICE_NAME,
@@ -404,6 +404,11 @@ registerRoutes({
   processQueueInputWithDefaults,
   issueBadgeQueueJobFromRequest,
   revokeBadgeQueueJobFromRequest,
+};
+
+registerRoutes({
+  app,
+  deps: appDeps,
 });
 
 const worker = createApiWorker({

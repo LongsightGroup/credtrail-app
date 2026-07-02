@@ -1,9 +1,6 @@
-import type { JsonObject } from "@credtrail/core-domain";
-import type { AssertionRecord } from "@credtrail/db";
 import type { Hono } from "hono";
 import type { AppBindings, AppEnv } from "./types";
-import type { VerificationViewModel } from "../badges/public-badge-model";
-import type { LearnerDidSettingsNotice } from "../learner/pages";
+import type { AppDeps } from "./app-deps";
 import { registerCommonMiddleware } from "../http/common-middleware";
 import { registerAppPageRenderer } from "../ui/render-page";
 import { registerAssertionRoutes } from "../routes/assertion-routes";
@@ -32,79 +29,61 @@ import { registerTenantGovernanceRoutes } from "../routes/tenant-governance-rout
 import { registerTenantLmsConnectionRoutes } from "../routes/tenant-lms-connection-routes";
 import { registerOid4vciRoutes } from "../routes/oid4vci-routes";
 
-type RegisterRoutesInput = {
+interface RegisterRoutesInput {
   app: Hono<AppEnv>;
-} & Omit<Parameters<typeof registerCommonMiddleware>[0], "app"> &
-  Omit<Parameters<typeof registerGoogleAuthRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerHealthRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerBootstrapAdminRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerOb3Routes>[0], "app"> &
-  Omit<Parameters<typeof registerDidRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerCredentialRoutes<AssertionRecord, JsonObject>>[0], "app"> &
-  Omit<Parameters<typeof registerOid4vciRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerPresentationRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerPublicBadgeRoutes<VerificationViewModel>>[0], "app"> &
-  Omit<Parameters<typeof registerLearnerRoutes<LearnerDidSettingsNotice | null>>[0], "app"> &
-  Omit<Parameters<typeof registerLearnerRecordRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerLearnerRecordExportRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerLtiRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerMigrationRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerAuthRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerReportingRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerExecutiveRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerTenantGovernanceRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerBadgeTemplateImageRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerTenantLmsConnectionRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerBadgeRuleRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerAssertionRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerSigningRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerQueueRoutes>[0], "app">;
+  deps: AppDeps;
+}
 
 export const registerRoutes = (input: RegisterRoutesInput): void => {
+  const routeInput = {
+    app: input.app,
+    ...input.deps,
+  };
+
   registerCommonMiddleware({
     app: input.app,
-    observabilityContext: input.observabilityContext,
+    observabilityContext: input.deps.observabilityContext,
   });
 
   registerAppPageRenderer(input.app);
 
-  registerGoogleAuthRoutes(input);
-  registerDesignSystemRoutes(input);
+  registerGoogleAuthRoutes(routeInput);
+  registerDesignSystemRoutes(routeInput);
 
   registerHealthRoutes({
     app: input.app,
-    observabilityContext: input.observabilityContext,
-    resolveDatabase: input.resolveDatabase,
-    serviceName: input.serviceName,
-    storageReadinessProbeKey: input.storageReadinessProbeKey,
+    observabilityContext: input.deps.observabilityContext,
+    resolveDatabase: input.deps.resolveDatabase,
+    serviceName: input.deps.serviceName,
+    storageReadinessProbeKey: input.deps.storageReadinessProbeKey,
   });
 
   registerBootstrapAdminRoutes({
     app: input.app,
-    resolveDatabase: input.resolveDatabase,
+    resolveDatabase: input.deps.resolveDatabase,
   });
 
-  registerOb3Routes(input);
-  registerDidRoutes(input);
-  registerCredentialRoutes(input);
-  registerOid4vciRoutes(input);
-  registerPresentationRoutes(input);
-  registerPublicBadgeRoutes(input);
-  registerLearnerRoutes(input);
-  registerLearnerRecordRoutes(input);
-  registerLearnerRecordExportRoutes(input);
-  registerLtiRoutes(input);
-  registerMigrationRoutes(input);
-  registerAuthRoutes(input);
-  registerReportingRoutes(input);
-  registerExecutiveRoutes(input);
-  registerTenantGovernanceRoutes(input);
-  registerBadgeTemplateImageRoutes(input);
-  registerTenantLmsConnectionRoutes(input);
-  registerBadgeRuleRoutes(input);
-  registerAssertionRoutes(input);
-  registerSigningRoutes(input);
-  registerQueueRoutes(input);
+  registerOb3Routes(routeInput);
+  registerDidRoutes(routeInput);
+  registerCredentialRoutes(routeInput);
+  registerOid4vciRoutes(routeInput);
+  registerPresentationRoutes(routeInput);
+  registerPublicBadgeRoutes(routeInput);
+  registerLearnerRoutes(routeInput);
+  registerLearnerRecordRoutes(routeInput);
+  registerLearnerRecordExportRoutes(routeInput);
+  registerLtiRoutes(routeInput);
+  registerMigrationRoutes(routeInput);
+  registerAuthRoutes(routeInput);
+  registerReportingRoutes(routeInput);
+  registerExecutiveRoutes(routeInput);
+  registerTenantGovernanceRoutes(routeInput);
+  registerBadgeTemplateImageRoutes(routeInput);
+  registerTenantLmsConnectionRoutes(routeInput);
+  registerBadgeRuleRoutes(routeInput);
+  registerAssertionRoutes(routeInput);
+  registerSigningRoutes(routeInput);
+  registerQueueRoutes(routeInput);
 };
 
 export type RegisterRoutesBindings = AppBindings;
