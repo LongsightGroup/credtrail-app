@@ -1,5 +1,3 @@
-
-}
 @media (max-width: 1180px) {
   .ct-admin__workspace-grid.ct-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -20,4 +18,3 @@
     align-items: start;
   }
 }
-

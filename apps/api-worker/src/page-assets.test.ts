@@ -310,6 +310,36 @@ describe("page asset manifest", () => {
     }
   });
 
+  it("keeps authored CSS files valid and below giant-file size", () => {
+    const assetContentDir = new URL("./ui/page-assets/content/", import.meta.url);
+    const cssFiles = readdirSync(assetContentDir).filter((fileName) => fileName.endsWith(".css"));
+
+    expect(cssFiles.length).toBeGreaterThan(0);
+
+    for (const fileName of cssFiles) {
+      const source = readFileSync(new URL(fileName, assetContentDir), "utf8");
+      const lineCount = source.split("\n").length;
+      let braceDepth = 0;
+      let minimumBraceDepth = 0;
+
+      for (const character of source) {
+        if (character === "{") {
+          braceDepth += 1;
+        }
+
+        if (character === "}") {
+          braceDepth -= 1;
+        }
+
+        minimumBraceDepth = Math.min(minimumBraceDepth, braceDepth);
+      }
+
+      expect(lineCount).toBeLessThan(1000);
+      expect(braceDepth).toBe(0);
+      expect(minimumBraceDepth).toBe(0);
+    }
+  });
+
   it("does not carry the old rule-value-list null shim in the rule builder asset", () => {
     const body = readGeneratedAsset("institutionAdminRuleBuilderJs");
 

@@ -1098,6 +1098,7 @@ a.ct-admin__workspace-card:active {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
 .ct-admin__reporting-root-links {
   display: flex;
   flex-wrap: wrap;
@@ -2736,6 +2737,7 @@ a.ct-admin__workspace-card:active {
   font-size: 0.86rem;
   color: var(--ct-theme-text-muted);
 }
+
 .ct-admin__builder-inline {
   --ct-cluster-gap: 0.5rem;
   align-items: end;
@@ -2874,6 +2876,7 @@ a.ct-admin__workspace-card:active {
   outline: 2px solid var(--ct-theme-border-focus);
   outline-offset: 2px;
 }
+
 .ct-admin__builder-canvas {
   --ct-stack-gap: 0.55rem;
   border: 1px solid var(--ct-border-soft);
@@ -3122,6 +3125,7 @@ a.ct-admin__workspace-card:active {
   border-color: var(--ct-theme-border-warning);
   background: var(--ct-theme-surface-warning);
 }
+
 .ct-admin__condition-header {
   --ct-cluster-gap: 0.5rem;
   align-items: stretch;
@@ -4012,10 +4016,7 @@ button.ct-admin__text-action {
   background: var(--ct-theme-surface-soft);
 }
 
-
-/* ── Responsive breakpoints ── */
 @media (max-width: 780px) {
-
 
   .ct-admin__form--inline.ct-grid,
   .ct-admin__add-disclosure-form.ct-grid {
@@ -4104,10 +4105,8 @@ button.ct-admin__text-action {
     flex-wrap: wrap;
   }
 
-
 }
 @media (pointer: coarse) {
-
 
   .ct-admin-sidebar__group-trigger,
   .ct-admin-sidebar__link {
@@ -4123,7 +4122,6 @@ button.ct-admin__text-action {
     height: auto;
     max-height: none;
   }
-
 
 }
 @media (max-width: 1180px) {
@@ -4146,4 +4144,3 @@ button.ct-admin__text-action {
     align-items: start;
   }
 }
-

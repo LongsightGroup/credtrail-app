@@ -12,10 +12,17 @@ import { LTI_DEEP_LINK_SETUP_JS } from "./content/lti-deep-link-setup-js";
 import { LTI_POST_MESSAGE_STORAGE_JS } from "./content/lti-post-message-storage-js";
 import { PUBLIC_BADGE_JS } from "./content/public-badge-js";
 
+export interface StylePageAssetMediaGroup {
+  readonly media: string;
+  readonly sourcePaths: readonly string[];
+}
+
+export type StylePageAssetSource = string | StylePageAssetMediaGroup;
+
 export interface StylePageAssetBuildSource {
   readonly kind: "style";
   readonly stem: string;
-  readonly sourcePaths: readonly string[];
+  readonly sources: readonly StylePageAssetSource[];
 }
 
 export interface ScriptPageAssetBuildSource {
@@ -30,7 +37,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   foundationCss: {
     kind: "style",
     stem: "foundation",
-    sourcePaths: [
+    sources: [
       "font-face.css",
       "generated/design-tokens.css",
       "actions.css",
@@ -38,35 +45,47 @@ export const PAGE_ASSET_BUILD_SOURCES = {
       "foundation.css",
     ],
   },
-  authLoginCss: { kind: "style", stem: "auth-login", sourcePaths: ["auth-login.css"] },
+  authLoginCss: { kind: "style", stem: "auth-login", sources: ["auth-login.css"] },
   authLoginJs: { kind: "script", stem: "auth-login", body: AUTH_LOGIN_JS },
   executiveDashboardCss: {
     kind: "style",
     stem: "executive-dashboard",
-    sourcePaths: ["executive-dashboard.css"],
+    sources: ["executive-dashboard.css"],
   },
-  designSystemCss: { kind: "style", stem: "design-system", sourcePaths: ["design-system.css"] },
+  designSystemCss: { kind: "style", stem: "design-system", sources: ["design-system.css"] },
   institutionAdminCss: {
     kind: "style",
     stem: "institution-admin",
-    sourcePaths: [
+    sources: [
       "institution-admin-shell.css",
       "institution-admin-workspace.css",
-      "institution-admin-reporting.css",
+      "institution-admin-reporting-visuals.css",
+      "institution-admin-reporting-pages.css",
       "institution-admin-layout.css",
       "institution-admin-forms.css",
-      "institution-admin-rule-builder.css",
+      "institution-admin-rule-builder-steps.css",
+      "institution-admin-rule-builder-controls.css",
+      "institution-admin-rule-builder-canvas.css",
+      "institution-admin-rule-builder-conditions.css",
       "institution-admin-buttons.css",
       "institution-admin-status.css",
       "institution-admin-tables.css",
-      "institution-admin-responsive-open.css",
-      "institution-admin-forms-responsive.css",
-      "institution-admin-rule-builder-responsive.css",
-      "institution-admin-buttons-responsive.css",
-      "institution-admin-tables-responsive.css",
-      "institution-admin-coarse-pointer-open.css",
-      "institution-admin-shell-coarse-pointer.css",
-      "institution-admin-buttons-coarse-pointer.css",
+      {
+        media: "(max-width: 780px)",
+        sourcePaths: [
+          "institution-admin-forms-responsive.css",
+          "institution-admin-rule-builder-responsive.css",
+          "institution-admin-buttons-responsive.css",
+          "institution-admin-tables-responsive.css",
+        ],
+      },
+      {
+        media: "(pointer: coarse)",
+        sourcePaths: [
+          "institution-admin-shell-coarse-pointer.css",
+          "institution-admin-buttons-coarse-pointer.css",
+        ],
+      },
       "institution-admin-breakpoints.css",
     ],
   },
@@ -84,7 +103,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   institutionAdminTemplateEditorCss: {
     kind: "style",
     stem: "institution-admin-template-editor",
-    sourcePaths: ["institution-admin-template-editor.css"],
+    sources: ["institution-admin-template-editor.css"],
   },
   institutionAdminBadgeTemplateListJs: {
     kind: "script",
@@ -106,13 +125,13 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     stem: "institution-admin-rule-builder",
     body: INSTITUTION_ADMIN_RULE_BUILDER_JS,
   },
-  learnerRecordCss: { kind: "style", stem: "learner-record", sourcePaths: ["learner-record.css"] },
+  learnerRecordCss: { kind: "style", stem: "learner-record", sources: ["learner-record.css"] },
   learnerDashboardCss: {
     kind: "style",
     stem: "learner-dashboard",
-    sourcePaths: ["learner-dashboard.css"],
+    sources: ["learner-dashboard.css"],
   },
-  ltiPagesCss: { kind: "style", stem: "lti-pages", sourcePaths: ["lti-pages.css"] },
+  ltiPagesCss: { kind: "style", stem: "lti-pages", sources: ["lti-pages.css"] },
   ltiCourseSummaryJs: {
     kind: "script",
     stem: "lti-course-summary",
@@ -128,7 +147,15 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     stem: "lti-post-message-storage",
     body: LTI_POST_MESSAGE_STORAGE_JS,
   },
-  publicBadgeCss: { kind: "style", stem: "public-badge", sourcePaths: ["public-badge.css"] },
+  publicBadgeCss: {
+    kind: "style",
+    stem: "public-badge",
+    sources: [
+      "public-badge-detail.css",
+      "public-badge-wall.css",
+      "public-badge-criteria-registry.css",
+    ],
+  },
   publicBadgeJs: { kind: "script", stem: "public-badge", body: PUBLIC_BADGE_JS },
 } as const satisfies Record<string, PageAssetBuildSource>;
 

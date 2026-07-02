@@ -54,12 +54,22 @@ const replaceFontPaths = (body) => {
   return nextBody;
 };
 
-const readStyleAssetBody = async (sourcePaths) => {
-  const sourceBodies = [];
+const readStyleSourcePath = async (sourcePath) => {
+  return readFile(join(cssSourceRoot, sourcePath), "utf8");
+};
 
-  for (const sourcePath of sourcePaths) {
-    sourceBodies.push(await readFile(join(cssSourceRoot, sourcePath), "utf8"));
+const readStyleSource = async (source) => {
+  if (typeof source === "string") {
+    return readStyleSourcePath(source);
   }
+
+  const sourceBodies = await Promise.all(source.sourcePaths.map(readStyleSourcePath));
+
+  return `@media ${source.media} {\n${sourceBodies.join("\n")}\n}`;
+};
+
+const readStyleAssetBody = async (sources) => {
+  const sourceBodies = await Promise.all(sources.map(readStyleSource));
 
   return replaceFontPaths(sourceBodies.join("\n"));
 };
@@ -68,7 +78,7 @@ const pageManifestEntries = [];
 
 for (const [key, source] of Object.entries(PAGE_ASSET_BUILD_SOURCES)) {
   const extension = source.kind === "style" ? "css" : "js";
-  const body = source.kind === "style" ? await readStyleAssetBody(source.sourcePaths) : source.body;
+  const body = source.kind === "style" ? await readStyleAssetBody(source.sources) : source.body;
   const filename = `${source.stem}.${hashBody(body)}.${extension}`;
   const path = `/assets/ui/${filename}`;
 
