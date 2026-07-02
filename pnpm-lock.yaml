@@ -89,8 +89,8 @@ importers:
         specifier: ^2.0.4
         version: 2.0.4(hono@4.12.27)
       '@longsightgroup/lti-tool':
-        specifier: 0.1.1
-        version: 0.1.1(hono@4.12.27)
+        specifier: 0.1.2
+        version: 0.1.2(hono@4.12.27)
       csv-stringify:
         specifier: ^6.7.0
         version: 6.7.0
@@ -1069,15 +1069,14 @@ packages:
     peerDependencies:
       tslib: '2'
 
-  '@longsightgroup/lti-tool@0.1.1':
-    resolution: {integrity: sha512-7vdJcR/mif1AO2eP9w+UXWdEuFkMbKO4dGhjLEtAliSMnvkvZuIxCMm/J+8DqEzvfKKiWmKCZs306yqru3Tv9Q==}
+  '@longsightgroup/lti-tool@0.1.2':
+    resolution: {integrity: sha512-xqS6voOP0GvdLaa8OztP7Zik8Ab86nzgaWecu470GUKPonDBGmTlXHtZmqb3lxQ/T/tKORQRXcsFa+Uo9bDncw==}
     peerDependencies:
       '@aws-sdk/client-dynamodb': ^3.1076.0
       '@aws-sdk/util-dynamodb': ^3.996.5
       drizzle-orm: ^0.45.2
       hono: ^4.12.27
       mysql2: ^3.22.5
-      pino: ^10.3.1
       postgres: ^3.4.9
     peerDependenciesMeta:
       '@aws-sdk/client-dynamodb':
@@ -1089,8 +1088,6 @@ packages:
       hono:
         optional: true
       mysql2:
-        optional: true
-      pino:
         optional: true
       postgres:
         optional: true
@@ -3620,7 +3617,7 @@ snapshots:
       '@jsonjoy.com/codegen': 17.67.0(tslib@2.8.1)
       tslib: 2.8.1
 
-  '@longsightgroup/lti-tool@0.1.1(hono@4.12.27)':
+  '@longsightgroup/lti-tool@0.1.2(hono@4.12.27)':
     dependencies:
       jose: 6.2.3
       lru-cache: 11.5.1

@@ -1,6 +1,10 @@
 import type { LTI13JwtPayload } from "@longsightgroup/lti-tool";
+import { LtiLaunchVerificationError as CoreLtiLaunchVerificationError } from "@longsightgroup/lti-tool";
 import { describe, expect, it } from "vitest";
-import { authorizeVerifiedLaunchForRegistry } from "./launch-verification";
+import {
+  authorizeVerifiedLaunchForRegistry,
+  ltiLaunchVerificationErrorFromCoreError,
+} from "./launch-verification";
 import type { LtiIssuerRegistry } from "./lti-issuer-registry";
 
 const issuer = "https://canvas.example.edu";
@@ -92,6 +96,52 @@ describe("authorizeVerifiedLaunchForRegistry", () => {
       success: false,
       code: "issuer_registration_not_configured",
       message: "No issuer registration configured for verified LTI launch",
+    });
+  });
+});
+
+describe("ltiLaunchVerificationErrorFromCoreError", () => {
+  it("maps authorization failures to bad requests with the package-provided message", () => {
+    const error = ltiLaunchVerificationErrorFromCoreError(
+      new CoreLtiLaunchVerificationError(
+        "verified_launch_authorization_failed",
+        "No issuer registration configured for verified LTI launch",
+      ),
+    );
+
+    expect(error).toMatchObject({
+      status: 400,
+      message: "No issuer registration configured for verified LTI launch",
+    });
+  });
+
+  it("maps ambiguous launch config failures to a generic authentication failure", () => {
+    const error = ltiLaunchVerificationErrorFromCoreError(
+      new CoreLtiLaunchVerificationError(
+        "launch_config_not_found",
+        "Launch config not found for issuer id_token=secret state=secret",
+      ),
+    );
+
+    expect(error).toMatchObject({
+      status: 401,
+      message: "LTI launch verification failed",
+      detail: "Launch config not found for issuer id_token=[redacted] state=[redacted]",
+    });
+  });
+
+  it("maps missing signed-launch endpoint configuration to setup errors", () => {
+    const error = ltiLaunchVerificationErrorFromCoreError(
+      new CoreLtiLaunchVerificationError(
+        "launch_config_missing_jwks_endpoint",
+        "Launch client is missing a JWKS endpoint",
+      ),
+    );
+
+    expect(error).toMatchObject({
+      status: 501,
+      message:
+        "LTI issuer requires platform JWKS and token endpoint configuration for signed launches",
     });
   });
 });

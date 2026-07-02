@@ -1,6 +1,11 @@
 import type { SqlDatabase } from "@credtrail/db";
 import { isValidationParseError } from "@credtrail/validation";
-import type { LtiAuthorizedLaunch, LTISession, LtiToolPort } from "@longsightgroup/lti-tool";
+import type {
+  LtiAuthorizedLaunch,
+  LtiLaunchVerificationError as CoreLtiLaunchVerificationError,
+  LTISession,
+  LtiToolPort,
+} from "@longsightgroup/lti-tool";
 import { LtiLaunchMessageResolutionError } from "@longsightgroup/lti-tool";
 import { customLaunchRouteHandler } from "@longsightgroup/lti-tool/hono";
 import type { AppContext } from "../app";
@@ -20,9 +25,9 @@ import {
   LtiLaunchVerificationError,
   type LtiLaunchAuthorization,
   type ResolvedLtiLaunch,
+  ltiLaunchVerificationErrorFromCoreError,
 } from "./launch-verification";
 import type { LtiIssuerRegistry } from "./lti-issuer-registry";
-import { createVerificationThrowingLtiTool } from "./lti-protocol-adapters";
 
 type CreateCredTrailLtiToolForLaunch = (input: CreateCredTrailLtiToolInput) => Promise<LtiToolPort>;
 
@@ -73,6 +78,13 @@ export const handleLtiLaunchFailureResponse = (c: AppContext, error: unknown): R
     },
     500,
   );
+};
+
+const handleLtiLaunchVerificationFailureResponse = (
+  c: AppContext,
+  error: CoreLtiLaunchVerificationError,
+): Response => {
+  return handleLtiLaunchFailureResponse(c, ltiLaunchVerificationErrorFromCoreError(error));
 };
 
 const resolvedLaunchFromAuthorizedContext = (input: {
@@ -138,9 +150,6 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
     db,
     env: input.c.env,
   });
-  // @longsightgroup/lti-tool/hono launch handlers translate thrown verification
-  // failures through onError; CredTrail policy stays result-based before this boundary.
-  const protocolTool = createVerificationThrowingLtiTool(ltiTool);
 
   const renderAuthorizedPackageLaunch = (context: {
     launch: LtiAuthorizedLaunch<LtiLaunchAuthorization>;
@@ -160,9 +169,11 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
   };
 
   const handler = customLaunchRouteHandler<LtiLaunchAuthorization>({
-    ltiTool: protocolTool,
+    ltiTool,
     logger: createLtiHonoLogger({ c: input.c }),
     authorizeLaunch: (launch) => authorizeVerifiedLaunchForRegistry(registry, launch),
+    onVerificationFailure: ({ error }) =>
+      handleLtiLaunchVerificationFailureResponse(input.c, error),
     renderResourceLink: renderAuthorizedPackageLaunch,
     renderDeepLinkingRequest: renderAuthorizedPackageLaunch,
     onError: ({ error }) => handleLtiLaunchFailureResponse(input.c, error),
