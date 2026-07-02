@@ -6,8 +6,8 @@
   "scripts": {
     "build:page-assets": "pnpm exec tsx scripts/build-page-assets.mjs",
     "check:page-assets": "pnpm build:page-assets && git diff --exit-code -- apps/api-worker/public apps/api-worker/src/ui/page-assets/generated/page-assets-manifest.ts",
-    "build:design-tokens": "style-dictionary build --config style-dictionary.config.mjs && node scripts/wrap-design-tokens.mjs",
-    "check:design-tokens": "pnpm build:design-tokens && git diff --exit-code -- apps/api-worker/src/ui/page-assets/content/generated/design-tokens.css apps/api-worker/src/ui/page-assets/content/generated/design-tokens-css.ts",
+    "build:design-tokens": "style-dictionary build --config style-dictionary.config.mjs",
+    "check:design-tokens": "pnpm build:design-tokens && git diff --exit-code -- apps/api-worker/src/ui/page-assets/content/generated/design-tokens.css",
     "build": "pnpm exec vite build",
     "export:ob3-openapi": "pnpm exec tsx scripts/export-ob3-openapi.mjs",
     "check:ob3-openapi": "pnpm exec tsx scripts/check-ob3-openapi.mjs",

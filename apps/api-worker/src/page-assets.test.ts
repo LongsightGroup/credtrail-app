@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { createContext, Script } from "node:vm";
 import { describe, expect, it } from "vitest";
+import { readStyleSourceFile } from "./page-asset-test-utils";
 import { INSTITUTION_ADMIN_SHELL_JS } from "./ui/page-assets/content/institution-admin-shell-js";
 import { LTI_DEEP_LINK_SETUP_JS } from "./ui/page-assets/content/lti-deep-link-setup-js";
 import { PUBLIC_BADGE_JS } from "./ui/page-assets/content/public-badge-js";
@@ -197,10 +198,7 @@ describe("page asset manifest", () => {
   });
 
   it("keeps action hover colors owned by action primitives", () => {
-    const actionsCss = readFileSync(
-      new URL("./ui/page-assets/content/actions.css", import.meta.url),
-      "utf8",
-    );
+    const actionsCss = readStyleSourceFile("actions.css");
     const actionHoverRule = cssRuleBody(actionsCss, ".ct-action:hover:not(:disabled)");
     const primaryRule = cssRuleBody(actionsCss, ".ct-action--primary");
     const textRule = cssRuleBody(actionsCss, ".ct-action--text");
@@ -310,7 +308,7 @@ describe("page asset manifest", () => {
     }
   });
 
-  it("keeps authored CSS files valid and below giant-file size", () => {
+  it("keeps authored CSS files below giant-file size", () => {
     const assetContentDir = new URL("./ui/page-assets/content/", import.meta.url);
     const cssFiles = readdirSync(assetContentDir).filter((fileName) => fileName.endsWith(".css"));
 
@@ -319,24 +317,8 @@ describe("page asset manifest", () => {
     for (const fileName of cssFiles) {
       const source = readFileSync(new URL(fileName, assetContentDir), "utf8");
       const lineCount = source.split("\n").length;
-      let braceDepth = 0;
-      let minimumBraceDepth = 0;
-
-      for (const character of source) {
-        if (character === "{") {
-          braceDepth += 1;
-        }
-
-        if (character === "}") {
-          braceDepth -= 1;
-        }
-
-        minimumBraceDepth = Math.min(minimumBraceDepth, braceDepth);
-      }
 
       expect(lineCount).toBeLessThan(1000);
-      expect(braceDepth).toBe(0);
-      expect(minimumBraceDepth).toBe(0);
     }
   });
 

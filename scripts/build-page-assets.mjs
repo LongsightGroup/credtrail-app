@@ -1,17 +1,18 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assembleStyleAsset } from "../apps/api-worker/src/ui/page-assets/assemble-style-asset.ts";
 import {
   FONT_ASSET_SOURCES,
   PAGE_ASSET_BUILD_SOURCES,
 } from "../apps/api-worker/src/ui/page-assets/build-registry.ts";
+import { readPageAssetContentFile } from "../apps/api-worker/src/ui/page-assets/page-asset-content.ts";
 
 const repoRoot = dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
 const publicRoot = join(repoRoot, "apps/api-worker/public");
 const assetRoot = join(publicRoot, "assets/ui");
 const fontAssetRoot = join(assetRoot, "fonts");
-const cssSourceRoot = join(repoRoot, "apps/api-worker/src/ui/page-assets/content");
 const manifestPath = join(
   repoRoot,
   "apps/api-worker/src/ui/page-assets/generated/page-assets-manifest.ts",
@@ -54,31 +55,15 @@ const replaceFontPaths = (body) => {
   return nextBody;
 };
 
-const readStyleSourcePath = async (sourcePath) => {
-  return readFile(join(cssSourceRoot, sourcePath), "utf8");
-};
-
-const readStyleSource = async (source) => {
-  if (typeof source === "string") {
-    return readStyleSourcePath(source);
-  }
-
-  const sourceBodies = await Promise.all(source.sourcePaths.map(readStyleSourcePath));
-
-  return `@media ${source.media} {\n${sourceBodies.join("\n")}\n}`;
-};
-
-const readStyleAssetBody = async (sources) => {
-  const sourceBodies = await Promise.all(sources.map(readStyleSource));
-
-  return replaceFontPaths(sourceBodies.join("\n"));
+const readStyleAssetBody = (sources) => {
+  return assembleStyleAsset(sources, readPageAssetContentFile, replaceFontPaths);
 };
 
 const pageManifestEntries = [];
 
 for (const [key, source] of Object.entries(PAGE_ASSET_BUILD_SOURCES)) {
   const extension = source.kind === "style" ? "css" : "js";
-  const body = source.kind === "style" ? await readStyleAssetBody(source.sources) : source.body;
+  const body = source.kind === "style" ? readStyleAssetBody(source.sources) : source.body;
   const filename = `${source.stem}.${hashBody(body)}.${extension}`;
   const path = `/assets/ui/${filename}`;
 

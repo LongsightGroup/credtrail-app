@@ -1,3 +1,4 @@
+import type { StylePageAssetSource } from "./assemble-style-asset";
 import { AUTH_LOGIN_JS } from "./content/auth-login-js";
 import { FONT_ASSET_SOURCES } from "./content/font-assets";
 import { INSTITUTION_ADMIN_ACCESS_JS } from "./content/institution-admin-access-js";
@@ -12,12 +13,7 @@ import { LTI_DEEP_LINK_SETUP_JS } from "./content/lti-deep-link-setup-js";
 import { LTI_POST_MESSAGE_STORAGE_JS } from "./content/lti-post-message-storage-js";
 import { PUBLIC_BADGE_JS } from "./content/public-badge-js";
 
-export interface StylePageAssetMediaGroup {
-  readonly media: string;
-  readonly sourcePaths: readonly string[];
-}
-
-export type StylePageAssetSource = string | StylePageAssetMediaGroup;
+export type { StylePageAssetMediaGroup, StylePageAssetSource } from "./assemble-style-asset";
 
 export interface StylePageAssetBuildSource {
   readonly kind: "style";
@@ -60,7 +56,9 @@ export const PAGE_ASSET_BUILD_SOURCES = {
       "institution-admin-shell.css",
       "institution-admin-workspace.css",
       "institution-admin-reporting-visuals.css",
-      "institution-admin-reporting-pages.css",
+      "institution-admin-reporting-explore.css",
+      "institution-admin-reporting-presentation.css",
+      "institution-admin-reporting-focus.css",
       "institution-admin-layout.css",
       "institution-admin-forms.css",
       "institution-admin-rule-builder-steps.css",

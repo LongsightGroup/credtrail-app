@@ -1338,6 +1338,7 @@ a.ct-admin__workspace-card:active {
   gap: 0.55rem;
   align-items: flex-start;
 }
+
 .ct-admin__reporting-presentation-shell {
   display: grid;
   gap: 1rem;
@@ -1628,6 +1629,7 @@ a.ct-admin__workspace-card:active {
     rgba(244, 249, 255, 0.94)
   );
 }
+
 .ct-admin__reporting-trend-hero {
   display: grid;
   gap: 1rem;
