@@ -12,6 +12,7 @@
     "build:design-tokens": "style-dictionary build --config style-dictionary.config.mjs",
     "check:design-tokens": "pnpm build:design-tokens && git diff --exit-code -- apps/api-worker/src/ui/page-assets/content/generated/design-tokens.css",
     "build": "pnpm exec vite build",
+    "check:node-runtime": "pnpm --filter @credtrail/api-worker build:node-runtime",
     "export:ob3-openapi": "pnpm exec tsx scripts/export-ob3-openapi.mjs",
     "check:ob3-openapi": "pnpm exec tsx scripts/check-ob3-openapi.mjs",
     "db:migrate:postgres": "node packages/db/scripts/migrate-postgres.mjs",
@@ -32,7 +33,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:scripts": "node --test scripts/*.test.mjs",
-    "check": "pnpm check:design-tokens && pnpm check:page-assets && pnpm check:ob3-openapi && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:scripts"
+    "check": "pnpm check:design-tokens && pnpm check:page-assets && pnpm check:ob3-openapi && pnpm check:node-runtime && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:scripts"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.40.0",
