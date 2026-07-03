@@ -45,6 +45,9 @@ vi.mock("@credtrail/db", async () => {
     listBadgeIssuanceRuleVersionApprovalSteps: vi.fn(),
     listBadgeIssuanceRuleVersionApprovalEvents: vi.fn(),
     createBadgeIssuanceRuleEvaluation: vi.fn(),
+    findBadgeIssuanceRuleBuilderDraft: vi.fn(),
+    saveBadgeIssuanceRuleBuilderDraft: vi.fn(),
+    deleteBadgeIssuanceRuleBuilderDraft: vi.fn(),
     resolveBadgeIssuanceRuleEvaluationReview: vi.fn(),
     findTenantLmsConnectionById: vi.fn(),
     listTenantLmsConnections: vi.fn(),
@@ -109,6 +112,7 @@ import {
   createBadgeIssuanceRuleVersion,
   decideBadgeIssuanceRuleVersion,
   findActiveBadgeIssuanceRuleVersion,
+  findBadgeIssuanceRuleBuilderDraft,
   findBadgeIssuanceRuleEvaluationById,
   findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleVersionById,
@@ -124,6 +128,8 @@ import {
   listBadgeIssuanceRules,
   listTenantLmsConnections,
   resolveBadgeIssuanceRuleEvaluationReview,
+  saveBadgeIssuanceRuleBuilderDraft,
+  deleteBadgeIssuanceRuleBuilderDraft,
   submitBadgeIssuanceRuleVersionForApproval,
   updateBadgeIssuanceRuleDraft,
   upsertTenantLmsConnection,
@@ -157,6 +163,7 @@ const mockedFindBadgeIssuanceRuleById = vi.mocked(findBadgeIssuanceRuleById);
 const mockedFindBadgeIssuanceRuleEvaluationById = vi.mocked(findBadgeIssuanceRuleEvaluationById);
 const mockedFindBadgeIssuanceRuleVersionById = vi.mocked(findBadgeIssuanceRuleVersionById);
 const mockedFindActiveBadgeIssuanceRuleVersion = vi.mocked(findActiveBadgeIssuanceRuleVersion);
+const mockedFindBadgeIssuanceRuleBuilderDraft = vi.mocked(findBadgeIssuanceRuleBuilderDraft);
 const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
 const mockedListBadgeIssuanceRuleEvaluations = vi.mocked(listBadgeIssuanceRuleEvaluations);
 const mockedListBadgeIssuanceRuleValueLists = vi.mocked(listBadgeIssuanceRuleValueLists);
@@ -170,6 +177,8 @@ const mockedListBadgeIssuanceRuleVersionApprovalEvents = vi.mocked(
 );
 const mockedListAuditLogs = vi.mocked(listAuditLogs);
 const mockedCreateBadgeIssuanceRuleEvaluation = vi.mocked(createBadgeIssuanceRuleEvaluation);
+const mockedSaveBadgeIssuanceRuleBuilderDraft = vi.mocked(saveBadgeIssuanceRuleBuilderDraft);
+const mockedDeleteBadgeIssuanceRuleBuilderDraft = vi.mocked(deleteBadgeIssuanceRuleBuilderDraft);
 const mockedResolveBadgeIssuanceRuleEvaluationReview = vi.mocked(
   resolveBadgeIssuanceRuleEvaluationReview,
 );
@@ -446,6 +455,7 @@ beforeEach(() => {
   mockedFindBadgeIssuanceRuleById.mockReset();
   mockedFindBadgeIssuanceRuleVersionById.mockReset();
   mockedFindActiveBadgeIssuanceRuleVersion.mockReset();
+  mockedFindBadgeIssuanceRuleBuilderDraft.mockReset();
   mockedListBadgeIssuanceRules.mockReset();
   mockedListBadgeIssuanceRules.mockResolvedValue([]);
   mockedListBadgeIssuanceRuleEvaluations.mockReset();
@@ -463,6 +473,9 @@ beforeEach(() => {
   mockedListAuditLogs.mockReset();
   mockedListAuditLogs.mockResolvedValue([]);
   mockedCreateBadgeIssuanceRuleEvaluation.mockReset();
+  mockedSaveBadgeIssuanceRuleBuilderDraft.mockReset();
+  mockedDeleteBadgeIssuanceRuleBuilderDraft.mockReset();
+  mockedDeleteBadgeIssuanceRuleBuilderDraft.mockResolvedValue(true);
   mockedResolveBadgeIssuanceRuleEvaluationReview.mockReset();
   mockedIssueBadgeForTenant.mockReset();
   mockedCreateGradebookProvider.mockReset();
@@ -560,6 +573,63 @@ describe("badge rule routes", () => {
     expect(response.status).toBe(201);
     expect(mockedCreateBadgeIssuanceRule).toHaveBeenCalledTimes(1);
     expect(mockedCreateAuditLog).toHaveBeenCalledTimes(1);
+    expect(mockedDeleteBadgeIssuanceRuleBuilderDraft).toHaveBeenCalledTimes(2);
+  });
+
+  it("saves incomplete rule builder drafts without creating rule versions", async () => {
+    const env = createEnv();
+    mockedSaveBadgeIssuanceRuleBuilderDraft.mockResolvedValue({
+      tenantId: "tenant_123",
+      userId: "user_123",
+      ruleId: null,
+      versionId: null,
+      currentStep: "metadata",
+      draftJson: '{"badgeTemplateId":"badge_template_123","definitionJson":""}',
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rule-builder-draft",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          currentStep: "metadata",
+          badgeTemplateId: "badge_template_123",
+          definitionJson: "",
+          builderState: {
+            rootLogic: "all",
+          },
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{ draft: { currentStep: string } }>();
+
+    expect(response.status).toBe(200);
+    expect(body.draft.currentStep).toBe("metadata");
+    expect(mockedSaveBadgeIssuanceRuleBuilderDraft).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      userId: "usr_123",
+      currentStep: "metadata",
+      draftJson: JSON.stringify({
+        name: "",
+        description: "",
+        badgeTemplateId: "badge_template_123",
+        lmsConnectionId: "",
+        definitionJson: "",
+        builderState: {
+          rootLogic: "all",
+        },
+      }),
+    });
+    expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
+    expect(mockedCreateBadgeIssuanceRuleVersion).not.toHaveBeenCalled();
   });
 
   it("lets issuer-role API clients save editable badge issuance rule changes as a new draft version", async () => {
@@ -687,7 +757,7 @@ describe("badge rule routes", () => {
     const body = await response.json<{ error: string }>();
 
     expect(response.status).toBe(409);
-    expect(body.error).toContain("never-active draft or rejected");
+    expect(body.error).toContain("latest draft or rejected version");
   });
 
   it("lists LMS connections without returning secrets", async () => {

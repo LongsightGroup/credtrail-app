@@ -1,7 +1,9 @@
-import type { TenantMembershipRole } from "@credtrail/db";
+import type { SqlDatabase, TenantMembershipRole } from "@credtrail/db";
 import {
+  BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE,
   canEditBadgeIssuanceRuleDraft,
   findBadgeIssuanceRuleById,
+  findBadgeIssuanceRuleBuilderDraft,
   findTenantById,
   findUserById,
   latestBadgeIssuanceRuleVersion,
@@ -42,6 +44,47 @@ import type { AppPage } from "../ui/render-page";
 import { renderAppPage } from "../ui/render-page";
 
 type InstitutionAdminPageData = Parameters<typeof institutionAdminDashboardPage>[0];
+
+const loadInstitutionAdminRuleBuilderSharedData = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    userId: string;
+    ruleId?: string | undefined;
+  },
+) => {
+  const [
+    currentUser,
+    badgeTemplates,
+    lmsConnections,
+    accessibleTenantContexts,
+    valueLists,
+    builderDraft,
+  ] = await Promise.all([
+    findUserById(db, input.userId),
+    listBadgeTemplates(db, {
+      tenantId: input.tenantId,
+      includeArchived: false,
+    }),
+    listTenantLmsConnections(db, input.tenantId),
+    listAccessibleTenantContextsForUser(db, input.userId),
+    loadTenantBadgeRuleValueLists(db, input.tenantId),
+    findBadgeIssuanceRuleBuilderDraft(db, {
+      tenantId: input.tenantId,
+      userId: input.userId,
+      ...(input.ruleId === undefined ? {} : { ruleId: input.ruleId }),
+    }),
+  ]);
+
+  return {
+    currentUser,
+    badgeTemplates,
+    lmsConnections,
+    accessibleTenantContexts,
+    valueLists: toRuleValueListBuilderContextEntries(valueLists),
+    builderDraft,
+  };
+};
 
 interface RegisterTenantAdminPageRoutesInput {
   app: Hono<AppEnv>;
@@ -386,27 +429,16 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       );
     }
 
-    const [
-      currentUser,
-      badgeTemplates,
-      badgeRules,
-      lmsConnections,
-      accessibleTenantContexts,
-      valueLists,
-    ] = await Promise.all([
-      findUserById(db, session.userId),
-      listBadgeTemplates(db, {
+    const [sharedData, badgeRules] = await Promise.all([
+      loadInstitutionAdminRuleBuilderSharedData(db, {
         tenantId: pathParams.tenantId,
-        includeArchived: false,
+        userId: session.userId,
       }),
       resolveListBadgeIssuanceRulesInput(db, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         membershipRole,
       }).then((listInput) => listBadgeIssuanceRules(db, listInput)),
-      listTenantLmsConnections(db, pathParams.tenantId),
-      listAccessibleTenantContextsForUser(db, session.userId),
-      loadTenantBadgeRuleValueLists(db, pathParams.tenantId),
     ]);
     const badgeRuleVersionLists = await Promise.all(
       badgeRules.map(async (rule) =>
@@ -419,13 +451,13 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     const badgeRuleVersions = badgeRuleVersionLists.flat();
     const requestUrl = new URL(c.req.url);
     const requestedBadgeTemplateId = (c.req.query("badgeTemplateId") ?? "").trim();
-    const selectedBadgeTemplateId = badgeTemplates.some(
+    const selectedBadgeTemplateId = sharedData.badgeTemplates.some(
       (template) => template.id === requestedBadgeTemplateId,
     )
       ? requestedBadgeTemplateId
       : undefined;
     const switchOrganizationPath =
-      accessibleTenantContexts.length > 1
+      sharedData.accessibleTenantContexts.length > 1
         ? buildOrganizationsPath(`${requestUrl.pathname}${requestUrl.search}`)
         : null;
 
@@ -436,13 +468,16 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       institutionAdminRuleBuilderPage({
         tenant,
         userId: session.userId,
-        ...(currentUser?.email === undefined ? {} : { userEmail: currentUser.email }),
+        ...(sharedData.currentUser?.email === undefined
+          ? {}
+          : { userEmail: sharedData.currentUser.email }),
         membershipRole,
-        badgeTemplates,
+        badgeTemplates: sharedData.badgeTemplates,
         badgeRules,
         badgeRuleVersions,
-        lmsConnections,
-        valueLists: toRuleValueListBuilderContextEntries(valueLists),
+        lmsConnections: sharedData.lmsConnections,
+        valueLists: sharedData.valueLists,
+        builderDraft: sharedData.builderDraft,
         ...(selectedBadgeTemplateId === undefined ? {} : { selectedBadgeTemplateId }),
         switchOrganizationPath,
       }),
@@ -521,26 +556,20 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
         userId: session.userId,
         workspace: "rules",
         tone: "error",
-        message: "Only never-active draft or rejected rules can be edited.",
+        message: BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE,
       });
 
       return c.redirect(rulesPath, 303);
     }
 
-    const [currentUser, badgeTemplates, lmsConnections, accessibleTenantContexts, valueLists] =
-      await Promise.all([
-        findUserById(db, session.userId),
-        listBadgeTemplates(db, {
-          tenantId: pathParams.tenantId,
-          includeArchived: false,
-        }),
-        listTenantLmsConnections(db, pathParams.tenantId),
-        listAccessibleTenantContextsForUser(db, session.userId),
-        loadTenantBadgeRuleValueLists(db, pathParams.tenantId),
-      ]);
+    const sharedData = await loadInstitutionAdminRuleBuilderSharedData(db, {
+      tenantId: pathParams.tenantId,
+      userId: session.userId,
+      ruleId: pathParams.ruleId,
+    });
     const requestUrl = new URL(c.req.url);
     const switchOrganizationPath =
-      accessibleTenantContexts.length > 1
+      sharedData.accessibleTenantContexts.length > 1
         ? buildOrganizationsPath(`${requestUrl.pathname}${requestUrl.search}`)
         : null;
 
@@ -551,13 +580,16 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       institutionAdminRuleBuilderPage({
         tenant,
         userId: session.userId,
-        ...(currentUser?.email === undefined ? {} : { userEmail: currentUser.email }),
+        ...(sharedData.currentUser?.email === undefined
+          ? {}
+          : { userEmail: sharedData.currentUser.email }),
         membershipRole,
-        badgeTemplates,
+        badgeTemplates: sharedData.badgeTemplates,
         badgeRules: [editRule],
         badgeRuleVersions: editRuleVersions,
-        lmsConnections,
-        valueLists: toRuleValueListBuilderContextEntries(valueLists),
+        lmsConnections: sharedData.lmsConnections,
+        valueLists: sharedData.valueLists,
+        builderDraft: sharedData.builderDraft,
         editRule: {
           rule: editRule,
           latestVersion,

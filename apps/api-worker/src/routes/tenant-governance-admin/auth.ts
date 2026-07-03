@@ -15,10 +15,11 @@ export type TenantGovernanceAdminAuth = ReturnType<typeof createTenantGovernance
 export const createTenantGovernanceAdminAuth = (
   input: Pick<
     RegisterTenantGovernanceRoutesInput,
-    "requireTenantRole" | "ADMIN_ROLES" | "requestTenantMemberInvite"
+    "requireTenantRole" | "ADMIN_ROLES" | "APPROVAL_WORKSPACE_ROLES" | "requestTenantMemberInvite"
   >,
 ) => {
-  const { requireTenantRole, ADMIN_ROLES, requestTenantMemberInvite } = input;
+  const { requireTenantRole, ADMIN_ROLES, APPROVAL_WORKSPACE_ROLES, requestTenantMemberInvite } =
+    input;
 
   const requireEnterpriseTenant = async (
     c: AppContext,
@@ -84,10 +85,11 @@ export const createTenantGovernanceAdminAuth = (
     return c.redirect(`${loginUrl.pathname}${loginUrl.search}`, 302);
   };
 
-  const resolveInstitutionAdminAdminRole = async (
+  const resolveTenantWorkspaceRole = async (
     c: AppContext,
     tenantId: string,
     nextPath: string,
+    allowedRoles: readonly TenantMembershipRole[],
   ): Promise<
     | Response
     | {
@@ -95,7 +97,7 @@ export const createTenantGovernanceAdminAuth = (
         membershipRole: TenantMembershipRole;
       }
   > => {
-    const roleCheck = await requireTenantRole(c, tenantId, ADMIN_ROLES);
+    const roleCheck = await requireTenantRole(c, tenantId, allowedRoles);
 
     if (roleCheck instanceof Response) {
       if (roleCheck.status === 401) {
@@ -125,10 +127,25 @@ export const createTenantGovernanceAdminAuth = (
     return roleCheck;
   };
 
+  const resolveInstitutionAdminAdminRole = (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ): ReturnType<typeof resolveTenantWorkspaceRole> =>
+    resolveTenantWorkspaceRole(c, tenantId, nextPath, ADMIN_ROLES);
+
+  const resolveBadgeRuleApprovalWorkspaceRole = (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ): ReturnType<typeof resolveTenantWorkspaceRole> =>
+    resolveTenantWorkspaceRole(c, tenantId, nextPath, APPROVAL_WORKSPACE_ROLES);
+
   return {
     requireEnterpriseTenant,
     requestInviteForTenantMember,
     redirectToTenantLogin,
+    resolveBadgeRuleApprovalWorkspaceRole,
     resolveInstitutionAdminAdminRole,
   };
 };

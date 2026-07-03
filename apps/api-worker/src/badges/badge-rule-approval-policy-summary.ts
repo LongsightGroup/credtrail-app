@@ -1,17 +1,5 @@
-import type { BadgeRuleApprovalPolicyRecord, TenantMembershipRole } from "@credtrail/db";
-
-const ruleApprovalPolicyRoleLabel = (role: TenantMembershipRole): string => {
-  switch (role) {
-    case "owner":
-      return "Owner";
-    case "admin":
-      return "Admin";
-    case "issuer":
-      return "Issuer";
-    case "viewer":
-      return "Viewer";
-  }
-};
+import type { BadgeRuleApprovalPolicyRecord } from "@credtrail/db";
+import { tenantMembershipRoleLabel } from "../admin/tenant-membership-role-labels";
 
 export const describeBadgeRuleApprovalSummary = (
   policy: BadgeRuleApprovalPolicyRecord | null,
@@ -30,7 +18,7 @@ export const describeBadgeRuleApprovalSummary = (
     }
 
     const requiredRole = firstStep?.requiredRole ?? "admin";
-    return `Submitted badge rule versions require ${ruleApprovalPolicyRoleLabel(
+    return `Submitted badge rule versions require ${tenantMembershipRoleLabel(
       requiredRole,
     ).toLowerCase()} approval.${recertificationSummary}`;
   }

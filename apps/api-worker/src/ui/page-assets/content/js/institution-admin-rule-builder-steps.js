@@ -340,6 +340,10 @@ const setBuilderStepState = (requestedIndex) => {
     focusActiveBuilderPanelHeading(activePanel);
   }
 
+  if (stepChanged && typeof persistRuleBuilderDraftOnStepChange === "function") {
+    persistRuleBuilderDraftOnStepChange();
+  }
+
   if (activeStep === "test") {
     applyTestFactPreset();
     void runRuleBuilderTest({ auto: true });

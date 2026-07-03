@@ -444,8 +444,9 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             <aside class="ct-admin-page-header__note">
               <h2>Tenant-level access</h2>
               <p>
-                Use owner/admin roles for administration. Use issuer/viewer roles when someone does
-                not need full tenant control.
+                Use owner/admin roles for administration. Use issuer for awarding workflows,
+                approver for review-only governance, and viewer when someone does not need full
+                tenant control.
               </p>
             </aside>,
           )}

@@ -75,6 +75,17 @@ describe("badge rule review queue schema", () => {
     expect(sql).toContain("'process_badge_rule_lifecycle'");
     expect(sql).toContain("'process_end_of_term_badge_rule'");
   });
+
+  it("adds author builder drafts and approver membership role through a forward migration", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0054_author_experience_governance.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("'approver'");
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS badge_issuance_rule_builder_drafts");
+    expect(sql).not.toContain("'changes_requested', 'deprecated'");
+  });
 });
 
 describe("badge issuance rule draft predicates", () => {

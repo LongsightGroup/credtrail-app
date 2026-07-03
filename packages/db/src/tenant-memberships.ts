@@ -3,13 +3,15 @@ import { ORG_ANCESTORS_BASE_CTE } from "./tenant-org-unit-hierarchy-sql.js";
 import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "./tenant-scope";
 import type { TenantPlanTier } from "./tenants";
 
-export type TenantMembershipRole = "owner" | "admin" | "issuer" | "viewer";
+export type TenantMembershipRole = "owner" | "admin" | "issuer" | "approver" | "viewer";
 
 export const TENANT_MEMBERSHIP_ROLE_RANK: Record<TenantMembershipRole, number> = {
   viewer: 0,
-  issuer: 1,
-  admin: 2,
-  owner: 3,
+  // Approver is review-only governance; approval checks handle it as a capability.
+  approver: 1,
+  issuer: 2,
+  admin: 3,
+  owner: 4,
 };
 
 export const isTenantMembershipRole = (value: unknown): value is TenantMembershipRole => {
@@ -23,6 +25,10 @@ export const tenantMembershipRoleSatisfiesMinimumRole = (
   actorRole: TenantMembershipRole,
   requiredRole: TenantMembershipRole,
 ): boolean => {
+  if (requiredRole === "approver") {
+    return actorRole === "approver" || actorRole === "admin" || actorRole === "owner";
+  }
+
   return TENANT_MEMBERSHIP_ROLE_RANK[actorRole] >= TENANT_MEMBERSHIP_ROLE_RANK[requiredRole];
 };
 
@@ -42,6 +48,7 @@ export interface TenantMembershipRoleCounts {
   owner: number;
   admin: number;
   issuer: number;
+  approver: number;
   viewer: number;
 }
 
@@ -73,10 +80,11 @@ export interface EnsureTenantMembershipResult {
 export type TenantMembershipOrgUnitScopeRole = "admin" | "issuer" | "viewer";
 
 export const BADGE_RULE_LIST_ORG_UNIT_SCOPE_ROLES: Record<
-  Extract<TenantMembershipRole, "issuer" | "viewer">,
+  Extract<TenantMembershipRole, "issuer" | "approver" | "viewer">,
   readonly TenantMembershipOrgUnitScopeRole[]
 > = {
   issuer: ["admin", "issuer"],
+  approver: ["admin", "issuer", "viewer"],
   viewer: ["admin", "issuer", "viewer"],
 };
 
@@ -245,7 +253,8 @@ export const listTenantMembers = async (
           WHEN 'owner' THEN 0
           WHEN 'admin' THEN 1
           WHEN 'issuer' THEN 2
-          ELSE 3
+          WHEN 'approver' THEN 3
+          ELSE 4
         END,
         lower(users.email),
         memberships.user_id
@@ -279,6 +288,7 @@ export const countTenantMembershipsByRole = async (
     owner: 0,
     admin: 0,
     issuer: 0,
+    approver: 0,
     viewer: 0,
   };
 

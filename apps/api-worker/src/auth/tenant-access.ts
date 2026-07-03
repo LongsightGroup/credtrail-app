@@ -13,9 +13,15 @@ import {
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "./auth-context";
 import { isTenantAdminRole, membershipHasRole } from "./tenant-role-policy";
 
-export { ADMIN_ROLES, ISSUER_ROLES } from "./tenant-role-policy";
+export { ADMIN_ROLES, APPROVAL_WORKSPACE_ROLES, ISSUER_ROLES } from "./tenant-role-policy";
 
-export const TENANT_MEMBER_ROLES: TenantMembershipRole[] = ["owner", "admin", "issuer", "viewer"];
+export const TENANT_MEMBER_ROLES: TenantMembershipRole[] = [
+  "owner",
+  "admin",
+  "issuer",
+  "approver",
+  "viewer",
+];
 export const REPORTING_SCOPE_ROLES: TenantMembershipOrgUnitScopeRole[] = ["admin", "issuer"];
 export const EXECUTIVE_SCOPE_ROLES: TenantMembershipOrgUnitScopeRole[] = [
   "admin",

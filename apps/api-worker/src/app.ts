@@ -60,6 +60,7 @@ import {
 import { createSigningRegistryResolvers } from "./signing/registry";
 import {
   ADMIN_ROLES,
+  APPROVAL_WORKSPACE_ROLES,
   ISSUER_ROLES,
   TENANT_MEMBER_ROLES,
   createTenantAccessHelpers,
@@ -401,6 +402,7 @@ const appDeps: AppDeps = {
   learnerDashboardPage,
   learnerRecordPage,
   ADMIN_ROLES,
+  APPROVAL_WORKSPACE_ROLES,
   ISSUER_ROLES,
   resolveLtiIssuerRegistry,
   createLtiSession: (context, input) => {

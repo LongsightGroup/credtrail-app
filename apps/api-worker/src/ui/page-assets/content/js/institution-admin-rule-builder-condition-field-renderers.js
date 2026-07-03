@@ -141,9 +141,9 @@ const renderCourseCompletionFields = (card, fieldsContainer, seed) => {
   const selectedCourseId = typeof seed.courseId === "string" ? seed.courseId : "";
   replaceConditionFields(fieldsContainer, [
     createCourseSearchField("courseId"),
-    createCourseSelectField("Course", "courseId", selectedCourseId, false),
+    createCourseSelectField("LMS course", "courseId", selectedCourseId, false),
     createConditionField(
-      "Gradebook items completed at least %",
+      "Gradebook completion at least %",
       createConditionInput("number", {
         "data-field": "minCompletionPercent",
         min: "0",
@@ -172,9 +172,9 @@ const renderGradeThresholdFields = (card, fieldsContainer, seed) => {
   const selectedCourseId = typeof seed.courseId === "string" ? seed.courseId : "";
   replaceConditionFields(fieldsContainer, [
     createCourseSearchField("courseId"),
-    createCourseSelectField("Course", "courseId", selectedCourseId, false),
+    createCourseSelectField("LMS course", "courseId", selectedCourseId, false),
     createConditionField(
-      "Score field",
+      "Gradebook score field",
       createConditionSelect({ "data-field": "scoreField" }, [
         createConditionOption("final_score", "Final score", false),
         createConditionOption("current_score", "Current score", false),

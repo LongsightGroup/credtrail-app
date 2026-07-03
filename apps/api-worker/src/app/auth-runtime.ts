@@ -1,4 +1,9 @@
-import { findTenantAuthPolicy, findTenantById, upsertUserByEmail } from "@credtrail/db";
+import {
+  findTenantAuthPolicy,
+  findTenantById,
+  upsertUserByEmail,
+  type TenantMembershipRole,
+} from "@credtrail/db";
 import type { SocialProviders } from "better-auth/social-providers";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "../auth/auth-context";
@@ -613,7 +618,7 @@ export const requestTenantMemberInvite = async (
   input: {
     tenantId: string;
     email: string;
-    role: "owner" | "admin" | "issuer" | "viewer";
+    role: TenantMembershipRole;
   },
 ): Promise<{
   deliveryStatus: "sent" | "skipped" | "failed";

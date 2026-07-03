@@ -169,7 +169,7 @@ describe("resolveTenantReportingAccess", () => {
         db: SqlDatabase;
         tenantId: string;
         userId: string;
-        membershipRole: "owner" | "admin" | "issuer" | "viewer";
+        membershipRole: "owner" | "admin" | "issuer" | "approver" | "viewer";
       }) => Promise<unknown>;
     }
   ).resolveTenantReportingAccess;
@@ -256,7 +256,7 @@ describe("resolveTenantExecutiveAccess", () => {
         db: SqlDatabase;
         tenantId: string;
         userId: string;
-        membershipRole: "owner" | "admin" | "issuer" | "viewer";
+        membershipRole: "owner" | "admin" | "issuer" | "approver" | "viewer";
       }) => Promise<unknown>;
     }
   ).resolveTenantExecutiveAccess;

@@ -425,6 +425,8 @@
       applyTemplatePreset();
     }
 
+    restoreBuilderDraftIfApplicable();
+
     refreshConditionCardValueListOptions();
     syncRuleBuilderSummary();
   }

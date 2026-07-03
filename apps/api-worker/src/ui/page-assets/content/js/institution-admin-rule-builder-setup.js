@@ -21,10 +21,21 @@
       typeof ruleBuilderContext.editRule.id === 'string'
         ? ruleBuilderContext.editRule
         : null;
+    const builderDraftContext =
+      ruleBuilderContext &&
+      ruleBuilderContext.builderDraft &&
+      typeof ruleBuilderContext.builderDraft === 'object' &&
+      !Array.isArray(ruleBuilderContext.builderDraft)
+        ? ruleBuilderContext.builderDraft
+        : null;
     const isRuleBuilderEditMode = editRuleContext !== null;
     const ruleBuilderSubmitApiPath = isRuleBuilderEditMode
       ? badgeRuleApiPath + '/' + encodeURIComponent(editRuleContext.id) + '/draft'
       : badgeRuleApiPath;
+    const ruleBuilderDraftApiPath =
+      ruleBuilderContext && typeof ruleBuilderContext.badgeRuleBuilderDraftApiPath === "string"
+        ? ruleBuilderContext.badgeRuleBuilderDraftApiPath
+        : "";
     const badgeTemplateCourseMap = new Map();
     const badgeTemplatesContext =
       ruleBuilderContext && Array.isArray(ruleBuilderContext.badgeTemplates)

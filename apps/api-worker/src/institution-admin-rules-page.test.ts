@@ -4,6 +4,7 @@ import type {
   BadgeIssuanceRuleVersionRecord,
   PendingBadgeIssuanceRuleApprovalRecord,
 } from "@credtrail/db";
+import { BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE } from "@credtrail/db";
 import { buildCompleteTrustEdCredentialMetadata } from "@credtrail/validation/testing";
 import { describe, expect, it } from "vitest";
 import {
@@ -258,7 +259,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_approved/delete");
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_active/edit");
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_active/delete");
-    expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_historical/edit");
+    expect(body).toContain("/tenants/tenant_123/admin/rules/brl_historical/edit");
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_historical/delete");
   });
 });
@@ -2213,6 +2214,12 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_JS).not.toContain("rule-builder-condition-list");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-condition-list");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("credtrail:rule-builder:");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("saveRuleBuilderDraft");
+    expect(body).toContain('id="rule-builder-save-draft"');
+    expect(body).toContain("Draft not saved yet.");
+    expect(body).toContain(
+      "&quot;badgeRuleBuilderDraftApiPath&quot;:&quot;/v1/tenants/tenant_123/badge-rule-builder-draft&quot;",
+    );
   });
 
   it("preselects a returned badge template in the rule builder", async () => {
@@ -2376,6 +2383,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
       "Try the rule with a sample learner, then save a new draft version for review.",
     );
     expect(body).toContain('id="rule-builder-test"');
+    expect(body).toContain('id="rule-builder-save-draft"');
     expect(body).toContain("Save changes as draft");
     expect(body).not.toContain("Copy existing rule settings");
     expect(body).toContain('value="Draft QA Rule"');
@@ -2488,6 +2496,6 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
     const flashBody = await flashResponse.text();
 
     expect(flashResponse.status).toBe(200);
-    expect(flashBody).toContain("Only never-active draft or rejected rules can be edited.");
+    expect(flashBody).toContain(BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE);
   });
 });

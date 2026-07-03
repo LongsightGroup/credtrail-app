@@ -40,4 +40,5 @@ export interface RegisterTenantGovernanceRoutesInput {
   issueBadgeForTenant: IssueBadgeForTenant;
   ADMIN_ROLES: readonly TenantMembershipRole[];
   ISSUER_ROLES: readonly TenantMembershipRole[];
+  APPROVAL_WORKSPACE_ROLES: readonly TenantMembershipRole[];
 }

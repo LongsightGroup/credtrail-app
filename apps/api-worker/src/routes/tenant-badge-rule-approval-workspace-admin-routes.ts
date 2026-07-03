@@ -41,7 +41,7 @@ interface RegisterTenantBadgeRuleApprovalWorkspaceAdminRoutesInput {
   app: Hono<AppEnv>;
   resolveDatabase: ResolveDatabase;
   sha256Hex: (value: string) => Promise<string>;
-  resolveInstitutionAdminAdminRole: (
+  resolveBadgeRuleApprovalWorkspaceRole: (
     c: AppContext,
     tenantId: string,
     nextPath: string,
@@ -92,7 +92,7 @@ const actorCanDecideReviewVersion = async (
 export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
   input: RegisterTenantBadgeRuleApprovalWorkspaceAdminRoutesInput,
 ): void => {
-  const { app, resolveDatabase, resolveInstitutionAdminAdminRole, sha256Hex } = input;
+  const { app, resolveDatabase, resolveBadgeRuleApprovalWorkspaceRole, sha256Hex } = input;
 
   const renderReviewPage = async (
     c: AppContext,
@@ -178,7 +178,7 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
   app.get("/tenants/:tenantId/admin/rules/approvals", async (c) => {
     const { tenantId } = parseTenantPathParams(c.req.param());
     const nextPath = buildBadgeRuleApprovalsPath(tenantId);
-    const roleCheck = await resolveInstitutionAdminAdminRole(c, tenantId, nextPath);
+    const roleCheck = await resolveBadgeRuleApprovalWorkspaceRole(c, tenantId, nextPath);
 
     if (roleCheck instanceof Response) {
       return roleCheck;
@@ -233,7 +233,7 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
       pathParams.ruleId,
       pathParams.versionId,
     );
-    const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
+    const roleCheck = await resolveBadgeRuleApprovalWorkspaceRole(c, pathParams.tenantId, nextPath);
 
     if (roleCheck instanceof Response) {
       return roleCheck;
@@ -258,7 +258,11 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
         pathParams.ruleId,
         pathParams.versionId,
       );
-      const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
+      const roleCheck = await resolveBadgeRuleApprovalWorkspaceRole(
+        c,
+        pathParams.tenantId,
+        nextPath,
+      );
 
       if (roleCheck instanceof Response) {
         return roleCheck;

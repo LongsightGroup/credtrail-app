@@ -156,6 +156,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
       "institution-admin-rule-builder-lms-picker.js",
       "institution-admin-rule-builder-condition-model.js",
       "institution-admin-rule-builder-summary.js",
+      "institution-admin-rule-builder-presets.js",
       "institution-admin-rule-builder-drafts.js",
       "institution-admin-rule-builder-submit.js",
     ],

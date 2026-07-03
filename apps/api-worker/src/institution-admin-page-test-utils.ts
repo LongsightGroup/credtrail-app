@@ -25,6 +25,7 @@ const {
   mockedResolveBetterAuthRequestedTenant,
   mockedDeleteDraftBadgeIssuanceRule,
   mockedDecideBadgeIssuanceRuleVersion,
+  mockedFindBadgeIssuanceRuleBuilderDraft,
   mockedFindBadgeIssuanceRuleVersionById,
   mockedFindLtiResourceLinkPlacementForRule,
   mockedListBadgeIssuanceRuleVersionApprovalSteps,
@@ -61,6 +62,7 @@ const {
     mockedResolveBetterAuthRequestedTenant: vi.fn(),
     mockedDeleteDraftBadgeIssuanceRule: vi.fn(),
     mockedDecideBadgeIssuanceRuleVersion: vi.fn(),
+    mockedFindBadgeIssuanceRuleBuilderDraft: vi.fn(),
     mockedFindBadgeIssuanceRuleVersionById: vi.fn(),
     mockedFindLtiResourceLinkPlacementForRule: vi.fn(),
     mockedListBadgeIssuanceRuleVersionApprovalSteps: vi.fn(),
@@ -99,6 +101,7 @@ export {
   mockedResolveBetterAuthPrincipal,
   mockedResolveBetterAuthRequestedTenant,
   mockedDecideBadgeIssuanceRuleVersion,
+  mockedFindBadgeIssuanceRuleBuilderDraft,
   mockedFindBadgeIssuanceRuleVersionById,
   mockedFindLtiResourceLinkPlacementForRule,
   mockedListActiveLtiLaunchSessionsForPlatform,
@@ -136,6 +139,7 @@ vi.mock("@credtrail/db", async () => {
     listBadgeIssuanceRules: vi.fn(),
     listBadgeIssuanceRuleVersions: vi.fn(),
     findBadgeIssuanceRuleVersionById: mockedFindBadgeIssuanceRuleVersionById,
+    findBadgeIssuanceRuleBuilderDraft: mockedFindBadgeIssuanceRuleBuilderDraft,
     findLtiResourceLinkPlacementForRule: mockedFindLtiResourceLinkPlacementForRule,
     listActiveLtiLaunchSessionsForPlatform: mockedListActiveLtiLaunchSessionsForPlatform,
     submitBadgeIssuanceRuleVersionForApproval: mockedSubmitBadgeIssuanceRuleVersionForApproval,
@@ -231,6 +235,7 @@ import {
   listAuditLogs,
   listBadgeIssuanceRules,
   listBadgeIssuanceRuleVersions,
+  findBadgeIssuanceRuleBuilderDraft,
   findBadgeIssuanceRuleVersionById,
   submitBadgeIssuanceRuleVersionForApproval,
   listBadgeIssuanceRuleVersionApprovalSteps,
@@ -306,6 +311,9 @@ export const mockedListDelegatedIssuingAuthorityGrants = vi.mocked(
 export const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
 export const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRuleVersions);
 export const mockedFindBadgeIssuanceRuleVersionByIdDb = vi.mocked(findBadgeIssuanceRuleVersionById);
+export const mockedFindBadgeIssuanceRuleBuilderDraftDb = vi.mocked(
+  findBadgeIssuanceRuleBuilderDraft,
+);
 export const mockedSubmitBadgeIssuanceRuleVersionForApprovalDb = vi.mocked(
   submitBadgeIssuanceRuleVersionForApproval,
 );
@@ -832,6 +840,8 @@ beforeEach(() => {
   ]);
   mockedFindBadgeIssuanceRuleVersionByIdDb.mockReset();
   mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(null);
+  mockedFindBadgeIssuanceRuleBuilderDraftDb.mockReset();
+  mockedFindBadgeIssuanceRuleBuilderDraftDb.mockResolvedValue(null);
   mockedFindLtiResourceLinkPlacementForRule.mockReset();
   mockedFindLtiResourceLinkPlacementForRule.mockResolvedValue(null);
   mockedListActiveLtiLaunchSessionsForPlatform.mockReset();

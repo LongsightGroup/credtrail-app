@@ -5,7 +5,13 @@ export const resourceIdSchema = z.string().min(1);
 export const userIdSchema = z.string().min(1);
 export const isoTimestampSchema = z.string().datetime();
 export const tenantPlanTierSchema = z.enum(["free", "team", "institution", "enterprise"]);
-export const tenantMembershipRoleSchema = z.enum(["owner", "admin", "issuer", "viewer"]);
+export const tenantMembershipRoleSchema = z.enum([
+  "owner",
+  "admin",
+  "issuer",
+  "approver",
+  "viewer",
+]);
 export const tenantLoginModeSchema = z.enum(["local", "hybrid", "sso_required"]);
 export const tenantAuthPolicyEnforceForRolesSchema = z.enum(["all_users", "admins_only"]);
 export const tenantAuthProviderProtocolSchema = z.enum(["oidc"]);

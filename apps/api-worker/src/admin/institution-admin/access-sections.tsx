@@ -1,5 +1,6 @@
 import type { HtmlEscapedString } from "hono/utils/html";
-import type { BadgeRuleApprovalPolicyRecord, TenantMembershipRole } from "@credtrail/db";
+import type { BadgeRuleApprovalPolicyRecord } from "@credtrail/db";
+import { tenantMembershipRoleLabel } from "../tenant-membership-role-labels";
 import { describeBadgeRuleApprovalSummary } from "../../badges/badge-rule-approval-policy-summary";
 import {
   AdminActions,
@@ -87,18 +88,7 @@ const addDisclosureControlMarkup = (
   </span>
 );
 
-const ruleApprovalPolicyRoleLabel = (role: TenantMembershipRole): string => {
-  switch (role) {
-    case "owner":
-      return "Owner";
-    case "admin":
-      return "Admin";
-    case "issuer":
-      return "Issuer";
-    case "viewer":
-      return "Viewer";
-  }
-};
+const ruleApprovalPolicyRoleLabel = tenantMembershipRoleLabel;
 
 export const renderInstitutionAdminAccessSections = (
   input: RenderInstitutionAdminAccessSectionsInput,
@@ -339,7 +329,7 @@ export const renderInstitutionAdminAccessSections = (
           </AdminField>
           <AdminField label="Reviewer role">
             <CtSelect name="requiredRole" required>
-              {(["admin", "owner", "issuer", "viewer"] as const).map((role) => (
+              {(["admin", "owner", "issuer", "approver", "viewer"] as const).map((role) => (
                 <option value={role} selected={badgeRuleApprovalRole === role ? true : undefined}>
                   {ruleApprovalPolicyRoleLabel(role)}
                 </option>

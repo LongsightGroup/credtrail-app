@@ -118,6 +118,8 @@ const ruleBuilderStepProgress = document.getElementById('rule-builder-step-progr
 const ruleBuilderStepCallout = document.getElementById('rule-builder-step-callout');
 const ruleBuilderStepFooter = document.getElementById('rule-builder-step-footer');
 const ruleBuilderSubmitButton = document.getElementById('rule-builder-submit');
+const ruleBuilderSaveDraftButton = document.getElementById("rule-builder-save-draft");
+const ruleBuilderDraftStatus = document.getElementById("rule-builder-draft-status");
 const ruleBuilderCanvasCount = document.getElementById('rule-builder-canvas-count');
 const ruleBuilderCanvasLogic = document.getElementById('rule-builder-canvas-logic');
 const ruleBuilderFlowMode = document.getElementById('rule-builder-flow-mode');
@@ -179,10 +181,21 @@ var adminStatusPillClass = function adminStatusPillClass(tone) {
       typeof ruleBuilderContext.editRule.id === 'string'
         ? ruleBuilderContext.editRule
         : null;
+    const builderDraftContext =
+      ruleBuilderContext &&
+      ruleBuilderContext.builderDraft &&
+      typeof ruleBuilderContext.builderDraft === 'object' &&
+      !Array.isArray(ruleBuilderContext.builderDraft)
+        ? ruleBuilderContext.builderDraft
+        : null;
     const isRuleBuilderEditMode = editRuleContext !== null;
     const ruleBuilderSubmitApiPath = isRuleBuilderEditMode
       ? badgeRuleApiPath + '/' + encodeURIComponent(editRuleContext.id) + '/draft'
       : badgeRuleApiPath;
+    const ruleBuilderDraftApiPath =
+      ruleBuilderContext && typeof ruleBuilderContext.badgeRuleBuilderDraftApiPath === "string"
+        ? ruleBuilderContext.badgeRuleBuilderDraftApiPath
+        : "";
     const badgeTemplateCourseMap = new Map();
     const badgeTemplatesContext =
       ruleBuilderContext && Array.isArray(ruleBuilderContext.badgeTemplates)
@@ -960,6 +973,10 @@ const setBuilderStepState = (requestedIndex) => {
     focusActiveBuilderPanelHeading(activePanel);
   }
 
+  if (stepChanged && typeof persistRuleBuilderDraftOnStepChange === "function") {
+    persistRuleBuilderDraftOnStepChange();
+  }
+
   if (activeStep === "test") {
     applyTestFactPreset();
     void runRuleBuilderTest({ auto: true });
@@ -1457,9 +1474,9 @@ const renderCourseCompletionFields = (card, fieldsContainer, seed) => {
   const selectedCourseId = typeof seed.courseId === "string" ? seed.courseId : "";
   replaceConditionFields(fieldsContainer, [
     createCourseSearchField("courseId"),
-    createCourseSelectField("Course", "courseId", selectedCourseId, false),
+    createCourseSelectField("LMS course", "courseId", selectedCourseId, false),
     createConditionField(
-      "Gradebook items completed at least %",
+      "Gradebook completion at least %",
       createConditionInput("number", {
         "data-field": "minCompletionPercent",
         min: "0",
@@ -1488,9 +1505,9 @@ const renderGradeThresholdFields = (card, fieldsContainer, seed) => {
   const selectedCourseId = typeof seed.courseId === "string" ? seed.courseId : "";
   replaceConditionFields(fieldsContainer, [
     createCourseSearchField("courseId"),
-    createCourseSelectField("Course", "courseId", selectedCourseId, false),
+    createCourseSelectField("LMS course", "courseId", selectedCourseId, false),
     createConditionField(
-      "Score field",
+      "Gradebook score field",
       createConditionSelect({ "data-field": "scoreField" }, [
         createConditionOption("final_score", "Final score", false),
         createConditionOption("current_score", "Current score", false),
@@ -3630,7 +3647,6 @@ const applyTestFactPreset = () => {
   const recipientIdentity = getTextFieldValue("testRecipientIdentity") || "learner@example.edu";
   const courseId = getDefaultCourseId() || getCoursePlaceholder();
   const programCourseIds = deriveRelatedCourseIds(courseId, 3);
-  const nextCourseId = programCourseIds[1] ?? courseId + "-2";
   const surveyId = courseId + "_EXIT_SURVEY";
 
   setRuleCreateFieldValue("testLearnerId", learnerId);
@@ -3739,6 +3755,203 @@ const applyTestFactPreset = () => {
   syncRuleBuilderSummary("Applied test facts preset.");
 };
 
+const setRuleBuilderDraftStatus = (message, tone) => {
+  if (!(ruleBuilderDraftStatus instanceof HTMLElement)) {
+    return;
+  }
+
+  ruleBuilderDraftStatus.textContent = message;
+  if (tone) {
+    ruleBuilderDraftStatus.dataset.tone = tone;
+  } else {
+    delete ruleBuilderDraftStatus.dataset.tone;
+  }
+};
+
+const currentRuleBuilderStep = () => {
+  return ruleBuilderStepOrder[activeRuleBuilderStepIndex] ?? "metadata";
+};
+
+const readRuleBuilderDraftPayload = () => {
+  const definitionJson =
+    ruleBuilderDefinitionJson instanceof HTMLTextAreaElement ? ruleBuilderDefinitionJson.value : "";
+  const builderState = {
+    rootLogic: getTextFieldValue("rootLogic"),
+    issuanceTiming: getTextFieldValue("issuanceTiming"),
+    changeSummary: getTextFieldValue("changeSummary"),
+    reviewOnMissingFacts: getRuleCreateField("reviewOnMissingFacts") instanceof HTMLInputElement
+      ? getRuleCreateField("reviewOnMissingFacts").checked
+      : false,
+    lastTestSummary: ruleBuilderLastTestSummary,
+  };
+
+  return {
+    ...(isRuleBuilderEditMode ? { ruleId: editRuleContext.id } : {}),
+    ...(isRuleBuilderEditMode && typeof editRuleContext.latestVersionId === "string"
+      ? { versionId: editRuleContext.latestVersionId }
+      : {}),
+    currentStep: currentRuleBuilderStep(),
+    name: getTextFieldValue("name"),
+    description: getTextFieldValue("description"),
+    badgeTemplateId: getTextFieldValue("badgeTemplateId"),
+    lmsConnectionId: getTextFieldValue("lmsConnectionId"),
+    lmsProviderKind: getTextFieldValue("lmsProviderKind"),
+    definitionJson,
+    builderState,
+  };
+};
+
+const saveRuleBuilderDraft = async (options) => {
+  if (ruleBuilderDraftApiPath.length === 0) {
+    return;
+  }
+
+  const quiet = options && options.quiet === true;
+
+  if (!quiet) {
+    setRuleBuilderDraftStatus("Saving draft...", "info");
+  }
+
+  try {
+    const response = await fetch(ruleBuilderDraftApiPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(readRuleBuilderDraftPayload()),
+    });
+    const payload = await parseJsonBody(response);
+
+    if (!response.ok) {
+      const message = errorDetailFromPayload(payload);
+      setRuleBuilderDraftStatus(message, "error");
+      if (!quiet) {
+        setStatus(ruleCreateStatus, message, true);
+      }
+      return;
+    }
+
+    const savedAt =
+      payload &&
+      payload.draft &&
+      typeof payload.draft.updatedAt === "string" &&
+      payload.draft.updatedAt.length > 0
+        ? new Date(payload.draft.updatedAt).toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+          })
+        : "now";
+
+    setRuleBuilderDraftStatus("Draft saved " + savedAt + ".", "success");
+  } catch {
+    const message = "Unable to save this draft from this browser session.";
+    setRuleBuilderDraftStatus(message, "error");
+    if (!quiet) {
+      setStatus(ruleCreateStatus, message, true);
+    }
+  }
+};
+
+const persistRuleBuilderDraftOnStepChange = () => {
+  setRuleBuilderDraftStatus("Saving draft...", "info");
+  void saveRuleBuilderDraft({ quiet: true });
+};
+
+const applyBuilderDraftPayload = (draftContext) => {
+  const payload = draftContext.payload;
+
+  if (typeof payload.name === "string") {
+    setRuleCreateFieldValue("name", payload.name);
+  }
+
+  if (typeof payload.description === "string") {
+    setRuleCreateFieldValue("description", payload.description);
+  }
+
+  if (typeof payload.badgeTemplateId === "string") {
+    setRuleCreateFieldValue("badgeTemplateId", payload.badgeTemplateId);
+  }
+
+  if (typeof payload.lmsConnectionId === "string") {
+    setRuleCreateFieldValue("lmsConnectionId", payload.lmsConnectionId);
+    syncSelectedLmsProviderKind();
+  }
+
+  if (typeof payload.definitionJson === "string" && payload.definitionJson.trim().length > 0) {
+    try {
+      const savedDefinition = JSON.parse(payload.definitionJson);
+      ruleBuilderDefinitionJson.value = JSON.stringify(savedDefinition, null, 2);
+      applyDefinitionToBuilder(savedDefinition, "Saved draft");
+    } catch {
+      setRuleBuilderDraftStatus("Saved draft requirements could not be restored.", "warning");
+    }
+  }
+
+  const builderState = payload.builderState;
+  if (builderState && typeof builderState === "object" && !Array.isArray(builderState)) {
+    if (builderState.rootLogic === "all" || builderState.rootLogic === "any") {
+      setRuleBuilderRootLogic(builderState.rootLogic);
+    }
+
+    if (typeof builderState.issuanceTiming === "string") {
+      setRuleCreateFieldValue("issuanceTiming", builderState.issuanceTiming);
+    }
+
+    if (typeof builderState.changeSummary === "string") {
+      setRuleCreateFieldValue("changeSummary", builderState.changeSummary);
+    }
+
+    const reviewField = getRuleCreateField("reviewOnMissingFacts");
+    if (reviewField instanceof HTMLInputElement && typeof builderState.reviewOnMissingFacts === "boolean") {
+      reviewField.checked = builderState.reviewOnMissingFacts;
+    }
+
+    if (typeof builderState.lastTestSummary === "string" && builderState.lastTestSummary.length > 0) {
+      ruleBuilderLastTestSummary = builderState.lastTestSummary;
+    }
+  }
+
+  const currentStep = draftContext.currentStep;
+  if (typeof currentStep === "string") {
+    const stepIndex = ruleBuilderStepOrder.indexOf(currentStep);
+    if (stepIndex >= 0) {
+      setBuilderStepState(stepIndex);
+    }
+  }
+};
+
+const restoreBuilderDraftIfApplicable = () => {
+  if (builderDraftContext === null) {
+    return;
+  }
+
+  const restoreStatus =
+    typeof builderDraftContext.restoreStatus === "string"
+      ? builderDraftContext.restoreStatus
+      : "invalid_payload";
+
+  if (restoreStatus === "invalid_payload") {
+    setRuleBuilderDraftStatus(
+      "Saved draft data could not be restored. Continue from the current rule settings.",
+      "warning",
+    );
+    return;
+  }
+
+  if (restoreStatus === "version_mismatch") {
+    setRuleBuilderDraftStatus("Saved draft is for a different version and was ignored.", "warning");
+    return;
+  }
+
+  if (restoreStatus === "stale") {
+    setRuleBuilderDraftStatus("Saved draft is older than the current rule version and was ignored.", "warning");
+    return;
+  }
+
+  applyBuilderDraftPayload(builderDraftContext);
+  setRuleBuilderDraftStatus("Draft restored from last save.", "success");
+};
+
 if (ruleBuilderStepButtons.length > 0) {
   ruleBuilderStepButtons.forEach((candidate) => {
     if (!(candidate instanceof HTMLButtonElement)) {
@@ -3771,11 +3984,19 @@ if (ruleBuilderStepNextButton instanceof HTMLButtonElement) {
 
 ruleCreateForm.addEventListener("input", () => {
   syncRuleBuilderSummary();
+  setRuleBuilderDraftStatus("Unsaved changes.", "warning");
 });
 
 ruleCreateForm.addEventListener("change", () => {
   syncRuleBuilderSummary();
+  setRuleBuilderDraftStatus("Unsaved changes.", "warning");
 });
+
+if (ruleBuilderSaveDraftButton instanceof HTMLButtonElement) {
+  ruleBuilderSaveDraftButton.addEventListener("click", () => {
+    void saveRuleBuilderDraft({ quiet: false });
+  });
+}
 
 const reviewOnMissingFactsField = getRuleCreateField("reviewOnMissingFacts");
 
@@ -4458,6 +4679,8 @@ if (
       syncSuggestedRuleName();
       applyTemplatePreset();
     }
+
+    restoreBuilderDraftIfApplicable();
 
     refreshConditionCardValueListOptions();
     syncRuleBuilderSummary();

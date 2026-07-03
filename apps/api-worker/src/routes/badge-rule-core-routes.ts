@@ -1,11 +1,14 @@
 import {
+  BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE,
   createAuditLog,
   createBadgeIssuanceRule,
+  deleteBadgeIssuanceRuleBuilderDraft,
   findBadgeIssuanceRuleById,
   listAuditLogs,
   listBadgeIssuanceRules,
   resolveListBadgeIssuanceRulesInput,
   listBadgeIssuanceRuleVersions,
+  saveBadgeIssuanceRuleBuilderDraft,
   updateBadgeIssuanceRuleDraft,
   type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleVersionRecord,
@@ -17,8 +20,10 @@ import {
   parseBadgeIssuanceRuleAuditLogQuery,
   parseBadgeIssuanceRulePathParams,
   parseCreateBadgeIssuanceRuleRequest,
+  parseSaveBadgeIssuanceRuleBuilderDraftRequest,
   parseTenantPathParams,
   parseUpdateBadgeIssuanceRuleDraftRequest,
+  serializeBadgeIssuanceRuleBuilderDraftPayload,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import type { AppEnv } from "../app";
@@ -137,6 +142,25 @@ type PersistBadgeRuleDraftResult =
       error: string;
     };
 
+const cleanupBadgeRuleBuilderDraftsAfterPersist = async (input: {
+  db: SqlDatabase;
+  tenantId: string;
+  userId: string;
+  ruleId: string;
+}): Promise<void> => {
+  await Promise.allSettled([
+    deleteBadgeIssuanceRuleBuilderDraft(input.db, {
+      tenantId: input.tenantId,
+      userId: input.userId,
+      ruleId: input.ruleId,
+    }),
+    deleteBadgeIssuanceRuleBuilderDraft(input.db, {
+      tenantId: input.tenantId,
+      userId: input.userId,
+    }),
+  ]);
+};
+
 const persistBadgeRuleDraft = async (input: {
   db: SqlDatabase;
   tenantId: string;
@@ -232,7 +256,7 @@ const persistBadgeRuleDraft = async (input: {
     return {
       status: "error",
       statusCode: 409,
-      error: "Only never-active draft or rejected rules can be edited from the builder.",
+      error: BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE,
     };
   }
 
@@ -250,6 +274,13 @@ const persistBadgeRuleDraft = async (input: {
       lmsConnectionId: resolvedProvider.connection.id,
       lmsProviderKind: resolvedProvider.connection.providerKind,
     },
+  });
+
+  await cleanupBadgeRuleBuilderDraftsAfterPersist({
+    db: input.db,
+    tenantId: input.tenantId,
+    userId: input.session.userId,
+    ruleId: persisted.draft.rule.id,
   });
 
   return {
@@ -365,6 +396,39 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       },
       201,
     );
+  });
+
+  app.post("/v1/tenants/:tenantId/badge-rule-builder-draft", async (c) => {
+    const tenantParams = parseTenantPathParams(c.req.param());
+    let request;
+
+    try {
+      request = parseSaveBadgeIssuanceRuleBuilderDraftRequest(await c.req.json<unknown>());
+    } catch {
+      return c.json({ error: "Invalid rule builder draft payload" }, 400);
+    }
+
+    const roleCheck = await requireTenantRole(c, tenantParams.tenantId, ISSUER_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const draftJson = serializeBadgeIssuanceRuleBuilderDraftPayload(request);
+    const draft = await saveBadgeIssuanceRuleBuilderDraft(resolveDatabase(c.env), {
+      tenantId: tenantParams.tenantId,
+      userId: roleCheck.session.userId,
+      ...(request.ruleId === undefined ? {} : { ruleId: request.ruleId }),
+      ...(request.versionId === undefined ? {} : { versionId: request.versionId }),
+      currentStep: request.currentStep,
+      draftJson,
+    });
+
+    c.header("Cache-Control", "no-store");
+    return c.json({
+      tenantId: tenantParams.tenantId,
+      draft,
+    });
   });
 
   app.post("/v1/tenants/:tenantId/badge-rules/:ruleId/draft", async (c) => {

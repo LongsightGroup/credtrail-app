@@ -11,6 +11,70 @@ import {
 } from "./postgres-test-support";
 
 describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () => {
+  it("persists incomplete builder drafts without creating rule versions", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      const draft = await dbModule.saveBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        currentStep: "metadata",
+        draftJson: JSON.stringify({
+          badgeTemplateId: fixture.badgeTemplateId,
+          definitionJson: "",
+        }),
+      });
+      const loaded = await dbModule.findBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+      });
+      const versionCount = await selectCount(
+        fixture.db,
+        "SELECT COUNT(*) AS totalCount FROM badge_issuance_rule_versions WHERE tenant_id = ?",
+        [fixture.tenantId],
+      );
+
+      expect(draft.currentStep).toBe("metadata");
+      expect(loaded?.draftJson).toContain(fixture.badgeTemplateId);
+      expect(versionCount).toBe(0);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
+  it("deletes saved builder drafts for a user and rule scope", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      await dbModule.saveBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        currentStep: "conditions",
+        draftJson: JSON.stringify({ definitionJson: "{}" }),
+      });
+
+      const deleted = await dbModule.deleteBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+      });
+      const loaded = await dbModule.findBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+      });
+
+      expect(deleted).toBe(true);
+      expect(loaded).toBeNull();
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
   it("creates and lists rules by explicit org-unit descendant scope", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 
@@ -148,6 +212,77 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
       expect(versions).toHaveLength(2);
       expect(versions[0]?.versionNumber).toBe(2);
       expect(approvalStepCount).toBe(0);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
+  it("allows active rules to carry an editable latest replacement draft", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      const created = await createFixtureRule(fixture);
+
+      await fixture.db
+        .prepare(
+          `
+          UPDATE badge_issuance_rule_versions
+          SET status = 'active', activated_by_user_id = ?, activated_at = ?
+          WHERE id = ?
+        `,
+        )
+        .bind(fixture.userId, new Date().toISOString(), created.version.id)
+        .run();
+      await fixture.db
+        .prepare("UPDATE badge_issuance_rules SET active_version_id = ? WHERE id = ?")
+        .bind(created.version.id, created.rule.id)
+        .run();
+
+      const draftVersion = await dbModule.createBadgeIssuanceRuleVersion(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":85}}',
+        changeSummary: "Replacement draft",
+        createdByUserId: fixture.userId,
+      });
+      const versionsBeforeUpdate = await dbModule.listBadgeIssuanceRuleVersions(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+      });
+      const activeRule = await dbModule.findBadgeIssuanceRuleById(
+        fixture.db,
+        fixture.tenantId,
+        created.rule.id,
+      );
+
+      expect(activeRule?.activeVersionId).toBe(created.version.id);
+      expect(
+        activeRule === null
+          ? false
+          : dbModule.canEditBadgeIssuanceRuleDraft(activeRule, versionsBeforeUpdate),
+      ).toBe(true);
+
+      const result = await dbModule.updateBadgeIssuanceRuleDraft(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        name: "CS101 Replacement",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":90}}',
+        changeSummary: "Raise score threshold",
+        createdByUserId: fixture.userId,
+      });
+
+      expect(draftVersion.status).toBe("draft");
+      expect(result.status).toBe("updated");
+      expect(result.status === "updated" ? result.rule.activeVersionId : null).toBe(
+        created.version.id,
+      );
+      expect(result.status === "updated" ? result.version.versionNumber : null).toBe(3);
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],

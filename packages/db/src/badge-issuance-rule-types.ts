@@ -17,6 +17,28 @@ export type BadgeIssuanceRuleVersionStatus =
   | "rejected"
   | "deprecated";
 
+export type BadgeIssuanceRuleBuilderDraftStep = "metadata" | "conditions" | "test";
+
+export interface BadgeIssuanceRuleBuilderDraftRecord {
+  tenantId: string;
+  userId: string;
+  ruleId: string | null;
+  versionId: string | null;
+  currentStep: BadgeIssuanceRuleBuilderDraftStep;
+  draftJson: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SaveBadgeIssuanceRuleBuilderDraftInput {
+  tenantId: string;
+  userId: string;
+  ruleId?: string | undefined;
+  versionId?: string | undefined;
+  currentStep: BadgeIssuanceRuleBuilderDraftStep;
+  draftJson: string;
+}
+
 export type BadgeIssuanceRuleApprovalStepStatus =
   | "queued"
   | "pending"

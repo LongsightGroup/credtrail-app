@@ -310,6 +310,45 @@ export const updateBadgeIssuanceRuleDraftRequestSchema = z
   })
   .strict();
 
+export const badgeIssuanceRuleBuilderDraftStepSchema = z.enum(["metadata", "conditions", "test"]);
+
+export const badgeIssuanceRuleBuilderDraftBuilderStateSchema = z
+  .object({
+    rootLogic: z.enum(["all", "any"]).optional(),
+    issuanceTiming: z.enum(["immediate", "manual", "end_of_term"]).optional(),
+    changeSummary: z.string().trim().max(1000).optional(),
+    reviewOnMissingFacts: z.boolean().optional(),
+    lastTestSummary: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+export const badgeIssuanceRuleBuilderDraftPayloadSchema = z
+  .object({
+    name: z.string().max(200).optional(),
+    description: z.string().max(2000).optional(),
+    badgeTemplateId: z.string().optional(),
+    lmsConnectionId: z.string().optional(),
+    lmsProviderKind: badgeIssuanceRuleLmsProviderKindSchema.optional(),
+    definitionJson: z.string().max(100_000).optional(),
+    builderState: badgeIssuanceRuleBuilderDraftBuilderStateSchema.optional(),
+  })
+  .strict();
+
+export const saveBadgeIssuanceRuleBuilderDraftRequestSchema = z
+  .object({
+    ruleId: resourceIdSchema.optional(),
+    versionId: resourceIdSchema.optional(),
+    currentStep: badgeIssuanceRuleBuilderDraftStepSchema,
+    name: z.string().trim().max(200).optional(),
+    description: z.string().trim().max(2000).optional(),
+    badgeTemplateId: resourceIdSchema.optional(),
+    lmsConnectionId: resourceIdSchema.optional(),
+    lmsProviderKind: badgeIssuanceRuleLmsProviderKindSchema.optional(),
+    definitionJson: z.string().max(100_000).optional(),
+    builderState: badgeIssuanceRuleBuilderDraftBuilderStateSchema.optional(),
+  })
+  .strict();
+
 export const createBadgeIssuanceRuleVersionRequestSchema = z
   .object({
     definition: badgeIssuanceRuleDefinitionSchema,
@@ -499,6 +538,18 @@ export type UpdateBadgeIssuanceRuleDraftRequest = z.infer<
   typeof updateBadgeIssuanceRuleDraftRequestSchema
 >;
 
+export type SaveBadgeIssuanceRuleBuilderDraftRequest = z.infer<
+  typeof saveBadgeIssuanceRuleBuilderDraftRequestSchema
+>;
+
+export type BadgeIssuanceRuleBuilderDraftBuilderState = z.infer<
+  typeof badgeIssuanceRuleBuilderDraftBuilderStateSchema
+>;
+
+export type BadgeIssuanceRuleBuilderDraftPayload = z.infer<
+  typeof badgeIssuanceRuleBuilderDraftPayloadSchema
+>;
+
 export type CreateBadgeIssuanceRuleVersionRequest = z.infer<
   typeof createBadgeIssuanceRuleVersionRequestSchema
 >;
@@ -561,6 +612,46 @@ export const parseUpdateBadgeIssuanceRuleDraftRequest = (
   input: unknown,
 ): UpdateBadgeIssuanceRuleDraftRequest => {
   return updateBadgeIssuanceRuleDraftRequestSchema.parse(input);
+};
+
+export const parseSaveBadgeIssuanceRuleBuilderDraftRequest = (
+  input: unknown,
+): SaveBadgeIssuanceRuleBuilderDraftRequest => {
+  return saveBadgeIssuanceRuleBuilderDraftRequestSchema.parse(input);
+};
+
+export const serializeBadgeIssuanceRuleBuilderDraftPayload = (
+  request: SaveBadgeIssuanceRuleBuilderDraftRequest,
+): string => {
+  const payload: BadgeIssuanceRuleBuilderDraftPayload = {
+    name: request.name ?? "",
+    description: request.description ?? "",
+    badgeTemplateId: request.badgeTemplateId ?? "",
+    lmsConnectionId: request.lmsConnectionId ?? "",
+    ...(request.lmsProviderKind === undefined ? {} : { lmsProviderKind: request.lmsProviderKind }),
+    definitionJson: request.definitionJson ?? "",
+    builderState: request.builderState ?? {},
+  };
+
+  return JSON.stringify(payload);
+};
+
+export const parseBadgeIssuanceRuleBuilderDraftPayload = (
+  input: unknown,
+): BadgeIssuanceRuleBuilderDraftPayload | null => {
+  const parsed = badgeIssuanceRuleBuilderDraftPayloadSchema.safeParse(input);
+
+  return parsed.success ? parsed.data : null;
+};
+
+export const parseBadgeIssuanceRuleBuilderDraftJson = (
+  draftJson: string,
+): BadgeIssuanceRuleBuilderDraftPayload | null => {
+  try {
+    return parseBadgeIssuanceRuleBuilderDraftPayload(JSON.parse(draftJson) as unknown);
+  } catch {
+    return null;
+  }
 };
 
 export const parseBadgeIssuanceRuleVersionDiffQuery = (

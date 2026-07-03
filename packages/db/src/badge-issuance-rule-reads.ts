@@ -736,6 +736,9 @@ export const findIssuableActiveBadgeIssuanceRuleVersion = async (
 const DRAFT_EDITABLE_BADGE_ISSUANCE_RULE_VERSION_STATUSES: ReadonlySet<BadgeIssuanceRuleVersionStatus> =
   new Set(["draft", "rejected"]);
 
+export const BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE =
+  "Only the latest draft or rejected version can be edited from the builder.";
+
 export const latestBadgeIssuanceRuleVersion = (
   versions: readonly BadgeIssuanceRuleVersionRecord[],
 ): BadgeIssuanceRuleVersionRecord | null => {
@@ -751,8 +754,8 @@ export const canEditBadgeIssuanceRuleDraft = (
   const latestVersion = latestBadgeIssuanceRuleVersion(versions);
 
   return (
-    rule.activeVersionId === null &&
     latestVersion !== null &&
+    latestVersion.id !== rule.activeVersionId &&
     DRAFT_EDITABLE_BADGE_ISSUANCE_RULE_VERSION_STATUSES.has(latestVersion.status)
   );
 };

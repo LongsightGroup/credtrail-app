@@ -796,6 +796,7 @@ beforeEach(() => {
     owner: 1,
     admin: 1,
     issuer: 0,
+    approver: 0,
     viewer: 0,
   });
   mockedUpsertTenantMembershipRole.mockReset();
@@ -1214,6 +1215,7 @@ describe("tenant member management endpoints", () => {
       owner: 1,
       admin: 1,
       issuer: 0,
+      approver: 0,
       viewer: 0,
     });
 

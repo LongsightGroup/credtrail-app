@@ -286,6 +286,7 @@ describeDbIntegration("tenant auth policy and provider helpers", () => {
         owner: 1,
         admin: 1,
         issuer: 0,
+        approver: 0,
         viewer: 0,
       });
       expect(removed).toBe(true);

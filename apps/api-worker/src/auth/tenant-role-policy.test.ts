@@ -2,6 +2,7 @@ import type { TenantMembershipRole } from "@credtrail/db";
 import { describe, expect, it } from "vitest";
 import {
   ADMIN_ROLES,
+  APPROVAL_WORKSPACE_ROLES,
   ISSUER_ROLES,
   canIssueBadgesAsTenantMember,
   isTenantAdminRole,
@@ -11,6 +12,7 @@ import {
 describe("tenant-role-policy", () => {
   it("checks membership against allowed role lists", () => {
     expect(membershipHasRole("issuer", ISSUER_ROLES)).toBe(true);
+    expect(membershipHasRole("approver", APPROVAL_WORKSPACE_ROLES)).toBe(true);
     expect(membershipHasRole("viewer", ISSUER_ROLES)).toBe(false);
   });
 
@@ -20,6 +22,7 @@ describe("tenant-role-policy", () => {
     }
 
     expect(isTenantAdminRole("issuer")).toBe(false);
+    expect(isTenantAdminRole("approver")).toBe(false);
     expect(isTenantAdminRole("viewer")).toBe(false);
   });
 
@@ -28,6 +31,7 @@ describe("tenant-role-policy", () => {
       expect(canIssueBadgesAsTenantMember(role)).toBe(true);
     }
 
+    expect(canIssueBadgesAsTenantMember("approver")).toBe(false);
     expect(canIssueBadgesAsTenantMember("viewer")).toBe(false);
   });
 

@@ -288,12 +288,14 @@ export const buildInstitutionAdminViewResources = (
 
   const assignableTenantRoles: TenantMembershipRole[] = dataNeeds.tenantMemberRows
     ? input.membershipRole === "owner"
-      ? ["owner", "admin", "issuer", "viewer"]
-      : ["admin", "issuer", "viewer"]
+      ? ["owner", "admin", "issuer", "approver", "viewer"]
+      : ["admin", "issuer", "approver", "viewer"]
     : [];
   const tenantMemberRoleOptions = (selectedRole: TenantMembershipRole): HonoElement => {
     const roles: readonly TenantMembershipRole[] =
-      input.membershipRole === "owner" ? assignableTenantRoles : ["admin", "issuer", "viewer"];
+      input.membershipRole === "owner"
+        ? assignableTenantRoles
+        : ["admin", "issuer", "approver", "viewer"];
 
     return (
       <>

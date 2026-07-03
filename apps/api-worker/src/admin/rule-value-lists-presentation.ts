@@ -15,7 +15,7 @@ export interface RuleValueListBuilderContextEntry {
 
 export const formatRuleValueListKind = (kind: BadgeIssuanceRuleValueListRecord["kind"]): string => {
   if (kind === "course_ids") {
-    return "Course IDs";
+    return "LMS courses";
   }
 
   if (kind === "badge_template_ids") {

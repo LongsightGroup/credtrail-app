@@ -85,7 +85,7 @@ export const tenantDefaultBadgeRuleApprovalPolicyId = (tenantId: string): string
   return `${tenantId}:badge-rule-approval-policy:default`;
 };
 
-const tenantMembershipRoleSchema = z.enum(["owner", "admin", "issuer", "viewer"]);
+const tenantMembershipRoleSchema = z.enum(["owner", "admin", "issuer", "approver", "viewer"]);
 const badgeRuleApprovalPolicyStepJsonSchema = z
   .discriminatedUnion("targetType", [
     z.object({

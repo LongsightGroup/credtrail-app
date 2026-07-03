@@ -160,7 +160,7 @@ export const registerTenantGovernanceRoutes = (
     app: input.app,
     resolveDatabase: input.resolveDatabase,
     sha256Hex: input.sha256Hex,
-    resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
+    resolveBadgeRuleApprovalWorkspaceRole: auth.resolveBadgeRuleApprovalWorkspaceRole,
   });
 
   registerTenantOperationsAdminRoutes({

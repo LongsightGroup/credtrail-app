@@ -2,6 +2,7 @@ import type { TenantMembershipRole } from "@credtrail/db";
 
 export const ADMIN_ROLES: TenantMembershipRole[] = ["owner", "admin"];
 export const ISSUER_ROLES: TenantMembershipRole[] = ["owner", "admin", "issuer"];
+export const APPROVAL_WORKSPACE_ROLES: TenantMembershipRole[] = ["owner", "admin", "approver"];
 
 export const membershipHasRole = (
   membershipRole: TenantMembershipRole,
