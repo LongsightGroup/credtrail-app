@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   processBadgeRuleLifecycleForTenant,
@@ -103,6 +103,10 @@ vi.mock("@credtrail/db", async (importOriginal) => {
 });
 
 describe("processBadgeRuleLifecycleForTenant", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("enqueues end-of-term jobs without expiring the version in the lifecycle pass", async () => {
     const dbModule = await import("@credtrail/db");
     const input: ProcessBadgeRuleLifecycleInput = {
@@ -245,5 +249,73 @@ describe("processBadgeRuleLifecycleForTenant", () => {
         overdueDays: 30,
       }),
     );
+  });
+
+  it("does not mark reminders sent when email transport is not configured", async () => {
+    const dbModule = await import("@credtrail/db");
+    const reminderVersion = {
+      id: "brv_reminder",
+      tenantId: "tenant_123",
+      ruleId: "brl_123",
+      versionNumber: 2,
+      status: "active" as const,
+      ruleJson: JSON.stringify({
+        conditions: {
+          type: "grade_threshold",
+          courseId: "course-123",
+          scoreField: "final_score",
+          minScore: 85,
+        },
+      }),
+      changeSummary: null,
+      createdByUserId: "usr_admin",
+      submittedByUserId: null,
+      submittedAt: null,
+      approvedByUserId: null,
+      approvedAt: null,
+      activatedByUserId: "usr_admin",
+      activatedAt: "2026-01-01T00:00:00.000Z",
+      effectiveStartsAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: "2026-06-20T00:00:00.000Z",
+      expiredAt: null,
+      suspendedAt: null,
+      suspendedByUserId: null,
+      suspensionReason: null,
+      recertifiedAt: null,
+      recertificationDueAt: "2026-06-21T00:00:00.000Z",
+      expiryReminderSentAt: null,
+      recertificationReminderSentAt: null,
+      badgeTemplateId: "badge_template_123",
+      lmsProviderKind: "canvas",
+      lmsConnectionId: "lms_123",
+      orgUnitId: "tenant_123:org:institution",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    vi.mocked(dbModule.listBadgeIssuanceRuleVersionsDueForExpiry).mockResolvedValue([]);
+    vi.mocked(dbModule.listBadgeIssuanceRuleVersionsDueForExpiryReminder).mockResolvedValue([
+      reminderVersion,
+    ]);
+    vi.mocked(
+      dbModule.listBadgeIssuanceRuleVersionsDueForRecertificationReminder,
+    ).mockResolvedValue([reminderVersion]);
+    vi.mocked(dbModule.listBadgeIssuanceRuleVersionsDueForRecertification).mockResolvedValue([]);
+
+    const input: ProcessBadgeRuleLifecycleInput = {
+      db: {} as ProcessBadgeRuleLifecycleInput["db"],
+      tenantId: "tenant_123",
+      nowIso: "2026-06-15T00:00:00.000Z",
+      observability: {
+        service: "api-worker",
+        environment: "development",
+      },
+    };
+
+    const result = await processBadgeRuleLifecycleForTenant(input);
+
+    expect(result.expiryRemindersSent).toBe(0);
+    expect(result.recertificationRemindersSent).toBe(0);
+    expect(dbModule.markBadgeIssuanceRuleVersionExpiryReminderSent).not.toHaveBeenCalled();
+    expect(dbModule.markBadgeIssuanceRuleVersionRecertificationReminderSent).not.toHaveBeenCalled();
   });
 });

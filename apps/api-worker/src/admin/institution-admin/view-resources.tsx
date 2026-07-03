@@ -37,6 +37,7 @@ import {
 import { CtInput, CtSelect, CtTextarea } from "../../ui/forms";
 import { buildLmsConnectionEditPath, isLmsConnectionReady } from "../lms-connection-admin-helpers";
 import { TenantApiKeyAdminTableRow } from "../api-key-table-row";
+import { badgeRuleApprovalPolicyFormState } from "../../badges/badge-rule-approval-policy-summary";
 import { serializeJsonScriptContent } from "../institution-admin-shell";
 import { renderInstitutionAdminAccessSections } from "./access-sections";
 import { renderInstitutionAdminLearnerRecordSections } from "./learner-record-sections";
@@ -842,7 +843,10 @@ export const buildInstitutionAdminViewResources = (
   ) : (
     <option value="">No active org units available</option>
   );
-  const selectedBadgeRuleApprovalOrgUnitId = input.badgeRuleApprovalPolicy?.orgUnitId ?? "";
+  const approvalPolicyFormState = badgeRuleApprovalPolicyFormState(
+    input.badgeRuleApprovalPolicy ?? null,
+  );
+  const selectedBadgeRuleApprovalOrgUnitId = approvalPolicyFormState.orgUnitId;
   const badgeRuleApprovalOrgUnitSelectOptions = !dataNeeds.governanceTableRows ? (
     emptySectionMarkup
   ) : (
@@ -866,11 +870,7 @@ export const buildInstitutionAdminViewResources = (
   ) : (
     <option value="">No tenant members available</option>
   );
-  const firstBadgeRuleApprovalStep = input.badgeRuleApprovalPolicy?.approvalSteps[0] ?? null;
-  const selectedBadgeRuleApprovalUserId =
-    firstBadgeRuleApprovalStep?.targetType === "user"
-      ? firstBadgeRuleApprovalStep.targetUserId
-      : "";
+  const selectedBadgeRuleApprovalUserId = approvalPolicyFormState.targetUserId;
   const badgeRuleApprovalTargetUserSelectOptions = !dataNeeds.governanceTableRows ? (
     emptySectionMarkup
   ) : input.tenantMembers.length > 0 ? (
@@ -898,10 +898,7 @@ export const buildInstitutionAdminViewResources = (
   ) : (
     <option value="">No approver groups available</option>
   );
-  const selectedBadgeRuleApprovalGroupId =
-    firstBadgeRuleApprovalStep?.targetType === "approver_group"
-      ? firstBadgeRuleApprovalStep.targetApproverGroupId
-      : "";
+  const selectedBadgeRuleApprovalGroupId = approvalPolicyFormState.targetApproverGroupId;
   const badgeRuleApprovalTargetApproverGroupSelectOptions = !dataNeeds.governanceTableRows ? (
     emptySectionMarkup
   ) : input.badgeRuleApproverGroups.length > 0 ? (

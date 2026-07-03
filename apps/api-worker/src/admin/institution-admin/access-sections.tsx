@@ -1,7 +1,10 @@
 import type { HtmlEscapedString } from "hono/utils/html";
 import type { BadgeRuleApprovalPolicyRecord } from "@credtrail/db";
 import { tenantMembershipRoleLabel } from "../tenant-membership-role-labels";
-import { describeBadgeRuleApprovalSummary } from "../../badges/badge-rule-approval-policy-summary";
+import {
+  badgeRuleApprovalPolicyFormState,
+  describeBadgeRuleApprovalSummary,
+} from "../../badges/badge-rule-approval-policy-summary";
 import {
   AdminActions,
   AdminButton,
@@ -113,18 +116,7 @@ export const renderInstitutionAdminAccessSections = (
   const approverGroupCreatePath = tenantAccessApproverGroupCreatePath(input.tenantId);
   const approverGroupMemberAddPath = tenantAccessApproverGroupMemberAddPath(input.tenantId);
   const badgeRuleApprovalPolicy = input.badgeRuleApprovalPolicy ?? null;
-  const badgeRuleApprovalOrgUnitId = badgeRuleApprovalPolicy?.orgUnitId ?? "";
-  const badgeRuleApprovalRequirement =
-    badgeRuleApprovalPolicy?.approvalRequirement === "never" ? "never" : "always";
-  const firstBadgeRuleApprovalStep = badgeRuleApprovalPolicy?.approvalSteps[0] ?? null;
-  const badgeRuleApprovalStepTargetType =
-    firstBadgeRuleApprovalStep?.targetType ?? "role_threshold";
-  const badgeRuleApprovalRole =
-    firstBadgeRuleApprovalStep?.targetType === "role_threshold"
-      ? firstBadgeRuleApprovalStep.requiredRole
-      : (firstBadgeRuleApprovalStep?.requiredRole ?? "");
-  const recertificationIntervalMonths =
-    badgeRuleApprovalPolicy?.recertificationIntervalMonths ?? null;
+  const badgeRuleApprovalFormState = badgeRuleApprovalPolicyFormState(badgeRuleApprovalPolicy);
   const badgeRuleApprovalSummary = describeBadgeRuleApprovalSummary(badgeRuleApprovalPolicy);
 
   const apiKeyPanelMarkup = (
@@ -329,13 +321,17 @@ export const renderInstitutionAdminAccessSections = (
             <CtSelect name="approvalRequirement" required>
               <option
                 value="always"
-                selected={badgeRuleApprovalRequirement === "always" ? true : undefined}
+                selected={
+                  badgeRuleApprovalFormState.approvalRequirement === "always" ? true : undefined
+                }
               >
                 Require approval before activation
               </option>
               <option
                 value="never"
-                selected={badgeRuleApprovalRequirement === "never" ? true : undefined}
+                selected={
+                  badgeRuleApprovalFormState.approvalRequirement === "never" ? true : undefined
+                }
               >
                 Approve submitted versions automatically
               </option>
@@ -345,7 +341,7 @@ export const renderInstitutionAdminAccessSections = (
             <CtSelect name="orgUnitId">
               <option
                 value=""
-                selected={badgeRuleApprovalOrgUnitId.length === 0 ? true : undefined}
+                selected={badgeRuleApprovalFormState.orgUnitId.length === 0 ? true : undefined}
               >
                 Tenant default
               </option>
@@ -359,19 +355,23 @@ export const renderInstitutionAdminAccessSections = (
             <CtSelect name="stepTargetType" required>
               <option
                 value="role_threshold"
-                selected={badgeRuleApprovalStepTargetType === "role_threshold" ? true : undefined}
+                selected={
+                  badgeRuleApprovalFormState.stepTargetType === "role_threshold" ? true : undefined
+                }
               >
                 Any member with a role
               </option>
               <option
                 value="user"
-                selected={badgeRuleApprovalStepTargetType === "user" ? true : undefined}
+                selected={badgeRuleApprovalFormState.stepTargetType === "user" ? true : undefined}
               >
                 Named person
               </option>
               <option
                 value="approver_group"
-                selected={badgeRuleApprovalStepTargetType === "approver_group" ? true : undefined}
+                selected={
+                  badgeRuleApprovalFormState.stepTargetType === "approver_group" ? true : undefined
+                }
               >
                 Approver group
               </option>
@@ -379,11 +379,17 @@ export const renderInstitutionAdminAccessSections = (
           </AdminField>
           <AdminField label="Reviewer role">
             <CtSelect name="requiredRole">
-              <option value="" selected={badgeRuleApprovalRole.length === 0 ? true : undefined}>
+              <option
+                value=""
+                selected={badgeRuleApprovalFormState.requiredRole.length === 0 ? true : undefined}
+              >
                 No minimum role
               </option>
               {(["admin", "owner", "issuer", "approver", "viewer"] as const).map((role) => (
-                <option value={role} selected={badgeRuleApprovalRole === role ? true : undefined}>
+                <option
+                  value={role}
+                  selected={badgeRuleApprovalFormState.requiredRole === role ? true : undefined}
+                >
                   {ruleApprovalPolicyRoleLabel(role)}
                 </option>
               ))}
@@ -413,9 +419,9 @@ export const renderInstitutionAdminAccessSections = (
               max="120"
               step="1"
               value={
-                recertificationIntervalMonths === null
+                badgeRuleApprovalFormState.recertificationIntervalMonths === null
                   ? undefined
-                  : String(recertificationIntervalMonths)
+                  : String(badgeRuleApprovalFormState.recertificationIntervalMonths)
               }
               placeholder="No periodic review"
             />

@@ -73,7 +73,7 @@ const DUE_VERSION_LIST_PREDICATES: Record<DueVersionListKind, DueVersionListPred
   recertification_reminder: {
     dueColumn: "recertification_due_at",
     reminderSentColumn: "recertification_reminder_sent_at",
-    startsAfterNow: false,
+    startsAfterNow: true,
   },
 };
 

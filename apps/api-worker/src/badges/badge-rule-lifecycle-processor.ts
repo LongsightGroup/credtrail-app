@@ -59,15 +59,26 @@ const endOfTermIdempotencyKey = (input: {
   readonly nowIso: string;
 }): string => `end-of-term:${input.ruleId}:${input.versionId}:${input.expiresAt ?? input.nowIso}`;
 
+type LifecycleReminderNotificationResult =
+  | {
+      readonly status: "sent";
+    }
+  | {
+      readonly status: "skipped_no_transport";
+    }
+  | {
+      readonly status: "failed";
+    };
+
 const notifyLifecycleReminder = async (
   input: ProcessBadgeRuleLifecycleInput & {
     readonly version: BadgeRuleLifecycleDueVersionRecord;
     readonly reminderType: "expiry" | "recertification";
     readonly dueAt: string;
   },
-): Promise<boolean> => {
+): Promise<LifecycleReminderNotificationResult> => {
   if (input.env === undefined || input.adminUrlForTenant === undefined) {
-    return true;
+    return { status: "skipped_no_transport" };
   }
 
   const [tenant, rule] = await Promise.all([
@@ -76,7 +87,7 @@ const notifyLifecycleReminder = async (
   ]);
 
   if (rule === null) {
-    return false;
+    return { status: "failed" };
   }
 
   try {
@@ -92,7 +103,7 @@ const notifyLifecycleReminder = async (
       reminderType: input.reminderType,
       adminUrl: input.adminUrlForTenant(input.tenantId),
     });
-    return true;
+    return { status: "sent" };
   } catch (error: unknown) {
     logError(input.observability, "badge_rule_lifecycle_reminder_failed", {
       tenantId: input.tenantId,
@@ -101,7 +112,7 @@ const notifyLifecycleReminder = async (
       reminderType: input.reminderType,
       detail: error instanceof Error ? error.message : "Unknown lifecycle reminder error",
     });
-    return false;
+    return { status: "failed" };
   }
 };
 
@@ -121,14 +132,14 @@ const processReminders = async (input: {
       continue;
     }
 
-    const notified = await notifyLifecycleReminder({
+    const notification = await notifyLifecycleReminder({
       ...input.lifecycleInput,
       version,
       reminderType: input.reminderType,
       dueAt,
     });
 
-    if (!notified) {
+    if (notification.status !== "sent") {
       continue;
     }
 
