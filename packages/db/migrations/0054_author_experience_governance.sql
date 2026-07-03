@@ -31,6 +31,13 @@ ALTER TABLE badge_issuance_rule_versions
   ADD CONSTRAINT badge_issuance_rule_versions_status_check
   CHECK (status IN ('draft', 'pending_approval', 'approved', 'active', 'suspended', 'expired', 'rejected', 'deprecated'));
 
+ALTER TABLE badge_issuance_rules
+  DROP CONSTRAINT IF EXISTS badge_issuance_rules_tenant_id_id_key;
+
+ALTER TABLE badge_issuance_rules
+  ADD CONSTRAINT badge_issuance_rules_tenant_id_id_key
+  UNIQUE (tenant_id, id);
+
 CREATE TABLE IF NOT EXISTS badge_issuance_rule_builder_drafts (
   tenant_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
