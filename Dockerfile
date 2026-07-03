@@ -38,7 +38,8 @@ RUN corepack enable
 WORKDIR /app
 
 COPY --from=deploy /prod ./
+COPY tsconfig.json ./
 
 EXPOSE 8787
 
-CMD ["pnpm", "exec", "tsx", "src/node-server.ts"]
+CMD ["./node_modules/.bin/tsx", "--tsconfig", "./tsconfig.json", "src/node-server-runtime.ts"]

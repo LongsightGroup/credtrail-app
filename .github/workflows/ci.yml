@@ -208,7 +208,7 @@ jobs:
             -e JOB_PROCESSOR_TOKEN="$JOB_PROCESSOR_TOKEN" \
             -e JOB_POLL_INTERVAL_MS=250 \
             credtrail-ci:${{ github.sha }} \
-            pnpm exec tsx src/node-worker.ts
+            ./node_modules/.bin/tsx --tsconfig ./tsconfig.json src/node-worker-runtime.ts
 
           queue_status=""
           for attempt in $(seq 1 40); do
