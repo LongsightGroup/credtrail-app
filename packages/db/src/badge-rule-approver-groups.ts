@@ -39,6 +39,31 @@ export interface AddBadgeRuleApproverGroupMemberInput {
   readonly createdByUserId?: string | undefined;
 }
 
+export type AddBadgeRuleApproverGroupMemberResult =
+  | {
+      readonly status: "added";
+    }
+  | {
+      readonly status: "group_not_found";
+    }
+  | {
+      readonly status: "membership_not_found";
+    }
+  | {
+      readonly status: "already_member";
+    };
+
+export type RemoveBadgeRuleApproverGroupMemberResult =
+  | {
+      readonly status: "removed";
+    }
+  | {
+      readonly status: "group_not_found";
+    }
+  | {
+      readonly status: "member_not_found";
+    };
+
 interface BadgeRuleApproverGroupRow {
   id: string;
   tenantId: string;
@@ -57,6 +82,10 @@ interface BadgeRuleApproverGroupMemberRow {
   role: string | null;
   createdByUserId: string | null;
   createdAt: string;
+}
+
+interface ApproverGroupExistsRow {
+  id: string;
 }
 
 const mapBadgeRuleApproverGroupRow = (
@@ -82,6 +111,77 @@ const mapBadgeRuleApproverGroupMemberRow = (
   createdByUserId: row.createdByUserId,
   createdAt: row.createdAt,
 });
+
+const badgeRuleApproverGroupExists = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly groupId: string;
+  },
+): Promise<boolean> => {
+  const row = await db
+    .prepare(
+      `
+      SELECT id
+      FROM badge_rule_approver_groups
+      WHERE tenant_id = ?
+        AND id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(input.tenantId, input.groupId)
+    .first<ApproverGroupExistsRow>();
+
+  return row !== null;
+};
+
+const tenantMembershipExists = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly userId: string;
+  },
+): Promise<boolean> => {
+  const row = await db
+    .prepare(
+      `
+      SELECT user_id AS userId
+      FROM memberships
+      WHERE tenant_id = ?
+        AND user_id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(input.tenantId, input.userId)
+    .first<{ userId: string }>();
+
+  return row !== null;
+};
+
+const badgeRuleApproverGroupMemberExists = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly groupId: string;
+    readonly userId: string;
+  },
+): Promise<boolean> => {
+  const row = await db
+    .prepare(
+      `
+      SELECT user_id AS userId
+      FROM badge_rule_approver_group_members
+      WHERE tenant_id = ?
+        AND group_id = ?
+        AND user_id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(input.tenantId, input.groupId, input.userId)
+    .first<{ userId: string }>();
+
+  return row !== null;
+};
 
 export const createBadgeRuleApproverGroup = async (
   db: SqlDatabase,
@@ -123,8 +223,35 @@ export const createBadgeRuleApproverGroup = async (
 export const addBadgeRuleApproverGroupMember = async (
   db: SqlDatabase,
   input: AddBadgeRuleApproverGroupMemberInput,
-): Promise<void> => {
+): Promise<AddBadgeRuleApproverGroupMemberResult> => {
   const nowIso = new Date().toISOString();
+  const groupExists = await badgeRuleApproverGroupExists(db, {
+    tenantId: input.tenantId,
+    groupId: input.groupId,
+  });
+
+  if (!groupExists) {
+    return { status: "group_not_found" };
+  }
+
+  const membershipExists = await tenantMembershipExists(db, {
+    tenantId: input.tenantId,
+    userId: input.userId,
+  });
+
+  if (!membershipExists) {
+    return { status: "membership_not_found" };
+  }
+
+  const memberExists = await badgeRuleApproverGroupMemberExists(db, {
+    tenantId: input.tenantId,
+    groupId: input.groupId,
+    userId: input.userId,
+  });
+
+  if (memberExists) {
+    return { status: "already_member" };
+  }
 
   await db
     .prepare(
@@ -141,6 +268,8 @@ export const addBadgeRuleApproverGroupMember = async (
     )
     .bind(input.tenantId, input.groupId, input.userId, input.createdByUserId ?? null, nowIso)
     .run();
+
+  return { status: "added" };
 };
 
 export const listBadgeRuleApproverGroupsWithMembers = async (
@@ -216,7 +345,16 @@ export const removeBadgeRuleApproverGroupMember = async (
     readonly groupId: string;
     readonly userId: string;
   },
-): Promise<boolean> => {
+): Promise<RemoveBadgeRuleApproverGroupMemberResult> => {
+  const groupExists = await badgeRuleApproverGroupExists(db, {
+    tenantId: input.tenantId,
+    groupId: input.groupId,
+  });
+
+  if (!groupExists) {
+    return { status: "group_not_found" };
+  }
+
   const result = await db
     .prepare(
       `
@@ -229,7 +367,9 @@ export const removeBadgeRuleApproverGroupMember = async (
     .bind(input.tenantId, input.groupId, input.userId)
     .run();
 
-  return (result.meta.rowsWritten ?? 0) > 0;
+  return (result.meta.rowsWritten ?? 0) > 0
+    ? { status: "removed" }
+    : { status: "member_not_found" };
 };
 
 export const removeBadgeRuleApproverGroup = async (

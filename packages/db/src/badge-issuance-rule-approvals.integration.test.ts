@@ -5,6 +5,7 @@ import { createFixtureRule, createFixtureTenantMember } from "./badge-issuance-r
 import {
   addBadgeRuleApproverGroupMember,
   createBadgeRuleApproverGroup,
+  removeBadgeRuleApproverGroupMember,
 } from "./badge-rule-approver-groups";
 import {
   cleanupTestResources,
@@ -612,5 +613,68 @@ describe("badge rule approver group helpers", () => {
   it("exports create and membership helpers for named approval targets", () => {
     expect(typeof createBadgeRuleApproverGroup).toBe("function");
     expect(typeof addBadgeRuleApproverGroupMember).toBe("function");
+  });
+});
+
+describeDbIntegration("badge rule approver group helpers with Postgres", () => {
+  it("validates approver group membership invariants in the DB module", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+    let reviewerId: string | null = null;
+
+    try {
+      reviewerId = await createFixtureTenantMember(fixture, { role: "approver" });
+      const group = await createBadgeRuleApproverGroup(fixture.db, {
+        tenantId: fixture.tenantId,
+        name: "Registrar office",
+        createdByUserId: fixture.userId,
+      });
+
+      const missingGroup = await addBadgeRuleApproverGroupMember(fixture.db, {
+        tenantId: fixture.tenantId,
+        groupId: "brag_missing",
+        userId: reviewerId,
+        createdByUserId: fixture.userId,
+      });
+      const missingMembership = await addBadgeRuleApproverGroupMember(fixture.db, {
+        tenantId: fixture.tenantId,
+        groupId: group.id,
+        userId: "usr_missing",
+        createdByUserId: fixture.userId,
+      });
+      const added = await addBadgeRuleApproverGroupMember(fixture.db, {
+        tenantId: fixture.tenantId,
+        groupId: group.id,
+        userId: reviewerId,
+        createdByUserId: fixture.userId,
+      });
+      const duplicate = await addBadgeRuleApproverGroupMember(fixture.db, {
+        tenantId: fixture.tenantId,
+        groupId: group.id,
+        userId: reviewerId,
+        createdByUserId: fixture.userId,
+      });
+      const removed = await removeBadgeRuleApproverGroupMember(fixture.db, {
+        tenantId: fixture.tenantId,
+        groupId: group.id,
+        userId: reviewerId,
+      });
+      const missingMember = await removeBadgeRuleApproverGroupMember(fixture.db, {
+        tenantId: fixture.tenantId,
+        groupId: group.id,
+        userId: reviewerId,
+      });
+
+      expect(missingGroup).toEqual({ status: "group_not_found" });
+      expect(missingMembership).toEqual({ status: "membership_not_found" });
+      expect(added).toEqual({ status: "added" });
+      expect(duplicate).toEqual({ status: "already_member" });
+      expect(removed).toEqual({ status: "removed" });
+      expect(missingMember).toEqual({ status: "member_not_found" });
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: reviewerId === null ? [fixture.userId] : [fixture.userId, reviewerId],
+      });
+    }
   });
 });

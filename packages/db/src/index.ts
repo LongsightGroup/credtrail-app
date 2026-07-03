@@ -7,6 +7,7 @@ export * from "./auth-magic-link-rate-limit";
 export * from "./badge-templates";
 export * from "./badge-template-images";
 export * from "./badge-issuance-rules";
+export * from "./badge-rule-lifecycle-governance";
 export * from "./badge-rule-approver-groups";
 export * from "./badge-issuance-rule-evaluations";
 export * from "./badge-issuance-rule-value-lists";

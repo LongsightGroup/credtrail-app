@@ -838,9 +838,9 @@ beforeEach(() => {
     updatedAt: "2026-02-18T12:00:00.000Z",
   });
   mockedAddBadgeRuleApproverGroupMemberDb.mockReset();
-  mockedAddBadgeRuleApproverGroupMemberDb.mockResolvedValue(undefined);
+  mockedAddBadgeRuleApproverGroupMemberDb.mockResolvedValue({ status: "added" });
   mockedRemoveBadgeRuleApproverGroupMemberDb.mockReset();
-  mockedRemoveBadgeRuleApproverGroupMemberDb.mockResolvedValue(true);
+  mockedRemoveBadgeRuleApproverGroupMemberDb.mockResolvedValue({ status: "removed" });
   mockedRemoveBadgeRuleApproverGroupDb.mockReset();
   mockedRemoveBadgeRuleApproverGroupDb.mockResolvedValue(true);
   mockedDecideBadgeIssuanceRuleVersionDb.mockReset();

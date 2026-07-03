@@ -147,6 +147,34 @@ const mapDelegationErrorMessage = (error: unknown): string => {
   return "Unable to save the delegation. Check the delegate, org unit, actions, and end time.";
 };
 
+const mapAddApproverGroupMemberResultMessage = (
+  status: Awaited<ReturnType<typeof addBadgeRuleApproverGroupMember>>["status"],
+): string => {
+  switch (status) {
+    case "group_not_found":
+      return "Choose an approver group that belongs to this organization.";
+    case "membership_not_found":
+      return "Choose a tenant member who already belongs to this organization.";
+    case "already_member":
+      return "That member is already in the approver group.";
+    case "added":
+      return "Approver group member added.";
+  }
+};
+
+const mapRemoveApproverGroupMemberResultMessage = (
+  status: Awaited<ReturnType<typeof removeBadgeRuleApproverGroupMember>>["status"],
+): string => {
+  switch (status) {
+    case "group_not_found":
+      return "Choose an approver group that belongs to this organization.";
+    case "member_not_found":
+      return "No matching approver group member was found.";
+    case "removed":
+      return "Approver group member removed.";
+  }
+};
+
 export const registerTenantAccessGovernanceAdminRoutes = (
   input: RegisterTenantAccessGovernanceAdminRoutesInput,
 ): void => {
@@ -348,31 +376,14 @@ export const registerTenantAccessGovernanceAdminRoutes = (
 
     const db = resolveDatabase(c.env);
 
+    let result: Awaited<ReturnType<typeof addBadgeRuleApproverGroupMember>>;
+
     try {
-      await addBadgeRuleApproverGroupMember(db, {
+      result = await addBadgeRuleApproverGroupMember(db, {
         tenantId: pathParams.tenantId,
         groupId: request.groupId,
         userId: request.userId,
         createdByUserId: session.userId,
-      });
-
-      await createAuditLog(db, {
-        tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
-        action: "badge_rule.approver_group_member_added",
-        targetType: "badge_rule_approver_group",
-        targetId: request.groupId,
-        metadata: {
-          role: membershipRole,
-          userId: request.userId,
-        },
-      });
-
-      return redirectToGovernance(c, {
-        tenantId: pathParams.tenantId,
-        userId: session.userId,
-        tone: "success",
-        message: "Approver group member added.",
       });
     } catch {
       return redirectToGovernance(c, {
@@ -382,6 +393,34 @@ export const registerTenantAccessGovernanceAdminRoutes = (
         message: "Unable to add that member to the approver group.",
       });
     }
+
+    if (result.status !== "added") {
+      return redirectToGovernance(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "error",
+        message: mapAddApproverGroupMemberResultMessage(result.status),
+      });
+    }
+
+    await createAuditLog(db, {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action: "badge_rule.approver_group_member_added",
+      targetType: "badge_rule_approver_group",
+      targetId: request.groupId,
+      metadata: {
+        role: membershipRole,
+        userId: request.userId,
+      },
+    });
+
+    return redirectToGovernance(c, {
+      tenantId: pathParams.tenantId,
+      userId: session.userId,
+      tone: "success",
+      message: mapAddApproverGroupMemberResultMessage(result.status),
+    });
   });
 
   app.post(
@@ -415,18 +454,18 @@ export const registerTenantAccessGovernanceAdminRoutes = (
       }
 
       const db = resolveDatabase(c.env);
-      const removed = await removeBadgeRuleApproverGroupMember(db, {
+      const result = await removeBadgeRuleApproverGroupMember(db, {
         tenantId: pathParams.tenantId,
         groupId: request.groupId,
         userId: request.userId,
       });
 
-      if (!removed) {
+      if (result.status !== "removed") {
         return redirectToGovernance(c, {
           tenantId: pathParams.tenantId,
           userId: session.userId,
           tone: "error",
-          message: "No matching approver group member was found.",
+          message: mapRemoveApproverGroupMemberResultMessage(result.status),
         });
       }
 
@@ -446,7 +485,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "success",
-        message: "Approver group member removed.",
+        message: mapRemoveApproverGroupMemberResultMessage(result.status),
       });
     },
   );

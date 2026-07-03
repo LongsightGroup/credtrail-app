@@ -514,6 +514,45 @@ describe("POST /tenants/:tenantId/admin/access/governance/approver-groups", () =
       userId: "usr_issuer",
     });
   });
+
+  it("shows precise approver group member validation failures", async () => {
+    const env = createEnv();
+    mockedAddBadgeRuleApproverGroupMemberDb.mockResolvedValueOnce({
+      status: "membership_not_found",
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/governance/approver-groups/members",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          groupId: "brag_registrar",
+          userId: "usr_unknown",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+    const flashCookie = adminFlashCookieHeader(response);
+    const followup = await app.request(
+      "/tenants/tenant_123/admin/access/governance",
+      {
+        headers: {
+          Cookie: `better-auth.session_token=session-token; ${flashCookie}`,
+        },
+      },
+      env,
+    );
+    const body = await followup.text();
+
+    expect(response.status).toBe(303);
+    expect(body).toContain("Choose a tenant member who already belongs to this organization.");
+  });
 });
 
 describe("GET /tenants/:tenantId/admin/access/members", () => {

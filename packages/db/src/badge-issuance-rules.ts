@@ -10,22 +10,6 @@ export {
   activateBadgeIssuanceRuleVersion,
 } from "./badge-issuance-rule-approvals.js";
 export {
-  ensureBadgeRuleRecertificationReview,
-  expireBadgeIssuanceRuleVersion,
-  listBadgeIssuanceRuleVersionsDueForExpiry,
-  listBadgeIssuanceRuleVersionsDueForExpiryReminder,
-  listBadgeIssuanceRuleVersionsDueForRecertification,
-  listBadgeIssuanceRuleVersionsDueForRecertificationReminder,
-  markBadgeIssuanceRuleVersionExpiryReminderSent,
-  markBadgeIssuanceRuleVersionRecertificationReminderSent,
-  recertifyBadgeIssuanceRuleVersion,
-  resumeBadgeIssuanceRuleVersion,
-  suspendBadgeIssuanceRuleVersion,
-  suspendBadgeIssuanceRuleVersionForOverdueRecertification,
-  updateBadgeIssuanceRuleVersionLifecycleWindow,
-} from "./badge-rule-lifecycle-governance.js";
-export type { BadgeRuleLifecycleDueVersionRecord } from "./badge-rule-lifecycle-governance.js";
-export {
   createBadgeIssuanceRule,
   createBadgeIssuanceRuleWithConnection,
   createBadgeIssuanceRuleVersion,
