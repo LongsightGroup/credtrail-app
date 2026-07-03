@@ -4,6 +4,8 @@ import {
   fakeDb,
   mockedCreateAuditLogDb,
   mockedFindTenantById,
+  mockedResolveBadgeRuleApprovalPolicyDb,
+  mockedResolveTenantDefaultBadgeRuleApprovalPolicyDb,
   mockedUpsertBadgeRuleApprovalPolicyDb,
 } from "./institution-admin-page-test-utils";
 import { app } from "./index";
@@ -127,6 +129,11 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
+    expect(mockedResolveTenantDefaultBadgeRuleApprovalPolicyDb).toHaveBeenCalledWith(
+      fakeDb,
+      "tenant_123",
+    );
+    expect(mockedResolveBadgeRuleApprovalPolicyDb).not.toHaveBeenCalled();
     expect(body).toContain("Governance");
     expect(body).toContain("Institution policy decides who reviews submitted badge rules");
     expect(body).toContain('id="rule-approval-policy-form"');

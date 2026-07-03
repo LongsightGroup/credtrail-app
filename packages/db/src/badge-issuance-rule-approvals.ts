@@ -262,162 +262,165 @@ export const decideBadgeIssuanceRuleVersion = async (
   input: DecideBadgeIssuanceRuleVersionInput,
 ): Promise<BadgeIssuanceRuleVersionRecord | null> => {
   const occurredAt = input.occurredAt ?? new Date().toISOString();
-  const currentVersion = await findBadgeIssuanceRuleVersionById(db, {
-    tenantId: input.tenantId,
-    ruleId: input.ruleId,
-    versionId: input.versionId,
-  });
 
-  if (currentVersion?.status !== "pending_approval") {
-    return null;
-  }
+  return runSqlTransaction(db, async (transactionDb) => {
+    const currentVersion = await findBadgeIssuanceRuleVersionById(transactionDb, {
+      tenantId: input.tenantId,
+      ruleId: input.ruleId,
+      versionId: input.versionId,
+    });
 
-  const steps = await listBadgeIssuanceRuleVersionApprovalSteps(db, {
-    tenantId: input.tenantId,
-    ruleId: input.ruleId,
-    versionId: input.versionId,
-  });
-  const currentStep = steps.find((step) => step.status === "pending");
-
-  if (currentStep === undefined) {
-    return null;
-  }
-
-  if (!tenantMembershipRoleSatisfiesMinimumRole(input.actorRole, currentStep.requiredRole)) {
-    throw new Error(
-      `Role ${input.actorRole} does not satisfy required approval role ${currentStep.requiredRole}`,
-    );
-  }
-
-  const nextStep = steps.find((step) => step.stepNumber > currentStep.stepNumber);
-  const markCurrentStepStatement = (status: "approved" | "rejected"): Promise<SqlRunResult> =>
-    db
-      .prepare(
-        `
-        UPDATE badge_issuance_rule_approval_steps
-        SET
-          status = ?,
-          decided_by_user_id = ?,
-          decided_at = ?,
-          decision_comment = ?,
-          updated_at = ?
-        WHERE tenant_id = ?
-          AND version_id = ?
-          AND step_number = ?
-      `,
-      )
-      .bind(
-        status,
-        input.actorUserId,
-        occurredAt,
-        input.comment ?? null,
-        occurredAt,
-        input.tenantId,
-        input.versionId,
-        currentStep.stepNumber,
-      )
-      .run();
-  const markNextStepPendingStatement = (): Promise<SqlRunResult> =>
-    db
-      .prepare(
-        `
-        UPDATE badge_issuance_rule_approval_steps
-        SET
-          status = 'pending',
-          updated_at = ?
-        WHERE tenant_id = ?
-          AND version_id = ?
-          AND step_number = ?
-      `,
-      )
-      .bind(occurredAt, input.tenantId, input.versionId, nextStep?.stepNumber ?? null)
-      .run();
-  const updateVersionPendingStatement = (): Promise<SqlRunResult> =>
-    db
-      .prepare(
-        `
-        UPDATE badge_issuance_rule_versions
-        SET
-          status = 'pending_approval',
-          updated_at = ?
-        WHERE tenant_id = ?
-          AND rule_id = ?
-          AND id = ?
-      `,
-      )
-      .bind(occurredAt, input.tenantId, input.ruleId, input.versionId)
-      .run();
-  const updateVersionApprovedStatement = (): Promise<SqlRunResult> =>
-    db
-      .prepare(
-        `
-        UPDATE badge_issuance_rule_versions
-        SET
-          status = 'approved',
-          approved_by_user_id = ?,
-          approved_at = ?,
-          updated_at = ?
-        WHERE tenant_id = ?
-          AND rule_id = ?
-          AND id = ?
-      `,
-      )
-      .bind(
-        input.actorUserId,
-        occurredAt,
-        occurredAt,
-        input.tenantId,
-        input.ruleId,
-        input.versionId,
-      )
-      .run();
-  const updateVersionRejectedStatement = (): Promise<SqlRunResult> =>
-    db
-      .prepare(
-        `
-        UPDATE badge_issuance_rule_versions
-        SET
-          status = 'rejected',
-          approved_by_user_id = NULL,
-          approved_at = NULL,
-          updated_at = ?
-        WHERE tenant_id = ?
-          AND rule_id = ?
-          AND id = ?
-      `,
-      )
-      .bind(occurredAt, input.tenantId, input.ruleId, input.versionId)
-      .run();
-
-  if (input.decision === "rejected") {
-    await markCurrentStepStatement("rejected");
-    await updateVersionRejectedStatement();
-  } else {
-    await markCurrentStepStatement("approved");
-
-    if (nextStep === undefined) {
-      await updateVersionApprovedStatement();
-    } else {
-      await markNextStepPendingStatement();
-      await updateVersionPendingStatement();
+    if (currentVersion?.status !== "pending_approval") {
+      return null;
     }
-  }
 
-  await insertBadgeIssuanceRuleApprovalEvent(db, {
-    tenantId: input.tenantId,
-    versionId: input.versionId,
-    stepNumber: currentStep.stepNumber,
-    action: input.decision,
-    actorUserId: input.actorUserId,
-    actorRole: input.actorRole,
-    comment: input.comment ?? null,
-    occurredAt,
-  });
+    const steps = await listBadgeIssuanceRuleVersionApprovalSteps(transactionDb, {
+      tenantId: input.tenantId,
+      ruleId: input.ruleId,
+      versionId: input.versionId,
+    });
+    const currentStep = steps.find((step) => step.status === "pending");
 
-  return findBadgeIssuanceRuleVersionById(db, {
-    tenantId: input.tenantId,
-    ruleId: input.ruleId,
-    versionId: input.versionId,
+    if (currentStep === undefined) {
+      return null;
+    }
+
+    if (!tenantMembershipRoleSatisfiesMinimumRole(input.actorRole, currentStep.requiredRole)) {
+      throw new Error(
+        `Role ${input.actorRole} does not satisfy required approval role ${currentStep.requiredRole}`,
+      );
+    }
+
+    const nextStep = steps.find((step) => step.stepNumber > currentStep.stepNumber);
+    const markCurrentStepStatement = (status: "approved" | "rejected"): Promise<SqlRunResult> =>
+      transactionDb
+        .prepare(
+          `
+          UPDATE badge_issuance_rule_approval_steps
+          SET
+            status = ?,
+            decided_by_user_id = ?,
+            decided_at = ?,
+            decision_comment = ?,
+            updated_at = ?
+          WHERE tenant_id = ?
+            AND version_id = ?
+            AND step_number = ?
+        `,
+        )
+        .bind(
+          status,
+          input.actorUserId,
+          occurredAt,
+          input.comment ?? null,
+          occurredAt,
+          input.tenantId,
+          input.versionId,
+          currentStep.stepNumber,
+        )
+        .run();
+    const markNextStepPendingStatement = (): Promise<SqlRunResult> =>
+      transactionDb
+        .prepare(
+          `
+          UPDATE badge_issuance_rule_approval_steps
+          SET
+            status = 'pending',
+            updated_at = ?
+          WHERE tenant_id = ?
+            AND version_id = ?
+            AND step_number = ?
+        `,
+        )
+        .bind(occurredAt, input.tenantId, input.versionId, nextStep?.stepNumber ?? null)
+        .run();
+    const updateVersionPendingStatement = (): Promise<SqlRunResult> =>
+      transactionDb
+        .prepare(
+          `
+          UPDATE badge_issuance_rule_versions
+          SET
+            status = 'pending_approval',
+            updated_at = ?
+          WHERE tenant_id = ?
+            AND rule_id = ?
+            AND id = ?
+        `,
+        )
+        .bind(occurredAt, input.tenantId, input.ruleId, input.versionId)
+        .run();
+    const updateVersionApprovedStatement = (): Promise<SqlRunResult> =>
+      transactionDb
+        .prepare(
+          `
+          UPDATE badge_issuance_rule_versions
+          SET
+            status = 'approved',
+            approved_by_user_id = ?,
+            approved_at = ?,
+            updated_at = ?
+          WHERE tenant_id = ?
+            AND rule_id = ?
+            AND id = ?
+        `,
+        )
+        .bind(
+          input.actorUserId,
+          occurredAt,
+          occurredAt,
+          input.tenantId,
+          input.ruleId,
+          input.versionId,
+        )
+        .run();
+    const updateVersionRejectedStatement = (): Promise<SqlRunResult> =>
+      transactionDb
+        .prepare(
+          `
+          UPDATE badge_issuance_rule_versions
+          SET
+            status = 'rejected',
+            approved_by_user_id = NULL,
+            approved_at = NULL,
+            updated_at = ?
+          WHERE tenant_id = ?
+            AND rule_id = ?
+            AND id = ?
+        `,
+        )
+        .bind(occurredAt, input.tenantId, input.ruleId, input.versionId)
+        .run();
+
+    if (input.decision === "rejected") {
+      await markCurrentStepStatement("rejected");
+      await updateVersionRejectedStatement();
+    } else {
+      await markCurrentStepStatement("approved");
+
+      if (nextStep === undefined) {
+        await updateVersionApprovedStatement();
+      } else {
+        await markNextStepPendingStatement();
+        await updateVersionPendingStatement();
+      }
+    }
+
+    await insertBadgeIssuanceRuleApprovalEvent(transactionDb, {
+      tenantId: input.tenantId,
+      versionId: input.versionId,
+      stepNumber: currentStep.stepNumber,
+      action: input.decision,
+      actorUserId: input.actorUserId,
+      actorRole: input.actorRole,
+      comment: input.comment ?? null,
+      occurredAt,
+    });
+
+    return findBadgeIssuanceRuleVersionById(transactionDb, {
+      tenantId: input.tenantId,
+      ruleId: input.ruleId,
+      versionId: input.versionId,
+    });
   });
 };
 

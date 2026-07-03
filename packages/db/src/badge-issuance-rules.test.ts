@@ -389,6 +389,121 @@ describe("badge issuance rule approval transactions", () => {
       false,
     );
   });
+
+  it("records approval decisions inside one SQL transaction", async () => {
+    const writes: string[] = [];
+    let versionStatus: dbModule.BadgeIssuanceRuleVersionStatus = "pending_approval";
+    let transactionCallCount = 0;
+    const createDecisionStatement = (sql: string, isTransaction: boolean): SqlPreparedStatement => {
+      const normalizedSql = sql.replace(/\s+/g, " ").trim();
+
+      return {
+        bind() {
+          return this;
+        },
+        async first<T>() {
+          if (normalizedSql.includes("FROM badge_issuance_rule_versions")) {
+            return {
+              id: "brv_123",
+              tenantId: "tenant_123",
+              ruleId: "brl_123",
+              versionNumber: 1,
+              status: versionStatus,
+              ruleJson: "{}",
+              changeSummary: null,
+              createdByUserId: "usr_admin",
+              approvedByUserId: null,
+              approvedAt: null,
+              activatedByUserId: null,
+              activatedAt: null,
+              createdAt: "2026-02-18T12:00:00.000Z",
+              updatedAt: "2026-02-18T12:00:00.000Z",
+            } as T;
+          }
+
+          return null;
+        },
+        async all<T>() {
+          const results = normalizedSql.includes("FROM badge_issuance_rule_approval_steps")
+            ? [
+                {
+                  id: "bras_123",
+                  tenantId: "tenant_123",
+                  versionId: "brv_123",
+                  stepNumber: 1,
+                  requiredRole: "admin",
+                  label: "Registrar review",
+                  status: "pending",
+                  decidedByUserId: null,
+                  decidedAt: null,
+                  decisionComment: null,
+                  createdAt: "2026-02-18T12:00:00.000Z",
+                  updatedAt: "2026-02-18T12:00:00.000Z",
+                },
+              ]
+            : [];
+
+          return {
+            ...successfulRunResult,
+            results: results as T[],
+          } satisfies SqlQueryResult<T>;
+        },
+        async run() {
+          if (
+            normalizedSql.includes("badge_issuance_rule_approval_steps") ||
+            normalizedSql.includes("badge_issuance_rule_versions") ||
+            normalizedSql.includes("badge_issuance_rule_approval_events")
+          ) {
+            writes.push(`${isTransaction ? "transaction" : "outer"}:${normalizedSql}`);
+          }
+
+          if (
+            normalizedSql.includes("UPDATE badge_issuance_rule_versions SET status = 'approved'")
+          ) {
+            versionStatus = "approved";
+          }
+
+          return successfulRunResult;
+        },
+      };
+    };
+    const transaction = async <T>(callback: (db: SqlDatabase) => Promise<T>): Promise<T> => {
+      transactionCallCount += 1;
+      const transactionDb: SqlDatabase = {
+        prepare(sql) {
+          return createDecisionStatement(sql, true);
+        },
+      };
+
+      return callback(transactionDb);
+    };
+    const db: SqlDatabase = {
+      prepare(sql) {
+        return createDecisionStatement(sql, false);
+      },
+      transaction,
+    };
+
+    const decided = await dbModule.decideBadgeIssuanceRuleVersion(db, {
+      tenantId: "tenant_123",
+      ruleId: "brl_123",
+      versionId: "brv_123",
+      decision: "approved",
+      actorUserId: "usr_admin",
+      actorRole: "admin",
+      occurredAt: "2026-02-18T12:30:00.000Z",
+    });
+
+    expect(decided?.status).toBe("approved");
+    expect(transactionCallCount).toBe(1);
+    expect(writes.some((entry) => entry.startsWith("outer:"))).toBe(false);
+    expect(writes.some((entry) => entry.includes("UPDATE badge_issuance_rule_versions"))).toBe(
+      true,
+    );
+    expect(
+      writes.some((entry) => entry.includes("INSERT INTO badge_issuance_rule_approval_events")),
+    ).toBe(true);
+  });
 });
 
 describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () => {

@@ -190,6 +190,18 @@ export const resolveBadgeRuleApprovalPolicy = async (
   return tenantPolicy ?? buildDefaultBadgeRuleApprovalPolicy(input.tenantId, null);
 };
 
+export const resolveTenantDefaultBadgeRuleApprovalPolicy = async (
+  db: SqlDatabase,
+  tenantId: string,
+): Promise<BadgeRuleApprovalPolicyRecord> => {
+  const tenantPolicy = await findBadgeRuleApprovalPolicy(db, {
+    tenantId,
+    orgUnitId: null,
+  });
+
+  return tenantPolicy ?? buildDefaultBadgeRuleApprovalPolicy(tenantId, null);
+};
+
 export const ensureTenantDefaultBadgeRuleApprovalPolicy = async (
   db: SqlDatabase,
   tenantId: string,

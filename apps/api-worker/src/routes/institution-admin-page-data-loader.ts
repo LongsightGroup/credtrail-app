@@ -14,7 +14,7 @@ import {
   listTenantMembers,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
-  resolveBadgeRuleApprovalPolicy,
+  resolveTenantDefaultBadgeRuleApprovalPolicy,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import { institutionAdminDashboardPage } from "../admin/institution-admin/page";
@@ -270,14 +270,9 @@ export const loadInstitutionAdminPageData = async (
         )
       : [];
   const badgeRuleVersions = badgeRuleVersionLists.flat();
-  const institutionOrgUnit = orgUnits.find((orgUnit) => orgUnit.unitType === "institution");
-  const badgeRuleApprovalPolicy =
-    datasets.has("badgeRuleApprovalPolicy") && institutionOrgUnit !== undefined
-      ? await resolveBadgeRuleApprovalPolicy(db, {
-          tenantId: input.tenantId,
-          orgUnitId: institutionOrgUnit.id,
-        })
-      : null;
+  const badgeRuleApprovalPolicy = datasets.has("badgeRuleApprovalPolicy")
+    ? await resolveTenantDefaultBadgeRuleApprovalPolicy(db, input.tenantId)
+    : null;
   const activeApiKeys = apiKeys.filter((apiKey) => apiKey.revokedAt === null);
   const revokedApiKeyCount = apiKeys.length - activeApiKeys.length;
 

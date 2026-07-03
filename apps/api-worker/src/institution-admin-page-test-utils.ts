@@ -29,6 +29,7 @@ const {
   mockedListBadgeIssuanceRuleVersionApprovalSteps,
   mockedSubmitBadgeIssuanceRuleVersionForApproval,
   mockedResolveBadgeRuleApprovalPolicy,
+  mockedResolveTenantDefaultBadgeRuleApprovalPolicy,
   mockedUpsertBadgeRuleApprovalPolicy,
 } = vi.hoisted(() => {
   return {
@@ -60,6 +61,7 @@ const {
     mockedListBadgeIssuanceRuleVersionApprovalSteps: vi.fn(),
     mockedSubmitBadgeIssuanceRuleVersionForApproval: vi.fn(),
     mockedResolveBadgeRuleApprovalPolicy: vi.fn(),
+    mockedResolveTenantDefaultBadgeRuleApprovalPolicy: vi.fn(),
     mockedUpsertBadgeRuleApprovalPolicy: vi.fn(),
   };
 });
@@ -92,6 +94,7 @@ export {
   mockedFindBadgeIssuanceRuleVersionById,
   mockedListBadgeIssuanceRuleVersionApprovalSteps,
   mockedResolveBadgeRuleApprovalPolicy,
+  mockedResolveTenantDefaultBadgeRuleApprovalPolicy,
   mockedSubmitBadgeIssuanceRuleVersionForApproval,
   mockedUpsertBadgeRuleApprovalPolicy,
 };
@@ -123,6 +126,7 @@ vi.mock("@credtrail/db", async () => {
     findBadgeIssuanceRuleVersionById: mockedFindBadgeIssuanceRuleVersionById,
     submitBadgeIssuanceRuleVersionForApproval: mockedSubmitBadgeIssuanceRuleVersionForApproval,
     resolveBadgeRuleApprovalPolicy: mockedResolveBadgeRuleApprovalPolicy,
+    resolveTenantDefaultBadgeRuleApprovalPolicy: mockedResolveTenantDefaultBadgeRuleApprovalPolicy,
     upsertBadgeRuleApprovalPolicy: mockedUpsertBadgeRuleApprovalPolicy,
     listBadgeIssuanceRuleVersionApprovalSteps: mockedListBadgeIssuanceRuleVersionApprovalSteps,
     decideBadgeIssuanceRuleVersion: mockedDecideBadgeIssuanceRuleVersion,
@@ -214,6 +218,7 @@ import {
   submitBadgeIssuanceRuleVersionForApproval,
   listBadgeIssuanceRuleVersionApprovalSteps,
   resolveBadgeRuleApprovalPolicy,
+  resolveTenantDefaultBadgeRuleApprovalPolicy,
   decideBadgeIssuanceRuleVersion,
   upsertBadgeRuleApprovalPolicy,
   listBadgeIssuanceRuleEvaluations,
@@ -291,6 +296,9 @@ export const mockedListBadgeIssuanceRuleVersionApprovalStepsDb = vi.mocked(
   listBadgeIssuanceRuleVersionApprovalSteps,
 );
 export const mockedResolveBadgeRuleApprovalPolicyDb = vi.mocked(resolveBadgeRuleApprovalPolicy);
+export const mockedResolveTenantDefaultBadgeRuleApprovalPolicyDb = vi.mocked(
+  resolveTenantDefaultBadgeRuleApprovalPolicy,
+);
 export const mockedDecideBadgeIssuanceRuleVersionDb = vi.mocked(decideBadgeIssuanceRuleVersion);
 export const mockedUpsertBadgeRuleApprovalPolicyDb = vi.mocked(upsertBadgeRuleApprovalPolicy);
 export const mockedListBadgeIssuanceRuleEvaluations = vi.mocked(listBadgeIssuanceRuleEvaluations);
@@ -811,6 +819,22 @@ beforeEach(() => {
   mockedResolveBadgeRuleApprovalPolicyDb.mockReset();
   mockedResolveBadgeRuleApprovalPolicyDb.mockResolvedValue({
     id: null,
+    tenantId: "tenant_123",
+    orgUnitId: null,
+    approvalRequirement: "always",
+    approvalSteps: [
+      {
+        requiredRole: "admin",
+        label: "Administrative approval",
+      },
+    ],
+    createdByUserId: null,
+    createdAt: "2026-02-18T12:00:00.000Z",
+    updatedAt: "2026-02-18T12:00:00.000Z",
+  });
+  mockedResolveTenantDefaultBadgeRuleApprovalPolicyDb.mockReset();
+  mockedResolveTenantDefaultBadgeRuleApprovalPolicyDb.mockResolvedValue({
+    id: "tenant_123:badge-rule-approval-policy:default",
     tenantId: "tenant_123",
     orgUnitId: null,
     approvalRequirement: "always",
