@@ -20,6 +20,23 @@ export const buildIssuedBadgesPagePath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/operations/issued-badges`;
 };
 
+export const buildAssertionEvidencePagePath = (
+  tenantId: string,
+  assertionId: string,
+  returnFilters?: IssuedBadgesPageFilterValues,
+): string => {
+  const path = `${buildIssuedBadgesPagePath(tenantId)}/${encodeURIComponent(assertionId)}/evidence`;
+
+  if (returnFilters === undefined) {
+    return path;
+  }
+
+  const query = buildIssuedBadgesPageQuery(returnFilters);
+  const queryString = query.toString();
+
+  return queryString.length > 0 ? `${path}?${queryString}` : path;
+};
+
 export const emptyIssuedBadgesPageFilterValues = (): IssuedBadgesPageFilterValues => {
   return {
     issuedFrom: "",
@@ -121,6 +138,10 @@ export const issuedBadgesAssertionPageUrl = (
   assertionId: string,
   lifecycleMode: IssuedBadgeLifecycleMode,
 ): string => {
+  if (lifecycleMode === "audit") {
+    return buildAssertionEvidencePagePath(tenantId, assertionId, filters);
+  }
+
   return issuedBadgesPageUrl(tenantId, filters, {
     lifecycle: assertionId,
     lifecycleMode,

@@ -1,4 +1,3 @@
-import type { JsonObject } from "@credtrail/core-domain";
 import {
   createAuditLog,
   findAssertionById,
@@ -18,7 +17,6 @@ import {
   parseTenantAssertionLedgerExportQuery,
   parseTenantAssertionListQuery,
   parseTenantPathParams,
-  type ManualIssueBadgeRequest,
   type TenantAssertionListQuery,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
@@ -28,37 +26,16 @@ import type {
   RequireTenantRole,
   ResolveDatabase,
 } from "../app/route-deps";
+import { buildAssertionEvidenceApiResponse } from "../badges/assertion-evidence-presentation";
+import { loadAssertionEvidencePayload } from "../badges/assertion-evidence-payload";
+import type { DirectIssueBadgeOptions, DirectIssueBadgeResult } from "../badges/direct-issue";
+import { manualIssueBadgeProvenance } from "../badges/issue-badge-provenance";
+import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
 import { buildTenantAssertionLedgerCsvExport } from "../reporting/ledger-export";
 import {
   tenantAssertionLedgerExportDbInput,
   tenantAssertionListDbInput,
 } from "./assertion-list-query";
-
-type DirectIssueBadgeRequest = Pick<
-  ManualIssueBadgeRequest,
-  | "badgeTemplateId"
-  | "recipientIdentity"
-  | "recipientIdentityType"
-  | "recipientIdentifiers"
-  | "recipientDisplayName"
-  | "issuerImageUri"
-  | "idempotencyKey"
->;
-
-interface DirectIssueBadgeOptions {
-  recipientDisplayName?: string;
-  issuerName?: string;
-  issuerUrl?: string;
-}
-
-interface DirectIssueBadgeResult {
-  status: "issued" | "already_issued";
-  tenantId: string;
-  assertionId: string;
-  idempotencyKey: string;
-  vcR2Key: string;
-  credential: JsonObject;
-}
 
 interface RegisterAssertionRoutesInput {
   app: Hono<AppEnv>;
@@ -156,7 +133,15 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
     }
 
     try {
-      const result = await issueBadgeForTenant(c, pathParams.tenantId, request, session.userId);
+      const result = await issueBadgeForTenant(
+        c,
+        pathParams.tenantId,
+        {
+          ...request,
+          issuanceProvenance: manualIssueBadgeProvenance(),
+        },
+        session.userId,
+      );
       return c.json(result, manualIssueResponseStatus(result.status));
     } catch (error: unknown) {
       if (error instanceof HttpErrorResponseClass) {
@@ -317,6 +302,46 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
         revokedAt: lifecycle.revokedAt,
         events,
       });
+    },
+  );
+
+  app.get(
+    "/v1/tenants/:tenantId/assertions/:assertionId/evidence",
+    async (c): Promise<Response> => {
+      const pathParams = parseAssertionPathParams(c.req.param());
+      const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+
+      if (roleCheck instanceof Response) {
+        return roleCheck;
+      }
+
+      if (!assertionBelongsToTenant(pathParams.tenantId, pathParams.assertionId)) {
+        return c.json(
+          {
+            error: "assertionId must be a tenant-scoped identifier for the active tenant",
+          },
+          422,
+        );
+      }
+
+      const db = resolveDatabase(c.env);
+      const loaded = await loadAssertionEvidencePayload(db, {
+        tenantId: pathParams.tenantId,
+        assertionId: pathParams.assertionId,
+      });
+
+      if (loaded === null) {
+        return c.json(
+          {
+            error: "Assertion not found",
+          },
+          404,
+        );
+      }
+
+      c.header("Cache-Control", "no-store");
+
+      return c.json(buildAssertionEvidenceApiResponse(loaded));
     },
   );
 

@@ -154,6 +154,8 @@ describe("LTI roster bulk issuance context", () => {
           ruleResolution: { status: "resolved", ruleId: "brl_123" },
           prepared: {
             status: "ready",
+            ruleId: "brl_123",
+            versionId: "brv_123",
             lmsProviderKind: "sakai",
             lmsConnectionId: "lms_sakai_001",
             definition: {
@@ -192,6 +194,8 @@ describe("LTI roster bulk issuance context", () => {
             ruleResolution: { status: "resolved", ruleId: "brl_123" },
             prepared: {
               status: "ready",
+              ruleId: "brl_123",
+              versionId: "brv_123",
               lmsProviderKind: "sakai",
               lmsConnectionId: "lms_sakai_001",
               definition: {

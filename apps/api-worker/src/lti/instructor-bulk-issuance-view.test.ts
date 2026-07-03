@@ -161,6 +161,8 @@ const bulkContext = (issuanceBehavior: LtiRosterIssuanceBehavior): LtiRosterBulk
     ruleResolution: { status: "resolved", ruleId: "brl_123" },
     prepared: {
       status: "ready",
+      ruleId: "brl_123",
+      versionId: "brv_123",
       lmsProviderKind: "sakai",
       lmsConnectionId: "lms_sakai_001",
       definition: {

@@ -65,10 +65,11 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
   const issuedBadgesFilters =
     input.issuedBadgesWorkspace?.filters ?? emptyIssuedBadgesPageFilterValues();
   const issuedBadgesPagePath = buildIssuedBadgesPagePath(input.tenantId);
+  const showIssuedBadgeRevokeForm = input.issuedBadgesWorkspace?.lifecycleMode === "revoke";
   const showIssuedBadgeLifecyclePanel =
+    showIssuedBadgeRevokeForm &&
     input.issuedBadgesWorkspace?.lifecycleAssertionId !== null &&
     input.issuedBadgesWorkspace?.lifecycleAssertionId !== undefined;
-  const showIssuedBadgeRevokeForm = input.issuedBadgesWorkspace?.lifecycleMode === "revoke";
   const issuedBadgesAssertions = input.issuedBadgesWorkspace?.assertions ?? null;
   const showIssuedBadgesExportAction =
     issuedBadgesAssertions !== null && issuedBadgesAssertions.length > 0;
@@ -76,7 +77,7 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
   return (
     <AdminPanel id="issued-badges-panel" variant="table">
       <h2>Badge Records</h2>
-      <p>Tenant-wide assertion log with direct audit and revocation actions.</p>
+      <p>Tenant-wide assertion log with evidence reports and revocation actions.</p>
       {input.issuedBadgesWorkspace?.listError !== null &&
       input.issuedBadgesWorkspace?.listError !== undefined &&
       input.issuedBadgesWorkspace.listError.length > 0 ? (
@@ -167,9 +168,7 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
         hidden={!showIssuedBadgeLifecyclePanel}
       >
         <div class="ct-cluster">
-          <h3 id="issued-badge-lifecycle-title">
-            {showIssuedBadgeRevokeForm ? "Revoke selected badge" : "Selected badge lifecycle"}
-          </h3>
+          <h3 id="issued-badge-lifecycle-title">Revoke selected badge</h3>
           <AdminButton
             id="issued-badge-lifecycle-close"
             type="button"
@@ -180,13 +179,11 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
           </AdminButton>
         </div>
         <AdminStatus id="issued-badge-lifecycle-status"></AdminStatus>
-        <pre id="issued-badge-lifecycle-output" class="ct-admin__code-output" hidden></pre>
         <AdminForm
           id="issued-badge-revoke-form"
           method="post"
           action={tenantIssuedBadgeAdminRevokePath(input.tenantId)}
           className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--issued-revoke ct-grid"
-          hidden={!showIssuedBadgeRevokeForm}
         >
           <CtInput
             name="assertionId"
@@ -233,7 +230,7 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
         ) : (
           <IssuedBadgeRows
             assertions={issuedBadgesAssertions}
-            auditLifecycleHrefForAssertion={(assertionId) =>
+            evidenceHrefForAssertion={(assertionId) =>
               issuedBadgesAssertionPageUrl(
                 input.tenantId,
                 issuedBadgesFilters,

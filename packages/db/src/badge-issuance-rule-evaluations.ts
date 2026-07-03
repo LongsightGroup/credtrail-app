@@ -214,6 +214,51 @@ export const createBadgeIssuanceRuleEvaluation = async (
   return mapBadgeIssuanceRuleEvaluationRow(row);
 };
 
+export const findBadgeIssuanceRuleEvaluationByAssertionId = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    assertionId: string;
+  },
+): Promise<BadgeIssuanceRuleEvaluationRecord | null> => {
+  const lookupStatement = (): Promise<BadgeIssuanceRuleEvaluationRow | null> =>
+    db
+      .prepare(
+        `
+        SELECT
+          id,
+          tenant_id AS tenantId,
+          rule_id AS ruleId,
+          version_id AS versionId,
+          learner_id AS learnerId,
+          recipient_identity AS recipientIdentity,
+          recipient_identity_type AS recipientIdentityType,
+          matched,
+          issuance_status AS issuanceStatus,
+          assertion_id AS assertionId,
+          evaluation_json AS evaluationJson,
+          review_status AS reviewStatus,
+          review_decision AS reviewDecision,
+          review_comment AS reviewComment,
+          reviewed_by_user_id AS reviewedByUserId,
+          reviewed_at AS reviewedAt,
+          evaluated_at AS evaluatedAt,
+          created_at AS createdAt
+        FROM badge_issuance_rule_evaluations
+        WHERE tenant_id = ?
+          AND assertion_id = ?
+        ORDER BY evaluated_at DESC, created_at DESC, id DESC
+        LIMIT 1
+      `,
+      )
+      .bind(input.tenantId, input.assertionId)
+      .first<BadgeIssuanceRuleEvaluationRow>();
+
+  const row = await lookupStatement();
+
+  return row === null ? null : mapBadgeIssuanceRuleEvaluationRow(row);
+};
+
 export const findBadgeIssuanceRuleEvaluationById = async (
   db: SqlDatabase,
   input: {

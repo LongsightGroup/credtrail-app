@@ -19,6 +19,7 @@ import {
   parseBadgeTemplatePathParams,
   parseTenantLmsConnectionPathParams,
   parseTenantPathParams,
+  parseAssertionPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
@@ -133,6 +134,12 @@ interface RegisterTenantAdminPageRoutesInput {
     tenantId: string,
     nextPath: string,
   ) => Promise<Response>;
+  renderInstitutionAdminAssertionEvidenceWorkspace: (
+    c: AppContext,
+    tenantId: string,
+    assertionId: string,
+    nextPath: string,
+  ) => Promise<Response>;
   renderInstitutionAdminReviewQueueWorkspace: (
     c: AppContext,
     tenantId: string,
@@ -203,6 +210,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     renderInstitutionAdminOrgUnitsWorkspace,
     renderInstitutionAdminApiKeysWorkspace,
     renderInstitutionAdminIssuedBadgesWorkspace,
+    renderInstitutionAdminAssertionEvidenceWorkspace,
     renderInstitutionAdminReviewQueueWorkspace,
     renderInstitutionAdminRulesWorkspace,
     renderInstitutionAdminLmsConnectionsWorkspace,
@@ -253,6 +261,18 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/issued-badges`,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/operations/issued-badges/:assertionId/evidence", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    const assertionParams = parseAssertionPathParams(c.req.param());
+
+    return renderInstitutionAdminAssertionEvidenceWorkspace(
+      c,
+      pathParams.tenantId,
+      assertionParams.assertionId,
+      c.req.path,
     );
   });
 

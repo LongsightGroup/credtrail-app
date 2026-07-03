@@ -1,16 +1,8 @@
 import type { AppContext } from "../app";
+import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
+import type { DirectIssueBadgeResult } from "../badges/direct-issue";
 
-export interface DirectIssueBadgeRequest {
-  badgeTemplateId: string;
-  recipientIdentity: string;
-  recipientIdentityType: "email" | "email_sha256" | "did" | "url";
-  idempotencyKey: string;
-}
-
-export interface DirectIssueBadgeResult {
-  status: "issued" | "already_issued";
-  assertionId: string;
-}
+export type { DirectIssueBadgeRequest, DirectIssueBadgeResult };
 
 interface IssueBadgeHttpErrorPayload {
   error: string;

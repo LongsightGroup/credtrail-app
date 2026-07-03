@@ -18,6 +18,7 @@ import type {
   ResolveDatabase,
 } from "../app/route-deps";
 import { publicBadgePathForAssertion } from "../badges/public-badge-model";
+import { manualIssueBadgeProvenance } from "../badges/issue-badge-provenance";
 import { isIssueBadgeHttpError, type IssueBadgeForTenant } from "./badge-rule-evaluation-types";
 
 interface RegisterTenantOperationsAdminRoutesInput {
@@ -132,6 +133,7 @@ export const registerTenantOperationsAdminRoutes = (
         recipientIdentity: request.recipientIdentity,
         recipientIdentityType: request.recipientIdentityType,
         idempotencyKey: request.idempotencyKey ?? crypto.randomUUID(),
+        issuanceProvenance: manualIssueBadgeProvenance(),
         ...(request.recipientIdentifiers === undefined
           ? {}
           : { recipientIdentifiers: request.recipientIdentifiers }),

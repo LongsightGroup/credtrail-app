@@ -27,12 +27,16 @@ import {
   renderInstitutionAdminRulesWorkspace,
 } from "../../admin/institution-admin-workspace-renderers";
 import type { InstitutionAdminView } from "../../admin/institution-admin/page-types";
+import { institutionAdminAssertionEvidencePage } from "../../admin/institution-admin/assertion-evidence-page";
 import {
   buildIssuedBadgesPagePath,
+  buildIssuedBadgesPageQuery,
   issuedBadgesInvalidFiltersError,
   safeParseIssuedBadgesPageQuery,
   shouldLoadIssuedBadgesList,
 } from "../../admin/issued-badges-admin-helpers";
+import { buildAssertionEvidencePresentation } from "../../badges/assertion-evidence-presentation";
+import { loadAssertionEvidencePayload } from "../../badges/assertion-evidence-payload";
 import type { AppContext } from "../../app";
 import type { ResolveDatabase } from "../../app/route-deps";
 import { renderAppPage, type AppPage } from "../../ui/render-page";
@@ -187,6 +191,66 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
     );
   };
 
+  const renderInstitutionAdminAssertionEvidenceWorkspace = async (
+    c: AppContext,
+    tenantId: string,
+    assertionId: string,
+    nextPath: string,
+  ): Promise<Response> => {
+    const loaded = await loadInstitutionAdminWorkspacePageData({
+      c,
+      tenantId,
+      nextPath,
+      resolveInstitutionAdminAdminRole,
+      loadInstitutionAdminPageData,
+    });
+
+    if (loaded instanceof Response) {
+      return loaded;
+    }
+
+    const { pageData } = loaded;
+    const evidenceLoaded = await loadAssertionEvidencePayload(resolveDatabase(c.env), {
+      tenantId,
+      assertionId,
+    });
+
+    if (evidenceLoaded === null) {
+      return c.text("Assertion not found", 404);
+    }
+
+    const parsedQuery = safeParseIssuedBadgesPageQuery(c.req.query());
+    const returnQuery = parsedQuery.ok
+      ? buildIssuedBadgesPageQuery(parsedQuery.value.filters)
+      : null;
+    const returnPath = buildIssuedBadgesPagePath(tenantId);
+    const returnHref =
+      returnQuery === null || returnQuery.toString().length === 0
+        ? returnPath
+        : `${returnPath}?${returnQuery.toString()}`;
+    const evidenceApiPath = `/v1/tenants/${encodeURIComponent(tenantId)}/assertions/${encodeURIComponent(assertionId)}/evidence`;
+
+    return await renderInstitutionAdminWorkspacePage(
+      c,
+      renderAppPage,
+      institutionAdminAssertionEvidencePage({
+        tenant: pageData.tenant,
+        userId: pageData.userId,
+        ...(pageData.userEmail === undefined ? {} : { userEmail: pageData.userEmail }),
+        membershipRole: pageData.membershipRole,
+        ...(pageData.switchOrganizationPath === undefined ||
+        pageData.switchOrganizationPath === null
+          ? {}
+          : { switchOrganizationPath: pageData.switchOrganizationPath }),
+        evidencePage: {
+          evidence: buildAssertionEvidencePresentation(evidenceLoaded),
+          returnHref,
+          evidenceApiPath,
+        },
+      }),
+    );
+  };
+
   const workspaceRendererDeps = (view: InstitutionAdminView) => ({
     resolveDatabase,
     resolveInstitutionAdminAdminRole,
@@ -315,6 +379,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
     renderInstitutionAdminWorkspace,
     renderInstitutionAdminApiKeysWorkspace,
     renderInstitutionAdminIssuedBadgesWorkspace,
+    renderInstitutionAdminAssertionEvidenceWorkspace,
     renderRulesWorkspace,
     renderReviewQueueWorkspace,
     renderLmsConnectionsWorkspace,

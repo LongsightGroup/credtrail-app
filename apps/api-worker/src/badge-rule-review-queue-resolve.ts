@@ -8,7 +8,9 @@ import {
   type TenantMembershipRole,
 } from "@credtrail/db";
 import type { ResolveBadgeIssuanceRuleReviewRequest } from "@credtrail/validation";
+import { buildIssuanceProvenanceSnapshotFromEvaluationJson } from "@credtrail/validation";
 import type { AppContext } from "./app";
+import { withIssuanceProvenance } from "./badges/issue-badge-provenance";
 import {
   isIssueBadgeHttpError,
   type IssueBadgeForTenant,
@@ -145,12 +147,25 @@ export const resolveBadgeRuleReviewQueueEntry = async (input: {
       issuance = await input.issueBadgeForTenant(
         input.c,
         input.tenantId,
-        {
-          badgeTemplateId: rule.badgeTemplateId,
-          recipientIdentity: evaluationRecord.recipientIdentity,
-          recipientIdentityType: evaluationRecord.recipientIdentityType,
-          idempotencyKey: `rule-review:${evaluationRecord.id}`,
-        },
+        withIssuanceProvenance(
+          {
+            badgeTemplateId: rule.badgeTemplateId,
+            recipientIdentity: evaluationRecord.recipientIdentity,
+            recipientIdentityType: evaluationRecord.recipientIdentityType,
+            idempotencyKey: `rule-review:${evaluationRecord.id}`,
+          },
+          {
+            source: "rule_evaluate",
+            ruleId: evaluationRecord.ruleId,
+            versionId: evaluationRecord.versionId,
+            provenanceJson: buildIssuanceProvenanceSnapshotFromEvaluationJson({
+              matched: evaluationRecord.matched,
+              evaluationJson: evaluationRecord.evaluationJson,
+              learnerId: evaluationRecord.learnerId,
+              evaluatedAt: evaluationRecord.evaluatedAt,
+            }),
+          },
+        ),
         input.session.userId,
       );
     } catch (error) {

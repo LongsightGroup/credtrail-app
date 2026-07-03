@@ -24,7 +24,7 @@ type LtiIssuanceIdempotencyKeyContext = Pick<
 type LtiRosterIssuanceLookupContext = LtiIssuanceIdempotencyKeyContext &
   Pick<LtiIssuanceActionPayload, "tenantId">;
 
-interface LtiIssuanceIdempotencyKeyPrefix {
+export interface LtiIssuanceIdempotencyKeyPrefix {
   value: string;
 }
 

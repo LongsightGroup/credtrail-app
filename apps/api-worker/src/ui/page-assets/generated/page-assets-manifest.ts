@@ -49,7 +49,15 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminIssuedBadgesJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-issued-badges.5be0ab8bb1.js",
+    path: "/assets/ui/institution-admin-issued-badges.53d9c14b01.js",
+  },
+  assertionEvidenceCss: {
+    kind: "style",
+    path: "/assets/ui/assertion-evidence.98071ca677.css",
+  },
+  assertionEvidenceJs: {
+    kind: "script",
+    path: "/assets/ui/assertion-evidence.74bcfaaf28.js",
   },
   institutionAdminRuleBuilderJs: {
     kind: "script",

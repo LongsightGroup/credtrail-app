@@ -62,7 +62,7 @@ vi.mock("@credtrail/db", async (importOriginal) => {
 });
 
 describe("processBadgeRuleLifecycleForTenant", () => {
-  it("enqueues end-of-term jobs and expires due active versions", async () => {
+  it("enqueues end-of-term jobs without expiring the version in the lifecycle pass", async () => {
     const dbModule = await import("@credtrail/db");
     const input: ProcessBadgeRuleLifecycleInput = {
       db: {} as ProcessBadgeRuleLifecycleInput["db"],
@@ -79,7 +79,7 @@ describe("processBadgeRuleLifecycleForTenant", () => {
     expect(result).toEqual({
       dueVersionsProcessed: 1,
       endOfTermJobsEnqueued: 1,
-      expiredVersions: 1,
+      expiredVersions: 0,
     });
     expect(dbModule.enqueueJobQueueMessageOnce).toHaveBeenCalledWith(
       input.db,
@@ -88,11 +88,6 @@ describe("processBadgeRuleLifecycleForTenant", () => {
         tenantId: "tenant_123",
       }),
     );
-    expect(dbModule.expireBadgeIssuanceRuleVersion).toHaveBeenCalledWith(input.db, {
-      tenantId: "tenant_123",
-      ruleId: "brl_123",
-      versionId: "brv_123",
-      occurredAt: input.nowIso,
-    });
+    expect(dbModule.expireBadgeIssuanceRuleVersion).not.toHaveBeenCalled();
   });
 });

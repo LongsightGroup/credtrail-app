@@ -601,7 +601,7 @@ export const IssuedBadgeActions = (input: {
   assertionId: string;
   viewBadgeHref: string;
   rawJsonHref: string;
-  auditLifecycleHref: string;
+  evidenceHref: string;
   revokeLifecycleHref: string;
   canRevoke: boolean;
 }): HonoElement => {
@@ -616,8 +616,8 @@ export const IssuedBadgeActions = (input: {
       >
         Open
       </AdminButtonLink>
-      <AdminButtonLink href={input.auditLifecycleHref} size="tiny" variant="secondary">
-        Audit
+      <AdminButtonLink href={input.evidenceHref} size="tiny" variant="secondary">
+        Evidence
       </AdminButtonLink>
       <AdminActionMenu
         menuId={`issued-badge-action-menu-${input.assertionId}`}
@@ -636,7 +636,7 @@ export const IssuedBadgeActions = (input: {
 
 export const IssuedBadgeRow = (input: {
   assertion: TenantAssertionSummaryRecord;
-  auditLifecycleHref: string;
+  evidenceHref: string;
   revokeLifecycleHref: string;
 }): HonoElement => {
   const assertion = input.assertion;
@@ -667,7 +667,7 @@ export const IssuedBadgeRow = (input: {
             assertionId={assertion.assertionId}
             viewBadgeHref={viewBadgeHref}
             rawJsonHref={rawJsonHref}
-            auditLifecycleHref={input.auditLifecycleHref}
+            evidenceHref={input.evidenceHref}
             revokeLifecycleHref={input.revokeLifecycleHref}
             canRevoke={assertion.state !== "revoked"}
           />
@@ -793,7 +793,7 @@ export const ReviewQueueRows = (input: {
 
 export const IssuedBadgeRows = (input: {
   assertions: readonly TenantAssertionSummaryRecord[];
-  auditLifecycleHrefForAssertion: (assertionId: string) => string;
+  evidenceHrefForAssertion: (assertionId: string) => string;
   revokeLifecycleHrefForAssertion: (assertionId: string) => string;
   emptyMessage?: string;
 }): HonoElement => {
@@ -810,7 +810,7 @@ export const IssuedBadgeRows = (input: {
       {input.assertions.map((assertion) => (
         <IssuedBadgeRow
           assertion={assertion}
-          auditLifecycleHref={input.auditLifecycleHrefForAssertion(assertion.assertionId)}
+          evidenceHref={input.evidenceHrefForAssertion(assertion.assertionId)}
           revokeLifecycleHref={input.revokeLifecycleHrefForAssertion(assertion.assertionId)}
         />
       ))}

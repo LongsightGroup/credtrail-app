@@ -141,6 +141,16 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     stem: "institution-admin-issued-badges",
     sources: ["admin-browser-primitives.js", "institution-admin-issued-badges.js"],
   },
+  assertionEvidenceCss: {
+    kind: "style",
+    stem: "assertion-evidence",
+    sources: ["assertion-evidence.css"],
+  },
+  assertionEvidenceJs: {
+    kind: "script",
+    stem: "assertion-evidence",
+    sources: ["assertion-evidence.js"],
+  },
   institutionAdminRuleBuilderJs: {
     kind: "script",
     stem: "institution-admin-rule-builder",

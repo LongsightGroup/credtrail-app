@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jsonObjectSchema, idempotencyKeySchema, queueJobTypeSchema } from "./json.js";
+import { assertionIssuanceProvenanceInputSchema } from "./credentials.js";
 import {
   isoTimestampSchema,
   recipientIdentityTypeSchema,
@@ -130,6 +131,7 @@ export const issueBadgeJobPayloadSchema = z.object({
   issuerImageUri: z.string().trim().url().max(2048).optional(),
   requestedAt: isoTimestampSchema,
   requestedByUserId: userIdSchema.optional(),
+  issuanceProvenance: assertionIssuanceProvenanceInputSchema.default({ source: "programmatic" }),
 });
 
 export const revokeBadgeJobPayloadSchema = z.object({

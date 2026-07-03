@@ -1,4 +1,6 @@
 import {
+  createAuditLog,
+  expireBadgeIssuanceRuleVersion,
   findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleVersionById,
   findLtiResourceLinkPlacementForRule,
@@ -116,6 +118,8 @@ export const processEndOfTermBadgeRule = async (input: {
     learnerMembers: rosterResult.roster.learnerMembers,
     prepared: {
       status: "ready",
+      ruleId: input.payload.ruleId,
+      versionId: version.id,
       lmsProviderKind: rule.lmsProviderKind,
       lmsConnectionId: rule.lmsConnectionId,
       definition,
@@ -124,6 +128,28 @@ export const processEndOfTermBadgeRule = async (input: {
     nowIso: input.payload.scheduledFor,
     sha256Hex: input.sha256Hex,
   });
+
+  const expiredVersion = await expireBadgeIssuanceRuleVersion(input.db, {
+    tenantId: input.tenantId,
+    ruleId: input.payload.ruleId,
+    versionId: input.payload.versionId,
+    occurredAt: input.payload.scheduledFor,
+  });
+
+  if (expiredVersion !== null) {
+    await createAuditLog(input.db, {
+      tenantId: input.tenantId,
+      action: "badge_rule.version_expired",
+      targetType: "badge_rule_version",
+      targetId: expiredVersion.id,
+      metadata: {
+        ruleId: input.payload.ruleId,
+        expiresAt: expiredVersion.expiresAt,
+        endOfTermIssuanceJobsEnqueued: issueJobsEnqueued,
+      },
+      occurredAt: input.payload.scheduledFor,
+    });
+  }
 
   return {
     status: "processed",

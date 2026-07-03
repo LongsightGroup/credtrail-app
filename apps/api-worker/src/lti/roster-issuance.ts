@@ -7,7 +7,6 @@ import type { LtiIssuanceActionPayload } from "./issuance-action-token";
 import { ltiLogger } from "./log";
 import { loadLtiNrpsRoster, type LtiNrpsMember } from "./nrps";
 import {
-  ltiIssuanceIdempotencyKeyFromPrefix,
   ltiIssuanceIdempotencyKeyPrefix,
   ltiRosterIssuedBadgeStatesByUserId,
   skippedLtiIssuanceResult,
@@ -17,6 +16,7 @@ import {
   ltiRosterIssuanceSkipDetail,
 } from "./roster-bulk-issuance-context";
 import { evaluateLtiRosterMembersEligibility } from "./roster-eligibility";
+import { buildLtiRosterIssueBadgeRequest } from "./roster-issue-request";
 import type { LtiRosterIssuanceResultEntry } from "./view-models";
 
 export class LtiRosterIssuanceError extends Error {
@@ -158,26 +158,13 @@ export const executeLtiRosterIssuance = async (
       continue;
     }
 
-    const request: DirectIssueBadgeRequest = {
+    const request: DirectIssueBadgeRequest = await buildLtiRosterIssueBadgeRequest({
       badgeTemplateId: input.issuanceAction.badgeTemplateId,
-      recipientIdentity: recipientEmail,
-      recipientIdentityType: "email",
-      ...(member.lisPersonSourcedId === undefined
-        ? {}
-        : {
-            recipientIdentifiers: [
-              {
-                identifierType: "sourcedId",
-                identifier: member.lisPersonSourcedId,
-              },
-            ],
-          }),
-      idempotencyKey: await ltiIssuanceIdempotencyKeyFromPrefix(
-        input.sha256Hex,
-        idempotencyKeyPrefix,
-        member.userId,
-      ),
-    };
+      member: { ...member, email: recipientEmail },
+      eligibility,
+      idempotencyKeyPrefix,
+      sha256Hex: input.sha256Hex,
+    });
     try {
       const issuance = await input.issueBadgeForTenant(
         input.c,

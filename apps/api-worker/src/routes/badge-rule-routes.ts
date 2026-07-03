@@ -1,34 +1,18 @@
 import type { TenantMembershipRole } from "@credtrail/db";
 import type { Hono } from "hono";
-import type { AppContext, AppEnv } from "../app";
+import type { AppEnv } from "../app";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { registerBadgeRuleCoreRoutes } from "./badge-rule-core-routes";
 import { registerBadgeRuleEvaluationRoutes } from "./badge-rule-evaluation-routes";
+import type { IssueBadgeForTenant } from "./badge-rule-evaluation-types";
 import { registerBadgeRuleValueListRoutes } from "./badge-rule-value-list-routes";
 import { registerBadgeRuleVersionRoutes } from "./badge-rule-version-routes";
-
-interface DirectIssueBadgeRequest {
-  badgeTemplateId: string;
-  recipientIdentity: string;
-  recipientIdentityType: "email" | "email_sha256" | "did" | "url";
-  idempotencyKey: string;
-}
-
-interface DirectIssueBadgeResult {
-  status: "issued" | "already_issued";
-  assertionId: string;
-}
 
 interface RegisterBadgeRuleRoutesInput {
   app: Hono<AppEnv>;
   resolveDatabase: ResolveDatabase;
   requireTenantRole: RequireTenantRole;
-  issueBadgeForTenant: (
-    c: AppContext,
-    tenantId: string,
-    request: DirectIssueBadgeRequest,
-    issuedByUserId?: string,
-  ) => Promise<DirectIssueBadgeResult>;
+  issueBadgeForTenant: IssueBadgeForTenant;
   ISSUER_ROLES: readonly TenantMembershipRole[];
   ADMIN_ROLES: readonly TenantMembershipRole[];
   TENANT_MEMBER_ROLES: readonly TenantMembershipRole[];

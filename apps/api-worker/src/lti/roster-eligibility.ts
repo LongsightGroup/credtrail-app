@@ -7,12 +7,14 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
+import { buildIssuanceProvenanceSnapshotJson } from "@credtrail/validation";
 import type { AppLogger } from "../app/observability";
 import type { LtiNrpsMember } from "./nrps";
 import {
   evaluateBadgeIssuanceRuleDefinition,
   primaryEvaluationDetail,
   summarizeBadgeIssuanceRuleEvaluation,
+  type BadgeIssuanceRuleEvaluationResult,
 } from "../rules/engine";
 import { loadRuleFacts } from "../rules/badge-rule-facts-loader";
 import {
@@ -44,6 +46,11 @@ export interface LtiRosterEligibilityResult {
   label: string;
   detail: string;
   eligibleForIssuance: boolean;
+  issuanceProvenance?: {
+    ruleId: string;
+    versionId: string;
+    provenanceJson: string;
+  };
 }
 
 export type LtiRosterEligibilityRuleResolution =
@@ -54,6 +61,8 @@ export type LtiRosterEligibilityRuleResolution =
 export type LtiRosterEligibilityPreparedEvaluation =
   | {
       status: "ready";
+      ruleId: string;
+      versionId: string;
       lmsProviderKind: BadgeIssuanceRuleRecord["lmsProviderKind"];
       lmsConnectionId: string | null;
       definition: BadgeIssuanceRuleDefinition;
@@ -209,6 +218,8 @@ export const prepareLtiRosterEligibilityEvaluationContext = async (input: {
 
   return {
     status: "ready",
+    ruleId: rule.id,
+    versionId: activeVersion.id,
     lmsProviderKind: rule.lmsProviderKind,
     lmsConnectionId: rule.lmsConnectionId,
     definition,
@@ -217,13 +228,40 @@ export const prepareLtiRosterEligibilityEvaluationContext = async (input: {
 };
 
 const eligibilityFromEvaluation = (
-  evaluation: ReturnType<typeof evaluateBadgeIssuanceRuleDefinition>,
+  evaluation: BadgeIssuanceRuleEvaluationResult,
+  input: {
+    ruleId: string;
+    versionId: string;
+    learnerId: string;
+    facts: Awaited<ReturnType<typeof loadRuleFacts>>;
+    nowIso: string;
+  },
 ): LtiRosterEligibilityResult => {
+  const evaluationSummary = summarizeBadgeIssuanceRuleEvaluation(evaluation);
+  const provenanceJson = buildIssuanceProvenanceSnapshotJson({
+    outcome: evaluation.matched ? "matched" : "no_match",
+    evaluation: {
+      matched: evaluation.matched,
+      tree: evaluation.tree,
+    },
+    evaluationSummary,
+    facts: { ...input.facts },
+    learnerId: input.learnerId,
+    nowIso: input.nowIso,
+  });
+
   if (evaluation.matched) {
-    return statusResult("eligible", "Meets the active badge rule.", true);
+    return {
+      ...statusResult("eligible", "Meets the active badge rule.", true),
+      issuanceProvenance: {
+        ruleId: input.ruleId,
+        versionId: input.versionId,
+        provenanceJson,
+      },
+    };
   }
 
-  const summary = summarizeBadgeIssuanceRuleEvaluation(evaluation);
+  const summary = evaluationSummary;
   const detail = primaryEvaluationDetail(evaluation.tree);
 
   if (summary.missingDataCount > 0) {
@@ -316,7 +354,13 @@ const evaluateLtiRosterMemberEligibilityWithPreparedContext = async (input: {
     });
     const evaluation = evaluateBadgeIssuanceRuleDefinition(input.prepared.definition, facts);
 
-    return eligibilityFromEvaluation(evaluation);
+    return eligibilityFromEvaluation(evaluation, {
+      ruleId: input.prepared.ruleId,
+      versionId: input.prepared.versionId,
+      learnerId: input.member.userId,
+      facts,
+      nowIso: input.nowIso,
+    });
   } catch (error) {
     return statusResult(
       "unavailable",

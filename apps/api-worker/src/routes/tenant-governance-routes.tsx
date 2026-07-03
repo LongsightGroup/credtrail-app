@@ -185,6 +185,8 @@ export const registerTenantGovernanceRoutes = (
       institutionWorkspaces.renderInstitutionAdminApiKeysWorkspace,
     renderInstitutionAdminIssuedBadgesWorkspace:
       institutionWorkspaces.renderInstitutionAdminIssuedBadgesWorkspace,
+    renderInstitutionAdminAssertionEvidenceWorkspace:
+      institutionWorkspaces.renderInstitutionAdminAssertionEvidenceWorkspace,
     renderInstitutionAdminReviewQueueWorkspace: institutionWorkspaces.renderReviewQueueWorkspace,
     renderInstitutionAdminRulesWorkspace: institutionWorkspaces.renderRulesWorkspace,
     renderInstitutionAdminLmsConnectionsWorkspace:

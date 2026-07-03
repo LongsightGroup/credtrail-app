@@ -6,10 +6,10 @@ import {
   type LtiRosterEligibilityPreparedEvaluation,
 } from "./roster-eligibility";
 import {
-  ltiIssuanceIdempotencyKeyFromPrefix,
   ltiIssuanceIdempotencyKeyPrefix,
   ltiRosterIssuedBadgeStatesByUserId,
 } from "./roster-issuance-helpers";
+import { buildLtiRosterIssueBadgeRequest } from "./roster-issue-request";
 
 export interface LtiRosterIssuancePlacementAction {
   readonly tenantId: string;
@@ -64,28 +64,16 @@ export const enqueueEligibleLtiRosterIssuanceJobs = async (input: {
       continue;
     }
 
-    const idempotencyKey = await ltiIssuanceIdempotencyKeyFromPrefix(
-      input.sha256Hex,
+    const issueRequest = await buildLtiRosterIssueBadgeRequest({
+      badgeTemplateId: input.badgeTemplateId,
+      member: { ...member, email: member.email },
+      eligibility,
       idempotencyKeyPrefix,
-      member.userId,
-    );
+      sha256Hex: input.sha256Hex,
+    });
     const { job } = issueBadgeQueueJobFromRequest({
       tenantId: input.tenantId,
-      badgeTemplateId: input.badgeTemplateId,
-      recipientIdentity: member.email,
-      recipientIdentityType: "email",
-      ...(member.displayName === null ? {} : { recipientDisplayName: member.displayName }),
-      ...(member.lisPersonSourcedId === undefined
-        ? {}
-        : {
-            recipientIdentifiers: [
-              {
-                identifierType: "sourcedId",
-                identifier: member.lisPersonSourcedId,
-              },
-            ],
-          }),
-      idempotencyKey,
+      ...issueRequest,
     });
     const inserted = await enqueueJobQueueMessageOnce(input.db, {
       tenantId: job.tenantId,

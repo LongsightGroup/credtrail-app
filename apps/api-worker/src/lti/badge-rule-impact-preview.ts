@@ -122,6 +122,8 @@ export const previewBadgeRuleVersionImpact = async (input: {
   );
   const prepared: LtiRosterEligibilityPreparedEvaluation = {
     status: "ready",
+    ruleId: input.ruleId,
+    versionId: version.id,
     lmsProviderKind: rule.lmsProviderKind,
     lmsConnectionId: rule.lmsConnectionId,
     definition,

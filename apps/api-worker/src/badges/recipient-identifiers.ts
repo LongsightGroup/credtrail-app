@@ -1,5 +1,16 @@
-import type { RecipientIdentifierInput, RecipientIdentifierType } from "@credtrail/db";
+import type {
+  AssertionIssuanceProvenanceSource,
+  RecipientIdentifierInput,
+  RecipientIdentifierType,
+} from "@credtrail/db";
 import type { ManualIssueBadgeRequest } from "@credtrail/validation";
+
+export interface DirectIssueBadgeIssuanceProvenance {
+  source: AssertionIssuanceProvenanceSource;
+  ruleId?: string | undefined;
+  versionId?: string | undefined;
+  provenanceJson?: string | undefined;
+}
 
 export type DirectIssueBadgeRequest = Pick<
   ManualIssueBadgeRequest,
@@ -10,7 +21,9 @@ export type DirectIssueBadgeRequest = Pick<
   | "recipientDisplayName"
   | "issuerImageUri"
   | "idempotencyKey"
->;
+> & {
+  issuanceProvenance: DirectIssueBadgeIssuanceProvenance;
+};
 
 const normalizeRecipientIdentifierValue = (
   identifierType: RecipientIdentifierType,

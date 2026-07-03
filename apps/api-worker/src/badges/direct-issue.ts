@@ -9,8 +9,7 @@ import {
   type ObservabilityContext,
 } from "@credtrail/core-domain";
 import {
-  createAssertion,
-  createAuditLog,
+  finalizeAssertionIssuance,
   findAssertionByIdempotencyKey,
   findBadgeTemplateById,
   findTenantById,
@@ -37,6 +36,7 @@ import {
 import {
   recipientIdentifiersForIssueRequest,
   type DirectIssueBadgeRequest,
+  type DirectIssueBadgeIssuanceProvenance,
 } from "./recipient-identifiers";
 import {
   parseTrustEdCredentialMetadataJsonResult,
@@ -205,6 +205,12 @@ const criteriaForIssuedAchievement = (
   }
 
   return criteria;
+};
+
+const resolveIssuanceProvenance = (
+  request: DirectIssueBadgeRequest,
+): DirectIssueBadgeIssuanceProvenance => {
+  return request.issuanceProvenance;
 };
 
 export const createIssueBadgeForTenant = <
@@ -419,34 +425,46 @@ export const createIssueBadgeForTenant = <
       credential: signedCredential,
     });
 
-    const createdAssertion = await createAssertion(db, {
-      id: assertionId,
-      tenantId,
-      learnerProfileId: learnerProfile.id,
-      badgeTemplateId: badgeTemplate.id,
-      recipientIdentity: request.recipientIdentity,
-      recipientIdentityType: request.recipientIdentityType,
-      vcR2Key: stored.key,
-      statusListIndex,
-      idempotencyKey,
-      issuedAt,
-      recipientIdentifiers,
-      ...(issuedByUserId === undefined ? {} : { issuedByUserId }),
-    });
-
-    await createAuditLog(db, {
-      tenantId,
-      ...(issuedByUserId === undefined ? {} : { actorUserId: issuedByUserId }),
-      action: "assertion.issued",
-      targetType: "assertion",
-      targetId: createdAssertion.id,
-      metadata: {
-        assertionPublicId: createdAssertion.publicId,
-        badgeTemplateId: createdAssertion.badgeTemplateId,
-        recipientIdentity: createdAssertion.recipientIdentity,
-        recipientIdentityType: createdAssertion.recipientIdentityType,
-        issuedAt: createdAssertion.issuedAt,
+    const issuanceProvenance = resolveIssuanceProvenance(request);
+    const { assertion: createdAssertion } = await finalizeAssertionIssuance(db, {
+      assertion: {
+        id: assertionId,
+        tenantId,
+        learnerProfileId: learnerProfile.id,
+        badgeTemplateId: badgeTemplate.id,
+        recipientIdentity: request.recipientIdentity,
+        recipientIdentityType: request.recipientIdentityType,
+        vcR2Key: stored.key,
+        statusListIndex,
+        idempotencyKey,
+        issuedAt,
+        recipientIdentifiers,
+        ...(issuedByUserId === undefined ? {} : { issuedByUserId }),
       },
+      provenance: {
+        source: issuanceProvenance.source,
+        ...(issuanceProvenance.ruleId === undefined ? {} : { ruleId: issuanceProvenance.ruleId }),
+        ...(issuanceProvenance.versionId === undefined
+          ? {}
+          : { versionId: issuanceProvenance.versionId }),
+        ...(issuanceProvenance.provenanceJson === undefined
+          ? {}
+          : { provenanceJson: issuanceProvenance.provenanceJson }),
+      },
+      buildAuditLog: (assertion) => ({
+        tenantId,
+        ...(issuedByUserId === undefined ? {} : { actorUserId: issuedByUserId }),
+        action: "assertion.issued",
+        targetType: "assertion",
+        targetId: assertion.id,
+        metadata: {
+          assertionPublicId: assertion.publicId,
+          badgeTemplateId: assertion.badgeTemplateId,
+          recipientIdentity: assertion.recipientIdentity,
+          recipientIdentityType: assertion.recipientIdentityType,
+          issuedAt: assertion.issuedAt,
+        },
+      }),
     });
 
     if (

@@ -10,13 +10,13 @@ import {
 import {
   parseQueueJob,
   type GenerateBadgeTemplateImageQueueJob,
-  type IssueBadgeQueueJob,
   type ProcessBadgeRuleLifecycleQueueJob,
   type ProcessEndOfTermBadgeRuleQueueJob,
   type ProcessQueueRequest,
   type QueueJob,
 } from "@credtrail/validation";
 import { applyLearnerRecordImportQueuePayload } from "../learner-record/learner-record-import";
+import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
 
 const DEFAULT_JOB_PROCESS_LIMIT = 10;
 const DEFAULT_JOB_PROCESS_LEASE_SECONDS = 300;
@@ -92,15 +92,7 @@ interface ProcessQueuedJobsDependencies<TBindings, TContext extends { env: TBind
   issueBadgeForTenant: (
     context: TContext,
     tenantId: string,
-    request: {
-      badgeTemplateId: string;
-      recipientIdentity: string;
-      recipientIdentityType: IssueBadgeQueueJob["payload"]["recipientIdentityType"];
-      recipientIdentifiers?: IssueBadgeQueueJob["payload"]["recipientIdentifiers"];
-      recipientDisplayName?: string;
-      issuerImageUri?: string;
-      idempotencyKey?: string;
-    },
+    request: DirectIssueBadgeRequest,
     issuedByUserId?: string,
     options?: {
       recipientDisplayName?: string;
@@ -146,6 +138,7 @@ const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
             ? {}
             : { issuerImageUri: job.payload.issuerImageUri }),
           idempotencyKey: job.idempotencyKey,
+          issuanceProvenance: job.payload.issuanceProvenance,
         },
         job.payload.requestedByUserId,
       );

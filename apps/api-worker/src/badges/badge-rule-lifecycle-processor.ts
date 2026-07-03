@@ -73,7 +73,9 @@ export const processBadgeRuleLifecycleForTenant = async (
   let expiredVersions = 0;
 
   for (const version of dueVersions) {
-    if (ruleUsesEndOfTermIssuance(version.ruleJson)) {
+    const usesEndOfTermIssuance = ruleUsesEndOfTermIssuance(version.ruleJson);
+
+    if (usesEndOfTermIssuance) {
       const inserted = await enqueueJobQueueMessageOnce(input.db, {
         tenantId: input.tenantId,
         jobType: "process_end_of_term_badge_rule",
@@ -90,6 +92,8 @@ export const processBadgeRuleLifecycleForTenant = async (
       if (inserted) {
         endOfTermJobsEnqueued += 1;
       }
+
+      continue;
     }
 
     const expired = await expireBadgeIssuanceRuleVersion(input.db, {

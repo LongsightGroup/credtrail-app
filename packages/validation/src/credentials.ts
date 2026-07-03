@@ -45,6 +45,20 @@ export const assertionLifecycleTransitionRequestSchema = z.object({
   transitionedAt: isoTimestampSchema.optional(),
 });
 
+export const assertionIssuanceProvenanceSourceSchema = z.enum([
+  "lti_roster",
+  "rule_evaluate",
+  "manual",
+  "programmatic",
+]);
+
+export const assertionIssuanceProvenanceInputSchema = z.object({
+  source: assertionIssuanceProvenanceSourceSchema,
+  ruleId: resourceIdSchema.optional(),
+  versionId: resourceIdSchema.optional(),
+  provenanceJson: z.string().optional(),
+});
+
 export const issueBadgeRequestSchema = z.object({
   tenantId: tenantIdSchema,
   badgeTemplateId: resourceIdSchema,
@@ -55,6 +69,7 @@ export const issueBadgeRequestSchema = z.object({
   issuerImageUri: z.string().trim().url().max(2048).optional(),
   requestedByUserId: userIdSchema.optional(),
   idempotencyKey: idempotencyKeySchema.optional(),
+  issuanceProvenance: assertionIssuanceProvenanceInputSchema.optional(),
 });
 
 export const manualIssueBadgeRequestSchema = issueBadgeRequestSchema.omit({
@@ -99,6 +114,10 @@ export type PresentationVerifyRequest = z.infer<typeof presentationVerifyRequest
 
 export type AssertionLifecycleTransitionRequest = z.infer<
   typeof assertionLifecycleTransitionRequestSchema
+>;
+
+export type AssertionIssuanceProvenanceInput = z.infer<
+  typeof assertionIssuanceProvenanceInputSchema
 >;
 
 export type IssueBadgeRequest = z.infer<typeof issueBadgeRequestSchema>;

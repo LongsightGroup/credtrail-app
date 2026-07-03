@@ -9,10 +9,12 @@ import {
 import {
   parseBadgeIssuanceRulePathParams,
   parseEvaluateBadgeIssuanceRuleRequest,
+  buildIssuanceProvenanceSnapshotJson,
   type BadgeIssuanceRuleDefinition,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import type { AppEnv } from "../app";
+import { withIssuanceProvenance } from "../badges/issue-badge-provenance";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { isClientGradebookProviderResolutionError } from "../lms/gradebook-provider-resolution";
 import {
@@ -169,16 +171,36 @@ export const registerBadgeRuleEvaluationRoutes = (
     let issuance: DirectIssueBadgeResult | null = null;
 
     if (evaluation.matched && !dryRun) {
+      const provenanceJson = buildIssuanceProvenanceSnapshotJson({
+        outcome: "matched",
+        evaluation: {
+          matched: evaluation.matched,
+          tree: evaluation.tree,
+        },
+        evaluationSummary,
+        facts: { ...facts },
+        learnerId: request.learnerId,
+        nowIso,
+      });
+
       try {
         issuance = await issueBadgeForTenant(
           c,
           pathParams.tenantId,
-          {
-            badgeTemplateId: rule.badgeTemplateId,
-            recipientIdentity: request.recipientIdentity,
-            recipientIdentityType: request.recipientIdentityType,
-            idempotencyKey: `rule:${rule.id}:v${String(selectedVersion.versionNumber)}:${request.learnerId}`,
-          },
+          withIssuanceProvenance(
+            {
+              badgeTemplateId: rule.badgeTemplateId,
+              recipientIdentity: request.recipientIdentity,
+              recipientIdentityType: request.recipientIdentityType,
+              idempotencyKey: `rule:${rule.id}:v${String(selectedVersion.versionNumber)}:${request.learnerId}`,
+            },
+            {
+              source: "rule_evaluate",
+              ruleId: rule.id,
+              versionId: selectedVersion.id,
+              provenanceJson,
+            },
+          ),
           session.userId,
         );
       } catch (error) {

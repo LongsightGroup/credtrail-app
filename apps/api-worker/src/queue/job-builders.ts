@@ -5,12 +5,14 @@ import type {
   RevokeBadgeQueueJob,
   RevokeBadgeRequest,
 } from "@credtrail/validation";
+import { resolveQueueIssueBadgeProvenance } from "../badges/issue-badge-provenance";
 
 export const issueBadgeQueueJobFromRequest = (
   request: IssueBadgeRequest,
 ): { assertionId: string; job: IssueBadgeQueueJob } => {
   const assertionId = createTenantScopedId(request.tenantId);
   const idempotencyKey = request.idempotencyKey ?? crypto.randomUUID();
+  const issuanceProvenance = resolveQueueIssueBadgeProvenance(request);
 
   const job: IssueBadgeQueueJob = {
     jobType: "issue_badge",
@@ -41,6 +43,7 @@ export const issueBadgeQueueJobFromRequest = (
         : {
             requestedByUserId: request.requestedByUserId,
           }),
+      issuanceProvenance,
     },
     idempotencyKey,
   };

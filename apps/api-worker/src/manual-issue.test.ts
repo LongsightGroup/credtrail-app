@@ -7,6 +7,7 @@ const {
   mockedFindActiveSessionByHash,
   mockedTouchSession,
   mockedSendIssuanceEmailNotification,
+  mockedFinalizeAssertionIssuance,
 } = vi.hoisted(() => {
   return {
     mockedResolveBetterAuthPrincipal: vi.fn(),
@@ -14,6 +15,7 @@ const {
     mockedFindActiveSessionByHash: vi.fn(),
     mockedTouchSession: vi.fn(),
     mockedSendIssuanceEmailNotification: vi.fn(),
+    mockedFinalizeAssertionIssuance: vi.fn(),
   };
 });
 
@@ -23,7 +25,9 @@ vi.mock("@credtrail/db", async () => {
   return {
     ...actual,
     createAssertion: vi.fn(),
+    createAssertionIssuanceProvenance: vi.fn(),
     createAuditLog: vi.fn(),
+    finalizeAssertionIssuance: mockedFinalizeAssertionIssuance,
     findActiveDelegatedIssuingAuthorityGrantForAction: vi.fn(),
     findActiveSessionByHash: mockedFindActiveSessionByHash,
     findAssertionByIdempotencyKey: vi.fn(),
@@ -79,6 +83,7 @@ import {
 } from "@credtrail/core-domain";
 import {
   createAssertion,
+  createAssertionIssuanceProvenance,
   createAuditLog,
   findActiveDelegatedIssuingAuthorityGrantForAction,
   findAssertionByIdempotencyKey,
@@ -145,9 +150,13 @@ const mockedNextAssertionStatusListIndex = vi.mocked(nextAssertionStatusListInde
 const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
 const mockedListLearnerIdentitiesByProfile = vi.mocked(listLearnerIdentitiesByProfile);
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
+const mockedCreateAssertionIssuanceProvenance = vi.mocked(createAssertionIssuanceProvenance);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const fakeDb = {
   prepare: vi.fn(),
+  transaction: vi.fn(async (callback: (db: SqlDatabase) => Promise<unknown>) =>
+    callback(fakeDb as SqlDatabase),
+  ),
 } as unknown as SqlDatabase;
 let consoleLogSpy: ConsoleLogSpy | null = null;
 
@@ -224,6 +233,28 @@ beforeEach(() => {
   mockedResolveAssertionLifecycleState.mockResolvedValue(sampleLifecycle());
   mockedNextAssertionStatusListIndex.mockReset();
   mockedCreateAssertion.mockReset();
+  mockedCreateAssertion.mockResolvedValue(sampleAssertion());
+  mockedCreateAssertionIssuanceProvenance.mockReset();
+  mockedFinalizeAssertionIssuance.mockReset();
+  mockedFinalizeAssertionIssuance.mockImplementation(async (_db, input) => {
+    const assertion = await mockedCreateAssertion(_db, input.assertion);
+    await mockedCreateAuditLog(_db, input.buildAuditLog(assertion));
+    const provenance = await mockedCreateAssertionIssuanceProvenance(_db, {
+      ...input.provenance,
+      assertionId: assertion.id,
+      tenantId: assertion.tenantId,
+    });
+    return { assertion, provenance };
+  });
+  mockedCreateAssertionIssuanceProvenance.mockResolvedValue({
+    assertionId: "tenant_123:assertion_456",
+    tenantId: "tenant_123",
+    source: "manual",
+    ruleId: null,
+    versionId: null,
+    provenanceJson: null,
+    createdAt: "2026-02-10T22:00:00.000Z",
+  });
   mockedCreateAuditLog.mockReset();
   mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
   mockedSendIssuanceEmailNotification.mockReset();

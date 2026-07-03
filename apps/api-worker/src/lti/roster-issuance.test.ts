@@ -151,6 +151,20 @@ describe("executeLtiRosterIssuance eligibility guard", () => {
       assertionId: "assertion_123",
     });
     expect(issueBadgeForTenant).toHaveBeenCalledOnce();
+    expect(issueBadgeForTenant).toHaveBeenCalledWith(
+      appContext,
+      "tenant_123",
+      expect.objectContaining({
+        issuanceProvenance: expect.objectContaining({
+          source: "lti_roster",
+          ruleId: expect.any(String),
+          versionId: expect.any(String),
+          provenanceJson: expect.any(String),
+        }),
+      }),
+      "usr_instructor_123",
+      { recipientDisplayName: "Learner One" },
+    );
     expect(mockedFindLtiResourceLinkPlacement).toHaveBeenCalledOnce();
     expect(mockedFindBadgeIssuanceRuleById).toHaveBeenCalledOnce();
   });

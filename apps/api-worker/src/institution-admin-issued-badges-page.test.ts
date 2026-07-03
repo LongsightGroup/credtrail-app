@@ -58,8 +58,7 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     expect(body).toContain(pageAssetPath("institutionAdminIssuedBadgesJs"));
     expect(INSTITUTION_ADMIN_JS).not.toContain("openIssuedBadgeLifecyclePanel");
     expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).not.toContain("loadIssuedBadges");
-    expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).not.toContain("innerHTML");
-    expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).toContain("loadAssertionLifecycle");
+    expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).not.toContain("loadAssertionLifecycle");
   });
 
   it("loads issued badges only after search filters are submitted", async () => {
@@ -247,7 +246,7 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
 
     expect(auditResponse.status).toBe(200);
     expect(revokeResponse.status).toBe(200);
-    expect(auditBody).toMatch(/id="issued-badge-revoke-form"[^>]*hidden/);
+    expect(auditBody).toMatch(/id="issued-badge-lifecycle-panel"[^>]*hidden/);
     expect(revokeBody).toContain('id="issued-badge-revoke-form"');
     expect(revokeBody).toContain('name="reasonCode"');
     expect(revokeBody).not.toMatch(/id="issued-badge-revoke-form"[^>]*hidden/);

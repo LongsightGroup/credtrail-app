@@ -107,7 +107,7 @@ export const registerBadgeRuleReviewQueueRoutes = (
       );
     }
 
-    const issuance: DirectIssueBadgeResult | null =
+    const issuance: Pick<DirectIssueBadgeResult, "status" | "assertionId"> | null =
       result.issuance === null
         ? null
         : {
