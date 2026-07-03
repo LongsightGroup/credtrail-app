@@ -49,6 +49,31 @@ const INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_JS = readScriptAssetSource(
 const INSTITUTION_ADMIN_JS = readScriptAssetSource("institutionAdminJs");
 const INSTITUTION_ADMIN_RULE_BUILDER_JS = readScriptAssetSource("institutionAdminRuleBuilderJs");
 
+const versionLifecycleFields = {
+  effectiveStartsAt: null,
+  expiresAt: null,
+  expiredAt: null,
+  suspendedAt: null,
+  suspendedByUserId: null,
+  suspensionReason: null,
+  recertifiedAt: null,
+  recertificationDueAt: null,
+  expiryReminderSentAt: null,
+  recertificationReminderSentAt: null,
+} satisfies Pick<
+  BadgeIssuanceRuleVersionRecord,
+  | "effectiveStartsAt"
+  | "expiresAt"
+  | "expiredAt"
+  | "suspendedAt"
+  | "suspendedByUserId"
+  | "suspensionReason"
+  | "recertifiedAt"
+  | "recertificationDueAt"
+  | "expiryReminderSentAt"
+  | "recertificationReminderSentAt"
+>;
+
 const adminFlashCookieHeader = (response: Response): string => {
   const setCookieHeaders =
     typeof response.headers.getSetCookie === "function"
@@ -195,6 +220,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
       approvedAt: null,
       activatedByUserId: status === "active" ? "usr_admin" : null,
       activatedAt: status === "active" ? "2026-02-18T12:30:00.000Z" : null,
+      ...versionLifecycleFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     });
@@ -335,6 +361,7 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       approvedAt: "2026-02-18T12:10:00.000Z",
       activatedByUserId: "usr_admin",
       activatedAt: "2026-02-18T12:12:00.000Z",
+      ...versionLifecycleFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:12:00.000Z",
     };
@@ -430,6 +457,7 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
+      ...versionLifecycleFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:20:00.000Z",
     };
@@ -482,6 +510,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
+      ...versionLifecycleFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     };
@@ -559,6 +588,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
+      ...versionLifecycleFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     };
@@ -684,6 +714,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
+      ...versionLifecycleFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     };
@@ -783,6 +814,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
           approvedAt: "2026-02-18T12:20:00.000Z",
           activatedByUserId: "usr_admin",
           activatedAt: "2026-02-18T12:30:00.000Z",
+          ...versionLifecycleFields,
           createdAt: "2026-02-18T12:00:00.000Z",
           updatedAt: "2026-02-18T12:30:00.000Z",
         },
@@ -840,6 +872,7 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
       approvedAt: "2026-02-18T12:20:00.000Z",
       activatedByUserId: null,
       activatedAt: null,
+      ...versionLifecycleFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:20:00.000Z",
     };
@@ -2349,6 +2382,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
+      ...versionLifecycleFields,
       createdAt: "2026-02-18T12:10:00.000Z",
       updatedAt: "2026-02-18T12:10:00.000Z",
     };
@@ -2465,6 +2499,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
         approvedAt: "2026-02-18T12:20:00.000Z",
         activatedByUserId: "usr_admin",
         activatedAt: "2026-02-18T12:30:00.000Z",
+        ...versionLifecycleFields,
         createdAt: "2026-02-18T12:00:00.000Z",
         updatedAt: "2026-02-18T12:30:00.000Z",
       },

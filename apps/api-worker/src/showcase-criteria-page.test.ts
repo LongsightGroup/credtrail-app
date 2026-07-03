@@ -156,6 +156,16 @@ const sampleVersion = (
     createdAt: "2026-02-16T10:00:00.000Z",
     updatedAt: "2026-02-17T00:00:00.000Z",
     ...overrides,
+    effectiveStartsAt: overrides?.effectiveStartsAt ?? null,
+    expiresAt: overrides?.expiresAt ?? null,
+    expiredAt: overrides?.expiredAt ?? null,
+    suspendedAt: overrides?.suspendedAt ?? null,
+    suspendedByUserId: overrides?.suspendedByUserId ?? null,
+    suspensionReason: overrides?.suspensionReason ?? null,
+    recertifiedAt: overrides?.recertifiedAt ?? null,
+    recertificationDueAt: overrides?.recertificationDueAt ?? null,
+    expiryReminderSentAt: overrides?.expiryReminderSentAt ?? null,
+    recertificationReminderSentAt: overrides?.recertificationReminderSentAt ?? null,
   };
 };
 

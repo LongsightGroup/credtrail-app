@@ -615,15 +615,13 @@ export const activateBadgeIssuanceRuleVersion = async (
         .bind(input.versionId, activatedAt, input.tenantId, input.ruleId)
         .run();
 
-    let activated: SqlRunResult;
-
-    await deprecateExistingStatement();
-    activated = await activateStatement();
+    const activated = await activateStatement();
 
     if ((activated.meta.rowsWritten ?? 0) === 0) {
       return null;
     }
 
+    await deprecateExistingStatement();
     await updateRuleActiveVersionStatement();
 
     return findBadgeIssuanceRuleVersionById(transactionDb, {

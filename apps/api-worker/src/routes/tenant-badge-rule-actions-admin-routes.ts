@@ -3,7 +3,6 @@ import {
   createAuditLog,
   decideBadgeIssuanceRuleVersion,
   deleteDraftBadgeIssuanceRule,
-  findBadgeIssuanceRuleVersionById,
   parseOptionalDateTimeInputToIso,
   resumeBadgeIssuanceRuleVersion,
   submitBadgeIssuanceRuleVersionForApproval,
@@ -67,6 +66,26 @@ interface DecisionRedirectInput {
 }
 
 type DecisionRedirect = (input: DecisionRedirectInput) => Promise<Response>;
+
+interface BadgeRuleLifecycleAdminActionInput {
+  readonly c: AppContext;
+  readonly pathParams: BadgeRuleVersionPathParams;
+  readonly notAppliedMessage: string;
+  readonly successMessage: string;
+  readonly auditAction: string;
+  readonly run: (input: {
+    readonly session: SessionRecord;
+    readonly membershipRole: TenantMembershipRole;
+    readonly formData: FormData;
+  }) => Promise<BadgeIssuanceRuleVersionRecord | null | Response>;
+  readonly auditMetadata?: (
+    version: BadgeIssuanceRuleVersionRecord,
+    input: {
+      readonly membershipRole: TenantMembershipRole;
+      readonly formData: FormData;
+    },
+  ) => Record<string, unknown>;
+}
 
 const redirectToRules = async (
   c: AppContext,
@@ -247,6 +266,60 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
     });
   };
 
+  const runLifecycleAdminAction = async (
+    actionInput: BadgeRuleLifecycleAdminActionInput,
+  ): Promise<Response> => {
+    const { c, pathParams } = actionInput;
+    const nextPath = buildRulesAdminPath(pathParams.tenantId);
+    const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const formData = await c.req.formData();
+    const result = await actionInput.run({
+      session,
+      membershipRole,
+      formData,
+    });
+
+    if (result instanceof Response) {
+      return result;
+    }
+
+    if (result === null) {
+      return redirectToRules(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "error",
+        message: actionInput.notAppliedMessage,
+      });
+    }
+
+    await createAuditLog(resolveDatabase(c.env), {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action: actionInput.auditAction,
+      targetType: "badge_rule_version",
+      targetId: result.id,
+      metadata: {
+        role: membershipRole,
+        ruleId: pathParams.ruleId,
+        versionNumber: result.versionNumber,
+        ...actionInput.auditMetadata?.(result, { membershipRole, formData }),
+      },
+    });
+
+    return redirectToRules(c, {
+      tenantId: pathParams.tenantId,
+      userId: session.userId,
+      tone: "success",
+      message: actionInput.successMessage,
+    });
+  };
+
   app.post(
     "/tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit-approval",
     async (c) => {
@@ -353,79 +426,25 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
 
   app.post("/tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/activate", async (c) => {
     const pathParams = parseBadgeIssuanceRuleVersionPathParams(c.req.param());
-    const nextPath = buildRulesAdminPath(pathParams.tenantId);
-    const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const { session, membershipRole } = roleCheck;
-    const db = resolveDatabase(c.env);
-    const formData = await c.req.formData();
-    const lifecycleWindow = readLifecycleWindowFields(formData);
-    const currentVersion = await findBadgeIssuanceRuleVersionById(db, {
-      tenantId: pathParams.tenantId,
-      ruleId: pathParams.ruleId,
-      versionId: pathParams.versionId,
-    });
-
-    if (currentVersion === null) {
-      return redirectToRules(c, {
-        tenantId: pathParams.tenantId,
-        userId: session.userId,
-        tone: "error",
-        message: "That rule version was not found.",
-      });
-    }
-
-    if (currentVersion.status !== "approved") {
-      return redirectToRules(c, {
-        tenantId: pathParams.tenantId,
-        userId: session.userId,
-        tone: "error",
-        message: "Only approved versions can be activated.",
-      });
-    }
-
-    const activatedVersion = await activateBadgeIssuanceRuleVersion(db, {
-      tenantId: pathParams.tenantId,
-      ruleId: pathParams.ruleId,
-      versionId: pathParams.versionId,
-      actorUserId: session.userId,
-      ...lifecycleWindow,
-    });
-
-    if (activatedVersion === null) {
-      return redirectToRules(c, {
-        tenantId: pathParams.tenantId,
-        userId: session.userId,
-        tone: "error",
-        message: "That rule version could not be activated.",
-      });
-    }
-
-    await createAuditLog(db, {
-      tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
-      action: "badge_rule.version_activated",
-      targetType: "badge_rule_version",
-      targetId: activatedVersion.id,
-      metadata: {
-        role: membershipRole,
-        ruleId: pathParams.ruleId,
-        versionNumber: activatedVersion.versionNumber,
-        status: activatedVersion.status,
-        effectiveStartsAt: activatedVersion.effectiveStartsAt ?? null,
-        expiresAt: activatedVersion.expiresAt ?? null,
-      },
-    });
-
-    return redirectToRules(c, {
-      tenantId: pathParams.tenantId,
-      userId: session.userId,
-      tone: "success",
-      message: "Rule version activated.",
+    return runLifecycleAdminAction({
+      c,
+      pathParams,
+      notAppliedMessage: "Only approved versions can be activated.",
+      successMessage: "Rule version activated.",
+      auditAction: "badge_rule.version_activated",
+      run: ({ session, formData }) =>
+        activateBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
+          tenantId: pathParams.tenantId,
+          ruleId: pathParams.ruleId,
+          versionId: pathParams.versionId,
+          actorUserId: session.userId,
+          ...readLifecycleWindowFields(formData),
+        }),
+      auditMetadata: (version) => ({
+        status: version.status,
+        effectiveStartsAt: version.effectiveStartsAt,
+        expiresAt: version.expiresAt,
+      }),
     });
   });
 
@@ -433,165 +452,77 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
     "/tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/update-lifecycle",
     async (c) => {
       const pathParams = parseBadgeIssuanceRuleVersionPathParams(c.req.param());
-      const nextPath = buildRulesAdminPath(pathParams.tenantId);
-      const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
-
-      if (roleCheck instanceof Response) {
-        return roleCheck;
-      }
-
-      const { session, membershipRole } = roleCheck;
-      const db = resolveDatabase(c.env);
-      const formData = await c.req.formData();
-      const lifecycleWindow = readLifecycleWindowFields(formData);
-      const updatedVersion = await updateBadgeIssuanceRuleVersionLifecycleWindow(db, {
-        tenantId: pathParams.tenantId,
-        ruleId: pathParams.ruleId,
-        versionId: pathParams.versionId,
-        actorUserId: session.userId,
-        ...lifecycleWindow,
-      });
-
-      if (updatedVersion === null) {
-        return redirectToRules(c, {
-          tenantId: pathParams.tenantId,
-          userId: session.userId,
-          tone: "error",
-          message: "Only active rule versions can update lifecycle windows.",
-        });
-      }
-
-      await createAuditLog(db, {
-        tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
-        action: "badge_rule.lifecycle_window_updated",
-        targetType: "badge_rule_version",
-        targetId: updatedVersion.id,
-        metadata: {
-          role: membershipRole,
-          ruleId: pathParams.ruleId,
-          versionNumber: updatedVersion.versionNumber,
-          effectiveStartsAt: updatedVersion.effectiveStartsAt ?? null,
-          expiresAt: updatedVersion.expiresAt ?? null,
-        },
-      });
-
-      return redirectToRules(c, {
-        tenantId: pathParams.tenantId,
-        userId: session.userId,
-        tone: "success",
-        message: "Rule lifecycle window updated.",
+      return runLifecycleAdminAction({
+        c,
+        pathParams,
+        notAppliedMessage: "Only active rule versions can update lifecycle windows.",
+        successMessage: "Rule lifecycle window updated.",
+        auditAction: "badge_rule.lifecycle_window_updated",
+        run: ({ session, formData }) =>
+          updateBadgeIssuanceRuleVersionLifecycleWindow(resolveDatabase(c.env), {
+            tenantId: pathParams.tenantId,
+            ruleId: pathParams.ruleId,
+            versionId: pathParams.versionId,
+            actorUserId: session.userId,
+            ...readLifecycleWindowFields(formData),
+          }),
+        auditMetadata: (version) => ({
+          effectiveStartsAt: version.effectiveStartsAt,
+          expiresAt: version.expiresAt,
+        }),
       });
     },
   );
 
   app.post("/tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/suspend", async (c) => {
     const pathParams = parseBadgeIssuanceRuleVersionPathParams(c.req.param());
-    const nextPath = buildRulesAdminPath(pathParams.tenantId);
-    const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
+    return runLifecycleAdminAction({
+      c,
+      pathParams,
+      notAppliedMessage: "Only active rule versions can be suspended.",
+      successMessage: "Rule issuance suspended.",
+      auditAction: "badge_rule.version_suspended",
+      run: ({ session, formData }) => {
+        const reason = readOptionalFormField(formData, "reason");
 
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
+        if (reason === undefined) {
+          return redirectToRules(c, {
+            tenantId: pathParams.tenantId,
+            userId: session.userId,
+            tone: "error",
+            message: "Enter a suspension reason before halting issuance.",
+          });
+        }
 
-    const { session, membershipRole } = roleCheck;
-    const formData = await c.req.formData();
-    const reason = readOptionalFormField(formData, "reason");
-
-    if (reason === undefined) {
-      return redirectToRules(c, {
-        tenantId: pathParams.tenantId,
-        userId: session.userId,
-        tone: "error",
-        message: "Enter a suspension reason before halting issuance.",
-      });
-    }
-
-    const db = resolveDatabase(c.env);
-    const suspendedVersion = await suspendBadgeIssuanceRuleVersion(db, {
-      tenantId: pathParams.tenantId,
-      ruleId: pathParams.ruleId,
-      versionId: pathParams.versionId,
-      actorUserId: session.userId,
-      reason,
-    });
-
-    if (suspendedVersion === null) {
-      return redirectToRules(c, {
-        tenantId: pathParams.tenantId,
-        userId: session.userId,
-        tone: "error",
-        message: "Only active rule versions can be suspended.",
-      });
-    }
-
-    await createAuditLog(db, {
-      tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
-      action: "badge_rule.version_suspended",
-      targetType: "badge_rule_version",
-      targetId: suspendedVersion.id,
-      metadata: {
-        role: membershipRole,
-        ruleId: pathParams.ruleId,
-        versionNumber: suspendedVersion.versionNumber,
-        reason,
+        return suspendBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
+          tenantId: pathParams.tenantId,
+          ruleId: pathParams.ruleId,
+          versionId: pathParams.versionId,
+          actorUserId: session.userId,
+          reason,
+        });
       },
-    });
-
-    return redirectToRules(c, {
-      tenantId: pathParams.tenantId,
-      userId: session.userId,
-      tone: "success",
-      message: "Rule issuance suspended.",
+      auditMetadata: (_version, { formData }) => ({
+        reason: readOptionalFormField(formData, "reason") ?? "",
+      }),
     });
   });
 
   app.post("/tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/resume", async (c) => {
     const pathParams = parseBadgeIssuanceRuleVersionPathParams(c.req.param());
-    const nextPath = buildRulesAdminPath(pathParams.tenantId);
-    const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const { session, membershipRole } = roleCheck;
-    const db = resolveDatabase(c.env);
-    const resumedVersion = await resumeBadgeIssuanceRuleVersion(db, {
-      tenantId: pathParams.tenantId,
-      ruleId: pathParams.ruleId,
-      versionId: pathParams.versionId,
-      actorUserId: session.userId,
-    });
-
-    if (resumedVersion === null) {
-      return redirectToRules(c, {
-        tenantId: pathParams.tenantId,
-        userId: session.userId,
-        tone: "error",
-        message: "Only suspended rule versions can be resumed.",
-      });
-    }
-
-    await createAuditLog(db, {
-      tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
-      action: "badge_rule.version_resumed",
-      targetType: "badge_rule_version",
-      targetId: resumedVersion.id,
-      metadata: {
-        role: membershipRole,
-        ruleId: pathParams.ruleId,
-        versionNumber: resumedVersion.versionNumber,
-      },
-    });
-
-    return redirectToRules(c, {
-      tenantId: pathParams.tenantId,
-      userId: session.userId,
-      tone: "success",
-      message: "Rule issuance resumed.",
+    return runLifecycleAdminAction({
+      c,
+      pathParams,
+      notAppliedMessage: "Only suspended rule versions can be resumed.",
+      successMessage: "Rule issuance resumed.",
+      auditAction: "badge_rule.version_resumed",
+      run: ({ session }) =>
+        resumeBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
+          tenantId: pathParams.tenantId,
+          ruleId: pathParams.ruleId,
+          versionId: pathParams.versionId,
+          actorUserId: session.userId,
+        }),
     });
   });
 

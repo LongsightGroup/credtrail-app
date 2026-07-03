@@ -68,6 +68,16 @@ export const sampleLtiRosterBadgeRuleVersion = (
   createdAt: "2026-02-10T22:00:00.000Z",
   updatedAt: "2026-02-10T22:00:00.000Z",
   ...overrides,
+  effectiveStartsAt: overrides?.effectiveStartsAt ?? null,
+  expiresAt: overrides?.expiresAt ?? null,
+  expiredAt: overrides?.expiredAt ?? null,
+  suspendedAt: overrides?.suspendedAt ?? null,
+  suspendedByUserId: overrides?.suspendedByUserId ?? null,
+  suspensionReason: overrides?.suspensionReason ?? null,
+  recertifiedAt: overrides?.recertifiedAt ?? null,
+  recertificationDueAt: overrides?.recertificationDueAt ?? null,
+  expiryReminderSentAt: overrides?.expiryReminderSentAt ?? null,
+  recertificationReminderSentAt: overrides?.recertificationReminderSentAt ?? null,
 });
 
 export const sampleLtiRosterResourceLinkPlacement = (

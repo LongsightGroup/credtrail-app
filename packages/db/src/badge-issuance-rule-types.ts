@@ -112,16 +112,16 @@ export interface BadgeIssuanceRuleVersionRecord {
   approvedAt: string | null;
   activatedByUserId: string | null;
   activatedAt: string | null;
-  effectiveStartsAt?: string | null | undefined;
-  expiresAt?: string | null | undefined;
-  expiredAt?: string | null | undefined;
-  suspendedAt?: string | null | undefined;
-  suspendedByUserId?: string | null | undefined;
-  suspensionReason?: string | null | undefined;
-  recertifiedAt?: string | null | undefined;
-  recertificationDueAt?: string | null | undefined;
-  expiryReminderSentAt?: string | null | undefined;
-  recertificationReminderSentAt?: string | null | undefined;
+  effectiveStartsAt: string | null;
+  expiresAt: string | null;
+  expiredAt: string | null;
+  suspendedAt: string | null;
+  suspendedByUserId: string | null;
+  suspensionReason: string | null;
+  recertifiedAt: string | null;
+  recertificationDueAt: string | null;
+  expiryReminderSentAt: string | null;
+  recertificationReminderSentAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

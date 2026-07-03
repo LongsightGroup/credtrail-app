@@ -86,6 +86,17 @@ describe("badge rule review queue schema", () => {
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS badge_issuance_rule_builder_drafts");
     expect(sql).not.toContain("'changes_requested', 'deprecated'");
   });
+
+  it("adds assertion issuance provenance and evaluation assertion index through a forward migration", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0055_assertion_issuance_provenance.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS assertion_issuance_provenance");
+    expect(sql).toContain("source IN ('lti_roster', 'rule_evaluate', 'manual', 'programmatic')");
+    expect(sql).toContain("idx_badge_issuance_rule_evaluations_assertion");
+  });
 });
 
 describe("badge issuance rule draft predicates", () => {
@@ -130,6 +141,16 @@ describe("badge issuance rule draft predicates", () => {
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
       ...overrides,
+      effectiveStartsAt: overrides?.effectiveStartsAt ?? null,
+      expiresAt: overrides?.expiresAt ?? null,
+      expiredAt: overrides?.expiredAt ?? null,
+      suspendedAt: overrides?.suspendedAt ?? null,
+      suspendedByUserId: overrides?.suspendedByUserId ?? null,
+      suspensionReason: overrides?.suspensionReason ?? null,
+      recertifiedAt: overrides?.recertifiedAt ?? null,
+      recertificationDueAt: overrides?.recertificationDueAt ?? null,
+      expiryReminderSentAt: overrides?.expiryReminderSentAt ?? null,
+      recertificationReminderSentAt: overrides?.recertificationReminderSentAt ?? null,
     };
   };
 
