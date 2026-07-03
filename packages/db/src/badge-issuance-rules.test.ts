@@ -10,6 +10,12 @@ import {
   selectCount,
   type BadgeRuleIntegrationFixture,
 } from "./postgres-test-support";
+import type {
+  SqlDatabase,
+  SqlPreparedStatement,
+  SqlQueryResult,
+  SqlRunResult,
+} from "./tenant-scope";
 
 const createFixtureRule = async (
   fixture: BadgeRuleIntegrationFixture,
@@ -148,6 +154,158 @@ describe("badge issuance rule draft predicates", () => {
         }),
       ]),
     ).toBe(false);
+  });
+});
+
+describe("badge issuance rule approval transactions", () => {
+  const successfulRunResult: SqlRunResult = {
+    success: true,
+    meta: {
+      rowsWritten: 1,
+    },
+  };
+
+  const createRecordedStatement = (
+    sql: string,
+    writes: string[],
+    isTransaction: boolean,
+  ): SqlPreparedStatement => {
+    const normalizedSql = sql.replace(/\s+/g, " ").trim();
+
+    return {
+      bind() {
+        return this;
+      },
+      async first<T>() {
+        if (normalizedSql.includes("FROM badge_issuance_rule_versions")) {
+          return {
+            id: "brv_123",
+            tenantId: "tenant_123",
+            ruleId: "brl_123",
+            versionNumber: 1,
+            status: "draft",
+            ruleJson: "{}",
+            changeSummary: null,
+            createdByUserId: "usr_admin",
+            approvedByUserId: null,
+            approvedAt: null,
+            activatedByUserId: null,
+            activatedAt: null,
+            createdAt: "2026-02-18T12:00:00.000Z",
+            updatedAt: "2026-02-18T12:00:00.000Z",
+          } as T;
+        }
+
+        if (normalizedSql.includes("FROM badge_issuance_rules")) {
+          return {
+            id: "brl_123",
+            tenantId: "tenant_123",
+            name: "CS101 Rule",
+            description: null,
+            badgeTemplateId: "badge_template_123",
+            ownerOrgUnitId: "tenant_123:org:institution",
+            lmsProviderKind: "canvas",
+            lmsConnectionId: "lms_123",
+            activeVersionId: null,
+            createdByUserId: "usr_admin",
+            createdAt: "2026-02-18T12:00:00.000Z",
+            updatedAt: "2026-02-18T12:00:00.000Z",
+          } as T;
+        }
+
+        if (normalizedSql.includes("FROM badge_rule_approval_policies")) {
+          return {
+            id: "brap_123",
+            tenantId: "tenant_123",
+            orgUnitId: "tenant_123:org:institution",
+            approvalRequirement: "always",
+            approvalStepsJson: JSON.stringify([
+              {
+                requiredRole: "admin",
+                label: "Registrar review",
+              },
+            ]),
+            createdByUserId: "usr_admin",
+            createdAt: "2026-02-18T12:00:00.000Z",
+            updatedAt: "2026-02-18T12:00:00.000Z",
+          } as T;
+        }
+
+        return null;
+      },
+      async all<T>() {
+        const results = normalizedSql.includes("FROM badge_issuance_rule_approval_steps")
+          ? [
+              {
+                id: "bras_123",
+                tenantId: "tenant_123",
+                versionId: "brv_123",
+                stepNumber: 1,
+                requiredRole: "admin",
+                label: "Registrar review",
+                status: "queued",
+                decidedByUserId: null,
+                decidedAt: null,
+                decisionComment: null,
+                createdAt: "2026-02-18T12:00:00.000Z",
+                updatedAt: "2026-02-18T12:00:00.000Z",
+              },
+            ]
+          : [];
+
+        return {
+          ...successfulRunResult,
+          results: results as T[],
+        } satisfies SqlQueryResult<T>;
+      },
+      async run() {
+        if (normalizedSql.includes("badge_issuance_rule_approval_steps")) {
+          writes.push(`${isTransaction ? "transaction" : "outer"}:${normalizedSql}`);
+        }
+
+        return successfulRunResult;
+      },
+    };
+  };
+
+  it("materializes submit approval writes inside one SQL transaction", async () => {
+    const writes: string[] = [];
+    let transactionCallCount = 0;
+    const transaction = async <T>(callback: (db: SqlDatabase) => Promise<T>): Promise<T> => {
+      transactionCallCount += 1;
+      const transactionDb: SqlDatabase = {
+        prepare(sql) {
+          return createRecordedStatement(sql, writes, true);
+        },
+      };
+
+      return callback(transactionDb);
+    };
+    const db: SqlDatabase = {
+      prepare(sql) {
+        return createRecordedStatement(sql, writes, false);
+      },
+      transaction,
+    };
+
+    await dbModule.submitBadgeIssuanceRuleVersionForApproval(db, {
+      tenantId: "tenant_123",
+      ruleId: "brl_123",
+      versionId: "brv_123",
+      actorUserId: "usr_admin",
+      actorRole: "admin",
+      occurredAt: "2026-02-18T12:30:00.000Z",
+    });
+
+    expect(transactionCallCount).toBe(1);
+    expect(writes.some((entry) => entry.startsWith("outer:"))).toBe(false);
+    expect(
+      writes.some(
+        (entry) =>
+          entry.startsWith("transaction:") &&
+          entry.includes("DELETE FROM badge_issuance_rule_approval_steps"),
+      ),
+    ).toBe(true);
   });
 });
 
