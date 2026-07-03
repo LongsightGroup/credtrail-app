@@ -51,9 +51,15 @@ export type TenantGovernanceInstitutionAdminWorkspaces = ReturnType<
 export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
   resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: TenantGovernanceAdminAuth["resolveInstitutionAdminAdminRole"];
+  resolveInstitutionAdminEvidenceRole: TenantGovernanceAdminAuth["resolveInstitutionAdminEvidenceRole"];
   loadInstitutionAdminPageData: TenantGovernanceAdminPageDataLoaders["loadInstitutionAdminPageData"];
 }) => {
-  const { resolveDatabase, resolveInstitutionAdminAdminRole, loadInstitutionAdminPageData } = input;
+  const {
+    resolveDatabase,
+    resolveInstitutionAdminAdminRole,
+    resolveInstitutionAdminEvidenceRole,
+    loadInstitutionAdminPageData,
+  } = input;
 
   const renderInstitutionAdminWorkspace = async (
     c: AppContext,
@@ -93,7 +99,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       c,
       tenantId,
       nextPath,
-      resolveInstitutionAdminAdminRole,
+      resolveInstitutionAdminAdminRole: resolveInstitutionAdminEvidenceRole,
       loadInstitutionAdminPageData,
     });
 

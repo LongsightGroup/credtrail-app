@@ -292,7 +292,72 @@ describe("GET /v1/tenants/:tenantId/assertions/:assertionId/evidence", () => {
     });
   });
 
-  it("denies access when the user is not a tenant issuer", async () => {
+  it("returns structured evidence JSON for approver-role members", async () => {
+    const env = createEnv();
+
+    mockedFindTenantMembership.mockResolvedValue({
+      tenantId: "tenant_123",
+      userId: "usr_approver",
+      role: "approver",
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    });
+    mockedFindAssertionById.mockResolvedValue({
+      id: "tenant_123:assertion_456",
+      tenantId: "tenant_123",
+      publicId: "cred-abc123",
+      learnerProfileId: null,
+      badgeTemplateId: "tenant_123:badge_template_001",
+      recipientIdentity: "learner@example.edu",
+      recipientIdentityType: "email",
+      vcR2Key: "tenants/tenant_123/assertions/tenant_123:assertion_456.jsonld",
+      statusListIndex: null,
+      idempotencyKey: "manual:tenant_123:assertion_456",
+      issuedAt: "2026-03-24T15:00:00.000Z",
+      issuedByUserId: "usr_admin",
+      revokedAt: null,
+      createdAt: "2026-03-24T15:00:00.000Z",
+      updatedAt: "2026-03-24T15:00:00.000Z",
+    });
+    mockedFindBadgeTemplateById.mockResolvedValue({
+      id: "tenant_123:badge_template_001",
+      tenantId: "tenant_123",
+      slug: "applied-analytics",
+      title: "Applied Analytics",
+      description: "Awarded for analytics coursework.",
+      criteriaUri: "https://example.edu/criteria",
+      imageUri: "https://example.edu/badges/analytics.png",
+      createdByUserId: "usr_admin",
+      ownerOrgUnitId: "tenant_123:org:institution",
+      governanceMetadataJson: null,
+      isArchived: false,
+      createdAt: "2026-03-24T15:00:00.000Z",
+      updatedAt: "2026-03-24T15:00:00.000Z",
+    });
+    mockedResolveAssertionLifecycleState.mockResolvedValue({
+      state: "active",
+      source: "default_active",
+      reasonCode: null,
+      reason: null,
+      transitionedAt: null,
+      revokedAt: null,
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/assertions/tenant_123:assertion_456/evidence",
+      {
+        method: "GET",
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    expect(response.status).toBe(200);
+  });
+
+  it("denies access when the user is not an issuer or approver", async () => {
     const env = createEnv();
 
     mockedFindTenantMembership.mockResolvedValue({

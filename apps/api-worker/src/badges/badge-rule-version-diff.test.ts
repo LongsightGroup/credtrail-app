@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildBadgeRuleVersionDefinitionDiff,
   describeRuleDefinitionDiff,
+  describeRuleDefinitionDiffDetails,
 } from "./badge-rule-version-diff";
 
 const gradeRuleJson = (minScore: number): string =>
@@ -45,16 +46,16 @@ describe("badge rule version diff descriptions", () => {
   it("does not format generic numeric changes as percentages", () => {
     const baseRuleJson = JSON.stringify({
       conditions: {
-        type: "program_completion",
-        courseIds: ["CS101", "CS102", "CS103"],
-        minimumCompleted: 2,
+        type: "custom_field",
+        fieldName: "portfolio_reviews",
+        expectedValue: 1,
       },
     });
     const selectedRuleJson = JSON.stringify({
       conditions: {
-        type: "program_completion",
-        courseIds: ["CS101", "CS102", "CS103"],
-        minimumCompleted: 3,
+        type: "custom_field",
+        fieldName: "portfolio_reviews",
+        expectedValue: 2,
       },
     });
     const diff = buildBadgeRuleVersionDefinitionDiff({
@@ -62,6 +63,117 @@ describe("badge rule version diff descriptions", () => {
       selectedRuleJson,
     });
 
-    expect(describeRuleDefinitionDiff(diff)).toContain("minimum completed changed from 2 to 3.");
+    expect(describeRuleDefinitionDiff(diff)).toContain("expected value changed from 1 to 2.");
+  });
+
+  it("flags broader reviewer-impacting loosenings", () => {
+    const baseRuleJson = JSON.stringify({
+      conditions: {
+        all: [
+          {
+            type: "grade_threshold",
+            courseId: "CS101",
+            maxScore: 80,
+          },
+          {
+            type: "course_completion",
+            courseId: "CS101",
+            minCompletionPercent: 90,
+          },
+          {
+            type: "program_completion",
+            courseIds: ["CS101", "CS102", "CS103"],
+            minimumCompleted: 3,
+          },
+        ],
+      },
+    });
+    const selectedRuleJson = JSON.stringify({
+      conditions: {
+        all: [
+          {
+            type: "grade_threshold",
+            courseId: "CS101",
+            maxScore: 95,
+          },
+          {
+            type: "course_completion",
+            courseId: "CS101",
+            minCompletionPercent: 70,
+          },
+          {
+            type: "program_completion",
+            courseIds: ["CS101", "CS102"],
+            minimumCompleted: 2,
+          },
+        ],
+      },
+    });
+    const diff = buildBadgeRuleVersionDefinitionDiff({
+      baseRuleJson,
+      selectedRuleJson,
+    });
+
+    expect(describeRuleDefinitionDiffDetails(diff)).toEqual(
+      expect.arrayContaining([
+        {
+          text: "Maximum grade cap raised from 80% to 95%.",
+          reviewImpact: "loosening",
+        },
+        {
+          text: "Completion requirement lowered from 90% to 70%.",
+          reviewImpact: "loosening",
+        },
+        {
+          text: "Listed course removed from program requirement: CS103.",
+          reviewImpact: "loosening",
+        },
+        {
+          text: "Required completed courses lowered from 3 to 2.",
+          reviewImpact: "loosening",
+        },
+      ]),
+    );
+  });
+
+  it("summarizes removed structured conditions without dumping JSON", () => {
+    const baseRuleJson = JSON.stringify({
+      conditions: {
+        all: [
+          {
+            type: "grade_threshold",
+            courseId: "CS101",
+            minScore: 80,
+          },
+          {
+            type: "assignment_submission",
+            courseId: "CS101",
+            assignmentId: "final-project",
+            minScore: 90,
+          },
+        ],
+      },
+    });
+    const selectedRuleJson = JSON.stringify({
+      conditions: {
+        all: [
+          {
+            type: "grade_threshold",
+            courseId: "CS101",
+            minScore: 80,
+          },
+        ],
+      },
+    });
+    const diff = buildBadgeRuleVersionDefinitionDiff({
+      baseRuleJson,
+      selectedRuleJson,
+    });
+
+    expect(describeRuleDefinitionDiffDetails(diff)).toContainEqual({
+      text: "Requirement removed: assignment submission for final-project.",
+      reviewImpact: "loosening",
+    });
+    expect(describeRuleDefinitionDiff(diff).join("\n")).not.toContain('"assignmentId"');
   });
 });

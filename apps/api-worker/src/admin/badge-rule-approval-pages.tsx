@@ -34,7 +34,7 @@ import { CtTextarea } from "../ui/forms";
 import { createRuleDefinitionSummaryMarkup } from "../badges/public-badge-rule-summary";
 import type { BadgeRuleImpactPreview } from "../lti/badge-rule-impact-preview";
 import type { BadgeRuleVersionDefinitionDiff } from "../badges/badge-rule-version-diff";
-import { describeRuleDefinitionDiff } from "../badges/badge-rule-version-diff";
+import { describeRuleDefinitionDiffDetails } from "../badges/badge-rule-version-diff";
 import { formatIsoTimestamp } from "../utils/display-format";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -260,8 +260,17 @@ const renderDiffPanel = (
       <h2>What Changed</h2>
       <AdminMeta>Compared with version {String(baseVersion.versionNumber)}</AdminMeta>
       <ul>
-        {describeRuleDefinitionDiff(diff).map((description) => (
-          <li>{description}</li>
+        {describeRuleDefinitionDiffDetails(diff).map((description) => (
+          <li
+            class={
+              description.reviewImpact === "loosening"
+                ? "ct-admin__review-impact ct-admin__review-impact--loosening"
+                : undefined
+            }
+          >
+            {description.reviewImpact === "loosening" ? <strong>Loosening: </strong> : null}
+            {description.text}
+          </li>
         ))}
       </ul>
     </AdminPanel>
@@ -370,7 +379,15 @@ export const badgeRuleApprovalReviewPage = (
     readonly listError: string | null;
   },
 ): AppPage => {
-  const ruleSummaryMarkup = createRuleDefinitionSummaryMarkup(formatIsoTimestamp);
+  const courseNamesById =
+    input.impactPreview.status === "ready" &&
+    input.impactPreview.courseContextId !== null &&
+    input.impactPreview.courseTitle !== null
+      ? new Map([[input.impactPreview.courseContextId, input.impactPreview.courseTitle]])
+      : undefined;
+  const ruleSummaryMarkup = createRuleDefinitionSummaryMarkup(formatIsoTimestamp, {
+    courseNamesById,
+  });
 
   return renderApprovalsShellPage(shell, {
     title: `Review ${input.rule.name} · Institution Admin · ${shell.tenant.displayName}`,

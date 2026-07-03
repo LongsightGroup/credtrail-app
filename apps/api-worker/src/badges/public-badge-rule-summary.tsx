@@ -4,9 +4,52 @@ import {
 } from "@credtrail/validation";
 import type { HonoElement } from "./public-badge-ui";
 
+export interface RuleDefinitionSummaryDisplayContext {
+  readonly courseNamesById?: ReadonlyMap<string, string> | undefined;
+  readonly badgeTemplateNamesById?: ReadonlyMap<string, string> | undefined;
+}
+
 export const createRuleDefinitionSummaryMarkup = (
   formatIsoTimestamp: (timestampIso: string) => string,
+  displayContext: RuleDefinitionSummaryDisplayContext = {},
 ): ((ruleJson: string | null) => HonoElement) => {
+  const labelWithRawId = (label: string, rawId: string): HonoElement => (
+    <>
+      {label} <span class="criteria-registry__muted">ID: {rawId}</span>
+    </>
+  );
+
+  const courseLabel = (courseId: string): HonoElement => {
+    const courseName = displayContext.courseNamesById?.get(courseId);
+
+    return courseName === undefined ? <>course {courseId}</> : labelWithRawId(courseName, courseId);
+  };
+
+  const courseReferenceLabel = (condition: {
+    readonly courseId?: string | undefined;
+    readonly courseListId?: string | undefined;
+  }): HonoElement => {
+    if (condition.courseId !== undefined) {
+      return courseLabel(condition.courseId);
+    }
+
+    if (condition.courseListId !== undefined) {
+      return labelWithRawId("course list", condition.courseListId);
+    }
+
+    return <>the selected course</>;
+  };
+
+  const badgeTemplateLabel = (badgeTemplateId: string): HonoElement => {
+    const templateName = displayContext.badgeTemplateNamesById?.get(badgeTemplateId);
+
+    return templateName === undefined ? (
+      <>badge template {badgeTemplateId}</>
+    ) : (
+      labelWithRawId(templateName, badgeTemplateId)
+    );
+  };
+
   const ruleConditionMarkup = (condition: BadgeIssuanceRuleCondition): HonoElement => {
     if ("all" in condition) {
       return (
@@ -44,27 +87,18 @@ export const createRuleDefinitionSummaryMarkup = (
             : condition.minScore !== undefined
               ? `at least ${String(condition.minScore)}`
               : `at most ${String(condition.maxScore)}`;
-        const courseLabel =
-          condition.courseId ??
-          (condition.courseListId === undefined
-            ? "the selected course"
-            : `course list ${condition.courseListId}`);
         return (
           <li>
-            For course {courseLabel}, {scoreField} must be {range}.
+            For {courseReferenceLabel(condition)}, {scoreField.replaceAll("_", " ")} must be {range}
+            .
           </li>
         );
       }
       case "course_completion": {
-        const courseLabel =
-          condition.courseId ??
-          (condition.courseListId === undefined
-            ? "the selected course"
-            : `course list ${condition.courseListId}`);
         return (
           <li>
-            For course {courseLabel}, at least {String(condition.minCompletionPercent)}% of
-            gradebook items must be completed.
+            For {courseReferenceLabel(condition)}, at least {String(condition.minCompletionPercent)}
+            % of gradebook items must be completed.
           </li>
         );
       }
@@ -101,7 +135,8 @@ export const createRuleDefinitionSummaryMarkup = (
             : `, with workflow state in ${condition.workflowStates.join(", ")}`;
         return (
           <li>
-            For assignment {condition.assignmentId} in {condition.courseId}, {submissionClause}
+            For assignment {labelWithRawId("selected assignment", condition.assignmentId)} in{" "}
+            {courseLabel(condition.courseId)}, {submissionClause}
             {scoreClause}
             {workflowClause}.
           </li>
@@ -144,8 +179,9 @@ export const createRuleDefinitionSummaryMarkup = (
         return (
           <li>
             Requires earning this badge first:{" "}
-            {condition.badgeTemplateId ??
-              `badge template list ${condition.badgeTemplateListId ?? "selected"}`}
+            {condition.badgeTemplateId === undefined
+              ? `badge template list ${condition.badgeTemplateListId ?? "selected"}`
+              : badgeTemplateLabel(condition.badgeTemplateId)}
             .
           </li>
         );

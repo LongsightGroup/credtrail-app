@@ -273,7 +273,7 @@ describe("GET /showcase/:tenantId/criteria", () => {
     expect(body).toContain("Published criteria");
     expect(body).toContain("Current badge owner");
     expect(body).toContain("Sakai Contributor Eligibility");
-    expect(body).toContain("For course SAKAI-COMMITS, final_score must be at least 80.");
+    expect(body).toContain("For course SAKAI-COMMITS, final score must be at least 80.");
     expect(body).toContain("How someone qualifies");
     expect(body).toContain("Required role: admin");
     expect(body).toContain("approved by usr_admin (admin)");

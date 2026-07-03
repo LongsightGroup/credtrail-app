@@ -89,6 +89,40 @@ const actorCanDecideReviewVersion = async (
   });
 };
 
+const actorCanViewReviewVersion = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    actorUserId: string;
+    actorRole: TenantMembershipRole;
+    version: BadgeIssuanceRuleVersionRecord;
+    approvalSteps: readonly BadgeIssuanceRuleApprovalStepRecord[];
+  },
+): Promise<boolean> => {
+  if (input.actorRole === "owner" || input.actorRole === "admin") {
+    return true;
+  }
+
+  if (input.version.status !== "pending_approval") {
+    return false;
+  }
+
+  for (const step of input.approvalSteps) {
+    if (
+      await actorCanDecideApprovalStep(db, {
+        tenantId: input.tenantId,
+        actorUserId: input.actorUserId,
+        actorRole: input.actorRole,
+        step,
+      })
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
   input: RegisterTenantBadgeRuleApprovalWorkspaceAdminRoutesInput,
 ): void => {
@@ -127,6 +161,18 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
 
     if (rule === null || version === null) {
       return c.json({ error: "Badge rule version not found" }, 404);
+    }
+
+    const canView = await actorCanViewReviewVersion(db, {
+      tenantId: version.tenantId,
+      actorUserId: session.userId,
+      actorRole: membershipRole,
+      version,
+      approvalSteps,
+    });
+
+    if (!canView) {
+      return c.json({ error: "Approval step not assigned to this reviewer" }, 403);
     }
 
     const baseVersion =
@@ -240,8 +286,30 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
     }
 
     const { session, membershipRole } = roleCheck;
+    const db = resolveDatabase(c.env);
+    const [version, approvalSteps] = await Promise.all([
+      findBadgeIssuanceRuleVersionById(db, pathParams),
+      listBadgeIssuanceRuleVersionApprovalSteps(db, pathParams),
+    ]);
+
+    if (version === null) {
+      return c.json({ error: "Badge rule version not found" }, 404);
+    }
+
+    const canView = await actorCanViewReviewVersion(db, {
+      tenantId: version.tenantId,
+      actorUserId: session.userId,
+      actorRole: membershipRole,
+      version,
+      approvalSteps,
+    });
+
+    if (!canView) {
+      return c.json({ error: "Approval step not assigned to this reviewer" }, 403);
+    }
+
     const impactPreview = await previewBadgeRuleVersionImpact({
-      db: resolveDatabase(c.env),
+      db,
       env: c.env,
       tenantId: pathParams.tenantId,
       ruleId: pathParams.ruleId,
@@ -279,6 +347,27 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
 
       const { session, membershipRole } = roleCheck;
       const db = resolveDatabase(c.env);
+      const [version, approvalSteps] = await Promise.all([
+        findBadgeIssuanceRuleVersionById(db, pathParams),
+        listBadgeIssuanceRuleVersionApprovalSteps(db, pathParams),
+      ]);
+
+      if (version === null) {
+        return c.json({ error: "Badge rule version not found" }, 404);
+      }
+
+      const canView = await actorCanViewReviewVersion(db, {
+        tenantId: version.tenantId,
+        actorUserId: session.userId,
+        actorRole: membershipRole,
+        version,
+        approvalSteps,
+      });
+
+      if (!canView) {
+        return c.json({ error: "Approval step not assigned to this reviewer" }, 403);
+      }
+
       const impactPreview = await previewBadgeRuleVersionImpact({
         db,
         env: c.env,

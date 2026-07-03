@@ -55,6 +55,7 @@ export const registerTenantGovernanceRoutes = (
   const institutionWorkspaces = createTenantGovernanceInstitutionAdminWorkspaces({
     resolveDatabase: input.resolveDatabase,
     resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
+    resolveInstitutionAdminEvidenceRole: auth.resolveInstitutionAdminEvidenceRole,
     loadInstitutionAdminPageData: pageData.loadInstitutionAdminPageData,
   });
   const learnerRecordImport = createTenantGovernanceLearnerRecordImportAdmin({

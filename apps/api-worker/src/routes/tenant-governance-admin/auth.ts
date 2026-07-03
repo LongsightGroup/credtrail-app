@@ -15,11 +15,23 @@ export type TenantGovernanceAdminAuth = ReturnType<typeof createTenantGovernance
 export const createTenantGovernanceAdminAuth = (
   input: Pick<
     RegisterTenantGovernanceRoutesInput,
-    "requireTenantRole" | "ADMIN_ROLES" | "APPROVAL_WORKSPACE_ROLES" | "requestTenantMemberInvite"
+    | "requireTenantRole"
+    | "ADMIN_ROLES"
+    | "APPROVAL_WORKSPACE_ROLES"
+    | "ISSUER_ROLES"
+    | "requestTenantMemberInvite"
   >,
 ) => {
-  const { requireTenantRole, ADMIN_ROLES, APPROVAL_WORKSPACE_ROLES, requestTenantMemberInvite } =
-    input;
+  const {
+    requireTenantRole,
+    ADMIN_ROLES,
+    APPROVAL_WORKSPACE_ROLES,
+    ISSUER_ROLES,
+    requestTenantMemberInvite,
+  } = input;
+  const EVIDENCE_WORKSPACE_ROLES = Array.from(
+    new Set([...ISSUER_ROLES, ...APPROVAL_WORKSPACE_ROLES]),
+  );
 
   const requireEnterpriseTenant = async (
     c: AppContext,
@@ -141,11 +153,19 @@ export const createTenantGovernanceAdminAuth = (
   ): ReturnType<typeof resolveTenantWorkspaceRole> =>
     resolveTenantWorkspaceRole(c, tenantId, nextPath, APPROVAL_WORKSPACE_ROLES);
 
+  const resolveInstitutionAdminEvidenceRole = (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ): ReturnType<typeof resolveTenantWorkspaceRole> =>
+    resolveTenantWorkspaceRole(c, tenantId, nextPath, EVIDENCE_WORKSPACE_ROLES);
+
   return {
     requireEnterpriseTenant,
     requestInviteForTenantMember,
     redirectToTenantLogin,
     resolveBadgeRuleApprovalWorkspaceRole,
+    resolveInstitutionAdminEvidenceRole,
     resolveInstitutionAdminAdminRole,
   };
 };

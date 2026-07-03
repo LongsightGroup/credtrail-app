@@ -425,6 +425,71 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     expect(body).toContain('name="decision" value="changes_requested"');
     expect(body).toContain('name="decision" value="rejected"');
   });
+
+  it("blocks direct review URLs for approvers who are not on the approval chain", async () => {
+    const env = createEnv();
+    const rule: BadgeIssuanceRuleRecord = {
+      id: "brl_approval",
+      tenantId: "tenant_123",
+      name: "CS101 Excellence Rule",
+      description: "Issue badge for CS101 completion and grade threshold.",
+      badgeTemplateId: "badge_template_001",
+      orgUnitId: "tenant_123:org:cs",
+      ownerOrgUnitId: "tenant_123:org:cs",
+      lmsProviderKind: "canvas",
+      lmsConnectionId: "lms_canvas",
+      activeVersionId: null,
+      createdByUserId: "usr_author",
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    };
+    const pendingVersion: BadgeIssuanceRuleVersionRecord = {
+      id: "brv_approval",
+      tenantId: "tenant_123",
+      ruleId: "brl_approval",
+      versionNumber: 2,
+      status: "pending_approval",
+      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"CS101","minScore":80}}',
+      changeSummary: "Lower threshold",
+      createdByUserId: "usr_author",
+      submittedByUserId: "usr_author",
+      submittedAt: "2026-02-18T12:15:00.000Z",
+      approvedByUserId: null,
+      approvedAt: null,
+      activatedByUserId: null,
+      activatedAt: null,
+      ...versionLifecycleFields,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:20:00.000Z",
+    };
+
+    mockedFindTenantMembership.mockResolvedValue(sampleMembership("approver"));
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(rule);
+    mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(pendingVersion);
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([pendingVersion]);
+    mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([
+      {
+        ...samplePendingApprovalStep(),
+        targetType: "user",
+        requiredRole: null,
+        targetUserId: "usr_registrar",
+        targetApproverGroupId: null,
+      },
+    ]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    expect(response.status).toBe(403);
+    expect(mockedFindLtiResourceLinkPlacementForRule).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versionId/impact-preview", () => {

@@ -52,6 +52,7 @@ interface RegisterAssertionRoutesInput {
   ) => Promise<DirectIssueBadgeResult>;
   ADMIN_ROLES: readonly TenantMembershipRole[];
   ISSUER_ROLES: readonly TenantMembershipRole[];
+  APPROVAL_WORKSPACE_ROLES: readonly TenantMembershipRole[];
   TENANT_MEMBER_ROLES: readonly TenantMembershipRole[];
   HttpErrorResponseClass: new (
     statusCode: 400 | 404 | 409 | 422 | 500 | 502,
@@ -79,9 +80,11 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
     issueBadgeForTenant,
     ADMIN_ROLES,
     ISSUER_ROLES,
+    APPROVAL_WORKSPACE_ROLES,
     TENANT_MEMBER_ROLES,
     HttpErrorResponseClass,
   } = input;
+  const EVIDENCE_ROLES = Array.from(new Set([...ISSUER_ROLES, ...APPROVAL_WORKSPACE_ROLES]));
 
   const parseAssertionListQuery = (c: AppContext): TenantAssertionListQuery => {
     return parseTenantAssertionListQuery({
@@ -309,7 +312,7 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
     "/v1/tenants/:tenantId/assertions/:assertionId/evidence",
     async (c): Promise<Response> => {
       const pathParams = parseAssertionPathParams(c.req.param());
-      const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+      const roleCheck = await requireTenantRole(c, pathParams.tenantId, EVIDENCE_ROLES);
 
       if (roleCheck instanceof Response) {
         return roleCheck;
