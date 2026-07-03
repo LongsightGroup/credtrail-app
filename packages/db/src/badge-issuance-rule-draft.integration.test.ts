@@ -5,11 +5,101 @@ import { createFixtureRule } from "./badge-issuance-rule-test-fixtures";
 import {
   cleanupTestResources,
   createBadgeRuleIntegrationFixture,
+  createDepartmentCourseOrgUnitHierarchy,
   describeDbIntegration,
   selectCount,
 } from "./postgres-test-support";
 
 describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () => {
+  it("creates and lists rules by explicit org-unit descendant scope", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      const { department, course } = await createDepartmentCourseOrgUnitHierarchy(fixture.db, {
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+      });
+      const created = await dbModule.createBadgeIssuanceRule(fixture.db, {
+        tenantId: fixture.tenantId,
+        name: "CS101 Rule",
+        badgeTemplateId: fixture.badgeTemplateId,
+        orgUnitId: course.id,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+        createdByUserId: fixture.userId,
+      });
+
+      const scopedRules = await dbModule.listBadgeIssuanceRules(fixture.db, {
+        tenantId: fixture.tenantId,
+        scope: {
+          type: "descendants",
+          rootOrgUnitIds: [department.id],
+        },
+      });
+      const siblingRules = await dbModule.listBadgeIssuanceRules(fixture.db, {
+        tenantId: fixture.tenantId,
+        scope: {
+          type: "org_unit",
+          orgUnitId: department.id,
+        },
+      });
+      const updated = await dbModule.updateBadgeIssuanceRuleDraft(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        name: "CS101 Rule Revised",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":85}}',
+        createdByUserId: fixture.userId,
+      });
+
+      expect(created.rule.orgUnitId).toBe(course.id);
+      expect(created.rule.ownerOrgUnitId).toBe(`${fixture.tenantId}:org:institution`);
+      expect(scopedRules.map((rule) => rule.id)).toContain(created.rule.id);
+      expect(siblingRules.map((rule) => rule.id)).not.toContain(created.rule.id);
+      expect(updated.status === "updated" ? updated.rule.orgUnitId : null).toBe(course.id);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
+  it("allows course org units under departments and programs only", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      const { college, department, course, program, programCourse } =
+        await createDepartmentCourseOrgUnitHierarchy(fixture.db, {
+          tenantId: fixture.tenantId,
+          userId: fixture.userId,
+          includeProgram: true,
+        });
+
+      await expect(
+        dbModule.createTenantOrgUnit(fixture.db, {
+          tenantId: fixture.tenantId,
+          unitType: "course",
+          slug: "invalid-course",
+          displayName: "Invalid Course",
+          parentOrgUnitId: college.id,
+          createdByUserId: fixture.userId,
+        }),
+      ).rejects.toThrow("requires parent org unit type department or program");
+
+      expect(course.parentOrgUnitId).toBe(department.id);
+      expect(programCourse?.parentOrgUnitId).toBe(program?.id);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
   it("updates a rejected latest version by creating the next draft version", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 

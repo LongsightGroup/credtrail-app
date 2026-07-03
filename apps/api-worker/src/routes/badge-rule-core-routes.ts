@@ -4,6 +4,7 @@ import {
   findBadgeIssuanceRuleById,
   listAuditLogs,
   listBadgeIssuanceRules,
+  resolveListBadgeIssuanceRulesInput,
   listBadgeIssuanceRuleVersions,
   updateBadgeIssuanceRuleDraft,
   type BadgeIssuanceRuleRecord,
@@ -278,9 +279,13 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       return roleCheck;
     }
 
-    const rules = await listBadgeIssuanceRules(resolveDatabase(c.env), {
+    const db = resolveDatabase(c.env);
+    const listInput = await resolveListBadgeIssuanceRulesInput(db, {
       tenantId: pathParams.tenantId,
+      userId: roleCheck.session.userId,
+      membershipRole: roleCheck.membershipRole,
     });
+    const rules = await listBadgeIssuanceRules(db, listInput);
 
     return c.json({
       tenantId: pathParams.tenantId,

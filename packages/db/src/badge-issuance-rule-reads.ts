@@ -1,5 +1,5 @@
 import type { SqlDatabase, SqlQueryResult } from "./tenant-scope";
-import type { TenantMembershipRole } from "./tenant-memberships";
+import { listTenantMembershipOrgUnitScopes, type TenantMembershipRole } from "./tenant-memberships";
 import type {
   BadgeIssuanceRuleApprovalEventAction,
   BadgeIssuanceRuleApprovalEventRecord,
@@ -22,6 +22,7 @@ interface BadgeIssuanceRuleRow {
   name: string;
   description: string | null;
   badgeTemplateId: string;
+  orgUnitId: string;
   ownerOrgUnitId: string;
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
   lmsConnectionId: string | null;
@@ -143,6 +144,22 @@ const BADGE_ISSUANCE_RULE_APPROVAL_EVENT_ACTIONS = new Set<BadgeIssuanceRuleAppr
   "changes_requested",
 ]);
 
+const BADGE_ISSUANCE_RULE_SELECT_COLUMNS = `
+  id,
+  tenant_id AS tenantId,
+  name,
+  description,
+  badge_template_id AS badgeTemplateId,
+  org_unit_id AS orgUnitId,
+  owner_org_unit_id AS ownerOrgUnitId,
+  lms_provider_kind AS lmsProviderKind,
+  lms_connection_id AS lmsConnectionId,
+  active_version_id AS activeVersionId,
+  created_by_user_id AS createdByUserId,
+  created_at AS createdAt,
+  updated_at AS updatedAt
+`;
+
 const mapBadgeIssuanceRuleRow = (row: BadgeIssuanceRuleRow): BadgeIssuanceRuleRecord => {
   return {
     id: row.id,
@@ -150,6 +167,7 @@ const mapBadgeIssuanceRuleRow = (row: BadgeIssuanceRuleRow): BadgeIssuanceRuleRe
     name: row.name,
     description: row.description,
     badgeTemplateId: row.badgeTemplateId,
+    orgUnitId: row.orgUnitId,
     ownerOrgUnitId: row.ownerOrgUnitId,
     lmsProviderKind: row.lmsProviderKind,
     lmsConnectionId: row.lmsConnectionId,
@@ -220,6 +238,118 @@ const mapBadgeIssuanceRuleApprovalEventRow = (
   };
 };
 
+const listBadgeIssuanceRulesByOrgUnitIds = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly orgUnitIds: readonly string[];
+  },
+): Promise<BadgeIssuanceRuleRecord[]> => {
+  if (input.orgUnitIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = input.orgUnitIds.map(() => "?").join(", ");
+  const result = await db
+    .prepare(
+      `
+      SELECT
+        ${BADGE_ISSUANCE_RULE_SELECT_COLUMNS}
+      FROM badge_issuance_rules
+      WHERE tenant_id = ?
+        AND org_unit_id IN (${placeholders})
+      ORDER BY created_at DESC, id DESC
+    `,
+    )
+    .bind(input.tenantId, ...input.orgUnitIds)
+    .all<BadgeIssuanceRuleRow>();
+
+  return result.results.map((row) => mapBadgeIssuanceRuleRow(row));
+};
+
+const listBadgeIssuanceRulesByDescendantRoots = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly rootOrgUnitIds: readonly string[];
+  },
+): Promise<BadgeIssuanceRuleRecord[]> => {
+  if (input.rootOrgUnitIds.length === 0) {
+    return [];
+  }
+
+  const rootValues = input.rootOrgUnitIds.map(() => "(?)").join(", ");
+  const result = await db
+    .prepare(
+      `
+      WITH RECURSIVE scoped_roots(id) AS (
+        VALUES ${rootValues}
+      ),
+      scoped_descendants AS (
+        SELECT org_units.id AS orgUnitId
+        FROM tenant_org_units AS org_units
+        INNER JOIN scoped_roots
+          ON scoped_roots.id = org_units.id
+        WHERE org_units.tenant_id = ?
+
+        UNION
+
+        SELECT child.id AS orgUnitId
+        FROM tenant_org_units AS child
+        INNER JOIN scoped_descendants
+          ON child.parent_org_unit_id = scoped_descendants.orgUnitId
+        WHERE child.tenant_id = ?
+      )
+      SELECT
+        ${BADGE_ISSUANCE_RULE_SELECT_COLUMNS}
+      FROM badge_issuance_rules
+      WHERE tenant_id = ?
+        AND org_unit_id IN (
+          SELECT orgUnitId
+          FROM scoped_descendants
+        )
+      ORDER BY created_at DESC, id DESC
+    `,
+    )
+    .bind(...input.rootOrgUnitIds, input.tenantId, input.tenantId, input.tenantId)
+    .all<BadgeIssuanceRuleRow>();
+
+  return result.results.map((row) => mapBadgeIssuanceRuleRow(row));
+};
+
+export const resolveListBadgeIssuanceRulesInput = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly userId: string;
+    readonly membershipRole: TenantMembershipRole;
+  },
+): Promise<ListBadgeIssuanceRulesInput> => {
+  if (input.membershipRole === "owner" || input.membershipRole === "admin") {
+    return { tenantId: input.tenantId };
+  }
+
+  const scopes = await listTenantMembershipOrgUnitScopes(db, {
+    tenantId: input.tenantId,
+    userId: input.userId,
+  });
+  const rootOrgUnitIds = Array.from(new Set(scopes.map((scope) => scope.orgUnitId))).sort((a, b) =>
+    a.localeCompare(b),
+  );
+
+  if (rootOrgUnitIds.length === 0) {
+    return { tenantId: input.tenantId };
+  }
+
+  return {
+    tenantId: input.tenantId,
+    scope: {
+      type: "descendants",
+      rootOrgUnitIds,
+    },
+  };
+};
+
 export const findBadgeIssuanceRuleById = async (
   db: SqlDatabase,
   tenantId: string,
@@ -230,18 +360,7 @@ export const findBadgeIssuanceRuleById = async (
       .prepare(
         `
         SELECT
-          id,
-          tenant_id AS tenantId,
-          name,
-          description,
-          badge_template_id AS badgeTemplateId,
-          owner_org_unit_id AS ownerOrgUnitId,
-          lms_provider_kind AS lmsProviderKind,
-          lms_connection_id AS lmsConnectionId,
-          active_version_id AS activeVersionId,
-          created_by_user_id AS createdByUserId,
-          created_at AS createdAt,
-          updated_at AS updatedAt
+          ${BADGE_ISSUANCE_RULE_SELECT_COLUMNS}
         FROM badge_issuance_rules
         WHERE tenant_id = ?
           AND id = ?
@@ -260,23 +379,26 @@ export const listBadgeIssuanceRules = async (
   db: SqlDatabase,
   input: ListBadgeIssuanceRulesInput,
 ): Promise<BadgeIssuanceRuleRecord[]> => {
+  if (input.scope?.type === "org_unit") {
+    return listBadgeIssuanceRulesByOrgUnitIds(db, {
+      tenantId: input.tenantId,
+      orgUnitIds: [input.scope.orgUnitId],
+    });
+  }
+
+  if (input.scope?.type === "descendants") {
+    return listBadgeIssuanceRulesByDescendantRoots(db, {
+      tenantId: input.tenantId,
+      rootOrgUnitIds: input.scope.rootOrgUnitIds,
+    });
+  }
+
   const listStatement = (): Promise<SqlQueryResult<BadgeIssuanceRuleRow>> =>
     db
       .prepare(
         `
         SELECT
-          id,
-          tenant_id AS tenantId,
-          name,
-          description,
-          badge_template_id AS badgeTemplateId,
-          owner_org_unit_id AS ownerOrgUnitId,
-          lms_provider_kind AS lmsProviderKind,
-          lms_connection_id AS lmsConnectionId,
-          active_version_id AS activeVersionId,
-          created_by_user_id AS createdByUserId,
-          created_at AS createdAt,
-          updated_at AS updatedAt
+          ${BADGE_ISSUANCE_RULE_SELECT_COLUMNS}
         FROM badge_issuance_rules
         WHERE tenant_id = ?
         ORDER BY created_at DESC, id DESC

@@ -215,7 +215,7 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
 
     const policy = await resolveBadgeRuleApprovalPolicy(transactionDb, {
       tenantId: input.tenantId,
-      orgUnitId: rule.ownerOrgUnitId,
+      orgUnitId: rule.orgUnitId,
     });
 
     if (policy.approvalRequirement === "never" && !policy.allowSelfCertification) {

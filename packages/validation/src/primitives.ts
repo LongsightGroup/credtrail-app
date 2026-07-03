@@ -70,7 +70,13 @@ export const badgeTemplateSlugSchema = z
 export const badgeTemplateTitleSchema = z.string().trim().min(1).max(200);
 export const badgeTemplateDescriptionSchema = z.string().trim().min(1).max(2000);
 export const badgeTemplateUriSchema = z.string().url().max(2048);
-export const orgUnitTypeSchema = z.enum(["institution", "college", "department", "program"]);
+export const orgUnitTypeSchema = z.enum([
+  "institution",
+  "college",
+  "department",
+  "program",
+  "course",
+]);
 export const tenantMembershipOrgUnitScopeRoleSchema = z.enum(["admin", "issuer", "viewer"]);
 export const delegatedIssuingAuthorityActionSchema = z.enum([
   "issue_badge",

@@ -12,6 +12,7 @@ vi.mock("@credtrail/db", async () => {
     createAuditLog: vi.fn(),
     createBadgeIssuanceRule: vi.fn(),
     createBadgeIssuanceRuleWithConnection: vi.fn(),
+    ensureExternalCourseOrgUnit: vi.fn(),
     ensureTenantMembership: vi.fn(),
     findActiveBadgeIssuanceRuleVersion: vi.fn(),
     findActiveDelegatedIssuingAuthorityGrantForAction: vi.fn(),
@@ -66,6 +67,7 @@ import {
   createAuditLog,
   createBadgeIssuanceRule,
   createBadgeIssuanceRuleWithConnection,
+  ensureExternalCourseOrgUnit,
   ensureTenantMembership,
   findActiveBadgeIssuanceRuleVersion,
   findActiveDelegatedIssuingAuthorityGrantForAction,
@@ -139,6 +141,7 @@ const mockedCreateBadgeIssuanceRule = vi.mocked(createBadgeIssuanceRule);
 const mockedCreateBadgeIssuanceRuleWithConnection = vi.mocked(
   createBadgeIssuanceRuleWithConnection,
 );
+const mockedEnsureExternalCourseOrgUnit = vi.mocked(ensureExternalCourseOrgUnit);
 const mockedEnsureTenantMembership = vi.mocked(ensureTenantMembership);
 const mockedFindActiveBadgeIssuanceRuleVersion = vi.mocked(findActiveBadgeIssuanceRuleVersion);
 const mockedFindActiveDelegatedIssuingAuthorityGrantForAction = vi.mocked(
@@ -529,7 +532,7 @@ const sampleBadgeTemplate = (overrides?: {
     imageUri:
       overrides?.imageUri === undefined ? "https://example.edu/image.png" : overrides.imageUri,
     createdByUserId: "usr_123",
-    ownerOrgUnitId: "tenant_123:org:institution",
+    ownerOrgUnitId: "tenant_123:org:department-cs",
     governanceMetadataJson:
       overrides?.governanceMetadataJson ??
       JSON.stringify({ ltiInstructorPlacement: { enabled: true } }),
@@ -547,7 +550,7 @@ const sampleDelegatedIssuingAuthorityGrant = (
     tenantId: "tenant_123",
     delegateUserId: "usr_lti_123",
     delegatedByUserId: "usr_admin_123",
-    orgUnitId: "tenant_123:org:institution",
+    orgUnitId: "tenant_123:org:department-cs",
     allowedActions: ["issue_badge", "revoke_badge", "manage_lifecycle", "configure_course_rule"],
     badgeTemplateIds: ["badge_template_001"],
     startsAt: "2026-02-01T00:00:00.000Z",
@@ -614,6 +617,7 @@ const sampleBadgeIssuanceRule = (
     name: "Sakai course rule: Introduction to TypeScript · TypeScript Foundations",
     description: "Created from LTI Deep Linking for Introduction to TypeScript.",
     badgeTemplateId: "badge_template_001",
+    orgUnitId: "tenant_123:org:course-typescript-101",
     ownerOrgUnitId: "tenant_123:org:institution",
     lmsProviderKind: "sakai",
     lmsConnectionId: "lms_sakai_001",
@@ -886,6 +890,22 @@ describe("LTI 1.3 core launch flow", () => {
     mockedCreateBadgeIssuanceRuleWithConnection.mockResolvedValue({
       rule: sampleBadgeIssuanceRule(),
       version: sampleBadgeIssuanceRuleVersion(),
+    });
+    mockedEnsureExternalCourseOrgUnit.mockReset();
+    mockedEnsureExternalCourseOrgUnit.mockResolvedValue({
+      status: "ok",
+      orgUnit: {
+        id: "tenant_123:org:course-typescript-101",
+        tenantId: "tenant_123",
+        unitType: "course",
+        slug: "course-typescript-101",
+        displayName: "TypeScript 101",
+        parentOrgUnitId: "tenant_123:org:department-cs",
+        createdByUserId: linkedUserId,
+        isActive: true,
+        createdAt: "2026-02-10T22:00:00.000Z",
+        updatedAt: "2026-02-10T22:00:00.000Z",
+      },
     });
     mockedFindBadgeIssuanceRuleById.mockReset();
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(
@@ -3077,11 +3097,20 @@ describe("LTI 1.3 core launch flow", () => {
     });
 
     expect(response.status).toBe(200);
+    expect(mockedEnsureExternalCourseOrgUnit).toHaveBeenCalledWith(fakeDb, {
+      tenantId,
+      parentOrgUnitId: "tenant_123:org:department-cs",
+      externalSystemId: "lms_sakai_001",
+      externalCourseId: "course-123",
+      courseTitle: "TypeScript 101",
+      createdByUserId: linkedUserId,
+    });
     expect(mockedCreateBadgeIssuanceRuleWithConnection).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
         tenantId,
         badgeTemplateId: "badge_template_001",
+        orgUnitId: "tenant_123:org:course-typescript-101",
         lmsProviderKind: "sakai",
         lmsConnectionId: "lms_sakai_001",
         createdByUserId: linkedUserId,
@@ -3110,7 +3139,7 @@ describe("LTI 1.3 core launch flow", () => {
     expect(mockedFindActiveDelegatedIssuingAuthorityGrantForAction).toHaveBeenCalledWith(fakeDb, {
       tenantId,
       userId: linkedUserId,
-      orgUnitId: "tenant_123:org:institution",
+      orgUnitId: "tenant_123:org:department-cs",
       badgeTemplateId: "badge_template_001",
       requiredAction: "configure_course_rule",
     });
@@ -3393,7 +3422,7 @@ describe("LTI 1.3 core launch flow", () => {
     expect(mockedFindActiveDelegatedIssuingAuthorityGrantForAction).toHaveBeenCalledWith(fakeDb, {
       tenantId,
       userId: linkedUserId,
-      orgUnitId: "tenant_123:org:institution",
+      orgUnitId: "tenant_123:org:department-cs",
       badgeTemplateId: "badge_template_001",
       requiredAction: "configure_course_rule",
     });

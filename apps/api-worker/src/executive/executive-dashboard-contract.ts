@@ -5,6 +5,7 @@ import type {
   OrgUnitType,
   TenantExecutiveDashboardQuery,
 } from "@credtrail/validation";
+import { ORG_UNIT_COMPARISON_LEVELS, ORG_UNIT_HIERARCHY_DEPTH } from "@credtrail/validation";
 
 import type {
   ReportingHierarchyPageFilters,
@@ -18,13 +19,6 @@ const EXECUTIVE_WINDOW_DAYS: Record<ExecutiveDashboardWindow, number> = {
 };
 
 const DEFAULT_EXECUTIVE_WINDOW: ExecutiveDashboardWindow = "last-90-days";
-
-const ORG_UNIT_DEPTH: Record<OrgUnitType, number> = {
-  institution: 0,
-  college: 1,
-  department: 2,
-  program: 3,
-};
 
 export interface InferExecutiveDashboardDefaultsInput {
   today: string;
@@ -260,9 +254,9 @@ export const resolveExecutiveComparisonLevel = (input: {
     .map((orgUnitId) => input.orgUnitsById.get(orgUnitId)?.unitType)
     .filter((unitType): unitType is OrgUnitType => unitType !== undefined);
 
-  for (const unitType of ["college", "department", "program"] as const) {
+  for (const unitType of ORG_UNIT_COMPARISON_LEVELS) {
     if (
-      ORG_UNIT_DEPTH[unitType] > ORG_UNIT_DEPTH[focusOrgUnit.unitType] &&
+      ORG_UNIT_HIERARCHY_DEPTH[unitType] > ORG_UNIT_HIERARCHY_DEPTH[focusOrgUnit.unitType] &&
       descendantLevels.includes(unitType)
     ) {
       return unitType;

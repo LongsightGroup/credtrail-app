@@ -71,6 +71,7 @@ describe("badge issuance rule draft predicates", () => {
       name: "CS101 Rule",
       description: "Award for CS101 completion.",
       badgeTemplateId: "badge_template_123",
+      orgUnitId: "tenant_123:org:institution",
       ownerOrgUnitId: "tenant_123:org:institution",
       lmsProviderKind: "canvas",
       lmsConnectionId: "lms_123",

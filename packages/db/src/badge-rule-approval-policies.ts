@@ -258,6 +258,18 @@ const mapBadgeRuleApprovalPolicyRow = (
   };
 };
 
+const BADGE_RULE_APPROVAL_POLICY_SELECT_COLUMNS = `
+  id,
+  tenant_id AS tenantId,
+  org_unit_id AS orgUnitId,
+  approval_requirement AS approvalRequirement,
+  allow_self_certification AS allowSelfCertification,
+  approval_steps_json AS approvalStepsJson,
+  created_by_user_id AS createdByUserId,
+  created_at AS createdAt,
+  updated_at AS updatedAt
+`;
+
 const findBadgeRuleApprovalPolicy = async (
   db: SqlDatabase,
   input: {
@@ -265,29 +277,36 @@ const findBadgeRuleApprovalPolicy = async (
     readonly orgUnitId: string | null;
   },
 ): Promise<BadgeRuleApprovalPolicyRecord | null> => {
+  if (input.orgUnitId === null) {
+    const row = await db
+      .prepare(
+        `
+        SELECT
+          ${BADGE_RULE_APPROVAL_POLICY_SELECT_COLUMNS}
+        FROM badge_rule_approval_policies
+        WHERE tenant_id = ?
+          AND org_unit_id IS NULL
+        LIMIT 1
+      `,
+      )
+      .bind(input.tenantId)
+      .first<BadgeRuleApprovalPolicyRow>();
+
+    return row === null ? null : mapBadgeRuleApprovalPolicyRow(row);
+  }
+
   const row = await db
     .prepare(
       `
       SELECT
-        id,
-        tenant_id AS tenantId,
-        org_unit_id AS orgUnitId,
-        approval_requirement AS approvalRequirement,
-        allow_self_certification AS allowSelfCertification,
-        approval_steps_json AS approvalStepsJson,
-        created_by_user_id AS createdByUserId,
-        created_at AS createdAt,
-        updated_at AS updatedAt
+        ${BADGE_RULE_APPROVAL_POLICY_SELECT_COLUMNS}
       FROM badge_rule_approval_policies
       WHERE tenant_id = ?
-        AND (
-          (? IS NULL AND org_unit_id IS NULL)
-          OR org_unit_id = ?
-        )
+        AND org_unit_id = ?
       LIMIT 1
     `,
     )
-    .bind(input.tenantId, input.orgUnitId, input.orgUnitId)
+    .bind(input.tenantId, input.orgUnitId)
     .first<BadgeRuleApprovalPolicyRow>();
 
   return row === null ? null : mapBadgeRuleApprovalPolicyRow(row);
@@ -300,13 +319,38 @@ export const resolveBadgeRuleApprovalPolicy = async (
     readonly orgUnitId: string;
   },
 ): Promise<BadgeRuleApprovalPolicyRecord> => {
-  const orgUnitPolicy = await findBadgeRuleApprovalPolicy(db, {
-    tenantId: input.tenantId,
-    orgUnitId: input.orgUnitId,
-  });
+  const row = await db
+    .prepare(
+      `
+      WITH RECURSIVE org_ancestors AS (
+        SELECT id AS orgUnitId, 0 AS depth
+        FROM tenant_org_units
+        WHERE tenant_id = ?
+          AND id = ?
 
-  if (orgUnitPolicy !== null) {
-    return orgUnitPolicy;
+        UNION ALL
+
+        SELECT parent.id AS orgUnitId, org_ancestors.depth + 1
+        FROM tenant_org_units AS parent
+        INNER JOIN org_ancestors
+          ON org_ancestors.orgUnitId = parent.parent_org_unit_id
+        WHERE parent.tenant_id = ?
+      )
+      SELECT
+        ${BADGE_RULE_APPROVAL_POLICY_SELECT_COLUMNS}
+      FROM org_ancestors
+      INNER JOIN badge_rule_approval_policies AS policies
+        ON policies.tenant_id = ?
+        AND policies.org_unit_id = org_ancestors.orgUnitId
+      ORDER BY org_ancestors.depth ASC
+      LIMIT 1
+    `,
+    )
+    .bind(input.tenantId, input.orgUnitId, input.tenantId, input.tenantId)
+    .first<BadgeRuleApprovalPolicyRow>();
+
+  if (row !== null) {
+    return mapBadgeRuleApprovalPolicyRow(row);
   }
 
   const tenantPolicy = await findBadgeRuleApprovalPolicy(db, {

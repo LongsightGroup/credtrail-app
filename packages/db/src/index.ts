@@ -25,6 +25,8 @@ export * from "./tenant-auth-policies";
 export * from "./tenant-lms-connections";
 export * from "./tenant-memberships";
 export * from "./tenant-org-units";
+export * from "./tenant-org-unit-hierarchy";
+export * from "./external-course-org-units";
 export * from "./tenant-scope";
 export * from "./tenant-signing";
 export * from "./tenants";

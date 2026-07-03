@@ -1,4 +1,5 @@
 import type { TenantOrgUnitRecord } from "@credtrail/db";
+import { ORG_UNIT_HIERARCHY_DEPTH } from "@credtrail/validation";
 
 export interface ReportingComparisonMetricRow {
   groupId: string;
@@ -26,13 +27,6 @@ export interface ReportingHierarchyMetricRow {
   claimRate: number;
   shareRate: number;
 }
-
-const ORG_UNIT_HIERARCHY_DEPTH = {
-  institution: 0,
-  college: 1,
-  department: 2,
-  program: 3,
-} as const;
 
 export const buildOrgUnitMap = (
   orgUnits: readonly TenantOrgUnitRecord[],

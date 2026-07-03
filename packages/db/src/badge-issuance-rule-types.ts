@@ -56,8 +56,13 @@ export interface BadgeIssuanceRuleRecord {
   description: string | null;
   badgeTemplateId: string;
   /**
+   * Canonical org-unit scope for rule governance, delegated visibility, and reporting.
+   * LTI-created course rules use a course org unit here.
+   */
+  orgUnitId: string;
+  /**
    * Captured badge template owner scope at rule create or draft edit time.
-   * Approval policy resolution uses this snapshot instead of live template ownership.
+   * This is template ownership metadata; rule governance uses orgUnitId.
    */
   ownerOrgUnitId: string;
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
@@ -123,6 +128,7 @@ export interface CreateBadgeIssuanceRuleInput {
   name: string;
   description?: string | undefined;
   badgeTemplateId: string;
+  orgUnitId?: string | undefined;
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
   lmsConnectionId: string;
   ruleJson: string;
@@ -144,6 +150,7 @@ export interface UpdateBadgeIssuanceRuleDraftInput {
   name: string;
   description?: string | undefined;
   badgeTemplateId: string;
+  orgUnitId?: string | undefined;
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
   lmsConnectionId: string;
   ruleJson: string;
@@ -151,9 +158,18 @@ export interface UpdateBadgeIssuanceRuleDraftInput {
   createdByUserId?: string | undefined;
 }
 
-export interface ListBadgeIssuanceRulesInput {
-  tenantId: string;
-}
+export type ListBadgeIssuanceRulesInput = {
+  readonly tenantId: string;
+  readonly scope?:
+    | {
+        readonly type: "org_unit";
+        readonly orgUnitId: string;
+      }
+    | {
+        readonly type: "descendants";
+        readonly rootOrgUnitIds: readonly string[];
+      };
+};
 
 export interface ListBadgeIssuanceRuleVersionsInput {
   tenantId: string;

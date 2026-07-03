@@ -273,6 +273,7 @@ const sampleRule = (overrides?: Partial<BadgeIssuanceRuleRecord>): BadgeIssuance
     name: "CS101 Rule",
     description: "Issue badge for CS101 excellence",
     badgeTemplateId: "badge_template_cs101",
+    orgUnitId: "tenant_123:org:institution",
     ownerOrgUnitId: "tenant_123:org:institution",
     lmsProviderKind: "canvas",
     lmsConnectionId: "lms_123",

@@ -1,4 +1,5 @@
 import type { OrgUnitType } from "@credtrail/validation";
+import { ORG_UNIT_LABELS } from "@credtrail/validation";
 
 import type { ExecutiveDashboardDefaults } from "./executive-dashboard-contract";
 import {
@@ -45,25 +46,6 @@ const EXECUTIVE_KPI_KEYS: readonly ReportingMetricKey[] = [
   "claimRate",
   "shareRate",
 ];
-
-const ORG_UNIT_LABELS: Record<OrgUnitType, { singular: string; plural: string }> = {
-  institution: {
-    singular: "institution",
-    plural: "institutions",
-  },
-  college: {
-    singular: "college",
-    plural: "colleges",
-  },
-  department: {
-    singular: "department",
-    plural: "departments",
-  },
-  program: {
-    singular: "program",
-    plural: "programs",
-  },
-};
 
 const getMetricDefinitionOrThrow = (key: ReportingMetricKey): ReportingMetricDefinition => {
   const definition = REPORTING_METRIC_DEFINITIONS.find((candidate) => candidate.key === key);

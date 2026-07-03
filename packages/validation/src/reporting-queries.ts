@@ -88,6 +88,7 @@ export const executiveDashboardAudienceSchema = z.enum([
   "college",
   "department",
   "program",
+  "course",
 ]);
 
 export const executiveDashboardWindowSchema = z.enum(["last-30-days", "last-90-days"]);

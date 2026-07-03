@@ -7,6 +7,7 @@ import {
   latestBadgeIssuanceRuleVersion,
   listAccessibleTenantContextsForUser,
   listBadgeIssuanceRules,
+  resolveListBadgeIssuanceRulesInput,
   listBadgeIssuanceRuleVersions,
   listBadgeTemplates,
   listTenantLmsConnections,
@@ -398,9 +399,11 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
         tenantId: pathParams.tenantId,
         includeArchived: false,
       }),
-      listBadgeIssuanceRules(db, {
+      resolveListBadgeIssuanceRulesInput(db, {
         tenantId: pathParams.tenantId,
-      }),
+        userId: session.userId,
+        membershipRole,
+      }).then((listInput) => listBadgeIssuanceRules(db, listInput)),
       listTenantLmsConnections(db, pathParams.tenantId),
       listAccessibleTenantContextsForUser(db, session.userId),
       loadTenantBadgeRuleValueLists(db, pathParams.tenantId),

@@ -9,6 +9,7 @@ import {
 import {
   cleanupTestResources,
   createBadgeRuleIntegrationFixture,
+  createDepartmentCourseOrgUnitHierarchy,
   describeDbIntegration,
 } from "./postgres-test-support";
 
@@ -59,6 +60,39 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
     }
   });
 
+  it("resolves badge rule approval policy through course org-unit ancestors", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      const { department, course } = await createDepartmentCourseOrgUnitHierarchy(fixture.db, {
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+      });
+
+      await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        orgUnitId: department.id,
+        approvalRequirement: "always",
+        approvalSteps: [{ requiredRole: "owner", label: "Department chair" }],
+        createdByUserId: fixture.userId,
+      });
+
+      const resolved = await dbModule.resolveBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        orgUnitId: course.id,
+      });
+
+      expect(resolved.orgUnitId).toBe(department.id);
+      expect(resolved.approvalSteps[0]?.requiredRole).toBe("owner");
+      expect(resolved.approvalSteps[0]?.label).toBe("Department chair");
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
   it("derives approval steps from policy when submitting a rule version", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 
@@ -67,7 +101,7 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
 
       await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
         tenantId: fixture.tenantId,
-        orgUnitId: created.rule.ownerOrgUnitId,
+        orgUnitId: created.rule.orgUnitId,
         approvalRequirement: "always",
         approvalSteps: [
           { requiredRole: "owner", label: "Owner review" },
@@ -113,7 +147,7 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
 
       await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
         tenantId: fixture.tenantId,
-        orgUnitId: created.rule.ownerOrgUnitId,
+        orgUnitId: created.rule.orgUnitId,
         approvalRequirement: "always",
         approvalSteps: [{ requiredRole: "admin", label: "Registrar review" }],
         createdByUserId: fixture.userId,
@@ -154,7 +188,7 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
 
       await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
         tenantId: fixture.tenantId,
-        orgUnitId: created.rule.ownerOrgUnitId,
+        orgUnitId: created.rule.orgUnitId,
         approvalRequirement: "always",
         approvalSteps: [{ requiredRole: "admin", label: "Registrar review" }],
         createdByUserId: fixture.userId,
@@ -227,7 +261,7 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
 
       await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
         tenantId: fixture.tenantId,
-        orgUnitId: created.rule.ownerOrgUnitId,
+        orgUnitId: created.rule.orgUnitId,
         approvalRequirement: "always",
         approvalSteps: [
           {
@@ -296,7 +330,7 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
 
       await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
         tenantId: fixture.tenantId,
-        orgUnitId: created.rule.ownerOrgUnitId,
+        orgUnitId: created.rule.orgUnitId,
         approvalRequirement: "never",
         allowSelfCertification: true,
         approvalSteps: [],
@@ -341,7 +375,7 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
 
       await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
         tenantId: fixture.tenantId,
-        orgUnitId: created.rule.ownerOrgUnitId,
+        orgUnitId: created.rule.orgUnitId,
         approvalRequirement: "never",
         allowSelfCertification: false,
         approvalSteps: [],

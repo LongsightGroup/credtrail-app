@@ -1,5 +1,6 @@
 import { createPrefixedId } from "./shared-helpers";
 import { runSqlTransaction, type SqlDatabase, type SqlRunResult } from "./tenant-scope";
+import { resolveActiveRuleOrgUnit } from "./badge-issuance-rule-org-units.js";
 import { findBadgeTemplateById } from "./badge-templates.js";
 import type {
   CreateBadgeIssuanceRuleInput,
@@ -34,7 +35,13 @@ export const createBadgeIssuanceRuleWithConnection = async (
     );
   }
 
-  // Snapshot the template ownership scope so rule approval governance is stable until draft edit.
+  const ruleOrgUnitId = input.orgUnitId ?? badgeTemplate.ownerOrgUnitId;
+  await resolveActiveRuleOrgUnit(db, {
+    tenantId: input.tenantId,
+    orgUnitId: ruleOrgUnitId,
+  });
+
+  // Snapshot the template ownership scope separately from the rule's canonical governance scope.
   const insertRuleStatement = (): Promise<SqlRunResult> =>
     db
       .prepare(
@@ -45,6 +52,7 @@ export const createBadgeIssuanceRuleWithConnection = async (
           name,
           description,
           badge_template_id,
+          org_unit_id,
           owner_org_unit_id,
           lms_provider_kind,
           lms_connection_id,
@@ -53,7 +61,7 @@ export const createBadgeIssuanceRuleWithConnection = async (
           created_at,
           updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
       `,
       )
       .bind(
@@ -62,6 +70,7 @@ export const createBadgeIssuanceRuleWithConnection = async (
         input.name,
         input.description ?? null,
         input.badgeTemplateId,
+        ruleOrgUnitId,
         badgeTemplate.ownerOrgUnitId,
         input.lmsProviderKind,
         input.lmsConnectionId,
@@ -253,9 +262,15 @@ export const updateBadgeIssuanceRuleDraft = async (
     );
   }
 
+  const ruleOrgUnitId = input.orgUnitId ?? existingRule.orgUnitId;
+  await resolveActiveRuleOrgUnit(db, {
+    tenantId: input.tenantId,
+    orgUnitId: ruleOrgUnitId,
+  });
+
   // Product decision: editing from the builder preserves history by appending a new draft version.
   return runSqlTransaction(db, async (transactionDb) => {
-    // Draft edits intentionally refresh the captured governance scope from the selected template.
+    // Draft edits refresh template ownership metadata; rule scope is preserved unless explicitly changed.
     const updateRuleStatement = (): Promise<SqlRunResult> =>
       transactionDb
         .prepare(
@@ -265,6 +280,7 @@ export const updateBadgeIssuanceRuleDraft = async (
             name = ?,
             description = ?,
             badge_template_id = ?,
+            org_unit_id = ?,
             owner_org_unit_id = ?,
             lms_provider_kind = ?,
             lms_connection_id = ?,
@@ -277,6 +293,7 @@ export const updateBadgeIssuanceRuleDraft = async (
           input.name,
           input.description ?? null,
           input.badgeTemplateId,
+          ruleOrgUnitId,
           badgeTemplate.ownerOrgUnitId,
           input.lmsProviderKind,
           input.lmsConnectionId,

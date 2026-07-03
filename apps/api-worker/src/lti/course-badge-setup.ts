@@ -1,6 +1,7 @@
 import {
   createAuditLog,
   createBadgeIssuanceRuleWithConnection,
+  ensureExternalCourseOrgUnit,
   listTenantLmsConnections,
   runSqlTransaction,
   submitBadgeIssuanceRuleVersionForApproval,
@@ -99,6 +100,8 @@ export type CreateCourseBadgePlacementRuleResult =
       ok: false;
       reason:
         | "missing_course_context"
+        | "missing_course_org_unit_parent"
+        | "course_org_unit_slug_conflict"
         | "missing_lms_connection"
         | "invalid_setup_request"
         | "unsupported_lms_connection";
@@ -259,6 +262,7 @@ export const createCourseBadgePlacementRule = async (input: {
   createdByUserId: string;
   createdByRole: TenantMembershipRole;
   delegatedGrantId?: string | undefined;
+  courseParentOrgUnitId: string;
   setupRequest: LtiCourseBadgeSetupRequest;
 }): Promise<CreateCourseBadgePlacementRuleResult> => {
   const courseId = input.ltiSession.context.id.trim();
@@ -306,6 +310,23 @@ export const createCourseBadgePlacementRule = async (input: {
   }
 
   const created = await runSqlTransaction(input.db, async (transactionDb) => {
+    const courseOrgUnitResult = await ensureExternalCourseOrgUnit(transactionDb, {
+      tenantId: input.tenantId,
+      parentOrgUnitId: input.courseParentOrgUnitId,
+      externalSystemId: lmsConnection.id,
+      externalCourseId: courseId,
+      courseTitle: ltiContextTitle(input.ltiSession),
+      createdByUserId: input.createdByUserId,
+    });
+
+    if (courseOrgUnitResult.status !== "ok") {
+      return {
+        status: "course_org_unit_error" as const,
+        reason: courseOrgUnitResult.status,
+      };
+    }
+
+    const courseOrgUnit = courseOrgUnitResult.orgUnit;
     const rule = await createBadgeIssuanceRuleWithConnection(transactionDb, {
       tenantId: input.tenantId,
       name: ruleTitle(
@@ -313,6 +334,7 @@ export const createCourseBadgePlacementRule = async (input: {
       ),
       description: `Created from LTI Deep Linking for ${ltiContextTitle(input.ltiSession)}.`,
       badgeTemplateId: input.badgeTemplate.id,
+      orgUnitId: courseOrgUnit.id,
       lmsProviderKind: "sakai",
       lmsConnectionId: lmsConnection.id,
       ruleJson: JSON.stringify(definition),
@@ -355,6 +377,8 @@ export const createCourseBadgePlacementRule = async (input: {
       ltiResourceLinkId: input.resourceLinkId,
       delegatedGrantId: input.delegatedGrantId ?? null,
       lmsConnectionId: lmsConnection.id,
+      courseOrgUnitId: courseOrgUnit.id,
+      courseParentOrgUnitId: input.courseParentOrgUnitId,
     };
     await createAuditLog(transactionDb, {
       tenantId: input.tenantId,
@@ -374,11 +398,30 @@ export const createCourseBadgePlacementRule = async (input: {
     });
 
     return {
+      status: "created" as const,
       rule: rule.rule,
       version: submittedRuleVersion,
       placement,
     };
   });
+
+  if (created.status === "course_org_unit_error") {
+    if (created.reason === "slug_conflict") {
+      return {
+        ok: false,
+        reason: "course_org_unit_slug_conflict",
+        message:
+          "CredTrail found an existing org unit with this course identifier that does not match the expected course scope.",
+      };
+    }
+
+    return {
+      ok: false,
+      reason: "missing_course_org_unit_parent",
+      message:
+        "This course badge setup needs a department or program org-unit scope before CredTrail can create the course rule.",
+    };
+  }
 
   return {
     ok: true,

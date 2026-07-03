@@ -2,6 +2,7 @@ import { findBadgeTemplateById } from "./badge-templates";
 import { assertValidIsoTimestamp, createPrefixedId } from "./shared-helpers";
 import { findTenantMembership } from "./tenant-memberships";
 import { findTenantOrgUnitById } from "./tenant-org-units";
+import { isOrgUnitWithinAncestorScope } from "./tenant-org-unit-hierarchy";
 import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "./tenant-scope";
 
 export type DelegatedIssuingAuthorityAction =
@@ -244,36 +245,11 @@ const isOrgUnitWithinDelegatedAuthorityScope = async (
   targetOrgUnitId: string,
   scopedOrgUnitId: string,
 ): Promise<boolean> => {
-  const statement = (): Promise<{ id: string } | null> =>
-    db
-      .prepare(
-        `
-        WITH RECURSIVE org_ancestors AS (
-          SELECT id, parent_org_unit_id AS parentOrgUnitId
-          FROM tenant_org_units
-          WHERE tenant_id = ?
-            AND id = ?
-
-          UNION ALL
-
-          SELECT parent.id, parent.parent_org_unit_id AS parentOrgUnitId
-          FROM tenant_org_units parent
-          INNER JOIN org_ancestors
-            ON org_ancestors.parentOrgUnitId = parent.id
-          WHERE parent.tenant_id = ?
-        )
-        SELECT id
-        FROM org_ancestors
-        WHERE id = ?
-        LIMIT 1
-      `,
-      )
-      .bind(tenantId, targetOrgUnitId, tenantId, scopedOrgUnitId)
-      .first<{ id: string }>();
-
-  const row = await statement();
-
-  return row !== null;
+  return isOrgUnitWithinAncestorScope(db, {
+    tenantId,
+    targetOrgUnitId,
+    scopedOrgUnitId,
+  });
 };
 
 const listDelegatedIssuingAuthorityGrantBadgeTemplateIds = async (

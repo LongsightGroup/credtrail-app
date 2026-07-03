@@ -1,7 +1,14 @@
+import {
+  formatAllowedParentOrgUnitTypes,
+  isAllowedParentOrgUnitType,
+  orgUnitTypeListSortOrder,
+  requiresParentOrgUnit,
+} from "@credtrail/validation";
+import type { OrgUnitType } from "@credtrail/validation";
 import { createPrefixedId } from "./shared-helpers";
-import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "./tenant-scope";
+import type { SqlDatabase, SqlQueryResult } from "./tenant-scope";
 
-export type OrgUnitType = "institution" | "college" | "department" | "program";
+export type { OrgUnitType };
 
 export interface TenantOrgUnitRecord {
   id: string;
@@ -43,15 +50,21 @@ interface TenantOrgUnitRow {
   updatedAt: string;
 }
 
+const TENANT_ORG_UNIT_SELECT_COLUMNS = `
+  id,
+  tenant_id AS tenantId,
+  unit_type AS unitType,
+  slug,
+  display_name AS displayName,
+  parent_org_unit_id AS parentOrgUnitId,
+  created_by_user_id AS createdByUserId,
+  is_active AS isActive,
+  created_at AS createdAt,
+  updated_at AS updatedAt
+`;
+
 export const institutionOrgUnitIdForTenant = (tenantId: string): string => {
   return `${tenantId}:org:institution`;
-};
-
-const REQUIRED_PARENT_ORG_UNIT_TYPE: Record<OrgUnitType, OrgUnitType | null> = {
-  institution: null,
-  college: "institution",
-  department: "college",
-  program: "department",
 };
 
 const mapTenantOrgUnitRow = (row: TenantOrgUnitRow): TenantOrgUnitRecord => {
@@ -74,31 +87,43 @@ export const findTenantOrgUnitById = async (
   tenantId: string,
   orgUnitId: string,
 ): Promise<TenantOrgUnitRecord | null> => {
-  const findStatement = (): Promise<TenantOrgUnitRow | null> =>
-    db
-      .prepare(
-        `
-        SELECT
-          id,
-          tenant_id AS tenantId,
-          unit_type AS unitType,
-          slug,
-          display_name AS displayName,
-          parent_org_unit_id AS parentOrgUnitId,
-          created_by_user_id AS createdByUserId,
-          is_active AS isActive,
-          created_at AS createdAt,
-          updated_at AS updatedAt
-        FROM tenant_org_units
-        WHERE tenant_id = ?
-          AND id = ?
-        LIMIT 1
-      `,
-      )
-      .bind(tenantId, orgUnitId)
-      .first<TenantOrgUnitRow>();
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        ${TENANT_ORG_UNIT_SELECT_COLUMNS}
+      FROM tenant_org_units
+      WHERE tenant_id = ?
+        AND id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(tenantId, orgUnitId)
+    .first<TenantOrgUnitRow>();
 
-  const row = await findStatement();
+  return row === null ? null : mapTenantOrgUnitRow(row);
+};
+
+export const findTenantOrgUnitBySlug = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly slug: string;
+  },
+): Promise<TenantOrgUnitRecord | null> => {
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        ${TENANT_ORG_UNIT_SELECT_COLUMNS}
+      FROM tenant_org_units
+      WHERE tenant_id = ?
+        AND slug = ?
+      LIMIT 1
+    `,
+    )
+    .bind(input.tenantId, input.slug)
+    .first<TenantOrgUnitRow>();
 
   return row === null ? null : mapTenantOrgUnitRow(row);
 };
@@ -109,30 +134,27 @@ export const ensureInstitutionOrgUnitForTenant = async (
 ): Promise<string> => {
   const institutionId = institutionOrgUnitIdForTenant(tenantId);
   const nowIso = new Date().toISOString();
-  const seedStatement = (): Promise<SqlRunResult> =>
-    db
-      .prepare(
-        `
-        INSERT INTO tenant_org_units (
-          id,
-          tenant_id,
-          unit_type,
-          slug,
-          display_name,
-          parent_org_unit_id,
-          created_by_user_id,
-          is_active,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, 'institution', 'institution', ?, NULL, NULL, 1, ?, ?)
-        ON CONFLICT DO NOTHING
-      `,
+  await db
+    .prepare(
+      `
+      INSERT INTO tenant_org_units (
+        id,
+        tenant_id,
+        unit_type,
+        slug,
+        display_name,
+        parent_org_unit_id,
+        created_by_user_id,
+        is_active,
+        created_at,
+        updated_at
       )
-      .bind(institutionId, tenantId, `${tenantId} Institution`, nowIso, nowIso)
-      .run();
-
-  await seedStatement();
+      VALUES (?, ?, 'institution', 'institution', ?, NULL, NULL, 1, ?, ?)
+      ON CONFLICT DO NOTHING
+    `,
+    )
+    .bind(institutionId, tenantId, `${tenantId} Institution`, nowIso, nowIso)
+    .run();
 
   return institutionId;
 };
@@ -141,15 +163,15 @@ export const createTenantOrgUnit = async (
   db: SqlDatabase,
   input: CreateTenantOrgUnitInput,
 ): Promise<TenantOrgUnitRecord> => {
-  const requiredParentType = REQUIRED_PARENT_ORG_UNIT_TYPE[input.unitType];
-
-  if (requiredParentType === null && input.parentOrgUnitId !== undefined) {
+  if (!requiresParentOrgUnit(input.unitType) && input.parentOrgUnitId !== undefined) {
     throw new Error(`Org unit type ${input.unitType} cannot have a parent org unit`);
   }
 
-  if (requiredParentType !== null && input.parentOrgUnitId === undefined) {
+  if (requiresParentOrgUnit(input.unitType) && input.parentOrgUnitId === undefined) {
     throw new Error(
-      `Org unit type ${input.unitType} requires parent org unit type ${requiredParentType}`,
+      `Org unit type ${input.unitType} requires parent org unit type ${formatAllowedParentOrgUnitTypes(
+        input.unitType,
+      )}`,
     );
   }
 
@@ -162,11 +184,11 @@ export const createTenantOrgUnit = async (
       );
     }
 
-    const expectedParentType = requiredParentType ?? "institution";
-
-    if (parent.unitType !== expectedParentType) {
+    if (!isAllowedParentOrgUnitType(input.unitType, parent.unitType)) {
       throw new Error(
-        `Org unit type ${input.unitType} requires parent org unit type ${expectedParentType}`,
+        `Org unit type ${input.unitType} requires parent org unit type ${formatAllowedParentOrgUnitTypes(
+          input.unitType,
+        )}`,
       );
     }
 
@@ -179,39 +201,36 @@ export const createTenantOrgUnit = async (
 
   const id = createPrefixedId("ou");
   const nowIso = new Date().toISOString();
-  const insertStatement = (): Promise<SqlRunResult> =>
-    db
-      .prepare(
-        `
-        INSERT INTO tenant_org_units (
-          id,
-          tenant_id,
-          unit_type,
-          slug,
-          display_name,
-          parent_org_unit_id,
-          created_by_user_id,
-          is_active,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
-      `,
-      )
-      .bind(
+  await db
+    .prepare(
+      `
+      INSERT INTO tenant_org_units (
         id,
-        input.tenantId,
-        input.unitType,
-        input.slug,
-        input.displayName,
-        input.parentOrgUnitId ?? null,
-        input.createdByUserId ?? null,
-        nowIso,
-        nowIso,
+        tenant_id,
+        unit_type,
+        slug,
+        display_name,
+        parent_org_unit_id,
+        created_by_user_id,
+        is_active,
+        created_at,
+        updated_at
       )
-      .run();
-
-  await insertStatement();
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+    `,
+    )
+    .bind(
+      id,
+      input.tenantId,
+      input.unitType,
+      input.slug,
+      input.displayName,
+      input.parentOrgUnitId ?? null,
+      input.createdByUserId ?? null,
+      nowIso,
+      nowIso,
+    )
+    .run();
 
   const orgUnit = await findTenantOrgUnitById(db, input.tenantId, id);
 
@@ -231,26 +250,18 @@ export const listTenantOrgUnits = async (
       .prepare(
         `
         SELECT
-          id,
-          tenant_id AS tenantId,
-          unit_type AS unitType,
-          slug,
-          display_name AS displayName,
-          parent_org_unit_id AS parentOrgUnitId,
-          created_by_user_id AS createdByUserId,
-          is_active AS isActive,
-          created_at AS createdAt,
-          updated_at AS updatedAt
+          ${TENANT_ORG_UNIT_SELECT_COLUMNS}
         FROM tenant_org_units
         WHERE tenant_id = ?
           AND (? = 1 OR is_active = 1)
         ORDER BY
           CASE unit_type
-            WHEN 'institution' THEN 1
-            WHEN 'college' THEN 2
-            WHEN 'department' THEN 3
-            WHEN 'program' THEN 4
-            ELSE 5
+            WHEN 'institution' THEN ${orgUnitTypeListSortOrder("institution")}
+            WHEN 'college' THEN ${orgUnitTypeListSortOrder("college")}
+            WHEN 'department' THEN ${orgUnitTypeListSortOrder("department")}
+            WHEN 'program' THEN ${orgUnitTypeListSortOrder("program")}
+            WHEN 'course' THEN ${orgUnitTypeListSortOrder("course")}
+            ELSE 99
           END,
           display_name ASC,
           created_at ASC

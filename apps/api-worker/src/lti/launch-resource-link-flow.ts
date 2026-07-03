@@ -211,6 +211,7 @@ export const prepareLaunchedResourceLinkPlacement = async (
     createdByUserId: input.linkedUserId,
     createdByRole: input.linkedMembershipRole,
     delegatedGrantId: authority.grant.id,
+    courseParentOrgUnitId: authority.grant.orgUnitId,
     setupRequest: setup.setupRequest,
   });
 

@@ -4,6 +4,7 @@ import {
   findUserById,
   listAccessibleTenantContextsForUser,
   listBadgeIssuanceRules,
+  resolveListBadgeIssuanceRulesInput,
   listBadgeIssuanceRuleVersions,
   listBadgeTemplates,
   listDelegatedIssuingAuthorityGrants,
@@ -249,9 +250,11 @@ export const loadInstitutionAdminPageData = async (
       ? listTenantLmsConnections(db, input.tenantId)
       : Promise.resolve([]),
     datasets.has("badgeRules")
-      ? listBadgeIssuanceRules(db, {
+      ? resolveListBadgeIssuanceRulesInput(db, {
           tenantId: input.tenantId,
-        })
+          userId: input.sessionUserId,
+          membershipRole: input.membershipRole,
+        }).then((listInput) => listBadgeIssuanceRules(db, listInput))
       : Promise.resolve([]),
     includeEnterpriseAuth ? findTenantAuthPolicy(db, input.tenantId) : Promise.resolve(null),
     includeEnterpriseAuth ? listTenantAuthProviders(db, input.tenantId) : Promise.resolve([]),

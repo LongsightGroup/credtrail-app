@@ -26,6 +26,7 @@ export const sampleLtiRosterBadgeRule = (
   name: "Course rule",
   description: null,
   badgeTemplateId: "badge_template_001",
+  orgUnitId: "tenant_123:org:institution",
   ownerOrgUnitId: "tenant_123:org:institution",
   lmsProviderKind: "sakai",
   lmsConnectionId: "lms_sakai_001",

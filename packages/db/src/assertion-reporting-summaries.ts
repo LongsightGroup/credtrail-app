@@ -1,5 +1,5 @@
 import type { BadgeTemplateOwnershipEventRecord } from "./badge-templates";
-import type { OrgUnitType } from "./tenant-org-units";
+import { ORG_UNIT_HIERARCHY_DEPTH } from "@credtrail/validation";
 import type {
   AssertionEngagementEventType,
   AssertionLifecycleReasonCode,
@@ -211,13 +211,6 @@ const tenantReportingComparisonRowZero = (
     claimRate: 0,
     shareRate: 0,
   };
-};
-
-const ORG_UNIT_HIERARCHY_DEPTH: Record<OrgUnitType, number> = {
-  institution: 0,
-  college: 1,
-  department: 2,
-  program: 3,
 };
 
 const createTenantReportingEngagementAggregate = (): TenantReportingEngagementAggregate => {

@@ -128,6 +128,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@credtrail/validation':
+        specifier: workspace:*
+        version: link:../validation
       pg:
         specifier: ^8.21.0
         version: 8.21.0

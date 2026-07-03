@@ -1,6 +1,7 @@
 export * from "./json.js";
 export * from "./signing.js";
 export * from "./primitives.js";
+export * from "./org-unit-model.js";
 export * from "./path-params.js";
 export * from "./list-queries.js";
 export * from "./reporting-queries.js";

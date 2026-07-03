@@ -4,6 +4,7 @@ import { afterAll, describe } from "vitest";
 
 import { createPostgresDatabase } from "./postgres";
 import { upsertTenant, type SqlDatabase, type TenantPlanTier } from "./index";
+import { createTenantOrgUnit, type TenantOrgUnitRecord } from "./tenant-org-units";
 
 type PgPoolLike = import("pg").Pool;
 
@@ -308,6 +309,75 @@ export const seedDefaultTenantOrgUnit = async (
   return orgUnitId;
 };
 
+export const createDepartmentCourseOrgUnitHierarchy = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    userId: string;
+    includeProgram?: boolean | undefined;
+  },
+): Promise<{
+  college: TenantOrgUnitRecord;
+  department: TenantOrgUnitRecord;
+  course: TenantOrgUnitRecord;
+  program?: TenantOrgUnitRecord;
+  programCourse?: TenantOrgUnitRecord;
+}> => {
+  const college = await createTenantOrgUnit(db, {
+    tenantId: input.tenantId,
+    unitType: "college",
+    slug: "engineering",
+    displayName: "Engineering",
+    parentOrgUnitId: `${input.tenantId}:org:institution`,
+    createdByUserId: input.userId,
+  });
+  const department = await createTenantOrgUnit(db, {
+    tenantId: input.tenantId,
+    unitType: "department",
+    slug: "computer-science",
+    displayName: "Computer Science",
+    parentOrgUnitId: college.id,
+    createdByUserId: input.userId,
+  });
+  const course = await createTenantOrgUnit(db, {
+    tenantId: input.tenantId,
+    unitType: "course",
+    slug: "cs-101",
+    displayName: "CS 101",
+    parentOrgUnitId: department.id,
+    createdByUserId: input.userId,
+  });
+
+  if (input.includeProgram !== true) {
+    return { college, department, course };
+  }
+
+  const program = await createTenantOrgUnit(db, {
+    tenantId: input.tenantId,
+    unitType: "program",
+    slug: "cs-undergrad",
+    displayName: "CS Undergraduate",
+    parentOrgUnitId: department.id,
+    createdByUserId: input.userId,
+  });
+  const programCourse = await createTenantOrgUnit(db, {
+    tenantId: input.tenantId,
+    unitType: "course",
+    slug: "cs-201",
+    displayName: "CS 201",
+    parentOrgUnitId: program.id,
+    createdByUserId: input.userId,
+  });
+
+  return {
+    college,
+    department,
+    course,
+    program,
+    programCourse,
+  };
+};
+
 export const seedBadgeTemplate = async (
   db: SqlDatabase,
   input: {
@@ -366,7 +436,7 @@ export const seedTenantOrgUnit = async (
   input: {
     tenantId: string;
     id: string;
-    unitType: "institution" | "college" | "department" | "program";
+    unitType: "institution" | "college" | "department" | "program" | "course";
     slug: string;
     displayName: string;
     parentOrgUnitId?: string | null | undefined;
