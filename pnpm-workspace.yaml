@@ -8,6 +8,8 @@ minimumReleaseAgeExclude:
   # Wrangler updates unblock local Cloudflare compatibility checks and are verified before commit.
   - "@cloudflare/workers-types"
   - "wrangler"
+  - "vite"
+  - "postcss"
   # Rolldown builds the Node self-host Docker artifact; verify the bundled runtime before commit.
   - "rolldown"
   - "@oxc-project/types"
