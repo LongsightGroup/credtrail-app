@@ -358,7 +358,9 @@ const sampleValueListRecord = (
 };
 
 const sampleApprovalStep = (
-  overrides?: Partial<BadgeIssuanceRuleApprovalStepRecord>,
+  overrides?: Partial<
+    Extract<BadgeIssuanceRuleApprovalStepRecord, { targetType: "role_threshold" }>
+  >,
 ): BadgeIssuanceRuleApprovalStepRecord => {
   return {
     id: "bras_123",
@@ -914,9 +916,10 @@ describe("badge rule routes", () => {
   it("submits draft rule versions for approval", async () => {
     const env = createEnv();
     mockedFindBadgeIssuanceRuleVersionById.mockResolvedValue(sampleVersion({ status: "draft" }));
-    mockedSubmitBadgeIssuanceRuleVersionForApproval.mockResolvedValue(
-      sampleVersion({ status: "pending_approval" }),
-    );
+    mockedSubmitBadgeIssuanceRuleVersionForApproval.mockResolvedValue({
+      status: "submitted",
+      version: sampleVersion({ status: "pending_approval" }),
+    });
 
     const response = await app.request(
       "/v1/tenants/tenant_123/badge-rules/brl_123/versions/brv_123/submit-approval",
@@ -952,14 +955,13 @@ describe("badge rule routes", () => {
 
   it("rejects approval decisions when the current step requires a higher role", async () => {
     const env = createEnv();
-    mockedFindBadgeIssuanceRuleVersionById.mockResolvedValue(
-      sampleVersion({ status: "pending_approval" }),
-    );
-    mockedListBadgeIssuanceRuleVersionApprovalSteps.mockResolvedValue([
-      sampleApprovalStep({
+    mockedDecideBadgeIssuanceRuleVersion.mockResolvedValue({
+      status: "forbidden",
+      step: {
+        targetType: "role_threshold",
         requiredRole: "owner",
-      }),
-    ]);
+      },
+    });
 
     const response = await app.request(
       "/v1/tenants/tenant_123/badge-rules/brl_123/versions/brv_123/decision",
@@ -981,7 +983,9 @@ describe("badge rule routes", () => {
 
     expect(response.status).toBe(403);
     expect(body.error).toContain("requires role owner");
-    expect(mockedDecideBadgeIssuanceRuleVersion).not.toHaveBeenCalled();
+    expect(mockedDecideBadgeIssuanceRuleVersion).toHaveBeenCalledTimes(1);
+    expect(mockedFindBadgeIssuanceRuleVersionById).not.toHaveBeenCalled();
+    expect(mockedListBadgeIssuanceRuleVersionApprovalSteps).not.toHaveBeenCalled();
   });
 
   it("returns approval history for a badge rule version", async () => {

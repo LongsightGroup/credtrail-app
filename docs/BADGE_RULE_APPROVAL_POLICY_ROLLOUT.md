@@ -15,4 +15,5 @@ Operational behavior:
 - Rule version creators and submitters cannot decide approval steps on that version.
 - Automatic approval requires `allow_self_certification`; the v1 governance UI sets it only when an admin explicitly chooses automatic approval.
 - Approval steps can target a role threshold, a specific user, or an approver group. The v1 governance UI still edits only the tenant-default role threshold step.
+- Use `createBadgeRuleApproverGroup` and `addBadgeRuleApproverGroupMember` in `@credtrail/db` to manage approver groups until admin UI ships.
 - `changes_requested` returns the version to draft with reviewer comments. Resubmission rematerializes the approval chain from current policy.

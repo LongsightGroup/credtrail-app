@@ -244,7 +244,10 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
     };
 
     mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(draftVersion);
-    mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockResolvedValue(pendingVersion);
+    mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockResolvedValue({
+      status: "submitted",
+      version: pendingVersion,
+    });
 
     const response = await app.request(
       "/tenants/tenant_123/admin/rules/brl_123/versions/brv_123/submit-approval",
@@ -320,7 +323,10 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
     };
 
     mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(draftVersion);
-    mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockResolvedValue(approvedVersion);
+    mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockResolvedValue({
+      status: "submitted",
+      version: approvedVersion,
+    });
 
     const response = await app.request(
       "/tenants/tenant_123/admin/rules/brl_123/versions/brv_123/submit-approval",
@@ -355,26 +361,10 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
 
   it("describes ineligible versions as not submittable", async () => {
     const env = createEnv();
-    const pendingVersion: BadgeIssuanceRuleVersionRecord = {
-      id: "brv_123",
-      tenantId: "tenant_123",
-      ruleId: "brl_123",
-      versionNumber: 1,
-      status: "pending_approval",
-      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
-      changeSummary: "Initial draft",
-      createdByUserId: "usr_admin",
-      submittedByUserId: "usr_admin",
-      submittedAt: "2026-02-18T12:05:00.000Z",
-      approvedByUserId: null,
-      approvedAt: null,
-      activatedByUserId: null,
-      activatedAt: null,
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:00:00.000Z",
-    };
 
-    mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(pendingVersion);
+    mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockResolvedValue({
+      status: "not_submittable",
+    });
 
     const response = await app.request(
       "/tenants/tenant_123/admin/rules/brl_123/versions/brv_123/submit-approval",
@@ -400,7 +390,13 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
     const flashBody = await flashResponse.text();
 
     expect(response.status).toBe(303);
-    expect(mockedSubmitBadgeIssuanceRuleVersionForApprovalDb).not.toHaveBeenCalled();
+    expect(mockedSubmitBadgeIssuanceRuleVersionForApprovalDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_123",
+      versionId: "brv_123",
+      actorUserId: "usr_admin",
+      actorRole: "admin",
+    });
     expect(flashBody).toContain(
       "Only draft or rejected versions can be submitted from this action.",
     );

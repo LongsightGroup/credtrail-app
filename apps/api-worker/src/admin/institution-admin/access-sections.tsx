@@ -1,5 +1,6 @@
 import type { HtmlEscapedString } from "hono/utils/html";
 import type { BadgeRuleApprovalPolicyRecord, TenantMembershipRole } from "@credtrail/db";
+import { describeBadgeRuleApprovalSummary } from "../../badges/badge-rule-approval-policy-summary";
 import {
   AdminActions,
   AdminButton,
@@ -113,18 +114,12 @@ export const renderInstitutionAdminAccessSections = (
   const badgeRuleApprovalPolicy = input.badgeRuleApprovalPolicy ?? null;
   const badgeRuleApprovalRequirement =
     badgeRuleApprovalPolicy?.approvalRequirement === "never" ? "never" : "always";
+  const firstBadgeRuleApprovalStep = badgeRuleApprovalPolicy?.approvalSteps[0] ?? null;
   const badgeRuleApprovalRole =
-    badgeRuleApprovalPolicy?.approvalSteps[0]?.requiredRole === undefined
-      ? "admin"
-      : badgeRuleApprovalPolicy.approvalSteps[0].requiredRole;
-  const badgeRuleApprovalSummary =
-    badgeRuleApprovalRequirement === "never"
-      ? badgeRuleApprovalPolicy?.allowSelfCertification === true
-        ? "Submitted badge rule versions are approved automatically."
-        : "Automatic approval is disabled until self-certification is explicitly allowed."
-      : `Submitted badge rule versions require ${ruleApprovalPolicyRoleLabel(
-          badgeRuleApprovalRole,
-        ).toLowerCase()} approval.`;
+    firstBadgeRuleApprovalStep?.targetType === "role_threshold"
+      ? firstBadgeRuleApprovalStep.requiredRole
+      : "admin";
+  const badgeRuleApprovalSummary = describeBadgeRuleApprovalSummary(badgeRuleApprovalPolicy);
 
   const apiKeyPanelMarkup = (
     <details

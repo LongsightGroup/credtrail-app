@@ -159,7 +159,9 @@ const sampleVersion = (
 };
 
 const sampleApprovalStep = (
-  overrides?: Partial<BadgeIssuanceRuleApprovalStepRecord>,
+  overrides?: Partial<
+    Extract<BadgeIssuanceRuleApprovalStepRecord, { targetType: "role_threshold" }>
+  >,
 ): BadgeIssuanceRuleApprovalStepRecord => {
   return {
     id: "brs_001",

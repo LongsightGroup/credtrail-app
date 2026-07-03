@@ -9,10 +9,14 @@ import {
   listBadgeIssuanceRuleVersionApprovalSteps,
   listBadgeIssuanceRuleVersions,
   submitBadgeIssuanceRuleVersionForApproval,
-  tenantMembershipRoleSatisfiesMinimumRole,
-  type BadgeIssuanceRuleVersionRecord,
   type TenantMembershipRole,
 } from "@credtrail/db";
+import {
+  apiDecideBadgeRuleVersionErrorMessage,
+  apiDecideBadgeRuleVersionStatusCode,
+  apiSubmitBadgeRuleVersionStatusCode,
+  submitBadgeRuleVersionForApprovalFailureMessage,
+} from "../badges/badge-rule-approval-outcomes";
 import {
   parseBadgeIssuanceRuleDefinition,
   parseBadgeIssuanceRulePathParams,
@@ -326,49 +330,24 @@ export const registerBadgeRuleVersionRoutes = (
       }
 
       const { session, membershipRole } = roleCheck;
-      const currentVersion = await findBadgeIssuanceRuleVersionById(resolveDatabase(c.env), {
+      const submitResult = await submitBadgeIssuanceRuleVersionForApproval(resolveDatabase(c.env), {
         tenantId: pathParams.tenantId,
         ruleId: pathParams.ruleId,
         versionId: pathParams.versionId,
+        actorUserId: session.userId,
+        actorRole: membershipRole,
       });
 
-      if (currentVersion === null) {
+      if (submitResult.status !== "submitted") {
         return c.json(
           {
-            error: "Badge rule version not found",
+            error: submitBadgeRuleVersionForApprovalFailureMessage(submitResult),
           },
-          404,
+          apiSubmitBadgeRuleVersionStatusCode(submitResult),
         );
       }
 
-      if (currentVersion.status !== "draft" && currentVersion.status !== "rejected") {
-        return c.json(
-          {
-            error: `Only draft/rejected versions can be submitted for approval (current: ${currentVersion.status})`,
-          },
-          409,
-        );
-      }
-
-      const updatedVersion = await submitBadgeIssuanceRuleVersionForApproval(
-        resolveDatabase(c.env),
-        {
-          tenantId: pathParams.tenantId,
-          ruleId: pathParams.ruleId,
-          versionId: pathParams.versionId,
-          actorUserId: session.userId,
-          actorRole: membershipRole,
-        },
-      );
-
-      if (updatedVersion === null) {
-        return c.json(
-          {
-            error: "Badge rule version not found",
-          },
-          404,
-        );
-      }
+      const updatedVersion = submitResult.version;
 
       await createAuditLog(resolveDatabase(c.env), {
         tenantId: pathParams.tenantId,
@@ -414,88 +393,26 @@ export const registerBadgeRuleVersionRoutes = (
     }
 
     const { session, membershipRole } = roleCheck;
-    const currentVersion = await findBadgeIssuanceRuleVersionById(resolveDatabase(c.env), {
+    const decisionResult = await decideBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
       tenantId: pathParams.tenantId,
       ruleId: pathParams.ruleId,
       versionId: pathParams.versionId,
+      decision: request.decision,
+      actorUserId: session.userId,
+      actorRole: membershipRole,
+      comment: request.comment,
     });
 
-    if (currentVersion === null) {
+    if (decisionResult.status !== "decided") {
       return c.json(
         {
-          error: "Badge rule version not found",
+          error: apiDecideBadgeRuleVersionErrorMessage(decisionResult),
         },
-        404,
+        apiDecideBadgeRuleVersionStatusCode(decisionResult),
       );
     }
 
-    if (currentVersion.status !== "pending_approval") {
-      return c.json(
-        {
-          error: `Only pending_approval versions can be decided (current: ${currentVersion.status})`,
-        },
-        409,
-      );
-    }
-
-    const approvalSteps = await listBadgeIssuanceRuleVersionApprovalSteps(resolveDatabase(c.env), {
-      tenantId: pathParams.tenantId,
-      ruleId: pathParams.ruleId,
-      versionId: pathParams.versionId,
-    });
-    const currentApprovalStep = approvalSteps.find((step) => step.status === "pending");
-
-    if (currentApprovalStep === undefined) {
-      return c.json(
-        {
-          error: "No pending approval step exists for this rule version",
-        },
-        409,
-      );
-    }
-
-    if (
-      currentApprovalStep.targetType === "role_threshold" &&
-      currentApprovalStep.requiredRole !== null &&
-      !tenantMembershipRoleSatisfiesMinimumRole(membershipRole, currentApprovalStep.requiredRole)
-    ) {
-      return c.json(
-        {
-          error: `Current approval step requires role ${currentApprovalStep.requiredRole}`,
-        },
-        403,
-      );
-    }
-
-    let decidedVersion: BadgeIssuanceRuleVersionRecord | null;
-
-    try {
-      decidedVersion = await decideBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
-        tenantId: pathParams.tenantId,
-        ruleId: pathParams.ruleId,
-        versionId: pathParams.versionId,
-        decision: request.decision,
-        actorUserId: session.userId,
-        actorRole: membershipRole,
-        comment: request.comment,
-      });
-    } catch {
-      return c.json(
-        {
-          error: "Actor is not authorized to decide this approval step",
-        },
-        403,
-      );
-    }
-
-    if (decidedVersion === null) {
-      return c.json(
-        {
-          error: "Badge rule version is no longer pending approval",
-        },
-        409,
-      );
-    }
+    const decidedVersion = decisionResult.version;
 
     await createAuditLog(resolveDatabase(c.env), {
       tenantId: pathParams.tenantId,
@@ -507,8 +424,6 @@ export const registerBadgeRuleVersionRoutes = (
         role: membershipRole,
         ruleId: pathParams.ruleId,
         versionNumber: decidedVersion.versionNumber,
-        stepNumber: currentApprovalStep.stepNumber,
-        requiredRole: currentApprovalStep.requiredRole,
         decision: request.decision,
         comment: request.comment ?? null,
         status: decidedVersion.status,

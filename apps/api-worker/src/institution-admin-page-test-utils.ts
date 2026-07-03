@@ -815,7 +815,7 @@ beforeEach(() => {
   mockedFindBadgeIssuanceRuleVersionByIdDb.mockReset();
   mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(null);
   mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockReset();
-  mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockResolvedValue(null);
+  mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockResolvedValue({ status: "not_found" });
   mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockReset();
   mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([]);
   mockedResolveBadgeRuleApprovalPolicyDb.mockReset();
@@ -861,7 +861,7 @@ beforeEach(() => {
     updatedAt: "2026-02-18T12:00:00.000Z",
   });
   mockedDecideBadgeIssuanceRuleVersionDb.mockReset();
-  mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue(null);
+  mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue({ status: "not_found" });
   mockedUpsertBadgeRuleApprovalPolicyDb.mockReset();
   mockedUpsertBadgeRuleApprovalPolicyDb.mockResolvedValue({
     id: "brap_123",

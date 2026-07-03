@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS badge_rule_approver_groups (
   created_by_user_id TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (tenant_id, id),
   UNIQUE (tenant_id, org_unit_id, name),
   FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE,
   FOREIGN KEY (tenant_id, org_unit_id) REFERENCES tenant_org_units (tenant_id, id) ON DELETE CASCADE,
@@ -56,8 +57,8 @@ CREATE TABLE IF NOT EXISTS badge_rule_approver_group_members (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (group_id, user_id),
   FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE,
-  FOREIGN KEY (group_id) REFERENCES badge_rule_approver_groups (id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+  FOREIGN KEY (tenant_id, group_id) REFERENCES badge_rule_approver_groups (tenant_id, id) ON DELETE CASCADE,
+  FOREIGN KEY (tenant_id, user_id) REFERENCES memberships (tenant_id, user_id) ON DELETE CASCADE,
   FOREIGN KEY (created_by_user_id) REFERENCES users (id) ON DELETE SET NULL
 );
 

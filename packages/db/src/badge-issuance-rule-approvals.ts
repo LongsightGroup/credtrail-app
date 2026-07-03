@@ -17,7 +17,9 @@ import type {
   BadgeIssuanceRuleApprovalStepRecord,
   BadgeIssuanceRuleVersionRecord,
   DecideBadgeIssuanceRuleVersionInput,
+  DecideBadgeIssuanceRuleVersionResult,
   SubmitBadgeIssuanceRuleVersionForApprovalInput,
+  SubmitBadgeIssuanceRuleVersionForApprovalResult,
 } from "./badge-issuance-rule-types.js";
 
 const checkActorIsApproverGroupMember = async (
@@ -59,10 +61,6 @@ const actorCanDecideApprovalStep = async (
   }
 
   if (input.step.targetType === "approver_group") {
-    if (input.step.targetApproverGroupId === null) {
-      return false;
-    }
-
     if (
       !tenantMembershipRoleSatisfiesMinimumRole(
         input.actorRole,
@@ -77,10 +75,6 @@ const actorCanDecideApprovalStep = async (
       groupId: input.step.targetApproverGroupId,
       actorUserId: input.actorUserId,
     });
-  }
-
-  if (input.step.requiredRole === null) {
-    return false;
   }
 
   return tenantMembershipRoleSatisfiesMinimumRole(input.actorRole, input.step.requiredRole);
@@ -195,34 +189,43 @@ const insertBadgeIssuanceRuleApprovalEvent = async (
 export const submitBadgeIssuanceRuleVersionForApproval = async (
   db: SqlDatabase,
   input: SubmitBadgeIssuanceRuleVersionForApprovalInput,
-): Promise<BadgeIssuanceRuleVersionRecord | null> => {
+): Promise<SubmitBadgeIssuanceRuleVersionForApprovalResult> => {
   const occurredAt = input.occurredAt ?? new Date().toISOString();
-  const version = await findBadgeIssuanceRuleVersionById(db, {
-    tenantId: input.tenantId,
-    ruleId: input.ruleId,
-    versionId: input.versionId,
-  });
-
-  if (version === null) {
-    return null;
-  }
-
-  if (version.status !== "draft" && version.status !== "rejected") {
-    return null;
-  }
-
-  const rule = await findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId);
-
-  if (rule === null) {
-    return null;
-  }
 
   return runSqlTransaction(db, async (transactionDb) => {
-    // Rule owner org unit is the captured approval scope from create or latest draft edit.
+    const version = await findBadgeIssuanceRuleVersionById(transactionDb, {
+      tenantId: input.tenantId,
+      ruleId: input.ruleId,
+      versionId: input.versionId,
+    });
+
+    if (version === null) {
+      return { status: "not_found" } as const;
+    }
+
+    if (version.status !== "draft" && version.status !== "rejected") {
+      return { status: "not_submittable" } as const;
+    }
+
+    const rule = await findBadgeIssuanceRuleById(transactionDb, input.tenantId, input.ruleId);
+
+    if (rule === null) {
+      return { status: "not_found" } as const;
+    }
+
     const policy = await resolveBadgeRuleApprovalPolicy(transactionDb, {
       tenantId: input.tenantId,
       orgUnitId: rule.ownerOrgUnitId,
     });
+
+    if (policy.approvalRequirement === "never" && !policy.allowSelfCertification) {
+      return { status: "self_certification_required" } as const;
+    }
+
+    if (policy.approvalRequirement === "always" && policy.approvalSteps.length === 0) {
+      return { status: "policy_missing_steps" } as const;
+    }
+
     const deleteApprovalStepsStatement = (): Promise<SqlRunResult> =>
       transactionDb
         .prepare(
@@ -238,10 +241,6 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
     await deleteApprovalStepsStatement();
 
     if (policy.approvalRequirement === "never") {
-      if (!policy.allowSelfCertification) {
-        throw new Error("Badge rule approval policy must allow self-certification");
-      }
-
       const approveVersionStatement = (): Promise<SqlRunResult> =>
         transactionDb
           .prepare(
@@ -283,15 +282,20 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
         occurredAt,
       });
 
-      return findBadgeIssuanceRuleVersionById(transactionDb, {
+      const submittedVersion = await findBadgeIssuanceRuleVersionById(transactionDb, {
         tenantId: input.tenantId,
         ruleId: input.ruleId,
         versionId: input.versionId,
       });
-    }
 
-    if (policy.approvalSteps.length === 0) {
-      throw new Error("Badge rule approval policy did not provide any approval steps");
+      if (submittedVersion === null) {
+        return { status: "not_found" } as const;
+      }
+
+      return {
+        status: "submitted",
+        version: submittedVersion,
+      } as const;
     }
 
     await insertBadgeIssuanceRuleApprovalSteps(transactionDb, {
@@ -341,18 +345,27 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
       occurredAt,
     });
 
-    return findBadgeIssuanceRuleVersionById(transactionDb, {
+    const submittedVersion = await findBadgeIssuanceRuleVersionById(transactionDb, {
       tenantId: input.tenantId,
       ruleId: input.ruleId,
       versionId: input.versionId,
     });
+
+    if (submittedVersion === null) {
+      return { status: "not_found" } as const;
+    }
+
+    return {
+      status: "submitted",
+      version: submittedVersion,
+    } as const;
   });
 };
 
 export const decideBadgeIssuanceRuleVersion = async (
   db: SqlDatabase,
   input: DecideBadgeIssuanceRuleVersionInput,
-): Promise<BadgeIssuanceRuleVersionRecord | null> => {
+): Promise<DecideBadgeIssuanceRuleVersionResult> => {
   const occurredAt = input.occurredAt ?? new Date().toISOString();
 
   return runSqlTransaction(db, async (transactionDb) => {
@@ -362,19 +375,23 @@ export const decideBadgeIssuanceRuleVersion = async (
       versionId: input.versionId,
     });
 
-    if (currentVersion?.status !== "pending_approval") {
-      return null;
+    if (currentVersion === null) {
+      return { status: "not_found" } as const;
+    }
+
+    if (currentVersion.status !== "pending_approval") {
+      return { status: "not_pending" } as const;
     }
 
     if (
       currentVersion.createdByUserId === input.actorUserId ||
       currentVersion.submittedByUserId === input.actorUserId
     ) {
-      throw new Error("Rule version submitters and creators cannot decide approval steps");
+      return { status: "separation_of_duties" } as const;
     }
 
     if (input.decision === "changes_requested" && (input.comment ?? "").trim().length === 0) {
-      throw new Error("Change requests require a comment");
+      return { status: "comment_required" } as const;
     }
 
     const steps = await listBadgeIssuanceRuleVersionApprovalSteps(transactionDb, {
@@ -385,7 +402,7 @@ export const decideBadgeIssuanceRuleVersion = async (
     const currentStep = steps.find((step) => step.status === "pending");
 
     if (currentStep === undefined) {
-      return null;
+      return { status: "no_pending_step" } as const;
     }
 
     if (
@@ -396,7 +413,13 @@ export const decideBadgeIssuanceRuleVersion = async (
         step: currentStep,
       }))
     ) {
-      throw new Error("Actor is not authorized to decide this approval step");
+      return {
+        status: "forbidden",
+        step: {
+          targetType: currentStep.targetType,
+          requiredRole: currentStep.requiredRole,
+        },
+      } as const;
     }
 
     const nextStep = steps.find((step) => step.stepNumber > currentStep.stepNumber);
@@ -546,11 +569,20 @@ export const decideBadgeIssuanceRuleVersion = async (
       occurredAt,
     });
 
-    return findBadgeIssuanceRuleVersionById(transactionDb, {
+    const decidedVersion = await findBadgeIssuanceRuleVersionById(transactionDb, {
       tenantId: input.tenantId,
       ruleId: input.ruleId,
       versionId: input.versionId,
     });
+
+    if (decidedVersion === null) {
+      return { status: "stale" } as const;
+    }
+
+    return {
+      status: "decided",
+      version: decidedVersion,
+    } as const;
   });
 };
 

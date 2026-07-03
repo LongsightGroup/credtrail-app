@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createPrefixedId } from "./shared-helpers";
 import type { SqlDatabase, SqlRunResult } from "./tenant-scope";
 import type { TenantMembershipRole } from "./tenant-memberships";
-import type { BadgeIssuanceRuleApprovalStepTargetType } from "./badge-issuance-rule-types.js";
+import type { BadgeIssuanceRuleApprovalStepTarget } from "./badge-issuance-rule-types.js";
 
 export type BadgeRuleApprovalRequirement = "always" | "never";
 
@@ -28,14 +28,10 @@ export type BadgeRuleApprovalPolicyStepInput =
       readonly label?: string | undefined;
     };
 
-export interface BadgeRuleApprovalPolicyStepRecord {
-  readonly targetType: BadgeIssuanceRuleApprovalStepTargetType;
-  readonly requiredRole: TenantMembershipRole;
-  readonly targetUserId: string | null;
-  readonly targetApproverGroupId: string | null;
+export type BadgeRuleApprovalPolicyStepRecord = BadgeIssuanceRuleApprovalStepTarget & {
   readonly orgUnitId: string | null;
   readonly label: string | null;
-}
+};
 
 export interface BadgeRuleApprovalPolicyRecord {
   readonly id: string | null;
@@ -121,6 +117,76 @@ const badgeRuleApprovalPolicyStepJsonSchema = z
   );
 const badgeRuleApprovalPolicyStepsJsonSchema = z.array(badgeRuleApprovalPolicyStepJsonSchema);
 
+const mapPolicyStepInputToRecord = (
+  step: BadgeRuleApprovalPolicyStepInput,
+): BadgeRuleApprovalPolicyStepRecord => {
+  if (step.targetType === "user") {
+    return {
+      targetType: "user",
+      requiredRole: step.requiredRole ?? null,
+      targetUserId: step.targetUserId,
+      targetApproverGroupId: null,
+      orgUnitId: step.orgUnitId ?? null,
+      label: step.label ?? null,
+    };
+  }
+
+  if (step.targetType === "approver_group") {
+    return {
+      targetType: "approver_group",
+      requiredRole: step.requiredRole ?? null,
+      targetUserId: null,
+      targetApproverGroupId: step.targetApproverGroupId,
+      orgUnitId: step.orgUnitId ?? null,
+      label: step.label ?? null,
+    };
+  }
+
+  return {
+    targetType: "role_threshold",
+    requiredRole: step.requiredRole,
+    targetUserId: null,
+    targetApproverGroupId: null,
+    orgUnitId: step.orgUnitId ?? null,
+    label: step.label ?? null,
+  };
+};
+
+const parseBadgeRuleApprovalPolicyStepJson = (step: unknown): BadgeRuleApprovalPolicyStepRecord => {
+  const parsed = badgeRuleApprovalPolicyStepJsonSchema.parse(step);
+
+  if ("targetType" in parsed && parsed.targetType === "user") {
+    return {
+      targetType: "user",
+      requiredRole: parsed.requiredRole ?? null,
+      targetUserId: parsed.targetUserId,
+      targetApproverGroupId: null,
+      orgUnitId: parsed.orgUnitId ?? null,
+      label: parsed.label ?? null,
+    };
+  }
+
+  if ("targetType" in parsed && parsed.targetType === "approver_group") {
+    return {
+      targetType: "approver_group",
+      requiredRole: parsed.requiredRole ?? null,
+      targetUserId: null,
+      targetApproverGroupId: parsed.targetApproverGroupId,
+      orgUnitId: parsed.orgUnitId ?? null,
+      label: parsed.label ?? null,
+    };
+  }
+
+  return {
+    targetType: "role_threshold",
+    requiredRole: parsed.requiredRole,
+    targetUserId: null,
+    targetApproverGroupId: null,
+    orgUnitId: "targetType" in parsed ? (parsed.orgUnitId ?? null) : null,
+    label: parsed.label ?? null,
+  };
+};
+
 const normalizeBadgeRuleApprovalPolicySteps = (
   approvalRequirement: BadgeRuleApprovalRequirement,
   steps: readonly BadgeRuleApprovalPolicyStepInput[],
@@ -133,74 +199,26 @@ const normalizeBadgeRuleApprovalPolicySteps = (
     throw new Error("Badge rule approval policy must include at least one approval step");
   }
 
-  return steps.map((step): BadgeRuleApprovalPolicyStepRecord => {
-    if (step.targetType === "user") {
-      return {
-        targetType: "user",
-        requiredRole: step.requiredRole ?? "viewer",
-        targetUserId: step.targetUserId,
-        targetApproverGroupId: null,
-        orgUnitId: step.orgUnitId ?? null,
-        label: step.label ?? null,
-      };
-    }
-
-    if (step.targetType === "approver_group") {
-      return {
-        targetType: "approver_group",
-        requiredRole: step.requiredRole ?? "viewer",
-        targetUserId: null,
-        targetApproverGroupId: step.targetApproverGroupId,
-        orgUnitId: step.orgUnitId ?? null,
-        label: step.label ?? null,
-      };
-    }
-
-    return {
-      targetType: "role_threshold",
-      requiredRole: step.requiredRole,
-      targetUserId: null,
-      targetApproverGroupId: null,
-      orgUnitId: step.orgUnitId ?? null,
-      label: step.label ?? null,
-    };
-  });
+  return steps.map(mapPolicyStepInputToRecord);
 };
 
 const parseBadgeRuleApprovalPolicyStepsJson = (
   approvalRequirement: BadgeRuleApprovalRequirement,
   stepsJson: string,
 ): BadgeRuleApprovalPolicyStepRecord[] => {
-  const steps = badgeRuleApprovalPolicyStepsJsonSchema.parse(JSON.parse(stepsJson)).map((step) => {
-    if ("targetType" in step && step.targetType === "user") {
-      return {
-        targetType: "user" as const,
-        requiredRole: step.requiredRole ?? null,
-        targetUserId: step.targetUserId,
-        orgUnitId: step.orgUnitId ?? null,
-        ...(step.label === undefined || step.label === null ? {} : { label: step.label }),
-      };
-    }
+  const steps = badgeRuleApprovalPolicyStepsJsonSchema
+    .parse(JSON.parse(stepsJson))
+    .map(parseBadgeRuleApprovalPolicyStepJson);
 
-    if ("targetType" in step && step.targetType === "approver_group") {
-      return {
-        targetType: "approver_group" as const,
-        requiredRole: step.requiredRole ?? null,
-        targetApproverGroupId: step.targetApproverGroupId,
-        orgUnitId: step.orgUnitId ?? null,
-        ...(step.label === undefined || step.label === null ? {} : { label: step.label }),
-      };
-    }
+  if (approvalRequirement === "never") {
+    return [];
+  }
 
-    return {
-      targetType: "role_threshold" as const,
-      requiredRole: step.requiredRole,
-      orgUnitId: "targetType" in step ? (step.orgUnitId ?? null) : null,
-      ...(step.label === undefined || step.label === null ? {} : { label: step.label }),
-    };
-  });
+  if (approvalRequirement === "always" && steps.length === 0) {
+    throw new Error("Badge rule approval policy must include at least one approval step");
+  }
 
-  return normalizeBadgeRuleApprovalPolicySteps(approvalRequirement, steps);
+  return steps;
 };
 
 const buildDefaultBadgeRuleApprovalPolicy = (

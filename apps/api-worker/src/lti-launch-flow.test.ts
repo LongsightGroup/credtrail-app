@@ -933,11 +933,12 @@ describe("LTI 1.3 core launch flow", () => {
       earnedBadgeTemplateIds: [],
     }));
     mockedSubmitBadgeIssuanceRuleVersionForApproval.mockReset();
-    mockedSubmitBadgeIssuanceRuleVersionForApproval.mockResolvedValue(
-      sampleBadgeIssuanceRuleVersion({
+    mockedSubmitBadgeIssuanceRuleVersionForApproval.mockResolvedValue({
+      status: "submitted",
+      version: sampleBadgeIssuanceRuleVersion({
         status: "pending_approval",
       }),
-    );
+    });
     mockedCreateAuditLog.mockReset();
     mockedCreateAuditLog.mockResolvedValue(sampleAuditLog());
     mockedFindActiveDelegatedIssuingAuthorityGrantForAction.mockReset();

@@ -4,12 +4,9 @@ import {
   decideBadgeIssuanceRuleVersion,
   deleteDraftBadgeIssuanceRule,
   findBadgeIssuanceRuleVersionById,
-  listBadgeIssuanceRuleVersionApprovalSteps,
   submitBadgeIssuanceRuleVersionForApproval,
-  tenantMembershipRoleSatisfiesMinimumRole,
   type BadgeIssuanceRuleVersionRecord,
   type SessionRecord,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
@@ -23,6 +20,10 @@ import { readOptionalFormField } from "../admin/admin-form-helpers";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
+import {
+  adminApprovalDecisionFailureMessage,
+  submitBadgeRuleVersionForApprovalFailureMessage,
+} from "../badges/badge-rule-approval-outcomes";
 
 interface RegisterTenantBadgeRuleActionsAdminRoutesInput {
   app: Hono<AppEnv>;
@@ -60,174 +61,6 @@ const redirectToRules = async (
   return c.redirect(buildRulesAdminPath(input.tenantId), 303);
 };
 
-type AdminApprovalDecisionResult =
-  | {
-      status: "decided";
-      version: BadgeIssuanceRuleVersionRecord;
-    }
-  | { status: "not_found" }
-  | { status: "not_pending" }
-  | { status: "no_pending_step" }
-  | { status: "forbidden"; requiredRole: TenantMembershipRole | null }
-  | { status: "stale" };
-
-type AdminApprovalDecisionFailureResult = Exclude<
-  AdminApprovalDecisionResult,
-  { status: "decided" }
->;
-
-const decideCurrentApprovalStepForAdmin = async (
-  db: SqlDatabase,
-  input: {
-    tenantId: string;
-    ruleId: string;
-    versionId: string;
-    decision: "approved" | "rejected" | "changes_requested";
-    actorUserId: string;
-    actorRole: TenantMembershipRole;
-    comment?: string | undefined;
-  },
-): Promise<AdminApprovalDecisionResult> => {
-  const currentVersion = await findBadgeIssuanceRuleVersionById(db, {
-    tenantId: input.tenantId,
-    ruleId: input.ruleId,
-    versionId: input.versionId,
-  });
-
-  if (currentVersion === null) {
-    return { status: "not_found" };
-  }
-
-  if (currentVersion.status !== "pending_approval") {
-    return { status: "not_pending" };
-  }
-
-  const approvalSteps = await listBadgeIssuanceRuleVersionApprovalSteps(db, {
-    tenantId: input.tenantId,
-    ruleId: input.ruleId,
-    versionId: input.versionId,
-  });
-  const currentApprovalStep = approvalSteps.find((step) => step.status === "pending");
-
-  if (currentApprovalStep === undefined) {
-    return { status: "no_pending_step" };
-  }
-
-  if (
-    currentApprovalStep.targetType === "role_threshold" &&
-    currentApprovalStep.requiredRole !== null &&
-    !tenantMembershipRoleSatisfiesMinimumRole(input.actorRole, currentApprovalStep.requiredRole)
-  ) {
-    return {
-      status: "forbidden",
-      requiredRole: currentApprovalStep.requiredRole,
-    };
-  }
-
-  let decidedVersion: BadgeIssuanceRuleVersionRecord | null;
-
-  try {
-    decidedVersion = await decideBadgeIssuanceRuleVersion(db, {
-      tenantId: input.tenantId,
-      ruleId: input.ruleId,
-      versionId: input.versionId,
-      decision: input.decision,
-      actorUserId: input.actorUserId,
-      actorRole: input.actorRole,
-      ...(input.comment !== undefined ? { comment: input.comment } : {}),
-    });
-  } catch {
-    return {
-      status: "forbidden",
-      requiredRole:
-        currentApprovalStep.targetType === "role_threshold"
-          ? currentApprovalStep.requiredRole
-          : null,
-    };
-  }
-
-  if (decidedVersion === null) {
-    return { status: "stale" };
-  }
-
-  await createAuditLog(db, {
-    tenantId: input.tenantId,
-    actorUserId: input.actorUserId,
-    action: "badge_rule.version_approval_decided",
-    targetType: "badge_rule_version",
-    targetId: decidedVersion.id,
-    metadata: {
-      role: input.actorRole,
-      ruleId: input.ruleId,
-      versionNumber: decidedVersion.versionNumber,
-      stepNumber: currentApprovalStep.stepNumber,
-      requiredRole: currentApprovalStep.requiredRole,
-      decision: input.decision,
-      comment: input.comment ?? null,
-      status: decidedVersion.status,
-    },
-  });
-
-  return {
-    status: "decided",
-    version: decidedVersion,
-  };
-};
-
-const redirectAdminApprovalDecisionFailure = async (
-  c: AppContext,
-  input: {
-    tenantId: string;
-    userId: string;
-    result: AdminApprovalDecisionFailureResult;
-    notPendingMessage: string;
-    forbiddenMessage: (result: { requiredRole: TenantMembershipRole | null }) => string;
-  },
-): Promise<Response> => {
-  if (input.result.status === "not_found") {
-    return redirectToRules(c, {
-      tenantId: input.tenantId,
-      userId: input.userId,
-      tone: "error",
-      message: "That rule version was not found.",
-    });
-  }
-
-  if (input.result.status === "not_pending") {
-    return redirectToRules(c, {
-      tenantId: input.tenantId,
-      userId: input.userId,
-      tone: "error",
-      message: input.notPendingMessage,
-    });
-  }
-
-  if (input.result.status === "no_pending_step") {
-    return redirectToRules(c, {
-      tenantId: input.tenantId,
-      userId: input.userId,
-      tone: "error",
-      message: "No pending approval step exists for this rule version.",
-    });
-  }
-
-  if (input.result.status === "forbidden") {
-    return redirectToRules(c, {
-      tenantId: input.tenantId,
-      userId: input.userId,
-      tone: "error",
-      message: input.forbiddenMessage(input.result),
-    });
-  }
-
-  return redirectToRules(c, {
-    tenantId: input.tenantId,
-    userId: input.userId,
-    tone: "error",
-    message: "That rule version is no longer waiting for approval.",
-  });
-};
-
 export const registerTenantBadgeRuleActionsAdminRoutes = (
   input: RegisterTenantBadgeRuleActionsAdminRoutesInput,
 ): void => {
@@ -246,31 +79,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
 
       const { session, membershipRole } = roleCheck;
       const db = resolveDatabase(c.env);
-      const currentVersion = await findBadgeIssuanceRuleVersionById(db, {
-        tenantId: pathParams.tenantId,
-        ruleId: pathParams.ruleId,
-        versionId: pathParams.versionId,
-      });
-
-      if (currentVersion === null) {
-        return redirectToRules(c, {
-          tenantId: pathParams.tenantId,
-          userId: session.userId,
-          tone: "error",
-          message: "That rule version was not found.",
-        });
-      }
-
-      if (currentVersion.status !== "draft" && currentVersion.status !== "rejected") {
-        return redirectToRules(c, {
-          tenantId: pathParams.tenantId,
-          userId: session.userId,
-          tone: "error",
-          message: "Only draft or rejected versions can be submitted from this action.",
-        });
-      }
-
-      const updatedVersion = await submitBadgeIssuanceRuleVersionForApproval(db, {
+      const submitResult = await submitBadgeIssuanceRuleVersionForApproval(db, {
         tenantId: pathParams.tenantId,
         ruleId: pathParams.ruleId,
         versionId: pathParams.versionId,
@@ -278,14 +87,16 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
         actorRole: membershipRole,
       });
 
-      if (updatedVersion === null) {
+      if (submitResult.status !== "submitted") {
         return redirectToRules(c, {
           tenantId: pathParams.tenantId,
           userId: session.userId,
           tone: "error",
-          message: "That rule version was not found.",
+          message: submitBadgeRuleVersionForApprovalFailureMessage(submitResult),
         });
       }
+
+      const updatedVersion: BadgeIssuanceRuleVersionRecord = submitResult.version;
 
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
@@ -344,7 +155,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
     }
 
     const db = resolveDatabase(c.env);
-    const decisionResult = await decideCurrentApprovalStepForAdmin(db, {
+    const decisionResult = await decideBadgeIssuanceRuleVersion(db, {
       tenantId: pathParams.tenantId,
       ruleId: pathParams.ruleId,
       versionId: pathParams.versionId,
@@ -355,15 +166,29 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
     });
 
     if (decisionResult.status !== "decided") {
-      return redirectAdminApprovalDecisionFailure(c, {
+      return redirectToRules(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
-        result: decisionResult,
-        notPendingMessage:
-          "Only versions waiting for approval can be approved, sent back, or rejected.",
-        forbiddenMessage: () => `Your role cannot ${request.decision} this approval step.`,
+        tone: "error",
+        message: adminApprovalDecisionFailureMessage(request.decision, decisionResult),
       });
     }
+
+    await createAuditLog(db, {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action: "badge_rule.version_approval_decided",
+      targetType: "badge_rule_version",
+      targetId: decisionResult.version.id,
+      metadata: {
+        role: membershipRole,
+        ruleId: pathParams.ruleId,
+        versionNumber: decisionResult.version.versionNumber,
+        decision: request.decision,
+        comment: request.comment ?? null,
+        status: decisionResult.version.status,
+      },
+    });
 
     return redirectToRules(c, {
       tenantId: pathParams.tenantId,

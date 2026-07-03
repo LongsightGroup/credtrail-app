@@ -22,7 +22,28 @@ export type BadgeIssuanceRuleApprovalStepStatus =
   | "rejected"
   | "changes_requested";
 
-export type BadgeIssuanceRuleApprovalStepTargetType = "role_threshold" | "user" | "approver_group";
+export type BadgeIssuanceRuleApprovalStepTarget =
+  | {
+      targetType: "role_threshold";
+      requiredRole: TenantMembershipRole;
+      targetUserId: null;
+      targetApproverGroupId: null;
+    }
+  | {
+      targetType: "user";
+      requiredRole: TenantMembershipRole | null;
+      targetUserId: string;
+      targetApproverGroupId: null;
+    }
+  | {
+      targetType: "approver_group";
+      requiredRole: TenantMembershipRole | null;
+      targetUserId: null;
+      targetApproverGroupId: string;
+    };
+
+export type BadgeIssuanceRuleApprovalStepTargetType =
+  BadgeIssuanceRuleApprovalStepTarget["targetType"];
 
 export type BadgeIssuanceRuleApprovalDecision = "approved" | "rejected" | "changes_requested";
 
@@ -66,15 +87,11 @@ export interface BadgeIssuanceRuleVersionRecord {
   updatedAt: string;
 }
 
-export interface BadgeIssuanceRuleApprovalStepRecord {
+interface BadgeIssuanceRuleApprovalStepBaseRecord {
   id: string;
   tenantId: string;
   versionId: string;
   stepNumber: number;
-  targetType: BadgeIssuanceRuleApprovalStepTargetType;
-  requiredRole: TenantMembershipRole | null;
-  targetUserId: string | null;
-  targetApproverGroupId: string | null;
   orgUnitId: string | null;
   label: string | null;
   status: BadgeIssuanceRuleApprovalStepStatus;
@@ -84,6 +101,9 @@ export interface BadgeIssuanceRuleApprovalStepRecord {
   createdAt: string;
   updatedAt: string;
 }
+
+export type BadgeIssuanceRuleApprovalStepRecord = BadgeIssuanceRuleApprovalStepBaseRecord &
+  BadgeIssuanceRuleApprovalStepTarget;
 
 export interface BadgeIssuanceRuleApprovalEventRecord {
   id: string;
@@ -160,6 +180,57 @@ export interface DecideBadgeIssuanceRuleVersionInput {
   comment?: string | undefined;
   occurredAt?: string | undefined;
 }
+
+export type DecideBadgeIssuanceRuleVersionForbiddenStep = Pick<
+  BadgeIssuanceRuleApprovalStepRecord,
+  "targetType" | "requiredRole"
+>;
+
+export type DecideBadgeIssuanceRuleVersionResult =
+  | {
+      status: "decided";
+      version: BadgeIssuanceRuleVersionRecord;
+    }
+  | {
+      status: "not_found";
+    }
+  | {
+      status: "not_pending";
+    }
+  | {
+      status: "no_pending_step";
+    }
+  | {
+      status: "stale";
+    }
+  | {
+      status: "separation_of_duties";
+    }
+  | {
+      status: "forbidden";
+      step: DecideBadgeIssuanceRuleVersionForbiddenStep;
+    }
+  | {
+      status: "comment_required";
+    };
+
+export type SubmitBadgeIssuanceRuleVersionForApprovalResult =
+  | {
+      status: "submitted";
+      version: BadgeIssuanceRuleVersionRecord;
+    }
+  | {
+      status: "not_found";
+    }
+  | {
+      status: "not_submittable";
+    }
+  | {
+      status: "self_certification_required";
+    }
+  | {
+      status: "policy_missing_steps";
+    };
 
 export interface ListBadgeIssuanceRuleVersionApprovalStepsInput {
   tenantId: string;

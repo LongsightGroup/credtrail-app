@@ -5,6 +5,7 @@ import type {
   BadgeIssuanceRuleApprovalEventRecord,
   BadgeIssuanceRuleApprovalStepRecord,
   BadgeIssuanceRuleApprovalStepStatus,
+  BadgeIssuanceRuleApprovalStepTarget,
   BadgeIssuanceRuleLmsProviderKind,
   BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleVersionRecord,
@@ -67,6 +68,39 @@ interface BadgeIssuanceRuleApprovalStepRow {
   createdAt: string;
   updatedAt: string;
 }
+
+const mapBadgeIssuanceRuleApprovalStepTarget = (
+  row: BadgeIssuanceRuleApprovalStepRow,
+): BadgeIssuanceRuleApprovalStepTarget => {
+  if (row.targetType === "user" && row.targetUserId !== null) {
+    return {
+      targetType: "user",
+      requiredRole: row.requiredRole,
+      targetUserId: row.targetUserId,
+      targetApproverGroupId: null,
+    };
+  }
+
+  if (row.targetType === "approver_group" && row.targetApproverGroupId !== null) {
+    return {
+      targetType: "approver_group",
+      requiredRole: row.requiredRole,
+      targetUserId: null,
+      targetApproverGroupId: row.targetApproverGroupId,
+    };
+  }
+
+  if (row.targetType === "role_threshold" && row.requiredRole !== null) {
+    return {
+      targetType: "role_threshold",
+      requiredRole: row.requiredRole,
+      targetUserId: null,
+      targetApproverGroupId: null,
+    };
+  }
+
+  throw new Error(`Invalid stored badge rule approval step target for step "${row.id}"`);
+};
 
 interface BadgeIssuanceRuleApprovalEventRow {
   id: string;
@@ -157,10 +191,7 @@ const mapBadgeIssuanceRuleApprovalStepRow = (
     tenantId: row.tenantId,
     versionId: row.versionId,
     stepNumber: row.stepNumber,
-    targetType: row.targetType ?? "role_threshold",
-    requiredRole: row.requiredRole,
-    targetUserId: row.targetUserId ?? null,
-    targetApproverGroupId: row.targetApproverGroupId ?? null,
+    ...mapBadgeIssuanceRuleApprovalStepTarget(row),
     orgUnitId: row.orgUnitId ?? null,
     label: row.label,
     status: row.status,

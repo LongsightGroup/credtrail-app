@@ -32,7 +32,7 @@ import {
   AdminStatusPill,
   AdminWorkspaceCard,
 } from "../components";
-import { CtInput, CtSelect } from "../../ui/forms";
+import { CtInput, CtSelect, CtTextarea } from "../../ui/forms";
 import { buildLmsConnectionEditPath, isLmsConnectionReady } from "../lms-connection-admin-helpers";
 import { TenantApiKeyAdminTableRow } from "../api-key-table-row";
 import { serializeJsonScriptContent } from "../institution-admin-shell";
@@ -540,15 +540,26 @@ export const buildInstitutionAdminViewResources = (
             <AdminForm
               method="post"
               action={tenantBadgeRuleDecisionAdminPath(input.tenant.id, rule.id, latestVersion.id)}
-              className="ct-admin__inline-form"
-              dataAttributes={{
-                "data-confirm-message": `Request changes on latest version for "${rule.name}"?`,
-              }}
+              className="ct-admin__action-menu-form ct-admin__action-menu-form--stacked"
             >
               <CtInput type="hidden" name="decision" value="changes_requested" />
-              <CtInput type="hidden" name="comment" value="Changes requested." />
+              <div class="ct-admin__action-menu-field">
+                <label
+                  class="ct-admin__action-menu-field-label"
+                  htmlFor={`badge-rule-change-request-${rule.id}`}
+                >
+                  Request changes
+                </label>
+                <CtTextarea
+                  id={`badge-rule-change-request-${rule.id}`}
+                  name="comment"
+                  rows={3}
+                  required
+                  placeholder="Explain what needs to change before this version can be approved."
+                />
+              </div>
               <button type="submit" class="ct-admin__action-menu-item">
-                Request changes
+                Send back to draft
               </button>
             </AdminForm>,
           );

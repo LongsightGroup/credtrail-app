@@ -328,9 +328,11 @@ export const createCourseBadgePlacementRule = async (input: {
       comment: "Submitted from LTI Deep Linking course badge setup.",
     });
 
-    if (submittedVersion === null) {
+    if (submittedVersion.status !== "submitted") {
       throw new Error("Unable to submit LTI-created course rule version for approval");
     }
+
+    const submittedRuleVersion = submittedVersion.version;
 
     const placement = await upsertLtiResourceLinkPlacement(transactionDb, {
       tenantId: input.tenantId,
@@ -345,7 +347,7 @@ export const createCourseBadgePlacementRule = async (input: {
     });
     const auditMetadata = {
       badgeTemplateId: input.badgeTemplate.id,
-      ruleVersionId: submittedVersion.id,
+      ruleVersionId: submittedRuleVersion.id,
       ltiIssuer: normalizeLtiIssuer(input.issuer),
       ltiClientId: input.clientId,
       ltiDeploymentId: input.deploymentId,
@@ -373,7 +375,7 @@ export const createCourseBadgePlacementRule = async (input: {
 
     return {
       rule: rule.rule,
-      version: submittedVersion,
+      version: submittedRuleVersion,
       placement,
     };
   });
