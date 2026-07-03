@@ -3634,23 +3634,26 @@ a.ct-admin__workspace-card:active {
   flex: 0 0 auto;
 }
 
-
 .ct-admin__status {
   margin: 0;
   font-size: 0.88rem;
   color: var(--ct-theme-text-muted);
 }
-.ct-admin__status[data-tone='error'] {
+.ct-admin__status[data-tone="error"] {
   color: var(--ct-theme-state-danger);
 }
-.ct-admin__status[data-tone='success'] {
+.ct-admin__status[data-tone="success"] {
   color: var(--ct-theme-state-success);
 }
-.ct-admin__status[data-tone='info'] {
+.ct-admin__status[data-tone="info"] {
   color: var(--ct-theme-text-muted);
 }
-.ct-admin__status[data-tone='warning'] {
+.ct-admin__status[data-tone="warning"] {
   color: var(--ct-theme-state-warning);
+}
+.ct-admin__review-impact--loosening {
+  border-inline-start: 3px solid var(--ct-theme-state-warning);
+  padding-inline-start: var(--ct-space-2);
 }
 .ct-admin__hint {
   margin: 0;
