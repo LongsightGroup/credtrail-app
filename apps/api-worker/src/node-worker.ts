@@ -1,3 +1,4 @@
+import "./node-jsx-runtime";
 import { processScheduledQueue } from "./app";
 import { createNodeRuntimeBindings, parsePositiveIntegerEnv } from "./runtime/node-runtime";
 

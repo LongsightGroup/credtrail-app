@@ -94,8 +94,8 @@ function isExternalImport(importId) {
 
 export default {
   input: {
-    "node-server-runtime": "apps/api-worker/src/node-server-runtime.ts",
-    "node-worker-runtime": "apps/api-worker/src/node-worker-runtime.ts",
+    "node-server-runtime": "apps/api-worker/src/node-server.ts",
+    "node-worker-runtime": "apps/api-worker/src/node-worker.ts",
   },
   external: isExternalImport,
   platform: "node",
