@@ -410,8 +410,11 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/impact-preview"',
     );
-    expect(body).not.toContain("No LMS course placement is linked to this rule yet.");
-    expect(mockedFindLtiResourceLinkPlacementForRule).not.toHaveBeenCalled();
+    expect(body).toContain("No LMS course placement is linked to this rule yet.");
+    expect(mockedFindLtiResourceLinkPlacementForRule).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_approval",
+    });
     expect(body).toContain("Approval Chain");
     expect(body).toContain("Department approval");
     expect(body).toContain(
@@ -425,7 +428,7 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
 });
 
 describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versionId/impact-preview", () => {
-  it("runs the live LMS impact preview only when the reviewer refreshes it", async () => {
+  it("refreshes the live LMS impact preview on reviewer request", async () => {
     const env = createEnv();
     const rule: BadgeIssuanceRuleRecord = {
       id: "brl_approval",

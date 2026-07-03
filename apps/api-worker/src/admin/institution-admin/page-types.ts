@@ -21,6 +21,7 @@ import type {
   TenantReportingTrendRecord,
   DelegatedIssuingAuthorityGrantRecord,
   BadgeIssuanceRuleValueListRecord,
+  BadgeRuleApproverGroupWithMembersRecord,
 } from "@credtrail/db";
 import type {
   LearnerRecordImportBatchProgressSummary,
@@ -207,6 +208,7 @@ export interface InstitutionAdminPageInput {
   orgUnits: readonly TenantOrgUnitRecord[];
   tenantMembers: readonly TenantMemberRecord[];
   membershipOrgUnitScopes: readonly TenantMembershipOrgUnitScopeRecord[];
+  badgeRuleApproverGroups: readonly BadgeRuleApproverGroupWithMembersRecord[];
   delegatedIssuingAuthorityGrants: readonly DelegatedIssuingAuthorityGrantRecord[];
   lmsConnections: readonly TenantLmsConnectionRecord[];
   activeApiKeys: readonly TenantApiKeyRecord[];

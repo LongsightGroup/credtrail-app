@@ -17,6 +17,8 @@ import { CtInput, CtSelect } from "../../ui/forms";
 import {
   buildAccessAuthenticationAdminPath,
   buildAccessGovernanceDelegationNewPath,
+  tenantAccessApproverGroupCreatePath,
+  tenantAccessApproverGroupMemberAddPath,
   tenantAccessBadgeRuleApprovalPolicyPath,
   tenantAccessMemberCreatePath,
   tenantAccessMembershipScopeSavePath,
@@ -53,9 +55,14 @@ interface RenderInstitutionAdminAccessSectionsInput {
   tenantMemberRows: HonoElement;
   orgUnitParentOptions: HonoElement;
   tenantMemberSelectOptions: HonoElement;
+  badgeRuleApprovalTargetUserSelectOptions: HonoElement;
+  approverGroupSelectOptions: HonoElement;
+  badgeRuleApprovalTargetApproverGroupSelectOptions: HonoElement;
   activeOrgUnitSelectOptions: HonoElement;
+  badgeRuleApprovalOrgUnitSelectOptions: HonoElement;
   optionalBadgeTemplateScopeOptions: HonoElement;
   membershipScopeRows: HonoElement;
+  approverGroupRows: HonoElement;
   delegatedGrantRows: HonoElement;
   lmsConnectionRows: HonoElement;
   badgeRuleApprovalPolicy?: BadgeRuleApprovalPolicyRecord | null;
@@ -78,6 +85,8 @@ interface InstitutionAdminAccessSections {
   tenantMembersTableMarkup: HonoElement;
   membershipScopePanelMarkup: HonoElement;
   membershipScopeTableMarkup: HonoElement;
+  approverGroupPanelMarkup: HonoElement;
+  approverGroupTableMarkup: HonoElement;
   delegatedGrantTableMarkup: HonoElement;
 }
 
@@ -101,14 +110,19 @@ export const renderInstitutionAdminAccessSections = (
   const delegationNewPath = buildAccessGovernanceDelegationNewPath(input.tenantId);
   const authenticationPath = buildAccessAuthenticationAdminPath(input.tenantId);
   const badgeRuleApprovalPolicyPath = tenantAccessBadgeRuleApprovalPolicyPath(input.tenantId);
+  const approverGroupCreatePath = tenantAccessApproverGroupCreatePath(input.tenantId);
+  const approverGroupMemberAddPath = tenantAccessApproverGroupMemberAddPath(input.tenantId);
   const badgeRuleApprovalPolicy = input.badgeRuleApprovalPolicy ?? null;
+  const badgeRuleApprovalOrgUnitId = badgeRuleApprovalPolicy?.orgUnitId ?? "";
   const badgeRuleApprovalRequirement =
     badgeRuleApprovalPolicy?.approvalRequirement === "never" ? "never" : "always";
   const firstBadgeRuleApprovalStep = badgeRuleApprovalPolicy?.approvalSteps[0] ?? null;
+  const badgeRuleApprovalStepTargetType =
+    firstBadgeRuleApprovalStep?.targetType ?? "role_threshold";
   const badgeRuleApprovalRole =
     firstBadgeRuleApprovalStep?.targetType === "role_threshold"
       ? firstBadgeRuleApprovalStep.requiredRole
-      : "admin";
+      : (firstBadgeRuleApprovalStep?.requiredRole ?? "");
   const recertificationIntervalMonths =
     badgeRuleApprovalPolicy?.recertificationIntervalMonths ?? null;
   const badgeRuleApprovalSummary = describeBadgeRuleApprovalSummary(badgeRuleApprovalPolicy);
@@ -327,8 +341,47 @@ export const renderInstitutionAdminAccessSections = (
               </option>
             </CtSelect>
           </AdminField>
+          <AdminField label="Policy scope">
+            <CtSelect name="orgUnitId">
+              <option
+                value=""
+                selected={badgeRuleApprovalOrgUnitId.length === 0 ? true : undefined}
+              >
+                Tenant default
+              </option>
+              {input.badgeRuleApprovalOrgUnitSelectOptions}
+            </CtSelect>
+          </AdminField>
+          <p class="ct-admin__hint">
+            Choose an org unit to override the tenant default for that unit and its children.
+          </p>
+          <AdminField label="Reviewer type">
+            <CtSelect name="stepTargetType" required>
+              <option
+                value="role_threshold"
+                selected={badgeRuleApprovalStepTargetType === "role_threshold" ? true : undefined}
+              >
+                Any member with a role
+              </option>
+              <option
+                value="user"
+                selected={badgeRuleApprovalStepTargetType === "user" ? true : undefined}
+              >
+                Named person
+              </option>
+              <option
+                value="approver_group"
+                selected={badgeRuleApprovalStepTargetType === "approver_group" ? true : undefined}
+              >
+                Approver group
+              </option>
+            </CtSelect>
+          </AdminField>
           <AdminField label="Reviewer role">
-            <CtSelect name="requiredRole" required>
+            <CtSelect name="requiredRole">
+              <option value="" selected={badgeRuleApprovalRole.length === 0 ? true : undefined}>
+                No minimum role
+              </option>
               {(["admin", "owner", "issuer", "approver", "viewer"] as const).map((role) => (
                 <option value={role} selected={badgeRuleApprovalRole === role ? true : undefined}>
                   {ruleApprovalPolicyRoleLabel(role)}
@@ -336,9 +389,21 @@ export const renderInstitutionAdminAccessSections = (
               ))}
             </CtSelect>
           </AdminField>
+          <AdminField label="Named reviewer">
+            <CtSelect name="targetUserId">
+              <option value="">Choose only for named-person approval</option>
+              {input.badgeRuleApprovalTargetUserSelectOptions}
+            </CtSelect>
+          </AdminField>
+          <AdminField label="Approver group">
+            <CtSelect name="targetApproverGroupId">
+              <option value="">Choose only for approver-group approval</option>
+              {input.badgeRuleApprovalTargetApproverGroupSelectOptions}
+            </CtSelect>
+          </AdminField>
           <p class="ct-admin__hint">
-            Reviewer role is used when approval is required. Rule authors cannot edit this policy
-            from Rule Builder.
+            Role approval uses reviewer role. Named-person and group approval use the selected
+            reviewer, with reviewer role as an optional minimum.
           </p>
           <AdminField label="Recertification cadence">
             <CtInput
@@ -359,6 +424,50 @@ export const renderInstitutionAdminAccessSections = (
             Leave blank if active rules do not need scheduled re-approval.
           </p>
           <AdminButton type="submit">Save approval policy</AdminButton>
+        </AdminForm>
+      </details>
+      <details id="approver-group-panel" class="ct-admin__panel ct-admin__add-disclosure">
+        <summary class="ct-admin__add-disclosure-summary">
+          <span>
+            <strong>Manage approver groups</strong>
+            <small>Create a group and add tenant members who can review assigned steps.</small>
+          </span>
+          {addDisclosureControlMarkup}
+        </summary>
+        <AdminForm
+          id="approver-group-form"
+          method="post"
+          action={approverGroupCreatePath}
+          className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--governance ct-grid"
+        >
+          <AdminField label="Group name">
+            <CtInput name="name" type="text" required placeholder="Registrar office" />
+          </AdminField>
+          <AdminField label="Org unit">
+            <CtSelect name="orgUnitId">
+              <option value="">Tenant-wide group</option>
+              {input.activeOrgUnitSelectOptions}
+            </CtSelect>
+          </AdminField>
+          <AdminButton type="submit">Create approver group</AdminButton>
+        </AdminForm>
+        <AdminForm
+          id="approver-group-member-form"
+          method="post"
+          action={approverGroupMemberAddPath}
+          className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--governance ct-grid"
+        >
+          <AdminField label="Approver group">
+            <CtSelect name="groupId" required>
+              {input.approverGroupSelectOptions}
+            </CtSelect>
+          </AdminField>
+          <AdminField label="Tenant member">
+            <CtSelect name="userId" required>
+              {input.tenantMemberSelectOptions}
+            </CtSelect>
+          </AdminField>
+          <AdminButton type="submit">Add member to group</AdminButton>
         </AdminForm>
       </details>
       <AdminPanel>
@@ -490,6 +599,19 @@ export const renderInstitutionAdminAccessSections = (
     </AdminPanel>
   );
 
+  const approverGroupTableMarkup = (
+    <AdminPanel variant="table">
+      <h2>Approver Groups</h2>
+      <p>Use groups when an office or committee, not any admin, owns an approval step.</p>
+      <AdminTable
+        headers={["Group", "Scope", "Members", "Updated", "Actions"]}
+        tbodyId="approver-group-body"
+      >
+        {input.approverGroupRows}
+      </AdminTable>
+    </AdminPanel>
+  );
+
   const delegatedGrantTableMarkup = (
     <AdminPanel variant="table">
       <h2>Current Delegations ({input.delegatedAuthorityGrantCount})</h2>
@@ -514,6 +636,8 @@ export const renderInstitutionAdminAccessSections = (
     tenantMembersTableMarkup,
     membershipScopePanelMarkup,
     membershipScopeTableMarkup,
+    approverGroupPanelMarkup: <></>,
+    approverGroupTableMarkup,
     delegatedGrantTableMarkup,
   };
 };

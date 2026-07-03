@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   createEnv,
   fakeDb,
+  mockedAddBadgeRuleApproverGroupMemberDb,
   mockedCreateAuditLogDb,
+  mockedCreateBadgeRuleApproverGroupDb,
   mockedFindTenantById,
+  mockedRemoveBadgeRuleApproverGroupMemberDb,
   mockedResolveBadgeRuleApprovalPolicyDb,
   mockedResolveTenantDefaultBadgeRuleApprovalPolicyDb,
   mockedUpsertBadgeRuleApprovalPolicyDb,
@@ -142,6 +145,21 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
     );
     expect(body).toContain("Set badge rule approval policy");
     expect(body).toContain("Require approval before activation");
+    expect(body).toContain("Policy scope");
+    expect(body).toContain("Reviewer type");
+    expect(body).toContain("Named person");
+    expect(body).toContain("Approver group");
+    expect(body).toContain("Registrar office");
+    expect(body).toContain('id="approver-group-form"');
+    expect(body).toContain('id="approver-group-member-form"');
+    expect(body).toContain('id="approver-group-body"');
+    expect(body).toContain('action="/tenants/tenant_123/admin/access/governance/approver-groups"');
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/access/governance/approver-groups/members"',
+    );
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/access/governance/approver-groups/members/remove"',
+    );
     expect(body).toContain("Submitted badge rule versions require admin approval.");
     expect(body).toContain('id="membership-scope-form"');
     expect(body).toContain('id="membership-scope-panel"');
@@ -261,6 +279,88 @@ describe("POST /tenants/:tenantId/admin/access/governance/rule-approval-policy",
     );
   });
 
+  it("saves an org-unit approver group badge rule approval policy", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/governance/rule-approval-policy",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          approvalRequirement: "always",
+          orgUnitId: "tenant_123:org:institution",
+          stepTargetType: "approver_group",
+          targetApproverGroupId: "brag_registrar",
+          requiredRole: "approver",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(mockedUpsertBadgeRuleApprovalPolicyDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      orgUnitId: "tenant_123:org:institution",
+      approvalRequirement: "always",
+      allowSelfCertification: false,
+      recertificationIntervalMonths: null,
+      approvalSteps: [
+        {
+          targetType: "approver_group",
+          targetApproverGroupId: "brag_registrar",
+          requiredRole: "approver",
+          label: "Approver group review",
+        },
+      ],
+      createdByUserId: "usr_admin",
+    });
+  });
+
+  it("saves a named-user badge rule approval policy", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/governance/rule-approval-policy",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          approvalRequirement: "always",
+          stepTargetType: "user",
+          targetUserId: "usr_issuer",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(mockedUpsertBadgeRuleApprovalPolicyDb).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        orgUnitId: null,
+        approvalSteps: [
+          {
+            targetType: "user",
+            targetUserId: "usr_issuer",
+            requiredRole: null,
+            label: "Named approver review",
+          },
+        ],
+      }),
+    );
+  });
+
   it("allows institutions to choose automatic approval", async () => {
     const env = createEnv();
 
@@ -327,7 +427,92 @@ describe("POST /tenants/:tenantId/admin/access/governance/rule-approval-policy",
 
     expect(response.status).toBe(303);
     expect(mockedUpsertBadgeRuleApprovalPolicyDb).not.toHaveBeenCalled();
-    expect(body).toContain("Choose an approval requirement and reviewer role before saving.");
+    expect(body).toContain("Choose an approval requirement and reviewer before saving.");
+  });
+});
+
+describe("POST /tenants/:tenantId/admin/access/governance/approver-groups", () => {
+  it("creates an approver group", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/governance/approver-groups",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          name: "Registrar office",
+          orgUnitId: "tenant_123:org:institution",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(mockedCreateBadgeRuleApproverGroupDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      orgUnitId: "tenant_123:org:institution",
+      name: "Registrar office",
+      createdByUserId: "usr_admin",
+    });
+  });
+
+  it("adds and removes approver group members", async () => {
+    const env = createEnv();
+
+    const addResponse = await app.request(
+      "/tenants/tenant_123/admin/access/governance/approver-groups/members",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          groupId: "brag_registrar",
+          userId: "usr_issuer",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+    const removeResponse = await app.request(
+      "/tenants/tenant_123/admin/access/governance/approver-groups/members/remove",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          groupId: "brag_registrar",
+          userId: "usr_issuer",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(addResponse.status).toBe(303);
+    expect(removeResponse.status).toBe(303);
+    expect(mockedAddBadgeRuleApproverGroupMemberDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      groupId: "brag_registrar",
+      userId: "usr_issuer",
+      createdByUserId: "usr_admin",
+    });
+    expect(mockedRemoveBadgeRuleApproverGroupMemberDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      groupId: "brag_registrar",
+      userId: "usr_issuer",
+    });
   });
 });
 

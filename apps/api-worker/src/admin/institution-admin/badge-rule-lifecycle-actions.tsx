@@ -2,6 +2,7 @@ import type { BadgeIssuanceRuleRecord, BadgeIssuanceRuleVersionRecord } from "@c
 import type { Child } from "hono/jsx";
 import {
   tenantBadgeRuleActivateAdminPath,
+  tenantBadgeRuleRecertifyAdminPath,
   tenantBadgeRuleResumeAdminPath,
   tenantBadgeRuleSuspendAdminPath,
   tenantBadgeRuleUpdateLifecycleAdminPath,
@@ -106,6 +107,23 @@ export const buildBadgeRuleLifecycleMenuActions = (input: {
         </button>
       </AdminForm>,
     );
+
+    if (latestVersion.recertificationDueAt !== null) {
+      menuActions.push(
+        <AdminForm
+          method="post"
+          action={tenantBadgeRuleRecertifyAdminPath(tenantId, rule.id, latestVersion.id)}
+          className="ct-admin__inline-form"
+          dataAttributes={{
+            "data-confirm-message": `Record recertification for "${rule.name}"?`,
+          }}
+        >
+          <button type="submit" class="ct-admin__action-menu-item">
+            Recertify rule
+          </button>
+        </AdminForm>,
+      );
+    }
   }
 
   if (latestVersion.status === "suspended") {

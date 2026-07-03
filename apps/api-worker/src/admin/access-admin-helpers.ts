@@ -88,6 +88,22 @@ export const tenantAccessBadgeRuleApprovalPolicyPath = (tenantId: string): strin
   return `${buildAccessGovernanceAdminPath(tenantId)}/rule-approval-policy`;
 };
 
+export const tenantAccessApproverGroupCreatePath = (tenantId: string): string => {
+  return `${buildAccessGovernanceAdminPath(tenantId)}/approver-groups`;
+};
+
+export const tenantAccessApproverGroupRemovePath = (tenantId: string): string => {
+  return `${buildAccessGovernanceAdminPath(tenantId)}/approver-groups/remove`;
+};
+
+export const tenantAccessApproverGroupMemberAddPath = (tenantId: string): string => {
+  return `${buildAccessGovernanceAdminPath(tenantId)}/approver-groups/members`;
+};
+
+export const tenantAccessApproverGroupMemberRemovePath = (tenantId: string): string => {
+  return `${buildAccessGovernanceAdminPath(tenantId)}/approver-groups/members/remove`;
+};
+
 export const tenantAccessDelegatedGrantCreatePath = (tenantId: string): string => {
   return `${buildAccessGovernanceAdminPath(tenantId)}/delegations`;
 };
@@ -146,6 +162,14 @@ export const tenantBadgeRuleResumeAdminPath = (
   versionId: string,
 ): string => {
   return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(versionId)}/resume`;
+};
+
+export const tenantBadgeRuleRecertifyAdminPath = (
+  tenantId: string,
+  ruleId: string,
+  versionId: string,
+): string => {
+  return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(versionId)}/recertify`;
 };
 
 export const tenantBadgeRuleDeleteAdminPath = (tenantId: string, ruleId: string): string => {

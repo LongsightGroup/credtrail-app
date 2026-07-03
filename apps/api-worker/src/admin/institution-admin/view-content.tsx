@@ -64,6 +64,8 @@ export interface InstitutionAdminViewContentInput {
   access: {
     apiKeyPanelMarkup: RenderedNode;
     apiKeysTableMarkup: RenderedNode;
+    approverGroupPanelMarkup: RenderedNode;
+    approverGroupTableMarkup: RenderedNode;
     delegatedGrantTableMarkup: RenderedNode;
     governanceActionsMarkup: RenderedNode;
     governanceGuidePanelMarkup: RenderedNode;
@@ -497,6 +499,8 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             ) : null}
             {content.access.governanceGuidePanelMarkup}
             {content.access.governanceActionsMarkup}
+            {content.access.approverGroupTableMarkup}
+            {content.access.approverGroupPanelMarkup}
             {content.access.membershipScopeTableMarkup}
             {content.access.membershipScopePanelMarkup}
             {content.access.delegatedGrantTableMarkup}

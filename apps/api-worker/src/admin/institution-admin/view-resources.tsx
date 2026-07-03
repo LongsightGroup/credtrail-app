@@ -12,6 +12,8 @@ import type { HtmlEscapedString } from "hono/utils/html";
 import { formatIsoTimestamp } from "../../utils/display-format";
 import {
   tenantAccessDelegatedGrantRevokePath,
+  tenantAccessApproverGroupMemberRemovePath,
+  tenantAccessApproverGroupRemovePath,
   tenantAccessMemberInvitePath,
   tenantAccessMemberRemovePath,
   tenantAccessMemberRolePath,
@@ -421,6 +423,75 @@ export const buildInstitutionAdminViewResources = (
     })
   );
 
+  const approverGroupRows = !dataNeeds.governanceTableRows ? (
+    emptySectionMarkup
+  ) : input.badgeRuleApproverGroups.length === 0 ? (
+    <AdminEmptyTableRow colSpan={5}>No approver groups created yet.</AdminEmptyTableRow>
+  ) : (
+    input.badgeRuleApproverGroups.map((group) => {
+      const orgUnitLabel =
+        group.orgUnitId === null
+          ? "Tenant-wide"
+          : (orgUnitById.get(group.orgUnitId)?.displayName ?? group.orgUnitId);
+
+      return (
+        <tr>
+          <td>
+            <strong>{group.name}</strong>
+            <AdminMeta>{group.id}</AdminMeta>
+          </td>
+          <td>{orgUnitLabel}</td>
+          <td>
+            {group.members.length === 0 ? (
+              <AdminMeta as="span">No members</AdminMeta>
+            ) : (
+              group.members.map((member) => (
+                <div class="ct-admin__stacked-line">
+                  <span>{member.email ?? member.userId}</span>
+                  <AdminMeta>{member.role ?? "member"}</AdminMeta>
+                </div>
+              ))
+            )}
+          </td>
+          <td>{formatIsoTimestamp(group.updatedAt)}</td>
+          <td>
+            <AdminActions>
+              {group.members.map((member) => (
+                <AdminForm
+                  method="post"
+                  action={tenantAccessApproverGroupMemberRemovePath(input.tenant.id)}
+                  className="ct-admin__inline-form"
+                  dataAttributes={{
+                    "data-confirm-message": `Remove ${member.email ?? member.userId} from ${group.name}?`,
+                  }}
+                >
+                  <CtInput type="hidden" name="groupId" value={group.id} />
+                  <CtInput type="hidden" name="userId" value={member.userId} />
+                  <AdminButton type="submit" size="tiny" variant="secondary">
+                    Remove member
+                  </AdminButton>
+                </AdminForm>
+              ))}
+              <AdminForm
+                method="post"
+                action={tenantAccessApproverGroupRemovePath(input.tenant.id)}
+                className="ct-admin__inline-form"
+                dataAttributes={{
+                  "data-confirm-message": `Remove approver group ${group.name}?`,
+                }}
+              >
+                <CtInput type="hidden" name="groupId" value={group.id} />
+                <AdminButton type="submit" size="tiny" variant="danger">
+                  Remove group
+                </AdminButton>
+              </AdminForm>
+            </AdminActions>
+          </td>
+        </tr>
+      );
+    })
+  );
+
   const delegatedGrantRows = !dataNeeds.governanceTableRows ? (
     emptySectionMarkup
   ) : input.delegatedIssuingAuthorityGrants.length === 0 ? (
@@ -636,6 +707,11 @@ export const buildInstitutionAdminViewResources = (
               <>
                 <strong>Version {String(latestVersion.versionNumber)}</strong>
                 <AdminMeta>Version ID: {latestVersion.id}</AdminMeta>
+                {latestVersion.recertificationDueAt === null ? null : (
+                  <AdminMeta>
+                    Recertification due {formatIsoTimestamp(latestVersion.recertificationDueAt)}
+                  </AdminMeta>
+                )}
               </>
             )}
           </td>
@@ -766,12 +842,81 @@ export const buildInstitutionAdminViewResources = (
   ) : (
     <option value="">No active org units available</option>
   );
+  const selectedBadgeRuleApprovalOrgUnitId = input.badgeRuleApprovalPolicy?.orgUnitId ?? "";
+  const badgeRuleApprovalOrgUnitSelectOptions = !dataNeeds.governanceTableRows ? (
+    emptySectionMarkup
+  ) : (
+    <>
+      {input.orgUnits
+        .filter((orgUnit) => orgUnit.isActive)
+        .map((orgUnit) => (
+          <option
+            value={orgUnit.id}
+            selected={orgUnit.id === selectedBadgeRuleApprovalOrgUnitId ? true : undefined}
+          >
+            {`${orgUnit.displayName} (${orgUnit.unitType})`}
+          </option>
+        ))}
+    </>
+  );
   const tenantMemberSelectOptions = !dataNeeds.delegationSelectOptions ? (
     emptySectionMarkup
   ) : tenantMemberOptions.length > 0 ? (
     <>{tenantMemberOptions}</>
   ) : (
     <option value="">No tenant members available</option>
+  );
+  const firstBadgeRuleApprovalStep = input.badgeRuleApprovalPolicy?.approvalSteps[0] ?? null;
+  const selectedBadgeRuleApprovalUserId =
+    firstBadgeRuleApprovalStep?.targetType === "user"
+      ? firstBadgeRuleApprovalStep.targetUserId
+      : "";
+  const badgeRuleApprovalTargetUserSelectOptions = !dataNeeds.governanceTableRows ? (
+    emptySectionMarkup
+  ) : input.tenantMembers.length > 0 ? (
+    <>
+      {input.tenantMembers.map((member) => (
+        <option
+          value={member.userId}
+          selected={member.userId === selectedBadgeRuleApprovalUserId ? true : undefined}
+        >
+          {`${member.email} (${member.role})`}
+        </option>
+      ))}
+    </>
+  ) : (
+    <option value="">No tenant members available</option>
+  );
+  const approverGroupSelectOptions = !dataNeeds.governanceTableRows ? (
+    emptySectionMarkup
+  ) : input.badgeRuleApproverGroups.length > 0 ? (
+    <>
+      {input.badgeRuleApproverGroups.map((group) => (
+        <option value={group.id}>{group.name}</option>
+      ))}
+    </>
+  ) : (
+    <option value="">No approver groups available</option>
+  );
+  const selectedBadgeRuleApprovalGroupId =
+    firstBadgeRuleApprovalStep?.targetType === "approver_group"
+      ? firstBadgeRuleApprovalStep.targetApproverGroupId
+      : "";
+  const badgeRuleApprovalTargetApproverGroupSelectOptions = !dataNeeds.governanceTableRows ? (
+    emptySectionMarkup
+  ) : input.badgeRuleApproverGroups.length > 0 ? (
+    <>
+      {input.badgeRuleApproverGroups.map((group) => (
+        <option
+          value={group.id}
+          selected={group.id === selectedBadgeRuleApprovalGroupId ? true : undefined}
+        >
+          {group.name}
+        </option>
+      ))}
+    </>
+  ) : (
+    <option value="">No approver groups available</option>
   );
   const optionalBadgeTemplateScopeOptions = !dataNeeds.delegationSelectOptions ? (
     emptySectionMarkup
@@ -924,9 +1069,14 @@ export const buildInstitutionAdminViewResources = (
         tenantMemberRows,
         orgUnitParentOptions,
         tenantMemberSelectOptions,
+        badgeRuleApprovalTargetUserSelectOptions,
+        approverGroupSelectOptions,
+        badgeRuleApprovalTargetApproverGroupSelectOptions,
         activeOrgUnitSelectOptions,
+        badgeRuleApprovalOrgUnitSelectOptions,
         optionalBadgeTemplateScopeOptions,
         membershipScopeRows,
+        approverGroupRows,
         delegatedGrantRows,
         lmsConnectionRows,
         badgeRuleApprovalPolicy: input.badgeRuleApprovalPolicy ?? null,
@@ -957,6 +1107,8 @@ export const buildInstitutionAdminViewResources = (
         tenantMembersTableMarkup: emptySectionMarkup,
         membershipScopePanelMarkup: emptySectionMarkup,
         membershipScopeTableMarkup: emptySectionMarkup,
+        approverGroupPanelMarkup: emptySectionMarkup,
+        approverGroupTableMarkup: emptySectionMarkup,
         delegatedGrantTableMarkup: emptySectionMarkup,
       };
   const {
@@ -970,6 +1122,8 @@ export const buildInstitutionAdminViewResources = (
     tenantMembersTableMarkup,
     membershipScopePanelMarkup,
     membershipScopeTableMarkup,
+    approverGroupPanelMarkup,
+    approverGroupTableMarkup,
     delegatedGrantTableMarkup,
   } = accessSections;
 
@@ -1117,6 +1271,8 @@ export const buildInstitutionAdminViewResources = (
     access: {
       apiKeyPanelMarkup,
       apiKeysTableMarkup,
+      approverGroupPanelMarkup,
+      approverGroupTableMarkup,
       delegatedGrantTableMarkup,
       governanceActionsMarkup,
       governanceGuidePanelMarkup,

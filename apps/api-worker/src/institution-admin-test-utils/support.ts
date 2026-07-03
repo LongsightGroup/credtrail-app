@@ -42,6 +42,12 @@ import {
   resolveBadgeRuleApprovalPolicy,
   resolveTenantDefaultBadgeRuleApprovalPolicy,
   decideBadgeIssuanceRuleVersion,
+  recertifyBadgeIssuanceRuleVersion,
+  createBadgeRuleApproverGroup,
+  addBadgeRuleApproverGroupMember,
+  listBadgeRuleApproverGroupsWithMembers,
+  removeBadgeRuleApproverGroupMember,
+  removeBadgeRuleApproverGroup,
   upsertBadgeRuleApprovalPolicy,
   listBadgeIssuanceRuleEvaluations,
   listBadgeIssuanceRuleValueLists,
@@ -133,6 +139,18 @@ export const mockedResolveTenantDefaultBadgeRuleApprovalPolicyDb = vi.mocked(
   resolveTenantDefaultBadgeRuleApprovalPolicy,
 );
 export const mockedDecideBadgeIssuanceRuleVersionDb = vi.mocked(decideBadgeIssuanceRuleVersion);
+export const mockedRecertifyBadgeIssuanceRuleVersionDb = vi.mocked(
+  recertifyBadgeIssuanceRuleVersion,
+);
+export const mockedCreateBadgeRuleApproverGroupDb = vi.mocked(createBadgeRuleApproverGroup);
+export const mockedAddBadgeRuleApproverGroupMemberDb = vi.mocked(addBadgeRuleApproverGroupMember);
+export const mockedListBadgeRuleApproverGroupsWithMembersDb = vi.mocked(
+  listBadgeRuleApproverGroupsWithMembers,
+);
+export const mockedRemoveBadgeRuleApproverGroupMemberDb = vi.mocked(
+  removeBadgeRuleApproverGroupMember,
+);
+export const mockedRemoveBadgeRuleApproverGroupDb = vi.mocked(removeBadgeRuleApproverGroup);
 export const mockedUpsertBadgeRuleApprovalPolicyDb = vi.mocked(upsertBadgeRuleApprovalPolicy);
 export const mockedListBadgeIssuanceRuleEvaluations = vi.mocked(listBadgeIssuanceRuleEvaluations);
 export const mockedListBadgeIssuanceRuleValueLists = vi.mocked(listBadgeIssuanceRuleValueLists);
@@ -786,8 +804,49 @@ beforeEach(() => {
     createdAt: "2026-02-18T12:00:00.000Z",
     updatedAt: "2026-02-18T12:00:00.000Z",
   });
+  mockedListBadgeRuleApproverGroupsWithMembersDb.mockReset();
+  mockedListBadgeRuleApproverGroupsWithMembersDb.mockResolvedValue([
+    {
+      id: "brag_registrar",
+      tenantId: "tenant_123",
+      orgUnitId: "tenant_123:org:institution",
+      name: "Registrar office",
+      createdByUserId: "usr_admin",
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+      members: [
+        {
+          tenantId: "tenant_123",
+          groupId: "brag_registrar",
+          userId: "usr_issuer",
+          email: "issuer@tenant-123.edu",
+          role: "issuer",
+          createdByUserId: "usr_admin",
+          createdAt: "2026-02-18T12:00:00.000Z",
+        },
+      ],
+    },
+  ]);
+  mockedCreateBadgeRuleApproverGroupDb.mockReset();
+  mockedCreateBadgeRuleApproverGroupDb.mockResolvedValue({
+    id: "brag_created",
+    tenantId: "tenant_123",
+    orgUnitId: "tenant_123:org:institution",
+    name: "Registrar office",
+    createdByUserId: "usr_admin",
+    createdAt: "2026-02-18T12:00:00.000Z",
+    updatedAt: "2026-02-18T12:00:00.000Z",
+  });
+  mockedAddBadgeRuleApproverGroupMemberDb.mockReset();
+  mockedAddBadgeRuleApproverGroupMemberDb.mockResolvedValue(undefined);
+  mockedRemoveBadgeRuleApproverGroupMemberDb.mockReset();
+  mockedRemoveBadgeRuleApproverGroupMemberDb.mockResolvedValue(true);
+  mockedRemoveBadgeRuleApproverGroupDb.mockReset();
+  mockedRemoveBadgeRuleApproverGroupDb.mockResolvedValue(true);
   mockedDecideBadgeIssuanceRuleVersionDb.mockReset();
   mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue({ status: "not_found" });
+  mockedRecertifyBadgeIssuanceRuleVersionDb.mockReset();
+  mockedRecertifyBadgeIssuanceRuleVersionDb.mockResolvedValue(null);
   mockedUpsertBadgeRuleApprovalPolicyDb.mockReset();
   mockedUpsertBadgeRuleApprovalPolicyDb.mockResolvedValue({
     id: "brap_123",

@@ -3,6 +3,7 @@ import {
   findTenantById,
   findUserById,
   listAccessibleTenantContextsForUser,
+  listBadgeRuleApproverGroupsWithMembers,
   listBadgeIssuanceRules,
   resolveListBadgeIssuanceRulesInput,
   listBadgeIssuanceRuleVersions,
@@ -121,6 +122,7 @@ const emptyInstitutionAdminPageData = (
     badgeTemplates: [],
     orgUnits: [],
     membershipOrgUnitScopes: [],
+    badgeRuleApproverGroups: [],
     tenantMembers: [],
     delegatedIssuingAuthorityGrants: [],
     lmsConnections: [],
@@ -206,6 +208,7 @@ export const loadInstitutionAdminPageData = async (
     badgeTemplates,
     orgUnits,
     membershipOrgUnitScopes,
+    badgeRuleApproverGroups,
     tenantMembers,
     delegatedIssuingAuthorityGrants,
     apiKeys,
@@ -231,6 +234,9 @@ export const loadInstitutionAdminPageData = async (
       ? listTenantMembershipOrgUnitScopes(db, {
           tenantId: input.tenantId,
         })
+      : Promise.resolve([]),
+    datasets.has("badgeRuleApprovalPolicy")
+      ? listBadgeRuleApproverGroupsWithMembers(db, input.tenantId)
       : Promise.resolve([]),
     datasets.has("tenantMembers") ? listTenantMembers(db, input.tenantId) : Promise.resolve([]),
     datasets.has("delegatedGrants")
@@ -284,6 +290,7 @@ export const loadInstitutionAdminPageData = async (
     badgeTemplates,
     orgUnits,
     membershipOrgUnitScopes,
+    badgeRuleApproverGroups,
     tenantMembers,
     delegatedIssuingAuthorityGrants,
     lmsConnections,

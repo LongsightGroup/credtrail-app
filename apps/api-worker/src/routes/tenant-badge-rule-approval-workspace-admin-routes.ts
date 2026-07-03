@@ -240,12 +240,21 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
     }
 
     const { session, membershipRole } = roleCheck;
+    const impactPreview = await previewBadgeRuleVersionImpact({
+      db: resolveDatabase(c.env),
+      env: c.env,
+      tenantId: pathParams.tenantId,
+      ruleId: pathParams.ruleId,
+      versionId: pathParams.versionId,
+      nowIso: new Date().toISOString(),
+      sha256Hex,
+    });
 
     return renderReviewPage(c, {
       pathParams,
       session,
       membershipRole,
-      impactPreview: { status: "not_requested" },
+      impactPreview,
     });
   });
 

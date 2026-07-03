@@ -319,6 +319,7 @@ export const loadInstitutionAdminReportingPageData = async (
     badgeTemplates: visibleBadgeTemplates,
     orgUnits: visibleOrgUnits,
     membershipOrgUnitScopes,
+    badgeRuleApproverGroups: [],
     tenantMembers: [],
     delegatedIssuingAuthorityGrants: [],
     lmsConnections: [],

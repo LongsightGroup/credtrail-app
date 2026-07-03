@@ -287,6 +287,9 @@ const processQueuedJobs = createProcessQueuedJobs({
       tenantId,
       nowIso: payload.scheduledFor,
       observability: observabilityContext(c.env),
+      env: c.env,
+      adminUrlForTenant: (adminTenantId) =>
+        `https://${c.env.PLATFORM_DOMAIN}/tenants/${encodeURIComponent(adminTenantId)}/admin/rules`,
     }).then(() => undefined);
   },
   processEndOfTermBadgeRuleJob: async (c, tenantId, payload) => {

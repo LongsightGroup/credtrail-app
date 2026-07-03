@@ -29,19 +29,71 @@ export const upsertTenantMembershipOrgUnitScopeRequestSchema = z.object({
 export const upsertBadgeRuleApprovalPolicyRequestSchema = z.discriminatedUnion(
   "approvalRequirement",
   [
-    z.object({
-      approvalRequirement: z.literal("always"),
-      requiredRole: tenantMembershipRoleSchema,
-      recertificationIntervalMonths: z.number().int().min(1).max(120).nullable().optional(),
-    }),
+    z
+      .object({
+        approvalRequirement: z.literal("always"),
+        orgUnitId: resourceIdSchema.nullable().optional(),
+        stepTargetType: z.enum(["role_threshold", "user", "approver_group"]).optional(),
+        requiredRole: tenantMembershipRoleSchema.nullable().optional(),
+        targetUserId: resourceIdSchema.optional(),
+        targetApproverGroupId: resourceIdSchema.optional(),
+        recertificationIntervalMonths: z.number().int().min(1).max(120).nullable().optional(),
+      })
+      .superRefine((value, ctx) => {
+        const stepTargetType = value.stepTargetType ?? "role_threshold";
+
+        if (stepTargetType === "role_threshold" && value.requiredRole === undefined) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["requiredRole"],
+            message: "requiredRole is required for role threshold approval",
+          });
+        }
+
+        if (stepTargetType === "user" && value.targetUserId === undefined) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["targetUserId"],
+            message: "targetUserId is required for named user approval",
+          });
+        }
+
+        if (stepTargetType === "approver_group" && value.targetApproverGroupId === undefined) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["targetApproverGroupId"],
+            message: "targetApproverGroupId is required for approver group approval",
+          });
+        }
+      }),
     z.object({
       approvalRequirement: z.literal("never"),
+      orgUnitId: resourceIdSchema.nullable().optional(),
       requiredRole: tenantMembershipRoleSchema.optional(),
       allowSelfCertification: z.literal(true),
       recertificationIntervalMonths: z.number().int().min(1).max(120).nullable().optional(),
     }),
   ],
 );
+
+export const createBadgeRuleApproverGroupRequestSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  orgUnitId: resourceIdSchema.nullable().optional(),
+});
+
+export const addBadgeRuleApproverGroupMemberRequestSchema = z.object({
+  groupId: resourceIdSchema,
+  userId: resourceIdSchema,
+});
+
+export const removeBadgeRuleApproverGroupMemberRequestSchema = z.object({
+  groupId: resourceIdSchema,
+  userId: resourceIdSchema,
+});
+
+export const removeBadgeRuleApproverGroupRequestSchema = z.object({
+  groupId: resourceIdSchema,
+});
 
 export const createTenantMemberRequestSchema = z.object({
   email: z.string().trim().email().max(320),
@@ -252,6 +304,22 @@ export type UpsertBadgeRuleApprovalPolicyRequest = z.infer<
   typeof upsertBadgeRuleApprovalPolicyRequestSchema
 >;
 
+export type CreateBadgeRuleApproverGroupRequest = z.infer<
+  typeof createBadgeRuleApproverGroupRequestSchema
+>;
+
+export type AddBadgeRuleApproverGroupMemberRequest = z.infer<
+  typeof addBadgeRuleApproverGroupMemberRequestSchema
+>;
+
+export type RemoveBadgeRuleApproverGroupMemberRequest = z.infer<
+  typeof removeBadgeRuleApproverGroupMemberRequestSchema
+>;
+
+export type RemoveBadgeRuleApproverGroupRequest = z.infer<
+  typeof removeBadgeRuleApproverGroupRequestSchema
+>;
+
 export type CreateTenantMemberRequest = z.infer<typeof createTenantMemberRequestSchema>;
 
 export type UpdateTenantMemberRoleRequest = z.infer<typeof updateTenantMemberRoleRequestSchema>;
@@ -328,6 +396,30 @@ export const parseUpsertBadgeRuleApprovalPolicyRequest = (
   input: unknown,
 ): UpsertBadgeRuleApprovalPolicyRequest => {
   return upsertBadgeRuleApprovalPolicyRequestSchema.parse(input);
+};
+
+export const parseCreateBadgeRuleApproverGroupRequest = (
+  input: unknown,
+): CreateBadgeRuleApproverGroupRequest => {
+  return createBadgeRuleApproverGroupRequestSchema.parse(input);
+};
+
+export const parseAddBadgeRuleApproverGroupMemberRequest = (
+  input: unknown,
+): AddBadgeRuleApproverGroupMemberRequest => {
+  return addBadgeRuleApproverGroupMemberRequestSchema.parse(input);
+};
+
+export const parseRemoveBadgeRuleApproverGroupMemberRequest = (
+  input: unknown,
+): RemoveBadgeRuleApproverGroupMemberRequest => {
+  return removeBadgeRuleApproverGroupMemberRequestSchema.parse(input);
+};
+
+export const parseRemoveBadgeRuleApproverGroupRequest = (
+  input: unknown,
+): RemoveBadgeRuleApproverGroupRequest => {
+  return removeBadgeRuleApproverGroupRequestSchema.parse(input);
 };
 
 export const parseCreateTenantMemberRequest = (input: unknown): CreateTenantMemberRequest => {

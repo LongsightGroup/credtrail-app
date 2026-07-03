@@ -454,8 +454,18 @@ const evaluateLtiRosterMembersEligibilityWithPreparedContext = async (input: {
   issuedStatesByUserId: ReadonlyMap<string, LtiRosterIssuedBadgeStateForEligibility>;
   nowIso: string;
 }): Promise<Map<string, LtiRosterEligibilityResult>> => {
-  const eligibilityEntries = await Promise.all(
-    input.members.map(async (member) => {
+  const concurrency = 8;
+  const eligibilityEntries: Array<readonly [string, LtiRosterEligibilityResult]> = [];
+  let nextIndex = 0;
+  const evaluateNextMember = async (): Promise<void> => {
+    while (nextIndex < input.members.length) {
+      const member = input.members[nextIndex];
+      nextIndex += 1;
+
+      if (member === undefined) {
+        continue;
+      }
+
       const eligibility = await evaluateLtiRosterMemberEligibilityWithPreparedContext({
         db: input.db,
         tenantId: input.tenantId,
@@ -465,8 +475,12 @@ const evaluateLtiRosterMembersEligibilityWithPreparedContext = async (input: {
         prepared: input.prepared,
       });
 
-      return [member.userId, eligibility] as const;
-    }),
+      eligibilityEntries.push([member.userId, eligibility] as const);
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, input.members.length) }, () => evaluateNextMember()),
   );
 
   return new Map(eligibilityEntries);

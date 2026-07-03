@@ -5,6 +5,7 @@ import {
   decideBadgeIssuanceRuleVersion,
   deleteDraftBadgeIssuanceRule,
   parseOptionalDateTimeInputToIso,
+  recertifyBadgeIssuanceRuleVersion,
   resumeBadgeIssuanceRuleVersion,
   submitBadgeIssuanceRuleVersionForApproval,
   suspendBadgeIssuanceRuleVersion,
@@ -580,6 +581,29 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
           versionId: pathParams.versionId,
           actorUserId: session.userId,
         }),
+    });
+  });
+
+  app.post("/tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/recertify", async (c) => {
+    const pathParams = parseBadgeIssuanceRuleVersionPathParams(c.req.param());
+    return runLifecycleAdminAction({
+      c,
+      pathParams,
+      notAppliedMessage:
+        "Only active rule versions with recertification policy can be recertified.",
+      successMessage: "Rule version recertified.",
+      auditAction: "badge_rule.version_recertified",
+      run: ({ session }) =>
+        recertifyBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
+          tenantId: pathParams.tenantId,
+          ruleId: pathParams.ruleId,
+          versionId: pathParams.versionId,
+          actorUserId: session.userId,
+        }),
+      auditMetadata: (version) => ({
+        recertifiedAt: version.recertifiedAt,
+        recertificationDueAt: version.recertificationDueAt,
+      }),
     });
   });
 

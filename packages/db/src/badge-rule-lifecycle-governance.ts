@@ -1,4 +1,4 @@
-import { addMonthsToIso } from "./shared-helpers";
+import { addDaysToIso, addMonthsToIso, createPrefixedId } from "./shared-helpers";
 import { runSqlTransaction, type SqlDatabase } from "./tenant-scope";
 import {
   findBadgeIssuanceRuleById,
@@ -72,6 +72,277 @@ export const listBadgeIssuanceRuleVersionsDueForExpiry = async (
     .all<BadgeRuleLifecycleDueVersionRow>();
 
   return result.results.map(mapDueVersionRow);
+};
+
+export const listBadgeIssuanceRuleVersionsDueForExpiryReminder = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly nowIso: string;
+    readonly reminderWindowDays: number;
+  },
+): Promise<BadgeRuleLifecycleDueVersionRecord[]> => {
+  const reminderCutoffIso = addDaysToIso(input.nowIso, input.reminderWindowDays);
+  const result = await db
+    .prepare(
+      `
+      SELECT
+        ${badgeIssuanceRuleVersionSelectColumns("versions")},
+        rules.badge_template_id AS badgeTemplateId,
+        rules.lms_provider_kind AS lmsProviderKind,
+        rules.lms_connection_id AS lmsConnectionId,
+        rules.org_unit_id AS orgUnitId
+      FROM badge_issuance_rule_versions AS versions
+      INNER JOIN badge_issuance_rules AS rules
+        ON rules.tenant_id = versions.tenant_id
+        AND rules.id = versions.rule_id
+      WHERE versions.tenant_id = ?
+        AND versions.status = 'active'
+        AND versions.expires_at IS NOT NULL
+        AND versions.expires_at > ?
+        AND versions.expires_at <= ?
+        AND versions.expiry_reminder_sent_at IS NULL
+      ORDER BY versions.expires_at ASC
+    `,
+    )
+    .bind(input.tenantId, input.nowIso, reminderCutoffIso)
+    .all<BadgeRuleLifecycleDueVersionRow>();
+
+  return result.results.map(mapDueVersionRow);
+};
+
+export const listBadgeIssuanceRuleVersionsDueForRecertification = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly nowIso: string;
+  },
+): Promise<BadgeRuleLifecycleDueVersionRecord[]> => {
+  const result = await db
+    .prepare(
+      `
+      SELECT
+        ${badgeIssuanceRuleVersionSelectColumns("versions")},
+        rules.badge_template_id AS badgeTemplateId,
+        rules.lms_provider_kind AS lmsProviderKind,
+        rules.lms_connection_id AS lmsConnectionId,
+        rules.org_unit_id AS orgUnitId
+      FROM badge_issuance_rule_versions AS versions
+      INNER JOIN badge_issuance_rules AS rules
+        ON rules.tenant_id = versions.tenant_id
+        AND rules.id = versions.rule_id
+      WHERE versions.tenant_id = ?
+        AND versions.status = 'active'
+        AND versions.recertification_due_at IS NOT NULL
+        AND versions.recertification_due_at <= ?
+      ORDER BY versions.recertification_due_at ASC
+    `,
+    )
+    .bind(input.tenantId, input.nowIso)
+    .all<BadgeRuleLifecycleDueVersionRow>();
+
+  return result.results.map(mapDueVersionRow);
+};
+
+export const listBadgeIssuanceRuleVersionsDueForRecertificationReminder = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly nowIso: string;
+    readonly reminderWindowDays: number;
+  },
+): Promise<BadgeRuleLifecycleDueVersionRecord[]> => {
+  const reminderCutoffIso = addDaysToIso(input.nowIso, input.reminderWindowDays);
+  const result = await db
+    .prepare(
+      `
+      SELECT
+        ${badgeIssuanceRuleVersionSelectColumns("versions")},
+        rules.badge_template_id AS badgeTemplateId,
+        rules.lms_provider_kind AS lmsProviderKind,
+        rules.lms_connection_id AS lmsConnectionId,
+        rules.org_unit_id AS orgUnitId
+      FROM badge_issuance_rule_versions AS versions
+      INNER JOIN badge_issuance_rules AS rules
+        ON rules.tenant_id = versions.tenant_id
+        AND rules.id = versions.rule_id
+      WHERE versions.tenant_id = ?
+        AND versions.status = 'active'
+        AND versions.recertification_due_at IS NOT NULL
+        AND versions.recertification_due_at <= ?
+        AND versions.recertification_reminder_sent_at IS NULL
+      ORDER BY versions.recertification_due_at ASC
+    `,
+    )
+    .bind(input.tenantId, reminderCutoffIso)
+    .all<BadgeRuleLifecycleDueVersionRow>();
+
+  return result.results.map(mapDueVersionRow);
+};
+
+export const markBadgeIssuanceRuleVersionExpiryReminderSent = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly ruleId: string;
+    readonly versionId: string;
+    readonly occurredAt?: string | undefined;
+  },
+): Promise<boolean> => {
+  const occurredAt = input.occurredAt ?? new Date().toISOString();
+  const result = await db
+    .prepare(
+      `
+      UPDATE badge_issuance_rule_versions
+      SET
+        expiry_reminder_sent_at = ?,
+        updated_at = ?
+      WHERE tenant_id = ?
+        AND rule_id = ?
+        AND id = ?
+        AND status = 'active'
+        AND expires_at IS NOT NULL
+        AND expiry_reminder_sent_at IS NULL
+    `,
+    )
+    .bind(occurredAt, occurredAt, input.tenantId, input.ruleId, input.versionId)
+    .run();
+
+  return (result.meta.rowsWritten ?? 0) > 0;
+};
+
+export const markBadgeIssuanceRuleVersionRecertificationReminderSent = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly ruleId: string;
+    readonly versionId: string;
+    readonly occurredAt?: string | undefined;
+  },
+): Promise<boolean> => {
+  const occurredAt = input.occurredAt ?? new Date().toISOString();
+  const result = await db
+    .prepare(
+      `
+      UPDATE badge_issuance_rule_versions
+      SET
+        recertification_reminder_sent_at = ?,
+        updated_at = ?
+      WHERE tenant_id = ?
+        AND rule_id = ?
+        AND id = ?
+        AND status = 'active'
+        AND recertification_due_at IS NOT NULL
+        AND recertification_reminder_sent_at IS NULL
+    `,
+    )
+    .bind(occurredAt, occurredAt, input.tenantId, input.ruleId, input.versionId)
+    .run();
+
+  return (result.meta.rowsWritten ?? 0) > 0;
+};
+
+export const ensureBadgeRuleRecertificationReview = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly ruleId: string;
+    readonly versionId: string;
+    readonly dueAt: string;
+    readonly requestedAt?: string | undefined;
+  },
+): Promise<boolean> => {
+  const requestedAt = input.requestedAt ?? new Date().toISOString();
+  const result = await db
+    .prepare(
+      `
+      INSERT INTO badge_rule_recertification_reviews (
+        id,
+        tenant_id,
+        rule_id,
+        version_id,
+        status,
+        due_at,
+        requested_at,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+      ON CONFLICT (tenant_id, version_id, due_at) DO NOTHING
+    `,
+    )
+    .bind(
+      createPrefixedId("brrr"),
+      input.tenantId,
+      input.ruleId,
+      input.versionId,
+      input.dueAt,
+      requestedAt,
+      requestedAt,
+      requestedAt,
+    )
+    .run();
+
+  return (result.meta.rowsWritten ?? 0) > 0;
+};
+
+export const suspendBadgeIssuanceRuleVersionForOverdueRecertification = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly ruleId: string;
+    readonly versionId: string;
+    readonly recertificationDueAt: string;
+    readonly overdueDays: number;
+    readonly occurredAt?: string | undefined;
+  },
+): Promise<BadgeIssuanceRuleVersionRecord | null> => {
+  const occurredAt = input.occurredAt ?? new Date().toISOString();
+  const overdueCutoffIso = addDaysToIso(input.recertificationDueAt, input.overdueDays);
+
+  if (overdueCutoffIso > occurredAt) {
+    return null;
+  }
+
+  return runSqlTransaction(db, async (transactionDb) => {
+    const result = await transactionDb
+      .prepare(
+        `
+        UPDATE badge_issuance_rule_versions
+        SET
+          status = 'suspended',
+          suspended_at = ?,
+          suspended_by_user_id = NULL,
+          suspension_reason = ?,
+          updated_at = ?
+        WHERE tenant_id = ?
+          AND rule_id = ?
+          AND id = ?
+          AND status = 'active'
+          AND recertification_due_at = ?
+      `,
+      )
+      .bind(
+        occurredAt,
+        "Automatically suspended because rule recertification is overdue.",
+        occurredAt,
+        input.tenantId,
+        input.ruleId,
+        input.versionId,
+        input.recertificationDueAt,
+      )
+      .run();
+
+    if ((result.meta.rowsWritten ?? 0) === 0) {
+      return null;
+    }
+
+    return findBadgeIssuanceRuleVersionById(transactionDb, {
+      tenantId: input.tenantId,
+      ruleId: input.ruleId,
+      versionId: input.versionId,
+    });
+  });
 };
 
 export const updateBadgeIssuanceRuleVersionLifecycleWindow = async (
