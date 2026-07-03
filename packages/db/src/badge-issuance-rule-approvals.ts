@@ -58,7 +58,7 @@ const insertBadgeIssuanceRuleApprovalSteps = async (
             created_at,
             updated_at
           )
-          VALUES (?, ?, ?, ?, ?, ?, 'queued', NULL, NULL, NULL, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?)
         `,
         )
         .bind(
@@ -68,6 +68,7 @@ const insertBadgeIssuanceRuleApprovalSteps = async (
           index + 1,
           step.requiredRole,
           step.label,
+          index === 0 ? "pending" : "queued",
           input.createdAt,
           input.createdAt,
         )
@@ -216,6 +217,10 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
       });
     }
 
+    if (policy.approvalSteps.length === 0) {
+      throw new Error("Badge rule approval policy did not provide any approval steps");
+    }
+
     await insertBadgeIssuanceRuleApprovalSteps(transactionDb, {
       tenantId: input.tenantId,
       versionId: input.versionId,
@@ -223,49 +228,6 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
       createdAt: occurredAt,
     });
 
-    const approvalSteps = await listBadgeIssuanceRuleVersionApprovalSteps(transactionDb, {
-      tenantId: input.tenantId,
-      ruleId: input.ruleId,
-      versionId: input.versionId,
-    });
-    const firstStep = approvalSteps[0];
-
-    if (firstStep === undefined) {
-      throw new Error("Badge rule approval policy did not materialize any approval steps");
-    }
-
-    const resetApprovalStepsStatement = (): Promise<SqlRunResult> =>
-      transactionDb
-        .prepare(
-          `
-          UPDATE badge_issuance_rule_approval_steps
-          SET
-            status = 'queued',
-            decided_by_user_id = NULL,
-            decided_at = NULL,
-            decision_comment = NULL,
-            updated_at = ?
-          WHERE tenant_id = ?
-            AND version_id = ?
-        `,
-        )
-        .bind(occurredAt, input.tenantId, input.versionId)
-        .run();
-    const activateFirstApprovalStepStatement = (): Promise<SqlRunResult> =>
-      transactionDb
-        .prepare(
-          `
-          UPDATE badge_issuance_rule_approval_steps
-          SET
-            status = 'pending',
-            updated_at = ?
-          WHERE tenant_id = ?
-            AND version_id = ?
-            AND step_number = ?
-        `,
-        )
-        .bind(occurredAt, input.tenantId, input.versionId, firstStep.stepNumber)
-        .run();
     const submitVersionStatement = (): Promise<SqlRunResult> =>
       transactionDb
         .prepare(
@@ -284,14 +246,12 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
         .bind(occurredAt, input.tenantId, input.ruleId, input.versionId)
         .run();
 
-    await resetApprovalStepsStatement();
-    await activateFirstApprovalStepStatement();
     await submitVersionStatement();
 
     await insertBadgeIssuanceRuleApprovalEvent(transactionDb, {
       tenantId: input.tenantId,
       versionId: input.versionId,
-      stepNumber: firstStep.stepNumber,
+      stepNumber: 1,
       action: "submitted",
       actorUserId: input.actorUserId ?? null,
       actorRole: input.actorRole ?? null,

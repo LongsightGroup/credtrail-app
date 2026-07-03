@@ -168,6 +168,7 @@ describe("badge issuance rule approval transactions", () => {
   const createRecordedStatement = (
     sql: string,
     writes: string[],
+    reads: string[],
     isTransaction: boolean,
   ): SqlPreparedStatement => {
     const normalizedSql = sql.replace(/\s+/g, " ").trim();
@@ -234,6 +235,7 @@ describe("badge issuance rule approval transactions", () => {
         return null;
       },
       async all<T>() {
+        reads.push(`${isTransaction ? "transaction" : "outer"}:${normalizedSql}`);
         const results = normalizedSql.includes("FROM badge_issuance_rule_approval_steps")
           ? [
               {
@@ -270,12 +272,13 @@ describe("badge issuance rule approval transactions", () => {
 
   it("materializes submit approval writes inside one SQL transaction", async () => {
     const writes: string[] = [];
+    const reads: string[] = [];
     let transactionCallCount = 0;
     const transaction = async <T>(callback: (db: SqlDatabase) => Promise<T>): Promise<T> => {
       transactionCallCount += 1;
       const transactionDb: SqlDatabase = {
         prepare(sql) {
-          return createRecordedStatement(sql, writes, true);
+          return createRecordedStatement(sql, writes, reads, true);
         },
       };
 
@@ -283,7 +286,7 @@ describe("badge issuance rule approval transactions", () => {
     };
     const db: SqlDatabase = {
       prepare(sql) {
-        return createRecordedStatement(sql, writes, false);
+        return createRecordedStatement(sql, writes, reads, false);
       },
       transaction,
     };
@@ -306,6 +309,9 @@ describe("badge issuance rule approval transactions", () => {
           entry.includes("DELETE FROM badge_issuance_rule_approval_steps"),
       ),
     ).toBe(true);
+    expect(reads.some((entry) => entry.includes("FROM badge_issuance_rule_approval_steps"))).toBe(
+      false,
+    );
   });
 });
 
