@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS base
+FROM node:22-bookworm-slim AS deps
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -17,6 +17,13 @@ COPY packages/validation/package.json ./packages/validation/package.json
 
 RUN pnpm install --frozen-lockfile
 
+FROM deps AS deploy
+
+COPY apps ./apps
+COPY packages ./packages
+
+RUN pnpm --filter @credtrail/api-worker deploy --prod --legacy /prod
+
 FROM node:22-bookworm-slim AS runtime
 
 ENV PNPM_HOME=/pnpm
@@ -30,17 +37,8 @@ RUN corepack enable
 
 WORKDIR /app
 
-COPY --from=base /pnpm /pnpm
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/apps ./apps
-COPY --from=base /app/packages ./packages
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY tsconfig.json vitest.config.ts .oxlintrc.json ./
-COPY apps ./apps
-COPY packages ./packages
-COPY scripts ./scripts
-COPY docs ./docs
+COPY --from=deploy /prod ./
 
 EXPOSE 8787
 
-CMD ["pnpm", "exec", "tsx", "apps/api-worker/src/node-server.ts"]
+CMD ["pnpm", "exec", "tsx", "src/node-server.ts"]

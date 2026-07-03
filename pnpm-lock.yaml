@@ -112,6 +112,9 @@ importers:
       qrcode-generator:
         specifier: 2.0.4
         version: 2.0.4
+      tsx:
+        specifier: ^4.22.3
+        version: 4.22.3
     devDependencies:
       '@types/d3-scale':
         specifier: ^4.0.9

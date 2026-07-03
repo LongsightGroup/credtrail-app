@@ -61,7 +61,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://credtrail:credtrail@postgres:5432/credtrail
-    command: ["pnpm", "db:migrate:postgres"]
+    command: ["node", "node_modules/@credtrail/db/scripts/migrate-postgres.mjs"]
 
   app:
     build:
@@ -98,7 +98,7 @@ services:
         condition: service_completed_successfully
       minio-setup:
         condition: service_completed_successfully
-    command: ["pnpm", "exec", "tsx", "apps/api-worker/src/node-worker.ts"]
+    command: ["pnpm", "exec", "tsx", "src/node-worker.ts"]
     environment:
       <<: *selfhost_env
       JOB_POLL_INTERVAL_MS: "1000"
