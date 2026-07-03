@@ -727,6 +727,58 @@ export const findLtiLaunchSessionById = async (
   return row === null ? null : mapLtiLaunchSessionRow(row);
 };
 
+export const listActiveLtiLaunchSessionsForPlatform = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    issuer: string;
+    clientId: string;
+    deploymentId: string;
+    limit?: number | undefined;
+  },
+): Promise<LtiLaunchSessionRecord[]> => {
+  const nowIso = new Date().toISOString();
+  const limit = input.limit ?? 10;
+  const listStatement = (): Promise<SqlQueryResult<LtiLaunchSessionRow>> =>
+    db
+      .prepare(
+        `
+        SELECT
+          id,
+          issuer,
+          client_id AS clientId,
+          deployment_id AS deploymentId,
+          tenant_id AS tenantId,
+          user_id AS userId,
+          data_json AS dataJson,
+          expires_at AS expiresAt,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM lti_launch_sessions
+        WHERE tenant_id = ?
+          AND issuer = ?
+          AND client_id = ?
+          AND deployment_id = ?
+          AND expires_at > ?
+        ORDER BY updated_at DESC, created_at DESC
+        LIMIT ?
+      `,
+      )
+      .bind(
+        input.tenantId,
+        normalizeLtiIssuer(input.issuer),
+        input.clientId,
+        input.deploymentId,
+        nowIso,
+        limit,
+      )
+      .all<LtiLaunchSessionRow>();
+
+  const result = await listStatement();
+
+  return result.results.map((row) => mapLtiLaunchSessionRow(row));
+};
+
 export const upsertLtiDynamicRegistrationSession = async (
   db: SqlDatabase,
   input: {

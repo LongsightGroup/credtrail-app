@@ -183,6 +183,42 @@ export const findLtiResourceLinkPlacement = async (
   return row === null ? null : mapLtiResourceLinkPlacementRow(row);
 };
 
+export const findLtiResourceLinkPlacementForRule = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    ruleId: string;
+  },
+): Promise<LtiResourceLinkPlacementRecord | null> => {
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        id,
+        tenant_id AS tenantId,
+        issuer,
+        client_id AS clientId,
+        deployment_id AS deploymentId,
+        context_id AS contextId,
+        resource_link_id AS resourceLinkId,
+        badge_template_id AS badgeTemplateId,
+        rule_id AS ruleId,
+        created_by_user_id AS createdByUserId,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM lti_resource_link_placements
+      WHERE tenant_id = ?
+        AND rule_id = ?
+      ORDER BY updated_at DESC, created_at DESC
+      LIMIT 1
+    `,
+    )
+    .bind(input.tenantId, input.ruleId)
+    .first<LtiResourceLinkPlacementRow>();
+
+  return row === null ? null : mapLtiResourceLinkPlacementRow(row);
+};
+
 export const listLtiResourceLinkPlacementsForContext = async (
   db: SqlDatabase,
   input: ListLtiResourceLinkPlacementsForContextInput,

@@ -32,6 +32,7 @@ export interface InstitutionAdminShellPaths {
   reportingTrendsPath: string;
   reportingReportsPath: string;
   rulesWorkspacePath: string;
+  rulesApprovalsPath: string;
   rulesTemplatesPath: string;
   ruleBuilderPath: string;
   accessPath: string;

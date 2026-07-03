@@ -1,5 +1,6 @@
 export * from "./badge-issuance-rule-types.js";
 export * from "./badge-issuance-rule-reads.js";
+export * from "./badge-rule-approval-authorization.js";
 export * from "./badge-rule-approval-policies.js";
 export {
   submitBadgeIssuanceRuleVersionForApproval,

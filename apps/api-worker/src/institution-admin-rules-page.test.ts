@@ -1,4 +1,9 @@
-import type { BadgeIssuanceRuleRecord, BadgeIssuanceRuleVersionRecord } from "@credtrail/db";
+import type {
+  BadgeIssuanceRuleApprovalStepRecord,
+  BadgeIssuanceRuleRecord,
+  BadgeIssuanceRuleVersionRecord,
+  PendingBadgeIssuanceRuleApprovalRecord,
+} from "@credtrail/db";
 import { buildCompleteTrustEdCredentialMetadata } from "@credtrail/validation/testing";
 import { describe, expect, it } from "vitest";
 import {
@@ -12,13 +17,17 @@ import {
   mockedFindBadgeTemplateById,
   mockedFindBadgeTemplateImageRevisionById,
   mockedFindBadgeIssuanceRuleById,
+  mockedFindLtiResourceLinkPlacementForRule,
   mockedFindTenantMembership,
   mockedListAccessibleTenantContextsForUser,
+  mockedListBadgeIssuanceRuleVersionApprovalEvents,
+  mockedListBadgeIssuanceRuleVersionApprovalStepsDb,
   mockedListBadgeIssuanceRules,
   mockedListBadgeIssuanceRuleVersions,
   mockedListBadgeTemplateImageRevisionCountsByTenant,
   mockedListBadgeTemplateImageRevisions,
   mockedListBadgeTemplates,
+  mockedListPendingBadgeIssuanceRuleApprovalsForActor,
   mockedCountBadgeTemplateImageRevisions,
   mockedSetBadgeTemplateArchivedState,
   mockedSubmitBadgeIssuanceRuleVersionForApprovalDb,
@@ -47,6 +56,42 @@ const adminFlashCookieHeader = (response: Response): string => {
 
   return setCookieHeaders.map((entry) => entry.split(";")[0]).join("; ");
 };
+
+const samplePendingApprovalStep = (): BadgeIssuanceRuleApprovalStepRecord => ({
+  id: "bras_123",
+  tenantId: "tenant_123",
+  versionId: "brv_approval",
+  stepNumber: 1,
+  targetType: "role_threshold",
+  requiredRole: "admin",
+  targetUserId: null,
+  targetApproverGroupId: null,
+  orgUnitId: "tenant_123:org:cs",
+  label: "Department approval",
+  status: "pending",
+  decidedByUserId: null,
+  decidedAt: null,
+  decisionComment: null,
+  createdAt: "2026-02-18T12:00:00.000Z",
+  updatedAt: "2026-02-18T12:00:00.000Z",
+});
+
+const samplePendingApprovalEntry = (): PendingBadgeIssuanceRuleApprovalRecord => ({
+  tenantId: "tenant_123",
+  ruleId: "brl_approval",
+  ruleName: "CS101 Excellence Rule",
+  badgeTemplateId: "badge_template_001",
+  badgeTemplateName: "TypeScript Foundations",
+  orgUnitId: "tenant_123:org:cs",
+  orgUnitDisplayName: "Computer Science",
+  versionId: "brv_approval",
+  versionNumber: 2,
+  versionCreatedByUserId: "usr_author",
+  submittedByUserId: "usr_author",
+  submittedByEmail: "author@example.edu",
+  submittedAt: "2026-02-18T12:15:00.000Z",
+  currentStep: samplePendingApprovalStep(),
+});
 
 describe("GET /tenants/:tenantId/admin/rules", () => {
   it("renders the rules workspace", async () => {
@@ -215,6 +260,206 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_active/delete");
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_historical/edit");
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_historical/delete");
+  });
+});
+
+describe("GET /tenants/:tenantId/admin/rules/approvals", () => {
+  it("renders the pending approval queue for the signed-in reviewer", async () => {
+    const env = createEnv();
+
+    mockedListPendingBadgeIssuanceRuleApprovalsForActor.mockResolvedValue([
+      samplePendingApprovalEntry(),
+    ]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/approvals",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(mockedListPendingBadgeIssuanceRuleApprovalsForActor).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      actorUserId: "usr_admin",
+      actorRole: "admin",
+      limit: 100,
+    });
+    expect(body).toContain(">Approvals<");
+    expect(body).toContain("1 badge rule version awaiting your decision.");
+    expect(body).toContain("CS101 Excellence Rule");
+    expect(body).toContain("Computer Science");
+    expect(body).toContain("Department approval");
+    expect(body).toContain(
+      'href="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval"',
+    );
+  });
+});
+
+describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versionId", () => {
+  it("renders a reviewer workspace with summary, diff, impact preview, and decision actions", async () => {
+    const env = createEnv();
+    const rule: BadgeIssuanceRuleRecord = {
+      id: "brl_approval",
+      tenantId: "tenant_123",
+      name: "CS101 Excellence Rule",
+      description: "Issue badge for CS101 completion and grade threshold.",
+      badgeTemplateId: "badge_template_001",
+      orgUnitId: "tenant_123:org:cs",
+      ownerOrgUnitId: "tenant_123:org:cs",
+      lmsProviderKind: "canvas",
+      lmsConnectionId: "lms_canvas",
+      activeVersionId: "brv_base",
+      createdByUserId: "usr_author",
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    };
+    const baseVersion: BadgeIssuanceRuleVersionRecord = {
+      id: "brv_base",
+      tenantId: "tenant_123",
+      ruleId: "brl_approval",
+      versionNumber: 1,
+      status: "active",
+      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"CS101","minScore":90}}',
+      changeSummary: "Initial version",
+      createdByUserId: "usr_author",
+      submittedByUserId: "usr_author",
+      submittedAt: "2026-02-18T12:05:00.000Z",
+      approvedByUserId: "usr_registrar",
+      approvedAt: "2026-02-18T12:10:00.000Z",
+      activatedByUserId: "usr_admin",
+      activatedAt: "2026-02-18T12:12:00.000Z",
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:12:00.000Z",
+    };
+    const pendingVersion: BadgeIssuanceRuleVersionRecord = {
+      ...baseVersion,
+      id: "brv_approval",
+      versionNumber: 2,
+      status: "pending_approval",
+      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"CS101","minScore":80}}',
+      changeSummary: "Lower threshold",
+      approvedByUserId: null,
+      approvedAt: null,
+      activatedByUserId: null,
+      activatedAt: null,
+      updatedAt: "2026-02-18T12:20:00.000Z",
+    };
+
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(rule);
+    mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(pendingVersion);
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([baseVersion, pendingVersion]);
+    mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([
+      samplePendingApprovalStep(),
+    ]);
+    mockedListBadgeIssuanceRuleVersionApprovalEvents.mockResolvedValue([]);
+    mockedListPendingBadgeIssuanceRuleApprovalsForActor.mockResolvedValue([
+      samplePendingApprovalEntry(),
+    ]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("What This Rule Says");
+    expect(body).toContain("What Changed");
+    expect(body).toContain("Minimum grade lowered from 90% to 80%.");
+    expect(body).toContain("Impact Preview");
+    expect(body).toContain("Refresh impact");
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/impact-preview"',
+    );
+    expect(body).not.toContain("No LMS course placement is linked to this rule yet.");
+    expect(mockedFindLtiResourceLinkPlacementForRule).not.toHaveBeenCalled();
+    expect(body).toContain("Approval Chain");
+    expect(body).toContain("Department approval");
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/decision"',
+    );
+    expect(body).not.toContain('name="returnTo"');
+    expect(body).toContain('name="decision" value="approved"');
+    expect(body).toContain('name="decision" value="changes_requested"');
+    expect(body).toContain('name="decision" value="rejected"');
+  });
+});
+
+describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versionId/impact-preview", () => {
+  it("runs the live LMS impact preview only when the reviewer refreshes it", async () => {
+    const env = createEnv();
+    const rule: BadgeIssuanceRuleRecord = {
+      id: "brl_approval",
+      tenantId: "tenant_123",
+      name: "CS101 Excellence Rule",
+      description: "Issue badge for CS101 completion and grade threshold.",
+      badgeTemplateId: "badge_template_001",
+      orgUnitId: "tenant_123:org:cs",
+      ownerOrgUnitId: "tenant_123:org:cs",
+      lmsProviderKind: "canvas",
+      lmsConnectionId: "lms_canvas",
+      activeVersionId: "brv_base",
+      createdByUserId: "usr_author",
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    };
+    const pendingVersion: BadgeIssuanceRuleVersionRecord = {
+      id: "brv_approval",
+      tenantId: "tenant_123",
+      ruleId: "brl_approval",
+      versionNumber: 2,
+      status: "pending_approval",
+      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"CS101","minScore":80}}',
+      changeSummary: "Lower threshold",
+      createdByUserId: "usr_author",
+      submittedByUserId: "usr_author",
+      submittedAt: "2026-02-18T12:15:00.000Z",
+      approvedByUserId: null,
+      approvedAt: null,
+      activatedByUserId: null,
+      activatedAt: null,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:20:00.000Z",
+    };
+
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(rule);
+    mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(pendingVersion);
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([pendingVersion]);
+    mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([
+      samplePendingApprovalStep(),
+    ]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/impact-preview",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(mockedFindLtiResourceLinkPlacementForRule).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_approval",
+    });
+    expect(body).toContain("No LMS course placement is linked to this rule yet.");
+    expect(body).toContain("Refresh impact");
   });
 });
 
@@ -573,6 +818,73 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
 
     expect(flashResponse.status).toBe(200);
     expect(flashBody).toContain("Only never-active draft or rejected rules can be deleted.");
+  });
+});
+
+describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versionId/decision", () => {
+  it("decides from the review workspace and redirects back to that review page", async () => {
+    const env = createEnv();
+    const approvedVersion: BadgeIssuanceRuleVersionRecord = {
+      id: "brv_approval",
+      tenantId: "tenant_123",
+      ruleId: "brl_approval",
+      versionNumber: 2,
+      status: "approved",
+      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+      changeSummary: "Lower threshold",
+      createdByUserId: "usr_author",
+      submittedByUserId: "usr_author",
+      submittedAt: "2026-02-18T12:15:00.000Z",
+      approvedByUserId: "usr_admin",
+      approvedAt: "2026-02-18T12:20:00.000Z",
+      activatedByUserId: null,
+      activatedAt: null,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:20:00.000Z",
+    };
+
+    mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue({
+      status: "decided",
+      version: approvedVersion,
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/decision",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          decision: "approved",
+          comment: "Looks good.",
+        }).toString(),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval",
+    );
+    expect(mockedDecideBadgeIssuanceRuleVersionDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_approval",
+      versionId: "brv_approval",
+      decision: "approved",
+      actorUserId: "usr_admin",
+      actorRole: "admin",
+      comment: "Looks good.",
+    });
+    expect(mockedCreateAuditLogDb).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        action: "badge_rule.version_approval_decided",
+        targetId: "brv_approval",
+      }),
+    );
   });
 });
 

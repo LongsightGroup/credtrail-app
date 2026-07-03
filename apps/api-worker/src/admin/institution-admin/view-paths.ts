@@ -9,6 +9,7 @@ export interface InstitutionAdminViewPaths {
   reportingTrendsPath: string;
   reportingReportsPath: string;
   rulesWorkspacePath: string;
+  rulesApprovalsPath: string;
   rulesTemplatesPath: string;
   accessPath: string;
   accessMembersPath: string;
@@ -42,6 +43,7 @@ export const buildInstitutionAdminViewPaths = (tenantId: string): InstitutionAdm
     reportingTrendsPath: `${reportingPath}/trends`,
     reportingReportsPath: `${reportingPath}/reports`,
     rulesWorkspacePath,
+    rulesApprovalsPath: `${rulesWorkspacePath}/approvals`,
     rulesTemplatesPath: `${rulesWorkspacePath}/templates`,
     accessPath,
     accessMembersPath: `${accessPath}/members`,

@@ -12,6 +12,7 @@ export type InstitutionAdminSidebarView =
   | "reportingTrends"
   | "reportingReports"
   | "rules"
+  | "rulesApprovals"
   | "rulesTemplates"
   | "rulesBuilder"
   | "accessMembers"
@@ -38,6 +39,7 @@ export interface InstitutionAdminSidebarPaths {
   reportingTrendsPath: string;
   reportingReportsPath: string;
   rulesWorkspacePath: string;
+  rulesApprovalsPath: string;
   rulesTemplatesPath: string;
   ruleBuilderPath: string;
   accessPath: string;
@@ -72,6 +74,7 @@ export const buildInstitutionAdminSidebarPaths = (
     reportingTrendsPath: `${reportingPath}/trends`,
     reportingReportsPath: `${reportingPath}/reports`,
     rulesWorkspacePath,
+    rulesApprovalsPath: `${rulesWorkspacePath}/approvals`,
     rulesTemplatesPath: `${rulesWorkspacePath}/templates`,
     ruleBuilderPath: `${tenantAdminPath}/rules/new`,
     accessPath,
@@ -188,7 +191,7 @@ export const buildInstitutionAdminSidebarSections = (
         {
           label: "Badge Program",
           icon: "badgeProgram",
-          defaultOpen: view === "rulesBuilder",
+          defaultOpen: view === "rulesBuilder" || view === "rulesApprovals",
           links: [
             {
               href: paths.rulesTemplatesPath,
@@ -196,6 +199,11 @@ export const buildInstitutionAdminSidebarSections = (
               isCurrent: view === "rulesTemplates",
             },
             { href: paths.rulesWorkspacePath, label: "Rules", isCurrent: view === "rules" },
+            {
+              href: paths.rulesApprovalsPath,
+              label: "Approvals",
+              isCurrent: view === "rulesApprovals",
+            },
           ],
         },
       ],

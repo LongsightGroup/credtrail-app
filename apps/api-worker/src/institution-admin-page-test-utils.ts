@@ -26,7 +26,11 @@ const {
   mockedDeleteDraftBadgeIssuanceRule,
   mockedDecideBadgeIssuanceRuleVersion,
   mockedFindBadgeIssuanceRuleVersionById,
+  mockedFindLtiResourceLinkPlacementForRule,
   mockedListBadgeIssuanceRuleVersionApprovalSteps,
+  mockedListBadgeIssuanceRuleVersionApprovalEvents,
+  mockedListActiveLtiLaunchSessionsForPlatform,
+  mockedListPendingBadgeIssuanceRuleApprovalsForActor,
   mockedSubmitBadgeIssuanceRuleVersionForApproval,
   mockedResolveBadgeRuleApprovalPolicy,
   mockedResolveTenantDefaultBadgeRuleApprovalPolicy,
@@ -58,7 +62,11 @@ const {
     mockedDeleteDraftBadgeIssuanceRule: vi.fn(),
     mockedDecideBadgeIssuanceRuleVersion: vi.fn(),
     mockedFindBadgeIssuanceRuleVersionById: vi.fn(),
+    mockedFindLtiResourceLinkPlacementForRule: vi.fn(),
     mockedListBadgeIssuanceRuleVersionApprovalSteps: vi.fn(),
+    mockedListBadgeIssuanceRuleVersionApprovalEvents: vi.fn(),
+    mockedListActiveLtiLaunchSessionsForPlatform: vi.fn(),
+    mockedListPendingBadgeIssuanceRuleApprovalsForActor: vi.fn(),
     mockedSubmitBadgeIssuanceRuleVersionForApproval: vi.fn(),
     mockedResolveBadgeRuleApprovalPolicy: vi.fn(),
     mockedResolveTenantDefaultBadgeRuleApprovalPolicy: vi.fn(),
@@ -92,7 +100,11 @@ export {
   mockedResolveBetterAuthRequestedTenant,
   mockedDecideBadgeIssuanceRuleVersion,
   mockedFindBadgeIssuanceRuleVersionById,
+  mockedFindLtiResourceLinkPlacementForRule,
+  mockedListActiveLtiLaunchSessionsForPlatform,
   mockedListBadgeIssuanceRuleVersionApprovalSteps,
+  mockedListBadgeIssuanceRuleVersionApprovalEvents,
+  mockedListPendingBadgeIssuanceRuleApprovalsForActor,
   mockedResolveBadgeRuleApprovalPolicy,
   mockedResolveTenantDefaultBadgeRuleApprovalPolicy,
   mockedSubmitBadgeIssuanceRuleVersionForApproval,
@@ -124,11 +136,16 @@ vi.mock("@credtrail/db", async () => {
     listBadgeIssuanceRules: vi.fn(),
     listBadgeIssuanceRuleVersions: vi.fn(),
     findBadgeIssuanceRuleVersionById: mockedFindBadgeIssuanceRuleVersionById,
+    findLtiResourceLinkPlacementForRule: mockedFindLtiResourceLinkPlacementForRule,
+    listActiveLtiLaunchSessionsForPlatform: mockedListActiveLtiLaunchSessionsForPlatform,
     submitBadgeIssuanceRuleVersionForApproval: mockedSubmitBadgeIssuanceRuleVersionForApproval,
     resolveBadgeRuleApprovalPolicy: mockedResolveBadgeRuleApprovalPolicy,
     resolveTenantDefaultBadgeRuleApprovalPolicy: mockedResolveTenantDefaultBadgeRuleApprovalPolicy,
     upsertBadgeRuleApprovalPolicy: mockedUpsertBadgeRuleApprovalPolicy,
     listBadgeIssuanceRuleVersionApprovalSteps: mockedListBadgeIssuanceRuleVersionApprovalSteps,
+    listBadgeIssuanceRuleVersionApprovalEvents: mockedListBadgeIssuanceRuleVersionApprovalEvents,
+    listPendingBadgeIssuanceRuleApprovalsForActor:
+      mockedListPendingBadgeIssuanceRuleApprovalsForActor,
     decideBadgeIssuanceRuleVersion: mockedDecideBadgeIssuanceRuleVersion,
     listBadgeIssuanceRuleEvaluations: vi.fn().mockResolvedValue([]),
     listBadgeIssuanceRuleValueLists: vi.fn().mockResolvedValue([]),
@@ -815,10 +832,18 @@ beforeEach(() => {
   ]);
   mockedFindBadgeIssuanceRuleVersionByIdDb.mockReset();
   mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(null);
+  mockedFindLtiResourceLinkPlacementForRule.mockReset();
+  mockedFindLtiResourceLinkPlacementForRule.mockResolvedValue(null);
+  mockedListActiveLtiLaunchSessionsForPlatform.mockReset();
+  mockedListActiveLtiLaunchSessionsForPlatform.mockResolvedValue([]);
+  mockedListPendingBadgeIssuanceRuleApprovalsForActor.mockReset();
+  mockedListPendingBadgeIssuanceRuleApprovalsForActor.mockResolvedValue([]);
   mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockReset();
   mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockResolvedValue({ status: "not_found" });
   mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockReset();
   mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([]);
+  mockedListBadgeIssuanceRuleVersionApprovalEvents.mockReset();
+  mockedListBadgeIssuanceRuleVersionApprovalEvents.mockResolvedValue([]);
   mockedResolveBadgeRuleApprovalPolicyDb.mockReset();
   mockedResolveBadgeRuleApprovalPolicyDb.mockResolvedValue({
     id: null,

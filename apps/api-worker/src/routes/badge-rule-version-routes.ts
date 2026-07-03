@@ -18,7 +18,6 @@ import {
   submitBadgeRuleVersionForApprovalFailureMessage,
 } from "../badges/badge-rule-approval-outcomes";
 import {
-  parseBadgeIssuanceRuleDefinition,
   parseBadgeIssuanceRulePathParams,
   parseBadgeIssuanceRuleVersionDiffQuery,
   parseBadgeIssuanceRuleVersionPathParams,
@@ -28,6 +27,7 @@ import {
 import type { Hono } from "hono";
 import type { AppEnv } from "../app";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
+import { buildBadgeRuleVersionDefinitionDiff } from "../badges/badge-rule-version-diff";
 
 interface RegisterBadgeRuleVersionRoutesInput {
   app: Hono<AppEnv>;
@@ -37,119 +37,6 @@ interface RegisterBadgeRuleVersionRoutesInput {
   ADMIN_ROLES: readonly TenantMembershipRole[];
   TENANT_MEMBER_ROLES: readonly TenantMembershipRole[];
 }
-
-interface RuleDefinitionDiffChange {
-  path: string;
-  changeType: "added" | "removed" | "changed";
-  before: unknown;
-  after: unknown;
-}
-
-const isJsonRecord = (value: unknown): value is Record<string, unknown> => {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-};
-
-const areJsonValuesEqual = (left: unknown, right: unknown): boolean => {
-  return JSON.stringify(left) === JSON.stringify(right);
-};
-
-const collectRuleDefinitionDiff = (
-  baseValue: unknown,
-  compareValue: unknown,
-  path: string,
-  changes: RuleDefinitionDiffChange[],
-): void => {
-  if (areJsonValuesEqual(baseValue, compareValue)) {
-    return;
-  }
-
-  if (Array.isArray(baseValue) && Array.isArray(compareValue)) {
-    const maxLength = Math.max(baseValue.length, compareValue.length);
-
-    for (let index = 0; index < maxLength; index += 1) {
-      const childPath = `${path}[${String(index)}]`;
-
-      if (!(index in baseValue)) {
-        changes.push({
-          path: childPath,
-          changeType: "added",
-          before: null,
-          after: compareValue[index],
-        });
-        continue;
-      }
-
-      if (!(index in compareValue)) {
-        changes.push({
-          path: childPath,
-          changeType: "removed",
-          before: baseValue[index],
-          after: null,
-        });
-        continue;
-      }
-
-      collectRuleDefinitionDiff(baseValue[index], compareValue[index], childPath, changes);
-    }
-
-    return;
-  }
-
-  if (isJsonRecord(baseValue) && isJsonRecord(compareValue)) {
-    const keySet = new Set<string>([...Object.keys(baseValue), ...Object.keys(compareValue)]);
-
-    for (const key of keySet) {
-      const childPath = path.length === 0 ? key : `${path}.${key}`;
-      const baseHasKey = Object.prototype.hasOwnProperty.call(baseValue, key);
-      const compareHasKey = Object.prototype.hasOwnProperty.call(compareValue, key);
-
-      if (!baseHasKey) {
-        changes.push({
-          path: childPath,
-          changeType: "added",
-          before: null,
-          after: compareValue[key],
-        });
-        continue;
-      }
-
-      if (!compareHasKey) {
-        changes.push({
-          path: childPath,
-          changeType: "removed",
-          before: baseValue[key],
-          after: null,
-        });
-        continue;
-      }
-
-      collectRuleDefinitionDiff(baseValue[key], compareValue[key], childPath, changes);
-    }
-
-    return;
-  }
-
-  changes.push({
-    path: path.length === 0 ? "$" : path,
-    changeType: "changed",
-    before: baseValue,
-    after: compareValue,
-  });
-};
-
-const resolveRuleDefinition = (
-  rawRuleJson: string,
-): ReturnType<typeof parseBadgeIssuanceRuleDefinition> => {
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(rawRuleJson) as unknown;
-  } catch {
-    throw new Error("Stored rule JSON is invalid");
-  }
-
-  return parseBadgeIssuanceRuleDefinition(parsed);
-};
 
 export const registerBadgeRuleVersionRoutes = (
   input: RegisterBadgeRuleVersionRoutesInput,
@@ -223,11 +110,10 @@ export const registerBadgeRuleVersionRoutes = (
       );
     }
 
-    const baseDefinition = resolveRuleDefinition(baseVersion.ruleJson);
-    const selectedDefinition = resolveRuleDefinition(selectedVersion.ruleJson);
-    const changes: RuleDefinitionDiffChange[] = [];
-
-    collectRuleDefinitionDiff(baseDefinition, selectedDefinition, "definition", changes);
+    const diff = buildBadgeRuleVersionDefinitionDiff({
+      baseRuleJson: baseVersion.ruleJson,
+      selectedRuleJson: selectedVersion.ruleJson,
+    });
 
     return c.json({
       tenantId: pathParams.tenantId,
@@ -242,11 +128,7 @@ export const registerBadgeRuleVersionRoutes = (
         versionNumber: baseVersion.versionNumber,
         status: baseVersion.status,
       },
-      diff: {
-        changed: changes.length > 0,
-        changeCount: changes.length,
-        changes,
-      },
+      diff,
     });
   });
 

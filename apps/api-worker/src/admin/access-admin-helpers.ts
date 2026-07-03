@@ -26,6 +26,36 @@ export const buildRulesAdminPath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/rules`;
 };
 
+export const buildBadgeRuleApprovalsPath = (tenantId: string): string => {
+  return `${buildRulesAdminPath(tenantId)}/approvals`;
+};
+
+export const buildBadgeRuleVersionReviewPath = (
+  tenantId: string,
+  ruleId: string,
+  versionId: string,
+): string => {
+  return `${buildBadgeRuleApprovalsPath(tenantId)}/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(
+    versionId,
+  )}`;
+};
+
+export const buildBadgeRuleVersionReviewDecisionPath = (
+  tenantId: string,
+  ruleId: string,
+  versionId: string,
+): string => {
+  return `${buildBadgeRuleVersionReviewPath(tenantId, ruleId, versionId)}/decision`;
+};
+
+export const buildBadgeRuleVersionImpactPreviewPath = (
+  tenantId: string,
+  ruleId: string,
+  versionId: string,
+): string => {
+  return `${buildBadgeRuleVersionReviewPath(tenantId, ruleId, versionId)}/impact-preview`;
+};
+
 export const buildOperationsAdminPath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/operations`;
 };

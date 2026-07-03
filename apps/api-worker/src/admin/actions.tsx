@@ -52,6 +52,8 @@ export const AdminButton = ({
   hidden,
   form,
   formAction,
+  name,
+  value,
   className,
   ariaLabel,
   dataAttributes,
@@ -65,6 +67,8 @@ export const AdminButton = ({
   hidden?: boolean;
   form?: string;
   formAction?: string;
+  name?: string;
+  value?: string;
   className?: string;
   ariaLabel?: string;
   dataAttributes?: DataAttributes;
@@ -75,6 +79,8 @@ export const AdminButton = ({
       type={type}
       form={form}
       formAction={formAction}
+      name={name}
+      value={value}
       variant={ctActionVariantFromLegacy(variant)}
       size={adminButtonSizeToCtSize(size)}
       className={adminButtonClass({ extraClass: className })}

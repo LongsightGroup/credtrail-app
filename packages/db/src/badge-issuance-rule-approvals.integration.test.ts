@@ -322,6 +322,65 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
     }
   });
 
+  it("lists pending approvals by canonical decision authorization before applying limits", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+    const reviewerUserId = await createFixtureTenantMember(fixture, { role: "admin" });
+
+    try {
+      const ownerOnlyRule = await createFixtureRule(fixture);
+
+      await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        orgUnitId: ownerOnlyRule.rule.orgUnitId,
+        approvalRequirement: "always",
+        approvalSteps: [{ requiredRole: "owner", label: "Owner review" }],
+        createdByUserId: fixture.userId,
+      });
+      await dbModule.submitBadgeIssuanceRuleVersionForApproval(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: ownerOnlyRule.rule.id,
+        versionId: ownerOnlyRule.version.id,
+        actorUserId: fixture.userId,
+        actorRole: "issuer",
+      });
+
+      const adminRule = await createFixtureRule(fixture);
+
+      await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        orgUnitId: adminRule.rule.orgUnitId,
+        approvalRequirement: "always",
+        approvalSteps: [{ requiredRole: "admin", label: "Registrar review" }],
+        createdByUserId: fixture.userId,
+      });
+      await dbModule.submitBadgeIssuanceRuleVersionForApproval(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: adminRule.rule.id,
+        versionId: adminRule.version.id,
+        actorUserId: fixture.userId,
+        actorRole: "issuer",
+      });
+
+      const pendingApprovals = await dbModule.listPendingBadgeIssuanceRuleApprovalsForActor(
+        fixture.db,
+        {
+          tenantId: fixture.tenantId,
+          actorUserId: reviewerUserId,
+          actorRole: "admin",
+          limit: 1,
+        },
+      );
+
+      expect(pendingApprovals).toHaveLength(1);
+      expect(pendingApprovals[0]?.ruleId).toBe(adminRule.rule.id);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId, reviewerUserId],
+      });
+    }
+  });
+
   it("approves submitted rule versions immediately when policy does not require approval", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 

@@ -1,4 +1,5 @@
 import type { SqlDatabase, SqlQueryResult } from "./tenant-scope";
+import { actorCanDecideApprovalStep } from "./badge-rule-approval-authorization.js";
 import {
   BADGE_RULE_LIST_ORG_UNIT_SCOPE_ROLES,
   listTenantMembershipOrgUnitScopes,
@@ -19,6 +20,8 @@ import type {
   ListBadgeIssuanceRuleVersionApprovalStepsInput,
   ListBadgeIssuanceRuleVersionsInput,
   ListBadgeIssuanceRulesInput,
+  ListPendingBadgeIssuanceRuleApprovalsForActorInput,
+  PendingBadgeIssuanceRuleApprovalRecord,
 } from "./badge-issuance-rule-types.js";
 
 interface BadgeIssuanceRuleRow {
@@ -119,6 +122,20 @@ interface BadgeIssuanceRuleApprovalEventRow {
   comment: string | null;
   occurredAt: string;
   createdAt: string;
+}
+
+interface PendingBadgeIssuanceRuleApprovalRow extends BadgeIssuanceRuleApprovalStepRow {
+  ruleId: string;
+  ruleName: string;
+  badgeTemplateId: string;
+  badgeTemplateName: string | null;
+  orgUnitIdForRule: string;
+  orgUnitDisplayName: string | null;
+  versionNumber: number;
+  versionCreatedByUserId: string | null;
+  submittedByUserId: string | null;
+  submittedByEmail: string | null;
+  submittedAt: string | null;
 }
 
 export interface BadgeIssuanceRuleVersionNumberRow {
@@ -500,6 +517,128 @@ export const listBadgeIssuanceRuleVersionApprovalSteps = async (
   return result.results
     .map((row) => mapBadgeIssuanceRuleApprovalStepRow(row))
     .filter((step) => BADGE_ISSUANCE_RULE_APPROVAL_STEP_STATUSES.has(step.status));
+};
+
+const mapPendingBadgeIssuanceRuleApprovalRow = (
+  row: PendingBadgeIssuanceRuleApprovalRow,
+): PendingBadgeIssuanceRuleApprovalRecord => {
+  const currentStep: BadgeIssuanceRuleApprovalStepRecord = {
+    ...mapBadgeIssuanceRuleApprovalStepTarget(row),
+    id: row.id,
+    tenantId: row.tenantId,
+    versionId: row.versionId,
+    stepNumber: row.stepNumber,
+    orgUnitId: row.orgUnitId,
+    label: row.label,
+    status: row.status,
+    decidedByUserId: row.decidedByUserId,
+    decidedAt: row.decidedAt,
+    decisionComment: row.decisionComment,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+
+  return {
+    tenantId: row.tenantId,
+    ruleId: row.ruleId,
+    ruleName: row.ruleName,
+    badgeTemplateId: row.badgeTemplateId,
+    badgeTemplateName: row.badgeTemplateName,
+    orgUnitId: row.orgUnitIdForRule,
+    orgUnitDisplayName: row.orgUnitDisplayName,
+    versionId: row.versionId,
+    versionNumber: row.versionNumber,
+    versionCreatedByUserId: row.versionCreatedByUserId,
+    submittedByUserId: row.submittedByUserId,
+    submittedByEmail: row.submittedByEmail,
+    submittedAt: row.submittedAt,
+    currentStep,
+  };
+};
+
+export const listPendingBadgeIssuanceRuleApprovalsForActor = async (
+  db: SqlDatabase,
+  input: ListPendingBadgeIssuanceRuleApprovalsForActorInput,
+): Promise<PendingBadgeIssuanceRuleApprovalRecord[]> => {
+  const limit = input.limit ?? 50;
+  const result = await db
+    .prepare(
+      `
+        SELECT
+          steps.id,
+          steps.tenant_id AS tenantId,
+          steps.version_id AS versionId,
+          steps.step_number AS stepNumber,
+          steps.target_type AS targetType,
+          steps.required_role AS requiredRole,
+          steps.target_user_id AS targetUserId,
+          steps.target_approver_group_id AS targetApproverGroupId,
+          steps.org_unit_id AS orgUnitId,
+          steps.label,
+          steps.status,
+          steps.decided_by_user_id AS decidedByUserId,
+          steps.decided_at AS decidedAt,
+          steps.decision_comment AS decisionComment,
+          steps.created_at AS createdAt,
+          steps.updated_at AS updatedAt,
+          rules.id AS ruleId,
+          rules.name AS ruleName,
+          rules.badge_template_id AS badgeTemplateId,
+          templates.name AS badgeTemplateName,
+          rules.org_unit_id AS orgUnitIdForRule,
+          org_units.display_name AS orgUnitDisplayName,
+          versions.version_number AS versionNumber,
+          versions.created_by_user_id AS versionCreatedByUserId,
+          versions.submitted_by_user_id AS submittedByUserId,
+          submitters.email AS submittedByEmail,
+          versions.submitted_at AS submittedAt
+        FROM badge_issuance_rule_approval_steps AS steps
+        INNER JOIN badge_issuance_rule_versions AS versions
+          ON versions.id = steps.version_id
+          AND versions.tenant_id = steps.tenant_id
+        INNER JOIN badge_issuance_rules AS rules
+          ON rules.id = versions.rule_id
+          AND rules.tenant_id = versions.tenant_id
+        LEFT JOIN badge_templates AS templates
+          ON templates.id = rules.badge_template_id
+          AND templates.tenant_id = rules.tenant_id
+        LEFT JOIN tenant_org_units AS org_units
+          ON org_units.id = rules.org_unit_id
+          AND org_units.tenant_id = rules.tenant_id
+        LEFT JOIN users AS submitters
+          ON submitters.id = versions.submitted_by_user_id
+        WHERE steps.tenant_id = ?
+          AND steps.status = 'pending'
+          AND versions.status = 'pending_approval'
+          AND (versions.created_by_user_id IS NULL OR versions.created_by_user_id <> ?)
+          AND (versions.submitted_by_user_id IS NULL OR versions.submitted_by_user_id <> ?)
+        ORDER BY versions.submitted_at ASC, versions.created_at ASC, steps.step_number ASC
+      `,
+    )
+    .bind(input.tenantId, input.actorUserId, input.actorUserId)
+    .all<PendingBadgeIssuanceRuleApprovalRow>();
+
+  const entries: PendingBadgeIssuanceRuleApprovalRecord[] = [];
+
+  for (const row of result.results) {
+    const entry = mapPendingBadgeIssuanceRuleApprovalRow(row);
+    const canDecide = await actorCanDecideApprovalStep(db, {
+      tenantId: input.tenantId,
+      actorUserId: input.actorUserId,
+      actorRole: input.actorRole,
+      step: entry.currentStep,
+    });
+
+    if (canDecide) {
+      entries.push(entry);
+    }
+
+    if (entries.length >= limit) {
+      break;
+    }
+  }
+
+  return entries;
 };
 
 export const listBadgeIssuanceRuleVersionApprovalEvents = async (

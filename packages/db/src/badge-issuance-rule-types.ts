@@ -260,6 +260,30 @@ export interface ListBadgeIssuanceRuleVersionApprovalEventsInput {
   versionId: string;
 }
 
+export interface ListPendingBadgeIssuanceRuleApprovalsForActorInput {
+  tenantId: string;
+  actorUserId: string;
+  actorRole: TenantMembershipRole;
+  limit?: number | undefined;
+}
+
+export interface PendingBadgeIssuanceRuleApprovalRecord {
+  tenantId: string;
+  ruleId: string;
+  ruleName: string;
+  badgeTemplateId: string;
+  badgeTemplateName: string | null;
+  orgUnitId: string;
+  orgUnitDisplayName: string | null;
+  versionId: string;
+  versionNumber: number;
+  versionCreatedByUserId: string | null;
+  submittedByUserId: string | null;
+  submittedByEmail: string | null;
+  submittedAt: string | null;
+  currentStep: BadgeIssuanceRuleApprovalStepRecord;
+}
+
 export interface ActivateBadgeIssuanceRuleVersionInput {
   tenantId: string;
   ruleId: string;
