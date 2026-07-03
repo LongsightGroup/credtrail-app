@@ -419,7 +419,6 @@ var adminStatusPillClass = function adminStatusPillClass(tone) {
       };
     };
     let runRuleBuilderTest = async () => {};
-    const validRoles = new Set(['owner', 'admin', 'issuer', 'viewer']);
     const conditionTypeLabels = {
       course_completion: 'Course completion',
       grade_threshold: 'Grade threshold',
@@ -743,13 +742,7 @@ const isTestStepComplete = () => {
     ruleBuilderLastTestSummary.startsWith("Matched") ||
     ruleBuilderLastTestSummary.startsWith("No match") ||
     ruleBuilderLastTestSummary.startsWith("Review required");
-  let reviewReady = getTextFieldValue("issuanceTiming").length > 0;
-
-  try {
-    buildApprovalChain(getTextFieldValue("approvalRoles"));
-  } catch {
-    reviewReady = false;
-  }
+  const reviewReady = getTextFieldValue("issuanceTiming").length > 0;
 
   return testReady && reviewReady;
 };
@@ -824,13 +817,6 @@ const getStepGateMessage = (stepName) => {
       return "Choose when the badge should be issued before creating the draft.";
     }
 
-    try {
-      buildApprovalChain(getTextFieldValue("approvalRoles"));
-    } catch (error) {
-      return error instanceof Error
-        ? error.message
-        : "Fix approval roles before creating the draft.";
-    }
   }
 
   return ruleBuilderStepGateMessages[stepName] ?? "Complete this step before continuing.";
@@ -3753,28 +3739,6 @@ const applyTestFactPreset = () => {
   syncRuleBuilderSummary("Applied test facts preset.");
 };
 
-const buildApprovalChain = (approvalRolesText) => {
-  const approvalRoles =
-    approvalRolesText.length === 0
-      ? []
-      : approvalRolesText
-          .split(",")
-          .map((entry) => entry.trim())
-          .filter((entry) => entry.length > 0);
-  const invalidRole = approvalRoles.find((role) => !validRoles.has(role));
-
-  if (invalidRole !== undefined) {
-    throw new Error("Invalid approval role: " + invalidRole + ". Use owner/admin/issuer/viewer.");
-  }
-
-  return approvalRoles.map((requiredRole, index) => {
-    return {
-      requiredRole,
-      label: "Step " + String(index + 1) + " · " + requiredRole,
-    };
-  });
-};
-
 if (ruleBuilderStepButtons.length > 0) {
   ruleBuilderStepButtons.forEach((candidate) => {
     if (!(candidate instanceof HTMLButtonElement)) {
@@ -4328,7 +4292,6 @@ if (
       const description = getTextFieldValue('description');
       const badgeTemplateId = getTextFieldValue('badgeTemplateId');
       const lmsConnectionId = getTextFieldValue('lmsConnectionId');
-      const approvalRolesText = getTextFieldValue('approvalRoles');
       const issuanceTiming = getTextFieldValue('issuanceTiming');
       const changeSummaryInput = getTextFieldValue('changeSummary');
 
@@ -4345,11 +4308,9 @@ if (
       }
 
       let definition;
-      let approvalChain;
 
       try {
         definition = parseDefinitionJson();
-        approvalChain = buildApprovalChain(approvalRolesText);
       } catch (error) {
         setStatus(
           ruleCreateStatus,
@@ -4402,7 +4363,6 @@ if (
             badgeTemplateId,
             lmsConnectionId,
             definition: definitionWithOptions,
-            ...(approvalChain.length > 0 ? { approvalChain } : {}),
             ...(changeSummary.length > 0 ? { changeSummary } : {}),
           }),
         });
@@ -4502,4 +4462,5 @@ if (
     refreshConditionCardValueListOptions();
     syncRuleBuilderSummary();
   }
+
 })();

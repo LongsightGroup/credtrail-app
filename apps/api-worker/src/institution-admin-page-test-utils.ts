@@ -762,6 +762,7 @@ beforeEach(() => {
       name: "CS101 Excellence Rule",
       description: "Issue badge for CS101 completion and grade threshold.",
       badgeTemplateId: "badge_template_001",
+      ownerOrgUnitId: "tenant_123:org:institution",
       lmsProviderKind: "canvas",
       lmsConnectionId: "lms_canvas",
       activeVersionId: "brv_123",

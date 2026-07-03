@@ -329,7 +329,6 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
           lmsProviderKind: resolvedProvider.connection.providerKind,
           lmsConnectionId: resolvedProvider.connection.id,
           ruleJson,
-          approvalChain: request.approvalChain,
           changeSummary: request.changeSummary,
           createdByUserId: session.userId,
         });
@@ -406,7 +405,6 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
           lmsProviderKind: resolvedProvider.connection.providerKind,
           lmsConnectionId: resolvedProvider.connection.id,
           ruleJson,
-          approvalChain: request.approvalChain,
           changeSummary: request.changeSummary,
           createdByUserId: session.userId,
         });

@@ -261,7 +261,6 @@
       };
     };
     let runRuleBuilderTest = async () => {};
-    const validRoles = new Set(['owner', 'admin', 'issuer', 'viewer']);
     const conditionTypeLabels = {
       course_completion: 'Course completion',
       grade_threshold: 'Grade threshold',

@@ -273,6 +273,7 @@ const sampleRule = (overrides?: Partial<BadgeIssuanceRuleRecord>): BadgeIssuance
     name: "CS101 Rule",
     description: "Issue badge for CS101 excellence",
     badgeTemplateId: "badge_template_cs101",
+    ownerOrgUnitId: "tenant_123:org:institution",
     lmsProviderKind: "canvas",
     lmsConnectionId: "lms_123",
     activeVersionId: "brv_123",
@@ -598,12 +599,6 @@ describe("badge rule routes", () => {
               minScore: 90,
             },
           },
-          approvalChain: [
-            {
-              requiredRole: "admin",
-              label: "Registrar review",
-            },
-          ],
           changeSummary: "Retuned assignment score threshold",
         }),
       },
@@ -633,12 +628,6 @@ describe("badge rule routes", () => {
           minScore: 90,
         },
       }),
-      approvalChain: [
-        {
-          requiredRole: "admin",
-          label: "Registrar review",
-        },
-      ],
       changeSummary: "Retuned assignment score threshold",
       createdByUserId: "usr_123",
     });

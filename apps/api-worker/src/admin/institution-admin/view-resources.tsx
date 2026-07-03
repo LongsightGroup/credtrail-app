@@ -19,7 +19,7 @@ import {
   tenantBadgeRuleActivateAdminPath,
   tenantBadgeRuleDeleteAdminPath,
   tenantBadgeRuleDecisionAdminPath,
-  tenantBadgeRuleApproveDraftAdminPath,
+  tenantBadgeRuleSubmitApprovalAdminPath,
 } from "../access-admin-helpers";
 import {
   AdminActionMenu,
@@ -503,18 +503,18 @@ export const buildInstitutionAdminViewResources = (
           menuActions.push(
             <AdminForm
               method="post"
-              action={tenantBadgeRuleApproveDraftAdminPath(
+              action={tenantBadgeRuleSubmitApprovalAdminPath(
                 input.tenant.id,
                 rule.id,
                 latestVersion.id,
               )}
               className="ct-admin__inline-form"
               dataAttributes={{
-                "data-confirm-message": `Approve draft version for "${rule.name}"? Approved versions can be activated from the rules table.`,
+                "data-confirm-message": `Submit draft version for "${rule.name}" for approval?`,
               }}
             >
               <button type="submit" class="ct-admin__action-menu-item">
-                Approve draft
+                Submit for approval
               </button>
             </AdminForm>,
           );

@@ -6,12 +6,13 @@ import {
   type TenantMembershipRole,
 } from "./tenant-memberships";
 import {
+  findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleVersionById,
   listBadgeIssuanceRuleVersionApprovalSteps,
 } from "./badge-issuance-rule-reads.js";
+import { resolveBadgeRuleApprovalPolicy } from "./badge-rule-approval-policies.js";
 import type {
   ActivateBadgeIssuanceRuleVersionInput,
-  BadgeIssuanceRuleApprovalChainStepInput,
   BadgeIssuanceRuleApprovalEventAction,
   BadgeIssuanceRuleApprovalStepRecord,
   BadgeIssuanceRuleVersionRecord,
@@ -19,46 +20,28 @@ import type {
   SubmitBadgeIssuanceRuleVersionForApprovalInput,
 } from "./badge-issuance-rule-types.js";
 
-const DEFAULT_BADGE_ISSUANCE_RULE_APPROVAL_CHAIN: readonly BadgeIssuanceRuleApprovalChainStepInput[] =
-  [
-    {
-      requiredRole: "admin",
-      label: "Administrative approval",
-    },
-  ] as const;
-
-export const normalizeBadgeIssuanceRuleApprovalChain = (
-  chain: readonly BadgeIssuanceRuleApprovalChainStepInput[] | undefined,
-): BadgeIssuanceRuleApprovalChainStepInput[] => {
-  const normalizedChain =
-    chain === undefined ? [...DEFAULT_BADGE_ISSUANCE_RULE_APPROVAL_CHAIN] : [...chain];
-
-  if (normalizedChain.length === 0) {
-    throw new Error("Badge issuance rule approval chain must include at least one step");
-  }
-
-  for (const step of normalizedChain) {
-    const requiredRole: unknown = step.requiredRole;
-
-    if (!isTenantMembershipRole(requiredRole)) {
-      throw new Error(`Unsupported tenant role in approval chain: ${String(requiredRole)}`);
-    }
-  }
-
-  return normalizedChain;
-};
-
-export const insertBadgeIssuanceRuleApprovalSteps = async (
+const insertBadgeIssuanceRuleApprovalSteps = async (
   db: SqlDatabase,
   input: {
     tenantId: string;
     versionId: string;
-    approvalChain: readonly BadgeIssuanceRuleApprovalChainStepInput[];
+    approvalSteps: readonly {
+      requiredRole: TenantMembershipRole;
+      label: string | null;
+    }[];
     createdAt: string;
   },
 ): Promise<void> => {
   const insertSteps = async (): Promise<void> => {
-    for (const [index, step] of input.approvalChain.entries()) {
+    for (const [index, step] of input.approvalSteps.entries()) {
+      const requiredRole: unknown = step.requiredRole;
+
+      if (!isTenantMembershipRole(requiredRole)) {
+        throw new Error(
+          `Unsupported tenant role in badge rule approval step: ${String(requiredRole)}`,
+        );
+      }
+
       await db
         .prepare(
           `
@@ -85,7 +68,7 @@ export const insertBadgeIssuanceRuleApprovalSteps = async (
           input.versionId,
           index + 1,
           step.requiredRole,
-          step.label ?? null,
+          step.label,
           input.createdAt,
           input.createdAt,
         )
@@ -153,20 +136,6 @@ const ensureBadgeIssuanceRuleApprovalStepsInitialized = async (
     versionId: string;
   },
 ): Promise<BadgeIssuanceRuleApprovalStepRecord[]> => {
-  const existingSteps = await listBadgeIssuanceRuleVersionApprovalSteps(db, input);
-
-  if (existingSteps.length > 0) {
-    return existingSteps;
-  }
-
-  const nowIso = new Date().toISOString();
-  await insertBadgeIssuanceRuleApprovalSteps(db, {
-    tenantId: input.tenantId,
-    versionId: input.versionId,
-    approvalChain: DEFAULT_BADGE_ISSUANCE_RULE_APPROVAL_CHAIN,
-    createdAt: nowIso,
-  });
-
   return listBadgeIssuanceRuleVersionApprovalSteps(db, input);
 };
 
@@ -188,6 +157,82 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
   if (version.status !== "draft" && version.status !== "rejected") {
     return null;
   }
+
+  const rule = await findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId);
+
+  if (rule === null) {
+    return null;
+  }
+
+  const policy = await resolveBadgeRuleApprovalPolicy(db, {
+    tenantId: input.tenantId,
+    orgUnitId: rule.ownerOrgUnitId,
+  });
+  const deleteApprovalStepsStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        DELETE FROM badge_issuance_rule_approval_steps
+        WHERE tenant_id = ?
+          AND version_id = ?
+      `,
+      )
+      .bind(input.tenantId, input.versionId)
+      .run();
+
+  await deleteApprovalStepsStatement();
+
+  if (policy.approvalRequirement === "never") {
+    const approveVersionStatement = (): Promise<SqlRunResult> =>
+      db
+        .prepare(
+          `
+          UPDATE badge_issuance_rule_versions
+          SET
+            status = 'approved',
+            approved_by_user_id = ?,
+            approved_at = ?,
+            updated_at = ?
+          WHERE tenant_id = ?
+            AND rule_id = ?
+            AND id = ?
+        `,
+        )
+        .bind(
+          input.actorUserId ?? null,
+          occurredAt,
+          occurredAt,
+          input.tenantId,
+          input.ruleId,
+          input.versionId,
+        )
+        .run();
+
+    await approveVersionStatement();
+    await insertBadgeIssuanceRuleApprovalEvent(db, {
+      tenantId: input.tenantId,
+      versionId: input.versionId,
+      stepNumber: null,
+      action: "submitted",
+      actorUserId: input.actorUserId ?? null,
+      actorRole: input.actorRole ?? null,
+      comment: input.comment ?? "Approved by badge rule approval policy",
+      occurredAt,
+    });
+
+    return findBadgeIssuanceRuleVersionById(db, {
+      tenantId: input.tenantId,
+      ruleId: input.ruleId,
+      versionId: input.versionId,
+    });
+  }
+
+  await insertBadgeIssuanceRuleApprovalSteps(db, {
+    tenantId: input.tenantId,
+    versionId: input.versionId,
+    approvalSteps: policy.approvalSteps,
+    createdAt: occurredAt,
+  });
 
   const approvalSteps = await ensureBadgeIssuanceRuleApprovalStepsInitialized(db, {
     tenantId: input.tenantId,

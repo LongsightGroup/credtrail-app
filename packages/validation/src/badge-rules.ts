@@ -1,10 +1,5 @@
 import { z } from "zod";
-import {
-  isoTimestampSchema,
-  recipientIdentityTypeSchema,
-  resourceIdSchema,
-  tenantMembershipRoleSchema,
-} from "./primitives.js";
+import { isoTimestampSchema, recipientIdentityTypeSchema, resourceIdSchema } from "./primitives.js";
 import { tenantPathParamsSchema } from "./path-params.js";
 
 export const badgeIssuanceRuleLmsProviderKindSchema = z.enum([
@@ -292,42 +287,35 @@ export const badgeTemplateAuditLogQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional(),
 });
 
-const badgeIssuanceRuleApprovalChainStepSchema = z.object({
-  requiredRole: tenantMembershipRoleSchema,
-  label: z.string().trim().min(1).max(120).optional(),
-});
+export const createBadgeIssuanceRuleRequestSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    description: z.string().trim().min(1).max(2000).optional(),
+    badgeTemplateId: resourceIdSchema,
+    lmsConnectionId: resourceIdSchema,
+    lmsProviderKind: badgeIssuanceRuleLmsProviderKindSchema.optional(),
+    definition: badgeIssuanceRuleDefinitionSchema,
+    changeSummary: z.string().trim().min(1).max(1000).optional(),
+  })
+  .strict();
 
-const badgeIssuanceRuleApprovalChainSchema = z
-  .array(badgeIssuanceRuleApprovalChainStepSchema)
-  .min(1)
-  .max(10);
+export const updateBadgeIssuanceRuleDraftRequestSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    description: z.string().trim().max(2000).optional(),
+    badgeTemplateId: resourceIdSchema,
+    lmsConnectionId: resourceIdSchema,
+    definition: badgeIssuanceRuleDefinitionSchema,
+    changeSummary: z.string().trim().min(1).max(1000).optional(),
+  })
+  .strict();
 
-export const createBadgeIssuanceRuleRequestSchema = z.object({
-  name: z.string().trim().min(1).max(200),
-  description: z.string().trim().min(1).max(2000).optional(),
-  badgeTemplateId: resourceIdSchema,
-  lmsConnectionId: resourceIdSchema,
-  lmsProviderKind: badgeIssuanceRuleLmsProviderKindSchema.optional(),
-  definition: badgeIssuanceRuleDefinitionSchema,
-  approvalChain: badgeIssuanceRuleApprovalChainSchema.optional(),
-  changeSummary: z.string().trim().min(1).max(1000).optional(),
-});
-
-export const updateBadgeIssuanceRuleDraftRequestSchema = z.object({
-  name: z.string().trim().min(1).max(200),
-  description: z.string().trim().max(2000).optional(),
-  badgeTemplateId: resourceIdSchema,
-  lmsConnectionId: resourceIdSchema,
-  definition: badgeIssuanceRuleDefinitionSchema,
-  approvalChain: badgeIssuanceRuleApprovalChainSchema.optional(),
-  changeSummary: z.string().trim().min(1).max(1000).optional(),
-});
-
-export const createBadgeIssuanceRuleVersionRequestSchema = z.object({
-  definition: badgeIssuanceRuleDefinitionSchema,
-  approvalChain: badgeIssuanceRuleApprovalChainSchema.optional(),
-  changeSummary: z.string().trim().min(1).max(1000).optional(),
-});
+export const createBadgeIssuanceRuleVersionRequestSchema = z
+  .object({
+    definition: badgeIssuanceRuleDefinitionSchema,
+    changeSummary: z.string().trim().min(1).max(1000).optional(),
+  })
+  .strict();
 
 export const decideBadgeIssuanceRuleVersionRequestSchema = z.object({
   decision: z.enum(["approved", "rejected"]),

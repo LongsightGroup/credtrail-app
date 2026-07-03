@@ -25,6 +25,7 @@ export interface BadgeIssuanceRuleRecord {
   name: string;
   description: string | null;
   badgeTemplateId: string;
+  ownerOrgUnitId: string;
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
   lmsConnectionId: string | null;
   activeVersionId: string | null;
@@ -48,11 +49,6 @@ export interface BadgeIssuanceRuleVersionRecord {
   activatedAt: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface BadgeIssuanceRuleApprovalChainStepInput {
-  requiredRole: TenantMembershipRole;
-  label?: string | undefined;
 }
 
 export interface BadgeIssuanceRuleApprovalStepRecord {
@@ -91,7 +87,6 @@ export interface CreateBadgeIssuanceRuleInput {
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
   lmsConnectionId: string;
   ruleJson: string;
-  approvalChain?: BadgeIssuanceRuleApprovalChainStepInput[] | undefined;
   changeSummary?: string | undefined;
   createdByUserId?: string | undefined;
 }
@@ -100,7 +95,6 @@ export interface CreateBadgeIssuanceRuleVersionInput {
   tenantId: string;
   ruleId: string;
   ruleJson: string;
-  approvalChain?: BadgeIssuanceRuleApprovalChainStepInput[] | undefined;
   changeSummary?: string | undefined;
   createdByUserId?: string | undefined;
 }
@@ -114,7 +108,6 @@ export interface UpdateBadgeIssuanceRuleDraftInput {
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
   lmsConnectionId: string;
   ruleJson: string;
-  approvalChain?: BadgeIssuanceRuleApprovalChainStepInput[] | undefined;
   changeSummary?: string | undefined;
   createdByUserId?: string | undefined;
 }

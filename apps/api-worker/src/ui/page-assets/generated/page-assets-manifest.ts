@@ -53,7 +53,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminRuleBuilderJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-rule-builder.bae972e2ce.js",
+    path: "/assets/ui/institution-admin-rule-builder.3f727e5693.js",
   },
   learnerRecordCss: {
     kind: "style",

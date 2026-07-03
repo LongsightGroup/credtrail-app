@@ -147,28 +147,6 @@ const applyTestFactPreset = () => {
   syncRuleBuilderSummary("Applied test facts preset.");
 };
 
-const buildApprovalChain = (approvalRolesText) => {
-  const approvalRoles =
-    approvalRolesText.length === 0
-      ? []
-      : approvalRolesText
-          .split(",")
-          .map((entry) => entry.trim())
-          .filter((entry) => entry.length > 0);
-  const invalidRole = approvalRoles.find((role) => !validRoles.has(role));
-
-  if (invalidRole !== undefined) {
-    throw new Error("Invalid approval role: " + invalidRole + ". Use owner/admin/issuer/viewer.");
-  }
-
-  return approvalRoles.map((requiredRole, index) => {
-    return {
-      requiredRole,
-      label: "Step " + String(index + 1) + " · " + requiredRole,
-    };
-  });
-};
-
 if (ruleBuilderStepButtons.length > 0) {
   ruleBuilderStepButtons.forEach((candidate) => {
     if (!(candidate instanceof HTMLButtonElement)) {

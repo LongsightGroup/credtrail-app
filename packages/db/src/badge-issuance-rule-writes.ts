@@ -1,9 +1,6 @@
 import { createPrefixedId } from "./shared-helpers";
 import { runSqlTransaction, type SqlDatabase, type SqlRunResult } from "./tenant-scope";
-import {
-  insertBadgeIssuanceRuleApprovalSteps,
-  normalizeBadgeIssuanceRuleApprovalChain,
-} from "./badge-issuance-rule-approvals.js";
+import { findBadgeTemplateById } from "./badge-templates.js";
 import type {
   CreateBadgeIssuanceRuleInput,
   CreateBadgeIssuanceRuleResult,
@@ -29,7 +26,14 @@ export const createBadgeIssuanceRuleWithConnection = async (
   const nowIso = new Date().toISOString();
   const ruleId = createPrefixedId("brl");
   const versionId = createPrefixedId("brv");
-  const approvalChain = normalizeBadgeIssuanceRuleApprovalChain(input.approvalChain);
+  const badgeTemplate = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
+
+  if (badgeTemplate === null) {
+    throw new Error(
+      `Badge template "${input.badgeTemplateId}" not found for tenant "${input.tenantId}"`,
+    );
+  }
+
   const insertRuleStatement = (): Promise<SqlRunResult> =>
     db
       .prepare(
@@ -40,6 +44,7 @@ export const createBadgeIssuanceRuleWithConnection = async (
           name,
           description,
           badge_template_id,
+          owner_org_unit_id,
           lms_provider_kind,
           lms_connection_id,
           active_version_id,
@@ -47,7 +52,7 @@ export const createBadgeIssuanceRuleWithConnection = async (
           created_at,
           updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
       `,
       )
       .bind(
@@ -56,6 +61,7 @@ export const createBadgeIssuanceRuleWithConnection = async (
         input.name,
         input.description ?? null,
         input.badgeTemplateId,
+        badgeTemplate.ownerOrgUnitId,
         input.lmsProviderKind,
         input.lmsConnectionId,
         input.createdByUserId ?? null,
@@ -101,13 +107,6 @@ export const createBadgeIssuanceRuleWithConnection = async (
   await insertRuleStatement();
   await insertVersionStatement();
 
-  await insertBadgeIssuanceRuleApprovalSteps(db, {
-    tenantId: input.tenantId,
-    versionId,
-    approvalChain,
-    createdAt: nowIso,
-  });
-
   const rule = await findBadgeIssuanceRuleById(db, input.tenantId, ruleId);
   const version = await findBadgeIssuanceRuleVersionById(db, {
     tenantId: input.tenantId,
@@ -140,7 +139,6 @@ const createBadgeIssuanceRuleVersionInDatabase = async (
 ): Promise<BadgeIssuanceRuleVersionRecord> => {
   const nowIso = new Date().toISOString();
   const versionId = createPrefixedId("brv");
-  const approvalChain = normalizeBadgeIssuanceRuleApprovalChain(input.approvalChain);
   const nextVersionStatement = (): Promise<BadgeIssuanceRuleVersionNumberRow | null> =>
     db
       .prepare(
@@ -197,12 +195,6 @@ const createBadgeIssuanceRuleVersionInDatabase = async (
       : Number(maxRow.maxVersionNumber);
   const nextVersionNumber = Number.isFinite(currentMax) ? Math.floor(currentMax) + 1 : 1;
   await insertStatement(nextVersionNumber);
-  await insertBadgeIssuanceRuleApprovalSteps(db, {
-    tenantId: input.tenantId,
-    versionId,
-    approvalChain,
-    createdAt: nowIso,
-  });
 
   const version = await findBadgeIssuanceRuleVersionById(db, {
     tenantId: input.tenantId,
@@ -252,6 +244,13 @@ export const updateBadgeIssuanceRuleDraft = async (
   }
 
   const nowIso = new Date().toISOString();
+  const badgeTemplate = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
+
+  if (badgeTemplate === null) {
+    throw new Error(
+      `Badge template "${input.badgeTemplateId}" not found for tenant "${input.tenantId}"`,
+    );
+  }
 
   // Product decision: editing from the builder preserves history by appending a new draft version.
   return runSqlTransaction(db, async (transactionDb) => {
@@ -264,6 +263,7 @@ export const updateBadgeIssuanceRuleDraft = async (
             name = ?,
             description = ?,
             badge_template_id = ?,
+            owner_org_unit_id = ?,
             lms_provider_kind = ?,
             lms_connection_id = ?,
             updated_at = ?
@@ -275,6 +275,7 @@ export const updateBadgeIssuanceRuleDraft = async (
           input.name,
           input.description ?? null,
           input.badgeTemplateId,
+          badgeTemplate.ownerOrgUnitId,
           input.lmsProviderKind,
           input.lmsConnectionId,
           nowIso,
@@ -289,7 +290,6 @@ export const updateBadgeIssuanceRuleDraft = async (
       tenantId: input.tenantId,
       ruleId: input.ruleId,
       ruleJson: input.ruleJson,
-      approvalChain: input.approvalChain,
       changeSummary: input.changeSummary,
       createdByUserId: input.createdByUserId,
     });

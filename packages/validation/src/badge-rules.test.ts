@@ -67,16 +67,6 @@ describe("badge issuance rule parsers", () => {
           ],
         },
       },
-      approvalChain: [
-        {
-          requiredRole: "issuer",
-          label: "Department approval",
-        },
-        {
-          requiredRole: "admin",
-          label: "Registrar approval",
-        },
-      ],
       changeSummary: "Initial draft",
     });
     const versionRequest = parseCreateBadgeIssuanceRuleVersionRequest({
@@ -86,11 +76,6 @@ describe("badge issuance rule parsers", () => {
           notBefore: "2026-01-01T00:00:00.000Z",
         },
       },
-      approvalChain: [
-        {
-          requiredRole: "admin",
-        },
-      ],
       changeSummary: "Limit issuance to spring term",
     });
     const updateDraftRequest = parseUpdateBadgeIssuanceRuleDraftRequest({
@@ -99,12 +84,6 @@ describe("badge issuance rule parsers", () => {
       badgeTemplateId: "badge_template_cs101",
       lmsConnectionId: "lms_123",
       definition: createRequest.definition,
-      approvalChain: [
-        {
-          requiredRole: "admin",
-          label: "Registrar approval",
-        },
-      ],
       changeSummary: "Tighten course completion rule",
     });
     const decisionRequest = parseDecideBadgeIssuanceRuleVersionRequest({
@@ -181,13 +160,11 @@ describe("badge issuance rule parsers", () => {
     });
 
     expect(createRequest.lmsProviderKind).toBe("canvas");
-    expect(createRequest.approvalChain?.[0]?.requiredRole).toBe("issuer");
     expect(JSON.stringify(createRequest.definition.conditions)).toContain("survey_completion");
     expect(JSON.stringify(createRequest.definition.conditions)).toContain("custom_field");
     expect(updateDraftRequest.name).toBe("CS101 Excellence Rule Revised");
     expect(updateDraftRequest.description).toBe("");
     expect(versionRequest.changeSummary).toContain("spring");
-    expect(versionRequest.approvalChain).toHaveLength(1);
     expect(decisionRequest.decision).toBe("approved");
     expect(decisionRequest.comment).toContain("governance");
     expect(evaluateRequest.dryRun).toBe(true);
@@ -359,6 +336,24 @@ describe("badge issuance rule parsers", () => {
             type: "time_window",
           },
         },
+      });
+    }).toThrow(/./);
+  });
+
+  it("rejects author-supplied approval chains on badge rule commands", () => {
+    expect(() => {
+      parseCreateBadgeIssuanceRuleRequest({
+        name: "Governed Rule",
+        badgeTemplateId: "badge_template_cs101",
+        lmsConnectionId: "lms_123",
+        definition: {
+          conditions: {
+            type: "grade_threshold",
+            courseId: "course_101",
+            minScore: 80,
+          },
+        },
+        approvalChain: [{ requiredRole: "admin" }],
       });
     }).toThrow(/./);
   });

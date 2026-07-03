@@ -1,8 +1,4 @@
-import type {
-  BadgeIssuanceRuleApprovalStepRecord,
-  BadgeIssuanceRuleRecord,
-  BadgeIssuanceRuleVersionRecord,
-} from "@credtrail/db";
+import type { BadgeIssuanceRuleRecord, BadgeIssuanceRuleVersionRecord } from "@credtrail/db";
 import { buildCompleteTrustEdCredentialMetadata } from "@credtrail/validation/testing";
 import { describe, expect, it } from "vitest";
 import {
@@ -19,7 +15,6 @@ import {
   mockedFindTenantMembership,
   mockedListAccessibleTenantContextsForUser,
   mockedListBadgeIssuanceRules,
-  mockedListBadgeIssuanceRuleVersionApprovalStepsDb,
   mockedListBadgeIssuanceRuleVersions,
   mockedListBadgeTemplateImageRevisionCountsByTenant,
   mockedListBadgeTemplateImageRevisions,
@@ -100,10 +95,12 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).toContain("Version 1");
     expect(body).toContain("Version ID: brv_123");
     expect(body).not.toContain("v1 (brv_123)");
-    expect(body).toContain("Approve draft");
-    expect(body).toContain("Approved versions can be activated from the rules table.");
+    expect(body).toContain("Submit for approval");
+    expect(body).toContain(
+      "Submit draft version for &quot;CS101 Excellence Rule&quot; for approval?",
+    );
     expect(body).toContain('method="post"');
-    expect(body).toContain("/versions/brv_123/approve-draft");
+    expect(body).toContain("/versions/brv_123/submit-approval");
     expect(INSTITUTION_ADMIN_JS).not.toContain(
       "Approved versions can be activated from the rules table.",
     );
@@ -124,6 +121,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
       name,
       description: null,
       badgeTemplateId: "badge_template_001",
+      ownerOrgUnitId: "tenant_123:org:institution",
       lmsProviderKind: "canvas",
       lmsConnectionId: "lms_canvas",
       activeVersionId,
@@ -217,8 +215,8 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
   });
 });
 
-describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/approve-draft", () => {
-  it("approves eligible draft versions for admins and shows the next activation step", async () => {
+describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit-approval", () => {
+  it("submits eligible draft versions for policy approval", async () => {
     const env = createEnv();
     const draftVersion: BadgeIssuanceRuleVersionRecord = {
       id: "brv_123",
@@ -240,36 +238,12 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/approv
       ...draftVersion,
       status: "pending_approval",
     };
-    const approvedVersion: BadgeIssuanceRuleVersionRecord = {
-      ...draftVersion,
-      status: "approved",
-      approvedByUserId: "usr_admin",
-      approvedAt: "2026-02-18T12:10:00.000Z",
-    };
-    const approvalStep: BadgeIssuanceRuleApprovalStepRecord = {
-      id: "bras_123",
-      tenantId: "tenant_123",
-      versionId: "brv_123",
-      stepNumber: 1,
-      requiredRole: "admin",
-      label: "Registrar approval",
-      status: "pending",
-      decidedByUserId: null,
-      decidedAt: null,
-      decisionComment: null,
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:00:00.000Z",
-    };
 
-    mockedFindBadgeIssuanceRuleVersionByIdDb
-      .mockResolvedValueOnce(draftVersion)
-      .mockResolvedValueOnce(pendingVersion);
+    mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(draftVersion);
     mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockResolvedValue(pendingVersion);
-    mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([approvalStep]);
-    mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue(approvedVersion);
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/rules/brl_123/versions/brv_123/approve-draft",
+      "/tenants/tenant_123/admin/rules/brl_123/versions/brv_123/submit-approval",
       {
         method: "POST",
         headers: {
@@ -289,31 +263,12 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/approv
       actorUserId: "usr_admin",
       actorRole: "admin",
     });
-    expect(mockedDecideBadgeIssuanceRuleVersionDb).toHaveBeenCalledWith(fakeDb, {
-      tenantId: "tenant_123",
-      ruleId: "brl_123",
-      versionId: "brv_123",
-      decision: "approved",
-      actorUserId: "usr_admin",
-      actorRole: "admin",
-    });
+    expect(mockedDecideBadgeIssuanceRuleVersionDb).not.toHaveBeenCalled();
     expect(mockedCreateAuditLogDb).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
         action: "badge_rule.version_submitted_for_approval",
         targetId: "brv_123",
-      }),
-    );
-    expect(mockedCreateAuditLogDb).toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        action: "badge_rule.version_approval_decided",
-        targetId: "brv_123",
-        metadata: expect.objectContaining({
-          decision: "approved",
-          requiredRole: "admin",
-          status: "approved",
-        }) as unknown,
       }),
     );
 
@@ -330,12 +285,10 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/approv
     const flashBody = await flashResponse.text();
 
     expect(flashResponse.status).toBe(200);
-    expect(flashBody).toContain(
-      "Rule version approved. Activate it from the rules table when ready.",
-    );
+    expect(flashBody).toContain("Rule version submitted for approval.");
   });
 
-  it("does not submit draft versions when the actor cannot approve the first step", async () => {
+  it("shows the policy-approved activation step when submission does not require approval", async () => {
     const env = createEnv();
     const draftVersion: BadgeIssuanceRuleVersionRecord = {
       id: "brv_123",
@@ -353,26 +306,18 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/approv
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     };
-    const ownerApprovalStep: BadgeIssuanceRuleApprovalStepRecord = {
-      id: "bras_owner",
-      tenantId: "tenant_123",
-      versionId: "brv_123",
-      stepNumber: 1,
-      requiredRole: "owner",
-      label: "Owner approval",
-      status: "queued",
-      decidedByUserId: null,
-      decidedAt: null,
-      decisionComment: null,
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:00:00.000Z",
+    const approvedVersion: BadgeIssuanceRuleVersionRecord = {
+      ...draftVersion,
+      status: "approved",
+      approvedByUserId: "usr_admin",
+      approvedAt: "2026-02-18T12:10:00.000Z",
     };
 
     mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(draftVersion);
-    mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([ownerApprovalStep]);
+    mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockResolvedValue(approvedVersion);
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/rules/brl_123/versions/brv_123/approve-draft",
+      "/tenants/tenant_123/admin/rules/brl_123/versions/brv_123/submit-approval",
       {
         method: "POST",
         headers: {
@@ -384,9 +329,22 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/approv
     );
 
     expect(response.status).toBe(303);
-    expect(mockedSubmitBadgeIssuanceRuleVersionForApprovalDb).not.toHaveBeenCalled();
     expect(mockedDecideBadgeIssuanceRuleVersionDb).not.toHaveBeenCalled();
-    expect(mockedCreateAuditLogDb).not.toHaveBeenCalled();
+    const flashCookie = adminFlashCookieHeader(response);
+    const flashResponse = await app.request(
+      "/tenants/tenant_123/admin/rules",
+      {
+        headers: {
+          Cookie: `better-auth.session_token=session-token; ${flashCookie}`,
+        },
+      },
+      env,
+    );
+    const flashBody = await flashResponse.text();
+
+    expect(flashBody).toContain(
+      "Rule version approved by policy. Activate it from the rules table when ready.",
+    );
   });
 });
 
@@ -399,6 +357,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
       name: "Draft cleanup rule",
       description: null,
       badgeTemplateId: "badge_template_001",
+      ownerOrgUnitId: "tenant_123:org:institution",
       lmsProviderKind: "canvas",
       lmsConnectionId: "lms_canvas",
       activeVersionId: null,
@@ -492,6 +451,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
         name: "Active protected rule",
         description: null,
         badgeTemplateId: "badge_template_001",
+        ownerOrgUnitId: "tenant_123:org:institution",
         lmsProviderKind: "canvas",
         lmsConnectionId: "lms_canvas",
         activeVersionId: "brv_active",
@@ -1811,8 +1771,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("Advanced JSON tools");
     expect(body).not.toContain("Advanced tools and reusable lists");
     expect(body).not.toContain("Reusable lists");
-    expect(body).toContain("Reviewer roles (optional)");
-    expect(body).toContain("Leave blank for admin review");
+    expect(body).not.toContain("Reviewer roles (optional)");
+    expect(body).not.toContain("Leave blank for admin review");
     expect(body).not.toContain('value="admin,owner"');
     expect(body).not.toContain("Start from a proven pattern");
     expect(body).not.toContain("Start from an existing rule");
@@ -1982,6 +1942,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
       name: "Draft QA Rule",
       description: "Fix the score threshold before review.",
       badgeTemplateId: "badge_template_001",
+      ownerOrgUnitId: "tenant_123:org:institution",
       lmsProviderKind: "canvas",
       lmsConnectionId: "lms_canvas",
       activeVersionId: null,
@@ -2093,6 +2054,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
       name: "Active protected rule",
       description: null,
       badgeTemplateId: "badge_template_001",
+      ownerOrgUnitId: "tenant_123:org:institution",
       lmsProviderKind: "canvas",
       lmsConnectionId: "lms_canvas",
       activeVersionId: "brv_active",

@@ -258,7 +258,6 @@
       const description = getTextFieldValue('description');
       const badgeTemplateId = getTextFieldValue('badgeTemplateId');
       const lmsConnectionId = getTextFieldValue('lmsConnectionId');
-      const approvalRolesText = getTextFieldValue('approvalRoles');
       const issuanceTiming = getTextFieldValue('issuanceTiming');
       const changeSummaryInput = getTextFieldValue('changeSummary');
 
@@ -275,11 +274,9 @@
       }
 
       let definition;
-      let approvalChain;
 
       try {
         definition = parseDefinitionJson();
-        approvalChain = buildApprovalChain(approvalRolesText);
       } catch (error) {
         setStatus(
           ruleCreateStatus,
@@ -332,7 +329,6 @@
             badgeTemplateId,
             lmsConnectionId,
             definition: definitionWithOptions,
-            ...(approvalChain.length > 0 ? { approvalChain } : {}),
             ...(changeSummary.length > 0 ? { changeSummary } : {}),
           }),
         });

@@ -286,7 +286,6 @@ export const registerBadgeRuleVersionRoutes = (
       tenantId: pathParams.tenantId,
       ruleId: pathParams.ruleId,
       ruleJson: JSON.stringify(request.definition),
-      approvalChain: request.approvalChain,
       changeSummary: request.changeSummary,
       createdByUserId: session.userId,
     });

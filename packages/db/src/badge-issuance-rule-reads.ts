@@ -21,6 +21,7 @@ interface BadgeIssuanceRuleRow {
   name: string;
   description: string | null;
   badgeTemplateId: string;
+  ownerOrgUnitId: string;
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
   lmsConnectionId: string | null;
   activeVersionId: string | null;
@@ -107,6 +108,7 @@ const mapBadgeIssuanceRuleRow = (row: BadgeIssuanceRuleRow): BadgeIssuanceRuleRe
     name: row.name,
     description: row.description,
     badgeTemplateId: row.badgeTemplateId,
+    ownerOrgUnitId: row.ownerOrgUnitId,
     lmsProviderKind: row.lmsProviderKind,
     lmsConnectionId: row.lmsConnectionId,
     activeVersionId: row.activeVersionId,
@@ -188,6 +190,7 @@ export const findBadgeIssuanceRuleById = async (
           name,
           description,
           badge_template_id AS badgeTemplateId,
+          owner_org_unit_id AS ownerOrgUnitId,
           lms_provider_kind AS lmsProviderKind,
           lms_connection_id AS lmsConnectionId,
           active_version_id AS activeVersionId,
@@ -222,6 +225,7 @@ export const listBadgeIssuanceRules = async (
           name,
           description,
           badge_template_id AS badgeTemplateId,
+          owner_org_unit_id AS ownerOrgUnitId,
           lms_provider_kind AS lmsProviderKind,
           lms_connection_id AS lmsConnectionId,
           active_version_id AS activeVersionId,

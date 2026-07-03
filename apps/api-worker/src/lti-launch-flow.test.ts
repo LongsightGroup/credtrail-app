@@ -614,6 +614,7 @@ const sampleBadgeIssuanceRule = (
     name: "Sakai course rule: Introduction to TypeScript · TypeScript Foundations",
     description: "Created from LTI Deep Linking for Introduction to TypeScript.",
     badgeTemplateId: "badge_template_001",
+    ownerOrgUnitId: "tenant_123:org:institution",
     lmsProviderKind: "sakai",
     lmsConnectionId: "lms_sakai_001",
     activeVersionId: null,

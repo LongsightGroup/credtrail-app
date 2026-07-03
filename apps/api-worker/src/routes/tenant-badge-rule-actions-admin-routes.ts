@@ -220,7 +220,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
   const { app, resolveDatabase, resolveInstitutionAdminAdminRole } = input;
 
   app.post(
-    "/tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/approve-draft",
+    "/tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit-approval",
     async (c) => {
       const pathParams = parseBadgeIssuanceRuleVersionPathParams(c.req.param());
       const nextPath = buildRulesAdminPath(pathParams.tenantId);
@@ -256,33 +256,6 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
         });
       }
 
-      const approvalSteps = await listBadgeIssuanceRuleVersionApprovalSteps(db, {
-        tenantId: pathParams.tenantId,
-        ruleId: pathParams.ruleId,
-        versionId: pathParams.versionId,
-      });
-      const firstApprovalStep = approvalSteps[0];
-
-      if (firstApprovalStep === undefined) {
-        return redirectToRules(c, {
-          tenantId: pathParams.tenantId,
-          userId: session.userId,
-          tone: "error",
-          message: "No approval step exists for this rule version.",
-        });
-      }
-
-      if (
-        !tenantMembershipRoleSatisfiesMinimumRole(membershipRole, firstApprovalStep.requiredRole)
-      ) {
-        return redirectToRules(c, {
-          tenantId: pathParams.tenantId,
-          userId: session.userId,
-          tone: "error",
-          message: `Draft cannot be approved by your role. First step requires ${firstApprovalStep.requiredRole}.`,
-        });
-      }
-
       const updatedVersion = await submitBadgeIssuanceRuleVersionForApproval(db, {
         tenantId: pathParams.tenantId,
         ruleId: pathParams.ruleId,
@@ -314,34 +287,14 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
         },
       });
 
-      const decisionResult = await decideCurrentApprovalStepForAdmin(db, {
-        tenantId: pathParams.tenantId,
-        ruleId: pathParams.ruleId,
-        versionId: pathParams.versionId,
-        decision: "approved",
-        actorUserId: session.userId,
-        actorRole: membershipRole,
-      });
-
-      if (decisionResult.status !== "decided") {
-        return redirectAdminApprovalDecisionFailure(c, {
-          tenantId: pathParams.tenantId,
-          userId: session.userId,
-          result: decisionResult,
-          notPendingMessage: "That rule version is no longer waiting for approval.",
-          forbiddenMessage: (result) =>
-            `Draft is waiting for approval. Current step requires ${result.requiredRole}.`,
-        });
-      }
-
       return redirectToRules(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "success",
         message:
-          decisionResult.version.status === "approved"
-            ? "Rule version approved. Activate it from the rules table when ready."
-            : "Approval recorded. Another approval step is still required.",
+          updatedVersion.status === "approved"
+            ? "Rule version approved by policy. Activate it from the rules table when ready."
+            : "Rule version submitted for approval.",
       });
     },
   );

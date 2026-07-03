@@ -990,18 +990,11 @@ export const institutionAdminRuleBuilderPage = (input: {
                       <details class="ct-admin__builder-advanced ct-stack">
                         <summary>Governance and release settings</summary>
                         <p class="ct-admin__hint">
-                          Defaults work for most drafts. Open this only if a rule needs a specific
-                          reviewer role or issuance timing.
+                          Approval is derived from institution policy. Open this only if a rule
+                          needs a specific issuance timing.
                         </p>
                         <div class="ct-admin__builder-review-layout ct-grid">
                           <div class="ct-stack">
-                            <AdminField label="Reviewer roles (optional)">
-                              <CtInput
-                                name="approvalRoles"
-                                type="text"
-                                placeholder="Leave blank for admin review"
-                              />
-                            </AdminField>
                             <AdminField label="Issuance timing">
                               <CtSelect name="issuanceTiming">
                                 <option value="immediate">Immediate</option>

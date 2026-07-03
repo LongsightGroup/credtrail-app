@@ -122,13 +122,7 @@ const isTestStepComplete = () => {
     ruleBuilderLastTestSummary.startsWith("Matched") ||
     ruleBuilderLastTestSummary.startsWith("No match") ||
     ruleBuilderLastTestSummary.startsWith("Review required");
-  let reviewReady = getTextFieldValue("issuanceTiming").length > 0;
-
-  try {
-    buildApprovalChain(getTextFieldValue("approvalRoles"));
-  } catch {
-    reviewReady = false;
-  }
+  const reviewReady = getTextFieldValue("issuanceTiming").length > 0;
 
   return testReady && reviewReady;
 };
@@ -203,13 +197,6 @@ const getStepGateMessage = (stepName) => {
       return "Choose when the badge should be issued before creating the draft.";
     }
 
-    try {
-      buildApprovalChain(getTextFieldValue("approvalRoles"));
-    } catch (error) {
-      return error instanceof Error
-        ? error.message
-        : "Fix approval roles before creating the draft.";
-    }
   }
 
   return ruleBuilderStepGateMessages[stepName] ?? "Complete this step before continuing.";

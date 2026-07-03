@@ -42,6 +42,20 @@ describe("badge rule review queue schema", () => {
     expect(sql).toContain("ADD COLUMN IF NOT EXISTS reviewed_at TEXT");
     expect(sql).toContain("idx_badge_issuance_rule_evaluations_review_queue");
   });
+
+  it("adds badge rule approval policy and rule org-unit scope through a forward migration", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0050_badge_rule_approval_policies.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("ADD COLUMN IF NOT EXISTS owner_org_unit_id TEXT");
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS badge_rule_approval_policies");
+    expect(sql).toContain("approval_requirement TEXT NOT NULL");
+    expect(sql).toContain("approval_steps_json TEXT NOT NULL");
+    expect(sql).toContain("idx_badge_rule_approval_policies_tenant_default");
+    expect(sql).toContain("idx_badge_rule_approval_policies_tenant_org_unit");
+  });
 });
 
 describe("badge issuance rule draft predicates", () => {
@@ -54,6 +68,7 @@ describe("badge issuance rule draft predicates", () => {
       name: "CS101 Rule",
       description: "Award for CS101 completion.",
       badgeTemplateId: "badge_template_123",
+      ownerOrgUnitId: "tenant_123:org:institution",
       lmsProviderKind: "canvas",
       lmsConnectionId: "lms_123",
       activeVersionId: null,
@@ -137,6 +152,129 @@ describe("badge issuance rule draft predicates", () => {
 });
 
 describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () => {
+  it("resolves default and org-unit badge rule approval policies", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      const ownerOrgUnitId = `${fixture.tenantId}:org:institution`;
+      const defaultPolicy = await dbModule.resolveBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        orgUnitId: ownerOrgUnitId,
+      });
+
+      expect(defaultPolicy.approvalRequirement).toBe("always");
+      expect(defaultPolicy.approvalSteps[0]?.requiredRole).toBe("admin");
+
+      await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        approvalRequirement: "always",
+        approvalSteps: [{ requiredRole: "admin", label: "Tenant registrar" }],
+        createdByUserId: fixture.userId,
+      });
+      await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        orgUnitId: ownerOrgUnitId,
+        approvalRequirement: "always",
+        approvalSteps: [{ requiredRole: "owner", label: "Institution owner" }],
+        createdByUserId: fixture.userId,
+      });
+
+      const resolved = await dbModule.resolveBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        orgUnitId: ownerOrgUnitId,
+      });
+
+      expect(resolved.orgUnitId).toBe(ownerOrgUnitId);
+      expect(resolved.approvalSteps[0]?.requiredRole).toBe("owner");
+      expect(resolved.approvalSteps[0]?.label).toBe("Institution owner");
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
+  it("derives approval steps from policy when submitting a rule version", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      const created = await createFixtureRule(fixture);
+
+      await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        orgUnitId: created.rule.ownerOrgUnitId,
+        approvalRequirement: "always",
+        approvalSteps: [
+          { requiredRole: "owner", label: "Owner review" },
+          { requiredRole: "admin", label: "Registrar review" },
+        ],
+        createdByUserId: fixture.userId,
+      });
+
+      const submitted = await dbModule.submitBadgeIssuanceRuleVersionForApproval(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        actorUserId: fixture.userId,
+        actorRole: "issuer",
+      });
+      const steps = await dbModule.listBadgeIssuanceRuleVersionApprovalSteps(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+      });
+
+      expect(submitted?.status).toBe("pending_approval");
+      expect(steps.map((step) => step.requiredRole)).toEqual(["owner", "admin"]);
+      expect(steps[0]?.status).toBe("pending");
+      expect(steps[1]?.status).toBe("queued");
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
+  it("approves submitted rule versions immediately when policy does not require approval", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      const created = await createFixtureRule(fixture);
+
+      await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        orgUnitId: created.rule.ownerOrgUnitId,
+        approvalRequirement: "never",
+        approvalSteps: [],
+        createdByUserId: fixture.userId,
+      });
+
+      const submitted = await dbModule.submitBadgeIssuanceRuleVersionForApproval(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+      });
+      const steps = await dbModule.listBadgeIssuanceRuleVersionApprovalSteps(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+      });
+
+      expect(submitted?.status).toBe("approved");
+      expect(submitted?.approvedByUserId).toBe(fixture.userId);
+      expect(steps).toHaveLength(0);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
   it("updates a rejected latest version by creating the next draft version", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 
@@ -184,7 +322,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
       expect(savedRule?.description).toBe("Updated description.");
       expect(versions).toHaveLength(2);
       expect(versions[0]?.versionNumber).toBe(2);
-      expect(approvalStepCount).toBe(2);
+      expect(approvalStepCount).toBe(0);
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],
@@ -236,7 +374,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
     }
   });
 
-  it("rolls back metadata updates when draft version creation fails", async () => {
+  it("rolls back metadata updates when badge template ownership cannot be resolved", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 
     try {
@@ -252,19 +390,14 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
           tenantId: fixture.tenantId,
           ruleId: created.rule.id,
           name: "Partially saved name",
-          badgeTemplateId: fixture.badgeTemplateId,
+          badgeTemplateId: "missing_badge_template",
           lmsProviderKind: "canvas",
           lmsConnectionId: fixture.lmsConnectionId,
           ruleJson:
             '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":90}}',
-          approvalChain: [
-            {
-              requiredRole: "unsupported_role" as dbModule.TenantMembershipRole,
-            },
-          ],
           createdByUserId: fixture.userId,
         }),
-      ).rejects.toThrow("Unsupported tenant role in approval chain");
+      ).rejects.toThrow('Badge template "missing_badge_template" not found');
 
       const savedRule = await dbModule.findBadgeIssuanceRuleById(
         fixture.db,
