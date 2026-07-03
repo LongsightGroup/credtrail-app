@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1055.0",
     "@aws-sdk/client-sesv2": "^3.1055.0",

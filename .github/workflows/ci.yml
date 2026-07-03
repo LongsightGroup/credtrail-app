@@ -34,7 +34,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
 
       - name: Install
@@ -109,7 +109,7 @@ jobs:
             --network credtrail-ci-net \
             -e DATABASE_URL="$DATABASE_URL" \
             credtrail-ci:${{ github.sha }} \
-            pnpm db:migrate:postgres
+            node node_modules/@credtrail/db/scripts/migrate-postgres.mjs
 
           docker run -d \
             --name credtrail-ci-minio \
@@ -208,7 +208,7 @@ jobs:
             -e JOB_PROCESSOR_TOKEN="$JOB_PROCESSOR_TOKEN" \
             -e JOB_POLL_INTERVAL_MS=250 \
             credtrail-ci:${{ github.sha }} \
-            pnpm exec tsx apps/api-worker/src/node-worker.ts
+            pnpm exec tsx src/node-worker.ts
 
           queue_status=""
           for attempt in $(seq 1 40); do
@@ -260,7 +260,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
 
       - name: Install
