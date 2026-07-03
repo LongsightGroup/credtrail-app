@@ -14,7 +14,6 @@ import { resolveBadgeRuleApprovalPolicy } from "./badge-rule-approval-policies.j
 import type {
   ActivateBadgeIssuanceRuleVersionInput,
   BadgeIssuanceRuleApprovalEventAction,
-  BadgeIssuanceRuleApprovalStepRecord,
   BadgeIssuanceRuleVersionRecord,
   DecideBadgeIssuanceRuleVersionInput,
   SubmitBadgeIssuanceRuleVersionForApprovalInput,
@@ -128,17 +127,6 @@ const insertBadgeIssuanceRuleApprovalEvent = async (
   await insertEventStatement();
 };
 
-const ensureBadgeIssuanceRuleApprovalStepsInitialized = async (
-  db: SqlDatabase,
-  input: {
-    tenantId: string;
-    ruleId: string;
-    versionId: string;
-  },
-): Promise<BadgeIssuanceRuleApprovalStepRecord[]> => {
-  return listBadgeIssuanceRuleVersionApprovalSteps(db, input);
-};
-
 export const submitBadgeIssuanceRuleVersionForApproval = async (
   db: SqlDatabase,
   input: SubmitBadgeIssuanceRuleVersionForApprovalInput,
@@ -235,7 +223,7 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
       createdAt: occurredAt,
     });
 
-    const approvalSteps = await ensureBadgeIssuanceRuleApprovalStepsInitialized(transactionDb, {
+    const approvalSteps = await listBadgeIssuanceRuleVersionApprovalSteps(transactionDb, {
       tenantId: input.tenantId,
       ruleId: input.ruleId,
       versionId: input.versionId,
@@ -334,7 +322,7 @@ export const decideBadgeIssuanceRuleVersion = async (
     return null;
   }
 
-  const steps = await ensureBadgeIssuanceRuleApprovalStepsInitialized(db, {
+  const steps = await listBadgeIssuanceRuleVersionApprovalSteps(db, {
     tenantId: input.tenantId,
     ruleId: input.ruleId,
     versionId: input.versionId,
