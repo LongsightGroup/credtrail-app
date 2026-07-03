@@ -6,6 +6,7 @@ import {
 } from "@credtrail/validation";
 import type { OrgUnitType } from "@credtrail/validation";
 import { createPrefixedId } from "./shared-helpers";
+import { TenantOrgUnitValidationError } from "./tenant-org-unit-errors.js";
 import type { SqlDatabase, SqlQueryResult } from "./tenant-scope";
 
 export type { OrgUnitType };
@@ -164,11 +165,15 @@ export const createTenantOrgUnit = async (
   input: CreateTenantOrgUnitInput,
 ): Promise<TenantOrgUnitRecord> => {
   if (!requiresParentOrgUnit(input.unitType) && input.parentOrgUnitId !== undefined) {
-    throw new Error(`Org unit type ${input.unitType} cannot have a parent org unit`);
+    throw new TenantOrgUnitValidationError(
+      "parent_not_permitted",
+      `Org unit type ${input.unitType} cannot have a parent org unit`,
+    );
   }
 
   if (requiresParentOrgUnit(input.unitType) && input.parentOrgUnitId === undefined) {
-    throw new Error(
+    throw new TenantOrgUnitValidationError(
+      "parent_required",
       `Org unit type ${input.unitType} requires parent org unit type ${formatAllowedParentOrgUnitTypes(
         input.unitType,
       )}`,
@@ -179,13 +184,15 @@ export const createTenantOrgUnit = async (
     const parent = await findTenantOrgUnitById(db, input.tenantId, input.parentOrgUnitId);
 
     if (parent === null) {
-      throw new Error(
+      throw new TenantOrgUnitValidationError(
+        "parent_not_found",
         `Parent org unit ${input.parentOrgUnitId} not found for tenant ${input.tenantId}`,
       );
     }
 
     if (!isAllowedParentOrgUnitType(input.unitType, parent.unitType)) {
-      throw new Error(
+      throw new TenantOrgUnitValidationError(
+        "parent_type_not_allowed",
         `Org unit type ${input.unitType} requires parent org unit type ${formatAllowedParentOrgUnitTypes(
           input.unitType,
         )}`,
@@ -193,7 +200,8 @@ export const createTenantOrgUnit = async (
     }
 
     if (!parent.isActive) {
-      throw new Error(
+      throw new TenantOrgUnitValidationError(
+        "parent_inactive",
         `Parent org unit ${input.parentOrgUnitId} is inactive for tenant ${input.tenantId}`,
       );
     }

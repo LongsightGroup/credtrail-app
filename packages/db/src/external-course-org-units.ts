@@ -4,6 +4,7 @@ import {
   findTenantOrgUnitBySlug,
   type TenantOrgUnitRecord,
 } from "./tenant-org-units.js";
+import { isTenantOrgUnitValidationError } from "./tenant-org-unit-errors.js";
 import type { SqlDatabase } from "./tenant-scope";
 
 export type EnsureExternalCourseOrgUnitResult =
@@ -30,16 +31,6 @@ const externalCourseOrgUnitSlug = (input: {
   const bounded = normalized.length > 0 ? normalized.slice(0, 89).replace(/-+$/g, "") : "course";
 
   return `course-${bounded}`;
-};
-
-const isInvalidParentOrgUnitError = (error: unknown): boolean => {
-  return (
-    error instanceof Error &&
-    (error.message.includes("requires parent org unit type") ||
-      error.message.includes("cannot have a parent org unit") ||
-      error.message.includes("Parent org unit") ||
-      error.message.includes("is inactive for tenant"))
-  );
 };
 
 export const ensureExternalCourseOrgUnit = async (
@@ -92,7 +83,7 @@ export const ensureExternalCourseOrgUnit = async (
 
     return { status: "ok", orgUnit };
   } catch (error: unknown) {
-    if (isInvalidParentOrgUnitError(error)) {
+    if (isTenantOrgUnitValidationError(error)) {
       return { status: "invalid_parent" };
     }
 

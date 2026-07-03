@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createPrefixedId } from "./shared-helpers";
+import { ORG_ANCESTORS_WITH_DEPTH_CTE } from "./tenant-org-unit-hierarchy-sql.js";
 import type { SqlDatabase, SqlRunResult } from "./tenant-scope";
 import type { TenantMembershipRole } from "./tenant-memberships";
 import type { BadgeIssuanceRuleApprovalStepTarget } from "./badge-issuance-rule-types.js";
@@ -322,20 +323,7 @@ export const resolveBadgeRuleApprovalPolicy = async (
   const row = await db
     .prepare(
       `
-      WITH RECURSIVE org_ancestors AS (
-        SELECT id AS orgUnitId, 0 AS depth
-        FROM tenant_org_units
-        WHERE tenant_id = ?
-          AND id = ?
-
-        UNION ALL
-
-        SELECT parent.id AS orgUnitId, org_ancestors.depth + 1
-        FROM tenant_org_units AS parent
-        INNER JOIN org_ancestors
-          ON org_ancestors.orgUnitId = parent.parent_org_unit_id
-        WHERE parent.tenant_id = ?
-      )
+      ${ORG_ANCESTORS_WITH_DEPTH_CTE}
       SELECT
         ${BADGE_RULE_APPROVAL_POLICY_SELECT_COLUMNS}
       FROM org_ancestors

@@ -1,4 +1,9 @@
 import type { SqlDatabase, SqlQueryResult } from "./tenant-scope";
+import {
+  buildScopedDescendantsCte,
+  ORG_ANCESTORS_BASE_CTE,
+  ORG_ANCESTORS_WITH_DEPTH_CTE,
+} from "./tenant-org-unit-hierarchy-sql.js";
 
 interface TenantOrgUnitAncestorRow {
   orgUnitId: string;
@@ -15,20 +20,7 @@ export const listTenantOrgUnitAncestorIdsFromSelf = async (
   const result: SqlQueryResult<TenantOrgUnitAncestorRow> = await db
     .prepare(
       `
-      WITH RECURSIVE org_ancestors AS (
-        SELECT id AS orgUnitId, parent_org_unit_id AS parentOrgUnitId, 0 AS depth
-        FROM tenant_org_units
-        WHERE tenant_id = ?
-          AND id = ?
-
-        UNION ALL
-
-        SELECT parent.id AS orgUnitId, parent.parent_org_unit_id AS parentOrgUnitId, org_ancestors.depth + 1
-        FROM tenant_org_units AS parent
-        INNER JOIN org_ancestors
-          ON org_ancestors.parentOrgUnitId = parent.id
-        WHERE parent.tenant_id = ?
-      )
+      ${ORG_ANCESTORS_WITH_DEPTH_CTE}
       SELECT orgUnitId, depth
       FROM org_ancestors
       ORDER BY depth ASC
@@ -55,24 +47,7 @@ export const listTenantOrgUnitDescendantIdsFromRoots = async (
   const result: SqlQueryResult<{ orgUnitId: string }> = await db
     .prepare(
       `
-      WITH RECURSIVE scoped_roots(id) AS (
-        VALUES ${rootValues}
-      ),
-      scoped_descendants AS (
-        SELECT org_units.id AS orgUnitId
-        FROM tenant_org_units AS org_units
-        INNER JOIN scoped_roots
-          ON scoped_roots.id = org_units.id
-        WHERE org_units.tenant_id = ?
-
-        UNION
-
-        SELECT child.id AS orgUnitId
-        FROM tenant_org_units AS child
-        INNER JOIN scoped_descendants
-          ON child.parent_org_unit_id = scoped_descendants.orgUnitId
-        WHERE child.tenant_id = ?
-      )
+      ${buildScopedDescendantsCte(rootValues)}
       SELECT orgUnitId
       FROM scoped_descendants
       ORDER BY orgUnitId ASC
@@ -95,20 +70,7 @@ export const isOrgUnitWithinAncestorScope = async (
   const row = await db
     .prepare(
       `
-      WITH RECURSIVE org_ancestors AS (
-        SELECT id, parent_org_unit_id AS parentOrgUnitId
-        FROM tenant_org_units
-        WHERE tenant_id = ?
-          AND id = ?
-
-        UNION ALL
-
-        SELECT parent.id, parent.parent_org_unit_id AS parentOrgUnitId
-        FROM tenant_org_units parent
-        INNER JOIN org_ancestors
-          ON org_ancestors.parentOrgUnitId = parent.id
-        WHERE parent.tenant_id = ?
-      )
+      ${ORG_ANCESTORS_BASE_CTE}
       SELECT id
       FROM org_ancestors
       WHERE id = ?

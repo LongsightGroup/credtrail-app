@@ -1,4 +1,5 @@
 import { findTenantOrgUnitById } from "./tenant-org-units";
+import { ORG_ANCESTORS_BASE_CTE } from "./tenant-org-unit-hierarchy-sql.js";
 import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "./tenant-scope";
 import type { TenantPlanTier } from "./tenants";
 
@@ -70,6 +71,14 @@ export interface EnsureTenantMembershipResult {
 }
 
 export type TenantMembershipOrgUnitScopeRole = "admin" | "issuer" | "viewer";
+
+export const BADGE_RULE_LIST_ORG_UNIT_SCOPE_ROLES: Record<
+  Extract<TenantMembershipRole, "issuer" | "viewer">,
+  readonly TenantMembershipOrgUnitScopeRole[]
+> = {
+  issuer: ["admin", "issuer"],
+  viewer: ["admin", "issuer", "viewer"],
+};
 
 export interface TenantMembershipOrgUnitScopeRecord {
   tenantId: string;
@@ -621,20 +630,7 @@ export const hasTenantMembershipOrgUnitAccess = async (
     db
       .prepare(
         `
-        WITH RECURSIVE org_ancestors AS (
-          SELECT id, parent_org_unit_id AS parentOrgUnitId, 0 AS depth
-          FROM tenant_org_units
-          WHERE tenant_id = ?
-            AND id = ?
-
-          UNION ALL
-
-          SELECT parent.id, parent.parent_org_unit_id AS parentOrgUnitId, org_ancestors.depth + 1
-          FROM tenant_org_units parent
-          INNER JOIN org_ancestors
-            ON org_ancestors.parentOrgUnitId = parent.id
-          WHERE parent.tenant_id = ?
-        )
+        ${ORG_ANCESTORS_BASE_CTE}
         SELECT
           scopes.org_unit_id AS orgUnitId
         FROM tenant_membership_org_unit_scopes scopes

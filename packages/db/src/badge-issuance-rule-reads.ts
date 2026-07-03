@@ -1,5 +1,10 @@
 import type { SqlDatabase, SqlQueryResult } from "./tenant-scope";
-import { listTenantMembershipOrgUnitScopes, type TenantMembershipRole } from "./tenant-memberships";
+import {
+  BADGE_RULE_LIST_ORG_UNIT_SCOPE_ROLES,
+  listTenantMembershipOrgUnitScopes,
+  type TenantMembershipRole,
+} from "./tenant-memberships";
+import { buildScopedDescendantsCte } from "./tenant-org-unit-hierarchy-sql.js";
 import type {
   BadgeIssuanceRuleApprovalEventAction,
   BadgeIssuanceRuleApprovalEventRecord,
@@ -282,24 +287,7 @@ const listBadgeIssuanceRulesByDescendantRoots = async (
   const result = await db
     .prepare(
       `
-      WITH RECURSIVE scoped_roots(id) AS (
-        VALUES ${rootValues}
-      ),
-      scoped_descendants AS (
-        SELECT org_units.id AS orgUnitId
-        FROM tenant_org_units AS org_units
-        INNER JOIN scoped_roots
-          ON scoped_roots.id = org_units.id
-        WHERE org_units.tenant_id = ?
-
-        UNION
-
-        SELECT child.id AS orgUnitId
-        FROM tenant_org_units AS child
-        INNER JOIN scoped_descendants
-          ON child.parent_org_unit_id = scoped_descendants.orgUnitId
-        WHERE child.tenant_id = ?
-      )
+      ${buildScopedDescendantsCte(rootValues)}
       SELECT
         ${BADGE_ISSUANCE_RULE_SELECT_COLUMNS}
       FROM badge_issuance_rules
@@ -333,12 +321,28 @@ export const resolveListBadgeIssuanceRulesInput = async (
     tenantId: input.tenantId,
     userId: input.userId,
   });
-  const rootOrgUnitIds = Array.from(new Set(scopes.map((scope) => scope.orgUnitId))).sort((a, b) =>
-    a.localeCompare(b),
-  );
+
+  if (scopes.length === 0) {
+    return { tenantId: input.tenantId };
+  }
+
+  const allowedScopeRoles = BADGE_RULE_LIST_ORG_UNIT_SCOPE_ROLES[input.membershipRole];
+  const rootOrgUnitIds = Array.from(
+    new Set(
+      scopes
+        .filter((scope) => allowedScopeRoles.includes(scope.role))
+        .map((scope) => scope.orgUnitId),
+    ),
+  ).sort((left, right) => left.localeCompare(right));
 
   if (rootOrgUnitIds.length === 0) {
-    return { tenantId: input.tenantId };
+    return {
+      tenantId: input.tenantId,
+      scope: {
+        type: "descendants",
+        rootOrgUnitIds: [],
+      },
+    };
   }
 
   return {
