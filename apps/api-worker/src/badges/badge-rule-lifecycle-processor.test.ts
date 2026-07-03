@@ -11,6 +11,7 @@ vi.mock("@credtrail/db", async (importOriginal) => {
   return {
     ...actual,
     createAuditLog: vi.fn(async () => undefined),
+    deleteFailedJobQueueMessageByIdentity: vi.fn(async () => false),
     enqueueJobQueueMessageOnce: vi.fn(async () => true),
     expireBadgeIssuanceRuleVersion: vi.fn(async () => ({ id: "brv_123" })),
     listBadgeIssuanceRuleVersionsDueForExpiry: vi.fn(async () => [
@@ -88,6 +89,11 @@ describe("processBadgeRuleLifecycleForTenant", () => {
         tenantId: "tenant_123",
       }),
     );
+    expect(dbModule.deleteFailedJobQueueMessageByIdentity).toHaveBeenCalledWith(input.db, {
+      tenantId: "tenant_123",
+      jobType: "process_end_of_term_badge_rule",
+      idempotencyKey: "end-of-term:brl_123:brv_123:2026-06-01T00:00:00.000Z",
+    });
     expect(dbModule.expireBadgeIssuanceRuleVersion).not.toHaveBeenCalled();
   });
 });

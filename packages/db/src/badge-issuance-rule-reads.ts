@@ -305,7 +305,13 @@ export const resolveListBadgeIssuanceRulesInput = async (
   });
 
   if (scopes.length === 0) {
-    return { tenantId: input.tenantId };
+    return {
+      tenantId: input.tenantId,
+      scope: {
+        type: "descendants",
+        rootOrgUnitIds: [],
+      },
+    };
   }
 
   const allowedScopeRoles = BADGE_RULE_LIST_ORG_UNIT_SCOPE_ROLES[input.membershipRole];

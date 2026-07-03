@@ -66,6 +66,12 @@ export interface FailJobQueueMessageInput {
   retryDelaySeconds: number;
 }
 
+export interface DeleteFailedJobQueueMessageByIdentityInput {
+  tenantId: string;
+  jobType: JobQueueMessageType;
+  idempotencyKey: string;
+}
+
 export type MigrationBatchSource = "file_upload" | "credly_export" | "parchment_export" | "unknown";
 
 export interface ImportMigrationBatchQueueMessageRecord extends JobQueueMessageRecord {
@@ -422,6 +428,26 @@ export const enqueueJobQueueMessageOnce = async (
     .first<{ id: string }>();
 
   return row !== null;
+};
+
+export const deleteFailedJobQueueMessageByIdentity = async (
+  db: SqlDatabase,
+  input: DeleteFailedJobQueueMessageByIdentityInput,
+): Promise<boolean> => {
+  const result = await db
+    .prepare(
+      `
+      DELETE FROM job_queue_messages
+      WHERE tenant_id = ?
+        AND job_type = ?
+        AND idempotency_key = ?
+        AND status = 'failed'
+    `,
+    )
+    .bind(input.tenantId, input.jobType, input.idempotencyKey)
+    .run();
+
+  return (result.meta.rowsWritten ?? 0) > 0;
 };
 
 export const leaseJobQueueMessages = async (

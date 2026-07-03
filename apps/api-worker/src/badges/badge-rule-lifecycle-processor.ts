@@ -1,6 +1,7 @@
 import { logInfo, type ObservabilityContext } from "@credtrail/core-domain";
 import {
   createAuditLog,
+  deleteFailedJobQueueMessageByIdentity,
   enqueueJobQueueMessageOnce,
   expireBadgeIssuanceRuleVersion,
   listActiveTenants,
@@ -29,6 +30,13 @@ const lifecycleScheduleBucketFromIso = (isoTimestamp: string): string => isoTime
 const ruleUsesEndOfTermIssuance = (ruleJson: string): boolean => {
   return resolveRuleDefinition(ruleJson).options?.issuanceTiming === "end_of_term";
 };
+
+const endOfTermIdempotencyKey = (input: {
+  readonly ruleId: string;
+  readonly versionId: string;
+  readonly expiresAt: string | null;
+  readonly nowIso: string;
+}): string => `end-of-term:${input.ruleId}:${input.versionId}:${input.expiresAt ?? input.nowIso}`;
 
 export const enqueueBadgeRuleLifecycleJobsForActiveTenants = async (input: {
   readonly db: SqlDatabase;
@@ -76,6 +84,19 @@ export const processBadgeRuleLifecycleForTenant = async (
     const usesEndOfTermIssuance = ruleUsesEndOfTermIssuance(version.ruleJson);
 
     if (usesEndOfTermIssuance) {
+      const idempotencyKey = endOfTermIdempotencyKey({
+        ruleId: version.ruleId,
+        versionId: version.id,
+        expiresAt: version.expiresAt,
+        nowIso: input.nowIso,
+      });
+
+      await deleteFailedJobQueueMessageByIdentity(input.db, {
+        tenantId: input.tenantId,
+        jobType: "process_end_of_term_badge_rule",
+        idempotencyKey,
+      });
+
       const inserted = await enqueueJobQueueMessageOnce(input.db, {
         tenantId: input.tenantId,
         jobType: "process_end_of_term_badge_rule",
@@ -85,7 +106,7 @@ export const processBadgeRuleLifecycleForTenant = async (
           badgeTemplateId: version.badgeTemplateId,
           scheduledFor: input.nowIso,
         },
-        idempotencyKey: `end-of-term:${version.ruleId}:${version.id}:${version.expiresAt ?? input.nowIso}`,
+        idempotencyKey,
         nowIso: input.nowIso,
       });
 

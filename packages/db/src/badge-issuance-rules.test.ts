@@ -99,6 +99,53 @@ describe("badge rule review queue schema", () => {
   });
 });
 
+describe("resolveListBadgeIssuanceRulesInput", () => {
+  it("returns an empty scope for non-admin members with no org-unit memberships", async () => {
+    const localSuccessfulRunResult: SqlRunResult = {
+      success: true,
+      meta: {
+        rowsRead: 0,
+        rowsWritten: 0,
+      },
+    };
+    const db: SqlDatabase = {
+      prepare() {
+        return {
+          bind() {
+            return this;
+          },
+          async first<T>() {
+            return null as T | null;
+          },
+          async all<T>() {
+            return {
+              ...localSuccessfulRunResult,
+              results: [] as T[],
+            } satisfies SqlQueryResult<T>;
+          },
+          async run() {
+            return localSuccessfulRunResult;
+          },
+        };
+      },
+    };
+
+    await expect(
+      dbModule.resolveListBadgeIssuanceRulesInput(db, {
+        tenantId: "tenant_123",
+        userId: "usr_approver",
+        membershipRole: "approver",
+      }),
+    ).resolves.toEqual({
+      tenantId: "tenant_123",
+      scope: {
+        type: "descendants",
+        rootOrgUnitIds: [],
+      },
+    });
+  });
+});
+
 describe("badge issuance rule draft predicates", () => {
   const sampleRule = (
     overrides?: Partial<dbModule.BadgeIssuanceRuleRecord>,
@@ -367,6 +414,7 @@ describe("badge issuance rule approval transactions", () => {
 
   it("records approval decisions inside one SQL transaction", async () => {
     const writes: string[] = [];
+    const reads: string[] = [];
     let versionStatus: dbModule.BadgeIssuanceRuleVersionStatus = "pending_approval";
     let transactionCallCount = 0;
     const createDecisionStatement = (sql: string, isTransaction: boolean): SqlPreparedStatement => {
@@ -378,6 +426,7 @@ describe("badge issuance rule approval transactions", () => {
         },
         async first<T>() {
           if (normalizedSql.includes("FROM badge_issuance_rule_versions")) {
+            reads.push(`${isTransaction ? "transaction" : "outer"}:${normalizedSql}`);
             return {
               id: "brv_123",
               tenantId: "tenant_123",
@@ -487,6 +536,14 @@ describe("badge issuance rule approval transactions", () => {
     );
     expect(
       writes.some((entry) => entry.includes("INSERT INTO badge_issuance_rule_approval_events")),
+    ).toBe(true);
+    expect(
+      reads.some(
+        (entry) =>
+          entry.startsWith("transaction:") &&
+          entry.includes("FROM badge_issuance_rule_versions") &&
+          entry.includes("FOR UPDATE"),
+      ),
     ).toBe(true);
   });
 });

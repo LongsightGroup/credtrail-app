@@ -6,6 +6,11 @@ import {
   findBadgeIssuanceRuleVersionById,
   listBadgeIssuanceRuleVersionApprovalSteps,
 } from "./badge-issuance-rule-reads.js";
+import {
+  badgeIssuanceRuleVersionSelectColumns,
+  mapBadgeIssuanceRuleVersionRow,
+  type BadgeIssuanceRuleVersionRow,
+} from "./badge-issuance-rule-version-sql.js";
 import { resolveBadgeRuleApprovalPolicy } from "./badge-rule-approval-policies.js";
 import { actorCanDecideApprovalStep } from "./badge-rule-approval-authorization.js";
 import type { BadgeRuleApprovalPolicyStepRecord } from "./badge-rule-approval-policies.js";
@@ -123,6 +128,32 @@ const insertBadgeIssuanceRuleApprovalEvent = async (
       .run();
 
   await insertEventStatement();
+};
+
+const lockBadgeIssuanceRuleVersionForDecision = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    ruleId: string;
+    versionId: string;
+  },
+): Promise<BadgeIssuanceRuleVersionRecord | null> => {
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        ${badgeIssuanceRuleVersionSelectColumns()}
+      FROM badge_issuance_rule_versions
+      WHERE tenant_id = ?
+        AND rule_id = ?
+        AND id = ?
+      FOR UPDATE
+    `,
+    )
+    .bind(input.tenantId, input.ruleId, input.versionId)
+    .first<BadgeIssuanceRuleVersionRow>();
+
+  return row === null ? null : mapBadgeIssuanceRuleVersionRow(row);
 };
 
 export const submitBadgeIssuanceRuleVersionForApproval = async (
@@ -308,7 +339,7 @@ export const decideBadgeIssuanceRuleVersion = async (
   const occurredAt = input.occurredAt ?? new Date().toISOString();
 
   return runSqlTransaction(db, async (transactionDb) => {
-    const currentVersion = await findBadgeIssuanceRuleVersionById(transactionDb, {
+    const currentVersion = await lockBadgeIssuanceRuleVersionForDecision(transactionDb, {
       tenantId: input.tenantId,
       ruleId: input.ruleId,
       versionId: input.versionId,
@@ -378,6 +409,7 @@ export const decideBadgeIssuanceRuleVersion = async (
           WHERE tenant_id = ?
             AND version_id = ?
             AND step_number = ?
+            AND status = 'pending'
         `,
         )
         .bind(
@@ -402,6 +434,7 @@ export const decideBadgeIssuanceRuleVersion = async (
           WHERE tenant_id = ?
             AND version_id = ?
             AND step_number = ?
+            AND status = 'queued'
         `,
         )
         .bind(occurredAt, input.tenantId, input.versionId, nextStep?.stepNumber ?? null)
@@ -417,6 +450,7 @@ export const decideBadgeIssuanceRuleVersion = async (
           WHERE tenant_id = ?
             AND rule_id = ?
             AND id = ?
+            AND status = 'pending_approval'
         `,
         )
         .bind(occurredAt, input.tenantId, input.ruleId, input.versionId)
@@ -434,6 +468,7 @@ export const decideBadgeIssuanceRuleVersion = async (
           WHERE tenant_id = ?
             AND rule_id = ?
             AND id = ?
+            AND status = 'pending_approval'
         `,
         )
         .bind(
@@ -458,6 +493,7 @@ export const decideBadgeIssuanceRuleVersion = async (
           WHERE tenant_id = ?
             AND rule_id = ?
             AND id = ?
+            AND status = 'pending_approval'
         `,
         )
         .bind(occurredAt, input.tenantId, input.ruleId, input.versionId)
@@ -475,25 +511,55 @@ export const decideBadgeIssuanceRuleVersion = async (
           WHERE tenant_id = ?
             AND rule_id = ?
             AND id = ?
+            AND status = 'pending_approval'
         `,
         )
         .bind(occurredAt, input.tenantId, input.ruleId, input.versionId)
         .run();
 
     if (input.decision === "rejected") {
-      await markCurrentStepStatement("rejected");
-      await updateVersionRejectedStatement();
+      const markedStep = await markCurrentStepStatement("rejected");
+      const updatedVersion = await updateVersionRejectedStatement();
+
+      if (
+        (markedStep.meta.rowsWritten ?? 0) === 0 ||
+        (updatedVersion.meta.rowsWritten ?? 0) === 0
+      ) {
+        return { status: "stale" } as const;
+      }
     } else if (input.decision === "changes_requested") {
-      await markCurrentStepStatement("changes_requested");
-      await updateVersionChangesRequestedStatement();
+      const markedStep = await markCurrentStepStatement("changes_requested");
+      const updatedVersion = await updateVersionChangesRequestedStatement();
+
+      if (
+        (markedStep.meta.rowsWritten ?? 0) === 0 ||
+        (updatedVersion.meta.rowsWritten ?? 0) === 0
+      ) {
+        return { status: "stale" } as const;
+      }
     } else {
-      await markCurrentStepStatement("approved");
+      const markedStep = await markCurrentStepStatement("approved");
+
+      if ((markedStep.meta.rowsWritten ?? 0) === 0) {
+        return { status: "stale" } as const;
+      }
 
       if (nextStep === undefined) {
-        await updateVersionApprovedStatement();
+        const updatedVersion = await updateVersionApprovedStatement();
+
+        if ((updatedVersion.meta.rowsWritten ?? 0) === 0) {
+          return { status: "stale" } as const;
+        }
       } else {
-        await markNextStepPendingStatement();
-        await updateVersionPendingStatement();
+        const markedNextStep = await markNextStepPendingStatement();
+        const updatedVersion = await updateVersionPendingStatement();
+
+        if (
+          (markedNextStep.meta.rowsWritten ?? 0) === 0 ||
+          (updatedVersion.meta.rowsWritten ?? 0) === 0
+        ) {
+          return { status: "stale" } as const;
+        }
       }
     }
 

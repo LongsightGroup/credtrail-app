@@ -153,6 +153,7 @@ export const registerTenantGovernanceRoutes = (
   registerTenantBadgeRuleActionsAdminRoutes({
     app: input.app,
     resolveDatabase: input.resolveDatabase,
+    resolveBadgeRuleApprovalWorkspaceRole: auth.resolveBadgeRuleApprovalWorkspaceRole,
     resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
   });
 

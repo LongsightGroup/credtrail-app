@@ -1,3 +1,4 @@
+import { logError } from "@credtrail/core-domain";
 import {
   activateBadgeIssuanceRuleVersion,
   createAuditLog,
@@ -35,11 +36,23 @@ import {
   adminApprovalDecisionFailureMessage,
   submitBadgeRuleVersionForApprovalFailureMessage,
 } from "../badges/badge-rule-approval-outcomes";
+import { observabilityContext } from "../app/observability";
 
 interface RegisterTenantBadgeRuleActionsAdminRoutesInput {
   app: Hono<AppEnv>;
   resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ) => Promise<
+    | Response
+    | {
+        session: SessionRecord;
+        membershipRole: TenantMembershipRole;
+      }
+  >;
+  resolveBadgeRuleApprovalWorkspaceRole: (
     c: AppContext,
     tenantId: string,
     nextPath: string,
@@ -163,7 +176,31 @@ const decisionSuccessMessage = (
 export const registerTenantBadgeRuleActionsAdminRoutes = (
   input: RegisterTenantBadgeRuleActionsAdminRoutesInput,
 ): void => {
-  const { app, resolveDatabase, resolveInstitutionAdminAdminRole } = input;
+  const {
+    app,
+    resolveDatabase,
+    resolveBadgeRuleApprovalWorkspaceRole,
+    resolveInstitutionAdminAdminRole,
+  } = input;
+
+  const logApprovalNotificationFailure = (
+    c: AppContext,
+    input: {
+      readonly tenantId: string;
+      readonly ruleId: string;
+      readonly versionId: string;
+      readonly notificationType: "approval_decision" | "approval_submitted";
+      readonly error: unknown;
+    },
+  ): void => {
+    logError(observabilityContext(c.env), "badge_rule_approval_notification_failed", {
+      tenantId: input.tenantId,
+      ruleId: input.ruleId,
+      versionId: input.versionId,
+      notificationType: input.notificationType,
+      errorKind: input.error instanceof Error ? input.error.name : typeof input.error,
+    });
+  };
 
   const handleDecisionPost = async (
     c: AppContext,
@@ -174,7 +211,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
     },
   ): Promise<Response> => {
     const { pathParams } = routeInput;
-    const roleCheck = await resolveInstitutionAdminAdminRole(
+    const roleCheck = await resolveBadgeRuleApprovalWorkspaceRole(
       c,
       pathParams.tenantId,
       routeInput.nextPath,
@@ -241,22 +278,32 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       },
     });
 
-    await notifyBadgeRuleApprovalDecision(db, {
-      env: c.env,
-      tenantId: pathParams.tenantId,
-      ruleId: pathParams.ruleId,
-      version: decisionResult.version,
-      decision: request.decision,
-      comment: request.comment ?? null,
-      reviewUrl: absoluteUrlForPath(
-        c,
-        buildBadgeRuleVersionReviewPath(
-          pathParams.tenantId,
-          pathParams.ruleId,
-          pathParams.versionId,
+    try {
+      await notifyBadgeRuleApprovalDecision(db, {
+        env: c.env,
+        tenantId: pathParams.tenantId,
+        ruleId: pathParams.ruleId,
+        version: decisionResult.version,
+        decision: request.decision,
+        comment: request.comment ?? null,
+        reviewUrl: absoluteUrlForPath(
+          c,
+          buildBadgeRuleVersionReviewPath(
+            pathParams.tenantId,
+            pathParams.ruleId,
+            pathParams.versionId,
+          ),
         ),
-      ),
-    });
+      });
+    } catch (error: unknown) {
+      logApprovalNotificationFailure(c, {
+        tenantId: pathParams.tenantId,
+        ruleId: pathParams.ruleId,
+        versionId: pathParams.versionId,
+        notificationType: "approval_decision",
+        error,
+      });
+    }
 
     return routeInput.redirect({
       tenantId: pathParams.tenantId,
@@ -366,20 +413,30 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
         },
       });
 
-      await notifyBadgeRuleApprovalSubmitted(db, {
-        env: c.env,
-        tenantId: pathParams.tenantId,
-        ruleId: pathParams.ruleId,
-        version: updatedVersion,
-        reviewUrl: absoluteUrlForPath(
-          c,
-          buildBadgeRuleVersionReviewPath(
-            pathParams.tenantId,
-            pathParams.ruleId,
-            pathParams.versionId,
+      try {
+        await notifyBadgeRuleApprovalSubmitted(db, {
+          env: c.env,
+          tenantId: pathParams.tenantId,
+          ruleId: pathParams.ruleId,
+          version: updatedVersion,
+          reviewUrl: absoluteUrlForPath(
+            c,
+            buildBadgeRuleVersionReviewPath(
+              pathParams.tenantId,
+              pathParams.ruleId,
+              pathParams.versionId,
+            ),
           ),
-        ),
-      });
+        });
+      } catch (error: unknown) {
+        logApprovalNotificationFailure(c, {
+          tenantId: pathParams.tenantId,
+          ruleId: pathParams.ruleId,
+          versionId: pathParams.versionId,
+          notificationType: "approval_submitted",
+          error,
+        });
+      }
 
       return redirectToRules(c, {
         tenantId: pathParams.tenantId,

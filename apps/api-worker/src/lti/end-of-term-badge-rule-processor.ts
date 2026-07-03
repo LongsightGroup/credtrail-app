@@ -5,6 +5,8 @@ import {
   findBadgeIssuanceRuleVersionById,
   findLtiResourceLinkPlacementForRule,
   listActiveLtiLaunchSessionsForPlatform,
+  type BadgeIssuanceRuleRecord,
+  type BadgeIssuanceRuleVersionRecord,
   type SqlDatabase,
 } from "@credtrail/db";
 import type { ProcessEndOfTermBadgeRuleQueueJob } from "@credtrail/validation";
@@ -25,6 +27,25 @@ export interface ProcessEndOfTermBadgeRuleResult {
   readonly issueJobsEnqueued: number;
   readonly reason?: string | undefined;
 }
+
+const canProcessEndOfTermVersion = (input: {
+  readonly rule: BadgeIssuanceRuleRecord;
+  readonly version: BadgeIssuanceRuleVersionRecord;
+  readonly scheduledFor: string;
+}): boolean => {
+  if (input.rule.activeVersionId !== input.version.id || input.version.status !== "active") {
+    return false;
+  }
+
+  if (
+    input.version.effectiveStartsAt !== null &&
+    input.version.effectiveStartsAt > input.scheduledFor
+  ) {
+    return false;
+  }
+
+  return input.version.expiresAt !== null && input.version.expiresAt <= input.scheduledFor;
+};
 
 export const processEndOfTermBadgeRule = async (input: {
   readonly db: SqlDatabase;
@@ -52,6 +73,21 @@ export const processEndOfTermBadgeRule = async (input: {
       evaluatedLearnerCount: 0,
       issueJobsEnqueued: 0,
       reason: "Rule, version, or LMS placement was not found.",
+    };
+  }
+
+  if (
+    !canProcessEndOfTermVersion({
+      rule,
+      version,
+      scheduledFor: input.payload.scheduledFor,
+    })
+  ) {
+    return {
+      status: "unavailable",
+      evaluatedLearnerCount: 0,
+      issueJobsEnqueued: 0,
+      reason: "Rule version is no longer active for end-of-term issuance.",
     };
   }
 

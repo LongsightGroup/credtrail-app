@@ -855,6 +855,61 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
 });
 
 describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versionId/decision", () => {
+  it("allows an assigned approver role to post a review workspace decision", async () => {
+    mockedFindTenantMembership.mockResolvedValue(sampleMembership("approver"));
+    const env = createEnv();
+    const approvedVersion: BadgeIssuanceRuleVersionRecord = {
+      id: "brv_approval",
+      tenantId: "tenant_123",
+      ruleId: "brl_approval",
+      versionNumber: 2,
+      status: "approved",
+      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+      changeSummary: "Lower threshold",
+      createdByUserId: "usr_author",
+      submittedByUserId: "usr_author",
+      submittedAt: "2026-02-18T12:15:00.000Z",
+      approvedByUserId: "usr_admin",
+      approvedAt: "2026-02-18T12:20:00.000Z",
+      activatedByUserId: null,
+      activatedAt: null,
+      ...versionLifecycleFields,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:20:00.000Z",
+    };
+
+    mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue({
+      status: "decided",
+      version: approvedVersion,
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/decision",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          decision: "approved",
+        }).toString(),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(mockedDecideBadgeIssuanceRuleVersionDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_approval",
+      versionId: "brv_approval",
+      decision: "approved",
+      actorUserId: "usr_admin",
+      actorRole: "approver",
+    });
+  });
+
   it("decides from the review workspace and redirects back to that review page", async () => {
     const env = createEnv();
     const approvedVersion: BadgeIssuanceRuleVersionRecord = {
