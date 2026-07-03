@@ -4,6 +4,7 @@ import {
   findDelegatedIssuingAuthorityGrantById,
   removeTenantMembershipOrgUnitScope,
   revokeDelegatedIssuingAuthorityGrant,
+  upsertBadgeRuleApprovalPolicy,
   upsertTenantMembershipOrgUnitScope,
   type SessionRecord,
   type TenantMembershipRole,
@@ -12,6 +13,7 @@ import {
   parseCreateDelegatedIssuingAuthorityGrantRequest,
   parseRevokeDelegatedIssuingAuthorityGrantRequest,
   parseTenantPathParams,
+  parseUpsertBadgeRuleApprovalPolicyRequest,
   parseUpsertTenantMembershipOrgUnitScopeRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
@@ -140,6 +142,86 @@ export const registerTenantAccessGovernanceAdminRoutes = (
   input: RegisterTenantAccessGovernanceAdminRoutesInput,
 ): void => {
   const { app, resolveDatabase, resolveInstitutionAdminAdminRole } = input;
+
+  app.post("/tenants/:tenantId/admin/access/governance/rule-approval-policy", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    const nextPath = buildAccessGovernanceAdminPath(pathParams.tenantId);
+    const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const formData = await c.req.formData();
+    const approvalRequirement = readOptionalFormField(formData, "approvalRequirement");
+    const requiredRole = readOptionalFormField(formData, "requiredRole");
+
+    let request: ReturnType<typeof parseUpsertBadgeRuleApprovalPolicyRequest>;
+
+    try {
+      request = parseUpsertBadgeRuleApprovalPolicyRequest({
+        approvalRequirement,
+        ...(requiredRole === undefined ? {} : { requiredRole }),
+      });
+    } catch {
+      return redirectToGovernance(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "error",
+        message: "Choose an approval requirement and reviewer role before saving.",
+      });
+    }
+
+    const approvalSteps =
+      request.approvalRequirement === "always"
+        ? [
+            {
+              requiredRole: request.requiredRole,
+              label: "Badge rule approval",
+            },
+          ]
+        : [];
+    const db = resolveDatabase(c.env);
+
+    try {
+      const policy = await upsertBadgeRuleApprovalPolicy(db, {
+        tenantId: pathParams.tenantId,
+        orgUnitId: null,
+        approvalRequirement: request.approvalRequirement,
+        approvalSteps,
+        createdByUserId: session.userId,
+      });
+
+      await createAuditLog(db, {
+        tenantId: pathParams.tenantId,
+        actorUserId: session.userId,
+        action: "badge_rule.approval_policy_upserted",
+        targetType: "badge_rule_approval_policy",
+        targetId: policy.id ?? pathParams.tenantId,
+        metadata: {
+          role: membershipRole,
+          orgUnitId: null,
+          approvalRequirement: policy.approvalRequirement,
+          approvalSteps: policy.approvalSteps,
+        },
+      });
+
+      return redirectToGovernance(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "success",
+        message: "Badge rule approval policy saved.",
+      });
+    } catch {
+      return redirectToGovernance(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "error",
+        message: "Unable to save the badge rule approval policy. Check the settings and try again.",
+      });
+    }
+  });
 
   app.post("/tenants/:tenantId/admin/access/governance/scopes", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());

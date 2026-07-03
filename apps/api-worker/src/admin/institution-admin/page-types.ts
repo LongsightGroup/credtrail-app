@@ -1,6 +1,7 @@
 import type {
   BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleVersionRecord,
+  BadgeRuleApprovalPolicyRecord,
   BadgeTemplateRecord,
   LearnerRecordTrustLevel,
   TenantAssertionSummaryRecord,
@@ -212,6 +213,7 @@ export interface InstitutionAdminPageInput {
   revokedApiKeyCount: number;
   badgeRules: readonly BadgeIssuanceRuleRecord[];
   badgeRuleVersions: readonly BadgeIssuanceRuleVersionRecord[];
+  badgeRuleApprovalPolicy?: BadgeRuleApprovalPolicyRecord | null;
   reportingEngagementCounts?: TenantReportingEngagementCounts | null;
   reportingOverview?: TenantReportingOverviewRecord | null;
   reportingMetrics?: readonly ReportingMetricEntry[];

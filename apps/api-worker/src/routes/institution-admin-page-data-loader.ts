@@ -14,6 +14,7 @@ import {
   listTenantMembers,
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
+  resolveBadgeRuleApprovalPolicy,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import { institutionAdminDashboardPage } from "../admin/institution-admin/page";
@@ -53,6 +54,7 @@ type InstitutionAdminDataset =
   | "lmsConnections"
   | "badgeRules"
   | "badgeRuleVersions"
+  | "badgeRuleApprovalPolicy"
   | "enterpriseAuth";
 
 const institutionAdminDatasetsForView = (
@@ -78,6 +80,7 @@ const institutionAdminDatasetsForView = (
   if (needs.governanceTableRows) {
     datasets.add("tenantMembers");
     datasets.add("membershipOrgUnitScopes");
+    datasets.add("badgeRuleApprovalPolicy");
   }
 
   if (needs.tenantMemberRows) {
@@ -124,6 +127,7 @@ const emptyInstitutionAdminPageData = (
     revokedApiKeyCount: 0,
     badgeRules: [],
     badgeRuleVersions: [],
+    badgeRuleApprovalPolicy: null,
     enterpriseAuthPolicy: null,
     enterpriseAuthProviders: [],
     breakGlassAccounts: [],
@@ -266,6 +270,14 @@ export const loadInstitutionAdminPageData = async (
         )
       : [];
   const badgeRuleVersions = badgeRuleVersionLists.flat();
+  const institutionOrgUnit = orgUnits.find((orgUnit) => orgUnit.unitType === "institution");
+  const badgeRuleApprovalPolicy =
+    datasets.has("badgeRuleApprovalPolicy") && institutionOrgUnit !== undefined
+      ? await resolveBadgeRuleApprovalPolicy(db, {
+          tenantId: input.tenantId,
+          orgUnitId: institutionOrgUnit.id,
+        })
+      : null;
   const activeApiKeys = apiKeys.filter((apiKey) => apiKey.revokedAt === null);
   const revokedApiKeyCount = apiKeys.length - activeApiKeys.length;
 
@@ -281,6 +293,7 @@ export const loadInstitutionAdminPageData = async (
     revokedApiKeyCount,
     badgeRules,
     badgeRuleVersions,
+    badgeRuleApprovalPolicy,
     enterpriseAuthPolicy: authPolicy,
     enterpriseAuthProviders: authProviders,
     breakGlassAccounts,

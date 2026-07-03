@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createEnv, mockedFindTenantById } from "./institution-admin-page-test-utils";
+import {
+  createEnv,
+  fakeDb,
+  mockedCreateAuditLogDb,
+  mockedFindTenantById,
+  mockedUpsertBadgeRuleApprovalPolicyDb,
+} from "./institution-admin-page-test-utils";
 import { app } from "./index";
 import { readScriptAssetSource } from "./page-asset-test-utils";
 import { pageAssetPath } from "./ui/page-assets";
@@ -121,8 +127,15 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Governance Delegation");
-    expect(body).toContain("must already exist in this tenant");
+    expect(body).toContain("Governance");
+    expect(body).toContain("Institution policy decides who reviews submitted badge rules");
+    expect(body).toContain('id="rule-approval-policy-form"');
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/access/governance/rule-approval-policy"',
+    );
+    expect(body).toContain("Set badge rule approval policy");
+    expect(body).toContain("Require approval before activation");
+    expect(body).toContain("Submitted badge rule versions require admin approval.");
     expect(body).toContain('id="membership-scope-form"');
     expect(body).toContain('id="membership-scope-panel"');
     expect(body).toContain('name="userId"');
@@ -187,7 +200,125 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Governance Delegation");
+    expect(body).toContain("Governance");
+  });
+});
+
+describe("POST /tenants/:tenantId/admin/access/governance/rule-approval-policy", () => {
+  it("saves the tenant badge rule approval policy and audits the change", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/governance/rule-approval-policy",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          approvalRequirement: "always",
+          requiredRole: "owner",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/access/governance");
+    expect(mockedUpsertBadgeRuleApprovalPolicyDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      orgUnitId: null,
+      approvalRequirement: "always",
+      approvalSteps: [
+        {
+          requiredRole: "owner",
+          label: "Badge rule approval",
+        },
+      ],
+      createdByUserId: "usr_admin",
+    });
+    expect(mockedCreateAuditLogDb).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        actorUserId: "usr_admin",
+        action: "badge_rule.approval_policy_upserted",
+        targetType: "badge_rule_approval_policy",
+        targetId: "brap_123",
+      }),
+    );
+  });
+
+  it("allows institutions to choose automatic approval", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/governance/rule-approval-policy",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          approvalRequirement: "never",
+          requiredRole: "admin",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(mockedUpsertBadgeRuleApprovalPolicyDb).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        approvalRequirement: "never",
+        approvalSteps: [],
+      }),
+    );
+  });
+
+  it("rejects invalid policy form values without writing policy", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/governance/rule-approval-policy",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          approvalRequirement: "sometimes",
+          requiredRole: "admin",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    const flashCookie = adminFlashCookieHeader(response);
+    const followup = await app.request(
+      "/tenants/tenant_123/admin/access/governance",
+      {
+        headers: {
+          Cookie: `better-auth.session_token=session-token; ${flashCookie}`,
+        },
+      },
+      env,
+    );
+    const body = await followup.text();
+
+    expect(response.status).toBe(303);
+    expect(mockedUpsertBadgeRuleApprovalPolicyDb).not.toHaveBeenCalled();
+    expect(body).toContain("Choose an approval requirement and reviewer role before saving.");
   });
 });
 

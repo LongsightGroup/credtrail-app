@@ -26,6 +26,20 @@ export const upsertTenantMembershipOrgUnitScopeRequestSchema = z.object({
   role: tenantMembershipOrgUnitScopeRoleSchema,
 });
 
+export const upsertBadgeRuleApprovalPolicyRequestSchema = z.discriminatedUnion(
+  "approvalRequirement",
+  [
+    z.object({
+      approvalRequirement: z.literal("always"),
+      requiredRole: tenantMembershipRoleSchema,
+    }),
+    z.object({
+      approvalRequirement: z.literal("never"),
+      requiredRole: tenantMembershipRoleSchema.optional(),
+    }),
+  ],
+);
+
 export const createTenantMemberRequestSchema = z.object({
   email: z.string().trim().email().max(320),
   role: tenantMembershipRoleSchema,
@@ -231,6 +245,10 @@ export type UpsertTenantMembershipOrgUnitScopeRequest = z.infer<
   typeof upsertTenantMembershipOrgUnitScopeRequestSchema
 >;
 
+export type UpsertBadgeRuleApprovalPolicyRequest = z.infer<
+  typeof upsertBadgeRuleApprovalPolicyRequestSchema
+>;
+
 export type CreateTenantMemberRequest = z.infer<typeof createTenantMemberRequestSchema>;
 
 export type UpdateTenantMemberRoleRequest = z.infer<typeof updateTenantMemberRoleRequestSchema>;
@@ -301,6 +319,12 @@ export const parseUpsertTenantMembershipOrgUnitScopeRequest = (
   input: unknown,
 ): UpsertTenantMembershipOrgUnitScopeRequest => {
   return upsertTenantMembershipOrgUnitScopeRequestSchema.parse(input);
+};
+
+export const parseUpsertBadgeRuleApprovalPolicyRequest = (
+  input: unknown,
+): UpsertBadgeRuleApprovalPolicyRequest => {
+  return upsertBadgeRuleApprovalPolicyRequestSchema.parse(input);
 };
 
 export const parseCreateTenantMemberRequest = (input: unknown): CreateTenantMemberRequest => {

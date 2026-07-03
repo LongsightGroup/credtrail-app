@@ -458,7 +458,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
     },
   },
   accessGovernance: {
-    titlePrefix: "Governance Delegation · Institution Admin",
+    titlePrefix: "Governance · Institution Admin",
     controller: "shared",
     dataNeeds: viewDataNeeds({
       accessSectionBundles: true,
@@ -470,13 +470,13 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
       return (
         <>
           {renderPageHeader(
-            "Governance Delegation",
-            "Grant org-unit access and time-boxed badge authority with direct removal from the current assignments list.",
+            "Governance",
+            "Set rule approval policy, grant org-unit access, and manage time-boxed badge authority.",
             <aside class="ct-admin-page-header__note">
-              <h2>Choose the smallest access</h2>
+              <h2>Keep approval outside the draft</h2>
               <p>
-                Use scoped roles for standing access. Use delegated authority when someone only
-                needs temporary badge operations.
+                Institution policy decides who reviews submitted badge rules. Rule authors cannot
+                choose their own approval path.
               </p>
             </aside>,
           )}

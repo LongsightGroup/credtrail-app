@@ -1,4 +1,5 @@
 import type { HtmlEscapedString } from "hono/utils/html";
+import type { BadgeRuleApprovalPolicyRecord, TenantMembershipRole } from "@credtrail/db";
 import {
   AdminActions,
   AdminButton,
@@ -14,6 +15,7 @@ import { CtInput, CtSelect } from "../../ui/forms";
 import {
   buildAccessAuthenticationAdminPath,
   buildAccessGovernanceDelegationNewPath,
+  tenantAccessBadgeRuleApprovalPolicyPath,
   tenantAccessMemberCreatePath,
   tenantAccessMembershipScopeSavePath,
   tenantAccessOrgUnitCreatePath,
@@ -54,6 +56,7 @@ interface RenderInstitutionAdminAccessSectionsInput {
   membershipScopeRows: HonoElement;
   delegatedGrantRows: HonoElement;
   lmsConnectionRows: HonoElement;
+  badgeRuleApprovalPolicy?: BadgeRuleApprovalPolicyRecord | null;
   tenantId: string;
   apiKeysWorkspace?: InstitutionAdminApiKeysWorkspace;
   lmsConnectionsWorkspace?: InstitutionAdminLmsConnectionsWorkspace;
@@ -83,6 +86,19 @@ const addDisclosureControlMarkup = (
   </span>
 );
 
+const ruleApprovalPolicyRoleLabel = (role: TenantMembershipRole): string => {
+  switch (role) {
+    case "owner":
+      return "Owner";
+    case "admin":
+      return "Admin";
+    case "issuer":
+      return "Issuer";
+    case "viewer":
+      return "Viewer";
+  }
+};
+
 export const renderInstitutionAdminAccessSections = (
   input: RenderInstitutionAdminAccessSectionsInput,
 ): InstitutionAdminAccessSections => {
@@ -93,6 +109,20 @@ export const renderInstitutionAdminAccessSections = (
     input.lmsConnectionsWorkspace?.ltiDynamicRegistrationUrl ?? null;
   const delegationNewPath = buildAccessGovernanceDelegationNewPath(input.tenantId);
   const authenticationPath = buildAccessAuthenticationAdminPath(input.tenantId);
+  const badgeRuleApprovalPolicyPath = tenantAccessBadgeRuleApprovalPolicyPath(input.tenantId);
+  const badgeRuleApprovalPolicy = input.badgeRuleApprovalPolicy ?? null;
+  const badgeRuleApprovalRequirement =
+    badgeRuleApprovalPolicy?.approvalRequirement === "never" ? "never" : "always";
+  const badgeRuleApprovalRole =
+    badgeRuleApprovalPolicy?.approvalSteps[0]?.requiredRole === undefined
+      ? "admin"
+      : badgeRuleApprovalPolicy.approvalSteps[0].requiredRole;
+  const badgeRuleApprovalSummary =
+    badgeRuleApprovalRequirement === "never"
+      ? "Submitted badge rule versions are approved automatically."
+      : `Submitted badge rule versions require ${ruleApprovalPolicyRoleLabel(
+          badgeRuleApprovalRole,
+        ).toLowerCase()} approval.`;
 
   const apiKeyPanelMarkup = (
     <details
@@ -250,16 +280,17 @@ export const renderInstitutionAdminAccessSections = (
 
   const governanceGuidePanelMarkup = (
     <AdminPanel id="governance-panel">
-      <h2>Before you delegate</h2>
+      <h2>Governance controls</h2>
       <p>
-        Use this page to review standing org-unit roles and time-boxed delegations. Choosing a
-        parent org unit also covers the child units beneath it.
+        Use this page to set badge rule approval policy, review standing org-unit roles, and manage
+        time-boxed delegations. Choosing a parent org unit also covers the child units beneath it.
       </p>
       <p class="ct-admin__hint">
-        The selected member receives the access. This workflow does not create tenant membership, so
-        the person must already exist in this tenant.
+        Rule authors cannot edit approval steps on the rule draft. Institution policy decides what
+        happens when a rule version is submitted.
       </p>
       <ul>
+        <li>Set badge rule approval before instructors submit rules for activation.</li>
         <li>Use a scoped role for standing access inside an org unit.</li>
         <li>
           Use <a href={delegationNewPath}>delegated authority</a> for temporary badge actions with
@@ -276,13 +307,61 @@ export const renderInstitutionAdminAccessSections = (
   );
 
   const governanceActionsMarkup = (
-    <AdminPanel id="governance-actions">
-      <AdminActions>
-        <AdminButtonLink href={delegationNewPath} variant="secondary">
-          Add delegated authority
-        </AdminButtonLink>
-      </AdminActions>
-    </AdminPanel>
+    <div id="governance-actions" class="ct-stack">
+      <details id="rule-approval-policy-panel" class="ct-admin__panel ct-admin__add-disclosure">
+        <summary class="ct-admin__add-disclosure-summary">
+          <span>
+            <strong>Set badge rule approval policy</strong>
+            <small>{badgeRuleApprovalSummary}</small>
+          </span>
+          {addDisclosureControlMarkup}
+        </summary>
+        <AdminForm
+          id="rule-approval-policy-form"
+          method="post"
+          action={badgeRuleApprovalPolicyPath}
+          className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--governance ct-grid"
+        >
+          <AdminField label="Approval requirement">
+            <CtSelect name="approvalRequirement" required>
+              <option
+                value="always"
+                selected={badgeRuleApprovalRequirement === "always" ? true : undefined}
+              >
+                Require approval before activation
+              </option>
+              <option
+                value="never"
+                selected={badgeRuleApprovalRequirement === "never" ? true : undefined}
+              >
+                Approve submitted versions automatically
+              </option>
+            </CtSelect>
+          </AdminField>
+          <AdminField label="Reviewer role">
+            <CtSelect name="requiredRole" required>
+              {(["admin", "owner", "issuer", "viewer"] as const).map((role) => (
+                <option value={role} selected={badgeRuleApprovalRole === role ? true : undefined}>
+                  {ruleApprovalPolicyRoleLabel(role)}
+                </option>
+              ))}
+            </CtSelect>
+          </AdminField>
+          <p class="ct-admin__hint">
+            Reviewer role is used when approval is required. Rule authors cannot edit this policy
+            from Rule Builder.
+          </p>
+          <AdminButton type="submit">Save approval policy</AdminButton>
+        </AdminForm>
+      </details>
+      <AdminPanel>
+        <AdminActions>
+          <AdminButtonLink href={delegationNewPath} variant="secondary">
+            Add delegated authority
+          </AdminButtonLink>
+        </AdminActions>
+      </AdminPanel>
+    </div>
   );
 
   const tenantMembersPanelMarkup = (

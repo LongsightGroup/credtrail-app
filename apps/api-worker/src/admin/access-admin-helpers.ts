@@ -54,6 +54,10 @@ export const tenantAccessMembershipScopeRemovePath = (tenantId: string): string 
   return `${buildAccessGovernanceAdminPath(tenantId)}/scopes/remove`;
 };
 
+export const tenantAccessBadgeRuleApprovalPolicyPath = (tenantId: string): string => {
+  return `${buildAccessGovernanceAdminPath(tenantId)}/rule-approval-policy`;
+};
+
 export const tenantAccessDelegatedGrantCreatePath = (tenantId: string): string => {
   return `${buildAccessGovernanceAdminPath(tenantId)}/delegations`;
 };

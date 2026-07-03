@@ -909,6 +909,7 @@ export const buildInstitutionAdminViewResources = (
         membershipScopeRows,
         delegatedGrantRows,
         lmsConnectionRows,
+        badgeRuleApprovalPolicy: input.badgeRuleApprovalPolicy ?? null,
         ...(input.apiKeysWorkspace === undefined
           ? {}
           : { apiKeysWorkspace: input.apiKeysWorkspace }),

@@ -28,6 +28,8 @@ const {
   mockedFindBadgeIssuanceRuleVersionById,
   mockedListBadgeIssuanceRuleVersionApprovalSteps,
   mockedSubmitBadgeIssuanceRuleVersionForApproval,
+  mockedResolveBadgeRuleApprovalPolicy,
+  mockedUpsertBadgeRuleApprovalPolicy,
 } = vi.hoisted(() => {
   return {
     mockedFindLearnerProfileById: vi.fn(),
@@ -57,6 +59,8 @@ const {
     mockedFindBadgeIssuanceRuleVersionById: vi.fn(),
     mockedListBadgeIssuanceRuleVersionApprovalSteps: vi.fn(),
     mockedSubmitBadgeIssuanceRuleVersionForApproval: vi.fn(),
+    mockedResolveBadgeRuleApprovalPolicy: vi.fn(),
+    mockedUpsertBadgeRuleApprovalPolicy: vi.fn(),
   };
 });
 
@@ -87,7 +91,9 @@ export {
   mockedDecideBadgeIssuanceRuleVersion,
   mockedFindBadgeIssuanceRuleVersionById,
   mockedListBadgeIssuanceRuleVersionApprovalSteps,
+  mockedResolveBadgeRuleApprovalPolicy,
   mockedSubmitBadgeIssuanceRuleVersionForApproval,
+  mockedUpsertBadgeRuleApprovalPolicy,
 };
 
 vi.mock("@credtrail/db", async () => {
@@ -116,6 +122,8 @@ vi.mock("@credtrail/db", async () => {
     listBadgeIssuanceRuleVersions: vi.fn(),
     findBadgeIssuanceRuleVersionById: mockedFindBadgeIssuanceRuleVersionById,
     submitBadgeIssuanceRuleVersionForApproval: mockedSubmitBadgeIssuanceRuleVersionForApproval,
+    resolveBadgeRuleApprovalPolicy: mockedResolveBadgeRuleApprovalPolicy,
+    upsertBadgeRuleApprovalPolicy: mockedUpsertBadgeRuleApprovalPolicy,
     listBadgeIssuanceRuleVersionApprovalSteps: mockedListBadgeIssuanceRuleVersionApprovalSteps,
     decideBadgeIssuanceRuleVersion: mockedDecideBadgeIssuanceRuleVersion,
     listBadgeIssuanceRuleEvaluations: vi.fn().mockResolvedValue([]),
@@ -205,7 +213,9 @@ import {
   findBadgeIssuanceRuleVersionById,
   submitBadgeIssuanceRuleVersionForApproval,
   listBadgeIssuanceRuleVersionApprovalSteps,
+  resolveBadgeRuleApprovalPolicy,
   decideBadgeIssuanceRuleVersion,
+  upsertBadgeRuleApprovalPolicy,
   listBadgeIssuanceRuleEvaluations,
   listBadgeIssuanceRuleValueLists,
   createBadgeIssuanceRuleValueList,
@@ -280,7 +290,9 @@ export const mockedSubmitBadgeIssuanceRuleVersionForApprovalDb = vi.mocked(
 export const mockedListBadgeIssuanceRuleVersionApprovalStepsDb = vi.mocked(
   listBadgeIssuanceRuleVersionApprovalSteps,
 );
+export const mockedResolveBadgeRuleApprovalPolicyDb = vi.mocked(resolveBadgeRuleApprovalPolicy);
 export const mockedDecideBadgeIssuanceRuleVersionDb = vi.mocked(decideBadgeIssuanceRuleVersion);
+export const mockedUpsertBadgeRuleApprovalPolicyDb = vi.mocked(upsertBadgeRuleApprovalPolicy);
 export const mockedListBadgeIssuanceRuleEvaluations = vi.mocked(listBadgeIssuanceRuleEvaluations);
 export const mockedListBadgeIssuanceRuleValueLists = vi.mocked(listBadgeIssuanceRuleValueLists);
 export const mockedCreateBadgeIssuanceRuleValueList = vi.mocked(createBadgeIssuanceRuleValueList);
@@ -796,8 +808,40 @@ beforeEach(() => {
   mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockResolvedValue(null);
   mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockReset();
   mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([]);
+  mockedResolveBadgeRuleApprovalPolicyDb.mockReset();
+  mockedResolveBadgeRuleApprovalPolicyDb.mockResolvedValue({
+    id: null,
+    tenantId: "tenant_123",
+    orgUnitId: null,
+    approvalRequirement: "always",
+    approvalSteps: [
+      {
+        requiredRole: "admin",
+        label: "Administrative approval",
+      },
+    ],
+    createdByUserId: null,
+    createdAt: "2026-02-18T12:00:00.000Z",
+    updatedAt: "2026-02-18T12:00:00.000Z",
+  });
   mockedDecideBadgeIssuanceRuleVersionDb.mockReset();
   mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue(null);
+  mockedUpsertBadgeRuleApprovalPolicyDb.mockReset();
+  mockedUpsertBadgeRuleApprovalPolicyDb.mockResolvedValue({
+    id: "brap_123",
+    tenantId: "tenant_123",
+    orgUnitId: null,
+    approvalRequirement: "always",
+    approvalSteps: [
+      {
+        requiredRole: "admin",
+        label: "Badge rule approval",
+      },
+    ],
+    createdByUserId: "usr_admin",
+    createdAt: "2026-02-18T12:00:00.000Z",
+    updatedAt: "2026-02-18T12:00:00.000Z",
+  });
   mockedListBadgeIssuanceRuleEvaluations.mockReset();
   mockedListBadgeIssuanceRuleEvaluations.mockResolvedValue([]);
   mockedListBadgeIssuanceRuleValueLists.mockReset();
