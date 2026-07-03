@@ -1,7 +1,6 @@
 import { createPrefixedId } from "./shared-helpers";
 import { runSqlTransaction, type SqlDatabase, type SqlRunResult } from "./tenant-scope";
 import {
-  isTenantMembershipRole,
   tenantMembershipRoleSatisfiesMinimumRole,
   type TenantMembershipRole,
 } from "./tenant-memberships";
@@ -11,6 +10,7 @@ import {
   listBadgeIssuanceRuleVersionApprovalSteps,
 } from "./badge-issuance-rule-reads.js";
 import { resolveBadgeRuleApprovalPolicy } from "./badge-rule-approval-policies.js";
+import type { BadgeRuleApprovalPolicyStepRecord } from "./badge-rule-approval-policies.js";
 import type {
   ActivateBadgeIssuanceRuleVersionInput,
   BadgeIssuanceRuleApprovalEventAction,
@@ -24,23 +24,12 @@ const insertBadgeIssuanceRuleApprovalSteps = async (
   input: {
     tenantId: string;
     versionId: string;
-    approvalSteps: readonly {
-      requiredRole: TenantMembershipRole;
-      label: string | null;
-    }[];
+    approvalSteps: readonly BadgeRuleApprovalPolicyStepRecord[];
     createdAt: string;
   },
 ): Promise<void> => {
   const insertSteps = async (): Promise<void> => {
     for (const [index, step] of input.approvalSteps.entries()) {
-      const requiredRole: unknown = step.requiredRole;
-
-      if (!isTenantMembershipRole(requiredRole)) {
-        throw new Error(
-          `Unsupported tenant role in badge rule approval step: ${String(requiredRole)}`,
-        );
-      }
-
       await db
         .prepare(
           `

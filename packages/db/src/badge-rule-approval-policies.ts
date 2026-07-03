@@ -1,6 +1,7 @@
+import { z } from "zod";
 import { createPrefixedId } from "./shared-helpers";
 import type { SqlDatabase, SqlRunResult } from "./tenant-scope";
-import { isTenantMembershipRole, type TenantMembershipRole } from "./tenant-memberships";
+import type { TenantMembershipRole } from "./tenant-memberships";
 
 export type BadgeRuleApprovalRequirement = "always" | "never";
 
@@ -55,21 +56,26 @@ export const tenantDefaultBadgeRuleApprovalPolicyId = (tenantId: string): string
   return `${tenantId}:badge-rule-approval-policy:default`;
 };
 
+const tenantMembershipRoleSchema = z.enum(["owner", "admin", "issuer", "viewer"]);
+const badgeRuleApprovalPolicyStepJsonSchema = z.object({
+  requiredRole: tenantMembershipRoleSchema,
+  label: z.string().nullable().optional(),
+});
+const badgeRuleApprovalPolicyStepsJsonSchema = z.array(badgeRuleApprovalPolicyStepJsonSchema);
+
 const normalizeBadgeRuleApprovalPolicySteps = (
   approvalRequirement: BadgeRuleApprovalRequirement,
   steps: readonly BadgeRuleApprovalPolicyStepInput[],
 ): BadgeRuleApprovalPolicyStepRecord[] => {
+  if (approvalRequirement === "never") {
+    return [];
+  }
+
   if (approvalRequirement === "always" && steps.length === 0) {
     throw new Error("Badge rule approval policy must include at least one approval step");
   }
 
   return steps.map((step) => {
-    if (!isTenantMembershipRole(step.requiredRole)) {
-      throw new Error(
-        `Unsupported tenant role in badge rule approval policy: ${String(step.requiredRole)}`,
-      );
-    }
-
     return {
       requiredRole: step.requiredRole,
       label: step.label ?? null,
@@ -81,32 +87,10 @@ const parseBadgeRuleApprovalPolicyStepsJson = (
   approvalRequirement: BadgeRuleApprovalRequirement,
   stepsJson: string,
 ): BadgeRuleApprovalPolicyStepRecord[] => {
-  const parsed: unknown = JSON.parse(stepsJson);
-
-  if (!Array.isArray(parsed)) {
-    throw new Error("Stored badge rule approval policy steps must be an array");
-  }
-
-  const steps = parsed.map((entry): BadgeRuleApprovalPolicyStepInput => {
-    if (entry === null || typeof entry !== "object") {
-      throw new Error("Stored badge rule approval policy step must be an object");
-    }
-
-    const record = entry as Record<string, unknown>;
-    const requiredRole = record.requiredRole;
-    const label = record.label;
-
-    if (!isTenantMembershipRole(requiredRole)) {
-      throw new Error("Stored badge rule approval policy step has an unsupported role");
-    }
-
-    if (label !== undefined && label !== null && typeof label !== "string") {
-      throw new Error("Stored badge rule approval policy step label must be a string");
-    }
-
+  const steps = badgeRuleApprovalPolicyStepsJsonSchema.parse(JSON.parse(stepsJson)).map((step) => {
     return {
-      requiredRole,
-      ...(typeof label === "string" ? { label } : {}),
+      requiredRole: step.requiredRole,
+      ...(step.label === undefined || step.label === null ? {} : { label: step.label }),
     };
   });
 
@@ -155,48 +139,29 @@ const findBadgeRuleApprovalPolicy = async (
     readonly orgUnitId: string | null;
   },
 ): Promise<BadgeRuleApprovalPolicyRecord | null> => {
-  const row =
-    input.orgUnitId === null
-      ? await db
-          .prepare(
-            `
-            SELECT
-              id,
-              tenant_id AS tenantId,
-              org_unit_id AS orgUnitId,
-              approval_requirement AS approvalRequirement,
-              approval_steps_json AS approvalStepsJson,
-              created_by_user_id AS createdByUserId,
-              created_at AS createdAt,
-              updated_at AS updatedAt
-            FROM badge_rule_approval_policies
-            WHERE tenant_id = ?
-              AND org_unit_id IS NULL
-            LIMIT 1
-          `,
-          )
-          .bind(input.tenantId)
-          .first<BadgeRuleApprovalPolicyRow>()
-      : await db
-          .prepare(
-            `
-            SELECT
-              id,
-              tenant_id AS tenantId,
-              org_unit_id AS orgUnitId,
-              approval_requirement AS approvalRequirement,
-              approval_steps_json AS approvalStepsJson,
-              created_by_user_id AS createdByUserId,
-              created_at AS createdAt,
-              updated_at AS updatedAt
-            FROM badge_rule_approval_policies
-            WHERE tenant_id = ?
-              AND org_unit_id = ?
-            LIMIT 1
-          `,
-          )
-          .bind(input.tenantId, input.orgUnitId)
-          .first<BadgeRuleApprovalPolicyRow>();
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        id,
+        tenant_id AS tenantId,
+        org_unit_id AS orgUnitId,
+        approval_requirement AS approvalRequirement,
+        approval_steps_json AS approvalStepsJson,
+        created_by_user_id AS createdByUserId,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM badge_rule_approval_policies
+      WHERE tenant_id = ?
+        AND (
+          (? IS NULL AND org_unit_id IS NULL)
+          OR org_unit_id = ?
+        )
+      LIMIT 1
+    `,
+    )
+    .bind(input.tenantId, input.orgUnitId, input.orgUnitId)
+    .first<BadgeRuleApprovalPolicyRow>();
 
   return row === null ? null : mapBadgeRuleApprovalPolicyRow(row);
 };

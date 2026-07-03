@@ -346,6 +346,58 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
       "Rule version approved by policy. Activate it from the rules table when ready.",
     );
   });
+
+  it("describes ineligible versions as not submittable", async () => {
+    const env = createEnv();
+    const pendingVersion: BadgeIssuanceRuleVersionRecord = {
+      id: "brv_123",
+      tenantId: "tenant_123",
+      ruleId: "brl_123",
+      versionNumber: 1,
+      status: "pending_approval",
+      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+      changeSummary: "Initial draft",
+      createdByUserId: "usr_admin",
+      approvedByUserId: null,
+      approvedAt: null,
+      activatedByUserId: null,
+      activatedAt: null,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    };
+
+    mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(pendingVersion);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/brl_123/versions/brv_123/submit-approval",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const flashCookie = adminFlashCookieHeader(response);
+    const flashResponse = await app.request(
+      "/tenants/tenant_123/admin/rules",
+      {
+        headers: {
+          Cookie: `better-auth.session_token=session-token; ${flashCookie}`,
+        },
+      },
+      env,
+    );
+    const flashBody = await flashResponse.text();
+
+    expect(response.status).toBe(303);
+    expect(mockedSubmitBadgeIssuanceRuleVersionForApprovalDb).not.toHaveBeenCalled();
+    expect(flashBody).toContain(
+      "Only draft or rejected versions can be submitted from this action.",
+    );
+    expect(flashBody).not.toContain("approved from this action");
+  });
 });
 
 describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {

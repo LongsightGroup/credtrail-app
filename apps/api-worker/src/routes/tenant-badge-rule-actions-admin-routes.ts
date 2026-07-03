@@ -252,7 +252,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
           tenantId: pathParams.tenantId,
           userId: session.userId,
           tone: "error",
-          message: "Only draft or rejected versions can be approved from this action.",
+          message: "Only draft or rejected versions can be submitted from this action.",
         });
       }
 
