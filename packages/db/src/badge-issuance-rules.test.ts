@@ -56,6 +56,7 @@ describe("badge rule review queue schema", () => {
     );
 
     expect(sql).toContain("ADD COLUMN IF NOT EXISTS owner_org_unit_id TEXT");
+    expect(sql).toContain("Snapshot of the selected badge template owner org unit");
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS badge_rule_approval_policies");
     expect(sql).toContain("approval_requirement TEXT NOT NULL");
     expect(sql).toContain("approval_steps_json TEXT NOT NULL");

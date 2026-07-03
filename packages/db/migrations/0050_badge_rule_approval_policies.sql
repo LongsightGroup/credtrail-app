@@ -17,6 +17,9 @@ WHERE owner_org_unit_id IS NULL;
 ALTER TABLE badge_issuance_rules
   ALTER COLUMN owner_org_unit_id SET NOT NULL;
 
+COMMENT ON COLUMN badge_issuance_rules.owner_org_unit_id IS
+  'Snapshot of the selected badge template owner org unit at rule create or draft edit time. Badge rule approval policy resolves against this captured scope.';
+
 ALTER TABLE badge_issuance_rules
   DROP CONSTRAINT IF EXISTS fk_badge_issuance_rules_owner_org_unit;
 

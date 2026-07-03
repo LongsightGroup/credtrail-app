@@ -154,6 +154,7 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
   }
 
   return runSqlTransaction(db, async (transactionDb) => {
+    // Rule owner org unit is the captured approval scope from create or latest draft edit.
     const policy = await resolveBadgeRuleApprovalPolicy(transactionDb, {
       tenantId: input.tenantId,
       orgUnitId: rule.ownerOrgUnitId,

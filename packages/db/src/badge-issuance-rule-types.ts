@@ -25,6 +25,10 @@ export interface BadgeIssuanceRuleRecord {
   name: string;
   description: string | null;
   badgeTemplateId: string;
+  /**
+   * Captured badge template owner scope at rule create or draft edit time.
+   * Approval policy resolution uses this snapshot instead of live template ownership.
+   */
   ownerOrgUnitId: string;
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
   lmsConnectionId: string | null;

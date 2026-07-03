@@ -34,6 +34,7 @@ export const createBadgeIssuanceRuleWithConnection = async (
     );
   }
 
+  // Snapshot the template ownership scope so rule approval governance is stable until draft edit.
   const insertRuleStatement = (): Promise<SqlRunResult> =>
     db
       .prepare(
@@ -254,6 +255,7 @@ export const updateBadgeIssuanceRuleDraft = async (
 
   // Product decision: editing from the builder preserves history by appending a new draft version.
   return runSqlTransaction(db, async (transactionDb) => {
+    // Draft edits intentionally refresh the captured governance scope from the selected template.
     const updateRuleStatement = (): Promise<SqlRunResult> =>
       transactionDb
         .prepare(
