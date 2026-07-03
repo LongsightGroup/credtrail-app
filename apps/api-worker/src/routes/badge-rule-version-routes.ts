@@ -10,6 +10,7 @@ import {
   listBadgeIssuanceRuleVersions,
   submitBadgeIssuanceRuleVersionForApproval,
   tenantMembershipRoleSatisfiesMinimumRole,
+  type BadgeIssuanceRuleVersionRecord,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
@@ -454,6 +455,8 @@ export const registerBadgeRuleVersionRoutes = (
     }
 
     if (
+      currentApprovalStep.targetType === "role_threshold" &&
+      currentApprovalStep.requiredRole !== null &&
       !tenantMembershipRoleSatisfiesMinimumRole(membershipRole, currentApprovalStep.requiredRole)
     ) {
       return c.json(
@@ -464,15 +467,26 @@ export const registerBadgeRuleVersionRoutes = (
       );
     }
 
-    const decidedVersion = await decideBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
-      tenantId: pathParams.tenantId,
-      ruleId: pathParams.ruleId,
-      versionId: pathParams.versionId,
-      decision: request.decision,
-      actorUserId: session.userId,
-      actorRole: membershipRole,
-      comment: request.comment,
-    });
+    let decidedVersion: BadgeIssuanceRuleVersionRecord | null;
+
+    try {
+      decidedVersion = await decideBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
+        tenantId: pathParams.tenantId,
+        ruleId: pathParams.ruleId,
+        versionId: pathParams.versionId,
+        decision: request.decision,
+        actorUserId: session.userId,
+        actorRole: membershipRole,
+        comment: request.comment,
+      });
+    } catch {
+      return c.json(
+        {
+          error: "Actor is not authorized to decide this approval step",
+        },
+        403,
+      );
+    }
 
     if (decidedVersion === null) {
       return c.json(

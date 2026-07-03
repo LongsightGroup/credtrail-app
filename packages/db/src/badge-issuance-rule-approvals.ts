@@ -14,10 +14,77 @@ import type { BadgeRuleApprovalPolicyStepRecord } from "./badge-rule-approval-po
 import type {
   ActivateBadgeIssuanceRuleVersionInput,
   BadgeIssuanceRuleApprovalEventAction,
+  BadgeIssuanceRuleApprovalStepRecord,
   BadgeIssuanceRuleVersionRecord,
   DecideBadgeIssuanceRuleVersionInput,
   SubmitBadgeIssuanceRuleVersionForApprovalInput,
 } from "./badge-issuance-rule-types.js";
+
+const checkActorIsApproverGroupMember = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    groupId: string;
+    actorUserId: string;
+  },
+): Promise<boolean> => {
+  const row = await db
+    .prepare(
+      `
+      SELECT user_id AS userId
+      FROM badge_rule_approver_group_members
+      WHERE tenant_id = ?
+        AND group_id = ?
+        AND user_id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(input.tenantId, input.groupId, input.actorUserId)
+    .first<{ userId: string }>();
+
+  return row !== null;
+};
+
+const actorCanDecideApprovalStep = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    actorUserId: string;
+    actorRole: TenantMembershipRole;
+    step: BadgeIssuanceRuleApprovalStepRecord;
+  },
+): Promise<boolean> => {
+  if (input.step.targetType === "user") {
+    return input.step.targetUserId === input.actorUserId;
+  }
+
+  if (input.step.targetType === "approver_group") {
+    if (input.step.targetApproverGroupId === null) {
+      return false;
+    }
+
+    if (
+      !tenantMembershipRoleSatisfiesMinimumRole(
+        input.actorRole,
+        input.step.requiredRole ?? "viewer",
+      )
+    ) {
+      return false;
+    }
+
+    return checkActorIsApproverGroupMember(db, {
+      tenantId: input.tenantId,
+      groupId: input.step.targetApproverGroupId,
+      actorUserId: input.actorUserId,
+    });
+  }
+
+  if (input.step.requiredRole === null) {
+    return false;
+  }
+
+  return tenantMembershipRoleSatisfiesMinimumRole(input.actorRole, input.step.requiredRole);
+};
 
 const insertBadgeIssuanceRuleApprovalSteps = async (
   db: SqlDatabase,
@@ -38,7 +105,11 @@ const insertBadgeIssuanceRuleApprovalSteps = async (
             tenant_id,
             version_id,
             step_number,
+            target_type,
             required_role,
+            target_user_id,
+            target_approver_group_id,
+            org_unit_id,
             label,
             status,
             decided_by_user_id,
@@ -47,7 +118,7 @@ const insertBadgeIssuanceRuleApprovalSteps = async (
             created_at,
             updated_at
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?)
         `,
         )
         .bind(
@@ -55,7 +126,11 @@ const insertBadgeIssuanceRuleApprovalSteps = async (
           input.tenantId,
           input.versionId,
           index + 1,
+          step.targetType,
           step.requiredRole,
+          step.targetUserId,
+          step.targetApproverGroupId,
+          step.orgUnitId,
           step.label,
           index === 0 ? "pending" : "queued",
           input.createdAt,
@@ -163,6 +238,10 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
     await deleteApprovalStepsStatement();
 
     if (policy.approvalRequirement === "never") {
+      if (!policy.allowSelfCertification) {
+        throw new Error("Badge rule approval policy must allow self-certification");
+      }
+
       const approveVersionStatement = (): Promise<SqlRunResult> =>
         transactionDb
           .prepare(
@@ -170,6 +249,8 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
             UPDATE badge_issuance_rule_versions
             SET
               status = 'approved',
+              submitted_by_user_id = ?,
+              submitted_at = ?,
               approved_by_user_id = ?,
               approved_at = ?,
               updated_at = ?
@@ -179,6 +260,8 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
           `,
           )
           .bind(
+            input.actorUserId ?? null,
+            occurredAt,
             input.actorUserId ?? null,
             occurredAt,
             occurredAt,
@@ -225,6 +308,8 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
           UPDATE badge_issuance_rule_versions
           SET
             status = 'pending_approval',
+            submitted_by_user_id = ?,
+            submitted_at = ?,
             approved_by_user_id = NULL,
             approved_at = NULL,
             updated_at = ?
@@ -233,7 +318,14 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
             AND id = ?
         `,
         )
-        .bind(occurredAt, input.tenantId, input.ruleId, input.versionId)
+        .bind(
+          input.actorUserId ?? null,
+          occurredAt,
+          occurredAt,
+          input.tenantId,
+          input.ruleId,
+          input.versionId,
+        )
         .run();
 
     await submitVersionStatement();
@@ -274,6 +366,17 @@ export const decideBadgeIssuanceRuleVersion = async (
       return null;
     }
 
+    if (
+      currentVersion.createdByUserId === input.actorUserId ||
+      currentVersion.submittedByUserId === input.actorUserId
+    ) {
+      throw new Error("Rule version submitters and creators cannot decide approval steps");
+    }
+
+    if (input.decision === "changes_requested" && (input.comment ?? "").trim().length === 0) {
+      throw new Error("Change requests require a comment");
+    }
+
     const steps = await listBadgeIssuanceRuleVersionApprovalSteps(transactionDb, {
       tenantId: input.tenantId,
       ruleId: input.ruleId,
@@ -285,14 +388,21 @@ export const decideBadgeIssuanceRuleVersion = async (
       return null;
     }
 
-    if (!tenantMembershipRoleSatisfiesMinimumRole(input.actorRole, currentStep.requiredRole)) {
-      throw new Error(
-        `Role ${input.actorRole} does not satisfy required approval role ${currentStep.requiredRole}`,
-      );
+    if (
+      !(await actorCanDecideApprovalStep(transactionDb, {
+        tenantId: input.tenantId,
+        actorUserId: input.actorUserId,
+        actorRole: input.actorRole,
+        step: currentStep,
+      }))
+    ) {
+      throw new Error("Actor is not authorized to decide this approval step");
     }
 
     const nextStep = steps.find((step) => step.stepNumber > currentStep.stepNumber);
-    const markCurrentStepStatement = (status: "approved" | "rejected"): Promise<SqlRunResult> =>
+    const markCurrentStepStatement = (
+      status: "approved" | "rejected" | "changes_requested",
+    ): Promise<SqlRunResult> =>
       transactionDb
         .prepare(
           `
@@ -390,10 +500,30 @@ export const decideBadgeIssuanceRuleVersion = async (
         )
         .bind(occurredAt, input.tenantId, input.ruleId, input.versionId)
         .run();
+    const updateVersionChangesRequestedStatement = (): Promise<SqlRunResult> =>
+      transactionDb
+        .prepare(
+          `
+          UPDATE badge_issuance_rule_versions
+          SET
+            status = 'draft',
+            approved_by_user_id = NULL,
+            approved_at = NULL,
+            updated_at = ?
+          WHERE tenant_id = ?
+            AND rule_id = ?
+            AND id = ?
+        `,
+        )
+        .bind(occurredAt, input.tenantId, input.ruleId, input.versionId)
+        .run();
 
     if (input.decision === "rejected") {
       await markCurrentStepStatement("rejected");
       await updateVersionRejectedStatement();
+    } else if (input.decision === "changes_requested") {
+      await markCurrentStepStatement("changes_requested");
+      await updateVersionChangesRequestedStatement();
     } else {
       await markCurrentStepStatement("approved");
 

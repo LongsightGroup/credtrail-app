@@ -12,7 +12,7 @@ import type {
 } from "./public-badge-renderer-types";
 import { createRuleDefinitionSummaryMarkup } from "./public-badge-rule-summary";
 
-type ApprovalStepStatus = "approved" | "pending" | "queued" | "rejected";
+type ApprovalStepStatus = "approved" | "pending" | "queued" | "rejected" | "changes_requested";
 
 const humanizeApprovalStepStatus = (status: ApprovalStepStatus): string => {
   switch (status) {
@@ -20,6 +20,8 @@ const humanizeApprovalStepStatus = (status: ApprovalStepStatus): string => {
       return "Approved";
     case "rejected":
       return "Rejected";
+    case "changes_requested":
+      return "Changes requested";
     case "pending":
       return "Pending";
     case "queued":

@@ -119,7 +119,9 @@ export const renderInstitutionAdminAccessSections = (
       : badgeRuleApprovalPolicy.approvalSteps[0].requiredRole;
   const badgeRuleApprovalSummary =
     badgeRuleApprovalRequirement === "never"
-      ? "Submitted badge rule versions are approved automatically."
+      ? badgeRuleApprovalPolicy?.allowSelfCertification === true
+        ? "Submitted badge rule versions are approved automatically."
+        : "Automatic approval is disabled until self-certification is explicitly allowed."
       : `Submitted badge rule versions require ${ruleApprovalPolicyRoleLabel(
           badgeRuleApprovalRole,
         ).toLowerCase()} approval.`;

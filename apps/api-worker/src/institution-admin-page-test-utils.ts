@@ -802,6 +802,8 @@ beforeEach(() => {
       ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"CS101","minScore":80}}',
       changeSummary: "Initial draft",
       createdByUserId: "usr_admin",
+      submittedByUserId: null,
+      submittedAt: null,
       approvedByUserId: null,
       approvedAt: null,
       activatedByUserId: null,
@@ -822,9 +824,14 @@ beforeEach(() => {
     tenantId: "tenant_123",
     orgUnitId: null,
     approvalRequirement: "always",
+    allowSelfCertification: false,
     approvalSteps: [
       {
+        targetType: "role_threshold",
         requiredRole: "admin",
+        targetUserId: null,
+        targetApproverGroupId: null,
+        orgUnitId: null,
         label: "Administrative approval",
       },
     ],
@@ -838,9 +845,14 @@ beforeEach(() => {
     tenantId: "tenant_123",
     orgUnitId: null,
     approvalRequirement: "always",
+    allowSelfCertification: false,
     approvalSteps: [
       {
+        targetType: "role_threshold",
         requiredRole: "admin",
+        targetUserId: null,
+        targetApproverGroupId: null,
+        orgUnitId: null,
         label: "Administrative approval",
       },
     ],
@@ -856,9 +868,14 @@ beforeEach(() => {
     tenantId: "tenant_123",
     orgUnitId: null,
     approvalRequirement: "always",
+    allowSelfCertification: false,
     approvalSteps: [
       {
+        targetType: "role_threshold",
         requiredRole: "admin",
+        targetUserId: null,
+        targetApproverGroupId: null,
+        orgUnitId: null,
         label: "Badge rule approval",
       },
     ],

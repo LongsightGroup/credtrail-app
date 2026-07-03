@@ -36,6 +36,7 @@ export const upsertBadgeRuleApprovalPolicyRequestSchema = z.discriminatedUnion(
     z.object({
       approvalRequirement: z.literal("never"),
       requiredRole: tenantMembershipRoleSchema.optional(),
+      allowSelfCertification: z.literal(true),
     }),
   ],
 );

@@ -648,6 +648,8 @@ const sampleBadgeIssuanceRuleVersion = (
     }),
     changeSummary: "Created from LTI Deep Linking course badge setup.",
     createdByUserId: "usr_lti_123",
+    submittedByUserId: null,
+    submittedAt: null,
     approvedByUserId: null,
     approvedAt: null,
     activatedByUserId: null,

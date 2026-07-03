@@ -2,16 +2,38 @@ import { z } from "zod";
 import { createPrefixedId } from "./shared-helpers";
 import type { SqlDatabase, SqlRunResult } from "./tenant-scope";
 import type { TenantMembershipRole } from "./tenant-memberships";
+import type { BadgeIssuanceRuleApprovalStepTargetType } from "./badge-issuance-rule-types.js";
 
 export type BadgeRuleApprovalRequirement = "always" | "never";
 
-export interface BadgeRuleApprovalPolicyStepInput {
-  readonly requiredRole: TenantMembershipRole;
-  readonly label?: string | undefined;
-}
+export type BadgeRuleApprovalPolicyStepInput =
+  | {
+      readonly targetType?: "role_threshold" | undefined;
+      readonly requiredRole: TenantMembershipRole;
+      readonly orgUnitId?: string | null | undefined;
+      readonly label?: string | undefined;
+    }
+  | {
+      readonly targetType: "user";
+      readonly targetUserId: string;
+      readonly requiredRole?: TenantMembershipRole | null | undefined;
+      readonly orgUnitId?: string | null | undefined;
+      readonly label?: string | undefined;
+    }
+  | {
+      readonly targetType: "approver_group";
+      readonly targetApproverGroupId: string;
+      readonly requiredRole?: TenantMembershipRole | null | undefined;
+      readonly orgUnitId?: string | null | undefined;
+      readonly label?: string | undefined;
+    };
 
 export interface BadgeRuleApprovalPolicyStepRecord {
+  readonly targetType: BadgeIssuanceRuleApprovalStepTargetType;
   readonly requiredRole: TenantMembershipRole;
+  readonly targetUserId: string | null;
+  readonly targetApproverGroupId: string | null;
+  readonly orgUnitId: string | null;
   readonly label: string | null;
 }
 
@@ -20,6 +42,7 @@ export interface BadgeRuleApprovalPolicyRecord {
   readonly tenantId: string;
   readonly orgUnitId: string | null;
   readonly approvalRequirement: BadgeRuleApprovalRequirement;
+  readonly allowSelfCertification: boolean;
   readonly approvalSteps: readonly BadgeRuleApprovalPolicyStepRecord[];
   readonly createdByUserId: string | null;
   readonly createdAt: string;
@@ -30,6 +53,7 @@ export interface UpsertBadgeRuleApprovalPolicyInput {
   readonly tenantId: string;
   readonly orgUnitId?: string | null | undefined;
   readonly approvalRequirement: BadgeRuleApprovalRequirement;
+  readonly allowSelfCertification?: boolean | undefined;
   readonly approvalSteps: readonly BadgeRuleApprovalPolicyStepInput[];
   readonly createdByUserId?: string | undefined;
 }
@@ -39,6 +63,7 @@ interface BadgeRuleApprovalPolicyRow {
   tenantId: string;
   orgUnitId: string | null;
   approvalRequirement: BadgeRuleApprovalRequirement;
+  allowSelfCertification: boolean | number;
   approvalStepsJson: string;
   createdByUserId: string | null;
   createdAt: string;
@@ -47,7 +72,11 @@ interface BadgeRuleApprovalPolicyRow {
 
 const DEFAULT_BADGE_RULE_APPROVAL_POLICY_STEPS: readonly BadgeRuleApprovalPolicyStepRecord[] = [
   {
+    targetType: "role_threshold",
     requiredRole: "admin",
+    targetUserId: null,
+    targetApproverGroupId: null,
+    orgUnitId: null,
     label: "Administrative approval",
   },
 ] as const;
@@ -57,10 +86,39 @@ export const tenantDefaultBadgeRuleApprovalPolicyId = (tenantId: string): string
 };
 
 const tenantMembershipRoleSchema = z.enum(["owner", "admin", "issuer", "viewer"]);
-const badgeRuleApprovalPolicyStepJsonSchema = z.object({
-  requiredRole: tenantMembershipRoleSchema,
-  label: z.string().nullable().optional(),
-});
+const badgeRuleApprovalPolicyStepJsonSchema = z
+  .discriminatedUnion("targetType", [
+    z.object({
+      targetType: z.literal("role_threshold"),
+      requiredRole: tenantMembershipRoleSchema,
+      targetUserId: z.null().optional(),
+      targetApproverGroupId: z.null().optional(),
+      orgUnitId: z.string().nullable().optional(),
+      label: z.string().nullable().optional(),
+    }),
+    z.object({
+      targetType: z.literal("user"),
+      requiredRole: tenantMembershipRoleSchema.nullable().optional(),
+      targetUserId: z.string().min(1),
+      targetApproverGroupId: z.null().optional(),
+      orgUnitId: z.string().nullable().optional(),
+      label: z.string().nullable().optional(),
+    }),
+    z.object({
+      targetType: z.literal("approver_group"),
+      requiredRole: tenantMembershipRoleSchema.nullable().optional(),
+      targetUserId: z.null().optional(),
+      targetApproverGroupId: z.string().min(1),
+      orgUnitId: z.string().nullable().optional(),
+      label: z.string().nullable().optional(),
+    }),
+  ])
+  .or(
+    z.object({
+      requiredRole: tenantMembershipRoleSchema,
+      label: z.string().nullable().optional(),
+    }),
+  );
 const badgeRuleApprovalPolicyStepsJsonSchema = z.array(badgeRuleApprovalPolicyStepJsonSchema);
 
 const normalizeBadgeRuleApprovalPolicySteps = (
@@ -75,9 +133,35 @@ const normalizeBadgeRuleApprovalPolicySteps = (
     throw new Error("Badge rule approval policy must include at least one approval step");
   }
 
-  return steps.map((step) => {
+  return steps.map((step): BadgeRuleApprovalPolicyStepRecord => {
+    if (step.targetType === "user") {
+      return {
+        targetType: "user",
+        requiredRole: step.requiredRole ?? "viewer",
+        targetUserId: step.targetUserId,
+        targetApproverGroupId: null,
+        orgUnitId: step.orgUnitId ?? null,
+        label: step.label ?? null,
+      };
+    }
+
+    if (step.targetType === "approver_group") {
+      return {
+        targetType: "approver_group",
+        requiredRole: step.requiredRole ?? "viewer",
+        targetUserId: null,
+        targetApproverGroupId: step.targetApproverGroupId,
+        orgUnitId: step.orgUnitId ?? null,
+        label: step.label ?? null,
+      };
+    }
+
     return {
+      targetType: "role_threshold",
       requiredRole: step.requiredRole,
+      targetUserId: null,
+      targetApproverGroupId: null,
+      orgUnitId: step.orgUnitId ?? null,
       label: step.label ?? null,
     };
   });
@@ -88,8 +172,30 @@ const parseBadgeRuleApprovalPolicyStepsJson = (
   stepsJson: string,
 ): BadgeRuleApprovalPolicyStepRecord[] => {
   const steps = badgeRuleApprovalPolicyStepsJsonSchema.parse(JSON.parse(stepsJson)).map((step) => {
+    if ("targetType" in step && step.targetType === "user") {
+      return {
+        targetType: "user" as const,
+        requiredRole: step.requiredRole ?? null,
+        targetUserId: step.targetUserId,
+        orgUnitId: step.orgUnitId ?? null,
+        ...(step.label === undefined || step.label === null ? {} : { label: step.label }),
+      };
+    }
+
+    if ("targetType" in step && step.targetType === "approver_group") {
+      return {
+        targetType: "approver_group" as const,
+        requiredRole: step.requiredRole ?? null,
+        targetApproverGroupId: step.targetApproverGroupId,
+        orgUnitId: step.orgUnitId ?? null,
+        ...(step.label === undefined || step.label === null ? {} : { label: step.label }),
+      };
+    }
+
     return {
+      targetType: "role_threshold" as const,
       requiredRole: step.requiredRole,
+      orgUnitId: "targetType" in step ? (step.orgUnitId ?? null) : null,
       ...(step.label === undefined || step.label === null ? {} : { label: step.label }),
     };
   });
@@ -107,6 +213,7 @@ const buildDefaultBadgeRuleApprovalPolicy = (
     tenantId,
     orgUnitId,
     approvalRequirement: "always",
+    allowSelfCertification: false,
     approvalSteps: DEFAULT_BADGE_RULE_APPROVAL_POLICY_STEPS,
     createdByUserId: null,
     createdAt: nowIso,
@@ -122,6 +229,7 @@ const mapBadgeRuleApprovalPolicyRow = (
     tenantId: row.tenantId,
     orgUnitId: row.orgUnitId,
     approvalRequirement: row.approvalRequirement,
+    allowSelfCertification: row.allowSelfCertification === true || row.allowSelfCertification === 1,
     approvalSteps: parseBadgeRuleApprovalPolicyStepsJson(
       row.approvalRequirement,
       row.approvalStepsJson,
@@ -147,6 +255,7 @@ const findBadgeRuleApprovalPolicy = async (
         tenant_id AS tenantId,
         org_unit_id AS orgUnitId,
         approval_requirement AS approvalRequirement,
+        allow_self_certification AS allowSelfCertification,
         approval_steps_json AS approvalStepsJson,
         created_by_user_id AS createdByUserId,
         created_at AS createdAt,
@@ -216,12 +325,13 @@ export const ensureTenantDefaultBadgeRuleApprovalPolicy = async (
           tenant_id,
           org_unit_id,
           approval_requirement,
+          allow_self_certification,
           approval_steps_json,
           created_by_user_id,
           created_at,
           updated_at
         )
-        VALUES (?, ?, NULL, 'always', ?, NULL, ?, ?)
+        VALUES (?, ?, NULL, 'always', FALSE, ?, NULL, ?, ?)
         ON CONFLICT DO NOTHING
       `,
       )
@@ -263,6 +373,8 @@ export const upsertBadgeRuleApprovalPolicy = async (
   });
   const nowIso = new Date().toISOString();
   const approvalStepsJson = JSON.stringify(approvalSteps);
+  const allowSelfCertification =
+    input.approvalRequirement === "never" ? input.allowSelfCertification === true : false;
 
   if (existing === null) {
     const id = createPrefixedId("brap");
@@ -275,12 +387,13 @@ export const upsertBadgeRuleApprovalPolicy = async (
             tenant_id,
             org_unit_id,
             approval_requirement,
+            allow_self_certification,
             approval_steps_json,
             created_by_user_id,
             created_at,
             updated_at
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         )
         .bind(
@@ -288,6 +401,7 @@ export const upsertBadgeRuleApprovalPolicy = async (
           input.tenantId,
           orgUnitId,
           input.approvalRequirement,
+          allowSelfCertification,
           approvalStepsJson,
           input.createdByUserId ?? null,
           nowIso,
@@ -304,13 +418,21 @@ export const upsertBadgeRuleApprovalPolicy = async (
           UPDATE badge_rule_approval_policies
           SET
             approval_requirement = ?,
+            allow_self_certification = ?,
             approval_steps_json = ?,
             updated_at = ?
           WHERE tenant_id = ?
             AND id = ?
         `,
         )
-        .bind(input.approvalRequirement, approvalStepsJson, nowIso, input.tenantId, existing.id)
+        .bind(
+          input.approvalRequirement,
+          allowSelfCertification,
+          approvalStepsJson,
+          nowIso,
+          input.tenantId,
+          existing.id,
+        )
         .run();
 
     await updateStatement();

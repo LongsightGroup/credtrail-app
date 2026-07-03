@@ -15,9 +15,18 @@ export type BadgeIssuanceRuleVersionStatus =
   | "rejected"
   | "deprecated";
 
-export type BadgeIssuanceRuleApprovalStepStatus = "queued" | "pending" | "approved" | "rejected";
+export type BadgeIssuanceRuleApprovalStepStatus =
+  | "queued"
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "changes_requested";
 
-export type BadgeIssuanceRuleApprovalEventAction = "submitted" | "approved" | "rejected";
+export type BadgeIssuanceRuleApprovalStepTargetType = "role_threshold" | "user" | "approver_group";
+
+export type BadgeIssuanceRuleApprovalDecision = "approved" | "rejected" | "changes_requested";
+
+export type BadgeIssuanceRuleApprovalEventAction = "submitted" | BadgeIssuanceRuleApprovalDecision;
 
 export interface BadgeIssuanceRuleRecord {
   id: string;
@@ -47,6 +56,8 @@ export interface BadgeIssuanceRuleVersionRecord {
   ruleJson: string;
   changeSummary: string | null;
   createdByUserId: string | null;
+  submittedByUserId: string | null;
+  submittedAt: string | null;
   approvedByUserId: string | null;
   approvedAt: string | null;
   activatedByUserId: string | null;
@@ -60,7 +71,11 @@ export interface BadgeIssuanceRuleApprovalStepRecord {
   tenantId: string;
   versionId: string;
   stepNumber: number;
-  requiredRole: TenantMembershipRole;
+  targetType: BadgeIssuanceRuleApprovalStepTargetType;
+  requiredRole: TenantMembershipRole | null;
+  targetUserId: string | null;
+  targetApproverGroupId: string | null;
+  orgUnitId: string | null;
   label: string | null;
   status: BadgeIssuanceRuleApprovalStepStatus;
   decidedByUserId: string | null;
@@ -139,7 +154,7 @@ export interface DecideBadgeIssuanceRuleVersionInput {
   tenantId: string;
   ruleId: string;
   versionId: string;
-  decision: "approved" | "rejected";
+  decision: BadgeIssuanceRuleApprovalDecision;
   actorUserId: string;
   actorRole: TenantMembershipRole;
   comment?: string | undefined;

@@ -156,6 +156,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
     const formData = await c.req.formData();
     const approvalRequirement = readOptionalFormField(formData, "approvalRequirement");
     const requiredRole = readOptionalFormField(formData, "requiredRole");
+    const allowSelfCertification = approvalRequirement === "never" ? true : undefined;
 
     let request: ReturnType<typeof parseUpsertBadgeRuleApprovalPolicyRequest>;
 
@@ -163,6 +164,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
       request = parseUpsertBadgeRuleApprovalPolicyRequest({
         approvalRequirement,
         ...(requiredRole === undefined ? {} : { requiredRole }),
+        ...(allowSelfCertification === undefined ? {} : { allowSelfCertification }),
       });
     } catch {
       return redirectToGovernance(c, {
@@ -189,6 +191,8 @@ export const registerTenantAccessGovernanceAdminRoutes = (
         tenantId: pathParams.tenantId,
         orgUnitId: null,
         approvalRequirement: request.approvalRequirement,
+        allowSelfCertification:
+          request.approvalRequirement === "never" ? request.allowSelfCertification : false,
         approvalSteps,
         createdByUserId: session.userId,
       });
@@ -203,6 +207,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
           role: membershipRole,
           orgUnitId: null,
           approvalRequirement: policy.approvalRequirement,
+          allowSelfCertification: policy.allowSelfCertification,
           approvalSteps: policy.approvalSteps,
         },
       });

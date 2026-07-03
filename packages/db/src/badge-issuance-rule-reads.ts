@@ -39,6 +39,8 @@ interface BadgeIssuanceRuleVersionRow {
   ruleJson: string;
   changeSummary: string | null;
   createdByUserId: string | null;
+  submittedByUserId: string | null;
+  submittedAt: string | null;
   approvedByUserId: string | null;
   approvedAt: string | null;
   activatedByUserId: string | null;
@@ -52,7 +54,11 @@ interface BadgeIssuanceRuleApprovalStepRow {
   tenantId: string;
   versionId: string;
   stepNumber: number;
-  requiredRole: TenantMembershipRole;
+  targetType: BadgeIssuanceRuleApprovalStepRecord["targetType"];
+  requiredRole: TenantMembershipRole | null;
+  targetUserId: string | null;
+  targetApproverGroupId: string | null;
+  orgUnitId: string | null;
   label: string | null;
   status: BadgeIssuanceRuleApprovalStepStatus;
   decidedByUserId: string | null;
@@ -93,12 +99,14 @@ const BADGE_ISSUANCE_RULE_APPROVAL_STEP_STATUSES = new Set<BadgeIssuanceRuleAppr
   "pending",
   "approved",
   "rejected",
+  "changes_requested",
 ]);
 
 const BADGE_ISSUANCE_RULE_APPROVAL_EVENT_ACTIONS = new Set<BadgeIssuanceRuleApprovalEventAction>([
   "submitted",
   "approved",
   "rejected",
+  "changes_requested",
 ]);
 
 const mapBadgeIssuanceRuleRow = (row: BadgeIssuanceRuleRow): BadgeIssuanceRuleRecord => {
@@ -130,6 +138,8 @@ const mapBadgeIssuanceRuleVersionRow = (
     ruleJson: row.ruleJson,
     changeSummary: row.changeSummary,
     createdByUserId: row.createdByUserId,
+    submittedByUserId: row.submittedByUserId ?? null,
+    submittedAt: row.submittedAt ?? null,
     approvedByUserId: row.approvedByUserId,
     approvedAt: row.approvedAt,
     activatedByUserId: row.activatedByUserId,
@@ -147,7 +157,11 @@ const mapBadgeIssuanceRuleApprovalStepRow = (
     tenantId: row.tenantId,
     versionId: row.versionId,
     stepNumber: row.stepNumber,
+    targetType: row.targetType ?? "role_threshold",
     requiredRole: row.requiredRole,
+    targetUserId: row.targetUserId ?? null,
+    targetApproverGroupId: row.targetApproverGroupId ?? null,
+    orgUnitId: row.orgUnitId ?? null,
     label: row.label,
     status: row.status,
     decidedByUserId: row.decidedByUserId,
@@ -262,6 +276,8 @@ export const listBadgeIssuanceRuleVersions = async (
           rule_json AS ruleJson,
           change_summary AS changeSummary,
           created_by_user_id AS createdByUserId,
+          submitted_by_user_id AS submittedByUserId,
+          submitted_at AS submittedAt,
           approved_by_user_id AS approvedByUserId,
           approved_at AS approvedAt,
           activated_by_user_id AS activatedByUserId,
@@ -297,7 +313,11 @@ export const listBadgeIssuanceRuleVersionApprovalSteps = async (
           steps.tenant_id AS tenantId,
           steps.version_id AS versionId,
           steps.step_number AS stepNumber,
+          steps.target_type AS targetType,
           steps.required_role AS requiredRole,
+          steps.target_user_id AS targetUserId,
+          steps.target_approver_group_id AS targetApproverGroupId,
+          steps.org_unit_id AS orgUnitId,
           steps.label,
           steps.status,
           steps.decided_by_user_id AS decidedByUserId,
@@ -385,6 +405,8 @@ export const findBadgeIssuanceRuleVersionById = async (
           rule_json AS ruleJson,
           change_summary AS changeSummary,
           created_by_user_id AS createdByUserId,
+          submitted_by_user_id AS submittedByUserId,
+          submitted_at AS submittedAt,
           approved_by_user_id AS approvedByUserId,
           approved_at AS approvedAt,
           activated_by_user_id AS activatedByUserId,
@@ -431,6 +453,8 @@ export const findActiveBadgeIssuanceRuleVersion = async (
           versions.rule_json AS ruleJson,
           versions.change_summary AS changeSummary,
           versions.created_by_user_id AS createdByUserId,
+          versions.submitted_by_user_id AS submittedByUserId,
+          versions.submitted_at AS submittedAt,
           versions.approved_by_user_id AS approvedByUserId,
           versions.approved_at AS approvedAt,
           versions.activated_by_user_id AS activatedByUserId,

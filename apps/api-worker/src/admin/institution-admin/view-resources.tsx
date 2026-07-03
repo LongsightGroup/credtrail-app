@@ -542,6 +542,22 @@ export const buildInstitutionAdminViewResources = (
               action={tenantBadgeRuleDecisionAdminPath(input.tenant.id, rule.id, latestVersion.id)}
               className="ct-admin__inline-form"
               dataAttributes={{
+                "data-confirm-message": `Request changes on latest version for "${rule.name}"?`,
+              }}
+            >
+              <CtInput type="hidden" name="decision" value="changes_requested" />
+              <CtInput type="hidden" name="comment" value="Changes requested." />
+              <button type="submit" class="ct-admin__action-menu-item">
+                Request changes
+              </button>
+            </AdminForm>,
+          );
+          menuActions.push(
+            <AdminForm
+              method="post"
+              action={tenantBadgeRuleDecisionAdminPath(input.tenant.id, rule.id, latestVersion.id)}
+              className="ct-admin__inline-form"
+              dataAttributes={{
                 "data-confirm-message": `Reject latest version for "${rule.name}"?`,
               }}
             >

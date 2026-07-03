@@ -317,10 +317,20 @@ export const createBadgeIssuanceRuleVersionRequestSchema = z
   })
   .strict();
 
-export const decideBadgeIssuanceRuleVersionRequestSchema = z.object({
-  decision: z.enum(["approved", "rejected"]),
-  comment: z.string().trim().min(1).max(2000).optional(),
-});
+export const decideBadgeIssuanceRuleVersionRequestSchema = z
+  .object({
+    decision: z.enum(["approved", "rejected", "changes_requested"]),
+    comment: z.string().trim().min(1).max(2000).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.decision === "changes_requested" && value.comment === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["comment"],
+        message: "comment is required when requesting changes",
+      });
+    }
+  });
 
 const badgeIssuanceRuleFactGradeSchema = z.object({
   courseId: z.string().trim().min(1).max(255),

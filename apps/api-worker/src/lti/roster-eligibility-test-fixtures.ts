@@ -58,6 +58,8 @@ export const sampleLtiRosterBadgeRuleVersion = (
   }),
   changeSummary: null,
   createdByUserId: "usr_123",
+  submittedByUserId: "usr_123",
+  submittedAt: "2026-02-10T21:30:00.000Z",
   approvedByUserId: "usr_admin_123",
   approvedAt: "2026-02-10T22:00:00.000Z",
   activatedByUserId: "usr_admin_123",
