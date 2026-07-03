@@ -5,6 +5,7 @@ import { createFixtureRule, createFixtureTenantMember } from "./badge-issuance-r
 import {
   addBadgeRuleApproverGroupMember,
   createBadgeRuleApproverGroup,
+  removeBadgeRuleApproverGroup,
   removeBadgeRuleApproverGroupMember,
 } from "./badge-rule-approver-groups";
 import {
@@ -663,6 +664,14 @@ describeDbIntegration("badge rule approver group helpers with Postgres", () => {
         groupId: group.id,
         userId: reviewerId,
       });
+      const removedGroup = await removeBadgeRuleApproverGroup(fixture.db, {
+        tenantId: fixture.tenantId,
+        groupId: group.id,
+      });
+      const missingGroupRemoval = await removeBadgeRuleApproverGroup(fixture.db, {
+        tenantId: fixture.tenantId,
+        groupId: group.id,
+      });
 
       expect(missingGroup).toEqual({ status: "group_not_found" });
       expect(missingMembership).toEqual({ status: "membership_not_found" });
@@ -670,6 +679,8 @@ describeDbIntegration("badge rule approver group helpers with Postgres", () => {
       expect(duplicate).toEqual({ status: "already_member" });
       expect(removed).toEqual({ status: "removed" });
       expect(missingMember).toEqual({ status: "member_not_found" });
+      expect(removedGroup).toEqual({ status: "removed" });
+      expect(missingGroupRemoval).toEqual({ status: "group_not_found" });
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],

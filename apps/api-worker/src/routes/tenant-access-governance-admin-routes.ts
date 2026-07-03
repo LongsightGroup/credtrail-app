@@ -175,6 +175,17 @@ const mapRemoveApproverGroupMemberResultMessage = (
   }
 };
 
+const mapRemoveApproverGroupResultMessage = (
+  status: Awaited<ReturnType<typeof removeBadgeRuleApproverGroup>>["status"],
+): string => {
+  switch (status) {
+    case "group_not_found":
+      return "No matching approver group was found.";
+    case "removed":
+      return "Approver group removed.";
+  }
+};
+
 export const registerTenantAccessGovernanceAdminRoutes = (
   input: RegisterTenantAccessGovernanceAdminRoutesInput,
 ): void => {
@@ -518,17 +529,17 @@ export const registerTenantAccessGovernanceAdminRoutes = (
     }
 
     const db = resolveDatabase(c.env);
-    const removed = await removeBadgeRuleApproverGroup(db, {
+    const result = await removeBadgeRuleApproverGroup(db, {
       tenantId: pathParams.tenantId,
       groupId: request.groupId,
     });
 
-    if (!removed) {
+    if (result.status !== "removed") {
       return redirectToGovernance(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "error",
-        message: "No matching approver group was found.",
+        message: mapRemoveApproverGroupResultMessage(result.status),
       });
     }
 
@@ -547,7 +558,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
       tenantId: pathParams.tenantId,
       userId: session.userId,
       tone: "success",
-      message: "Approver group removed.",
+      message: mapRemoveApproverGroupResultMessage(result.status),
     });
   });
 

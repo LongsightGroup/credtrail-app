@@ -842,7 +842,7 @@ beforeEach(() => {
   mockedRemoveBadgeRuleApproverGroupMemberDb.mockReset();
   mockedRemoveBadgeRuleApproverGroupMemberDb.mockResolvedValue({ status: "removed" });
   mockedRemoveBadgeRuleApproverGroupDb.mockReset();
-  mockedRemoveBadgeRuleApproverGroupDb.mockResolvedValue(true);
+  mockedRemoveBadgeRuleApproverGroupDb.mockResolvedValue({ status: "removed" });
   mockedDecideBadgeIssuanceRuleVersionDb.mockReset();
   mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue({ status: "not_found" });
   mockedRecertifyBadgeIssuanceRuleVersionDb.mockReset();
