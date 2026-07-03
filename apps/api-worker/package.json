@@ -20,9 +20,11 @@
     "d3-shape": "^3.2.0",
     "hono": "^4.12.27",
     "jose": "6.2.3",
+    "jsonld": "^9.0.0",
     "pdf-lib": "^1.17.1",
+    "pg": "^8.21.0",
     "qrcode-generator": "2.0.4",
-    "tsx": "^4.22.3"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/d3-scale": "^4.0.9",
