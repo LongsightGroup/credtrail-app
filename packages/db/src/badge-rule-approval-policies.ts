@@ -51,6 +51,10 @@ const DEFAULT_BADGE_RULE_APPROVAL_POLICY_STEPS: readonly BadgeRuleApprovalPolicy
   },
 ] as const;
 
+export const tenantDefaultBadgeRuleApprovalPolicyId = (tenantId: string): string => {
+  return `${tenantId}:badge-rule-approval-policy:default`;
+};
+
 const normalizeBadgeRuleApprovalPolicySteps = (
   approvalRequirement: BadgeRuleApprovalRequirement,
   steps: readonly BadgeRuleApprovalPolicyStepInput[],
@@ -219,6 +223,52 @@ export const resolveBadgeRuleApprovalPolicy = async (
   });
 
   return tenantPolicy ?? buildDefaultBadgeRuleApprovalPolicy(input.tenantId, null);
+};
+
+export const ensureTenantDefaultBadgeRuleApprovalPolicy = async (
+  db: SqlDatabase,
+  tenantId: string,
+): Promise<BadgeRuleApprovalPolicyRecord> => {
+  const nowIso = new Date().toISOString();
+  const insertStatement = (): Promise<SqlRunResult> =>
+    db
+      .prepare(
+        `
+        INSERT INTO badge_rule_approval_policies (
+          id,
+          tenant_id,
+          org_unit_id,
+          approval_requirement,
+          approval_steps_json,
+          created_by_user_id,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, NULL, 'always', ?, NULL, ?, ?)
+        ON CONFLICT DO NOTHING
+      `,
+      )
+      .bind(
+        tenantDefaultBadgeRuleApprovalPolicyId(tenantId),
+        tenantId,
+        JSON.stringify(DEFAULT_BADGE_RULE_APPROVAL_POLICY_STEPS),
+        nowIso,
+        nowIso,
+      )
+      .run();
+
+  await insertStatement();
+
+  const policy = await findBadgeRuleApprovalPolicy(db, {
+    tenantId,
+    orgUnitId: null,
+  });
+
+  if (policy === null) {
+    throw new Error(`Unable to ensure default badge rule approval policy for tenant "${tenantId}"`);
+  }
+
+  return policy;
 };
 
 export const upsertBadgeRuleApprovalPolicy = async (

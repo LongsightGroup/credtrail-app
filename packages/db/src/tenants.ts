@@ -1,4 +1,5 @@
 import type { SqlDatabase } from "./tenant-scope";
+import { ensureTenantDefaultBadgeRuleApprovalPolicy } from "./badge-rule-approval-policies";
 
 export type TenantPlanTier = "free" | "team" | "institution" | "enterprise";
 
@@ -120,6 +121,8 @@ export const upsertTenant = async (
   if (row === null) {
     throw new Error(`Unable to upsert tenant "${input.id}"`);
   }
+
+  await ensureTenantDefaultBadgeRuleApprovalPolicy(db, input.id);
 
   return mapTenantRow(row);
 };

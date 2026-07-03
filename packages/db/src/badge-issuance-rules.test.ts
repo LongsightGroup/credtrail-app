@@ -61,6 +61,9 @@ describe("badge rule review queue schema", () => {
     expect(sql).toContain("approval_steps_json TEXT NOT NULL");
     expect(sql).toContain("idx_badge_rule_approval_policies_tenant_default");
     expect(sql).toContain("idx_badge_rule_approval_policies_tenant_org_unit");
+    expect(sql).toContain("tenants.id || ':badge-rule-approval-policy:default'");
+    expect(sql).toContain('\'[{"requiredRole":"admin","label":"Administrative approval"}]\'');
+    expect(sql).toContain("ON CONFLICT DO NOTHING");
   });
 });
 
@@ -327,6 +330,9 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
       });
 
       expect(defaultPolicy.approvalRequirement).toBe("always");
+      expect(defaultPolicy.id).toBe(
+        dbModule.tenantDefaultBadgeRuleApprovalPolicyId(fixture.tenantId),
+      );
       expect(defaultPolicy.approvalSteps[0]?.requiredRole).toBe("admin");
 
       await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {

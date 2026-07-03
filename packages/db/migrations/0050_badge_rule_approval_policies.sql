@@ -50,3 +50,26 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_badge_rule_approval_policies_tenant_defaul
 CREATE UNIQUE INDEX IF NOT EXISTS idx_badge_rule_approval_policies_tenant_org_unit
   ON badge_rule_approval_policies (tenant_id, org_unit_id)
   WHERE org_unit_id IS NOT NULL;
+
+-- Store the tenant-wide governance default so normal resolution reads policy from DB.
+INSERT INTO badge_rule_approval_policies (
+  id,
+  tenant_id,
+  org_unit_id,
+  approval_requirement,
+  approval_steps_json,
+  created_by_user_id,
+  created_at,
+  updated_at
+)
+SELECT
+  tenants.id || ':badge-rule-approval-policy:default',
+  tenants.id,
+  NULL,
+  'always',
+  '[{"requiredRole":"admin","label":"Administrative approval"}]',
+  NULL,
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP
+FROM tenants
+ON CONFLICT DO NOTHING;
