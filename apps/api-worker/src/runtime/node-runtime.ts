@@ -180,9 +180,30 @@ export const createNodeRuntimeBindings = (envSource: EnvSource = process.env): A
 };
 
 export const createNodeExecutionContext = (): ExecutionContext => {
+  class NoopSpan {
+    get isTraced(): boolean {
+      return false;
+    }
+
+    setAttribute(_key: string, _value?: boolean | number | string): void {
+      return undefined;
+    }
+
+    end(): void {
+      return undefined;
+    }
+  }
+
+  const tracing: Tracing = {
+    enterSpan: (_name, callback, ...args) => callback(new NoopSpan(), ...args),
+    startActiveSpan: (_name, callback, ...args) => callback(new NoopSpan(), ...args),
+    Span: NoopSpan,
+  };
+
   return {
     waitUntil: (_promise: Promise<unknown>) => undefined,
     passThroughOnException: () => undefined,
     props: undefined,
+    tracing,
   };
 };
