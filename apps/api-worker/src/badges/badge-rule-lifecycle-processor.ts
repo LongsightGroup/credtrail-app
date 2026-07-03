@@ -105,6 +105,43 @@ const notifyLifecycleReminder = async (
   }
 };
 
+const processReminders = async (input: {
+  readonly lifecycleInput: ProcessBadgeRuleLifecycleInput;
+  readonly versions: readonly BadgeRuleLifecycleDueVersionRecord[];
+  readonly reminderType: "expiry" | "recertification";
+  readonly getDueAt: (version: BadgeRuleLifecycleDueVersionRecord) => string | null;
+  readonly markSent: (version: BadgeRuleLifecycleDueVersionRecord) => Promise<boolean>;
+}): Promise<number> => {
+  let remindersSent = 0;
+
+  for (const version of input.versions) {
+    const dueAt = input.getDueAt(version);
+
+    if (dueAt === null) {
+      continue;
+    }
+
+    const notified = await notifyLifecycleReminder({
+      ...input.lifecycleInput,
+      version,
+      reminderType: input.reminderType,
+      dueAt,
+    });
+
+    if (!notified) {
+      continue;
+    }
+
+    const marked = await input.markSent(version);
+
+    if (marked) {
+      remindersSent += 1;
+    }
+  }
+
+  return remindersSent;
+};
+
 export const enqueueBadgeRuleLifecycleJobsForActiveTenants = async (input: {
   readonly db: SqlDatabase;
   readonly nowIso: string;
@@ -140,90 +177,63 @@ export const processBadgeRuleLifecycleForTenant = async (
 ): Promise<
   Omit<BadgeRuleLifecycleProcessingResult, "tenantsScanned" | "lifecycleJobsEnqueued">
 > => {
-  const dueVersions = await listBadgeIssuanceRuleVersionsDueForExpiry(input.db, {
-    tenantId: input.tenantId,
-    nowIso: input.nowIso,
-  });
-  const expiryReminderVersions = await listBadgeIssuanceRuleVersionsDueForExpiryReminder(input.db, {
-    tenantId: input.tenantId,
-    nowIso: input.nowIso,
-    reminderWindowDays: LIFECYCLE_REMINDER_WINDOW_DAYS,
-  });
-  const recertificationReminderVersions =
-    await listBadgeIssuanceRuleVersionsDueForRecertificationReminder(input.db, {
+  const [
+    dueVersions,
+    expiryReminderVersions,
+    recertificationReminderVersions,
+    recertificationDueVersions,
+  ] = await Promise.all([
+    listBadgeIssuanceRuleVersionsDueForExpiry(input.db, {
+      tenantId: input.tenantId,
+      nowIso: input.nowIso,
+    }),
+    listBadgeIssuanceRuleVersionsDueForExpiryReminder(input.db, {
       tenantId: input.tenantId,
       nowIso: input.nowIso,
       reminderWindowDays: LIFECYCLE_REMINDER_WINDOW_DAYS,
-    });
-  const recertificationDueVersions = await listBadgeIssuanceRuleVersionsDueForRecertification(
-    input.db,
-    {
+    }),
+    listBadgeIssuanceRuleVersionsDueForRecertificationReminder(input.db, {
       tenantId: input.tenantId,
       nowIso: input.nowIso,
-    },
-  );
+      reminderWindowDays: LIFECYCLE_REMINDER_WINDOW_DAYS,
+    }),
+    listBadgeIssuanceRuleVersionsDueForRecertification(input.db, {
+      tenantId: input.tenantId,
+      nowIso: input.nowIso,
+    }),
+  ]);
   let endOfTermJobsEnqueued = 0;
   let expiredVersions = 0;
-  let expiryRemindersSent = 0;
-  let recertificationRemindersSent = 0;
   let recertificationReviewsOpened = 0;
   let recertificationAutoSuspensions = 0;
 
-  for (const version of expiryReminderVersions) {
-    if (version.expiresAt === null) {
-      continue;
-    }
+  const expiryRemindersSent = await processReminders({
+    lifecycleInput: input,
+    versions: expiryReminderVersions,
+    reminderType: "expiry",
+    getDueAt: (version) => version.expiresAt,
+    markSent: (version) =>
+      markBadgeIssuanceRuleVersionExpiryReminderSent(input.db, {
+        tenantId: input.tenantId,
+        ruleId: version.ruleId,
+        versionId: version.id,
+        occurredAt: input.nowIso,
+      }),
+  });
 
-    const notified = await notifyLifecycleReminder({
-      ...input,
-      version,
-      reminderType: "expiry",
-      dueAt: version.expiresAt,
-    });
-
-    if (!notified) {
-      continue;
-    }
-
-    const marked = await markBadgeIssuanceRuleVersionExpiryReminderSent(input.db, {
-      tenantId: input.tenantId,
-      ruleId: version.ruleId,
-      versionId: version.id,
-      occurredAt: input.nowIso,
-    });
-
-    if (marked) {
-      expiryRemindersSent += 1;
-    }
-  }
-
-  for (const version of recertificationReminderVersions) {
-    if (version.recertificationDueAt === null) {
-      continue;
-    }
-
-    const notified = await notifyLifecycleReminder({
-      ...input,
-      version,
-      reminderType: "recertification",
-      dueAt: version.recertificationDueAt,
-    });
-
-    if (!notified) {
-      continue;
-    }
-
-    const marked = await markBadgeIssuanceRuleVersionRecertificationReminderSent(input.db, {
-      tenantId: input.tenantId,
-      ruleId: version.ruleId,
-      versionId: version.id,
-      occurredAt: input.nowIso,
-    });
-
-    if (marked) {
-      recertificationRemindersSent += 1;
-    }
-  }
+  const recertificationRemindersSent = await processReminders({
+    lifecycleInput: input,
+    versions: recertificationReminderVersions,
+    reminderType: "recertification",
+    getDueAt: (version) => version.recertificationDueAt,
+    markSent: (version) =>
+      markBadgeIssuanceRuleVersionRecertificationReminderSent(input.db, {
+        tenantId: input.tenantId,
+        ruleId: version.ruleId,
+        versionId: version.id,
+        occurredAt: input.nowIso,
+      }),
+  });
 
   for (const version of recertificationDueVersions) {
     if (version.recertificationDueAt === null) {

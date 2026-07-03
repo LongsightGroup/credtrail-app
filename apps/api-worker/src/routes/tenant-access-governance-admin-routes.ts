@@ -4,6 +4,7 @@ import {
   createBadgeRuleApproverGroup,
   createDelegatedIssuingAuthorityGrant,
   findDelegatedIssuingAuthorityGrantById,
+  approvalPolicyStepsFromUpsertRequest,
   removeBadgeRuleApproverGroup,
   removeBadgeRuleApproverGroupMember,
   removeTenantMembershipOrgUnitScope,
@@ -203,33 +204,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
       });
     }
 
-    const approvalSteps =
-      request.approvalRequirement === "always"
-        ? request.stepTargetType === "user"
-          ? [
-              {
-                targetType: "user" as const,
-                targetUserId: request.targetUserId ?? "",
-                requiredRole: request.requiredRole ?? null,
-                label: "Named approver review",
-              },
-            ]
-          : request.stepTargetType === "approver_group"
-            ? [
-                {
-                  targetType: "approver_group" as const,
-                  targetApproverGroupId: request.targetApproverGroupId ?? "",
-                  requiredRole: request.requiredRole ?? null,
-                  label: "Approver group review",
-                },
-              ]
-            : [
-                {
-                  requiredRole: request.requiredRole ?? "admin",
-                  label: "Badge rule approval",
-                },
-              ]
-        : [];
+    const approvalSteps = approvalPolicyStepsFromUpsertRequest(request);
     const db = resolveDatabase(c.env);
 
     try {

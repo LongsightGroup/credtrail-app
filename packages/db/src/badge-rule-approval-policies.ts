@@ -57,6 +57,14 @@ export interface UpsertBadgeRuleApprovalPolicyInput {
   readonly createdByUserId?: string | undefined;
 }
 
+export type BadgeRuleApprovalPolicyStepUpsertRequest = {
+  readonly approvalRequirement: BadgeRuleApprovalRequirement;
+  readonly stepTargetType?: "role_threshold" | "user" | "approver_group" | undefined;
+  readonly requiredRole?: TenantMembershipRole | null | undefined;
+  readonly targetUserId?: string | undefined;
+  readonly targetApproverGroupId?: string | undefined;
+};
+
 interface BadgeRuleApprovalPolicyRow {
   id: string;
   tenantId: string;
@@ -80,6 +88,10 @@ const DEFAULT_BADGE_RULE_APPROVAL_POLICY_STEPS: readonly BadgeRuleApprovalPolicy
     label: "Administrative approval",
   },
 ] as const;
+
+const DEFAULT_ROLE_THRESHOLD_APPROVAL_LABEL = "Badge rule approval";
+const DEFAULT_USER_APPROVAL_LABEL = "Named approver review";
+const DEFAULT_APPROVER_GROUP_APPROVAL_LABEL = "Approver group review";
 
 export const tenantDefaultBadgeRuleApprovalPolicyId = (tenantId: string): string => {
   return `${tenantId}:badge-rule-approval-policy:default`;
@@ -204,6 +216,53 @@ const normalizeBadgeRuleApprovalPolicySteps = (
   }
 
   return steps.map(mapPolicyStepInputToRecord);
+};
+
+export const approvalPolicyStepsFromUpsertRequest = (
+  request: BadgeRuleApprovalPolicyStepUpsertRequest,
+): BadgeRuleApprovalPolicyStepInput[] => {
+  if (request.approvalRequirement === "never") {
+    return [];
+  }
+
+  const stepTargetType = request.stepTargetType ?? "role_threshold";
+
+  if (stepTargetType === "user") {
+    if (request.targetUserId === undefined) {
+      throw new Error("targetUserId is required for named user approval");
+    }
+
+    return [
+      {
+        targetType: "user",
+        targetUserId: request.targetUserId,
+        requiredRole: request.requiredRole ?? null,
+        label: DEFAULT_USER_APPROVAL_LABEL,
+      },
+    ];
+  }
+
+  if (stepTargetType === "approver_group") {
+    if (request.targetApproverGroupId === undefined) {
+      throw new Error("targetApproverGroupId is required for approver group approval");
+    }
+
+    return [
+      {
+        targetType: "approver_group",
+        targetApproverGroupId: request.targetApproverGroupId,
+        requiredRole: request.requiredRole ?? null,
+        label: DEFAULT_APPROVER_GROUP_APPROVAL_LABEL,
+      },
+    ];
+  }
+
+  return [
+    {
+      requiredRole: request.requiredRole ?? "admin",
+      label: DEFAULT_ROLE_THRESHOLD_APPROVAL_LABEL,
+    },
+  ];
 };
 
 const parseBadgeRuleApprovalPolicyStepsJson = (

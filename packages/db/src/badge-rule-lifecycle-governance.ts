@@ -41,13 +41,83 @@ const mapDueVersionRow = (
   orgUnitId: row.orgUnitId,
 });
 
-export const listBadgeIssuanceRuleVersionsDueForExpiry = async (
-  db: SqlDatabase,
-  input: {
-    readonly tenantId: string;
-    readonly nowIso: string;
+type DueVersionListKind =
+  | "expiry"
+  | "expiry_reminder"
+  | "recertification"
+  | "recertification_reminder";
+
+type DueTimestampColumn = "expires_at" | "recertification_due_at";
+type ReminderSentColumn = "expiry_reminder_sent_at" | "recertification_reminder_sent_at";
+
+interface DueVersionListPredicate {
+  readonly dueColumn: DueTimestampColumn;
+  readonly reminderSentColumn?: ReminderSentColumn | undefined;
+  readonly startsAfterNow: boolean;
+}
+
+const DUE_VERSION_LIST_PREDICATES: Record<DueVersionListKind, DueVersionListPredicate> = {
+  expiry: {
+    dueColumn: "expires_at",
+    startsAfterNow: false,
   },
+  expiry_reminder: {
+    dueColumn: "expires_at",
+    reminderSentColumn: "expiry_reminder_sent_at",
+    startsAfterNow: true,
+  },
+  recertification: {
+    dueColumn: "recertification_due_at",
+    startsAfterNow: false,
+  },
+  recertification_reminder: {
+    dueColumn: "recertification_due_at",
+    reminderSentColumn: "recertification_reminder_sent_at",
+    startsAfterNow: false,
+  },
+};
+
+type ListDueVersionsInput =
+  | {
+      readonly tenantId: string;
+      readonly nowIso: string;
+      readonly kind: "expiry" | "recertification";
+    }
+  | {
+      readonly tenantId: string;
+      readonly nowIso: string;
+      readonly kind: "expiry_reminder" | "recertification_reminder";
+      readonly reminderWindowDays: number;
+    };
+
+const listDueVersions = async (
+  db: SqlDatabase,
+  input: ListDueVersionsInput,
 ): Promise<BadgeRuleLifecycleDueVersionRecord[]> => {
+  const predicate = DUE_VERSION_LIST_PREDICATES[input.kind];
+  const whereClauses = [
+    "versions.tenant_id = ?",
+    "versions.status = 'active'",
+    `versions.${predicate.dueColumn} IS NOT NULL`,
+  ];
+  const bindings: string[] = [input.tenantId];
+
+  if (predicate.startsAfterNow) {
+    whereClauses.push(`versions.${predicate.dueColumn} > ?`);
+    bindings.push(input.nowIso);
+  }
+
+  whereClauses.push(`versions.${predicate.dueColumn} <= ?`);
+  bindings.push(
+    "reminderWindowDays" in input
+      ? addDaysToIso(input.nowIso, input.reminderWindowDays)
+      : input.nowIso,
+  );
+
+  if (predicate.reminderSentColumn !== undefined) {
+    whereClauses.push(`versions.${predicate.reminderSentColumn} IS NULL`);
+  }
+
   const result = await db
     .prepare(
       `
@@ -61,17 +131,28 @@ export const listBadgeIssuanceRuleVersionsDueForExpiry = async (
       INNER JOIN badge_issuance_rules AS rules
         ON rules.tenant_id = versions.tenant_id
         AND rules.id = versions.rule_id
-      WHERE versions.tenant_id = ?
-        AND versions.status = 'active'
-        AND versions.expires_at IS NOT NULL
-        AND versions.expires_at <= ?
-      ORDER BY versions.expires_at ASC
+      WHERE ${whereClauses.join("\n        AND ")}
+      ORDER BY versions.${predicate.dueColumn} ASC
     `,
     )
-    .bind(input.tenantId, input.nowIso)
+    .bind(...bindings)
     .all<BadgeRuleLifecycleDueVersionRow>();
 
   return result.results.map(mapDueVersionRow);
+};
+
+export const listBadgeIssuanceRuleVersionsDueForExpiry = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly nowIso: string;
+  },
+): Promise<BadgeRuleLifecycleDueVersionRecord[]> => {
+  return listDueVersions(db, {
+    tenantId: input.tenantId,
+    nowIso: input.nowIso,
+    kind: "expiry",
+  });
 };
 
 export const listBadgeIssuanceRuleVersionsDueForExpiryReminder = async (
@@ -82,33 +163,12 @@ export const listBadgeIssuanceRuleVersionsDueForExpiryReminder = async (
     readonly reminderWindowDays: number;
   },
 ): Promise<BadgeRuleLifecycleDueVersionRecord[]> => {
-  const reminderCutoffIso = addDaysToIso(input.nowIso, input.reminderWindowDays);
-  const result = await db
-    .prepare(
-      `
-      SELECT
-        ${badgeIssuanceRuleVersionSelectColumns("versions")},
-        rules.badge_template_id AS badgeTemplateId,
-        rules.lms_provider_kind AS lmsProviderKind,
-        rules.lms_connection_id AS lmsConnectionId,
-        rules.org_unit_id AS orgUnitId
-      FROM badge_issuance_rule_versions AS versions
-      INNER JOIN badge_issuance_rules AS rules
-        ON rules.tenant_id = versions.tenant_id
-        AND rules.id = versions.rule_id
-      WHERE versions.tenant_id = ?
-        AND versions.status = 'active'
-        AND versions.expires_at IS NOT NULL
-        AND versions.expires_at > ?
-        AND versions.expires_at <= ?
-        AND versions.expiry_reminder_sent_at IS NULL
-      ORDER BY versions.expires_at ASC
-    `,
-    )
-    .bind(input.tenantId, input.nowIso, reminderCutoffIso)
-    .all<BadgeRuleLifecycleDueVersionRow>();
-
-  return result.results.map(mapDueVersionRow);
+  return listDueVersions(db, {
+    tenantId: input.tenantId,
+    nowIso: input.nowIso,
+    kind: "expiry_reminder",
+    reminderWindowDays: input.reminderWindowDays,
+  });
 };
 
 export const listBadgeIssuanceRuleVersionsDueForRecertification = async (
@@ -118,30 +178,11 @@ export const listBadgeIssuanceRuleVersionsDueForRecertification = async (
     readonly nowIso: string;
   },
 ): Promise<BadgeRuleLifecycleDueVersionRecord[]> => {
-  const result = await db
-    .prepare(
-      `
-      SELECT
-        ${badgeIssuanceRuleVersionSelectColumns("versions")},
-        rules.badge_template_id AS badgeTemplateId,
-        rules.lms_provider_kind AS lmsProviderKind,
-        rules.lms_connection_id AS lmsConnectionId,
-        rules.org_unit_id AS orgUnitId
-      FROM badge_issuance_rule_versions AS versions
-      INNER JOIN badge_issuance_rules AS rules
-        ON rules.tenant_id = versions.tenant_id
-        AND rules.id = versions.rule_id
-      WHERE versions.tenant_id = ?
-        AND versions.status = 'active'
-        AND versions.recertification_due_at IS NOT NULL
-        AND versions.recertification_due_at <= ?
-      ORDER BY versions.recertification_due_at ASC
-    `,
-    )
-    .bind(input.tenantId, input.nowIso)
-    .all<BadgeRuleLifecycleDueVersionRow>();
-
-  return result.results.map(mapDueVersionRow);
+  return listDueVersions(db, {
+    tenantId: input.tenantId,
+    nowIso: input.nowIso,
+    kind: "recertification",
+  });
 };
 
 export const listBadgeIssuanceRuleVersionsDueForRecertificationReminder = async (
@@ -152,32 +193,12 @@ export const listBadgeIssuanceRuleVersionsDueForRecertificationReminder = async 
     readonly reminderWindowDays: number;
   },
 ): Promise<BadgeRuleLifecycleDueVersionRecord[]> => {
-  const reminderCutoffIso = addDaysToIso(input.nowIso, input.reminderWindowDays);
-  const result = await db
-    .prepare(
-      `
-      SELECT
-        ${badgeIssuanceRuleVersionSelectColumns("versions")},
-        rules.badge_template_id AS badgeTemplateId,
-        rules.lms_provider_kind AS lmsProviderKind,
-        rules.lms_connection_id AS lmsConnectionId,
-        rules.org_unit_id AS orgUnitId
-      FROM badge_issuance_rule_versions AS versions
-      INNER JOIN badge_issuance_rules AS rules
-        ON rules.tenant_id = versions.tenant_id
-        AND rules.id = versions.rule_id
-      WHERE versions.tenant_id = ?
-        AND versions.status = 'active'
-        AND versions.recertification_due_at IS NOT NULL
-        AND versions.recertification_due_at <= ?
-        AND versions.recertification_reminder_sent_at IS NULL
-      ORDER BY versions.recertification_due_at ASC
-    `,
-    )
-    .bind(input.tenantId, reminderCutoffIso)
-    .all<BadgeRuleLifecycleDueVersionRow>();
-
-  return result.results.map(mapDueVersionRow);
+  return listDueVersions(db, {
+    tenantId: input.tenantId,
+    nowIso: input.nowIso,
+    kind: "recertification_reminder",
+    reminderWindowDays: input.reminderWindowDays,
+  });
 };
 
 export const markBadgeIssuanceRuleVersionExpiryReminderSent = async (
