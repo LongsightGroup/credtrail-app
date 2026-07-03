@@ -22,7 +22,7 @@ FROM deps AS deploy
 COPY apps ./apps
 COPY packages ./packages
 
-RUN pnpm build:node-runtime
+RUN pnpm build:node-runtime:prod
 RUN pnpm --filter @credtrail/api-worker deploy --prod --legacy /prod
 RUN mkdir -p /prod/dist/node-runtime \
   && cp -R apps/api-worker/dist/node-runtime/. /prod/dist/node-runtime/

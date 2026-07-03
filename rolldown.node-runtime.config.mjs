@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const workspaceRoot = dirname(fileURLToPath(import.meta.url));
 const workspacePackageNames = readWorkspacePackageNames(workspaceRoot);
+const isProductionBuild = process.env.NODE_ENV === "production";
 
 const nodeBuiltins = new Set([
   ...builtinModules,
@@ -102,7 +103,7 @@ export default {
     dir: "apps/api-worker/dist/node-runtime",
     entryFileNames: "[name].js",
     format: "esm",
-    sourcemap: true,
+    sourcemap: !isProductionBuild,
   },
   resolve: {
     conditionNames: ["node", "import", "default"],
