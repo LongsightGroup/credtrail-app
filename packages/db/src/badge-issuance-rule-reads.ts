@@ -540,7 +540,7 @@ export const listPendingBadgeIssuanceRuleApprovalsForActor = async (
           rules.id AS ruleId,
           rules.name AS ruleName,
           rules.badge_template_id AS badgeTemplateId,
-          templates.name AS badgeTemplateName,
+          templates.title AS badgeTemplateName,
           rules.org_unit_id AS orgUnitIdForRule,
           org_units.display_name AS orgUnitDisplayName,
           versions.version_number AS versionNumber,
