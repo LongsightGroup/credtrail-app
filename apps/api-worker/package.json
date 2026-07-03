@@ -6,6 +6,10 @@
   "engines": {
     "node": ">=24"
   },
+  "scripts": {
+    "build:node-runtime": "rolldown -c rolldown.node-runtime.config.mjs",
+    "build:node-runtime:prod": "NODE_ENV=production rolldown -c rolldown.node-runtime.config.mjs"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1055.0",
     "@aws-sdk/client-sesv2": "^3.1055.0",

@@ -8,8 +8,9 @@ RUN corepack enable
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY tsconfig.json vitest.config.ts .oxlintrc.json rolldown.node-runtime.config.mjs ./
+COPY tsconfig.json vitest.config.ts .oxlintrc.json ./
 COPY apps/api-worker/package.json ./apps/api-worker/package.json
+COPY apps/api-worker/rolldown.node-runtime.config.mjs ./apps/api-worker/rolldown.node-runtime.config.mjs
 COPY packages/core-domain/package.json ./packages/core-domain/package.json
 COPY packages/db/package.json ./packages/db/package.json
 COPY packages/ui-components/package.json ./packages/ui-components/package.json
@@ -22,7 +23,7 @@ FROM deps AS deploy
 COPY apps ./apps
 COPY packages ./packages
 
-RUN pnpm build:node-runtime:prod
+RUN pnpm --filter @credtrail/api-worker build:node-runtime:prod
 RUN pnpm --filter @credtrail/api-worker deploy --prod --legacy /prod
 RUN mkdir -p /prod/dist/node-runtime \
   && cp -R apps/api-worker/dist/node-runtime/. /prod/dist/node-runtime/

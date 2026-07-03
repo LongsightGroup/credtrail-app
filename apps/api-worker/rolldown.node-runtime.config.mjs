@@ -3,8 +3,9 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const workspaceRoot = dirname(fileURLToPath(import.meta.url));
-const workspacePackageNames = readWorkspacePackageNames(workspaceRoot);
+const apiWorkerRoot = dirname(fileURLToPath(import.meta.url));
+const repoRoot = join(apiWorkerRoot, "../..");
+const workspacePackageNames = readWorkspacePackageNames(repoRoot);
 const isProductionBuild = process.env.NODE_ENV === "production";
 
 const nodeBuiltins = new Set([
@@ -94,13 +95,13 @@ function isExternalImport(importId) {
 
 export default {
   input: {
-    "node-server-runtime": "apps/api-worker/src/node-server.ts",
-    "node-worker-runtime": "apps/api-worker/src/node-worker.ts",
+    "node-server-runtime": "src/node-server.ts",
+    "node-worker-runtime": "src/node-worker.ts",
   },
   external: isExternalImport,
   platform: "node",
   output: {
-    dir: "apps/api-worker/dist/node-runtime",
+    dir: "dist/node-runtime",
     entryFileNames: "[name].js",
     format: "esm",
     sourcemap: !isProductionBuild,
@@ -109,5 +110,5 @@ export default {
     conditionNames: ["node", "import", "default"],
     mainFields: ["module", "main"],
   },
-  tsconfig: "./tsconfig.json",
+  tsconfig: "../../tsconfig.json",
 };
