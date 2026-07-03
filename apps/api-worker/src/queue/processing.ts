@@ -11,6 +11,8 @@ import {
   parseQueueJob,
   type GenerateBadgeTemplateImageQueueJob,
   type IssueBadgeQueueJob,
+  type ProcessBadgeRuleLifecycleQueueJob,
+  type ProcessEndOfTermBadgeRuleQueueJob,
   type ProcessQueueRequest,
   type QueueJob,
 } from "@credtrail/validation";
@@ -110,6 +112,16 @@ interface ProcessQueuedJobsDependencies<TBindings, TContext extends { env: TBind
     tenantId: string,
     payload: GenerateBadgeTemplateImageQueueJob["payload"],
   ) => Promise<void>;
+  processBadgeRuleLifecycleJob: (
+    context: TContext,
+    tenantId: string,
+    payload: ProcessBadgeRuleLifecycleQueueJob["payload"],
+  ) => Promise<void>;
+  processEndOfTermBadgeRuleJob: (
+    context: TContext,
+    tenantId: string,
+    payload: ProcessEndOfTermBadgeRuleQueueJob["payload"],
+  ) => Promise<void>;
 }
 
 const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
@@ -197,6 +209,12 @@ const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
       return;
     case "generate_badge_template_image":
       await dependencies.processBadgeTemplateImageGenerationJob(c, job.tenantId, job.payload);
+      return;
+    case "process_badge_rule_lifecycle":
+      await dependencies.processBadgeRuleLifecycleJob(c, job.tenantId, job.payload);
+      return;
+    case "process_end_of_term_badge_rule":
+      await dependencies.processEndOfTermBadgeRuleJob(c, job.tenantId, job.payload);
       return;
   }
 };

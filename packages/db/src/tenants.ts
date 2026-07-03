@@ -154,3 +154,27 @@ export const findTenantById = async (
 
   return row === null ? null : mapTenantRow(row);
 };
+
+export const listActiveTenants = async (db: SqlDatabase): Promise<TenantRecord[]> => {
+  const result = await db
+    .prepare(
+      `
+      SELECT
+        id,
+        slug,
+        display_name AS displayName,
+        plan_tier AS planTier,
+        issuer_domain AS issuerDomain,
+        did_web AS didWeb,
+        is_active AS isActive,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM tenants
+      WHERE is_active = TRUE
+      ORDER BY created_at ASC, id ASC
+    `,
+    )
+    .all<TenantRow>();
+
+  return result.results.map(mapTenantRow);
+};

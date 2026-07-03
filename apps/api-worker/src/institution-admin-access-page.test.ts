@@ -240,6 +240,7 @@ describe("POST /tenants/:tenantId/admin/access/governance/rule-approval-policy",
       orgUnitId: null,
       approvalRequirement: "always",
       allowSelfCertification: false,
+      recertificationIntervalMonths: null,
       approvalSteps: [
         {
           requiredRole: "owner",

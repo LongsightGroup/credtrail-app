@@ -18,6 +18,8 @@ export const queueJobTypeSchema = z.enum([
   "import_migration_batch",
   "import_learner_record_batch",
   "generate_badge_template_image",
+  "process_badge_rule_lifecycle",
+  "process_end_of_term_badge_rule",
 ]);
 
 export const idempotencyKeySchema = z.string().min(1).max(128);

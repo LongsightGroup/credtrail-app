@@ -1,4 +1,4 @@
-import { createPrefixedId } from "./shared-helpers";
+import { addMonthsToIso, createPrefixedId } from "./shared-helpers";
 import { runSqlTransaction, type SqlDatabase, type SqlRunResult } from "./tenant-scope";
 import type { TenantMembershipRole } from "./tenant-memberships";
 import {
@@ -530,10 +530,27 @@ export const activateBadgeIssuanceRuleVersion = async (
   input: ActivateBadgeIssuanceRuleVersionInput,
 ): Promise<BadgeIssuanceRuleVersionRecord | null> => {
   const activatedAt = input.activatedAt ?? new Date().toISOString();
-  const deprecateExistingStatement = (): Promise<SqlRunResult> =>
-    db
-      .prepare(
-        `
+  const effectiveStartsAt = input.effectiveStartsAt ?? activatedAt;
+
+  return runSqlTransaction(db, async (transactionDb) => {
+    const rule = await findBadgeIssuanceRuleById(transactionDb, input.tenantId, input.ruleId);
+
+    if (rule === null) {
+      return null;
+    }
+
+    const policy = await resolveBadgeRuleApprovalPolicy(transactionDb, {
+      tenantId: input.tenantId,
+      orgUnitId: rule.orgUnitId,
+    });
+    const recertificationDueAt =
+      policy.recertificationIntervalMonths === null
+        ? null
+        : addMonthsToIso(activatedAt, policy.recertificationIntervalMonths);
+    const deprecateExistingStatement = (): Promise<SqlRunResult> =>
+      transactionDb
+        .prepare(
+          `
         UPDATE badge_issuance_rule_versions
         SET
           status = 'deprecated',
@@ -543,37 +560,50 @@ export const activateBadgeIssuanceRuleVersion = async (
           AND status = 'active'
           AND id <> ?
       `,
-      )
-      .bind(activatedAt, input.tenantId, input.ruleId, input.versionId)
-      .run();
-  const activateStatement = (): Promise<SqlRunResult> =>
-    db
-      .prepare(
-        `
+        )
+        .bind(activatedAt, input.tenantId, input.ruleId, input.versionId)
+        .run();
+    const activateStatement = (): Promise<SqlRunResult> =>
+      transactionDb
+        .prepare(
+          `
         UPDATE badge_issuance_rule_versions
         SET
           status = 'active',
           activated_by_user_id = ?,
           activated_at = ?,
+          effective_starts_at = ?,
+          expires_at = ?,
+          expired_at = NULL,
+          suspended_at = NULL,
+          suspended_by_user_id = NULL,
+          suspension_reason = NULL,
+          recertification_due_at = ?,
+          expiry_reminder_sent_at = NULL,
+          recertification_reminder_sent_at = NULL,
           updated_at = ?
         WHERE tenant_id = ?
           AND rule_id = ?
           AND id = ?
+          AND status = 'approved'
       `,
-      )
-      .bind(
-        input.actorUserId,
-        activatedAt,
-        activatedAt,
-        input.tenantId,
-        input.ruleId,
-        input.versionId,
-      )
-      .run();
-  const updateRuleActiveVersionStatement = (): Promise<SqlRunResult> =>
-    db
-      .prepare(
-        `
+        )
+        .bind(
+          input.actorUserId,
+          activatedAt,
+          effectiveStartsAt,
+          input.expiresAt ?? null,
+          recertificationDueAt,
+          activatedAt,
+          input.tenantId,
+          input.ruleId,
+          input.versionId,
+        )
+        .run();
+    const updateRuleActiveVersionStatement = (): Promise<SqlRunResult> =>
+      transactionDb
+        .prepare(
+          `
         UPDATE badge_issuance_rules
         SET
           active_version_id = ?,
@@ -581,23 +611,25 @@ export const activateBadgeIssuanceRuleVersion = async (
         WHERE tenant_id = ?
           AND id = ?
       `,
-      )
-      .bind(input.versionId, activatedAt, input.tenantId, input.ruleId)
-      .run();
+        )
+        .bind(input.versionId, activatedAt, input.tenantId, input.ruleId)
+        .run();
 
-  let activated: SqlRunResult;
+    let activated: SqlRunResult;
 
-  await deprecateExistingStatement();
-  activated = await activateStatement();
-  await updateRuleActiveVersionStatement();
+    await deprecateExistingStatement();
+    activated = await activateStatement();
 
-  if ((activated.meta.rowsWritten ?? 0) === 0) {
-    return null;
-  }
+    if ((activated.meta.rowsWritten ?? 0) === 0) {
+      return null;
+    }
 
-  return findBadgeIssuanceRuleVersionById(db, {
-    tenantId: input.tenantId,
-    ruleId: input.ruleId,
-    versionId: input.versionId,
+    await updateRuleActiveVersionStatement();
+
+    return findBadgeIssuanceRuleVersionById(transactionDb, {
+      tenantId: input.tenantId,
+      ruleId: input.ruleId,
+      versionId: input.versionId,
+    });
   });
 };

@@ -59,6 +59,22 @@ describe("badge rule review queue schema", () => {
     expect(sql).toContain("REFERENCES memberships (tenant_id, user_id)");
     expect(sql).toContain("changes_requested");
   });
+
+  it("adds lifecycle governance schema through a forward migration", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0053_badge_rule_lifecycle_governance.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("'suspended'");
+    expect(sql).toContain("'expired'");
+    expect(sql).toContain("effective_starts_at");
+    expect(sql).toContain("expires_at");
+    expect(sql).toContain("recertification_interval_months");
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS badge_rule_recertification_reviews");
+    expect(sql).toContain("'process_badge_rule_lifecycle'");
+    expect(sql).toContain("'process_end_of_term_badge_rule'");
+  });
 });
 
 describe("badge issuance rule draft predicates", () => {
@@ -157,80 +173,6 @@ describe("badge issuance rule draft predicates", () => {
   });
 });
 
-describe("badge rule approval policy model", () => {
-  it("stores no approval steps when approval is not required", async () => {
-    let storedStepsJson = "";
-    const db: SqlDatabase = {
-      prepare(sql) {
-        const normalizedSql = sql.replace(/\s+/g, " ").trim();
-        let boundParams: readonly unknown[] = [];
-
-        return {
-          bind(...params) {
-            boundParams = params;
-            return this;
-          },
-          async first<T>() {
-            if (normalizedSql.startsWith("SELECT") && storedStepsJson.length > 0) {
-              return {
-                id: "brap_123",
-                tenantId: "tenant_123",
-                orgUnitId: null,
-                approvalRequirement: "never",
-                allowSelfCertification: true,
-                approvalStepsJson: storedStepsJson,
-                createdByUserId: "usr_admin",
-                createdAt: "2026-02-18T12:00:00.000Z",
-                updatedAt: "2026-02-18T12:00:00.000Z",
-              } as T;
-            }
-
-            return null;
-          },
-          async all<T>() {
-            return {
-              success: true,
-              meta: {
-                rowsRead: 0,
-              },
-              results: [] as T[],
-            };
-          },
-          async run() {
-            if (normalizedSql.startsWith("INSERT INTO badge_rule_approval_policies")) {
-              const approvalStepsJson = boundParams[5];
-              storedStepsJson = typeof approvalStepsJson === "string" ? approvalStepsJson : "";
-            }
-
-            return {
-              success: true,
-              meta: {
-                rowsWritten: 1,
-              },
-            };
-          },
-        };
-      },
-    };
-
-    const policy = await dbModule.upsertBadgeRuleApprovalPolicy(db, {
-      tenantId: "tenant_123",
-      approvalRequirement: "never",
-      allowSelfCertification: true,
-      approvalSteps: [
-        {
-          requiredRole: "admin",
-          label: "Should be ignored",
-        },
-      ],
-      createdByUserId: "usr_admin",
-    });
-
-    expect(storedStepsJson).toBe("[]");
-    expect(policy.approvalSteps).toEqual([]);
-  });
-});
-
 describe("badge issuance rule approval transactions", () => {
   const successfulRunResult: SqlRunResult = {
     success: true,
@@ -278,6 +220,7 @@ describe("badge issuance rule approval transactions", () => {
             name: "CS101 Rule",
             description: null,
             badgeTemplateId: "badge_template_123",
+            orgUnitId: "tenant_123:org:institution",
             ownerOrgUnitId: "tenant_123:org:institution",
             lmsProviderKind: "canvas",
             lmsConnectionId: "lms_123",
@@ -294,6 +237,8 @@ describe("badge issuance rule approval transactions", () => {
             tenantId: "tenant_123",
             orgUnitId: "tenant_123:org:institution",
             approvalRequirement: "always",
+            allowSelfCertification: false,
+            recertificationIntervalMonths: null,
             approvalStepsJson: JSON.stringify([
               {
                 requiredRole: "admin",

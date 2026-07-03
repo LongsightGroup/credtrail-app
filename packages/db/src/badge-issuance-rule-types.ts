@@ -12,6 +12,8 @@ export type BadgeIssuanceRuleVersionStatus =
   | "pending_approval"
   | "approved"
   | "active"
+  | "suspended"
+  | "expired"
   | "rejected"
   | "deprecated";
 
@@ -88,6 +90,16 @@ export interface BadgeIssuanceRuleVersionRecord {
   approvedAt: string | null;
   activatedByUserId: string | null;
   activatedAt: string | null;
+  effectiveStartsAt?: string | null | undefined;
+  expiresAt?: string | null | undefined;
+  expiredAt?: string | null | undefined;
+  suspendedAt?: string | null | undefined;
+  suspendedByUserId?: string | null | undefined;
+  suspensionReason?: string | null | undefined;
+  recertifiedAt?: string | null | undefined;
+  recertificationDueAt?: string | null | undefined;
+  expiryReminderSentAt?: string | null | undefined;
+  recertificationReminderSentAt?: string | null | undefined;
   createdAt: string;
   updatedAt: string;
 }
@@ -194,6 +206,43 @@ export interface DecideBadgeIssuanceRuleVersionInput {
   actorUserId: string;
   actorRole: TenantMembershipRole;
   comment?: string | undefined;
+  occurredAt?: string | undefined;
+}
+
+export interface ActivateBadgeIssuanceRuleVersionInput {
+  tenantId: string;
+  ruleId: string;
+  versionId: string;
+  actorUserId: string;
+  effectiveStartsAt?: string | undefined;
+  expiresAt?: string | undefined;
+  activatedAt?: string | undefined;
+}
+
+export interface SuspendBadgeIssuanceRuleVersionInput {
+  tenantId: string;
+  ruleId: string;
+  versionId: string;
+  actorUserId: string;
+  reason: string;
+  occurredAt?: string | undefined;
+}
+
+export interface ResumeBadgeIssuanceRuleVersionInput {
+  tenantId: string;
+  ruleId: string;
+  versionId: string;
+  actorUserId: string;
+  occurredAt?: string | undefined;
+}
+
+export interface UpdateBadgeIssuanceRuleVersionLifecycleInput {
+  tenantId: string;
+  ruleId: string;
+  versionId: string;
+  actorUserId: string;
+  effectiveStartsAt?: string | undefined;
+  expiresAt?: string | undefined;
   occurredAt?: string | undefined;
 }
 

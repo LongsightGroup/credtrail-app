@@ -16,22 +16,28 @@ const ruleApprovalPolicyRoleLabel = (role: TenantMembershipRole): string => {
 export const describeBadgeRuleApprovalSummary = (
   policy: BadgeRuleApprovalPolicyRecord | null,
 ): string => {
+  const recertificationSummary =
+    policy?.recertificationIntervalMonths === null ||
+    policy?.recertificationIntervalMonths === undefined
+      ? ""
+      : ` Recertification every ${String(policy.recertificationIntervalMonths)} months.`;
+
   if (policy === null || policy.approvalRequirement !== "never") {
     const firstStep = policy?.approvalSteps[0] ?? null;
 
     if (firstStep !== null && firstStep.targetType !== "role_threshold") {
-      return "Submitted badge rule versions require named approver review.";
+      return `Submitted badge rule versions require named approver review.${recertificationSummary}`;
     }
 
     const requiredRole = firstStep?.requiredRole ?? "admin";
     return `Submitted badge rule versions require ${ruleApprovalPolicyRoleLabel(
       requiredRole,
-    ).toLowerCase()} approval.`;
+    ).toLowerCase()} approval.${recertificationSummary}`;
   }
 
   if (policy.allowSelfCertification) {
-    return "Submitted badge rule versions are approved automatically.";
+    return `Submitted badge rule versions are approved automatically.${recertificationSummary}`;
   }
 
-  return "Automatic approval is disabled until self-certification is explicitly allowed.";
+  return `Automatic approval is disabled until self-certification is explicitly allowed.${recertificationSummary}`;
 };

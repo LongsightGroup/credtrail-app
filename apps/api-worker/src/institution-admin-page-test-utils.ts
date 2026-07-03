@@ -851,6 +851,7 @@ beforeEach(() => {
     orgUnitId: null,
     approvalRequirement: "always",
     allowSelfCertification: false,
+    recertificationIntervalMonths: null,
     approvalSteps: [
       {
         targetType: "role_threshold",
@@ -872,6 +873,7 @@ beforeEach(() => {
     orgUnitId: null,
     approvalRequirement: "always",
     allowSelfCertification: false,
+    recertificationIntervalMonths: null,
     approvalSteps: [
       {
         targetType: "role_threshold",
@@ -895,6 +897,7 @@ beforeEach(() => {
     orgUnitId: null,
     approvalRequirement: "always",
     allowSelfCertification: false,
+    recertificationIntervalMonths: null,
     approvalSteps: [
       {
         targetType: "role_threshold",

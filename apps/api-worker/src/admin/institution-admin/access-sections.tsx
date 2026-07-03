@@ -119,6 +119,8 @@ export const renderInstitutionAdminAccessSections = (
     firstBadgeRuleApprovalStep?.targetType === "role_threshold"
       ? firstBadgeRuleApprovalStep.requiredRole
       : "admin";
+  const recertificationIntervalMonths =
+    badgeRuleApprovalPolicy?.recertificationIntervalMonths ?? null;
   const badgeRuleApprovalSummary = describeBadgeRuleApprovalSummary(badgeRuleApprovalPolicy);
 
   const apiKeyPanelMarkup = (
@@ -347,6 +349,24 @@ export const renderInstitutionAdminAccessSections = (
           <p class="ct-admin__hint">
             Reviewer role is used when approval is required. Rule authors cannot edit this policy
             from Rule Builder.
+          </p>
+          <AdminField label="Recertification cadence">
+            <CtInput
+              name="recertificationIntervalMonths"
+              type="number"
+              min="1"
+              max="120"
+              step="1"
+              value={
+                recertificationIntervalMonths === null
+                  ? undefined
+                  : String(recertificationIntervalMonths)
+              }
+              placeholder="No periodic review"
+            />
+          </AdminField>
+          <p class="ct-admin__hint">
+            Leave blank if active rules do not need scheduled re-approval.
           </p>
           <AdminButton type="submit">Save approval policy</AdminButton>
         </AdminForm>

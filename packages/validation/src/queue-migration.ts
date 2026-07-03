@@ -203,6 +203,31 @@ export const generateBadgeTemplateImageQueueJobSchema = z.object({
   idempotencyKey: idempotencyKeySchema,
 });
 
+export const processBadgeRuleLifecycleJobPayloadSchema = z.object({
+  scheduledFor: isoTimestampSchema,
+});
+
+export const processBadgeRuleLifecycleQueueJobSchema = z.object({
+  jobType: z.literal("process_badge_rule_lifecycle"),
+  tenantId: tenantIdSchema,
+  payload: processBadgeRuleLifecycleJobPayloadSchema,
+  idempotencyKey: idempotencyKeySchema,
+});
+
+export const processEndOfTermBadgeRuleJobPayloadSchema = z.object({
+  ruleId: resourceIdSchema,
+  versionId: resourceIdSchema,
+  badgeTemplateId: resourceIdSchema,
+  scheduledFor: isoTimestampSchema,
+});
+
+export const processEndOfTermBadgeRuleQueueJobSchema = z.object({
+  jobType: z.literal("process_end_of_term_badge_rule"),
+  tenantId: tenantIdSchema,
+  payload: processEndOfTermBadgeRuleJobPayloadSchema,
+  idempotencyKey: idempotencyKeySchema,
+});
+
 export const queueJobSchema = z.discriminatedUnion("jobType", [
   issueBadgeQueueJobSchema,
   revokeBadgeQueueJobSchema,
@@ -210,6 +235,8 @@ export const queueJobSchema = z.discriminatedUnion("jobType", [
   importMigrationBatchQueueJobSchema,
   learnerRecordImportBatchQueueJobSchema,
   generateBadgeTemplateImageQueueJobSchema,
+  processBadgeRuleLifecycleQueueJobSchema,
+  processEndOfTermBadgeRuleQueueJobSchema,
 ]);
 
 export const queueEnvelopeSchema = z.object({
@@ -249,6 +276,14 @@ export type LearnerRecordImportBatchQueueJob = z.infer<
 
 export type GenerateBadgeTemplateImageQueueJob = z.infer<
   typeof generateBadgeTemplateImageQueueJobSchema
+>;
+
+export type ProcessBadgeRuleLifecycleQueueJob = z.infer<
+  typeof processBadgeRuleLifecycleQueueJobSchema
+>;
+
+export type ProcessEndOfTermBadgeRuleQueueJob = z.infer<
+  typeof processEndOfTermBadgeRuleQueueJobSchema
 >;
 
 export const parseQueueJob = (input: unknown): QueueJob => {

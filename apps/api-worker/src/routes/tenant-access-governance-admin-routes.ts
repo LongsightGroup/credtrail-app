@@ -156,6 +156,14 @@ export const registerTenantAccessGovernanceAdminRoutes = (
     const formData = await c.req.formData();
     const approvalRequirement = readOptionalFormField(formData, "approvalRequirement");
     const requiredRole = readOptionalFormField(formData, "requiredRole");
+    const recertificationIntervalMonthsRaw = readOptionalFormField(
+      formData,
+      "recertificationIntervalMonths",
+    );
+    const recertificationIntervalMonths =
+      recertificationIntervalMonthsRaw === undefined
+        ? null
+        : Number.parseInt(recertificationIntervalMonthsRaw, 10);
     const allowSelfCertification = approvalRequirement === "never" ? true : undefined;
 
     let request: ReturnType<typeof parseUpsertBadgeRuleApprovalPolicyRequest>;
@@ -164,6 +172,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
       request = parseUpsertBadgeRuleApprovalPolicyRequest({
         approvalRequirement,
         ...(requiredRole === undefined ? {} : { requiredRole }),
+        recertificationIntervalMonths,
         ...(allowSelfCertification === undefined ? {} : { allowSelfCertification }),
       });
     } catch {
@@ -193,6 +202,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
         approvalRequirement: request.approvalRequirement,
         allowSelfCertification:
           request.approvalRequirement === "never" ? request.allowSelfCertification : false,
+        recertificationIntervalMonths: request.recertificationIntervalMonths ?? null,
         approvalSteps,
         createdByUserId: session.userId,
       });
@@ -208,6 +218,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
           orgUnitId: null,
           approvalRequirement: policy.approvalRequirement,
           allowSelfCertification: policy.allowSelfCertification,
+          recertificationIntervalMonths: policy.recertificationIntervalMonths,
           approvalSteps: policy.approvalSteps,
         },
       });

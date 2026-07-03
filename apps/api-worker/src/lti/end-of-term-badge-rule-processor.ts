@@ -5,74 +5,51 @@ import {
   listActiveLtiLaunchSessionsForPlatform,
   type SqlDatabase,
 } from "@credtrail/db";
+import type { ProcessEndOfTermBadgeRuleQueueJob } from "@credtrail/validation";
 import type { AppBindings } from "../app";
 import {
   resolveBadgeIssuanceRuleDefinitionValueLists,
   resolveRuleDefinition,
 } from "../rules/badge-rule-definition-resolver";
 import { createCredTrailLtiTool } from "./credtrail-lti-tool";
+import { enqueueEligibleLtiRosterIssuanceJobs } from "./enqueue-eligible-roster-issuance-jobs";
 import { ltiRosterIssuanceBehaviorFromRuleDefinition } from "./issuance-behavior";
 import { loadLtiNrpsRoster } from "./nrps";
-import {
-  evaluateLtiRosterMembersEligibility,
-  type LtiRosterEligibilityPreparedEvaluation,
-} from "./roster-eligibility";
-import { ltiRosterIssuedBadgeStatesByUserId } from "./roster-issuance-helpers";
 import { matchingPlacementSession } from "./placement-session";
 
-export type BadgeRuleImpactPreview =
-  | {
-      readonly status: "not_requested";
-    }
-  | {
-      readonly status: "ready";
-      readonly eligibleNowCount: number;
-      readonly evaluatedLearnerCount: number;
-      readonly courseContextId: string | null;
-      readonly courseTitle: string | null;
-      readonly generatedAt: string;
-    }
-  | {
-      readonly status: "unavailable";
-      readonly reason: string;
-      readonly generatedAt: string;
-    };
+export interface ProcessEndOfTermBadgeRuleResult {
+  readonly status: "processed" | "unavailable";
+  readonly evaluatedLearnerCount: number;
+  readonly issueJobsEnqueued: number;
+  readonly reason?: string | undefined;
+}
 
-export const previewBadgeRuleVersionImpact = async (input: {
+export const processEndOfTermBadgeRule = async (input: {
   readonly db: SqlDatabase;
   readonly env: AppBindings;
   readonly tenantId: string;
-  readonly ruleId: string;
-  readonly versionId: string;
-  readonly nowIso: string;
+  readonly payload: ProcessEndOfTermBadgeRuleQueueJob["payload"];
   readonly sha256Hex: (value: string) => Promise<string>;
-}): Promise<BadgeRuleImpactPreview> => {
+}): Promise<ProcessEndOfTermBadgeRuleResult> => {
   const [rule, version, placement] = await Promise.all([
-    findBadgeIssuanceRuleById(input.db, input.tenantId, input.ruleId),
+    findBadgeIssuanceRuleById(input.db, input.tenantId, input.payload.ruleId),
     findBadgeIssuanceRuleVersionById(input.db, {
       tenantId: input.tenantId,
-      ruleId: input.ruleId,
-      versionId: input.versionId,
+      ruleId: input.payload.ruleId,
+      versionId: input.payload.versionId,
     }),
     findLtiResourceLinkPlacementForRule(input.db, {
       tenantId: input.tenantId,
-      ruleId: input.ruleId,
+      ruleId: input.payload.ruleId,
     }),
   ]);
 
-  if (rule === null || version === null) {
+  if (rule === null || version === null || placement === null) {
     return {
       status: "unavailable",
-      reason: "Rule version was not found.",
-      generatedAt: input.nowIso,
-    };
-  }
-
-  if (placement === null) {
-    return {
-      status: "unavailable",
-      reason: "No LMS course placement is linked to this rule yet.",
-      generatedAt: input.nowIso,
+      evaluatedLearnerCount: 0,
+      issueJobsEnqueued: 0,
+      reason: "Rule, version, or LMS placement was not found.",
     };
   }
 
@@ -91,8 +68,9 @@ export const previewBadgeRuleVersionImpact = async (input: {
   if (ltiSession === null) {
     return {
       status: "unavailable",
+      evaluatedLearnerCount: 0,
+      issueJobsEnqueued: 0,
       reason: "No active LMS launch session is available for this course placement.",
-      generatedAt: input.nowIso,
     };
   }
 
@@ -110,8 +88,9 @@ export const previewBadgeRuleVersionImpact = async (input: {
   if (!rosterResult.success) {
     return {
       status: "unavailable",
+      evaluatedLearnerCount: 0,
+      issueJobsEnqueued: 0,
       reason: "CredTrail could not load the LMS roster for this course.",
-      generatedAt: input.nowIso,
     };
   }
 
@@ -120,16 +99,11 @@ export const previewBadgeRuleVersionImpact = async (input: {
     input.tenantId,
     resolveRuleDefinition(version.ruleJson),
   );
-  const prepared: LtiRosterEligibilityPreparedEvaluation = {
-    status: "ready",
-    lmsProviderKind: rule.lmsProviderKind,
-    lmsConnectionId: rule.lmsConnectionId,
-    definition,
-    issuanceBehavior: ltiRosterIssuanceBehaviorFromRuleDefinition(definition),
-  };
-  const issuedStatesByUserId = await ltiRosterIssuedBadgeStatesByUserId({
+  const { issueJobsEnqueued } = await enqueueEligibleLtiRosterIssuanceJobs({
     db: input.db,
-    sha256Hex: input.sha256Hex,
+    tenantId: input.tenantId,
+    ruleId: input.payload.ruleId,
+    badgeTemplateId: rule.badgeTemplateId,
     action: {
       tenantId: input.tenantId,
       issuer: placement.issuer,
@@ -140,28 +114,20 @@ export const previewBadgeRuleVersionImpact = async (input: {
       badgeTemplateId: rule.badgeTemplateId,
     },
     learnerMembers: rosterResult.roster.learnerMembers,
-  });
-  const eligibilityByUserId = await evaluateLtiRosterMembersEligibility({
-    db: input.db,
-    tenantId: input.tenantId,
-    ruleResolution: {
-      status: "resolved",
-      ruleId: input.ruleId,
+    prepared: {
+      status: "ready",
+      lmsProviderKind: rule.lmsProviderKind,
+      lmsConnectionId: rule.lmsConnectionId,
+      definition,
+      issuanceBehavior: ltiRosterIssuanceBehaviorFromRuleDefinition(definition),
     },
-    members: rosterResult.roster.learnerMembers,
-    issuedStatesByUserId,
-    nowIso: input.nowIso,
-    prepared,
+    nowIso: input.payload.scheduledFor,
+    sha256Hex: input.sha256Hex,
   });
-  const eligibilityResults = Array.from(eligibilityByUserId.values());
 
   return {
-    status: "ready",
-    eligibleNowCount: eligibilityResults.filter((eligibility) => eligibility.eligibleForIssuance)
-      .length,
+    status: "processed",
     evaluatedLearnerCount: rosterResult.roster.learnerMembers.length,
-    courseContextId: ltiSession.context.id,
-    courseTitle: ltiSession.context.title.trim().length === 0 ? null : ltiSession.context.title,
-    generatedAt: input.nowIso,
+    issueJobsEnqueued,
   };
 };

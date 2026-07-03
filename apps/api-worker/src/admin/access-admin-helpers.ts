@@ -124,6 +124,30 @@ export const tenantBadgeRuleActivateAdminPath = (
   return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(versionId)}/activate`;
 };
 
+export const tenantBadgeRuleUpdateLifecycleAdminPath = (
+  tenantId: string,
+  ruleId: string,
+  versionId: string,
+): string => {
+  return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(versionId)}/update-lifecycle`;
+};
+
+export const tenantBadgeRuleSuspendAdminPath = (
+  tenantId: string,
+  ruleId: string,
+  versionId: string,
+): string => {
+  return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(versionId)}/suspend`;
+};
+
+export const tenantBadgeRuleResumeAdminPath = (
+  tenantId: string,
+  ruleId: string,
+  versionId: string,
+): string => {
+  return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(versionId)}/resume`;
+};
+
 export const tenantBadgeRuleDeleteAdminPath = (tenantId: string, ruleId: string): string => {
   return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/delete`;
 };

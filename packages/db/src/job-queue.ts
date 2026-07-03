@@ -9,7 +9,9 @@ export type JobQueueMessageType =
   | "rebuild_verification_cache"
   | "import_migration_batch"
   | "import_learner_record_batch"
-  | "generate_badge_template_image";
+  | "generate_badge_template_image"
+  | "process_badge_rule_lifecycle"
+  | "process_end_of_term_badge_rule";
 
 export type JobQueueMessageStatus = "pending" | "processing" | "completed" | "failed";
 

@@ -23,6 +23,11 @@ import type {
   ListPendingBadgeIssuanceRuleApprovalsForActorInput,
   PendingBadgeIssuanceRuleApprovalRecord,
 } from "./badge-issuance-rule-types.js";
+import {
+  badgeIssuanceRuleVersionSelectColumns,
+  mapBadgeIssuanceRuleVersionRow,
+  type BadgeIssuanceRuleVersionRow,
+} from "./badge-issuance-rule-version-sql.js";
 
 interface BadgeIssuanceRuleRow {
   id: string;
@@ -36,25 +41,6 @@ interface BadgeIssuanceRuleRow {
   lmsConnectionId: string | null;
   activeVersionId: string | null;
   createdByUserId: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface BadgeIssuanceRuleVersionRow {
-  id: string;
-  tenantId: string;
-  ruleId: string;
-  versionNumber: number;
-  status: BadgeIssuanceRuleVersionStatus;
-  ruleJson: string;
-  changeSummary: string | null;
-  createdByUserId: string | null;
-  submittedByUserId: string | null;
-  submittedAt: string | null;
-  approvedByUserId: string | null;
-  approvedAt: string | null;
-  activatedByUserId: string | null;
-  activatedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -147,6 +133,8 @@ const BADGE_ISSUANCE_RULE_VERSION_STATUSES = new Set<BadgeIssuanceRuleVersionSta
   "pending_approval",
   "approved",
   "active",
+  "suspended",
+  "expired",
   "rejected",
   "deprecated",
 ]);
@@ -195,29 +183,6 @@ const mapBadgeIssuanceRuleRow = (row: BadgeIssuanceRuleRow): BadgeIssuanceRuleRe
     lmsConnectionId: row.lmsConnectionId,
     activeVersionId: row.activeVersionId,
     createdByUserId: row.createdByUserId,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  };
-};
-
-const mapBadgeIssuanceRuleVersionRow = (
-  row: BadgeIssuanceRuleVersionRow,
-): BadgeIssuanceRuleVersionRecord => {
-  return {
-    id: row.id,
-    tenantId: row.tenantId,
-    ruleId: row.ruleId,
-    versionNumber: row.versionNumber,
-    status: row.status,
-    ruleJson: row.ruleJson,
-    changeSummary: row.changeSummary,
-    createdByUserId: row.createdByUserId,
-    submittedByUserId: row.submittedByUserId ?? null,
-    submittedAt: row.submittedAt ?? null,
-    approvedByUserId: row.approvedByUserId,
-    approvedAt: row.approvedAt,
-    activatedByUserId: row.activatedByUserId,
-    activatedAt: row.activatedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -442,22 +407,7 @@ export const listBadgeIssuanceRuleVersions = async (
       .prepare(
         `
         SELECT
-          id,
-          tenant_id AS tenantId,
-          rule_id AS ruleId,
-          version_number AS versionNumber,
-          status,
-          rule_json AS ruleJson,
-          change_summary AS changeSummary,
-          created_by_user_id AS createdByUserId,
-          submitted_by_user_id AS submittedByUserId,
-          submitted_at AS submittedAt,
-          approved_by_user_id AS approvedByUserId,
-          approved_at AS approvedAt,
-          activated_by_user_id AS activatedByUserId,
-          activated_at AS activatedAt,
-          created_at AS createdAt,
-          updated_at AS updatedAt
+          ${badgeIssuanceRuleVersionSelectColumns()}
         FROM badge_issuance_rule_versions
         WHERE tenant_id = ?
           AND rule_id = ?
@@ -693,22 +643,7 @@ export const findBadgeIssuanceRuleVersionById = async (
       .prepare(
         `
         SELECT
-          id,
-          tenant_id AS tenantId,
-          rule_id AS ruleId,
-          version_number AS versionNumber,
-          status,
-          rule_json AS ruleJson,
-          change_summary AS changeSummary,
-          created_by_user_id AS createdByUserId,
-          submitted_by_user_id AS submittedByUserId,
-          submitted_at AS submittedAt,
-          approved_by_user_id AS approvedByUserId,
-          approved_at AS approvedAt,
-          activated_by_user_id AS activatedByUserId,
-          activated_at AS activatedAt,
-          created_at AS createdAt,
-          updated_at AS updatedAt
+          ${badgeIssuanceRuleVersionSelectColumns()}
         FROM badge_issuance_rule_versions
         WHERE tenant_id = ?
           AND rule_id = ?
@@ -734,29 +669,16 @@ export const findActiveBadgeIssuanceRuleVersion = async (
   input: {
     tenantId: string;
     ruleId: string;
+    nowIso?: string | undefined;
   },
 ): Promise<BadgeIssuanceRuleVersionRecord | null> => {
+  const nowIso = input.nowIso ?? new Date().toISOString();
   const lookupStatement = (): Promise<BadgeIssuanceRuleVersionRow | null> =>
     db
       .prepare(
         `
         SELECT
-          versions.id,
-          versions.tenant_id AS tenantId,
-          versions.rule_id AS ruleId,
-          versions.version_number AS versionNumber,
-          versions.status,
-          versions.rule_json AS ruleJson,
-          versions.change_summary AS changeSummary,
-          versions.created_by_user_id AS createdByUserId,
-          versions.submitted_by_user_id AS submittedByUserId,
-          versions.submitted_at AS submittedAt,
-          versions.approved_by_user_id AS approvedByUserId,
-          versions.approved_at AS approvedAt,
-          versions.activated_by_user_id AS activatedByUserId,
-          versions.activated_at AS activatedAt,
-          versions.created_at AS createdAt,
-          versions.updated_at AS updatedAt
+          ${badgeIssuanceRuleVersionSelectColumns("versions")}
         FROM badge_issuance_rules AS rules
         INNER JOIN badge_issuance_rule_versions AS versions
           ON versions.id = rules.active_version_id
@@ -777,7 +699,38 @@ export const findActiveBadgeIssuanceRuleVersion = async (
   }
 
   const version = mapBadgeIssuanceRuleVersionRow(row);
-  return BADGE_ISSUANCE_RULE_VERSION_STATUSES.has(version.status) ? version : null;
+  if (!BADGE_ISSUANCE_RULE_VERSION_STATUSES.has(version.status) || version.status !== "active") {
+    return null;
+  }
+
+  if (
+    version.effectiveStartsAt !== null &&
+    version.effectiveStartsAt !== undefined &&
+    version.effectiveStartsAt > nowIso
+  ) {
+    return null;
+  }
+
+  if (
+    version.expiresAt !== null &&
+    version.expiresAt !== undefined &&
+    version.expiresAt <= nowIso
+  ) {
+    return null;
+  }
+
+  return version;
+};
+
+export const findIssuableActiveBadgeIssuanceRuleVersion = async (
+  db: SqlDatabase,
+  input: {
+    tenantId: string;
+    ruleId: string;
+    nowIso?: string | undefined;
+  },
+): Promise<BadgeIssuanceRuleVersionRecord | null> => {
+  return findActiveBadgeIssuanceRuleVersion(db, input);
 };
 
 const DRAFT_EDITABLE_BADGE_ISSUANCE_RULE_VERSION_STATUSES: ReadonlySet<BadgeIssuanceRuleVersionStatus> =

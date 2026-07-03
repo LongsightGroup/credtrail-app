@@ -1,4 +1,4 @@
-import type { JsonObject } from "@credtrail/core-domain";
+import { logError, type JsonObject } from "@credtrail/core-domain";
 import { findTenantSigningRegistrationByDid, listLtiIssuerRegistrations } from "@credtrail/db";
 import { Hono } from "hono";
 import {
@@ -35,6 +35,7 @@ import { createPublicBadgePageRenderers } from "./badges/public-badge-pages";
 import { publicBadgeSummaryPayload as buildPublicBadgeSummaryPayload } from "./badges/public-badge-summary-payload";
 import { createIssueBadgeForTenant } from "./badges/direct-issue";
 import { processBadgeTemplateImageGenerationJob } from "./badges/badge-template-image-generation";
+import { processBadgeRuleLifecycleForTenant } from "./badges/badge-rule-lifecycle-processor";
 import {
   assertionBelongsToTenant,
   loadCredentialForAssertion,
@@ -68,7 +69,9 @@ import { createOAuthTokenHelpers } from "./ob3/oauth-token-helpers";
 import { createOb3ErrorResponses } from "./ob3/error-responses";
 import { createOb3AccessTokenAuthenticator } from "./ob3/access-token-auth";
 import { ob3ServiceDescriptionDocument } from "./ob3/service-description-runtime";
+import { runScheduledBadgeRuleLifecycleEnqueue } from "./queue/badge-rule-lifecycle-schedule";
 import { createResolveLtiIssuerRegistry } from "./lti/lti-issuer-registry-resolver";
+import { processEndOfTermBadgeRule } from "./lti/end-of-term-badge-rule-processor";
 import { createLearnerDashboardPage, learnerDidSettingsNoticeFromQuery } from "./learner/pages";
 import { createLearnerRecordPage } from "./learner/learner-record-page";
 import {
@@ -277,9 +280,38 @@ const processQueuedJobs = createProcessQueuedJobs({
       payload,
     });
   },
+  processBadgeRuleLifecycleJob: (c, tenantId, payload) => {
+    return processBadgeRuleLifecycleForTenant({
+      db: resolveDatabase(c.env),
+      tenantId,
+      nowIso: payload.scheduledFor,
+      observability: observabilityContext(c.env),
+    }).then(() => undefined);
+  },
+  processEndOfTermBadgeRuleJob: async (c, tenantId, payload) => {
+    const result = await processEndOfTermBadgeRule({
+      db: resolveDatabase(c.env),
+      env: c.env,
+      tenantId,
+      payload,
+      sha256Hex,
+    });
+
+    if (result.status === "unavailable") {
+      logError(observabilityContext(c.env), "end_of_term_badge_rule_unavailable", {
+        tenantId,
+        ruleId: payload.ruleId,
+        versionId: payload.versionId,
+        reason: result.reason ?? "unknown",
+      });
+      throw new Error(result.reason ?? "End-of-term badge rule processing unavailable.");
+    }
+  },
 });
 
-export const processScheduledQueue = (env: AppBindings): Promise<ProcessQueueRunResult> => {
+export const processScheduledQueue = async (env: AppBindings): Promise<ProcessQueueRunResult> => {
+  await runScheduledBadgeRuleLifecycleEnqueue(env);
+
   return processQueuedJobs({ env } as AppContext, processQueueInputWithDefaults({}));
 };
 

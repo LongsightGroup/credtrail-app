@@ -40,6 +40,7 @@ export interface BadgeRuleApprovalPolicyRecord {
   readonly orgUnitId: string | null;
   readonly approvalRequirement: BadgeRuleApprovalRequirement;
   readonly allowSelfCertification: boolean;
+  readonly recertificationIntervalMonths: number | null;
   readonly approvalSteps: readonly BadgeRuleApprovalPolicyStepRecord[];
   readonly createdByUserId: string | null;
   readonly createdAt: string;
@@ -51,6 +52,7 @@ export interface UpsertBadgeRuleApprovalPolicyInput {
   readonly orgUnitId?: string | null | undefined;
   readonly approvalRequirement: BadgeRuleApprovalRequirement;
   readonly allowSelfCertification?: boolean | undefined;
+  readonly recertificationIntervalMonths?: number | null | undefined;
   readonly approvalSteps: readonly BadgeRuleApprovalPolicyStepInput[];
   readonly createdByUserId?: string | undefined;
 }
@@ -61,6 +63,7 @@ interface BadgeRuleApprovalPolicyRow {
   orgUnitId: string | null;
   approvalRequirement: BadgeRuleApprovalRequirement;
   allowSelfCertification: boolean | number;
+  recertificationIntervalMonths: number | null;
   approvalStepsJson: string;
   createdByUserId: string | null;
   createdAt: string;
@@ -233,6 +236,7 @@ const buildDefaultBadgeRuleApprovalPolicy = (
     orgUnitId,
     approvalRequirement: "always",
     allowSelfCertification: false,
+    recertificationIntervalMonths: null,
     approvalSteps: DEFAULT_BADGE_RULE_APPROVAL_POLICY_STEPS,
     createdByUserId: null,
     createdAt: nowIso,
@@ -249,6 +253,7 @@ const mapBadgeRuleApprovalPolicyRow = (
     orgUnitId: row.orgUnitId,
     approvalRequirement: row.approvalRequirement,
     allowSelfCertification: row.allowSelfCertification === true || row.allowSelfCertification === 1,
+    recertificationIntervalMonths: row.recertificationIntervalMonths,
     approvalSteps: parseBadgeRuleApprovalPolicyStepsJson(
       row.approvalRequirement,
       row.approvalStepsJson,
@@ -265,6 +270,7 @@ const BADGE_RULE_APPROVAL_POLICY_SELECT_COLUMNS = `
   org_unit_id AS orgUnitId,
   approval_requirement AS approvalRequirement,
   allow_self_certification AS allowSelfCertification,
+  recertification_interval_months AS recertificationIntervalMonths,
   approval_steps_json AS approvalStepsJson,
   created_by_user_id AS createdByUserId,
   created_at AS createdAt,
@@ -376,12 +382,13 @@ export const ensureTenantDefaultBadgeRuleApprovalPolicy = async (
           org_unit_id,
           approval_requirement,
           allow_self_certification,
+          recertification_interval_months,
           approval_steps_json,
           created_by_user_id,
           created_at,
           updated_at
         )
-        VALUES (?, ?, NULL, 'always', FALSE, ?, NULL, ?, ?)
+        VALUES (?, ?, NULL, 'always', FALSE, NULL, ?, NULL, ?, ?)
         ON CONFLICT DO NOTHING
       `,
       )
@@ -425,6 +432,7 @@ export const upsertBadgeRuleApprovalPolicy = async (
   const approvalStepsJson = JSON.stringify(approvalSteps);
   const allowSelfCertification =
     input.approvalRequirement === "never" ? input.allowSelfCertification === true : false;
+  const recertificationIntervalMonths = input.recertificationIntervalMonths ?? null;
 
   if (existing === null) {
     const id = createPrefixedId("brap");
@@ -438,12 +446,13 @@ export const upsertBadgeRuleApprovalPolicy = async (
             org_unit_id,
             approval_requirement,
             allow_self_certification,
+            recertification_interval_months,
             approval_steps_json,
             created_by_user_id,
             created_at,
             updated_at
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         )
         .bind(
@@ -452,6 +461,7 @@ export const upsertBadgeRuleApprovalPolicy = async (
           orgUnitId,
           input.approvalRequirement,
           allowSelfCertification,
+          recertificationIntervalMonths,
           approvalStepsJson,
           input.createdByUserId ?? null,
           nowIso,
@@ -469,6 +479,7 @@ export const upsertBadgeRuleApprovalPolicy = async (
           SET
             approval_requirement = ?,
             allow_self_certification = ?,
+            recertification_interval_months = ?,
             approval_steps_json = ?,
             updated_at = ?
           WHERE tenant_id = ?
@@ -478,6 +489,7 @@ export const upsertBadgeRuleApprovalPolicy = async (
         .bind(
           input.approvalRequirement,
           allowSelfCertification,
+          recertificationIntervalMonths,
           approvalStepsJson,
           nowIso,
           input.tenantId,

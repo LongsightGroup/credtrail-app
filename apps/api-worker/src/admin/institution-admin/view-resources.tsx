@@ -16,11 +16,11 @@ import {
   tenantAccessMemberRemovePath,
   tenantAccessMemberRolePath,
   tenantAccessMembershipScopeRemovePath,
-  tenantBadgeRuleActivateAdminPath,
-  tenantBadgeRuleDeleteAdminPath,
   tenantBadgeRuleDecisionAdminPath,
+  tenantBadgeRuleDeleteAdminPath,
   tenantBadgeRuleSubmitApprovalAdminPath,
 } from "../access-admin-helpers";
+import { buildBadgeRuleLifecycleMenuActions } from "./badge-rule-lifecycle-actions";
 import {
   AdminActionMenu,
   AdminButton,
@@ -583,21 +583,12 @@ export const buildInstitutionAdminViewResources = (
           );
         }
 
-        if (latestVersion.status === "approved" || latestVersion.status === "active") {
-          menuActions.push(
-            <AdminForm
-              method="post"
-              action={tenantBadgeRuleActivateAdminPath(input.tenant.id, rule.id, latestVersion.id)}
-              className="ct-admin__inline-form"
-              dataAttributes={{
-                "data-confirm-message": `Activate latest version for "${rule.name}"?`,
-              }}
-            >
-              <button type="submit" class="ct-admin__action-menu-item">
-                Activate
-              </button>
-            </AdminForm>,
-          );
+        for (const action of buildBadgeRuleLifecycleMenuActions({
+          tenantId: input.tenant.id,
+          rule,
+          latestVersion,
+        })) {
+          menuActions.push(action as HonoElement);
         }
       }
 

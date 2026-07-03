@@ -32,11 +32,13 @@ export const upsertBadgeRuleApprovalPolicyRequestSchema = z.discriminatedUnion(
     z.object({
       approvalRequirement: z.literal("always"),
       requiredRole: tenantMembershipRoleSchema,
+      recertificationIntervalMonths: z.number().int().min(1).max(120).nullable().optional(),
     }),
     z.object({
       approvalRequirement: z.literal("never"),
       requiredRole: tenantMembershipRoleSchema.optional(),
       allowSelfCertification: z.literal(true),
+      recertificationIntervalMonths: z.number().int().min(1).max(120).nullable().optional(),
     }),
   ],
 );
