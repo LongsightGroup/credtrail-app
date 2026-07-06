@@ -13,6 +13,8 @@ const issuedBadgesDataNeeds = {
   apiKeyRows: false,
   orgUnitRows: false,
   governanceTableRows: false,
+  scopedRoleRows: false,
+  delegatedGrantRows: false,
   tenantMemberRows: false,
   templateSelectOptions: false,
   delegationSelectOptions: false,

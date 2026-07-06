@@ -138,8 +138,16 @@ export const institutionAdminMembersPage = (input: InstitutionAdminPageInput): A
   return renderInstitutionAdminPage(input, "accessMembers");
 };
 
+export const institutionAdminOrgUnitAccessPage = (input: InstitutionAdminPageInput): AppPage => {
+  return renderInstitutionAdminPage(input, "accessOrgUnitAccess");
+};
+
 export const institutionAdminGovernancePage = (input: InstitutionAdminPageInput): AppPage => {
   return renderInstitutionAdminPage(input, "accessGovernance");
+};
+
+export const institutionAdminDelegationsPage = (input: InstitutionAdminPageInput): AppPage => {
+  return renderInstitutionAdminPage(input, "accessDelegations");
 };
 
 export const institutionAdminGovernanceDelegationNewPage = (

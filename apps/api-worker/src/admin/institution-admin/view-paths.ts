@@ -13,7 +13,9 @@ export interface InstitutionAdminViewPaths {
   rulesTemplatesPath: string;
   accessPath: string;
   accessMembersPath: string;
+  accessOrgUnitAccessPath: string;
   accessGovernancePath: string;
+  accessDelegationsPath: string;
   accessAuthenticationPath: string;
   accessApiKeysPath: string;
   accessOrgUnitsPath: string;
@@ -47,7 +49,9 @@ export const buildInstitutionAdminViewPaths = (tenantId: string): InstitutionAdm
     rulesTemplatesPath: `${rulesWorkspacePath}/templates`,
     accessPath,
     accessMembersPath: `${accessPath}/members`,
+    accessOrgUnitAccessPath: `${accessPath}/org-unit-access`,
     accessGovernancePath: `${accessPath}/governance`,
+    accessDelegationsPath: `${accessPath}/delegations`,
     accessAuthenticationPath: `${accessPath}/authentication`,
     accessApiKeysPath: `${accessPath}/api-keys`,
     accessOrgUnitsPath: `${accessPath}/org-units`,

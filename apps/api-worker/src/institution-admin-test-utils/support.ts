@@ -20,6 +20,7 @@ import {
   createAuditLog,
   createBadgeTemplate,
   createBadgeTemplateImageRevision,
+  createDelegatedIssuingAuthorityGrant,
   findBadgeTemplateById,
   findBadgeTemplateImageRevisionById,
   setBadgeTemplateArchivedState,
@@ -28,6 +29,7 @@ import {
   findLearnerProfileById,
   findLearnerProfileByIdentity,
   findTenantById,
+  findDelegatedIssuingAuthorityGrantById,
   findTenantMembership,
   findUserById,
   getTenantReportingEngagementCounts,
@@ -82,6 +84,9 @@ import {
   listTenantMembershipOrgUnitScopes,
   listTenantOrgUnits,
   markLearnerRecordImportPreviewQueued,
+  removeTenantMembershipOrgUnitScope,
+  revokeDelegatedIssuingAuthorityGrant,
+  upsertTenantMembershipOrgUnitScope,
   getTenantReportingOverview,
   getTenantReportingTrends,
   listLearnerRecordAssertionExports,
@@ -90,6 +95,7 @@ import {
   type LearnerProfileRecord,
   type LearnerRecordAssertionExportRecord,
   type LearnerRecordEntryRecord,
+  type DelegatedIssuingAuthorityGrantRecord,
   type SqlDatabase,
   type TenantAssertionSummaryRecord,
   type TenantLmsConnectionRecord,
@@ -121,6 +127,15 @@ export const mockedFindTenantById = vi.mocked(findTenantById);
 export const mockedFindUserById = vi.mocked(findUserById);
 export const mockedListDelegatedIssuingAuthorityGrants = vi.mocked(
   listDelegatedIssuingAuthorityGrants,
+);
+export const mockedCreateDelegatedIssuingAuthorityGrantDb = vi.mocked(
+  createDelegatedIssuingAuthorityGrant,
+);
+export const mockedFindDelegatedIssuingAuthorityGrantByIdDb = vi.mocked(
+  findDelegatedIssuingAuthorityGrantById,
+);
+export const mockedRevokeDelegatedIssuingAuthorityGrantDb = vi.mocked(
+  revokeDelegatedIssuingAuthorityGrant,
 );
 export const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
 export const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRuleVersions);
@@ -198,6 +213,12 @@ export const mockedFindTenantLmsConnectionByIdDb = vi.mocked(findTenantLmsConnec
 export const mockedListTenantLmsConnectionsDb = vi.mocked(listTenantLmsConnections);
 export const mockedListTenantMembersDb = vi.mocked(listTenantMembers);
 export const mockedListTenantMembershipOrgUnitScopes = vi.mocked(listTenantMembershipOrgUnitScopes);
+export const mockedUpsertTenantMembershipOrgUnitScopeDb = vi.mocked(
+  upsertTenantMembershipOrgUnitScope,
+);
+export const mockedRemoveTenantMembershipOrgUnitScopeDb = vi.mocked(
+  removeTenantMembershipOrgUnitScope,
+);
 export const mockedMarkLearnerRecordImportPreviewQueuedDb = vi.mocked(
   markLearnerRecordImportPreviewQueued,
 );
@@ -907,6 +928,22 @@ beforeEach(() => {
       updatedAt: "2026-02-18T12:30:00.000Z",
     },
   ]);
+  mockedUpsertTenantMembershipOrgUnitScopeDb.mockReset();
+  mockedUpsertTenantMembershipOrgUnitScopeDb.mockResolvedValue({
+    scope: {
+      tenantId: "tenant_123",
+      userId: "usr_issuer",
+      orgUnitId: "tenant_123:org:institution",
+      role: "issuer",
+      createdByUserId: "usr_admin",
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:30:00.000Z",
+    },
+    previousRole: null,
+    changed: true,
+  });
+  mockedRemoveTenantMembershipOrgUnitScopeDb.mockReset();
+  mockedRemoveTenantMembershipOrgUnitScopeDb.mockResolvedValue(true);
   mockedListTenantAssertions.mockReset();
   mockedListTenantAssertions.mockResolvedValue([]);
   mockedFindAssertionById.mockReset();
@@ -1010,25 +1047,44 @@ beforeEach(() => {
     return lmsConnections.find((connection) => connection.id === input.connectionId) ?? null;
   });
   mockedListDelegatedIssuingAuthorityGrants.mockReset();
+  const activeDelegatedIssuingAuthorityGrant: DelegatedIssuingAuthorityGrantRecord = {
+    id: "dag_123",
+    tenantId: "tenant_123",
+    delegateUserId: "usr_delegate",
+    delegatedByUserId: "usr_admin",
+    orgUnitId: "tenant_123:org:institution",
+    allowedActions: ["issue_badge"],
+    badgeTemplateIds: [],
+    startsAt: "2026-02-18T12:00:00.000Z",
+    endsAt: "2026-05-18T12:00:00.000Z",
+    revokedAt: null,
+    revokedByUserId: null,
+    revokedReason: null,
+    status: "active",
+    createdAt: "2026-02-18T12:00:00.000Z",
+    updatedAt: "2026-02-18T12:00:00.000Z",
+  };
   mockedListDelegatedIssuingAuthorityGrants.mockResolvedValue([
-    {
-      id: "dag_123",
-      tenantId: "tenant_123",
-      delegateUserId: "usr_delegate",
-      delegatedByUserId: "usr_admin",
-      orgUnitId: "tenant_123:org:institution",
-      allowedActions: ["issue_badge"],
-      badgeTemplateIds: [],
-      startsAt: "2026-02-18T12:00:00.000Z",
-      endsAt: "2026-05-18T12:00:00.000Z",
-      revokedAt: null,
-      revokedByUserId: null,
-      revokedReason: null,
-      status: "active",
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:00:00.000Z",
-    },
+    activeDelegatedIssuingAuthorityGrant,
   ]);
+  mockedCreateDelegatedIssuingAuthorityGrantDb.mockReset();
+  mockedCreateDelegatedIssuingAuthorityGrantDb.mockResolvedValue(
+    activeDelegatedIssuingAuthorityGrant,
+  );
+  mockedFindDelegatedIssuingAuthorityGrantByIdDb.mockReset();
+  mockedFindDelegatedIssuingAuthorityGrantByIdDb.mockResolvedValue(
+    activeDelegatedIssuingAuthorityGrant,
+  );
+  mockedRevokeDelegatedIssuingAuthorityGrantDb.mockReset();
+  mockedRevokeDelegatedIssuingAuthorityGrantDb.mockResolvedValue({
+    status: "revoked",
+    grant: {
+      ...activeDelegatedIssuingAuthorityGrant,
+      revokedAt: "2026-02-18T12:30:00.000Z",
+      revokedByUserId: "usr_admin",
+      status: "revoked",
+    },
+  });
   mockedListTenantAuthProviders.mockReset();
   mockedListTenantAuthProviders.mockResolvedValue([
     {

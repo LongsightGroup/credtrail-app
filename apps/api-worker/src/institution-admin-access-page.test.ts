@@ -3,12 +3,19 @@ import {
   createEnv,
   fakeDb,
   mockedAddBadgeRuleApproverGroupMemberDb,
+  mockedCreateDelegatedIssuingAuthorityGrantDb,
   mockedCreateAuditLogDb,
+  mockedFindDelegatedIssuingAuthorityGrantByIdDb,
   mockedCreateBadgeRuleApproverGroupDb,
   mockedFindTenantById,
+  mockedListDelegatedIssuingAuthorityGrants,
+  mockedListTenantMembershipOrgUnitScopes,
   mockedRemoveBadgeRuleApproverGroupMemberDb,
+  mockedRemoveTenantMembershipOrgUnitScopeDb,
+  mockedRevokeDelegatedIssuingAuthorityGrantDb,
   mockedResolveBadgeRuleApprovalPolicyDb,
   mockedResolveTenantDefaultBadgeRuleApprovalPolicyDb,
+  mockedUpsertTenantMembershipOrgUnitScopeDb,
   mockedUpsertBadgeRuleApprovalPolicyDb,
 } from "./institution-admin-page-test-utils";
 import { app } from "./index";
@@ -75,7 +82,7 @@ describe("GET /tenants/:tenantId/admin/access", () => {
     expect(body).toContain("Campus OIDC");
     expect(body).toContain("Configure hosted OIDC providers for institution sign-in.");
     expect(body).toContain("Members");
-    expect(body).toContain("Governance");
+    expect(body).toContain("Rule Approval");
     expect(body).not.toContain('name="enforceForRoles"');
     expect(body).toContain('id="enterprise-auth-policy-form"');
     expect(body).toContain('id="enterprise-auth-provider-form"');
@@ -87,6 +94,9 @@ describe("GET /tenants/:tenantId/admin/access", () => {
       'action="/tenants/tenant_123/admin/access/authentication/break-glass-accounts"',
     );
     expect(body).toContain('href="/tenants/tenant_123/admin/access/authentication"');
+    expect(body).toContain("Org-unit Access");
+    expect(body).toContain("Rule Approval");
+    expect(body).toContain("Delegated Authority");
     expect(body).not.toContain("Back to governance");
     expect(body).toContain(pageAssetPath("institutionAdminShellJs"));
     expect(body).toContain(pageAssetPath("institutionAdminAccessJs"));
@@ -117,7 +127,7 @@ describe("GET /tenants/:tenantId/admin/access", () => {
 });
 
 describe("GET /tenants/:tenantId/admin/access/governance", () => {
-  it("renders governance delegation on its own page with current assignments", async () => {
+  it("renders Rule Approval with approval policy and approver groups only", async () => {
     const env = createEnv();
 
     const response = await app.request(
@@ -137,8 +147,18 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
       "tenant_123",
     );
     expect(mockedResolveBadgeRuleApprovalPolicyDb).not.toHaveBeenCalled();
-    expect(body).toContain("Governance");
+    expect(mockedListTenantMembershipOrgUnitScopes).not.toHaveBeenCalled();
+    expect(mockedListDelegatedIssuingAuthorityGrants).not.toHaveBeenCalled();
+    expect(body).toContain("Rule Approval");
+    expect(body).toContain("Set who reviews submitted badge rule versions before activation.");
     expect(body).toContain("Institution policy decides who reviews submitted badge rules");
+    expect(body).toContain("Approval governance");
+    expect(body).toContain("Approval Policy");
+    expect(body).toContain('id="rule-approval-policy-body"');
+    expect(body).toContain("Tenant default");
+    expect(body).toContain("Approval required");
+    expect(body).toContain("Admin role");
+    expect(body).toContain("Change policy");
     expect(body).toContain('id="rule-approval-policy-form"');
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/access/governance/rule-approval-policy"',
@@ -161,28 +181,26 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
       'action="/tenants/tenant_123/admin/access/governance/approver-groups/members/remove"',
     );
     expect(body).toContain("Submitted badge rule versions require admin approval.");
-    expect(body).toContain('id="membership-scope-form"');
-    expect(body).toContain('id="membership-scope-panel"');
-    expect(body).toContain('name="userId"');
-    expect(body).toContain("issuer@tenant-123.edu (issuer)");
-    expect(body).toContain("Scoped Roles");
-    expect(body).toContain("Current Scoped Roles (1)");
-    expect(body).toContain('action="/tenants/tenant_123/admin/access/governance/scopes/remove"');
-    expect(body).toContain('name="userId" type="hidden" value="usr_issuer"');
-    expect(body).toContain("Current Delegations (1)");
+    expect(body.indexOf('id="rule-approval-policy-body"')).toBeLessThan(
+      body.indexOf('id="approver-group-body"'),
+    );
+    expect(body.indexOf('id="approver-group-body"')).toBeLessThan(
+      body.indexOf('id="governance-actions"'),
+    );
+    expect(body).not.toContain('id="membership-scope-form"');
+    expect(body).not.toContain('id="membership-scope-panel"');
+    expect(body).not.toContain("Current Scoped Roles");
+    expect(body).not.toContain(
+      'action="/tenants/tenant_123/admin/access/governance/scopes/remove"',
+    );
+    expect(body).not.toContain("Current Delegations");
     expect(body).not.toContain('id="delegated-grant-panel"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/access/governance/delegations/new"');
-    expect(body).toContain(
+    expect(body).not.toContain(
+      'href="/tenants/tenant_123/admin/access/governance/delegations/new"',
+    );
+    expect(body).not.toContain(
       'action="/tenants/tenant_123/admin/access/governance/delegations/revoke"',
     );
-    expect(body).toContain('name="grantId" type="hidden" value="dag_123"');
-    expect(body.indexOf('id="membership-scope-body"')).toBeLessThan(
-      body.indexOf('id="membership-scope-panel"'),
-    );
-    expect(body.indexOf('id="governance-actions"')).toBeLessThan(
-      body.indexOf('id="delegated-grant-body"'),
-    );
-    expect(body).toMatch(/id="governance-actions"[\s\S]*?class="[^"]*ct-action-group/);
     expect(body).not.toContain("Tenant member user ID");
     expect(body).not.toContain("Delegate user ID");
     expect(body).not.toContain("Limit to badge template IDs");
@@ -225,7 +243,84 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Governance");
+    expect(body).toContain("Rule Approval");
+  });
+});
+
+describe("GET /tenants/:tenantId/admin/access/org-unit-access", () => {
+  it("renders scoped roles list-first on a dedicated page", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/org-unit-access",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Org-unit Access");
+    expect(body).toContain("Review standing access grants by org unit");
+    expect(body).toContain(
+      'href="/tenants/tenant_123/admin/access/org-unit-access" aria-current="page"',
+    );
+    expect(body).toContain("Current Scoped Roles (1)");
+    expect(body).toContain('id="membership-scope-body"');
+    expect(body).toContain('id="membership-scope-panel"');
+    expect(body).toContain('id="membership-scope-form"');
+    expect(body).toContain('action="/tenants/tenant_123/admin/access/governance/scopes"');
+    expect(body).toContain('action="/tenants/tenant_123/admin/access/governance/scopes/remove"');
+    expect(body).toContain("issuer@tenant-123.edu (issuer)");
+    expect(body).toContain('name="userId" type="hidden" value="usr_issuer"');
+    expect(body.indexOf('id="membership-scope-body"')).toBeLessThan(
+      body.indexOf('id="membership-scope-panel"'),
+    );
+    expect(body).not.toContain("Approval Policy");
+    expect(body).not.toContain("Approver Groups");
+    expect(body).not.toContain("Current Delegations");
+    expect(body).not.toContain('id="delegated-grant-body"');
+  });
+});
+
+describe("GET /tenants/:tenantId/admin/access/delegations", () => {
+  it("renders delegated authority list-first on a dedicated page", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/delegations",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Delegated Authority");
+    expect(body).toContain("Review temporary badge authority grants");
+    expect(body).toContain(
+      'href="/tenants/tenant_123/admin/access/delegations" aria-current="page"',
+    );
+    expect(body).toContain("Current Delegations (1)");
+    expect(body).toContain('id="delegated-grant-body"');
+    expect(body).toContain('name="grantId" type="hidden" value="dag_123"');
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/access/governance/delegations/revoke"',
+    );
+    expect(body).toContain('href="/tenants/tenant_123/admin/access/governance/delegations/new"');
+    expect(body.indexOf('id="delegated-grant-body"')).toBeLessThan(
+      body.indexOf('href="/tenants/tenant_123/admin/access/governance/delegations/new"'),
+    );
+    expect(body).not.toContain("Approval Policy");
+    expect(body).not.toContain("Approver Groups");
+    expect(body).not.toContain("Current Scoped Roles");
+    expect(body).not.toContain('id="membership-scope-form"');
   });
 });
 
@@ -555,6 +650,156 @@ describe("POST /tenants/:tenantId/admin/access/governance/approver-groups", () =
   });
 });
 
+describe("POST /tenants/:tenantId/admin/access/governance/scopes", () => {
+  it("keeps the legacy scope POST path and redirects scoped-role saves to Org-unit Access", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/governance/scopes",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          userId: "usr_issuer",
+          orgUnitId: "tenant_123:org:institution",
+          role: "issuer",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "/tenants/tenant_123/admin/access/org-unit-access",
+    );
+    expect(mockedUpsertTenantMembershipOrgUnitScopeDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      userId: "usr_issuer",
+      orgUnitId: "tenant_123:org:institution",
+      role: "issuer",
+      createdByUserId: "usr_admin",
+    });
+  });
+});
+
+describe("POST /tenants/:tenantId/admin/access/governance/scopes/remove", () => {
+  it("keeps the legacy scope remove path and redirects removals to Org-unit Access", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/governance/scopes/remove",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          userId: "usr_issuer",
+          orgUnitId: "tenant_123:org:institution",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "/tenants/tenant_123/admin/access/org-unit-access",
+    );
+    expect(mockedRemoveTenantMembershipOrgUnitScopeDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      userId: "usr_issuer",
+      orgUnitId: "tenant_123:org:institution",
+    });
+  });
+});
+
+describe("POST /tenants/:tenantId/admin/access/governance/delegations", () => {
+  it("keeps the legacy delegation POST path and redirects successful creates to Delegated Authority", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/governance/delegations",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          delegateUserId: "usr_delegate",
+          orgUnitId: "tenant_123:org:institution",
+          allowedAction: "issue_badge",
+          endsAt: "2026-05-18T12:00:00.000Z",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/access/delegations");
+    expect(mockedCreateDelegatedIssuingAuthorityGrantDb).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        delegateUserId: "usr_delegate",
+        delegatedByUserId: "usr_admin",
+        orgUnitId: "tenant_123:org:institution",
+        allowedActions: ["issue_badge"],
+      }),
+    );
+  });
+});
+
+describe("POST /tenants/:tenantId/admin/access/governance/delegations/revoke", () => {
+  it("keeps the legacy delegation revoke path and redirects revokes to Delegated Authority", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/access/governance/delegations/revoke",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({
+          delegateUserId: "usr_delegate",
+          grantId: "dag_123",
+        }).toString(),
+        redirect: "manual",
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/access/delegations");
+    expect(mockedFindDelegatedIssuingAuthorityGrantByIdDb).toHaveBeenCalledWith(
+      fakeDb,
+      "tenant_123",
+      "dag_123",
+    );
+    expect(mockedRevokeDelegatedIssuingAuthorityGrantDb).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        grantId: "dag_123",
+        revokedByUserId: "usr_admin",
+      }),
+    );
+  });
+});
+
 describe("GET /tenants/:tenantId/admin/access/members", () => {
   it("renders tenant members on a dedicated page", async () => {
     const env = createEnv();
@@ -854,6 +1099,10 @@ describe("GET /tenants/:tenantId/admin/access/governance/delegations/new", () =>
 
     expect(response.status).toBe(200);
     expect(body).toContain("Add Delegated Authority");
+    expect(body).toContain(
+      'href="/tenants/tenant_123/admin/access/delegations" aria-current="page"',
+    );
+    expect(body).toContain('href="/tenants/tenant_123/admin/access/governance"');
     expect(body).toContain('id="delegated-grant-form"');
     expect(body).toContain('action="/tenants/tenant_123/admin/access/governance/delegations"');
     expect(body).not.toContain("Back to governance");

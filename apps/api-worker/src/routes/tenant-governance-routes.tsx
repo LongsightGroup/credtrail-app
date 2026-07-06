@@ -181,7 +181,10 @@ export const registerTenantGovernanceRoutes = (
     redirectToTenantLogin: auth.redirectToTenantLogin,
     renderInstitutionAdminWorkspace: institutionWorkspaces.renderInstitutionAdminWorkspace,
     renderInstitutionAdminMembersWorkspace: institutionWorkspaces.renderMembersWorkspace,
+    renderInstitutionAdminOrgUnitAccessWorkspace:
+      institutionWorkspaces.renderOrgUnitAccessWorkspace,
     renderInstitutionAdminGovernanceWorkspace: institutionWorkspaces.renderGovernanceWorkspace,
+    renderInstitutionAdminDelegationsWorkspace: institutionWorkspaces.renderDelegationsWorkspace,
     renderInstitutionAdminOrgUnitsWorkspace: institutionWorkspaces.renderOrgUnitsWorkspace,
     renderInstitutionAdminApiKeysWorkspace:
       institutionWorkspaces.renderInstitutionAdminApiKeysWorkspace,

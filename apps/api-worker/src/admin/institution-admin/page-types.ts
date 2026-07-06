@@ -45,7 +45,9 @@ export type InstitutionAdminView =
   | "reportingReports"
   | "rules"
   | "accessMembers"
+  | "accessOrgUnitAccess"
   | "accessGovernance"
+  | "accessDelegations"
   | "accessGovernanceDelegationNew"
   | "accessAuthentication"
   | "accessApiKeys"
@@ -129,6 +131,16 @@ export interface InstitutionAdminAccessMembersWorkspace {
 }
 
 export interface InstitutionAdminAccessGovernanceWorkspace {
+  listNotice: string | null;
+  listError: string | null;
+}
+
+export interface InstitutionAdminAccessOrgUnitAccessWorkspace {
+  listNotice: string | null;
+  listError: string | null;
+}
+
+export interface InstitutionAdminAccessDelegationsWorkspace {
   listNotice: string | null;
   listError: string | null;
 }
@@ -245,7 +257,9 @@ export interface InstitutionAdminPageInput {
     ltiDeploymentId: string;
   };
   accessMembersWorkspace?: InstitutionAdminAccessMembersWorkspace;
+  accessOrgUnitAccessWorkspace?: InstitutionAdminAccessOrgUnitAccessWorkspace;
   accessGovernanceWorkspace?: InstitutionAdminAccessGovernanceWorkspace;
+  accessDelegationsWorkspace?: InstitutionAdminAccessDelegationsWorkspace;
   accessGovernanceDelegationWorkspace?: InstitutionAdminAccessGovernanceDelegationWorkspace;
   accessAuthenticationWorkspace?: InstitutionAdminAccessAuthenticationWorkspace;
   accessOrgUnitsWorkspace?: InstitutionAdminAccessOrgUnitsWorkspace;

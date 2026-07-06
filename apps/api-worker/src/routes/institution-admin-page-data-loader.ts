@@ -73,6 +73,8 @@ const institutionAdminDatasetsForView = (
     needs.orgUnitRows ||
     needs.delegationSelectOptions ||
     needs.governanceTableRows ||
+    needs.scopedRoleRows ||
+    needs.delegatedGrantRows ||
     needs.tenantMemberRows ||
     needs.issuedBadgeFilters
   ) {
@@ -81,8 +83,12 @@ const institutionAdminDatasetsForView = (
 
   if (needs.governanceTableRows) {
     datasets.add("tenantMembers");
-    datasets.add("membershipOrgUnitScopes");
     datasets.add("badgeRuleApprovalPolicy");
+  }
+
+  if (needs.scopedRoleRows) {
+    datasets.add("tenantMembers");
+    datasets.add("membershipOrgUnitScopes");
   }
 
   if (needs.tenantMemberRows) {
@@ -90,7 +96,7 @@ const institutionAdminDatasetsForView = (
     datasets.add("membershipOrgUnitScopes");
   }
 
-  if (needs.governanceTableRows || needs.delegationSelectOptions) {
+  if (needs.delegatedGrantRows || needs.delegationSelectOptions) {
     datasets.add("delegatedGrants");
   }
 

@@ -113,7 +113,9 @@ export const buildInstitutionAdminViewResources = (
     rulesWorkspacePath,
     rulesTemplatesPath,
     accessMembersPath,
+    accessOrgUnitAccessPath,
     accessGovernancePath,
+    accessDelegationsPath,
     accessAuthenticationPath,
     accessApiKeysPath,
     accessOrgUnitsPath,
@@ -385,7 +387,7 @@ export const buildInstitutionAdminViewResources = (
     })
   );
 
-  const membershipScopeRows = !dataNeeds.governanceTableRows ? (
+  const membershipScopeRows = !dataNeeds.scopedRoleRows ? (
     emptySectionMarkup
   ) : input.membershipOrgUnitScopes.length === 0 ? (
     <AdminEmptyTableRow colSpan={5}>No scoped roles assigned yet.</AdminEmptyTableRow>
@@ -493,7 +495,7 @@ export const buildInstitutionAdminViewResources = (
     })
   );
 
-  const delegatedGrantRows = !dataNeeds.governanceTableRows ? (
+  const delegatedGrantRows = !dataNeeds.delegatedGrantRows ? (
     emptySectionMarkup
   ) : input.delegatedIssuingAuthorityGrants.length === 0 ? (
     <AdminEmptyTableRow colSpan={6}>No delegated authority grants exist yet.</AdminEmptyTableRow>
@@ -760,7 +762,10 @@ export const buildInstitutionAdminViewResources = (
         })
     : [];
   const activeOrgUnitOptions =
-    dataNeeds.operationsSectionBundles || dataNeeds.delegationSelectOptions
+    dataNeeds.operationsSectionBundles ||
+    dataNeeds.governanceTableRows ||
+    dataNeeds.scopedRoleRows ||
+    dataNeeds.delegationSelectOptions
       ? input.orgUnits
           .filter((orgUnit) => orgUnit.isActive)
           .map((orgUnit) => {
@@ -773,11 +778,12 @@ export const buildInstitutionAdminViewResources = (
             );
           })
       : [];
-  const tenantMemberOptions = dataNeeds.delegationSelectOptions
-    ? input.tenantMembers.map((member) => {
-        return <option value={member.userId}>{`${member.email} (${member.role})`}</option>;
-      })
-    : [];
+  const tenantMemberOptions =
+    dataNeeds.governanceTableRows || dataNeeds.scopedRoleRows || dataNeeds.delegationSelectOptions
+      ? input.tenantMembers.map((member) => {
+          return <option value={member.userId}>{`${member.email} (${member.role})`}</option>;
+        })
+      : [];
   const templateOptions = dataNeeds.templateSelectOptions
     ? input.badgeTemplates.map((template, index) => {
         return (
@@ -836,7 +842,11 @@ export const buildInstitutionAdminViewResources = (
   ) : (
     <option value="">No badge templates available</option>
   );
-  const activeOrgUnitSelectOptions = !dataNeeds.delegationSelectOptions ? (
+  const activeOrgUnitSelectOptions = !(
+    dataNeeds.governanceTableRows ||
+    dataNeeds.scopedRoleRows ||
+    dataNeeds.delegationSelectOptions
+  ) ? (
     emptySectionMarkup
   ) : activeOrgUnitOptions.length > 0 ? (
     <>{activeOrgUnitOptions}</>
@@ -863,7 +873,11 @@ export const buildInstitutionAdminViewResources = (
         ))}
     </>
   );
-  const tenantMemberSelectOptions = !dataNeeds.delegationSelectOptions ? (
+  const tenantMemberSelectOptions = !(
+    dataNeeds.governanceTableRows ||
+    dataNeeds.scopedRoleRows ||
+    dataNeeds.delegationSelectOptions
+  ) ? (
     emptySectionMarkup
   ) : tenantMemberOptions.length > 0 ? (
     <>{tenantMemberOptions}</>
@@ -1048,7 +1062,9 @@ export const buildInstitutionAdminViewResources = (
   const accessSections = dataNeeds.accessSectionBundles
     ? renderInstitutionAdminAccessSections({
         accessMembersPath,
+        accessOrgUnitAccessPath,
         accessGovernancePath,
+        accessDelegationsPath,
         accessAuthenticationPath,
         accessApiKeysPath,
         accessOrgUnitsPath,
@@ -1086,9 +1102,15 @@ export const buildInstitutionAdminViewResources = (
         ...(input.accessMembersWorkspace === undefined
           ? {}
           : { accessMembersWorkspace: input.accessMembersWorkspace }),
+        ...(input.accessOrgUnitAccessWorkspace === undefined
+          ? {}
+          : { accessOrgUnitAccessWorkspace: input.accessOrgUnitAccessWorkspace }),
         ...(input.accessGovernanceWorkspace === undefined
           ? {}
           : { accessGovernanceWorkspace: input.accessGovernanceWorkspace }),
+        ...(input.accessDelegationsWorkspace === undefined
+          ? {}
+          : { accessDelegationsWorkspace: input.accessDelegationsWorkspace }),
         ...(input.accessOrgUnitsWorkspace === undefined
           ? {}
           : { accessOrgUnitsWorkspace: input.accessOrgUnitsWorkspace }),
@@ -1100,6 +1122,7 @@ export const buildInstitutionAdminViewResources = (
         orgUnitPanelMarkup: emptySectionMarkup,
         governanceGuidePanelMarkup: emptySectionMarkup,
         governanceActionsMarkup: emptySectionMarkup,
+        ruleApprovalPolicySummaryMarkup: emptySectionMarkup,
         tenantMembersPanelMarkup: emptySectionMarkup,
         tenantMembersTableMarkup: emptySectionMarkup,
         membershipScopePanelMarkup: emptySectionMarkup,
@@ -1107,6 +1130,7 @@ export const buildInstitutionAdminViewResources = (
         approverGroupPanelMarkup: emptySectionMarkup,
         approverGroupTableMarkup: emptySectionMarkup,
         delegatedGrantTableMarkup: emptySectionMarkup,
+        delegatedGrantActionsMarkup: emptySectionMarkup,
       };
   const {
     apiKeyPanelMarkup,
@@ -1122,6 +1146,8 @@ export const buildInstitutionAdminViewResources = (
     approverGroupPanelMarkup,
     approverGroupTableMarkup,
     delegatedGrantTableMarkup,
+    delegatedGrantActionsMarkup,
+    ruleApprovalPolicySummaryMarkup,
   } = accessSections;
 
   const reportingSections = dataNeeds.reportingSectionBundles
@@ -1271,6 +1297,7 @@ export const buildInstitutionAdminViewResources = (
       approverGroupPanelMarkup,
       approverGroupTableMarkup,
       delegatedGrantTableMarkup,
+      delegatedGrantActionsMarkup,
       governanceActionsMarkup,
       governanceGuidePanelMarkup,
       lmsConnectionsActionsMarkup,
@@ -1279,6 +1306,7 @@ export const buildInstitutionAdminViewResources = (
       membershipScopeTableMarkup,
       orgUnitPanelMarkup,
       orgUnitsTableMarkup,
+      ruleApprovalPolicySummaryMarkup,
       tenantMembersPanelMarkup,
       tenantMembersTableMarkup,
     },

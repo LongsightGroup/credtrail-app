@@ -67,6 +67,7 @@ export interface InstitutionAdminViewContentInput {
     approverGroupPanelMarkup: RenderedNode;
     approverGroupTableMarkup: RenderedNode;
     delegatedGrantTableMarkup: RenderedNode;
+    delegatedGrantActionsMarkup: RenderedNode;
     governanceActionsMarkup: RenderedNode;
     governanceGuidePanelMarkup: RenderedNode;
     lmsConnectionsActionsMarkup: RenderedNode;
@@ -75,6 +76,7 @@ export interface InstitutionAdminViewContentInput {
     membershipScopeTableMarkup: RenderedNode;
     orgUnitPanelMarkup: RenderedNode;
     orgUnitsTableMarkup: RenderedNode;
+    ruleApprovalPolicySummaryMarkup: RenderedNode;
     tenantMembersPanelMarkup: RenderedNode;
     tenantMembersTableMarkup: RenderedNode;
   };
@@ -99,6 +101,8 @@ export interface InstitutionAdminViewDataNeeds {
   apiKeyRows: boolean;
   orgUnitRows: boolean;
   governanceTableRows: boolean;
+  scopedRoleRows: boolean;
+  delegatedGrantRows: boolean;
   tenantMemberRows: boolean;
   templateSelectOptions: boolean;
   delegationSelectOptions: boolean;
@@ -138,6 +142,8 @@ const DEFAULT_VIEW_DATA_NEEDS = {
   apiKeyRows: false,
   orgUnitRows: false,
   governanceTableRows: false,
+  scopedRoleRows: false,
+  delegatedGrantRows: false,
   tenantMemberRows: false,
   templateSelectOptions: false,
   delegationSelectOptions: false,
@@ -460,21 +466,63 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
       );
     },
   },
-  accessGovernance: {
-    titlePrefix: "Governance · Institution Admin",
+  accessOrgUnitAccess: {
+    titlePrefix: "Org-unit Access · Institution Admin",
     controller: "shared",
     dataNeeds: viewDataNeeds({
       accessSectionBundles: true,
-      governanceTableRows: true,
-      delegationSelectOptions: true,
+      scopedRoleRows: true,
     }),
     render: (content) => {
       const { input } = content;
       return (
         <>
           {renderPageHeader(
-            "Governance",
-            "Set rule approval policy, grant org-unit access, and manage time-boxed badge authority.",
+            "Org-unit Access",
+            "Review standing access grants by org unit and assign scoped roles.",
+            <aside class="ct-admin-page-header__note">
+              <h2>Standing access</h2>
+              <p>
+                Scoped roles grant ongoing access inside one org unit. Use delegated authority for
+                time-boxed exceptions.
+              </p>
+            </aside>,
+          )}
+          <section class="ct-admin ct-stack">
+            {input.accessOrgUnitAccessWorkspace?.listError !== null &&
+            input.accessOrgUnitAccessWorkspace?.listError !== undefined &&
+            input.accessOrgUnitAccessWorkspace.listError.length > 0 ? (
+              <AdminStatus data-tone="error">
+                {input.accessOrgUnitAccessWorkspace.listError}
+              </AdminStatus>
+            ) : input.accessOrgUnitAccessWorkspace?.listNotice !== null &&
+              input.accessOrgUnitAccessWorkspace?.listNotice !== undefined &&
+              input.accessOrgUnitAccessWorkspace.listNotice.length > 0 ? (
+              <AdminStatus data-tone="success">
+                {input.accessOrgUnitAccessWorkspace.listNotice}
+              </AdminStatus>
+            ) : null}
+            {content.access.membershipScopeTableMarkup}
+            {content.access.membershipScopePanelMarkup}
+          </section>
+        </>
+      );
+    },
+  },
+  accessGovernance: {
+    titlePrefix: "Rule Approval · Institution Admin",
+    controller: "shared",
+    dataNeeds: viewDataNeeds({
+      accessSectionBundles: true,
+      governanceTableRows: true,
+    }),
+    render: (content) => {
+      const { input } = content;
+      return (
+        <>
+          {renderPageHeader(
+            "Rule Approval",
+            "Set who reviews submitted badge rule versions before activation.",
             <aside class="ct-admin-page-header__note">
               <h2>Keep approval outside the draft</h2>
               <p>
@@ -498,12 +546,52 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
               </AdminStatus>
             ) : null}
             {content.access.governanceGuidePanelMarkup}
-            {content.access.governanceActionsMarkup}
+            {content.access.ruleApprovalPolicySummaryMarkup}
             {content.access.approverGroupTableMarkup}
-            {content.access.approverGroupPanelMarkup}
-            {content.access.membershipScopeTableMarkup}
-            {content.access.membershipScopePanelMarkup}
+            {content.access.governanceActionsMarkup}
+          </section>
+        </>
+      );
+    },
+  },
+  accessDelegations: {
+    titlePrefix: "Delegated Authority · Institution Admin",
+    controller: "shared",
+    dataNeeds: viewDataNeeds({
+      accessSectionBundles: true,
+      delegatedGrantRows: true,
+    }),
+    render: (content) => {
+      const { input } = content;
+      return (
+        <>
+          {renderPageHeader(
+            "Delegated Authority",
+            "Review temporary badge authority grants and remove grants that are no longer needed.",
+            <aside class="ct-admin-page-header__note">
+              <h2>Time-boxed authority</h2>
+              <p>
+                Delegations grant temporary badge authority without changing standing org-unit
+                access.
+              </p>
+            </aside>,
+          )}
+          <section class="ct-admin ct-stack">
+            {input.accessDelegationsWorkspace?.listError !== null &&
+            input.accessDelegationsWorkspace?.listError !== undefined &&
+            input.accessDelegationsWorkspace.listError.length > 0 ? (
+              <AdminStatus data-tone="error">
+                {input.accessDelegationsWorkspace.listError}
+              </AdminStatus>
+            ) : input.accessDelegationsWorkspace?.listNotice !== null &&
+              input.accessDelegationsWorkspace?.listNotice !== undefined &&
+              input.accessDelegationsWorkspace.listNotice.length > 0 ? (
+              <AdminStatus data-tone="success">
+                {input.accessDelegationsWorkspace.listNotice}
+              </AdminStatus>
+            ) : null}
             {content.access.delegatedGrantTableMarkup}
+            {content.access.delegatedGrantActionsMarkup}
           </section>
         </>
       );

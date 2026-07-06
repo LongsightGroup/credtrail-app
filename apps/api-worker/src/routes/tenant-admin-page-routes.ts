@@ -104,7 +104,17 @@ interface RegisterTenantAdminPageRoutesInput {
     tenantId: string,
     nextPath: string,
   ) => Promise<Response>;
+  renderInstitutionAdminOrgUnitAccessWorkspace: (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ) => Promise<Response>;
   renderInstitutionAdminGovernanceWorkspace: (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+  ) => Promise<Response>;
+  renderInstitutionAdminDelegationsWorkspace: (
     c: AppContext,
     tenantId: string,
     nextPath: string,
@@ -204,7 +214,9 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     redirectToTenantLogin,
     renderInstitutionAdminWorkspace,
     renderInstitutionAdminMembersWorkspace,
+    renderInstitutionAdminOrgUnitAccessWorkspace,
     renderInstitutionAdminGovernanceWorkspace,
+    renderInstitutionAdminDelegationsWorkspace,
     renderInstitutionAdminGovernanceDelegationNewWorkspace,
     renderInstitutionAdminAuthenticationWorkspace,
     renderInstitutionAdminOrgUnitsWorkspace,
@@ -329,6 +341,24 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access/governance`,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/access/org-unit-access", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    return renderInstitutionAdminOrgUnitAccessWorkspace(
+      c,
+      pathParams.tenantId,
+      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access/org-unit-access`,
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/access/delegations", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    return renderInstitutionAdminDelegationsWorkspace(
+      c,
+      pathParams.tenantId,
+      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access/delegations`,
     );
   });
 

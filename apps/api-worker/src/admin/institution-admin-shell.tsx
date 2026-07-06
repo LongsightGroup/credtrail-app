@@ -37,7 +37,9 @@ export interface InstitutionAdminShellPaths {
   ruleBuilderPath: string;
   accessPath: string;
   accessMembersPath: string;
+  accessOrgUnitAccessPath: string;
   accessGovernancePath: string;
+  accessDelegationsPath: string;
   accessAuthenticationPath: string;
   accessApiKeysPath: string;
   accessLmsConnectionsPath: string;

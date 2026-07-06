@@ -27,8 +27,10 @@ import {
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import {
+  buildAccessDelegationsAdminPath,
   buildAccessGovernanceAdminPath,
   buildAccessGovernanceDelegationNewPath,
+  buildAccessOrgUnitAccessAdminPath,
 } from "../admin/access-admin-helpers";
 import { readOptionalFormField } from "../admin/admin-form-helpers";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
@@ -89,6 +91,46 @@ const redirectToDelegationNew = async (
   });
 
   return c.redirect(buildAccessGovernanceDelegationNewPath(input.tenantId), 303);
+};
+
+const redirectToOrgUnitAccess = async (
+  c: AppContext,
+  input: {
+    tenantId: string;
+    userId: string;
+    tone: "success" | "error";
+    message: string;
+  },
+): Promise<Response> => {
+  await setAdminListMessageFlash(c, {
+    tenantId: input.tenantId,
+    userId: input.userId,
+    workspace: "access_org_unit_access",
+    tone: input.tone,
+    message: input.message,
+  });
+
+  return c.redirect(buildAccessOrgUnitAccessAdminPath(input.tenantId), 303);
+};
+
+const redirectToDelegations = async (
+  c: AppContext,
+  input: {
+    tenantId: string;
+    userId: string;
+    tone: "success" | "error";
+    message: string;
+  },
+): Promise<Response> => {
+  await setAdminListMessageFlash(c, {
+    tenantId: input.tenantId,
+    userId: input.userId,
+    workspace: "access_delegations",
+    tone: input.tone,
+    message: input.message,
+  });
+
+  return c.redirect(buildAccessDelegationsAdminPath(input.tenantId), 303);
 };
 
 const readBadgeTemplateIdsFromForm = (formData: FormData): string[] => {
@@ -564,7 +606,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
 
   app.post("/tenants/:tenantId/admin/access/governance/scopes", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
-    const nextPath = buildAccessGovernanceAdminPath(pathParams.tenantId);
+    const nextPath = buildAccessOrgUnitAccessAdminPath(pathParams.tenantId);
     const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
 
     if (roleCheck instanceof Response) {
@@ -582,7 +624,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
     try {
       request = parseUpsertTenantMembershipOrgUnitScopeRequest({ role });
     } catch {
-      return redirectToGovernance(c, {
+      return redirectToOrgUnitAccess(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "error",
@@ -591,7 +633,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
     }
 
     if (userId.length === 0 || orgUnitId.length === 0) {
-      return redirectToGovernance(c, {
+      return redirectToOrgUnitAccess(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "error",
@@ -632,14 +674,14 @@ export const registerTenantAccessGovernanceAdminRoutes = (
         },
       });
 
-      return redirectToGovernance(c, {
+      return redirectToOrgUnitAccess(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "success",
         message: `Saved scoped role ${result.scope.role} for ${userId}.`,
       });
     } catch (error: unknown) {
-      return redirectToGovernance(c, {
+      return redirectToOrgUnitAccess(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "error",
@@ -650,7 +692,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
 
   app.post("/tenants/:tenantId/admin/access/governance/scopes/remove", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
-    const nextPath = buildAccessGovernanceAdminPath(pathParams.tenantId);
+    const nextPath = buildAccessOrgUnitAccessAdminPath(pathParams.tenantId);
     const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
 
     if (roleCheck instanceof Response) {
@@ -663,7 +705,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
     const orgUnitId = readOptionalFormField(formData, "orgUnitId") ?? "";
 
     if (userId.length === 0 || orgUnitId.length === 0) {
-      return redirectToGovernance(c, {
+      return redirectToOrgUnitAccess(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "error",
@@ -679,7 +721,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
     });
 
     if (!removed) {
-      return redirectToGovernance(c, {
+      return redirectToOrgUnitAccess(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "error",
@@ -700,7 +742,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
       },
     });
 
-    return redirectToGovernance(c, {
+    return redirectToOrgUnitAccess(c, {
       tenantId: pathParams.tenantId,
       userId: session.userId,
       tone: "success",
@@ -820,7 +862,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
         },
       });
 
-      return redirectToGovernance(c, {
+      return redirectToDelegations(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "success",
@@ -838,7 +880,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
 
   app.post("/tenants/:tenantId/admin/access/governance/delegations/revoke", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
-    const nextPath = buildAccessGovernanceAdminPath(pathParams.tenantId);
+    const nextPath = buildAccessDelegationsAdminPath(pathParams.tenantId);
     const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
 
     if (roleCheck instanceof Response) {
@@ -852,7 +894,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
     const reason = readOptionalFormField(formData, "reason");
 
     if (delegateUserId.length === 0 || grantId.length === 0) {
-      return redirectToGovernance(c, {
+      return redirectToDelegations(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "error",
@@ -867,7 +909,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
         reason !== undefined ? { reason } : {},
       );
     } catch {
-      return redirectToGovernance(c, {
+      return redirectToDelegations(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "error",
@@ -883,7 +925,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
     );
 
     if (existingGrant === null || existingGrant.delegateUserId !== delegateUserId) {
-      return redirectToGovernance(c, {
+      return redirectToDelegations(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "error",
@@ -904,7 +946,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
         revokedAt,
       });
     } catch {
-      return redirectToGovernance(c, {
+      return redirectToDelegations(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "error",
@@ -913,7 +955,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
     }
 
     if (revokeResult.status !== "revoked") {
-      return redirectToGovernance(c, {
+      return redirectToDelegations(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "error",
@@ -934,7 +976,7 @@ export const registerTenantAccessGovernanceAdminRoutes = (
       },
     });
 
-    return redirectToGovernance(c, {
+    return redirectToDelegations(c, {
       tenantId: pathParams.tenantId,
       userId: session.userId,
       tone: "success",

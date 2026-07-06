@@ -31,17 +31,22 @@ import { tenantApiKeyAdminCreatePath } from "../api-key-admin-helpers";
 import { buildLmsConnectionNewPath } from "../lms-connection-admin-helpers";
 import type {
   InstitutionAdminAccessGovernanceWorkspace,
+  InstitutionAdminAccessDelegationsWorkspace,
   InstitutionAdminAccessMembersWorkspace,
+  InstitutionAdminAccessOrgUnitAccessWorkspace,
   InstitutionAdminAccessOrgUnitsWorkspace,
   InstitutionAdminApiKeysWorkspace,
   InstitutionAdminLmsConnectionsWorkspace,
 } from "./page-types";
+import { formatIsoTimestamp } from "../../utils/display-format";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | HonoElement[];
 
 interface RenderInstitutionAdminAccessSectionsInput {
   accessMembersPath: string;
+  accessOrgUnitAccessPath: string;
   accessGovernancePath: string;
+  accessDelegationsPath: string;
   accessAuthenticationPath: string;
   accessApiKeysPath: string;
   accessOrgUnitsPath: string;
@@ -73,7 +78,9 @@ interface RenderInstitutionAdminAccessSectionsInput {
   apiKeysWorkspace?: InstitutionAdminApiKeysWorkspace;
   lmsConnectionsWorkspace?: InstitutionAdminLmsConnectionsWorkspace;
   accessMembersWorkspace?: InstitutionAdminAccessMembersWorkspace;
+  accessOrgUnitAccessWorkspace?: InstitutionAdminAccessOrgUnitAccessWorkspace;
   accessGovernanceWorkspace?: InstitutionAdminAccessGovernanceWorkspace;
+  accessDelegationsWorkspace?: InstitutionAdminAccessDelegationsWorkspace;
   accessOrgUnitsWorkspace?: InstitutionAdminAccessOrgUnitsWorkspace;
 }
 
@@ -84,6 +91,7 @@ interface InstitutionAdminAccessSections {
   orgUnitPanelMarkup: HonoElement;
   governanceGuidePanelMarkup: HonoElement;
   governanceActionsMarkup: HonoElement;
+  ruleApprovalPolicySummaryMarkup: HonoElement;
   tenantMembersPanelMarkup: HonoElement;
   tenantMembersTableMarkup: HonoElement;
   membershipScopePanelMarkup: HonoElement;
@@ -91,6 +99,7 @@ interface InstitutionAdminAccessSections {
   approverGroupPanelMarkup: HonoElement;
   approverGroupTableMarkup: HonoElement;
   delegatedGrantTableMarkup: HonoElement;
+  delegatedGrantActionsMarkup: HonoElement;
 }
 
 const addDisclosureControlMarkup = (
@@ -101,6 +110,33 @@ const addDisclosureControlMarkup = (
 );
 
 const ruleApprovalPolicyRoleLabel = tenantMembershipRoleLabel;
+
+const describeRuleApprovalRequirement = (policy: BadgeRuleApprovalPolicyRecord | null): string => {
+  if (policy?.approvalRequirement === "never") {
+    return policy.allowSelfCertification ? "Automatic approval" : "Automatic approval disabled";
+  }
+
+  return "Approval required";
+};
+
+const describeRuleApprovalReviewer = (policy: BadgeRuleApprovalPolicyRecord | null): string => {
+  if (policy?.approvalRequirement === "never") {
+    return policy.allowSelfCertification ? "Self-certification" : "No active approval path";
+  }
+
+  const firstStep = policy?.approvalSteps[0] ?? null;
+
+  if (firstStep === null || firstStep.targetType === "role_threshold") {
+    const requiredRole = firstStep?.requiredRole ?? "admin";
+    return `${ruleApprovalPolicyRoleLabel(requiredRole)} role`;
+  }
+
+  if (firstStep.targetType === "user") {
+    return "Named reviewer";
+  }
+
+  return "Approver group";
+};
 
 export const renderInstitutionAdminAccessSections = (
   input: RenderInstitutionAdminAccessSectionsInput,
@@ -118,6 +154,14 @@ export const renderInstitutionAdminAccessSections = (
   const badgeRuleApprovalPolicy = input.badgeRuleApprovalPolicy ?? null;
   const badgeRuleApprovalFormState = badgeRuleApprovalPolicyFormState(badgeRuleApprovalPolicy);
   const badgeRuleApprovalSummary = describeBadgeRuleApprovalSummary(badgeRuleApprovalPolicy);
+  const badgeRuleApprovalScopeLabel =
+    badgeRuleApprovalPolicy?.orgUnitId === null || badgeRuleApprovalPolicy?.orgUnitId === undefined
+      ? "Tenant default"
+      : "Org-unit override";
+  const badgeRuleApprovalUpdatedAt =
+    badgeRuleApprovalPolicy?.updatedAt === undefined
+      ? "Not saved"
+      : formatIsoTimestamp(badgeRuleApprovalPolicy.updatedAt);
 
   const apiKeyPanelMarkup = (
     <details
@@ -275,29 +319,49 @@ export const renderInstitutionAdminAccessSections = (
 
   const governanceGuidePanelMarkup = (
     <AdminPanel id="governance-panel">
-      <h2>Governance controls</h2>
+      <h2>Approval governance</h2>
       <p>
-        Use this page to set badge rule approval policy, review standing org-unit roles, and manage
-        time-boxed delegations. Choosing a parent org unit also covers the child units beneath it.
+        Rule approval policy decides who reviews submitted badge rule versions before activation.
       </p>
       <p class="ct-admin__hint">
         Rule authors cannot edit approval steps on the rule draft. Institution policy decides what
         happens when a rule version is submitted.
       </p>
-      <ul>
-        <li>Set badge rule approval before instructors submit rules for activation.</li>
-        <li>Use a scoped role for standing access inside an org unit.</li>
-        <li>
-          Use <a href={delegationNewPath}>delegated authority</a> for temporary badge actions with
-          an end date.
-        </li>
-        {input.planTier === "enterprise" ? (
-          <li>
-            Configure institution sign-in on the <a href={authenticationPath}>Authentication</a>{" "}
-            page.
-          </li>
-        ) : null}
-      </ul>
+      {input.planTier === "enterprise" ? (
+        <p class="ct-admin__hint">
+          Institution sign-in settings remain on the <a href={authenticationPath}>Authentication</a>{" "}
+          page.
+        </p>
+      ) : null}
+    </AdminPanel>
+  );
+
+  const ruleApprovalPolicySummaryMarkup = (
+    <AdminPanel variant="table">
+      <h2>Approval Policy</h2>
+      <p>Review the active approval path before changing who can approve submitted rules.</p>
+      <AdminTable
+        headers={["Scope", "Requirement", "Reviewer", "Updated", "Actions"]}
+        tbodyId="rule-approval-policy-body"
+      >
+        <tr>
+          <td>
+            <strong>{badgeRuleApprovalScopeLabel}</strong>
+            {badgeRuleApprovalPolicy?.orgUnitId === null ||
+            badgeRuleApprovalPolicy?.orgUnitId === undefined ? null : (
+              <div class="ct-admin__meta">{badgeRuleApprovalPolicy.orgUnitId}</div>
+            )}
+          </td>
+          <td>{describeRuleApprovalRequirement(badgeRuleApprovalPolicy)}</td>
+          <td>{describeRuleApprovalReviewer(badgeRuleApprovalPolicy)}</td>
+          <td>{badgeRuleApprovalUpdatedAt}</td>
+          <td>
+            <AdminButtonLink href="#rule-approval-policy-panel" size="tiny" variant="secondary">
+              Change policy
+            </AdminButtonLink>
+          </td>
+        </tr>
+      </AdminTable>
     </AdminPanel>
   );
 
@@ -476,13 +540,6 @@ export const renderInstitutionAdminAccessSections = (
           <AdminButton type="submit">Add member to group</AdminButton>
         </AdminForm>
       </details>
-      <AdminPanel>
-        <AdminActions>
-          <AdminButtonLink href={delegationNewPath} variant="secondary">
-            Add delegated authority
-          </AdminButtonLink>
-        </AdminActions>
-      </AdminPanel>
     </div>
   );
 
@@ -631,6 +688,20 @@ export const renderInstitutionAdminAccessSections = (
     </AdminPanel>
   );
 
+  const delegatedGrantActionsMarkup = (
+    <AdminPanel>
+      <p class="ct-admin__hint">
+        Add a temporary authority grant on a dedicated setup page so the scope, actions, and end
+        date stay explicit.
+      </p>
+      <AdminActions>
+        <AdminButtonLink href={delegationNewPath} variant="secondary">
+          Add delegated authority
+        </AdminButtonLink>
+      </AdminActions>
+    </AdminPanel>
+  );
+
   return {
     apiKeyPanelMarkup,
     lmsConnectionsActionsMarkup,
@@ -638,6 +709,7 @@ export const renderInstitutionAdminAccessSections = (
     orgUnitPanelMarkup,
     governanceGuidePanelMarkup,
     governanceActionsMarkup,
+    ruleApprovalPolicySummaryMarkup,
     tenantMembersPanelMarkup,
     tenantMembersTableMarkup,
     membershipScopePanelMarkup,
@@ -645,5 +717,6 @@ export const renderInstitutionAdminAccessSections = (
     approverGroupPanelMarkup: <></>,
     approverGroupTableMarkup,
     delegatedGrantTableMarkup,
+    delegatedGrantActionsMarkup,
   };
 };

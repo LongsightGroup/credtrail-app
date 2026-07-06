@@ -6,6 +6,14 @@ export const buildAccessGovernanceAdminPath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/access/governance`;
 };
 
+export const buildAccessOrgUnitAccessAdminPath = (tenantId: string): string => {
+  return `/tenants/${encodeURIComponent(tenantId)}/admin/access/org-unit-access`;
+};
+
+export const buildAccessDelegationsAdminPath = (tenantId: string): string => {
+  return `/tenants/${encodeURIComponent(tenantId)}/admin/access/delegations`;
+};
+
 export const buildAccessAuthenticationAdminPath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/access/authentication`;
 };

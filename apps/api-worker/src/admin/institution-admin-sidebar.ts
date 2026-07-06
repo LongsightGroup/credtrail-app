@@ -16,7 +16,9 @@ export type InstitutionAdminSidebarView =
   | "rulesTemplates"
   | "rulesBuilder"
   | "accessMembers"
+  | "accessOrgUnitAccess"
   | "accessGovernance"
+  | "accessDelegations"
   | "accessGovernanceDelegationNew"
   | "accessAuthentication"
   | "accessApiKeys"
@@ -44,7 +46,9 @@ export interface InstitutionAdminSidebarPaths {
   ruleBuilderPath: string;
   accessPath: string;
   accessMembersPath: string;
+  accessOrgUnitAccessPath: string;
   accessGovernancePath: string;
+  accessDelegationsPath: string;
   accessAuthenticationPath: string;
   accessApiKeysPath: string;
   accessLmsConnectionsPath: string;
@@ -79,7 +83,9 @@ export const buildInstitutionAdminSidebarPaths = (
     ruleBuilderPath: `${tenantAdminPath}/rules/new`,
     accessPath,
     accessMembersPath: `${accessPath}/members`,
+    accessOrgUnitAccessPath: `${accessPath}/org-unit-access`,
     accessGovernancePath: `${accessPath}/governance`,
+    accessDelegationsPath: `${accessPath}/delegations`,
     accessAuthenticationPath: `${accessPath}/authentication`,
     accessApiKeysPath: `${accessPath}/api-keys`,
     accessLmsConnectionsPath: `${accessPath}/lms-connections`,
@@ -97,9 +103,19 @@ export const buildInstitutionAdminSidebarSections = (
   const peopleAndAccessLinks = [
     { href: paths.accessMembersPath, label: "Members", isCurrent: view === "accessMembers" },
     {
+      href: paths.accessOrgUnitAccessPath,
+      label: "Org-unit Access",
+      isCurrent: view === "accessOrgUnitAccess",
+    },
+    {
       href: paths.accessGovernancePath,
-      label: "Governance",
-      isCurrent: view === "accessGovernance" || view === "accessGovernanceDelegationNew",
+      label: "Rule Approval",
+      isCurrent: view === "accessGovernance",
+    },
+    {
+      href: paths.accessDelegationsPath,
+      label: "Delegated Authority",
+      isCurrent: view === "accessDelegations" || view === "accessGovernanceDelegationNew",
     },
     ...(showEnterpriseAuthentication
       ? [

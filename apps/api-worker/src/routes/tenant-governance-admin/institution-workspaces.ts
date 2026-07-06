@@ -15,6 +15,7 @@ import {
 } from "../../admin/institution-admin-workspace";
 import {
   renderInstitutionAdminAuthenticationWorkspace,
+  renderInstitutionAdminDelegationsWorkspace,
   renderInstitutionAdminGovernanceDelegationNewWorkspace,
   renderInstitutionAdminGovernanceWorkspace,
   renderInstitutionAdminLmsConnectionEditWorkspace,
@@ -22,6 +23,7 @@ import {
   renderInstitutionAdminLmsConnectionsWorkspace,
   renderInstitutionAdminManualIssueWorkspace,
   renderInstitutionAdminMembersWorkspace,
+  renderInstitutionAdminOrgUnitAccessWorkspace,
   renderInstitutionAdminOrgUnitsWorkspace,
   renderInstitutionAdminReviewQueueWorkspace,
   renderInstitutionAdminRulesWorkspace,
@@ -363,6 +365,15 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       workspaceRendererDeps("accessMembers"),
     );
 
+  const renderOrgUnitAccessWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
+    renderInstitutionAdminOrgUnitAccessWorkspace(
+      c,
+      renderAppPage,
+      tenantId,
+      nextPath,
+      workspaceRendererDeps("accessOrgUnitAccess"),
+    );
+
   const renderGovernanceWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
     renderInstitutionAdminGovernanceWorkspace(
       c,
@@ -370,6 +381,15 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       tenantId,
       nextPath,
       workspaceRendererDeps("accessGovernance"),
+    );
+
+  const renderDelegationsWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
+    renderInstitutionAdminDelegationsWorkspace(
+      c,
+      renderAppPage,
+      tenantId,
+      nextPath,
+      workspaceRendererDeps("accessDelegations"),
     );
 
   const renderOrgUnitsWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
@@ -395,7 +415,9 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
     renderGovernanceDelegationNewWorkspace,
     renderManualIssueWorkspace,
     renderMembersWorkspace,
+    renderOrgUnitAccessWorkspace,
     renderGovernanceWorkspace,
+    renderDelegationsWorkspace,
     renderOrgUnitsWorkspace,
   };
 };
