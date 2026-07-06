@@ -1000,6 +1000,7 @@ describe("badge rule routes", () => {
     mockedSubmitBadgeIssuanceRuleVersionForApproval.mockResolvedValue({
       status: "submitted",
       version: sampleVersion({ status: "pending_approval" }),
+      pendingStepNumber: 1,
     });
 
     const response = await app.request(
@@ -1067,6 +1068,43 @@ describe("badge rule routes", () => {
     expect(mockedDecideBadgeIssuanceRuleVersion).toHaveBeenCalledTimes(1);
     expect(mockedFindBadgeIssuanceRuleVersionById).not.toHaveBeenCalled();
     expect(mockedListBadgeIssuanceRuleVersionApprovalSteps).not.toHaveBeenCalled();
+  });
+
+  it("returns the approved version when approval decision audit logging fails", async () => {
+    const env = createEnv();
+    mockedDecideBadgeIssuanceRuleVersion.mockResolvedValue({
+      status: "decided",
+      version: sampleVersion({ status: "approved" }),
+      decidedStepNumber: 1,
+      nextStepNumber: null,
+    });
+    mockedCreateAuditLog.mockRejectedValueOnce(new Error("audit unavailable"));
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules/brl_123/versions/brv_123/decision",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          decision: "approved",
+          comment: "Looks good",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{
+      version: {
+        status: string;
+      };
+    }>();
+
+    expect(response.status).toBe(200);
+    expect(body.version.status).toBe("approved");
+    expect(mockedCreateAuditLog).toHaveBeenCalledTimes(1);
   });
 
   it("returns approval history for a badge rule version", async () => {

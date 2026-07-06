@@ -277,6 +277,8 @@ export type DecideBadgeIssuanceRuleVersionResult =
   | {
       status: "decided";
       version: BadgeIssuanceRuleVersionRecord;
+      decidedStepNumber: number;
+      nextStepNumber: number | null;
     }
   | {
       status: "not_found";
@@ -305,6 +307,7 @@ export type SubmitBadgeIssuanceRuleVersionForApprovalResult =
   | {
       status: "submitted";
       version: BadgeIssuanceRuleVersionRecord;
+      pendingStepNumber: number | null;
     }
   | {
       status: "not_found";

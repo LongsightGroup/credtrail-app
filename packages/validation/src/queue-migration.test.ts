@@ -99,6 +99,26 @@ describe("parseQueueJob", () => {
     expect(job.jobType).toBe("generate_badge_template_image");
   });
 
+  it("accepts a valid badge rule approval notification queue payload", () => {
+    const job = parseQueueJob({
+      jobType: "send_badge_rule_approval_notification",
+      tenantId: "tenant_123",
+      payload: {
+        notificationType: "approval_decision",
+        ruleId: "brl_123",
+        versionId: "brv_123",
+        reviewUrl:
+          "https://credtrail.example/tenants/tenant_123/admin/rules/approvals/brl_123/versions/brv_123",
+        decision: "approved",
+        comment: null,
+        nextStepNumber: null,
+      },
+      idempotencyKey: "approval-decision-brv_123",
+    });
+
+    expect(job.jobType).toBe("send_badge_rule_approval_notification");
+  });
+
   it("rejects malformed queue jobs", () => {
     expect(() => {
       parseQueueJob({

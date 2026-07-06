@@ -19,6 +19,7 @@ import {
   mockedFindBadgeTemplateImageRevisionById,
   mockedFindBadgeIssuanceRuleById,
   mockedFindLtiResourceLinkPlacementForRule,
+  mockedEnqueueJobQueueMessageOnce,
   mockedFindTenantMembership,
   mockedListAccessibleTenantContextsForUser,
   mockedListBadgeIssuanceRuleVersionApprovalEvents,
@@ -591,6 +592,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
     mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockResolvedValue({
       status: "submitted",
       version: pendingVersion,
+      pendingStepNumber: 1,
     });
 
     const response = await app.request(
@@ -622,6 +624,19 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
         targetId: "brv_123",
       }),
     );
+    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      jobType: "send_badge_rule_approval_notification",
+      idempotencyKey: "approval-submitted:brv_123:2026-02-18T12:00:00.000Z",
+      payload: {
+        notificationType: "approval_submitted",
+        ruleId: "brl_123",
+        versionId: "brv_123",
+        reviewUrl:
+          "http://localhost/tenants/tenant_123/admin/rules/approvals/brl_123/versions/brv_123",
+        targetStepNumber: 1,
+      },
+    });
 
     const flashCookie = adminFlashCookieHeader(response);
     const flashResponse = await app.request(
@@ -671,6 +686,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
     mockedSubmitBadgeIssuanceRuleVersionForApprovalDb.mockResolvedValue({
       status: "submitted",
       version: approvedVersion,
+      pendingStepNumber: null,
     });
 
     const response = await app.request(
@@ -687,6 +703,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
 
     expect(response.status).toBe(303);
     expect(mockedDecideBadgeIssuanceRuleVersionDb).not.toHaveBeenCalled();
+    expect(mockedEnqueueJobQueueMessageOnce).not.toHaveBeenCalled();
     const flashCookie = adminFlashCookieHeader(response);
     const flashResponse = await app.request(
       "/tenants/tenant_123/admin/rules",
@@ -949,6 +966,8 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
     mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue({
       status: "decided",
       version: approvedVersion,
+      decidedStepNumber: 1,
+      nextStepNumber: null,
     });
 
     const response = await app.request(
@@ -975,6 +994,21 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
       decision: "approved",
       actorUserId: "usr_admin",
       actorRole: "approver",
+    });
+    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      jobType: "send_badge_rule_approval_notification",
+      idempotencyKey: "approval-decision:brv_approval:2026-02-18T12:20:00.000Z",
+      payload: {
+        notificationType: "approval_decision",
+        ruleId: "brl_approval",
+        versionId: "brv_approval",
+        reviewUrl:
+          "http://localhost/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval",
+        decision: "approved",
+        comment: null,
+        nextStepNumber: null,
+      },
     });
   });
 
@@ -1003,6 +1037,8 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
     mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue({
       status: "decided",
       version: approvedVersion,
+      decidedStepNumber: 1,
+      nextStepNumber: null,
     });
 
     const response = await app.request(
@@ -1041,6 +1077,59 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
         action: "badge_rule.version_approval_decided",
         targetId: "brv_approval",
       }),
+    );
+  });
+
+  it("redirects after a committed decision when audit and notification enqueue fail", async () => {
+    const env = createEnv();
+    const approvedVersion: BadgeIssuanceRuleVersionRecord = {
+      id: "brv_approval",
+      tenantId: "tenant_123",
+      ruleId: "brl_approval",
+      versionNumber: 2,
+      status: "approved",
+      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+      changeSummary: "Lower threshold",
+      createdByUserId: "usr_author",
+      submittedByUserId: "usr_author",
+      submittedAt: "2026-02-18T12:15:00.000Z",
+      approvedByUserId: "usr_admin",
+      approvedAt: "2026-02-18T12:20:00.000Z",
+      activatedByUserId: null,
+      activatedAt: null,
+      ...versionLifecycleFields,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:20:00.000Z",
+    };
+
+    mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue({
+      status: "decided",
+      version: approvedVersion,
+      decidedStepNumber: 1,
+      nextStepNumber: null,
+    });
+    mockedCreateAuditLogDb.mockRejectedValue(new Error("audit unavailable"));
+    mockedEnqueueJobQueueMessageOnce.mockRejectedValue(new Error("queue unavailable"));
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/decision",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          decision: "approved",
+        }).toString(),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval",
     );
   });
 });

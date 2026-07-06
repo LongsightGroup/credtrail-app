@@ -4,6 +4,7 @@ import {
   createAuditLog,
   decideBadgeIssuanceRuleVersion,
   deleteDraftBadgeIssuanceRule,
+  enqueueJobQueueMessageOnce,
   parseOptionalDateTimeInputToIso,
   recertifyBadgeIssuanceRuleVersion,
   resumeBadgeIssuanceRuleVersion,
@@ -30,9 +31,9 @@ import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
 import {
-  notifyBadgeRuleApprovalDecision,
-  notifyBadgeRuleApprovalSubmitted,
-} from "../badges/badge-rule-approval-notifications";
+  badgeRuleApprovalDecisionNotificationIdempotencyKey,
+  badgeRuleApprovalSubmittedNotificationIdempotencyKey,
+} from "../badges/badge-rule-approval-notification-queue";
 import {
   adminApprovalDecisionFailureMessage,
   submitBadgeRuleVersionForApprovalFailureMessage,
@@ -184,23 +185,46 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
     resolveInstitutionAdminAdminRole,
   } = input;
 
-  const logApprovalNotificationFailure = (
+  const logApprovalSideEffectFailure = (
     c: AppContext,
     input: {
       readonly tenantId: string;
       readonly ruleId: string;
       readonly versionId: string;
-      readonly notificationType: "approval_decision" | "approval_submitted";
+      readonly sideEffect: "audit_log" | "notification_enqueue";
+      readonly eventType: "approval_decision" | "approval_submitted";
       readonly error: unknown;
     },
   ): void => {
-    logError(observabilityContext(c.env), "badge_rule_approval_notification_failed", {
+    logError(observabilityContext(c.env), "badge_rule_approval_side_effect_failed", {
       tenantId: input.tenantId,
       ruleId: input.ruleId,
       versionId: input.versionId,
-      notificationType: input.notificationType,
+      sideEffect: input.sideEffect,
+      eventType: input.eventType,
       errorKind: input.error instanceof Error ? input.error.name : typeof input.error,
     });
+  };
+
+  const runApprovalSideEffect = async (
+    c: AppContext,
+    input: {
+      readonly tenantId: string;
+      readonly ruleId: string;
+      readonly versionId: string;
+      readonly sideEffect: "audit_log" | "notification_enqueue";
+      readonly eventType: "approval_decision" | "approval_submitted";
+    },
+    run: () => Promise<unknown>,
+  ): Promise<void> => {
+    try {
+      await run();
+    } catch (error: unknown) {
+      logApprovalSideEffectFailure(c, {
+        ...input,
+        error,
+      });
+    }
   };
 
   const handleDecisionPost = async (
@@ -263,48 +287,69 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       });
     }
 
-    await createAuditLog(db, {
-      tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
-      action: "badge_rule.version_approval_decided",
-      targetType: "badge_rule_version",
-      targetId: decisionResult.version.id,
-      metadata: {
-        role: membershipRole,
-        ruleId: pathParams.ruleId,
-        versionNumber: decisionResult.version.versionNumber,
-        decision: request.decision,
-        comment: request.comment ?? null,
-        status: decisionResult.version.status,
-      },
-    });
-
-    try {
-      await notifyBadgeRuleApprovalDecision(db, {
-        env: c.env,
-        tenantId: pathParams.tenantId,
-        ruleId: pathParams.ruleId,
-        version: decisionResult.version,
-        decision: request.decision,
-        comment: request.comment ?? null,
-        reviewUrl: absoluteUrlForPath(
-          c,
-          buildBadgeRuleVersionReviewPath(
-            pathParams.tenantId,
-            pathParams.ruleId,
-            pathParams.versionId,
-          ),
-        ),
-      });
-    } catch (error: unknown) {
-      logApprovalNotificationFailure(c, {
-        tenantId: pathParams.tenantId,
-        ruleId: pathParams.ruleId,
-        versionId: pathParams.versionId,
-        notificationType: "approval_decision",
-        error,
-      });
-    }
+    await Promise.all([
+      runApprovalSideEffect(
+        c,
+        {
+          tenantId: pathParams.tenantId,
+          ruleId: pathParams.ruleId,
+          versionId: pathParams.versionId,
+          sideEffect: "audit_log",
+          eventType: "approval_decision",
+        },
+        () =>
+          createAuditLog(db, {
+            tenantId: pathParams.tenantId,
+            actorUserId: session.userId,
+            action: "badge_rule.version_approval_decided",
+            targetType: "badge_rule_version",
+            targetId: decisionResult.version.id,
+            metadata: {
+              role: membershipRole,
+              ruleId: pathParams.ruleId,
+              versionNumber: decisionResult.version.versionNumber,
+              decision: request.decision,
+              comment: request.comment ?? null,
+              status: decisionResult.version.status,
+            },
+          }),
+      ),
+      runApprovalSideEffect(
+        c,
+        {
+          tenantId: pathParams.tenantId,
+          ruleId: pathParams.ruleId,
+          versionId: pathParams.versionId,
+          sideEffect: "notification_enqueue",
+          eventType: "approval_decision",
+        },
+        () =>
+          enqueueJobQueueMessageOnce(db, {
+            tenantId: pathParams.tenantId,
+            jobType: "send_badge_rule_approval_notification",
+            idempotencyKey: badgeRuleApprovalDecisionNotificationIdempotencyKey({
+              versionId: pathParams.versionId,
+              occurredAt: decisionResult.version.updatedAt,
+            }),
+            payload: {
+              notificationType: "approval_decision",
+              ruleId: pathParams.ruleId,
+              versionId: pathParams.versionId,
+              reviewUrl: absoluteUrlForPath(
+                c,
+                buildBadgeRuleVersionReviewPath(
+                  pathParams.tenantId,
+                  pathParams.ruleId,
+                  pathParams.versionId,
+                ),
+              ),
+              decision: request.decision,
+              comment: request.comment ?? null,
+              nextStepNumber: decisionResult.nextStepNumber,
+            },
+          }),
+      ),
+    ]);
 
     return routeInput.redirect({
       tenantId: pathParams.tenantId,
@@ -400,44 +445,70 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
 
       const updatedVersion: BadgeIssuanceRuleVersionRecord = submitResult.version;
 
-      await createAuditLog(db, {
-        tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
-        action: "badge_rule.version_submitted_for_approval",
-        targetType: "badge_rule_version",
-        targetId: updatedVersion.id,
-        metadata: {
-          role: membershipRole,
-          ruleId: pathParams.ruleId,
-          versionNumber: updatedVersion.versionNumber,
-          status: updatedVersion.status,
-        },
-      });
+      await Promise.all([
+        runApprovalSideEffect(
+          c,
+          {
+            tenantId: pathParams.tenantId,
+            ruleId: pathParams.ruleId,
+            versionId: pathParams.versionId,
+            sideEffect: "audit_log",
+            eventType: "approval_submitted",
+          },
+          () =>
+            createAuditLog(db, {
+              tenantId: pathParams.tenantId,
+              actorUserId: session.userId,
+              action: "badge_rule.version_submitted_for_approval",
+              targetType: "badge_rule_version",
+              targetId: updatedVersion.id,
+              metadata: {
+                role: membershipRole,
+                ruleId: pathParams.ruleId,
+                versionNumber: updatedVersion.versionNumber,
+                status: updatedVersion.status,
+              },
+            }),
+        ),
+        runApprovalSideEffect(
+          c,
+          {
+            tenantId: pathParams.tenantId,
+            ruleId: pathParams.ruleId,
+            versionId: pathParams.versionId,
+            sideEffect: "notification_enqueue",
+            eventType: "approval_submitted",
+          },
+          async () => {
+            if (submitResult.pendingStepNumber === null) {
+              return;
+            }
 
-      try {
-        await notifyBadgeRuleApprovalSubmitted(db, {
-          env: c.env,
-          tenantId: pathParams.tenantId,
-          ruleId: pathParams.ruleId,
-          version: updatedVersion,
-          reviewUrl: absoluteUrlForPath(
-            c,
-            buildBadgeRuleVersionReviewPath(
-              pathParams.tenantId,
-              pathParams.ruleId,
-              pathParams.versionId,
-            ),
-          ),
-        });
-      } catch (error: unknown) {
-        logApprovalNotificationFailure(c, {
-          tenantId: pathParams.tenantId,
-          ruleId: pathParams.ruleId,
-          versionId: pathParams.versionId,
-          notificationType: "approval_submitted",
-          error,
-        });
-      }
+            await enqueueJobQueueMessageOnce(db, {
+              tenantId: pathParams.tenantId,
+              jobType: "send_badge_rule_approval_notification",
+              idempotencyKey: badgeRuleApprovalSubmittedNotificationIdempotencyKey({
+                versionId: updatedVersion.id,
+                occurredAt: updatedVersion.submittedAt ?? updatedVersion.updatedAt,
+              }),
+              payload: {
+                notificationType: "approval_submitted",
+                ruleId: pathParams.ruleId,
+                versionId: updatedVersion.id,
+                reviewUrl: absoluteUrlForPath(
+                  c,
+                  buildBadgeRuleVersionReviewPath(
+                    pathParams.tenantId,
+                    pathParams.ruleId,
+                    pathParams.versionId,
+                  ),
+                ),
+                targetStepNumber: submitResult.pendingStepNumber,
+              },
+            });
+          },
+        ),
+      ]);
 
       return redirectToRules(c, {
         tenantId: pathParams.tenantId,

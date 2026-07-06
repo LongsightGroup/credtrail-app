@@ -14,6 +14,7 @@ import {
   type ProcessEndOfTermBadgeRuleQueueJob,
   type ProcessQueueRequest,
   type QueueJob,
+  type SendBadgeRuleApprovalNotificationQueueJob,
 } from "@credtrail/validation";
 import { applyLearnerRecordImportQueuePayload } from "../learner-record/learner-record-import";
 import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
@@ -114,6 +115,11 @@ interface ProcessQueuedJobsDependencies<TBindings, TContext extends { env: TBind
     tenantId: string,
     payload: ProcessEndOfTermBadgeRuleQueueJob["payload"],
   ) => Promise<void>;
+  processBadgeRuleApprovalNotificationJob: (
+    context: TContext,
+    tenantId: string,
+    payload: SendBadgeRuleApprovalNotificationQueueJob["payload"],
+  ) => Promise<void>;
 }
 
 const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
@@ -208,6 +214,9 @@ const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
       return;
     case "process_end_of_term_badge_rule":
       await dependencies.processEndOfTermBadgeRuleJob(c, job.tenantId, job.payload);
+      return;
+    case "send_badge_rule_approval_notification":
+      await dependencies.processBadgeRuleApprovalNotificationJob(c, job.tenantId, job.payload);
       return;
   }
 };

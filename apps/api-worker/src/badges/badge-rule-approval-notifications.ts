@@ -19,9 +19,18 @@ const nextPendingApprovalStep = async (
     tenantId: string;
     ruleId: string;
     versionId: string;
+    targetStepNumber?: number | null | undefined;
   },
 ) => {
   const steps = await listBadgeIssuanceRuleVersionApprovalSteps(db, input);
+
+  if (input.targetStepNumber !== undefined && input.targetStepNumber !== null) {
+    return (
+      steps.find(
+        (step) => step.stepNumber === input.targetStepNumber && step.status === "pending",
+      ) ?? null
+    );
+  }
 
   return steps.find((step) => step.status === "pending") ?? null;
 };
@@ -61,6 +70,7 @@ export const notifyBadgeRuleApprovalSubmitted = async (
     ruleId: string;
     version: BadgeIssuanceRuleVersionRecord;
     reviewUrl: string;
+    targetStepNumber?: number | null | undefined;
   },
 ): Promise<void> => {
   const [rule, displayName, firstPendingStep] = await Promise.all([
@@ -70,6 +80,7 @@ export const notifyBadgeRuleApprovalSubmitted = async (
       tenantId: input.tenantId,
       ruleId: input.ruleId,
       versionId: input.version.id,
+      targetStepNumber: input.targetStepNumber,
     }),
   ]);
 
@@ -100,6 +111,7 @@ export const notifyBadgeRuleApprovalDecision = async (
     decision: BadgeIssuanceRuleApprovalDecision;
     comment: string | null;
     reviewUrl: string;
+    nextStepNumber?: number | null | undefined;
   },
 ): Promise<void> => {
   const [rule, displayName, nextStep] = await Promise.all([
@@ -109,6 +121,7 @@ export const notifyBadgeRuleApprovalDecision = async (
       tenantId: input.tenantId,
       ruleId: input.ruleId,
       versionId: input.version.id,
+      targetStepNumber: input.nextStepNumber,
     }),
   ]);
 
@@ -116,7 +129,10 @@ export const notifyBadgeRuleApprovalDecision = async (
     return;
   }
 
-  if (input.decision === "approved" && nextStep !== null) {
+  const hasNextStepNotificationTarget =
+    input.nextStepNumber !== undefined && input.nextStepNumber !== null;
+
+  if (input.decision === "approved" && hasNextStepNotificationTarget && nextStep !== null) {
     await sendBadgeRuleApprovalSubmittedNotifications(db, {
       emailBinding: input.env.EMAIL,
       fromEmail: input.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
@@ -128,6 +144,10 @@ export const notifyBadgeRuleApprovalDecision = async (
       reviewUrl: input.reviewUrl,
       step: nextStep,
     });
+    return;
+  }
+
+  if (input.decision === "approved" && hasNextStepNotificationTarget) {
     return;
   }
 

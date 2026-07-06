@@ -20,6 +20,7 @@ export const queueJobTypeSchema = z.enum([
   "generate_badge_template_image",
   "process_badge_rule_lifecycle",
   "process_end_of_term_badge_rule",
+  "send_badge_rule_approval_notification",
 ]);
 
 export const idempotencyKeySchema = z.string().min(1).max(128);

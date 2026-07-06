@@ -968,6 +968,7 @@ describe("LTI 1.3 core launch flow", () => {
       version: sampleBadgeIssuanceRuleVersion({
         status: "pending_approval",
       }),
+      pendingStepNumber: 1,
     });
     mockedCreateAuditLog.mockReset();
     mockedCreateAuditLog.mockResolvedValue(sampleAuditLog());

@@ -36,6 +36,7 @@ import { publicBadgeSummaryPayload as buildPublicBadgeSummaryPayload } from "./b
 import { createIssueBadgeForTenant } from "./badges/direct-issue";
 import { processBadgeTemplateImageGenerationJob } from "./badges/badge-template-image-generation";
 import { processBadgeRuleLifecycleForTenant } from "./badges/badge-rule-lifecycle-processor";
+import { processBadgeRuleApprovalNotificationJob } from "./badges/badge-rule-approval-notification-queue";
 import {
   assertionBelongsToTenant,
   loadCredentialForAssertion,
@@ -310,6 +311,14 @@ const processQueuedJobs = createProcessQueuedJobs({
       });
       throw new Error(result.reason ?? "End-of-term badge rule processing unavailable.");
     }
+  },
+  processBadgeRuleApprovalNotificationJob: (c, tenantId, payload) => {
+    return processBadgeRuleApprovalNotificationJob({
+      db: resolveDatabase(c.env),
+      env: c.env,
+      tenantId,
+      payload,
+    });
   },
 });
 

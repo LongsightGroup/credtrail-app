@@ -10,7 +10,12 @@ vi.mock("@credtrail/db", async () => {
     createLearnerRecordImportContext: vi.fn(),
     createAuditLog: vi.fn(),
     failJobQueueMessage: vi.fn(),
+    findBadgeIssuanceRuleById: vi.fn(),
+    findBadgeIssuanceRuleVersionById: vi.fn(),
+    findTenantById: vi.fn(),
+    findUserById: vi.fn(),
     leaseJobQueueMessages: vi.fn(),
+    listBadgeIssuanceRuleVersionApprovalSteps: vi.fn(),
     recordAssertionRevocation: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
   };
@@ -28,10 +33,17 @@ import {
   createLearnerRecordImportContext,
   createAuditLog,
   failJobQueueMessage,
+  findBadgeIssuanceRuleById,
+  findBadgeIssuanceRuleVersionById,
+  findTenantById,
+  findUserById,
   leaseJobQueueMessages,
+  listBadgeIssuanceRuleVersionApprovalSteps,
   recordAssertionRevocation,
   resolveLearnerProfileForIdentity,
   type AuditLogRecord,
+  type BadgeIssuanceRuleRecord,
+  type BadgeIssuanceRuleVersionRecord,
   type JobQueueMessageRecord,
   type LearnerProfileRecord,
   type SqlDatabase,
@@ -49,7 +61,14 @@ const mockedCreateLearnerRecordEntry = vi.mocked(createLearnerRecordEntry);
 const mockedCreateLearnerRecordImportContext = vi.mocked(createLearnerRecordImportContext);
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
 const mockedFailJobQueueMessage = vi.mocked(failJobQueueMessage);
+const mockedFindBadgeIssuanceRuleById = vi.mocked(findBadgeIssuanceRuleById);
+const mockedFindBadgeIssuanceRuleVersionById = vi.mocked(findBadgeIssuanceRuleVersionById);
+const mockedFindTenantById = vi.mocked(findTenantById);
+const mockedFindUserById = vi.mocked(findUserById);
 const mockedLeaseJobQueueMessages = vi.mocked(leaseJobQueueMessages);
+const mockedListBadgeIssuanceRuleVersionApprovalSteps = vi.mocked(
+  listBadgeIssuanceRuleVersionApprovalSteps,
+);
 const mockedRecordAssertionRevocation = vi.mocked(recordAssertionRevocation);
 const mockedResolveLearnerProfileForIdentity = vi.mocked(resolveLearnerProfileForIdentity);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
@@ -115,6 +134,61 @@ const sampleLearnerProfile = (overrides?: Partial<LearnerProfileRecord>): Learne
   };
 };
 
+const sampleBadgeIssuanceRule = (
+  overrides?: Partial<BadgeIssuanceRuleRecord>,
+): BadgeIssuanceRuleRecord => {
+  return {
+    id: "brl_123",
+    tenantId: "tenant_123",
+    name: "Clinical Skills",
+    description: null,
+    badgeTemplateId: "badge_template_123",
+    orgUnitId: "tenant_123:org:course",
+    ownerOrgUnitId: "tenant_123:org:course",
+    lmsProviderKind: "canvas",
+    lmsConnectionId: "lms_123",
+    activeVersionId: "brv_123",
+    createdByUserId: "usr_admin",
+    createdAt: "2026-02-10T22:00:00.000Z",
+    updatedAt: "2026-02-10T22:00:00.000Z",
+    ...overrides,
+  };
+};
+
+const sampleBadgeIssuanceRuleVersion = (
+  overrides?: Partial<BadgeIssuanceRuleVersionRecord>,
+): BadgeIssuanceRuleVersionRecord => {
+  return {
+    id: "brv_123",
+    tenantId: "tenant_123",
+    ruleId: "brl_123",
+    versionNumber: 1,
+    status: "approved",
+    ruleJson: "{}",
+    changeSummary: null,
+    createdByUserId: null,
+    submittedByUserId: null,
+    submittedAt: "2026-02-10T22:00:00.000Z",
+    approvedByUserId: "usr_admin",
+    approvedAt: "2026-02-10T22:05:00.000Z",
+    activatedByUserId: null,
+    activatedAt: null,
+    effectiveStartsAt: null,
+    expiresAt: null,
+    expiredAt: null,
+    suspendedAt: null,
+    suspendedByUserId: null,
+    suspensionReason: null,
+    recertifiedAt: null,
+    recertificationDueAt: null,
+    expiryReminderSentAt: null,
+    recertificationReminderSentAt: null,
+    createdAt: "2026-02-10T22:00:00.000Z",
+    updatedAt: "2026-02-10T22:05:00.000Z",
+    ...overrides,
+  };
+};
+
 const sampleLeasedQueueMessage = (
   overrides?: Partial<JobQueueMessageRecord>,
 ): JobQueueMessageRecord => {
@@ -151,11 +225,31 @@ describe("POST /v1/jobs/process", () => {
     mockedCreateLearnerRecordEntry.mockReset();
     mockedCreateLearnerRecordImportContext.mockReset();
     mockedFailJobQueueMessage.mockReset();
+    mockedFindBadgeIssuanceRuleById.mockReset();
+    mockedFindBadgeIssuanceRuleVersionById.mockReset();
+    mockedFindTenantById.mockReset();
+    mockedFindUserById.mockReset();
+    mockedListBadgeIssuanceRuleVersionApprovalSteps.mockReset();
     mockedRecordAssertionRevocation.mockReset();
     mockedResolveLearnerProfileForIdentity.mockReset();
     mockedCreateAuditLog.mockReset();
     mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleBadgeIssuanceRule());
+    mockedFindBadgeIssuanceRuleVersionById.mockResolvedValue(sampleBadgeIssuanceRuleVersion());
+    mockedFindTenantById.mockResolvedValue({
+      id: "tenant_123",
+      slug: "tenant-123",
+      displayName: "Tenant 123",
+      planTier: "institution",
+      issuerDomain: "issuer.example.edu",
+      didWeb: "did:web:issuer.example.edu",
+      isActive: true,
+      createdAt: "2026-02-10T22:00:00.000Z",
+      updatedAt: "2026-02-10T22:00:00.000Z",
+    });
+    mockedFindUserById.mockResolvedValue(null);
+    mockedListBadgeIssuanceRuleVersionApprovalSteps.mockResolvedValue([]);
     mockedCreateLearnerRecordEntry.mockResolvedValue({
       id: "lre_123",
       tenantId: "tenant_123",
@@ -228,6 +322,48 @@ describe("POST /v1/jobs/process", () => {
     expect(body.status).toBe("ok");
     expect(body.leased).toBe(1);
     expect(body.succeeded).toBe(1);
+    expect(mockedCompleteJobQueueMessage).toHaveBeenCalledTimes(1);
+    expect(mockedFailJobQueueMessage).not.toHaveBeenCalled();
+  });
+
+  it("processes badge rule approval notification jobs", async () => {
+    const env = createProcessorEnv();
+
+    mockedLeaseJobQueueMessages.mockResolvedValue([
+      sampleLeasedQueueMessage({
+        jobType: "send_badge_rule_approval_notification",
+        payloadJson: JSON.stringify({
+          notificationType: "approval_decision",
+          ruleId: "brl_123",
+          versionId: "brv_123",
+          reviewUrl:
+            "https://credtrail.test/tenants/tenant_123/admin/rules/approvals/brl_123/versions/brv_123",
+          decision: "approved",
+          comment: null,
+          nextStepNumber: null,
+        }),
+        idempotencyKey: "approval-decision:brv_123:2026-02-10T22:05:00.000Z",
+      }),
+    ]);
+
+    const response = await app.request(
+      "/v1/jobs/process",
+      {
+        method: "POST",
+        headers: processorHeaders(),
+        body: JSON.stringify({}),
+      },
+      env,
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.succeeded).toBe(1);
+    expect(mockedFindBadgeIssuanceRuleVersionById).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_123",
+      versionId: "brv_123",
+    });
     expect(mockedCompleteJobQueueMessage).toHaveBeenCalledTimes(1);
     expect(mockedFailJobQueueMessage).not.toHaveBeenCalled();
   });

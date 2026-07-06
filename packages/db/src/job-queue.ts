@@ -11,7 +11,8 @@ export type JobQueueMessageType =
   | "import_learner_record_batch"
   | "generate_badge_template_image"
   | "process_badge_rule_lifecycle"
-  | "process_end_of_term_badge_rule";
+  | "process_end_of_term_badge_rule"
+  | "send_badge_rule_approval_notification";
 
 export type JobQueueMessageStatus = "pending" | "processing" | "completed" | "failed";
 

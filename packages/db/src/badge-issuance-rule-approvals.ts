@@ -265,6 +265,7 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
       return {
         status: "submitted",
         version: submittedVersion,
+        pendingStepNumber: null,
       } as const;
     }
 
@@ -328,6 +329,7 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
     return {
       status: "submitted",
       version: submittedVersion,
+      pendingStepNumber: 1,
     } as const;
   });
 };
@@ -587,6 +589,8 @@ export const decideBadgeIssuanceRuleVersion = async (
     return {
       status: "decided",
       version: decidedVersion,
+      decidedStepNumber: currentStep.stepNumber,
+      nextStepNumber: input.decision === "approved" ? (nextStep?.stepNumber ?? null) : null,
     } as const;
   });
 };
