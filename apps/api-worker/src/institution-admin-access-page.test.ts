@@ -1105,6 +1105,12 @@ describe("GET /tenants/:tenantId/admin/access/governance/delegations/new", () =>
     expect(body).toContain('href="/tenants/tenant_123/admin/access/governance"');
     expect(body).toContain('id="delegated-grant-form"');
     expect(body).toContain('action="/tenants/tenant_123/admin/access/governance/delegations"');
+    expect(body).toContain("admin@tenant-123.edu (admin)");
+    expect(body).toContain("issuer@tenant-123.edu (issuer)");
+    expect(body).toContain("College of Engineering (college)");
+    expect(body).toContain("TypeScript Foundations");
+    expect(body).not.toContain("No tenant members available");
+    expect(body).not.toContain("No active org units available");
     expect(body).not.toContain("Back to governance");
     expect(body).not.toContain('id="membership-scope-form"');
     expect(body).toContain(pageAssetPath("institutionAdminShellJs"));

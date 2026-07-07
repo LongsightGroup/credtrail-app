@@ -65,15 +65,13 @@ const institutionAdminDatasetsForView = (
   const datasets = new Set<InstitutionAdminDataset>();
   const needs = INSTITUTION_ADMIN_VIEW_REGISTRY[view].dataNeeds;
 
-  if (needs.templateSelectOptions || needs.issuedBadgeFilters) {
+  if (needs.templateSelectOptions || needs.issuedBadgeFilters || needs.delegationSelectOptions) {
     datasets.add("badgeTemplates");
   }
 
   if (
     needs.orgUnitRows ||
-    needs.delegationSelectOptions ||
-    needs.governanceTableRows ||
-    needs.scopedRoleRows ||
+    needs.accessOrgUnitSelectOptions ||
     needs.delegatedGrantRows ||
     needs.tenantMemberRows ||
     needs.issuedBadgeFilters
@@ -82,21 +80,18 @@ const institutionAdminDatasetsForView = (
   }
 
   if (needs.governanceTableRows) {
-    datasets.add("tenantMembers");
     datasets.add("badgeRuleApprovalPolicy");
   }
 
-  if (needs.scopedRoleRows) {
+  if (needs.accessMemberSelectOptions || needs.tenantMemberRows) {
     datasets.add("tenantMembers");
+  }
+
+  if (needs.scopedRoleRows || needs.tenantMemberRows) {
     datasets.add("membershipOrgUnitScopes");
   }
 
-  if (needs.tenantMemberRows) {
-    datasets.add("tenantMembers");
-    datasets.add("membershipOrgUnitScopes");
-  }
-
-  if (needs.delegatedGrantRows || needs.delegationSelectOptions) {
+  if (needs.delegatedGrantRows) {
     datasets.add("delegatedGrants");
   }
 
