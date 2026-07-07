@@ -13,6 +13,10 @@ import {
   AdminEmptyTableRow,
   AdminField,
   AdminForm,
+  AdminInlineActionPanel,
+  AdminInlinePanelCloseButton,
+  AdminInlinePanelTriggerButton,
+  AdminListHeader,
   AdminPanel,
   AdminStatus,
   AdminTable,
@@ -96,28 +100,18 @@ export interface InstitutionAdminRuleTemplateEditorPageInput {
   switchOrganizationPath?: string | null;
 }
 
-const addDisclosureControlMarkup = (
-  <span class="ct-admin__add-disclosure-control">
-    <span class="ct-admin__add-disclosure-control-open">Open form</span>
-    <span class="ct-admin__add-disclosure-control-close">Hide form</span>
-  </span>
-);
-
 const renderTemplateCreatePanel = (rulesTemplatesPath: string): HonoElement => {
   return (
-    <details id="template-create-panel" class="ct-admin__panel ct-admin__add-disclosure">
-      <summary class="ct-admin__add-disclosure-summary">
-        <span>
-          <strong>Create Badge Template</strong>
-          <small>Start with the badge name. CredTrail opens artwork setup after creation.</small>
-        </span>
-        {addDisclosureControlMarkup}
-      </summary>
+    <AdminInlineActionPanel
+      id="template-create-panel"
+      title="Create badge template"
+      description="Start with the badge name. CredTrail opens artwork setup after creation."
+    >
       <AdminForm
         id="badge-template-create-form"
         method="post"
         action={rulesTemplatesPath}
-        className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--template-create ct-grid"
+        className="ct-admin__form ct-admin__inline-action-form ct-admin__inline-action-form--template-create ct-grid"
       >
         <AdminField label="Badge name">
           <CtInput
@@ -146,6 +140,9 @@ const renderTemplateCreatePanel = (rulesTemplatesPath: string): HonoElement => {
         </AdminField>
         <div class="ct-admin__template-create-actions">
           <AdminButton type="submit">Create and add artwork</AdminButton>
+          <AdminInlinePanelCloseButton panelId="template-create-panel">
+            Cancel
+          </AdminInlinePanelCloseButton>
         </div>
       </AdminForm>
       <p
@@ -153,7 +150,7 @@ const renderTemplateCreatePanel = (rulesTemplatesPath: string): HonoElement => {
         class="ct-admin__status ct-admin__template-create-status"
         aria-live="polite"
       ></p>
-    </details>
+    </AdminInlineActionPanel>
   );
 };
 
@@ -465,8 +462,16 @@ const renderBadgeTemplatesTable = (input: {
 
   return (
     <AdminPanel variant="table">
-      <h2>Badge Templates ({String(input.badgeTemplates.length)})</h2>
-      <p>Template records, public links, and artwork maintenance live together here.</p>
+      <AdminListHeader
+        title={`Badge Templates (${String(input.badgeTemplates.length)})`}
+        description="Template records, public links, and artwork maintenance live together here."
+        action={
+          <AdminInlinePanelTriggerButton panelId="template-create-panel">
+            New badge template
+          </AdminInlinePanelTriggerButton>
+        }
+      />
+      {renderTemplateCreatePanel(input.rulesTemplatesPath)}
       <AdminForm
         method="get"
         action={input.rulesTemplatesPath}
@@ -569,7 +574,6 @@ export const institutionAdminRuleTemplatesPage = (
               {input.badgeTemplatesPage.listNotice}
             </AdminStatus>
           ) : null}
-          {renderTemplateCreatePanel(paths.rulesTemplatesPath)}
           {renderBadgeTemplatesTable({
             badgeTemplates: input.badgeTemplates,
             badgeTemplatesPage: input.badgeTemplatesPage,

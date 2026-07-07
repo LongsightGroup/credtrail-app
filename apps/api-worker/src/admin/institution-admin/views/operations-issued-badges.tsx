@@ -18,6 +18,8 @@ const issuedBadgesDataNeeds = {
   tenantMemberRows: false,
   templateSelectOptions: false,
   delegationSelectOptions: false,
+  accessMemberSelectOptions: false,
+  accessOrgUnitSelectOptions: false,
   ruleSelectOptions: false,
   ruleVersionIndexes: false,
   orgUnitParentOptions: false,

@@ -21,15 +21,15 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminCss: {
     kind: "style",
-    path: "/assets/ui/institution-admin.51f102ca8e.css",
+    path: "/assets/ui/institution-admin.3838125ef2.css",
   },
   institutionAdminJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin.62b9a05827.js",
+    path: "/assets/ui/institution-admin.86beabecad.js",
   },
   institutionAdminShellJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-shell.e4e51f30a0.js",
+    path: "/assets/ui/institution-admin-shell.2a071a0d18.js",
   },
   institutionAdminAccessJs: {
     kind: "script",

@@ -16,7 +16,7 @@ import {
 import {
   renderInstitutionAdminAuthenticationWorkspace,
   renderInstitutionAdminDelegationsWorkspace,
-  renderInstitutionAdminGovernanceDelegationNewWorkspace,
+  renderInstitutionAdminDelegationsNewWorkspace,
   renderInstitutionAdminGovernanceWorkspace,
   renderInstitutionAdminLmsConnectionEditWorkspace,
   renderInstitutionAdminLmsConnectionNewWorkspace,
@@ -334,17 +334,13 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       workspaceRendererDeps("accessAuthentication"),
     );
 
-  const renderGovernanceDelegationNewWorkspace = (
-    c: AppContext,
-    tenantId: string,
-    nextPath: string,
-  ) =>
-    renderInstitutionAdminGovernanceDelegationNewWorkspace(
+  const renderDelegationsNewWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
+    renderInstitutionAdminDelegationsNewWorkspace(
       c,
       renderAppPage,
       tenantId,
       nextPath,
-      workspaceRendererDeps("accessGovernanceDelegationNew"),
+      workspaceRendererDeps("accessDelegationsNew"),
     );
 
   const renderManualIssueWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
@@ -412,7 +408,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
     renderLmsConnectionNewWorkspace,
     renderLmsConnectionEditWorkspace,
     renderAuthenticationWorkspace,
-    renderGovernanceDelegationNewWorkspace,
+    renderDelegationsNewWorkspace,
     renderManualIssueWorkspace,
     renderMembersWorkspace,
     renderOrgUnitAccessWorkspace,

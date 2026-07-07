@@ -1,6 +1,7 @@
 import type { Child } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { AdminPageHeader, AdminPanel, AdminStatus } from "../components";
+import { AdminListFlashStatus } from "../admin-list-flash-status";
 import type { buildInstitutionAdminViewPaths } from "./view-paths";
 import { renderDelegationSetupSection } from "./delegation-setup-section";
 import { renderEnterpriseAuthSection } from "./enterprise-auth-section";
@@ -62,22 +63,16 @@ export interface InstitutionAdminViewContentInput {
     ruleAdvancedToolsMarkup: RenderedNode;
   };
   access: {
-    apiKeyPanelMarkup: RenderedNode;
     apiKeysTableMarkup: RenderedNode;
-    approverGroupPanelMarkup: RenderedNode;
     approverGroupTableMarkup: RenderedNode;
     delegatedGrantTableMarkup: RenderedNode;
     delegatedGrantActionsMarkup: RenderedNode;
-    governanceActionsMarkup: RenderedNode;
     governanceGuidePanelMarkup: RenderedNode;
     lmsConnectionsActionsMarkup: RenderedNode;
     lmsConnectionsTableMarkup: RenderedNode;
-    membershipScopePanelMarkup: RenderedNode;
     membershipScopeTableMarkup: RenderedNode;
-    orgUnitPanelMarkup: RenderedNode;
     orgUnitsTableMarkup: RenderedNode;
     ruleApprovalPolicySummaryMarkup: RenderedNode;
-    tenantMembersPanelMarkup: RenderedNode;
     tenantMembersTableMarkup: RenderedNode;
   };
 }
@@ -106,6 +101,8 @@ export interface InstitutionAdminViewDataNeeds {
   tenantMemberRows: boolean;
   templateSelectOptions: boolean;
   delegationSelectOptions: boolean;
+  accessMemberSelectOptions: boolean;
+  accessOrgUnitSelectOptions: boolean;
   ruleSelectOptions: boolean;
   ruleVersionIndexes: boolean;
   orgUnitParentOptions: boolean;
@@ -147,6 +144,8 @@ const DEFAULT_VIEW_DATA_NEEDS = {
   tenantMemberRows: false,
   templateSelectOptions: false,
   delegationSelectOptions: false,
+  accessMemberSelectOptions: false,
+  accessOrgUnitSelectOptions: false,
   ruleSelectOptions: false,
   ruleVersionIndexes: false,
   orgUnitParentOptions: false,
@@ -156,9 +155,20 @@ const DEFAULT_VIEW_DATA_NEEDS = {
 export const viewDataNeeds = (
   overrides: Partial<InstitutionAdminViewDataNeeds>,
 ): InstitutionAdminViewDataNeeds => {
-  return {
+  const merged = {
     ...DEFAULT_VIEW_DATA_NEEDS,
     ...overrides,
+  };
+
+  return {
+    ...merged,
+    accessMemberSelectOptions:
+      merged.governanceTableRows || merged.scopedRoleRows || merged.delegationSelectOptions,
+    accessOrgUnitSelectOptions:
+      merged.operationsSectionBundles ||
+      merged.governanceTableRows ||
+      merged.scopedRoleRows ||
+      merged.delegationSelectOptions,
   };
 };
 
@@ -420,15 +430,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             "Review awarding rules, create new rules, and test a rule before issuing when needed.",
           )}
           <section class="ct-admin ct-stack">
-            {input.rulesWorkspace?.listError !== null &&
-            input.rulesWorkspace?.listError !== undefined &&
-            input.rulesWorkspace.listError.length > 0 ? (
-              <AdminStatus tone="error">{input.rulesWorkspace.listError}</AdminStatus>
-            ) : input.rulesWorkspace?.listNotice !== null &&
-              input.rulesWorkspace?.listNotice !== undefined &&
-              input.rulesWorkspace.listNotice.length > 0 ? (
-              <AdminStatus tone="success">{input.rulesWorkspace.listNotice}</AdminStatus>
-            ) : null}
+            {AdminListFlashStatus(input.rulesWorkspace)}
             {content.rules.badgeRulesTableMarkup}
             {content.rules.ruleAdvancedToolsMarkup}
           </section>
@@ -458,10 +460,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
               </p>
             </aside>,
           )}
-          <section class="ct-admin ct-stack">
-            {content.access.tenantMembersPanelMarkup}
-            {content.access.tenantMembersTableMarkup}
-          </section>
+          <section class="ct-admin ct-stack">{content.access.tenantMembersTableMarkup}</section>
         </>
       );
     },
@@ -489,21 +488,8 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             </aside>,
           )}
           <section class="ct-admin ct-stack">
-            {input.accessOrgUnitAccessWorkspace?.listError !== null &&
-            input.accessOrgUnitAccessWorkspace?.listError !== undefined &&
-            input.accessOrgUnitAccessWorkspace.listError.length > 0 ? (
-              <AdminStatus data-tone="error">
-                {input.accessOrgUnitAccessWorkspace.listError}
-              </AdminStatus>
-            ) : input.accessOrgUnitAccessWorkspace?.listNotice !== null &&
-              input.accessOrgUnitAccessWorkspace?.listNotice !== undefined &&
-              input.accessOrgUnitAccessWorkspace.listNotice.length > 0 ? (
-              <AdminStatus data-tone="success">
-                {input.accessOrgUnitAccessWorkspace.listNotice}
-              </AdminStatus>
-            ) : null}
+            {AdminListFlashStatus(input.accessOrgUnitAccessWorkspace)}
             {content.access.membershipScopeTableMarkup}
-            {content.access.membershipScopePanelMarkup}
           </section>
         </>
       );
@@ -532,23 +518,10 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             </aside>,
           )}
           <section class="ct-admin ct-stack">
-            {input.accessGovernanceWorkspace?.listError !== null &&
-            input.accessGovernanceWorkspace?.listError !== undefined &&
-            input.accessGovernanceWorkspace.listError.length > 0 ? (
-              <AdminStatus data-tone="error">
-                {input.accessGovernanceWorkspace.listError}
-              </AdminStatus>
-            ) : input.accessGovernanceWorkspace?.listNotice !== null &&
-              input.accessGovernanceWorkspace?.listNotice !== undefined &&
-              input.accessGovernanceWorkspace.listNotice.length > 0 ? (
-              <AdminStatus data-tone="success">
-                {input.accessGovernanceWorkspace.listNotice}
-              </AdminStatus>
-            ) : null}
+            {AdminListFlashStatus(input.accessGovernanceWorkspace)}
             {content.access.governanceGuidePanelMarkup}
             {content.access.ruleApprovalPolicySummaryMarkup}
             {content.access.approverGroupTableMarkup}
-            {content.access.governanceActionsMarkup}
           </section>
         </>
       );
@@ -577,19 +550,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             </aside>,
           )}
           <section class="ct-admin ct-stack">
-            {input.accessDelegationsWorkspace?.listError !== null &&
-            input.accessDelegationsWorkspace?.listError !== undefined &&
-            input.accessDelegationsWorkspace.listError.length > 0 ? (
-              <AdminStatus data-tone="error">
-                {input.accessDelegationsWorkspace.listError}
-              </AdminStatus>
-            ) : input.accessDelegationsWorkspace?.listNotice !== null &&
-              input.accessDelegationsWorkspace?.listNotice !== undefined &&
-              input.accessDelegationsWorkspace.listNotice.length > 0 ? (
-              <AdminStatus data-tone="success">
-                {input.accessDelegationsWorkspace.listNotice}
-              </AdminStatus>
-            ) : null}
+            {AdminListFlashStatus(input.accessDelegationsWorkspace)}
             {content.access.delegatedGrantTableMarkup}
             {content.access.delegatedGrantActionsMarkup}
           </section>
@@ -597,7 +558,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
       );
     },
   },
-  accessGovernanceDelegationNew: {
+  accessDelegationsNew: {
     titlePrefix: "Add Delegated Authority · Institution Admin",
     controller: "shell",
     dataNeeds: viewDataNeeds({
@@ -617,8 +578,8 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
               tenantMemberSelectOptions: content.controls.tenantMemberSelectOptions,
               activeOrgUnitSelectOptions: content.controls.activeOrgUnitSelectOptions,
               optionalBadgeTemplateScopeOptions: content.controls.optionalBadgeTemplateScopeOptions,
-              listError: input.accessGovernanceDelegationWorkspace?.listError ?? null,
-              listNotice: input.accessGovernanceDelegationWorkspace?.listNotice ?? null,
+              listError: input.accessDelegationsNewWorkspace?.listError ?? null,
+              listNotice: input.accessDelegationsNewWorkspace?.listNotice ?? null,
             })}
           </section>
         </>
@@ -682,17 +643,13 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
     extraAssets: ["institutionAdminAccessJs"],
     dataNeeds: viewDataNeeds({
       accessSectionBundles: true,
-      managementSectionBundles: true,
       apiKeyRows: true,
     }),
     render: (content) => {
       return (
         <>
           {renderPageHeader("API Keys", "Create, review, and revoke tenant API keys.")}
-          <section class="ct-admin ct-stack">
-            {content.access.apiKeyPanelMarkup}
-            {content.access.apiKeysTableMarkup}
-          </section>
+          <section class="ct-admin ct-stack">{content.access.apiKeysTableMarkup}</section>
         </>
       );
     },
@@ -784,7 +741,6 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
     controller: "shell",
     dataNeeds: viewDataNeeds({
       accessSectionBundles: true,
-      managementSectionBundles: true,
       orgUnitRows: true,
       orgUnitParentOptions: true,
     }),
@@ -792,10 +748,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
       return (
         <>
           {renderPageHeader("Org Units", "Create and review org structure.")}
-          <section class="ct-admin ct-stack">
-            {content.access.orgUnitPanelMarkup}
-            {content.access.orgUnitsTableMarkup}
-          </section>
+          <section class="ct-admin ct-stack">{content.access.orgUnitsTableMarkup}</section>
         </>
       );
     },

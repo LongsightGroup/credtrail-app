@@ -4,7 +4,7 @@ import type { AppContext } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
 import { loadBadgeRuleReviewQueueEntries } from "../badge-rule-review-queue-workspace";
 import { buildTenantLtiDynamicRegistrationInviteUrl } from "../lti/dynamic-registration-service";
-import type { renderAppPage } from "../ui/render-page";
+import type { AppPage, renderAppPage } from "../ui/render-page";
 import {
   consumeAdminListMessageFlash,
   setAdminListMessageFlash,
@@ -12,8 +12,8 @@ import {
 } from "./admin-list-message-flash";
 import {
   institutionAdminAuthenticationPage,
+  institutionAdminDelegationsNewPage,
   institutionAdminDelegationsPage,
-  institutionAdminGovernanceDelegationNewPage,
   institutionAdminGovernancePage,
   institutionAdminLmsConnectionEditPage,
   institutionAdminLmsConnectionNewPage,
@@ -33,6 +33,7 @@ import {
   emptyLmsConnectionFormValues,
   lmsConnectionFormValuesFromRecord,
 } from "./institution-admin/lms-connection-setup-section";
+import type { InstitutionAdminListFlashWorkspace } from "./institution-admin/list-flash-workspace";
 import type { InstitutionAdminPageInput } from "./institution-admin/page-types";
 import { lmsConnectionsPageUrl } from "./lms-connection-admin-helpers";
 import { consumeAdminManualIssueFlash } from "./manual-issue-flash";
@@ -66,10 +67,7 @@ const readListWorkspaceFlash = async (
     userId: string;
     workspace: AdminListMessageWorkspace;
   },
-): Promise<{
-  listNotice: string | null;
-  listError: string | null;
-}> => {
+): Promise<InstitutionAdminListFlashWorkspace> => {
   const flash = await consumeAdminListMessageFlash(c, {
     tenantId: input.tenantId,
     userId: input.userId,
@@ -94,6 +92,45 @@ const readListWorkspaceFlash = async (
     listNotice: flash.message,
     listError: null,
   };
+};
+
+const renderInstitutionAdminListFlashWorkspace = async <
+  TPageData extends InstitutionAdminPageInput,
+>(
+  c: AppContext,
+  renderAppPageFn: typeof renderAppPage,
+  tenantId: string,
+  nextPath: string,
+  deps: InstitutionAdminWorkspaceRendererDeps<TPageData>,
+  config: {
+    workspace: AdminListMessageWorkspace;
+    buildPage: (pageData: TPageData, flash: InstitutionAdminListFlashWorkspace) => AppPage;
+  },
+): Promise<Response> => {
+  const loaded = await loadInstitutionAdminWorkspacePageData({
+    c,
+    tenantId,
+    nextPath,
+    resolveInstitutionAdminAdminRole: deps.resolveInstitutionAdminAdminRole,
+    loadInstitutionAdminPageData: deps.loadInstitutionAdminPageData,
+  });
+
+  if (loaded instanceof Response) {
+    return loaded;
+  }
+
+  const { pageData, session } = loaded;
+  const flash = await readListWorkspaceFlash(c, {
+    tenantId,
+    userId: session.userId,
+    workspace: config.workspace,
+  });
+
+  return await renderInstitutionAdminWorkspacePage(
+    c,
+    renderAppPageFn,
+    config.buildPage(pageData, flash),
+  );
 };
 
 export const renderInstitutionAdminRulesWorkspace = async <
@@ -198,36 +235,14 @@ export const renderInstitutionAdminMembersWorkspace = async <
   nextPath: string,
   deps: InstitutionAdminWorkspaceRendererDeps<TPageData>,
 ): Promise<Response> => {
-  const loaded = await loadInstitutionAdminWorkspacePageData({
-    c,
-    tenantId,
-    nextPath,
-    resolveInstitutionAdminAdminRole: deps.resolveInstitutionAdminAdminRole,
-    loadInstitutionAdminPageData: deps.loadInstitutionAdminPageData,
-  });
-
-  if (loaded instanceof Response) {
-    return loaded;
-  }
-
-  const { pageData, session } = loaded;
-  const flash = await readListWorkspaceFlash(c, {
-    tenantId,
-    userId: session.userId,
+  return renderInstitutionAdminListFlashWorkspace(c, renderAppPageFn, tenantId, nextPath, deps, {
     workspace: "access_members",
+    buildPage: (pageData, flash) =>
+      institutionAdminMembersPage({
+        ...pageData,
+        accessMembersWorkspace: flash,
+      }),
   });
-
-  return await renderInstitutionAdminWorkspacePage(
-    c,
-    renderAppPageFn,
-    institutionAdminMembersPage({
-      ...pageData,
-      accessMembersWorkspace: {
-        listNotice: flash.listNotice,
-        listError: flash.listError,
-      },
-    }),
-  );
 };
 
 export const renderInstitutionAdminOrgUnitAccessWorkspace = async <
@@ -239,36 +254,14 @@ export const renderInstitutionAdminOrgUnitAccessWorkspace = async <
   nextPath: string,
   deps: InstitutionAdminWorkspaceRendererDeps<TPageData>,
 ): Promise<Response> => {
-  const loaded = await loadInstitutionAdminWorkspacePageData({
-    c,
-    tenantId,
-    nextPath,
-    resolveInstitutionAdminAdminRole: deps.resolveInstitutionAdminAdminRole,
-    loadInstitutionAdminPageData: deps.loadInstitutionAdminPageData,
-  });
-
-  if (loaded instanceof Response) {
-    return loaded;
-  }
-
-  const { pageData, session } = loaded;
-  const flash = await readListWorkspaceFlash(c, {
-    tenantId,
-    userId: session.userId,
+  return renderInstitutionAdminListFlashWorkspace(c, renderAppPageFn, tenantId, nextPath, deps, {
     workspace: "access_org_unit_access",
+    buildPage: (pageData, flash) =>
+      institutionAdminOrgUnitAccessPage({
+        ...pageData,
+        accessOrgUnitAccessWorkspace: flash,
+      }),
   });
-
-  return await renderInstitutionAdminWorkspacePage(
-    c,
-    renderAppPageFn,
-    institutionAdminOrgUnitAccessPage({
-      ...pageData,
-      accessOrgUnitAccessWorkspace: {
-        listNotice: flash.listNotice,
-        listError: flash.listError,
-      },
-    }),
-  );
 };
 
 export const renderInstitutionAdminGovernanceWorkspace = async <
@@ -280,36 +273,14 @@ export const renderInstitutionAdminGovernanceWorkspace = async <
   nextPath: string,
   deps: InstitutionAdminWorkspaceRendererDeps<TPageData>,
 ): Promise<Response> => {
-  const loaded = await loadInstitutionAdminWorkspacePageData({
-    c,
-    tenantId,
-    nextPath,
-    resolveInstitutionAdminAdminRole: deps.resolveInstitutionAdminAdminRole,
-    loadInstitutionAdminPageData: deps.loadInstitutionAdminPageData,
-  });
-
-  if (loaded instanceof Response) {
-    return loaded;
-  }
-
-  const { pageData, session } = loaded;
-  const flash = await readListWorkspaceFlash(c, {
-    tenantId,
-    userId: session.userId,
+  return renderInstitutionAdminListFlashWorkspace(c, renderAppPageFn, tenantId, nextPath, deps, {
     workspace: "access_governance",
+    buildPage: (pageData, flash) =>
+      institutionAdminGovernancePage({
+        ...pageData,
+        accessGovernanceWorkspace: flash,
+      }),
   });
-
-  return await renderInstitutionAdminWorkspacePage(
-    c,
-    renderAppPageFn,
-    institutionAdminGovernancePage({
-      ...pageData,
-      accessGovernanceWorkspace: {
-        listNotice: flash.listNotice,
-        listError: flash.listError,
-      },
-    }),
-  );
 };
 
 export const renderInstitutionAdminDelegationsWorkspace = async <
@@ -321,36 +292,14 @@ export const renderInstitutionAdminDelegationsWorkspace = async <
   nextPath: string,
   deps: InstitutionAdminWorkspaceRendererDeps<TPageData>,
 ): Promise<Response> => {
-  const loaded = await loadInstitutionAdminWorkspacePageData({
-    c,
-    tenantId,
-    nextPath,
-    resolveInstitutionAdminAdminRole: deps.resolveInstitutionAdminAdminRole,
-    loadInstitutionAdminPageData: deps.loadInstitutionAdminPageData,
-  });
-
-  if (loaded instanceof Response) {
-    return loaded;
-  }
-
-  const { pageData, session } = loaded;
-  const flash = await readListWorkspaceFlash(c, {
-    tenantId,
-    userId: session.userId,
+  return renderInstitutionAdminListFlashWorkspace(c, renderAppPageFn, tenantId, nextPath, deps, {
     workspace: "access_delegations",
+    buildPage: (pageData, flash) =>
+      institutionAdminDelegationsPage({
+        ...pageData,
+        accessDelegationsWorkspace: flash,
+      }),
   });
-
-  return await renderInstitutionAdminWorkspacePage(
-    c,
-    renderAppPageFn,
-    institutionAdminDelegationsPage({
-      ...pageData,
-      accessDelegationsWorkspace: {
-        listNotice: flash.listNotice,
-        listError: flash.listError,
-      },
-    }),
-  );
 };
 
 export const renderInstitutionAdminAuthenticationWorkspace = async <
@@ -396,7 +345,7 @@ export const renderInstitutionAdminAuthenticationWorkspace = async <
   );
 };
 
-export const renderInstitutionAdminGovernanceDelegationNewWorkspace = async <
+export const renderInstitutionAdminDelegationsNewWorkspace = async <
   TPageData extends InstitutionAdminPageInput,
 >(
   c: AppContext,
@@ -405,36 +354,14 @@ export const renderInstitutionAdminGovernanceDelegationNewWorkspace = async <
   nextPath: string,
   deps: InstitutionAdminWorkspaceRendererDeps<TPageData>,
 ): Promise<Response> => {
-  const loaded = await loadInstitutionAdminWorkspacePageData({
-    c,
-    tenantId,
-    nextPath,
-    resolveInstitutionAdminAdminRole: deps.resolveInstitutionAdminAdminRole,
-    loadInstitutionAdminPageData: deps.loadInstitutionAdminPageData,
+  return renderInstitutionAdminListFlashWorkspace(c, renderAppPageFn, tenantId, nextPath, deps, {
+    workspace: "access_delegations_new",
+    buildPage: (pageData, flash) =>
+      institutionAdminDelegationsNewPage({
+        ...pageData,
+        accessDelegationsNewWorkspace: flash,
+      }),
   });
-
-  if (loaded instanceof Response) {
-    return loaded;
-  }
-
-  const { pageData, session } = loaded;
-  const flash = await readListWorkspaceFlash(c, {
-    tenantId,
-    userId: session.userId,
-    workspace: "access_governance_delegation",
-  });
-
-  return await renderInstitutionAdminWorkspacePage(
-    c,
-    renderAppPageFn,
-    institutionAdminGovernanceDelegationNewPage({
-      ...pageData,
-      accessGovernanceDelegationWorkspace: {
-        listNotice: flash.listNotice,
-        listError: flash.listError,
-      },
-    }),
-  );
 };
 
 export const renderInstitutionAdminLmsConnectionsWorkspace = async <
@@ -662,34 +589,12 @@ export const renderInstitutionAdminOrgUnitsWorkspace = async <
   nextPath: string,
   deps: InstitutionAdminWorkspaceRendererDeps<TPageData>,
 ): Promise<Response> => {
-  const loaded = await loadInstitutionAdminWorkspacePageData({
-    c,
-    tenantId,
-    nextPath,
-    resolveInstitutionAdminAdminRole: deps.resolveInstitutionAdminAdminRole,
-    loadInstitutionAdminPageData: deps.loadInstitutionAdminPageData,
-  });
-
-  if (loaded instanceof Response) {
-    return loaded;
-  }
-
-  const { pageData, session } = loaded;
-  const flash = await readListWorkspaceFlash(c, {
-    tenantId,
-    userId: session.userId,
+  return renderInstitutionAdminListFlashWorkspace(c, renderAppPageFn, tenantId, nextPath, deps, {
     workspace: "access_org_units",
+    buildPage: (pageData, flash) =>
+      institutionAdminOrgUnitsPage({
+        ...pageData,
+        accessOrgUnitsWorkspace: flash,
+      }),
   });
-
-  return await renderInstitutionAdminWorkspacePage(
-    c,
-    renderAppPageFn,
-    institutionAdminOrgUnitsPage({
-      ...pageData,
-      accessOrgUnitsWorkspace: {
-        listNotice: flash.listNotice,
-        listError: flash.listError,
-      },
-    }),
-  );
 };

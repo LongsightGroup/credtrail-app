@@ -1,5 +1,6 @@
 import type { BadgeRuleApprovalPolicyRecord, TenantMembershipRole } from "@credtrail/db";
 import { tenantMembershipRoleLabel } from "../admin/tenant-membership-role-labels";
+import { formatIsoTimestamp } from "../utils/display-format";
 
 export interface BadgeRuleApprovalPolicyFormState {
   readonly orgUnitId: string;
@@ -30,6 +31,57 @@ export const badgeRuleApprovalPolicyFormState = (
       firstStep?.targetType === "approver_group" ? firstStep.targetApproverGroupId : "",
     recertificationIntervalMonths: policy?.recertificationIntervalMonths ?? null,
   };
+};
+
+export const describeBadgeRuleApprovalScopeLabel = (
+  policy: BadgeRuleApprovalPolicyRecord | null,
+): string => {
+  if (policy?.orgUnitId === null || policy?.orgUnitId === undefined) {
+    return "Tenant default";
+  }
+
+  return "Org-unit override";
+};
+
+export const describeBadgeRuleApprovalRequirement = (
+  policy: BadgeRuleApprovalPolicyRecord | null,
+): string => {
+  if (policy?.approvalRequirement === "never") {
+    return policy.allowSelfCertification ? "Automatic approval" : "Automatic approval disabled";
+  }
+
+  return "Approval required";
+};
+
+export const describeBadgeRuleApprovalReviewer = (
+  policy: BadgeRuleApprovalPolicyRecord | null,
+): string => {
+  if (policy?.approvalRequirement === "never") {
+    return policy.allowSelfCertification ? "Self-certification" : "No active approval path";
+  }
+
+  const firstStep = policy?.approvalSteps[0] ?? null;
+
+  if (firstStep === null || firstStep.targetType === "role_threshold") {
+    const requiredRole = firstStep?.requiredRole ?? "admin";
+    return `${tenantMembershipRoleLabel(requiredRole)} role`;
+  }
+
+  if (firstStep.targetType === "user") {
+    return "Named reviewer";
+  }
+
+  return "Approver group";
+};
+
+export const describeBadgeRuleApprovalUpdatedAt = (
+  policy: BadgeRuleApprovalPolicyRecord | null,
+): string => {
+  if (policy?.updatedAt === undefined) {
+    return "Not saved";
+  }
+
+  return formatIsoTimestamp(policy.updatedAt);
 };
 
 export const describeBadgeRuleApprovalSummary = (

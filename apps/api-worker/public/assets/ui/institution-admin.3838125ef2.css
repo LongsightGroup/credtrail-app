@@ -2120,7 +2120,6 @@ a.ct-admin__workspace-card:active {
   min-width: 0;
 }
 
-
 .ct-admin__form {
   --ct-stack-gap: 0.65rem;
   min-width: 0;
@@ -2168,41 +2167,6 @@ a.ct-admin__workspace-card:active {
   color: var(--ct-theme-text-muted);
   font-size: 0.86rem;
   line-height: 1.45;
-}
-.ct-admin__add-disclosure-control {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.3rem;
-  padding: 0.44rem 0.74rem;
-  border: 1px solid var(--ct-border-soft);
-  border-radius: var(--ct-radius-sm);
-  background: var(--ct-theme-surface-card-strong);
-  color: var(--ct-theme-text-body);
-  font-size: 0.8rem;
-  font-weight: 600;
-  line-height: 1.1;
-  white-space: nowrap;
-  transition:
-    background var(--ct-duration-fast) var(--ct-ease-standard),
-    border-color var(--ct-duration-fast) var(--ct-ease-standard),
-    color var(--ct-duration-fast) var(--ct-ease-standard);
-}
-.ct-admin__add-disclosure[open] .ct-admin__add-disclosure-control {
-  background: var(--ct-theme-surface-soft);
-}
-.ct-admin__add-disclosure-summary:hover .ct-admin__add-disclosure-control {
-  border-color: var(--ct-border-strong);
-  color: var(--ct-theme-text-title);
-}
-.ct-admin__add-disclosure-control-close {
-  display: none;
-}
-.ct-admin__add-disclosure[open] .ct-admin__add-disclosure-control-open {
-  display: none;
-}
-.ct-admin__add-disclosure[open] .ct-admin__add-disclosure-control-close {
-  display: inline;
 }
 .ct-admin__advanced-tools {
   border: 1px solid var(--ct-border-soft);
@@ -2253,32 +2217,33 @@ a.ct-admin__workspace-card:active {
 .ct-admin__add-disclosure-form.ct-stack {
   padding: 0 var(--ct-space-4) var(--ct-space-4);
 }
-.ct-admin__add-disclosure-form--member.ct-grid {
+.ct-admin__inline-action-form.ct-grid {
+  --ct-grid-gap: var(--ct-space-3);
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  align-items: end;
+  padding: 0;
+}
+.ct-admin__inline-action-form.ct-stack {
+  padding: 0;
+}
+.ct-admin__inline-action-form--member.ct-grid {
   grid-template-columns: minmax(16rem, 2fr) minmax(10rem, 0.9fr) minmax(12rem, max-content) auto;
 }
-.ct-admin__add-disclosure-form--api-key.ct-grid {
+.ct-admin__inline-action-form--api-key.ct-grid {
   grid-template-columns: minmax(14rem, 1fr) minmax(18rem, 1.4fr) auto;
 }
-.ct-admin__add-disclosure-form--governance.ct-grid {
+.ct-admin__inline-action-form--governance.ct-grid {
   grid-template-columns: minmax(0, 44rem);
   align-items: start;
 }
-.ct-admin__add-disclosure-form--issued-revoke.ct-grid {
+.ct-admin__inline-action-form--issued-revoke.ct-grid {
   grid-template-columns: minmax(12rem, 0.8fr) minmax(18rem, 1.4fr) auto;
   align-items: end;
 }
-.ct-admin__add-disclosure-form--template-create.ct-grid {
+.ct-admin__inline-action-form--template-create.ct-grid {
   grid-template-columns: minmax(0, 44rem);
   align-items: start;
   gap: var(--ct-space-3);
-}
-.ct-admin__add-disclosure-form--lms-connection {
-  grid-template-columns: minmax(0, 44rem);
-  align-items: start;
-  gap: var(--ct-space-3);
-}
-.ct-admin__add-disclosure-form--lms-connection.ct-stack {
-  max-width: 44rem;
 }
 .ct-admin__setup-form.ct-grid {
   --ct-grid-gap: var(--ct-space-3);
@@ -2296,6 +2261,7 @@ a.ct-admin__workspace-card:active {
 .ct-admin__template-create-actions {
   display: flex;
   justify-content: flex-end;
+  gap: var(--ct-space-2);
   padding-top: var(--ct-space-1);
 }
 .ct-admin__template-create-status.ct-admin__status {
@@ -2320,31 +2286,21 @@ a.ct-admin__workspace-card:active {
   flex-wrap: wrap;
   gap: var(--ct-space-2);
 }
-.ct-admin__template-create-next-actions[data-artwork-ready='false']
+.ct-admin__template-create-next-actions[data-artwork-ready="false"]
   .ct-admin__template-create-rule-action,
-.ct-admin__template-create-next-actions[data-artwork-ready='false']
+.ct-admin__template-create-next-actions[data-artwork-ready="false"]
   .ct-admin__template-create-public-action {
   display: none;
 }
-.ct-admin__add-disclosure-form--template-create textarea {
+.ct-admin__inline-action-form--template-create textarea {
   min-height: 6.75rem;
 }
-.ct-admin__add-disclosure-form--template-image.ct-grid {
-  grid-template-columns: minmax(16rem, 1fr) minmax(16rem, 1fr) auto;
-}
-.ct-admin__add-disclosure-form--template-image-generation.ct-grid {
-  grid-template-columns:
-    minmax(13rem, 1fr) minmax(10rem, 0.8fr) minmax(10rem, 0.8fr) minmax(16rem, 1.4fr)
-    auto;
-}
-.ct-admin__add-disclosure-form--template-image-revisions.ct-grid {
-  grid-template-columns: minmax(16rem, 1fr) auto;
-}
-.ct-admin__add-disclosure-form--org-unit.ct-grid {
+.ct-admin__inline-action-form--org-unit.ct-grid {
   grid-template-columns: minmax(0, 44rem);
   align-items: start;
 }
-.ct-admin__add-disclosure-form .ct-admin__checkbox-row {
+.ct-admin__add-disclosure-form .ct-admin__checkbox-row,
+.ct-admin__inline-action-form .ct-admin__checkbox-row {
   min-height: 2.75rem;
   align-items: center;
 }
@@ -2356,6 +2312,14 @@ a.ct-admin__workspace-card:active {
 .ct-admin__add-disclosure > .ct-admin__secret {
   margin: 0;
   padding: 0 var(--ct-space-4) var(--ct-space-4);
+}
+.ct-admin__inline-action-panel > .ct-admin__hint,
+.ct-admin__inline-action-panel > .ct-admin__status,
+.ct-admin__inline-action-panel > .ct-admin__secret {
+  margin: 0;
+}
+.ct-admin__inline-panel-actions {
+  align-self: end;
 }
 .ct-admin__fieldset {
   border: 1px solid var(--ct-border-soft);
@@ -3685,6 +3649,8 @@ a.ct-admin__workspace-card:active {
 
 
 .ct-admin__inline-action-panel {
+  display: grid;
+  gap: var(--ct-space-3);
   padding: var(--ct-space-4);
   border: 1px solid var(--ct-border-soft);
   border-radius: var(--ct-radius-md);
@@ -3692,6 +3658,42 @@ a.ct-admin__workspace-card:active {
 }
 .ct-admin__inline-action-panel[hidden] {
   display: none;
+}
+.ct-admin__inline-action-panel h3 {
+  margin: 0;
+  color: var(--ct-theme-text-title);
+  font-family: var(--ct-font-sans);
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+.ct-admin__inline-action-panel p {
+  margin: 0;
+  max-width: 68ch;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+.ct-admin__list-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ct-space-3);
+  padding-inline: 0.1rem;
+}
+.ct-admin__list-header-copy {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.ct-admin__list-header-copy h2 {
+  margin: 0;
+}
+.ct-admin__list-header-copy p {
+  margin: 0;
+}
+.ct-admin__list-header .ct-admin__button {
+  flex: 0 0 auto;
 }
 .ct-admin__table-wrap {
   overflow: auto;
@@ -4041,25 +4043,16 @@ button.ct-admin__text-action {
 }
 
 @media (max-width: 780px) {
+.ct-admin__form--inline.ct-grid,
+.ct-admin__add-disclosure-form.ct-grid,
+.ct-admin__inline-action-form.ct-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
 
-  .ct-admin__form--inline.ct-grid,
-  .ct-admin__add-disclosure-form.ct-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ct-admin__add-disclosure-summary {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .ct-admin__add-disclosure-control {
-    flex: 0 0 auto;
-    width: 100%;
-  }
-
-  .ct-admin__add-disclosure-control {
-    min-height: 2.75rem;
-  }
+.ct-admin__add-disclosure-summary {
+  align-items: flex-start;
+  flex-direction: column;
+}
 
 
   .ct-admin__builder-grid.ct-grid,
@@ -4106,6 +4099,15 @@ button.ct-admin__text-action {
     justify-self: stretch;
   }
 
+
+  .ct-admin__list-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ct-admin__list-header .ct-admin__button {
+    width: 100%;
+  }
 
   .ct-admin__table select {
     min-height: 2.75rem;

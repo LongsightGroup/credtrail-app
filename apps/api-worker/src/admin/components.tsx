@@ -5,7 +5,7 @@ import type { BadgeRuleReviewQueueEntryView } from "../badge-rule-review-queue-w
 import { formatBadgeRuleReviewQueueSummary } from "../badge-rule-review-queue-workspace";
 import type { CtDataAttributes } from "../ui/jsx-utils";
 import { CtCheckboxField, CtField, CtForm, CtInput, type CtCheckboxType } from "../ui/forms";
-import { AdminButton, AdminButtonLink } from "./actions";
+import { AdminButton, AdminButtonLink, type AdminButtonVariant } from "./actions";
 import {
   formatRuleValueListKind,
   formatRuleValueListValuesSummary,
@@ -214,6 +214,91 @@ export const AdminPanel = ({
     <article id={id} class={panelClass} {...(dataAttributes ?? {})}>
       {children}
     </article>
+  );
+};
+
+export const AdminListHeader = ({
+  title,
+  titleId,
+  description,
+  action,
+}: {
+  title: string | HonoElement;
+  titleId?: string;
+  description?: string | HonoElement | null;
+  action?: HonoElement | null;
+}): HonoElement => {
+  return (
+    <div class="ct-admin__list-header">
+      <div class="ct-admin__list-header-copy">
+        <h2 id={titleId}>{title}</h2>
+        {description === null || description === undefined ? null : <p>{description}</p>}
+      </div>
+      {action ?? null}
+    </div>
+  );
+};
+
+export const AdminInlinePanelTriggerButton = ({
+  panelId,
+  expanded = false,
+  variant = "secondary",
+  children,
+}: PropsWithChildren<{
+  panelId: string;
+  expanded?: boolean;
+  variant?: AdminButtonVariant;
+}>): HonoElement => {
+  return (
+    <AdminButton
+      type="button"
+      variant={variant}
+      ariaControls={panelId}
+      ariaExpanded={expanded}
+      dataAttributes={{ "data-admin-inline-panel-trigger": panelId }}
+    >
+      {children}
+    </AdminButton>
+  );
+};
+
+export const AdminInlinePanelCloseButton = ({
+  panelId,
+  children,
+}: PropsWithChildren<{
+  panelId: string;
+}>): HonoElement => {
+  return (
+    <AdminButton
+      type="button"
+      variant="secondary"
+      dataAttributes={{ "data-admin-inline-panel-close": panelId }}
+    >
+      {children}
+    </AdminButton>
+  );
+};
+
+export const AdminInlineActionPanel = ({
+  id,
+  title,
+  description,
+  hidden = true,
+  children,
+}: PropsWithChildren<{
+  id: string;
+  title: string | HonoElement;
+  description?: string | HonoElement | null;
+  hidden?: boolean;
+}>): HonoElement => {
+  return (
+    <div id={id} class="ct-admin__inline-action-panel" hidden={hidden ? true : undefined}>
+      <div>
+        <h3>{title}</h3>
+        {description === null || description === undefined ? null : <p>{description}</p>}
+      </div>
+      {children}
+    </div>
   );
 };
 

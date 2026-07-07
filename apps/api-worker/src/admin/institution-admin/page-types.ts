@@ -31,6 +31,7 @@ import type { LearnerRecordPresentationModel } from "../../learner-record/learne
 import type { ReportingMetricEntry } from "../../reporting/metric-definitions";
 import type { BadgeRuleReviewQueueEntryView } from "../../badge-rule-review-queue-workspace";
 import type { AdminManualIssueSuccessLinks } from "../manual-issue-flash";
+import type { InstitutionAdminListFlashWorkspace } from "./list-flash-workspace";
 
 export type InstitutionAdminView =
   | "home"
@@ -48,7 +49,7 @@ export type InstitutionAdminView =
   | "accessOrgUnitAccess"
   | "accessGovernance"
   | "accessDelegations"
-  | "accessGovernanceDelegationNew"
+  | "accessDelegationsNew"
   | "accessAuthentication"
   | "accessApiKeys"
   | "accessOrgUnits"
@@ -103,68 +104,35 @@ export interface InstitutionAdminReviewQueueWorkspace {
   listError: string | null;
 }
 
-export interface InstitutionAdminRulesWorkspace {
-  listNotice: string | null;
-  listError: string | null;
-}
+export interface InstitutionAdminRulesWorkspace extends InstitutionAdminListFlashWorkspace {}
 
-export interface InstitutionAdminRuleValueListsWorkspace {
+export interface InstitutionAdminRuleValueListsWorkspace extends InstitutionAdminListFlashWorkspace {
   valueLists: readonly BadgeIssuanceRuleValueListRecord[];
-  listNotice: string | null;
-  listError: string | null;
 }
 
-export interface InstitutionAdminLmsConnectionsWorkspace {
-  listNotice: string | null;
-  listError: string | null;
+export interface InstitutionAdminLmsConnectionsWorkspace extends InstitutionAdminListFlashWorkspace {
   ltiDynamicRegistrationUrl: string | null;
 }
 
-export interface InstitutionAdminLmsConnectionSetupWorkspace {
-  listNotice: string | null;
-  listError: string | null;
-}
+export interface InstitutionAdminLmsConnectionSetupWorkspace extends InstitutionAdminListFlashWorkspace {}
 
-export interface InstitutionAdminAccessMembersWorkspace {
-  listNotice: string | null;
-  listError: string | null;
-}
+export interface InstitutionAdminAccessMembersWorkspace extends InstitutionAdminListFlashWorkspace {}
 
-export interface InstitutionAdminAccessGovernanceWorkspace {
-  listNotice: string | null;
-  listError: string | null;
-}
+export interface InstitutionAdminAccessGovernanceWorkspace extends InstitutionAdminListFlashWorkspace {}
 
-export interface InstitutionAdminAccessOrgUnitAccessWorkspace {
-  listNotice: string | null;
-  listError: string | null;
-}
+export interface InstitutionAdminAccessOrgUnitAccessWorkspace extends InstitutionAdminListFlashWorkspace {}
 
-export interface InstitutionAdminAccessDelegationsWorkspace {
-  listNotice: string | null;
-  listError: string | null;
-}
+export interface InstitutionAdminAccessDelegationsWorkspace extends InstitutionAdminListFlashWorkspace {}
 
-export interface InstitutionAdminAccessAuthenticationWorkspace {
-  listNotice: string | null;
-  listError: string | null;
+export interface InstitutionAdminAccessAuthenticationWorkspace extends InstitutionAdminListFlashWorkspace {
   editProviderId: string | null;
 }
 
-export interface InstitutionAdminAccessGovernanceDelegationWorkspace {
-  listNotice: string | null;
-  listError: string | null;
-}
+export interface InstitutionAdminAccessDelegationsNewWorkspace extends InstitutionAdminListFlashWorkspace {}
 
-export interface InstitutionAdminAccessOrgUnitsWorkspace {
-  listNotice: string | null;
-  listError: string | null;
-}
+export interface InstitutionAdminAccessOrgUnitsWorkspace extends InstitutionAdminListFlashWorkspace {}
 
-export interface InstitutionAdminOperationsWorkspace {
-  listNotice: string | null;
-  listError: string | null;
-}
+export interface InstitutionAdminOperationsWorkspace extends InstitutionAdminListFlashWorkspace {}
 
 export interface InstitutionAdminManualIssueWorkspace {
   listNotice: string | null;
@@ -260,7 +228,7 @@ export interface InstitutionAdminPageInput {
   accessOrgUnitAccessWorkspace?: InstitutionAdminAccessOrgUnitAccessWorkspace;
   accessGovernanceWorkspace?: InstitutionAdminAccessGovernanceWorkspace;
   accessDelegationsWorkspace?: InstitutionAdminAccessDelegationsWorkspace;
-  accessGovernanceDelegationWorkspace?: InstitutionAdminAccessGovernanceDelegationWorkspace;
+  accessDelegationsNewWorkspace?: InstitutionAdminAccessDelegationsNewWorkspace;
   accessAuthenticationWorkspace?: InstitutionAdminAccessAuthenticationWorkspace;
   accessOrgUnitsWorkspace?: InstitutionAdminAccessOrgUnitsWorkspace;
   operationsWorkspace?: InstitutionAdminOperationsWorkspace;

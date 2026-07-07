@@ -1,19 +1,10 @@
+.ct-admin__form--inline.ct-grid,
+.ct-admin__add-disclosure-form.ct-grid,
+.ct-admin__inline-action-form.ct-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
 
-  .ct-admin__form--inline.ct-grid,
-  .ct-admin__add-disclosure-form.ct-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ct-admin__add-disclosure-summary {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .ct-admin__add-disclosure-control {
-    flex: 0 0 auto;
-    width: 100%;
-  }
-
-  .ct-admin__add-disclosure-control {
-    min-height: 2.75rem;
-  }
+.ct-admin__add-disclosure-summary {
+  align-items: flex-start;
+  flex-direction: column;
+}

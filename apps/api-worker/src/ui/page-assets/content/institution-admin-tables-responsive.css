@@ -1,4 +1,13 @@
 
+  .ct-admin__list-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ct-admin__list-header .ct-admin__button {
+    width: 100%;
+  }
+
   .ct-admin__table select {
     min-height: 2.75rem;
   }

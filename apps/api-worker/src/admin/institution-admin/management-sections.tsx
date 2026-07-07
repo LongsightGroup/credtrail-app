@@ -1,32 +1,21 @@
 import type { HtmlEscapedString } from "hono/utils/html";
 import { AdminActions, AdminButtonLink, AdminPanel, AdminTable } from "../components";
 
-type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
+type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | HonoElement[];
 
 interface RenderInstitutionAdminManagementSectionsInput {
   ruleCount: string;
   hasBadgeRules: boolean;
   ruleBuilderPath: string;
   rulesTemplatesPath: string;
-  ruleRows: unknown;
-  evaluateRulePanelMarkup: unknown;
-  orgUnitCount: string;
-  orgUnitRows: unknown;
-  activeApiKeyCount: string;
-  revokedApiKeyCount: string;
-  apiKeyRows: unknown;
+  ruleRows: HonoElement;
+  evaluateRulePanelMarkup: HonoElement;
 }
 
 interface InstitutionAdminManagementSections {
   badgeRulesTableMarkup: HonoElement;
   ruleAdvancedToolsMarkup: HonoElement;
-  orgUnitsTableMarkup: HonoElement;
-  apiKeysTableMarkup: HonoElement;
 }
-
-const renderHonoElementList = (value: unknown): HonoElement | HonoElement[] => {
-  return Array.isArray(value) ? (value as HonoElement[]) : (value as HonoElement);
-};
 
 export const renderInstitutionAdminManagementSections = (
   input: RenderInstitutionAdminManagementSectionsInput,
@@ -57,7 +46,7 @@ export const renderInstitutionAdminManagementSections = (
           "Actions",
         ]}
       >
-        {renderHonoElementList(input.ruleRows)}
+        {input.ruleRows}
       </AdminTable>
     </AdminPanel>
   );
@@ -70,9 +59,7 @@ export const renderInstitutionAdminManagementSections = (
         </small>
       </summary>
       {input.hasBadgeRules ? (
-        <div class="ct-admin__advanced-tools-body ct-grid">
-          {renderHonoElementList(input.evaluateRulePanelMarkup)}
-        </div>
+        <div class="ct-admin__advanced-tools-body ct-grid">{input.evaluateRulePanelMarkup}</div>
       ) : (
         <p class="ct-admin__hint">
           Create a badge rule first. Testing becomes useful once there is a rule to review.
@@ -81,32 +68,8 @@ export const renderInstitutionAdminManagementSections = (
     </details>
   );
 
-  const orgUnitsTableMarkup = (
-    <AdminPanel variant="table" className="ct-admin__org-units-table">
-      <h2>Org Units ({input.orgUnitCount})</h2>
-      <AdminTable headers={["Name", "Type", "ID", "Status"]}>
-        {renderHonoElementList(input.orgUnitRows)}
-      </AdminTable>
-    </AdminPanel>
-  );
-
-  const apiKeysTableMarkup = (
-    <AdminPanel variant="table" className="ct-admin__api-keys-table">
-      <h2 id="api-key-active-count">Active API Keys ({input.activeApiKeyCount})</h2>
-      <p>Revoked keys: {input.revokedApiKeyCount}</p>
-      <AdminTable
-        headers={["Label", "Prefix", "Scopes", "Expires", "Action"]}
-        tbodyId="api-key-body"
-      >
-        {renderHonoElementList(input.apiKeyRows)}
-      </AdminTable>
-    </AdminPanel>
-  );
-
   return {
     badgeRulesTableMarkup,
     ruleAdvancedToolsMarkup,
-    orgUnitsTableMarkup,
-    apiKeysTableMarkup,
   };
 };

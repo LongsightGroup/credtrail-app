@@ -31,7 +31,7 @@ import type {
   InstitutionAdminRuleValueListsWorkspace,
 } from "./page-types";
 
-type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | readonly HonoElement[];
+type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | HonoElement[];
 
 interface RenderInstitutionAdminOperationsSectionsInput {
   tenantId: string;
@@ -183,7 +183,7 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
           id="issued-badge-revoke-form"
           method="post"
           action={tenantIssuedBadgeAdminRevokePath(input.tenantId)}
-          className="ct-admin__form ct-admin__add-disclosure-form ct-admin__add-disclosure-form--issued-revoke ct-grid"
+          className="ct-admin__form ct-admin__inline-action-form ct-admin__inline-action-form--issued-revoke ct-grid"
         >
           <CtInput
             name="assertionId"

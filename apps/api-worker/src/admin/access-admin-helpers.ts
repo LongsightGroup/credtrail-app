@@ -18,8 +18,8 @@ export const buildAccessAuthenticationAdminPath = (tenantId: string): string => 
   return `/tenants/${encodeURIComponent(tenantId)}/admin/access/authentication`;
 };
 
-export const buildAccessGovernanceDelegationNewPath = (tenantId: string): string => {
-  return `${buildAccessGovernanceAdminPath(tenantId)}/delegations/new`;
+export const buildAccessDelegationsNewPath = (tenantId: string): string => {
+  return `${buildAccessDelegationsAdminPath(tenantId)}/new`;
 };
 
 export const buildOperationsManualIssuePath = (tenantId: string): string => {
@@ -85,11 +85,11 @@ export const tenantAccessMemberRemovePath = (tenantId: string, userId: string): 
 };
 
 export const tenantAccessMembershipScopeSavePath = (tenantId: string): string => {
-  return `${buildAccessGovernanceAdminPath(tenantId)}/scopes`;
+  return `${buildAccessOrgUnitAccessAdminPath(tenantId)}/scopes`;
 };
 
 export const tenantAccessMembershipScopeRemovePath = (tenantId: string): string => {
-  return `${buildAccessGovernanceAdminPath(tenantId)}/scopes/remove`;
+  return `${buildAccessOrgUnitAccessAdminPath(tenantId)}/scopes/remove`;
 };
 
 export const tenantAccessBadgeRuleApprovalPolicyPath = (tenantId: string): string => {
@@ -113,11 +113,11 @@ export const tenantAccessApproverGroupMemberRemovePath = (tenantId: string): str
 };
 
 export const tenantAccessDelegatedGrantCreatePath = (tenantId: string): string => {
-  return `${buildAccessGovernanceAdminPath(tenantId)}/delegations`;
+  return buildAccessDelegationsAdminPath(tenantId);
 };
 
 export const tenantAccessDelegatedGrantRevokePath = (tenantId: string): string => {
-  return `${buildAccessGovernanceAdminPath(tenantId)}/delegations/revoke`;
+  return `${buildAccessDelegationsAdminPath(tenantId)}/revoke`;
 };
 
 export const tenantAccessOrgUnitCreatePath = (tenantId: string): string => {

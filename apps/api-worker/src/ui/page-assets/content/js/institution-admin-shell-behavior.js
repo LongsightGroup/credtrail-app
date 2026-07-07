@@ -3,6 +3,55 @@ const viewportPadding = 8;
 let openActionMenuPopover = null;
 let openActionMenuTrigger = null;
 
+const findInlinePanel = (panelId) => {
+  if (typeof panelId !== "string" || panelId.length === 0) {
+    return null;
+  }
+
+  const candidate = document.getElementById(panelId);
+  return candidate instanceof HTMLElement ? candidate : null;
+};
+
+const findInlinePanelTrigger = (panelId) => {
+  if (typeof panelId !== "string" || panelId.length === 0) {
+    return null;
+  }
+
+  const selector = `[data-admin-inline-panel-trigger="${CSS.escape(panelId)}"]`;
+  const candidate = document.querySelector(selector);
+  return candidate instanceof HTMLElement ? candidate : null;
+};
+
+const openInlinePanel = (trigger, panel) => {
+  panel.hidden = false;
+  trigger.setAttribute("aria-expanded", "true");
+};
+
+const closeInlinePanel = (panel) => {
+  panel.hidden = true;
+
+  const trigger = findInlinePanelTrigger(panel.id);
+  if (trigger instanceof HTMLElement) {
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.focus();
+  }
+};
+
+document.querySelectorAll("[data-admin-inline-panel-trigger]").forEach((trigger) => {
+  if (!(trigger instanceof HTMLElement)) {
+    return;
+  }
+
+  const panelId = trigger.getAttribute("data-admin-inline-panel-trigger") || "";
+  const panel = findInlinePanel(panelId);
+
+  if (!(panel instanceof HTMLElement)) {
+    return;
+  }
+
+  trigger.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
+});
+
 const findActionMenuPanel = (trigger) => {
   if (!(trigger instanceof HTMLElement)) {
     return null;
@@ -93,6 +142,30 @@ document.addEventListener("click", (event) => {
   const target = event.target;
 
   if (!(target instanceof Element)) {
+    return;
+  }
+
+  const inlinePanelTrigger = target.closest("[data-admin-inline-panel-trigger]");
+  if (inlinePanelTrigger instanceof HTMLElement) {
+    const panelId = inlinePanelTrigger.getAttribute("data-admin-inline-panel-trigger") || "";
+    const panel = findInlinePanel(panelId);
+
+    if (panel instanceof HTMLElement) {
+      event.preventDefault();
+      openInlinePanel(inlinePanelTrigger, panel);
+    }
+    return;
+  }
+
+  const inlinePanelClose = target.closest("[data-admin-inline-panel-close]");
+  if (inlinePanelClose instanceof HTMLElement) {
+    const panelId = inlinePanelClose.getAttribute("data-admin-inline-panel-close") || "";
+    const panel = findInlinePanel(panelId);
+
+    if (panel instanceof HTMLElement) {
+      event.preventDefault();
+      closeInlinePanel(panel);
+    }
     return;
   }
 

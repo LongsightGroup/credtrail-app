@@ -1155,13 +1155,18 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toMatch(
       /href="\/tenants\/tenant_123\/admin\/rules\/templates"[^>]*aria-current="page"/,
     );
-    expect(body).toContain("Create Badge Template");
+    expect(body).toContain("New badge template");
+    expect(body).toContain("Create badge template");
     expect(body).toContain(
       "Start with the badge name. CredTrail opens artwork setup after creation.",
     );
     expect(body).toContain(">Badge name<");
     expect(body).toContain("Create and add artwork");
     expect(body).toContain('id="template-create-panel"');
+    expect(body).toContain('class="ct-admin__inline-action-panel"');
+    expect(body).toContain('aria-controls="template-create-panel"');
+    expect(body).toContain('data-admin-inline-panel-trigger="template-create-panel"');
+    expect(body).toContain('data-admin-inline-panel-close="template-create-panel"');
     expect(body).toContain('id="badge-template-create-form"');
     expect(body).toContain('action="/tenants/tenant_123/admin/rules/templates"');
     expect(body).toContain('method="post"');
@@ -1174,7 +1179,8 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).not.toContain("Edit Badge Template");
     expect(body).not.toContain('id="template-editor-artwork"');
     expect(body).not.toContain('id="template-image-panel"');
-    expect(body).toContain('class="ct-admin__panel ct-admin__add-disclosure"');
+    expect(body).not.toContain("Open form");
+    expect(body).not.toContain("Hide form");
     expect(body).not.toContain('id="badge-template-image-upload-form"');
     expect(body).not.toContain('id="badge-template-image-generation-form"');
     expect(body).not.toContain('id="badge-template-image-generation-open"');
@@ -1212,7 +1218,9 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('class="ct-admin__template-image-link"');
     expect(body).toContain('aria-label="Open full size image for TypeScript Foundations"');
     expect(body).toContain('href="https://example.edu/badges/typescript.png"');
-    expect(body).toContain("Open form");
+    expect(body).toContain("New badge template");
+    expect(body).not.toContain("Open form");
+    expect(body).not.toContain("Hide form");
     expect(body).toContain("Badge Templates (1)");
     expect(body).toContain("Template records, public links, and artwork maintenance");
     expect(body).toContain('id="badge-template-table-body"');

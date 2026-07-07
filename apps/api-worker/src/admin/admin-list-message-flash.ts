@@ -13,7 +13,7 @@ export type AdminListMessageWorkspace =
   | "access_org_unit_access"
   | "access_governance"
   | "access_delegations"
-  | "access_governance_delegation"
+  | "access_delegations_new"
   | "access_authentication"
   | "access_org_units"
   | "access_api_keys"

@@ -1,8 +1,10 @@
 import { registerBadgeTemplateEditorArtworkAdminRoutes } from "./badge-template-editor-artwork-admin-routes";
 import { registerBadgeTemplateListAdminRoutes } from "./badge-template-list-admin-routes";
+import { registerTenantAccessDelegationsAdminRoutes } from "./tenant-access-delegations-admin-routes";
 import { registerTenantAccessEnterpriseAdminRoutes } from "./tenant-access-enterprise-admin-routes";
-import { registerTenantAccessGovernanceAdminRoutes } from "./tenant-access-governance-admin-routes";
 import { registerTenantAccessMembersAdminRoutes } from "./tenant-access-members-admin-routes";
+import { registerTenantAccessOrgUnitAccessAdminRoutes } from "./tenant-access-org-unit-access-admin-routes";
+import { registerTenantAccessRuleApprovalAdminRoutes } from "./tenant-access-rule-approval-admin-routes";
 import { registerTenantAdminPageRoutes } from "./tenant-admin-page-routes";
 import { registerTenantAdminReportingPageRoutes } from "./tenant-admin-reporting-page-routes";
 import { registerTenantApiKeyAdminRoutes } from "./tenant-api-key-admin-routes";
@@ -129,7 +131,19 @@ export const registerTenantGovernanceRoutes = (
     resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
   });
 
-  registerTenantAccessGovernanceAdminRoutes({
+  registerTenantAccessRuleApprovalAdminRoutes({
+    app: input.app,
+    resolveDatabase: input.resolveDatabase,
+    resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
+  });
+
+  registerTenantAccessOrgUnitAccessAdminRoutes({
+    app: input.app,
+    resolveDatabase: input.resolveDatabase,
+    resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
+  });
+
+  registerTenantAccessDelegationsAdminRoutes({
     app: input.app,
     resolveDatabase: input.resolveDatabase,
     resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
@@ -202,8 +216,8 @@ export const registerTenantGovernanceRoutes = (
       institutionWorkspaces.renderLmsConnectionEditWorkspace,
     renderInstitutionAdminAuthenticationWorkspace:
       institutionWorkspaces.renderAuthenticationWorkspace,
-    renderInstitutionAdminGovernanceDelegationNewWorkspace:
-      institutionWorkspaces.renderGovernanceDelegationNewWorkspace,
+    renderInstitutionAdminDelegationsNewWorkspace:
+      institutionWorkspaces.renderDelegationsNewWorkspace,
     renderInstitutionAdminManualIssueWorkspace: institutionWorkspaces.renderManualIssueWorkspace,
     renderInstitutionAdminTemplatesWorkspace:
       templateWorkspaces.renderInstitutionAdminTemplatesWorkspace,

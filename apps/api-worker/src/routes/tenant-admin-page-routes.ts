@@ -119,7 +119,7 @@ interface RegisterTenantAdminPageRoutesInput {
     tenantId: string,
     nextPath: string,
   ) => Promise<Response>;
-  renderInstitutionAdminGovernanceDelegationNewWorkspace: (
+  renderInstitutionAdminDelegationsNewWorkspace: (
     c: AppContext,
     tenantId: string,
     nextPath: string,
@@ -217,7 +217,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     renderInstitutionAdminOrgUnitAccessWorkspace,
     renderInstitutionAdminGovernanceWorkspace,
     renderInstitutionAdminDelegationsWorkspace,
-    renderInstitutionAdminGovernanceDelegationNewWorkspace,
+    renderInstitutionAdminDelegationsNewWorkspace,
     renderInstitutionAdminAuthenticationWorkspace,
     renderInstitutionAdminOrgUnitsWorkspace,
     renderInstitutionAdminApiKeysWorkspace,
@@ -362,12 +362,12 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     );
   });
 
-  app.get("/tenants/:tenantId/admin/access/governance/delegations/new", async (c) => {
+  app.get("/tenants/:tenantId/admin/access/delegations/new", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminGovernanceDelegationNewWorkspace(
+    return renderInstitutionAdminDelegationsNewWorkspace(
       c,
       pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access/governance/delegations/new`,
+      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/access/delegations/new`,
     );
   });
 

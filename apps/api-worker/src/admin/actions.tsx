@@ -56,6 +56,8 @@ export const AdminButton = ({
   value,
   className,
   ariaLabel,
+  ariaControls,
+  ariaExpanded,
   dataAttributes,
   children,
 }: PropsWithChildren<{
@@ -71,6 +73,8 @@ export const AdminButton = ({
   value?: string;
   className?: string;
   ariaLabel?: string;
+  ariaControls?: string;
+  ariaExpanded?: boolean;
   dataAttributes?: DataAttributes;
 }>): HonoElement => {
   return (
@@ -87,6 +91,8 @@ export const AdminButton = ({
       disabled={disabled}
       hidden={hidden}
       ariaLabel={ariaLabel}
+      ariaControls={ariaControls}
+      ariaExpanded={ariaExpanded}
       dataAttributes={dataAttributes}
     >
       {children}

@@ -841,10 +841,6 @@ export const renderInstitutionAdminReportingSections = (
           <strong>Filter trend data</strong>
           <small>Change date, badge, org unit, or state only when you need a narrower view.</small>
         </span>
-        <span class="ct-admin__add-disclosure-control">
-          <span class="ct-admin__add-disclosure-control-open">Show filters</span>
-          <span class="ct-admin__add-disclosure-control-close">Hide filters</span>
-        </span>
       </summary>
       {renderReportingFiltersForm(
         reportingTrendsPath,

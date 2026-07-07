@@ -19,7 +19,7 @@ export type InstitutionAdminSidebarView =
   | "accessOrgUnitAccess"
   | "accessGovernance"
   | "accessDelegations"
-  | "accessGovernanceDelegationNew"
+  | "accessDelegationsNew"
   | "accessAuthentication"
   | "accessApiKeys"
   | "accessLmsConnections"
@@ -115,7 +115,7 @@ export const buildInstitutionAdminSidebarSections = (
     {
       href: paths.accessDelegationsPath,
       label: "Delegated Authority",
-      isCurrent: view === "accessDelegations" || view === "accessGovernanceDelegationNew",
+      isCurrent: view === "accessDelegations" || view === "accessDelegationsNew",
     },
     ...(showEnterpriseAuthentication
       ? [

@@ -51,6 +51,8 @@ describe("CredTrail action primitives", () => {
         name="decision"
         value="approve"
         ariaLabel="Approve badge"
+        ariaControls="approval-panel"
+        ariaExpanded={true}
         dataAttributes={{ "data-action": "approve" }}
       >
         Approve
@@ -64,6 +66,8 @@ describe("CredTrail action primitives", () => {
     expect(html).toContain('name="decision"');
     expect(html).toContain('value="approve"');
     expect(html).toContain('aria-label="Approve badge"');
+    expect(html).toContain('aria-controls="approval-panel"');
+    expect(html).toContain('aria-expanded="true"');
     expect(html).toContain('data-action="approve"');
     expect(html).toContain("disabled");
     expect(html).toContain("hidden");

@@ -57,6 +57,8 @@ export const CtButton = ({
   value,
   className,
   ariaLabel,
+  ariaControls,
+  ariaExpanded,
   dataAttributes,
   children,
 }: PropsWithChildren<{
@@ -72,6 +74,8 @@ export const CtButton = ({
   value?: string | undefined;
   className?: string | undefined;
   ariaLabel?: string | undefined;
+  ariaControls?: string | undefined;
+  ariaExpanded?: boolean | undefined;
   dataAttributes?: CtDataAttributes | undefined;
 }>): HonoElement => {
   return (
@@ -86,6 +90,8 @@ export const CtButton = ({
       disabled={disabled}
       hidden={hidden}
       aria-label={ariaLabel}
+      aria-controls={ariaControls}
+      aria-expanded={ariaExpanded === undefined ? undefined : ariaExpanded ? "true" : "false"}
       {...(dataAttributes ?? {})}
     >
       {children}

@@ -558,7 +558,9 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     );
     expect(body).not.toContain('<details id="reporting-trend-filters-panel" open');
     expect(body).toContain("Filter trend data");
-    expect(body).toContain("Show filters");
+    expect(body).not.toContain("Show filters");
+    expect(body).not.toContain("Hide filters");
+    expect(body).not.toContain("ct-admin__add-disclosure-control");
     expect(body).not.toContain("<h2>Trend filters</h2>");
     expect(body).toContain('method="get" action="/tenants/tenant_123/admin/reporting/trends"');
     expect(body).toContain("Trend lines");

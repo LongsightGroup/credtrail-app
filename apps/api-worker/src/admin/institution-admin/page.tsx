@@ -150,10 +150,8 @@ export const institutionAdminDelegationsPage = (input: InstitutionAdminPageInput
   return renderInstitutionAdminPage(input, "accessDelegations");
 };
 
-export const institutionAdminGovernanceDelegationNewPage = (
-  input: InstitutionAdminPageInput,
-): AppPage => {
-  return renderInstitutionAdminPage(input, "accessGovernanceDelegationNew");
+export const institutionAdminDelegationsNewPage = (input: InstitutionAdminPageInput): AppPage => {
+  return renderInstitutionAdminPage(input, "accessDelegationsNew");
 };
 
 export const institutionAdminAuthenticationPage = (input: InstitutionAdminPageInput): AppPage => {

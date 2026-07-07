@@ -40,6 +40,7 @@ import { TenantApiKeyAdminTableRow } from "../api-key-table-row";
 import { badgeRuleApprovalPolicyFormState } from "../../badges/badge-rule-approval-policy-summary";
 import { serializeJsonScriptContent } from "../institution-admin-shell";
 import { renderInstitutionAdminAccessSections } from "./access-sections";
+import { accessSectionKindsForDataNeeds } from "./access-section-kinds";
 import { renderInstitutionAdminLearnerRecordSections } from "./learner-record-sections";
 import { renderInstitutionAdminManagementSections } from "./management-sections";
 import { renderInstitutionAdminOperationsSections } from "./operations-sections";
@@ -761,29 +762,24 @@ export const buildInstitutionAdminViewResources = (
           );
         })
     : [];
-  const activeOrgUnitOptions =
-    dataNeeds.operationsSectionBundles ||
-    dataNeeds.governanceTableRows ||
-    dataNeeds.scopedRoleRows ||
-    dataNeeds.delegationSelectOptions
-      ? input.orgUnits
-          .filter((orgUnit) => orgUnit.isActive)
-          .map((orgUnit) => {
-            const selectedOrgUnitFilterId = input.issuedBadgesWorkspace?.filters.orgUnitId ?? "";
+  const activeOrgUnitOptions = dataNeeds.accessOrgUnitSelectOptions
+    ? input.orgUnits
+        .filter((orgUnit) => orgUnit.isActive)
+        .map((orgUnit) => {
+          const selectedOrgUnitFilterId = input.issuedBadgesWorkspace?.filters.orgUnitId ?? "";
 
-            return (
-              <option value={orgUnit.id} selected={orgUnit.id === selectedOrgUnitFilterId}>
-                {`${orgUnit.displayName} (${orgUnit.unitType})`}
-              </option>
-            );
-          })
-      : [];
-  const tenantMemberOptions =
-    dataNeeds.governanceTableRows || dataNeeds.scopedRoleRows || dataNeeds.delegationSelectOptions
-      ? input.tenantMembers.map((member) => {
-          return <option value={member.userId}>{`${member.email} (${member.role})`}</option>;
+          return (
+            <option value={orgUnit.id} selected={orgUnit.id === selectedOrgUnitFilterId}>
+              {`${orgUnit.displayName} (${orgUnit.unitType})`}
+            </option>
+          );
         })
-      : [];
+    : [];
+  const tenantMemberOptions = dataNeeds.accessMemberSelectOptions
+    ? input.tenantMembers.map((member) => {
+        return <option value={member.userId}>{`${member.email} (${member.role})`}</option>;
+      })
+    : [];
   const templateOptions = dataNeeds.templateSelectOptions
     ? input.badgeTemplates.map((template, index) => {
         return (
@@ -842,11 +838,7 @@ export const buildInstitutionAdminViewResources = (
   ) : (
     <option value="">No badge templates available</option>
   );
-  const activeOrgUnitSelectOptions = !(
-    dataNeeds.governanceTableRows ||
-    dataNeeds.scopedRoleRows ||
-    dataNeeds.delegationSelectOptions
-  ) ? (
+  const activeOrgUnitSelectOptions = !dataNeeds.accessOrgUnitSelectOptions ? (
     emptySectionMarkup
   ) : activeOrgUnitOptions.length > 0 ? (
     <>{activeOrgUnitOptions}</>
@@ -873,11 +865,7 @@ export const buildInstitutionAdminViewResources = (
         ))}
     </>
   );
-  const tenantMemberSelectOptions = !(
-    dataNeeds.governanceTableRows ||
-    dataNeeds.scopedRoleRows ||
-    dataNeeds.delegationSelectOptions
-  ) ? (
+  const tenantMemberSelectOptions = !dataNeeds.accessMemberSelectOptions ? (
     emptySectionMarkup
   ) : tenantMemberOptions.length > 0 ? (
     <>{tenantMemberOptions}</>
@@ -1080,6 +1068,8 @@ export const buildInstitutionAdminViewResources = (
         lmsConnectionCount,
         tenantMemberRoleSelectOptions,
         tenantMemberRows,
+        apiKeyRows,
+        orgUnitRows,
         orgUnitParentOptions,
         tenantMemberSelectOptions,
         badgeRuleApprovalTargetUserSelectOptions,
@@ -1093,6 +1083,7 @@ export const buildInstitutionAdminViewResources = (
         delegatedGrantRows,
         lmsConnectionRows,
         badgeRuleApprovalPolicy: input.badgeRuleApprovalPolicy ?? null,
+        enabledSections: accessSectionKindsForDataNeeds(dataNeeds),
         ...(input.apiKeysWorkspace === undefined
           ? {}
           : { apiKeysWorkspace: input.apiKeysWorkspace }),
@@ -1116,34 +1107,26 @@ export const buildInstitutionAdminViewResources = (
           : { accessOrgUnitsWorkspace: input.accessOrgUnitsWorkspace }),
       })
     : {
-        apiKeyPanelMarkup: emptySectionMarkup,
+        apiKeysTableMarkup: emptySectionMarkup,
         lmsConnectionsActionsMarkup: emptySectionMarkup,
         lmsConnectionsTableMarkup: emptySectionMarkup,
-        orgUnitPanelMarkup: emptySectionMarkup,
+        orgUnitsTableMarkup: emptySectionMarkup,
         governanceGuidePanelMarkup: emptySectionMarkup,
-        governanceActionsMarkup: emptySectionMarkup,
         ruleApprovalPolicySummaryMarkup: emptySectionMarkup,
-        tenantMembersPanelMarkup: emptySectionMarkup,
         tenantMembersTableMarkup: emptySectionMarkup,
-        membershipScopePanelMarkup: emptySectionMarkup,
         membershipScopeTableMarkup: emptySectionMarkup,
-        approverGroupPanelMarkup: emptySectionMarkup,
         approverGroupTableMarkup: emptySectionMarkup,
         delegatedGrantTableMarkup: emptySectionMarkup,
         delegatedGrantActionsMarkup: emptySectionMarkup,
       };
   const {
-    apiKeyPanelMarkup,
+    apiKeysTableMarkup,
     lmsConnectionsActionsMarkup,
     lmsConnectionsTableMarkup,
-    orgUnitPanelMarkup,
+    orgUnitsTableMarkup,
     governanceGuidePanelMarkup,
-    governanceActionsMarkup,
-    tenantMembersPanelMarkup,
     tenantMembersTableMarkup,
-    membershipScopePanelMarkup,
     membershipScopeTableMarkup,
-    approverGroupPanelMarkup,
     approverGroupTableMarkup,
     delegatedGrantTableMarkup,
     delegatedGrantActionsMarkup,
@@ -1201,24 +1184,12 @@ export const buildInstitutionAdminViewResources = (
         rulesTemplatesPath,
         ruleRows,
         evaluateRulePanelMarkup,
-        orgUnitCount,
-        orgUnitRows,
-        activeApiKeyCount,
-        revokedApiKeyCount,
-        apiKeyRows,
       })
     : {
         badgeRulesTableMarkup: emptySectionMarkup,
         ruleAdvancedToolsMarkup: emptySectionMarkup,
-        orgUnitsTableMarkup: emptySectionMarkup,
-        apiKeysTableMarkup: emptySectionMarkup,
       };
-  const {
-    badgeRulesTableMarkup,
-    ruleAdvancedToolsMarkup,
-    orgUnitsTableMarkup,
-    apiKeysTableMarkup,
-  } = managementSections;
+  const { badgeRulesTableMarkup, ruleAdvancedToolsMarkup } = managementSections;
 
   const learnerRecordSections = dataNeeds.learnerRecordSectionBundles
     ? renderInstitutionAdminLearnerRecordSections({
@@ -1292,22 +1263,16 @@ export const buildInstitutionAdminViewResources = (
       ruleAdvancedToolsMarkup,
     },
     access: {
-      apiKeyPanelMarkup,
       apiKeysTableMarkup,
-      approverGroupPanelMarkup,
       approverGroupTableMarkup,
       delegatedGrantTableMarkup,
       delegatedGrantActionsMarkup,
-      governanceActionsMarkup,
       governanceGuidePanelMarkup,
       lmsConnectionsActionsMarkup,
       lmsConnectionsTableMarkup,
-      membershipScopePanelMarkup,
       membershipScopeTableMarkup,
-      orgUnitPanelMarkup,
       orgUnitsTableMarkup,
       ruleApprovalPolicySummaryMarkup,
-      tenantMembersPanelMarkup,
       tenantMembersTableMarkup,
     },
   });

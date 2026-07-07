@@ -99,6 +99,7 @@ class FakeBrowserElement {
   private readonly attributes: ReadonlyMap<string, string>;
   private readonly classes: ReadonlySet<string>;
   private readonly rect: BrowserRect;
+  private focused = false;
   private closestElement: FakeBrowserElement | null = null;
 
   public constructor(input: {
@@ -140,16 +141,50 @@ class FakeBrowserElement {
     return target === this;
   }
 
-  public closest(_selector: string): FakeBrowserElement | null {
-    return this.closestElement;
+  public closest(selector: string): FakeBrowserElement | null {
+    if (this.matchesSelector(selector)) {
+      return this;
+    }
+
+    if (this.closestElement !== null && this.closestElement.matchesSelector(selector)) {
+      return this.closestElement;
+    }
+
+    return null;
   }
 
   public setClosest(element: FakeBrowserElement): void {
     this.closestElement = element;
   }
 
+  public focus(): void {
+    this.focused = true;
+  }
+
   public wasHidden(): boolean {
     return this.hidden;
+  }
+
+  public wasFocused(): boolean {
+    return this.focused;
+  }
+
+  private matchesSelector(selector: string): boolean {
+    if (selector.startsWith(".")) {
+      return this.classes.has(selector.slice(1));
+    }
+
+    const attributeMatch = selector.match(/^\[([^=\]]+)(?:="([^"]*)")?\]$/);
+    const attributeName = attributeMatch?.[1];
+
+    if (attributeName === undefined) {
+      return false;
+    }
+
+    const attributeValue = this.getAttribute(attributeName);
+    const expectedValue = attributeMatch?.[2];
+
+    return expectedValue === undefined ? attributeValue !== null : attributeValue === expectedValue;
   }
 }
 
@@ -245,6 +280,11 @@ describe("page asset manifest", () => {
     expect(institutionAdminCss).not.toContain(".ct-admin__form input:not([type='checkbox'])");
     expect(institutionAdminCss).not.toContain(".ct-admin__form select,");
     expect(institutionAdminCss).not.toContain(".ct-admin__form textarea {");
+    expect(institutionAdminCss).not.toContain("ct-admin__add-disclosure-control");
+    expect(institutionAdminCss).toContain("ct-admin__inline-action-form");
+    expect(institutionAdminCss).not.toContain(
+      "ct-admin__inline-action-panel .ct-admin__add-disclosure-form",
+    );
   });
 
   it("keeps template editor forms on primitive class contracts", () => {
@@ -372,6 +412,68 @@ describe("page asset manifest", () => {
     expect(PUBLIC_BADGE_JS).toContain("copy-badge-url-technical-button");
   });
 
+  it("opens and closes shared admin inline panels", () => {
+    let clickListener: ShellEventListener | null = null;
+    let preventDefaultCount = 0;
+    const trigger = new FakeBrowserElement({
+      attributes: new Map([["data-admin-inline-panel-trigger", "member-panel"]]),
+    });
+    const panel = new FakeBrowserElement({ id: "member-panel" });
+    const closeButton = new FakeBrowserElement({
+      attributes: new Map([["data-admin-inline-panel-close", "member-panel"]]),
+    });
+    const documentStub = {
+      addEventListener: (type: string, listener: ShellEventListener): void => {
+        if (type === "click") {
+          clickListener = listener;
+        }
+      },
+      getElementById: (id: string): FakeBrowserElement | null => {
+        return id === "member-panel" ? panel : null;
+      },
+      querySelector: (selector: string): FakeBrowserElement | null => {
+        return selector === '[data-admin-inline-panel-trigger="member-panel"]' ? trigger : null;
+      },
+      querySelectorAll: (selector: string): FakeBrowserElement[] => {
+        return selector === "[data-admin-inline-panel-trigger]" ? [trigger] : [];
+      },
+    };
+    const context = createContext({
+      CSS: { escape: (value: string): string => value },
+      document: documentStub,
+      Element: FakeBrowserElement,
+      HTMLElement: FakeBrowserElement,
+      window: { innerWidth: 320, innerHeight: 240 },
+    });
+
+    new Script(INSTITUTION_ADMIN_SHELL_JS).runInContext(context);
+    const panelClickListener = clickListener as ShellEventListener | null;
+    expect(panelClickListener).not.toBeNull();
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+
+    panelClickListener?.({
+      target: trigger,
+      preventDefault: (): void => {
+        preventDefaultCount += 1;
+      },
+    });
+
+    expect(panel.hidden).toBe(false);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+
+    panelClickListener?.({
+      target: closeButton,
+      preventDefault: (): void => {
+        preventDefaultCount += 1;
+      },
+    });
+
+    expect(panel.hidden).toBe(true);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.wasFocused()).toBe(true);
+    expect(preventDefaultCount).toBe(2);
+  });
+
   it("positions shared admin action panels next to their trigger", () => {
     let clickListener: ShellEventListener | null = null;
     let scrollListener: ShellEventListener | null = null;
@@ -417,6 +519,9 @@ describe("page asset manifest", () => {
       },
       querySelector: (_selector: string): FakeBrowserElement | null => {
         return null;
+      },
+      querySelectorAll: (_selector: string): FakeBrowserElement[] => {
+        return [];
       },
     };
     const context = createContext({
