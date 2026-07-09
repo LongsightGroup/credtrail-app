@@ -7,7 +7,7 @@ import {
 import { refreshCanvasAccessToken } from "./canvas-oauth";
 import { createGradebookProvider } from "./gradebook-provider";
 import type { GradebookProvider } from "./gradebook-types";
-import { createSakaiSession } from "./sakai-gradebook-provider";
+import { createSakaiSession, type SakaiSessionLoginResult } from "./sakai-gradebook-provider";
 
 const SAKAI_SESSION_CACHE_TTL_SECONDS = 20 * 60;
 
@@ -44,6 +44,35 @@ const hasSakaiPasswordCredentials = (
     connection.clientSecret !== null &&
     connection.clientSecret.length > 0
   );
+};
+
+const refreshSakaiSessionForConnection = async (input: {
+  db: SqlDatabase;
+  connection: TenantLmsConnectionRecord & {
+    providerKind: "sakai";
+    clientId: string;
+    clientSecret: string;
+  };
+  nowIso: string;
+  fetchImpl?: typeof fetch;
+}): Promise<SakaiSessionLoginResult> => {
+  const session = await createSakaiSession({
+    apiBaseUrl: input.connection.apiBaseUrl,
+    username: input.connection.clientId,
+    password: input.connection.clientSecret,
+    ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
+  });
+  const refreshed = await updateTenantLmsConnectionTokens(input.db, {
+    tenantId: input.connection.tenantId,
+    connectionId: input.connection.id,
+    accessToken: session.cookieHeader,
+    accessTokenExpiresAt: addSecondsToIso(input.nowIso, SAKAI_SESSION_CACHE_TTL_SECONDS),
+  });
+
+  return {
+    sessionId: session.sessionId,
+    cookieHeader: refreshed?.accessToken ?? session.cookieHeader,
+  };
 };
 
 export const isTenantLmsConnectionUsable = (connection: TenantLmsConnectionRecord): boolean => {
@@ -130,6 +159,7 @@ export const createGradebookProviderForConnection = async (input: {
   db: SqlDatabase;
   connection: TenantLmsConnectionRecord;
   nowIso: string;
+  fetchImpl?: typeof fetch;
 }): Promise<GradebookProvider> => {
   let accessToken = input.connection.accessToken;
 
@@ -146,23 +176,43 @@ export const createGradebookProviderForConnection = async (input: {
         );
       }
 
-      const username = input.connection.clientId;
-      const password = input.connection.clientSecret;
-
-      const session = await createSakaiSession({
-        apiBaseUrl: input.connection.apiBaseUrl,
-        username,
-        password,
-      });
-      const refreshed = await updateTenantLmsConnectionTokens(input.db, {
-        tenantId: input.connection.tenantId,
-        connectionId: input.connection.id,
-        accessToken: session.cookieHeader,
-        accessTokenExpiresAt: addSecondsToIso(input.nowIso, SAKAI_SESSION_CACHE_TTL_SECONDS),
+      const session = await refreshSakaiSessionForConnection({
+        db: input.db,
+        connection: input.connection,
+        nowIso: input.nowIso,
+        ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
       });
 
-      accessToken = refreshed?.accessToken ?? session.cookieHeader;
+      accessToken = session.cookieHeader;
     }
+
+    if (accessToken === null || accessToken.length === 0) {
+      throw new Error("LMS connection has no access token. Connect the gradebook source first.");
+    }
+
+    const sakaiCredentialConnection = hasSakaiPasswordCredentials(input.connection)
+      ? input.connection
+      : null;
+
+    return createGradebookProvider({
+      config: {
+        kind: input.connection.providerKind,
+        apiBaseUrl: input.connection.apiBaseUrl,
+        accessToken,
+      },
+      ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
+      ...(sakaiCredentialConnection === null
+        ? {}
+        : {
+            sakaiRefreshSession: () =>
+              refreshSakaiSessionForConnection({
+                db: input.db,
+                connection: sakaiCredentialConnection,
+                nowIso: input.nowIso,
+                ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
+              }),
+          }),
+    });
   }
 
   if (accessToken === null || accessToken.length === 0) {
@@ -216,6 +266,7 @@ export const createGradebookProviderForConnection = async (input: {
       apiBaseUrl: input.connection.apiBaseUrl,
       accessToken,
     },
+    ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
   });
 };
 

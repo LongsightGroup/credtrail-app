@@ -337,6 +337,97 @@ describe("createSakaiGradebookProvider", () => {
     expect(requests[0]?.cookie).toBe("JSESSIONID=sakai-session.Sakai");
   });
 
+  it("refreshes the Sakai session once when the cached cookie is rejected", async () => {
+    const requests: { pathWithQuery: string; cookie: string | null }[] = [];
+    let refreshCalls = 0;
+    const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const request = input instanceof Request ? input : new Request(input, init);
+      const requestUrl = new URL(request.url);
+      const pathWithQuery = `${requestUrl.pathname}${requestUrl.search}`;
+      const cookie = request.headers.get("cookie");
+      requests.push({ pathWithQuery, cookie });
+
+      if (pathWithQuery !== "/api/users/me/sites") {
+        return Promise.resolve(
+          new Response(JSON.stringify({ error: "No mock route configured" }), {
+            status: 404,
+            headers: {
+              "content-type": "application/json",
+            },
+          }),
+        );
+      }
+
+      if (cookie !== "SAKAIID=fresh-token") {
+        return Promise.resolve(
+          new Response(JSON.stringify({ message: "Missing or invalid Sakai session" }), {
+            status: 403,
+            headers: {
+              "content-type": "application/json",
+            },
+          }),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            sites: [
+              {
+                siteId: "site-1",
+                title: "CS 101",
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        ),
+      );
+    }) as typeof fetch;
+
+    const provider = createSakaiGradebookProvider({
+      config: {
+        kind: "sakai",
+        apiBaseUrl: "https://sakai.example.edu",
+        accessToken: "stale-token",
+      },
+      fetchImpl,
+      refreshSession: (): Promise<{ sessionId: string; cookieHeader: string }> => {
+        refreshCalls += 1;
+        return Promise.resolve({
+          sessionId: "fresh-token",
+          cookieHeader: "SAKAIID=fresh-token",
+        });
+      },
+    });
+
+    await expect(provider.listCourses()).resolves.toEqual([
+      {
+        courseId: "site-1",
+        title: "CS 101",
+        courseCode: null,
+        workflowState: null,
+        startsAt: null,
+        endsAt: null,
+      },
+    ]);
+    expect(refreshCalls).toBe(1);
+    expect(requests).toEqual([
+      {
+        pathWithQuery: "/api/users/me/sites",
+        cookie: "SAKAIID=stale-token",
+      },
+      {
+        pathWithQuery: "/api/users/me/sites",
+        cookie: "SAKAIID=fresh-token",
+      },
+    ]);
+  });
+
   it("marks Sakai course completion only when every gradebook item is completed", async () => {
     const { fetchImpl } = createMockFetch([
       {

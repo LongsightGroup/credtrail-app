@@ -1,6 +1,9 @@
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
 import { createCanvasGradebookProvider } from "./canvas-gradebook-provider";
-import { createSakaiGradebookProvider } from "./sakai-gradebook-provider";
+import {
+  createSakaiGradebookProvider,
+  type SakaiSessionLoginResult,
+} from "./sakai-gradebook-provider";
 import {
   GRADEBOOK_PROVIDER_KINDS,
   type GradebookProvider,
@@ -61,6 +64,7 @@ export const parseGradebookProviderConfigJson = (
 export interface CreateGradebookProviderInput {
   config: GradebookProviderConfig;
   fetchImpl?: typeof fetch;
+  sakaiRefreshSession?: () => Promise<SakaiSessionLoginResult>;
 }
 
 export const createGradebookProvider = (input: CreateGradebookProviderInput): GradebookProvider => {
@@ -74,6 +78,9 @@ export const createGradebookProvider = (input: CreateGradebookProviderInput): Gr
       return createSakaiGradebookProvider({
         config: input.config,
         ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
+        ...(input.sakaiRefreshSession === undefined
+          ? {}
+          : { refreshSession: input.sakaiRefreshSession }),
       });
     default:
       throw new Error(`Gradebook provider "${input.config.kind}" is not implemented yet`);

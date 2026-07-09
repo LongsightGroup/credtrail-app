@@ -13,6 +13,7 @@ import type {
 interface CreateSakaiGradebookProviderInput {
   config: SakaiGradebookProviderConfig;
   fetchImpl?: typeof fetch;
+  refreshSession?: () => Promise<SakaiSessionLoginResult>;
 }
 
 export interface CreateSakaiSessionInput {
@@ -511,6 +512,10 @@ const parseSakaiCourseRecord = (candidate: unknown): GradebookCourseRecord | nul
   };
 };
 
+const isRetryableSessionStatus = (status: number): boolean => {
+  return status === 401 || status === 403;
+};
+
 export const createSakaiGradebookProvider = (
   input: CreateSakaiGradebookProviderInput,
 ): GradebookProvider => {
@@ -518,7 +523,17 @@ export const createSakaiGradebookProvider = (
   const fetchImpl = input.fetchImpl ?? fetch;
   const apiBaseUrl = ensureHttpBaseUrl(config.apiBaseUrl);
   const matrixRequestCache = new Map<string, Promise<SakaiGradebookMatrix>>();
-  const cookieHeader = sakaiCookieHeaderFromAccessToken(config.accessToken);
+  let cookieHeader = sakaiCookieHeaderFromAccessToken(config.accessToken);
+
+  const fetchJson = (requestUrl: URL): Promise<Response> => {
+    return fetchImpl(requestUrl.toString(), {
+      method: "GET",
+      headers: {
+        cookie: cookieHeader,
+        accept: "application/json",
+      },
+    });
+  };
 
   const requestJson = async (path: string, query?: URLSearchParams): Promise<unknown> => {
     const requestUrl = new URL(path, apiBaseUrl);
@@ -527,13 +542,17 @@ export const createSakaiGradebookProvider = (
       requestUrl.search = query.toString();
     }
 
-    const response = await fetchImpl(requestUrl.toString(), {
-      method: "GET",
-      headers: {
-        cookie: cookieHeader,
-        accept: "application/json",
-      },
-    });
+    let response = await fetchJson(requestUrl);
+
+    if (
+      !response.ok &&
+      isRetryableSessionStatus(response.status) &&
+      input.refreshSession !== undefined
+    ) {
+      const refreshedSession = await input.refreshSession();
+      cookieHeader = refreshedSession.cookieHeader;
+      response = await fetchJson(requestUrl);
+    }
 
     if (!response.ok) {
       throw new Error(
