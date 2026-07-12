@@ -94,6 +94,7 @@ export const handleLtiOidcLogin = async (input: HandleLtiOidcLoginInput): Promis
   const db = resolveDatabase(c.env);
   const deploymentId = loginRequest.lti_deployment_id ?? "default";
   await upsertLtiDeployment(db, {
+    tenantId: issuerEntry.tenantId,
     issuer: loginIssuer.issuer,
     clientId,
     deploymentId,
@@ -101,7 +102,7 @@ export const handleLtiOidcLogin = async (input: HandleLtiOidcLoginInput): Promis
   const ltiTool = await createCredTrailLtiTool({
     db,
     env: c.env,
-    defaultTenantId: issuerEntry.tenantId,
+    tenantId: issuerEntry.tenantId,
   });
   const authRedirectUrl = await ltiTool.handleLogin({
     iss: loginIssuer.issuer,

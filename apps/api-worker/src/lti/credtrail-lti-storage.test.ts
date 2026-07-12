@@ -28,7 +28,7 @@ vi.mock("@credtrail/db", async () => {
     findLtiDynamicRegistrationSessionById: mockedFindLtiDynamicRegistrationSessionById,
     findLtiLaunchSessionById: mockedFindLtiLaunchSessionById,
     listLtiDeploymentsForIssuer: mockedListLtiDeploymentsForIssuer,
-    listLtiIssuerRegistrations: mockedListLtiIssuerRegistrations,
+    listLtiIssuerRegistrationsForTenant: mockedListLtiIssuerRegistrations,
     recordLtiLaunchNonceUse: mockedRecordLtiLaunchNonceUse,
     upsertLtiDeployment: mockedUpsertLtiDeployment,
     upsertLtiIssuerRegistration: mockedUpsertLtiIssuerRegistration,
@@ -72,6 +72,7 @@ const sampleRegistration = (
 const sampleDeployment = (overrides?: Partial<LtiDeploymentRecord>): LtiDeploymentRecord => {
   return {
     id: "deployment-row-1",
+    tenantId: "tenant-a",
     issuer: "https://canvas.test",
     clientId: "client-1",
     deploymentId: "deployment-1",
@@ -190,6 +191,7 @@ const sampleDynamicRegistrationSessionRecord = (
   overrides?: Partial<LtiDynamicRegistrationSessionRecord>,
 ): LtiDynamicRegistrationSessionRecord => {
   return {
+    tenantId: "tenant-a",
     id: "dynamic-registration-session-1",
     dataJson: JSON.stringify(sampleDynamicRegistrationSession()),
     expiresAt: "2026-01-01T01:00:00.000Z",
@@ -218,7 +220,7 @@ describe("CredTrailLtiStorage dynamic registration writes", () => {
   it("stores dynamic registration clients in the issuer registration table", async () => {
     mockedListLtiIssuerRegistrations.mockResolvedValue([]);
     const storage = new CredTrailLtiStorage(fakeDb, {
-      defaultTenantId: "tenant-a",
+      tenantId: "tenant-a",
     });
 
     const clientId = await storage.addClient({
@@ -244,7 +246,7 @@ describe("CredTrailLtiStorage dynamic registration writes", () => {
   it("stores dynamic registration deployments in the deployment table", async () => {
     mockedListLtiIssuerRegistrations.mockResolvedValue([sampleRegistration()]);
     const storage = new CredTrailLtiStorage(fakeDb, {
-      defaultTenantId: "tenant-a",
+      tenantId: "tenant-a",
     });
 
     const deploymentId = await storage.addDeployment("https://canvas.test", {
@@ -255,6 +257,7 @@ describe("CredTrailLtiStorage dynamic registration writes", () => {
 
     expect(deploymentId).toBe("deployment-row-1");
     expect(mockedUpsertLtiDeployment).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant-a",
       issuer: "https://canvas.test",
       clientId: "client-1",
       deploymentId: "deployment-1",
@@ -268,7 +271,7 @@ describe("CredTrailLtiStorage dynamic registration writes", () => {
       new LtiIssuerTenantConflictError("https://canvas.test", "tenant-b", "tenant-a"),
     );
     const storage = new CredTrailLtiStorage(fakeDb, {
-      defaultTenantId: "tenant-a",
+      tenantId: "tenant-a",
     });
 
     await expect(
@@ -291,7 +294,7 @@ describe("CredTrailLtiStorage dynamic registration writes", () => {
         dataJson: JSON.stringify(session),
       }),
     );
-    const storage = new CredTrailLtiStorage(fakeDb);
+    const storage = new CredTrailLtiStorage(fakeDb, { tenantId: "tenant-a" });
 
     await expect(storage.getSession("lti-session-1")).resolves.toEqual(session);
   });
@@ -302,7 +305,7 @@ describe("CredTrailLtiStorage dynamic registration writes", () => {
         dataJson: "{not-json",
       }),
     );
-    const storage = new CredTrailLtiStorage(fakeDb);
+    const storage = new CredTrailLtiStorage(fakeDb, { tenantId: "tenant-a" });
 
     await expect(storage.getSession("lti-session-1")).resolves.toBeUndefined();
   });
@@ -313,17 +316,18 @@ describe("CredTrailLtiStorage dynamic registration writes", () => {
         dataJson: JSON.stringify({ id: "lti-session-1" }),
       }),
     );
-    const storage = new CredTrailLtiStorage(fakeDb);
+    const storage = new CredTrailLtiStorage(fakeDb, { tenantId: "tenant-a" });
 
     await expect(storage.getSession("lti-session-1")).resolves.toBeUndefined();
   });
 
   it("records launch nonce use atomically for replay protection", async () => {
-    const storage = new CredTrailLtiStorage(fakeDb);
+    const storage = new CredTrailLtiStorage(fakeDb, { tenantId: "tenant-a" });
 
     await expect(storage.validateNonce("nonce-1")).resolves.toBe(true);
 
     expect(mockedRecordLtiLaunchNonceUse).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant-a",
       nonce: "nonce-1",
       consumedAt: expect.any(String),
       expiresAt: expect.any(String),
@@ -348,7 +352,7 @@ describe("CredTrailLtiStorage dynamic registration writes", () => {
         dataJson: JSON.stringify(session),
       }),
     );
-    const storage = new CredTrailLtiStorage(fakeDb);
+    const storage = new CredTrailLtiStorage(fakeDb, { tenantId: "tenant-a" });
 
     await expect(storage.getRegistrationSession("dynamic-registration-session-1")).resolves.toEqual(
       session,
@@ -361,7 +365,7 @@ describe("CredTrailLtiStorage dynamic registration writes", () => {
         dataJson: "{not-json",
       }),
     );
-    const storage = new CredTrailLtiStorage(fakeDb);
+    const storage = new CredTrailLtiStorage(fakeDb, { tenantId: "tenant-a" });
 
     await expect(
       storage.getRegistrationSession("dynamic-registration-session-1"),

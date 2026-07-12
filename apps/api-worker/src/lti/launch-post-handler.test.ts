@@ -44,7 +44,8 @@ const fakeEnv: AppBindings = {
 };
 const tokenEndpoint = "https://canvas.example.edu/login/oauth2/token";
 const platformJwksEndpoint = "https://canvas.example.edu/api/lti/security/jwks";
-const validJwtForSchema = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.c2lnbmF0dXJl";
+const validJwtForSchema =
+  "eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJodHRwczovL2NhbnZhcy5leGFtcGxlLmVkdSIsImF1ZCI6ImNhbnZhcy1jbGllbnQtMTIzIn0.c2lnbmF0dXJl";
 
 const verifiedLaunch = testVerifiedLaunch({
   launchConfig: {

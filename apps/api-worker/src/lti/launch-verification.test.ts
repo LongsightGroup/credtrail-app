@@ -69,6 +69,7 @@ describe("authorizeVerifiedLaunchForRegistry", () => {
       data: {
         issuer,
         entry: signedLaunchRegistry[issuer],
+        launchClaims: sampleLaunchPayload(),
       },
     });
   });

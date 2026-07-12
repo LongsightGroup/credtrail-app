@@ -1,5 +1,5 @@
 import { logError, type JsonObject } from "@credtrail/core-domain";
-import { findTenantSigningRegistrationByDid, listLtiIssuerRegistrations } from "@credtrail/db";
+import { findTenantSigningRegistrationByDid, listAllLtiIssuerRegistrations } from "@credtrail/db";
 import { Hono } from "hono";
 import {
   credentialDownloadFilename,
@@ -136,7 +136,7 @@ const STORAGE_READINESS_PROBE_KEY = "__credtrail__/healthz/dependency-probe.json
 
 const resolveLtiIssuerRegistry = createResolveLtiIssuerRegistry({
   resolveDatabase,
-  listLtiIssuerRegistrations,
+  listAllLtiIssuerRegistrations,
 });
 
 const {

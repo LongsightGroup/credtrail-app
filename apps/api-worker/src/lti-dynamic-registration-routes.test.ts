@@ -67,7 +67,7 @@ const createToolMock = (): DynamicRegistrationToolMock => {
   return {
     initiateDynamicRegistration: vi.fn(async () => ({
       success: true,
-      data: "<form>registration</form>",
+      data: { html: "<form>registration</form>", sessionToken: "registration-session-token" },
     })),
     completeDynamicRegistration: vi.fn(async () => ({
       success: true,
@@ -187,11 +187,11 @@ describe("LTI dynamic registration routes", () => {
     expect(mockedCreateCredTrailLtiDynamicRegistration).toHaveBeenCalledTimes(1);
 
     const toolInput = mockedCreateCredTrailLtiDynamicRegistration.mock.calls[0]?.[0] as {
-      defaultTenantId: string;
+      tenantId: string;
       dynamicRegistration: DynamicRegistrationConfig;
     };
 
-    expect(toolInput.defaultTenantId).toBe("tenant-a");
+    expect(toolInput.tenantId).toBe("tenant-a");
     expect(toolInput.dynamicRegistration.url).toBe("https://credtrail.test/v1/lti/launch");
     expect(toolInput.dynamicRegistration.loginUri).toBe("https://credtrail.test/v1/lti/oidc/login");
     expect(toolInput.dynamicRegistration.launchUri).toBe("https://credtrail.test/v1/lti/launch");

@@ -14,7 +14,7 @@ vi.mock("@credtrail/db", async () => {
     findBadgeTemplateById: vi.fn(),
     findLearnerProfileById: vi.fn(),
     findUserById: vi.fn(),
-    listLtiIssuerRegistrations: vi.fn(),
+    listAllLtiIssuerRegistrations: vi.fn(),
     recordAssertionEngagementEvent: vi.fn(),
     resolveAssertionLifecycleState: vi.fn(),
   };
@@ -46,7 +46,7 @@ import {
   findAssertionByPublicId,
   findBadgeTemplateById,
   findLearnerProfileById,
-  listLtiIssuerRegistrations,
+  listAllLtiIssuerRegistrations,
   recordAssertionEngagementEvent,
   resolveAssertionLifecycleState,
   type AssertionEngagementEventRecord,
@@ -73,7 +73,7 @@ const mockedFindLearnerProfileById = vi.mocked(findLearnerProfileById);
 const mockedRecordAssertionEngagementEvent = vi.mocked(recordAssertionEngagementEvent);
 const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
 const mockedGetImmutableCredentialObject = vi.mocked(getImmutableCredentialObject);
-const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
+const mockedListLtiIssuerRegistrations = vi.mocked(listAllLtiIssuerRegistrations);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const fakeDb = {
   prepare: vi.fn(),

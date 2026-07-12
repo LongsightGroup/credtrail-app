@@ -93,8 +93,8 @@ importers:
         specifier: ^2.0.4
         version: 2.0.4(hono@4.12.27)
       '@longsightgroup/lti-tool':
-        specifier: 0.1.2
-        version: 0.1.2(hono@4.12.27)
+        specifier: 0.1.5
+        version: 0.1.5(hono@4.12.27)
       csv-stringify:
         specifier: ^6.7.0
         version: 6.7.0
@@ -1088,8 +1088,8 @@ packages:
     peerDependencies:
       tslib: '2'
 
-  '@longsightgroup/lti-tool@0.1.2':
-    resolution: {integrity: sha512-xqS6voOP0GvdLaa8OztP7Zik8Ab86nzgaWecu470GUKPonDBGmTlXHtZmqb3lxQ/T/tKORQRXcsFa+Uo9bDncw==}
+  '@longsightgroup/lti-tool@0.1.5':
+    resolution: {integrity: sha512-nI5zyWxWb5A2JGEyqkRXgSMxWyQ6/SSGx64l3zftcck2CyO+pIDwJHl8RmtMhjygv3gS1P0p2mm/3JBcM3FcTA==}
     peerDependencies:
       '@aws-sdk/client-dynamodb': ^3.1076.0
       '@aws-sdk/util-dynamodb': ^3.996.5
@@ -1111,8 +1111,8 @@ packages:
       postgres:
         optional: true
 
-  '@mongodb-js/saslprep@1.4.11':
-    resolution: {integrity: sha512-o9rAHc0IpIjuPSxRutWpE1F62x7n+4mVS4rCNHkzhIUMQcc18bb6xEq5wd2NdN0WjepIyXIppRshYI2kQDOZVA==}
+  '@mongodb-js/saslprep@1.4.12':
+    resolution: {integrity: sha512-QAfAMwNgnYxZ2C6D1HgeP7Gc4i/uvJRim415PCIL9ptRxWMNbWeLBYb2/9R4pGKny/s1FVu2JA2cxCUBUOggrA==}
 
   '@napi-rs/wasm-runtime@1.1.6':
     resolution: {integrity: sha512-ZLv/JdUfkvOy9eCnnBaGfiO+XimbjebAeO+MRQqD/B+FR1tnRN0tpKSJHRbE8sFfS6aqsXZ67TQjfwfsxULVbg==}
@@ -1781,8 +1781,8 @@ packages:
     resolution: {integrity: sha512-kLpxurY4Z4r9sgMsyG0Z9uzsBlgiU/EFKhj/h91/8yHu0edo7XuixOIH3VcJ8kkxs6/jPzoI6U9Vj3WqbMQ94g==}
     engines: {node: 18 || 20 || >=22}
 
-  bson@7.2.0:
-    resolution: {integrity: sha512-YCEo7KjMlbNlyHhz7zAZNDpIpQbd+wOEHJYezv0nMYTn4x31eIUM2yomNNubclAt63dObUzKHWsBLJ9QcZNSnQ==}
+  bson@7.3.1:
+    resolution: {integrity: sha512-h/C0qe6857pQhcSJHLfsR1uYGj98Ge3wKAD3Ed9KqH3wcVh+BM4Jq4xISD7vs9OPuT07n+q3QQVjslJ286j6ag==}
     engines: {node: '>=20.19.0'}
 
   buffer@6.0.3:
@@ -3652,15 +3652,14 @@ snapshots:
       '@jsonjoy.com/codegen': 17.67.0(tslib@2.8.1)
       tslib: 2.8.1
 
-  '@longsightgroup/lti-tool@0.1.2(hono@4.12.27)':
+  '@longsightgroup/lti-tool@0.1.5(hono@4.12.27)':
     dependencies:
       jose: 6.2.3
-      lru-cache: 11.5.1
       zod: 4.4.3
     optionalDependencies:
       hono: 4.12.27
 
-  '@mongodb-js/saslprep@1.4.11':
+  '@mongodb-js/saslprep@1.4.12':
     dependencies:
       sparse-bitfield: 3.0.3
     optional: true
@@ -4165,7 +4164,7 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
-  bson@7.2.0:
+  bson@7.3.1:
     optional: true
 
   buffer@6.0.3:
@@ -4625,8 +4624,8 @@ snapshots:
 
   mongodb@7.1.0:
     dependencies:
-      '@mongodb-js/saslprep': 1.4.11
-      bson: 7.2.0
+      '@mongodb-js/saslprep': 1.4.12
+      bson: 7.3.1
       mongodb-connection-string-url: 7.0.1
     optional: true
 

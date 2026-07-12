@@ -9,6 +9,7 @@ import type {
 } from "@longsightgroup/lti-tool";
 import { LtiLaunchMessageResolutionError } from "@longsightgroup/lti-tool";
 import { customLaunchRouteHandler } from "@longsightgroup/lti-tool/hono";
+import { decodeJwt } from "jose";
 import type { AppContext } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
@@ -24,7 +25,7 @@ import {
   type ResolvedLtiLaunch,
   ltiLaunchVerificationErrorFromCoreError,
 } from "./launch-verification";
-import type { LtiIssuerRegistry } from "./lti-issuer-registry";
+import { resolveLtiLaunchHintTenant, type LtiIssuerRegistry } from "./lti-issuer-registry";
 
 type CreateCredTrailLtiToolForLaunch = (input: CreateCredTrailLtiToolInput) => Promise<LtiToolPort>;
 
@@ -92,7 +93,7 @@ const resolvedLaunchFromAuthorizedContext = (input: {
   return {
     issuer: input.launch.authorization.issuer,
     issuerEntry: input.launch.authorization.entry,
-    launchClaims: input.launch.payload,
+    launchClaims: input.launch.authorization.launchClaims,
     ltiLaunchSession: input.session,
     ltiTool: input.ltiTool,
   };
@@ -146,9 +147,42 @@ export const handleLtiLaunchPost = async (input: HandleLtiLaunchPostInput): Prom
   }
 
   const db = input.resolveDatabase(input.c.env);
+  const launchForm = await input.c.req.raw.clone().formData();
+  const idToken = launchForm.get("id_token");
+
+  if (typeof idToken !== "string") {
+    return input.c.json({ error: "Invalid launch parameters" }, 400);
+  }
+
+  let unverifiedPayload: { iss?: unknown; aud?: unknown };
+
+  try {
+    unverifiedPayload = decodeJwt(idToken);
+  } catch {
+    return input.c.json({ error: "LTI launch verification failed" }, 401);
+  }
+
+  if (typeof unverifiedPayload.iss !== "string") {
+    return input.c.json({ error: "LTI launch verification failed" }, 401);
+  }
+
+  const audiences = Array.isArray(unverifiedPayload.aud)
+    ? unverifiedPayload.aud.filter((value): value is string => typeof value === "string")
+    : typeof unverifiedPayload.aud === "string"
+      ? [unverifiedPayload.aud]
+      : [];
+  const registryMatch = resolveLtiLaunchHintTenant(registry, {
+    issuer: unverifiedPayload.iss,
+    audiences,
+  });
+
+  if (registryMatch === null) {
+    return input.c.json({ error: "LTI launch verification failed" }, 401);
+  }
   const ltiTool = await (input.createLtiTool ?? createCredTrailLtiTool)({
     db,
     env: input.c.env,
+    tenantId: registryMatch.entry.tenantId,
   });
 
   const renderAuthorizedPackageLaunch = (context: {

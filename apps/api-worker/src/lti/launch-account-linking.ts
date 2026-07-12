@@ -8,7 +8,7 @@ import {
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import type { LTI13JwtPayload as LtiLaunchClaims } from "@longsightgroup/lti-tool";
+import type { LtiLaunchClaimsWithSubject } from "./launch-verification";
 import {
   ltiDisplayNameFromClaims,
   ltiEmailFromClaims,
@@ -26,7 +26,7 @@ export interface LinkedLtiLaunchAccount {
 export const linkLtiLaunchAccount = async (input: {
   db: SqlDatabase;
   tenantId: string;
-  launchClaims: LtiLaunchClaims;
+  launchClaims: LtiLaunchClaimsWithSubject;
   sha256Hex: (value: string) => Promise<string>;
 }): Promise<LinkedLtiLaunchAccount> => {
   const federatedSubject = ltiFederatedSubjectIdentity(

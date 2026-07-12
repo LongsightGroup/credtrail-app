@@ -1,5 +1,9 @@
-import { findLtiLaunchSessionById, listBadgeTemplates } from "@credtrail/db";
-import { formatLtiServiceError, resolveLtiServiceCapabilities } from "@longsightgroup/lti-tool";
+import { findActiveLtiLaunchSessionByOpaqueId, listBadgeTemplates } from "@credtrail/db";
+import {
+  formatLtiServiceError,
+  parsePersistedLtiSession,
+  resolveLtiServiceCapabilities,
+} from "@longsightgroup/lti-tool";
 import type { AppContext } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
 import { asNonEmptyString, normalizeUniqueStringList } from "../utils/value-parsers";
@@ -59,11 +63,25 @@ export const handleLtiDeepLinkingSelect = async (
   }
 
   const db = resolveDatabase(c.env);
-  const ltiTool = await createCredTrailLtiTool({
-    db,
-    env: c.env,
-  });
-  const ltiSession = await ltiTool.getSession(ltiSessionId);
+  const persistedSession = await findActiveLtiLaunchSessionByOpaqueId(db, ltiSessionId);
+
+  if (persistedSession === null) {
+    return c.json(
+      {
+        error: "LTI Deep Linking session was not found or is no longer active",
+      },
+      404,
+    );
+  }
+
+  const tenantId = persistedSession.tenantId;
+  let ltiSession: ReturnType<typeof parsePersistedLtiSession>;
+
+  try {
+    ltiSession = parsePersistedLtiSession(persistedSession.dataJson);
+  } catch {
+    return c.json({ error: "LTI launch session data is invalid" }, 400);
+  }
   const ltiCapabilities =
     ltiSession === undefined ? null : resolveLtiServiceCapabilities(ltiSession);
 
@@ -83,7 +101,7 @@ export const handleLtiDeepLinkingSelect = async (
     ltiSession.platform.clientId,
   );
 
-  if (issuerMatch === null) {
+  if (issuerMatch === null || issuerMatch.entry.tenantId !== tenantId) {
     return c.json(
       {
         error: "LTI issuer registration was not found for this Deep Linking session",
@@ -136,9 +154,7 @@ export const handleLtiDeepLinkingSelect = async (
     );
   }
 
-  const persistedSession = await findLtiLaunchSessionById(db, ltiSession.id);
-
-  if (persistedSession?.userId === null || persistedSession?.userId === undefined) {
+  if (persistedSession.userId === null) {
     return c.json(
       {
         error: "LTI launch session is missing linked user context",
@@ -188,6 +204,7 @@ export const handleLtiDeepLinkingSelect = async (
   const launchUrl = new URL(ltiSession.launch.target);
   launchUrl.searchParams.set("badgeTemplateId", badgeTemplate.id);
   launchUrl.searchParams.set("setupToken", setupToken);
+  const ltiTool = await createCredTrailLtiTool({ db, env: c.env, tenantId });
   const deepLinkingResult = await ltiTool.createAdvantage(ltiSession).createDeepLinkingResponse([
     badgeTemplateDeepLinkContentItem({
       badgeTemplateId: badgeTemplate.id,

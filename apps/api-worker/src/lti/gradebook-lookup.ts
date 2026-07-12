@@ -1,5 +1,5 @@
 import {
-  findLtiLaunchSessionById,
+  findActiveLtiLaunchSessionByOpaqueId,
   listTenantLmsConnections,
   type SqlDatabase,
   type TenantLmsConnectionRecord,
@@ -66,7 +66,7 @@ export const resolveLtiGradebookLookup = async (input: {
   issuerRegistry: LtiIssuerRegistry;
   nowIso: string;
 }): Promise<ResolvedLtiGradebookLookup | LtiGradebookLookupFailure> => {
-  const persistedSession = await findLtiLaunchSessionById(input.db, input.ltiSessionId);
+  const persistedSession = await findActiveLtiLaunchSessionByOpaqueId(input.db, input.ltiSessionId);
 
   if (persistedSession === null) {
     return {
@@ -100,13 +100,6 @@ export const resolveLtiGradebookLookup = async (input: {
   }
 
   const tenantId = persistedSession.tenantId;
-
-  if (tenantId === null) {
-    return {
-      status: 400,
-      error: "LTI launch session is missing tenant context",
-    };
-  }
 
   if (ltiSession.context.id.trim().length === 0) {
     return {

@@ -93,6 +93,13 @@ export const ltiLaunchVerificationErrorFromCoreError = (
 export type LtiLaunchAuthorization = {
   readonly issuer: string;
   readonly entry: LtiIssuerRegistryEntry;
+  readonly launchClaims: LtiLaunchClaimsWithSubject;
+};
+
+export type LtiLaunchClaimsWithSubject = LtiLaunchClaims & { readonly sub: string };
+
+const hasLaunchSubject = (claims: LtiLaunchClaims): claims is LtiLaunchClaimsWithSubject => {
+  return claims.sub !== undefined;
 };
 
 /**
@@ -104,6 +111,14 @@ export const authorizeVerifiedLaunchForRegistry = (
 ):
   | { success: true; data: LtiLaunchAuthorization }
   | { success: false; code: string; message: string } => {
+  if (!hasLaunchSubject(launch.payload)) {
+    return {
+      success: false,
+      code: "launch_subject_missing",
+      message: "LTI launch requires a subject",
+    };
+  }
+
   const issuerMatch = findLtiIssuerRegistryEntry(registry, launch.issuer, launch.clientId);
 
   if (issuerMatch === null) {
@@ -116,14 +131,14 @@ export const authorizeVerifiedLaunchForRegistry = (
 
   return {
     success: true,
-    data: issuerMatch,
+    data: { ...issuerMatch, launchClaims: launch.payload },
   };
 };
 
 export interface ResolvedLtiLaunch {
   issuer: string;
   issuerEntry: LtiIssuerRegistryEntry;
-  launchClaims: LtiLaunchClaims;
+  launchClaims: LtiLaunchClaimsWithSubject;
   ltiLaunchSession: LTISession;
   ltiTool: LtiToolPort;
 }

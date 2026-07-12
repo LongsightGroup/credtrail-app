@@ -176,7 +176,7 @@ export const openLtiDynamicRegistrationContext = async (input: {
   const dynamicRegistration = await createCredTrailLtiDynamicRegistration({
     db: input.db,
     env: input.env,
-    defaultTenantId: pathParams.tenantId,
+    tenantId: pathParams.tenantId,
     dynamicRegistration: buildLtiDynamicRegistrationConfig(input.env),
   });
 
@@ -212,7 +212,7 @@ export const initiateLtiDynamicRegistration = async (
     return serviceFailure("initiate_failed", formatLtiServiceError(result.error));
   }
 
-  return serviceSuccess(result.data);
+  return serviceSuccess(result.data.html);
 };
 
 export const completeLtiDynamicRegistration = async (

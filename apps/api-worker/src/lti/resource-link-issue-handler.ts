@@ -73,6 +73,7 @@ export const handleLtiResourceLinkIssue = async (
   const ltiTool = await createCredTrailLtiTool({
     db,
     env: c.env,
+    tenantId: issuanceAction.tenantId,
   });
   const ltiSession = await ltiTool.getSession(issuanceAction.ltiSessionId);
 

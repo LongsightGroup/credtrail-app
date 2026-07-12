@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setCookie } from "hono/cookie";
+import { LTI13JwtPayloadSchema } from "@longsightgroup/lti-tool";
 
 vi.mock("@credtrail/db", async () => {
   const actual = await vi.importActual<typeof import("@credtrail/db")>("@credtrail/db");
@@ -24,6 +25,7 @@ vi.mock("@credtrail/db", async () => {
     findBadgeTemplateById: vi.fn(),
     findLtiResourceLinkPlacement: vi.fn(),
     findLtiLaunchSessionById: vi.fn(),
+    findActiveLtiLaunchSessionByOpaqueId: vi.fn(),
     findClaimableLearnerBadgeSummary: vi.fn(),
     findLearnerProfileByIdentity: vi.fn(),
     findUserById: vi.fn(),
@@ -34,7 +36,7 @@ vi.mock("@credtrail/db", async () => {
     listBadgeTemplates: vi.fn(),
     listBadgeTemplatesByIds: vi.fn(),
     listLearnerBadgeSummaries: vi.fn(),
-    listLtiIssuerRegistrations: vi.fn(),
+    listAllLtiIssuerRegistrations: vi.fn(),
     listLtiResourceLinkPlacementsForContext: vi.fn(),
     listTenantLmsConnections: vi.fn(),
     moveLearnerIdentityAliasToProfile: vi.fn(),
@@ -78,6 +80,7 @@ import {
   findBadgeTemplateById,
   findLtiResourceLinkPlacement,
   findLtiLaunchSessionById,
+  findActiveLtiLaunchSessionByOpaqueId,
   findClaimableLearnerBadgeSummary,
   findLearnerProfileByIdentity,
   findUserById,
@@ -89,7 +92,7 @@ import {
   listBadgeTemplates,
   listBadgeTemplatesByIds,
   listLearnerBadgeSummaries,
-  listLtiIssuerRegistrations,
+  listAllLtiIssuerRegistrations,
   listLtiResourceLinkPlacementsForContext,
   listTenantLmsConnections,
   moveLearnerIdentityAliasToProfile,
@@ -161,6 +164,7 @@ const mockedFindBadgeIssuanceRuleById = vi.mocked(findBadgeIssuanceRuleById);
 const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
 const mockedFindLtiResourceLinkPlacement = vi.mocked(findLtiResourceLinkPlacement);
 const mockedFindLtiLaunchSessionById = vi.mocked(findLtiLaunchSessionById);
+const mockedFindActiveLtiLaunchSessionByOpaqueId = vi.mocked(findActiveLtiLaunchSessionByOpaqueId);
 const mockedFindClaimableLearnerBadgeSummary = vi.mocked(findClaimableLearnerBadgeSummary);
 const mockedFindLearnerProfileByIdentity = vi.mocked(findLearnerProfileByIdentity);
 const mockedFindUserById = vi.mocked(findUserById);
@@ -175,7 +179,7 @@ const mockedListAssertionsByIdempotencyKeys = vi.mocked(listAssertionsByIdempote
 const mockedListBadgeTemplates = vi.mocked(listBadgeTemplates);
 const mockedListBadgeTemplatesByIds = vi.mocked(listBadgeTemplatesByIds);
 const mockedListLearnerBadgeSummaries = vi.mocked(listLearnerBadgeSummaries);
-const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
+const mockedListLtiIssuerRegistrations = vi.mocked(listAllLtiIssuerRegistrations);
 const mockedListLtiResourceLinkPlacementsForContext = vi.mocked(
   listLtiResourceLinkPlacementsForContext,
 );
@@ -999,6 +1003,8 @@ describe("LTI 1.3 core launch flow", () => {
     );
     mockedFindLtiLaunchSessionById.mockReset();
     mockedFindLtiLaunchSessionById.mockResolvedValue(sampleLtiLaunchSessionRecord());
+    mockedFindActiveLtiLaunchSessionByOpaqueId.mockReset();
+    mockedFindActiveLtiLaunchSessionByOpaqueId.mockResolvedValue(sampleLtiLaunchSessionRecord());
     mockedAttachLtiLaunchSessionPrincipal.mockReset();
     mockedAttachLtiLaunchSessionPrincipal.mockImplementation(async (_db, input) =>
       sampleLtiLaunchSessionRecord({
@@ -1187,6 +1193,7 @@ describe("LTI 1.3 core launch flow", () => {
         "https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings": {
           deep_link_return_url: deepLinkReturnUrl,
           accept_types: ["ltiResourceLink"],
+          accept_presentation_document_targets: [],
           ...(input?.deepLinkingData === undefined ? {} : { data: input.deepLinkingData }),
         },
       },
@@ -1241,7 +1248,7 @@ describe("LTI 1.3 core launch flow", () => {
       typeof deepLinkingSettings?.data === "string" ? deepLinkingSettings.data : undefined;
 
     return {
-      jwtPayload: claims,
+      jwtPayload: LTI13JwtPayloadSchema.parse(claims),
       id: "lti-session-test",
       user: {
         id: stringClaimForTest(claims.sub, "lti-user"),
@@ -3247,7 +3254,23 @@ describe("LTI 1.3 core launch flow", () => {
     const env = createLtiEnv();
     const deepLinkReturnUrl = "https://canvas.example.edu/api/lti/deep_link_return";
     const ltiSession: LTISession = {
-      jwtPayload: {},
+      jwtPayload: LTI13JwtPayloadSchema.parse({
+        iss: issuer,
+        sub: "user-999",
+        aud: clientId,
+        exp: 1_800_000_000,
+        iat: 1_700_000_000,
+        nonce: "nonce-123",
+        [ltiClaim.deploymentId]: deploymentId,
+        [ltiClaim.messageType]: "LtiDeepLinkingRequest",
+        [ltiClaim.version]: "1.3.0",
+        [ltiClaim.targetLinkUri]: targetLinkUri,
+        [ltiClaim.deepLinkingSettings]: {
+          deep_link_return_url: deepLinkReturnUrl,
+          accept_types: ["ltiResourceLink"],
+          accept_presentation_document_targets: [],
+        },
+      }),
       id: "lti-session-123",
       user: {
         id: "user-999",
@@ -3327,7 +3350,10 @@ describe("LTI 1.3 core launch flow", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain("signed deep link");
     expect(getSession).toHaveBeenCalledWith(ltiSession.id);
-    expect(mockedFindLtiLaunchSessionById).toHaveBeenCalledWith(fakeDb, ltiSession.id);
+    expect(mockedFindLtiLaunchSessionById).toHaveBeenCalledWith(fakeDb, {
+      tenantId,
+      sessionId: ltiSession.id,
+    });
     expect(mockedListTenantLmsConnections).not.toHaveBeenCalled();
     expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
     expect(mockedCreateBadgeIssuanceRuleWithConnection).not.toHaveBeenCalled();
@@ -3351,7 +3377,23 @@ describe("LTI 1.3 core launch flow", () => {
     const env = createLtiEnv();
     const deepLinkReturnUrl = "https://canvas.example.edu/api/lti/deep_link_return";
     const ltiSession: LTISession = {
-      jwtPayload: {},
+      jwtPayload: LTI13JwtPayloadSchema.parse({
+        iss: issuer,
+        sub: "user-999",
+        aud: clientId,
+        exp: 1_800_000_000,
+        iat: 1_700_000_000,
+        nonce: "nonce-123",
+        [ltiClaim.deploymentId]: deploymentId,
+        [ltiClaim.messageType]: "LtiDeepLinkingRequest",
+        [ltiClaim.version]: "1.3.0",
+        [ltiClaim.targetLinkUri]: targetLinkUri,
+        [ltiClaim.deepLinkingSettings]: {
+          deep_link_return_url: deepLinkReturnUrl,
+          accept_types: ["ltiResourceLink"],
+          accept_presentation_document_targets: [],
+        },
+      }),
       id: "lti-session-123",
       user: {
         id: "user-999",
@@ -3475,6 +3517,7 @@ describe("LTI 1.3 core launch flow", () => {
         "https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings": {
           deep_link_return_url: "https://canvas.example.edu/api/lti/deep_link_return",
           accept_types: ["ltiResourceLink"],
+          accept_presentation_document_targets: [],
         },
       },
     });

@@ -115,7 +115,7 @@ export const processEndOfTermBadgeRule = async (input: {
   const ltiTool = await createCredTrailLtiTool({
     db: input.db,
     env: input.env,
-    defaultTenantId: input.tenantId,
+    tenantId: input.tenantId,
   });
   const rosterResult = await loadLtiNrpsRoster({
     ltiTool,

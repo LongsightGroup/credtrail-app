@@ -52,6 +52,19 @@ export const findLtiIssuerRegistryEntry = (
   return null;
 };
 
+/** Resolves a tenant namespace from unverified launch routing hints only. */
+export const resolveLtiLaunchHintTenant = (
+  registry: LtiIssuerRegistry,
+  input: { readonly issuer: string; readonly audiences: readonly string[] },
+): { readonly issuer: string; readonly entry: LtiIssuerRegistryEntry } | null => {
+  for (const audience of input.audiences) {
+    const match = findLtiIssuerRegistryEntry(registry, input.issuer, audience);
+    if (match !== null) return match;
+  }
+
+  return null;
+};
+
 export type LtiLoginIssuerResolution =
   | {
       readonly status: "resolved";

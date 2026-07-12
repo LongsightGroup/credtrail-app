@@ -8,7 +8,8 @@ vi.mock("@credtrail/db", async () => {
   return {
     ...actual,
     findLtiLaunchSessionById: vi.fn(),
-    listLtiIssuerRegistrations: vi.fn(),
+    findActiveLtiLaunchSessionByOpaqueId: vi.fn(),
+    listAllLtiIssuerRegistrations: vi.fn(),
     listTenantLmsConnections: vi.fn(),
     updateTenantLmsConnectionTokens: vi.fn(),
   };
@@ -28,7 +29,8 @@ vi.mock("./lms/gradebook-provider", () => {
 
 import {
   findLtiLaunchSessionById,
-  listLtiIssuerRegistrations,
+  findActiveLtiLaunchSessionByOpaqueId,
+  listAllLtiIssuerRegistrations,
   listTenantLmsConnections,
   type LtiLaunchSessionRecord,
   type SqlDatabase,
@@ -39,7 +41,8 @@ import { createPostgresDatabase } from "@credtrail/db/postgres";
 import { app } from "./index";
 
 const mockedFindLtiLaunchSessionById = vi.mocked(findLtiLaunchSessionById);
-const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
+const mockedFindActiveLtiLaunchSessionByOpaqueId = vi.mocked(findActiveLtiLaunchSessionByOpaqueId);
+const mockedListLtiIssuerRegistrations = vi.mocked(listAllLtiIssuerRegistrations);
 const mockedListTenantLmsConnections = vi.mocked(listTenantLmsConnections);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 
@@ -113,6 +116,7 @@ const sampleDeepLinkingLtiSession = (overrides?: Partial<LTISession>): LTISessio
       "https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings": {
         deep_link_return_url: "https://canvas.example.edu/api/lti/deep_link_return",
         accept_types: ["ltiResourceLink"],
+        accept_presentation_document_targets: ["iframe"],
       },
     },
     user: {
@@ -183,6 +187,8 @@ const sampleTenantLmsConnection = (
 
 describe("LTI deep linking gradebook lookup routes", () => {
   beforeEach(() => {
+    mockedFindActiveLtiLaunchSessionByOpaqueId.mockReset();
+    mockedFindActiveLtiLaunchSessionByOpaqueId.mockResolvedValue(sampleLtiLaunchSessionRecord());
     mockedCreatePostgresDatabase.mockReturnValue(fakeDb);
     mockedListLtiIssuerRegistrations.mockResolvedValue([]);
     mockedCreateGradebookProvider.mockReset();
@@ -222,7 +228,7 @@ describe("LTI deep linking gradebook lookup routes", () => {
 
   it("lists Sakai gradebook items for an instructor Deep Linking setup session", async () => {
     const env = createEnv();
-    mockedFindLtiLaunchSessionById.mockResolvedValue(
+    mockedFindActiveLtiLaunchSessionByOpaqueId.mockResolvedValue(
       sampleLtiLaunchSessionRecord({
         dataJson: JSON.stringify(sampleDeepLinkingLtiSession()),
       }),
@@ -259,7 +265,7 @@ describe("LTI deep linking gradebook lookup routes", () => {
 
   it("lists known workflow states for a selected Sakai gradebook item", async () => {
     const env = createEnv();
-    mockedFindLtiLaunchSessionById.mockResolvedValue(
+    mockedFindActiveLtiLaunchSessionByOpaqueId.mockResolvedValue(
       sampleLtiLaunchSessionRecord({
         dataJson: JSON.stringify(sampleDeepLinkingLtiSession()),
       }),
@@ -290,7 +296,7 @@ describe("LTI deep linking gradebook lookup routes", () => {
 
   it("returns fallback guidance when no matching Sakai gradebook connection exists", async () => {
     const env = createEnv();
-    mockedFindLtiLaunchSessionById.mockResolvedValue(
+    mockedFindActiveLtiLaunchSessionByOpaqueId.mockResolvedValue(
       sampleLtiLaunchSessionRecord({
         dataJson: JSON.stringify(sampleDeepLinkingLtiSession()),
       }),
@@ -311,7 +317,7 @@ describe("LTI deep linking gradebook lookup routes", () => {
 
   it("returns fallback guidance when the Sakai connection lacks usable credentials", async () => {
     const env = createEnv();
-    mockedFindLtiLaunchSessionById.mockResolvedValue(
+    mockedFindActiveLtiLaunchSessionByOpaqueId.mockResolvedValue(
       sampleLtiLaunchSessionRecord({
         dataJson: JSON.stringify(sampleDeepLinkingLtiSession()),
       }),
@@ -332,7 +338,7 @@ describe("LTI deep linking gradebook lookup routes", () => {
 
   it("returns actionable Sakai permission guidance when gradebook lookup is blocked", async () => {
     const env = createEnv();
-    mockedFindLtiLaunchSessionById.mockResolvedValue(
+    mockedFindActiveLtiLaunchSessionByOpaqueId.mockResolvedValue(
       sampleLtiLaunchSessionRecord({
         dataJson: JSON.stringify(sampleDeepLinkingLtiSession()),
       }),

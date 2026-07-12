@@ -94,6 +94,14 @@ const ltiSession = (): LTISession => {
     jwtPayload: {
       iss: issuer,
       sub: "instructor-001",
+      aud: clientId,
+      exp: 1_800_000_000,
+      iat: 1_700_000_000,
+      nonce: "nonce-123",
+      [LTI_CLAIM_MESSAGE_TYPE]: LTI_MESSAGE_TYPE_RESOURCE_LINK_REQUEST,
+      [LTI_CLAIM_VERSION]: "1.3.0",
+      [LTI_CLAIM_DEPLOYMENT_ID]: deploymentId,
+      [LTI_CLAIM_TARGET_LINK_URI]: "https://tool.example.edu/v1/lti/launch",
     },
     id: "lti-session-123",
     user: {

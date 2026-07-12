@@ -19,7 +19,7 @@ import {
   findLtiDynamicRegistrationSessionById,
   findLtiLaunchSessionById,
   listLtiDeploymentsForIssuer,
-  listLtiIssuerRegistrations,
+  listLtiIssuerRegistrationsForTenant,
   isLtiIssuerTenantConflictError,
   normalizeLtiIssuer,
   recordLtiLaunchNonceUse,
@@ -65,7 +65,10 @@ const toClient = async (
     return undefined;
   }
 
-  const deployments = await listLtiDeploymentsForIssuer(db, registration.issuer);
+  const deployments = await listLtiDeploymentsForIssuer(db, {
+    tenantId: registration.tenantId,
+    issuer: registration.issuer,
+  });
 
   return {
     id: normalizeLtiIssuer(registration.issuer),
@@ -107,13 +110,13 @@ export class CredTrailLtiStorage implements LTIStorage {
   constructor(
     private readonly db: SqlDatabase,
     private readonly options: {
-      defaultTenantId?: string | undefined;
+      tenantId: string;
       nonceTtlSeconds?: number | undefined;
-    } = {},
+    },
   ) {}
 
   async listClients(): Promise<Omit<LTIClient, "deployments">[]> {
-    const registrations = await listLtiIssuerRegistrations(this.db);
+    const registrations = await listLtiIssuerRegistrationsForTenant(this.db, this.options.tenantId);
     const candidates = await Promise.all(
       registrations.map((registration) => toClient(this.db, registration)),
     );
@@ -126,7 +129,7 @@ export class CredTrailLtiStorage implements LTIStorage {
     clientId: string,
   ): Promise<LtiIssuerRegistrationRecord | undefined> {
     const normalizedCandidate = normalizeLtiIssuer(clientId);
-    const registrations = await listLtiIssuerRegistrations(this.db);
+    const registrations = await listLtiIssuerRegistrationsForTenant(this.db, this.options.tenantId);
     return registrations.find(
       (candidate) =>
         candidate.clientId === clientId ||
@@ -145,11 +148,7 @@ export class CredTrailLtiStorage implements LTIStorage {
   }
 
   async addClient(client: Omit<LTIClient, "id" | "deployments">): Promise<string> {
-    const tenantId = this.options.defaultTenantId;
-
-    if (tenantId === undefined) {
-      throw new Error("defaultTenantId is required to add LTI clients through storage");
-    }
+    const tenantId = this.options.tenantId;
 
     await storeIssuerRegistration(this.db, {
       issuer: client.iss,
@@ -173,11 +172,7 @@ export class CredTrailLtiStorage implements LTIStorage {
       throw new Error(`LTI client not found: ${clientId}`);
     }
 
-    const tenantId = this.options.defaultTenantId;
-
-    if (tenantId === undefined) {
-      throw new Error("defaultTenantId is required to update LTI clients through storage");
-    }
+    const tenantId = this.options.tenantId;
 
     await storeIssuerRegistration(this.db, {
       issuer: client.iss ?? normalizeLtiIssuer(existing.issuer),
@@ -194,7 +189,10 @@ export class CredTrailLtiStorage implements LTIStorage {
   }
 
   async listDeployments(clientId: string): Promise<LTIDeployment[]> {
-    const deployments = await listLtiDeploymentsForIssuer(this.db, clientId);
+    const deployments = await listLtiDeploymentsForIssuer(this.db, {
+      tenantId: this.options.tenantId,
+      issuer: clientId,
+    });
     return deployments.map((deployment) => ({
       id: deployment.id,
       deploymentId: deployment.deploymentId,
@@ -214,6 +212,7 @@ export class CredTrailLtiStorage implements LTIStorage {
     }
 
     const deployment = await findLtiDeploymentByIssuerClientDeployment(this.db, {
+      tenantId: this.options.tenantId,
       issuer: client.iss,
       clientId: client.clientId,
       deploymentId,
@@ -239,6 +238,7 @@ export class CredTrailLtiStorage implements LTIStorage {
     }
 
     const created = await upsertLtiDeployment(this.db, {
+      tenantId: this.options.tenantId,
       issuer: client.iss,
       clientId: client.clientId,
       deploymentId: deployment.deploymentId,
@@ -261,6 +261,7 @@ export class CredTrailLtiStorage implements LTIStorage {
     }
 
     await upsertLtiDeployment(this.db, {
+      tenantId: this.options.tenantId,
       issuer: client.iss,
       clientId: client.clientId,
       deploymentId,
@@ -274,7 +275,10 @@ export class CredTrailLtiStorage implements LTIStorage {
   }
 
   async getSession(sessionId: string): Promise<LTISession | undefined> {
-    const session = await findLtiLaunchSessionById(this.db, sessionId);
+    const session = await findLtiLaunchSessionById(this.db, {
+      tenantId: this.options.tenantId,
+      sessionId,
+    });
 
     if (session === null) {
       return undefined;
@@ -285,6 +289,7 @@ export class CredTrailLtiStorage implements LTIStorage {
 
   async addSession(session: LTISession): Promise<string> {
     await upsertLtiLaunchSession(this.db, {
+      tenantId: this.options.tenantId,
       id: session.id,
       issuer: session.platform.issuer,
       clientId: session.platform.clientId,
@@ -301,6 +306,7 @@ export class CredTrailLtiStorage implements LTIStorage {
     const nonceTtlSeconds = this.options.nonceTtlSeconds ?? LTI_NONCE_TTL_SECONDS;
 
     return recordLtiLaunchNonceUse(this.db, {
+      tenantId: this.options.tenantId,
       nonce,
       consumedAt: consumedAt.toISOString(),
       expiresAt: new Date(consumedAt.getTime() + nonceTtlSeconds * 1000).toISOString(),
@@ -313,7 +319,7 @@ export class CredTrailLtiStorage implements LTIStorage {
     deploymentId: string,
   ): Promise<LTILaunchConfig | undefined> {
     const normalizedIssuer = normalizeLtiIssuer(iss);
-    const registrations = await listLtiIssuerRegistrations(this.db);
+    const registrations = await listLtiIssuerRegistrationsForTenant(this.db, this.options.tenantId);
     const registration = registrations.find(
       (candidate) =>
         normalizeLtiIssuer(candidate.issuer) === normalizedIssuer &&
@@ -324,6 +330,8 @@ export class CredTrailLtiStorage implements LTIStorage {
       return undefined;
     }
 
+    const tenantId = this.options.tenantId;
+
     const endpoints = completePlatformEndpoints(registration);
 
     if (endpoints === undefined) {
@@ -331,6 +339,7 @@ export class CredTrailLtiStorage implements LTIStorage {
     }
     const deployment =
       (await findLtiDeploymentByIssuerClientDeployment(this.db, {
+        tenantId,
         issuer: normalizedIssuer,
         clientId,
         deploymentId,
@@ -338,6 +347,7 @@ export class CredTrailLtiStorage implements LTIStorage {
       (deploymentId === "default"
         ? null
         : await findLtiDeploymentByIssuerClientDeployment(this.db, {
+            tenantId,
             issuer: normalizedIssuer,
             clientId,
             deploymentId: "default",
@@ -358,11 +368,7 @@ export class CredTrailLtiStorage implements LTIStorage {
   }
 
   async saveLaunchConfig(launchConfig: LTILaunchConfig): Promise<void> {
-    const tenantId = this.options.defaultTenantId;
-
-    if (tenantId === undefined) {
-      throw new Error("defaultTenantId is required to save LTI launch configs");
-    }
+    const tenantId = this.options.tenantId;
 
     await storeIssuerRegistration(this.db, {
       issuer: launchConfig.iss,
@@ -373,6 +379,7 @@ export class CredTrailLtiStorage implements LTIStorage {
       tokenEndpoint: launchConfig.tokenUrl,
     });
     await upsertLtiDeployment(this.db, {
+      tenantId,
       issuer: launchConfig.iss,
       clientId: launchConfig.clientId,
       deploymentId: launchConfig.deploymentId,
@@ -384,6 +391,7 @@ export class CredTrailLtiStorage implements LTIStorage {
     session: LTIDynamicRegistrationSession,
   ): Promise<void> {
     await upsertLtiDynamicRegistrationSession(this.db, {
+      tenantId: this.options.tenantId,
       id: sessionId,
       dataJson: serializeLtiDynamicRegistrationSession(session),
       expiresAt: new Date(session.expiresAt).toISOString(),
@@ -393,7 +401,10 @@ export class CredTrailLtiStorage implements LTIStorage {
   async getRegistrationSession(
     sessionId: string,
   ): Promise<LTIDynamicRegistrationSession | undefined> {
-    const session = await findLtiDynamicRegistrationSessionById(this.db, sessionId);
+    const session = await findLtiDynamicRegistrationSessionById(this.db, {
+      tenantId: this.options.tenantId,
+      sessionId,
+    });
 
     if (session === null) {
       return undefined;
@@ -403,6 +414,9 @@ export class CredTrailLtiStorage implements LTIStorage {
   }
 
   async deleteRegistrationSession(sessionId: string): Promise<void> {
-    await deleteLtiDynamicRegistrationSessionById(this.db, sessionId);
+    await deleteLtiDynamicRegistrationSessionById(this.db, {
+      tenantId: this.options.tenantId,
+      sessionId,
+    });
   }
 }

@@ -172,7 +172,7 @@ export const getCredTrailLtiToolJwks = async (db: SqlDatabase): Promise<JWKS> =>
 export interface CreateCredTrailLtiToolInput {
   db: SqlDatabase;
   env: AppBindings;
-  defaultTenantId?: string | undefined;
+  tenantId: string;
   dynamicRegistration?: DynamicRegistrationConfig | undefined;
 }
 
@@ -185,7 +185,7 @@ export const createCredTrailLtiConfig = async (
     stateSecret: new TextEncoder().encode(ltiStateSigningSecret(input.env)),
     keyPair,
     storage: new CredTrailLtiStorage(input.db, {
-      defaultTenantId: input.defaultTenantId,
+      tenantId: input.tenantId,
     }),
     security: {
       keyId: LTI_TOOL_KEY_ID,

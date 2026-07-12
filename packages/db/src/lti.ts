@@ -41,6 +41,7 @@ export const isLtiIssuerTenantConflictError = (
 
 export interface LtiDeploymentRecord {
   id: string;
+  tenantId: string;
   issuer: string;
   clientId: string;
   deploymentId: string;
@@ -52,6 +53,7 @@ export interface LtiDeploymentRecord {
 
 export interface UpsertLtiDeploymentInput {
   id?: string | undefined;
+  tenantId: string;
   issuer: string;
   clientId: string;
   deploymentId: string;
@@ -82,7 +84,7 @@ export interface LtiLaunchSessionRecord {
   issuer: string;
   clientId: string;
   deploymentId: string;
-  tenantId: string | null;
+  tenantId: string;
   userId: string | null;
   dataJson: string;
   expiresAt: string;
@@ -95,7 +97,7 @@ export interface UpsertLtiLaunchSessionInput {
   issuer: string;
   clientId: string;
   deploymentId: string;
-  tenantId?: string | null | undefined;
+  tenantId: string;
   userId?: string | null | undefined;
   dataJson: string;
   expiresAt: string;
@@ -108,6 +110,7 @@ export interface AttachLtiLaunchSessionPrincipalInput {
 }
 
 export interface LtiDynamicRegistrationSessionRecord {
+  tenantId: string;
   id: string;
   dataJson: string;
   expiresAt: string;
@@ -128,6 +131,7 @@ interface LtiIssuerRegistrationRow {
 
 interface LtiDeploymentRow {
   id: string;
+  tenantId: string;
   issuer: string;
   clientId: string;
   deploymentId: string;
@@ -152,7 +156,7 @@ interface LtiLaunchSessionRow {
   issuer: string;
   clientId: string;
   deploymentId: string;
-  tenantId: string | null;
+  tenantId: string;
   userId: string | null;
   dataJson: string;
   expiresAt: string;
@@ -161,6 +165,7 @@ interface LtiLaunchSessionRow {
 }
 
 interface LtiDynamicRegistrationSessionRow {
+  tenantId: string;
   id: string;
   dataJson: string;
   expiresAt: string;
@@ -186,6 +191,7 @@ const mapLtiIssuerRegistrationRow = (
 const mapLtiDeploymentRow = (row: LtiDeploymentRow): LtiDeploymentRecord => {
   return {
     id: row.id,
+    tenantId: row.tenantId,
     issuer: row.issuer,
     clientId: row.clientId,
     deploymentId: row.deploymentId,
@@ -227,6 +233,7 @@ const mapLtiDynamicRegistrationSessionRow = (
   row: LtiDynamicRegistrationSessionRow,
 ): LtiDynamicRegistrationSessionRecord => {
   return {
+    tenantId: row.tenantId,
     id: row.id,
     dataJson: row.dataJson,
     expiresAt: row.expiresAt,
@@ -323,7 +330,7 @@ export const upsertLtiIssuerRegistration = async (
   return mapLtiIssuerRegistrationRow(row);
 };
 
-export const listLtiIssuerRegistrations = async (
+export const listAllLtiIssuerRegistrations = async (
   db: SqlDatabase,
 ): Promise<LtiIssuerRegistrationRecord[]> => {
   const listStatement = (): Promise<SqlQueryResult<LtiIssuerRegistrationRow>> =>
@@ -349,6 +356,28 @@ export const listLtiIssuerRegistrations = async (
   const result = await listStatement();
 
   return result.results.map((row) => mapLtiIssuerRegistrationRow(row));
+};
+
+export const listLtiIssuerRegistrationsForTenant = async (
+  db: SqlDatabase,
+  tenantId: string,
+): Promise<LtiIssuerRegistrationRecord[]> => {
+  const result = await db
+    .prepare(
+      `
+        SELECT issuer, tenant_id AS tenantId, authorization_endpoint AS authorizationEndpoint,
+          client_id AS clientId, platform_jwks_endpoint AS platformJwksEndpoint,
+          token_endpoint AS tokenEndpoint, client_secret AS clientSecret,
+          created_at AS createdAt, updated_at AS updatedAt
+        FROM lti_issuer_registrations
+        WHERE tenant_id = ?
+        ORDER BY issuer ASC
+      `,
+    )
+    .bind(tenantId)
+    .all<LtiIssuerRegistrationRow>();
+
+  return result.results.map(mapLtiIssuerRegistrationRow);
 };
 
 export const deleteLtiIssuerRegistrationByIssuer = async (
@@ -387,6 +416,7 @@ export const upsertLtiDeployment = async (
         `
         INSERT INTO lti_deployments (
           id,
+          tenant_id,
           issuer,
           client_id,
           deployment_id,
@@ -395,8 +425,8 @@ export const upsertLtiDeployment = async (
           created_at,
           updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (issuer, client_id, deployment_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (tenant_id, issuer, client_id, deployment_id)
         DO UPDATE SET
           name = COALESCE(excluded.name, lti_deployments.name),
           description = COALESCE(excluded.description, lti_deployments.description),
@@ -405,6 +435,7 @@ export const upsertLtiDeployment = async (
       )
       .bind(
         id,
+        input.tenantId,
         normalizedIssuer,
         input.clientId,
         input.deploymentId,
@@ -418,6 +449,7 @@ export const upsertLtiDeployment = async (
   await upsertStatement();
 
   const deployment = await findLtiDeploymentByIssuerClientDeployment(db, {
+    tenantId: input.tenantId,
     issuer: normalizedIssuer,
     clientId: input.clientId,
     deploymentId: input.deploymentId,
@@ -433,6 +465,7 @@ export const upsertLtiDeployment = async (
 export const findLtiDeploymentByIssuerClientDeployment = async (
   db: SqlDatabase,
   input: {
+    tenantId: string;
     issuer: string;
     clientId: string;
     deploymentId: string;
@@ -445,6 +478,7 @@ export const findLtiDeploymentByIssuerClientDeployment = async (
         `
         SELECT
           id,
+          tenant_id AS tenantId,
           issuer,
           client_id AS clientId,
           deployment_id AS deploymentId,
@@ -453,13 +487,14 @@ export const findLtiDeploymentByIssuerClientDeployment = async (
           created_at AS createdAt,
           updated_at AS updatedAt
         FROM lti_deployments
-        WHERE issuer = ?
+        WHERE tenant_id = ?
+          AND issuer = ?
           AND client_id = ?
           AND deployment_id = ?
         LIMIT 1
       `,
       )
-      .bind(normalizedIssuer, input.clientId, input.deploymentId)
+      .bind(input.tenantId, normalizedIssuer, input.clientId, input.deploymentId)
       .first<LtiDeploymentRow>();
 
   const row = await lookupStatement();
@@ -469,15 +504,16 @@ export const findLtiDeploymentByIssuerClientDeployment = async (
 
 export const listLtiDeploymentsForIssuer = async (
   db: SqlDatabase,
-  issuer: string,
+  input: { tenantId: string; issuer: string },
 ): Promise<LtiDeploymentRecord[]> => {
-  const normalizedIssuer = normalizeLtiIssuer(issuer);
+  const normalizedIssuer = normalizeLtiIssuer(input.issuer);
   const listStatement = (): Promise<SqlQueryResult<LtiDeploymentRow>> =>
     db
       .prepare(
         `
         SELECT
           id,
+          tenant_id AS tenantId,
           issuer,
           client_id AS clientId,
           deployment_id AS deploymentId,
@@ -486,11 +522,12 @@ export const listLtiDeploymentsForIssuer = async (
           created_at AS createdAt,
           updated_at AS updatedAt
         FROM lti_deployments
-        WHERE issuer = ?
+        WHERE tenant_id = ?
+          AND issuer = ?
         ORDER BY created_at ASC
       `,
       )
-      .bind(normalizedIssuer)
+      .bind(input.tenantId, normalizedIssuer)
       .all<LtiDeploymentRow>();
 
   const result = await listStatement();
@@ -579,6 +616,7 @@ export const findActiveLtiToolKey = async (db: SqlDatabase): Promise<LtiToolKeyR
 export const recordLtiLaunchNonceUse = async (
   db: SqlDatabase,
   input: {
+    tenantId: string;
     nonce: string;
     expiresAt: string;
     consumedAt: string;
@@ -589,17 +627,18 @@ export const recordLtiLaunchNonceUse = async (
       .prepare(
         `
         INSERT INTO lti_launch_nonces (
+          tenant_id,
           nonce,
           expires_at,
           consumed_at
         )
-        VALUES (?, ?, ?)
-        ON CONFLICT (nonce)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT (tenant_id, nonce)
         DO NOTHING
         RETURNING nonce
       `,
       )
-      .bind(input.nonce, input.expiresAt, input.consumedAt)
+      .bind(input.tenantId, input.nonce, input.expiresAt, input.consumedAt)
       .all<{ nonce: string }>();
 
   const result = await insertStatement();
@@ -629,7 +668,7 @@ export const upsertLtiLaunchSession = async (
           updated_at
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (id)
+        ON CONFLICT (tenant_id, id)
         DO UPDATE SET
           tenant_id = excluded.tenant_id,
           user_id = excluded.user_id,
@@ -643,7 +682,7 @@ export const upsertLtiLaunchSession = async (
         normalizeLtiIssuer(input.issuer),
         input.clientId,
         input.deploymentId,
-        input.tenantId ?? null,
+        input.tenantId,
         input.userId ?? null,
         input.dataJson,
         input.expiresAt,
@@ -654,7 +693,10 @@ export const upsertLtiLaunchSession = async (
 
   await upsertStatement();
 
-  const session = await findLtiLaunchSessionById(db, input.id);
+  const session = await findLtiLaunchSessionById(db, {
+    tenantId: input.tenantId,
+    sessionId: input.id,
+  });
 
   if (session === null) {
     throw new Error(`Unable to upsert LTI launch session "${input.id}"`);
@@ -673,18 +715,21 @@ export const attachLtiLaunchSessionPrincipal = async (
       .prepare(
         `
         UPDATE lti_launch_sessions
-        SET tenant_id = ?,
-            user_id = ?,
+        SET user_id = ?,
             updated_at = ?
-        WHERE id = ?
+        WHERE tenant_id = ?
+          AND id = ?
       `,
       )
-      .bind(input.tenantId, input.userId, nowIso, input.id)
+      .bind(input.userId, nowIso, input.tenantId, input.id)
       .run();
 
   await updateStatement();
 
-  const session = await findLtiLaunchSessionById(db, input.id);
+  const session = await findLtiLaunchSessionById(db, {
+    tenantId: input.tenantId,
+    sessionId: input.id,
+  });
 
   if (session === null) {
     throw new Error(`Unable to attach principal to LTI launch session "${input.id}"`);
@@ -695,7 +740,7 @@ export const attachLtiLaunchSessionPrincipal = async (
 
 export const findLtiLaunchSessionById = async (
   db: SqlDatabase,
-  sessionId: string,
+  input: { tenantId: string; sessionId: string },
 ): Promise<LtiLaunchSessionRecord | null> => {
   const nowIso = new Date().toISOString();
   const findStatement = (): Promise<LtiLaunchSessionRow | null> =>
@@ -714,15 +759,39 @@ export const findLtiLaunchSessionById = async (
           created_at AS createdAt,
           updated_at AS updatedAt
         FROM lti_launch_sessions
-        WHERE id = ?
+        WHERE tenant_id = ?
+          AND id = ?
           AND expires_at > ?
         LIMIT 1
       `,
       )
-      .bind(sessionId, nowIso)
+      .bind(input.tenantId, input.sessionId, nowIso)
       .first<LtiLaunchSessionRow>();
 
   const row = await findStatement();
+
+  return row === null ? null : mapLtiLaunchSessionRow(row);
+};
+
+/** Reads one active session by its globally unique opaque ID. */
+export const findActiveLtiLaunchSessionByOpaqueId = async (
+  db: SqlDatabase,
+  sessionId: string,
+): Promise<LtiLaunchSessionRecord | null> => {
+  const row = await db
+    .prepare(
+      `
+        SELECT id, issuer, client_id AS clientId, deployment_id AS deploymentId,
+          tenant_id AS tenantId, user_id AS userId, data_json AS dataJson,
+          expires_at AS expiresAt, created_at AS createdAt, updated_at AS updatedAt
+        FROM lti_launch_sessions
+        WHERE id = ?
+          AND expires_at > ?
+        LIMIT 1
+      `,
+    )
+    .bind(sessionId, new Date().toISOString())
+    .first<LtiLaunchSessionRow>();
 
   return row === null ? null : mapLtiLaunchSessionRow(row);
 };
@@ -782,6 +851,7 @@ export const listActiveLtiLaunchSessionsForPlatform = async (
 export const upsertLtiDynamicRegistrationSession = async (
   db: SqlDatabase,
   input: {
+    tenantId: string;
     id: string;
     dataJson: string;
     expiresAt: string;
@@ -792,18 +862,19 @@ export const upsertLtiDynamicRegistrationSession = async (
       .prepare(
         `
         INSERT INTO lti_dynamic_registration_sessions (
+          tenant_id,
           id,
           data_json,
           expires_at
         )
-        VALUES (?, ?, ?)
-        ON CONFLICT (id)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT (tenant_id, id)
         DO UPDATE SET
           data_json = excluded.data_json,
           expires_at = excluded.expires_at
       `,
       )
-      .bind(input.id, input.dataJson, input.expiresAt)
+      .bind(input.tenantId, input.id, input.dataJson, input.expiresAt)
       .run();
 
   await insertStatement();
@@ -811,7 +882,7 @@ export const upsertLtiDynamicRegistrationSession = async (
 
 export const findLtiDynamicRegistrationSessionById = async (
   db: SqlDatabase,
-  sessionId: string,
+  input: { tenantId: string; sessionId: string },
 ): Promise<LtiDynamicRegistrationSessionRecord | null> => {
   const nowIso = new Date().toISOString();
   const findStatement = (): Promise<LtiDynamicRegistrationSessionRow | null> =>
@@ -819,17 +890,19 @@ export const findLtiDynamicRegistrationSessionById = async (
       .prepare(
         `
         SELECT
+          tenant_id AS tenantId,
           id,
           data_json AS dataJson,
           expires_at AS expiresAt,
           created_at AS createdAt
         FROM lti_dynamic_registration_sessions
-        WHERE id = ?
+        WHERE tenant_id = ?
+          AND id = ?
           AND expires_at > ?
         LIMIT 1
       `,
       )
-      .bind(sessionId, nowIso)
+      .bind(input.tenantId, input.sessionId, nowIso)
       .first<LtiDynamicRegistrationSessionRow>();
 
   const row = await findStatement();
@@ -839,17 +912,18 @@ export const findLtiDynamicRegistrationSessionById = async (
 
 export const deleteLtiDynamicRegistrationSessionById = async (
   db: SqlDatabase,
-  sessionId: string,
+  input: { tenantId: string; sessionId: string },
 ): Promise<void> => {
   const deleteStatement = (): Promise<SqlRunResult> =>
     db
       .prepare(
         `
         DELETE FROM lti_dynamic_registration_sessions
-        WHERE id = ?
+        WHERE tenant_id = ?
+          AND id = ?
       `,
       )
-      .bind(sessionId)
+      .bind(input.tenantId, input.sessionId)
       .run();
 
   await deleteStatement();

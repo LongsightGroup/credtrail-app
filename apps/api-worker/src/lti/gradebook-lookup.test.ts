@@ -30,6 +30,7 @@ describe("parsePersistedLtiSessionDataJson", () => {
         "https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings": {
           deep_link_return_url: "https://canvas.example.edu/deep-link-return",
           accept_types: ["ltiResourceLink"],
+          accept_presentation_document_targets: [],
         },
       },
       user: { id: "user-1", roles: [] },

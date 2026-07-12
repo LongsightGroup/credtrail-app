@@ -8,7 +8,7 @@ vi.mock("@credtrail/db", async () => {
     findAssertionById: vi.fn(),
     resolveAssertionLifecycleState: vi.fn(),
     findUserById: vi.fn(),
-    listLtiIssuerRegistrations: vi.fn(),
+    listAllLtiIssuerRegistrations: vi.fn(),
     upsertLtiDeployment: vi.fn(),
   };
 });
@@ -55,7 +55,7 @@ import { type JsonObject, getImmutableCredentialObject } from "@credtrail/core-d
 import {
   findAssertionById,
   resolveAssertionLifecycleState,
-  listLtiIssuerRegistrations,
+  listAllLtiIssuerRegistrations,
   type AssertionRecord,
   type LtiIssuerRegistrationRecord,
   type SqlDatabase,
@@ -71,7 +71,7 @@ interface ErrorResponse {
 const mockedFindAssertionById = vi.mocked(findAssertionById);
 const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
 const mockedGetImmutableCredentialObject = vi.mocked(getImmutableCredentialObject);
-const mockedListLtiIssuerRegistrations = vi.mocked(listLtiIssuerRegistrations);
+const mockedListLtiIssuerRegistrations = vi.mocked(listAllLtiIssuerRegistrations);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const fakeDb = {
   prepare: vi.fn(),
