@@ -7,7 +7,6 @@ vi.mock("@credtrail/db", async () => {
 
   return {
     ...actual,
-    findLtiLaunchSessionById: vi.fn(),
     findActiveLtiLaunchSessionByOpaqueId: vi.fn(),
     listAllLtiIssuerRegistrations: vi.fn(),
     listTenantLmsConnections: vi.fn(),
@@ -28,7 +27,6 @@ vi.mock("./lms/gradebook-provider", () => {
 });
 
 import {
-  findLtiLaunchSessionById,
   findActiveLtiLaunchSessionByOpaqueId,
   listAllLtiIssuerRegistrations,
   listTenantLmsConnections,
@@ -40,7 +38,6 @@ import type { LTISession } from "@longsightgroup/lti-tool";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 import { app } from "./index";
 
-const mockedFindLtiLaunchSessionById = vi.mocked(findLtiLaunchSessionById);
 const mockedFindActiveLtiLaunchSessionByOpaqueId = vi.mocked(findActiveLtiLaunchSessionByOpaqueId);
 const mockedListLtiIssuerRegistrations = vi.mocked(listAllLtiIssuerRegistrations);
 const mockedListTenantLmsConnections = vi.mocked(listTenantLmsConnections);
