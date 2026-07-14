@@ -7,6 +7,7 @@ import {
   type PDFPage,
 } from "pdf-lib";
 
+import { withCredTrailUserAgent } from "../http/outbound-user-agent";
 import { createQrCodeMatrix } from "./qr-code";
 
 export const badgeInitialsFromName = (badgeName: string): string => {
@@ -166,9 +167,9 @@ const loadBadgePdfImageAsset = async (imageUrl: string): Promise<BadgePdfImageAs
   try {
     const response = await fetch(parsedUrl.toString(), {
       method: "GET",
-      headers: {
+      headers: withCredTrailUserAgent({
         Accept: "image/png,image/jpeg,image/*;q=0.8,*/*;q=0.5",
-      },
+      }),
       signal: abortController.signal,
     });
 

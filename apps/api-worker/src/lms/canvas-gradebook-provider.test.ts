@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CREDTRAIL_OUTBOUND_USER_AGENT } from "../http/outbound-user-agent";
 import { createCanvasGradebookProvider } from "./canvas-gradebook-provider";
 
 interface MockRoute {
@@ -57,6 +58,17 @@ const createRecordingMockFetch = (routes: readonly MockRoute[]): RecordingMockFe
             },
           },
         ),
+      );
+    }
+
+    if (request.headers.get("user-agent") !== CREDTRAIL_OUTBOUND_USER_AGENT) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ error: "User-Agent required" }), {
+          status: 403,
+          headers: {
+            "content-type": "application/json",
+          },
+        }),
       );
     }
 

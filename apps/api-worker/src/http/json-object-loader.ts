@@ -1,4 +1,5 @@
 import type { JsonObject } from "@credtrail/core-domain";
+import { withCredTrailUserAgent } from "./outbound-user-agent";
 
 interface CreateJsonObjectLoaderInput<BindingsType> {
   appRequest: (
@@ -49,17 +50,17 @@ export const createLoadJsonObjectFromUrl = <BindingsType>(
           pathWithQuery,
           {
             method: "GET",
-            headers: {
+            headers: withCredTrailUserAgent({
               accept: acceptHeader,
-            },
+            }),
           },
           context.env,
         );
       } else {
         response = await fetch(resourceUrl, {
-          headers: {
+          headers: withCredTrailUserAgent({
             accept: acceptHeader,
-          },
+          }),
         });
       }
     } catch {

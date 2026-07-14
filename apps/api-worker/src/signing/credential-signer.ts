@@ -4,6 +4,7 @@ import {
   type JsonObject,
 } from "@credtrail/core-domain";
 import type { TenantSigningRegistryEntry } from "@credtrail/validation";
+import { withCredTrailUserAgent } from "../http/outbound-user-agent";
 import { isEd25519SigningPrivateJwk, toEd25519PrivateJwk } from "./key-material";
 import type { RemoteSignerRegistryEntry } from "./registry";
 
@@ -91,7 +92,7 @@ const signCredentialWithRemoteSigner = async (input: {
 
     response = await fetch(input.remoteSigner.url, {
       method: "POST",
-      headers,
+      headers: withCredTrailUserAgent(headers),
       body: JSON.stringify({
         did: input.did,
         keyId: input.keyId,

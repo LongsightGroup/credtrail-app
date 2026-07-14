@@ -1,4 +1,5 @@
 import { asJsonObject, asNonEmptyString, asString } from "../utils/value-parsers";
+import { withCredTrailUserAgent } from "../http/outbound-user-agent";
 import type {
   GradebookAssignmentRecord,
   GradebookCompletionRecord,
@@ -280,10 +281,10 @@ export const createSakaiSession = async (
   });
   const response = await fetchImpl(loginUrl.toString(), {
     method: "POST",
-    headers: {
+    headers: withCredTrailUserAgent({
       accept: "text/plain, application/json",
       "content-type": "application/x-www-form-urlencoded",
-    },
+    }),
     body,
   });
   const responseBody = await response.text();
@@ -528,10 +529,10 @@ export const createSakaiGradebookProvider = (
   const fetchJson = (requestUrl: URL): Promise<Response> => {
     return fetchImpl(requestUrl.toString(), {
       method: "GET",
-      headers: {
+      headers: withCredTrailUserAgent({
         cookie: cookieHeader,
         accept: "application/json",
-      },
+      }),
     });
   };
 

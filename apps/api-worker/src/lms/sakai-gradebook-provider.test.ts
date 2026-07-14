@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CREDTRAIL_OUTBOUND_USER_AGENT } from "../http/outbound-user-agent";
 import {
   createSakaiGradebookProvider,
   createSakaiSession,
@@ -16,15 +17,24 @@ const createMockFetch = (
   expectedCookie = "SAKAIID=sakai-token",
 ): {
   fetchImpl: typeof fetch;
-  requests: { pathWithQuery: string; authorization: string | null; cookie: string | null }[];
+  requests: {
+    pathWithQuery: string;
+    authorization: string | null;
+    cookie: string | null;
+    userAgent: string | null;
+  }[];
 } => {
   const routeMap = new Map<string, MockRoute>(
     routes.map((route) => {
       return [route.pathWithQuery, route];
     }),
   );
-  const requests: { pathWithQuery: string; authorization: string | null; cookie: string | null }[] =
-    [];
+  const requests: Array<{
+    pathWithQuery: string;
+    authorization: string | null;
+    cookie: string | null;
+    userAgent: string | null;
+  }> = [];
 
   const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const request = input instanceof Request ? input : new Request(input, init);
@@ -34,12 +44,14 @@ const createMockFetch = (
       pathWithQuery: routeKey,
       authorization: request.headers.get("authorization"),
       cookie: request.headers.get("cookie"),
+      userAgent: request.headers.get("user-agent"),
     });
     const route = routeMap.get(routeKey);
 
     if (
       request.headers.get("authorization") !== null ||
-      request.headers.get("cookie") !== expectedCookie
+      request.headers.get("cookie") !== expectedCookie ||
+      request.headers.get("user-agent") !== CREDTRAIL_OUTBOUND_USER_AGENT
     ) {
       return Promise.resolve(
         new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -90,6 +102,7 @@ describe("createSakaiGradebookProvider", () => {
       method: string;
       body: string;
       contentType: string | null;
+      userAgent: string | null;
     }> = [];
     const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const request = input instanceof Request ? input : new Request(input, init);
@@ -99,6 +112,7 @@ describe("createSakaiGradebookProvider", () => {
         method: request.method,
         body: await request.text(),
         contentType: request.headers.get("content-type"),
+        userAgent: request.headers.get("user-agent"),
       });
 
       return new Response("sakai-session-id", {
@@ -129,6 +143,7 @@ describe("createSakaiGradebookProvider", () => {
       body: "_username=sakai-admin&_password=sakai-password",
     });
     expect(requests[0]?.contentType).toContain("application/x-www-form-urlencoded");
+    expect(requests[0]?.userAgent).toBe(CREDTRAIL_OUTBOUND_USER_AGENT);
   });
 
   it("normalizes raw and full Sakai session cookie values", () => {

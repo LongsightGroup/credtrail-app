@@ -1,3 +1,5 @@
+import { withCredTrailUserAgent } from "../http/outbound-user-agent";
+
 const TURNSTILE_SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 interface TurnstileSiteverifyResponse {
@@ -30,9 +32,9 @@ export const verifyTurnstileToken = async (input: VerifyTurnstileTokenInput): Pr
 
   const response = await fetch(TURNSTILE_SITEVERIFY_URL, {
     method: "POST",
-    headers: {
+    headers: withCredTrailUserAgent({
       "content-type": "application/json",
-    },
+    }),
     body: JSON.stringify({
       secret,
       response: token,

@@ -1,3 +1,5 @@
+import { withCredTrailUserAgent } from "../http/outbound-user-agent";
+
 /**
  * LMS picker limits are intentionally tighter than full gradebook sync limits:
  * route-level LMS_PICKER_MAX_* caps keep admin select payloads usable, Canvas picker
@@ -78,10 +80,10 @@ export const fetchCanvasJsonArrayPages = async (
 
     const response = await input.fetchImpl(requestUrl.toString(), {
       method: "GET",
-      headers: {
+      headers: withCredTrailUserAgent({
         authorization: `Bearer ${input.accessToken}`,
         accept: "application/json",
-      },
+      }),
     });
 
     if (!response.ok) {

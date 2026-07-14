@@ -1,5 +1,6 @@
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
 import type { AppBindings } from "../app";
+import { withCredTrailUserAgent } from "../http/outbound-user-agent";
 
 const bytesToBase64Url = (bytes: Uint8Array): string => {
   let raw = "";
@@ -256,10 +257,10 @@ export const exchangeCanvasAuthorizationCode = async (input: {
   const fetchImpl = input.fetchImpl ?? fetch;
   const response = await fetchImpl(input.tokenEndpoint, {
     method: "POST",
-    headers: {
+    headers: withCredTrailUserAgent({
       "content-type": "application/x-www-form-urlencoded",
       accept: "application/json",
-    },
+    }),
     body: new URLSearchParams({
       grant_type: "authorization_code",
       client_id: input.clientId,
@@ -293,10 +294,10 @@ export const refreshCanvasAccessToken = async (input: {
   const fetchImpl = input.fetchImpl ?? fetch;
   const response = await fetchImpl(input.tokenEndpoint, {
     method: "POST",
-    headers: {
+    headers: withCredTrailUserAgent({
       "content-type": "application/x-www-form-urlencoded",
       accept: "application/json",
-    },
+    }),
     body: new URLSearchParams({
       grant_type: "refresh_token",
       client_id: input.clientId,

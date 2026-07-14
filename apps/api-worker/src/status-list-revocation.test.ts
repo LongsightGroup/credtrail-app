@@ -357,12 +357,11 @@ describe("GET /credentials/v1/status-lists/:tenantId/revocation", () => {
     expect(asJsonObject(body.proof)).not.toBeNull();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(fetchSpy.mock.calls[0]?.[0]).toBe("https://kms.credtrail.test/sign");
-    expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({
-      method: "POST",
-      headers: {
-        authorization: "Bearer test-remote-signer-token",
-      },
-    });
+    const requestInit = fetchSpy.mock.calls[0]?.[1];
+    const requestHeaders = new Headers(requestInit?.headers);
+    expect(requestInit?.method).toBe("POST");
+    expect(requestHeaders.get("authorization")).toBe("Bearer test-remote-signer-token");
+    expect(requestHeaders.get("user-agent")).toBe("CredTrail/1.0 (+https://credtrail.org)");
 
     fetchSpy.mockRestore();
   });
