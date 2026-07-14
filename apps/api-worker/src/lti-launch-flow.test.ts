@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setCookie } from "hono/cookie";
-import { LTI13JwtPayloadSchema } from "@longsightgroup/lti-tool";
+import { LTI13JwtPayloadSchema, serializeLtiSession } from "@longsightgroup/lti-tool";
 
 vi.mock("@credtrail/db", async () => {
   const actual = await vi.importActual<typeof import("@credtrail/db")>("@credtrail/db");
@@ -3308,16 +3308,19 @@ describe("LTI 1.3 core launch flow", () => {
       isDeepLinkingAvailable: true,
       isNameAndRolesAvailable: false,
     };
-    const getSession = vi.fn().mockResolvedValue(ltiSession);
     const createDeepLinkingResponse = vi.fn().mockResolvedValue({
       success: true,
       data: "<!DOCTYPE html><html><body>signed deep link</body></html>",
     });
+    mockedFindActiveLtiLaunchSessionByOpaqueId.mockResolvedValue(
+      sampleLtiLaunchSessionRecord({
+        dataJson: serializeLtiSession(ltiSession),
+      }),
+    );
     const { app: isolatedApp } = await loadAppWithMockedAuthProviders(() => {
       vi.doMock("./lti/credtrail-lti-tool", () => {
         const createTool = vi.fn(async () =>
           mockLtiToolWithDeepLinking({
-            getSession,
             createDeepLinkingResponse,
           }),
         );
@@ -3349,11 +3352,7 @@ describe("LTI 1.3 core launch flow", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain("signed deep link");
-    expect(getSession).toHaveBeenCalledWith(ltiSession.id);
-    expect(mockedFindLtiLaunchSessionById).toHaveBeenCalledWith(fakeDb, {
-      tenantId,
-      sessionId: ltiSession.id,
-    });
+    expect(mockedFindActiveLtiLaunchSessionByOpaqueId).toHaveBeenCalledWith(fakeDb, ltiSession.id);
     expect(mockedListTenantLmsConnections).not.toHaveBeenCalled();
     expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
     expect(mockedCreateBadgeIssuanceRuleWithConnection).not.toHaveBeenCalled();
@@ -3431,16 +3430,19 @@ describe("LTI 1.3 core launch flow", () => {
       isDeepLinkingAvailable: true,
       isNameAndRolesAvailable: false,
     };
-    const getSession = vi.fn().mockResolvedValue(ltiSession);
     const createDeepLinkingResponse = vi.fn().mockResolvedValue({
       success: true,
       data: "<!DOCTYPE html><html><body>signed deep link</body></html>",
     });
+    mockedFindActiveLtiLaunchSessionByOpaqueId.mockResolvedValue(
+      sampleLtiLaunchSessionRecord({
+        dataJson: serializeLtiSession(ltiSession),
+      }),
+    );
     const { app: isolatedApp } = await loadAppWithMockedAuthProviders(() => {
       vi.doMock("./lti/credtrail-lti-tool", () => {
         const createTool = vi.fn(async () =>
           mockLtiToolWithDeepLinking({
-            getSession,
             createDeepLinkingResponse,
           }),
         );

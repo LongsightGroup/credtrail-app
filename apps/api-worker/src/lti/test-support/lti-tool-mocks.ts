@@ -13,11 +13,9 @@ export const mockLtiToolWithGetMembers = (getMembers: VitestMock): LtiToolPort =
   }) as unknown as LtiToolPort;
 
 export const mockLtiToolWithDeepLinking = (input: {
-  getSession: VitestMock;
   createDeepLinkingResponse: VitestMock;
 }): LtiToolPort =>
   ({
-    getSession: input.getSession,
     createAdvantage: vi.fn(() => ({
       ...createFakeLtiAdvantage(),
       createDeepLinkingResponse: input.createDeepLinkingResponse,
