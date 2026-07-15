@@ -9,6 +9,11 @@ overrides:
   jose: 6.2.3
   zod: 4.4.3
 
+patchedDependencies:
+  '@longsightgroup/lti-tool@0.1.5':
+    hash: 6cd9456af0315cf814a04146a5e168cf6a7f6c8ceccea6839e92a99985cddc01
+    path: patches/@longsightgroup__lti-tool@0.1.5.patch
+
 importers:
 
   .:
@@ -94,7 +99,7 @@ importers:
         version: 2.0.4(hono@4.12.27)
       '@longsightgroup/lti-tool':
         specifier: 0.1.5
-        version: 0.1.5(hono@4.12.27)
+        version: 0.1.5(patch_hash=6cd9456af0315cf814a04146a5e168cf6a7f6c8ceccea6839e92a99985cddc01)(hono@4.12.27)
       csv-stringify:
         specifier: ^6.7.0
         version: 6.7.0
@@ -3652,7 +3657,7 @@ snapshots:
       '@jsonjoy.com/codegen': 17.67.0(tslib@2.8.1)
       tslib: 2.8.1
 
-  '@longsightgroup/lti-tool@0.1.5(hono@4.12.27)':
+  '@longsightgroup/lti-tool@0.1.5(patch_hash=6cd9456af0315cf814a04146a5e168cf6a7f6c8ceccea6839e92a99985cddc01)(hono@4.12.27)':
     dependencies:
       jose: 6.2.3
       zod: 4.4.3
