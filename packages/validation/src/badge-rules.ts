@@ -418,15 +418,6 @@ export const badgeIssuanceRuleFactsSchema = z.object({
   earnedBadgeTemplateIds: z.array(resourceIdSchema).optional(),
 });
 
-export const evaluateBadgeIssuanceRuleRequestSchema = z.object({
-  learnerId: z.string().trim().min(1).max(255),
-  recipientIdentity: z.string().trim().min(1).max(512),
-  recipientIdentityType: recipientIdentityTypeSchema,
-  versionId: resourceIdSchema.optional(),
-  dryRun: z.boolean().optional(),
-  facts: badgeIssuanceRuleFactsSchema.optional(),
-});
-
 export const previewEvaluateBadgeIssuanceRuleRequestSchema = z
   .object({
     definition: badgeIssuanceRuleDefinitionSchema,
@@ -571,10 +562,6 @@ export type DecideBadgeIssuanceRuleVersionRequest = z.infer<
 
 export type BadgeIssuanceRuleFacts = z.infer<typeof badgeIssuanceRuleFactsSchema>;
 
-export type EvaluateBadgeIssuanceRuleRequest = z.infer<
-  typeof evaluateBadgeIssuanceRuleRequestSchema
->;
-
 export type PreviewEvaluateBadgeIssuanceRuleRequest = z.infer<
   typeof previewEvaluateBadgeIssuanceRuleRequestSchema
 >;
@@ -711,12 +698,6 @@ export const parseDecideBadgeIssuanceRuleVersionRequest = (
   input: unknown,
 ): DecideBadgeIssuanceRuleVersionRequest => {
   return decideBadgeIssuanceRuleVersionRequestSchema.parse(input);
-};
-
-export const parseEvaluateBadgeIssuanceRuleRequest = (
-  input: unknown,
-): EvaluateBadgeIssuanceRuleRequest => {
-  return evaluateBadgeIssuanceRuleRequestSchema.parse(input);
 };
 
 export const parsePreviewEvaluateBadgeIssuanceRuleRequest = (

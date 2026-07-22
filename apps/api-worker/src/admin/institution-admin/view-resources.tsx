@@ -131,7 +131,6 @@ export const buildInstitutionAdminViewResources = (
   const activeApiKeyCount = String(input.activeApiKeys.length);
   const revokedApiKeyCount = String(input.revokedApiKeyCount);
   const ruleCount = String(input.badgeRules.length);
-  const hasBadgeRules = input.badgeRules.length > 0;
   const tenantMemberCount = String(input.tenantMembers.length);
   const scopedRoleCount = String(input.membershipOrgUnitScopes.length);
   const delegatedAuthorityGrantCount = String(input.delegatedIssuingAuthorityGrants.length);
@@ -1031,18 +1030,13 @@ export const buildInstitutionAdminViewResources = (
       })
     : {
         ruleValueListsPanelMarkup: emptySectionMarkup,
-        evaluateRulePanelMarkup: emptySectionMarkup,
         badgeStatusPanelMarkup: emptySectionMarkup,
         ruleGovernancePanelMarkup: emptySectionMarkup,
         ruleReviewQueuePanelMarkup: emptySectionMarkup,
         issuedBadgesPanelMarkup: emptySectionMarkup,
       };
-  const {
-    evaluateRulePanelMarkup,
-    badgeStatusPanelMarkup,
-    ruleReviewQueuePanelMarkup,
-    issuedBadgesPanelMarkup,
-  } = operationsSections;
+  const { badgeStatusPanelMarkup, ruleReviewQueuePanelMarkup, issuedBadgesPanelMarkup } =
+    operationsSections;
 
   const tenantMemberRoleSelectOptions = dataNeeds.tenantMemberRows
     ? assignableTenantRoles.map((role) => <option value={role}>{role}</option>)
@@ -1179,17 +1173,14 @@ export const buildInstitutionAdminViewResources = (
   const managementSections = dataNeeds.managementSectionBundles
     ? renderInstitutionAdminManagementSections({
         ruleCount,
-        hasBadgeRules,
         ruleBuilderPath,
         rulesTemplatesPath,
         ruleRows,
-        evaluateRulePanelMarkup,
       })
     : {
         badgeRulesTableMarkup: emptySectionMarkup,
-        ruleAdvancedToolsMarkup: emptySectionMarkup,
       };
-  const { badgeRulesTableMarkup, ruleAdvancedToolsMarkup } = managementSections;
+  const { badgeRulesTableMarkup } = managementSections;
 
   const learnerRecordSections = dataNeeds.learnerRecordSectionBundles
     ? renderInstitutionAdminLearnerRecordSections({
@@ -1260,7 +1251,6 @@ export const buildInstitutionAdminViewResources = (
     },
     rules: {
       badgeRulesTableMarkup,
-      ruleAdvancedToolsMarkup,
     },
     access: {
       apiKeysTableMarkup,

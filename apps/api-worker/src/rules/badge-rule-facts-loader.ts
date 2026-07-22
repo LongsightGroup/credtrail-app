@@ -4,8 +4,8 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import {
+  type BadgeIssuanceRuleFacts,
   parseBadgeIssuanceRuleDefinition,
-  parseEvaluateBadgeIssuanceRuleRequest,
 } from "@credtrail/validation";
 import {
   extractBadgeIssuanceRuleRequirements,
@@ -38,7 +38,7 @@ export const loadRuleFacts = async (input: {
       }
     | undefined;
   definition: ReturnType<typeof parseBadgeIssuanceRuleDefinition>;
-  requestedFacts?: ReturnType<typeof parseEvaluateBadgeIssuanceRuleRequest>["facts"];
+  requestedFacts?: BadgeIssuanceRuleFacts | undefined;
   nowIso: string;
 }): Promise<BadgeIssuanceRuleEvaluationFacts> => {
   const requestedFacts = input.requestedFacts;

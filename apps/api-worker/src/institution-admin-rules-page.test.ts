@@ -144,7 +144,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/new"');
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
     expect(body).toMatch(/>\s*Manage badge templates\s*<\/a>/);
-    expect(body).toContain("Check a rule before issuing");
+    expect(body).toContain("Test each rule in the builder before saving it.");
     expect(body).not.toContain("Create Badge Template");
     expect(body).not.toContain('id="badge-template-create-form"');
     expect(body).not.toContain("Manage Badge Template Images");
@@ -158,8 +158,12 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).not.toContain('id="rule-value-list-status"');
     expect(body).not.toContain('id="rule-value-list-body"');
     expect(body).not.toContain("badge-rule-value-lists");
-    expect(body).toContain("Test a Rule");
-    expect(body).toContain('id="rule-evaluate-form"');
+    expect(body).not.toContain("Check a rule before issuing");
+    expect(body).not.toContain("Test a Rule");
+    expect(body).not.toContain('id="rule-evaluate-form"');
+    expect(INSTITUTION_ADMIN_JS).not.toContain(
+      'badgeRuleApiPath + "/" + encodeURIComponent(ruleId) + "/evaluate"',
+    );
     expect(body).not.toContain("Approval and Audit History");
     expect(body).not.toContain('id="rule-governance-form"');
     expect(body).not.toContain("ct-grid--sidebar");
@@ -2311,6 +2315,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('data-rule-step-target="metadata"');
     expect(body).toContain('data-rule-step-target="conditions"');
     expect(body).toContain('data-rule-step-target="test"');
+    expect(body).toContain("Test and save draft");
+    expect(body).not.toContain("Test and submit");
     expect(body).not.toContain('data-rule-step-target="review"');
     expect(body).toContain('id="rule-builder-condition-list"');
     expect(body).toContain('id="rule-builder-definition-json"');

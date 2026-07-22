@@ -13,8 +13,6 @@ const assertionsApiPathPrefix =
     ? parsedContext.assertionsApiPathPrefix
     : "";
 
-const ruleEvaluateForm = document.getElementById("rule-evaluate-form");
-const ruleEvaluateStatus = document.getElementById("rule-evaluate-status");
 const reportingFiltersForm = document.getElementById("reporting-filters-form");
 const reportingFiltersStatus = document.getElementById("reporting-filters-status");
 const assertionLifecycleViewForm = document.getElementById("assertion-lifecycle-view-form");

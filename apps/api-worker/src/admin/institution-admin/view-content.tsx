@@ -60,7 +60,6 @@ export interface InstitutionAdminViewContentInput {
   };
   rules: {
     badgeRulesTableMarkup: RenderedNode;
-    ruleAdvancedToolsMarkup: RenderedNode;
   };
   access: {
     apiKeysTableMarkup: RenderedNode;
@@ -414,11 +413,8 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
     titlePrefix: "Rules · Institution Admin",
     controller: "shared",
     dataNeeds: viewDataNeeds({
-      operationsSectionBundles: true,
       managementSectionBundles: true,
       ruleTableRows: true,
-      templateSelectOptions: true,
-      ruleSelectOptions: true,
       ruleVersionIndexes: true,
     }),
     render: (content) => {
@@ -427,12 +423,11 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
         <>
           {renderPageHeader(
             "Rules",
-            "Review awarding rules, create new rules, and test a rule before issuing when needed.",
+            "Create and review awarding rules. Test each rule in the builder before saving it.",
           )}
           <section class="ct-admin ct-stack">
             {AdminListFlashStatus(input.rulesWorkspace)}
             {content.rules.badgeRulesTableMarkup}
-            {content.rules.ruleAdvancedToolsMarkup}
           </section>
         </>
       );

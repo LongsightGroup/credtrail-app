@@ -37,14 +37,12 @@ vi.mock("@credtrail/db", async () => {
     findBadgeIssuanceRuleEvaluationById: vi.fn(),
     findBadgeIssuanceRuleById: vi.fn(),
     findBadgeIssuanceRuleVersionById: vi.fn(),
-    findActiveBadgeIssuanceRuleVersion: vi.fn(),
     listBadgeIssuanceRules: vi.fn(),
     listBadgeIssuanceRuleEvaluations: vi.fn(),
     listBadgeIssuanceRuleValueLists: vi.fn(),
     listBadgeIssuanceRuleVersions: vi.fn(),
     listBadgeIssuanceRuleVersionApprovalSteps: vi.fn(),
     listBadgeIssuanceRuleVersionApprovalEvents: vi.fn(),
-    createBadgeIssuanceRuleEvaluation: vi.fn(),
     findBadgeIssuanceRuleBuilderDraft: vi.fn(),
     saveBadgeIssuanceRuleBuilderDraft: vi.fn(),
     deleteBadgeIssuanceRuleBuilderDraft: vi.fn(),
@@ -107,11 +105,9 @@ import {
   activateBadgeIssuanceRuleVersion,
   createAuditLog,
   createBadgeIssuanceRule,
-  createBadgeIssuanceRuleEvaluation,
   createBadgeIssuanceRuleValueList,
   createBadgeIssuanceRuleVersion,
   decideBadgeIssuanceRuleVersion,
-  findActiveBadgeIssuanceRuleVersion,
   findBadgeIssuanceRuleBuilderDraft,
   findBadgeIssuanceRuleEvaluationById,
   findBadgeIssuanceRuleById,
@@ -162,7 +158,6 @@ const mockedActivateBadgeIssuanceRuleVersion = vi.mocked(activateBadgeIssuanceRu
 const mockedFindBadgeIssuanceRuleById = vi.mocked(findBadgeIssuanceRuleById);
 const mockedFindBadgeIssuanceRuleEvaluationById = vi.mocked(findBadgeIssuanceRuleEvaluationById);
 const mockedFindBadgeIssuanceRuleVersionById = vi.mocked(findBadgeIssuanceRuleVersionById);
-const mockedFindActiveBadgeIssuanceRuleVersion = vi.mocked(findActiveBadgeIssuanceRuleVersion);
 const mockedFindBadgeIssuanceRuleBuilderDraft = vi.mocked(findBadgeIssuanceRuleBuilderDraft);
 const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
 const mockedListBadgeIssuanceRuleEvaluations = vi.mocked(listBadgeIssuanceRuleEvaluations);
@@ -176,7 +171,6 @@ const mockedListBadgeIssuanceRuleVersionApprovalEvents = vi.mocked(
   listBadgeIssuanceRuleVersionApprovalEvents,
 );
 const mockedListAuditLogs = vi.mocked(listAuditLogs);
-const mockedCreateBadgeIssuanceRuleEvaluation = vi.mocked(createBadgeIssuanceRuleEvaluation);
 const mockedSaveBadgeIssuanceRuleBuilderDraft = vi.mocked(saveBadgeIssuanceRuleBuilderDraft);
 const mockedDeleteBadgeIssuanceRuleBuilderDraft = vi.mocked(deleteBadgeIssuanceRuleBuilderDraft);
 const mockedResolveBadgeIssuanceRuleEvaluationReview = vi.mocked(
@@ -464,7 +458,6 @@ beforeEach(() => {
   mockedFindBadgeIssuanceRuleEvaluationById.mockReset();
   mockedFindBadgeIssuanceRuleById.mockReset();
   mockedFindBadgeIssuanceRuleVersionById.mockReset();
-  mockedFindActiveBadgeIssuanceRuleVersion.mockReset();
   mockedFindBadgeIssuanceRuleBuilderDraft.mockReset();
   mockedListBadgeIssuanceRules.mockReset();
   mockedListBadgeIssuanceRules.mockResolvedValue([]);
@@ -482,7 +475,6 @@ beforeEach(() => {
   mockedListBadgeIssuanceRuleVersionApprovalEvents.mockResolvedValue([]);
   mockedListAuditLogs.mockReset();
   mockedListAuditLogs.mockResolvedValue([]);
-  mockedCreateBadgeIssuanceRuleEvaluation.mockReset();
   mockedSaveBadgeIssuanceRuleBuilderDraft.mockReset();
   mockedDeleteBadgeIssuanceRuleBuilderDraft.mockReset();
   mockedDeleteBadgeIssuanceRuleBuilderDraft.mockResolvedValue(true);
@@ -1777,16 +1769,7 @@ describe("badge rule routes", () => {
     expect(body.summary.changedCount).toBe(0);
   });
 
-  it("evaluates active rules and issues badges when matched", async () => {
-    const env = createEnv();
-    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleRule());
-    mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(sampleVersion({ status: "active" }));
-    mockedIssueBadgeForTenant.mockResolvedValue({
-      status: "issued",
-      assertionId: "tenant_123:assertion_1",
-    });
-    mockedCreateBadgeIssuanceRuleEvaluation.mockResolvedValue(sampleEvaluationRecord());
-
+  it("does not expose a second saved-rule evaluation and issuance path", async () => {
     const response = await app.request(
       "/v1/tenants/tenant_123/badge-rules/brl_123/evaluate",
       {
@@ -1801,172 +1784,13 @@ describe("badge rule routes", () => {
           recipientIdentity: "learner@example.edu",
           recipientIdentityType: "email",
           dryRun: false,
-          facts: {
-            nowIso: "2026-02-17T00:00:00.000Z",
-            grades: [
-              {
-                courseId: "course_101",
-                learnerId: "learner_123",
-                finalScore: 95,
-              },
-            ],
-            earnedBadgeTemplateIds: [],
-          },
         }),
       },
-      env,
-    );
-    const body = await response.json<{
-      evaluation: {
-        matched: boolean;
-      };
-      issuance: {
-        status: string;
-      };
-    }>();
-
-    expect(response.status).toBe(200);
-    expect(body.evaluation.matched).toBe(true);
-    expect(body.issuance.status).toBe("issued");
-    expect(mockedIssueBadgeForTenant).toHaveBeenCalledTimes(1);
-    expect(mockedCreateBadgeIssuanceRuleEvaluation).toHaveBeenCalledTimes(1);
-  });
-
-  it("routes missing-data rule evaluations into the review queue", async () => {
-    const env = createEnv();
-    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleRule());
-    mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(
-      sampleVersion({
-        status: "active",
-        ruleJson: JSON.stringify({
-          conditions: {
-            all: [
-              {
-                type: "course_completion",
-                courseId: "course_101",
-                minCompletionPercent: 100,
-              },
-              {
-                type: "grade_threshold",
-                courseId: "course_101",
-                minScore: 80,
-              },
-            ],
-          },
-          options: {
-            reviewOnMissingFacts: true,
-          },
-        }),
-      }),
-    );
-    mockedCreateBadgeIssuanceRuleEvaluation.mockResolvedValue(
-      sampleEvaluationRecord({
-        matched: false,
-        issuanceStatus: "review_required",
-        reviewStatus: "pending",
-        evaluationJson: JSON.stringify({
-          facts: {
-            learnerId: "learner_123",
-            nowIso: "2026-02-17T00:00:00.000Z",
-            grades: [],
-            completions: [],
-            submissions: [],
-            earnedBadgeTemplateIds: [],
-          },
-          evaluation: {
-            matched: false,
-            tree: {
-              type: "all",
-              matched: false,
-              detail: "Missing facts",
-              children: [
-                {
-                  type: "grade_threshold",
-                  matched: false,
-                  resultKind: "missing_data",
-                  detail: "No grade facts were found for course_101",
-                },
-              ],
-            },
-          },
-          evaluationSummary: {
-            matchedLeafCount: 0,
-            failedConditionCount: 0,
-            missingDataCount: 1,
-          },
-        }),
-      }),
+      createEnv(),
     );
 
-    const response = await app.request(
-      "/v1/tenants/tenant_123/badge-rules/brl_123/evaluate",
-      {
-        method: "POST",
-        headers: {
-          Origin: "http://localhost",
-          Cookie: "better-auth.session_token=session-token",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          learnerId: "learner_123",
-          recipientIdentity: "learner@example.edu",
-          recipientIdentityType: "email",
-          dryRun: false,
-          facts: {
-            nowIso: "2026-02-17T00:00:00.000Z",
-          },
-        }),
-      },
-      env,
-    );
-    const body = await response.json<{
-      outcome: string;
-      issuance: null;
-      evaluationRecord: {
-        issuanceStatus: string;
-        reviewStatus: string | null;
-      };
-    }>();
-
-    expect(response.status).toBe(200);
-    expect(body.outcome).toBe("review_required");
-    expect(body.issuance).toBeNull();
-    expect(body.evaluationRecord.issuanceStatus).toBe("review_required");
-    expect(body.evaluationRecord.reviewStatus).toBe("pending");
+    expect(response.status).toBe(404);
     expect(mockedIssueBadgeForTenant).not.toHaveBeenCalled();
-  });
-
-  it("returns 422 when automated evaluation has no LMS connection", async () => {
-    const env = createEnv();
-    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleRule({ lmsConnectionId: null }));
-    mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(sampleVersion({ status: "active" }));
-
-    const response = await app.request(
-      "/v1/tenants/tenant_123/badge-rules/brl_123/evaluate",
-      {
-        method: "POST",
-        headers: {
-          Origin: "http://localhost",
-          Cookie: "better-auth.session_token=session-token",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          learnerId: "learner_123",
-          recipientIdentity: "learner@example.edu",
-          recipientIdentityType: "email",
-          dryRun: true,
-        }),
-      },
-      env,
-    );
-    const body = await response.json<{ error: string }>();
-
-    expect(response.status).toBe(422);
-    expect(body.error).toBe(
-      "Select an LMS connection before running automated gradebook evaluation.",
-    );
-    expect(mockedFindTenantLmsConnectionById).not.toHaveBeenCalled();
-    expect(mockedCreateBadgeIssuanceRuleEvaluation).not.toHaveBeenCalled();
   });
 
   it("lists the rule review queue with evaluation summaries", async () => {
@@ -2086,55 +1910,5 @@ describe("badge rule routes", () => {
     expect(body.review.reviewDecision).toBe("issue");
     expect(body.issuance.status).toBe("issued");
     expect(mockedResolveBadgeIssuanceRuleEvaluationReview).toHaveBeenCalledTimes(1);
-  });
-
-  it("returns lifecycle issuance policy errors from matched rule evaluation", async () => {
-    const env = createEnv();
-    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleRule());
-    mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(sampleVersion({ status: "active" }));
-    mockedIssueBadgeForTenant.mockRejectedValue(
-      Object.assign(new Error("Issuance blocked by lifecycle policy"), {
-        statusCode: 409,
-        payload: {
-          error:
-            "Issuance blocked by lifecycle policy: assertion tenant_123:assertion_1 is revoked.",
-        },
-      }),
-    );
-
-    const response = await app.request(
-      "/v1/tenants/tenant_123/badge-rules/brl_123/evaluate",
-      {
-        method: "POST",
-        headers: {
-          Origin: "http://localhost",
-          Cookie: "better-auth.session_token=session-token",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          learnerId: "learner_123",
-          recipientIdentity: "learner@example.edu",
-          recipientIdentityType: "email",
-          dryRun: false,
-          facts: {
-            nowIso: "2026-02-17T00:00:00.000Z",
-            grades: [
-              {
-                courseId: "course_101",
-                learnerId: "learner_123",
-                finalScore: 95,
-              },
-            ],
-            earnedBadgeTemplateIds: [],
-          },
-        }),
-      },
-      env,
-    );
-    const body = await response.json<{ error: string }>();
-
-    expect(response.status).toBe(409);
-    expect(body.error).toContain("Issuance blocked by lifecycle policy");
-    expect(mockedCreateBadgeIssuanceRuleEvaluation).not.toHaveBeenCalled();
   });
 });

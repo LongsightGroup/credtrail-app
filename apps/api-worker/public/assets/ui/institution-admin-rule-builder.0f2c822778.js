@@ -723,7 +723,7 @@ const ruleBuilderStepOrder = ruleBuilderStepPanels
 const ruleBuilderStepLabels = {
   metadata: "Awarding pattern",
   conditions: "Requirements",
-  test: "Test and submit",
+  test: "Test and save draft",
 };
 const ruleBuilderStepCallouts = {
   metadata: "Choose an awarding pattern, badge, and LMS connection, then select Continue.",

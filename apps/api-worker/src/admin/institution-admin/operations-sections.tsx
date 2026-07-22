@@ -3,7 +3,6 @@ import {
   AdminActions,
   AdminButton,
   AdminButtonLink,
-  AdminCheckboxRow,
   AdminEmptyTableRow,
   AdminField,
   AdminForm,
@@ -47,7 +46,6 @@ interface RenderInstitutionAdminOperationsSectionsInput {
 
 interface InstitutionAdminOperationsSections {
   ruleValueListsPanelMarkup: HonoElement;
-  evaluateRulePanelMarkup: HonoElement;
   badgeStatusPanelMarkup: HonoElement;
   ruleGovernancePanelMarkup: HonoElement;
   ruleReviewQueuePanelMarkup: HonoElement;
@@ -293,58 +291,6 @@ export const renderInstitutionAdminOperationsSections = (
       </AdminTable>
     </AdminPanel>
   );
-  const evaluateRulePanelMarkup = (
-    <AdminPanel>
-      <h2>Test a Rule</h2>
-      <p>Check what a rule would do before issuing a real badge.</p>
-      <AdminForm id="rule-evaluate-form">
-        <AdminField label="Rule">
-          <CtSelect name="ruleId" required>
-            {input.ruleSelectOptions}
-          </CtSelect>
-        </AdminField>
-        <AdminField label="Learner ID">
-          <CtInput name="learnerId" type="text" required placeholder="canvas:12345" />
-        </AdminField>
-        <AdminField label="Recipient email">
-          <CtInput
-            name="recipientIdentity"
-            type="email"
-            required
-            placeholder="learner@example.edu"
-          />
-        </AdminField>
-        <AdminField label="Course ID for provided facts">
-          <CtInput name="courseId" type="text" required placeholder="CS101" />
-        </AdminField>
-        <AdminField label="Final score for provided facts">
-          <CtInput
-            name="finalScore"
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
-            required
-            value="92"
-          />
-        </AdminField>
-        <AdminField label="Gradebook items completed %">
-          <CtInput
-            name="completionPercent"
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
-            required
-            value="100"
-          />
-        </AdminField>
-        <AdminCheckboxRow name="dryRun" label="Dry run (don't issue badge)" checked />
-        <AdminButton type="submit">Evaluate rule</AdminButton>
-      </AdminForm>
-      <AdminStatus id="rule-evaluate-status"></AdminStatus>
-    </AdminPanel>
-  );
   const badgeStatusPanelMarkup = (
     <AdminPanel id="lifecycle-panel">
       <h2>Badge Status</h2>
@@ -454,7 +400,6 @@ export const renderInstitutionAdminOperationsSections = (
 
   return {
     ruleValueListsPanelMarkup,
-    evaluateRulePanelMarkup,
     badgeStatusPanelMarkup,
     ruleGovernancePanelMarkup,
     ruleReviewQueuePanelMarkup,

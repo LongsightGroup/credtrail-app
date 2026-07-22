@@ -10,7 +10,6 @@ import {
   parseCreateBadgeIssuanceRuleValueListRequest,
   parseCreateBadgeIssuanceRuleVersionRequest,
   parseDecideBadgeIssuanceRuleVersionRequest,
-  parseEvaluateBadgeIssuanceRuleRequest,
   parsePreviewEvaluateBadgeIssuanceRuleRequest,
   parsePreviewSimulateBadgeIssuanceRuleRequest,
   parseResolveBadgeIssuanceRuleReviewRequest,
@@ -18,7 +17,7 @@ import {
 } from "./badge-rules.js";
 
 describe("badge issuance rule parsers", () => {
-  it("accepts valid create/version/evaluate payloads", () => {
+  it("accepts valid create, version, and preview payloads", () => {
     const createRequest = parseCreateBadgeIssuanceRuleRequest({
       name: "CS101 Excellence Rule",
       description: "Award badge for high performers",
@@ -90,37 +89,6 @@ describe("badge issuance rule parsers", () => {
       decision: "approved",
       comment: "Meets institutional governance requirements",
     });
-    const evaluateRequest = parseEvaluateBadgeIssuanceRuleRequest({
-      learnerId: "learner_123",
-      recipientIdentity: "learner@example.edu",
-      recipientIdentityType: "email",
-      dryRun: true,
-      facts: {
-        nowIso: "2026-02-17T00:00:00.000Z",
-        grades: [
-          {
-            courseId: "course_101",
-            learnerId: "learner_123",
-            finalScore: 92,
-          },
-        ],
-        surveyCompletions: [
-          {
-            surveyId: "exit_survey",
-            learnerId: "learner_123",
-            source: "qualtrics",
-            completed: true,
-          },
-        ],
-        customFields: [
-          {
-            learnerId: "learner_123",
-            fieldName: "programStanding",
-            value: "eligible",
-          },
-        ],
-      },
-    });
     const previewEvaluateRequest = parsePreviewEvaluateBadgeIssuanceRuleRequest({
       definition: {
         conditions: {
@@ -165,7 +133,6 @@ describe("badge issuance rule parsers", () => {
     expect(versionRequest.changeSummary).toContain("spring");
     expect(decisionRequest.decision).toBe("approved");
     expect(decisionRequest.comment).toContain("governance");
-    expect(evaluateRequest.dryRun).toBe(true);
     expect(previewEvaluateRequest.definition.conditions).toHaveProperty("all");
     expect(JSON.stringify(createRequest.definition.conditions)).toContain(
       '"minCompletionPercent":100',

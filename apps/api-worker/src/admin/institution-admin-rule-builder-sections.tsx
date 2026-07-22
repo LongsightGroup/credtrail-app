@@ -514,7 +514,7 @@ export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): Ho
         <RuleBuilderStepButton
           stepNumber={3}
           target="test"
-          title="Test and submit"
+          title="Test and save draft"
           description={
             props.isEditMode
               ? "Try the rule, then save a new draft version."
@@ -525,7 +525,7 @@ export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): Ho
       <div class="ct-admin__stepper-content">
         <section id="builder-step-test" class="ct-admin__builder-step" data-rule-step="test" hidden>
           <header class="ct-admin__step-head ct-stack">
-            <h3 tabindex={-1}>Test and submit</h3>
+            <h3 tabindex={-1}>Test and save draft</h3>
             <p>
               {props.isEditMode
                 ? "Check the rule, then save a new draft version for review."
