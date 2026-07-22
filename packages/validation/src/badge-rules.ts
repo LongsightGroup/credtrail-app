@@ -427,15 +427,22 @@ export const evaluateBadgeIssuanceRuleRequestSchema = z.object({
   facts: badgeIssuanceRuleFactsSchema.optional(),
 });
 
-export const previewEvaluateBadgeIssuanceRuleRequestSchema = z.object({
-  definition: badgeIssuanceRuleDefinitionSchema,
-  lmsConnectionId: resourceIdSchema,
-  lmsProviderKind: badgeIssuanceRuleLmsProviderKindSchema.default("canvas"),
-  learnerId: z.string().trim().min(1).max(255),
-  recipientIdentity: z.string().trim().min(1).max(512),
-  recipientIdentityType: recipientIdentityTypeSchema,
-  facts: badgeIssuanceRuleFactsSchema.optional(),
-});
+export const previewEvaluateBadgeIssuanceRuleRequestSchema = z
+  .object({
+    definition: badgeIssuanceRuleDefinitionSchema,
+    lmsConnectionId: resourceIdSchema,
+    lmsProviderKind: badgeIssuanceRuleLmsProviderKindSchema.default("canvas"),
+    learnerId: z.string().trim().min(1).max(255),
+    recipient: z
+      .object({
+        identity: z.string().trim().min(1).max(512),
+        identityType: recipientIdentityTypeSchema,
+      })
+      .strict()
+      .optional(),
+    facts: badgeIssuanceRuleFactsSchema.optional(),
+  })
+  .strict();
 
 export const createBadgeIssuanceRuleValueListRequestSchema = z
   .object({

@@ -2368,7 +2368,11 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('value="example"');
     expect(body).toContain("A learner in the selected LMS");
     expect(body).toContain("Generated example data");
-    expect(body).toContain("For Sakai, use the learner&#39;s login ID from the course roster.");
+    expect(body).toContain("Results come directly from the selected LMS.");
+    expect(body).toContain('id="rule-builder-learner-query"');
+    expect(body).toContain('id="rule-builder-learner-select"');
+    expect(body).toContain("This test does not issue a badge.");
+    expect(body).not.toContain("Credential recipient email");
     expect(body).not.toContain("course pathway completion in Sakai");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "A course is complete when all of its gradebook items are complete.",
@@ -2385,6 +2389,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "const testDataSource = getRuleBuilderTestDataSource()",
     );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("searchRuleBuilderLearners");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("current LMS rosters");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("lmsProviderKind,");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("if (testDataSource === 'lms')");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(

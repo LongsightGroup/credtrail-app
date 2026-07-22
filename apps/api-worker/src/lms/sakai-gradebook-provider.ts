@@ -6,6 +6,7 @@ import type {
   GradebookCourseRecord,
   GradebookEnrollmentRecord,
   GradebookGradeRecord,
+  GradebookLearnerRecord,
   GradebookProvider,
   GradebookSubmissionRecord,
   SakaiGradebookProviderConfig,
@@ -64,6 +65,12 @@ interface SakaiGradebookMatrixStudent {
   learnerId: string;
   courseGrade: SakaiGradebookMatrixStudentCourseGrade | null;
   gradesByAssignmentId: Readonly<Record<string, SakaiGradebookMatrixStudentGrade>>;
+}
+
+interface SakaiMembershipLearner {
+  learnerId: string;
+  displayName: string;
+  email: string | null;
 }
 
 const asIdentifier = (value: unknown): string | null => {
@@ -436,8 +443,8 @@ const parseMatrixStudent = (candidate: unknown): SakaiGradebookMatrixStudent | n
   }
 
   const learnerId =
-    asIdentifier(student.userId) ??
     asIdentifier(student.userEid) ??
+    asIdentifier(student.userId) ??
     asIdentifier(student.userDisplayId);
 
   if (learnerId === null) {
@@ -462,6 +469,33 @@ const parseMatrixStudent = (candidate: unknown): SakaiGradebookMatrixStudent | n
     learnerId,
     courseGrade: parseMatrixStudentCourseGrade(student.courseGrade),
     gradesByAssignmentId,
+  };
+};
+
+const parseSakaiMembershipLearner = (candidate: unknown): SakaiMembershipLearner | null => {
+  const membership = asJsonObject(candidate);
+
+  if (membership === null) {
+    return null;
+  }
+
+  const learnerId = asIdentifier(membership.userEid);
+  const displayName = asNonEmptyString(membership.userDisplayName);
+
+  if (learnerId === null || displayName === null) {
+    return null;
+  }
+
+  const emailCandidate = asNonEmptyString(membership.userEmail);
+  const email =
+    emailCandidate !== null && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailCandidate)
+      ? emailCandidate
+      : null;
+
+  return {
+    learnerId,
+    displayName,
+    email,
   };
 };
 
@@ -613,6 +647,40 @@ export const createSakaiGradebookProvider = (
           startedAt: null,
           lastActivityAt: null,
         }));
+    },
+    listLearners: async (input): Promise<readonly GradebookLearnerRecord[]> => {
+      const [matrix, membershipPayload] = await Promise.all([
+        fetchMatrix(input.courseId),
+        requestJson(`/direct/membership/site/${encodeURIComponent(input.courseId)}.json`),
+      ]);
+      const membershipObject = asJsonObject(membershipPayload);
+      const membershipCandidates = asJsonArray(membershipObject?.membership_collection) ?? [];
+      const learnersById = new Map(
+        membershipCandidates
+          .map((candidate) => parseSakaiMembershipLearner(candidate))
+          .filter((learner): learner is SakaiMembershipLearner => learner !== null)
+          .map((learner) => [learner.learnerId, learner]),
+      );
+      const searchTerm = input.searchTerm?.trim().toLocaleLowerCase() ?? "";
+
+      return matrix.students
+        .map((student) => learnersById.get(student.learnerId))
+        .filter((learner): learner is SakaiMembershipLearner => learner !== undefined)
+        .map((learner) => ({
+          courseId: matrix.siteId,
+          learnerId: learner.learnerId,
+          displayName: learner.displayName,
+          email: learner.email,
+        }))
+        .filter((learner) => {
+          if (searchTerm.length === 0) {
+            return true;
+          }
+
+          return [learner.displayName, learner.email ?? "", learner.learnerId].some((value) =>
+            value.toLocaleLowerCase().includes(searchTerm),
+          );
+        });
     },
     listSubmissions: async (input): Promise<readonly GradebookSubmissionRecord[]> => {
       const matrix = await fetchMatrix(input.courseId);

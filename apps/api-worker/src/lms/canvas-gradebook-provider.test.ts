@@ -537,4 +537,44 @@ describe("createCanvasGradebookProvider", () => {
       }),
     ).toBe(false);
   });
+
+  it("searches course learners with display names and recipient emails", async () => {
+    const mockFetch = createRecordingMockFetch([
+      {
+        pathWithQuery:
+          "/api/v1/courses/course-42/users?per_page=100&enrollment_type%5B%5D=student&enrollment_state%5B%5D=active",
+        responseBody: [
+          {
+            id: 11,
+            name: "Ada Lovelace",
+            email: "ada@example.edu",
+          },
+          {
+            id: 12,
+            name: "Grace Hopper",
+            email: "grace@example.edu",
+          },
+        ],
+      },
+    ]);
+    const provider = createCanvasGradebookProvider({
+      config: {
+        kind: "canvas",
+        apiBaseUrl: "https://canvas.example.edu",
+        accessToken: "canvas-token",
+      },
+      fetchImpl: mockFetch.fetchImpl,
+    });
+
+    await expect(
+      provider.listLearners({ courseId: "course-42", searchTerm: "ada" }),
+    ).resolves.toEqual([
+      {
+        courseId: "course-42",
+        learnerId: "11",
+        displayName: "Ada Lovelace",
+        email: "ada@example.edu",
+      },
+    ]);
+  });
 });

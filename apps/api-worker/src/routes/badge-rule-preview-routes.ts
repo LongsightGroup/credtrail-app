@@ -10,7 +10,7 @@ import type { AppEnv } from "../app";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { isClientGradebookProviderResolutionError } from "../lms/gradebook-provider-resolution";
 import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
-import { loadRuleFacts } from "../rules/badge-rule-facts-loader";
+import { loadRuleFacts, MissingRuleRecipientIdentityError } from "../rules/badge-rule-facts-loader";
 import {
   evaluateBadgeIssuanceRuleDefinition,
   summarizeBadgeIssuanceRuleEvaluation,
@@ -82,8 +82,7 @@ export const registerBadgeRulePreviewRoutes = (
         lmsProviderKind: request.lmsProviderKind,
         lmsConnectionId: request.lmsConnectionId,
         learnerId: request.learnerId,
-        recipientIdentity: request.recipientIdentity,
-        recipientIdentityType: request.recipientIdentityType,
+        ...(request.recipient === undefined ? {} : { recipient: request.recipient }),
         definition,
         requestedFacts: request.facts,
         nowIso,
@@ -93,7 +92,10 @@ export const registerBadgeRulePreviewRoutes = (
         {
           error: error instanceof Error ? error.message : "Failed to load rule facts",
         },
-        isClientGradebookProviderResolutionError(error) ? 422 : 502,
+        isClientGradebookProviderResolutionError(error) ||
+          error instanceof MissingRuleRecipientIdentityError
+          ? 422
+          : 502,
       );
     }
 

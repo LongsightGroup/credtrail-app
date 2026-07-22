@@ -40,6 +40,7 @@ interface RegisterTenantLmsConnectionRoutesInput {
 
 /** Admin LMS pickers load results into HTML selects; keep HTTP payloads bounded. */
 const LMS_PICKER_MAX_COURSES = 100;
+const LMS_PICKER_MAX_LEARNERS = 100;
 
 const resolvedProviderForTenantConnection = async (input: {
   db: SqlDatabase;
@@ -222,6 +223,57 @@ export const registerTenantLmsConnectionRoutes = (
       );
     }
   });
+
+  app.get(
+    "/v1/tenants/:tenantId/lms/connections/:connectionId/courses/:courseId/learners",
+    async (c) => {
+      const pathParams = parseTenantLmsConnectionCoursePathParams(c.req.param());
+      const query = parseTenantLmsConnectionCourseSearchQuery(c.req.query());
+      const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+
+      if (roleCheck instanceof Response) {
+        return roleCheck;
+      }
+
+      const resolved = await resolvedProviderForTenantConnection({
+        db: resolveDatabase(c.env),
+        tenantId: pathParams.tenantId,
+        connectionId: pathParams.connectionId,
+      });
+
+      if (resolved instanceof Response) {
+        return resolved;
+      }
+
+      try {
+        const learners = (
+          await resolved.provider.listLearners({
+            courseId: pathParams.courseId,
+            ...(query.q === undefined ? {} : { searchTerm: query.q }),
+          })
+        ).slice(0, LMS_PICKER_MAX_LEARNERS);
+
+        c.header("Cache-Control", "no-store");
+        return c.json({
+          tenantId: pathParams.tenantId,
+          connectionId: pathParams.connectionId,
+          courseId: pathParams.courseId,
+          learners,
+        });
+      } catch (error) {
+        return c.json(
+          {
+            error: lmsLookupErrorMessage(
+              resolved.connection,
+              error,
+              "Unable to search LMS learners",
+            ),
+          },
+          502,
+        );
+      }
+    },
+  );
 
   app.get(
     "/v1/tenants/:tenantId/lms/connections/:connectionId/courses/:courseId/gradebook-items",

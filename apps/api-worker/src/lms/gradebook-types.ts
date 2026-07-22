@@ -35,6 +35,13 @@ export interface GradebookEnrollmentRecord {
   lastActivityAt: string | null;
 }
 
+export interface GradebookLearnerRecord {
+  courseId: string;
+  learnerId: string;
+  displayName: string;
+  email: string | null;
+}
+
 export interface GradebookSubmissionRecord {
   courseId: string;
   assignmentId: string;
@@ -73,6 +80,10 @@ export interface GradebookProvider {
     courseId: string;
     learnerId?: string;
   }): Promise<readonly GradebookEnrollmentRecord[]>;
+  listLearners(input: {
+    courseId: string;
+    searchTerm?: string;
+  }): Promise<readonly GradebookLearnerRecord[]>;
   listSubmissions(input: {
     courseId: string;
     assignmentId?: string;

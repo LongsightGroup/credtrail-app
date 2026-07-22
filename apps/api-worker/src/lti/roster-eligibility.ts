@@ -347,8 +347,10 @@ const evaluateLtiRosterMemberEligibilityWithPreparedContext = async (input: {
       lmsProviderKind: input.prepared.lmsProviderKind,
       lmsConnectionId: input.prepared.lmsConnectionId ?? undefined,
       learnerId: input.member.userId,
-      recipientIdentity: input.member.email,
-      recipientIdentityType: "email",
+      recipient: {
+        identity: input.member.email,
+        identityType: "email",
+      },
       definition: input.prepared.definition,
       nowIso: input.nowIso,
     });

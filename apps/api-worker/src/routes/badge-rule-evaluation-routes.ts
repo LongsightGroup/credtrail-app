@@ -149,8 +149,10 @@ export const registerBadgeRuleEvaluationRoutes = (
         lmsProviderKind: rule.lmsProviderKind,
         lmsConnectionId: rule.lmsConnectionId ?? undefined,
         learnerId: request.learnerId,
-        recipientIdentity: request.recipientIdentity,
-        recipientIdentityType: request.recipientIdentityType,
+        recipient: {
+          identity: request.recipientIdentity,
+          identityType: request.recipientIdentityType,
+        },
         definition,
         requestedFacts: request.facts,
         nowIso,

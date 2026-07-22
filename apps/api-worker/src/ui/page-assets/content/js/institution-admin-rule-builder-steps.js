@@ -346,13 +346,14 @@ const setBuilderStepState = (requestedIndex) => {
 
   if (activeStep === "test") {
     syncRuleBuilderTestDataSource();
+    syncRuleBuilderTestRecipientFields();
 
     if (getRuleBuilderTestDataSource() === "example") {
       void runRuleBuilderTest({ auto: true });
     } else if (ruleBuilderTestResult instanceof HTMLElement) {
       setStatus(
         ruleBuilderTestResult,
-        "Enter an existing LMS learner ID and recipient email, then run the test.",
+        "Search for and select an LMS learner, then run the test.",
         false,
       );
     }

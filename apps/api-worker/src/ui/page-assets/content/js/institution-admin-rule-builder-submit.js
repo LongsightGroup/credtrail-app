@@ -3,7 +3,9 @@
       const autoRun = options && options.auto === true;
       const runningMessage = autoRun
         ? 'Running automatic test with sample learner...'
-        : 'Evaluating rule in test mode...';
+        : getRuleBuilderTestDataSource() === 'lms'
+          ? 'Checking current LMS data...'
+          : 'Evaluating generated example data...';
 
       setStatus(ruleCreateStatus, runningMessage, false);
       setCodeOutput(ruleBuilderTestOutput, '');
@@ -37,20 +39,46 @@
       const testDataSource = getRuleBuilderTestDataSource();
       const learnerId =
         testDataSource === 'example' ? 'example-learner' : getTextFieldValue('testLearnerId');
-      const recipientIdentity =
-        testDataSource === 'example'
-          ? 'learner@example.edu'
-          : getTextFieldValue('testRecipientIdentity').toLowerCase();
+      const recipientIdentity = getTextFieldValue('testRecipientIdentity').toLowerCase();
+      const requiresRecipientIdentity =
+        testDataSource === 'lms' && ruleBuilderTestRequiresRecipientIdentity();
       const sampleFinalScoreText = getTextFieldValue('testFinalScore');
       const testFactsJson = getTextFieldValue('testFactsJson');
 
-      if (learnerId.length === 0 || recipientIdentity.length === 0) {
-        const message = 'Enter an existing LMS learner ID and recipient email.';
+      if (learnerId.length === 0) {
+        const message = 'Search for and select an LMS learner.';
         setStatus(ruleCreateStatus, message, true);
         if (ruleBuilderTestResult instanceof HTMLElement) {
           setStatus(ruleBuilderTestResult, message, true);
         }
         ruleBuilderLastTestSummary = 'Missing test identifiers';
+        syncRuleBuilderSummary(message);
+        return;
+      }
+
+      if (testDataSource === 'lms' && ruleBuilderLearnerSelect instanceof HTMLSelectElement) {
+        const selectedCourseIds = ruleBuilderLearnerSelect.dataset.courseIds ?? '';
+        const currentCourseIds = ruleBuilderLearnerCourseIds().join(',');
+
+        if (selectedCourseIds !== currentCourseIds) {
+          const message = 'The rule courses changed. Search for and select the LMS learner again.';
+          setStatus(ruleCreateStatus, message, true);
+          if (ruleBuilderTestResult instanceof HTMLElement) {
+            setStatus(ruleBuilderTestResult, message, true);
+          }
+          ruleBuilderLastTestSummary = 'Learner selection outdated';
+          syncRuleBuilderSummary(message);
+          return;
+        }
+      }
+
+      if (requiresRecipientIdentity && recipientIdentity.length === 0) {
+        const message = 'Enter the learner credential email required by the prerequisite badge check.';
+        setStatus(ruleCreateStatus, message, true);
+        if (ruleBuilderTestResult instanceof HTMLElement) {
+          setStatus(ruleBuilderTestResult, message, true);
+        }
+        ruleBuilderLastTestSummary = 'Missing credential email';
         syncRuleBuilderSummary(message);
         return;
       }
@@ -111,8 +139,14 @@
             lmsConnectionId,
             lmsProviderKind,
             learnerId,
-            recipientIdentity,
-            recipientIdentityType: 'email',
+            ...(requiresRecipientIdentity
+              ? {
+                  recipient: {
+                    identity: recipientIdentity,
+                    identityType: 'email',
+                  },
+                }
+              : {}),
             ...(facts === undefined ? {} : { facts }),
           }),
         });
@@ -391,6 +425,11 @@
     if (ruleBuilderLmsConnectionSelect instanceof HTMLSelectElement) {
       ruleBuilderLmsConnectionSelect.addEventListener('change', () => {
         setLmsLookupStatus('', false);
+        clearRuleBuilderLearnerSelection('Search for a learner first');
+        setRuleBuilderLearnerSearchStatus(
+          'Learner search uses the courses configured in this rule.',
+          false,
+        );
         syncSelectedLmsProviderKind();
         refreshConditionCardValueListOptions();
         syncRuleBuilderSummary();

@@ -11,6 +11,7 @@ import type {
   GradebookCourseRecord,
   GradebookEnrollmentRecord,
   GradebookGradeRecord,
+  GradebookLearnerRecord,
   GradebookProvider,
   GradebookSubmissionRecord,
 } from "./gradebook-types";
@@ -155,6 +156,31 @@ const parseEnrollmentRecord = (
     role: asString(enrollment.type),
     startedAt: asIsoTimestamp(enrollment.created_at),
     lastActivityAt: asIsoTimestamp(enrollment.last_activity_at),
+  };
+};
+
+const parseLearnerRecord = (
+  courseId: string,
+  candidate: unknown,
+): GradebookLearnerRecord | null => {
+  const user = asJsonObject(candidate);
+
+  if (user === null) {
+    return null;
+  }
+
+  const learnerId = asIdentifier(user.id);
+  const displayName = asNonEmptyString(user.name);
+
+  if (learnerId === null || displayName === null) {
+    return null;
+  }
+
+  return {
+    courseId,
+    learnerId,
+    displayName,
+    email: asNonEmptyString(user.email),
   };
 };
 
@@ -437,6 +463,32 @@ export const createCanvasGradebookProvider = (
         .map((enrollment) => parseEnrollmentRecord(input.courseId, enrollment))
         .filter((enrollment): enrollment is GradebookEnrollmentRecord => enrollment !== null);
       return normalizedEnrollments;
+    },
+    listLearners: async (input): Promise<readonly GradebookLearnerRecord[]> => {
+      const query = new URLSearchParams();
+      query.set("per_page", "100");
+      query.append("enrollment_type[]", "student");
+      query.append("enrollment_state[]", "active");
+      const users = await requestArray(
+        `/api/v1/courses/${encodeURIComponent(input.courseId)}/users`,
+        query,
+        CANVAS_PICKER_MAX_PAGES,
+        "truncate",
+      );
+      const searchTerm = input.searchTerm?.trim().toLocaleLowerCase() ?? "";
+
+      return users
+        .map((user) => parseLearnerRecord(input.courseId, user))
+        .filter((learner): learner is GradebookLearnerRecord => learner !== null)
+        .filter((learner) => {
+          if (searchTerm.length === 0) {
+            return true;
+          }
+
+          return [learner.displayName, learner.email ?? "", learner.learnerId].some((value) =>
+            value.toLocaleLowerCase().includes(searchTerm),
+          );
+        });
     },
     listSubmissions: async (input): Promise<readonly GradebookSubmissionRecord[]> => {
       return listSubmissionsForCourse(input);

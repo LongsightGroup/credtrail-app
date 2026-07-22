@@ -18,28 +18,58 @@ import {
 } from "./engine";
 import { resolveGradebookProvider } from "../lms/gradebook-provider-resolution";
 
+export class MissingRuleRecipientIdentityError extends Error {
+  public constructor() {
+    super("Credential email is required to test a prerequisite badge requirement");
+    this.name = "MissingRuleRecipientIdentityError";
+  }
+}
+
 export const loadRuleFacts = async (input: {
   db: SqlDatabase;
   tenantId: string;
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
   lmsConnectionId?: string | undefined;
   learnerId: string;
-  recipientIdentity: string;
-  recipientIdentityType: "email" | "email_sha256" | "did" | "url";
+  recipient?:
+    | {
+        identity: string;
+        identityType: "email" | "email_sha256" | "did" | "url";
+      }
+    | undefined;
   definition: ReturnType<typeof parseBadgeIssuanceRuleDefinition>;
   requestedFacts?: ReturnType<typeof parseEvaluateBadgeIssuanceRuleRequest>["facts"];
   nowIso: string;
 }): Promise<BadgeIssuanceRuleEvaluationFacts> => {
   const requestedFacts = input.requestedFacts;
+  const requirements = extractBadgeIssuanceRuleRequirements(input.definition);
+
+  const loadEarnedBadgeTemplateIds = async (
+    requested: readonly string[] | undefined,
+  ): Promise<readonly string[]> => {
+    if (requested !== undefined) {
+      return requested;
+    }
+
+    if (requirements.prerequisiteBadgeTemplateIds.length === 0) {
+      return [];
+    }
+
+    if (input.recipient === undefined) {
+      throw new MissingRuleRecipientIdentityError();
+    }
+
+    return listIssuedBadgeTemplateIdsForRecipient(input.db, {
+      tenantId: input.tenantId,
+      recipientIdentity: input.recipient.identity,
+      recipientIdentityType: input.recipient.identityType,
+    });
+  };
 
   if (requestedFacts !== undefined) {
-    const earnedBadgeTemplateIds =
-      requestedFacts.earnedBadgeTemplateIds ??
-      (await listIssuedBadgeTemplateIdsForRecipient(input.db, {
-        tenantId: input.tenantId,
-        recipientIdentity: input.recipientIdentity,
-        recipientIdentityType: input.recipientIdentityType,
-      }));
+    const earnedBadgeTemplateIds = await loadEarnedBadgeTemplateIds(
+      requestedFacts.earnedBadgeTemplateIds,
+    );
 
     return {
       learnerId: input.learnerId,
@@ -80,13 +110,13 @@ export const loadRuleFacts = async (input: {
     };
   }
 
-  const requirements = extractBadgeIssuanceRuleRequirements(input.definition);
-
   if (input.lmsProviderKind !== "canvas" && input.lmsProviderKind !== "sakai") {
     throw new Error(
       `Automated rule evaluation is not implemented for LMS provider "${input.lmsProviderKind}"`,
     );
   }
+
+  const earnedBadgeTemplateIds = await loadEarnedBadgeTemplateIds(undefined);
 
   const provider = await resolveGradebookProvider({
     db: input.db,
@@ -149,12 +179,6 @@ export const loadRuleFacts = async (input: {
       })),
     );
   }
-
-  const earnedBadgeTemplateIds = await listIssuedBadgeTemplateIdsForRecipient(input.db, {
-    tenantId: input.tenantId,
-    recipientIdentity: input.recipientIdentity,
-    recipientIdentityType: input.recipientIdentityType,
-  });
 
   return {
     learnerId: input.learnerId,

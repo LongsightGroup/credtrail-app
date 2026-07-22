@@ -476,12 +476,13 @@
     ruleBuilderTestDataSourceInputs.forEach((candidate) => {
       candidate.addEventListener('change', () => {
         syncRuleBuilderTestDataSource();
+        syncRuleBuilderTestRecipientFields();
         invalidateRuleBuilderTest();
         setStatus(
           ruleBuilderTestResult,
           getRuleBuilderTestDataSource() === 'example'
             ? 'Run the test to check the rule with generated example data.'
-            : 'Enter an existing LMS learner ID and recipient email, then run the test.',
+            : 'Search for and select an LMS learner, then run the test.',
           false,
         );
       });

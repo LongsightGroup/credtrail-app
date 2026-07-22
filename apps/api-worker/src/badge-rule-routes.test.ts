@@ -514,6 +514,15 @@ beforeEach(() => {
         },
       ]),
     listEnrollments: () => Promise.resolve([]),
+    listLearners: () =>
+      Promise.resolve([
+        {
+          courseId: "course_101",
+          learnerId: "learner_123",
+          displayName: "Learner One",
+          email: "learner@example.edu",
+        },
+      ]),
     listSubmissions: () => Promise.resolve([]),
     listGrades: () =>
       Promise.resolve([
@@ -839,7 +848,7 @@ describe("badge rule routes", () => {
     expect(body.connection).not.toHaveProperty("accessToken");
   });
 
-  it("looks up LMS courses, gradebook items, and workflow states", async () => {
+  it("looks up LMS courses, learners, gradebook items, and workflow states", async () => {
     const env = createEnv();
 
     const coursesResponse = await app.request(
@@ -857,6 +866,30 @@ describe("badge rule routes", () => {
 
     expect(coursesResponse.status).toBe(200);
     expect(coursesBody.courses[0]?.courseId).toBe("course_101");
+
+    const learnersResponse = await app.request(
+      "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/learners?q=learner",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const learnersBody = await learnersResponse.json<{
+      learners: Array<{ learnerId: string; displayName: string; email: string | null }>;
+    }>();
+
+    expect(learnersResponse.status).toBe(200);
+    expect(learnersResponse.headers.get("Cache-Control")).toBe("no-store");
+    expect(learnersBody.learners).toEqual([
+      {
+        courseId: "course_101",
+        learnerId: "learner_123",
+        displayName: "Learner One",
+        email: "learner@example.edu",
+      },
+    ]);
 
     const itemsResponse = await app.request(
       "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/gradebook-items?q=final",
@@ -916,6 +949,7 @@ describe("badge rule routes", () => {
         ),
       listAssignments: () => Promise.resolve([]),
       listEnrollments: () => Promise.resolve([]),
+      listLearners: () => Promise.resolve([]),
       listSubmissions: () => Promise.resolve([]),
       listGrades: () => Promise.resolve([]),
       listCompletions: () => Promise.resolve([]),
@@ -1302,8 +1336,6 @@ describe("badge rule routes", () => {
           },
           lmsConnectionId: "lms_123",
           learnerId: "learner_123",
-          recipientIdentity: "learner@example.edu",
-          recipientIdentityType: "email",
           facts: {
             nowIso: "2026-02-17T00:00:00.000Z",
             completions: [
@@ -1375,8 +1407,6 @@ describe("badge rule routes", () => {
           },
           lmsConnectionId: "lms_123",
           learnerId: "learner_123",
-          recipientIdentity: "learner@example.edu",
-          recipientIdentityType: "email",
           facts: {
             nowIso: "2026-02-17T00:00:00.000Z",
             surveyCompletions: [
@@ -1450,8 +1480,6 @@ describe("badge rule routes", () => {
           },
           lmsConnectionId: "lms_123",
           learnerId: "learner_123",
-          recipientIdentity: "learner@example.edu",
-          recipientIdentityType: "email",
           facts: {
             nowIso: "2026-02-17T00:00:00.000Z",
             completions: [
@@ -1562,8 +1590,6 @@ describe("badge rule routes", () => {
           lmsProviderKind: "sakai",
           lmsConnectionId: "lms_sakai",
           learnerId: "learner_123",
-          recipientIdentity: "learner@example.edu",
-          recipientIdentityType: "email",
         }),
       },
       env,
@@ -1618,8 +1644,6 @@ describe("badge rule routes", () => {
           lmsProviderKind: "canvas",
           lmsConnectionId: "missing_lms",
           learnerId: "learner_123",
-          recipientIdentity: "learner@example.edu",
-          recipientIdentityType: "email",
         }),
       },
       env,
@@ -1628,6 +1652,41 @@ describe("badge rule routes", () => {
 
     expect(response.status).toBe(422);
     expect(body.error).toBe("Selected LMS connection was not found");
+    expect(mockedCreateGradebookProvider).not.toHaveBeenCalled();
+  });
+
+  it("returns 422 when a prerequisite badge preview has no credential email", async () => {
+    const env = createEnv();
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules/preview-evaluate",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          definition: {
+            conditions: {
+              type: "prerequisite_badge",
+              badgeTemplateId: "badge_template_foundations",
+            },
+          },
+          lmsProviderKind: "canvas",
+          lmsConnectionId: "lms_123",
+          learnerId: "learner_123",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(422);
+    expect(body.error).toBe(
+      "Credential email is required to test a prerequisite badge requirement",
+    );
     expect(mockedCreateGradebookProvider).not.toHaveBeenCalled();
   });
 

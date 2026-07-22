@@ -549,28 +549,47 @@ export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): Ho
               />
               <div id="rule-builder-live-test-fields" class="ct-stack">
                 <p class="ct-admin__hint">
-                  Enter an existing learner. For Sakai, use the learner's login ID from the course
-                  roster. The email identifies the person who would receive the badge.
+                  Search the courses in this rule, select an LMS learner, and run the rule against
+                  their current LMS records. This test does not issue a badge.
                 </p>
-                <AdminField label="LMS learner ID">
+                <AdminField label="Find LMS learner">
                   <CtInput
-                    name="testLearnerId"
-                    type="text"
+                    id="rule-builder-learner-query"
+                    type="search"
                     autocomplete="off"
-                    describedBy="rule-builder-live-test-help"
+                    placeholder="Search by name, email, or LMS ID"
+                    describedBy="rule-builder-learner-search-help"
                   />
                 </AdminField>
-                <AdminField label="Credential recipient email">
-                  <CtInput
-                    name="testRecipientIdentity"
-                    type="email"
-                    autocomplete="off"
-                    describedBy="rule-builder-live-test-help"
-                  />
-                </AdminField>
-                <p id="rule-builder-live-test-help" class="ct-admin__hint">
-                  CredTrail reads the learner's current records from the selected LMS connection.
+                <p id="rule-builder-learner-search-help" class="ct-admin__hint">
+                  Enter at least two characters. Results come directly from the selected LMS.
                 </p>
+                <AdminField label="LMS learner">
+                  <CtSelect
+                    id="rule-builder-learner-select"
+                    disabled
+                    describedBy="rule-builder-learner-search-status"
+                  >
+                    <option value="">Search for a learner first</option>
+                  </CtSelect>
+                </AdminField>
+                <p
+                  id="rule-builder-learner-search-status"
+                  class="ct-admin__hint"
+                  aria-live="polite"
+                >
+                  Learner search uses the courses configured in this rule.
+                </p>
+                <CtInput name="testLearnerId" type="hidden" />
+                <div id="rule-builder-test-recipient-fields" class="ct-stack" hidden>
+                  <p class="ct-admin__hint">
+                    This rule checks for a previously issued badge, so CredTrail also needs the
+                    learner's credential email.
+                  </p>
+                  <AdminField label="Credential email">
+                    <CtInput name="testRecipientIdentity" type="email" autocomplete="email" />
+                  </AdminField>
+                </div>
               </div>
               <div id="rule-builder-example-test-fields" class="ct-stack" hidden>
                 <p class="ct-admin__hint">
@@ -608,7 +627,7 @@ export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): Ho
                 class="ct-admin__status ct-admin__builder-test-result"
                 aria-live="polite"
               >
-                Enter an existing LMS learner ID and recipient email, then run the test.
+                Search for and select an LMS learner, then run the test.
               </p>
             </AdminFieldset>
             <details

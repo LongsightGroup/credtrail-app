@@ -139,8 +139,6 @@ describe("badge issuance rule parsers", () => {
       },
       lmsConnectionId: "lms_123",
       learnerId: "learner_123",
-      recipientIdentity: "learner@example.edu",
-      recipientIdentityType: "email",
       facts: {
         completions: [
           {
@@ -226,10 +224,37 @@ describe("badge issuance rule parsers", () => {
           },
         },
         learnerId: "learner_123",
-        recipientIdentity: "learner@example.edu",
-        recipientIdentityType: "email",
       });
     }).toThrow(/./);
+  });
+
+  it("accepts an optional recipient only in the current nested contract", () => {
+    const definition = {
+      conditions: {
+        type: "prerequisite_badge" as const,
+        badgeTemplateId: "badge_template_foundations",
+      },
+    };
+    const parsed = parsePreviewEvaluateBadgeIssuanceRuleRequest({
+      definition,
+      lmsConnectionId: "lms_123",
+      learnerId: "learner_123",
+      recipient: {
+        identity: "learner@example.edu",
+        identityType: "email",
+      },
+    });
+
+    expect(parsed.recipient?.identity).toBe("learner@example.edu");
+    expect(() =>
+      parsePreviewEvaluateBadgeIssuanceRuleRequest({
+        definition,
+        lmsConnectionId: "lms_123",
+        learnerId: "learner_123",
+        recipientIdentity: "learner@example.edu",
+        recipientIdentityType: "email",
+      }),
+    ).toThrow(/unrecognized/i);
   });
 
   it("parses rule and rule-version path params", () => {

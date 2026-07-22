@@ -536,6 +536,61 @@ describe("createSakaiGradebookProvider", () => {
     ).toHaveLength(1);
   });
 
+  it("searches gradebook learners using Sakai membership details", async () => {
+    const { fetchImpl } = createMockFetch([
+      {
+        pathWithQuery: "/api/sites/site-1/grading/full-gradebook",
+        responseBody: {
+          siteId: "site-1",
+          columns: [],
+          students: [
+            {
+              userId: "internal-1",
+              userEid: "ada",
+              grades: {},
+            },
+          ],
+        },
+      },
+      {
+        pathWithQuery: "/direct/membership/site/site-1.json",
+        responseBody: {
+          membership_collection: [
+            {
+              userEid: "ada",
+              userDisplayName: "Ada Lovelace",
+              userEmail: "ada@example.edu",
+            },
+            {
+              userEid: "instructor",
+              userDisplayName: "Course Instructor",
+              userEmail: "instructor@example.edu",
+            },
+          ],
+        },
+      },
+    ]);
+    const provider = createSakaiGradebookProvider({
+      config: {
+        kind: "sakai",
+        apiBaseUrl: "https://sakai.example.edu",
+        accessToken: "sakai-token",
+      },
+      fetchImpl,
+    });
+
+    await expect(provider.listLearners({ courseId: "site-1", searchTerm: "ada" })).resolves.toEqual(
+      [
+        {
+          courseId: "site-1",
+          learnerId: "ada",
+          displayName: "Ada Lovelace",
+          email: "ada@example.edu",
+        },
+      ],
+    );
+  });
+
   it("throws a clear error when Sakai returns a non-200 response", async () => {
     const { fetchImpl } = createMockFetch([
       {
