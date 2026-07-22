@@ -22,8 +22,6 @@ minimumReleaseAgeExclude:
   - "@cloudflare/workerd-linux-arm64"
   - "@cloudflare/workerd-windows-64"
 blockExoticSubdeps: true
-patchedDependencies:
-  '@longsightgroup/lti-tool@0.1.5': patches/@longsightgroup__lti-tool@0.1.5.patch
 ignoredBuiltDependencies:
   - esbuild
   - sharp

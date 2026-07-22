@@ -9,11 +9,6 @@ overrides:
   jose: 6.2.3
   zod: 4.4.3
 
-patchedDependencies:
-  '@longsightgroup/lti-tool@0.1.5':
-    hash: 6cd9456af0315cf814a04146a5e168cf6a7f6c8ceccea6839e92a99985cddc01
-    path: patches/@longsightgroup__lti-tool@0.1.5.patch
-
 importers:
 
   .:
@@ -98,8 +93,8 @@ importers:
         specifier: ^2.0.4
         version: 2.0.4(hono@4.12.27)
       '@longsightgroup/lti-tool':
-        specifier: 0.1.5
-        version: 0.1.5(patch_hash=6cd9456af0315cf814a04146a5e168cf6a7f6c8ceccea6839e92a99985cddc01)(hono@4.12.27)
+        specifier: 0.1.6
+        version: 0.1.6(hono@4.12.27)
       csv-stringify:
         specifier: ^6.7.0
         version: 6.7.0
@@ -1093,8 +1088,8 @@ packages:
     peerDependencies:
       tslib: '2'
 
-  '@longsightgroup/lti-tool@0.1.5':
-    resolution: {integrity: sha512-nI5zyWxWb5A2JGEyqkRXgSMxWyQ6/SSGx64l3zftcck2CyO+pIDwJHl8RmtMhjygv3gS1P0p2mm/3JBcM3FcTA==}
+  '@longsightgroup/lti-tool@0.1.6':
+    resolution: {integrity: sha512-Lw11Cg0WDsKR5B9nfF3Q9gX6wvb9oTjFgsYoqC2NNy1Sok3LOH14yF8kuJCDa+x2pxASEBK0Df0DgxMWCLHSRQ==}
     peerDependencies:
       '@aws-sdk/client-dynamodb': ^3.1076.0
       '@aws-sdk/util-dynamodb': ^3.996.5
@@ -3657,7 +3652,7 @@ snapshots:
       '@jsonjoy.com/codegen': 17.67.0(tslib@2.8.1)
       tslib: 2.8.1
 
-  '@longsightgroup/lti-tool@0.1.5(patch_hash=6cd9456af0315cf814a04146a5e168cf6a7f6c8ceccea6839e92a99985cddc01)(hono@4.12.27)':
+  '@longsightgroup/lti-tool@0.1.6(hono@4.12.27)':
     dependencies:
       jose: 6.2.3
       zod: 4.4.3
