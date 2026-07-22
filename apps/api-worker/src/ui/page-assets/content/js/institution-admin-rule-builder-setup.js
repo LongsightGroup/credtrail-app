@@ -421,6 +421,88 @@
       }
     };
 
+    const getRuleBuilderTestDataSource = () => {
+      const checkedInput = ruleBuilderTestDataSourceInputs.find((candidate) => candidate.checked);
+
+      return checkedInput instanceof HTMLInputElement && checkedInput.value === 'example'
+        ? 'example'
+        : 'lms';
+    };
+
+    const syncRuleBuilderTestDataSource = () => {
+      const useExampleData = getRuleBuilderTestDataSource() === 'example';
+
+      if (ruleBuilderLiveTestFields instanceof HTMLElement) {
+        ruleBuilderLiveTestFields.hidden = useExampleData;
+      }
+
+      if (ruleBuilderExampleTestFields instanceof HTMLElement) {
+        ruleBuilderExampleTestFields.hidden = !useExampleData;
+      }
+
+      if (ruleBuilderExampleTestAdvanced instanceof HTMLElement) {
+        ruleBuilderExampleTestAdvanced.hidden = !useExampleData;
+      }
+
+      if (useExampleData) {
+        if (getTextFieldValue('testLearnerId').length === 0) {
+          setRuleCreateFieldValue('testLearnerId', 'example-learner');
+        }
+
+        if (getTextFieldValue('testRecipientIdentity').length === 0) {
+          setRuleCreateFieldValue('testRecipientIdentity', 'learner@example.edu');
+        }
+      } else {
+        if (getTextFieldValue('testLearnerId') === 'example-learner') {
+          setRuleCreateFieldValue('testLearnerId', '');
+        }
+
+        if (getTextFieldValue('testRecipientIdentity') === 'learner@example.edu') {
+          setRuleCreateFieldValue('testRecipientIdentity', '');
+        }
+      }
+    };
+
+    const invalidateRuleBuilderTest = () => {
+      ruleBuilderLastTestSummary = 'Not run';
+      resetConditionEvaluationResults();
+      syncRuleBuilderSummary('Test data changed. Run the test again.');
+    };
+
+    [
+      'testLearnerId',
+      'testRecipientIdentity',
+      'testFinalScore',
+      'testCompletionPercent',
+      'testFactsJson',
+    ].forEach((fieldName) => {
+      const field = getRuleCreateField(fieldName);
+
+      if (
+        field instanceof HTMLInputElement ||
+        field instanceof HTMLTextAreaElement ||
+        field instanceof HTMLSelectElement
+      ) {
+        field.addEventListener('input', invalidateRuleBuilderTest);
+      }
+    });
+
+    ruleBuilderTestDataSourceInputs.forEach((candidate) => {
+      candidate.addEventListener('change', () => {
+        syncRuleBuilderTestDataSource();
+        invalidateRuleBuilderTest();
+        setStatus(
+          ruleBuilderTestResult,
+          getRuleBuilderTestDataSource() === 'example'
+            ? 'Run the test to check the rule with generated example data.'
+            : 'Enter an existing LMS learner ID and recipient email, then run the test.',
+          false,
+        );
+      });
+    });
+
+    syncRuleBuilderTestDataSource();
+
     const getSelectedOptionLabel = (field) => {
       if (!(field instanceof HTMLSelectElement)) {
         return '';

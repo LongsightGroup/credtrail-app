@@ -2363,10 +2363,25 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('id="rule-builder-test-preset"');
     expect(body).not.toContain('id="rule-builder-apply-test-preset"');
     expect(body).toContain('id="rule-builder-test-output"');
+    expect(body).toContain('name="testDataSource"');
+    expect(body).toContain('value="lms"');
+    expect(body).toContain('value="example"');
+    expect(body).toContain("Check a learner in the selected LMS");
+    expect(body).toContain("Use generated example data");
+    expect(body).toContain("For Sakai, use the learner&#39;s login ID from the course roster.");
+    expect(body).toContain("A final score alone does not mark the course complete.");
     expect(body).not.toContain("Sample course ID");
     expect(body).not.toContain('name="testCourseId"');
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "facts = buildSampleFactsFromConditions(readConditionsForPreview())",
+    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "const testDataSource = getRuleBuilderTestDataSource()",
+    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("lmsProviderKind,");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("if (testDataSource === 'lms')");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "CredTrail could not find all data needed to evaluate this learner.",
     );
     expect(body).not.toContain('id="rule-builder-value-list-body"');
     expect(body).not.toContain("badge-rule-value-lists");
@@ -2634,7 +2649,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
       "Review the current settings, test changes, then save a new draft version.",
     );
     expect(body).toContain(
-      "Try the rule with a sample learner, then save a new draft version for review.",
+      "Try the rule with an LMS learner or generated example data, then save a new draft version for review.",
     );
     expect(body).toContain('id="rule-builder-test"');
     expect(body).toContain('id="rule-builder-save-draft"');

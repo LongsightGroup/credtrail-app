@@ -113,6 +113,14 @@ const ruleBuilderTestPresetSelect = document.getElementById('rule-builder-test-p
 const ruleBuilderApplyTestPresetButton = document.getElementById('rule-builder-apply-test-preset');
 const ruleBuilderTestOutput = document.getElementById('rule-builder-test-output');
 const ruleBuilderTestResult = document.getElementById('rule-builder-test-result');
+const ruleBuilderLiveTestFields = document.getElementById('rule-builder-live-test-fields');
+const ruleBuilderExampleTestFields = document.getElementById('rule-builder-example-test-fields');
+const ruleBuilderExampleTestAdvanced = document.getElementById(
+  'rule-builder-example-test-advanced',
+);
+const ruleBuilderTestDataSourceInputs = Array.from(
+  document.querySelectorAll('input[name="testDataSource"]'),
+).filter((candidate) => candidate instanceof HTMLInputElement);
 const ruleBuilderStepNextButton = document.getElementById('rule-builder-step-next');
 const ruleBuilderStepProgress = document.getElementById('rule-builder-step-progress');
 const ruleBuilderStepCallout = document.getElementById('rule-builder-step-callout');
@@ -581,6 +589,88 @@ var adminStatusPillClass = function adminStatusPillClass(tone) {
       }
     };
 
+    const getRuleBuilderTestDataSource = () => {
+      const checkedInput = ruleBuilderTestDataSourceInputs.find((candidate) => candidate.checked);
+
+      return checkedInput instanceof HTMLInputElement && checkedInput.value === 'example'
+        ? 'example'
+        : 'lms';
+    };
+
+    const syncRuleBuilderTestDataSource = () => {
+      const useExampleData = getRuleBuilderTestDataSource() === 'example';
+
+      if (ruleBuilderLiveTestFields instanceof HTMLElement) {
+        ruleBuilderLiveTestFields.hidden = useExampleData;
+      }
+
+      if (ruleBuilderExampleTestFields instanceof HTMLElement) {
+        ruleBuilderExampleTestFields.hidden = !useExampleData;
+      }
+
+      if (ruleBuilderExampleTestAdvanced instanceof HTMLElement) {
+        ruleBuilderExampleTestAdvanced.hidden = !useExampleData;
+      }
+
+      if (useExampleData) {
+        if (getTextFieldValue('testLearnerId').length === 0) {
+          setRuleCreateFieldValue('testLearnerId', 'example-learner');
+        }
+
+        if (getTextFieldValue('testRecipientIdentity').length === 0) {
+          setRuleCreateFieldValue('testRecipientIdentity', 'learner@example.edu');
+        }
+      } else {
+        if (getTextFieldValue('testLearnerId') === 'example-learner') {
+          setRuleCreateFieldValue('testLearnerId', '');
+        }
+
+        if (getTextFieldValue('testRecipientIdentity') === 'learner@example.edu') {
+          setRuleCreateFieldValue('testRecipientIdentity', '');
+        }
+      }
+    };
+
+    const invalidateRuleBuilderTest = () => {
+      ruleBuilderLastTestSummary = 'Not run';
+      resetConditionEvaluationResults();
+      syncRuleBuilderSummary('Test data changed. Run the test again.');
+    };
+
+    [
+      'testLearnerId',
+      'testRecipientIdentity',
+      'testFinalScore',
+      'testCompletionPercent',
+      'testFactsJson',
+    ].forEach((fieldName) => {
+      const field = getRuleCreateField(fieldName);
+
+      if (
+        field instanceof HTMLInputElement ||
+        field instanceof HTMLTextAreaElement ||
+        field instanceof HTMLSelectElement
+      ) {
+        field.addEventListener('input', invalidateRuleBuilderTest);
+      }
+    });
+
+    ruleBuilderTestDataSourceInputs.forEach((candidate) => {
+      candidate.addEventListener('change', () => {
+        syncRuleBuilderTestDataSource();
+        invalidateRuleBuilderTest();
+        setStatus(
+          ruleBuilderTestResult,
+          getRuleBuilderTestDataSource() === 'example'
+            ? 'Run the test to check the rule with generated example data.'
+            : 'Enter an existing LMS learner ID and recipient email, then run the test.',
+          false,
+        );
+      });
+    });
+
+    syncRuleBuilderTestDataSource();
+
     const getSelectedOptionLabel = (field) => {
       if (!(field instanceof HTMLSelectElement)) {
         return '';
@@ -646,12 +736,12 @@ const ruleBuilderStepCallouts = {
   metadata: "Choose an awarding pattern, badge, and LMS connection, then select Continue.",
   conditions:
     "Confirm the requirements learners must meet, then select Continue. To revise setup, select step 1 above.",
-  test: "Test with a sample learner, then create the draft. To revise earlier steps, select a step label above.",
+  test: "Test with an LMS learner or generated example data, then create the draft. To revise earlier steps, select a step label above.",
 };
 const ruleBuilderStepGateMessages = {
   metadata: "Choose a badge template and LMS connection before continuing.",
   conditions: "Add at least one requirement before continuing.",
-  test: "Run a test with a sample learner before creating the draft.",
+  test: "Run a learner test before creating the draft.",
 };
 let activeRuleBuilderStepIndex = 0;
 
@@ -823,7 +913,7 @@ const getStepGateMessage = (stepName) => {
       ruleBuilderLastTestSummary.startsWith("Review required");
 
     if (!testReady) {
-      return "Run a test with a sample learner before creating the draft.";
+      return "Run a learner test before creating the draft.";
     }
 
     if (getTextFieldValue("issuanceTiming").length === 0) {
@@ -978,8 +1068,18 @@ const setBuilderStepState = (requestedIndex) => {
   }
 
   if (activeStep === "test") {
-    applyTestFactPreset();
-    void runRuleBuilderTest({ auto: true });
+    syncRuleBuilderTestDataSource();
+
+    if (getRuleBuilderTestDataSource() === "example") {
+      applyTestFactPreset();
+      void runRuleBuilderTest({ auto: true });
+    } else if (ruleBuilderTestResult instanceof HTMLElement) {
+      setStatus(
+        ruleBuilderTestResult,
+        "Enter an existing LMS learner ID and recipient email, then run the test.",
+        false,
+      );
+    }
   }
 };
 
@@ -3637,115 +3737,18 @@ const applyTemplatePreset = () => {
 };
 
 const applyTestFactPreset = () => {
-  const presetKey =
-    ruleBuilderTemplatePreset instanceof HTMLSelectElement
-      ? ruleBuilderTemplatePreset.value.trim()
-      : ruleBuilderTestPresetSelect instanceof HTMLSelectElement
-        ? ruleBuilderTestPresetSelect.value.trim()
-        : "canvas_course_grade";
   const learnerId = getTextFieldValue("testLearnerId") || "canvas:12345";
   const recipientIdentity = getTextFieldValue("testRecipientIdentity") || "learner@example.edu";
-  const courseId = getDefaultCourseId() || getCoursePlaceholder();
-  const programCourseIds = deriveRelatedCourseIds(courseId, 3);
-  const surveyId = courseId + "_EXIT_SURVEY";
 
   setRuleCreateFieldValue("testLearnerId", learnerId);
   setRuleCreateFieldValue("testRecipientIdentity", recipientIdentity);
 
-  if (presetKey === "program_completion") {
+  if (getTextFieldValue("testFinalScore").length === 0) {
     setRuleCreateFieldValue("testFinalScore", "92");
-    setRuleCreateFieldValue(
-      "testFactsJson",
-      JSON.stringify(
-        {
-          completions: programCourseIds.map((entry) => {
-            return {
-              courseId: entry,
-              learnerId,
-              completed: true,
-              completionPercent: 100,
-            };
-          }),
-        },
-        null,
-        2,
-      ),
-    );
-  } else if (presetKey === "assignment_submission") {
-    setRuleCreateFieldValue("testFinalScore", "88");
-    setRuleCreateFieldValue(
-      "testFactsJson",
-      JSON.stringify(
-        {
-          submissions: [
-            {
-              courseId,
-              assignmentId: "assignment_1",
-              learnerId,
-              score: 88,
-              workflowState: "submitted",
-              submittedAt: new Date().toISOString(),
-            },
-          ],
-        },
-        null,
-        2,
-      ),
-    );
-  } else if (presetKey === "prerequisite_chain" || presetKey === "prerequisite_badge") {
-    setRuleCreateFieldValue("testFinalScore", "95");
-    setRuleCreateFieldValue(
-      "testFactsJson",
-      JSON.stringify(
-        {
-          earnedBadgeTemplateIds: ["badge_template_foundations"],
-        },
-        null,
-        2,
-      ),
-    );
-  } else if (presetKey === "survey_completion") {
-    setRuleCreateFieldValue("testFinalScore", "92");
-    setRuleCreateFieldValue(
-      "testFactsJson",
-      JSON.stringify(
-        {
-          surveyCompletions: [
-            {
-              surveyId,
-              learnerId,
-              source: "qualtrics",
-              completed: true,
-              completedAt: new Date().toISOString(),
-            },
-          ],
-        },
-        null,
-        2,
-      ),
-    );
-  } else if (presetKey === "custom_field") {
-    setRuleCreateFieldValue("testFinalScore", "92");
-    setRuleCreateFieldValue(
-      "testFactsJson",
-      JSON.stringify(
-        {
-          customFields: [
-            {
-              learnerId,
-              fieldName: "programStanding",
-              value: "eligible",
-            },
-          ],
-        },
-        null,
-        2,
-      ),
-    );
-  } else {
-    setRuleCreateFieldValue("testFinalScore", "92");
+  }
+
+  if (getTextFieldValue("testCompletionPercent").length === 0) {
     setRuleCreateFieldValue("testCompletionPercent", "100");
-    setRuleCreateFieldValue("testFactsJson", "");
   }
 
   ruleBuilderLastTestSummary = "Not run";
@@ -4290,11 +4293,16 @@ if (
       const learnerId = getTextFieldValue('testLearnerId');
       const recipientIdentity = getTextFieldValue('testRecipientIdentity').toLowerCase();
       const lmsConnectionId = getTextFieldValue('lmsConnectionId');
+      const lmsProviderKind = getSelectedLmsProviderKind();
+      const testDataSource = getRuleBuilderTestDataSource();
       const sampleFinalScoreText = getTextFieldValue('testFinalScore');
       const testFactsJson = getTextFieldValue('testFactsJson');
 
       if (learnerId.length === 0 || recipientIdentity.length === 0) {
-        const message = 'Test mode requires learner ID and recipient email.';
+        const message =
+          testDataSource === 'lms'
+            ? 'Enter an existing LMS learner ID and recipient email.'
+            : 'Example testing requires a learner ID and recipient email.';
         setStatus(ruleCreateStatus, message, true);
         if (ruleBuilderTestResult instanceof HTMLElement) {
           setStatus(ruleBuilderTestResult, message, true);
@@ -4317,7 +4325,9 @@ if (
 
       let facts = undefined;
 
-      if (testFactsJson.length > 0) {
+      if (testDataSource === 'lms') {
+        facts = undefined;
+      } else if (testFactsJson.length > 0) {
         try {
           facts = JSON.parse(testFactsJson);
         } catch {
@@ -4356,6 +4366,7 @@ if (
           body: JSON.stringify({
             definition,
             lmsConnectionId,
+            lmsProviderKind,
             learnerId,
             recipientIdentity,
             recipientIdentityType: 'email',
@@ -4403,14 +4414,6 @@ if (
               '/' +
               String(conditionSummary.total) +
               '.';
-        let outcomeLabel = 'no_match';
-
-        if (outcome === 'review_required') {
-          outcomeLabel = 'review_required';
-        } else if (outcome === 'matched') {
-          outcomeLabel = 'matched';
-        }
-
         let resultMessage = '';
 
         if (outcome === 'review_required') {
@@ -4424,27 +4427,45 @@ if (
             ' check(s).';
         } else if (matched) {
           resultMessage =
-            'Sample learner qualifies for this badge (' +
+            (testDataSource === 'lms' ? 'This learner' : 'The example learner') +
+            ' qualifies for this badge (' +
             String(conditionSummary.matched) +
             ' of ' +
             String(conditionSummary.total) +
             ' requirements matched).';
+        } else if (missingDataCount > 0) {
+          resultMessage =
+            'CredTrail could not find all data needed to evaluate this learner. Review the requirement results for the missing LMS data, then confirm the learner ID and course records.';
         } else {
           resultMessage =
-            'Sample learner does not qualify yet (' +
+            (testDataSource === 'lms' ? 'This learner' : 'The example learner') +
+            ' does not qualify yet (' +
             String(conditionSummary.matched) +
             ' of ' +
             String(conditionSummary.total) +
-            ' requirements matched). Adjust requirements or test facts and run again.';
+            (testDataSource === 'lms'
+              ? ' requirements matched). Confirm the learner records or adjust the requirements and run again.'
+              : ' requirements matched). Adjust the requirements or example data and run again.');
         }
+
+        const testStatusMessage =
+          outcome === 'matched'
+            ? 'Test passed.' + conditionSummaryText
+            : outcome === 'review_required'
+              ? 'Test needs review. Data was unavailable for ' +
+                String(missingDataCount) +
+                ' requirement(s).' +
+                conditionSummaryText
+              : missingDataCount > 0
+                ? 'Test could not confirm eligibility because data was unavailable for ' +
+                  String(missingDataCount) +
+                  ' requirement(s).' +
+                  conditionSummaryText
+                : 'Test complete.' + conditionSummaryText;
 
         setStatus(
           ruleCreateStatus,
-          'Test evaluation complete. outcome=' +
-            outcomeLabel +
-            '.' +
-            (missingDataCount > 0 ? ' Missing data=' + String(missingDataCount) + '.' : '') +
-            conditionSummaryText,
+          testStatusMessage,
           false,
           outcome === 'matched' ? 'success' : 'warning',
         );
@@ -4477,13 +4498,7 @@ if (
             ' requirements)';
         }
 
-        syncRuleBuilderSummary(
-          'Test evaluation complete. outcome=' +
-            outcomeLabel +
-            '.' +
-            (missingDataCount > 0 ? ' Missing data=' + String(missingDataCount) + '.' : '') +
-            conditionSummaryText,
-        );
+        syncRuleBuilderSummary(testStatusMessage);
         setCodeOutput(ruleBuilderTestOutput, JSON.stringify(payload, null, 2));
       } catch {
         const message = 'Unable to run rule test from this browser session.';

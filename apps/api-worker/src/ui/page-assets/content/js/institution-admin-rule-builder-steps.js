@@ -13,12 +13,12 @@ const ruleBuilderStepCallouts = {
   metadata: "Choose an awarding pattern, badge, and LMS connection, then select Continue.",
   conditions:
     "Confirm the requirements learners must meet, then select Continue. To revise setup, select step 1 above.",
-  test: "Test with a sample learner, then create the draft. To revise earlier steps, select a step label above.",
+  test: "Test with an LMS learner or generated example data, then create the draft. To revise earlier steps, select a step label above.",
 };
 const ruleBuilderStepGateMessages = {
   metadata: "Choose a badge template and LMS connection before continuing.",
   conditions: "Add at least one requirement before continuing.",
-  test: "Run a test with a sample learner before creating the draft.",
+  test: "Run a learner test before creating the draft.",
 };
 let activeRuleBuilderStepIndex = 0;
 
@@ -190,7 +190,7 @@ const getStepGateMessage = (stepName) => {
       ruleBuilderLastTestSummary.startsWith("Review required");
 
     if (!testReady) {
-      return "Run a test with a sample learner before creating the draft.";
+      return "Run a learner test before creating the draft.";
     }
 
     if (getTextFieldValue("issuanceTiming").length === 0) {
@@ -345,8 +345,18 @@ const setBuilderStepState = (requestedIndex) => {
   }
 
   if (activeStep === "test") {
-    applyTestFactPreset();
-    void runRuleBuilderTest({ auto: true });
+    syncRuleBuilderTestDataSource();
+
+    if (getRuleBuilderTestDataSource() === "example") {
+      applyTestFactPreset();
+      void runRuleBuilderTest({ auto: true });
+    } else if (ruleBuilderTestResult instanceof HTMLElement) {
+      setStatus(
+        ruleBuilderTestResult,
+        "Enter an existing LMS learner ID and recipient email, then run the test.",
+        false,
+      );
+    }
   }
 };
 

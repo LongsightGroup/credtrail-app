@@ -528,41 +528,84 @@ export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): Ho
             <h3 tabindex={-1}>Test and submit</h3>
             <p>
               {props.isEditMode
-                ? "Try the rule with a sample learner, then save a new draft version for review."
-                : "Try the rule with a sample learner, then save the draft for review."}
+                ? "Try the rule with an LMS learner or generated example data, then save a new draft version for review."
+                : "Try the rule with an LMS learner or generated example data, then save the draft for review."}
             </p>
           </header>
           <div class="ct-admin__builder-test-layout ct-stack">
             <AdminFieldset legend="Test with learner">
               <p class="ct-admin__hint">
-                CredTrail fills in a sample learner. Adjust if needed, then run the test.
+                Choose whether to check a real learner in the selected LMS or try the rule with
+                generated example data.
               </p>
-              <AdminField label="Learner ID">
-                <CtInput name="testLearnerId" type="text" value="canvas:12345" />
-              </AdminField>
-              <AdminField label="Recipient email">
-                <CtInput name="testRecipientIdentity" type="email" value="learner@example.edu" />
-              </AdminField>
-              <AdminField label="Sample final score">
-                <CtInput
-                  name="testFinalScore"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value="92"
+              <AdminFieldset legend="Test data">
+                <AdminCheckboxRow
+                  name="testDataSource"
+                  type="radio"
+                  value="lms"
+                  label="Check a learner in the selected LMS"
+                  checked
                 />
-              </AdminField>
-              <AdminField label="Sample gradebook items completed %">
-                <CtInput
-                  name="testCompletionPercent"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value="100"
+                <AdminCheckboxRow
+                  name="testDataSource"
+                  type="radio"
+                  value="example"
+                  label="Use generated example data"
                 />
-              </AdminField>
+              </AdminFieldset>
+              <div id="rule-builder-live-test-fields" class="ct-stack">
+                <p class="ct-admin__hint">
+                  Enter an existing learner. For Sakai, use the learner's login ID from the course
+                  roster. The email identifies the person who would receive the badge.
+                </p>
+                <AdminField label="LMS learner ID">
+                  <CtInput
+                    name="testLearnerId"
+                    type="text"
+                    autocomplete="off"
+                    describedBy="rule-builder-live-test-help"
+                  />
+                </AdminField>
+                <AdminField label="Credential recipient email">
+                  <CtInput
+                    name="testRecipientIdentity"
+                    type="email"
+                    autocomplete="off"
+                    describedBy="rule-builder-live-test-help"
+                  />
+                </AdminField>
+                <p id="rule-builder-live-test-help" class="ct-admin__hint">
+                  For course pathway completion in Sakai, every gradebook item in a selected course
+                  must have a grade or be excused. A final score alone does not mark the course
+                  complete.
+                </p>
+              </div>
+              <div id="rule-builder-example-test-fields" class="ct-stack" hidden>
+                <p class="ct-admin__hint">
+                  Example data does not read the LMS. CredTrail generates matching facts from the
+                  requirements below so you can check the rule structure.
+                </p>
+                <AdminField label="Example final score">
+                  <CtInput
+                    name="testFinalScore"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value="92"
+                  />
+                </AdminField>
+                <AdminField label="Example gradebook items completed %">
+                  <CtInput
+                    name="testCompletionPercent"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value="100"
+                  />
+                </AdminField>
+              </div>
               <CtSelect id="rule-builder-test-preset" name="testPreset" hidden>
                 <option value="canvas_course_grade" selected>
                   Canvas course + grade
@@ -583,10 +626,14 @@ export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): Ho
                 class="ct-admin__status ct-admin__builder-test-result"
                 aria-live="polite"
               >
-                CredTrail runs a test automatically when you reach this step.
+                Enter an existing LMS learner ID and recipient email, then run the test.
               </p>
             </AdminFieldset>
-            <details class="ct-admin__builder-advanced ct-stack">
+            <details
+              id="rule-builder-example-test-advanced"
+              class="ct-admin__builder-advanced ct-stack"
+              hidden
+            >
               <summary>Advanced test facts</summary>
               <AdminField label="Advanced facts JSON (optional)">
                 <CtTextarea

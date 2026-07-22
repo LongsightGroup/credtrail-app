@@ -35,11 +35,16 @@
       const learnerId = getTextFieldValue('testLearnerId');
       const recipientIdentity = getTextFieldValue('testRecipientIdentity').toLowerCase();
       const lmsConnectionId = getTextFieldValue('lmsConnectionId');
+      const lmsProviderKind = getSelectedLmsProviderKind();
+      const testDataSource = getRuleBuilderTestDataSource();
       const sampleFinalScoreText = getTextFieldValue('testFinalScore');
       const testFactsJson = getTextFieldValue('testFactsJson');
 
       if (learnerId.length === 0 || recipientIdentity.length === 0) {
-        const message = 'Test mode requires learner ID and recipient email.';
+        const message =
+          testDataSource === 'lms'
+            ? 'Enter an existing LMS learner ID and recipient email.'
+            : 'Example testing requires a learner ID and recipient email.';
         setStatus(ruleCreateStatus, message, true);
         if (ruleBuilderTestResult instanceof HTMLElement) {
           setStatus(ruleBuilderTestResult, message, true);
@@ -62,7 +67,9 @@
 
       let facts = undefined;
 
-      if (testFactsJson.length > 0) {
+      if (testDataSource === 'lms') {
+        facts = undefined;
+      } else if (testFactsJson.length > 0) {
         try {
           facts = JSON.parse(testFactsJson);
         } catch {
@@ -101,6 +108,7 @@
           body: JSON.stringify({
             definition,
             lmsConnectionId,
+            lmsProviderKind,
             learnerId,
             recipientIdentity,
             recipientIdentityType: 'email',
@@ -148,14 +156,6 @@
               '/' +
               String(conditionSummary.total) +
               '.';
-        let outcomeLabel = 'no_match';
-
-        if (outcome === 'review_required') {
-          outcomeLabel = 'review_required';
-        } else if (outcome === 'matched') {
-          outcomeLabel = 'matched';
-        }
-
         let resultMessage = '';
 
         if (outcome === 'review_required') {
@@ -169,27 +169,45 @@
             ' check(s).';
         } else if (matched) {
           resultMessage =
-            'Sample learner qualifies for this badge (' +
+            (testDataSource === 'lms' ? 'This learner' : 'The example learner') +
+            ' qualifies for this badge (' +
             String(conditionSummary.matched) +
             ' of ' +
             String(conditionSummary.total) +
             ' requirements matched).';
+        } else if (missingDataCount > 0) {
+          resultMessage =
+            'CredTrail could not find all data needed to evaluate this learner. Review the requirement results for the missing LMS data, then confirm the learner ID and course records.';
         } else {
           resultMessage =
-            'Sample learner does not qualify yet (' +
+            (testDataSource === 'lms' ? 'This learner' : 'The example learner') +
+            ' does not qualify yet (' +
             String(conditionSummary.matched) +
             ' of ' +
             String(conditionSummary.total) +
-            ' requirements matched). Adjust requirements or test facts and run again.';
+            (testDataSource === 'lms'
+              ? ' requirements matched). Confirm the learner records or adjust the requirements and run again.'
+              : ' requirements matched). Adjust the requirements or example data and run again.');
         }
+
+        const testStatusMessage =
+          outcome === 'matched'
+            ? 'Test passed.' + conditionSummaryText
+            : outcome === 'review_required'
+              ? 'Test needs review. Data was unavailable for ' +
+                String(missingDataCount) +
+                ' requirement(s).' +
+                conditionSummaryText
+              : missingDataCount > 0
+                ? 'Test could not confirm eligibility because data was unavailable for ' +
+                  String(missingDataCount) +
+                  ' requirement(s).' +
+                  conditionSummaryText
+                : 'Test complete.' + conditionSummaryText;
 
         setStatus(
           ruleCreateStatus,
-          'Test evaluation complete. outcome=' +
-            outcomeLabel +
-            '.' +
-            (missingDataCount > 0 ? ' Missing data=' + String(missingDataCount) + '.' : '') +
-            conditionSummaryText,
+          testStatusMessage,
           false,
           outcome === 'matched' ? 'success' : 'warning',
         );
@@ -222,13 +240,7 @@
             ' requirements)';
         }
 
-        syncRuleBuilderSummary(
-          'Test evaluation complete. outcome=' +
-            outcomeLabel +
-            '.' +
-            (missingDataCount > 0 ? ' Missing data=' + String(missingDataCount) + '.' : '') +
-            conditionSummaryText,
-        );
+        syncRuleBuilderSummary(testStatusMessage);
         setCodeOutput(ruleBuilderTestOutput, JSON.stringify(payload, null, 2));
       } catch {
         const message = 'Unable to run rule test from this browser session.';
