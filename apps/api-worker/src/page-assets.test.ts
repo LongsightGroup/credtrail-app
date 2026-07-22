@@ -240,6 +240,7 @@ describe("page asset manifest", () => {
     expect(foundationCss).toContain(".ct-select");
     expect(foundationCss).toContain(".ct-textarea");
     expect(foundationCss).toContain(".ct-checkbox-field");
+    expect(foundationCss).toContain("[hidden]:not([hidden='until-found'])");
   });
 
   it("keeps action hover colors owned by action primitives", () => {

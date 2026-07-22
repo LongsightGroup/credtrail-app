@@ -668,6 +668,10 @@ body[data-variant='admin'] main {
   margin-inline: auto;
 }
 
+[hidden]:not([hidden='until-found']) {
+  display: none !important;
+}
+
 .ct-stack {
   display: grid;
   gap: var(--ct-stack-gap, var(--ct-space-4));
