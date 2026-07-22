@@ -2440,6 +2440,9 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     );
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("Save a Sakai username and password");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("setLmsLookupStatus(message, true)");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("const courseLookupRequests = new Map()");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("const payload = await loadCourses(path)");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("courseLookupRequests.delete(path)");
     expect(body).toContain("Need a new template?");
     expect(body).toContain("Create one in Badge Templates");
     expect(body).toContain(

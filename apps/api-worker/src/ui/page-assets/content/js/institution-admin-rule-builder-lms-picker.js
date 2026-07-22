@@ -50,6 +50,24 @@ const setLmsLookupStatus = (message, isError) => {
   }
 };
 
+const courseLookupRequests = new Map();
+
+const loadCourses = (path) => {
+  const activeRequest = courseLookupRequests.get(path);
+
+  if (activeRequest !== undefined) {
+    return activeRequest;
+  }
+
+  const request = lmsFetchJson(path, "Request failed").finally(() => {
+    if (courseLookupRequests.get(path) === request) {
+      courseLookupRequests.delete(path);
+    }
+  });
+  courseLookupRequests.set(path, request);
+  return request;
+};
+
 const coursesPath = (query) => {
   const connectionId = getSelectedLmsConnectionId();
 
@@ -127,7 +145,7 @@ const hydrateCourseSelect = async (select, query) => {
     lmsCourseLabel,
     (course) => course.courseId,
   );
-  const payload = await lmsFetchJson(path, "Request failed");
+  const payload = await loadCourses(path);
   const courses = payload && Array.isArray(payload.courses) ? payload.courses : [];
   lmsSetSelectOptions(
     select,
@@ -138,6 +156,7 @@ const hydrateCourseSelect = async (select, query) => {
     (course) => course.courseId,
   );
   select.disabled = false;
+  setLmsLookupStatus("", false);
 };
 
 const hydrateWorkflowStateSelect = async (card) => {
