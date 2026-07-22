@@ -88,7 +88,7 @@ export interface InstitutionAdminViewDataNeeds {
   accessSectionBundles: boolean;
   operationsSectionBundles: boolean;
   reportingSectionBundles: boolean;
-  managementSectionBundles: boolean;
+  badgeRulesTable: boolean;
   learnerRecordSectionBundles: boolean;
   ruleTableRows: boolean;
   lmsConnectionRows: boolean;
@@ -131,7 +131,7 @@ const DEFAULT_VIEW_DATA_NEEDS = {
   accessSectionBundles: false,
   operationsSectionBundles: false,
   reportingSectionBundles: false,
-  managementSectionBundles: false,
+  badgeRulesTable: false,
   learnerRecordSectionBundles: false,
   ruleTableRows: false,
   lmsConnectionRows: false,
@@ -413,7 +413,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
     titlePrefix: "Rules · Institution Admin",
     controller: "shared",
     dataNeeds: viewDataNeeds({
-      managementSectionBundles: true,
+      badgeRulesTable: true,
       ruleTableRows: true,
       ruleVersionIndexes: true,
     }),

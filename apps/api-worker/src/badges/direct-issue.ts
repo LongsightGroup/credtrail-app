@@ -83,12 +83,44 @@ const issuerUrlFromTenantDomain = (issuerDomain: string): string | undefined => 
   return `https://${trimmedDomain}`;
 };
 
-interface IssueBadgeHttpErrorPayload {
-  error: string;
-  did?: string | undefined;
+/** HTTP error payload emitted by direct badge issuance. */
+export interface IssueBadgeHttpErrorPayload {
+  readonly error: string;
+  readonly did?: string | undefined;
 }
 
-type IssueBadgeHttpErrorStatusCode = 400 | 404 | 409 | 422 | 500 | 502;
+/** HTTP status codes emitted by direct badge issuance. */
+export type IssueBadgeHttpErrorStatusCode = 400 | 404 | 409 | 422 | 500 | 502;
+
+/** Framework-neutral shape of an HTTP error emitted by direct badge issuance. */
+export interface IssueBadgeHttpError {
+  readonly statusCode: IssueBadgeHttpErrorStatusCode;
+  readonly payload: IssueBadgeHttpErrorPayload;
+}
+
+/** Returns whether an unknown failure is a direct-issuance HTTP error. */
+export const isIssueBadgeHttpError = (error: unknown): error is IssueBadgeHttpError => {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) {
+    return false;
+  }
+
+  if (
+    error.statusCode !== 400 &&
+    error.statusCode !== 404 &&
+    error.statusCode !== 409 &&
+    error.statusCode !== 422 &&
+    error.statusCode !== 500 &&
+    error.statusCode !== 502
+  ) {
+    return false;
+  }
+
+  if (!("payload" in error) || error.payload === null || typeof error.payload !== "object") {
+    return false;
+  }
+
+  return "error" in error.payload && typeof error.payload.error === "string";
+};
 
 type IssueBadgeHttpErrorClass = new (
   statusCode: IssueBadgeHttpErrorStatusCode,

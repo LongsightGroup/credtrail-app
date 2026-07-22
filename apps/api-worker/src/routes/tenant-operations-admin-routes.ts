@@ -14,12 +14,13 @@ import {
 } from "../admin/manual-issue-flash";
 import type { AppContext, AppEnv } from "../app";
 import type {
+  IssueBadgeForTenant,
   RequireDelegatedIssuingAuthorityPermission,
   ResolveDatabase,
 } from "../app/route-deps";
+import { isIssueBadgeHttpError } from "../badges/direct-issue";
 import { publicBadgePathForAssertion } from "../badges/public-badge-model";
 import { manualIssueBadgeProvenance } from "../badges/issue-badge-provenance";
-import { isIssueBadgeHttpError, type IssueBadgeForTenant } from "./badge-rule-evaluation-types";
 
 interface RegisterTenantOperationsAdminRoutesInput {
   app: Hono<AppEnv>;

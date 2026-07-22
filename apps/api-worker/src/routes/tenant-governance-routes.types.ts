@@ -2,12 +2,12 @@ import type { TenantMembershipRole } from "@credtrail/db";
 import type { Hono } from "hono";
 import type { AppContext, AppEnv } from "../app";
 import type {
+  IssueBadgeForTenant,
   RequireDelegatedIssuingAuthorityPermission,
   RequireScopedOrgUnitPermission,
   RequireTenantRole,
   ResolveDatabase,
 } from "../app/route-deps";
-import type { IssueBadgeForTenant } from "./badge-rule-evaluation-types";
 
 export interface RegisterTenantGovernanceRoutesInput {
   app: Hono<AppEnv>;

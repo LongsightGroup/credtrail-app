@@ -11,9 +11,8 @@ import {
   tenantReviewQueueAdminResolvePath,
 } from "../admin/review-queue-admin-helpers";
 import type { AppContext, AppEnv } from "../app";
-import type { ResolveDatabase } from "../app/route-deps";
+import type { IssueBadgeForTenant, ResolveDatabase } from "../app/route-deps";
 import { resolveBadgeRuleReviewQueueEntry } from "../badge-rule-review-queue-resolve";
-import type { IssueBadgeForTenant } from "./badge-rule-evaluation-types";
 
 interface RegisterTenantReviewQueueAdminRoutesInput {
   app: Hono<AppEnv>;

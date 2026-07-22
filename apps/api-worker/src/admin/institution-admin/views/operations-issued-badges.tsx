@@ -6,7 +6,7 @@ const issuedBadgesDataNeeds = {
   accessSectionBundles: false,
   operationsSectionBundles: false,
   reportingSectionBundles: false,
-  managementSectionBundles: false,
+  badgeRulesTable: false,
   learnerRecordSectionBundles: false,
   ruleTableRows: false,
   lmsConnectionRows: false,

@@ -6,9 +6,19 @@ import type {
   TenantMembershipRole,
 } from "@credtrail/db";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "../auth/auth-context";
+import type { DirectIssueBadgeResult } from "../badges/direct-issue";
+import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
 import type { AppBindings, AppContext } from "./types";
 
 export type ResolveDatabase = (bindings: AppBindings) => SqlDatabase;
+
+/** Issues a badge within the current application and tenant context. */
+export type IssueBadgeForTenant = (
+  c: AppContext,
+  tenantId: string,
+  request: DirectIssueBadgeRequest,
+  issuedByUserId?: string,
+) => Promise<DirectIssueBadgeResult>;
 
 export interface TenantRoleAccessResult {
   principal: AuthenticatedPrincipal;

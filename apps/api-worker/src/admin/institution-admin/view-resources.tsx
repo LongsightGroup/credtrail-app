@@ -42,7 +42,7 @@ import { serializeJsonScriptContent } from "../institution-admin-shell";
 import { renderInstitutionAdminAccessSections } from "./access-sections";
 import { accessSectionKindsForDataNeeds } from "./access-section-kinds";
 import { renderInstitutionAdminLearnerRecordSections } from "./learner-record-sections";
-import { renderInstitutionAdminManagementSections } from "./management-sections";
+import { renderBadgeRulesTable } from "./badge-rules-table";
 import { renderInstitutionAdminOperationsSections } from "./operations-sections";
 import type { InstitutionAdminPageInput, InstitutionAdminView } from "./page-types";
 import { renderInstitutionAdminReportingSections } from "./reporting-sections";
@@ -1170,17 +1170,14 @@ export const buildInstitutionAdminViewResources = (
     reportingExportsPanelMarkup,
   } = reportingSections;
 
-  const managementSections = dataNeeds.managementSectionBundles
-    ? renderInstitutionAdminManagementSections({
+  const badgeRulesTableMarkup = dataNeeds.badgeRulesTable
+    ? renderBadgeRulesTable({
         ruleCount,
         ruleBuilderPath,
         rulesTemplatesPath,
         ruleRows,
       })
-    : {
-        badgeRulesTableMarkup: emptySectionMarkup,
-      };
-  const { badgeRulesTableMarkup } = managementSections;
+    : emptySectionMarkup;
 
   const learnerRecordSections = dataNeeds.learnerRecordSectionBundles
     ? renderInstitutionAdminLearnerRecordSections({

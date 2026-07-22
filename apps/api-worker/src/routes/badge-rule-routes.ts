@@ -1,10 +1,10 @@
 import type { TenantMembershipRole } from "@credtrail/db";
 import type { Hono } from "hono";
 import type { AppEnv } from "../app";
-import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
+import type { IssueBadgeForTenant, RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { registerBadgeRuleCoreRoutes } from "./badge-rule-core-routes";
-import { registerBadgeRuleEvaluationRoutes } from "./badge-rule-evaluation-routes";
-import type { IssueBadgeForTenant } from "./badge-rule-evaluation-types";
+import { registerBadgeRulePreviewRoutes } from "./badge-rule-preview-routes";
+import { registerBadgeRuleReviewQueueRoutes } from "./badge-rule-review-queue-routes";
 import { registerBadgeRuleValueListRoutes } from "./badge-rule-value-list-routes";
 import { registerBadgeRuleVersionRoutes } from "./badge-rule-version-routes";
 
@@ -36,7 +36,14 @@ export const registerBadgeRuleRoutes = (input: RegisterBadgeRuleRoutesInput): vo
     ISSUER_ROLES,
   });
 
-  registerBadgeRuleEvaluationRoutes({
+  registerBadgeRulePreviewRoutes({
+    app,
+    resolveDatabase,
+    requireTenantRole,
+    ISSUER_ROLES,
+  });
+
+  registerBadgeRuleReviewQueueRoutes({
     app,
     resolveDatabase,
     requireTenantRole,

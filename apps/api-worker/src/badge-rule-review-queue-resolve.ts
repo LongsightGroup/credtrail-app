@@ -10,11 +10,9 @@ import {
 import type { ResolveBadgeIssuanceRuleReviewRequest } from "@credtrail/validation";
 import { buildIssuanceProvenanceSnapshotFromEvaluationJson } from "@credtrail/validation";
 import type { AppContext } from "./app";
+import type { IssueBadgeForTenant } from "./app/route-deps";
+import { isIssueBadgeHttpError } from "./badges/direct-issue";
 import { withIssuanceProvenance } from "./badges/issue-badge-provenance";
-import {
-  isIssueBadgeHttpError,
-  type IssueBadgeForTenant,
-} from "./routes/badge-rule-evaluation-types";
 
 export type ResolveBadgeRuleReviewQueueResult =
   | {
