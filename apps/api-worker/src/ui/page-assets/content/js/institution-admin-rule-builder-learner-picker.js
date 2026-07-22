@@ -68,13 +68,13 @@ const syncRuleBuilderTestRecipientFields = () => {
   }
 };
 
-const setRuleBuilderLearnerSearchStatus = (message, isError) => {
-  if (!(ruleBuilderLearnerSearchStatus instanceof HTMLElement)) {
+const setRuleBuilderLearnerStatus = (message, isError) => {
+  if (!(ruleBuilderLearnerStatus instanceof HTMLElement)) {
     return;
   }
 
-  ruleBuilderLearnerSearchStatus.textContent = message;
-  ruleBuilderLearnerSearchStatus.dataset.tone = isError ? "error" : "info";
+  ruleBuilderLearnerStatus.textContent = message;
+  ruleBuilderLearnerStatus.dataset.tone = isError ? "error" : "info";
 };
 
 const clearRuleBuilderLearnerSelection = (message) => {
@@ -95,22 +95,22 @@ const ruleBuilderLearnersPath = (courseId, query) => {
     return "";
   }
 
-  return (
+  const path =
     lmsConnectionsApiPath +
     "/" +
     encodeURIComponent(connectionId) +
     "/courses/" +
     encodeURIComponent(courseId) +
-    "/learners?q=" +
-    encodeURIComponent(query)
-  );
+    "/learners";
+
+  return query.length === 0 ? path : path + "?q=" + encodeURIComponent(query);
 };
 
 const mergeRuleBuilderLearners = (courseResults, courseCount) => {
   const learnersById = new Map();
 
   courseResults.forEach((courseResult) => {
-    courseResult.forEach((learner) => {
+    courseResult.learners.forEach((learner) => {
       if (
         !learner ||
         typeof learner !== "object" ||
@@ -158,58 +158,99 @@ const ruleBuilderLearnerOptionLabel = (learner) => {
   return learner.displayName + " · " + identity + coverage;
 };
 
-const searchRuleBuilderLearners = async () => {
-  if (
-    !(ruleBuilderLearnerQuery instanceof HTMLInputElement) ||
-    !(ruleBuilderLearnerSelect instanceof HTMLSelectElement)
-  ) {
+const applyRuleBuilderLearnerSelection = (option) => {
+  const learnerId = option === null ? "" : option.value;
+  const email = option === null ? "" : (option.dataset.email ?? "");
+  setRuleCreateFieldValue("testLearnerId", learnerId);
+  setRuleCreateFieldValue("testRecipientIdentity", email);
+};
+
+const setRuleBuilderLearnerFilterVisibility = (isVisible) => {
+  if (ruleBuilderLearnerFilter instanceof HTMLElement) {
+    ruleBuilderLearnerFilter.hidden = !isVisible;
+  }
+};
+
+const RULE_BUILDER_LEARNER_OPTION_LIMIT = 100;
+let ruleBuilderLearnerLoadSequence = 0;
+
+const resetRuleBuilderLearnerPicker = (optionLabel, statusMessage, isError = false) => {
+  ruleBuilderLearnerLoadSequence += 1;
+  clearRuleBuilderLearnerSelection(optionLabel);
+  setRuleBuilderLearnerFilterVisibility(false);
+  setRuleBuilderLearnerStatus(statusMessage, isError);
+
+  if (ruleBuilderLearnerFilterQuery instanceof HTMLInputElement) {
+    ruleBuilderLearnerFilterQuery.value = "";
+  }
+};
+
+const loadRuleBuilderLearners = async (query = "") => {
+  if (!(ruleBuilderLearnerSelect instanceof HTMLSelectElement)) {
     return;
   }
 
   syncRuleBuilderTestRecipientFields();
-  const query = ruleBuilderLearnerQuery.value.trim();
-
-  if (query.length < 2) {
-    clearRuleBuilderLearnerSelection("Search for a learner first");
-    setRuleBuilderLearnerSearchStatus("Enter at least two characters.", false);
-    return;
-  }
-
   const courseIds = ruleBuilderLearnerCourseIds();
 
   if (courseIds.length === 0) {
-    clearRuleBuilderLearnerSelection("Add a course requirement first");
-    setRuleBuilderLearnerSearchStatus(
-      "Add at least one course-based requirement before searching LMS learners.",
-      true,
+    resetRuleBuilderLearnerPicker(
+      "No course learners available",
+      "This rule has no course requirement. Use generated example data to test its structure.",
     );
     return;
   }
 
   if (getSelectedLmsConnectionId().length === 0) {
-    clearRuleBuilderLearnerSelection("Select an LMS connection first");
-    setRuleBuilderLearnerSearchStatus("Select an LMS connection before searching learners.", true);
+    resetRuleBuilderLearnerPicker(
+      "Select an LMS connection first",
+      "Select an LMS connection before choosing a learner.",
+      true,
+    );
     return;
   }
 
-  ruleBuilderLearnerSelect.replaceChildren(new Option("Searching LMS learners...", ""));
-  ruleBuilderLearnerSelect.disabled = true;
-  setRuleBuilderLearnerSearchStatus("Searching current LMS rosters...", false);
+  const loadSequence = ++ruleBuilderLearnerLoadSequence;
+
+  if (query.length === 0 && ruleBuilderLearnerFilterQuery instanceof HTMLInputElement) {
+    ruleBuilderLearnerFilterQuery.value = "";
+  }
+
+  clearRuleBuilderLearnerSelection("Loading learners...");
+  setRuleBuilderLearnerStatus("Loading current LMS rosters...", false);
 
   try {
     const courseResults = await Promise.all(
       courseIds.map(async (courseId) => {
         const payload = await lmsFetchJson(
           ruleBuilderLearnersPath(courseId, query),
-          "Unable to search LMS learners.",
+          "Unable to load LMS learners.",
         );
-        return payload && Array.isArray(payload.learners) ? payload.learners : [];
+        return {
+          learners: payload && Array.isArray(payload.learners) ? payload.learners : [],
+          hasMore: payload?.hasMore === true,
+        };
       }),
     );
+
+    if (loadSequence !== ruleBuilderLearnerLoadSequence) {
+      return;
+    }
+
     const learners = mergeRuleBuilderLearners(courseResults, courseIds.length);
+    const requiresSearch =
+      courseResults.some((courseResult) => courseResult.hasMore) ||
+      learners.length > RULE_BUILDER_LEARNER_OPTION_LIMIT;
+    const visibleLearners = learners.slice(0, RULE_BUILDER_LEARNER_OPTION_LIMIT);
+    const placeholder =
+      learners.length === 0
+        ? query.length === 0
+          ? "No learners found"
+          : "No matching learners"
+        : "Choose a learner";
     const options = [
-      new Option(learners.length === 0 ? "No matching learners" : "Select LMS learner", ""),
-      ...learners.map((learner) => {
+      new Option(placeholder, ""),
+      ...visibleLearners.map((learner) => {
         const option = new Option(ruleBuilderLearnerOptionLabel(learner), learner.learnerId);
         option.dataset.email = learner.email ?? "";
         option.dataset.courseCount = String(learner.courseCount);
@@ -219,43 +260,65 @@ const searchRuleBuilderLearners = async () => {
     ruleBuilderLearnerSelect.replaceChildren(...options);
     ruleBuilderLearnerSelect.disabled = learners.length === 0;
     ruleBuilderLearnerSelect.dataset.courseIds = courseIds.join(",");
-    setRuleBuilderLearnerSearchStatus(
-      learners.length === 0
-        ? "No learners matched this search in the rule's courses."
-        : String(learners.length) + " LMS learner(s) found.",
-      learners.length === 0,
+    setRuleBuilderLearnerFilterVisibility(requiresSearch || query.length > 0);
+
+    if (learners.length === 1 && !requiresSearch) {
+      ruleBuilderLearnerSelect.value = learners[0].learnerId;
+      applyRuleBuilderLearnerSelection(ruleBuilderLearnerSelect.selectedOptions.item(0));
+      setRuleBuilderLearnerStatus("The only learner in this roster is selected.", false);
+      return;
+    }
+
+    applyRuleBuilderLearnerSelection(null);
+
+    if (learners.length === 0) {
+      setRuleBuilderLearnerStatus(
+        query.length === 0
+          ? "No learners were found in the courses for this rule."
+          : "No learners matched this search.",
+        true,
+      );
+      return;
+    }
+
+    setRuleBuilderLearnerStatus(
+      requiresSearch
+        ? "This roster has more learners than the list can show. Search to narrow it."
+        : "Choose one of " + String(learners.length) + " learners.",
+      false,
     );
   } catch (error) {
-    clearRuleBuilderLearnerSelection("Learner search failed");
-    setRuleBuilderLearnerSearchStatus(
-      lmsLookupErrorMessage(error, "Unable to search LMS learners."),
+    if (loadSequence !== ruleBuilderLearnerLoadSequence) {
+      return;
+    }
+
+    clearRuleBuilderLearnerSelection("Unable to load learners");
+    setRuleBuilderLearnerStatus(
+      lmsLookupErrorMessage(error, "Unable to load LMS learners."),
       true,
     );
   }
 };
 
-if (ruleBuilderLearnerQuery instanceof HTMLInputElement) {
+if (ruleBuilderLearnerFilterQuery instanceof HTMLInputElement) {
   lmsBindDebouncedSearch({
-    searchInput: ruleBuilderLearnerQuery,
+    searchInput: ruleBuilderLearnerFilterQuery,
     debounceMs: 250,
-    onInput: searchRuleBuilderLearners,
+    onInput: () => loadRuleBuilderLearners(ruleBuilderLearnerFilterQuery.value.trim()),
   });
 }
 
 if (ruleBuilderLearnerSelect instanceof HTMLSelectElement) {
   ruleBuilderLearnerSelect.addEventListener("change", () => {
     const option = ruleBuilderLearnerSelect.selectedOptions.item(0);
-    const learnerId = option === null ? "" : option.value;
-    const email = option === null ? "" : (option.dataset.email ?? "");
-    setRuleCreateFieldValue("testLearnerId", learnerId);
-    setRuleCreateFieldValue("testRecipientIdentity", email);
+    applyRuleBuilderLearnerSelection(option);
 
-    if (learnerId.length === 0) {
-      setRuleBuilderLearnerSearchStatus("Select an LMS learner.", false);
+    if (option === null || option.value.length === 0) {
+      setRuleBuilderLearnerStatus("Choose an LMS learner.", false);
       return;
     }
 
-    setRuleBuilderLearnerSearchStatus(
+    setRuleBuilderLearnerStatus(
       "Selected learner will be checked against current LMS data.",
       false,
     );

@@ -13,7 +13,7 @@ const ruleBuilderStepCallouts = {
   metadata: "Choose an awarding pattern, badge, and LMS connection, then select Continue.",
   conditions:
     "Confirm the requirements learners must meet, then select Continue. To revise setup, select step 1 above.",
-  test: "Test with an LMS learner or generated example data, then create the draft. To revise earlier steps, select a step label above.",
+  test: "Choose an LMS learner and test the rule, then create the draft. To revise earlier steps, select a step label above.",
 };
 const ruleBuilderStepGateMessages = {
   metadata: "Choose a badge template and LMS connection before continuing.",
@@ -350,12 +350,8 @@ const setBuilderStepState = (requestedIndex) => {
 
     if (getRuleBuilderTestDataSource() === "example") {
       void runRuleBuilderTest({ auto: true });
-    } else if (ruleBuilderTestResult instanceof HTMLElement) {
-      setStatus(
-        ruleBuilderTestResult,
-        "Search for and select an LMS learner, then run the test.",
-        false,
-      );
+    } else {
+      void loadRuleBuilderLearners();
     }
   }
 };

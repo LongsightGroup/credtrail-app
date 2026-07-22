@@ -860,7 +860,7 @@ describe("badge rule routes", () => {
     expect(coursesBody.courses[0]?.courseId).toBe("course_101");
 
     const learnersResponse = await app.request(
-      "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/learners?q=learner",
+      "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/learners",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -870,10 +870,12 @@ describe("badge rule routes", () => {
     );
     const learnersBody = await learnersResponse.json<{
       learners: Array<{ learnerId: string; displayName: string; email: string | null }>;
+      hasMore: boolean;
     }>();
 
     expect(learnersResponse.status).toBe(200);
     expect(learnersResponse.headers.get("Cache-Control")).toBe("no-store");
+    expect(learnersBody.hasMore).toBe(false);
     expect(learnersBody.learners).toEqual([
       {
         courseId: "course_101",

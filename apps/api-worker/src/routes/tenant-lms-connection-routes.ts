@@ -246,12 +246,11 @@ export const registerTenantLmsConnectionRoutes = (
       }
 
       try {
-        const learners = (
-          await resolved.provider.listLearners({
-            courseId: pathParams.courseId,
-            ...(query.q === undefined ? {} : { searchTerm: query.q }),
-          })
-        ).slice(0, LMS_PICKER_MAX_LEARNERS);
+        const matchingLearners = await resolved.provider.listLearners({
+          courseId: pathParams.courseId,
+          ...(query.q === undefined ? {} : { searchTerm: query.q }),
+        });
+        const learners = matchingLearners.slice(0, LMS_PICKER_MAX_LEARNERS);
 
         c.header("Cache-Control", "no-store");
         return c.json({
@@ -259,6 +258,7 @@ export const registerTenantLmsConnectionRoutes = (
           connectionId: pathParams.connectionId,
           courseId: pathParams.courseId,
           learners,
+          hasMore: matchingLearners.length > LMS_PICKER_MAX_LEARNERS,
         });
       } catch (error) {
         return c.json(

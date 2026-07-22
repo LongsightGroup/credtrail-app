@@ -482,7 +482,7 @@
           ruleBuilderTestResult,
           getRuleBuilderTestDataSource() === 'example'
             ? 'Run the test to check the rule with generated example data.'
-            : 'Search for and select an LMS learner, then run the test.',
+            : 'Choose an LMS learner, then run the test.',
           false,
         );
       });

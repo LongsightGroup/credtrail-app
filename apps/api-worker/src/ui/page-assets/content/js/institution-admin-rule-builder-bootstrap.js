@@ -55,11 +55,12 @@ const ruleBuilderTestOutput = document.getElementById("rule-builder-test-output"
 const ruleBuilderTestResult = document.getElementById("rule-builder-test-result");
 const ruleBuilderLiveTestFields = document.getElementById("rule-builder-live-test-fields");
 const ruleBuilderExampleTestFields = document.getElementById("rule-builder-example-test-fields");
-const ruleBuilderLearnerQuery = document.getElementById("rule-builder-learner-query");
 const ruleBuilderLearnerSelect = document.getElementById("rule-builder-learner-select");
-const ruleBuilderLearnerSearchStatus = document.getElementById(
-  "rule-builder-learner-search-status",
+const ruleBuilderLearnerFilter = document.getElementById("rule-builder-learner-filter");
+const ruleBuilderLearnerFilterQuery = document.getElementById(
+  "rule-builder-learner-filter-query",
 );
+const ruleBuilderLearnerStatus = document.getElementById("rule-builder-learner-status");
 const ruleBuilderTestRecipientFields = document.getElementById(
   "rule-builder-test-recipient-fields",
 );

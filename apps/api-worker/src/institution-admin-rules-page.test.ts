@@ -2374,10 +2374,13 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('value="example"');
     expect(body).toContain("A learner in the selected LMS");
     expect(body).toContain("Generated example data");
-    expect(body).toContain("Results come directly from the selected LMS.");
-    expect(body).toContain('id="rule-builder-learner-query"');
+    expect(body).toContain("Learner to test");
     expect(body).toContain('id="rule-builder-learner-select"');
-    expect(body).toContain("This test does not issue a badge.");
+    expect(body).toContain('id="rule-builder-learner-filter"');
+    expect(body).toContain('id="rule-builder-learner-filter-query"');
+    expect(body).toContain("This roster is too large for one list. Search to narrow it.");
+    expect(body).not.toContain('id="rule-builder-learner-query"');
+    expect(body).toContain("Testing never issues a badge.");
     expect(body).not.toContain("Credential recipient email");
     expect(body).not.toContain("course pathway completion in Sakai");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
@@ -2395,7 +2398,12 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "const testDataSource = getRuleBuilderTestDataSource()",
     );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("searchRuleBuilderLearners");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("loadRuleBuilderLearners");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("void loadRuleBuilderLearners();");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "The only learner in this roster is selected.",
+    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("searchRuleBuilderLearners");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("current LMS rosters");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("lmsProviderKind,");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("if (testDataSource === 'lms')");
@@ -2670,7 +2678,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
     expect(body).toContain(
       "Review the current settings, test changes, then save a new draft version.",
     );
-    expect(body).toContain("Check the rule, then save a new draft version for review.");
+    expect(body).toContain("Testing never issues a badge.");
     expect(body).toContain('id="rule-builder-test"');
     expect(body).toContain('id="rule-builder-save-draft"');
     expect(body).toContain("Save changes as draft");

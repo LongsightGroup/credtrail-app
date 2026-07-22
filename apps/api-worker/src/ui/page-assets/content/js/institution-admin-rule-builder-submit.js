@@ -46,7 +46,7 @@
       const testFactsJson = getTextFieldValue('testFactsJson');
 
       if (learnerId.length === 0) {
-        const message = 'Search for and select an LMS learner.';
+        const message = 'Choose an LMS learner.';
         setStatus(ruleCreateStatus, message, true);
         if (ruleBuilderTestResult instanceof HTMLElement) {
           setStatus(ruleBuilderTestResult, message, true);
@@ -61,7 +61,7 @@
         const currentCourseIds = ruleBuilderLearnerCourseIds().join(',');
 
         if (selectedCourseIds !== currentCourseIds) {
-          const message = 'The rule courses changed. Search for and select the LMS learner again.';
+          const message = 'The rule courses changed. Choose the learner again.';
           setStatus(ruleCreateStatus, message, true);
           if (ruleBuilderTestResult instanceof HTMLElement) {
             setStatus(ruleBuilderTestResult, message, true);
@@ -425,10 +425,9 @@
     if (ruleBuilderLmsConnectionSelect instanceof HTMLSelectElement) {
       ruleBuilderLmsConnectionSelect.addEventListener('change', () => {
         setLmsLookupStatus('', false);
-        clearRuleBuilderLearnerSelection('Search for a learner first');
-        setRuleBuilderLearnerSearchStatus(
-          'Learner search uses the courses configured in this rule.',
-          false,
+        resetRuleBuilderLearnerPicker(
+          'Learners load when this step opens',
+          'CredTrail loads learners from the courses configured in this rule.',
         );
         syncSelectedLmsProviderKind();
         refreshConditionCardValueListOptions();

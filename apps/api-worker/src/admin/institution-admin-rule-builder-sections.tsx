@@ -524,13 +524,9 @@ export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): Ho
       </div>
       <div class="ct-admin__stepper-content">
         <section id="builder-step-test" class="ct-admin__builder-step" data-rule-step="test" hidden>
-          <header class="ct-admin__step-head ct-stack">
-            <h3 tabindex={-1}>Test and save draft</h3>
-            <p>
-              {props.isEditMode
-                ? "Check the rule, then save a new draft version for review."
-                : "Check the rule, then save the draft for review."}
-            </p>
+          <header class="ct-stack">
+            <h3 tabindex={-1}>Check the rule</h3>
+            <p>Testing never issues a badge.</p>
           </header>
           <div class="ct-admin__builder-test-layout ct-stack">
             <AdminFieldset legend="Test rule using">
@@ -549,36 +545,34 @@ export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): Ho
               />
               <div id="rule-builder-live-test-fields" class="ct-stack">
                 <p class="ct-admin__hint">
-                  Search the courses in this rule, select an LMS learner, and run the rule against
-                  their current LMS records. This test does not issue a badge.
+                  Choose a learner from the courses in this rule. CredTrail checks their current LMS
+                  records.
                 </p>
-                <AdminField label="Find LMS learner">
-                  <CtInput
-                    id="rule-builder-learner-query"
-                    type="search"
-                    autocomplete="off"
-                    placeholder="Search by name, email, or LMS ID"
-                    describedBy="rule-builder-learner-search-help"
-                  />
-                </AdminField>
-                <p id="rule-builder-learner-search-help" class="ct-admin__hint">
-                  Enter at least two characters. Results come directly from the selected LMS.
-                </p>
-                <AdminField label="LMS learner">
+                <div id="rule-builder-learner-filter" class="ct-stack" hidden>
+                  <AdminField label="Search learners">
+                    <CtInput
+                      id="rule-builder-learner-filter-query"
+                      type="search"
+                      autocomplete="off"
+                      placeholder="Name, email, or LMS ID"
+                      describedBy="rule-builder-learner-filter-help"
+                    />
+                  </AdminField>
+                  <p id="rule-builder-learner-filter-help" class="ct-admin__hint">
+                    This roster is too large for one list. Search to narrow it.
+                  </p>
+                </div>
+                <AdminField label="Learner to test">
                   <CtSelect
                     id="rule-builder-learner-select"
                     disabled
-                    describedBy="rule-builder-learner-search-status"
+                    describedBy="rule-builder-learner-status"
                   >
-                    <option value="">Search for a learner first</option>
+                    <option value="">Learners load when this step opens</option>
                   </CtSelect>
                 </AdminField>
-                <p
-                  id="rule-builder-learner-search-status"
-                  class="ct-admin__hint"
-                  aria-live="polite"
-                >
-                  Learner search uses the courses configured in this rule.
+                <p id="rule-builder-learner-status" class="ct-admin__hint" aria-live="polite">
+                  CredTrail loads learners from the courses configured in this rule.
                 </p>
                 <CtInput name="testLearnerId" type="hidden" />
                 <div id="rule-builder-test-recipient-fields" class="ct-stack" hidden>
@@ -627,7 +621,7 @@ export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): Ho
                 class="ct-admin__status ct-admin__builder-test-result"
                 aria-live="polite"
               >
-                Search for and select an LMS learner, then run the test.
+                Choose an LMS learner, then run the test.
               </p>
             </AdminFieldset>
             <details
