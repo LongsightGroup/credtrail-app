@@ -26,25 +26,3 @@ const applyTemplatePreset = () => {
   applyDefinitionToBuilder(selectedTemplate, "Template");
   syncSuggestedRuleName();
 };
-
-const applyTestFactPreset = () => {
-  const learnerId = getTextFieldValue("testLearnerId") || "canvas:12345";
-  const recipientIdentity = getTextFieldValue("testRecipientIdentity") || "learner@example.edu";
-
-  setRuleCreateFieldValue("testLearnerId", learnerId);
-  setRuleCreateFieldValue("testRecipientIdentity", recipientIdentity);
-
-  if (getTextFieldValue("testFinalScore").length === 0) {
-    setRuleCreateFieldValue("testFinalScore", "92");
-  }
-
-  if (getTextFieldValue("testCompletionPercent").length === 0) {
-    setRuleCreateFieldValue("testCompletionPercent", "100");
-  }
-
-  ruleBuilderLastTestSummary = "Not run";
-  renderSourceReadiness();
-  validateConditionCards(true);
-  setStatus(ruleCreateStatus, "Applied test facts preset.", false);
-  syncRuleBuilderSummary("Applied test facts preset.");
-};

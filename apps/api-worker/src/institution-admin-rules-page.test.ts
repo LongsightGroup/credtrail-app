@@ -2360,21 +2360,28 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toMatch(
       /and an ["'] \+ missingLabels\[1\] \+ ["'] before continuing/,
     );
-    expect(body).toContain('id="rule-builder-test-preset"');
+    expect(body).not.toContain('id="rule-builder-test-preset"');
     expect(body).not.toContain('id="rule-builder-apply-test-preset"');
     expect(body).toContain('id="rule-builder-test-output"');
     expect(body).toContain('name="testDataSource"');
     expect(body).toContain('value="lms"');
     expect(body).toContain('value="example"');
-    expect(body).toContain("Check a learner in the selected LMS");
-    expect(body).toContain("Use generated example data");
+    expect(body).toContain("A learner in the selected LMS");
+    expect(body).toContain("Generated example data");
     expect(body).toContain("For Sakai, use the learner&#39;s login ID from the course roster.");
-    expect(body).toContain("A final score alone does not mark the course complete.");
+    expect(body).not.toContain("course pathway completion in Sakai");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "A course is complete when all of its gradebook items are complete.",
+    );
     expect(body).not.toContain("Sample course ID");
     expect(body).not.toContain('name="testCourseId"');
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "facts = buildSampleFactsFromConditions(readConditionsForPreview())",
+      "facts = buildSampleFactsFromConditions(readConditionsForPreview(), learnerId)",
     );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("ruleBuilderTestPresetSelect");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("ruleBuilderApplyTestPresetButton");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("applyTestFactPreset");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("'Test example data' : 'Test learner'");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "const testDataSource = getRuleBuilderTestDataSource()",
     );
@@ -2648,9 +2655,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
     expect(body).toContain(
       "Review the current settings, test changes, then save a new draft version.",
     );
-    expect(body).toContain(
-      "Try the rule with an LMS learner or generated example data, then save a new draft version for review.",
-    );
+    expect(body).toContain("Check the rule, then save a new draft version for review.");
     expect(body).toContain('id="rule-builder-test"');
     expect(body).toContain('id="rule-builder-save-draft"');
     expect(body).toContain("Save changes as draft");

@@ -534,8 +534,7 @@ const sourceEntriesForConditions = (conditions) => {
   return Array.from(entries.values());
 };
 
-const buildSampleFactsFromConditions = (conditions) => {
-  const learnerId = getTextFieldValue("testLearnerId") || "canvas:12345";
+const buildSampleFactsFromConditions = (conditions, learnerId) => {
   const courseId = getDefaultCourseId() || getCoursePlaceholder();
   const parsedFinalScore = Number(getTextFieldValue("testFinalScore"));
   const finalScore =
@@ -640,7 +639,7 @@ const buildSampleFactsPreview = (conditions) => {
     }
   }
 
-  return JSON.stringify(buildSampleFactsFromConditions(conditions), null, 2);
+  return JSON.stringify(buildSampleFactsFromConditions(conditions, "example-learner"), null, 2);
 };
 
 const renderSourceReadiness = () => {

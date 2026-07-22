@@ -348,7 +348,6 @@ const setBuilderStepState = (requestedIndex) => {
     syncRuleBuilderTestDataSource();
 
     if (getRuleBuilderTestDataSource() === "example") {
-      applyTestFactPreset();
       void runRuleBuilderTest({ auto: true });
     } else if (ruleBuilderTestResult instanceof HTMLElement) {
       setStatus(

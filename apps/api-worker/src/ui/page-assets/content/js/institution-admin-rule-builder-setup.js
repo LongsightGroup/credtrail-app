@@ -297,7 +297,7 @@
       grade_threshold:
         'Learner score must meet the configured minimum and/or maximum threshold.',
       program_completion:
-        'Learner must complete enough courses in a course pathway.',
+        'Learner must complete the required number of selected courses. A course is complete when all of its gradebook items are complete.',
       assignment_submission:
         'Learner must submit an assignment, assessment, or gradebook item, with optional score constraints.',
       survey_completion:
@@ -444,22 +444,8 @@
         ruleBuilderExampleTestAdvanced.hidden = !useExampleData;
       }
 
-      if (useExampleData) {
-        if (getTextFieldValue('testLearnerId').length === 0) {
-          setRuleCreateFieldValue('testLearnerId', 'example-learner');
-        }
-
-        if (getTextFieldValue('testRecipientIdentity').length === 0) {
-          setRuleCreateFieldValue('testRecipientIdentity', 'learner@example.edu');
-        }
-      } else {
-        if (getTextFieldValue('testLearnerId') === 'example-learner') {
-          setRuleCreateFieldValue('testLearnerId', '');
-        }
-
-        if (getTextFieldValue('testRecipientIdentity') === 'learner@example.edu') {
-          setRuleCreateFieldValue('testRecipientIdentity', '');
-        }
+      if (ruleBuilderTestButton instanceof HTMLButtonElement) {
+        ruleBuilderTestButton.textContent = useExampleData ? 'Test example data' : 'Test learner';
       }
     };
 

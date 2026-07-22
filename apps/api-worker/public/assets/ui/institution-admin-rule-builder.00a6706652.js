@@ -83,73 +83,71 @@ if (
 }
 
 const ruleCreateForm = document.getElementById("rule-create-form");
-const ruleCreateStatus = document.getElementById('rule-create-status');
-const ruleBuilderConditionList = document.getElementById('rule-builder-condition-list');
+const ruleCreateStatus = document.getElementById("rule-create-status");
+const ruleBuilderConditionList = document.getElementById("rule-builder-condition-list");
 const ruleBuilderConditionCardTemplate = document.getElementById(
-  'rule-builder-condition-card-template',
+  "rule-builder-condition-card-template",
 );
-const ruleBuilderRootLogic = document.getElementById('rule-builder-root-logic');
-const ruleBuilderDefinitionJson = document.getElementById('rule-builder-definition-json');
-const ruleBuilderTemplatePreset = document.getElementById('rule-builder-template-preset');
-const ruleBuilderLmsConnectionSelect = document.getElementById('rule-builder-lms-connection');
-const ruleBuilderLmsStatus = document.getElementById('rule-builder-lms-status');
-const ruleBuilderLmsProviderKindInput = document.getElementById('rule-builder-lms-provider-kind');
-const ruleBuilderApplyTemplateButton = document.getElementById('rule-builder-apply-template');
-const ruleBuilderAddConditionButton = document.getElementById('rule-builder-add-condition');
+const ruleBuilderRootLogic = document.getElementById("rule-builder-root-logic");
+const ruleBuilderDefinitionJson = document.getElementById("rule-builder-definition-json");
+const ruleBuilderTemplatePreset = document.getElementById("rule-builder-template-preset");
+const ruleBuilderLmsConnectionSelect = document.getElementById("rule-builder-lms-connection");
+const ruleBuilderLmsStatus = document.getElementById("rule-builder-lms-status");
+const ruleBuilderLmsProviderKindInput = document.getElementById("rule-builder-lms-provider-kind");
+const ruleBuilderApplyTemplateButton = document.getElementById("rule-builder-apply-template");
+const ruleBuilderAddConditionButton = document.getElementById("rule-builder-add-condition");
 const ruleBuilderAddAlternativePathButton = document.getElementById(
-  'rule-builder-add-alternative-path',
+  "rule-builder-add-alternative-path",
 );
 const ruleBuilderRequireEveryRequirementButton = document.getElementById(
-  'rule-builder-require-every-requirement',
+  "rule-builder-require-every-requirement",
 );
-const ruleBuilderExportJsonButton = document.getElementById('rule-builder-export-json');
-const ruleBuilderImportJsonButton = document.getElementById('rule-builder-import-json');
-const ruleBuilderImportFileInput = document.getElementById('rule-builder-import-file');
-const ruleBuilderApplyJsonButton = document.getElementById('rule-builder-apply-json');
-const ruleBuilderCloneRuleSelect = document.getElementById('rule-builder-clone-rule');
-const ruleBuilderCloneLoadButton = document.getElementById('rule-builder-clone-load');
-const ruleBuilderTestButton = document.getElementById('rule-builder-test');
-const ruleBuilderTestPresetSelect = document.getElementById('rule-builder-test-preset');
-const ruleBuilderApplyTestPresetButton = document.getElementById('rule-builder-apply-test-preset');
-const ruleBuilderTestOutput = document.getElementById('rule-builder-test-output');
-const ruleBuilderTestResult = document.getElementById('rule-builder-test-result');
-const ruleBuilderLiveTestFields = document.getElementById('rule-builder-live-test-fields');
-const ruleBuilderExampleTestFields = document.getElementById('rule-builder-example-test-fields');
+const ruleBuilderExportJsonButton = document.getElementById("rule-builder-export-json");
+const ruleBuilderImportJsonButton = document.getElementById("rule-builder-import-json");
+const ruleBuilderImportFileInput = document.getElementById("rule-builder-import-file");
+const ruleBuilderApplyJsonButton = document.getElementById("rule-builder-apply-json");
+const ruleBuilderCloneRuleSelect = document.getElementById("rule-builder-clone-rule");
+const ruleBuilderCloneLoadButton = document.getElementById("rule-builder-clone-load");
+const ruleBuilderTestButton = document.getElementById("rule-builder-test");
+const ruleBuilderTestOutput = document.getElementById("rule-builder-test-output");
+const ruleBuilderTestResult = document.getElementById("rule-builder-test-result");
+const ruleBuilderLiveTestFields = document.getElementById("rule-builder-live-test-fields");
+const ruleBuilderExampleTestFields = document.getElementById("rule-builder-example-test-fields");
 const ruleBuilderExampleTestAdvanced = document.getElementById(
-  'rule-builder-example-test-advanced',
+  "rule-builder-example-test-advanced",
 );
 const ruleBuilderTestDataSourceInputs = Array.from(
   document.querySelectorAll('input[name="testDataSource"]'),
 ).filter((candidate) => candidate instanceof HTMLInputElement);
-const ruleBuilderStepNextButton = document.getElementById('rule-builder-step-next');
-const ruleBuilderStepProgress = document.getElementById('rule-builder-step-progress');
-const ruleBuilderStepCallout = document.getElementById('rule-builder-step-callout');
-const ruleBuilderStepFooter = document.getElementById('rule-builder-step-footer');
-const ruleBuilderSubmitButton = document.getElementById('rule-builder-submit');
+const ruleBuilderStepNextButton = document.getElementById("rule-builder-step-next");
+const ruleBuilderStepProgress = document.getElementById("rule-builder-step-progress");
+const ruleBuilderStepCallout = document.getElementById("rule-builder-step-callout");
+const ruleBuilderStepFooter = document.getElementById("rule-builder-step-footer");
+const ruleBuilderSubmitButton = document.getElementById("rule-builder-submit");
 const ruleBuilderSaveDraftButton = document.getElementById("rule-builder-save-draft");
 const ruleBuilderDraftStatus = document.getElementById("rule-builder-draft-status");
-const ruleBuilderCanvasCount = document.getElementById('rule-builder-canvas-count');
-const ruleBuilderCanvasLogic = document.getElementById('rule-builder-canvas-logic');
-const ruleBuilderFlowMode = document.getElementById('rule-builder-flow-mode');
-const ruleBuilderFlowEmpty = document.getElementById('rule-builder-flow-empty');
-const ruleBuilderFlowList = document.getElementById('rule-builder-flow-list');
-const ruleBuilderSummaryMessage = document.getElementById('rule-builder-summary-message');
-const ruleBuilderSummaryRuleName = document.getElementById('rule-builder-summary-rule-name');
+const ruleBuilderCanvasCount = document.getElementById("rule-builder-canvas-count");
+const ruleBuilderCanvasLogic = document.getElementById("rule-builder-canvas-logic");
+const ruleBuilderFlowMode = document.getElementById("rule-builder-flow-mode");
+const ruleBuilderFlowEmpty = document.getElementById("rule-builder-flow-empty");
+const ruleBuilderFlowList = document.getElementById("rule-builder-flow-list");
+const ruleBuilderSummaryMessage = document.getElementById("rule-builder-summary-message");
+const ruleBuilderSummaryRuleName = document.getElementById("rule-builder-summary-rule-name");
 const ruleBuilderSummaryConditionCount = document.getElementById(
-  'rule-builder-summary-condition-count',
+  "rule-builder-summary-condition-count",
 );
-const ruleBuilderSummaryRootLogic = document.getElementById('rule-builder-summary-root-logic');
-const ruleBuilderSummaryValidity = document.getElementById('rule-builder-summary-validity');
-const ruleBuilderSummaryLastTest = document.getElementById('rule-builder-summary-last-test');
-const ruleBuilderSourceList = document.getElementById('rule-builder-source-list');
-const ruleBuilderSourceSample = document.getElementById('rule-builder-source-sample');
+const ruleBuilderSummaryRootLogic = document.getElementById("rule-builder-summary-root-logic");
+const ruleBuilderSummaryValidity = document.getElementById("rule-builder-summary-validity");
+const ruleBuilderSummaryLastTest = document.getElementById("rule-builder-summary-last-test");
+const ruleBuilderSourceList = document.getElementById("rule-builder-source-list");
+const ruleBuilderSourceSample = document.getElementById("rule-builder-source-sample");
 const ruleBuilderStepButtons = Array.from(
-  document.querySelectorAll('[data-rule-step-target]'),
+  document.querySelectorAll("[data-rule-step-target]"),
 ).filter((candidate) => candidate instanceof HTMLButtonElement);
 const ruleBuilderContext =
   parsedContext &&
   parsedContext.ruleBuilderContext &&
-  typeof parsedContext.ruleBuilderContext === 'object'
+  typeof parsedContext.ruleBuilderContext === "object"
     ? parsedContext.ruleBuilderContext
     : {};
 const initialRuleValueLists =
@@ -465,7 +463,7 @@ var adminStatusPillClass = function adminStatusPillClass(tone) {
       grade_threshold:
         'Learner score must meet the configured minimum and/or maximum threshold.',
       program_completion:
-        'Learner must complete enough courses in a course pathway.',
+        'Learner must complete the required number of selected courses. A course is complete when all of its gradebook items are complete.',
       assignment_submission:
         'Learner must submit an assignment, assessment, or gradebook item, with optional score constraints.',
       survey_completion:
@@ -612,22 +610,8 @@ var adminStatusPillClass = function adminStatusPillClass(tone) {
         ruleBuilderExampleTestAdvanced.hidden = !useExampleData;
       }
 
-      if (useExampleData) {
-        if (getTextFieldValue('testLearnerId').length === 0) {
-          setRuleCreateFieldValue('testLearnerId', 'example-learner');
-        }
-
-        if (getTextFieldValue('testRecipientIdentity').length === 0) {
-          setRuleCreateFieldValue('testRecipientIdentity', 'learner@example.edu');
-        }
-      } else {
-        if (getTextFieldValue('testLearnerId') === 'example-learner') {
-          setRuleCreateFieldValue('testLearnerId', '');
-        }
-
-        if (getTextFieldValue('testRecipientIdentity') === 'learner@example.edu') {
-          setRuleCreateFieldValue('testRecipientIdentity', '');
-        }
+      if (ruleBuilderTestButton instanceof HTMLButtonElement) {
+        ruleBuilderTestButton.textContent = useExampleData ? 'Test example data' : 'Test learner';
       }
     };
 
@@ -1071,7 +1055,6 @@ const setBuilderStepState = (requestedIndex) => {
     syncRuleBuilderTestDataSource();
 
     if (getRuleBuilderTestDataSource() === "example") {
-      applyTestFactPreset();
       void runRuleBuilderTest({ auto: true });
     } else if (ruleBuilderTestResult instanceof HTMLElement) {
       setStatus(
@@ -2927,8 +2910,7 @@ const sourceEntriesForConditions = (conditions) => {
   return Array.from(entries.values());
 };
 
-const buildSampleFactsFromConditions = (conditions) => {
-  const learnerId = getTextFieldValue("testLearnerId") || "canvas:12345";
+const buildSampleFactsFromConditions = (conditions, learnerId) => {
   const courseId = getDefaultCourseId() || getCoursePlaceholder();
   const parsedFinalScore = Number(getTextFieldValue("testFinalScore"));
   const finalScore =
@@ -3033,7 +3015,7 @@ const buildSampleFactsPreview = (conditions) => {
     }
   }
 
-  return JSON.stringify(buildSampleFactsFromConditions(conditions), null, 2);
+  return JSON.stringify(buildSampleFactsFromConditions(conditions, "example-learner"), null, 2);
 };
 
 const renderSourceReadiness = () => {
@@ -3736,28 +3718,6 @@ const applyTemplatePreset = () => {
   syncSuggestedRuleName();
 };
 
-const applyTestFactPreset = () => {
-  const learnerId = getTextFieldValue("testLearnerId") || "canvas:12345";
-  const recipientIdentity = getTextFieldValue("testRecipientIdentity") || "learner@example.edu";
-
-  setRuleCreateFieldValue("testLearnerId", learnerId);
-  setRuleCreateFieldValue("testRecipientIdentity", recipientIdentity);
-
-  if (getTextFieldValue("testFinalScore").length === 0) {
-    setRuleCreateFieldValue("testFinalScore", "92");
-  }
-
-  if (getTextFieldValue("testCompletionPercent").length === 0) {
-    setRuleCreateFieldValue("testCompletionPercent", "100");
-  }
-
-  ruleBuilderLastTestSummary = "Not run";
-  renderSourceReadiness();
-  validateConditionCards(true);
-  setStatus(ruleCreateStatus, "Applied test facts preset.", false);
-  syncRuleBuilderSummary("Applied test facts preset.");
-};
-
 const setRuleBuilderDraftStatus = (message, tone) => {
   if (!(ruleBuilderDraftStatus instanceof HTMLElement)) {
     return;
@@ -3782,9 +3742,10 @@ const readRuleBuilderDraftPayload = () => {
     rootLogic: getTextFieldValue("rootLogic"),
     issuanceTiming: getTextFieldValue("issuanceTiming"),
     changeSummary: getTextFieldValue("changeSummary"),
-    reviewOnMissingFacts: getRuleCreateField("reviewOnMissingFacts") instanceof HTMLInputElement
-      ? getRuleCreateField("reviewOnMissingFacts").checked
-      : false,
+    reviewOnMissingFacts:
+      getRuleCreateField("reviewOnMissingFacts") instanceof HTMLInputElement
+        ? getRuleCreateField("reviewOnMissingFacts").checked
+        : false,
     lastTestSummary: ruleBuilderLastTestSummary,
   };
 
@@ -3905,11 +3866,17 @@ const applyBuilderDraftPayload = (draftContext) => {
     }
 
     const reviewField = getRuleCreateField("reviewOnMissingFacts");
-    if (reviewField instanceof HTMLInputElement && typeof builderState.reviewOnMissingFacts === "boolean") {
+    if (
+      reviewField instanceof HTMLInputElement &&
+      typeof builderState.reviewOnMissingFacts === "boolean"
+    ) {
       reviewField.checked = builderState.reviewOnMissingFacts;
     }
 
-    if (typeof builderState.lastTestSummary === "string" && builderState.lastTestSummary.length > 0) {
+    if (
+      typeof builderState.lastTestSummary === "string" &&
+      builderState.lastTestSummary.length > 0
+    ) {
       ruleBuilderLastTestSummary = builderState.lastTestSummary;
     }
   }
@@ -3947,7 +3914,10 @@ const restoreBuilderDraftIfApplicable = () => {
   }
 
   if (restoreStatus === "stale") {
-    setRuleBuilderDraftStatus("Saved draft is older than the current rule version and was ignored.", "warning");
+    setRuleBuilderDraftStatus(
+      "Saved draft is older than the current rule version and was ignored.",
+      "warning",
+    );
     return;
   }
 
@@ -4046,12 +4016,6 @@ if (ruleBuilderRequireEveryRequirementButton instanceof HTMLButtonElement) {
 if (ruleBuilderApplyTemplateButton instanceof HTMLButtonElement) {
   ruleBuilderApplyTemplateButton.addEventListener("click", () => {
     applyTemplatePreset();
-  });
-}
-
-if (ruleBuilderApplyTestPresetButton instanceof HTMLButtonElement) {
-  ruleBuilderApplyTestPresetButton.addEventListener("click", () => {
-    applyTestFactPreset();
   });
 }
 
@@ -4290,19 +4254,20 @@ if (
         return;
       }
 
-      const learnerId = getTextFieldValue('testLearnerId');
-      const recipientIdentity = getTextFieldValue('testRecipientIdentity').toLowerCase();
       const lmsConnectionId = getTextFieldValue('lmsConnectionId');
       const lmsProviderKind = getSelectedLmsProviderKind();
       const testDataSource = getRuleBuilderTestDataSource();
+      const learnerId =
+        testDataSource === 'example' ? 'example-learner' : getTextFieldValue('testLearnerId');
+      const recipientIdentity =
+        testDataSource === 'example'
+          ? 'learner@example.edu'
+          : getTextFieldValue('testRecipientIdentity').toLowerCase();
       const sampleFinalScoreText = getTextFieldValue('testFinalScore');
       const testFactsJson = getTextFieldValue('testFactsJson');
 
       if (learnerId.length === 0 || recipientIdentity.length === 0) {
-        const message =
-          testDataSource === 'lms'
-            ? 'Enter an existing LMS learner ID and recipient email.'
-            : 'Example testing requires a learner ID and recipient email.';
+        const message = 'Enter an existing LMS learner ID and recipient email.';
         setStatus(ruleCreateStatus, message, true);
         if (ruleBuilderTestResult instanceof HTMLElement) {
           setStatus(ruleBuilderTestResult, message, true);
@@ -4354,7 +4319,7 @@ if (
           return;
         }
 
-        facts = buildSampleFactsFromConditions(readConditionsForPreview());
+        facts = buildSampleFactsFromConditions(readConditionsForPreview(), learnerId);
       }
 
       try {

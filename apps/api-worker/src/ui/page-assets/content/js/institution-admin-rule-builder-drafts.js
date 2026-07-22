@@ -22,9 +22,10 @@ const readRuleBuilderDraftPayload = () => {
     rootLogic: getTextFieldValue("rootLogic"),
     issuanceTiming: getTextFieldValue("issuanceTiming"),
     changeSummary: getTextFieldValue("changeSummary"),
-    reviewOnMissingFacts: getRuleCreateField("reviewOnMissingFacts") instanceof HTMLInputElement
-      ? getRuleCreateField("reviewOnMissingFacts").checked
-      : false,
+    reviewOnMissingFacts:
+      getRuleCreateField("reviewOnMissingFacts") instanceof HTMLInputElement
+        ? getRuleCreateField("reviewOnMissingFacts").checked
+        : false,
     lastTestSummary: ruleBuilderLastTestSummary,
   };
 
@@ -145,11 +146,17 @@ const applyBuilderDraftPayload = (draftContext) => {
     }
 
     const reviewField = getRuleCreateField("reviewOnMissingFacts");
-    if (reviewField instanceof HTMLInputElement && typeof builderState.reviewOnMissingFacts === "boolean") {
+    if (
+      reviewField instanceof HTMLInputElement &&
+      typeof builderState.reviewOnMissingFacts === "boolean"
+    ) {
       reviewField.checked = builderState.reviewOnMissingFacts;
     }
 
-    if (typeof builderState.lastTestSummary === "string" && builderState.lastTestSummary.length > 0) {
+    if (
+      typeof builderState.lastTestSummary === "string" &&
+      builderState.lastTestSummary.length > 0
+    ) {
       ruleBuilderLastTestSummary = builderState.lastTestSummary;
     }
   }
@@ -187,7 +194,10 @@ const restoreBuilderDraftIfApplicable = () => {
   }
 
   if (restoreStatus === "stale") {
-    setRuleBuilderDraftStatus("Saved draft is older than the current rule version and was ignored.", "warning");
+    setRuleBuilderDraftStatus(
+      "Saved draft is older than the current rule version and was ignored.",
+      "warning",
+    );
     return;
   }
 
@@ -286,12 +296,6 @@ if (ruleBuilderRequireEveryRequirementButton instanceof HTMLButtonElement) {
 if (ruleBuilderApplyTemplateButton instanceof HTMLButtonElement) {
   ruleBuilderApplyTemplateButton.addEventListener("click", () => {
     applyTemplatePreset();
-  });
-}
-
-if (ruleBuilderApplyTestPresetButton instanceof HTMLButtonElement) {
-  ruleBuilderApplyTestPresetButton.addEventListener("click", () => {
-    applyTestFactPreset();
   });
 }
 

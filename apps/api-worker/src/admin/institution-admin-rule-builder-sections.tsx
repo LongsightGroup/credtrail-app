@@ -528,31 +528,25 @@ export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): Ho
             <h3 tabindex={-1}>Test and submit</h3>
             <p>
               {props.isEditMode
-                ? "Try the rule with an LMS learner or generated example data, then save a new draft version for review."
-                : "Try the rule with an LMS learner or generated example data, then save the draft for review."}
+                ? "Check the rule, then save a new draft version for review."
+                : "Check the rule, then save the draft for review."}
             </p>
           </header>
           <div class="ct-admin__builder-test-layout ct-stack">
-            <AdminFieldset legend="Test with learner">
-              <p class="ct-admin__hint">
-                Choose whether to check a real learner in the selected LMS or try the rule with
-                generated example data.
-              </p>
-              <AdminFieldset legend="Test data">
-                <AdminCheckboxRow
-                  name="testDataSource"
-                  type="radio"
-                  value="lms"
-                  label="Check a learner in the selected LMS"
-                  checked
-                />
-                <AdminCheckboxRow
-                  name="testDataSource"
-                  type="radio"
-                  value="example"
-                  label="Use generated example data"
-                />
-              </AdminFieldset>
+            <AdminFieldset legend="Test rule using">
+              <AdminCheckboxRow
+                name="testDataSource"
+                type="radio"
+                value="lms"
+                label="A learner in the selected LMS"
+                checked
+              />
+              <AdminCheckboxRow
+                name="testDataSource"
+                type="radio"
+                value="example"
+                label="Generated example data"
+              />
               <div id="rule-builder-live-test-fields" class="ct-stack">
                 <p class="ct-admin__hint">
                   Enter an existing learner. For Sakai, use the learner's login ID from the course
@@ -575,9 +569,7 @@ export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): Ho
                   />
                 </AdminField>
                 <p id="rule-builder-live-test-help" class="ct-admin__hint">
-                  For course pathway completion in Sakai, every gradebook item in a selected course
-                  must have a grade or be excused. A final score alone does not mark the course
-                  complete.
+                  CredTrail reads the learner's current records from the selected LMS connection.
                 </p>
               </div>
               <div id="rule-builder-example-test-fields" class="ct-stack" hidden>
@@ -606,19 +598,9 @@ export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): Ho
                   />
                 </AdminField>
               </div>
-              <CtSelect id="rule-builder-test-preset" name="testPreset" hidden>
-                <option value="canvas_course_grade" selected>
-                  Canvas course + grade
-                </option>
-                <option value="program_completion">Course pathway completion</option>
-                <option value="assignment_submission">Gradebook item submitted</option>
-                <option value="survey_completion">Survey completion</option>
-                <option value="prerequisite_badge">Prerequisite badge</option>
-                <option value="custom_field">Custom field</option>
-              </CtSelect>
               <div class="ct-admin__builder-test-actions">
                 <AdminButton id="rule-builder-test" type="button" size="tiny">
-                  Test with learner
+                  Test learner
                 </AdminButton>
               </div>
               <p
@@ -640,7 +622,7 @@ export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): Ho
                   name="testFactsJson"
                   rows={6}
                   variant="code"
-                  placeholder='{"grades":[{"courseId":"CS101","learnerId":"canvas:12345","finalScore":92}]}'
+                  placeholder='{"grades":[{"courseId":"CS101","learnerId":"example-learner","finalScore":92}]}'
                 />
               </AdminField>
             </details>

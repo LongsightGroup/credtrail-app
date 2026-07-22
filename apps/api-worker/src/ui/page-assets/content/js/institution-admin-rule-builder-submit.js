@@ -32,19 +32,20 @@
         return;
       }
 
-      const learnerId = getTextFieldValue('testLearnerId');
-      const recipientIdentity = getTextFieldValue('testRecipientIdentity').toLowerCase();
       const lmsConnectionId = getTextFieldValue('lmsConnectionId');
       const lmsProviderKind = getSelectedLmsProviderKind();
       const testDataSource = getRuleBuilderTestDataSource();
+      const learnerId =
+        testDataSource === 'example' ? 'example-learner' : getTextFieldValue('testLearnerId');
+      const recipientIdentity =
+        testDataSource === 'example'
+          ? 'learner@example.edu'
+          : getTextFieldValue('testRecipientIdentity').toLowerCase();
       const sampleFinalScoreText = getTextFieldValue('testFinalScore');
       const testFactsJson = getTextFieldValue('testFactsJson');
 
       if (learnerId.length === 0 || recipientIdentity.length === 0) {
-        const message =
-          testDataSource === 'lms'
-            ? 'Enter an existing LMS learner ID and recipient email.'
-            : 'Example testing requires a learner ID and recipient email.';
+        const message = 'Enter an existing LMS learner ID and recipient email.';
         setStatus(ruleCreateStatus, message, true);
         if (ruleBuilderTestResult instanceof HTMLElement) {
           setStatus(ruleBuilderTestResult, message, true);
@@ -96,7 +97,7 @@
           return;
         }
 
-        facts = buildSampleFactsFromConditions(readConditionsForPreview());
+        facts = buildSampleFactsFromConditions(readConditionsForPreview(), learnerId);
       }
 
       try {
