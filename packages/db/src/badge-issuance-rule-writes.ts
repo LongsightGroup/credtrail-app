@@ -2,11 +2,16 @@ import { createPrefixedId } from "./shared-helpers";
 import { runSqlTransaction, type SqlDatabase, type SqlRunResult } from "./tenant-scope";
 import { resolveActiveRuleOrgUnit } from "./badge-issuance-rule-org-units.js";
 import { findBadgeTemplateById } from "./badge-templates.js";
+import {
+  badgeIssuanceRuleIdentityForBuilderDraft,
+  type BadgeIssuanceRuleIdentity,
+} from "./badge-issuance-rule-builder-identity.js";
 import type {
   CreateBadgeIssuanceRuleInput,
   CreateBadgeIssuanceRuleResult,
   CreateBadgeIssuanceRuleVersionInput,
   DeleteDraftBadgeIssuanceRuleResult,
+  PromoteBadgeIssuanceRuleBuilderDraftResult,
   UpdateBadgeIssuanceRuleDraftInput,
   UpdateBadgeIssuanceRuleDraftResult,
   BadgeIssuanceRuleVersionRecord,
@@ -19,15 +24,15 @@ import {
   listBadgeIssuanceRuleVersions,
   type BadgeIssuanceRuleVersionNumberRow,
 } from "./badge-issuance-rule-reads.js";
-import { deleteBadgeIssuanceRuleBuilderDraftById } from "./badge-issuance-rule-builder-drafts.js";
+import { takeBadgeIssuanceRuleBuilderDraftForPromotion } from "./badge-issuance-rule-builder-drafts.js";
 
-export const createBadgeIssuanceRuleWithConnection = async (
+const createBadgeIssuanceRuleWithIdentity = async (
   db: SqlDatabase,
   input: CreateBadgeIssuanceRuleInput,
+  identity: BadgeIssuanceRuleIdentity,
 ): Promise<CreateBadgeIssuanceRuleResult> => {
   const nowIso = new Date().toISOString();
-  const ruleId = createPrefixedId("brl");
-  const versionId = createPrefixedId("brv");
+  const { ruleId, versionId } = identity;
   const badgeTemplate = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
 
   if (badgeTemplate === null) {
@@ -135,6 +140,18 @@ export const createBadgeIssuanceRuleWithConnection = async (
   };
 };
 
+/** Creates a badge rule with fresh server-owned resource identities. */
+export const createBadgeIssuanceRuleWithConnection = async (
+  db: SqlDatabase,
+  input: CreateBadgeIssuanceRuleInput,
+): Promise<CreateBadgeIssuanceRuleResult> => {
+  return createBadgeIssuanceRuleWithIdentity(db, input, {
+    ruleId: createPrefixedId("brl"),
+    versionId: createPrefixedId("brv"),
+  });
+};
+
+/** Creates a badge rule and its first draft version atomically. */
 export const createBadgeIssuanceRule = async (
   db: SqlDatabase,
   input: CreateBadgeIssuanceRuleInput,
@@ -144,25 +161,72 @@ export const createBadgeIssuanceRule = async (
   );
 };
 
+/** Idempotently promotes one builder identity into a formal rule. */
 export const createBadgeIssuanceRuleFromBuilderDraft = async (
   db: SqlDatabase,
   input: CreateBadgeIssuanceRuleInput & {
     readonly builderDraftId: string;
     readonly builderUserId: string;
   },
-): Promise<CreateBadgeIssuanceRuleResult | null> => {
+): Promise<PromoteBadgeIssuanceRuleBuilderDraftResult> => {
   return runSqlTransaction(db, async (transactionDb) => {
-    const deletedDraft = await deleteBadgeIssuanceRuleBuilderDraftById(transactionDb, {
+    const identity = await badgeIssuanceRuleIdentityForBuilderDraft(
+      input.tenantId,
+      input.builderDraftId,
+    );
+    await transactionDb
+      .prepare("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")
+      .bind(`${input.tenantId}:${input.builderDraftId}`)
+      .run();
+
+    const existingRule = await findBadgeIssuanceRuleById(
+      transactionDb,
+      input.tenantId,
+      identity.ruleId,
+    );
+
+    if (existingRule !== null) {
+      if (existingRule.createdByUserId !== input.builderUserId) {
+        return {
+          status: "unavailable",
+        };
+      }
+
+      const existingVersion = await findBadgeIssuanceRuleVersionById(transactionDb, {
+        tenantId: input.tenantId,
+        ruleId: identity.ruleId,
+        versionId: identity.versionId,
+      });
+
+      if (existingVersion === null) {
+        throw new Error(`Promoted badge rule "${identity.ruleId}" has no initial version`);
+      }
+
+      return {
+        status: "replayed",
+        draft: {
+          rule: existingRule,
+          version: existingVersion,
+        },
+      };
+    }
+
+    const draftAvailability = await takeBadgeIssuanceRuleBuilderDraftForPromotion(transactionDb, {
       tenantId: input.tenantId,
       userId: input.builderUserId,
       draftId: input.builderDraftId,
     });
 
-    if (deletedDraft === null) {
-      return null;
+    if (draftAvailability === "unavailable") {
+      return {
+        status: "unavailable",
+      };
     }
 
-    return createBadgeIssuanceRuleWithConnection(transactionDb, input);
+    return {
+      status: "created",
+      draft: await createBadgeIssuanceRuleWithIdentity(transactionDb, input, identity),
+    };
   });
 };
 

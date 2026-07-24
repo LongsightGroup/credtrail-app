@@ -109,6 +109,18 @@ describe("badge rule review queue schema", () => {
     expect(sql).toContain("ADD PRIMARY KEY (tenant_id, id)");
     expect(sql).toContain("WHERE rule_id IS NOT NULL");
   });
+
+  it("constrains builder drafts to unfinished or matching formal-rule targets", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0057_badge_rule_builder_draft_target.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("badge_rule_builder_drafts_target_check");
+    expect(sql).toContain("(rule_id IS NULL AND version_id IS NULL)");
+    expect(sql).toContain("(tenant_id, rule_id, version_id)");
+    expect(sql).toContain("REFERENCES badge_issuance_rule_versions (tenant_id, rule_id, id)");
+  });
 });
 
 describe("resolveListBadgeIssuanceRulesInput", () => {

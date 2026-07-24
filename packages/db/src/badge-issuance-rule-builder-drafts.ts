@@ -1,8 +1,10 @@
 import type {
   BadgeIssuanceRuleBuilderDraftRecord,
   SaveBadgeIssuanceRuleBuilderDraftInput,
+  SaveBadgeIssuanceRuleBuilderDraftResult,
 } from "./badge-issuance-rule-types.js";
-import type { SqlDatabase } from "./tenant-scope.js";
+import { badgeIssuanceRuleIdentityForBuilderDraft } from "./badge-issuance-rule-builder-identity.js";
+import { runSqlTransaction, type SqlDatabase } from "./tenant-scope.js";
 
 interface BadgeIssuanceRuleBuilderDraftRow {
   id: string;
@@ -19,17 +21,35 @@ interface BadgeIssuanceRuleBuilderDraftRow {
 const mapBadgeIssuanceRuleBuilderDraftRow = (
   row: BadgeIssuanceRuleBuilderDraftRow,
 ): BadgeIssuanceRuleBuilderDraftRecord => {
-  return {
+  const base = {
     id: row.id,
     tenantId: row.tenantId,
     userId: row.userId,
-    ruleId: row.ruleId,
-    versionId: row.versionId,
     currentStep: row.currentStep,
     draftJson: row.draftJson,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+
+  if (row.ruleId === null && row.versionId === null) {
+    return {
+      ...base,
+      targetKind: "unfinished",
+      ruleId: null,
+      versionId: null,
+    };
+  }
+
+  if (row.ruleId !== null && row.versionId !== null) {
+    return {
+      ...base,
+      targetKind: "formal_rule",
+      ruleId: row.ruleId,
+      versionId: row.versionId,
+    };
+  }
+
+  throw new Error(`Badge rule builder draft "${row.id}" has an invalid persisted target`);
 };
 
 const badgeIssuanceRuleBuilderDraftSelectColumns = `
@@ -44,17 +64,47 @@ const badgeIssuanceRuleBuilderDraftSelectColumns = `
   updated_at AS updatedAt
 `;
 
+/** Saves builder progress when the draft identity remains owned by the same user and target. */
 export const saveBadgeIssuanceRuleBuilderDraft = async (
   db: SqlDatabase,
   input: SaveBadgeIssuanceRuleBuilderDraftInput,
-): Promise<BadgeIssuanceRuleBuilderDraftRecord> => {
-  const nowIso = new Date().toISOString();
-  const ruleId = input.ruleId ?? null;
-  const versionId = input.versionId ?? null;
+): Promise<SaveBadgeIssuanceRuleBuilderDraftResult> => {
+  return runSqlTransaction(db, async (transactionDb) => {
+    await transactionDb
+      .prepare("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")
+      .bind(`${input.tenantId}:${input.id}`)
+      .run();
 
-  const row = await db
-    .prepare(
-      `
+    if (input.target.kind === "unfinished") {
+      const promotedIdentity = await badgeIssuanceRuleIdentityForBuilderDraft(
+        input.tenantId,
+        input.id,
+      );
+      const promotedRule = await transactionDb
+        .prepare(
+          `
+          SELECT id
+          FROM badge_issuance_rules
+          WHERE id = ?
+          LIMIT 1
+        `,
+        )
+        .bind(promotedIdentity.ruleId)
+        .first<{ id: string }>();
+
+      if (promotedRule !== null) {
+        return {
+          status: "unavailable",
+        };
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const ruleId = input.target.kind === "formal_rule" ? input.target.ruleId : null;
+    const versionId = input.target.kind === "formal_rule" ? input.target.versionId : null;
+    const row = await transactionDb
+      .prepare(
+        `
       INSERT INTO badge_issuance_rule_builder_drafts (
         id,
         tenant_id,
@@ -77,26 +127,32 @@ export const saveBadgeIssuanceRuleBuilderDraft = async (
         AND badge_issuance_rule_builder_drafts.rule_id IS NOT DISTINCT FROM excluded.rule_id
       RETURNING
         ${badgeIssuanceRuleBuilderDraftSelectColumns}
-    `,
-    )
-    .bind(
-      input.id,
-      input.tenantId,
-      input.userId,
-      ruleId,
-      versionId,
-      input.currentStep,
-      input.draftJson,
-      nowIso,
-      nowIso,
-    )
-    .first<BadgeIssuanceRuleBuilderDraftRow>();
+      `,
+      )
+      .bind(
+        input.id,
+        input.tenantId,
+        input.userId,
+        ruleId,
+        versionId,
+        input.currentStep,
+        input.draftJson,
+        nowIso,
+        nowIso,
+      )
+      .first<BadgeIssuanceRuleBuilderDraftRow>();
 
-  if (row === null) {
-    throw new Error(`Unable to save badge rule builder draft for tenant "${input.tenantId}"`);
-  }
+    if (row === null) {
+      return {
+        status: "unavailable",
+      };
+    }
 
-  return mapBadgeIssuanceRuleBuilderDraftRow(row);
+    return {
+      status: "saved",
+      draft: mapBadgeIssuanceRuleBuilderDraftRow(row),
+    };
+  });
 };
 
 /** Finds one builder draft owned by a user. */
@@ -204,6 +260,37 @@ export const deleteBadgeIssuanceRuleBuilderDraftById = async (
     .first<BadgeIssuanceRuleBuilderDraftRow>();
 
   return row === null ? null : mapBadgeIssuanceRuleBuilderDraftRow(row);
+};
+
+/** Removes an unfinished draft for promotion or reports an identity collision. */
+export const takeBadgeIssuanceRuleBuilderDraftForPromotion = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly userId: string;
+    readonly draftId: string;
+  },
+): Promise<"taken" | "absent" | "unavailable"> => {
+  const deleted = await deleteBadgeIssuanceRuleBuilderDraftById(db, input);
+
+  if (deleted !== null) {
+    return "taken";
+  }
+
+  const existing = await db
+    .prepare(
+      `
+      SELECT id
+      FROM badge_issuance_rule_builder_drafts
+      WHERE tenant_id = ?
+        AND id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(input.tenantId, input.draftId)
+    .first<{ id: string }>();
+
+  return existing === null ? "absent" : "unavailable";
 };
 
 /** Deletes the current user's working draft for a formal rule. */

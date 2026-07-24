@@ -19,6 +19,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         id: "brd_first",
         tenantId: fixture.tenantId,
         userId: fixture.userId,
+        target: { kind: "unfinished" },
         currentStep: "metadata",
         draftJson: JSON.stringify({
           badgeTemplateId: fixture.badgeTemplateId,
@@ -36,7 +37,8 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         [fixture.tenantId],
       );
 
-      expect(draft.currentStep).toBe("metadata");
+      expect(draft.status).toBe("saved");
+      expect(draft.status === "saved" ? draft.draft.currentStep : null).toBe("metadata");
       expect(loaded?.draftJson).toContain(fixture.badgeTemplateId);
       expect(versionCount).toBe(0);
     } finally {
@@ -55,6 +57,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         id: "brd_delete",
         tenantId: fixture.tenantId,
         userId: fixture.userId,
+        target: { kind: "unfinished" },
         currentStep: "conditions",
         draftJson: JSON.stringify({ definitionJson: "{}" }),
       });
@@ -88,6 +91,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         id: "brd_alpha",
         tenantId: fixture.tenantId,
         userId: fixture.userId,
+        target: { kind: "unfinished" },
         currentStep: "metadata",
         draftJson: JSON.stringify({ name: "Alpha" }),
       });
@@ -95,6 +99,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         id: "brd_beta",
         tenantId: fixture.tenantId,
         userId: fixture.userId,
+        target: { kind: "unfinished" },
         currentStep: "conditions",
         draftJson: JSON.stringify({ name: "Beta" }),
       });
@@ -113,6 +118,43 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
     }
   });
 
+  it("rejects a formal builder target whose version belongs to another rule", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      const firstRule = await createFixtureRule(fixture);
+      const secondRule = await dbModule.createBadgeIssuanceRule(fixture.db, {
+        tenantId: fixture.tenantId,
+        name: "Second rule",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_202","minScore":70}}',
+        createdByUserId: fixture.userId,
+      });
+
+      await expect(
+        dbModule.saveBadgeIssuanceRuleBuilderDraft(fixture.db, {
+          id: "brd_mismatched_target",
+          tenantId: fixture.tenantId,
+          userId: fixture.userId,
+          target: {
+            kind: "formal_rule",
+            ruleId: firstRule.rule.id,
+            versionId: secondRule.version.id,
+          },
+          currentStep: "conditions",
+          draftJson: JSON.stringify({ name: "Invalid target" }),
+        }),
+      ).rejects.toThrow(/./);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
   it("atomically promotes the selected unfinished draft into a formal rule", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 
@@ -121,6 +163,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         id: "brd_promote",
         tenantId: fixture.tenantId,
         userId: fixture.userId,
+        target: { kind: "unfinished" },
         currentStep: "test",
         draftJson: JSON.stringify({ name: "Promote me" }),
       });
@@ -136,14 +179,47 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
         createdByUserId: fixture.userId,
       });
+      const replayed = await dbModule.createBadgeIssuanceRuleFromBuilderDraft(fixture.db, {
+        tenantId: fixture.tenantId,
+        builderDraftId: "brd_promote",
+        builderUserId: fixture.userId,
+        name: "A retry must not create this second name",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":90}}',
+        createdByUserId: fixture.userId,
+      });
+      const lateSave = await dbModule.saveBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        id: "brd_promote",
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        target: { kind: "unfinished" },
+        currentStep: "test",
+        draftJson: JSON.stringify({ name: "Must not reappear" }),
+      });
       const remainingDraft = await dbModule.findBadgeIssuanceRuleBuilderDraftById(fixture.db, {
         tenantId: fixture.tenantId,
         userId: fixture.userId,
         draftId: "brd_promote",
       });
+      const ruleCount = await selectCount(
+        fixture.db,
+        "SELECT COUNT(*) AS totalCount FROM badge_issuance_rules WHERE tenant_id = ?",
+        [fixture.tenantId],
+      );
 
-      expect(created?.rule.name).toBe("Promoted rule");
-      expect(created?.version.status).toBe("draft");
+      expect(created.status).toBe("created");
+      expect(created.status === "unavailable" ? null : created.draft.rule.name).toBe(
+        "Promoted rule",
+      );
+      expect(created.status === "unavailable" ? null : created.draft.version.status).toBe("draft");
+      expect(replayed.status).toBe("replayed");
+      expect(replayed.status === "unavailable" ? null : replayed.draft.rule.name).toBe(
+        "Promoted rule",
+      );
+      expect(lateSave.status).toBe("unavailable");
+      expect(ruleCount).toBe(1);
       expect(remainingDraft).toBeNull();
     } finally {
       await cleanupTestResources(fixture.db, {

@@ -365,14 +365,7 @@
       }
 
       if (!isRuleBuilderEditMode) {
-        const draftSaved = await saveRuleBuilderDraft({ quiet: true });
-
-        if (!draftSaved) {
-          const message = "Save the unfinished draft before creating the rule.";
-          setStatus(ruleCreateStatus, message, true);
-          syncRuleBuilderSummary(message);
-          return;
-        }
+        await ruleBuilderDraftSaveQueue;
       }
 
       try {

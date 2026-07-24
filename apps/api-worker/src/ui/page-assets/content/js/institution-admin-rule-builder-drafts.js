@@ -30,10 +30,14 @@ const readRuleBuilderDraftPayload = () => {
   };
 
   return {
-    ...(isRuleBuilderEditMode ? { ruleId: editRuleContext.id } : {}),
-    ...(isRuleBuilderEditMode && typeof editRuleContext.latestVersionId === "string"
-      ? { versionId: editRuleContext.latestVersionId }
-      : {}),
+    target:
+      isRuleBuilderEditMode && typeof editRuleContext.latestVersionId === "string"
+        ? {
+            kind: "formal_rule",
+            ruleId: editRuleContext.id,
+            versionId: editRuleContext.latestVersionId,
+          }
+        : { kind: "unfinished" },
     currentStep: currentRuleBuilderStep(),
     name: getTextFieldValue("name"),
     description: getTextFieldValue("description"),

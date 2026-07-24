@@ -4188,10 +4188,14 @@ const readRuleBuilderDraftPayload = () => {
   };
 
   return {
-    ...(isRuleBuilderEditMode ? { ruleId: editRuleContext.id } : {}),
-    ...(isRuleBuilderEditMode && typeof editRuleContext.latestVersionId === "string"
-      ? { versionId: editRuleContext.latestVersionId }
-      : {}),
+    target:
+      isRuleBuilderEditMode && typeof editRuleContext.latestVersionId === "string"
+        ? {
+            kind: "formal_rule",
+            ruleId: editRuleContext.id,
+            versionId: editRuleContext.latestVersionId,
+          }
+        : { kind: "unfinished" },
     currentStep: currentRuleBuilderStep(),
     name: getTextFieldValue("name"),
     description: getTextFieldValue("description"),
@@ -5057,14 +5061,7 @@ if (
       }
 
       if (!isRuleBuilderEditMode) {
-        const draftSaved = await saveRuleBuilderDraft({ quiet: true });
-
-        if (!draftSaved) {
-          const message = "Save the unfinished draft before creating the rule.";
-          setStatus(ruleCreateStatus, message, true);
-          syncRuleBuilderSummary(message);
-          return;
-        }
+        await ruleBuilderDraftSaveQueue;
       }
 
       try {

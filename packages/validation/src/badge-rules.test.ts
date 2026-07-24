@@ -13,6 +13,7 @@ import {
   parsePreviewEvaluateBadgeIssuanceRuleRequest,
   parsePreviewSimulateBadgeIssuanceRuleRequest,
   parseResolveBadgeIssuanceRuleReviewRequest,
+  parseSaveBadgeIssuanceRuleBuilderDraftRequest,
   parseUpdateBadgeIssuanceRuleDraftRequest,
 } from "./badge-rules.js";
 
@@ -364,6 +365,49 @@ describe("badge issuance rule parsers", () => {
             courseListId: "brvl_courses",
           },
         },
+      });
+    }).toThrow(/./);
+  });
+
+  it("parses unfinished and formal-rule builder draft targets", () => {
+    const unfinished = parseSaveBadgeIssuanceRuleBuilderDraftRequest({
+      target: { kind: "unfinished" },
+      currentStep: "metadata",
+    });
+    const formalRule = parseSaveBadgeIssuanceRuleBuilderDraftRequest({
+      target: {
+        kind: "formal_rule",
+        ruleId: "brl_rule",
+        versionId: "brv_version",
+      },
+      currentStep: "conditions",
+    });
+
+    expect(unfinished.target).toEqual({ kind: "unfinished" });
+    expect(formalRule.target).toEqual({
+      kind: "formal_rule",
+      ruleId: "brl_rule",
+      versionId: "brv_version",
+    });
+  });
+
+  it("rejects builder draft targets with only one formal identity", () => {
+    expect(() => {
+      parseSaveBadgeIssuanceRuleBuilderDraftRequest({
+        target: {
+          kind: "formal_rule",
+          versionId: "brv_version",
+        },
+        currentStep: "metadata",
+      });
+    }).toThrow(/./);
+    expect(() => {
+      parseSaveBadgeIssuanceRuleBuilderDraftRequest({
+        target: {
+          kind: "formal_rule",
+          ruleId: "brl_rule",
+        },
+        currentStep: "metadata",
       });
     }).toThrow(/./);
   });

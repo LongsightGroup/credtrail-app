@@ -597,14 +597,16 @@ describe("badge rule routes", () => {
     expect(response.status).toBe(201);
     expect(mockedCreateBadgeIssuanceRule).toHaveBeenCalledTimes(1);
     expect(mockedCreateAuditLog).toHaveBeenCalledTimes(1);
-    expect(mockedDeleteBadgeIssuanceRuleBuilderDraft).toHaveBeenCalledTimes(1);
   });
 
   it("promotes the exact unfinished builder draft into a formal rule", async () => {
     const env = createEnv();
     mockedCreateBadgeIssuanceRuleFromBuilderDraft.mockResolvedValue({
-      rule: sampleRule(),
-      version: sampleVersion(),
+      status: "created",
+      draft: {
+        rule: sampleRule(),
+        version: sampleVersion(),
+      },
     });
 
     const response = await app.request(
@@ -646,18 +648,65 @@ describe("badge rule routes", () => {
     expect(mockedDeleteBadgeIssuanceRuleBuilderDraft).not.toHaveBeenCalled();
   });
 
+  it("replays the original promoted rule after an ambiguous client retry", async () => {
+    const env = createEnv();
+    mockedCreateBadgeIssuanceRuleFromBuilderDraft.mockResolvedValue({
+      status: "replayed",
+      draft: {
+        rule: sampleRule(),
+        version: sampleVersion(),
+      },
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Changed retry payload",
+          badgeTemplateId: "badge_template_cs101",
+          lmsConnectionId: "lms_123",
+          builderDraftId: "brd_exact",
+          definition: {
+            conditions: {
+              type: "grade_threshold",
+              courseId: "course_101",
+              minScore: 90,
+            },
+          },
+        }),
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(201);
+    expect(body).toMatch(/"minScore":\s*80/);
+    expect(body).not.toMatch(/"minScore":\s*90/);
+    expect(mockedCreateAuditLog).not.toHaveBeenCalled();
+  });
+
   it("saves incomplete rule builder drafts without creating rule versions", async () => {
     const env = createEnv();
     mockedSaveBadgeIssuanceRuleBuilderDraft.mockResolvedValue({
-      id: "brd_123",
-      tenantId: "tenant_123",
-      userId: "user_123",
-      ruleId: null,
-      versionId: null,
-      currentStep: "metadata",
-      draftJson: '{"badgeTemplateId":"badge_template_123","definitionJson":""}',
-      createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-01T00:00:00.000Z",
+      status: "saved",
+      draft: {
+        id: "brd_123",
+        tenantId: "tenant_123",
+        userId: "user_123",
+        targetKind: "unfinished",
+        ruleId: null,
+        versionId: null,
+        currentStep: "metadata",
+        draftJson: '{"badgeTemplateId":"badge_template_123","definitionJson":""}',
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
     });
 
     const response = await app.request(
@@ -670,6 +719,7 @@ describe("badge rule routes", () => {
           "content-type": "application/json",
         },
         body: JSON.stringify({
+          target: { kind: "unfinished" },
           currentStep: "metadata",
           badgeTemplateId: "badge_template_123",
           definitionJson: "",
@@ -688,6 +738,7 @@ describe("badge rule routes", () => {
       id: "brd_123",
       tenantId: "tenant_123",
       userId: "usr_123",
+      target: { kind: "unfinished" },
       currentStep: "metadata",
       draftJson: JSON.stringify({
         name: "",

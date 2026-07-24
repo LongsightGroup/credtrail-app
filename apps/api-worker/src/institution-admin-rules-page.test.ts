@@ -195,6 +195,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
         id: "brd_alpha",
         tenantId: "tenant_123",
         userId: "usr_admin",
+        targetKind: "unfinished",
         ruleId: null,
         versionId: null,
         currentStep: "conditions",
@@ -210,6 +211,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
         id: "brd_beta",
         tenantId: "tenant_123",
         userId: "usr_admin",
+        targetKind: "unfinished",
         ruleId: null,
         versionId: null,
         currentStep: "metadata",
@@ -1004,6 +1006,7 @@ describe("POST /tenants/:tenantId/admin/rules/drafts/:draftId/delete", () => {
       id: "brd_exact",
       tenantId: "tenant_123",
       userId: "usr_admin",
+      targetKind: "unfinished",
       ruleId: null,
       versionId: null,
       currentStep: "metadata",
@@ -2603,6 +2606,10 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-condition-list");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("credtrail:rule-builder:");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("saveRuleBuilderDraft");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("await ruleBuilderDraftSaveQueue");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain(
+      "const draftSaved = await saveRuleBuilderDraft",
+    );
     expect(body).toContain('id="rule-builder-save-draft"');
     expect(body).toContain("Draft not saved yet.");
     expect(body).toMatch(
@@ -2711,6 +2718,7 @@ describe("GET /tenants/:tenantId/admin/rules/drafts/:draftId/edit", () => {
       id: "brd_exact",
       tenantId: "tenant_123",
       userId: "usr_admin",
+      targetKind: "unfinished",
       ruleId: null,
       versionId: null,
       currentStep: "conditions",

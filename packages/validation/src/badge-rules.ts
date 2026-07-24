@@ -271,8 +271,13 @@ export const badgeIssuanceRulePathParamsSchema = tenantPathParamsSchema.extend({
   ruleId: resourceIdSchema,
 });
 
+/** Canonical identity for one browser-authored badge-rule draft. */
+export const badgeIssuanceRuleBuilderDraftIdSchema = z
+  .string()
+  .regex(/^brd_[A-Za-z0-9_-]+$/, "Invalid badge rule builder draft ID");
+
 export const badgeIssuanceRuleBuilderDraftPathParamsSchema = tenantPathParamsSchema.extend({
-  draftId: resourceIdSchema,
+  draftId: badgeIssuanceRuleBuilderDraftIdSchema,
 });
 
 export const badgeIssuanceRuleVersionPathParamsSchema = badgeIssuanceRulePathParamsSchema.extend({
@@ -300,7 +305,7 @@ export const createBadgeIssuanceRuleRequestSchema = z
     lmsProviderKind: badgeIssuanceRuleLmsProviderKindSchema.optional(),
     definition: badgeIssuanceRuleDefinitionSchema,
     changeSummary: z.string().trim().min(1).max(1000).optional(),
-    builderDraftId: resourceIdSchema.optional(),
+    builderDraftId: badgeIssuanceRuleBuilderDraftIdSchema.optional(),
   })
   .strict();
 
@@ -316,6 +321,22 @@ export const updateBadgeIssuanceRuleDraftRequestSchema = z
   .strict();
 
 export const badgeIssuanceRuleBuilderDraftStepSchema = z.enum(["metadata", "conditions", "test"]);
+
+/** Valid lifecycle targets for persisted badge-rule builder progress. */
+export const badgeIssuanceRuleBuilderDraftTargetSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("unfinished"),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("formal_rule"),
+      ruleId: resourceIdSchema,
+      versionId: resourceIdSchema,
+    })
+    .strict(),
+]);
 
 export const badgeIssuanceRuleBuilderDraftBuilderStateSchema = z
   .object({
@@ -341,8 +362,7 @@ export const badgeIssuanceRuleBuilderDraftPayloadSchema = z
 
 export const saveBadgeIssuanceRuleBuilderDraftRequestSchema = z
   .object({
-    ruleId: resourceIdSchema.optional(),
-    versionId: resourceIdSchema.optional(),
+    target: badgeIssuanceRuleBuilderDraftTargetSchema,
     currentStep: badgeIssuanceRuleBuilderDraftStepSchema,
     name: z.string().trim().max(200).optional(),
     description: z.string().trim().max(2000).optional(),
@@ -547,6 +567,11 @@ export type UpdateBadgeIssuanceRuleDraftRequest = z.infer<
 
 export type SaveBadgeIssuanceRuleBuilderDraftRequest = z.infer<
   typeof saveBadgeIssuanceRuleBuilderDraftRequestSchema
+>;
+
+/** Identifies whether builder progress creates a new rule or edits a formal rule. */
+export type BadgeIssuanceRuleBuilderDraftTarget = z.infer<
+  typeof badgeIssuanceRuleBuilderDraftTargetSchema
 >;
 
 export type BadgeIssuanceRuleBuilderDraftBuilderState = z.infer<

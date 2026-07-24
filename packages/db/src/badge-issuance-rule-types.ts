@@ -19,27 +19,71 @@ export type BadgeIssuanceRuleVersionStatus =
 
 export type BadgeIssuanceRuleBuilderDraftStep = "metadata" | "conditions" | "test";
 
-export interface BadgeIssuanceRuleBuilderDraftRecord {
+interface BadgeIssuanceRuleBuilderDraftRecordBase {
   readonly id: string;
   readonly tenantId: string;
   readonly userId: string;
-  readonly ruleId: string | null;
-  readonly versionId: string | null;
   readonly currentStep: BadgeIssuanceRuleBuilderDraftStep;
   readonly draftJson: string;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
 
-export interface SaveBadgeIssuanceRuleBuilderDraftInput {
+/** Persisted builder progress with a valid unfinished or formal-rule target. */
+export type BadgeIssuanceRuleBuilderDraftRecord = BadgeIssuanceRuleBuilderDraftRecordBase &
+  (
+    | {
+        readonly targetKind: "unfinished";
+        readonly ruleId: null;
+        readonly versionId: null;
+      }
+    | {
+        readonly targetKind: "formal_rule";
+        readonly ruleId: string;
+        readonly versionId: string;
+      }
+  );
+
+interface SaveBadgeIssuanceRuleBuilderDraftInputBase {
   readonly id: string;
   readonly tenantId: string;
   readonly userId: string;
-  readonly ruleId?: string | undefined;
-  readonly versionId?: string | undefined;
   readonly currentStep: BadgeIssuanceRuleBuilderDraftStep;
   readonly draftJson: string;
 }
+
+/** Input for saving builder progress against one explicit lifecycle target. */
+export type SaveBadgeIssuanceRuleBuilderDraftInput = SaveBadgeIssuanceRuleBuilderDraftInputBase & {
+  readonly target:
+    | {
+        readonly kind: "unfinished";
+      }
+    | {
+        readonly kind: "formal_rule";
+        readonly ruleId: string;
+        readonly versionId: string;
+      };
+};
+
+/** Outcome of saving builder progress without overwriting another lifecycle identity. */
+export type SaveBadgeIssuanceRuleBuilderDraftResult =
+  | {
+      readonly status: "saved";
+      readonly draft: BadgeIssuanceRuleBuilderDraftRecord;
+    }
+  | {
+      readonly status: "unavailable";
+    };
+
+/** Outcome of idempotently promoting builder progress into a formal rule. */
+export type PromoteBadgeIssuanceRuleBuilderDraftResult =
+  | {
+      readonly status: "created" | "replayed";
+      readonly draft: CreateBadgeIssuanceRuleResult;
+    }
+  | {
+      readonly status: "unavailable";
+    };
 
 export type BadgeIssuanceRuleApprovalStepStatus =
   | "queued"
