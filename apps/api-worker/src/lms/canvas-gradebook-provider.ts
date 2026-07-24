@@ -4,11 +4,13 @@ import {
   CANVAS_PICKER_MAX_PAGES,
   fetchCanvasJsonArrayPages,
 } from "./canvas-link-pagination";
+import type { GradebookProviderOperation } from "./gradebook-provider-error";
 import type {
   CanvasGradebookProviderConfig,
   GradebookAssignmentRecord,
   GradebookCompletionRecord,
   GradebookCourseRecord,
+  GradebookCourseSearchResult,
   GradebookEnrollmentRecord,
   GradebookGradeRecord,
   GradebookLearnerRecord,
@@ -333,6 +335,7 @@ export const createCanvasGradebookProvider = (
     query: URLSearchParams | undefined,
     maxPages: number,
     onMaxPages: "truncate" | "throw",
+    operation: GradebookProviderOperation,
   ): Promise<readonly unknown[]> => {
     return fetchCanvasJsonArrayPages({
       apiBaseUrl,
@@ -342,6 +345,7 @@ export const createCanvasGradebookProvider = (
       ...(query !== undefined ? { query } : {}),
       maxPages,
       onMaxPages,
+      operation,
     });
   };
 
@@ -363,6 +367,7 @@ export const createCanvasGradebookProvider = (
         query,
         CANVAS_GRADEBOOK_FULL_MAX_PAGES,
         "throw",
+        "gradebook_read",
       );
     });
   };
@@ -378,6 +383,7 @@ export const createCanvasGradebookProvider = (
         query,
         CANVAS_GRADEBOOK_FULL_MAX_PAGES,
         "throw",
+        "gradebook_read",
       );
       const normalizedAssignments = assignments
         .map((assignment) => parseAssignmentRecord(courseId, assignment))
@@ -407,6 +413,7 @@ export const createCanvasGradebookProvider = (
       query,
       CANVAS_GRADEBOOK_FULL_MAX_PAGES,
       "throw",
+      "gradebook_read",
     );
     const normalizedSubmissions = submissions
       .map((submission) => parseSubmissionRecord(input.courseId, submission))
@@ -439,22 +446,23 @@ export const createCanvasGradebookProvider = (
 
   return {
     kind: "canvas",
-    listCourses: async (input): Promise<readonly GradebookCourseRecord[]> => {
+    listCourses: async (input): Promise<GradebookCourseSearchResult> => {
       const query = new URLSearchParams();
       query.set("per_page", "100");
       query.set("enrollment_state", "active");
       const courses = await requestArray(
         "/api/v1/courses",
         query,
-        CANVAS_PICKER_MAX_PAGES,
-        "truncate",
+        CANVAS_GRADEBOOK_FULL_MAX_PAGES,
+        "throw",
+        "course_search",
       );
       const normalizedCourses = courses
         .map((course) => parseCourseRecord(course))
         .filter((course): course is GradebookCourseRecord => course !== null);
-      const searchTerm = input?.searchTerm?.trim().toLocaleLowerCase() ?? "";
+      const searchTerm = input.searchTerm?.trim().toLocaleLowerCase() ?? "";
 
-      return normalizedCourses
+      const matchingCourses = normalizedCourses
         .filter((course) => {
           if (searchTerm.length === 0) {
             return true;
@@ -468,6 +476,11 @@ export const createCanvasGradebookProvider = (
           (left, right) =>
             left.title.localeCompare(right.title) || left.courseId.localeCompare(right.courseId),
         );
+
+      return {
+        courses: matchingCourses.slice(0, input.limit),
+        hasMore: matchingCourses.length > input.limit,
+      };
     },
     listAssignments: async (input): Promise<readonly GradebookAssignmentRecord[]> => {
       return listAssignmentsForCourse(input.courseId);
@@ -489,6 +502,7 @@ export const createCanvasGradebookProvider = (
         query,
         CANVAS_PICKER_MAX_PAGES,
         "truncate",
+        "learner_search",
       );
       const searchTerm = input.searchTerm?.trim().toLocaleLowerCase() ?? "";
 

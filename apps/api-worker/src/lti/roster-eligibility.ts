@@ -21,6 +21,7 @@ import {
   resolveBadgeIssuanceRuleDefinitionValueLists,
   resolveRuleDefinition,
 } from "../rules/badge-rule-definition-resolver";
+import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
 import {
   ltiRosterIssuanceBehaviorFromRuleDefinition,
   ltiRosterRulePendingIssuanceBehavior,
@@ -456,18 +457,10 @@ const evaluateLtiRosterMembersEligibilityWithPreparedContext = async (input: {
   issuedStatesByUserId: ReadonlyMap<string, LtiRosterIssuedBadgeStateForEligibility>;
   nowIso: string;
 }): Promise<Map<string, LtiRosterEligibilityResult>> => {
-  const concurrency = 8;
-  const eligibilityEntries: Array<readonly [string, LtiRosterEligibilityResult]> = [];
-  let nextIndex = 0;
-  const evaluateNextMember = async (): Promise<void> => {
-    while (nextIndex < input.members.length) {
-      const member = input.members[nextIndex];
-      nextIndex += 1;
-
-      if (member === undefined) {
-        continue;
-      }
-
+  const eligibilityEntries = await mapConcurrentBounded(
+    input.members,
+    { concurrency: 8 },
+    async (member): Promise<readonly [string, LtiRosterEligibilityResult]> => {
       const eligibility = await evaluateLtiRosterMemberEligibilityWithPreparedContext({
         db: input.db,
         tenantId: input.tenantId,
@@ -477,12 +470,8 @@ const evaluateLtiRosterMembersEligibilityWithPreparedContext = async (input: {
         prepared: input.prepared,
       });
 
-      eligibilityEntries.push([member.userId, eligibility] as const);
-    }
-  };
-
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, input.members.length) }, () => evaluateNextMember()),
+      return [member.userId, eligibility] as const;
+    },
   );
 
   return new Map(eligibilityEntries);

@@ -61,7 +61,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminRuleBuilderJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-rule-builder.5579fb17b8.js",
+    path: "/assets/ui/institution-admin-rule-builder.c38a12febe.js",
   },
   learnerRecordCss: {
     kind: "style",
@@ -81,7 +81,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   ltiDeepLinkSetupJs: {
     kind: "script",
-    path: "/assets/ui/lti-deep-link-setup.d8291d5823.js",
+    path: "/assets/ui/lti-deep-link-setup.be082b0102.js",
   },
   ltiPostMessageStorageJs: {
     kind: "script",

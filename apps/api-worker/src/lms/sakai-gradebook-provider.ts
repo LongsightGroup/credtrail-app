@@ -1,9 +1,16 @@
 import { asJsonObject, asNonEmptyString, asString } from "../utils/value-parsers";
 import { withCredTrailUserAgent } from "../http/outbound-user-agent";
+import { z } from "zod";
+import {
+  GradebookProviderError,
+  gradebookProviderHttpError,
+  type GradebookProviderOperation,
+} from "./gradebook-provider-error";
 import type {
   GradebookAssignmentRecord,
   GradebookCompletionRecord,
   GradebookCourseRecord,
+  GradebookCourseSearchResult,
   GradebookEnrollmentRecord,
   GradebookGradeRecord,
   GradebookLearnerRecord,
@@ -73,7 +80,11 @@ interface SakaiMembershipLearner {
   email: string | null;
 }
 
-const SAKAI_COURSE_SEARCH_LIMIT = 101;
+const SAKAI_COURSE_SEARCH_PAGE_SIZE = 101;
+const SAKAI_COURSE_SEARCH_MAX_SCANNED_SITES = 10_000;
+const sakaiSiteCollectionSchema = z.object({
+  site_collection: z.array(z.unknown()),
+});
 
 const asIdentifier = (value: unknown): string | null => {
   if (typeof value === "string") {
@@ -576,7 +587,11 @@ export const createSakaiGradebookProvider = (
     });
   };
 
-  const requestJson = async (path: string, query?: URLSearchParams): Promise<unknown> => {
+  const requestJson = async (
+    path: string,
+    operation: GradebookProviderOperation,
+    query?: URLSearchParams,
+  ): Promise<unknown> => {
     const requestUrl = new URL(path, apiBaseUrl);
 
     if (query !== undefined && query.size > 0) {
@@ -590,18 +605,42 @@ export const createSakaiGradebookProvider = (
       isRetryableSessionStatus(response.status) &&
       input.refreshSession !== undefined
     ) {
-      const refreshedSession = await input.refreshSession();
-      cookieHeader = refreshedSession.cookieHeader;
-      response = await fetchJson(requestUrl);
+      try {
+        const refreshedSession = await input.refreshSession();
+        cookieHeader = refreshedSession.cookieHeader;
+        response = await fetchJson(requestUrl);
+      } catch (cause: unknown) {
+        throw new GradebookProviderError({
+          providerKind: "sakai",
+          operation,
+          reason: "request_failed",
+          statusCode: null,
+          message: `sakai ${operation} session refresh failed`,
+          cause,
+        });
+      }
     }
 
     if (!response.ok) {
-      throw new Error(
-        `Sakai gradebook API request failed (${String(response.status)}) for ${requestUrl.pathname}`,
-      );
+      throw gradebookProviderHttpError({
+        providerKind: "sakai",
+        operation,
+        statusCode: response.status,
+      });
     }
 
-    return response.json<unknown>().catch(() => null);
+    try {
+      return await response.json<unknown>();
+    } catch (cause: unknown) {
+      throw new GradebookProviderError({
+        providerKind: "sakai",
+        operation,
+        reason: "invalid_response",
+        statusCode: response.status,
+        message: `sakai ${operation} response was not valid JSON`,
+        cause,
+      });
+    }
   };
 
   const fetchMatrix = (courseId: string): Promise<SakaiGradebookMatrix> => {
@@ -613,6 +652,7 @@ export const createSakaiGradebookProvider = (
 
     const request = requestJson(
       `/api/sites/${encodeURIComponent(courseId)}/grading/full-gradebook`,
+      "gradebook_read",
     ).then((body) => parseSakaiGradebookMatrix(courseId, body));
     matrixRequestCache.set(courseId, request);
     return request;
@@ -620,27 +660,82 @@ export const createSakaiGradebookProvider = (
 
   return {
     kind: "sakai",
-    listCourses: async (listInput): Promise<readonly GradebookCourseRecord[]> => {
-      const query = new URLSearchParams();
-      query.set("select", "any");
-      query.set("_limit", String(SAKAI_COURSE_SEARCH_LIMIT));
-      const searchTerm = listInput?.searchTerm?.trim();
+    listCourses: async (listInput): Promise<GradebookCourseSearchResult> => {
+      const requestedCourseCount = listInput.limit + 1;
+      const searchTerm = listInput.searchTerm?.trim();
+      const coursesById = new Map<string, GradebookCourseRecord>();
+      let scannedSiteCount = 0;
 
-      if (searchTerm !== undefined && searchTerm.length > 0) {
-        query.set("search", searchTerm);
+      while (
+        coursesById.size < requestedCourseCount &&
+        scannedSiteCount < SAKAI_COURSE_SEARCH_MAX_SCANNED_SITES
+      ) {
+        const query = new URLSearchParams();
+        query.set("select", "any");
+        query.set("_limit", String(SAKAI_COURSE_SEARCH_PAGE_SIZE));
+
+        if (scannedSiteCount > 0) {
+          query.set("_start", String(scannedSiteCount));
+        }
+
+        if (searchTerm !== undefined && searchTerm.length > 0) {
+          query.set("search", searchTerm);
+        }
+
+        const payload = await requestJson("/direct/site.json", "course_search", query);
+        const parsedPayload = sakaiSiteCollectionSchema.safeParse(payload);
+
+        if (!parsedPayload.success) {
+          throw new GradebookProviderError({
+            providerKind: "sakai",
+            operation: "course_search",
+            reason: "invalid_response",
+            statusCode: 200,
+            message: "sakai course_search response did not include site_collection",
+            cause: parsedPayload.error,
+          });
+        }
+
+        const candidates = parsedPayload.data.site_collection;
+
+        if (candidates.length === 0) {
+          break;
+        }
+
+        scannedSiteCount += candidates.length;
+
+        for (const candidate of candidates) {
+          const course = parseSakaiCourseRecord(candidate);
+
+          if (course !== null) {
+            coursesById.set(course.courseId, course);
+          }
+        }
+
       }
 
-      const payload = await requestJson("/direct/site.json", query);
-      const parsedPayload = asJsonObject(payload);
-      const candidates = asJsonArray(parsedPayload?.site_collection) ?? [];
-      const courses = candidates
-        .map((candidate) => parseSakaiCourseRecord(candidate))
-        .filter((course): course is GradebookCourseRecord => course !== null)
-        .sort(
-          (left, right) =>
-            left.title.localeCompare(right.title) || left.courseId.localeCompare(right.courseId),
-        );
-      return courses;
+      if (
+        coursesById.size < requestedCourseCount &&
+        scannedSiteCount >= SAKAI_COURSE_SEARCH_MAX_SCANNED_SITES
+      ) {
+        throw new GradebookProviderError({
+          providerKind: "sakai",
+          operation: "course_search",
+          reason: "request_failed",
+          statusCode: null,
+          message: "sakai course_search exceeded the bounded site scan",
+        });
+      }
+
+      const matchingCourses = [...coursesById.values()].sort(
+        (left, right) =>
+          left.title.localeCompare(right.title) || left.courseId.localeCompare(right.courseId),
+      );
+
+      return {
+        courses: matchingCourses.slice(0, listInput.limit),
+        hasMore: matchingCourses.length > listInput.limit,
+      };
     },
     listAssignments: async (input): Promise<readonly GradebookAssignmentRecord[]> => {
       const matrix = await fetchMatrix(input.courseId);
@@ -670,7 +765,10 @@ export const createSakaiGradebookProvider = (
     listLearners: async (input): Promise<readonly GradebookLearnerRecord[]> => {
       const [matrix, membershipPayload] = await Promise.all([
         fetchMatrix(input.courseId),
-        requestJson(`/direct/membership/site/${encodeURIComponent(input.courseId)}.json`),
+        requestJson(
+          `/direct/membership/site/${encodeURIComponent(input.courseId)}.json`,
+          "learner_search",
+        ),
       ]);
       const membershipObject = asJsonObject(membershipPayload);
       const membershipCandidates = asJsonArray(membershipObject?.membership_collection) ?? [];

@@ -64,6 +64,7 @@ describe("fetchCanvasJsonArrayPages", () => {
       fetchImpl,
       accessToken: "canvas-token",
       path: "/api/v1/items",
+      operation: "course_search",
       query: new URLSearchParams({ per_page: "100" }),
       maxPages: CANVAS_GRADEBOOK_FULL_MAX_PAGES,
       onMaxPages: "throw",
@@ -92,10 +93,16 @@ describe("fetchCanvasJsonArrayPages", () => {
         fetchImpl,
         accessToken: "canvas-token",
         path: "/api/v1/items",
+        operation: "course_search",
         maxPages: 1,
         onMaxPages: "throw",
       }),
-    ).rejects.toThrowError("pagination exceeded 1 pages");
+    ).rejects.toMatchObject({
+      _tag: "GradebookProviderError",
+      operation: "course_search",
+      providerKind: "canvas",
+      reason: "request_failed",
+    });
   });
 
   it("throws when a next link is declared but cannot be parsed", async () => {
@@ -117,10 +124,16 @@ describe("fetchCanvasJsonArrayPages", () => {
         fetchImpl,
         accessToken: "canvas-token",
         path: "/api/v1/items",
+        operation: "course_search",
         maxPages: CANVAS_GRADEBOOK_FULL_MAX_PAGES,
         onMaxPages: "throw",
       }),
-    ).rejects.toThrowError("unparseable pagination link");
+    ).rejects.toMatchObject({
+      _tag: "GradebookProviderError",
+      operation: "course_search",
+      providerKind: "canvas",
+      reason: "invalid_response",
+    });
   });
 
   it("truncates after maxPages when onMaxPages is truncate", async () => {
@@ -145,6 +158,7 @@ describe("fetchCanvasJsonArrayPages", () => {
       fetchImpl,
       accessToken: "canvas-token",
       path: "/api/v1/items",
+      operation: "course_search",
       maxPages: 1,
       onMaxPages: "truncate",
     });

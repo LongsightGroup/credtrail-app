@@ -37,6 +37,7 @@ import {
 import type { LTISession } from "@longsightgroup/lti-tool";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 import { app } from "./index";
+import { GradebookProviderError } from "./lms/gradebook-provider-error";
 
 const mockedFindActiveLtiLaunchSessionByOpaqueId = vi.mocked(findActiveLtiLaunchSessionByOpaqueId);
 const mockedListLtiIssuerRegistrations = vi.mocked(listAllLtiIssuerRegistrations);
@@ -191,7 +192,7 @@ describe("LTI deep linking gradebook lookup routes", () => {
     mockedCreateGradebookProvider.mockReset();
     mockedCreateGradebookProvider.mockReturnValue({
       kind: "sakai",
-      listCourses: () => Promise.resolve([]),
+      listCourses: () => Promise.resolve({ courses: [], hasMore: false }),
       listAssignments: () =>
         Promise.resolve([
           {
@@ -347,12 +348,16 @@ describe("LTI deep linking gradebook lookup routes", () => {
     ]);
     mockedCreateGradebookProvider.mockReturnValue({
       kind: "sakai",
-      listCourses: () => Promise.resolve([]),
+      listCourses: () => Promise.resolve({ courses: [], hasMore: false }),
       listAssignments: () =>
         Promise.reject(
-          new Error(
-            "Sakai gradebook API request failed (403) for /api/sites/site-123/grading/full-gradebook",
-          ),
+          new GradebookProviderError({
+            providerKind: "sakai",
+            operation: "gradebook_read",
+            reason: "permission_denied",
+            statusCode: 403,
+            message: "sakai gradebook_read request failed (403)",
+          }),
         ),
       listEnrollments: () => Promise.resolve([]),
       listSubmissions: () => Promise.resolve([]),

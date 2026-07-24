@@ -1,4 +1,9 @@
 import { withCredTrailUserAgent } from "../http/outbound-user-agent";
+import {
+  GradebookProviderError,
+  gradebookProviderHttpError,
+  type GradebookProviderOperation,
+} from "./gradebook-provider-error";
 
 /**
  * LMS picker limits are intentionally tighter than full gradebook sync limits:
@@ -56,6 +61,7 @@ export interface FetchCanvasJsonArrayPagesInput {
   query?: URLSearchParams;
   maxPages: number;
   onMaxPages: CanvasPaginationMaxPagesPolicy;
+  operation: GradebookProviderOperation;
 }
 
 const asJsonArray = (value: unknown): readonly unknown[] | null => {
@@ -87,36 +93,50 @@ export const fetchCanvasJsonArrayPages = async (
     });
 
     if (!response.ok) {
-      throw new Error(
-        `Canvas gradebook API request failed (${String(response.status)}) for ${requestUrl.pathname}`,
-      );
+      throw gradebookProviderHttpError({
+        providerKind: "canvas",
+        operation: input.operation,
+        statusCode: response.status,
+      });
     }
 
     const body = await response.json<unknown>().catch(() => null);
     const payload = asJsonArray(body);
 
     if (payload === null) {
-      throw new Error(
-        `Canvas gradebook API response must be a JSON array for ${requestUrl.pathname}`,
-      );
+      throw new GradebookProviderError({
+        providerKind: "canvas",
+        operation: input.operation,
+        reason: "invalid_response",
+        statusCode: response.status,
+        message: `canvas ${input.operation} response was not a JSON array`,
+      });
     }
 
     const linkHeader = response.headers.get("link");
     const nextUrl = parseLinkRelUrl(linkHeader, "next");
 
     if (nextUrl === null && linkHeader !== null && linkHeaderDeclaresRel(linkHeader, "next")) {
-      throw new Error(
-        `Canvas gradebook API returned an unparseable pagination link for ${requestUrl.pathname}`,
-      );
+      throw new GradebookProviderError({
+        providerKind: "canvas",
+        operation: input.operation,
+        reason: "invalid_response",
+        statusCode: response.status,
+        message: `canvas ${input.operation} response included an invalid pagination link`,
+      });
     }
 
     payloads.push(...payload);
 
     if (pageCount >= input.maxPages) {
       if (nextUrl !== null && input.onMaxPages === "throw") {
-        throw new Error(
-          `Canvas gradebook API pagination exceeded ${String(input.maxPages)} pages for ${input.path}`,
-        );
+        throw new GradebookProviderError({
+          providerKind: "canvas",
+          operation: input.operation,
+          reason: "request_failed",
+          statusCode: null,
+          message: `canvas ${input.operation} exceeded the bounded page limit`,
+        });
       }
 
       requestUrl = null;

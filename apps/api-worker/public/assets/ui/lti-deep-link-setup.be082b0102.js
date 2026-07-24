@@ -30,8 +30,10 @@ const lmsErrorDetailFromPayload = (payload, fallbackMessage) => {
   return fallbackMessage;
 };
 
-const lmsFetchJson = async (url, fallbackMessage) => {
-  const response = await fetch(url);
+const lmsFetchJson = async (url, fallbackMessage, options) => {
+  const response = await fetch(url, {
+    signal: options && options.signal instanceof AbortSignal ? options.signal : undefined,
+  });
   const payload = await lmsParseJsonBody(response);
 
   if (!response.ok) {

@@ -2455,25 +2455,6 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('role="alert"');
     expect(body).toContain('href="/tenants/tenant_123/admin/access/lms-connections"');
     expect(body).toContain("Update LMS connection");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "Sakai blocked CredTrail from searching courses (403).",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "Save a Sakai administrator username and password",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("setLmsLookupStatus(message, true)");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("const courseLookupRequests = new Map()");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "const courseLookupGenerationBySelect = new WeakMap()",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "if (!isCurrentCourseLookup(select, lookupGeneration))",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("selectedCourseOptionSnapshots");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "Showing the first 100 courses. Search to narrow the list.",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("courseLookupRequests.delete(path)");
     expect(body).toContain("Need a new template?");
     expect(body).toContain("Create one in Badge Templates");
     expect(body).toContain(

@@ -1930,8 +1930,10 @@ const lmsErrorDetailFromPayload = (payload, fallbackMessage) => {
   return fallbackMessage;
 };
 
-const lmsFetchJson = async (url, fallbackMessage) => {
-  const response = await fetch(url);
+const lmsFetchJson = async (url, fallbackMessage, options) => {
+  const response = await fetch(url, {
+    signal: options && options.signal instanceof AbortSignal ? options.signal : undefined,
+  });
   const payload = await lmsParseJsonBody(response);
 
   if (!response.ok) {
@@ -2133,22 +2135,8 @@ const lmsCourseLabel = (course) => {
   );
 };
 
-const sakaiSites403Message =
-  "Sakai blocked CredTrail from searching courses (403). Save a Sakai administrator username and password, then try again. If it still fails, ask a Sakai administrator to allow EntityBroker Sites and Gradebook access.";
-
 const lmsLookupErrorMessage = (error, fallback) => {
-  const message = error instanceof Error ? error.message : fallback;
-  const providerKind = getSelectedLmsProviderKind();
-
-  if (
-    providerKind === "sakai" &&
-    message.includes("(403)") &&
-    message.includes("/direct/site.json")
-  ) {
-    return sakaiSites403Message;
-  }
-
-  return message;
+  return error instanceof Error ? error.message : fallback;
 };
 
 const setLmsLookupStatus = (message, isError) => {
@@ -2168,18 +2156,7 @@ const setLmsLookupStatus = (message, isError) => {
   }
 };
 
-const courseLookupRequests = new Map();
-const courseLookupGenerationBySelect = new WeakMap();
-
-const nextCourseLookupGeneration = (select) => {
-  const generation = (courseLookupGenerationBySelect.get(select) ?? 0) + 1;
-  courseLookupGenerationBySelect.set(select, generation);
-  return generation;
-};
-
-const isCurrentCourseLookup = (select, generation) => {
-  return courseLookupGenerationBySelect.get(select) === generation;
-};
+const courseLookupAbortControllerByCard = new WeakMap();
 
 const selectedCourseOptionSnapshots = (select, selectedValues) => {
   const snapshotsByValue = new Map();
@@ -2236,22 +2213,6 @@ const setCourseSelectOptions = (
   });
 };
 
-const loadCourses = (path) => {
-  const activeRequest = courseLookupRequests.get(path);
-
-  if (activeRequest !== undefined) {
-    return activeRequest;
-  }
-
-  const request = lmsFetchJson(path, "Request failed").finally(() => {
-    if (courseLookupRequests.get(path) === request) {
-      courseLookupRequests.delete(path);
-    }
-  });
-  courseLookupRequests.set(path, request);
-  return request;
-};
-
 const coursesPath = (query) => {
   const connectionId = getSelectedLmsConnectionId();
 
@@ -2303,13 +2264,14 @@ const workflowStatesPath = (courseId, assignmentId) => {
   );
 };
 
-const hydrateCourseSelect = async (select, query) => {
-  const lookupGeneration = nextCourseLookupGeneration(select);
+const hydrateCourseSelect = async (card, select, query) => {
+  courseLookupAbortControllerByCard.get(card)?.abort();
   const path = coursesPath(query);
   const selectedValues = lmsSelectedValuesForSelect(select);
   const selectedOptionSnapshots = selectedCourseOptionSnapshots(select, selectedValues);
 
   if (path.length === 0) {
+    courseLookupAbortControllerByCard.delete(card);
     setCourseSelectOptions(
       select,
       [],
@@ -2321,6 +2283,8 @@ const hydrateCourseSelect = async (select, query) => {
     return true;
   }
 
+  const abortController = new AbortController();
+  courseLookupAbortControllerByCard.set(card, abortController);
   setLmsLookupStatus("Loading courses...", false);
   select.disabled = true;
   setCourseSelectOptions(
@@ -2333,12 +2297,15 @@ const hydrateCourseSelect = async (select, query) => {
   let payload;
 
   try {
-    payload = await loadCourses(path);
+    payload = await lmsFetchJson(path, "Unable to load LMS courses.", {
+      signal: abortController.signal,
+    });
   } catch (error) {
-    if (!isCurrentCourseLookup(select, lookupGeneration)) {
+    if (abortController.signal.aborted) {
       return false;
     }
 
+    courseLookupAbortControllerByCard.delete(card);
     setCourseSelectOptions(
       select,
       [],
@@ -2350,10 +2317,11 @@ const hydrateCourseSelect = async (select, query) => {
     throw error;
   }
 
-  if (!isCurrentCourseLookup(select, lookupGeneration)) {
+  if (courseLookupAbortControllerByCard.get(card) !== abortController) {
     return false;
   }
 
+  courseLookupAbortControllerByCard.delete(card);
   const courses = payload && Array.isArray(payload.courses) ? payload.courses : [];
   const hasMore = payload && payload.hasMore === true;
   setCourseSelectOptions(
@@ -2448,6 +2416,7 @@ const bindSearchableCourseSelect = (card, fieldName) => {
     searchInput: courseSearch,
     onInput: () =>
       hydrateCourseSelect(
+        card,
         courseSelect,
         courseSearch instanceof HTMLInputElement ? courseSearch.value : "",
       )

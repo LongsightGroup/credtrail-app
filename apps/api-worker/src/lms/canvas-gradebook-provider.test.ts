@@ -224,7 +224,7 @@ describe("createCanvasGradebookProvider", () => {
       ]),
     });
 
-    const courses = await provider.listCourses();
+    const courseSearch = await provider.listCourses({ limit: 100 });
     const assignments = await provider.listAssignments({
       courseId: "course-42",
     });
@@ -244,16 +244,19 @@ describe("createCanvasGradebookProvider", () => {
       courseId: "course-42",
     });
 
-    expect(courses).toEqual([
-      {
-        courseId: "42",
-        title: "CS 101",
-        courseCode: "CS101",
-        workflowState: "available",
-        startsAt: "2026-01-01T00:00:00.000Z",
-        endsAt: "2026-05-01T00:00:00.000Z",
-      },
-    ]);
+    expect(courseSearch).toEqual({
+      courses: [
+        {
+          courseId: "42",
+          title: "CS 101",
+          courseCode: "CS101",
+          workflowState: "available",
+          startsAt: "2026-01-01T00:00:00.000Z",
+          endsAt: "2026-05-01T00:00:00.000Z",
+        },
+      ],
+      hasMore: false,
+    });
 
     expect(assignments).toEqual([
       {
@@ -330,7 +333,7 @@ describe("createCanvasGradebookProvider", () => {
     ]);
   });
 
-  it("does not follow pagination links when listing courses", async () => {
+  it("searches the complete authorized course set across pages", async () => {
     const mockFetch = createRecordingMockFetch([
       {
         pathWithQuery: "/api/v1/courses?per_page=100&enrollment_state=active",
@@ -340,8 +343,19 @@ describe("createCanvasGradebookProvider", () => {
         responseBody: [
           {
             id: 42,
-            name: "CS 101",
+            name: "History",
             course_code: "CS101",
+            workflow_state: "available",
+          },
+        ],
+      },
+      {
+        pathWithQuery: "/api/v1/courses?page=2&per_page=100",
+        responseBody: [
+          {
+            id: 77,
+            name: "Capstone Seminar",
+            course_code: "CAP-401",
             workflow_state: "available",
           },
         ],
@@ -356,10 +370,24 @@ describe("createCanvasGradebookProvider", () => {
       fetchImpl: mockFetch.fetchImpl,
     });
 
-    const courses = await provider.listCourses();
+    const result = await provider.listCourses({
+      searchTerm: "capstone",
+      limit: 100,
+    });
 
-    expect(courses.map((course) => course.courseId)).toEqual(["42"]);
-    expect(mockFetch.requests).toEqual(["/api/v1/courses?per_page=100&enrollment_state=active"]);
+    expect(result).toEqual({
+      courses: [
+        expect.objectContaining({
+          courseId: "77",
+          title: "Capstone Seminar",
+        }),
+      ],
+      hasMore: false,
+    });
+    expect(mockFetch.requests).toEqual([
+      "/api/v1/courses?per_page=100&enrollment_state=active",
+      "/api/v1/courses?page=2&per_page=100",
+    ]);
   });
 
   it("filters the authorized Canvas course set by title, code, or ID", async () => {
@@ -391,18 +419,26 @@ describe("createCanvasGradebookProvider", () => {
       fetchImpl: mockFetch.fetchImpl,
     });
 
-    await expect(provider.listCourses({ searchTerm: " cap-401 " })).resolves.toEqual([
-      expect.objectContaining({
-        courseId: "42",
-        title: "Capstone Seminar",
-      }),
-    ]);
-    await expect(provider.listCourses({ searchTerm: "77" })).resolves.toEqual([
-      expect.objectContaining({
-        courseId: "77",
-        title: "Biology",
-      }),
-    ]);
+    await expect(
+      provider.listCourses({ searchTerm: " cap-401 ", limit: 100 }),
+    ).resolves.toEqual({
+      courses: [
+        expect.objectContaining({
+          courseId: "42",
+          title: "Capstone Seminar",
+        }),
+      ],
+      hasMore: false,
+    });
+    await expect(provider.listCourses({ searchTerm: "77", limit: 100 })).resolves.toEqual({
+      courses: [
+        expect.objectContaining({
+          courseId: "77",
+          title: "Biology",
+        }),
+      ],
+      hasMore: false,
+    });
   });
 
   it("follows canvas pagination links when listing gradebook items", async () => {
@@ -467,9 +503,12 @@ describe("createCanvasGradebookProvider", () => {
       ]),
     });
 
-    await expect(provider.listCourses()).rejects.toThrowError(
-      "Canvas gradebook API request failed (500) for /api/v1/courses",
-    );
+    await expect(provider.listCourses({ limit: 100 })).rejects.toMatchObject({
+      _tag: "GradebookProviderError",
+      operation: "course_search",
+      providerKind: "canvas",
+      statusCode: 500,
+    });
   });
 
   it("throws when canvas API returns non-array JSON payloads", async () => {
@@ -490,9 +529,12 @@ describe("createCanvasGradebookProvider", () => {
       ]),
     });
 
-    await expect(provider.listCourses()).rejects.toThrowError(
-      "Canvas gradebook API response must be a JSON array for /api/v1/courses",
-    );
+    await expect(provider.listCourses({ limit: 100 })).rejects.toMatchObject({
+      _tag: "GradebookProviderError",
+      operation: "course_search",
+      providerKind: "canvas",
+      reason: "invalid_response",
+    });
   });
 
   it("reuses all-submissions completion fetches for assignment submission lookups", async () => {

@@ -204,22 +204,16 @@ export const registerTenantLmsConnectionRoutes = (
     }
 
     try {
-      const matchingCourses = [
-        ...(await (query.q === undefined
-          ? resolved.provider.listCourses()
-          : resolved.provider.listCourses({ searchTerm: query.q }))),
-      ].sort(
-        (left, right) =>
-          left.title.localeCompare(right.title) || left.courseId.localeCompare(right.courseId),
-      );
-      const hasMore = matchingCourses.length > LMS_PICKER_MAX_COURSES;
-      const courses = matchingCourses.slice(0, LMS_PICKER_MAX_COURSES);
+      const result = await resolved.provider.listCourses({
+        limit: LMS_PICKER_MAX_COURSES,
+        ...(query.q === undefined ? {} : { searchTerm: query.q }),
+      });
 
       return c.json({
         tenantId: pathParams.tenantId,
         connectionId: pathParams.connectionId,
-        courses,
-        hasMore,
+        courses: result.courses,
+        hasMore: result.hasMore,
       });
     } catch (error) {
       return c.json(

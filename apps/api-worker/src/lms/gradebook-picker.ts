@@ -4,6 +4,7 @@ import type {
   GradebookProvider,
   GradebookSubmissionRecord,
 } from "./gradebook-types";
+import { GradebookProviderError } from "./gradebook-provider-error";
 
 export interface WorkflowStateOption {
   value: string;
@@ -116,25 +117,27 @@ export const lmsLookupErrorMessage = (
   error: unknown,
   fallback: string,
 ): string => {
-  const rawMessage = error instanceof Error ? error.message : fallback;
-
   if (
+    error instanceof GradebookProviderError &&
+    error.providerKind === "sakai" &&
     connection.providerKind === "sakai" &&
-    rawMessage.includes("(403)") &&
-    rawMessage.includes("/direct/site.json")
+    error.statusCode === 403 &&
+    error.operation === "course_search"
   ) {
     return "Sakai blocked CredTrail from searching courses (403). Save a Sakai administrator username and password, then try again. If it still fails, ask a Sakai administrator to allow EntityBroker Sites and Gradebook access.";
   }
 
   if (
+    error instanceof GradebookProviderError &&
+    error.providerKind === "sakai" &&
     connection.providerKind === "sakai" &&
-    rawMessage.includes("(403)") &&
-    rawMessage.includes("/grading/full-gradebook")
+    error.statusCode === 403 &&
+    error.operation === "gradebook_read"
   ) {
     return "Sakai blocked CredTrail from reading this course gradebook (403). Confirm that the saved Sakai account can view the course and gradebook, then try again.";
   }
 
-  return rawMessage;
+  return fallback;
 };
 
 export const listGradebookItemsForCourse = async (input: {

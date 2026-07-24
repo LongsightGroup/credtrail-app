@@ -170,6 +170,12 @@ describe("createSakaiGradebookProvider", () => {
         },
       },
       {
+        pathWithQuery: "/direct/site.json?select=any&_limit=101&_start=1",
+        responseBody: {
+          site_collection: [],
+        },
+      },
+      {
         pathWithQuery: "/api/sites/site-1/grading/full-gradebook",
         responseBody: {
           siteId: "site-1",
@@ -223,7 +229,7 @@ describe("createSakaiGradebookProvider", () => {
       fetchImpl,
     });
 
-    const courses = await provider.listCourses();
+    const courseSearch = await provider.listCourses({ limit: 100 });
     const assignments = await provider.listAssignments({ courseId: "site-1" });
     const enrollments = await provider.listEnrollments({ courseId: "site-1" });
     const submissions = await provider.listSubmissions({ courseId: "site-1" });
@@ -233,16 +239,19 @@ describe("createSakaiGradebookProvider", () => {
     expect(requests.every((request) => request.authorization === null)).toBe(true);
     expect(requests.every((request) => request.cookie === "SAKAIID=sakai-token")).toBe(true);
 
-    expect(courses).toEqual([
-      {
-        courseId: "site-1",
-        title: "CS 101",
-        courseCode: "CS101",
-        workflowState: "published",
-        startsAt: null,
-        endsAt: null,
-      },
-    ]);
+    expect(courseSearch).toEqual({
+      courses: [
+        {
+          courseId: "site-1",
+          title: "CS 101",
+          courseCode: "CS101",
+          workflowState: "published",
+          startsAt: null,
+          endsAt: null,
+        },
+      ],
+      hasMore: false,
+    });
 
     expect(assignments).toEqual([
       {
@@ -342,6 +351,13 @@ describe("createSakaiGradebookProvider", () => {
           ],
         },
       },
+      {
+        pathWithQuery:
+          "/direct/site.json?select=any&_limit=101&_start=4&search=capstone+2026",
+        responseBody: {
+          site_collection: [],
+        },
+      },
     ]);
     const provider = createSakaiGradebookProvider({
       config: {
@@ -352,19 +368,105 @@ describe("createSakaiGradebookProvider", () => {
       fetchImpl,
     });
 
-    await expect(provider.listCourses({ searchTerm: "  capstone 2026  " })).resolves.toEqual([
-      expect.objectContaining({
-        courseId: "capstone-2026-a",
-        title: "Applied Capstone",
-      }),
-      expect.objectContaining({
-        courseId: "capstone-2026-b",
-        title: "Capstone Seminar",
-      }),
-    ]);
+    await expect(
+      provider.listCourses({ searchTerm: "  capstone 2026  ", limit: 100 }),
+    ).resolves.toEqual({
+      courses: [
+        expect.objectContaining({
+          courseId: "capstone-2026-a",
+          title: "Applied Capstone",
+        }),
+        expect.objectContaining({
+          courseId: "capstone-2026-b",
+          title: "Capstone Seminar",
+        }),
+      ],
+      hasMore: false,
+    });
     expect(requests.map((request) => request.pathWithQuery)).toEqual([
       "/direct/site.json?select=any&_limit=101&search=capstone+2026",
+      "/direct/site.json?select=any&_limit=101&_start=4&search=capstone+2026",
     ]);
+  });
+
+  it("continues past full pages of non-course sites before applying the course limit", async () => {
+    const { fetchImpl, requests } = createMockFetch([
+      {
+        pathWithQuery: "/direct/site.json?select=any&_limit=101",
+        responseBody: {
+          site_collection: Array.from({ length: 101 }, (_, index) => ({
+            id: `project-${String(index)}`,
+            title: `Project ${String(index)}`,
+            type: "project",
+          })),
+        },
+      },
+      {
+        pathWithQuery: "/direct/site.json?select=any&_limit=101&_start=101",
+        responseBody: {
+          site_collection: [
+            {
+              id: "course-z",
+              title: "Zoology",
+              type: "course",
+            },
+            {
+              id: "course-a",
+              title: "Anthropology",
+              type: "course",
+            },
+          ],
+        },
+      },
+    ]);
+    const provider = createSakaiGradebookProvider({
+      config: {
+        kind: "sakai",
+        apiBaseUrl: "https://sakai.example.edu",
+        accessToken: "sakai-token",
+      },
+      fetchImpl,
+    });
+
+    await expect(provider.listCourses({ limit: 1 })).resolves.toEqual({
+      courses: [
+        expect.objectContaining({
+          courseId: "course-a",
+          title: "Anthropology",
+        }),
+      ],
+      hasMore: true,
+    });
+    expect(requests.map((request) => request.pathWithQuery)).toEqual([
+      "/direct/site.json?select=any&_limit=101",
+      "/direct/site.json?select=any&_limit=101&_start=101",
+    ]);
+  });
+
+  it("rejects malformed Sakai site-search envelopes", async () => {
+    const { fetchImpl } = createMockFetch([
+      {
+        pathWithQuery: "/direct/site.json?select=any&_limit=101",
+        responseBody: {
+          sites: [],
+        },
+      },
+    ]);
+    const provider = createSakaiGradebookProvider({
+      config: {
+        kind: "sakai",
+        apiBaseUrl: "https://sakai.example.edu",
+        accessToken: "sakai-token",
+      },
+      fetchImpl,
+    });
+
+    await expect(provider.listCourses({ limit: 100 })).rejects.toMatchObject({
+      _tag: "GradebookProviderError",
+      operation: "course_search",
+      providerKind: "sakai",
+      reason: "invalid_response",
+    });
   });
 
   it("surfaces permission failures from authorized Sakai site search", async () => {
@@ -386,9 +488,12 @@ describe("createSakaiGradebookProvider", () => {
       fetchImpl,
     });
 
-    await expect(provider.listCourses()).rejects.toThrowError(
-      "Sakai gradebook API request failed (403) for /direct/site.json",
-    );
+    await expect(provider.listCourses({ limit: 100 })).rejects.toMatchObject({
+      _tag: "GradebookProviderError",
+      operation: "course_search",
+      providerKind: "sakai",
+      statusCode: 403,
+    });
   });
 
   it("uses stored Sakai cookie headers without wrapping them", async () => {
@@ -406,6 +511,12 @@ describe("createSakaiGradebookProvider", () => {
             ],
           },
         },
+        {
+          pathWithQuery: "/direct/site.json?select=any&_limit=101&_start=1",
+          responseBody: {
+            site_collection: [],
+          },
+        },
       ],
       "JSESSIONID=sakai-session.Sakai",
     );
@@ -419,16 +530,19 @@ describe("createSakaiGradebookProvider", () => {
       fetchImpl,
     });
 
-    await expect(provider.listCourses()).resolves.toEqual([
-      {
-        courseId: "site-1",
-        title: "CS 101",
-        courseCode: null,
-        workflowState: null,
-        startsAt: null,
-        endsAt: null,
-      },
-    ]);
+    await expect(provider.listCourses({ limit: 100 })).resolves.toEqual({
+      courses: [
+        {
+          courseId: "site-1",
+          title: "CS 101",
+          courseCode: null,
+          workflowState: null,
+          startsAt: null,
+          endsAt: null,
+        },
+      ],
+      hasMore: false,
+    });
     expect(requests[0]?.cookie).toBe("JSESSIONID=sakai-session.Sakai");
   });
 
@@ -442,7 +556,10 @@ describe("createSakaiGradebookProvider", () => {
       const cookie = request.headers.get("cookie");
       requests.push({ pathWithQuery, cookie });
 
-      if (pathWithQuery !== "/direct/site.json?select=any&_limit=101") {
+      if (
+        pathWithQuery !== "/direct/site.json?select=any&_limit=101" &&
+        pathWithQuery !== "/direct/site.json?select=any&_limit=101&_start=1"
+      ) {
         return Promise.resolve(
           new Response(JSON.stringify({ error: "No mock route configured" }), {
             status: 404,
@@ -467,13 +584,16 @@ describe("createSakaiGradebookProvider", () => {
       return Promise.resolve(
         new Response(
           JSON.stringify({
-            site_collection: [
-              {
-                id: "site-1",
-                title: "CS 101",
-                type: "course",
-              },
-            ],
+            site_collection:
+              pathWithQuery === "/direct/site.json?select=any&_limit=101"
+                ? [
+                    {
+                      id: "site-1",
+                      title: "CS 101",
+                      type: "course",
+                    },
+                  ]
+                : [],
           }),
           {
             status: 200,
@@ -501,16 +621,19 @@ describe("createSakaiGradebookProvider", () => {
       },
     });
 
-    await expect(provider.listCourses()).resolves.toEqual([
-      {
-        courseId: "site-1",
-        title: "CS 101",
-        courseCode: null,
-        workflowState: null,
-        startsAt: null,
-        endsAt: null,
-      },
-    ]);
+    await expect(provider.listCourses({ limit: 100 })).resolves.toEqual({
+      courses: [
+        {
+          courseId: "site-1",
+          title: "CS 101",
+          courseCode: null,
+          workflowState: null,
+          startsAt: null,
+          endsAt: null,
+        },
+      ],
+      hasMore: false,
+    });
     expect(refreshCalls).toBe(1);
     expect(requests).toEqual([
       {
@@ -519,6 +642,10 @@ describe("createSakaiGradebookProvider", () => {
       },
       {
         pathWithQuery: "/direct/site.json?select=any&_limit=101",
+        cookie: "SAKAIID=fresh-token",
+      },
+      {
+        pathWithQuery: "/direct/site.json?select=any&_limit=101&_start=1",
         cookie: "SAKAIID=fresh-token",
       },
     ]);
@@ -696,8 +823,11 @@ describe("createSakaiGradebookProvider", () => {
       provider.listAssignments({
         courseId: "site-1",
       }),
-    ).rejects.toThrowError(
-      "Sakai gradebook API request failed (500) for /api/sites/site-1/grading/full-gradebook",
-    );
+    ).rejects.toMatchObject({
+      _tag: "GradebookProviderError",
+      operation: "gradebook_read",
+      providerKind: "sakai",
+      statusCode: 500,
+    });
   });
 });

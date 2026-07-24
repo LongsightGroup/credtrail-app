@@ -33,86 +33,10 @@ import {
   resolveGradebookProviderWithConnection,
   type ResolvedGradebookProvider,
 } from "../lms/gradebook-provider-resolution";
-import type { GradebookProvider } from "../lms/gradebook-types";
+import { lmsLookupErrorMessage } from "../lms/gradebook-picker";
 import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
+import { validateBadgeRuleReferences } from "../rules/badge-rule-reference-validator";
 import { extractBadgeIssuanceRuleRequirements } from "../rules/engine";
-
-class BadgeRuleLmsReferenceError extends Error {
-  public readonly statusCode: 422 | 502;
-
-  public constructor(message: string, statusCode: 422 | 502) {
-    super(message);
-    this.name = "BadgeRuleLmsReferenceError";
-    this.statusCode = statusCode;
-  }
-}
-
-const validateRuleReferencesAgainstConnection = async (input: {
-  provider: GradebookProvider;
-  definition: Parameters<typeof extractBadgeIssuanceRuleRequirements>[0];
-}): Promise<void> => {
-  const requirements = extractBadgeIssuanceRuleRequirements(input.definition);
-  const requiredCourseIds = new Set([
-    ...requirements.courseIds,
-    ...requirements.assignmentRefs.map((assignmentRef) => assignmentRef.courseId),
-  ]);
-
-  if (requiredCourseIds.size === 0 && requirements.assignmentRefs.length === 0) {
-    return;
-  }
-
-  const assignmentsByCourseId = new Map<string, Set<string>>();
-  const courseIds = [...requiredCourseIds];
-  const concurrency = Math.min(4, courseIds.length);
-  let nextCourseIndex = 0;
-  let validationError: BadgeRuleLmsReferenceError | null = null;
-
-  const validateNextCourse = async (): Promise<void> => {
-    while (validationError === null && nextCourseIndex < courseIds.length) {
-      const courseId = courseIds[nextCourseIndex];
-      nextCourseIndex += 1;
-
-      if (courseId === undefined) {
-        continue;
-      }
-
-      try {
-        const assignments = await input.provider.listAssignments({
-          courseId,
-        });
-        assignmentsByCourseId.set(
-          courseId,
-          new Set(assignments.map((assignment) => assignment.assignmentId)),
-        );
-      } catch (error) {
-        validationError = new BadgeRuleLmsReferenceError(
-          error instanceof Error
-            ? error.message
-            : `Unable to read the gradebook for course ${courseId}`,
-          502,
-        );
-        return;
-      }
-    }
-  };
-
-  await Promise.all(Array.from({ length: concurrency }, () => validateNextCourse()));
-
-  if (validationError !== null) {
-    throw validationError;
-  }
-
-  for (const assignmentRef of requirements.assignmentRefs) {
-    const assignmentIds = assignmentsByCourseId.get(assignmentRef.courseId);
-
-    if (assignmentIds === undefined || !assignmentIds.has(assignmentRef.assignmentId)) {
-      throw new BadgeRuleLmsReferenceError(
-        `Selected LMS connection does not include gradebook item ${assignmentRef.assignmentId} in course ${assignmentRef.courseId}`,
-        422,
-      );
-    }
-  }
-};
 
 type BadgeRuleDraftRequest =
   | ReturnType<typeof parseCreateBadgeIssuanceRuleRequest>
@@ -220,24 +144,28 @@ const persistBadgeRuleDraft = async (input: {
     };
   }
 
-  try {
-    await validateRuleReferencesAgainstConnection({
-      provider: resolvedProvider.provider,
-      definition: resolvedDefinition,
-    });
-  } catch (error) {
-    if (error instanceof BadgeRuleLmsReferenceError) {
-      return {
-        status: "error",
-        statusCode: error.statusCode,
-        error: error.message,
-      };
-    }
+  const referenceValidation = await validateBadgeRuleReferences({
+    provider: resolvedProvider.provider,
+    definition: resolvedDefinition,
+  });
 
+  if (referenceValidation.status === "gradebook_unavailable") {
     return {
       status: "error",
       statusCode: 502,
-      error: "Failed to validate LMS references",
+      error: lmsLookupErrorMessage(
+        resolvedProvider.connection,
+        referenceValidation.cause,
+        `Unable to read the gradebook for course ${referenceValidation.courseId}`,
+      ),
+    };
+  }
+
+  if (referenceValidation.status === "assignment_missing") {
+    return {
+      status: "error",
+      statusCode: 422,
+      error: `Selected LMS connection does not include gradebook item ${referenceValidation.assignmentId} in course ${referenceValidation.courseId}`,
     };
   }
 
