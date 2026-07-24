@@ -439,7 +439,7 @@ export const createCanvasGradebookProvider = (
 
   return {
     kind: "canvas",
-    listCourses: async (): Promise<readonly GradebookCourseRecord[]> => {
+    listCourses: async (input): Promise<readonly GradebookCourseRecord[]> => {
       const query = new URLSearchParams();
       query.set("per_page", "100");
       query.set("enrollment_state", "active");
@@ -452,7 +452,22 @@ export const createCanvasGradebookProvider = (
       const normalizedCourses = courses
         .map((course) => parseCourseRecord(course))
         .filter((course): course is GradebookCourseRecord => course !== null);
-      return normalizedCourses;
+      const searchTerm = input?.searchTerm?.trim().toLocaleLowerCase() ?? "";
+
+      return normalizedCourses
+        .filter((course) => {
+          if (searchTerm.length === 0) {
+            return true;
+          }
+
+          return [course.title, course.courseCode ?? "", course.courseId].some((value) =>
+            value.toLocaleLowerCase().includes(searchTerm),
+          );
+        })
+        .sort(
+          (left, right) =>
+            left.title.localeCompare(right.title) || left.courseId.localeCompare(right.courseId),
+        );
     },
     listAssignments: async (input): Promise<readonly GradebookAssignmentRecord[]> => {
       return listAssignmentsForCourse(input.courseId);

@@ -121,9 +121,17 @@ export const lmsLookupErrorMessage = (
   if (
     connection.providerKind === "sakai" &&
     rawMessage.includes("(403)") &&
-    rawMessage.includes("/api/users/me/sites")
+    rawMessage.includes("/direct/site.json")
   ) {
-    return "Sakai blocked CredTrail from reading your site list (403). Save a Sakai username and password for an account that can view the target site and gradebook, then try again. If it still fails, ask a Sakai administrator to allow REST API access to Sites and Gradebook.";
+    return "Sakai blocked CredTrail from searching courses (403). Save a Sakai administrator username and password, then try again. If it still fails, ask a Sakai administrator to allow EntityBroker Sites and Gradebook access.";
+  }
+
+  if (
+    connection.providerKind === "sakai" &&
+    rawMessage.includes("(403)") &&
+    rawMessage.includes("/grading/full-gradebook")
+  ) {
+    return "Sakai blocked CredTrail from reading this course gradebook (403). Confirm that the saved Sakai account can view the course and gradebook, then try again.";
   }
 
   return rawMessage;

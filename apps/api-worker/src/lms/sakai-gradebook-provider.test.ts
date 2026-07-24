@@ -156,16 +156,15 @@ describe("createSakaiGradebookProvider", () => {
   it("maps Sakai API responses to normalized records", async () => {
     const { fetchImpl, requests } = createMockFetch([
       {
-        pathWithQuery: "/api/users/me/sites",
+        pathWithQuery: "/direct/site.json?select=any&_limit=101",
         responseBody: {
-          sites: [
+          site_collection: [
             {
               id: "site-1",
               title: "CS 101",
+              type: "course",
               shortDescription: "CS101",
-              state: "published",
-              createdDate: "2026-01-01T00:00:00.000Z",
-              termEid: "2026-05-01T00:00:00.000Z",
+              published: true,
             },
           ],
         },
@@ -240,8 +239,8 @@ describe("createSakaiGradebookProvider", () => {
         title: "CS 101",
         courseCode: "CS101",
         workflowState: "published",
-        startsAt: "2026-01-01T00:00:00.000Z",
-        endsAt: "2026-05-01T00:00:00.000Z",
+        startsAt: null,
+        endsAt: null,
       },
     ]);
 
@@ -312,16 +311,97 @@ describe("createSakaiGradebookProvider", () => {
     ]);
   });
 
+  it("searches authorized Sakai sites and returns only courses in title order", async () => {
+    const { fetchImpl, requests } = createMockFetch([
+      {
+        pathWithQuery: "/direct/site.json?select=any&_limit=101&search=capstone+2026",
+        responseBody: {
+          site_collection: [
+            {
+              id: "project-1",
+              title: "Capstone Faculty Project",
+              type: "project",
+            },
+            {
+              id: "!admin",
+              title: "Administration Workspace",
+              type: "admin",
+            },
+            {
+              id: "capstone-2026-b",
+              title: "Capstone Seminar",
+              description: "Spring cohort",
+              type: "course",
+            },
+            {
+              id: "capstone-2026-a",
+              title: "Applied Capstone",
+              description: "Summer cohort",
+              type: "course",
+            },
+          ],
+        },
+      },
+    ]);
+    const provider = createSakaiGradebookProvider({
+      config: {
+        kind: "sakai",
+        apiBaseUrl: "https://sakai.example.edu",
+        accessToken: "sakai-token",
+      },
+      fetchImpl,
+    });
+
+    await expect(provider.listCourses({ searchTerm: "  capstone 2026  " })).resolves.toEqual([
+      expect.objectContaining({
+        courseId: "capstone-2026-a",
+        title: "Applied Capstone",
+      }),
+      expect.objectContaining({
+        courseId: "capstone-2026-b",
+        title: "Capstone Seminar",
+      }),
+    ]);
+    expect(requests.map((request) => request.pathWithQuery)).toEqual([
+      "/direct/site.json?select=any&_limit=101&search=capstone+2026",
+    ]);
+  });
+
+  it("surfaces permission failures from authorized Sakai site search", async () => {
+    const { fetchImpl } = createMockFetch([
+      {
+        pathWithQuery: "/direct/site.json?select=any&_limit=101",
+        responseBody: {
+          message: "Forbidden",
+        },
+        status: 403,
+      },
+    ]);
+    const provider = createSakaiGradebookProvider({
+      config: {
+        kind: "sakai",
+        apiBaseUrl: "https://sakai.example.edu",
+        accessToken: "sakai-token",
+      },
+      fetchImpl,
+    });
+
+    await expect(provider.listCourses()).rejects.toThrowError(
+      "Sakai gradebook API request failed (403) for /direct/site.json",
+    );
+  });
+
   it("uses stored Sakai cookie headers without wrapping them", async () => {
     const { fetchImpl, requests } = createMockFetch(
       [
         {
-          pathWithQuery: "/api/users/me/sites",
+          pathWithQuery: "/direct/site.json?select=any&_limit=101",
           responseBody: {
-            sites: [
+            site_collection: [
               {
                 id: "site-1",
                 title: "CS 101",
+                type: "course",
               },
             ],
           },
@@ -362,7 +442,7 @@ describe("createSakaiGradebookProvider", () => {
       const cookie = request.headers.get("cookie");
       requests.push({ pathWithQuery, cookie });
 
-      if (pathWithQuery !== "/api/users/me/sites") {
+      if (pathWithQuery !== "/direct/site.json?select=any&_limit=101") {
         return Promise.resolve(
           new Response(JSON.stringify({ error: "No mock route configured" }), {
             status: 404,
@@ -387,10 +467,11 @@ describe("createSakaiGradebookProvider", () => {
       return Promise.resolve(
         new Response(
           JSON.stringify({
-            sites: [
+            site_collection: [
               {
-                siteId: "site-1",
+                id: "site-1",
                 title: "CS 101",
+                type: "course",
               },
             ],
           }),
@@ -433,11 +514,11 @@ describe("createSakaiGradebookProvider", () => {
     expect(refreshCalls).toBe(1);
     expect(requests).toEqual([
       {
-        pathWithQuery: "/api/users/me/sites",
+        pathWithQuery: "/direct/site.json?select=any&_limit=101",
         cookie: "SAKAIID=stale-token",
       },
       {
-        pathWithQuery: "/api/users/me/sites",
+        pathWithQuery: "/direct/site.json?select=any&_limit=101",
         cookie: "SAKAIID=fresh-token",
       },
     ]);

@@ -362,6 +362,49 @@ describe("createCanvasGradebookProvider", () => {
     expect(mockFetch.requests).toEqual(["/api/v1/courses?per_page=100&enrollment_state=active"]);
   });
 
+  it("filters the authorized Canvas course set by title, code, or ID", async () => {
+    const mockFetch = createRecordingMockFetch([
+      {
+        pathWithQuery: "/api/v1/courses?per_page=100&enrollment_state=active",
+        responseBody: [
+          {
+            id: 42,
+            name: "Capstone Seminar",
+            course_code: "CAP-401",
+            workflow_state: "available",
+          },
+          {
+            id: 77,
+            name: "Biology",
+            course_code: "BIO-101",
+            workflow_state: "available",
+          },
+        ],
+      },
+    ]);
+    const provider = createCanvasGradebookProvider({
+      config: {
+        kind: "canvas",
+        apiBaseUrl: "https://canvas.example.edu",
+        accessToken: "canvas-token",
+      },
+      fetchImpl: mockFetch.fetchImpl,
+    });
+
+    await expect(provider.listCourses({ searchTerm: " cap-401 " })).resolves.toEqual([
+      expect.objectContaining({
+        courseId: "42",
+        title: "Capstone Seminar",
+      }),
+    ]);
+    await expect(provider.listCourses({ searchTerm: "77" })).resolves.toEqual([
+      expect.objectContaining({
+        courseId: "77",
+        title: "Biology",
+      }),
+    ]);
+  });
+
   it("follows canvas pagination links when listing gradebook items", async () => {
     const mockFetch = createRecordingMockFetch([
       {

@@ -16,7 +16,7 @@ const lmsCourseLabel = (course) => {
 };
 
 const sakaiSites403Message =
-  "Sakai blocked CredTrail from reading your site list (403). Save a Sakai username and password for an account that can view the target site and gradebook, then try again. If it still fails, ask a Sakai administrator to allow REST API access to Sites and Gradebook.";
+  "Sakai blocked CredTrail from searching courses (403). Save a Sakai administrator username and password, then try again. If it still fails, ask a Sakai administrator to allow EntityBroker Sites and Gradebook access.";
 
 const lmsLookupErrorMessage = (error, fallback) => {
   const message = error instanceof Error ? error.message : fallback;
@@ -25,7 +25,7 @@ const lmsLookupErrorMessage = (error, fallback) => {
   if (
     providerKind === "sakai" &&
     message.includes("(403)") &&
-    message.includes("/api/users/me/sites")
+    message.includes("/direct/site.json")
   ) {
     return sakaiSites403Message;
   }
@@ -51,6 +51,72 @@ const setLmsLookupStatus = (message, isError) => {
 };
 
 const courseLookupRequests = new Map();
+const courseLookupGenerationBySelect = new WeakMap();
+
+const nextCourseLookupGeneration = (select) => {
+  const generation = (courseLookupGenerationBySelect.get(select) ?? 0) + 1;
+  courseLookupGenerationBySelect.set(select, generation);
+  return generation;
+};
+
+const isCurrentCourseLookup = (select, generation) => {
+  return courseLookupGenerationBySelect.get(select) === generation;
+};
+
+const selectedCourseOptionSnapshots = (select, selectedValues) => {
+  const snapshotsByValue = new Map();
+
+  Array.from(select.selectedOptions).forEach((option) => {
+    if (option.value.length > 0) {
+      snapshotsByValue.set(option.value, option.textContent ?? option.value);
+    }
+  });
+
+  selectedValues.forEach((value) => {
+    if (!snapshotsByValue.has(value)) {
+      snapshotsByValue.set(value, value);
+    }
+  });
+
+  return snapshotsByValue;
+};
+
+const setCourseSelectOptions = (
+  select,
+  courses,
+  emptyLabel,
+  selectedValues,
+  selectedOptionSnapshots,
+) => {
+  lmsSetSelectOptions(
+    select,
+    courses,
+    emptyLabel,
+    selectedValues,
+    lmsCourseLabel,
+    (course) => course.courseId,
+  );
+
+  const availableValues = new Set(Array.from(select.options).map((option) => option.value));
+  const firstCourseOption = select.options.item(1);
+
+  selectedOptionSnapshots.forEach((label, value) => {
+    if (availableValues.has(value)) {
+      return;
+    }
+
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    option.selected = true;
+
+    if (firstCourseOption === null) {
+      select.append(option);
+    } else {
+      select.insertBefore(option, firstCourseOption);
+    }
+  });
+};
 
 const loadCourses = (path) => {
   const activeRequest = courseLookupRequests.get(path);
@@ -120,43 +186,87 @@ const workflowStatesPath = (courseId, assignmentId) => {
 };
 
 const hydrateCourseSelect = async (select, query) => {
+  const lookupGeneration = nextCourseLookupGeneration(select);
   const path = coursesPath(query);
+  const selectedValues = lmsSelectedValuesForSelect(select);
+  const selectedOptionSnapshots = selectedCourseOptionSnapshots(select, selectedValues);
 
   if (path.length === 0) {
-    lmsSetSelectOptions(
+    setCourseSelectOptions(
       select,
       [],
       "Select an LMS connection first",
-      [],
-      lmsCourseLabel,
-      (course) => course.courseId,
+      selectedValues,
+      selectedOptionSnapshots,
     );
     select.disabled = true;
-    return;
+    return true;
   }
 
-  setLmsLookupStatus("", false);
+  setLmsLookupStatus("Loading courses...", false);
   select.disabled = true;
-  lmsSetSelectOptions(
+  setCourseSelectOptions(
     select,
     [],
     "Loading courses...",
-    lmsSelectedValuesForSelect(select),
-    lmsCourseLabel,
-    (course) => course.courseId,
+    selectedValues,
+    selectedOptionSnapshots,
   );
-  const payload = await loadCourses(path);
+  let payload;
+
+  try {
+    payload = await loadCourses(path);
+  } catch (error) {
+    if (!isCurrentCourseLookup(select, lookupGeneration)) {
+      return false;
+    }
+
+    setCourseSelectOptions(
+      select,
+      [],
+      "Courses unavailable",
+      selectedValues,
+      selectedOptionSnapshots,
+    );
+    select.disabled = false;
+    throw error;
+  }
+
+  if (!isCurrentCourseLookup(select, lookupGeneration)) {
+    return false;
+  }
+
   const courses = payload && Array.isArray(payload.courses) ? payload.courses : [];
-  lmsSetSelectOptions(
+  const hasMore = payload && payload.hasMore === true;
+  setCourseSelectOptions(
     select,
     courses,
     courses.length === 0 ? "No matching courses" : "Select course",
-    lmsSelectedValuesForSelect(select),
-    lmsCourseLabel,
-    (course) => course.courseId,
+    selectedValues,
+    selectedOptionSnapshots,
   );
   select.disabled = false;
-  setLmsLookupStatus("", false);
+  const normalizedQuery = query.trim();
+
+  if (courses.length === 0) {
+    setLmsLookupStatus(
+      normalizedQuery.length === 0
+        ? "No courses are available to the saved LMS account."
+        : "No courses matched your search.",
+      false,
+    );
+  } else if (hasMore) {
+    setLmsLookupStatus(
+      normalizedQuery.length === 0
+        ? "Showing the first 100 courses. Search to narrow the list."
+        : "Showing the first 100 matches. Refine your search to narrow the list.",
+      false,
+    );
+  } else {
+    setLmsLookupStatus("", false);
+  }
+
+  return true;
 };
 
 const hydrateWorkflowStateSelect = async (card) => {
@@ -223,7 +333,11 @@ const bindSearchableCourseSelect = (card, fieldName) => {
         courseSelect,
         courseSearch instanceof HTMLInputElement ? courseSearch.value : "",
       )
-        .then(() => {
+        .then((didHydrate) => {
+          if (!didHydrate) {
+            return;
+          }
+
           syncDefinitionJsonFromBuilder();
           if (fieldName === "courseId") {
             void hydrateGradebookItemSelect(card, "");

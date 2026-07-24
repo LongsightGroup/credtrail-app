@@ -587,6 +587,152 @@ describe("badge rule routes", () => {
     expect(mockedDeleteBadgeIssuanceRuleBuilderDraft).toHaveBeenCalledTimes(2);
   });
 
+  it("saves a rule for a non-membership course when its gradebook is accessible", async () => {
+    const env = createEnv();
+    const provider = mockedCreateGradebookProvider();
+    const listCourses = vi.spyOn(provider, "listCourses");
+    const listAssignments = vi.spyOn(provider, "listAssignments").mockResolvedValue([]);
+    mockedCreateGradebookProvider.mockClear();
+    mockedCreateBadgeIssuanceRule.mockResolvedValue({
+      rule: sampleRule(),
+      version: sampleVersion(),
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "External course rule",
+          badgeTemplateId: "badge_template_cs101",
+          lmsConnectionId: "lms_123",
+          definition: {
+            conditions: {
+              type: "grade_threshold",
+              courseId: "course_outside_memberships",
+              minScore: 80,
+            },
+          },
+        }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(201);
+    expect(listCourses).not.toHaveBeenCalled();
+    expect(listAssignments).toHaveBeenCalledOnce();
+    expect(listAssignments).toHaveBeenCalledWith({
+      courseId: "course_outside_memberships",
+    });
+  });
+
+  it("rejects a rule when the selected course gradebook is inaccessible", async () => {
+    const env = createEnv();
+    const provider = mockedCreateGradebookProvider();
+    vi.spyOn(provider, "listAssignments").mockRejectedValue(
+      new Error("Sakai gradebook API request failed (403)"),
+    );
+    mockedCreateGradebookProvider.mockClear();
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Inaccessible course rule",
+          badgeTemplateId: "badge_template_cs101",
+          lmsConnectionId: "lms_123",
+          definition: {
+            conditions: {
+              type: "course_completion",
+              courseId: "course_inaccessible",
+            },
+          },
+        }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(502);
+    expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
+  });
+
+  it("reuses gradebook items when validating multiple requirements for one course", async () => {
+    const env = createEnv();
+    const provider = mockedCreateGradebookProvider();
+    const listAssignments = vi.spyOn(provider, "listAssignments").mockResolvedValue([
+      {
+        assignmentId: "assignment_1",
+        courseId: "course_101",
+        title: "Draft",
+        workflowState: "published",
+        pointsPossible: 10,
+        dueAt: null,
+      },
+      {
+        assignmentId: "assignment_2",
+        courseId: "course_101",
+        title: "Final",
+        workflowState: "published",
+        pointsPossible: 100,
+        dueAt: null,
+      },
+    ]);
+    mockedCreateGradebookProvider.mockClear();
+    mockedCreateBadgeIssuanceRule.mockResolvedValue({
+      rule: sampleRule(),
+      version: sampleVersion(),
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Two assignments",
+          badgeTemplateId: "badge_template_cs101",
+          lmsConnectionId: "lms_123",
+          definition: {
+            conditions: {
+              all: [
+                {
+                  type: "assignment_submission",
+                  courseId: "course_101",
+                  assignmentId: "assignment_1",
+                },
+                {
+                  type: "assignment_submission",
+                  courseId: "course_101",
+                  assignmentId: "assignment_2",
+                },
+              ],
+            },
+          },
+        }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(201);
+    expect(listAssignments).toHaveBeenCalledOnce();
+    expect(listAssignments).toHaveBeenCalledWith({ courseId: "course_101" });
+  });
+
   it("saves incomplete rule builder drafts without creating rule versions", async () => {
     const env = createEnv();
     mockedSaveBadgeIssuanceRuleBuilderDraft.mockResolvedValue({
@@ -842,6 +988,9 @@ describe("badge rule routes", () => {
 
   it("looks up LMS courses, learners, gradebook items, and workflow states", async () => {
     const env = createEnv();
+    const provider = mockedCreateGradebookProvider();
+    const listCourses = vi.spyOn(provider, "listCourses");
+    mockedCreateGradebookProvider.mockClear();
 
     const coursesResponse = await app.request(
       "/v1/tenants/tenant_123/lms/connections/lms_123/courses?q=cs",
@@ -854,10 +1003,14 @@ describe("badge rule routes", () => {
     );
     const coursesBody = await coursesResponse.json<{
       courses: Array<{ courseId: string }>;
+      hasMore: boolean;
     }>();
 
     expect(coursesResponse.status).toBe(200);
+    expect(coursesResponse.headers.get("Cache-Control")).toBe("no-store");
     expect(coursesBody.courses[0]?.courseId).toBe("course_101");
+    expect(coursesBody.hasMore).toBe(false);
+    expect(listCourses).toHaveBeenCalledWith({ searchTerm: "cs" });
 
     const learnersResponse = await app.request(
       "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/learners",
@@ -924,6 +1077,42 @@ describe("badge rule routes", () => {
     );
   });
 
+  it("bounds course search results and reports when more matches are available", async () => {
+    const env = createEnv();
+    const provider = mockedCreateGradebookProvider();
+    vi.spyOn(provider, "listCourses").mockResolvedValue(
+      Array.from({ length: 101 }, (_, index) => ({
+        courseId: `course_${String(index).padStart(3, "0")}`,
+        title: `Course ${String(index).padStart(3, "0")}`,
+        courseCode: null,
+        workflowState: "available",
+        startsAt: null,
+        endsAt: null,
+      })),
+    );
+    mockedCreateGradebookProvider.mockClear();
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/lms/connections/lms_123/courses",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.json<{
+      courses: Array<{ courseId: string }>;
+      hasMore: boolean;
+    }>();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(body.courses).toHaveLength(100);
+    expect(body.hasMore).toBe(true);
+    expect(body.courses.at(-1)?.courseId).toBe("course_099");
+  });
+
   it("returns actionable Sakai 403 guidance for course lookup failures", async () => {
     const env = createEnv();
     mockedFindTenantLmsConnectionById.mockResolvedValue(
@@ -938,9 +1127,7 @@ describe("badge rule routes", () => {
     mockedCreateGradebookProvider.mockReturnValue({
       kind: "sakai",
       listCourses: () =>
-        Promise.reject(
-          new Error("Sakai gradebook API request failed (403) for /api/users/me/sites"),
-        ),
+        Promise.reject(new Error("Sakai gradebook API request failed (403) for /direct/site.json")),
       listAssignments: () => Promise.resolve([]),
       listEnrollments: () => Promise.resolve([]),
       listLearners: () => Promise.resolve([]),
@@ -961,10 +1148,11 @@ describe("badge rule routes", () => {
     const body = await response.json<{ error: string }>();
 
     expect(response.status).toBe(502);
-    expect(body.error).toContain("Sakai blocked CredTrail from reading your site list (403).");
-    expect(body.error).toContain("Save a Sakai username and password");
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(body.error).toContain("Sakai blocked CredTrail from searching courses (403).");
+    expect(body.error).toContain("Save a Sakai administrator username and password");
     expect(body.error).toContain("then try again");
-    expect(body.error).toContain("allow REST API access to Sites and Gradebook");
+    expect(body.error).toContain("allow EntityBroker Sites and Gradebook access");
   });
 
   it("creates reusable badge-rule value lists", async () => {

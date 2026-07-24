@@ -186,6 +186,7 @@ export const registerTenantLmsConnectionRoutes = (
   app.get("/v1/tenants/:tenantId/lms/connections/:connectionId/courses", async (c) => {
     const pathParams = parseTenantLmsConnectionPathParams(c.req.param());
     const query = parseTenantLmsConnectionCourseSearchQuery(c.req.query());
+    c.header("Cache-Control", "no-store");
     const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
 
     if (roleCheck instanceof Response) {
@@ -203,16 +204,22 @@ export const registerTenantLmsConnectionRoutes = (
     }
 
     try {
-      const courses = (
-        await (query.q === undefined
+      const matchingCourses = [
+        ...(await (query.q === undefined
           ? resolved.provider.listCourses()
-          : resolved.provider.listCourses({ searchTerm: query.q }))
-      ).slice(0, LMS_PICKER_MAX_COURSES);
+          : resolved.provider.listCourses({ searchTerm: query.q }))),
+      ].sort(
+        (left, right) =>
+          left.title.localeCompare(right.title) || left.courseId.localeCompare(right.courseId),
+      );
+      const hasMore = matchingCourses.length > LMS_PICKER_MAX_COURSES;
+      const courses = matchingCourses.slice(0, LMS_PICKER_MAX_COURSES);
 
       return c.json({
         tenantId: pathParams.tenantId,
         connectionId: pathParams.connectionId,
         courses,
+        hasMore,
       });
     } catch (error) {
       return c.json(

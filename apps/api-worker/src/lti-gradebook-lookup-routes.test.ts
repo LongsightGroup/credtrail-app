@@ -350,7 +350,9 @@ describe("LTI deep linking gradebook lookup routes", () => {
       listCourses: () => Promise.resolve([]),
       listAssignments: () =>
         Promise.reject(
-          new Error("Sakai gradebook API request failed (403) for /api/users/me/sites"),
+          new Error(
+            "Sakai gradebook API request failed (403) for /api/sites/site-123/grading/full-gradebook",
+          ),
         ),
       listEnrollments: () => Promise.resolve([]),
       listSubmissions: () => Promise.resolve([]),
@@ -366,8 +368,9 @@ describe("LTI deep linking gradebook lookup routes", () => {
     const body = await response.json<ErrorResponse>();
 
     expect(response.status).toBe(502);
-    expect(body.error).toContain("Sakai blocked CredTrail from reading your site list (403).");
-    expect(body.error).toContain("Save a Sakai username and password");
-    expect(body.error).toContain("allow REST API access to Sites and Gradebook");
+    expect(body.error).toContain(
+      "Sakai blocked CredTrail from reading this course gradebook (403).",
+    );
+    expect(body.error).toContain("saved Sakai account can view the course and gradebook");
   });
 });

@@ -73,6 +73,8 @@ interface SakaiMembershipLearner {
   email: string | null;
 }
 
+const SAKAI_COURSE_SEARCH_LIMIT = 101;
+
 const asIdentifier = (value: unknown): string | null => {
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -530,6 +532,10 @@ const parseSakaiCourseRecord = (candidate: unknown): GradebookCourseRecord | nul
     return null;
   }
 
+  if (asNonEmptyString(site.type) !== "course") {
+    return null;
+  }
+
   const courseId = asIdentifier(site.id) ?? asIdentifier(site.siteId);
   const title = asNonEmptyString(site.title) ?? asNonEmptyString(site.name);
 
@@ -541,9 +547,9 @@ const parseSakaiCourseRecord = (candidate: unknown): GradebookCourseRecord | nul
     courseId,
     title,
     courseCode: asString(site.shortDescription) ?? asString(site.courseCode),
-    workflowState: asString(site.state),
-    startsAt: asIsoTimestamp(site.createdDate),
-    endsAt: asIsoTimestamp(site.termEid),
+    workflowState: site.published === true ? "published" : asString(site.state),
+    startsAt: null,
+    endsAt: null,
   };
 };
 
@@ -614,13 +620,26 @@ export const createSakaiGradebookProvider = (
 
   return {
     kind: "sakai",
-    listCourses: async (): Promise<readonly GradebookCourseRecord[]> => {
-      const payload = await requestJson("/api/users/me/sites");
+    listCourses: async (listInput): Promise<readonly GradebookCourseRecord[]> => {
+      const query = new URLSearchParams();
+      query.set("select", "any");
+      query.set("_limit", String(SAKAI_COURSE_SEARCH_LIMIT));
+      const searchTerm = listInput?.searchTerm?.trim();
+
+      if (searchTerm !== undefined && searchTerm.length > 0) {
+        query.set("search", searchTerm);
+      }
+
+      const payload = await requestJson("/direct/site.json", query);
       const parsedPayload = asJsonObject(payload);
-      const candidates = asJsonArray(parsedPayload?.sites ?? payload) ?? [];
+      const candidates = asJsonArray(parsedPayload?.site_collection) ?? [];
       const courses = candidates
         .map((candidate) => parseSakaiCourseRecord(candidate))
-        .filter((course): course is GradebookCourseRecord => course !== null);
+        .filter((course): course is GradebookCourseRecord => course !== null)
+        .sort(
+          (left, right) =>
+            left.title.localeCompare(right.title) || left.courseId.localeCompare(right.courseId),
+        );
       return courses;
     },
     listAssignments: async (input): Promise<readonly GradebookAssignmentRecord[]> => {
