@@ -271,6 +271,10 @@ export const badgeIssuanceRulePathParamsSchema = tenantPathParamsSchema.extend({
   ruleId: resourceIdSchema,
 });
 
+export const badgeIssuanceRuleBuilderDraftPathParamsSchema = tenantPathParamsSchema.extend({
+  draftId: resourceIdSchema,
+});
+
 export const badgeIssuanceRuleVersionPathParamsSchema = badgeIssuanceRulePathParamsSchema.extend({
   versionId: resourceIdSchema,
 });
@@ -296,6 +300,7 @@ export const createBadgeIssuanceRuleRequestSchema = z
     lmsProviderKind: badgeIssuanceRuleLmsProviderKindSchema.optional(),
     definition: badgeIssuanceRuleDefinitionSchema,
     changeSummary: z.string().trim().min(1).max(1000).optional(),
+    builderDraftId: resourceIdSchema.optional(),
   })
   .strict();
 
@@ -500,6 +505,10 @@ export const resolveDedicatedDbProvisioningRequestSchema = z.object({
 // --- inferred types and parsers ---
 export type BadgeIssuanceRulePathParams = z.infer<typeof badgeIssuanceRulePathParamsSchema>;
 
+export type BadgeIssuanceRuleBuilderDraftPathParams = z.infer<
+  typeof badgeIssuanceRuleBuilderDraftPathParamsSchema
+>;
+
 export type BadgeIssuanceRuleVersionPathParams = z.infer<
   typeof badgeIssuanceRuleVersionPathParamsSchema
 >;
@@ -588,6 +597,12 @@ export type ResolveDedicatedDbProvisioningRequest = z.infer<
 
 export const parseBadgeIssuanceRulePathParams = (input: unknown): BadgeIssuanceRulePathParams => {
   return badgeIssuanceRulePathParamsSchema.parse(input);
+};
+
+export const parseBadgeIssuanceRuleBuilderDraftPathParams = (
+  input: unknown,
+): BadgeIssuanceRuleBuilderDraftPathParams => {
+  return badgeIssuanceRuleBuilderDraftPathParamsSchema.parse(input);
 };
 
 export const parseBadgeIssuanceRuleVersionPathParams = (

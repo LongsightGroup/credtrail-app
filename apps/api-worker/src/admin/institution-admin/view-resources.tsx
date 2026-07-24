@@ -23,6 +23,7 @@ import {
   tenantBadgeRuleSubmitApprovalAdminPath,
 } from "../access-admin-helpers";
 import { buildBadgeRuleLifecycleMenuActions } from "./badge-rule-lifecycle-actions";
+import { renderBadgeRuleBuilderDraftRows } from "./badge-rule-builder-draft-rows";
 import {
   AdminActionMenu,
   AdminButton,
@@ -130,7 +131,9 @@ export const buildInstitutionAdminViewResources = (
   const lmsConnectionCount = String(input.lmsConnections.length);
   const activeApiKeyCount = String(input.activeApiKeys.length);
   const revokedApiKeyCount = String(input.revokedApiKeyCount);
+  const builderDrafts = input.rulesWorkspace?.builderDrafts ?? [];
   const ruleCount = String(input.badgeRules.length);
+  const rulesWorkspaceCount = String(input.badgeRules.length + builderDrafts.length);
   const tenantMemberCount = String(input.tenantMembers.length);
   const scopedRoleCount = String(input.membershipOrgUnitScopes.length);
   const delegatedAuthorityGrantCount = String(input.delegatedIssuingAuthorityGrants.length);
@@ -558,9 +561,16 @@ export const buildInstitutionAdminViewResources = (
     })
   );
 
+  const builderDraftRows = renderBadgeRuleBuilderDraftRows({
+    tenantId: input.tenant.id,
+    drafts: builderDrafts,
+    badgeTemplates: input.badgeTemplates,
+    lmsConnections: input.lmsConnections,
+  });
+
   const ruleRows = !dataNeeds.ruleTableRows ? (
     emptySectionMarkup
-  ) : input.badgeRules.length === 0 ? (
+  ) : input.badgeRules.length === 0 && builderDrafts.length === 0 ? (
     <AdminEmptyTableRow colSpan={8}>
       No badge rules found. <a href={ruleBuilderPath}>Create your first rule</a>.
     </AdminEmptyTableRow>
@@ -1172,9 +1182,10 @@ export const buildInstitutionAdminViewResources = (
 
   const badgeRulesTableMarkup = dataNeeds.badgeRulesTable
     ? renderBadgeRulesTable({
-        ruleCount,
+        ruleCount: rulesWorkspaceCount,
         ruleBuilderPath,
         rulesTemplatesPath,
+        builderDraftRows,
         ruleRows,
       })
     : emptySectionMarkup;

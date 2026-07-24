@@ -711,7 +711,6 @@ export const createSakaiGradebookProvider = (
             coursesById.set(course.courseId, course);
           }
         }
-
       }
 
       if (

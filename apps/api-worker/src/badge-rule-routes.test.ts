@@ -28,6 +28,7 @@ vi.mock("@credtrail/db", async () => {
     ...actual,
     createAuditLog: vi.fn(),
     createBadgeIssuanceRule: vi.fn(),
+    createBadgeIssuanceRuleFromBuilderDraft: vi.fn(),
     createBadgeIssuanceRuleValueList: vi.fn(),
     createBadgeIssuanceRuleVersion: vi.fn(),
     updateBadgeIssuanceRuleDraft: vi.fn(),
@@ -43,9 +44,8 @@ vi.mock("@credtrail/db", async () => {
     listBadgeIssuanceRuleVersions: vi.fn(),
     listBadgeIssuanceRuleVersionApprovalSteps: vi.fn(),
     listBadgeIssuanceRuleVersionApprovalEvents: vi.fn(),
-    findBadgeIssuanceRuleBuilderDraft: vi.fn(),
     saveBadgeIssuanceRuleBuilderDraft: vi.fn(),
-    deleteBadgeIssuanceRuleBuilderDraft: vi.fn(),
+    deleteBadgeIssuanceRuleBuilderDraftForRule: vi.fn(),
     resolveBadgeIssuanceRuleEvaluationReview: vi.fn(),
     findTenantLmsConnectionById: vi.fn(),
     listTenantLmsConnections: vi.fn(),
@@ -105,10 +105,10 @@ import {
   activateBadgeIssuanceRuleVersion,
   createAuditLog,
   createBadgeIssuanceRule,
+  createBadgeIssuanceRuleFromBuilderDraft,
   createBadgeIssuanceRuleValueList,
   createBadgeIssuanceRuleVersion,
   decideBadgeIssuanceRuleVersion,
-  findBadgeIssuanceRuleBuilderDraft,
   findBadgeIssuanceRuleEvaluationById,
   findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleVersionById,
@@ -125,7 +125,7 @@ import {
   listTenantLmsConnections,
   resolveBadgeIssuanceRuleEvaluationReview,
   saveBadgeIssuanceRuleBuilderDraft,
-  deleteBadgeIssuanceRuleBuilderDraft,
+  deleteBadgeIssuanceRuleBuilderDraftForRule,
   submitBadgeIssuanceRuleVersionForApproval,
   updateBadgeIssuanceRuleDraft,
   upsertTenantLmsConnection,
@@ -149,6 +149,9 @@ import { app } from "./index";
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
 const mockedCreateBadgeIssuanceRule = vi.mocked(createBadgeIssuanceRule);
+const mockedCreateBadgeIssuanceRuleFromBuilderDraft = vi.mocked(
+  createBadgeIssuanceRuleFromBuilderDraft,
+);
 const mockedCreateBadgeIssuanceRuleVersion = vi.mocked(createBadgeIssuanceRuleVersion);
 const mockedUpdateBadgeIssuanceRuleDraft = vi.mocked(updateBadgeIssuanceRuleDraft);
 const mockedCreateBadgeIssuanceRuleValueList = vi.mocked(createBadgeIssuanceRuleValueList);
@@ -160,7 +163,6 @@ const mockedActivateBadgeIssuanceRuleVersion = vi.mocked(activateBadgeIssuanceRu
 const mockedFindBadgeIssuanceRuleById = vi.mocked(findBadgeIssuanceRuleById);
 const mockedFindBadgeIssuanceRuleEvaluationById = vi.mocked(findBadgeIssuanceRuleEvaluationById);
 const mockedFindBadgeIssuanceRuleVersionById = vi.mocked(findBadgeIssuanceRuleVersionById);
-const mockedFindBadgeIssuanceRuleBuilderDraft = vi.mocked(findBadgeIssuanceRuleBuilderDraft);
 const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
 const mockedListBadgeIssuanceRuleEvaluations = vi.mocked(listBadgeIssuanceRuleEvaluations);
 const mockedListBadgeIssuanceRuleValueLists = vi.mocked(listBadgeIssuanceRuleValueLists);
@@ -174,7 +176,9 @@ const mockedListBadgeIssuanceRuleVersionApprovalEvents = vi.mocked(
 );
 const mockedListAuditLogs = vi.mocked(listAuditLogs);
 const mockedSaveBadgeIssuanceRuleBuilderDraft = vi.mocked(saveBadgeIssuanceRuleBuilderDraft);
-const mockedDeleteBadgeIssuanceRuleBuilderDraft = vi.mocked(deleteBadgeIssuanceRuleBuilderDraft);
+const mockedDeleteBadgeIssuanceRuleBuilderDraft = vi.mocked(
+  deleteBadgeIssuanceRuleBuilderDraftForRule,
+);
 const mockedResolveBadgeIssuanceRuleEvaluationReview = vi.mocked(
   resolveBadgeIssuanceRuleEvaluationReview,
 );
@@ -451,6 +455,7 @@ beforeEach(() => {
   mockedCreateAuditLog.mockReset();
   mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
   mockedCreateBadgeIssuanceRule.mockReset();
+  mockedCreateBadgeIssuanceRuleFromBuilderDraft.mockReset();
   mockedCreateBadgeIssuanceRuleValueList.mockReset();
   mockedCreateBadgeIssuanceRuleValueList.mockResolvedValue(sampleValueListRecord());
   mockedCreateBadgeIssuanceRuleVersion.mockReset();
@@ -461,7 +466,6 @@ beforeEach(() => {
   mockedFindBadgeIssuanceRuleEvaluationById.mockReset();
   mockedFindBadgeIssuanceRuleById.mockReset();
   mockedFindBadgeIssuanceRuleVersionById.mockReset();
-  mockedFindBadgeIssuanceRuleBuilderDraft.mockReset();
   mockedListBadgeIssuanceRules.mockReset();
   mockedListBadgeIssuanceRules.mockResolvedValue([]);
   mockedListBadgeIssuanceRuleEvaluations.mockReset();
@@ -593,12 +597,59 @@ describe("badge rule routes", () => {
     expect(response.status).toBe(201);
     expect(mockedCreateBadgeIssuanceRule).toHaveBeenCalledTimes(1);
     expect(mockedCreateAuditLog).toHaveBeenCalledTimes(1);
-    expect(mockedDeleteBadgeIssuanceRuleBuilderDraft).toHaveBeenCalledTimes(2);
+    expect(mockedDeleteBadgeIssuanceRuleBuilderDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("promotes the exact unfinished builder draft into a formal rule", async () => {
+    const env = createEnv();
+    mockedCreateBadgeIssuanceRuleFromBuilderDraft.mockResolvedValue({
+      rule: sampleRule(),
+      version: sampleVersion(),
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "CS101 Rule",
+          badgeTemplateId: "badge_template_cs101",
+          lmsConnectionId: "lms_123",
+          builderDraftId: "brd_exact",
+          definition: {
+            conditions: {
+              type: "grade_threshold",
+              courseId: "course_101",
+              minScore: 80,
+            },
+          },
+        }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(201);
+    expect(mockedCreateBadgeIssuanceRuleFromBuilderDraft).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        builderDraftId: "brd_exact",
+        builderUserId: "usr_123",
+      }),
+    );
+    expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
+    expect(mockedDeleteBadgeIssuanceRuleBuilderDraft).not.toHaveBeenCalled();
   });
 
   it("saves incomplete rule builder drafts without creating rule versions", async () => {
     const env = createEnv();
     mockedSaveBadgeIssuanceRuleBuilderDraft.mockResolvedValue({
+      id: "brd_123",
       tenantId: "tenant_123",
       userId: "user_123",
       ruleId: null,
@@ -610,9 +661,9 @@ describe("badge rule routes", () => {
     });
 
     const response = await app.request(
-      "/v1/tenants/tenant_123/badge-rule-builder-draft",
+      "/v1/tenants/tenant_123/badge-rule-builder-drafts/brd_123",
       {
-        method: "POST",
+        method: "PUT",
         headers: {
           Origin: "http://localhost",
           Cookie: "better-auth.session_token=session-token",
@@ -634,6 +685,7 @@ describe("badge rule routes", () => {
     expect(response.status).toBe(200);
     expect(body.draft.currentStep).toBe("metadata");
     expect(mockedSaveBadgeIssuanceRuleBuilderDraft).toHaveBeenCalledWith(fakeDb, {
+      id: "brd_123",
       tenantId: "tenant_123",
       userId: "usr_123",
       currentStep: "metadata",
@@ -650,6 +702,26 @@ describe("badge rule routes", () => {
     });
     expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
     expect(mockedCreateBadgeIssuanceRuleVersion).not.toHaveBeenCalled();
+  });
+
+  it("does not expose the former singular builder-draft endpoint", async () => {
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rule-builder-draft",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          currentStep: "metadata",
+        }),
+      },
+      createEnv(),
+    );
+
+    expect(response.status).toBe(404);
   });
 
   it("lets issuer-role API clients save editable badge issuance rule changes as a new draft version", async () => {

@@ -7,19 +7,15 @@ describe("mapConcurrentBounded", () => {
     let highestActiveCount = 0;
     const releaseWork: Array<() => void> = [];
 
-    const resultPromise = mapConcurrentBounded(
-      [1, 2, 3, 4],
-      { concurrency: 2 },
-      async (value) => {
-        activeCount += 1;
-        highestActiveCount = Math.max(highestActiveCount, activeCount);
-        await new Promise<void>((resolve) => {
-          releaseWork.push(resolve);
-        });
-        activeCount -= 1;
-        return value * 10;
-      },
-    );
+    const resultPromise = mapConcurrentBounded([1, 2, 3, 4], { concurrency: 2 }, async (value) => {
+      activeCount += 1;
+      highestActiveCount = Math.max(highestActiveCount, activeCount);
+      await new Promise<void>((resolve) => {
+        releaseWork.push(resolve);
+      });
+      activeCount -= 1;
+      return value * 10;
+    });
 
     await Promise.resolve();
     expect(activeCount).toBe(2);

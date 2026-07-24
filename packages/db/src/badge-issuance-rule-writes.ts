@@ -19,6 +19,7 @@ import {
   listBadgeIssuanceRuleVersions,
   type BadgeIssuanceRuleVersionNumberRow,
 } from "./badge-issuance-rule-reads.js";
+import { deleteBadgeIssuanceRuleBuilderDraftById } from "./badge-issuance-rule-builder-drafts.js";
 
 export const createBadgeIssuanceRuleWithConnection = async (
   db: SqlDatabase,
@@ -141,6 +142,28 @@ export const createBadgeIssuanceRule = async (
   return runSqlTransaction(db, async (transactionDb) =>
     createBadgeIssuanceRuleWithConnection(transactionDb, input),
   );
+};
+
+export const createBadgeIssuanceRuleFromBuilderDraft = async (
+  db: SqlDatabase,
+  input: CreateBadgeIssuanceRuleInput & {
+    readonly builderDraftId: string;
+    readonly builderUserId: string;
+  },
+): Promise<CreateBadgeIssuanceRuleResult | null> => {
+  return runSqlTransaction(db, async (transactionDb) => {
+    const deletedDraft = await deleteBadgeIssuanceRuleBuilderDraftById(transactionDb, {
+      tenantId: input.tenantId,
+      userId: input.builderUserId,
+      draftId: input.builderDraftId,
+    });
+
+    if (deletedDraft === null) {
+      return null;
+    }
+
+    return createBadgeIssuanceRuleWithConnection(transactionDb, input);
+  });
 };
 
 const createBadgeIssuanceRuleVersionInDatabase = async (

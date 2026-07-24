@@ -352,8 +352,7 @@ describe("createSakaiGradebookProvider", () => {
         },
       },
       {
-        pathWithQuery:
-          "/direct/site.json?select=any&_limit=101&_start=4&search=capstone+2026",
+        pathWithQuery: "/direct/site.json?select=any&_limit=101&_start=4&search=capstone+2026",
         responseBody: {
           site_collection: [],
         },

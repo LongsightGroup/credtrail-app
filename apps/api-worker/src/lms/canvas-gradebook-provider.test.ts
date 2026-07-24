@@ -419,9 +419,7 @@ describe("createCanvasGradebookProvider", () => {
       fetchImpl: mockFetch.fetchImpl,
     });
 
-    await expect(
-      provider.listCourses({ searchTerm: " cap-401 ", limit: 100 }),
-    ).resolves.toEqual({
+    await expect(provider.listCourses({ searchTerm: " cap-401 ", limit: 100 })).resolves.toEqual({
       courses: [
         expect.objectContaining({
           courseId: "42",

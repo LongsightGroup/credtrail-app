@@ -5,6 +5,7 @@ import type {
 import type { SqlDatabase } from "./tenant-scope.js";
 
 interface BadgeIssuanceRuleBuilderDraftRow {
+  id: string;
   tenantId: string;
   userId: string;
   ruleId: string | null;
@@ -19,6 +20,7 @@ const mapBadgeIssuanceRuleBuilderDraftRow = (
   row: BadgeIssuanceRuleBuilderDraftRow,
 ): BadgeIssuanceRuleBuilderDraftRecord => {
   return {
+    id: row.id,
     tenantId: row.tenantId,
     userId: row.userId,
     ruleId: row.ruleId,
@@ -31,6 +33,7 @@ const mapBadgeIssuanceRuleBuilderDraftRow = (
 };
 
 const badgeIssuanceRuleBuilderDraftSelectColumns = `
+  id,
   tenant_id AS tenantId,
   user_id AS userId,
   rule_id AS ruleId,
@@ -53,6 +56,7 @@ export const saveBadgeIssuanceRuleBuilderDraft = async (
     .prepare(
       `
       INSERT INTO badge_issuance_rule_builder_drafts (
+        id,
         tenant_id,
         user_id,
         rule_id,
@@ -62,18 +66,21 @@ export const saveBadgeIssuanceRuleBuilderDraft = async (
         created_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (tenant_id, user_id, rule_id_key)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT (tenant_id, id)
       DO UPDATE SET
         version_id = excluded.version_id,
         current_step = excluded.current_step,
         draft_json = excluded.draft_json,
         updated_at = excluded.updated_at
+      WHERE badge_issuance_rule_builder_drafts.user_id = excluded.user_id
+        AND badge_issuance_rule_builder_drafts.rule_id IS NOT DISTINCT FROM excluded.rule_id
       RETURNING
         ${badgeIssuanceRuleBuilderDraftSelectColumns}
     `,
     )
     .bind(
+      input.id,
       input.tenantId,
       input.userId,
       ruleId,
@@ -92,12 +99,13 @@ export const saveBadgeIssuanceRuleBuilderDraft = async (
   return mapBadgeIssuanceRuleBuilderDraftRow(row);
 };
 
-export const findBadgeIssuanceRuleBuilderDraft = async (
+/** Finds one builder draft owned by a user. */
+export const findBadgeIssuanceRuleBuilderDraftById = async (
   db: SqlDatabase,
   input: {
-    tenantId: string;
-    userId: string;
-    ruleId?: string | undefined;
+    readonly tenantId: string;
+    readonly userId: string;
+    readonly draftId: string;
   },
 ): Promise<BadgeIssuanceRuleBuilderDraftRecord | null> => {
   const row = await db
@@ -108,22 +116,103 @@ export const findBadgeIssuanceRuleBuilderDraft = async (
       FROM badge_issuance_rule_builder_drafts
       WHERE tenant_id = ?
         AND user_id = ?
-        AND rule_id_key = COALESCE(?, '__new__')
+        AND id = ?
       LIMIT 1
     `,
     )
-    .bind(input.tenantId, input.userId, input.ruleId ?? null)
+    .bind(input.tenantId, input.userId, input.draftId)
     .first<BadgeIssuanceRuleBuilderDraftRow>();
 
   return row === null ? null : mapBadgeIssuanceRuleBuilderDraftRow(row);
 };
 
-export const deleteBadgeIssuanceRuleBuilderDraft = async (
+/** Finds the current user's working draft for a formal rule. */
+export const findBadgeIssuanceRuleBuilderDraftForRule = async (
   db: SqlDatabase,
   input: {
-    tenantId: string;
-    userId: string;
-    ruleId?: string | undefined;
+    readonly tenantId: string;
+    readonly userId: string;
+    readonly ruleId: string;
+  },
+): Promise<BadgeIssuanceRuleBuilderDraftRecord | null> => {
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        ${badgeIssuanceRuleBuilderDraftSelectColumns}
+      FROM badge_issuance_rule_builder_drafts
+      WHERE tenant_id = ?
+        AND user_id = ?
+        AND rule_id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(input.tenantId, input.userId, input.ruleId)
+    .first<BadgeIssuanceRuleBuilderDraftRow>();
+
+  return row === null ? null : mapBadgeIssuanceRuleBuilderDraftRow(row);
+};
+
+/** Lists unfinished new-rule drafts owned by a user, newest first. */
+export const listBadgeIssuanceRuleBuilderDraftsForUser = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly userId: string;
+  },
+): Promise<readonly BadgeIssuanceRuleBuilderDraftRecord[]> => {
+  const result = await db
+    .prepare(
+      `
+      SELECT
+        ${badgeIssuanceRuleBuilderDraftSelectColumns}
+      FROM badge_issuance_rule_builder_drafts
+      WHERE tenant_id = ?
+        AND user_id = ?
+        AND rule_id IS NULL
+      ORDER BY updated_at DESC, id ASC
+    `,
+    )
+    .bind(input.tenantId, input.userId)
+    .all<BadgeIssuanceRuleBuilderDraftRow>();
+
+  return result.results.map((row) => mapBadgeIssuanceRuleBuilderDraftRow(row));
+};
+
+/** Deletes one unfinished builder draft owned by a user. */
+export const deleteBadgeIssuanceRuleBuilderDraftById = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly userId: string;
+    readonly draftId: string;
+  },
+): Promise<BadgeIssuanceRuleBuilderDraftRecord | null> => {
+  const row = await db
+    .prepare(
+      `
+      DELETE FROM badge_issuance_rule_builder_drafts
+      WHERE tenant_id = ?
+        AND user_id = ?
+        AND id = ?
+        AND rule_id IS NULL
+      RETURNING
+        ${badgeIssuanceRuleBuilderDraftSelectColumns}
+    `,
+    )
+    .bind(input.tenantId, input.userId, input.draftId)
+    .first<BadgeIssuanceRuleBuilderDraftRow>();
+
+  return row === null ? null : mapBadgeIssuanceRuleBuilderDraftRow(row);
+};
+
+/** Deletes the current user's working draft for a formal rule. */
+export const deleteBadgeIssuanceRuleBuilderDraftForRule = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly userId: string;
+    readonly ruleId: string;
   },
 ): Promise<boolean> => {
   const result = await db
@@ -132,10 +221,10 @@ export const deleteBadgeIssuanceRuleBuilderDraft = async (
       DELETE FROM badge_issuance_rule_builder_drafts
       WHERE tenant_id = ?
         AND user_id = ?
-        AND rule_id_key = COALESCE(?, '__new__')
+        AND rule_id = ?
     `,
     )
-    .bind(input.tenantId, input.userId, input.ruleId ?? null)
+    .bind(input.tenantId, input.userId, input.ruleId)
     .run();
 
   return (result.meta.rowsWritten ?? 0) > 0;

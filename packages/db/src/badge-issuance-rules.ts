@@ -11,6 +11,7 @@ export {
 } from "./badge-issuance-rule-approvals.js";
 export {
   createBadgeIssuanceRule,
+  createBadgeIssuanceRuleFromBuilderDraft,
   createBadgeIssuanceRuleWithConnection,
   createBadgeIssuanceRuleVersion,
   updateBadgeIssuanceRuleDraft,

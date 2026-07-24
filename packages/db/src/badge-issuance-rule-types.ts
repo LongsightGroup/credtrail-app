@@ -20,23 +20,25 @@ export type BadgeIssuanceRuleVersionStatus =
 export type BadgeIssuanceRuleBuilderDraftStep = "metadata" | "conditions" | "test";
 
 export interface BadgeIssuanceRuleBuilderDraftRecord {
-  tenantId: string;
-  userId: string;
-  ruleId: string | null;
-  versionId: string | null;
-  currentStep: BadgeIssuanceRuleBuilderDraftStep;
-  draftJson: string;
-  createdAt: string;
-  updatedAt: string;
+  readonly id: string;
+  readonly tenantId: string;
+  readonly userId: string;
+  readonly ruleId: string | null;
+  readonly versionId: string | null;
+  readonly currentStep: BadgeIssuanceRuleBuilderDraftStep;
+  readonly draftJson: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
 }
 
 export interface SaveBadgeIssuanceRuleBuilderDraftInput {
-  tenantId: string;
-  userId: string;
-  ruleId?: string | undefined;
-  versionId?: string | undefined;
-  currentStep: BadgeIssuanceRuleBuilderDraftStep;
-  draftJson: string;
+  readonly id: string;
+  readonly tenantId: string;
+  readonly userId: string;
+  readonly ruleId?: string | undefined;
+  readonly versionId?: string | undefined;
+  readonly currentStep: BadgeIssuanceRuleBuilderDraftStep;
+  readonly draftJson: string;
 }
 
 export type BadgeIssuanceRuleApprovalStepStatus =

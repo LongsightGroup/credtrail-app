@@ -3,7 +3,8 @@ import {
   BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE,
   canEditBadgeIssuanceRuleDraft,
   findBadgeIssuanceRuleById,
-  findBadgeIssuanceRuleBuilderDraft,
+  findBadgeIssuanceRuleBuilderDraftById,
+  findBadgeIssuanceRuleBuilderDraftForRule,
   findTenantById,
   findUserById,
   latestBadgeIssuanceRuleVersion,
@@ -16,6 +17,7 @@ import {
 } from "@credtrail/db";
 import {
   parseBadgeIssuanceRulePathParams,
+  parseBadgeIssuanceRuleBuilderDraftPathParams,
   parseBadgeTemplatePathParams,
   parseTenantLmsConnectionPathParams,
   parseTenantPathParams,
@@ -46,36 +48,42 @@ import { renderAppPage } from "../ui/render-page";
 
 type InstitutionAdminPageData = Parameters<typeof institutionAdminDashboardPage>[0];
 
+const createBadgeRuleBuilderDraftId = (): string => `brd_${crypto.randomUUID()}`;
+
 const loadInstitutionAdminRuleBuilderSharedData = async (
   db: SqlDatabase,
   input: {
     tenantId: string;
     userId: string;
+    draftId?: string | undefined;
     ruleId?: string | undefined;
   },
 ) => {
-  const [
-    currentUser,
-    badgeTemplates,
-    lmsConnections,
-    accessibleTenantContexts,
-    valueLists,
-    builderDraft,
-  ] = await Promise.all([
-    findUserById(db, input.userId),
-    listBadgeTemplates(db, {
-      tenantId: input.tenantId,
-      includeArchived: false,
-    }),
-    listTenantLmsConnections(db, input.tenantId),
-    listAccessibleTenantContextsForUser(db, input.userId),
-    loadTenantBadgeRuleValueLists(db, input.tenantId),
-    findBadgeIssuanceRuleBuilderDraft(db, {
-      tenantId: input.tenantId,
-      userId: input.userId,
-      ...(input.ruleId === undefined ? {} : { ruleId: input.ruleId }),
-    }),
-  ]);
+  const [currentUser, badgeTemplates, lmsConnections, accessibleTenantContexts, valueLists] =
+    await Promise.all([
+      findUserById(db, input.userId),
+      listBadgeTemplates(db, {
+        tenantId: input.tenantId,
+        includeArchived: false,
+      }),
+      listTenantLmsConnections(db, input.tenantId),
+      listAccessibleTenantContextsForUser(db, input.userId),
+      loadTenantBadgeRuleValueLists(db, input.tenantId),
+    ]);
+  const builderDraft =
+    input.draftId !== undefined
+      ? await findBadgeIssuanceRuleBuilderDraftById(db, {
+          tenantId: input.tenantId,
+          userId: input.userId,
+          draftId: input.draftId,
+        })
+      : input.ruleId !== undefined
+        ? await findBadgeIssuanceRuleBuilderDraftForRule(db, {
+            tenantId: input.tenantId,
+            userId: input.userId,
+            ruleId: input.ruleId,
+          })
+        : null;
 
   return {
     currentUser,
@@ -431,26 +439,31 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     );
   });
 
-  // These builder pages live in the institution-admin shell, so they require
-  // owner/admin access even though badge-rule authoring APIs also allow issuers.
-  app.get("/tenants/:tenantId/admin/rules/new", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ADMIN_ROLES);
+  const renderUnfinishedRuleBuilder = async (
+    c: AppContext,
+    route: {
+      tenantId: string;
+      draftId?: string | undefined;
+    },
+  ): Promise<Response> => {
+    const encodedTenantId = encodeURIComponent(route.tenantId);
+    const nextPath =
+      route.draftId === undefined
+        ? `/tenants/${encodedTenantId}/admin/rules/new`
+        : `/tenants/${encodedTenantId}/admin/rules/drafts/${encodeURIComponent(route.draftId)}/edit`;
+    const rulesPath = `/tenants/${encodedTenantId}/admin/rules`;
+    const roleCheck = await requireTenantRole(c, route.tenantId, ADMIN_ROLES);
 
     if (roleCheck instanceof Response) {
       if (roleCheck.status === 401) {
-        return redirectToTenantLogin(
-          c,
-          pathParams.tenantId,
-          `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules/new`,
-        );
+        return redirectToTenantLogin(c, route.tenantId, nextPath);
       }
 
       if (roleCheck.status === 423) {
         return c.redirect(
           buildLocalTwoFactorPath({
-            tenantId: pathParams.tenantId,
-            nextPath: `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/rules/new`,
+            tenantId: route.tenantId,
+            nextPath,
             setup: true,
             reason: "break_glass_mfa_setup_pending",
           }),
@@ -460,7 +473,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
 
       if (roleCheck.status === 403) {
         c.header("Cache-Control", "no-store");
-        return renderAppPage(c, adminRoleRequiredPage(pathParams.tenantId), 403);
+        return renderAppPage(c, adminRoleRequiredPage(route.tenantId), 403);
       }
 
       return roleCheck;
@@ -468,32 +481,42 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
 
     const { session, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
-    const tenant = await findTenantById(db, pathParams.tenantId);
-
-    if (tenant === null) {
-      return c.json(
-        {
-          error: "Tenant not found",
-        },
-        404,
-      );
-    }
-
-    const [sharedData, badgeRules] = await Promise.all([
+    const [tenant, sharedData, badgeRules] = await Promise.all([
+      findTenantById(db, route.tenantId),
       loadInstitutionAdminRuleBuilderSharedData(db, {
-        tenantId: pathParams.tenantId,
+        tenantId: route.tenantId,
         userId: session.userId,
+        ...(route.draftId === undefined ? {} : { draftId: route.draftId }),
       }),
       resolveListBadgeIssuanceRulesInput(db, {
-        tenantId: pathParams.tenantId,
+        tenantId: route.tenantId,
         userId: session.userId,
         membershipRole,
       }).then((listInput) => listBadgeIssuanceRules(db, listInput)),
     ]);
+
+    if (tenant === null) {
+      return c.json({ error: "Tenant not found" }, 404);
+    }
+
+    if (
+      route.draftId !== undefined &&
+      (sharedData.builderDraft === null || sharedData.builderDraft.ruleId !== null)
+    ) {
+      await setAdminListMessageFlash(c, {
+        tenantId: route.tenantId,
+        userId: session.userId,
+        workspace: "rules",
+        tone: "error",
+        message: "That unfinished draft was not found.",
+      });
+      return c.redirect(rulesPath, 303);
+    }
+
     const badgeRuleVersionLists = await Promise.all(
-      badgeRules.map(async (rule) =>
+      badgeRules.map((rule) =>
         listBadgeIssuanceRuleVersions(db, {
-          tenantId: pathParams.tenantId,
+          tenantId: route.tenantId,
           ruleId: rule.id,
         }),
       ),
@@ -510,6 +533,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       sharedData.accessibleTenantContexts.length > 1
         ? buildOrganizationsPath(`${requestUrl.pathname}${requestUrl.search}`)
         : null;
+    const builderDraftId = sharedData.builderDraft?.id ?? createBadgeRuleBuilderDraftId();
 
     c.header("Cache-Control", "no-store");
 
@@ -527,11 +551,26 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
         badgeRuleVersions,
         lmsConnections: sharedData.lmsConnections,
         valueLists: sharedData.valueLists,
+        builderDraftId,
         builderDraft: sharedData.builderDraft,
         ...(selectedBadgeTemplateId === undefined ? {} : { selectedBadgeTemplateId }),
         switchOrganizationPath,
       }),
     );
+  };
+
+  // These builder pages live in the institution-admin shell, so they require
+  // owner/admin access even though badge-rule authoring APIs also allow issuers.
+  app.get("/tenants/:tenantId/admin/rules/new", async (c) => {
+    const pathParams = parseTenantPathParams(c.req.param());
+    return renderUnfinishedRuleBuilder(c, {
+      tenantId: pathParams.tenantId,
+    });
+  });
+
+  app.get("/tenants/:tenantId/admin/rules/drafts/:draftId/edit", (c) => {
+    const pathParams = parseBadgeIssuanceRuleBuilderDraftPathParams(c.req.param());
+    return renderUnfinishedRuleBuilder(c, pathParams);
   });
 
   app.get("/tenants/:tenantId/admin/rules/:ruleId/edit", async (c) => {
@@ -639,6 +678,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
         badgeRuleVersions: editRuleVersions,
         lmsConnections: sharedData.lmsConnections,
         valueLists: sharedData.valueLists,
+        builderDraftId: sharedData.builderDraft?.id ?? createBadgeRuleBuilderDraftId(),
         builderDraft: sharedData.builderDraft,
         editRule: {
           rule: editRule,

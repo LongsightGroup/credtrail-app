@@ -2,7 +2,8 @@ import {
   BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE,
   createAuditLog,
   createBadgeIssuanceRule,
-  deleteBadgeIssuanceRuleBuilderDraft,
+  createBadgeIssuanceRuleFromBuilderDraft,
+  deleteBadgeIssuanceRuleBuilderDraftForRule,
   findBadgeIssuanceRuleById,
   listAuditLogs,
   listBadgeIssuanceRules,
@@ -18,6 +19,7 @@ import {
 } from "@credtrail/db";
 import {
   parseBadgeIssuanceRuleAuditLogQuery,
+  parseBadgeIssuanceRuleBuilderDraftPathParams,
   parseBadgeIssuanceRulePathParams,
   parseCreateBadgeIssuanceRuleRequest,
   parseSaveBadgeIssuanceRuleBuilderDraftRequest,
@@ -74,17 +76,11 @@ const cleanupBadgeRuleBuilderDraftsAfterPersist = async (input: {
   userId: string;
   ruleId: string;
 }): Promise<void> => {
-  await Promise.allSettled([
-    deleteBadgeIssuanceRuleBuilderDraft(input.db, {
-      tenantId: input.tenantId,
-      userId: input.userId,
-      ruleId: input.ruleId,
-    }),
-    deleteBadgeIssuanceRuleBuilderDraft(input.db, {
-      tenantId: input.tenantId,
-      userId: input.userId,
-    }),
-  ]);
+  await deleteBadgeIssuanceRuleBuilderDraftForRule(input.db, {
+    tenantId: input.tenantId,
+    userId: input.userId,
+    ruleId: input.ruleId,
+  });
 };
 
 const persistBadgeRuleDraft = async (input: {
@@ -94,7 +90,9 @@ const persistBadgeRuleDraft = async (input: {
   session: SessionRecord;
   membershipRole: TenantMembershipRole;
   missingLmsConnectionMessage: string;
+  notFoundMessage: string;
   auditAction: "badge_rule.created" | "badge_rule.draft_updated";
+  builderDraftId?: string | undefined;
   persist: (resolved: {
     resolvedProvider: ResolvedGradebookProvider;
     ruleJson: string;
@@ -179,7 +177,7 @@ const persistBadgeRuleDraft = async (input: {
       return {
         status: "error",
         statusCode: 404,
-        error: "Badge rule not found",
+        error: input.notFoundMessage,
       };
     }
 
@@ -206,12 +204,14 @@ const persistBadgeRuleDraft = async (input: {
     },
   });
 
-  await cleanupBadgeRuleBuilderDraftsAfterPersist({
-    db: input.db,
-    tenantId: input.tenantId,
-    userId: input.session.userId,
-    ruleId: persisted.draft.rule.id,
-  });
+  if (input.builderDraftId === undefined) {
+    await cleanupBadgeRuleBuilderDraftsAfterPersist({
+      db: input.db,
+      tenantId: input.tenantId,
+      userId: input.session.userId,
+      ruleId: persisted.draft.rule.id,
+    });
+  }
 
   return {
     status: "ok",
@@ -285,9 +285,11 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       membershipRole,
       missingLmsConnectionMessage:
         "Select a connected LMS gradebook source before creating a rule.",
+      notFoundMessage: "That unfinished draft no longer exists.",
       auditAction: "badge_rule.created",
+      ...(request.builderDraftId === undefined ? {} : { builderDraftId: request.builderDraftId }),
       persist: async ({ resolvedProvider, ruleJson }) => {
-        const draft = await createBadgeIssuanceRule(db, {
+        const createInput = {
           tenantId: tenantParams.tenantId,
           name: request.name,
           description: request.description,
@@ -297,7 +299,21 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
           ruleJson,
           changeSummary: request.changeSummary,
           createdByUserId: session.userId,
-        });
+        };
+        const draft =
+          request.builderDraftId === undefined
+            ? await createBadgeIssuanceRule(db, createInput)
+            : await createBadgeIssuanceRuleFromBuilderDraft(db, {
+                ...createInput,
+                builderDraftId: request.builderDraftId,
+                builderUserId: session.userId,
+              });
+
+        if (draft === null) {
+          return {
+            status: "not_found",
+          };
+        }
 
         return {
           status: "persisted",
@@ -328,8 +344,8 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
     );
   });
 
-  app.post("/v1/tenants/:tenantId/badge-rule-builder-draft", async (c) => {
-    const tenantParams = parseTenantPathParams(c.req.param());
+  app.put("/v1/tenants/:tenantId/badge-rule-builder-drafts/:draftId", async (c) => {
+    const pathParams = parseBadgeIssuanceRuleBuilderDraftPathParams(c.req.param());
     let request;
 
     try {
@@ -338,7 +354,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       return c.json({ error: "Invalid rule builder draft payload" }, 400);
     }
 
-    const roleCheck = await requireTenantRole(c, tenantParams.tenantId, ISSUER_ROLES);
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
 
     if (roleCheck instanceof Response) {
       return roleCheck;
@@ -346,7 +362,8 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
 
     const draftJson = serializeBadgeIssuanceRuleBuilderDraftPayload(request);
     const draft = await saveBadgeIssuanceRuleBuilderDraft(resolveDatabase(c.env), {
-      tenantId: tenantParams.tenantId,
+      id: pathParams.draftId,
+      tenantId: pathParams.tenantId,
       userId: roleCheck.session.userId,
       ...(request.ruleId === undefined ? {} : { ruleId: request.ruleId }),
       ...(request.versionId === undefined ? {} : { versionId: request.versionId }),
@@ -356,7 +373,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
 
     c.header("Cache-Control", "no-store");
     return c.json({
-      tenantId: tenantParams.tenantId,
+      tenantId: pathParams.tenantId,
       draft,
     });
   });
@@ -392,6 +409,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       membershipRole,
       missingLmsConnectionMessage:
         "Select a connected LMS gradebook source before saving a rule draft.",
+      notFoundMessage: "Badge rule not found",
       auditAction: "badge_rule.draft_updated",
       persist: async ({ resolvedProvider, ruleJson }) => {
         const description = request.description?.trim();

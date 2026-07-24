@@ -25,6 +25,7 @@ export interface InstitutionAdminRuleBuilderEditContext {
 
 export interface InstitutionAdminRuleBuilderPageContext {
   badgeRuleBuilderDraftApiPath: string;
+  builderDraftId: string;
   builderDraft: {
     ruleId: string | null;
     versionId: string | null;
@@ -113,6 +114,7 @@ export const buildInstitutionAdminRuleBuilderEditContext = (input: {
 
 export const buildInstitutionAdminRuleBuilderPageContext = (input: {
   tenantId: string;
+  builderDraftId: string;
   builderDraft: BadgeIssuanceRuleBuilderDraftRecord | null;
   badgeTemplateCourseContext: readonly {
     id: string;
@@ -141,7 +143,8 @@ export const buildInstitutionAdminRuleBuilderPageContext = (input: {
   return {
     badgeRuleBuilderDraftApiPath: `/v1/tenants/${encodeURIComponent(
       input.tenantId,
-    )}/badge-rule-builder-draft`,
+    )}/badge-rule-builder-drafts/${encodeURIComponent(input.builderDraftId)}`,
+    builderDraftId: input.builderDraftId,
     builderDraft: buildInstitutionAdminRuleBuilderDraftContext(input.builderDraft, editRule),
     badgeTemplates: input.badgeTemplateCourseContext,
     fallbackCourseId: input.initialTestCourseId,

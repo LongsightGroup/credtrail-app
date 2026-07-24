@@ -3,6 +3,7 @@ import {
   activateBadgeIssuanceRuleVersion,
   createAuditLog,
   decideBadgeIssuanceRuleVersion,
+  deleteBadgeIssuanceRuleBuilderDraftById,
   deleteDraftBadgeIssuanceRule,
   enqueueJobQueueMessageOnce,
   parseOptionalDateTimeInputToIso,
@@ -17,6 +18,7 @@ import {
 } from "@credtrail/db";
 import {
   parseBadgeIssuanceRulePathParams,
+  parseBadgeIssuanceRuleBuilderDraftPathParams,
   parseBadgeIssuanceRuleVersionPathParams,
   parseDecideBadgeIssuanceRuleVersionRequest,
 } from "@credtrail/validation";
@@ -734,6 +736,51 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       userId: session.userId,
       tone: "success",
       message: "Draft rule deleted.",
+    });
+  });
+
+  app.post("/tenants/:tenantId/admin/rules/drafts/:draftId/delete", async (c) => {
+    const pathParams = parseBadgeIssuanceRuleBuilderDraftPathParams(c.req.param());
+    const nextPath = buildRulesAdminPath(pathParams.tenantId);
+    const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const { session, membershipRole } = roleCheck;
+    const db = resolveDatabase(c.env);
+    const deleted = await deleteBadgeIssuanceRuleBuilderDraftById(db, {
+      tenantId: pathParams.tenantId,
+      userId: session.userId,
+      draftId: pathParams.draftId,
+    });
+
+    if (deleted === null) {
+      return redirectToRules(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: "error",
+        message: "That unfinished draft was not found.",
+      });
+    }
+
+    await createAuditLog(db, {
+      tenantId: pathParams.tenantId,
+      actorUserId: session.userId,
+      action: "badge_rule.builder_draft_deleted",
+      targetType: "badge_rule_builder_draft",
+      targetId: deleted.id,
+      metadata: {
+        role: membershipRole,
+      },
+    });
+
+    return redirectToRules(c, {
+      tenantId: pathParams.tenantId,
+      userId: session.userId,
+      tone: "success",
+      message: "Unfinished draft deleted.",
     });
   });
 };

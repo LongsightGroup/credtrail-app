@@ -1,14 +1,9 @@
 import { parseCreateBadgeIssuanceRuleRequest } from "@credtrail/validation";
 import { describe, expect, it } from "vitest";
-import type {
-  GradebookAssignmentRecord,
-  GradebookProvider,
-} from "../lms/gradebook-types";
+import type { GradebookAssignmentRecord, GradebookProvider } from "../lms/gradebook-types";
 import { validateBadgeRuleReferences } from "./badge-rule-reference-validator";
 
-const definitionWithAssignments = (
-  assignmentIds: readonly string[],
-) => {
+const definitionWithAssignments = (assignmentIds: readonly string[]) => {
   return parseCreateBadgeIssuanceRuleRequest({
     name: "Assignment rule",
     badgeTemplateId: "badge-template",

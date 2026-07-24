@@ -3,6 +3,8 @@ import { beforeEach, expect, vi } from "vitest";
 import {
   mockedEnqueueJobQueueMessageOnce,
   mockedFindLtiResourceLinkPlacementForRule,
+  mockedListBadgeIssuanceRuleBuilderDraftsForUser,
+  mockedDeleteBadgeIssuanceRuleBuilderDraftById,
   mockedFindTenantAuthPolicy,
   mockedListAccessibleTenantContextsForUser,
   mockedListActiveLtiLaunchSessionsForPlatform,
@@ -37,7 +39,7 @@ import {
   listAuditLogs,
   listBadgeIssuanceRules,
   listBadgeIssuanceRuleVersions,
-  findBadgeIssuanceRuleBuilderDraft,
+  findBadgeIssuanceRuleBuilderDraftById,
   findBadgeIssuanceRuleVersionById,
   submitBadgeIssuanceRuleVersionForApproval,
   listBadgeIssuanceRuleVersionApprovalSteps,
@@ -141,8 +143,12 @@ export const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
 export const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRuleVersions);
 export const mockedFindBadgeIssuanceRuleVersionByIdDb = vi.mocked(findBadgeIssuanceRuleVersionById);
 export const mockedFindBadgeIssuanceRuleBuilderDraftDb = vi.mocked(
-  findBadgeIssuanceRuleBuilderDraft,
+  findBadgeIssuanceRuleBuilderDraftById,
 );
+export const mockedListBadgeIssuanceRuleBuilderDraftsForUserDb =
+  mockedListBadgeIssuanceRuleBuilderDraftsForUser;
+export const mockedDeleteBadgeIssuanceRuleBuilderDraftByIdDb =
+  mockedDeleteBadgeIssuanceRuleBuilderDraftById;
 export const mockedSubmitBadgeIssuanceRuleVersionForApprovalDb = vi.mocked(
   submitBadgeIssuanceRuleVersionForApproval,
 );
@@ -769,6 +775,10 @@ beforeEach(() => {
   mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(null);
   mockedFindBadgeIssuanceRuleBuilderDraftDb.mockReset();
   mockedFindBadgeIssuanceRuleBuilderDraftDb.mockResolvedValue(null);
+  mockedListBadgeIssuanceRuleBuilderDraftsForUserDb.mockReset();
+  mockedListBadgeIssuanceRuleBuilderDraftsForUserDb.mockResolvedValue([]);
+  mockedDeleteBadgeIssuanceRuleBuilderDraftByIdDb.mockReset();
+  mockedDeleteBadgeIssuanceRuleBuilderDraftByIdDb.mockResolvedValue(null);
   mockedFindLtiResourceLinkPlacementForRule.mockReset();
   mockedFindLtiResourceLinkPlacementForRule.mockResolvedValue(null);
   mockedListActiveLtiLaunchSessionsForPlatform.mockReset();

@@ -7,6 +7,7 @@ interface RenderBadgeRulesTableInput {
   readonly ruleCount: string;
   readonly ruleBuilderPath: string;
   readonly rulesTemplatesPath: string;
+  readonly builderDraftRows: HonoElement[];
   readonly ruleRows: HonoElement;
 }
 
@@ -36,6 +37,7 @@ export const renderBadgeRulesTable = (input: RenderBadgeRulesTableInput): HonoEl
           "Actions",
         ]}
       >
+        {input.builderDraftRows}
         {input.ruleRows}
       </AdminTable>
     </AdminPanel>

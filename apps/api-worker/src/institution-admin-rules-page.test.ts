@@ -14,10 +14,12 @@ import {
   mockedCreateBadgeTemplate,
   mockedDecideBadgeIssuanceRuleVersionDb,
   mockedDeleteDraftBadgeIssuanceRuleDb,
+  mockedDeleteBadgeIssuanceRuleBuilderDraftByIdDb,
   mockedFindBadgeIssuanceRuleVersionByIdDb,
   mockedFindBadgeTemplateById,
   mockedFindBadgeTemplateImageRevisionById,
   mockedFindBadgeIssuanceRuleById,
+  mockedFindBadgeIssuanceRuleBuilderDraftDb,
   mockedFindLtiResourceLinkPlacementForRule,
   mockedEnqueueJobQueueMessageOnce,
   mockedFindTenantMembership,
@@ -25,6 +27,7 @@ import {
   mockedListBadgeIssuanceRuleVersionApprovalEvents,
   mockedListBadgeIssuanceRuleVersionApprovalStepsDb,
   mockedListBadgeIssuanceRules,
+  mockedListBadgeIssuanceRuleBuilderDraftsForUserDb,
   mockedListBadgeIssuanceRuleVersions,
   mockedListBadgeTemplateImageRevisionCountsByTenant,
   mockedListBadgeTemplateImageRevisions,
@@ -183,6 +186,57 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).not.toContain("Badge Templates (1)");
     expect(body).not.toContain("Create Tenant API Key");
     expect(body).not.toContain('id="issued-badges-panel"');
+  });
+
+  it("shows each unfinished builder draft with exact edit and delete actions", async () => {
+    const env = createEnv();
+    mockedListBadgeIssuanceRuleBuilderDraftsForUserDb.mockResolvedValue([
+      {
+        id: "brd_alpha",
+        tenantId: "tenant_123",
+        userId: "usr_admin",
+        ruleId: null,
+        versionId: null,
+        currentStep: "conditions",
+        draftJson: JSON.stringify({
+          name: "CS pathway draft",
+          badgeTemplateId: "badge_template_001",
+          lmsConnectionId: "lms_canvas",
+        }),
+        createdAt: "2026-02-18T12:00:00.000Z",
+        updatedAt: "2026-02-18T12:05:00.000Z",
+      },
+      {
+        id: "brd_beta",
+        tenantId: "tenant_123",
+        userId: "usr_admin",
+        ruleId: null,
+        versionId: null,
+        currentStep: "metadata",
+        draftJson: "{}",
+        createdAt: "2026-02-18T12:01:00.000Z",
+        updatedAt: "2026-02-18T12:04:00.000Z",
+      },
+    ]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Badge Rules (3)");
+    expect(body).toContain("CS pathway draft");
+    expect(body).toContain("Untitled rule");
+    expect(body).toContain("Setup incomplete");
+    expect(body).toContain('href="/tenants/tenant_123/admin/rules/drafts/brd_alpha/edit"');
+    expect(body).toContain('action="/tenants/tenant_123/admin/rules/drafts/brd_beta/delete"');
   });
 
   it("shows visible edit links and eligible delete actions for draft and rejected rules", async () => {
@@ -940,6 +994,50 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
 
     expect(flashResponse.status).toBe(200);
     expect(flashBody).toContain("Only never-active draft or rejected rules can be deleted.");
+  });
+});
+
+describe("POST /tenants/:tenantId/admin/rules/drafts/:draftId/delete", () => {
+  it("deletes only the unfinished draft named by the route", async () => {
+    const env = createEnv();
+    mockedDeleteBadgeIssuanceRuleBuilderDraftByIdDb.mockResolvedValue({
+      id: "brd_exact",
+      tenantId: "tenant_123",
+      userId: "usr_admin",
+      ruleId: null,
+      versionId: null,
+      currentStep: "metadata",
+      draftJson: "{}",
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/drafts/brd_exact/delete",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/rules");
+    expect(mockedDeleteBadgeIssuanceRuleBuilderDraftByIdDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      userId: "usr_admin",
+      draftId: "brd_exact",
+    });
+    expect(mockedCreateAuditLogDb).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        action: "badge_rule.builder_draft_deleted",
+        targetId: "brd_exact",
+      }),
+    );
   });
 });
 
@@ -2507,9 +2605,10 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("saveRuleBuilderDraft");
     expect(body).toContain('id="rule-builder-save-draft"');
     expect(body).toContain("Draft not saved yet.");
-    expect(body).toContain(
-      "&quot;badgeRuleBuilderDraftApiPath&quot;:&quot;/v1/tenants/tenant_123/badge-rule-builder-draft&quot;",
+    expect(body).toMatch(
+      /&quot;badgeRuleBuilderDraftApiPath&quot;:&quot;\/v1\/tenants\/tenant_123\/badge-rule-builder-drafts\/brd_[^&]+&quot;/,
     );
+    expect(mockedFindBadgeIssuanceRuleBuilderDraftDb).not.toHaveBeenCalled();
   });
 
   it("preselects a returned badge template in the rule builder", async () => {
@@ -2602,6 +2701,52 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain(
       "/account/organizations?next=%2Ftenants%2Ftenant_123%2Fadmin%2Frules%2Fnew",
     );
+  });
+});
+
+describe("GET /tenants/:tenantId/admin/rules/drafts/:draftId/edit", () => {
+  it("restores only the unfinished draft named by the URL", async () => {
+    const env = createEnv();
+    mockedFindBadgeIssuanceRuleBuilderDraftDb.mockResolvedValue({
+      id: "brd_exact",
+      tenantId: "tenant_123",
+      userId: "usr_admin",
+      ruleId: null,
+      versionId: null,
+      currentStep: "conditions",
+      draftJson: JSON.stringify({
+        name: "Exact draft",
+        description: "Resume this one",
+        badgeTemplateId: "badge_template_001",
+        lmsConnectionId: "lms_canvas",
+        definitionJson: "",
+        builderState: {},
+      }),
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:05:00.000Z",
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/drafts/brd_exact/edit",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(mockedFindBadgeIssuanceRuleBuilderDraftDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      userId: "usr_admin",
+      draftId: "brd_exact",
+    });
+    expect(body).toContain(
+      "&quot;badgeRuleBuilderDraftApiPath&quot;:&quot;/v1/tenants/tenant_123/badge-rule-builder-drafts/brd_exact&quot;",
+    );
+    expect(body).toContain("&quot;name&quot;:&quot;Exact draft&quot;");
   });
 });
 

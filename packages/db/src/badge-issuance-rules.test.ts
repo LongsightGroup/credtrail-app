@@ -97,6 +97,18 @@ describe("badge rule review queue schema", () => {
     expect(sql).toContain("source IN ('lti_roster', 'rule_evaluate', 'manual', 'programmatic')");
     expect(sql).toContain("idx_badge_issuance_rule_evaluations_assertion");
   });
+
+  it("gives unfinished rule-builder drafts stable identities", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0056_badge_rule_builder_draft_identity.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("ADD COLUMN id TEXT");
+    expect(sql).toContain("DROP COLUMN rule_id_key");
+    expect(sql).toContain("ADD PRIMARY KEY (tenant_id, id)");
+    expect(sql).toContain("WHERE rule_id IS NOT NULL");
+  });
 });
 
 describe("resolveListBadgeIssuanceRulesInput", () => {

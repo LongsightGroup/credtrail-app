@@ -184,6 +184,20 @@ export const tenantBadgeRuleDeleteAdminPath = (tenantId: string, ruleId: string)
   return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/delete`;
 };
 
+export const tenantBadgeRuleBuilderDraftEditAdminPath = (
+  tenantId: string,
+  draftId: string,
+): string => {
+  return `${buildRulesAdminPath(tenantId)}/drafts/${encodeURIComponent(draftId)}/edit`;
+};
+
+export const tenantBadgeRuleBuilderDraftDeleteAdminPath = (
+  tenantId: string,
+  draftId: string,
+): string => {
+  return `${buildRulesAdminPath(tenantId)}/drafts/${encodeURIComponent(draftId)}/delete`;
+};
+
 export const tenantAccessEnterpriseAuthPolicyPath = (tenantId: string): string => {
   return `${buildAccessAuthenticationAdminPath(tenantId)}/policy`;
 };

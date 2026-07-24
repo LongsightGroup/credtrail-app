@@ -131,6 +131,7 @@ export const institutionAdminRuleBuilderPage = (input: {
   badgeRuleVersions: readonly BadgeIssuanceRuleVersionRecord[];
   lmsConnections: readonly TenantLmsConnectionRecord[];
   valueLists: readonly RuleValueListBuilderContextEntry[];
+  builderDraftId: string;
   builderDraft?: BadgeIssuanceRuleBuilderDraftRecord | null;
   selectedBadgeTemplateId?: string;
   editRule?: {
@@ -304,6 +305,7 @@ export const institutionAdminRuleBuilderPage = (input: {
     lmsConnectionsApiPath,
     ruleBuilderContext: buildInstitutionAdminRuleBuilderPageContext({
       tenantId: input.tenant.id,
+      builderDraftId: input.builderDraftId,
       builderDraft,
       badgeTemplateCourseContext,
       initialTestCourseId,

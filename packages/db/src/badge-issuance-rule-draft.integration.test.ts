@@ -16,6 +16,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
 
     try {
       const draft = await dbModule.saveBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        id: "brd_first",
         tenantId: fixture.tenantId,
         userId: fixture.userId,
         currentStep: "metadata",
@@ -24,9 +25,10 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
           definitionJson: "",
         }),
       });
-      const loaded = await dbModule.findBadgeIssuanceRuleBuilderDraft(fixture.db, {
+      const loaded = await dbModule.findBadgeIssuanceRuleBuilderDraftById(fixture.db, {
         tenantId: fixture.tenantId,
         userId: fixture.userId,
+        draftId: "brd_first",
       });
       const versionCount = await selectCount(
         fixture.db,
@@ -50,23 +52,99 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
 
     try {
       await dbModule.saveBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        id: "brd_delete",
         tenantId: fixture.tenantId,
         userId: fixture.userId,
         currentStep: "conditions",
         draftJson: JSON.stringify({ definitionJson: "{}" }),
       });
 
-      const deleted = await dbModule.deleteBadgeIssuanceRuleBuilderDraft(fixture.db, {
+      const deleted = await dbModule.deleteBadgeIssuanceRuleBuilderDraftById(fixture.db, {
         tenantId: fixture.tenantId,
         userId: fixture.userId,
+        draftId: "brd_delete",
       });
-      const loaded = await dbModule.findBadgeIssuanceRuleBuilderDraft(fixture.db, {
+      const loaded = await dbModule.findBadgeIssuanceRuleBuilderDraftById(fixture.db, {
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        draftId: "brd_delete",
+      });
+
+      expect(deleted?.id).toBe("brd_delete");
+      expect(loaded).toBeNull();
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
+  it("keeps multiple unfinished drafts distinct and lists the user's drafts", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      await dbModule.saveBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        id: "brd_alpha",
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        currentStep: "metadata",
+        draftJson: JSON.stringify({ name: "Alpha" }),
+      });
+      await dbModule.saveBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        id: "brd_beta",
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        currentStep: "conditions",
+        draftJson: JSON.stringify({ name: "Beta" }),
+      });
+
+      const drafts = await dbModule.listBadgeIssuanceRuleBuilderDraftsForUser(fixture.db, {
         tenantId: fixture.tenantId,
         userId: fixture.userId,
       });
 
-      expect(deleted).toBe(true);
-      expect(loaded).toBeNull();
+      expect(drafts.map((draft) => draft.id).sort()).toEqual(["brd_alpha", "brd_beta"]);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
+  it("atomically promotes the selected unfinished draft into a formal rule", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      await dbModule.saveBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        id: "brd_promote",
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        currentStep: "test",
+        draftJson: JSON.stringify({ name: "Promote me" }),
+      });
+
+      const created = await dbModule.createBadgeIssuanceRuleFromBuilderDraft(fixture.db, {
+        tenantId: fixture.tenantId,
+        builderDraftId: "brd_promote",
+        builderUserId: fixture.userId,
+        name: "Promoted rule",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+        createdByUserId: fixture.userId,
+      });
+      const remainingDraft = await dbModule.findBadgeIssuanceRuleBuilderDraftById(fixture.db, {
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        draftId: "brd_promote",
+      });
+
+      expect(created?.rule.name).toBe("Promoted rule");
+      expect(created?.version.status).toBe("draft");
+      expect(remainingDraft).toBeNull();
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],

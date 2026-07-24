@@ -4203,9 +4203,9 @@ const readRuleBuilderDraftPayload = () => {
   };
 };
 
-const saveRuleBuilderDraft = async (options) => {
+const performRuleBuilderDraftSave = async (options) => {
   if (ruleBuilderDraftApiPath.length === 0) {
-    return;
+    return false;
   }
 
   const quiet = options && options.quiet === true;
@@ -4216,7 +4216,7 @@ const saveRuleBuilderDraft = async (options) => {
 
   try {
     const response = await fetch(ruleBuilderDraftApiPath, {
-      method: "POST",
+      method: "PUT",
       headers: {
         "content-type": "application/json",
       },
@@ -4230,7 +4230,7 @@ const saveRuleBuilderDraft = async (options) => {
       if (!quiet) {
         setStatus(ruleCreateStatus, message, true);
       }
-      return;
+      return false;
     }
 
     const savedAt =
@@ -4245,13 +4245,45 @@ const saveRuleBuilderDraft = async (options) => {
         : "now";
 
     setRuleBuilderDraftStatus("Draft saved " + savedAt + ".", "success");
+
+    if (
+      !isRuleBuilderEditMode &&
+      payload &&
+      payload.draft &&
+      typeof payload.draft.id === "string"
+    ) {
+      window.history.replaceState(
+        null,
+        "",
+        rulesListPath +
+          "/drafts/" +
+          encodeURIComponent(payload.draft.id) +
+          "/edit",
+      );
+    }
+    return true;
   } catch {
     const message = "Unable to save this draft from this browser session.";
     setRuleBuilderDraftStatus(message, "error");
     if (!quiet) {
       setStatus(ruleCreateStatus, message, true);
     }
+    return false;
   }
+};
+
+let ruleBuilderDraftSaveQueue = Promise.resolve();
+
+const saveRuleBuilderDraft = (options) => {
+  const save = ruleBuilderDraftSaveQueue.then(
+    () => performRuleBuilderDraftSave(options),
+    () => performRuleBuilderDraftSave(options),
+  );
+  ruleBuilderDraftSaveQueue = save.then(
+    () => undefined,
+    () => undefined,
+  );
+  return save;
 };
 
 const persistRuleBuilderDraftOnStepChange = () => {
@@ -5024,6 +5056,17 @@ if (
           changeSummary + ' Issuance timing: ' + issuanceLabel + '.';
       }
 
+      if (!isRuleBuilderEditMode) {
+        const draftSaved = await saveRuleBuilderDraft({ quiet: true });
+
+        if (!draftSaved) {
+          const message = "Save the unfinished draft before creating the rule.";
+          setStatus(ruleCreateStatus, message, true);
+          syncRuleBuilderSummary(message);
+          return;
+        }
+      }
+
       try {
         const response = await fetch(ruleBuilderSubmitApiPath, {
           method: 'POST',
@@ -5037,6 +5080,11 @@ if (
             lmsConnectionId,
             definition: definitionWithOptions,
             ...(changeSummary.length > 0 ? { changeSummary } : {}),
+            ...(!isRuleBuilderEditMode &&
+            ruleBuilderContext &&
+            typeof ruleBuilderContext.builderDraftId === "string"
+              ? { builderDraftId: ruleBuilderContext.builderDraftId }
+              : {}),
           }),
         });
         const payload = await parseJsonBody(response);

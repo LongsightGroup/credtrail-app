@@ -364,6 +364,17 @@
           changeSummary + ' Issuance timing: ' + issuanceLabel + '.';
       }
 
+      if (!isRuleBuilderEditMode) {
+        const draftSaved = await saveRuleBuilderDraft({ quiet: true });
+
+        if (!draftSaved) {
+          const message = "Save the unfinished draft before creating the rule.";
+          setStatus(ruleCreateStatus, message, true);
+          syncRuleBuilderSummary(message);
+          return;
+        }
+      }
+
       try {
         const response = await fetch(ruleBuilderSubmitApiPath, {
           method: 'POST',
@@ -377,6 +388,11 @@
             lmsConnectionId,
             definition: definitionWithOptions,
             ...(changeSummary.length > 0 ? { changeSummary } : {}),
+            ...(!isRuleBuilderEditMode &&
+            ruleBuilderContext &&
+            typeof ruleBuilderContext.builderDraftId === "string"
+              ? { builderDraftId: ruleBuilderContext.builderDraftId }
+              : {}),
           }),
         });
         const payload = await parseJsonBody(response);

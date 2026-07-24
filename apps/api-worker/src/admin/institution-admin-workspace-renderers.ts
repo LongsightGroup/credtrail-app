@@ -1,4 +1,8 @@
-import { findTenantLmsConnectionById, type TenantMembershipRole } from "@credtrail/db";
+import {
+  findTenantLmsConnectionById,
+  listBadgeIssuanceRuleBuilderDraftsForUser,
+  type TenantMembershipRole,
+} from "@credtrail/db";
 import { parseTenantLmsConnectionPathParams } from "@credtrail/validation";
 import type { AppContext } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
@@ -160,7 +164,14 @@ export const renderInstitutionAdminRulesWorkspace = async <
     userId: session.userId,
     workspace: "rules",
   });
-  const valueLists = await loadTenantBadgeRuleValueLists(deps.resolveDatabase(c.env), tenantId);
+  const db = deps.resolveDatabase(c.env);
+  const [valueLists, builderDrafts] = await Promise.all([
+    loadTenantBadgeRuleValueLists(db, tenantId),
+    listBadgeIssuanceRuleBuilderDraftsForUser(db, {
+      tenantId,
+      userId: session.userId,
+    }),
+  ]);
 
   return await renderInstitutionAdminWorkspacePage(
     c,
@@ -170,6 +181,7 @@ export const renderInstitutionAdminRulesWorkspace = async <
       rulesWorkspace: {
         listNotice: flash.listNotice,
         listError: flash.listError,
+        builderDrafts,
       },
       ruleValueListsWorkspace: {
         valueLists,

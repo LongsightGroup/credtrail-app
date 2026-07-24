@@ -1,9 +1,6 @@
 import type { GradebookProviderKind } from "./gradebook-types";
 
-export type GradebookProviderOperation =
-  | "course_search"
-  | "gradebook_read"
-  | "learner_search";
+export type GradebookProviderOperation = "course_search" | "gradebook_read" | "learner_search";
 
 export type GradebookProviderErrorReason =
   | "invalid_response"

@@ -1,5 +1,6 @@
 import type {
   BadgeIssuanceRuleRecord,
+  BadgeIssuanceRuleBuilderDraftRecord,
   BadgeIssuanceRuleVersionRecord,
   BadgeRuleApprovalPolicyRecord,
   BadgeTemplateRecord,
@@ -104,7 +105,9 @@ export interface InstitutionAdminReviewQueueWorkspace {
   listError: string | null;
 }
 
-export interface InstitutionAdminRulesWorkspace extends InstitutionAdminListFlashWorkspace {}
+export interface InstitutionAdminRulesWorkspace extends InstitutionAdminListFlashWorkspace {
+  builderDrafts: readonly BadgeIssuanceRuleBuilderDraftRecord[];
+}
 
 export interface InstitutionAdminRuleValueListsWorkspace extends InstitutionAdminListFlashWorkspace {
   valueLists: readonly BadgeIssuanceRuleValueListRecord[];

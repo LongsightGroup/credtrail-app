@@ -56,9 +56,7 @@ export const validateBadgeRuleReferences = async (input: {
         return {
           status: "available",
           courseId,
-          assignmentIds: new Set(
-            assignments.map((assignment) => assignment.assignmentId),
-          ),
+          assignmentIds: new Set(assignments.map((assignment) => assignment.assignmentId)),
         };
       } catch (cause: unknown) {
         return {

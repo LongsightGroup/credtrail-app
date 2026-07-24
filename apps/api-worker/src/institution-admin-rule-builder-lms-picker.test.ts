@@ -128,12 +128,8 @@ const loadPickerHarness = (input: {
 describe("rule-builder LMS course picker", () => {
   it("aborts a stale request when the same card receives a replacement select", async () => {
     const requestedUrls: string[] = [];
-    const fetchImpl = ((
-      input: RequestInfo | URL,
-      init?: RequestInit,
-    ): Promise<Response> => {
-      const url =
-        input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+    const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
       requestedUrls.push(url);
 
       if (url.includes("q=old")) {
@@ -166,10 +162,7 @@ describe("rule-builder LMS course picker", () => {
       "/v1/lms/connections/connection-1/courses?q=old",
       "/v1/lms/connections/connection-1/courses?q=new",
     ]);
-    expect(currentSelect.options.map((option) => option.value)).toEqual([
-      "",
-      "new-course",
-    ]);
+    expect(currentSelect.options.map((option) => option.value)).toEqual(["", "new-course"]);
     expect(status.hidden).toBe(true);
     expect(status.message.textContent).toBe("");
   });
