@@ -285,10 +285,38 @@ describe("GET /ims/ob/v3p0/discovery", () => {
 
     const paths = asJsonObject(body.paths);
     expect(asJsonObject(paths?.["/discovery"])).not.toBeNull();
-    expect(asJsonObject(paths?.["/credentials"])).not.toBeNull();
+    const credentialsPath = asJsonObject(paths?.["/credentials"]);
+    expect(credentialsPath).not.toBeNull();
     expect(asJsonObject(paths?.["/profile"])).not.toBeNull();
 
+    const getCredentials = asJsonObject(credentialsPath?.get);
+    const credentialParameters = Array.isArray(getCredentials?.parameters)
+      ? getCredentials.parameters
+      : [];
+    const limitParameter = credentialParameters
+      .map((parameter) => asJsonObject(parameter))
+      .find((parameter) => asString(parameter?.name) === "limit");
+    const offsetParameter = credentialParameters
+      .map((parameter) => asJsonObject(parameter))
+      .find((parameter) => asString(parameter?.name) === "offset");
+    const sinceParameter = credentialParameters
+      .map((parameter) => asJsonObject(parameter))
+      .find((parameter) => asString(parameter?.name) === "since");
+
+    expect(asString(limitParameter?.in)).toBe("query");
+    expect(asString(offsetParameter?.in)).toBe("query");
+    expect(asString(sinceParameter?.in)).toBe("query");
+
     const components = asJsonObject(body.components);
+    const headers = asJsonObject(components?.headers);
+    expect(asJsonObject(headers?.["X-Total-Count"])).not.toBeNull();
+
+    const links = asJsonObject(components?.links);
+    const nextLink = asJsonObject(links?.next);
+    const nextLinkParameters = asJsonObject(nextLink?.parameters);
+    expect(asString(nextLinkParameters?.limit)).toBe("$request.query.limit");
+    expect(asString(nextLinkParameters?.offset)).toBe("$request.query.offset");
+
     const securitySchemes = asJsonObject(components?.securitySchemes);
     const oauthScheme = asJsonObject(securitySchemes?.OAuth2ACG);
     expect(asString(oauthScheme?.type)).toBe("oauth2");

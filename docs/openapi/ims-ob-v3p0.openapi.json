@@ -32,9 +32,69 @@
         ],
         "summary": "Get credentials for the authenticated entity.",
         "operationId": "getCredentials",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The maximum number of OpenBadgeCredentials to return per page.",
+            "required": false,
+            "allowEmptyValue": false,
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "The zero-based index of the first OpenBadgeCredential to return.",
+            "required": false,
+            "allowEmptyValue": false,
+            "style": "form",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "description": "Only include OpenBadgeCredentials issued after this timestamp.",
+            "required": false,
+            "allowEmptyValue": false,
+            "style": "form",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Credentials returned."
+            "description": "The OpenBadgeCredentials that meet the request parameters. Pagination applies to the total number of credentials in the response.",
+            "headers": {
+              "X-Total-Count": {
+                "$ref": "#/components/headers/X-Total-Count"
+              }
+            },
+            "links": {
+              "next": {
+                "$ref": "#/components/links/next"
+              },
+              "last": {
+                "$ref": "#/components/links/last"
+              },
+              "first": {
+                "$ref": "#/components/links/first"
+              },
+              "prev": {
+                "$ref": "#/components/links/prev"
+              }
+            }
           },
           "default": {
             "description": "Request was invalid or cannot be served."
@@ -139,6 +199,50 @@
     }
   },
   "components": {
+    "headers": {
+      "X-Total-Count": {
+        "description": "The total number of resources available to be returned.",
+        "schema": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 0
+        }
+      }
+    },
+    "links": {
+      "next": {
+        "operationId": "getCredentials",
+        "parameters": {
+          "limit": "$request.query.limit",
+          "offset": "$request.query.offset"
+        },
+        "description": "Get the next page of resources."
+      },
+      "last": {
+        "operationId": "getCredentials",
+        "parameters": {
+          "limit": "$request.query.limit",
+          "offset": "$request.query.offset"
+        },
+        "description": "Get the last page of resources."
+      },
+      "first": {
+        "operationId": "getCredentials",
+        "parameters": {
+          "limit": "$request.query.limit",
+          "offset": "$request.query.offset"
+        },
+        "description": "Get the first page of resources."
+      },
+      "prev": {
+        "operationId": "getCredentials",
+        "parameters": {
+          "limit": "$request.query.limit",
+          "offset": "$request.query.offset"
+        },
+        "description": "Get the previous page of resources."
+      }
+    },
     "securitySchemes": {
       "OAuth2ACG": {
         "type": "oauth2",
