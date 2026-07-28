@@ -2416,14 +2416,19 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('data-rule-step-target="metadata"');
     expect(body).toContain('data-rule-step-target="conditions"');
     expect(body).toContain('data-rule-step-target="test"');
-    expect(body).toContain("Test and save draft");
-    expect(body).not.toContain("Test and submit");
-    expect(body).not.toContain('data-rule-step-target="review"');
+    expect(body).toContain('data-rule-step-target="review"');
+    expect(body).toContain("Step 1 of 4");
+    expect(body).toContain("Test the rule");
+    expect(body).toContain("Review and submit");
+    expect(body).toContain("Submit for approval");
+    expect(body).toContain("Approval requires another person.");
+    expect(body).toContain("The person who creates or submits this version cannot approve it.");
     expect(body).toContain('id="rule-builder-condition-list"');
     expect(body).toContain('id="rule-builder-definition-json"');
     expect(body).not.toContain('id="rule-builder-step-prev"');
     expect(body).toContain('id="rule-builder-step-next"');
     expect(body).toContain('id="rule-builder-submit"');
+    expect(body).toContain('id="rule-builder-save-formal-draft"');
     expect(body).toContain('id="rule-builder-flow-list"');
     expect(body).toMatch(
       /id="rule-builder-add-condition"[^>]*class="[^"]*ct-admin__button[^"]*ct-action--sm/,
@@ -2443,10 +2448,19 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toMatch(
       /id="rule-builder-submit"[^>]*form="rule-create-form"[^>]*class="[^"]*ct-admin__button[^"]*ct-action--primary/,
     );
+    expect(body).toMatch(
+      /id="rule-builder-save-formal-draft"[^>]*form="rule-create-form"[^>]*class="[^"]*ct-admin__button[^"]*ct-action--secondary/,
+    );
+    expect(body).toContain("Create and submit for approval");
+    expect(body).toContain("Create rule draft");
     expect(body).toMatch(/id="rule-builder-submit"[^>]*hidden/);
+    expect(body).toMatch(/id="rule-builder-save-formal-draft"[^>]*hidden/);
     expect(body).not.toMatch(/id="rule-builder-step-next"[^>]*hidden/);
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "ruleBuilderSubmitButton.hidden = !isLastStep",
+    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "ruleBuilderSaveFormalDraftButton.hidden = !isLastStep",
     );
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "ruleBuilderStepNextButton.hidden = isLastStep",
@@ -2611,7 +2625,13 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
       "const draftSaved = await saveRuleBuilderDraft",
     );
     expect(body).toContain('id="rule-builder-save-draft"');
-    expect(body).toContain("Draft not saved yet.");
+    expect(body).toContain("Save unfinished work");
+    expect(body).toContain("Unfinished work not saved yet.");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "event.submitter.dataset.ruleSubmitMode === 'approval'",
+    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("'/submit-approval'");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("Rule submitted for approval.");
     expect(body).toMatch(
       /&quot;badgeRuleBuilderDraftApiPath&quot;:&quot;\/v1\/tenants\/tenant_123\/badge-rule-builder-drafts\/brd_[^&]+&quot;/,
     );
@@ -2821,12 +2841,13 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
     });
     expect(body).toContain("Edit Badge Awarding Rule");
     expect(body).toContain(
-      "Review the current settings, test changes, then save a new draft version.",
+      "Review the current settings, test your changes, then submit a new version for approval.",
     );
     expect(body).toContain("Testing never issues a badge.");
     expect(body).toContain('id="rule-builder-test"');
     expect(body).toContain('id="rule-builder-save-draft"');
-    expect(body).toContain("Save changes as draft");
+    expect(body).toContain("Save draft version");
+    expect(body).toContain("Save and submit for approval");
     expect(body).not.toContain("Copy existing rule settings");
     expect(body).toContain('value="Draft QA Rule"');
     expect(body).toContain('data-rule-builder-preserve-name="true"');

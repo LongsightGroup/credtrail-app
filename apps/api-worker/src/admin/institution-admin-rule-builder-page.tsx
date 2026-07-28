@@ -25,6 +25,7 @@ import {
   RuleBuilderConditionCardTemplate,
   RuleBuilderConditionsStep,
   RuleBuilderMetadataStep,
+  RuleBuilderReviewStep,
   RuleBuilderSaveDraftFooter,
   RuleBuilderTestStep,
 } from "./institution-admin-rule-builder-sections";
@@ -371,8 +372,8 @@ export const institutionAdminRuleBuilderPage = (input: {
           <h1>{isEditMode ? "Edit Badge Awarding Rule" : "Badge Awarding Rule"}</h1>
           <p>
             {isEditMode
-              ? "Review the current settings, test changes, then save a new draft version."
-              : "Define when learners earn this badge. Complete each step, then save a draft for review."}
+              ? "Review the current settings, test your changes, then submit a new version for approval."
+              : "Define when learners earn this badge. Complete each step, then submit the rule for approval."}
           </p>
         </div>
 
@@ -386,7 +387,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                 class="ct-admin__meta ct-admin__builder-progress"
                 aria-live="polite"
               >
-                Step 1 of 3 · Awarding pattern
+                Step 1 of 4 · Awarding pattern
               </p>
             </header>
             <AdminForm id="rule-create-form">
@@ -408,7 +409,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                   formatLmsConnectionProvider={formatLmsConnectionProvider}
                 />
                 <RuleBuilderConditionsStep rulesListPath={rulesListPath} />
-                <RuleBuilderTestStep isEditMode={isEditMode} />
+                <RuleBuilderTestStep />
+                <RuleBuilderReviewStep />
               </ol>
               <RuleBuilderSaveDraftFooter />
             </AdminForm>

@@ -75,6 +75,9 @@ const ruleBuilderStepProgress = document.getElementById("rule-builder-step-progr
 const ruleBuilderStepCallout = document.getElementById("rule-builder-step-callout");
 const ruleBuilderStepFooter = document.getElementById("rule-builder-step-footer");
 const ruleBuilderSubmitButton = document.getElementById("rule-builder-submit");
+const ruleBuilderSaveFormalDraftButton = document.getElementById(
+  "rule-builder-save-formal-draft",
+);
 const ruleBuilderSaveDraftButton = document.getElementById("rule-builder-save-draft");
 const ruleBuilderDraftStatus = document.getElementById("rule-builder-draft-status");
 const ruleBuilderCanvasCount = document.getElementById("rule-builder-canvas-count");

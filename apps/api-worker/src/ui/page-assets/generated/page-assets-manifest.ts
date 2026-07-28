@@ -21,7 +21,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminCss: {
     kind: "style",
-    path: "/assets/ui/institution-admin.3838125ef2.css",
+    path: "/assets/ui/institution-admin.d216e653ea.css",
   },
   institutionAdminJs: {
     kind: "script",
@@ -61,7 +61,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminRuleBuilderJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-rule-builder.66dcd7124c.js",
+    path: "/assets/ui/institution-admin-rule-builder.fc80505e98.js",
   },
   learnerRecordCss: {
     kind: "style",

@@ -15,7 +15,7 @@ import {
 import { CtInput, CtSelect, CtTextarea } from "../ui/forms";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | null;
-type RuleBuilderStepTarget = "metadata" | "conditions" | "test";
+type RuleBuilderStepTarget = "metadata" | "conditions" | "test" | "review";
 
 interface RuleBuilderTemplateOption {
   readonly template: BadgeTemplateRecord;
@@ -321,12 +321,25 @@ export const RuleBuilderMetadataStep = (props: {
                 Continue to Requirements
               </AdminButton>
               <AdminButton
+                id="rule-builder-save-formal-draft"
+                type="submit"
+                form="rule-create-form"
+                variant="secondary"
+                hidden={true}
+                dataAttributes={{ "data-rule-submit-mode": "draft" }}
+              >
+                {props.isEditMode ? "Save draft version" : "Create rule draft"}
+              </AdminButton>
+              <AdminButton
                 id="rule-builder-submit"
                 type="submit"
                 form="rule-create-form"
                 hidden={true}
+                dataAttributes={{ "data-rule-submit-mode": "approval" }}
               >
-                {props.isEditMode ? "Save changes as draft" : "Create rule draft"}
+                {props.isEditMode
+                  ? "Save and submit for approval"
+                  : "Create and submit for approval"}
               </AdminButton>
             </AdminActions>
             <AdminStatus id="rule-create-status"></AdminStatus>
@@ -507,19 +520,15 @@ export const RuleBuilderConditionsStep = (props: {
   );
 };
 
-export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): HonoElement => {
+export const RuleBuilderTestStep = (): HonoElement => {
   return (
     <li class="ct-admin__stepper-step" data-rule-step-row="test">
       <div class="ct-admin__stepper-header">
         <RuleBuilderStepButton
           stepNumber={3}
           target="test"
-          title="Test and save draft"
-          description={
-            props.isEditMode
-              ? "Try the rule, then save a new draft version."
-              : "Try the rule, then save the draft."
-          }
+          title="Test the rule"
+          description="Check the rule with a learner before submission."
         />
       </div>
       <div class="ct-admin__stepper-content">
@@ -676,16 +685,51 @@ export const RuleBuilderTestStep = (props: { readonly isEditMode: boolean }): Ho
   );
 };
 
+export const RuleBuilderReviewStep = (): HonoElement => {
+  return (
+    <li class="ct-admin__stepper-step" data-rule-step-row="review">
+      <div class="ct-admin__stepper-header">
+        <RuleBuilderStepButton
+          stepNumber={4}
+          target="review"
+          title="Review and submit"
+          description="Send the tested rule into the approval workflow."
+        />
+      </div>
+      <div class="ct-admin__stepper-content">
+        <section
+          id="builder-step-review"
+          class="ct-admin__builder-step"
+          data-rule-step="review"
+          hidden
+        >
+          <header class="ct-stack">
+            <h3 tabindex={-1}>Submit for approval</h3>
+            <p>
+              Submit this tested rule to the institution's approval workflow, or keep it as a rule
+              draft and submit it later from Rules.
+            </p>
+          </header>
+          <div class="ct-admin__builder-approval-note ct-stack">
+            <strong>Approval requires another person.</strong>
+            <p>The person who creates or submits this version cannot approve it.</p>
+          </div>
+        </section>
+      </div>
+    </li>
+  );
+};
+
 export const RuleBuilderSaveDraftFooter = (): HonoElement => {
   return (
     <footer class="ct-admin__builder-step-footer">
       <AdminActions className="ct-admin__builder-step-nav">
         <AdminButton id="rule-builder-save-draft" type="button" size="tiny" variant="secondary">
-          Save draft
+          Save unfinished work
         </AdminButton>
       </AdminActions>
       <p id="rule-builder-draft-status" class="ct-admin__meta" aria-live="polite">
-        Draft not saved yet.
+        Unfinished work not saved yet.
       </p>
     </footer>
   );

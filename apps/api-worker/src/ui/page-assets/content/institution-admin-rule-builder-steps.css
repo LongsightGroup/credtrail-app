@@ -80,6 +80,18 @@
   color: var(--ct-theme-state-warning);
   font-weight: 600;
 }
+.ct-admin__builder-approval-note {
+  --ct-stack-gap: var(--ct-space-1);
+  max-width: 65ch;
+  padding: var(--ct-space-3);
+  border: 1px solid var(--ct-border-soft);
+  border-radius: var(--ct-radius-md);
+  background: var(--ct-theme-surface-info);
+}
+.ct-admin__builder-approval-note p {
+  margin: 0;
+  color: var(--ct-theme-text-muted);
+}
 .ct-admin__builder-section {
   --ct-stack-gap: 0.75rem;
 }

@@ -7,18 +7,22 @@ const ruleBuilderStepOrder = ruleBuilderStepPanels
 const ruleBuilderStepLabels = {
   metadata: "Awarding pattern",
   conditions: "Requirements",
-  test: "Test and save draft",
+  test: "Test the rule",
+  review: "Review and submit",
 };
 const ruleBuilderStepCallouts = {
   metadata: "Choose an awarding pattern, badge, and LMS connection, then select Continue.",
   conditions:
     "Confirm the requirements learners must meet, then select Continue. To revise setup, select step 1 above.",
-  test: "Choose an LMS learner and test the rule, then create the draft. To revise earlier steps, select a step label above.",
+  test: "Choose an LMS learner and test the rule, then continue to review. To revise earlier steps, select a step label above.",
+  review:
+    "Submit the rule for approval, or save a rule draft and submit it later from Rules.",
 };
 const ruleBuilderStepGateMessages = {
   metadata: "Choose a badge template and LMS connection before continuing.",
   conditions: "Add at least one requirement before continuing.",
-  test: "Run a learner test before creating the draft.",
+  test: "Run a learner test before reviewing the rule.",
+  review: "Test the rule before submitting it for approval.",
 };
 let activeRuleBuilderStepIndex = 0;
 
@@ -132,6 +136,7 @@ const getRuleBuilderCompletionState = () => {
     metadata: isMetadataStepComplete(),
     conditions: isConditionsStepComplete(),
     test: isTestStepComplete(),
+    review: isTestStepComplete(),
   };
 };
 
@@ -190,11 +195,11 @@ const getStepGateMessage = (stepName) => {
       ruleBuilderLastTestSummary.startsWith("Review required");
 
     if (!testReady) {
-      return "Run a learner test before creating the draft.";
+      return "Run a learner test before reviewing the rule.";
     }
 
     if (getTextFieldValue("issuanceTiming").length === 0) {
-      return "Choose when the badge should be issued before creating the draft.";
+      return "Choose when the badge should be issued before reviewing the rule.";
     }
 
   }
@@ -262,7 +267,12 @@ const updateStepNavigationState = () => {
 
   if (ruleBuilderSubmitButton instanceof HTMLButtonElement) {
     ruleBuilderSubmitButton.hidden = !isLastStep;
-    ruleBuilderSubmitButton.disabled = !completion.test;
+    ruleBuilderSubmitButton.disabled = !completion.review;
+  }
+
+  if (ruleBuilderSaveFormalDraftButton instanceof HTMLButtonElement) {
+    ruleBuilderSaveFormalDraftButton.hidden = !isLastStep;
+    ruleBuilderSaveFormalDraftButton.disabled = !completion.review;
   }
 
   if (ruleBuilderStepCallout instanceof HTMLElement) {

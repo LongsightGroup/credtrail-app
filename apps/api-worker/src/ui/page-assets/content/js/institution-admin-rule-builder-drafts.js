@@ -57,7 +57,7 @@ const performRuleBuilderDraftSave = async (options) => {
   const quiet = options && options.quiet === true;
 
   if (!quiet) {
-    setRuleBuilderDraftStatus("Saving draft...", "info");
+    setRuleBuilderDraftStatus("Saving unfinished work...", "info");
   }
 
   try {
@@ -90,7 +90,7 @@ const performRuleBuilderDraftSave = async (options) => {
           })
         : "now";
 
-    setRuleBuilderDraftStatus("Draft saved " + savedAt + ".", "success");
+    setRuleBuilderDraftStatus("Unfinished work saved " + savedAt + ".", "success");
 
     if (
       !isRuleBuilderEditMode &&
@@ -133,7 +133,7 @@ const saveRuleBuilderDraft = (options) => {
 };
 
 const persistRuleBuilderDraftOnStepChange = () => {
-  setRuleBuilderDraftStatus("Saving draft...", "info");
+  setRuleBuilderDraftStatus("Saving unfinished work...", "info");
   void saveRuleBuilderDraft({ quiet: true });
 };
 
