@@ -78,6 +78,11 @@ const ruleBuilderSubmitButton = document.getElementById("rule-builder-submit");
 const ruleBuilderSaveFormalDraftButton = document.getElementById(
   "rule-builder-save-formal-draft",
 );
+const ruleBuilderAuthoringController = createRuleBuilderAuthoringController({
+  request: fetch,
+  parseResponse: parseJsonBody,
+  errorMessage: errorDetailFromPayload,
+});
 const ruleBuilderSaveDraftButton = document.getElementById("rule-builder-save-draft");
 const ruleBuilderDraftStatus = document.getElementById("rule-builder-draft-status");
 const ruleBuilderCanvasCount = document.getElementById("rule-builder-canvas-count");

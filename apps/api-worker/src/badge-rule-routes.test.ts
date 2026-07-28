@@ -29,9 +29,11 @@ vi.mock("@credtrail/db", async () => {
     createAuditLog: vi.fn(),
     createBadgeIssuanceRule: vi.fn(),
     createBadgeIssuanceRuleFromBuilderDraft: vi.fn(),
+    createBadgeIssuanceRuleWithAction: vi.fn(),
     createBadgeIssuanceRuleValueList: vi.fn(),
     createBadgeIssuanceRuleVersion: vi.fn(),
     updateBadgeIssuanceRuleDraft: vi.fn(),
+    updateBadgeIssuanceRuleWithAction: vi.fn(),
     submitBadgeIssuanceRuleVersionForApproval: vi.fn(),
     decideBadgeIssuanceRuleVersion: vi.fn(),
     activateBadgeIssuanceRuleVersion: vi.fn(),
@@ -57,6 +59,7 @@ vi.mock("@credtrail/db", async () => {
     listIssuedBadgeTemplateIdsForRecipient: vi.fn(),
     findActiveSessionByHash: mockedFindActiveSessionByHash,
     findTenantMembership: vi.fn(),
+    enqueueJobQueueMessageOnce: vi.fn(),
     touchSession: mockedTouchSession,
   };
 });
@@ -107,6 +110,7 @@ import {
   createAuditLog,
   createBadgeIssuanceRule,
   createBadgeIssuanceRuleFromBuilderDraft,
+  createBadgeIssuanceRuleWithAction,
   createBadgeIssuanceRuleValueList,
   createBadgeIssuanceRuleVersion,
   decideBadgeIssuanceRuleVersion,
@@ -114,6 +118,7 @@ import {
   findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleVersionById,
   findTenantMembership,
+  enqueueJobQueueMessageOnce,
   findTenantLmsConnectionById,
   findTenantLmsUserIdentity,
   listIssuedBadgeTemplateIdsForRecipient,
@@ -130,6 +135,7 @@ import {
   deleteBadgeIssuanceRuleBuilderDraftForRule,
   submitBadgeIssuanceRuleVersionForApproval,
   updateBadgeIssuanceRuleDraft,
+  updateBadgeIssuanceRuleWithAction,
   upsertTenantLmsConnection,
   type AuditLogRecord,
   type BadgeIssuanceRuleEvaluationRecord,
@@ -150,12 +156,15 @@ import { app } from "./index";
 
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
+const mockedEnqueueJobQueueMessageOnce = vi.mocked(enqueueJobQueueMessageOnce);
 const mockedCreateBadgeIssuanceRule = vi.mocked(createBadgeIssuanceRule);
 const mockedCreateBadgeIssuanceRuleFromBuilderDraft = vi.mocked(
   createBadgeIssuanceRuleFromBuilderDraft,
 );
+const mockedCreateBadgeIssuanceRuleWithAction = vi.mocked(createBadgeIssuanceRuleWithAction);
 const mockedCreateBadgeIssuanceRuleVersion = vi.mocked(createBadgeIssuanceRuleVersion);
 const mockedUpdateBadgeIssuanceRuleDraft = vi.mocked(updateBadgeIssuanceRuleDraft);
+const mockedUpdateBadgeIssuanceRuleWithAction = vi.mocked(updateBadgeIssuanceRuleWithAction);
 const mockedCreateBadgeIssuanceRuleValueList = vi.mocked(createBadgeIssuanceRuleValueList);
 const mockedSubmitBadgeIssuanceRuleVersionForApproval = vi.mocked(
   submitBadgeIssuanceRuleVersionForApproval,
@@ -457,12 +466,16 @@ beforeEach(() => {
 
   mockedCreateAuditLog.mockReset();
   mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
+  mockedEnqueueJobQueueMessageOnce.mockReset();
+  mockedEnqueueJobQueueMessageOnce.mockResolvedValue(true);
   mockedCreateBadgeIssuanceRule.mockReset();
   mockedCreateBadgeIssuanceRuleFromBuilderDraft.mockReset();
+  mockedCreateBadgeIssuanceRuleWithAction.mockReset();
   mockedCreateBadgeIssuanceRuleValueList.mockReset();
   mockedCreateBadgeIssuanceRuleValueList.mockResolvedValue(sampleValueListRecord());
   mockedCreateBadgeIssuanceRuleVersion.mockReset();
   mockedUpdateBadgeIssuanceRuleDraft.mockReset();
+  mockedUpdateBadgeIssuanceRuleWithAction.mockReset();
   mockedSubmitBadgeIssuanceRuleVersionForApproval.mockReset();
   mockedDecideBadgeIssuanceRuleVersion.mockReset();
   mockedActivateBadgeIssuanceRuleVersion.mockReset();
@@ -576,7 +589,11 @@ beforeEach(() => {
 describe("badge rule routes", () => {
   it("creates badge issuance rules", async () => {
     const env = createEnv();
-    mockedCreateBadgeIssuanceRule.mockResolvedValue({
+    mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({
+      status: "completed",
+      outcome: "draft_saved",
+      pendingStepNumber: null,
+      writeStatus: "created",
       rule: sampleRule(),
       version: sampleVersion(),
     });
@@ -595,6 +612,7 @@ describe("badge rule routes", () => {
           description: "Issue badge for CS101 excellence",
           badgeTemplateId: "badge_template_cs101",
           lmsConnectionId: "lms_123",
+          action: "save_draft",
           definition: {
             conditions: {
               type: "grade_threshold",
@@ -608,8 +626,215 @@ describe("badge rule routes", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(mockedCreateBadgeIssuanceRule).toHaveBeenCalledTimes(1);
+    expect(mockedCreateBadgeIssuanceRuleWithAction).toHaveBeenCalledTimes(1);
     expect(mockedCreateAuditLog).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns the committed rule when authoring audit logging fails", async () => {
+    const env = createEnv();
+    mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({
+      status: "completed",
+      outcome: "draft_saved",
+      pendingStepNumber: null,
+      writeStatus: "created",
+      rule: sampleRule(),
+      version: sampleVersion(),
+    });
+    mockedCreateAuditLog.mockRejectedValueOnce(new Error("audit unavailable"));
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "CS101 Rule",
+          badgeTemplateId: "badge_template_cs101",
+          lmsConnectionId: "lms_123",
+          action: "save_draft",
+          definition: {
+            conditions: {
+              type: "grade_threshold",
+              courseId: "course_101",
+              minScore: 80,
+            },
+          },
+        }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(201);
+    expect(mockedCreateBadgeIssuanceRuleWithAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates and submits the returned rule version with one authoring command", async () => {
+    const env = createEnv();
+    let resolveAuthoringAudit: ((record: AuditLogRecord) => void) | undefined;
+    mockedCreateAuditLog.mockImplementationOnce(
+      () =>
+        new Promise<AuditLogRecord>((resolve) => {
+          resolveAuthoringAudit = resolve;
+        }),
+    );
+    mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({
+      status: "completed",
+      outcome: "pending_approval",
+      pendingStepNumber: 3,
+      writeStatus: "created",
+      rule: sampleRule(),
+      version: sampleVersion({ status: "pending_approval" }),
+    });
+
+    const responsePromise = app.request(
+      "/v1/tenants/tenant_123/badge-rules",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "CS101 Rule",
+          badgeTemplateId: "badge_template_cs101",
+          lmsConnectionId: "lms_123",
+          action: "submit_for_approval",
+          builderDraftId: "brd_submit",
+          definition: {
+            conditions: {
+              type: "grade_threshold",
+              courseId: "course_101",
+              minScore: 80,
+            },
+          },
+        }),
+      },
+      env,
+    );
+    await vi.waitFor(() => {
+      expect(mockedCreateAuditLog).toHaveBeenCalledTimes(1);
+    });
+    resolveAuthoringAudit?.(sampleAuditLogRecord());
+    const response = await responsePromise;
+    const body = await response.json<{ outcome: string; version: { status: string } }>();
+
+    expect(response.status).toBe(201);
+    expect(body.outcome).toBe("pending_approval");
+    expect(body.version.status).toBe("pending_approval");
+    expect(mockedCreateBadgeIssuanceRuleWithAction).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        action: "submit_for_approval",
+        builderDraftId: "brd_submit",
+        actorUserId: "usr_123",
+      }),
+    );
+    expect(mockedSubmitBadgeIssuanceRuleVersionForApproval).not.toHaveBeenCalled();
+    expect(mockedCreateAuditLog).toHaveBeenCalledTimes(2);
+    expect(mockedCreateAuditLog).toHaveBeenLastCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        action: "badge_rule.version_submitted_for_approval",
+        targetId: "brv_123",
+      }),
+    );
+    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        jobType: "send_badge_rule_approval_notification",
+        payload: expect.objectContaining({
+          notificationType: "approval_submitted",
+          ruleId: "brl_123",
+          versionId: "brv_123",
+          targetStepNumber: 3,
+        }),
+      }),
+    );
+  });
+
+  it("returns an atomic authoring rejection without recording a created-rule audit", async () => {
+    const env = createEnv();
+    mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({
+      status: "self_certification_required",
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "CS101 Rule",
+          badgeTemplateId: "badge_template_cs101",
+          lmsConnectionId: "lms_123",
+          action: "submit_for_approval",
+          builderDraftId: "brd_submit",
+          definition: {
+            conditions: {
+              type: "grade_threshold",
+              courseId: "course_101",
+              minScore: 80,
+            },
+          },
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toContain("self-certification");
+    expect(mockedCreateAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("directs stale builder replays to the saved formal rule", async () => {
+    const env = createEnv();
+    mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({
+      status: "replay_conflict",
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Stale retry",
+          badgeTemplateId: "badge_template_cs101",
+          lmsConnectionId: "lms_123",
+          action: "submit_for_approval",
+          builderDraftId: "brd_stale",
+          definition: {
+            conditions: {
+              type: "grade_threshold",
+              courseId: "course_101",
+              minScore: 80,
+            },
+          },
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toBe(
+      "This unfinished rule has already been promoted. Continue from the saved rule.",
+    );
+    expect(mockedCreateAuditLog).not.toHaveBeenCalled();
   });
 
   it("does not save a course rule for a user without a linked LMS identity", async () => {
@@ -629,6 +854,7 @@ describe("badge rule routes", () => {
           name: "CS101 Rule",
           badgeTemplateId: "badge_template_cs101",
           lmsConnectionId: "lms_123",
+          action: "save_draft",
           definition: {
             conditions: {
               type: "grade_threshold",
@@ -644,17 +870,18 @@ describe("badge rule routes", () => {
 
     expect(response.status).toBe(403);
     expect(body.error).toContain("Open CredTrail from Canvas once");
-    expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
+    expect(mockedCreateBadgeIssuanceRuleWithAction).not.toHaveBeenCalled();
   });
 
   it("promotes the exact unfinished builder draft into a formal rule", async () => {
     const env = createEnv();
-    mockedCreateBadgeIssuanceRuleFromBuilderDraft.mockResolvedValue({
-      status: "created",
-      draft: {
-        rule: sampleRule(),
-        version: sampleVersion(),
-      },
+    mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({
+      status: "completed",
+      outcome: "draft_saved",
+      pendingStepNumber: null,
+      writeStatus: "created",
+      rule: sampleRule(),
+      version: sampleVersion(),
     });
 
     const response = await app.request(
@@ -671,6 +898,7 @@ describe("badge rule routes", () => {
           badgeTemplateId: "badge_template_cs101",
           lmsConnectionId: "lms_123",
           builderDraftId: "brd_exact",
+          action: "save_draft",
           definition: {
             conditions: {
               type: "grade_threshold",
@@ -684,12 +912,13 @@ describe("badge rule routes", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(mockedCreateBadgeIssuanceRuleFromBuilderDraft).toHaveBeenCalledWith(
+    expect(mockedCreateBadgeIssuanceRuleWithAction).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
         tenantId: "tenant_123",
         builderDraftId: "brd_exact",
-        builderUserId: "usr_123",
+        action: "save_draft",
+        actorUserId: "usr_123",
       }),
     );
     expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
@@ -698,12 +927,13 @@ describe("badge rule routes", () => {
 
   it("replays the original promoted rule after an ambiguous client retry", async () => {
     const env = createEnv();
-    mockedCreateBadgeIssuanceRuleFromBuilderDraft.mockResolvedValue({
-      status: "replayed",
-      draft: {
-        rule: sampleRule(),
-        version: sampleVersion(),
-      },
+    mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({
+      status: "completed",
+      outcome: "draft_saved",
+      pendingStepNumber: null,
+      writeStatus: "replayed",
+      rule: sampleRule(),
+      version: sampleVersion(),
     });
 
     const response = await app.request(
@@ -720,6 +950,7 @@ describe("badge rule routes", () => {
           badgeTemplateId: "badge_template_cs101",
           lmsConnectionId: "lms_123",
           builderDraftId: "brd_exact",
+          action: "save_draft",
           definition: {
             conditions: {
               type: "grade_threshold",
@@ -837,8 +1068,11 @@ describe("badge rule routes", () => {
         },
       }),
     });
-    mockedUpdateBadgeIssuanceRuleDraft.mockResolvedValue({
-      status: "updated",
+    mockedUpdateBadgeIssuanceRuleWithAction.mockResolvedValue({
+      status: "completed",
+      outcome: "draft_saved",
+      pendingStepNumber: null,
+      writeStatus: "updated",
       rule: sampleRule({
         name: "CS101 Rule Revised",
         activeVersionId: null,
@@ -861,6 +1095,7 @@ describe("badge rule routes", () => {
           description: "",
           badgeTemplateId: "badge_template_cs101",
           lmsConnectionId: "lms_123",
+          action: "save_draft",
           definition: {
             conditions: {
               type: "assignment_submission",
@@ -883,7 +1118,7 @@ describe("badge rule routes", () => {
     }>();
 
     expect(response.status).toBe(200);
-    expect(mockedUpdateBadgeIssuanceRuleDraft).toHaveBeenCalledWith(fakeDb, {
+    expect(mockedUpdateBadgeIssuanceRuleWithAction).toHaveBeenCalledWith(fakeDb, {
       tenantId: "tenant_123",
       ruleId: "brl_123",
       name: "CS101 Rule Revised",
@@ -899,7 +1134,9 @@ describe("badge rule routes", () => {
         },
       }),
       changeSummary: "Retuned assignment score threshold",
-      createdByUserId: "usr_123",
+      action: "save_draft",
+      actorUserId: "usr_123",
+      actorRole: "issuer",
     });
     expect(body.version.id).toBe("brv_124");
     expect(body.version.versionNumber).toBe(2);
@@ -915,10 +1152,8 @@ describe("badge rule routes", () => {
 
   it("returns conflict when saving a protected badge issuance rule draft", async () => {
     const env = createEnv();
-    mockedUpdateBadgeIssuanceRuleDraft.mockResolvedValue({
+    mockedUpdateBadgeIssuanceRuleWithAction.mockResolvedValue({
       status: "not_editable",
-      rule: sampleRule(),
-      versions: [sampleVersion({ status: "active" })],
     });
 
     const response = await app.request(
@@ -934,6 +1169,7 @@ describe("badge rule routes", () => {
           name: "CS101 Rule Revised",
           badgeTemplateId: "badge_template_cs101",
           lmsConnectionId: "lms_123",
+          action: "save_draft",
           definition: {
             conditions: {
               type: "grade_threshold",
@@ -1271,7 +1507,7 @@ describe("badge rule routes", () => {
     mockedSubmitBadgeIssuanceRuleVersionForApproval.mockResolvedValue({
       status: "submitted",
       version: sampleVersion({ status: "pending_approval" }),
-      pendingStepNumber: 1,
+      pendingStepNumber: 4,
     });
 
     const response = await app.request(
@@ -1302,6 +1538,14 @@ describe("badge rule routes", () => {
         versionId: "brv_123",
         actorUserId: "usr_123",
         actorRole: "admin",
+      }),
+    );
+    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          targetStepNumber: 4,
+        }),
       }),
     );
   });

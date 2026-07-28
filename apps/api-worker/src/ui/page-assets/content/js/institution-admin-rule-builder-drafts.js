@@ -118,17 +118,14 @@ const performRuleBuilderDraftSave = async (options) => {
   }
 };
 
-let ruleBuilderDraftSaveQueue = Promise.resolve();
+let ruleBuilderDraftSaveQueue = Promise.resolve(true);
 
 const saveRuleBuilderDraft = (options) => {
   const save = ruleBuilderDraftSaveQueue.then(
     () => performRuleBuilderDraftSave(options),
     () => performRuleBuilderDraftSave(options),
   );
-  ruleBuilderDraftSaveQueue = save.then(
-    () => undefined,
-    () => undefined,
-  );
+  ruleBuilderDraftSaveQueue = save;
   return save;
 };
 

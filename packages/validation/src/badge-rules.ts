@@ -306,6 +306,7 @@ export const createBadgeIssuanceRuleRequestSchema = z
     definition: badgeIssuanceRuleDefinitionSchema,
     changeSummary: z.string().trim().min(1).max(1000).optional(),
     builderDraftId: badgeIssuanceRuleBuilderDraftIdSchema.optional(),
+    action: z.enum(["save_draft", "submit_for_approval"]),
   })
   .strict();
 
@@ -317,10 +318,16 @@ export const updateBadgeIssuanceRuleDraftRequestSchema = z
     lmsConnectionId: resourceIdSchema,
     definition: badgeIssuanceRuleDefinitionSchema,
     changeSummary: z.string().trim().min(1).max(1000).optional(),
+    action: z.enum(["save_draft", "submit_for_approval"]),
   })
   .strict();
 
-export const badgeIssuanceRuleBuilderDraftStepSchema = z.enum(["metadata", "conditions", "test"]);
+export const badgeIssuanceRuleBuilderDraftStepSchema = z.enum([
+  "metadata",
+  "conditions",
+  "test",
+  "review",
+]);
 
 /** Valid lifecycle targets for persisted badge-rule builder progress. */
 export const badgeIssuanceRuleBuilderDraftTargetSchema = z.discriminatedUnion("kind", [

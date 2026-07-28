@@ -321,25 +321,27 @@ export const RuleBuilderMetadataStep = (props: {
                 Continue to Requirements
               </AdminButton>
               <AdminButton
+                id="rule-builder-submit"
+                type="submit"
+                form="rule-create-form"
+                hidden={true}
+                name="action"
+                value="submit_for_approval"
+              >
+                {props.isEditMode
+                  ? "Save and submit for approval"
+                  : "Create and submit for approval"}
+              </AdminButton>
+              <AdminButton
                 id="rule-builder-save-formal-draft"
                 type="submit"
                 form="rule-create-form"
                 variant="secondary"
                 hidden={true}
-                dataAttributes={{ "data-rule-submit-mode": "draft" }}
+                name="action"
+                value="save_draft"
               >
                 {props.isEditMode ? "Save draft version" : "Create rule draft"}
-              </AdminButton>
-              <AdminButton
-                id="rule-builder-submit"
-                type="submit"
-                form="rule-create-form"
-                hidden={true}
-                dataAttributes={{ "data-rule-submit-mode": "approval" }}
-              >
-                {props.isEditMode
-                  ? "Save and submit for approval"
-                  : "Create and submit for approval"}
               </AdminButton>
             </AdminActions>
             <AdminStatus id="rule-create-status"></AdminStatus>
@@ -711,8 +713,11 @@ export const RuleBuilderReviewStep = (): HonoElement => {
             </p>
           </header>
           <div class="ct-admin__builder-approval-note ct-stack">
-            <strong>Approval requires another person.</strong>
-            <p>The person who creates or submits this version cannot approve it.</p>
+            <strong>CredTrail follows your institution's approval policy.</strong>
+            <p>
+              Rules that require review go to another eligible approver. Policies that allow
+              automatic approval approve the version immediately.
+            </p>
           </div>
         </section>
       </div>

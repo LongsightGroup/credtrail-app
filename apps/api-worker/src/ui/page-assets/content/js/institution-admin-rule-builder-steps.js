@@ -136,7 +136,6 @@ const getRuleBuilderCompletionState = () => {
     metadata: isMetadataStepComplete(),
     conditions: isConditionsStepComplete(),
     test: isTestStepComplete(),
-    review: isTestStepComplete(),
   };
 };
 
@@ -227,7 +226,9 @@ const showStepGateMessage = (stepName) => {
 const updateStepNavigationState = () => {
   const completion = getRuleBuilderCompletionState();
   const currentStep = ruleBuilderStepOrder[activeRuleBuilderStepIndex] ?? "";
-  const currentComplete = completion[currentStep] === true;
+  const currentComplete =
+    currentStep === "review" ? completion.test === true : completion[currentStep] === true;
+  const submissionInProgress = ruleBuilderAuthoringController.state() !== "idle";
 
   ruleBuilderStepButtons.forEach((candidate) => {
     if (!(candidate instanceof HTMLButtonElement)) {
@@ -267,12 +268,12 @@ const updateStepNavigationState = () => {
 
   if (ruleBuilderSubmitButton instanceof HTMLButtonElement) {
     ruleBuilderSubmitButton.hidden = !isLastStep;
-    ruleBuilderSubmitButton.disabled = !completion.review;
+    ruleBuilderSubmitButton.disabled = submissionInProgress || !completion.test;
   }
 
   if (ruleBuilderSaveFormalDraftButton instanceof HTMLButtonElement) {
     ruleBuilderSaveFormalDraftButton.hidden = !isLastStep;
-    ruleBuilderSaveFormalDraftButton.disabled = !completion.review;
+    ruleBuilderSaveFormalDraftButton.disabled = submissionInProgress || !completion.test;
   }
 
   if (ruleBuilderStepCallout instanceof HTMLElement) {

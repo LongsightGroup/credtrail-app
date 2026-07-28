@@ -17,7 +17,7 @@ export type BadgeIssuanceRuleVersionStatus =
   | "rejected"
   | "deprecated";
 
-export type BadgeIssuanceRuleBuilderDraftStep = "metadata" | "conditions" | "test";
+export type BadgeIssuanceRuleBuilderDraftStep = "metadata" | "conditions" | "test" | "review";
 
 interface BadgeIssuanceRuleBuilderDraftRecordBase {
   readonly id: string;
@@ -237,6 +237,65 @@ export interface UpdateBadgeIssuanceRuleDraftInput {
   changeSummary?: string | undefined;
   createdByUserId?: string | undefined;
 }
+
+/** A formal rule-authoring action requested by a caller. */
+export type BadgeIssuanceRuleAuthoringAction = "save_draft" | "submit_for_approval";
+
+/** The persisted lifecycle outcome of a completed authoring action. */
+export type BadgeIssuanceRuleAuthoringOutcome = "draft_saved" | "pending_approval" | "approved";
+
+/** The completed authoring value or an expected authoring rejection. */
+export type BadgeIssuanceRuleAuthoringResult =
+  | {
+      readonly status: "completed";
+      readonly outcome: BadgeIssuanceRuleAuthoringOutcome;
+      readonly writeStatus: "created" | "replayed" | "updated";
+      readonly rule: BadgeIssuanceRuleRecord;
+      readonly version: BadgeIssuanceRuleVersionRecord;
+      readonly pendingStepNumber: number | null;
+    }
+  | {
+      readonly status: "unavailable";
+    }
+  | {
+      readonly status: "replay_conflict";
+    }
+  | {
+      readonly status: "not_found";
+    }
+  | {
+      readonly status: "not_editable";
+    }
+  | {
+      readonly status: "not_submittable";
+    }
+  | {
+      readonly status: "self_certification_required";
+    }
+  | {
+      readonly status: "policy_missing_steps";
+    };
+
+/** Input for creating and optionally submitting one rule version atomically. */
+export type CreateBadgeIssuanceRuleAuthoringInput = Omit<
+  CreateBadgeIssuanceRuleInput,
+  "createdByUserId"
+> & {
+  readonly action: BadgeIssuanceRuleAuthoringAction;
+  readonly actorUserId: string;
+  readonly actorRole: TenantMembershipRole;
+  readonly builderDraftId?: string | undefined;
+};
+
+/** Input for updating and optionally submitting one rule version atomically. */
+export type UpdateBadgeIssuanceRuleAuthoringInput = Omit<
+  UpdateBadgeIssuanceRuleDraftInput,
+  "createdByUserId"
+> & {
+  readonly action: BadgeIssuanceRuleAuthoringAction;
+  readonly actorUserId: string;
+  readonly actorRole: TenantMembershipRole;
+};
 
 export type ListBadgeIssuanceRulesInput = {
   readonly tenantId: string;

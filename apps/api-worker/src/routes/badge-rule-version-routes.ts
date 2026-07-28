@@ -29,6 +29,7 @@ import type { Hono } from "hono";
 import type { AppContext, AppEnv } from "../app";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { observabilityContext } from "../app/observability";
+import { recordBadgeRuleApprovalSubmissionSideEffects } from "../badges/badge-rule-approval-submission-side-effects";
 import { buildBadgeRuleVersionDefinitionDiff } from "../badges/badge-rule-version-diff";
 
 interface RegisterBadgeRuleVersionRoutesInput {
@@ -58,7 +59,7 @@ export const registerBadgeRuleVersionRoutes = (
       readonly tenantId: string;
       readonly ruleId: string;
       readonly versionId: string;
-      readonly eventType: "approval_decision" | "approval_submitted";
+      readonly eventType: "approval_decision";
     },
     run: () => Promise<unknown>,
   ): Promise<void> => {
@@ -238,7 +239,8 @@ export const registerBadgeRuleVersionRoutes = (
       }
 
       const { session, membershipRole } = roleCheck;
-      const submitResult = await submitBadgeIssuanceRuleVersionForApproval(resolveDatabase(c.env), {
+      const db = resolveDatabase(c.env);
+      const submitResult = await submitBadgeIssuanceRuleVersionForApproval(db, {
         tenantId: pathParams.tenantId,
         ruleId: pathParams.ruleId,
         versionId: pathParams.versionId,
@@ -257,29 +259,17 @@ export const registerBadgeRuleVersionRoutes = (
 
       const updatedVersion = submitResult.version;
 
-      await recordApprovalAuditLog(
+      await recordBadgeRuleApprovalSubmissionSideEffects({
         c,
-        {
-          tenantId: pathParams.tenantId,
-          ruleId: pathParams.ruleId,
-          versionId: pathParams.versionId,
-          eventType: "approval_submitted",
-        },
-        () =>
-          createAuditLog(resolveDatabase(c.env), {
-            tenantId: pathParams.tenantId,
-            actorUserId: session.userId,
-            action: "badge_rule.version_submitted_for_approval",
-            targetType: "badge_rule_version",
-            targetId: updatedVersion.id,
-            metadata: {
-              role: membershipRole,
-              ruleId: pathParams.ruleId,
-              versionNumber: updatedVersion.versionNumber,
-              status: updatedVersion.status,
-            },
-          }),
-      );
+        db,
+        tenantId: pathParams.tenantId,
+        ruleId: pathParams.ruleId,
+        actorUserId: session.userId,
+        actorRole: membershipRole,
+        version: updatedVersion,
+        pendingStepNumber: submitResult.pendingStepNumber,
+        audit: "record",
+      });
 
       return c.json({
         tenantId: pathParams.tenantId,

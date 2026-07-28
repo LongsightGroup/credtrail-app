@@ -9,6 +9,7 @@ const definitionWithAssignments = (assignmentIds: readonly string[]) => {
     badgeTemplateId: "badge-template",
     lmsConnectionId: "lms-connection",
     lmsProviderKind: "sakai",
+    action: "save_draft",
     definition: {
       conditions: {
         all: assignmentIds.map((assignmentId) => ({

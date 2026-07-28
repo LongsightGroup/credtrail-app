@@ -1,16 +1,16 @@
+import { logError } from "@credtrail/core-domain";
 import {
   BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE,
   createAuditLog,
-  createBadgeIssuanceRule,
-  createBadgeIssuanceRuleFromBuilderDraft,
-  deleteBadgeIssuanceRuleBuilderDraftForRule,
+  createBadgeIssuanceRuleWithAction,
   findBadgeIssuanceRuleById,
   listAuditLogs,
   listBadgeIssuanceRules,
   resolveListBadgeIssuanceRulesInput,
   listBadgeIssuanceRuleVersions,
   saveBadgeIssuanceRuleBuilderDraft,
-  updateBadgeIssuanceRuleDraft,
+  updateBadgeIssuanceRuleWithAction,
+  type BadgeIssuanceRuleAuthoringResult,
   type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleVersionRecord,
   type SessionRecord,
@@ -29,8 +29,14 @@ import {
   serializeBadgeIssuanceRuleBuilderDraftPayload,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
+import { observabilityContext } from "../app/observability";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
+import { recordBadgeRuleApprovalSubmissionSideEffects } from "../badges/badge-rule-approval-submission-side-effects";
+import {
+  apiSubmitBadgeRuleVersionStatusCode,
+  submitBadgeRuleVersionForApprovalFailureMessage,
+} from "../badges/badge-rule-approval-outcomes";
 import {
   GradebookProviderResolutionError,
   resolveGradebookProviderWithConnection,
@@ -50,6 +56,48 @@ interface PersistedBadgeRuleDraft {
   rule: BadgeIssuanceRuleRecord;
   version: BadgeIssuanceRuleVersionRecord;
 }
+
+type BadgeRuleAuthoringFailure = Exclude<
+  BadgeIssuanceRuleAuthoringResult,
+  { readonly status: "completed" }
+>;
+
+const badgeRuleAuthoringFailure = (
+  result: BadgeRuleAuthoringFailure,
+): {
+  readonly error: string;
+  readonly statusCode: 404 | 409 | 500;
+} => {
+  switch (result.status) {
+    case "unavailable":
+      return {
+        error: "That unfinished draft is no longer available.",
+        statusCode: 409,
+      };
+    case "replay_conflict":
+      return {
+        error: "This unfinished rule has already been promoted. Continue from the saved rule.",
+        statusCode: 409,
+      };
+    case "not_found":
+      return {
+        error: "Badge rule not found",
+        statusCode: 404,
+      };
+    case "not_editable":
+      return {
+        error: BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE,
+        statusCode: 409,
+      };
+    case "not_submittable":
+    case "self_certification_required":
+    case "policy_missing_steps":
+      return {
+        error: submitBadgeRuleVersionForApprovalFailureMessage(result),
+        statusCode: apiSubmitBadgeRuleVersionStatusCode(result),
+      };
+  }
+};
 
 type PrepareBadgeRuleDraftResult =
   | {
@@ -174,6 +222,7 @@ const prepareBadgeRuleDraft = async (input: {
 };
 
 const recordBadgeRuleDraftAudit = async (input: {
+  c: AppContext;
   db: SqlDatabase;
   tenantId: string;
   session: SessionRecord;
@@ -182,20 +231,56 @@ const recordBadgeRuleDraftAudit = async (input: {
   draft: PersistedBadgeRuleDraft;
   resolvedProvider: ResolvedGradebookProvider;
 }): Promise<void> => {
-  await createAuditLog(input.db, {
-    tenantId: input.tenantId,
-    actorUserId: input.session.userId,
-    action: input.action,
-    targetType: "badge_rule",
-    targetId: input.draft.rule.id,
-    metadata: {
-      role: input.membershipRole,
+  try {
+    await createAuditLog(input.db, {
+      tenantId: input.tenantId,
+      actorUserId: input.session.userId,
+      action: input.action,
+      targetType: "badge_rule",
+      targetId: input.draft.rule.id,
+      metadata: {
+        role: input.membershipRole,
+        versionId: input.draft.version.id,
+        versionNumber: input.draft.version.versionNumber,
+        status: input.draft.version.status,
+        lmsConnectionId: input.resolvedProvider.connection.id,
+        lmsProviderKind: input.resolvedProvider.connection.providerKind,
+      },
+    });
+  } catch (cause: unknown) {
+    logError(observabilityContext(input.c.env), "badge_rule_authoring_side_effect_failed", {
+      tenantId: input.tenantId,
+      ruleId: input.draft.rule.id,
       versionId: input.draft.version.id,
-      versionNumber: input.draft.version.versionNumber,
-      status: input.draft.version.status,
-      lmsConnectionId: input.resolvedProvider.connection.id,
-      lmsProviderKind: input.resolvedProvider.connection.providerKind,
-    },
+      sideEffect: "audit_log",
+      authoringAction: input.action,
+      errorKind: cause instanceof Error ? cause.name : typeof cause,
+    });
+  }
+};
+
+const recordAuthoredSubmissionSideEffects = async (input: {
+  readonly c: AppContext;
+  readonly db: SqlDatabase;
+  readonly tenantId: string;
+  readonly session: SessionRecord;
+  readonly membershipRole: TenantMembershipRole;
+  readonly authored: Extract<BadgeIssuanceRuleAuthoringResult, { readonly status: "completed" }>;
+}): Promise<void> => {
+  if (input.authored.outcome === "draft_saved") {
+    return;
+  }
+
+  await recordBadgeRuleApprovalSubmissionSideEffects({
+    c: input.c,
+    db: input.db,
+    tenantId: input.tenantId,
+    ruleId: input.authored.rule.id,
+    actorUserId: input.session.userId,
+    actorRole: input.membershipRole,
+    version: input.authored.version,
+    pendingStepNumber: input.authored.pendingStepNumber,
+    audit: input.authored.writeStatus === "replayed" ? "already_recorded" : "record",
   });
 };
 
@@ -274,7 +359,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       );
     }
 
-    const createInput = {
+    const authored = await createBadgeIssuanceRuleWithAction(db, {
       tenantId: tenantParams.tenantId,
       name: request.name,
       description: request.description,
@@ -283,46 +368,54 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       lmsConnectionId: prepared.resolvedProvider.connection.id,
       ruleJson: prepared.ruleJson,
       changeSummary: request.changeSummary,
-      createdByUserId: session.userId,
-    };
-    const creation =
-      request.builderDraftId === undefined
-        ? {
-            status: "created" as const,
-            draft: await createBadgeIssuanceRule(db, createInput),
-          }
-        : await createBadgeIssuanceRuleFromBuilderDraft(db, {
-            ...createInput,
-            builderDraftId: request.builderDraftId,
-            builderUserId: session.userId,
-          });
+      action: request.action,
+      actorUserId: session.userId,
+      actorRole: membershipRole,
+      ...(request.builderDraftId === undefined ? {} : { builderDraftId: request.builderDraftId }),
+    });
 
-    if (creation.status === "unavailable") {
-      return c.json({ error: "That unfinished draft is no longer available." }, 409);
+    if (authored.status !== "completed") {
+      const failure = badgeRuleAuthoringFailure(authored);
+      return c.json(
+        {
+          error: failure.error,
+        },
+        failure.statusCode,
+      );
     }
 
-    if (creation.status === "created") {
+    if (authored.writeStatus === "created") {
       await recordBadgeRuleDraftAudit({
+        c,
         db,
         tenantId: tenantParams.tenantId,
         session,
         membershipRole,
         action: "badge_rule.created",
-        draft: creation.draft,
+        draft: authored,
         resolvedProvider: prepared.resolvedProvider,
       });
     }
+    await recordAuthoredSubmissionSideEffects({
+      c,
+      db,
+      tenantId: tenantParams.tenantId,
+      session,
+      membershipRole,
+      authored,
+    });
     const responseDefinition =
-      creation.status === "replayed"
-        ? parseBadgeIssuanceRuleDefinition(JSON.parse(creation.draft.version.ruleJson))
+      authored.writeStatus === "replayed"
+        ? parseBadgeIssuanceRuleDefinition(JSON.parse(authored.version.ruleJson))
         : request.definition;
 
     return c.json(
       {
         tenantId: tenantParams.tenantId,
-        rule: creation.draft.rule,
+        outcome: authored.outcome,
+        rule: authored.rule,
         version: {
-          ...creation.draft.version,
+          ...authored.version,
           definition: responseDefinition,
         },
       },
@@ -410,7 +503,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
     }
 
     const description = request.description?.trim();
-    const updated = await updateBadgeIssuanceRuleDraft(db, {
+    const authored = await updateBadgeIssuanceRuleWithAction(db, {
       tenantId: pathParams.tenantId,
       ruleId: pathParams.ruleId,
       name: request.name,
@@ -420,42 +513,47 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       lmsConnectionId: prepared.resolvedProvider.connection.id,
       ruleJson: prepared.ruleJson,
       changeSummary: request.changeSummary,
-      createdByUserId: session.userId,
+      action: request.action,
+      actorUserId: session.userId,
+      actorRole: membershipRole,
     });
 
-    if (updated.status === "not_found") {
-      return c.json({ error: "Badge rule not found" }, 404);
+    if (authored.status !== "completed") {
+      const failure = badgeRuleAuthoringFailure(authored);
+      return c.json(
+        {
+          error: failure.error,
+        },
+        failure.statusCode,
+      );
     }
 
-    if (updated.status === "not_editable") {
-      return c.json({ error: BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE }, 409);
-    }
-
-    const persisted = {
-      rule: updated.rule,
-      version: updated.version,
-    };
     await recordBadgeRuleDraftAudit({
+      c,
       db,
       tenantId: pathParams.tenantId,
       session,
       membershipRole,
       action: "badge_rule.draft_updated",
-      draft: persisted,
+      draft: authored,
       resolvedProvider: prepared.resolvedProvider,
     });
-    await deleteBadgeIssuanceRuleBuilderDraftForRule(db, {
+    await recordAuthoredSubmissionSideEffects({
+      c,
+      db,
       tenantId: pathParams.tenantId,
-      userId: session.userId,
-      ruleId: pathParams.ruleId,
+      session,
+      membershipRole,
+      authored,
     });
 
     return c.json(
       {
         tenantId: pathParams.tenantId,
-        rule: persisted.rule,
+        outcome: authored.outcome,
+        rule: authored.rule,
         version: {
-          ...persisted.version,
+          ...authored.version,
           definition: request.definition,
         },
       },

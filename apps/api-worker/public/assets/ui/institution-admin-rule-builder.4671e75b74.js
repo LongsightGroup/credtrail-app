@@ -56,6 +56,82 @@ const setCodeOutput = (el, value) => {
   el.textContent = value;
 };
 
+const createRuleBuilderAuthoringController = (dependencies) => {
+  let state = "idle";
+
+  const execute = async (input) => {
+    if (state !== "idle") {
+      return { status: "ignored" };
+    }
+
+    state = "submitting";
+
+    if (typeof input.prepareRequest === "function") {
+      try {
+        const ready = await input.prepareRequest();
+
+        if (!ready) {
+          state = "idle";
+          return { status: "precondition_failed" };
+        }
+      } catch {
+        state = "idle";
+        return { status: "precondition_failed" };
+      }
+    }
+
+    try {
+      const response = await dependencies.request(input.apiPath, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(input.payload),
+      });
+      const payload = await dependencies.parseResponse(response);
+
+      if (!response.ok) {
+        state = "idle";
+        return {
+          status: "rejected",
+          message: dependencies.errorMessage(payload),
+        };
+      }
+
+      const outcome =
+        payload && typeof payload === "object" && typeof payload.outcome === "string"
+          ? payload.outcome
+          : "";
+
+      if (
+        outcome !== "draft_saved" &&
+        outcome !== "pending_approval" &&
+        outcome !== "approved"
+      ) {
+        state = "idle";
+        return {
+          status: "rejected",
+          message: "CredTrail returned an invalid rule authoring outcome.",
+        };
+      }
+
+      state = "completed";
+      return {
+        status: "completed",
+        outcome,
+      };
+    } catch {
+      state = "unknown";
+      return { status: "unknown" };
+    }
+  };
+
+  return {
+    execute,
+    state: () => state,
+  };
+};
+
 const parsedContext = readAdminContext();
 
 if (!parsedContext) {
@@ -136,6 +212,11 @@ const ruleBuilderSubmitButton = document.getElementById("rule-builder-submit");
 const ruleBuilderSaveFormalDraftButton = document.getElementById(
   "rule-builder-save-formal-draft",
 );
+const ruleBuilderAuthoringController = createRuleBuilderAuthoringController({
+  request: fetch,
+  parseResponse: parseJsonBody,
+  errorMessage: errorDetailFromPayload,
+});
 const ruleBuilderSaveDraftButton = document.getElementById("rule-builder-save-draft");
 const ruleBuilderDraftStatus = document.getElementById("rule-builder-draft-status");
 const ruleBuilderCanvasCount = document.getElementById("rule-builder-canvas-count");
@@ -856,7 +937,6 @@ const getRuleBuilderCompletionState = () => {
     metadata: isMetadataStepComplete(),
     conditions: isConditionsStepComplete(),
     test: isTestStepComplete(),
-    review: isTestStepComplete(),
   };
 };
 
@@ -947,7 +1027,9 @@ const showStepGateMessage = (stepName) => {
 const updateStepNavigationState = () => {
   const completion = getRuleBuilderCompletionState();
   const currentStep = ruleBuilderStepOrder[activeRuleBuilderStepIndex] ?? "";
-  const currentComplete = completion[currentStep] === true;
+  const currentComplete =
+    currentStep === "review" ? completion.test === true : completion[currentStep] === true;
+  const submissionInProgress = ruleBuilderAuthoringController.state() !== "idle";
 
   ruleBuilderStepButtons.forEach((candidate) => {
     if (!(candidate instanceof HTMLButtonElement)) {
@@ -987,12 +1069,12 @@ const updateStepNavigationState = () => {
 
   if (ruleBuilderSubmitButton instanceof HTMLButtonElement) {
     ruleBuilderSubmitButton.hidden = !isLastStep;
-    ruleBuilderSubmitButton.disabled = !completion.review;
+    ruleBuilderSubmitButton.disabled = submissionInProgress || !completion.test;
   }
 
   if (ruleBuilderSaveFormalDraftButton instanceof HTMLButtonElement) {
     ruleBuilderSaveFormalDraftButton.hidden = !isLastStep;
-    ruleBuilderSaveFormalDraftButton.disabled = !completion.review;
+    ruleBuilderSaveFormalDraftButton.disabled = submissionInProgress || !completion.test;
   }
 
   if (ruleBuilderStepCallout instanceof HTMLElement) {
@@ -4293,17 +4375,14 @@ const performRuleBuilderDraftSave = async (options) => {
   }
 };
 
-let ruleBuilderDraftSaveQueue = Promise.resolve();
+let ruleBuilderDraftSaveQueue = Promise.resolve(true);
 
 const saveRuleBuilderDraft = (options) => {
   const save = ruleBuilderDraftSaveQueue.then(
     () => performRuleBuilderDraftSave(options),
     () => performRuleBuilderDraftSave(options),
   );
-  ruleBuilderDraftSaveQueue = save.then(
-    () => undefined,
-    () => undefined,
-  );
+  ruleBuilderDraftSaveQueue = save;
   return save;
 };
 
@@ -5007,57 +5086,22 @@ if (
       });
     }
 
-    const setRuleBuilderSubmissionButtonsDisabled = (disabled) => {
-      if (ruleBuilderSubmitButton instanceof HTMLButtonElement) {
-        ruleBuilderSubmitButton.disabled = disabled;
-      }
-
-      if (ruleBuilderSaveFormalDraftButton instanceof HTMLButtonElement) {
-        ruleBuilderSaveFormalDraftButton.disabled = disabled;
-      }
-    };
-
-    const savedRuleVersionIdsFromPayload = (payload) => {
-      if (!payload || typeof payload !== 'object') {
-        return null;
-      }
-
-      const rule =
-        payload.rule && typeof payload.rule === 'object' ? payload.rule : null;
-      const version =
-        payload.version && typeof payload.version === 'object' ? payload.version : null;
-
-      if (
-        !rule ||
-        typeof rule.id !== 'string' ||
-        rule.id.length === 0 ||
-        !version ||
-        typeof version.id !== 'string' ||
-        version.id.length === 0
-      ) {
-        return null;
-      }
-
-      return {
-        ruleId: rule.id,
-        versionId: version.id,
-      };
-    };
-
     ruleCreateForm.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const submitForApproval =
-        event.submitter instanceof HTMLButtonElement &&
-        event.submitter.dataset.ruleSubmitMode === 'approval';
-      const savingMessage = submitForApproval
-        ? 'Saving the rule before submission...'
-        : isRuleBuilderEditMode
-          ? 'Saving a new draft version...'
-          : 'Creating rule draft...';
-      setRuleBuilderSubmissionButtonsDisabled(true);
-      setStatus(ruleCreateStatus, savingMessage, false);
-      setCodeOutput(ruleBuilderTestOutput, '');
-      syncRuleBuilderSummary(savingMessage);
+
+      if (ruleBuilderAuthoringController.state() !== 'idle') {
+        return;
+      }
+
+      const action =
+        event.submitter instanceof HTMLButtonElement ? event.submitter.value : '';
+
+      if (action !== 'save_draft' && action !== 'submit_for_approval') {
+        const message = 'Choose whether to submit this rule or save it as a draft.';
+        setStatus(ruleCreateStatus, message, true);
+        syncRuleBuilderSummary(message);
+        return;
+      }
 
       const name = getTextFieldValue('name');
       const description = getTextFieldValue('description');
@@ -5075,7 +5119,6 @@ if (
         syncRuleBuilderSummary(
           'Rule name, badge template, and LMS connection are required.',
         );
-        setRuleBuilderSubmissionButtonsDisabled(false);
         return;
       }
 
@@ -5092,7 +5135,6 @@ if (
         syncRuleBuilderSummary(
           error instanceof Error ? error.message : 'Rule payload is invalid.',
         );
-        setRuleBuilderSubmissionButtonsDisabled(false);
         return;
       }
 
@@ -5124,70 +5166,57 @@ if (
           changeSummary + ' Issuance timing: ' + issuanceLabel + '.';
       }
 
-      if (!isRuleBuilderEditMode) {
-        await ruleBuilderDraftSaveQueue;
+      const authoringPromise = ruleBuilderAuthoringController.execute({
+        apiPath: ruleBuilderSubmitApiPath,
+        payload: {
+          name,
+          ...(description.length > 0 ? { description } : {}),
+          badgeTemplateId,
+          lmsConnectionId,
+          definition: definitionWithOptions,
+          ...(changeSummary.length > 0 ? { changeSummary } : {}),
+          action,
+          ...(!isRuleBuilderEditMode &&
+          ruleBuilderContext &&
+          typeof ruleBuilderContext.builderDraftId === 'string'
+            ? { builderDraftId: ruleBuilderContext.builderDraftId }
+            : {}),
+        },
+        ...(!isRuleBuilderEditMode
+          ? { prepareRequest: () => saveRuleBuilderDraft({ quiet: false }) }
+          : {}),
+      });
+      const savingMessage =
+        action === 'submit_for_approval'
+          ? 'Saving and submitting the rule...'
+          : isRuleBuilderEditMode
+            ? 'Saving a new draft version...'
+            : 'Creating rule draft...';
+      setStatus(ruleCreateStatus, savingMessage, false);
+      setCodeOutput(ruleBuilderTestOutput, '');
+      syncRuleBuilderSummary(savingMessage);
+      const result = await authoringPromise;
+
+      if (result.status === 'ignored') {
+        return;
       }
 
-      let savedPayload;
-
-      try {
-        const saveResponse = await fetch(ruleBuilderSubmitApiPath, {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify({
-            name,
-            ...(description.length > 0 ? { description } : {}),
-            badgeTemplateId,
-            lmsConnectionId,
-            definition: definitionWithOptions,
-            ...(changeSummary.length > 0 ? { changeSummary } : {}),
-            ...(!isRuleBuilderEditMode &&
-            ruleBuilderContext &&
-            typeof ruleBuilderContext.builderDraftId === "string"
-              ? { builderDraftId: ruleBuilderContext.builderDraftId }
-              : {}),
-          }),
-        });
-        savedPayload = await parseJsonBody(saveResponse);
-
-        if (!saveResponse.ok) {
-          const message = errorDetailFromPayload(savedPayload);
-          setStatus(ruleCreateStatus, message, true);
-          syncRuleBuilderSummary(message);
-          setRuleBuilderSubmissionButtonsDisabled(false);
-          return;
-        }
-      } catch {
-        const message = isRuleBuilderEditMode
-          ? 'CredTrail could not confirm whether the new draft version was saved. Check Rules before trying again.'
-          : 'CredTrail could not confirm whether the rule draft was created. Check Rules before trying again.';
+      if (result.status === 'precondition_failed') {
+        const message = 'Unable to save unfinished work before creating the rule.';
         setStatus(ruleCreateStatus, message, true);
         syncRuleBuilderSummary(message);
-        setTimeout(() => {
-          window.location.assign(rulesListPath);
-        }, 2500);
         return;
       }
 
-      if (!submitForApproval) {
-        const successMessage = isRuleBuilderEditMode
-          ? 'New draft version saved.'
-          : 'Rule draft created.';
-        setStatus(ruleCreateStatus, successMessage, false, 'success');
-        syncRuleBuilderSummary(successMessage);
-        setTimeout(() => {
-          window.location.assign(rulesListPath);
-        }, 900);
+      if (result.status === 'rejected') {
+        setStatus(ruleCreateStatus, result.message, true);
+        syncRuleBuilderSummary(result.message);
         return;
       }
 
-      const savedIds = savedRuleVersionIdsFromPayload(savedPayload);
-
-      if (!savedIds) {
+      if (result.status === 'unknown') {
         const message =
-          'The rule draft was saved, but CredTrail could not identify the version to submit. Open Rules to submit it.';
+          'CredTrail could not confirm the rule authoring result. Check Rules before trying again.';
         setStatus(ruleCreateStatus, message, true);
         syncRuleBuilderSummary(message);
         setTimeout(() => {
@@ -5196,51 +5225,19 @@ if (
         return;
       }
 
-      setStatus(ruleCreateStatus, 'Submitting the saved rule for approval...', false);
-      syncRuleBuilderSummary('Submitting the saved rule for approval...');
-
-      try {
-        const submitResponse = await fetch(
-          badgeRuleApiPath +
-            '/' +
-            encodeURIComponent(savedIds.ruleId) +
-            '/versions/' +
-            encodeURIComponent(savedIds.versionId) +
-            '/submit-approval',
-          {
-            method: 'POST',
-          },
-        );
-        const submitPayload = await parseJsonBody(submitResponse);
-
-        if (!submitResponse.ok) {
-          const message =
-            'The rule draft was saved, but it was not submitted: ' +
-            errorDetailFromPayload(submitPayload) +
-            ' Open Rules to try again.';
-          setStatus(ruleCreateStatus, message, true);
-          syncRuleBuilderSummary(message);
-          setTimeout(() => {
-            window.location.assign(rulesListPath);
-          }, 2500);
-          return;
-        }
-
-        const successMessage = 'Rule submitted for approval.';
-        setStatus(ruleCreateStatus, successMessage, false, 'success');
-        syncRuleBuilderSummary(successMessage);
-        setTimeout(() => {
-          window.location.assign(rulesListPath);
-        }, 900);
-      } catch {
-        const message =
-          'The rule draft was saved, but CredTrail could not confirm its submission. Check Rules before trying again.';
-        setStatus(ruleCreateStatus, message, true);
-        syncRuleBuilderSummary(message);
-        setTimeout(() => {
-          window.location.assign(rulesListPath);
-        }, 2500);
-      }
+      const successMessage =
+        result.outcome === 'approved'
+          ? 'Rule saved and approved by institution policy.'
+          : result.outcome === 'pending_approval'
+            ? 'Rule submitted for approval.'
+            : isRuleBuilderEditMode
+              ? 'New draft version saved.'
+              : 'Rule draft created.';
+      setStatus(ruleCreateStatus, successMessage, false, 'success');
+      syncRuleBuilderSummary(successMessage);
+      setTimeout(() => {
+        window.location.assign(rulesListPath);
+      }, 900);
     });
 
     const badgeTemplateField = getRuleCreateField('badgeTemplateId');

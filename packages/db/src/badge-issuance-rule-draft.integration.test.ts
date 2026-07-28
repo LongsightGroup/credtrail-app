@@ -229,6 +229,260 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
     }
   });
 
+  it("creates and submits one builder version in the same transaction", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      await dbModule.saveBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        id: "brd_submit",
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        target: { kind: "unfinished" },
+        currentStep: "review",
+        draftJson: JSON.stringify({ name: "Submit me" }),
+      });
+
+      const result = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+        tenantId: fixture.tenantId,
+        builderDraftId: "brd_submit",
+        name: "Submitted rule",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+        action: "submit_for_approval",
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+      });
+      const replayed = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+        tenantId: fixture.tenantId,
+        builderDraftId: "brd_submit",
+        name: "A retry must not replace the submitted rule",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":90}}',
+        action: "submit_for_approval",
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+      });
+      const versionCount = await selectCount(
+        fixture.db,
+        "SELECT COUNT(*) AS totalCount FROM badge_issuance_rule_versions WHERE tenant_id = ?",
+        [fixture.tenantId],
+      );
+      const approvalStepCount = await selectCount(
+        fixture.db,
+        "SELECT COUNT(*) AS totalCount FROM badge_issuance_rule_approval_steps WHERE tenant_id = ?",
+        [fixture.tenantId],
+      );
+      const remainingDraft = await dbModule.findBadgeIssuanceRuleBuilderDraftById(fixture.db, {
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        draftId: "brd_submit",
+      });
+
+      expect(result.status).toBe("completed");
+      expect(result.status === "completed" ? result.outcome : null).toBe("pending_approval");
+      expect(result.status === "completed" ? result.version.status : null).toBe("pending_approval");
+      expect(result.status === "completed" ? result.pendingStepNumber : null).toBe(1);
+      expect(replayed.status).toBe("completed");
+      expect(replayed.status === "completed" ? replayed.writeStatus : null).toBe("replayed");
+      expect(replayed.status === "completed" ? replayed.pendingStepNumber : null).toBe(1);
+      expect(versionCount).toBe(1);
+      expect(approvalStepCount).toBe(1);
+      expect(remainingDraft).toBeNull();
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
+  it("never advances a replayed builder identity through a new lifecycle transition", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      await dbModule.saveBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        id: "brd_replay_without_transition",
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        target: { kind: "unfinished" },
+        currentStep: "review",
+        draftJson: JSON.stringify({ name: "Replay without transition" }),
+      });
+      const created = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+        tenantId: fixture.tenantId,
+        builderDraftId: "brd_replay_without_transition",
+        name: "Saved rule",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+        action: "save_draft",
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+      });
+
+      if (created.status !== "completed") {
+        throw new Error(`Expected completed authoring, received ${created.status}`);
+      }
+
+      const replayedDraft = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+        tenantId: fixture.tenantId,
+        builderDraftId: "brd_replay_without_transition",
+        name: "A retry must not submit this draft",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":90}}',
+        action: "submit_for_approval",
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+      });
+      await fixture.db
+        .prepare("UPDATE badge_issuance_rule_versions SET status = 'rejected' WHERE id = ?")
+        .bind(created.version.id)
+        .run();
+      const replayedRejected = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+        tenantId: fixture.tenantId,
+        builderDraftId: "brd_replay_without_transition",
+        name: "A retry must not resubmit this rejection",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":95}}',
+        action: "submit_for_approval",
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+      });
+      const persistedVersion = await dbModule.findBadgeIssuanceRuleVersionById(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+      });
+      const approvalStepCount = await selectCount(
+        fixture.db,
+        "SELECT COUNT(*) AS totalCount FROM badge_issuance_rule_approval_steps WHERE tenant_id = ? AND version_id = ?",
+        [fixture.tenantId, created.version.id],
+      );
+
+      expect(replayedDraft.status).toBe("completed");
+      expect(replayedDraft.status === "completed" ? replayedDraft.outcome : null).toBe(
+        "draft_saved",
+      );
+      expect(replayedDraft.status === "completed" ? replayedDraft.version.status : null).toBe(
+        "draft",
+      );
+      expect(replayedRejected.status).toBe("replay_conflict");
+      expect(persistedVersion?.status).toBe("rejected");
+      expect(approvalStepCount).toBe(0);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
+  it("rolls back the formal rule when its approval policy rejects submission", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        approvalRequirement: "never",
+        allowSelfCertification: false,
+        approvalSteps: [],
+        createdByUserId: fixture.userId,
+      });
+      await dbModule.saveBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        id: "brd_rejected_submission",
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        target: { kind: "unfinished" },
+        currentStep: "review",
+        draftJson: JSON.stringify({ name: "Keep unfinished" }),
+      });
+
+      const result = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+        tenantId: fixture.tenantId,
+        builderDraftId: "brd_rejected_submission",
+        name: "Must roll back",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+        action: "submit_for_approval",
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+      });
+      const ruleCount = await selectCount(
+        fixture.db,
+        "SELECT COUNT(*) AS totalCount FROM badge_issuance_rules WHERE tenant_id = ?",
+        [fixture.tenantId],
+      );
+      const versionCount = await selectCount(
+        fixture.db,
+        "SELECT COUNT(*) AS totalCount FROM badge_issuance_rule_versions WHERE tenant_id = ?",
+        [fixture.tenantId],
+      );
+      const remainingDraft = await dbModule.findBadgeIssuanceRuleBuilderDraftById(fixture.db, {
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        draftId: "brd_rejected_submission",
+      });
+
+      expect(result.status).toBe("self_certification_required");
+      expect(ruleCount).toBe(0);
+      expect(versionCount).toBe(0);
+      expect(remainingDraft?.currentStep).toBe("review");
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
+  it("reports immediate policy approval as an approved authoring outcome", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        approvalRequirement: "never",
+        allowSelfCertification: true,
+        approvalSteps: [],
+        createdByUserId: fixture.userId,
+      });
+
+      const result = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+        tenantId: fixture.tenantId,
+        name: "Automatically approved rule",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+        action: "submit_for_approval",
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+      });
+
+      expect(result.status).toBe("completed");
+      expect(result.status === "completed" ? result.outcome : null).toBe("approved");
+      expect(result.status === "completed" ? result.version.approvedByUserId : null).toBe(
+        fixture.userId,
+      );
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
   it("creates and lists rules by explicit org-unit descendant scope", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 

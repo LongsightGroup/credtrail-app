@@ -12,6 +12,7 @@ const baseDefinition = parseCreateBadgeIssuanceRuleRequest({
   badgeTemplateId: "badge_template_program",
   lmsConnectionId: "lms_123",
   lmsProviderKind: "canvas",
+  action: "save_draft",
   definition: {
     conditions: {
       all: [
@@ -211,6 +212,7 @@ describe("badge issuance rule engine", () => {
       badgeTemplateId: "badge_template_survey",
       lmsConnectionId: "lms_123",
       lmsProviderKind: "canvas",
+      action: "save_draft",
       definition: {
         conditions: {
           all: [

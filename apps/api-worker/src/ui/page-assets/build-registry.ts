@@ -156,6 +156,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     stem: "institution-admin-rule-builder",
     sources: [
       "admin-browser-primitives.js",
+      "institution-admin-rule-builder-authoring.js",
       "institution-admin-rule-builder-bootstrap.js",
       ADMIN_STATUS_PILL_CLASS_SCRIPT_SOURCE,
       "institution-admin-rule-builder-setup.js",

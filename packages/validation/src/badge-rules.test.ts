@@ -25,6 +25,7 @@ describe("badge issuance rule parsers", () => {
       badgeTemplateId: "badge_template_cs101",
       lmsConnectionId: "lms_123",
       lmsProviderKind: "canvas",
+      action: "save_draft",
       definition: {
         conditions: {
           all: [
@@ -83,6 +84,7 @@ describe("badge issuance rule parsers", () => {
       description: "",
       badgeTemplateId: "badge_template_cs101",
       lmsConnectionId: "lms_123",
+      action: "save_draft",
       definition: createRequest.definition,
       changeSummary: "Tighten course completion rule",
     });
@@ -147,6 +149,7 @@ describe("badge issuance rule parsers", () => {
       badgeTemplateId: "badge_template_cs101",
       lmsConnectionId: "lms_123",
       lmsProviderKind: "canvas",
+      action: "save_draft",
       definition: {
         conditions: {
           type: "course_completion",
@@ -160,6 +163,7 @@ describe("badge issuance rule parsers", () => {
       badgeTemplateId: "badge_template_cs101",
       lmsConnectionId: "lms_123",
       lmsProviderKind: "canvas",
+      action: "save_draft",
       definition: {
         conditions: {
           type: "course_completion",
@@ -264,6 +268,7 @@ describe("badge issuance rule parsers", () => {
       badgeTemplateId: "badge_template_program",
       lmsConnectionId: "lms_123",
       lmsProviderKind: "canvas",
+      action: "submit_for_approval",
       definition: {
         conditions: {
           all: [
@@ -311,6 +316,7 @@ describe("badge issuance rule parsers", () => {
         badgeTemplateId: "badge_template_cs101",
         lmsConnectionId: "lms_123",
         lmsProviderKind: "canvas",
+        action: "save_draft",
         definition: {
           conditions: {
             type: "grade_threshold",
@@ -339,6 +345,7 @@ describe("badge issuance rule parsers", () => {
         name: "Governed Rule",
         badgeTemplateId: "badge_template_cs101",
         lmsConnectionId: "lms_123",
+        action: "save_draft",
         definition: {
           conditions: {
             type: "grade_threshold",
@@ -358,6 +365,7 @@ describe("badge issuance rule parsers", () => {
         badgeTemplateId: "badge_template_cs101",
         lmsConnectionId: "lms_123",
         lmsProviderKind: "canvas",
+        action: "save_draft",
         definition: {
           conditions: {
             type: "course_completion",
@@ -372,7 +380,7 @@ describe("badge issuance rule parsers", () => {
   it("parses unfinished and formal-rule builder draft targets", () => {
     const unfinished = parseSaveBadgeIssuanceRuleBuilderDraftRequest({
       target: { kind: "unfinished" },
-      currentStep: "metadata",
+      currentStep: "review",
     });
     const formalRule = parseSaveBadgeIssuanceRuleBuilderDraftRequest({
       target: {
@@ -384,11 +392,28 @@ describe("badge issuance rule parsers", () => {
     });
 
     expect(unfinished.target).toEqual({ kind: "unfinished" });
+    expect(unfinished.currentStep).toBe("review");
     expect(formalRule.target).toEqual({
       kind: "formal_rule",
       ruleId: "brl_rule",
       versionId: "brv_version",
     });
+  });
+
+  it("requires an explicit authoring action", () => {
+    expect(() => {
+      parseCreateBadgeIssuanceRuleRequest({
+        name: "Missing action",
+        badgeTemplateId: "badge_template_cs101",
+        lmsConnectionId: "lms_123",
+        definition: {
+          conditions: {
+            type: "course_completion",
+            courseId: "course_101",
+          },
+        },
+      });
+    }).toThrow(/./);
   });
 
   it("rejects builder draft targets with only one formal identity", () => {

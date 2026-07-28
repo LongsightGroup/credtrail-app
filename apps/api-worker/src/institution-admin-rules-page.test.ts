@@ -2421,8 +2421,9 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("Test the rule");
     expect(body).toContain("Review and submit");
     expect(body).toContain("Submit for approval");
-    expect(body).toContain("Approval requires another person.");
-    expect(body).toContain("The person who creates or submits this version cannot approve it.");
+    expect(body).toContain("CredTrail follows your institution");
+    expect(body).toContain("Rules that require review go to another eligible approver.");
+    expect(body).toContain("automatic approval approve the version immediately");
     expect(body).toContain('id="rule-builder-condition-list"');
     expect(body).toContain('id="rule-builder-definition-json"');
     expect(body).not.toContain('id="rule-builder-step-prev"');
@@ -2453,6 +2454,12 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     );
     expect(body).toContain("Create and submit for approval");
     expect(body).toContain("Create rule draft");
+    expect(body).toMatch(
+      /id="rule-builder-submit"[^>]*name="action"[^>]*value="submit_for_approval"/,
+    );
+    expect(body).toMatch(
+      /id="rule-builder-save-formal-draft"[^>]*name="action"[^>]*value="save_draft"/,
+    );
     expect(body).toMatch(/id="rule-builder-submit"[^>]*hidden/);
     expect(body).toMatch(/id="rule-builder-save-formal-draft"[^>]*hidden/);
     expect(body).not.toMatch(/id="rule-builder-step-next"[^>]*hidden/);
@@ -2620,18 +2627,23 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-condition-list");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("credtrail:rule-builder:");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("saveRuleBuilderDraft");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("await ruleBuilderDraftSaveQueue");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "prepareRequest: () => saveRuleBuilderDraft({ quiet: false })",
+    );
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain(
       "const draftSaved = await saveRuleBuilderDraft",
     );
     expect(body).toContain('id="rule-builder-save-draft"');
     expect(body).toContain("Save unfinished work");
     expect(body).toContain("Unfinished work not saved yet.");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "event.submitter.dataset.ruleSubmitMode === 'approval'",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("'/submit-approval'");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("createRuleBuilderAuthoringController");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("review: isTestStepComplete()");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("'/submit-approval'");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("action,");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("Rule submitted for approval.");
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+      "Rule saved and approved by institution policy.",
+    );
     expect(body).toMatch(
       /&quot;badgeRuleBuilderDraftApiPath&quot;:&quot;\/v1\/tenants\/tenant_123\/badge-rule-builder-drafts\/brd_[^&]+&quot;/,
     );
