@@ -173,6 +173,33 @@ export const findTenantLmsConnectionById = async (
   return row === null ? null : mapTenantLmsConnectionRow(row);
 };
 
+/** Finds the LMS connection associated with one verified LTI registration tuple. */
+export const findTenantLmsConnectionByLtiRegistration = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly issuer: string;
+    readonly clientId: string;
+    readonly deploymentId: string;
+  },
+): Promise<TenantLmsConnectionRecord | null> => {
+  const row = await db
+    .prepare(
+      `
+        ${tenantLmsConnectionSelectSql}
+        WHERE tenant_id = ?
+          AND lti_issuer = ?
+          AND lti_client_id = ?
+          AND lti_deployment_id = ?
+        LIMIT 1
+      `,
+    )
+    .bind(input.tenantId, input.issuer, input.clientId, input.deploymentId)
+    .first<TenantLmsConnectionRow>();
+
+  return row === null ? null : mapTenantLmsConnectionRow(row);
+};
+
 export const upsertTenantLmsConnection = async (
   db: SqlDatabase,
   input: UpsertTenantLmsConnectionInput,

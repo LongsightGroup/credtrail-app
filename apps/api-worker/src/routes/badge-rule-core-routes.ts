@@ -37,6 +37,7 @@ import {
   type ResolvedGradebookProvider,
 } from "../lms/gradebook-provider-resolution";
 import { lmsLookupErrorMessage } from "../lms/gradebook-picker";
+import { authorizeBadgeRuleCourses } from "../rules/badge-rule-course-authorization";
 import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
 import { validateBadgeRuleReferences } from "../rules/badge-rule-reference-validator";
 import { extractBadgeIssuanceRuleRequirements } from "../rules/engine";
@@ -58,13 +59,14 @@ type PrepareBadgeRuleDraftResult =
     }
   | {
       status: "error";
-      statusCode: 409 | 422 | 502;
+      statusCode: 403 | 409 | 422 | 502;
       error: string;
     };
 
 const prepareBadgeRuleDraft = async (input: {
   db: SqlDatabase;
   tenantId: string;
+  userId: string;
   request: BadgeRuleDraftRequest;
   missingLmsConnectionMessage: string;
 }): Promise<PrepareBadgeRuleDraftResult> => {
@@ -109,6 +111,33 @@ const prepareBadgeRuleDraft = async (input: {
       status: "error",
       statusCode: 409,
       error: error instanceof Error ? error.message : "Unable to use LMS connection",
+    };
+  }
+
+  try {
+    const authorization = await authorizeBadgeRuleCourses({
+      db: input.db,
+      resolvedProvider,
+      userId: input.userId,
+      definition: resolvedDefinition,
+    });
+
+    if (authorization.status !== "authorized") {
+      return {
+        status: "error",
+        statusCode: 403,
+        error: authorization.error,
+      };
+    }
+  } catch (error) {
+    return {
+      status: "error",
+      statusCode: 502,
+      error: lmsLookupErrorMessage(
+        resolvedProvider.connection,
+        error,
+        "Unable to verify LMS course access",
+      ),
     };
   }
 
@@ -230,6 +259,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
     const prepared = await prepareBadgeRuleDraft({
       db,
       tenantId: tenantParams.tenantId,
+      userId: session.userId,
       request,
       missingLmsConnectionMessage:
         "Select a connected LMS gradebook source before creating a rule.",
@@ -364,6 +394,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
     const prepared = await prepareBadgeRuleDraft({
       db,
       tenantId: pathParams.tenantId,
+      userId: session.userId,
       request,
       missingLmsConnectionMessage:
         "Select a connected LMS gradebook source before saving a rule draft.",

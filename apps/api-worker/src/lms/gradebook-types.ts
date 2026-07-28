@@ -18,6 +18,7 @@ export interface GradebookCourseRecord {
 }
 
 export interface GradebookCourseSearchInput {
+  readonly providerUserId: string;
   readonly searchTerm?: string;
   readonly limit: number;
 }
@@ -25,6 +26,10 @@ export interface GradebookCourseSearchInput {
 export interface GradebookCourseSearchResult {
   readonly courses: readonly GradebookCourseRecord[];
   readonly hasMore: boolean;
+}
+
+export interface GradebookCourseAccessResult {
+  readonly unauthorizedCourseIds: readonly string[];
 }
 
 export interface GradebookAssignmentRecord {
@@ -85,6 +90,10 @@ export interface GradebookCompletionRecord {
 export interface GradebookProvider {
   readonly kind: GradebookProviderKind;
   listCourses(input: GradebookCourseSearchInput): Promise<GradebookCourseSearchResult>;
+  verifyCourseAccess(input: {
+    readonly providerUserId: string;
+    readonly courseIds: readonly string[];
+  }): Promise<GradebookCourseAccessResult>;
   listAssignments(input: { courseId: string }): Promise<readonly GradebookAssignmentRecord[]>;
   listEnrollments(input: {
     courseId: string;

@@ -300,6 +300,7 @@ export const createCanvasGradebookProvider = (
   const apiBaseUrl = ensureHttpBaseUrl(config.apiBaseUrl);
   const rawEnrollmentsCache = new Map<string, Promise<readonly unknown[]>>();
   const assignmentsCache = new Map<string, Promise<readonly GradebookAssignmentRecord[]>>();
+  const manageableCoursesCache = new Map<string, Promise<readonly GradebookCourseRecord[]>>();
   const submissionsCache = new Map<string, Promise<readonly GradebookSubmissionRecord[]>>();
 
   const readCachedArray = <T>(
@@ -444,22 +445,32 @@ export const createCanvasGradebookProvider = (
     });
   };
 
-  return {
-    kind: "canvas",
-    listCourses: async (input): Promise<GradebookCourseSearchResult> => {
+  const listManageableCourses = (
+    providerUserId: string,
+  ): Promise<readonly GradebookCourseRecord[]> => {
+    return readCachedArray(manageableCoursesCache, providerUserId, async () => {
       const query = new URLSearchParams();
       query.set("per_page", "100");
       query.set("enrollment_state", "active");
+      query.set("enrollment_type", "teacher");
       const courses = await requestArray(
-        "/api/v1/courses",
+        `/api/v1/users/${encodeURIComponent(providerUserId)}/courses`,
         query,
         CANVAS_GRADEBOOK_FULL_MAX_PAGES,
         "throw",
         "course_search",
       );
-      const normalizedCourses = courses
+
+      return courses
         .map((course) => parseCourseRecord(course))
         .filter((course): course is GradebookCourseRecord => course !== null);
+    });
+  };
+
+  return {
+    kind: "canvas",
+    listCourses: async (input): Promise<GradebookCourseSearchResult> => {
+      const normalizedCourses = await listManageableCourses(input.providerUserId);
       const searchTerm = input.searchTerm?.trim().toLocaleLowerCase() ?? "";
 
       const matchingCourses = normalizedCourses
@@ -480,6 +491,17 @@ export const createCanvasGradebookProvider = (
       return {
         courses: matchingCourses.slice(0, input.limit),
         hasMore: matchingCourses.length > input.limit,
+      };
+    },
+    verifyCourseAccess: async (input) => {
+      const manageableCourseIds = new Set(
+        (await listManageableCourses(input.providerUserId)).map((course) => course.courseId),
+      );
+
+      return {
+        unauthorizedCourseIds: input.courseIds.filter(
+          (courseId) => !manageableCourseIds.has(courseId),
+        ),
       };
     },
     listAssignments: async (input): Promise<readonly GradebookAssignmentRecord[]> => {

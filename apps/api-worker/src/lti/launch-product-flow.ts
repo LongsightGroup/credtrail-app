@@ -1,4 +1,9 @@
-import { attachLtiLaunchSessionPrincipal } from "@credtrail/db";
+import {
+  attachLtiLaunchSessionPrincipal,
+  findTenantLmsConnectionByLtiRegistration,
+  upsertTenantLmsUserIdentity,
+} from "@credtrail/db";
+import { LTI_CLAIM_DEPLOYMENT_ID } from "@longsightgroup/lti-tool";
 import type { AppContext } from "../app";
 import { renderLtiDeepLinkingLaunchResponse } from "./launch-deep-linking-flow";
 import { linkLtiLaunchAccount, type LinkedLtiLaunchAccount } from "./launch-account-linking";
@@ -87,6 +92,7 @@ export const createCredTrailAuthSessionFromLtiLaunch = async (input: {
   launchClaims: ResolvedLtiLaunch["launchClaims"];
   launchMessage: ResolvedLtiLaunchMessage;
   ltiLaunchSession: ResolvedLtiLaunch["ltiLaunchSession"];
+  ltiClientId: string;
   sha256Hex: (value: string) => Promise<string>;
   createLtiSession: HandleVerifiedLtiLaunchInput["createLtiSession"];
 }): Promise<ProductFlowResult<EstablishedLtiLaunchSession>> => {
@@ -106,6 +112,32 @@ export const createCredTrailAuthSessionFromLtiLaunch = async (input: {
       issuer: input.launchClaims.iss,
       hasEmailClaim: ltiEmailFromClaims(input.launchClaims) !== null,
       hasSourcedIdClaim: ltiSourcedIdFromClaims(input.launchClaims) !== null,
+      detail: error instanceof Error ? error.message : "unknown error",
+    });
+
+    return productFlowFailure(accountLinkingFailure(input.c, error));
+  }
+
+  try {
+    const lmsConnection = await findTenantLmsConnectionByLtiRegistration(input.db, {
+      tenantId: input.tenantId,
+      issuer: input.launchClaims.iss,
+      clientId: input.ltiClientId,
+      deploymentId: input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
+    });
+
+    if (lmsConnection !== null) {
+      await upsertTenantLmsUserIdentity(input.db, {
+        tenantId: input.tenantId,
+        connectionId: lmsConnection.id,
+        userId: linkedAccount.userId,
+        providerUserId: input.launchClaims.sub,
+      });
+    }
+  } catch (error) {
+    ltiLogger(input.c)?.warn("Unable to link LTI launch to LMS connection", {
+      tenantId: input.tenantId,
+      issuer: input.launchClaims.iss,
       detail: error instanceof Error ? error.message : "unknown error",
     });
 
@@ -227,6 +259,7 @@ export const handleVerifiedLtiLaunch: HandleVerifiedLtiLaunch = async (input) =>
     launchClaims: input.resolvedLaunch.launchClaims,
     launchMessage: validatedLaunchMessage.launchMessage,
     ltiLaunchSession: input.resolvedLaunch.ltiLaunchSession,
+    ltiClientId: input.resolvedLaunch.issuerEntry.clientId,
     sha256Hex: input.sha256Hex,
     createLtiSession: input.createLtiSession,
   });

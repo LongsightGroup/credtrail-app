@@ -103,7 +103,8 @@ describe("createCanvasGradebookProvider", () => {
       },
       fetchImpl: createMockFetch([
         {
-          pathWithQuery: "/api/v1/courses?per_page=100&enrollment_state=active",
+          pathWithQuery:
+            "/api/v1/users/instructor-1/courses?per_page=100&enrollment_state=active&enrollment_type=teacher",
           responseBody: [
             {
               id: 42,
@@ -224,7 +225,10 @@ describe("createCanvasGradebookProvider", () => {
       ]),
     });
 
-    const courseSearch = await provider.listCourses({ limit: 100 });
+    const courseSearch = await provider.listCourses({
+      providerUserId: "instructor-1",
+      limit: 100,
+    });
     const assignments = await provider.listAssignments({
       courseId: "course-42",
     });
@@ -336,7 +340,8 @@ describe("createCanvasGradebookProvider", () => {
   it("searches the complete authorized course set across pages", async () => {
     const mockFetch = createRecordingMockFetch([
       {
-        pathWithQuery: "/api/v1/courses?per_page=100&enrollment_state=active",
+        pathWithQuery:
+          "/api/v1/users/instructor-1/courses?per_page=100&enrollment_state=active&enrollment_type=teacher",
         headers: {
           link: '<https://canvas.example.edu/api/v1/courses?page=2&per_page=100>; rel="next"',
         },
@@ -371,6 +376,7 @@ describe("createCanvasGradebookProvider", () => {
     });
 
     const result = await provider.listCourses({
+      providerUserId: "instructor-1",
       searchTerm: "capstone",
       limit: 100,
     });
@@ -385,7 +391,7 @@ describe("createCanvasGradebookProvider", () => {
       hasMore: false,
     });
     expect(mockFetch.requests).toEqual([
-      "/api/v1/courses?per_page=100&enrollment_state=active",
+      "/api/v1/users/instructor-1/courses?per_page=100&enrollment_state=active&enrollment_type=teacher",
       "/api/v1/courses?page=2&per_page=100",
     ]);
   });
@@ -393,7 +399,8 @@ describe("createCanvasGradebookProvider", () => {
   it("filters the authorized Canvas course set by title, code, or ID", async () => {
     const mockFetch = createRecordingMockFetch([
       {
-        pathWithQuery: "/api/v1/courses?per_page=100&enrollment_state=active",
+        pathWithQuery:
+          "/api/v1/users/instructor-1/courses?per_page=100&enrollment_state=active&enrollment_type=teacher",
         responseBody: [
           {
             id: 42,
@@ -419,7 +426,13 @@ describe("createCanvasGradebookProvider", () => {
       fetchImpl: mockFetch.fetchImpl,
     });
 
-    await expect(provider.listCourses({ searchTerm: " cap-401 ", limit: 100 })).resolves.toEqual({
+    await expect(
+      provider.listCourses({
+        providerUserId: "instructor-1",
+        searchTerm: " cap-401 ",
+        limit: 100,
+      }),
+    ).resolves.toEqual({
       courses: [
         expect.objectContaining({
           courseId: "42",
@@ -428,7 +441,13 @@ describe("createCanvasGradebookProvider", () => {
       ],
       hasMore: false,
     });
-    await expect(provider.listCourses({ searchTerm: "77", limit: 100 })).resolves.toEqual({
+    await expect(
+      provider.listCourses({
+        providerUserId: "instructor-1",
+        searchTerm: "77",
+        limit: 100,
+      }),
+    ).resolves.toEqual({
       courses: [
         expect.objectContaining({
           courseId: "77",
@@ -436,6 +455,38 @@ describe("createCanvasGradebookProvider", () => {
         }),
       ],
       hasMore: false,
+    });
+  });
+
+  it("verifies course access against the instructor's active teacher enrollments", async () => {
+    const mockFetch = createRecordingMockFetch([
+      {
+        pathWithQuery:
+          "/api/v1/users/instructor-1/courses?per_page=100&enrollment_state=active&enrollment_type=teacher",
+        responseBody: [
+          {
+            id: 42,
+            name: "Capstone Seminar",
+          },
+        ],
+      },
+    ]);
+    const provider = createCanvasGradebookProvider({
+      config: {
+        kind: "canvas",
+        apiBaseUrl: "https://canvas.example.edu",
+        accessToken: "canvas-token",
+      },
+      fetchImpl: mockFetch.fetchImpl,
+    });
+
+    await expect(
+      provider.verifyCourseAccess({
+        providerUserId: "instructor-1",
+        courseIds: ["42", "77"],
+      }),
+    ).resolves.toEqual({
+      unauthorizedCourseIds: ["77"],
     });
   });
 
@@ -492,7 +543,8 @@ describe("createCanvasGradebookProvider", () => {
       },
       fetchImpl: createMockFetch([
         {
-          pathWithQuery: "/api/v1/courses?per_page=100&enrollment_state=active",
+          pathWithQuery:
+            "/api/v1/users/instructor-1/courses?per_page=100&enrollment_state=active&enrollment_type=teacher",
           responseBody: {
             error: "server error",
           },
@@ -501,7 +553,9 @@ describe("createCanvasGradebookProvider", () => {
       ]),
     });
 
-    await expect(provider.listCourses({ limit: 100 })).rejects.toMatchObject({
+    await expect(
+      provider.listCourses({ providerUserId: "instructor-1", limit: 100 }),
+    ).rejects.toMatchObject({
       _tag: "GradebookProviderError",
       operation: "course_search",
       providerKind: "canvas",
@@ -518,7 +572,8 @@ describe("createCanvasGradebookProvider", () => {
       },
       fetchImpl: createMockFetch([
         {
-          pathWithQuery: "/api/v1/courses?per_page=100&enrollment_state=active",
+          pathWithQuery:
+            "/api/v1/users/instructor-1/courses?per_page=100&enrollment_state=active&enrollment_type=teacher",
           responseBody: {
             id: 42,
             name: "unexpected object",
@@ -527,7 +582,9 @@ describe("createCanvasGradebookProvider", () => {
       ]),
     });
 
-    await expect(provider.listCourses({ limit: 100 })).rejects.toMatchObject({
+    await expect(
+      provider.listCourses({ providerUserId: "instructor-1", limit: 100 }),
+    ).rejects.toMatchObject({
       _tag: "GradebookProviderError",
       operation: "course_search",
       providerKind: "canvas",

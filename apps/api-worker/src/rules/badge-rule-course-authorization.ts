@@ -1,0 +1,30 @@
+import type { SqlDatabase } from "@credtrail/db";
+import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
+import type { ResolvedGradebookProvider } from "../lms/gradebook-provider-resolution";
+import {
+  authorizeLmsUserCourses,
+  type LmsCourseAuthorizationResult,
+} from "../lms/user-course-access";
+import { extractBadgeIssuanceRuleRequirements } from "./engine";
+
+/** Applies the authoring user's LMS course scope to every course referenced by a rule. */
+export const authorizeBadgeRuleCourses = async (input: {
+  readonly db: SqlDatabase;
+  readonly resolvedProvider: ResolvedGradebookProvider;
+  readonly userId: string;
+  readonly definition: BadgeIssuanceRuleDefinition;
+}): Promise<LmsCourseAuthorizationResult> => {
+  const requirements = extractBadgeIssuanceRuleRequirements(input.definition);
+
+  if (requirements.courseIds.length === 0) {
+    return { status: "authorized" };
+  }
+
+  return authorizeLmsUserCourses({
+    db: input.db,
+    connection: input.resolvedProvider.connection,
+    provider: input.resolvedProvider.provider,
+    userId: input.userId,
+    courseIds: requirements.courseIds,
+  });
+};

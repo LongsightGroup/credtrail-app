@@ -8,11 +8,18 @@ import {
 import type { Hono } from "hono";
 import type { AppEnv } from "../app";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
-import { isClientGradebookProviderResolutionError } from "../lms/gradebook-provider-resolution";
+import {
+  isClientGradebookProviderResolutionError,
+  resolveGradebookProviderWithConnection,
+  type ResolvedGradebookProvider,
+} from "../lms/gradebook-provider-resolution";
+import { lmsLookupErrorMessage } from "../lms/gradebook-picker";
+import { authorizeBadgeRuleCourses } from "../rules/badge-rule-course-authorization";
 import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
 import { loadRuleFacts, MissingRuleRecipientIdentityError } from "../rules/badge-rule-facts-loader";
 import {
   evaluateBadgeIssuanceRuleDefinition,
+  extractBadgeIssuanceRuleRequirements,
   summarizeBadgeIssuanceRuleEvaluation,
   type BadgeIssuanceRuleEvaluationFacts,
 } from "../rules/engine";
@@ -73,6 +80,50 @@ export const registerBadgeRulePreviewRoutes = (
       );
     }
 
+    let resolvedProvider: ResolvedGradebookProvider | undefined;
+
+    if (extractBadgeIssuanceRuleRequirements(definition).courseIds.length > 0) {
+      try {
+        resolvedProvider = await resolveGradebookProviderWithConnection({
+          db,
+          tenantId: pathParams.tenantId,
+          lmsConnectionId: request.lmsConnectionId,
+          nowIso,
+        });
+      } catch (error) {
+        return c.json(
+          {
+            error: error instanceof Error ? error.message : "Unable to use LMS connection",
+          },
+          isClientGradebookProviderResolutionError(error) ? 422 : 409,
+        );
+      }
+
+      try {
+        const authorization = await authorizeBadgeRuleCourses({
+          db,
+          resolvedProvider,
+          userId: roleCheck.session.userId,
+          definition,
+        });
+
+        if (authorization.status !== "authorized") {
+          return c.json({ error: authorization.error }, 403);
+        }
+      } catch (error) {
+        return c.json(
+          {
+            error: lmsLookupErrorMessage(
+              resolvedProvider.connection,
+              error,
+              "Unable to verify LMS course access",
+            ),
+          },
+          502,
+        );
+      }
+    }
+
     let facts: BadgeIssuanceRuleEvaluationFacts;
 
     try {
@@ -85,6 +136,7 @@ export const registerBadgeRulePreviewRoutes = (
         ...(request.recipient === undefined ? {} : { recipient: request.recipient }),
         definition,
         requestedFacts: request.facts,
+        ...(resolvedProvider === undefined ? {} : { gradebookProvider: resolvedProvider.provider }),
         nowIso,
       });
     } catch (error) {

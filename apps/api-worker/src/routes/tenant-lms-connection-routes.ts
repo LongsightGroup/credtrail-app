@@ -29,6 +29,7 @@ import {
   resolveGradebookProviderWithConnection,
   type ResolvedGradebookProvider,
 } from "../lms/gradebook-provider-resolution";
+import { authorizeLmsUserCourses, resolveLmsUserCourseScope } from "../lms/user-course-access";
 
 interface RegisterTenantLmsConnectionRoutesInput {
   app: Hono<AppEnv>;
@@ -63,6 +64,40 @@ const resolvedProviderForTenantConnection = async (input: {
         error: error instanceof Error ? error.message : "Unable to use LMS connection",
       },
       { status },
+    );
+  }
+};
+
+const authorizeCourseForUser = async (input: {
+  db: SqlDatabase;
+  resolved: ResolvedGradebookProvider;
+  userId: string;
+  courseId: string;
+}): Promise<Response | null> => {
+  try {
+    const authorization = await authorizeLmsUserCourses({
+      db: input.db,
+      connection: input.resolved.connection,
+      provider: input.resolved.provider,
+      userId: input.userId,
+      courseIds: [input.courseId],
+    });
+
+    if (authorization.status === "authorized") {
+      return null;
+    }
+
+    return Response.json({ error: authorization.error }, { status: 403 });
+  } catch (error) {
+    return Response.json(
+      {
+        error: lmsLookupErrorMessage(
+          input.resolved.connection,
+          error,
+          "Unable to verify LMS course access",
+        ),
+      },
+      { status: 502 },
     );
   }
 };
@@ -193,8 +228,9 @@ export const registerTenantLmsConnectionRoutes = (
       return roleCheck;
     }
 
+    const db = resolveDatabase(c.env);
     const resolved = await resolvedProviderForTenantConnection({
-      db: resolveDatabase(c.env),
+      db,
       tenantId: pathParams.tenantId,
       connectionId: pathParams.connectionId,
     });
@@ -203,8 +239,19 @@ export const registerTenantLmsConnectionRoutes = (
       return resolved;
     }
 
+    const scope = await resolveLmsUserCourseScope({
+      db,
+      connection: resolved.connection,
+      userId: roleCheck.session.userId,
+    });
+
+    if (scope.status === "identity_unlinked") {
+      return c.json({ error: scope.error }, 403);
+    }
+
     try {
       const result = await resolved.provider.listCourses({
+        providerUserId: scope.providerUserId,
         limit: LMS_PICKER_MAX_COURSES,
         ...(query.q === undefined ? {} : { searchTerm: query.q }),
       });
@@ -236,14 +283,26 @@ export const registerTenantLmsConnectionRoutes = (
         return roleCheck;
       }
 
+      const db = resolveDatabase(c.env);
       const resolved = await resolvedProviderForTenantConnection({
-        db: resolveDatabase(c.env),
+        db,
         tenantId: pathParams.tenantId,
         connectionId: pathParams.connectionId,
       });
 
       if (resolved instanceof Response) {
         return resolved;
+      }
+
+      const courseAuthorization = await authorizeCourseForUser({
+        db,
+        resolved,
+        userId: roleCheck.session.userId,
+        courseId: pathParams.courseId,
+      });
+
+      if (courseAuthorization !== null) {
+        return courseAuthorization;
       }
 
       try {
@@ -287,14 +346,26 @@ export const registerTenantLmsConnectionRoutes = (
         return roleCheck;
       }
 
+      const db = resolveDatabase(c.env);
       const resolved = await resolvedProviderForTenantConnection({
-        db: resolveDatabase(c.env),
+        db,
         tenantId: pathParams.tenantId,
         connectionId: pathParams.connectionId,
       });
 
       if (resolved instanceof Response) {
         return resolved;
+      }
+
+      const courseAuthorization = await authorizeCourseForUser({
+        db,
+        resolved,
+        userId: roleCheck.session.userId,
+        courseId: pathParams.courseId,
+      });
+
+      if (courseAuthorization !== null) {
+        return courseAuthorization;
       }
 
       try {
@@ -335,14 +406,26 @@ export const registerTenantLmsConnectionRoutes = (
         return roleCheck;
       }
 
+      const db = resolveDatabase(c.env);
       const resolved = await resolvedProviderForTenantConnection({
-        db: resolveDatabase(c.env),
+        db,
         tenantId: pathParams.tenantId,
         connectionId: pathParams.connectionId,
       });
 
       if (resolved instanceof Response) {
         return resolved;
+      }
+
+      const courseAuthorization = await authorizeCourseForUser({
+        db,
+        resolved,
+        userId: roleCheck.session.userId,
+        courseId: pathParams.courseId,
+      });
+
+      if (courseAuthorization !== null) {
+        return courseAuthorization;
       }
 
       try {

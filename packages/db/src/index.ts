@@ -27,6 +27,7 @@ export * from "./ob3-resources";
 export * from "./tenant-api-keys";
 export * from "./tenant-auth-policies";
 export * from "./tenant-lms-connections";
+export * from "./tenant-lms-user-identities";
 export * from "./tenant-memberships";
 export * from "./tenant-org-units";
 export * from "./tenant-org-unit-hierarchy";

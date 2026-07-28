@@ -48,6 +48,7 @@ vi.mock("@credtrail/db", async () => {
     deleteBadgeIssuanceRuleBuilderDraftForRule: vi.fn(),
     resolveBadgeIssuanceRuleEvaluationReview: vi.fn(),
     findTenantLmsConnectionById: vi.fn(),
+    findTenantLmsUserIdentity: vi.fn(),
     listTenantLmsConnections: vi.fn(),
     upsertTenantLmsConnection: vi.fn(),
     updateTenantLmsConnectionTokens: vi.fn(),
@@ -114,6 +115,7 @@ import {
   findBadgeIssuanceRuleVersionById,
   findTenantMembership,
   findTenantLmsConnectionById,
+  findTenantLmsUserIdentity,
   listIssuedBadgeTemplateIdsForRecipient,
   listAuditLogs,
   listBadgeIssuanceRuleEvaluations,
@@ -184,6 +186,7 @@ const mockedResolveBadgeIssuanceRuleEvaluationReview = vi.mocked(
 );
 const mockedFindTenantMembership = vi.mocked(findTenantMembership);
 const mockedFindTenantLmsConnectionById = vi.mocked(findTenantLmsConnectionById);
+const mockedFindTenantLmsUserIdentity = vi.mocked(findTenantLmsUserIdentity);
 const mockedUpsertTenantLmsConnection = vi.mocked(upsertTenantLmsConnection);
 const mockedListIssuedBadgeTemplateIdsForRecipient = vi.mocked(
   listIssuedBadgeTemplateIdsForRecipient,
@@ -491,6 +494,7 @@ beforeEach(() => {
   courseSearchInputs.length = 0;
   mockedCreateGradebookProvider.mockReturnValue({
     kind: "canvas",
+    verifyCourseAccess: () => Promise.resolve({ unauthorizedCourseIds: [] }),
     listCourses: (input: GradebookCourseSearchInput) => {
       courseSearchInputs.push(input);
       return Promise.resolve({
@@ -554,6 +558,15 @@ beforeEach(() => {
   });
   mockedFindTenantLmsConnectionById.mockReset();
   mockedFindTenantLmsConnectionById.mockResolvedValue(sampleTenantLmsConnection());
+  mockedFindTenantLmsUserIdentity.mockReset();
+  mockedFindTenantLmsUserIdentity.mockResolvedValue({
+    tenantId: "tenant_123",
+    connectionId: "lms_123",
+    userId: "usr_123",
+    providerUserId: "instructor_123",
+    createdAt: "2026-02-17T00:00:00.000Z",
+    updatedAt: "2026-02-17T00:00:00.000Z",
+  });
   mockedUpsertTenantLmsConnection.mockReset();
   mockedUpsertTenantLmsConnection.mockResolvedValue(sampleTenantLmsConnection());
   mockedListIssuedBadgeTemplateIdsForRecipient.mockReset();
@@ -597,6 +610,41 @@ describe("badge rule routes", () => {
     expect(response.status).toBe(201);
     expect(mockedCreateBadgeIssuanceRule).toHaveBeenCalledTimes(1);
     expect(mockedCreateAuditLog).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not save a course rule for a user without a linked LMS identity", async () => {
+    const env = createEnv();
+    mockedFindTenantLmsUserIdentity.mockResolvedValue(null);
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "CS101 Rule",
+          badgeTemplateId: "badge_template_cs101",
+          lmsConnectionId: "lms_123",
+          definition: {
+            conditions: {
+              type: "grade_threshold",
+              courseId: "course_101",
+              minScore: 80,
+            },
+          },
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toContain("Open CredTrail from Canvas once");
+    expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
   });
 
   it("promotes the exact unfinished builder draft into a formal rule", async () => {
@@ -993,7 +1041,9 @@ describe("badge rule routes", () => {
     expect(coursesResponse.headers.get("Cache-Control")).toBe("no-store");
     expect(coursesBody.courses[0]?.courseId).toBe("course_101");
     expect(coursesBody.hasMore).toBe(false);
-    expect(courseSearchInputs).toEqual([{ searchTerm: "cs", limit: 100 }]);
+    expect(courseSearchInputs).toEqual([
+      { providerUserId: "instructor_123", searchTerm: "cs", limit: 100 },
+    ]);
 
     const learnersResponse = await app.request(
       "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/learners",
@@ -1064,6 +1114,7 @@ describe("badge rule routes", () => {
     const env = createEnv();
     mockedCreateGradebookProvider.mockReturnValue({
       kind: "canvas",
+      verifyCourseAccess: () => Promise.resolve({ unauthorizedCourseIds: [] }),
       listCourses: (input: GradebookCourseSearchInput) => {
         courseSearchInputs.push(input);
         return Promise.resolve({
@@ -1105,7 +1156,7 @@ describe("badge rule routes", () => {
     expect(body.courses).toHaveLength(100);
     expect(body.hasMore).toBe(true);
     expect(body.courses.at(-1)?.courseId).toBe("course_099");
-    expect(courseSearchInputs).toEqual([{ limit: 100 }]);
+    expect(courseSearchInputs).toEqual([{ providerUserId: "instructor_123", limit: 100 }]);
   });
 
   it("returns actionable Sakai 403 guidance for course lookup failures", async () => {
@@ -1121,6 +1172,7 @@ describe("badge rule routes", () => {
     );
     mockedCreateGradebookProvider.mockReturnValue({
       kind: "sakai",
+      verifyCourseAccess: () => Promise.resolve({ unauthorizedCourseIds: [] }),
       listCourses: () =>
         Promise.reject(
           new GradebookProviderError({
@@ -1560,6 +1612,41 @@ describe("badge rule routes", () => {
     expect(mockedIssueBadgeForTenant).not.toHaveBeenCalled();
   });
 
+  it("does not test a course rule for a user without a linked LMS identity", async () => {
+    const env = createEnv();
+    mockedFindTenantLmsUserIdentity.mockResolvedValue(null);
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules/preview-evaluate",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          definition: {
+            conditions: {
+              type: "course_completion",
+              courseId: "course_101",
+            },
+          },
+          lmsConnectionId: "lms_123",
+          learnerId: "learner_123",
+          facts: {
+            completions: [],
+          },
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toContain("Open CredTrail from Canvas once");
+  });
+
   it("preview-evaluates survey completion and custom field rules", async () => {
     const env = createEnv();
 
@@ -1718,6 +1805,7 @@ describe("badge rule routes", () => {
     );
     mockedCreateGradebookProvider.mockReturnValue({
       kind: "sakai",
+      verifyCourseAccess: () => Promise.resolve({ unauthorizedCourseIds: [] }),
       listCourses: () => Promise.resolve({ courses: [], hasMore: false }),
       listAssignments: () => Promise.resolve([]),
       listEnrollments: () => Promise.resolve([]),

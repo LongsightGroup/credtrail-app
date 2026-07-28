@@ -89,6 +89,7 @@ const createCourseSearchField = (targetFieldName) => {
 };
 
 const createCourseSelectField = (labelText, fieldName, selectedValue, multiple) => {
+  const selectedCourseIds = parseCsv(selectedValue);
   const attributes = {
     "data-field": fieldName,
     "data-lms-course-select": true,
@@ -105,7 +106,10 @@ const createCourseSelectField = (labelText, fieldName, selectedValue, multiple) 
 
   return createConditionField(
     labelText,
-    createConditionSelect(attributes, [createConditionOption("", "Loading courses...", false)]),
+    createConditionSelect(attributes, [
+      createConditionOption("", "Loading courses...", selectedCourseIds.length === 0),
+      ...selectedCourseIds.map((courseId) => createConditionOption(courseId, courseId, true)),
+    ]),
   );
 };
 

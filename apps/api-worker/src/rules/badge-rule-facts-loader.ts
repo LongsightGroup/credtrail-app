@@ -17,6 +17,7 @@ import {
   type BadgeIssuanceRuleSurveyCompletionFact,
 } from "./engine";
 import { resolveGradebookProvider } from "../lms/gradebook-provider-resolution";
+import type { GradebookProvider } from "../lms/gradebook-types";
 
 export class MissingRuleRecipientIdentityError extends Error {
   public constructor() {
@@ -39,6 +40,7 @@ export const loadRuleFacts = async (input: {
     | undefined;
   definition: ReturnType<typeof parseBadgeIssuanceRuleDefinition>;
   requestedFacts?: BadgeIssuanceRuleFacts | undefined;
+  gradebookProvider?: GradebookProvider | undefined;
   nowIso: string;
 }): Promise<BadgeIssuanceRuleEvaluationFacts> => {
   const requestedFacts = input.requestedFacts;
@@ -118,12 +120,14 @@ export const loadRuleFacts = async (input: {
 
   const earnedBadgeTemplateIds = await loadEarnedBadgeTemplateIds(undefined);
 
-  const provider = await resolveGradebookProvider({
-    db: input.db,
-    tenantId: input.tenantId,
-    lmsConnectionId: input.lmsConnectionId,
-    nowIso: input.nowIso,
-  });
+  const provider =
+    input.gradebookProvider ??
+    (await resolveGradebookProvider({
+      db: input.db,
+      tenantId: input.tenantId,
+      lmsConnectionId: input.lmsConnectionId,
+      nowIso: input.nowIso,
+    }));
 
   const grades: BadgeIssuanceRuleGradeFact[] = [];
   const completions: BadgeIssuanceRuleCompletionFact[] = [];

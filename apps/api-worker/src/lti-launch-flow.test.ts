@@ -304,6 +304,15 @@ const fakeDbPrepare = vi.fn((sql: string) => {
         } as T;
       }
 
+      if (
+        normalizedSql.includes("FROM tenant_lms_connections") &&
+        normalizedSql.includes("lti_issuer = ?") &&
+        normalizedSql.includes("lti_client_id = ?") &&
+        normalizedSql.includes("lti_deployment_id = ?")
+      ) {
+        return null;
+      }
+
       throw new Error(`Unhandled fakeDb first() SQL: ${normalizedSql}`);
     },
     all: async <T>() => {
