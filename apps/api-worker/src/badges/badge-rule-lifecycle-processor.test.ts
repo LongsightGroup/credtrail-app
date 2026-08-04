@@ -12,9 +12,9 @@ vi.mock("@credtrail/db", async (importOriginal) => {
   return {
     ...actual,
     createAuditLog: vi.fn(async () => undefined),
-    deleteFailedJobQueueMessageByIdentity: vi.fn(async () => false),
     ensureBadgeRuleRecertificationReview: vi.fn(async () => true),
     enqueueJobQueueMessageOnce: vi.fn(async () => true),
+    enqueueOrRetryFailedJobQueueMessage: vi.fn(async () => true),
     expireBadgeIssuanceRuleVersion: vi.fn(async () => ({ id: "brv_123" })),
     findBadgeIssuanceRuleById: vi.fn(async () => ({
       id: "brl_123",
@@ -84,6 +84,7 @@ vi.mock("@credtrail/db", async (importOriginal) => {
       },
     ]),
     listBadgeIssuanceRuleVersionsDueForExpiryReminder: vi.fn(async () => []),
+    listBadgeIssuanceRuleVersionsForAutomatedEvaluation: vi.fn(async () => []),
     listBadgeIssuanceRuleVersionsDueForRecertification: vi.fn(async () => []),
     listBadgeIssuanceRuleVersionsDueForRecertificationReminder: vi.fn(async () => []),
     listTenantMembers: vi.fn(async () => [
@@ -123,25 +124,21 @@ describe("processBadgeRuleLifecycleForTenant", () => {
 
     expect(result).toEqual({
       dueVersionsProcessed: 1,
-      endOfTermJobsEnqueued: 1,
+      automatedEvaluationJobsEnqueued: 1,
       expiredVersions: 0,
       expiryRemindersSent: 0,
       recertificationRemindersSent: 0,
       recertificationReviewsOpened: 0,
       recertificationAutoSuspensions: 0,
     });
-    expect(dbModule.enqueueJobQueueMessageOnce).toHaveBeenCalledWith(
+    expect(dbModule.enqueueOrRetryFailedJobQueueMessage).toHaveBeenCalledWith(
       input.db,
       expect.objectContaining({
-        jobType: "process_end_of_term_badge_rule",
+        jobType: "process_automated_badge_rule",
         tenantId: "tenant_123",
+        payload: expect.objectContaining({ versionId: "brv_123" }),
       }),
     );
-    expect(dbModule.deleteFailedJobQueueMessageByIdentity).toHaveBeenCalledWith(input.db, {
-      tenantId: "tenant_123",
-      jobType: "process_end_of_term_badge_rule",
-      idempotencyKey: "end-of-term:brl_123:brv_123:2026-06-01T00:00:00.000Z",
-    });
     expect(dbModule.expireBadgeIssuanceRuleVersion).not.toHaveBeenCalled();
   });
 
@@ -225,7 +222,7 @@ describe("processBadgeRuleLifecycleForTenant", () => {
 
     expect(result).toEqual({
       dueVersionsProcessed: 0,
-      endOfTermJobsEnqueued: 0,
+      automatedEvaluationJobsEnqueued: 0,
       expiredVersions: 0,
       expiryRemindersSent: 1,
       recertificationRemindersSent: 1,

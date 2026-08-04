@@ -10,8 +10,8 @@ import {
 import {
   parseQueueJob,
   type GenerateBadgeTemplateImageQueueJob,
+  type ProcessAutomatedBadgeRuleQueueJob,
   type ProcessBadgeRuleLifecycleQueueJob,
-  type ProcessEndOfTermBadgeRuleQueueJob,
   type ProcessQueueRequest,
   type QueueJob,
   type SendBadgeRuleApprovalNotificationQueueJob,
@@ -110,10 +110,10 @@ interface ProcessQueuedJobsDependencies<TBindings, TContext extends { env: TBind
     tenantId: string,
     payload: ProcessBadgeRuleLifecycleQueueJob["payload"],
   ) => Promise<void>;
-  processEndOfTermBadgeRuleJob: (
+  processAutomatedBadgeRuleJob: (
     context: TContext,
     tenantId: string,
-    payload: ProcessEndOfTermBadgeRuleQueueJob["payload"],
+    payload: ProcessAutomatedBadgeRuleQueueJob["payload"],
   ) => Promise<void>;
   processBadgeRuleApprovalNotificationJob: (
     context: TContext,
@@ -212,8 +212,8 @@ const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
     case "process_badge_rule_lifecycle":
       await dependencies.processBadgeRuleLifecycleJob(c, job.tenantId, job.payload);
       return;
-    case "process_end_of_term_badge_rule":
-      await dependencies.processEndOfTermBadgeRuleJob(c, job.tenantId, job.payload);
+    case "process_automated_badge_rule":
+      await dependencies.processAutomatedBadgeRuleJob(c, job.tenantId, job.payload);
       return;
     case "send_badge_rule_approval_notification":
       await dependencies.processBadgeRuleApprovalNotificationJob(c, job.tenantId, job.payload);

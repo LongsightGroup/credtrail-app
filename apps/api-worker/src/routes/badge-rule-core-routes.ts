@@ -9,6 +9,7 @@ import {
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
+  badgeIssuanceRuleHasCompleteLmsLearnerPopulation,
   parseBadgeIssuanceRuleAuditLogQuery,
   parseBadgeIssuanceRuleBuilderDraftPathParams,
   parseBadgeIssuanceRulePathParams,
@@ -16,6 +17,7 @@ import {
   parseSaveBadgeIssuanceRuleBuilderDraftRequest,
   parseTenantPathParams,
   parseUpdateBadgeIssuanceRuleDraftRequest,
+  resolveAutomatedBadgeRuleIssuanceTiming,
   serializeBadgeIssuanceRuleBuilderDraftPayload,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
@@ -74,6 +76,18 @@ const prepareBadgeRuleDraft = async (input: {
       status: "error",
       statusCode: 422,
       error: error instanceof Error ? error.message : "Failed to resolve rule value lists",
+    };
+  }
+
+  if (
+    resolveAutomatedBadgeRuleIssuanceTiming(resolvedDefinition) !== null &&
+    !badgeIssuanceRuleHasCompleteLmsLearnerPopulation(resolvedDefinition)
+  ) {
+    return {
+      status: "error",
+      statusCode: 422,
+      error:
+        "Automatic issuance requires an LMS course requirement that identifies every learner who could match. Add an LMS course requirement or choose Instructor confirmation.",
     };
   }
 

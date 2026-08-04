@@ -8,19 +8,7 @@ import {
   type BadgeIssuanceRuleDefinition,
 } from "@credtrail/validation";
 
-export const resolveRuleDefinition = (
-  rawRuleJson: string,
-): ReturnType<typeof parseBadgeIssuanceRuleDefinition> => {
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(rawRuleJson) as unknown;
-  } catch {
-    throw new Error("Stored rule JSON is invalid");
-  }
-
-  return parseBadgeIssuanceRuleDefinition(parsed);
-};
+export { parseBadgeIssuanceRuleDefinitionJson as resolveRuleDefinition } from "@credtrail/validation";
 
 function collectRuleValueListReferences(
   condition: BadgeIssuanceRuleDefinition["conditions"],

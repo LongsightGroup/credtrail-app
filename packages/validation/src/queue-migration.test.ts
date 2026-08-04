@@ -117,6 +117,36 @@ describe("parseQueueJob", () => {
     expect(job.jobType).toBe("send_badge_rule_approval_notification");
   });
 
+  it("accepts a strict automated badge rule queue payload", () => {
+    const job = parseQueueJob({
+      jobType: "process_automated_badge_rule",
+      tenantId: "tenant_123",
+      payload: {
+        ruleId: "brl_123",
+        versionId: "brv_123",
+        scheduledFor: "2026-02-10T15:00:00.000Z",
+      },
+      idempotencyKey: "automated-rule:brl_123:brv_123:hour:2026-02-10T15",
+    });
+
+    expect(job.jobType).toBe("process_automated_badge_rule");
+  });
+
+  it("rejects the removed placement-bound end-of-term job", () => {
+    expect(() =>
+      parseQueueJob({
+        jobType: "process_end_of_term_badge_rule",
+        tenantId: "tenant_123",
+        payload: {
+          ruleId: "brl_123",
+          versionId: "brv_123",
+          scheduledFor: "2026-02-10T15:00:00.000Z",
+        },
+        idempotencyKey: "old-end-of-term-job",
+      }),
+    ).toThrow(/Invalid discriminator value/);
+  });
+
   it("rejects request-derived URLs in badge rule approval queue payloads", () => {
     expect(() =>
       parseQueueJob({

@@ -1,4 +1,4 @@
-import { logError, type JsonObject } from "@credtrail/core-domain";
+import type { JsonObject } from "@credtrail/core-domain";
 import { findTenantSigningRegistrationByDid, listAllLtiIssuerRegistrations } from "@credtrail/db";
 import { Hono } from "hono";
 import {
@@ -73,7 +73,7 @@ import { createOb3AccessTokenAuthenticator } from "./ob3/access-token-auth";
 import { ob3ServiceDescriptionDocument } from "./ob3/service-description-runtime";
 import { runScheduledBadgeRuleLifecycleEnqueue } from "./queue/badge-rule-lifecycle-schedule";
 import { createResolveLtiIssuerRegistry } from "./lti/lti-issuer-registry-resolver";
-import { processEndOfTermBadgeRule } from "./lti/end-of-term-badge-rule-processor";
+import { processAutomatedBadgeRuleQueueJob } from "./badges/automated-badge-rule-job";
 import { createLearnerDashboardPage, learnerDidSettingsNoticeFromQuery } from "./learner/pages";
 import { createLearnerRecordPage } from "./learner/learner-record-page";
 import {
@@ -293,24 +293,14 @@ const processQueuedJobs = createProcessQueuedJobs({
         `https://${c.env.PLATFORM_DOMAIN}/tenants/${encodeURIComponent(adminTenantId)}/admin/rules`,
     }).then(() => undefined);
   },
-  processEndOfTermBadgeRuleJob: async (c, tenantId, payload) => {
-    const result = await processEndOfTermBadgeRule({
+  processAutomatedBadgeRuleJob: (c, tenantId, payload) => {
+    return processAutomatedBadgeRuleQueueJob({
       db: resolveDatabase(c.env),
-      env: c.env,
       tenantId,
       payload,
       sha256Hex,
+      observability: observabilityContext(c.env),
     });
-
-    if (result.status === "unavailable") {
-      logError(observabilityContext(c.env), "end_of_term_badge_rule_unavailable", {
-        tenantId,
-        ruleId: payload.ruleId,
-        versionId: payload.versionId,
-        reason: result.reason ?? "unknown",
-      });
-      throw new Error(result.reason ?? "End-of-term badge rule processing unavailable.");
-    }
   },
   processBadgeRuleApprovalNotificationJob: (c, tenantId, payload) => {
     return processBadgeRuleApprovalNotificationJob({

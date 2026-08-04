@@ -267,6 +267,40 @@ export const badgeIssuanceRuleDefinitionSchema = z.object({
   options: badgeIssuanceRuleDefinitionOptionsSchema.optional(),
 });
 
+const conditionHasCompleteLmsLearnerPopulation = (
+  condition: BadgeIssuanceRuleCondition,
+): boolean => {
+  if ("all" in condition) {
+    return condition.all.some(conditionHasCompleteLmsLearnerPopulation);
+  }
+
+  if ("any" in condition) {
+    return condition.any.every(conditionHasCompleteLmsLearnerPopulation);
+  }
+
+  if ("not" in condition) {
+    return false;
+  }
+
+  switch (condition.type) {
+    case "grade_threshold":
+    case "course_completion":
+    case "program_completion":
+    case "assignment_submission":
+      return true;
+    case "survey_completion":
+    case "time_window":
+    case "prerequisite_badge":
+    case "custom_field":
+      return false;
+  }
+};
+
+/** Returns whether LMS course rosters cover every learner who could satisfy the rule. */
+export const badgeIssuanceRuleHasCompleteLmsLearnerPopulation = (
+  definition: BadgeIssuanceRuleDefinition,
+): boolean => conditionHasCompleteLmsLearnerPopulation(definition.conditions);
+
 export const badgeIssuanceRulePathParamsSchema = tenantPathParamsSchema.extend({
   ruleId: resourceIdSchema,
 });
@@ -784,6 +818,47 @@ export const parseResolveBadgeIssuanceRuleReviewRequest = (
 
 export const parseBadgeIssuanceRuleDefinition = (input: unknown): BadgeIssuanceRuleDefinition => {
   return badgeIssuanceRuleDefinitionSchema.parse(input);
+};
+
+export type AutomatedBadgeRuleIssuanceTiming = "immediate" | "end_of_term";
+
+/** Returns the automated timing owned by a rule, or null when instructor confirmation is required. */
+export const resolveAutomatedBadgeRuleIssuanceTiming = (
+  definition: BadgeIssuanceRuleDefinition,
+): AutomatedBadgeRuleIssuanceTiming | null => {
+  const issuanceTiming = definition.options?.issuanceTiming ?? "immediate";
+  return issuanceTiming === "manual" ? null : issuanceTiming;
+};
+
+/** Decides whether a rule lifecycle window permits its automated evaluation at a given instant. */
+export const automatedBadgeRuleLifecycleWindowMatches = (input: {
+  readonly effectiveStartsAt: string | null;
+  readonly expiresAt: string | null;
+  readonly evaluatedAt: string;
+  readonly issuanceTiming: AutomatedBadgeRuleIssuanceTiming;
+}): boolean => {
+  if (input.effectiveStartsAt !== null && input.effectiveStartsAt > input.evaluatedAt) {
+    return false;
+  }
+
+  return input.issuanceTiming === "end_of_term"
+    ? input.expiresAt !== null && input.expiresAt <= input.evaluatedAt
+    : input.expiresAt === null || input.expiresAt > input.evaluatedAt;
+};
+
+/** Parses a serialized badge-rule definition from persistence or another JSON boundary. */
+export const parseBadgeIssuanceRuleDefinitionJson = (
+  rawRuleJson: string,
+): BadgeIssuanceRuleDefinition => {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(rawRuleJson) as unknown;
+  } catch {
+    throw new Error("Stored rule JSON is invalid");
+  }
+
+  return parseBadgeIssuanceRuleDefinition(parsed);
 };
 
 export const parseCreateDedicatedDbProvisioningRequest = (

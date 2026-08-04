@@ -1,13 +1,14 @@
 import { logError, logInfo, type ObservabilityContext } from "@credtrail/core-domain";
 import {
   createAuditLog,
-  deleteFailedJobQueueMessageByIdentity,
   ensureBadgeRuleRecertificationReview,
   enqueueJobQueueMessageOnce,
+  enqueueOrRetryFailedJobQueueMessage,
   expireBadgeIssuanceRuleVersion,
   findBadgeIssuanceRuleById,
   findTenantById,
   listActiveTenants,
+  listBadgeIssuanceRuleVersionsForAutomatedEvaluation,
   listBadgeIssuanceRuleVersionsDueForExpiry,
   listBadgeIssuanceRuleVersionsDueForExpiryReminder,
   listBadgeIssuanceRuleVersionsDueForRecertification,
@@ -20,7 +21,8 @@ import {
 } from "@credtrail/db";
 import type { AppBindings } from "../app";
 import { sendBadgeRuleLifecycleReminderNotifications } from "../notifications/send-badge-rule-lifecycle-email";
-import { resolveRuleDefinition } from "../rules/badge-rule-definition-resolver";
+import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
+import { planAutomatedBadgeRuleLifecycle } from "./automated-badge-rule-schedule";
 
 const LIFECYCLE_REMINDER_WINDOW_DAYS = 7;
 const RECERTIFICATION_AUTO_SUSPEND_OVERDUE_DAYS = 30;
@@ -29,7 +31,7 @@ export interface BadgeRuleLifecycleProcessingResult {
   readonly tenantsScanned: number;
   readonly lifecycleJobsEnqueued: number;
   readonly dueVersionsProcessed: number;
-  readonly endOfTermJobsEnqueued: number;
+  readonly automatedEvaluationJobsEnqueued: number;
   readonly expiredVersions: number;
   readonly expiryRemindersSent: number;
   readonly recertificationRemindersSent: number;
@@ -47,17 +49,6 @@ export interface ProcessBadgeRuleLifecycleInput {
 }
 
 const lifecycleScheduleBucketFromIso = (isoTimestamp: string): string => isoTimestamp.slice(0, 13);
-
-const ruleUsesEndOfTermIssuance = (ruleJson: string): boolean => {
-  return resolveRuleDefinition(ruleJson).options?.issuanceTiming === "end_of_term";
-};
-
-const endOfTermIdempotencyKey = (input: {
-  readonly ruleId: string;
-  readonly versionId: string;
-  readonly expiresAt: string | null;
-  readonly nowIso: string;
-}): string => `end-of-term:${input.ruleId}:${input.versionId}:${input.expiresAt ?? input.nowIso}`;
 
 type LifecycleReminderNotificationResult =
   | {
@@ -189,11 +180,16 @@ export const processBadgeRuleLifecycleForTenant = async (
   Omit<BadgeRuleLifecycleProcessingResult, "tenantsScanned" | "lifecycleJobsEnqueued">
 > => {
   const [
+    evaluableVersions,
     dueVersions,
     expiryReminderVersions,
     recertificationReminderVersions,
     recertificationDueVersions,
   ] = await Promise.all([
+    listBadgeIssuanceRuleVersionsForAutomatedEvaluation(input.db, {
+      tenantId: input.tenantId,
+      nowIso: input.nowIso,
+    }),
     listBadgeIssuanceRuleVersionsDueForExpiry(input.db, {
       tenantId: input.tenantId,
       nowIso: input.nowIso,
@@ -213,7 +209,27 @@ export const processBadgeRuleLifecycleForTenant = async (
       nowIso: input.nowIso,
     }),
   ]);
-  let endOfTermJobsEnqueued = 0;
+  const automatedLifecyclePlan = planAutomatedBadgeRuleLifecycle({
+    tenantId: input.tenantId,
+    nowIso: input.nowIso,
+    evaluableVersions,
+    dueVersions,
+  });
+  const automatedEvaluationEnqueueResults = await mapConcurrentBounded(
+    automatedLifecyclePlan.evaluationCommands,
+    { concurrency: 8 },
+    (command) =>
+      enqueueOrRetryFailedJobQueueMessage(input.db, {
+        tenantId: command.tenantId,
+        jobType: "process_automated_badge_rule",
+        payload: command.payload,
+        idempotencyKey: command.idempotencyKey,
+        nowIso: input.nowIso,
+      }),
+  );
+  const automatedEvaluationJobsEnqueued = automatedEvaluationEnqueueResults.filter(
+    (inserted) => inserted,
+  ).length;
   let expiredVersions = 0;
   let recertificationReviewsOpened = 0;
   let recertificationAutoSuspensions = 0;
@@ -301,43 +317,7 @@ export const processBadgeRuleLifecycleForTenant = async (
     }
   }
 
-  for (const version of dueVersions) {
-    const usesEndOfTermIssuance = ruleUsesEndOfTermIssuance(version.ruleJson);
-
-    if (usesEndOfTermIssuance) {
-      const idempotencyKey = endOfTermIdempotencyKey({
-        ruleId: version.ruleId,
-        versionId: version.id,
-        expiresAt: version.expiresAt,
-        nowIso: input.nowIso,
-      });
-
-      await deleteFailedJobQueueMessageByIdentity(input.db, {
-        tenantId: input.tenantId,
-        jobType: "process_end_of_term_badge_rule",
-        idempotencyKey,
-      });
-
-      const inserted = await enqueueJobQueueMessageOnce(input.db, {
-        tenantId: input.tenantId,
-        jobType: "process_end_of_term_badge_rule",
-        payload: {
-          ruleId: version.ruleId,
-          versionId: version.id,
-          badgeTemplateId: version.badgeTemplateId,
-          scheduledFor: input.nowIso,
-        },
-        idempotencyKey,
-        nowIso: input.nowIso,
-      });
-
-      if (inserted) {
-        endOfTermJobsEnqueued += 1;
-      }
-
-      continue;
-    }
-
+  for (const version of automatedLifecyclePlan.versionsToExpire) {
     const expired = await expireBadgeIssuanceRuleVersion(input.db, {
       tenantId: input.tenantId,
       ruleId: version.ruleId,
@@ -364,7 +344,7 @@ export const processBadgeRuleLifecycleForTenant = async (
   logInfo(input.observability, "badge_rule_lifecycle_processed", {
     tenantId: input.tenantId,
     dueVersionsProcessed: dueVersions.length,
-    endOfTermJobsEnqueued,
+    automatedEvaluationJobsEnqueued,
     expiredVersions,
     expiryRemindersSent,
     recertificationRemindersSent,
@@ -374,7 +354,7 @@ export const processBadgeRuleLifecycleForTenant = async (
 
   return {
     dueVersionsProcessed: dueVersions.length,
-    endOfTermJobsEnqueued,
+    automatedEvaluationJobsEnqueued,
     expiredVersions,
     expiryRemindersSent,
     recertificationRemindersSent,

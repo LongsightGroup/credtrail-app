@@ -7,16 +7,13 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
-import { buildIssuanceProvenanceSnapshotJson } from "@credtrail/validation";
 import type { AppLogger } from "../app/observability";
 import type { LtiNrpsMember } from "./nrps";
+import { primaryEvaluationDetail } from "../rules/engine";
 import {
-  evaluateBadgeIssuanceRuleDefinition,
-  primaryEvaluationDetail,
-  summarizeBadgeIssuanceRuleEvaluation,
-  type BadgeIssuanceRuleEvaluationResult,
-} from "../rules/engine";
-import { loadRuleFacts } from "../rules/badge-rule-facts-loader";
+  evaluateBadgeRuleLearner,
+  type BadgeRuleLearnerEvaluationResult,
+} from "../rules/badge-rule-learner-evaluator";
 import {
   resolveBadgeIssuanceRuleDefinitionValueLists,
   resolveRuleDefinition,
@@ -229,27 +226,13 @@ export const prepareLtiRosterEligibilityEvaluationContext = async (input: {
 };
 
 const eligibilityFromEvaluation = (
-  evaluation: BadgeIssuanceRuleEvaluationResult,
+  result: Extract<BadgeRuleLearnerEvaluationResult, { readonly status: "evaluated" }>,
   input: {
     ruleId: string;
     versionId: string;
-    learnerId: string;
-    facts: Awaited<ReturnType<typeof loadRuleFacts>>;
-    nowIso: string;
   },
 ): LtiRosterEligibilityResult => {
-  const evaluationSummary = summarizeBadgeIssuanceRuleEvaluation(evaluation);
-  const provenanceJson = buildIssuanceProvenanceSnapshotJson({
-    outcome: evaluation.matched ? "matched" : "no_match",
-    evaluation: {
-      matched: evaluation.matched,
-      tree: evaluation.tree,
-    },
-    evaluationSummary,
-    facts: { ...input.facts },
-    learnerId: input.learnerId,
-    nowIso: input.nowIso,
-  });
+  const { evaluation, evaluationSummary, provenanceJson } = result;
 
   if (evaluation.matched) {
     return {
@@ -341,38 +324,25 @@ const evaluateLtiRosterMemberEligibilityWithPreparedContext = async (input: {
     return statusResult("rule_pending", LTI_ROSTER_NO_RULE_LINKED_DETAIL, false);
   }
 
-  try {
-    const facts = await loadRuleFacts({
-      db: input.db,
-      tenantId: input.tenantId,
-      lmsProviderKind: input.prepared.lmsProviderKind,
-      lmsConnectionId: input.prepared.lmsConnectionId ?? undefined,
-      learnerId: input.member.userId,
-      recipient: {
-        identity: input.member.email,
-        identityType: "email",
-      },
-      definition: input.prepared.definition,
-      nowIso: input.nowIso,
-    });
-    const evaluation = evaluateBadgeIssuanceRuleDefinition(input.prepared.definition, facts);
+  const result = await evaluateBadgeRuleLearner({
+    db: input.db,
+    tenantId: input.tenantId,
+    lmsProviderKind: input.prepared.lmsProviderKind,
+    lmsConnectionId: input.prepared.lmsConnectionId ?? undefined,
+    learnerId: input.member.userId,
+    recipientEmail: input.member.email,
+    definition: input.prepared.definition,
+    nowIso: input.nowIso,
+  });
 
-    return eligibilityFromEvaluation(evaluation, {
-      ruleId: input.prepared.ruleId,
-      versionId: input.prepared.versionId,
-      learnerId: input.member.userId,
-      facts,
-      nowIso: input.nowIso,
-    });
-  } catch (error) {
-    return statusResult(
-      "unavailable",
-      error instanceof Error
-        ? error.message
-        : "CredTrail could not evaluate this learner against the badge rule.",
-      false,
-    );
+  if (result.status === "unavailable") {
+    return statusResult("unavailable", result.detail, false);
   }
+
+  return eligibilityFromEvaluation(result, {
+    ruleId: input.prepared.ruleId,
+    versionId: input.prepared.versionId,
+  });
 };
 
 export const evaluateLtiRosterMemberEligibility = async (input: {

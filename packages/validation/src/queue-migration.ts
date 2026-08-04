@@ -216,17 +216,18 @@ export const processBadgeRuleLifecycleQueueJobSchema = z.object({
   idempotencyKey: idempotencyKeySchema,
 });
 
-export const processEndOfTermBadgeRuleJobPayloadSchema = z.object({
-  ruleId: resourceIdSchema,
-  versionId: resourceIdSchema,
-  badgeTemplateId: resourceIdSchema,
-  scheduledFor: isoTimestampSchema,
-});
+export const processAutomatedBadgeRuleJobPayloadSchema = z
+  .object({
+    ruleId: resourceIdSchema,
+    versionId: resourceIdSchema,
+    scheduledFor: isoTimestampSchema,
+  })
+  .strict();
 
-export const processEndOfTermBadgeRuleQueueJobSchema = z.object({
-  jobType: z.literal("process_end_of_term_badge_rule"),
+export const processAutomatedBadgeRuleQueueJobSchema = z.object({
+  jobType: z.literal("process_automated_badge_rule"),
   tenantId: tenantIdSchema,
-  payload: processEndOfTermBadgeRuleJobPayloadSchema,
+  payload: processAutomatedBadgeRuleJobPayloadSchema,
   idempotencyKey: idempotencyKeySchema,
 });
 
@@ -275,7 +276,7 @@ export const queueJobSchema = z.discriminatedUnion("jobType", [
   learnerRecordImportBatchQueueJobSchema,
   generateBadgeTemplateImageQueueJobSchema,
   processBadgeRuleLifecycleQueueJobSchema,
-  processEndOfTermBadgeRuleQueueJobSchema,
+  processAutomatedBadgeRuleQueueJobSchema,
   sendBadgeRuleApprovalNotificationQueueJobSchema,
 ]);
 
@@ -322,8 +323,8 @@ export type ProcessBadgeRuleLifecycleQueueJob = z.infer<
   typeof processBadgeRuleLifecycleQueueJobSchema
 >;
 
-export type ProcessEndOfTermBadgeRuleQueueJob = z.infer<
-  typeof processEndOfTermBadgeRuleQueueJobSchema
+export type ProcessAutomatedBadgeRuleQueueJob = z.infer<
+  typeof processAutomatedBadgeRuleQueueJobSchema
 >;
 
 export type SendBadgeRuleApprovalNotificationQueueJob = z.infer<

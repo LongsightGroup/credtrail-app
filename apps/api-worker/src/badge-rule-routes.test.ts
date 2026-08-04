@@ -641,6 +641,39 @@ describe("badge rule routes", () => {
     expect(mockedCreateBadgeIssuanceRuleWithAction).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects automated rules whose matching learners cannot be found from LMS rosters", async () => {
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Prerequisite badge rule",
+          badgeTemplateId: "badge_template_cs101",
+          lmsConnectionId: "lms_123",
+          action: "save_draft",
+          definition: {
+            conditions: {
+              type: "prerequisite_badge",
+              badgeTemplateId: "badge_template_foundations",
+            },
+            options: { issuanceTiming: "end_of_term" },
+          },
+        }),
+      },
+      createEnv(),
+    );
+    const body = await response.json<{ error: string }>();
+
+    expect(response.status).toBe(422);
+    expect(body.error).toContain("choose Instructor confirmation");
+    expect(mockedCreateBadgeIssuanceRuleWithAction).not.toHaveBeenCalled();
+  });
+
   it("creates and submits the returned rule version with one authoring command", async () => {
     const env = createEnv();
     mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({

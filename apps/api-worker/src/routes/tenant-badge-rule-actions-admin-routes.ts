@@ -498,7 +498,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       c,
       pathParams,
       notAppliedMessage: "Only approved versions can be activated.",
-      successMessage: "Rule version activated.",
+      successMessage: "Rule version activated. CredTrail is checking eligible learners now.",
       auditAction: "badge_rule.version_activated",
       run: ({ session, formData }) =>
         activateBadgeIssuanceRuleVersion(resolveDatabase(c.env), {

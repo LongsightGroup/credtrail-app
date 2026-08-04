@@ -76,6 +76,17 @@ describe("badge rule review queue schema", () => {
     expect(sql).toContain("'process_end_of_term_badge_rule'");
   });
 
+  it("replaces placement-bound end-of-term jobs with automated rule processing", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0060_automated_badge_rule_processing.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("DELETE FROM job_queue_messages");
+    expect(sql).toContain("WHERE job_type = 'process_end_of_term_badge_rule'");
+    expect(sql).toContain("'process_automated_badge_rule'");
+  });
+
   it("adds author builder drafts and approver membership role through a forward migration", () => {
     const sql = readFileSync(
       new URL("../migrations/0054_author_experience_governance.sql", import.meta.url),

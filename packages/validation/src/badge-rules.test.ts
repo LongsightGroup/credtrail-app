@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  automatedBadgeRuleLifecycleWindowMatches,
+  badgeIssuanceRuleHasCompleteLmsLearnerPopulation,
   parseBadgeIssuanceRuleAuditLogQuery,
   parseBadgeIssuanceRulePathParams,
   parseBadgeIssuanceRuleReviewQueueQuery,
@@ -16,9 +18,73 @@ import {
   parseResolveBadgeIssuanceRuleReviewRequest,
   parseSaveBadgeIssuanceRuleBuilderDraftRequest,
   parseUpdateBadgeIssuanceRuleDraftRequest,
+  resolveAutomatedBadgeRuleIssuanceTiming,
 } from "./badge-rules.js";
 
 describe("badge issuance rule parsers", () => {
+  it("requires LMS rosters to cover every possible automated-rule match", () => {
+    expect(
+      badgeIssuanceRuleHasCompleteLmsLearnerPopulation({
+        conditions: {
+          all: [
+            { type: "course_completion", courseId: "course_101", minCompletionPercent: 100 },
+            { type: "prerequisite_badge", badgeTemplateId: "badge_template_foundations" },
+          ],
+        },
+      }),
+    ).toBe(true);
+    expect(
+      badgeIssuanceRuleHasCompleteLmsLearnerPopulation({
+        conditions: {
+          any: [
+            { type: "course_completion", courseId: "course_101", minCompletionPercent: 100 },
+            { type: "prerequisite_badge", badgeTemplateId: "badge_template_foundations" },
+          ],
+        },
+      }),
+    ).toBe(false);
+    expect(
+      badgeIssuanceRuleHasCompleteLmsLearnerPopulation({
+        conditions: {
+          not: {
+            type: "course_completion",
+            courseId: "course_101",
+            minCompletionPercent: 100,
+          },
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it("derives automated evaluation behavior from the rule and lifecycle window", () => {
+    expect(
+      resolveAutomatedBadgeRuleIssuanceTiming({
+        conditions: {
+          type: "course_completion",
+          courseId: "course_101",
+          minCompletionPercent: 100,
+        },
+        options: { issuanceTiming: "manual" },
+      }),
+    ).toBeNull();
+    expect(
+      automatedBadgeRuleLifecycleWindowMatches({
+        effectiveStartsAt: "2026-01-01T00:00:00.000Z",
+        expiresAt: "2026-06-01T00:00:00.000Z",
+        evaluatedAt: "2026-06-01T00:00:00.000Z",
+        issuanceTiming: "end_of_term",
+      }),
+    ).toBe(true);
+    expect(
+      automatedBadgeRuleLifecycleWindowMatches({
+        effectiveStartsAt: "2026-01-01T00:00:00.000Z",
+        expiresAt: "2026-06-01T00:00:00.000Z",
+        evaluatedAt: "2026-06-01T00:00:00.000Z",
+        issuanceTiming: "immediate",
+      }),
+    ).toBe(false);
+  });
+
   it("requires a reason when reopening an approved rule version", () => {
     expect(
       parseReopenApprovedBadgeIssuanceRuleVersionRequest({

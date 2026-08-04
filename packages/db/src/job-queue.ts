@@ -1,4 +1,5 @@
 import { addSecondsToIso, createPrefixedId } from "./shared-helpers";
+import { serializeQueuePayload } from "./job-queue-payload.js";
 import type { SqlDatabase } from "./tenant-scope";
 
 type LearnerRecordTrustLevel = "issuer_verified" | "learner_supplemental";
@@ -11,7 +12,7 @@ export type JobQueueMessageType =
   | "import_learner_record_batch"
   | "generate_badge_template_image"
   | "process_badge_rule_lifecycle"
-  | "process_end_of_term_badge_rule"
+  | "process_automated_badge_rule"
   | "send_badge_rule_approval_notification";
 
 export type JobQueueMessageStatus = "pending" | "processing" | "completed" | "failed";
@@ -47,6 +48,11 @@ export interface EnqueueJobQueueMessageOnceInput extends EnqueueJobQueueMessageI
   nowIso?: string | undefined;
 }
 
+export interface EnqueueJobQueueMessagesOnceInput {
+  readonly messages: readonly EnqueueJobQueueMessageInput[];
+  readonly nowIso: string;
+}
+
 export interface LeaseJobQueueMessagesInput {
   limit: number;
   leaseSeconds: number;
@@ -65,12 +71,6 @@ export interface FailJobQueueMessageInput {
   nowIso: string;
   error: string;
   retryDelaySeconds: number;
-}
-
-export interface DeleteFailedJobQueueMessageByIdentityInput {
-  tenantId: string;
-  jobType: JobQueueMessageType;
-  idempotencyKey: string;
 }
 
 export type MigrationBatchSource = "file_upload" | "credly_export" | "parchment_export" | "unknown";
@@ -147,14 +147,6 @@ interface JobQueueMessageRow {
   createdAt: string;
   updatedAt: string;
 }
-
-const serializeQueuePayload = (payload: unknown): string => {
-  if (payload === undefined) {
-    throw new Error("Queue payload is not JSON serializable");
-  }
-
-  return JSON.stringify(payload);
-};
 
 const mapJobQueueMessageRow = (row: JobQueueMessageRow): JobQueueMessageRecord => {
   return {
@@ -429,26 +421,6 @@ export const enqueueJobQueueMessageOnce = async (
     .first<{ id: string }>();
 
   return row !== null;
-};
-
-export const deleteFailedJobQueueMessageByIdentity = async (
-  db: SqlDatabase,
-  input: DeleteFailedJobQueueMessageByIdentityInput,
-): Promise<boolean> => {
-  const result = await db
-    .prepare(
-      `
-      DELETE FROM job_queue_messages
-      WHERE tenant_id = ?
-        AND job_type = ?
-        AND idempotency_key = ?
-        AND status = 'failed'
-    `,
-    )
-    .bind(input.tenantId, input.jobType, input.idempotencyKey)
-    .run();
-
-  return (result.meta.rowsWritten ?? 0) > 0;
 };
 
 export const leaseJobQueueMessages = async (

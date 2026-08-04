@@ -41,6 +41,40 @@ const mapDueVersionRow = (
   orgUnitId: row.orgUnitId,
 });
 
+/** Lists active rule versions whose lifecycle window permits automated evaluation now. */
+export const listBadgeIssuanceRuleVersionsForAutomatedEvaluation = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly nowIso: string;
+  },
+): Promise<BadgeRuleLifecycleDueVersionRecord[]> => {
+  const result = await db
+    .prepare(
+      `
+      SELECT
+        ${badgeIssuanceRuleVersionSelectColumns("versions")},
+        rules.badge_template_id AS badgeTemplateId,
+        rules.lms_provider_kind AS lmsProviderKind,
+        rules.lms_connection_id AS lmsConnectionId,
+        rules.org_unit_id AS orgUnitId
+      FROM badge_issuance_rule_versions AS versions
+      INNER JOIN badge_issuance_rules AS rules
+        ON rules.tenant_id = versions.tenant_id
+        AND rules.id = versions.rule_id
+      WHERE versions.tenant_id = ?
+        AND versions.status = 'active'
+        AND (versions.effective_starts_at IS NULL OR versions.effective_starts_at <= ?)
+        AND (versions.expires_at IS NULL OR versions.expires_at > ?)
+      ORDER BY versions.activated_at ASC, versions.id ASC
+    `,
+    )
+    .bind(input.tenantId, input.nowIso, input.nowIso)
+    .all<BadgeRuleLifecycleDueVersionRow>();
+
+  return result.results.map(mapDueVersionRow);
+};
+
 type DueVersionListKind =
   | "expiry"
   | "expiry_reminder"
@@ -508,64 +542,6 @@ export const resumeBadgeIssuanceRuleVersion = async (
     if ((result.meta.rowsWritten ?? 0) === 0) {
       return null;
     }
-
-    return findBadgeIssuanceRuleVersionById(transactionDb, {
-      tenantId: input.tenantId,
-      ruleId: input.ruleId,
-      versionId: input.versionId,
-    });
-  });
-};
-
-export const expireBadgeIssuanceRuleVersion = async (
-  db: SqlDatabase,
-  input: {
-    tenantId: string;
-    ruleId: string;
-    versionId: string;
-    occurredAt?: string | undefined;
-  },
-): Promise<BadgeIssuanceRuleVersionRecord | null> => {
-  const occurredAt = input.occurredAt ?? new Date().toISOString();
-
-  return runSqlTransaction(db, async (transactionDb) => {
-    const result = await transactionDb
-      .prepare(
-        `
-        UPDATE badge_issuance_rule_versions
-        SET
-          status = 'expired',
-          expired_at = ?,
-          updated_at = ?
-        WHERE tenant_id = ?
-          AND rule_id = ?
-          AND id = ?
-          AND status = 'active'
-          AND expires_at IS NOT NULL
-          AND expires_at <= ?
-      `,
-      )
-      .bind(occurredAt, occurredAt, input.tenantId, input.ruleId, input.versionId, occurredAt)
-      .run();
-
-    if ((result.meta.rowsWritten ?? 0) === 0) {
-      return null;
-    }
-
-    await transactionDb
-      .prepare(
-        `
-        UPDATE badge_issuance_rules
-        SET
-          active_version_id = NULL,
-          updated_at = ?
-        WHERE tenant_id = ?
-          AND id = ?
-          AND active_version_id = ?
-      `,
-      )
-      .bind(occurredAt, input.tenantId, input.ruleId, input.versionId)
-      .run();
 
     return findBadgeIssuanceRuleVersionById(transactionDb, {
       tenantId: input.tenantId,

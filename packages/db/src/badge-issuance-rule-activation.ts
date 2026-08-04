@@ -2,12 +2,18 @@ import {
   findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleVersionById,
 } from "./badge-issuance-rule-reads.js";
+import {
+  badgeIssuanceRuleHasCompleteLmsLearnerPopulation,
+  parseBadgeIssuanceRuleDefinitionJson,
+  resolveAutomatedBadgeRuleIssuanceTiming,
+} from "@credtrail/validation";
 import { resolveBadgeRuleApprovalPolicy } from "./badge-rule-approval-policies.js";
 import type {
   ActivateBadgeIssuanceRuleVersionInput,
   BadgeIssuanceRuleVersionRecord,
 } from "./badge-issuance-rule-types.js";
 import { addMonthsToIso } from "./shared-helpers.js";
+import { enqueueJobQueueMessageOnce } from "./job-queue.js";
 import { runSqlTransaction, type SqlDatabase, type SqlRunResult } from "./tenant-scope.js";
 
 /** Activates an approved badge-rule version and deprecates the prior active version atomically. */
@@ -20,8 +26,19 @@ export const activateBadgeIssuanceRuleVersion = async (
 
   return runSqlTransaction(db, async (transactionDb) => {
     const rule = await findBadgeIssuanceRuleById(transactionDb, input.tenantId, input.ruleId);
+    const version = await findBadgeIssuanceRuleVersionById(transactionDb, input);
 
-    if (rule === null) {
+    if (rule === null || version === null) {
+      return null;
+    }
+
+    const definition = parseBadgeIssuanceRuleDefinitionJson(version.ruleJson);
+    const automatedIssuanceTiming = resolveAutomatedBadgeRuleIssuanceTiming(definition);
+
+    if (
+      automatedIssuanceTiming !== null &&
+      !badgeIssuanceRuleHasCompleteLmsLearnerPopulation(definition)
+    ) {
       return null;
     }
 
@@ -109,6 +126,20 @@ export const activateBadgeIssuanceRuleVersion = async (
 
     await deprecateExistingStatement();
     await updateRuleActiveVersionStatement();
+
+    if (automatedIssuanceTiming === "immediate") {
+      await enqueueJobQueueMessageOnce(transactionDb, {
+        tenantId: input.tenantId,
+        jobType: "process_automated_badge_rule",
+        payload: {
+          ruleId: input.ruleId,
+          versionId: input.versionId,
+          scheduledFor: activatedAt,
+        },
+        idempotencyKey: `automated-rule:${input.ruleId}:${input.versionId}:activation`,
+        nowIso: activatedAt,
+      });
+    }
 
     return findBadgeIssuanceRuleVersionById(transactionDb, input);
   });

@@ -617,16 +617,16 @@ export const RuleBuilderTestStep = (): HonoElement => {
           <details class="ct-admin__builder-advanced ct-stack">
             <summary>Governance and release settings</summary>
             <p class="ct-admin__hint">
-              Approval is derived from institution policy. Open this only if a rule needs a specific
-              issuance timing.
+              Approval follows institution policy. Automatic issuance checks learners when the rule
+              is activated and every hour afterward.
             </p>
             <div class="ct-admin__builder-review-layout ct-grid">
               <div class="ct-stack">
                 <AdminField label="Issuance timing">
                   <CtSelect name="issuanceTiming">
-                    <option value="immediate">Immediate</option>
-                    <option value="manual">Manual review trigger</option>
-                    <option value="end_of_term">End of term batch</option>
+                    <option value="immediate">Automatic</option>
+                    <option value="manual">Instructor confirmation</option>
+                    <option value="end_of_term">End-of-term batch</option>
                   </CtSelect>
                 </AdminField>
                 <AdminField label="Change summary (optional)">
