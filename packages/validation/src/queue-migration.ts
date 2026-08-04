@@ -132,6 +132,12 @@ export const issueBadgeJobPayloadSchema = z.object({
   requestedAt: isoTimestampSchema,
   requestedByUserId: userIdSchema.optional(),
   issuanceProvenance: assertionIssuanceProvenanceInputSchema.default({ source: "programmatic" }),
+  lmsLearnerIdentity: z
+    .object({
+      connectionId: resourceIdSchema,
+      learnerId: z.string().trim().min(1).max(512),
+    })
+    .optional(),
 });
 
 export const revokeBadgeJobPayloadSchema = z.object({

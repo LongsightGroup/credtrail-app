@@ -13,7 +13,7 @@ import {
   AdminStatus,
   AdminTable,
 } from "../components";
-import { CtInput, CtSelect } from "../../ui/forms";
+import { CtFieldHint, CtInput, CtSelect } from "../../ui/forms";
 import type {
   InstitutionAdminLearnerRecordImportWorkflow,
   InstitutionAdminLearnerRecordReview,
@@ -144,8 +144,20 @@ export const renderInstitutionAdminLearnerRecordSections = (
         <AdminPanel>
           <h2>No learner record found</h2>
           <AdminStatus tone="warning">
-            No learner profile matched this lookup. Check the learner profile ID or email and try
+            No learner record matched that LMS learner ID or email address. Check the value and try
             again.
+          </AdminStatus>
+        </AdminPanel>
+      );
+    }
+
+    if (learnerRecordReview.lookupState === "ambiguous") {
+      return (
+        <AdminPanel>
+          <h2>More than one learner matched</h2>
+          <AdminStatus tone="warning">
+            That value belongs to more than one learner. Use an email address to open the right
+            record.
           </AdminStatus>
         </AdminPanel>
       );
@@ -231,26 +243,22 @@ export const renderInstitutionAdminLearnerRecordSections = (
     <AdminPanel>
       <h2>Learner record review</h2>
       <p>
-        Open one learner’s unified record by learner profile ID or learner email already associated
-        with this tenant. This page is review-only and intentionally stops short of broader ingest
-        or transcript workflow claims.
+        Open a learner’s unified record using the learner ID shown in the LMS or their email
+        address.
       </p>
       <AdminForm method="get" action={operationsLearnerRecordsPath}>
-        <AdminField label="Learner profile ID">
+        <AdminField label="LMS learner ID or email">
           <CtInput
-            name="learnerProfileId"
+            name="learner"
             type="text"
-            value={learnerRecordReview.lookup.learnerProfileId ?? ""}
-            placeholder="lpr_123"
+            value={learnerRecordReview.lookup.learner ?? ""}
+            required
+            maxlength={320}
+            describedBy="learner-record-lookup-hint"
           />
-        </AdminField>
-        <AdminField label="Learner email">
-          <CtInput
-            name="email"
-            type="email"
-            value={learnerRecordReview.lookup.email ?? ""}
-            placeholder="learner@example.edu"
-          />
+          <CtFieldHint id="learner-record-lookup-hint">
+            Use the learner ID from the LMS course roster or the learner’s institution email.
+          </CtFieldHint>
         </AdminField>
         <AdminActions>
           <AdminButton type="submit">Load learner record</AdminButton>

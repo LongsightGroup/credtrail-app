@@ -7,8 +7,15 @@ import type {
 } from "@credtrail/validation";
 import { resolveQueueIssueBadgeProvenance } from "../badges/issue-badge-provenance";
 
+type IssueBadgeQueueRequest = IssueBadgeRequest & {
+  readonly lmsLearnerIdentity?: {
+    readonly connectionId: string;
+    readonly learnerId: string;
+  };
+};
+
 export const issueBadgeQueueJobFromRequest = (
-  request: IssueBadgeRequest,
+  request: IssueBadgeQueueRequest,
 ): { assertionId: string; job: IssueBadgeQueueJob } => {
   const assertionId = createTenantScopedId(request.tenantId);
   const idempotencyKey = request.idempotencyKey ?? crypto.randomUUID();
@@ -44,6 +51,9 @@ export const issueBadgeQueueJobFromRequest = (
             requestedByUserId: request.requestedByUserId,
           }),
       issuanceProvenance,
+      ...(request.lmsLearnerIdentity === undefined
+        ? {}
+        : { lmsLearnerIdentity: request.lmsLearnerIdentity }),
     },
     idempotencyKey,
   };

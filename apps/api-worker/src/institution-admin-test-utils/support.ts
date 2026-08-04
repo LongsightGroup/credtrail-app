@@ -30,6 +30,7 @@ import {
   findActiveLearnerRecordImportPreview,
   findLearnerProfileById,
   findLearnerProfileByIdentity,
+  listLearnerProfilesForRecordLookup,
   findTenantById,
   findDelegatedIssuingAuthorityGrantById,
   findTenantMembership,
@@ -126,6 +127,9 @@ export const mockedFindActiveLearnerRecordImportPreviewDb = vi.mocked(
 );
 export const mockedFindLearnerProfileByIdDb = vi.mocked(findLearnerProfileById);
 export const mockedFindLearnerProfileByIdentityDb = vi.mocked(findLearnerProfileByIdentity);
+export const mockedListLearnerProfilesForRecordLookupDb = vi.mocked(
+  listLearnerProfilesForRecordLookup,
+);
 export const mockedFindTenantMembership = vi.mocked(findTenantMembership);
 export const mockedFindTenantById = vi.mocked(findTenantById);
 export const mockedFindUserById = vi.mocked(findUserById);
@@ -1190,6 +1194,8 @@ beforeEach(() => {
   mockedFindLearnerProfileByIdDb.mockResolvedValue(sampleLearnerProfile());
   mockedFindLearnerProfileByIdentityDb.mockReset();
   mockedFindLearnerProfileByIdentityDb.mockResolvedValue(sampleLearnerProfile());
+  mockedListLearnerProfilesForRecordLookupDb.mockReset();
+  mockedListLearnerProfilesForRecordLookupDb.mockResolvedValue([sampleLearnerProfile()]);
   mockedListLearnerRecordAssertionExportsDb.mockReset();
   mockedListLearnerRecordAssertionExportsDb.mockResolvedValue([
     sampleLearnerRecordAssertionExport(),

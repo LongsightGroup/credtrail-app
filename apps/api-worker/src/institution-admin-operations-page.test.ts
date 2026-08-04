@@ -8,8 +8,7 @@ import {
   mockedFindActiveLearnerRecordImportPreviewDb,
   mockedFindAssertionById,
   mockedFindBadgeTemplateById,
-  mockedFindLearnerProfileByIdDb,
-  mockedFindLearnerProfileByIdentityDb,
+  mockedListLearnerProfilesForRecordLookupDb,
   mockedListLearnerRecordAssertionExportsDb,
   mockedListLearnerRecordEntriesDb,
   mockedListBadgeIssuanceRuleEvaluations,
@@ -233,8 +232,8 @@ describe("GET /tenants/:tenantId/admin/operations/learner-records", () => {
     expect(body).toContain("Learner Records");
     expect(body).toMatch(/class="[^"]*ct-action-group/);
     expect(body).toContain("Load learner record");
-    expect(body).toContain('name="learnerProfileId"');
-    expect(body).toContain('name="email"');
+    expect(body).toContain('name="learner"');
+    expect(body).toContain("LMS learner ID or email");
     expect(body).not.toContain("Choose one learner");
     expect(body).not.toContain("No learner record found");
   });
@@ -243,7 +242,7 @@ describe("GET /tenants/:tenantId/admin/operations/learner-records", () => {
     const env = createEnv();
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/operations/learner-records?learnerProfileId=lpr_123",
+      "/tenants/tenant_123/admin/operations/learner-records?learner=learner-123",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -269,14 +268,17 @@ describe("GET /tenants/:tenantId/admin/operations/learner-records", () => {
     expect(body).toContain(
       'href="/v1/tenants/tenant_123/learner-records/lpr_123/standards-mapping?profile=clr_alignment_json"',
     );
-    expect(mockedFindLearnerProfileByIdDb).toHaveBeenCalledWith(fakeDb, "tenant_123", "lpr_123");
+    expect(mockedListLearnerProfilesForRecordLookupDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      lookupValue: "learner-123",
+    });
   });
 
-  it("treats a blank learner profile id as absent when searching by email", async () => {
+  it("opens a learner record by institution email", async () => {
     const env = createEnv();
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/operations/learner-records?learnerProfileId=&email=ottenhoff%40longsight.com",
+      "/tenants/tenant_123/admin/operations/learner-records?learner=ottenhoff%40longsight.com",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -288,18 +290,18 @@ describe("GET /tenants/:tenantId/admin/operations/learner-records", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("Learner overview");
-    expect(mockedFindLearnerProfileByIdentityDb).toHaveBeenCalledWith(fakeDb, {
+    expect(mockedListLearnerProfilesForRecordLookupDb).toHaveBeenCalledWith(fakeDb, {
       tenantId: "tenant_123",
-      identityType: "email",
-      identityValue: "ottenhoff@longsight.com",
+      lookupValue: "ottenhoff@longsight.com",
     });
-    expect(mockedFindLearnerProfileByIdDb).not.toHaveBeenCalledWith(fakeDb, "tenant_123", "");
   });
 
   it("can verify a seeded-demo learner review on the normal admin operations route", async () => {
     const seededDemo = getSeededDemoLearnerRecordFixture();
 
-    mockedFindLearnerProfileByIdDb.mockResolvedValueOnce(seededDemo.learnerProfile);
+    mockedListLearnerProfilesForRecordLookupDb.mockResolvedValueOnce([
+      seededDemo.learnerProfile,
+    ]);
     mockedListLearnerRecordAssertionExportsDb.mockResolvedValueOnce([
       ...seededDemo.assertionExports,
     ]);
@@ -328,10 +330,10 @@ describe("GET /tenants/:tenantId/admin/operations/learner-records", () => {
 
   it("renders a truthful unresolved state for missing learner lookups", async () => {
     const env = createEnv();
-    mockedFindLearnerProfileByIdentityDb.mockResolvedValueOnce(null);
+    mockedListLearnerProfilesForRecordLookupDb.mockResolvedValueOnce([]);
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/operations/learner-records?email=missing%40example.edu",
+      "/tenants/tenant_123/admin/operations/learner-records?learner=missing%40example.edu",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -343,7 +345,43 @@ describe("GET /tenants/:tenantId/admin/operations/learner-records", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("No learner record found");
-    expect(body).toContain("No learner profile matched this lookup");
+    expect(body).toContain("No learner record matched that LMS learner ID or email address");
+  });
+
+  it("does not choose silently when an LMS ID and email match different learners", async () => {
+    mockedListLearnerProfilesForRecordLookupDb.mockResolvedValueOnce([
+      {
+        id: "lpr_lms",
+        tenantId: "tenant_123",
+        subjectId: "urn:credtrail:learner:tenant_123:lpr_lms",
+        displayName: "LMS Learner",
+        createdAt: "2026-08-04T10:00:00.000Z",
+        updatedAt: "2026-08-04T10:00:00.000Z",
+      },
+      {
+        id: "lpr_email",
+        tenantId: "tenant_123",
+        subjectId: "urn:credtrail:learner:tenant_123:lpr_email",
+        displayName: "Email Learner",
+        createdAt: "2026-08-04T10:00:00.000Z",
+        updatedAt: "2026-08-04T10:00:00.000Z",
+      },
+    ]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/learner-records?learner=shared%40example.edu",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      createEnv(),
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("More than one learner matched");
+    expect(body).not.toContain("Learner overview");
   });
 });
 

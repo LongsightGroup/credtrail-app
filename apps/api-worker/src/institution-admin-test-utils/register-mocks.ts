@@ -3,6 +3,7 @@ import { vi } from "vitest";
 const {
   mockedFindLearnerProfileById,
   mockedFindLearnerProfileByIdentity,
+  mockedListLearnerProfilesForRecordLookup,
   mockedFindTenantAuthPolicy,
   mockedGetTenantReportingComparisons,
   mockedGetTenantReportingEngagementCounts,
@@ -50,6 +51,7 @@ const {
   return {
     mockedFindLearnerProfileById: vi.fn(),
     mockedFindLearnerProfileByIdentity: vi.fn(),
+    mockedListLearnerProfilesForRecordLookup: vi.fn(),
     mockedFindTenantAuthPolicy: vi.fn(),
     mockedGetTenantReportingComparisons: vi.fn(),
     mockedGetTenantReportingEngagementCounts: vi.fn(),
@@ -103,6 +105,7 @@ export {
   mockedFindActiveLearnerRecordImportPreview,
   mockedFindLearnerProfileById,
   mockedFindLearnerProfileByIdentity,
+  mockedListLearnerProfilesForRecordLookup,
   mockedFindTenantAuthPolicy,
   mockedFindTenantLmsConnectionById,
   mockedGetTenantReportingComparisons,
@@ -151,6 +154,7 @@ vi.mock("@credtrail/db", async () => {
     ...actual,
     findLearnerProfileById: mockedFindLearnerProfileById,
     findLearnerProfileByIdentity: mockedFindLearnerProfileByIdentity,
+    listLearnerProfilesForRecordLookup: mockedListLearnerProfilesForRecordLookup,
     createLearnerRecordImportPreview: mockedCreateLearnerRecordImportPreview,
     enqueueJobQueueMessageOnce: mockedEnqueueJobQueueMessageOnce,
     findActiveLearnerRecordImportPreview: mockedFindActiveLearnerRecordImportPreview,

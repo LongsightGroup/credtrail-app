@@ -17,6 +17,7 @@ import { registerTenantDelegatedAuthorityRoutes } from "./tenant-delegated-autho
 import { createTenantGovernanceAdminAuth } from "./tenant-governance-admin/auth";
 import { createTenantGovernanceInstitutionAdminWorkspaces } from "./tenant-governance-admin/institution-workspaces";
 import { createTenantGovernanceLearnerRecordImportAdmin } from "./tenant-governance-admin/learner-record-import";
+import { createTenantGovernanceLearnerRecordReviewAdmin } from "./tenant-governance-admin/learner-record-review";
 import { createTenantGovernanceAdminPageDataLoaders } from "./tenant-governance-admin/page-data";
 import { createTenantGovernanceReportingAdminWorkspaces } from "./tenant-governance-admin/reporting-workspaces";
 import { createTenantGovernanceTemplateAdminWorkspaces } from "./tenant-governance-admin/template-workspaces";
@@ -61,6 +62,10 @@ export const registerTenantGovernanceRoutes = (
     loadInstitutionAdminPageData: pageData.loadInstitutionAdminPageData,
   });
   const learnerRecordImport = createTenantGovernanceLearnerRecordImportAdmin({
+    resolveDatabase: input.resolveDatabase,
+    loadInstitutionAdminPageData: pageData.loadInstitutionAdminPageData,
+  });
+  const learnerRecordReview = createTenantGovernanceLearnerRecordReviewAdmin({
     resolveDatabase: input.resolveDatabase,
     loadInstitutionAdminPageData: pageData.loadInstitutionAdminPageData,
   });
@@ -232,7 +237,7 @@ export const registerTenantGovernanceRoutes = (
     ADMIN_ROLES: input.ADMIN_ROLES,
     adminRoleRequiredPage,
     handleLearnerRecordImportUpload: learnerRecordImport.handleLearnerRecordImportUpload,
-    loadLearnerRecordReviewPageData: learnerRecordImport.loadLearnerRecordReviewPageData,
+    loadLearnerRecordReviewPageData: learnerRecordReview.loadLearnerRecordReviewPageData,
     redirectToTenantLogin: auth.redirectToTenantLogin,
     renderLearnerRecordImportWorkspace: learnerRecordImport.renderLearnerRecordImportWorkspace,
     resolveDatabase: input.resolveDatabase,

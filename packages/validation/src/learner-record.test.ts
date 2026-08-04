@@ -254,50 +254,33 @@ describe("learner-record parsers", () => {
   it("parses bounded admin learner-record review queries", () => {
     expect(
       parseAdminLearnerRecordReviewQuery({
-        learnerProfileId: "lpr_123",
+        learner: "learner-123",
       }),
     ).toEqual({
-      learnerProfileId: "lpr_123",
+      learner: "learner-123",
     });
 
     expect(
       parseAdminLearnerRecordReviewQuery({
-        email: "learner@example.edu",
+        learner: " learner@example.edu ",
       }),
     ).toEqual({
-      email: "learner@example.edu",
+      learner: "learner@example.edu",
     });
 
     expect(
       parseAdminLearnerRecordReviewQuery({
-        learnerProfileId: "",
-        email: " learner@example.edu ",
-      }),
-    ).toEqual({
-      email: "learner@example.edu",
-    });
-
-    expect(
-      parseAdminLearnerRecordReviewQuery({
-        learnerProfileId: " ",
-        email: "",
+        learner: " ",
       }),
     ).toEqual({});
 
     expect(parseAdminLearnerRecordReviewQuery({})).toEqual({});
   });
 
-  it("rejects ambiguous admin learner-record review queries", () => {
+  it("rejects invalid admin learner-record review queries", () => {
     expect(() => {
       parseAdminLearnerRecordReviewQuery({
-        learnerProfileId: "lpr_123",
-        email: "learner@example.edu",
-      });
-    }).toThrow(/./);
-
-    expect(() => {
-      parseAdminLearnerRecordReviewQuery({
-        email: "not-an-email",
+        learner: "x".repeat(321),
       });
     }).toThrow(/./);
   });

@@ -61,8 +61,7 @@ export type InstitutionAdminView =
 
 export interface InstitutionAdminLearnerRecordReview {
   lookup: {
-    learnerProfileId?: string;
-    email?: string;
+    learner?: string;
   };
   learnerProfile: {
     id: string;
@@ -72,7 +71,7 @@ export interface InstitutionAdminLearnerRecordReview {
   presentation: LearnerRecordPresentationModel | null;
   exportPath: string | null;
   standardsMappingPath: string | null;
-  lookupState: "idle" | "unresolved" | "loaded";
+  lookupState: "idle" | "unresolved" | "ambiguous" | "loaded";
 }
 
 export interface InstitutionAdminApiKeysWorkspace {

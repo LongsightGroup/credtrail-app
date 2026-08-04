@@ -20,7 +20,7 @@ describe("seeded demo learner record fixture", () => {
       "/tenants/tenant_123/learner/record",
     );
     expect(seededDemoLearnerRecordFixture.routeFamily.adminReview).toBe(
-      "/tenants/tenant_123/admin/operations/learner-records?learnerProfileId=lpr_123",
+      "/tenants/tenant_123/admin/operations/learner-records?learner=learner%40example.edu",
     );
     expect(seededDemoLearnerRecordFixture.routeFamily.nativeExport).toContain(
       "profile=native_portable_json",

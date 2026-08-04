@@ -265,8 +265,7 @@ export const registerTenantLearnerRecordAdminRoutes = (
       tenantId: pathParams.tenantId,
       sessionUserId: roleCheck.session.userId,
       membershipRole: roleCheck.membershipRole,
-      ...(reviewQuery.learnerProfileId ? { learnerProfileId: reviewQuery.learnerProfileId } : {}),
-      ...(reviewQuery.email ? { email: reviewQuery.email } : {}),
+      ...(reviewQuery.learner ? { learner: reviewQuery.learner } : {}),
     });
 
     if (pageData instanceof Response) {

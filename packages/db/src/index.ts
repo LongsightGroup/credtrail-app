@@ -18,6 +18,7 @@ export * from "./job-queue";
 export * from "./job-queue-enqueue";
 export * from "./learner-badge-summaries";
 export * from "./learner-identity-link-proofs";
+export * from "./learner-lms-identities";
 export * from "./learner-profiles";
 export * from "./learner-records";
 export * from "./learner-record-imports";

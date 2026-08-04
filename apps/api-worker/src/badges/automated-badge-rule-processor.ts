@@ -296,12 +296,18 @@ export const processAutomatedBadgeRule = async (input: {
     throw new Error("Active automated badge rule has no complete LMS learner population");
   }
 
+  if (rule.lmsConnectionId === null) {
+    throw new Error("Active automated badge rule has no LMS connection");
+  }
+
+  const lmsConnectionId = rule.lmsConnectionId;
+
   const provider =
     input.gradebookProvider ??
     (await resolveGradebookProvider({
       db: input.db,
       tenantId: input.tenantId,
-      lmsConnectionId: rule.lmsConnectionId ?? undefined,
+      lmsConnectionId,
       nowIso: input.payload.scheduledFor,
     }));
   const discovery = await listCandidateLearners(provider, courseIds);
@@ -358,6 +364,10 @@ export const processAutomatedBadgeRule = async (input: {
         badgeTemplateId: rule.badgeTemplateId,
         recipientIdentity: learner.email,
         recipientIdentityType: "email",
+        lmsLearnerIdentity: {
+          connectionId: lmsConnectionId,
+          learnerId: learner.learnerId,
+        },
         ...(learner.displayName.length === 0 ? {} : { recipientDisplayName: learner.displayName }),
         idempotencyKey: `rule-evaluate:${version.id}:${learnerKey}`,
         issuanceProvenance: issuanceProvenanceFromContext({

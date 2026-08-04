@@ -138,14 +138,21 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
         ruleId: created.rule.id,
         versionId: created.version.id,
       });
-      expect(JSON.parse(queuedIssuance?.payloadJson ?? "{}")).toMatchObject({
+      const queuedIssuancePayload: unknown = JSON.parse(queuedIssuance?.payloadJson ?? "{}");
+
+      expect(queuedIssuancePayload).toMatchObject({
         recipientIdentity: "complete@example.edu",
+        lmsLearnerIdentity: {
+          connectionId: fixture.lmsConnectionId,
+          learnerId: "learner-complete",
+        },
         issuanceProvenance: {
           source: "rule_evaluate",
           ruleId: created.rule.id,
           versionId: created.version.id,
         },
       });
+      expect(queuedIssuancePayload).not.toHaveProperty("recipientIdentifiers");
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],

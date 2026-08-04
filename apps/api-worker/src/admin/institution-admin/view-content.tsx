@@ -227,7 +227,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
         <>
           {renderPageHeader(
             "Learner Records",
-            "Look up one learner by profile ID or email to review badges and record entries.",
+            "Look up one learner by LMS learner ID or email to review badges and record entries.",
           )}
           <section class="ct-admin ct-stack">
             {content.learnerRecords.learnerRecordReviewPanelMarkup}

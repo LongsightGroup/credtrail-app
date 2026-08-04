@@ -244,7 +244,7 @@ beforeEach(() => {
       assertionId: assertion.id,
       tenantId: assertion.tenantId,
     });
-    return { assertion, provenance };
+    return { status: "issued", assertion, provenance };
   });
   mockedCreateAssertionIssuanceProvenance.mockResolvedValue({
     assertionId: "tenant_123:assertion_456",

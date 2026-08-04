@@ -104,7 +104,7 @@ export const learnerRecordEntryListQuerySchema = z.object({
   status: learnerRecordStatusSchema.optional(),
 });
 
-const adminLearnerRecordReviewQueryFields = ["learnerProfileId", "email"] as const;
+const adminLearnerRecordReviewQueryFields = ["learner"] as const;
 
 const normalizeAdminLearnerRecordReviewQuery = (input: unknown): unknown => {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
@@ -135,23 +135,9 @@ const normalizeAdminLearnerRecordReviewQuery = (input: unknown): unknown => {
 
 export const adminLearnerRecordReviewQuerySchema = z.preprocess(
   normalizeAdminLearnerRecordReviewQuery,
-  z
-    .object({
-      learnerProfileId: resourceIdSchema.optional(),
-      email: z.string().email().max(320).optional(),
-    })
-    .superRefine((value, ctx) => {
-      if (value.learnerProfileId !== undefined && value.email !== undefined) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["learnerProfileId"],
-          message: "Provide learnerProfileId or email, not both",
-        });
-      }
-      if (value.learnerProfileId === undefined && value.email === undefined) {
-        return;
-      }
-    }),
+  z.object({
+    learner: z.string().min(1).max(320).optional(),
+  }),
 );
 
 export const learnerRecordExportProfileSchema = z.enum([

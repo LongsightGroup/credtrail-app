@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const {
   hoistedFindLearnerProfileById,
   hoistedFindLearnerProfileByIdentity,
+  hoistedListLearnerProfilesForRecordLookup,
   hoistedListLearnerRecordAssertionExports,
   hoistedListLearnerRecordEntries,
   mockedResolveBetterAuthPrincipal,
@@ -13,6 +14,7 @@ const {
   return {
     hoistedFindLearnerProfileById: vi.fn(),
     hoistedFindLearnerProfileByIdentity: vi.fn(),
+    hoistedListLearnerProfilesForRecordLookup: vi.fn(),
     hoistedListLearnerRecordAssertionExports: vi.fn(),
     hoistedListLearnerRecordEntries: vi.fn(),
     mockedResolveBetterAuthPrincipal: vi.fn(),
@@ -29,7 +31,7 @@ describe("admin learner-record review route", () => {
     mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: "admin" }));
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/operations/learner-records?learnerProfileId=lpr_123",
+      "/tenants/tenant_123/admin/operations/learner-records?learner=learner-123",
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -44,7 +46,10 @@ describe("admin learner-record review route", () => {
     expect(body).toContain("Load learner record");
     expect(body).toContain("Download native portable export");
     expect(body).toContain("Open standards mapping");
-    expect(mockedFindLearnerProfileById).toHaveBeenCalledWith(fakeDb, "tenant_123", "lpr_123");
+    expect(mockedListLearnerProfilesForRecordLookup).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      lookupValue: "learner-123",
+    });
   });
 
   it("can verify the canonical seeded-demo learner-record review route for admins", async () => {
@@ -52,7 +57,7 @@ describe("admin learner-record review route", () => {
     const seededDemo = getSeededDemoLearnerRecordFixture();
 
     mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: "admin" }));
-    mockedFindLearnerProfileById.mockResolvedValueOnce(seededDemo.learnerProfile);
+    mockedListLearnerProfilesForRecordLookup.mockResolvedValueOnce([seededDemo.learnerProfile]);
     mockedListLearnerRecordAssertionExports.mockResolvedValueOnce([...seededDemo.assertionExports]);
     mockedListLearnerRecordEntries.mockResolvedValueOnce([...seededDemo.recordEntries]);
 
@@ -75,13 +80,13 @@ describe("admin learner-record review route", () => {
     expect(body).toContain(`href="${seededDemo.routeFamily.standardsMapping}"`);
   });
 
-  it("rejects ambiguous learner-record review queries", async () => {
+  it("rejects overlong learner-record review queries", async () => {
     const env = createEnv();
 
     mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: "admin" }));
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/operations/learner-records?learnerProfileId=lpr_123&email=learner%40example.edu",
+      `/tenants/tenant_123/admin/operations/learner-records?learner=${"x".repeat(321)}`,
       {
         headers: {
           Cookie: "better-auth.session_token=session-token",
@@ -186,6 +191,7 @@ vi.mock("@credtrail/db", async () => {
     findActiveTenantBreakGlassAccountByUserId: vi.fn(),
     findLearnerProfileById: hoistedFindLearnerProfileById,
     findLearnerProfileByIdentity: hoistedFindLearnerProfileByIdentity,
+    listLearnerProfilesForRecordLookup: hoistedListLearnerProfilesForRecordLookup,
     findTenantAuthPolicy: vi.fn(),
     findTenantMembership: vi.fn(),
     findTenantById: vi.fn(),
@@ -271,6 +277,7 @@ import {
   findDelegatedIssuingAuthorityGrantById,
   findLearnerProfileById,
   findLearnerProfileByIdentity,
+  listLearnerProfilesForRecordLookup,
   findTenantAuthPolicy,
   findTenantMembership,
   findTenantById,
@@ -356,6 +363,7 @@ const mockedFindDelegatedIssuingAuthorityGrantById = vi.mocked(
 );
 const mockedFindLearnerProfileById = vi.mocked(findLearnerProfileById);
 const mockedFindLearnerProfileByIdentity = vi.mocked(findLearnerProfileByIdentity);
+const mockedListLearnerProfilesForRecordLookup = vi.mocked(listLearnerProfilesForRecordLookup);
 const mockedFindTenantAuthPolicy = vi.mocked(findTenantAuthPolicy);
 const mockedFindTenantMembership = vi.mocked(findTenantMembership);
 const mockedFindTenantById = vi.mocked(findTenantById);
@@ -558,6 +566,17 @@ beforeEach(() => {
     createdAt: "2026-03-25T12:00:00.000Z",
     updatedAt: "2026-03-25T12:00:00.000Z",
   });
+  mockedListLearnerProfilesForRecordLookup.mockReset();
+  mockedListLearnerProfilesForRecordLookup.mockResolvedValue([
+    {
+      id: "lpr_123",
+      tenantId: "tenant_123",
+      subjectId: "urn:credtrail:learner:tenant_123:lpr_123",
+      displayName: "Learner One",
+      createdAt: "2026-03-25T12:00:00.000Z",
+      updatedAt: "2026-03-25T12:00:00.000Z",
+    },
+  ]);
   mockedListLearnerRecordAssertionExports.mockReset();
   mockedListLearnerRecordAssertionExports.mockResolvedValue([
     {

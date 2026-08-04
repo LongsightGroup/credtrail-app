@@ -23,6 +23,10 @@ export type DirectIssueBadgeRequest = Pick<
   | "idempotencyKey"
 > & {
   issuanceProvenance: DirectIssueBadgeIssuanceProvenance;
+  lmsLearnerIdentity?: {
+    readonly connectionId: string;
+    readonly learnerId: string;
+  };
 };
 
 const normalizeRecipientIdentifierValue = (

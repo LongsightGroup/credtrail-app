@@ -65,6 +65,56 @@ describe("parseQueueJob", () => {
     expect(job.payload.issuerImageUri).toBe("https://issuer.example.edu/logo.svg");
   });
 
+  it("accepts a connection-scoped LMS learner identity on automated issuance jobs", () => {
+    const job = parseQueueJob({
+      jobType: "issue_badge",
+      tenantId: "tenant_123",
+      payload: {
+        assertionId: "assertion_456",
+        badgeTemplateId: "badge_template_001",
+        recipientIdentity: "learner@example.edu",
+        recipientIdentityType: "email",
+        requestedAt: "2026-02-10T15:00:00.000Z",
+        lmsLearnerIdentity: {
+          connectionId: "lms_123",
+          learnerId: "learner-123",
+        },
+      },
+      idempotencyKey: "idem_lms_abc",
+    });
+
+    expect(job.jobType).toBe("issue_badge");
+
+    if (job.jobType !== "issue_badge") {
+      throw new Error("Expected issue_badge queue payload");
+    }
+
+    expect(job.payload.lmsLearnerIdentity).toEqual({
+      connectionId: "lms_123",
+      learnerId: "learner-123",
+    });
+  });
+
+  it("rejects an unscoped LMS learner identity on issuance jobs", () => {
+    expect(() =>
+      parseQueueJob({
+        jobType: "issue_badge",
+        tenantId: "tenant_123",
+        payload: {
+          assertionId: "assertion_456",
+          badgeTemplateId: "badge_template_001",
+          recipientIdentity: "learner@example.edu",
+          recipientIdentityType: "email",
+          requestedAt: "2026-02-10T15:00:00.000Z",
+          lmsLearnerIdentity: {
+            learnerId: "learner-123",
+          },
+        },
+        idempotencyKey: "idem_unscoped_lms",
+      }),
+    ).toThrow(/connectionId/);
+  });
+
   it("accepts a valid revoke_badge queue payload", () => {
     const job = parseQueueJob({
       jobType: "revoke_badge",

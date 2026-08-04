@@ -1,7 +1,5 @@
 import {
   createLearnerRecordImportPreview,
-  findLearnerProfileById,
-  findLearnerProfileByIdentity,
   listImportLearnerRecordBatchQueueMessages,
   type LearnerRecordTrustLevel,
   type TenantMembershipRole,
@@ -10,13 +8,11 @@ import { parseLearnerRecordImportBatchDefaults } from "@credtrail/validation";
 import { institutionAdminLearnerRecordImportsPage } from "../../admin/institution-admin-page";
 import type { AppContext } from "../../app";
 import type { ResolveDatabase } from "../../app/route-deps";
-import { loadLearnerRecordExportBundle } from "../../learner-record/learner-record-export";
 import {
   prepareLearnerRecordImportSubmission,
   queueReviewedLearnerRecordImportPreview,
   summarizeLearnerRecordImportProgress,
 } from "../../learner-record/learner-record-import";
-import { createLearnerRecordPresentation } from "../../learner-record/learner-record-presentation";
 import { renderAppPage } from "../../ui/render-page";
 import type { InstitutionAdminPageData } from "../institution-admin-page-data-loader";
 import type { TenantGovernanceAdminPageDataLoaders } from "./page-data";
@@ -49,135 +45,6 @@ export const createTenantGovernanceLearnerRecordImportAdmin = (input: {
   loadInstitutionAdminPageData: TenantGovernanceAdminPageDataLoaders["loadInstitutionAdminPageData"];
 }) => {
   const { resolveDatabase, loadInstitutionAdminPageData } = input;
-
-  const loadLearnerRecordReviewPageData = async (input: {
-    c: AppContext;
-    tenantId: string;
-    sessionUserId: string;
-    membershipRole: TenantMembershipRole;
-    learnerProfileId?: string;
-    email?: string;
-  }): Promise<InstitutionAdminPageData | Response> => {
-    const pageData = await loadInstitutionAdminPageData(
-      input.c,
-      input.tenantId,
-      input.sessionUserId,
-      input.membershipRole,
-    );
-
-    if (pageData instanceof Response) {
-      return pageData;
-    }
-
-    if (input.learnerProfileId === undefined && input.email === undefined) {
-      return {
-        ...pageData,
-        learnerRecordReview: {
-          lookup: {},
-          learnerProfile: null,
-          presentation: null,
-          exportPath: null,
-          standardsMappingPath: null,
-          lookupState: "idle",
-        },
-      };
-    }
-
-    const db = resolveDatabase(input.c.env);
-    let learnerProfile: Awaited<ReturnType<typeof findLearnerProfileById>>;
-
-    if (input.learnerProfileId !== undefined) {
-      learnerProfile = await findLearnerProfileById(db, input.tenantId, input.learnerProfileId);
-    } else {
-      const email = input.email;
-
-      if (email === undefined) {
-        return {
-          ...pageData,
-          learnerRecordReview: {
-            lookup: {},
-            learnerProfile: null,
-            presentation: null,
-            exportPath: null,
-            standardsMappingPath: null,
-            lookupState: "idle",
-          },
-        };
-      }
-
-      learnerProfile = await findLearnerProfileByIdentity(db, {
-        tenantId: input.tenantId,
-        identityType: "email",
-        identityValue: email,
-      });
-    }
-
-    if (learnerProfile === null) {
-      return {
-        ...pageData,
-        learnerRecordReview: {
-          lookup: {
-            ...(input.learnerProfileId === undefined
-              ? {}
-              : { learnerProfileId: input.learnerProfileId }),
-            ...(input.email === undefined ? {} : { email: input.email }),
-          },
-          learnerProfile: null,
-          presentation: null,
-          exportPath: null,
-          standardsMappingPath: null,
-          lookupState: "unresolved",
-        },
-      };
-    }
-
-    const bundle = await loadLearnerRecordExportBundle(db, {
-      tenantId: input.tenantId,
-      learnerProfileId: learnerProfile.id,
-    });
-
-    if (bundle === null) {
-      return {
-        ...pageData,
-        learnerRecordReview: {
-          lookup: {
-            ...(input.learnerProfileId === undefined
-              ? {}
-              : { learnerProfileId: input.learnerProfileId }),
-            ...(input.email === undefined ? {} : { email: input.email }),
-          },
-          learnerProfile: null,
-          presentation: null,
-          exportPath: null,
-          standardsMappingPath: null,
-          lookupState: "unresolved",
-        },
-      };
-    }
-
-    const encodedLearnerProfileId = encodeURIComponent(learnerProfile.id);
-
-    return {
-      ...pageData,
-      learnerRecordReview: {
-        lookup: {
-          ...(input.learnerProfileId === undefined
-            ? {}
-            : { learnerProfileId: input.learnerProfileId }),
-          ...(input.email === undefined ? {} : { email: input.email }),
-        },
-        learnerProfile: {
-          id: learnerProfile.id,
-          displayName: learnerProfile.displayName,
-          subjectId: learnerProfile.subjectId,
-        },
-        presentation: createLearnerRecordPresentation(bundle),
-        exportPath: `/v1/tenants/${encodeURIComponent(input.tenantId)}/learner-records/${encodedLearnerProfileId}/export?profile=native_portable_json`,
-        standardsMappingPath: `/v1/tenants/${encodeURIComponent(input.tenantId)}/learner-records/${encodedLearnerProfileId}/standards-mapping?profile=clr_alignment_json`,
-        lookupState: "loaded",
-      },
-    };
-  };
 
   const loadLearnerRecordImportPageData = async (input: {
     c: AppContext;
@@ -632,7 +499,6 @@ export const createTenantGovernanceLearnerRecordImportAdmin = (input: {
   };
 
   return {
-    loadLearnerRecordReviewPageData,
     loadLearnerRecordImportPageData,
     renderLearnerRecordImportWorkspace,
     handleLearnerRecordImportUpload,

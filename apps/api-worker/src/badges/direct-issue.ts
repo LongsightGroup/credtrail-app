@@ -458,7 +458,7 @@ export const createIssueBadgeForTenant = <
     });
 
     const issuanceProvenance = resolveIssuanceProvenance(request);
-    const { assertion: createdAssertion } = await finalizeAssertionIssuance(db, {
+    const finalizeResult = await finalizeAssertionIssuance(db, {
       assertion: {
         id: assertionId,
         tenantId,
@@ -497,7 +497,21 @@ export const createIssueBadgeForTenant = <
           issuedAt: assertion.issuedAt,
         },
       }),
+      ...(request.lmsLearnerIdentity === undefined
+        ? {}
+        : { lmsLearnerIdentity: request.lmsLearnerIdentity }),
     });
+
+    if (finalizeResult.status === "lms_identity_conflict") {
+      throw new input.HttpErrorResponseClass(409, {
+        error:
+          finalizeResult.reason === "lms_learner_id_in_use"
+            ? "This LMS learner ID is already linked to another learner record."
+            : "This learner record is already linked to a different learner ID for this LMS connection.",
+      });
+    }
+
+    const createdAssertion = finalizeResult.assertion;
 
     if (
       request.recipientIdentityType === "email" &&

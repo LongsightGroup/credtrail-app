@@ -145,6 +145,9 @@ const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
             : { issuerImageUri: job.payload.issuerImageUri }),
           idempotencyKey: job.idempotencyKey,
           issuanceProvenance: job.payload.issuanceProvenance,
+          ...(job.payload.lmsLearnerIdentity === undefined
+            ? {}
+            : { lmsLearnerIdentity: job.payload.lmsLearnerIdentity }),
         },
         job.payload.requestedByUserId,
       );

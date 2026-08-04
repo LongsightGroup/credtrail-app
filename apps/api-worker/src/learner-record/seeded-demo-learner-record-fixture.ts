@@ -201,7 +201,7 @@ const exportBundle: LearnerRecordExportBundle = {
 
 const routeFamily: SeededDemoLearnerRecordRouteFamily = {
   learnerRecord: `/tenants/${TENANT_ID}/learner/record`,
-  adminReview: `/tenants/${TENANT_ID}/admin/operations/learner-records?learnerProfileId=${LEARNER_PROFILE_ID}`,
+  adminReview: `/tenants/${TENANT_ID}/admin/operations/learner-records?learner=${encodeURIComponent(LEARNER_EMAIL)}`,
   nativeExport: `/v1/tenants/${TENANT_ID}/learner-records/${LEARNER_PROFILE_ID}/export?profile=${NATIVE_EXPORT_PROFILE}`,
   standardsMapping: `/v1/tenants/${TENANT_ID}/learner-records/${LEARNER_PROFILE_ID}/standards-mapping?profile=${STANDARDS_MAPPING_PROFILE}`,
 };
