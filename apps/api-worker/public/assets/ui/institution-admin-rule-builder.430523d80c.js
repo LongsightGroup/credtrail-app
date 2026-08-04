@@ -66,20 +66,6 @@ const createRuleBuilderAuthoringController = (dependencies) => {
 
     state = "submitting";
 
-    if (typeof input.prepareRequest === "function") {
-      try {
-        const ready = await input.prepareRequest();
-
-        if (!ready) {
-          state = "idle";
-          return { status: "precondition_failed" };
-        }
-      } catch {
-        state = "idle";
-        return { status: "precondition_failed" };
-      }
-    }
-
     try {
       const response = await dependencies.request(input.apiPath, {
         method: "POST",
@@ -121,7 +107,7 @@ const createRuleBuilderAuthoringController = (dependencies) => {
         outcome,
       };
     } catch {
-      state = "unknown";
+      state = "idle";
       return { status: "unknown" };
     }
   };
@@ -207,7 +193,6 @@ const ruleBuilderTestDataSourceInputs = Array.from(
 const ruleBuilderStepNextButton = document.getElementById("rule-builder-step-next");
 const ruleBuilderStepProgress = document.getElementById("rule-builder-step-progress");
 const ruleBuilderStepCallout = document.getElementById("rule-builder-step-callout");
-const ruleBuilderStepFooter = document.getElementById("rule-builder-step-footer");
 const ruleBuilderSubmitButton = document.getElementById("rule-builder-submit");
 const ruleBuilderSaveFormalDraftButton = document.getElementById(
   "rule-builder-save-formal-draft",
@@ -808,22 +793,18 @@ const ruleBuilderStepOrder = ruleBuilderStepPanels
 const ruleBuilderStepLabels = {
   metadata: "Awarding pattern",
   conditions: "Requirements",
-  test: "Test the rule",
-  review: "Review and submit",
+  test: "Test and submit",
 };
 const ruleBuilderStepCallouts = {
   metadata: "Choose an awarding pattern, badge, and LMS connection, then select Continue.",
   conditions:
     "Confirm the requirements learners must meet, then select Continue. To revise setup, select step 1 above.",
-  test: "Choose an LMS learner and test the rule, then continue to review. To revise earlier steps, select a step label above.",
-  review:
-    "Submit the rule for approval, or save a rule draft and submit it later from Rules.",
+  test: "Test the rule, then submit it for approval or save it as a rule draft. To revise earlier steps, select a step label above.",
 };
 const ruleBuilderStepGateMessages = {
   metadata: "Choose a badge template and LMS connection before continuing.",
   conditions: "Add at least one requirement before continuing.",
-  test: "Run a learner test before reviewing the rule.",
-  review: "Test the rule before submitting it for approval.",
+  test: "Run a learner test before submitting the rule.",
 };
 let activeRuleBuilderStepIndex = 0;
 
@@ -995,11 +976,11 @@ const getStepGateMessage = (stepName) => {
       ruleBuilderLastTestSummary.startsWith("Review required");
 
     if (!testReady) {
-      return "Run a learner test before reviewing the rule.";
+      return "Run a learner test before submitting the rule.";
     }
 
     if (getTextFieldValue("issuanceTiming").length === 0) {
-      return "Choose when the badge should be issued before reviewing the rule.";
+      return "Choose when the badge should be issued before submitting the rule.";
     }
 
   }
@@ -1027,8 +1008,7 @@ const showStepGateMessage = (stepName) => {
 const updateStepNavigationState = () => {
   const completion = getRuleBuilderCompletionState();
   const currentStep = ruleBuilderStepOrder[activeRuleBuilderStepIndex] ?? "";
-  const currentComplete =
-    currentStep === "review" ? completion.test === true : completion[currentStep] === true;
+  const currentComplete = completion[currentStep] === true;
   const submissionInProgress = ruleBuilderAuthoringController.state() !== "idle";
 
   ruleBuilderStepButtons.forEach((candidate) => {
@@ -1138,14 +1118,6 @@ const setBuilderStepState = (requestedIndex) => {
   const activePanel = ruleBuilderStepPanels.find(
     (panel) => panel instanceof HTMLElement && (panel.dataset.ruleStep ?? "") === activeStep,
   );
-
-  if (
-    ruleBuilderStepFooter instanceof HTMLElement &&
-    activePanel instanceof HTMLElement &&
-    ruleBuilderStepFooter.parentElement !== activePanel
-  ) {
-    activePanel.append(ruleBuilderStepFooter);
-  }
 
   if (stepChanged && activePanel instanceof HTMLElement) {
     scrollActiveBuilderPanelIntoView(activePanel);
@@ -5182,10 +5154,8 @@ if (
             ? { builderDraftId: ruleBuilderContext.builderDraftId }
             : {}),
         },
-        ...(!isRuleBuilderEditMode
-          ? { prepareRequest: () => saveRuleBuilderDraft({ quiet: false }) }
-          : {}),
       });
+      updateStepNavigationState();
       const savingMessage =
         action === 'submit_for_approval'
           ? 'Saving and submitting the rule...'
@@ -5196,15 +5166,9 @@ if (
       setCodeOutput(ruleBuilderTestOutput, '');
       syncRuleBuilderSummary(savingMessage);
       const result = await authoringPromise;
+      updateStepNavigationState();
 
       if (result.status === 'ignored') {
-        return;
-      }
-
-      if (result.status === 'precondition_failed') {
-        const message = 'Unable to save unfinished work before creating the rule.';
-        setStatus(ruleCreateStatus, message, true);
-        syncRuleBuilderSummary(message);
         return;
       }
 
@@ -5216,12 +5180,9 @@ if (
 
       if (result.status === 'unknown') {
         const message =
-          'CredTrail could not confirm the rule authoring result. Check Rules before trying again.';
+          'CredTrail could not confirm the result. Try again safely, or check Rules.';
         setStatus(ruleCreateStatus, message, true);
         syncRuleBuilderSummary(message);
-        setTimeout(() => {
-          window.location.assign(rulesListPath);
-        }, 2500);
         return;
       }
 

@@ -217,7 +217,7 @@ export const prepareLaunchedResourceLinkPlacement = async (
 
   if (!setupResult.ok) {
     return productFlowFailure({
-      status: 400,
+      status: setupResult.reason === "course_rule_already_configured" ? 409 : 400,
       body: {
         error: setupResult.message,
         reason: setupResult.reason,

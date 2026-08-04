@@ -1,17 +1,17 @@
-import { logError } from "@credtrail/core-domain";
 import {
   activateBadgeIssuanceRuleVersion,
   createAuditLog,
   decideBadgeIssuanceRuleVersion,
   deleteBadgeIssuanceRuleBuilderDraftById,
   deleteDraftBadgeIssuanceRule,
-  enqueueJobQueueMessageOnce,
   parseOptionalDateTimeInputToIso,
   recertifyBadgeIssuanceRuleVersion,
+  reopenApprovedBadgeIssuanceRuleVersion,
   resumeBadgeIssuanceRuleVersion,
   submitBadgeIssuanceRuleVersionForApproval,
   suspendBadgeIssuanceRuleVersion,
   updateBadgeIssuanceRuleVersionLifecycleWindow,
+  withdrawBadgeIssuanceRuleVersionSubmission,
   type BadgeIssuanceRuleVersionRecord,
   type SessionRecord,
   type TenantMembershipRole,
@@ -21,6 +21,7 @@ import {
   parseBadgeIssuanceRuleBuilderDraftPathParams,
   parseBadgeIssuanceRuleVersionPathParams,
   parseDecideBadgeIssuanceRuleVersionRequest,
+  parseReopenApprovedBadgeIssuanceRuleVersionRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import {
@@ -32,13 +33,10 @@ import { readOptionalFormField } from "../admin/admin-form-helpers";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
-import { badgeRuleApprovalDecisionNotificationIdempotencyKey } from "../badges/badge-rule-approval-notification-queue";
-import { recordBadgeRuleApprovalSubmissionSideEffects } from "../badges/badge-rule-approval-submission-side-effects";
 import {
   adminApprovalDecisionFailureMessage,
   submitBadgeRuleVersionForApprovalFailureMessage,
 } from "../badges/badge-rule-approval-outcomes";
-import { observabilityContext } from "../app/observability";
 
 interface RegisterTenantBadgeRuleActionsAdminRoutesInput {
   app: Hono<AppEnv>;
@@ -157,10 +155,6 @@ const redirectToApprovals = async (
   return c.redirect(input.reviewPath ?? buildBadgeRuleApprovalsPath(input.tenantId), 303);
 };
 
-const absoluteUrlForPath = (c: AppContext, path: string): string => {
-  return new URL(path, c.req.url).toString();
-};
-
 const decisionSuccessMessage = (
   decision: ReturnType<typeof parseDecideBadgeIssuanceRuleVersionRequest>["decision"],
 ): string => {
@@ -175,6 +169,44 @@ const decisionSuccessMessage = (
   return "Rule version rejected.";
 };
 
+const withdrawalFailureMessage = (
+  status: Exclude<
+    Awaited<ReturnType<typeof withdrawBadgeIssuanceRuleVersionSubmission>>["status"],
+    "withdrawn"
+  >,
+): string => {
+  switch (status) {
+    case "not_found":
+      return "That rule version was not found.";
+    case "not_pending":
+      return "Only a version waiting for approval can be withdrawn.";
+    case "forbidden":
+      return "Only the person who submitted this version can withdraw it.";
+    case "stale":
+      return "That rule version is no longer waiting for approval.";
+  }
+};
+
+const reopenFailureMessage = (
+  status: Exclude<
+    Awaited<ReturnType<typeof reopenApprovedBadgeIssuanceRuleVersion>>["status"],
+    "reopened"
+  >,
+): string => {
+  switch (status) {
+    case "not_found":
+      return "That rule version was not found.";
+    case "not_approved":
+      return "Only an approved version that has not been activated can be reopened.";
+    case "forbidden":
+      return "Only the final approver or an institution administrator can reopen this version.";
+    case "comment_required":
+      return "Explain why this approval is being reopened.";
+    case "stale":
+      return "That rule version is no longer approved.";
+  }
+};
+
 export const registerTenantBadgeRuleActionsAdminRoutes = (
   input: RegisterTenantBadgeRuleActionsAdminRoutesInput,
 ): void => {
@@ -184,48 +216,6 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
     resolveBadgeRuleApprovalWorkspaceRole,
     resolveInstitutionAdminAdminRole,
   } = input;
-
-  const logApprovalSideEffectFailure = (
-    c: AppContext,
-    input: {
-      readonly tenantId: string;
-      readonly ruleId: string;
-      readonly versionId: string;
-      readonly sideEffect: "audit_log" | "notification_enqueue";
-      readonly eventType: "approval_decision" | "approval_submitted";
-      readonly error: unknown;
-    },
-  ): void => {
-    logError(observabilityContext(c.env), "badge_rule_approval_side_effect_failed", {
-      tenantId: input.tenantId,
-      ruleId: input.ruleId,
-      versionId: input.versionId,
-      sideEffect: input.sideEffect,
-      eventType: input.eventType,
-      errorKind: input.error instanceof Error ? input.error.name : typeof input.error,
-    });
-  };
-
-  const runApprovalSideEffect = async (
-    c: AppContext,
-    input: {
-      readonly tenantId: string;
-      readonly ruleId: string;
-      readonly versionId: string;
-      readonly sideEffect: "audit_log" | "notification_enqueue";
-      readonly eventType: "approval_decision" | "approval_submitted";
-    },
-    run: () => Promise<unknown>,
-  ): Promise<void> => {
-    try {
-      await run();
-    } catch (error: unknown) {
-      logApprovalSideEffectFailure(c, {
-        ...input,
-        error,
-      });
-    }
-  };
 
   const handleDecisionPost = async (
     c: AppContext,
@@ -286,70 +276,6 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
         message: adminApprovalDecisionFailureMessage(request.decision, decisionResult),
       });
     }
-
-    await Promise.all([
-      runApprovalSideEffect(
-        c,
-        {
-          tenantId: pathParams.tenantId,
-          ruleId: pathParams.ruleId,
-          versionId: pathParams.versionId,
-          sideEffect: "audit_log",
-          eventType: "approval_decision",
-        },
-        () =>
-          createAuditLog(db, {
-            tenantId: pathParams.tenantId,
-            actorUserId: session.userId,
-            action: "badge_rule.version_approval_decided",
-            targetType: "badge_rule_version",
-            targetId: decisionResult.version.id,
-            metadata: {
-              role: membershipRole,
-              ruleId: pathParams.ruleId,
-              versionNumber: decisionResult.version.versionNumber,
-              decision: request.decision,
-              comment: request.comment ?? null,
-              status: decisionResult.version.status,
-            },
-          }),
-      ),
-      runApprovalSideEffect(
-        c,
-        {
-          tenantId: pathParams.tenantId,
-          ruleId: pathParams.ruleId,
-          versionId: pathParams.versionId,
-          sideEffect: "notification_enqueue",
-          eventType: "approval_decision",
-        },
-        () =>
-          enqueueJobQueueMessageOnce(db, {
-            tenantId: pathParams.tenantId,
-            jobType: "send_badge_rule_approval_notification",
-            idempotencyKey: badgeRuleApprovalDecisionNotificationIdempotencyKey({
-              versionId: pathParams.versionId,
-              occurredAt: decisionResult.version.updatedAt,
-            }),
-            payload: {
-              notificationType: "approval_decision",
-              ruleId: pathParams.ruleId,
-              versionId: pathParams.versionId,
-              reviewUrl: absoluteUrlForPath(
-                c,
-                buildBadgeRuleVersionReviewPath(
-                  pathParams.tenantId,
-                  pathParams.ruleId,
-                  pathParams.versionId,
-                ),
-              ),
-              decision: request.decision,
-              comment: request.comment ?? null,
-              nextStepNumber: decisionResult.nextStepNumber,
-            },
-          }),
-      ),
-    ]);
 
     return routeInput.redirect({
       tenantId: pathParams.tenantId,
@@ -445,18 +371,6 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
 
       const updatedVersion: BadgeIssuanceRuleVersionRecord = submitResult.version;
 
-      await recordBadgeRuleApprovalSubmissionSideEffects({
-        c,
-        db,
-        tenantId: pathParams.tenantId,
-        ruleId: pathParams.ruleId,
-        actorUserId: session.userId,
-        actorRole: membershipRole,
-        version: updatedVersion,
-        pendingStepNumber: submitResult.pendingStepNumber,
-        audit: "record",
-      });
-
       return redirectToRules(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
@@ -469,14 +383,35 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
     },
   );
 
-  app.post("/tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/decision", async (c) => {
-    const pathParams = parseBadgeIssuanceRuleVersionPathParams(c.req.param());
-    return handleDecisionPost(c, {
-      pathParams,
-      nextPath: buildRulesAdminPath(pathParams.tenantId),
-      redirect: (redirectInput) => redirectToRules(c, redirectInput),
-    });
-  });
+  app.post(
+    "/tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/withdraw-submission",
+    async (c) => {
+      const pathParams = parseBadgeIssuanceRuleVersionPathParams(c.req.param());
+      const nextPath = buildRulesAdminPath(pathParams.tenantId);
+      const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
+
+      if (roleCheck instanceof Response) {
+        return roleCheck;
+      }
+
+      const { session, membershipRole } = roleCheck;
+      const result = await withdrawBadgeIssuanceRuleVersionSubmission(resolveDatabase(c.env), {
+        ...pathParams,
+        actorUserId: session.userId,
+        actorRole: membershipRole,
+      });
+
+      return redirectToRules(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: result.status === "withdrawn" ? "success" : "error",
+        message:
+          result.status === "withdrawn"
+            ? "Submission withdrawn. The rule version is a draft again."
+            : withdrawalFailureMessage(result.status),
+      });
+    },
+  );
 
   app.post(
     "/tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versionId/decision",
@@ -496,6 +431,63 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
             ...redirectInput,
             reviewPath,
           }),
+      });
+    },
+  );
+
+  app.post(
+    "/tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versionId/reopen",
+    async (c) => {
+      const pathParams = parseBadgeIssuanceRuleVersionPathParams(c.req.param());
+      const reviewPath = buildBadgeRuleVersionReviewPath(
+        pathParams.tenantId,
+        pathParams.ruleId,
+        pathParams.versionId,
+      );
+      const roleCheck = await resolveBadgeRuleApprovalWorkspaceRole(
+        c,
+        pathParams.tenantId,
+        reviewPath,
+      );
+
+      if (roleCheck instanceof Response) {
+        return roleCheck;
+      }
+
+      const { session, membershipRole } = roleCheck;
+      const formData = await c.req.formData();
+      const comment = readOptionalFormField(formData, "comment");
+
+      let request: ReturnType<typeof parseReopenApprovedBadgeIssuanceRuleVersionRequest>;
+
+      try {
+        request = parseReopenApprovedBadgeIssuanceRuleVersionRequest({ comment });
+      } catch {
+        return redirectToApprovals(c, {
+          tenantId: pathParams.tenantId,
+          userId: session.userId,
+          tone: "error",
+          message: "Explain why this approval is being reopened.",
+          reviewPath,
+        });
+      }
+
+      const result = await reopenApprovedBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
+        ...pathParams,
+        actorUserId: session.userId,
+        actorRole: membershipRole,
+        comment: request.comment,
+      });
+
+      return redirectToApprovals(c, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        tone: result.status === "reopened" ? "success" : "error",
+        message:
+          result.status === "reopened"
+            ? "Approval reopened. The rule version is a draft again."
+            : reopenFailureMessage(result.status),
+        reviewPath: result.status === "reopened" ? undefined : reviewPath,
       });
     },
   );

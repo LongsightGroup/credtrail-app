@@ -1,9 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockedIssueBadgeForTenant, mockedCreateGradebookProvider } = vi.hoisted(() => {
+const {
+  mockedIssueBadgeForTenant,
+  mockedCreateGradebookProvider,
+  submitBadgeIssuanceRuleVersionMock,
+  decideBadgeIssuanceRuleVersionMock,
+} = vi.hoisted(() => {
   return {
     mockedIssueBadgeForTenant: vi.fn(),
     mockedCreateGradebookProvider: vi.fn(),
+    submitBadgeIssuanceRuleVersionMock: vi.fn(),
+    decideBadgeIssuanceRuleVersionMock: vi.fn(),
   };
 });
 
@@ -30,12 +37,13 @@ vi.mock("@credtrail/db", async () => {
     createBadgeIssuanceRule: vi.fn(),
     createBadgeIssuanceRuleFromBuilderDraft: vi.fn(),
     createBadgeIssuanceRuleWithAction: vi.fn(),
+    findBadgeIssuanceRuleAuthoringReplay: vi.fn(),
     createBadgeIssuanceRuleValueList: vi.fn(),
     createBadgeIssuanceRuleVersion: vi.fn(),
     updateBadgeIssuanceRuleDraft: vi.fn(),
     updateBadgeIssuanceRuleWithAction: vi.fn(),
-    submitBadgeIssuanceRuleVersionForApproval: vi.fn(),
-    decideBadgeIssuanceRuleVersion: vi.fn(),
+    submitBadgeIssuanceRuleVersionForApproval: submitBadgeIssuanceRuleVersionMock,
+    decideBadgeIssuanceRuleVersion: decideBadgeIssuanceRuleVersionMock,
     activateBadgeIssuanceRuleVersion: vi.fn(),
     findBadgeIssuanceRuleEvaluationById: vi.fn(),
     findBadgeIssuanceRuleById: vi.fn(),
@@ -118,6 +126,7 @@ import {
   findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleVersionById,
   findTenantMembership,
+  findBadgeIssuanceRuleAuthoringReplay,
   enqueueJobQueueMessageOnce,
   findTenantLmsConnectionById,
   findTenantLmsUserIdentity,
@@ -162,6 +171,7 @@ const mockedCreateBadgeIssuanceRuleFromBuilderDraft = vi.mocked(
   createBadgeIssuanceRuleFromBuilderDraft,
 );
 const mockedCreateBadgeIssuanceRuleWithAction = vi.mocked(createBadgeIssuanceRuleWithAction);
+const mockedFindBadgeIssuanceRuleAuthoringReplay = vi.mocked(findBadgeIssuanceRuleAuthoringReplay);
 const mockedCreateBadgeIssuanceRuleVersion = vi.mocked(createBadgeIssuanceRuleVersion);
 const mockedUpdateBadgeIssuanceRuleDraft = vi.mocked(updateBadgeIssuanceRuleDraft);
 const mockedUpdateBadgeIssuanceRuleWithAction = vi.mocked(updateBadgeIssuanceRuleWithAction);
@@ -471,6 +481,8 @@ beforeEach(() => {
   mockedCreateBadgeIssuanceRule.mockReset();
   mockedCreateBadgeIssuanceRuleFromBuilderDraft.mockReset();
   mockedCreateBadgeIssuanceRuleWithAction.mockReset();
+  mockedFindBadgeIssuanceRuleAuthoringReplay.mockReset();
+  mockedFindBadgeIssuanceRuleAuthoringReplay.mockResolvedValue(null);
   mockedCreateBadgeIssuanceRuleValueList.mockReset();
   mockedCreateBadgeIssuanceRuleValueList.mockResolvedValue(sampleValueListRecord());
   mockedCreateBadgeIssuanceRuleVersion.mockReset();
@@ -627,60 +639,10 @@ describe("badge rule routes", () => {
 
     expect(response.status).toBe(201);
     expect(mockedCreateBadgeIssuanceRuleWithAction).toHaveBeenCalledTimes(1);
-    expect(mockedCreateAuditLog).toHaveBeenCalledTimes(1);
-  });
-
-  it("returns the committed rule when authoring audit logging fails", async () => {
-    const env = createEnv();
-    mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({
-      status: "completed",
-      outcome: "draft_saved",
-      pendingStepNumber: null,
-      writeStatus: "created",
-      rule: sampleRule(),
-      version: sampleVersion(),
-    });
-    mockedCreateAuditLog.mockRejectedValueOnce(new Error("audit unavailable"));
-
-    const response = await app.request(
-      "/v1/tenants/tenant_123/badge-rules",
-      {
-        method: "POST",
-        headers: {
-          Origin: "http://localhost",
-          Cookie: "better-auth.session_token=session-token",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          name: "CS101 Rule",
-          badgeTemplateId: "badge_template_cs101",
-          lmsConnectionId: "lms_123",
-          action: "save_draft",
-          definition: {
-            conditions: {
-              type: "grade_threshold",
-              courseId: "course_101",
-              minScore: 80,
-            },
-          },
-        }),
-      },
-      env,
-    );
-
-    expect(response.status).toBe(201);
-    expect(mockedCreateBadgeIssuanceRuleWithAction).toHaveBeenCalledTimes(1);
   });
 
   it("creates and submits the returned rule version with one authoring command", async () => {
     const env = createEnv();
-    let resolveAuthoringAudit: ((record: AuditLogRecord) => void) | undefined;
-    mockedCreateAuditLog.mockImplementationOnce(
-      () =>
-        new Promise<AuditLogRecord>((resolve) => {
-          resolveAuthoringAudit = resolve;
-        }),
-    );
     mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({
       status: "completed",
       outcome: "pending_approval",
@@ -690,7 +652,7 @@ describe("badge rule routes", () => {
       version: sampleVersion({ status: "pending_approval" }),
     });
 
-    const responsePromise = app.request(
+    const response = await app.request(
       "/v1/tenants/tenant_123/badge-rules",
       {
         method: "POST",
@@ -716,11 +678,6 @@ describe("badge rule routes", () => {
       },
       env,
     );
-    await vi.waitFor(() => {
-      expect(mockedCreateAuditLog).toHaveBeenCalledTimes(1);
-    });
-    resolveAuthoringAudit?.(sampleAuditLogRecord());
-    const response = await responsePromise;
     const body = await response.json<{ outcome: string; version: { status: string } }>();
 
     expect(response.status).toBe(201);
@@ -735,32 +692,13 @@ describe("badge rule routes", () => {
       }),
     );
     expect(mockedSubmitBadgeIssuanceRuleVersionForApproval).not.toHaveBeenCalled();
-    expect(mockedCreateAuditLog).toHaveBeenCalledTimes(2);
-    expect(mockedCreateAuditLog).toHaveBeenLastCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        action: "badge_rule.version_submitted_for_approval",
-        targetId: "brv_123",
-      }),
-    );
-    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        jobType: "send_badge_rule_approval_notification",
-        payload: expect.objectContaining({
-          notificationType: "approval_submitted",
-          ruleId: "brl_123",
-          versionId: "brv_123",
-          targetStepNumber: 3,
-        }),
-      }),
-    );
   });
 
   it("returns an atomic authoring rejection without recording a created-rule audit", async () => {
     const env = createEnv();
     mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({
-      status: "self_certification_required",
+      status: "failed",
+      reason: "self_certification_required",
     });
 
     const response = await app.request(
@@ -799,7 +737,8 @@ describe("badge rule routes", () => {
   it("directs stale builder replays to the saved formal rule", async () => {
     const env = createEnv();
     mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({
-      status: "replay_conflict",
+      status: "failed",
+      reason: "replay_conflict",
     });
 
     const response = await app.request(
@@ -927,7 +866,7 @@ describe("badge rule routes", () => {
 
   it("replays the original promoted rule after an ambiguous client retry", async () => {
     const env = createEnv();
-    mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({
+    mockedFindBadgeIssuanceRuleAuthoringReplay.mockResolvedValue({
       status: "completed",
       outcome: "draft_saved",
       pendingStepNumber: null,
@@ -967,6 +906,8 @@ describe("badge rule routes", () => {
     expect(response.status).toBe(201);
     expect(body).toMatch(/"minScore":\s*80/);
     expect(body).not.toMatch(/"minScore":\s*90/);
+    expect(mockedCreateBadgeIssuanceRuleWithAction).not.toHaveBeenCalled();
+    expect(mockedCreateGradebookProvider).not.toHaveBeenCalled();
     expect(mockedCreateAuditLog).not.toHaveBeenCalled();
   });
 
@@ -1141,19 +1082,13 @@ describe("badge rule routes", () => {
     expect(body.version.id).toBe("brv_124");
     expect(body.version.versionNumber).toBe(2);
     expect(body.version.definition.conditions.minScore).toBe(90);
-    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        action: "badge_rule.draft_updated",
-        targetId: "brl_123",
-      }),
-    );
   });
 
   it("returns conflict when saving a protected badge issuance rule draft", async () => {
     const env = createEnv();
     mockedUpdateBadgeIssuanceRuleWithAction.mockResolvedValue({
-      status: "not_editable",
+      status: "failed",
+      reason: "not_editable",
     });
 
     const response = await app.request(
@@ -1540,14 +1475,6 @@ describe("badge rule routes", () => {
         actorRole: "admin",
       }),
     );
-    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        payload: expect.objectContaining({
-          targetStepNumber: 4,
-        }),
-      }),
-    );
   });
 
   it("rejects approval decisions when the current step requires a higher role", async () => {
@@ -1585,7 +1512,7 @@ describe("badge rule routes", () => {
     expect(mockedListBadgeIssuanceRuleVersionApprovalSteps).not.toHaveBeenCalled();
   });
 
-  it("returns the approved version when approval decision audit logging fails", async () => {
+  it("returns the approved version from the atomic approval decision command", async () => {
     const env = createEnv();
     mockedDecideBadgeIssuanceRuleVersion.mockResolvedValue({
       status: "decided",
@@ -1593,8 +1520,6 @@ describe("badge rule routes", () => {
       decidedStepNumber: 1,
       nextStepNumber: null,
     });
-    mockedCreateAuditLog.mockRejectedValueOnce(new Error("audit unavailable"));
-
     const response = await app.request(
       "/v1/tenants/tenant_123/badge-rules/brl_123/versions/brv_123/decision",
       {
@@ -1619,7 +1544,6 @@ describe("badge rule routes", () => {
 
     expect(response.status).toBe(200);
     expect(body.version.status).toBe("approved");
-    expect(mockedCreateAuditLog).toHaveBeenCalledTimes(1);
   });
 
   it("returns approval history for a badge rule version", async () => {

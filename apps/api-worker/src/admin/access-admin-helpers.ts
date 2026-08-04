@@ -56,6 +56,14 @@ export const buildBadgeRuleVersionReviewDecisionPath = (
   return `${buildBadgeRuleVersionReviewPath(tenantId, ruleId, versionId)}/decision`;
 };
 
+export const buildBadgeRuleVersionReviewReopenPath = (
+  tenantId: string,
+  ruleId: string,
+  versionId: string,
+): string => {
+  return `${buildBadgeRuleVersionReviewPath(tenantId, ruleId, versionId)}/reopen`;
+};
+
 export const buildBadgeRuleVersionImpactPreviewPath = (
   tenantId: string,
   ruleId: string,
@@ -132,12 +140,12 @@ export const tenantBadgeRuleSubmitApprovalAdminPath = (
   return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(versionId)}/submit-approval`;
 };
 
-export const tenantBadgeRuleDecisionAdminPath = (
+export const tenantBadgeRuleWithdrawSubmissionAdminPath = (
   tenantId: string,
   ruleId: string,
   versionId: string,
 ): string => {
-  return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(versionId)}/decision`;
+  return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(versionId)}/withdraw-submission`;
 };
 
 export const tenantBadgeRuleActivateAdminPath = (

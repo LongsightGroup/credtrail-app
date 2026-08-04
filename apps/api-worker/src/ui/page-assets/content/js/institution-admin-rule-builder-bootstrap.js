@@ -73,7 +73,6 @@ const ruleBuilderTestDataSourceInputs = Array.from(
 const ruleBuilderStepNextButton = document.getElementById("rule-builder-step-next");
 const ruleBuilderStepProgress = document.getElementById("rule-builder-step-progress");
 const ruleBuilderStepCallout = document.getElementById("rule-builder-step-callout");
-const ruleBuilderStepFooter = document.getElementById("rule-builder-step-footer");
 const ruleBuilderSubmitButton = document.getElementById("rule-builder-submit");
 const ruleBuilderSaveFormalDraftButton = document.getElementById(
   "rule-builder-save-formal-draft",

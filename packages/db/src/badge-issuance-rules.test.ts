@@ -121,6 +121,16 @@ describe("badge rule review queue schema", () => {
     expect(sql).toContain("(tenant_id, rule_id, version_id)");
     expect(sql).toContain("REFERENCES badge_issuance_rule_versions (tenant_id, rule_id, id)");
   });
+
+  it("adds explicit approval withdrawal and reopening history actions", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0059_badge_rule_approval_corrections.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("'withdrawn'");
+    expect(sql).toContain("'reopened'");
+  });
 });
 
 describe("resolveListBadgeIssuanceRulesInput", () => {
@@ -297,6 +307,25 @@ describe("badge issuance rule approval transactions", () => {
         return this;
       },
       async first<T>() {
+        if (normalizedSql.includes("FROM audit_logs")) {
+          return {
+            id: "aud_123",
+            tenantId: "tenant_123",
+            actorUserId: "usr_admin",
+            action: "badge_rule.version_submitted_for_approval",
+            targetType: "badge_rule_version",
+            targetId: "brv_123",
+            metadataJson: "{}",
+            occurredAt: "2026-02-18T12:30:00.000Z",
+            createdAt: "2026-02-18T12:30:00.000Z",
+          } as T;
+        }
+
+        if (normalizedSql.includes("INSERT INTO job_queue_messages")) {
+          writes.push(`${isTransaction ? "transaction" : "outer"}:${normalizedSql}`);
+          return { id: "job_123" } as T;
+        }
+
         if (normalizedSql.includes("FROM badge_issuance_rule_versions")) {
           return {
             id: "brv_123",
@@ -383,7 +412,10 @@ describe("badge issuance rule approval transactions", () => {
         } satisfies SqlQueryResult<T>;
       },
       async run() {
-        if (normalizedSql.includes("badge_issuance_rule_approval_steps")) {
+        if (
+          normalizedSql.includes("badge_issuance_rule_approval_steps") ||
+          normalizedSql.includes("audit_logs")
+        ) {
           writes.push(`${isTransaction ? "transaction" : "outer"}:${normalizedSql}`);
         }
 
@@ -434,6 +466,8 @@ describe("badge issuance rule approval transactions", () => {
     expect(reads.some((entry) => entry.includes("FROM badge_issuance_rule_approval_steps"))).toBe(
       false,
     );
+    expect(writes.some((entry) => entry.includes("INSERT INTO audit_logs"))).toBe(true);
+    expect(writes.some((entry) => entry.includes("INSERT INTO job_queue_messages"))).toBe(true);
   });
 
   it("records approval decisions inside one SQL transaction", async () => {
@@ -449,6 +483,44 @@ describe("badge issuance rule approval transactions", () => {
           return this;
         },
         async first<T>() {
+          if (normalizedSql.includes("FROM audit_logs")) {
+            return {
+              id: "aud_123",
+              tenantId: "tenant_123",
+              actorUserId: "usr_reviewer",
+              action: "badge_rule.version_approval_decided",
+              targetType: "badge_rule_version",
+              targetId: "brv_123",
+              metadataJson: "{}",
+              occurredAt: "2026-02-18T12:30:00.000Z",
+              createdAt: "2026-02-18T12:30:00.000Z",
+            } as T;
+          }
+
+          if (normalizedSql.includes("INSERT INTO job_queue_messages")) {
+            writes.push(`${isTransaction ? "transaction" : "outer"}:${normalizedSql}`);
+            return { id: "job_123" } as T;
+          }
+
+          if (normalizedSql.includes("FROM badge_issuance_rules")) {
+            reads.push(`${isTransaction ? "transaction" : "outer"}:${normalizedSql}`);
+            return {
+              id: "brl_123",
+              tenantId: "tenant_123",
+              name: "Approval rule",
+              description: null,
+              badgeTemplateId: "badge_template_123",
+              orgUnitId: "org_123",
+              ownerOrgUnitId: "org_123",
+              lmsProviderKind: "canvas",
+              lmsConnectionId: "lms_123",
+              activeVersionId: null,
+              createdByUserId: "usr_admin",
+              createdAt: "2026-02-18T12:00:00.000Z",
+              updatedAt: "2026-02-18T12:00:00.000Z",
+            } as T;
+          }
+
           if (normalizedSql.includes("FROM badge_issuance_rule_versions")) {
             reads.push(`${isTransaction ? "transaction" : "outer"}:${normalizedSql}`);
             return {
@@ -506,7 +578,8 @@ describe("badge issuance rule approval transactions", () => {
           if (
             normalizedSql.includes("badge_issuance_rule_approval_steps") ||
             normalizedSql.includes("badge_issuance_rule_versions") ||
-            normalizedSql.includes("badge_issuance_rule_approval_events")
+            normalizedSql.includes("badge_issuance_rule_approval_events") ||
+            normalizedSql.includes("audit_logs")
           ) {
             writes.push(`${isTransaction ? "transaction" : "outer"}:${normalizedSql}`);
           }
@@ -561,6 +634,8 @@ describe("badge issuance rule approval transactions", () => {
     expect(
       writes.some((entry) => entry.includes("INSERT INTO badge_issuance_rule_approval_events")),
     ).toBe(true);
+    expect(writes.some((entry) => entry.includes("INSERT INTO audit_logs"))).toBe(true);
+    expect(writes.some((entry) => entry.includes("INSERT INTO job_queue_messages"))).toBe(true);
     expect(
       reads.some(
         (entry) =>

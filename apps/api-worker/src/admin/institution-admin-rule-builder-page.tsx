@@ -25,9 +25,9 @@ import {
   RuleBuilderConditionCardTemplate,
   RuleBuilderConditionsStep,
   RuleBuilderMetadataStep,
-  RuleBuilderReviewStep,
   RuleBuilderSaveDraftFooter,
   RuleBuilderTestStep,
+  RuleBuilderWorkflowFooter,
 } from "./institution-admin-rule-builder-sections";
 
 const serializeJsonScriptContent = (value: unknown): string => {
@@ -387,7 +387,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                 class="ct-admin__meta ct-admin__builder-progress"
                 aria-live="polite"
               >
-                Step 1 of 4 · Awarding pattern
+                Step 1 of 3 · Awarding pattern
               </p>
             </header>
             <AdminForm id="rule-create-form">
@@ -410,8 +410,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                 />
                 <RuleBuilderConditionsStep rulesListPath={rulesListPath} />
                 <RuleBuilderTestStep />
-                <RuleBuilderReviewStep />
               </ol>
+              <RuleBuilderWorkflowFooter isEditMode={isEditMode} />
               <RuleBuilderSaveDraftFooter />
             </AdminForm>
           </section>

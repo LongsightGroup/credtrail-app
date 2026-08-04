@@ -25,7 +25,7 @@ export interface HandleVerifiedLtiLaunchInput {
 export type HandleVerifiedLtiLaunch = (input: HandleVerifiedLtiLaunchInput) => Promise<Response>;
 
 export interface ProductFlowFailure {
-  status: 400 | 403 | 500;
+  status: 400 | 403 | 409 | 500;
   body: {
     error: string;
     reason?: string;

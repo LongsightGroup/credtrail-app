@@ -232,23 +232,25 @@ export const processEndOfTermBadgeRuleQueueJobSchema = z.object({
 
 const badgeRuleApprovalDecisionSchema = z.enum(["approved", "rejected", "changes_requested"]);
 
-export const sendBadgeRuleApprovalSubmittedNotificationJobPayloadSchema = z.object({
-  notificationType: z.literal("approval_submitted"),
-  ruleId: resourceIdSchema,
-  versionId: resourceIdSchema,
-  reviewUrl: z.string().trim().url().max(2048),
-  targetStepNumber: z.number().int().min(1).nullable(),
-});
+export const sendBadgeRuleApprovalSubmittedNotificationJobPayloadSchema = z
+  .object({
+    notificationType: z.literal("approval_submitted"),
+    ruleId: resourceIdSchema,
+    versionId: resourceIdSchema,
+    targetStepNumber: z.number().int().min(1).nullable(),
+  })
+  .strict();
 
-export const sendBadgeRuleApprovalDecisionNotificationJobPayloadSchema = z.object({
-  notificationType: z.literal("approval_decision"),
-  ruleId: resourceIdSchema,
-  versionId: resourceIdSchema,
-  reviewUrl: z.string().trim().url().max(2048),
-  decision: badgeRuleApprovalDecisionSchema,
-  comment: z.string().trim().min(1).max(2000).nullable(),
-  nextStepNumber: z.number().int().min(1).nullable(),
-});
+export const sendBadgeRuleApprovalDecisionNotificationJobPayloadSchema = z
+  .object({
+    notificationType: z.literal("approval_decision"),
+    ruleId: resourceIdSchema,
+    versionId: resourceIdSchema,
+    decision: badgeRuleApprovalDecisionSchema,
+    comment: z.string().trim().min(1).max(2000).nullable(),
+    nextStepNumber: z.number().int().min(1).nullable(),
+  })
+  .strict();
 
 export const sendBadgeRuleApprovalNotificationJobPayloadSchema = z.discriminatedUnion(
   "notificationType",

@@ -13,9 +13,8 @@ interface AuthoringController {
   readonly execute: (input: {
     readonly apiPath: string;
     readonly payload: Readonly<Record<string, unknown>>;
-    readonly prepareRequest?: () => Promise<boolean>;
   }) => Promise<
-    | { readonly status: "ignored" | "precondition_failed" | "unknown" }
+    | { readonly status: "ignored" | "unknown" }
     | { readonly status: "rejected"; readonly message: string }
     | { readonly status: "completed"; readonly outcome: AuthoringOutcome }
   >;
@@ -140,43 +139,34 @@ describe("rule builder browser authoring controller", () => {
     expect(controller.state()).toBe("idle");
   });
 
-  it("does not send the command when unfinished-work persistence fails", async () => {
+  it("allows an idempotent retry when the browser cannot determine the command outcome", async () => {
     let requestCount = 0;
     const controller = loadCreateAuthoringController()({
       request: async () => {
         requestCount += 1;
-        return { ok: true, payload: { outcome: "draft_saved" } };
+
+        if (requestCount === 1) {
+          throw new Error("connection lost after commit");
+        }
+
+        return { ok: true, payload: { outcome: "pending_approval" } };
       },
       parseResponse: createResponseParser,
       errorMessage: () => "request rejected",
     });
 
-    const result = await controller.execute({
+    const firstResult = await controller.execute({
       apiPath: "/author",
-      payload: { action: "save_draft" },
-      prepareRequest: async () => false,
+      payload: { action: "submit_for_approval" },
     });
-
-    expect(result.status).toBe("precondition_failed");
-    expect(requestCount).toBe(0);
-    expect(controller.state()).toBe("idle");
-  });
-
-  it("locks retries when the browser cannot determine the command outcome", async () => {
-    const controller = loadCreateAuthoringController()({
-      request: async () => {
-        throw new Error("connection lost");
-      },
-      parseResponse: createResponseParser,
-      errorMessage: () => "request rejected",
-    });
-
-    const result = await controller.execute({
+    const retryResult = await controller.execute({
       apiPath: "/author",
       payload: { action: "submit_for_approval" },
     });
 
-    expect(result.status).toBe("unknown");
-    expect(controller.state()).toBe("unknown");
+    expect(firstResult.status).toBe("unknown");
+    expect(retryResult).toEqual({ status: "completed", outcome: "pending_approval" });
+    expect(requestCount).toBe(2);
+    expect(controller.state()).toBe("completed");
   });
 });

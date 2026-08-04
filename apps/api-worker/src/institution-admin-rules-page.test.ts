@@ -33,9 +33,11 @@ import {
   mockedListBadgeTemplateImageRevisions,
   mockedListBadgeTemplates,
   mockedListPendingBadgeIssuanceRuleApprovalsForActor,
+  mockedReopenApprovedBadgeIssuanceRuleVersionDb,
   mockedCountBadgeTemplateImageRevisions,
   mockedSetBadgeTemplateArchivedState,
   mockedSubmitBadgeIssuanceRuleVersionForApprovalDb,
+  mockedWithdrawBadgeIssuanceRuleVersionSubmissionDb,
   mockedUpdateBadgeTemplate,
   sampleMembership,
 } from "./institution-admin-page-test-utils";
@@ -176,7 +178,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).not.toContain("v1 (brv_123)");
     expect(body).toContain("Submit for approval");
     expect(body).toContain(
-      "Submit draft version for &quot;CS101 Excellence Rule&quot; for approval?",
+      "Submit draft version for &quot;CS101 Excellence Rule&quot; for approval? You will not be able to approve it yourself.",
     );
     expect(body).toContain('method="post"');
     expect(body).toContain("/versions/brv_123/submit-approval");
@@ -277,8 +279,8 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
       createdByUserId: "usr_admin",
       submittedByUserId: status === "draft" ? null : "usr_admin",
       submittedAt: status === "draft" ? null : "2026-02-18T12:05:00.000Z",
-      approvedByUserId: null,
-      approvedAt: null,
+      approvedByUserId: status === "approved" ? "usr_admin" : null,
+      approvedAt: status === "approved" ? "2026-02-18T12:20:00.000Z" : null,
       activatedByUserId: status === "active" ? "usr_admin" : null,
       activatedAt: status === "active" ? "2026-02-18T12:30:00.000Z" : null,
       ...versionLifecycleFields,
@@ -342,8 +344,20 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).toContain("data-action-menu-panel");
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_pending/edit");
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_pending/delete");
+    expect(body).toContain(
+      "/tenants/tenant_123/admin/rules/brl_pending/versions/brl_pending_v1/withdraw-submission",
+    );
+    expect(body).toContain("Withdraw submission");
+    expect(body).not.toContain(
+      "/tenants/tenant_123/admin/rules/brl_pending/versions/brl_pending_v1/decision",
+    );
+    expect(body).not.toMatch(/>\s*Approve\s*<\/button>/);
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_approved/edit");
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_approved/delete");
+    expect(body).toContain(
+      "/tenants/tenant_123/admin/rules/approvals/brl_approved/versions/brl_approved_v1",
+    );
+    expect(body).toContain("Review approval");
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_active/edit");
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_active/delete");
     expect(body).toContain("/tenants/tenant_123/admin/rules/brl_historical/edit");
@@ -485,6 +499,78 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     expect(body).toContain('name="decision" value="approved"');
     expect(body).toContain('name="decision" value="changes_requested"');
     expect(body).toContain('name="decision" value="rejected"');
+  });
+
+  it("lets the final approver reopen an approved version before activation", async () => {
+    const env = createEnv();
+    mockedFindTenantMembership.mockResolvedValue(sampleMembership("approver"));
+    const rule: BadgeIssuanceRuleRecord = {
+      id: "brl_approval",
+      tenantId: "tenant_123",
+      name: "CS101 Excellence Rule",
+      description: null,
+      badgeTemplateId: "badge_template_001",
+      orgUnitId: "tenant_123:org:cs",
+      ownerOrgUnitId: "tenant_123:org:cs",
+      lmsProviderKind: "canvas",
+      lmsConnectionId: "lms_canvas",
+      activeVersionId: null,
+      createdByUserId: "usr_author",
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:20:00.000Z",
+    };
+    const approvedVersion: BadgeIssuanceRuleVersionRecord = {
+      id: "brv_approval",
+      tenantId: "tenant_123",
+      ruleId: "brl_approval",
+      versionNumber: 2,
+      status: "approved",
+      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"CS101","minScore":80}}',
+      changeSummary: "Lower threshold",
+      createdByUserId: "usr_author",
+      submittedByUserId: "usr_author",
+      submittedAt: "2026-02-18T12:15:00.000Z",
+      approvedByUserId: "usr_admin",
+      approvedAt: "2026-02-18T12:20:00.000Z",
+      activatedByUserId: null,
+      activatedAt: null,
+      ...versionLifecycleFields,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:20:00.000Z",
+    };
+
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(rule);
+    mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(approvedVersion);
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([approvedVersion]);
+    mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([
+      {
+        ...samplePendingApprovalStep(),
+        status: "approved",
+        decidedByUserId: "usr_admin",
+        decidedAt: "2026-02-18T12:20:00.000Z",
+      },
+    ]);
+    mockedListBadgeIssuanceRuleVersionApprovalEvents.mockResolvedValue([]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Correct This Approval");
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/reopen"',
+    );
+    expect(body).toContain('name="comment"');
+    expect(body).toContain("Reopen as draft");
+    expect(body).not.toContain('name="decision" value="approved"');
   });
 
   it("blocks direct review URLs for approvers who are not on the approval chain", async () => {
@@ -677,26 +763,6 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
       actorRole: "admin",
     });
     expect(mockedDecideBadgeIssuanceRuleVersionDb).not.toHaveBeenCalled();
-    expect(mockedCreateAuditLogDb).toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        action: "badge_rule.version_submitted_for_approval",
-        targetId: "brv_123",
-      }),
-    );
-    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledWith(fakeDb, {
-      tenantId: "tenant_123",
-      jobType: "send_badge_rule_approval_notification",
-      idempotencyKey: "approval-submitted:brv_123:2026-02-18T12:00:00.000Z",
-      payload: {
-        notificationType: "approval_submitted",
-        ruleId: "brl_123",
-        versionId: "brv_123",
-        reviewUrl:
-          "http://localhost/tenants/tenant_123/admin/rules/approvals/brl_123/versions/brv_123",
-        targetStepNumber: 1,
-      },
-    });
 
     const flashCookie = adminFlashCookieHeader(response);
     const flashResponse = await app.request(
@@ -1044,6 +1110,112 @@ describe("POST /tenants/:tenantId/admin/rules/drafts/:draftId/delete", () => {
   });
 });
 
+describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/withdraw-submission", () => {
+  it("returns the submitter's pending version to draft", async () => {
+    const env = createEnv();
+    mockedWithdrawBadgeIssuanceRuleVersionSubmissionDb.mockResolvedValue({
+      status: "withdrawn",
+      version: {
+        id: "brv_approval",
+        tenantId: "tenant_123",
+        ruleId: "brl_approval",
+        versionNumber: 2,
+        status: "draft",
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+        changeSummary: "Lower threshold",
+        createdByUserId: "usr_admin",
+        submittedByUserId: null,
+        submittedAt: null,
+        approvedByUserId: null,
+        approvedAt: null,
+        activatedByUserId: null,
+        activatedAt: null,
+        ...versionLifecycleFields,
+        createdAt: "2026-02-18T12:00:00.000Z",
+        updatedAt: "2026-02-18T12:20:00.000Z",
+      },
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/brl_approval/versions/brv_approval/withdraw-submission",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/rules");
+    expect(mockedWithdrawBadgeIssuanceRuleVersionSubmissionDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_approval",
+      versionId: "brv_approval",
+      actorUserId: "usr_admin",
+      actorRole: "admin",
+    });
+  });
+});
+
+describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versionId/reopen", () => {
+  it("reopens an approved version with an audit reason", async () => {
+    const env = createEnv();
+    mockedFindTenantMembership.mockResolvedValue(sampleMembership("approver"));
+    mockedReopenApprovedBadgeIssuanceRuleVersionDb.mockResolvedValue({
+      status: "reopened",
+      version: {
+        id: "brv_approval",
+        tenantId: "tenant_123",
+        ruleId: "brl_approval",
+        versionNumber: 2,
+        status: "draft",
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+        changeSummary: "Lower threshold",
+        createdByUserId: "usr_author",
+        submittedByUserId: null,
+        submittedAt: null,
+        approvedByUserId: null,
+        approvedAt: null,
+        activatedByUserId: null,
+        activatedAt: null,
+        ...versionLifecycleFields,
+        createdAt: "2026-02-18T12:00:00.000Z",
+        updatedAt: "2026-02-18T12:20:00.000Z",
+      },
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/reopen",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          comment: "Approved before checking the threshold.",
+        }).toString(),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/rules/approvals");
+    expect(mockedReopenApprovedBadgeIssuanceRuleVersionDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_approval",
+      versionId: "brv_approval",
+      actorUserId: "usr_admin",
+      actorRole: "approver",
+      comment: "Approved before checking the threshold.",
+    });
+  });
+});
+
 describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versionId/decision", () => {
   it("allows an assigned approver role to post a review workspace decision", async () => {
     mockedFindTenantMembership.mockResolvedValue(sampleMembership("approver"));
@@ -1099,21 +1271,6 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
       decision: "approved",
       actorUserId: "usr_admin",
       actorRole: "approver",
-    });
-    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledWith(fakeDb, {
-      tenantId: "tenant_123",
-      jobType: "send_badge_rule_approval_notification",
-      idempotencyKey: "approval-decision:brv_approval:2026-02-18T12:20:00.000Z",
-      payload: {
-        notificationType: "approval_decision",
-        ruleId: "brl_approval",
-        versionId: "brv_approval",
-        reviewUrl:
-          "http://localhost/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval",
-        decision: "approved",
-        comment: null,
-        nextStepNumber: null,
-      },
     });
   });
 
@@ -1176,66 +1333,6 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
       actorRole: "admin",
       comment: "Looks good.",
     });
-    expect(mockedCreateAuditLogDb).toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        action: "badge_rule.version_approval_decided",
-        targetId: "brv_approval",
-      }),
-    );
-  });
-
-  it("redirects after a committed decision when audit and notification enqueue fail", async () => {
-    const env = createEnv();
-    const approvedVersion: BadgeIssuanceRuleVersionRecord = {
-      id: "brv_approval",
-      tenantId: "tenant_123",
-      ruleId: "brl_approval",
-      versionNumber: 2,
-      status: "approved",
-      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
-      changeSummary: "Lower threshold",
-      createdByUserId: "usr_author",
-      submittedByUserId: "usr_author",
-      submittedAt: "2026-02-18T12:15:00.000Z",
-      approvedByUserId: "usr_admin",
-      approvedAt: "2026-02-18T12:20:00.000Z",
-      activatedByUserId: null,
-      activatedAt: null,
-      ...versionLifecycleFields,
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:20:00.000Z",
-    };
-
-    mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue({
-      status: "decided",
-      version: approvedVersion,
-      decidedStepNumber: 1,
-      nextStepNumber: null,
-    });
-    mockedCreateAuditLogDb.mockRejectedValue(new Error("audit unavailable"));
-    mockedEnqueueJobQueueMessageOnce.mockRejectedValue(new Error("queue unavailable"));
-
-    const response = await app.request(
-      "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/decision",
-      {
-        method: "POST",
-        headers: {
-          Origin: "http://localhost",
-          Cookie: "better-auth.session_token=session-token",
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          decision: "approved",
-        }).toString(),
-      },
-      env,
-    );
-
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(
-      "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval",
-    );
   });
 });
 
@@ -2388,7 +2485,10 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).not.toContain("ct-admin__builder-main");
     expect(body).toContain("ct-admin__builder-steps--vertical-stepper");
     expect(body).toMatch(
-      /id="builder-step-metadata"[\s\S]*?id="rule-builder-step-footer"[\s\S]*?id="rule-builder-step-next"[\s\S]*?data-rule-step-row="conditions"/,
+      /data-rule-step-row="test"[\s\S]*?<\/ol>[\s\S]*?id="rule-builder-step-footer"[\s\S]*?id="rule-builder-step-next"/,
+    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain(
+      "activePanel.append(ruleBuilderStepFooter)",
     );
     expect(INSTITUTION_ADMIN_CSS).toContain(
       ".ct-admin__stepper-step:not(.is-active) .ct-admin__step-copy small",
@@ -2416,14 +2516,12 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain('data-rule-step-target="metadata"');
     expect(body).toContain('data-rule-step-target="conditions"');
     expect(body).toContain('data-rule-step-target="test"');
-    expect(body).toContain('data-rule-step-target="review"');
-    expect(body).toContain("Step 1 of 4");
-    expect(body).toContain("Test the rule");
-    expect(body).toContain("Review and submit");
-    expect(body).toContain("Submit for approval");
+    expect(body).not.toContain('data-rule-step-target="review"');
+    expect(body).toContain("Step 1 of 3");
+    expect(body).toContain("Test and submit");
     expect(body).toContain("CredTrail follows your institution");
-    expect(body).toContain("Rules that require review go to another eligible approver.");
-    expect(body).toContain("automatic approval approve the version immediately");
+    expect(body).toContain("You cannot approve a rule version you create or submit.");
+    expect(body).toContain("automatic-approval policies approve the version");
     expect(body).toContain('id="rule-builder-condition-list"');
     expect(body).toContain('id="rule-builder-definition-json"');
     expect(body).not.toContain('id="rule-builder-step-prev"');
@@ -2472,10 +2570,7 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "ruleBuilderStepNextButton.hidden = isLastStep",
     );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("ruleBuilderStepFooter");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "activePanel.append(ruleBuilderStepFooter)",
-    );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("ruleBuilderStepFooter");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "return targetIndex < activeRuleBuilderStepIndex",
     );
@@ -2627,7 +2722,7 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-condition-list");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("credtrail:rule-builder:");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("saveRuleBuilderDraft");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain(
       "prepareRequest: () => saveRuleBuilderDraft({ quiet: false })",
     );
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain(

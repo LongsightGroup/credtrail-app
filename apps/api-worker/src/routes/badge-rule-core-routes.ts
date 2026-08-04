@@ -1,26 +1,16 @@
-import { logError } from "@credtrail/core-domain";
 import {
-  BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE,
-  createAuditLog,
-  createBadgeIssuanceRuleWithAction,
   findBadgeIssuanceRuleById,
   listAuditLogs,
   listBadgeIssuanceRules,
   resolveListBadgeIssuanceRulesInput,
   listBadgeIssuanceRuleVersions,
   saveBadgeIssuanceRuleBuilderDraft,
-  updateBadgeIssuanceRuleWithAction,
-  type BadgeIssuanceRuleAuthoringResult,
-  type BadgeIssuanceRuleRecord,
-  type BadgeIssuanceRuleVersionRecord,
-  type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
   parseBadgeIssuanceRuleAuditLogQuery,
   parseBadgeIssuanceRuleBuilderDraftPathParams,
-  parseBadgeIssuanceRuleDefinition,
   parseBadgeIssuanceRulePathParams,
   parseCreateBadgeIssuanceRuleRequest,
   parseSaveBadgeIssuanceRuleBuilderDraftRequest,
@@ -29,14 +19,14 @@ import {
   serializeBadgeIssuanceRuleBuilderDraftPayload,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppContext, AppEnv } from "../app";
-import { observabilityContext } from "../app/observability";
+import type { AppEnv } from "../app";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
-import { recordBadgeRuleApprovalSubmissionSideEffects } from "../badges/badge-rule-approval-submission-side-effects";
+import { badgeRuleAuthoringHttpFailure } from "../badges/badge-rule-authoring-http";
 import {
-  apiSubmitBadgeRuleVersionStatusCode,
-  submitBadgeRuleVersionForApprovalFailureMessage,
-} from "../badges/badge-rule-approval-outcomes";
+  authorPreparedBadgeRule,
+  findPreparedBadgeRuleReplay,
+  type PreparedBadgeRuleAuthoringResult,
+} from "../badges/badge-rule-authoring-service";
 import {
   GradebookProviderResolutionError,
   resolveGradebookProviderWithConnection,
@@ -51,53 +41,6 @@ import { extractBadgeIssuanceRuleRequirements } from "../rules/engine";
 type BadgeRuleDraftRequest =
   | ReturnType<typeof parseCreateBadgeIssuanceRuleRequest>
   | ReturnType<typeof parseUpdateBadgeIssuanceRuleDraftRequest>;
-
-interface PersistedBadgeRuleDraft {
-  rule: BadgeIssuanceRuleRecord;
-  version: BadgeIssuanceRuleVersionRecord;
-}
-
-type BadgeRuleAuthoringFailure = Exclude<
-  BadgeIssuanceRuleAuthoringResult,
-  { readonly status: "completed" }
->;
-
-const badgeRuleAuthoringFailure = (
-  result: BadgeRuleAuthoringFailure,
-): {
-  readonly error: string;
-  readonly statusCode: 404 | 409 | 500;
-} => {
-  switch (result.status) {
-    case "unavailable":
-      return {
-        error: "That unfinished draft is no longer available.",
-        statusCode: 409,
-      };
-    case "replay_conflict":
-      return {
-        error: "This unfinished rule has already been promoted. Continue from the saved rule.",
-        statusCode: 409,
-      };
-    case "not_found":
-      return {
-        error: "Badge rule not found",
-        statusCode: 404,
-      };
-    case "not_editable":
-      return {
-        error: BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE,
-        statusCode: 409,
-      };
-    case "not_submittable":
-    case "self_certification_required":
-    case "policy_missing_steps":
-      return {
-        error: submitBadgeRuleVersionForApprovalFailureMessage(result),
-        statusCode: apiSubmitBadgeRuleVersionStatusCode(result),
-      };
-  }
-};
 
 type PrepareBadgeRuleDraftResult =
   | {
@@ -221,69 +164,6 @@ const prepareBadgeRuleDraft = async (input: {
   };
 };
 
-const recordBadgeRuleDraftAudit = async (input: {
-  c: AppContext;
-  db: SqlDatabase;
-  tenantId: string;
-  session: SessionRecord;
-  membershipRole: TenantMembershipRole;
-  action: "badge_rule.created" | "badge_rule.draft_updated";
-  draft: PersistedBadgeRuleDraft;
-  resolvedProvider: ResolvedGradebookProvider;
-}): Promise<void> => {
-  try {
-    await createAuditLog(input.db, {
-      tenantId: input.tenantId,
-      actorUserId: input.session.userId,
-      action: input.action,
-      targetType: "badge_rule",
-      targetId: input.draft.rule.id,
-      metadata: {
-        role: input.membershipRole,
-        versionId: input.draft.version.id,
-        versionNumber: input.draft.version.versionNumber,
-        status: input.draft.version.status,
-        lmsConnectionId: input.resolvedProvider.connection.id,
-        lmsProviderKind: input.resolvedProvider.connection.providerKind,
-      },
-    });
-  } catch (cause: unknown) {
-    logError(observabilityContext(input.c.env), "badge_rule_authoring_side_effect_failed", {
-      tenantId: input.tenantId,
-      ruleId: input.draft.rule.id,
-      versionId: input.draft.version.id,
-      sideEffect: "audit_log",
-      authoringAction: input.action,
-      errorKind: cause instanceof Error ? cause.name : typeof cause,
-    });
-  }
-};
-
-const recordAuthoredSubmissionSideEffects = async (input: {
-  readonly c: AppContext;
-  readonly db: SqlDatabase;
-  readonly tenantId: string;
-  readonly session: SessionRecord;
-  readonly membershipRole: TenantMembershipRole;
-  readonly authored: Extract<BadgeIssuanceRuleAuthoringResult, { readonly status: "completed" }>;
-}): Promise<void> => {
-  if (input.authored.outcome === "draft_saved") {
-    return;
-  }
-
-  await recordBadgeRuleApprovalSubmissionSideEffects({
-    c: input.c,
-    db: input.db,
-    tenantId: input.tenantId,
-    ruleId: input.authored.rule.id,
-    actorUserId: input.session.userId,
-    actorRole: input.membershipRole,
-    version: input.authored.version,
-    pendingStepNumber: input.authored.pendingStepNumber,
-    audit: input.authored.writeStatus === "replayed" ? "already_recorded" : "record",
-  });
-};
-
 interface RegisterBadgeRuleCoreRoutesInput {
   app: Hono<AppEnv>;
   resolveDatabase: ResolveDatabase;
@@ -341,41 +221,63 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
 
     const { session, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
-    const prepared = await prepareBadgeRuleDraft({
-      db,
-      tenantId: tenantParams.tenantId,
-      userId: session.userId,
-      request,
-      missingLmsConnectionMessage:
-        "Select a connected LMS gradebook source before creating a rule.",
-    });
+    let result: PreparedBadgeRuleAuthoringResult | null =
+      request.builderDraftId === undefined
+        ? null
+        : await findPreparedBadgeRuleReplay({
+            db,
+            tenantId: tenantParams.tenantId,
+            actorUserId: session.userId,
+            builderDraftId: request.builderDraftId,
+          });
 
-    if (prepared.status === "error") {
-      return c.json(
-        {
-          error: prepared.error,
-        },
-        prepared.statusCode,
-      );
+    if (result === null) {
+      const prepared = await prepareBadgeRuleDraft({
+        db,
+        tenantId: tenantParams.tenantId,
+        userId: session.userId,
+        request,
+        missingLmsConnectionMessage:
+          "Select a connected LMS gradebook source before creating a rule.",
+      });
+
+      if (prepared.status === "error") {
+        const replay =
+          request.builderDraftId === undefined
+            ? null
+            : await findPreparedBadgeRuleReplay({
+                db,
+                tenantId: tenantParams.tenantId,
+                actorUserId: session.userId,
+                builderDraftId: request.builderDraftId,
+              });
+
+        if (replay === null) {
+          return c.json(
+            {
+              error: prepared.error,
+            },
+            prepared.statusCode,
+          );
+        }
+
+        result = replay;
+      } else {
+        result = await authorPreparedBadgeRule({
+          kind: "create",
+          db,
+          tenantId: tenantParams.tenantId,
+          actorUserId: session.userId,
+          actorRole: membershipRole,
+          lmsConnection: prepared.resolvedProvider.connection,
+          ruleJson: prepared.ruleJson,
+          request,
+        });
+      }
     }
 
-    const authored = await createBadgeIssuanceRuleWithAction(db, {
-      tenantId: tenantParams.tenantId,
-      name: request.name,
-      description: request.description,
-      badgeTemplateId: request.badgeTemplateId,
-      lmsProviderKind: prepared.resolvedProvider.connection.providerKind,
-      lmsConnectionId: prepared.resolvedProvider.connection.id,
-      ruleJson: prepared.ruleJson,
-      changeSummary: request.changeSummary,
-      action: request.action,
-      actorUserId: session.userId,
-      actorRole: membershipRole,
-      ...(request.builderDraftId === undefined ? {} : { builderDraftId: request.builderDraftId }),
-    });
-
-    if (authored.status !== "completed") {
-      const failure = badgeRuleAuthoringFailure(authored);
+    if (result.status === "failed") {
+      const failure = badgeRuleAuthoringHttpFailure(result.reason);
       return c.json(
         {
           error: failure.error,
@@ -384,39 +286,14 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       );
     }
 
-    if (authored.writeStatus === "created") {
-      await recordBadgeRuleDraftAudit({
-        c,
-        db,
-        tenantId: tenantParams.tenantId,
-        session,
-        membershipRole,
-        action: "badge_rule.created",
-        draft: authored,
-        resolvedProvider: prepared.resolvedProvider,
-      });
-    }
-    await recordAuthoredSubmissionSideEffects({
-      c,
-      db,
-      tenantId: tenantParams.tenantId,
-      session,
-      membershipRole,
-      authored,
-    });
-    const responseDefinition =
-      authored.writeStatus === "replayed"
-        ? parseBadgeIssuanceRuleDefinition(JSON.parse(authored.version.ruleJson))
-        : request.definition;
-
     return c.json(
       {
         tenantId: tenantParams.tenantId,
-        outcome: authored.outcome,
-        rule: authored.rule,
+        outcome: result.outcome,
+        rule: result.rule,
         version: {
-          ...authored.version,
-          definition: responseDefinition,
+          ...result.version,
+          definition: result.definition,
         },
       },
       201,
@@ -502,24 +379,20 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       );
     }
 
-    const description = request.description?.trim();
-    const authored = await updateBadgeIssuanceRuleWithAction(db, {
+    const result = await authorPreparedBadgeRule({
+      kind: "update",
+      db,
       tenantId: pathParams.tenantId,
       ruleId: pathParams.ruleId,
-      name: request.name,
-      ...(description === undefined || description.length === 0 ? {} : { description }),
-      badgeTemplateId: request.badgeTemplateId,
-      lmsProviderKind: prepared.resolvedProvider.connection.providerKind,
-      lmsConnectionId: prepared.resolvedProvider.connection.id,
-      ruleJson: prepared.ruleJson,
-      changeSummary: request.changeSummary,
-      action: request.action,
       actorUserId: session.userId,
       actorRole: membershipRole,
+      lmsConnection: prepared.resolvedProvider.connection,
+      ruleJson: prepared.ruleJson,
+      request,
     });
 
-    if (authored.status !== "completed") {
-      const failure = badgeRuleAuthoringFailure(authored);
+    if (result.status === "failed") {
+      const failure = badgeRuleAuthoringHttpFailure(result.reason);
       return c.json(
         {
           error: failure.error,
@@ -528,33 +401,14 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       );
     }
 
-    await recordBadgeRuleDraftAudit({
-      c,
-      db,
-      tenantId: pathParams.tenantId,
-      session,
-      membershipRole,
-      action: "badge_rule.draft_updated",
-      draft: authored,
-      resolvedProvider: prepared.resolvedProvider,
-    });
-    await recordAuthoredSubmissionSideEffects({
-      c,
-      db,
-      tenantId: pathParams.tenantId,
-      session,
-      membershipRole,
-      authored,
-    });
-
     return c.json(
       {
         tenantId: pathParams.tenantId,
-        outcome: authored.outcome,
-        rule: authored.rule,
+        outcome: result.outcome,
+        rule: result.rule,
         version: {
-          ...authored.version,
-          definition: request.definition,
+          ...result.version,
+          definition: result.definition,
         },
       },
       200,

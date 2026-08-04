@@ -3,7 +3,24 @@ import {
   tenantMembershipRoleSatisfiesMinimumRole,
   type TenantMembershipRole,
 } from "./tenant-memberships";
-import type { BadgeIssuanceRuleApprovalStepRecord } from "./badge-issuance-rule-types.js";
+import type {
+  BadgeIssuanceRuleApprovalStepRecord,
+  BadgeIssuanceRuleVersionRecord,
+} from "./badge-issuance-rule-types.js";
+
+/** Returns whether an actor may reopen an approved badge-rule version before activation. */
+export const canReopenApprovedBadgeIssuanceRuleVersion = (input: {
+  readonly version: BadgeIssuanceRuleVersionRecord;
+  readonly actorUserId: string;
+  readonly actorRole: TenantMembershipRole;
+}): boolean => {
+  return (
+    input.version.status === "approved" &&
+    (input.version.approvedByUserId === input.actorUserId ||
+      input.actorRole === "admin" ||
+      input.actorRole === "owner")
+  );
+};
 
 export const checkActorIsApproverGroupMember = async (
   db: SqlDatabase,

@@ -13,6 +13,7 @@ import {
   buildBadgeRuleVersionImpactPreviewPath,
   buildBadgeRuleVersionReviewDecisionPath,
   buildBadgeRuleVersionReviewPath,
+  buildBadgeRuleVersionReviewReopenPath,
 } from "./access-admin-helpers";
 import {
   AdminActions,
@@ -320,6 +321,7 @@ const renderDecisionPanel = (input: {
   readonly ruleId: string;
   readonly versionId: string;
   readonly canDecide: boolean;
+  readonly canReopen: boolean;
 }): HonoElement => {
   const action = buildBadgeRuleVersionReviewDecisionPath(
     input.tenantId,
@@ -327,11 +329,46 @@ const renderDecisionPanel = (input: {
     input.versionId,
   );
 
+  if (input.canReopen) {
+    return (
+      <AdminPanel>
+        <h2>Correct This Approval</h2>
+        <p>
+          If this version was approved by mistake, reopen it before activation. The version returns
+          to draft and must be submitted again.
+        </p>
+        <AdminForm
+          method="post"
+          action={buildBadgeRuleVersionReviewReopenPath(
+            input.tenantId,
+            input.ruleId,
+            input.versionId,
+          )}
+        >
+          <AdminField label="Reason for reopening">
+            <CtTextarea
+              name="comment"
+              rows={4}
+              variant="prose"
+              placeholder="Explain what needs to be corrected."
+              required
+            />
+          </AdminField>
+          <AdminActions>
+            <AdminButton type="submit" variant="secondary">
+              Reopen as draft
+            </AdminButton>
+          </AdminActions>
+        </AdminForm>
+      </AdminPanel>
+    );
+  }
+
   if (!input.canDecide) {
     return (
       <AdminPanel>
         <h2>Decision</h2>
-        <p>This version is no longer awaiting your decision.</p>
+        <p>No approval action is available for this version.</p>
       </AdminPanel>
     );
   }
@@ -375,6 +412,7 @@ export const badgeRuleApprovalReviewPage = (
     readonly approvalSteps: readonly BadgeIssuanceRuleApprovalStepRecord[];
     readonly approvalEvents: readonly BadgeIssuanceRuleApprovalEventRecord[];
     readonly canDecide: boolean;
+    readonly canReopen: boolean;
     readonly listNotice: string | null;
     readonly listError: string | null;
   },
@@ -424,6 +462,7 @@ export const badgeRuleApprovalReviewPage = (
             ruleId: input.rule.id,
             versionId: input.version.id,
             canDecide: input.canDecide,
+            canReopen: input.canReopen,
           })}
           <AdminActions>
             <AdminButtonLink href={buildBadgeRuleApprovalsPath(shell.tenant.id)}>

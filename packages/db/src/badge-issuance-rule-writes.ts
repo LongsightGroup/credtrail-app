@@ -14,6 +14,7 @@ import type {
   PromoteBadgeIssuanceRuleBuilderDraftResult,
   UpdateBadgeIssuanceRuleDraftInput,
   UpdateBadgeIssuanceRuleDraftResult,
+  BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleVersionRecord,
 } from "./badge-issuance-rule-types.js";
 import {
@@ -161,14 +162,75 @@ export const createBadgeIssuanceRule = async (
   );
 };
 
-/** Promotes one builder identity using the caller's existing SQL transaction. */
-export const createBadgeIssuanceRuleFromBuilderDraftWithinTransaction = async (
+type LockedBadgeIssuanceRuleBuilderPromotionResult =
+  | {
+      readonly status: "ready";
+      readonly builderDraftId: string;
+      readonly identity: BadgeIssuanceRuleIdentity;
+    }
+  | {
+      readonly status: "replayed";
+      readonly draft: CreateBadgeIssuanceRuleResult;
+    }
+  | {
+      readonly status: "unavailable";
+    };
+
+/** Finds a completed builder promotion without requiring the original builder draft to remain. */
+export const findBadgeIssuanceRuleBuilderPromotionReplay = async (
   db: SqlDatabase,
-  input: CreateBadgeIssuanceRuleInput & {
+  input: {
+    readonly tenantId: string;
     readonly builderDraftId: string;
     readonly builderUserId: string;
   },
-): Promise<PromoteBadgeIssuanceRuleBuilderDraftResult> => {
+): Promise<
+  | Extract<LockedBadgeIssuanceRuleBuilderPromotionResult, { readonly status: "replayed" }>
+  | Extract<LockedBadgeIssuanceRuleBuilderPromotionResult, { readonly status: "unavailable" }>
+  | { readonly status: "not_promoted" }
+> => {
+  const identity = await badgeIssuanceRuleIdentityForBuilderDraft(
+    input.tenantId,
+    input.builderDraftId,
+  );
+  const existingRule = await findBadgeIssuanceRuleById(db, input.tenantId, identity.ruleId);
+
+  if (existingRule === null) {
+    return { status: "not_promoted" };
+  }
+
+  if (existingRule.createdByUserId !== input.builderUserId) {
+    return { status: "unavailable" };
+  }
+
+  const existingVersion = await findBadgeIssuanceRuleVersionById(db, {
+    tenantId: input.tenantId,
+    ruleId: identity.ruleId,
+    versionId: identity.versionId,
+  });
+
+  if (existingVersion === null) {
+    throw new Error(`Promoted badge rule "${identity.ruleId}" has no initial version`);
+  }
+
+  return {
+    status: "replayed",
+    draft: {
+      rule: existingRule,
+      version: existingVersion,
+    },
+  };
+};
+
+/** Locks one builder identity and resolves whether promotion is new, replayed, or unavailable. */
+export const lockBadgeIssuanceRuleBuilderPromotion = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly builderDraftId: string;
+    readonly builderUserId: string;
+  },
+): Promise<LockedBadgeIssuanceRuleBuilderPromotionResult> => {
   const identity = await badgeIssuanceRuleIdentityForBuilderDraft(
     input.tenantId,
     input.builderDraftId,
@@ -178,34 +240,58 @@ export const createBadgeIssuanceRuleFromBuilderDraftWithinTransaction = async (
     .bind(`${input.tenantId}:${input.builderDraftId}`)
     .run();
 
-  const existingRule = await findBadgeIssuanceRuleById(db, input.tenantId, identity.ruleId);
+  const replay = await findBadgeIssuanceRuleBuilderPromotionReplay(db, input);
 
-  if (existingRule !== null) {
-    if (existingRule.createdByUserId !== input.builderUserId) {
-      return {
-        status: "unavailable",
-      };
-    }
-
-    const existingVersion = await findBadgeIssuanceRuleVersionById(db, {
-      tenantId: input.tenantId,
-      ruleId: identity.ruleId,
-      versionId: identity.versionId,
-    });
-
-    if (existingVersion === null) {
-      throw new Error(`Promoted badge rule "${identity.ruleId}" has no initial version`);
-    }
-
-    return {
-      status: "replayed",
-      draft: {
-        rule: existingRule,
-        version: existingVersion,
-      },
-    };
+  if (replay.status !== "not_promoted") {
+    return replay;
   }
 
+  const existingDraft = await db
+    .prepare(
+      `
+      SELECT
+        user_id AS userId,
+        rule_id AS ruleId
+      FROM badge_issuance_rule_builder_drafts
+      WHERE tenant_id = ?
+        AND id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(input.tenantId, input.builderDraftId)
+    .first<{ userId: string; ruleId: string | null }>();
+
+  if (
+    existingDraft !== null &&
+    (existingDraft.userId !== input.builderUserId || existingDraft.ruleId !== null)
+  ) {
+    return { status: "unavailable" };
+  }
+
+  return {
+    status: "ready",
+    builderDraftId: input.builderDraftId,
+    identity,
+  };
+};
+
+/** Consumes a locked builder promotion after all pre-write policy checks have passed. */
+export const createBadgeIssuanceRuleFromLockedBuilderPromotion = async (
+  db: SqlDatabase,
+  input: CreateBadgeIssuanceRuleInput & {
+    readonly builderDraftId: string;
+    readonly builderUserId: string;
+    readonly identity: BadgeIssuanceRuleIdentity;
+  },
+): Promise<
+  | {
+      readonly status: "created";
+      readonly draft: CreateBadgeIssuanceRuleResult;
+    }
+  | {
+      readonly status: "unavailable";
+    }
+> => {
   const draftAvailability = await takeBadgeIssuanceRuleBuilderDraftForPromotion(db, {
     tenantId: input.tenantId,
     userId: input.builderUserId,
@@ -220,7 +306,7 @@ export const createBadgeIssuanceRuleFromBuilderDraftWithinTransaction = async (
 
   return {
     status: "created",
-    draft: await createBadgeIssuanceRuleWithIdentity(db, input, identity),
+    draft: await createBadgeIssuanceRuleWithIdentity(db, input, input.identity),
   };
 };
 
@@ -232,9 +318,18 @@ export const createBadgeIssuanceRuleFromBuilderDraft = async (
     readonly builderUserId: string;
   },
 ): Promise<PromoteBadgeIssuanceRuleBuilderDraftResult> => {
-  return runSqlTransaction(db, (transactionDb) =>
-    createBadgeIssuanceRuleFromBuilderDraftWithinTransaction(transactionDb, input),
-  );
+  return runSqlTransaction(db, async (transactionDb) => {
+    const promotion = await lockBadgeIssuanceRuleBuilderPromotion(transactionDb, input);
+
+    if (promotion.status !== "ready") {
+      return promotion;
+    }
+
+    return createBadgeIssuanceRuleFromLockedBuilderPromotion(transactionDb, {
+      ...input,
+      identity: promotion.identity,
+    });
+  });
 };
 
 const createBadgeIssuanceRuleVersionInDatabase = async (
@@ -324,15 +419,39 @@ export const createBadgeIssuanceRuleVersion = async (
   );
 };
 
-/** Updates a rule draft using the caller's existing SQL transaction. */
-export const updateBadgeIssuanceRuleDraftWithinTransaction = async (
+type LockedBadgeIssuanceRuleDraftUpdateResult =
+  | {
+      readonly status: "ready";
+      readonly rule: BadgeIssuanceRuleRecord;
+    }
+  | Extract<UpdateBadgeIssuanceRuleDraftResult, { readonly status: "not_found" | "not_editable" }>;
+
+/** Locks and validates a rule before an authoring transaction writes a new draft version. */
+export const lockBadgeIssuanceRuleDraftUpdate = async (
   db: SqlDatabase,
-  input: UpdateBadgeIssuanceRuleDraftInput,
-): Promise<UpdateBadgeIssuanceRuleDraftResult> => {
+  input: Pick<UpdateBadgeIssuanceRuleDraftInput, "tenantId" | "ruleId">,
+): Promise<LockedBadgeIssuanceRuleDraftUpdateResult> => {
+  const locked = await db
+    .prepare(
+      `
+      SELECT id
+      FROM badge_issuance_rules
+      WHERE tenant_id = ?
+        AND id = ?
+      FOR UPDATE
+    `,
+    )
+    .bind(input.tenantId, input.ruleId)
+    .first<{ id: string }>();
+
+  if (locked === null) {
+    return { status: "not_found" };
+  }
+
   const existingRule = await findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId);
 
   if (existingRule === null) {
-    return { status: "not_found" };
+    throw new Error(`Locked badge issuance rule "${input.ruleId}" could not be reloaded`);
   }
 
   const versions = await listBadgeIssuanceRuleVersions(db, {
@@ -348,6 +467,19 @@ export const updateBadgeIssuanceRuleDraftWithinTransaction = async (
     };
   }
 
+  return {
+    status: "ready",
+    rule: existingRule,
+  };
+};
+
+/** Applies a draft update after the same transaction has locked and validated the rule. */
+export const updateLockedBadgeIssuanceRuleDraft = async (
+  db: SqlDatabase,
+  input: UpdateBadgeIssuanceRuleDraftInput & {
+    readonly existingRule: BadgeIssuanceRuleRecord;
+  },
+): Promise<Extract<UpdateBadgeIssuanceRuleDraftResult, { readonly status: "updated" }>> => {
   const nowIso = new Date().toISOString();
   const badgeTemplate = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
 
@@ -357,7 +489,7 @@ export const updateBadgeIssuanceRuleDraftWithinTransaction = async (
     );
   }
 
-  const ruleOrgUnitId = input.orgUnitId ?? existingRule.orgUnitId;
+  const ruleOrgUnitId = input.orgUnitId ?? input.existingRule.orgUnitId;
   await resolveActiveRuleOrgUnit(db, {
     tenantId: input.tenantId,
     orgUnitId: ruleOrgUnitId,
@@ -423,9 +555,18 @@ export const updateBadgeIssuanceRuleDraft = async (
   db: SqlDatabase,
   input: UpdateBadgeIssuanceRuleDraftInput,
 ): Promise<UpdateBadgeIssuanceRuleDraftResult> => {
-  return runSqlTransaction(db, (transactionDb) =>
-    updateBadgeIssuanceRuleDraftWithinTransaction(transactionDb, input),
-  );
+  return runSqlTransaction(db, async (transactionDb) => {
+    const locked = await lockBadgeIssuanceRuleDraftUpdate(transactionDb, input);
+
+    if (locked.status !== "ready") {
+      return locked;
+    }
+
+    return updateLockedBadgeIssuanceRuleDraft(transactionDb, {
+      ...input,
+      existingRule: locked.rule,
+    });
+  });
 };
 
 export const deleteDraftBadgeIssuanceRule = async (

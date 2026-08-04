@@ -11,6 +11,7 @@ vi.mock("@credtrail/db", async () => {
     attachLtiLaunchSessionPrincipal: vi.fn(),
     createAuthIdentityLink: vi.fn(),
     createAuditLog: vi.fn(),
+    createLtiCourseBadgeRule: vi.fn(),
     createBadgeIssuanceRule: vi.fn(),
     createBadgeIssuanceRuleWithConnection: vi.fn(),
     ensureExternalCourseOrgUnit: vi.fn(),
@@ -42,7 +43,6 @@ vi.mock("@credtrail/db", async () => {
     moveLearnerIdentityAliasToProfile: vi.fn(),
     resolveLearnerProfileFromSaml: vi.fn(),
     recordAssertionEngagementEvent: vi.fn(),
-    submitBadgeIssuanceRuleVersionForApproval: vi.fn(),
     upsertLtiDeployment: vi.fn(),
     upsertLtiLaunchSession: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
@@ -67,6 +67,7 @@ import {
   attachLtiLaunchSessionPrincipal,
   createAuthIdentityLink,
   createAuditLog,
+  createLtiCourseBadgeRule,
   createBadgeIssuanceRule,
   createBadgeIssuanceRuleWithConnection,
   ensureExternalCourseOrgUnit,
@@ -99,7 +100,6 @@ import {
   resolveLearnerProfileFromSaml,
   recordAssertionEngagementEvent,
   resolveLearnerProfileForIdentity,
-  submitBadgeIssuanceRuleVersionForApproval,
   type AssertionRecord,
   type AuditLogRecord,
   type BadgeIssuanceRuleRecord,
@@ -188,9 +188,7 @@ const mockedMoveLearnerIdentityAliasToProfile = vi.mocked(moveLearnerIdentityAli
 const mockedResolveLearnerProfileFromSaml = vi.mocked(resolveLearnerProfileFromSaml);
 const mockedRecordAssertionEngagementEvent = vi.mocked(recordAssertionEngagementEvent);
 const mockedResolveLearnerProfileForIdentity = vi.mocked(resolveLearnerProfileForIdentity);
-const mockedSubmitBadgeIssuanceRuleVersionForApproval = vi.mocked(
-  submitBadgeIssuanceRuleVersionForApproval,
-);
+const mockedCreateLtiCourseBadgeRule = vi.mocked(createLtiCourseBadgeRule);
 const mockedUpsertLtiResourceLinkPlacement = vi.mocked(upsertLtiResourceLinkPlacement);
 const mockedUpsertLtiLaunchSession = vi.mocked(upsertLtiLaunchSession);
 const mockedUpsertTenantMembershipRole = vi.mocked(upsertTenantMembershipRole);
@@ -975,13 +973,26 @@ describe("LTI 1.3 core launch flow", () => {
       customFields: [],
       earnedBadgeTemplateIds: [],
     }));
-    mockedSubmitBadgeIssuanceRuleVersionForApproval.mockReset();
-    mockedSubmitBadgeIssuanceRuleVersionForApproval.mockResolvedValue({
-      status: "submitted",
-      version: sampleBadgeIssuanceRuleVersion({
-        status: "pending_approval",
-      }),
-      pendingStepNumber: 1,
+    mockedCreateLtiCourseBadgeRule.mockReset();
+    mockedCreateLtiCourseBadgeRule.mockResolvedValue({
+      status: "completed",
+      writeStatus: "created",
+      rule: sampleBadgeIssuanceRule(),
+      version: sampleBadgeIssuanceRuleVersion({ status: "pending_approval" }),
+      placement: {
+        id: "lti_place_123",
+        tenantId,
+        issuer,
+        clientId,
+        deploymentId,
+        contextId: "course-123",
+        resourceLinkId: "resource-link-selected-badge",
+        badgeTemplateId: "badge_template_001",
+        ruleId: "brl_lti_rule_123",
+        createdByUserId: linkedUserId,
+        createdAt: "2026-02-10T22:00:00.000Z",
+        updatedAt: "2026-02-10T22:00:00.000Z",
+      },
     });
     mockedCreateAuditLog.mockReset();
     mockedCreateAuditLog.mockResolvedValue(sampleAuditLog());
@@ -3124,44 +3135,38 @@ describe("LTI 1.3 core launch flow", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(mockedEnsureExternalCourseOrgUnit).toHaveBeenCalledWith(fakeDb, {
+    expect(mockedCreateLtiCourseBadgeRule).toHaveBeenCalledWith(fakeDb, {
       tenantId,
-      parentOrgUnitId: "tenant_123:org:department-cs",
-      externalSystemId: "lms_sakai_001",
-      externalCourseId: "course-123",
-      courseTitle: "TypeScript 101",
-      createdByUserId: linkedUserId,
-    });
-    expect(mockedCreateBadgeIssuanceRuleWithConnection).toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        tenantId,
+      course: {
+        parentOrgUnitId: "tenant_123:org:department-cs",
+        externalSystemId: "lms_sakai_001",
+        externalCourseId: "course-123",
+        title: "TypeScript 101",
+      },
+      rule: expect.objectContaining({
         badgeTemplateId: "badge_template_001",
-        orgUnitId: "tenant_123:org:course-typescript-101",
         lmsProviderKind: "sakai",
         lmsConnectionId: "lms_sakai_001",
-        createdByUserId: linkedUserId,
       }),
-    );
-    const createRuleInput = mockedCreateBadgeIssuanceRuleWithConnection.mock.calls[0]?.[1];
-    expect(JSON.parse(createRuleInput?.ruleJson ?? "{}")).toMatchObject({
+      placement: {
+        issuer,
+        clientId,
+        deploymentId,
+        contextId: "course-123",
+        resourceLinkId: "resource-link-selected-badge",
+        delegatedGrantId: "diag_lti_course_setup_123",
+      },
+      actorUserId: linkedUserId,
+      actorRole: "viewer",
+    });
+    const createRuleInput = mockedCreateLtiCourseBadgeRule.mock.calls[0]?.[1];
+    expect(JSON.parse(createRuleInput?.rule.ruleJson ?? "{}")).toMatchObject({
       conditions: {
         type: "grade_threshold",
         courseId: "course-123",
         scoreField: "final_score",
         minScore: 85,
       },
-    });
-    expect(mockedUpsertLtiResourceLinkPlacement).toHaveBeenCalledWith(fakeDb, {
-      tenantId,
-      issuer,
-      clientId,
-      deploymentId,
-      contextId: "course-123",
-      resourceLinkId: "resource-link-selected-badge",
-      badgeTemplateId: "badge_template_001",
-      ruleId: "brl_lti_rule_123",
-      createdByUserId: linkedUserId,
     });
     expect(mockedFindActiveDelegatedIssuingAuthorityGrantForAction).toHaveBeenCalledWith(fakeDb, {
       tenantId,
@@ -3170,29 +3175,48 @@ describe("LTI 1.3 core launch flow", () => {
       badgeTemplateId: "badge_template_001",
       requiredAction: "configure_course_rule",
     });
-    expect(mockedSubmitBadgeIssuanceRuleVersionForApproval).toHaveBeenCalledWith(fakeDb, {
+  });
+
+  it("returns a conflict when an LTI placement already has a different badge rule", async () => {
+    const env = createLtiEnv();
+    const setupToken = await createLtiCourseBadgeSetupToken(env, {
       tenantId,
-      ruleId: "brl_lti_rule_123",
-      versionId: "brlv_lti_rule_123_v1",
-      actorUserId: linkedUserId,
-      actorRole: "viewer",
-      comment: "Submitted from LTI Deep Linking course badge setup.",
+      issuer,
+      clientId,
+      deploymentId,
+      contextId: "course-123",
+      badgeTemplateId: "badge_template_001",
+      setupRequest: {
+        preset: "final_course_score_threshold",
+        scoreThreshold: 85,
+      },
+      ttlSeconds: 600,
     });
-    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        tenantId,
-        actorUserId: linkedUserId,
-        action: "lti.course_badge_setup_submitted",
-        targetType: "badge_issuance_rule",
-        targetId: "brl_lti_rule_123",
-        metadata: expect.objectContaining({
-          delegatedGrantId: "diag_lti_course_setup_123",
-          ltiContextId: "course-123",
-          ltiResourceLinkId: "resource-link-selected-badge",
-        }),
-      }),
-    );
+    const selectedBadgeTargetLinkUri = `${targetLinkUri}?badgeTemplateId=badge_template_001&setupToken=${encodeURIComponent(setupToken)}`;
+    mockedCreateLtiCourseBadgeRule.mockResolvedValueOnce({
+      status: "placement_conflict",
+    });
+    const { app: isolatedApp } = await loadAppWithMockedSignedLtiTool();
+    const { response, body } = await launchLearnerResourceLinkForTest({
+      isolatedApp,
+      env,
+      role: "instructor",
+      targetLinkUri: selectedBadgeTargetLinkUri,
+      resourceLinkId: "resource-link-selected-badge",
+      name: "Instructor One",
+      email: "instructor@example.edu",
+      context: {
+        id: "course-123",
+        title: "TypeScript 101",
+      },
+    });
+
+    expect(response.status).toBe(409);
+    expect(JSON.parse(body)).toEqual({
+      error:
+        "This Sakai placement already has a different badge rule. Change that rule in CredTrail before placing it again.",
+      reason: "course_rule_already_configured",
+    });
   });
 
   it("accepts instructor deep linking launch and renders badge template placement forms", async () => {

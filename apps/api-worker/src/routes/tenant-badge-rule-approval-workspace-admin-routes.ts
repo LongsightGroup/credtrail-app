@@ -1,5 +1,6 @@
 import {
   actorCanDecideApprovalStep,
+  canReopenApprovedBadgeIssuanceRuleVersion,
   findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleVersionById,
   findTenantById,
@@ -103,6 +104,10 @@ const actorCanViewReviewVersion = async (
     return true;
   }
 
+  if (input.version.status === "approved" && input.version.approvedByUserId === input.actorUserId) {
+    return true;
+  }
+
   if (input.version.status !== "pending_approval") {
     return false;
   }
@@ -193,6 +198,11 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
       version,
       approvalSteps,
     });
+    const canReopen = canReopenApprovedBadgeIssuanceRuleVersion({
+      version,
+      actorUserId: session.userId,
+      actorRole: membershipRole,
+    });
 
     c.header("Cache-Control", "no-store");
 
@@ -214,6 +224,7 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
           approvalSteps,
           approvalEvents,
           canDecide,
+          canReopen,
           listNotice: flash?.tone === "success" ? flash.message : null,
           listError: flash?.tone === "error" ? flash.message : null,
         },

@@ -17,7 +17,7 @@ export type BadgeIssuanceRuleVersionStatus =
   | "rejected"
   | "deprecated";
 
-export type BadgeIssuanceRuleBuilderDraftStep = "metadata" | "conditions" | "test" | "review";
+export type BadgeIssuanceRuleBuilderDraftStep = "metadata" | "conditions" | "test";
 
 interface BadgeIssuanceRuleBuilderDraftRecordBase {
   readonly id: string;
@@ -117,7 +117,11 @@ export type BadgeIssuanceRuleApprovalStepTargetType =
 
 export type BadgeIssuanceRuleApprovalDecision = "approved" | "rejected" | "changes_requested";
 
-export type BadgeIssuanceRuleApprovalEventAction = "submitted" | BadgeIssuanceRuleApprovalDecision;
+export type BadgeIssuanceRuleApprovalEventAction =
+  | "submitted"
+  | "withdrawn"
+  | "reopened"
+  | BadgeIssuanceRuleApprovalDecision;
 
 export interface BadgeIssuanceRuleRecord {
   id: string;
@@ -244,6 +248,15 @@ export type BadgeIssuanceRuleAuthoringAction = "save_draft" | "submit_for_approv
 /** The persisted lifecycle outcome of a completed authoring action. */
 export type BadgeIssuanceRuleAuthoringOutcome = "draft_saved" | "pending_approval" | "approved";
 
+/** A stable reason why a badge-rule authoring command was rejected. */
+export type BadgeIssuanceRuleAuthoringFailureReason =
+  | "unavailable"
+  | "replay_conflict"
+  | "not_found"
+  | "not_editable"
+  | "self_certification_required"
+  | "policy_missing_steps";
+
 /** The completed authoring value or an expected authoring rejection. */
 export type BadgeIssuanceRuleAuthoringResult =
   | {
@@ -255,25 +268,8 @@ export type BadgeIssuanceRuleAuthoringResult =
       readonly pendingStepNumber: number | null;
     }
   | {
-      readonly status: "unavailable";
-    }
-  | {
-      readonly status: "replay_conflict";
-    }
-  | {
-      readonly status: "not_found";
-    }
-  | {
-      readonly status: "not_editable";
-    }
-  | {
-      readonly status: "not_submittable";
-    }
-  | {
-      readonly status: "self_certification_required";
-    }
-  | {
-      readonly status: "policy_missing_steps";
+      readonly status: "failed";
+      readonly reason: BadgeIssuanceRuleAuthoringFailureReason;
     };
 
 /** Input for creating and optionally submitting one rule version atomically. */
@@ -334,6 +330,27 @@ export interface DecideBadgeIssuanceRuleVersionInput {
   actorRole: TenantMembershipRole;
   comment?: string | undefined;
   occurredAt?: string | undefined;
+}
+
+/** Input for returning the actor's pending submission to an editable draft. */
+export interface WithdrawBadgeIssuanceRuleVersionSubmissionInput {
+  readonly tenantId: string;
+  readonly ruleId: string;
+  readonly versionId: string;
+  readonly actorUserId: string;
+  readonly actorRole: TenantMembershipRole;
+  readonly occurredAt?: string | undefined;
+}
+
+/** Input for correcting an accidental final approval before activation. */
+export interface ReopenApprovedBadgeIssuanceRuleVersionInput {
+  readonly tenantId: string;
+  readonly ruleId: string;
+  readonly versionId: string;
+  readonly actorUserId: string;
+  readonly actorRole: TenantMembershipRole;
+  readonly comment: string;
+  readonly occurredAt?: string | undefined;
 }
 
 export interface ActivateBadgeIssuanceRuleVersionInput {
@@ -425,6 +442,26 @@ export type SubmitBadgeIssuanceRuleVersionForApprovalResult =
     }
   | {
       status: "policy_missing_steps";
+    };
+
+/** Outcome of withdrawing a pending badge-rule submission. */
+export type WithdrawBadgeIssuanceRuleVersionSubmissionResult =
+  | {
+      readonly status: "withdrawn";
+      readonly version: BadgeIssuanceRuleVersionRecord;
+    }
+  | {
+      readonly status: "not_found" | "not_pending" | "forbidden" | "stale";
+    };
+
+/** Outcome of reopening an approved badge-rule version before activation. */
+export type ReopenApprovedBadgeIssuanceRuleVersionResult =
+  | {
+      readonly status: "reopened";
+      readonly version: BadgeIssuanceRuleVersionRecord;
+    }
+  | {
+      readonly status: "not_found" | "not_approved" | "forbidden" | "comment_required" | "stale";
     };
 
 export interface ListBadgeIssuanceRuleVersionApprovalStepsInput {

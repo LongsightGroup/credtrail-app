@@ -215,6 +215,161 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
     }
   });
 
+  it("lets only the submitter withdraw a pending version to draft", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+    const reviewerUserId = await createFixtureTenantMember(fixture, { role: "admin" });
+
+    try {
+      const created = await createFixtureRule(fixture);
+
+      await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        orgUnitId: created.rule.orgUnitId,
+        approvalRequirement: "always",
+        approvalSteps: [{ requiredRole: "admin", label: "Registrar review" }],
+        createdByUserId: fixture.userId,
+      });
+      await dbModule.submitBadgeIssuanceRuleVersionForApproval(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+      });
+
+      const forbidden = await dbModule.withdrawBadgeIssuanceRuleVersionSubmission(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        actorUserId: reviewerUserId,
+        actorRole: "admin",
+      });
+      const withdrawn = await dbModule.withdrawBadgeIssuanceRuleVersionSubmission(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+        occurredAt: "2026-07-28T12:00:00.000Z",
+      });
+      const events = await dbModule.listBadgeIssuanceRuleVersionApprovalEvents(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+      });
+      const steps = await dbModule.listBadgeIssuanceRuleVersionApprovalSteps(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+      });
+      const audit = await fixture.db
+        .prepare(
+          "SELECT action FROM audit_logs WHERE tenant_id = ? AND target_id = ? AND action = 'badge_rule.version_submission_withdrawn'",
+        )
+        .bind(fixture.tenantId, created.version.id)
+        .first<{ action: string }>();
+
+      expect(forbidden.status).toBe("forbidden");
+      expect(withdrawn).toMatchObject({
+        status: "withdrawn",
+        version: {
+          status: "draft",
+          submittedByUserId: null,
+          submittedAt: null,
+        },
+      });
+      expect(steps).toEqual([]);
+      expect(events.map((event) => event.action)).toEqual(["submitted", "withdrawn"]);
+      expect(audit?.action).toBe("badge_rule.version_submission_withdrawn");
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId, reviewerUserId],
+      });
+    }
+  });
+
+  it("lets the final approver reopen an approved version before activation", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+    const reviewerUserId = await createFixtureTenantMember(fixture, { role: "admin" });
+    const unrelatedUserId = await createFixtureTenantMember(fixture, { role: "viewer" });
+
+    try {
+      const created = await createFixtureRule(fixture);
+
+      await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        orgUnitId: created.rule.orgUnitId,
+        approvalRequirement: "always",
+        approvalSteps: [{ requiredRole: "admin", label: "Registrar review" }],
+        createdByUserId: fixture.userId,
+      });
+      await dbModule.submitBadgeIssuanceRuleVersionForApproval(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+      });
+      await dbModule.decideBadgeIssuanceRuleVersion(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        decision: "approved",
+        actorUserId: reviewerUserId,
+        actorRole: "admin",
+      });
+
+      const forbidden = await dbModule.reopenApprovedBadgeIssuanceRuleVersion(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        actorUserId: unrelatedUserId,
+        actorRole: "viewer",
+        comment: "This should not be allowed.",
+      });
+      const reopened = await dbModule.reopenApprovedBadgeIssuanceRuleVersion(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        actorUserId: reviewerUserId,
+        actorRole: "admin",
+        comment: "Approved before checking the revised threshold.",
+        occurredAt: "2026-07-28T12:30:00.000Z",
+      });
+      const events = await dbModule.listBadgeIssuanceRuleVersionApprovalEvents(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+      });
+      const steps = await dbModule.listBadgeIssuanceRuleVersionApprovalSteps(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+      });
+
+      expect(forbidden.status).toBe("forbidden");
+      expect(reopened).toMatchObject({
+        status: "reopened",
+        version: {
+          status: "draft",
+          submittedByUserId: null,
+          submittedAt: null,
+          approvedByUserId: null,
+          approvedAt: null,
+        },
+      });
+      expect(events.map((event) => event.action)).toEqual(["submitted", "approved", "reopened"]);
+      expect(events.at(-1)?.comment).toBe("Approved before checking the revised threshold.");
+      expect(steps).toEqual([]);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId, reviewerUserId, unrelatedUserId],
+      });
+    }
+  });
+
   it("returns versions to draft when an approver requests changes", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
     const reviewerUserId = await createFixtureTenantMember(fixture, { role: "admin" });
@@ -257,6 +412,18 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
         ruleId: created.rule.id,
         versionId: created.version.id,
       });
+      const decisionAudit = await fixture.db
+        .prepare(
+          "SELECT action FROM audit_logs WHERE tenant_id = ? AND target_id = ? AND action = 'badge_rule.version_approval_decided'",
+        )
+        .bind(fixture.tenantId, created.version.id)
+        .first<{ action: string }>();
+      const notifications = await fixture.db
+        .prepare(
+          "SELECT payload_json AS payloadJson FROM job_queue_messages WHERE tenant_id = ? AND job_type = 'send_badge_rule_approval_notification' ORDER BY created_at ASC, id ASC",
+        )
+        .bind(fixture.tenantId)
+        .all<{ payloadJson: string }>();
 
       expect(changed.status).toBe("decided");
       expect(changed).toMatchObject({
@@ -266,6 +433,26 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
       expect(steps[0]?.status).toBe("changes_requested");
       expect(steps[0]?.decisionComment).toBe("Clarify the course criteria before approval.");
       expect(events.map((event) => event.action)).toEqual(["submitted", "changes_requested"]);
+      expect(decisionAudit?.action).toBe("badge_rule.version_approval_decided");
+      const notificationPayloads = notifications.results.map(
+        ({ payloadJson }) => JSON.parse(payloadJson) as unknown,
+      );
+      expect(notificationPayloads).toHaveLength(2);
+      expect(notificationPayloads).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            notificationType: "approval_submitted",
+            ruleId: created.rule.id,
+            versionId: created.version.id,
+          }),
+          expect.objectContaining({
+            notificationType: "approval_decision",
+            ruleId: created.rule.id,
+            versionId: created.version.id,
+            decision: "changes_requested",
+          }),
+        ]),
+      );
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],
@@ -486,6 +673,44 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
       });
 
       expect(submitted.status).toBe("self_certification_required");
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
+  it("reports version lifecycle state before evaluating submission policy", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      const created = await createFixtureRule(fixture);
+
+      await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        orgUnitId: created.rule.orgUnitId,
+        approvalRequirement: "never",
+        allowSelfCertification: false,
+        approvalSteps: [],
+        createdByUserId: fixture.userId,
+      });
+      await fixture.db
+        .prepare(
+          "UPDATE badge_issuance_rule_versions SET status = 'pending_approval' WHERE tenant_id = ? AND id = ?",
+        )
+        .bind(fixture.tenantId, created.version.id)
+        .run();
+
+      const submitted = await dbModule.submitBadgeIssuanceRuleVersionForApproval(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+      });
+
+      expect(submitted.status).toBe("not_submittable");
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],

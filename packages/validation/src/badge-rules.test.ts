@@ -12,12 +12,26 @@ import {
   parseDecideBadgeIssuanceRuleVersionRequest,
   parsePreviewEvaluateBadgeIssuanceRuleRequest,
   parsePreviewSimulateBadgeIssuanceRuleRequest,
+  parseReopenApprovedBadgeIssuanceRuleVersionRequest,
   parseResolveBadgeIssuanceRuleReviewRequest,
   parseSaveBadgeIssuanceRuleBuilderDraftRequest,
   parseUpdateBadgeIssuanceRuleDraftRequest,
 } from "./badge-rules.js";
 
 describe("badge issuance rule parsers", () => {
+  it("requires a reason when reopening an approved rule version", () => {
+    expect(
+      parseReopenApprovedBadgeIssuanceRuleVersionRequest({
+        comment: "Approved before the final threshold check.",
+      }),
+    ).toEqual({
+      comment: "Approved before the final threshold check.",
+    });
+    expect(() => parseReopenApprovedBadgeIssuanceRuleVersionRequest({ comment: " " })).toThrow(
+      "Too small",
+    );
+  });
+
   it("accepts valid create, version, and preview payloads", () => {
     const createRequest = parseCreateBadgeIssuanceRuleRequest({
       name: "CS101 Excellence Rule",
@@ -380,7 +394,7 @@ describe("badge issuance rule parsers", () => {
   it("parses unfinished and formal-rule builder draft targets", () => {
     const unfinished = parseSaveBadgeIssuanceRuleBuilderDraftRequest({
       target: { kind: "unfinished" },
-      currentStep: "review",
+      currentStep: "test",
     });
     const formalRule = parseSaveBadgeIssuanceRuleBuilderDraftRequest({
       target: {
@@ -392,7 +406,7 @@ describe("badge issuance rule parsers", () => {
     });
 
     expect(unfinished.target).toEqual({ kind: "unfinished" });
-    expect(unfinished.currentStep).toBe("review");
+    expect(unfinished.currentStep).toBe("test");
     expect(formalRule.target).toEqual({
       kind: "formal_rule",
       ruleId: "brl_rule",

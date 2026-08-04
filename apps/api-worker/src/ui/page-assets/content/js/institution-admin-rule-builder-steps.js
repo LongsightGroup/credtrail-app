@@ -7,22 +7,18 @@ const ruleBuilderStepOrder = ruleBuilderStepPanels
 const ruleBuilderStepLabels = {
   metadata: "Awarding pattern",
   conditions: "Requirements",
-  test: "Test the rule",
-  review: "Review and submit",
+  test: "Test and submit",
 };
 const ruleBuilderStepCallouts = {
   metadata: "Choose an awarding pattern, badge, and LMS connection, then select Continue.",
   conditions:
     "Confirm the requirements learners must meet, then select Continue. To revise setup, select step 1 above.",
-  test: "Choose an LMS learner and test the rule, then continue to review. To revise earlier steps, select a step label above.",
-  review:
-    "Submit the rule for approval, or save a rule draft and submit it later from Rules.",
+  test: "Test the rule, then submit it for approval or save it as a rule draft. To revise earlier steps, select a step label above.",
 };
 const ruleBuilderStepGateMessages = {
   metadata: "Choose a badge template and LMS connection before continuing.",
   conditions: "Add at least one requirement before continuing.",
-  test: "Run a learner test before reviewing the rule.",
-  review: "Test the rule before submitting it for approval.",
+  test: "Run a learner test before submitting the rule.",
 };
 let activeRuleBuilderStepIndex = 0;
 
@@ -194,11 +190,11 @@ const getStepGateMessage = (stepName) => {
       ruleBuilderLastTestSummary.startsWith("Review required");
 
     if (!testReady) {
-      return "Run a learner test before reviewing the rule.";
+      return "Run a learner test before submitting the rule.";
     }
 
     if (getTextFieldValue("issuanceTiming").length === 0) {
-      return "Choose when the badge should be issued before reviewing the rule.";
+      return "Choose when the badge should be issued before submitting the rule.";
     }
 
   }
@@ -226,8 +222,7 @@ const showStepGateMessage = (stepName) => {
 const updateStepNavigationState = () => {
   const completion = getRuleBuilderCompletionState();
   const currentStep = ruleBuilderStepOrder[activeRuleBuilderStepIndex] ?? "";
-  const currentComplete =
-    currentStep === "review" ? completion.test === true : completion[currentStep] === true;
+  const currentComplete = completion[currentStep] === true;
   const submissionInProgress = ruleBuilderAuthoringController.state() !== "idle";
 
   ruleBuilderStepButtons.forEach((candidate) => {
@@ -337,14 +332,6 @@ const setBuilderStepState = (requestedIndex) => {
   const activePanel = ruleBuilderStepPanels.find(
     (panel) => panel instanceof HTMLElement && (panel.dataset.ruleStep ?? "") === activeStep,
   );
-
-  if (
-    ruleBuilderStepFooter instanceof HTMLElement &&
-    activePanel instanceof HTMLElement &&
-    ruleBuilderStepFooter.parentElement !== activePanel
-  ) {
-    activePanel.append(ruleBuilderStepFooter);
-  }
 
   if (stepChanged && activePanel instanceof HTMLElement) {
     scrollActiveBuilderPanelIntoView(activePanel);

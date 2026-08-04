@@ -18,9 +18,10 @@ import {
   tenantAccessMemberRemovePath,
   tenantAccessMemberRolePath,
   tenantAccessMembershipScopeRemovePath,
-  tenantBadgeRuleDecisionAdminPath,
+  buildBadgeRuleVersionReviewPath,
   tenantBadgeRuleDeleteAdminPath,
   tenantBadgeRuleSubmitApprovalAdminPath,
+  tenantBadgeRuleWithdrawSubmissionAdminPath,
 } from "../access-admin-helpers";
 import { buildBadgeRuleLifecycleMenuActions } from "./badge-rule-lifecycle-actions";
 import { renderBadgeRuleBuilderDraftRows } from "./badge-rule-builder-draft-rows";
@@ -35,7 +36,7 @@ import {
   AdminStatusPill,
   AdminWorkspaceCard,
 } from "../components";
-import { CtInput, CtSelect, CtTextarea } from "../../ui/forms";
+import { CtInput, CtSelect } from "../../ui/forms";
 import { buildLmsConnectionEditPath, isLmsConnectionReady } from "../lms-connection-admin-helpers";
 import { TenantApiKeyAdminTableRow } from "../api-key-table-row";
 import { badgeRuleApprovalPolicyFormState } from "../../badges/badge-rule-approval-policy-summary";
@@ -596,7 +597,7 @@ export const buildInstitutionAdminViewResources = (
               )}
               className="ct-admin__inline-form"
               dataAttributes={{
-                "data-confirm-message": `Submit draft version for "${rule.name}" for approval?`,
+                "data-confirm-message": `Submit draft version for "${rule.name}" for approval? You will not be able to approve it yourself.`,
               }}
             >
               <button type="submit" class="ct-admin__action-menu-item">
@@ -607,65 +608,39 @@ export const buildInstitutionAdminViewResources = (
         }
 
         if (latestVersion.status === "pending_approval") {
-          menuActions.push(
-            <AdminForm
-              method="post"
-              action={tenantBadgeRuleDecisionAdminPath(input.tenant.id, rule.id, latestVersion.id)}
-              className="ct-admin__inline-form"
-              dataAttributes={{
-                "data-confirm-message": `Approve latest version for "${rule.name}"?`,
-              }}
-            >
-              <CtInput type="hidden" name="decision" value="approved" />
-              <button type="submit" class="ct-admin__action-menu-item">
-                Approve
-              </button>
-            </AdminForm>,
-          );
-          menuActions.push(
-            <AdminForm
-              method="post"
-              action={tenantBadgeRuleDecisionAdminPath(input.tenant.id, rule.id, latestVersion.id)}
-              className="ct-admin__action-menu-form ct-admin__action-menu-form--stacked"
-            >
-              <CtInput type="hidden" name="decision" value="changes_requested" />
-              <div class="ct-admin__action-menu-field">
-                <label
-                  class="ct-admin__action-menu-field-label"
-                  htmlFor={`badge-rule-change-request-${rule.id}`}
-                >
-                  Request changes
-                </label>
-                <CtTextarea
-                  id={`badge-rule-change-request-${rule.id}`}
-                  name="comment"
-                  rows={3}
-                  required
-                  placeholder="Explain what needs to change before this version can be approved."
-                />
-              </div>
-              <button type="submit" class="ct-admin__action-menu-item">
-                Send back to draft
-              </button>
-            </AdminForm>,
-          );
-          menuActions.push(
-            <AdminForm
-              method="post"
-              action={tenantBadgeRuleDecisionAdminPath(input.tenant.id, rule.id, latestVersion.id)}
-              className="ct-admin__inline-form"
-              dataAttributes={{
-                "data-confirm-message": `Reject latest version for "${rule.name}"?`,
-              }}
-            >
-              <CtInput type="hidden" name="decision" value="rejected" />
-              <button
-                type="submit"
-                class="ct-admin__action-menu-item ct-admin__action-menu-item--danger"
+          if (latestVersion.submittedByUserId === input.userId) {
+            menuActions.push(
+              <AdminForm
+                method="post"
+                action={tenantBadgeRuleWithdrawSubmissionAdminPath(
+                  input.tenant.id,
+                  rule.id,
+                  latestVersion.id,
+                )}
+                className="ct-admin__inline-form"
+                dataAttributes={{
+                  "data-confirm-message": `Withdraw "${rule.name}" from approval and return it to draft?`,
+                }}
               >
-                Reject
-              </button>
-            </AdminForm>,
+                <button type="submit" class="ct-admin__action-menu-item">
+                  Withdraw submission
+                </button>
+              </AdminForm>,
+            );
+          }
+        }
+
+        if (
+          latestVersion.status === "approved" &&
+          latestVersion.approvedByUserId === input.userId
+        ) {
+          menuActions.push(
+            <a
+              class="ct-admin__action-menu-item"
+              href={buildBadgeRuleVersionReviewPath(input.tenant.id, rule.id, latestVersion.id)}
+            >
+              Review approval
+            </a>,
           );
         }
 

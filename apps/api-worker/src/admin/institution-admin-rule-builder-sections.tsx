@@ -15,7 +15,7 @@ import {
 import { CtInput, CtSelect, CtTextarea } from "../ui/forms";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | null;
-type RuleBuilderStepTarget = "metadata" | "conditions" | "test" | "review";
+type RuleBuilderStepTarget = "metadata" | "conditions" | "test";
 
 interface RuleBuilderTemplateOption {
   readonly template: BadgeTemplateRecord;
@@ -308,44 +308,6 @@ export const RuleBuilderMetadataStep = (props: {
               }}
             />
           </section>
-          <footer id="rule-builder-step-footer" class="ct-admin__builder-step-footer">
-            <p
-              id="rule-builder-step-callout"
-              class="ct-admin__builder-step-callout"
-              aria-live="polite"
-            >
-              Choose an awarding pattern, badge, and LMS connection, then select Continue.
-            </p>
-            <AdminActions className="ct-admin__builder-step-nav">
-              <AdminButton id="rule-builder-step-next" type="button" size="tiny">
-                Continue to Requirements
-              </AdminButton>
-              <AdminButton
-                id="rule-builder-submit"
-                type="submit"
-                form="rule-create-form"
-                hidden={true}
-                name="action"
-                value="submit_for_approval"
-              >
-                {props.isEditMode
-                  ? "Save and submit for approval"
-                  : "Create and submit for approval"}
-              </AdminButton>
-              <AdminButton
-                id="rule-builder-save-formal-draft"
-                type="submit"
-                form="rule-create-form"
-                variant="secondary"
-                hidden={true}
-                name="action"
-                value="save_draft"
-              >
-                {props.isEditMode ? "Save draft version" : "Create rule draft"}
-              </AdminButton>
-            </AdminActions>
-            <AdminStatus id="rule-create-status"></AdminStatus>
-          </footer>
         </section>
       </div>
     </li>
@@ -529,8 +491,8 @@ export const RuleBuilderTestStep = (): HonoElement => {
         <RuleBuilderStepButton
           stepNumber={3}
           target="test"
-          title="Test the rule"
-          description="Check the rule with a learner before submission."
+          title="Test and submit"
+          description="Check the rule with a learner, then submit it."
         />
       </div>
       <div class="ct-admin__stepper-content">
@@ -681,47 +643,54 @@ export const RuleBuilderTestStep = (): HonoElement => {
               </div>
             </div>
           </details>
+          <div class="ct-admin__builder-approval-note ct-stack">
+            <strong>CredTrail follows your institution's approval policy.</strong>
+            <p>
+              You cannot approve a rule version you create or submit. Rules that require review go
+              to another eligible approver; automatic-approval policies approve the version
+              immediately.
+            </p>
+          </div>
         </section>
       </div>
     </li>
   );
 };
 
-export const RuleBuilderReviewStep = (): HonoElement => {
+export const RuleBuilderWorkflowFooter = (props: { readonly isEditMode: boolean }): HonoElement => {
   return (
-    <li class="ct-admin__stepper-step" data-rule-step-row="review">
-      <div class="ct-admin__stepper-header">
-        <RuleBuilderStepButton
-          stepNumber={4}
-          target="review"
-          title="Review and submit"
-          description="Send the tested rule into the approval workflow."
-        />
-      </div>
-      <div class="ct-admin__stepper-content">
-        <section
-          id="builder-step-review"
-          class="ct-admin__builder-step"
-          data-rule-step="review"
-          hidden
+    <footer id="rule-builder-step-footer" class="ct-admin__builder-step-footer">
+      <p id="rule-builder-step-callout" class="ct-admin__builder-step-callout" aria-live="polite">
+        Choose an awarding pattern, badge, and LMS connection, then select Continue.
+      </p>
+      <AdminActions className="ct-admin__builder-step-nav">
+        <AdminButton id="rule-builder-step-next" type="button" size="tiny">
+          Continue to Requirements
+        </AdminButton>
+        <AdminButton
+          id="rule-builder-submit"
+          type="submit"
+          form="rule-create-form"
+          hidden={true}
+          name="action"
+          value="submit_for_approval"
         >
-          <header class="ct-stack">
-            <h3 tabindex={-1}>Submit for approval</h3>
-            <p>
-              Submit this tested rule to the institution's approval workflow, or keep it as a rule
-              draft and submit it later from Rules.
-            </p>
-          </header>
-          <div class="ct-admin__builder-approval-note ct-stack">
-            <strong>CredTrail follows your institution's approval policy.</strong>
-            <p>
-              Rules that require review go to another eligible approver. Policies that allow
-              automatic approval approve the version immediately.
-            </p>
-          </div>
-        </section>
-      </div>
-    </li>
+          {props.isEditMode ? "Save and submit for approval" : "Create and submit for approval"}
+        </AdminButton>
+        <AdminButton
+          id="rule-builder-save-formal-draft"
+          type="submit"
+          form="rule-create-form"
+          variant="secondary"
+          hidden={true}
+          name="action"
+          value="save_draft"
+        >
+          {props.isEditMode ? "Save draft version" : "Create rule draft"}
+        </AdminButton>
+      </AdminActions>
+      <AdminStatus id="rule-create-status"></AdminStatus>
+    </footer>
   );
 };
 

@@ -46,6 +46,8 @@ import {
   resolveBadgeRuleApprovalPolicy,
   resolveTenantDefaultBadgeRuleApprovalPolicy,
   decideBadgeIssuanceRuleVersion,
+  reopenApprovedBadgeIssuanceRuleVersion,
+  withdrawBadgeIssuanceRuleVersionSubmission,
   recertifyBadgeIssuanceRuleVersion,
   createBadgeRuleApproverGroup,
   addBadgeRuleApproverGroupMember,
@@ -160,6 +162,12 @@ export const mockedResolveTenantDefaultBadgeRuleApprovalPolicyDb = vi.mocked(
   resolveTenantDefaultBadgeRuleApprovalPolicy,
 );
 export const mockedDecideBadgeIssuanceRuleVersionDb = vi.mocked(decideBadgeIssuanceRuleVersion);
+export const mockedReopenApprovedBadgeIssuanceRuleVersionDb = vi.mocked(
+  reopenApprovedBadgeIssuanceRuleVersion,
+);
+export const mockedWithdrawBadgeIssuanceRuleVersionSubmissionDb = vi.mocked(
+  withdrawBadgeIssuanceRuleVersionSubmission,
+);
 export const mockedRecertifyBadgeIssuanceRuleVersionDb = vi.mocked(
   recertifyBadgeIssuanceRuleVersion,
 );
@@ -876,6 +884,12 @@ beforeEach(() => {
   mockedRemoveBadgeRuleApproverGroupDb.mockResolvedValue({ status: "removed" });
   mockedDecideBadgeIssuanceRuleVersionDb.mockReset();
   mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue({ status: "not_found" });
+  mockedReopenApprovedBadgeIssuanceRuleVersionDb.mockReset();
+  mockedReopenApprovedBadgeIssuanceRuleVersionDb.mockResolvedValue({ status: "not_found" });
+  mockedWithdrawBadgeIssuanceRuleVersionSubmissionDb.mockReset();
+  mockedWithdrawBadgeIssuanceRuleVersionSubmissionDb.mockResolvedValue({
+    status: "not_found",
+  });
   mockedRecertifyBadgeIssuanceRuleVersionDb.mockReset();
   mockedRecertifyBadgeIssuanceRuleVersionDb.mockResolvedValue(null);
   mockedUpsertBadgeRuleApprovalPolicyDb.mockReset();

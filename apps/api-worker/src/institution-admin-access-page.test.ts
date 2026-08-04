@@ -165,6 +165,7 @@ describe("GET /tenants/:tenantId/admin/access/governance", () => {
     );
     expect(body).toContain("Set badge rule approval policy");
     expect(body).toContain("Require approval before activation");
+    expect(body).toContain("If one person manages this institution, choose automatic approval");
     expect(body).toContain("Policy scope");
     expect(body).toContain("Reviewer type");
     expect(body).toContain("Named person");

@@ -1,20 +1,12 @@
 import { findBadgeIssuanceRuleVersionById, type SqlDatabase } from "@credtrail/db";
 import type { SendBadgeRuleApprovalNotificationQueueJob } from "@credtrail/validation";
+import { buildBadgeRuleVersionReviewPath } from "../admin/access-admin-helpers";
 import type { AppBindings } from "../app";
+import { canonicalAppUrl } from "../http/canonical-app-url";
 import {
   notifyBadgeRuleApprovalDecision,
   notifyBadgeRuleApprovalSubmitted,
 } from "./badge-rule-approval-notifications";
-
-export const badgeRuleApprovalSubmittedNotificationIdempotencyKey = (input: {
-  readonly versionId: string;
-  readonly occurredAt: string;
-}): string => `approval-submitted:${input.versionId}:${input.occurredAt}`;
-
-export const badgeRuleApprovalDecisionNotificationIdempotencyKey = (input: {
-  readonly versionId: string;
-  readonly occurredAt: string;
-}): string => `approval-decision:${input.versionId}:${input.occurredAt}`;
 
 export const processBadgeRuleApprovalNotificationJob = async (input: {
   readonly db: SqlDatabase;
@@ -32,13 +24,18 @@ export const processBadgeRuleApprovalNotificationJob = async (input: {
     return;
   }
 
+  const reviewUrl = canonicalAppUrl(
+    input.env.PLATFORM_DOMAIN,
+    buildBadgeRuleVersionReviewPath(input.tenantId, input.payload.ruleId, input.payload.versionId),
+  );
+
   if (input.payload.notificationType === "approval_submitted") {
     await notifyBadgeRuleApprovalSubmitted(input.db, {
       env: input.env,
       tenantId: input.tenantId,
       ruleId: input.payload.ruleId,
       version,
-      reviewUrl: input.payload.reviewUrl,
+      reviewUrl,
       targetStepNumber: input.payload.targetStepNumber,
     });
     return;
@@ -51,7 +48,7 @@ export const processBadgeRuleApprovalNotificationJob = async (input: {
     version,
     decision: input.payload.decision,
     comment: input.payload.comment,
-    reviewUrl: input.payload.reviewUrl,
+    reviewUrl,
     nextStepNumber: input.payload.nextStepNumber,
   });
 };

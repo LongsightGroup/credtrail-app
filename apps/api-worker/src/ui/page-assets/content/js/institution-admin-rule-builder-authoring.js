@@ -8,20 +8,6 @@ const createRuleBuilderAuthoringController = (dependencies) => {
 
     state = "submitting";
 
-    if (typeof input.prepareRequest === "function") {
-      try {
-        const ready = await input.prepareRequest();
-
-        if (!ready) {
-          state = "idle";
-          return { status: "precondition_failed" };
-        }
-      } catch {
-        state = "idle";
-        return { status: "precondition_failed" };
-      }
-    }
-
     try {
       const response = await dependencies.request(input.apiPath, {
         method: "POST",
@@ -63,7 +49,7 @@ const createRuleBuilderAuthoringController = (dependencies) => {
         outcome,
       };
     } catch {
-      state = "unknown";
+      state = "idle";
       return { status: "unknown" };
     }
   };

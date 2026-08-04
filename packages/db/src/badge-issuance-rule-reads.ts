@@ -152,6 +152,8 @@ const BADGE_ISSUANCE_RULE_APPROVAL_EVENT_ACTIONS = new Set<BadgeIssuanceRuleAppr
   "approved",
   "rejected",
   "changes_requested",
+  "withdrawn",
+  "reopened",
 ]);
 
 const BADGE_ISSUANCE_RULE_SELECT_COLUMNS = `

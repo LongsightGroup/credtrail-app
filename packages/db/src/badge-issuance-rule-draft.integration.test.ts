@@ -238,7 +238,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         tenantId: fixture.tenantId,
         userId: fixture.userId,
         target: { kind: "unfinished" },
-        currentStep: "review",
+        currentStep: "test",
         draftJson: JSON.stringify({ name: "Submit me" }),
       });
 
@@ -276,6 +276,16 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         "SELECT COUNT(*) AS totalCount FROM badge_issuance_rule_approval_steps WHERE tenant_id = ?",
         [fixture.tenantId],
       );
+      const auditCount = await selectCount(
+        fixture.db,
+        "SELECT COUNT(*) AS totalCount FROM audit_logs WHERE tenant_id = ? AND action IN ('badge_rule.created', 'badge_rule.version_submitted_for_approval')",
+        [fixture.tenantId],
+      );
+      const notificationCount = await selectCount(
+        fixture.db,
+        "SELECT COUNT(*) AS totalCount FROM job_queue_messages WHERE tenant_id = ? AND job_type = 'send_badge_rule_approval_notification'",
+        [fixture.tenantId],
+      );
       const remainingDraft = await dbModule.findBadgeIssuanceRuleBuilderDraftById(fixture.db, {
         tenantId: fixture.tenantId,
         userId: fixture.userId,
@@ -291,6 +301,8 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
       expect(replayed.status === "completed" ? replayed.pendingStepNumber : null).toBe(1);
       expect(versionCount).toBe(1);
       expect(approvalStepCount).toBe(1);
+      expect(auditCount).toBe(2);
+      expect(notificationCount).toBe(1);
       expect(remainingDraft).toBeNull();
     } finally {
       await cleanupTestResources(fixture.db, {
@@ -309,7 +321,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         tenantId: fixture.tenantId,
         userId: fixture.userId,
         target: { kind: "unfinished" },
-        currentStep: "review",
+        currentStep: "test",
         draftJson: JSON.stringify({ name: "Replay without transition" }),
       });
       const created = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
@@ -333,7 +345,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         tenantId: fixture.tenantId,
         builderDraftId: "brd_replay_without_transition",
         name: "A retry must not submit this draft",
-        badgeTemplateId: fixture.badgeTemplateId,
+        badgeTemplateId: "badge_template_removed_after_promotion",
         lmsProviderKind: "canvas",
         lmsConnectionId: fixture.lmsConnectionId,
         ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":90}}',
@@ -349,7 +361,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         tenantId: fixture.tenantId,
         builderDraftId: "brd_replay_without_transition",
         name: "A retry must not resubmit this rejection",
-        badgeTemplateId: fixture.badgeTemplateId,
+        badgeTemplateId: "badge_template_removed_after_promotion",
         lmsProviderKind: "canvas",
         lmsConnectionId: fixture.lmsConnectionId,
         ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":95}}',
@@ -375,7 +387,10 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
       expect(replayedDraft.status === "completed" ? replayedDraft.version.status : null).toBe(
         "draft",
       );
-      expect(replayedRejected.status).toBe("replay_conflict");
+      expect(replayedRejected).toEqual({
+        status: "failed",
+        reason: "replay_conflict",
+      });
       expect(persistedVersion?.status).toBe("rejected");
       expect(approvalStepCount).toBe(0);
     } finally {
@@ -386,7 +401,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
     }
   });
 
-  it("rolls back the formal rule when its approval policy rejects submission", async () => {
+  it("rejects authoring before creating a formal rule when submission policy is invalid", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 
     try {
@@ -402,7 +417,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         tenantId: fixture.tenantId,
         userId: fixture.userId,
         target: { kind: "unfinished" },
-        currentStep: "review",
+        currentStep: "test",
         draftJson: JSON.stringify({ name: "Keep unfinished" }),
       });
 
@@ -434,10 +449,13 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         draftId: "brd_rejected_submission",
       });
 
-      expect(result.status).toBe("self_certification_required");
+      expect(result).toEqual({
+        status: "failed",
+        reason: "self_certification_required",
+      });
       expect(ruleCount).toBe(0);
       expect(versionCount).toBe(0);
-      expect(remainingDraft?.currentStep).toBe("review");
+      expect(remainingDraft?.currentStep).toBe("test");
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],
@@ -731,7 +749,10 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         ruleId: created.rule.id,
       });
 
-      expect(result.status).toBe("not_editable");
+      expect(result).toEqual({
+        status: "failed",
+        reason: "not_editable",
+      });
       expect(savedRule?.name).toBe("CS101 Rule");
       expect(versions).toHaveLength(1);
     } finally {

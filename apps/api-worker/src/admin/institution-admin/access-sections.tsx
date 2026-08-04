@@ -385,6 +385,10 @@ export const renderInstitutionAdminAccessSections = (
             </option>
           </CtSelect>
         </AdminField>
+        <p class="ct-admin__hint">
+          A submitter cannot approve their own rule. If one person manages this institution, choose
+          automatic approval; required approval needs another eligible reviewer.
+        </p>
         <AdminField label="Policy scope">
           <CtSelect name="orgUnitId">
             <option

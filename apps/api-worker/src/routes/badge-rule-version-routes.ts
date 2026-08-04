@@ -1,4 +1,3 @@
-import { logError } from "@credtrail/core-domain";
 import {
   activateBadgeIssuanceRuleVersion,
   createAuditLog,
@@ -26,10 +25,8 @@ import {
   parseDecideBadgeIssuanceRuleVersionRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppContext, AppEnv } from "../app";
+import type { AppEnv } from "../app";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
-import { observabilityContext } from "../app/observability";
-import { recordBadgeRuleApprovalSubmissionSideEffects } from "../badges/badge-rule-approval-submission-side-effects";
 import { buildBadgeRuleVersionDefinitionDiff } from "../badges/badge-rule-version-diff";
 
 interface RegisterBadgeRuleVersionRoutesInput {
@@ -52,30 +49,6 @@ export const registerBadgeRuleVersionRoutes = (
     ADMIN_ROLES,
     TENANT_MEMBER_ROLES,
   } = input;
-
-  const recordApprovalAuditLog = async (
-    c: AppContext,
-    input: {
-      readonly tenantId: string;
-      readonly ruleId: string;
-      readonly versionId: string;
-      readonly eventType: "approval_decision";
-    },
-    run: () => Promise<unknown>,
-  ): Promise<void> => {
-    try {
-      await run();
-    } catch (error: unknown) {
-      logError(observabilityContext(c.env), "badge_rule_approval_side_effect_failed", {
-        tenantId: input.tenantId,
-        ruleId: input.ruleId,
-        versionId: input.versionId,
-        sideEffect: "audit_log",
-        eventType: input.eventType,
-        errorKind: error instanceof Error ? error.name : typeof error,
-      });
-    }
-  };
 
   app.get("/v1/tenants/:tenantId/badge-rules/:ruleId/versions/:versionId/diff", async (c) => {
     const pathParams = parseBadgeIssuanceRuleVersionPathParams(c.req.param());
@@ -259,18 +232,6 @@ export const registerBadgeRuleVersionRoutes = (
 
       const updatedVersion = submitResult.version;
 
-      await recordBadgeRuleApprovalSubmissionSideEffects({
-        c,
-        db,
-        tenantId: pathParams.tenantId,
-        ruleId: pathParams.ruleId,
-        actorUserId: session.userId,
-        actorRole: membershipRole,
-        version: updatedVersion,
-        pendingStepNumber: submitResult.pendingStepNumber,
-        audit: "record",
-      });
-
       return c.json({
         tenantId: pathParams.tenantId,
         ruleId: pathParams.ruleId,
@@ -321,32 +282,6 @@ export const registerBadgeRuleVersionRoutes = (
     }
 
     const decidedVersion = decisionResult.version;
-
-    await recordApprovalAuditLog(
-      c,
-      {
-        tenantId: pathParams.tenantId,
-        ruleId: pathParams.ruleId,
-        versionId: pathParams.versionId,
-        eventType: "approval_decision",
-      },
-      () =>
-        createAuditLog(resolveDatabase(c.env), {
-          tenantId: pathParams.tenantId,
-          actorUserId: session.userId,
-          action: "badge_rule.version_approval_decided",
-          targetType: "badge_rule_version",
-          targetId: decidedVersion.id,
-          metadata: {
-            role: membershipRole,
-            ruleId: pathParams.ruleId,
-            versionNumber: decidedVersion.versionNumber,
-            decision: request.decision,
-            comment: request.comment ?? null,
-            status: decidedVersion.status,
-          },
-        }),
-    );
 
     return c.json({
       tenantId: pathParams.tenantId,

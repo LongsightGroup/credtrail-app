@@ -390,10 +390,8 @@
             ? { builderDraftId: ruleBuilderContext.builderDraftId }
             : {}),
         },
-        ...(!isRuleBuilderEditMode
-          ? { prepareRequest: () => saveRuleBuilderDraft({ quiet: false }) }
-          : {}),
       });
+      updateStepNavigationState();
       const savingMessage =
         action === 'submit_for_approval'
           ? 'Saving and submitting the rule...'
@@ -404,15 +402,9 @@
       setCodeOutput(ruleBuilderTestOutput, '');
       syncRuleBuilderSummary(savingMessage);
       const result = await authoringPromise;
+      updateStepNavigationState();
 
       if (result.status === 'ignored') {
-        return;
-      }
-
-      if (result.status === 'precondition_failed') {
-        const message = 'Unable to save unfinished work before creating the rule.';
-        setStatus(ruleCreateStatus, message, true);
-        syncRuleBuilderSummary(message);
         return;
       }
 
@@ -424,12 +416,9 @@
 
       if (result.status === 'unknown') {
         const message =
-          'CredTrail could not confirm the rule authoring result. Check Rules before trying again.';
+          'CredTrail could not confirm the result. Try again safely, or check Rules.';
         setStatus(ruleCreateStatus, message, true);
         syncRuleBuilderSummary(message);
-        setTimeout(() => {
-          window.location.assign(rulesListPath);
-        }, 2500);
         return;
       }
 

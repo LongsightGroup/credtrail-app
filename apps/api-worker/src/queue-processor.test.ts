@@ -336,8 +336,6 @@ describe("POST /v1/jobs/process", () => {
           notificationType: "approval_decision",
           ruleId: "brl_123",
           versionId: "brv_123",
-          reviewUrl:
-            "https://credtrail.test/tenants/tenant_123/admin/rules/approvals/brl_123/versions/brv_123",
           decision: "approved",
           comment: null,
           nextStepNumber: null,

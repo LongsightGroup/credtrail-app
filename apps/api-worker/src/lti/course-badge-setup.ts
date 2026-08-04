@@ -1,11 +1,6 @@
 import {
-  createAuditLog,
-  createBadgeIssuanceRuleWithConnection,
-  ensureExternalCourseOrgUnit,
+  createLtiCourseBadgeRule,
   listTenantLmsConnections,
-  runSqlTransaction,
-  submitBadgeIssuanceRuleVersionForApproval,
-  upsertLtiResourceLinkPlacement,
   type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleVersionRecord,
   type BadgeTemplateRecord,
@@ -104,6 +99,8 @@ export type CreateCourseBadgePlacementRuleResult =
         | "course_org_unit_slug_conflict"
         | "missing_lms_connection"
         | "invalid_setup_request"
+        | "approval_policy_rejected"
+        | "course_rule_already_configured"
         | "unsupported_lms_connection";
       message: string;
     };
@@ -309,100 +306,34 @@ export const createCourseBadgePlacementRule = async (input: {
     };
   }
 
-  const created = await runSqlTransaction(input.db, async (transactionDb) => {
-    const courseOrgUnitResult = await ensureExternalCourseOrgUnit(transactionDb, {
-      tenantId: input.tenantId,
+  const courseTitle = ltiContextTitle(input.ltiSession);
+  const created = await createLtiCourseBadgeRule(input.db, {
+    tenantId: input.tenantId,
+    course: {
       parentOrgUnitId: input.courseParentOrgUnitId,
       externalSystemId: lmsConnection.id,
       externalCourseId: courseId,
-      courseTitle: ltiContextTitle(input.ltiSession),
-      createdByUserId: input.createdByUserId,
-    });
-
-    if (courseOrgUnitResult.status !== "ok") {
-      return {
-        status: "course_org_unit_error" as const,
-        reason: courseOrgUnitResult.status,
-      };
-    }
-
-    const courseOrgUnit = courseOrgUnitResult.orgUnit;
-    const rule = await createBadgeIssuanceRuleWithConnection(transactionDb, {
-      tenantId: input.tenantId,
-      name: ruleTitle(
-        `Sakai course rule: ${ltiContextTitle(input.ltiSession)} · ${input.badgeTemplate.title}`,
-      ),
-      description: `Created from LTI Deep Linking for ${ltiContextTitle(input.ltiSession)}.`,
+      title: courseTitle,
+    },
+    rule: {
+      name: ruleTitle(`Sakai course rule: ${courseTitle} · ${input.badgeTemplate.title}`),
+      description: `Created from LTI Deep Linking for ${courseTitle}.`,
       badgeTemplateId: input.badgeTemplate.id,
-      orgUnitId: courseOrgUnit.id,
       lmsProviderKind: "sakai",
       lmsConnectionId: lmsConnection.id,
       ruleJson: JSON.stringify(definition),
       changeSummary: "Created from LTI Deep Linking course badge setup.",
-      createdByUserId: input.createdByUserId,
-    });
-    const submittedVersion = await submitBadgeIssuanceRuleVersionForApproval(transactionDb, {
-      tenantId: input.tenantId,
-      ruleId: rule.rule.id,
-      versionId: rule.version.id,
-      actorUserId: input.createdByUserId,
-      actorRole: input.createdByRole,
-      comment: "Submitted from LTI Deep Linking course badge setup.",
-    });
-
-    if (submittedVersion.status !== "submitted") {
-      throw new Error("Unable to submit LTI-created course rule version for approval");
-    }
-
-    const submittedRuleVersion = submittedVersion.version;
-
-    const placement = await upsertLtiResourceLinkPlacement(transactionDb, {
-      tenantId: input.tenantId,
+    },
+    placement: {
       issuer: input.issuer,
       clientId: input.clientId,
       deploymentId: input.deploymentId,
       contextId: input.contextId,
       resourceLinkId: input.resourceLinkId,
-      badgeTemplateId: input.badgeTemplate.id,
-      ruleId: rule.rule.id,
-      createdByUserId: input.createdByUserId,
-    });
-    const auditMetadata = {
-      badgeTemplateId: input.badgeTemplate.id,
-      ruleVersionId: submittedRuleVersion.id,
-      ltiIssuer: normalizeLtiIssuer(input.issuer),
-      ltiClientId: input.clientId,
-      ltiDeploymentId: input.deploymentId,
-      ltiContextId: input.contextId,
-      ltiResourceLinkId: input.resourceLinkId,
       delegatedGrantId: input.delegatedGrantId ?? null,
-      lmsConnectionId: lmsConnection.id,
-      courseOrgUnitId: courseOrgUnit.id,
-      courseParentOrgUnitId: input.courseParentOrgUnitId,
-    };
-    await createAuditLog(transactionDb, {
-      tenantId: input.tenantId,
-      actorUserId: input.createdByUserId,
-      action: "lti.course_badge_setup_submitted",
-      targetType: "badge_issuance_rule",
-      targetId: rule.rule.id,
-      metadata: auditMetadata,
-    });
-    await createAuditLog(transactionDb, {
-      tenantId: input.tenantId,
-      actorUserId: input.createdByUserId,
-      action: "lti.resource_link_placement_upserted",
-      targetType: "lti_resource_link_placement",
-      targetId: placement.id,
-      metadata: auditMetadata,
-    });
-
-    return {
-      status: "created" as const,
-      rule: rule.rule,
-      version: submittedRuleVersion,
-      placement,
-    };
+    },
+    actorUserId: input.createdByUserId,
+    actorRole: input.createdByRole,
   });
 
   if (created.status === "course_org_unit_error") {
@@ -420,6 +351,26 @@ export const createCourseBadgePlacementRule = async (input: {
       reason: "missing_course_org_unit_parent",
       message:
         "This course badge setup needs a department or program org-unit scope before CredTrail can create the course rule.",
+    };
+  }
+
+  if (created.status === "authoring_failed") {
+    return {
+      ok: false,
+      reason: "approval_policy_rejected",
+      message:
+        created.reason === "self_certification_required"
+          ? "This course cannot create a badge rule until an approval policy permits self-certification or defines an approval chain."
+          : "This course cannot create a badge rule with the institution's current approval policy.",
+    };
+  }
+
+  if (created.status === "placement_conflict") {
+    return {
+      ok: false,
+      reason: "course_rule_already_configured",
+      message:
+        "This Sakai placement already has a different badge rule. Change that rule in CredTrail before placing it again.",
     };
   }
 

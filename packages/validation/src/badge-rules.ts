@@ -322,12 +322,7 @@ export const updateBadgeIssuanceRuleDraftRequestSchema = z
   })
   .strict();
 
-export const badgeIssuanceRuleBuilderDraftStepSchema = z.enum([
-  "metadata",
-  "conditions",
-  "test",
-  "review",
-]);
+export const badgeIssuanceRuleBuilderDraftStepSchema = z.enum(["metadata", "conditions", "test"]);
 
 /** Valid lifecycle targets for persisted badge-rule builder progress. */
 export const badgeIssuanceRuleBuilderDraftTargetSchema = z.discriminatedUnion("kind", [
@@ -402,6 +397,12 @@ export const decideBadgeIssuanceRuleVersionRequestSchema = z
       });
     }
   });
+
+export const reopenApprovedBadgeIssuanceRuleVersionRequestSchema = z
+  .object({
+    comment: z.string().trim().min(1).max(2000),
+  })
+  .strict();
 
 const badgeIssuanceRuleFactGradeSchema = z.object({
   courseId: z.string().trim().min(1).max(255),
@@ -601,6 +602,10 @@ export type DecideBadgeIssuanceRuleVersionRequest = z.infer<
   typeof decideBadgeIssuanceRuleVersionRequestSchema
 >;
 
+export type ReopenApprovedBadgeIssuanceRuleVersionRequest = z.infer<
+  typeof reopenApprovedBadgeIssuanceRuleVersionRequestSchema
+>;
+
 export type BadgeIssuanceRuleFacts = z.infer<typeof badgeIssuanceRuleFactsSchema>;
 
 export type PreviewEvaluateBadgeIssuanceRuleRequest = z.infer<
@@ -745,6 +750,12 @@ export const parseDecideBadgeIssuanceRuleVersionRequest = (
   input: unknown,
 ): DecideBadgeIssuanceRuleVersionRequest => {
   return decideBadgeIssuanceRuleVersionRequestSchema.parse(input);
+};
+
+export const parseReopenApprovedBadgeIssuanceRuleVersionRequest = (
+  input: unknown,
+): ReopenApprovedBadgeIssuanceRuleVersionRequest => {
+  return reopenApprovedBadgeIssuanceRuleVersionRequestSchema.parse(input);
 };
 
 export const parsePreviewEvaluateBadgeIssuanceRuleRequest = (
