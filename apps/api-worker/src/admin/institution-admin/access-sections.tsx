@@ -584,15 +584,6 @@ export const renderInstitutionAdminAccessSections = (
       title="Add member"
       description="Add a colleague by institution email and assign their tenant-level role."
     >
-      {input.accessMembersWorkspace?.listError !== null &&
-      input.accessMembersWorkspace?.listError !== undefined &&
-      input.accessMembersWorkspace.listError.length > 0 ? (
-        <AdminStatus data-tone="error">{input.accessMembersWorkspace.listError}</AdminStatus>
-      ) : input.accessMembersWorkspace?.listNotice !== null &&
-        input.accessMembersWorkspace?.listNotice !== undefined &&
-        input.accessMembersWorkspace.listNotice.length > 0 ? (
-        <AdminStatus data-tone="success">{input.accessMembersWorkspace.listNotice}</AdminStatus>
-      ) : null}
       <AdminForm
         id="tenant-member-form"
         method="post"

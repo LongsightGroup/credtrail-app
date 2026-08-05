@@ -441,6 +441,8 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
       tenantMemberRows: true,
     }),
     render: (content) => {
+      const { input } = content;
+
       return (
         <>
           {renderPageHeader(
@@ -455,7 +457,10 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
               </p>
             </aside>,
           )}
-          <section class="ct-admin ct-stack">{content.access.tenantMembersTableMarkup}</section>
+          <section class="ct-admin ct-stack">
+            {AdminListFlashStatus(input.accessMembersWorkspace)}
+            {content.access.tenantMembersTableMarkup}
+          </section>
         </>
       );
     },
