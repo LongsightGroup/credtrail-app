@@ -4,7 +4,9 @@
     "typeAware": true
   },
   "plugins": ["unicorn", "typescript", "oxc", "jest", "vitest", "import", "jsx_a11y"],
+  "jsPlugins": ["./scripts/oxlint/credtrail-plugin.mjs"],
   "rules": {
+    "credtrail/no-inline-jsx-event-handlers": "error",
     "vitest/require-mock-type-parameters": "off",
     "typescript/no-explicit-any": "error",
     "typescript/no-misused-promises": "error",

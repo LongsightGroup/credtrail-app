@@ -339,14 +339,19 @@ export const buildInstitutionAdminViewResources = (
                 action={tenantAccessMemberRolePath(input.tenant.id, member.userId)}
                 className="ct-admin__inline-form"
               >
-                <CtSelect
-                  name="role"
-                  ariaLabel={`Tenant role for ${member.email}`}
-                  onchange="if(this.value!==this.dataset.currentRole)this.form.requestSubmit()"
-                  dataAttributes={{ "data-current-role": member.role }}
-                >
-                  {tenantMemberRoleOptions(member.role)}
-                </CtSelect>
+                <AdminActions>
+                  <CtSelect name="role" ariaLabel={`Tenant role for ${member.email}`}>
+                    {tenantMemberRoleOptions(member.role)}
+                  </CtSelect>
+                  <AdminButton
+                    type="submit"
+                    size="tiny"
+                    variant="secondary"
+                    ariaLabel={`Save role for ${member.email}`}
+                  >
+                    Save role
+                  </AdminButton>
+                </AdminActions>
               </AdminForm>
             ) : (
               <AdminStatusPill>{member.role}</AdminStatusPill>

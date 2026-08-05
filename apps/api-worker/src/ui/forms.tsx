@@ -305,7 +305,6 @@ export const CtSelect = ({
   className,
   ariaLabel,
   describedBy,
-  onchange,
   dataAttributes,
   children,
 }: {
@@ -320,7 +319,6 @@ export const CtSelect = ({
   className?: string | undefined;
   ariaLabel?: string | undefined;
   describedBy?: string | readonly string[] | undefined;
-  onchange?: string | undefined;
   dataAttributes?: CtDataAttributes | undefined;
   children?: CtSelectChildren;
 }): HonoElement => {
@@ -337,7 +335,6 @@ export const CtSelect = ({
       class={controlClassNames(className, "ct-select", "ct-field__control")}
       aria-label={ariaLabel}
       aria-describedby={describedByValue(describedBy)}
-      onchange={onchange}
       {...(dataAttributes ?? {})}
     >
       {children}

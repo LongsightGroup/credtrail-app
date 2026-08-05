@@ -904,6 +904,8 @@ describe("GET /tenants/:tenantId/admin/access/members", () => {
     expect(body).toContain('data-admin-inline-panel-close="tenant-member-panel"');
     expect(body).not.toContain("Hide form");
     expect(body).toContain('action="/tenants/tenant_123/admin/access/members/usr_issuer/role"');
+    expect(body).toContain("Save role");
+    expect(body).toContain('aria-label="Save role for issuer@tenant-123.edu"');
     expect(body).toContain("Resend invite");
     expect(body).toContain(
       'class="ct-admin__panel ct-admin__panel--table ct-admin__members-table ct-stack"',

@@ -49,6 +49,9 @@ Refactor rule of thumb:
 - Use JSX asset components and page asset keys for CSS and feature-local
   JavaScript. CSS and client script source strings are asset payloads, not server
   page templates.
+- Do not use JSX attributes or component props whose names begin with `on`, such
+  as `onclick`, `onchange`, or `onSubmit`. The Content Security Policy blocks
+  inline handlers; use semantic server-submitted forms or an approved page asset.
 - Do not introduce React, Kiwa, Tailwind, client components, hydration,
   `hono/html`, `raw()`, `dangerouslySetInnerHTML`, or interpolated
   full-document HTML strings.

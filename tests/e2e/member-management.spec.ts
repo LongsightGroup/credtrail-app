@@ -3,21 +3,32 @@ import { expect, test } from "@playwright/test";
 import { tenantId } from "./helpers/demo-routes";
 
 const membersPath = `/tenants/${tenantId}/admin/access/members`;
-const removableMemberEmail = "removal-e2e@credtrail.local";
+const managedMemberEmail = "member-management-e2e@credtrail.local";
 
-test("an administrator can remove a tenant member", async ({ page }) => {
+test("an administrator can change a tenant role and remove the member", async ({ page }) => {
   await page.goto(membersPath);
   await page.getByRole("button", { name: "Add member" }).click();
   const createForm = page.locator(`form[action="${membersPath}/create"]`);
-  await createForm.getByLabel("Institution email").fill(removableMemberEmail);
+  await createForm.getByLabel("Institution email").fill(managedMemberEmail);
   await createForm.getByLabel("Tenant role").selectOption("admin");
   await createForm.getByRole("checkbox", { name: "Email sign-in invite now" }).uncheck();
   await createForm.getByRole("button", {
     name: "Add member",
   }).click();
 
-  const memberRow = page.getByRole("row", { name: new RegExp(removableMemberEmail) });
+  const memberRow = page.getByRole("row", { name: new RegExp(managedMemberEmail) });
   await expect(memberRow).toBeVisible();
+
+  const roleSelect = memberRow.getByLabel(`Tenant role for ${managedMemberEmail}`);
+  await roleSelect.selectOption("viewer");
+  await memberRow
+    .getByRole("button", { name: `Save role for ${managedMemberEmail}`, exact: true })
+    .click();
+
+  await expect(page.getByText(`Updated ${managedMemberEmail} to viewer.`)).toBeVisible();
+  await expect(roleSelect).toHaveValue("viewer");
+  await page.reload();
+  await expect(roleSelect).toHaveValue("viewer");
 
   const dialogPromise = page.waitForEvent("dialog");
   const removeClickPromise = memberRow.getByRole("button", { name: "Remove" }).click();
@@ -25,8 +36,8 @@ test("an administrator can remove a tenant member", async ({ page }) => {
   const dialogMessage = dialog.message();
   await dialog.accept();
   await removeClickPromise;
-  expect(dialogMessage).toBe(`Remove tenant access for ${removableMemberEmail}?`);
+  expect(dialogMessage).toBe(`Remove tenant access for ${managedMemberEmail}?`);
 
-  await expect(page.getByText(`Removed tenant access for ${removableMemberEmail}.`)).toBeVisible();
+  await expect(page.getByText(`Removed tenant access for ${managedMemberEmail}.`)).toBeVisible();
   await expect(memberRow).toHaveCount(0);
 });
