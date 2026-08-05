@@ -1,10 +1,10 @@
-import {
-  attachLtiLaunchSessionPrincipal,
-  findTenantLmsConnectionByLtiRegistration,
-  upsertTenantLmsUserIdentity,
-} from "@credtrail/db";
+import { attachLtiLaunchSessionPrincipal } from "@credtrail/db";
 import { LTI_CLAIM_DEPLOYMENT_ID } from "@longsightgroup/lti-tool";
 import type { AppContext } from "../app";
+import {
+  linkInstructorLmsIdentity,
+  type InstructorLmsIdentityLinkFailure,
+} from "./instructor-lms-identity";
 import { renderLtiDeepLinkingLaunchResponse } from "./launch-deep-linking-flow";
 import { linkLtiLaunchAccount, type LinkedLtiLaunchAccount } from "./launch-account-linking";
 import type { ResolvedLtiLaunchMessage } from "./launch-message";
@@ -27,6 +27,7 @@ import {
 import type { ResolvedLtiLaunch } from "./launch-verification";
 import { ltiLogger } from "./log";
 import { ltiEmailFromClaims, ltiSourcedIdFromClaims } from "./lti-helpers";
+import { ltiErrorDetail } from "./redaction";
 
 export type { HandleVerifiedLtiLaunch, HandleVerifiedLtiLaunchInput };
 
@@ -62,7 +63,7 @@ const validateResolvedLtiLaunchMessage = async (input: {
 };
 
 const accountLinkingFailure = (c: AppContext, error: unknown): ProductFlowFailure => {
-  const detail = error instanceof Error ? error.message : "unknown error";
+  const detail = ltiErrorDetail(error);
 
   if (c.env.APP_ENV === "production") {
     return {
@@ -77,25 +78,42 @@ const accountLinkingFailure = (c: AppContext, error: unknown): ProductFlowFailur
     status: 500,
     body: {
       error: "Unable to link LTI launch to local account",
-      detail,
+      ...(detail === undefined ? {} : { detail }),
     },
   };
 };
 
-/**
- * Links the verified LTI launch to CredTrail identity and creates a browser auth session.
- */
-export const createCredTrailAuthSessionFromLtiLaunch = async (input: {
+const instructorLmsIdentityFailure = (
+  c: AppContext,
+  error: InstructorLmsIdentityLinkFailure,
+): ProductFlowFailure => {
+  if (c.env.APP_ENV === "production") {
+    return {
+      status: 500,
+      body: {
+        error: error.message,
+      },
+    };
+  }
+
+  const detail = ltiErrorDetail(error.cause);
+
+  return {
+    status: 500,
+    body: {
+      error: error.message,
+      ...(detail === undefined ? {} : { detail }),
+    },
+  };
+};
+
+const linkCredTrailAccountFromLtiLaunch = async (input: {
   c: AppContext;
   db: HandleVerifiedLtiLaunchInput["db"];
   tenantId: string;
   launchClaims: ResolvedLtiLaunch["launchClaims"];
-  launchMessage: ResolvedLtiLaunchMessage;
-  ltiLaunchSession: ResolvedLtiLaunch["ltiLaunchSession"];
-  ltiClientId: string;
   sha256Hex: (value: string) => Promise<string>;
-  createLtiSession: HandleVerifiedLtiLaunchInput["createLtiSession"];
-}): Promise<ProductFlowResult<EstablishedLtiLaunchSession>> => {
+}): Promise<ProductFlowResult<LinkedLtiLaunchAccount>> => {
   let linkedAccount: LinkedLtiLaunchAccount;
 
   try {
@@ -108,56 +126,40 @@ export const createCredTrailAuthSessionFromLtiLaunch = async (input: {
   } catch (error) {
     ltiLogger(input.c)?.warn("Unable to link LTI launch to local account", {
       tenantId: input.tenantId,
-      roleKind: input.launchMessage.roleKind,
       issuer: input.launchClaims.iss,
       hasEmailClaim: ltiEmailFromClaims(input.launchClaims) !== null,
       hasSourcedIdClaim: ltiSourcedIdFromClaims(input.launchClaims) !== null,
-      detail: error instanceof Error ? error.message : "unknown error",
+      detail: ltiErrorDetail(error),
     });
 
     return productFlowFailure(accountLinkingFailure(input.c, error));
   }
 
-  try {
-    const lmsConnection = await findTenantLmsConnectionByLtiRegistration(input.db, {
-      tenantId: input.tenantId,
-      issuer: input.launchClaims.iss,
-      clientId: input.ltiClientId,
-      deploymentId: input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
-    });
+  return productFlowSuccess(linkedAccount);
+};
 
-    if (lmsConnection !== null) {
-      await upsertTenantLmsUserIdentity(input.db, {
-        tenantId: input.tenantId,
-        connectionId: lmsConnection.id,
-        userId: linkedAccount.userId,
-        providerUserId: input.launchClaims.sub,
-      });
-    }
-  } catch (error) {
-    ltiLogger(input.c)?.warn("Unable to link LTI launch to LMS connection", {
-      tenantId: input.tenantId,
-      issuer: input.launchClaims.iss,
-      detail: error instanceof Error ? error.message : "unknown error",
-    });
-
-    return productFlowFailure(accountLinkingFailure(input.c, error));
-  }
-
+const establishCredTrailAuthSession = async (input: {
+  c: AppContext;
+  db: HandleVerifiedLtiLaunchInput["db"];
+  tenantId: string;
+  ltiLaunchSessionId: string;
+  linkedAccount: LinkedLtiLaunchAccount;
+  createLtiSession: HandleVerifiedLtiLaunchInput["createLtiSession"];
+}): Promise<EstablishedLtiLaunchSession> => {
   const createdSession = await input.createLtiSession(input.c, {
     tenantId: input.tenantId,
-    userId: linkedAccount.userId,
+    userId: input.linkedAccount.userId,
   });
   await attachLtiLaunchSessionPrincipal(input.db, {
-    id: input.ltiLaunchSession.id,
+    id: input.ltiLaunchSessionId,
     tenantId: input.tenantId,
-    userId: linkedAccount.userId,
+    userId: input.linkedAccount.userId,
   });
 
-  return productFlowSuccess({
-    linkedAccount,
+  return {
+    linkedAccount: input.linkedAccount,
     createdSession,
-  });
+  };
 };
 
 /**
@@ -252,21 +254,51 @@ export const handleVerifiedLtiLaunch: HandleVerifiedLtiLaunch = async (input) =>
   }
 
   const validatedLaunchMessage = validatedLaunchResult.value;
-  const establishedSessionResult = await createCredTrailAuthSessionFromLtiLaunch({
+  const linkedAccountResult = await linkCredTrailAccountFromLtiLaunch({
     c: input.c,
     db: input.db,
     tenantId: input.tenantId,
     launchClaims: input.resolvedLaunch.launchClaims,
-    launchMessage: validatedLaunchMessage.launchMessage,
-    ltiLaunchSession: input.resolvedLaunch.ltiLaunchSession,
-    ltiClientId: input.resolvedLaunch.issuerEntry.clientId,
     sha256Hex: input.sha256Hex,
-    createLtiSession: input.createLtiSession,
   });
 
-  if (!establishedSessionResult.ok) {
-    return responseFromProductFailure(input.c, establishedSessionResult.failure);
+  if (!linkedAccountResult.ok) {
+    return responseFromProductFailure(input.c, linkedAccountResult.failure);
   }
+
+  if (validatedLaunchMessage.launchMessage.roleKind === "instructor") {
+    const instructorIdentityResult = await linkInstructorLmsIdentity(input.db, {
+      tenantId: input.tenantId,
+      issuer: input.resolvedLaunch.launchClaims.iss,
+      clientId: input.resolvedLaunch.issuerEntry.clientId,
+      deploymentId: input.resolvedLaunch.launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
+      userId: linkedAccountResult.value.userId,
+      providerUserId: input.resolvedLaunch.launchClaims.sub,
+    });
+
+    if (!instructorIdentityResult.ok) {
+      ltiLogger(input.c)?.warn("Unable to link instructor identity to LMS connection", {
+        tenantId: input.tenantId,
+        issuer: input.resolvedLaunch.launchClaims.iss,
+        errorTag: instructorIdentityResult.error._tag,
+        detail: ltiErrorDetail(instructorIdentityResult.error.cause),
+      });
+
+      return responseFromProductFailure(
+        input.c,
+        instructorLmsIdentityFailure(input.c, instructorIdentityResult.error),
+      );
+    }
+  }
+
+  const establishedSession = await establishCredTrailAuthSession({
+    c: input.c,
+    db: input.db,
+    tenantId: input.tenantId,
+    ltiLaunchSessionId: input.resolvedLaunch.ltiLaunchSession.id,
+    linkedAccount: linkedAccountResult.value,
+    createLtiSession: input.createLtiSession,
+  });
 
   input.c.header("Cache-Control", "no-store");
 
@@ -277,7 +309,7 @@ export const handleVerifiedLtiLaunch: HandleVerifiedLtiLaunch = async (input) =>
       tenantId: input.tenantId,
       resolvedLaunch: input.resolvedLaunch,
       launchMessage: validatedLaunchMessage,
-      establishedSession: establishedSessionResult.value,
+      establishedSession,
     });
   }
 
@@ -288,7 +320,7 @@ export const handleVerifiedLtiLaunch: HandleVerifiedLtiLaunch = async (input) =>
     launchClaims: input.resolvedLaunch.launchClaims,
     resolvedLaunch: input.resolvedLaunch,
     launch: validatedLaunchMessage,
-    establishedSession: establishedSessionResult.value,
+    establishedSession,
     sha256Hex: input.sha256Hex,
   });
 };
