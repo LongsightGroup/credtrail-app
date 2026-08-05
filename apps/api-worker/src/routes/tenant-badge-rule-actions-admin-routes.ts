@@ -117,6 +117,7 @@ const redirectToRules = async (
     message: input.message,
   });
 
+  c.header("Cache-Control", "no-store");
   return c.redirect(buildRulesAdminPath(input.tenantId), 303);
 };
 
@@ -152,6 +153,7 @@ const redirectToApprovals = async (
     message: input.message,
   });
 
+  c.header("Cache-Control", "no-store");
   return c.redirect(input.reviewPath ?? buildBadgeRuleApprovalsPath(input.tenantId), 303);
 };
 

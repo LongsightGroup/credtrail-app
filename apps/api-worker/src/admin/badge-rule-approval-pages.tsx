@@ -188,10 +188,14 @@ const renderImpactPreview = (input: {
     return (
       <AdminPanel>
         <h2>Impact Preview</h2>
+        <p>
+          Check how many learners would qualify if this version were activated now. This reads
+          current LMS data and may take a moment.
+        </p>
         <AdminForm method="post" action={refreshPath}>
           <AdminActions>
             <AdminButton type="submit" variant="secondary">
-              Refresh impact
+              Check impact
             </AdminButton>
           </AdminActions>
         </AdminForm>

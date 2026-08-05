@@ -6,7 +6,10 @@ import type {
 } from "@credtrail/db";
 import { BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE } from "@credtrail/db";
 import { buildCompleteTrustEdCredentialMetadata } from "@credtrail/validation/testing";
+import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
+import { setAdminListMessageFlash } from "./admin/admin-list-message-flash";
+import type { AppEnv } from "./app";
 import {
   createEnv,
   fakeDb,
@@ -404,7 +407,7 @@ describe("GET /tenants/:tenantId/admin/rules/approvals", () => {
 });
 
 describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versionId", () => {
-  it("renders a reviewer workspace with summary, diff, impact preview, and decision actions", async () => {
+  it("offers live LMS impact as an explicit reviewer action", async () => {
     const env = createEnv();
     const rule: BadgeIssuanceRuleRecord = {
       id: "brl_approval",
@@ -477,19 +480,17 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     const body = await response.text();
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain("What This Rule Says");
     expect(body).toContain("What Changed");
     expect(body).toContain("Minimum grade lowered from 90% to 80%.");
     expect(body).toContain("Impact Preview");
-    expect(body).toContain("Refresh impact");
+    expect(body).toContain("Check impact");
+    expect(body).toContain("This reads current LMS data and may take a moment.");
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/impact-preview"',
     );
-    expect(body).toContain("No LMS course placement is linked to this rule yet.");
-    expect(mockedFindLtiResourceLinkPlacementForRule).toHaveBeenCalledWith(fakeDb, {
-      tenantId: "tenant_123",
-      ruleId: "brl_approval",
-    });
+    expect(body).not.toContain("No LMS course placement is linked to this rule yet.");
     expect(body).toContain("Approval Chain");
     expect(body).toContain("Department approval");
     expect(body).toContain(
@@ -573,8 +574,22 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     expect(body).not.toContain('name="decision" value="approved"');
   });
 
-  it("blocks direct review URLs for approvers who are not on the approval chain", async () => {
+  it("blocks unassigned review URLs without consuming the approval flash", async () => {
     const env = createEnv();
+    const flashApp = new Hono<AppEnv>();
+    flashApp.get("/flash", async (c) => {
+      await setAdminListMessageFlash(c, {
+        tenantId: "tenant_123",
+        userId: "usr_admin",
+        workspace: "rule_approvals",
+        tone: "success",
+        message: "Previous approval saved.",
+      });
+      return c.body(null, 204);
+    });
+    const flashResponse = await flashApp.request("https://credtrail.test/flash", {}, env);
+    const flashCookie = adminFlashCookieHeader(flashResponse);
+    expect(flashCookie).toContain("ct_admin_flash_list_message_tenant_123");
     const rule: BadgeIssuanceRuleRecord = {
       id: "brl_approval",
       tenantId: "tenant_123",
@@ -628,13 +643,16 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval",
       {
         headers: {
-          Cookie: "better-auth.session_token=session-token",
+          Cookie: `better-auth.session_token=session-token; ${flashCookie}`,
         },
       },
       env,
     );
 
     expect(response.status).toBe(403);
+    expect(adminFlashCookieHeader(response)).not.toContain(
+      "ct_admin_flash_list_message_tenant_123",
+    );
     expect(mockedFindLtiResourceLinkPlacementForRule).not.toHaveBeenCalled();
   });
 });
@@ -754,6 +772,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
     );
 
     expect(response.status).toBe(303);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/rules");
     expect(mockedSubmitBadgeIssuanceRuleVersionForApprovalDb).toHaveBeenCalledWith(fakeDb, {
       tenantId: "tenant_123",
@@ -828,6 +847,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
     );
 
     expect(response.status).toBe(303);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(mockedDecideBadgeIssuanceRuleVersionDb).not.toHaveBeenCalled();
     expect(mockedEnqueueJobQueueMessageOnce).not.toHaveBeenCalled();
     const flashCookie = adminFlashCookieHeader(response);
@@ -1264,6 +1284,7 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
     );
 
     expect(response.status).toBe(303);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(mockedDecideBadgeIssuanceRuleVersionDb).toHaveBeenCalledWith(fakeDb, {
       tenantId: "tenant_123",
       ruleId: "brl_approval",
@@ -1321,6 +1342,7 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
     );
 
     expect(response.status).toBe(303);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("location")).toBe(
       "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval",
     );

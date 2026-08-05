@@ -235,6 +235,7 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
         versionId: created.version.id,
         actorUserId: fixture.userId,
         actorRole: "admin",
+        occurredAt: "2026-07-28T11:00:00.000Z",
       });
 
       const forbidden = await dbModule.withdrawBadgeIssuanceRuleVersionSubmission(fixture.db, {
@@ -310,6 +311,7 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
         versionId: created.version.id,
         actorUserId: fixture.userId,
         actorRole: "admin",
+        occurredAt: "2026-07-28T11:00:00.000Z",
       });
       await dbModule.decideBadgeIssuanceRuleVersion(fixture.db, {
         tenantId: fixture.tenantId,
@@ -318,6 +320,7 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
         decision: "approved",
         actorUserId: reviewerUserId,
         actorRole: "admin",
+        occurredAt: "2026-07-28T12:00:00.000Z",
       });
 
       const forbidden = await dbModule.reopenApprovedBadgeIssuanceRuleVersion(fixture.db, {
@@ -526,6 +529,20 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
         actorUserId: groupApproverUserId,
         actorRole: "admin",
       });
+      const visibleVersion = await dbModule.findBadgeIssuanceRuleVersionById(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+      });
+      const remainingApprovalQueue = await dbModule.listPendingBadgeIssuanceRuleApprovalsForActor(
+        fixture.db,
+        {
+          tenantId: fixture.tenantId,
+          actorUserId: groupApproverUserId,
+          actorRole: "admin",
+          limit: 100,
+        },
+      );
 
       expect(firstDecision.status).toBe("decided");
       expect(firstDecision).toMatchObject({
@@ -537,6 +554,8 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
         status: "decided",
         version: { status: "approved" },
       });
+      expect(visibleVersion).toMatchObject({ status: "approved" });
+      expect(remainingApprovalQueue).toEqual([]);
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],
