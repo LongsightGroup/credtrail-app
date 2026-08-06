@@ -167,13 +167,7 @@ const hydrateCourseSelect = async (card, select, query) => {
   courseLookupAbortControllerByCard.set(card, abortController);
   setLmsLookupStatus("Loading courses...", false);
   select.disabled = true;
-  setCourseSelectOptions(
-    select,
-    [],
-    "Loading courses...",
-    selectedValues,
-    selectedOptionSnapshots,
-  );
+  setCourseSelectOptions(select, [], "Loading courses...", selectedValues, selectedOptionSnapshots);
   let payload;
 
   try {
@@ -250,6 +244,7 @@ const hydrateWorkflowStateSelect = async (card) => {
 const hydrateGradebookItemSelect = async (card, query) => {
   const courseId = readFieldFromCard(card, "courseId");
   const itemSelect = card.querySelector("[data-lms-gradebook-item-select]");
+  const stateSelect = card.querySelector("[data-lms-workflow-state-select]");
 
   if (!(itemSelect instanceof HTMLSelectElement)) {
     return;
@@ -257,29 +252,17 @@ const hydrateGradebookItemSelect = async (card, query) => {
 
   const path = gradebookItemsPath(courseId, query);
 
-  if (path.length === 0) {
-    lmsSetSelectOptions(
-      itemSelect,
-      [],
-      "Select course first",
-      [],
-      lmsGradebookItemLabel,
-      (item) => item.assignmentId,
-    );
-    itemSelect.disabled = true;
-    await hydrateWorkflowStateSelect(card);
-    return;
-  }
-
   setLmsLookupStatus("", false);
-  await lmsHydrateGradebookItemSelect({
+  await lmsHydrateGradebookItemWorkflowSelects({
     itemSelect,
+    stateSelect,
     itemsUrl: path,
     query: "",
-    fallbackMessage: "Unable to load gradebook items.",
-    workflowStatesUrlForAssignment: (assignmentId) => workflowStatesPath(courseId, assignmentId),
+    itemFallbackMessage: "Unable to load gradebook items.",
+    workflowFallbackMessage: "Unable to load workflow states.",
+    workflowStatesUrlForAssignment: (assignmentId) =>
+      workflowStatesPath(courseId, assignmentId),
   });
-  await hydrateWorkflowStateSelect(card);
 };
 
 const bindSearchableCourseSelect = (card, fieldName) => {

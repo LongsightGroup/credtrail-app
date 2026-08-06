@@ -13,12 +13,12 @@ export const mockLtiToolWithGetMembers = (getMembers: VitestMock): LtiToolPort =
   }) as unknown as LtiToolPort;
 
 export const mockLtiToolWithDeepLinking = (input: {
-  createDeepLinkingResponse: VitestMock;
+  createDeepLinkingHtmlResponse: VitestMock;
 }): LtiToolPort =>
   ({
     createAdvantage: vi.fn(() => ({
       ...createFakeLtiAdvantage(),
-      createDeepLinkingResponse: input.createDeepLinkingResponse,
+      createDeepLinkingHtmlResponse: input.createDeepLinkingHtmlResponse,
     })),
   }) as unknown as LtiToolPort;
 
@@ -44,13 +44,13 @@ export const defaultNrpsGetMembersForSession = (session: LTISession): VitestMock
 
 export const mockLtiToolCreateAdvantageForSession = (input: {
   getMembers?: VitestMock;
-  createDeepLinkingResponse?: VitestMock;
+  createDeepLinkingHtmlResponse?: VitestMock;
 }): ReturnType<typeof vi.fn> =>
   vi.fn((session: LTISession) =>
     createFakeLtiAdvantage({
       getMembers: input.getMembers ?? defaultNrpsGetMembersForSession(session),
-      ...(input.createDeepLinkingResponse === undefined
+      ...(input.createDeepLinkingHtmlResponse === undefined
         ? {}
-        : { createDeepLinkingResponse: input.createDeepLinkingResponse }),
+        : { createDeepLinkingHtmlResponse: input.createDeepLinkingHtmlResponse }),
     } as Partial<LtiAdvantagePort>),
   );

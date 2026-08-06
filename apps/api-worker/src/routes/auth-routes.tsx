@@ -40,6 +40,7 @@ import { turnstileConfigured, verifyTurnstileToken } from "../auth/turnstile";
 import { getSeededDemoTrustEdCredentialFixture } from "../badges/seeded-demo-trusted-credential-fixture";
 import { appPage, renderAppPage } from "../ui/render-page";
 import { sessionCookieSecure, sha256Hex } from "../utils/crypto";
+import { registerMagicLinkBrowserRoutes } from "./magic-link-browser-routes";
 
 const MAGIC_LINK_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const MAGIC_LINK_RATE_LIMIT_PRUNE_MS = 24 * 60 * 60 * 1000;
@@ -910,66 +911,10 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     });
   });
 
-  app.get("/auth/magic-link/verify", async (c) => {
-    const tokenRaw = c.req.query("token");
-
-    if (tokenRaw === undefined || tokenRaw.trim().length === 0) {
-      return renderAppPage(
-        c,
-        appPage({
-          title: "Invalid Magic Link",
-          body: (
-            <>
-              <h1>Invalid magic link</h1>
-              <p>Missing token. Request a new sign-in link.</p>
-            </>
-          ),
-        }),
-        400,
-      );
-    }
-
-    const principal = await createMagicLinkSession(c, tokenRaw.trim());
-
-    if (principal === null) {
-      return renderAppPage(
-        c,
-        appPage({
-          title: "Expired Magic Link",
-          body: (
-            <>
-              <h1>Magic link expired</h1>
-              <p>The link is invalid or expired. Request a new sign-in link.</p>
-            </>
-          ),
-        }),
-        400,
-      );
-    }
-
-    const requestedTenant = await resolveRequestedTenantContext(c);
-
-    if (requestedTenant === null) {
-      return renderAppPage(
-        c,
-        appPage({
-          title: "Sign-in Error",
-          body: (
-            <>
-              <h1>Unable to complete sign-in</h1>
-              <p>Please request a new sign-in link.</p>
-            </>
-          ),
-        }),
-        500,
-      );
-    }
-
-    const nextPathRaw = c.req.query("next");
-    const fallbackPath = "/auth/resolve";
-    const nextPath = normalizeSafeRedirectPath(nextPathRaw, fallbackPath);
-
-    return c.redirect(nextPath, 302);
+  registerMagicLinkBrowserRoutes({
+    app,
+    createMagicLinkSession,
+    resolveRequestedTenantContext,
   });
 
   app.get("/auth/resolve", async (c) => {

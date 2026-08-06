@@ -31,6 +31,7 @@ import { sendMemberInviteEmailNotification } from "../notifications/send-member-
 import { sendPasswordResetEmailNotification } from "../notifications/send-password-reset-email";
 import { addSecondsToIso, sessionCookieSecure } from "../utils/crypto";
 import { resolveDatabase } from "./database";
+import { optionalAppLogger } from "./observability";
 import type { AppBindings, AppContext, AppEnv } from "./types";
 
 const MAGIC_LINK_TTL_SECONDS = 10 * 60;
@@ -648,6 +649,12 @@ export const requestTenantMemberInvite = async (
         inviteKind: "sso_notice",
       };
     } catch {
+      optionalAppLogger(context)?.warn("tenant_member_invite_failed", {
+        tenantId: input.tenantId,
+        dependency: "transactional_email",
+        inviteKind: "sso_notice",
+      });
+
       return {
         deliveryStatus: "failed",
         inviteKind: "sso_notice",
@@ -655,16 +662,29 @@ export const requestTenantMemberInvite = async (
     }
   }
 
-  const result = await betterAuthProvider.requestMagicLink(context, {
-    tenantId: input.tenantId,
-    email: input.email,
-    nextPath: "/auth/resolve",
-  });
+  try {
+    const result = await betterAuthProvider.requestMagicLink(context, {
+      tenantId: input.tenantId,
+      email: input.email,
+      nextPath: "/auth/resolve",
+    });
 
-  return {
-    deliveryStatus: result.deliveryStatus,
-    inviteKind: "magic_link",
-  };
+    return {
+      deliveryStatus: result.deliveryStatus,
+      inviteKind: "magic_link",
+    };
+  } catch {
+    optionalAppLogger(context)?.warn("tenant_member_invite_failed", {
+      tenantId: input.tenantId,
+      dependency: "better_auth",
+      inviteKind: "magic_link",
+    });
+
+    return {
+      deliveryStatus: "failed",
+      inviteKind: "magic_link",
+    };
+  }
 };
 
 export const resolveAuthenticatedPrincipal = async (

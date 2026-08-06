@@ -26,11 +26,11 @@ import { readOptionalFormField } from "../admin/admin-form-helpers";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
-
-type TenantMemberInviteResult = {
-  deliveryStatus: "sent" | "skipped" | "failed";
-  inviteKind: "magic_link" | "sso_notice";
-};
+import {
+  runTenantMemberInviteWorkflow,
+  type TenantMemberInviteResult,
+} from "../auth/tenant-member-invite-workflow";
+import { recordTenantMemberInviteAudit } from "./tenant-member-invite-audit";
 
 type MembershipAuditAction =
   | "membership.role_assigned"
@@ -173,12 +173,6 @@ export const registerTenantAccessMembersAdminRoutes = (
       userId: user.id,
       role: request.role,
     });
-    const invite = await requestInviteForTenantMember(c, {
-      tenantId: pathParams.tenantId,
-      email: user.email,
-      role: roleResult.membership.role,
-      sendInvite: request.sendInvite !== false,
-    });
     const action = membershipAuditAction(roleResult.previousRole, roleResult.membership.role);
 
     await createAuditLog(db, {
@@ -195,29 +189,29 @@ export const registerTenantAccessMembersAdminRoutes = (
         newRole: roleResult.membership.role,
         role: roleResult.membership.role,
         changed: roleResult.changed,
-        inviteDeliveryStatus: invite.deliveryStatus,
-        inviteKind: invite.inviteKind,
       },
     });
 
-    if (invite.deliveryStatus !== "skipped") {
-      await createAuditLog(db, {
+    const invite = await runTenantMemberInviteWorkflow(
+      {
+        requestDelivery: () =>
+          requestInviteForTenantMember(c, {
+            tenantId: pathParams.tenantId,
+            email: user.email,
+            role: roleResult.membership.role,
+            sendInvite: request.sendInvite !== false,
+          }),
+        recordAudit: (event) => recordTenantMemberInviteAudit(db, event),
+      },
+      {
         tenantId: pathParams.tenantId,
         actorUserId: session.userId,
-        action: "membership.invite_sent",
-        targetType: "membership",
-        targetId: `${pathParams.tenantId}:${user.id}`,
-        metadata: {
-          actorRole: membershipRole,
-          userId: user.id,
-          email: user.email,
-          newRole: roleResult.membership.role,
-          role: roleResult.membership.role,
-          inviteDeliveryStatus: invite.deliveryStatus,
-          inviteKind: invite.inviteKind,
-        },
-      });
-    }
+        actorRole: membershipRole,
+        userId: user.id,
+        email: user.email,
+        role: roleResult.membership.role,
+      },
+    );
 
     const inviteNote =
       invite.deliveryStatus === "failed"
@@ -373,29 +367,26 @@ export const registerTenantAccessMembersAdminRoutes = (
       });
     }
 
-    const invite = await requestInviteForTenantMember(c, {
-      tenantId: pathParams.tenantId,
-      email: user.email,
-      role: membership.role,
-      sendInvite: true,
-    });
-
-    await createAuditLog(db, {
-      tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
-      action: "membership.invite_sent",
-      targetType: "membership",
-      targetId: `${pathParams.tenantId}:${pathParams.userId}`,
-      metadata: {
+    const invite = await runTenantMemberInviteWorkflow(
+      {
+        requestDelivery: () =>
+          requestInviteForTenantMember(c, {
+            tenantId: pathParams.tenantId,
+            email: user.email,
+            role: membership.role,
+            sendInvite: true,
+          }),
+        recordAudit: (event) => recordTenantMemberInviteAudit(db, event),
+      },
+      {
+        tenantId: pathParams.tenantId,
+        actorUserId: session.userId,
         actorRole: membershipRole,
         userId: pathParams.userId,
         email: user.email,
-        newRole: membership.role,
         role: membership.role,
-        inviteDeliveryStatus: invite.deliveryStatus,
-        inviteKind: invite.inviteKind,
       },
-    });
+    );
 
     const tone = invite.deliveryStatus === "failed" ? "error" : "success";
     const message =

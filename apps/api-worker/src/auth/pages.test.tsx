@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderAppPageToString } from "../ui/render-page";
-import { localBreakGlassLoginPage, magicLinkLoginPage } from "./pages";
+import { localBreakGlassLoginPage, magicLinkConfirmationPage, magicLinkLoginPage } from "./pages";
 
 describe("auth pages", () => {
   it("renders magic-link login fields with form primitives", () => {
@@ -39,5 +39,22 @@ describe("auth pages", () => {
     expect(html).toContain('name="password"');
     expect(html).toContain('type="password"');
     expect(html).toContain('placeholder="Your local break-glass password"');
+  });
+
+  it("renders magic-link confirmation as a server-side POST form", () => {
+    const html = renderAppPageToString(
+      magicLinkConfirmationPage({
+        token: "token-with-<unsafe>-characters",
+        nextPath: "/auth/resolve",
+      }),
+    );
+
+    expect(html).toContain('action="/auth/magic-link/verify"');
+    expect(html).toContain('method="post"');
+    expect(html).toContain('name="token"');
+    expect(html).toContain('value="token-with-&lt;unsafe&gt;-characters"');
+    expect(html).toContain('name="next" type="hidden" value="/auth/resolve"');
+    expect(html).toContain("Continue to CredTrail");
+    expect(html).not.toContain("onclick=");
   });
 });

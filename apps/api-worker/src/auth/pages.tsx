@@ -412,6 +412,37 @@ export const magicLinkLoginPage = (input: {
   });
 };
 
+export const magicLinkConfirmationPage = (input: { token: string; nextPath: string }): AppPage => {
+  return authPage({
+    title: "Continue Sign In · CredTrail",
+    body: (
+      <section class="ct-login ct-stack">
+        <div class="ct-login__card">
+          <div class="ct-login__header">
+            <p class="ct-login__brand">CredTrail</p>
+            <h1 class="ct-login__title">Continue signing in</h1>
+            <p class="ct-login__lede">Confirm this request to securely access CredTrail.</p>
+          </div>
+          <div class="ct-login__form-wrap ct-stack">
+            <CtForm
+              className="ct-login__form ct-stack"
+              method="post"
+              action="/auth/magic-link/verify"
+            >
+              <CtInput type="hidden" name="token" value={input.token} />
+              <CtInput type="hidden" name="next" value={input.nextPath} />
+              <LoginSubmitButton>Continue to CredTrail</LoginSubmitButton>
+            </CtForm>
+            <p class="ct-login__help">
+              This confirmation prevents automated email checks from using your one-time link.
+            </p>
+          </div>
+        </div>
+      </section>
+    ),
+  });
+};
+
 export const organizationChooserPage = (input: {
   organizations: readonly AccessibleTenantContextView[];
   nextPath: string;

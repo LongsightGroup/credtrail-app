@@ -3341,9 +3341,14 @@ describe("LTI 1.3 core launch flow", () => {
       isDeepLinkingAvailable: true,
       isNameAndRolesAvailable: false,
     };
-    const createDeepLinkingResponse = vi.fn().mockResolvedValue({
+    const createDeepLinkingHtmlResponse = vi.fn().mockResolvedValue({
       success: true,
-      data: "<!DOCTYPE html><html><body>signed deep link</body></html>",
+      data: new Response("<!DOCTYPE html><html><body>signed deep link</body></html>", {
+        headers: {
+          "cache-control": "no-store",
+          "content-type": "text/html; charset=utf-8",
+        },
+      }),
     });
     mockedFindActiveLtiLaunchSessionByOpaqueId.mockResolvedValue(
       sampleLtiLaunchSessionRecord({
@@ -3354,7 +3359,7 @@ describe("LTI 1.3 core launch flow", () => {
       vi.doMock("./lti/credtrail-lti-tool", () => {
         const createTool = vi.fn(async () =>
           mockLtiToolWithDeepLinking({
-            createDeepLinkingResponse,
+            createDeepLinkingHtmlResponse,
           }),
         );
 
@@ -3389,7 +3394,7 @@ describe("LTI 1.3 core launch flow", () => {
     expect(mockedListTenantLmsConnections).not.toHaveBeenCalled();
     expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
     expect(mockedCreateBadgeIssuanceRuleWithConnection).not.toHaveBeenCalled();
-    expect(createDeepLinkingResponse).toHaveBeenCalledWith([
+    expect(createDeepLinkingHtmlResponse).toHaveBeenCalledWith([
       expect.objectContaining({
         type: "ltiResourceLink",
         title: "TypeScript Foundations",
@@ -3463,9 +3468,14 @@ describe("LTI 1.3 core launch flow", () => {
       isDeepLinkingAvailable: true,
       isNameAndRolesAvailable: false,
     };
-    const createDeepLinkingResponse = vi.fn().mockResolvedValue({
+    const createDeepLinkingHtmlResponse = vi.fn().mockResolvedValue({
       success: true,
-      data: "<!DOCTYPE html><html><body>signed deep link</body></html>",
+      data: new Response("<!DOCTYPE html><html><body>signed deep link</body></html>", {
+        headers: {
+          "cache-control": "no-store",
+          "content-type": "text/html; charset=utf-8",
+        },
+      }),
     });
     mockedFindActiveLtiLaunchSessionByOpaqueId.mockResolvedValue(
       sampleLtiLaunchSessionRecord({
@@ -3476,7 +3486,7 @@ describe("LTI 1.3 core launch flow", () => {
       vi.doMock("./lti/credtrail-lti-tool", () => {
         const createTool = vi.fn(async () =>
           mockLtiToolWithDeepLinking({
-            createDeepLinkingResponse,
+            createDeepLinkingHtmlResponse,
           }),
         );
 
@@ -3506,7 +3516,7 @@ describe("LTI 1.3 core launch flow", () => {
 
     expect(response.status).toBe(403);
     expect(body.reason).toBe("missing_delegated_authority");
-    expect(createDeepLinkingResponse).not.toHaveBeenCalled();
+    expect(createDeepLinkingHtmlResponse).not.toHaveBeenCalled();
     expect(mockedFindActiveDelegatedIssuingAuthorityGrantForAction).toHaveBeenCalledWith(fakeDb, {
       tenantId,
       userId: linkedUserId,

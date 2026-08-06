@@ -1174,39 +1174,6 @@ describe("magic-link auth routes", () => {
     expect(betterAuthProvider.createMagicLinkSession).toHaveBeenCalledTimes(1);
   });
 
-  it("delegates browser GET verify to Better Auth-backed session creation instead of legacy token tables", async () => {
-    const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
-
-    const response = await isolatedApp.request(
-      "/auth/magic-link/verify?token=better-token-1234567890&next=%2Fauth%2Fresolve",
-      undefined,
-      createEnv("production"),
-    );
-
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/auth/resolve");
-    expect(response.headers.get("set-cookie")).toContain(
-      "better-auth.session_token=better-session",
-    );
-    expect(betterAuthProvider.createMagicLinkSession).toHaveBeenCalledTimes(1);
-  });
-
-  it("falls back to the neutral resolver after browser verify when no explicit next path is present", async () => {
-    const { app: isolatedApp } = await loadAppWithMockedHostedAuthProviders();
-
-    const response = await isolatedApp.request(
-      "/auth/magic-link/verify?token=better-token-1234567890",
-      undefined,
-      createEnv("production"),
-    );
-
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/auth/resolve");
-    expect(response.headers.get("set-cookie")).toContain(
-      "better-auth.session_token=better-session",
-    );
-  });
-
   it("uses Better Auth-backed session inspection and logout without falling back to legacy session tables", async () => {
     const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders({
       betterAuthInitiallyAuthenticated: true,
@@ -1276,22 +1243,6 @@ describe("magic-link auth routes", () => {
     expect(afterLogoutBody).toEqual({
       error: "Not authenticated",
     });
-  });
-
-  it("supports browser GET verify and sets session cookie before redirect", async () => {
-    const { app: isolatedApp } = await loadAppWithMockedHostedAuthProviders();
-
-    const response = await isolatedApp.request(
-      "/auth/magic-link/verify?token=better-token-1234567890&next=%2Fauth%2Fresolve",
-      undefined,
-      createEnv("production"),
-    );
-
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/auth/resolve");
-    expect(response.headers.get("set-cookie")).toContain(
-      "better-auth.session_token=better-session",
-    );
   });
 
   it("redirects single-tenant authenticated users from /auth/resolve into their preferred tenant path", async () => {

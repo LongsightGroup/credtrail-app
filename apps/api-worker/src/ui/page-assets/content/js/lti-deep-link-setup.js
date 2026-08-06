@@ -37,6 +37,7 @@
     const apiBase = container.dataset.ltiGradebookApiBase ?? '';
     const itemSelect = container.querySelector('[data-lti-gradebook-item-select]');
     const itemQuery = container.querySelector('[data-lti-gradebook-item-query]');
+    const stateSelect = container.querySelector('[data-lti-workflow-state-select]');
 
     if (!(itemSelect instanceof HTMLSelectElement)) {
       return;
@@ -52,14 +53,18 @@
     const itemsUrl = apiBase + '/gradebook-items';
 
     setStatus(container, '', false);
-    await lmsHydrateGradebookItemSelect({
+    await lmsHydrateGradebookItemWorkflowSelects({
       itemSelect,
+      stateSelect,
       itemsUrl,
       query,
-      fallbackMessage: 'Sakai gradebook access is unavailable. Manual approval remains available.',
-      workflowStatesUrlForAssignment: () => '',
+      itemFallbackMessage: 'Sakai gradebook access is unavailable. Manual approval remains available.',
+      workflowFallbackMessage: 'Sakai gradebook access is unavailable. Manual approval remains available.',
+      workflowStatesUrlForAssignment: (assignmentId) =>
+        assignmentId.length === 0
+          ? ''
+          : apiBase + '/gradebook-items/' + encodeURIComponent(assignmentId) + '/workflow-states',
     });
-    await hydrateWorkflowStates(container);
   };
 
   const bindSetup = (container) => {

@@ -208,6 +208,18 @@ interface PickerHarness {
     select: FakeSelect,
     query: string,
   ) => Promise<boolean>;
+  readonly hydrateGradebookItemSelect: (input: {
+    itemSelect: FakeSelect;
+    itemsUrl: string;
+    query: string;
+    fallbackMessage: string;
+  }) => Promise<boolean>;
+  readonly hydrateGradebookItemsForCard: (card: FakeElement, query: string) => Promise<void>;
+  readonly hydrateWorkflowStateSelect: (input: {
+    stateSelect: FakeSelect;
+    workflowStatesUrl: string;
+    fallbackMessage: string;
+  }) => Promise<boolean>;
   readonly readConditionFromCard: (card: FakeElement, strict: boolean) => unknown;
   readonly refreshConditionCardValueListOptions: () => void;
   readonly renderConditionFields: (card: FakeElement, seed: object) => void;
@@ -309,7 +321,7 @@ const loadPickerHarness = (input: {
   });
 
   new Script(
-    `${conditionFields}\n${conditionModel}\n${primitives}\n${picker}\n${fieldRenderers}\n${summary}\nglobalThis.__pickerHarness = { conditionList: ruleBuilderConditionList, createCourseSelectField, hydrateCourseSelect, readConditionFromCard, refreshConditionCardValueListOptions, renderConditionFields };`,
+    `${conditionFields}\n${conditionModel}\n${primitives}\n${picker}\n${fieldRenderers}\n${summary}\nglobalThis.__pickerHarness = { conditionList: ruleBuilderConditionList, createCourseSelectField, hydrateCourseSelect, hydrateGradebookItemSelect: lmsHydrateGradebookItemSelect, hydrateGradebookItemsForCard: hydrateGradebookItemSelect, hydrateWorkflowStateSelect: lmsHydrateWorkflowStateSelect, readConditionFromCard, refreshConditionCardValueListOptions, renderConditionFields };`,
   ).runInContext(context);
 
   return context.__pickerHarness as PickerHarness;
@@ -486,5 +498,166 @@ describe("rule-builder LMS course picker", () => {
       "selected-course",
       "other-course",
     ]);
+  });
+
+  it("keeps the latest gradebook-item response and bypasses the browser cache", async () => {
+    const requestCacheModes: Array<RequestCache | undefined> = [];
+    const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+      requestCacheModes.push(init?.cache);
+
+      if (url.includes("old-course")) {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        });
+      }
+
+      return Promise.resolve(
+        Response.json({ items: [{ assignmentId: "new-item", title: "New item" }] }),
+      );
+    }) as typeof fetch;
+    const harness = loadPickerHarness({ fetchImpl, status: new FakeStatusElement() });
+    const select = new FakeSelect();
+
+    const staleRequest = harness.hydrateGradebookItemSelect({
+      itemSelect: select,
+      itemsUrl: "/old-course/items",
+      query: "",
+      fallbackMessage: "Unavailable",
+    });
+    const currentRequest = harness.hydrateGradebookItemSelect({
+      itemSelect: select,
+      itemsUrl: "/new-course/items",
+      query: "",
+      fallbackMessage: "Unavailable",
+    });
+
+    await expect(currentRequest).resolves.toBe(true);
+    await expect(staleRequest).resolves.toBe(false);
+    expect(select.options.map((option) => option.value)).toEqual(["", "new-item"]);
+    expect(requestCacheModes).toEqual(["no-store", "no-store"]);
+  });
+
+  it("keeps a cleared course empty when its previous gradebook request finishes", async () => {
+    const requestedUrls: string[] = [];
+    const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+      requestedUrls.push(url);
+
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+      });
+    }) as typeof fetch;
+    const harness = loadPickerHarness({ fetchImpl, status: new FakeStatusElement() });
+    const card = new FakeElement();
+    const courseSelect = new FakeSelect();
+    courseSelect.dataset.field = "courseId";
+    courseSelect.value = "old-course";
+    const itemSelect = new FakeSelect();
+    itemSelect.dataset.field = "assignmentId";
+    itemSelect.dataset.lmsGradebookItemSelect = "";
+    const stateSelect = new FakeSelect();
+    stateSelect.dataset.lmsWorkflowStateSelect = "";
+    card.append(courseSelect, itemSelect, stateSelect);
+
+    const staleRequest = harness.hydrateGradebookItemsForCard(card, "");
+    courseSelect.value = "";
+    const clearedRequest = harness.hydrateGradebookItemsForCard(card, "");
+
+    await expect(clearedRequest).resolves.toBeUndefined();
+    await expect(staleRequest).resolves.toBeUndefined();
+    expect(requestedUrls).toEqual([
+      "/v1/lms/connections/connection-1/courses/old-course/gradebook-items",
+    ]);
+    expect(itemSelect.options.map((option) => option.textContent)).toEqual(["Select course first"]);
+    expect(itemSelect.disabled).toBe(true);
+    expect(stateSelect.options.map((option) => option.textContent)).toEqual([
+      "Select gradebook item first",
+    ]);
+    expect(stateSelect.disabled).toBe(true);
+  });
+
+  it("keeps the latest workflow-state response", async () => {
+    const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+
+      if (url.includes("old-item")) {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        });
+      }
+
+      return Promise.resolve(
+        Response.json({ states: [{ value: "graded", label: "Graded", preselected: true }] }),
+      );
+    }) as typeof fetch;
+    const harness = loadPickerHarness({ fetchImpl, status: new FakeStatusElement() });
+    const select = new FakeSelect();
+
+    const staleRequest = harness.hydrateWorkflowStateSelect({
+      stateSelect: select,
+      workflowStatesUrl: "/old-item/workflow-states",
+      fallbackMessage: "Unavailable",
+    });
+    const currentRequest = harness.hydrateWorkflowStateSelect({
+      stateSelect: select,
+      workflowStatesUrl: "/new-item/workflow-states",
+      fallbackMessage: "Unavailable",
+    });
+
+    await expect(currentRequest).resolves.toBe(true);
+    await expect(staleRequest).resolves.toBe(false);
+    expect(select.options.map((option) => option.value)).toEqual(["", "graded"]);
+    expect(select.selectedOptions.map((option) => option.value)).toEqual(["graded"]);
+  });
+
+  it("clears an older workflow-state request as soon as gradebook items reload", async () => {
+    let resolveItems: (response: Response) => void = () => {
+      throw new Error("Gradebook item request did not start");
+    };
+    const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+
+      if (url.includes("old-item/workflow-states")) {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        });
+      }
+
+      if (url.includes("new-course/gradebook-items")) {
+        return new Promise<Response>((resolve) => {
+          resolveItems = resolve;
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected LMS request: ${url}`));
+    }) as typeof fetch;
+    const harness = loadPickerHarness({ fetchImpl, status: new FakeStatusElement() });
+    const card = new FakeElement();
+    const courseSelect = new FakeSelect();
+    courseSelect.dataset.field = "courseId";
+    courseSelect.value = "new-course";
+    const itemSelect = new FakeSelect();
+    itemSelect.dataset.field = "assignmentId";
+    itemSelect.dataset.lmsGradebookItemSelect = "";
+    const stateSelect = new FakeSelect();
+    stateSelect.dataset.lmsWorkflowStateSelect = "";
+    card.append(courseSelect, itemSelect, stateSelect);
+
+    const staleStateRequest = harness.hydrateWorkflowStateSelect({
+      stateSelect,
+      workflowStatesUrl: "/old-item/workflow-states",
+      fallbackMessage: "Unavailable",
+    });
+    const currentItemRequest = harness.hydrateGradebookItemsForCard(card, "");
+
+    await expect(staleStateRequest).resolves.toBe(false);
+    expect(stateSelect.options.map((option) => option.textContent)).toEqual([
+      "Select gradebook item first",
+    ]);
+    expect(stateSelect.disabled).toBe(true);
+
+    resolveItems(Response.json({ items: [] }));
+    await expect(currentItemRequest).resolves.toBeUndefined();
   });
 });

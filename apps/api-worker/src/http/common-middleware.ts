@@ -7,6 +7,7 @@ import {
   optionalAppLogger,
 } from "../app/observability";
 import { validateCsrfRequestOrigin } from "./csrf-protection";
+import { applyResponseCachePolicy } from "./response-cache-policy";
 import { applySecurityHeaders } from "./security-headers";
 
 interface RegisterCommonMiddlewareInput {
@@ -64,6 +65,17 @@ const applyRequestHeaders = (response: Response, requestId: string): Response =>
   return response;
 };
 
+const applyResponsePolicies = (input: {
+  response: Response;
+  requestUrl: URL;
+  env: AppBindings;
+  requestId: string;
+}): Response => {
+  applyResponseCachePolicy(input.response.headers);
+  applySecurityHeaders(input.response.headers, input.env, input.requestUrl);
+  return applyRequestHeaders(input.response, input.requestId);
+};
+
 export const registerCommonMiddleware = (input: RegisterCommonMiddlewareInput): void => {
   const { app, observabilityContext } = input;
 
@@ -95,22 +107,34 @@ export const registerCommonMiddleware = (input: RegisterCommonMiddlewareInput): 
       })
     ) {
       const response = c.json({ error: "Invalid request origin" }, 403);
-      applySecurityHeaders(response.headers, c.env, requestUrl);
-      return applyRequestHeaders(response, requestId);
+      return applyResponsePolicies({
+        response,
+        requestUrl,
+        env: c.env,
+        requestId,
+      });
     }
 
     if (requestHost === `www.${canonicalHost}` || requestHost === `badges.${canonicalHost}`) {
       requestUrl.hostname = canonicalHost;
       requestUrl.port = "";
       const response = c.redirect(requestUrl.toString(), 308);
-      applySecurityHeaders(response.headers, c.env, requestUrl);
-      return applyRequestHeaders(response, requestId);
+      return applyResponsePolicies({
+        response,
+        requestUrl,
+        env: c.env,
+        requestId,
+      });
     }
 
     await next();
     c.res = await prettifyJsonResponse(c.res);
-    applySecurityHeaders(c.res.headers, c.env, requestUrl);
-    applyRequestHeaders(c.res, requestId);
+    applyResponsePolicies({
+      response: c.res,
+      requestUrl,
+      env: c.env,
+      requestId,
+    });
     const elapsedMs = Date.now() - startedAt;
 
     appLogger.info("http_request", {
@@ -144,8 +168,12 @@ export const registerCommonMiddleware = (input: RegisterCommonMiddlewareInput): 
       },
       500,
     );
-    applySecurityHeaders(response.headers, c.env, requestUrl);
-    return applyRequestHeaders(response, requestId);
+    return applyResponsePolicies({
+      response,
+      requestUrl,
+      env: c.env,
+      requestId,
+    });
   });
 
   app.get("/healthz", (c) => {

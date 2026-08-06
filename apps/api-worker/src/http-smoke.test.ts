@@ -103,6 +103,7 @@ describe("security headers", () => {
     expectDirectiveOmits(directives, "script-src", "https://challenges.cloudflare.com");
     expectDirectiveOmits(directives, "style-src", "'unsafe-inline'");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
     expect(response.headers.get("strict-transport-security")).toBe(
       "max-age=31536000; includeSubDomains",
     );
@@ -154,6 +155,36 @@ describe("security headers", () => {
 
     expectDirectiveContains(directives, "style-src", "'unsafe-inline'");
     expectDirectiveOmits(directives, "script-src", "https://challenges.cloudflare.com");
+  });
+});
+
+describe("private response caching", () => {
+  it.each([
+    "/login",
+    "/auth/local/reset-password?tenantId=tenant_123&token=reset-token-1234567890",
+    "/v1/auth/session",
+  ])("marks %s as no-store", async (path) => {
+    const response = await app.fetch(new Request(`https://credtrail.test${path}`), createEnv());
+
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("marks generated private signing material as no-store without relying on credentials", async () => {
+    const response = await app.fetch(
+      new Request("https://credtrail.test/v1/signing/keys/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          did: "did:web:credtrail.test:issuers:tenant_123",
+        }),
+      }),
+      createEnv(),
+    );
+
+    expect(response.status).toBe(201);
+    expect(response.headers.get("cache-control")).toBe("no-store");
   });
 });
 

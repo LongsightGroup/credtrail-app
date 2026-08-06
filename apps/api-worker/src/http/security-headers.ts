@@ -4,6 +4,7 @@ const CLOUDFLARE_TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 const CLOUDFLARE_WEB_ANALYTICS_SCRIPT_ORIGIN = "https://static.cloudflareinsights.com";
 const CLOUDFLARE_WEB_ANALYTICS_BEACON_ORIGIN = "https://cloudflareinsights.com";
 const STRICT_TRANSPORT_SECURITY = "max-age=31536000; includeSubDomains";
+const REFERRER_POLICY = "no-referrer";
 
 const BASE_CONTENT_SECURITY_POLICY_DIRECTIVES = {
   "default-src": ["'self'"],
@@ -78,6 +79,7 @@ export const applySecurityHeaders = (
     contentSecurityPolicyForPath(requestUrl.pathname),
   );
   setHeaderIfAbsent(headers, "X-Content-Type-Options", "nosniff");
+  setHeaderIfAbsent(headers, "Referrer-Policy", REFERRER_POLICY);
 
   if (strictTransportSecurityEnabled(env)) {
     setHeaderIfAbsent(headers, "Strict-Transport-Security", STRICT_TRANSPORT_SECURITY);

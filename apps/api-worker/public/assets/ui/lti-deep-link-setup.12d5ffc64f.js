@@ -32,6 +32,7 @@ const lmsErrorDetailFromPayload = (payload, fallbackMessage) => {
 
 const lmsFetchJson = async (url, fallbackMessage, options) => {
   const response = await fetch(url, {
+    cache: "no-store",
     signal: options && options.signal instanceof AbortSignal ? options.signal : undefined,
   });
   const payload = await lmsParseJsonBody(response);
@@ -41,6 +42,39 @@ const lmsFetchJson = async (url, fallbackMessage, options) => {
   }
 
   return payload;
+};
+
+const lmsRequestControllerBySelect = new WeakMap();
+
+const lmsCancelSelectRequest = (select) => {
+  lmsRequestControllerBySelect.get(select)?.abort();
+  lmsRequestControllerBySelect.delete(select);
+};
+
+const lmsFetchLatestSelectJson = async (select, url, fallbackMessage) => {
+  lmsCancelSelectRequest(select);
+  const controller = new AbortController();
+  lmsRequestControllerBySelect.set(select, controller);
+
+  try {
+    const payload = await lmsFetchJson(url, fallbackMessage, {
+      signal: controller.signal,
+    });
+
+    if (lmsRequestControllerBySelect.get(select) !== controller) {
+      return { status: "superseded" };
+    }
+
+    lmsRequestControllerBySelect.delete(select);
+    return { status: "complete", payload };
+  } catch (error) {
+    if (controller.signal.aborted) {
+      return { status: "superseded" };
+    }
+
+    lmsRequestControllerBySelect.delete(select);
+    throw error;
+  }
 };
 
 const lmsSelectedValuesFromSelect = (select) => {
@@ -103,10 +137,11 @@ const lmsHydrateWorkflowStateSelect = async (input) => {
   const { stateSelect, workflowStatesUrl, fallbackMessage } = input;
 
   if (!(stateSelect instanceof HTMLSelectElement)) {
-    return;
+    return false;
   }
 
   if (workflowStatesUrl.length === 0) {
+    lmsCancelSelectRequest(stateSelect);
     lmsSetSelectOptions(
       stateSelect,
       [],
@@ -116,7 +151,7 @@ const lmsHydrateWorkflowStateSelect = async (input) => {
       (state) => state.value,
     );
     stateSelect.disabled = true;
-    return;
+    return true;
   }
 
   stateSelect.disabled = true;
@@ -129,10 +164,16 @@ const lmsHydrateWorkflowStateSelect = async (input) => {
     (state) => state.label,
     (state) => state.value,
   );
-  const payload = await lmsFetchJson(
+  const result = await lmsFetchLatestSelectJson(
+    stateSelect,
     workflowStatesUrl,
     fallbackMessage ?? "Unable to load workflow states.",
   );
+  if (result.status === "superseded") {
+    return false;
+  }
+
+  const payload = result.payload;
   const states = payload && Array.isArray(payload.states) ? payload.states : [];
   const defaults = lmsPreselectedWorkflowValues(states, preserved);
   lmsSetSelectOptions(
@@ -144,16 +185,18 @@ const lmsHydrateWorkflowStateSelect = async (input) => {
     (state) => state.value,
   );
   stateSelect.disabled = false;
+  return true;
 };
 
 const lmsHydrateGradebookItemSelect = async (input) => {
-  const { itemSelect, itemsUrl, query, fallbackMessage, workflowStatesUrlForAssignment } = input;
+  const { itemSelect, itemsUrl, query, fallbackMessage } = input;
 
   if (!(itemSelect instanceof HTMLSelectElement)) {
-    return { assignmentId: "", workflowStatesUrl: "" };
+    return false;
   }
 
   if (itemsUrl.length === 0) {
+    lmsCancelSelectRequest(itemSelect);
     lmsSetSelectOptions(
       itemSelect,
       [],
@@ -163,7 +206,7 @@ const lmsHydrateGradebookItemSelect = async (input) => {
       (item) => item.assignmentId,
     );
     itemSelect.disabled = true;
-    return { assignmentId: "", workflowStatesUrl: "" };
+    return true;
   }
 
   const selected = lmsSelectedValuesForSelect(itemSelect);
@@ -177,7 +220,16 @@ const lmsHydrateGradebookItemSelect = async (input) => {
     (item) => item.assignmentId,
   );
   const url = query.length === 0 ? itemsUrl : itemsUrl + "?q=" + encodeURIComponent(query);
-  const payload = await lmsFetchJson(url, fallbackMessage ?? "Unable to load gradebook items.");
+  const result = await lmsFetchLatestSelectJson(
+    itemSelect,
+    url,
+    fallbackMessage ?? "Unable to load gradebook items.",
+  );
+  if (result.status === "superseded") {
+    return false;
+  }
+
+  const payload = result.payload;
   const items = payload && Array.isArray(payload.items) ? payload.items : [];
   lmsSetSelectOptions(
     itemSelect,
@@ -191,13 +243,43 @@ const lmsHydrateGradebookItemSelect = async (input) => {
   itemSelect.dataset.selectedValue = itemSelect.value;
   itemSelect.dataset.selectedValues = lmsSelectedValuesFromSelect(itemSelect).join(",");
 
-  const assignmentId = itemSelect.value;
-  const workflowStatesUrl =
-    typeof workflowStatesUrlForAssignment === "function"
-      ? workflowStatesUrlForAssignment(assignmentId)
-      : "";
+  return true;
+};
 
-  return { assignmentId, workflowStatesUrl };
+const lmsHydrateGradebookItemWorkflowSelects = async (input) => {
+  const {
+    itemSelect,
+    stateSelect,
+    itemsUrl,
+    query,
+    itemFallbackMessage,
+    workflowFallbackMessage,
+    workflowStatesUrlForAssignment,
+  } = input;
+  const itemHydration = lmsHydrateGradebookItemSelect({
+    itemSelect,
+    itemsUrl,
+    query,
+    fallbackMessage: itemFallbackMessage,
+  });
+
+  await lmsHydrateWorkflowStateSelect({
+    stateSelect,
+    workflowStatesUrl: "",
+    fallbackMessage: workflowFallbackMessage,
+  });
+
+  const didHydrateItems = await itemHydration;
+
+  if (!didHydrateItems || itemsUrl.length === 0) {
+    return didHydrateItems;
+  }
+
+  return lmsHydrateWorkflowStateSelect({
+    stateSelect,
+    workflowStatesUrl: workflowStatesUrlForAssignment(itemSelect.value),
+    fallbackMessage: workflowFallbackMessage,
+  });
 };
 
 const lmsBindDebouncedSearch = (input) => {
@@ -257,6 +339,7 @@ const lmsBindDebouncedSearch = (input) => {
     const apiBase = container.dataset.ltiGradebookApiBase ?? '';
     const itemSelect = container.querySelector('[data-lti-gradebook-item-select]');
     const itemQuery = container.querySelector('[data-lti-gradebook-item-query]');
+    const stateSelect = container.querySelector('[data-lti-workflow-state-select]');
 
     if (!(itemSelect instanceof HTMLSelectElement)) {
       return;
@@ -272,14 +355,18 @@ const lmsBindDebouncedSearch = (input) => {
     const itemsUrl = apiBase + '/gradebook-items';
 
     setStatus(container, '', false);
-    await lmsHydrateGradebookItemSelect({
+    await lmsHydrateGradebookItemWorkflowSelects({
       itemSelect,
+      stateSelect,
       itemsUrl,
       query,
-      fallbackMessage: 'Sakai gradebook access is unavailable. Manual approval remains available.',
-      workflowStatesUrlForAssignment: () => '',
+      itemFallbackMessage: 'Sakai gradebook access is unavailable. Manual approval remains available.',
+      workflowFallbackMessage: 'Sakai gradebook access is unavailable. Manual approval remains available.',
+      workflowStatesUrlForAssignment: (assignmentId) =>
+        assignmentId.length === 0
+          ? ''
+          : apiBase + '/gradebook-items/' + encodeURIComponent(assignmentId) + '/workflow-states',
     });
-    await hydrateWorkflowStates(container);
   };
 
   const bindSetup = (container) => {
@@ -320,4 +407,5 @@ const lmsBindDebouncedSearch = (input) => {
       }
     });
   });
+
 })();

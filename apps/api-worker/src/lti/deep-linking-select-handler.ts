@@ -205,15 +205,17 @@ export const handleLtiDeepLinkingSelect = async (
   launchUrl.searchParams.set("badgeTemplateId", badgeTemplate.id);
   launchUrl.searchParams.set("setupToken", setupToken);
   const ltiTool = await createCredTrailLtiTool({ db, env: c.env, tenantId });
-  const deepLinkingResult = await ltiTool.createAdvantage(ltiSession).createDeepLinkingResponse([
-    badgeTemplateDeepLinkContentItem({
-      badgeTemplateId: badgeTemplate.id,
-      setupToken,
-      title: badgeTemplate.title,
-      description: badgeTemplate.description,
-      launchUrl: launchUrl.toString(),
-    }),
-  ]);
+  const deepLinkingResult = await ltiTool
+    .createAdvantage(ltiSession)
+    .createDeepLinkingHtmlResponse([
+      badgeTemplateDeepLinkContentItem({
+        badgeTemplateId: badgeTemplate.id,
+        setupToken,
+        title: badgeTemplate.title,
+        description: badgeTemplate.description,
+        launchUrl: launchUrl.toString(),
+      }),
+    ]);
 
   if (!deepLinkingResult.success) {
     return c.json(
@@ -224,8 +226,5 @@ export const handleLtiDeepLinkingSelect = async (
     );
   }
 
-  c.header("Cache-Control", "no-store");
-  return c.body(deepLinkingResult.data, 200, {
-    "Content-Type": "text/html; charset=UTF-8",
-  });
+  return deepLinkingResult.data;
 };
