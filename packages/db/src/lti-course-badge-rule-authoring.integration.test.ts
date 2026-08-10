@@ -5,6 +5,7 @@ import {
   type CreateLtiCourseBadgeRuleInput,
 } from "./lti-course-badge-rule-authoring.js";
 import {
+  type BadgeRuleIntegrationFixture,
   cleanupTestResources,
   createBadgeRuleIntegrationFixture,
   describeDbIntegration,
@@ -12,19 +13,39 @@ import {
   uniqueTestId,
 } from "./postgres-test-support.js";
 import { upsertBadgeRuleApprovalPolicy } from "./badge-rule-approval-policies.js";
+import { createTenantOrgUnit } from "./tenant-org-units.js";
 
-const createInput = (fixture: {
-  readonly tenantId: string;
-  readonly userId: string;
-  readonly badgeTemplateId: string;
-  readonly lmsConnectionId: string;
-}): CreateLtiCourseBadgeRuleInput => {
+const createCourseParentOrgUnit = async (fixture: BadgeRuleIntegrationFixture): Promise<string> => {
+  const college = await createTenantOrgUnit(fixture.db, {
+    tenantId: fixture.tenantId,
+    unitType: "college",
+    slug: "lti-authoring-college",
+    displayName: "LTI Authoring College",
+    parentOrgUnitId: `${fixture.tenantId}:org:institution`,
+    createdByUserId: fixture.userId,
+  });
+  const department = await createTenantOrgUnit(fixture.db, {
+    tenantId: fixture.tenantId,
+    unitType: "department",
+    slug: "lti-authoring-department",
+    displayName: "LTI Authoring Department",
+    parentOrgUnitId: college.id,
+    createdByUserId: fixture.userId,
+  });
+
+  return department.id;
+};
+
+const createInput = (
+  fixture: BadgeRuleIntegrationFixture,
+  parentOrgUnitId: string,
+): CreateLtiCourseBadgeRuleInput => {
   const courseId = uniqueTestId("course");
 
   return {
     tenantId: fixture.tenantId,
     course: {
-      parentOrgUnitId: `${fixture.tenantId}:org:institution`,
+      parentOrgUnitId,
       externalSystemId: fixture.lmsConnectionId,
       externalCourseId: courseId,
       title: "LTI authoring test course",
@@ -60,9 +81,9 @@ const createInput = (fixture: {
 describeDbIntegration("LTI course badge-rule authoring with Postgres", () => {
   it("converges concurrent and repeated setup requests on one persistence graph", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
-    const input = createInput(fixture);
 
     try {
+      const input = createInput(fixture, await createCourseParentOrgUnit(fixture));
       const concurrentResults = await Promise.all([
         createLtiCourseBadgeRule(fixture.db, input),
         createLtiCourseBadgeRule(fixture.db, input),
@@ -155,9 +176,9 @@ describeDbIntegration("LTI course badge-rule authoring with Postgres", () => {
 
   it("rejects changed setup for an occupied placement without replacing its rule", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
-    const input = createInput(fixture);
 
     try {
+      const input = createInput(fixture, await createCourseParentOrgUnit(fixture));
       const created = await createLtiCourseBadgeRule(fixture.db, input);
       const conflict = await createLtiCourseBadgeRule(fixture.db, {
         ...input,
@@ -192,9 +213,9 @@ describeDbIntegration("LTI course badge-rule authoring with Postgres", () => {
 
   it("rolls back a newly created course scope when approval policy rejects authoring", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
-    const input = createInput(fixture);
 
     try {
+      const input = createInput(fixture, await createCourseParentOrgUnit(fixture));
       await upsertBadgeRuleApprovalPolicy(fixture.db, {
         tenantId: fixture.tenantId,
         orgUnitId: input.course.parentOrgUnitId,

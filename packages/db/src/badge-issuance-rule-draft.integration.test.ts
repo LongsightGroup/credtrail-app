@@ -749,9 +749,18 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         ruleId: created.rule.id,
       });
 
-      expect(result).toEqual({
-        status: "failed",
-        reason: "not_editable",
+      expect(result).toMatchObject({
+        status: "not_editable",
+        rule: {
+          id: created.rule.id,
+          name: "CS101 Rule",
+        },
+        versions: [
+          {
+            id: created.version.id,
+            status: "pending_approval",
+          },
+        ],
       });
       expect(savedRule?.name).toBe("CS101 Rule");
       expect(versions).toHaveLength(1);
