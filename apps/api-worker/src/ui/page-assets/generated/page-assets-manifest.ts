@@ -25,7 +25,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin.0533c32892.js",
+    path: "/assets/ui/institution-admin.8d3f3a9a12.js",
   },
   institutionAdminShellJs: {
     kind: "script",
@@ -33,7 +33,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminAccessJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-access.01092fa661.js",
+    path: "/assets/ui/institution-admin-access.6cd1b9d481.js",
   },
   institutionAdminTemplateEditorCss: {
     kind: "style",

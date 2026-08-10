@@ -338,9 +338,15 @@ export const buildInstitutionAdminViewResources = (
                 method="post"
                 action={tenantAccessMemberRolePath(input.tenant.id, member.userId)}
                 className="ct-admin__inline-form"
+                dataAttributes={{ "data-admin-role-form": "" }}
               >
                 <AdminActions>
-                  <CtSelect name="role" ariaLabel={`Tenant role for ${member.email}`}>
+                  <CtSelect
+                    name="role"
+                    ariaLabel={`Tenant role for ${member.email}`}
+                    describedBy="tenant-role-auto-save-note"
+                    dataAttributes={{ "data-current-role": member.role }}
+                  >
                     {tenantMemberRoleOptions(member.role)}
                   </CtSelect>
                   <AdminButton
@@ -348,6 +354,7 @@ export const buildInstitutionAdminViewResources = (
                     size="tiny"
                     variant="secondary"
                     ariaLabel={`Save role for ${member.email}`}
+                    dataAttributes={{ "data-admin-role-submit": "" }}
                   >
                     Save role
                   </AdminButton>

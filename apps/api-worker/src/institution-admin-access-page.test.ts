@@ -904,8 +904,17 @@ describe("GET /tenants/:tenantId/admin/access/members", () => {
     expect(body).toContain('data-admin-inline-panel-close="tenant-member-panel"');
     expect(body).not.toContain("Hide form");
     expect(body).toContain('action="/tenants/tenant_123/admin/access/members/usr_issuer/role"');
+    expect(body).toContain('data-admin-role-form=""');
+    expect(body).toContain('data-current-role="issuer"');
+    expect(body).toContain('aria-describedby="tenant-role-auto-save-note"');
+    expect(body).toContain('data-admin-role-submit=""');
     expect(body).toContain("Save role");
     expect(body).toContain('aria-label="Save role for issuer@tenant-123.edu"');
+    expect(body).toContain('id="tenant-role-auto-save-note"');
+    expect(body).toContain("Role changes take effect as soon as you select a new role.");
+    expect(INSTITUTION_ADMIN_JS).toContain("form[data-admin-role-form]");
+    expect(INSTITUTION_ADMIN_JS).toContain("form.requestSubmit()");
+    expect(body).not.toContain("onchange=");
     expect(body).toContain("Resend invite");
     expect(body).toContain(
       'class="ct-admin__panel ct-admin__panel--table ct-admin__members-table ct-stack"',

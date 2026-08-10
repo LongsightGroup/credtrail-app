@@ -1,3 +1,4 @@
+(() => {
 document.querySelectorAll("form[data-confirm-message]").forEach((form) => {
   if (!(form instanceof HTMLFormElement)) {
     return;
@@ -49,3 +50,5 @@ const automaticRoleUpdateNote = document.querySelector("[data-admin-role-auto-sa
 if (hasAutomaticRoleUpdates && automaticRoleUpdateNote instanceof HTMLElement) {
   automaticRoleUpdateNote.hidden = false;
 }
+
+})();

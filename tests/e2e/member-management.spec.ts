@@ -20,10 +20,16 @@ test("an administrator can change a tenant role and remove the member", async ({
   await expect(memberRow).toBeVisible();
 
   const roleSelect = memberRow.getByLabel(`Tenant role for ${managedMemberEmail}`);
+  await expect(
+    memberRow.getByRole("button", {
+      name: `Save role for ${managedMemberEmail}`,
+      exact: true,
+    }),
+  ).toBeHidden();
+  await expect(
+    page.getByText("Role changes take effect as soon as you select a new role."),
+  ).toBeVisible();
   await roleSelect.selectOption("viewer");
-  await memberRow
-    .getByRole("button", { name: `Save role for ${managedMemberEmail}`, exact: true })
-    .click();
 
   await expect(page.getByText(`Updated ${managedMemberEmail} to viewer.`)).toBeVisible();
   await expect(roleSelect).toHaveValue("viewer");

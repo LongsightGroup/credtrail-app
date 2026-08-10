@@ -455,6 +455,9 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
                 approver for review-only governance, and viewer when someone does not need full
                 tenant control.
               </p>
+              <p id="tenant-role-auto-save-note" data-admin-role-auto-save-note="" hidden>
+                Role changes take effect as soon as you select a new role.
+              </p>
             </aside>,
           )}
           <section class="ct-admin ct-stack">
