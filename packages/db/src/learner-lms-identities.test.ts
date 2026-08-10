@@ -182,7 +182,9 @@ describeDbIntegration("connection-scoped LMS learner identities", () => {
           tenantId: fixture.tenantId,
           lookupValue: "shared-provider-id",
         }),
-      ).toEqual([firstProfile, secondProfile].sort((left, right) => left.id.localeCompare(right.id)));
+      ).toEqual(
+        [firstProfile, secondProfile].sort((left, right) => left.id.localeCompare(right.id)),
+      );
 
       const rollbackProfile = await createLearnerProfile(fixture.db, {
         tenantId: fixture.tenantId,

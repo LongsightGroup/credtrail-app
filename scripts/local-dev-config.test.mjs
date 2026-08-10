@@ -12,6 +12,12 @@ test("local Wrangler example uses localhost issuer config", async () => {
   assert.doesNotMatch(source, /credtrail\.example/);
 });
 
+test("local environment example provides the admin cookie signing secret", async () => {
+  const source = await readFile(new URL("../.dev.vars.local.example", import.meta.url), "utf8");
+
+  assert.match(source, /^BETTER_AUTH_SECRET=\S+$/m);
+});
+
 test("local seed uses the same localhost issuer identity", async () => {
   const source = await readFile(new URL("./seed-local-dev.ts", import.meta.url), "utf8");
 

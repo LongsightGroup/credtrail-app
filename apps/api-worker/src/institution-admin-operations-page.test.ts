@@ -299,9 +299,7 @@ describe("GET /tenants/:tenantId/admin/operations/learner-records", () => {
   it("can verify a seeded-demo learner review on the normal admin operations route", async () => {
     const seededDemo = getSeededDemoLearnerRecordFixture();
 
-    mockedListLearnerProfilesForRecordLookupDb.mockResolvedValueOnce([
-      seededDemo.learnerProfile,
-    ]);
+    mockedListLearnerProfilesForRecordLookupDb.mockResolvedValueOnce([seededDemo.learnerProfile]);
     mockedListLearnerRecordAssertionExportsDb.mockResolvedValueOnce([
       ...seededDemo.assertionExports,
     ]);
