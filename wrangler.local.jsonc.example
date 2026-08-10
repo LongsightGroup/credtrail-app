@@ -4,6 +4,9 @@
   "main": "apps/api-worker/src/index.ts",
   "compatibility_date": "2026-05-14",
   "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./apps/api-worker/public"
+  },
   "r2_buckets": [
     {
       "binding": "BADGE_OBJECTS",

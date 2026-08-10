@@ -4,7 +4,7 @@ const CLOUDFLARE_TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 const CLOUDFLARE_WEB_ANALYTICS_SCRIPT_ORIGIN = "https://static.cloudflareinsights.com";
 const CLOUDFLARE_WEB_ANALYTICS_BEACON_ORIGIN = "https://cloudflareinsights.com";
 const STRICT_TRANSPORT_SECURITY = "max-age=31536000; includeSubDomains";
-const REFERRER_POLICY = "no-referrer";
+const REFERRER_POLICY = "strict-origin-when-cross-origin";
 
 const BASE_CONTENT_SECURITY_POLICY_DIRECTIVES = {
   "default-src": ["'self'"],

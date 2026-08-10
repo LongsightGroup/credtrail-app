@@ -103,7 +103,7 @@ describe("security headers", () => {
     expectDirectiveOmits(directives, "script-src", "https://challenges.cloudflare.com");
     expectDirectiveOmits(directives, "style-src", "'unsafe-inline'");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(response.headers.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
     expect(response.headers.get("strict-transport-security")).toBe(
       "max-age=31536000; includeSubDomains",
     );

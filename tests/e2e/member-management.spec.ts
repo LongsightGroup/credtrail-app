@@ -7,8 +7,13 @@ const managedMemberEmail = "member-management-e2e@credtrail.local";
 
 test("an administrator can change a tenant role and remove the member", async ({ page }) => {
   await page.goto(membersPath);
-  await page.getByRole("button", { name: "Add member" }).click();
   const createForm = page.locator(`form[action="${membersPath}/create"]`);
+  const addMemberTrigger = page.locator(
+    '[data-admin-inline-panel-trigger="tenant-member-panel"]',
+  );
+  await addMemberTrigger.click();
+  await expect(addMemberTrigger).toHaveAttribute("aria-expanded", "true");
+  await expect(createForm).toBeVisible();
   await createForm.getByLabel("Institution email").fill(managedMemberEmail);
   await createForm.getByLabel("Tenant role").selectOption("admin");
   await createForm.getByRole("checkbox", { name: "Email sign-in invite now" }).uncheck();

@@ -8,6 +8,7 @@ test("local Wrangler example uses localhost issuer config", async () => {
   assert.match(source, /"PLATFORM_DOMAIN":\s*"localhost"/);
   assert.match(source, /http:\/\/localhost:8787/);
   assert.match(source, /http:\/\/127\.0\.0\.1:8787/);
+  assert.match(source, /"directory":\s*"\.\/apps\/api-worker\/public"/);
   assert.doesNotMatch(source, /credtrail\.example/);
 });
 
