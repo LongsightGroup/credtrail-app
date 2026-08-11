@@ -321,8 +321,14 @@ export type ListBadgeIssuanceRulesInput = {
 };
 
 export interface ListBadgeIssuanceRuleVersionsInput {
-  tenantId: string;
-  ruleId: string;
+  readonly tenantId: string;
+  readonly ruleId: string;
+}
+
+/** Input for loading every saved version for a bounded set of rules. */
+export interface ListBadgeIssuanceRuleVersionsForRulesInput {
+  readonly tenantId: string;
+  readonly ruleIds: readonly string[];
 }
 
 export interface SubmitBadgeIssuanceRuleVersionForApprovalInput {
@@ -489,6 +495,12 @@ export interface ListBadgeIssuanceRuleVersionApprovalEventsInput {
   tenantId: string;
   ruleId: string;
   versionId: string;
+}
+
+/** Input for loading approval history for a bounded set of rule versions. */
+export interface ListBadgeIssuanceRuleVersionApprovalHistoryForVersionsInput {
+  readonly tenantId: string;
+  readonly versionIds: readonly string[];
 }
 
 export interface ListPendingBadgeIssuanceRuleApprovalsForActorInput {

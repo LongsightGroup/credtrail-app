@@ -53,11 +53,11 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminRuleVersionJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-rule-version.c4bd26de86.js",
+    path: "/assets/ui/institution-admin-rule-version.ebefbe1dfe.js",
   },
   institutionAdminRuleVersionCss: {
     kind: "style",
-    path: "/assets/ui/institution-admin-rule-version.2e11dbc7a2.css",
+    path: "/assets/ui/institution-admin-rule-version.0f01ad8088.css",
   },
   assertionEvidenceCss: {
     kind: "style",
@@ -69,7 +69,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminRuleBuilderJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-rule-builder.a612b64530.js",
+    path: "/assets/ui/institution-admin-rule-builder.befe33bced.js",
   },
   learnerRecordCss: {
     kind: "style",

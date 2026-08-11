@@ -32,6 +32,7 @@ import {
   mockedListBadgeIssuanceRules,
   mockedListBadgeIssuanceRuleBuilderDraftsForUserDb,
   mockedListBadgeIssuanceRuleVersions,
+  mockedListBadgeIssuanceRuleVersionsForRules,
   mockedListBadgeTemplateImageRevisionCountsByTenant,
   mockedListBadgeTemplateImageRevisions,
   mockedListBadgeTemplates,
@@ -44,8 +45,8 @@ import {
   mockedUpdateBadgeTemplate,
   sampleRuleBadgeTemplate,
   sampleMembership,
-  versionRecordFixtureFields,
 } from "./institution-admin-page-test-utils";
+import { buildBadgeRuleVersionRecord } from "./test-support/badge-rule-version";
 import { app } from "./index";
 import { readScriptAssetSource, readStyleAssetSource } from "./page-asset-test-utils";
 import { pageAssetPath } from "./ui/page-assets";
@@ -91,7 +92,7 @@ const samplePendingApprovalStep = (): BadgeIssuanceRuleApprovalStepRecord => ({
 const samplePendingApprovalEntry = (): PendingBadgeIssuanceRuleApprovalRecord => ({
   tenantId: "tenant_123",
   ruleId: "brl_approval",
-  versionName: "CS101 Excellence Rule",
+  versionName: "Snapshot approval rule",
   badgeTemplateId: "badge_template_001",
   badgeTemplateTitle: "TypeScript Foundations",
   orgUnitId: "tenant_123:org:cs",
@@ -194,9 +195,8 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
       },
     ]);
     mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
-      {
+      buildBadgeRuleVersionRecord({
         id: "brv_pending",
-        tenantId: "tenant_123",
         ruleId: "brl_123",
         versionNumber: 2,
         status: "pending_approval",
@@ -209,19 +209,16 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
         approvedAt: null,
         activatedByUserId: null,
         activatedAt: null,
-        ...versionRecordFixtureFields,
         snapshot: {
-          ...versionRecordFixtureFields.snapshot,
           name: "Pending revision",
           badgeTemplateTitle: "Pending badge",
           lmsProviderKind: "canvas",
         },
         createdAt: "2026-02-18T12:20:00.000Z",
         updatedAt: "2026-02-18T12:20:00.000Z",
-      },
-      {
+      }),
+      buildBadgeRuleVersionRecord({
         id: "brv_active",
-        tenantId: "tenant_123",
         ruleId: "brl_123",
         versionNumber: 1,
         status: "active",
@@ -234,16 +231,14 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
         approvedAt: "2026-02-18T12:10:00.000Z",
         activatedByUserId: "usr_admin",
         activatedAt: "2026-02-18T12:15:00.000Z",
-        ...versionRecordFixtureFields,
         snapshot: {
-          ...versionRecordFixtureFields.snapshot,
           name: "Published course rule",
           badgeTemplateTitle: "Published badge",
           lmsProviderKind: "sakai",
         },
         createdAt: "2026-02-18T12:00:00.000Z",
         updatedAt: "2026-02-18T12:15:00.000Z",
-      },
+      }),
     ]);
 
     const response = await app.request(
@@ -280,9 +275,8 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
       },
     ]);
     mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
-      {
+      buildBadgeRuleVersionRecord({
         id: "brv_lifecycle",
-        tenantId: "tenant_123",
         ruleId: "brl_lifecycle",
         versionNumber: 1,
         status: "active",
@@ -295,15 +289,13 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
         approvedAt: "2026-02-18T12:05:00.000Z",
         activatedByUserId: "usr_admin",
         activatedAt: "2026-02-18T12:10:00.000Z",
-        ...versionRecordFixtureFields,
         snapshot: {
-          ...versionRecordFixtureFields.snapshot,
           name: "Versioned lifecycle rule",
         },
         recertificationDueAt: "2026-12-01T00:00:00.000Z",
         createdAt: "2026-02-18T12:00:00.000Z",
         updatedAt: "2026-02-18T12:10:00.000Z",
-      },
+      }),
     ]);
 
     const response = await app.request(
@@ -397,29 +389,20 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
       name: string,
       status: BadgeIssuanceRuleVersionRecord["status"],
       versionNumber = 1,
-    ): BadgeIssuanceRuleVersionRecord => ({
-      id: `${ruleId}_v${String(versionNumber)}`,
-      tenantId: "tenant_123",
-      ruleId,
-      versionNumber,
-      status,
-      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
-      changeSummary: "Initial draft",
-      createdByUserId: "usr_admin",
-      submittedByUserId: status === "draft" ? null : "usr_admin",
-      submittedAt: status === "draft" ? null : "2026-02-18T12:05:00.000Z",
-      approvedByUserId: status === "approved" ? "usr_admin" : null,
-      approvedAt: status === "approved" ? "2026-02-18T12:20:00.000Z" : null,
-      activatedByUserId: status === "active" ? "usr_admin" : null,
-      activatedAt: status === "active" ? "2026-02-18T12:30:00.000Z" : null,
-      ...versionRecordFixtureFields,
-      snapshot: {
-        ...versionRecordFixtureFields.snapshot,
-        name,
-      },
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:00:00.000Z",
-    });
+    ): BadgeIssuanceRuleVersionRecord =>
+      buildBadgeRuleVersionRecord({
+        id: `${ruleId}_v${String(versionNumber)}`,
+        ruleId,
+        versionNumber,
+        status,
+        submittedByUserId: status === "draft" ? null : "usr_admin",
+        submittedAt: status === "draft" ? null : "2026-02-18T12:05:00.000Z",
+        approvedByUserId: status === "approved" ? "usr_admin" : null,
+        approvedAt: status === "approved" ? "2026-02-18T12:20:00.000Z" : null,
+        activatedByUserId: status === "active" ? "usr_admin" : null,
+        activatedAt: status === "active" ? "2026-02-18T12:30:00.000Z" : null,
+        snapshot: { name },
+      });
     const versionsByRuleId = new Map<string, BadgeIssuanceRuleVersionRecord[]>([
       ["brl_draft", [makeVersion("brl_draft", "Draft cleanup rule", "draft")]],
       ["brl_rejected", [makeVersion("brl_rejected", "Rejected cleanup rule", "rejected")]],
@@ -459,6 +442,18 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
+    expect(mockedListBadgeIssuanceRuleVersionsForRules).toHaveBeenCalledTimes(1);
+    expect(mockedListBadgeIssuanceRuleVersionsForRules).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleIds: [
+        "brl_draft",
+        "brl_rejected",
+        "brl_pending",
+        "brl_approved",
+        "brl_active",
+        "brl_historical",
+      ],
+    });
     expect(body).toContain(
       '<a class="ct-admin__rule-name-link" href="/tenants/tenant_123/admin/rules/brl_draft/versions/brl_draft_v1"><strong>Draft cleanup rule</strong></a>',
     );
@@ -530,7 +525,8 @@ describe("GET /tenants/:tenantId/admin/rules/approvals", () => {
     });
     expect(body).toContain(">Approvals<");
     expect(body).toContain("1 badge rule version awaiting your decision.");
-    expect(body).toContain("CS101 Excellence Rule");
+    expect(body).toContain("Snapshot approval rule");
+    expect(body).not.toContain("Mutable approval rule head");
     expect(body).toContain("Computer Science");
     expect(body).toContain("Department approval");
     expect(body).toContain(
@@ -559,9 +555,8 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     };
-    const baseVersion: BadgeIssuanceRuleVersionRecord = {
+    const baseVersion = buildBadgeRuleVersionRecord({
       id: "brv_base",
-      tenantId: "tenant_123",
       ruleId: "brl_approval",
       versionNumber: 1,
       status: "active",
@@ -574,10 +569,16 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       approvedAt: "2026-02-18T12:10:00.000Z",
       activatedByUserId: "usr_admin",
       activatedAt: "2026-02-18T12:12:00.000Z",
-      ...versionRecordFixtureFields,
+      snapshot: {
+        name: "CS101 Excellence Rule",
+        description: "Issue badge for CS101 completion and grade threshold.",
+        badgeTemplateTitle: "TypeScript Foundations",
+        badgeTemplateImageUri: "https://example.edu/badges/typescript.png",
+        lmsConnectionId: "lms_canvas",
+      },
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:12:00.000Z",
-    };
+    });
     const pendingVersion: BadgeIssuanceRuleVersionRecord = {
       ...baseVersion,
       id: "brv_approval",
@@ -589,6 +590,15 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
+      snapshot: {
+        ...baseVersion.snapshot,
+        name: "CS101 Excellence Rule — revised",
+        badgeTemplateId: "badge_template_002",
+        badgeTemplateTitle: "CS101 Distinction Badge",
+        orgUnitId: "tenant_123:org:registrar",
+        lmsProviderKind: "sakai",
+        lmsConnectionId: "lms_sakai",
+      },
       updatedAt: "2026-02-18T12:20:00.000Z",
     };
 
@@ -621,6 +631,19 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     expect(body).toContain("TypeScript Foundations");
     expect(body).toContain("https://example.edu/badges/typescript.png");
     expect(body).toContain("What Changed");
+    expect(body).toContain("Rule settings");
+    expect(body).toContain(
+      "Rule name changed from “CS101 Excellence Rule” to “CS101 Excellence Rule — revised”.",
+    );
+    expect(body).toContain(
+      "Badge template changed from “TypeScript Foundations (badge_template_001)” to “CS101 Distinction Badge (badge_template_002)”.",
+    );
+    expect(body).toContain(
+      "Organization scope changed from “tenant_123:org:institution” to “tenant_123:org:registrar”.",
+    );
+    expect(body).toContain("LMS provider changed from Canvas to Sakai.");
+    expect(body).toContain("LMS connection changed from “lms_canvas” to “lms_sakai”.");
+    expect(body).toContain("Earning requirements");
     expect(body).toContain("Minimum grade lowered from 90% to 80%.");
     expect(body).toContain("Impact Preview");
     expect(body).toContain("Check impact");
@@ -633,6 +656,13 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     );
     expect(body).not.toContain("No LMS course placement is linked to this rule yet.");
     expect(body).toContain("Approval Chain");
+    expect(body).toContain('data-rule-version-navigation=""');
+    expect(body).toContain(
+      'data-version-url="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_base"',
+    );
+    expect(body).toContain(
+      'data-version-url="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval"',
+    );
     expect(body).toContain(pageAssetPath("institutionAdminRuleVersionCss"));
     expect(body).toContain(pageAssetPath("institutionAdminRuleVersionJs"));
     expect(body).toContain("Department approval");
@@ -663,9 +693,8 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:20:00.000Z",
     };
-    const approvedVersion: BadgeIssuanceRuleVersionRecord = {
+    const approvedVersion = buildBadgeRuleVersionRecord({
       id: "brv_approval",
-      tenantId: "tenant_123",
       ruleId: "brl_approval",
       versionNumber: 2,
       status: "approved",
@@ -678,10 +707,9 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       approvedAt: "2026-02-18T12:20:00.000Z",
       activatedByUserId: null,
       activatedAt: null,
-      ...versionRecordFixtureFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:20:00.000Z",
-    };
+    });
 
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(rule);
     mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(approvedVersion);
@@ -749,9 +777,8 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     };
-    const pendingVersion: BadgeIssuanceRuleVersionRecord = {
+    const pendingVersion = buildBadgeRuleVersionRecord({
       id: "brv_approval",
-      tenantId: "tenant_123",
       ruleId: "brl_approval",
       versionNumber: 2,
       status: "pending_approval",
@@ -764,10 +791,9 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
-      ...versionRecordFixtureFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:20:00.000Z",
-    };
+    });
 
     mockedFindTenantMembership.mockResolvedValue(sampleMembership("approver"));
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(rule);
@@ -820,9 +846,8 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     };
-    const pendingVersion: BadgeIssuanceRuleVersionRecord = {
+    const pendingVersion = buildBadgeRuleVersionRecord({
       id: "brv_approval",
-      tenantId: "tenant_123",
       ruleId: "brl_approval",
       versionNumber: 2,
       status: "pending_approval",
@@ -835,10 +860,9 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
-      ...versionRecordFixtureFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:20:00.000Z",
-    };
+    });
 
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(rule);
     mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(pendingVersion);
@@ -874,25 +898,7 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
 describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit-approval", () => {
   it("submits eligible draft versions for policy approval", async () => {
     const env = createEnv();
-    const draftVersion: BadgeIssuanceRuleVersionRecord = {
-      id: "brv_123",
-      tenantId: "tenant_123",
-      ruleId: "brl_123",
-      versionNumber: 1,
-      status: "draft",
-      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
-      changeSummary: "Initial draft",
-      createdByUserId: "usr_admin",
-      submittedByUserId: null,
-      submittedAt: null,
-      approvedByUserId: null,
-      approvedAt: null,
-      activatedByUserId: null,
-      activatedAt: null,
-      ...versionRecordFixtureFields,
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:00:00.000Z",
-    };
+    const draftVersion = buildBadgeRuleVersionRecord();
     const pendingVersion: BadgeIssuanceRuleVersionRecord = {
       ...draftVersion,
       status: "pending_approval",
@@ -947,25 +953,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
 
   it("shows the policy-approved activation step when submission does not require approval", async () => {
     const env = createEnv();
-    const draftVersion: BadgeIssuanceRuleVersionRecord = {
-      id: "brv_123",
-      tenantId: "tenant_123",
-      ruleId: "brl_123",
-      versionNumber: 1,
-      status: "draft",
-      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
-      changeSummary: "Initial draft",
-      createdByUserId: "usr_admin",
-      submittedByUserId: null,
-      submittedAt: null,
-      approvedByUserId: null,
-      approvedAt: null,
-      activatedByUserId: null,
-      activatedAt: null,
-      ...versionRecordFixtureFields,
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:00:00.000Z",
-    };
+    const draftVersion = buildBadgeRuleVersionRecord();
     const approvedVersion: BadgeIssuanceRuleVersionRecord = {
       ...draftVersion,
       status: "approved",
@@ -1076,25 +1064,10 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     };
-    const deletedVersion: BadgeIssuanceRuleVersionRecord = {
+    const deletedVersion = buildBadgeRuleVersionRecord({
       id: "brv_draft",
-      tenantId: "tenant_123",
       ruleId: "brl_draft",
-      versionNumber: 1,
-      status: "draft",
-      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
-      changeSummary: "Initial draft",
-      createdByUserId: "usr_admin",
-      submittedByUserId: null,
-      submittedAt: null,
-      approvedByUserId: null,
-      approvedAt: null,
-      activatedByUserId: null,
-      activatedAt: null,
-      ...versionRecordFixtureFields,
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:00:00.000Z",
-    };
+    });
 
     mockedDeleteDraftBadgeIssuanceRuleDb.mockResolvedValue({
       status: "deleted",
@@ -1175,9 +1148,8 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
         updatedAt: "2026-02-18T12:00:00.000Z",
       },
       versions: [
-        {
+        buildBadgeRuleVersionRecord({
           id: "brv_active",
-          tenantId: "tenant_123",
           ruleId: "brl_active",
           versionNumber: 1,
           status: "active",
@@ -1191,10 +1163,8 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
           approvedAt: "2026-02-18T12:20:00.000Z",
           activatedByUserId: "usr_admin",
           activatedAt: "2026-02-18T12:30:00.000Z",
-          ...versionRecordFixtureFields,
-          createdAt: "2026-02-18T12:00:00.000Z",
           updatedAt: "2026-02-18T12:30:00.000Z",
-        },
+        }),
       ],
     });
 
@@ -1281,9 +1251,8 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/withdr
     const env = createEnv();
     mockedWithdrawBadgeIssuanceRuleVersionSubmissionDb.mockResolvedValue({
       status: "withdrawn",
-      version: {
+      version: buildBadgeRuleVersionRecord({
         id: "brv_approval",
-        tenantId: "tenant_123",
         ruleId: "brl_approval",
         versionNumber: 2,
         status: "draft",
@@ -1296,10 +1265,8 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/withdr
         approvedAt: null,
         activatedByUserId: null,
         activatedAt: null,
-        ...versionRecordFixtureFields,
-        createdAt: "2026-02-18T12:00:00.000Z",
         updatedAt: "2026-02-18T12:20:00.000Z",
-      },
+      }),
     });
 
     const response = await app.request(
@@ -1332,9 +1299,8 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
     mockedFindTenantMembership.mockResolvedValue(sampleMembership("approver"));
     mockedReopenApprovedBadgeIssuanceRuleVersionDb.mockResolvedValue({
       status: "reopened",
-      version: {
+      version: buildBadgeRuleVersionRecord({
         id: "brv_approval",
-        tenantId: "tenant_123",
         ruleId: "brl_approval",
         versionNumber: 2,
         status: "draft",
@@ -1347,10 +1313,8 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
         approvedAt: null,
         activatedByUserId: null,
         activatedAt: null,
-        ...versionRecordFixtureFields,
-        createdAt: "2026-02-18T12:00:00.000Z",
         updatedAt: "2026-02-18T12:20:00.000Z",
-      },
+      }),
     });
 
     const response = await app.request(
@@ -1386,9 +1350,8 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
   it("allows an assigned approver role to post a review workspace decision", async () => {
     mockedFindTenantMembership.mockResolvedValue(sampleMembership("approver"));
     const env = createEnv();
-    const approvedVersion: BadgeIssuanceRuleVersionRecord = {
+    const approvedVersion = buildBadgeRuleVersionRecord({
       id: "brv_approval",
-      tenantId: "tenant_123",
       ruleId: "brl_approval",
       versionNumber: 2,
       status: "approved",
@@ -1401,10 +1364,8 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
       approvedAt: "2026-02-18T12:20:00.000Z",
       activatedByUserId: null,
       activatedAt: null,
-      ...versionRecordFixtureFields,
-      createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:20:00.000Z",
-    };
+    });
 
     mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue({
       status: "decided",
@@ -1443,9 +1404,8 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
 
   it("decides from the review workspace and redirects back to that review page", async () => {
     const env = createEnv();
-    const approvedVersion: BadgeIssuanceRuleVersionRecord = {
+    const approvedVersion = buildBadgeRuleVersionRecord({
       id: "brv_approval",
-      tenantId: "tenant_123",
       ruleId: "brl_approval",
       versionNumber: 2,
       status: "approved",
@@ -1458,10 +1418,8 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
       approvedAt: "2026-02-18T12:20:00.000Z",
       activatedByUserId: null,
       activatedAt: null,
-      ...versionRecordFixtureFields,
-      createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:20:00.000Z",
-    };
+    });
 
     mockedDecideBadgeIssuanceRuleVersionDb.mockResolvedValue({
       status: "decided",
@@ -3025,9 +2983,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
       },
     ]);
     mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
-      {
+      buildBadgeRuleVersionRecord({
         id: "brv_copy",
-        tenantId: "tenant_123",
         ruleId: "brl_copy",
         versionNumber: 3,
         status: "draft",
@@ -3040,14 +2997,12 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
         approvedAt: null,
         activatedByUserId: null,
         activatedAt: null,
-        ...versionRecordFixtureFields,
         snapshot: {
-          ...versionRecordFixtureFields.snapshot,
           name: "Versioned copy source",
         },
         createdAt: "2026-02-18T12:10:00.000Z",
         updatedAt: "2026-02-18T12:10:00.000Z",
-      },
+      }),
     ]);
 
     const response = await app.request(
@@ -3117,20 +3072,19 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
       id: "brl_draft",
       tenantId: "tenant_123",
       name: "Draft QA Rule",
-      description: "Fix the score threshold before review.",
-      badgeTemplateId: "badge_template_001",
+      description: "Mutable rule-row description.",
+      badgeTemplateId: "badge_template_mutable",
       orgUnitId: "tenant_123:org:institution",
       ownerOrgUnitId: "tenant_123:org:institution",
-      lmsProviderKind: "canvas",
-      lmsConnectionId: "lms_canvas",
+      lmsProviderKind: "sakai",
+      lmsConnectionId: "lms_mutable",
       activeVersionId: null,
       createdByUserId: "usr_admin",
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:10:00.000Z",
     };
-    const editVersion: BadgeIssuanceRuleVersionRecord = {
+    const editVersion = buildBadgeRuleVersionRecord({
       id: "brv_draft_2",
-      tenantId: "tenant_123",
       ruleId: "brl_draft",
       versionNumber: 2,
       status: "rejected",
@@ -3144,14 +3098,16 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
-      ...versionRecordFixtureFields,
       snapshot: {
-        ...versionRecordFixtureFields.snapshot,
         name: "Versioned Draft QA Rule",
+        description: "Fix the score threshold before review.",
+        badgeTemplateId: "badge_template_001",
+        lmsProviderKind: "canvas",
+        lmsConnectionId: "lms_canvas",
       },
       createdAt: "2026-02-18T12:10:00.000Z",
       updatedAt: "2026-02-18T12:10:00.000Z",
-    };
+    });
 
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(editRule);
     mockedListBadgeIssuanceRuleVersions.mockResolvedValue([editVersion]);
@@ -3187,6 +3143,9 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
     expect(body).not.toContain("Copy existing rule settings");
     expect(body).toContain('value="Versioned Draft QA Rule"');
     expect(body).not.toContain('value="Draft QA Rule"');
+    expect(body).not.toContain("Mutable rule-row description.");
+    expect(body).not.toContain("badge_template_mutable");
+    expect(body).not.toContain("lms_mutable");
     expect(body).toContain('data-rule-builder-preserve-name="true"');
     expect(body).toContain('value="Fix the score threshold before review."');
     expect(body).toContain(
@@ -3197,6 +3156,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
     );
     expect(body).toContain("&quot;editRule&quot;:{&quot;id&quot;:&quot;brl_draft&quot;");
     expect(body).toContain("&quot;latestVersionStatus&quot;:&quot;rejected&quot;");
+    expect(body).toContain("&quot;lmsProviderKind&quot;:&quot;canvas&quot;");
     expect(body).toContain("&quot;assignmentId&quot;:&quot;assignment_1&quot;");
     expect(body).toContain("&quot;minScore&quot;:90");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
@@ -3205,6 +3165,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
       "badgeRuleApiPath + '/' + encodeURIComponent(editRuleContext.id) + '/draft'",
     );
+    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("editRuleContext.lmsProviderKind");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("New draft version saved.");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("Rule draft created.");
     expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("New draft version saved: ");
@@ -3250,9 +3211,8 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
       updatedAt: "2026-02-18T12:00:00.000Z",
     });
     mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
-      {
+      buildBadgeRuleVersionRecord({
         id: "brv_active",
-        tenantId: "tenant_123",
         ruleId: "brl_active",
         versionNumber: 1,
         status: "active",
@@ -3265,10 +3225,8 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
         approvedAt: "2026-02-18T12:20:00.000Z",
         activatedByUserId: "usr_admin",
         activatedAt: "2026-02-18T12:30:00.000Z",
-        ...versionRecordFixtureFields,
-        createdAt: "2026-02-18T12:00:00.000Z",
         updatedAt: "2026-02-18T12:30:00.000Z",
-      },
+      }),
     ]);
 
     const response = await app.request(

@@ -17,7 +17,9 @@ import type {
   BadgeIssuanceRuleVersionRecord,
   BadgeIssuanceRuleVersionStatus,
   ListBadgeIssuanceRuleVersionApprovalEventsInput,
+  ListBadgeIssuanceRuleVersionApprovalHistoryForVersionsInput,
   ListBadgeIssuanceRuleVersionApprovalStepsInput,
+  ListBadgeIssuanceRuleVersionsForRulesInput,
   ListBadgeIssuanceRuleVersionsInput,
   ListBadgeIssuanceRulesInput,
   ListPendingBadgeIssuanceRuleApprovalsForActorInput,
@@ -156,6 +158,10 @@ const BADGE_ISSUANCE_RULE_APPROVAL_EVENT_ACTIONS = new Set<BadgeIssuanceRuleAppr
   "reopened",
 ]);
 
+const uniqueNonEmptyIds = (ids: readonly string[]): readonly string[] => {
+  return [...new Set(ids.filter((id) => id.length > 0))];
+};
+
 const BADGE_ISSUANCE_RULE_SELECT_COLUMNS = `
   id,
   tenant_id AS tenantId,
@@ -170,6 +176,38 @@ const BADGE_ISSUANCE_RULE_SELECT_COLUMNS = `
   created_by_user_id AS createdByUserId,
   created_at AS createdAt,
   updated_at AS updatedAt
+`;
+
+const BADGE_ISSUANCE_RULE_APPROVAL_STEP_SELECT_COLUMNS = `
+  steps.id,
+  steps.tenant_id AS tenantId,
+  steps.version_id AS versionId,
+  steps.step_number AS stepNumber,
+  steps.target_type AS targetType,
+  steps.required_role AS requiredRole,
+  steps.target_user_id AS targetUserId,
+  steps.target_approver_group_id AS targetApproverGroupId,
+  steps.org_unit_id AS orgUnitId,
+  steps.label,
+  steps.status,
+  steps.decided_by_user_id AS decidedByUserId,
+  steps.decided_at AS decidedAt,
+  steps.decision_comment AS decisionComment,
+  steps.created_at AS createdAt,
+  steps.updated_at AS updatedAt
+`;
+
+const BADGE_ISSUANCE_RULE_APPROVAL_EVENT_SELECT_COLUMNS = `
+  events.id,
+  events.tenant_id AS tenantId,
+  events.version_id AS versionId,
+  events.step_number AS stepNumber,
+  events.action,
+  events.actor_user_id AS actorUserId,
+  events.actor_role AS actorRole,
+  events.comment,
+  events.occurred_at AS occurredAt,
+  events.created_at AS createdAt
 `;
 
 const mapBadgeIssuanceRuleRow = (row: BadgeIssuanceRuleRow): BadgeIssuanceRuleRecord => {
@@ -432,6 +470,37 @@ export const listBadgeIssuanceRuleVersions = async (
     .filter((version) => BADGE_ISSUANCE_RULE_VERSION_STATUSES.has(version.status));
 };
 
+/** Loads all saved versions for the requested tenant-scoped rule IDs in one query. */
+export const listBadgeIssuanceRuleVersionsForRules = async (
+  db: SqlDatabase,
+  input: ListBadgeIssuanceRuleVersionsForRulesInput,
+): Promise<BadgeIssuanceRuleVersionRecord[]> => {
+  const ruleIds = uniqueNonEmptyIds(input.ruleIds);
+
+  if (ruleIds.length === 0) {
+    return [];
+  }
+
+  const ruleIdPlaceholders = ruleIds.map(() => "?").join(", ");
+  const result = await db
+    .prepare(
+      `
+        SELECT
+          ${badgeIssuanceRuleVersionSelectColumns()}
+        FROM badge_issuance_rule_versions
+        WHERE tenant_id = ?
+          AND rule_id IN (${ruleIdPlaceholders})
+        ORDER BY rule_id ASC, version_number DESC
+      `,
+    )
+    .bind(input.tenantId, ...ruleIds)
+    .all<BadgeIssuanceRuleVersionRow>();
+
+  return result.results
+    .map((row) => mapBadgeIssuanceRuleVersionRow(row))
+    .filter((version) => BADGE_ISSUANCE_RULE_VERSION_STATUSES.has(version.status));
+};
+
 export const listBadgeIssuanceRuleVersionApprovalSteps = async (
   db: SqlDatabase,
   input: ListBadgeIssuanceRuleVersionApprovalStepsInput,
@@ -441,22 +510,7 @@ export const listBadgeIssuanceRuleVersionApprovalSteps = async (
       .prepare(
         `
         SELECT
-          steps.id,
-          steps.tenant_id AS tenantId,
-          steps.version_id AS versionId,
-          steps.step_number AS stepNumber,
-          steps.target_type AS targetType,
-          steps.required_role AS requiredRole,
-          steps.target_user_id AS targetUserId,
-          steps.target_approver_group_id AS targetApproverGroupId,
-          steps.org_unit_id AS orgUnitId,
-          steps.label,
-          steps.status,
-          steps.decided_by_user_id AS decidedByUserId,
-          steps.decided_at AS decidedAt,
-          steps.decision_comment AS decisionComment,
-          steps.created_at AS createdAt,
-          steps.updated_at AS updatedAt
+          ${BADGE_ISSUANCE_RULE_APPROVAL_STEP_SELECT_COLUMNS}
         FROM badge_issuance_rule_approval_steps AS steps
         INNER JOIN badge_issuance_rule_versions AS versions
           ON versions.id = steps.version_id
@@ -471,6 +525,40 @@ export const listBadgeIssuanceRuleVersionApprovalSteps = async (
       .all<BadgeIssuanceRuleApprovalStepRow>();
 
   const result = await listStatement();
+
+  return result.results
+    .map((row) => mapBadgeIssuanceRuleApprovalStepRow(row))
+    .filter((step) => BADGE_ISSUANCE_RULE_APPROVAL_STEP_STATUSES.has(step.status));
+};
+
+/** Loads approval steps for the requested tenant-scoped rule-version IDs in one query. */
+export const listBadgeIssuanceRuleVersionApprovalStepsForVersions = async (
+  db: SqlDatabase,
+  input: ListBadgeIssuanceRuleVersionApprovalHistoryForVersionsInput,
+): Promise<BadgeIssuanceRuleApprovalStepRecord[]> => {
+  const versionIds = uniqueNonEmptyIds(input.versionIds);
+
+  if (versionIds.length === 0) {
+    return [];
+  }
+
+  const versionIdPlaceholders = versionIds.map(() => "?").join(", ");
+  const result = await db
+    .prepare(
+      `
+        SELECT
+          ${BADGE_ISSUANCE_RULE_APPROVAL_STEP_SELECT_COLUMNS}
+        FROM badge_issuance_rule_approval_steps AS steps
+        INNER JOIN badge_issuance_rule_versions AS versions
+          ON versions.id = steps.version_id
+          AND versions.tenant_id = steps.tenant_id
+        WHERE steps.tenant_id = ?
+          AND steps.version_id IN (${versionIdPlaceholders})
+        ORDER BY steps.version_id ASC, steps.step_number ASC
+      `,
+    )
+    .bind(input.tenantId, ...versionIds)
+    .all<BadgeIssuanceRuleApprovalStepRow>();
 
   return result.results
     .map((row) => mapBadgeIssuanceRuleApprovalStepRow(row))
@@ -602,16 +690,7 @@ export const listBadgeIssuanceRuleVersionApprovalEvents = async (
       .prepare(
         `
         SELECT
-          events.id,
-          events.tenant_id AS tenantId,
-          events.version_id AS versionId,
-          events.step_number AS stepNumber,
-          events.action,
-          events.actor_user_id AS actorUserId,
-          events.actor_role AS actorRole,
-          events.comment,
-          events.occurred_at AS occurredAt,
-          events.created_at AS createdAt
+          ${BADGE_ISSUANCE_RULE_APPROVAL_EVENT_SELECT_COLUMNS}
         FROM badge_issuance_rule_approval_events AS events
         INNER JOIN badge_issuance_rule_versions AS versions
           ON versions.id = events.version_id
@@ -626,6 +705,40 @@ export const listBadgeIssuanceRuleVersionApprovalEvents = async (
       .all<BadgeIssuanceRuleApprovalEventRow>();
 
   const result = await listStatement();
+
+  return result.results
+    .map((row) => mapBadgeIssuanceRuleApprovalEventRow(row))
+    .filter((event) => BADGE_ISSUANCE_RULE_APPROVAL_EVENT_ACTIONS.has(event.action));
+};
+
+/** Loads approval events for the requested tenant-scoped rule-version IDs in one query. */
+export const listBadgeIssuanceRuleVersionApprovalEventsForVersions = async (
+  db: SqlDatabase,
+  input: ListBadgeIssuanceRuleVersionApprovalHistoryForVersionsInput,
+): Promise<BadgeIssuanceRuleApprovalEventRecord[]> => {
+  const versionIds = uniqueNonEmptyIds(input.versionIds);
+
+  if (versionIds.length === 0) {
+    return [];
+  }
+
+  const versionIdPlaceholders = versionIds.map(() => "?").join(", ");
+  const result = await db
+    .prepare(
+      `
+        SELECT
+          ${BADGE_ISSUANCE_RULE_APPROVAL_EVENT_SELECT_COLUMNS}
+        FROM badge_issuance_rule_approval_events AS events
+        INNER JOIN badge_issuance_rule_versions AS versions
+          ON versions.id = events.version_id
+          AND versions.tenant_id = events.tenant_id
+        WHERE events.tenant_id = ?
+          AND events.version_id IN (${versionIdPlaceholders})
+        ORDER BY events.version_id ASC, events.occurred_at ASC, events.created_at ASC
+      `,
+    )
+    .bind(input.tenantId, ...versionIds)
+    .all<BadgeIssuanceRuleApprovalEventRow>();
 
   return result.results
     .map((row) => mapBadgeIssuanceRuleApprovalEventRow(row))

@@ -1,11 +1,13 @@
 import {
   findBadgeIssuanceRuleById,
+  findTenantOrgUnitById,
   listBadgeIssuanceRuleVersions,
   type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleVersionRecord,
   type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
+  type TenantOrgUnitRecord,
 } from "@credtrail/db";
 import {
   parseBadgeIssuanceRuleDefinitionJson,
@@ -39,6 +41,7 @@ export interface BadgeRuleVersionsPageContext extends BadgeRuleVersionPageActor 
 export interface BadgeRuleVersionPageContext extends BadgeRuleVersionsPageContext {
   readonly version: BadgeIssuanceRuleVersionRecord;
   readonly definition: BadgeIssuanceRuleDefinition;
+  readonly orgUnit: TenantOrgUnitRecord | null;
 }
 
 interface LoadBadgeRuleVersionsPageContextInput {
@@ -104,13 +107,17 @@ export const loadBadgeRuleVersionPageContext = async (
   }
 
   let definition: BadgeIssuanceRuleDefinition;
+  let orgUnit: TenantOrgUnitRecord | null;
 
   try {
-    definition = await resolveBadgeIssuanceRuleDefinitionValueLists(
-      loaded.db,
-      input.tenantId,
-      parseBadgeIssuanceRuleDefinitionJson(version.ruleJson),
-    );
+    [definition, orgUnit] = await Promise.all([
+      resolveBadgeIssuanceRuleDefinitionValueLists(
+        loaded.db,
+        input.tenantId,
+        parseBadgeIssuanceRuleDefinitionJson(version.ruleJson),
+      ),
+      findTenantOrgUnitById(loaded.db, input.tenantId, version.snapshot.orgUnitId),
+    ]);
   } catch {
     return c.json({ error: "Saved badge rule references could not be resolved" }, 409);
   }
@@ -119,5 +126,6 @@ export const loadBadgeRuleVersionPageContext = async (
     ...loaded,
     version,
     definition,
+    orgUnit,
   };
 };

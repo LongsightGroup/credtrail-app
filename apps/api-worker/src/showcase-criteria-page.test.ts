@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sampleBadgeRuleVersionSnapshot } from "./test-support/badge-rule-version-snapshot";
+import {
+  buildBadgeRuleVersionRecord,
+  type BadgeRuleVersionRecordOverrides,
+} from "./test-support/badge-rule-version";
 
 vi.mock("@credtrail/db", async () => {
   const actual = await vi.importActual<typeof import("@credtrail/db")>("@credtrail/db");
@@ -10,9 +13,9 @@ vi.mock("@credtrail/db", async () => {
     listTenantOrgUnits: vi.fn(),
     listBadgeTemplateOwnershipEvents: vi.fn(),
     listBadgeIssuanceRules: vi.fn(),
-    listBadgeIssuanceRuleVersions: vi.fn(),
-    listBadgeIssuanceRuleVersionApprovalSteps: vi.fn(),
-    listBadgeIssuanceRuleVersionApprovalEvents: vi.fn(),
+    listBadgeIssuanceRuleVersionsForRules: vi.fn(),
+    listBadgeIssuanceRuleVersionApprovalStepsForVersions: vi.fn(),
+    listBadgeIssuanceRuleVersionApprovalEventsForVersions: vi.fn(),
   };
 });
 
@@ -27,9 +30,9 @@ import {
   listTenantOrgUnits,
   listBadgeTemplateOwnershipEvents,
   listBadgeIssuanceRules,
-  listBadgeIssuanceRuleVersions,
-  listBadgeIssuanceRuleVersionApprovalSteps,
-  listBadgeIssuanceRuleVersionApprovalEvents,
+  listBadgeIssuanceRuleVersionsForRules,
+  listBadgeIssuanceRuleVersionApprovalStepsForVersions,
+  listBadgeIssuanceRuleVersionApprovalEventsForVersions,
   type BadgeIssuanceRuleApprovalEventRecord,
   type BadgeIssuanceRuleApprovalStepRecord,
   type BadgeIssuanceRuleRecord,
@@ -48,12 +51,14 @@ const mockedListBadgeTemplates = vi.mocked(listBadgeTemplates);
 const mockedListTenantOrgUnits = vi.mocked(listTenantOrgUnits);
 const mockedListBadgeTemplateOwnershipEvents = vi.mocked(listBadgeTemplateOwnershipEvents);
 const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
-const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRuleVersions);
-const mockedListBadgeIssuanceRuleVersionApprovalSteps = vi.mocked(
-  listBadgeIssuanceRuleVersionApprovalSteps,
+const mockedListBadgeIssuanceRuleVersionsForRules = vi.mocked(
+  listBadgeIssuanceRuleVersionsForRules,
 );
-const mockedListBadgeIssuanceRuleVersionApprovalEvents = vi.mocked(
-  listBadgeIssuanceRuleVersionApprovalEvents,
+const mockedListBadgeIssuanceRuleVersionApprovalStepsForVersions = vi.mocked(
+  listBadgeIssuanceRuleVersionApprovalStepsForVersions,
+);
+const mockedListBadgeIssuanceRuleVersionApprovalEventsForVersions = vi.mocked(
+  listBadgeIssuanceRuleVersionApprovalEventsForVersions,
 );
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 
@@ -114,7 +119,7 @@ const sampleRule = (overrides?: Partial<BadgeIssuanceRuleRecord>): BadgeIssuance
   return {
     id: "brl_123",
     tenantId: "sakai",
-    name: "Sakai Contributor Eligibility",
+    name: "Mutable public rule head",
     description: "Determine contribution milestone eligibility",
     badgeTemplateId: "badge_template_sakai_1000",
     orgUnitId: "sakai:org:institution",
@@ -130,12 +135,12 @@ const sampleRule = (overrides?: Partial<BadgeIssuanceRuleRecord>): BadgeIssuance
 };
 
 const sampleVersion = (
-  overrides?: Partial<BadgeIssuanceRuleVersionRecord>,
+  overrides: BadgeRuleVersionRecordOverrides = {},
 ): BadgeIssuanceRuleVersionRecord => {
-  return {
-    id: "brv_123",
+  const { snapshot, ...versionOverrides } = overrides;
+
+  return buildBadgeRuleVersionRecord({
     tenantId: "sakai",
-    ruleId: "brl_123",
     versionNumber: 2,
     status: "active",
     ruleJson: JSON.stringify({
@@ -146,17 +151,6 @@ const sampleVersion = (
         minScore: 80,
       },
     }),
-    snapshot: {
-      ...sampleBadgeRuleVersionSnapshot,
-      name: "Sakai Contributor Eligibility",
-      description: "Determine contribution milestone eligibility",
-      badgeTemplateId: "badge_template_sakai_1000",
-      badgeTemplateTitle: "Sakai Contributor",
-      orgUnitId: "sakai:org:institution",
-      ownerOrgUnitId: "sakai:org:institution",
-      lmsProviderKind: "sakai",
-      lmsConnectionId: null,
-    },
     changeSummary: "Raised final score threshold to 80.",
     createdByUserId: "usr_owner",
     submittedByUserId: "usr_owner",
@@ -167,18 +161,19 @@ const sampleVersion = (
     activatedAt: "2026-02-17T00:00:00.000Z",
     createdAt: "2026-02-16T10:00:00.000Z",
     updatedAt: "2026-02-17T00:00:00.000Z",
-    ...overrides,
-    effectiveStartsAt: overrides?.effectiveStartsAt ?? null,
-    expiresAt: overrides?.expiresAt ?? null,
-    expiredAt: overrides?.expiredAt ?? null,
-    suspendedAt: overrides?.suspendedAt ?? null,
-    suspendedByUserId: overrides?.suspendedByUserId ?? null,
-    suspensionReason: overrides?.suspensionReason ?? null,
-    recertifiedAt: overrides?.recertifiedAt ?? null,
-    recertificationDueAt: overrides?.recertificationDueAt ?? null,
-    expiryReminderSentAt: overrides?.expiryReminderSentAt ?? null,
-    recertificationReminderSentAt: overrides?.recertificationReminderSentAt ?? null,
-  };
+    ...versionOverrides,
+    snapshot: {
+      name: "Sakai Contributor Eligibility",
+      description: "Determine contribution milestone eligibility",
+      badgeTemplateId: "badge_template_sakai_1000",
+      badgeTemplateTitle: "Sakai Contributor",
+      orgUnitId: "sakai:org:institution",
+      ownerOrgUnitId: "sakai:org:institution",
+      lmsProviderKind: "sakai",
+      lmsConnectionId: null,
+      ...snapshot,
+    },
+  });
 };
 
 const sampleApprovalStep = (
@@ -251,17 +246,21 @@ beforeEach(() => {
   mockedListTenantOrgUnits.mockReset();
   mockedListBadgeTemplateOwnershipEvents.mockReset();
   mockedListBadgeIssuanceRules.mockReset();
-  mockedListBadgeIssuanceRuleVersions.mockReset();
-  mockedListBadgeIssuanceRuleVersionApprovalSteps.mockReset();
-  mockedListBadgeIssuanceRuleVersionApprovalEvents.mockReset();
+  mockedListBadgeIssuanceRuleVersionsForRules.mockReset();
+  mockedListBadgeIssuanceRuleVersionApprovalStepsForVersions.mockReset();
+  mockedListBadgeIssuanceRuleVersionApprovalEventsForVersions.mockReset();
 
   mockedListBadgeTemplates.mockResolvedValue([sampleTemplate()]);
   mockedListTenantOrgUnits.mockResolvedValue([sampleOrgUnit()]);
   mockedListBadgeTemplateOwnershipEvents.mockResolvedValue([sampleOwnershipEvent()]);
   mockedListBadgeIssuanceRules.mockResolvedValue([sampleRule()]);
-  mockedListBadgeIssuanceRuleVersions.mockResolvedValue([sampleVersion()]);
-  mockedListBadgeIssuanceRuleVersionApprovalSteps.mockResolvedValue([sampleApprovalStep()]);
-  mockedListBadgeIssuanceRuleVersionApprovalEvents.mockResolvedValue([sampleApprovalEvent()]);
+  mockedListBadgeIssuanceRuleVersionsForRules.mockResolvedValue([sampleVersion()]);
+  mockedListBadgeIssuanceRuleVersionApprovalStepsForVersions.mockResolvedValue([
+    sampleApprovalStep(),
+  ]);
+  mockedListBadgeIssuanceRuleVersionApprovalEventsForVersions.mockResolvedValue([
+    sampleApprovalEvent(),
+  ]);
 });
 
 describe("GET /showcase/:tenantId/criteria", () => {
@@ -285,12 +284,14 @@ describe("GET /showcase/:tenantId/criteria", () => {
     expect(body).toContain("Published criteria");
     expect(body).toContain("Current badge owner");
     expect(body).toContain("Sakai Contributor Eligibility");
+    expect(body).not.toContain("Mutable public rule head");
     expect(body).toContain("For course SAKAI-COMMITS, final score must be at least 80.");
     expect(body).toContain("How someone qualifies");
     expect(body).toContain("Required role: admin");
     expect(body).toContain("approved by usr_admin (admin)");
     expect(body).toContain("administrative_transfer");
     expect(body).toContain("Governance and ownership");
+    expect(body).toContain("Source system: Sakai");
     expect(body).toContain("View public badge examples");
     expect(body).toContain("Badge record details and raw metadata");
     expect(body).toContain("Template ID: badge_template_sakai_1000");
@@ -319,6 +320,77 @@ describe("GET /showcase/:tenantId/criteria", () => {
       badgeTemplateId: "badge_template_sakai_1000",
       limit: 20,
     });
+    expect(mockedListBadgeIssuanceRuleVersionsForRules).toHaveBeenCalledTimes(1);
+    expect(mockedListBadgeIssuanceRuleVersionsForRules).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "sakai",
+      ruleIds: ["brl_123"],
+    });
+    expect(mockedListBadgeIssuanceRuleVersionApprovalStepsForVersions).toHaveBeenCalledWith(
+      fakeDb,
+      {
+        tenantId: "sakai",
+        versionIds: ["brv_123"],
+      },
+    );
+    expect(mockedListBadgeIssuanceRuleVersionApprovalEventsForVersions).toHaveBeenCalledWith(
+      fakeDb,
+      {
+        tenantId: "sakai",
+        versionIds: ["brv_123"],
+      },
+    );
+  });
+
+  it("keeps batched approval history attached to its rule version", async () => {
+    const secondRule = sampleRule({
+      id: "brl_456",
+      activeVersionId: "brv_456",
+    });
+    const secondVersion = sampleVersion({
+      id: "brv_456",
+      ruleId: secondRule.id,
+      snapshot: {
+        name: "Second qualification rule",
+      },
+    });
+
+    mockedListBadgeIssuanceRules.mockResolvedValue([sampleRule(), secondRule]);
+    mockedListBadgeIssuanceRuleVersionsForRules.mockResolvedValue([sampleVersion(), secondVersion]);
+    mockedListBadgeIssuanceRuleVersionApprovalStepsForVersions.mockResolvedValue([
+      sampleApprovalStep({ label: "First rule review" }),
+      sampleApprovalStep({
+        id: "brs_456",
+        versionId: secondVersion.id,
+        label: "Second rule review",
+      }),
+    ]);
+    mockedListBadgeIssuanceRuleVersionApprovalEventsForVersions.mockResolvedValue([
+      sampleApprovalEvent({ actorUserId: "usr_first_reviewer" }),
+      sampleApprovalEvent({
+        id: "brae_456",
+        versionId: secondVersion.id,
+        actorUserId: "usr_second_reviewer",
+      }),
+    ]);
+
+    const response = await app.request(
+      "/showcase/sakai/criteria?badgeTemplateId=badge_template_sakai_1000",
+      undefined,
+      createEnv(),
+    );
+    const body = await response.text();
+    const ruleArticles = body.split('<article class="criteria-registry__rule">').slice(1);
+
+    expect(response.status).toBe(200);
+    expect(ruleArticles).toHaveLength(2);
+    expect(ruleArticles[0]).toContain("First rule review");
+    expect(ruleArticles[0]).toContain("usr_first_reviewer");
+    expect(ruleArticles[0]).not.toContain("usr_second_reviewer");
+    expect(ruleArticles[1]).toContain("Second rule review");
+    expect(ruleArticles[1]).toContain("usr_second_reviewer");
+    expect(mockedListBadgeIssuanceRuleVersionsForRules).toHaveBeenCalledTimes(1);
+    expect(mockedListBadgeIssuanceRuleVersionApprovalStepsForVersions).toHaveBeenCalledTimes(1);
+    expect(mockedListBadgeIssuanceRuleVersionApprovalEventsForVersions).toHaveBeenCalledTimes(1);
   });
 
   it("applies default showcase template filter for sakai tenant when query is omitted", async () => {

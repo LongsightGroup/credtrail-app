@@ -31,7 +31,10 @@ import {
   actorCanDecideBadgeRuleVersionApproval,
   actorCanViewBadgeRuleVersionApproval,
 } from "../badges/badge-rule-approval-access";
-import { buildBadgeRuleVersionDefinitionDiff } from "../badges/badge-rule-version-diff";
+import {
+  buildBadgeRuleVersionDefinitionDiff,
+  buildBadgeRuleVersionSnapshotDiff,
+} from "../badges/badge-rule-version-diff";
 import {
   previewBadgeRuleVersionImpact,
   type BadgeRuleImpactPreview,
@@ -146,13 +149,17 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
     });
 
     const baseVersion = previousBadgeIssuanceRuleVersion(data.versions, data.version.versionNumber);
-    const diff =
+    const definitionDiff =
       baseVersion === null
         ? null
         : buildBadgeRuleVersionDefinitionDiff({
             baseRuleJson: baseVersion.ruleJson,
             selectedRuleJson: data.version.ruleJson,
           });
+    const snapshotDiff =
+      baseVersion === null
+        ? null
+        : buildBadgeRuleVersionSnapshotDiff(baseVersion.snapshot, data.version.snapshot);
 
     c.header("Cache-Control", "no-store");
 
@@ -170,8 +177,10 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
           version: data.version,
           versions: data.versions,
           definition: data.definition,
+          orgUnit: data.orgUnit,
           baseVersion,
-          diff,
+          definitionDiff,
+          snapshotDiff,
           impactPreview,
           approvalSteps: data.approvalSteps,
           approvalEvents: data.approvalEvents,

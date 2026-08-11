@@ -6,9 +6,11 @@ import {
   type BadgeIssuanceRuleVersionRecord,
   type PendingBadgeIssuanceRuleApprovalRecord,
   type TenantMembershipRole,
+  type TenantOrgUnitRecord,
   type TenantRecord,
 } from "@credtrail/db";
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
+import { badgeRuleVersionDisplayFields } from "../badges/badge-rule-presentation";
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
   buildBadgeRuleApprovalsPath,
@@ -37,9 +39,16 @@ import type { PageAssetKey } from "../ui/page-assets";
 import { CtTextarea } from "../ui/forms";
 import { BadgeRuleVersionOverview } from "./badge-rule-version-overview";
 import { BadgeRuleVersionLifecycleExplanation } from "./badge-rule-version-lifecycle-explanation";
+import { BadgeRuleVersionNavigator } from "./badge-rule-version-navigator";
 import type { BadgeRuleImpactPreview } from "../lti/badge-rule-impact-preview";
-import type { BadgeRuleVersionDefinitionDiff } from "../badges/badge-rule-version-diff";
-import { describeRuleDefinitionDiffDetails } from "../badges/badge-rule-version-diff";
+import type {
+  BadgeRuleVersionDefinitionDiff,
+  BadgeRuleVersionSnapshotDiff,
+} from "../badges/badge-rule-version-diff";
+import {
+  describeBadgeRuleVersionSnapshotDiff,
+  describeRuleDefinitionDiffDetails,
+} from "../badges/badge-rule-version-diff";
 import { formatIsoTimestamp } from "../utils/display-format";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -253,10 +262,11 @@ const renderImpactPreview = (input: {
 };
 
 const renderDiffPanel = (
-  diff: BadgeRuleVersionDefinitionDiff | null,
+  definitionDiff: BadgeRuleVersionDefinitionDiff | null,
+  snapshotDiff: BadgeRuleVersionSnapshotDiff | null,
   baseVersion: BadgeIssuanceRuleVersionRecord | null,
 ): HonoElement => {
-  if (diff === null || baseVersion === null) {
+  if (definitionDiff === null || snapshotDiff === null || baseVersion === null) {
     return (
       <AdminPanel>
         <h2>What Changed</h2>
@@ -269,8 +279,15 @@ const renderDiffPanel = (
     <AdminPanel>
       <h2>What Changed</h2>
       <AdminMeta>Compared with version {String(baseVersion.versionNumber)}</AdminMeta>
+      <h3>Rule settings</h3>
       <ul>
-        {describeRuleDefinitionDiffDetails(diff).map((description) => (
+        {describeBadgeRuleVersionSnapshotDiff(snapshotDiff).map((description) => (
+          <li>{description}</li>
+        ))}
+      </ul>
+      <h3>Earning requirements</h3>
+      <ul>
+        {describeRuleDefinitionDiffDetails(definitionDiff).map((description) => (
           <li
             class={
               description.reviewImpact === "loosening"
@@ -417,8 +434,10 @@ export const badgeRuleApprovalReviewPage = (
     readonly version: BadgeIssuanceRuleVersionRecord;
     readonly versions: readonly BadgeIssuanceRuleVersionRecord[];
     readonly definition: BadgeIssuanceRuleDefinition;
+    readonly orgUnit: TenantOrgUnitRecord | null;
     readonly baseVersion: BadgeIssuanceRuleVersionRecord | null;
-    readonly diff: BadgeRuleVersionDefinitionDiff | null;
+    readonly definitionDiff: BadgeRuleVersionDefinitionDiff | null;
+    readonly snapshotDiff: BadgeRuleVersionSnapshotDiff | null;
     readonly impactPreview: BadgeRuleImpactPreview;
     readonly approvalSteps: readonly BadgeIssuanceRuleApprovalStepRecord[];
     readonly approvalEvents: readonly BadgeIssuanceRuleApprovalEventRecord[];
@@ -437,8 +456,10 @@ export const badgeRuleApprovalReviewPage = (
     throw new Error("Badge rule approval page requires at least one saved version");
   }
 
+  const displayFields = badgeRuleVersionDisplayFields(input.version);
+
   return renderApprovalsShellPage(shell, {
-    title: `Review ${input.version.snapshot.name} · Institution Admin · ${shell.tenant.displayName}`,
+    title: `Review ${displayFields.displayName} · Institution Admin · ${shell.tenant.displayName}`,
     assets: [
       "institutionAdminCss",
       "institutionAdminRuleVersionCss",
@@ -448,7 +469,7 @@ export const badgeRuleApprovalReviewPage = (
     children: (
       <>
         <AdminPageHeader
-          title={input.version.snapshot.name}
+          title={displayFields.displayName}
           description={`Review version ${String(input.version.versionNumber)} before activation.`}
         />
         <section class="ct-admin ct-stack">
@@ -464,9 +485,18 @@ export const badgeRuleApprovalReviewPage = (
             version={input.version}
             latestVersion={versionSelection.latestVersion}
             definition={input.definition}
+            orgUnit={input.orgUnit}
+          />
+          <BadgeRuleVersionNavigator
+            tenantId={shell.tenant.id}
+            rule={input.rule}
+            version={input.version}
+            versions={versionSelection.orderedVersions}
+            latestVersion={versionSelection.latestVersion}
+            destination="approval_review"
           />
           <BadgeRuleVersionLifecycleExplanation />
-          {renderDiffPanel(input.diff, input.baseVersion)}
+          {renderDiffPanel(input.definitionDiff, input.snapshotDiff, input.baseVersion)}
           {renderImpactPreview({
             tenantId: shell.tenant.id,
             ruleId: input.rule.id,

@@ -3,17 +3,42 @@ import {
   type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleVersionRecord,
 } from "@credtrail/db";
+import { badgeRuleLmsProviderLabel } from "./badge-rule-lms-provider-label";
 
-/** Returns the immutable version-backed name administrators should see for a rule. */
+/** Stable product-facing fields projected from one immutable badge-rule version. */
+export interface BadgeRuleVersionDisplayFields {
+  readonly displayName: string;
+  readonly badgeTitle: string;
+  readonly lmsProviderLabel: string;
+  readonly updatedAt: string;
+}
+
+/** Projects the shared display fields used across admin, audit, and public rule surfaces. */
+export const badgeRuleVersionDisplayFields = (
+  version: BadgeIssuanceRuleVersionRecord,
+): BadgeRuleVersionDisplayFields => {
+  return {
+    displayName: version.snapshot.name,
+    badgeTitle: version.snapshot.badgeTemplateTitle,
+    lmsProviderLabel: badgeRuleLmsProviderLabel(version.snapshot.lmsProviderKind),
+    updatedAt: version.updatedAt,
+  };
+};
+
+/** Returns the immutable version-backed name product surfaces should show for a rule. */
 export const badgeRuleDisplayName = (
   rule: BadgeIssuanceRuleRecord,
   versions: readonly BadgeIssuanceRuleVersionRecord[],
 ): string => {
   const versionSelection = resolveBadgeIssuanceRuleVersionSelection({ rule, versions });
-  return versionSelection.defaultVersion?.snapshot.name ?? "Rule version unavailable";
+  const defaultVersion = versionSelection.defaultVersion;
+
+  return defaultVersion === null
+    ? "Rule version unavailable"
+    : badgeRuleVersionDisplayFields(defaultVersion).displayName;
 };
 
-/** Formats a persisted badge-rule version status for administrator-facing UI. */
+/** Formats a persisted badge-rule version status for product UI. */
 export const badgeRuleVersionStatusLabel = (
   status: BadgeIssuanceRuleVersionRecord["status"],
 ): string => {
@@ -34,24 +59,6 @@ export const badgeRuleVersionStatusLabel = (
       return "Needs changes";
     case "deprecated":
       return "Previous";
-  }
-};
-
-/** Returns the administrator-facing product name for a rule's LMS provider. */
-export const badgeRuleLmsProviderLabel = (
-  providerKind: BadgeIssuanceRuleRecord["lmsProviderKind"],
-): string => {
-  switch (providerKind) {
-    case "canvas":
-      return "Canvas";
-    case "moodle":
-      return "Moodle";
-    case "blackboard_ultra":
-      return "Blackboard Ultra";
-    case "d2l_brightspace":
-      return "D2L Brightspace";
-    case "sakai":
-      return "Sakai";
   }
 };
 

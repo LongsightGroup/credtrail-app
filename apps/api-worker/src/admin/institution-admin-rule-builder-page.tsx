@@ -1,5 +1,6 @@
 import {
   indexBadgeIssuanceRuleVersionsByRuleId,
+  latestBadgeIssuanceRuleVersion,
   type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleBuilderDraftRecord,
   type BadgeIssuanceRuleVersionRecord,
@@ -8,7 +9,7 @@ import {
   type TenantMembershipRole,
   type TenantRecord,
 } from "@credtrail/db";
-import { badgeRuleDisplayName } from "./badge-rule-presentation";
+import { badgeRuleDisplayName } from "../badges/badge-rule-presentation";
 import type { RuleValueListBuilderContextEntry } from "./rule-value-lists-presentation";
 import { buildInstitutionAdminRuleBuilderPageContext } from "./institution-admin-rule-builder-context";
 import { appPage, type AppPage } from "../ui/render-page";
@@ -155,6 +156,7 @@ export const institutionAdminRuleBuilderPage = (input: {
   const switchOrganizationPath = input.switchOrganizationPath?.trim() ?? "";
   const userLabel = input.userEmail ?? input.userId;
   const editRule = input.editRule ?? null;
+  const editSnapshot = editRule?.latestVersion.snapshot ?? null;
   const isEditMode = editRule !== null;
   const builderDraft = input.builderDraft ?? null;
 
@@ -171,13 +173,15 @@ export const institutionAdminRuleBuilderPage = (input: {
   })();
 
   const selectedBadgeTemplateId =
-    editRule?.rule.badgeTemplateId ?? input.selectedBadgeTemplateId ?? null;
+    editSnapshot?.badgeTemplateId ?? input.selectedBadgeTemplateId ?? null;
   const hasSelectedBadgeTemplate =
     selectedBadgeTemplateId !== null &&
     input.badgeTemplates.some((template) => template.id === selectedBadgeTemplateId);
   const templateOptions = input.badgeTemplates.map((template, index) => ({
     template,
-    isSelected: hasSelectedBadgeTemplate ? template.id === selectedBadgeTemplateId : index === 0,
+    isSelected: hasSelectedBadgeTemplate
+      ? template.id === selectedBadgeTemplateId
+      : !isEditMode && index === 0,
   }));
 
   const supportedLmsConnections = input.lmsConnections.filter(
@@ -188,12 +192,6 @@ export const institutionAdminRuleBuilderPage = (input: {
   );
   const hasUnusableLmsConnections =
     supportedLmsConnections.length > 0 && connectedLmsConnections.length === 0;
-  const formatLmsConnectionProvider = (
-    providerKind: TenantLmsConnectionRecord["providerKind"],
-  ): string => {
-    return providerKind === "sakai" ? "Sakai" : "Canvas";
-  };
-
   const inferDefaultLmsConnectionId = (): string => {
     const counts = new Map<string, number>();
 
@@ -222,20 +220,21 @@ export const institutionAdminRuleBuilderPage = (input: {
   };
 
   const editLmsConnectionId =
-    editRule?.rule.lmsConnectionId !== null &&
-    editRule?.rule.lmsConnectionId !== undefined &&
-    connectedLmsConnections.some((connection) => connection.id === editRule.rule.lmsConnectionId)
-      ? editRule.rule.lmsConnectionId
+    editSnapshot?.lmsConnectionId !== null &&
+    editSnapshot?.lmsConnectionId !== undefined &&
+    connectedLmsConnections.some((connection) => connection.id === editSnapshot.lmsConnectionId)
+      ? editSnapshot.lmsConnectionId
       : null;
-  const defaultLmsConnectionId = editLmsConnectionId ?? inferDefaultLmsConnectionId();
+  const defaultLmsConnectionId = isEditMode
+    ? (editLmsConnectionId ?? "")
+    : inferDefaultLmsConnectionId();
   const defaultLmsConnection =
     connectedLmsConnections.find((connection) => connection.id === defaultLmsConnectionId) ??
-    connectedLmsConnections[0] ??
-    null;
+    (isEditMode ? null : (connectedLmsConnections[0] ?? null));
 
   const ruleCloneOptions = input.badgeRules.map((rule) => {
     const versions = versionsByRuleId.get(rule.id) ?? [];
-    const latestVersion = versions[0] ?? null;
+    const latestVersion = latestBadgeIssuanceRuleVersion(versions);
     const latestLabel =
       latestVersion === null
         ? "none"
@@ -251,7 +250,7 @@ export const institutionAdminRuleBuilderPage = (input: {
 
   for (const rule of input.badgeRules) {
     const versions = versionsByRuleId.get(rule.id) ?? [];
-    const latestVersion = versions[0] ?? null;
+    const latestVersion = latestBadgeIssuanceRuleVersion(versions);
 
     if (latestVersion === null || typeof latestVersion.ruleJson !== "string") {
       continue;
@@ -392,8 +391,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                   hasUnusableLmsConnections={hasUnusableLmsConnections}
                   createTemplateForRulePath={createTemplateForRulePath}
                   accessLmsConnectionsPath={accessLmsConnectionsPath}
-                  editRule={editRule}
-                  formatLmsConnectionProvider={formatLmsConnectionProvider}
+                  editRule={editRule === null ? null : { latestVersion: editRule.latestVersion }}
                 />
                 <RuleBuilderConditionsStep rulesListPath={rulesListPath} />
                 <RuleBuilderTestStep />

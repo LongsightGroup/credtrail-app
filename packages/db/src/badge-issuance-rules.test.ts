@@ -220,6 +220,33 @@ describe("mapBadgeIssuanceRuleVersionRow", () => {
   });
 });
 
+describe("batch badge rule reads", () => {
+  it("does not query when no rule or version IDs are requested", async () => {
+    const db = {
+      prepare(): never {
+        throw new Error("Empty batch reads must not prepare SQL");
+      },
+    } satisfies SqlDatabase;
+
+    await expect(
+      Promise.all([
+        dbModule.listBadgeIssuanceRuleVersionsForRules(db, {
+          tenantId: "tenant_123",
+          ruleIds: [],
+        }),
+        dbModule.listBadgeIssuanceRuleVersionApprovalStepsForVersions(db, {
+          tenantId: "tenant_123",
+          versionIds: [],
+        }),
+        dbModule.listBadgeIssuanceRuleVersionApprovalEventsForVersions(db, {
+          tenantId: "tenant_123",
+          versionIds: [],
+        }),
+      ]),
+    ).resolves.toEqual([[], [], []]);
+  });
+});
+
 describe("resolveListBadgeIssuanceRulesInput", () => {
   it("returns an empty scope for non-admin members with no org-unit memberships", async () => {
     const localSuccessfulRunResult: SqlRunResult = {

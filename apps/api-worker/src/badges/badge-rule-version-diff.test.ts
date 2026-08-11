@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { sampleBadgeRuleVersionSnapshot } from "../test-support/badge-rule-version";
 import {
   buildBadgeRuleVersionDefinitionDiff,
+  buildBadgeRuleVersionSnapshotDiff,
+  describeBadgeRuleVersionSnapshotDiff,
   describeRuleDefinitionDiff,
   describeRuleDefinitionDiffDetails,
 } from "./badge-rule-version-diff";
@@ -175,5 +178,45 @@ describe("badge rule version diff descriptions", () => {
       reviewImpact: "loosening",
     });
     expect(describeRuleDefinitionDiff(diff).join("\n")).not.toContain('"assignmentId"');
+  });
+});
+
+describe("badge rule version snapshot diff descriptions", () => {
+  it("describes every immutable authoring metadata change", () => {
+    const diff = buildBadgeRuleVersionSnapshotDiff(sampleBadgeRuleVersionSnapshot, {
+      ...sampleBadgeRuleVersionSnapshot,
+      name: "Revised badge rule",
+      description: null,
+      badgeTemplateId: "badge_template_002",
+      badgeTemplateTitle: "Revised badge",
+      badgeTemplateImageUri: "https://example.edu/revised-badge.png",
+      orgUnitId: "tenant_123:org:registrar",
+      ownerOrgUnitId: "tenant_123:org:academic-affairs",
+      lmsProviderKind: "sakai",
+      lmsConnectionId: null,
+    });
+
+    expect(diff.changeCount).toBe(8);
+    expect(describeBadgeRuleVersionSnapshotDiff(diff)).toEqual([
+      "Rule name changed from “Sample badge rule” to “Revised badge rule”.",
+      "Description removed; it was “Sample badge rule description”.",
+      "Badge template changed from “Sample badge (badge_template_001)” to “Revised badge (badge_template_002)”.",
+      "Badge artwork was added.",
+      "Organization scope changed from “tenant_123:org:institution” to “tenant_123:org:registrar”.",
+      "Badge template owner scope changed from “tenant_123:org:institution” to “tenant_123:org:academic-affairs”.",
+      "LMS provider changed from Canvas to Sakai.",
+      "LMS connection removed; it was “lms_123”.",
+    ]);
+  });
+
+  it("reports unchanged immutable settings clearly", () => {
+    const diff = buildBadgeRuleVersionSnapshotDiff(
+      sampleBadgeRuleVersionSnapshot,
+      sampleBadgeRuleVersionSnapshot,
+    );
+
+    expect(describeBadgeRuleVersionSnapshotDiff(diff)).toEqual([
+      "No rule setting changes detected.",
+    ]);
   });
 });

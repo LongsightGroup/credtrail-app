@@ -5,6 +5,7 @@ import type {
   TenantLmsConnectionRecord,
 } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
+import { badgeRuleLmsProviderLabel } from "../badges/badge-rule-lms-provider-label";
 import {
   AdminActions,
   AdminButton,
@@ -168,12 +169,8 @@ export const RuleBuilderMetadataStep = (props: {
   readonly createTemplateForRulePath: string;
   readonly accessLmsConnectionsPath: string;
   readonly editRule: {
-    readonly rule: BadgeIssuanceRuleRecord;
     readonly latestVersion: BadgeIssuanceRuleVersionRecord;
   } | null;
-  readonly formatLmsConnectionProvider: (
-    providerKind: TenantLmsConnectionRecord["providerKind"],
-  ) => string;
 }): HonoElement => {
   return (
     <li class="ct-admin__stepper-step" data-rule-step-row="metadata">
@@ -199,6 +196,16 @@ export const RuleBuilderMetadataStep = (props: {
             <div class="ct-admin__builder-grid ct-grid">
               <AdminField label="Badge template">
                 <CtSelect name="badgeTemplateId" required>
+                  {props.isEditMode &&
+                  props.templateOptions.length > 0 &&
+                  !props.templateOptions.some(
+                    ({ template }) =>
+                      template.id === props.editRule?.latestVersion.snapshot.badgeTemplateId,
+                  ) ? (
+                    <option value="" selected>
+                      Saved badge template is unavailable — choose another
+                    </option>
+                  ) : null}
                   {props.templateOptions.length === 0 ? (
                     <option value="">No badge templates available</option>
                   ) : (
@@ -224,6 +231,15 @@ export const RuleBuilderMetadataStep = (props: {
                   required
                   disabled={props.connectedLmsConnections.length === 0}
                 >
+                  {props.isEditMode &&
+                  props.connectedLmsConnections.length > 0 &&
+                  props.defaultLmsConnectionId.length === 0 ? (
+                    <option value="" selected>
+                      {props.editRule?.latestVersion.snapshot.lmsConnectionId === null
+                        ? "Choose an LMS connection"
+                        : "Saved LMS connection is unavailable — choose another"}
+                    </option>
+                  ) : null}
                   {props.connectedLmsConnections.length === 0 ? (
                     <option value="">
                       {props.hasUnusableLmsConnections
@@ -238,9 +254,7 @@ export const RuleBuilderMetadataStep = (props: {
                         data-provider-kind={connection.providerKind}
                         selected={connection.id === props.defaultLmsConnectionId}
                       >
-                        {`${connection.displayName} (${props.formatLmsConnectionProvider(
-                          connection.providerKind,
-                        )})`}
+                        {`${connection.displayName} (${badgeRuleLmsProviderLabel(connection.providerKind)})`}
                       </option>
                     ))
                   )}
@@ -249,7 +263,11 @@ export const RuleBuilderMetadataStep = (props: {
                   id="rule-builder-lms-provider-kind"
                   name="lmsProviderKind"
                   type="hidden"
-                  value={props.defaultLmsConnection?.providerKind ?? ""}
+                  value={
+                    props.editRule?.latestVersion.snapshot.lmsProviderKind ??
+                    props.defaultLmsConnection?.providerKind ??
+                    ""
+                  }
                 />
               </AdminField>
               {props.connectedLmsConnections.length === 0 ? (
@@ -297,7 +315,7 @@ export const RuleBuilderMetadataStep = (props: {
                 <CtInput
                   name="description"
                   type="text"
-                  value={props.editRule?.rule.description ?? ""}
+                  value={props.editRule?.latestVersion.snapshot.description ?? ""}
                   placeholder="Award when learner completes the course with strong performance."
                 />
               </AdminField>

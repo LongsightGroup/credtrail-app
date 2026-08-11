@@ -97,11 +97,11 @@ const ruleVersionSetLabelStatus = (status, result) => {
   }
 
   if (result.unresolvedCount === 0) {
-    status.textContent = "Course and assignment names loaded from the LMS.";
-    status.dataset.tone = "success";
+    status.hidden = true;
     return;
   }
 
+  status.hidden = false;
   status.textContent =
     result.resolvedCount === 0
       ? "Course and assignment names could not be loaded. The saved LMS IDs remain visible."
@@ -114,6 +114,7 @@ const ruleVersionSetLabelError = (status, message) => {
     return;
   }
 
+  status.hidden = false;
   const punctuation = message.endsWith(".") ? "" : ".";
   status.textContent = `${message}${punctuation} The saved LMS IDs remain visible.`;
   status.dataset.tone = "warning";
@@ -142,7 +143,47 @@ const ruleVersionHydrateLmsLabels = async (root) => {
   }
 };
 
+const ruleVersionNavigationDestination = (form) => {
+  const select = form.querySelector("[data-rule-version-select]");
+
+  if (!(select instanceof HTMLSelectElement)) {
+    return null;
+  }
+
+  const selectedOption = select.selectedOptions[0];
+  const destination = selectedOption?.dataset.versionUrl?.trim() ?? "";
+
+  if (destination.length === 0) {
+    return null;
+  }
+
+  const url = new URL(destination, window.location.href);
+
+  return url.origin === window.location.origin ? url.href : null;
+};
+
+const ruleVersionEnableDirectNavigation = (form) => {
+  if (!(form instanceof HTMLFormElement)) {
+    return;
+  }
+
+  form.addEventListener("submit", (event) => {
+    const destination = ruleVersionNavigationDestination(form);
+
+    if (destination === null) {
+      return;
+    }
+
+    event.preventDefault();
+    window.location.assign(destination);
+  });
+};
+
 document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("[data-rule-version-navigation]").forEach((form) => {
+    ruleVersionEnableDirectNavigation(form);
+  });
+
   document.querySelectorAll("[data-rule-lms-labels]").forEach((root) => {
     void ruleVersionHydrateLmsLabels(root);
   });

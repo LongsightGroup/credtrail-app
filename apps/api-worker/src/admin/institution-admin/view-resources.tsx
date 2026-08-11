@@ -1,5 +1,6 @@
 import {
   indexBadgeIssuanceRuleVersionsByRuleId,
+  latestBadgeIssuanceRuleVersion,
   type BadgeIssuanceRuleRecord,
   type TenantLmsConnectionRecord,
   type TenantMembershipRole,
@@ -36,7 +37,7 @@ import { renderInstitutionAdminAccessSections } from "./access-sections";
 import { accessSectionKindsForDataNeeds } from "./access-section-kinds";
 import { renderInstitutionAdminLearnerRecordSections } from "./learner-record-sections";
 import { renderBadgeRulesTable } from "./badge-rules-table";
-import { badgeRuleDisplayName } from "../badge-rule-presentation";
+import { badgeRuleDisplayName } from "../../badges/badge-rule-presentation";
 import { renderInstitutionAdminOperationsSections } from "./operations-sections";
 import type { InstitutionAdminPageInput, InstitutionAdminView } from "./page-types";
 import { renderInstitutionAdminReportingSections } from "./reporting-sections";
@@ -615,7 +616,7 @@ export const buildInstitutionAdminViewResources = (
     index: number,
   ): HonoElement => {
     const versions = versionsByRuleId.get(rule.id) ?? [];
-    const latestVersion = versions[0] ?? null;
+    const latestVersion = latestBadgeIssuanceRuleVersion(versions);
     const displayName = badgeRuleDisplayName(rule, versions);
 
     return (

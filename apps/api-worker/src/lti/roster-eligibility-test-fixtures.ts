@@ -5,7 +5,10 @@ import type {
 } from "@credtrail/db";
 import type { BadgeIssuanceRuleEvaluationFacts } from "../rules/engine";
 import type { LtiNrpsMember } from "./nrps";
-import { sampleBadgeRuleVersionSnapshot } from "../test-support/badge-rule-version-snapshot";
+import {
+  buildBadgeRuleVersionRecord,
+  type BadgeRuleVersionRecordOverrides,
+} from "../test-support/badge-rule-version";
 
 export const sampleLtiRosterMember = (overrides?: Partial<LtiNrpsMember>): LtiNrpsMember => ({
   userId: "learner-001",
@@ -39,54 +42,44 @@ export const sampleLtiRosterBadgeRule = (
 });
 
 export const sampleLtiRosterBadgeRuleVersion = (
-  overrides?: Partial<BadgeIssuanceRuleVersionRecord>,
-): BadgeIssuanceRuleVersionRecord => ({
-  id: "brv_123",
-  tenantId: "tenant_123",
-  ruleId: "brl_123",
-  versionNumber: 1,
-  status: "active",
-  ruleJson: JSON.stringify({
-    conditions: {
-      type: "grade_threshold",
-      courseId: "course-123",
-      scoreField: "final_score",
-      minScore: 85,
+  overrides: BadgeRuleVersionRecordOverrides = {},
+): BadgeIssuanceRuleVersionRecord => {
+  const { snapshot, ...versionOverrides } = overrides;
+
+  return buildBadgeRuleVersionRecord({
+    status: "active",
+    ruleJson: JSON.stringify({
+      conditions: {
+        type: "grade_threshold",
+        courseId: "course-123",
+        scoreField: "final_score",
+        minScore: 85,
+      },
+      options: {
+        issuanceTiming: "manual",
+        reviewOnMissingFacts: true,
+      },
+    }),
+    changeSummary: null,
+    createdByUserId: "usr_123",
+    submittedByUserId: "usr_123",
+    submittedAt: "2026-02-10T21:30:00.000Z",
+    approvedByUserId: "usr_admin_123",
+    approvedAt: "2026-02-10T22:00:00.000Z",
+    activatedByUserId: "usr_admin_123",
+    activatedAt: "2026-02-10T22:00:00.000Z",
+    createdAt: "2026-02-10T22:00:00.000Z",
+    updatedAt: "2026-02-10T22:00:00.000Z",
+    ...versionOverrides,
+    snapshot: {
+      name: "Course rule",
+      description: null,
+      lmsProviderKind: "sakai",
+      lmsConnectionId: "lms_sakai_001",
+      ...snapshot,
     },
-    options: {
-      issuanceTiming: "manual",
-      reviewOnMissingFacts: true,
-    },
-  }),
-  snapshot: {
-    ...sampleBadgeRuleVersionSnapshot,
-    name: "Course rule",
-    description: null,
-    lmsProviderKind: "sakai",
-    lmsConnectionId: "lms_sakai_001",
-  },
-  changeSummary: null,
-  createdByUserId: "usr_123",
-  submittedByUserId: "usr_123",
-  submittedAt: "2026-02-10T21:30:00.000Z",
-  approvedByUserId: "usr_admin_123",
-  approvedAt: "2026-02-10T22:00:00.000Z",
-  activatedByUserId: "usr_admin_123",
-  activatedAt: "2026-02-10T22:00:00.000Z",
-  createdAt: "2026-02-10T22:00:00.000Z",
-  updatedAt: "2026-02-10T22:00:00.000Z",
-  ...overrides,
-  effectiveStartsAt: overrides?.effectiveStartsAt ?? null,
-  expiresAt: overrides?.expiresAt ?? null,
-  expiredAt: overrides?.expiredAt ?? null,
-  suspendedAt: overrides?.suspendedAt ?? null,
-  suspendedByUserId: overrides?.suspendedByUserId ?? null,
-  suspensionReason: overrides?.suspensionReason ?? null,
-  recertifiedAt: overrides?.recertifiedAt ?? null,
-  recertificationDueAt: overrides?.recertificationDueAt ?? null,
-  expiryReminderSentAt: overrides?.expiryReminderSentAt ?? null,
-  recertificationReminderSentAt: overrides?.recertificationReminderSentAt ?? null,
-});
+  });
+};
 
 export const sampleLtiRosterResourceLinkPlacement = (
   overrides?: Partial<LtiResourceLinkPlacementRecord>,

@@ -1,3 +1,4 @@
+import type { BadgeIssuanceRuleVersionSnapshot } from "@credtrail/db";
 import { resolveRuleDefinition } from "../rules/badge-rule-definition-resolver";
 
 export interface RuleDefinitionDiffChange {
@@ -16,6 +17,31 @@ export interface BadgeRuleVersionDefinitionDiff {
   readonly changed: boolean;
   readonly changeCount: number;
   readonly changes: readonly RuleDefinitionDiffChange[];
+}
+
+/** Reviewer-facing groups of immutable rule-version metadata. */
+export type BadgeRuleVersionSnapshotDiffField =
+  | "name"
+  | "description"
+  | "badge_template"
+  | "badge_artwork"
+  | "organization_scope"
+  | "template_owner_scope"
+  | "lms_provider"
+  | "lms_connection";
+
+/** One changed immutable metadata value between governed rule versions. */
+export interface BadgeRuleVersionSnapshotDiffChange {
+  readonly field: BadgeRuleVersionSnapshotDiffField;
+  readonly before: string | null;
+  readonly after: string | null;
+}
+
+/** Complete immutable metadata comparison between governed rule versions. */
+export interface BadgeRuleVersionSnapshotDiff {
+  readonly changed: boolean;
+  readonly changeCount: number;
+  readonly changes: readonly BadgeRuleVersionSnapshotDiffChange[];
 }
 
 const isJsonRecord = (value: unknown): value is Record<string, unknown> => {
@@ -128,6 +154,129 @@ export const buildBadgeRuleVersionDefinitionDiff = (input: {
     changeCount: changes.length,
     changes,
   };
+};
+
+const badgeTemplateSnapshotLabel = (snapshot: BadgeIssuanceRuleVersionSnapshot): string => {
+  return `${snapshot.badgeTemplateTitle} (${snapshot.badgeTemplateId})`;
+};
+
+/** Compares immutable authoring metadata between two governed rule versions. */
+export const buildBadgeRuleVersionSnapshotDiff = (
+  baseSnapshot: BadgeIssuanceRuleVersionSnapshot,
+  selectedSnapshot: BadgeIssuanceRuleVersionSnapshot,
+): BadgeRuleVersionSnapshotDiff => {
+  const changes: BadgeRuleVersionSnapshotDiffChange[] = [];
+  const addChange = (
+    field: BadgeRuleVersionSnapshotDiffField,
+    before: string | null,
+    after: string | null,
+  ): void => {
+    if (before !== after) {
+      changes.push({ field, before, after });
+    }
+  };
+
+  addChange("name", baseSnapshot.name, selectedSnapshot.name);
+  addChange("description", baseSnapshot.description, selectedSnapshot.description);
+  addChange(
+    "badge_template",
+    badgeTemplateSnapshotLabel(baseSnapshot),
+    badgeTemplateSnapshotLabel(selectedSnapshot),
+  );
+  addChange(
+    "badge_artwork",
+    baseSnapshot.badgeTemplateImageUri,
+    selectedSnapshot.badgeTemplateImageUri,
+  );
+  addChange("organization_scope", baseSnapshot.orgUnitId, selectedSnapshot.orgUnitId);
+  addChange("template_owner_scope", baseSnapshot.ownerOrgUnitId, selectedSnapshot.ownerOrgUnitId);
+  addChange("lms_provider", baseSnapshot.lmsProviderKind, selectedSnapshot.lmsProviderKind);
+  addChange("lms_connection", baseSnapshot.lmsConnectionId, selectedSnapshot.lmsConnectionId);
+
+  return {
+    changed: changes.length > 0,
+    changeCount: changes.length,
+    changes,
+  };
+};
+
+const snapshotDiffFieldLabels = {
+  name: "Rule name",
+  description: "Description",
+  badge_template: "Badge template",
+  badge_artwork: "Badge artwork",
+  organization_scope: "Organization scope",
+  template_owner_scope: "Badge template owner scope",
+  lms_provider: "LMS provider",
+  lms_connection: "LMS connection",
+} satisfies Readonly<Record<BadgeRuleVersionSnapshotDiffField, string>>;
+
+const formatSnapshotDiffValue = (
+  field: BadgeRuleVersionSnapshotDiffField,
+  value: string,
+): string => {
+  if (field === "lms_provider") {
+    switch (value) {
+      case "canvas":
+        return "Canvas";
+      case "moodle":
+        return "Moodle";
+      case "blackboard_ultra":
+        return "Blackboard Ultra";
+      case "d2l_brightspace":
+        return "D2L Brightspace";
+      case "sakai":
+        return "Sakai";
+      default:
+        return value;
+    }
+  }
+
+  return `“${value}”`;
+};
+
+const describeSnapshotDiffChange = (change: BadgeRuleVersionSnapshotDiffChange): string => {
+  if (change.field === "badge_artwork") {
+    if (change.before === null) {
+      return "Badge artwork was added.";
+    }
+
+    if (change.after === null) {
+      return "Badge artwork was removed.";
+    }
+
+    return "Badge artwork changed.";
+  }
+
+  const label = snapshotDiffFieldLabels[change.field];
+
+  if (change.before === null && change.after !== null) {
+    return `${label} set to ${formatSnapshotDiffValue(change.field, change.after)}.`;
+  }
+
+  if (change.before !== null && change.after === null) {
+    return `${label} removed; it was ${formatSnapshotDiffValue(change.field, change.before)}.`;
+  }
+
+  if (change.before === null || change.after === null) {
+    return `${label} changed.`;
+  }
+
+  return `${label} changed from ${formatSnapshotDiffValue(
+    change.field,
+    change.before,
+  )} to ${formatSnapshotDiffValue(change.field, change.after)}.`;
+};
+
+/** Describes immutable snapshot changes in reviewer-facing language. */
+export const describeBadgeRuleVersionSnapshotDiff = (
+  diff: BadgeRuleVersionSnapshotDiff,
+): readonly string[] => {
+  if (!diff.changed) {
+    return ["No rule setting changes detected."];
+  }
+
+  return diff.changes.map(describeSnapshotDiffChange);
 };
 
 const formatValue = (value: unknown): string => {

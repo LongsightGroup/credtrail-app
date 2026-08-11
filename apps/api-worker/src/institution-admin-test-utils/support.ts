@@ -1,5 +1,5 @@
 import { beforeEach, expect, vi } from "vitest";
-import { versionRecordFixtureFields } from "./rule-version-fixtures";
+import { buildBadgeRuleVersionRecord } from "../test-support/badge-rule-version";
 
 import {
   mockedEnqueueJobQueueMessageOnce,
@@ -41,6 +41,7 @@ import {
   listAuditLogs,
   listBadgeIssuanceRules,
   listBadgeIssuanceRuleVersions,
+  listBadgeIssuanceRuleVersionsForRules,
   findBadgeIssuanceRuleBuilderDraftById,
   findBadgeIssuanceRuleVersionById,
   submitBadgeIssuanceRuleVersionForApproval,
@@ -148,6 +149,9 @@ export const mockedRevokeDelegatedIssuingAuthorityGrantDb = vi.mocked(
 );
 export const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
 export const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRuleVersions);
+export const mockedListBadgeIssuanceRuleVersionsForRules = vi.mocked(
+  listBadgeIssuanceRuleVersionsForRules,
+);
 export const mockedFindBadgeIssuanceRuleVersionByIdDb = vi.mocked(findBadgeIssuanceRuleVersionById);
 export const mockedFindBadgeIssuanceRuleBuilderDraftDb = vi.mocked(
   findBadgeIssuanceRuleBuilderDraftById,
@@ -617,6 +621,18 @@ export const getReportingPanelArticleMarkup = (html: string, heading: string): s
   return html.slice(start, end);
 };
 
+const defaultBadgeRuleVersion = buildBadgeRuleVersionRecord({
+  ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"CS101","minScore":80}}',
+  changeSummary: "Initial draft",
+  snapshot: {
+    name: "CS101 Excellence Rule",
+    description: "Issue badge for CS101 completion and grade threshold.",
+    badgeTemplateTitle: "TypeScript Foundations",
+    badgeTemplateImageUri: "https://example.edu/badges/typescript.png",
+    lmsConnectionId: "lms_canvas",
+  },
+});
+
 beforeEach(() => {
   fakeDbPrepare.mockReset();
   mockedCreatePostgresDatabase.mockReset();
@@ -754,37 +770,20 @@ beforeEach(() => {
     },
   ]);
   mockedListBadgeIssuanceRuleVersions.mockReset();
-  mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
-    {
-      id: "brv_123",
-      tenantId: "tenant_123",
-      ruleId: "brl_123",
-      versionNumber: 1,
-      status: "draft",
-      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"CS101","minScore":80}}',
-      snapshot: versionRecordFixtureFields.snapshot,
-      changeSummary: "Initial draft",
-      createdByUserId: "usr_admin",
-      submittedByUserId: null,
-      submittedAt: null,
-      approvedByUserId: null,
-      approvedAt: null,
-      activatedByUserId: null,
-      activatedAt: null,
-      effectiveStartsAt: null,
-      expiresAt: null,
-      expiredAt: null,
-      suspendedAt: null,
-      suspendedByUserId: null,
-      suspensionReason: null,
-      recertifiedAt: null,
-      recertificationDueAt: null,
-      expiryReminderSentAt: null,
-      recertificationReminderSentAt: null,
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:00:00.000Z",
-    },
-  ]);
+  mockedListBadgeIssuanceRuleVersions.mockResolvedValue([defaultBadgeRuleVersion]);
+  mockedListBadgeIssuanceRuleVersionsForRules.mockReset();
+  mockedListBadgeIssuanceRuleVersionsForRules.mockImplementation(async (db, input) => {
+    const versionLists = await Promise.all(
+      input.ruleIds.map((ruleId) =>
+        mockedListBadgeIssuanceRuleVersions(db, {
+          tenantId: input.tenantId,
+          ruleId,
+        }),
+      ),
+    );
+
+    return versionLists.flat();
+  });
   mockedFindBadgeIssuanceRuleVersionByIdDb.mockReset();
   mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(null);
   mockedFindBadgeIssuanceRuleBuilderDraftDb.mockReset();

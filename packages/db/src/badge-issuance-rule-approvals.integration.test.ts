@@ -16,6 +16,68 @@ import {
 } from "./postgres-test-support";
 
 describeDbIntegration("badge issuance rule approval flows with Postgres", () => {
+  it("batch-loads versions and approval history for multiple rules", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      const first = await createFixtureRule(fixture);
+      const second = await createFixtureRule(fixture);
+
+      await Promise.all([
+        dbModule.submitBadgeIssuanceRuleVersionForApproval(fixture.db, {
+          tenantId: fixture.tenantId,
+          ruleId: first.rule.id,
+          versionId: first.version.id,
+          actorUserId: fixture.userId,
+          actorRole: "admin",
+          occurredAt: "2026-08-11T09:00:00.000Z",
+        }),
+        dbModule.submitBadgeIssuanceRuleVersionForApproval(fixture.db, {
+          tenantId: fixture.tenantId,
+          ruleId: second.rule.id,
+          versionId: second.version.id,
+          actorUserId: fixture.userId,
+          actorRole: "admin",
+          occurredAt: "2026-08-11T09:05:00.000Z",
+        }),
+      ]);
+
+      const versions = await dbModule.listBadgeIssuanceRuleVersionsForRules(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleIds: [first.rule.id, second.rule.id],
+      });
+      const versionIds = versions.map((version) => version.id);
+      const [steps, events] = await Promise.all([
+        dbModule.listBadgeIssuanceRuleVersionApprovalStepsForVersions(fixture.db, {
+          tenantId: fixture.tenantId,
+          versionIds,
+        }),
+        dbModule.listBadgeIssuanceRuleVersionApprovalEventsForVersions(fixture.db, {
+          tenantId: fixture.tenantId,
+          versionIds,
+        }),
+      ]);
+
+      expect(new Set(versions.map((version) => version.ruleId))).toEqual(
+        new Set([first.rule.id, second.rule.id]),
+      );
+      expect(new Set(steps.map((step) => step.versionId))).toEqual(
+        new Set([first.version.id, second.version.id]),
+      );
+      expect(events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ versionId: first.version.id, action: "submitted" }),
+          expect.objectContaining({ versionId: second.version.id, action: "submitted" }),
+        ]),
+      );
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
   it("stores no approval steps when approval is not required", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 

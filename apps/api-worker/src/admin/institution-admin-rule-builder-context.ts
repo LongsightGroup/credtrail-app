@@ -11,16 +11,17 @@ import {
 import type { RuleValueListBuilderContextEntry } from "./rule-value-lists-presentation";
 
 export interface InstitutionAdminRuleBuilderEditContext {
-  id: string;
-  name: string;
-  description: string | null;
-  badgeTemplateId: string;
-  lmsConnectionId: string | null;
-  latestVersionId: string;
-  latestVersionNumber: number;
-  latestVersionStatus: BadgeIssuanceRuleVersionRecord["status"];
-  latestVersionUpdatedAt: string;
-  definition: unknown;
+  readonly id: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly badgeTemplateId: string;
+  readonly lmsConnectionId: string | null;
+  readonly lmsProviderKind: BadgeIssuanceRuleVersionRecord["snapshot"]["lmsProviderKind"];
+  readonly latestVersionId: string;
+  readonly latestVersionNumber: number;
+  readonly latestVersionStatus: BadgeIssuanceRuleVersionRecord["status"];
+  readonly latestVersionUpdatedAt: string;
+  readonly definition: unknown;
 }
 
 export interface InstitutionAdminRuleBuilderPageContext {
@@ -94,16 +95,17 @@ export const buildInstitutionAdminRuleBuilderDraftContext = (
 };
 
 export const buildInstitutionAdminRuleBuilderEditContext = (input: {
-  rule: BadgeIssuanceRuleRecord;
+  ruleId: string;
   latestVersion: BadgeIssuanceRuleVersionRecord;
   definition: unknown;
 }): InstitutionAdminRuleBuilderEditContext => {
   return {
-    id: input.rule.id,
+    id: input.ruleId,
     name: input.latestVersion.snapshot.name,
-    description: input.rule.description,
-    badgeTemplateId: input.rule.badgeTemplateId,
-    lmsConnectionId: input.rule.lmsConnectionId,
+    description: input.latestVersion.snapshot.description,
+    badgeTemplateId: input.latestVersion.snapshot.badgeTemplateId,
+    lmsConnectionId: input.latestVersion.snapshot.lmsConnectionId,
+    lmsProviderKind: input.latestVersion.snapshot.lmsProviderKind,
     latestVersionId: input.latestVersion.id,
     latestVersionNumber: input.latestVersion.versionNumber,
     latestVersionStatus: input.latestVersion.status,
@@ -135,7 +137,7 @@ export const buildInstitutionAdminRuleBuilderPageContext = (input: {
     input.editRule === null
       ? null
       : buildInstitutionAdminRuleBuilderEditContext({
-          rule: input.editRule.rule,
+          ruleId: input.editRule.rule.id,
           latestVersion: input.editRule.latestVersion,
           definition: input.editRule.definition,
         });

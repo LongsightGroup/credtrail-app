@@ -273,6 +273,10 @@ var adminStatusPillClass = function adminStatusPillClass(tone) {
         ? ruleBuilderContext.builderDraft
         : null;
     const isRuleBuilderEditMode = editRuleContext !== null;
+    const savedEditLmsProviderKind =
+      editRuleContext && typeof editRuleContext.lmsProviderKind === 'string'
+        ? editRuleContext.lmsProviderKind
+        : '';
     const ruleBuilderSubmitApiPath = isRuleBuilderEditMode
       ? badgeRuleApiPath + '/' + encodeURIComponent(editRuleContext.id) + '/draft'
       : badgeRuleApiPath;
@@ -327,7 +331,9 @@ var adminStatusPillClass = function adminStatusPillClass(tone) {
     const syncSelectedLmsProviderKind = () => {
       const connection = getSelectedLmsConnection();
       const providerKind =
-        connection && typeof connection.providerKind === 'string' ? connection.providerKind : '';
+        connection && typeof connection.providerKind === 'string'
+          ? connection.providerKind
+          : savedEditLmsProviderKind;
 
       if (ruleBuilderLmsProviderKindInput instanceof HTMLInputElement) {
         ruleBuilderLmsProviderKindInput.value = providerKind;

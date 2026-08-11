@@ -2,6 +2,7 @@ import type { AssertionIssuanceProvenanceSource } from "@credtrail/db";
 import { parseIssuanceEvidenceSnapshotJson } from "@credtrail/validation";
 import { tenantMembershipRoleLabel } from "../admin/tenant-membership-role-labels";
 import { inferLegacyIssuanceSource } from "./assertion-evidence-legacy-inference";
+import { badgeRuleVersionDisplayFields } from "./badge-rule-presentation";
 import type { AssertionEvidenceLoadedData } from "./assertion-evidence-payload";
 import {
   flattenEvaluationTree,
@@ -270,7 +271,7 @@ export const buildAssertionEvidencePresentation = (
         ? null
         : {
             ruleId: data.rule.id,
-            ruleName: data.version.snapshot.name,
+            ruleName: badgeRuleVersionDisplayFields(data.version).displayName,
             versionNumber: data.version.versionNumber,
             versionStatus: data.version.status,
             versionId: data.version.id,

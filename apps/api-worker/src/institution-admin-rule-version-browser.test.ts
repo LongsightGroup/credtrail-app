@@ -2,13 +2,18 @@ import { readFileSync } from "node:fs";
 import { createContext, Script } from "node:vm";
 import { describe, expect, it } from "vitest";
 import {
+  FakeBrowserEvent,
   FakeDocument,
   FakeElement,
+  FakeOption,
+  FakeSelect,
   waitForBrowserCondition,
 } from "./test-support/browser-page-asset-harness";
 
 interface RuleVersionHarness {
+  readonly assignmentId: FakeElement;
   readonly assignmentLabel: FakeElement;
+  readonly courseId: FakeElement;
   readonly courseLabel: FakeElement;
   readonly document: FakeDocument;
   readonly status: FakeElement;
@@ -17,11 +22,14 @@ interface RuleVersionHarness {
 const LABELS_URL =
   "/v1/tenants/tenant_123/badge-rules/brl_detail/versions/brv_detail/lms-reference-labels";
 
-const loadRuleVersionHarness = (fetchImpl: typeof fetch): RuleVersionHarness => {
-  const source = readFileSync(
+const ruleVersionAssetSource = (): string => {
+  return readFileSync(
     new URL("./ui/page-assets/content/js/institution-admin-rule-version.js", import.meta.url),
     "utf8",
   );
+};
+
+const loadRuleVersionHarness = (fetchImpl: typeof fetch): RuleVersionHarness => {
   const document = new FakeDocument();
   const root = new FakeElement();
   root.dataset.ruleLmsLabels = "";
@@ -33,7 +41,9 @@ const loadRuleVersionHarness = (fetchImpl: typeof fetch): RuleVersionHarness => 
   const courseLabel = new FakeElement();
   courseLabel.dataset.ruleLmsLabel = "";
   courseLabel.textContent = "Course";
-  courseReference.append(courseLabel);
+  const courseId = new FakeElement();
+  courseId.textContent = "ID: course_101";
+  courseReference.append(courseLabel, courseId);
 
   const assignmentReference = new FakeElement();
   assignmentReference.dataset.ruleLmsReference = "assignment";
@@ -42,11 +52,15 @@ const loadRuleVersionHarness = (fetchImpl: typeof fetch): RuleVersionHarness => 
   const assignmentLabel = new FakeElement();
   assignmentLabel.dataset.ruleLmsLabel = "";
   assignmentLabel.textContent = "Assignment";
-  assignmentReference.append(assignmentLabel);
+  const assignmentId = new FakeElement();
+  assignmentId.textContent = "ID: assignment_7";
+  assignmentReference.append(assignmentLabel, assignmentId);
 
   const status = new FakeElement();
   status.dataset.ruleLmsLabelStatus = "";
-  status.textContent = "Loading course and assignment names…";
+  status.hidden = true;
+  status.textContent =
+    "Course and assignment names could not be loaded. The saved LMS IDs remain visible.";
   root.append(courseReference, assignmentReference, status);
   document.append(root);
 
@@ -58,13 +72,61 @@ const loadRuleVersionHarness = (fetchImpl: typeof fetch): RuleVersionHarness => 
     Response,
   });
 
-  new Script(source).runInContext(context);
+  new Script(ruleVersionAssetSource()).runInContext(context);
   document.dispatch("DOMContentLoaded");
 
-  return { assignmentLabel, courseLabel, document, status };
+  return { assignmentId, assignmentLabel, courseId, courseLabel, document, status };
 };
 
-describe("institution admin rule-version LMS labels", () => {
+describe("institution admin rule-version navigation", () => {
+  it("navigates directly to the selected same-origin version URL", () => {
+    const document = new FakeDocument();
+    const form = new FakeElement("FORM");
+    form.dataset.ruleVersionNavigation = "";
+    const select = new FakeSelect();
+    select.dataset.ruleVersionSelect = "";
+    const option = new FakeOption();
+    option.dataset.versionUrl =
+      "/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_latest";
+    option.selected = true;
+    select.append(option);
+    form.append(select);
+    document.append(form);
+    const assignedUrls: string[] = [];
+    const window = {
+      location: {
+        href: "https://credtrail.example/tenants/tenant_123/admin/rules/brl_detail",
+        origin: "https://credtrail.example",
+        assign: (url: string): void => {
+          assignedUrls.push(url);
+        },
+      },
+    };
+    const context = createContext({
+      console,
+      document,
+      fetch,
+      HTMLElement: FakeElement,
+      HTMLFormElement: FakeElement,
+      HTMLSelectElement: FakeSelect,
+      Response,
+      URL,
+      window,
+    });
+
+    new Script(ruleVersionAssetSource()).runInContext(context);
+    document.dispatch("DOMContentLoaded");
+    const submitEvent = new FakeBrowserEvent();
+    form.dispatch("submit", submitEvent);
+
+    expect(submitEvent.defaultPrevented).toBe(true);
+    expect(assignedUrls).toEqual([
+      "https://credtrail.example/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_latest",
+    ]);
+  });
+});
+
+describe("institution admin rule-version LMS label hydration contract", () => {
   it("loads every saved reference through one version-scoped request", async () => {
     const requestedUrls: string[] = [];
     const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -91,13 +153,15 @@ describe("institution admin rule-version LMS labels", () => {
     expect(harness.courseLabel.textContent).toBe("Course");
     expect(harness.assignmentLabel.textContent).toBe("Assignment");
     await waitForBrowserCondition(
-      () => harness.status.dataset.tone === "success",
+      () => harness.courseLabel.textContent === "Advanced TypeScript",
       "Rule-version labels did not load",
     );
 
     expect(harness.courseLabel.textContent).toBe("Advanced TypeScript");
     expect(harness.assignmentLabel.textContent).toBe("Final project");
-    expect(harness.status.textContent).toBe("Course and assignment names loaded from the LMS.");
+    expect(harness.courseId.textContent).toBe("ID: course_101");
+    expect(harness.assignmentId.textContent).toBe("ID: assignment_7");
+    expect(harness.status.hidden).toBe(true);
     expect(requestedUrls).toEqual([LABELS_URL]);
   });
 
@@ -115,6 +179,9 @@ describe("institution admin rule-version LMS labels", () => {
 
     expect(harness.courseLabel.textContent).toBe("Course");
     expect(harness.assignmentLabel.textContent).toBe("Assignment");
+    expect(harness.courseId.textContent).toBe("ID: course_101");
+    expect(harness.assignmentId.textContent).toBe("ID: assignment_7");
+    expect(harness.status.hidden).toBe(false);
     expect(harness.status.textContent).toBe(
       "Course access denied. The saved LMS IDs remain visible.",
     );
@@ -138,6 +205,7 @@ describe("institution admin rule-version LMS labels", () => {
     expect(harness.status.textContent).toBe(
       "Course and assignment names could not be loaded. The saved LMS IDs remain visible.",
     );
+    expect(harness.status.hidden).toBe(false);
     expect(harness.status.textContent).not.toContain("upstream failure");
   });
 
@@ -158,6 +226,7 @@ describe("institution admin rule-version LMS labels", () => {
 
     expect(harness.courseLabel.textContent).toBe("Advanced TypeScript");
     expect(harness.assignmentLabel.textContent).toBe("Assignment");
+    expect(harness.status.hidden).toBe(false);
     expect(harness.status.textContent).toBe(
       "Some LMS names could not be loaded. Their saved IDs remain visible.",
     );

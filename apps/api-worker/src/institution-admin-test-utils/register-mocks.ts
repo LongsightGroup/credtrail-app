@@ -172,6 +172,7 @@ vi.mock("@credtrail/db", async () => {
     listLearnerRecordEntries: mockedListLearnerRecordEntries,
     listBadgeIssuanceRules: vi.fn(),
     listBadgeIssuanceRuleVersions: vi.fn(),
+    listBadgeIssuanceRuleVersionsForRules: vi.fn(),
     findBadgeIssuanceRuleVersionById: mockedFindBadgeIssuanceRuleVersionById,
     findBadgeIssuanceRuleBuilderDraftById: mockedFindBadgeIssuanceRuleBuilderDraft,
     findBadgeIssuanceRuleBuilderDraftForRule: mockedFindBadgeIssuanceRuleBuilderDraft,

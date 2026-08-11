@@ -15,8 +15,8 @@ import {
   mockedFindBadgeIssuanceRuleVersionByIdDb,
   mockedMarkLearnerRecordImportPreviewQueuedDb,
   sampleLearnerRecordAssertionExport,
-  versionRecordFixtureFields,
 } from "./institution-admin-page-test-utils";
+import { buildBadgeRuleVersionRecord } from "./test-support/badge-rule-version";
 
 const { mockedIssueBadgeForTenant } = vi.hoisted(() => {
   return {
@@ -874,29 +874,26 @@ describe("GET /tenants/:tenantId/admin/operations/review-queue", () => {
         createdAt: "2026-02-17T00:00:00.000Z",
       },
     ]);
-    mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValueOnce({
-      id: "brv_123",
-      tenantId: "tenant_123",
-      ruleId: "brl_123",
-      versionNumber: 1,
-      status: "active",
-      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
-      changeSummary: "Initial version",
-      createdByUserId: "usr_admin",
-      submittedByUserId: "usr_admin",
-      submittedAt: "2026-02-18T12:05:00.000Z",
-      approvedByUserId: "usr_approver",
-      approvedAt: "2026-02-18T12:10:00.000Z",
-      activatedByUserId: "usr_admin",
-      activatedAt: "2026-02-18T12:15:00.000Z",
-      ...versionRecordFixtureFields,
-      snapshot: {
-        ...versionRecordFixtureFields.snapshot,
-        name: "CS101 Rule",
-      },
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:00:00.000Z",
-    });
+    mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValueOnce(
+      buildBadgeRuleVersionRecord({
+        id: "brv_123",
+        ruleId: "brl_123",
+        versionNumber: 1,
+        status: "active",
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+        changeSummary: "Initial version",
+        createdByUserId: "usr_admin",
+        submittedByUserId: "usr_admin",
+        submittedAt: "2026-02-18T12:05:00.000Z",
+        approvedByUserId: "usr_approver",
+        approvedAt: "2026-02-18T12:10:00.000Z",
+        activatedByUserId: "usr_admin",
+        activatedAt: "2026-02-18T12:15:00.000Z",
+        snapshot: {
+          name: "CS101 Rule",
+        },
+      }),
+    );
 
     const response = await app.request(
       "/tenants/tenant_123/admin/operations/review-queue",

@@ -2,6 +2,7 @@ import type {
   BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleVersionRecord,
   BadgeIssuanceRuleVersionSnapshot,
+  TenantOrgUnitRecord,
 } from "@credtrail/db";
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import type { HtmlEscapedString } from "hono/utils/html";
@@ -9,9 +10,12 @@ import {
   createRuleDefinitionSummaryMarkup,
   type BadgeRuleSummaryLmsReferenceMarkupInput,
 } from "../badges/badge-rule-definition-summary";
+import {
+  badgeRuleVersionDisplayFields,
+  badgeRuleVersionStateLabel,
+} from "../badges/badge-rule-presentation";
 import { formatIsoTimestamp } from "../utils/display-format";
 import { buildBadgeRuleVersionLmsReferenceLabelsPath } from "./access-admin-helpers";
-import { badgeRuleLmsProviderLabel, badgeRuleVersionStateLabel } from "./badge-rule-presentation";
 import { AdminPanel, AdminStatusPill } from "./components";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -101,11 +105,13 @@ export const BadgeRuleVersionOverview = (input: {
   readonly version: BadgeIssuanceRuleVersionRecord;
   readonly latestVersion: BadgeIssuanceRuleVersionRecord;
   readonly definition: BadgeIssuanceRuleDefinition;
+  readonly orgUnit: TenantOrgUnitRecord | null;
 }): HonoElement => {
   const ruleSummaryMarkup = createRuleDefinitionSummaryMarkup(formatIsoTimestamp, {
     renderLmsReference: adminLmsReferenceMarkup,
   });
   const timestampRows = versionTimestampRows(input.version);
+  const displayFields = badgeRuleVersionDisplayFields(input.version);
   const lmsLabelsUrl =
     input.version.snapshot.lmsConnectionId === null
       ? null
@@ -142,7 +148,7 @@ export const BadgeRuleVersionOverview = (input: {
             </AdminStatusPill>
             <span>Version {String(input.version.versionNumber)}</span>
           </div>
-          <h2>{input.version.snapshot.badgeTemplateTitle}</h2>
+          <h2>{displayFields.badgeTitle}</h2>
           <p>{input.version.snapshot.description ?? "No rule description was provided."}</p>
         </div>
       </div>
@@ -156,7 +162,15 @@ export const BadgeRuleVersionOverview = (input: {
         ))}
         <div>
           <dt>LMS</dt>
-          <dd>{badgeRuleLmsProviderLabel(input.version.snapshot.lmsProviderKind)}</dd>
+          <dd>{displayFields.lmsProviderLabel}</dd>
+        </div>
+        <div>
+          <dt>Organization scope</dt>
+          <dd>
+            {input.orgUnit === null
+              ? input.version.snapshot.orgUnitId
+              : `${input.orgUnit.displayName} (${input.orgUnit.unitType})`}
+          </dd>
         </div>
       </dl>
 
@@ -168,8 +182,9 @@ export const BadgeRuleVersionOverview = (input: {
             class="ct-admin__rule-version-label-status"
             data-rule-lms-label-status=""
             role="status"
+            hidden
           >
-            Loading course and assignment names…
+            Course and assignment names could not be loaded. The saved LMS IDs remain visible.
           </p>
         )}
       </div>

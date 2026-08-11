@@ -2,13 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   createEnv,
   mockedFindBadgeIssuanceRuleById,
+  mockedFindTenantOrgUnitById,
   mockedListBadgeIssuanceRuleVersions,
   mockedListBadgeIssuanceRuleValueLists,
   sampleDetailRule,
   sampleDetailVersion,
 } from "./institution-admin-page-test-utils";
 import { app } from "./index";
+import { readScriptAssetSource } from "./page-asset-test-utils";
 import { pageAssetPath } from "./ui/page-assets";
+
+const INSTITUTION_ADMIN_RULE_VERSION_JS = readScriptAssetSource("institutionAdminRuleVersionJs");
 
 const requestRulePage = (path: string): Promise<Response> => {
   return Promise.resolve(
@@ -93,6 +97,18 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () =>
 
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleDetailRule(activeVersion.id));
     mockedListBadgeIssuanceRuleVersions.mockResolvedValue([activeVersion, latestVersion]);
+    mockedFindTenantOrgUnitById.mockResolvedValue({
+      id: "tenant_123:org:cs",
+      tenantId: "tenant_123",
+      unitType: "department",
+      slug: "computer-science",
+      displayName: "Computer Science",
+      parentOrgUnitId: "tenant_123:org:institution",
+      createdByUserId: "usr_admin",
+      isActive: true,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    });
 
     const response = await requestRulePage(
       "/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_latest",
@@ -102,17 +118,30 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () =>
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain("Advanced TypeScript Rule");
+    expect(body).not.toContain("Mutable rule head name");
     expect(body).toContain("TypeScript Foundations");
+    expect(body).toContain("Organization scope");
+    expect(body).toContain("Computer Science (department)");
     expect(body).toContain('src="https://example.edu/badges/typescript.png"');
     expect(body).toContain("What this version requires");
     expect(body).toContain('data-rule-lms-reference="course"');
     expect(body).toContain('data-rule-lms-reference="assignment"');
+    expect(body).toContain('data-rule-lms-label="">Course</span>');
+    expect(body).toContain('data-rule-lms-label="">Assignment</span>');
     expect(body).toContain("ID: course_101");
     expect(body).toContain("ID: assignment_7");
+    expect(body).toContain('data-rule-lms-label-status="" role="status" hidden=""');
     expect(body).toContain(
       'data-lms-labels-url="/v1/tenants/tenant_123/badge-rules/brl_detail/versions/brv_detail_latest/lms-reference-labels"',
     );
+    expect(body).toContain('data-rule-version-navigation=""');
     expect(body).toContain('name="versionId"');
+    expect(body).toContain(
+      'data-version-url="/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_active"',
+    );
+    expect(body).toContain(
+      'data-version-url="/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_latest"',
+    );
     expect(body).toContain("Version 1 — Active now");
     expect(body).toContain("Version 2 — Draft · latest version");
     expect(body).toContain("Activating a new version replaces the current active version");
@@ -123,6 +152,12 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () =>
     expect(body).toContain("brv_detail_latest");
     expect(body).toContain(pageAssetPath("institutionAdminRuleVersionCss"));
     expect(body).toContain(pageAssetPath("institutionAdminRuleVersionJs"));
+    expect(mockedFindTenantOrgUnitById).toHaveBeenCalledWith(
+      expect.anything(),
+      "tenant_123",
+      "tenant_123:org:cs",
+    );
+    expect(INSTITUTION_ADMIN_RULE_VERSION_JS).toContain("window.location.assign(destination)");
   });
 
   it("renders historical metadata only from the selected version snapshot", async () => {

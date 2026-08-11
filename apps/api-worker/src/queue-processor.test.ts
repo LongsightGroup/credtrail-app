@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sampleBadgeRuleVersionSnapshot } from "./test-support/badge-rule-version-snapshot";
+import {
+  buildBadgeRuleVersionRecord,
+  type BadgeRuleVersionRecordOverrides,
+} from "./test-support/badge-rule-version";
 
 vi.mock("@credtrail/db", async () => {
   const actual = await vi.importActual<typeof import("@credtrail/db")>("@credtrail/db");
@@ -132,38 +135,20 @@ const sampleLearnerProfile = (overrides?: Partial<LearnerProfileRecord>): Learne
 };
 
 const sampleBadgeIssuanceRuleVersion = (
-  overrides?: Partial<BadgeIssuanceRuleVersionRecord>,
+  overrides: BadgeRuleVersionRecordOverrides = {},
 ): BadgeIssuanceRuleVersionRecord => {
-  return {
-    id: "brv_123",
-    tenantId: "tenant_123",
-    ruleId: "brl_123",
-    versionNumber: 1,
+  return buildBadgeRuleVersionRecord({
     status: "approved",
     ruleJson: "{}",
-    snapshot: sampleBadgeRuleVersionSnapshot,
     changeSummary: null,
     createdByUserId: null,
-    submittedByUserId: null,
     submittedAt: "2026-02-10T22:00:00.000Z",
     approvedByUserId: "usr_admin",
     approvedAt: "2026-02-10T22:05:00.000Z",
-    activatedByUserId: null,
-    activatedAt: null,
-    effectiveStartsAt: null,
-    expiresAt: null,
-    expiredAt: null,
-    suspendedAt: null,
-    suspendedByUserId: null,
-    suspensionReason: null,
-    recertifiedAt: null,
-    recertificationDueAt: null,
-    expiryReminderSentAt: null,
-    recertificationReminderSentAt: null,
     createdAt: "2026-02-10T22:00:00.000Z",
     updatedAt: "2026-02-10T22:05:00.000Z",
     ...overrides,
-  };
+  });
 };
 
 const sampleLeasedQueueMessage = (
@@ -315,7 +300,6 @@ describe("POST /v1/jobs/process", () => {
     mockedFindBadgeIssuanceRuleVersionById.mockResolvedValue(
       sampleBadgeIssuanceRuleVersion({
         snapshot: {
-          ...sampleBadgeRuleVersionSnapshot,
           name: "Immutable clinical skills rule",
         },
         submittedByUserId: "usr_author",

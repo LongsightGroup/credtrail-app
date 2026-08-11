@@ -1,7 +1,7 @@
 import type { BadgeIssuanceRuleVersionRecord, SqlDatabase } from "@credtrail/db";
 import { describe, expect, it } from "vitest";
 import { parseBadgeIssuanceRuleDefinition } from "@credtrail/validation";
-import { sampleDetailVersion } from "../institution-admin-test-utils/rule-version-fixtures";
+import { buildBadgeRuleVersionRecord } from "../test-support/badge-rule-version";
 import {
   createBadgeRuleVersionReferenceLabelService,
   type BadgeRuleVersionReferenceLabelServiceDependencies,
@@ -10,13 +10,17 @@ import {
 const courseId = "course_101";
 const courseTitle = "Advanced TypeScript";
 
-const version = (): BadgeIssuanceRuleVersionRecord => ({
-  ...sampleDetailVersion("brv_detail", 1, "active"),
-  snapshot: {
-    ...sampleDetailVersion("brv_detail", 1, "active").snapshot,
-    lmsConnectionId: "lms_snapshot",
-  },
-});
+const version = (): BadgeIssuanceRuleVersionRecord =>
+  buildBadgeRuleVersionRecord({
+    id: "brv_detail",
+    ruleId: "brl_detail",
+    status: "active",
+    ruleJson:
+      '{"conditions":{"type":"assignment_submission","courseId":"course_101","assignmentId":"assignment_7","requireSubmitted":true,"minScore":80}}',
+    snapshot: {
+      lmsConnectionId: "lms_snapshot",
+    },
+  });
 
 const dependencies = (
   overrides: Partial<BadgeRuleVersionReferenceLabelServiceDependencies> = {},

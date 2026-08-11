@@ -205,6 +205,8 @@ vi.mock("@credtrail/db", async () => {
     listAccessibleTenantContextsForUser: vi.fn(),
     listBadgeIssuanceRules: vi.fn(),
     listBadgeIssuanceRuleVersions: vi.fn(),
+    listBadgeIssuanceRuleVersionsForRules: vi.fn(),
+    findTenantOrgUnitById: vi.fn(),
     listAuditLogs: vi.fn(),
     listBadgeTemplates: vi.fn(),
     countBadgeTemplateImageRevisions: vi.fn(),
@@ -281,6 +283,7 @@ import {
   findTenantAuthPolicy,
   findTenantMembership,
   findTenantById,
+  findTenantOrgUnitById,
   findUserById,
   findUsersByIds,
   getTenantReportingEngagementCounts,
@@ -292,6 +295,7 @@ import {
   listBadgeIssuanceRules,
   listAuditLogs,
   listBadgeIssuanceRuleVersions,
+  listBadgeIssuanceRuleVersionsForRules,
   listBadgeTemplates,
   listBadgeTemplateImageRevisionCountsByTenant,
   listBadgeTemplateOwnershipEvents,
@@ -367,6 +371,7 @@ const mockedListLearnerProfilesForRecordLookup = vi.mocked(listLearnerProfilesFo
 const mockedFindTenantAuthPolicy = vi.mocked(findTenantAuthPolicy);
 const mockedFindTenantMembership = vi.mocked(findTenantMembership);
 const mockedFindTenantById = vi.mocked(findTenantById);
+const mockedFindTenantOrgUnitById = vi.mocked(findTenantOrgUnitById);
 const mockedFindUserById = vi.mocked(findUserById);
 const mockedFindUsersByIds = vi.mocked(findUsersByIds);
 const mockedGetTenantReportingEngagementCounts = vi.mocked(getTenantReportingEngagementCounts);
@@ -380,6 +385,9 @@ const mockedHasTenantMembershipOrgUnitScopeAssignments = vi.mocked(
 const mockedListAccessibleTenantContextsForUser = vi.mocked(listAccessibleTenantContextsForUser);
 const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
 const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRuleVersions);
+const mockedListBadgeIssuanceRuleVersionsForRules = vi.mocked(
+  listBadgeIssuanceRuleVersionsForRules,
+);
 const mockedListBadgeTemplates = vi.mocked(listBadgeTemplates);
 const mockedListBadgeTemplateImageRevisionCountsByTenant = vi.mocked(
   listBadgeTemplateImageRevisionCountsByTenant,
@@ -630,6 +638,10 @@ beforeEach(() => {
   mockedListBadgeIssuanceRules.mockResolvedValue([]);
   mockedListBadgeIssuanceRuleVersions.mockReset();
   mockedListBadgeIssuanceRuleVersions.mockResolvedValue([]);
+  mockedListBadgeIssuanceRuleVersionsForRules.mockReset();
+  mockedListBadgeIssuanceRuleVersionsForRules.mockResolvedValue([]);
+  mockedFindTenantOrgUnitById.mockReset();
+  mockedFindTenantOrgUnitById.mockResolvedValue(null);
   mockedListBadgeTemplates.mockReset();
   mockedListBadgeTemplates.mockResolvedValue([sampleBadgeTemplate()]);
   mockedListBadgeTemplateImageRevisionCountsByTenant.mockReset();

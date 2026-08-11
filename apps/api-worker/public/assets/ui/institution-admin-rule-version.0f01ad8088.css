@@ -164,10 +164,6 @@
   color: var(--ct-theme-state-warning);
 }
 
-.ct-admin__rule-version-label-status[data-tone="success"] {
-  color: var(--ct-theme-state-success);
-}
-
 .ct-admin__rule-version-support-metadata {
   display: flex;
   flex-wrap: wrap;

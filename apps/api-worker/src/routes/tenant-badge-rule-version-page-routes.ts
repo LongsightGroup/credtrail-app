@@ -93,6 +93,7 @@ const renderRuleVersion = async (
       version: input.version,
       versions: input.versions,
       definition: input.definition,
+      orgUnit: input.orgUnit,
     }),
   );
 };

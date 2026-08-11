@@ -2,21 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AssertionEvidenceLoadedData } from "./assertion-evidence-payload";
 import { buildAssertionEvidencePresentation } from "./assertion-evidence-presentation";
-import { sampleBadgeRuleVersionSnapshot } from "../test-support/badge-rule-version-snapshot";
-
-const versionRecordFixtureFields = {
-  snapshot: sampleBadgeRuleVersionSnapshot,
-  effectiveStartsAt: null,
-  expiresAt: null,
-  expiredAt: null,
-  suspendedAt: null,
-  suspendedByUserId: null,
-  suspensionReason: null,
-  recertifiedAt: null,
-  recertificationDueAt: null,
-  expiryReminderSentAt: null,
-  recertificationReminderSentAt: null,
-};
+import { buildBadgeRuleVersionRecord } from "../test-support/badge-rule-version";
 
 const sampleLoadedData = (
   overrides?: Partial<AssertionEvidenceLoadedData>,
@@ -139,9 +125,8 @@ describe("buildAssertionEvidencePresentation", () => {
           createdAt: "2026-03-24T12:00:00.000Z",
           updatedAt: "2026-03-24T12:00:00.000Z",
         },
-        version: {
+        version: buildBadgeRuleVersionRecord({
           id: "tenant_123:brv_123",
-          tenantId: "tenant_123",
           ruleId: "tenant_123:brl_123",
           versionNumber: 2,
           status: "active",
@@ -154,14 +139,12 @@ describe("buildAssertionEvidencePresentation", () => {
           approvedAt: "2026-03-21T12:00:00.000Z",
           activatedByUserId: "usr_admin",
           activatedAt: "2026-03-22T12:00:00.000Z",
-          ...versionRecordFixtureFields,
           snapshot: {
-            ...sampleBadgeRuleVersionSnapshot,
             name: "CS101 Excellence",
           },
           createdAt: "2026-03-20T12:00:00.000Z",
           updatedAt: "2026-03-22T12:00:00.000Z",
-        },
+        }),
       }),
     );
 
@@ -244,9 +227,8 @@ describe("buildAssertionEvidencePresentation", () => {
           createdAt: "2026-03-24T12:00:00.000Z",
           updatedAt: "2026-03-24T12:00:00.000Z",
         },
-        version: {
+        version: buildBadgeRuleVersionRecord({
           id: "tenant_123:brv_123",
-          tenantId: "tenant_123",
           ruleId: "tenant_123:brl_123",
           versionNumber: 1,
           status: "active",
@@ -259,14 +241,12 @@ describe("buildAssertionEvidencePresentation", () => {
           approvedAt: null,
           activatedByUserId: "usr_admin",
           activatedAt: "2026-03-22T12:00:00.000Z",
-          ...versionRecordFixtureFields,
           snapshot: {
-            ...sampleBadgeRuleVersionSnapshot,
             name: "LTI Roster Rule",
           },
           createdAt: "2026-03-20T12:00:00.000Z",
           updatedAt: "2026-03-22T12:00:00.000Z",
-        },
+        }),
       }),
     );
 

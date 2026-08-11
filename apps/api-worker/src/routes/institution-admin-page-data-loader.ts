@@ -6,7 +6,7 @@ import {
   listBadgeRuleApproverGroupsWithMembers,
   listBadgeIssuanceRules,
   resolveListBadgeIssuanceRulesInput,
-  listBadgeIssuanceRuleVersions,
+  listBadgeIssuanceRuleVersionsForRules,
   listBadgeTemplates,
   listDelegatedIssuingAuthorityGrants,
   listTenantApiKeys,
@@ -268,18 +268,12 @@ export const loadInstitutionAdminPageData = async (
     includeEnterpriseAuth ? listTenantBreakGlassAccounts(db, input.tenantId) : Promise.resolve([]),
   ]);
 
-  const badgeRuleVersionLists =
-    datasets.has("badgeRuleVersions") && badgeRules.length > 0
-      ? await Promise.all(
-          badgeRules.map(async (rule) =>
-            listBadgeIssuanceRuleVersions(db, {
-              tenantId: input.tenantId,
-              ruleId: rule.id,
-            }),
-          ),
-        )
-      : [];
-  const badgeRuleVersions = badgeRuleVersionLists.flat();
+  const badgeRuleVersions = datasets.has("badgeRuleVersions")
+    ? await listBadgeIssuanceRuleVersionsForRules(db, {
+        tenantId: input.tenantId,
+        ruleIds: badgeRules.map((rule) => rule.id),
+      })
+    : [];
   const badgeRuleApprovalPolicy = datasets.has("badgeRuleApprovalPolicy")
     ? await resolveTenantDefaultBadgeRuleApprovalPolicy(db, input.tenantId)
     : null;

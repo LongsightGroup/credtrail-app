@@ -1,4 +1,14 @@
-type BrowserListener = () => void;
+type BrowserListener = (event?: FakeBrowserEvent) => void;
+
+/** Minimal cancelable event substitute for page-asset behavior tests. */
+export class FakeBrowserEvent {
+  public defaultPrevented = false;
+
+  /** Records that the page asset canceled the browser's default action. */
+  public preventDefault(): void {
+    this.defaultPrevented = true;
+  }
+}
 
 const datasetName = (attributeName: string): string => {
   return attributeName.replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase());
@@ -53,9 +63,9 @@ export class FakeElement {
   }
 
   /** Dispatches a browser event to registered listeners. */
-  public dispatch(type: string): void {
+  public dispatch(type: string, event?: FakeBrowserEvent): void {
     for (const listener of this.listeners.get(type) ?? []) {
-      listener();
+      listener(event);
     }
   }
 

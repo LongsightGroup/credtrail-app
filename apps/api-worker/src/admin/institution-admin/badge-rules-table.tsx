@@ -7,13 +7,12 @@ import {
   type BadgeIssuanceRuleVersionRecord,
 } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
+import {
+  badgeRuleVersionDisplayFields,
+  badgeRuleVersionStatusLabel,
+} from "../../badges/badge-rule-presentation";
 import { formatIsoTimestamp } from "../../utils/display-format";
 import { buildBadgeRuleDetailPath, buildBadgeRuleVersionDetailPath } from "../access-admin-helpers";
-import {
-  badgeRuleDisplayName,
-  badgeRuleLmsProviderLabel,
-  badgeRuleVersionStatusLabel,
-} from "../badge-rule-presentation";
 import {
   AdminActionMenu,
   AdminActions,
@@ -58,8 +57,9 @@ const renderFormalRuleRows = (input: RenderBadgeRulesTableInput): HonoElement =>
         const latestVersion = versionSelection.latestVersion;
         const activeVersion = versionSelection.activeVersion;
         const displayVersion = versionSelection.defaultVersion;
-        const displaySnapshot = displayVersion?.snapshot ?? null;
-        const displayName = badgeRuleDisplayName(rule, versions);
+        const displayFields =
+          displayVersion === null ? null : badgeRuleVersionDisplayFields(displayVersion);
+        const displayName = displayFields?.displayName ?? "Rule version unavailable";
         const isEditableRule = canEditBadgeIssuanceRuleDraft(rule, versions);
         const canDeleteRule = canDeleteBadgeIssuanceRuleDraft(rule, versions);
         const editRulePath = `${buildBadgeRuleDetailPath(input.tenantId, rule.id)}/edit`;
@@ -89,12 +89,8 @@ const renderFormalRuleRows = (input: RenderBadgeRulesTableInput): HonoElement =>
                 <strong>{displayName}</strong>
               </a>
             </td>
-            <td>{displaySnapshot === null ? "Unavailable" : displaySnapshot.badgeTemplateTitle}</td>
-            <td>
-              {displaySnapshot === null
-                ? "Unavailable"
-                : badgeRuleLmsProviderLabel(displaySnapshot.lmsProviderKind)}
-            </td>
+            <td>{displayFields?.badgeTitle ?? "Unavailable"}</td>
+            <td>{displayFields?.lmsProviderLabel ?? "Unavailable"}</td>
             <td>
               {activeVersion === null ? (
                 "Not active"
@@ -125,9 +121,7 @@ const renderFormalRuleRows = (input: RenderBadgeRulesTableInput): HonoElement =>
               )}
             </td>
             <td>
-              {displayVersion === null
-                ? "Unavailable"
-                : formatIsoTimestamp(displayVersion.updatedAt)}
+              {displayFields === null ? "Unavailable" : formatIsoTimestamp(displayFields.updatedAt)}
             </td>
             <td>
               <AdminActions>

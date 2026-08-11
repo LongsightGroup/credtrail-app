@@ -1,8 +1,9 @@
 import type { ImmutableCredentialStore, JsonObject } from "@credtrail/core-domain";
 import {
-  listBadgeIssuanceRuleVersionApprovalEvents,
-  listBadgeIssuanceRuleVersionApprovalSteps,
-  listBadgeIssuanceRuleVersions,
+  indexBadgeIssuanceRuleVersionsByRuleId,
+  listBadgeIssuanceRuleVersionApprovalEventsForVersions,
+  listBadgeIssuanceRuleVersionApprovalStepsForVersions,
+  listBadgeIssuanceRuleVersionsForRules,
   listBadgeIssuanceRules,
   listBadgeTemplateOwnershipEvents,
   listBadgeTemplates,
@@ -82,6 +83,25 @@ interface RegisterPublicBadgeRoutesInput<PublicBadgeValue extends PublicBadgeRou
   SAKAI_SHOWCASE_TEMPLATE_ID: string;
 }
 
+const indexRecordsByVersionId = <Record extends { readonly versionId: string }>(
+  records: readonly Record[],
+): ReadonlyMap<string, readonly Record[]> => {
+  const recordsByVersionId = new Map<string, Record[]>();
+
+  for (const record of records) {
+    const indexedRecords = recordsByVersionId.get(record.versionId);
+
+    if (indexedRecords === undefined) {
+      recordsByVersionId.set(record.versionId, [record]);
+      continue;
+    }
+
+    indexedRecords.push(record);
+  }
+
+  return recordsByVersionId;
+};
+
 const buildPublicBadgeCriteriaRegistryViewModel = async (
   db: SqlDatabase,
   tenantId: string,
@@ -106,53 +126,61 @@ const buildPublicBadgeCriteriaRegistryViewModel = async (
       : templates.filter((template) => template.id === badgeTemplateId);
   const orgUnitById = new Map(orgUnits.map((orgUnit) => [orgUnit.id, orgUnit]));
   const rulesByTemplateId = new Map<string, PublicBadgeCriteriaRuleViewRecord[]>();
+  const versions = await listBadgeIssuanceRuleVersionsForRules(db, {
+    tenantId,
+    ruleIds: rules.map((rule) => rule.id),
+  });
+  const versionsByRuleId = indexBadgeIssuanceRuleVersionsByRuleId(versions);
+  const ruleGovernanceSelections = rules.map((rule) => {
+    const versionSelection = resolveBadgeIssuanceRuleVersionSelection({
+      rule,
+      versions: versionsByRuleId.get(rule.id) ?? [],
+    });
 
-  await Promise.all(
-    rules.map(async (rule) => {
-      const versions = await listBadgeIssuanceRuleVersions(db, {
-        tenantId,
-        ruleId: rule.id,
-      });
-      const versionSelection = resolveBadgeIssuanceRuleVersionSelection({ rule, versions });
-      const governanceVersion = versionSelection.activeVersion ?? versionSelection.latestVersion;
-      const [approvalSteps, approvalEvents] =
-        governanceVersion === null
-          ? [[], []]
-          : await Promise.all([
-              listBadgeIssuanceRuleVersionApprovalSteps(db, {
-                tenantId,
-                ruleId: rule.id,
-                versionId: governanceVersion.id,
-              }),
-              listBadgeIssuanceRuleVersionApprovalEvents(db, {
-                tenantId,
-                ruleId: rule.id,
-                versionId: governanceVersion.id,
-              }),
-            ]);
-      const badgeTemplateId = governanceVersion?.snapshot.badgeTemplateId ?? null;
-
-      if (badgeTemplateId === null) {
-        return;
-      }
-
-      const byTemplate = rulesByTemplateId.get(badgeTemplateId);
-      const ruleRecord: PublicBadgeCriteriaRuleViewRecord = {
-        rule,
-        latestVersion: versionSelection.latestVersion,
-        activeVersion: versionSelection.activeVersion,
-        approvalSteps,
-        approvalEvents,
-      };
-
-      if (byTemplate === undefined) {
-        rulesByTemplateId.set(badgeTemplateId, [ruleRecord]);
-        return;
-      }
-
-      byTemplate.push(ruleRecord);
-    }),
+    return {
+      rule,
+      versionSelection,
+      governanceVersion: versionSelection.activeVersion ?? versionSelection.latestVersion,
+    };
+  });
+  const governanceVersionIds = ruleGovernanceSelections.flatMap(({ governanceVersion }) =>
+    governanceVersion === null ? [] : [governanceVersion.id],
   );
+  const [approvalSteps, approvalEvents] = await Promise.all([
+    listBadgeIssuanceRuleVersionApprovalStepsForVersions(db, {
+      tenantId,
+      versionIds: governanceVersionIds,
+    }),
+    listBadgeIssuanceRuleVersionApprovalEventsForVersions(db, {
+      tenantId,
+      versionIds: governanceVersionIds,
+    }),
+  ]);
+  const approvalStepsByVersionId = indexRecordsByVersionId(approvalSteps);
+  const approvalEventsByVersionId = indexRecordsByVersionId(approvalEvents);
+
+  for (const { rule, versionSelection, governanceVersion } of ruleGovernanceSelections) {
+    if (governanceVersion === null) {
+      continue;
+    }
+
+    const badgeTemplateId = governanceVersion.snapshot.badgeTemplateId;
+    const byTemplate = rulesByTemplateId.get(badgeTemplateId);
+    const ruleRecord: PublicBadgeCriteriaRuleViewRecord = {
+      rule,
+      latestVersion: versionSelection.latestVersion,
+      activeVersion: versionSelection.activeVersion,
+      approvalSteps: approvalStepsByVersionId.get(governanceVersion.id) ?? [],
+      approvalEvents: approvalEventsByVersionId.get(governanceVersion.id) ?? [],
+    };
+
+    if (byTemplate === undefined) {
+      rulesByTemplateId.set(badgeTemplateId, [ruleRecord]);
+      continue;
+    }
+
+    byTemplate.push(ruleRecord);
+  }
 
   const templateEntries = await Promise.all(
     filteredTemplates.map(async (template) => {

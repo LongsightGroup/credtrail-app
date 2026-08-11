@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setCookie } from "hono/cookie";
 import { LTI13JwtPayloadSchema, serializeLtiSession } from "@longsightgroup/lti-tool";
-import { sampleBadgeRuleVersionSnapshot } from "./test-support/badge-rule-version-snapshot";
+import {
+  buildBadgeRuleVersionRecord,
+  type BadgeRuleVersionRecordOverrides,
+} from "./test-support/badge-rule-version";
 
 vi.mock("@credtrail/db", async () => {
   const actual = await vi.importActual<typeof import("@credtrail/db")>("@credtrail/db");
@@ -642,14 +645,13 @@ const sampleBadgeIssuanceRule = (
 };
 
 const sampleBadgeIssuanceRuleVersion = (
-  overrides?: Partial<BadgeIssuanceRuleVersionRecord>,
+  overrides: BadgeRuleVersionRecordOverrides = {},
 ): BadgeIssuanceRuleVersionRecord => {
-  return {
+  const { snapshot, ...versionOverrides } = overrides;
+
+  return buildBadgeRuleVersionRecord({
     id: "brlv_lti_rule_123_v1",
-    tenantId: "tenant_123",
     ruleId: "brl_lti_rule_123",
-    versionNumber: 1,
-    status: "draft",
     ruleJson: JSON.stringify({
       conditions: {
         type: "grade_threshold",
@@ -662,15 +664,6 @@ const sampleBadgeIssuanceRuleVersion = (
         reviewOnMissingFacts: true,
       },
     }),
-    snapshot: {
-      ...sampleBadgeRuleVersionSnapshot,
-      name: "LTI course badge rule",
-      badgeTemplateId: "badge_template_001",
-      badgeTemplateTitle: "Course badge",
-      orgUnitId: "tenant_123:org:course-typescript-101",
-      lmsProviderKind: "sakai",
-      lmsConnectionId: "lms_sakai_001",
-    },
     changeSummary: "Created from LTI Deep Linking course badge setup.",
     createdByUserId: "usr_lti_123",
     submittedByUserId: null,
@@ -681,18 +674,17 @@ const sampleBadgeIssuanceRuleVersion = (
     activatedAt: null,
     createdAt: "2026-02-10T22:00:00.000Z",
     updatedAt: "2026-02-10T22:00:00.000Z",
-    ...overrides,
-    effectiveStartsAt: overrides?.effectiveStartsAt ?? null,
-    expiresAt: overrides?.expiresAt ?? null,
-    expiredAt: overrides?.expiredAt ?? null,
-    suspendedAt: overrides?.suspendedAt ?? null,
-    suspendedByUserId: overrides?.suspendedByUserId ?? null,
-    suspensionReason: overrides?.suspensionReason ?? null,
-    recertifiedAt: overrides?.recertifiedAt ?? null,
-    recertificationDueAt: overrides?.recertificationDueAt ?? null,
-    expiryReminderSentAt: overrides?.expiryReminderSentAt ?? null,
-    recertificationReminderSentAt: overrides?.recertificationReminderSentAt ?? null,
-  };
+    ...versionOverrides,
+    snapshot: {
+      name: "LTI course badge rule",
+      badgeTemplateId: "badge_template_001",
+      badgeTemplateTitle: "Course badge",
+      orgUnitId: "tenant_123:org:course-typescript-101",
+      lmsProviderKind: "sakai",
+      lmsConnectionId: "lms_sakai_001",
+      ...snapshot,
+    },
+  });
 };
 
 const sampleAssertionRecord = (overrides?: Partial<AssertionRecord>): AssertionRecord => {

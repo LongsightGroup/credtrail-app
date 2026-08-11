@@ -8,6 +8,7 @@ import {
   mockedListAccessibleTenantContextsForUser,
   mockedListBadgeIssuanceRules,
   mockedListBadgeIssuanceRuleVersions,
+  mockedListBadgeIssuanceRuleVersionsForRules,
   mockedListBadgeTemplates,
   sampleMembership,
 } from "./institution-admin-page-test-utils";
@@ -148,9 +149,10 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(mockedListBadgeIssuanceRules).toHaveBeenCalledWith(fakeDb, {
       tenantId: "tenant_123",
     });
-    expect(mockedListBadgeIssuanceRuleVersions).toHaveBeenCalledWith(fakeDb, {
+    expect(mockedListBadgeIssuanceRuleVersionsForRules).toHaveBeenCalledTimes(1);
+    expect(mockedListBadgeIssuanceRuleVersionsForRules).toHaveBeenCalledWith(fakeDb, {
       tenantId: "tenant_123",
-      ruleId: "brl_123",
+      ruleIds: ["brl_123"],
     });
   });
 

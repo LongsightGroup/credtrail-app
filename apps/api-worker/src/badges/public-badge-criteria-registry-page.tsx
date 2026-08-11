@@ -11,6 +11,7 @@ import type {
   PublicBadgePageRenderers,
 } from "./public-badge-renderer-types";
 import { createRuleDefinitionSummaryMarkup } from "./badge-rule-definition-summary";
+import { badgeRuleVersionDisplayFields } from "./badge-rule-presentation";
 
 type ApprovalStepStatus = "approved" | "pending" | "queued" | "rejected" | "changes_requested";
 
@@ -159,6 +160,10 @@ export const createTenantBadgeCriteriaRegistryPage = (
                 const latestVersion = ruleEntry.latestVersion;
                 const activeVersion = ruleEntry.activeVersion;
                 const effectiveVersion = activeVersion ?? latestVersion;
+                const effectiveVersionDisplay =
+                  effectiveVersion === null
+                    ? null
+                    : badgeRuleVersionDisplayFields(effectiveVersion);
                 const latestVersionLabel =
                   latestVersion === null
                     ? "No recorded version"
@@ -242,7 +247,7 @@ export const createTenantBadgeCriteriaRegistryPage = (
                     <div class="criteria-registry__details-body criteria-registry__stack-sm">
                       <p class="criteria-registry__muted">Rule ID: {ruleEntry.rule.id}</p>
                       <p class="criteria-registry__muted">
-                        Source system: {effectiveVersion?.snapshot.lmsProviderKind ?? "unknown"}
+                        Source system: {effectiveVersionDisplay?.lmsProviderLabel ?? "Unknown"}
                       </p>
                       <p class="criteria-registry__muted">
                         Current published version: {activeVersionLabel} · Most recent recorded
@@ -263,7 +268,7 @@ export const createTenantBadgeCriteriaRegistryPage = (
                 return (
                   <article class="criteria-registry__rule" key={ruleEntry.rule.id}>
                     <header>
-                      <h3>{effectiveVersion?.snapshot.name ?? "Qualification rule"}</h3>
+                      <h3>{effectiveVersionDisplay?.displayName ?? "Qualification rule"}</h3>
                       <p class="criteria-registry__muted">
                         This published rule explains when a learner qualifies for this badge.
                       </p>

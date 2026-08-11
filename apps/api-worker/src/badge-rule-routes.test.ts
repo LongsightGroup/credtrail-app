@@ -161,7 +161,10 @@ import {
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 import { GradebookProviderError } from "./lms/gradebook-provider-error";
 import type { GradebookCourseSearchInput } from "./lms/gradebook-types";
-import { sampleBadgeRuleVersionSnapshot } from "./test-support/badge-rule-version-snapshot";
+import {
+  buildBadgeRuleVersionRecord,
+  type BadgeRuleVersionRecordOverrides,
+} from "./test-support/badge-rule-version";
 import { app } from "./index";
 
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
@@ -319,14 +322,9 @@ const sampleRule = (overrides?: Partial<BadgeIssuanceRuleRecord>): BadgeIssuance
 };
 
 const sampleVersion = (
-  overrides?: Partial<BadgeIssuanceRuleVersionRecord>,
+  overrides: BadgeRuleVersionRecordOverrides = {},
 ): BadgeIssuanceRuleVersionRecord => {
-  return {
-    id: "brv_123",
-    tenantId: "tenant_123",
-    ruleId: "brl_123",
-    versionNumber: 1,
-    status: "draft",
+  return buildBadgeRuleVersionRecord({
     ruleJson: JSON.stringify({
       conditions: {
         type: "grade_threshold",
@@ -334,29 +332,12 @@ const sampleVersion = (
         minScore: 80,
       },
     }),
-    snapshot: sampleBadgeRuleVersionSnapshot,
     changeSummary: "Initial draft",
     createdByUserId: "usr_123",
-    submittedByUserId: null,
-    submittedAt: null,
-    approvedByUserId: null,
-    approvedAt: null,
-    activatedByUserId: null,
-    activatedAt: null,
     createdAt: "2026-02-17T00:00:00.000Z",
     updatedAt: "2026-02-17T00:00:00.000Z",
     ...overrides,
-    effectiveStartsAt: overrides?.effectiveStartsAt ?? null,
-    expiresAt: overrides?.expiresAt ?? null,
-    expiredAt: overrides?.expiredAt ?? null,
-    suspendedAt: overrides?.suspendedAt ?? null,
-    suspendedByUserId: overrides?.suspendedByUserId ?? null,
-    suspensionReason: overrides?.suspensionReason ?? null,
-    recertifiedAt: overrides?.recertifiedAt ?? null,
-    recertificationDueAt: overrides?.recertificationDueAt ?? null,
-    expiryReminderSentAt: overrides?.expiryReminderSentAt ?? null,
-    recertificationReminderSentAt: overrides?.recertificationReminderSentAt ?? null,
-  };
+  });
 };
 
 const sampleEvaluationRecord = (
@@ -2322,7 +2303,6 @@ describe("badge rule routes", () => {
     mockedFindBadgeIssuanceRuleVersionById.mockResolvedValue(
       sampleVersion({
         snapshot: {
-          ...sampleBadgeRuleVersionSnapshot,
           name: "CS101 Rule",
           badgeTemplateId: "badge_template_cs101",
         },
