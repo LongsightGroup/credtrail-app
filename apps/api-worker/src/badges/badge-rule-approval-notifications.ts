@@ -1,5 +1,4 @@
 import {
-  findBadgeIssuanceRuleById,
   findTenantById,
   findUserById,
   listBadgeIssuanceRuleVersionApprovalSteps,
@@ -62,6 +61,7 @@ const tenantDisplayName = async (db: SqlDatabase, tenantId: string): Promise<str
   return tenant?.displayName ?? tenantId;
 };
 
+/** Notify the current approvers using the immutable submitted version metadata. */
 export const notifyBadgeRuleApprovalSubmitted = async (
   db: SqlDatabase,
   input: {
@@ -73,8 +73,7 @@ export const notifyBadgeRuleApprovalSubmitted = async (
     targetStepNumber?: number | null | undefined;
   },
 ): Promise<void> => {
-  const [rule, displayName, firstPendingStep] = await Promise.all([
-    findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId),
+  const [displayName, firstPendingStep] = await Promise.all([
     tenantDisplayName(db, input.tenantId),
     nextPendingApprovalStep(db, {
       tenantId: input.tenantId,
@@ -84,7 +83,7 @@ export const notifyBadgeRuleApprovalSubmitted = async (
     }),
   ]);
 
-  if (rule === null || firstPendingStep === null) {
+  if (firstPendingStep === null) {
     return;
   }
 
@@ -94,13 +93,14 @@ export const notifyBadgeRuleApprovalSubmitted = async (
     fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
     tenantId: input.tenantId,
     tenantDisplayName: displayName,
-    ruleName: rule.name,
+    ruleName: input.version.snapshot.name,
     versionNumber: input.version.versionNumber,
     reviewUrl: input.reviewUrl,
     step: firstPendingStep,
   });
 };
 
+/** Notify the next approver or author using the decided version's immutable metadata. */
 export const notifyBadgeRuleApprovalDecision = async (
   db: SqlDatabase,
   input: {
@@ -114,8 +114,7 @@ export const notifyBadgeRuleApprovalDecision = async (
     nextStepNumber?: number | null | undefined;
   },
 ): Promise<void> => {
-  const [rule, displayName, nextStep] = await Promise.all([
-    findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId),
+  const [displayName, nextStep] = await Promise.all([
     tenantDisplayName(db, input.tenantId),
     nextPendingApprovalStep(db, {
       tenantId: input.tenantId,
@@ -124,10 +123,6 @@ export const notifyBadgeRuleApprovalDecision = async (
       targetStepNumber: input.nextStepNumber,
     }),
   ]);
-
-  if (rule === null) {
-    return;
-  }
 
   const hasNextStepNotificationTarget =
     input.nextStepNumber !== undefined && input.nextStepNumber !== null;
@@ -139,7 +134,7 @@ export const notifyBadgeRuleApprovalDecision = async (
       fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
       tenantId: input.tenantId,
       tenantDisplayName: displayName,
-      ruleName: rule.name,
+      ruleName: input.version.snapshot.name,
       versionNumber: input.version.versionNumber,
       reviewUrl: input.reviewUrl,
       step: nextStep,
@@ -166,7 +161,7 @@ export const notifyBadgeRuleApprovalDecision = async (
               fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
               tenantId: input.tenantId,
               tenantDisplayName: displayName,
-              ruleName: rule.name,
+              ruleName: input.version.snapshot.name,
               versionNumber: input.version.versionNumber,
               reviewUrl: input.reviewUrl,
               recipientEmail: user.email,

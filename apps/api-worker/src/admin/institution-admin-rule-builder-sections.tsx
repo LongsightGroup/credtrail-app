@@ -1,5 +1,6 @@
 import type {
   BadgeIssuanceRuleRecord,
+  BadgeIssuanceRuleVersionRecord,
   BadgeTemplateRecord,
   TenantLmsConnectionRecord,
 } from "@credtrail/db";
@@ -166,7 +167,10 @@ export const RuleBuilderMetadataStep = (props: {
   readonly hasUnusableLmsConnections: boolean;
   readonly createTemplateForRulePath: string;
   readonly accessLmsConnectionsPath: string;
-  readonly editRule: { readonly rule: BadgeIssuanceRuleRecord } | null;
+  readonly editRule: {
+    readonly rule: BadgeIssuanceRuleRecord;
+    readonly latestVersion: BadgeIssuanceRuleVersionRecord;
+  } | null;
   readonly formatLmsConnectionProvider: (
     providerKind: TenantLmsConnectionRecord["providerKind"],
   ) => string;
@@ -302,7 +306,7 @@ export const RuleBuilderMetadataStep = (props: {
               type="hidden"
               name="name"
               id="rule-builder-name"
-              value={props.editRule?.rule.name ?? ""}
+              value={props.editRule?.latestVersion.snapshot.name ?? ""}
               dataAttributes={{
                 "data-rule-builder-preserve-name": props.isEditMode ? "true" : "false",
               }}

@@ -97,6 +97,15 @@ const createBadgeIssuanceRuleWithIdentity = async (
           version_number,
           status,
           rule_json,
+          snapshot_name,
+          snapshot_description,
+          snapshot_badge_template_id,
+          snapshot_badge_template_title,
+          snapshot_badge_template_image_uri,
+          snapshot_org_unit_id,
+          snapshot_owner_org_unit_id,
+          snapshot_lms_provider_kind,
+          snapshot_lms_connection_id,
           change_summary,
           created_by_user_id,
           approved_by_user_id,
@@ -106,7 +115,11 @@ const createBadgeIssuanceRuleWithIdentity = async (
           created_at,
           updated_at
         )
-        VALUES (?, ?, ?, 1, 'draft', ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?)
+        VALUES (
+          ?, ?, ?, 1, 'draft', ?,
+          ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, NULL, NULL, NULL, NULL, ?, ?
+        )
       `,
       )
       .bind(
@@ -114,6 +127,15 @@ const createBadgeIssuanceRuleWithIdentity = async (
         input.tenantId,
         ruleId,
         input.ruleJson,
+        input.name,
+        input.description ?? null,
+        input.badgeTemplateId,
+        badgeTemplate.title,
+        badgeTemplate.imageUri,
+        ruleOrgUnitId,
+        badgeTemplate.ownerOrgUnitId,
+        input.lmsProviderKind,
+        input.lmsConnectionId,
         input.changeSummary ?? null,
         input.createdByUserId ?? null,
         nowIso,
@@ -361,6 +383,15 @@ const createBadgeIssuanceRuleVersionInDatabase = async (
           version_number,
           status,
           rule_json,
+          snapshot_name,
+          snapshot_description,
+          snapshot_badge_template_id,
+          snapshot_badge_template_title,
+          snapshot_badge_template_image_uri,
+          snapshot_org_unit_id,
+          snapshot_owner_org_unit_id,
+          snapshot_lms_provider_kind,
+          snapshot_lms_connection_id,
           change_summary,
           created_by_user_id,
           approved_by_user_id,
@@ -370,19 +401,48 @@ const createBadgeIssuanceRuleVersionInDatabase = async (
           created_at,
           updated_at
         )
-        VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?)
+        SELECT
+          ?,
+          rules.tenant_id,
+          rules.id,
+          ?,
+          'draft',
+          ?,
+          rules.name,
+          rules.description,
+          rules.badge_template_id,
+          templates.title,
+          templates.image_uri,
+          rules.org_unit_id,
+          rules.owner_org_unit_id,
+          rules.lms_provider_kind,
+          rules.lms_connection_id,
+          ?,
+          ?,
+          NULL,
+          NULL,
+          NULL,
+          NULL,
+          ?,
+          ?
+        FROM badge_issuance_rules AS rules
+        INNER JOIN badge_templates AS templates
+          ON templates.id = rules.badge_template_id
+          AND templates.tenant_id = rules.tenant_id
+        WHERE rules.tenant_id = ?
+          AND rules.id = ?
       `,
       )
       .bind(
         versionId,
-        input.tenantId,
-        input.ruleId,
         versionNumber,
         input.ruleJson,
         input.changeSummary ?? null,
         input.createdByUserId ?? null,
         nowIso,
         nowIso,
+        input.tenantId,
+        input.ruleId,
       )
       .run();
 

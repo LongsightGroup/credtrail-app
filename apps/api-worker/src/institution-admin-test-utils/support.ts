@@ -1,4 +1,5 @@
 import { beforeEach, expect, vi } from "vitest";
+import { versionRecordFixtureFields } from "./rule-version-fixtures";
 
 import {
   mockedEnqueueJobQueueMessageOnce,
@@ -761,6 +762,7 @@ beforeEach(() => {
       versionNumber: 1,
       status: "draft",
       ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"CS101","minScore":80}}',
+      snapshot: versionRecordFixtureFields.snapshot,
       changeSummary: "Initial draft",
       createdByUserId: "usr_admin",
       submittedByUserId: null,

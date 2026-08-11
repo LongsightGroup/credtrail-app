@@ -5,7 +5,6 @@ import {
   enqueueJobQueueMessageOnce,
   enqueueOrRetryFailedJobQueueMessage,
   expireBadgeIssuanceRuleVersion,
-  findBadgeIssuanceRuleById,
   findTenantById,
   listActiveTenants,
   listBadgeIssuanceRuleVersionsForAutomatedEvaluation,
@@ -72,14 +71,7 @@ const notifyLifecycleReminder = async (
     return { status: "skipped_no_transport" };
   }
 
-  const [tenant, rule] = await Promise.all([
-    findTenantById(input.db, input.tenantId),
-    findBadgeIssuanceRuleById(input.db, input.tenantId, input.version.ruleId),
-  ]);
-
-  if (rule === null) {
-    return { status: "failed" };
-  }
+  const tenant = await findTenantById(input.db, input.tenantId);
 
   try {
     await sendBadgeRuleLifecycleReminderNotifications(input.db, {
@@ -88,7 +80,7 @@ const notifyLifecycleReminder = async (
       fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
       tenantId: input.tenantId,
       tenantDisplayName: tenant?.displayName ?? input.tenantId,
-      ruleName: rule.name,
+      ruleName: input.version.snapshot.name,
       versionNumber: input.version.versionNumber,
       dueAt: input.dueAt,
       reminderType: input.reminderType,

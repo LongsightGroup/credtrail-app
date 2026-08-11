@@ -838,24 +838,31 @@ export const createSakaiGradebookProvider = (
           const memberRole = rolesByCourseId.get(courseId);
 
           if (memberRole === undefined) {
-            return { courseId, authorized: false };
+            return { courseId, course: null };
           }
 
           const site = await siteById(courseId);
           const course = parseSakaiCourseRecord(site);
           return {
             courseId,
-            authorized: course !== null && hasSakaiCourseManagementAccess(memberRole, site),
+            course:
+              course !== null && hasSakaiCourseManagementAccess(memberRole, site) ? course : null,
           };
         },
       );
-      const authorizedCourseIds = new Set(
-        accessChecks.filter((check) => check.authorized).map((check) => check.courseId),
+      const authorizedCoursesById = new Map(
+        accessChecks.flatMap((check) =>
+          check.course === null ? [] : [[check.courseId, check.course] as const],
+        ),
       );
 
       return {
+        authorizedCourses: uniqueCourseIds.flatMap((courseId) => {
+          const course = authorizedCoursesById.get(courseId);
+          return course === undefined ? [] : [course];
+        }),
         unauthorizedCourseIds: accessInput.courseIds.filter(
-          (courseId) => !authorizedCourseIds.has(courseId),
+          (courseId) => !authorizedCoursesById.has(courseId),
         ),
       };
     },

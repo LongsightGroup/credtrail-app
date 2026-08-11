@@ -141,6 +141,16 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     stem: "institution-admin-issued-badges",
     sources: ["admin-browser-primitives.js", "institution-admin-issued-badges.js"],
   },
+  institutionAdminRuleVersionJs: {
+    kind: "script",
+    stem: "institution-admin-rule-version",
+    sources: ["institution-admin-rule-version.js"],
+  },
+  institutionAdminRuleVersionCss: {
+    kind: "style",
+    stem: "institution-admin-rule-version",
+    sources: ["rule-definition-summary.css", "institution-admin-rule-version.css"],
+  },
   assertionEvidenceCss: {
     kind: "style",
     stem: "assertion-evidence",
@@ -201,6 +211,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     sources: [
       "public-badge-detail.css",
       "public-badge-wall.css",
+      "rule-definition-summary.css",
       "public-badge-criteria-registry.css",
     ],
   },

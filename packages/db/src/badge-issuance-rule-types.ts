@@ -147,6 +147,19 @@ export interface BadgeIssuanceRuleRecord {
   updatedAt: string;
 }
 
+/** Immutable authoring metadata captured with one governed rule version. */
+export interface BadgeIssuanceRuleVersionSnapshot {
+  name: string;
+  description: string | null;
+  badgeTemplateId: string;
+  badgeTemplateTitle: string;
+  badgeTemplateImageUri: string | null;
+  orgUnitId: string;
+  ownerOrgUnitId: string;
+  lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
+  lmsConnectionId: string | null;
+}
+
 export interface BadgeIssuanceRuleVersionRecord {
   id: string;
   tenantId: string;
@@ -154,6 +167,7 @@ export interface BadgeIssuanceRuleVersionRecord {
   versionNumber: number;
   status: BadgeIssuanceRuleVersionStatus;
   ruleJson: string;
+  snapshot: BadgeIssuanceRuleVersionSnapshot;
   changeSummary: string | null;
   createdByUserId: string | null;
   submittedByUserId: string | null;
@@ -353,14 +367,15 @@ export interface ReopenApprovedBadgeIssuanceRuleVersionInput {
   readonly occurredAt?: string | undefined;
 }
 
+/** Input for activating an approved rule version with its effective issuance window. */
 export interface ActivateBadgeIssuanceRuleVersionInput {
-  tenantId: string;
-  ruleId: string;
-  versionId: string;
-  actorUserId: string;
-  effectiveStartsAt?: string | undefined;
-  expiresAt?: string | undefined;
-  activatedAt?: string | undefined;
+  readonly tenantId: string;
+  readonly ruleId: string;
+  readonly versionId: string;
+  readonly actorUserId: string;
+  readonly effectiveStartsAt?: string | undefined;
+  readonly expiresAt?: string | undefined;
+  readonly activatedAt?: string | undefined;
 }
 
 export interface SuspendBadgeIssuanceRuleVersionInput {
@@ -486,9 +501,9 @@ export interface ListPendingBadgeIssuanceRuleApprovalsForActorInput {
 export interface PendingBadgeIssuanceRuleApprovalRecord {
   tenantId: string;
   ruleId: string;
-  ruleName: string;
+  versionName: string;
   badgeTemplateId: string;
-  badgeTemplateName: string | null;
+  badgeTemplateTitle: string;
   orgUnitId: string;
   orgUnitDisplayName: string | null;
   versionId: string;
@@ -498,14 +513,6 @@ export interface PendingBadgeIssuanceRuleApprovalRecord {
   submittedByEmail: string | null;
   submittedAt: string | null;
   currentStep: BadgeIssuanceRuleApprovalStepRecord;
-}
-
-export interface ActivateBadgeIssuanceRuleVersionInput {
-  tenantId: string;
-  ruleId: string;
-  versionId: string;
-  actorUserId: string;
-  activatedAt?: string | undefined;
 }
 
 export interface CreateBadgeIssuanceRuleResult {

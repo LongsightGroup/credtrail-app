@@ -10,7 +10,7 @@ import type {
   PublicBadgeCriteriaRegistryViewModel,
   PublicBadgePageRenderers,
 } from "./public-badge-renderer-types";
-import { createRuleDefinitionSummaryMarkup } from "./public-badge-rule-summary";
+import { createRuleDefinitionSummaryMarkup } from "./badge-rule-definition-summary";
 
 type ApprovalStepStatus = "approved" | "pending" | "queued" | "rejected" | "changes_requested";
 
@@ -242,7 +242,7 @@ export const createTenantBadgeCriteriaRegistryPage = (
                     <div class="criteria-registry__details-body criteria-registry__stack-sm">
                       <p class="criteria-registry__muted">Rule ID: {ruleEntry.rule.id}</p>
                       <p class="criteria-registry__muted">
-                        Source system: {ruleEntry.rule.lmsProviderKind}
+                        Source system: {effectiveVersion?.snapshot.lmsProviderKind ?? "unknown"}
                       </p>
                       <p class="criteria-registry__muted">
                         Current published version: {activeVersionLabel} · Most recent recorded
@@ -263,7 +263,7 @@ export const createTenantBadgeCriteriaRegistryPage = (
                 return (
                   <article class="criteria-registry__rule" key={ruleEntry.rule.id}>
                     <header>
-                      <h3>{ruleEntry.rule.name}</h3>
+                      <h3>{effectiveVersion?.snapshot.name ?? "Qualification rule"}</h3>
                       <p class="criteria-registry__muted">
                         This published rule explains when a learner qualifies for this badge.
                       </p>

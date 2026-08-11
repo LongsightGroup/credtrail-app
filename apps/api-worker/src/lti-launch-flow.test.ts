@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setCookie } from "hono/cookie";
 import { LTI13JwtPayloadSchema, serializeLtiSession } from "@longsightgroup/lti-tool";
+import { sampleBadgeRuleVersionSnapshot } from "./test-support/badge-rule-version-snapshot";
 
 vi.mock("@credtrail/db", async () => {
   const actual = await vi.importActual<typeof import("@credtrail/db")>("@credtrail/db");
@@ -661,6 +662,15 @@ const sampleBadgeIssuanceRuleVersion = (
         reviewOnMissingFacts: true,
       },
     }),
+    snapshot: {
+      ...sampleBadgeRuleVersionSnapshot,
+      name: "LTI course badge rule",
+      badgeTemplateId: "badge_template_001",
+      badgeTemplateTitle: "Course badge",
+      orgUnitId: "tenant_123:org:course-typescript-101",
+      lmsProviderKind: "sakai",
+      lmsConnectionId: "lms_sakai_001",
+    },
     changeSummary: "Created from LTI Deep Linking course badge setup.",
     createdByUserId: "usr_lti_123",
     submittedByUserId: null,

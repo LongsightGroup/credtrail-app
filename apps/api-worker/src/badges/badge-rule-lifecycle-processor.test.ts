@@ -5,6 +5,7 @@ import {
   type ProcessBadgeRuleLifecycleInput,
 } from "./badge-rule-lifecycle-processor";
 import type { AppBindings } from "../app";
+import { sampleBadgeRuleVersionSnapshot } from "../test-support/badge-rule-version-snapshot";
 
 vi.mock("@credtrail/db", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@credtrail/db")>();
@@ -57,6 +58,7 @@ vi.mock("@credtrail/db", async (importOriginal) => {
             reviewOnMissingFacts: true,
           },
         }),
+        snapshot: sampleBadgeRuleVersionSnapshot,
         changeSummary: null,
         createdByUserId: "usr_admin",
         submittedByUserId: null,
@@ -158,6 +160,7 @@ describe("processBadgeRuleLifecycleForTenant", () => {
           minScore: 85,
         },
       }),
+      snapshot: sampleBadgeRuleVersionSnapshot,
       changeSummary: null,
       createdByUserId: "usr_admin",
       submittedByUserId: null,
@@ -264,6 +267,7 @@ describe("processBadgeRuleLifecycleForTenant", () => {
           minScore: 85,
         },
       }),
+      snapshot: sampleBadgeRuleVersionSnapshot,
       changeSummary: null,
       createdByUserId: "usr_admin",
       submittedByUserId: null,

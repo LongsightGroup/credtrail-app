@@ -1,0 +1,219 @@
+.ct-admin__rule-version-page-header {
+  display: grid;
+  gap: var(--ct-space-2);
+}
+
+.ct-admin__rule-version-back-link {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.ct-admin__rule-version-back-link a {
+  color: var(--ct-theme-link);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.ct-admin__rule-version-back-link a:hover,
+.ct-admin__rule-version-back-link a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.ct-admin__rule-version-record {
+  gap: var(--ct-space-5);
+}
+
+.ct-admin__rule-version-identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ct-space-4);
+}
+
+.ct-admin__rule-version-artwork-frame {
+  display: grid;
+  place-items: center;
+  inline-size: 6rem;
+  block-size: 6rem;
+  border: 1px solid var(--ct-border-soft);
+  border-radius: var(--ct-radius-md);
+  background: var(--ct-theme-surface-soft);
+  overflow: hidden;
+}
+
+.ct-admin__rule-version-artwork,
+.ct-admin__rule-version-artwork-placeholder {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.ct-admin__rule-version-artwork {
+  display: block;
+  object-fit: cover;
+}
+
+.ct-admin__rule-version-artwork-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--ct-theme-text-title);
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.ct-admin__rule-version-identity-copy {
+  display: grid;
+  gap: var(--ct-space-2);
+  min-inline-size: 0;
+}
+
+.ct-admin__rule-version-identity-copy h2,
+.ct-admin__rule-version-identity-copy p,
+.ct-admin__rule-version-definition h3,
+.ct-admin__rule-version-change-summary h3,
+.ct-admin__rule-version-lifecycle-note h2,
+.ct-admin__rule-version-lifecycle-note p {
+  margin: 0;
+}
+
+.ct-admin__rule-version-identity-copy h2 {
+  font-family: var(--ct-font-sans);
+  font-size: 1.15rem;
+}
+
+.ct-admin__rule-version-identity-copy p,
+.ct-admin__rule-version-navigation > p,
+.ct-admin__rule-version-change-summary p,
+.ct-admin__rule-version-lifecycle-note p {
+  max-inline-size: 72ch;
+  color: var(--ct-theme-text-muted);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.ct-admin__rule-version-state {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--ct-space-2);
+  color: var(--ct-theme-text-muted);
+  font-size: 0.88rem;
+}
+
+.ct-admin__rule-version-metadata {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--ct-space-3) var(--ct-space-5);
+  margin: 0;
+  padding-block: var(--ct-space-4);
+  border-block: 1px solid var(--ct-border-soft);
+}
+
+.ct-admin__rule-version-metadata div {
+  display: grid;
+  gap: var(--ct-space-1);
+}
+
+.ct-admin__rule-version-metadata dt {
+  color: var(--ct-theme-text-subtle);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.ct-admin__rule-version-metadata dd {
+  margin: 0;
+  color: var(--ct-theme-text-title);
+  font-size: 0.9rem;
+}
+
+.ct-admin__rule-version-definition,
+.ct-admin__rule-version-change-summary,
+.ct-admin__rule-version-lifecycle-note {
+  display: grid;
+  gap: var(--ct-space-2);
+}
+
+.ct-admin__rule-version-definition h3,
+.ct-admin__rule-version-change-summary h3,
+.ct-admin__rule-version-lifecycle-note h2 {
+  font-family: var(--ct-font-sans);
+  font-size: 1rem;
+}
+
+.ct-admin__rule-version-label-status {
+  margin: 0;
+  color: var(--ct-theme-text-subtle);
+  font-size: 0.82rem;
+}
+
+.ct-admin__rule-version-label-status[data-tone="warning"] {
+  color: var(--ct-theme-state-warning);
+}
+
+.ct-admin__rule-version-label-status[data-tone="success"] {
+  color: var(--ct-theme-state-success);
+}
+
+.ct-admin__rule-version-support-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ct-space-2) var(--ct-space-5);
+  margin: 0;
+  padding-block-start: var(--ct-space-3);
+  border-block-start: 1px solid var(--ct-border-soft);
+  color: var(--ct-theme-text-subtle);
+  font-size: 0.78rem;
+}
+
+.ct-admin__rule-version-support-metadata div {
+  display: flex;
+  gap: var(--ct-space-1);
+  min-inline-size: 0;
+}
+
+.ct-admin__rule-version-support-metadata dt {
+  font-weight: 650;
+}
+
+.ct-admin__rule-version-support-metadata dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ct-admin__rule-version-navigation {
+  gap: var(--ct-space-4);
+}
+
+.ct-admin__rule-version-selector {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--ct-space-3);
+}
+
+.ct-admin__rule-version-selector .ct-admin__field {
+  flex: 1 1 18rem;
+  max-inline-size: 30rem;
+}
+
+@media (max-width: 560px) {
+  .ct-admin__rule-version-identity {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .ct-admin__rule-version-artwork-frame {
+    inline-size: 5rem;
+    block-size: 5rem;
+  }
+
+  .ct-admin__rule-version-selector {
+    align-items: stretch;
+  }
+
+  .ct-admin__rule-version-selector .ct-admin__field,
+  .ct-admin__rule-version-selector .ct-admin__button {
+    flex: 1 1 100%;
+    max-inline-size: none;
+  }
+}

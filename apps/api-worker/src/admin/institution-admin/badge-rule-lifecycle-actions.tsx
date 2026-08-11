@@ -115,7 +115,7 @@ export const buildBadgeRuleLifecycleMenuActions = (input: {
           action={tenantBadgeRuleRecertifyAdminPath(tenantId, rule.id, latestVersion.id)}
           className="ct-admin__inline-form"
           dataAttributes={{
-            "data-confirm-message": `Record recertification for "${rule.name}"?`,
+            "data-confirm-message": `Record recertification for "${latestVersion.snapshot.name}"?`,
           }}
         >
           <button type="submit" class="ct-admin__action-menu-item">
@@ -133,7 +133,7 @@ export const buildBadgeRuleLifecycleMenuActions = (input: {
         action={tenantBadgeRuleResumeAdminPath(tenantId, rule.id, latestVersion.id)}
         className="ct-admin__inline-form"
         dataAttributes={{
-          "data-confirm-message": `Resume issuance for "${rule.name}"?`,
+          "data-confirm-message": `Resume issuance for "${latestVersion.snapshot.name}"?`,
         }}
       >
         <button type="submit" class="ct-admin__action-menu-item">

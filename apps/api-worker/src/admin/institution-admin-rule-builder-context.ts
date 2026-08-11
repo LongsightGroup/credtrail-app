@@ -100,7 +100,7 @@ export const buildInstitutionAdminRuleBuilderEditContext = (input: {
 }): InstitutionAdminRuleBuilderEditContext => {
   return {
     id: input.rule.id,
-    name: input.rule.name,
+    name: input.latestVersion.snapshot.name,
     description: input.rule.description,
     badgeTemplateId: input.rule.badgeTemplateId,
     lmsConnectionId: input.rule.lmsConnectionId,

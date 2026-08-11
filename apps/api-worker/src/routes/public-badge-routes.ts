@@ -9,6 +9,7 @@ import {
   listPublicBadgeWallEntries,
   listTenantOrgUnits,
   recordAssertionEngagementEvent,
+  resolveBadgeIssuanceRuleVersionSelection,
   resolveAssertionLifecycleState,
   type SqlDatabase,
 } from "@credtrail/db";
@@ -112,14 +113,8 @@ const buildPublicBadgeCriteriaRegistryViewModel = async (
         tenantId,
         ruleId: rule.id,
       });
-      const latestVersion = versions[0] ?? null;
-      const activeVersion =
-        (rule.activeVersionId === null
-          ? null
-          : versions.find((version) => version.id === rule.activeVersionId)) ??
-        versions.find((version) => version.status === "active") ??
-        null;
-      const governanceVersion = activeVersion ?? latestVersion;
+      const versionSelection = resolveBadgeIssuanceRuleVersionSelection({ rule, versions });
+      const governanceVersion = versionSelection.activeVersion ?? versionSelection.latestVersion;
       const [approvalSteps, approvalEvents] =
         governanceVersion === null
           ? [[], []]
@@ -135,17 +130,23 @@ const buildPublicBadgeCriteriaRegistryViewModel = async (
                 versionId: governanceVersion.id,
               }),
             ]);
-      const byTemplate = rulesByTemplateId.get(rule.badgeTemplateId);
+      const badgeTemplateId = governanceVersion?.snapshot.badgeTemplateId ?? null;
+
+      if (badgeTemplateId === null) {
+        return;
+      }
+
+      const byTemplate = rulesByTemplateId.get(badgeTemplateId);
       const ruleRecord: PublicBadgeCriteriaRuleViewRecord = {
         rule,
-        latestVersion,
-        activeVersion,
+        latestVersion: versionSelection.latestVersion,
+        activeVersion: versionSelection.activeVersion,
         approvalSteps,
         approvalEvents,
       };
 
       if (byTemplate === undefined) {
-        rulesByTemplateId.set(rule.badgeTemplateId, [ruleRecord]);
+        rulesByTemplateId.set(badgeTemplateId, [ruleRecord]);
         return;
       }
 

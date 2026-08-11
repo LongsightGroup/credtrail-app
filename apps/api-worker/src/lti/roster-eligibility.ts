@@ -3,7 +3,7 @@ import {
   findBadgeIssuanceRuleById,
   findLtiResourceLinkPlacement,
   type AssertionLifecycleState,
-  type BadgeIssuanceRuleRecord,
+  type BadgeIssuanceRuleVersionSnapshot,
   type SqlDatabase,
 } from "@credtrail/db";
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
@@ -61,7 +61,7 @@ export type LtiRosterEligibilityPreparedEvaluation =
       status: "ready";
       ruleId: string;
       versionId: string;
-      lmsProviderKind: BadgeIssuanceRuleRecord["lmsProviderKind"];
+      lmsProviderKind: BadgeIssuanceRuleVersionSnapshot["lmsProviderKind"];
       lmsConnectionId: string | null;
       definition: BadgeIssuanceRuleDefinition;
       issuanceBehavior: LtiRosterIssuanceBehavior;
@@ -218,8 +218,8 @@ export const prepareLtiRosterEligibilityEvaluationContext = async (input: {
     status: "ready",
     ruleId: rule.id,
     versionId: activeVersion.id,
-    lmsProviderKind: rule.lmsProviderKind,
-    lmsConnectionId: rule.lmsConnectionId,
+    lmsProviderKind: activeVersion.snapshot.lmsProviderKind,
+    lmsConnectionId: activeVersion.snapshot.lmsConnectionId,
     definition,
     issuanceBehavior: ltiRosterIssuanceBehaviorFromRuleDefinition(definition),
   };

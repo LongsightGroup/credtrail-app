@@ -112,9 +112,9 @@ interface BadgeIssuanceRuleApprovalEventRow {
 
 interface PendingBadgeIssuanceRuleApprovalRow extends BadgeIssuanceRuleApprovalStepRow {
   ruleId: string;
-  ruleName: string;
+  versionName: string;
   badgeTemplateId: string;
-  badgeTemplateName: string | null;
+  badgeTemplateTitle: string;
   orgUnitIdForRule: string;
   orgUnitDisplayName: string | null;
   versionNumber: number;
@@ -499,9 +499,9 @@ const mapPendingBadgeIssuanceRuleApprovalRow = (
   return {
     tenantId: row.tenantId,
     ruleId: row.ruleId,
-    ruleName: row.ruleName,
+    versionName: row.versionName,
     badgeTemplateId: row.badgeTemplateId,
-    badgeTemplateName: row.badgeTemplateName,
+    badgeTemplateTitle: row.badgeTemplateTitle,
     orgUnitId: row.orgUnitIdForRule,
     orgUnitDisplayName: row.orgUnitDisplayName,
     versionId: row.versionId,
@@ -539,11 +539,11 @@ export const listPendingBadgeIssuanceRuleApprovalsForActor = async (
           steps.decision_comment AS decisionComment,
           steps.created_at AS createdAt,
           steps.updated_at AS updatedAt,
-          rules.id AS ruleId,
-          rules.name AS ruleName,
-          rules.badge_template_id AS badgeTemplateId,
-          templates.title AS badgeTemplateName,
-          rules.org_unit_id AS orgUnitIdForRule,
+          versions.rule_id AS ruleId,
+          versions.snapshot_name AS versionName,
+          versions.snapshot_badge_template_id AS badgeTemplateId,
+          versions.snapshot_badge_template_title AS badgeTemplateTitle,
+          versions.snapshot_org_unit_id AS orgUnitIdForRule,
           org_units.display_name AS orgUnitDisplayName,
           versions.version_number AS versionNumber,
           versions.created_by_user_id AS versionCreatedByUserId,
@@ -554,15 +554,9 @@ export const listPendingBadgeIssuanceRuleApprovalsForActor = async (
         INNER JOIN badge_issuance_rule_versions AS versions
           ON versions.id = steps.version_id
           AND versions.tenant_id = steps.tenant_id
-        INNER JOIN badge_issuance_rules AS rules
-          ON rules.id = versions.rule_id
-          AND rules.tenant_id = versions.tenant_id
-        LEFT JOIN badge_templates AS templates
-          ON templates.id = rules.badge_template_id
-          AND templates.tenant_id = rules.tenant_id
         LEFT JOIN tenant_org_units AS org_units
-          ON org_units.id = rules.org_unit_id
-          AND org_units.tenant_id = rules.tenant_id
+          ON org_units.id = versions.snapshot_org_unit_id
+          AND org_units.tenant_id = versions.tenant_id
         LEFT JOIN users AS submitters
           ON submitters.id = versions.submitted_by_user_id
         WHERE steps.tenant_id = ?
@@ -747,12 +741,81 @@ const DRAFT_EDITABLE_BADGE_ISSUANCE_RULE_VERSION_STATUSES: ReadonlySet<BadgeIssu
 export const BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE =
   "Only the latest draft or rejected version can be edited from the builder.";
 
+/** Returns badge-rule versions newest first without mutating the caller's collection. */
+export const orderBadgeIssuanceRuleVersionsNewestFirst = (
+  versions: readonly BadgeIssuanceRuleVersionRecord[],
+): readonly BadgeIssuanceRuleVersionRecord[] => {
+  return versions.slice().sort((left, right) => right.versionNumber - left.versionNumber);
+};
+
+/** Groups badge-rule versions by rule ID with every group ordered newest first. */
+export const indexBadgeIssuanceRuleVersionsByRuleId = (
+  versions: readonly BadgeIssuanceRuleVersionRecord[],
+): ReadonlyMap<string, readonly BadgeIssuanceRuleVersionRecord[]> => {
+  const indexedVersions = new Map<string, BadgeIssuanceRuleVersionRecord[]>();
+
+  for (const version of versions) {
+    const ruleVersions = indexedVersions.get(version.ruleId);
+
+    if (ruleVersions === undefined) {
+      indexedVersions.set(version.ruleId, [version]);
+      continue;
+    }
+
+    ruleVersions.push(version);
+  }
+
+  for (const [ruleId, ruleVersions] of indexedVersions) {
+    indexedVersions.set(ruleId, [...orderBadgeIssuanceRuleVersionsNewestFirst(ruleVersions)]);
+  }
+
+  return indexedVersions;
+};
+
 export const latestBadgeIssuanceRuleVersion = (
   versions: readonly BadgeIssuanceRuleVersionRecord[],
 ): BadgeIssuanceRuleVersionRecord | null => {
+  return orderBadgeIssuanceRuleVersionsNewestFirst(versions)[0] ?? null;
+};
+
+/** Returns the newest version older than the selected version number. */
+export const previousBadgeIssuanceRuleVersion = (
+  versions: readonly BadgeIssuanceRuleVersionRecord[],
+  selectedVersionNumber: number,
+): BadgeIssuanceRuleVersionRecord | null => {
   return (
-    versions.slice().sort((left, right) => right.versionNumber - left.versionNumber)[0] ?? null
+    orderBadgeIssuanceRuleVersionsNewestFirst(versions).find(
+      (version) => version.versionNumber < selectedVersionNumber,
+    ) ?? null
   );
+};
+
+/** Canonical ordering and lifecycle selections for one badge rule's versions. */
+export interface BadgeIssuanceRuleVersionSelection {
+  readonly orderedVersions: readonly BadgeIssuanceRuleVersionRecord[];
+  readonly latestVersion: BadgeIssuanceRuleVersionRecord | null;
+  readonly activeVersion: BadgeIssuanceRuleVersionRecord | null;
+  readonly defaultVersion: BadgeIssuanceRuleVersionRecord | null;
+}
+
+/** Resolves the canonical latest, active, and default detail versions for one rule. */
+export const resolveBadgeIssuanceRuleVersionSelection = (input: {
+  readonly rule: BadgeIssuanceRuleRecord;
+  readonly versions: readonly BadgeIssuanceRuleVersionRecord[];
+}): BadgeIssuanceRuleVersionSelection => {
+  const orderedVersions = orderBadgeIssuanceRuleVersionsNewestFirst(input.versions);
+  const latestVersion = orderedVersions[0] ?? null;
+  const activeVersion =
+    input.rule.activeVersionId === null
+      ? null
+      : (orderedVersions.find((version) => version.id === input.rule.activeVersionId) ?? null);
+
+  return {
+    orderedVersions,
+    latestVersion,
+    activeVersion,
+    defaultVersion: input.rule.activeVersionId === null ? latestVersion : activeVersion,
+  };
 };
 
 export const canEditBadgeIssuanceRuleDraft = (

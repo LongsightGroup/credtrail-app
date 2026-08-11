@@ -1,8 +1,13 @@
+import { badgeIssuanceRuleLmsProviderKindSchema } from "@credtrail/validation";
+import { z } from "zod";
+
 import type {
+  BadgeIssuanceRuleVersionSnapshot,
   BadgeIssuanceRuleVersionRecord,
   BadgeIssuanceRuleVersionStatus,
 } from "./badge-issuance-rule-types.js";
 
+/** Database projection for one persisted badge-rule version. */
 export interface BadgeIssuanceRuleVersionRow {
   id: string;
   tenantId: string;
@@ -10,6 +15,15 @@ export interface BadgeIssuanceRuleVersionRow {
   versionNumber: number;
   status: BadgeIssuanceRuleVersionStatus;
   ruleJson: string;
+  snapshotName: string;
+  snapshotDescription: string | null;
+  snapshotBadgeTemplateId: string;
+  snapshotBadgeTemplateTitle: string;
+  snapshotBadgeTemplateImageUri: string | null;
+  snapshotOrgUnitId: string;
+  snapshotOwnerOrgUnitId: string;
+  snapshotLmsProviderKind: string;
+  snapshotLmsConnectionId: string | null;
   changeSummary: string | null;
   createdByUserId: string | null;
   submittedByUserId: string | null;
@@ -32,6 +46,38 @@ export interface BadgeIssuanceRuleVersionRow {
   updatedAt: string;
 }
 
+const requiredStoredSnapshotTextSchema = z.string().refine((value) => value.trim().length > 0, {
+  message: "Stored badge-rule snapshot text must not be blank",
+});
+
+const badgeIssuanceRuleVersionSnapshotSchema = z.object({
+  name: requiredStoredSnapshotTextSchema,
+  description: z.string().nullable(),
+  badgeTemplateId: requiredStoredSnapshotTextSchema,
+  badgeTemplateTitle: requiredStoredSnapshotTextSchema,
+  badgeTemplateImageUri: z.string().nullable(),
+  orgUnitId: requiredStoredSnapshotTextSchema,
+  ownerOrgUnitId: requiredStoredSnapshotTextSchema,
+  lmsProviderKind: badgeIssuanceRuleLmsProviderKindSchema,
+  lmsConnectionId: z.string().nullable(),
+});
+
+const parseBadgeIssuanceRuleVersionSnapshot = (
+  row: BadgeIssuanceRuleVersionRow,
+): BadgeIssuanceRuleVersionSnapshot => {
+  return badgeIssuanceRuleVersionSnapshotSchema.parse({
+    name: row.snapshotName,
+    description: row.snapshotDescription,
+    badgeTemplateId: row.snapshotBadgeTemplateId,
+    badgeTemplateTitle: row.snapshotBadgeTemplateTitle,
+    badgeTemplateImageUri: row.snapshotBadgeTemplateImageUri,
+    orgUnitId: row.snapshotOrgUnitId,
+    ownerOrgUnitId: row.snapshotOwnerOrgUnitId,
+    lmsProviderKind: row.snapshotLmsProviderKind,
+    lmsConnectionId: row.snapshotLmsConnectionId,
+  });
+};
+
 const BADGE_ISSUANCE_RULE_VERSION_COLUMN_DEFS: readonly {
   readonly column: string;
   readonly alias: string;
@@ -42,6 +88,15 @@ const BADGE_ISSUANCE_RULE_VERSION_COLUMN_DEFS: readonly {
   { column: "version_number", alias: "versionNumber" },
   { column: "status", alias: "status" },
   { column: "rule_json", alias: "ruleJson" },
+  { column: "snapshot_name", alias: "snapshotName" },
+  { column: "snapshot_description", alias: "snapshotDescription" },
+  { column: "snapshot_badge_template_id", alias: "snapshotBadgeTemplateId" },
+  { column: "snapshot_badge_template_title", alias: "snapshotBadgeTemplateTitle" },
+  { column: "snapshot_badge_template_image_uri", alias: "snapshotBadgeTemplateImageUri" },
+  { column: "snapshot_org_unit_id", alias: "snapshotOrgUnitId" },
+  { column: "snapshot_owner_org_unit_id", alias: "snapshotOwnerOrgUnitId" },
+  { column: "snapshot_lms_provider_kind", alias: "snapshotLmsProviderKind" },
+  { column: "snapshot_lms_connection_id", alias: "snapshotLmsConnectionId" },
   { column: "change_summary", alias: "changeSummary" },
   { column: "created_by_user_id", alias: "createdByUserId" },
   { column: "submitted_by_user_id", alias: "submittedByUserId" },
@@ -64,6 +119,7 @@ const BADGE_ISSUANCE_RULE_VERSION_COLUMN_DEFS: readonly {
   { column: "updated_at", alias: "updatedAt" },
 ];
 
+/** Build the canonical SQL projection for persisted badge-rule versions. */
 export const badgeIssuanceRuleVersionSelectColumns = (tableAlias?: string): string => {
   return BADGE_ISSUANCE_RULE_VERSION_COLUMN_DEFS.map(({ column, alias }) => {
     const source = tableAlias === undefined ? column : `${tableAlias}.${column}`;
@@ -76,8 +132,10 @@ export const badgeIssuanceRuleVersionSelectColumns = (tableAlias?: string): stri
   }).join(",\n  ");
 };
 
+/** Canonical unqualified SQL projection for persisted badge-rule versions. */
 export const BADGE_ISSUANCE_RULE_VERSION_SELECT_COLUMNS = badgeIssuanceRuleVersionSelectColumns();
 
+/** Parse a database row into a badge-rule version and reject corrupt snapshot state. */
 export const mapBadgeIssuanceRuleVersionRow = (
   row: BadgeIssuanceRuleVersionRow,
 ): BadgeIssuanceRuleVersionRecord => {
@@ -88,6 +146,7 @@ export const mapBadgeIssuanceRuleVersionRow = (
     versionNumber: row.versionNumber,
     status: row.status,
     ruleJson: row.ruleJson,
+    snapshot: parseBadgeIssuanceRuleVersionSnapshot(row),
     changeSummary: row.changeSummary,
     createdByUserId: row.createdByUserId,
     submittedByUserId: row.submittedByUserId ?? null,

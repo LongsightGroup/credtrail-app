@@ -543,6 +543,12 @@ export const badgeIssuanceRuleReviewQueueQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });
 
+export const badgeIssuanceRuleVersionSelectionQuerySchema = z
+  .object({
+    versionId: resourceIdSchema.optional(),
+  })
+  .strict();
+
 export const resolveBadgeIssuanceRuleReviewRequestSchema = z.object({
   decision: z.enum(["issue", "dismiss"]),
   comment: z.string().trim().min(1).max(2000).optional(),
@@ -652,6 +658,10 @@ export type PreviewSimulateBadgeIssuanceRuleRequest = z.infer<
 
 export type BadgeIssuanceRuleReviewQueueQuery = z.infer<
   typeof badgeIssuanceRuleReviewQueueQuerySchema
+>;
+
+export type BadgeIssuanceRuleVersionSelectionQuery = z.infer<
+  typeof badgeIssuanceRuleVersionSelectionQuerySchema
 >;
 
 export type ResolveBadgeIssuanceRuleReviewRequest = z.infer<
@@ -808,6 +818,12 @@ export const parseBadgeIssuanceRuleReviewQueueQuery = (
   input: unknown,
 ): BadgeIssuanceRuleReviewQueueQuery => {
   return badgeIssuanceRuleReviewQueueQuerySchema.parse(input);
+};
+
+export const parseBadgeIssuanceRuleVersionSelectionQuery = (
+  input: unknown,
+): BadgeIssuanceRuleVersionSelectionQuery => {
+  return badgeIssuanceRuleVersionSelectionQuerySchema.parse(input);
 };
 
 export const parseResolveBadgeIssuanceRuleReviewRequest = (

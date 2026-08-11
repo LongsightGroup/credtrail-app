@@ -296,11 +296,11 @@ export const processAutomatedBadgeRule = async (input: {
     throw new Error("Active automated badge rule has no complete LMS learner population");
   }
 
-  if (rule.lmsConnectionId === null) {
+  if (version.snapshot.lmsConnectionId === null) {
     throw new Error("Active automated badge rule has no LMS connection");
   }
 
-  const lmsConnectionId = rule.lmsConnectionId;
+  const lmsConnectionId = version.snapshot.lmsConnectionId;
 
   const provider =
     input.gradebookProvider ??
@@ -316,7 +316,7 @@ export const processAutomatedBadgeRule = async (input: {
   );
   const existingAssertions = await listAssertionsByBadgeTemplatesAndRecipientEmails(input.db, {
     tenantId: input.tenantId,
-    badgeTemplateIds: [rule.badgeTemplateId],
+    badgeTemplateIds: [version.snapshot.badgeTemplateId],
     recipientEmails,
   });
   const issuedRecipientEmails = new Set(
@@ -339,8 +339,8 @@ export const processAutomatedBadgeRule = async (input: {
       const result = await evaluateBadgeRuleLearner({
         db: input.db,
         tenantId: input.tenantId,
-        lmsProviderKind: rule.lmsProviderKind,
-        lmsConnectionId: rule.lmsConnectionId ?? undefined,
+        lmsProviderKind: version.snapshot.lmsProviderKind,
+        lmsConnectionId,
         learnerId: learner.learnerId,
         recipientEmail: learner.email,
         definition,
@@ -361,7 +361,7 @@ export const processAutomatedBadgeRule = async (input: {
       );
       const { job } = issueBadgeQueueJobFromRequest({
         tenantId: input.tenantId,
-        badgeTemplateId: rule.badgeTemplateId,
+        badgeTemplateId: version.snapshot.badgeTemplateId,
         recipientIdentity: learner.email,
         recipientIdentityType: "email",
         lmsLearnerIdentity: {

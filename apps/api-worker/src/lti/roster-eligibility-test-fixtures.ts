@@ -5,6 +5,7 @@ import type {
 } from "@credtrail/db";
 import type { BadgeIssuanceRuleEvaluationFacts } from "../rules/engine";
 import type { LtiNrpsMember } from "./nrps";
+import { sampleBadgeRuleVersionSnapshot } from "../test-support/badge-rule-version-snapshot";
 
 export const sampleLtiRosterMember = (overrides?: Partial<LtiNrpsMember>): LtiNrpsMember => ({
   userId: "learner-001",
@@ -57,6 +58,13 @@ export const sampleLtiRosterBadgeRuleVersion = (
       reviewOnMissingFacts: true,
     },
   }),
+  snapshot: {
+    ...sampleBadgeRuleVersionSnapshot,
+    name: "Course rule",
+    description: null,
+    lmsProviderKind: "sakai",
+    lmsConnectionId: "lms_sakai_001",
+  },
   changeSummary: null,
   createdByUserId: "usr_123",
   submittedByUserId: "usr_123",

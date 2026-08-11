@@ -602,6 +602,14 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
         actorUserId: fixture.userId,
         actorRole: "issuer",
       });
+      await fixture.db
+        .prepare("UPDATE badge_issuance_rules SET name = ? WHERE tenant_id = ? AND id = ?")
+        .bind("Mutable parent name", fixture.tenantId, adminRule.rule.id)
+        .run();
+      await fixture.db
+        .prepare("UPDATE badge_templates SET title = ? WHERE tenant_id = ? AND id = ?")
+        .bind("Mutable template title", fixture.tenantId, adminRule.rule.badgeTemplateId)
+        .run();
 
       const pendingApprovals = await dbModule.listPendingBadgeIssuanceRuleApprovalsForActor(
         fixture.db,
@@ -615,6 +623,10 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
 
       expect(pendingApprovals).toHaveLength(1);
       expect(pendingApprovals[0]?.ruleId).toBe(adminRule.rule.id);
+      expect(pendingApprovals[0]?.versionName).toBe(adminRule.version.snapshot.name);
+      expect(pendingApprovals[0]?.badgeTemplateTitle).toBe(
+        adminRule.version.snapshot.badgeTemplateTitle,
+      );
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],

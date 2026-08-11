@@ -3,6 +3,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import * as dbModule from "./index";
+import {
+  mapBadgeIssuanceRuleVersionRow,
+  type BadgeIssuanceRuleVersionRow,
+} from "./badge-issuance-rule-version-sql";
 import type {
   SqlDatabase,
   SqlPreparedStatement,
@@ -142,6 +146,78 @@ describe("badge rule review queue schema", () => {
     expect(sql).toContain("'withdrawn'");
     expect(sql).toContain("'reopened'");
   });
+
+  it("backfills and constrains immutable badge-rule version snapshots", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0062_badge_rule_version_snapshots.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("UPDATE badge_issuance_rule_versions AS versions");
+    expect(sql).toContain("FROM badge_issuance_rules AS rules");
+    expect(sql).toContain("INNER JOIN badge_templates AS templates");
+    expect(sql).toContain("ALTER COLUMN snapshot_name SET NOT NULL");
+    expect(sql).toContain("badge_rule_version_snapshot_lms_provider_kind_check");
+    expect(sql).not.toContain("DEFAULT ''");
+  });
+});
+
+const sampleBadgeIssuanceRuleVersionRow = (): BadgeIssuanceRuleVersionRow => ({
+  id: "brv_123",
+  tenantId: "tenant_123",
+  ruleId: "bir_123",
+  versionNumber: 1,
+  status: "draft",
+  ruleJson: '{"all":[]}',
+  snapshotName: "Course completion",
+  snapshotDescription: null,
+  snapshotBadgeTemplateId: "badge_template_123",
+  snapshotBadgeTemplateTitle: "Course badge",
+  snapshotBadgeTemplateImageUri: null,
+  snapshotOrgUnitId: "org_course_123",
+  snapshotOwnerOrgUnitId: "org_department_123",
+  snapshotLmsProviderKind: "sakai",
+  snapshotLmsConnectionId: "lms_connection_123",
+  changeSummary: null,
+  createdByUserId: "user_123",
+  submittedByUserId: null,
+  submittedAt: null,
+  approvedByUserId: null,
+  approvedAt: null,
+  activatedByUserId: null,
+  activatedAt: null,
+  effectiveStartsAt: null,
+  expiresAt: null,
+  expiredAt: null,
+  suspendedAt: null,
+  suspendedByUserId: null,
+  suspensionReason: null,
+  recertifiedAt: null,
+  recertificationDueAt: null,
+  expiryReminderSentAt: null,
+  recertificationReminderSentAt: null,
+  createdAt: "2026-08-07T12:00:00.000Z",
+  updatedAt: "2026-08-07T12:00:00.000Z",
+});
+
+describe("mapBadgeIssuanceRuleVersionRow", () => {
+  it("rejects a blank required snapshot field", () => {
+    expect(() =>
+      mapBadgeIssuanceRuleVersionRow({
+        ...sampleBadgeIssuanceRuleVersionRow(),
+        snapshotName: "   ",
+      }),
+    ).toThrow("Stored badge-rule snapshot text must not be blank");
+  });
+
+  it("rejects an unknown stored LMS provider", () => {
+    expect(() =>
+      mapBadgeIssuanceRuleVersionRow({
+        ...sampleBadgeIssuanceRuleVersionRow(),
+        snapshotLmsProviderKind: "unknown_lms",
+      }),
+    ).toThrow("Invalid option");
+  });
 });
 
 describe("resolveListBadgeIssuanceRulesInput", () => {
@@ -212,6 +288,17 @@ describe("badge issuance rule draft predicates", () => {
       ...overrides,
     };
   };
+  const sampleVersionSnapshot: dbModule.BadgeIssuanceRuleVersionSnapshot = {
+    name: "CS101 Rule",
+    description: "Award for CS101 completion.",
+    badgeTemplateId: "badge_template_123",
+    badgeTemplateTitle: "CS101 badge",
+    badgeTemplateImageUri: null,
+    orgUnitId: "tenant_123:org:institution",
+    ownerOrgUnitId: "tenant_123:org:institution",
+    lmsProviderKind: "canvas",
+    lmsConnectionId: "lms_123",
+  };
   const sampleVersion = (
     overrides?: Partial<dbModule.BadgeIssuanceRuleVersionRecord>,
   ): dbModule.BadgeIssuanceRuleVersionRecord => {
@@ -222,6 +309,7 @@ describe("badge issuance rule draft predicates", () => {
       versionNumber: 1,
       status: "draft",
       ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+      snapshot: sampleVersionSnapshot,
       changeSummary: "Initial draft",
       createdByUserId: "usr_admin",
       submittedByUserId: null,
@@ -295,6 +383,30 @@ describe("badge issuance rule draft predicates", () => {
       ]),
     ).toBe(false);
   });
+
+  it("indexes each rule's versions newest first without mutating the input", () => {
+    const versions = [
+      sampleVersion({ id: "brv_alpha_1", ruleId: "brl_alpha", versionNumber: 1 }),
+      sampleVersion({ id: "brv_beta_1", ruleId: "brl_beta", versionNumber: 1 }),
+      sampleVersion({ id: "brv_alpha_3", ruleId: "brl_alpha", versionNumber: 3 }),
+      sampleVersion({ id: "brv_alpha_2", ruleId: "brl_alpha", versionNumber: 2 }),
+    ];
+
+    const indexed = dbModule.indexBadgeIssuanceRuleVersionsByRuleId(versions);
+
+    expect(indexed.get("brl_alpha")?.map((version) => version.id)).toEqual([
+      "brv_alpha_3",
+      "brv_alpha_2",
+      "brv_alpha_1",
+    ]);
+    expect(indexed.get("brl_beta")?.map((version) => version.id)).toEqual(["brv_beta_1"]);
+    expect(versions.map((version) => version.id)).toEqual([
+      "brv_alpha_1",
+      "brv_beta_1",
+      "brv_alpha_3",
+      "brv_alpha_2",
+    ]);
+  });
 });
 
 describe("badge issuance rule approval transactions", () => {
@@ -304,6 +416,17 @@ describe("badge issuance rule approval transactions", () => {
       rowsWritten: 1,
     },
   };
+  const sampleVersionSnapshotRow = {
+    snapshotName: "CS101 Rule",
+    snapshotDescription: null,
+    snapshotBadgeTemplateId: "badge_template_123",
+    snapshotBadgeTemplateTitle: "CS101 Badge",
+    snapshotBadgeTemplateImageUri: null,
+    snapshotOrgUnitId: "tenant_123:org:institution",
+    snapshotOwnerOrgUnitId: "tenant_123:org:institution",
+    snapshotLmsProviderKind: "canvas",
+    snapshotLmsConnectionId: "lms_123",
+  } as const;
 
   const createRecordedStatement = (
     sql: string,
@@ -345,6 +468,7 @@ describe("badge issuance rule approval transactions", () => {
             versionNumber: 1,
             status: "draft",
             ruleJson: "{}",
+            ...sampleVersionSnapshotRow,
             changeSummary: null,
             createdByUserId: "usr_admin",
             approvedByUserId: null,
@@ -541,6 +665,7 @@ describe("badge issuance rule approval transactions", () => {
               versionNumber: 1,
               status: versionStatus,
               ruleJson: "{}",
+              ...sampleVersionSnapshotRow,
               changeSummary: null,
               createdByUserId: "usr_admin",
               submittedByUserId: "usr_submitter",

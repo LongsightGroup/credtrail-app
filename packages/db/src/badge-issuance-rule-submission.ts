@@ -308,7 +308,7 @@ export const submitBadgeIssuanceRuleVersionForApproval = async (
 
     const preparation = await prepareBadgeRuleSubmission(transactionDb, {
       tenantId: input.tenantId,
-      orgUnitId: rule.orgUnitId,
+      orgUnitId: version.snapshot.orgUnitId,
     });
 
     if (preparation.status === "failed") {

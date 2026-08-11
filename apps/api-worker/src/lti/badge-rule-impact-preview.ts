@@ -1,5 +1,4 @@
 import {
-  findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleVersionById,
   findLtiResourceLinkPlacementForRule,
   listActiveLtiLaunchSessionsForPlatform,
@@ -47,8 +46,7 @@ export const previewBadgeRuleVersionImpact = async (input: {
   readonly nowIso: string;
   readonly sha256Hex: (value: string) => Promise<string>;
 }): Promise<BadgeRuleImpactPreview> => {
-  const [rule, version, placement] = await Promise.all([
-    findBadgeIssuanceRuleById(input.db, input.tenantId, input.ruleId),
+  const [version, placement] = await Promise.all([
     findBadgeIssuanceRuleVersionById(input.db, {
       tenantId: input.tenantId,
       ruleId: input.ruleId,
@@ -60,7 +58,7 @@ export const previewBadgeRuleVersionImpact = async (input: {
     }),
   ]);
 
-  if (rule === null || version === null) {
+  if (version === null) {
     return {
       status: "unavailable",
       reason: "Rule version was not found.",
@@ -124,8 +122,8 @@ export const previewBadgeRuleVersionImpact = async (input: {
     status: "ready",
     ruleId: input.ruleId,
     versionId: version.id,
-    lmsProviderKind: rule.lmsProviderKind,
-    lmsConnectionId: rule.lmsConnectionId,
+    lmsProviderKind: version.snapshot.lmsProviderKind,
+    lmsConnectionId: version.snapshot.lmsConnectionId,
     definition,
     issuanceBehavior: ltiRosterIssuanceBehaviorFromRuleDefinition(definition),
   };
@@ -139,7 +137,7 @@ export const previewBadgeRuleVersionImpact = async (input: {
       deploymentId: placement.deploymentId,
       contextId: ltiSession.context.id,
       resourceLinkId: placement.resourceLinkId,
-      badgeTemplateId: rule.badgeTemplateId,
+      badgeTemplateId: version.snapshot.badgeTemplateId,
     },
     learnerMembers: rosterResult.roster.learnerMembers,
   });

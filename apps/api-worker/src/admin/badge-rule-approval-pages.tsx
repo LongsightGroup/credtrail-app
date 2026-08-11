@@ -1,12 +1,14 @@
-import type {
-  BadgeIssuanceRuleApprovalEventRecord,
-  BadgeIssuanceRuleApprovalStepRecord,
-  BadgeIssuanceRuleRecord,
-  BadgeIssuanceRuleVersionRecord,
-  PendingBadgeIssuanceRuleApprovalRecord,
-  TenantMembershipRole,
-  TenantRecord,
+import {
+  resolveBadgeIssuanceRuleVersionSelection,
+  type BadgeIssuanceRuleApprovalEventRecord,
+  type BadgeIssuanceRuleApprovalStepRecord,
+  type BadgeIssuanceRuleRecord,
+  type BadgeIssuanceRuleVersionRecord,
+  type PendingBadgeIssuanceRuleApprovalRecord,
+  type TenantMembershipRole,
+  type TenantRecord,
 } from "@credtrail/db";
+import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
   buildBadgeRuleApprovalsPath,
@@ -31,8 +33,10 @@ import {
 } from "./components";
 import { renderInstitutionAdminShellPage } from "./institution-admin-shell";
 import type { AppPage } from "../ui/render-page";
+import type { PageAssetKey } from "../ui/page-assets";
 import { CtTextarea } from "../ui/forms";
-import { createRuleDefinitionSummaryMarkup } from "../badges/public-badge-rule-summary";
+import { BadgeRuleVersionOverview } from "./badge-rule-version-overview";
+import { BadgeRuleVersionLifecycleExplanation } from "./badge-rule-version-lifecycle-explanation";
 import type { BadgeRuleImpactPreview } from "../lti/badge-rule-impact-preview";
 import type { BadgeRuleVersionDefinitionDiff } from "../badges/badge-rule-version-diff";
 import { describeRuleDefinitionDiffDetails } from "../badges/badge-rule-version-diff";
@@ -57,6 +61,7 @@ const renderApprovalsShellPage = (
   input: {
     readonly title: string;
     readonly children: HonoElement;
+    readonly assets: readonly PageAssetKey[];
   },
 ): AppPage => {
   return renderInstitutionAdminShellPage({
@@ -69,7 +74,7 @@ const renderApprovalsShellPage = (
       : { switchOrganizationPath: shell.switchOrganizationPath }),
     view: "rulesApprovals",
     title: input.title,
-    assets: ["institutionAdminCss", "institutionAdminShellJs"],
+    assets: [...input.assets],
     contextJson: {},
     children: input.children,
   });
@@ -105,11 +110,10 @@ const renderApprovalsRows = (
         <tr>
           <th scope="row">
             <a href={buildBadgeRuleVersionReviewPath(tenantId, entry.ruleId, entry.versionId)}>
-              {entry.ruleName}
+              {entry.versionName}
             </a>
             <AdminMeta>
-              Version {String(entry.versionNumber)} ·{" "}
-              {entry.badgeTemplateName ?? entry.badgeTemplateId}
+              Version {String(entry.versionNumber)} · {entry.badgeTemplateTitle}
             </AdminMeta>
           </th>
           <td>{entry.orgUnitDisplayName ?? entry.orgUnitId}</td>
@@ -145,6 +149,7 @@ export const badgeRuleApprovalsQueuePage = (
 ): AppPage => {
   return renderApprovalsShellPage(shell, {
     title: `Approvals · Institution Admin · ${shell.tenant.displayName}`,
+    assets: ["institutionAdminCss", "institutionAdminShellJs"],
     children: (
       <>
         <AdminPageHeader
@@ -410,6 +415,8 @@ export const badgeRuleApprovalReviewPage = (
   input: {
     readonly rule: BadgeIssuanceRuleRecord;
     readonly version: BadgeIssuanceRuleVersionRecord;
+    readonly versions: readonly BadgeIssuanceRuleVersionRecord[];
+    readonly definition: BadgeIssuanceRuleDefinition;
     readonly baseVersion: BadgeIssuanceRuleVersionRecord | null;
     readonly diff: BadgeRuleVersionDefinitionDiff | null;
     readonly impactPreview: BadgeRuleImpactPreview;
@@ -421,22 +428,27 @@ export const badgeRuleApprovalReviewPage = (
     readonly listError: string | null;
   },
 ): AppPage => {
-  const courseNamesById =
-    input.impactPreview.status === "ready" &&
-    input.impactPreview.courseContextId !== null &&
-    input.impactPreview.courseTitle !== null
-      ? new Map([[input.impactPreview.courseContextId, input.impactPreview.courseTitle]])
-      : undefined;
-  const ruleSummaryMarkup = createRuleDefinitionSummaryMarkup(formatIsoTimestamp, {
-    courseNamesById,
+  const versionSelection = resolveBadgeIssuanceRuleVersionSelection({
+    rule: input.rule,
+    versions: input.versions,
   });
 
+  if (versionSelection.latestVersion === null) {
+    throw new Error("Badge rule approval page requires at least one saved version");
+  }
+
   return renderApprovalsShellPage(shell, {
-    title: `Review ${input.rule.name} · Institution Admin · ${shell.tenant.displayName}`,
+    title: `Review ${input.version.snapshot.name} · Institution Admin · ${shell.tenant.displayName}`,
+    assets: [
+      "institutionAdminCss",
+      "institutionAdminRuleVersionCss",
+      "institutionAdminShellJs",
+      "institutionAdminRuleVersionJs",
+    ],
     children: (
       <>
         <AdminPageHeader
-          title={input.rule.name}
+          title={input.version.snapshot.name}
           description={`Review version ${String(input.version.versionNumber)} before activation.`}
         />
         <section class="ct-admin ct-stack">
@@ -446,10 +458,14 @@ export const badgeRuleApprovalReviewPage = (
           {input.listNotice === null ? null : (
             <AdminStatus data-tone="success">{input.listNotice}</AdminStatus>
           )}
-          <AdminPanel>
-            <h2>What This Rule Says</h2>
-            {ruleSummaryMarkup(input.version.ruleJson)}
-          </AdminPanel>
+          <BadgeRuleVersionOverview
+            tenantId={shell.tenant.id}
+            rule={input.rule}
+            version={input.version}
+            latestVersion={versionSelection.latestVersion}
+            definition={input.definition}
+          />
+          <BadgeRuleVersionLifecycleExplanation />
           {renderDiffPanel(input.diff, input.baseVersion)}
           {renderImpactPreview({
             tenantId: shell.tenant.id,

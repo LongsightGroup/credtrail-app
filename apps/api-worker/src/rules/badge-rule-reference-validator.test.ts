@@ -36,7 +36,7 @@ const createProvider = (
 ): GradebookProvider => ({
   kind: "sakai",
   listCourses: () => Promise.resolve({ courses: [], hasMore: false }),
-  verifyCourseAccess: () => Promise.resolve({ unauthorizedCourseIds: [] }),
+  verifyCourseAccess: () => Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
   listAssignments,
   listEnrollments: () => Promise.resolve([]),
   listLearners: () => Promise.resolve([]),

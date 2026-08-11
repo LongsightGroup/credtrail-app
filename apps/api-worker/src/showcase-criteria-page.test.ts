@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { sampleBadgeRuleVersionSnapshot } from "./test-support/badge-rule-version-snapshot";
 
 vi.mock("@credtrail/db", async () => {
   const actual = await vi.importActual<typeof import("@credtrail/db")>("@credtrail/db");
@@ -145,6 +146,17 @@ const sampleVersion = (
         minScore: 80,
       },
     }),
+    snapshot: {
+      ...sampleBadgeRuleVersionSnapshot,
+      name: "Sakai Contributor Eligibility",
+      description: "Determine contribution milestone eligibility",
+      badgeTemplateId: "badge_template_sakai_1000",
+      badgeTemplateTitle: "Sakai Contributor",
+      orgUnitId: "sakai:org:institution",
+      ownerOrgUnitId: "sakai:org:institution",
+      lmsProviderKind: "sakai",
+      lmsConnectionId: null,
+    },
     changeSummary: "Raised final score threshold to 80.",
     createdByUserId: "usr_owner",
     submittedByUserId: "usr_owner",

@@ -1,7 +1,7 @@
 import {
   createAuditLog,
-  findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleEvaluationById,
+  findBadgeIssuanceRuleVersionById,
   resolveBadgeIssuanceRuleEvaluationReview,
   type BadgeIssuanceRuleEvaluationRecord,
   type SqlDatabase,
@@ -128,26 +128,30 @@ export const resolveBadgeRuleReviewQueueEntry = async (input: {
     };
   }
 
-  const rule = await findBadgeIssuanceRuleById(input.db, input.tenantId, evaluationRecord.ruleId);
-
-  if (rule === null) {
-    return {
-      ok: false,
-      status: 404,
-      error: "Badge rule not found for review queue entry",
-    };
-  }
-
   let issuance: Awaited<ReturnType<IssueBadgeForTenant>> | null = null;
 
   if (input.request.decision === "issue") {
+    const version = await findBadgeIssuanceRuleVersionById(input.db, {
+      tenantId: input.tenantId,
+      ruleId: evaluationRecord.ruleId,
+      versionId: evaluationRecord.versionId,
+    });
+
+    if (version === null) {
+      return {
+        ok: false,
+        status: 404,
+        error: "Badge rule version not found for review queue entry",
+      };
+    }
+
     try {
       issuance = await input.issueBadgeForTenant(
         input.c,
         input.tenantId,
         withIssuanceProvenance(
           {
-            badgeTemplateId: rule.badgeTemplateId,
+            badgeTemplateId: version.snapshot.badgeTemplateId,
             recipientIdentity: evaluationRecord.recipientIdentity,
             recipientIdentityType: evaluationRecord.recipientIdentityType,
             idempotencyKey: `rule-review:${evaluationRecord.id}`,

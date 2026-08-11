@@ -1,12 +1,14 @@
-import type {
-  BadgeIssuanceRuleRecord,
-  BadgeIssuanceRuleBuilderDraftRecord,
-  BadgeIssuanceRuleVersionRecord,
-  BadgeTemplateRecord,
-  TenantLmsConnectionRecord,
-  TenantMembershipRole,
-  TenantRecord,
+import {
+  indexBadgeIssuanceRuleVersionsByRuleId,
+  type BadgeIssuanceRuleRecord,
+  type BadgeIssuanceRuleBuilderDraftRecord,
+  type BadgeIssuanceRuleVersionRecord,
+  type BadgeTemplateRecord,
+  type TenantLmsConnectionRecord,
+  type TenantMembershipRole,
+  type TenantRecord,
 } from "@credtrail/db";
+import { badgeRuleDisplayName } from "./badge-rule-presentation";
 import type { RuleValueListBuilderContextEntry } from "./rule-value-lists-presentation";
 import { buildInstitutionAdminRuleBuilderPageContext } from "./institution-admin-rule-builder-context";
 import { appPage, type AppPage } from "../ui/render-page";
@@ -141,22 +143,7 @@ export const institutionAdminRuleBuilderPage = (input: {
   };
   switchOrganizationPath?: string | null;
 }): AppPage => {
-  const versionsByRuleId = new Map<string, BadgeIssuanceRuleVersionRecord[]>();
-
-  for (const version of input.badgeRuleVersions) {
-    const versions = versionsByRuleId.get(version.ruleId);
-
-    if (versions === undefined) {
-      versionsByRuleId.set(version.ruleId, [version]);
-      continue;
-    }
-
-    versions.push(version);
-  }
-
-  for (const versions of versionsByRuleId.values()) {
-    versions.sort((left, right) => right.versionNumber - left.versionNumber);
-  }
+  const versionsByRuleId = indexBadgeIssuanceRuleVersionsByRuleId(input.badgeRuleVersions);
 
   const tenantAdminPath = `/tenants/${encodeURIComponent(input.tenant.id)}/admin`;
   const rulesListPath = `${tenantAdminPath}/rules`;
@@ -256,7 +243,7 @@ export const institutionAdminRuleBuilderPage = (input: {
 
     return {
       rule,
-      label: `${rule.name} (${rule.id}) · latest ${latestLabel}`,
+      label: `${badgeRuleDisplayName(rule, versions)} (${rule.id}) · latest ${latestLabel}`,
     };
   });
 

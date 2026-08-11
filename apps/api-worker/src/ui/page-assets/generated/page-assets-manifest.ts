@@ -51,6 +51,14 @@ export const PAGE_ASSET_MANIFEST = {
     kind: "script",
     path: "/assets/ui/institution-admin-issued-badges.53d9c14b01.js",
   },
+  institutionAdminRuleVersionJs: {
+    kind: "script",
+    path: "/assets/ui/institution-admin-rule-version.c4bd26de86.js",
+  },
+  institutionAdminRuleVersionCss: {
+    kind: "style",
+    path: "/assets/ui/institution-admin-rule-version.2e11dbc7a2.css",
+  },
   assertionEvidenceCss: {
     kind: "style",
     path: "/assets/ui/assertion-evidence.98071ca677.css",
@@ -89,7 +97,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   publicBadgeCss: {
     kind: "style",
-    path: "/assets/ui/public-badge.3794aeb8ec.css",
+    path: "/assets/ui/public-badge.57fe380959.css",
   },
   publicBadgeJs: {
     kind: "script",

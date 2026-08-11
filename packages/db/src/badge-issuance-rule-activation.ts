@@ -44,7 +44,7 @@ export const activateBadgeIssuanceRuleVersion = async (
 
     const policy = await resolveBadgeRuleApprovalPolicy(transactionDb, {
       tenantId: input.tenantId,
-      orgUnitId: rule.orgUnitId,
+      orgUnitId: version.snapshot.orgUnitId,
     });
     const recertificationDueAt =
       policy.recertificationIntervalMonths === null

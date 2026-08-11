@@ -3,7 +3,7 @@ import {
   type SqlDatabase,
   type TenantLmsConnectionRecord,
 } from "@credtrail/db";
-import type { GradebookProvider } from "./gradebook-types";
+import type { GradebookCourseRecord, GradebookProvider } from "./gradebook-types";
 
 export type LmsUserCourseScopeResult =
   | {
@@ -26,6 +26,14 @@ export type LmsCourseAuthorizationResult =
       readonly courseId: string;
       readonly error: string;
     };
+
+/** Course-authorization result that retains exact authorized LMS course records on success. */
+export type LmsScopedCourseAuthorizationResult =
+  | {
+      readonly status: "authorized";
+      readonly courses: readonly GradebookCourseRecord[];
+    }
+  | Exclude<LmsCourseAuthorizationResult, { readonly status: "authorized" }>;
 
 const identityRequiredMessage = (providerKind: "canvas" | "sakai"): string => {
   const providerName = providerKind === "sakai" ? "Sakai" : "Canvas";
@@ -58,13 +66,13 @@ export const resolveLmsUserCourseScope = async (input: {
 };
 
 /** Verifies that the interactive user can manage every referenced LMS course. */
-export const authorizeLmsUserCourses = async (input: {
+export const authorizeLmsUserCoursesWithScope = async (input: {
   readonly db: SqlDatabase;
   readonly connection: TenantLmsConnectionRecord;
   readonly provider: GradebookProvider;
   readonly userId: string;
   readonly courseIds: readonly string[];
-}): Promise<LmsCourseAuthorizationResult> => {
+}): Promise<LmsScopedCourseAuthorizationResult> => {
   const scope = await resolveLmsUserCourseScope(input);
 
   if (scope.status === "identity_unlinked") {
@@ -78,7 +86,10 @@ export const authorizeLmsUserCourses = async (input: {
   const unauthorizedCourseId = access.unauthorizedCourseIds[0];
 
   if (unauthorizedCourseId === undefined) {
-    return { status: "authorized" };
+    return {
+      status: "authorized",
+      courses: access.authorizedCourses,
+    };
   }
 
   return {
@@ -86,4 +97,16 @@ export const authorizeLmsUserCourses = async (input: {
     courseId: unauthorizedCourseId,
     error: `You do not have instructor access to course ${unauthorizedCourseId} in ${input.connection.displayName}.`,
   };
+};
+
+/** Verifies course access without exposing the resolved provider identity to callers. */
+export const authorizeLmsUserCourses = async (input: {
+  readonly db: SqlDatabase;
+  readonly connection: TenantLmsConnectionRecord;
+  readonly provider: GradebookProvider;
+  readonly userId: string;
+  readonly courseIds: readonly string[];
+}): Promise<LmsCourseAuthorizationResult> => {
+  const authorization = await authorizeLmsUserCoursesWithScope(input);
+  return authorization.status === "authorized" ? { status: "authorized" } : authorization;
 };

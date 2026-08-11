@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { sampleBadgeRuleVersionSnapshot } from "./test-support/badge-rule-version-snapshot";
 
 vi.mock("@credtrail/db", async () => {
   const actual = await vi.importActual<typeof import("@credtrail/db")>("@credtrail/db");
@@ -10,7 +11,6 @@ vi.mock("@credtrail/db", async () => {
     createLearnerRecordImportContext: vi.fn(),
     createAuditLog: vi.fn(),
     failJobQueueMessage: vi.fn(),
-    findBadgeIssuanceRuleById: vi.fn(),
     findBadgeIssuanceRuleVersionById: vi.fn(),
     findTenantById: vi.fn(),
     findUserById: vi.fn(),
@@ -33,7 +33,6 @@ import {
   createLearnerRecordImportContext,
   createAuditLog,
   failJobQueueMessage,
-  findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleVersionById,
   findTenantById,
   findUserById,
@@ -42,7 +41,6 @@ import {
   recordAssertionRevocation,
   resolveLearnerProfileForIdentity,
   type AuditLogRecord,
-  type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleVersionRecord,
   type JobQueueMessageRecord,
   type LearnerProfileRecord,
@@ -61,7 +59,6 @@ const mockedCreateLearnerRecordEntry = vi.mocked(createLearnerRecordEntry);
 const mockedCreateLearnerRecordImportContext = vi.mocked(createLearnerRecordImportContext);
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
 const mockedFailJobQueueMessage = vi.mocked(failJobQueueMessage);
-const mockedFindBadgeIssuanceRuleById = vi.mocked(findBadgeIssuanceRuleById);
 const mockedFindBadgeIssuanceRuleVersionById = vi.mocked(findBadgeIssuanceRuleVersionById);
 const mockedFindTenantById = vi.mocked(findTenantById);
 const mockedFindUserById = vi.mocked(findUserById);
@@ -134,27 +131,6 @@ const sampleLearnerProfile = (overrides?: Partial<LearnerProfileRecord>): Learne
   };
 };
 
-const sampleBadgeIssuanceRule = (
-  overrides?: Partial<BadgeIssuanceRuleRecord>,
-): BadgeIssuanceRuleRecord => {
-  return {
-    id: "brl_123",
-    tenantId: "tenant_123",
-    name: "Clinical Skills",
-    description: null,
-    badgeTemplateId: "badge_template_123",
-    orgUnitId: "tenant_123:org:course",
-    ownerOrgUnitId: "tenant_123:org:course",
-    lmsProviderKind: "canvas",
-    lmsConnectionId: "lms_123",
-    activeVersionId: "brv_123",
-    createdByUserId: "usr_admin",
-    createdAt: "2026-02-10T22:00:00.000Z",
-    updatedAt: "2026-02-10T22:00:00.000Z",
-    ...overrides,
-  };
-};
-
 const sampleBadgeIssuanceRuleVersion = (
   overrides?: Partial<BadgeIssuanceRuleVersionRecord>,
 ): BadgeIssuanceRuleVersionRecord => {
@@ -165,6 +141,7 @@ const sampleBadgeIssuanceRuleVersion = (
     versionNumber: 1,
     status: "approved",
     ruleJson: "{}",
+    snapshot: sampleBadgeRuleVersionSnapshot,
     changeSummary: null,
     createdByUserId: null,
     submittedByUserId: null,
@@ -225,7 +202,6 @@ describe("POST /v1/jobs/process", () => {
     mockedCreateLearnerRecordEntry.mockReset();
     mockedCreateLearnerRecordImportContext.mockReset();
     mockedFailJobQueueMessage.mockReset();
-    mockedFindBadgeIssuanceRuleById.mockReset();
     mockedFindBadgeIssuanceRuleVersionById.mockReset();
     mockedFindTenantById.mockReset();
     mockedFindUserById.mockReset();
@@ -235,7 +211,6 @@ describe("POST /v1/jobs/process", () => {
     mockedCreateAuditLog.mockReset();
     mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
-    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleBadgeIssuanceRule());
     mockedFindBadgeIssuanceRuleVersionById.mockResolvedValue(sampleBadgeIssuanceRuleVersion());
     mockedFindTenantById.mockResolvedValue({
       id: "tenant_123",
@@ -327,7 +302,29 @@ describe("POST /v1/jobs/process", () => {
   });
 
   it("processes badge rule approval notification jobs", async () => {
-    const env = createProcessorEnv();
+    const messages: Array<{ readonly subject: string; readonly text: string }> = [];
+    const env = {
+      ...createProcessorEnv(),
+      EMAIL: {
+        send: async (message: { readonly subject: string; readonly text: string }) => {
+          messages.push(message);
+          return { messageId: "email_msg_123" };
+        },
+      } as unknown as SendEmail,
+    };
+    mockedFindBadgeIssuanceRuleVersionById.mockResolvedValue(
+      sampleBadgeIssuanceRuleVersion({
+        snapshot: {
+          ...sampleBadgeRuleVersionSnapshot,
+          name: "Immutable clinical skills rule",
+        },
+        submittedByUserId: "usr_author",
+      }),
+    );
+    mockedFindUserById.mockResolvedValue({
+      id: "usr_author",
+      email: "author@example.edu",
+    });
 
     mockedLeaseJobQueueMessages.mockResolvedValue([
       sampleLeasedQueueMessage({
@@ -364,6 +361,9 @@ describe("POST /v1/jobs/process", () => {
     });
     expect(mockedCompleteJobQueueMessage).toHaveBeenCalledTimes(1);
     expect(mockedFailJobQueueMessage).not.toHaveBeenCalled();
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.subject).toBe("Badge rule approved: Immutable clinical skills rule");
+    expect(messages[0]?.text).toContain("Rule: Immutable clinical skills rule");
   });
 
   it("requires bearer auth when JOB_PROCESSOR_TOKEN is configured", async () => {

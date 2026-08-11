@@ -494,13 +494,21 @@ export const createCanvasGradebookProvider = (
       };
     },
     verifyCourseAccess: async (input) => {
-      const manageableCourseIds = new Set(
-        (await listManageableCourses(input.providerUserId)).map((course) => course.courseId),
+      const manageableCoursesById = new Map(
+        (await listManageableCourses(input.providerUserId)).map((course) => [
+          course.courseId,
+          course,
+        ]),
       );
+      const uniqueCourseIds = [...new Set(input.courseIds)];
 
       return {
+        authorizedCourses: uniqueCourseIds.flatMap((courseId) => {
+          const course = manageableCoursesById.get(courseId);
+          return course === undefined ? [] : [course];
+        }),
         unauthorizedCourseIds: input.courseIds.filter(
-          (courseId) => !manageableCourseIds.has(courseId),
+          (courseId) => !manageableCoursesById.has(courseId),
         ),
       };
     },

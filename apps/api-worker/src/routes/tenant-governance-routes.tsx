@@ -12,6 +12,7 @@ import { registerTenantApiKeyRoutes } from "./tenant-api-key-routes";
 import { registerTenantAuthManagementRoutes } from "./tenant-auth-management-routes";
 import { registerTenantBadgeRuleActionsAdminRoutes } from "./tenant-badge-rule-actions-admin-routes";
 import { registerTenantBadgeRuleApprovalWorkspaceAdminRoutes } from "./tenant-badge-rule-approval-workspace-admin-routes";
+import { registerTenantBadgeRuleVersionPageRoutes } from "./tenant-badge-rule-version-page-routes";
 import { registerTenantBreakGlassRoutes } from "./tenant-break-glass-routes";
 import { registerTenantDelegatedAuthorityRoutes } from "./tenant-delegated-authority-routes";
 import { createTenantGovernanceAdminAuth } from "./tenant-governance-admin/auth";
@@ -229,6 +230,13 @@ export const registerTenantGovernanceRoutes = (
     renderInstitutionAdminTemplateEditorWorkspace:
       templateWorkspaces.renderInstitutionAdminTemplateEditorWorkspace,
     resolveDatabase: input.resolveDatabase,
+    resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
+  });
+
+  registerTenantBadgeRuleVersionPageRoutes({
+    app: input.app,
+    resolveDatabase: input.resolveDatabase,
+    loadInstitutionAdminShellData: pageData.loadInstitutionAdminShellData,
     resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
   });
 

@@ -262,7 +262,23 @@ describe("LTI roster eligibility", () => {
     expect(message).not.toContain("Sakai");
   });
 
-  it("requires a resolved rule id to prepare evaluation context", async () => {
+  it("prepares evaluation from the active version snapshot instead of mutable rule metadata", async () => {
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(
+      sampleLtiRosterBadgeRule({
+        lmsProviderKind: "canvas",
+        lmsConnectionId: "lms_replacement",
+      }),
+    );
+    mockedFindActiveBadgeIssuanceRuleVersion.mockResolvedValue(
+      sampleLtiRosterBadgeRuleVersion({
+        snapshot: {
+          ...sampleLtiRosterBadgeRuleVersion().snapshot,
+          lmsProviderKind: "sakai",
+          lmsConnectionId: "lms_historical",
+        },
+      }),
+    );
+
     await expect(
       prepareLtiRosterEligibilityEvaluationContext({
         db: fakeDb,
@@ -271,6 +287,8 @@ describe("LTI roster eligibility", () => {
       }),
     ).resolves.toMatchObject({
       status: "ready",
+      lmsProviderKind: "sakai",
+      lmsConnectionId: "lms_historical",
     });
   });
 });

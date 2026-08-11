@@ -19,7 +19,7 @@ import type {
   TenantLmsUserIdentityRecord,
 } from "@credtrail/db";
 import type { GradebookProvider } from "./gradebook-types";
-import { authorizeLmsUserCourses } from "./user-course-access";
+import { authorizeLmsUserCourses, authorizeLmsUserCoursesWithScope } from "./user-course-access";
 
 const connection: TenantLmsConnectionRecord = {
   id: "lms_123",
@@ -94,6 +94,7 @@ describe("authorizeLmsUserCourses", () => {
   it("checks the requested courses with the instructor's provider identity", async () => {
     mockedFindTenantLmsUserIdentity.mockResolvedValue(identity);
     const verifyCourseAccess = vi.fn().mockResolvedValue({
+      authorizedCourses: [],
       unauthorizedCourseIds: ["course-202"],
     });
 
@@ -113,6 +114,35 @@ describe("authorizeLmsUserCourses", () => {
       status: "course_unauthorized",
       courseId: "course-202",
       error: "You do not have instructor access to course course-202 in Institution Sakai.",
+    });
+  });
+
+  it("returns exact authorized course records to version-scoped LMS readers", async () => {
+    mockedFindTenantLmsUserIdentity.mockResolvedValue(identity);
+    const course = {
+      courseId: "course-101",
+      title: "Course 101",
+      courseCode: null,
+      workflowState: null,
+      startsAt: null,
+      endsAt: null,
+    };
+    const verifyCourseAccess = vi.fn().mockResolvedValue({
+      authorizedCourses: [course],
+      unauthorizedCourseIds: [],
+    });
+
+    const result = await authorizeLmsUserCoursesWithScope({
+      db: {} as SqlDatabase,
+      connection,
+      provider: createProvider(verifyCourseAccess),
+      userId: "usr_123",
+      courseIds: ["course-101"],
+    });
+
+    expect(result).toEqual({
+      status: "authorized",
+      courses: [course],
     });
   });
 });

@@ -42,7 +42,9 @@ import {
   mockedSubmitBadgeIssuanceRuleVersionForApprovalDb,
   mockedWithdrawBadgeIssuanceRuleVersionSubmissionDb,
   mockedUpdateBadgeTemplate,
+  sampleRuleBadgeTemplate,
   sampleMembership,
+  versionRecordFixtureFields,
 } from "./institution-admin-page-test-utils";
 import { app } from "./index";
 import { readScriptAssetSource, readStyleAssetSource } from "./page-asset-test-utils";
@@ -57,31 +59,6 @@ const INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_JS = readScriptAssetSource(
 );
 const INSTITUTION_ADMIN_JS = readScriptAssetSource("institutionAdminJs");
 const INSTITUTION_ADMIN_RULE_BUILDER_JS = readScriptAssetSource("institutionAdminRuleBuilderJs");
-
-const versionLifecycleFields = {
-  effectiveStartsAt: null,
-  expiresAt: null,
-  expiredAt: null,
-  suspendedAt: null,
-  suspendedByUserId: null,
-  suspensionReason: null,
-  recertifiedAt: null,
-  recertificationDueAt: null,
-  expiryReminderSentAt: null,
-  recertificationReminderSentAt: null,
-} satisfies Pick<
-  BadgeIssuanceRuleVersionRecord,
-  | "effectiveStartsAt"
-  | "expiresAt"
-  | "expiredAt"
-  | "suspendedAt"
-  | "suspendedByUserId"
-  | "suspensionReason"
-  | "recertifiedAt"
-  | "recertificationDueAt"
-  | "expiryReminderSentAt"
-  | "recertificationReminderSentAt"
->;
 
 const adminFlashCookieHeader = (response: Response): string => {
   const setCookieHeaders =
@@ -114,9 +91,9 @@ const samplePendingApprovalStep = (): BadgeIssuanceRuleApprovalStepRecord => ({
 const samplePendingApprovalEntry = (): PendingBadgeIssuanceRuleApprovalRecord => ({
   tenantId: "tenant_123",
   ruleId: "brl_approval",
-  ruleName: "CS101 Excellence Rule",
+  versionName: "CS101 Excellence Rule",
   badgeTemplateId: "badge_template_001",
-  badgeTemplateName: "TypeScript Foundations",
+  badgeTemplateTitle: "TypeScript Foundations",
   orgUnitId: "tenant_123:org:cs",
   orgUnitDisplayName: "Computer Science",
   versionId: "brv_approval",
@@ -176,9 +153,13 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).not.toContain('id="rule-governance-form"');
     expect(body).not.toContain("ct-grid--sidebar");
     expect(body).toContain("Badge Rules (1)");
+    expect(body).toContain("TypeScript Foundations");
+    expect(body).not.toContain("Badge unavailable");
     expect(body).toContain("Version 1");
-    expect(body).toContain("Version ID: brv_123");
+    expect(body).not.toContain("Version ID: brv_123");
     expect(body).not.toContain("v1 (brv_123)");
+    expect(body).toContain('href="/tenants/tenant_123/admin/rules/brl_123/versions/brv_123"');
+    expect(body).toContain(">View</a>");
     expect(body).toContain("Submit for approval");
     expect(body).toContain(
       "Submit draft version for &quot;CS101 Excellence Rule&quot; for approval? You will not be able to approve it yourself.",
@@ -191,6 +172,150 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).not.toContain("Badge Templates (1)");
     expect(body).not.toContain("Create Tenant API Key");
     expect(body).not.toContain('id="issued-badges-panel"');
+  });
+
+  it("renders rule identity and LMS metadata from the selected immutable version", async () => {
+    const env = createEnv();
+    mockedListBadgeIssuanceRules.mockResolvedValue([
+      {
+        id: "brl_123",
+        tenantId: "tenant_123",
+        name: "Mutable parent name",
+        description: null,
+        badgeTemplateId: "badge_template_current",
+        orgUnitId: "tenant_123:org:institution",
+        ownerOrgUnitId: "tenant_123:org:institution",
+        lmsProviderKind: "canvas",
+        lmsConnectionId: "lms_canvas",
+        activeVersionId: "brv_active",
+        createdByUserId: "usr_admin",
+        createdAt: "2026-02-18T12:00:00.000Z",
+        updatedAt: "2026-02-18T12:30:00.000Z",
+      },
+    ]);
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
+      {
+        id: "brv_pending",
+        tenantId: "tenant_123",
+        ruleId: "brl_123",
+        versionNumber: 2,
+        status: "pending_approval",
+        ruleJson: '{"conditions":{"type":"course_membership","courseId":"course_202"}}',
+        changeSummary: "Pending revision",
+        createdByUserId: "usr_author",
+        submittedByUserId: "usr_author",
+        submittedAt: "2026-02-18T12:20:00.000Z",
+        approvedByUserId: null,
+        approvedAt: null,
+        activatedByUserId: null,
+        activatedAt: null,
+        ...versionRecordFixtureFields,
+        snapshot: {
+          ...versionRecordFixtureFields.snapshot,
+          name: "Pending revision",
+          badgeTemplateTitle: "Pending badge",
+          lmsProviderKind: "canvas",
+        },
+        createdAt: "2026-02-18T12:20:00.000Z",
+        updatedAt: "2026-02-18T12:20:00.000Z",
+      },
+      {
+        id: "brv_active",
+        tenantId: "tenant_123",
+        ruleId: "brl_123",
+        versionNumber: 1,
+        status: "active",
+        ruleJson: '{"conditions":{"type":"course_membership","courseId":"course_101"}}',
+        changeSummary: "Published version",
+        createdByUserId: "usr_admin",
+        submittedByUserId: "usr_admin",
+        submittedAt: "2026-02-18T12:05:00.000Z",
+        approvedByUserId: "usr_approver",
+        approvedAt: "2026-02-18T12:10:00.000Z",
+        activatedByUserId: "usr_admin",
+        activatedAt: "2026-02-18T12:15:00.000Z",
+        ...versionRecordFixtureFields,
+        snapshot: {
+          ...versionRecordFixtureFields.snapshot,
+          name: "Published course rule",
+          badgeTemplateTitle: "Published badge",
+          lmsProviderKind: "sakai",
+        },
+        createdAt: "2026-02-18T12:00:00.000Z",
+        updatedAt: "2026-02-18T12:15:00.000Z",
+      },
+    ]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules",
+      { headers: { Cookie: "better-auth.session_token=session-token" } },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Published course rule");
+    expect(body).toContain("Published badge");
+    expect(body).toContain(">Sakai<");
+    expect(body).not.toContain("Mutable parent name");
+  });
+
+  it("uses the active version snapshot name in lifecycle confirmations", async () => {
+    const env = createEnv();
+    mockedListBadgeIssuanceRules.mockResolvedValue([
+      {
+        id: "brl_lifecycle",
+        tenantId: "tenant_123",
+        name: "Mutable lifecycle head",
+        description: null,
+        badgeTemplateId: "badge_template_001",
+        orgUnitId: "tenant_123:org:institution",
+        ownerOrgUnitId: "tenant_123:org:institution",
+        lmsProviderKind: "canvas",
+        lmsConnectionId: "lms_canvas",
+        activeVersionId: "brv_lifecycle",
+        createdByUserId: "usr_admin",
+        createdAt: "2026-02-18T12:00:00.000Z",
+        updatedAt: "2026-02-18T12:10:00.000Z",
+      },
+    ]);
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
+      {
+        id: "brv_lifecycle",
+        tenantId: "tenant_123",
+        ruleId: "brl_lifecycle",
+        versionNumber: 1,
+        status: "active",
+        ruleJson: '{"conditions":{"type":"course_membership","courseId":"course_101"}}',
+        changeSummary: null,
+        createdByUserId: "usr_admin",
+        submittedByUserId: "usr_admin",
+        submittedAt: "2026-02-18T12:02:00.000Z",
+        approvedByUserId: "usr_approver",
+        approvedAt: "2026-02-18T12:05:00.000Z",
+        activatedByUserId: "usr_admin",
+        activatedAt: "2026-02-18T12:10:00.000Z",
+        ...versionRecordFixtureFields,
+        snapshot: {
+          ...versionRecordFixtureFields.snapshot,
+          name: "Versioned lifecycle rule",
+        },
+        recertificationDueAt: "2026-12-01T00:00:00.000Z",
+        createdAt: "2026-02-18T12:00:00.000Z",
+        updatedAt: "2026-02-18T12:10:00.000Z",
+      },
+    ]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules",
+      { headers: { Cookie: "better-auth.session_token=session-token" } },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Record recertification for &quot;Versioned lifecycle rule&quot;?");
+    expect(body).not.toContain("Mutable lifecycle head");
   });
 
   it("shows each unfinished builder draft with exact edit and delete actions", async () => {
@@ -269,6 +394,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     });
     const makeVersion = (
       ruleId: string,
+      name: string,
       status: BadgeIssuanceRuleVersionRecord["status"],
       versionNumber = 1,
     ): BadgeIssuanceRuleVersionRecord => ({
@@ -286,19 +412,26 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
       approvedAt: status === "approved" ? "2026-02-18T12:20:00.000Z" : null,
       activatedByUserId: status === "active" ? "usr_admin" : null,
       activatedAt: status === "active" ? "2026-02-18T12:30:00.000Z" : null,
-      ...versionLifecycleFields,
+      ...versionRecordFixtureFields,
+      snapshot: {
+        ...versionRecordFixtureFields.snapshot,
+        name,
+      },
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     });
     const versionsByRuleId = new Map<string, BadgeIssuanceRuleVersionRecord[]>([
-      ["brl_draft", [makeVersion("brl_draft", "draft")]],
-      ["brl_rejected", [makeVersion("brl_rejected", "rejected")]],
-      ["brl_pending", [makeVersion("brl_pending", "pending_approval")]],
-      ["brl_approved", [makeVersion("brl_approved", "approved")]],
-      ["brl_active", [makeVersion("brl_active", "active")]],
+      ["brl_draft", [makeVersion("brl_draft", "Draft cleanup rule", "draft")]],
+      ["brl_rejected", [makeVersion("brl_rejected", "Rejected cleanup rule", "rejected")]],
+      ["brl_pending", [makeVersion("brl_pending", "Pending protected rule", "pending_approval")]],
+      ["brl_approved", [makeVersion("brl_approved", "Approved protected rule", "approved")]],
+      ["brl_active", [makeVersion("brl_active", "Active protected rule", "active")]],
       [
         "brl_historical",
-        [makeVersion("brl_historical", "rejected", 2), makeVersion("brl_historical", "active")],
+        [
+          makeVersion("brl_historical", "Historical protected rule", "rejected", 2),
+          makeVersion("brl_historical", "Historical protected rule", "active"),
+        ],
       ],
     ]);
 
@@ -327,16 +460,16 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain(
-      '<a class="ct-admin__rule-name-link" href="/tenants/tenant_123/admin/rules/brl_draft/edit"><strong>Draft cleanup rule</strong></a>',
+      '<a class="ct-admin__rule-name-link" href="/tenants/tenant_123/admin/rules/brl_draft/versions/brl_draft_v1"><strong>Draft cleanup rule</strong></a>',
     );
     expect(body).toContain(
-      '<a class="ct-admin__rule-name-link" href="/tenants/tenant_123/admin/rules/brl_rejected/edit"><strong>Rejected cleanup rule</strong></a>',
+      '<a class="ct-admin__rule-name-link" href="/tenants/tenant_123/admin/rules/brl_rejected/versions/brl_rejected_v1"><strong>Rejected cleanup rule</strong></a>',
     );
     expect(body).toMatch(
-      /class="[^"]*ct-admin__button[^"]*ct-action--secondary[^"]*ct-action--sm[^"]*" href="\/tenants\/tenant_123\/admin\/rules\/brl_draft\/edit"/,
+      /class="[^"]*ct-admin__button[^"]*ct-action--quiet[^"]*ct-action--sm[^"]*" href="\/tenants\/tenant_123\/admin\/rules\/brl_draft\/edit"/,
     );
     expect(body).toMatch(
-      /class="[^"]*ct-admin__button[^"]*ct-action--secondary[^"]*ct-action--sm[^"]*" href="\/tenants\/tenant_123\/admin\/rules\/brl_rejected\/edit"/,
+      /class="[^"]*ct-admin__button[^"]*ct-action--quiet[^"]*ct-action--sm[^"]*" href="\/tenants\/tenant_123\/admin\/rules\/brl_rejected\/edit"/,
     );
     expect(body).toContain('action="/tenants/tenant_123/admin/rules/brl_draft/delete"');
     expect(body).toContain('action="/tenants/tenant_123/admin/rules/brl_rejected/delete"');
@@ -403,6 +536,8 @@ describe("GET /tenants/:tenantId/admin/rules/approvals", () => {
     expect(body).toContain(
       'href="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval"',
     );
+    expect(body).not.toContain(pageAssetPath("institutionAdminRuleVersionCss"));
+    expect(body).not.toContain(pageAssetPath("institutionAdminRuleVersionJs"));
   });
 });
 
@@ -439,7 +574,7 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       approvedAt: "2026-02-18T12:10:00.000Z",
       activatedByUserId: "usr_admin",
       activatedAt: "2026-02-18T12:12:00.000Z",
-      ...versionLifecycleFields,
+      ...versionRecordFixtureFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:12:00.000Z",
     };
@@ -460,6 +595,7 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(rule);
     mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(pendingVersion);
     mockedListBadgeIssuanceRuleVersions.mockResolvedValue([baseVersion, pendingVersion]);
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleRuleBadgeTemplate);
     mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([
       samplePendingApprovalStep(),
     ]);
@@ -481,17 +617,24 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(body).toContain("What This Rule Says");
+    expect(body).toContain("What this version requires");
+    expect(body).toContain("TypeScript Foundations");
+    expect(body).toContain("https://example.edu/badges/typescript.png");
     expect(body).toContain("What Changed");
     expect(body).toContain("Minimum grade lowered from 90% to 80%.");
     expect(body).toContain("Impact Preview");
     expect(body).toContain("Check impact");
     expect(body).toContain("This reads current LMS data and may take a moment.");
+    expect(body).toContain("Approval preserves a version and makes it eligible for activation");
+    expect(body).toContain("only one version can issue new badges at a time");
+    expect(body).toContain("Activating a different rule version never retracts those badges");
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/impact-preview"',
     );
     expect(body).not.toContain("No LMS course placement is linked to this rule yet.");
     expect(body).toContain("Approval Chain");
+    expect(body).toContain(pageAssetPath("institutionAdminRuleVersionCss"));
+    expect(body).toContain(pageAssetPath("institutionAdminRuleVersionJs"));
     expect(body).toContain("Department approval");
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/decision"',
@@ -535,7 +678,7 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       approvedAt: "2026-02-18T12:20:00.000Z",
       activatedByUserId: null,
       activatedAt: null,
-      ...versionLifecycleFields,
+      ...versionRecordFixtureFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:20:00.000Z",
     };
@@ -543,6 +686,7 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(rule);
     mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(approvedVersion);
     mockedListBadgeIssuanceRuleVersions.mockResolvedValue([approvedVersion]);
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleRuleBadgeTemplate);
     mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([
       {
         ...samplePendingApprovalStep(),
@@ -620,7 +764,7 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
-      ...versionLifecycleFields,
+      ...versionRecordFixtureFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:20:00.000Z",
     };
@@ -629,6 +773,7 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(rule);
     mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(pendingVersion);
     mockedListBadgeIssuanceRuleVersions.mockResolvedValue([pendingVersion]);
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleRuleBadgeTemplate);
     mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([
       {
         ...samplePendingApprovalStep(),
@@ -690,7 +835,7 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
-      ...versionLifecycleFields,
+      ...versionRecordFixtureFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:20:00.000Z",
     };
@@ -698,6 +843,7 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(rule);
     mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(pendingVersion);
     mockedListBadgeIssuanceRuleVersions.mockResolvedValue([pendingVersion]);
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleRuleBadgeTemplate);
     mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([
       samplePendingApprovalStep(),
     ]);
@@ -743,7 +889,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
-      ...versionLifecycleFields,
+      ...versionRecordFixtureFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     };
@@ -816,7 +962,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/submit
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
-      ...versionLifecycleFields,
+      ...versionRecordFixtureFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     };
@@ -945,7 +1091,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
-      ...versionLifecycleFields,
+      ...versionRecordFixtureFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     };
@@ -1045,7 +1191,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
           approvedAt: "2026-02-18T12:20:00.000Z",
           activatedByUserId: "usr_admin",
           activatedAt: "2026-02-18T12:30:00.000Z",
-          ...versionLifecycleFields,
+          ...versionRecordFixtureFields,
           createdAt: "2026-02-18T12:00:00.000Z",
           updatedAt: "2026-02-18T12:30:00.000Z",
         },
@@ -1150,7 +1296,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/withdr
         approvedAt: null,
         activatedByUserId: null,
         activatedAt: null,
-        ...versionLifecycleFields,
+        ...versionRecordFixtureFields,
         createdAt: "2026-02-18T12:00:00.000Z",
         updatedAt: "2026-02-18T12:20:00.000Z",
       },
@@ -1201,7 +1347,7 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
         approvedAt: null,
         activatedByUserId: null,
         activatedAt: null,
-        ...versionLifecycleFields,
+        ...versionRecordFixtureFields,
         createdAt: "2026-02-18T12:00:00.000Z",
         updatedAt: "2026-02-18T12:20:00.000Z",
       },
@@ -1255,7 +1401,7 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
       approvedAt: "2026-02-18T12:20:00.000Z",
       activatedByUserId: null,
       activatedAt: null,
-      ...versionLifecycleFields,
+      ...versionRecordFixtureFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:20:00.000Z",
     };
@@ -1312,7 +1458,7 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
       approvedAt: "2026-02-18T12:20:00.000Z",
       activatedByUserId: null,
       activatedAt: null,
-      ...versionLifecycleFields,
+      ...versionRecordFixtureFields,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:20:00.000Z",
     };
@@ -2858,6 +3004,63 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
       "/account/organizations?next=%2Ftenants%2Ftenant_123%2Fadmin%2Frules%2Fnew",
     );
   });
+
+  it("labels rules to copy with their immutable version names", async () => {
+    const env = createEnv();
+    mockedListBadgeIssuanceRules.mockResolvedValue([
+      {
+        id: "brl_copy",
+        tenantId: "tenant_123",
+        name: "Mutable rule head",
+        description: null,
+        badgeTemplateId: "badge_template_001",
+        orgUnitId: "tenant_123:org:institution",
+        ownerOrgUnitId: "tenant_123:org:institution",
+        lmsProviderKind: "canvas",
+        lmsConnectionId: "lms_canvas",
+        activeVersionId: null,
+        createdByUserId: "usr_admin",
+        createdAt: "2026-02-18T12:00:00.000Z",
+        updatedAt: "2026-02-18T12:10:00.000Z",
+      },
+    ]);
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
+      {
+        id: "brv_copy",
+        tenantId: "tenant_123",
+        ruleId: "brl_copy",
+        versionNumber: 3,
+        status: "draft",
+        ruleJson: '{"conditions":{"type":"course_membership","courseId":"course_101"}}',
+        changeSummary: null,
+        createdByUserId: "usr_admin",
+        submittedByUserId: null,
+        submittedAt: null,
+        approvedByUserId: null,
+        approvedAt: null,
+        activatedByUserId: null,
+        activatedAt: null,
+        ...versionRecordFixtureFields,
+        snapshot: {
+          ...versionRecordFixtureFields.snapshot,
+          name: "Versioned copy source",
+        },
+        createdAt: "2026-02-18T12:10:00.000Z",
+        updatedAt: "2026-02-18T12:10:00.000Z",
+      },
+    ]);
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/new",
+      { headers: { Cookie: "better-auth.session_token=session-token" } },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Versioned copy source (brl_copy) · latest v3 draft");
+    expect(body).not.toContain("Mutable rule head");
+  });
 });
 
 describe("GET /tenants/:tenantId/admin/rules/drafts/:draftId/edit", () => {
@@ -2941,7 +3144,11 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
       approvedAt: null,
       activatedByUserId: null,
       activatedAt: null,
-      ...versionLifecycleFields,
+      ...versionRecordFixtureFields,
+      snapshot: {
+        ...versionRecordFixtureFields.snapshot,
+        name: "Versioned Draft QA Rule",
+      },
       createdAt: "2026-02-18T12:10:00.000Z",
       updatedAt: "2026-02-18T12:10:00.000Z",
     };
@@ -2978,7 +3185,8 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
     expect(body).toContain("Save draft version");
     expect(body).toContain("Save and submit for approval");
     expect(body).not.toContain("Copy existing rule settings");
-    expect(body).toContain('value="Draft QA Rule"');
+    expect(body).toContain('value="Versioned Draft QA Rule"');
+    expect(body).not.toContain('value="Draft QA Rule"');
     expect(body).toContain('data-rule-builder-preserve-name="true"');
     expect(body).toContain('value="Fix the score threshold before review."');
     expect(body).toContain(
@@ -3057,7 +3265,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
         approvedAt: "2026-02-18T12:20:00.000Z",
         activatedByUserId: "usr_admin",
         activatedAt: "2026-02-18T12:30:00.000Z",
-        ...versionLifecycleFields,
+        ...versionRecordFixtureFields,
         createdAt: "2026-02-18T12:00:00.000Z",
         updatedAt: "2026-02-18T12:30:00.000Z",
       },

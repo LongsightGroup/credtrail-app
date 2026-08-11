@@ -637,6 +637,18 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
       expect(savedRule?.description).toBe("Updated description.");
       expect(versions).toHaveLength(2);
       expect(versions[0]?.versionNumber).toBe(2);
+      expect(versions[0]?.snapshot).toMatchObject({
+        name: "CS101 Rule Revised",
+        description: "Updated description.",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsConnectionId: fixture.lmsConnectionId,
+      });
+      expect(versions[1]?.snapshot).toMatchObject({
+        name: "CS101 Rule",
+        description: "Award for CS101 completion.",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsConnectionId: fixture.lmsConnectionId,
+      });
       expect(approvalStepCount).toBe(0);
     } finally {
       await cleanupTestResources(fixture.db, {

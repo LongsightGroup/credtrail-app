@@ -1,199 +1,13 @@
 import { readFileSync } from "node:fs";
 import { createContext, Script } from "node:vm";
 import { describe, expect, it } from "vitest";
-
-class FakeElement {
-  dataset: Record<string, string> = {};
-  children: FakeElement[] = [];
-  readonly classList: {
-    add(...tokens: readonly string[]): void;
-    contains(token: string): boolean;
-    remove(...tokens: readonly string[]): void;
-  };
-  className = "";
-  hidden = false;
-  readonly tagName: string;
-  textContent: string | null = "";
-
-  constructor(tagName = "DIV") {
-    this.tagName = tagName;
-    this.classList = {
-      add: (...tokens): void => {
-        const classes = new Set(this.className.split(/\s+/).filter((entry) => entry.length > 0));
-        tokens.forEach((token) => classes.add(token));
-        this.className = [...classes].join(" ");
-      },
-      contains: (token): boolean => this.className.split(/\s+/).includes(token),
-      remove: (...tokens): void => {
-        const removed = new Set(tokens);
-        this.className = this.className
-          .split(/\s+/)
-          .filter((entry) => entry.length > 0 && !removed.has(entry))
-          .join(" ");
-      },
-    };
-  }
-
-  append(...children: FakeElement[]): void {
-    this.children.push(...children);
-  }
-
-  addEventListener(): void {}
-
-  replaceChildren(...children: FakeElement[]): void {
-    this.children = [...children];
-  }
-
-  setAttribute(name: string, value: string): void {
-    if (name.startsWith("data-")) {
-      const datasetName = name
-        .slice("data-".length)
-        .replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase());
-      this.dataset[datasetName] = value;
-    }
-  }
-
-  querySelector(selector: string): FakeElement | null {
-    return this.querySelectorAll(selector)[0] ?? null;
-  }
-
-  querySelectorAll(selector: string): readonly FakeElement[] {
-    return this.children.flatMap((child) => [
-      ...(child.matches(selector) ? [child] : []),
-      ...child.querySelectorAll(selector),
-    ]);
-  }
-
-  private matches(selector: string): boolean {
-    if (selector.startsWith(".")) {
-      return this.classList.contains(selector.slice(1));
-    }
-
-    const attributeSelectors = [...selector.matchAll(/\[data-([a-z-]+)(?:="([^"]*)")?\]/g)];
-
-    if (attributeSelectors.length === 0) {
-      return false;
-    }
-
-    return attributeSelectors.every((match) => {
-      const attributeName = match[1];
-
-      if (attributeName === undefined) {
-        return false;
-      }
-
-      const datasetName = attributeName.replace(/-([a-z])/g, (_match, letter: string) =>
-        letter.toUpperCase(),
-      );
-      const expectedValue = match[2];
-      return expectedValue === undefined
-        ? datasetName in this.dataset
-        : this.dataset[datasetName] === expectedValue;
-    });
-  }
-}
-
-class FakeStatusElement extends FakeElement {
-  readonly message = new FakeElement();
-
-  override querySelector(): FakeElement {
-    return this.message;
-  }
-}
-
-class FakeOption extends FakeElement {
-  disabled = false;
-  selected = false;
-  value = "";
-
-  constructor() {
-    super("OPTION");
-  }
-}
-
-class FakeInput extends FakeElement {
-  checked = false;
-  disabled = false;
-  type = "text";
-  value = "";
-
-  constructor() {
-    super("INPUT");
-  }
-}
-
-type FakeOptions = FakeOption[] & {
-  item(index: number): FakeOption | null;
-};
-
-const fakeOptions = (options: readonly FakeOption[]): FakeOptions => {
-  const collection = [...options] as FakeOptions;
-  collection.item = (index): FakeOption | null => collection[index] ?? null;
-  return collection;
-};
-
-class FakeSelect extends FakeElement {
-  disabled = false;
-  multiple = false;
-  required = false;
-  options = fakeOptions([]);
-  private assignedValue = "";
-
-  constructor() {
-    super("SELECT");
-  }
-
-  override setAttribute(name: string, value: string): void {
-    super.setAttribute(name, value);
-
-    if (name === "multiple") {
-      this.multiple = true;
-    }
-
-    if (name === "required") {
-      this.required = true;
-    }
-  }
-
-  get selectedOptions(): readonly FakeOption[] {
-    return this.options.filter((option) => option.selected);
-  }
-
-  get value(): string {
-    return this.selectedOptions[0]?.value ?? this.assignedValue;
-  }
-
-  set value(value: string) {
-    this.assignedValue = value;
-    this.options.forEach((option) => {
-      option.selected = option.value === value;
-    });
-  }
-
-  override replaceChildren(...options: FakeOption[]): void {
-    super.replaceChildren(...options);
-    this.options = fakeOptions(options);
-  }
-
-  override append(...children: FakeElement[]): void {
-    super.append(...children);
-    const options = children.filter(
-      (candidate): candidate is FakeOption => candidate instanceof FakeOption,
-    );
-    this.options = fakeOptions([...this.options, ...options]);
-  }
-
-  insertBefore(option: FakeOption, before: FakeOption): void {
-    const beforeIndex = this.options.indexOf(before);
-    const insertIndex = beforeIndex < 0 ? this.options.length : beforeIndex;
-    this.options = fakeOptions([
-      ...this.options.slice(0, insertIndex),
-      option,
-      ...this.options.slice(insertIndex),
-    ]);
-    super.replaceChildren(...this.options);
-  }
-}
+import {
+  FakeElement,
+  FakeInput,
+  FakeOption,
+  FakeSelect,
+  FakeStatusElement,
+} from "./test-support/browser-page-asset-harness";
 
 interface PickerHarness {
   readonly conditionList: FakeElement;
@@ -489,7 +303,7 @@ describe("rule-builder LMS course picker", () => {
     selectedOption.value = "selected-course";
     selectedOption.textContent = "Selected course";
     selectedOption.selected = true;
-    select.options = fakeOptions([selectedOption]);
+    select.append(selectedOption);
 
     await expect(harness.hydrateCourseSelect({}, select, "other")).resolves.toBe(true);
     expect(select.selectedOptions.map((option) => option.value)).toEqual(["selected-course"]);

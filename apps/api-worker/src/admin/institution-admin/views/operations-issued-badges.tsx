@@ -8,7 +8,6 @@ const issuedBadgesDataNeeds = {
   reportingSectionBundles: false,
   badgeRulesTable: false,
   learnerRecordSectionBundles: false,
-  ruleTableRows: false,
   lmsConnectionRows: false,
   apiKeyRows: false,
   orgUnitRows: false,
@@ -21,7 +20,6 @@ const issuedBadgesDataNeeds = {
   accessMemberSelectOptions: false,
   accessOrgUnitSelectOptions: false,
   ruleSelectOptions: false,
-  ruleVersionIndexes: false,
   orgUnitParentOptions: false,
   issuedBadgeFilters: true,
 } as const;

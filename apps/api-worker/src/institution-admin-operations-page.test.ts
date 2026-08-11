@@ -12,9 +12,10 @@ import {
   mockedListLearnerRecordAssertionExportsDb,
   mockedListLearnerRecordEntriesDb,
   mockedListBadgeIssuanceRuleEvaluations,
-  mockedFindBadgeIssuanceRuleById,
+  mockedFindBadgeIssuanceRuleVersionByIdDb,
   mockedMarkLearnerRecordImportPreviewQueuedDb,
   sampleLearnerRecordAssertionExport,
+  versionRecordFixtureFields,
 } from "./institution-admin-page-test-utils";
 
 const { mockedIssueBadgeForTenant } = vi.hoisted(() => {
@@ -873,18 +874,26 @@ describe("GET /tenants/:tenantId/admin/operations/review-queue", () => {
         createdAt: "2026-02-17T00:00:00.000Z",
       },
     ]);
-    mockedFindBadgeIssuanceRuleById.mockResolvedValueOnce({
-      id: "brl_123",
+    mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValueOnce({
+      id: "brv_123",
       tenantId: "tenant_123",
-      name: "CS101 Rule",
-      description: "Issue badge for CS101 completion and grade threshold.",
-      badgeTemplateId: "badge_template_001",
-      orgUnitId: "tenant_123:org:institution",
-      ownerOrgUnitId: "tenant_123:org:institution",
-      lmsProviderKind: "canvas",
-      lmsConnectionId: "lms_canvas",
-      activeVersionId: "brv_123",
+      ruleId: "brl_123",
+      versionNumber: 1,
+      status: "active",
+      ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+      changeSummary: "Initial version",
       createdByUserId: "usr_admin",
+      submittedByUserId: "usr_admin",
+      submittedAt: "2026-02-18T12:05:00.000Z",
+      approvedByUserId: "usr_approver",
+      approvedAt: "2026-02-18T12:10:00.000Z",
+      activatedByUserId: "usr_admin",
+      activatedAt: "2026-02-18T12:15:00.000Z",
+      ...versionRecordFixtureFields,
+      snapshot: {
+        ...versionRecordFixtureFields.snapshot,
+        name: "CS101 Rule",
+      },
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
     });

@@ -29,6 +29,7 @@ export interface GradebookCourseSearchResult {
 }
 
 export interface GradebookCourseAccessResult {
+  readonly authorizedCourses: readonly GradebookCourseRecord[];
   readonly unauthorizedCourseIds: readonly string[];
 }
 

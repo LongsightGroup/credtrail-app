@@ -1,22 +1,14 @@
 import {
-  actorCanDecideApprovalStep,
   canReopenApprovedBadgeIssuanceRuleVersion,
-  findBadgeIssuanceRuleById,
-  findBadgeIssuanceRuleVersionById,
   findTenantById,
   findUserById,
   listBadgeIssuanceRuleVersionApprovalEvents,
   listBadgeIssuanceRuleVersionApprovalSteps,
-  listBadgeIssuanceRuleVersions,
   listPendingBadgeIssuanceRuleApprovalsForActor,
+  previousBadgeIssuanceRuleVersion,
   type BadgeIssuanceRuleApprovalEventRecord,
-  type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleApprovalStepRecord,
-  type BadgeIssuanceRuleVersionRecord,
-  type SessionRecord,
-  type SqlDatabase,
   type TenantRecord,
-  type TenantMembershipRole,
   type UserRecord,
 } from "@credtrail/db";
 import {
@@ -35,114 +27,37 @@ import {
 import { consumeAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
+import {
+  actorCanDecideBadgeRuleVersionApproval,
+  actorCanViewBadgeRuleVersionApproval,
+} from "../badges/badge-rule-approval-access";
 import { buildBadgeRuleVersionDefinitionDiff } from "../badges/badge-rule-version-diff";
 import {
   previewBadgeRuleVersionImpact,
   type BadgeRuleImpactPreview,
 } from "../lti/badge-rule-impact-preview";
 import { renderAppPage } from "../ui/render-page";
+import {
+  loadBadgeRuleVersionPageContext,
+  type BadgeRuleVersionPageContext,
+  type ResolveBadgeRuleVersionPageActor,
+} from "./badge-rule-version-page-context";
 
 interface RegisterTenantBadgeRuleApprovalWorkspaceAdminRoutesInput {
   app: Hono<AppEnv>;
   resolveDatabase: ResolveDatabase;
   sha256Hex: (value: string) => Promise<string>;
-  resolveBadgeRuleApprovalWorkspaceRole: (
-    c: AppContext,
-    tenantId: string,
-    nextPath: string,
-  ) => Promise<
-    | Response
-    | {
-        session: SessionRecord;
-        membershipRole: TenantMembershipRole;
-      }
-  >;
+  resolveBadgeRuleApprovalWorkspaceRole: ResolveBadgeRuleVersionPageActor;
 }
 
-interface AuthorizedReviewPageData {
+interface AuthorizedReviewPageData extends BadgeRuleVersionPageContext {
   readonly tenant: TenantRecord;
   readonly user: UserRecord | null;
-  readonly rule: BadgeIssuanceRuleRecord;
-  readonly version: BadgeIssuanceRuleVersionRecord;
-  readonly versions: readonly BadgeIssuanceRuleVersionRecord[];
   readonly approvalSteps: readonly BadgeIssuanceRuleApprovalStepRecord[];
   readonly approvalEvents: readonly BadgeIssuanceRuleApprovalEventRecord[];
   readonly canDecide: boolean;
   readonly canReopen: boolean;
 }
-
-const actorCanDecideReviewVersion = async (
-  db: SqlDatabase,
-  input: {
-    tenantId: string;
-    actorUserId: string;
-    actorRole: TenantMembershipRole;
-    version: BadgeIssuanceRuleVersionRecord;
-    approvalSteps: readonly BadgeIssuanceRuleApprovalStepRecord[];
-  },
-): Promise<boolean> => {
-  if (input.version.status !== "pending_approval") {
-    return false;
-  }
-
-  if (
-    input.version.createdByUserId === input.actorUserId ||
-    input.version.submittedByUserId === input.actorUserId
-  ) {
-    return false;
-  }
-
-  const pendingStep = input.approvalSteps.find((step) => step.status === "pending");
-
-  if (pendingStep === undefined) {
-    return false;
-  }
-
-  return actorCanDecideApprovalStep(db, {
-    tenantId: input.tenantId,
-    actorUserId: input.actorUserId,
-    actorRole: input.actorRole,
-    step: pendingStep,
-  });
-};
-
-const actorCanViewReviewVersion = async (
-  db: SqlDatabase,
-  input: {
-    tenantId: string;
-    actorUserId: string;
-    actorRole: TenantMembershipRole;
-    version: BadgeIssuanceRuleVersionRecord;
-    approvalSteps: readonly BadgeIssuanceRuleApprovalStepRecord[];
-  },
-): Promise<boolean> => {
-  if (input.actorRole === "owner" || input.actorRole === "admin") {
-    return true;
-  }
-
-  if (input.version.status === "approved" && input.version.approvedByUserId === input.actorUserId) {
-    return true;
-  }
-
-  if (input.version.status !== "pending_approval") {
-    return false;
-  }
-
-  for (const step of input.approvalSteps) {
-    if (
-      await actorCanDecideApprovalStep(db, {
-        tenantId: input.tenantId,
-        actorUserId: input.actorUserId,
-        actorRole: input.actorRole,
-        step,
-      })
-    ) {
-      return true;
-    }
-  }
-
-  return false;
-};
 
 export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
   input: RegisterTenantBadgeRuleApprovalWorkspaceAdminRoutesInput,
@@ -153,26 +68,30 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
     c: AppContext,
     input: {
       pathParams: ReturnType<typeof parseBadgeIssuanceRuleVersionPathParams>;
-      session: SessionRecord;
-      membershipRole: TenantMembershipRole;
+      nextPath: string;
     },
   ): Promise<Response | AuthorizedReviewPageData> => {
-    const { pathParams, session, membershipRole } = input;
-    const db = resolveDatabase(c.env);
-    const [version, approvalSteps] = await Promise.all([
-      findBadgeIssuanceRuleVersionById(db, pathParams),
-      listBadgeIssuanceRuleVersionApprovalSteps(db, pathParams),
-    ]);
+    const { pathParams } = input;
+    const loaded = await loadBadgeRuleVersionPageContext(c, {
+      tenantId: pathParams.tenantId,
+      ruleId: pathParams.ruleId,
+      versionId: pathParams.versionId,
+      nextPath: input.nextPath,
+      resolveDatabase,
+      resolveActor: resolveBadgeRuleApprovalWorkspaceRole,
+    });
 
-    if (version === null) {
-      return c.json({ error: "Badge rule version not found" }, 404);
+    if (loaded instanceof Response) {
+      return loaded;
     }
 
-    const canView = await actorCanViewReviewVersion(db, {
-      tenantId: version.tenantId,
-      actorUserId: session.userId,
-      actorRole: membershipRole,
-      version,
+    const approvalSteps = await listBadgeIssuanceRuleVersionApprovalSteps(loaded.db, pathParams);
+
+    const canView = await actorCanViewBadgeRuleVersionApproval(loaded.db, {
+      tenantId: loaded.version.tenantId,
+      actorUserId: loaded.session.userId,
+      actorRole: loaded.membershipRole,
+      version: loaded.version,
       approvalSteps,
     });
 
@@ -180,17 +99,15 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
       return c.json({ error: "Approval step not assigned to this reviewer" }, 403);
     }
 
-    const [tenant, user, rule, versions, approvalEvents, canDecide] = await Promise.all([
-      findTenantById(db, pathParams.tenantId),
-      findUserById(db, session.userId),
-      findBadgeIssuanceRuleById(db, pathParams.tenantId, pathParams.ruleId),
-      listBadgeIssuanceRuleVersions(db, pathParams),
-      listBadgeIssuanceRuleVersionApprovalEvents(db, pathParams),
-      actorCanDecideReviewVersion(db, {
-        tenantId: version.tenantId,
-        actorUserId: session.userId,
-        actorRole: membershipRole,
-        version,
+    const [tenant, user, approvalEvents, canDecide] = await Promise.all([
+      findTenantById(loaded.db, pathParams.tenantId),
+      findUserById(loaded.db, loaded.session.userId),
+      listBadgeIssuanceRuleVersionApprovalEvents(loaded.db, pathParams),
+      actorCanDecideBadgeRuleVersionApproval(loaded.db, {
+        tenantId: loaded.version.tenantId,
+        actorUserId: loaded.session.userId,
+        actorRole: loaded.membershipRole,
+        version: loaded.version,
         approvalSteps,
       }),
     ]);
@@ -199,23 +116,17 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
       return c.json({ error: "Tenant not found" }, 404);
     }
 
-    if (rule === null) {
-      return c.json({ error: "Badge rule version not found" }, 404);
-    }
-
     return {
+      ...loaded,
       tenant,
       user,
-      rule,
-      version,
-      versions,
       approvalSteps,
       approvalEvents,
       canDecide,
       canReopen: canReopenApprovedBadgeIssuanceRuleVersion({
-        version,
-        actorUserId: session.userId,
-        actorRole: membershipRole,
+        version: loaded.version,
+        actorUserId: loaded.session.userId,
+        actorRole: loaded.membershipRole,
       }),
     };
   };
@@ -224,22 +135,17 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
     c: AppContext,
     input: {
       data: AuthorizedReviewPageData;
-      session: SessionRecord;
-      membershipRole: TenantMembershipRole;
       impactPreview: BadgeRuleImpactPreview;
     },
   ): Promise<Response> => {
-    const { data, session, membershipRole, impactPreview } = input;
+    const { data, impactPreview } = input;
     const flash = await consumeAdminListMessageFlash(c, {
       tenantId: data.tenant.id,
-      userId: session.userId,
+      userId: data.session.userId,
       workspace: "rule_approvals",
     });
 
-    const baseVersion =
-      data.versions
-        .filter((candidate) => candidate.versionNumber < data.version.versionNumber)
-        .sort((left, right) => right.versionNumber - left.versionNumber)[0] ?? null;
+    const baseVersion = previousBadgeIssuanceRuleVersion(data.versions, data.version.versionNumber);
     const diff =
       baseVersion === null
         ? null
@@ -255,13 +161,15 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
       badgeRuleApprovalReviewPage(
         {
           tenant: data.tenant,
-          userId: session.userId,
+          userId: data.session.userId,
           ...(data.user?.email === undefined ? {} : { userEmail: data.user.email }),
-          membershipRole,
+          membershipRole: data.membershipRole,
         },
         {
           rule: data.rule,
           version: data.version,
+          versions: data.versions,
+          definition: data.definition,
           baseVersion,
           diff,
           impactPreview,
@@ -334,17 +242,9 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
       pathParams.ruleId,
       pathParams.versionId,
     );
-    const roleCheck = await resolveBadgeRuleApprovalWorkspaceRole(c, pathParams.tenantId, nextPath);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const { session, membershipRole } = roleCheck;
     const reviewData = await loadAuthorizedReviewPageData(c, {
       pathParams,
-      session,
-      membershipRole,
+      nextPath,
     });
 
     if (reviewData instanceof Response) {
@@ -353,8 +253,6 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
 
     return renderReviewPage(c, {
       data: reviewData,
-      session,
-      membershipRole,
       impactPreview: { status: "not_requested" },
     });
   });
@@ -368,21 +266,9 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
         pathParams.ruleId,
         pathParams.versionId,
       );
-      const roleCheck = await resolveBadgeRuleApprovalWorkspaceRole(
-        c,
-        pathParams.tenantId,
-        nextPath,
-      );
-
-      if (roleCheck instanceof Response) {
-        return roleCheck;
-      }
-
-      const { session, membershipRole } = roleCheck;
       const reviewData = await loadAuthorizedReviewPageData(c, {
         pathParams,
-        session,
-        membershipRole,
+        nextPath,
       });
 
       if (reviewData instanceof Response) {
@@ -390,7 +276,7 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
       }
 
       const impactPreview = await previewBadgeRuleVersionImpact({
-        db: resolveDatabase(c.env),
+        db: reviewData.db,
         env: c.env,
         tenantId: pathParams.tenantId,
         ruleId: pathParams.ruleId,
@@ -401,8 +287,6 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
 
       return renderReviewPage(c, {
         data: reviewData,
-        session,
-        membershipRole,
         impactPreview,
       });
     },

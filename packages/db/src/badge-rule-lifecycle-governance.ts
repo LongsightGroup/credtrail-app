@@ -1,9 +1,6 @@
 import { addDaysToIso, addMonthsToIso, createPrefixedId } from "./shared-helpers";
 import { runSqlTransaction, type SqlDatabase } from "./tenant-scope";
-import {
-  findBadgeIssuanceRuleById,
-  findBadgeIssuanceRuleVersionById,
-} from "./badge-issuance-rule-reads.js";
+import { findBadgeIssuanceRuleVersionById } from "./badge-issuance-rule-reads.js";
 import { resolveBadgeRuleApprovalPolicy } from "./badge-rule-approval-policies.js";
 import {
   badgeIssuanceRuleVersionSelectColumns,
@@ -17,29 +14,10 @@ import type {
   UpdateBadgeIssuanceRuleVersionLifecycleInput,
 } from "./badge-issuance-rule-types.js";
 
-export interface BadgeRuleLifecycleDueVersionRecord extends BadgeIssuanceRuleVersionRecord {
-  readonly badgeTemplateId: string;
-  readonly lmsProviderKind: string;
-  readonly lmsConnectionId: string | null;
-  readonly orgUnitId: string;
-}
+export type BadgeRuleLifecycleDueVersionRecord = BadgeIssuanceRuleVersionRecord;
 
-interface BadgeRuleLifecycleDueVersionRow extends BadgeIssuanceRuleVersionRow {
-  badgeTemplateId: string;
-  lmsProviderKind: string;
-  lmsConnectionId: string | null;
-  orgUnitId: string;
-}
-
-const mapDueVersionRow = (
-  row: BadgeRuleLifecycleDueVersionRow,
-): BadgeRuleLifecycleDueVersionRecord => ({
-  ...mapBadgeIssuanceRuleVersionRow(row),
-  badgeTemplateId: row.badgeTemplateId,
-  lmsProviderKind: row.lmsProviderKind,
-  lmsConnectionId: row.lmsConnectionId,
-  orgUnitId: row.orgUnitId,
-});
+const mapDueVersionRow = (row: BadgeIssuanceRuleVersionRow): BadgeRuleLifecycleDueVersionRecord =>
+  mapBadgeIssuanceRuleVersionRow(row);
 
 /** Lists active rule versions whose lifecycle window permits automated evaluation now. */
 export const listBadgeIssuanceRuleVersionsForAutomatedEvaluation = async (
@@ -53,15 +31,8 @@ export const listBadgeIssuanceRuleVersionsForAutomatedEvaluation = async (
     .prepare(
       `
       SELECT
-        ${badgeIssuanceRuleVersionSelectColumns("versions")},
-        rules.badge_template_id AS badgeTemplateId,
-        rules.lms_provider_kind AS lmsProviderKind,
-        rules.lms_connection_id AS lmsConnectionId,
-        rules.org_unit_id AS orgUnitId
+        ${badgeIssuanceRuleVersionSelectColumns("versions")}
       FROM badge_issuance_rule_versions AS versions
-      INNER JOIN badge_issuance_rules AS rules
-        ON rules.tenant_id = versions.tenant_id
-        AND rules.id = versions.rule_id
       WHERE versions.tenant_id = ?
         AND versions.status = 'active'
         AND (versions.effective_starts_at IS NULL OR versions.effective_starts_at <= ?)
@@ -70,7 +41,7 @@ export const listBadgeIssuanceRuleVersionsForAutomatedEvaluation = async (
     `,
     )
     .bind(input.tenantId, input.nowIso, input.nowIso)
-    .all<BadgeRuleLifecycleDueVersionRow>();
+    .all<BadgeIssuanceRuleVersionRow>();
 
   return result.results.map(mapDueVersionRow);
 };
@@ -156,21 +127,14 @@ const listDueVersions = async (
     .prepare(
       `
       SELECT
-        ${badgeIssuanceRuleVersionSelectColumns("versions")},
-        rules.badge_template_id AS badgeTemplateId,
-        rules.lms_provider_kind AS lmsProviderKind,
-        rules.lms_connection_id AS lmsConnectionId,
-        rules.org_unit_id AS orgUnitId
+        ${badgeIssuanceRuleVersionSelectColumns("versions")}
       FROM badge_issuance_rule_versions AS versions
-      INNER JOIN badge_issuance_rules AS rules
-        ON rules.tenant_id = versions.tenant_id
-        AND rules.id = versions.rule_id
       WHERE ${whereClauses.join("\n        AND ")}
       ORDER BY versions.${predicate.dueColumn} ASC
     `,
     )
     .bind(...bindings)
-    .all<BadgeRuleLifecycleDueVersionRow>();
+    .all<BadgeIssuanceRuleVersionRow>();
 
   return result.results.map(mapDueVersionRow);
 };
@@ -564,15 +528,19 @@ export const recertifyBadgeIssuanceRuleVersion = async (
   const occurredAt = input.occurredAt ?? new Date().toISOString();
 
   return runSqlTransaction(db, async (transactionDb) => {
-    const rule = await findBadgeIssuanceRuleById(transactionDb, input.tenantId, input.ruleId);
+    const version = await findBadgeIssuanceRuleVersionById(transactionDb, {
+      tenantId: input.tenantId,
+      ruleId: input.ruleId,
+      versionId: input.versionId,
+    });
 
-    if (rule === null) {
+    if (version === null || version.status !== "active") {
       return null;
     }
 
     const policy = await resolveBadgeRuleApprovalPolicy(transactionDb, {
       tenantId: input.tenantId,
-      orgUnitId: rule.orgUnitId,
+      orgUnitId: version.snapshot.orgUnitId,
     });
     const recertificationDueAt =
       policy.recertificationIntervalMonths === null

@@ -486,6 +486,16 @@ describe("createCanvasGradebookProvider", () => {
         courseIds: ["42", "77"],
       }),
     ).resolves.toEqual({
+      authorizedCourses: [
+        {
+          courseId: "42",
+          title: "Capstone Seminar",
+          courseCode: null,
+          workflowState: null,
+          startsAt: null,
+          endsAt: null,
+        },
+      ],
       unauthorizedCourseIds: ["77"],
     });
   });

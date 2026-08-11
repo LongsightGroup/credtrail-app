@@ -62,12 +62,10 @@ export const renderBadgeRuleBuilderDraftRows = (
         </td>
         <td>{templateTitle}</td>
         <td>{lmsLabel}</td>
-        <td>none</td>
+        <td>Not active</td>
         <td>
           <strong>Setup incomplete</strong>
           <AdminMeta>Finish setup to create version 1</AdminMeta>
-        </td>
-        <td>
           <AdminStatusPill tone="draft">Draft</AdminStatusPill>
         </td>
         <td>{formatIsoTimestamp(draft.updatedAt)}</td>

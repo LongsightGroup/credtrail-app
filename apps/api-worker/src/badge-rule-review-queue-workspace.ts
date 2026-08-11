@@ -1,5 +1,5 @@
 import {
-  findBadgeIssuanceRuleById,
+  findBadgeIssuanceRuleVersionById,
   listBadgeIssuanceRuleEvaluations,
   type BadgeIssuanceRuleEvaluationRecord,
   type SqlDatabase,
@@ -95,15 +95,22 @@ export const loadBadgeRuleReviewQueueForApi = async (
       reviewStatus,
       limit: input?.limit ?? 50,
     })) ?? [];
-  const ruleCache = new Map<string, Awaited<ReturnType<typeof findBadgeIssuanceRuleById>>>();
+  const versionCache = new Map<
+    string,
+    Awaited<ReturnType<typeof findBadgeIssuanceRuleVersionById>>
+  >();
 
   return Promise.all(
     evaluations.map(async (evaluationRecord) => {
-      let rule = ruleCache.get(evaluationRecord.ruleId);
+      let version = versionCache.get(evaluationRecord.versionId);
 
-      if (rule === undefined) {
-        rule = await findBadgeIssuanceRuleById(db, tenantId, evaluationRecord.ruleId);
-        ruleCache.set(evaluationRecord.ruleId, rule);
+      if (version === undefined) {
+        version = await findBadgeIssuanceRuleVersionById(db, {
+          tenantId,
+          ruleId: evaluationRecord.ruleId,
+          versionId: evaluationRecord.versionId,
+        });
+        versionCache.set(evaluationRecord.versionId, version);
       }
 
       const evaluation = evaluationPayloadFromRecord(evaluationRecord);
@@ -122,8 +129,8 @@ export const loadBadgeRuleReviewQueueForApi = async (
 
       return {
         ...evaluationRecord,
-        ruleName: rule?.name ?? null,
-        badgeTemplateId: rule?.badgeTemplateId ?? null,
+        ruleName: version?.snapshot.name ?? null,
+        badgeTemplateId: version?.snapshot.badgeTemplateId ?? null,
         facts: parseFactsFromEvaluationRecord(evaluationRecord),
         evaluation,
         evaluationSummary,

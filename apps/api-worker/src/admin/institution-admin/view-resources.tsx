@@ -1,9 +1,6 @@
 import {
-  canDeleteBadgeIssuanceRuleDraft,
-  canEditBadgeIssuanceRuleDraft,
-  latestBadgeIssuanceRuleVersion,
+  indexBadgeIssuanceRuleVersionsByRuleId,
   type BadgeIssuanceRuleRecord,
-  type BadgeIssuanceRuleVersionRecord,
   type TenantLmsConnectionRecord,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -18,15 +15,9 @@ import {
   tenantAccessMemberRemovePath,
   tenantAccessMemberRolePath,
   tenantAccessMembershipScopeRemovePath,
-  buildBadgeRuleVersionReviewPath,
-  tenantBadgeRuleDeleteAdminPath,
-  tenantBadgeRuleSubmitApprovalAdminPath,
-  tenantBadgeRuleWithdrawSubmissionAdminPath,
 } from "../access-admin-helpers";
-import { buildBadgeRuleLifecycleMenuActions } from "./badge-rule-lifecycle-actions";
 import { renderBadgeRuleBuilderDraftRows } from "./badge-rule-builder-draft-rows";
 import {
-  AdminActionMenu,
   AdminButton,
   AdminButtonLink,
   AdminActions,
@@ -45,6 +36,7 @@ import { renderInstitutionAdminAccessSections } from "./access-sections";
 import { accessSectionKindsForDataNeeds } from "./access-section-kinds";
 import { renderInstitutionAdminLearnerRecordSections } from "./learner-record-sections";
 import { renderBadgeRulesTable } from "./badge-rules-table";
+import { badgeRuleDisplayName } from "../badge-rule-presentation";
 import { renderInstitutionAdminOperationsSections } from "./operations-sections";
 import type { InstitutionAdminPageInput, InstitutionAdminView } from "./page-types";
 import { renderInstitutionAdminReportingSections } from "./reporting-sections";
@@ -104,7 +96,7 @@ export const buildInstitutionAdminViewResources = (
 
   const templateById = new Map(input.badgeTemplates.map((template) => [template.id, template]));
   const orgUnitById = new Map(input.orgUnits.map((orgUnit) => [orgUnit.id, orgUnit]));
-  const versionsByRuleId = new Map<string, BadgeIssuanceRuleVersionRecord[]>();
+  const versionsByRuleId = indexBadgeIssuanceRuleVersionsByRuleId(input.badgeRuleVersions);
   const {
     operationsManualIssuePath,
     operationsLearnerRecordsPath,
@@ -193,23 +185,6 @@ export const buildInstitutionAdminViewResources = (
       .map((badgeTemplateId) => templateById.get(badgeTemplateId)?.title ?? badgeTemplateId)
       .join(", ");
   };
-  if (dataNeeds.ruleVersionIndexes) {
-    for (const version of input.badgeRuleVersions) {
-      const versions = versionsByRuleId.get(version.ruleId);
-
-      if (versions === undefined) {
-        versionsByRuleId.set(version.ruleId, [version]);
-        continue;
-      }
-
-      versions.push(version);
-    }
-
-    for (const versions of versionsByRuleId.values()) {
-      versions.sort((left, right) => right.versionNumber - left.versionNumber);
-    }
-  }
-
   const orgUnitRows = !dataNeeds.orgUnitRows ? (
     emptySectionMarkup
   ) : input.orgUnits.length === 0 ? (
@@ -581,172 +556,6 @@ export const buildInstitutionAdminViewResources = (
     lmsConnections: input.lmsConnections,
   });
 
-  const ruleRows = !dataNeeds.ruleTableRows ? (
-    emptySectionMarkup
-  ) : input.badgeRules.length === 0 && builderDrafts.length === 0 ? (
-    <AdminEmptyTableRow colSpan={8}>
-      No badge rules found. <a href={ruleBuilderPath}>Create your first rule</a>.
-    </AdminEmptyTableRow>
-  ) : (
-    input.badgeRules.map((rule) => {
-      const templateTitle = templateById.get(rule.badgeTemplateId)?.title ?? rule.badgeTemplateId;
-      const versions = versionsByRuleId.get(rule.id) ?? [];
-      const latestVersion = latestBadgeIssuanceRuleVersion(versions);
-      const isEditableRule = canEditBadgeIssuanceRuleDraft(rule, versions);
-      const canDeleteRule = canDeleteBadgeIssuanceRuleDraft(rule, versions);
-      const editRulePath = `${rulesWorkspacePath}/${encodeURIComponent(rule.id)}/edit`;
-      const menuActions: HonoElement[] = [];
-
-      if (latestVersion !== null) {
-        if (latestVersion.status === "draft" || latestVersion.status === "rejected") {
-          menuActions.push(
-            <AdminForm
-              method="post"
-              action={tenantBadgeRuleSubmitApprovalAdminPath(
-                input.tenant.id,
-                rule.id,
-                latestVersion.id,
-              )}
-              className="ct-admin__inline-form"
-              dataAttributes={{
-                "data-confirm-message": `Submit draft version for "${rule.name}" for approval? You will not be able to approve it yourself.`,
-              }}
-            >
-              <button type="submit" class="ct-admin__action-menu-item">
-                Submit for approval
-              </button>
-            </AdminForm>,
-          );
-        }
-
-        if (latestVersion.status === "pending_approval") {
-          if (latestVersion.submittedByUserId === input.userId) {
-            menuActions.push(
-              <AdminForm
-                method="post"
-                action={tenantBadgeRuleWithdrawSubmissionAdminPath(
-                  input.tenant.id,
-                  rule.id,
-                  latestVersion.id,
-                )}
-                className="ct-admin__inline-form"
-                dataAttributes={{
-                  "data-confirm-message": `Withdraw "${rule.name}" from approval and return it to draft?`,
-                }}
-              >
-                <button type="submit" class="ct-admin__action-menu-item">
-                  Withdraw submission
-                </button>
-              </AdminForm>,
-            );
-          }
-        }
-
-        if (
-          latestVersion.status === "approved" &&
-          latestVersion.approvedByUserId === input.userId
-        ) {
-          menuActions.push(
-            <a
-              class="ct-admin__action-menu-item"
-              href={buildBadgeRuleVersionReviewPath(input.tenant.id, rule.id, latestVersion.id)}
-            >
-              Review approval
-            </a>,
-          );
-        }
-
-        for (const action of buildBadgeRuleLifecycleMenuActions({
-          tenantId: input.tenant.id,
-          rule,
-          latestVersion,
-        })) {
-          menuActions.push(action as HonoElement);
-        }
-      }
-
-      if (canDeleteRule) {
-        menuActions.push(
-          <AdminForm
-            method="post"
-            action={tenantBadgeRuleDeleteAdminPath(input.tenant.id, rule.id)}
-            className="ct-admin__action-menu-form"
-            dataAttributes={{
-              "data-confirm-message": `Delete draft rule "${rule.name}"? This removes its draft and rejected versions.`,
-            }}
-          >
-            <button
-              type="submit"
-              class="ct-admin__action-menu-item ct-admin__action-menu-item--danger"
-            >
-              Delete
-            </button>
-          </AdminForm>,
-        );
-      }
-
-      return (
-        <tr>
-          <td>
-            {isEditableRule ? (
-              <a class="ct-admin__rule-name-link" href={editRulePath}>
-                <strong>{rule.name}</strong>
-              </a>
-            ) : (
-              <strong>{rule.name}</strong>
-            )}
-            <AdminMeta>{rule.id}</AdminMeta>
-          </td>
-          <td>{templateTitle}</td>
-          <td>{rule.lmsProviderKind}</td>
-          <td>{rule.activeVersionId ?? "none"}</td>
-          <td>
-            {latestVersion === null ? (
-              "none"
-            ) : (
-              <>
-                <strong>Version {String(latestVersion.versionNumber)}</strong>
-                <AdminMeta>Version ID: {latestVersion.id}</AdminMeta>
-                {latestVersion.recertificationDueAt === null ? null : (
-                  <AdminMeta>
-                    Recertification due {formatIsoTimestamp(latestVersion.recertificationDueAt)}
-                  </AdminMeta>
-                )}
-              </>
-            )}
-          </td>
-          <td>
-            <AdminStatusPill tone={latestVersion?.status ?? "none"}>
-              {latestVersion?.status ?? "none"}
-            </AdminStatusPill>
-          </td>
-          <td>{formatIsoTimestamp(rule.updatedAt)}</td>
-          <td>
-            {isEditableRule || menuActions.length > 0 ? (
-              <AdminActions>
-                {isEditableRule ? (
-                  <AdminButtonLink href={editRulePath} variant="secondary" size="tiny">
-                    Edit
-                  </AdminButtonLink>
-                ) : null}
-                {menuActions.length > 0 ? (
-                  <AdminActionMenu
-                    menuId={`badge-rule-action-menu-${rule.id}`}
-                    ariaLabel={`More actions for ${rule.name}`}
-                  >
-                    {menuActions}
-                  </AdminActionMenu>
-                ) : null}
-              </AdminActions>
-            ) : (
-              <AdminMeta as="span">No actions</AdminMeta>
-            )}
-          </td>
-        </tr>
-      );
-    })
-  );
-
   const orgUnitParentOptions = dataNeeds.orgUnitParentOptions
     ? input.orgUnits
         .filter((orgUnit) => orgUnit.isActive)
@@ -807,6 +616,7 @@ export const buildInstitutionAdminViewResources = (
   ): HonoElement => {
     const versions = versionsByRuleId.get(rule.id) ?? [];
     const latestVersion = versions[0] ?? null;
+    const displayName = badgeRuleDisplayName(rule, versions);
 
     return (
       <option
@@ -814,9 +624,9 @@ export const buildInstitutionAdminViewResources = (
         selected={includeSelected && index === 0}
         data-version-id={latestVersion?.id ?? ""}
         data-version-status={latestVersion?.status ?? "none"}
-        data-rule-label={rule.name}
+        data-rule-label={displayName}
       >
-        {`${rule.name} (${rule.id}) · latest ${
+        {`${displayName} (${rule.id}) · latest ${
           latestVersion === null
             ? "none"
             : `v${String(latestVersion.versionNumber)} ${latestVersion.status}`
@@ -1169,11 +979,14 @@ export const buildInstitutionAdminViewResources = (
 
   const badgeRulesTableMarkup = dataNeeds.badgeRulesTable
     ? renderBadgeRulesTable({
+        tenantId: input.tenant.id,
+        userId: input.userId,
         ruleCount: rulesWorkspaceCount,
         ruleBuilderPath,
         rulesTemplatesPath,
+        badgeRules: input.badgeRules,
+        badgeRuleVersions: input.badgeRuleVersions,
         builderDraftRows,
-        ruleRows,
       })
     : emptySectionMarkup;
 

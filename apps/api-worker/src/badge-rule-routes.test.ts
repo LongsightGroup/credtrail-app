@@ -161,6 +161,7 @@ import {
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 import { GradebookProviderError } from "./lms/gradebook-provider-error";
 import type { GradebookCourseSearchInput } from "./lms/gradebook-types";
+import { sampleBadgeRuleVersionSnapshot } from "./test-support/badge-rule-version-snapshot";
 import { app } from "./index";
 
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
@@ -333,6 +334,7 @@ const sampleVersion = (
         minScore: 80,
       },
     }),
+    snapshot: sampleBadgeRuleVersionSnapshot,
     changeSummary: "Initial draft",
     createdByUserId: "usr_123",
     submittedByUserId: null,
@@ -519,7 +521,7 @@ beforeEach(() => {
   courseSearchInputs.length = 0;
   mockedCreateGradebookProvider.mockReturnValue({
     kind: "canvas",
-    verifyCourseAccess: () => Promise.resolve({ unauthorizedCourseIds: [] }),
+    verifyCourseAccess: () => Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
     listCourses: (input: GradebookCourseSearchInput) => {
       courseSearchInputs.push(input);
       return Promise.resolve({
@@ -1314,11 +1316,49 @@ describe("badge rule routes", () => {
     );
   });
 
+  it("does not expose generic LMS pickers to approval-only reviewers", async () => {
+    const env = createEnv();
+    mockedFindTenantMembership.mockResolvedValue(sampleMembership({ role: "approver" }));
+
+    const coursesResponse = await app.request(
+      "/v1/tenants/tenant_123/lms/connections/lms_123/courses?q=course_101",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const itemsResponse = await app.request(
+      "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/gradebook-items",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const learnersResponse = await app.request(
+      "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/learners",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    expect(coursesResponse.status).toBe(403);
+    expect(itemsResponse.status).toBe(403);
+    expect(learnersResponse.status).toBe(403);
+  });
+
   it("bounds course search results and reports when more matches are available", async () => {
     const env = createEnv();
     mockedCreateGradebookProvider.mockReturnValue({
       kind: "canvas",
-      verifyCourseAccess: () => Promise.resolve({ unauthorizedCourseIds: [] }),
+      verifyCourseAccess: () =>
+        Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
       listCourses: (input: GradebookCourseSearchInput) => {
         courseSearchInputs.push(input);
         return Promise.resolve({
@@ -1376,7 +1416,8 @@ describe("badge rule routes", () => {
     );
     mockedCreateGradebookProvider.mockReturnValue({
       kind: "sakai",
-      verifyCourseAccess: () => Promise.resolve({ unauthorizedCourseIds: [] }),
+      verifyCourseAccess: () =>
+        Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
       listCourses: () =>
         Promise.reject(
           new GradebookProviderError({
@@ -2006,7 +2047,8 @@ describe("badge rule routes", () => {
     );
     mockedCreateGradebookProvider.mockReturnValue({
       kind: "sakai",
-      verifyCourseAccess: () => Promise.resolve({ unauthorizedCourseIds: [] }),
+      verifyCourseAccess: () =>
+        Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
       listCourses: () => Promise.resolve({ courses: [], hasMore: false }),
       listAssignments: () => Promise.resolve([]),
       listEnrollments: () => Promise.resolve([]),
@@ -2277,7 +2319,15 @@ describe("badge rule routes", () => {
 
   it("lists the rule review queue with evaluation summaries", async () => {
     const env = createEnv();
-    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleRule());
+    mockedFindBadgeIssuanceRuleVersionById.mockResolvedValue(
+      sampleVersion({
+        snapshot: {
+          ...sampleBadgeRuleVersionSnapshot,
+          name: "CS101 Rule",
+          badgeTemplateId: "badge_template_cs101",
+        },
+      }),
+    );
     mockedListBadgeIssuanceRuleEvaluations.mockResolvedValue([
       sampleEvaluationRecord({
         matched: false,
@@ -2334,6 +2384,11 @@ describe("badge rule routes", () => {
     expect(body.queue).toHaveLength(1);
     expect(body.queue[0]?.ruleName).toBe("CS101 Rule");
     expect(body.queue[0]?.evaluationSummary?.missingDataCount).toBe(1);
+    expect(mockedFindBadgeIssuanceRuleVersionById).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_123",
+      versionId: "brv_123",
+    });
   });
 
   it("resolves review queue entries by issuing the badge", async () => {
@@ -2345,7 +2400,7 @@ describe("badge rule routes", () => {
         reviewStatus: "pending",
       }),
     );
-    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleRule());
+    mockedFindBadgeIssuanceRuleVersionById.mockResolvedValue(sampleVersion());
     mockedIssueBadgeForTenant.mockResolvedValue({
       status: "issued",
       assertionId: "tenant_123:assertion_1",
@@ -2391,6 +2446,12 @@ describe("badge rule routes", () => {
     expect(body.review.issuanceStatus).toBe("issued");
     expect(body.review.reviewDecision).toBe("issue");
     expect(body.issuance.status).toBe("issued");
+    expect(mockedIssueBadgeForTenant).toHaveBeenCalledWith(
+      expect.anything(),
+      "tenant_123",
+      expect.objectContaining({ badgeTemplateId: "badge_template_001" }),
+      "usr_123",
+    );
     expect(mockedResolveBadgeIssuanceRuleEvaluationReview).toHaveBeenCalledTimes(1);
   });
 });

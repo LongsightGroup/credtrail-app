@@ -270,7 +270,7 @@ export const buildAssertionEvidencePresentation = (
         ? null
         : {
             ruleId: data.rule.id,
-            ruleName: data.rule.name,
+            ruleName: data.version.snapshot.name,
             versionNumber: data.version.versionNumber,
             versionStatus: data.version.status,
             versionId: data.version.id,

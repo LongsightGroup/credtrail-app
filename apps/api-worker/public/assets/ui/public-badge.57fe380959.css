@@ -1030,6 +1030,20 @@
   }
 }
 
+.ct-rule-summary__muted {
+  margin: 0;
+  color: var(--ct-theme-text-muted);
+  font-size: 0.9rem;
+}
+
+.ct-rule-summary__conditions,
+.ct-rule-summary__conditions ul {
+  margin: 0;
+  padding-inline-start: 1.2rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
 .criteria-registry {
   display: grid;
   gap: 1rem;
@@ -1227,8 +1241,6 @@
   margin: 0;
 }
 
-.criteria-registry__conditions,
-.criteria-registry__conditions ul,
 .criteria-registry__approval-steps,
 .criteria-registry__approval-events,
 .criteria-registry__timeline {

@@ -533,6 +533,16 @@ describe("createSakaiGradebookProvider", () => {
         courseIds: ["course-101", "course-202"],
       }),
     ).resolves.toEqual({
+      authorizedCourses: [
+        {
+          courseId: "course-101",
+          title: "Course 101",
+          courseCode: null,
+          workflowState: null,
+          startsAt: null,
+          endsAt: null,
+        },
+      ],
       unauthorizedCourseIds: ["course-202"],
     });
   });

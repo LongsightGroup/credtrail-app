@@ -8,6 +8,7 @@ import {
   listBadgeIssuanceRuleVersionApprovalEvents,
   listBadgeIssuanceRuleVersionApprovalSteps,
   listBadgeIssuanceRuleVersions,
+  previousBadgeIssuanceRuleVersion,
   submitBadgeIssuanceRuleVersionForApproval,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -93,12 +94,10 @@ export const registerBadgeRuleVersionRoutes = (
     });
     const baseVersion =
       query.baseVersionId === undefined
-        ? versions
-            .filter((candidate) => candidate.versionNumber < selectedVersion.versionNumber)
-            .sort((left, right) => right.versionNumber - left.versionNumber)[0]
-        : versions.find((candidate) => candidate.id === query.baseVersionId);
+        ? previousBadgeIssuanceRuleVersion(versions, selectedVersion.versionNumber)
+        : (versions.find((candidate) => candidate.id === query.baseVersionId) ?? null);
 
-    if (baseVersion === undefined) {
+    if (baseVersion === null) {
       return c.json(
         {
           error:

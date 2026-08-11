@@ -34,6 +34,29 @@ export const buildRulesAdminPath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/rules`;
 };
 
+/** Builds the stable administrator URL for a governed badge rule. */
+export const buildBadgeRuleDetailPath = (tenantId: string, ruleId: string): string => {
+  return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}`;
+};
+
+/** Builds the canonical administrator URL for one governed badge-rule version. */
+export const buildBadgeRuleVersionDetailPath = (
+  tenantId: string,
+  ruleId: string,
+  versionId: string,
+): string => {
+  return `${buildBadgeRuleDetailPath(tenantId, ruleId)}/versions/${encodeURIComponent(versionId)}`;
+};
+
+/** Builds the read-only API URL for labels referenced by one badge-rule version. */
+export const buildBadgeRuleVersionLmsReferenceLabelsPath = (
+  tenantId: string,
+  ruleId: string,
+  versionId: string,
+): string => {
+  return `/v1/tenants/${encodeURIComponent(tenantId)}/badge-rules/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(versionId)}/lms-reference-labels`;
+};
+
 export const buildBadgeRuleApprovalsPath = (tenantId: string): string => {
   return `${buildRulesAdminPath(tenantId)}/approvals`;
 };

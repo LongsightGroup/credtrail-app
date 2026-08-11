@@ -90,7 +90,6 @@ export interface InstitutionAdminViewDataNeeds {
   reportingSectionBundles: boolean;
   badgeRulesTable: boolean;
   learnerRecordSectionBundles: boolean;
-  ruleTableRows: boolean;
   lmsConnectionRows: boolean;
   apiKeyRows: boolean;
   orgUnitRows: boolean;
@@ -103,7 +102,6 @@ export interface InstitutionAdminViewDataNeeds {
   accessMemberSelectOptions: boolean;
   accessOrgUnitSelectOptions: boolean;
   ruleSelectOptions: boolean;
-  ruleVersionIndexes: boolean;
   orgUnitParentOptions: boolean;
   issuedBadgeFilters: boolean;
 }
@@ -133,7 +131,6 @@ const DEFAULT_VIEW_DATA_NEEDS = {
   reportingSectionBundles: false,
   badgeRulesTable: false,
   learnerRecordSectionBundles: false,
-  ruleTableRows: false,
   lmsConnectionRows: false,
   apiKeyRows: false,
   orgUnitRows: false,
@@ -146,7 +143,6 @@ const DEFAULT_VIEW_DATA_NEEDS = {
   accessMemberSelectOptions: false,
   accessOrgUnitSelectOptions: false,
   ruleSelectOptions: false,
-  ruleVersionIndexes: false,
   orgUnitParentOptions: false,
   issuedBadgeFilters: false,
 } as const;
@@ -220,7 +216,6 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
       learnerRecordSectionBundles: true,
       templateSelectOptions: true,
       ruleSelectOptions: true,
-      ruleVersionIndexes: true,
     }),
     render: (content) => {
       return (
@@ -245,7 +240,6 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
       learnerRecordSectionBundles: true,
       templateSelectOptions: true,
       ruleSelectOptions: true,
-      ruleVersionIndexes: true,
     }),
     render: (content) => {
       return (
@@ -271,7 +265,6 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
       operationsSectionBundles: true,
       templateSelectOptions: true,
       ruleSelectOptions: true,
-      ruleVersionIndexes: true,
     }),
     render: (content) => {
       return (
@@ -295,7 +288,6 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
       operationsSectionBundles: true,
       templateSelectOptions: true,
       ruleSelectOptions: true,
-      ruleVersionIndexes: true,
     }),
     render: (content) => {
       return (
@@ -414,8 +406,6 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
     controller: "shared",
     dataNeeds: viewDataNeeds({
       badgeRulesTable: true,
-      ruleTableRows: true,
-      ruleVersionIndexes: true,
     }),
     render: (content) => {
       const { input } = content;
