@@ -10,6 +10,21 @@ import {
   parseQueueJob,
 } from "./queue-migration.js";
 
+const sampleAchievementSnapshot = {
+  badgeTemplateId: "badge_template_001",
+  title: "TypeScript Foundations",
+  description: "Awarded for completing TypeScript fundamentals.",
+  criteriaUri: "https://example.edu/criteria/typescript-foundations",
+  imageUri: "https://example.edu/badges/typescript-foundations.png",
+  trustedCredentialMetadataJson: null,
+} as const;
+
+const sampleTemplateAchievementSource = {
+  kind: "template_snapshot",
+  snapshot: sampleAchievementSnapshot,
+  provenance: { source: "programmatic" },
+} as const;
+
 describe("parseQueueJob", () => {
   it("accepts a valid issue_badge queue payload", () => {
     const job = parseQueueJob({
@@ -17,7 +32,7 @@ describe("parseQueueJob", () => {
       tenantId: "tenant_123",
       payload: {
         assertionId: "assertion_456",
-        badgeTemplateId: "badge_template_001",
+        achievementSource: sampleTemplateAchievementSource,
         recipientIdentity: "learner@example.edu",
         recipientIdentityType: "email",
         requestedAt: "2026-02-10T15:00:00.000Z",
@@ -34,7 +49,7 @@ describe("parseQueueJob", () => {
       tenantId: "tenant_123",
       payload: {
         assertionId: "assertion_456",
-        badgeTemplateId: "badge_template_001",
+        achievementSource: sampleTemplateAchievementSource,
         recipientIdentity: "learner@example.edu",
         recipientIdentityType: "email",
         recipientIdentifiers: [
@@ -71,7 +86,7 @@ describe("parseQueueJob", () => {
       tenantId: "tenant_123",
       payload: {
         assertionId: "assertion_456",
-        badgeTemplateId: "badge_template_001",
+        achievementSource: sampleTemplateAchievementSource,
         recipientIdentity: "learner@example.edu",
         recipientIdentityType: "email",
         requestedAt: "2026-02-10T15:00:00.000Z",
@@ -95,6 +110,118 @@ describe("parseQueueJob", () => {
     });
   });
 
+  it("accepts rule-backed issuance without a caller-supplied achievement snapshot", () => {
+    const job = parseQueueJob({
+      jobType: "issue_badge",
+      tenantId: "tenant_123",
+      payload: {
+        assertionId: "assertion_456",
+        recipientIdentity: "learner@example.edu",
+        recipientIdentityType: "email",
+        achievementSource: {
+          kind: "rule_version",
+          provenance: {
+            source: "rule_evaluate",
+            ruleId: "rule_123",
+            versionId: "version_456",
+            provenanceJson: "{}",
+          },
+        },
+        requestedAt: "2026-02-10T15:00:00.000Z",
+      },
+      idempotencyKey: "idem_rule_abc",
+    });
+
+    expect(job.jobType).toBe("issue_badge");
+
+    if (job.jobType !== "issue_badge") {
+      throw new Error("Expected issue_badge queue payload");
+    }
+
+    expect(job.payload).not.toHaveProperty("badgeTemplateId");
+    expect(job.payload).not.toHaveProperty("achievementSnapshot");
+  });
+
+  it("rejects rule-backed issuance carrying parallel mutable achievement fields", () => {
+    expect(() =>
+      parseQueueJob({
+        jobType: "issue_badge",
+        tenantId: "tenant_123",
+        payload: {
+          assertionId: "assertion_456",
+          achievementSnapshot: sampleAchievementSnapshot,
+          recipientIdentity: "learner@example.edu",
+          recipientIdentityType: "email",
+          achievementSource: {
+            kind: "rule_version",
+            provenance: {
+              source: "rule_evaluate",
+              ruleId: "rule_123",
+              versionId: "version_456",
+              provenanceJson: "{}",
+            },
+          },
+          requestedAt: "2026-02-10T15:00:00.000Z",
+        },
+        idempotencyKey: "idem_rule_parallel_fields",
+      }),
+    ).toThrow("Unrecognized key");
+  });
+
+  it("rejects unknown issue job envelope, payload, and nested identity fields", () => {
+    expect(() =>
+      parseQueueJob({
+        jobType: "issue_badge",
+        tenantId: "tenant_123",
+        payload: {
+          assertionId: "assertion_456",
+          achievementSource: sampleTemplateAchievementSource,
+          recipientIdentity: "learner@example.edu",
+          recipientIdentityType: "email",
+          requestedAt: "2026-02-10T15:00:00.000Z",
+          unexpectedPayloadField: true,
+        },
+        idempotencyKey: "idem_unknown_payload",
+      }),
+    ).toThrow("Unrecognized key");
+
+    expect(() =>
+      parseQueueJob({
+        jobType: "issue_badge",
+        tenantId: "tenant_123",
+        payload: {
+          assertionId: "assertion_456",
+          achievementSource: sampleTemplateAchievementSource,
+          recipientIdentity: "learner@example.edu",
+          recipientIdentityType: "email",
+          requestedAt: "2026-02-10T15:00:00.000Z",
+          lmsLearnerIdentity: {
+            connectionId: "lms_123",
+            learnerId: "learner-123",
+            unexpectedNestedField: true,
+          },
+        },
+        idempotencyKey: "idem_unknown_nested",
+      }),
+    ).toThrow("Unrecognized key");
+
+    expect(() =>
+      parseQueueJob({
+        jobType: "issue_badge",
+        tenantId: "tenant_123",
+        payload: {
+          assertionId: "assertion_456",
+          achievementSource: sampleTemplateAchievementSource,
+          recipientIdentity: "learner@example.edu",
+          recipientIdentityType: "email",
+          requestedAt: "2026-02-10T15:00:00.000Z",
+        },
+        idempotencyKey: "idem_unknown_envelope",
+        unexpectedEnvelopeField: true,
+      }),
+    ).toThrow("Unrecognized key");
+  });
+
   it("rejects an unscoped LMS learner identity on issuance jobs", () => {
     expect(() =>
       parseQueueJob({
@@ -102,7 +229,7 @@ describe("parseQueueJob", () => {
         tenantId: "tenant_123",
         payload: {
           assertionId: "assertion_456",
-          badgeTemplateId: "badge_template_001",
+          achievementSource: sampleTemplateAchievementSource,
           recipientIdentity: "learner@example.edu",
           recipientIdentityType: "email",
           requestedAt: "2026-02-10T15:00:00.000Z",
@@ -129,6 +256,23 @@ describe("parseQueueJob", () => {
     });
 
     expect(job.jobType).toBe("revoke_badge");
+  });
+
+  it("rejects unknown fields on non-issuance queue jobs", () => {
+    expect(() =>
+      parseQueueJob({
+        jobType: "revoke_badge",
+        tenantId: "tenant_123",
+        payload: {
+          revocationId: "revocation_456",
+          assertionId: "assertion_456",
+          reason: "Issued in error",
+          requestedAt: "2026-02-10T15:00:00.000Z",
+          unexpectedPayloadField: true,
+        },
+        idempotencyKey: "idem_unknown_revoke",
+      }),
+    ).toThrow("Unrecognized key");
   });
 
   it("accepts a valid generate_badge_template_image queue payload", () => {

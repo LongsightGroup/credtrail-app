@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { jsonObjectSchema, idempotencyKeySchema, queueJobTypeSchema } from "./json.js";
-import { assertionIssuanceProvenanceInputSchema } from "./credentials.js";
+import { jsonObjectSchema, idempotencyKeySchema } from "./json.js";
+import { issuanceAchievementSourceSchema } from "./credentials.js";
 import {
   isoTimestampSchema,
   recipientIdentityTypeSchema,
@@ -12,7 +12,7 @@ import {
 import { badgeTemplateImageGenerationStylePresetSchema } from "./badge-template.js";
 import { learnerRecordImportPreparedRowSchema } from "./learner-record.js";
 
-export const processQueueRequestSchema = z.object({
+export const processQueueRequestSchema = z.strictObject({
   limit: z.number().int().min(1).max(100).optional(),
   leaseSeconds: z.number().int().min(1).max(300).optional(),
   retryDelaySeconds: z.number().int().min(1).max(3600).optional(),
@@ -121,9 +121,8 @@ export const ob2ImportConversionRequestSchema = z
     }
   });
 
-export const issueBadgeJobPayloadSchema = z.object({
+const issueBadgeJobPayloadBase = {
   assertionId: resourceIdSchema,
-  badgeTemplateId: resourceIdSchema,
   recipientIdentity: z.string().min(1),
   recipientIdentityType: recipientIdentityTypeSchema,
   recipientIdentifiers: z.array(recipientIdentifierSchema).max(10).optional(),
@@ -131,16 +130,20 @@ export const issueBadgeJobPayloadSchema = z.object({
   issuerImageUri: z.string().trim().url().max(2048).optional(),
   requestedAt: isoTimestampSchema,
   requestedByUserId: userIdSchema.optional(),
-  issuanceProvenance: assertionIssuanceProvenanceInputSchema.default({ source: "programmatic" }),
   lmsLearnerIdentity: z
-    .object({
+    .strictObject({
       connectionId: resourceIdSchema,
       learnerId: z.string().trim().min(1).max(512),
     })
     .optional(),
+} as const;
+
+export const issueBadgeJobPayloadSchema = z.strictObject({
+  ...issueBadgeJobPayloadBase,
+  achievementSource: issuanceAchievementSourceSchema,
 });
 
-export const revokeBadgeJobPayloadSchema = z.object({
+export const revokeBadgeJobPayloadSchema = z.strictObject({
   revocationId: resourceIdSchema,
   assertionId: resourceIdSchema,
   reason: z.string().min(1).max(512),
@@ -148,35 +151,35 @@ export const revokeBadgeJobPayloadSchema = z.object({
   requestedByUserId: userIdSchema.optional(),
 });
 
-export const issueBadgeQueueJobSchema = z.object({
+export const issueBadgeQueueJobSchema = z.strictObject({
   jobType: z.literal("issue_badge"),
   tenantId: tenantIdSchema,
   payload: issueBadgeJobPayloadSchema,
   idempotencyKey: idempotencyKeySchema,
 });
 
-export const revokeBadgeQueueJobSchema = z.object({
+export const revokeBadgeQueueJobSchema = z.strictObject({
   jobType: z.literal("revoke_badge"),
   tenantId: tenantIdSchema,
   payload: revokeBadgeJobPayloadSchema,
   idempotencyKey: idempotencyKeySchema,
 });
 
-export const rebuildVerificationCacheQueueJobSchema = z.object({
+export const rebuildVerificationCacheQueueJobSchema = z.strictObject({
   jobType: z.literal("rebuild_verification_cache"),
   tenantId: tenantIdSchema,
   payload: z.record(z.string(), z.unknown()),
   idempotencyKey: idempotencyKeySchema,
 });
 
-export const importMigrationBatchQueueJobSchema = z.object({
+export const importMigrationBatchQueueJobSchema = z.strictObject({
   jobType: z.literal("import_migration_batch"),
   tenantId: tenantIdSchema,
   payload: z.record(z.string(), z.unknown()),
   idempotencyKey: idempotencyKeySchema,
 });
 
-export const learnerRecordImportQueuePayloadSchema = z.object({
+export const learnerRecordImportQueuePayloadSchema = z.strictObject({
   batchId: z.string().trim().min(1).max(128),
   rowNumber: z.number().int().min(1),
   fileName: z.string().trim().min(1).max(255),
@@ -186,14 +189,14 @@ export const learnerRecordImportQueuePayloadSchema = z.object({
   row: learnerRecordImportPreparedRowSchema,
 });
 
-export const learnerRecordImportBatchQueueJobSchema = z.object({
+export const learnerRecordImportBatchQueueJobSchema = z.strictObject({
   jobType: z.literal("import_learner_record_batch"),
   tenantId: tenantIdSchema,
   payload: learnerRecordImportQueuePayloadSchema,
   idempotencyKey: idempotencyKeySchema,
 });
 
-export const generateBadgeTemplateImageJobPayloadSchema = z.object({
+export const generateBadgeTemplateImageJobPayloadSchema = z.strictObject({
   generationId: resourceIdSchema,
   badgeTemplateId: resourceIdSchema,
   promptText: z.string().trim().min(1).max(4000),
@@ -204,18 +207,18 @@ export const generateBadgeTemplateImageJobPayloadSchema = z.object({
   requestedByUserId: userIdSchema.optional(),
 });
 
-export const generateBadgeTemplateImageQueueJobSchema = z.object({
+export const generateBadgeTemplateImageQueueJobSchema = z.strictObject({
   jobType: z.literal("generate_badge_template_image"),
   tenantId: tenantIdSchema,
   payload: generateBadgeTemplateImageJobPayloadSchema,
   idempotencyKey: idempotencyKeySchema,
 });
 
-export const processBadgeRuleLifecycleJobPayloadSchema = z.object({
+export const processBadgeRuleLifecycleJobPayloadSchema = z.strictObject({
   scheduledFor: isoTimestampSchema,
 });
 
-export const processBadgeRuleLifecycleQueueJobSchema = z.object({
+export const processBadgeRuleLifecycleQueueJobSchema = z.strictObject({
   jobType: z.literal("process_badge_rule_lifecycle"),
   tenantId: tenantIdSchema,
   payload: processBadgeRuleLifecycleJobPayloadSchema,
@@ -230,7 +233,7 @@ export const processAutomatedBadgeRuleJobPayloadSchema = z
   })
   .strict();
 
-export const processAutomatedBadgeRuleQueueJobSchema = z.object({
+export const processAutomatedBadgeRuleQueueJobSchema = z.strictObject({
   jobType: z.literal("process_automated_badge_rule"),
   tenantId: tenantIdSchema,
   payload: processAutomatedBadgeRuleJobPayloadSchema,
@@ -267,7 +270,7 @@ export const sendBadgeRuleApprovalNotificationJobPayloadSchema = z.discriminated
   ],
 );
 
-export const sendBadgeRuleApprovalNotificationQueueJobSchema = z.object({
+export const sendBadgeRuleApprovalNotificationQueueJobSchema = z.strictObject({
   jobType: z.literal("send_badge_rule_approval_notification"),
   tenantId: tenantIdSchema,
   payload: sendBadgeRuleApprovalNotificationJobPayloadSchema,
@@ -286,12 +289,6 @@ export const queueJobSchema = z.discriminatedUnion("jobType", [
   sendBadgeRuleApprovalNotificationQueueJobSchema,
 ]);
 
-export const queueEnvelopeSchema = z.object({
-  jobType: queueJobTypeSchema,
-  tenantId: z.string().min(1),
-  payload: z.record(z.string(), z.unknown()),
-  idempotencyKey: idempotencyKeySchema,
-});
 // --- inferred types and parsers ---
 export type QueueJob = z.infer<typeof queueJobSchema>;
 

@@ -47,6 +47,7 @@ const createEnv = (): {
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
   BOOTSTRAP_ADMIN_TOKEN?: string;
 } => {
   return {
@@ -54,6 +55,7 @@ const createEnv = (): {
     DATABASE_URL: "postgres://credtrail-test.local/db",
     BADGE_OBJECTS: {} as R2Bucket,
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
     BOOTSTRAP_ADMIN_TOKEN: "bootstrap-secret",
   };
 };
@@ -290,7 +292,6 @@ describe("bootstrap admin signing registration routes", () => {
           title: "Sakai 1000+ Commits Contributor",
           description: "Awarded for contributing at least 1000 commits.",
           criteriaUri: "https://github.com/sakaiproject/sakai",
-          imageUri: "https://avatars.githubusercontent.com/u/429529?s=200&v=4",
         }),
       },
       createEnv(),
@@ -306,7 +307,6 @@ describe("bootstrap admin signing registration routes", () => {
       title: "Sakai 1000+ Commits Contributor",
       description: "Awarded for contributing at least 1000 commits.",
       criteriaUri: "https://github.com/sakaiproject/sakai",
-      imageUri: "https://avatars.githubusercontent.com/u/429529?s=200&v=4",
     });
   });
 

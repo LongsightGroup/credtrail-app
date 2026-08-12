@@ -3,7 +3,14 @@ import { createRequire } from "node:module";
 import { afterAll, describe } from "vitest";
 
 import { createPostgresDatabase } from "./postgres";
-import { upsertTenant, type SqlDatabase, type TenantPlanTier } from "./index";
+import { badgeAchievementSnapshotFromTemplate } from "./badge-issuance-rule-achievement-snapshot";
+import {
+  findBadgeTemplateById,
+  upsertTenant,
+  type SqlDatabase,
+  type ExpectedBadgeTemplateRevision,
+  type TenantPlanTier,
+} from "./index";
 import { createTenantOrgUnit, type TenantOrgUnitRecord } from "./tenant-org-units";
 
 type PgPoolLike = import("pg").Pool;
@@ -34,6 +41,22 @@ export interface BadgeRuleIntegrationFixture {
   badgeTemplateId: string;
   lmsConnectionId: string;
 }
+
+export const loadExpectedBadgeTemplateRevision = async (
+  db: SqlDatabase,
+  input: { readonly tenantId: string; readonly badgeTemplateId: string },
+): Promise<ExpectedBadgeTemplateRevision> => {
+  const template = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
+
+  if (template === null) {
+    throw new Error(`Badge template "${input.badgeTemplateId}" not found`);
+  }
+
+  return {
+    updatedAt: template.updatedAt,
+    achievementSnapshot: badgeAchievementSnapshotFromTemplate(template),
+  };
+};
 
 const COUNTABLE_TABLES = new Set([
   "assertions",
@@ -234,12 +257,13 @@ export const createBadgeRuleIntegrationFixture = async (): Promise<BadgeRuleInte
         owner_org_unit_id,
         governance_metadata_json
       )
-      VALUES (?, ?, 'badge-rule-template', 'Badge Rule Template', NULL, NULL, NULL, ?, ?, ?)
+      VALUES (?, ?, 'badge-rule-template', 'Badge Rule Template', NULL, NULL, ?, ?, ?, ?)
     `,
     )
     .bind(
       badgeTemplateId,
       fixture.tenantId,
+      `https://credtrail.test/badges/assets/${fixture.tenantId}/${badgeTemplateId}/asset_test`,
       userId,
       ownerOrgUnitId,
       '{"stability":"institution_registry"}',
@@ -654,6 +678,20 @@ export const seedAssertion = async (
 ): Promise<string> => {
   const id = input.id ?? uniqueTestId("assertion");
   const nowIso = new Date().toISOString();
+  const template = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
+
+  if (template === null) {
+    throw new Error(`Badge template not found for assertion seed: ${input.badgeTemplateId}`);
+  }
+
+  const achievementSnapshotJson = JSON.stringify({
+    badgeTemplateId: template.id,
+    title: template.title,
+    description: template.description,
+    criteriaUri: template.criteriaUri,
+    imageUri: template.imageUri,
+    trustedCredentialMetadataJson: template.trustedCredentialMetadataJson,
+  });
 
   await db
     .prepare(
@@ -664,6 +702,7 @@ export const seedAssertion = async (
         public_id,
         learner_profile_id,
         badge_template_id,
+        achievement_snapshot_json,
         recipient_identity,
         recipient_identity_type,
         vc_r2_key,
@@ -675,7 +714,7 @@ export const seedAssertion = async (
         created_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     )
     .bind(
@@ -684,6 +723,7 @@ export const seedAssertion = async (
       input.publicId ?? null,
       input.learnerProfileId ?? null,
       input.badgeTemplateId,
+      achievementSnapshotJson,
       input.recipientIdentity,
       input.recipientIdentityType ?? "email",
       input.vcR2Key ?? `tenants/${input.tenantId}/assertions/${id}.jsonld`,

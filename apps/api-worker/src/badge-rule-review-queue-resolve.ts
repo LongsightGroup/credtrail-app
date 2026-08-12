@@ -1,7 +1,6 @@
 import {
   createAuditLog,
   findBadgeIssuanceRuleEvaluationById,
-  findBadgeIssuanceRuleVersionById,
   resolveBadgeIssuanceRuleEvaluationReview,
   type BadgeIssuanceRuleEvaluationRecord,
   type SqlDatabase,
@@ -12,7 +11,6 @@ import { buildIssuanceProvenanceSnapshotFromEvaluationJson } from "@credtrail/va
 import type { AppContext } from "./app";
 import type { IssueBadgeForTenant } from "./app/route-deps";
 import { isIssueBadgeHttpError } from "./badges/direct-issue";
-import { withIssuanceProvenance } from "./badges/issue-badge-provenance";
 
 export type ResolveBadgeRuleReviewQueueResult =
   | {
@@ -22,7 +20,7 @@ export type ResolveBadgeRuleReviewQueueResult =
     }
   | {
       ok: false;
-      status: 400 | 404 | 409 | 422 | 500 | 502;
+      status: 400 | 404 | 409 | 422 | 500 | 502 | 503;
       error: string;
       payload?: { error: string; did?: string | undefined };
     };
@@ -131,43 +129,29 @@ export const resolveBadgeRuleReviewQueueEntry = async (input: {
   let issuance: Awaited<ReturnType<IssueBadgeForTenant>> | null = null;
 
   if (input.request.decision === "issue") {
-    const version = await findBadgeIssuanceRuleVersionById(input.db, {
-      tenantId: input.tenantId,
-      ruleId: evaluationRecord.ruleId,
-      versionId: evaluationRecord.versionId,
-    });
-
-    if (version === null) {
-      return {
-        ok: false,
-        status: 404,
-        error: "Badge rule version not found for review queue entry",
-      };
-    }
-
     try {
       issuance = await input.issueBadgeForTenant(
         input.c,
         input.tenantId,
-        withIssuanceProvenance(
-          {
-            badgeTemplateId: version.snapshot.badgeTemplateId,
-            recipientIdentity: evaluationRecord.recipientIdentity,
-            recipientIdentityType: evaluationRecord.recipientIdentityType,
-            idempotencyKey: `rule-review:${evaluationRecord.id}`,
+        {
+          recipientIdentity: evaluationRecord.recipientIdentity,
+          recipientIdentityType: evaluationRecord.recipientIdentityType,
+          idempotencyKey: `rule-review:${evaluationRecord.id}`,
+          achievementSource: {
+            kind: "rule_version",
+            provenance: {
+              source: "rule_evaluate",
+              ruleId: evaluationRecord.ruleId,
+              versionId: evaluationRecord.versionId,
+              provenanceJson: buildIssuanceProvenanceSnapshotFromEvaluationJson({
+                matched: evaluationRecord.matched,
+                evaluationJson: evaluationRecord.evaluationJson,
+                learnerId: evaluationRecord.learnerId,
+                evaluatedAt: evaluationRecord.evaluatedAt,
+              }),
+            },
           },
-          {
-            source: "rule_evaluate",
-            ruleId: evaluationRecord.ruleId,
-            versionId: evaluationRecord.versionId,
-            provenanceJson: buildIssuanceProvenanceSnapshotFromEvaluationJson({
-              matched: evaluationRecord.matched,
-              evaluationJson: evaluationRecord.evaluationJson,
-              learnerId: evaluationRecord.learnerId,
-              evaluatedAt: evaluationRecord.evaluatedAt,
-            }),
-          },
-        ),
+        },
         input.session.userId,
       );
     } catch (error) {

@@ -28,8 +28,8 @@ import type {
 } from "../app/route-deps";
 import { buildAssertionEvidenceApiResponse } from "../badges/assertion-evidence-presentation";
 import { loadAssertionEvidencePayload } from "../badges/assertion-evidence-payload";
+import { badgeAchievementSnapshotFromTemplate } from "../badges/badge-achievement-snapshot";
 import type { DirectIssueBadgeOptions, DirectIssueBadgeResult } from "../badges/direct-issue";
-import { manualIssueBadgeProvenance } from "../badges/issue-badge-provenance";
 import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
 import { buildTenantAssertionLedgerCsvExport } from "../reporting/ledger-export";
 import {
@@ -55,14 +55,14 @@ interface RegisterAssertionRoutesInput {
   APPROVAL_WORKSPACE_ROLES: readonly TenantMembershipRole[];
   TENANT_MEMBER_ROLES: readonly TenantMembershipRole[];
   HttpErrorResponseClass: new (
-    statusCode: 400 | 404 | 409 | 422 | 500 | 502,
+    statusCode: 400 | 404 | 409 | 422 | 500 | 502 | 503,
     payload: {
       error: string;
       did?: string | undefined;
     },
   ) => {
     payload: Record<string, unknown>;
-    statusCode: 400 | 404 | 409 | 422 | 500 | 502;
+    statusCode: 400 | 404 | 409 | 422 | 500 | 502 | 503;
   };
 }
 
@@ -140,8 +140,25 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
         c,
         pathParams.tenantId,
         {
-          ...request,
-          issuanceProvenance: manualIssueBadgeProvenance(),
+          achievementSource: {
+            kind: "template_snapshot",
+            snapshot: badgeAchievementSnapshotFromTemplate(template),
+            provenance: { source: "manual" },
+          },
+          recipientIdentity: request.recipientIdentity,
+          recipientIdentityType: request.recipientIdentityType,
+          ...(request.recipientIdentifiers === undefined
+            ? {}
+            : { recipientIdentifiers: request.recipientIdentifiers }),
+          ...(request.recipientDisplayName === undefined
+            ? {}
+            : { recipientDisplayName: request.recipientDisplayName }),
+          ...(request.issuerImageUri === undefined
+            ? {}
+            : { issuerImageUri: request.issuerImageUri }),
+          ...(request.idempotencyKey === undefined
+            ? {}
+            : { idempotencyKey: request.idempotencyKey }),
         },
         session.userId,
       );
@@ -333,7 +350,7 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
         assertionId: pathParams.assertionId,
       });
 
-      if (loaded === null) {
+      if (loaded.status === "not_found") {
         return c.json(
           {
             error: "Assertion not found",
@@ -342,9 +359,19 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
         );
       }
 
+      if (loaded.status === "incomplete") {
+        return c.json(
+          {
+            error: "Assertion evidence is incomplete",
+            reason: loaded.reason,
+          },
+          409,
+        );
+      }
+
       c.header("Cache-Control", "no-store");
 
-      return c.json(buildAssertionEvidenceApiResponse(loaded));
+      return c.json(buildAssertionEvidenceApiResponse(loaded.data));
     },
   );
 

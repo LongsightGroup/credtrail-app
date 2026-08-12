@@ -16,7 +16,7 @@ import {
 } from "@credtrail/db";
 import { parseTenantPathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
 import { badgeNameFromCredential, issuerNameFromCredential } from "../badges/credential-display";
 import type {
@@ -26,6 +26,7 @@ import type {
 } from "../badges/public-badge-pages";
 import { buildPublicBadgeWalletImportUrls } from "../badges/wallet-import-urls";
 import { renderWalletQrCodeSvg, walletQrCodePayloadFromDeepLink } from "../badges/wallet-qr-code";
+import { canonicalAppRequestUrl } from "../http/canonical-app-url";
 import { renderAppPage, type AppPage } from "../ui/render-page";
 import { linkedInAddToProfileUrl } from "../utils/display-format";
 import { asString } from "../utils/value-parsers";
@@ -39,6 +40,10 @@ interface PublicBadgeRouteValue {
   };
   credential: JsonObject;
 }
+
+const publicRequestUrl = (c: AppContext): string => {
+  return canonicalAppRequestUrl(c.env.PUBLIC_APP_ORIGIN, c.req.url);
+};
 
 interface RegisterPublicBadgeRoutesInput<PublicBadgeValue extends PublicBadgeRouteValue> {
   app: Hono<AppEnv>;
@@ -272,7 +277,7 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     const badgeIdentifier = c.req.param("badgeIdentifier").trim();
 
     if (badgeIdentifier.length === 0) {
-      return renderAppPage(c, publicBadgeNotFoundPage(c.req.url), 404);
+      return renderAppPage(c, publicBadgeNotFoundPage(publicRequestUrl(c)), 404);
     }
 
     return c.redirect(`/badges/${encodeURIComponent(badgeIdentifier)}`, 308);
@@ -295,7 +300,10 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     }
 
     const canonicalBadgeIdentifier = result.value.assertion.publicId ?? result.value.assertion.id;
-    const walletImportUrls = buildPublicBadgeWalletImportUrls(c.req.url, canonicalBadgeIdentifier);
+    const walletImportUrls = buildPublicBadgeWalletImportUrls(
+      publicRequestUrl(c),
+      canonicalBadgeIdentifier,
+    );
     const svg = renderWalletQrCodeSvg(
       walletQrCodePayloadFromDeepLink(walletImportUrls.walletDeepLinkUrl),
     );
@@ -316,7 +324,7 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     c.header("Cache-Control", "no-store");
 
     if (result.status === "not_found") {
-      return renderAppPage(c, publicBadgeNotFoundPage(c.req.url), 404);
+      return renderAppPage(c, publicBadgeNotFoundPage(publicRequestUrl(c)), 404);
     }
 
     if (result.status === "redirect") {
@@ -324,7 +332,7 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     }
 
     await recordPublicEngagement(resolveDatabase(c.env), result.value, "public_badge_view");
-    return renderAppPage(c, publicBadgePage(c.req.url, result.value));
+    return renderAppPage(c, publicBadgePage(publicRequestUrl(c), result.value));
   });
 
   app.get("/badges/:badgeIdentifier/share/:channel", async (c) => {
@@ -336,14 +344,14 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     c.header("Cache-Control", "no-store");
 
     if (result.status === "not_found") {
-      return renderAppPage(c, publicBadgeNotFoundPage(c.req.url), 404);
+      return renderAppPage(c, publicBadgeNotFoundPage(publicRequestUrl(c)), 404);
     }
 
     if (result.status === "redirect") {
       return c.redirect(`${result.canonicalPath}/share/${encodeURIComponent(channel)}`, 308);
     }
 
-    const redirectUrl = shareRedirectUrlForChannel(c.req.url, result.value, channel);
+    const redirectUrl = shareRedirectUrlForChannel(publicRequestUrl(c), result.value, channel);
 
     if (redirectUrl === null) {
       return c.text("Share action not supported", 404);
@@ -386,7 +394,7 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
       );
     }
 
-    return c.json(publicBadgeSummaryPayload(c.req.url, result.value));
+    return c.json(publicBadgeSummaryPayload(publicRequestUrl(c), result.value));
   });
 
   app.get("/showcase/:tenantId", async (c) => {
@@ -424,7 +432,12 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     c.header("Cache-Control", "no-store");
     return renderAppPage(
       c,
-      tenantBadgeWallPage(c.req.url, pathParams.tenantId, entriesWithLifecycle, badgeTemplateId),
+      tenantBadgeWallPage(
+        publicRequestUrl(c),
+        pathParams.tenantId,
+        entriesWithLifecycle,
+        badgeTemplateId,
+      ),
     );
   });
 
@@ -444,7 +457,12 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     c.header("Cache-Control", "no-store");
     return renderAppPage(
       c,
-      tenantBadgeCriteriaRegistryPage(c.req.url, pathParams.tenantId, model, badgeTemplateId),
+      tenantBadgeCriteriaRegistryPage(
+        publicRequestUrl(c),
+        pathParams.tenantId,
+        model,
+        badgeTemplateId,
+      ),
     );
   });
 };

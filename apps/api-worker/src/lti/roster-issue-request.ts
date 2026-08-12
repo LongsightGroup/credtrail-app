@@ -1,5 +1,4 @@
 import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
-import { issuanceProvenanceFromContext } from "../badges/issue-badge-provenance";
 import type { LtiNrpsMember } from "./nrps";
 import type { LtiRosterEligibilityResult } from "./roster-eligibility";
 import {
@@ -8,7 +7,6 @@ import {
 } from "./roster-issuance-helpers";
 
 export const buildLtiRosterIssueBadgeRequest = async (input: {
-  readonly badgeTemplateId: string;
   readonly member: LtiNrpsMember & { readonly email: string };
   readonly eligibility: LtiRosterEligibilityResult;
   readonly idempotencyKeyPrefix: LtiIssuanceIdempotencyKeyPrefix;
@@ -19,7 +17,6 @@ export const buildLtiRosterIssueBadgeRequest = async (input: {
   }
 
   return {
-    badgeTemplateId: input.badgeTemplateId,
     recipientIdentity: input.member.email,
     recipientIdentityType: "email",
     ...(input.member.displayName === null
@@ -40,11 +37,14 @@ export const buildLtiRosterIssueBadgeRequest = async (input: {
       input.idempotencyKeyPrefix,
       input.member.userId,
     ),
-    issuanceProvenance: issuanceProvenanceFromContext({
-      source: "lti_roster",
-      ruleId: input.eligibility.issuanceProvenance.ruleId,
-      versionId: input.eligibility.issuanceProvenance.versionId,
-      provenanceJson: input.eligibility.issuanceProvenance.provenanceJson,
-    }),
+    achievementSource: {
+      kind: "rule_version",
+      provenance: {
+        source: "lti_roster",
+        ruleId: input.eligibility.issuanceProvenance.ruleId,
+        versionId: input.eligibility.issuanceProvenance.versionId,
+        provenanceJson: input.eligibility.issuanceProvenance.provenanceJson,
+      },
+    },
   };
 };

@@ -41,6 +41,7 @@ const fakeEnv: AppBindings = {
     delete: vi.fn(async () => undefined),
   },
   PLATFORM_DOMAIN: "credtrail.example.edu",
+  PUBLIC_APP_ORIGIN: "https://credtrail.example.edu",
 };
 const tokenEndpoint = "https://canvas.example.edu/login/oauth2/token";
 const platformJwksEndpoint = "https://canvas.example.edu/api/lti/security/jwks";

@@ -146,13 +146,22 @@ export const createS3ImmutableCredentialStore = (
             Bucket: options.bucket,
             Key: key,
           }),
-        )) as { Body?: unknown };
+        )) as { Body?: unknown; ContentLength?: unknown };
 
         if (object.Body === undefined) {
           return null;
         }
 
+        if (
+          typeof object.ContentLength !== "number" ||
+          !Number.isSafeInteger(object.ContentLength) ||
+          object.ContentLength < 0
+        ) {
+          throw new Error(`S3 object "${key}" did not include a valid content length`);
+        }
+
         return {
+          size: object.ContentLength,
           text: () => readBodyAsText(object.Body),
         };
       } catch (error: unknown) {

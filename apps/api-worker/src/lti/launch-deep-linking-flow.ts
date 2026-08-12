@@ -1,6 +1,7 @@
 import { listBadgeTemplates, type SqlDatabase } from "@credtrail/db";
 import { LTI_CLAIM_DEPLOYMENT_ID } from "@longsightgroup/lti-tool";
 import type { AppContext } from "../app";
+import { canonicalAppRequestUrl } from "../http/canonical-app-url";
 import { renderAppPage } from "../ui/render-page";
 import { listLtiInstructorPlaceableBadgeTemplates } from "./course-badge-governance";
 import { ltiDeepLinkSelectionInput } from "./deep-linking-helpers";
@@ -35,7 +36,7 @@ export const renderLtiDeepLinkingLaunchResponse = async (input: {
     input.c,
     ltiDeepLinkSelectionPage(
       ltiDeepLinkSelectionInput({
-        requestUrl: input.c.req.url,
+        requestUrl: canonicalAppRequestUrl(input.c.env.PUBLIC_APP_ORIGIN, input.c.req.url),
         tenantId: input.tenantId,
         userId: input.linkedAccount.userId,
         membershipRole: input.linkedAccount.membershipRole,

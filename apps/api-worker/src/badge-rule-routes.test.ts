@@ -34,19 +34,16 @@ vi.mock("@credtrail/db", async () => {
   return {
     ...actual,
     createAuditLog: vi.fn(),
-    createBadgeIssuanceRule: vi.fn(),
-    createBadgeIssuanceRuleFromBuilderDraft: vi.fn(),
     createBadgeIssuanceRuleWithAction: vi.fn(),
     findBadgeIssuanceRuleAuthoringReplay: vi.fn(),
     createBadgeIssuanceRuleValueList: vi.fn(),
-    createBadgeIssuanceRuleVersion: vi.fn(),
-    updateBadgeIssuanceRuleDraft: vi.fn(),
     updateBadgeIssuanceRuleWithAction: vi.fn(),
     submitBadgeIssuanceRuleVersionForApproval: submitBadgeIssuanceRuleVersionMock,
     decideBadgeIssuanceRuleVersion: decideBadgeIssuanceRuleVersionMock,
     activateBadgeIssuanceRuleVersion: vi.fn(),
     findBadgeIssuanceRuleEvaluationById: vi.fn(),
     findBadgeIssuanceRuleById: vi.fn(),
+    findBadgeTemplateById: vi.fn(),
     findBadgeIssuanceRuleVersionById: vi.fn(),
     listBadgeIssuanceRules: vi.fn(),
     listBadgeIssuanceRuleEvaluations: vi.fn(),
@@ -116,14 +113,12 @@ vi.mock("./auth/better-auth-adapter", async () => {
 import {
   activateBadgeIssuanceRuleVersion,
   createAuditLog,
-  createBadgeIssuanceRule,
-  createBadgeIssuanceRuleFromBuilderDraft,
   createBadgeIssuanceRuleWithAction,
   createBadgeIssuanceRuleValueList,
-  createBadgeIssuanceRuleVersion,
   decideBadgeIssuanceRuleVersion,
   findBadgeIssuanceRuleEvaluationById,
   findBadgeIssuanceRuleById,
+  findBadgeTemplateById,
   findBadgeIssuanceRuleVersionById,
   findTenantMembership,
   findBadgeIssuanceRuleAuthoringReplay,
@@ -143,7 +138,6 @@ import {
   saveBadgeIssuanceRuleBuilderDraft,
   deleteBadgeIssuanceRuleBuilderDraftForRule,
   submitBadgeIssuanceRuleVersionForApproval,
-  updateBadgeIssuanceRuleDraft,
   updateBadgeIssuanceRuleWithAction,
   upsertTenantLmsConnection,
   type AuditLogRecord,
@@ -153,6 +147,7 @@ import {
   type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleValueListRecord,
   type BadgeIssuanceRuleVersionRecord,
+  type BadgeTemplateRecord,
   type SessionRecord,
   type SqlDatabase,
   type TenantLmsConnectionRecord,
@@ -170,14 +165,8 @@ import { app } from "./index";
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
 const mockedEnqueueJobQueueMessageOnce = vi.mocked(enqueueJobQueueMessageOnce);
-const mockedCreateBadgeIssuanceRule = vi.mocked(createBadgeIssuanceRule);
-const mockedCreateBadgeIssuanceRuleFromBuilderDraft = vi.mocked(
-  createBadgeIssuanceRuleFromBuilderDraft,
-);
 const mockedCreateBadgeIssuanceRuleWithAction = vi.mocked(createBadgeIssuanceRuleWithAction);
 const mockedFindBadgeIssuanceRuleAuthoringReplay = vi.mocked(findBadgeIssuanceRuleAuthoringReplay);
-const mockedCreateBadgeIssuanceRuleVersion = vi.mocked(createBadgeIssuanceRuleVersion);
-const mockedUpdateBadgeIssuanceRuleDraft = vi.mocked(updateBadgeIssuanceRuleDraft);
 const mockedUpdateBadgeIssuanceRuleWithAction = vi.mocked(updateBadgeIssuanceRuleWithAction);
 const mockedCreateBadgeIssuanceRuleValueList = vi.mocked(createBadgeIssuanceRuleValueList);
 const mockedSubmitBadgeIssuanceRuleVersionForApproval = vi.mocked(
@@ -186,6 +175,7 @@ const mockedSubmitBadgeIssuanceRuleVersionForApproval = vi.mocked(
 const mockedDecideBadgeIssuanceRuleVersion = vi.mocked(decideBadgeIssuanceRuleVersion);
 const mockedActivateBadgeIssuanceRuleVersion = vi.mocked(activateBadgeIssuanceRuleVersion);
 const mockedFindBadgeIssuanceRuleById = vi.mocked(findBadgeIssuanceRuleById);
+const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
 const mockedFindBadgeIssuanceRuleEvaluationById = vi.mocked(findBadgeIssuanceRuleEvaluationById);
 const mockedFindBadgeIssuanceRuleVersionById = vi.mocked(findBadgeIssuanceRuleVersionById);
 const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
@@ -253,14 +243,48 @@ const createEnv = (): {
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
 } => {
   return {
     APP_ENV: "test",
     DATABASE_URL: "postgres://credtrail-test.local/db",
-    BADGE_OBJECTS: {} as R2Bucket,
+    BADGE_OBJECTS: {
+      get: () =>
+        Promise.resolve({
+          text: () =>
+            Promise.resolve(
+              JSON.stringify({
+                version: 1,
+                mimeType: "image/png",
+                byteSize: 8,
+                base64Data: "iVBORw0KGgo=",
+                uploadedAt: "2026-08-12T10:00:00.000Z",
+                originalFilename: "badge.png",
+              }),
+            ),
+        }),
+    } as unknown as R2Bucket,
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
   };
 };
+
+const sampleBadgeTemplate = (): BadgeTemplateRecord => ({
+  id: "badge_template_cs101",
+  tenantId: "tenant_123",
+  slug: "cs101",
+  title: "CS101 Excellence",
+  description: "Issue badge for CS101 excellence",
+  criteriaUri: "https://credtrail.test/criteria/cs101",
+  imageUri: "https://credtrail.test/badges/assets/tenant_123/badge_template_cs101/asset_456",
+  trustedCredentialMetadataJson: null,
+  createdByUserId: "usr_123",
+  ownerOrgUnitId: "tenant_123:org:institution",
+  governanceMetadataJson: null,
+  isArchived: false,
+  createdAt: "2026-02-17T00:00:00.000Z",
+  updatedAt: "2026-02-17T00:00:00.000Z",
+});
 
 const sampleSession = (overrides?: Partial<SessionRecord>): SessionRecord => {
   return {
@@ -461,21 +485,19 @@ beforeEach(() => {
   mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
   mockedEnqueueJobQueueMessageOnce.mockReset();
   mockedEnqueueJobQueueMessageOnce.mockResolvedValue(true);
-  mockedCreateBadgeIssuanceRule.mockReset();
-  mockedCreateBadgeIssuanceRuleFromBuilderDraft.mockReset();
   mockedCreateBadgeIssuanceRuleWithAction.mockReset();
   mockedFindBadgeIssuanceRuleAuthoringReplay.mockReset();
   mockedFindBadgeIssuanceRuleAuthoringReplay.mockResolvedValue(null);
   mockedCreateBadgeIssuanceRuleValueList.mockReset();
   mockedCreateBadgeIssuanceRuleValueList.mockResolvedValue(sampleValueListRecord());
-  mockedCreateBadgeIssuanceRuleVersion.mockReset();
-  mockedUpdateBadgeIssuanceRuleDraft.mockReset();
   mockedUpdateBadgeIssuanceRuleWithAction.mockReset();
   mockedSubmitBadgeIssuanceRuleVersionForApproval.mockReset();
   mockedDecideBadgeIssuanceRuleVersion.mockReset();
   mockedActivateBadgeIssuanceRuleVersion.mockReset();
   mockedFindBadgeIssuanceRuleEvaluationById.mockReset();
   mockedFindBadgeIssuanceRuleById.mockReset();
+  mockedFindBadgeTemplateById.mockReset();
+  mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
   mockedFindBadgeIssuanceRuleVersionById.mockReset();
   mockedListBadgeIssuanceRules.mockReset();
   mockedListBadgeIssuanceRules.mockResolvedValue([]);
@@ -606,6 +628,7 @@ describe("badge rule routes", () => {
           name: "CS101 Rule",
           description: "Issue badge for CS101 excellence",
           badgeTemplateId: "badge_template_cs101",
+          badgeTemplateReuseAcknowledged: false,
           lmsConnectionId: "lms_123",
           action: "save_draft",
           definition: {
@@ -637,6 +660,7 @@ describe("badge rule routes", () => {
         body: JSON.stringify({
           name: "Prerequisite badge rule",
           badgeTemplateId: "badge_template_cs101",
+          badgeTemplateReuseAcknowledged: false,
           lmsConnectionId: "lms_123",
           action: "save_draft",
           definition: {
@@ -680,6 +704,7 @@ describe("badge rule routes", () => {
         body: JSON.stringify({
           name: "CS101 Rule",
           badgeTemplateId: "badge_template_cs101",
+          badgeTemplateReuseAcknowledged: false,
           lmsConnectionId: "lms_123",
           action: "submit_for_approval",
           builderDraftId: "brd_submit",
@@ -729,6 +754,7 @@ describe("badge rule routes", () => {
         body: JSON.stringify({
           name: "CS101 Rule",
           badgeTemplateId: "badge_template_cs101",
+          badgeTemplateReuseAcknowledged: false,
           lmsConnectionId: "lms_123",
           action: "submit_for_approval",
           builderDraftId: "brd_submit",
@@ -769,6 +795,7 @@ describe("badge rule routes", () => {
         body: JSON.stringify({
           name: "Stale retry",
           badgeTemplateId: "badge_template_cs101",
+          badgeTemplateReuseAcknowledged: false,
           lmsConnectionId: "lms_123",
           action: "submit_for_approval",
           builderDraftId: "brd_stale",
@@ -808,6 +835,7 @@ describe("badge rule routes", () => {
         body: JSON.stringify({
           name: "CS101 Rule",
           badgeTemplateId: "badge_template_cs101",
+          badgeTemplateReuseAcknowledged: false,
           lmsConnectionId: "lms_123",
           action: "save_draft",
           definition: {
@@ -851,6 +879,7 @@ describe("badge rule routes", () => {
         body: JSON.stringify({
           name: "CS101 Rule",
           badgeTemplateId: "badge_template_cs101",
+          badgeTemplateReuseAcknowledged: false,
           lmsConnectionId: "lms_123",
           builderDraftId: "brd_exact",
           action: "save_draft",
@@ -876,7 +905,6 @@ describe("badge rule routes", () => {
         actorUserId: "usr_123",
       }),
     );
-    expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
     expect(mockedDeleteBadgeIssuanceRuleBuilderDraft).not.toHaveBeenCalled();
   });
 
@@ -903,6 +931,7 @@ describe("badge rule routes", () => {
         body: JSON.stringify({
           name: "Changed retry payload",
           badgeTemplateId: "badge_template_cs101",
+          badgeTemplateReuseAcknowledged: false,
           lmsConnectionId: "lms_123",
           builderDraftId: "brd_exact",
           action: "save_draft",
@@ -987,8 +1016,6 @@ describe("badge rule routes", () => {
         },
       }),
     });
-    expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
-    expect(mockedCreateBadgeIssuanceRuleVersion).not.toHaveBeenCalled();
   });
 
   it("does not expose the former singular builder-draft endpoint", async () => {
@@ -1051,6 +1078,7 @@ describe("badge rule routes", () => {
           name: "CS101 Rule Revised",
           description: "",
           badgeTemplateId: "badge_template_cs101",
+          badgeTemplateReuseAcknowledged: false,
           lmsConnectionId: "lms_123",
           action: "save_draft",
           definition: {
@@ -1079,7 +1107,21 @@ describe("badge rule routes", () => {
       tenantId: "tenant_123",
       ruleId: "brl_123",
       name: "CS101 Rule Revised",
+      description: undefined,
       badgeTemplateId: "badge_template_cs101",
+      expectedBadgeTemplateRevision: {
+        updatedAt: "2026-02-17T00:00:00.000Z",
+        achievementSnapshot: {
+          badgeTemplateId: "badge_template_cs101",
+          title: "CS101 Excellence",
+          description: "Issue badge for CS101 excellence",
+          criteriaUri: "https://credtrail.test/criteria/cs101",
+          imageUri:
+            "https://credtrail.test/badges/assets/tenant_123/badge_template_cs101/asset_456",
+          trustedCredentialMetadataJson: null,
+        },
+      },
+      badgeTemplateReuseAcknowledged: false,
       lmsProviderKind: "canvas",
       lmsConnectionId: "lms_123",
       ruleJson: JSON.stringify({
@@ -1119,6 +1161,7 @@ describe("badge rule routes", () => {
         body: JSON.stringify({
           name: "CS101 Rule Revised",
           badgeTemplateId: "badge_template_cs101",
+          badgeTemplateReuseAcknowledged: false,
           lmsConnectionId: "lms_123",
           action: "save_draft",
           definition: {
@@ -1565,6 +1608,28 @@ describe("badge rule routes", () => {
     expect(mockedDecideBadgeIssuanceRuleVersion).toHaveBeenCalledTimes(1);
     expect(mockedFindBadgeIssuanceRuleVersionById).not.toHaveBeenCalled();
     expect(mockedListBadgeIssuanceRuleVersionApprovalSteps).not.toHaveBeenCalled();
+  });
+
+  it("rejects a rejection decision without its required reviewer comment", async () => {
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules/brl_123/versions/brv_123/decision",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ decision: "rejected" }),
+      },
+      createEnv(),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid badge rule approval decision payload",
+    });
+    expect(mockedDecideBadgeIssuanceRuleVersion).not.toHaveBeenCalled();
   });
 
   it("returns the approved version from the atomic approval decision command", async () => {
@@ -2429,7 +2494,15 @@ describe("badge rule routes", () => {
     expect(mockedIssueBadgeForTenant).toHaveBeenCalledWith(
       expect.anything(),
       "tenant_123",
-      expect.objectContaining({ badgeTemplateId: "badge_template_001" }),
+      expect.objectContaining({
+        achievementSource: expect.objectContaining({
+          kind: "rule_version",
+          provenance: expect.objectContaining({
+            ruleId: "brl_123",
+            versionId: "brv_123",
+          }),
+        }),
+      }),
       "usr_123",
     );
     expect(mockedResolveBadgeIssuanceRuleEvaluationReview).toHaveBeenCalledTimes(1);

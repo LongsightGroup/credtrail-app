@@ -16,8 +16,6 @@ vi.mock("@credtrail/db", async () => {
     createAuthIdentityLink: vi.fn(),
     createAuditLog: vi.fn(),
     createLtiCourseBadgeRule: vi.fn(),
-    createBadgeIssuanceRule: vi.fn(),
-    createBadgeIssuanceRuleWithConnection: vi.fn(),
     ensureExternalCourseOrgUnit: vi.fn(),
     ensureTenantMembership: vi.fn(),
     findActiveBadgeIssuanceRuleVersion: vi.fn(),
@@ -72,8 +70,6 @@ import {
   createAuthIdentityLink,
   createAuditLog,
   createLtiCourseBadgeRule,
-  createBadgeIssuanceRule,
-  createBadgeIssuanceRuleWithConnection,
   ensureExternalCourseOrgUnit,
   ensureTenantMembership,
   findActiveBadgeIssuanceRuleVersion,
@@ -144,10 +140,6 @@ const mockedAddLearnerIdentityAlias = vi.mocked(addLearnerIdentityAlias);
 const mockedAttachLtiLaunchSessionPrincipal = vi.mocked(attachLtiLaunchSessionPrincipal);
 const mockedCreateAuthIdentityLink = vi.mocked(createAuthIdentityLink);
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
-const mockedCreateBadgeIssuanceRule = vi.mocked(createBadgeIssuanceRule);
-const mockedCreateBadgeIssuanceRuleWithConnection = vi.mocked(
-  createBadgeIssuanceRuleWithConnection,
-);
 const mockedEnsureExternalCourseOrgUnit = vi.mocked(ensureExternalCourseOrgUnit);
 const mockedEnsureTenantMembership = vi.mocked(ensureTenantMembership);
 const mockedFindActiveBadgeIssuanceRuleVersion = vi.mocked(findActiveBadgeIssuanceRuleVersion);
@@ -373,6 +365,7 @@ const createEnv = (): {
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
   LTI_ISSUER_REGISTRY_JSON?: string;
   LTI_STATE_SIGNING_SECRET?: string;
 } => {
@@ -381,6 +374,7 @@ const createEnv = (): {
     DATABASE_URL: "postgres://credtrail-test.local/db",
     BADGE_OBJECTS: {} as R2Bucket,
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
   };
 };
 
@@ -694,6 +688,14 @@ const sampleAssertionRecord = (overrides?: Partial<AssertionRecord>): AssertionR
     publicId: null,
     learnerProfileId: "lpr_123",
     badgeTemplateId: "badge_template_001",
+    achievementSnapshot: {
+      badgeTemplateId: "badge_template_001",
+      title: "TypeScript Foundations",
+      description: "Awarded for completing TypeScript fundamentals.",
+      criteriaUri: "https://example.edu/criteria/typescript",
+      imageUri: null,
+      trustedCredentialMetadataJson: null,
+    },
     recipientIdentity: "learner-one@example.edu",
     recipientIdentityType: "email",
     vcR2Key: "tenants/tenant_123/assertions/tenant_123%3Aassertion_existing.jsonld",
@@ -904,16 +906,6 @@ describe("LTI 1.3 core launch flow", () => {
     mockedListLtiResourceLinkPlacementsForContext.mockResolvedValue([]);
     mockedListTenantLmsConnections.mockReset();
     mockedListTenantLmsConnections.mockResolvedValue([sampleTenantLmsConnection()]);
-    mockedCreateBadgeIssuanceRule.mockReset();
-    mockedCreateBadgeIssuanceRule.mockResolvedValue({
-      rule: sampleBadgeIssuanceRule(),
-      version: sampleBadgeIssuanceRuleVersion(),
-    });
-    mockedCreateBadgeIssuanceRuleWithConnection.mockReset();
-    mockedCreateBadgeIssuanceRuleWithConnection.mockResolvedValue({
-      rule: sampleBadgeIssuanceRule(),
-      version: sampleBadgeIssuanceRuleVersion(),
-    });
     mockedEnsureExternalCourseOrgUnit.mockReset();
     mockedEnsureExternalCourseOrgUnit.mockResolvedValue({
       status: "ok",
@@ -1142,6 +1134,22 @@ describe("LTI 1.3 core launch flow", () => {
 
   const createLtiEnv = (): ReturnType<typeof createEnv> => {
     const env = createEnv();
+    env.BADGE_OBJECTS = {
+      get: () =>
+        Promise.resolve({
+          text: () =>
+            Promise.resolve(
+              JSON.stringify({
+                version: 1,
+                mimeType: "image/png",
+                byteSize: 8,
+                base64Data: "iVBORw0KGgo=",
+                uploadedAt: "2026-08-12T10:00:00.000Z",
+                originalFilename: "badge.png",
+              }),
+            ),
+        }),
+    } as unknown as R2Bucket;
     env.LTI_ISSUER_REGISTRY_JSON = JSON.stringify({
       [issuer]: {
         authorizationEndpoint,
@@ -1357,12 +1365,18 @@ describe("LTI 1.3 core launch flow", () => {
     const ltiTool = {
       handleLogin: vi.fn(async (input: Record<string, unknown>) => {
         const redirectUrl = new URL(options?.authorizationEndpoint ?? authorizationEndpoint);
+        const launchUrl = input.launchUrl;
+
+        if (!(launchUrl instanceof URL)) {
+          throw new Error("Expected LTI login launchUrl");
+        }
+
         redirectUrl.searchParams.set("scope", "openid");
         redirectUrl.searchParams.set("response_type", "id_token");
         redirectUrl.searchParams.set("response_mode", "form_post");
         redirectUrl.searchParams.set("prompt", "none");
         redirectUrl.searchParams.set("client_id", stringClaimForTest(input.client_id, clientId));
-        redirectUrl.searchParams.set("redirect_uri", "http://localhost/v1/lti/launch");
+        redirectUrl.searchParams.set("redirect_uri", launchUrl.toString());
         redirectUrl.searchParams.set("state", "mock-lti-state");
         redirectUrl.searchParams.set("nonce", "mock-lti-nonce");
         return redirectUrl.toString();
@@ -1678,7 +1692,9 @@ describe("LTI 1.3 core launch flow", () => {
     expect(redirectUrl.searchParams.get("response_mode")).toBe("form_post");
     expect(redirectUrl.searchParams.get("prompt")).toBe("none");
     expect(redirectUrl.searchParams.get("client_id")).toBe(clientId);
-    expect(redirectUrl.searchParams.get("redirect_uri")).toBe("http://localhost/v1/lti/launch");
+    expect(redirectUrl.searchParams.get("redirect_uri")).toBe(
+      "https://credtrail.test/v1/lti/launch",
+    );
     expect(redirectUrl.searchParams.get("state")).toBeTruthy();
     expect(redirectUrl.searchParams.get("nonce")).toBeTruthy();
   });
@@ -2672,7 +2688,6 @@ describe("LTI 1.3 core launch flow", () => {
       expect.anything(),
       tenantId,
       expect.objectContaining({
-        badgeTemplateId: "badge_template_001",
         recipientIdentity: "learner-one@example.edu",
         recipientIdentityType: "email",
         recipientIdentifiers: [
@@ -2688,6 +2703,11 @@ describe("LTI 1.3 core launch flow", () => {
         recipientDisplayName: "Learner One",
       },
     );
+    const issuanceRequest = (
+      issueBadgeForTenant.mock.calls as readonly (readonly unknown[])[]
+    )[0]?.[2];
+    expect(issuanceRequest).not.toHaveProperty("badgeTemplateId");
+    expect(issuanceRequest).not.toHaveProperty("achievementSnapshot");
     expect(getMembers).toHaveBeenCalledTimes(2);
   });
 
@@ -3106,6 +3126,11 @@ describe("LTI 1.3 core launch flow", () => {
   });
 
   it("creates the shared rule and placement when an instructor launches an LTI setup link", async () => {
+    mockedFindBadgeTemplateById.mockResolvedValue(
+      sampleBadgeTemplate({
+        imageUri: "https://credtrail.test/badges/assets/tenant_123/badge_template_001/asset_456",
+      }),
+    );
     const env = createLtiEnv();
     const setupToken = await createLtiCourseBadgeSetupToken(env, {
       tenantId,
@@ -3180,6 +3205,11 @@ describe("LTI 1.3 core launch flow", () => {
   });
 
   it("returns a conflict when an LTI placement already has a different badge rule", async () => {
+    mockedFindBadgeTemplateById.mockResolvedValue(
+      sampleBadgeTemplate({
+        imageUri: "https://credtrail.test/badges/assets/tenant_123/badge_template_001/asset_456",
+      }),
+    );
     const env = createLtiEnv();
     const setupToken = await createLtiCourseBadgeSetupToken(env, {
       tenantId,
@@ -3394,8 +3424,6 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain("signed deep link");
     expect(mockedFindActiveLtiLaunchSessionByOpaqueId).toHaveBeenCalledWith(fakeDb, ltiSession.id);
     expect(mockedListTenantLmsConnections).not.toHaveBeenCalled();
-    expect(mockedCreateBadgeIssuanceRule).not.toHaveBeenCalled();
-    expect(mockedCreateBadgeIssuanceRuleWithConnection).not.toHaveBeenCalled();
     expect(createDeepLinkingHtmlResponse).toHaveBeenCalledWith([
       expect.objectContaining({
         type: "ltiResourceLink",

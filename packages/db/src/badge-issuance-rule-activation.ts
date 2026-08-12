@@ -1,7 +1,5 @@
-import {
-  findBadgeIssuanceRuleById,
-  findBadgeIssuanceRuleVersionById,
-} from "./badge-issuance-rule-reads.js";
+import { findBadgeIssuanceRuleById } from "./badge-issuance-rule-reads.js";
+import { findBadgeIssuanceRuleVersionById } from "./badge-issuance-rule-version-reads.js";
 import {
   badgeIssuanceRuleHasCompleteLmsLearnerPopulation,
   parseBadgeIssuanceRuleDefinitionJson,

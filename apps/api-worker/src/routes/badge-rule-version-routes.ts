@@ -1,9 +1,7 @@
 import {
   activateBadgeIssuanceRuleVersion,
   createAuditLog,
-  createBadgeIssuanceRuleVersion,
   decideBadgeIssuanceRuleVersion,
-  findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleVersionById,
   listBadgeIssuanceRuleVersionApprovalEvents,
   listBadgeIssuanceRuleVersionApprovalSteps,
@@ -19,10 +17,8 @@ import {
   submitBadgeRuleVersionForApprovalFailureMessage,
 } from "../badges/badge-rule-approval-outcomes";
 import {
-  parseBadgeIssuanceRulePathParams,
   parseBadgeIssuanceRuleVersionDiffQuery,
   parseBadgeIssuanceRuleVersionPathParams,
-  parseCreateBadgeIssuanceRuleVersionRequest,
   parseDecideBadgeIssuanceRuleVersionRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
@@ -131,75 +127,6 @@ export const registerBadgeRuleVersionRoutes = (
     });
   });
 
-  app.post("/v1/tenants/:tenantId/badge-rules/:ruleId/versions", async (c) => {
-    const pathParams = parseBadgeIssuanceRulePathParams(c.req.param());
-    let request;
-
-    try {
-      request = parseCreateBadgeIssuanceRuleVersionRequest(await c.req.json<unknown>());
-    } catch {
-      return c.json(
-        {
-          error: "Invalid badge rule version payload",
-        },
-        400,
-      );
-    }
-
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const { session, membershipRole } = roleCheck;
-    const existingRule = await findBadgeIssuanceRuleById(
-      resolveDatabase(c.env),
-      pathParams.tenantId,
-      pathParams.ruleId,
-    );
-
-    if (existingRule === null) {
-      return c.json(
-        {
-          error: "Badge rule not found",
-        },
-        404,
-      );
-    }
-
-    const createdVersion = await createBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
-      tenantId: pathParams.tenantId,
-      ruleId: pathParams.ruleId,
-      ruleJson: JSON.stringify(request.definition),
-      changeSummary: request.changeSummary,
-      createdByUserId: session.userId,
-    });
-
-    await createAuditLog(resolveDatabase(c.env), {
-      tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
-      action: "badge_rule.version_created",
-      targetType: "badge_rule_version",
-      targetId: createdVersion.id,
-      metadata: {
-        role: membershipRole,
-        ruleId: pathParams.ruleId,
-        versionNumber: createdVersion.versionNumber,
-        status: createdVersion.status,
-      },
-    });
-
-    return c.json(
-      {
-        tenantId: pathParams.tenantId,
-        ruleId: pathParams.ruleId,
-        version: createdVersion,
-      },
-      201,
-    );
-  });
-
   app.post(
     "/v1/tenants/:tenantId/badge-rules/:ruleId/versions/:versionId/submit-approval",
     async (c) => {
@@ -268,7 +195,7 @@ export const registerBadgeRuleVersionRoutes = (
       decision: request.decision,
       actorUserId: session.userId,
       actorRole: membershipRole,
-      comment: request.comment,
+      ...(request.comment === undefined ? {} : { comment: request.comment }),
     });
 
     if (decisionResult.status !== "decided") {

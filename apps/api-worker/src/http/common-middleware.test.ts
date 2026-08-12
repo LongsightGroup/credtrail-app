@@ -13,6 +13,7 @@ const fakeEnv: AppBindings = {
     delete: vi.fn(async () => undefined),
   },
   PLATFORM_DOMAIN: "credtrail.test",
+  PUBLIC_APP_ORIGIN: "https://credtrail.test",
 };
 
 const createMiddlewareApp = (): Hono<AppEnv> => {
@@ -87,6 +88,78 @@ describe("registerCommonMiddleware", () => {
 
     expect(response.headers.get("x-request-id")).toBe(body.requestId);
     expect(body.requestId.length).toBeGreaterThan(0);
+  });
+
+  it("redirects aliases to PUBLIC_APP_ORIGIN independently of the issuer domain", async () => {
+    const response = await createMiddlewareApp().request(
+      "https://www.app.credtrail.test/ok?source=alias",
+      undefined,
+      {
+        ...fakeEnv,
+        APP_ENV: "production",
+        PLATFORM_DOMAIN: "issuer.credtrail.test",
+        PUBLIC_APP_ORIGIN: "https://app.credtrail.test",
+      },
+    );
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe("https://app.credtrail.test/ok?source=alias");
+  });
+
+  it("redirects unknown production origins without exposing them to application routes", async () => {
+    const response = await createMiddlewareApp().request(
+      "https://unexpected.example/ok?source=proxy",
+      undefined,
+      {
+        ...fakeEnv,
+        APP_ENV: "production",
+        PLATFORM_DOMAIN: "issuer.credtrail.test",
+        PUBLIC_APP_ORIGIN: "https://app.credtrail.test",
+      },
+    );
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe("https://app.credtrail.test/ok?source=proxy");
+  });
+
+  it("keeps protocol-relative-looking request paths on PUBLIC_APP_ORIGIN", async () => {
+    const response = await createMiddlewareApp().request(
+      "https://unexpected.example//evil.example/ok?source=proxy",
+      undefined,
+      {
+        ...fakeEnv,
+        APP_ENV: "production",
+        PLATFORM_DOMAIN: "issuer.credtrail.test",
+        PUBLIC_APP_ORIGIN: "https://app.credtrail.test",
+      },
+    );
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe(
+      "https://app.credtrail.test//evil.example/ok?source=proxy",
+    );
+  });
+
+  it("allows issuer identity documents on the configured platform domain", async () => {
+    const app = createMiddlewareApp();
+    app.get("/.well-known/did.json", (c) => c.json({ id: "did:web:issuer.credtrail.test" }));
+    const response = await app.request("https://issuer.credtrail.test/.well-known/did.json", undefined, {
+      ...fakeEnv,
+      APP_ENV: "production",
+      PLATFORM_DOMAIN: "issuer.credtrail.test",
+      PUBLIC_APP_ORIGIN: "https://app.credtrail.test",
+    });
+
+    expect(response.status).toBe(200);
+  });
+
+  it("rejects malformed platform identity configuration before routing", async () => {
+    const response = await createMiddlewareApp().request("/ok", undefined, {
+      ...fakeEnv,
+      PLATFORM_DOMAIN: "https://credtrail.test",
+    });
+
+    expect(response.status).toBe(500);
   });
 
   it("logs unhandled route errors with the request id", async () => {

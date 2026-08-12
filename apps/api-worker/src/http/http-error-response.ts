@@ -1,5 +1,5 @@
 export class HttpErrorResponse extends Error {
-  public readonly statusCode: 400 | 404 | 409 | 422 | 500 | 502;
+  public readonly statusCode: 400 | 404 | 409 | 422 | 500 | 502 | 503;
 
   public readonly payload: {
     error: string;
@@ -7,7 +7,7 @@ export class HttpErrorResponse extends Error {
   };
 
   public constructor(
-    statusCode: 400 | 404 | 409 | 422 | 500 | 502,
+    statusCode: 400 | 404 | 409 | 422 | 500 | 502 | 503,
     payload: {
       error: string;
       did?: string | undefined;

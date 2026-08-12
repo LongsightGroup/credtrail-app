@@ -22,6 +22,7 @@ type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
 const versionTimestampRows = (
   version: BadgeIssuanceRuleVersionRecord,
+  submittedByEmail: string | undefined,
 ): readonly { readonly label: string; readonly value: string }[] => {
   const rows: Array<{ readonly label: string; readonly value: string }> = [
     { label: "Created", value: formatIsoTimestamp(version.createdAt) },
@@ -29,6 +30,10 @@ const versionTimestampRows = (
 
   if (version.submittedAt !== null) {
     rows.push({ label: "Submitted", value: formatIsoTimestamp(version.submittedAt) });
+
+    if (submittedByEmail !== undefined) {
+      rows.push({ label: "Submitted by", value: submittedByEmail });
+    }
   }
 
   if (version.approvedAt !== null) {
@@ -70,6 +75,34 @@ const badgeArtwork = (snapshot: BadgeIssuanceRuleVersionSnapshot): HonoElement =
   );
 };
 
+const badgeRuleVersionLifecycleSummary = (input: {
+  readonly rule: BadgeIssuanceRuleRecord;
+  readonly version: BadgeIssuanceRuleVersionRecord;
+}): string => {
+  if (input.rule.activeVersionId === input.version.id) {
+    return "CredTrail currently uses this version for new awards. Awards already issued keep this version permanently.";
+  }
+
+  switch (input.version.status) {
+    case "approved":
+      return "This version is approved, but it will not issue badges until an administrator activates it.";
+    case "pending_approval":
+      return "This version is awaiting approval. Approval makes it eligible for activation; it does not replace the active version.";
+    case "draft":
+      return "This draft is read-only here and cannot issue badges until it is submitted, approved, and activated.";
+    case "rejected":
+      return "This submission was rejected and cannot issue badges. Editing it creates a new draft version.";
+    case "suspended":
+      return "Issuance from this version is suspended. Awards already issued from it remain unchanged.";
+    case "expired":
+      return "This version has expired and no longer issues badges. Awards already issued from it remain unchanged.";
+    case "deprecated":
+      return "This is a previous read-only version. Awards issued from it remain unchanged.";
+    case "active":
+      return "This active version is an immutable issuance record. Awards already issued from it remain unchanged.";
+  }
+};
+
 const adminLmsReferenceMarkup = (input: BadgeRuleSummaryLmsReferenceMarkupInput): HonoElement => {
   const label = input.reference.kind === "assignment" ? "Assignment" : input.label;
   const content = (
@@ -106,11 +139,12 @@ export const BadgeRuleVersionOverview = (input: {
   readonly latestVersion: BadgeIssuanceRuleVersionRecord;
   readonly definition: BadgeIssuanceRuleDefinition;
   readonly orgUnit: TenantOrgUnitRecord | null;
+  readonly submittedByEmail?: string | undefined;
 }): HonoElement => {
   const ruleSummaryMarkup = createRuleDefinitionSummaryMarkup(formatIsoTimestamp, {
     renderLmsReference: adminLmsReferenceMarkup,
   });
-  const timestampRows = versionTimestampRows(input.version);
+  const timestampRows = versionTimestampRows(input.version, input.submittedByEmail);
   const displayFields = badgeRuleVersionDisplayFields(input.version);
   const lmsLabelsUrl =
     input.version.snapshot.lmsConnectionId === null
@@ -149,30 +183,47 @@ export const BadgeRuleVersionOverview = (input: {
             <span>Version {String(input.version.versionNumber)}</span>
           </div>
           <h2>{displayFields.badgeTitle}</h2>
+          <p class="ct-admin__rule-version-change-summary">
+            <strong>Version note:</strong>{" "}
+            {input.version.changeSummary ?? "No change summary was provided for this version."}
+          </p>
           <p>{input.version.snapshot.description ?? "No rule description was provided."}</p>
+          <p class="ct-admin__rule-version-lifecycle-summary">
+            {badgeRuleVersionLifecycleSummary(input)}
+          </p>
         </div>
       </div>
 
-      <dl class="ct-admin__rule-version-metadata">
-        {timestampRows.map((row) => (
-          <div>
-            <dt>{row.label}</dt>
-            <dd>{row.value}</dd>
-          </div>
-        ))}
-        <div>
-          <dt>LMS</dt>
-          <dd>{displayFields.lmsProviderLabel}</dd>
-        </div>
-        <div>
-          <dt>Organization scope</dt>
-          <dd>
-            {input.orgUnit === null
-              ? input.version.snapshot.orgUnitId
-              : `${input.orgUnit.displayName} (${input.orgUnit.unitType})`}
-          </dd>
-        </div>
-      </dl>
+      <div class="ct-admin__rule-version-metadata-groups">
+        <section>
+          <h3>Applies to</h3>
+          <dl class="ct-admin__rule-version-metadata">
+            <div>
+              <dt>LMS</dt>
+              <dd>{displayFields.lmsProviderLabel}</dd>
+            </div>
+            <div>
+              <dt>Organization scope</dt>
+              <dd>
+                {input.orgUnit === null
+                  ? input.version.snapshot.orgUnitId
+                  : `${input.orgUnit.displayName} (${input.orgUnit.unitType})`}
+              </dd>
+            </div>
+          </dl>
+        </section>
+        <section>
+          <h3>Timeline</h3>
+          <dl class="ct-admin__rule-version-metadata">
+            {timestampRows.map((row) => (
+              <div>
+                <dt>{row.label}</dt>
+                <dd>{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      </div>
 
       <div class="ct-admin__rule-version-definition">
         <h3>What this version requires</h3>
@@ -189,21 +240,19 @@ export const BadgeRuleVersionOverview = (input: {
         )}
       </div>
 
-      <div class="ct-admin__rule-version-change-summary">
-        <h3>Change summary</h3>
-        <p>{input.version.changeSummary ?? "No change summary was provided for this version."}</p>
-      </div>
-
-      <dl class="ct-admin__rule-version-support-metadata">
-        <div>
-          <dt>Rule ID</dt>
-          <dd>{input.rule.id}</dd>
-        </div>
-        <div>
-          <dt>Version ID</dt>
-          <dd>{input.version.id}</dd>
-        </div>
-      </dl>
+      <details class="ct-admin__rule-version-technical-details">
+        <summary>Technical details</summary>
+        <dl class="ct-admin__rule-version-support-metadata">
+          <div>
+            <dt>Rule ID</dt>
+            <dd>{input.rule.id}</dd>
+          </div>
+          <div>
+            <dt>Version ID</dt>
+            <dd>{input.version.id}</dd>
+          </div>
+        </dl>
+      </details>
     </AdminPanel>
   );
 };

@@ -5,7 +5,7 @@ import {
   lockBadgeIssuanceRuleVersionForTransition,
   replaceBadgeIssuanceRuleApprovalSteps,
 } from "./badge-issuance-rule-approval-storage.js";
-import { findBadgeIssuanceRuleVersionById } from "./badge-issuance-rule-reads.js";
+import { findBadgeIssuanceRuleVersionById } from "./badge-issuance-rule-version-reads.js";
 import { resolveBadgeRuleApprovalPolicy } from "./badge-rule-approval-policies.js";
 import type { BadgeRuleApprovalPolicyRecord } from "./badge-rule-approval-policies.js";
 import type {

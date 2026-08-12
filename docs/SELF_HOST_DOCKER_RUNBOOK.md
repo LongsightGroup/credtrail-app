@@ -22,6 +22,7 @@ S3-compatible object storage.
 - `S3_ENDPOINT` (required for non-AWS providers)
 - `S3_FORCE_PATH_STYLE` (`true` for MinIO/Ceph path-style deployments)
 - `PLATFORM_DOMAIN`
+- `PUBLIC_APP_ORIGIN` (the public app origin, including `https://` and any non-default port)
 - `APP_ENV`
 - `BETTER_AUTH_SECRET` (stable, high-entropy secret; rotate only with a session reset plan)
 - `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated public origins allowed to use hosted auth)
@@ -99,7 +100,10 @@ Required forwarded headers:
 - `X-Forwarded-Proto: https`
 - `X-Forwarded-Host: <institution-domain>`
 
-Set `PLATFORM_DOMAIN` to the public hostname used in credential URLs.
+Set `PLATFORM_DOMAIN` to the hostname used for issuer identifiers and credential identity. Do not
+include a scheme, path, or port. Set `PUBLIC_APP_ORIGIN` to the one externally reachable app origin,
+such as `https://credentials.example.edu`. CredTrail uses that origin for redirects, login, LTI,
+emails, badge artwork, and other public app URLs; it does not infer these URLs from request headers.
 
 ## Upgrade Procedure (Image Tag N -> N+1)
 

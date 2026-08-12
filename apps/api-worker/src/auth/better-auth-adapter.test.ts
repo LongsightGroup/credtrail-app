@@ -123,6 +123,7 @@ describe("better auth adapter", () => {
     const config = createBetterAuthRuntimeConfig({
       APP_ENV: "test",
       PLATFORM_DOMAIN: "credtrail.test",
+      PUBLIC_APP_ORIGIN: "https://credtrail.test",
       BETTER_AUTH_SECRET: "test-secret",
       BETTER_AUTH_TRUSTED_ORIGINS:
         "https://credtrail.test, https://admin.credtrail.test , https://credtrail.test",

@@ -155,11 +155,14 @@ describe("executeLtiRosterIssuance eligibility guard", () => {
       appContext,
       "tenant_123",
       expect.objectContaining({
-        issuanceProvenance: expect.objectContaining({
-          source: "lti_roster",
-          ruleId: expect.any(String),
-          versionId: expect.any(String),
-          provenanceJson: expect.any(String),
+        achievementSource: expect.objectContaining({
+          kind: "rule_version",
+          provenance: expect.objectContaining({
+            source: "lti_roster",
+            ruleId: expect.any(String),
+            versionId: expect.any(String),
+            provenanceJson: expect.any(String),
+          }),
         }),
       }),
       "usr_instructor_123",

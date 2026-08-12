@@ -23,6 +23,7 @@
   "vars": {
     "APP_ENV": "development",
     "PLATFORM_DOMAIN": "localhost",
+    "PUBLIC_APP_ORIGIN": "http://localhost:8787",
     "BETTER_AUTH_TRUSTED_ORIGINS": "http://localhost:8787,http://127.0.0.1:8787"
   }
 }

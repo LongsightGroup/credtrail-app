@@ -64,7 +64,11 @@ export const sampleDetailVersion = (
       description: "Award the badge after the learner completes the final project.",
       badgeTemplateId: sampleRuleBadgeTemplate.id,
       badgeTemplateTitle: sampleRuleBadgeTemplate.title,
+      badgeTemplateDescription: sampleRuleBadgeTemplate.description,
+      badgeTemplateCriteriaUri: sampleRuleBadgeTemplate.criteriaUri,
       badgeTemplateImageUri: sampleRuleBadgeTemplate.imageUri,
+      badgeTemplateTrustedCredentialMetadataJson:
+        sampleRuleBadgeTemplate.trustedCredentialMetadataJson ?? null,
       orgUnitId: "tenant_123:org:cs",
       ownerOrgUnitId: "tenant_123:org:cs",
       lmsConnectionId: "lms_canvas",

@@ -40,6 +40,7 @@ const createEnv = (): AppBindings => {
     DATABASE_URL: "postgres://credtrail-test.local/db",
     BADGE_OBJECTS: {} as AppBindings["BADGE_OBJECTS"],
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
     LTI_STATE_SIGNING_SECRET: "test-lti-state-signing-secret",
   };
 };

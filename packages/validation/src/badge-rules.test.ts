@@ -10,7 +10,6 @@ import {
   parseBadgeIssuanceRuleVersionPathParams,
   parseCreateBadgeIssuanceRuleRequest,
   parseCreateBadgeIssuanceRuleValueListRequest,
-  parseCreateBadgeIssuanceRuleVersionRequest,
   parseDecideBadgeIssuanceRuleVersionRequest,
   parsePreviewEvaluateBadgeIssuanceRuleRequest,
   parsePreviewSimulateBadgeIssuanceRuleRequest,
@@ -103,6 +102,7 @@ describe("badge issuance rule parsers", () => {
       name: "CS101 Excellence Rule",
       description: "Award badge for high performers",
       badgeTemplateId: "badge_template_cs101",
+      badgeTemplateReuseAcknowledged: false,
       lmsConnectionId: "lms_123",
       lmsProviderKind: "canvas",
       action: "save_draft",
@@ -150,19 +150,11 @@ describe("badge issuance rule parsers", () => {
       },
       changeSummary: "Initial draft",
     });
-    const versionRequest = parseCreateBadgeIssuanceRuleVersionRequest({
-      definition: {
-        conditions: {
-          type: "time_window",
-          notBefore: "2026-01-01T00:00:00.000Z",
-        },
-      },
-      changeSummary: "Limit issuance to spring term",
-    });
     const updateDraftRequest = parseUpdateBadgeIssuanceRuleDraftRequest({
       name: "CS101 Excellence Rule Revised",
       description: "",
       badgeTemplateId: "badge_template_cs101",
+      badgeTemplateReuseAcknowledged: false,
       lmsConnectionId: "lms_123",
       action: "save_draft",
       definition: createRequest.definition,
@@ -213,7 +205,6 @@ describe("badge issuance rule parsers", () => {
     expect(JSON.stringify(createRequest.definition.conditions)).toContain("custom_field");
     expect(updateDraftRequest.name).toBe("CS101 Excellence Rule Revised");
     expect(updateDraftRequest.description).toBe("");
-    expect(versionRequest.changeSummary).toContain("spring");
     expect(decisionRequest.decision).toBe("approved");
     expect(decisionRequest.comment).toContain("governance");
     expect(previewEvaluateRequest.definition.conditions).toHaveProperty("all");
@@ -227,6 +218,7 @@ describe("badge issuance rule parsers", () => {
     const requireCompleteDefinition = parseCreateBadgeIssuanceRuleRequest({
       name: "Legacy complete rule",
       badgeTemplateId: "badge_template_cs101",
+      badgeTemplateReuseAcknowledged: false,
       lmsConnectionId: "lms_123",
       lmsProviderKind: "canvas",
       action: "save_draft",
@@ -241,6 +233,7 @@ describe("badge issuance rule parsers", () => {
     const requireStartedDefinition = parseCreateBadgeIssuanceRuleRequest({
       name: "Legacy started rule",
       badgeTemplateId: "badge_template_cs101",
+      badgeTemplateReuseAcknowledged: false,
       lmsConnectionId: "lms_123",
       lmsProviderKind: "canvas",
       action: "save_draft",
@@ -346,6 +339,7 @@ describe("badge issuance rule parsers", () => {
     const createRequest = parseCreateBadgeIssuanceRuleRequest({
       name: "Program path rule",
       badgeTemplateId: "badge_template_program",
+      badgeTemplateReuseAcknowledged: true,
       lmsConnectionId: "lms_123",
       lmsProviderKind: "canvas",
       action: "submit_for_approval",
@@ -394,6 +388,7 @@ describe("badge issuance rule parsers", () => {
       parseCreateBadgeIssuanceRuleRequest({
         name: "Invalid",
         badgeTemplateId: "badge_template_cs101",
+        badgeTemplateReuseAcknowledged: false,
         lmsConnectionId: "lms_123",
         lmsProviderKind: "canvas",
         action: "save_draft",
@@ -407,23 +402,12 @@ describe("badge issuance rule parsers", () => {
     }).toThrow(/./);
   });
 
-  it("rejects invalid time window condition payloads", () => {
-    expect(() => {
-      parseCreateBadgeIssuanceRuleVersionRequest({
-        definition: {
-          conditions: {
-            type: "time_window",
-          },
-        },
-      });
-    }).toThrow(/./);
-  });
-
   it("rejects author-supplied approval chains on badge rule commands", () => {
     expect(() => {
       parseCreateBadgeIssuanceRuleRequest({
         name: "Governed Rule",
         badgeTemplateId: "badge_template_cs101",
+        badgeTemplateReuseAcknowledged: false,
         lmsConnectionId: "lms_123",
         action: "save_draft",
         definition: {
@@ -443,6 +427,7 @@ describe("badge issuance rule parsers", () => {
       parseCreateBadgeIssuanceRuleRequest({
         name: "Invalid list combination",
         badgeTemplateId: "badge_template_cs101",
+        badgeTemplateReuseAcknowledged: false,
         lmsConnectionId: "lms_123",
         lmsProviderKind: "canvas",
         action: "save_draft",
@@ -455,6 +440,21 @@ describe("badge issuance rule parsers", () => {
         },
       });
     }).toThrow(/./);
+  });
+
+  it.each(["changes_requested", "rejected"] as const)(
+    "requires a reviewer comment when the decision is %s",
+    (decision) => {
+      expect(() => {
+        parseDecideBadgeIssuanceRuleVersionRequest({ decision });
+      }).toThrow("comment is required when returning or rejecting a version");
+    },
+  );
+
+  it("allows approval without a reviewer comment", () => {
+    expect(parseDecideBadgeIssuanceRuleVersionRequest({ decision: "approved" })).toEqual({
+      decision: "approved",
+    });
   });
 
   it("parses unfinished and formal-rule builder draft targets", () => {
@@ -485,6 +485,7 @@ describe("badge issuance rule parsers", () => {
       parseCreateBadgeIssuanceRuleRequest({
         name: "Missing action",
         badgeTemplateId: "badge_template_cs101",
+        badgeTemplateReuseAcknowledged: false,
         lmsConnectionId: "lms_123",
         definition: {
           conditions: {

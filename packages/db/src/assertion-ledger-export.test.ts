@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import {
   listTenantAssertions,
   listTenantAssertionLedgerExportRows,
+  findBadgeTemplateById,
   SYNCHRONOUS_EXPORT_ROW_LIMIT,
   upsertUserByEmail,
   type SqlDatabase,
@@ -277,6 +278,20 @@ describeDbIntegration("ledger export foundation", () => {
     const vcPrefix = `tenants/${fixture.tenantId}/assertions/${idPrefix}`;
     const idempotencyPrefix = uniqueTestId("idem_bulk");
     const nowIso = new Date().toISOString();
+    const template = await findBadgeTemplateById(fixture.db, fixture.tenantId, badgeTemplateId);
+
+    if (template === null) {
+      throw new Error("Expected seeded badge template");
+    }
+
+    const achievementSnapshotJson = JSON.stringify({
+      badgeTemplateId: template.id,
+      title: template.title,
+      description: template.description,
+      criteriaUri: template.criteriaUri,
+      imageUri: template.imageUri,
+      trustedCredentialMetadataJson: template.trustedCredentialMetadataJson,
+    });
 
     try {
       await fixture.db
@@ -288,6 +303,7 @@ describeDbIntegration("ledger export foundation", () => {
             public_id,
             learner_profile_id,
             badge_template_id,
+            achievement_snapshot_json,
             recipient_identity,
             recipient_identity_type,
             vc_r2_key,
@@ -304,6 +320,7 @@ describeDbIntegration("ledger export foundation", () => {
             ?,
             ? || series.value::text,
             NULL,
+            ?,
             ?,
             'learner.' || series.value::text || '@example.edu',
             'email',
@@ -323,6 +340,7 @@ describeDbIntegration("ledger export foundation", () => {
           fixture.tenantId,
           publicPrefix,
           badgeTemplateId,
+          achievementSnapshotJson,
           vcPrefix,
           idempotencyPrefix,
           nowIso,

@@ -1,5 +1,8 @@
 import type { JsonObject } from "@credtrail/core-domain";
-import { findTenantSigningRegistrationByDid, listAllLtiIssuerRegistrations } from "@credtrail/db";
+import {
+  findTenantSigningRegistrationByDid,
+  listAllLtiIssuerRegistrations,
+} from "@credtrail/db";
 import { Hono } from "hono";
 import {
   credentialDownloadFilename,
@@ -84,10 +87,7 @@ import { addSecondsToIso, generateOpaqueToken, sha256Base64Url, sha256Hex } from
 import { formatIsoTimestamp, linkedInAddToProfileUrl } from "./utils/display-format";
 import { asJsonObject, asNonEmptyString, asString } from "./utils/value-parsers";
 import { createApiWorker } from "./worker/create-worker";
-import {
-  issueBadgeQueueJobFromRequest,
-  revokeBadgeQueueJobFromRequest,
-} from "./queue/job-builders";
+import { createPostgresQueueIngressStore } from "./queue/ingress-store";
 import {
   createProcessQueuedJobs,
   processQueueInputWithDefaults,
@@ -120,6 +120,7 @@ import {
 } from "./app/auth-runtime";
 import type { AppBindings, AppContext, AppEnv } from "./app/types";
 import { HttpErrorResponse } from "./http/http-error-response";
+import { canonicalAppUrl } from "./http/canonical-app-url";
 import { walletCredentialOfferPayload } from "./oid4vci/wallet-credential-offer-payload";
 
 export type { AppBindings, AppContext, AppEnv } from "./app/types";
@@ -180,6 +181,7 @@ const loadJsonObjectFromUrl = createLoadJsonObjectFromUrl<AppBindings>({
     return app.request(pathWithQuery, init, bindings);
   },
   asJsonObject,
+  publicAppOrigin: (bindings) => bindings.PUBLIC_APP_ORIGIN,
 });
 
 const {
@@ -290,7 +292,10 @@ const processQueuedJobs = createProcessQueuedJobs({
       observability: observabilityContext(c.env),
       env: c.env,
       adminUrlForTenant: (adminTenantId) =>
-        `https://${c.env.PLATFORM_DOMAIN}/tenants/${encodeURIComponent(adminTenantId)}/admin/rules`,
+        canonicalAppUrl(
+          c.env.PUBLIC_APP_ORIGIN,
+          `/tenants/${encodeURIComponent(adminTenantId)}/admin/rules`,
+        ),
     }).then(() => undefined);
   },
   processAutomatedBadgeRuleJob: (c, tenantId, payload) => {
@@ -438,8 +443,8 @@ const appDeps: AppDeps = {
   readJsonBodyOrEmptyObject,
   processQueuedJobs,
   processQueueInputWithDefaults,
-  issueBadgeQueueJobFromRequest,
-  revokeBadgeQueueJobFromRequest,
+  resolveQueueIngressStore: (bindings) =>
+    createPostgresQueueIngressStore(resolveDatabase(bindings)),
 };
 
 registerRoutes({

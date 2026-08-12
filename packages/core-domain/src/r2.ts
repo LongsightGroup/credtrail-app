@@ -22,6 +22,7 @@ export interface ImmutableCredentialStoreHeadObject {
 }
 
 export interface ImmutableCredentialStoreGetObject {
+  readonly size: number;
   text(): Promise<string>;
 }
 

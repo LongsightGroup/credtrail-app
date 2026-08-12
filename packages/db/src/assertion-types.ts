@@ -1,3 +1,4 @@
+import type { BadgeAchievementSnapshot } from "@credtrail/validation";
 import type { OrgUnitType } from "./tenant-org-units";
 import type { RecipientIdentifierInput } from "./learner-profiles";
 
@@ -7,6 +8,7 @@ export interface AssertionRecord {
   publicId: string | null;
   learnerProfileId: string | null;
   badgeTemplateId: string;
+  achievementSnapshot: BadgeAchievementSnapshot;
   recipientIdentity: string;
   recipientIdentityType: "email" | "email_sha256" | "did" | "url";
   vcR2Key: string;
@@ -128,7 +130,7 @@ export interface CreateAssertionInput {
   tenantId: string;
   publicId?: string | undefined;
   learnerProfileId?: string | undefined;
-  badgeTemplateId: string;
+  achievementSnapshot: BadgeAchievementSnapshot;
   recipientIdentity: string;
   recipientIdentityType: "email" | "email_sha256" | "did" | "url";
   vcR2Key: string;

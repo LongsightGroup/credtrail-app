@@ -12,11 +12,16 @@ import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
 import type { VerificationViewModel } from "../badges/public-badge-model";
 import { VC_DATA_MODEL_CONTEXT_URL } from "../credentials/verification-checks";
+import { canonicalAppRequestUrl } from "../http/canonical-app-url";
 
 const PRE_AUTHORIZED_CODE_GRANT = "urn:ietf:params:oauth:grant-type:pre-authorized_code";
 const OID4VCI_TOKEN_ENDPOINT_PATH = "/credentials/v1/token";
 const OID4VCI_CREDENTIAL_ENDPOINT_PATH = "/credentials/v1/credentials";
 const DCC_VCAPI_EXCHANGE_ENDPOINT_PREFIX = "/credentials/v1/dcc/exchanges";
+
+const publicRequestUrl = (c: AppContext): string => {
+  return canonicalAppRequestUrl(c.env.PUBLIC_APP_ORIGIN, c.req.url);
+};
 
 interface RegisterOid4vciRoutesInput {
   app: Hono<AppEnv>;
@@ -494,24 +499,24 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
     const publicBadgePath = `/badges/${encodeURIComponent(canonicalBadge.canonicalBadgeIdentifier)}`;
 
     return c.json({
-      credentialRequestOrigin: new URL(c.req.url).origin,
+      credentialRequestOrigin: new URL(publicRequestUrl(c)).origin,
       verifiablePresentation: {
         "@context": [VC_DATA_MODEL_CONTEXT_URL],
         type: ["VerifiablePresentation"],
         verifiableCredential: [canonicalBadge.model.credential],
       },
-      redirectUrl: new URL(publicBadgePath, c.req.url).toString(),
+      redirectUrl: new URL(publicBadgePath, publicRequestUrl(c)).toString(),
     });
   };
 
   app.get("/.well-known/openid-credential-issuer", (c) => {
     c.header("Cache-Control", "no-store");
-    return c.json(buildIssuerMetadata(c.req.url));
+    return c.json(buildIssuerMetadata(publicRequestUrl(c)));
   });
 
   app.get("/credentials/v1/offers/:badgeIdentifier", async (c) => {
     return handleOfferByBadgeIdentifier(
-      c.req.url,
+      publicRequestUrl(c),
       resolveDatabase(c.env),
       c.env.BADGE_OBJECTS,
       c.req.param("badgeIdentifier"),
@@ -543,7 +548,7 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
     }
 
     const result = await createOfferResponse(
-      c.req.url,
+      publicRequestUrl(c),
       resolveDatabase(c.env),
       c.env.BADGE_OBJECTS,
       badgeIdentifier,
@@ -558,7 +563,7 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
     if (result.status === 308) {
       const credentialOfferUri = new URL(
         `/credentials/v1/offers/${encodeURIComponent(result.canonicalBadgeIdentifier)}`,
-        c.req.url,
+        publicRequestUrl(c),
       ).toString();
       return c.json(
         {
@@ -570,7 +575,7 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
 
     const credentialOfferUri = new URL(
       `/credentials/v1/offers/${encodeURIComponent(result.canonicalBadgeIdentifier)}`,
-      c.req.url,
+      publicRequestUrl(c),
     ).toString();
 
     return c.json(
@@ -609,10 +614,10 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
 
     const exchangeUrl = new URL(
       `${DCC_VCAPI_EXCHANGE_ENDPOINT_PREFIX}/${encodeURIComponent(canonicalBadge.canonicalBadgeIdentifier)}`,
-      c.req.url,
+      publicRequestUrl(c),
     ).toString();
     const requestPayload = {
-      credentialRequestOrigin: new URL(c.req.url).origin,
+      credentialRequestOrigin: new URL(publicRequestUrl(c)).origin,
       protocols: {
         vcapi: exchangeUrl,
       },

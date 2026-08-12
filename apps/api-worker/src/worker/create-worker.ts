@@ -1,6 +1,8 @@
 import { logError, logInfo, type ObservabilityContext } from "@credtrail/core-domain";
 import type { Hono } from "hono";
 import type { AppBindings, AppEnv } from "../app";
+import { canonicalAppOrigin } from "../http/canonical-app-url";
+import { canonicalPlatformDomain } from "../http/platform-domain";
 import type { ProcessQueueRunResult } from "../queue/processing";
 import { createR2ImmutableCredentialStore } from "../storage/r2-immutable-credential-store";
 
@@ -21,6 +23,8 @@ export const createApiWorker = (
   const appBindingsFromRuntime = (env: WorkerRuntimeBindings): AppBindings => {
     return {
       ...env,
+      PLATFORM_DOMAIN: canonicalPlatformDomain(env.PLATFORM_DOMAIN),
+      PUBLIC_APP_ORIGIN: canonicalAppOrigin(env.PUBLIC_APP_ORIGIN),
       BADGE_OBJECTS: createR2ImmutableCredentialStore(env.BADGE_OBJECTS),
     };
   };

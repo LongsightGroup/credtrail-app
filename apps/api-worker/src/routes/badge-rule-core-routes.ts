@@ -280,6 +280,8 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
         result = await authorPreparedBadgeRule({
           kind: "create",
           db,
+          store: c.env.BADGE_OBJECTS,
+          publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
           tenantId: tenantParams.tenantId,
           actorUserId: session.userId,
           actorRole: membershipRole,
@@ -396,6 +398,8 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
     const result = await authorPreparedBadgeRule({
       kind: "update",
       db,
+      store: c.env.BADGE_OBJECTS,
+      publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
       tenantId: pathParams.tenantId,
       ruleId: pathParams.ruleId,
       actorUserId: session.userId,

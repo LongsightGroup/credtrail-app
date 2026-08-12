@@ -1,20 +1,8 @@
-import type {
-  AssertionIssuanceProvenanceSource,
-  RecipientIdentifierInput,
-  RecipientIdentifierType,
-} from "@credtrail/db";
-import type { ManualIssueBadgeRequest } from "@credtrail/validation";
+import type { RecipientIdentifierInput, RecipientIdentifierType } from "@credtrail/db";
+import type { IssuanceAchievementSource, ManualIssueBadgeRequest } from "@credtrail/validation";
 
-export interface DirectIssueBadgeIssuanceProvenance {
-  source: AssertionIssuanceProvenanceSource;
-  ruleId?: string | undefined;
-  versionId?: string | undefined;
-  provenanceJson?: string | undefined;
-}
-
-export type DirectIssueBadgeRequest = Pick<
+export type DirectIssueBadgeRequestBase = Pick<
   ManualIssueBadgeRequest,
-  | "badgeTemplateId"
   | "recipientIdentity"
   | "recipientIdentityType"
   | "recipientIdentifiers"
@@ -22,11 +10,14 @@ export type DirectIssueBadgeRequest = Pick<
   | "issuerImageUri"
   | "idempotencyKey"
 > & {
-  issuanceProvenance: DirectIssueBadgeIssuanceProvenance;
   lmsLearnerIdentity?: {
     readonly connectionId: string;
     readonly learnerId: string;
   };
+};
+
+export type DirectIssueBadgeRequest = DirectIssueBadgeRequestBase & {
+  readonly achievementSource: IssuanceAchievementSource;
 };
 
 const normalizeRecipientIdentifierValue = (

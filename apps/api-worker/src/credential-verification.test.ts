@@ -135,6 +135,7 @@ const createEnv = (): {
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
   TENANT_SIGNING_KEY_HISTORY_JSON?: string;
 } => {
   return {
@@ -142,6 +143,7 @@ const createEnv = (): {
     DATABASE_URL: "postgres://credtrail-test.local/db",
     BADGE_OBJECTS: {} as R2Bucket,
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
   };
 };
 
@@ -175,6 +177,14 @@ const sampleAssertion = (overrides?: {
     publicId: "40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
     learnerProfileId: "lpr_123",
     badgeTemplateId: "badge_template_001",
+    achievementSnapshot: {
+      badgeTemplateId: "badge_template_001",
+      title: "TypeScript Foundations",
+      description: "Awarded for completing TypeScript fundamentals.",
+      criteriaUri: "https://example.edu/criteria/typescript",
+      imageUri: "https://example.edu/badges/typescript.png",
+      trustedCredentialMetadataJson: null,
+    },
     recipientIdentity: "learner@example.edu",
     recipientIdentityType: "email",
     vcR2Key: "tenants/tenant_123/assertions/tenant_123%3Aassertion_456.jsonld",
@@ -268,11 +278,12 @@ describe("GET /credentials/v1/:credentialId", () => {
         },
       },
       credentialStatus: {
-        id: "http://localhost/credentials/v1/status-lists/tenant_123/revocation#0",
+        id: "https://credtrail.test/credentials/v1/status-lists/tenant_123/revocation#0",
         type: "BitstringStatusListEntry",
         statusPurpose: "revocation",
         statusListIndex: "0",
-        statusListCredential: "http://localhost/credentials/v1/status-lists/tenant_123/revocation",
+        statusListCredential:
+          "https://credtrail.test/credentials/v1/status-lists/tenant_123/revocation",
       },
     };
 
@@ -312,7 +323,7 @@ describe("GET /credentials/v1/:credentialId", () => {
     expect(body.verification.statusList?.statusPurpose).toBe("revocation");
     expect(body.verification.statusList?.statusListIndex).toBe("0");
     expect(body.verification.statusList?.statusListCredential).toBe(
-      "http://localhost/credentials/v1/status-lists/tenant_123/revocation",
+      "https://credtrail.test/credentials/v1/status-lists/tenant_123/revocation",
     );
     expect(body.verification.checks.jsonLdSafeMode.status).toBe("valid");
     expect(body.verification.checks.credentialSchema.status).toBe("unchecked");
@@ -425,11 +436,12 @@ describe("GET /credentials/v1/:credentialId", () => {
         id: "mailto:learner@example.edu",
       },
       credentialStatus: {
-        id: "http://localhost/credentials/v1/status-lists/tenant_123/revocation#1",
+        id: "https://credtrail.test/credentials/v1/status-lists/tenant_123/revocation#1",
         type: "BitstringStatusListEntry",
         statusPurpose: "revocation",
         statusListIndex: "1",
-        statusListCredential: "http://localhost/credentials/v1/status-lists/tenant_123/revocation",
+        statusListCredential:
+          "https://credtrail.test/credentials/v1/status-lists/tenant_123/revocation",
       },
     };
 

@@ -151,6 +151,16 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     stem: "institution-admin-rule-version",
     sources: ["rule-definition-summary.css", "institution-admin-rule-version.css"],
   },
+  institutionAdminRuleApprovalReviewJs: {
+    kind: "script",
+    stem: "institution-admin-rule-approval-review",
+    sources: ["institution-admin-rule-approval-review.js"],
+  },
+  institutionAdminRuleApprovalReviewCss: {
+    kind: "style",
+    stem: "institution-admin-rule-approval-review",
+    sources: ["institution-admin-rule-approval-review.css"],
+  },
   assertionEvidenceCss: {
     kind: "style",
     stem: "assertion-evidence",
@@ -170,6 +180,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
       "institution-admin-rule-builder-bootstrap.js",
       ADMIN_STATUS_PILL_CLASS_SCRIPT_SOURCE,
       "institution-admin-rule-builder-setup.js",
+      "institution-admin-rule-builder-template-picker.js",
       "institution-admin-rule-builder-steps.js",
       "institution-admin-rule-builder-condition-fields.js",
       "institution-admin-rule-builder-condition-field-renderers.js",

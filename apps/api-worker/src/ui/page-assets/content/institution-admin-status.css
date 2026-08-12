@@ -15,10 +15,6 @@
 .ct-admin__status[data-tone="warning"] {
   color: var(--ct-theme-state-warning);
 }
-.ct-admin__review-impact--loosening {
-  border-inline-start: 3px solid var(--ct-theme-state-warning);
-  padding-inline-start: var(--ct-space-2);
-}
 .ct-admin__hint {
   margin: 0;
   font-size: 0.8rem;

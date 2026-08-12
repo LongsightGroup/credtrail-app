@@ -10,6 +10,8 @@ import {
   latestBadgeIssuanceRuleVersion,
   listAccessibleTenantContextsForUser,
   listBadgeIssuanceRules,
+  listBadgeIssuanceRuleVersionsForRules,
+  listBadgeTemplateRuleUsages,
   resolveListBadgeIssuanceRulesInput,
   listBadgeIssuanceRuleVersions,
   listBadgeTemplates,
@@ -43,6 +45,7 @@ import type { AppContext, AppEnv } from "../app";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";
+import { classifyRuleBuilderBadgeTemplateAvailability } from "../badges/badge-template-rule-availability";
 import type { AppPage } from "../ui/render-page";
 import { renderAppPage } from "../ui/render-page";
 
@@ -513,15 +516,20 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       return c.redirect(rulesPath, 303);
     }
 
-    const badgeRuleVersionLists = await Promise.all(
-      badgeRules.map((rule) =>
-        listBadgeIssuanceRuleVersions(db, {
-          tenantId: route.tenantId,
-          ruleId: rule.id,
-        }),
-      ),
-    );
-    const badgeRuleVersions = badgeRuleVersionLists.flat();
+    const [badgeRuleVersions, badgeTemplateRuleUsages] = await Promise.all([
+      listBadgeIssuanceRuleVersionsForRules(db, {
+        tenantId: route.tenantId,
+        ruleIds: badgeRules.map((rule) => rule.id),
+      }),
+      listBadgeTemplateRuleUsages(db, {
+        tenantId: route.tenantId,
+        badgeTemplateIds: sharedData.badgeTemplates.map((template) => template.id),
+      }),
+    ]);
+    const badgeTemplateAvailability = classifyRuleBuilderBadgeTemplateAvailability({
+      publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
+      badgeTemplates: sharedData.badgeTemplates,
+    });
     const requestUrl = new URL(c.req.url);
     const requestedBadgeTemplateId = (c.req.query("badgeTemplateId") ?? "").trim();
     const selectedBadgeTemplateId = sharedData.badgeTemplates.some(
@@ -546,9 +554,10 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
           ? {}
           : { userEmail: sharedData.currentUser.email }),
         membershipRole,
-        badgeTemplates: sharedData.badgeTemplates,
+        badgeTemplateAvailability,
         badgeRules,
         badgeRuleVersions,
+        badgeTemplateRuleUsages,
         lmsConnections: sharedData.lmsConnections,
         valueLists: sharedData.valueLists,
         builderDraftId,
@@ -651,10 +660,32 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       return c.redirect(rulesPath, 303);
     }
 
-    const sharedData = await loadInstitutionAdminRuleBuilderSharedData(db, {
-      tenantId: pathParams.tenantId,
-      userId: session.userId,
-      ruleId: pathParams.ruleId,
+    const [sharedData, badgeRules] = await Promise.all([
+      loadInstitutionAdminRuleBuilderSharedData(db, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        ruleId: pathParams.ruleId,
+      }),
+      resolveListBadgeIssuanceRulesInput(db, {
+        tenantId: pathParams.tenantId,
+        userId: session.userId,
+        membershipRole,
+      }).then((listInput) => listBadgeIssuanceRules(db, listInput)),
+    ]);
+    const [badgeRuleVersions, badgeTemplateRuleUsages] = await Promise.all([
+      listBadgeIssuanceRuleVersionsForRules(db, {
+        tenantId: pathParams.tenantId,
+        ruleIds: badgeRules.map((rule) => rule.id),
+      }),
+      listBadgeTemplateRuleUsages(db, {
+        tenantId: pathParams.tenantId,
+        badgeTemplateIds: sharedData.badgeTemplates.map((template) => template.id),
+        excludingRuleId: pathParams.ruleId,
+      }),
+    ]);
+    const badgeTemplateAvailability = classifyRuleBuilderBadgeTemplateAvailability({
+      publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
+      badgeTemplates: sharedData.badgeTemplates,
     });
     const requestUrl = new URL(c.req.url);
     const switchOrganizationPath =
@@ -673,9 +704,10 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
           ? {}
           : { userEmail: sharedData.currentUser.email }),
         membershipRole,
-        badgeTemplates: sharedData.badgeTemplates,
-        badgeRules: [editRule],
-        badgeRuleVersions: editRuleVersions,
+        badgeTemplateAvailability,
+        badgeRules,
+        badgeRuleVersions,
+        badgeTemplateRuleUsages,
         lmsConnections: sharedData.lmsConnections,
         valueLists: sharedData.valueLists,
         builderDraftId: sharedData.builderDraft?.id ?? createBadgeRuleBuilderDraftId(),

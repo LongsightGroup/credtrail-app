@@ -25,7 +25,7 @@ export const processBadgeRuleApprovalNotificationJob = async (input: {
   }
 
   const reviewUrl = canonicalAppUrl(
-    input.env.PLATFORM_DOMAIN,
+    input.env.PUBLIC_APP_ORIGIN,
     buildBadgeRuleVersionReviewPath(input.tenantId, input.payload.ruleId, input.payload.versionId),
   );
 

@@ -20,7 +20,6 @@ import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rul
 import { evaluateBadgeRuleLearner } from "../rules/badge-rule-learner-evaluator";
 import { extractBadgeIssuanceRuleRequirements } from "../rules/engine";
 import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
-import { issuanceProvenanceFromContext } from "./issue-badge-provenance";
 
 const COURSE_ROSTER_CONCURRENCY = 4;
 const LEARNER_EVALUATION_CONCURRENCY = 8;
@@ -361,7 +360,6 @@ export const processAutomatedBadgeRule = async (input: {
       );
       const { job } = issueBadgeQueueJobFromRequest({
         tenantId: input.tenantId,
-        badgeTemplateId: version.snapshot.badgeTemplateId,
         recipientIdentity: learner.email,
         recipientIdentityType: "email",
         lmsLearnerIdentity: {
@@ -370,12 +368,15 @@ export const processAutomatedBadgeRule = async (input: {
         },
         ...(learner.displayName.length === 0 ? {} : { recipientDisplayName: learner.displayName }),
         idempotencyKey: `rule-evaluate:${version.id}:${learnerKey}`,
-        issuanceProvenance: issuanceProvenanceFromContext({
-          source: "rule_evaluate",
-          ruleId: rule.id,
-          versionId: version.id,
-          provenanceJson: result.provenanceJson,
-        }),
+        achievementSource: {
+          kind: "rule_version",
+          provenance: {
+            source: "rule_evaluate",
+            ruleId: rule.id,
+            versionId: version.id,
+            provenanceJson: result.provenanceJson,
+          },
+        },
       });
 
       return { status: "matched", issueJob: job };

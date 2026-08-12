@@ -1,10 +1,3 @@
-export const assertionBadgeTemplateJoinSql = `
-  FROM assertions
-  INNER JOIN badge_templates
-    ON badge_templates.tenant_id = assertions.tenant_id
-    AND badge_templates.id = assertions.badge_template_id
-`;
-
 export const buildLegacyLearnerEmailAccessFilter = (): string => {
   return `
     assertions.recipient_identity_type = 'email'

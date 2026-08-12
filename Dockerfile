@@ -33,7 +33,6 @@ FROM node:24-bookworm-slim AS runtime
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV APP_ENV=production
-ENV PLATFORM_DOMAIN=localhost
 ENV PORT=8787
 ENV STORAGE_BACKEND=s3
 

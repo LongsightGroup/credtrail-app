@@ -71,12 +71,14 @@ const createEnv = (): {
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
 } => {
   return {
     APP_ENV: "test",
     DATABASE_URL: "postgres://credtrail-test.local/db",
     BADGE_OBJECTS: {} as R2Bucket,
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
   };
 };
 
@@ -298,7 +300,7 @@ describe("GET /showcase/:tenantId/criteria", () => {
     expect(body).not.toContain("Slug:");
     expect(body).toContain("/showcase/sakai?badgeTemplateId=badge_template_sakai_1000");
     expect(body).toContain(
-      '<link rel="canonical" href="http://localhost/showcase/sakai/criteria?badgeTemplateId=badge_template_sakai_1000"',
+      '<link rel="canonical" href="https://credtrail.test/showcase/sakai/criteria?badgeTemplateId=badge_template_sakai_1000"',
     );
     expect(body).toContain(
       '<meta property="og:title" content="Badge Criteria Registry · sakai | CredTrail"',

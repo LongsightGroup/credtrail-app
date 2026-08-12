@@ -223,8 +223,12 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       assertionId,
     });
 
-    if (evidenceLoaded === null) {
+    if (evidenceLoaded.status === "not_found") {
       return c.text("Assertion not found", 404);
+    }
+
+    if (evidenceLoaded.status === "incomplete") {
+      return c.text("This assertion is missing required issuance evidence.", 409);
     }
 
     const parsedQuery = safeParseIssuedBadgesPageQuery(c.req.query());
@@ -251,7 +255,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
           ? {}
           : { switchOrganizationPath: pageData.switchOrganizationPath }),
         evidencePage: {
-          evidence: buildAssertionEvidencePresentation(evidenceLoaded),
+          evidence: buildAssertionEvidencePresentation(evidenceLoaded.data),
           returnHref,
           evidenceApiPath,
         },

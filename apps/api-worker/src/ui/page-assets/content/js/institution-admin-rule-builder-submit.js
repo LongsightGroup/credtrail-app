@@ -1,3 +1,13 @@
+    const ruleBuilderBadgeTemplatePicker = createBadgeTemplatePickerController({
+      searchField: ruleBuilderBadgeTemplateSearchField,
+      searchInput: ruleBuilderBadgeTemplateSearch,
+      select: ruleBuilderBadgeTemplateSelect,
+      searchStatus: ruleBuilderBadgeTemplateSearchStatus,
+      reusePanel: ruleBuilderBadgeTemplateReuse,
+      reuseMessage: ruleBuilderBadgeTemplateReuseMessage,
+      reuseConfirmation: ruleBuilderBadgeTemplateReuseConfirmation,
+      onStateChange: () => updateStepNavigationState(),
+    });
 
     runRuleBuilderTest = async (options) => {
       const autoRun = options && options.auto === true;
@@ -330,6 +340,14 @@
         return;
       }
 
+      if (!ruleBuilderBadgeTemplatePicker.isComplete()) {
+        const message =
+          'Confirm that reusing this badge represents another valid way to earn the same achievement.';
+        setStatus(ruleCreateStatus, message, true);
+        syncRuleBuilderSummary(message);
+        return;
+      }
+
       let definition;
 
       try {
@@ -380,6 +398,8 @@
           name,
           ...(description.length > 0 ? { description } : {}),
           badgeTemplateId,
+          badgeTemplateReuseAcknowledged:
+            ruleBuilderBadgeTemplatePicker.isReuseAcknowledged(),
           lmsConnectionId,
           definition: definitionWithOptions,
           ...(changeSummary.length > 0 ? { changeSummary } : {}),
@@ -505,6 +525,7 @@
     }
 
     restoreBuilderDraftIfApplicable();
+    ruleBuilderBadgeTemplatePicker.sync();
 
     refreshConditionCardValueListOptions();
     syncRuleBuilderSummary();

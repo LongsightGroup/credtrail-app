@@ -151,6 +151,7 @@ const createEnv = (): {
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
   TENANT_SIGNING_KEY_HISTORY_JSON?: string;
   TENANT_REMOTE_SIGNER_REGISTRY_JSON?: string;
   JOB_PROCESSOR_TOKEN?: string;
@@ -162,6 +163,7 @@ const createEnv = (): {
     DATABASE_URL: "postgres://credtrail-test.local/db",
     BADGE_OBJECTS: {} as R2Bucket,
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
   };
 };
 
@@ -248,6 +250,14 @@ const sampleAssertion = (overrides?: {
     publicId: "40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
     learnerProfileId: "lpr_123",
     badgeTemplateId: "badge_template_001",
+    achievementSnapshot: {
+      badgeTemplateId: "badge_template_001",
+      title: "TypeScript Foundations",
+      description: "Awarded for completing TypeScript fundamentals.",
+      criteriaUri: "https://example.edu/criteria/typescript",
+      imageUri: "https://example.edu/badges/typescript.png",
+      trustedCredentialMetadataJson: null,
+    },
     recipientIdentity: "learner@example.edu",
     recipientIdentityType: "email",
     vcR2Key: "tenants/tenant_123/assertions/tenant_123%3Aassertion_456.jsonld",

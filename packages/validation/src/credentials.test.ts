@@ -119,6 +119,24 @@ describe("issue/revoke request parsers", () => {
     expect(request.idempotencyKey).toBe("idem_issue_123");
   });
 
+  it("rejects caller-supplied governance provenance for programmatic issuance", () => {
+    expect(() => {
+      parseProgrammaticIssueBadgeRequest({
+        tenantId: "tenant_123",
+        badgeTemplateId: "badge_template_001",
+        recipientIdentity: "learner@example.edu",
+        recipientIdentityType: "email",
+        idempotencyKey: "idem_issue_123",
+        issuanceProvenance: {
+          source: "rule_evaluate",
+          ruleId: "rule_123",
+          versionId: "version_123",
+          provenanceJson: "{}",
+        },
+      });
+    }).toThrow(/./);
+  });
+
   it("requires idempotencyKey for programmatic revoke requests", () => {
     expect(() => {
       parseProgrammaticRevokeBadgeRequest({

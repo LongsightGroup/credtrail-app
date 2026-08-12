@@ -14,6 +14,14 @@ const sampleLoadedData = (
       publicId: "cred-abc123",
       learnerProfileId: null,
       badgeTemplateId: "tenant_123:badge_template_001",
+      achievementSnapshot: {
+        badgeTemplateId: "tenant_123:badge_template_001",
+        title: "Applied Analytics",
+        description: "Awarded for analytics coursework.",
+        criteriaUri: "https://example.edu/criteria",
+        imageUri: "https://example.edu/badges/analytics.png",
+        trustedCredentialMetadataJson: null,
+      },
       recipientIdentity: "learner@example.edu",
       recipientIdentityType: "email",
       vcR2Key: "tenants/tenant_123/assertions/tenant_123:assertion_456.jsonld",
@@ -22,21 +30,6 @@ const sampleLoadedData = (
       issuedAt: "2026-03-24T15:00:00.000Z",
       issuedByUserId: "usr_admin",
       revokedAt: null,
-      createdAt: "2026-03-24T15:00:00.000Z",
-      updatedAt: "2026-03-24T15:00:00.000Z",
-    },
-    badgeTemplate: {
-      id: "tenant_123:badge_template_001",
-      tenantId: "tenant_123",
-      slug: "applied-analytics",
-      title: "Applied Analytics",
-      description: "Awarded for analytics coursework.",
-      criteriaUri: "https://example.edu/criteria",
-      imageUri: "https://example.edu/badges/analytics.png",
-      createdByUserId: "usr_admin",
-      ownerOrgUnitId: "tenant_123:org:institution",
-      governanceMetadataJson: null,
-      isArchived: false,
       createdAt: "2026-03-24T15:00:00.000Z",
       updatedAt: "2026-03-24T15:00:00.000Z",
     },
@@ -53,7 +46,15 @@ const sampleLoadedData = (
     attributedOrgUnitName: "Computer Science",
     issuerLabel: "admin@tenant-123.edu",
     evaluation: null,
-    provenance: null,
+    provenance: {
+      assertionId: "tenant_123:assertion_456",
+      tenantId: "tenant_123",
+      source: "manual",
+      ruleId: null,
+      versionId: null,
+      provenanceJson: null,
+      createdAt: "2026-03-24T15:00:00.000Z",
+    },
     rule: null,
     version: null,
     approvalEvents: [],
@@ -110,6 +111,15 @@ describe("buildAssertionEvidencePresentation", () => {
           evaluatedAt: "2026-03-24T15:00:00.000Z",
           createdAt: "2026-03-24T15:00:00.000Z",
         },
+        provenance: {
+          assertionId: "tenant_123:assertion_456",
+          tenantId: "tenant_123",
+          source: "rule_evaluate",
+          ruleId: "tenant_123:brl_123",
+          versionId: "tenant_123:brv_123",
+          provenanceJson: JSON.stringify({ outcome: "matched" }),
+          createdAt: "2026-03-24T15:00:00.000Z",
+        },
         rule: {
           id: "tenant_123:brl_123",
           tenantId: "tenant_123",
@@ -141,6 +151,7 @@ describe("buildAssertionEvidencePresentation", () => {
           activatedAt: "2026-03-22T12:00:00.000Z",
           snapshot: {
             name: "CS101 Excellence",
+            badgeTemplateTitle: "Approved CS101 achievement",
           },
           createdAt: "2026-03-20T12:00:00.000Z",
           updatedAt: "2026-03-22T12:00:00.000Z",
@@ -149,6 +160,8 @@ describe("buildAssertionEvidencePresentation", () => {
     );
 
     expect(presentation.issuance.source).toBe("rule_evaluate");
+    expect(presentation.summary.badgeTitle).toBe("Applied Analytics");
+    expect(presentation.summary.badgeTitle).not.toBe("Approved CS101 achievement");
     expect(presentation.rule?.ruleName).toBe("CS101 Excellence");
     expect(presentation.rule?.versionNumber).toBe(2);
     expect(presentation.evaluationOutcomes.length).toBeGreaterThan(0);
@@ -189,7 +202,7 @@ describe("buildAssertionEvidencePresentation", () => {
     ).toBe(true);
   });
 
-  it("falls back to provenance when no evaluation row exists", () => {
+  it("uses persisted provenance when no evaluation row exists", () => {
     const presentation = buildAssertionEvidencePresentation(
       sampleLoadedData({
         assertion: {

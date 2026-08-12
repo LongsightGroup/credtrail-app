@@ -147,18 +147,37 @@ describe("badge rule review queue schema", () => {
     expect(sql).toContain("'reopened'");
   });
 
-  it("backfills and constrains immutable badge-rule version snapshots", () => {
+  it("requires truthful immutable badge-rule version snapshots", () => {
     const sql = readFileSync(
       new URL("../migrations/0062_badge_rule_version_snapshots.sql", import.meta.url),
       "utf8",
     );
 
-    expect(sql).toContain("UPDATE badge_issuance_rule_versions AS versions");
-    expect(sql).toContain("FROM badge_issuance_rules AS rules");
-    expect(sql).toContain("INNER JOIN badge_templates AS templates");
-    expect(sql).toContain("ALTER COLUMN snapshot_name SET NOT NULL");
+    expect(sql).toContain("requires an empty badge rule version table");
+    expect(sql).not.toContain("UPDATE badge_issuance_rule_versions");
+    expect(sql).not.toContain("JOIN badge_templates");
+    expect(sql).toContain("snapshot_name TEXT NOT NULL");
     expect(sql).toContain("badge_rule_version_snapshot_lms_provider_kind_check");
     expect(sql).not.toContain("DEFAULT ''");
+  });
+
+  it("snapshots every credential-bearing badge template field for governed versions", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0063_badge_rule_achievement_snapshots.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("snapshot_badge_template_description");
+    expect(sql).toContain("snapshot_badge_template_criteria_uri");
+    expect(sql).toContain("snapshot_badge_template_trusted_credential_metadata_json");
+    expect(sql).toContain("achievement_snapshot_json TEXT NOT NULL");
+    expect(sql).toContain("assertions_achievement_snapshot_template_check");
+    expect(sql).toContain("assertion_issuance_provenance_source_shape_check");
+    expect(sql).toContain("FOREIGN KEY (tenant_id, rule_id, version_id)");
+    expect(sql).toContain("REFERENCES badge_issuance_rule_versions (tenant_id, rule_id, id)");
+    expect(sql).toContain("ON DELETE RESTRICT");
+    expect(sql).not.toContain("JOIN badge_templates");
+    expect(sql).not.toContain("UPDATE assertions");
   });
 });
 
@@ -173,7 +192,10 @@ const sampleBadgeIssuanceRuleVersionRow = (): BadgeIssuanceRuleVersionRow => ({
   snapshotDescription: null,
   snapshotBadgeTemplateId: "badge_template_123",
   snapshotBadgeTemplateTitle: "Course badge",
+  snapshotBadgeTemplateDescription: "Course badge description",
+  snapshotBadgeTemplateCriteriaUri: "https://example.edu/criteria/course-badge",
   snapshotBadgeTemplateImageUri: null,
+  snapshotBadgeTemplateTrustedCredentialMetadataJson: null,
   snapshotOrgUnitId: "org_course_123",
   snapshotOwnerOrgUnitId: "org_department_123",
   snapshotLmsProviderKind: "sakai",
@@ -320,7 +342,10 @@ describe("badge issuance rule draft predicates", () => {
     description: "Award for CS101 completion.",
     badgeTemplateId: "badge_template_123",
     badgeTemplateTitle: "CS101 badge",
+    badgeTemplateDescription: "CS101 badge description",
+    badgeTemplateCriteriaUri: "https://example.edu/criteria/cs101",
     badgeTemplateImageUri: null,
+    badgeTemplateTrustedCredentialMetadataJson: null,
     orgUnitId: "tenant_123:org:institution",
     ownerOrgUnitId: "tenant_123:org:institution",
     lmsProviderKind: "canvas",
@@ -448,7 +473,10 @@ describe("badge issuance rule approval transactions", () => {
     snapshotDescription: null,
     snapshotBadgeTemplateId: "badge_template_123",
     snapshotBadgeTemplateTitle: "CS101 Badge",
+    snapshotBadgeTemplateDescription: "CS101 badge description",
+    snapshotBadgeTemplateCriteriaUri: "https://example.edu/criteria/cs101",
     snapshotBadgeTemplateImageUri: null,
+    snapshotBadgeTemplateTrustedCredentialMetadataJson: null,
     snapshotOrgUnitId: "tenant_123:org:institution",
     snapshotOwnerOrgUnitId: "tenant_123:org:institution",
     snapshotLmsProviderKind: "canvas",

@@ -18,7 +18,6 @@ describe("badge template parsers", () => {
       title: "Intro to TypeScript",
       description: "Awarded for completing TypeScript basics.",
       criteriaUri: "https://example.edu/badges/intro-to-ts/criteria",
-      imageUri: "https://cdn.example.edu/badges/intro-to-ts.png",
     });
 
     expect(payload.slug).toBe("intro-to-ts");
@@ -36,10 +35,25 @@ describe("badge template parsers", () => {
   it("accepts update requests with nullable optional fields", () => {
     const payload = parseUpdateBadgeTemplateRequest({
       description: null,
-      imageUri: null,
+      criteriaUri: null,
     });
 
     expect(payload.description).toBeNull();
+  });
+
+  it("rejects artwork changes outside the managed image workflow", () => {
+    expect(() =>
+      parseCreateBadgeTemplateRequest({
+        slug: "intro-to-ts",
+        title: "Intro to TypeScript",
+        imageUri: "https://cdn.example.edu/badges/intro-to-ts.png",
+      }),
+    ).toThrow(/./);
+    expect(() =>
+      parseUpdateBadgeTemplateRequest({
+        imageUri: "https://cdn.example.edu/badges/intro-to-ts.png",
+      }),
+    ).toThrow(/./);
   });
 
   it("rejects empty update payloads", () => {

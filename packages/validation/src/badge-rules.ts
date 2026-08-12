@@ -335,6 +335,7 @@ export const createBadgeIssuanceRuleRequestSchema = z
     name: z.string().trim().min(1).max(200),
     description: z.string().trim().min(1).max(2000).optional(),
     badgeTemplateId: resourceIdSchema,
+    badgeTemplateReuseAcknowledged: z.boolean(),
     lmsConnectionId: resourceIdSchema,
     lmsProviderKind: badgeIssuanceRuleLmsProviderKindSchema.optional(),
     definition: badgeIssuanceRuleDefinitionSchema,
@@ -349,6 +350,7 @@ export const updateBadgeIssuanceRuleDraftRequestSchema = z
     name: z.string().trim().min(1).max(200),
     description: z.string().trim().max(2000).optional(),
     badgeTemplateId: resourceIdSchema,
+    badgeTemplateReuseAcknowledged: z.boolean(),
     lmsConnectionId: resourceIdSchema,
     definition: badgeIssuanceRuleDefinitionSchema,
     changeSummary: z.string().trim().min(1).max(1000).optional(),
@@ -410,27 +412,32 @@ export const saveBadgeIssuanceRuleBuilderDraftRequestSchema = z
   })
   .strict();
 
-export const createBadgeIssuanceRuleVersionRequestSchema = z
-  .object({
-    definition: badgeIssuanceRuleDefinitionSchema,
-    changeSummary: z.string().trim().min(1).max(1000).optional(),
-  })
-  .strict();
+const badgeIssuanceRuleReviewerCommentSchema = z
+  .string({ error: "comment is required when returning or rejecting a version" })
+  .trim()
+  .min(1, "comment is required when returning or rejecting a version")
+  .max(2000);
 
-export const decideBadgeIssuanceRuleVersionRequestSchema = z
-  .object({
-    decision: z.enum(["approved", "rejected", "changes_requested"]),
-    comment: z.string().trim().min(1).max(2000).optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (value.decision === "changes_requested" && value.comment === undefined) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["comment"],
-        message: "comment is required when requesting changes",
-      });
-    }
-  });
+/** Review decisions that require a non-empty reviewer comment. */
+export const BADGE_ISSUANCE_RULE_DECISIONS_REQUIRING_COMMENT = [
+  "rejected",
+  "changes_requested",
+] as const;
+
+export const decideBadgeIssuanceRuleVersionRequestSchema = z.discriminatedUnion("decision", [
+  z
+    .object({
+      decision: z.literal("approved"),
+      comment: badgeIssuanceRuleReviewerCommentSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      decision: z.enum(BADGE_ISSUANCE_RULE_DECISIONS_REQUIRING_COMMENT),
+      comment: badgeIssuanceRuleReviewerCommentSchema,
+    })
+    .strict(),
+]);
 
 export const reopenApprovedBadgeIssuanceRuleVersionRequestSchema = z
   .object({
@@ -630,10 +637,6 @@ export type BadgeIssuanceRuleBuilderDraftPayload = z.infer<
   typeof badgeIssuanceRuleBuilderDraftPayloadSchema
 >;
 
-export type CreateBadgeIssuanceRuleVersionRequest = z.infer<
-  typeof createBadgeIssuanceRuleVersionRequestSchema
->;
-
 export type CreateBadgeIssuanceRuleValueListRequest = z.infer<
   typeof createBadgeIssuanceRuleValueListRequestSchema
 >;
@@ -782,12 +785,6 @@ export const parseBadgeIssuanceRuleValueListQuery = (
   input: unknown,
 ): BadgeIssuanceRuleValueListQuery => {
   return badgeIssuanceRuleValueListQuerySchema.parse(input);
-};
-
-export const parseCreateBadgeIssuanceRuleVersionRequest = (
-  input: unknown,
-): CreateBadgeIssuanceRuleVersionRequest => {
-  return createBadgeIssuanceRuleVersionRequestSchema.parse(input);
 };
 
 export const parseDecideBadgeIssuanceRuleVersionRequest = (

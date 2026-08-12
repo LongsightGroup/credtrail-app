@@ -22,6 +22,7 @@ import {
   AdminTable,
 } from "./components";
 import type { BadgeTemplateHistoryTimelineEntry } from "../badges/badge-template-history";
+import type { BadgeTemplateArtworkReadiness } from "../badges/badge-achievement-snapshot";
 import {
   badgeTemplateHistoryHref,
   toBadgeTemplateClientRecord,
@@ -93,6 +94,7 @@ export interface InstitutionAdminRuleTemplateEditorPageInput {
   membershipRole: TenantMembershipRole;
   badgeTemplate: BadgeTemplateRecord;
   badgeTemplateImageRevisionCount: number;
+  badgeTemplateArtworkReadiness: BadgeTemplateArtworkReadiness;
   returnToRuleBuilder: boolean;
   listPageQuery?: BadgeTemplateListPageQueryOptions;
   detailsNotice?: { tone: "success" | "error"; message: string } | null;
@@ -156,6 +158,7 @@ const renderTemplateCreatePanel = (rulesTemplatesPath: string): HonoElement => {
 
 const renderTemplateEditorFields = (input: {
   selectedTemplate: BadgeTemplateRecord;
+  badgeTemplateArtworkReadiness: BadgeTemplateArtworkReadiness;
   imageRevisionCount: number;
   rulesTemplatesPath: string;
   templateHistoryHref: string;
@@ -188,8 +191,13 @@ const renderTemplateEditorFields = (input: {
         >
           <header class="ct-admin__template-editor-section-header">
             <h2>Template details</h2>
-            <p>Name, description, and criteria shown on issued badge records.</p>
+            <p>Name, description, and criteria used for future badge issuance.</p>
           </header>
+          <AdminStatus data-tone="info">
+            Existing credentials and governed rule versions keep the badge details, criteria,
+            artwork, and trust metadata saved when they were issued or created. Changes here apply
+            only to future direct issuance and future rule versions.
+          </AdminStatus>
           {input.detailsNotice === null || input.detailsNotice === undefined ? null : (
             <AdminStatus id="badge-template-details-notice" data-tone={input.detailsNotice.tone}>
               {input.detailsNotice.message}
@@ -246,16 +254,20 @@ const renderTemplateEditorFields = (input: {
         >
           <header class="ct-admin__template-editor-section-header">
             <h2>Artwork</h2>
-            <p>One approved image is used for issued badges and public badge pages.</p>
+            <p>This image is used for future issuance and future rule versions.</p>
           </header>
           {input.artworkNotice === null || input.artworkNotice === undefined ? null : (
             <AdminStatus id="badge-template-artwork-notice" data-tone={input.artworkNotice.tone}>
               {input.artworkNotice.message}
             </AdminStatus>
           )}
-          <BadgeTemplateEditorCurrentArtwork template={template} />
+          <BadgeTemplateEditorCurrentArtwork
+            template={template}
+            artworkReadiness={input.badgeTemplateArtworkReadiness}
+          />
           <BadgeTemplateEditorArtworkActions
             template={template}
+            artworkReadiness={input.badgeTemplateArtworkReadiness}
             imageUploadPath={imageUploadPath}
             imageApplyPath={imageApplyPath}
           />
@@ -650,7 +662,10 @@ export const institutionAdminRuleTemplateEditorPage = (
               <div>
                 <div class="ct-admin__template-editor-title-row">
                   <h2>{template.title}</h2>
-                  <BadgeTemplateEditorReadyStatus template={template} />
+                  <BadgeTemplateEditorReadyStatus
+                    template={template}
+                    artworkReadiness={input.badgeTemplateArtworkReadiness}
+                  />
                 </div>
                 <p>
                   {template.description ??
@@ -679,6 +694,7 @@ export const institutionAdminRuleTemplateEditorPage = (
           </AdminPanel>
           {renderTemplateEditorFields({
             selectedTemplate: template,
+            badgeTemplateArtworkReadiness: input.badgeTemplateArtworkReadiness,
             imageRevisionCount: input.badgeTemplateImageRevisionCount,
             rulesTemplatesPath: paths.rulesTemplatesPath,
             templateHistoryHref,

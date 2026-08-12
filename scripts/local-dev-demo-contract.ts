@@ -31,7 +31,7 @@ export const localDevDemoTemplates = [
     title: "Applied Analytics TrustEd Credential",
     description: "Awarded for demonstrated applied analytics skill with reviewed evidence.",
     criteriaUri: "https://credentials.example.edu/badges/applied-analytics/criteria",
-    imageUri: "https://credentials.example.edu/badges/applied-analytics/image.png",
+    artworkAsset: "applied_analytics",
     trustedCredentialMetadataJson: JSON.stringify(completeTrustEdCredentialMetadataInput),
   },
   {
@@ -40,7 +40,7 @@ export const localDevDemoTemplates = [
     title: "Workforce Readiness Credential",
     description: "Seeded with intentionally incomplete TrustEd metadata for readiness QA.",
     criteriaUri: "https://credentials.example.edu/badges/workforce-readiness/criteria",
-    imageUri: "https://credentials.example.edu/badges/workforce-readiness/image.png",
+    artworkAsset: null,
     trustedCredentialMetadataJson: JSON.stringify(incompleteTrustEdCredentialMetadataInput),
   },
   {
@@ -49,7 +49,7 @@ export const localDevDemoTemplates = [
     title: "Foundations Badge",
     description: "Awarded for completing the local demo foundations workflow.",
     criteriaUri: "https://localhost/criteria/foundations",
-    imageUri: "https://credentials.example.edu/badges/foundations/image.png",
+    artworkAsset: null,
     trustedCredentialMetadataJson: undefined,
   },
   {
@@ -58,7 +58,7 @@ export const localDevDemoTemplates = [
     title: "Capstone Badge",
     description: "Awarded for demonstrating the capstone skill in the local demo environment.",
     criteriaUri: "https://localhost/criteria/capstone",
-    imageUri: "https://credentials.example.edu/badges/capstone/image.png",
+    artworkAsset: null,
     trustedCredentialMetadataJson: undefined,
   },
 ] as const;

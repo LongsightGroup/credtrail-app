@@ -301,7 +301,6 @@ export const registerBootstrapAdminRoutes = (input: RegisterBootstrapAdminRoutes
         title: request.title,
         ...(request.description === undefined ? {} : { description: request.description }),
         ...(request.criteriaUri === undefined ? {} : { criteriaUri: request.criteriaUri }),
-        ...(request.imageUri === undefined ? {} : { imageUri: request.imageUri }),
         ...(request.trustedCredentialMetadata === undefined
           ? {}
           : { trustedCredentialMetadataJson: JSON.stringify(request.trustedCredentialMetadata) }),

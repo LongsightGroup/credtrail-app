@@ -9,6 +9,7 @@ import {
   cleanupTestResources,
   createBadgeRuleIntegrationFixture,
   describeDbIntegration,
+  loadExpectedBadgeTemplateRevision,
   selectCount,
   uniqueTestId,
 } from "./postgres-test-support.js";
@@ -36,10 +37,10 @@ const createCourseParentOrgUnit = async (fixture: BadgeRuleIntegrationFixture): 
   return department.id;
 };
 
-const createInput = (
+const createInput = async (
   fixture: BadgeRuleIntegrationFixture,
   parentOrgUnitId: string,
-): CreateLtiCourseBadgeRuleInput => {
+): Promise<CreateLtiCourseBadgeRuleInput> => {
   const courseId = uniqueTestId("course");
 
   return {
@@ -54,6 +55,10 @@ const createInput = (
       name: "LTI course badge rule",
       description: "Created by the LTI authoring integration test.",
       badgeTemplateId: fixture.badgeTemplateId,
+      expectedBadgeTemplateRevision: await loadExpectedBadgeTemplateRevision(fixture.db, {
+        tenantId: fixture.tenantId,
+        badgeTemplateId: fixture.badgeTemplateId,
+      }),
       lmsProviderKind: "canvas",
       lmsConnectionId: fixture.lmsConnectionId,
       ruleJson: JSON.stringify({
@@ -83,7 +88,7 @@ describeDbIntegration("LTI course badge-rule authoring with Postgres", () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 
     try {
-      const input = createInput(fixture, await createCourseParentOrgUnit(fixture));
+      const input = await createInput(fixture, await createCourseParentOrgUnit(fixture));
       const concurrentResults = await Promise.all([
         createLtiCourseBadgeRule(fixture.db, input),
         createLtiCourseBadgeRule(fixture.db, input),
@@ -178,7 +183,7 @@ describeDbIntegration("LTI course badge-rule authoring with Postgres", () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 
     try {
-      const input = createInput(fixture, await createCourseParentOrgUnit(fixture));
+      const input = await createInput(fixture, await createCourseParentOrgUnit(fixture));
       const created = await createLtiCourseBadgeRule(fixture.db, input);
       const conflict = await createLtiCourseBadgeRule(fixture.db, {
         ...input,
@@ -215,7 +220,7 @@ describeDbIntegration("LTI course badge-rule authoring with Postgres", () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 
     try {
-      const input = createInput(fixture, await createCourseParentOrgUnit(fixture));
+      const input = await createInput(fixture, await createCourseParentOrgUnit(fixture));
       await upsertBadgeRuleApprovalPolicy(fixture.db, {
         tenantId: fixture.tenantId,
         orgUnitId: input.course.parentOrgUnitId,

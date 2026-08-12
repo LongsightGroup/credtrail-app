@@ -5,7 +5,7 @@ import {
   type IssueBadgeQueueJob,
 } from "@credtrail/validation";
 import { createAuditLog } from "./audit-logs.js";
-import { findBadgeIssuanceRuleVersionById } from "./badge-issuance-rule-reads.js";
+import { findBadgeIssuanceRuleVersionById } from "./badge-issuance-rule-version-reads.js";
 import type { BadgeIssuanceRuleVersionRecord } from "./badge-issuance-rule-types.js";
 import { enqueueJobQueueMessagesOnce } from "./job-queue-enqueue.js";
 import { runSqlTransaction, type SqlDatabase } from "./tenant-scope.js";

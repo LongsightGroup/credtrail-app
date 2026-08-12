@@ -4,7 +4,13 @@ import {
   submitPreparedBadgeRuleVersionWithinTransaction,
 } from "./badge-issuance-rule-submission.js";
 import { deleteBadgeIssuanceRuleBuilderDraftForRule } from "./badge-issuance-rule-builder-drafts.js";
-import { findBadgeTemplateById } from "./badge-templates.js";
+import { findBadgeTemplateById, type BadgeTemplateRecord } from "./badge-templates.js";
+import { badgeTemplateArtworkUsesManagedReference } from "./badge-template-artwork-policy.js";
+import { listBadgeTemplateRuleUsages } from "./badge-template-rule-usage.js";
+import {
+  badgeAchievementSnapshotFromTemplate,
+  badgeAchievementSnapshotsEqual,
+} from "./badge-issuance-rule-achievement-snapshot.js";
 import type {
   BadgeIssuanceRuleAuthoringOutcome,
   BadgeIssuanceRuleAuthoringResult,
@@ -15,16 +21,105 @@ import type {
 } from "./badge-issuance-rule-types.js";
 import {
   createBadgeIssuanceRuleFromLockedBuilderPromotion,
-  createBadgeIssuanceRuleWithConnection,
+  createBadgeIssuanceRuleFromLockedTemplate,
   findBadgeIssuanceRuleBuilderPromotionReplay,
   lockBadgeIssuanceRuleBuilderPromotion,
   lockBadgeIssuanceRuleDraftUpdate,
   updateLockedBadgeIssuanceRuleDraft,
 } from "./badge-issuance-rule-writes.js";
-import { listBadgeIssuanceRuleVersionApprovalSteps } from "./badge-issuance-rule-reads.js";
+import { listBadgeIssuanceRuleVersionApprovalSteps } from "./badge-issuance-rule-approval-reads.js";
 import { runSqlTransaction, type SqlDatabase } from "./tenant-scope.js";
 
 type AuthoringWriteStatus = "created" | "replayed" | "updated";
+
+const lockBadgeTemplateForRuleAuthoring = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly badgeTemplateId: string;
+  },
+): Promise<boolean> => {
+  const row = await db
+    .prepare(
+      `
+      SELECT id
+      FROM badge_templates
+      WHERE tenant_id = ?
+        AND id = ?
+      FOR UPDATE
+    `,
+    )
+    .bind(input.tenantId, input.badgeTemplateId)
+    .first<{ readonly id: string }>();
+
+  return row !== null;
+};
+
+const enforceBadgeTemplateReusePolicy = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly badgeTemplateId: string;
+    readonly expectedBadgeTemplateRevision: CreateBadgeIssuanceRuleAuthoringInput["expectedBadgeTemplateRevision"];
+    readonly badgeTemplateReuseAcknowledged: boolean;
+    readonly excludingRuleId?: string | undefined;
+  },
+): Promise<
+  | {
+      readonly status: "accepted";
+      readonly reusedRuleCount: number;
+      readonly badgeTemplate: BadgeTemplateRecord;
+    }
+  | {
+      readonly status: "rejected";
+      readonly reason:
+        | "template_changed"
+        | "template_artwork_not_immutable"
+        | "template_reuse_confirmation_required";
+    }
+> => {
+  const templateExists = await lockBadgeTemplateForRuleAuthoring(db, input);
+
+  if (!templateExists) {
+    throw new Error(
+      `Badge template "${input.badgeTemplateId}" not found for tenant "${input.tenantId}"`,
+    );
+  }
+
+  const badgeTemplate = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
+
+  if (badgeTemplate === null) {
+    throw new Error(
+      `Locked badge template "${input.badgeTemplateId}" could not be reloaded for tenant "${input.tenantId}"`,
+    );
+  }
+
+  if (!badgeTemplateArtworkUsesManagedReference(badgeTemplate)) {
+    return { status: "rejected", reason: "template_artwork_not_immutable" };
+  }
+
+  if (
+    badgeTemplate.updatedAt !== input.expectedBadgeTemplateRevision.updatedAt ||
+    !badgeAchievementSnapshotsEqual(
+      badgeAchievementSnapshotFromTemplate(badgeTemplate),
+      input.expectedBadgeTemplateRevision.achievementSnapshot,
+    )
+  ) {
+    return { status: "rejected", reason: "template_changed" };
+  }
+
+  const usages = await listBadgeTemplateRuleUsages(db, {
+    tenantId: input.tenantId,
+    badgeTemplateIds: [input.badgeTemplateId],
+    ...(input.excludingRuleId === undefined ? {} : { excludingRuleId: input.excludingRuleId }),
+  });
+
+  if (usages.length > 0 && !input.badgeTemplateReuseAcknowledged) {
+    return { status: "rejected", reason: "template_reuse_confirmation_required" };
+  }
+
+  return { status: "accepted", reusedRuleCount: usages.length, badgeTemplate };
+};
 
 const versionOutcome = (
   version: BadgeIssuanceRuleVersionRecord,
@@ -108,6 +203,8 @@ const recordAuthoringAudit = async (
     readonly actorUserId: string;
     readonly actorRole: CreateBadgeIssuanceRuleAuthoringInput["actorRole"];
     readonly writeStatus: Exclude<AuthoringWriteStatus, "replayed">;
+    readonly badgeTemplateReuseAcknowledged: boolean;
+    readonly reusedRuleCount: number;
     readonly draft: CreateBadgeIssuanceRuleResult;
   },
 ): Promise<void> => {
@@ -124,6 +221,8 @@ const recordAuthoringAudit = async (
       status: input.draft.version.status,
       lmsConnectionId: input.draft.rule.lmsConnectionId,
       lmsProviderKind: input.draft.rule.lmsProviderKind,
+      badgeTemplateReuseAcknowledged: input.badgeTemplateReuseAcknowledged,
+      reusedRuleCount: input.reusedRuleCount,
     },
   });
 };
@@ -137,6 +236,8 @@ const completeAuthoringWrite = async (
     readonly actorUserId: string;
     readonly actorRole: CreateBadgeIssuanceRuleAuthoringInput["actorRole"];
     readonly writeStatus: Exclude<AuthoringWriteStatus, "replayed">;
+    readonly badgeTemplateReuseAcknowledged: boolean;
+    readonly reusedRuleCount: number;
     readonly write: () => Promise<
       | {
           readonly status: "created";
@@ -226,13 +327,18 @@ export const createBadgeIssuanceRuleWithActionWithinTransaction = async (
     return { status: "failed", reason: "unavailable" };
   }
 
-  const badgeTemplate = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
+  const reusePolicy = await enforceBadgeTemplateReusePolicy(db, {
+    tenantId: input.tenantId,
+    badgeTemplateId: input.badgeTemplateId,
+    expectedBadgeTemplateRevision: input.expectedBadgeTemplateRevision,
+    badgeTemplateReuseAcknowledged: input.badgeTemplateReuseAcknowledged,
+  });
 
-  if (badgeTemplate === null) {
-    throw new Error(
-      `Badge template "${input.badgeTemplateId}" not found for tenant "${input.tenantId}"`,
-    );
+  if (reusePolicy.status === "rejected") {
+    return { status: "failed", reason: reusePolicy.reason };
   }
+
+  const badgeTemplate = reusePolicy.badgeTemplate;
 
   const orgUnitId = input.orgUnitId ?? badgeTemplate.ownerOrgUnitId;
   const createInput = {
@@ -255,17 +361,22 @@ export const createBadgeIssuanceRuleWithActionWithinTransaction = async (
     actorUserId: input.actorUserId,
     actorRole: input.actorRole,
     writeStatus: "created",
+    badgeTemplateReuseAcknowledged: input.badgeTemplateReuseAcknowledged,
+    reusedRuleCount: reusePolicy.reusedRuleCount,
     write: () =>
       promotion === null
-        ? createBadgeIssuanceRuleWithConnection(db, createInput).then((draft) => ({
-            status: "created" as const,
-            draft,
-          }))
+        ? createBadgeIssuanceRuleFromLockedTemplate(db, createInput, badgeTemplate).then(
+            (draft) => ({
+              status: "created" as const,
+              draft,
+            }),
+          )
         : createBadgeIssuanceRuleFromLockedBuilderPromotion(db, {
             ...createInput,
             builderDraftId: promotion.builderDraftId,
             builderUserId: input.actorUserId,
             identity: promotion.identity,
+            badgeTemplate,
           }),
   });
 };
@@ -292,6 +403,18 @@ export const updateBadgeIssuanceRuleWithAction = async (
       return { status: "failed", reason: locked.status };
     }
 
+    const reusePolicy = await enforceBadgeTemplateReusePolicy(transactionDb, {
+      tenantId: input.tenantId,
+      badgeTemplateId: input.badgeTemplateId,
+      expectedBadgeTemplateRevision: input.expectedBadgeTemplateRevision,
+      badgeTemplateReuseAcknowledged: input.badgeTemplateReuseAcknowledged,
+      excludingRuleId: input.ruleId,
+    });
+
+    if (reusePolicy.status === "rejected") {
+      return { status: "failed", reason: reusePolicy.reason };
+    }
+
     const orgUnitId = input.orgUnitId ?? locked.rule.orgUnitId;
     const result = await completeAuthoringWrite(transactionDb, {
       action: input.action,
@@ -300,6 +423,8 @@ export const updateBadgeIssuanceRuleWithAction = async (
       actorUserId: input.actorUserId,
       actorRole: input.actorRole,
       writeStatus: "updated",
+      badgeTemplateReuseAcknowledged: input.badgeTemplateReuseAcknowledged,
+      reusedRuleCount: reusePolicy.reusedRuleCount,
       write: async () => {
         const updated = await updateLockedBadgeIssuanceRuleDraft(transactionDb, {
           tenantId: input.tenantId,
@@ -314,6 +439,7 @@ export const updateBadgeIssuanceRuleWithAction = async (
           changeSummary: input.changeSummary,
           createdByUserId: input.actorUserId,
           existingRule: locked.rule,
+          badgeTemplate: reusePolicy.badgeTemplate,
         });
 
         return {

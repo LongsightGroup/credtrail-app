@@ -373,6 +373,122 @@ export const enqueueJobQueueMessage = async (
   };
 };
 
+/**
+ * Atomically persists a queue command or returns the command already owning its idempotency key.
+ * Conflict handling deliberately leaves the original payload, identity, timestamps, and state intact.
+ */
+export const enqueueOrReplayJobQueueMessage = async (
+  db: SqlDatabase,
+  input: EnqueueJobQueueMessageInput,
+): Promise<JobQueueMessageRecord> => {
+  const messageId = createPrefixedId("job");
+  const nowIso = new Date().toISOString();
+  const payloadJson = serializeQueuePayload(input.payload);
+  const maxAttempts = input.maxAttempts ?? 8;
+  const row = await db
+    .prepare(
+      `
+      INSERT INTO job_queue_messages (
+        id,
+        tenant_id,
+        job_type,
+        payload_json,
+        idempotency_key,
+        attempt_count,
+        max_attempts,
+        available_at,
+        leased_until,
+        lease_token,
+        last_error,
+        completed_at,
+        failed_at,
+        status,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?, NULL, NULL, NULL, NULL, NULL, 'pending', ?, ?)
+      ON CONFLICT(tenant_id, job_type, idempotency_key) DO UPDATE SET
+        idempotency_key = job_queue_messages.idempotency_key
+      RETURNING
+        id,
+        tenant_id AS tenantId,
+        job_type AS jobType,
+        payload_json AS payloadJson,
+        idempotency_key AS idempotencyKey,
+        attempt_count AS attemptCount,
+        max_attempts AS maxAttempts,
+        available_at AS availableAt,
+        leased_until AS leasedUntil,
+        lease_token AS leaseToken,
+        last_error AS lastError,
+        completed_at AS completedAt,
+        failed_at AS failedAt,
+        status,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+    `,
+    )
+    .bind(
+      messageId,
+      input.tenantId,
+      input.jobType,
+      payloadJson,
+      input.idempotencyKey,
+      maxAttempts,
+      nowIso,
+      nowIso,
+      nowIso,
+    )
+    .first<JobQueueMessageRow>();
+
+  if (row === null) {
+    throw new Error("Queue insert-or-replay did not return a persisted message");
+  }
+
+  return mapJobQueueMessageRow(row);
+};
+
+/** Finds the queue command currently owning one tenant/type idempotency key. */
+export const findJobQueueMessageByIdempotencyKey = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly jobType: JobQueueMessageType;
+    readonly idempotencyKey: string;
+  },
+): Promise<JobQueueMessageRecord | null> => {
+  const row = await db
+    .prepare(
+      `
+      SELECT
+        id,
+        tenant_id AS tenantId,
+        job_type AS jobType,
+        payload_json AS payloadJson,
+        idempotency_key AS idempotencyKey,
+        attempt_count AS attemptCount,
+        max_attempts AS maxAttempts,
+        available_at AS availableAt,
+        leased_until AS leasedUntil,
+        lease_token AS leaseToken,
+        last_error AS lastError,
+        completed_at AS completedAt,
+        failed_at AS failedAt,
+        status,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM job_queue_messages
+      WHERE tenant_id = ?
+        AND job_type = ?
+        AND idempotency_key = ?
+    `,
+    )
+    .bind(input.tenantId, input.jobType, input.idempotencyKey)
+    .first<JobQueueMessageRow>();
+
+  return row === null ? null : mapJobQueueMessageRow(row);
+};
+
 export const enqueueJobQueueMessageOnce = async (
   db: SqlDatabase,
   input: EnqueueJobQueueMessageOnceInput,

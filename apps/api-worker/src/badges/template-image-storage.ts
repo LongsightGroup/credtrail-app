@@ -1,6 +1,12 @@
 import type { ImmutableCredentialStore } from "@credtrail/core-domain";
+import { managedBadgeTemplateImagePath } from "@credtrail/validation";
 
 export const BADGE_TEMPLATE_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+export const BADGE_TEMPLATE_IMAGE_MAX_FILENAME_CHARACTERS = 255;
+const BADGE_TEMPLATE_IMAGE_MAX_BASE64_CHARACTERS =
+  Math.ceil(BADGE_TEMPLATE_IMAGE_MAX_BYTES / 3) * 4;
+const BADGE_TEMPLATE_IMAGE_MAX_SERIALIZED_BYTES =
+  BADGE_TEMPLATE_IMAGE_MAX_BASE64_CHARACTERS + 4_096;
 const BADGE_TEMPLATE_IMAGE_CACHE_CONTROL = "public, max-age=31536000, immutable";
 const BADGE_TEMPLATE_IMAGE_ARTIFACT_TYPE = "badge-template-image-v1";
 
@@ -45,6 +51,25 @@ export interface LoadedBadgeTemplateImage {
   uploadedAt: string;
 }
 
+export type ReadBadgeTemplateImageResult =
+  | {
+      readonly status: "found";
+      readonly image: LoadedBadgeTemplateImage;
+    }
+  | {
+      readonly status: "missing";
+    }
+  | {
+      readonly status: "invalid";
+      readonly reason:
+        | "invalid_json"
+        | "invalid_payload"
+        | "payload_too_large"
+        | "invalid_base64"
+        | "byte_size_mismatch"
+        | "mime_type_mismatch";
+    };
+
 const encodePathSegment = (value: string): string => {
   const trimmed = value.trim();
 
@@ -59,6 +84,11 @@ export const badgeTemplateImageObjectKey = (ids: BadgeTemplateImageObjectIds): s
   return `tenants/${encodePathSegment(ids.tenantId)}/badge-template-images/${encodePathSegment(
     ids.badgeTemplateId,
   )}/${encodePathSegment(ids.assetId)}.json`;
+};
+
+/** Builds the public route path for one stored immutable badge image. */
+export const badgeTemplateImagePublicPath = (ids: BadgeTemplateImageObjectIds): string => {
+  return managedBadgeTemplateImagePath(ids);
 };
 
 const asciiSlice = (bytes: Uint8Array, start: number, length: number): string => {
@@ -155,17 +185,27 @@ export const badgeTemplateImageMimeTypeFromValue = (
   }
 };
 
-const asStoredBadgeTemplateImageObject = (
+type ParseStoredBadgeTemplateImageObjectResult =
+  | {
+      readonly status: "parsed";
+      readonly payload: StoredBadgeTemplateImageObject;
+    }
+  | {
+      readonly status: "invalid";
+      readonly reason: "invalid_payload" | "payload_too_large";
+    };
+
+const parseStoredBadgeTemplateImageObject = (
   value: unknown,
-): StoredBadgeTemplateImageObject | null => {
+): ParseStoredBadgeTemplateImageObjectResult => {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    return null;
+    return { status: "invalid", reason: "invalid_payload" };
   }
 
   const candidate = value as Record<string, unknown>;
 
   if (candidate.version !== 1) {
-    return null;
+    return { status: "invalid", reason: "invalid_payload" };
   }
 
   if (
@@ -173,7 +213,7 @@ const asStoredBadgeTemplateImageObject = (
     candidate.mimeType !== "image/jpeg" &&
     candidate.mimeType !== "image/webp"
   ) {
-    return null;
+    return { status: "invalid", reason: "invalid_payload" };
   }
 
   if (
@@ -183,20 +223,30 @@ const asStoredBadgeTemplateImageObject = (
     candidate.byteSize < 1 ||
     typeof candidate.uploadedAt !== "string"
   ) {
-    return null;
+    return { status: "invalid", reason: "invalid_payload" };
+  }
+
+  if (
+    candidate.byteSize > BADGE_TEMPLATE_IMAGE_MAX_BYTES ||
+    candidate.base64Data.length > BADGE_TEMPLATE_IMAGE_MAX_BASE64_CHARACTERS
+  ) {
+    return { status: "invalid", reason: "payload_too_large" };
   }
 
   if (candidate.originalFilename !== null && typeof candidate.originalFilename !== "string") {
-    return null;
+    return { status: "invalid", reason: "invalid_payload" };
   }
 
   return {
-    version: 1,
-    mimeType: candidate.mimeType,
-    base64Data: candidate.base64Data,
-    byteSize: candidate.byteSize,
-    uploadedAt: candidate.uploadedAt,
-    originalFilename: candidate.originalFilename,
+    status: "parsed",
+    payload: {
+      version: 1,
+      mimeType: candidate.mimeType,
+      base64Data: candidate.base64Data,
+      byteSize: candidate.byteSize,
+      uploadedAt: candidate.uploadedAt,
+      originalFilename: candidate.originalFilename,
+    },
   };
 };
 
@@ -204,6 +254,21 @@ export const storeBadgeTemplateImage = async (
   store: ImmutableCredentialStore,
   input: StoreBadgeTemplateImageInput,
 ): Promise<StoredBadgeTemplateImage> => {
+  if (input.bytes.byteLength < 1 || input.bytes.byteLength > BADGE_TEMPLATE_IMAGE_MAX_BYTES) {
+    throw new Error(
+      `Badge template image must contain between 1 and ${String(BADGE_TEMPLATE_IMAGE_MAX_BYTES)} bytes`,
+    );
+  }
+
+  if (
+    input.originalFilename !== null &&
+    input.originalFilename.length > BADGE_TEMPLATE_IMAGE_MAX_FILENAME_CHARACTERS
+  ) {
+    throw new Error(
+      `Badge template image filename must not exceed ${String(BADGE_TEMPLATE_IMAGE_MAX_FILENAME_CHARACTERS)} characters`,
+    );
+  }
+
   const key = badgeTemplateImageObjectKey(input);
   const payload: StoredBadgeTemplateImageObject = {
     version: 1,
@@ -213,7 +278,13 @@ export const storeBadgeTemplateImage = async (
     uploadedAt: new Date().toISOString(),
     originalFilename: input.originalFilename,
   };
-  const putResult = await store.put(key, JSON.stringify(payload), {
+  const serialized = JSON.stringify(payload);
+
+  if (new TextEncoder().encode(serialized).byteLength > BADGE_TEMPLATE_IMAGE_MAX_SERIALIZED_BYTES) {
+    throw new Error("Badge template image payload exceeds the stored-object size limit");
+  }
+
+  const putResult = await store.put(key, serialized, {
     httpMetadata: {
       contentType: "application/json; charset=utf-8",
       cacheControl: BADGE_TEMPLATE_IMAGE_CACHE_CONTROL,
@@ -237,41 +308,88 @@ export const storeBadgeTemplateImage = async (
   };
 };
 
-export const loadBadgeTemplateImage = async (
+/** Reads one image object without turning corrupt stored data into an untyped rejection. */
+export const readBadgeTemplateImage = async (
   store: ImmutableCredentialStore,
   ids: BadgeTemplateImageObjectIds,
-): Promise<LoadedBadgeTemplateImage | null> => {
+): Promise<ReadBadgeTemplateImageResult> => {
   const key = badgeTemplateImageObjectKey(ids);
   const storedObject = await store.get(key);
 
   if (storedObject === null) {
-    return null;
+    return { status: "missing" };
+  }
+
+  if (storedObject.size > BADGE_TEMPLATE_IMAGE_MAX_SERIALIZED_BYTES) {
+    return { status: "invalid", reason: "payload_too_large" };
   }
 
   const serialized = await storedObject.text();
-  const parsed = JSON.parse(serialized) as unknown;
-  const payload = asStoredBadgeTemplateImageObject(parsed);
 
-  if (payload === null) {
-    throw new Error(`Stored badge template image payload is invalid for key "${key}"`);
+  if (new TextEncoder().encode(serialized).byteLength > BADGE_TEMPLATE_IMAGE_MAX_SERIALIZED_BYTES) {
+    return { status: "invalid", reason: "payload_too_large" };
   }
 
-  const bytes = base64ToBytes(payload.base64Data);
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(serialized) as unknown;
+  } catch {
+    return { status: "invalid", reason: "invalid_json" };
+  }
+
+  const parsedPayload = parseStoredBadgeTemplateImageObject(parsed);
+
+  if (parsedPayload.status === "invalid") {
+    return parsedPayload;
+  }
+
+  const payload = parsedPayload.payload;
+  let bytes: Uint8Array;
+
+  try {
+    bytes = base64ToBytes(payload.base64Data);
+  } catch {
+    return { status: "invalid", reason: "invalid_base64" };
+  }
 
   if (bytes.byteLength !== payload.byteSize) {
-    throw new Error(`Stored badge template image byte size mismatch for key "${key}"`);
+    return { status: "invalid", reason: "byte_size_mismatch" };
   }
 
   const detectedMimeType = badgeTemplateImageMimeTypeFromBytes(bytes);
 
   if (detectedMimeType === null || detectedMimeType !== payload.mimeType) {
-    throw new Error(`Stored badge template image mime type mismatch for key "${key}"`);
+    return { status: "invalid", reason: "mime_type_mismatch" };
   }
 
   return {
-    mimeType: payload.mimeType,
-    byteSize: payload.byteSize,
-    bytes,
-    uploadedAt: payload.uploadedAt,
+    status: "found",
+    image: {
+      mimeType: payload.mimeType,
+      byteSize: payload.byteSize,
+      bytes,
+      uploadedAt: payload.uploadedAt,
+    },
   };
+};
+
+/** Loads an image for serving, treating corrupt persisted data as an invariant violation. */
+export const loadBadgeTemplateImage = async (
+  store: ImmutableCredentialStore,
+  ids: BadgeTemplateImageObjectIds,
+): Promise<LoadedBadgeTemplateImage | null> => {
+  const result = await readBadgeTemplateImage(store, ids);
+
+  if (result.status === "missing") {
+    return null;
+  }
+
+  if (result.status === "invalid") {
+    throw new Error(
+      `Stored badge template image is invalid for key "${badgeTemplateImageObjectKey(ids)}" (${result.reason})`,
+    );
+  }
+
+  return result.image;
 };

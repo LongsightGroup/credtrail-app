@@ -435,6 +435,61 @@ describeDbIntegration("badge issuance rule approval flows with Postgres", () => 
     }
   });
 
+  it("keeps a pending version unchanged when a return or rejection omits its comment", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+    const reviewerUserId = await createFixtureTenantMember(fixture, { role: "admin" });
+
+    try {
+      const created = await createFixtureRule(fixture);
+
+      await dbModule.upsertBadgeRuleApprovalPolicy(fixture.db, {
+        tenantId: fixture.tenantId,
+        orgUnitId: created.rule.orgUnitId,
+        approvalRequirement: "always",
+        approvalSteps: [{ requiredRole: "admin", label: "Registrar review" }],
+        createdByUserId: fixture.userId,
+      });
+      await dbModule.submitBadgeIssuanceRuleVersionForApproval(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+      });
+
+      const changesWithoutComment = await dbModule.decideBadgeIssuanceRuleVersion(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        decision: "changes_requested",
+        actorUserId: reviewerUserId,
+        actorRole: "admin",
+      });
+      const rejectionWithoutComment = await dbModule.decideBadgeIssuanceRuleVersion(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        decision: "rejected",
+        actorUserId: reviewerUserId,
+        actorRole: "admin",
+      });
+      const version = await dbModule.findBadgeIssuanceRuleVersionById(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+      });
+
+      expect(changesWithoutComment).toEqual({ status: "comment_required" });
+      expect(rejectionWithoutComment).toEqual({ status: "comment_required" });
+      expect(version?.status).toBe("pending_approval");
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId, reviewerUserId],
+      });
+    }
+  });
+
   it("returns versions to draft when an approver requests changes", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
     const reviewerUserId = await createFixtureTenantMember(fixture, { role: "admin" });

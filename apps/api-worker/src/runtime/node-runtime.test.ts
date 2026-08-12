@@ -38,6 +38,7 @@ describe("createNodeRuntimeBindings", () => {
     const bindings = createNodeRuntimeBindings({
       APP_ENV: "production",
       PLATFORM_DOMAIN: "badges.example.edu",
+      PUBLIC_APP_ORIGIN: "https://badges.example.edu",
       DATABASE_URL: "postgres://example/db",
       JOB_PROCESSOR_TOKEN: "job-token",
       BETTER_AUTH_SECRET: "better-auth-secret",
@@ -56,6 +57,7 @@ describe("createNodeRuntimeBindings", () => {
 
     expect(bindings.APP_ENV).toBe("production");
     expect(bindings.PLATFORM_DOMAIN).toBe("badges.example.edu");
+    expect(bindings.PUBLIC_APP_ORIGIN).toBe("https://badges.example.edu");
     expect(bindings.DATABASE_URL).toBe("postgres://example/db");
     expect(bindings.JOB_PROCESSOR_TOKEN).toBe("job-token");
     expect(bindings.BETTER_AUTH_SECRET).toBe("better-auth-secret");
@@ -72,6 +74,8 @@ describe("createNodeRuntimeBindings", () => {
   it("throws when required S3 variables are missing", () => {
     expect(() =>
       createNodeRuntimeBindings({
+        PLATFORM_DOMAIN: "localhost",
+        PUBLIC_APP_ORIGIN: "http://localhost:8787",
         S3_REGION: "us-east-1",
         AWS_ACCESS_KEY_ID: "access",
         AWS_SECRET_ACCESS_KEY: "secret",
@@ -83,6 +87,8 @@ describe("createNodeRuntimeBindings", () => {
     expect(() =>
       createNodeRuntimeBindings({
         APP_ENV: "production",
+        PLATFORM_DOMAIN: "badges.example.edu",
+        PUBLIC_APP_ORIGIN: "https://badges.example.edu",
         S3_BUCKET: "credtrail-badges",
         S3_REGION: "us-east-1",
         AWS_ACCESS_KEY_ID: "access",
@@ -94,6 +100,8 @@ describe("createNodeRuntimeBindings", () => {
   it("throws when SES email is enabled without a from address", () => {
     expect(() =>
       createNodeRuntimeBindings({
+        PLATFORM_DOMAIN: "localhost",
+        PUBLIC_APP_ORIGIN: "http://localhost:8787",
         EMAIL_PROVIDER: "ses",
         S3_BUCKET: "credtrail-badges",
         S3_REGION: "us-east-1",
@@ -101,5 +109,26 @@ describe("createNodeRuntimeBindings", () => {
         AWS_SECRET_ACCESS_KEY: "secret",
       }),
     ).toThrowError("TRANSACTIONAL_EMAIL_FROM_ADDRESS is required");
+  });
+
+  it("rejects missing and invalid public identity configuration before startup", () => {
+    expect(() => createNodeRuntimeBindings({})).toThrowError("PLATFORM_DOMAIN is required");
+    expect(() =>
+      createNodeRuntimeBindings({
+        PLATFORM_DOMAIN: "https://badges.example.edu",
+        PUBLIC_APP_ORIGIN: "https://badges.example.edu",
+      }),
+    ).toThrowError("PLATFORM_DOMAIN must be a hostname without a scheme, path, or port");
+    expect(() =>
+      createNodeRuntimeBindings({
+        PLATFORM_DOMAIN: "badges.example.edu",
+      }),
+    ).toThrowError("PUBLIC_APP_ORIGIN is required");
+    expect(() =>
+      createNodeRuntimeBindings({
+        PLATFORM_DOMAIN: "badges.example.edu",
+        PUBLIC_APP_ORIGIN: "https://badges.example.edu/path",
+      }),
+    ).toThrowError("PUBLIC_APP_ORIGIN must be an absolute HTTP or HTTPS origin");
   });
 });

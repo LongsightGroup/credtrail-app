@@ -72,7 +72,7 @@ describe("LTI dynamic registration invite tokens", () => {
     );
     expect(
       ltiDynamicRegistrationUrl({
-        platformDomain: "credtrail.test",
+        publicAppOrigin: "https://credtrail.test",
         tenantId: "tenant-a",
         inviteToken: token,
       }),

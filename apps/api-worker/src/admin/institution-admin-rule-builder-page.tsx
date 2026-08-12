@@ -1,15 +1,17 @@
 import {
+  indexBadgeTemplateRuleUsages,
   indexBadgeIssuanceRuleVersionsByRuleId,
   latestBadgeIssuanceRuleVersion,
   type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleBuilderDraftRecord,
   type BadgeIssuanceRuleVersionRecord,
-  type BadgeTemplateRecord,
+  type BadgeTemplateRuleUsageRecord,
   type TenantLmsConnectionRecord,
   type TenantMembershipRole,
   type TenantRecord,
 } from "@credtrail/db";
 import { badgeRuleDisplayName } from "../badges/badge-rule-presentation";
+import type { RuleBuilderBadgeTemplateAvailabilityEntry } from "../badges/badge-template-rule-availability";
 import type { RuleValueListBuilderContextEntry } from "./rule-value-lists-presentation";
 import { buildInstitutionAdminRuleBuilderPageContext } from "./institution-admin-rule-builder-context";
 import { appPage, type AppPage } from "../ui/render-page";
@@ -130,9 +132,10 @@ export const institutionAdminRuleBuilderPage = (input: {
   userId: string;
   userEmail?: string;
   membershipRole: TenantMembershipRole;
-  badgeTemplates: readonly BadgeTemplateRecord[];
+  badgeTemplateAvailability: readonly RuleBuilderBadgeTemplateAvailabilityEntry[];
   badgeRules: readonly BadgeIssuanceRuleRecord[];
   badgeRuleVersions: readonly BadgeIssuanceRuleVersionRecord[];
+  badgeTemplateRuleUsages: readonly BadgeTemplateRuleUsageRecord[];
   lmsConnections: readonly TenantLmsConnectionRecord[];
   valueLists: readonly RuleValueListBuilderContextEntry[];
   builderDraftId: string;
@@ -159,6 +162,12 @@ export const institutionAdminRuleBuilderPage = (input: {
   const editSnapshot = editRule?.latestVersion.snapshot ?? null;
   const isEditMode = editRule !== null;
   const builderDraft = input.builderDraft ?? null;
+  const ruleReadyBadgeTemplates = input.badgeTemplateAvailability.flatMap((entry) =>
+    entry.artworkAvailability === "available" ? [entry.template] : [],
+  );
+  const artworkActionBadgeTemplateCount = input.badgeTemplateAvailability.filter(
+    (entry) => entry.artworkAvailability !== "available",
+  ).length;
 
   const editDefinition = (() => {
     if (editRule === null) {
@@ -176,13 +185,20 @@ export const institutionAdminRuleBuilderPage = (input: {
     editSnapshot?.badgeTemplateId ?? input.selectedBadgeTemplateId ?? null;
   const hasSelectedBadgeTemplate =
     selectedBadgeTemplateId !== null &&
-    input.badgeTemplates.some((template) => template.id === selectedBadgeTemplateId);
-  const templateOptions = input.badgeTemplates.map((template, index) => ({
-    template,
-    isSelected: hasSelectedBadgeTemplate
-      ? template.id === selectedBadgeTemplateId
-      : !isEditMode && index === 0,
-  }));
+    ruleReadyBadgeTemplates.some((template) => template.id === selectedBadgeTemplateId);
+  const templateUsageById = indexBadgeTemplateRuleUsages(input.badgeTemplateRuleUsages);
+
+  const templateOptions = [...ruleReadyBadgeTemplates]
+    .sort(
+      (left, right) =>
+        left.title.localeCompare(right.title, "en", { sensitivity: "base", numeric: true }) ||
+        left.id.localeCompare(right.id),
+    )
+    .map((template) => ({
+      template,
+      isSelected: hasSelectedBadgeTemplate && template.id === selectedBadgeTemplateId,
+      ruleUsageNames: (templateUsageById.get(template.id) ?? []).map((usage) => usage.ruleName),
+    }));
 
   const supportedLmsConnections = input.lmsConnections.filter(
     (connection) => connection.providerKind === "canvas" || connection.providerKind === "sakai",
@@ -196,7 +212,8 @@ export const institutionAdminRuleBuilderPage = (input: {
     const counts = new Map<string, number>();
 
     for (const rule of input.badgeRules) {
-      const connectionId = rule.lmsConnectionId;
+      const versions = versionsByRuleId.get(rule.id) ?? [];
+      const connectionId = latestBadgeIssuanceRuleVersion(versions)?.snapshot.lmsConnectionId;
 
       if (typeof connectionId === "string" && connectionId.length > 0) {
         counts.set(connectionId, (counts.get(connectionId) ?? 0) + 1);
@@ -258,12 +275,12 @@ export const institutionAdminRuleBuilderPage = (input: {
 
     const courseIds = extractCourseIdsFromRuleJson(latestVersion.ruleJson);
 
-    if (courseIds.length > 0 && typeof rule.badgeTemplateId === "string") {
-      courseIdByBadgeTemplateId.set(rule.badgeTemplateId, courseIds[0] ?? "");
+    if (courseIds.length > 0) {
+      courseIdByBadgeTemplateId.set(latestVersion.snapshot.badgeTemplateId, courseIds[0] ?? "");
     }
   }
 
-  const badgeTemplateCourseContext = input.badgeTemplates.map((template) => {
+  const badgeTemplateCourseContext = ruleReadyBadgeTemplates.map((template) => {
     const fromExistingRule = courseIdByBadgeTemplateId.get(template.id);
     const fromMetadata = parseGovernanceCourseId(template.governanceMetadataJson);
     const fromText = inferCourseCodeFromText(`${template.slug} ${template.title}`);
@@ -277,8 +294,7 @@ export const institutionAdminRuleBuilderPage = (input: {
     };
   });
 
-  const selectedTemplateOption =
-    templateOptions.find((option) => option.isSelected) ?? templateOptions[0];
+  const selectedTemplateOption = templateOptions.find((option) => option.isSelected);
   const initialTestCourseId =
     selectedTemplateOption === undefined
       ? ""
@@ -385,6 +401,7 @@ export const institutionAdminRuleBuilderPage = (input: {
                 <RuleBuilderMetadataStep
                   isEditMode={isEditMode}
                   templateOptions={templateOptions}
+                  artworkActionTemplateCount={artworkActionBadgeTemplateCount}
                   connectedLmsConnections={connectedLmsConnections}
                   defaultLmsConnectionId={defaultLmsConnectionId}
                   defaultLmsConnection={defaultLmsConnection}

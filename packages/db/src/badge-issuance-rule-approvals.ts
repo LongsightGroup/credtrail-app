@@ -4,10 +4,8 @@ import {
   lockBadgeIssuanceRuleForTransition,
   lockBadgeIssuanceRuleVersionForTransition,
 } from "./badge-issuance-rule-approval-storage.js";
-import {
-  findBadgeIssuanceRuleVersionById,
-  listBadgeIssuanceRuleVersionApprovalSteps,
-} from "./badge-issuance-rule-reads.js";
+import { listBadgeIssuanceRuleVersionApprovalSteps } from "./badge-issuance-rule-approval-reads.js";
+import { findBadgeIssuanceRuleVersionById } from "./badge-issuance-rule-version-reads.js";
 import { actorCanDecideApprovalStep } from "./badge-rule-approval-authorization.js";
 import type {
   DecideBadgeIssuanceRuleVersionInput,
@@ -91,7 +89,7 @@ export const decideBadgeIssuanceRuleVersion = async (
       return { status: "separation_of_duties" };
     }
 
-    if (input.decision === "changes_requested" && (input.comment ?? "").trim().length === 0) {
+    if (input.decision !== "approved" && (input.comment ?? "").trim().length === 0) {
       return { status: "comment_required" };
     }
 

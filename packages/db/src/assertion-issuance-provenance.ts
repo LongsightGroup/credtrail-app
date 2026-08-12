@@ -1,34 +1,42 @@
+import {
+  assertionIssuanceProvenanceInputSchema,
+  type AssertionIssuanceProvenanceInput,
+} from "@credtrail/validation";
 import type { SqlDatabase, SqlRunResult } from "./tenant-scope";
 
-export type AssertionIssuanceProvenanceSource =
-  | "lti_roster"
-  | "rule_evaluate"
-  | "manual"
-  | "programmatic";
+export type AssertionIssuanceProvenanceSource = AssertionIssuanceProvenanceInput["source"];
 
-export interface AssertionIssuanceProvenanceRecord {
-  assertionId: string;
-  tenantId: string;
-  source: AssertionIssuanceProvenanceSource;
-  ruleId: string | null;
-  versionId: string | null;
-  provenanceJson: string | null;
-  createdAt: string;
+interface AssertionIssuanceProvenanceRecordBase {
+  readonly assertionId: string;
+  readonly tenantId: string;
+  readonly createdAt: string;
 }
 
-export interface CreateAssertionIssuanceProvenanceInput {
-  assertionId: string;
-  tenantId: string;
-  source: AssertionIssuanceProvenanceSource;
-  ruleId?: string | undefined;
-  versionId?: string | undefined;
-  provenanceJson?: string | undefined;
-}
+export type AssertionIssuanceProvenanceRecord = AssertionIssuanceProvenanceRecordBase &
+  (
+    | {
+        readonly source: "manual" | "programmatic";
+        readonly ruleId: null;
+        readonly versionId: null;
+        readonly provenanceJson: null;
+      }
+    | {
+        readonly source: "lti_roster" | "rule_evaluate";
+        readonly ruleId: string;
+        readonly versionId: string;
+        readonly provenanceJson: string;
+      }
+  );
+
+export type CreateAssertionIssuanceProvenanceInput = {
+  readonly assertionId: string;
+  readonly tenantId: string;
+} & AssertionIssuanceProvenanceInput;
 
 interface AssertionIssuanceProvenanceRow {
   assertionId: string;
   tenantId: string;
-  source: AssertionIssuanceProvenanceSource;
+  source: string;
   ruleId: string | null;
   versionId: string | null;
   provenanceJson: string | null;
@@ -38,14 +46,33 @@ interface AssertionIssuanceProvenanceRow {
 const mapAssertionIssuanceProvenanceRow = (
   row: AssertionIssuanceProvenanceRow,
 ): AssertionIssuanceProvenanceRecord => {
+  const parsed = assertionIssuanceProvenanceInputSchema.parse({
+    source: row.source,
+    ...(row.ruleId === null ? {} : { ruleId: row.ruleId }),
+    ...(row.versionId === null ? {} : { versionId: row.versionId }),
+    ...(row.provenanceJson === null ? {} : { provenanceJson: row.provenanceJson }),
+  });
+
+  if (parsed.source === "manual" || parsed.source === "programmatic") {
+    return {
+      assertionId: row.assertionId,
+      tenantId: row.tenantId,
+      createdAt: row.createdAt,
+      source: parsed.source,
+      ruleId: null,
+      versionId: null,
+      provenanceJson: null,
+    };
+  }
+
   return {
     assertionId: row.assertionId,
     tenantId: row.tenantId,
-    source: row.source,
-    ruleId: row.ruleId,
-    versionId: row.versionId,
-    provenanceJson: row.provenanceJson,
     createdAt: row.createdAt,
+    source: parsed.source,
+    ruleId: parsed.ruleId,
+    versionId: parsed.versionId,
+    provenanceJson: parsed.provenanceJson,
   };
 };
 
@@ -54,6 +81,7 @@ export const createAssertionIssuanceProvenance = async (
   input: CreateAssertionIssuanceProvenanceInput,
 ): Promise<AssertionIssuanceProvenanceRecord> => {
   const createdAt = new Date().toISOString();
+  const ruleBacked = input.source === "lti_roster" || input.source === "rule_evaluate";
   const insertStatement = (): Promise<SqlRunResult> =>
     db
       .prepare(
@@ -74,9 +102,9 @@ export const createAssertionIssuanceProvenance = async (
         input.assertionId,
         input.tenantId,
         input.source,
-        input.ruleId ?? null,
-        input.versionId ?? null,
-        input.provenanceJson ?? null,
+        ruleBacked ? input.ruleId : null,
+        ruleBacked ? input.versionId : null,
+        ruleBacked ? input.provenanceJson : null,
         createdAt,
       )
       .run();

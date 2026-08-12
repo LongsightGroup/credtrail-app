@@ -4,7 +4,6 @@ import type {
   BadgeIssuanceRuleVersionRecord,
   PendingBadgeIssuanceRuleApprovalRecord,
 } from "@credtrail/db";
-import { BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE } from "@credtrail/db";
 import { buildCompleteTrustEdCredentialMetadata } from "@credtrail/validation/testing";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
@@ -22,11 +21,10 @@ import {
   mockedFindBadgeTemplateById,
   mockedFindBadgeTemplateImageRevisionById,
   mockedFindBadgeIssuanceRuleById,
-  mockedFindBadgeIssuanceRuleBuilderDraftDb,
   mockedFindLtiResourceLinkPlacementForRule,
   mockedEnqueueJobQueueMessageOnce,
   mockedFindTenantMembership,
-  mockedListAccessibleTenantContextsForUser,
+  mockedFindUserById,
   mockedListBadgeIssuanceRuleVersionApprovalEvents,
   mockedListBadgeIssuanceRuleVersionApprovalStepsDb,
   mockedListBadgeIssuanceRules,
@@ -48,10 +46,9 @@ import {
 } from "./institution-admin-page-test-utils";
 import { buildBadgeRuleVersionRecord } from "./test-support/badge-rule-version";
 import { app } from "./index";
-import { readScriptAssetSource, readStyleAssetSource } from "./page-asset-test-utils";
+import { readScriptAssetSource } from "./page-asset-test-utils";
 import { pageAssetPath } from "./ui/page-assets";
 
-const INSTITUTION_ADMIN_CSS = readStyleAssetSource("institutionAdminCss");
 const INSTITUTION_ADMIN_BADGE_TEMPLATE_EDITOR_JS = readScriptAssetSource(
   "institutionAdminBadgeTemplateEditorJs",
 );
@@ -59,7 +56,6 @@ const INSTITUTION_ADMIN_BADGE_TEMPLATE_LIST_JS = readScriptAssetSource(
   "institutionAdminBadgeTemplateListJs",
 );
 const INSTITUTION_ADMIN_JS = readScriptAssetSource("institutionAdminJs");
-const INSTITUTION_ADMIN_RULE_BUILDER_JS = readScriptAssetSource("institutionAdminRuleBuilderJs");
 
 const adminFlashCookieHeader = (response: Response): string => {
   const setCookieHeaders =
@@ -503,6 +499,10 @@ describe("GET /tenants/:tenantId/admin/rules/approvals", () => {
     mockedListPendingBadgeIssuanceRuleApprovalsForActor.mockResolvedValue([
       samplePendingApprovalEntry(),
     ]);
+    mockedFindUserById.mockImplementation(async (_db, userId) => ({
+      id: userId,
+      email: userId === "usr_author" ? "author@example.edu" : "admin@tenant-123.edu",
+    }));
 
     const response = await app.request(
       "/tenants/tenant_123/admin/rules/approvals",
@@ -534,6 +534,8 @@ describe("GET /tenants/:tenantId/admin/rules/approvals", () => {
     );
     expect(body).not.toContain(pageAssetPath("institutionAdminRuleVersionCss"));
     expect(body).not.toContain(pageAssetPath("institutionAdminRuleVersionJs"));
+    expect(body).not.toContain(pageAssetPath("institutionAdminRuleApprovalReviewCss"));
+    expect(body).not.toContain(pageAssetPath("institutionAdminRuleApprovalReviewJs"));
   });
 });
 
@@ -605,11 +607,28 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(rule);
     mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(pendingVersion);
     mockedListBadgeIssuanceRuleVersions.mockResolvedValue([baseVersion, pendingVersion]);
+    mockedFindUserById.mockImplementation(async (_db, userId) => ({
+      id: userId,
+      email: userId === "usr_author" ? "author@example.edu" : "admin@tenant-123.edu",
+    }));
     mockedFindBadgeTemplateById.mockResolvedValue(sampleRuleBadgeTemplate);
     mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([
       samplePendingApprovalStep(),
     ]);
-    mockedListBadgeIssuanceRuleVersionApprovalEvents.mockResolvedValue([]);
+    mockedListBadgeIssuanceRuleVersionApprovalEvents.mockResolvedValue([
+      {
+        id: "brae_submitted",
+        tenantId: "tenant_123",
+        versionId: "brv_approval",
+        stepNumber: 1,
+        action: "submitted",
+        actorUserId: "usr_author",
+        actorRole: "issuer",
+        comment: "Ready for review.",
+        occurredAt: "2026-02-18T12:15:00.000Z",
+        createdAt: "2026-02-18T12:15:00.000Z",
+      },
+    ]);
     mockedListPendingBadgeIssuanceRuleApprovalsForActor.mockResolvedValue([
       samplePendingApprovalEntry(),
     ]);
@@ -630,33 +649,33 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     expect(body).toContain("What this version requires");
     expect(body).toContain("TypeScript Foundations");
     expect(body).toContain("https://example.edu/badges/typescript.png");
-    expect(body).toContain("What Changed");
+    expect(body).not.toContain("Review summary");
+    expect(body).toContain("Submitted by");
+    expect(body).toContain("author@example.edu");
+    expect(body).toContain("What changed");
     expect(body).toContain("Rule settings");
-    expect(body).toContain(
-      "Rule name changed from “CS101 Excellence Rule” to “CS101 Excellence Rule — revised”.",
-    );
-    expect(body).toContain(
-      "Badge template changed from “TypeScript Foundations (badge_template_001)” to “CS101 Distinction Badge (badge_template_002)”.",
-    );
-    expect(body).toContain(
-      "Organization scope changed from “tenant_123:org:institution” to “tenant_123:org:registrar”.",
-    );
-    expect(body).toContain("LMS provider changed from Canvas to Sakai.");
-    expect(body).toContain("LMS connection changed from “lms_canvas” to “lms_sakai”.");
+    expect(body).toContain("Before");
+    expect(body).toContain("Now");
+    expect(body).toContain("CS101 Excellence Rule — revised");
+    expect(body).toContain("CS101 Distinction Badge (badge_template_002)");
+    expect(body).toContain("tenant_123:org:registrar");
+    expect(body).toContain("Sakai");
+    expect(body).toContain("lms_sakai");
     expect(body).toContain("Earning requirements");
+    expect(body).toContain("Loosens requirements");
     expect(body).toContain("Minimum grade lowered from 90% to 80%.");
-    expect(body).toContain("Impact Preview");
-    expect(body).toContain("Check impact");
+    expect(body).toContain("Learner impact");
+    expect(body).toContain("Check learner impact");
     expect(body).toContain("This reads current LMS data and may take a moment.");
-    expect(body).toContain("Approval preserves a version and makes it eligible for activation");
-    expect(body).toContain("only one version can issue new badges at a time");
-    expect(body).toContain("Activating a different rule version never retracts those badges");
+    expect(body).toContain("Approval makes it eligible for activation; it does not replace");
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/impact-preview"',
     );
     expect(body).not.toContain("No LMS course placement is linked to this rule yet.");
-    expect(body).toContain("Approval Chain");
+    expect(body).toContain("Approval progress");
+    expect(body).toContain("Show full audit history (1 event)");
     expect(body).toContain('data-rule-version-navigation=""');
+    expect(body).toContain('action="/tenants/tenant_123/admin/rules/approvals/brl_approval"');
     expect(body).toContain(
       'data-version-url="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_base"',
     );
@@ -665,14 +684,43 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     );
     expect(body).toContain(pageAssetPath("institutionAdminRuleVersionCss"));
     expect(body).toContain(pageAssetPath("institutionAdminRuleVersionJs"));
+    expect(body).toContain(pageAssetPath("institutionAdminRuleApprovalReviewCss"));
+    expect(body).toContain(pageAssetPath("institutionAdminRuleApprovalReviewJs"));
     expect(body).toContain("Department approval");
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/decision"',
     );
     expect(body).not.toContain('name="returnTo"');
-    expect(body).toContain('name="decision" value="approved"');
-    expect(body).toContain('name="decision" value="changes_requested"');
-    expect(body).toContain('name="decision" value="rejected"');
+    expect(body).toContain('value="approved"');
+    expect(body).toContain('value="changes_requested"');
+    expect(body).toContain('value="rejected"');
+    expect(body).toContain("Approve version");
+    expect(body).toContain("Return for changes");
+    expect(body).toContain("Reject version");
+    expect(body).toContain("Record decision");
+    expect(body).toContain('data-rule-review-decision-form=""');
+    expect(body).toContain(
+      'data-rule-review-comment-required-decisions="rejected changes_requested"',
+    );
+    expect(body).toContain('data-rule-review-comment=""');
+  });
+
+  it("redirects a server-rendered version selection within the approval workspace", async () => {
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/approvals/brl_approval?versionId=brv_base",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      createEnv(),
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("location")).toBe(
+      "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_base",
+    );
   });
 
   it("lets the final approver reopen an approved version before activation", async () => {
@@ -737,7 +785,7 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Correct This Approval");
+    expect(body).toContain("Correct this approval");
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/reopen"',
     );
@@ -1347,6 +1395,43 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
 });
 
 describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versionId/decision", () => {
+  it("reports an overlong reviewer comment instead of misclassifying the decision", async () => {
+    const env = createEnv();
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/approvals/brl_approval/versions/brv_approval/decision",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          decision: "rejected",
+          comment: "x".repeat(2001),
+        }).toString(),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(303);
+    expect(mockedDecideBadgeIssuanceRuleVersionDb).not.toHaveBeenCalled();
+
+    const flashResponse = await app.request(
+      "/tenants/tenant_123/admin/rules/approvals",
+      {
+        headers: {
+          Cookie: `better-auth.session_token=session-token; ${adminFlashCookieHeader(response)}`,
+        },
+      },
+      env,
+    );
+
+    expect(await flashResponse.text()).toContain(
+      "Keep the reviewer comment to 2,000 characters or fewer.",
+    );
+  });
+
   it("allows an assigned approver role to post a review workspace decision", async () => {
     mockedFindTenantMembership.mockResolvedValue(sampleMembership("approver"));
     const env = createEnv();
@@ -1545,7 +1630,9 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates/badge_template_001"');
     expect(body).toContain('class="ct-admin__template-image-link"');
     expect(body).toContain('aria-label="Open full size image for TypeScript Foundations"');
-    expect(body).toContain('href="https://example.edu/badges/typescript.png"');
+    expect(body).toContain(
+      'href="https://credtrail.test/badges/assets/tenant_123/badge_template_001/asset_typescript"',
+    );
     expect(body).toContain("New badge template");
     expect(body).not.toContain("Open form");
     expect(body).not.toContain("Hide form");
@@ -1708,7 +1795,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       'action="/tenants/tenant_123/admin/rules/templates/badge_template_001/image-generations/apply"',
     );
     expect(body).toContain('src="https://example.edu/badges/typescript.png"');
-    expect(body).toContain("Ready for rules");
+    expect(body).toContain("Needs managed image");
     expect(body).toContain('id="badge-template-editor-ready-status"');
     expect(body).toContain("Template details");
     expect(body).toContain("Save template details");
@@ -1749,12 +1836,14 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('id="badge-template-editor-current-artwork-media"');
     expect(body).toContain('id="badge-template-editor-current-artwork-status"');
     expect(body).toContain('id="badge-template-editor-current-artwork-detail"');
-    expect(body).toContain("One approved image is used for issued badges and public badge pages.");
+    expect(body).toContain("This image is used for future issuance and future rule versions.");
     expect(body).toContain("Current artwork");
-    expect(body).toContain("Approved image");
-    expect(body).toContain("Approved artwork is set. This template is ready for rules.");
+    expect(body).toContain("Needs managed image");
+    expect(body).toContain(
+      "Replace this image with artwork uploaded or generated in CredTrail before using the template in rules.",
+    );
     expect(body).toContain("Replace artwork");
-    expect(body).toContain("Upload a new image to replace the current artwork.");
+    expect(body).toContain("Upload an approved image or generate a draft to review.");
     expect(body).not.toContain('aria-label="Artwork method"');
     expect(body).not.toContain('id="badge-template-artwork-mode-upload"');
     expect(body).not.toContain('id="badge-template-artwork-mode-generate"');
@@ -1789,6 +1878,49 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       fakeDb,
       "tenant_123",
       "badge_template_001",
+    );
+  });
+
+  it("keeps the badge template editor available when artwork storage cannot be checked", async () => {
+    const env = createEnv();
+    env.BADGE_OBJECTS = {
+      get: async () => {
+        throw new Error("temporary object storage outage");
+      },
+    } as unknown as R2Bucket;
+    mockedFindBadgeTemplateById.mockResolvedValue({
+      id: "badge_template_001",
+      tenantId: "tenant_123",
+      slug: "typescript-foundations",
+      title: "TypeScript Foundations",
+      description: "Awarded for TypeScript basics.",
+      criteriaUri: "https://example.edu/criteria",
+      imageUri:
+        "https://credtrail.test/badges/assets/tenant_123/badge_template_001/asset_typescript",
+      createdByUserId: "usr_admin",
+      ownerOrgUnitId: "tenant_123:org:institution",
+      governanceMetadataJson: null,
+      isArchived: false,
+      createdAt: "2026-02-18T12:00:00.000Z",
+      updatedAt: "2026-02-18T12:00:00.000Z",
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/templates/badge_template_001",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Image check unavailable");
+    expect(body).toContain("Check unavailable");
+    expect(body).toContain(
+      "CredTrail cannot check the stored image right now. Try again before replacing it.",
     );
   });
 
@@ -2566,695 +2698,5 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(missingResponse.status).toBe(200);
     expect(missingBody).toContain("does not match a badge template in this tenant");
     expect(missingBody).toContain("autoOpenTemplateAuditTemplateId&quot;:null");
-  });
-});
-
-describe("GET /tenants/:tenantId/admin/rules/new", () => {
-  it("redirects to login when no session cookie is present", async () => {
-    const env = createEnv();
-    const response = await app.request("/tenants/tenant_123/admin/rules/new", undefined, env);
-
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      "/login?tenantId=tenant_123&next=%2Ftenants%2Ftenant_123%2Fadmin%2Frules%2Fnew&reason=auth_required",
-    );
-  });
-
-  it("renders dedicated rule-builder page for admin membership", async () => {
-    const env = createEnv();
-
-    const response = await app.request(
-      "/tenants/tenant_123/admin/rules/new",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const body = await response.text();
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toContain("text/html");
-    expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(body).toContain("Badge Awarding Rule");
-    expect(body).toContain(pageAssetPath("institutionAdminShellJs"));
-    expect(body).not.toContain(pageAssetPath("institutionAdminJs"));
-    expect(body).toContain(pageAssetPath("institutionAdminRuleBuilderJs"));
-    expect(body).toContain("Define when learners earn this badge");
-    expect(body).toContain('class="ct-admin-content ct-admin-content--rule-builder"');
-    expect(body).toContain('class="ct-admin__builder-shell ct-stack"');
-    expect(body).toContain('aria-label="Rule builder steps"');
-    expect(body).toContain('id="rule-builder-steps"');
-    expect(body).not.toContain('id="rule-builder-stepper"');
-    expect(body).not.toContain("ct-admin__builder-rail");
-    expect(body).not.toContain("ct-admin__builder-main");
-    expect(body).toContain("ct-admin__builder-steps--vertical-stepper");
-    expect(body).toMatch(
-      /data-rule-step-row="test"[\s\S]*?<\/ol>[\s\S]*?id="rule-builder-step-footer"[\s\S]*?id="rule-builder-step-next"/,
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain(
-      "activePanel.append(ruleBuilderStepFooter)",
-    );
-    expect(INSTITUTION_ADMIN_CSS).toContain(
-      ".ct-admin__stepper-step:not(.is-active) .ct-admin__step-copy small",
-    );
-    expect(INSTITUTION_ADMIN_CSS).not.toContain(
-      ".ct-admin__stepper-step:not(.is-active) .ct-admin__step-copy small {\n  display: none;",
-    );
-    expect(INSTITUTION_ADMIN_CSS).toContain(
-      ".ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-locked,\n.ct-admin__builder-steps--vertical-stepper .ct-admin__step-button:disabled {\n  opacity: 1;",
-    );
-    expect(INSTITUTION_ADMIN_CSS).not.toContain(".ct-admin__form button");
-    expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__table .ct-action-group");
-    expect(INSTITUTION_ADMIN_CSS).toContain("flex-wrap: nowrap;");
-    expect(body).toContain('data-rule-step-row="metadata"');
-    expect(body).toContain('class="ct-admin__stepper-header"');
-    expect(body).toContain('class="ct-admin__stepper-content"');
-    expect(body).not.toContain("ct-admin__builder-step-label");
-    expect(body).not.toContain("ct-admin__builder-step-panel");
-    expect(body).toMatch(
-      /class="ct-admin__stepper-step"[^>]*data-rule-step-row="metadata"[\s\S]*?class="ct-admin__stepper-header"[\s\S]*?class="ct-admin__stepper-content"[\s\S]*?id="builder-step-metadata"/,
-    );
-    expect(body).toContain('id="rule-create-form"');
-    expect(body).toContain("ruleBuilderContext");
-    expect(body).toContain("lmsConnectionsApiPath");
-    expect(body).toContain('data-rule-step-target="metadata"');
-    expect(body).toContain('data-rule-step-target="conditions"');
-    expect(body).toContain('data-rule-step-target="test"');
-    expect(body).not.toContain('data-rule-step-target="review"');
-    expect(body).toContain("Step 1 of 3");
-    expect(body).toContain("Test and submit");
-    expect(body).toContain("CredTrail follows your institution");
-    expect(body).toContain("You cannot approve a rule version you create or submit.");
-    expect(body).toContain("automatic-approval policies approve the version");
-    expect(body).toContain('id="rule-builder-condition-list"');
-    expect(body).toContain('id="rule-builder-definition-json"');
-    expect(body).not.toContain('id="rule-builder-step-prev"');
-    expect(body).toContain('id="rule-builder-step-next"');
-    expect(body).toContain('id="rule-builder-submit"');
-    expect(body).toContain('id="rule-builder-save-formal-draft"');
-    expect(body).toContain('id="rule-builder-flow-list"');
-    expect(body).toMatch(
-      /id="rule-builder-add-condition"[^>]*class="[^"]*ct-admin__button[^"]*ct-action--sm/,
-    );
-    expect(body).toMatch(/class="[^"]*ct-admin__builder-toolbar[^"]*ct-action-group/);
-    expect(body).toMatch(/class="[^"]*ct-admin__builder-step-nav[^"]*ct-action-group/);
-    expect(INSTITUTION_ADMIN_CSS).toContain(".ct-admin__builder-grid.ct-grid");
-    expect(body).toContain('id="rule-builder-require-every-requirement"');
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-require-every-requirement");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("prefers-reduced-motion: reduce");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("shouldScrollToActiveBuilderPanel");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toMatch(/setRuleBuilderRootLogic\(["']all["']\)/);
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("data-rule-builder-root-logic-option");
-    expect(body).toMatch(
-      /id="rule-builder-step-next"[^>]*class="[^"]*ct-admin__button[^"]*ct-action--sm/,
-    );
-    expect(body).toMatch(
-      /id="rule-builder-submit"[^>]*form="rule-create-form"[^>]*class="[^"]*ct-admin__button[^"]*ct-action--primary/,
-    );
-    expect(body).toMatch(
-      /id="rule-builder-save-formal-draft"[^>]*form="rule-create-form"[^>]*class="[^"]*ct-admin__button[^"]*ct-action--secondary/,
-    );
-    expect(body).toContain("Create and submit for approval");
-    expect(body).toContain("Create rule draft");
-    expect(body).toMatch(
-      /id="rule-builder-submit"[^>]*name="action"[^>]*value="submit_for_approval"/,
-    );
-    expect(body).toMatch(
-      /id="rule-builder-save-formal-draft"[^>]*name="action"[^>]*value="save_draft"/,
-    );
-    expect(body).toMatch(/id="rule-builder-submit"[^>]*hidden/);
-    expect(body).toMatch(/id="rule-builder-save-formal-draft"[^>]*hidden/);
-    expect(body).not.toMatch(/id="rule-builder-step-next"[^>]*hidden/);
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "ruleBuilderSubmitButton.hidden = !isLastStep",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "ruleBuilderSaveFormalDraftButton.hidden = !isLastStep",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "ruleBuilderStepNextButton.hidden = isLastStep",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("ruleBuilderStepFooter");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "return targetIndex < activeRuleBuilderStepIndex",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "setBuilderStepState(activeRuleBuilderStepIndex + 1)",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toMatch(
-      /Choose ["'] \+ article \+ missingLabels\[0\]/,
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toMatch(
-      /and an ["'] \+ missingLabels\[1\] \+ ["'] before continuing/,
-    );
-    expect(body).not.toContain('id="rule-builder-test-preset"');
-    expect(body).not.toContain('id="rule-builder-apply-test-preset"');
-    expect(body).toContain('id="rule-builder-test-output"');
-    expect(body).toContain('name="testDataSource"');
-    expect(body).toContain('value="lms"');
-    expect(body).toContain('value="example"');
-    expect(body).toContain("A learner in the selected LMS");
-    expect(body).toContain("Generated example data");
-    expect(body).toContain("Learner to test");
-    expect(body).toContain('id="rule-builder-learner-select"');
-    expect(body).toContain('id="rule-builder-learner-filter"');
-    expect(body).toContain('id="rule-builder-learner-filter-query"');
-    expect(body).toContain("This roster is too large for one list. Search to narrow it.");
-    expect(body).not.toContain('id="rule-builder-learner-query"');
-    expect(body).toContain("Testing never issues a badge.");
-    expect(body).not.toContain("Credential recipient email");
-    expect(body).not.toContain("course pathway completion in Sakai");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "A course is complete when all of its gradebook items are complete.",
-    );
-    expect(body).not.toContain("Sample course ID");
-    expect(body).not.toContain('name="testCourseId"');
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "facts = buildSampleFactsFromConditions(readConditionsForPreview(), learnerId)",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("ruleBuilderTestPresetSelect");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("ruleBuilderApplyTestPresetButton");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("applyTestFactPreset");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("'Test example data' : 'Test learner'");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "const testDataSource = getRuleBuilderTestDataSource()",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("loadRuleBuilderLearners");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("void loadRuleBuilderLearners();");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "The only learner in this roster is selected.",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("searchRuleBuilderLearners");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("current LMS rosters");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("lmsProviderKind,");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("if (testDataSource === 'lms')");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "CredTrail could not find all data needed to evaluate this learner.",
-    );
-    expect(body).not.toContain('id="rule-builder-value-list-body"');
-    expect(body).not.toContain("badge-rule-value-lists");
-    expect(body).toContain("valueLists");
-    expect(body).toContain("Rules page");
-    expect(body).toContain("Reload this builder");
-    expect(body).toContain('name="reviewOnMissingFacts"');
-    expect(body).not.toContain('id="rule-builder-simulate"');
-    expect(body).not.toContain('id="rule-builder-simulate-output"');
-    expect(body).not.toContain("Historical simulation");
-    expect(body).toContain('class="ct-admin__builder-steps-title">Build this rule</h2>');
-    expect(body).not.toContain("Follow these steps in order");
-    expect(body).not.toContain('class="ct-admin__step-kicker"');
-    expect(body).toContain("Continue to Requirements");
-    expect(body).toContain('id="rule-builder-step-callout"');
-    expect(body).toContain("Set up this rule");
-    expect(body).toContain("Each requirement describes what a learner must do.");
-    expect(body).toContain("Exclude learners who match this requirement");
-    expect(body).not.toContain("Each row describes one fact CredTrail checks");
-    expect(body).not.toContain("Require completed");
-    expect(body).not.toContain("Reusable course list");
-    expect(body).not.toContain("The awarding pattern starts the requirements list");
-    expect(body).not.toContain("Use pattern");
-    expect(body).not.toContain("rule-builder-apply-test-preset");
-    expect(body).not.toContain("Confirm the badge and Learning Management System source");
-    expect(body).not.toContain('id="rule-builder-return-to-pattern"');
-    expect(body).not.toContain('id="rule-builder-condition-empty"');
-    expect(body).not.toContain("No requirements yet");
-    expect(body).not.toContain("Select Step 1 above");
-    expect(body).not.toContain("Back to Step 1");
-    expect(body).toContain("Advanced JSON tools");
-    expect(body).not.toContain("Advanced tools and reusable lists");
-    expect(body).not.toContain("Reusable lists");
-    expect(body).not.toContain("Reviewer roles (optional)");
-    expect(body).not.toContain("Leave blank for admin review");
-    expect(body).not.toContain('value="admin,owner"');
-    expect(body).not.toContain("Start from a proven pattern");
-    expect(body).not.toContain("Start from an existing rule");
-    expect(body).not.toContain("Load rule");
-    expect(body).toContain("Choose the badge, LMS connection, and how learners earn it");
-    expect(body).toContain('name="lmsConnectionId"');
-    expect(body).toContain("Canvas Test (Canvas)");
-    expect(body).toContain('id="rule-builder-lms-status"');
-    expect(body).toContain('role="alert"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/access/lms-connections"');
-    expect(body).toContain("Update LMS connection");
-    expect(body).toContain("Need a new template?");
-    expect(body).toContain("Create one in Badge Templates");
-    expect(body).toContain(
-      'href="/tenants/tenant_123/admin/rules/templates?returnTo=rule-builder"',
-    );
-    expect(body).toContain("and continue here");
-    expect(body).toContain("Copy existing rule settings");
-    expect(body).toContain("Select rule to copy");
-    expect(body).toContain("Copy settings");
-    expect(body).not.toContain("Save progress");
-    expect(body).not.toContain("Resume saved progress");
-    expect(body).toContain("Edit requirement details");
-    expect(body).toContain('id="rule-builder-test-result"');
-    expect(body).toContain("Import and export");
-    expect(body).not.toContain("Authoring approach");
-    expect(body).toContain("Survey completion");
-    expect(body).toContain("Custom field");
-    expect(body).toContain("Rule flow preview");
-    expect(body).not.toContain("Data sources");
-    expect(body).not.toContain("Draft readiness");
-    expect(body).toContain("Requirement catalog");
-    expect(body).not.toContain("Five-minute walkthrough");
-    expect(body).not.toContain("RULE_BUILDER_TUTORIAL_EMBED_URL");
-    expect(body).not.toContain("Model, test, then release");
-    expect(body).not.toContain('aria-label="Rule builder setup"');
-    expect(body).toContain('href="/tenants/tenant_123/admin"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/operations/learner-records"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/rules"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/rules/templates"');
-    expect(body).toContain('class="ct-admin-sidebar__link-label">Templates</span>');
-    expect(body).toContain('class="ct-admin-sidebar__menu-chevron"');
-    expect(body).toMatch(
-      /<details class="ct-admin-sidebar__group-details"[^>]*open[\s\S]*?Badge Program[\s\S]*?Templates[\s\S]*?Rules/,
-    );
-    expect(body).not.toContain('class="ct-admin-sidebar__link-label">New Rule</span>');
-    expect(body).not.toContain('href="/tenants/tenant_123/admin/rules/new" aria-current="page"');
-    expect(body).toContain("&quot;rulesListPath&quot;:&quot;/tenants/tenant_123/admin/rules&quot;");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("window.location.assign(rulesListPath)");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain(
-      "window.location.assign(tenantAdminPath)",
-    );
-    expect(body).toContain('href="/tenants/tenant_123/admin/access/members"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/access/governance"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/access/api-keys"');
-    expect(body).toContain('href="/tenants/tenant_123/admin/access/org-units"');
-    expect(INSTITUTION_ADMIN_JS).not.toContain("rule-builder-condition-list");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("rule-builder-condition-list");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("credtrail:rule-builder:");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("saveRuleBuilderDraft");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain(
-      "prepareRequest: () => saveRuleBuilderDraft({ quiet: false })",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain(
-      "const draftSaved = await saveRuleBuilderDraft",
-    );
-    expect(body).toContain('id="rule-builder-save-draft"');
-    expect(body).toContain("Save unfinished work");
-    expect(body).toContain("Unfinished work not saved yet.");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("createRuleBuilderAuthoringController");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("review: isTestStepComplete()");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("'/submit-approval'");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("action,");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("Rule submitted for approval.");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "Rule saved and approved by institution policy.",
-    );
-    expect(body).toMatch(
-      /&quot;badgeRuleBuilderDraftApiPath&quot;:&quot;\/v1\/tenants\/tenant_123\/badge-rule-builder-drafts\/brd_[^&]+&quot;/,
-    );
-    expect(mockedFindBadgeIssuanceRuleBuilderDraftDb).not.toHaveBeenCalled();
-  });
-
-  it("preselects a returned badge template in the rule builder", async () => {
-    const env = createEnv();
-    mockedListBadgeTemplates.mockResolvedValue([
-      {
-        id: "badge_template_001",
-        tenantId: "tenant_123",
-        slug: "typescript-foundations",
-        title: "TypeScript Foundations",
-        description: "Awarded for TypeScript basics.",
-        criteriaUri: "https://example.edu/criteria",
-        imageUri: "https://example.edu/badges/typescript.png",
-        createdByUserId: "usr_admin",
-        ownerOrgUnitId: "tenant_123:org:institution",
-        governanceMetadataJson: null,
-        isArchived: false,
-        createdAt: "2026-02-18T12:00:00.000Z",
-        updatedAt: "2026-02-18T12:00:00.000Z",
-      },
-      {
-        id: "badge_template_002",
-        tenantId: "tenant_123",
-        slug: "advanced-analytics",
-        title: "Advanced Analytics",
-        description: "Awarded for analytics mastery.",
-        criteriaUri: null,
-        imageUri: null,
-        createdByUserId: "usr_admin",
-        ownerOrgUnitId: "tenant_123:org:institution",
-        governanceMetadataJson: null,
-        isArchived: false,
-        createdAt: "2026-02-18T12:00:00.000Z",
-        updatedAt: "2026-02-18T12:00:00.000Z",
-      },
-    ]);
-
-    const response = await app.request(
-      "/tenants/tenant_123/admin/rules/new?badgeTemplateId=badge_template_002",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const body = await response.text();
-
-    expect(response.status).toBe(200);
-    expect(body).toContain(
-      '<option value="badge_template_002" selected="">Advanced Analytics (badge_template_002)</option>',
-    );
-    expect(body).toContain(
-      '<option value="badge_template_001">TypeScript Foundations (badge_template_001)</option>',
-    );
-  });
-
-  it("keeps the switch-organization sidebar link on the dedicated rule-builder page", async () => {
-    const env = createEnv();
-    mockedListAccessibleTenantContextsForUser.mockResolvedValue([
-      {
-        tenantId: "tenant_123",
-        tenantSlug: "tenant-123",
-        tenantDisplayName: "Tenant 123",
-        tenantPlanTier: "team",
-        membershipRole: "admin",
-      },
-      {
-        tenantId: "tenant_456",
-        tenantSlug: "tenant-456",
-        tenantDisplayName: "Tenant 456",
-        tenantPlanTier: "enterprise",
-        membershipRole: "admin",
-      },
-    ]);
-
-    const response = await app.request(
-      "/tenants/tenant_123/admin/rules/new",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const body = await response.text();
-
-    expect(response.status).toBe(200);
-    expect(body).toContain("Switch organization");
-    expect(body).toContain(
-      "/account/organizations?next=%2Ftenants%2Ftenant_123%2Fadmin%2Frules%2Fnew",
-    );
-  });
-
-  it("labels rules to copy with their immutable version names", async () => {
-    const env = createEnv();
-    mockedListBadgeIssuanceRules.mockResolvedValue([
-      {
-        id: "brl_copy",
-        tenantId: "tenant_123",
-        name: "Mutable rule head",
-        description: null,
-        badgeTemplateId: "badge_template_001",
-        orgUnitId: "tenant_123:org:institution",
-        ownerOrgUnitId: "tenant_123:org:institution",
-        lmsProviderKind: "canvas",
-        lmsConnectionId: "lms_canvas",
-        activeVersionId: null,
-        createdByUserId: "usr_admin",
-        createdAt: "2026-02-18T12:00:00.000Z",
-        updatedAt: "2026-02-18T12:10:00.000Z",
-      },
-    ]);
-    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
-      buildBadgeRuleVersionRecord({
-        id: "brv_copy",
-        ruleId: "brl_copy",
-        versionNumber: 3,
-        status: "draft",
-        ruleJson: '{"conditions":{"type":"course_membership","courseId":"course_101"}}',
-        changeSummary: null,
-        createdByUserId: "usr_admin",
-        submittedByUserId: null,
-        submittedAt: null,
-        approvedByUserId: null,
-        approvedAt: null,
-        activatedByUserId: null,
-        activatedAt: null,
-        snapshot: {
-          name: "Versioned copy source",
-        },
-        createdAt: "2026-02-18T12:10:00.000Z",
-        updatedAt: "2026-02-18T12:10:00.000Z",
-      }),
-    ]);
-
-    const response = await app.request(
-      "/tenants/tenant_123/admin/rules/new",
-      { headers: { Cookie: "better-auth.session_token=session-token" } },
-      env,
-    );
-    const body = await response.text();
-
-    expect(response.status).toBe(200);
-    expect(body).toContain("Versioned copy source (brl_copy) · latest v3 draft");
-    expect(body).not.toContain("Mutable rule head");
-  });
-});
-
-describe("GET /tenants/:tenantId/admin/rules/drafts/:draftId/edit", () => {
-  it("restores only the unfinished draft named by the URL", async () => {
-    const env = createEnv();
-    mockedFindBadgeIssuanceRuleBuilderDraftDb.mockResolvedValue({
-      id: "brd_exact",
-      tenantId: "tenant_123",
-      userId: "usr_admin",
-      targetKind: "unfinished",
-      ruleId: null,
-      versionId: null,
-      currentStep: "conditions",
-      draftJson: JSON.stringify({
-        name: "Exact draft",
-        description: "Resume this one",
-        badgeTemplateId: "badge_template_001",
-        lmsConnectionId: "lms_canvas",
-        definitionJson: "",
-        builderState: {},
-      }),
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:05:00.000Z",
-    });
-
-    const response = await app.request(
-      "/tenants/tenant_123/admin/rules/drafts/brd_exact/edit",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const body = await response.text();
-
-    expect(response.status).toBe(200);
-    expect(mockedFindBadgeIssuanceRuleBuilderDraftDb).toHaveBeenCalledWith(fakeDb, {
-      tenantId: "tenant_123",
-      userId: "usr_admin",
-      draftId: "brd_exact",
-    });
-    expect(body).toContain(
-      "&quot;badgeRuleBuilderDraftApiPath&quot;:&quot;/v1/tenants/tenant_123/badge-rule-builder-drafts/brd_exact&quot;",
-    );
-    expect(body).toContain("&quot;name&quot;:&quot;Exact draft&quot;");
-  });
-});
-
-describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
-  it("loads eligible draft rule settings into the builder and keeps retesting available", async () => {
-    const env = createEnv();
-    const editRule: BadgeIssuanceRuleRecord = {
-      id: "brl_draft",
-      tenantId: "tenant_123",
-      name: "Draft QA Rule",
-      description: "Mutable rule-row description.",
-      badgeTemplateId: "badge_template_mutable",
-      orgUnitId: "tenant_123:org:institution",
-      ownerOrgUnitId: "tenant_123:org:institution",
-      lmsProviderKind: "sakai",
-      lmsConnectionId: "lms_mutable",
-      activeVersionId: null,
-      createdByUserId: "usr_admin",
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:10:00.000Z",
-    };
-    const editVersion = buildBadgeRuleVersionRecord({
-      id: "brv_draft_2",
-      ruleId: "brl_draft",
-      versionNumber: 2,
-      status: "rejected",
-      ruleJson:
-        '{"conditions":{"type":"assignment_submission","courseId":"course_101","assignmentId":"assignment_1","minScore":90},"options":{"reviewOnMissingFacts":true}}',
-      changeSummary: "Raise final assignment score",
-      createdByUserId: "usr_admin",
-      submittedByUserId: "usr_admin",
-      submittedAt: "2026-02-18T12:05:00.000Z",
-      approvedByUserId: null,
-      approvedAt: null,
-      activatedByUserId: null,
-      activatedAt: null,
-      snapshot: {
-        name: "Versioned Draft QA Rule",
-        description: "Fix the score threshold before review.",
-        badgeTemplateId: "badge_template_001",
-        lmsProviderKind: "canvas",
-        lmsConnectionId: "lms_canvas",
-      },
-      createdAt: "2026-02-18T12:10:00.000Z",
-      updatedAt: "2026-02-18T12:10:00.000Z",
-    });
-
-    mockedFindBadgeIssuanceRuleById.mockResolvedValue(editRule);
-    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([editVersion]);
-
-    const response = await app.request(
-      "/tenants/tenant_123/admin/rules/brl_draft/edit",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const body = await response.text();
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(mockedListBadgeIssuanceRules).not.toHaveBeenCalled();
-    expect(mockedListBadgeIssuanceRuleVersions).toHaveBeenCalledTimes(1);
-    expect(mockedListBadgeIssuanceRuleVersions).toHaveBeenCalledWith(fakeDb, {
-      tenantId: "tenant_123",
-      ruleId: "brl_draft",
-    });
-    expect(body).toContain("Edit Badge Awarding Rule");
-    expect(body).toContain(
-      "Review the current settings, test your changes, then submit a new version for approval.",
-    );
-    expect(body).toContain("Testing never issues a badge.");
-    expect(body).toContain('id="rule-builder-test"');
-    expect(body).toContain('id="rule-builder-save-draft"');
-    expect(body).toContain("Save draft version");
-    expect(body).toContain("Save and submit for approval");
-    expect(body).not.toContain("Copy existing rule settings");
-    expect(body).toContain('value="Versioned Draft QA Rule"');
-    expect(body).not.toContain('value="Draft QA Rule"');
-    expect(body).not.toContain("Mutable rule-row description.");
-    expect(body).not.toContain("badge_template_mutable");
-    expect(body).not.toContain("lms_mutable");
-    expect(body).toContain('data-rule-builder-preserve-name="true"');
-    expect(body).toContain('value="Fix the score threshold before review."');
-    expect(body).toContain(
-      '<option value="badge_template_001" selected="">TypeScript Foundations (badge_template_001)</option>',
-    );
-    expect(body).toContain(
-      '<option value="lms_canvas" data-provider-kind="canvas" selected="">Canvas Test (Canvas)</option>',
-    );
-    expect(body).toContain("&quot;editRule&quot;:{&quot;id&quot;:&quot;brl_draft&quot;");
-    expect(body).toContain("&quot;latestVersionStatus&quot;:&quot;rejected&quot;");
-    expect(body).toContain("&quot;lmsProviderKind&quot;:&quot;canvas&quot;");
-    expect(body).toContain("&quot;assignmentId&quot;:&quot;assignment_1&quot;");
-    expect(body).toContain("&quot;minScore&quot;:90");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "const ruleBuilderSubmitApiPath = isRuleBuilderEditMode",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "badgeRuleApiPath + '/' + encodeURIComponent(editRuleContext.id) + '/draft'",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("editRuleContext.lmsProviderKind");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("New draft version saved.");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain("Rule draft created.");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("New draft version saved: ");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("Rule draft created: ");
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "New draft version saved via visual builder",
-    );
-  });
-
-  it("keeps the admin builder restricted to owner and admin roles", async () => {
-    const env = createEnv();
-    mockedFindTenantMembership.mockResolvedValue(sampleMembership("issuer"));
-
-    const response = await app.request(
-      "/tenants/tenant_123/admin/rules/brl_draft/edit",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-
-    expect(response.status).toBe(403);
-    expect(mockedFindBadgeIssuanceRuleById).not.toHaveBeenCalled();
-  });
-
-  it("redirects protected rules back to the rules page with an error flash", async () => {
-    const env = createEnv();
-    mockedFindBadgeIssuanceRuleById.mockResolvedValue({
-      id: "brl_active",
-      tenantId: "tenant_123",
-      name: "Active protected rule",
-      description: null,
-      badgeTemplateId: "badge_template_001",
-      orgUnitId: "tenant_123:org:institution",
-      ownerOrgUnitId: "tenant_123:org:institution",
-      lmsProviderKind: "canvas",
-      lmsConnectionId: "lms_canvas",
-      activeVersionId: "brv_active",
-      createdByUserId: "usr_admin",
-      createdAt: "2026-02-18T12:00:00.000Z",
-      updatedAt: "2026-02-18T12:00:00.000Z",
-    });
-    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
-      buildBadgeRuleVersionRecord({
-        id: "brv_active",
-        ruleId: "brl_active",
-        versionNumber: 1,
-        status: "active",
-        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
-        changeSummary: "Initial draft",
-        createdByUserId: "usr_admin",
-        submittedByUserId: "usr_admin",
-        submittedAt: "2026-02-18T12:10:00.000Z",
-        approvedByUserId: "usr_admin",
-        approvedAt: "2026-02-18T12:20:00.000Z",
-        activatedByUserId: "usr_admin",
-        activatedAt: "2026-02-18T12:30:00.000Z",
-        updatedAt: "2026-02-18T12:30:00.000Z",
-      }),
-    ]);
-
-    const response = await app.request(
-      "/tenants/tenant_123/admin/rules/brl_active/edit",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/rules");
-
-    const flashCookie = adminFlashCookieHeader(response);
-    const flashResponse = await app.request(
-      "/tenants/tenant_123/admin/rules",
-      {
-        headers: {
-          Cookie: `better-auth.session_token=session-token; ${flashCookie}`,
-        },
-      },
-      env,
-    );
-    const flashBody = await flashResponse.text();
-
-    expect(flashResponse.status).toBe(200);
-    expect(flashBody).toContain(BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE);
   });
 });

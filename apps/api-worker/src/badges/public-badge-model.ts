@@ -5,7 +5,6 @@ import {
   type JsonObject,
 } from "@credtrail/core-domain";
 import {
-  findBadgeTemplateById,
   findAssertionById,
   findAssertionByPublicId,
   findLearnerProfileById,
@@ -19,7 +18,6 @@ export interface VerificationViewModel {
   assertion: AssertionRecord;
   credential: JsonObject;
   recipientDisplayName: string | null;
-  badgeTemplateImageUri: string | null;
   lifecycle: ResolveAssertionLifecycleStateResult;
 }
 
@@ -106,18 +104,6 @@ const loadRecipientDisplayNameForAssertion = async (
   return learnerProfile?.displayName ?? null;
 };
 
-const loadBadgeTemplateImageUriForAssertion = async (
-  db: SqlDatabase,
-  assertion: AssertionRecord,
-): Promise<string | null> => {
-  try {
-    const template = await findBadgeTemplateById(db, assertion.tenantId, assertion.badgeTemplateId);
-    return template?.imageUri ?? null;
-  } catch {
-    return null;
-  }
-};
-
 export const loadVerificationViewModel = async (
   db: SqlDatabase,
   store: ImmutableCredentialStore,
@@ -140,7 +126,6 @@ export const loadVerificationViewModel = async (
   }
 
   const credential = await loadCredentialForAssertion(store, assertion);
-  const badgeTemplateImageUri = await loadBadgeTemplateImageUriForAssertion(db, assertion);
   const lifecycle = (await resolveAssertionLifecycleState(
     db,
     assertion.tenantId,
@@ -160,7 +145,6 @@ export const loadVerificationViewModel = async (
       assertion,
       credential,
       recipientDisplayName: null,
-      badgeTemplateImageUri,
       lifecycle,
     },
   };
@@ -187,10 +171,6 @@ export const loadPublicBadgeViewModel = async (
       db,
       assertionByPublicId,
     );
-    const badgeTemplateImageUri = await loadBadgeTemplateImageUriForAssertion(
-      db,
-      assertionByPublicId,
-    );
     const lifecycle = (await resolveAssertionLifecycleState(
       db,
       assertionByPublicId.tenantId,
@@ -211,7 +191,6 @@ export const loadPublicBadgeViewModel = async (
         assertion: assertionByPublicId,
         credential,
         recipientDisplayName,
-        badgeTemplateImageUri,
         lifecycle,
       },
     };
@@ -240,7 +219,6 @@ export const loadPublicBadgeViewModel = async (
   if (publicBadgePermalinkSegment(assertion) === trimmedIdentifier) {
     const credential = await loadCredentialForAssertion(store, assertion);
     const recipientDisplayName = await loadRecipientDisplayNameForAssertion(db, assertion);
-    const badgeTemplateImageUri = await loadBadgeTemplateImageUriForAssertion(db, assertion);
     const lifecycle = (await resolveAssertionLifecycleState(
       db,
       assertion.tenantId,
@@ -260,7 +238,6 @@ export const loadPublicBadgeViewModel = async (
         assertion,
         credential,
         recipientDisplayName,
-        badgeTemplateImageUri,
         lifecycle,
       },
     };

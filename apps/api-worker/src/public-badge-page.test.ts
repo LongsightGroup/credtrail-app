@@ -11,7 +11,6 @@ vi.mock("@credtrail/db", async () => {
     findAssertionById: vi.fn(),
     findActiveOid4vciAccessTokenByHash: vi.fn(),
     findAssertionByPublicId: vi.fn(),
-    findBadgeTemplateById: vi.fn(),
     findLearnerProfileById: vi.fn(),
     findUserById: vi.fn(),
     listAllLtiIssuerRegistrations: vi.fn(),
@@ -44,14 +43,12 @@ import {
   findAssertionById,
   findActiveOid4vciAccessTokenByHash,
   findAssertionByPublicId,
-  findBadgeTemplateById,
   findLearnerProfileById,
   listAllLtiIssuerRegistrations,
   recordAssertionEngagementEvent,
   resolveAssertionLifecycleState,
   type AssertionEngagementEventRecord,
   type AssertionRecord,
-  type BadgeTemplateRecord,
   type LearnerProfileRecord,
   type Oid4vciAccessTokenRecord,
   type Oid4vciPreAuthorizedCodeRecord,
@@ -68,7 +65,6 @@ const mockedCreateOid4vciPreAuthorizedCode = vi.mocked(createOid4vciPreAuthorize
 const mockedConsumeOid4vciPreAuthorizedCode = vi.mocked(consumeOid4vciPreAuthorizedCode);
 const mockedCreateOid4vciAccessToken = vi.mocked(createOid4vciAccessToken);
 const mockedFindActiveOid4vciAccessTokenByHash = vi.mocked(findActiveOid4vciAccessTokenByHash);
-const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
 const mockedFindLearnerProfileById = vi.mocked(findLearnerProfileById);
 const mockedRecordAssertionEngagementEvent = vi.mocked(recordAssertionEngagementEvent);
 const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
@@ -94,12 +90,14 @@ const createEnv = (): {
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
 } => {
   return {
     APP_ENV: "test",
     DATABASE_URL: "postgres://credtrail-test.local/db",
     BADGE_OBJECTS: {} as R2Bucket,
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
   };
 };
 
@@ -113,6 +111,14 @@ const sampleAssertion = (overrides?: {
     publicId: "40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
     learnerProfileId: "lpr_123",
     badgeTemplateId: "badge_template_001",
+    achievementSnapshot: {
+      badgeTemplateId: "badge_template_001",
+      title: "TypeScript Foundations",
+      description: "Awarded for completing TypeScript fundamentals.",
+      criteriaUri: "https://example.edu/criteria/typescript",
+      imageUri: "https://example.edu/badges/typescript.png",
+      trustedCredentialMetadataJson: null,
+    },
     recipientIdentity: "learner@example.edu",
     recipientIdentityType: "email",
     vcR2Key: "tenants/tenant_123/assertions/tenant_123%3Aassertion_456.jsonld",
@@ -132,25 +138,6 @@ const sampleLearnerProfile = (overrides?: Partial<LearnerProfileRecord>): Learne
     tenantId: "tenant_123",
     subjectId: "urn:credtrail:learner:tenant_123:lpr_123",
     displayName: null,
-    createdAt: "2026-02-10T22:00:00.000Z",
-    updatedAt: "2026-02-10T22:00:00.000Z",
-    ...overrides,
-  };
-};
-
-const sampleBadgeTemplate = (overrides?: Partial<BadgeTemplateRecord>): BadgeTemplateRecord => {
-  return {
-    id: "badge_template_001",
-    tenantId: "tenant_123",
-    slug: "typescript-foundations",
-    title: "TypeScript Foundations",
-    description: "Awarded for completing TypeScript fundamentals.",
-    criteriaUri: "https://example.edu/badges/typescript-foundations/criteria",
-    imageUri: null,
-    createdByUserId: "usr_123",
-    ownerOrgUnitId: "tenant_123:org:institution",
-    governanceMetadataJson: null,
-    isArchived: false,
     createdAt: "2026-02-10T22:00:00.000Z",
     updatedAt: "2026-02-10T22:00:00.000Z",
     ...overrides,
@@ -303,8 +290,6 @@ beforeEach(() => {
   mockedCreateOid4vciAccessToken.mockResolvedValue(sampleOid4vciAccessTokenRecord());
   mockedFindActiveOid4vciAccessTokenByHash.mockReset();
   mockedFindActiveOid4vciAccessTokenByHash.mockResolvedValue(sampleOid4vciAccessTokenRecord());
-  mockedFindBadgeTemplateById.mockReset();
-  mockedFindBadgeTemplateById.mockResolvedValue(null);
   mockedFindLearnerProfileById.mockReset();
   mockedRecordAssertionEngagementEvent.mockReset();
   mockedRecordAssertionEngagementEvent.mockResolvedValue({
@@ -365,11 +350,6 @@ describe("GET /badges/:badgeIdentifier", () => {
     mockedFindLearnerProfileById.mockResolvedValue(
       sampleLearnerProfile({
         displayName: "Ada Lovelace",
-      }),
-    );
-    mockedFindBadgeTemplateById.mockResolvedValue(
-      sampleBadgeTemplate({
-        imageUri: "https://cdn.example.edu/badges/typescript-foundations/template.png",
       }),
     );
     mockedGetImmutableCredentialObject.mockResolvedValue(credential);
@@ -444,25 +424,21 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).toContain("Scan with your phone camera or wallet app.");
     expect(body).toContain("Open Badges 3.0 JSON");
     expect(body).toContain(
-      '<link rel="alternate" type="application/vc+ld+json" href="http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/jsonld"',
+      '<link rel="alternate" type="application/vc+ld+json" href="https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/jsonld"',
     );
     expect(body).toContain(
-      '<link rel="alternate" type="application/json" href="http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/summary"',
+      '<link rel="alternate" type="application/json" href="https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/summary"',
     );
     expect(body).toContain("Awarded for completing TypeScript fundamentals.");
     expect(body).toContain("https://example.edu/badges/typescript-foundations/criteria");
     expect(body).toContain("/showcase/tenant_123/criteria?badgeTemplateId=badge_template_001");
-    expect(body).toContain(
-      'src="https://cdn.example.edu/badges/typescript-foundations/template.png"',
-    );
-    expect(body).toContain(
-      'data-fallback-src="https://example.edu/badges/typescript-foundations/image.png"',
-    );
+    expect(body).toContain('src="https://example.edu/badges/typescript-foundations/image.png"');
+    expect(body).not.toContain("data-fallback-src");
     expect(body).toContain("Capstone Submission");
     expect(body).toContain("https://example.edu/evidence/gradebook/123");
     expect(body).toContain("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22");
     expect(body).toContain(
-      '<link rel="canonical" href="http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22"',
+      '<link rel="canonical" href="https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22"',
     );
     expect(body).toContain(
       '<meta name="description" content="Awarded for completing TypeScript fundamentals."',
@@ -471,14 +447,14 @@ describe("GET /badges/:badgeIdentifier", () => {
       '<meta property="og:title" content="TypeScript Foundations | CredTrail"',
     );
     expect(body).toContain(
-      '<meta property="og:url" content="http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22"',
+      '<meta property="og:url" content="https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22"',
     );
     expect(body).toContain(
-      '<meta property="og:image" content="https://cdn.example.edu/badges/typescript-foundations/template.png"',
+      '<meta property="og:image" content="https://example.edu/badges/typescript-foundations/image.png"',
     );
     expect(body).toContain('<meta name="twitter:card" content="summary_large_image"');
     expect(body).toContain(
-      '<meta name="twitter:image" content="https://cdn.example.edu/badges/typescript-foundations/template.png"',
+      '<meta name="twitter:image" content="https://example.edu/badges/typescript-foundations/image.png"',
     );
     expect(mockedRecordAssertionEngagementEvent).toHaveBeenCalledWith(
       fakeDb,
@@ -575,7 +551,6 @@ describe("GET /badges/:badgeIdentifier", () => {
 
     mockedFindAssertionByPublicId.mockResolvedValue(seededDemo.assertion);
     mockedFindLearnerProfileById.mockResolvedValue(seededDemo.learnerProfile);
-    mockedFindBadgeTemplateById.mockResolvedValue(seededDemo.badgeTemplate);
     mockedGetImmutableCredentialObject.mockResolvedValue(seededDemo.credential);
 
     const response = await app.request(seededDemo.routeFamily.publicCredential, undefined, env);
@@ -637,7 +612,7 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(mockedListLtiIssuerRegistrations).not.toHaveBeenCalled();
   });
 
-  it("rebuilds canonical and LinkedIn links for the current platform host after platform move", async () => {
+  it("ignores the request host when building public credential links", async () => {
     const env = createEnv();
     const credential: JsonObject = {
       id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
@@ -663,19 +638,19 @@ describe("GET /badges/:badgeIdentifier", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain(
-      '<link rel="canonical" href="http://badges.newcredtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22"',
+      '<link rel="canonical" href="https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22"',
     );
     expect(body).toContain(
-      '<meta property="og:url" content="http://badges.newcredtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22"',
+      '<meta property="og:url" content="https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22"',
     );
     expect(body).toContain(
       '<meta name="description" content="TypeScript Foundations credential issued by Example University."',
     );
     expect(body).toContain(
-      'data-copy-value="http://badges.newcredtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22"',
+      'data-copy-value="https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22"',
     );
     expect(body).toContain(
-      "credential_offer_uri=http%3A%2F%2Fbadges.newcredtrail.test%2Fcredentials%2Fv1%2Foffers%2F40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
+      "credential_offer_uri=https%3A%2F%2Fcredtrail.test%2Fcredentials%2Fv1%2Foffers%2F40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
     );
   });
 
@@ -979,27 +954,27 @@ describe("GET /badges/:badgeIdentifier", () => {
     }>();
 
     expect(response.status).toBe(200);
-    expect(body.credential_issuer).toBe("http://localhost");
+    expect(body.credential_issuer).toBe("https://credtrail.test");
     expect(body.credential_configuration_ids).toContain("OpenBadgeCredential");
     expect(
       body.grants["urn:ietf:params:oauth:grant-type:pre-authorized_code"]["pre-authorized_code"],
     ).toMatch(/^oid4vci_pc_/);
-    expect(body.x_credtrail.token_endpoint).toBe("http://localhost/credentials/v1/token");
+    expect(body.x_credtrail.token_endpoint).toBe("https://credtrail.test/credentials/v1/token");
     expect(body.x_credtrail.credential_endpoint).toBe(
-      "http://localhost/credentials/v1/credentials",
+      "https://credtrail.test/credentials/v1/credentials",
     );
     expect(body.x_credtrail.offer_expires_at).toMatch(/^20/);
     expect(body.x_credtrail.public_badge_url).toBe(
-      "http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
+      "https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
     );
     expect(body.x_credtrail.verification_url).toBe(
-      "http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/verification",
+      "https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/verification",
     );
     expect(body.x_credtrail.credential_jsonld_url).toBe(
-      "http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/jsonld",
+      "https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/jsonld",
     );
     expect(body.x_credtrail.credential_download_url).toBe(
-      "http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/download",
+      "https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/download",
     );
     expect(mockedCreateOid4vciPreAuthorizedCode).toHaveBeenCalledTimes(1);
   });
@@ -1078,9 +1053,9 @@ describe("GET /badges/:badgeIdentifier", () => {
     }>();
 
     expect(response.status).toBe(200);
-    expect(body.credential_issuer).toBe("http://localhost");
-    expect(body.token_endpoint).toBe("http://localhost/credentials/v1/token");
-    expect(body.credential_endpoint).toBe("http://localhost/credentials/v1/credentials");
+    expect(body.credential_issuer).toBe("https://credtrail.test");
+    expect(body.token_endpoint).toBe("https://credtrail.test/credentials/v1/token");
+    expect(body.credential_endpoint).toBe("https://credtrail.test/credentials/v1/credentials");
     expect(body.credential_configurations_supported.OpenBadgeCredential?.format).toBe("ldp_vc");
   });
 
@@ -1124,7 +1099,7 @@ describe("GET /badges/:badgeIdentifier", () => {
 
     expect(response.status).toBe(201);
     expect(body.credential_offer_uri).toBe(
-      "http://localhost/credentials/v1/offers/40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
+      "https://credtrail.test/credentials/v1/offers/40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
     );
     expect(
       body.credential_offer.grants["urn:ietf:params:oauth:grant-type:pre-authorized_code"][
@@ -1158,9 +1133,9 @@ describe("GET /badges/:badgeIdentifier", () => {
     }>();
 
     expect(response.status).toBe(200);
-    expect(body.credentialRequestOrigin).toBe("http://localhost");
+    expect(body.credentialRequestOrigin).toBe("https://credtrail.test");
     expect(body.protocols.vcapi).toBe(
-      "http://localhost/credentials/v1/dcc/exchanges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
+      "https://credtrail.test/credentials/v1/dcc/exchanges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
     );
     expect(body.app_link_deep_link_url).toContain("https://lcw.app/request?request=");
     expect(body.custom_protocol_deep_link_url).toContain("dccrequest://");
@@ -1173,7 +1148,7 @@ describe("GET /badges/:badgeIdentifier", () => {
       };
       credentialRequestOrigin?: string;
     };
-    expect(parsedRequestPayload.credentialRequestOrigin).toBe("http://localhost");
+    expect(parsedRequestPayload.credentialRequestOrigin).toBe("https://credtrail.test");
     expect(parsedRequestPayload.protocols?.vcapi).toBe(body.protocols.vcapi);
   });
 
@@ -1214,8 +1189,10 @@ describe("GET /badges/:badgeIdentifier", () => {
     }>();
 
     expect(response.status).toBe(200);
-    expect(body.credentialRequestOrigin).toBe("http://localhost");
-    expect(body.redirectUrl).toBe("http://localhost/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22");
+    expect(body.credentialRequestOrigin).toBe("https://credtrail.test");
+    expect(body.redirectUrl).toBe(
+      "https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
+    );
     expect(body.verifiablePresentation.type).toEqual(["VerifiablePresentation"]);
     expect(body.verifiablePresentation.verifiableCredential).toEqual([credential]);
   });

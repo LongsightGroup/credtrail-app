@@ -1,5 +1,6 @@
 import * as dbModule from "@credtrail/db";
 import { expect, it } from "vitest";
+import { createTestBadgeIssuanceRule } from "../../../../packages/db/src/badge-issuance-rule-test-fixtures";
 import {
   cleanupTestResources,
   createBadgeRuleIntegrationFixture,
@@ -58,7 +59,7 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 
     try {
-      const created = await dbModule.createBadgeIssuanceRule(fixture.db, {
+      const created = await createTestBadgeIssuanceRule(fixture.db, {
         tenantId: fixture.tenantId,
         name: "Three-course pathway",
         badgeTemplateId: fixture.badgeTemplateId,
@@ -74,6 +75,22 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
         }),
         createdByUserId: fixture.userId,
       });
+      await fixture.db
+        .prepare(
+          `
+          UPDATE badge_templates
+          SET
+            title = 'Changed after rule approval',
+            description = 'Mutable template description',
+            criteria_uri = 'https://example.edu/criteria/changed',
+            image_uri = 'https://example.edu/badges/changed.png',
+            trusted_credential_metadata_json = '{"credentialType":"Certificate"}'
+          WHERE tenant_id = ?
+            AND id = ?
+        `,
+        )
+        .bind(fixture.tenantId, fixture.badgeTemplateId)
+        .run();
       await fixture.db
         .prepare("UPDATE badge_issuance_rule_versions SET status = 'approved' WHERE id = ?")
         .bind(created.version.id)
@@ -146,12 +163,17 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
           connectionId: fixture.lmsConnectionId,
           learnerId: "learner-complete",
         },
-        issuanceProvenance: {
-          source: "rule_evaluate",
-          ruleId: created.rule.id,
-          versionId: created.version.id,
+        achievementSource: {
+          kind: "rule_version",
+          provenance: {
+            source: "rule_evaluate",
+            ruleId: created.rule.id,
+            versionId: created.version.id,
+          },
         },
       });
+      expect(queuedIssuancePayload).not.toHaveProperty("badgeTemplateId");
+      expect(queuedIssuancePayload).not.toHaveProperty("achievementSnapshot");
       expect(queuedIssuancePayload).not.toHaveProperty("recipientIdentifiers");
     } finally {
       await cleanupTestResources(fixture.db, {
@@ -165,7 +187,7 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 
     try {
-      const created = await dbModule.createBadgeIssuanceRule(fixture.db, {
+      const created = await createTestBadgeIssuanceRule(fixture.db, {
         tenantId: fixture.tenantId,
         name: "End-of-term pathway",
         badgeTemplateId: fixture.badgeTemplateId,
@@ -259,7 +281,7 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 
     try {
-      const created = await dbModule.createBadgeIssuanceRule(fixture.db, {
+      const created = await createTestBadgeIssuanceRule(fixture.db, {
         tenantId: fixture.tenantId,
         name: "Concurrent suspension pathway",
         badgeTemplateId: fixture.badgeTemplateId,
@@ -353,7 +375,7 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 
     try {
-      const created = await dbModule.createBadgeIssuanceRule(fixture.db, {
+      const created = await createTestBadgeIssuanceRule(fixture.db, {
         tenantId: fixture.tenantId,
         name: "End-of-term without courses",
         badgeTemplateId: fixture.badgeTemplateId,
@@ -406,7 +428,7 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 
     try {
-      const created = await dbModule.createBadgeIssuanceRule(fixture.db, {
+      const created = await createTestBadgeIssuanceRule(fixture.db, {
         tenantId: fixture.tenantId,
         name: "Identity conflict pathway",
         badgeTemplateId: fixture.badgeTemplateId,
@@ -483,7 +505,7 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
     const scheduledFor = "2026-08-04T11:15:00.000Z";
 
     try {
-      const created = await dbModule.createBadgeIssuanceRule(fixture.db, {
+      const created = await createTestBadgeIssuanceRule(fixture.db, {
         tenantId: fixture.tenantId,
         name: "Hourly pathway",
         badgeTemplateId: fixture.badgeTemplateId,

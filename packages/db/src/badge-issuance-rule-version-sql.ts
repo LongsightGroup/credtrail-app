@@ -19,7 +19,10 @@ export interface BadgeIssuanceRuleVersionRow {
   snapshotDescription: string | null;
   snapshotBadgeTemplateId: string;
   snapshotBadgeTemplateTitle: string;
+  snapshotBadgeTemplateDescription: string | null;
+  snapshotBadgeTemplateCriteriaUri: string | null;
   snapshotBadgeTemplateImageUri: string | null;
+  snapshotBadgeTemplateTrustedCredentialMetadataJson: string | null;
   snapshotOrgUnitId: string;
   snapshotOwnerOrgUnitId: string;
   snapshotLmsProviderKind: string;
@@ -55,7 +58,10 @@ const badgeIssuanceRuleVersionSnapshotSchema = z.object({
   description: z.string().nullable(),
   badgeTemplateId: requiredStoredSnapshotTextSchema,
   badgeTemplateTitle: requiredStoredSnapshotTextSchema,
+  badgeTemplateDescription: z.string().nullable(),
+  badgeTemplateCriteriaUri: z.string().nullable(),
   badgeTemplateImageUri: z.string().nullable(),
+  badgeTemplateTrustedCredentialMetadataJson: z.string().nullable(),
   orgUnitId: requiredStoredSnapshotTextSchema,
   ownerOrgUnitId: requiredStoredSnapshotTextSchema,
   lmsProviderKind: badgeIssuanceRuleLmsProviderKindSchema,
@@ -70,7 +76,11 @@ const parseBadgeIssuanceRuleVersionSnapshot = (
     description: row.snapshotDescription,
     badgeTemplateId: row.snapshotBadgeTemplateId,
     badgeTemplateTitle: row.snapshotBadgeTemplateTitle,
+    badgeTemplateDescription: row.snapshotBadgeTemplateDescription,
+    badgeTemplateCriteriaUri: row.snapshotBadgeTemplateCriteriaUri,
     badgeTemplateImageUri: row.snapshotBadgeTemplateImageUri,
+    badgeTemplateTrustedCredentialMetadataJson:
+      row.snapshotBadgeTemplateTrustedCredentialMetadataJson,
     orgUnitId: row.snapshotOrgUnitId,
     ownerOrgUnitId: row.snapshotOwnerOrgUnitId,
     lmsProviderKind: row.snapshotLmsProviderKind,
@@ -92,7 +102,16 @@ const BADGE_ISSUANCE_RULE_VERSION_COLUMN_DEFS: readonly {
   { column: "snapshot_description", alias: "snapshotDescription" },
   { column: "snapshot_badge_template_id", alias: "snapshotBadgeTemplateId" },
   { column: "snapshot_badge_template_title", alias: "snapshotBadgeTemplateTitle" },
+  {
+    column: "snapshot_badge_template_description",
+    alias: "snapshotBadgeTemplateDescription",
+  },
+  { column: "snapshot_badge_template_criteria_uri", alias: "snapshotBadgeTemplateCriteriaUri" },
   { column: "snapshot_badge_template_image_uri", alias: "snapshotBadgeTemplateImageUri" },
+  {
+    column: "snapshot_badge_template_trusted_credential_metadata_json",
+    alias: "snapshotBadgeTemplateTrustedCredentialMetadataJson",
+  },
   { column: "snapshot_org_unit_id", alias: "snapshotOrgUnitId" },
   { column: "snapshot_owner_org_unit_id", alias: "snapshotOwnerOrgUnitId" },
   { column: "snapshot_lms_provider_kind", alias: "snapshotLmsProviderKind" },

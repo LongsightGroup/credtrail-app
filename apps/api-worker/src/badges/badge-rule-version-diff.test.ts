@@ -3,10 +3,11 @@ import { sampleBadgeRuleVersionSnapshot } from "../test-support/badge-rule-versi
 import {
   buildBadgeRuleVersionDefinitionDiff,
   buildBadgeRuleVersionSnapshotDiff,
-  describeBadgeRuleVersionSnapshotDiff,
-  describeRuleDefinitionDiff,
-  describeRuleDefinitionDiffDetails,
 } from "./badge-rule-version-diff";
+import {
+  badgeRuleVersionSnapshotDiffRows,
+  describeRuleDefinitionDiffDetails,
+} from "./badge-rule-version-diff-presentation";
 
 const gradeRuleJson = (minScore: number): string =>
   JSON.stringify({
@@ -25,7 +26,9 @@ describe("badge rule version diff descriptions", () => {
       selectedRuleJson: gradeRuleJson(80),
     });
 
-    expect(describeRuleDefinitionDiff(diff)).toContain("Minimum grade lowered from 90% to 80%.");
+    expect(describeRuleDefinitionDiffDetails(diff).map((change) => change.text)).toContain(
+      "Minimum grade lowered from 90% to 80%.",
+    );
   });
 
   it("reports unchanged definitions clearly", () => {
@@ -34,7 +37,7 @@ describe("badge rule version diff descriptions", () => {
       selectedRuleJson: gradeRuleJson(90),
     });
 
-    expect(describeRuleDefinitionDiff(diff)).toEqual(["No rule definition changes detected."]);
+    expect(describeRuleDefinitionDiffDetails(diff)).toEqual([]);
   });
 
   it("uses the canonical stored JSON error for invalid rule JSON", () => {
@@ -66,7 +69,9 @@ describe("badge rule version diff descriptions", () => {
       selectedRuleJson,
     });
 
-    expect(describeRuleDefinitionDiff(diff)).toContain("expected value changed from 1 to 2.");
+    expect(describeRuleDefinitionDiffDetails(diff).map((change) => change.text)).toContain(
+      "expected value changed from 1 to 2.",
+    );
   });
 
   it("flags broader reviewer-impacting loosenings", () => {
@@ -177,7 +182,11 @@ describe("badge rule version diff descriptions", () => {
       text: "Requirement removed: assignment submission for final-project.",
       reviewImpact: "loosening",
     });
-    expect(describeRuleDefinitionDiff(diff).join("\n")).not.toContain('"assignmentId"');
+    expect(
+      describeRuleDefinitionDiffDetails(diff)
+        .map((change) => change.text)
+        .join("\n"),
+    ).not.toContain('"assignmentId"');
   });
 });
 
@@ -189,23 +198,57 @@ describe("badge rule version snapshot diff descriptions", () => {
       description: null,
       badgeTemplateId: "badge_template_002",
       badgeTemplateTitle: "Revised badge",
+      badgeTemplateDescription: "Revised badge description",
+      badgeTemplateCriteriaUri: "https://example.edu/criteria/revised-badge",
       badgeTemplateImageUri: "https://example.edu/revised-badge.png",
+      badgeTemplateTrustedCredentialMetadataJson: '{"credentialType":"Certificate"}',
       orgUnitId: "tenant_123:org:registrar",
       ownerOrgUnitId: "tenant_123:org:academic-affairs",
       lmsProviderKind: "sakai",
       lmsConnectionId: null,
     });
 
-    expect(diff.changeCount).toBe(8);
-    expect(describeBadgeRuleVersionSnapshotDiff(diff)).toEqual([
-      "Rule name changed from “Sample badge rule” to “Revised badge rule”.",
-      "Description removed; it was “Sample badge rule description”.",
-      "Badge template changed from “Sample badge (badge_template_001)” to “Revised badge (badge_template_002)”.",
-      "Badge artwork was added.",
-      "Organization scope changed from “tenant_123:org:institution” to “tenant_123:org:registrar”.",
-      "Badge template owner scope changed from “tenant_123:org:institution” to “tenant_123:org:academic-affairs”.",
-      "LMS provider changed from Canvas to Sakai.",
-      "LMS connection removed; it was “lms_123”.",
+    expect(diff.changeCount).toBe(11);
+    expect(badgeRuleVersionSnapshotDiffRows(diff)).toEqual([
+      { label: "Rule name", before: "Sample badge rule", after: "Revised badge rule" },
+      {
+        label: "Description",
+        before: "Sample badge rule description",
+        after: "Not set",
+      },
+      {
+        label: "Badge template",
+        before: "Sample badge (badge_template_001)",
+        after: "Revised badge (badge_template_002)",
+      },
+      {
+        label: "Badge description",
+        before: "Sample badge description",
+        after: "Revised badge description",
+      },
+      {
+        label: "Badge criteria",
+        before: "https://example.edu/criteria/sample-badge",
+        after: "https://example.edu/criteria/revised-badge",
+      },
+      { label: "Badge artwork", before: "Not set", after: "New artwork" },
+      {
+        label: "Badge trust metadata",
+        before: "Not set",
+        after: "Updated trust metadata",
+      },
+      {
+        label: "Organization scope",
+        before: "tenant_123:org:institution",
+        after: "tenant_123:org:registrar",
+      },
+      {
+        label: "Badge template owner scope",
+        before: "tenant_123:org:institution",
+        after: "tenant_123:org:academic-affairs",
+      },
+      { label: "LMS provider", before: "Canvas", after: "Sakai" },
+      { label: "LMS connection", before: "lms_123", after: "Not set" },
     ]);
   });
 
@@ -215,8 +258,6 @@ describe("badge rule version snapshot diff descriptions", () => {
       sampleBadgeRuleVersionSnapshot,
     );
 
-    expect(describeBadgeRuleVersionSnapshotDiff(diff)).toEqual([
-      "No rule setting changes detected.",
-    ]);
+    expect(badgeRuleVersionSnapshotDiffRows(diff)).toEqual([]);
   });
 });

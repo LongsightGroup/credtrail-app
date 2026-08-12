@@ -15,7 +15,13 @@ const {
     mockedFindActiveSessionByHash: vi.fn(),
     mockedTouchSession: vi.fn(),
     mockedSendIssuanceEmailNotification: vi.fn(),
-    mockedFinalizeAssertionIssuance: vi.fn(),
+    mockedFinalizeAssertionIssuance:
+      vi.fn<
+        (
+          db: SqlDatabase,
+          input: FinalizeAssertionIssuanceInput,
+        ) => Promise<FinalizeAssertionIssuanceResult>
+      >(),
   };
 });
 
@@ -24,9 +30,6 @@ vi.mock("@credtrail/db", async () => {
 
   return {
     ...actual,
-    createAssertion: vi.fn(),
-    createAssertionIssuanceProvenance: vi.fn(),
-    createAuditLog: vi.fn(),
     finalizeAssertionIssuance: mockedFinalizeAssertionIssuance,
     findActiveDelegatedIssuingAuthorityGrantForAction: vi.fn(),
     findActiveSessionByHash: mockedFindActiveSessionByHash,
@@ -82,9 +85,6 @@ import {
   signCredentialWithDataIntegrityProof,
 } from "@credtrail/core-domain";
 import {
-  createAssertion,
-  createAssertionIssuanceProvenance,
-  createAuditLog,
   findActiveDelegatedIssuingAuthorityGrantForAction,
   findAssertionByIdempotencyKey,
   findBadgeTemplateById,
@@ -99,9 +99,10 @@ import {
   resolveAssertionLifecycleState,
   resolveLearnerProfileForIdentity,
   type AssertionRecord,
-  type AuditLogRecord,
   type BadgeTemplateRecord,
   type DelegatedIssuingAuthorityGrantRecord,
+  type FinalizeAssertionIssuanceInput,
+  type FinalizeAssertionIssuanceResult,
   type LearnerProfileRecord,
   type SessionRecord,
   type SqlDatabase,
@@ -112,6 +113,7 @@ import {
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
+import { badgeTemplateImageObjectKey } from "./badges/template-image-storage";
 
 interface ConsoleLogSpy {
   mockRestore: () => void;
@@ -145,12 +147,9 @@ const mockedHasTenantMembershipOrgUnitScopeAssignments = vi.mocked(
   hasTenantMembershipOrgUnitScopeAssignments,
 );
 const mockedResolveLearnerProfileForIdentity = vi.mocked(resolveLearnerProfileForIdentity);
-const mockedCreateAssertion = vi.mocked(createAssertion);
 const mockedNextAssertionStatusListIndex = vi.mocked(nextAssertionStatusListIndex);
 const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
 const mockedListLearnerIdentitiesByProfile = vi.mocked(listLearnerIdentitiesByProfile);
-const mockedCreateAuditLog = vi.mocked(createAuditLog);
-const mockedCreateAssertionIssuanceProvenance = vi.mocked(createAssertionIssuanceProvenance);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const fakeDb = {
   prepare: vi.fn(),
@@ -165,6 +164,7 @@ const createEnv = (): {
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
   TENANT_SIGNING_KEY_HISTORY_JSON?: string;
   TENANT_REMOTE_SIGNER_REGISTRY_JSON?: string;
   ISSUANCE_EMAIL_NOTIFICATIONS_ENABLED?: string;
@@ -175,8 +175,9 @@ const createEnv = (): {
   return {
     APP_ENV: "test",
     DATABASE_URL: "postgres://credtrail-test.local/db",
-    BADGE_OBJECTS: {} as R2Bucket,
+    BADGE_OBJECTS: createInMemoryBadgeObjects(),
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
   };
 };
 
@@ -232,31 +233,8 @@ beforeEach(() => {
   mockedResolveAssertionLifecycleState.mockReset();
   mockedResolveAssertionLifecycleState.mockResolvedValue(sampleLifecycle());
   mockedNextAssertionStatusListIndex.mockReset();
-  mockedCreateAssertion.mockReset();
-  mockedCreateAssertion.mockResolvedValue(sampleAssertion());
-  mockedCreateAssertionIssuanceProvenance.mockReset();
   mockedFinalizeAssertionIssuance.mockReset();
-  mockedFinalizeAssertionIssuance.mockImplementation(async (_db, input) => {
-    const assertion = await mockedCreateAssertion(_db, input.assertion);
-    await mockedCreateAuditLog(_db, input.buildAuditLog(assertion));
-    const provenance = await mockedCreateAssertionIssuanceProvenance(_db, {
-      ...input.provenance,
-      assertionId: assertion.id,
-      tenantId: assertion.tenantId,
-    });
-    return { status: "issued", assertion, provenance };
-  });
-  mockedCreateAssertionIssuanceProvenance.mockResolvedValue({
-    assertionId: "tenant_123:assertion_456",
-    tenantId: "tenant_123",
-    source: "manual",
-    ruleId: null,
-    versionId: null,
-    provenanceJson: null,
-    createdAt: "2026-02-10T22:00:00.000Z",
-  });
-  mockedCreateAuditLog.mockReset();
-  mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
+  mockedFinalizeAssertionIssuance.mockResolvedValue(sampleFinalizedIssuance());
   mockedSendIssuanceEmailNotification.mockReset();
   mockedSendIssuanceEmailNotification.mockResolvedValue(undefined);
 });
@@ -276,6 +254,14 @@ const sampleAssertion = (overrides?: {
     publicId: "40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
     learnerProfileId: "lpr_123",
     badgeTemplateId: "badge_template_001",
+    achievementSnapshot: {
+      badgeTemplateId: "badge_template_001",
+      title: "TypeScript Foundations",
+      description: "Awarded for completing TypeScript fundamentals.",
+      criteriaUri: "https://example.edu/criteria/typescript",
+      imageUri: "https://example.edu/badges/typescript.png",
+      trustedCredentialMetadataJson: null,
+    },
     recipientIdentity: "learner@example.edu",
     recipientIdentityType: "email",
     vcR2Key: "tenants/tenant_123/assertions/tenant_123%3Aassertion_456.jsonld",
@@ -286,6 +272,24 @@ const sampleAssertion = (overrides?: {
     revokedAt: overrides?.revokedAt ?? null,
     createdAt: "2026-02-10T22:00:00.000Z",
     updatedAt: "2026-02-10T22:00:00.000Z",
+  };
+};
+
+const sampleFinalizedIssuance = (
+  assertion: AssertionRecord = sampleAssertion(),
+): Extract<FinalizeAssertionIssuanceResult, { readonly status: "issued" }> => {
+  return {
+    status: "issued",
+    assertion,
+    provenance: {
+      assertionId: assertion.id,
+      tenantId: assertion.tenantId,
+      source: "manual",
+      ruleId: null,
+      versionId: null,
+      provenanceJson: null,
+      createdAt: "2026-02-10T22:00:00.000Z",
+    },
   };
 };
 
@@ -364,7 +368,8 @@ const sampleBadgeTemplate = (overrides?: Partial<BadgeTemplateRecord>): BadgeTem
     title: "TypeScript Foundations",
     description: "Awarded for completing TS basics.",
     criteriaUri: null,
-    imageUri: null,
+    imageUri:
+      "https://credtrail.test/badges/assets/tenant_123/badge_template_001/asset_typescript",
     createdByUserId: "usr_issuer",
     ownerOrgUnitId: "tenant_123:org:institution",
     governanceMetadataJson: '{"stability":"institution_registry"}',
@@ -411,21 +416,6 @@ const sampleTenantMembership = (
   };
 };
 
-const sampleAuditLogRecord = (overrides?: Partial<AuditLogRecord>): AuditLogRecord => {
-  return {
-    id: "aud_123",
-    tenantId: "tenant_123",
-    actorUserId: "usr_123",
-    action: "assertion.issued",
-    targetType: "assertion",
-    targetId: "tenant_123:assertion_456",
-    metadataJson: null,
-    occurredAt: "2026-02-10T22:00:00.000Z",
-    createdAt: "2026-02-10T22:00:00.000Z",
-    ...overrides,
-  };
-};
-
 const sampleLearnerProfile = (overrides?: Partial<LearnerProfileRecord>): LearnerProfileRecord => {
   return {
     id: "lpr_123",
@@ -439,7 +429,24 @@ const sampleLearnerProfile = (overrides?: Partial<LearnerProfileRecord>): Learne
 };
 
 const createInMemoryBadgeObjects = (): R2Bucket => {
-  const objects = new Map<string, string>();
+  const storedArtwork = JSON.stringify({
+    version: 1,
+    mimeType: "image/png",
+    byteSize: 8,
+    base64Data: "iVBORw0KGgo=",
+    uploadedAt: "2026-02-18T12:00:00.000Z",
+    originalFilename: "badge.png",
+  });
+  const objects = new Map<string, string>([
+    [
+      badgeTemplateImageObjectKey({
+        tenantId: "tenant_123",
+        badgeTemplateId: "badge_template_001",
+        assetId: "asset_typescript",
+      }),
+      storedArtwork,
+    ],
+  ]);
 
   return {
     head: vi.fn((key: string) => {
@@ -474,6 +481,7 @@ const createInMemoryBadgeObjects = (): R2Bucket => {
         uploaded: new Date(),
       });
     }),
+    // SAFETY: the manual-issuance tests implement only the R2 methods used by the tested workflow.
   } as unknown as R2Bucket;
 };
 
@@ -492,9 +500,6 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     mockedResolveAssertionLifecycleState.mockReset();
     mockedResolveAssertionLifecycleState.mockResolvedValue(sampleLifecycle());
     mockedNextAssertionStatusListIndex.mockReset();
-    mockedCreateAssertion.mockReset();
-    mockedCreateAuditLog.mockReset();
-    mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
   });
 
   it("returns already_issued when idempotency key matches an active assertion", async () => {
@@ -560,7 +565,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       "tenant_123",
       existingAssertion.id,
     );
-    expect(mockedCreateAssertion).not.toHaveBeenCalled();
+    expect(mockedFinalizeAssertionIssuance).not.toHaveBeenCalled();
   });
 
   it("returns 409 when idempotency key resolves to a suspended assertion", async () => {
@@ -603,7 +608,41 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     expect(response.status).toBe(409);
     expect(body.error).toContain("Issuance blocked by lifecycle policy");
     expect(body.error).toContain("suspended");
-    expect(mockedCreateAssertion).not.toHaveBeenCalled();
+    expect(mockedFinalizeAssertionIssuance).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 before issuance when the badge has no approved artwork", async () => {
+    const env = createEnv();
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue(undefined);
+    mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate({ imageUri: null }));
+    mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/assertions/manual-issue",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/json",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: JSON.stringify({
+          badgeTemplateId: "badge_template_001",
+          recipientIdentity: "student@umich.edu",
+          recipientIdentityType: "email",
+          idempotencyKey: "idem-missing-artwork",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<ErrorResponse>();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toBe(
+      "Upload this badge's approved artwork in CredTrail before issuing it.",
+    );
+    expect(mockedFinalizeAssertionIssuance).not.toHaveBeenCalled();
   });
 
   it("uses stable learner subject identifiers across old and new recipient emails", async () => {
@@ -631,7 +670,6 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       sampleLearnerProfile({ displayName: "@student" }),
     );
     mockedNextAssertionStatusListIndex.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
-    mockedCreateAssertion.mockResolvedValue(sampleAssertion());
 
     const firstIssueResponse = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -742,27 +780,35 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       identityType: "email",
       identityValue: "student@gmail.com",
     });
-    expect(mockedCreateAssertion).toHaveBeenNthCalledWith(
+    expect(mockedFinalizeAssertionIssuance).toHaveBeenNthCalledWith(
       1,
       fakeDb,
       expect.objectContaining({
-        tenantId: "tenant_123",
-        learnerProfileId: "lpr_123",
-        recipientIdentity: "student@umich.edu",
+        assertion: expect.objectContaining({
+          tenantId: "tenant_123",
+          learnerProfileId: "lpr_123",
+          recipientIdentity: "student@umich.edu",
+        }),
+        achievementSource: expect.objectContaining({
+          kind: "template_snapshot",
+          provenance: { source: "manual" },
+          snapshot: expect.objectContaining({
+            badgeTemplateId: "badge_template_001",
+            title: "TypeScript Foundations",
+          }),
+        }),
       }),
     );
-    const firstCreateAssertionCall = mockedCreateAssertion.mock.calls.at(0);
+    const firstFinalizationCall = mockedFinalizeAssertionIssuance.mock.calls.at(0);
 
-    if (firstCreateAssertionCall === undefined) {
-      throw new Error("Expected first createAssertion call");
+    if (firstFinalizationCall === undefined) {
+      throw new Error("Expected first assertion finalization call");
     }
 
-    const firstCreateAssertionInput = firstCreateAssertionCall[1] as {
-      recipientIdentifiers?: unknown;
-    };
+    const firstAssertionInput = firstFinalizationCall[1].assertion;
 
-    expect(Array.isArray(firstCreateAssertionInput.recipientIdentifiers)).toBe(true);
-    expect(firstCreateAssertionInput.recipientIdentifiers).toEqual(
+    expect(Array.isArray(firstAssertionInput.recipientIdentifiers)).toBe(true);
+    expect(firstAssertionInput.recipientIdentifiers).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           identifierType: "studentId",
@@ -774,21 +820,15 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
         }),
       ]),
     );
-    expect(mockedCreateAssertion).toHaveBeenNthCalledWith(
+    expect(mockedFinalizeAssertionIssuance).toHaveBeenNthCalledWith(
       2,
       fakeDb,
       expect.objectContaining({
-        tenantId: "tenant_123",
-        learnerProfileId: "lpr_123",
-        recipientIdentity: "student@gmail.com",
-      }),
-    );
-    expect(mockedCreateAuditLog).toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        tenantId: "tenant_123",
-        action: "assertion.issued",
-        targetType: "assertion",
+        assertion: expect.objectContaining({
+          tenantId: "tenant_123",
+          learnerProfileId: "lpr_123",
+          recipientIdentity: "student@gmail.com",
+        }),
       }),
     );
     expect(mockedSendIssuanceEmailNotification).not.toHaveBeenCalled();
@@ -820,7 +860,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     const issuedAssertion = sampleAssertion({
       statusListIndex: null,
     });
-    mockedCreateAssertion.mockResolvedValue(issuedAssertion);
+    mockedFinalizeAssertionIssuance.mockResolvedValue(sampleFinalizedIssuance(issuedAssertion));
 
     const response = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -877,7 +917,6 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
     mockedNextAssertionStatusListIndex.mockResolvedValue(0);
-    mockedCreateAssertion.mockResolvedValue(sampleAssertion());
 
     const response = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -1021,7 +1060,6 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
     mockedNextAssertionStatusListIndex.mockResolvedValue(0);
-    mockedCreateAssertion.mockResolvedValue(sampleAssertion());
 
     const response = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -1080,7 +1118,6 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
     mockedNextAssertionStatusListIndex.mockResolvedValue(0);
-    mockedCreateAssertion.mockResolvedValue(sampleAssertion());
 
     const response = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -1160,7 +1197,6 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       },
     ]);
     mockedNextAssertionStatusListIndex.mockResolvedValue(0);
-    mockedCreateAssertion.mockResolvedValue(sampleAssertion());
 
     const response = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -1255,7 +1291,6 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
     mockedNextAssertionStatusListIndex.mockResolvedValue(0);
-    mockedCreateAssertion.mockResolvedValue(sampleAssertion());
 
     const response = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -1320,7 +1355,6 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
     mockedNextAssertionStatusListIndex.mockResolvedValue(0);
-    mockedCreateAssertion.mockResolvedValue(sampleAssertion());
 
     const response = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -1351,7 +1385,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
         badgeTemplateId: "badge_template_001",
       }),
     );
-    expect(mockedCreateAssertion).toHaveBeenCalledTimes(1);
+    expect(mockedFinalizeAssertionIssuance).toHaveBeenCalledTimes(1);
   });
 
   it("returns 403 when role is viewer for manual issuance", async () => {
@@ -1387,6 +1421,6 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
 
     expect(response.status).toBe(403);
     expect(body.error).toBe("Insufficient role for requested action");
-    expect(mockedCreateAssertion).not.toHaveBeenCalled();
+    expect(mockedFinalizeAssertionIssuance).not.toHaveBeenCalled();
   });
 });

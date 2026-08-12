@@ -3,12 +3,36 @@ import { expect, it } from "vitest";
 import * as dbModule from "./index";
 import { createFixtureRule } from "./badge-issuance-rule-test-fixtures";
 import {
+  createBadgeIssuanceRule,
+  createBadgeIssuanceRuleFromBuilderDraft,
+  createBadgeIssuanceRuleVersion,
+  updateBadgeIssuanceRuleDraft,
+} from "./badge-issuance-rule-writes";
+import {
   cleanupTestResources,
   createBadgeRuleIntegrationFixture,
   createDepartmentCourseOrgUnitHierarchy,
   describeDbIntegration,
+  loadExpectedBadgeTemplateRevision,
   selectCount,
 } from "./postgres-test-support";
+
+const createBadgeIssuanceRuleWithVerifiedTemplate = async (
+  fixture: Awaited<ReturnType<typeof createBadgeRuleIntegrationFixture>>,
+  input: Omit<dbModule.CreateBadgeIssuanceRuleAuthoringInput, "expectedBadgeTemplateRevision"> & {
+    readonly expectedBadgeTemplateRevision?: dbModule.ExpectedBadgeTemplateRevision;
+  },
+): Promise<dbModule.BadgeIssuanceRuleAuthoringResult> => {
+  return dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+    ...input,
+    expectedBadgeTemplateRevision:
+      input.expectedBadgeTemplateRevision ??
+      (await loadExpectedBadgeTemplateRevision(fixture.db, {
+        tenantId: input.tenantId,
+        badgeTemplateId: input.badgeTemplateId,
+      })),
+  });
+};
 
 describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () => {
   it("persists incomplete builder drafts without creating rule versions", async () => {
@@ -123,7 +147,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
 
     try {
       const firstRule = await createFixtureRule(fixture);
-      const secondRule = await dbModule.createBadgeIssuanceRule(fixture.db, {
+      const secondRule = await createBadgeIssuanceRule(fixture.db, {
         tenantId: fixture.tenantId,
         name: "Second rule",
         badgeTemplateId: fixture.badgeTemplateId,
@@ -168,7 +192,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         draftJson: JSON.stringify({ name: "Promote me" }),
       });
 
-      const created = await dbModule.createBadgeIssuanceRuleFromBuilderDraft(fixture.db, {
+      const created = await createBadgeIssuanceRuleFromBuilderDraft(fixture.db, {
         tenantId: fixture.tenantId,
         builderDraftId: "brd_promote",
         builderUserId: fixture.userId,
@@ -179,7 +203,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
         createdByUserId: fixture.userId,
       });
-      const replayed = await dbModule.createBadgeIssuanceRuleFromBuilderDraft(fixture.db, {
+      const replayed = await createBadgeIssuanceRuleFromBuilderDraft(fixture.db, {
         tenantId: fixture.tenantId,
         builderDraftId: "brd_promote",
         builderUserId: fixture.userId,
@@ -242,7 +266,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         draftJson: JSON.stringify({ name: "Submit me" }),
       });
 
-      const result = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+      const result = await createBadgeIssuanceRuleWithVerifiedTemplate(fixture, {
         tenantId: fixture.tenantId,
         builderDraftId: "brd_submit",
         name: "Submitted rule",
@@ -253,8 +277,9 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         action: "submit_for_approval",
         actorUserId: fixture.userId,
         actorRole: "admin",
+        badgeTemplateReuseAcknowledged: false,
       });
-      const replayed = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+      const replayed = await createBadgeIssuanceRuleWithVerifiedTemplate(fixture, {
         tenantId: fixture.tenantId,
         builderDraftId: "brd_submit",
         name: "A retry must not replace the submitted rule",
@@ -265,6 +290,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         action: "submit_for_approval",
         actorUserId: fixture.userId,
         actorRole: "admin",
+        badgeTemplateReuseAcknowledged: false,
       });
       const versionCount = await selectCount(
         fixture.db,
@@ -316,6 +342,10 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
     const fixture = await createBadgeRuleIntegrationFixture();
 
     try {
+      const expectedBadgeTemplateRevision = await loadExpectedBadgeTemplateRevision(fixture.db, {
+        tenantId: fixture.tenantId,
+        badgeTemplateId: fixture.badgeTemplateId,
+      });
       await dbModule.saveBadgeIssuanceRuleBuilderDraft(fixture.db, {
         id: "brd_replay_without_transition",
         tenantId: fixture.tenantId,
@@ -324,7 +354,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         currentStep: "test",
         draftJson: JSON.stringify({ name: "Replay without transition" }),
       });
-      const created = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+      const created = await createBadgeIssuanceRuleWithVerifiedTemplate(fixture, {
         tenantId: fixture.tenantId,
         builderDraftId: "brd_replay_without_transition",
         name: "Saved rule",
@@ -335,13 +365,15 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         action: "save_draft",
         actorUserId: fixture.userId,
         actorRole: "admin",
+        badgeTemplateReuseAcknowledged: false,
+        expectedBadgeTemplateRevision,
       });
 
       if (created.status !== "completed") {
         throw new Error(`Expected completed authoring, received ${created.status}`);
       }
 
-      const replayedDraft = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+      const replayedDraft = await createBadgeIssuanceRuleWithVerifiedTemplate(fixture, {
         tenantId: fixture.tenantId,
         builderDraftId: "brd_replay_without_transition",
         name: "A retry must not submit this draft",
@@ -352,12 +384,14 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         action: "submit_for_approval",
         actorUserId: fixture.userId,
         actorRole: "admin",
+        badgeTemplateReuseAcknowledged: false,
+        expectedBadgeTemplateRevision,
       });
       await fixture.db
         .prepare("UPDATE badge_issuance_rule_versions SET status = 'rejected' WHERE id = ?")
         .bind(created.version.id)
         .run();
-      const replayedRejected = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+      const replayedRejected = await createBadgeIssuanceRuleWithVerifiedTemplate(fixture, {
         tenantId: fixture.tenantId,
         builderDraftId: "brd_replay_without_transition",
         name: "A retry must not resubmit this rejection",
@@ -368,6 +402,8 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         action: "submit_for_approval",
         actorUserId: fixture.userId,
         actorRole: "admin",
+        badgeTemplateReuseAcknowledged: false,
+        expectedBadgeTemplateRevision,
       });
       const persistedVersion = await dbModule.findBadgeIssuanceRuleVersionById(fixture.db, {
         tenantId: fixture.tenantId,
@@ -421,7 +457,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         draftJson: JSON.stringify({ name: "Keep unfinished" }),
       });
 
-      const result = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+      const result = await createBadgeIssuanceRuleWithVerifiedTemplate(fixture, {
         tenantId: fixture.tenantId,
         builderDraftId: "brd_rejected_submission",
         name: "Must roll back",
@@ -432,6 +468,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         action: "submit_for_approval",
         actorUserId: fixture.userId,
         actorRole: "admin",
+        badgeTemplateReuseAcknowledged: false,
       });
       const ruleCount = await selectCount(
         fixture.db,
@@ -476,7 +513,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         createdByUserId: fixture.userId,
       });
 
-      const result = await dbModule.createBadgeIssuanceRuleWithAction(fixture.db, {
+      const result = await createBadgeIssuanceRuleWithVerifiedTemplate(fixture, {
         tenantId: fixture.tenantId,
         name: "Automatically approved rule",
         badgeTemplateId: fixture.badgeTemplateId,
@@ -486,6 +523,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         action: "submit_for_approval",
         actorUserId: fixture.userId,
         actorRole: "admin",
+        badgeTemplateReuseAcknowledged: false,
       });
 
       expect(result.status).toBe("completed");
@@ -509,7 +547,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         tenantId: fixture.tenantId,
         userId: fixture.userId,
       });
-      const created = await dbModule.createBadgeIssuanceRule(fixture.db, {
+      const created = await createBadgeIssuanceRule(fixture.db, {
         tenantId: fixture.tenantId,
         name: "CS101 Rule",
         badgeTemplateId: fixture.badgeTemplateId,
@@ -534,7 +572,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
           orgUnitId: department.id,
         },
       });
-      const updated = await dbModule.updateBadgeIssuanceRuleDraft(fixture.db, {
+      const updated = await updateBadgeIssuanceRuleDraft(fixture.db, {
         tenantId: fixture.tenantId,
         ruleId: created.rule.id,
         name: "CS101 Rule Revised",
@@ -601,7 +639,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         .bind(created.version.id)
         .run();
 
-      const result = await dbModule.updateBadgeIssuanceRuleDraft(fixture.db, {
+      const result = await updateBadgeIssuanceRuleDraft(fixture.db, {
         tenantId: fixture.tenantId,
         ruleId: created.rule.id,
         name: "CS101 Rule Revised",
@@ -679,7 +717,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         .bind(created.version.id, created.rule.id)
         .run();
 
-      const draftVersion = await dbModule.createBadgeIssuanceRuleVersion(fixture.db, {
+      const draftVersion = await createBadgeIssuanceRuleVersion(fixture.db, {
         tenantId: fixture.tenantId,
         ruleId: created.rule.id,
         ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":85}}',
@@ -703,7 +741,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
           : dbModule.canEditBadgeIssuanceRuleDraft(activeRule, versionsBeforeUpdate),
       ).toBe(true);
 
-      const result = await dbModule.updateBadgeIssuanceRuleDraft(fixture.db, {
+      const result = await updateBadgeIssuanceRuleDraft(fixture.db, {
         tenantId: fixture.tenantId,
         ruleId: created.rule.id,
         name: "CS101 Replacement",
@@ -740,7 +778,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         .bind(created.version.id)
         .run();
 
-      const result = await dbModule.updateBadgeIssuanceRuleDraft(fixture.db, {
+      const result = await updateBadgeIssuanceRuleDraft(fixture.db, {
         tenantId: fixture.tenantId,
         ruleId: created.rule.id,
         name: "Should not save",
@@ -796,7 +834,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         .run();
 
       await expect(
-        dbModule.updateBadgeIssuanceRuleDraft(fixture.db, {
+        updateBadgeIssuanceRuleDraft(fixture.db, {
           tenantId: fixture.tenantId,
           ruleId: created.rule.id,
           name: "Partially saved name",
@@ -853,7 +891,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         .bind(created.version.id, created.rule.id)
         .run();
 
-      const rejectedVersion = await dbModule.createBadgeIssuanceRuleVersion(fixture.db, {
+      const rejectedVersion = await createBadgeIssuanceRuleVersion(fixture.db, {
         tenantId: fixture.tenantId,
         ruleId: created.rule.id,
         ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":90}}',
@@ -903,7 +941,7 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
         .bind(created.version.id)
         .run();
 
-      await dbModule.createBadgeIssuanceRuleVersion(fixture.db, {
+      await createBadgeIssuanceRuleVersion(fixture.db, {
         tenantId: fixture.tenantId,
         ruleId: created.rule.id,
         ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":90}}',

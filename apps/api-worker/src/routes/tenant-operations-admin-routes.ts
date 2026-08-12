@@ -18,9 +18,9 @@ import type {
   RequireDelegatedIssuingAuthorityPermission,
   ResolveDatabase,
 } from "../app/route-deps";
+import { badgeAchievementSnapshotFromTemplate } from "../badges/badge-achievement-snapshot";
 import { isIssueBadgeHttpError } from "../badges/direct-issue";
 import { publicBadgePathForAssertion } from "../badges/public-badge-model";
-import { manualIssueBadgeProvenance } from "../badges/issue-badge-provenance";
 
 interface RegisterTenantOperationsAdminRoutesInput {
   app: Hono<AppEnv>;
@@ -130,11 +130,14 @@ export const registerTenantOperationsAdminRoutes = (
 
     try {
       const issueRequest = {
-        badgeTemplateId: request.badgeTemplateId,
+        achievementSource: {
+          kind: "template_snapshot" as const,
+          snapshot: badgeAchievementSnapshotFromTemplate(template),
+          provenance: { source: "manual" as const },
+        },
         recipientIdentity: request.recipientIdentity,
         recipientIdentityType: request.recipientIdentityType,
         idempotencyKey: request.idempotencyKey ?? crypto.randomUUID(),
-        issuanceProvenance: manualIssueBadgeProvenance(),
         ...(request.recipientIdentifiers === undefined
           ? {}
           : { recipientIdentifiers: request.recipientIdentifiers }),

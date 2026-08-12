@@ -8,12 +8,14 @@ import {
   type TenantMembershipRole,
 } from "@credtrail/db";
 import type { AppBindings, AppContext } from "../app";
+import { canonicalAppUrl } from "../http/canonical-app-url";
 import { buildBadgeTemplateImageUriChange } from "./badge-template-audit-metadata";
 import { recordBadgeTemplateImageRevisionIfChanged } from "./badge-template-image-revision-recording";
 import {
   BADGE_TEMPLATE_IMAGE_MAX_BYTES,
   badgeTemplateImageMimeTypeFromBytes,
   badgeTemplateImageMimeTypeFromValue,
+  badgeTemplateImagePublicPath,
   storeBadgeTemplateImage,
 } from "./template-image-storage";
 
@@ -92,10 +94,12 @@ export const uploadBadgeTemplateImage = async (input: {
     originalFilename: fileName.length === 0 ? null : fileName,
   });
 
-  const imagePath = `/badges/assets/${encodeURIComponent(input.tenantId)}/${encodeURIComponent(
-    input.badgeTemplateId,
-  )}/${encodeURIComponent(assetId)}`;
-  const imageUrl = new URL(imagePath, input.c.req.url).toString();
+  const imagePath = badgeTemplateImagePublicPath({
+    tenantId: input.tenantId,
+    badgeTemplateId: input.badgeTemplateId,
+    assetId,
+  });
+  const imageUrl = canonicalAppUrl(input.bindings.PUBLIC_APP_ORIGIN, imagePath);
   const updatedTemplate = await updateBadgeTemplate(input.db, {
     tenantId: input.tenantId,
     id: input.badgeTemplateId,

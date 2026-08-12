@@ -51,8 +51,20 @@ export interface CanonicalLearnerRecordItem {
   provenance: LearnerRecordProvenance;
 }
 
+type LearnerRecordAssertionProjection = Pick<
+  AssertionRecord,
+  | "id"
+  | "tenantId"
+  | "learnerProfileId"
+  | "badgeTemplateId"
+  | "publicId"
+  | "issuedByUserId"
+  | "issuedAt"
+  | "revokedAt"
+>;
+
 interface MapAssertionToCanonicalLearnerRecordItemInput {
-  assertion: AssertionRecord;
+  assertion: LearnerRecordAssertionProjection;
   badgeTitle: string;
   badgeDescription?: string | null;
   issuerName: string;
@@ -114,7 +126,9 @@ const parseEvidenceLinksJson = (evidenceLinksJson: string): readonly string[] =>
   return parsed;
 };
 
-const learnerRecordStatusFromAssertion = (assertion: AssertionRecord): LearnerRecordStatus => {
+const learnerRecordStatusFromAssertion = (
+  assertion: LearnerRecordAssertionProjection,
+): LearnerRecordStatus => {
   if (assertion.revokedAt !== null) {
     return "revoked";
   }

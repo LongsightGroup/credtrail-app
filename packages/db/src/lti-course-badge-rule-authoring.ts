@@ -1,11 +1,12 @@
 import { createAuditLog } from "./audit-logs.js";
 import { createBadgeIssuanceRuleWithActionWithinTransaction } from "./badge-issuance-rule-authoring.js";
+import { findBadgeIssuanceRuleById } from "./badge-issuance-rule-reads.js";
 import {
-  findBadgeIssuanceRuleById,
   latestBadgeIssuanceRuleVersion,
   listBadgeIssuanceRuleVersions,
-} from "./badge-issuance-rule-reads.js";
+} from "./badge-issuance-rule-version-reads.js";
 import type {
+  ExpectedBadgeTemplateRevision,
   BadgeIssuanceRuleLmsProviderKind,
   BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleVersionRecord,
@@ -33,6 +34,7 @@ export interface CreateLtiCourseBadgeRuleInput {
     readonly name: string;
     readonly description: string;
     readonly badgeTemplateId: string;
+    readonly expectedBadgeTemplateRevision: ExpectedBadgeTemplateRevision;
     readonly lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
     readonly lmsConnectionId: string;
     readonly ruleJson: string;
@@ -65,7 +67,12 @@ export type CreateLtiCourseBadgeRuleResult =
     }
   | {
       readonly status: "authoring_failed";
-      readonly reason: "self_certification_required" | "policy_missing_steps";
+      readonly reason:
+        | "self_certification_required"
+        | "policy_missing_steps"
+        | "template_changed"
+        | "template_artwork_not_immutable"
+        | "template_reuse_confirmation_required";
     }
   | {
       readonly status: "placement_conflict";
@@ -191,6 +198,7 @@ export const createLtiCourseBadgeRule = async (
       name: input.rule.name,
       description: input.rule.description,
       badgeTemplateId: input.rule.badgeTemplateId,
+      expectedBadgeTemplateRevision: input.rule.expectedBadgeTemplateRevision,
       orgUnitId: courseOrgUnit.id,
       lmsProviderKind: input.rule.lmsProviderKind,
       lmsConnectionId: input.rule.lmsConnectionId,
@@ -199,12 +207,16 @@ export const createLtiCourseBadgeRule = async (
       action: "submit_for_approval",
       actorUserId: input.actorUserId,
       actorRole: input.actorRole,
+      badgeTemplateReuseAcknowledged: false,
     });
 
     if (authored.status === "failed") {
       if (
         authored.reason !== "self_certification_required" &&
-        authored.reason !== "policy_missing_steps"
+        authored.reason !== "policy_missing_steps" &&
+        authored.reason !== "template_changed" &&
+        authored.reason !== "template_artwork_not_immutable" &&
+        authored.reason !== "template_reuse_confirmation_required"
       ) {
         throw new Error(`Unexpected LTI badge-rule authoring failure: ${authored.reason}`);
       }

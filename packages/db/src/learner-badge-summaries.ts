@@ -1,9 +1,9 @@
 import {
-  assertionBadgeTemplateJoinSql,
   bindLearnerProfileOrEmailAccessParams,
   buildLearnerProfileOrEmailAccessFilter,
   buildLegacyLearnerEmailAccessFilter,
 } from "./learner-assertion-access-sql";
+import { parseStoredAssertionAchievementSnapshot } from "./assertion-achievement-snapshot.js";
 import { findLearnerProfileByIdentity, listLearnerIdentitiesByProfile } from "./learner-profiles";
 import type { SqlDatabase } from "./tenant-scope";
 import { findUserById, normalizeEmail } from "./users";
@@ -39,17 +39,41 @@ interface LearnerBadgeSummaryQuery {
   claimableOnly?: boolean | undefined;
 }
 
+interface LearnerBadgeSummaryRow {
+  assertionId: string;
+  assertionPublicId: string | null;
+  tenantId: string;
+  badgeTemplateId: string;
+  achievementSnapshotJson: string;
+  issuedAt: string;
+  revokedAt: string | null;
+}
+
 const learnerBadgeSummarySelectClause = `
   SELECT
     assertions.id AS assertionId,
     assertions.public_id AS assertionPublicId,
     assertions.tenant_id AS tenantId,
     assertions.badge_template_id AS badgeTemplateId,
-    badge_templates.title AS badgeTitle,
-    badge_templates.description AS badgeDescription,
+    assertions.achievement_snapshot_json AS achievementSnapshotJson,
     assertions.issued_at AS issuedAt,
     assertions.revoked_at AS revokedAt
 `;
+
+const mapLearnerBadgeSummaryRow = (row: LearnerBadgeSummaryRow): LearnerBadgeSummaryRecord => {
+  const achievement = parseStoredAssertionAchievementSnapshot(row.achievementSnapshotJson);
+
+  return {
+    assertionId: row.assertionId,
+    assertionPublicId: row.assertionPublicId,
+    tenantId: row.tenantId,
+    badgeTemplateId: row.badgeTemplateId,
+    badgeTitle: achievement.title,
+    badgeDescription: achievement.description,
+    issuedAt: row.issuedAt,
+    revokedAt: row.revokedAt,
+  };
+};
 
 const resolveLearnerBadgeSummaryAccessContext = async (
   db: SqlDatabase,
@@ -145,15 +169,15 @@ const listLearnerBadgeSummariesForAccess = async (
     .prepare(
       `
       ${learnerBadgeSummarySelectClause}
-      ${assertionBadgeTemplateJoinSql}
+      FROM assertions
       WHERE ${where.whereClause}
       ORDER BY assertions.issued_at DESC
     `,
     )
     .bind(...where.params)
-    .all<LearnerBadgeSummaryRecord>();
+    .all<LearnerBadgeSummaryRow>();
 
-  return result.results;
+  return result.results.map((row) => mapLearnerBadgeSummaryRow(row));
 };
 
 const findLearnerBadgeSummaryForAccess = async (
@@ -172,14 +196,14 @@ const findLearnerBadgeSummaryForAccess = async (
     .prepare(
       `
       ${learnerBadgeSummarySelectClause}
-      ${assertionBadgeTemplateJoinSql}
+      FROM assertions
       WHERE ${where.whereClause}
     `,
     )
     .bind(...where.params)
-    .first<LearnerBadgeSummaryRecord>();
+    .first<LearnerBadgeSummaryRow>();
 
-  return row;
+  return row === null ? null : mapLearnerBadgeSummaryRow(row);
 };
 
 export const listLearnerBadgeSummaries = async (

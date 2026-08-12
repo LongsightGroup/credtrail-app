@@ -145,6 +145,7 @@ export class FakeOption extends FakeElement {
 export class FakeInput extends FakeElement {
   public checked = false;
   public disabled = false;
+  public required = false;
   public type = "text";
   public value = "";
 

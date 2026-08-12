@@ -8,7 +8,6 @@ import {
 } from "@credtrail/db";
 import type { CreateBadgeTemplateRequest, UpdateBadgeTemplateRequest } from "@credtrail/validation";
 import { buildBadgeTemplateFieldChanges } from "./badge-template-audit-metadata";
-import { recordBadgeTemplateImageRevisionIfChanged } from "./badge-template-image-revision-recording";
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -37,7 +36,6 @@ export const createBadgeTemplateWithAudit = async (
     title: input.request.title,
     description: input.request.description,
     criteriaUri: input.request.criteriaUri,
-    imageUri: input.request.imageUri,
     ...(input.request.trustedCredentialMetadata === undefined
       ? {}
       : { trustedCredentialMetadataJson: JSON.stringify(input.request.trustedCredentialMetadata) }),
@@ -80,7 +78,6 @@ export const updateBadgeTemplateWithAudit = async (
     title: input.request.title,
     description: input.request.description,
     criteriaUri: input.request.criteriaUri,
-    imageUri: input.request.imageUri,
     ...(input.request.trustedCredentialMetadata === undefined
       ? {}
       : {
@@ -93,17 +90,6 @@ export const updateBadgeTemplateWithAudit = async (
 
   if (template === null) {
     return null;
-  }
-
-  if (input.request.imageUri !== undefined) {
-    await recordBadgeTemplateImageRevisionIfChanged(db, {
-      tenantId: input.tenantId,
-      badgeTemplateId: input.badgeTemplateId,
-      previousImageUri: input.existingTemplate.imageUri,
-      newImageUri: template.imageUri,
-      sourceType: "manual_update",
-      createdByUserId: input.actorUserId,
-    });
   }
 
   const changes = buildBadgeTemplateFieldChanges(input.existingTemplate, template, input.request);

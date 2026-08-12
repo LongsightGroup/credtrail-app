@@ -116,6 +116,7 @@ const createEnv = (
   HYPERDRIVE?: Hyperdrive;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
   GOOGLE_OAUTH_CLIENT_ID?: string;
@@ -128,7 +129,8 @@ const createEnv = (
       ? { HYPERDRIVE: { connectionString: "postgres://hyperdrive-test.local/db" } as Hyperdrive }
       : {}),
     BADGE_OBJECTS: overrides?.BADGE_OBJECTS ?? ({} as R2Bucket),
-    PLATFORM_DOMAIN: "credtrail.test",
+    PLATFORM_DOMAIN: "localhost",
+    PUBLIC_APP_ORIGIN: "http://localhost",
   };
 };
 
@@ -194,7 +196,7 @@ const loadAppWithMockedHostedAuthProviders = async (options?: {
           expiresAt: "2026-02-18T12:10:00.000Z",
           debugMagicLinkToken: "better-token-1234567890",
           debugMagicLinkUrl:
-            "https://credtrail.test/auth/magic-link/verify?token=better-token-1234567890&next=%2Fauth%2Fresolve",
+            "http://localhost/auth/magic-link/verify?token=better-token-1234567890&next=%2Fauth%2Fresolve",
         },
       ),
     ),
@@ -865,7 +867,7 @@ describe("magic-link auth routes", () => {
       expiresAt: "2026-02-18T12:10:00.000Z",
       magicLinkToken: "better-token-1234567890",
       magicLinkUrl:
-        "https://credtrail.test/auth/magic-link/verify?token=better-token-1234567890&next=%2Fauth%2Fresolve",
+        "http://localhost/auth/magic-link/verify?token=better-token-1234567890&next=%2Fauth%2Fresolve",
     });
     expect(mockedFindUserByEmail).toHaveBeenCalledWith(fakeDb, "learner@example.edu");
     expect(mockedFindTenantMembership).toHaveBeenCalledWith(fakeDb, "tenant_123", "usr_123");

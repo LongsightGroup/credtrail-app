@@ -18,6 +18,7 @@ const bindings = (input: Partial<AppBindings>): AppBindings => {
     APP_ENV: "test",
     BADGE_OBJECTS: {} as AppBindings["BADGE_OBJECTS"],
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
     ...input,
   };
 };

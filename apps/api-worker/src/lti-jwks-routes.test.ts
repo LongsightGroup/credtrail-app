@@ -32,6 +32,7 @@ const fakeEnv: AppBindings = {
     delete: vi.fn(async () => undefined),
   },
   PLATFORM_DOMAIN: "credtrail.test",
+  PUBLIC_APP_ORIGIN: "https://credtrail.test",
 };
 
 const successfulRun = (rowsWritten: number): SqlRunResult => {

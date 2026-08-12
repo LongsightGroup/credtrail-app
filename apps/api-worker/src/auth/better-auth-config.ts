@@ -1,3 +1,5 @@
+import { canonicalAppOrigin } from "../http/canonical-app-url";
+
 export const BETTER_AUTH_AUTH_SYSTEM = "better_auth";
 export const BETTER_AUTH_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 export const BETTER_AUTH_SESSION_COOKIE_NAME = "better-auth.session_token";
@@ -6,6 +8,7 @@ const BETTER_AUTH_SCHEMA = "auth";
 export interface BetterAuthRuntimeBindings {
   APP_ENV: string;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
   BETTER_AUTH_SECRET?: string | undefined;
   BETTER_AUTH_TRUSTED_ORIGINS?: string | undefined;
   GOOGLE_OAUTH_CLIENT_ID?: string | undefined;
@@ -43,24 +46,10 @@ const normalizeOrigin = (origin: string): string | null => {
   }
 };
 
-const baseUrlFromPlatformDomain = (platformDomain: string): string => {
-  const trimmed = platformDomain.trim();
-
-  if (trimmed.length === 0) {
-    throw new Error("PLATFORM_DOMAIN is required for Better Auth runtime configuration");
-  }
-
-  try {
-    return new URL(trimmed).origin;
-  } catch {
-    return new URL(`https://${trimmed}`).origin;
-  }
-};
-
 export const createBetterAuthRuntimeConfig = (
   bindings: BetterAuthRuntimeBindings,
 ): BetterAuthRuntimeConfig => {
-  const baseURL = baseUrlFromPlatformDomain(bindings.PLATFORM_DOMAIN);
+  const baseURL = canonicalAppOrigin(bindings.PUBLIC_APP_ORIGIN);
   const trustedOrigins = new Set<string>();
 
   trustedOrigins.add(baseURL);

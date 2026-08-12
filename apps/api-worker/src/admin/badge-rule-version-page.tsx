@@ -1,17 +1,18 @@
-import {
-  resolveBadgeIssuanceRuleVersionSelection,
-  type BadgeIssuanceRuleRecord,
-  type BadgeIssuanceRuleVersionRecord,
-  type TenantMembershipRole,
-  type TenantOrgUnitRecord,
-  type TenantRecord,
+import type {
+  BadgeIssuanceRuleRecord,
+  BadgeIssuanceRuleVersionRecord,
+  TenantMembershipRole,
+  TenantOrgUnitRecord,
+  TenantRecord,
 } from "@credtrail/db";
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import { badgeRuleVersionDisplayFields } from "../badges/badge-rule-presentation";
 import type { AppPage } from "../ui/render-page";
 import { buildRulesAdminPath } from "./access-admin-helpers";
-import { BadgeRuleVersionLifecycleExplanation } from "./badge-rule-version-lifecycle-explanation";
-import { BadgeRuleVersionNavigator } from "./badge-rule-version-navigator";
+import {
+  BadgeRuleVersionNavigator,
+  buildBadgeRuleVersionNavigationModel,
+} from "./badge-rule-version-navigator";
 import { BadgeRuleVersionOverview } from "./badge-rule-version-overview";
 import { renderInstitutionAdminShellPage } from "./institution-admin-shell";
 
@@ -28,14 +29,11 @@ export const badgeRuleVersionPage = (input: {
   readonly definition: BadgeIssuanceRuleDefinition;
   readonly orgUnit: TenantOrgUnitRecord | null;
 }): AppPage => {
-  const versionSelection = resolveBadgeIssuanceRuleVersionSelection({
+  const navigation = buildBadgeRuleVersionNavigationModel({
     rule: input.rule,
+    selectedVersion: input.version,
     versions: input.versions,
   });
-
-  if (versionSelection.latestVersion === null) {
-    throw new Error("Badge rule version page requires at least one saved version");
-  }
 
   const displayFields = badgeRuleVersionDisplayFields(input.version);
 
@@ -63,26 +61,23 @@ export const badgeRuleVersionPage = (input: {
             <a href={buildRulesAdminPath(input.tenant.id)}>← All rules</a>
           </p>
           <h1>{displayFields.displayName}</h1>
-          <p>Read-only rule record · Version {String(input.version.versionNumber)}</p>
+          <p>Immutable rule record · Version {String(input.version.versionNumber)}</p>
         </header>
         <section class="ct-admin ct-stack">
+          <BadgeRuleVersionNavigator
+            tenantId={input.tenant.id}
+            rule={input.rule}
+            navigation={navigation}
+            destination="detail"
+          />
           <BadgeRuleVersionOverview
             tenantId={input.tenant.id}
             rule={input.rule}
             version={input.version}
-            latestVersion={versionSelection.latestVersion}
+            latestVersion={navigation.latestVersion}
             definition={input.definition}
             orgUnit={input.orgUnit}
           />
-          <BadgeRuleVersionNavigator
-            tenantId={input.tenant.id}
-            rule={input.rule}
-            version={input.version}
-            versions={versionSelection.orderedVersions}
-            latestVersion={versionSelection.latestVersion}
-            destination="detail"
-          />
-          <BadgeRuleVersionLifecycleExplanation />
         </section>
       </>
     ),

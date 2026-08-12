@@ -1,4 +1,5 @@
 import type { JsonObject } from "@credtrail/core-domain";
+import { canonicalAppOrigin } from "./canonical-app-url";
 import { withCredTrailUserAgent } from "./outbound-user-agent";
 
 interface CreateJsonObjectLoaderInput<BindingsType> {
@@ -8,6 +9,7 @@ interface CreateJsonObjectLoaderInput<BindingsType> {
     bindings: BindingsType,
   ) => Promise<Response>;
   asJsonObject: (value: unknown) => JsonObject | null;
+  publicAppOrigin: (bindings: BindingsType) => string;
 }
 
 type JsonObjectLoadResult =
@@ -24,7 +26,7 @@ export const createLoadJsonObjectFromUrl = <BindingsType>(
   input: CreateJsonObjectLoaderInput<BindingsType>,
 ) => {
   return async (
-    context: { req: { url: string }; env: BindingsType },
+    context: { env: BindingsType },
     resourceUrl: string,
     acceptHeader: string,
   ): Promise<JsonObjectLoadResult> => {
@@ -42,9 +44,9 @@ export const createLoadJsonObjectFromUrl = <BindingsType>(
     let response: Response;
 
     try {
-      const requestUrl = new URL(context.req.url);
+      const publicOrigin = canonicalAppOrigin(input.publicAppOrigin(context.env));
 
-      if (parsedResourceUrl.origin === requestUrl.origin) {
+      if (parsedResourceUrl.origin === publicOrigin) {
         const pathWithQuery = `${parsedResourceUrl.pathname}${parsedResourceUrl.search}`;
         response = await input.appRequest(
           pathWithQuery,

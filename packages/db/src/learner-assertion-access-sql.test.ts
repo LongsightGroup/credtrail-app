@@ -1,18 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  assertionBadgeTemplateJoinSql,
   bindLearnerProfileOrEmailAccessParams,
   buildLearnerProfileOrEmailAccessFilter,
   buildLegacyLearnerEmailAccessFilter,
 } from "./learner-assertion-access-sql";
 
 describe("learner assertion access SQL helpers", () => {
-  it("builds the shared assertion and badge template join", () => {
-    expect(assertionBadgeTemplateJoinSql).toContain("FROM assertions");
-    expect(assertionBadgeTemplateJoinSql).toContain("INNER JOIN badge_templates");
-  });
-
   it("builds legacy email-only access filters", () => {
     expect(buildLegacyLearnerEmailAccessFilter()).toContain("recipient_identity_type = 'email'");
     expect(buildLegacyLearnerEmailAccessFilter()).toContain(

@@ -1,3 +1,4 @@
+import type { BadgeAchievementSnapshot } from "@credtrail/validation";
 import type { TenantMembershipRole } from "./tenant-memberships";
 
 export type BadgeIssuanceRuleLmsProviderKind =
@@ -153,7 +154,10 @@ export interface BadgeIssuanceRuleVersionSnapshot {
   description: string | null;
   badgeTemplateId: string;
   badgeTemplateTitle: string;
+  badgeTemplateDescription: string | null;
+  badgeTemplateCriteriaUri: string | null;
   badgeTemplateImageUri: string | null;
+  badgeTemplateTrustedCredentialMetadataJson: string | null;
   orgUnitId: string;
   ownerOrgUnitId: string;
   lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
@@ -268,6 +272,9 @@ export type BadgeIssuanceRuleAuthoringFailureReason =
   | "replay_conflict"
   | "not_found"
   | "not_editable"
+  | "template_changed"
+  | "template_artwork_not_immutable"
+  | "template_reuse_confirmation_required"
   | "self_certification_required"
   | "policy_missing_steps";
 
@@ -294,6 +301,8 @@ export type CreateBadgeIssuanceRuleAuthoringInput = Omit<
   readonly action: BadgeIssuanceRuleAuthoringAction;
   readonly actorUserId: string;
   readonly actorRole: TenantMembershipRole;
+  readonly expectedBadgeTemplateRevision: ExpectedBadgeTemplateRevision;
+  readonly badgeTemplateReuseAcknowledged: boolean;
   readonly builderDraftId?: string | undefined;
 };
 
@@ -305,7 +314,15 @@ export type UpdateBadgeIssuanceRuleAuthoringInput = Omit<
   readonly action: BadgeIssuanceRuleAuthoringAction;
   readonly actorUserId: string;
   readonly actorRole: TenantMembershipRole;
+  readonly expectedBadgeTemplateRevision: ExpectedBadgeTemplateRevision;
+  readonly badgeTemplateReuseAcknowledged: boolean;
 };
+
+/** Optimistic-concurrency value used to reject a template changed during authoring. */
+export interface ExpectedBadgeTemplateRevision {
+  readonly updatedAt: string;
+  readonly achievementSnapshot: BadgeAchievementSnapshot;
+}
 
 export type ListBadgeIssuanceRulesInput = {
   readonly tenantId: string;

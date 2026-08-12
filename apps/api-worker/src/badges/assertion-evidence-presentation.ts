@@ -1,7 +1,6 @@
 import type { AssertionIssuanceProvenanceSource } from "@credtrail/db";
 import { parseIssuanceEvidenceSnapshotJson } from "@credtrail/validation";
 import { tenantMembershipRoleLabel } from "../admin/tenant-membership-role-labels";
-import { inferLegacyIssuanceSource } from "./assertion-evidence-legacy-inference";
 import { badgeRuleVersionDisplayFields } from "./badge-rule-presentation";
 import type { AssertionEvidenceLoadedData } from "./assertion-evidence-payload";
 import {
@@ -115,16 +114,6 @@ const resolveActorLabel = (
   return actorLabels.get(actorUserId) ?? actorUserId;
 };
 
-const resolveIssuanceSource = (
-  data: AssertionEvidenceLoadedData,
-): AssertionEvidenceIssuanceSource => {
-  if (data.provenance !== null) {
-    return data.provenance.source;
-  }
-
-  return inferLegacyIssuanceSource(data);
-};
-
 const parsedEvaluationSnapshotFromLoadedData = (
   data: AssertionEvidenceLoadedData,
 ): {
@@ -135,7 +124,7 @@ const parsedEvaluationSnapshotFromLoadedData = (
     return parseIssuanceEvidenceSnapshotJson(data.evaluation.evaluationJson);
   }
 
-  return parseIssuanceEvidenceSnapshotJson(data.provenance?.provenanceJson ?? null);
+  return parseIssuanceEvidenceSnapshotJson(data.provenance.provenanceJson);
 };
 
 const formatAuditDetail = (metadataJson: string | null): string => {
@@ -210,7 +199,7 @@ const buildChangesAfterIssuance = (
 export const buildAssertionEvidencePresentation = (
   data: AssertionEvidenceLoadedData,
 ): AssertionEvidencePresentation => {
-  const issuanceSource = resolveIssuanceSource(data);
+  const issuanceSource = data.provenance.source;
   const evaluationSnapshot = parsedEvaluationSnapshotFromLoadedData(data);
   const factsSummary =
     evaluationSnapshot.facts === null ? [] : summarizeEvaluationFacts(evaluationSnapshot.facts);
@@ -254,7 +243,7 @@ export const buildAssertionEvidencePresentation = (
     tenantId: data.assertion.tenantId,
     generatedAt: data.generatedAt,
     summary: {
-      badgeTitle: data.badgeTemplate.title,
+      badgeTitle: data.assertion.achievementSnapshot.title,
       recipientIdentity: data.assertion.recipientIdentity,
       issuedAt: data.assertion.issuedAt,
       publicId: data.assertion.publicId,

@@ -158,8 +158,11 @@ export const executeLtiRosterIssuance = async (
       continue;
     }
 
+    if (ruleContext.prepared?.status !== "ready") {
+      throw new Error("Eligible roster issuance requires an active rule snapshot");
+    }
+
     const request: DirectIssueBadgeRequest = await buildLtiRosterIssueBadgeRequest({
-      badgeTemplateId: input.issuanceAction.badgeTemplateId,
       member: { ...member, email: recipientEmail },
       eligibility,
       idempotencyKeyPrefix,

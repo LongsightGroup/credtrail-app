@@ -32,7 +32,7 @@ const createMockStore = (): ImmutableCredentialStore => {
         key: found.key,
       });
     },
-    get: (key: string): Promise<{ text(): Promise<string> } | null> => {
+    get: (key: string): Promise<{ readonly size: number; text(): Promise<string> } | null> => {
       const found = objects.get(key);
 
       if (found === undefined) {
@@ -40,6 +40,7 @@ const createMockStore = (): ImmutableCredentialStore => {
       }
 
       return Promise.resolve({
+        size: found.size,
         text: (): Promise<string> => Promise.resolve(found.body),
       });
     },

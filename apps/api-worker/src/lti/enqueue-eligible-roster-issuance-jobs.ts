@@ -25,13 +25,16 @@ export const enqueueEligibleLtiRosterIssuanceJobs = async (input: {
   readonly db: SqlDatabase;
   readonly tenantId: string;
   readonly ruleId: string;
-  readonly badgeTemplateId: string;
   readonly action: LtiRosterIssuancePlacementAction;
   readonly learnerMembers: readonly LtiNrpsMember[];
   readonly prepared: LtiRosterEligibilityPreparedEvaluation;
   readonly nowIso: string;
   readonly sha256Hex: (value: string) => Promise<string>;
 }): Promise<{ readonly issueJobsEnqueued: number }> => {
+  if (input.prepared.status !== "ready") {
+    return { issueJobsEnqueued: 0 };
+  }
+
   const issuedStatesByUserId = await ltiRosterIssuedBadgeStatesByUserId({
     db: input.db,
     sha256Hex: input.sha256Hex,
@@ -65,7 +68,6 @@ export const enqueueEligibleLtiRosterIssuanceJobs = async (input: {
     }
 
     const issueRequest = await buildLtiRosterIssueBadgeRequest({
-      badgeTemplateId: input.badgeTemplateId,
       member: { ...member, email: member.email },
       eligibility,
       idempotencyKeyPrefix,

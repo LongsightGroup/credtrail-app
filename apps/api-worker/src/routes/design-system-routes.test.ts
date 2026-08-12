@@ -10,6 +10,7 @@ const createEnv = (appEnv: string): AppBindings => {
     APP_ENV: appEnv,
     BADGE_OBJECTS: {} as ImmutableCredentialStore,
     PLATFORM_DOMAIN: "credtrail.org",
+    PUBLIC_APP_ORIGIN: "https://credtrail.org",
   };
 };
 

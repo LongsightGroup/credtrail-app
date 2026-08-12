@@ -8,6 +8,7 @@ import {
   createBadgeRuleIntegrationFixture,
   describeDbIntegration,
   seedAssertion,
+  uniqueTestId,
 } from "./postgres-test-support";
 
 describeDbIntegration("assertion evidence DB helpers with Postgres", () => {
@@ -61,20 +62,35 @@ describeDbIntegration("assertion evidence DB helpers with Postgres", () => {
       const createdRule = await createFixtureRule(fixture);
       const version = createdRule.version;
 
-      const assertionId = await seedAssertion(fixture.db, {
-        tenantId: fixture.tenantId,
-        badgeTemplateId: fixture.badgeTemplateId,
-        recipientIdentity: "learner-two@example.edu",
-        issuedAt: "2026-03-24T16:00:00.000Z",
-      });
-
-      await dbModule.createAssertionIssuanceProvenance(fixture.db, {
-        assertionId,
-        tenantId: fixture.tenantId,
-        source: "lti_roster",
-        ruleId: createdRule.rule.id,
-        versionId: version.id,
-        provenanceJson: JSON.stringify({ outcome: "matched" }),
+      const assertionId = uniqueTestId("assertion");
+      const finalized = await dbModule.finalizeAssertionIssuance(fixture.db, {
+        assertion: {
+          id: assertionId,
+          tenantId: fixture.tenantId,
+          recipientIdentity: "learner-two@example.edu",
+          recipientIdentityType: "email",
+          vcR2Key: `tenants/${fixture.tenantId}/assertions/${assertionId}.jsonld`,
+          statusListIndex: 7,
+          idempotencyKey: uniqueTestId("idem"),
+          issuedAt: "2026-03-24T16:00:00.000Z",
+          issuedByUserId: fixture.userId,
+        },
+        achievementSource: {
+          kind: "rule_version",
+          provenance: {
+            source: "lti_roster",
+            ruleId: createdRule.rule.id,
+            versionId: version.id,
+            provenanceJson: JSON.stringify({ outcome: "matched" }),
+          },
+        },
+        buildAuditLog: (assertion) => ({
+          tenantId: fixture.tenantId,
+          actorUserId: fixture.userId,
+          action: "assertion.issued",
+          targetType: "assertion",
+          targetId: assertion.id,
+        }),
       });
 
       const loaded = await dbModule.findAssertionIssuanceProvenanceByAssertionId(fixture.db, {
@@ -85,6 +101,7 @@ describeDbIntegration("assertion evidence DB helpers with Postgres", () => {
       expect(loaded?.source).toBe("lti_roster");
       expect(loaded?.ruleId).toBe(createdRule.rule.id);
       expect(loaded?.versionId).toBe(version.id);
+      expect(finalized.status).toBe("issued");
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],

@@ -1,15 +1,18 @@
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 
 import {
   activateBadgeIssuanceRuleVersion,
-  createAssertion,
-  createBadgeIssuanceRule,
+  badgeAchievementSnapshotFromRuleVersion,
+  badgeAchievementSnapshotFromTemplate,
+  badgeAchievementSnapshotsEqual,
+  badgeIssuanceRuleIdentityForBuilderDraft,
   ensureInstitutionOrgUnitForTenant,
   findAssertionByPublicId,
+  findBadgeIssuanceRuleById,
+  findBadgeTemplateById,
+  finalizeAssertionIssuance,
   listBadgeIssuanceRules,
+  listBadgeIssuanceRuleVersions,
   resolveLearnerProfileForIdentity,
   upsertBadgeTemplateById,
   upsertTenant,
@@ -19,8 +22,15 @@ import {
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
+import { authorPreparedBadgeRule } from "../apps/api-worker/src/badges/badge-rule-authoring-service";
+import { ensureLocalDevBadgeTemplateArtwork } from "./local-dev-badge-artwork";
 import { loadLocalDevEnv, requireEnv } from "./local-dev-env.mjs";
 import localDevDemoContract from "./local-dev-demo-contract";
+import {
+  createWranglerLocalR2Store,
+  ensureWranglerLocalR2Object,
+  type EnsuredWranglerLocalR2Object,
+} from "./wrangler-local-r2-store";
 
 loadLocalDevEnv();
 
@@ -39,13 +49,16 @@ const {
   localDevDemoTrustedCredentialFixture,
 } = localDevDemoContract;
 const adminEmail = process.env.CREDTRAIL_DEV_ADMIN_EMAIL?.trim() || localDevDemoAdminEmail;
+const localR2BucketName = process.env.CREDTRAIL_DEV_R2_BUCKET?.trim() || "credtrail-badges-local";
+const localR2PersistTo = process.env.CREDTRAIL_DEV_R2_PERSIST_TO?.trim() || ".wrangler/state";
+const publicAppOrigin = requireEnv("PUBLIC_APP_ORIGIN");
+const appliedAnalyticsArtworkBytes = new Uint8Array(
+  readFileSync(new URL("./assets/local-dev-applied-analytics-badge.png", import.meta.url)),
+);
 
-interface SeedLocalR2CredentialObjectResult {
-  status: "seeded" | "skipped";
+interface SeedLocalR2CredentialObjectResult extends EnsuredWranglerLocalR2Object {
   bucketName: string;
-  key: string;
   persistTo: string;
-  detail?: string | undefined;
 }
 
 interface LocalDevSeedTenantConfig {
@@ -88,84 +101,10 @@ interface SeedLocalTenantResult {
   demoRoutes: ReturnType<typeof localDevDemoRoutes>;
 }
 
-const shouldSeedLocalR2 = (): boolean => {
-  return process.env.CREDTRAIL_DEV_SEED_R2?.trim().toLowerCase() !== "false";
-};
-
-const wranglerLocalR2ObjectPath = (bucketName: string, key: string): string => {
-  return `${bucketName}/${key.replaceAll("%", "%25")}`;
-};
-
-const seedLocalR2CredentialObject = (
-  bucketName: string,
-  key: string,
-  credential: unknown,
-): SeedLocalR2CredentialObjectResult => {
-  const persistTo = process.env.CREDTRAIL_DEV_R2_PERSIST_TO?.trim() || ".wrangler/state";
-
-  if (!shouldSeedLocalR2()) {
-    return {
-      status: "skipped",
-      bucketName,
-      key,
-      persistTo,
-      detail: "CREDTRAIL_DEV_SEED_R2=false",
-    };
-  }
-
-  const tempDirectory = mkdtempSync(join(tmpdir(), "credtrail-local-r2-"));
-  const tempFile = join(tempDirectory, "credential.jsonld");
-
-  try {
-    writeFileSync(tempFile, `${JSON.stringify(credential)}\n`, "utf8");
-
-    const result = spawnSync(
-      "pnpm",
-      [
-        "exec",
-        "wrangler",
-        "r2",
-        "object",
-        "put",
-        wranglerLocalR2ObjectPath(bucketName, key),
-        "--file",
-        tempFile,
-        "--content-type",
-        "application/ld+json",
-        "--cache-control",
-        "public, max-age=31536000, immutable",
-        "--local",
-        "--persist-to",
-        persistTo,
-      ],
-      {
-        cwd: process.cwd(),
-        encoding: "utf8",
-      },
-    );
-
-    if (result.status !== 0) {
-      const stderr = result.stderr.trim();
-      const stdout = result.stdout.trim();
-      const detail = stderr.length > 0 ? stderr : stdout;
-
-      throw new Error(
-        `Unable to seed local R2 credential object "${bucketName}/${key}"${
-          detail.length === 0 ? "" : `: ${detail}`
-        }`,
-      );
-    }
-
-    return {
-      status: "seeded",
-      bucketName,
-      key,
-      persistTo,
-    };
-  } finally {
-    rmSync(tempDirectory, { recursive: true, force: true });
-  }
-};
+const localSeedObjectStore = createWranglerLocalR2Store({
+  bucketName: localR2BucketName,
+  persistTo: localR2PersistTo,
+});
 
 const scopedFixtureId = (baseId: string, suffix: string): string => {
   return suffix.length === 0 ? baseId : `${baseId}_${suffix}`;
@@ -173,6 +112,13 @@ const scopedFixtureId = (baseId: string, suffix: string): string => {
 
 const scopedFixtureSlug = (baseSlug: string, suffix: string): string => {
   return suffix.length === 0 ? baseSlug : `${baseSlug}-${suffix}`;
+};
+
+const deleteLocalDevSeedRule = async (tenantId: string, ruleId: string): Promise<void> => {
+  await db
+    .prepare("DELETE FROM badge_issuance_rules WHERE tenant_id = ? AND id = ?")
+    .bind(tenantId, ruleId)
+    .run();
 };
 
 const buildSeedTenantConfigs = (): LocalDevSeedTenantConfig[] => {
@@ -243,14 +189,28 @@ const seedLocalTenant = async (
   });
 
   for (const template of localDevDemoTemplates) {
+    const badgeTemplateId = scopedFixtureId(template.id, config.fixtureSuffix);
+    const imageUri =
+      template.artworkAsset === "applied_analytics"
+        ? await ensureLocalDevBadgeTemplateArtwork({
+            store: localSeedObjectStore,
+            publicAppOrigin,
+            tenantId: config.tenantId,
+            badgeTemplateId,
+            mimeType: "image/png",
+            bytes: appliedAnalyticsArtworkBytes,
+            originalFilename: "local-dev-applied-analytics-badge.png",
+          })
+        : null;
+
     await upsertBadgeTemplateById(db, {
-      id: scopedFixtureId(template.id, config.fixtureSuffix),
+      id: badgeTemplateId,
       tenantId: config.tenantId,
       slug: scopedFixtureSlug(template.slug, config.fixtureSuffix),
       title: template.title,
       description: template.description,
       criteriaUri: template.criteriaUri,
-      imageUri: template.imageUri,
+      imageUri,
       trustedCredentialMetadataJson: template.trustedCredentialMetadataJson,
       createdByUserId: adminUser.id,
       ownerOrgUnitId,
@@ -272,33 +232,110 @@ const seedLocalTenant = async (
     scope: config.lmsScope,
   });
 
+  const badgeTemplateId = scopedFixtureId(localDevDemoRule.badgeTemplateId, config.fixtureSuffix);
+  const seededRuleBuilderDraftId = scopedFixtureId("brd_local_dev_seed_rule", config.fixtureSuffix);
+  const seededRuleIdentity = await badgeIssuanceRuleIdentityForBuilderDraft(
+    config.tenantId,
+    seededRuleBuilderDraftId,
+  );
   const existingRules = await listBadgeIssuanceRules(db, { tenantId: config.tenantId });
-  let seededRule = existingRules.find((rule) => rule.name === localDevDemoRule.name) ?? null;
+
+  for (const rule of existingRules) {
+    const isSupersededSeedRule =
+      rule.id !== seededRuleIdentity.ruleId &&
+      rule.name === localDevDemoRule.name &&
+      rule.badgeTemplateId === badgeTemplateId &&
+      rule.lmsConnectionId === lmsConnectionId &&
+      rule.createdByUserId === adminUser.id;
+
+    if (isSupersededSeedRule) {
+      await deleteLocalDevSeedRule(config.tenantId, rule.id);
+    }
+  }
+
+  let seededRule = await findBadgeIssuanceRuleById(db, config.tenantId, seededRuleIdentity.ruleId);
   let seededRuleVersionId = seededRule?.activeVersionId ?? null;
+  const seededTemplate = await findBadgeTemplateById(db, config.tenantId, badgeTemplateId);
+
+  if (seededTemplate === null) {
+    throw new Error(`Unable to load seeded badge template "${badgeTemplateId}"`);
+  }
+
+  if (seededRule !== null) {
+    const versions = await listBadgeIssuanceRuleVersions(db, {
+      tenantId: config.tenantId,
+      ruleId: seededRule.id,
+    });
+    const activeVersion = versions.find((version) => version.id === seededRule?.activeVersionId);
+    const ruleJson = JSON.stringify(localDevDemoRule.definition);
+    const hasCurrentSeedContract =
+      seededRule.name === localDevDemoRule.name &&
+      seededRule.description === localDevDemoRule.description &&
+      seededRule.badgeTemplateId === badgeTemplateId &&
+      seededRule.lmsProviderKind === config.lmsProviderKind &&
+      seededRule.lmsConnectionId === lmsConnectionId &&
+      activeVersion !== undefined &&
+      activeVersion.status === "active" &&
+      activeVersion.ruleJson === ruleJson &&
+      activeVersion.snapshot.name === localDevDemoRule.name &&
+      activeVersion.snapshot.description === localDevDemoRule.description &&
+      activeVersion.snapshot.orgUnitId === seededTemplate.ownerOrgUnitId &&
+      activeVersion.snapshot.ownerOrgUnitId === seededTemplate.ownerOrgUnitId &&
+      activeVersion.snapshot.lmsProviderKind === config.lmsProviderKind &&
+      activeVersion.snapshot.lmsConnectionId === lmsConnectionId &&
+      badgeAchievementSnapshotsEqual(
+        badgeAchievementSnapshotFromRuleVersion(activeVersion.snapshot),
+        badgeAchievementSnapshotFromTemplate(seededTemplate),
+      );
+
+    if (!hasCurrentSeedContract) {
+      await deleteLocalDevSeedRule(config.tenantId, seededRule.id);
+      seededRule = null;
+      seededRuleVersionId = null;
+    }
+  }
 
   if (seededRule === null) {
-    const createdRule = await createBadgeIssuanceRule(db, {
+    const authoredRule = await authorPreparedBadgeRule({
+      kind: "create",
+      db,
+      store: localSeedObjectStore,
+      publicAppOrigin,
       tenantId: config.tenantId,
-      name: localDevDemoRule.name,
-      description: localDevDemoRule.description,
-      badgeTemplateId: scopedFixtureId(localDevDemoRule.badgeTemplateId, config.fixtureSuffix),
-      lmsProviderKind: config.lmsProviderKind,
-      lmsConnectionId,
+      actorUserId: adminUser.id,
+      actorRole: "owner",
+      lmsConnection: {
+        id: lmsConnectionId,
+        providerKind: config.lmsProviderKind,
+      },
       ruleJson: JSON.stringify(localDevDemoRule.definition),
-      changeSummary: "Seeded local demo rule",
-      createdByUserId: adminUser.id,
+      request: {
+        name: localDevDemoRule.name,
+        description: localDevDemoRule.description,
+        badgeTemplateId,
+        badgeTemplateReuseAcknowledged: true,
+        lmsConnectionId,
+        definition: localDevDemoRule.definition,
+        changeSummary: "Seeded local demo rule",
+        action: "save_draft",
+        builderDraftId: seededRuleBuilderDraftId,
+      },
     });
+
+    if (authoredRule.status === "failed") {
+      throw new Error(`Unable to author local demo badge rule (${authoredRule.reason})`);
+    }
 
     const activeVersion = await activateBadgeIssuanceRuleVersion(db, {
       tenantId: config.tenantId,
-      ruleId: createdRule.rule.id,
-      versionId: createdRule.version.id,
+      ruleId: authoredRule.rule.id,
+      versionId: authoredRule.version.id,
       actorUserId: adminUser.id,
-      activatedAt: createdRule.version.createdAt,
+      activatedAt: authoredRule.version.createdAt,
     });
 
-    seededRule = createdRule.rule;
-    seededRuleVersionId = activeVersion?.id ?? createdRule.version.id;
+    seededRule = authoredRule.rule;
+    seededRuleVersionId = activeVersion?.id ?? authoredRule.version.id;
   }
 
   const learnerProfile = await resolveLearnerProfileForIdentity(db, {
@@ -315,33 +352,64 @@ const seedLocalTenant = async (
     const existingTrustedAssertion = await findAssertionByPublicId(db, trustedDemo.publicId);
 
     if (existingTrustedAssertion === null) {
-      await createAssertion(db, {
-        id: trustedDemo.assertionId,
-        tenantId: config.tenantId,
-        publicId: trustedDemo.publicId,
-        learnerProfileId: learnerProfile.id,
-        badgeTemplateId: trustedDemo.badgeTemplateId,
-        recipientIdentity: localDevDemoLearnerEmail,
-        recipientIdentityType: "email",
-        vcR2Key: trustedDemo.assertion.vcR2Key,
-        statusListIndex: trustedDemo.assertion.statusListIndex ?? 7,
-        idempotencyKey: trustedDemo.assertion.idempotencyKey,
-        issuedAt: trustedDemo.assertion.issuedAt,
-        issuedByUserId: adminUser.id,
-        recipientIdentifiers: [
-          {
-            identifierType: "emailAddress",
-            identifierValue: localDevDemoLearnerEmail,
+      const finalizedAssertion = await finalizeAssertionIssuance(db, {
+        assertion: {
+          id: trustedDemo.assertionId,
+          tenantId: config.tenantId,
+          publicId: trustedDemo.publicId,
+          learnerProfileId: learnerProfile.id,
+          recipientIdentity: localDevDemoLearnerEmail,
+          recipientIdentityType: "email",
+          vcR2Key: trustedDemo.assertion.vcR2Key,
+          statusListIndex: trustedDemo.assertion.statusListIndex ?? 7,
+          idempotencyKey: trustedDemo.assertion.idempotencyKey,
+          issuedAt: trustedDemo.assertion.issuedAt,
+          issuedByUserId: adminUser.id,
+          recipientIdentifiers: [
+            {
+              identifierType: "emailAddress",
+              identifierValue: localDevDemoLearnerEmail,
+            },
+          ],
+        },
+        achievementSource: {
+          kind: "template_snapshot",
+          snapshot: trustedDemo.assertion.achievementSnapshot,
+          provenance: { source: "programmatic" },
+        },
+        buildAuditLog: (assertion) => ({
+          tenantId: config.tenantId,
+          actorUserId: adminUser.id,
+          action: "assertion.issued",
+          targetType: "assertion",
+          targetId: assertion.id,
+          metadata: {
+            assertionPublicId: assertion.publicId,
+            badgeTemplateId: assertion.badgeTemplateId,
+            recipientIdentity: assertion.recipientIdentity,
+            recipientIdentityType: assertion.recipientIdentityType,
+            issuedAt: assertion.issuedAt,
+            source: "local_dev_seed",
           },
-        ],
+        }),
       });
+
+      if (finalizedAssertion.status !== "issued") {
+        throw new Error("Unable to finalize the seeded trusted credential assertion");
+      }
     }
 
-    const localR2Seed = seedLocalR2CredentialObject(
-      process.env.CREDTRAIL_DEV_R2_BUCKET?.trim() || "credtrail-badges-local",
-      trustedDemo.assertion.vcR2Key,
-      trustedDemo.credential,
-    );
+    const ensuredCredential = await ensureWranglerLocalR2Object(localSeedObjectStore, {
+      key: trustedDemo.assertion.vcR2Key,
+      value: JSON.stringify(trustedDemo.credential),
+      contentType: "application/ld+json",
+      cacheControl: "public, max-age=31536000, immutable",
+    });
+    const localR2Seed: SeedLocalR2CredentialObjectResult = {
+      ...ensuredCredential,
+      bucketName: localR2BucketName,
+      persistTo: localR2PersistTo,
+    };
 
     publicCredential = {
       publicId: trustedDemo.publicId,

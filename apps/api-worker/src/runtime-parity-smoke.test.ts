@@ -24,6 +24,7 @@ const createEnv = (): AppBindings => {
   return {
     APP_ENV: "test",
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
     BADGE_OBJECTS: createNoopStore(),
   };
 };
@@ -32,6 +33,7 @@ const createRuntimeEnv = (): WorkerRuntimeBindings => {
   return {
     APP_ENV: "test",
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
     BADGE_OBJECTS: {} as R2Bucket,
   };
 };

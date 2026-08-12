@@ -12,6 +12,7 @@ import { parseCredentialPathParams, parseTenantPathParams } from "@credtrail/val
 import type { Hono } from "hono";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
+import { canonicalAppRequestUrl } from "../http/canonical-app-url";
 import { VC_JSON_LD_CONTENT_TYPE } from "../http/vc-media-types";
 
 interface VerificationAssertion {
@@ -98,6 +99,10 @@ interface BadgePdfDocumentInput {
   badgeImageUrl: string | null;
   revokedAt?: string;
 }
+
+const publicRequestUrl = (c: AppContext): string => {
+  return canonicalAppRequestUrl(c.env.PUBLIC_APP_ORIGIN, c.req.url);
+};
 
 interface SigningEntry {
   privateJwk?:
@@ -404,7 +409,7 @@ export const registerCredentialRoutes = <
       model.assertion.statusListIndex === null
         ? null
         : credentialStatusForAssertion(
-            revocationStatusListUrlForTenant(c.req.url, model.assertion.tenantId),
+            revocationStatusListUrlForTenant(publicRequestUrl(c), model.assertion.tenantId),
             model.assertion.statusListIndex,
           );
     const checkedAt = new Date().toISOString();
@@ -519,9 +524,9 @@ export const registerCredentialRoutes = <
       status: credentialLifecycleLabel(pdfEffectiveLifecycle.state),
       assertionId: model.assertion.id,
       credentialId,
-      publicBadgeUrl: new URL(publicBadgePath, c.req.url).toString(),
-      verificationUrl: new URL(verificationPath, c.req.url).toString(),
-      ob3JsonUrl: new URL(ob3JsonPath, c.req.url).toString(),
+      publicBadgeUrl: new URL(publicBadgePath, publicRequestUrl(c)).toString(),
+      verificationUrl: new URL(verificationPath, publicRequestUrl(c)).toString(),
+      ob3JsonUrl: new URL(ob3JsonPath, publicRequestUrl(c)).toString(),
       badgeImageUrl: achievementDetails.imageUri,
       ...(pdfEffectiveLifecycle.revokedAt === null
         ? {}
@@ -600,7 +605,7 @@ export const registerCredentialRoutes = <
       };
     });
     const statusListCredentialInput = await buildRevocationStatusListCredential({
-      requestUrl: c.req.url,
+      requestUrl: publicRequestUrl(c),
       tenantId: pathParams.tenantId,
       issuerDid,
       statusEntries,

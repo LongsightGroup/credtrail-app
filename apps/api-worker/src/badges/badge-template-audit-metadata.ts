@@ -24,7 +24,6 @@ const fieldReaders: ReadonlyArray<{
     field: "criteriaUri",
     read: (template) => template.criteriaUri,
   },
-  { requestKey: "imageUri", field: "imageUri", read: (template) => template.imageUri },
   {
     requestKey: "trustedCredentialMetadata",
     field: "trustedCredentialMetadata",

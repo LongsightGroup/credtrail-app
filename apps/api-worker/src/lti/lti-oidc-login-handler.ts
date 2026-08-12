@@ -6,6 +6,7 @@ import {
 import type { Hono } from "hono";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
+import { canonicalAppUrl } from "../http/canonical-app-url";
 import { renderAppPage } from "../ui/render-page";
 import { LTI_LAUNCH_PATH, LTI_OIDC_LOGIN_PATH } from "./constants";
 import { createCredTrailLtiTool } from "./credtrail-lti-tool";
@@ -107,7 +108,7 @@ export const handleLtiOidcLogin = async (input: HandleLtiOidcLoginInput): Promis
   const authRedirectUrl = await ltiTool.handleLogin({
     iss: loginIssuer.issuer,
     client_id: clientId,
-    launchUrl: new URL(LTI_LAUNCH_PATH, c.req.url),
+    launchUrl: new URL(canonicalAppUrl(c.env.PUBLIC_APP_ORIGIN, LTI_LAUNCH_PATH)),
     login_hint: loginRequest.login_hint,
     target_link_uri: loginRequest.target_link_uri,
     lti_deployment_id: deploymentId,

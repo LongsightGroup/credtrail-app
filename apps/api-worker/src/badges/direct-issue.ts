@@ -9,9 +9,11 @@ import {
   type ObservabilityContext,
 } from "@credtrail/core-domain";
 import {
+  badgeAchievementSnapshotFromRuleVersion,
   finalizeAssertionIssuance,
   findAssertionByIdempotencyKey,
   findBadgeTemplateById,
+  findBadgeIssuanceRuleVersionById,
   findTenantById,
   listLearnerIdentitiesByProfile,
   nextAssertionStatusListIndex,
@@ -23,11 +25,13 @@ import {
   type ResolveAssertionLifecycleStateResult,
   type SqlDatabase,
 } from "@credtrail/db";
+import type { BadgeAchievementSnapshot } from "@credtrail/validation";
 import type { SendIssuanceEmailNotificationInput } from "../notifications/send-issuance-email";
 import type {
   SignCredentialForDidInput,
   SignCredentialForDidResult,
 } from "../signing/credential-signer";
+import { canonicalAppOrigin } from "../http/canonical-app-url";
 import { asJsonObject } from "../utils/value-parsers";
 import {
   credentialStatusForAssertion,
@@ -36,8 +40,9 @@ import {
 import {
   recipientIdentifiersForIssueRequest,
   type DirectIssueBadgeRequest,
-  type DirectIssueBadgeIssuanceProvenance,
 } from "./recipient-identifiers";
+import { resolveIssuableBadgeAchievementSnapshot } from "./badge-achievement-snapshot";
+import { badgeArtworkIssuanceHttpFailure } from "./badge-artwork-issuance-http";
 import {
   parseTrustEdCredentialMetadataJsonResult,
   type TrustEdCredentialMetadataParseResult,
@@ -51,27 +56,12 @@ import {
 interface IssueBadgeBindings {
   BADGE_OBJECTS: ImmutableCredentialStore;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
   EMAIL?: SendEmail | undefined;
   ISSUANCE_EMAIL_NOTIFICATIONS_ENABLED?: string | undefined;
   TRANSACTIONAL_EMAIL_FROM_ADDRESS?: string | undefined;
   TRANSACTIONAL_EMAIL_FROM_NAME?: string | undefined;
 }
-
-const canonicalCredentialBaseUrl = (bindings: IssueBadgeBindings, requestUrl: string): string => {
-  const requestBaseUrl = new URL(requestUrl);
-  const platformDomain = bindings.PLATFORM_DOMAIN.trim();
-
-  if (
-    platformDomain.length === 0 ||
-    platformDomain === "localhost" ||
-    platformDomain.startsWith("localhost:") ||
-    platformDomain === requestBaseUrl.host
-  ) {
-    return requestBaseUrl.origin;
-  }
-
-  return `https://${platformDomain}`;
-};
 
 const issuerUrlFromTenantDomain = (issuerDomain: string): string | undefined => {
   const trimmedDomain = issuerDomain.trim();
@@ -90,7 +80,12 @@ export interface IssueBadgeHttpErrorPayload {
 }
 
 /** HTTP status codes emitted by direct badge issuance. */
-export type IssueBadgeHttpErrorStatusCode = 400 | 404 | 409 | 422 | 500 | 502;
+const ISSUE_BADGE_HTTP_ERROR_STATUS_CODES = [400, 404, 409, 422, 500, 502, 503] as const;
+
+/** HTTP status codes emitted by direct badge issuance. */
+export type IssueBadgeHttpErrorStatusCode = (typeof ISSUE_BADGE_HTTP_ERROR_STATUS_CODES)[number];
+
+const issueBadgeHttpErrorStatusCodes = new Set<number>(ISSUE_BADGE_HTTP_ERROR_STATUS_CODES);
 
 /** Framework-neutral shape of an HTTP error emitted by direct badge issuance. */
 export interface IssueBadgeHttpError {
@@ -105,12 +100,8 @@ export const isIssueBadgeHttpError = (error: unknown): error is IssueBadgeHttpEr
   }
 
   if (
-    error.statusCode !== 400 &&
-    error.statusCode !== 404 &&
-    error.statusCode !== 409 &&
-    error.statusCode !== 422 &&
-    error.statusCode !== 500 &&
-    error.statusCode !== 502
+    typeof error.statusCode !== "number" ||
+    !issueBadgeHttpErrorStatusCodes.has(error.statusCode)
   ) {
     return false;
   }
@@ -239,12 +230,6 @@ const criteriaForIssuedAchievement = (
   return criteria;
 };
 
-const resolveIssuanceProvenance = (
-  request: DirectIssueBadgeRequest,
-): DirectIssueBadgeIssuanceProvenance => {
-  return request.issuanceProvenance;
-};
-
 export const createIssueBadgeForTenant = <
   ContextType extends { env: BindingsType; req: { url: string } },
   BindingsType extends IssueBadgeBindings,
@@ -259,25 +244,26 @@ export const createIssueBadgeForTenant = <
     options?: DirectIssueBadgeOptions,
   ): Promise<DirectIssueBadgeResult> => {
     const db = input.resolveDatabase(context.env);
-    const badgeTemplate = await findBadgeTemplateById(db, tenantId, request.badgeTemplateId);
-    const tenant = await findTenantById(db, tenantId);
+    const hasGovernedRuleSnapshot = request.achievementSource.kind === "rule_version";
+    let requestedAchievement: BadgeAchievementSnapshot;
 
-    if (badgeTemplate === null) {
-      throw new input.HttpErrorResponseClass(404, {
-        error: "Badge template not found",
+    if (request.achievementSource.kind === "rule_version") {
+      const issuanceProvenance = request.achievementSource.provenance;
+      const ruleVersion = await findBadgeIssuanceRuleVersionById(db, {
+        tenantId,
+        ruleId: issuanceProvenance.ruleId,
+        versionId: issuanceProvenance.versionId,
       });
-    }
 
-    if (tenant === null) {
-      throw new input.HttpErrorResponseClass(404, {
-        error: "Tenant not found",
-      });
-    }
+      if (ruleVersion === null) {
+        throw new input.HttpErrorResponseClass(409, {
+          error: "The governed badge rule version is no longer available.",
+        });
+      }
 
-    if (badgeTemplate.isArchived) {
-      throw new input.HttpErrorResponseClass(409, {
-        error: "Badge template is archived",
-      });
+      requestedAchievement = badgeAchievementSnapshotFromRuleVersion(ruleVersion.snapshot);
+    } else {
+      requestedAchievement = request.achievementSource.snapshot;
     }
 
     const idempotencyKey = request.idempotencyKey ?? crypto.randomUUID();
@@ -321,13 +307,50 @@ export const createIssueBadgeForTenant = <
       };
     }
 
+    const resolvedAchievement = await resolveIssuableBadgeAchievementSnapshot({
+      store: context.env.BADGE_OBJECTS,
+      publicAppOrigin: context.env.PUBLIC_APP_ORIGIN,
+      tenantId,
+      snapshot: requestedAchievement,
+    });
+
+    if (resolvedAchievement.status !== "resolved") {
+      const failure = badgeArtworkIssuanceHttpFailure(resolvedAchievement);
+      throw new input.HttpErrorResponseClass(failure.statusCode, {
+        error: failure.error,
+      });
+    }
+
+    const achievement = resolvedAchievement.snapshot;
+    const [badgeTemplate, tenant] = await Promise.all([
+      findBadgeTemplateById(db, tenantId, achievement.badgeTemplateId),
+      findTenantById(db, tenantId),
+    ]);
+
+    if (badgeTemplate === null) {
+      throw new input.HttpErrorResponseClass(404, {
+        error: "Badge template not found",
+      });
+    }
+
+    if (tenant === null) {
+      throw new input.HttpErrorResponseClass(404, {
+        error: "Tenant not found",
+      });
+    }
+
+    if (badgeTemplate.isArchived && !hasGovernedRuleSnapshot) {
+      throw new input.HttpErrorResponseClass(409, {
+        error: "Badge template is archived",
+      });
+    }
+
     const issuerDid = createDidWeb({
       host: context.env.PLATFORM_DOMAIN,
       pathSegments: [tenantId],
     });
 
-    const requestBaseUrl = new URL(context.req.url);
-    const credentialBaseUrl = canonicalCredentialBaseUrl(context.env, context.req.url);
+    const credentialBaseUrl = canonicalAppOrigin(context.env.PUBLIC_APP_ORIGIN);
     const recipientDisplayName = options?.recipientDisplayName ?? request.recipientDisplayName;
     const learnerProfile = await resolveLearnerProfileForIdentity(db, {
       tenantId,
@@ -374,18 +397,18 @@ export const createIssueBadgeForTenant = <
           }),
     };
     const trustEdMetadataResult = parseTrustEdCredentialMetadataJsonResult(
-      badgeTemplate.trustedCredentialMetadataJson,
+      achievement.trustedCredentialMetadataJson,
     );
     const trustEdProjection = projectTrustEdMetadataForIssuance(trustEdMetadataResult);
     const criteria = criteriaForIssuedAchievement(
-      badgeTemplate.criteriaUri,
+      achievement.criteriaUri,
       trustEdProjection.achievement.criteria,
     );
 
     if (trustEdMetadataResult.status === "invalid") {
       logWarn(input.observabilityContext(context.env), "trusted_credential_metadata_invalid", {
         tenantId,
-        badgeTemplateId: badgeTemplate.id,
+        badgeTemplateId: achievement.badgeTemplateId,
         detail: trustEdMetadataResult.error,
       });
     }
@@ -410,7 +433,7 @@ export const createIssueBadgeForTenant = <
           : [VC_DATA_MODEL_V2_CONTEXT_URL, OB3_CONTEXT_URL, VC_STATUS_LIST_CONTEXT_URL],
         id: `urn:credtrail:assertion:${encodeURIComponent(assertionId)}`,
         type: ["VerifiableCredential", "OpenBadgeCredential"],
-        name: badgeTemplate.title,
+        name: achievement.title,
         issuer,
         validFrom: issuedAt,
         credentialStatus: credentialStatusForAssertion(statusListCredentialUrl, statusListIndex),
@@ -420,17 +443,15 @@ export const createIssueBadgeForTenant = <
           ...(learnerProfile.displayName === null ? {} : { name: learnerProfile.displayName }),
           identifier: credentialSubjectIdentifiers,
           achievement: {
-            id: `urn:credtrail:badge-template:${encodeURIComponent(badgeTemplate.id)}`,
+            id: `urn:credtrail:badge-template:${encodeURIComponent(achievement.badgeTemplateId)}`,
             type: ["Achievement"],
-            name: badgeTemplate.title,
-            ...(badgeTemplate.description === null
-              ? {}
-              : { description: badgeTemplate.description }),
-            ...(badgeTemplate.imageUri === null
+            name: achievement.title,
+            ...(achievement.description === null ? {} : { description: achievement.description }),
+            ...(achievement.imageUri === null
               ? {}
               : {
                   image: {
-                    id: badgeTemplate.imageUri,
+                    id: achievement.imageUri,
                     type: "Image",
                   },
                 }),
@@ -457,13 +478,11 @@ export const createIssueBadgeForTenant = <
       credential: signedCredential,
     });
 
-    const issuanceProvenance = resolveIssuanceProvenance(request);
     const finalizeResult = await finalizeAssertionIssuance(db, {
       assertion: {
         id: assertionId,
         tenantId,
         learnerProfileId: learnerProfile.id,
-        badgeTemplateId: badgeTemplate.id,
         recipientIdentity: request.recipientIdentity,
         recipientIdentityType: request.recipientIdentityType,
         vcR2Key: stored.key,
@@ -473,16 +492,13 @@ export const createIssueBadgeForTenant = <
         recipientIdentifiers,
         ...(issuedByUserId === undefined ? {} : { issuedByUserId }),
       },
-      provenance: {
-        source: issuanceProvenance.source,
-        ...(issuanceProvenance.ruleId === undefined ? {} : { ruleId: issuanceProvenance.ruleId }),
-        ...(issuanceProvenance.versionId === undefined
-          ? {}
-          : { versionId: issuanceProvenance.versionId }),
-        ...(issuanceProvenance.provenanceJson === undefined
-          ? {}
-          : { provenanceJson: issuanceProvenance.provenanceJson }),
-      },
+      achievementSource:
+        request.achievementSource.kind === "rule_version"
+          ? request.achievementSource
+          : {
+              ...request.achievementSource,
+              snapshot: achievement,
+            },
       buildAuditLog: (assertion) => ({
         tenantId,
         ...(issuedByUserId === undefined ? {} : { actorUserId: issuedByUserId }),
@@ -491,7 +507,7 @@ export const createIssueBadgeForTenant = <
         targetId: assertion.id,
         metadata: {
           assertionPublicId: assertion.publicId,
-          badgeTemplateId: assertion.badgeTemplateId,
+          badgeTemplateId: achievement.badgeTemplateId,
           recipientIdentity: assertion.recipientIdentity,
           recipientIdentityType: assertion.recipientIdentityType,
           issuedAt: assertion.issuedAt,
@@ -528,13 +544,13 @@ export const createIssueBadgeForTenant = <
           fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
           fromName: context.env.TRANSACTIONAL_EMAIL_FROM_NAME,
           recipientEmail,
-          badgeTitle: badgeTemplate.title,
+          badgeTitle: achievement.title,
           assertionId,
           tenantId,
           issuedAtIso: issuedAt,
-          publicBadgeUrl: new URL(publicBadgePath, requestBaseUrl).toString(),
-          verificationUrl: new URL(verificationPath, requestBaseUrl).toString(),
-          credentialDownloadUrl: new URL(credentialDownloadPath, requestBaseUrl).toString(),
+          publicBadgeUrl: new URL(publicBadgePath, credentialBaseUrl).toString(),
+          verificationUrl: new URL(verificationPath, credentialBaseUrl).toString(),
+          credentialDownloadUrl: new URL(credentialDownloadPath, credentialBaseUrl).toString(),
         });
       } catch (error: unknown) {
         logWarn(input.observabilityContext(context.env), "issuance_email_notification_failed", {

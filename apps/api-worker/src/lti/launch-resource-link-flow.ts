@@ -200,6 +200,8 @@ export const prepareLaunchedResourceLinkPlacement = async (
 
   const setupResult = await createCourseBadgePlacementRule({
     db: input.db,
+    store: input.c.env.BADGE_OBJECTS,
+    publicAppOrigin: input.c.env.PUBLIC_APP_ORIGIN,
     tenantId: input.tenantId,
     issuer: input.launchClaims.iss,
     clientId: input.issuerEntryClientId,

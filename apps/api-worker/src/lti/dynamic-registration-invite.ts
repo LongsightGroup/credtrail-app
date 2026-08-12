@@ -1,4 +1,5 @@
 import type { AppBindings } from "../app";
+import { canonicalAppUrl } from "../http/canonical-app-url";
 import {
   createSignedJsonToken,
   namespacedSigningSecret,
@@ -77,12 +78,12 @@ export const ltiDynamicRegistrationPath = (tenantId: string, inviteToken: string
 };
 
 export const ltiDynamicRegistrationUrl = (input: {
-  platformDomain: string;
+  publicAppOrigin: string;
   tenantId: string;
   inviteToken: string;
 }): string => {
-  return new URL(
+  return canonicalAppUrl(
+    input.publicAppOrigin,
     ltiDynamicRegistrationPath(input.tenantId, input.inviteToken),
-    `https://${input.platformDomain.trim()}`,
-  ).toString();
+  );
 };

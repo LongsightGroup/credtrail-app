@@ -8,23 +8,21 @@ import {
   resourceIdSchema,
 } from "./primitives.js";
 
-export const createBadgeTemplateRequestSchema = z.object({
+export const createBadgeTemplateRequestSchema = z.strictObject({
   slug: badgeTemplateSlugSchema,
   title: badgeTemplateTitleSchema,
   description: badgeTemplateDescriptionSchema.optional(),
   criteriaUri: badgeTemplateUriSchema.optional(),
-  imageUri: badgeTemplateUriSchema.optional(),
   trustedCredentialMetadata: trustedCredentialMetadataSchema.optional(),
   ownerOrgUnitId: resourceIdSchema.optional(),
 });
 
 export const updateBadgeTemplateRequestSchema = z
-  .object({
+  .strictObject({
     slug: badgeTemplateSlugSchema.optional(),
     title: badgeTemplateTitleSchema.optional(),
     description: badgeTemplateDescriptionSchema.nullable().optional(),
     criteriaUri: badgeTemplateUriSchema.nullable().optional(),
-    imageUri: badgeTemplateUriSchema.nullable().optional(),
     trustedCredentialMetadata: trustedCredentialMetadataSchema.nullable().optional(),
   })
   .refine(
@@ -33,7 +31,6 @@ export const updateBadgeTemplateRequestSchema = z
       payload.title !== undefined ||
       payload.description !== undefined ||
       payload.criteriaUri !== undefined ||
-      payload.imageUri !== undefined ||
       payload.trustedCredentialMetadata !== undefined,
     {
       message: "At least one badge template field must be provided",
@@ -54,9 +51,6 @@ export const generateBadgeTemplateImageRequestSchema = z.object({
   accentColor: z.string().trim().max(80).optional(),
 });
 
-export const applyBadgeTemplateImageDesignRequestSchema = z.object({
-  imageUri: badgeTemplateUriSchema,
-});
 // --- inferred types and parsers ---
 export type CreateBadgeTemplateRequest = z.infer<typeof createBadgeTemplateRequestSchema>;
 
@@ -64,10 +58,6 @@ export type UpdateBadgeTemplateRequest = z.infer<typeof updateBadgeTemplateReque
 
 export type GenerateBadgeTemplateImageRequest = z.infer<
   typeof generateBadgeTemplateImageRequestSchema
->;
-
-export type ApplyBadgeTemplateImageDesignRequest = z.infer<
-  typeof applyBadgeTemplateImageDesignRequestSchema
 >;
 
 export const parseCreateBadgeTemplateRequest = (input: unknown): CreateBadgeTemplateRequest => {
@@ -82,10 +72,4 @@ export const parseGenerateBadgeTemplateImageRequest = (
   input: unknown,
 ): GenerateBadgeTemplateImageRequest => {
   return generateBadgeTemplateImageRequestSchema.parse(input);
-};
-
-export const parseApplyBadgeTemplateImageDesignRequest = (
-  input: unknown,
-): ApplyBadgeTemplateImageDesignRequest => {
-  return applyBadgeTemplateImageDesignRequestSchema.parse(input);
 };

@@ -9,9 +9,11 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import type { GenerateBadgeTemplateImageQueueJob } from "@credtrail/validation";
+import { canonicalAppUrl } from "../http/canonical-app-url";
 import {
   BADGE_TEMPLATE_IMAGE_MAX_BYTES,
   badgeTemplateImageMimeTypeFromBytes,
+  badgeTemplateImagePublicPath,
   storeBadgeTemplateImage,
   type BadgeTemplateImageMimeType,
 } from "./template-image-storage";
@@ -29,6 +31,7 @@ export interface BadgeTemplateImageGenerationEnv {
   AI?: BadgeTemplateImageGenerationAiBinding;
   BADGE_IMAGE_GENERATION_MODEL?: string;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
 }
 
 interface GeneratedBadgeTemplateImage {
@@ -234,27 +237,6 @@ export const generateBadgeTemplateImageViaWorkersAi = async (input: {
   };
 };
 
-const assetUrlForPlatform = (input: {
-  platformDomain: string;
-  tenantId: string;
-  badgeTemplateId: string;
-  assetId: string;
-}): { path: string; url: string } => {
-  const path = `/badges/assets/${encodeURIComponent(input.tenantId)}/${encodeURIComponent(
-    input.badgeTemplateId,
-  )}/${encodeURIComponent(input.assetId)}`;
-  const trimmedDomain = input.platformDomain.trim();
-  const baseUrl =
-    trimmedDomain.startsWith("http://") || trimmedDomain.startsWith("https://")
-      ? trimmedDomain
-      : `https://${trimmedDomain}`;
-
-  return {
-    path,
-    url: new URL(path, baseUrl).toString(),
-  };
-};
-
 export const completeBadgeTemplateImageGeneration = async (input: {
   db: SqlDatabase;
   store: ImmutableCredentialStore;
@@ -289,18 +271,18 @@ export const completeBadgeTemplateImageGeneration = async (input: {
       originalFilename: null,
     });
 
-    const image = assetUrlForPlatform({
-      platformDomain: input.env.PLATFORM_DOMAIN,
+    const imagePath = badgeTemplateImagePublicPath({
       tenantId: input.tenantId,
       badgeTemplateId: input.badgeTemplateId,
       assetId,
     });
+    const imageUrl = canonicalAppUrl(input.env.PUBLIC_APP_ORIGIN, imagePath);
     const completedAt = new Date().toISOString();
     const updatedGeneration = await updateBadgeTemplateImageGeneration(input.db, {
       tenantId: input.tenantId,
       id: input.generationId,
       status: "succeeded",
-      resultImageUri: image.url,
+      resultImageUri: imageUrl,
       errorMessage: null,
       completedAt,
     });
@@ -321,7 +303,7 @@ export const completeBadgeTemplateImageGeneration = async (input: {
       targetId: input.badgeTemplateId,
       metadata: {
         generationId: input.generationId,
-        imagePath: image.path,
+        imagePath,
         imageMimeType: generated.mimeType,
         imageSizeBytes: generated.bytes.byteLength,
         provider: generated.provider,

@@ -1,7 +1,8 @@
 import { createPrefixedId } from "./shared-helpers";
 import { runSqlTransaction, type SqlDatabase, type SqlRunResult } from "./tenant-scope";
 import { resolveActiveRuleOrgUnit } from "./badge-issuance-rule-org-units.js";
-import { findBadgeTemplateById } from "./badge-templates.js";
+import { findBadgeTemplateById, type BadgeTemplateRecord } from "./badge-templates.js";
+import { assertBadgeTemplateArtworkUsesManagedReference } from "./badge-template-artwork-policy.js";
 import {
   badgeIssuanceRuleIdentityForBuilderDraft,
   type BadgeIssuanceRuleIdentity,
@@ -17,28 +18,28 @@ import type {
   BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleVersionRecord,
 } from "./badge-issuance-rule-types.js";
+import { findBadgeIssuanceRuleById } from "./badge-issuance-rule-reads.js";
 import {
   canDeleteBadgeIssuanceRuleDraft,
   canEditBadgeIssuanceRuleDraft,
-  findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleVersionById,
   listBadgeIssuanceRuleVersions,
   type BadgeIssuanceRuleVersionNumberRow,
-} from "./badge-issuance-rule-reads.js";
+} from "./badge-issuance-rule-version-reads.js";
 import { takeBadgeIssuanceRuleBuilderDraftForPromotion } from "./badge-issuance-rule-builder-drafts.js";
 
 const createBadgeIssuanceRuleWithIdentity = async (
   db: SqlDatabase,
   input: CreateBadgeIssuanceRuleInput,
   identity: BadgeIssuanceRuleIdentity,
+  badgeTemplate: BadgeTemplateRecord,
 ): Promise<CreateBadgeIssuanceRuleResult> => {
   const nowIso = new Date().toISOString();
   const { ruleId, versionId } = identity;
-  const badgeTemplate = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
 
-  if (badgeTemplate === null) {
+  if (badgeTemplate.tenantId !== input.tenantId || badgeTemplate.id !== input.badgeTemplateId) {
     throw new Error(
-      `Badge template "${input.badgeTemplateId}" not found for tenant "${input.tenantId}"`,
+      `Badge template "${badgeTemplate.id}" does not match rule authoring input "${input.badgeTemplateId}"`,
     );
   }
 
@@ -101,7 +102,10 @@ const createBadgeIssuanceRuleWithIdentity = async (
           snapshot_description,
           snapshot_badge_template_id,
           snapshot_badge_template_title,
+          snapshot_badge_template_description,
+          snapshot_badge_template_criteria_uri,
           snapshot_badge_template_image_uri,
+          snapshot_badge_template_trusted_credential_metadata_json,
           snapshot_org_unit_id,
           snapshot_owner_org_unit_id,
           snapshot_lms_provider_kind,
@@ -117,7 +121,7 @@ const createBadgeIssuanceRuleWithIdentity = async (
         )
         VALUES (
           ?, ?, ?, 1, 'draft', ?,
-          ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
           ?, ?, NULL, NULL, NULL, NULL, ?, ?
         )
       `,
@@ -131,7 +135,10 @@ const createBadgeIssuanceRuleWithIdentity = async (
         input.description ?? null,
         input.badgeTemplateId,
         badgeTemplate.title,
+        badgeTemplate.description,
+        badgeTemplate.criteriaUri,
         badgeTemplate.imageUri,
+        badgeTemplate.trustedCredentialMetadataJson ?? null,
         ruleOrgUnitId,
         badgeTemplate.ownerOrgUnitId,
         input.lmsProviderKind,
@@ -163,15 +170,46 @@ const createBadgeIssuanceRuleWithIdentity = async (
   };
 };
 
+const loadBadgeTemplateForRuleWrite = async (
+  db: SqlDatabase,
+  input: Pick<CreateBadgeIssuanceRuleInput, "tenantId" | "badgeTemplateId">,
+): Promise<BadgeTemplateRecord> => {
+  const badgeTemplate = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
+
+  if (badgeTemplate === null) {
+    throw new Error(
+      `Badge template "${input.badgeTemplateId}" not found for tenant "${input.tenantId}"`,
+    );
+  }
+
+  assertBadgeTemplateArtworkUsesManagedReference(badgeTemplate);
+  return badgeTemplate;
+};
+
+/** Writes a new rule from the template locked by the governing authoring transaction. */
+export const createBadgeIssuanceRuleFromLockedTemplate = async (
+  db: SqlDatabase,
+  input: CreateBadgeIssuanceRuleInput,
+  badgeTemplate: BadgeTemplateRecord,
+): Promise<CreateBadgeIssuanceRuleResult> => {
+  return createBadgeIssuanceRuleWithIdentity(
+    db,
+    input,
+    {
+      ruleId: createPrefixedId("brl"),
+      versionId: createPrefixedId("brv"),
+    },
+    badgeTemplate,
+  );
+};
+
 /** Creates a badge rule with fresh server-owned resource identities. */
 export const createBadgeIssuanceRuleWithConnection = async (
   db: SqlDatabase,
   input: CreateBadgeIssuanceRuleInput,
 ): Promise<CreateBadgeIssuanceRuleResult> => {
-  return createBadgeIssuanceRuleWithIdentity(db, input, {
-    ruleId: createPrefixedId("brl"),
-    versionId: createPrefixedId("brv"),
-  });
+  const badgeTemplate = await loadBadgeTemplateForRuleWrite(db, input);
+  return createBadgeIssuanceRuleFromLockedTemplate(db, input, badgeTemplate);
 };
 
 /** Creates a badge rule and its first draft version atomically. */
@@ -304,6 +342,7 @@ export const createBadgeIssuanceRuleFromLockedBuilderPromotion = async (
     readonly builderDraftId: string;
     readonly builderUserId: string;
     readonly identity: BadgeIssuanceRuleIdentity;
+    readonly badgeTemplate: BadgeTemplateRecord;
   },
 ): Promise<
   | {
@@ -328,7 +367,12 @@ export const createBadgeIssuanceRuleFromLockedBuilderPromotion = async (
 
   return {
     status: "created",
-    draft: await createBadgeIssuanceRuleWithIdentity(db, input, input.identity),
+    draft: await createBadgeIssuanceRuleWithIdentity(
+      db,
+      input,
+      input.identity,
+      input.badgeTemplate,
+    ),
   };
 };
 
@@ -347,9 +391,12 @@ export const createBadgeIssuanceRuleFromBuilderDraft = async (
       return promotion;
     }
 
+    const badgeTemplate = await loadBadgeTemplateForRuleWrite(transactionDb, input);
+
     return createBadgeIssuanceRuleFromLockedBuilderPromotion(transactionDb, {
       ...input,
       identity: promotion.identity,
+      badgeTemplate,
     });
   });
 };
@@ -360,6 +407,23 @@ const createBadgeIssuanceRuleVersionInDatabase = async (
 ): Promise<BadgeIssuanceRuleVersionRecord> => {
   const nowIso = new Date().toISOString();
   const versionId = createPrefixedId("brv");
+  const rule = await findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId);
+
+  if (rule === null) {
+    throw new Error(
+      `Badge issuance rule "${input.ruleId}" not found for tenant "${input.tenantId}"`,
+    );
+  }
+
+  const badgeTemplate = await findBadgeTemplateById(db, input.tenantId, rule.badgeTemplateId);
+
+  if (badgeTemplate === null) {
+    throw new Error(
+      `Badge template "${rule.badgeTemplateId}" not found for tenant "${input.tenantId}"`,
+    );
+  }
+
+  assertBadgeTemplateArtworkUsesManagedReference(badgeTemplate);
   const nextVersionStatement = (): Promise<BadgeIssuanceRuleVersionNumberRow | null> =>
     db
       .prepare(
@@ -387,7 +451,10 @@ const createBadgeIssuanceRuleVersionInDatabase = async (
           snapshot_description,
           snapshot_badge_template_id,
           snapshot_badge_template_title,
+          snapshot_badge_template_description,
+          snapshot_badge_template_criteria_uri,
           snapshot_badge_template_image_uri,
+          snapshot_badge_template_trusted_credential_metadata_json,
           snapshot_org_unit_id,
           snapshot_owner_org_unit_id,
           snapshot_lms_provider_kind,
@@ -412,7 +479,10 @@ const createBadgeIssuanceRuleVersionInDatabase = async (
           rules.description,
           rules.badge_template_id,
           templates.title,
+          templates.description,
+          templates.criteria_uri,
           templates.image_uri,
+          templates.trusted_credential_metadata_json,
           rules.org_unit_id,
           rules.owner_org_unit_id,
           rules.lms_provider_kind,
@@ -538,14 +608,17 @@ export const updateLockedBadgeIssuanceRuleDraft = async (
   db: SqlDatabase,
   input: UpdateBadgeIssuanceRuleDraftInput & {
     readonly existingRule: BadgeIssuanceRuleRecord;
+    readonly badgeTemplate: BadgeTemplateRecord;
   },
 ): Promise<Extract<UpdateBadgeIssuanceRuleDraftResult, { readonly status: "updated" }>> => {
   const nowIso = new Date().toISOString();
-  const badgeTemplate = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
 
-  if (badgeTemplate === null) {
+  if (
+    input.badgeTemplate.tenantId !== input.tenantId ||
+    input.badgeTemplate.id !== input.badgeTemplateId
+  ) {
     throw new Error(
-      `Badge template "${input.badgeTemplateId}" not found for tenant "${input.tenantId}"`,
+      `Badge template "${input.badgeTemplate.id}" does not match rule authoring input "${input.badgeTemplateId}"`,
     );
   }
 
@@ -580,7 +653,7 @@ export const updateLockedBadgeIssuanceRuleDraft = async (
         input.description ?? null,
         input.badgeTemplateId,
         ruleOrgUnitId,
-        badgeTemplate.ownerOrgUnitId,
+        input.badgeTemplate.ownerOrgUnitId,
         input.lmsProviderKind,
         input.lmsConnectionId,
         nowIso,
@@ -622,9 +695,12 @@ export const updateBadgeIssuanceRuleDraft = async (
       return locked;
     }
 
+    const badgeTemplate = await loadBadgeTemplateForRuleWrite(transactionDb, input);
+
     return updateLockedBadgeIssuanceRuleDraft(transactionDb, {
       ...input,
       existingRule: locked.rule,
+      badgeTemplate,
     });
   });
 };

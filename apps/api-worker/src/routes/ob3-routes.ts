@@ -18,6 +18,7 @@ import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "../auth/auth-context";
+import { canonicalAppRequestUrl } from "../http/canonical-app-url";
 import {
   OAUTH_ACCESS_TOKEN_TTL_SECONDS,
   OAUTH_AUTHORIZATION_CODE_TTL_SECONDS,
@@ -775,7 +776,7 @@ export const registerOb3Routes = (input: RegisterOb3RoutesInput): void => {
     c.header(
       "Link",
       ob3CredentialsLinkHeader({
-        requestUrl: c.req.url,
+        requestUrl: canonicalAppRequestUrl(c.env.PUBLIC_APP_ORIGIN, c.req.url),
         limit,
         offset,
         totalCount: credentialsResult.totalCount,

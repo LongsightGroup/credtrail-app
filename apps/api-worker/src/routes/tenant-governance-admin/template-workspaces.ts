@@ -18,6 +18,7 @@ import type { BadgeTemplateHistoryPanel } from "../../admin/institution-admin-te
 import type { AppContext } from "../../app";
 import type { ResolveDatabase } from "../../app/route-deps";
 import { loadBadgeTemplateHistoryPayload } from "../../badges/badge-template-history-payload";
+import { resolveExpectedBadgeTemplateRevision } from "../../badges/badge-achievement-snapshot";
 import { renderAppPage } from "../../ui/render-page";
 import type { TenantGovernanceAdminAuth } from "./auth";
 import type { TenantGovernanceAdminPageDataLoaders } from "./page-data";
@@ -358,6 +359,11 @@ export const createTenantGovernanceTemplateAdminWorkspaces = (input: {
     const revisionCount =
       imageRevisionCounts.find((entry) => entry.badgeTemplateId === badgeTemplate.id)
         ?.revisionCount ?? 0;
+    const artworkResolution = await resolveExpectedBadgeTemplateRevision({
+      store: c.env.BADGE_OBJECTS,
+      publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
+      template: badgeTemplate,
+    });
 
     c.header("Cache-Control", "no-store");
 
@@ -367,6 +373,7 @@ export const createTenantGovernanceTemplateAdminWorkspaces = (input: {
         ...shellData,
         badgeTemplate,
         badgeTemplateImageRevisionCount: revisionCount,
+        badgeTemplateArtworkReadiness: artworkResolution.status,
         returnToRuleBuilder: c.req.query("returnTo") === "rule-builder",
         listPageQuery: parseBadgeTemplateListPageQuery(c.req.query()),
         detailsNotice: parseBadgeTemplateEditorDetailsNotice(c.req.query()),

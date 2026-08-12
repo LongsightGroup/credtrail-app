@@ -6,7 +6,9 @@ import {
   observabilityContext as defaultObservabilityContext,
   optionalAppLogger,
 } from "../app/observability";
+import { canonicalAppOrigin, canonicalAppRequestUrl } from "./canonical-app-url";
 import { validateCsrfRequestOrigin } from "./csrf-protection";
+import { canonicalPlatformDomain } from "./platform-domain";
 import { applyResponseCachePolicy } from "./response-cache-policy";
 import { applySecurityHeaders } from "./security-headers";
 
@@ -17,6 +19,30 @@ interface RegisterCommonMiddlewareInput {
 
 const JSON_PRETTY_PRINT_SPACES = 2;
 const REQUEST_ID_HEADER = "x-request-id";
+
+const isIssuerIdentityPath = (pathname: string): boolean => {
+  return (
+    pathname === "/.well-known/did.json" ||
+    pathname === "/.well-known/jwks.json" ||
+    /^\/[^/]+\/(?:did|jwks)\.json$/u.test(pathname)
+  );
+};
+
+const isAllowedProductionRequestOrigin = (input: {
+  readonly requestUrl: URL;
+  readonly canonicalOrigin: URL;
+  readonly platformDomain: string;
+}): boolean => {
+  if (input.requestUrl.origin === input.canonicalOrigin.origin) {
+    return true;
+  }
+
+  return (
+    isIssuerIdentityPath(input.requestUrl.pathname) &&
+    input.requestUrl.protocol === "https:" &&
+    input.requestUrl.host.toLowerCase() === input.platformDomain.trim().toLowerCase()
+  );
+};
 
 const prettifyJsonResponse = async (response: Response): Promise<Response> => {
   const contentType = response.headers.get("content-type");
@@ -82,8 +108,8 @@ export const registerCommonMiddleware = (input: RegisterCommonMiddlewareInput): 
   app.use("*", async (c, next) => {
     const startedAt = Date.now();
     const requestUrl = new URL(c.req.url);
-    const canonicalHost = c.env.PLATFORM_DOMAIN.toLowerCase();
-    const requestHost = requestUrl.hostname.toLowerCase();
+    const canonicalOrigin = new URL(canonicalAppOrigin(c.env.PUBLIC_APP_ORIGIN));
+    const platformDomain = canonicalPlatformDomain(c.env.PLATFORM_DOMAIN);
     const requestId = requestIdFromHeader(c.req.header(REQUEST_ID_HEADER));
     const appLogger = createAppLogger({
       context: observabilityContext(c.env),
@@ -115,13 +141,19 @@ export const registerCommonMiddleware = (input: RegisterCommonMiddlewareInput): 
       });
     }
 
-    if (requestHost === `www.${canonicalHost}` || requestHost === `badges.${canonicalHost}`) {
-      requestUrl.hostname = canonicalHost;
-      requestUrl.port = "";
-      const response = c.redirect(requestUrl.toString(), 308);
+    if (
+      c.env.APP_ENV === "production" &&
+      !isAllowedProductionRequestOrigin({
+        requestUrl,
+        canonicalOrigin,
+        platformDomain,
+      })
+    ) {
+      const canonicalUrl = new URL(canonicalAppRequestUrl(c.env.PUBLIC_APP_ORIGIN, c.req.url));
+      const response = c.redirect(canonicalUrl.toString(), 308);
       return applyResponsePolicies({
         response,
-        requestUrl,
+        requestUrl: canonicalUrl,
         env: c.env,
         requestId,
       });

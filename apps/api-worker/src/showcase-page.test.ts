@@ -42,12 +42,14 @@ const createEnv = (): {
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
 } => {
   return {
     APP_ENV: "test",
     DATABASE_URL: "postgres://credtrail-test.local/db",
     BADGE_OBJECTS: {} as R2Bucket,
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
   };
 };
 
@@ -118,7 +120,7 @@ describe("GET /showcase/:tenantId", () => {
     expect(body).toContain("/badges/620b51c5-c6f8-4506-8a5c-2daaa2eb6f04");
     expect(body).toContain("/showcase/sakai/criteria?badgeTemplateId=badge_template_sakai_1000");
     expect(body).toContain(
-      '<link rel="canonical" href="http://localhost/showcase/sakai?badgeTemplateId=badge_template_sakai_1000"',
+      '<link rel="canonical" href="https://credtrail.test/showcase/sakai?badgeTemplateId=badge_template_sakai_1000"',
     );
     expect(body).toContain(
       '<meta property="og:title" content="Sakai 1000+ Commits Contributor · sakai | CredTrail"',
@@ -128,7 +130,9 @@ describe("GET /showcase/:tenantId", () => {
     expect(body).toContain(
       '<meta name="description" content="Publicly verified credentials for Sakai 1000+ Commits Contributor."',
     );
-    expect(body).toContain("http://localhost/badges/a77ab5e5-bd08-40c3-accd-cf29ed1fdbbf");
+    expect(body).toContain(
+      "https://credtrail.test/badges/a77ab5e5-bd08-40c3-accd-cf29ed1fdbbf",
+    );
     expect(body).toContain("@ottenhoff");
     expect(body).toContain("Sakai 1000+ Commits Contributor");
     expect(body).toContain("Sakai Distinguished Contributor");

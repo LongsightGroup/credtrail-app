@@ -142,6 +142,14 @@ describe("POST /tenants/:tenantId/admin/operations/manual-issue", () => {
       publicId: assertion.assertionPublicId,
       learnerProfileId: assertion.learnerProfileId,
       badgeTemplateId: assertion.badgeTemplateId,
+      achievementSnapshot: {
+        badgeTemplateId: assertion.badgeTemplateId,
+        title: assertion.badgeTitle,
+        description: assertion.badgeDescription,
+        criteriaUri: assertion.badgeCriteriaUri,
+        imageUri: assertion.badgeImageUri,
+        trustedCredentialMetadataJson: null,
+      },
       recipientIdentity: assertion.recipientIdentity,
       recipientIdentityType: assertion.recipientIdentityType,
       vcR2Key: assertion.vcR2Key,
@@ -205,12 +213,18 @@ describe("POST /tenants/:tenantId/admin/operations/manual-issue", () => {
       expect.anything(),
       "tenant_123",
       expect.objectContaining({
-        badgeTemplateId: assertion.badgeTemplateId,
+        achievementSource: expect.objectContaining({
+          kind: "template_snapshot",
+          snapshot: expect.objectContaining({
+            badgeTemplateId: assertion.badgeTemplateId,
+          }),
+        }),
         recipientIdentity: assertion.recipientIdentity,
         recipientIdentityType: assertion.recipientIdentityType,
       }),
       "usr_admin",
     );
+    expect(mockedIssueBadgeForTenant.mock.calls[0]?.[2]).not.toHaveProperty("badgeTemplateId");
   });
 });
 

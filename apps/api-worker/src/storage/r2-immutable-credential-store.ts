@@ -21,6 +21,7 @@ export const createR2ImmutableCredentialStore = (bucket: R2Bucket): ImmutableCre
       }
 
       return {
+        size: object.size,
         text: () => object.text(),
       };
     },

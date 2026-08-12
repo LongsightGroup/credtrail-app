@@ -52,14 +52,68 @@ export const assertionIssuanceProvenanceSourceSchema = z.enum([
   "programmatic",
 ]);
 
-export const assertionIssuanceProvenanceInputSchema = z.object({
-  source: assertionIssuanceProvenanceSourceSchema,
-  ruleId: resourceIdSchema.optional(),
-  versionId: resourceIdSchema.optional(),
-  provenanceJson: z.string().optional(),
+const manualIssuanceProvenanceInputSchema = z.strictObject({ source: z.literal("manual") });
+const programmaticIssuanceProvenanceInputSchema = z.strictObject({
+  source: z.literal("programmatic"),
+});
+const ltiRosterIssuanceProvenanceInputSchema = z.strictObject({
+  source: z.literal("lti_roster"),
+  ruleId: resourceIdSchema,
+  versionId: resourceIdSchema,
+  provenanceJson: z.string(),
+});
+const ruleEvaluateIssuanceProvenanceInputSchema = z.strictObject({
+  source: z.literal("rule_evaluate"),
+  ruleId: resourceIdSchema,
+  versionId: resourceIdSchema,
+  provenanceJson: z.string(),
 });
 
-export const issueBadgeRequestSchema = z.object({
+export const templateSnapshotIssuanceProvenanceInputSchema = z.discriminatedUnion("source", [
+  manualIssuanceProvenanceInputSchema,
+  programmaticIssuanceProvenanceInputSchema,
+]);
+
+export const ruleBackedIssuanceProvenanceInputSchema = z.discriminatedUnion("source", [
+  ltiRosterIssuanceProvenanceInputSchema,
+  ruleEvaluateIssuanceProvenanceInputSchema,
+]);
+
+export const assertionIssuanceProvenanceInputSchema = z.discriminatedUnion("source", [
+  manualIssuanceProvenanceInputSchema,
+  programmaticIssuanceProvenanceInputSchema,
+  ltiRosterIssuanceProvenanceInputSchema,
+  ruleEvaluateIssuanceProvenanceInputSchema,
+]);
+
+/** Immutable achievement content captured before a badge issuance job can be queued. */
+export const badgeAchievementSnapshotSchema = z.strictObject({
+  badgeTemplateId: resourceIdSchema,
+  title: z.string().trim().min(1).max(200),
+  description: z.string().max(2000).nullable(),
+  criteriaUri: z.string().trim().url().max(2048).nullable(),
+  imageUri: z.string().trim().url().max(2048).nullable(),
+  trustedCredentialMetadataJson: z.string().nullable(),
+});
+
+const templateSnapshotIssuanceSourceSchema = z.strictObject({
+  kind: z.literal("template_snapshot"),
+  snapshot: badgeAchievementSnapshotSchema,
+  provenance: templateSnapshotIssuanceProvenanceInputSchema,
+});
+
+const ruleVersionIssuanceSourceSchema = z.strictObject({
+  kind: z.literal("rule_version"),
+  provenance: ruleBackedIssuanceProvenanceInputSchema,
+});
+
+/** The single achievement source carried from an issuance request through finalization. */
+export const issuanceAchievementSourceSchema = z.discriminatedUnion("kind", [
+  templateSnapshotIssuanceSourceSchema,
+  ruleVersionIssuanceSourceSchema,
+]);
+
+export const issueBadgeRequestSchema = z.strictObject({
   tenantId: tenantIdSchema,
   badgeTemplateId: resourceIdSchema,
   recipientIdentity: z.string().min(1),
@@ -69,7 +123,6 @@ export const issueBadgeRequestSchema = z.object({
   issuerImageUri: z.string().trim().url().max(2048).optional(),
   requestedByUserId: userIdSchema.optional(),
   idempotencyKey: idempotencyKeySchema.optional(),
-  issuanceProvenance: assertionIssuanceProvenanceInputSchema.optional(),
 });
 
 export const manualIssueBadgeRequestSchema = issueBadgeRequestSchema.omit({
@@ -83,7 +136,8 @@ export const programmaticIssueBadgeRequestSchema = issueBadgeRequestSchema
   })
   .extend({
     idempotencyKey: idempotencyKeySchema,
-  });
+  })
+  .strict();
 
 export const githubUsernameSchema = z
   .string()
@@ -119,6 +173,19 @@ export type AssertionLifecycleTransitionRequest = z.infer<
 export type AssertionIssuanceProvenanceInput = z.infer<
   typeof assertionIssuanceProvenanceInputSchema
 >;
+
+export type TemplateSnapshotIssuanceProvenanceInput = z.infer<
+  typeof templateSnapshotIssuanceProvenanceInputSchema
+>;
+
+export type RuleBackedIssuanceProvenanceInput = z.infer<
+  typeof ruleBackedIssuanceProvenanceInputSchema
+>;
+
+/** Credential-bearing achievement content fixed at issuance-request time. */
+export type BadgeAchievementSnapshot = z.infer<typeof badgeAchievementSnapshotSchema>;
+
+export type IssuanceAchievementSource = z.infer<typeof issuanceAchievementSourceSchema>;
 
 export type IssueBadgeRequest = z.infer<typeof issueBadgeRequestSchema>;
 

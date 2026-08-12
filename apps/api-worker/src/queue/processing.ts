@@ -128,30 +128,36 @@ const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
   dependencies: ProcessQueuedJobsDependencies<TBindings, TContext>,
 ): Promise<void> => {
   switch (job.jobType) {
-    case "issue_badge":
+    case "issue_badge": {
+      const requestBase = {
+        recipientIdentity: job.payload.recipientIdentity,
+        recipientIdentityType: job.payload.recipientIdentityType,
+        ...(job.payload.recipientIdentifiers === undefined
+          ? {}
+          : { recipientIdentifiers: job.payload.recipientIdentifiers }),
+        ...(job.payload.recipientDisplayName === undefined
+          ? {}
+          : { recipientDisplayName: job.payload.recipientDisplayName }),
+        ...(job.payload.issuerImageUri === undefined
+          ? {}
+          : { issuerImageUri: job.payload.issuerImageUri }),
+        idempotencyKey: job.idempotencyKey,
+        ...(job.payload.lmsLearnerIdentity === undefined
+          ? {}
+          : { lmsLearnerIdentity: job.payload.lmsLearnerIdentity }),
+      };
+      const issueRequest: DirectIssueBadgeRequest = {
+        ...requestBase,
+        achievementSource: job.payload.achievementSource,
+      };
       await dependencies.issueBadgeForTenant(
         c,
         job.tenantId,
-        {
-          badgeTemplateId: job.payload.badgeTemplateId,
-          recipientIdentity: job.payload.recipientIdentity,
-          recipientIdentityType: job.payload.recipientIdentityType,
-          recipientIdentifiers: job.payload.recipientIdentifiers,
-          ...(job.payload.recipientDisplayName === undefined
-            ? {}
-            : { recipientDisplayName: job.payload.recipientDisplayName }),
-          ...(job.payload.issuerImageUri === undefined
-            ? {}
-            : { issuerImageUri: job.payload.issuerImageUri }),
-          idempotencyKey: job.idempotencyKey,
-          issuanceProvenance: job.payload.issuanceProvenance,
-          ...(job.payload.lmsLearnerIdentity === undefined
-            ? {}
-            : { lmsLearnerIdentity: job.payload.lmsLearnerIdentity }),
-        },
+        issueRequest,
         job.payload.requestedByUserId,
       );
       return;
+    }
     case "revoke_badge": {
       const revocationResult = await recordAssertionRevocation(
         dependencies.resolveDatabase(c.env),

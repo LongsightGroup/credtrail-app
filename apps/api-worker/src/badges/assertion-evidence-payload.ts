@@ -5,7 +5,6 @@ import {
   findBadgeIssuanceRuleById,
   findBadgeIssuanceRuleEvaluationByAssertionId,
   findBadgeIssuanceRuleVersionById,
-  findBadgeTemplateById,
   findTenantOrgUnitById,
   findUsersByIds,
   listAssertionLifecycleEvents,
@@ -22,21 +21,19 @@ import {
   type BadgeIssuanceRuleEvaluationRecord,
   type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleVersionRecord,
-  type BadgeTemplateRecord,
   type ResolveAssertionLifecycleStateResult,
   type SqlDatabase,
 } from "@credtrail/db";
 
 export interface AssertionEvidenceLoadedData {
   assertion: AssertionRecord;
-  badgeTemplate: BadgeTemplateRecord;
   lifecycle: ResolveAssertionLifecycleStateResult;
   lifecycleEvents: readonly AssertionLifecycleEventRecord[];
   auditLogs: readonly AuditLogRecord[];
   attributedOrgUnitName: string | null;
   issuerLabel: string | null;
   evaluation: BadgeIssuanceRuleEvaluationRecord | null;
-  provenance: AssertionIssuanceProvenanceRecord | null;
+  provenance: AssertionIssuanceProvenanceRecord;
   rule: BadgeIssuanceRuleRecord | null;
   version: BadgeIssuanceRuleVersionRecord | null;
   approvalEvents: readonly BadgeIssuanceRuleApprovalEventRecord[];
@@ -44,6 +41,14 @@ export interface AssertionEvidenceLoadedData {
   actorLabels: ReadonlyMap<string, string>;
   generatedAt: string;
 }
+
+export type AssertionEvidencePayloadResult =
+  | { readonly status: "loaded"; readonly data: AssertionEvidenceLoadedData }
+  | { readonly status: "not_found" }
+  | {
+      readonly status: "incomplete";
+      readonly reason: "missing_lifecycle" | "missing_provenance";
+    };
 
 const collectActorUserIds = (input: {
   assertion: AssertionRecord;
@@ -101,19 +106,12 @@ const collectActorUserIds = (input: {
 
 const resolveRuleContextIds = (input: {
   evaluation: BadgeIssuanceRuleEvaluationRecord | null;
-  provenance: AssertionIssuanceProvenanceRecord | null;
+  provenance: AssertionIssuanceProvenanceRecord;
 }): { ruleId: string | null; versionId: string | null } => {
   if (input.evaluation !== null) {
     return {
       ruleId: input.evaluation.ruleId,
       versionId: input.evaluation.versionId,
-    };
-  }
-
-  if (input.provenance === null) {
-    return {
-      ruleId: null,
-      versionId: null,
     };
   }
 
@@ -129,46 +127,42 @@ export const loadAssertionEvidencePayload = async (
     tenantId: string;
     assertionId: string;
   },
-): Promise<AssertionEvidenceLoadedData | null> => {
+): Promise<AssertionEvidencePayloadResult> => {
   const assertion = await findAssertionById(db, input.tenantId, input.assertionId);
 
   if (assertion === null) {
-    return null;
+    return { status: "not_found" };
   }
 
-  const [
-    badgeTemplate,
-    lifecycle,
-    lifecycleEvents,
-    auditLogs,
-    attribution,
-    evaluation,
-    provenance,
-  ] = await Promise.all([
-    findBadgeTemplateById(db, input.tenantId, assertion.badgeTemplateId),
-    resolveAssertionLifecycleState(db, input.tenantId, assertion.id),
-    listAssertionLifecycleEvents(db, {
-      tenantId: input.tenantId,
-      assertionId: assertion.id,
-    }),
-    listAuditLogsForAssertion(db, {
-      tenantId: input.tenantId,
-      assertionId: assertion.id,
-      limit: 100,
-    }),
-    findAssertionReportingAttributionByAssertionId(db, assertion.id),
-    findBadgeIssuanceRuleEvaluationByAssertionId(db, {
-      tenantId: input.tenantId,
-      assertionId: assertion.id,
-    }),
-    findAssertionIssuanceProvenanceByAssertionId(db, {
-      tenantId: input.tenantId,
-      assertionId: assertion.id,
-    }),
-  ]);
+  const [lifecycle, lifecycleEvents, auditLogs, attribution, evaluation, provenance] =
+    await Promise.all([
+      resolveAssertionLifecycleState(db, input.tenantId, assertion.id),
+      listAssertionLifecycleEvents(db, {
+        tenantId: input.tenantId,
+        assertionId: assertion.id,
+      }),
+      listAuditLogsForAssertion(db, {
+        tenantId: input.tenantId,
+        assertionId: assertion.id,
+        limit: 100,
+      }),
+      findAssertionReportingAttributionByAssertionId(db, assertion.id),
+      findBadgeIssuanceRuleEvaluationByAssertionId(db, {
+        tenantId: input.tenantId,
+        assertionId: assertion.id,
+      }),
+      findAssertionIssuanceProvenanceByAssertionId(db, {
+        tenantId: input.tenantId,
+        assertionId: assertion.id,
+      }),
+    ]);
 
-  if (badgeTemplate === null || lifecycle === null) {
-    return null;
+  if (lifecycle === null) {
+    return { status: "incomplete", reason: "missing_lifecycle" };
+  }
+
+  if (provenance === null) {
+    return { status: "incomplete", reason: "missing_provenance" };
   }
 
   const ruleContextIds = resolveRuleContextIds({ evaluation, provenance });
@@ -227,20 +221,22 @@ export const loadAssertionEvidencePayload = async (
       : (actorLabels.get(assertion.issuedByUserId) ?? assertion.issuedByUserId);
 
   return {
-    assertion,
-    badgeTemplate,
-    lifecycle,
-    lifecycleEvents,
-    auditLogs,
-    attributedOrgUnitName: attributedOrgUnit?.displayName ?? null,
-    issuerLabel,
-    evaluation,
-    provenance,
-    rule,
-    version,
-    approvalEvents,
-    approvalSteps,
-    actorLabels,
-    generatedAt: new Date().toISOString(),
+    status: "loaded",
+    data: {
+      assertion,
+      lifecycle,
+      lifecycleEvents,
+      auditLogs,
+      attributedOrgUnitName: attributedOrgUnit?.displayName ?? null,
+      issuerLabel,
+      evaluation,
+      provenance,
+      rule,
+      version,
+      approvalEvents,
+      approvalSteps,
+      actorLabels,
+      generatedAt: new Date().toISOString(),
+    },
   };
 };

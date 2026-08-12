@@ -1,4 +1,5 @@
 import { findBadgeTemplateById } from "./badge-templates";
+import { serializeAssertionAchievementSnapshot } from "./assertion-achievement-snapshot.js";
 import {
   insertAssertionRecipientIdentifiers,
   uniqueRecipientIdentifiers,
@@ -21,6 +22,7 @@ export const createAssertion = async (
   const nowIso = new Date().toISOString();
   const assertionPublicId = input.publicId ?? crypto.randomUUID();
   const recipientIdentifiers = uniqueRecipientIdentifiers(input.recipientIdentifiers ?? []);
+  const badgeTemplateId = input.achievementSnapshot.badgeTemplateId;
 
   await db
     .prepare(
@@ -31,6 +33,7 @@ export const createAssertion = async (
         public_id,
         learner_profile_id,
         badge_template_id,
+        achievement_snapshot_json,
         recipient_identity,
         recipient_identity_type,
         vc_r2_key,
@@ -41,7 +44,7 @@ export const createAssertion = async (
         created_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     )
     .bind(
@@ -49,7 +52,8 @@ export const createAssertion = async (
       input.tenantId,
       assertionPublicId,
       input.learnerProfileId ?? null,
-      input.badgeTemplateId,
+      badgeTemplateId,
+      serializeAssertionAchievementSnapshot(input.achievementSnapshot),
       input.recipientIdentity,
       input.recipientIdentityType,
       input.vcR2Key,
@@ -63,18 +67,16 @@ export const createAssertion = async (
     .run();
 
   await insertAssertionRecipientIdentifiers(db, input.id, recipientIdentifiers);
-  const badgeTemplate = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
+  const badgeTemplate = await findBadgeTemplateById(db, input.tenantId, badgeTemplateId);
 
   if (badgeTemplate === null) {
-    throw new Error(
-      `Badge template ${input.badgeTemplateId} not found for tenant ${input.tenantId}`,
-    );
+    throw new Error(`Badge template ${badgeTemplateId} not found for tenant ${input.tenantId}`);
   }
 
   await upsertAssertionReportingAttribution(db, {
     assertionId: input.id,
     tenantId: input.tenantId,
-    badgeTemplateId: input.badgeTemplateId,
+    badgeTemplateId,
     orgUnitId: badgeTemplate.ownerOrgUnitId,
     attributionSource: "issuance_snapshot",
     attributedAt: input.issuedAt,
@@ -85,7 +87,8 @@ export const createAssertion = async (
     tenantId: input.tenantId,
     publicId: assertionPublicId,
     learnerProfileId: input.learnerProfileId ?? null,
-    badgeTemplateId: input.badgeTemplateId,
+    badgeTemplateId,
+    achievementSnapshot: input.achievementSnapshot,
     recipientIdentity: input.recipientIdentity,
     recipientIdentityType: input.recipientIdentityType,
     vcR2Key: input.vcR2Key,

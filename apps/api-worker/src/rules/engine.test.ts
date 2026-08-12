@@ -10,6 +10,7 @@ import { parseCreateBadgeIssuanceRuleRequest } from "@credtrail/validation";
 const baseDefinition = parseCreateBadgeIssuanceRuleRequest({
   name: "CS Program Completion",
   badgeTemplateId: "badge_template_program",
+  badgeTemplateReuseAcknowledged: false,
   lmsConnectionId: "lms_123",
   lmsProviderKind: "canvas",
   action: "save_draft",
@@ -210,6 +211,7 @@ describe("badge issuance rule engine", () => {
     const definition = parseCreateBadgeIssuanceRuleRequest({
       name: "Survey and cohort rule",
       badgeTemplateId: "badge_template_survey",
+      badgeTemplateReuseAcknowledged: false,
       lmsConnectionId: "lms_123",
       lmsProviderKind: "canvas",
       action: "save_draft",

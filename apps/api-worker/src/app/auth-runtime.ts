@@ -26,6 +26,7 @@ import {
 } from "../auth/better-auth-runtime";
 import { createEnterpriseSsoAdapter } from "../auth/enterprise-sso-adapter";
 import { normalizeSafeRedirectPath } from "../auth/redirect-paths";
+import { canonicalAppUrl } from "../http/canonical-app-url";
 import { sendMagicLinkEmailNotification } from "../notifications/send-magic-link-email";
 import { sendMemberInviteEmailNotification } from "../notifications/send-member-invite-email";
 import { sendPasswordResetEmailNotification } from "../notifications/send-password-reset-email";
@@ -607,7 +608,7 @@ export const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindin
 });
 
 const tenantMemberInviteLoginUrl = (context: AppContext, tenantId: string): string => {
-  const loginUrl = new URL("/login", context.req.url);
+  const loginUrl = new URL(canonicalAppUrl(context.env.PUBLIC_APP_ORIGIN, "/login"));
   loginUrl.searchParams.set("tenantId", tenantId);
   loginUrl.searchParams.set("next", "/auth/resolve");
   loginUrl.searchParams.set("reason", "sso_required");

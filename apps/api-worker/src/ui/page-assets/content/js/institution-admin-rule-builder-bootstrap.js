@@ -36,6 +36,27 @@ const ruleBuilderTemplatePreset = document.getElementById("rule-builder-template
 const ruleBuilderLmsConnectionSelect = document.getElementById("rule-builder-lms-connection");
 const ruleBuilderLmsStatus = document.getElementById("rule-builder-lms-status");
 const ruleBuilderLmsProviderKindInput = document.getElementById("rule-builder-lms-provider-kind");
+const ruleBuilderBadgeTemplateSearchField = document.getElementById(
+  "rule-builder-badge-template-search-field",
+);
+const ruleBuilderBadgeTemplateSearch = document.getElementById(
+  "rule-builder-badge-template-search",
+);
+const ruleBuilderBadgeTemplateSelect = document.getElementById(
+  "rule-builder-badge-template-select",
+);
+const ruleBuilderBadgeTemplateSearchStatus = document.getElementById(
+  "rule-builder-badge-template-search-status",
+);
+const ruleBuilderBadgeTemplateReuse = document.getElementById(
+  "rule-builder-badge-template-reuse",
+);
+const ruleBuilderBadgeTemplateReuseMessage = document.getElementById(
+  "rule-builder-badge-template-reuse-message",
+);
+const ruleBuilderBadgeTemplateReuseConfirmation = document.getElementById(
+  "rule-builder-badge-template-reuse-confirmation",
+);
 const ruleBuilderApplyTemplateButton = document.getElementById("rule-builder-apply-template");
 const ruleBuilderAddConditionButton = document.getElementById("rule-builder-add-condition");
 const ruleBuilderAddAlternativePathButton = document.getElementById(

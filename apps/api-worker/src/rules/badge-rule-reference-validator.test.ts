@@ -7,6 +7,7 @@ const definitionWithAssignments = (assignmentIds: readonly string[]) => {
   return parseCreateBadgeIssuanceRuleRequest({
     name: "Assignment rule",
     badgeTemplateId: "badge-template",
+    badgeTemplateReuseAcknowledged: false,
     lmsConnectionId: "lms-connection",
     lmsProviderKind: "sakai",
     action: "save_draft",

@@ -61,12 +61,20 @@ export const buildBadgeRuleApprovalsPath = (tenantId: string): string => {
   return `${buildRulesAdminPath(tenantId)}/approvals`;
 };
 
+/** Builds the server-handled version-selection URL for one rule's approval review. */
+export const buildBadgeRuleApprovalReviewSelectionPath = (
+  tenantId: string,
+  ruleId: string,
+): string => {
+  return `${buildBadgeRuleApprovalsPath(tenantId)}/${encodeURIComponent(ruleId)}`;
+};
+
 export const buildBadgeRuleVersionReviewPath = (
   tenantId: string,
   ruleId: string,
   versionId: string,
 ): string => {
-  return `${buildBadgeRuleApprovalsPath(tenantId)}/${encodeURIComponent(ruleId)}/versions/${encodeURIComponent(
+  return `${buildBadgeRuleApprovalReviewSelectionPath(tenantId, ruleId)}/versions/${encodeURIComponent(
     versionId,
   )}`;
 };

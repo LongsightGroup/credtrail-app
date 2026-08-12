@@ -1,7 +1,11 @@
 export * from "./audit-logs";
 export * from "./assertions";
 export * from "./assertion-evidence";
-export * from "./assertion-issuance-provenance";
+export { findAssertionIssuanceProvenanceByAssertionId } from "./assertion-issuance-provenance";
+export type {
+  AssertionIssuanceProvenanceRecord,
+  AssertionIssuanceProvenanceSource,
+} from "./assertion-issuance-provenance";
 export * from "./finalize-assertion-issuance";
 export * from "./auth-magic-link-rate-limit";
 export * from "./badge-templates";

@@ -1,4 +1,4 @@
-import type { AssertionRecord, LearnerProfileRecord, SqlDatabase } from "@credtrail/db";
+import type { LearnerProfileRecord, SqlDatabase } from "@credtrail/db";
 import {
   findLearnerProfileById,
   listLearnerRecordAssertionExports,
@@ -389,17 +389,10 @@ export const loadLearnerRecordExportBundle = async (
           publicId: record.assertionPublicId,
           learnerProfileId: record.learnerProfileId,
           badgeTemplateId: record.badgeTemplateId,
-          recipientIdentity: record.recipientIdentity,
-          recipientIdentityType: record.recipientIdentityType,
-          vcR2Key: record.vcR2Key,
-          statusListIndex: record.statusListIndex,
-          idempotencyKey: record.idempotencyKey,
           issuedAt: record.issuedAt,
           issuedByUserId: record.issuedByUserId,
           revokedAt: record.revokedAt,
-          createdAt: record.createdAt,
-          updatedAt: record.updatedAt,
-        } satisfies AssertionRecord,
+        },
         badgeTitle: record.badgeTitle,
         badgeDescription: record.badgeDescription,
         issuerName: record.issuerName,

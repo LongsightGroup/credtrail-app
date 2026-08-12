@@ -1,17 +1,21 @@
 import { createTenantScopedId } from "@credtrail/core-domain";
 import type {
+  IssuanceAchievementSource,
   IssueBadgeQueueJob,
   IssueBadgeRequest,
   RevokeBadgeQueueJob,
   RevokeBadgeRequest,
 } from "@credtrail/validation";
-import { resolveQueueIssueBadgeProvenance } from "../badges/issue-badge-provenance";
 
-type IssueBadgeQueueRequest = IssueBadgeRequest & {
+type IssueBadgeQueueRequestBase = Omit<IssueBadgeRequest, "badgeTemplateId"> & {
   readonly lmsLearnerIdentity?: {
     readonly connectionId: string;
     readonly learnerId: string;
   };
+};
+
+type IssueBadgeQueueRequest = IssueBadgeQueueRequestBase & {
+  readonly achievementSource: IssuanceAchievementSource;
 };
 
 export const issueBadgeQueueJobFromRequest = (
@@ -19,14 +23,12 @@ export const issueBadgeQueueJobFromRequest = (
 ): { assertionId: string; job: IssueBadgeQueueJob } => {
   const assertionId = createTenantScopedId(request.tenantId);
   const idempotencyKey = request.idempotencyKey ?? crypto.randomUUID();
-  const issuanceProvenance = resolveQueueIssueBadgeProvenance(request);
-
   const job: IssueBadgeQueueJob = {
     jobType: "issue_badge",
     tenantId: request.tenantId,
     payload: {
       assertionId,
-      badgeTemplateId: request.badgeTemplateId,
+      achievementSource: request.achievementSource,
       recipientIdentity: request.recipientIdentity,
       recipientIdentityType: request.recipientIdentityType,
       ...(request.recipientIdentifiers === undefined
@@ -50,7 +52,6 @@ export const issueBadgeQueueJobFromRequest = (
         : {
             requestedByUserId: request.requestedByUserId,
           }),
-      issuanceProvenance,
       ...(request.lmsLearnerIdentity === undefined
         ? {}
         : { lmsLearnerIdentity: request.lmsLearnerIdentity }),

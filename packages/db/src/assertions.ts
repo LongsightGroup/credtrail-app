@@ -1,4 +1,8 @@
 export { listRecipientIdentifiersForAssertion } from "./assertion-recipient-identifiers";
+export {
+  parseStoredAssertionAchievementSnapshot,
+  serializeAssertionAchievementSnapshot,
+} from "./assertion-achievement-snapshot.js";
 export type {
   AssertionRecord,
   LearnerRecordAssertionExportRecord,
@@ -79,4 +83,8 @@ export * from "./assertion-reporting-attribution.js";
 export * from "./assertion-engagement.js";
 export * from "./assertion-reporting-queries.js";
 export * from "./assertion-public-badge-wall.js";
-export * from "./assertion-writes.js";
+export {
+  listAssertionStatusListEntries,
+  nextAssertionStatusListIndex,
+  recordAssertionRevocation,
+} from "./assertion-writes.js";

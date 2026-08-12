@@ -46,6 +46,7 @@ const createEnv = (appEnv = "test"): AppBindings => {
   return {
     APP_ENV: appEnv,
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
     BADGE_OBJECTS: {} as R2Bucket,
   };
 };
@@ -62,7 +63,7 @@ describe("app root route", () => {
 
 describe("canonical host redirects", () => {
   it("redirects www host requests to the canonical platform domain", async () => {
-    const env = createEnv();
+    const env = createEnv("production");
     const response = await app.fetch(
       new Request(
         "https://www.credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22?utm=test",
@@ -77,7 +78,7 @@ describe("canonical host redirects", () => {
   });
 
   it("redirects legacy badges subdomain requests to the canonical platform domain", async () => {
-    const env = createEnv();
+    const env = createEnv("production");
     const response = await app.fetch(new Request("https://badges.credtrail.test/healthz"), env);
 
     expect(response.status).toBe(308);
@@ -119,7 +120,7 @@ describe("security headers", () => {
   });
 
   it("applies the baseline browser security headers to canonical redirects", async () => {
-    const env = createEnv();
+    const env = createEnv("production");
     const response = await app.fetch(new Request("https://www.credtrail.test/healthz"), env);
 
     expect(response.status).toBe(308);
@@ -290,7 +291,7 @@ describe("GET /ims/ob/v3p0/discovery", () => {
   it("returns a public OB3 service description document with OAuth metadata", async () => {
     const env = createEnv();
     const response = await app.fetch(
-      new Request("https://credtrail.test/ims/ob/v3p0/discovery"),
+      new Request("https://unexpected-worker.example/ims/ob/v3p0/discovery"),
       env,
     );
     const body = await response.json<JsonObject>();

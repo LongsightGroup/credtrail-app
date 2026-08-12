@@ -1,4 +1,5 @@
 import type { TenantOrgUnitRecord } from "./tenant-org-units";
+import { parseStoredAssertionAchievementSnapshot } from "./assertion-achievement-snapshot.js";
 import type {
   AssertionEngagementEventRecord,
   AssertionEngagementEventType,
@@ -28,6 +29,7 @@ export interface AssertionRow {
   publicId: string | null;
   learnerProfileId: string | null;
   badgeTemplateId: string;
+  achievementSnapshotJson: string;
   recipientIdentity: string;
   recipientIdentityType: "email" | "email_sha256" | "did" | "url";
   vcR2Key: string;
@@ -104,10 +106,7 @@ export interface LearnerRecordAssertionExportRow {
   tenantId: string;
   learnerProfileId: string | null;
   badgeTemplateId: string;
-  badgeTitle: string;
-  badgeDescription: string | null;
-  badgeCriteriaUri: string | null;
-  badgeImageUri: string | null;
+  achievementSnapshotJson: string;
   recipientIdentity: string;
   recipientIdentityType: "email" | "email_sha256" | "did" | "url";
   vcR2Key: string;
@@ -126,8 +125,7 @@ export interface TenantAssertionSummaryRow {
   tenantId: string;
   publicId: string | null;
   badgeTemplateId: string;
-  badgeTitle: string;
-  badgeImageUri: string | null;
+  achievementSnapshotJson: string;
   recipientIdentity: string;
   recipientIdentityType: "email" | "email_sha256" | "did" | "url";
   issuedAt: string;
@@ -144,7 +142,7 @@ export interface TenantAssertionLedgerExportRow {
   tenantId: string;
   publicId: string | null;
   badgeTemplateId: string;
-  badgeTitle: string;
+  achievementSnapshotJson: string;
   recipientIdentity: string;
   recipientIdentityType: "email" | "email_sha256" | "did" | "url";
   issuedAt: string;
@@ -164,9 +162,7 @@ export interface PublicBadgeWallEntryRow {
   assertionPublicId: string;
   tenantId: string;
   badgeTemplateId: string;
-  badgeTitle: string;
-  badgeDescription: string | null;
-  badgeImageUri: string | null;
+  achievementSnapshotJson: string;
   recipientIdentity: string;
   recipientIdentityType: "email" | "email_sha256" | "did" | "url";
   issuedAt: string;
@@ -355,6 +351,7 @@ export const mapAssertionRow = (row: AssertionRow): AssertionRecord => {
     publicId: row.publicId,
     learnerProfileId: row.learnerProfileId,
     badgeTemplateId: row.badgeTemplateId,
+    achievementSnapshot: parseStoredAssertionAchievementSnapshot(row.achievementSnapshotJson),
     recipientIdentity: row.recipientIdentity,
     recipientIdentityType: row.recipientIdentityType,
     vcR2Key: row.vcR2Key,
@@ -419,16 +416,18 @@ export const mapAssertionLifecycleEventRow = (
 export const mapLearnerRecordAssertionExportRow = (
   row: LearnerRecordAssertionExportRow,
 ): LearnerRecordAssertionExportRecord => {
+  const achievement = parseStoredAssertionAchievementSnapshot(row.achievementSnapshotJson);
+
   return {
     assertionId: row.assertionId,
     assertionPublicId: row.assertionPublicId,
     tenantId: row.tenantId,
     learnerProfileId: row.learnerProfileId,
     badgeTemplateId: row.badgeTemplateId,
-    badgeTitle: row.badgeTitle,
-    badgeDescription: row.badgeDescription,
-    badgeCriteriaUri: row.badgeCriteriaUri,
-    badgeImageUri: row.badgeImageUri,
+    badgeTitle: achievement.title,
+    badgeDescription: achievement.description,
+    badgeCriteriaUri: achievement.criteriaUri,
+    badgeImageUri: achievement.imageUri,
     recipientIdentity: row.recipientIdentity,
     recipientIdentityType: row.recipientIdentityType,
     vcR2Key: row.vcR2Key,
@@ -446,6 +445,7 @@ export const mapLearnerRecordAssertionExportRow = (
 export const mapTenantAssertionSummaryRow = (
   row: TenantAssertionSummaryRow,
 ): TenantAssertionSummaryRecord => {
+  const achievement = parseStoredAssertionAchievementSnapshot(row.achievementSnapshotJson);
   const lifecycle = resolveAssertionLifecycleProjection({
     revokedAt: row.revokedAt,
     latestToState: row.latestToState,
@@ -459,8 +459,8 @@ export const mapTenantAssertionSummaryRow = (
     tenantId: row.tenantId,
     publicId: row.publicId,
     badgeTemplateId: row.badgeTemplateId,
-    badgeTitle: row.badgeTitle,
-    badgeImageUri: row.badgeImageUri,
+    badgeTitle: achievement.title,
+    badgeImageUri: achievement.imageUri,
     recipientIdentity: row.recipientIdentity,
     recipientIdentityType: row.recipientIdentityType,
     issuedAt: row.issuedAt,
@@ -474,6 +474,7 @@ export const mapTenantAssertionLedgerExportRow = (
   row: TenantAssertionLedgerExportRow,
   orgUnitsById: ReadonlyMap<string, TenantOrgUnitRecord>,
 ): TenantAssertionLedgerExportRowRecord => {
+  const achievement = parseStoredAssertionAchievementSnapshot(row.achievementSnapshotJson);
   const lifecycle = resolveAssertionLifecycleProjection({
     revokedAt: row.revokedAt,
     latestToState: row.latestToState,
@@ -487,7 +488,7 @@ export const mapTenantAssertionLedgerExportRow = (
     tenantId: row.tenantId,
     publicId: row.publicId,
     badgeTemplateId: row.badgeTemplateId,
-    badgeTitle: row.badgeTitle,
+    badgeTitle: achievement.title,
     recipientIdentity: row.recipientIdentity,
     recipientIdentityType: row.recipientIdentityType,
     issuedAt: row.issuedAt,
@@ -504,14 +505,16 @@ export const mapTenantAssertionLedgerExportRow = (
 export const mapPublicBadgeWallEntryRow = (
   row: PublicBadgeWallEntryRow,
 ): PublicBadgeWallEntryRecord => {
+  const achievement = parseStoredAssertionAchievementSnapshot(row.achievementSnapshotJson);
+
   return {
     assertionId: row.assertionId,
     assertionPublicId: row.assertionPublicId,
     tenantId: row.tenantId,
     badgeTemplateId: row.badgeTemplateId,
-    badgeTitle: row.badgeTitle,
-    badgeDescription: row.badgeDescription,
-    badgeImageUri: row.badgeImageUri,
+    badgeTitle: achievement.title,
+    badgeDescription: achievement.description,
+    badgeImageUri: achievement.imageUri,
     recipientIdentity: row.recipientIdentity,
     recipientIdentityType: row.recipientIdentityType,
     issuedAt: row.issuedAt,

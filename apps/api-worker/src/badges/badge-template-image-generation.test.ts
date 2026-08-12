@@ -43,6 +43,7 @@ describe("badge template image generation Workers AI client", () => {
     const config = badgeTemplateImageGenerationConfigFromEnv({
       AI: ai,
       PLATFORM_DOMAIN: "credtrail.test",
+      PUBLIC_APP_ORIGIN: "https://credtrail.test",
     });
 
     expect(config.provider).toBe("workers-ai");
@@ -51,6 +52,7 @@ describe("badge template image generation Workers AI client", () => {
       isBadgeTemplateImageGenerationConfigured({
         AI: ai,
         PLATFORM_DOMAIN: "credtrail.test",
+        PUBLIC_APP_ORIGIN: "https://credtrail.test",
       }),
     ).toBe(true);
   });
@@ -59,6 +61,7 @@ describe("badge template image generation Workers AI client", () => {
     expect(
       isBadgeTemplateImageGenerationConfigured({
         PLATFORM_DOMAIN: "credtrail.test",
+        PUBLIC_APP_ORIGIN: "https://credtrail.test",
       }),
     ).toBe(false);
   });
@@ -96,6 +99,7 @@ describe("badge template image generation Workers AI client", () => {
         AI: ai,
         BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-4b",
         PLATFORM_DOMAIN: "credtrail.test",
+        PUBLIC_APP_ORIGIN: "https://credtrail.test",
       },
       promptText: "Create a badge.",
     });

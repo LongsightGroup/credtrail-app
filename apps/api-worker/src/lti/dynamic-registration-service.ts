@@ -7,6 +7,7 @@ import {
 import type { SqlDatabase } from "@credtrail/db";
 import { parseLtiDynamicRegistrationPathParams } from "@credtrail/validation";
 import type { AppBindings } from "../app";
+import { canonicalAppUrl } from "../http/canonical-app-url";
 import { LTI_JWKS_PATH, LTI_LAUNCH_PATH, LTI_OIDC_LOGIN_PATH } from "./constants";
 import {
   createCredTrailLtiDynamicRegistration,
@@ -75,28 +76,18 @@ const serviceSuccess = <TValue>(value: TValue): LtiDynamicRegistrationServiceRes
   };
 };
 
-const publicPlatformOrigin = (platformDomain: string): string => {
-  const trimmed = platformDomain.trim();
-  const baseUrl = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  return new URL("/", baseUrl).origin;
-};
-
-const publicPlatformUrl = (env: Pick<AppBindings, "PLATFORM_DOMAIN">, path: string): string => {
-  return new URL(path, publicPlatformOrigin(env.PLATFORM_DOMAIN)).toString();
-};
-
 export const buildLtiDynamicRegistrationConfig = (
-  env: Pick<AppBindings, "PLATFORM_DOMAIN">,
+  env: Pick<AppBindings, "PUBLIC_APP_ORIGIN">,
 ): DynamicRegistrationConfig => {
-  const launchUrl = publicPlatformUrl(env, LTI_LAUNCH_PATH);
+  const launchUrl = canonicalAppUrl(env.PUBLIC_APP_ORIGIN, LTI_LAUNCH_PATH);
 
   return {
     url: launchUrl,
     name: "CredTrail",
     description: "CredTrail badge and credential issuing for LMS courses.",
-    loginUri: publicPlatformUrl(env, LTI_OIDC_LOGIN_PATH),
+    loginUri: canonicalAppUrl(env.PUBLIC_APP_ORIGIN, LTI_OIDC_LOGIN_PATH),
     launchUri: launchUrl,
-    jwksUri: publicPlatformUrl(env, LTI_JWKS_PATH),
+    jwksUri: canonicalAppUrl(env.PUBLIC_APP_ORIGIN, LTI_JWKS_PATH),
     deepLinkingUri: launchUrl,
     platforms: {
       canvas: {
@@ -123,7 +114,7 @@ export const buildTenantLtiDynamicRegistrationInviteUrl = async (
   });
 
   return ltiDynamicRegistrationUrl({
-    platformDomain: env.PLATFORM_DOMAIN,
+    publicAppOrigin: env.PUBLIC_APP_ORIGIN,
     tenantId,
     inviteToken,
   });

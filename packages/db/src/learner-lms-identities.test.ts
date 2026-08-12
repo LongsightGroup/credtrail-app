@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 
 import {
   createLearnerProfile,
+  createBadgeIssuanceRuleWithAction,
   finalizeAssertionIssuance,
   findAssertionById,
   listLearnerProfilesForRecordLookup,
@@ -11,6 +12,7 @@ import {
   cleanupTestResources,
   createBadgeRuleIntegrationFixture,
   describeDbIntegration,
+  loadExpectedBadgeTemplateRevision,
   type BadgeRuleIntegrationFixture,
   uniqueTestId,
 } from "./postgres-test-support";
@@ -34,7 +36,6 @@ const finalizeTestIssuance = (
       id: input.assertionId,
       tenantId: fixture.tenantId,
       learnerProfileId: input.learnerProfileId,
-      badgeTemplateId: input.badgeTemplateId ?? fixture.badgeTemplateId,
       recipientIdentity: input.recipientEmail,
       recipientIdentityType: "email",
       vcR2Key: `test/${input.assertionId}.json`,
@@ -42,7 +43,18 @@ const finalizeTestIssuance = (
       idempotencyKey: uniqueTestId(`idem_${input.assertionId}`),
       issuedAt: ISSUED_AT,
     },
-    provenance: { source: "rule_evaluate" },
+    achievementSource: {
+      kind: "template_snapshot",
+      snapshot: {
+        badgeTemplateId: input.badgeTemplateId ?? fixture.badgeTemplateId,
+        title: "LMS identity test badge",
+        description: null,
+        criteriaUri: null,
+        imageUri: null,
+        trustedCredentialMetadataJson: null,
+      },
+      provenance: { source: "programmatic" },
+    },
     lmsLearnerIdentity: {
       connectionId: input.connectionId,
       learnerId: input.lmsLearnerId,
@@ -211,6 +223,84 @@ describeDbIntegration("connection-scoped LMS learner identities", () => {
           lookupValue: "rolled-back-provider-id",
         }),
       ).toEqual([]);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
+  it("derives rule-backed assertion achievement content from the governed version", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      const profile = await createLearnerProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        primaryIdentityType: "email",
+        primaryIdentityValue: "governed@example.edu",
+      });
+      const authored = await createBadgeIssuanceRuleWithAction(fixture.db, {
+        tenantId: fixture.tenantId,
+        name: "Governed achievement",
+        description: "Version-owned badge content",
+        badgeTemplateId: fixture.badgeTemplateId,
+        expectedBadgeTemplateRevision: await loadExpectedBadgeTemplateRevision(fixture.db, {
+          tenantId: fixture.tenantId,
+          badgeTemplateId: fixture.badgeTemplateId,
+        }),
+        badgeTemplateReuseAcknowledged: false,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+        action: "save_draft",
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+      });
+
+      if (authored.status !== "completed") {
+        throw new Error("Expected governed rule authoring to complete");
+      }
+
+      const assertionId = uniqueTestId("assertion_governed");
+      const finalized = await finalizeAssertionIssuance(fixture.db, {
+        assertion: {
+          id: assertionId,
+          tenantId: fixture.tenantId,
+          learnerProfileId: profile.id,
+          recipientIdentity: "governed@example.edu",
+          recipientIdentityType: "email",
+          vcR2Key: `test/${assertionId}.json`,
+          statusListIndex: 102,
+          idempotencyKey: uniqueTestId("idem_governed"),
+          issuedAt: ISSUED_AT,
+        },
+        achievementSource: {
+          kind: "rule_version",
+          provenance: {
+            source: "rule_evaluate",
+            ruleId: authored.rule.id,
+            versionId: authored.version.id,
+            provenanceJson: "{}",
+          },
+        },
+        buildAuditLog: (assertion) => ({
+          tenantId: fixture.tenantId,
+          actorUserId: fixture.userId,
+          action: "assertion.issued",
+          targetType: "assertion",
+          targetId: assertion.id,
+        }),
+      });
+      const assertion = await findAssertionById(fixture.db, fixture.tenantId, assertionId);
+
+      expect(finalized.status).toBe("issued");
+      expect(assertion?.badgeTemplateId).toBe(authored.version.snapshot.badgeTemplateId);
+      expect(assertion?.achievementSnapshot).toMatchObject({
+        badgeTemplateId: authored.version.snapshot.badgeTemplateId,
+        title: authored.version.snapshot.badgeTemplateTitle,
+        description: authored.version.snapshot.badgeTemplateDescription,
+      });
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],

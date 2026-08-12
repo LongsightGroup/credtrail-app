@@ -31,6 +31,9 @@ export const runImmutableCredentialStoreContract = (
     await expect(store.head(stored.key)).resolves.toEqual({
       key: stored.key,
     });
+    await expect(store.get(stored.key)).resolves.toMatchObject({
+      size: stored.size,
+    });
 
     await expect(getImmutableCredentialObject(store, ids)).resolves.toEqual({
       "@context": ["https://www.w3.org/ns/credentials/v2"],

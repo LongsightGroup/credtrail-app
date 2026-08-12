@@ -33,6 +33,7 @@ Local development uses one issuer hostname story:
   automation.
 - `http://localhost:8787` is also trusted for manual browser access.
 - `PLATFORM_DOMAIN` is `localhost`.
+- `PUBLIC_APP_ORIGIN` is `http://localhost:8787` and owns every externally visible app URL.
 - The seeded tenant uses `issuerDomain: "localhost"` and
   `didWeb: "did:web:localhost"`.
 
@@ -64,8 +65,9 @@ pnpm dev:down
 - `dev:demo` runs a headed Playwright browser workflow that creates a badge
   template and issues a badge through normal admin routes. This is a local-only
   guided demo, not a headless CI job.
-- `test:e2e` runs the read-only browser surface headlessly for regression
-  coverage.
+- `test:e2e` runs the browser surface headlessly for regression coverage. Most
+  checks are read-only; the approval workflow check creates an isolated tenant,
+  submits and approves one rule, and removes its data before finishing.
 - `dev:down` stops the Postgres compose service.
 
 ## Seeded Demo Contract
@@ -93,14 +95,16 @@ The seed creates:
   - `Capstone Badge`, without TrustEd metadata.
 - One active seeded badge rule:
   `Local Demo: Applied Analytics Completion`.
+- Managed local artwork for the Applied Analytics template, written through the
+  same immutable image format used by the product.
 - A learner profile for `learner@example.edu`.
 - A DB row and local Wrangler R2 credential object for
   `/badges/trusted-demo-credential`.
 
 `pnpm dev:seed` seeds the database and writes the R2 object with
-`wrangler r2 object put --local --persist-to .wrangler/state`. Set
-`CREDTRAIL_DEV_SEED_R2=false` only when you want to seed database rows without
-touching local R2.
+`wrangler r2 object put --local --persist-to .wrangler/state`. The database and
+local R2 fixtures are seeded together so demo rules never reference missing or
+external artwork.
 
 When Wrangler is already running, seed the same public credential through the
 Worker binding instead:
@@ -135,9 +139,10 @@ tests/e2e/
 
 Artifacts go under `output/`, which is gitignored.
 
-`pnpm test:e2e` runs only the read-only Chromium project. The `@demo` workflow is
-reserved for `pnpm dev:demo` because it is intentionally headed and mutates the
-seeded demo by creating templates and issuing badges.
+`pnpm test:e2e` runs only the Chromium project. Its approval workflow mutates
+only a uniquely named disposable tenant and cleans it up. The `@demo` workflow
+is reserved for `pnpm dev:demo` because it is intentionally headed and mutates
+the seeded demo by creating templates and issuing badges.
 
 ## Troubleshooting
 

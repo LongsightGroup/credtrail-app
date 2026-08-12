@@ -1,6 +1,7 @@
 x-selfhost-env: &selfhost_env
   APP_ENV: production
   PLATFORM_DOMAIN: localhost
+  PUBLIC_APP_ORIGIN: http://localhost:8787
   BETTER_AUTH_SECRET: replace-with-at-least-32-random-bytes
   BETTER_AUTH_TRUSTED_ORIGINS: http://localhost:8787
   # Local validation leaves outbound email disabled. For real deployments, uncomment and configure:

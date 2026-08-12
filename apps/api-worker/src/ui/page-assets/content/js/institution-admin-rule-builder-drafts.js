@@ -147,6 +147,7 @@ const applyBuilderDraftPayload = (draftContext) => {
 
   if (typeof payload.badgeTemplateId === "string") {
     setRuleCreateFieldValue("badgeTemplateId", payload.badgeTemplateId);
+    ruleBuilderBadgeTemplatePicker.sync();
   }
 
   if (typeof payload.lmsConnectionId === "string") {
@@ -497,35 +498,45 @@ if (
         return;
       }
 
-      const rule = payload && payload.rule ? payload.rule : null;
       const versions = payload && Array.isArray(payload.versions) ? payload.versions : [];
       const latestVersion = versions.slice().sort((left, right) => {
         const leftVersion = typeof left.versionNumber === "number" ? left.versionNumber : 0;
         const rightVersion = typeof right.versionNumber === "number" ? right.versionNumber : 0;
         return rightVersion - leftVersion;
       })[0];
+      const snapshot =
+        latestVersion &&
+        latestVersion.snapshot &&
+        typeof latestVersion.snapshot === "object" &&
+        !Array.isArray(latestVersion.snapshot)
+          ? latestVersion.snapshot
+          : null;
 
-      if (rule && typeof rule.description === "string" && rule.description.length > 0) {
-        setRuleCreateFieldValue("description", rule.description);
-      }
-
-      if (rule && typeof rule.badgeTemplateId === "string") {
-        setRuleCreateFieldValue("badgeTemplateId", rule.badgeTemplateId);
-      }
-
-      if (rule && typeof rule.lmsConnectionId === "string") {
-        setRuleCreateFieldValue("lmsConnectionId", rule.lmsConnectionId);
-        syncSelectedLmsProviderKind();
-      }
-
-      if (latestVersion && typeof latestVersion.ruleJson === "string") {
-        const definition = JSON.parse(latestVersion.ruleJson);
-        ruleBuilderDefinitionJson.value = JSON.stringify(definition, null, 2);
-        applyDefinitionToBuilder(definition, "Copied rule settings");
-      } else {
+      if (snapshot === null || typeof latestVersion.ruleJson !== "string") {
         setStatus(ruleCreateStatus, "Selected rule has no saved settings to copy.", true);
         syncRuleBuilderSummary("Selected rule has no saved settings to copy.");
+        return;
       }
+
+      setRuleCreateFieldValue(
+        "description",
+        typeof snapshot.description === "string" ? snapshot.description : "",
+      );
+
+      if (typeof snapshot.badgeTemplateId === "string") {
+        setRuleCreateFieldValue("badgeTemplateId", snapshot.badgeTemplateId);
+        ruleBuilderBadgeTemplatePicker.sync(true);
+      }
+
+      setRuleCreateFieldValue(
+        "lmsConnectionId",
+        typeof snapshot.lmsConnectionId === "string" ? snapshot.lmsConnectionId : "",
+      );
+      syncSelectedLmsProviderKind();
+
+      const definition = JSON.parse(latestVersion.ruleJson);
+      ruleBuilderDefinitionJson.value = JSON.stringify(definition, null, 2);
+      applyDefinitionToBuilder(definition, "Copied rule settings");
     } catch {
       setStatus(ruleCreateStatus, "Unable to copy selected rule from this browser session.", true);
       syncRuleBuilderSummary("Unable to copy selected rule from this browser session.");

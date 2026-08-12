@@ -1,7 +1,12 @@
 export * from "./badge-issuance-rule-types.js";
 export { parseOptionalDateTimeInputToIso } from "./shared-helpers.js";
 export * from "./badge-issuance-rule-reads.js";
+export * from "./badge-issuance-rule-version-reads.js";
+export * from "./badge-issuance-rule-achievement-snapshot.js";
+export * from "./badge-issuance-rule-approval-reads.js";
+export * from "./badge-template-rule-usage.js";
 export * from "./badge-issuance-rule-builder-drafts.js";
+export { badgeIssuanceRuleIdentityForBuilderDraft } from "./badge-issuance-rule-builder-identity.js";
 export {
   createBadgeIssuanceRuleWithAction,
   findBadgeIssuanceRuleAuthoringReplay,
@@ -16,12 +21,4 @@ export {
 } from "./badge-issuance-rule-approval-corrections.js";
 export { submitBadgeIssuanceRuleVersionForApproval } from "./badge-issuance-rule-submission.js";
 export { activateBadgeIssuanceRuleVersion } from "./badge-issuance-rule-activation.js";
-export {
-  createBadgeIssuanceRule,
-  createBadgeIssuanceRuleFromBuilderDraft,
-  createBadgeIssuanceRuleWithConnection,
-  createBadgeIssuanceRuleVersion,
-  findBadgeIssuanceRuleBuilderPromotionReplay,
-  updateBadgeIssuanceRuleDraft,
-  deleteDraftBadgeIssuanceRule,
-} from "./badge-issuance-rule-writes.js";
+export { deleteDraftBadgeIssuanceRule } from "./badge-issuance-rule-writes.js";

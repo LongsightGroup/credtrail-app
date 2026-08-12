@@ -1,5 +1,4 @@
 import {
-  assertionBadgeTemplateJoinSql,
   bindLearnerProfileOrEmailAccessParams,
   buildLearnerProfileOrEmailAccessFilter,
 } from "./learner-assertion-access-sql";
@@ -62,10 +61,7 @@ export const listLearnerRecordAssertionExports = async (
         assertions.tenant_id AS tenantId,
         assertions.learner_profile_id AS learnerProfileId,
         assertions.badge_template_id AS badgeTemplateId,
-        badge_templates.title AS badgeTitle,
-        badge_templates.description AS badgeDescription,
-        badge_templates.criteria_uri AS badgeCriteriaUri,
-        badge_templates.image_uri AS badgeImageUri,
+        assertions.achievement_snapshot_json AS achievementSnapshotJson,
         assertions.recipient_identity AS recipientIdentity,
         assertions.recipient_identity_type AS recipientIdentityType,
         assertions.vc_r2_key AS vcR2Key,
@@ -77,7 +73,7 @@ export const listLearnerRecordAssertionExports = async (
         tenants.display_name AS issuerName,
         assertions.created_at AS createdAt,
         assertions.updated_at AS updatedAt
-      ${assertionBadgeTemplateJoinSql}
+      FROM assertions
       INNER JOIN tenants
         ON tenants.id = assertions.tenant_id
       WHERE assertions.tenant_id = ?
@@ -113,8 +109,7 @@ export const listTenantAssertions = async (
           assertions.tenant_id AS tenantId,
           assertions.public_id AS publicId,
           assertions.badge_template_id AS badgeTemplateId,
-          badge_templates.title AS badgeTitle,
-          badge_templates.image_uri AS badgeImageUri,
+          assertions.achievement_snapshot_json AS achievementSnapshotJson,
           assertions.recipient_identity AS recipientIdentity,
           assertions.recipient_identity_type AS recipientIdentityType,
           assertions.issued_at AS issuedAt,
@@ -125,9 +120,6 @@ export const listTenantAssertions = async (
           lifecycle.reason AS latestReason,
           lifecycle.transitioned_at AS latestTransitionedAt
         FROM assertions
-        INNER JOIN badge_templates
-          ON badge_templates.tenant_id = assertions.tenant_id
-          AND badge_templates.id = assertions.badge_template_id
         ${input.orgUnitId === undefined ? "" : assertionReportingAttributionJoinSql}
         LEFT JOIN assertion_lifecycle_events lifecycle
           ON lifecycle.id = (
@@ -171,7 +163,7 @@ export const listTenantAssertionLedgerExportRows = async (
           assertions.tenant_id AS tenantId,
           assertions.public_id AS publicId,
           assertions.badge_template_id AS badgeTemplateId,
-          badge_templates.title AS badgeTitle,
+          assertions.achievement_snapshot_json AS achievementSnapshotJson,
           assertions.recipient_identity AS recipientIdentity,
           assertions.recipient_identity_type AS recipientIdentityType,
           assertions.issued_at AS issuedAt,
@@ -185,9 +177,6 @@ export const listTenantAssertionLedgerExportRows = async (
           COALESCE(org_units.display_name, attribution.org_unit_id) AS orgUnitDisplayName,
           attribution.attribution_source AS attributionSource
         FROM assertions
-        INNER JOIN badge_templates
-          ON badge_templates.tenant_id = assertions.tenant_id
-          AND badge_templates.id = assertions.badge_template_id
         ${assertionReportingAttributionJoinSql}
         LEFT JOIN tenant_org_units org_units
           ON org_units.tenant_id = assertions.tenant_id

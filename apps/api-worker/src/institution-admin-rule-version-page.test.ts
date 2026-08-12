@@ -144,14 +144,20 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () =>
     );
     expect(body).toContain("Version 1 — Active now");
     expect(body).toContain("Version 2 — Draft · latest version");
-    expect(body).toContain("Activating a new version replaces the current active version");
-    expect(body).toContain("Badges already issued keep the rule version recorded");
+    expect(body).toContain("Version 2 of 2");
+    expect(body).toContain("← Previous version");
+    expect(body).toContain("Next version →");
+    expect(body).toContain("This draft is read-only here and cannot issue badges");
+    expect(body).toContain("Version note:");
+    expect(body).toContain("Technical details");
     expect(body).toContain("Rule ID");
     expect(body).toContain("brl_detail");
     expect(body).toContain("Version ID");
     expect(body).toContain("brv_detail_latest");
     expect(body).toContain(pageAssetPath("institutionAdminRuleVersionCss"));
     expect(body).toContain(pageAssetPath("institutionAdminRuleVersionJs"));
+    expect(body).not.toContain(pageAssetPath("institutionAdminRuleApprovalReviewCss"));
+    expect(body).not.toContain(pageAssetPath("institutionAdminRuleApprovalReviewJs"));
     expect(mockedFindTenantOrgUnitById).toHaveBeenCalledWith(
       expect.anything(),
       "tenant_123",

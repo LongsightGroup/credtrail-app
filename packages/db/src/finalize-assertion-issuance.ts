@@ -1,17 +1,17 @@
 import { createAuditLog, type CreateAuditLogInput } from "./audit-logs.js";
+import type { BadgeAchievementSnapshot, IssuanceAchievementSource } from "@credtrail/validation";
 import { createAssertionIssuanceProvenance } from "./assertion-issuance-provenance.js";
-import type {
-  AssertionIssuanceProvenanceRecord,
-  CreateAssertionIssuanceProvenanceInput,
-} from "./assertion-issuance-provenance.js";
+import type { AssertionIssuanceProvenanceRecord } from "./assertion-issuance-provenance.js";
+import { badgeAchievementSnapshotFromRuleVersion } from "./badge-issuance-rule-achievement-snapshot.js";
+import { findBadgeIssuanceRuleVersionById } from "./badge-issuance-rule-version-reads.js";
 import { createAssertion } from "./assertion-writes.js";
 import type { AssertionRecord, CreateAssertionInput } from "./assertion-types.js";
 import { ensureLearnerLmsIdentity } from "./learner-lms-identities.js";
 import { runSqlTransaction, type SqlDatabase } from "./tenant-scope.js";
 
 export interface FinalizeAssertionIssuanceInput {
-  readonly assertion: CreateAssertionInput;
-  readonly provenance: Omit<CreateAssertionIssuanceProvenanceInput, "assertionId" | "tenantId">;
+  readonly assertion: Omit<CreateAssertionInput, "achievementSnapshot">;
+  readonly achievementSource: IssuanceAchievementSource;
   readonly buildAuditLog: (assertion: AssertionRecord) => CreateAuditLogInput;
   readonly lmsLearnerIdentity?: {
     readonly connectionId: string;
@@ -36,6 +36,27 @@ export const finalizeAssertionIssuance = async (
   input: FinalizeAssertionIssuanceInput,
 ): Promise<FinalizeAssertionIssuanceResult> => {
   return runSqlTransaction(db, async (transactionDb) => {
+    const achievementSource = input.achievementSource;
+    let achievementSnapshot: BadgeAchievementSnapshot;
+
+    if (achievementSource.kind === "template_snapshot") {
+      achievementSnapshot = achievementSource.snapshot;
+    } else {
+      const ruleVersion = await findBadgeIssuanceRuleVersionById(transactionDb, {
+        tenantId: input.assertion.tenantId,
+        ruleId: achievementSource.provenance.ruleId,
+        versionId: achievementSource.provenance.versionId,
+      });
+
+      if (ruleVersion === null) {
+        throw new Error(
+          `Governed badge rule version "${achievementSource.provenance.versionId}" was not found`,
+        );
+      }
+
+      achievementSnapshot = badgeAchievementSnapshotFromRuleVersion(ruleVersion.snapshot);
+    }
+
     if (input.lmsLearnerIdentity !== undefined) {
       if (input.assertion.learnerProfileId === undefined) {
         throw new Error("LMS learner identity requires an assertion learner profile");
@@ -54,10 +75,13 @@ export const finalizeAssertionIssuance = async (
       }
     }
 
-    const assertion = await createAssertion(transactionDb, input.assertion);
+    const assertion = await createAssertion(transactionDb, {
+      ...input.assertion,
+      achievementSnapshot,
+    });
     await createAuditLog(transactionDb, input.buildAuditLog(assertion));
     const provenance = await createAssertionIssuanceProvenance(transactionDb, {
-      ...input.provenance,
+      ...achievementSource.provenance,
       assertionId: assertion.id,
       tenantId: assertion.tenantId,
     });

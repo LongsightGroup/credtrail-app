@@ -8,6 +8,35 @@
 .ct-admin__builder-field-span {
   grid-column: 1 / -1;
 }
+.ct-admin__template-picker {
+  --ct-stack-gap: var(--ct-space-2);
+  min-width: 0;
+}
+.ct-admin__template-picker > .ct-admin__field,
+.ct-admin__template-picker > [id='rule-builder-badge-template-search-field'] > .ct-admin__field {
+  margin: 0;
+}
+.ct-admin__template-picker > .ct-admin__hint {
+  margin: 0;
+  min-height: 1.1rem;
+}
+.ct-admin__template-reuse {
+  --ct-stack-gap: var(--ct-space-2);
+  padding: var(--ct-space-3);
+  border: 1px solid var(--ct-theme-state-warning);
+  border-radius: var(--ct-radius-md);
+  background: var(--ct-theme-surface-warning);
+}
+.ct-admin__template-reuse[hidden] {
+  display: none;
+}
+.ct-admin__template-reuse p {
+  margin: 0;
+  color: var(--ct-theme-text-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
 .ct-admin-content--rule-builder {
   max-width: none;
 }

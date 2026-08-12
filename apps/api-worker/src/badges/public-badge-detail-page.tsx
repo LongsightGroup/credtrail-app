@@ -57,14 +57,8 @@ export const createPublicBadgePage = (
     const achievementDetails = achievementDetailsFromCredential(model.credential);
     const evidenceDetails = evidenceDetailsFromCredential(model.credential);
     const trustEdCredentialDetails = trustEdCredentialDetailsFromCredential(model.credential);
-    const displayBadgeImageUri = model.badgeTemplateImageUri ?? achievementDetails.imageUri;
-    const fallbackBadgeImageUri =
-      model.badgeTemplateImageUri === null ? null : achievementDetails.imageUri;
+    const displayBadgeImageUri = achievementDetails.imageUri;
     const achievementInitials = badgeInitialsFromName(badgeName);
-    const fallbackImageUri =
-      fallbackBadgeImageUri === null || fallbackBadgeImageUri === displayBadgeImageUri
-        ? undefined
-        : fallbackBadgeImageUri;
     const achievementImage =
       displayBadgeImageUri === null ? (
         <svg
@@ -116,7 +110,6 @@ export const createPublicBadgePage = (
             src={displayBadgeImageUri}
             alt={badgeName}
             loading="lazy"
-            data-fallback-src={fallbackImageUri}
           />
           <span class="public-badge__hero-image-fallback" aria-hidden="true">
             {achievementInitials}

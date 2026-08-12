@@ -156,6 +156,27 @@ const ruleBuilderTemplatePreset = document.getElementById("rule-builder-template
 const ruleBuilderLmsConnectionSelect = document.getElementById("rule-builder-lms-connection");
 const ruleBuilderLmsStatus = document.getElementById("rule-builder-lms-status");
 const ruleBuilderLmsProviderKindInput = document.getElementById("rule-builder-lms-provider-kind");
+const ruleBuilderBadgeTemplateSearchField = document.getElementById(
+  "rule-builder-badge-template-search-field",
+);
+const ruleBuilderBadgeTemplateSearch = document.getElementById(
+  "rule-builder-badge-template-search",
+);
+const ruleBuilderBadgeTemplateSelect = document.getElementById(
+  "rule-builder-badge-template-select",
+);
+const ruleBuilderBadgeTemplateSearchStatus = document.getElementById(
+  "rule-builder-badge-template-search-status",
+);
+const ruleBuilderBadgeTemplateReuse = document.getElementById(
+  "rule-builder-badge-template-reuse",
+);
+const ruleBuilderBadgeTemplateReuseMessage = document.getElementById(
+  "rule-builder-badge-template-reuse-message",
+);
+const ruleBuilderBadgeTemplateReuseConfirmation = document.getElementById(
+  "rule-builder-badge-template-reuse-confirmation",
+);
 const ruleBuilderApplyTemplateButton = document.getElementById("rule-builder-apply-template");
 const ruleBuilderAddConditionButton = document.getElementById("rule-builder-add-condition");
 const ruleBuilderAddAlternativePathButton = document.getElementById(
@@ -790,6 +811,149 @@ var adminStatusPillClass = function adminStatusPillClass(tone) {
       setRuleCreateFieldValue('name', suggestedName);
     };
 
+const createBadgeTemplatePickerController = (input) => {
+  const {
+    searchField,
+    searchInput,
+    select,
+    searchStatus,
+    reusePanel,
+    reuseMessage,
+    reuseConfirmation,
+    onStateChange,
+  } = input;
+  const options =
+    select instanceof HTMLSelectElement
+      ? Array.from(select.options).filter((option) => option.value.trim().length > 0)
+      : [];
+
+  const selectedOption = () => {
+    if (!(select instanceof HTMLSelectElement)) {
+      return null;
+    }
+
+    const option = select.selectedOptions[0];
+    return option instanceof HTMLOptionElement && option.value.trim().length > 0 ? option : null;
+  };
+
+  const syncSearch = () => {
+    if (!(searchInput instanceof HTMLInputElement) || !(searchStatus instanceof HTMLElement)) {
+      return;
+    }
+
+    const query = searchInput.value.trim().toLocaleLowerCase();
+    let visibleCount = 0;
+
+    options.forEach((option) => {
+      const searchText = (option.dataset.templateSearchText ?? "").toLocaleLowerCase();
+      const isVisible = query.length === 0 || searchText.includes(query) || option.selected;
+      option.hidden = !isVisible;
+      option.disabled = !isVisible;
+
+      if (isVisible) {
+        visibleCount += 1;
+      }
+    });
+
+    if (query.length === 0) {
+      searchStatus.textContent =
+        String(options.length) +
+        (options.length === 1
+          ? " badge template ready for rules, A to Z."
+          : " badge templates ready for rules, A to Z.");
+      return;
+    }
+
+    searchStatus.textContent =
+      visibleCount === 0
+        ? "No badge templates match this search."
+        : String(visibleCount) +
+          (visibleCount === 1 ? " badge template shown." : " badge templates shown.");
+  };
+
+  const syncReuse = (resetConfirmation = false) => {
+    if (
+      !(reusePanel instanceof HTMLElement) ||
+      !(reuseMessage instanceof HTMLElement) ||
+      !(reuseConfirmation instanceof HTMLInputElement)
+    ) {
+      return;
+    }
+
+    if (resetConfirmation) {
+      reuseConfirmation.checked = false;
+    }
+
+    const option = selectedOption();
+    const usageCount = Number.parseInt(option?.dataset.ruleUsageCount ?? "0", 10);
+
+    if (option === null || !Number.isFinite(usageCount) || usageCount < 1) {
+      reusePanel.hidden = true;
+      reuseMessage.textContent = "";
+      reuseConfirmation.required = false;
+      reuseConfirmation.checked = false;
+      return;
+    }
+
+    const usageNames = option.dataset.ruleUsageNames?.trim() ?? "";
+    const ruleLabel = usageCount === 1 ? "other awarding rule" : "other awarding rules";
+    const usageDetail = usageNames.length === 0 ? "" : " (" + usageNames + ")";
+    reuseMessage.textContent =
+      "This badge is already used by " +
+      String(usageCount) +
+      " " +
+      ruleLabel +
+      usageDetail +
+      ". Reuse it only when this rule is another valid way to earn the same achievement. " +
+      "Each rule keeps its own approval and issuance history.";
+    reusePanel.hidden = false;
+    reuseConfirmation.required = true;
+  };
+
+  const sync = (resetConfirmation = false) => {
+    syncSearch();
+    syncReuse(resetConfirmation);
+  };
+
+  const isComplete = () => {
+    return !(
+      reuseConfirmation instanceof HTMLInputElement &&
+      reuseConfirmation.required &&
+      !reuseConfirmation.checked
+    );
+  };
+
+  const isReuseAcknowledged = () => {
+    return (
+      reuseConfirmation instanceof HTMLInputElement &&
+      reuseConfirmation.required &&
+      reuseConfirmation.checked
+    );
+  };
+
+  if (
+    searchField instanceof HTMLElement &&
+    searchInput instanceof HTMLInputElement &&
+    select instanceof HTMLSelectElement
+  ) {
+    searchField.hidden = false;
+    searchInput.disabled = options.length === 0;
+    searchInput.addEventListener("input", syncSearch);
+    select.addEventListener("change", () => {
+      sync(true);
+      onStateChange();
+    });
+    reuseConfirmation?.addEventListener("change", onStateChange);
+    sync();
+  }
+
+  return Object.freeze({
+    sync,
+    isComplete,
+    isReuseAcknowledged,
+  });
+};
+
 const ruleBuilderStepPanels = Array.from(
   ruleCreateForm.querySelectorAll("[data-rule-step]"),
 ).filter((candidate) => candidate instanceof HTMLElement);
@@ -870,7 +1034,8 @@ const isMetadataStepComplete = () => {
   return (
     getTextFieldValue("name").length > 0 &&
     getTextFieldValue("badgeTemplateId").length > 0 &&
-    getTextFieldValue("lmsConnectionId").length > 0
+    getTextFieldValue("lmsConnectionId").length > 0 &&
+    ruleBuilderBadgeTemplatePicker.isComplete()
   );
 };
 
@@ -952,6 +1117,10 @@ const getStepGateMessage = (stepName) => {
       }
 
       return "Choose a " + missingLabels[0] + " and an " + missingLabels[1] + " before continuing.";
+    }
+
+    if (!ruleBuilderBadgeTemplatePicker.isComplete()) {
+      return "Confirm that reusing this badge represents another valid way to earn the same achievement.";
     }
   }
 
@@ -4447,6 +4616,7 @@ const applyBuilderDraftPayload = (draftContext) => {
 
   if (typeof payload.badgeTemplateId === "string") {
     setRuleCreateFieldValue("badgeTemplateId", payload.badgeTemplateId);
+    ruleBuilderBadgeTemplatePicker.sync();
   }
 
   if (typeof payload.lmsConnectionId === "string") {
@@ -4797,35 +4967,45 @@ if (
         return;
       }
 
-      const rule = payload && payload.rule ? payload.rule : null;
       const versions = payload && Array.isArray(payload.versions) ? payload.versions : [];
       const latestVersion = versions.slice().sort((left, right) => {
         const leftVersion = typeof left.versionNumber === "number" ? left.versionNumber : 0;
         const rightVersion = typeof right.versionNumber === "number" ? right.versionNumber : 0;
         return rightVersion - leftVersion;
       })[0];
+      const snapshot =
+        latestVersion &&
+        latestVersion.snapshot &&
+        typeof latestVersion.snapshot === "object" &&
+        !Array.isArray(latestVersion.snapshot)
+          ? latestVersion.snapshot
+          : null;
 
-      if (rule && typeof rule.description === "string" && rule.description.length > 0) {
-        setRuleCreateFieldValue("description", rule.description);
-      }
-
-      if (rule && typeof rule.badgeTemplateId === "string") {
-        setRuleCreateFieldValue("badgeTemplateId", rule.badgeTemplateId);
-      }
-
-      if (rule && typeof rule.lmsConnectionId === "string") {
-        setRuleCreateFieldValue("lmsConnectionId", rule.lmsConnectionId);
-        syncSelectedLmsProviderKind();
-      }
-
-      if (latestVersion && typeof latestVersion.ruleJson === "string") {
-        const definition = JSON.parse(latestVersion.ruleJson);
-        ruleBuilderDefinitionJson.value = JSON.stringify(definition, null, 2);
-        applyDefinitionToBuilder(definition, "Copied rule settings");
-      } else {
+      if (snapshot === null || typeof latestVersion.ruleJson !== "string") {
         setStatus(ruleCreateStatus, "Selected rule has no saved settings to copy.", true);
         syncRuleBuilderSummary("Selected rule has no saved settings to copy.");
+        return;
       }
+
+      setRuleCreateFieldValue(
+        "description",
+        typeof snapshot.description === "string" ? snapshot.description : "",
+      );
+
+      if (typeof snapshot.badgeTemplateId === "string") {
+        setRuleCreateFieldValue("badgeTemplateId", snapshot.badgeTemplateId);
+        ruleBuilderBadgeTemplatePicker.sync(true);
+      }
+
+      setRuleCreateFieldValue(
+        "lmsConnectionId",
+        typeof snapshot.lmsConnectionId === "string" ? snapshot.lmsConnectionId : "",
+      );
+      syncSelectedLmsProviderKind();
+
+      const definition = JSON.parse(latestVersion.ruleJson);
+      ruleBuilderDefinitionJson.value = JSON.stringify(definition, null, 2);
+      applyDefinitionToBuilder(definition, "Copied rule settings");
     } catch {
       setStatus(ruleCreateStatus, "Unable to copy selected rule from this browser session.", true);
       syncRuleBuilderSummary("Unable to copy selected rule from this browser session.");
@@ -4833,6 +5013,16 @@ if (
   });
 }
 
+    const ruleBuilderBadgeTemplatePicker = createBadgeTemplatePickerController({
+      searchField: ruleBuilderBadgeTemplateSearchField,
+      searchInput: ruleBuilderBadgeTemplateSearch,
+      select: ruleBuilderBadgeTemplateSelect,
+      searchStatus: ruleBuilderBadgeTemplateSearchStatus,
+      reusePanel: ruleBuilderBadgeTemplateReuse,
+      reuseMessage: ruleBuilderBadgeTemplateReuseMessage,
+      reuseConfirmation: ruleBuilderBadgeTemplateReuseConfirmation,
+      onStateChange: () => updateStepNavigationState(),
+    });
 
     runRuleBuilderTest = async (options) => {
       const autoRun = options && options.auto === true;
@@ -5165,6 +5355,14 @@ if (
         return;
       }
 
+      if (!ruleBuilderBadgeTemplatePicker.isComplete()) {
+        const message =
+          'Confirm that reusing this badge represents another valid way to earn the same achievement.';
+        setStatus(ruleCreateStatus, message, true);
+        syncRuleBuilderSummary(message);
+        return;
+      }
+
       let definition;
 
       try {
@@ -5215,6 +5413,8 @@ if (
           name,
           ...(description.length > 0 ? { description } : {}),
           badgeTemplateId,
+          badgeTemplateReuseAcknowledged:
+            ruleBuilderBadgeTemplatePicker.isReuseAcknowledged(),
           lmsConnectionId,
           definition: definitionWithOptions,
           ...(changeSummary.length > 0 ? { changeSummary } : {}),
@@ -5340,6 +5540,7 @@ if (
     }
 
     restoreBuilderDraftIfApplicable();
+    ruleBuilderBadgeTemplatePicker.sync();
 
     refreshConditionCardValueListOptions();
     syncRuleBuilderSummary();

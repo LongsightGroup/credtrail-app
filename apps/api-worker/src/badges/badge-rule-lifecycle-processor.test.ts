@@ -217,6 +217,7 @@ describe("processBadgeRuleLifecycleForTenant", () => {
         BADGE_OBJECTS: {} as AppBindings["BADGE_OBJECTS"],
         EMAIL: { send: emailSend } as unknown as SendEmail,
         PLATFORM_DOMAIN: "credtrail.org",
+        PUBLIC_APP_ORIGIN: "https://credtrail.org",
       },
       adminUrlForTenant: (tenantId) => `https://credtrail.org/tenants/${tenantId}/admin/rules`,
     };

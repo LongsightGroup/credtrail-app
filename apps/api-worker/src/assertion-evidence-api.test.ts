@@ -116,6 +116,7 @@ const createEnv = (): {
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
   BETTER_AUTH_SECRET: string;
 } => {
   return {
@@ -123,6 +124,7 @@ const createEnv = (): {
     DATABASE_URL: "postgres://credtrail-test.local/db",
     BADGE_OBJECTS: {} as R2Bucket,
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
     BETTER_AUTH_SECRET: "test-better-auth-secret",
   };
 };
@@ -166,7 +168,15 @@ describe("GET /v1/tenants/:tenantId/assertions/:assertionId/evidence", () => {
     mockedListAssertionLifecycleEvents.mockResolvedValue([]);
     mockedListAuditLogsForAssertion.mockResolvedValue([]);
     mockedFindAssertionReportingAttributionByAssertionId.mockResolvedValue(null);
-    mockedFindAssertionIssuanceProvenanceByAssertionId.mockResolvedValue(null);
+    mockedFindAssertionIssuanceProvenanceByAssertionId.mockResolvedValue({
+      assertionId: "tenant_123:assertion_456",
+      tenantId: "tenant_123",
+      source: "manual",
+      ruleId: null,
+      versionId: null,
+      provenanceJson: null,
+      createdAt: "2026-03-24T15:00:00.000Z",
+    });
     mockedFindBadgeIssuanceRuleEvaluationByAssertionId.mockResolvedValue(null);
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(null);
     mockedFindBadgeIssuanceRuleVersionById.mockResolvedValue(null);
@@ -210,6 +220,60 @@ describe("GET /v1/tenants/:tenantId/assertions/:assertionId/evidence", () => {
     expect(mockedFindAssertionById).not.toHaveBeenCalled();
   });
 
+  it("returns 409 when required issuance provenance is missing", async () => {
+    const env = createEnv();
+    mockedFindAssertionById.mockResolvedValue({
+      id: "tenant_123:assertion_456",
+      tenantId: "tenant_123",
+      publicId: "cred-abc123",
+      learnerProfileId: null,
+      badgeTemplateId: "tenant_123:badge_template_001",
+      achievementSnapshot: {
+        badgeTemplateId: "tenant_123:badge_template_001",
+        title: "Applied Analytics",
+        description: "Awarded for analytics coursework.",
+        criteriaUri: "https://example.edu/criteria",
+        imageUri: "https://example.edu/badges/analytics.png",
+        trustedCredentialMetadataJson: null,
+      },
+      recipientIdentity: "learner@example.edu",
+      recipientIdentityType: "email",
+      vcR2Key: "tenants/tenant_123/assertions/tenant_123:assertion_456.jsonld",
+      statusListIndex: null,
+      idempotencyKey: "manual:tenant_123:assertion_456",
+      issuedAt: "2026-03-24T15:00:00.000Z",
+      issuedByUserId: "usr_admin",
+      revokedAt: null,
+      createdAt: "2026-03-24T15:00:00.000Z",
+      updatedAt: "2026-03-24T15:00:00.000Z",
+    });
+    mockedResolveAssertionLifecycleState.mockResolvedValue({
+      state: "active",
+      source: "default_active",
+      reasonCode: null,
+      reason: null,
+      transitionedAt: null,
+      revokedAt: null,
+    });
+    mockedFindAssertionIssuanceProvenanceByAssertionId.mockResolvedValue(null);
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/assertions/tenant_123:assertion_456/evidence",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Assertion evidence is incomplete",
+      reason: "missing_provenance",
+    });
+  });
+
   it("returns structured evidence JSON for issuer-role members", async () => {
     const env = createEnv();
 
@@ -219,6 +283,14 @@ describe("GET /v1/tenants/:tenantId/assertions/:assertionId/evidence", () => {
       publicId: "cred-abc123",
       learnerProfileId: null,
       badgeTemplateId: "tenant_123:badge_template_001",
+      achievementSnapshot: {
+        badgeTemplateId: "tenant_123:badge_template_001",
+        title: "Applied Analytics",
+        description: "Awarded for analytics coursework.",
+        criteriaUri: "https://example.edu/criteria",
+        imageUri: "https://example.edu/badges/analytics.png",
+        trustedCredentialMetadataJson: null,
+      },
       recipientIdentity: "learner@example.edu",
       recipientIdentityType: "email",
       vcR2Key: "tenants/tenant_123/assertions/tenant_123:assertion_456.jsonld",
@@ -308,6 +380,14 @@ describe("GET /v1/tenants/:tenantId/assertions/:assertionId/evidence", () => {
       publicId: "cred-abc123",
       learnerProfileId: null,
       badgeTemplateId: "tenant_123:badge_template_001",
+      achievementSnapshot: {
+        badgeTemplateId: "tenant_123:badge_template_001",
+        title: "Applied Analytics",
+        description: "Awarded for analytics coursework.",
+        criteriaUri: "https://example.edu/criteria",
+        imageUri: "https://example.edu/badges/analytics.png",
+        trustedCredentialMetadataJson: null,
+      },
       recipientIdentity: "learner@example.edu",
       recipientIdentityType: "email",
       vcR2Key: "tenants/tenant_123/assertions/tenant_123:assertion_456.jsonld",

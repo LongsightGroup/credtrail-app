@@ -14,7 +14,7 @@ import {
   AdminFieldset,
   AdminStatus,
 } from "./components";
-import { CtInput, CtSelect, CtTextarea } from "../ui/forms";
+import { CtCheckboxField, CtInput, CtSelect, CtTextarea } from "../ui/forms";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | null;
 type RuleBuilderStepTarget = "metadata" | "conditions" | "test";
@@ -22,6 +22,7 @@ type RuleBuilderStepTarget = "metadata" | "conditions" | "test";
 interface RuleBuilderTemplateOption {
   readonly template: BadgeTemplateRecord;
   readonly isSelected: boolean;
+  readonly ruleUsageNames: readonly string[];
 }
 
 const ruleBuilderConditionTypes = [
@@ -162,6 +163,7 @@ export const RuleBuilderCloneSettings = (props: {
 export const RuleBuilderMetadataStep = (props: {
   readonly isEditMode: boolean;
   readonly templateOptions: readonly RuleBuilderTemplateOption[];
+  readonly artworkActionTemplateCount: number;
   readonly connectedLmsConnections: readonly TenantLmsConnectionRecord[];
   readonly defaultLmsConnectionId: string;
   readonly defaultLmsConnection: TenantLmsConnectionRecord | null;
@@ -172,6 +174,13 @@ export const RuleBuilderMetadataStep = (props: {
     readonly latestVersion: BadgeIssuanceRuleVersionRecord;
   } | null;
 }): HonoElement => {
+  const hasSelectedTemplate = props.templateOptions.some((option) => option.isSelected);
+  const savedTemplateUnavailable =
+    props.isEditMode &&
+    !props.templateOptions.some(
+      ({ template }) => template.id === props.editRule?.latestVersion.snapshot.badgeTemplateId,
+    );
+
   return (
     <li class="ct-admin__stepper-step" data-rule-step-row="metadata">
       <div class="ct-admin__stepper-header">
@@ -194,33 +203,97 @@ export const RuleBuilderMetadataStep = (props: {
               Choose the badge, LMS connection, and how learners earn it.
             </p>
             <div class="ct-admin__builder-grid ct-grid">
-              <AdminField label="Badge template">
-                <CtSelect name="badgeTemplateId" required>
-                  {props.isEditMode &&
-                  props.templateOptions.length > 0 &&
-                  !props.templateOptions.some(
-                    ({ template }) =>
-                      template.id === props.editRule?.latestVersion.snapshot.badgeTemplateId,
-                  ) ? (
-                    <option value="" selected>
-                      Saved badge template is unavailable — choose another
-                    </option>
-                  ) : null}
-                  {props.templateOptions.length === 0 ? (
-                    <option value="">No badge templates available</option>
-                  ) : (
-                    props.templateOptions.map(({ template, isSelected }) => (
-                      <option key={template.id} value={template.id} selected={isSelected}>
-                        {template.title} ({template.id})
+              <div class="ct-admin__template-picker ct-stack">
+                <div id="rule-builder-badge-template-search-field" hidden>
+                  <AdminField label="Find a badge template">
+                    <CtInput
+                      id="rule-builder-badge-template-search"
+                      type="search"
+                      placeholder="Search by badge name"
+                      autocomplete="off"
+                      describedBy="rule-builder-badge-template-search-status"
+                    />
+                  </AdminField>
+                </div>
+                <AdminField label="Badge template">
+                  <CtSelect
+                    id="rule-builder-badge-template-select"
+                    name="badgeTemplateId"
+                    required
+                    disabled={props.templateOptions.length === 0}
+                    describedBy={[
+                      "rule-builder-badge-template-search-status",
+                      "rule-builder-badge-template-reuse-message",
+                    ]}
+                  >
+                    {savedTemplateUnavailable ? (
+                      <option value="" selected disabled>
+                        Saved badge template is unavailable. Choose another.
                       </option>
-                    ))
-                  )}
-                </CtSelect>
-              </AdminField>
+                    ) : props.templateOptions.length === 0 ? (
+                      <option value="" selected>
+                        No badge templates are ready for rules
+                      </option>
+                    ) : (
+                      <option value="" selected={!hasSelectedTemplate} disabled>
+                        Choose a badge template
+                      </option>
+                    )}
+                    {props.templateOptions.map(({ template, isSelected, ruleUsageNames }) => (
+                      <option
+                        key={template.id}
+                        value={template.id}
+                        selected={isSelected}
+                        data-template-search-text={`${template.title} ${template.slug} ${template.id}`}
+                        data-rule-usage-count={ruleUsageNames.length}
+                        data-rule-usage-names={ruleUsageNames.join(" · ")}
+                      >
+                        {template.title}
+                        {ruleUsageNames.length === 0
+                          ? ""
+                          : `, used by ${String(ruleUsageNames.length)} other ${
+                              ruleUsageNames.length === 1 ? "rule" : "rules"
+                            }`}
+                      </option>
+                    ))}
+                  </CtSelect>
+                </AdminField>
+                <p
+                  id="rule-builder-badge-template-search-status"
+                  class="ct-admin__hint"
+                  aria-live="polite"
+                >
+                  {props.templateOptions.length === 0
+                    ? props.artworkActionTemplateCount > 0
+                      ? "No badge templates with managed artwork are ready for rules."
+                      : "Create a badge template before building a rule."
+                    : `${String(props.templateOptions.length)} badge ${
+                        props.templateOptions.length === 1 ? "template" : "templates"
+                      } ready for rules, A to Z.`}
+                </p>
+                <div
+                  id="rule-builder-badge-template-reuse"
+                  class="ct-admin__template-reuse ct-stack"
+                  hidden
+                >
+                  <p id="rule-builder-badge-template-reuse-message"></p>
+                  <CtCheckboxField
+                    id="rule-builder-badge-template-reuse-confirmation"
+                    name="badgeTemplateReuseAcknowledged"
+                    label="I confirm this rule is another valid way to earn the same badge."
+                  />
+                </div>
+              </div>
               <p class="ct-admin__hint ct-admin__builder-field-span">
-                Need a new template?{" "}
+                {props.artworkActionTemplateCount > 0
+                  ? `${String(props.artworkActionTemplateCount)} badge ${
+                      props.artworkActionTemplateCount === 1 ? "template needs" : "templates need"
+                    } artwork. `
+                  : "Need a new template? "}
                 <a href={props.createTemplateForRulePath}>
-                  Create one in Badge Templates and continue here
+                  {props.artworkActionTemplateCount > 0
+                    ? "Add artwork in Badge Templates"
+                    : "Create one in Badge Templates and continue here"}
                 </a>
                 .
               </p>

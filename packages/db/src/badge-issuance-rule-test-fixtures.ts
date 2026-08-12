@@ -1,10 +1,14 @@
 import * as dbModule from "./index";
+import { createBadgeIssuanceRule } from "./badge-issuance-rule-writes";
 import type { BadgeRuleIntegrationFixture } from "./postgres-test-support";
+
+/** Test-only raw rule fixture. Production callers must use the governed authoring command. */
+export const createTestBadgeIssuanceRule = createBadgeIssuanceRule;
 
 export const createFixtureRule = async (
   fixture: BadgeRuleIntegrationFixture,
 ): Promise<dbModule.CreateBadgeIssuanceRuleResult> => {
-  return dbModule.createBadgeIssuanceRule(fixture.db, {
+  return createBadgeIssuanceRule(fixture.db, {
     tenantId: fixture.tenantId,
     name: "CS101 Rule",
     description: "Award for CS101 completion.",

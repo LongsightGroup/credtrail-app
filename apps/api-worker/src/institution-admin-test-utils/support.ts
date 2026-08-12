@@ -10,6 +10,7 @@ import {
   mockedListAccessibleTenantContextsForUser,
   mockedListActiveLtiLaunchSessionsForPlatform,
   mockedListBadgeIssuanceRuleVersionApprovalEvents,
+  mockedListBadgeTemplateRuleUsages,
   mockedListPendingBadgeIssuanceRuleApprovalsForActor,
   mockedListTenantAuthProviders,
   mockedListTenantBreakGlassAccounts,
@@ -110,6 +111,7 @@ import {
   type TenantMemberRecord,
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
+import { createBadgeTemplateArtworkBucket } from "../test-support/badge-template-artwork-bucket";
 
 export const mockedCountBadgeTemplateImageRevisions = vi.mocked(countBadgeTemplateImageRevisions);
 export const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
@@ -152,6 +154,7 @@ export const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRu
 export const mockedListBadgeIssuanceRuleVersionsForRules = vi.mocked(
   listBadgeIssuanceRuleVersionsForRules,
 );
+export const mockedListBadgeTemplateRuleUsagesDb = mockedListBadgeTemplateRuleUsages;
 export const mockedFindBadgeIssuanceRuleVersionByIdDb = vi.mocked(findBadgeIssuanceRuleVersionById);
 export const mockedFindBadgeIssuanceRuleBuilderDraftDb = vi.mocked(
   findBadgeIssuanceRuleBuilderDraftById,
@@ -266,13 +269,15 @@ export const createEnv = (): {
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
   BETTER_AUTH_SECRET: string;
 } => {
   return {
     APP_ENV: "test",
     DATABASE_URL: "postgres://credtrail-test.local/db",
-    BADGE_OBJECTS: {} as R2Bucket,
+    BADGE_OBJECTS: createBadgeTemplateArtworkBucket(),
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
     BETTER_AUTH_SECRET: "test-better-auth-secret",
   };
 };
@@ -376,6 +381,14 @@ export const stubAssertionEvidenceMocks = (
     publicId: assertion.assertionPublicId,
     learnerProfileId: assertion.learnerProfileId,
     badgeTemplateId: assertion.badgeTemplateId,
+    achievementSnapshot: {
+      badgeTemplateId: assertion.badgeTemplateId,
+      title: assertion.badgeTitle,
+      description: assertion.badgeDescription,
+      criteriaUri: assertion.badgeCriteriaUri,
+      imageUri: assertion.badgeImageUri,
+      trustedCredentialMetadataJson: null,
+    },
     recipientIdentity: assertion.recipientIdentity,
     recipientIdentityType: assertion.recipientIdentityType,
     vcR2Key: assertion.vcR2Key,
@@ -409,6 +422,15 @@ export const stubAssertionEvidenceMocks = (
     reason: null,
     transitionedAt: null,
     revokedAt: assertion.revokedAt,
+  });
+  mockedFindAssertionIssuanceProvenanceByAssertionId.mockResolvedValue({
+    assertionId: assertion.assertionId,
+    tenantId: assertion.tenantId,
+    source: "manual",
+    ruleId: null,
+    versionId: null,
+    provenanceJson: null,
+    createdAt: assertion.issuedAt,
   });
   mockedFindUsersByIds.mockResolvedValue(
     new Map([
@@ -742,7 +764,8 @@ beforeEach(() => {
       title: "TypeScript Foundations",
       description: "Awarded for TypeScript basics.",
       criteriaUri: "https://example.edu/criteria",
-      imageUri: "https://example.edu/badges/typescript.png",
+      imageUri:
+        "https://credtrail.test/badges/assets/tenant_123/badge_template_001/asset_typescript",
       createdByUserId: "usr_admin",
       ownerOrgUnitId: "tenant_123:org:institution",
       governanceMetadataJson: null,
@@ -783,6 +806,25 @@ beforeEach(() => {
     );
 
     return versionLists.flat();
+  });
+  mockedListBadgeTemplateRuleUsagesDb.mockReset();
+  mockedListBadgeTemplateRuleUsagesDb.mockImplementation(async (_db, input) => {
+    if (
+      input.excludingRuleId === "brl_123" ||
+      !input.badgeTemplateIds.includes(defaultBadgeRuleVersion.snapshot.badgeTemplateId)
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        badgeTemplateId: defaultBadgeRuleVersion.snapshot.badgeTemplateId,
+        ruleId: "brl_123",
+        ruleName: defaultBadgeRuleVersion.snapshot.name,
+        versionNumber: defaultBadgeRuleVersion.versionNumber,
+        isActiveVersion: true,
+      },
+    ];
   });
   mockedFindBadgeIssuanceRuleVersionByIdDb.mockReset();
   mockedFindBadgeIssuanceRuleVersionByIdDb.mockResolvedValue(null);

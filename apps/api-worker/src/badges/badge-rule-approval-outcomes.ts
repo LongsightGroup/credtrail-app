@@ -4,6 +4,26 @@ import type {
   DecideBadgeIssuanceRuleVersionResult,
   SubmitBadgeIssuanceRuleVersionForApprovalResult,
 } from "@credtrail/db";
+import { isValidationParseError } from "@credtrail/validation";
+
+/** Maps a parsed approval-decision request failure to administrator-facing recovery copy. */
+export const adminApprovalDecisionRequestFailureMessage = (error: unknown): string => {
+  if (!isValidationParseError(error)) {
+    return "Choose approve, return for changes, or reject before continuing.";
+  }
+
+  const commentIssue = error.issues.find((issue) => issue.path[0] === "comment");
+
+  if (commentIssue?.code === "too_big") {
+    return "Keep the reviewer comment to 2,000 characters or fewer.";
+  }
+
+  if (commentIssue !== undefined) {
+    return "Add a reviewer comment before returning or rejecting this version.";
+  }
+
+  return "Choose approve, return for changes, or reject before continuing.";
+};
 
 export const approvalDecisionForbiddenMessage = (
   step: DecideBadgeIssuanceRuleVersionForbiddenStep,
@@ -55,7 +75,9 @@ export const adminApprovalDecisionFailureMessage = (
     case "forbidden":
       return adminApprovalDecisionForbiddenMessage(decision, result.step);
     case "comment_required":
-      return "Add a comment explaining what needs to change before sending this version back.";
+      return decision === "rejected"
+        ? "Add a comment explaining why this version is being rejected."
+        : "Add a comment explaining what needs to change before sending this version back.";
   }
 };
 
@@ -123,6 +145,6 @@ export const apiDecideBadgeRuleVersionErrorMessage = (
     case "forbidden":
       return approvalDecisionForbiddenMessage(result.step);
     case "comment_required":
-      return "comment is required when requesting changes";
+      return "comment is required when returning or rejecting a version";
   }
 };

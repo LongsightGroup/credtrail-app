@@ -5,21 +5,22 @@ import {
   listBadgeIssuanceRuleVersionApprovalEvents,
   listBadgeIssuanceRuleVersionApprovalSteps,
   listPendingBadgeIssuanceRuleApprovalsForActor,
-  previousBadgeIssuanceRuleVersion,
   type BadgeIssuanceRuleApprovalEventRecord,
   type BadgeIssuanceRuleApprovalStepRecord,
   type TenantRecord,
   type UserRecord,
 } from "@credtrail/db";
 import {
+  parseBadgeIssuanceRulePathParams,
+  parseBadgeIssuanceRuleVersionSelectionQuery,
   parseBadgeIssuanceRuleVersionPathParams,
   parseTenantPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import {
-  badgeRuleApprovalReviewPage,
-  badgeRuleApprovalsQueuePage,
-} from "../admin/badge-rule-approval-pages";
+import { badgeRuleApprovalsQueuePage } from "../admin/badge-rule-approval-pages";
+import { buildBadgeRuleReviewAction } from "../admin/badge-rule-approval-review-model";
+import { badgeRuleApprovalReviewPage } from "../admin/badge-rule-approval-review-page";
+import { buildBadgeRuleVersionNavigationModel } from "../admin/badge-rule-version-navigator";
 import {
   buildBadgeRuleApprovalsPath,
   buildBadgeRuleVersionReviewPath,
@@ -31,10 +32,6 @@ import {
   actorCanDecideBadgeRuleVersionApproval,
   actorCanViewBadgeRuleVersionApproval,
 } from "../badges/badge-rule-approval-access";
-import {
-  buildBadgeRuleVersionDefinitionDiff,
-  buildBadgeRuleVersionSnapshotDiff,
-} from "../badges/badge-rule-version-diff";
 import {
   previewBadgeRuleVersionImpact,
   type BadgeRuleImpactPreview,
@@ -56,6 +53,7 @@ interface RegisterTenantBadgeRuleApprovalWorkspaceAdminRoutesInput {
 interface AuthorizedReviewPageData extends BadgeRuleVersionPageContext {
   readonly tenant: TenantRecord;
   readonly user: UserRecord | null;
+  readonly submittedByUser: UserRecord | null;
   readonly approvalSteps: readonly BadgeIssuanceRuleApprovalStepRecord[];
   readonly approvalEvents: readonly BadgeIssuanceRuleApprovalEventRecord[];
   readonly canDecide: boolean;
@@ -102,9 +100,14 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
       return c.json({ error: "Approval step not assigned to this reviewer" }, 403);
     }
 
-    const [tenant, user, approvalEvents, canDecide] = await Promise.all([
+    const submittedByUserPromise =
+      loaded.version.submittedByUserId === null
+        ? Promise.resolve(null)
+        : findUserById(loaded.db, loaded.version.submittedByUserId);
+    const [tenant, user, submittedByUser, approvalEvents, canDecide] = await Promise.all([
       findTenantById(loaded.db, pathParams.tenantId),
       findUserById(loaded.db, loaded.session.userId),
+      submittedByUserPromise,
       listBadgeIssuanceRuleVersionApprovalEvents(loaded.db, pathParams),
       actorCanDecideBadgeRuleVersionApproval(loaded.db, {
         tenantId: loaded.version.tenantId,
@@ -119,10 +122,15 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
       return c.json({ error: "Tenant not found" }, 404);
     }
 
+    if (loaded.version.submittedByUserId !== null && submittedByUser === null) {
+      return c.json({ error: "Badge rule submitter not found" }, 409);
+    }
+
     return {
       ...loaded,
       tenant,
       user,
+      submittedByUser,
       approvalSteps,
       approvalEvents,
       canDecide,
@@ -147,19 +155,11 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
       userId: data.session.userId,
       workspace: "rule_approvals",
     });
-
-    const baseVersion = previousBadgeIssuanceRuleVersion(data.versions, data.version.versionNumber);
-    const definitionDiff =
-      baseVersion === null
-        ? null
-        : buildBadgeRuleVersionDefinitionDiff({
-            baseRuleJson: baseVersion.ruleJson,
-            selectedRuleJson: data.version.ruleJson,
-          });
-    const snapshotDiff =
-      baseVersion === null
-        ? null
-        : buildBadgeRuleVersionSnapshotDiff(baseVersion.snapshot, data.version.snapshot);
+    const navigation = buildBadgeRuleVersionNavigationModel({
+      rule: data.rule,
+      selectedVersion: data.version,
+      versions: data.versions,
+    });
 
     c.header("Cache-Control", "no-store");
 
@@ -174,18 +174,17 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
         },
         {
           rule: data.rule,
-          version: data.version,
-          versions: data.versions,
+          navigation,
           definition: data.definition,
           orgUnit: data.orgUnit,
-          baseVersion,
-          definitionDiff,
-          snapshotDiff,
+          submittedByEmail: data.submittedByUser?.email ?? null,
           impactPreview,
           approvalSteps: data.approvalSteps,
           approvalEvents: data.approvalEvents,
-          canDecide: data.canDecide,
-          canReopen: data.canReopen,
+          action: buildBadgeRuleReviewAction({
+            canDecide: data.canDecide,
+            canReopen: data.canReopen,
+          }),
           listNotice: flash?.tone === "success" ? flash.message : null,
           listError: flash?.tone === "error" ? flash.message : null,
         },
@@ -241,6 +240,28 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
           listError: flash?.tone === "error" ? flash.message : null,
         },
       ),
+    );
+  });
+
+  app.get("/tenants/:tenantId/admin/rules/approvals/:ruleId", (c) => {
+    const pathParams = parseBadgeIssuanceRulePathParams(c.req.param());
+    let query: ReturnType<typeof parseBadgeIssuanceRuleVersionSelectionQuery>;
+
+    try {
+      query = parseBadgeIssuanceRuleVersionSelectionQuery(c.req.query());
+    } catch {
+      return c.json({ error: "Invalid badge rule version selection" }, 400);
+    }
+
+    c.header("Cache-Control", "no-store");
+
+    if (query.versionId === undefined) {
+      return c.redirect(buildBadgeRuleApprovalsPath(pathParams.tenantId), 302);
+    }
+
+    return c.redirect(
+      buildBadgeRuleVersionReviewPath(pathParams.tenantId, pathParams.ruleId, query.versionId),
+      302,
     );
   });
 

@@ -21,7 +21,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminCss: {
     kind: "style",
-    path: "/assets/ui/institution-admin.d216e653ea.css",
+    path: "/assets/ui/institution-admin.5f09ed0b44.css",
   },
   institutionAdminJs: {
     kind: "script",
@@ -57,7 +57,15 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminRuleVersionCss: {
     kind: "style",
-    path: "/assets/ui/institution-admin-rule-version.0f01ad8088.css",
+    path: "/assets/ui/institution-admin-rule-version.c32dbac2fa.css",
+  },
+  institutionAdminRuleApprovalReviewJs: {
+    kind: "script",
+    path: "/assets/ui/institution-admin-rule-approval-review.e072de7027.js",
+  },
+  institutionAdminRuleApprovalReviewCss: {
+    kind: "style",
+    path: "/assets/ui/institution-admin-rule-approval-review.bde78ecafe.css",
   },
   assertionEvidenceCss: {
     kind: "style",
@@ -69,7 +77,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminRuleBuilderJs: {
     kind: "script",
-    path: "/assets/ui/institution-admin-rule-builder.befe33bced.js",
+    path: "/assets/ui/institution-admin-rule-builder.78ac09360b.js",
   },
   learnerRecordCss: {
     kind: "style",

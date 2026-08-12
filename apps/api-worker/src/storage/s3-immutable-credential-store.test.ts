@@ -20,6 +20,7 @@ const s3MockState = vi.hoisted(() => {
     sentCommands: [] as MockCommand[],
     objects: new Map<string, StoredMockObject>(),
     sequence: 0,
+    omitGetContentLength: false,
   };
 });
 
@@ -74,6 +75,9 @@ const defaultSendHandler = (command: MockCommand): Promise<unknown> => {
         Body: {
           transformToString: (): Promise<string> => Promise.resolve(found.body),
         },
+        ...(s3MockState.omitGetContentLength
+          ? {}
+          : { ContentLength: new TextEncoder().encode(found.body).byteLength }),
       });
     }
     case "put": {
@@ -187,6 +191,7 @@ describe("createS3ImmutableCredentialStore", () => {
     s3MockState.sentCommands.length = 0;
     s3MockState.objects.clear();
     s3MockState.sequence = 0;
+    s3MockState.omitGetContentLength = false;
   });
 
   const createStore = (): ReturnType<typeof createS3ImmutableCredentialStore> => {
@@ -239,5 +244,15 @@ describe("createS3ImmutableCredentialStore", () => {
         tenantId: "a",
       },
     });
+  });
+
+  it("rejects get responses without trustworthy size metadata", async () => {
+    const store = createStore();
+    await store.put("tenants/a/assertions/1.jsonld", '{"v":1}');
+    s3MockState.omitGetContentLength = true;
+
+    await expect(store.get("tenants/a/assertions/1.jsonld")).rejects.toThrowError(
+      "did not include a valid content length",
+    );
   });
 });

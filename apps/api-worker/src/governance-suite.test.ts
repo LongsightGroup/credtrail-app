@@ -434,22 +434,28 @@ interface MockedInternalAuthProvider {
   revokeCurrentSession: ReturnType<typeof vi.fn>;
 }
 
-const createEnv = (): {
+interface GovernanceTestEnv {
   APP_ENV: string;
   DATABASE_URL: string;
   BADGE_OBJECTS: R2Bucket;
   PLATFORM_DOMAIN: string;
+  PUBLIC_APP_ORIGIN: string;
+  EMAIL?: SendEmail;
   TENANT_SIGNING_KEY_HISTORY_JSON?: string;
   TENANT_REMOTE_SIGNER_REGISTRY_JSON?: string;
   JOB_PROCESSOR_TOKEN?: string;
   LTI_ISSUER_REGISTRY_JSON?: string;
   LTI_STATE_SIGNING_SECRET?: string;
-} => {
+}
+
+const createEnv = (overrides: Partial<GovernanceTestEnv> = {}): GovernanceTestEnv => {
   return {
     APP_ENV: "test",
     DATABASE_URL: "postgres://credtrail-test.local/db",
     BADGE_OBJECTS: {} as R2Bucket,
     PLATFORM_DOMAIN: "credtrail.test",
+    PUBLIC_APP_ORIGIN: "https://credtrail.test",
+    ...overrides,
   };
 };
 
@@ -1429,7 +1435,15 @@ describe("tenant member management endpoints", () => {
   });
 
   it("delivers member invites through SSO sign-in notices for SSO-required tenants", async () => {
-    const env = createEnv();
+    const sentMessages: Array<{ readonly text: string }> = [];
+    // SAFETY: this recording binding implements the SendEmail behavior exercised by this route.
+    const emailBinding = {
+      send: async (message: { readonly text: string }): Promise<{ messageId: string }> => {
+        sentMessages.push(message);
+        return { messageId: "email_member_invite_123" };
+      },
+    } as unknown as SendEmail;
+    const env = createEnv({ EMAIL: emailBinding });
     const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedAuthProviders({
       betterAuthPrincipal: {
         userId: "usr_123",
@@ -1467,10 +1481,13 @@ describe("tenant member management endpoints", () => {
     });
 
     const response = await isolatedApp.request(
-      "/v1/tenants/tenant_123/members/usr_colleague/invite",
+      "https://unexpected.example/v1/tenants/tenant_123/members/usr_colleague/invite",
       {
         method: "POST",
-        headers: cookieHeaders,
+        headers: {
+          ...cookieHeaders,
+          Origin: "https://unexpected.example",
+        },
       },
       env,
     );
@@ -1484,6 +1501,11 @@ describe("tenant member management endpoints", () => {
       inviteKind: "sso_notice",
     });
     expect(betterAuthProvider.requestMagicLink).not.toHaveBeenCalled();
+    expect(sentMessages).toHaveLength(1);
+    expect(sentMessages[0]?.text).toContain(
+      "https://credtrail.test/login?tenantId=tenant_123&next=%2Fauth%2Fresolve&reason=sso_required",
+    );
+    expect(sentMessages[0]?.text).not.toContain("unexpected.example");
   });
 });
 

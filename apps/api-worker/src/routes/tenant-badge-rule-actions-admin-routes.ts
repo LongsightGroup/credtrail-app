@@ -34,6 +34,7 @@ import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
 import {
+  adminApprovalDecisionRequestFailureMessage,
   adminApprovalDecisionFailureMessage,
   submitBadgeRuleVersionForApprovalFailureMessage,
 } from "../badges/badge-rule-approval-outcomes";
@@ -250,12 +251,12 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
         decision,
         ...(comment !== undefined ? { comment } : {}),
       });
-    } catch {
+    } catch (error: unknown) {
       return routeInput.redirect({
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "error",
-        message: "Choose approve, request changes, or reject before continuing.",
+        message: adminApprovalDecisionRequestFailureMessage(error),
       });
     }
 

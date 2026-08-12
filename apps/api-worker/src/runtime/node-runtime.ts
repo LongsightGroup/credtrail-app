@@ -1,4 +1,6 @@
 import type { AppBindings } from "../app";
+import { canonicalAppOrigin } from "../http/canonical-app-url";
+import { canonicalPlatformDomain } from "../http/platform-domain";
 import { createSesEmailBinding } from "../notifications/ses-email";
 import { createS3ImmutableCredentialStore } from "../storage/s3-immutable-credential-store";
 
@@ -143,6 +145,8 @@ export const parsePositiveIntegerEnv = (
 
 export const createNodeRuntimeBindings = (envSource: EnvSource = process.env): AppBindings => {
   const appEnv = optionalEnv(envSource, "APP_ENV") ?? "development";
+  const platformDomain = canonicalPlatformDomain(requireEnv(envSource, "PLATFORM_DOMAIN"));
+  const publicAppOrigin = canonicalAppOrigin(requireEnv(envSource, "PUBLIC_APP_ORIGIN"));
   const storageBackend = (optionalEnv(envSource, "STORAGE_BACKEND") ?? "s3").toLowerCase();
 
   if (storageBackend !== "s3") {
@@ -172,7 +176,8 @@ export const createNodeRuntimeBindings = (envSource: EnvSource = process.env): A
 
   return {
     APP_ENV: appEnv,
-    PLATFORM_DOMAIN: optionalEnv(envSource, "PLATFORM_DOMAIN") ?? "localhost",
+    PLATFORM_DOMAIN: platformDomain,
+    PUBLIC_APP_ORIGIN: publicAppOrigin,
     BADGE_OBJECTS: badgeObjectsBinding,
     ...(emailBinding === undefined ? {} : { EMAIL: emailBinding }),
     ...optionalBindingsFromEnv(envSource),

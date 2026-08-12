@@ -9,11 +9,13 @@ import {
   type TenantLmsConnectionRecord,
   type TenantMembershipRole,
 } from "@credtrail/db";
+import type { ImmutableCredentialStore } from "@credtrail/core-domain";
 import {
   parseBadgeIssuanceRuleDefinition,
   type BadgeIssuanceRuleDefinition,
 } from "@credtrail/validation";
 import type { LTISession } from "@longsightgroup/lti-tool";
+import { resolveExpectedBadgeTemplateRevision } from "../badges/badge-achievement-snapshot";
 import { normalizeUniqueStringList } from "../utils/value-parsers";
 import { normalizeLtiIssuer } from "./lti-issuer-registry";
 
@@ -99,6 +101,10 @@ export type CreateCourseBadgePlacementRuleResult =
         | "course_org_unit_slug_conflict"
         | "missing_lms_connection"
         | "invalid_setup_request"
+        | "template_changed"
+        | "template_artwork_not_immutable"
+        | "template_artwork_unavailable"
+        | "template_already_used"
         | "approval_policy_rejected"
         | "course_rule_already_configured"
         | "unsupported_lms_connection";
@@ -248,6 +254,8 @@ export const ltiCourseBadgeSetupRuleDefinition = (
 
 export const createCourseBadgePlacementRule = async (input: {
   db: SqlDatabase;
+  store: ImmutableCredentialStore;
+  publicAppOrigin: string;
   tenantId: string;
   issuer: string;
   clientId: string;
@@ -306,6 +314,28 @@ export const createCourseBadgePlacementRule = async (input: {
     };
   }
 
+  const artwork = await resolveExpectedBadgeTemplateRevision({
+    store: input.store,
+    publicAppOrigin: input.publicAppOrigin,
+    template: input.badgeTemplate,
+  });
+
+  if (artwork.status === "storage_unavailable") {
+    return {
+      ok: false,
+      reason: "template_artwork_unavailable",
+      message: "CredTrail could not check this badge's artwork right now. Try again shortly.",
+    };
+  }
+
+  if (artwork.status !== "ready") {
+    return {
+      ok: false,
+      reason: "template_artwork_not_immutable",
+      message: "Upload this badge's artwork in CredTrail before using it in an awarding rule.",
+    };
+  }
+
   const courseTitle = ltiContextTitle(input.ltiSession);
   const created = await createLtiCourseBadgeRule(input.db, {
     tenantId: input.tenantId,
@@ -319,6 +349,7 @@ export const createCourseBadgePlacementRule = async (input: {
       name: ruleTitle(`Sakai course rule: ${courseTitle} · ${input.badgeTemplate.title}`),
       description: `Created from LTI Deep Linking for ${courseTitle}.`,
       badgeTemplateId: input.badgeTemplate.id,
+      expectedBadgeTemplateRevision: artwork.revision,
       lmsProviderKind: "sakai",
       lmsConnectionId: lmsConnection.id,
       ruleJson: JSON.stringify(definition),
@@ -355,6 +386,33 @@ export const createCourseBadgePlacementRule = async (input: {
   }
 
   if (created.status === "authoring_failed") {
+    if (created.reason === "template_changed") {
+      return {
+        ok: false,
+        reason: "template_changed",
+        message:
+          "The badge template changed while this course rule was being saved. Review it and try again.",
+      };
+    }
+
+    if (created.reason === "template_artwork_not_immutable") {
+      return {
+        ok: false,
+        reason: "template_artwork_not_immutable",
+        message:
+          "Upload this badge's artwork in CredTrail before placing it in a course. Managed artwork keeps approved rules and issued credentials unchanged.",
+      };
+    }
+
+    if (created.reason === "template_reuse_confirmation_required") {
+      return {
+        ok: false,
+        reason: "template_already_used",
+        message:
+          "This badge is already used by another awarding rule. Choose a different badge template for this course.",
+      };
+    }
+
     return {
       ok: false,
       reason: "approval_policy_rejected",
