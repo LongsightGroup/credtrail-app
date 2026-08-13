@@ -149,10 +149,6 @@ interface RegisterCredentialRoutesInput<
         status: "not_found";
       }
     | {
-        status: "redirect";
-        canonicalPath: string;
-      }
-    | {
         status: "ok";
         value: VerificationViewModel<AssertionValue, CredentialValue>;
       }
@@ -373,7 +369,6 @@ export const registerCredentialRoutes = <
   const loadPublicBadgeRouteModel = async (
     c: AppContext,
     badgeIdentifier: string,
-    suffix: "/verification" | "/jsonld" | "/download" | "/download.pdf",
   ): Promise<Response | VerificationViewModel<AssertionValue, CredentialValue>> => {
     const result = await loadPublicBadgeViewModel(
       resolveDatabase(c.env),
@@ -383,10 +378,6 @@ export const registerCredentialRoutes = <
 
     if (result.status === "not_found") {
       return publicBadgeLookupErrorResponse(c);
-    }
-
-    if (result.status === "redirect") {
-      return c.redirect(`${result.canonicalPath}${suffix}`, 308);
     }
 
     return result.value;
@@ -686,11 +677,7 @@ export const registerCredentialRoutes = <
   });
 
   app.get("/badges/:badgeIdentifier/verification", async (c) => {
-    const model = await loadPublicBadgeRouteModel(
-      c,
-      c.req.param("badgeIdentifier"),
-      "/verification",
-    );
+    const model = await loadPublicBadgeRouteModel(c, c.req.param("badgeIdentifier"));
 
     if (model instanceof Response) {
       return model;
@@ -700,7 +687,7 @@ export const registerCredentialRoutes = <
   });
 
   app.get("/badges/:badgeIdentifier/jsonld", async (c) => {
-    const model = await loadPublicBadgeRouteModel(c, c.req.param("badgeIdentifier"), "/jsonld");
+    const model = await loadPublicBadgeRouteModel(c, c.req.param("badgeIdentifier"));
 
     if (model instanceof Response) {
       return model;
@@ -710,7 +697,7 @@ export const registerCredentialRoutes = <
   });
 
   app.get("/badges/:badgeIdentifier/download", async (c) => {
-    const model = await loadPublicBadgeRouteModel(c, c.req.param("badgeIdentifier"), "/download");
+    const model = await loadPublicBadgeRouteModel(c, c.req.param("badgeIdentifier"));
 
     if (model instanceof Response) {
       return model;
@@ -720,11 +707,7 @@ export const registerCredentialRoutes = <
   });
 
   app.get("/badges/:badgeIdentifier/download.pdf", async (c) => {
-    const model = await loadPublicBadgeRouteModel(
-      c,
-      c.req.param("badgeIdentifier"),
-      "/download.pdf",
-    );
+    const model = await loadPublicBadgeRouteModel(c, c.req.param("badgeIdentifier"));
 
     if (model instanceof Response) {
       return model;

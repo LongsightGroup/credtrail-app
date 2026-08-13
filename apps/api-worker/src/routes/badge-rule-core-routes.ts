@@ -201,7 +201,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
     const db = resolveDatabase(c.env);
     const listInput = await resolveListBadgeIssuanceRulesInput(db, {
       tenantId: pathParams.tenantId,
-      userId: roleCheck.session.userId,
+      userId: roleCheck.principal.userId,
       membershipRole: roleCheck.membershipRole,
     });
     const rules = await listBadgeIssuanceRules(db, listInput);
@@ -233,7 +233,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     let result: PreparedBadgeRuleAuthoringResult | null =
       request.builderDraftId === undefined
@@ -241,7 +241,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
         : await findPreparedBadgeRuleReplay({
             db,
             tenantId: tenantParams.tenantId,
-            actorUserId: session.userId,
+            actorUserId: principal.userId,
             builderDraftId: request.builderDraftId,
           });
 
@@ -249,7 +249,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       const prepared = await prepareBadgeRuleDraft({
         db,
         tenantId: tenantParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         request,
         missingLmsConnectionMessage:
           "Select a connected LMS gradebook source before creating a rule.",
@@ -262,7 +262,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
             : await findPreparedBadgeRuleReplay({
                 db,
                 tenantId: tenantParams.tenantId,
-                actorUserId: session.userId,
+                actorUserId: principal.userId,
                 builderDraftId: request.builderDraftId,
               });
 
@@ -283,7 +283,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
           store: c.env.BADGE_OBJECTS,
           publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
           tenantId: tenantParams.tenantId,
-          actorUserId: session.userId,
+          actorUserId: principal.userId,
           actorRole: membershipRole,
           lmsConnection: prepared.resolvedProvider.connection,
           ruleJson: prepared.ruleJson,
@@ -336,7 +336,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
     const saved = await saveBadgeIssuanceRuleBuilderDraft(resolveDatabase(c.env), {
       id: pathParams.draftId,
       tenantId: pathParams.tenantId,
-      userId: roleCheck.session.userId,
+      userId: roleCheck.principal.userId,
       target: request.target,
       currentStep: request.currentStep,
       draftJson,
@@ -375,12 +375,12 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const prepared = await prepareBadgeRuleDraft({
       db,
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       request,
       missingLmsConnectionMessage:
         "Select a connected LMS gradebook source before saving a rule draft.",
@@ -402,7 +402,7 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
       publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
       tenantId: pathParams.tenantId,
       ruleId: pathParams.ruleId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       actorRole: membershipRole,
       lmsConnection: prepared.resolvedProvider.connection,
       ruleJson: prepared.ruleJson,

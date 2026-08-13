@@ -28,7 +28,7 @@ interface RegisterTenantApiKeyAdminRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: { userId: string };
+        principal: { userId: string };
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -74,7 +74,7 @@ export const registerTenantApiKeyAdminRoutes = (
     } catch {
       await setAdminListMessageFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: roleCheck.session.userId,
+        userId: roleCheck.principal.userId,
         workspace: "access_api_keys",
         tone: "error",
         message: "Enter a label and valid scopes for the API key.",
@@ -83,7 +83,7 @@ export const registerTenantApiKeyAdminRoutes = (
       return c.redirect(buildApiKeysPagePath(pathParams.tenantId), 303);
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const rawApiKey = `ctak_${generateOpaqueToken()}${generateOpaqueToken()}`;
     const keyHash = await sha256Hex(rawApiKey);
     const keyPrefix = rawApiKey.slice(0, 12);
@@ -97,13 +97,13 @@ export const registerTenantApiKeyAdminRoutes = (
       keyPrefix,
       keyHash,
       scopesJson: JSON.stringify(scopes),
-      createdByUserId: session.userId,
+      createdByUserId: principal.userId,
       expiresAt: request.expiresAt,
     });
 
     await createAuditLog(resolveDatabase(c.env), {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "tenant.api_key_created",
       targetType: "tenant_api_key",
       targetId: keyRecord.id,
@@ -119,12 +119,12 @@ export const registerTenantApiKeyAdminRoutes = (
     await setAdminFlashCookie(c, {
       kind: "api_key_secret",
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       value: rawApiKey,
     });
     await setAdminListMessageFlash(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       workspace: "access_api_keys",
       tone: "success",
       message: "API key created. Store the secret before leaving this page.",
@@ -142,7 +142,7 @@ export const registerTenantApiKeyAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const revokedAt = new Date().toISOString();
     const revoked = await revokeTenantApiKey(resolveDatabase(c.env), {
       tenantId: pathParams.tenantId,
@@ -153,7 +153,7 @@ export const registerTenantApiKeyAdminRoutes = (
     if (revoked) {
       await createAuditLog(resolveDatabase(c.env), {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "tenant.api_key_revoked",
         targetType: "tenant_api_key",
         targetId: pathParams.apiKeyId,
@@ -166,7 +166,7 @@ export const registerTenantApiKeyAdminRoutes = (
 
     await setAdminListMessageFlash(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       workspace: "access_api_keys",
       tone: "success",
       message: revoked ? "API key revoked." : "API key was already revoked.",

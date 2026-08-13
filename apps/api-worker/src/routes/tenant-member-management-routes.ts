@@ -118,14 +118,14 @@ export const registerTenantMemberManagementRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const user = await upsertUserByEmail(db, request.email);
     const existingMembership = await findTenantMembership(db, pathParams.tenantId, user.id);
     const rolePolicyResponse = await assertRoleChangeAllowed(c, {
       db,
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       actorRole: membershipRole,
       targetUserId: user.id,
       previousRole: existingMembership?.role ?? null,
@@ -145,7 +145,7 @@ export const registerTenantMemberManagementRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action,
       targetType: "membership",
       targetId: `${pathParams.tenantId}:${user.id}`,
@@ -173,7 +173,7 @@ export const registerTenantMemberManagementRoutes = (
       },
       {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         actorRole: membershipRole,
         userId: user.id,
         email: user.email,
@@ -217,7 +217,7 @@ export const registerTenantMemberManagementRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const existingMembership = await findTenantMembership(
       db,
@@ -237,7 +237,7 @@ export const registerTenantMemberManagementRoutes = (
     const rolePolicyResponse = await assertRoleChangeAllowed(c, {
       db,
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       actorRole: membershipRole,
       targetUserId: pathParams.userId,
       previousRole: existingMembership.role,
@@ -260,7 +260,7 @@ export const registerTenantMemberManagementRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action,
       targetType: "membership",
       targetId: `${pathParams.tenantId}:${pathParams.userId}`,
@@ -294,7 +294,7 @@ export const registerTenantMemberManagementRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const [membership, user] = await Promise.all([
       findTenantMembership(db, pathParams.tenantId, pathParams.userId),
@@ -332,7 +332,7 @@ export const registerTenantMemberManagementRoutes = (
       },
       {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         actorRole: membershipRole,
         userId: pathParams.userId,
         email: user.email,
@@ -355,7 +355,7 @@ export const registerTenantMemberManagementRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const [membership, user] = await Promise.all([
       findTenantMembership(db, pathParams.tenantId, pathParams.userId),
@@ -371,7 +371,7 @@ export const registerTenantMemberManagementRoutes = (
       );
     }
 
-    if (pathParams.userId === session.userId) {
+    if (pathParams.userId === principal.userId) {
       return c.json(
         {
           error: "You cannot remove your own tenant membership.",
@@ -412,7 +412,7 @@ export const registerTenantMemberManagementRoutes = (
     if (removed) {
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "membership.removed",
         targetType: "membership",
         targetId: `${pathParams.tenantId}:${pathParams.userId}`,

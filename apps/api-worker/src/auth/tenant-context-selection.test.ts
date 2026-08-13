@@ -69,8 +69,6 @@ describe("tenant context selection", () => {
       contexts: sampleContexts(),
       requestedTenant: {
         tenantId: "tenant_viewer",
-        source: "route",
-        authoritative: true,
       },
       nextPath: "",
     });

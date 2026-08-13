@@ -104,7 +104,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const formData = await c.req.formData();
     const delegateUserId = readOptionalFormField(formData, "delegateUserId") ?? "";
     const orgUnitId = readOptionalFormField(formData, "orgUnitId") ?? "";
@@ -119,7 +119,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
     if (delegateUserId.length === 0 || orgUnitId.length === 0) {
       return redirectToDelegationsNew(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Choose a delegate and org unit before saving.",
       });
@@ -128,7 +128,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
     if (allowedActions.length === 0) {
       return redirectToDelegationsNew(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Select at least one allowed badge action.",
       });
@@ -137,7 +137,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
     if (endsAtLocal.length === 0) {
       return redirectToDelegationsNew(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Choose when this delegation should end.",
       });
@@ -148,7 +148,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
     if (!Number.isFinite(parsedEndsAtMs)) {
       return redirectToDelegationsNew(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Choose a valid end date and time for this delegation.",
       });
@@ -169,7 +169,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
     } catch {
       return redirectToDelegationsNew(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Check the delegate, org unit, allowed actions, and end time, then try again.",
       });
@@ -181,7 +181,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
       const grant = await createDelegatedIssuingAuthorityGrant(db, {
         tenantId: pathParams.tenantId,
         delegateUserId,
-        delegatedByUserId: session.userId,
+        delegatedByUserId: principal.userId,
         orgUnitId: request.orgUnitId,
         allowedActions: request.allowedActions,
         badgeTemplateIds: request.badgeTemplateIds,
@@ -192,7 +192,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
 
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "delegated_issuing_authority.granted",
         targetType: "delegated_issuing_authority_grant",
         targetId: grant.id,
@@ -209,14 +209,14 @@ export const registerTenantAccessDelegationsAdminRoutes = (
 
       return redirectToDelegations(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "success",
         message: `Delegation saved for ${delegateUserId}.`,
       });
     } catch (error: unknown) {
       return redirectToDelegationsNew(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: mapDelegationErrorMessage(error),
       });
@@ -232,7 +232,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const formData = await c.req.formData();
     const delegateUserId = readOptionalFormField(formData, "delegateUserId") ?? "";
     const grantId = readOptionalFormField(formData, "grantId") ?? "";
@@ -241,7 +241,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
     if (delegateUserId.length === 0 || grantId.length === 0) {
       return redirectToDelegations(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Delegation identifiers are missing.",
       });
@@ -256,7 +256,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
     } catch {
       return redirectToDelegations(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Unable to remove this delegation.",
       });
@@ -272,7 +272,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
     if (existingGrant === null || existingGrant.delegateUserId !== delegateUserId) {
       return redirectToDelegations(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "That delegation was not found.",
       });
@@ -286,14 +286,14 @@ export const registerTenantAccessDelegationsAdminRoutes = (
       revokeResult = await revokeDelegatedIssuingAuthorityGrant(db, {
         tenantId: pathParams.tenantId,
         grantId,
-        revokedByUserId: session.userId,
+        revokedByUserId: principal.userId,
         revokedReason: request.reason,
         revokedAt,
       });
     } catch {
       return redirectToDelegations(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "That delegation is no longer active.",
       });
@@ -302,7 +302,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
     if (revokeResult.status !== "revoked") {
       return redirectToDelegations(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "That delegation is no longer active.",
       });
@@ -310,7 +310,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "delegated_issuing_authority.revoked",
       targetType: "delegated_issuing_authority_grant",
       targetId: grantId,
@@ -323,7 +323,7 @@ export const registerTenantAccessDelegationsAdminRoutes = (
 
     return redirectToDelegations(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: "Delegation removed.",
     });

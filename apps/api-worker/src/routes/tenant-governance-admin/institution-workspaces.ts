@@ -71,11 +71,11 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const pageData = await loadInstitutionAdminPageData(
       c,
       tenantId,
-      session.userId,
+      principal.userId,
       membershipRole,
     );
 
@@ -105,16 +105,16 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       return loaded;
     }
 
-    const { pageData, session } = loaded;
+    const { pageData, principal } = loaded;
     const flash = await consumeAdminListMessageFlash(c, {
       tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       workspace: "access_api_keys",
     });
     const revealedSecret = await consumeAdminFlashCookie(c, {
       kind: "api_key_secret",
       tenantId,
-      userId: session.userId,
+      userId: principal.userId,
     });
 
     return await renderInstitutionAdminWorkspacePage(
@@ -150,13 +150,13 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       return loaded;
     }
 
-    const { pageData, session } = loaded;
+    const { pageData, principal } = loaded;
     const parsedQuery = safeParseIssuedBadgesPageQuery(c.req.query());
 
     if (!parsedQuery.ok) {
       await setAdminListMessageFlash(c, {
         tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         workspace: "issued_badges",
         tone: "error",
         message: issuedBadgesInvalidFiltersError,
@@ -168,7 +168,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
     const issuedBadgesQuery = parsedQuery.value;
     const flash = await consumeAdminListMessageFlash(c, {
       tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       workspace: "issued_badges",
     });
     const assertions = shouldLoadIssuedBadgesList(c.req.query())

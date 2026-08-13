@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { governanceMetadataSchema } from "./governance-metadata.js";
 import {
   isoTimestampSchema,
   orgUnitDisplayNameSchema,
@@ -11,7 +10,6 @@ import {
   tenantMembershipOrgUnitScopeRoleSchema,
   tenantMembershipRoleSchema,
   delegatedIssuingAuthorityActionSchema,
-  badgeTemplateOwnershipTransferReasonCodeSchema,
 } from "./primitives.js";
 import { tenantPathParamsSchema } from "./path-params.js";
 
@@ -154,14 +152,6 @@ export const createDelegatedIssuingAuthorityGrantRequestSchema = z
 export const revokeDelegatedIssuingAuthorityGrantRequestSchema = z.object({
   reason: z.string().trim().min(1).max(512).optional(),
   revokedAt: isoTimestampSchema.optional(),
-});
-
-export const transferBadgeTemplateOwnershipRequestSchema = z.object({
-  toOrgUnitId: resourceIdSchema,
-  reasonCode: badgeTemplateOwnershipTransferReasonCodeSchema,
-  reason: z.string().trim().min(1).max(512).optional(),
-  governanceMetadata: governanceMetadataSchema.optional(),
-  transferredAt: isoTimestampSchema.optional(),
 });
 
 export const createTenantApiKeyRequestSchema = z.object({
@@ -376,10 +366,6 @@ export type RevokeDelegatedIssuingAuthorityGrantRequest = z.infer<
   typeof revokeDelegatedIssuingAuthorityGrantRequestSchema
 >;
 
-export type TransferBadgeTemplateOwnershipRequest = z.infer<
-  typeof transferBadgeTemplateOwnershipRequestSchema
->;
-
 export type CreateTenantApiKeyRequest = z.infer<typeof createTenantApiKeyRequestSchema>;
 
 export type RevokeTenantApiKeyRequest = z.infer<typeof revokeTenantApiKeyRequestSchema>;
@@ -475,12 +461,6 @@ export const parseRevokeDelegatedIssuingAuthorityGrantRequest = (
   input: unknown,
 ): RevokeDelegatedIssuingAuthorityGrantRequest => {
   return revokeDelegatedIssuingAuthorityGrantRequestSchema.parse(input);
-};
-
-export const parseTransferBadgeTemplateOwnershipRequest = (
-  input: unknown,
-): TransferBadgeTemplateOwnershipRequest => {
-  return transferBadgeTemplateOwnershipRequestSchema.parse(input);
 };
 
 export const parseCreateTenantApiKeyRequest = (input: unknown): CreateTenantApiKeyRequest => {

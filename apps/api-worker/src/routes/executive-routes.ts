@@ -58,7 +58,7 @@ export const registerExecutiveRoutes = (input: RegisterExecutiveRoutesInput): vo
     const dashboard = await loadTenantExecutiveDashboard({
       db: resolveDatabase(c.env),
       tenantId,
-      userId: tenantAccess.session.userId,
+      userId: tenantAccess.principal.userId,
       membershipRole: tenantAccess.membershipRole,
       query,
     });

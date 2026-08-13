@@ -1,7 +1,6 @@
 import {
   createAuditLog,
   createBadgeIssuanceRuleValueList,
-  type SessionRecord,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
@@ -18,6 +17,7 @@ import {
 import { parseCommaSeparatedAdminValues } from "../admin/rule-value-lists-presentation";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
+import type { AuthenticatedPrincipal } from "../auth/auth-context";
 
 interface RegisterTenantRuleValueListsAdminRoutesInput {
   app: Hono<AppEnv>;
@@ -29,7 +29,7 @@ interface RegisterTenantRuleValueListsAdminRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: SessionRecord;
+        principal: AuthenticatedPrincipal;
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -49,14 +49,14 @@ export const registerTenantRuleValueListsAdminRoutes = (
       return roleCheck;
     }
 
-    const { session } = roleCheck;
+    const { principal } = roleCheck;
     const redirectToRules = async (
       tone: "success" | "error",
       message: string,
     ): Promise<Response> => {
       await setAdminListMessageFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         workspace: "rule_value_lists",
         tone,
         message,
@@ -93,12 +93,12 @@ export const registerTenantRuleValueListsAdminRoutes = (
       label: request.label,
       kind: request.kind,
       values: request.values,
-      createdByUserId: session.userId,
+      createdByUserId: principal.userId,
     });
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "badge_rule.value_list_created",
       targetType: "badge_rule_value_list",
       targetId: valueList.id,

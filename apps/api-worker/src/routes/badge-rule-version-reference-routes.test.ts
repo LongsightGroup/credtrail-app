@@ -16,8 +16,6 @@ const requireTenantRole: RequireTenantRole = () =>
     },
     requestedTenant: {
       tenantId: "tenant_123",
-      source: "route",
-      authoritative: true,
     },
     session: {
       id: "session_123",

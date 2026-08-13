@@ -114,7 +114,7 @@ export const registerTenantOrgUnitRoutes = (input: RegisterTenantOrgUnitRoutesIn
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
 
     try {
       const orgUnit = await createTenantOrgUnit(resolveDatabase(c.env), {
@@ -123,12 +123,12 @@ export const registerTenantOrgUnitRoutes = (input: RegisterTenantOrgUnitRoutesIn
         slug: request.slug,
         displayName: request.displayName,
         parentOrgUnitId: request.parentOrgUnitId,
-        createdByUserId: session.userId,
+        createdByUserId: principal.userId,
       });
 
       await createAuditLog(resolveDatabase(c.env), {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "tenant.org_unit_created",
         targetType: "org_unit",
         targetId: orgUnit.id,

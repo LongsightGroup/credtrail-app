@@ -4,7 +4,6 @@ import {
   listBadgeIssuanceRuleVersions,
   type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleVersionRecord,
-  type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
   type TenantOrgUnitRecord,
@@ -15,11 +14,12 @@ import {
 } from "@credtrail/validation";
 import type { AppContext } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
+import type { AuthenticatedPrincipal } from "../auth/auth-context";
 import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
 
 /** The authenticated administrator identity used by badge-rule version pages. */
 export interface BadgeRuleVersionPageActor {
-  readonly session: SessionRecord;
+  readonly principal: AuthenticatedPrincipal;
   readonly membershipRole: TenantMembershipRole;
 }
 
@@ -82,7 +82,7 @@ export const loadBadgeRuleVersionsPageContext = async (
 
   return {
     db,
-    session: actor.session,
+    principal: actor.principal,
     membershipRole: actor.membershipRole,
     rule,
     versions,

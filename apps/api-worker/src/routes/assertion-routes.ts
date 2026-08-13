@@ -108,7 +108,7 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const template = await findBadgeTemplateById(db, pathParams.tenantId, request.badgeTemplateId);
 
@@ -124,7 +124,7 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
     const delegatedPermission = await requireDelegatedIssuingAuthorityPermission(c, {
       db,
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       membershipRole,
       ownerOrgUnitId: template.ownerOrgUnitId,
       badgeTemplateId: template.id,
@@ -160,7 +160,7 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
             ? {}
             : { idempotencyKey: request.idempotencyKey }),
         },
-        session.userId,
+        principal.userId,
       );
       return c.json(result, manualIssueResponseStatus(result.status));
     } catch (error: unknown) {
@@ -385,7 +385,7 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
         return roleCheck;
       }
 
-      const { session, membershipRole } = roleCheck;
+      const { principal, membershipRole } = roleCheck;
 
       if (!assertionBelongsToTenant(pathParams.tenantId, pathParams.assertionId)) {
         return c.json(
@@ -450,7 +450,7 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
       const delegatedPermission = await requireDelegatedIssuingAuthorityPermission(c, {
         db,
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         membershipRole,
         ownerOrgUnitId: badgeTemplate.ownerOrgUnitId,
         badgeTemplateId: badgeTemplate.id,
@@ -469,7 +469,7 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
           reasonCode: request.reasonCode,
           ...(request.reason === undefined ? {} : { reason: request.reason }),
           transitionSource: "manual",
-          actorUserId: session.userId,
+          actorUserId: principal.userId,
           transitionedAt: request.transitionedAt ?? new Date().toISOString(),
         });
 
@@ -506,7 +506,7 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
 
         await createAuditLog(db, {
           tenantId: pathParams.tenantId,
-          actorUserId: session.userId,
+          actorUserId: principal.userId,
           action: "assertion.lifecycle_transitioned",
           targetType: "assertion",
           targetId: pathParams.assertionId,

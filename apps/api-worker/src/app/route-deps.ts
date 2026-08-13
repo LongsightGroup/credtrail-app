@@ -1,6 +1,5 @@
 import type {
   DelegatedIssuingAuthorityAction,
-  SessionRecord,
   SqlDatabase,
   TenantMembershipOrgUnitScopeRole,
   TenantMembershipRole,
@@ -23,7 +22,6 @@ export type IssueBadgeForTenant = (
 export interface TenantRoleAccessResult {
   principal: AuthenticatedPrincipal;
   requestedTenant: RequestedTenantContext;
-  session: SessionRecord;
   membershipRole: TenantMembershipRole;
 }
 

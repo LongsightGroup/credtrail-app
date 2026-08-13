@@ -168,7 +168,7 @@ export const registerLearnerRecordRoutes = (input: RegisterLearnerRecordRoutesIn
         content: fileContent,
         defaults,
         requestedAt: new Date().toISOString(),
-        requestedByUserId: roleCheck.session.userId,
+        requestedByUserId: roleCheck.principal.userId,
       });
     } catch (error: unknown) {
       if (error instanceof Error && error.message.startsWith("Tenant ")) {
@@ -437,7 +437,7 @@ export const registerLearnerRecordRoutes = (input: RegisterLearnerRecordRoutesIn
       ...(request.description === undefined ? {} : { description: request.description }),
       status: request.status,
       issuerName: request.provenance.issuerName,
-      issuerUserId: request.provenance.issuerUserId ?? roleCheck.session.userId,
+      issuerUserId: request.provenance.issuerUserId ?? roleCheck.principal.userId,
       sourceSystem: request.provenance.sourceSystem,
       ...(request.provenance.sourceRecordId === undefined
         ? {}

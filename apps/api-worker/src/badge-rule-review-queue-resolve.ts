@@ -100,7 +100,7 @@ export const resolveBadgeRuleReviewQueueEntry = async (input: {
   tenantId: string;
   evaluationId: string;
   request: ResolveBadgeIssuanceRuleReviewRequest;
-  session: { userId: string };
+  principal: { userId: string };
   membershipRole: TenantMembershipRole;
   issueBadgeForTenant: IssueBadgeForTenant;
 }): Promise<ResolveBadgeRuleReviewQueueResult> => {
@@ -152,7 +152,7 @@ export const resolveBadgeRuleReviewQueueEntry = async (input: {
             },
           },
         },
-        input.session.userId,
+        input.principal.userId,
       );
     } catch (error) {
       if (isIssueBadgeHttpError(error)) {
@@ -177,7 +177,7 @@ export const resolveBadgeRuleReviewQueueEntry = async (input: {
     tenantId: input.tenantId,
     evaluationId: evaluationRecord.id,
     request: input.request,
-    reviewedByUserId: input.session.userId,
+    reviewedByUserId: input.principal.userId,
     issuance,
   });
 
@@ -197,7 +197,7 @@ export const resolveBadgeRuleReviewQueueEntry = async (input: {
         tenantId: input.tenantId,
         evaluationId: evaluationRecord.id,
         request: input.request,
-        reviewedByUserId: input.session.userId,
+        reviewedByUserId: input.principal.userId,
         issuance,
       });
     }
@@ -224,7 +224,7 @@ export const resolveBadgeRuleReviewQueueEntry = async (input: {
     tenantId: input.tenantId,
     evaluationId: evaluationRecord.id,
     request: input.request,
-    sessionUserId: input.session.userId,
+    sessionUserId: input.principal.userId,
     membershipRole: input.membershipRole,
     evaluationRecord,
     issuance,

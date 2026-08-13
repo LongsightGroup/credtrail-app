@@ -49,7 +49,7 @@ export const registerBadgeRuleVersionReferenceRoutes = (
       const result = await loadReferenceLabels({
         db: resolveDatabase(c.env),
         ...pathParams,
-        actorUserId: roleCheck.session.userId,
+        actorUserId: roleCheck.principal.userId,
         actorRole: roleCheck.membershipRole,
       });
 

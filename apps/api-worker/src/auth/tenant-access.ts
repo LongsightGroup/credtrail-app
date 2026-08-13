@@ -5,7 +5,6 @@ import {
   hasTenantMembershipOrgUnitScopeAssignments,
   listTenantMembershipOrgUnitScopes,
   type DelegatedIssuingAuthorityAction,
-  type SessionRecord,
   type SqlDatabase,
   type TenantMembershipOrgUnitScopeRole,
   type TenantMembershipRole,
@@ -79,7 +78,6 @@ interface TenantAccessHelpers<ContextType extends TenantAccessContext<BindingsTy
     | {
         principal: AuthenticatedPrincipal;
         requestedTenant: RequestedTenantContext;
-        session: SessionRecord;
         membershipRole: TenantMembershipRole;
       }
     | Response
@@ -261,22 +259,6 @@ const canBypassOrgScopeChecks = (membershipRole: TenantMembershipRole): boolean 
   return isTenantAdminRole(membershipRole);
 };
 
-const sessionCompatibilityFromPrincipal = (
-  principal: AuthenticatedPrincipal,
-  requestedTenant: RequestedTenantContext,
-): SessionRecord => {
-  return {
-    id: principal.authSessionId,
-    tenantId: requestedTenant.tenantId,
-    userId: principal.userId,
-    sessionTokenHash: "",
-    expiresAt: principal.expiresAt,
-    lastSeenAt: principal.expiresAt,
-    revokedAt: null,
-    createdAt: principal.expiresAt,
-  };
-};
-
 const hasScopedOrgUnitPermission = async (input: {
   db: SqlDatabase;
   tenantId: string;
@@ -326,15 +308,12 @@ export const createTenantAccessHelpers = <
     | {
         principal: AuthenticatedPrincipal;
         requestedTenant: RequestedTenantContext;
-        session: SessionRecord;
         membershipRole: TenantMembershipRole;
       }
     | Response
   > => {
     const requestedTenant: RequestedTenantContext = {
       tenantId,
-      source: "route",
-      authoritative: true,
     };
     const pendingBreakGlassTenantId = input.resolvePendingBreakGlassTenantId?.(context);
 
@@ -363,7 +342,6 @@ export const createTenantAccessHelpers = <
     return {
       principal: result.principal,
       requestedTenant: result.requestedTenant,
-      session: sessionCompatibilityFromPrincipal(result.principal, requestedTenant),
       membershipRole: result.membershipRole,
     };
   };

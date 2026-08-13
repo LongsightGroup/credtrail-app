@@ -1,7 +1,8 @@
-import type { SessionRecord, TenantMembershipRole } from "@credtrail/db";
+import type { TenantMembershipRole } from "@credtrail/db";
 import type { Hono } from "hono";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
+import type { AuthenticatedPrincipal } from "../auth/auth-context";
 
 export interface TenantAccessAdminRouteDeps {
   app: Hono<AppEnv>;
@@ -13,7 +14,7 @@ export interface TenantAccessAdminRouteDeps {
   ) => Promise<
     | Response
     | {
-        session: SessionRecord;
+        principal: AuthenticatedPrincipal;
         membershipRole: TenantMembershipRole;
       }
   >;

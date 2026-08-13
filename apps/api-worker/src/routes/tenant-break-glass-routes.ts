@@ -92,7 +92,7 @@ export const registerTenantBreakGlassRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
 
@@ -105,7 +105,7 @@ export const registerTenantBreakGlassRoutes = (
     const account = await upsertTenantBreakGlassAccount(db, {
       tenantId: pathParams.tenantId,
       userId: user.id,
-      createdByUserId: session.userId,
+      createdByUserId: principal.userId,
     });
     const passwordResetStatus = await breakGlassPasswordResetEnrollmentStatus(
       requestBreakGlassPasswordReset,
@@ -120,7 +120,7 @@ export const registerTenantBreakGlassRoutes = (
     if (membershipResult.created) {
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "membership.role_assigned",
         targetType: "membership",
         targetId: `${pathParams.tenantId}:${user.id}`,
@@ -133,7 +133,7 @@ export const registerTenantBreakGlassRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "tenant.break_glass_account_upserted",
       targetType: "tenant_break_glass_account",
       targetId: `${pathParams.tenantId}:${user.id}`,
@@ -162,7 +162,7 @@ export const registerTenantBreakGlassRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
 
@@ -184,7 +184,7 @@ export const registerTenantBreakGlassRoutes = (
     if (removed) {
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "tenant.break_glass_account_revoked",
         targetType: "tenant_break_glass_account",
         targetId: `${pathParams.tenantId}:${pathParams.userId}`,

@@ -77,14 +77,14 @@ export const registerTenantDelegatedAuthorityRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const startsAt = request.startsAt ?? new Date().toISOString();
 
     try {
       const grant = await createDelegatedIssuingAuthorityGrant(resolveDatabase(c.env), {
         tenantId: pathParams.tenantId,
         delegateUserId: pathParams.userId,
-        delegatedByUserId: session.userId,
+        delegatedByUserId: principal.userId,
         orgUnitId: request.orgUnitId,
         allowedActions: request.allowedActions,
         badgeTemplateIds: request.badgeTemplateIds,
@@ -95,7 +95,7 @@ export const registerTenantDelegatedAuthorityRoutes = (
 
       await createAuditLog(resolveDatabase(c.env), {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "delegated_issuing_authority.granted",
         targetType: "delegated_issuing_authority_grant",
         targetId: grant.id,
@@ -183,7 +183,7 @@ export const registerTenantDelegatedAuthorityRoutes = (
         return roleCheck;
       }
 
-      const { session, membershipRole } = roleCheck;
+      const { principal, membershipRole } = roleCheck;
       const db = resolveDatabase(c.env);
       const existingGrant = await findDelegatedIssuingAuthorityGrantById(
         db,
@@ -206,7 +206,7 @@ export const registerTenantDelegatedAuthorityRoutes = (
         const result = await revokeDelegatedIssuingAuthorityGrant(db, {
           tenantId: pathParams.tenantId,
           grantId: pathParams.grantId,
-          revokedByUserId: session.userId,
+          revokedByUserId: principal.userId,
           revokedReason: request.reason,
           revokedAt,
         });
@@ -214,7 +214,7 @@ export const registerTenantDelegatedAuthorityRoutes = (
         if (result.status === "revoked") {
           await createAuditLog(db, {
             tenantId: pathParams.tenantId,
-            actorUserId: session.userId,
+            actorUserId: principal.userId,
             action: "delegated_issuing_authority.revoked",
             targetType: "delegated_issuing_authority_grant",
             targetId: pathParams.grantId,

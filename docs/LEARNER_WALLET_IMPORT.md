@@ -21,10 +21,10 @@ From a public badge page (`/badges/:badgeIdentifier`), learners can:
 - OpenID4VCI issuer metadata: `/.well-known/openid-credential-issuer`
 - Offer creation endpoint: `POST /credentials/offer`
 - OpenID4VCI offer endpoint: `/credentials/v1/offers/:badgeIdentifier`
-- OpenID4VCI token endpoint: `POST /credentials/v1/token` (alias: `POST /token`)
-- OpenID4VCI credential endpoint: `POST /credentials/v1/credentials` (alias: `POST /credentials`)
+- OpenID4VCI token endpoint: `POST /credentials/v1/token`
+- OpenID4VCI credential endpoint: `POST /credentials/v1/credentials`
 - DCC wallet invitation endpoint: `GET /credentials/v1/dcc/request/:badgeIdentifier`
-- DCC VC-API exchange endpoint: `POST /credentials/v1/dcc/exchanges/:badgeIdentifier` (alias: `GET` for inspection)
+- DCC VC-API exchange endpoint: `POST /credentials/v1/dcc/exchanges/:badgeIdentifier`
 - Credential JSON-LD: `/credentials/v1/:credentialId/jsonld`
 - Credential attachment download (`.jsonld` filename): `/credentials/v1/:credentialId/download`
 

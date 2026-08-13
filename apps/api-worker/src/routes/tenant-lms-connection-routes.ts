@@ -140,7 +140,7 @@ export const registerTenantLmsConnectionRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const connection = await upsertTenantLmsConnection(db, {
       tenantId: pathParams.tenantId,
@@ -149,7 +149,7 @@ export const registerTenantLmsConnectionRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "tenant.lms_connection.created",
       targetType: "tenant_lms_connection",
       targetId: connection.id,
@@ -192,7 +192,7 @@ export const registerTenantLmsConnectionRoutes = (
       return jsonError(c, 404, "LMS connection not found");
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const connection = await upsertTenantLmsConnection(db, {
       id: existing.id,
       tenantId: pathParams.tenantId,
@@ -201,7 +201,7 @@ export const registerTenantLmsConnectionRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "tenant.lms_connection.updated",
       targetType: "tenant_lms_connection",
       targetId: connection.id,
@@ -242,7 +242,7 @@ export const registerTenantLmsConnectionRoutes = (
     const scope = await resolveLmsUserCourseScope({
       db,
       connection: resolved.connection,
-      userId: roleCheck.session.userId,
+      userId: roleCheck.principal.userId,
     });
 
     if (scope.status === "identity_unlinked") {
@@ -297,7 +297,7 @@ export const registerTenantLmsConnectionRoutes = (
       const courseAuthorization = await authorizeCourseForUser({
         db,
         resolved,
-        userId: roleCheck.session.userId,
+        userId: roleCheck.principal.userId,
         courseId: pathParams.courseId,
       });
 
@@ -360,7 +360,7 @@ export const registerTenantLmsConnectionRoutes = (
       const courseAuthorization = await authorizeCourseForUser({
         db,
         resolved,
-        userId: roleCheck.session.userId,
+        userId: roleCheck.principal.userId,
         courseId: pathParams.courseId,
       });
 
@@ -420,7 +420,7 @@ export const registerTenantLmsConnectionRoutes = (
       const courseAuthorization = await authorizeCourseForUser({
         db,
         resolved,
-        userId: roleCheck.session.userId,
+        userId: roleCheck.principal.userId,
         courseId: pathParams.courseId,
       });
 

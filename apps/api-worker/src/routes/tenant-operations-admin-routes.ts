@@ -34,7 +34,7 @@ interface RegisterTenantOperationsAdminRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: { userId: string };
+        principal: { userId: string };
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -60,7 +60,7 @@ export const registerTenantOperationsAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const formData = await c.req.formData();
     const recipientIdentity = (
       readOptionalFormField(formData, "recipientIdentity") ?? ""
@@ -91,7 +91,7 @@ export const registerTenantOperationsAdminRoutes = (
     } catch {
       await setAdminManualIssueFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Recipient email and badge template are required.",
       });
@@ -105,7 +105,7 @@ export const registerTenantOperationsAdminRoutes = (
     if (template === null) {
       await setAdminManualIssueFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Choose a badge template that belongs to this organization.",
       });
@@ -116,7 +116,7 @@ export const registerTenantOperationsAdminRoutes = (
     const delegatedPermission = await requireDelegatedIssuingAuthorityPermission(c, {
       db,
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       membershipRole,
       ownerOrgUnitId: template.ownerOrgUnitId,
       badgeTemplateId: template.id,
@@ -150,7 +150,7 @@ export const registerTenantOperationsAdminRoutes = (
         c,
         pathParams.tenantId,
         issueRequest,
-        session.userId,
+        principal.userId,
       );
       const assertion = await findAssertionById(db, pathParams.tenantId, result.assertionId);
 
@@ -160,7 +160,7 @@ export const registerTenantOperationsAdminRoutes = (
 
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "assertion.manual_issued",
         targetType: "assertion",
         targetId: result.assertionId,
@@ -174,7 +174,7 @@ export const registerTenantOperationsAdminRoutes = (
 
       await setAdminManualIssueFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "success",
         message: `Badge issued for ${request.recipientIdentity}.`,
         successLinks: buildAdminManualIssueSuccessLinks(publicBadgePathForAssertion(assertion)),
@@ -186,7 +186,7 @@ export const registerTenantOperationsAdminRoutes = (
 
       await setAdminManualIssueFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: error.payload.error,
       });

@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   parseCreateLearnerRecordEntryRequest,
+  learnerRecordImportRowSchema,
   parseLearnerRecordImportBatchDefaults,
-  parseLearnerRecordImportRow,
   parsePatchLearnerRecordEntryRequest,
 } from "./learner-record.js";
 import {
@@ -26,7 +26,7 @@ import {
 
 describe("learner-record import parsers", () => {
   it("accepts a minimal learner-record import row with bounded batch defaults", () => {
-    const row = parseLearnerRecordImportRow({
+    const row = learnerRecordImportRowSchema.parse({
       learnerEmail: "learner@example.edu",
       title: "Clinical Placement Seminar",
       recordType: "course",
@@ -40,7 +40,7 @@ describe("learner-record import parsers", () => {
 
   it("rejects supplemental artifacts that try to override trust to issuer verified", () => {
     expect(() => {
-      parseLearnerRecordImportRow({
+      learnerRecordImportRowSchema.parse({
         learnerEmail: "learner@example.edu",
         title: "Portfolio Reflection",
         recordType: "supplemental_artifact",

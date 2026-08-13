@@ -1,11 +1,7 @@
-import {
-  findTenantById,
-  type SessionRecord,
-  type SqlDatabase,
-  type TenantMembershipRole,
-} from "@credtrail/db";
+import { findTenantById, type SqlDatabase, type TenantMembershipRole } from "@credtrail/db";
 import { renderAppPage } from "../../ui/render-page";
 import type { AppContext } from "../../app";
+import type { AuthenticatedPrincipal } from "../../auth/auth-context";
 import { buildLocalTwoFactorPath } from "../../auth/break-glass-policy";
 import { adminRoleRequiredPage } from "../tenant-governance-shared-pages";
 import type { RegisterTenantGovernanceRoutesInput } from "../tenant-governance-routes.types";
@@ -105,7 +101,7 @@ export const createTenantGovernanceAdminAuth = (
   ): Promise<
     | Response
     | {
-        session: SessionRecord;
+        principal: AuthenticatedPrincipal;
         membershipRole: TenantMembershipRole;
       }
   > => {

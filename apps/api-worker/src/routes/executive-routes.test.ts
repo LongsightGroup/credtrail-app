@@ -99,8 +99,6 @@ beforeEach(() => {
   });
   mockedResolveBetterAuthRequestedTenant.mockResolvedValue({
     tenantId: "tenant_123",
-    source: "route",
-    authoritative: true,
   });
   mockedLoadTenantExecutiveDashboard.mockResolvedValue(
     createSeededDemoExecutiveDashboardSlice("scoped"),

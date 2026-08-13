@@ -1,4 +1,4 @@
-import type { SessionRecord, TenantMembershipRole } from "@credtrail/db";
+import type { TenantMembershipRole } from "@credtrail/db";
 import {
   parseResolveBadgeIssuanceRuleReviewRequest,
   parseTenantPathParams,
@@ -12,6 +12,7 @@ import {
 } from "../admin/review-queue-admin-helpers";
 import type { AppContext, AppEnv } from "../app";
 import type { IssueBadgeForTenant, ResolveDatabase } from "../app/route-deps";
+import type { AuthenticatedPrincipal } from "../auth/auth-context";
 import { resolveBadgeRuleReviewQueueEntry } from "../badge-rule-review-queue-resolve";
 
 interface RegisterTenantReviewQueueAdminRoutesInput {
@@ -24,7 +25,7 @@ interface RegisterTenantReviewQueueAdminRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: SessionRecord;
+        principal: AuthenticatedPrincipal;
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -45,14 +46,14 @@ export const registerTenantReviewQueueAdminRoutes = (
       return roleCheck;
     }
 
-    const { session } = roleCheck;
+    const { principal } = roleCheck;
     const redirectToReviewQueue = async (
       tone: "success" | "error",
       message: string,
     ): Promise<Response> => {
       await setAdminListMessageFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         workspace: "operations_review_queue",
         tone,
         message,
@@ -89,7 +90,7 @@ export const registerTenantReviewQueueAdminRoutes = (
       tenantId: pathParams.tenantId,
       evaluationId,
       request,
-      session,
+      principal,
       membershipRole,
       issueBadgeForTenant,
     });

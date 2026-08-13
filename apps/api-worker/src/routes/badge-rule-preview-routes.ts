@@ -103,7 +103,7 @@ export const registerBadgeRulePreviewRoutes = (
         const authorization = await authorizeBadgeRuleCourses({
           db,
           resolvedProvider,
-          userId: roleCheck.session.userId,
+          userId: roleCheck.principal.userId,
           definition,
         });
 

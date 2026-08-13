@@ -66,7 +66,7 @@ interface RegisterTenantLearnerPathwayAdminRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: { userId: string };
+        principal: { userId: string };
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -272,7 +272,7 @@ export const registerTenantLearnerPathwayAdminRoutes = (
     const shell = await input.loadInstitutionAdminShellData(
       c,
       tenantId,
-      role.session.userId,
+      role.principal.userId,
       role.membershipRole,
     );
 
@@ -280,7 +280,7 @@ export const registerTenantLearnerPathwayAdminRoutes = (
       return shell;
     }
 
-    return { shell, actorUserId: role.session.userId, db: input.resolveDatabase(c.env) };
+    return { shell, actorUserId: role.principal.userId, db: input.resolveDatabase(c.env) };
   };
 
   input.app.get("/tenants/:tenantId/admin/operations/pathways", async (c) => {

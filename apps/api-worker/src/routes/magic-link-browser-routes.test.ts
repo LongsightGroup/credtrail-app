@@ -33,8 +33,6 @@ const createHarness = (input?: { rejectToken?: boolean }) => {
     resolveRequestedTenantContext: () =>
       Promise.resolve({
         tenantId: "tenant_123",
-        source: "route",
-        authoritative: true,
       }),
   });
   return { app, consumedTokens };

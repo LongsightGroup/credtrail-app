@@ -1,18 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  parseBadgeTemplateListQuery,
   parseDelegatedIssuingAuthorityGrantListQuery,
   parseTenantOrgUnitListQuery,
 } from "./list-queries.js";
 
 describe("list query parsers", () => {
-  it("defaults includeArchived to false in badge template list query", () => {
-    const query = parseBadgeTemplateListQuery({});
-
-    expect(query.includeArchived).toBe(false);
-  });
-
   it("parses tenant org unit list query defaults and booleans", () => {
     const defaultQuery = parseTenantOrgUnitListQuery({});
     const explicitQuery = parseTenantOrgUnitListQuery({ includeInactive: "true" });

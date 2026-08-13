@@ -2,27 +2,18 @@ import { completeTrustEdCredentialMetadataInput } from "@credtrail/validation/te
 import { describe, expect, it } from "vitest";
 import {
   emptyTrustEdCredentialMetadata,
-  parseTrustEdCredentialMetadataJson,
   parseTrustEdCredentialMetadataJsonResult,
 } from "./trusted-credential-metadata";
 
-describe("parseTrustEdCredentialMetadataJson", () => {
-  it("returns null when stored metadata is missing", () => {
-    expect(parseTrustEdCredentialMetadataJson(null)).toBeNull();
-    expect(parseTrustEdCredentialMetadataJson(undefined)).toBeNull();
-  });
-
+describe("parseTrustEdCredentialMetadataJsonResult", () => {
   it("parses valid stored metadata", () => {
-    const metadata = parseTrustEdCredentialMetadataJson(
+    const result = parseTrustEdCredentialMetadataJsonResult(
       JSON.stringify(completeTrustEdCredentialMetadataInput),
     );
 
-    expect(metadata?.skills[0]?.name).toBe("Applied data analysis");
-    expect(metadata?.results[0]?.resultDate).toBe("2026-05-18");
-  });
-
-  it("returns null for invalid JSON", () => {
-    expect(parseTrustEdCredentialMetadataJson("{not-json")).toBeNull();
+    expect(result.status).toBe("valid");
+    expect(result.metadata?.skills[0]?.name).toBe("Applied data analysis");
+    expect(result.metadata?.results[0]?.resultDate).toBe("2026-05-18");
   });
 
   it("distinguishes invalid stored metadata from missing metadata", () => {
@@ -37,17 +28,6 @@ describe("parseTrustEdCredentialMetadataJson", () => {
     expect(result.status).toBe("invalid");
     expect(result.metadata).toBeNull();
     expect(result.error).toContain("JSON");
-  });
-
-  it("returns null when stored metadata fails schema validation", () => {
-    expect(
-      parseTrustEdCredentialMetadataJson(
-        JSON.stringify({
-          ...completeTrustEdCredentialMetadataInput,
-          results: [{ value: "Pass", resultDate: "May 18, 2026" }],
-        }),
-      ),
-    ).toBeNull();
   });
 
   it("returns schema validation details for invalid stored metadata", () => {

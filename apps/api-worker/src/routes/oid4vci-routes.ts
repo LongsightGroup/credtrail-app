@@ -8,9 +8,10 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import type { Hono } from "hono";
+import { z } from "zod";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
-import type { VerificationViewModel } from "../badges/public-badge-model";
+import type { PublicBadgeViewModel, VerificationViewModel } from "../badges/public-badge-model";
 import { VC_DATA_MODEL_CONTEXT_URL } from "../credentials/verification-checks";
 import { canonicalAppRequestUrl } from "../http/canonical-app-url";
 
@@ -18,6 +19,13 @@ const PRE_AUTHORIZED_CODE_GRANT = "urn:ietf:params:oauth:grant-type:pre-authoriz
 const OID4VCI_TOKEN_ENDPOINT_PATH = "/credentials/v1/token";
 const OID4VCI_CREDENTIAL_ENDPOINT_PATH = "/credentials/v1/credentials";
 const DCC_VCAPI_EXCHANGE_ENDPOINT_PREFIX = "/credentials/v1/dcc/exchanges";
+const oid4vciOfferRequestSchema = z.strictObject({
+  badgeIdentifier: z.string().trim().min(1),
+});
+const oid4vciCredentialRequestSchema = z.strictObject({
+  format: z.string().trim().min(1).optional(),
+  credential_identifier: z.string().trim().min(1).optional(),
+});
 
 const publicRequestUrl = (c: AppContext): string => {
   return canonicalAppRequestUrl(c.env.PUBLIC_APP_ORIGIN, c.req.url);
@@ -35,12 +43,8 @@ interface RegisterOid4vciRoutesInput {
         status: "not_found";
       }
     | {
-        status: "redirect";
-        canonicalPath: string;
-      }
-    | {
         status: "ok";
-        value: VerificationViewModel;
+        value: PublicBadgeViewModel;
       }
   >;
   loadVerificationViewModel: (
@@ -58,7 +62,7 @@ interface RegisterOid4vciRoutesInput {
   >;
   walletCredentialOfferPayload: (
     requestUrl: string,
-    model: VerificationViewModel,
+    model: PublicBadgeViewModel,
     options: {
       preAuthorizedCode: string;
       offerExpiresAt: string;
@@ -171,13 +175,9 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
         status: 404;
       }
     | {
-        status: 308;
-        canonicalBadgeIdentifier: string;
-      }
-    | {
         status: 200;
         canonicalBadgeIdentifier: string;
-        model: VerificationViewModel;
+        model: PublicBadgeViewModel;
       }
   > => {
     const result = await loadPublicBadgeViewModel(db, badgeObjects, badgeIdentifier);
@@ -188,22 +188,9 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
       };
     }
 
-    if (result.status === "redirect") {
-      if (!result.canonicalPath.startsWith("/badges/")) {
-        return {
-          status: 404,
-        };
-      }
-
-      return {
-        status: 308,
-        canonicalBadgeIdentifier: result.canonicalPath.slice("/badges/".length),
-      };
-    }
-
     return {
       status: 200,
-      canonicalBadgeIdentifier: result.value.assertion.publicId ?? result.value.assertion.id,
+      canonicalBadgeIdentifier: result.value.assertion.publicId,
       model: result.value,
     };
   };
@@ -218,10 +205,6 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
         status: 404;
       }
     | {
-        status: 308;
-        canonicalBadgeIdentifier: string;
-      }
-    | {
         status: 200;
         canonicalBadgeIdentifier: string;
         payload: Record<string, unknown>;
@@ -234,10 +217,6 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
     );
 
     if (canonicalBadge.status === 404) {
-      return canonicalBadge;
-    }
-
-    if (canonicalBadge.status === 308) {
       return canonicalBadge;
     }
 
@@ -284,16 +263,6 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
       });
     }
 
-    if (result.status === 308) {
-      return new Response(null, {
-        status: 308,
-        headers: {
-          location: `/credentials/v1/offers/${encodeURIComponent(result.canonicalBadgeIdentifier)}`,
-          "cache-control": "no-store",
-        },
-      });
-    }
-
     return new Response(JSON.stringify(result.payload), {
       status: 200,
       headers: {
@@ -305,29 +274,19 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
 
   const handleTokenRequest = async (c: AppContext): Promise<Response> => {
     const contentType = c.req.header("content-type")?.toLowerCase() ?? "";
-    let grantType: string | null = null;
-    let preAuthorizedCode: string | null = null;
 
-    if (contentType.includes("application/json")) {
-      const requestPayload = await c.req.json<unknown>().catch(() => null);
-      const body =
-        requestPayload !== null && typeof requestPayload === "object"
-          ? (requestPayload as Record<string, unknown>)
-          : null;
-
-      if (body === null) {
-        return oid4vciErrorJson(c, 400, "invalid_request", "Request body must be a JSON object");
-      }
-
-      grantType = asNonEmptyString(body.grant_type);
-      preAuthorizedCode = asNonEmptyString(body["pre-authorized_code"] ?? body.pre_authorized_code);
-    } else {
-      const formData = new URLSearchParams(await c.req.text());
-      grantType = asNonEmptyString(formData.get("grant_type"));
-      preAuthorizedCode = asNonEmptyString(
-        formData.get("pre-authorized_code") ?? formData.get("pre_authorized_code"),
+    if (!contentType.includes("application/x-www-form-urlencoded")) {
+      return oid4vciErrorJson(
+        c,
+        400,
+        "invalid_request",
+        "Token requests must use application/x-www-form-urlencoded",
       );
     }
+
+    const formData = new URLSearchParams(await c.req.text());
+    const grantType = asNonEmptyString(formData.get("grant_type"));
+    const preAuthorizedCode = asNonEmptyString(formData.get("pre-authorized_code"));
 
     if (grantType !== PRE_AUTHORIZED_CODE_GRANT) {
       return oid4vciErrorJson(
@@ -393,27 +352,28 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
     }
 
     const contentType = c.req.header("content-type")?.toLowerCase() ?? "";
-    const requestPayload =
-      contentType.includes("application/json") &&
-      !contentType.includes("application/x-www-form-urlencoded")
-        ? await c.req.json<unknown>().catch(() => null)
-        : null;
-    const body =
-      requestPayload !== null && typeof requestPayload === "object"
-        ? (requestPayload as Record<string, unknown>)
-        : null;
-
-    if (requestPayload !== null && body === null) {
+    if (!contentType.includes("application/json")) {
       return oid4vciErrorJson(
         c,
         400,
         "invalid_request",
-        "Credential request must be a JSON object",
+        "Credential requests must use application/json",
       );
     }
 
-    const requestedFormat =
-      body === null ? null : asNonEmptyString(body.format ?? body.credential_format);
+    const requestPayload = await c.req.json<unknown>().catch(() => null);
+    const parsedRequest = oid4vciCredentialRequestSchema.safeParse(requestPayload);
+
+    if (!parsedRequest.success) {
+      return oid4vciErrorJson(
+        c,
+        400,
+        "invalid_request",
+        "Credential request must be a JSON object with supported fields",
+      );
+    }
+
+    const requestedFormat = parsedRequest.data.format ?? null;
 
     if (requestedFormat !== null && requestedFormat !== "ldp_vc") {
       return oid4vciErrorJson(
@@ -424,8 +384,7 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
       );
     }
 
-    const requestedCredentialIdentifier =
-      body === null ? null : asNonEmptyString(body.credential_identifier);
+    const requestedCredentialIdentifier = parsedRequest.data.credential_identifier ?? null;
 
     if (
       requestedCredentialIdentifier !== null &&
@@ -487,15 +446,6 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
       );
     }
 
-    if (canonicalBadge.status === 308) {
-      return c.redirect(
-        `${DCC_VCAPI_EXCHANGE_ENDPOINT_PREFIX}/${encodeURIComponent(
-          canonicalBadge.canonicalBadgeIdentifier,
-        )}`,
-        308,
-      );
-    }
-
     const publicBadgePath = `/badges/${encodeURIComponent(canonicalBadge.canonicalBadgeIdentifier)}`;
 
     return c.json({
@@ -525,20 +475,9 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
 
   app.post("/credentials/offer", async (c) => {
     const requestPayload = await c.req.json<unknown>().catch(() => null);
-    const body =
-      requestPayload !== null && typeof requestPayload === "object"
-        ? (requestPayload as Record<string, unknown>)
-        : null;
+    const parsedRequest = oid4vciOfferRequestSchema.safeParse(requestPayload);
 
-    if (body === null) {
-      return oid4vciErrorJson(c, 400, "invalid_request", "Request body must be a JSON object");
-    }
-
-    const badgeIdentifier = asNonEmptyString(
-      body.badgeIdentifier ?? body.badge_identifier ?? body.badge_id ?? body.publicBadgeId,
-    );
-
-    if (badgeIdentifier === null) {
+    if (!parsedRequest.success) {
       return oid4vciErrorJson(
         c,
         400,
@@ -551,26 +490,13 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
       publicRequestUrl(c),
       resolveDatabase(c.env),
       c.env.BADGE_OBJECTS,
-      badgeIdentifier,
+      parsedRequest.data.badgeIdentifier,
     );
 
     c.header("Cache-Control", "no-store");
 
     if (result.status === 404) {
       return oid4vciErrorJson(c, 404, "invalid_request", "Badge not found");
-    }
-
-    if (result.status === 308) {
-      const credentialOfferUri = new URL(
-        `/credentials/v1/offers/${encodeURIComponent(result.canonicalBadgeIdentifier)}`,
-        publicRequestUrl(c),
-      ).toString();
-      return c.json(
-        {
-          credential_offer_uri: credentialOfferUri,
-        },
-        201,
-      );
     }
 
     const credentialOfferUri = new URL(
@@ -605,13 +531,6 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
       );
     }
 
-    if (canonicalBadge.status === 308) {
-      return c.redirect(
-        `/credentials/v1/dcc/request/${encodeURIComponent(canonicalBadge.canonicalBadgeIdentifier)}`,
-        308,
-      );
-    }
-
     const exchangeUrl = new URL(
       `${DCC_VCAPI_EXCHANGE_ENDPOINT_PREFIX}/${encodeURIComponent(canonicalBadge.canonicalBadgeIdentifier)}`,
       publicRequestUrl(c),
@@ -638,23 +557,11 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
     return handleDccVcApiExchange(c, c.req.param("badgeIdentifier"));
   });
 
-  app.get("/credentials/v1/dcc/exchanges/:badgeIdentifier", async (c) => {
-    return handleDccVcApiExchange(c, c.req.param("badgeIdentifier"));
-  });
-
   app.post(OID4VCI_TOKEN_ENDPOINT_PATH, async (c) => {
     return handleTokenRequest(c);
   });
 
-  app.post("/token", async (c) => {
-    return handleTokenRequest(c);
-  });
-
   app.post(OID4VCI_CREDENTIAL_ENDPOINT_PATH, async (c) => {
-    return handleCredentialRequest(c);
-  });
-
-  app.post("/credentials", async (c) => {
     return handleCredentialRequest(c);
   });
 };

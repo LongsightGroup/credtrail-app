@@ -63,7 +63,7 @@ const loadAuthorizedRuleVersionPageData = async (
   const shell = await input.loadInstitutionAdminShellData(
     c,
     input.tenantId,
-    authorized.session.userId,
+    authorized.principal.userId,
     authorized.membershipRole,
   );
 

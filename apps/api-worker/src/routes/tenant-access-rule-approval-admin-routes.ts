@@ -90,7 +90,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const formData = await c.req.formData();
     const approvalRequirement = readOptionalFormField(formData, "approvalRequirement");
     const orgUnitIdRaw = readOptionalFormField(formData, "orgUnitId");
@@ -127,7 +127,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
     } catch {
       return redirectToRuleApproval(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Choose an approval requirement and reviewer before saving.",
       });
@@ -145,12 +145,12 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
           request.approvalRequirement === "never" ? request.allowSelfCertification : false,
         recertificationIntervalMonths: request.recertificationIntervalMonths ?? null,
         approvalSteps,
-        createdByUserId: session.userId,
+        createdByUserId: principal.userId,
       });
 
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "badge_rule.approval_policy_upserted",
         targetType: "badge_rule_approval_policy",
         targetId: policy.id ?? pathParams.tenantId,
@@ -166,14 +166,14 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
 
       return redirectToRuleApproval(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "success",
         message: "Badge rule approval policy saved.",
       });
     } catch {
       return redirectToRuleApproval(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Unable to save the badge rule approval policy. Check the settings and try again.",
       });
@@ -189,7 +189,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const formData = await c.req.formData();
     const name = readOptionalFormField(formData, "name");
     const orgUnitIdRaw = readOptionalFormField(formData, "orgUnitId");
@@ -202,7 +202,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
     } catch {
       return redirectToRuleApproval(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Enter a group name before creating an approver group.",
       });
@@ -215,12 +215,12 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
         tenantId: pathParams.tenantId,
         orgUnitId: request.orgUnitId ?? null,
         name: request.name,
-        createdByUserId: session.userId,
+        createdByUserId: principal.userId,
       });
 
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "badge_rule.approver_group_created",
         targetType: "badge_rule_approver_group",
         targetId: group.id,
@@ -233,14 +233,14 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
 
       return redirectToRuleApproval(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "success",
         message: "Approver group created.",
       });
     } catch {
       return redirectToRuleApproval(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Unable to create the approver group. Check the name and org unit.",
       });
@@ -256,7 +256,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const formData = await c.req.formData();
 
     let request: ReturnType<typeof parseAddBadgeRuleApproverGroupMemberRequest>;
@@ -269,7 +269,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
     } catch {
       return redirectToRuleApproval(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Choose an approver group and member before saving.",
       });
@@ -284,12 +284,12 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
         tenantId: pathParams.tenantId,
         groupId: request.groupId,
         userId: request.userId,
-        createdByUserId: session.userId,
+        createdByUserId: principal.userId,
       });
     } catch {
       return redirectToRuleApproval(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Unable to add that member to the approver group.",
       });
@@ -298,7 +298,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
     if (result.status !== "added") {
       return redirectToRuleApproval(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: mapAddApproverGroupMemberResultMessage(result.status),
       });
@@ -306,7 +306,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "badge_rule.approver_group_member_added",
       targetType: "badge_rule_approver_group",
       targetId: request.groupId,
@@ -318,7 +318,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
 
     return redirectToRuleApproval(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: mapAddApproverGroupMemberResultMessage(result.status),
     });
@@ -335,7 +335,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
         return roleCheck;
       }
 
-      const { session, membershipRole } = roleCheck;
+      const { principal, membershipRole } = roleCheck;
       const formData = await c.req.formData();
 
       let request: ReturnType<typeof parseRemoveBadgeRuleApproverGroupMemberRequest>;
@@ -348,7 +348,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
       } catch {
         return redirectToRuleApproval(c, {
           tenantId: pathParams.tenantId,
-          userId: session.userId,
+          userId: principal.userId,
           tone: "error",
           message: "Approver group member identifiers are missing.",
         });
@@ -364,7 +364,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
       if (result.status !== "removed") {
         return redirectToRuleApproval(c, {
           tenantId: pathParams.tenantId,
-          userId: session.userId,
+          userId: principal.userId,
           tone: "error",
           message: mapRemoveApproverGroupMemberResultMessage(result.status),
         });
@@ -372,7 +372,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
 
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "badge_rule.approver_group_member_removed",
         targetType: "badge_rule_approver_group",
         targetId: request.groupId,
@@ -384,7 +384,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
 
       return redirectToRuleApproval(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "success",
         message: mapRemoveApproverGroupMemberResultMessage(result.status),
       });
@@ -400,7 +400,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const formData = await c.req.formData();
 
     let request: ReturnType<typeof parseRemoveBadgeRuleApproverGroupRequest>;
@@ -412,7 +412,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
     } catch {
       return redirectToRuleApproval(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Approver group identifier is missing.",
       });
@@ -427,7 +427,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
     if (result.status !== "removed") {
       return redirectToRuleApproval(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: mapRemoveApproverGroupResultMessage(result.status),
       });
@@ -435,7 +435,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "badge_rule.approver_group_removed",
       targetType: "badge_rule_approver_group",
       targetId: request.groupId,
@@ -446,7 +446,7 @@ export const registerTenantAccessRuleApprovalAdminRoutes = (
 
     return redirectToRuleApproval(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: mapRemoveApproverGroupResultMessage(result.status),
     });

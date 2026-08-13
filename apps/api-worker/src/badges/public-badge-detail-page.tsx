@@ -13,7 +13,7 @@ import type {
   CreatePublicBadgePageRenderersInput,
   PublicBadgePageRenderers,
 } from "./public-badge-renderer-types";
-import type { VerificationViewModel } from "./public-badge-model";
+import type { PublicBadgeViewModel } from "./public-badge-model";
 import { PublicBadgeTrustEdCredentialSection } from "./public-badge-trusted-credential-section";
 import { PublicBadgeShareSection } from "./public-badge-share-section";
 import { PublicBadgeCopyIconButton } from "./public-badge-ui";
@@ -43,7 +43,7 @@ export const createPublicBadgePage = (
     return resolveAbsoluteWebUrl({ requestUrl, value, isWebUrl });
   };
 
-  return (requestUrl: string, model: VerificationViewModel): AppPage => {
+  return (requestUrl: string, model: PublicBadgeViewModel): AppPage => {
     const badgeName = badgeNameFromCredential(model.credential);
     const issuerName = issuerNameFromCredential(model.credential);
     const issuerUrl = issuerUrlFromCredential(model.credential);
@@ -135,7 +135,7 @@ export const createPublicBadgePage = (
     const credentialDownloadUrl = new URL(credentialDownloadPath, requestUrl).toString();
     const credentialPdfDownloadPath = `${publicBadgePath}/download.pdf`;
     const credentialPdfDownloadUrl = new URL(credentialPdfDownloadPath, requestUrl).toString();
-    const walletOfferBadgeIdentifier = model.assertion.publicId ?? model.assertion.id;
+    const walletOfferBadgeIdentifier = model.assertion.publicId;
     const walletImportUrls = buildPublicBadgeWalletImportUrls(
       requestUrl,
       walletOfferBadgeIdentifier,

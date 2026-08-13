@@ -25,7 +25,6 @@ import {
   parseCreateTenantMemberRequest,
   parseCreateTenantOrgUnitRequest,
   parseRevokeDelegatedIssuingAuthorityGrantRequest,
-  parseTransferBadgeTemplateOwnershipRequest,
   parseUpdateTenantMemberRoleRequest,
   parseUpsertTenantMembershipOrgUnitScopeRequest,
 } from "./tenant-admin.js";
@@ -511,25 +510,5 @@ describe("tenant membership and delegation parsers", () => {
 
     expect(payload.reason).toBe("Policy update");
     expect(payload.revokedAt).toBe("2026-02-20T09:30:00.000Z");
-  });
-
-  it("parses ownership transfer payloads and rejects initial_assignment reason", () => {
-    const payload = parseTransferBadgeTemplateOwnershipRequest({
-      toOrgUnitId: "tenant_123:org:department-math",
-      reasonCode: "administrative_transfer",
-      reason: "Moved under Math governance",
-      governanceMetadata: {
-        governancePolicyVersion: "2026-02-13",
-      },
-    });
-
-    expect(payload.reasonCode).toBe("administrative_transfer");
-
-    expect(() => {
-      parseTransferBadgeTemplateOwnershipRequest({
-        toOrgUnitId: "tenant_123:org:department-math",
-        reasonCode: "initial_assignment",
-      });
-    }).toThrow(/./);
   });
 });

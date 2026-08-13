@@ -83,18 +83,18 @@ export const registerBadgeRuleValueListRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const valueList = await createBadgeIssuanceRuleValueList(resolveDatabase(c.env), {
       tenantId: pathParams.tenantId,
       label: request.label,
       kind: request.kind,
       values: request.values,
-      createdByUserId: session.userId,
+      createdByUserId: principal.userId,
     });
 
     await createAuditLog(resolveDatabase(c.env), {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "badge_rule.value_list_created",
       targetType: "badge_rule_value_list",
       targetId: valueList.id,

@@ -21,7 +21,7 @@ interface RegisterBadgeTemplateEditorArtworkAdminRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: { userId: string };
+        principal: { userId: string };
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -71,7 +71,7 @@ export const registerBadgeTemplateEditorArtworkAdminRoutes = (
             artworkError: "Badge template not found",
           }),
       },
-      async ({ db, session, membershipRole }) => {
+      async ({ db, principal, membershipRole }) => {
         const contentType = c.req.header("content-type") ?? "";
 
         if (!contentType.includes("multipart/form-data")) {
@@ -95,7 +95,7 @@ export const registerBadgeTemplateEditorArtworkAdminRoutes = (
           bindings: c.env,
           tenantId: pathParams.tenantId,
           badgeTemplateId: pathParams.badgeTemplateId,
-          actorUserId: session.userId,
+          actorUserId: principal.userId,
           membershipRole,
           file: upload,
         });
@@ -136,7 +136,7 @@ export const registerBadgeTemplateEditorArtworkAdminRoutes = (
               artworkError: "Badge template not found",
             }),
         },
-        async ({ db, session, membershipRole }) => {
+        async ({ db, principal, membershipRole }) => {
           const formData = await c.req.formData();
           const generationIdRaw = formData.get("generationId");
           const generationId = typeof generationIdRaw === "string" ? generationIdRaw.trim() : "";
@@ -152,7 +152,7 @@ export const registerBadgeTemplateEditorArtworkAdminRoutes = (
             tenantId: pathParams.tenantId,
             badgeTemplateId: pathParams.badgeTemplateId,
             generationId,
-            actorUserId: session.userId,
+            actorUserId: principal.userId,
             membershipRole,
           });
 

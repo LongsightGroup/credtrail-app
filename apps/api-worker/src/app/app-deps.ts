@@ -1,6 +1,6 @@
 import type { JsonObject } from "@credtrail/core-domain";
 import type { AssertionRecord } from "@credtrail/db";
-import type { VerificationViewModel } from "../badges/public-badge-model";
+import type { PublicBadgeViewModel } from "../badges/public-badge-model";
 import type { LearnerDidSettingsNotice } from "../learner/pages";
 import type { registerAssertionRoutes } from "../routes/assertion-routes";
 import type { registerAuthRoutes } from "../routes/auth-routes";
@@ -37,7 +37,7 @@ export type AppDeps = Omit<Parameters<typeof registerCommonMiddleware>[0], "app"
   Omit<Parameters<typeof registerCredentialRoutes<AssertionRecord, JsonObject>>[0], "app"> &
   Omit<Parameters<typeof registerOid4vciRoutes>[0], "app"> &
   Omit<Parameters<typeof registerPresentationRoutes>[0], "app"> &
-  Omit<Parameters<typeof registerPublicBadgeRoutes<VerificationViewModel>>[0], "app"> &
+  Omit<Parameters<typeof registerPublicBadgeRoutes<PublicBadgeViewModel>>[0], "app"> &
   Omit<Parameters<typeof registerLearnerRoutes<LearnerDidSettingsNotice | null>>[0], "app"> &
   Omit<Parameters<typeof registerLearnerRecordRoutes>[0], "app"> &
   Omit<Parameters<typeof registerLearnerRecordExportRoutes>[0], "app"> &

@@ -13,7 +13,6 @@ import {
   updateBadgeIssuanceRuleVersionLifecycleWindow,
   withdrawBadgeIssuanceRuleVersionSubmission,
   type BadgeIssuanceRuleVersionRecord,
-  type SessionRecord,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
@@ -33,6 +32,7 @@ import { readOptionalFormField } from "../admin/admin-form-helpers";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
+import type { AuthenticatedPrincipal } from "../auth/auth-context";
 import {
   adminApprovalDecisionRequestFailureMessage,
   adminApprovalDecisionFailureMessage,
@@ -49,7 +49,7 @@ interface RegisterTenantBadgeRuleActionsAdminRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: SessionRecord;
+        principal: AuthenticatedPrincipal;
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -60,7 +60,7 @@ interface RegisterTenantBadgeRuleActionsAdminRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: SessionRecord;
+        principal: AuthenticatedPrincipal;
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -88,7 +88,7 @@ interface BadgeRuleLifecycleAdminActionInput {
   readonly successMessage: string;
   readonly auditAction: string;
   readonly run: (input: {
-    readonly session: SessionRecord;
+    readonly principal: AuthenticatedPrincipal;
     readonly membershipRole: TenantMembershipRole;
     readonly formData: FormData;
   }) => Promise<BadgeIssuanceRuleVersionRecord | null | Response>;
@@ -239,7 +239,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const formData = await c.req.formData();
     const decision = readOptionalFormField(formData, "decision");
     const comment = readOptionalFormField(formData, "comment");
@@ -254,7 +254,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
     } catch (error: unknown) {
       return routeInput.redirect({
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: adminApprovalDecisionRequestFailureMessage(error),
       });
@@ -266,7 +266,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       ruleId: pathParams.ruleId,
       versionId: pathParams.versionId,
       decision: request.decision,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       actorRole: membershipRole,
       ...(request.comment !== undefined ? { comment: request.comment } : {}),
     });
@@ -274,7 +274,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
     if (decisionResult.status !== "decided") {
       return routeInput.redirect({
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: adminApprovalDecisionFailureMessage(request.decision, decisionResult),
       });
@@ -282,7 +282,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
 
     return routeInput.redirect({
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: decisionSuccessMessage(request.decision),
     });
@@ -299,10 +299,10 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const formData = await c.req.formData();
     const result = await actionInput.run({
-      session,
+      principal,
       membershipRole,
       formData,
     });
@@ -314,7 +314,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
     if (result === null) {
       return redirectToRules(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: actionInput.notAppliedMessage,
       });
@@ -322,7 +322,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
 
     await createAuditLog(resolveDatabase(c.env), {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: actionInput.auditAction,
       targetType: "badge_rule_version",
       targetId: result.id,
@@ -336,7 +336,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
 
     return redirectToRules(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: actionInput.successMessage,
     });
@@ -353,20 +353,20 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
         return roleCheck;
       }
 
-      const { session, membershipRole } = roleCheck;
+      const { principal, membershipRole } = roleCheck;
       const db = resolveDatabase(c.env);
       const submitResult = await submitBadgeIssuanceRuleVersionForApproval(db, {
         tenantId: pathParams.tenantId,
         ruleId: pathParams.ruleId,
         versionId: pathParams.versionId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         actorRole: membershipRole,
       });
 
       if (submitResult.status !== "submitted") {
         return redirectToRules(c, {
           tenantId: pathParams.tenantId,
-          userId: session.userId,
+          userId: principal.userId,
           tone: "error",
           message: submitBadgeRuleVersionForApprovalFailureMessage(submitResult),
         });
@@ -376,7 +376,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
 
       return redirectToRules(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "success",
         message:
           updatedVersion.status === "approved"
@@ -397,16 +397,16 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
         return roleCheck;
       }
 
-      const { session, membershipRole } = roleCheck;
+      const { principal, membershipRole } = roleCheck;
       const result = await withdrawBadgeIssuanceRuleVersionSubmission(resolveDatabase(c.env), {
         ...pathParams,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         actorRole: membershipRole,
       });
 
       return redirectToRules(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: result.status === "withdrawn" ? "success" : "error",
         message:
           result.status === "withdrawn"
@@ -457,7 +457,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
         return roleCheck;
       }
 
-      const { session, membershipRole } = roleCheck;
+      const { principal, membershipRole } = roleCheck;
       const formData = await c.req.formData();
       const comment = readOptionalFormField(formData, "comment");
 
@@ -468,7 +468,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       } catch {
         return redirectToApprovals(c, {
           tenantId: pathParams.tenantId,
-          userId: session.userId,
+          userId: principal.userId,
           tone: "error",
           message: "Explain why this approval is being reopened.",
           reviewPath,
@@ -477,14 +477,14 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
 
       const result = await reopenApprovedBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
         ...pathParams,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         actorRole: membershipRole,
         comment: request.comment,
       });
 
       return redirectToApprovals(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: result.status === "reopened" ? "success" : "error",
         message:
           result.status === "reopened"
@@ -503,12 +503,12 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       notAppliedMessage: "Only approved versions can be activated.",
       successMessage: "Rule version activated. CredTrail is checking eligible learners now.",
       auditAction: "badge_rule.version_activated",
-      run: ({ session, formData }) =>
+      run: ({ principal, formData }) =>
         activateBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
           tenantId: pathParams.tenantId,
           ruleId: pathParams.ruleId,
           versionId: pathParams.versionId,
-          actorUserId: session.userId,
+          actorUserId: principal.userId,
           ...readLifecycleWindowFields(formData),
         }),
       auditMetadata: (version) => ({
@@ -529,12 +529,12 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
         notAppliedMessage: "Only active rule versions can update lifecycle windows.",
         successMessage: "Rule lifecycle window updated.",
         auditAction: "badge_rule.lifecycle_window_updated",
-        run: ({ session, formData }) =>
+        run: ({ principal, formData }) =>
           updateBadgeIssuanceRuleVersionLifecycleWindow(resolveDatabase(c.env), {
             tenantId: pathParams.tenantId,
             ruleId: pathParams.ruleId,
             versionId: pathParams.versionId,
-            actorUserId: session.userId,
+            actorUserId: principal.userId,
             ...readLifecycleWindowFields(formData),
           }),
         auditMetadata: (version) => ({
@@ -553,13 +553,13 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       notAppliedMessage: "Only active rule versions can be suspended.",
       successMessage: "Rule issuance suspended.",
       auditAction: "badge_rule.version_suspended",
-      run: ({ session, formData }) => {
+      run: ({ principal, formData }) => {
         const reason = readOptionalFormField(formData, "reason");
 
         if (reason === undefined) {
           return redirectToRules(c, {
             tenantId: pathParams.tenantId,
-            userId: session.userId,
+            userId: principal.userId,
             tone: "error",
             message: "Enter a suspension reason before halting issuance.",
           });
@@ -569,7 +569,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
           tenantId: pathParams.tenantId,
           ruleId: pathParams.ruleId,
           versionId: pathParams.versionId,
-          actorUserId: session.userId,
+          actorUserId: principal.userId,
           reason,
         });
       },
@@ -587,12 +587,12 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       notAppliedMessage: "Only suspended rule versions can be resumed.",
       successMessage: "Rule issuance resumed.",
       auditAction: "badge_rule.version_resumed",
-      run: ({ session }) =>
+      run: ({ principal }) =>
         resumeBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
           tenantId: pathParams.tenantId,
           ruleId: pathParams.ruleId,
           versionId: pathParams.versionId,
-          actorUserId: session.userId,
+          actorUserId: principal.userId,
         }),
     });
   });
@@ -606,12 +606,12 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
         "Only active rule versions with recertification policy can be recertified.",
       successMessage: "Rule version recertified.",
       auditAction: "badge_rule.version_recertified",
-      run: ({ session }) =>
+      run: ({ principal }) =>
         recertifyBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
           tenantId: pathParams.tenantId,
           ruleId: pathParams.ruleId,
           versionId: pathParams.versionId,
-          actorUserId: session.userId,
+          actorUserId: principal.userId,
         }),
       auditMetadata: (version) => ({
         recertifiedAt: version.recertifiedAt,
@@ -629,7 +629,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const deleted = await deleteDraftBadgeIssuanceRule(db, {
       tenantId: pathParams.tenantId,
@@ -639,7 +639,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
     if (deleted.status === "not_found") {
       return redirectToRules(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "That rule was not found.",
       });
@@ -648,7 +648,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
     if (deleted.status === "not_deletable") {
       return redirectToRules(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Only never-active draft or rejected rules can be deleted.",
       });
@@ -656,7 +656,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "badge_rule.deleted",
       targetType: "badge_rule",
       targetId: deleted.rule.id,
@@ -673,7 +673,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
 
     return redirectToRules(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: "Draft rule deleted.",
     });
@@ -688,18 +688,18 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const deleted = await deleteBadgeIssuanceRuleBuilderDraftById(db, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       draftId: pathParams.draftId,
     });
 
     if (deleted === null) {
       return redirectToRules(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "That unfinished draft was not found.",
       });
@@ -707,7 +707,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "badge_rule.builder_draft_deleted",
       targetType: "badge_rule_builder_draft",
       targetId: deleted.id,
@@ -718,7 +718,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
 
     return redirectToRules(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: "Unfinished draft deleted.",
     });

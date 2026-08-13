@@ -47,7 +47,7 @@ interface RegisterBadgeTemplateListAdminRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: { userId: string };
+        principal: { userId: string };
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -170,19 +170,19 @@ export const registerBadgeTemplateListAdminRoutes = (
     } catch {
       return redirectToTemplateListWithFlash(c, {
         tenantId,
-        userId: roleCheck.session.userId,
+        userId: roleCheck.principal.userId,
         listPageQuery,
         tone: "error",
         message: "Enter a badge name before creating the template.",
       });
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const targetOwnerOrgUnitId = request.ownerOrgUnitId ?? defaultInstitutionOrgUnitId(tenantId);
     const scopeCheck = await requireScopedOrgUnitPermission(c, {
       db,
       tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       membershipRole,
       orgUnitId: targetOwnerOrgUnitId,
       requiredRole: "issuer",
@@ -197,7 +197,7 @@ export const registerBadgeTemplateListAdminRoutes = (
       const template = await createBadgeTemplateWithAudit(db, {
         tenantId,
         request,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         membershipRole,
       });
 
@@ -212,7 +212,7 @@ export const registerBadgeTemplateListAdminRoutes = (
       if (isBadgeTemplateSlugConflict(error)) {
         return redirectToTemplateListWithFlash(c, {
           tenantId,
-          userId: session.userId,
+          userId: principal.userId,
           listPageQuery,
           tone: "error",
           message: "A badge template with that URL key already exists. Try a more specific name.",
@@ -240,16 +240,16 @@ export const registerBadgeTemplateListAdminRoutes = (
         resolveDatabase,
         resolveInstitutionAdminAdminRole,
         requireScopedOrgUnitPermission,
-        notFound: ({ session }) =>
+        notFound: ({ principal }) =>
           redirectToTemplateListWithFlash(c, {
             tenantId: pathParams.tenantId,
-            userId: session.userId,
+            userId: principal.userId,
             listPageQuery,
             tone: "error",
             message: "Badge template not found",
           }),
       },
-      async ({ db, session, membershipRole, template: existingTemplate }) => {
+      async ({ db, principal, membershipRole, template: existingTemplate }) => {
         const formData = await c.req.formData();
 
         let request: ReturnType<typeof parseUpdateBadgeTemplateRequest>;
@@ -277,14 +277,14 @@ export const registerBadgeTemplateListAdminRoutes = (
             badgeTemplateId: pathParams.badgeTemplateId,
             existingTemplate,
             request,
-            actorUserId: session.userId,
+            actorUserId: principal.userId,
             membershipRole,
           });
 
           if (template === null) {
             return redirectToTemplateListWithFlash(c, {
               tenantId: pathParams.tenantId,
-              userId: session.userId,
+              userId: principal.userId,
               listPageQuery,
               tone: "error",
               message: "Badge template not found",
@@ -323,16 +323,16 @@ export const registerBadgeTemplateListAdminRoutes = (
         resolveDatabase,
         resolveInstitutionAdminAdminRole,
         requireScopedOrgUnitPermission,
-        notFound: ({ session }) =>
+        notFound: ({ principal }) =>
           redirectToTemplateListWithFlash(c, {
             tenantId: pathParams.tenantId,
-            userId: session.userId,
+            userId: principal.userId,
             listPageQuery,
             tone: "error",
             message: "Badge template not found",
           }),
       },
-      async ({ db, session }) => {
+      async ({ db, principal }) => {
         const updatedTemplate = await setBadgeTemplateArchivedState(db, {
           tenantId: pathParams.tenantId,
           id: pathParams.badgeTemplateId,
@@ -342,7 +342,7 @@ export const registerBadgeTemplateListAdminRoutes = (
         if (updatedTemplate === null) {
           return redirectToTemplateListWithFlash(c, {
             tenantId: pathParams.tenantId,
-            userId: session.userId,
+            userId: principal.userId,
             listPageQuery,
             tone: "error",
             message: "Badge template not found",
@@ -351,7 +351,7 @@ export const registerBadgeTemplateListAdminRoutes = (
 
         return redirectToTemplateListWithFlash(c, {
           tenantId: pathParams.tenantId,
-          userId: session.userId,
+          userId: principal.userId,
           listPageQuery,
           tone: "success",
           message: archive ? "Badge template archived." : "Badge template restored.",
@@ -389,29 +389,29 @@ export const registerBadgeTemplateListAdminRoutes = (
           resolveDatabase,
           resolveInstitutionAdminAdminRole,
           requireScopedOrgUnitPermission,
-          notFound: ({ session }) =>
+          notFound: ({ principal }) =>
             redirectToTemplateListWithFlash(c, {
               tenantId: pathParams.tenantId,
-              userId: session.userId,
+              userId: principal.userId,
               listPageQuery,
               tone: "error",
               message: "Badge template not found",
             }),
         },
-        async ({ db, session, membershipRole }) => {
+        async ({ db, principal, membershipRole }) => {
           const result = await restoreBadgeTemplateImageRevision({
             db,
             tenantId: pathParams.tenantId,
             badgeTemplateId: pathParams.badgeTemplateId,
             revisionId: pathParams.revisionId,
-            actorUserId: session.userId,
+            actorUserId: principal.userId,
             membershipRole,
           });
 
           if ("status" in result) {
             return redirectToTemplateListWithFlash(c, {
               tenantId: pathParams.tenantId,
-              userId: session.userId,
+              userId: principal.userId,
               listPageQuery,
               tone: "error",
               message: result.message,
@@ -424,7 +424,7 @@ export const registerBadgeTemplateListAdminRoutes = (
 
           return redirectToTemplateListWithFlash(c, {
             tenantId: pathParams.tenantId,
-            userId: session.userId,
+            userId: principal.userId,
             listPageQuery,
             tone: "success",
             message: "Badge image restored.",

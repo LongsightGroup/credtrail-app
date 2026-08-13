@@ -71,11 +71,3 @@ export const parseTrustEdCredentialMetadataJsonResult = (
     };
   }
 };
-
-export const parseTrustEdCredentialMetadataJson = (
-  metadataJson: string | null | undefined,
-): TrustEdCredentialMetadata | null => {
-  const result = parseTrustEdCredentialMetadataJsonResult(metadataJson);
-
-  return result.status === "valid" ? result.metadata : null;
-};

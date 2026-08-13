@@ -1,8 +1,8 @@
-import type { VerificationViewModel } from "../badges/public-badge-model";
+import type { PublicBadgeViewModel } from "../badges/public-badge-model";
 
 export const walletCredentialOfferPayload = (
   requestUrl: string,
-  model: VerificationViewModel,
+  model: PublicBadgeViewModel,
   options?: {
     preAuthorizedCode?: string | undefined;
     offerExpiresAt?: string | undefined;
@@ -12,12 +12,11 @@ export const walletCredentialOfferPayload = (
 ): Record<string, unknown> => {
   const assertion = model.assertion;
   const requestBaseUrl = new URL(requestUrl);
-  const publicBadgePath = `/badges/${encodeURIComponent(assertion.publicId ?? assertion.id)}`;
+  const publicBadgePath = `/badges/${encodeURIComponent(assertion.publicId)}`;
   const verificationPath = `${publicBadgePath}/verification`;
   const credentialJsonldPath = `${publicBadgePath}/jsonld`;
   const credentialDownloadPath = `${publicBadgePath}/download`;
-  const preAuthorizedCode =
-    options?.preAuthorizedCode ?? `public-badge:${assertion.publicId ?? assertion.id}`;
+  const preAuthorizedCode = options?.preAuthorizedCode ?? `public-badge:${assertion.publicId}`;
   const tokenEndpointPath = options?.tokenEndpointPath ?? "/credentials/v1/token";
   const credentialEndpointPath = options?.credentialEndpointPath ?? "/credentials/v1/credentials";
 

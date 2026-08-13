@@ -72,8 +72,6 @@ const loadAppWithMockedAuthFactories = async (input?: {
   } | null;
   betterAuthRequestedTenant?: {
     tenantId: string;
-    source: "route" | "legacy_session";
-    authoritative: boolean;
   } | null;
 }) => {
   vi.resetModules();
@@ -119,8 +117,6 @@ const loadAppWithMockedAuthProviders = async (input: {
   } | null;
   betterAuthRequestedTenant?: {
     tenantId: string;
-    source: "route" | "legacy_session";
-    authoritative: boolean;
   } | null;
 }): Promise<{
   app: typeof app;
@@ -182,8 +178,6 @@ describe("GET /", () => {
       },
       betterAuthRequestedTenant: {
         tenantId: "tenant_better",
-        source: "route",
-        authoritative: true,
       },
     });
 

@@ -145,8 +145,6 @@ const consumeLtiSessionHandoff = async (input: {
   input.context.set("authenticatedPrincipal", principal);
   input.context.set("requestedTenantContext", {
     tenantId: input.tenantId,
-    source: "route",
-    authoritative: true,
   });
 
   return {

@@ -5,7 +5,7 @@ import type { AppContext } from "../app";
 export type InstitutionAdminWorkspaceRoleCheck =
   | Response
   | {
-      session: { userId: string };
+      principal: { userId: string };
       membershipRole: TenantMembershipRole;
     };
 
@@ -38,7 +38,7 @@ export const loadInstitutionAdminWorkspacePageData = async <TPageData>(
   | Response
   | {
       pageData: TPageData;
-      session: { userId: string };
+      principal: { userId: string };
       membershipRole: TenantMembershipRole;
     }
 > => {
@@ -52,11 +52,11 @@ export const loadInstitutionAdminWorkspacePageData = async <TPageData>(
     return roleCheck;
   }
 
-  const { session, membershipRole } = roleCheck;
+  const { principal, membershipRole } = roleCheck;
   const pageData = await input.loadInstitutionAdminPageData(
     input.c,
     input.tenantId,
-    session.userId,
+    principal.userId,
     membershipRole,
     input.view === undefined ? {} : { view: input.view },
   );
@@ -67,7 +67,7 @@ export const loadInstitutionAdminWorkspacePageData = async <TPageData>(
 
   return {
     pageData,
-    session: { userId: session.userId },
+    principal: { userId: principal.userId },
     membershipRole,
   };
 };

@@ -59,7 +59,7 @@ export const registerTenantAccessOrgUnitAccessAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const formData = await c.req.formData();
     const userId = readOptionalFormField(formData, "userId") ?? "";
     const orgUnitId = readOptionalFormField(formData, "orgUnitId") ?? "";
@@ -72,7 +72,7 @@ export const registerTenantAccessOrgUnitAccessAdminRoutes = (
     } catch {
       return redirectToOrgUnitAccess(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Choose a member, org unit, and scoped role before saving.",
       });
@@ -81,7 +81,7 @@ export const registerTenantAccessOrgUnitAccessAdminRoutes = (
     if (userId.length === 0 || orgUnitId.length === 0) {
       return redirectToOrgUnitAccess(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Choose a member, org unit, and scoped role before saving.",
       });
@@ -95,7 +95,7 @@ export const registerTenantAccessOrgUnitAccessAdminRoutes = (
         userId,
         orgUnitId,
         role: request.role,
-        createdByUserId: session.userId,
+        createdByUserId: principal.userId,
       });
       const action =
         result.previousRole === null
@@ -106,7 +106,7 @@ export const registerTenantAccessOrgUnitAccessAdminRoutes = (
 
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action,
         targetType: "membership_org_scope",
         targetId: `${pathParams.tenantId}:${userId}:${orgUnitId}`,
@@ -122,14 +122,14 @@ export const registerTenantAccessOrgUnitAccessAdminRoutes = (
 
       return redirectToOrgUnitAccess(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "success",
         message: `Saved scoped role ${result.scope.role} for ${userId}.`,
       });
     } catch (error: unknown) {
       return redirectToOrgUnitAccess(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: mapScopeErrorMessage(error),
       });
@@ -145,7 +145,7 @@ export const registerTenantAccessOrgUnitAccessAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const formData = await c.req.formData();
     const userId = readOptionalFormField(formData, "userId") ?? "";
     const orgUnitId = readOptionalFormField(formData, "orgUnitId") ?? "";
@@ -153,7 +153,7 @@ export const registerTenantAccessOrgUnitAccessAdminRoutes = (
     if (userId.length === 0 || orgUnitId.length === 0) {
       return redirectToOrgUnitAccess(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Scoped role identifiers are missing.",
       });
@@ -169,7 +169,7 @@ export const registerTenantAccessOrgUnitAccessAdminRoutes = (
     if (!removed) {
       return redirectToOrgUnitAccess(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "No matching scoped role was found.",
       });
@@ -177,7 +177,7 @@ export const registerTenantAccessOrgUnitAccessAdminRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "membership.org_scope_removed",
       targetType: "membership_org_scope",
       targetId: `${pathParams.tenantId}:${userId}:${orgUnitId}`,
@@ -190,7 +190,7 @@ export const registerTenantAccessOrgUnitAccessAdminRoutes = (
 
     return redirectToOrgUnitAccess(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: "Scoped role removed.",
     });

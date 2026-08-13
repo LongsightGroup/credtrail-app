@@ -67,7 +67,7 @@ export const registerTenantMembershipScopeRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
 
     try {
       const result = await upsertTenantMembershipOrgUnitScope(resolveDatabase(c.env), {
@@ -75,7 +75,7 @@ export const registerTenantMembershipScopeRoutes = (
         userId: pathParams.userId,
         orgUnitId: pathParams.orgUnitId,
         role: request.role,
-        createdByUserId: session.userId,
+        createdByUserId: principal.userId,
       });
 
       const action =
@@ -87,7 +87,7 @@ export const registerTenantMembershipScopeRoutes = (
 
       await createAuditLog(resolveDatabase(c.env), {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action,
         targetType: "membership_org_scope",
         targetId: `${pathParams.tenantId}:${pathParams.userId}:${pathParams.orgUnitId}`,
@@ -145,7 +145,7 @@ export const registerTenantMembershipScopeRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const removed = await removeTenantMembershipOrgUnitScope(resolveDatabase(c.env), {
       tenantId: pathParams.tenantId,
       userId: pathParams.userId,
@@ -155,7 +155,7 @@ export const registerTenantMembershipScopeRoutes = (
     if (removed) {
       await createAuditLog(resolveDatabase(c.env), {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "membership.org_scope_removed",
         targetType: "membership_org_scope",
         targetId: `${pathParams.tenantId}:${pathParams.userId}:${pathParams.orgUnitId}`,

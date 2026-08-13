@@ -37,7 +37,7 @@ interface RegisterTenantIssuedBadgesAdminRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: { userId: string };
+        principal: { userId: string };
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -124,12 +124,12 @@ export const registerTenantIssuedBadgesAdminRoutes = (
     const assertionIdRaw = formData.get("assertionId");
     const assertionId = typeof assertionIdRaw === "string" ? assertionIdRaw.trim() : "";
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
 
     if (assertionId.length === 0) {
       return redirectIssuedBadgesWithFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Choose a badge before revoking it.",
         filters,
@@ -139,7 +139,7 @@ export const registerTenantIssuedBadgesAdminRoutes = (
     if (!assertionBelongsToTenant(pathParams.tenantId, assertionId)) {
       return redirectIssuedBadgesWithFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Badge not found for this institution.",
         filters,
@@ -158,7 +158,7 @@ export const registerTenantIssuedBadgesAdminRoutes = (
     } catch {
       return redirectIssuedBadgesWithFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Choose a reason code before revoking this badge.",
         filters,
@@ -175,7 +175,7 @@ export const registerTenantIssuedBadgesAdminRoutes = (
     if (assertion === null) {
       return redirectIssuedBadgesWithFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Badge not found for this institution.",
         filters,
@@ -191,7 +191,7 @@ export const registerTenantIssuedBadgesAdminRoutes = (
     if (badgeTemplate === null) {
       return redirectIssuedBadgesWithFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Badge template not found for this institution.",
         filters,
@@ -202,7 +202,7 @@ export const registerTenantIssuedBadgesAdminRoutes = (
     const delegatedPermission = await requireDelegatedIssuingAuthorityPermission(c, {
       db,
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       membershipRole,
       ownerOrgUnitId: badgeTemplate.ownerOrgUnitId,
       badgeTemplateId: badgeTemplate.id,
@@ -212,7 +212,7 @@ export const registerTenantIssuedBadgesAdminRoutes = (
     if (delegatedPermission !== null) {
       return redirectIssuedBadgesWithFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: issuedBadgeRevokePermissionError,
         filters,
@@ -230,14 +230,14 @@ export const registerTenantIssuedBadgesAdminRoutes = (
       reasonCode: request.reasonCode,
       ...(request.reason === undefined ? {} : { reason: request.reason }),
       transitionSource: "manual",
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       transitionedAt: request.transitionedAt ?? new Date().toISOString(),
     });
 
     if (transitionResult.status === "invalid_transition") {
       return redirectIssuedBadgesWithFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: transitionResult.message ?? "Lifecycle transition not allowed",
         filters,
@@ -255,7 +255,7 @@ export const registerTenantIssuedBadgesAdminRoutes = (
 
     return redirectIssuedBadgesWithFlash(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: notice,
       filters,

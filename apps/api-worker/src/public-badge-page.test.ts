@@ -654,20 +654,19 @@ describe("GET /badges/:badgeIdentifier", () => {
     );
   });
 
-  it("redirects legacy tenant-scoped badge URLs to canonical public permalink", async () => {
+  it("does not resolve tenant-scoped credential IDs as public badge IDs", async () => {
     const env = createEnv();
 
     mockedFindAssertionByPublicId.mockResolvedValue(null);
-    mockedFindAssertionById.mockResolvedValue(sampleAssertion());
 
     const response = await app.request("/badges/tenant_123%3Aassertion_456", undefined, env);
 
-    expect(response.status).toBe(308);
-    expect(response.headers.get("location")).toBe("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22");
+    expect(response.status).toBe(404);
+    expect(mockedFindAssertionById).not.toHaveBeenCalled();
     expect(mockedGetImmutableCredentialObject).not.toHaveBeenCalled();
   });
 
-  it("redirects /public_url alias path to canonical public permalink", async () => {
+  it("does not register the removed /public_url alias", async () => {
     const env = createEnv();
     const response = await app.request(
       "/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/public_url",
@@ -675,22 +674,19 @@ describe("GET /badges/:badgeIdentifier", () => {
       env,
     );
 
-    expect(response.status).toBe(308);
-    expect(response.headers.get("location")).toBe("/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22");
+    expect(response.status).toBe(404);
+    expect(mockedFindAssertionByPublicId).not.toHaveBeenCalled();
   });
 
-  it("redirects legacy tenant-scoped badge asset URLs to canonical public alias URLs", async () => {
+  it("does not resolve tenant-scoped credential IDs on public badge asset routes", async () => {
     const env = createEnv();
 
     mockedFindAssertionByPublicId.mockResolvedValue(null);
-    mockedFindAssertionById.mockResolvedValue(sampleAssertion());
 
     const response = await app.request("/badges/tenant_123%3Aassertion_456/jsonld", undefined, env);
 
-    expect(response.status).toBe(308);
-    expect(response.headers.get("location")).toBe(
-      "/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/jsonld",
-    );
+    expect(response.status).toBe(404);
+    expect(mockedFindAssertionById).not.toHaveBeenCalled();
     expect(mockedGetImmutableCredentialObject).not.toHaveBeenCalled();
   });
 
@@ -896,11 +892,10 @@ describe("GET /badges/:badgeIdentifier", () => {
     );
   });
 
-  it("redirects legacy tenant-scoped summary URL to canonical summary URL", async () => {
+  it("does not resolve tenant-scoped credential IDs on public summary routes", async () => {
     const env = createEnv();
 
     mockedFindAssertionByPublicId.mockResolvedValue(null);
-    mockedFindAssertionById.mockResolvedValue(sampleAssertion());
 
     const response = await app.request(
       "/badges/tenant_123%3Aassertion_456/summary",
@@ -908,10 +903,8 @@ describe("GET /badges/:badgeIdentifier", () => {
       env,
     );
 
-    expect(response.status).toBe(308);
-    expect(response.headers.get("location")).toBe(
-      "/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/summary",
-    );
+    expect(response.status).toBe(404);
+    expect(mockedFindAssertionById).not.toHaveBeenCalled();
     expect(mockedGetImmutableCredentialObject).not.toHaveBeenCalled();
   });
 
@@ -1013,15 +1006,10 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(credtrailOffer.preAuthorizedCode).toMatch(/^oid4vci_pc_/);
   });
 
-  it("redirects legacy tenant-scoped offer URL to canonical offer URL", async () => {
+  it("does not resolve tenant-scoped credential IDs on wallet offer routes", async () => {
     const env = createEnv();
-    const credential: JsonObject = {
-      id: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
-    };
 
     mockedFindAssertionByPublicId.mockResolvedValue(null);
-    mockedFindAssertionById.mockResolvedValue(sampleAssertion());
-    mockedGetImmutableCredentialObject.mockResolvedValue(credential);
 
     const response = await app.request(
       "/credentials/v1/offers/tenant_123%3Aassertion_456",
@@ -1029,10 +1017,9 @@ describe("GET /badges/:badgeIdentifier", () => {
       env,
     );
 
-    expect(response.status).toBe(308);
-    expect(response.headers.get("location")).toBe(
-      "/credentials/v1/offers/40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
-    );
+    expect(response.status).toBe(404);
+    expect(mockedFindAssertionById).not.toHaveBeenCalled();
+    expect(mockedGetImmutableCredentialObject).not.toHaveBeenCalled();
   });
 
   it("serves OpenID4VCI issuer metadata for wallet discovery", async () => {
@@ -1057,6 +1044,76 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body.token_endpoint).toBe("https://credtrail.test/credentials/v1/token");
     expect(body.credential_endpoint).toBe("https://credtrail.test/credentials/v1/credentials");
     expect(body.credential_configurations_supported.OpenBadgeCredential?.format).toBe("ldp_vc");
+  });
+
+  it("does not expose removed wallet compatibility routes", async () => {
+    const env = createEnv();
+    const responses = await Promise.all([
+      app.request("/token", { method: "POST" }, env),
+      app.request("/credentials", { method: "POST" }, env),
+      app.request(
+        "/credentials/v1/dcc/exchanges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
+        { method: "GET" },
+        env,
+      ),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([404, 404, 404]);
+  });
+
+  it("rejects non-canonical offer request field aliases", async () => {
+    const response = await app.request(
+      "/credentials/offer",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          badge_id: "40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
+        }),
+      },
+      createEnv(),
+    );
+
+    expect(response.status).toBe(400);
+    expect(mockedFindAssertionByPublicId).not.toHaveBeenCalled();
+  });
+
+  it("requires form-encoded token requests with the canonical pre-authorized code field", async () => {
+    const env = createEnv();
+    const jsonResponse = await app.request(
+      "/credentials/v1/token",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          grant_type: "urn:ietf:params:oauth:grant-type:pre-authorized_code",
+          "pre-authorized_code": "oid4vci_pc_example",
+        }),
+      },
+      env,
+    );
+    const aliasResponse = await app.request(
+      "/credentials/v1/token",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          grant_type: "urn:ietf:params:oauth:grant-type:pre-authorized_code",
+          pre_authorized_code: "oid4vci_pc_example",
+        }).toString(),
+      },
+      env,
+    );
+
+    expect(jsonResponse.status).toBe(400);
+    expect(aliasResponse.status).toBe(400);
+    expect(mockedConsumeOid4vciPreAuthorizedCode).not.toHaveBeenCalled();
   });
 
   it("creates offer URIs through POST /credentials/offer", async () => {
@@ -1372,15 +1429,5 @@ describe("GET /badges/:badgeIdentifier", () => {
     expect(body).toContain("Badge not found");
     expect(mockedFindAssertionById).not.toHaveBeenCalled();
     expect(mockedRecordAssertionEngagementEvent).not.toHaveBeenCalled();
-  });
-
-  it("returns not found page when public_url alias is empty", async () => {
-    const env = createEnv();
-    const response = await app.request("/badges/%20/public_url", undefined, env);
-    const body = await response.text();
-
-    expect(response.status).toBe(404);
-    expect(body).toContain("Badge not found");
-    expect(mockedFindAssertionById).not.toHaveBeenCalled();
   });
 });

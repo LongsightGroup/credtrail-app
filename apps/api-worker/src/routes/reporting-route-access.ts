@@ -30,7 +30,7 @@ export const createReportingRouteAccessResolver = (deps: ReportingRouteAccessDep
     const reportingAccess = await resolveTenantReportingAccess({
       db,
       tenantId: pathParams.tenantId,
-      userId: roleCheck.session.userId,
+      userId: roleCheck.principal.userId,
       membershipRole: roleCheck.membershipRole,
     });
 

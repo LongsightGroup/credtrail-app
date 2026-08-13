@@ -65,11 +65,11 @@ export const createTenantGovernanceReportingAdminWorkspaces = (input: {
       );
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const pageData = await loadReportingPageData({
       c,
       tenantId,
-      sessionUserId: session.userId,
+      sessionUserId: principal.userId,
       membershipRole,
       issuedFrom: reportingQuery.issuedFrom,
       issuedTo: reportingQuery.issuedTo,

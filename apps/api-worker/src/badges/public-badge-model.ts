@@ -21,6 +21,13 @@ export interface VerificationViewModel {
   lifecycle: ResolveAssertionLifecycleStateResult;
 }
 
+/** A public badge model whose canonical public identifier was established by lookup. */
+export interface PublicBadgeViewModel extends VerificationViewModel {
+  assertion: AssertionRecord & {
+    publicId: string;
+  };
+}
+
 export type VerificationLookupResult =
   | {
       status: "ok";
@@ -33,11 +40,7 @@ export type VerificationLookupResult =
 export type PublicBadgeLookupResult =
   | {
       status: "ok";
-      value: VerificationViewModel;
-    }
-  | {
-      status: "redirect";
-      canonicalPath: string;
+      value: PublicBadgeViewModel;
     }
   | {
       status: "not_found";
@@ -65,7 +68,11 @@ export const assertionBelongsToTenant = (tenantId: string, assertionId: string):
 };
 
 export const publicBadgePermalinkSegment = (assertion: AssertionRecord): string => {
-  return assertion.publicId ?? assertion.id;
+  if (assertion.publicId === null) {
+    throw new Error(`Assertion "${assertion.id}" is missing its public badge identifier`);
+  }
+
+  return assertion.publicId;
 };
 
 export const publicBadgePathForAssertion = (assertion: AssertionRecord): string => {
@@ -165,86 +172,42 @@ export const loadPublicBadgeViewModel = async (
 
   const assertionByPublicId = await findAssertionByPublicId(db, trimmedIdentifier);
 
-  if (assertionByPublicId !== null) {
-    const credential = await loadCredentialForAssertion(store, assertionByPublicId);
-    const recipientDisplayName = await loadRecipientDisplayNameForAssertion(
-      db,
-      assertionByPublicId,
-    );
-    const lifecycle = (await resolveAssertionLifecycleState(
-      db,
-      assertionByPublicId.tenantId,
-      assertionByPublicId.id,
-    )) ?? {
-      state: assertionByPublicId.revokedAt === null ? "active" : "revoked",
-      source: assertionByPublicId.revokedAt === null ? "default_active" : "assertion_revocation",
-      reasonCode: null,
-      reason:
-        assertionByPublicId.revokedAt === null ? null : "credential has been revoked by issuer",
-      transitionedAt: assertionByPublicId.revokedAt,
-      revokedAt: assertionByPublicId.revokedAt,
-    };
-
-    return {
-      status: "ok",
-      value: {
-        assertion: assertionByPublicId,
-        credential,
-        recipientDisplayName,
-        lifecycle,
-      },
-    };
-  }
-
-  const tenantScopedCredentialId = parseTenantScopedCredentialId(trimmedIdentifier);
-
-  if (tenantScopedCredentialId === null) {
+  if (assertionByPublicId === null) {
     return {
       status: "not_found",
     };
   }
 
-  const assertion = await findAssertionById(
+  if (assertionByPublicId.publicId === null) {
+    throw new Error(`Assertion "${assertionByPublicId.id}" is missing its public badge identifier`);
+  }
+
+  const assertion = {
+    ...assertionByPublicId,
+    publicId: assertionByPublicId.publicId,
+  };
+  const credential = await loadCredentialForAssertion(store, assertion);
+  const recipientDisplayName = await loadRecipientDisplayNameForAssertion(db, assertion);
+  const lifecycle = (await resolveAssertionLifecycleState(
     db,
-    tenantScopedCredentialId.tenantId,
-    trimmedIdentifier,
-  );
-
-  if (assertion === null) {
-    return {
-      status: "not_found",
-    };
-  }
-
-  if (publicBadgePermalinkSegment(assertion) === trimmedIdentifier) {
-    const credential = await loadCredentialForAssertion(store, assertion);
-    const recipientDisplayName = await loadRecipientDisplayNameForAssertion(db, assertion);
-    const lifecycle = (await resolveAssertionLifecycleState(
-      db,
-      assertion.tenantId,
-      assertion.id,
-    )) ?? {
-      state: assertion.revokedAt === null ? "active" : "revoked",
-      source: assertion.revokedAt === null ? "default_active" : "assertion_revocation",
-      reasonCode: null,
-      reason: assertion.revokedAt === null ? null : "credential has been revoked by issuer",
-      transitionedAt: assertion.revokedAt,
-      revokedAt: assertion.revokedAt,
-    };
-
-    return {
-      status: "ok",
-      value: {
-        assertion,
-        credential,
-        recipientDisplayName,
-        lifecycle,
-      },
-    };
-  }
+    assertion.tenantId,
+    assertion.id,
+  )) ?? {
+    state: assertion.revokedAt === null ? "active" : "revoked",
+    source: assertion.revokedAt === null ? "default_active" : "assertion_revocation",
+    reasonCode: null,
+    reason: assertion.revokedAt === null ? null : "credential has been revoked by issuer",
+    transitionedAt: assertion.revokedAt,
+    revokedAt: assertion.revokedAt,
+  };
 
   return {
-    status: "redirect",
-    canonicalPath: publicBadgePathForAssertion(assertion),
+    status: "ok",
+    value: {
+      assertion,
+      credential,
+      recipientDisplayName,
+      lifecycle,
+    },
   };
 };

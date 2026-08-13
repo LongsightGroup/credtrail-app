@@ -90,7 +90,7 @@ export const registerTenantLearnerRecordAdminRoutes = (
     return renderLearnerRecordImportWorkspace(
       c,
       pathParams.tenantId,
-      roleCheck.session.userId,
+      roleCheck.principal.userId,
       roleCheck.membershipRole,
     );
   });
@@ -119,7 +119,7 @@ export const registerTenantLearnerRecordAdminRoutes = (
     return handleLearnerRecordImportUpload({
       c,
       tenantId: pathParams.tenantId,
-      sessionUserId: roleCheck.session.userId,
+      sessionUserId: roleCheck.principal.userId,
       membershipRole: roleCheck.membershipRole,
       mode: "preview",
     });
@@ -149,7 +149,7 @@ export const registerTenantLearnerRecordAdminRoutes = (
     return handleLearnerRecordImportUpload({
       c,
       tenantId: pathParams.tenantId,
-      sessionUserId: roleCheck.session.userId,
+      sessionUserId: roleCheck.principal.userId,
       membershipRole: roleCheck.membershipRole,
       mode: "apply",
     });
@@ -201,7 +201,7 @@ export const registerTenantLearnerRecordAdminRoutes = (
       return renderLearnerRecordImportWorkspace(
         c,
         pathParams.tenantId,
-        roleCheck.session.userId,
+        roleCheck.principal.userId,
         roleCheck.membershipRole,
         {
           defaults: {
@@ -263,7 +263,7 @@ export const registerTenantLearnerRecordAdminRoutes = (
     const pageData = await loadLearnerRecordReviewPageData({
       c,
       tenantId: pathParams.tenantId,
-      sessionUserId: roleCheck.session.userId,
+      sessionUserId: roleCheck.principal.userId,
       membershipRole: roleCheck.membershipRole,
       ...(reviewQuery.learner ? { learner: reviewQuery.learner } : {}),
     });

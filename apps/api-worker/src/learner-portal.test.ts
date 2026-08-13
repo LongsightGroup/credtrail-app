@@ -146,8 +146,6 @@ const loadAppWithMockedAuthProviders = async (input: {
   } | null;
   betterAuthRequestedTenant?: {
     tenantId: string;
-    source: "route" | "legacy_session";
-    authoritative: boolean;
   } | null;
 }): Promise<{
   app: typeof app;

@@ -107,7 +107,7 @@ export const registerTenantAuthManagementRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
 
@@ -142,7 +142,7 @@ export const registerTenantAuthManagementRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "tenant.auth_policy_upserted",
       targetType: "tenant_auth_policy",
       targetId: pathParams.tenantId,
@@ -199,7 +199,7 @@ export const registerTenantAuthManagementRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
 
@@ -230,7 +230,7 @@ export const registerTenantAuthManagementRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "tenant.auth_provider_created",
       targetType: "tenant_auth_provider",
       targetId: provider.id,
@@ -267,7 +267,7 @@ export const registerTenantAuthManagementRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
 
@@ -325,7 +325,7 @@ export const registerTenantAuthManagementRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "tenant.auth_provider_updated",
       targetType: "tenant_auth_provider",
       targetId: provider.id,
@@ -349,7 +349,7 @@ export const registerTenantAuthManagementRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
 
@@ -362,7 +362,7 @@ export const registerTenantAuthManagementRoutes = (
     if (removed) {
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "tenant.auth_provider_deleted",
         targetType: "tenant_auth_provider",
         targetId: pathParams.providerId,

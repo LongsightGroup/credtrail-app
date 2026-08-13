@@ -151,7 +151,6 @@ export const createLiveBadgeRuleApprovalFixture =
           type: "course_completion",
           courseId: "course_approval_e2e",
           minCompletionPercent: 100,
-          requireCompleted: true,
         },
       }),
       changeSummary: "Create browser approval fixture",

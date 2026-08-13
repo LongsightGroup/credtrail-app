@@ -210,7 +210,7 @@ interface RegisterTenantAdminPageRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: { userId: string };
+        principal: { userId: string };
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -482,18 +482,18 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const [tenant, sharedData, badgeRules] = await Promise.all([
       findTenantById(db, route.tenantId),
       loadInstitutionAdminRuleBuilderSharedData(db, {
         tenantId: route.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         ...(route.draftId === undefined ? {} : { draftId: route.draftId }),
       }),
       resolveListBadgeIssuanceRulesInput(db, {
         tenantId: route.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         membershipRole,
       }).then((listInput) => listBadgeIssuanceRules(db, listInput)),
     ]);
@@ -508,7 +508,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     ) {
       await setAdminListMessageFlash(c, {
         tenantId: route.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         workspace: "rules",
         tone: "error",
         message: "That unfinished draft was not found.",
@@ -549,7 +549,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       c,
       institutionAdminRuleBuilderPage({
         tenant,
-        userId: session.userId,
+        userId: principal.userId,
         ...(sharedData.currentUser?.email === undefined
           ? {}
           : { userEmail: sharedData.currentUser.email }),
@@ -615,7 +615,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const tenant = await findTenantById(db, pathParams.tenantId);
 
@@ -633,7 +633,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     if (editRule === null) {
       await setAdminListMessageFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         workspace: "rules",
         tone: "error",
         message: "That rule was not found.",
@@ -651,7 +651,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     if (!canEditBadgeIssuanceRuleDraft(editRule, editRuleVersions) || latestVersion === null) {
       await setAdminListMessageFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         workspace: "rules",
         tone: "error",
         message: BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE,
@@ -663,12 +663,12 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     const [sharedData, badgeRules] = await Promise.all([
       loadInstitutionAdminRuleBuilderSharedData(db, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         ruleId: pathParams.ruleId,
       }),
       resolveListBadgeIssuanceRulesInput(db, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         membershipRole,
       }).then((listInput) => listBadgeIssuanceRules(db, listInput)),
     ]);
@@ -699,7 +699,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       c,
       institutionAdminRuleBuilderPage({
         tenant,
-        userId: session.userId,
+        userId: principal.userId,
         ...(sharedData.currentUser?.email === undefined
           ? {}
           : { userEmail: sharedData.currentUser.email }),

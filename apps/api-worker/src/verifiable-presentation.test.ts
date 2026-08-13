@@ -217,8 +217,6 @@ beforeEach(() => {
 
       return {
         tenantId: "tenant_123",
-        source: "legacy_session" as const,
-        authoritative: true,
       };
     },
   );

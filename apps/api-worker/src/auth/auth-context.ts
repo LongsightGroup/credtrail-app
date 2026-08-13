@@ -9,8 +9,6 @@ export interface AuthenticatedPrincipal {
 
 export interface RequestedTenantContext {
   tenantId: string;
-  source: "route" | "legacy_session";
-  authoritative: boolean;
 }
 
 export interface AuthContextVariables {

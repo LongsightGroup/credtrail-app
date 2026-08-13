@@ -47,8 +47,6 @@ const requestedTenantFromCookie = (context: AppContext): RequestedTenantContext 
 
   return {
     tenantId,
-    source: "route",
-    authoritative: true,
   };
 };
 
@@ -58,8 +56,6 @@ export const rememberRequestedTenant = (
 ): RequestedTenantContext => {
   const requestedTenant: RequestedTenantContext = {
     tenantId,
-    source: "route",
-    authoritative: true,
   };
 
   setCookie(context, REQUESTED_TENANT_COOKIE_NAME, tenantId, {
@@ -120,8 +116,6 @@ const rememberRequestedTenantForEmbeddedLaunch = (
 ): RequestedTenantContext => {
   const requestedTenant: RequestedTenantContext = {
     tenantId,
-    source: "route",
-    authoritative: true,
   };
 
   setCookie(context, REQUESTED_TENANT_COOKIE_NAME, tenantId, {

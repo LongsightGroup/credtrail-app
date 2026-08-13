@@ -20,17 +20,17 @@ export interface BadgeTemplateIssuerAccessInput {
   ) => Promise<
     | Response
     | {
-        session: { userId: string };
+        principal: { userId: string };
         membershipRole: TenantMembershipRole;
       }
   >;
   requireScopedOrgUnitPermission: RequireScopedOrgUnitPermission;
-  notFound: (context: { session: { userId: string } }) => Response | Promise<Response>;
+  notFound: (context: { principal: { userId: string } }) => Response | Promise<Response>;
 }
 
 export interface BadgeTemplateIssuerAccessContext {
   db: SqlDatabase;
-  session: { userId: string };
+  principal: { userId: string };
   membershipRole: TenantMembershipRole;
   template: BadgeTemplateRecord;
 }
@@ -52,15 +52,15 @@ export const withBadgeTemplateIssuerAccess = async (
   const db = input.resolveDatabase(input.c.env);
   const template = await findBadgeTemplateById(db, input.tenantId, input.badgeTemplateId);
 
-  const { session, membershipRole } = roleCheck;
+  const { principal, membershipRole } = roleCheck;
 
   if (template === null) {
-    return input.notFound({ session });
+    return input.notFound({ principal });
   }
   const scopeCheck = await input.requireScopedOrgUnitPermission(input.c, {
     db,
     tenantId: input.tenantId,
-    userId: session.userId,
+    userId: principal.userId,
     membershipRole,
     orgUnitId: template.ownerOrgUnitId,
     requiredRole: "issuer",
@@ -73,7 +73,7 @@ export const withBadgeTemplateIssuerAccess = async (
 
   return handler({
     db,
-    session,
+    principal,
     membershipRole,
     template,
   });

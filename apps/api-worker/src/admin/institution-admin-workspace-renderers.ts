@@ -61,7 +61,7 @@ interface InstitutionAdminWorkspaceRendererDeps<TPageData extends InstitutionAdm
   ) => Promise<
     | Response
     | {
-        session: { userId: string };
+        principal: { userId: string };
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -137,10 +137,10 @@ const renderInstitutionAdminListFlashWorkspace = async <
     return loaded;
   }
 
-  const { pageData, session } = loaded;
+  const { pageData, principal } = loaded;
   const flash = await readListWorkspaceFlash(c, {
     tenantId,
-    userId: session.userId,
+    userId: principal.userId,
     workspace: config.workspace,
   });
 
@@ -170,7 +170,7 @@ export const renderInstitutionAdminRulesWorkspace = async <
   if (!parsedQuery.ok) {
     await setAdminListMessageFlash(c, {
       tenantId,
-      userId: roleCheck.session.userId,
+      userId: roleCheck.principal.userId,
       workspace: "rules",
       tone: "error",
       message: "Those rule filters or page controls were invalid. Review the list and try again.",
@@ -182,7 +182,7 @@ export const renderInstitutionAdminRulesWorkspace = async <
   const pageData = await deps.loadInstitutionAdminPageData(
     c,
     tenantId,
-    roleCheck.session.userId,
+    roleCheck.principal.userId,
     roleCheck.membershipRole,
     {
       badgeRuleRegistryQuery: {
@@ -205,10 +205,10 @@ export const renderInstitutionAdminRulesWorkspace = async <
     throw new Error("Badge rule registry page data was not loaded");
   }
 
-  const session = roleCheck.session;
+  const principal = roleCheck.principal;
   const flash = await readListWorkspaceFlash(c, {
     tenantId,
-    userId: session.userId,
+    userId: principal.userId,
     workspace: "rules",
   });
   const db = deps.resolveDatabase(c.env);
@@ -216,7 +216,7 @@ export const renderInstitutionAdminRulesWorkspace = async <
     loadTenantBadgeRuleValueLists(db, tenantId),
     listBadgeIssuanceRuleBuilderDraftsForUser(db, {
       tenantId,
-      userId: session.userId,
+      userId: principal.userId,
     }),
   ]);
 
@@ -282,10 +282,10 @@ export const renderInstitutionAdminReviewQueueWorkspace = async <
     return loaded;
   }
 
-  const { pageData, session } = loaded;
+  const { pageData, principal } = loaded;
   const flash = await readListWorkspaceFlash(c, {
     tenantId,
-    userId: session.userId,
+    userId: principal.userId,
     workspace: "operations_review_queue",
   });
   const entries = await loadBadgeRuleReviewQueueEntries(deps.resolveDatabase(c.env), tenantId, {
@@ -404,10 +404,10 @@ export const renderInstitutionAdminAuthenticationWorkspace = async <
     return loaded;
   }
 
-  const { pageData, session } = loaded;
+  const { pageData, principal } = loaded;
   const flash = await readListWorkspaceFlash(c, {
     tenantId,
-    userId: session.userId,
+    userId: principal.userId,
     workspace: "access_authentication",
   });
   const editProviderId = (c.req.query("editProvider") ?? "").trim();
@@ -466,10 +466,10 @@ export const renderInstitutionAdminLmsConnectionsWorkspace = async <
     return loaded;
   }
 
-  const { pageData, session } = loaded;
+  const { pageData, principal } = loaded;
   const flash = await readListWorkspaceFlash(c, {
     tenantId,
-    userId: session.userId,
+    userId: principal.userId,
     workspace: "access_lms_connections",
   });
   const dynamicRegistrationUrl = await buildTenantLtiDynamicRegistrationInviteUrl(c.env, tenantId);
@@ -509,10 +509,10 @@ export const renderInstitutionAdminLmsConnectionNewWorkspace = async <
     return loaded;
   }
 
-  const { pageData, session } = loaded;
+  const { pageData, principal } = loaded;
   const flash = await readListWorkspaceFlash(c, {
     tenantId,
-    userId: session.userId,
+    userId: principal.userId,
     workspace: "access_lms_connections",
   });
 
@@ -551,10 +551,10 @@ export const renderInstitutionAdminLmsConnectionEditWorkspace = async <
     return loaded;
   }
 
-  const { pageData, session } = loaded;
+  const { pageData, principal } = loaded;
   const flash = await readListWorkspaceFlash(c, {
     tenantId,
-    userId: session.userId,
+    userId: principal.userId,
     workspace: "access_lms_connections",
   });
 
@@ -565,7 +565,7 @@ export const renderInstitutionAdminLmsConnectionEditWorkspace = async <
   } catch {
     await setAdminListMessageFlash(c, {
       tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       workspace: "access_lms_connections",
       tone: "error",
       message: "LMS connection not found.",
@@ -583,7 +583,7 @@ export const renderInstitutionAdminLmsConnectionEditWorkspace = async <
   if (connection === null) {
     await setAdminListMessageFlash(c, {
       tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       workspace: "access_lms_connections",
       tone: "error",
       message: "LMS connection not found.",
@@ -627,10 +627,10 @@ export const renderInstitutionAdminManualIssueWorkspace = async <
     return loaded;
   }
 
-  const { pageData, session } = loaded;
+  const { pageData, principal } = loaded;
   const flash = await consumeAdminManualIssueFlash(c, {
     tenantId,
-    userId: session.userId,
+    userId: principal.userId,
   });
   const pathwayIssuanceQuery = safeParseLearnerPathwayIssuanceQuery({
     pathwayHandoffId: c.req.query("pathwayHandoffId"),

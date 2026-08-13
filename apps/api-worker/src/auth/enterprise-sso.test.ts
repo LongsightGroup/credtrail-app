@@ -359,8 +359,6 @@ describe("enterprise SSO adapter", () => {
       resolveRequestedTenantContext: vi.fn(() =>
         Promise.resolve({
           tenantId: "tenant_123",
-          source: "route" as const,
-          authoritative: true,
         }),
       ),
       rememberRequestedTenant: vi.fn(),

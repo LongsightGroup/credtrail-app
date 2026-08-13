@@ -161,8 +161,6 @@ const loadAppWithMockedHostedAuthProviders = async (options?: {
   };
   betterAuthRequestedTenant?: {
     tenantId: string;
-    source: "route" | "legacy_session";
-    authoritative: boolean;
   } | null;
 }): Promise<{
   app: typeof app;
@@ -180,8 +178,6 @@ const loadAppWithMockedHostedAuthProviders = async (options?: {
     options?.betterAuthRequestedTenant === undefined
       ? {
           tenantId: "tenant_123",
-          source: "route" as const,
-          authoritative: true,
         }
       : options.betterAuthRequestedTenant;
   let betterAuthAuthenticated = options?.betterAuthInitiallyAuthenticated ?? false;
@@ -1325,8 +1321,6 @@ describe("magic-link auth routes", () => {
       betterAuthInitiallyAuthenticated: true,
       betterAuthRequestedTenant: {
         tenantId: "tenant_456",
-        source: "route",
-        authoritative: true,
       },
     });
 

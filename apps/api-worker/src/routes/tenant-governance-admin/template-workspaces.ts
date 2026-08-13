@@ -92,7 +92,7 @@ export const createTenantGovernanceTemplateAdminWorkspaces = (input: {
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const searchQuery = (c.req.query("q") ?? "").trim();
     const includeArchived =
       c.req.query("includeArchived") === "1" || c.req.query("includeArchived") === "true";
@@ -119,7 +119,7 @@ export const createTenantGovernanceTemplateAdminWorkspaces = (input: {
     const pageData = await loadInstitutionAdminTemplatesPageData(
       c,
       tenantId,
-      session.userId,
+      principal.userId,
       membershipRole,
       { includeArchived },
     );
@@ -221,7 +221,7 @@ export const createTenantGovernanceTemplateAdminWorkspaces = (input: {
 
     const flash = await consumeAdminListMessageFlash(c, {
       tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       workspace: "badge_templates",
     });
 
@@ -330,11 +330,11 @@ export const createTenantGovernanceTemplateAdminWorkspaces = (input: {
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const shellData = await loadInstitutionAdminShellData(
       c,
       tenantId,
-      session.userId,
+      principal.userId,
       membershipRole,
     );
 

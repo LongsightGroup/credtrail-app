@@ -84,7 +84,7 @@ export const registerTenantApiKeyRoutes = (input: RegisterTenantApiKeyRoutesInpu
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const rawApiKey = `ctak_${generateOpaqueToken()}${generateOpaqueToken()}`;
     const keyHash = await sha256Hex(rawApiKey);
     const keyPrefix = rawApiKey.slice(0, 12);
@@ -98,13 +98,13 @@ export const registerTenantApiKeyRoutes = (input: RegisterTenantApiKeyRoutesInpu
       keyPrefix,
       keyHash,
       scopesJson: JSON.stringify(scopes),
-      createdByUserId: session.userId,
+      createdByUserId: principal.userId,
       expiresAt: request.expiresAt,
     });
 
     await createAuditLog(resolveDatabase(c.env), {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "tenant.api_key_created",
       targetType: "tenant_api_key",
       targetId: keyRecord.id,
@@ -165,7 +165,7 @@ export const registerTenantApiKeyRoutes = (input: RegisterTenantApiKeyRoutesInpu
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const revokedAt = request.revokedAt ?? new Date().toISOString();
     const revoked = await revokeTenantApiKey(resolveDatabase(c.env), {
       tenantId: pathParams.tenantId,
@@ -176,7 +176,7 @@ export const registerTenantApiKeyRoutes = (input: RegisterTenantApiKeyRoutesInpu
     if (revoked) {
       await createAuditLog(resolveDatabase(c.env), {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "tenant.api_key_revoked",
         targetType: "tenant_api_key",
         targetId: pathParams.apiKeyId,

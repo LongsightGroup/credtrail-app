@@ -14,11 +14,11 @@ import {
   badgeTemplateCriteriaRegistryHref,
   badgeTemplateShowcaseHref,
 } from "./badge-template-public-links";
-import type { VerificationViewModel } from "./public-badge-model";
+import type { PublicBadgeViewModel } from "./public-badge-model";
 
 export const publicBadgeSummaryPayload = (input: {
   requestUrl: string;
-  model: VerificationViewModel;
+  model: PublicBadgeViewModel;
   formatIsoTimestamp: (timestampIso: string) => string;
 }): Record<string, unknown> => {
   const requestBaseUrl = new URL(input.requestUrl);
@@ -32,15 +32,13 @@ export const publicBadgeSummaryPayload = (input: {
   const issuerId = issuerIdentifierFromCredential(input.model.credential);
   const issuerUrl = issuerUrlFromCredential(input.model.credential);
   const recipientId = recipientFromCredential(input.model.credential);
-  const publicBadgePath = `/badges/${encodeURIComponent(assertion.publicId ?? assertion.id)}`;
+  const publicBadgePath = `/badges/${encodeURIComponent(assertion.publicId)}`;
   const summaryPath = `${publicBadgePath}/summary`;
   const verificationPath = `${publicBadgePath}/verification`;
   const ob3JsonPath = `${publicBadgePath}/jsonld`;
   const credentialDownloadPath = `${publicBadgePath}/download`;
   const credentialPdfDownloadPath = `${publicBadgePath}/download.pdf`;
-  const walletOfferPath = `/credentials/v1/offers/${encodeURIComponent(
-    assertion.publicId ?? assertion.id,
-  )}`;
+  const walletOfferPath = `/credentials/v1/offers/${encodeURIComponent(assertion.publicId)}`;
   const showcasePath = badgeTemplateShowcaseHref(assertion.tenantId, assertion.badgeTemplateId);
   const criteriaRegistryPath = badgeTemplateCriteriaRegistryHref(
     assertion.tenantId,
@@ -52,7 +50,7 @@ export const publicBadgeSummaryPayload = (input: {
   return {
     badge: {
       assertionId: assertion.id,
-      publicBadgeId: assertion.publicId ?? assertion.id,
+      publicBadgeId: assertion.publicId,
       tenantId: assertion.tenantId,
       badgeTemplateId: assertion.badgeTemplateId,
       name: badgeName,

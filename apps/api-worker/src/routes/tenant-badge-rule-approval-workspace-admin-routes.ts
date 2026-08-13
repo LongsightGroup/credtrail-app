@@ -90,7 +90,7 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
 
     const canView = await actorCanViewBadgeRuleVersionApproval(loaded.db, {
       tenantId: loaded.version.tenantId,
-      actorUserId: loaded.session.userId,
+      actorUserId: loaded.principal.userId,
       actorRole: loaded.membershipRole,
       version: loaded.version,
       approvalSteps,
@@ -106,12 +106,12 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
         : findUserById(loaded.db, loaded.version.submittedByUserId);
     const [tenant, user, submittedByUser, approvalEvents, canDecide] = await Promise.all([
       findTenantById(loaded.db, pathParams.tenantId),
-      findUserById(loaded.db, loaded.session.userId),
+      findUserById(loaded.db, loaded.principal.userId),
       submittedByUserPromise,
       listBadgeIssuanceRuleVersionApprovalEvents(loaded.db, pathParams),
       actorCanDecideBadgeRuleVersionApproval(loaded.db, {
         tenantId: loaded.version.tenantId,
-        actorUserId: loaded.session.userId,
+        actorUserId: loaded.principal.userId,
         actorRole: loaded.membershipRole,
         version: loaded.version,
         approvalSteps,
@@ -136,7 +136,7 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
       canDecide,
       canReopen: canReopenApprovedBadgeIssuanceRuleVersion({
         version: loaded.version,
-        actorUserId: loaded.session.userId,
+        actorUserId: loaded.principal.userId,
         actorRole: loaded.membershipRole,
       }),
     };
@@ -152,7 +152,7 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
     const { data, impactPreview } = input;
     const flash = await consumeAdminListMessageFlash(c, {
       tenantId: data.tenant.id,
-      userId: data.session.userId,
+      userId: data.principal.userId,
       workspace: "rule_approvals",
     });
     const navigation = buildBadgeRuleVersionNavigationModel({
@@ -168,7 +168,7 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
       badgeRuleApprovalReviewPage(
         {
           tenant: data.tenant,
-          userId: data.session.userId,
+          userId: data.principal.userId,
           ...(data.user?.email === undefined ? {} : { userEmail: data.user.email }),
           membershipRole: data.membershipRole,
         },
@@ -201,19 +201,19 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const [tenant, user, flash, entries] = await Promise.all([
       findTenantById(db, tenantId),
-      findUserById(db, session.userId),
+      findUserById(db, principal.userId),
       consumeAdminListMessageFlash(c, {
         tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         workspace: "rule_approvals",
       }),
       listPendingBadgeIssuanceRuleApprovalsForActor(db, {
         tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         actorRole: membershipRole,
         limit: 100,
       }),
@@ -230,7 +230,7 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
       badgeRuleApprovalsQueuePage(
         {
           tenant,
-          userId: session.userId,
+          userId: principal.userId,
           ...(user?.email === undefined ? {} : { userEmail: user.email }),
           membershipRole,
         },

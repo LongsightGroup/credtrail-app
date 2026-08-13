@@ -137,13 +137,13 @@ export const registerBadgeRuleVersionRoutes = (
         return roleCheck;
       }
 
-      const { session, membershipRole } = roleCheck;
+      const { principal, membershipRole } = roleCheck;
       const db = resolveDatabase(c.env);
       const submitResult = await submitBadgeIssuanceRuleVersionForApproval(db, {
         tenantId: pathParams.tenantId,
         ruleId: pathParams.ruleId,
         versionId: pathParams.versionId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         actorRole: membershipRole,
       });
 
@@ -187,13 +187,13 @@ export const registerBadgeRuleVersionRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const decisionResult = await decideBadgeIssuanceRuleVersion(resolveDatabase(c.env), {
       tenantId: pathParams.tenantId,
       ruleId: pathParams.ruleId,
       versionId: pathParams.versionId,
       decision: request.decision,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       actorRole: membershipRole,
       ...(request.comment === undefined ? {} : { comment: request.comment }),
     });
@@ -276,7 +276,7 @@ export const registerBadgeRuleVersionRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const currentVersion = await findBadgeIssuanceRuleVersionById(resolveDatabase(c.env), {
       tenantId: pathParams.tenantId,
       ruleId: pathParams.ruleId,
@@ -305,7 +305,7 @@ export const registerBadgeRuleVersionRoutes = (
       tenantId: pathParams.tenantId,
       ruleId: pathParams.ruleId,
       versionId: pathParams.versionId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
     });
 
     if (activatedVersion === null) {
@@ -319,7 +319,7 @@ export const registerBadgeRuleVersionRoutes = (
 
     await createAuditLog(resolveDatabase(c.env), {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "badge_rule.version_activated",
       targetType: "badge_rule_version",
       targetId: activatedVersion.id,

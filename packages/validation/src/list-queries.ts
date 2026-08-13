@@ -11,24 +11,6 @@ import {
   tenantAssertionRecordFilterQueryShape,
 } from "./assertion-record-filter-queries.js";
 
-export const badgeTemplateListQuerySchema = z.object({
-  includeArchived: z.preprocess((input) => {
-    if (input === undefined) {
-      return false;
-    }
-
-    if (input === "true") {
-      return true;
-    }
-
-    if (input === "false") {
-      return false;
-    }
-
-    return input;
-  }, z.boolean()),
-});
-
 export const tenantOrgUnitListQuerySchema = z.object({
   includeInactive: z.preprocess((input) => {
     if (input === undefined) {
@@ -191,8 +173,6 @@ export type LearnerRecordStandardsMappingQuery = z.infer<
   typeof learnerRecordStandardsMappingQuerySchema
 >;
 
-export type BadgeTemplateListQuery = z.infer<typeof badgeTemplateListQuerySchema>;
-
 export type TenantOrgUnitListQuery = z.infer<typeof tenantOrgUnitListQuerySchema>;
 
 export type DelegatedIssuingAuthorityGrantListQuery = z.infer<
@@ -202,10 +182,6 @@ export type DelegatedIssuingAuthorityGrantListQuery = z.infer<
 export type TenantApiKeyListQuery = z.infer<typeof tenantApiKeyListQuerySchema>;
 
 export type TenantAssertionListQuery = z.infer<typeof tenantAssertionListQuerySchema>;
-
-export const parseBadgeTemplateListQuery = (input: unknown): BadgeTemplateListQuery => {
-  return badgeTemplateListQuerySchema.parse(input);
-};
 
 export const parseTenantOrgUnitListQuery = (input: unknown): TenantOrgUnitListQuery => {
   return tenantOrgUnitListQuerySchema.parse(input);

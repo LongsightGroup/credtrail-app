@@ -20,6 +20,7 @@ const baseDefinition = parseCreateBadgeIssuanceRuleRequest({
         {
           type: "course_completion",
           courseId: "course_101",
+          minCompletionPercent: 100,
         },
         {
           type: "grade_threshold",

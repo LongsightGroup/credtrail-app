@@ -76,7 +76,6 @@ export const localDevDemoRule = {
           type: "course_completion",
           courseId: "course-applied-analytics",
           minCompletionPercent: 100,
-          requireCompleted: true,
         },
         {
           type: "grade_threshold",

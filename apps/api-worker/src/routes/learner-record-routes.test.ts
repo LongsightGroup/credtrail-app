@@ -229,8 +229,6 @@ beforeEach(() => {
   });
   mockedResolveBetterAuthRequestedTenant.mockResolvedValue({
     tenantId: "tenant_123",
-    source: "route",
-    authoritative: true,
   });
   mockedCreateLearnerRecordEntry.mockResolvedValue(sampleLearnerRecordEntry());
   mockedEnqueueJobQueueMessage.mockResolvedValue({

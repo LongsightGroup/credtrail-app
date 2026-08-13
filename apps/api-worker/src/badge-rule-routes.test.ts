@@ -1917,6 +1917,7 @@ describe("badge rule routes", () => {
             conditions: {
               type: "course_completion",
               courseId: "course_101",
+              minCompletionPercent: 100,
             },
           },
           lmsConnectionId: "lms_123",

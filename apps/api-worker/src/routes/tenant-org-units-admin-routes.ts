@@ -1,9 +1,4 @@
-import {
-  createAuditLog,
-  createTenantOrgUnit,
-  type SessionRecord,
-  type TenantMembershipRole,
-} from "@credtrail/db";
+import { createAuditLog, createTenantOrgUnit, type TenantMembershipRole } from "@credtrail/db";
 import { parseCreateTenantOrgUnitRequest, parseTenantPathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
 import { buildAccessOrgUnitsAdminPath } from "../admin/access-admin-helpers";
@@ -11,6 +6,7 @@ import { deriveSlugFromDisplayName, readOptionalFormField } from "../admin/admin
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
+import type { AuthenticatedPrincipal } from "../auth/auth-context";
 
 interface RegisterTenantOrgUnitsAdminRoutesInput {
   app: Hono<AppEnv>;
@@ -22,7 +18,7 @@ interface RegisterTenantOrgUnitsAdminRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: SessionRecord;
+        principal: AuthenticatedPrincipal;
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -67,7 +63,7 @@ export const registerTenantOrgUnitsAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const formData = await c.req.formData();
 
     let request: ReturnType<typeof parseCreateTenantOrgUnitRequest>;
@@ -77,7 +73,7 @@ export const registerTenantOrgUnitsAdminRoutes = (
     } catch {
       await setAdminListMessageFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         workspace: "access_org_units",
         tone: "error",
         message: "Enter a display name and unit type, then try again.",
@@ -95,12 +91,12 @@ export const registerTenantOrgUnitsAdminRoutes = (
         slug: request.slug,
         displayName: request.displayName,
         parentOrgUnitId: request.parentOrgUnitId,
-        createdByUserId: session.userId,
+        createdByUserId: principal.userId,
       });
 
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "tenant.org_unit_created",
         targetType: "org_unit",
         targetId: orgUnit.id,
@@ -114,7 +110,7 @@ export const registerTenantOrgUnitsAdminRoutes = (
 
       await setAdminListMessageFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         workspace: "access_org_units",
         tone: "success",
         message: `Created org unit “${orgUnit.displayName}”.`,
@@ -128,7 +124,7 @@ export const registerTenantOrgUnitsAdminRoutes = (
 
       await setAdminListMessageFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         workspace: "access_org_units",
         tone: "error",
         message,

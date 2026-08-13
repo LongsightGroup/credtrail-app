@@ -12,7 +12,7 @@ import type {
   TenantOrgUnitRecord,
 } from "@credtrail/db";
 import type { AppPage } from "../ui/render-page";
-import type { VerificationViewModel } from "./public-badge-model";
+import type { PublicBadgeViewModel } from "./public-badge-model";
 import type {
   AchievementDetails,
   EvidenceDetails,
@@ -48,7 +48,7 @@ export interface CreatePublicBadgePageRenderersInput {
 
 export interface PublicBadgePageRenderers {
   publicBadgeNotFoundPage: (requestUrl: string) => AppPage;
-  publicBadgePage: (requestUrl: string, model: VerificationViewModel) => AppPage;
+  publicBadgePage: (requestUrl: string, model: PublicBadgeViewModel) => AppPage;
   tenantBadgeWallPage: (
     requestUrl: string,
     tenantId: string,

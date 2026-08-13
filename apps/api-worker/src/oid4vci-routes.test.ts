@@ -262,7 +262,9 @@ describe("POST /credentials/v1/credentials", () => {
         method: "POST",
         headers: {
           Authorization: "Bearer oid4vci_at_example",
+          "Content-Type": "application/json",
         },
+        body: "{}",
       },
       env,
     );
@@ -272,7 +274,9 @@ describe("POST /credentials/v1/credentials", () => {
         method: "POST",
         headers: {
           Authorization: "Bearer oid4vci_at_example",
+          "Content-Type": "application/json",
         },
+        body: "{}",
       },
       env,
     );

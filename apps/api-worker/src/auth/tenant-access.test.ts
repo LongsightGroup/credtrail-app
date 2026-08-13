@@ -58,8 +58,6 @@ const samplePrincipal = (): AuthenticatedPrincipal => {
 const requestedTenant = (overrides?: Partial<RequestedTenantContext>): RequestedTenantContext => {
   return {
     tenantId: "tenant_requested",
-    source: "route",
-    authoritative: true,
     ...overrides,
   };
 };
@@ -120,8 +118,6 @@ describe("requirePrincipalTenantRole", () => {
       principal: samplePrincipal(),
       requestedTenant: requestedTenant({
         tenantId: "tenant_path",
-        source: "legacy_session",
-        authoritative: false,
       }),
       allowedRoles: ADMIN_ROLES,
       resolveDatabase: () => fakeDb,
@@ -132,8 +128,6 @@ describe("requirePrincipalTenantRole", () => {
       principal: samplePrincipal(),
       requestedTenant: requestedTenant({
         tenantId: "tenant_path",
-        source: "legacy_session",
-        authoritative: false,
       }),
       membershipRole: "admin",
     });

@@ -9,7 +9,6 @@ import {
   upsertTenantAuthPolicy,
   upsertTenantBreakGlassAccount,
   upsertUserByEmail,
-  type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -25,6 +24,7 @@ import { readOptionalFormField } from "../admin/admin-form-helpers";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
+import type { AuthenticatedPrincipal } from "../auth/auth-context";
 import { breakGlassPasswordResetEnrollmentStatus } from "../auth/break-glass-policy";
 
 interface RegisterTenantAccessEnterpriseAdminRoutesInput {
@@ -49,7 +49,7 @@ interface RegisterTenantAccessEnterpriseAdminRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: SessionRecord;
+        principal: AuthenticatedPrincipal;
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -96,7 +96,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
 
@@ -120,7 +120,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
     } catch {
       return redirectToAuthentication(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Check the login mode and default provider, then try again.",
       });
@@ -136,7 +136,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
       if (provider === null) {
         return redirectToAuthentication(c, {
           tenantId: pathParams.tenantId,
-          userId: session.userId,
+          userId: principal.userId,
           tone: "error",
           message: "Default auth provider not found.",
         });
@@ -153,7 +153,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "tenant.auth_policy_upserted",
       targetType: "tenant_auth_policy",
       targetId: pathParams.tenantId,
@@ -169,7 +169,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
 
     return redirectToAuthentication(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: "Enterprise auth policy saved.",
     });
@@ -184,7 +184,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
 
@@ -212,7 +212,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
     } catch {
       return redirectToAuthentication(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Check the provider label and OIDC configuration JSON, then try again.",
         ...(isUpdate ? { editProvider: providerId } : {}),
@@ -225,7 +225,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
       if (existing === null) {
         return redirectToAuthentication(c, {
           tenantId: pathParams.tenantId,
-          userId: session.userId,
+          userId: principal.userId,
           tone: "error",
           message: "Enterprise auth provider not found.",
         });
@@ -244,7 +244,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
       if (updatedProvider === null) {
         return redirectToAuthentication(c, {
           tenantId: pathParams.tenantId,
-          userId: session.userId,
+          userId: principal.userId,
           tone: "error",
           message: "Enterprise auth provider not found.",
         });
@@ -252,7 +252,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
 
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "tenant.auth_provider_updated",
         targetType: "tenant_auth_provider",
         targetId: updatedProvider.id,
@@ -265,7 +265,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
 
       return redirectToAuthentication(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "success",
         message: `Updated enterprise auth provider “${updatedProvider.label}”.`,
       });
@@ -282,7 +282,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "tenant.auth_provider_created",
       targetType: "tenant_auth_provider",
       targetId: provider.id,
@@ -295,7 +295,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
 
     return redirectToAuthentication(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: `Created enterprise auth provider “${provider.label}”.`,
     });
@@ -310,7 +310,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
 
@@ -323,7 +323,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
     if (providerId.length === 0) {
       return redirectToAuthentication(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Provider ID missing from delete action.",
       });
@@ -334,7 +334,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
     if (existing === null) {
       return redirectToAuthentication(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Enterprise auth provider not found.",
       });
@@ -344,7 +344,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "tenant.auth_provider_deleted",
       targetType: "tenant_auth_provider",
       targetId: providerId,
@@ -356,7 +356,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
 
     return redirectToAuthentication(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: `Deleted enterprise auth provider “${existing.label}”.`,
     });
@@ -371,7 +371,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
 
@@ -392,7 +392,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
     } catch {
       return redirectToAuthentication(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Enter an institution email for the break-glass account.",
       });
@@ -403,7 +403,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
     await upsertTenantBreakGlassAccount(db, {
       tenantId: pathParams.tenantId,
       userId: user.id,
-      createdByUserId: session.userId,
+      createdByUserId: principal.userId,
     });
     const passwordResetStatus = await breakGlassPasswordResetEnrollmentStatus(
       requestBreakGlassPasswordReset,
@@ -418,7 +418,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
     if (membershipResult.created) {
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "membership.role_assigned",
         targetType: "membership",
         targetId: `${pathParams.tenantId}:${user.id}`,
@@ -431,7 +431,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: "tenant.break_glass_account_upserted",
       targetType: "tenant_break_glass_account",
       targetId: `${pathParams.tenantId}:${user.id}`,
@@ -452,7 +452,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
 
     return redirectToAuthentication(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: passwordResetStatus === "failed" ? "error" : "success",
       message: `Break-glass account saved for ${request.email}.${enrollmentNote}`,
     });
@@ -469,7 +469,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
         return roleCheck;
       }
 
-      const { session, membershipRole } = roleCheck;
+      const { principal, membershipRole } = roleCheck;
       const db = resolveDatabase(c.env);
       const enterpriseCheck = await requireEnterpriseTenant(c, pathParams.tenantId, db);
 
@@ -482,7 +482,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
       if (userId.length === 0) {
         return redirectToAuthentication(c, {
           tenantId: pathParams.tenantId,
-          userId: session.userId,
+          userId: principal.userId,
           tone: "error",
           message: "Break-glass account user ID is missing.",
         });
@@ -497,7 +497,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
       if (!revoked) {
         return redirectToAuthentication(c, {
           tenantId: pathParams.tenantId,
-          userId: session.userId,
+          userId: principal.userId,
           tone: "error",
           message: "Break-glass account was not found.",
         });
@@ -505,7 +505,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
 
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "tenant.break_glass_account_revoked",
         targetType: "tenant_break_glass_account",
         targetId: `${pathParams.tenantId}:${userId}`,
@@ -516,7 +516,7 @@ export const registerTenantAccessEnterpriseAdminRoutes = (
 
       return redirectToAuthentication(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "success",
         message: "Break-glass access revoked.",
       });

@@ -35,7 +35,7 @@ interface PublicBadgeRouteValue {
   assertion: {
     id: string;
     tenantId: string;
-    publicId: string | null;
+    publicId: string;
     issuedAt: string;
   };
   credential: JsonObject;
@@ -55,10 +55,6 @@ interface RegisterPublicBadgeRoutesInput<PublicBadgeValue extends PublicBadgeRou
   ) => Promise<
     | {
         status: "not_found";
-      }
-    | {
-        status: "redirect";
-        canonicalPath: string;
       }
     | {
         status: "ok";
@@ -249,9 +245,7 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     value: PublicBadgeValue,
     channel: string,
   ): string | null => {
-    const publicBadgePath = `/badges/${encodeURIComponent(
-      value.assertion.publicId ?? value.assertion.id,
-    )}`;
+    const publicBadgePath = `/badges/${encodeURIComponent(value.assertion.publicId)}`;
     const publicBadgeUrl = new URL(publicBadgePath, requestUrl).toString();
 
     if (channel === "linkedin-feed") {
@@ -273,16 +267,6 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     return null;
   };
 
-  app.get("/badges/:badgeIdentifier/public_url", (c) => {
-    const badgeIdentifier = c.req.param("badgeIdentifier").trim();
-
-    if (badgeIdentifier.length === 0) {
-      return renderAppPage(c, publicBadgeNotFoundPage(publicRequestUrl(c)), 404);
-    }
-
-    return c.redirect(`/badges/${encodeURIComponent(badgeIdentifier)}`, 308);
-  });
-
   app.get("/badges/:badgeIdentifier/wallet-qr.svg", async (c) => {
     const badgeIdentifier = c.req.param("badgeIdentifier");
     const result = await loadPublicBadgeViewModel(
@@ -295,14 +279,9 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
       return c.text("Badge not found", 404);
     }
 
-    if (result.status === "redirect") {
-      return c.redirect(`${result.canonicalPath}/wallet-qr.svg`, 308);
-    }
-
-    const canonicalBadgeIdentifier = result.value.assertion.publicId ?? result.value.assertion.id;
     const walletImportUrls = buildPublicBadgeWalletImportUrls(
       publicRequestUrl(c),
-      canonicalBadgeIdentifier,
+      result.value.assertion.publicId,
     );
     const svg = renderWalletQrCodeSvg(
       walletQrCodePayloadFromDeepLink(walletImportUrls.walletDeepLinkUrl),
@@ -327,10 +306,6 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
       return renderAppPage(c, publicBadgeNotFoundPage(publicRequestUrl(c)), 404);
     }
 
-    if (result.status === "redirect") {
-      return c.redirect(result.canonicalPath, 308);
-    }
-
     await recordPublicEngagement(resolveDatabase(c.env), result.value, "public_badge_view");
     return renderAppPage(c, publicBadgePage(publicRequestUrl(c), result.value));
   });
@@ -345,10 +320,6 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
 
     if (result.status === "not_found") {
       return renderAppPage(c, publicBadgeNotFoundPage(publicRequestUrl(c)), 404);
-    }
-
-    if (result.status === "redirect") {
-      return c.redirect(`${result.canonicalPath}/share/${encodeURIComponent(channel)}`, 308);
     }
 
     const redirectUrl = shareRedirectUrlForChannel(publicRequestUrl(c), result.value, channel);
@@ -372,20 +343,6 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
     c.header("Cache-Control", "no-store");
 
     if (result.status === "not_found") {
-      return c.json(
-        {
-          error: "Badge not found",
-        },
-        404,
-      );
-    }
-
-    if (result.status === "redirect") {
-      if (result.canonicalPath.startsWith("/badges/")) {
-        const canonicalBadgeIdentifier = result.canonicalPath.slice("/badges/".length);
-        return c.redirect(`/badges/${canonicalBadgeIdentifier}/summary`, 308);
-      }
-
       return c.json(
         {
           error: "Badge not found",

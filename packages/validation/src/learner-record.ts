@@ -217,10 +217,6 @@ export type CreateLearnerRecordEntryRequest = z.infer<typeof createLearnerRecord
 
 export type PatchLearnerRecordEntryRequest = z.infer<typeof patchLearnerRecordEntryRequestSchema>;
 
-export const parseLearnerRecordImportRow = (input: unknown): LearnerRecordImportRow => {
-  return learnerRecordImportRowSchema.parse(input);
-};
-
 export const parseLearnerRecordImportBatchDefaults = (
   input: unknown,
 ): LearnerRecordImportBatchDefaults => {

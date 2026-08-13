@@ -112,7 +112,7 @@ describe("badge issuance rule parsers", () => {
             {
               type: "course_completion",
               courseId: "course_101",
-              requireCompleted: true,
+              minCompletionPercent: 100,
             },
             {
               type: "grade_threshold",
@@ -171,6 +171,7 @@ describe("badge issuance rule parsers", () => {
             {
               type: "course_completion",
               courseId: "course_101",
+              minCompletionPercent: 100,
             },
             {
               type: "grade_threshold",
@@ -211,51 +212,27 @@ describe("badge issuance rule parsers", () => {
     expect(JSON.stringify(createRequest.definition.conditions)).toContain(
       '"minCompletionPercent":100',
     );
-    expect(JSON.stringify(createRequest.definition.conditions)).not.toContain("requireCompleted");
   });
 
-  it("normalizes legacy course completion booleans to completion percentages", () => {
-    const requireCompleteDefinition = parseCreateBadgeIssuanceRuleRequest({
-      name: "Legacy complete rule",
-      badgeTemplateId: "badge_template_cs101",
-      badgeTemplateReuseAcknowledged: false,
-      lmsConnectionId: "lms_123",
-      lmsProviderKind: "canvas",
-      action: "save_draft",
-      definition: {
-        conditions: {
-          type: "course_completion",
-          courseId: "course_101",
-          requireCompleted: true,
+  it("rejects the removed course completion boolean", () => {
+    expect(() =>
+      parseCreateBadgeIssuanceRuleRequest({
+        name: "Invalid course completion rule",
+        badgeTemplateId: "badge_template_cs101",
+        badgeTemplateReuseAcknowledged: false,
+        lmsConnectionId: "lms_123",
+        lmsProviderKind: "canvas",
+        action: "save_draft",
+        definition: {
+          conditions: {
+            type: "course_completion",
+            courseId: "course_101",
+            minCompletionPercent: 100,
+            requireCompleted: true,
+          },
         },
-      },
-    }).definition;
-    const requireStartedDefinition = parseCreateBadgeIssuanceRuleRequest({
-      name: "Legacy started rule",
-      badgeTemplateId: "badge_template_cs101",
-      badgeTemplateReuseAcknowledged: false,
-      lmsConnectionId: "lms_123",
-      lmsProviderKind: "canvas",
-      action: "save_draft",
-      definition: {
-        conditions: {
-          type: "course_completion",
-          courseId: "course_101",
-          requireCompleted: false,
-        },
-      },
-    }).definition;
-
-    expect(requireCompleteDefinition.conditions).toEqual({
-      type: "course_completion",
-      courseId: "course_101",
-      minCompletionPercent: 100,
-    });
-    expect(requireStartedDefinition.conditions).toEqual({
-      type: "course_completion",
-      courseId: "course_101",
-      minCompletionPercent: 0,
-    });
+      }),
+    ).toThrow("Unrecognized key");
   });
 
   it("rejects preview evaluation payloads without an LMS connection", () => {
@@ -436,6 +413,7 @@ describe("badge issuance rule parsers", () => {
             type: "course_completion",
             courseId: "course_101",
             courseListId: "brvl_courses",
+            minCompletionPercent: 100,
           },
         },
       });
@@ -491,6 +469,7 @@ describe("badge issuance rule parsers", () => {
           conditions: {
             type: "course_completion",
             courseId: "course_101",
+            minCompletionPercent: 100,
           },
         },
       });

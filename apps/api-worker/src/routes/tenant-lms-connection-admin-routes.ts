@@ -29,7 +29,7 @@ interface RegisterTenantLmsConnectionAdminRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: { userId: string };
+        principal: { userId: string };
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -100,14 +100,14 @@ export const registerTenantLmsConnectionAdminRoutes = (
 
     let request: ReturnType<typeof parseUpsertTenantLmsConnectionRequest>;
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
 
     try {
       request = parseUpsertTenantLmsConnectionRequest(buildUpsertPayloadFromForm(formData));
     } catch {
       await setAdminListMessageFlash(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         workspace: "access_lms_connections",
         tone: "error",
         message: "Check the connection name, provider, and server URL, then try again.",
@@ -131,7 +131,7 @@ export const registerTenantLmsConnectionAdminRoutes = (
       if (existing === null) {
         await setAdminListMessageFlash(c, {
           tenantId: pathParams.tenantId,
-          userId: session.userId,
+          userId: principal.userId,
           workspace: "access_lms_connections",
           tone: "error",
           message: "LMS connection not found.",
@@ -149,7 +149,7 @@ export const registerTenantLmsConnectionAdminRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action: isUpdate ? "tenant.lms_connection.updated" : "tenant.lms_connection.created",
       targetType: "tenant_lms_connection",
       targetId: connection.id,
@@ -161,7 +161,7 @@ export const registerTenantLmsConnectionAdminRoutes = (
 
     await setAdminListMessageFlash(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       workspace: "access_lms_connections",
       tone: "success",
       message: isUpdate ? "LMS connection updated." : "LMS connection saved.",

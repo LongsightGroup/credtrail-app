@@ -7,7 +7,6 @@ import {
   revokeTenantBreakGlassAccount,
   upsertTenantMembershipRole,
   upsertUserByEmail,
-  type SessionRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -26,6 +25,7 @@ import { readOptionalFormField } from "../admin/admin-form-helpers";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import type { AppContext, AppEnv } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
+import type { AuthenticatedPrincipal } from "../auth/auth-context";
 import {
   runTenantMemberInviteWorkflow,
   type TenantMemberInviteResult,
@@ -76,7 +76,7 @@ interface RegisterTenantAccessMembersAdminRoutesInput {
   ) => Promise<
     | Response
     | {
-        session: SessionRecord;
+        principal: AuthenticatedPrincipal;
         membershipRole: TenantMembershipRole;
       }
   >;
@@ -124,7 +124,7 @@ export const registerTenantAccessMembersAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const formData = await c.req.formData();
     const email = readOptionalFormField(formData, "email") ?? "";
     const role = readOptionalFormField(formData, "role");
@@ -140,7 +140,7 @@ export const registerTenantAccessMembersAdminRoutes = (
     } catch {
       return redirectToMembers(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Enter an institution email and tenant role, then try again.",
       });
@@ -152,7 +152,7 @@ export const registerTenantAccessMembersAdminRoutes = (
     const rolePolicyResponse = await assertRoleChangeAllowed(c, {
       db,
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       actorRole: membershipRole,
       targetUserId: user.id,
       previousRole: existingMembership?.role ?? null,
@@ -162,7 +162,7 @@ export const registerTenantAccessMembersAdminRoutes = (
     if (rolePolicyResponse !== null) {
       return redirectToMembers(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "You do not have permission to assign that tenant role.",
       });
@@ -177,7 +177,7 @@ export const registerTenantAccessMembersAdminRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action,
       targetType: "membership",
       targetId: `${pathParams.tenantId}:${user.id}`,
@@ -205,7 +205,7 @@ export const registerTenantAccessMembersAdminRoutes = (
       },
       {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         actorRole: membershipRole,
         userId: user.id,
         email: user.email,
@@ -222,7 +222,7 @@ export const registerTenantAccessMembersAdminRoutes = (
 
     return redirectToMembers(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: `Saved ${user.email} as ${roleResult.membership.role}.${inviteNote}`,
     });
@@ -237,7 +237,7 @@ export const registerTenantAccessMembersAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const formData = await c.req.formData();
     const role = readOptionalFormField(formData, "role");
 
@@ -248,7 +248,7 @@ export const registerTenantAccessMembersAdminRoutes = (
     } catch {
       return redirectToMembers(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Choose a valid tenant role before saving.",
       });
@@ -264,7 +264,7 @@ export const registerTenantAccessMembersAdminRoutes = (
     if (existingMembership === null) {
       return redirectToMembers(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "That tenant member was not found.",
       });
@@ -273,7 +273,7 @@ export const registerTenantAccessMembersAdminRoutes = (
     if (existingMembership.role === request.role) {
       return redirectToMembers(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "success",
         message: "Member role is already set to that value.",
       });
@@ -282,7 +282,7 @@ export const registerTenantAccessMembersAdminRoutes = (
     const rolePolicyResponse = await assertRoleChangeAllowed(c, {
       db,
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       actorRole: membershipRole,
       targetUserId: pathParams.userId,
       previousRole: existingMembership.role,
@@ -292,7 +292,7 @@ export const registerTenantAccessMembersAdminRoutes = (
     if (rolePolicyResponse !== null) {
       return redirectToMembers(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "You do not have permission to change this member to that role.",
       });
@@ -310,7 +310,7 @@ export const registerTenantAccessMembersAdminRoutes = (
 
     await createAuditLog(db, {
       tenantId: pathParams.tenantId,
-      actorUserId: session.userId,
+      actorUserId: principal.userId,
       action,
       targetType: "membership",
       targetId: `${pathParams.tenantId}:${pathParams.userId}`,
@@ -327,7 +327,7 @@ export const registerTenantAccessMembersAdminRoutes = (
 
     return redirectToMembers(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: `Updated ${user?.email ?? "member"} to ${roleResult.membership.role}.`,
     });
@@ -342,7 +342,7 @@ export const registerTenantAccessMembersAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const [membership, user] = await Promise.all([
       findTenantMembership(db, pathParams.tenantId, pathParams.userId),
@@ -352,7 +352,7 @@ export const registerTenantAccessMembersAdminRoutes = (
     if (membership === null || user === null) {
       return redirectToMembers(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "That tenant member was not found.",
       });
@@ -361,7 +361,7 @@ export const registerTenantAccessMembersAdminRoutes = (
     if (!canManageTenantRole(membershipRole, membership.role)) {
       return redirectToMembers(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Only tenant owners can invite owner members.",
       });
@@ -380,7 +380,7 @@ export const registerTenantAccessMembersAdminRoutes = (
       },
       {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         actorRole: membershipRole,
         userId: pathParams.userId,
         email: user.email,
@@ -396,7 +396,7 @@ export const registerTenantAccessMembersAdminRoutes = (
 
     return redirectToMembers(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone,
       message,
     });
@@ -411,7 +411,7 @@ export const registerTenantAccessMembersAdminRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const [membership, user] = await Promise.all([
       findTenantMembership(db, pathParams.tenantId, pathParams.userId),
@@ -421,16 +421,16 @@ export const registerTenantAccessMembersAdminRoutes = (
     if (membership === null) {
       return redirectToMembers(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "That tenant member was not found.",
       });
     }
 
-    if (pathParams.userId === session.userId) {
+    if (pathParams.userId === principal.userId) {
       return redirectToMembers(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "You cannot remove your own tenant membership.",
       });
@@ -439,7 +439,7 @@ export const registerTenantAccessMembersAdminRoutes = (
     if (membership.role === "owner" && membershipRole !== "owner") {
       return redirectToMembers(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "Only tenant owners can remove an owner membership.",
       });
@@ -451,7 +451,7 @@ export const registerTenantAccessMembersAdminRoutes = (
       if (counts.owner <= 1) {
         return redirectToMembers(c, {
           tenantId: pathParams.tenantId,
-          userId: session.userId,
+          userId: principal.userId,
           tone: "error",
           message: "At least one tenant owner must remain.",
         });
@@ -468,7 +468,7 @@ export const registerTenantAccessMembersAdminRoutes = (
     if (removed) {
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
-        actorUserId: session.userId,
+        actorUserId: principal.userId,
         action: "membership.removed",
         targetType: "membership",
         targetId: `${pathParams.tenantId}:${pathParams.userId}`,
@@ -485,7 +485,7 @@ export const registerTenantAccessMembersAdminRoutes = (
     if (!removed) {
       return redirectToMembers(c, {
         tenantId: pathParams.tenantId,
-        userId: session.userId,
+        userId: principal.userId,
         tone: "error",
         message: "No matching tenant membership was found.",
       });
@@ -493,7 +493,7 @@ export const registerTenantAccessMembersAdminRoutes = (
 
     return redirectToMembers(c, {
       tenantId: pathParams.tenantId,
-      userId: session.userId,
+      userId: principal.userId,
       tone: "success",
       message: `Removed tenant access for ${user?.email ?? "member"}.`,
     });

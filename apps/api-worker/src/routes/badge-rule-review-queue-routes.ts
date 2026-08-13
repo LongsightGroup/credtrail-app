@@ -81,7 +81,7 @@ export const registerBadgeRuleReviewQueueRoutes = (
       return roleCheck;
     }
 
-    const { session, membershipRole } = roleCheck;
+    const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
     const result = await resolveBadgeRuleReviewQueueEntry({
       c,
@@ -89,7 +89,7 @@ export const registerBadgeRuleReviewQueueRoutes = (
       tenantId: pathParams.tenantId,
       evaluationId: pathParams.evaluationId,
       request,
-      session,
+      principal,
       membershipRole,
       issueBadgeForTenant,
     });
