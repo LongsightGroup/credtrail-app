@@ -10,6 +10,7 @@ import {
   findAssertionByPublicId,
   findBadgeIssuanceRuleById,
   findBadgeTemplateById,
+  findTenantSigningRegistrationByDid,
   finalizeAssertionIssuance,
   listBadgeIssuanceRules,
   listBadgeIssuanceRuleVersions,
@@ -18,8 +19,10 @@ import {
   upsertTenant,
   upsertTenantLmsConnection,
   upsertTenantMembershipRole,
+  upsertTenantSigningRegistration,
   upsertUserByEmail,
 } from "@credtrail/db";
+import { createDidWeb, generateTenantDidSigningMaterial } from "@credtrail/core-domain";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { authorPreparedBadgeRule } from "../apps/api-worker/src/badges/badge-rule-authoring-service";
@@ -121,6 +124,23 @@ const deleteLocalDevSeedRule = async (tenantId: string, ruleId: string): Promise
     .run();
 };
 
+const ensureLocalDevTenantSigning = async (config: LocalDevSeedTenantConfig): Promise<void> => {
+  const existingRegistration = await findTenantSigningRegistrationByDid(db, config.didWeb);
+
+  if (existingRegistration !== null && existingRegistration.privateJwkJson !== null) {
+    return;
+  }
+
+  const signingMaterial = await generateTenantDidSigningMaterial({ did: config.didWeb });
+  await upsertTenantSigningRegistration(db, {
+    tenantId: config.tenantId,
+    did: signingMaterial.did,
+    keyId: signingMaterial.keyId,
+    publicJwkJson: JSON.stringify(signingMaterial.publicJwk),
+    privateJwkJson: JSON.stringify(signingMaterial.privateJwk),
+  });
+};
+
 const buildSeedTenantConfigs = (): LocalDevSeedTenantConfig[] => {
   const hasRequestedTenant = requestedTenantId !== undefined && requestedTenantId.length > 0;
   const primaryTenantId = requestedTenantId ?? localDevDemoTenantId;
@@ -132,8 +152,7 @@ const buildSeedTenantConfigs = (): LocalDevSeedTenantConfig[] => {
       tenantSlug: primaryTenantSlug,
       displayName: "Demo University",
       issuerDomain: primarySuffix.length === 0 ? "localhost" : `${primaryTenantId}.localhost`,
-      didWeb:
-        primarySuffix.length === 0 ? "did:web:localhost" : `did:web:${primaryTenantId}.localhost`,
+      didWeb: createDidWeb({ host: "localhost", pathSegments: [primaryTenantId] }),
       fixtureSuffix: primarySuffix,
       lmsDisplayName: localDevDemoLmsConnection.displayName,
       lmsProviderKind: localDevDemoLmsConnection.providerKind,
@@ -152,7 +171,7 @@ const buildSeedTenantConfigs = (): LocalDevSeedTenantConfig[] => {
       tenantSlug: "sakai",
       displayName: "Sakai Demo University",
       issuerDomain: "sakai.localhost",
-      didWeb: "did:web:sakai.localhost",
+      didWeb: createDidWeb({ host: "localhost", pathSegments: ["sakai"] }),
       fixtureSuffix: "sakai",
       lmsDisplayName: "Local Demo Sakai",
       lmsProviderKind: "sakai",
@@ -178,6 +197,7 @@ const seedLocalTenant = async (
     didWeb: config.didWeb,
     isActive: true,
   });
+  await ensureLocalDevTenantSigning(config);
 
   const ownerOrgUnitId = await ensureInstitutionOrgUnitForTenant(db, config.tenantId);
   const adminUser = await upsertUserByEmail(db, adminEmail);

@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-import { demoRoutes, firstDayTemplateName, learnerEmail } from "./helpers/demo-routes";
+import { demoRoutes, learnerEmail } from "./helpers/demo-routes";
+import {
+  completeFirstDayWorkflow,
+  createFirstDayWorkflowIdentity,
+} from "./helpers/first-day-workflow";
 
 test("seeded admin can inspect the local demo world", async ({ page }) => {
   await page.goto(demoRoutes.admin);
@@ -20,39 +24,15 @@ test("seeded admin can inspect the local demo world", async ({ page }) => {
 test("@demo guided first-day workflow creates data through normal admin routes", async ({
   page,
 }) => {
-  const templateName = firstDayTemplateName();
+  const identity = createFirstDayWorkflowIdentity(learnerEmail);
 
-  await page.goto(demoRoutes.badgeTemplates);
-  await page.locator("#template-create-panel").evaluate((element) => {
-    if (element instanceof HTMLDetailsElement) {
-      element.open = true;
-    }
-  });
-  await page.getByLabel("Badge name").fill(templateName);
-  await page
-    .getByLabel("Description")
-    .fill("Created by the local guided browser demo so new developers can inspect real data.");
-  await page.getByRole("button", { name: "Create and add artwork" }).click();
-  await expect(page.getByDisplayValue(templateName)).toBeVisible();
-
-  await page.goto(demoRoutes.manualIssue);
-  await page.getByLabel(/recipient email/i).fill(learnerEmail);
-  await page
-    .getByLabel(/badge template/i)
-    .selectOption({ label: "Applied Analytics TrustEd Credential" });
-  await page.getByRole("button", { name: /issue/i }).click();
-  await expect(page.getByText(new RegExp(`Badge issued for ${learnerEmail}`, "i"))).toBeVisible();
-
-  await page.goto(demoRoutes.issuedBadges);
-  await page.getByLabel(/recipient/i).fill(learnerEmail);
-  await page.getByRole("button", { name: /search issued badges/i }).click();
-  await expect(page.getByText(learnerEmail)).toBeVisible();
+  await completeFirstDayWorkflow(page, identity);
 
   console.log(
     JSON.stringify(
       {
-        createdTemplate: templateName,
-        issuedTo: learnerEmail,
+        createdTemplate: identity.templateName,
+        issuedTo: identity.recipientEmail,
         continueExploring: {
           badgeTemplates: demoRoutes.badgeTemplates,
           issuedBadges: demoRoutes.issuedBadges,

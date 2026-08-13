@@ -8,6 +8,7 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
+import { managedBadgeTemplateImagePath } from "@credtrail/validation";
 import { createTestBadgeIssuanceRule } from "../../../packages/db/src/badge-issuance-rule-test-fixtures";
 
 import { loadLocalDevEnv, requireEnv } from "../../../scripts/local-dev-env.mjs";
@@ -115,7 +116,11 @@ export const createLiveBadgeRuleApprovalFixture =
         "Approval Workflow Badge",
         "Awarded after the governed browser workflow is approved.",
         "https://example.edu/criteria/approval-workflow",
-        "https://example.edu/badges/approval-workflow.png",
+        `https://credtrail.org${managedBadgeTemplateImagePath({
+          tenantId,
+          badgeTemplateId,
+          assetId: `asset_${suffix}`,
+        })}`,
         author.id,
         ownerOrgUnitId,
         '{"source":"e2e_test"}',

@@ -27,7 +27,20 @@ test("local seed uses the same localhost issuer identity", async () => {
   const source = await readFile(new URL("./seed-local-dev.ts", import.meta.url), "utf8");
 
   assert.match(source, /issuerDomain:\s*primarySuffix\.length === 0 \? "localhost"/);
-  assert.match(source, /primarySuffix\.length === 0 \? "did:web:localhost"/);
+  assert.match(
+    source,
+    /didWeb:\s*createDidWeb\(\{ host: "localhost", pathSegments: \[primaryTenantId\] \}\)/,
+  );
+});
+
+test("local seed provisions signing material before browser workflows run", async () => {
+  const source = await readFile(new URL("./seed-local-dev.ts", import.meta.url), "utf8");
+  const tenantIndex = source.indexOf("await upsertTenant(db");
+  const signingIndex = source.indexOf("await ensureLocalDevTenantSigning(config)");
+
+  assert.notEqual(tenantIndex, -1);
+  assert.notEqual(signingIndex, -1);
+  assert.ok(tenantIndex < signingIndex);
 });
 
 test("local seed prepares dependencies before authoring the seeded badge rule", async () => {
