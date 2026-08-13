@@ -3,7 +3,11 @@ import {
   buildLearnerProfileOrEmailAccessFilter,
   buildLegacyLearnerEmailAccessFilter,
 } from "./learner-assertion-access-sql";
-import { parseStoredAssertionAchievementSnapshot } from "./assertion-achievement-snapshot.js";
+import { assertionAchievementSnapshotSelectSql } from "./assertion-achievement-snapshot-sql.js";
+import {
+  resolveStoredAssertionAchievement,
+  type StoredAssertionAchievementInput,
+} from "./assertion-achievement-snapshot.js";
 import { findLearnerProfileByIdentity, listLearnerIdentitiesByProfile } from "./learner-profiles";
 import type { SqlDatabase } from "./tenant-scope";
 import { findUserById, normalizeEmail } from "./users";
@@ -39,12 +43,10 @@ interface LearnerBadgeSummaryQuery {
   claimableOnly?: boolean | undefined;
 }
 
-interface LearnerBadgeSummaryRow {
+interface LearnerBadgeSummaryRow extends StoredAssertionAchievementInput {
   assertionId: string;
   assertionPublicId: string | null;
   tenantId: string;
-  badgeTemplateId: string;
-  achievementSnapshotJson: string;
   issuedAt: string;
   revokedAt: string | null;
 }
@@ -55,13 +57,13 @@ const learnerBadgeSummarySelectClause = `
     assertions.public_id AS assertionPublicId,
     assertions.tenant_id AS tenantId,
     assertions.badge_template_id AS badgeTemplateId,
-    assertions.achievement_snapshot_json AS achievementSnapshotJson,
+    ${assertionAchievementSnapshotSelectSql},
     assertions.issued_at AS issuedAt,
     assertions.revoked_at AS revokedAt
 `;
 
 const mapLearnerBadgeSummaryRow = (row: LearnerBadgeSummaryRow): LearnerBadgeSummaryRecord => {
-  const achievement = parseStoredAssertionAchievementSnapshot(row.achievementSnapshotJson);
+  const achievement = resolveStoredAssertionAchievement(row).snapshot;
 
   return {
     assertionId: row.assertionId,

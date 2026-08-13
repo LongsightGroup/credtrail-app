@@ -1,4 +1,5 @@
 import type { BadgeAchievementSnapshot } from "@credtrail/validation";
+import type { AssertionAchievementSnapshotStatus } from "./assertion-achievement-snapshot.js";
 import type { OrgUnitType } from "./tenant-org-units";
 import type { RecipientIdentifierInput } from "./learner-profiles";
 
@@ -9,6 +10,7 @@ export interface AssertionRecord {
   learnerProfileId: string | null;
   badgeTemplateId: string;
   achievementSnapshot: BadgeAchievementSnapshot;
+  achievementSnapshotStatus: AssertionAchievementSnapshotStatus;
   recipientIdentity: string;
   recipientIdentityType: "email" | "email_sha256" | "did" | "url";
   vcR2Key: string;

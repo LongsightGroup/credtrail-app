@@ -228,6 +228,7 @@ describe("GET /v1/tenants/:tenantId/assertions/:assertionId/evidence", () => {
       publicId: "cred-abc123",
       learnerProfileId: null,
       badgeTemplateId: "tenant_123:badge_template_001",
+      achievementSnapshotStatus: "captured",
       achievementSnapshot: {
         badgeTemplateId: "tenant_123:badge_template_001",
         title: "Applied Analytics",
@@ -283,6 +284,7 @@ describe("GET /v1/tenants/:tenantId/assertions/:assertionId/evidence", () => {
       publicId: "cred-abc123",
       learnerProfileId: null,
       badgeTemplateId: "tenant_123:badge_template_001",
+      achievementSnapshotStatus: "captured",
       achievementSnapshot: {
         badgeTemplateId: "tenant_123:badge_template_001",
         title: "Applied Analytics",
@@ -380,6 +382,7 @@ describe("GET /v1/tenants/:tenantId/assertions/:assertionId/evidence", () => {
       publicId: "cred-abc123",
       learnerProfileId: null,
       badgeTemplateId: "tenant_123:badge_template_001",
+      achievementSnapshotStatus: "captured",
       achievementSnapshot: {
         badgeTemplateId: "tenant_123:badge_template_001",
         title: "Applied Analytics",

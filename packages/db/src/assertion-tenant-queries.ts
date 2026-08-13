@@ -2,6 +2,7 @@ import {
   bindLearnerProfileOrEmailAccessParams,
   buildLearnerProfileOrEmailAccessFilter,
 } from "./learner-assertion-access-sql";
+import { assertionAchievementSnapshotSelectSql } from "./assertion-achievement-snapshot-sql.js";
 import { listLearnerIdentitiesByProfile } from "./learner-profiles";
 import { listTenantOrgUnits } from "./tenant-org-units";
 import { normalizeEmail } from "./users";
@@ -61,7 +62,7 @@ export const listLearnerRecordAssertionExports = async (
         assertions.tenant_id AS tenantId,
         assertions.learner_profile_id AS learnerProfileId,
         assertions.badge_template_id AS badgeTemplateId,
-        assertions.achievement_snapshot_json AS achievementSnapshotJson,
+        ${assertionAchievementSnapshotSelectSql},
         assertions.recipient_identity AS recipientIdentity,
         assertions.recipient_identity_type AS recipientIdentityType,
         assertions.vc_r2_key AS vcR2Key,
@@ -109,7 +110,7 @@ export const listTenantAssertions = async (
           assertions.tenant_id AS tenantId,
           assertions.public_id AS publicId,
           assertions.badge_template_id AS badgeTemplateId,
-          assertions.achievement_snapshot_json AS achievementSnapshotJson,
+          ${assertionAchievementSnapshotSelectSql},
           assertions.recipient_identity AS recipientIdentity,
           assertions.recipient_identity_type AS recipientIdentityType,
           assertions.issued_at AS issuedAt,
@@ -163,7 +164,7 @@ export const listTenantAssertionLedgerExportRows = async (
           assertions.tenant_id AS tenantId,
           assertions.public_id AS publicId,
           assertions.badge_template_id AS badgeTemplateId,
-          assertions.achievement_snapshot_json AS achievementSnapshotJson,
+          ${assertionAchievementSnapshotSelectSql},
           assertions.recipient_identity AS recipientIdentity,
           assertions.recipient_identity_type AS recipientIdentityType,
           assertions.issued_at AS issuedAt,

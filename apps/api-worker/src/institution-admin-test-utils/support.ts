@@ -386,6 +386,7 @@ export const stubAssertionEvidenceMocks = (
     publicId: assertion.assertionPublicId,
     learnerProfileId: assertion.learnerProfileId,
     badgeTemplateId: assertion.badgeTemplateId,
+    achievementSnapshotStatus: "captured",
     achievementSnapshot: {
       badgeTemplateId: assertion.badgeTemplateId,
       title: assertion.badgeTitle,

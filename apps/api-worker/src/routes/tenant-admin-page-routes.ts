@@ -36,6 +36,7 @@ import {
   institutionAdminDashboardPage,
 } from "../admin/institution-admin-page";
 import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
+import type { InstitutionAdminView } from "../admin/institution-admin/page-types";
 import { buildLmsConnectionEditPath } from "../admin/lms-connection-admin-helpers";
 import {
   loadTenantBadgeRuleValueLists,
@@ -108,6 +109,7 @@ interface RegisterTenantAdminPageRoutesInput {
     c: AppContext,
     tenantId: string,
     nextPath: string,
+    view: InstitutionAdminView,
     renderPage: (pageData: InstitutionAdminPageData) => AppPage,
   ) => Promise<Response>;
   renderInstitutionAdminMembersWorkspace: (
@@ -251,6 +253,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin`,
+      "home",
       institutionAdminDashboardPage,
     );
   });
@@ -305,6 +308,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       c,
       pathParams.tenantId,
       `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/badge-status`,
+      "operationsBadgeStatus",
       institutionAdminBadgeStatusPage,
     );
   });

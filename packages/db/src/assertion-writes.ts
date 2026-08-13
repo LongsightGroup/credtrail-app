@@ -90,6 +90,7 @@ export const createAssertion = async (
     learnerProfileId: input.learnerProfileId ?? null,
     badgeTemplateId,
     achievementSnapshot: input.achievementSnapshot,
+    achievementSnapshotStatus: "captured",
     recipientIdentity: input.recipientIdentity,
     recipientIdentityType: input.recipientIdentityType,
     vcR2Key: input.vcR2Key,

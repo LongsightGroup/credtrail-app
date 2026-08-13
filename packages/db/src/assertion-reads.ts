@@ -1,4 +1,5 @@
 import { normalizeEmail } from "./users";
+import { assertionRecordSelectSql } from "./assertion-achievement-snapshot-sql.js";
 import type { SqlDatabase } from "./tenant-scope";
 import type {
   AssertionRecord,
@@ -17,25 +18,10 @@ export const findAssertionById = async (
     .prepare(
       `
       SELECT
-        id,
-        tenant_id AS tenantId,
-        public_id AS publicId,
-        learner_profile_id AS learnerProfileId,
-        badge_template_id AS badgeTemplateId,
-        achievement_snapshot_json AS achievementSnapshotJson,
-        recipient_identity AS recipientIdentity,
-        recipient_identity_type AS recipientIdentityType,
-        vc_r2_key AS vcR2Key,
-        status_list_index AS statusListIndex,
-        idempotency_key AS idempotencyKey,
-        issued_at AS issuedAt,
-        issued_by_user_id AS issuedByUserId,
-        revoked_at AS revokedAt,
-        created_at AS createdAt,
-        updated_at AS updatedAt
+        ${assertionRecordSelectSql}
       FROM assertions
-      WHERE tenant_id = ?
-        AND id = ?
+      WHERE assertions.tenant_id = ?
+        AND assertions.id = ?
       LIMIT 1
     `,
     )
@@ -58,25 +44,10 @@ export const findAssertionByIdempotencyKey = async (
     .prepare(
       `
       SELECT
-        id,
-        tenant_id AS tenantId,
-        public_id AS publicId,
-        learner_profile_id AS learnerProfileId,
-        badge_template_id AS badgeTemplateId,
-        achievement_snapshot_json AS achievementSnapshotJson,
-        recipient_identity AS recipientIdentity,
-        recipient_identity_type AS recipientIdentityType,
-        vc_r2_key AS vcR2Key,
-        status_list_index AS statusListIndex,
-        idempotency_key AS idempotencyKey,
-        issued_at AS issuedAt,
-        issued_by_user_id AS issuedByUserId,
-        revoked_at AS revokedAt,
-        created_at AS createdAt,
-        updated_at AS updatedAt
+        ${assertionRecordSelectSql}
       FROM assertions
-      WHERE tenant_id = ?
-        AND idempotency_key = ?
+      WHERE assertions.tenant_id = ?
+        AND assertions.idempotency_key = ?
       LIMIT 1
     `,
     )
@@ -108,25 +79,10 @@ export const listAssertionsByIdempotencyKeys = async (
       .prepare(
         `
         SELECT
-          id,
-          tenant_id AS tenantId,
-          public_id AS publicId,
-          learner_profile_id AS learnerProfileId,
-          badge_template_id AS badgeTemplateId,
-          achievement_snapshot_json AS achievementSnapshotJson,
-          recipient_identity AS recipientIdentity,
-          recipient_identity_type AS recipientIdentityType,
-          vc_r2_key AS vcR2Key,
-          status_list_index AS statusListIndex,
-          idempotency_key AS idempotencyKey,
-          issued_at AS issuedAt,
-          issued_by_user_id AS issuedByUserId,
-          revoked_at AS revokedAt,
-          created_at AS createdAt,
-          updated_at AS updatedAt
+          ${assertionRecordSelectSql}
         FROM assertions
-        WHERE tenant_id = ?
-          AND idempotency_key IN (${keyPlaceholders})
+        WHERE assertions.tenant_id = ?
+          AND assertions.idempotency_key IN (${keyPlaceholders})
       `,
       )
       .bind(input.tenantId, ...keyChunk)
@@ -161,28 +117,13 @@ export const listAssertionsByBadgeTemplatesAndRecipientEmails = async (
         .prepare(
           `
           SELECT
-            id,
-            tenant_id AS tenantId,
-            public_id AS publicId,
-            learner_profile_id AS learnerProfileId,
-            badge_template_id AS badgeTemplateId,
-            achievement_snapshot_json AS achievementSnapshotJson,
-            recipient_identity AS recipientIdentity,
-            recipient_identity_type AS recipientIdentityType,
-            vc_r2_key AS vcR2Key,
-            status_list_index AS statusListIndex,
-            idempotency_key AS idempotencyKey,
-            issued_at AS issuedAt,
-            issued_by_user_id AS issuedByUserId,
-            revoked_at AS revokedAt,
-            created_at AS createdAt,
-            updated_at AS updatedAt
+            ${assertionRecordSelectSql}
           FROM assertions
-          WHERE tenant_id = ?
-            AND badge_template_id IN (${badgeTemplateIdPlaceholders})
-            AND recipient_identity_type = 'email'
-            AND LOWER(recipient_identity) IN (${recipientEmailPlaceholders})
-          ORDER BY issued_at DESC, id DESC
+          WHERE assertions.tenant_id = ?
+            AND assertions.badge_template_id IN (${badgeTemplateIdPlaceholders})
+            AND assertions.recipient_identity_type = 'email'
+            AND LOWER(assertions.recipient_identity) IN (${recipientEmailPlaceholders})
+          ORDER BY assertions.issued_at DESC, assertions.id DESC
         `,
         )
         .bind(input.tenantId, ...badgeTemplateIdChunk, ...recipientEmailChunk)
@@ -203,24 +144,9 @@ export const findAssertionByPublicId = async (
     .prepare(
       `
       SELECT
-        id,
-        tenant_id AS tenantId,
-        public_id AS publicId,
-        learner_profile_id AS learnerProfileId,
-        badge_template_id AS badgeTemplateId,
-        achievement_snapshot_json AS achievementSnapshotJson,
-        recipient_identity AS recipientIdentity,
-        recipient_identity_type AS recipientIdentityType,
-        vc_r2_key AS vcR2Key,
-        status_list_index AS statusListIndex,
-        idempotency_key AS idempotencyKey,
-        issued_at AS issuedAt,
-        issued_by_user_id AS issuedByUserId,
-        revoked_at AS revokedAt,
-        created_at AS createdAt,
-        updated_at AS updatedAt
+        ${assertionRecordSelectSql}
       FROM assertions
-      WHERE public_id = ?
+      WHERE assertions.public_id = ?
       LIMIT 1
     `,
     )

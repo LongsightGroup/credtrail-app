@@ -1,4 +1,5 @@
 import type { SqlDatabase } from "./tenant-scope";
+import { assertionAchievementSnapshotSelectSql } from "./assertion-achievement-snapshot-sql.js";
 import type {
   ListPublicBadgeWallEntriesInput,
   PublicBadgeWallEntryRecord,
@@ -21,7 +22,7 @@ export const listPublicBadgeWallEntries = async (
               assertions.public_id AS assertionPublicId,
               assertions.tenant_id AS tenantId,
               assertions.badge_template_id AS badgeTemplateId,
-              assertions.achievement_snapshot_json AS achievementSnapshotJson,
+              ${assertionAchievementSnapshotSelectSql},
               assertions.recipient_identity AS recipientIdentity,
               assertions.recipient_identity_type AS recipientIdentityType,
               assertions.issued_at AS issuedAt,
@@ -43,7 +44,7 @@ export const listPublicBadgeWallEntries = async (
               assertions.public_id AS assertionPublicId,
               assertions.tenant_id AS tenantId,
               assertions.badge_template_id AS badgeTemplateId,
-              assertions.achievement_snapshot_json AS achievementSnapshotJson,
+              ${assertionAchievementSnapshotSelectSql},
               assertions.recipient_identity AS recipientIdentity,
               assertions.recipient_identity_type AS recipientIdentityType,
               assertions.issued_at AS issuedAt,

@@ -14,6 +14,7 @@ const sampleLoadedData = (
       publicId: "cred-abc123",
       learnerProfileId: null,
       badgeTemplateId: "tenant_123:badge_template_001",
+      achievementSnapshotStatus: "captured",
       achievementSnapshot: {
         badgeTemplateId: "tenant_123:badge_template_001",
         title: "Applied Analytics",
@@ -73,6 +74,32 @@ describe("buildAssertionEvidencePresentation", () => {
     expect(presentation.issuance.sourceLabel).toContain("manually");
     expect(presentation.summary.badgeTitle).toBe("Applied Analytics");
     expect(presentation.rule).toBeNull();
+  });
+
+  it("discloses when a preserved assertion has no issuance-time achievement snapshot", () => {
+    const base = sampleLoadedData();
+    const presentation = buildAssertionEvidencePresentation(
+      sampleLoadedData({
+        assertion: {
+          ...base.assertion,
+          achievementSnapshotStatus: "unavailable",
+          achievementSnapshot: {
+            badgeTemplateId: base.assertion.badgeTemplateId,
+            title: "Achievement snapshot unavailable",
+            description:
+              "The signed credential is preserved, but its issuance-time achievement snapshot was not recorded.",
+            criteriaUri: null,
+            imageUri: null,
+            trustedCredentialMetadataJson: null,
+          },
+        },
+      }),
+    );
+
+    expect(presentation.supportDetails).toContainEqual({
+      label: "Achievement details",
+      value: "Issuance snapshot unavailable; the signed credential remains preserved.",
+    });
   });
 
   it("includes rule and evaluation sections when an evaluation row exists", () => {

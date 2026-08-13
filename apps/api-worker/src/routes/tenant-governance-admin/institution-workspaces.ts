@@ -63,29 +63,23 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
     c: AppContext,
     tenantId: string,
     nextPath: string,
+    view: InstitutionAdminView,
     renderPage: (pageData: Parameters<typeof institutionAdminDashboardPage>[0]) => AppPage,
   ): Promise<Response> => {
-    const roleCheck = await resolveInstitutionAdminAdminRole(c, tenantId, nextPath);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    const { principal, membershipRole } = roleCheck;
-    const pageData = await loadInstitutionAdminPageData(
+    const loaded = await loadInstitutionAdminWorkspacePageData({
       c,
       tenantId,
-      principal.userId,
-      membershipRole,
-    );
+      nextPath,
+      view,
+      resolveInstitutionAdminAdminRole,
+      loadInstitutionAdminPageData,
+    });
 
-    if (pageData instanceof Response) {
-      return pageData;
+    if (loaded instanceof Response) {
+      return loaded;
     }
 
-    c.header("Cache-Control", "no-store");
-
-    return renderAppPage(c, renderPage(pageData));
+    return await renderInstitutionAdminWorkspacePage(c, renderAppPage, renderPage(loaded.pageData));
   };
 
   const renderInstitutionAdminApiKeysWorkspace = async (

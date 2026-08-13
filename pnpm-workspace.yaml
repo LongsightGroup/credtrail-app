@@ -6,7 +6,7 @@ overrides:
   "@types/node": 24.13.2
   esbuild: 0.28.1
   jose: 6.2.3
-  nanoid: 3.3.17
+  nanoid: 3.3.18
   postcss: 8.5.26
   zod: 4.4.3
 minimumReleaseAge: 10080
@@ -18,6 +18,8 @@ minimumReleaseAgeExclude:
   - "wrangler"
   - "vite"
   - "postcss"
+  # Nano ID security patches are audited and may need to bypass the release-age quarantine.
+  - "nanoid"
   # Rolldown builds the Node self-host Docker artifact; verify the bundled runtime before commit.
   - "rolldown"
   - "@oxc-project/types"

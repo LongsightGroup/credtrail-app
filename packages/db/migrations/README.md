@@ -12,3 +12,12 @@ changed or removed, or when a new file was inserted into applied history.
 Add the SHA-256 checksum for every new migration to `checksums.json`. The runner
 verifies the committed manifest before connecting to Postgres, so an unrecorded
 or changed file also fails in a fresh environment.
+
+## Data-preserving repairs
+
+If an append-only migration cannot run against populated production data, keep
+the migration unchanged. Put the narrow alternative schema transition in
+`../migration-repairs`, record its checksum there, and invoke it explicitly from
+the migration runner. A repair must preserve existing records, record its own
+checksum in `schema_migration_repairs`, and leave later migrations with one
+consistent schema contract.

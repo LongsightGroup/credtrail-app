@@ -248,6 +248,7 @@ const sampleAssertion = (overrides?: {
     publicId: "40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
     learnerProfileId: "lpr_123",
     badgeTemplateId: "badge_template_001",
+    achievementSnapshotStatus: "captured",
     achievementSnapshot: {
       badgeTemplateId: "badge_template_001",
       title: "TypeScript Foundations",

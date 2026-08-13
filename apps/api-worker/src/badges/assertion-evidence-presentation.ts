@@ -230,6 +230,13 @@ export const buildAssertionEvidencePresentation = (
     { label: "Badge template ID", value: data.assertion.badgeTemplateId },
   ];
 
+  if (data.assertion.achievementSnapshotStatus === "unavailable") {
+    supportDetails.push({
+      label: "Achievement details",
+      value: "Issuance snapshot unavailable; the signed credential remains preserved.",
+    });
+  }
+
   if (data.rule !== null) {
     supportDetails.push({ label: "Rule ID", value: data.rule.id });
   }

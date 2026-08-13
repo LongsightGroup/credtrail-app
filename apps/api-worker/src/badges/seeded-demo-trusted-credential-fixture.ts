@@ -51,6 +51,7 @@ const createAssertion = (): AssertionRecord => {
     publicId: PUBLIC_ID,
     learnerProfileId: LEARNER_PROFILE_ID,
     badgeTemplateId: BADGE_TEMPLATE_ID,
+    achievementSnapshotStatus: "captured",
     achievementSnapshot: {
       badgeTemplateId: BADGE_TEMPLATE_ID,
       title: "Applied Analytics TrustEd Credential",

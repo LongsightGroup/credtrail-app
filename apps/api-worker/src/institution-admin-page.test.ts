@@ -53,7 +53,7 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).not.toContain('style="');
   });
 
-  it("shows empty-state rule guidance when no rules exist", async () => {
+  it("shows workspace guidance without loading rule records", async () => {
     const env = createEnv();
     mockedListBadgeIssuanceRules.mockResolvedValue([]);
     mockedListBadgeIssuanceRuleVersions.mockResolvedValue([]);
@@ -73,6 +73,8 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain("No badge rules found.");
     expect(body).toContain('href="/tenants/tenant_123/admin/rules"');
     expect(body).toContain("Create your first rule.");
+    expect(mockedListBadgeIssuanceRules).not.toHaveBeenCalled();
+    expect(mockedListBadgeIssuanceRuleVersions).not.toHaveBeenCalled();
   });
 
   it("renders institution admin dashboard for admin membership", async () => {
@@ -141,19 +143,10 @@ describe("GET /tenants/:tenantId/admin", () => {
     expect(body).toContain("/assets/ui/foundation.");
     expect(body).toContain("/assets/ui/institution-admin.");
     expect(body).not.toContain("Switch organization");
-    expect(mockedListBadgeTemplates).toHaveBeenCalledWith(fakeDb, {
-      tenantId: "tenant_123",
-      includeArchived: false,
-    });
+    expect(mockedListBadgeTemplates).not.toHaveBeenCalled();
     expect(mockedFindUserById).toHaveBeenCalledWith(fakeDb, "usr_admin");
-    expect(mockedListBadgeIssuanceRules).toHaveBeenCalledWith(fakeDb, {
-      tenantId: "tenant_123",
-    });
-    expect(mockedListBadgeIssuanceRuleVersionsForRules).toHaveBeenCalledTimes(1);
-    expect(mockedListBadgeIssuanceRuleVersionsForRules).toHaveBeenCalledWith(fakeDb, {
-      tenantId: "tenant_123",
-      ruleIds: ["brl_123"],
-    });
+    expect(mockedListBadgeIssuanceRules).not.toHaveBeenCalled();
+    expect(mockedListBadgeIssuanceRuleVersionsForRules).not.toHaveBeenCalled();
   });
 
   it("shows an explicit switch-organization entry point only for multi-tenant admins", async () => {

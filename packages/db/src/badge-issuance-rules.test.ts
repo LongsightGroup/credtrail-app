@@ -178,6 +178,17 @@ describe("badge rule review queue schema", () => {
       new URL("../migrations/0063_badge_rule_achievement_snapshots.sql", import.meta.url),
       "utf8",
     );
+    const populatedRepairSql = readFileSync(
+      new URL(
+        "../migration-repairs/0063_preserve_populated_achievement_history.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const preservationSql = readFileSync(
+      new URL("../migrations/0072_preserve_unavailable_achievement_snapshots.sql", import.meta.url),
+      "utf8",
+    );
 
     expect(sql).toContain("snapshot_badge_template_description");
     expect(sql).toContain("snapshot_badge_template_criteria_uri");
@@ -190,6 +201,12 @@ describe("badge rule review queue schema", () => {
     expect(sql).toContain("ON DELETE RESTRICT");
     expect(sql).not.toContain("JOIN badge_templates");
     expect(sql).not.toContain("UPDATE assertions");
+    expect(populatedRepairSql).toContain("achievement_snapshot_json TEXT");
+    expect(populatedRepairSql).not.toContain("JOIN badge_templates");
+    expect(populatedRepairSql).not.toContain("UPDATE assertions");
+    expect(preservationSql).toContain("achievement_snapshot_status");
+    expect(preservationSql).toContain("'unavailable'");
+    expect(preservationSql).toContain("ALTER COLUMN achievement_snapshot_json DROP NOT NULL");
   });
 });
 

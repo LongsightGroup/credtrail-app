@@ -5,6 +5,11 @@ import { fileURLToPath } from "node:url";
 import pg from "pg";
 
 import {
+  ACHIEVEMENT_SNAPSHOT_REPAIR,
+  applyAchievementSnapshotMigrationRepair,
+  verifyAchievementSnapshotMigrationRepairHistory,
+} from "./achievement-snapshot-migration-repair.mjs";
+import {
   calculateMigrationChecksum,
   createMigrationPlan,
   parseAppliedMigrationRows,
@@ -22,6 +27,7 @@ if (databaseUrl === undefined || databaseUrl.length === 0) {
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.resolve(scriptDir, "../migrations");
+const migrationRepairsDir = path.resolve(scriptDir, "../migration-repairs");
 const pool = new Pool({ connectionString: databaseUrl });
 
 const migrationFileNames = (await readdir(migrationsDir))
@@ -38,6 +44,20 @@ const checksumManifestValue = JSON.parse(
 );
 const checksumManifest = parseMigrationChecksumManifest(checksumManifestValue);
 verifyMigrationChecksumManifest(migrationFiles, checksumManifest);
+const achievementSnapshotRepairSql = await readFile(
+  path.join(migrationRepairsDir, ACHIEVEMENT_SNAPSHOT_REPAIR),
+  "utf8",
+);
+const achievementSnapshotRepair = {
+  fileName: ACHIEVEMENT_SNAPSHOT_REPAIR,
+  sql: achievementSnapshotRepairSql,
+  checksum: calculateMigrationChecksum(achievementSnapshotRepairSql),
+};
+const migrationRepairManifestValue = JSON.parse(
+  await readFile(path.join(migrationRepairsDir, "checksums.json"), "utf8"),
+);
+const migrationRepairManifest = parseMigrationChecksumManifest(migrationRepairManifestValue);
+verifyMigrationChecksumManifest([achievementSnapshotRepair], migrationRepairManifest);
 
 const client = await pool.connect();
 let migrationLockAcquired = false;
@@ -55,6 +75,22 @@ try {
   `);
 
   await client.query("ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS checksum TEXT");
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS schema_migration_repairs (
+      repair_version TEXT PRIMARY KEY,
+      blocked_version TEXT NOT NULL,
+      repair_checksum TEXT NOT NULL CHECK (repair_checksum ~ '^[0-9a-f]{64}$'),
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  const migrationRepairHistory = await client.query(
+    "SELECT repair_version, blocked_version, repair_checksum FROM schema_migration_repairs",
+  );
+  verifyAchievementSnapshotMigrationRepairHistory(
+    migrationRepairHistory.rows,
+    achievementSnapshotRepair,
+  );
 
   const appliedMigrationResult = await client.query(
     "SELECT version, checksum FROM schema_migrations ORDER BY version",
@@ -76,12 +112,23 @@ try {
       let successMessage;
 
       if (action.kind === "apply") {
-        await client.query(action.migration.sql);
+        const repaired = await applyAchievementSnapshotMigrationRepair(
+          client,
+          action.migration,
+          achievementSnapshotRepair,
+        );
+
+        if (!repaired) {
+          await client.query(action.migration.sql);
+        }
+
         await client.query("INSERT INTO schema_migrations (version, checksum) VALUES ($1, $2)", [
           action.migration.fileName,
           action.migration.checksum,
         ]);
-        successMessage = `Applied ${action.migration.fileName}`;
+        successMessage = repaired
+          ? `Applied ${achievementSnapshotRepair.fileName} in place of blocked ${action.migration.fileName}`
+          : `Applied ${action.migration.fileName}`;
       } else {
         const baselineResult = await client.query(
           "UPDATE schema_migrations SET checksum = $2 WHERE version = $1 AND checksum IS NULL",
