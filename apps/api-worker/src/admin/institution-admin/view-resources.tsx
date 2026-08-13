@@ -127,7 +127,6 @@ export const buildInstitutionAdminViewResources = (
   const revokedApiKeyCount = String(input.revokedApiKeyCount);
   const builderDrafts = input.rulesWorkspace?.builderDrafts ?? [];
   const ruleCount = String(input.badgeRules.length);
-  const rulesWorkspaceCount = String(input.badgeRules.length + builderDrafts.length);
   const tenantMemberCount = String(input.tenantMembers.length);
   const scopedRoleCount = String(input.membershipOrgUnitScopes.length);
   const delegatedAuthorityGrantCount = String(input.delegatedIssuingAuthorityGrants.length);
@@ -982,12 +981,22 @@ export const buildInstitutionAdminViewResources = (
     ? renderBadgeRulesTable({
         tenantId: input.tenant.id,
         userId: input.userId,
-        ruleCount: rulesWorkspaceCount,
         ruleBuilderPath,
         rulesTemplatesPath,
         badgeRules: input.badgeRules,
         badgeRuleVersions: input.badgeRuleVersions,
         builderDraftRows,
+        builderDraftCount: builderDrafts.length,
+        registry: input.rulesWorkspace?.registry ?? {
+          searchQuery: "",
+          latestStatus: null,
+          sort: "updated",
+          direction: "desc",
+          limit: 25,
+          totalCount: input.badgeRules.length,
+          previousPageHref: null,
+          nextPageHref: null,
+        },
       })
     : emptySectionMarkup;
 

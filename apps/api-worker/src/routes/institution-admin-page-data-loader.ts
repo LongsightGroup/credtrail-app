@@ -5,6 +5,7 @@ import {
   listAccessibleTenantContextsForUser,
   listBadgeRuleApproverGroupsWithMembers,
   listBadgeIssuanceRules,
+  listBadgeIssuanceRuleRegistryPage,
   resolveListBadgeIssuanceRulesInput,
   listBadgeIssuanceRuleVersionsForRules,
   listBadgeTemplates,
@@ -18,6 +19,7 @@ import {
   listTenantOrgUnits,
   resolveTenantDefaultBadgeRuleApprovalPolicy,
   type TenantMembershipRole,
+  type ListBadgeIssuanceRuleRegistryPageInput,
 } from "@credtrail/db";
 import { institutionAdminDashboardPage } from "../admin/institution-admin/page";
 import type { InstitutionAdminView } from "../admin/institution-admin/page-types";
@@ -44,6 +46,7 @@ export type InstitutionAdminShellData = Pick<
 export interface LoadInstitutionAdminPageDataInput extends LoadInstitutionAdminShellDataInput {
   view?: InstitutionAdminView;
   badgeTemplatesIncludeArchived?: boolean;
+  badgeRuleRegistryQuery?: Omit<ListBadgeIssuanceRuleRegistryPageInput, "tenantId" | "scope">;
 }
 
 type InstitutionAdminDataset =
@@ -204,6 +207,29 @@ export const loadInstitutionAdminPageData = async (
   const db = input.resolveDatabase(input.c.env);
   const tenant = shellData.tenant;
   const includeEnterpriseAuth = datasets.has("enterpriseAuth") && tenant.planTier === "enterprise";
+  const badgeRulesDataPromise = datasets.has("badgeRules")
+    ? resolveListBadgeIssuanceRulesInput(db, {
+        tenantId: input.tenantId,
+        userId: input.sessionUserId,
+        membershipRole: input.membershipRole,
+      }).then(async (listInput) => {
+        if (input.badgeRuleRegistryQuery === undefined) {
+          return {
+            rules: await listBadgeIssuanceRules(db, listInput),
+            registryPage: null,
+          };
+        }
+
+        const registryPage = await listBadgeIssuanceRuleRegistryPage(db, {
+          ...listInput,
+          ...input.badgeRuleRegistryQuery,
+        });
+        return {
+          rules: registryPage.rules,
+          registryPage,
+        };
+      })
+    : Promise.resolve({ rules: [], registryPage: null });
 
   const [
     badgeTemplates,
@@ -214,7 +240,7 @@ export const loadInstitutionAdminPageData = async (
     delegatedIssuingAuthorityGrants,
     apiKeys,
     lmsConnections,
-    badgeRules,
+    badgeRulesData,
     authPolicy,
     authProviders,
     breakGlassAccounts,
@@ -256,17 +282,12 @@ export const loadInstitutionAdminPageData = async (
     datasets.has("lmsConnections")
       ? listTenantLmsConnections(db, input.tenantId)
       : Promise.resolve([]),
-    datasets.has("badgeRules")
-      ? resolveListBadgeIssuanceRulesInput(db, {
-          tenantId: input.tenantId,
-          userId: input.sessionUserId,
-          membershipRole: input.membershipRole,
-        }).then((listInput) => listBadgeIssuanceRules(db, listInput))
-      : Promise.resolve([]),
+    badgeRulesDataPromise,
     includeEnterpriseAuth ? findTenantAuthPolicy(db, input.tenantId) : Promise.resolve(null),
     includeEnterpriseAuth ? listTenantAuthProviders(db, input.tenantId) : Promise.resolve([]),
     includeEnterpriseAuth ? listTenantBreakGlassAccounts(db, input.tenantId) : Promise.resolve([]),
   ]);
+  const badgeRules = badgeRulesData.rules;
 
   const badgeRuleVersions = datasets.has("badgeRuleVersions")
     ? await listBadgeIssuanceRuleVersionsForRules(db, {
@@ -293,6 +314,9 @@ export const loadInstitutionAdminPageData = async (
     revokedApiKeyCount,
     badgeRules,
     badgeRuleVersions,
+    ...(badgeRulesData.registryPage === null
+      ? {}
+      : { badgeRuleRegistryPage: badgeRulesData.registryPage }),
     badgeRuleApprovalPolicy,
     enterpriseAuthPolicy: authPolicy,
     enterpriseAuthProviders: authProviders,

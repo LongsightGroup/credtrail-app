@@ -1,6 +1,7 @@
 import {
   findTenantLmsConnectionById,
   listBadgeIssuanceRuleBuilderDraftsForUser,
+  type ListBadgeIssuanceRuleRegistryPageInput,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import { parseTenantLmsConnectionPathParams } from "@credtrail/validation";
@@ -42,6 +43,11 @@ import type { InstitutionAdminPageInput } from "./institution-admin/page-types";
 import { lmsConnectionsPageUrl } from "./lms-connection-admin-helpers";
 import { consumeAdminManualIssueFlash } from "./manual-issue-flash";
 import { loadTenantBadgeRuleValueLists } from "./rule-value-lists-presentation";
+import {
+  badgeRuleRegistryPageUrl,
+  buildBadgeRuleRegistryPath,
+  safeParseBadgeRuleRegistryPageQuery,
+} from "./badge-rule-registry-admin-helpers";
 
 interface InstitutionAdminWorkspaceRendererDeps<TPageData extends InstitutionAdminPageInput> {
   resolveDatabase: ResolveDatabase;
@@ -61,6 +67,11 @@ interface InstitutionAdminWorkspaceRendererDeps<TPageData extends InstitutionAdm
     tenantId: string,
     sessionUserId: string,
     membershipRole: TenantMembershipRole,
+    options?: {
+      view?: import("./institution-admin/page-types").InstitutionAdminView;
+      badgeTemplatesIncludeArchived?: boolean;
+      badgeRuleRegistryQuery?: Omit<ListBadgeIssuanceRuleRegistryPageInput, "tenantId" | "scope">;
+    },
   ) => Promise<TPageData | Response>;
 }
 
@@ -146,19 +157,52 @@ export const renderInstitutionAdminRulesWorkspace = async <
   nextPath: string,
   deps: InstitutionAdminWorkspaceRendererDeps<TPageData>,
 ): Promise<Response> => {
-  const loaded = await loadInstitutionAdminWorkspacePageData({
-    c,
-    tenantId,
-    nextPath,
-    resolveInstitutionAdminAdminRole: deps.resolveInstitutionAdminAdminRole,
-    loadInstitutionAdminPageData: deps.loadInstitutionAdminPageData,
-  });
+  const roleCheck = await deps.resolveInstitutionAdminAdminRole(c, tenantId, nextPath);
 
-  if (loaded instanceof Response) {
-    return loaded;
+  if (roleCheck instanceof Response) {
+    return roleCheck;
   }
 
-  const { pageData, session } = loaded;
+  const parsedQuery = safeParseBadgeRuleRegistryPageQuery(c.req.query());
+  if (!parsedQuery.ok) {
+    await setAdminListMessageFlash(c, {
+      tenantId,
+      userId: roleCheck.session.userId,
+      workspace: "rules",
+      tone: "error",
+      message: "Those rule filters or page controls were invalid. Review the list and try again.",
+    });
+    return c.redirect(buildBadgeRuleRegistryPath(tenantId), 303);
+  }
+
+  const query = parsedQuery.value;
+  const pageData = await deps.loadInstitutionAdminPageData(
+    c,
+    tenantId,
+    roleCheck.session.userId,
+    roleCheck.membershipRole,
+    {
+      badgeRuleRegistryQuery: {
+        searchQuery: query.searchQuery,
+        ...(query.latestStatus === null ? {} : { latestStatus: query.latestStatus }),
+        sort: query.sort,
+        direction: query.direction,
+        limit: query.limit,
+        ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+      },
+    },
+  );
+
+  if (pageData instanceof Response) {
+    return pageData;
+  }
+
+  const registryPage = pageData.badgeRuleRegistryPage;
+  if (registryPage === undefined) {
+    throw new Error("Badge rule registry page data was not loaded");
+  }
+
+  const session = roleCheck.session;
   const flash = await readListWorkspaceFlash(c, {
     tenantId,
     userId: session.userId,
@@ -182,6 +226,28 @@ export const renderInstitutionAdminRulesWorkspace = async <
         listNotice: flash.listNotice,
         listError: flash.listError,
         builderDrafts,
+        registry: {
+          searchQuery: query.searchQuery,
+          latestStatus: query.latestStatus,
+          sort: query.sort,
+          direction: query.direction,
+          limit: query.limit,
+          totalCount: registryPage.totalCount,
+          previousPageHref:
+            registryPage.previousCursor === null
+              ? null
+              : badgeRuleRegistryPageUrl(tenantId, query, {
+                  position: "before",
+                  boundary: registryPage.previousCursor,
+                }),
+          nextPageHref:
+            registryPage.nextCursor === null
+              ? null
+              : badgeRuleRegistryPageUrl(tenantId, query, {
+                  position: "after",
+                  boundary: registryPage.nextCursor,
+                }),
+        },
       },
       ruleValueListsWorkspace: {
         valueLists,

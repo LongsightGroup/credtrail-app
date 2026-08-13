@@ -28,6 +28,7 @@ import {
   mockedListBadgeIssuanceRuleVersionApprovalEvents,
   mockedListBadgeIssuanceRuleVersionApprovalStepsDb,
   mockedListBadgeIssuanceRules,
+  mockedListBadgeIssuanceRuleRegistryPageDb,
   mockedListBadgeIssuanceRuleBuilderDraftsForUserDb,
   mockedListBadgeIssuanceRuleVersions,
   mockedListBadgeIssuanceRuleVersionsForRules,
@@ -149,7 +150,10 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).not.toContain("Approval and Audit History");
     expect(body).not.toContain('id="rule-governance-form"');
     expect(body).not.toContain("ct-grid--sidebar");
-    expect(body).toContain("Badge Rules (1)");
+    expect(body).toContain("Badge Rules");
+    expect(body).toContain("1 shown · 1 matching rule");
+    expect(body).toContain('placeholder="Search rules, badges, or LMS"');
+    expect(body).toContain('aria-sort="descending"');
     expect(body).toContain("TypeScript Foundations");
     expect(body).not.toContain("Badge unavailable");
     expect(body).toContain("Version 1");
@@ -351,12 +355,68 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Badge Rules (3)");
+    expect(body).toContain("Your unfinished setups (2)");
+    expect(body).toContain("1 shown · 1 matching rule");
     expect(body).toContain("CS pathway draft");
     expect(body).toContain("Untitled rule");
     expect(body).toContain("Setup incomplete");
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/drafts/brd_alpha/edit"');
     expect(body).toContain('action="/tenants/tenant_123/admin/rules/drafts/brd_beta/delete"');
+  });
+
+  it("applies registry search, status, sorting, and cursor pagination", async () => {
+    const env = createEnv();
+    mockedListBadgeIssuanceRuleRegistryPageDb.mockResolvedValueOnce({
+      rules: [],
+      totalCount: 51,
+      previousCursor: null,
+      nextCursor: { value: "capstone completion", ruleId: "brl_051" },
+    });
+
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules?q=capstone&status=active&sort=rule&direction=asc&limit=25",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(mockedListBadgeIssuanceRuleRegistryPageDb).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        tenantId: "tenant_123",
+        searchQuery: "capstone",
+        latestStatus: "active",
+        sort: "rule",
+        direction: "asc",
+        limit: 25,
+      }),
+    );
+    expect(body).toContain('value="capstone"');
+    expect(body).toContain('value="active" selected');
+    expect(body).toContain("51 matching rules");
+    expect(body).toContain("No governed rules match these filters.");
+    expect(body).toMatch(/href="[^"]*after=[^"]+"[^>]*>\s*Next\s*<\/a>/);
+  });
+
+  it("redirects malformed registry controls to the safe default list", async () => {
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules?limit=999",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      createEnv(),
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/rules");
+    expect(mockedListBadgeIssuanceRuleRegistryPageDb).not.toHaveBeenCalled();
   });
 
   it("shows visible edit links and eligible delete actions for draft and rejected rules", async () => {

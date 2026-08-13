@@ -337,6 +337,42 @@ export type ListBadgeIssuanceRulesInput = {
       };
 };
 
+export type BadgeIssuanceRuleRegistrySort =
+  | "rule"
+  | "badge"
+  | "lms"
+  | "current_version"
+  | "latest_version"
+  | "updated";
+
+export type BadgeIssuanceRuleRegistrySortDirection = "asc" | "desc";
+
+export interface BadgeIssuanceRuleRegistryCursor {
+  readonly value: string | number;
+  readonly ruleId: string;
+}
+
+export interface ListBadgeIssuanceRuleRegistryPageInput extends ListBadgeIssuanceRulesInput {
+  readonly searchQuery: string;
+  readonly latestStatus?: BadgeIssuanceRuleVersionStatus | undefined;
+  readonly sort: BadgeIssuanceRuleRegistrySort;
+  readonly direction: BadgeIssuanceRuleRegistrySortDirection;
+  readonly limit: number;
+  readonly cursor?:
+    | {
+        readonly position: "after" | "before";
+        readonly boundary: BadgeIssuanceRuleRegistryCursor;
+      }
+    | undefined;
+}
+
+export interface BadgeIssuanceRuleRegistryPage {
+  readonly rules: readonly BadgeIssuanceRuleRecord[];
+  readonly totalCount: number;
+  readonly previousCursor: BadgeIssuanceRuleRegistryCursor | null;
+  readonly nextCursor: BadgeIssuanceRuleRegistryCursor | null;
+}
+
 export interface ListBadgeIssuanceRuleVersionsInput {
   readonly tenantId: string;
   readonly ruleId: string;

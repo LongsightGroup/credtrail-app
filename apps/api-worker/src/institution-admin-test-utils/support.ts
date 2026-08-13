@@ -10,6 +10,7 @@ import {
   mockedListAccessibleTenantContextsForUser,
   mockedListActiveLtiLaunchSessionsForPlatform,
   mockedListBadgeIssuanceRuleVersionApprovalEvents,
+  mockedListBadgeIssuanceRuleRegistryPage,
   mockedListBadgeTemplateRuleUsages,
   mockedListPendingBadgeIssuanceRuleApprovalsForActor,
   mockedListTenantAuthProviders,
@@ -41,6 +42,7 @@ import {
   listDelegatedIssuingAuthorityGrants,
   listAuditLogs,
   listBadgeIssuanceRules,
+  listBadgeIssuanceRuleRegistryPage,
   listBadgeIssuanceRuleVersions,
   listBadgeIssuanceRuleVersionsForRules,
   findBadgeIssuanceRuleBuilderDraftById,
@@ -150,6 +152,9 @@ export const mockedRevokeDelegatedIssuingAuthorityGrantDb = vi.mocked(
   revokeDelegatedIssuingAuthorityGrant,
 );
 export const mockedListBadgeIssuanceRules = vi.mocked(listBadgeIssuanceRules);
+export const mockedListBadgeIssuanceRuleRegistryPageDb = vi.mocked(
+  listBadgeIssuanceRuleRegistryPage,
+);
 export const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRuleVersions);
 export const mockedListBadgeIssuanceRuleVersionsForRules = vi.mocked(
   listBadgeIssuanceRuleVersionsForRules,
@@ -792,6 +797,16 @@ beforeEach(() => {
       updatedAt: "2026-02-18T12:00:00.000Z",
     },
   ]);
+  mockedListBadgeIssuanceRuleRegistryPage.mockReset();
+  mockedListBadgeIssuanceRuleRegistryPage.mockImplementation(async (db, input) => {
+    const rules = await mockedListBadgeIssuanceRules(db, input);
+    return {
+      rules,
+      totalCount: rules.length,
+      previousCursor: null,
+      nextCursor: null,
+    };
+  });
   mockedListBadgeIssuanceRuleVersions.mockReset();
   mockedListBadgeIssuanceRuleVersions.mockResolvedValue([defaultBadgeRuleVersion]);
   mockedListBadgeIssuanceRuleVersionsForRules.mockReset();

@@ -1,4 +1,8 @@
-import type { TenantMembershipRole, TenantReportingLifecycleFilter } from "@credtrail/db";
+import type {
+  ListBadgeIssuanceRuleRegistryPageInput,
+  TenantMembershipRole,
+  TenantReportingLifecycleFilter,
+} from "@credtrail/db";
 import type { AppContext } from "../../app";
 import { loadInstitutionAdminReportingPageData } from "../tenant-admin-reporting-data-loader";
 import {
@@ -26,6 +30,7 @@ export const createTenantGovernanceAdminPageDataLoaders = (
     options?: {
       view?: import("../../admin/institution-admin/page-types").InstitutionAdminView;
       badgeTemplatesIncludeArchived?: boolean;
+      badgeRuleRegistryQuery?: Omit<ListBadgeIssuanceRuleRegistryPageInput, "tenantId" | "scope">;
     },
   ): Promise<InstitutionAdminPageData | Response> => {
     return loadInstitutionAdminPageDataFromLoader({
@@ -38,6 +43,9 @@ export const createTenantGovernanceAdminPageDataLoaders = (
       ...(options?.badgeTemplatesIncludeArchived === undefined
         ? {}
         : { badgeTemplatesIncludeArchived: options.badgeTemplatesIncludeArchived }),
+      ...(options?.badgeRuleRegistryQuery === undefined
+        ? {}
+        : { badgeRuleRegistryQuery: options.badgeRuleRegistryQuery }),
     });
   };
 

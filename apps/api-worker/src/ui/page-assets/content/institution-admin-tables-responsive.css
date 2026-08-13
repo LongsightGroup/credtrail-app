@@ -1,31 +1,43 @@
+.ct-admin__list-header {
+  align-items: stretch;
+  flex-direction: column;
+}
 
-  .ct-admin__list-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
+.ct-admin__list-header .ct-admin__button {
+  width: 100%;
+}
 
-  .ct-admin__list-header .ct-admin__button {
-    width: 100%;
-  }
+.ct-admin__table select {
+  min-height: 2.75rem;
+}
 
-  .ct-admin__table select {
-    min-height: 2.75rem;
-  }
+.ct-admin__registry-filters.ct-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
 
-  .ct-admin__panel {
-    padding: 0.85rem;
-  }
+.ct-admin__registry-pagination {
+  align-items: stretch;
+  flex-direction: column;
+}
 
-  .ct-admin__panel--table {
-    padding: 0.7rem;
-  }
+.ct-admin__registry-page-actions .ct-admin__button {
+  flex: 1;
+}
 
-  .ct-admin__table th,
-  .ct-admin__table td {
-    padding: 0.72rem 0.65rem;
-  }
+.ct-admin__panel {
+  padding: 0.85rem;
+}
 
-  .ct-admin__image-revision-item {
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
+.ct-admin__panel--table {
+  padding: 0.7rem;
+}
+
+.ct-admin__table th,
+.ct-admin__table td {
+  padding: 0.72rem 0.65rem;
+}
+
+.ct-admin__image-revision-item {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}

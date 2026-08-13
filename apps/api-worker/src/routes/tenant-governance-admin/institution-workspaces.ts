@@ -271,7 +271,12 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       tenantId: string,
       sessionUserId: string,
       membershipRole: TenantMembershipRole,
-    ) => loadInstitutionAdminPageData(c, tenantId, sessionUserId, membershipRole, { view }),
+      options?: Parameters<typeof loadInstitutionAdminPageData>[4],
+    ) =>
+      loadInstitutionAdminPageData(c, tenantId, sessionUserId, membershipRole, {
+        ...options,
+        view,
+      }),
   });
 
   const renderRulesWorkspace = async (

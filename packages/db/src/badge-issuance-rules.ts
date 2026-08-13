@@ -1,6 +1,7 @@
 export * from "./badge-issuance-rule-types.js";
 export { parseOptionalDateTimeInputToIso } from "./shared-helpers.js";
 export * from "./badge-issuance-rule-reads.js";
+export * from "./badge-issuance-rule-registry.js";
 export * from "./badge-issuance-rule-version-reads.js";
 export * from "./badge-issuance-rule-achievement-snapshot.js";
 export * from "./badge-issuance-rule-approval-reads.js";

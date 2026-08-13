@@ -34,8 +34,9 @@ export interface AdminTopbarChip {
 }
 
 export interface AdminTableHeader {
-  label: string;
+  label: string | HonoElement;
   scope?: "col" | "row";
+  ariaSort?: "ascending" | "descending" | "none";
 }
 
 export type AdminPanelVariant = "default" | "table" | "nested";
@@ -457,8 +458,13 @@ export const AdminTable = ({
             {headers.map((header) => {
               const label = typeof header === "string" ? header : header.label;
               const scope = typeof header === "string" ? "col" : (header.scope ?? "col");
+              const ariaSort = typeof header === "string" ? undefined : header.ariaSort;
 
-              return <th scope={scope}>{label}</th>;
+              return (
+                <th scope={scope} aria-sort={ariaSort}>
+                  {label}
+                </th>
+              );
             })}
           </tr>
         </thead>

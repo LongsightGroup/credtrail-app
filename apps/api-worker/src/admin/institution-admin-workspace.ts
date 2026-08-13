@@ -1,4 +1,4 @@
-import type { TenantMembershipRole } from "@credtrail/db";
+import type { ListBadgeIssuanceRuleRegistryPageInput, TenantMembershipRole } from "@credtrail/db";
 import type { AppPage, renderAppPage } from "../ui/render-page";
 import type { AppContext } from "../app";
 
@@ -27,6 +27,7 @@ export interface LoadInstitutionAdminWorkspaceInput<TPageData> {
     options?: {
       view?: import("./institution-admin/page-types").InstitutionAdminView;
       badgeTemplatesIncludeArchived?: boolean;
+      badgeRuleRegistryQuery?: Omit<ListBadgeIssuanceRuleRegistryPageInput, "tenantId" | "scope">;
     },
   ) => Promise<TPageData | Response>;
 }

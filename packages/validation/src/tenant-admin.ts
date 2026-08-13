@@ -283,6 +283,73 @@ export const tenantLmsConnectionCourseSearchQuerySchema = z.object({
   q: z.string().trim().min(1).max(255).optional(),
 });
 
+export const badgeRuleRegistrySortSchema = z.enum([
+  "rule",
+  "badge",
+  "lms",
+  "current_version",
+  "latest_version",
+  "updated",
+]);
+
+export const badgeRuleRegistrySortDirectionSchema = z.enum(["asc", "desc"]);
+
+export const badgeRuleRegistryStatusSchema = z.enum([
+  "draft",
+  "pending_approval",
+  "approved",
+  "active",
+  "suspended",
+  "expired",
+  "rejected",
+  "deprecated",
+]);
+
+const emptyStringAsUndefined = (value: unknown): unknown => {
+  return value === "" ? undefined : value;
+};
+
+export const badgeRuleRegistryPageQuerySchema = z
+  .object({
+    q: z.string().trim().max(120).optional().default(""),
+    status: z.preprocess(emptyStringAsUndefined, badgeRuleRegistryStatusSchema.optional()),
+    sort: badgeRuleRegistrySortSchema.optional().default("updated"),
+    direction: badgeRuleRegistrySortDirectionSchema.optional().default("desc"),
+    limit: z
+      .preprocess(emptyStringAsUndefined, z.enum(["25", "50", "100"]).optional())
+      .transform((value) => (value === undefined ? 25 : Number(value))),
+    after: z.preprocess(emptyStringAsUndefined, z.string().min(1).max(1024).optional()),
+    before: z.preprocess(emptyStringAsUndefined, z.string().min(1).max(1024).optional()),
+  })
+  .superRefine((value, context) => {
+    if (value.after !== undefined && value.before !== undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["after"],
+        message: "Use either after or before, not both",
+      });
+    }
+  });
+
+const badgeRuleRegistryStringCursorSchema = z.object({
+  sort: z.enum(["rule", "badge", "lms", "updated"]),
+  direction: badgeRuleRegistrySortDirectionSchema,
+  value: z.string().max(2048),
+  ruleId: resourceIdSchema,
+});
+
+const badgeRuleRegistryNumberCursorSchema = z.object({
+  sort: z.enum(["current_version", "latest_version"]),
+  direction: badgeRuleRegistrySortDirectionSchema,
+  value: z.number().int().nonnegative(),
+  ruleId: resourceIdSchema,
+});
+
+export const badgeRuleRegistryCursorPayloadSchema = z.union([
+  badgeRuleRegistryStringCursorSchema,
+  badgeRuleRegistryNumberCursorSchema,
+]);
+
 export const tenantLmsConnectionCoursePathParamsSchema = tenantLmsConnectionPathParamsSchema.extend(
   {
     courseId: z.string().trim().min(1).max(255),
@@ -371,6 +438,12 @@ export type UpsertTenantLmsConnectionRequest = z.infer<
 export type TenantLmsConnectionCourseSearchQuery = z.infer<
   typeof tenantLmsConnectionCourseSearchQuerySchema
 >;
+
+export type BadgeRuleRegistrySort = z.infer<typeof badgeRuleRegistrySortSchema>;
+export type BadgeRuleRegistrySortDirection = z.infer<typeof badgeRuleRegistrySortDirectionSchema>;
+export type BadgeRuleRegistryStatus = z.infer<typeof badgeRuleRegistryStatusSchema>;
+export type BadgeRuleRegistryPageQuery = z.infer<typeof badgeRuleRegistryPageQuerySchema>;
+export type BadgeRuleRegistryCursorPayload = z.infer<typeof badgeRuleRegistryCursorPayloadSchema>;
 
 export type AdminCanvasOAuthAuthorizeUrlRequest = z.infer<
   typeof adminCanvasOAuthAuthorizeUrlRequestSchema
@@ -528,4 +601,14 @@ export const parseTenantLmsConnectionCourseSearchQuery = (
   input: unknown,
 ): TenantLmsConnectionCourseSearchQuery => {
   return tenantLmsConnectionCourseSearchQuerySchema.parse(input);
+};
+
+export const parseBadgeRuleRegistryPageQuery = (input: unknown): BadgeRuleRegistryPageQuery => {
+  return badgeRuleRegistryPageQuerySchema.parse(input);
+};
+
+export const parseBadgeRuleRegistryCursorPayload = (
+  input: unknown,
+): BadgeRuleRegistryCursorPayload => {
+  return badgeRuleRegistryCursorPayloadSchema.parse(input);
 };

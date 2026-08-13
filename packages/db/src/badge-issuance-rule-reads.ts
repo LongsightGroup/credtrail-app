@@ -11,7 +11,7 @@ import type {
   ListBadgeIssuanceRulesInput,
 } from "./badge-issuance-rule-types.js";
 
-interface BadgeIssuanceRuleRow {
+export interface BadgeIssuanceRuleRow {
   id: string;
   tenantId: string;
   name: string;
@@ -26,22 +26,26 @@ interface BadgeIssuanceRuleRow {
   createdAt: string;
   updatedAt: string;
 }
-const BADGE_ISSUANCE_RULE_SELECT_COLUMNS = `
-  id,
-  tenant_id AS tenantId,
-  name,
-  description,
-  badge_template_id AS badgeTemplateId,
-  org_unit_id AS orgUnitId,
-  owner_org_unit_id AS ownerOrgUnitId,
-  lms_provider_kind AS lmsProviderKind,
-  lms_connection_id AS lmsConnectionId,
-  active_version_id AS activeVersionId,
-  created_by_user_id AS createdByUserId,
-  created_at AS createdAt,
-  updated_at AS updatedAt
+export const badgeIssuanceRuleSelectColumns = (alias?: string): string => {
+  const prefix = alias === undefined ? "" : `${alias}.`;
+
+  return `
+  ${prefix}id,
+  ${prefix}tenant_id AS tenantId,
+  ${prefix}name,
+  ${prefix}description,
+  ${prefix}badge_template_id AS badgeTemplateId,
+  ${prefix}org_unit_id AS orgUnitId,
+  ${prefix}owner_org_unit_id AS ownerOrgUnitId,
+  ${prefix}lms_provider_kind AS lmsProviderKind,
+  ${prefix}lms_connection_id AS lmsConnectionId,
+  ${prefix}active_version_id AS activeVersionId,
+  ${prefix}created_by_user_id AS createdByUserId,
+  ${prefix}created_at AS createdAt,
+  ${prefix}updated_at AS updatedAt
 `;
-const mapBadgeIssuanceRuleRow = (row: BadgeIssuanceRuleRow): BadgeIssuanceRuleRecord => {
+};
+export const mapBadgeIssuanceRuleRow = (row: BadgeIssuanceRuleRow): BadgeIssuanceRuleRecord => {
   return {
     id: row.id,
     tenantId: row.tenantId,
@@ -74,7 +78,7 @@ const listBadgeIssuanceRulesByOrgUnitIds = async (
     .prepare(
       `
       SELECT
-        ${BADGE_ISSUANCE_RULE_SELECT_COLUMNS}
+        ${badgeIssuanceRuleSelectColumns()}
       FROM badge_issuance_rules
       WHERE tenant_id = ?
         AND org_unit_id IN (${placeholders})
@@ -104,7 +108,7 @@ const listBadgeIssuanceRulesByDescendantRoots = async (
       `
       ${buildScopedDescendantsCte(rootValues)}
       SELECT
-        ${BADGE_ISSUANCE_RULE_SELECT_COLUMNS}
+        ${badgeIssuanceRuleSelectColumns()}
       FROM badge_issuance_rules
       WHERE tenant_id = ?
         AND org_unit_id IN (
@@ -185,7 +189,7 @@ export const findBadgeIssuanceRuleById = async (
       .prepare(
         `
         SELECT
-          ${BADGE_ISSUANCE_RULE_SELECT_COLUMNS}
+          ${badgeIssuanceRuleSelectColumns()}
         FROM badge_issuance_rules
         WHERE tenant_id = ?
           AND id = ?
@@ -223,7 +227,7 @@ export const listBadgeIssuanceRules = async (
       .prepare(
         `
         SELECT
-          ${BADGE_ISSUANCE_RULE_SELECT_COLUMNS}
+          ${badgeIssuanceRuleSelectColumns()}
         FROM badge_issuance_rules
         WHERE tenant_id = ?
         ORDER BY created_at DESC, id DESC

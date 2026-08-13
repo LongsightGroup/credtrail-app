@@ -20,6 +20,8 @@ import {
 import {
   parseAdminCanvasOAuthAuthorizeUrlRequest,
   parseAdminCanvasOAuthExchangeRequest,
+  parseBadgeRuleRegistryCursorPayload,
+  parseBadgeRuleRegistryPageQuery,
   parseCreateTenantApiKeyRequest,
   parseRevokeTenantApiKeyRequest,
   parseTenantCanvasGradebookSnapshotQuery,
@@ -39,6 +41,47 @@ import {
   parseUpdateTenantMemberRoleRequest,
   parseUpsertTenantMembershipOrgUnitScopeRequest,
 } from "./tenant-admin.js";
+
+describe("badge rule registry query parsers", () => {
+  it("applies bounded registry defaults and explicit filters", () => {
+    expect(parseBadgeRuleRegistryPageQuery({})).toEqual({
+      q: "",
+      sort: "updated",
+      direction: "desc",
+      limit: 25,
+    });
+
+    expect(
+      parseBadgeRuleRegistryPageQuery({
+        q: "  capstone  ",
+        status: "pending_approval",
+        sort: "badge",
+        direction: "asc",
+        limit: "50",
+      }),
+    ).toEqual({
+      q: "capstone",
+      status: "pending_approval",
+      sort: "badge",
+      direction: "asc",
+      limit: 50,
+    });
+  });
+
+  it("rejects conflicting pagination cursors and cursor value type mismatches", () => {
+    expect(() =>
+      parseBadgeRuleRegistryPageQuery({ after: "after-token", before: "before-token" }),
+    ).toThrow(/./);
+    expect(() =>
+      parseBadgeRuleRegistryCursorPayload({
+        sort: "latest_version",
+        direction: "desc",
+        value: "2",
+        ruleId: "brl_123",
+      }),
+    ).toThrow(/./);
+  });
+});
 
 describe("canvas gradebook integration parsers", () => {
   it("accepts valid Canvas integration payloads", () => {

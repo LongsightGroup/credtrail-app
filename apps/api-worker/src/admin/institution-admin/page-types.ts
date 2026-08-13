@@ -1,6 +1,9 @@
 import type {
   BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleBuilderDraftRecord,
+  BadgeIssuanceRuleRegistryPage,
+  BadgeIssuanceRuleRegistrySort,
+  BadgeIssuanceRuleRegistrySortDirection,
   BadgeIssuanceRuleVersionRecord,
   BadgeRuleApprovalPolicyRecord,
   BadgeTemplateRecord,
@@ -106,6 +109,16 @@ export interface InstitutionAdminReviewQueueWorkspace {
 
 export interface InstitutionAdminRulesWorkspace extends InstitutionAdminListFlashWorkspace {
   builderDrafts: readonly BadgeIssuanceRuleBuilderDraftRecord[];
+  registry: {
+    searchQuery: string;
+    latestStatus: BadgeIssuanceRuleVersionRecord["status"] | null;
+    sort: BadgeIssuanceRuleRegistrySort;
+    direction: BadgeIssuanceRuleRegistrySortDirection;
+    limit: number;
+    totalCount: number;
+    previousPageHref: string | null;
+    nextPageHref: string | null;
+  };
 }
 
 export interface InstitutionAdminRuleValueListsWorkspace extends InstitutionAdminListFlashWorkspace {
@@ -197,6 +210,7 @@ export interface InstitutionAdminPageInput {
   revokedApiKeyCount: number;
   badgeRules: readonly BadgeIssuanceRuleRecord[];
   badgeRuleVersions: readonly BadgeIssuanceRuleVersionRecord[];
+  badgeRuleRegistryPage?: BadgeIssuanceRuleRegistryPage | undefined;
   badgeRuleApprovalPolicy?: BadgeRuleApprovalPolicyRecord | null;
   reportingEngagementCounts?: TenantReportingEngagementCounts | null;
   reportingOverview?: TenantReportingOverviewRecord | null;
