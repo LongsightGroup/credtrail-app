@@ -24,6 +24,7 @@ export interface InstitutionAdminShellPaths {
   operationsPath: string;
   operationsLearnerRecordsPath: string;
   operationsLearnerRecordImportsPath: string;
+  operationsPathwaysPath: string;
   operationsReviewQueuePath: string;
   operationsIssuedBadgesPath: string;
   operationsBadgeStatusPath: string;

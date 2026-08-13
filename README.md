@@ -7,6 +7,7 @@ Open-source Open Badges 3.0 platform with Cloudflare Workers SaaS and Docker sel
 ## What Can CredTrail Do?
 
 ### ✅ Core Badge Management
+
 - **Badge template creation** - Define reusable badge designs with achievement criteria, images, and metadata
 - **Manual badge issuance** - Issue badges to individual learners with signed verifiable credentials
 - **Cryptographic signing** - Ed25519-based credential signing with `did:web` issuer identities
@@ -15,7 +16,10 @@ Open-source Open Badges 3.0 platform with Cloudflare Workers SaaS and Docker sel
 - **Email notifications** - Automatic learner notifications on badge issuance
 
 ### ✅ Learner Experience
+
 - **Learner dashboard** - View all earned badges in one place
+- **Governed learner pathways** - Follow institution-defined, versioned programs with ordered badge and verified-record requirements
+- **Explainable progress** - See exact evidence states, the next unmet requirement, and durable completion history
 - **Public badge pages** - Shareable URLs for each credential with verification indicators
 - **Badge sharing** - Copy URL, download VC JSON, add to LinkedIn profile directly
 - **Account linking** - Link institutional identities with email fallback for post-graduation access
@@ -24,6 +28,7 @@ Open-source Open Badges 3.0 platform with Cloudflare Workers SaaS and Docker sel
 - **Learner DID settings** - Optional `did:key`, `did:web`, or `did:ion` subject IDs for privacy-preserving issuance
 
 ### ✅ Verification & Standards Compliance
+
 - **Public verification API** - `/credentials/v1/{id}` endpoint for third-party verification
 - **Open Badges 3.0** - Full OB3 spec compliance with W3C Verifiable Credentials Data Model 2.0
 - **IMS Global validator** - Deep-links to official IMS validator on badge pages
@@ -34,6 +39,7 @@ Open-source Open Badges 3.0 platform with Cloudflare Workers SaaS and Docker sel
 - **Achievement metadata** - Rich achievement descriptions with evidence links
 
 ### ✅ Authentication & Access Control
+
 - **Hosted authentication** - Better Auth-backed passwordless email login through CredTrail wrapper routes
 - **Institutional SSO integration** - Better Auth-backed institutional sign-in with learner identity linking
 - **Multi-tenant RBAC** - Tenant-scoped roles: owner, admin, issuer
@@ -41,6 +47,7 @@ Open-source Open Badges 3.0 platform with Cloudflare Workers SaaS and Docker sel
 - **Guided onboarding** - New tenant setup flow with first badge template and issuance walkthrough
 
 ### ✅ Open Badges 3.0 API Compliance
+
 - **OAuth 2.0 flows** - Authorization Code Grant with Dynamic Client Registration
 - **PKCE enforcement** - S256 code challenge method required
 - **Service discovery** - `/.well-known/openid-credential-issuer` endpoint with OpenAPI documentation
@@ -50,12 +57,15 @@ Open-source Open Badges 3.0 platform with Cloudflare Workers SaaS and Docker sel
 - **Credential upsert** - Update existing credentials while maintaining immutability
 
 ### ✅ Governance & Compliance
+
 - **Audit logging** - Immutable logs for issuance, revocation, and role changes
+- **Pathway governance** - Publish immutable pathway versions, record approved exceptions, and require human review before final credential issuance
 - **Tenant isolation** - Strict data separation between organizations
 - **Type safety** - Full TypeScript with strict mode enabled
 - **Input validation** - Zod schemas at all HTTP and queue boundaries
 
 ### ✅ Infrastructure & Operations
+
 - **Database-backed queues** - Simple Postgres table for async jobs (issue_badge, revoke_badge)
 - **Monorepo structure** - Turborepo-based workspace with shared packages
 - **CI/CD pipeline** - Automated linting, type checking, and testing

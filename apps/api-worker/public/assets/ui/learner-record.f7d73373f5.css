@@ -266,11 +266,103 @@
     linear-gradient(180deg, rgba(255, 252, 245, 0.92), rgba(247, 250, 255, 0.94)),
     var(--ct-learner-record-surface);
 }
+.learner-record__pathway-grid {
+  display: grid;
+  gap: 1rem;
+}
+.learner-record__pathway-card {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1rem, 2vw, 1.4rem);
+  border: 1px solid rgba(17, 79, 134, 0.16);
+  border-radius: 1.2rem;
+  background: var(--ct-learner-record-surface);
+  box-shadow: 0 1rem 2.5rem rgba(28, 68, 102, 0.06);
+}
+.learner-record__pathway-card h3 {
+  margin: 0;
+  color: var(--ct-theme-text-title);
+  font-size: clamp(1.15rem, 2vw, 1.4rem);
+}
+.learner-record__pill--pathway-complete {
+  color: #17633a;
+  background: #e8f7ef;
+}
+.learner-record__pill--pathway-needs_review {
+  color: #7b4a08;
+  background: #fff5dc;
+}
+.learner-record__pill--pathway-invalidated {
+  color: #9b2619;
+  background: #ffefed;
+}
+.learner-record__pill--pathway-in_progress {
+  color: #13517d;
+  background: #e6f2fc;
+}
+.learner-record__pathway-requirements {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: pathway-requirement;
+}
+.learner-record__pathway-requirement {
+  counter-increment: pathway-requirement;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.35rem 0.8rem;
+  align-items: center;
+  padding: 0.8rem 0.9rem;
+  border-left: 0.25rem solid #9eb8ce;
+  border-radius: 0.6rem;
+  background: #f6f9fc;
+}
+.learner-record__pathway-requirement > div::before {
+  content: counter(pathway-requirement) ". ";
+  font-weight: 700;
+}
+.learner-record__pathway-requirement p {
+  margin: 0.25rem 0 0;
+  color: var(--ct-theme-text-subtle);
+  font-size: 0.9rem;
+}
+.learner-record__pathway-requirement > span {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.learner-record__pathway-requirement > a {
+  grid-column: 1 / -1;
+  color: var(--ct-learner-record-accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.learner-record__pathway-requirement--met,
+.learner-record__pathway-requirement--waived {
+  border-left-color: #3b9563;
+}
+.learner-record__pathway-requirement--invalidated {
+  border-left-color: #c8493b;
+}
+.learner-record__pathway-requirement--in_review {
+  border-left-color: #c88a2c;
+}
+.learner-record__pathway-next {
+  margin: 0;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.75rem;
+  color: var(--ct-theme-text-title);
+  background: rgba(224, 239, 252, 0.72);
+}
 @media (max-width: 41rem) {
   .learner-record__card-topline {
     flex-direction: column;
   }
   .learner-record__pill-row {
     justify-content: start;
+  }
+  .learner-record__pathway-requirement {
+    grid-template-columns: 1fr;
   }
 }

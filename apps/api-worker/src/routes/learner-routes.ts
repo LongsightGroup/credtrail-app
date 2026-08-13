@@ -10,11 +10,13 @@ import {
   listAssertionEngagementEvents,
   listLearnerBadgeSummaries,
   listLearnerIdentitiesByProfile,
+  listLearnerPathwayProgress,
   markLearnerIdentityLinkProofUsed,
   recordAssertionEngagementEvent,
   removeLearnerIdentityAliasesByType,
   resolveLearnerProfileForIdentity,
   type TenantMembershipRole,
+  type LearnerPathwayProgressRecord,
 } from "@credtrail/db";
 import {
   parseAssertionPathParams,
@@ -62,6 +64,7 @@ interface RegisterLearnerRoutesInput<DidNotice> {
     presentation: ReturnType<typeof createLearnerRecordPresentation>,
     options?: {
       switchOrganizationPath?: string | null;
+      pathways?: readonly LearnerPathwayProgressRecord[];
     },
   ) => AppPage;
 }
@@ -387,6 +390,11 @@ export const registerLearnerRoutes = <DidNotice>(
       );
     }
 
+    const pathways = await listLearnerPathwayProgress(db, {
+      tenantId: pathParams.tenantId,
+      learnerProfileId: learnerProfile.id,
+    });
+
     const accessibleTenantContexts = await listAccessibleTenantContextsForUser(
       db,
       roleCheck.principal.userId,
@@ -402,6 +410,7 @@ export const registerLearnerRoutes = <DidNotice>(
       c,
       learnerRecordPage(pathParams.tenantId, createLearnerRecordPresentation(bundle), {
         switchOrganizationPath,
+        pathways,
       }),
     );
   });

@@ -26,6 +26,7 @@ vi.mock("@credtrail/db", async () => {
     listLearnerRecordAssertionExports: vi.fn(),
     listLearnerRecordEntries: vi.fn(),
     listLearnerIdentitiesByProfile: vi.fn(),
+    listLearnerPathwayProgress: vi.fn(),
     recordAssertionEngagementEvent: vi.fn(),
     removeLearnerIdentityAliasesByType: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
@@ -69,6 +70,7 @@ import {
   listLearnerRecordAssertionExports,
   listLearnerRecordEntries,
   listLearnerIdentitiesByProfile,
+  listLearnerPathwayProgress,
   recordAssertionEngagementEvent,
   removeLearnerIdentityAliasesByType,
   resolveLearnerProfileForIdentity,
@@ -101,6 +103,7 @@ const mockedListLearnerBadgeSummaries = vi.mocked(listLearnerBadgeSummaries);
 const mockedListLearnerRecordAssertionExports = vi.mocked(listLearnerRecordAssertionExports);
 const mockedListLearnerRecordEntries = vi.mocked(listLearnerRecordEntries);
 const mockedListLearnerIdentitiesByProfile = vi.mocked(listLearnerIdentitiesByProfile);
+const mockedListLearnerPathwayProgress = vi.mocked(listLearnerPathwayProgress);
 const mockedRecordAssertionEngagementEvent = vi.mocked(recordAssertionEngagementEvent);
 const mockedRemoveLearnerIdentityAliasesByType = vi.mocked(removeLearnerIdentityAliasesByType);
 const mockedResolveLearnerProfileForIdentity = vi.mocked(resolveLearnerProfileForIdentity);
@@ -743,6 +746,8 @@ describe("GET /tenants/:tenantId/learner/record", () => {
         revokedAt: "2026-03-22T15:00:00.000Z",
       }),
     ]);
+    mockedListLearnerPathwayProgress.mockReset();
+    mockedListLearnerPathwayProgress.mockResolvedValue([]);
   });
 
   it("renders a unified learner record page on the normal learner route family", async () => {

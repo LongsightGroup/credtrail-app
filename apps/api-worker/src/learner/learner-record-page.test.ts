@@ -61,4 +61,66 @@ describe("createLearnerRecordPage", () => {
       "This learner account does not have any badge assertions or non-badge learner-record entries yet.",
     );
   });
+
+  it("places governed pathway progress above the flat learner-record inventory", () => {
+    const html = renderAppPageToString(
+      learnerRecordPage("tenant_123", samplePresentation(), {
+        pathways: [
+          {
+            enrollmentId: "pthe_123",
+            pathwayId: "pth_123",
+            pathwayVersionId: "pthv_123",
+            pathwayTitle: "Clinical Leadership",
+            learnerDescription: "Build verified clinical leadership practice.",
+            ownerOrgUnitName: "College of Health",
+            versionNumber: 2,
+            enrollmentStatus: "active",
+            completionBehavior: "review_required",
+            evaluation: {
+              id: "pthev_123",
+              enrollmentId: "pthe_123",
+              pathwayVersionId: "pthv_123",
+              sequenceNumber: 3,
+              result: "needs_review",
+              qualifyingEvidenceIds: ["assertion_123"],
+              rationale: "All requirements are satisfied; final credential review is required",
+              evaluatedAt: "2026-08-13T10:00:00.000Z",
+              requirements: [
+                {
+                  requirementId: "pthr_123",
+                  position: 1,
+                  title: "Clinical Placement Badge",
+                  description: null,
+                  state: "met",
+                  evidenceIds: ["assertion_123"],
+                  rationale: "Institution-verified evidence is current",
+                },
+              ],
+            },
+            evaluationHistory: [],
+            completionHandoff: {
+              id: "pthh_123",
+              status: "review_pending",
+              badgeTemplateId: "badge_final",
+              assertionPublicId: null,
+            },
+            nextRequirement: null,
+            completedAt: null,
+            enrolledAt: "2026-08-01T10:00:00.000Z",
+          },
+        ],
+      }),
+    );
+
+    expect(html).toContain("Active pathways");
+    expect(html).toContain("Clinical Leadership");
+    expect(html).toContain("Needs review");
+    expect(html).toContain("Clinical Placement Badge");
+    expect(html).toContain(
+      "Learner-added items never satisfy an official requirement automatically",
+    );
+    expect(html.indexOf("Active pathways")).toBeLessThan(
+      html.indexOf("Institution-verified record"),
+    );
+  });
 });

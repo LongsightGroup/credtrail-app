@@ -26,6 +26,7 @@ import type { RegisterTenantGovernanceRoutesInput } from "./tenant-governance-ro
 import { adminRoleRequiredPage } from "./tenant-governance-shared-pages";
 import { registerTenantIssuedBadgesAdminRoutes } from "./tenant-issued-badges-admin-routes";
 import { registerTenantLearnerRecordAdminRoutes } from "./tenant-learner-record-admin-routes";
+import { registerTenantLearnerPathwayAdminRoutes } from "./tenant-learner-pathway-admin-routes";
 import { registerTenantLmsConnectionAdminRoutes } from "./tenant-lms-connection-admin-routes";
 import { registerTenantMemberManagementRoutes } from "./tenant-member-management-routes";
 import {
@@ -250,6 +251,13 @@ export const registerTenantGovernanceRoutes = (
     renderLearnerRecordImportWorkspace: learnerRecordImport.renderLearnerRecordImportWorkspace,
     resolveDatabase: input.resolveDatabase,
     requireTenantRole: input.requireTenantRole,
+  });
+
+  registerTenantLearnerPathwayAdminRoutes({
+    app: input.app,
+    resolveDatabase: input.resolveDatabase,
+    resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
+    loadInstitutionAdminShellData: pageData.loadInstitutionAdminShellData,
   });
 
   registerTenantAdminReportingPageRoutes({

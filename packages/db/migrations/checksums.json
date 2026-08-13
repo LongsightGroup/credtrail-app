@@ -63,5 +63,9 @@
   "0061_learner_lms_identities.sql": "8203e92ad7c164445ab3fca83f0bd0a999053b6839d465c130c0940392bec5d0",
   "0062_badge_rule_version_snapshots.sql": "ea5fc048eaad5395976b612c1abbb1b4eb930bcaf7b583511149560d8e9d9f18",
   "0063_badge_rule_achievement_snapshots.sql": "657f64a61e563297e3921c5eaa1d4d5f8be54915fc34d62ef23443ecd62cbd93",
-  "0064_badge_rule_approval_policy_defaults.sql": "06279bab33baf989b0ab3f4bdf088751606dcf637b48a067c12318677911525b"
+  "0064_badge_rule_approval_policy_defaults.sql": "06279bab33baf989b0ab3f4bdf088751606dcf637b48a067c12318677911525b",
+  "0065_governed_learner_pathways.sql": "e95c2b59973a3f08f071470c63751ea7cc09bbbc98f8b056159670c6bb76ab1a",
+  "0066_learner_pathway_tenant_cascade.sql": "7361d0c7d018453e58365365fd275df0847b02c0d4cc1d45a960a9c3705fee48",
+  "0067_learner_pathway_issued_handoffs.sql": "3d469ce1f2a0e194fa0a825ebaf899107326a4e69ac076d70d2c88138808a0c6",
+  "0068_learner_pathway_issued_handoff_cleanup.sql": "0418ebb8f4f557688671ad34ef22a3880f779dc845ec15c8d19a15787814380e"
 }

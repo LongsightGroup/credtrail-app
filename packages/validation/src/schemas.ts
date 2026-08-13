@@ -12,6 +12,7 @@ export * from "./badge-template.js";
 export * from "./managed-badge-template-image.js";
 export * from "./governance-metadata.js";
 export * from "./learner-record.js";
+export * from "./learner-pathways.js";
 export * from "./tenant-admin.js";
 export * from "./badge-rules.js";
 export * from "./auth.js";

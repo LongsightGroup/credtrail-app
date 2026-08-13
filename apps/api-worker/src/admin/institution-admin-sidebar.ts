@@ -4,6 +4,7 @@ export type InstitutionAdminSidebarView =
   | "home"
   | "operationsLearnerRecords"
   | "operationsLearnerRecordImports"
+  | "operationsPathways"
   | "operationsReviewQueue"
   | "operationsIssuedBadges"
   | "operationsBadgeStatus"
@@ -33,6 +34,7 @@ export interface InstitutionAdminSidebarPaths {
   operationsPath: string;
   operationsLearnerRecordsPath: string;
   operationsLearnerRecordImportsPath: string;
+  operationsPathwaysPath: string;
   operationsReviewQueuePath: string;
   operationsIssuedBadgesPath: string;
   operationsBadgeStatusPath: string;
@@ -70,6 +72,7 @@ export const buildInstitutionAdminSidebarPaths = (
     operationsPath,
     operationsLearnerRecordsPath: `${operationsPath}/learner-records`,
     operationsLearnerRecordImportsPath: `${operationsPath}/learner-record-imports`,
+    operationsPathwaysPath: `${operationsPath}/pathways`,
     operationsReviewQueuePath: `${operationsPath}/review-queue`,
     operationsIssuedBadgesPath: `${operationsPath}/issued-badges`,
     operationsBadgeStatusPath: `${operationsPath}/badge-status`,
@@ -196,6 +199,11 @@ export const buildInstitutionAdminSidebarSections = (
               href: paths.operationsLearnerRecordImportsPath,
               label: "Imports",
               isCurrent: view === "operationsLearnerRecordImports",
+            },
+            {
+              href: paths.operationsPathwaysPath,
+              label: "Pathways",
+              isCurrent: view === "operationsPathways",
             },
           ],
         },

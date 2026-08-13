@@ -14,6 +14,10 @@ import type {
 } from "./assertion-types.js";
 import { upsertAssertionReportingAttribution } from "./assertion-reporting-attribution.js";
 import { findAssertionById } from "./assertion-reads.js";
+import {
+  recordLearnerPathwayFinalCredentialIssuance,
+  reevaluateLearnerPathwaysForLearner,
+} from "./learner-pathways.js";
 
 export const createAssertion = async (
   db: SqlDatabase,
@@ -81,6 +85,23 @@ export const createAssertion = async (
     attributionSource: "issuance_snapshot",
     attributedAt: input.issuedAt,
   });
+
+  if (input.learnerProfileId !== undefined && input.learnerProfileId !== null) {
+    await reevaluateLearnerPathwaysForLearner(db, {
+      tenantId: input.tenantId,
+      learnerProfileId: input.learnerProfileId,
+      trigger: "assertion_issued",
+      inTransaction: true,
+    });
+    await recordLearnerPathwayFinalCredentialIssuance(db, {
+      tenantId: input.tenantId,
+      learnerProfileId: input.learnerProfileId,
+      badgeTemplateId,
+      assertionId: input.id,
+      issuedAt: input.issuedAt,
+      ...(input.issuedByUserId === undefined ? {} : { actorUserId: input.issuedByUserId }),
+    });
+  }
 
   return {
     id: input.id,
@@ -203,6 +224,14 @@ export const recordAssertionRevocation = async (
       input.revokedAt,
     )
     .run();
+
+  if (assertion.learnerProfileId !== null) {
+    await reevaluateLearnerPathwaysForLearner(db, {
+      tenantId: input.tenantId,
+      learnerProfileId: assertion.learnerProfileId,
+      trigger: "assertion_revoked",
+    });
+  }
 
   return {
     status: assertion.revokedAt === null ? "revoked" : "already_revoked",

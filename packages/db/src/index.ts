@@ -26,6 +26,7 @@ export * from "./learner-lms-identities";
 export * from "./learner-profiles";
 export * from "./learner-records";
 export * from "./learner-record-imports";
+export * from "./learner-pathways";
 export * from "./lti";
 export * from "./lti-course-badge-rule-authoring";
 export * from "./lti-resource-link-placements";

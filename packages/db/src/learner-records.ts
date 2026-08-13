@@ -1,4 +1,5 @@
 import { assertValidIsoTimestamp, createPrefixedId } from "./shared-helpers";
+import { reevaluateLearnerPathwaysForLearner } from "./learner-pathways";
 import type { SqlDatabase } from "./tenant-scope";
 
 export type LearnerRecordTrustLevel = "issuer_verified" | "learner_supplemental";
@@ -329,6 +330,12 @@ export const createLearnerRecordEntry = async (
     throw new Error(`Failed to create learner-record entry "${id}"`);
   }
 
+  await reevaluateLearnerPathwaysForLearner(db, {
+    tenantId: input.tenantId,
+    learnerProfileId: input.learnerProfileId,
+    trigger: "learner_record_created",
+  });
+
   return entry;
 };
 
@@ -492,5 +499,15 @@ export const patchLearnerRecordEntry = async (
     )
     .run();
 
-  return findLearnerRecordEntryById(db, input.tenantId, input.entryId);
+  const updated = await findLearnerRecordEntryById(db, input.tenantId, input.entryId);
+
+  if (updated !== null) {
+    await reevaluateLearnerPathwaysForLearner(db, {
+      tenantId: input.tenantId,
+      learnerProfileId: updated.learnerProfileId,
+      trigger: "learner_record_revised",
+    });
+  }
+
+  return updated;
 };

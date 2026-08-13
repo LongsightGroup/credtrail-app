@@ -6,6 +6,7 @@ import type {
   LearnerRecordPresentationModel,
   LearnerRecordPresentationSection,
 } from "../learner-record/learner-record-presentation";
+import type { LearnerPathwayProgressRecord, LearnerPathwayRequirementState } from "@credtrail/db";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -27,6 +28,48 @@ const learnerRecordAppPage = (body: HonoElement): AppPage => {
     body,
     assets: ["learnerRecordCss"],
   });
+};
+
+const pathwayRequirementLabel = (state: LearnerPathwayRequirementState): string => {
+  switch (state) {
+    case "met":
+      return "Met";
+    case "not_recorded":
+      return "No evidence recorded yet";
+    case "in_review":
+      return "Needs review";
+    case "waived":
+      return "Waived";
+    case "invalidated":
+      return "Invalidated";
+  }
+};
+
+const pathwayResultLabel = (pathway: LearnerPathwayProgressRecord): string => {
+  if (
+    pathway.evaluation.result === "needs_review" &&
+    pathway.completionHandoff?.status === "eligible"
+  ) {
+    return "Approved for issuance";
+  }
+
+  if (
+    pathway.evaluation.result === "needs_review" &&
+    pathway.completionHandoff?.status === "issued"
+  ) {
+    return "Credential issued";
+  }
+
+  switch (pathway.evaluation.result) {
+    case "complete":
+      return "Complete";
+    case "needs_review":
+      return "Needs review";
+    case "invalidated":
+      return "Invalidated";
+    case "in_progress":
+      return "In progress";
+  }
 };
 
 export const createLearnerRecordPage = (input: CreateLearnerRecordPageInput) => {
@@ -150,6 +193,7 @@ export const createLearnerRecordPage = (input: CreateLearnerRecordPageInput) => 
     presentation: LearnerRecordPresentationModel,
     options: {
       switchOrganizationPath?: string | null;
+      pathways?: readonly LearnerPathwayProgressRecord[];
     } = {},
   ): AppPage => {
     const learnerLabel = presentation.learnerDisplayName ?? "This learner";
@@ -165,6 +209,7 @@ export const createLearnerRecordPage = (input: CreateLearnerRecordPageInput) => 
             "learner-supplemental item",
           )} now live in one learner-facing record.`;
     const switchOrganizationPath = options.switchOrganizationPath?.trim();
+    const pathways = options.pathways ?? [];
 
     return learnerRecordAppPage(
       <main class="learner-record">
@@ -210,6 +255,105 @@ export const createLearnerRecordPage = (input: CreateLearnerRecordPageInput) => 
             </article>
           </div>
         </section>
+        {pathways.length === 0 ? null : (
+          <section
+            class="learner-record__section learner-record__pathways"
+            aria-labelledby="active-pathways-title"
+          >
+            <div class="learner-record__section-heading">
+              <div>
+                <p class="learner-record__section-kicker">Institution-defined programs</p>
+                <h2 id="active-pathways-title">Active pathways</h2>
+                <p>
+                  Progress counts institution-verified evidence and approved exceptions only.
+                  Learner-added items never satisfy an official requirement automatically.
+                </p>
+              </div>
+            </div>
+            <div class="learner-record__pathway-grid">
+              {pathways.map((pathway) => (
+                <article class="learner-record__pathway-card" key={pathway.enrollmentId}>
+                  <div class="learner-record__card-topline">
+                    <p class="learner-record__card-kicker">
+                      {pathway.ownerOrgUnitName} · Version {String(pathway.versionNumber)}
+                    </p>
+                    <span
+                      class={`learner-record__pill learner-record__pill--pathway-${pathway.evaluation.result}`}
+                    >
+                      {pathwayResultLabel(pathway)}
+                    </span>
+                  </div>
+                  <h3>{pathway.pathwayTitle}</h3>
+                  <p class="learner-record__card-description">{pathway.learnerDescription}</p>
+                  <ol class="learner-record__pathway-requirements">
+                    {pathway.evaluation.requirements.map((requirement) => (
+                      <li
+                        class={`learner-record__pathway-requirement learner-record__pathway-requirement--${requirement.state}`}
+                        key={requirement.requirementId}
+                      >
+                        <div>
+                          <strong>{requirement.title}</strong>
+                          {requirement.description === null ? null : (
+                            <p>{requirement.description}</p>
+                          )}
+                        </div>
+                        <span>{pathwayRequirementLabel(requirement.state)}</span>
+                        {requirement.evidenceIds.length === 0 ? null : (
+                          <a href="#learner-record-items">
+                            {countLabel(requirement.evidenceIds.length, "evidence record")}
+                          </a>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                  {pathway.nextRequirement === null ? (
+                    <p class="learner-record__pathway-next">
+                      {pathway.completionHandoff?.status === "issued"
+                        ? "Every requirement is satisfied and the final credential is issued."
+                        : pathway.completionHandoff?.status === "eligible"
+                          ? "Every requirement is satisfied and the issuance review is approved."
+                          : pathway.evaluation.result === "needs_review"
+                            ? "Next: an administrator reviews the final credential decision."
+                            : "Every requirement is satisfied."}
+                    </p>
+                  ) : (
+                    <p class="learner-record__pathway-next">
+                      Next requirement: <strong>{pathway.nextRequirement.title}</strong>
+                    </p>
+                  )}
+                  {pathway.completionHandoff?.status === "eligible" ? (
+                    <p class="learner-record__pathway-next">
+                      Your evidence is complete. The final credential is eligible for administrator
+                      issuance; it has not been issued automatically.
+                    </p>
+                  ) : null}
+                  {pathway.completionHandoff?.status === "issued" ? (
+                    <p class="learner-record__pathway-next">
+                      Your final credential has been issued.
+                      {pathway.completionHandoff.assertionPublicId === null ? null : (
+                        <>
+                          {" "}
+                          <a
+                            href={`/badges/${encodeURIComponent(pathway.completionHandoff.assertionPublicId)}`}
+                          >
+                            View final credential
+                          </a>
+                        </>
+                      )}
+                    </p>
+                  ) : null}
+                  {pathway.completedAt === null ? null : (
+                    <p class="learner-record__subtle">
+                      Completion recorded {formatIsoTimestamp(pathway.completedAt)} UTC. Current
+                      evidence is evaluated separately so later revocation does not erase this
+                      history.
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
         {presentation.sections.length > 0 ? null : (
           <section class="learner-record__empty-state">
             <h2>Nothing has been added yet</h2>
@@ -219,9 +363,11 @@ export const createLearnerRecordPage = (input: CreateLearnerRecordPageInput) => 
             </p>
           </section>
         )}
-        {presentation.sections.map((section) => (
-          <RecordSection key={section.key} section={section} />
-        ))}
+        <div id="learner-record-items">
+          {presentation.sections.map((section) => (
+            <RecordSection key={section.key} section={section} />
+          ))}
+        </div>
       </main>,
     );
   };
