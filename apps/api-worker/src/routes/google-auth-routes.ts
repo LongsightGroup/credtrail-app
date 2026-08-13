@@ -3,6 +3,7 @@ import type { Hono } from "hono";
 import { BETTER_AUTH_BASE_PATH, tenantIdFromNextPath } from "../auth/better-auth-runtime";
 import { applyBetterAuthResponseHeaders } from "../auth/better-auth-bridge";
 import type { EnterpriseSsoAdapter } from "../auth/enterprise-sso-adapter";
+import { buildLoginPath } from "../auth/login-path";
 import { isSafeRedirectPath, normalizeSafeRedirectPath } from "../auth/redirect-paths";
 import type { AppBindings, AppContext, AppEnv } from "../app";
 
@@ -23,25 +24,6 @@ const normalizeHostedLoginNextPath = (nextPath: string): string => {
   return normalizeSafeRedirectPath(nextPath, "/auth/resolve");
 };
 
-const googleLoginRedirectPath = (input: {
-  tenantId: string;
-  nextPath: string;
-  reason: "google_unavailable" | "google_failed";
-}): string => {
-  const url = new URL("/login", "https://credtrail.local");
-
-  if (input.tenantId.length > 0) {
-    url.searchParams.set("tenantId", input.tenantId);
-  }
-
-  if (input.nextPath.length > 0) {
-    url.searchParams.set("next", input.nextPath);
-  }
-
-  url.searchParams.set("reason", input.reason);
-  return `${url.pathname}${url.search}`;
-};
-
 const authResolveCallbackPath = (nextPath: string): string => {
   const url = new URL("/auth/resolve", "https://credtrail.local");
 
@@ -56,7 +38,7 @@ export const registerGoogleAuthRoutes = (input: RegisterGoogleAuthRoutesInput): 
   input.app.get("/auth/google/start", async (c) => {
     if (input.createConfiguredSocialProviders(c.env)?.google === undefined) {
       return c.redirect(
-        googleLoginRedirectPath({
+        buildLoginPath({
           tenantId: (c.req.query("tenantId") ?? "").trim(),
           nextPath: normalizeHostedLoginNextPath((c.req.query("next") ?? "").trim()),
           reason: "google_unavailable",
@@ -89,7 +71,7 @@ export const registerGoogleAuthRoutes = (input: RegisterGoogleAuthRoutesInput): 
     }
 
     const { auth } = input.createBetterAuthRuntime(c);
-    const loginPath = googleLoginRedirectPath({
+    const loginPath = buildLoginPath({
       tenantId: requestedTenantId,
       nextPath,
       reason: "google_failed",
@@ -129,7 +111,7 @@ export const registerGoogleAuthRoutes = (input: RegisterGoogleAuthRoutesInput): 
 
   input.app.get(`${BETTER_AUTH_BASE_PATH}/callback/google`, async (c) => {
     if (input.createConfiguredSocialProviders(c.env)?.google === undefined) {
-      return c.redirect("/login?reason=google_unavailable", 302);
+      return c.redirect(buildLoginPath({ reason: "google_unavailable" }), 302);
     }
 
     const requestUrl = new URL(c.req.url);

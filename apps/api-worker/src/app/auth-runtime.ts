@@ -25,6 +25,7 @@ import {
   parseHostedMagicLinkToken,
 } from "../auth/better-auth-runtime";
 import { createEnterpriseSsoAdapter } from "../auth/enterprise-sso-adapter";
+import { buildLoginPath } from "../auth/login-path";
 import { normalizeSafeRedirectPath } from "../auth/redirect-paths";
 import { canonicalAppUrl } from "../http/canonical-app-url";
 import { sendMagicLinkEmailNotification } from "../notifications/send-magic-link-email";
@@ -602,11 +603,10 @@ export const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindin
 });
 
 const tenantMemberInviteLoginUrl = (context: AppContext, tenantId: string): string => {
-  const loginUrl = new URL(canonicalAppUrl(context.env.PUBLIC_APP_ORIGIN, "/login"));
-  loginUrl.searchParams.set("tenantId", tenantId);
-  loginUrl.searchParams.set("next", "/auth/resolve");
-  loginUrl.searchParams.set("reason", "sso_required");
-  return loginUrl.toString();
+  return canonicalAppUrl(
+    context.env.PUBLIC_APP_ORIGIN,
+    buildLoginPath({ tenantId, nextPath: "/auth/resolve", reason: "sso_required" }),
+  );
 };
 
 export const requestTenantMemberInvite = async (

@@ -14,6 +14,7 @@ import type { GenericOAuthConfig } from "better-auth/plugins/generic-oauth";
 import { buildBetterAuthRouteResponse } from "./better-auth-bridge";
 import type { BetterAuthRuntimeConfig } from "./better-auth-config";
 import { buildLocalLoginPath } from "./break-glass-policy";
+import { buildLoginPath } from "./login-path";
 import { normalizeSafeRedirectPath } from "./redirect-paths";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "./auth-context";
 
@@ -123,22 +124,6 @@ const redirectResponse = (location: string): Response => {
 
 const normalizeNextPath = (_tenantId: string, nextPath: string | undefined): string => {
   return normalizeSafeRedirectPath(nextPath, "/auth/resolve");
-};
-
-const buildTenantLoginPath = (input: {
-  tenantId: string;
-  nextPath?: string | undefined;
-  reason?: string | undefined;
-}): string => {
-  const url = new URL("https://credtrail.local/login");
-  url.searchParams.set("tenantId", input.tenantId);
-  url.searchParams.set("next", normalizeNextPath(input.tenantId, input.nextPath));
-
-  if (input.reason !== undefined && input.reason.trim().length > 0) {
-    url.searchParams.set("reason", input.reason);
-  }
-
-  return `${url.pathname}${url.search}`;
 };
 
 const buildStartPath = (tenantId: string, providerId: string, nextPath: string): string => {
@@ -472,9 +457,9 @@ export const createEnterpriseSsoAdapter = <
     return context.json(
       {
         error: "Enterprise SSO is required for this tenant. Use institution sign-in instead.",
-        loginPath: buildTenantLoginPath({
+        loginPath: buildLoginPath({
           tenantId: request.tenantId,
-          nextPath: request.nextPath,
+          nextPath: normalizeNextPath(request.tenantId, request.nextPath),
           reason: "sso_required",
         }),
       },
@@ -498,7 +483,7 @@ export const createEnterpriseSsoAdapter = <
 
     if (state.tenant?.planTier !== "enterprise" || state.policy === null) {
       return redirectResponse(
-        buildTenantLoginPath({
+        buildLoginPath({
           tenantId: request.tenantId,
           nextPath: normalizedNextPath,
           reason: "sso_unavailable",
@@ -508,7 +493,7 @@ export const createEnterpriseSsoAdapter = <
 
     if (state.policy.loginMode === "local") {
       return redirectResponse(
-        buildTenantLoginPath({
+        buildLoginPath({
           tenantId: request.tenantId,
           nextPath: normalizedNextPath,
         }),
@@ -528,7 +513,7 @@ export const createEnterpriseSsoAdapter = <
       });
 
       return redirectResponse(
-        buildTenantLoginPath({
+        buildLoginPath({
           tenantId: request.tenantId,
           nextPath: normalizedNextPath,
           reason: "sso_unavailable",
@@ -551,7 +536,7 @@ export const createEnterpriseSsoAdapter = <
       });
 
       return redirectResponse(
-        buildTenantLoginPath({
+        buildLoginPath({
           tenantId: request.tenantId,
           nextPath: normalizedNextPath,
           reason: "sso_unavailable",
@@ -604,7 +589,7 @@ export const createEnterpriseSsoAdapter = <
       });
 
       return redirectResponse(
-        buildTenantLoginPath({
+        buildLoginPath({
           tenantId: request.tenantId,
           nextPath: normalizedNextPath,
           reason: "sso_failed",
@@ -629,7 +614,7 @@ export const createEnterpriseSsoAdapter = <
       });
 
       return redirectResponse(
-        buildTenantLoginPath({
+        buildLoginPath({
           tenantId: request.tenantId,
           nextPath: normalizedNextPath,
           reason: "sso_failed",
@@ -665,7 +650,7 @@ export const createEnterpriseSsoAdapter = <
     const requestedTenant = await input.resolveRequestedTenantContext(context);
 
     if (requestedTenant === null) {
-      return redirectResponse("/login?reason=sso_failed");
+      return redirectResponse(buildLoginPath({ reason: "sso_failed" }));
     }
 
     const provider = await findTenantAuthProviderById(
@@ -677,7 +662,7 @@ export const createEnterpriseSsoAdapter = <
 
     if (provider === null || oauthConfig === null) {
       return redirectResponse(
-        buildTenantLoginPath({
+        buildLoginPath({
           tenantId: requestedTenant.tenantId,
           reason: "sso_unavailable",
         }),
@@ -737,7 +722,7 @@ export const createEnterpriseSsoAdapter = <
       });
 
       return redirectResponse(
-        buildTenantLoginPath({
+        buildLoginPath({
           tenantId: request.tenantId,
           nextPath: normalizedNextPath,
           reason: "sso_failed",
@@ -762,7 +747,7 @@ export const createEnterpriseSsoAdapter = <
       });
 
       return redirectResponse(
-        buildTenantLoginPath({
+        buildLoginPath({
           tenantId: request.tenantId,
           nextPath: normalizedNextPath,
           reason: "sso_failed",

@@ -3,6 +3,7 @@ import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { CtButton, CtButtonLink } from "../ui/actions";
 import { CtField, CtForm, CtInput } from "../ui/forms";
+import { buildLoginPath, type LoginReason } from "./login-path";
 import type { AccessibleTenantContextView } from "./tenant-context-selection";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -115,61 +116,39 @@ const tenantShowcaseLabel = (tenantId: string): string => {
   return tenantId.length === 0 ? "Back to home" : `View ${tenantId} badge showcase`;
 };
 
-const localLoginPath = (input: { tenantId: string; nextPath: string }): string => {
-  const params = new URLSearchParams({
-    tenantId: input.tenantId,
-    next: input.nextPath,
-  });
+const LOGIN_REASON_NOTICES: Readonly<Partial<Record<LoginReason, string>>> = {
+  google_failed: "Google sign-in did not complete. Try again or use an email sign-in link.",
+  google_unavailable: "Google sign-in is not configured for this CredTrail environment.",
+  signed_out: "You are signed out.",
+  sso_failed:
+    "Institution sign-in did not complete. Try again or contact your CredTrail administrator.",
+  sso_required: "Institution sign-in is required for this tenant.",
+  sso_unavailable:
+    "Hosted institution sign-in is not available for this tenant right now. Contact your CredTrail administrator.",
+};
 
-  return `/login?${params.toString()}`;
+const loginReasonNotice = (input: {
+  reason?: LoginReason | undefined;
+  hasExplicitNotice: boolean;
+}): string | null => {
+  if (input.reason === undefined) {
+    return null;
+  }
+
+  if (input.reason === "sso_unavailable" && input.hasExplicitNotice) {
+    return null;
+  }
+
+  return LOGIN_REASON_NOTICES[input.reason] ?? null;
 };
 
 const LoginReasonNotice = (input: {
-  reason?: string | undefined;
+  reason?: LoginReason | undefined;
   hasExplicitNotice: boolean;
 }): HonoElement | null => {
-  if (input.reason === "signed_out") {
-    return <p class="ct-login__context">You are signed out.</p>;
-  }
+  const notice = loginReasonNotice(input);
 
-  if (input.reason === "sso_failed") {
-    return (
-      <p class="ct-login__context">
-        Institution sign-in did not complete. Try again or contact your CredTrail administrator.
-      </p>
-    );
-  }
-
-  if (input.reason === "google_failed") {
-    return (
-      <p class="ct-login__context">
-        Google sign-in did not complete. Try again or use an email sign-in link.
-      </p>
-    );
-  }
-
-  if (input.reason === "google_unavailable") {
-    return (
-      <p class="ct-login__context">
-        Google sign-in is not configured for this CredTrail environment.
-      </p>
-    );
-  }
-
-  if (input.reason === "sso_required") {
-    return <p class="ct-login__context">Institution sign-in is required for this tenant.</p>;
-  }
-
-  if (input.reason === "sso_unavailable" && !input.hasExplicitNotice) {
-    return (
-      <p class="ct-login__context">
-        Hosted institution sign-in is not available for this tenant right now. Contact your
-        CredTrail administrator.
-      </p>
-    );
-  }
-
-  return null;
+  return notice === null ? null : <p class="ct-login__context">{notice}</p>;
 };
 
 const EnterpriseSignIn = (input: {
@@ -241,7 +220,7 @@ const MagicLinkTurnstile = (input: { siteKey?: string | undefined }): HonoElemen
 };
 
 const AccessContextNotice = (input: {
-  reason?: string | undefined;
+  reason?: LoginReason | undefined;
   adminTenantLabel: string;
   nextPath: string;
 }): HonoElement | null => {
@@ -264,7 +243,7 @@ const MagicLinkEmailSignIn = (input: {
   adminTenantLabel: string;
   effectiveTenantId: string;
   nextPath: string;
-  reason?: string | undefined;
+  reason?: LoginReason | undefined;
   turnstileSiteKey?: string | undefined;
 }): HonoElement => {
   return (
@@ -334,7 +313,7 @@ const loginIntroText = (input: {
 export const magicLinkLoginPage = (input: {
   tenantId: string;
   nextPath: string;
-  reason?: string;
+  reason?: LoginReason | undefined;
   localLoginAllowed?: boolean;
   explicitLocalLoginPath?: string | null;
   enterpriseProviders?: readonly EnterpriseProviderView[];
@@ -606,7 +585,7 @@ export const localBreakGlassLoginPage = (input: {
               </CtForm>
             </section>
             <p class="ct-login__back">
-              <a href={localLoginPath({ tenantId: input.tenantId, nextPath: input.nextPath })}>
+              <a href={buildLoginPath({ tenantId: input.tenantId, nextPath: input.nextPath })}>
                 Back to tenant sign-in
               </a>
             </p>

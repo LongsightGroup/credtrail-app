@@ -23,6 +23,7 @@ import {
   type BreakGlassPolicyAdapter,
 } from "../auth/break-glass-policy";
 import type { EnterpriseSsoAdapter } from "../auth/enterprise-sso-adapter";
+import { buildLoginPath, parseLoginReason } from "../auth/login-path";
 import {
   localBreakGlassLoginPage,
   localResetPasswordPage,
@@ -41,6 +42,7 @@ import { getSeededDemoTrustEdCredentialFixture } from "../badges/seeded-demo-tru
 import { appPage, renderAppPage } from "../ui/render-page";
 import { sessionCookieSecure, sha256Hex } from "../utils/crypto";
 import { registerMagicLinkBrowserRoutes } from "./magic-link-browser-routes";
+import { registerLogoutRoutes } from "./logout-routes";
 
 const MAGIC_LINK_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const MAGIC_LINK_RATE_LIMIT_PRUNE_MS = 24 * 60 * 60 * 1000;
@@ -366,7 +368,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
   app.get("/login", async (c) => {
     const tenantIdQuery = (c.req.query("tenantId") ?? "").trim();
     const nextPath = (c.req.query("next") ?? "").trim();
-    const reason = (c.req.query("reason") ?? "").trim();
+    const reason = parseLoginReason(c.req.query("reason"));
     const tenantId =
       tenantIdQuery.length > 0 ? tenantIdQuery : (tenantIdFromNextPath(nextPath)?.trim() ?? "");
 
@@ -386,7 +388,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
           tenantId,
           nextPath,
           turnstileSiteKey: c.env.TURNSTILE_SITE_KEY,
-          ...(reason.length === 0 ? {} : { reason }),
+          reason,
           localLoginAllowed: loginExperience.localLoginAllowed,
           explicitLocalLoginPath: loginExperience.explicitLocalLoginPath,
           enterpriseProviders: loginExperience.enterpriseProviders,
@@ -411,7 +413,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
           tenantId,
           nextPath,
         }),
-        ...(reason.length === 0 ? {} : { reason }),
+        reason,
       }),
     );
   });
@@ -422,15 +424,10 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     const reason = (c.req.query("reason") ?? "").trim();
 
     if (breakGlassPolicy === undefined || tenantId.length === 0) {
-      const loginUrl = new URL("/login", c.req.url);
-      if (tenantId.length > 0) {
-        loginUrl.searchParams.set("tenantId", tenantId);
-      }
-      if (nextPath.length > 0) {
-        loginUrl.searchParams.set("next", nextPath);
-      }
-      loginUrl.searchParams.set("reason", "break_glass_unavailable");
-      return c.redirect(`${loginUrl.pathname}${loginUrl.search}`, 302);
+      return c.redirect(
+        buildLoginPath({ tenantId, nextPath, reason: "break_glass_unavailable" }),
+        302,
+      );
     }
 
     return renderAppPage(
@@ -445,7 +442,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
 
   app.post("/auth/local/reset-password/request", async (c) => {
     if (breakGlassPolicy === undefined) {
-      return c.redirect("/login?reason=break_glass_unavailable", 302);
+      return c.redirect(buildLoginPath({ reason: "break_glass_unavailable" }), 302);
     }
 
     const formData = await c.req.formData();
@@ -470,7 +467,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
 
   app.post("/auth/local/sign-in", async (c) => {
     if (breakGlassPolicy === undefined) {
-      return c.redirect("/login?reason=break_glass_unavailable", 302);
+      return c.redirect(buildLoginPath({ reason: "break_glass_unavailable" }), 302);
     }
 
     const formData = await c.req.formData();
@@ -562,7 +559,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
 
   app.post("/auth/local/reset-password", async (c) => {
     if (breakGlassPolicy === undefined) {
-      return c.redirect("/login?reason=break_glass_unavailable", 302);
+      return c.redirect(buildLoginPath({ reason: "break_glass_unavailable" }), 302);
     }
 
     const formData = await c.req.formData();
@@ -618,7 +615,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
 
   app.post("/auth/local/two-factor/setup", async (c) => {
     if (breakGlassPolicy === undefined) {
-      return c.redirect("/login?reason=break_glass_unavailable", 302);
+      return c.redirect(buildLoginPath({ reason: "break_glass_unavailable" }), 302);
     }
 
     const formData = await c.req.formData();
@@ -657,7 +654,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
 
   app.post("/auth/local/two-factor/verify", async (c) => {
     if (breakGlassPolicy === undefined) {
-      return c.redirect("/login?reason=break_glass_unavailable", 302);
+      return c.redirect(buildLoginPath({ reason: "break_glass_unavailable" }), 302);
     }
 
     const formData = await c.req.formData();
@@ -921,7 +918,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     const principal = await resolveAuthenticatedPrincipal(c);
 
     if (principal === null) {
-      return c.redirect("/login?reason=auth_required", 302);
+      return c.redirect(buildLoginPath({ reason: "auth_required" }), 302);
     }
 
     const contexts = await loadAccessibleTenantContextViews(c, principal.userId);
@@ -954,7 +951,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     const principal = await resolveAuthenticatedPrincipal(c);
 
     if (principal === null) {
-      return c.redirect("/login?reason=auth_required", 302);
+      return c.redirect(buildLoginPath({ reason: "auth_required" }), 302);
     }
 
     const contexts = await loadAccessibleTenantContextViews(c, principal.userId);
@@ -1001,7 +998,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     const principal = await resolveAuthenticatedPrincipal(c);
 
     if (principal === null) {
-      return c.redirect("/login?reason=auth_required", 302);
+      return c.redirect(buildLoginPath({ reason: "auth_required" }), 302);
     }
 
     const formData = await c.req.formData();
@@ -1085,7 +1082,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
 
   app.get("/auth/sso/finalize", async (c) => {
     if (enterpriseSso === undefined) {
-      return c.redirect("/login?reason=sso_failed", 302);
+      return c.redirect(buildLoginPath({ reason: "sso_failed" }), 302);
     }
 
     const tenantId = (c.req.query("tenantId") ?? "").trim();
@@ -1095,7 +1092,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     const error = (c.req.query("error") ?? "").trim();
 
     if (tenantId.length === 0) {
-      return c.redirect("/login?reason=sso_failed", 302);
+      return c.redirect(buildLoginPath({ reason: "sso_failed" }), 302);
     }
 
     return enterpriseSso.finalize(c, {
@@ -1138,17 +1135,8 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     });
   });
 
-  app.post("/auth/logout", async (c) => {
-    await revokeCurrentSession(c);
-
-    return c.redirect("/login?reason=signed_out", 303);
-  });
-
-  app.post("/v1/auth/logout", async (c) => {
-    await revokeCurrentSession(c);
-
-    return c.json({
-      status: "signed_out",
-    });
+  registerLogoutRoutes({
+    app,
+    revokeCurrentSession,
   });
 };

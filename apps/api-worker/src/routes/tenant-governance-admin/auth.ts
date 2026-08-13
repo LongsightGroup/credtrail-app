@@ -3,6 +3,7 @@ import { renderAppPage } from "../../ui/render-page";
 import type { AppContext } from "../../app";
 import type { AuthenticatedPrincipal } from "../../auth/auth-context";
 import { buildLocalTwoFactorPath } from "../../auth/break-glass-policy";
+import { buildLoginPath } from "../../auth/login-path";
 import { adminRoleRequiredPage } from "../tenant-governance-shared-pages";
 import type { RegisterTenantGovernanceRoutesInput } from "../tenant-governance-routes.types";
 
@@ -86,11 +87,7 @@ export const createTenantGovernanceAdminAuth = (
   };
 
   const redirectToTenantLogin = (c: AppContext, tenantId: string, nextPath: string): Response => {
-    const loginUrl = new URL("/login", c.req.url);
-    loginUrl.searchParams.set("tenantId", tenantId);
-    loginUrl.searchParams.set("next", nextPath);
-    loginUrl.searchParams.set("reason", "auth_required");
-    return c.redirect(`${loginUrl.pathname}${loginUrl.search}`, 302);
+    return c.redirect(buildLoginPath({ tenantId, nextPath, reason: "auth_required" }), 302);
   };
 
   const resolveTenantWorkspaceRole = async (

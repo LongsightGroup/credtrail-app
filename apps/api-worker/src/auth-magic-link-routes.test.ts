@@ -1172,7 +1172,7 @@ describe("magic-link auth routes", () => {
     expect(betterAuthProvider.createMagicLinkSession).toHaveBeenCalledTimes(1);
   });
 
-  it("uses Better Auth-backed session inspection and logout without falling back to legacy session tables", async () => {
+  it("uses Better Auth-backed session inspection without falling back to legacy session tables", async () => {
     const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders({
       betterAuthInitiallyAuthenticated: true,
     });
@@ -1201,69 +1201,6 @@ describe("magic-link auth routes", () => {
       expiresAt: "2026-02-18T22:00:00.000Z",
     });
     expect(betterAuthProvider.resolveAuthenticatedPrincipal).toHaveBeenCalled();
-
-    const logoutResponse = await isolatedApp.request(
-      "/v1/auth/logout",
-      {
-        method: "POST",
-        headers: {
-          Origin: "http://localhost",
-          Cookie: "better-auth.session_token=better-session",
-        },
-      },
-      createEnv("production"),
-    );
-    const logoutBody = await logoutResponse.json<{
-      status: string;
-    }>();
-
-    expect(logoutResponse.status).toBe(200);
-    expect(logoutBody).toEqual({
-      status: "signed_out",
-    });
-    expect(logoutResponse.headers.get("set-cookie")).toContain("better-auth.session_token=");
-    expect(betterAuthProvider.revokeCurrentSession).toHaveBeenCalledTimes(1);
-
-    const afterLogoutResponse = await isolatedApp.request(
-      "/v1/auth/session",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=better-session",
-        },
-      },
-      createEnv("production"),
-    );
-    const afterLogoutBody = await afterLogoutResponse.json<{
-      error: string;
-    }>();
-
-    expect(afterLogoutResponse.status).toBe(401);
-    expect(afterLogoutBody).toEqual({
-      error: "Not authenticated",
-    });
-  });
-
-  it("revokes the current browser session and redirects to sign-in", async () => {
-    const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders({
-      betterAuthInitiallyAuthenticated: true,
-    });
-
-    const response = await isolatedApp.request(
-      "/auth/logout",
-      {
-        method: "POST",
-        headers: {
-          Origin: "http://localhost",
-          Cookie: "better-auth.session_token=better-session",
-        },
-      },
-      createEnv("production"),
-    );
-
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("/login?reason=signed_out");
-    expect(response.headers.get("set-cookie")).toContain("better-auth.session_token=");
-    expect(betterAuthProvider.revokeCurrentSession).toHaveBeenCalledTimes(1);
   });
 
   it("redirects single-tenant authenticated users from /auth/resolve into their preferred tenant path", async () => {
@@ -1428,27 +1365,5 @@ describe("magic-link auth routes", () => {
     expect(body).toEqual({
       error: "Not authenticated",
     });
-  });
-
-  it("does not emit credtrail_session clears on hosted logout after Better Auth cleanup", async () => {
-    const response = await app.request(
-      "/v1/auth/logout",
-      {
-        method: "POST",
-        headers: {
-          Cookie: "credtrail_session=session-token",
-        },
-      },
-      createEnv("production"),
-    );
-    const body = await response.json<{
-      status: string;
-    }>();
-
-    expect(response.status).toBe(200);
-    expect(body).toEqual({
-      status: "signed_out",
-    });
-    expect(response.headers.get("set-cookie") ?? "").not.toContain("credtrail_session=");
   });
 });
