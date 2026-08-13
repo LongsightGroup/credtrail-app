@@ -16,10 +16,7 @@ describe("badgeArtworkIssuanceHttpFailure", () => {
 
   it.each([
     ["unmanaged_artwork", "Upload this badge's artwork in CredTrail before issuing it."],
-    [
-      "missing_artwork",
-      "Upload this badge's approved artwork in CredTrail before issuing it.",
-    ],
+    ["missing_artwork", "Upload this badge's approved artwork in CredTrail before issuing it."],
     ["invalid_artwork", "This badge's managed artwork is invalid. Replace it before issuing."],
   ] as const)("maps %s to a fixable conflict", (status, error) => {
     expect(badgeArtworkIssuanceHttpFailure({ status })).toEqual({ statusCode: 409, error });

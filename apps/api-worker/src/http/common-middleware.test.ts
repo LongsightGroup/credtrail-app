@@ -143,12 +143,16 @@ describe("registerCommonMiddleware", () => {
   it("allows issuer identity documents on the configured platform domain", async () => {
     const app = createMiddlewareApp();
     app.get("/.well-known/did.json", (c) => c.json({ id: "did:web:issuer.credtrail.test" }));
-    const response = await app.request("https://issuer.credtrail.test/.well-known/did.json", undefined, {
-      ...fakeEnv,
-      APP_ENV: "production",
-      PLATFORM_DOMAIN: "issuer.credtrail.test",
-      PUBLIC_APP_ORIGIN: "https://app.credtrail.test",
-    });
+    const response = await app.request(
+      "https://issuer.credtrail.test/.well-known/did.json",
+      undefined,
+      {
+        ...fakeEnv,
+        APP_ENV: "production",
+        PLATFORM_DOMAIN: "issuer.credtrail.test",
+        PUBLIC_APP_ORIGIN: "https://app.credtrail.test",
+      },
+    );
 
     expect(response.status).toBe(200);
   });

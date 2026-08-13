@@ -368,8 +368,7 @@ const sampleBadgeTemplate = (overrides?: Partial<BadgeTemplateRecord>): BadgeTem
     title: "TypeScript Foundations",
     description: "Awarded for completing TS basics.",
     criteriaUri: null,
-    imageUri:
-      "https://credtrail.test/badges/assets/tenant_123/badge_template_001/asset_typescript",
+    imageUri: "https://credtrail.test/badges/assets/tenant_123/badge_template_001/asset_typescript",
     createdByUserId: "usr_issuer",
     ownerOrgUnitId: "tenant_123:org:institution",
     governanceMetadataJson: '{"stability":"institution_registry"}',
@@ -639,9 +638,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     const body = await response.json<ErrorResponse>();
 
     expect(response.status).toBe(409);
-    expect(body.error).toBe(
-      "Upload this badge's approved artwork in CredTrail before issuing it.",
-    );
+    expect(body.error).toBe("Upload this badge's approved artwork in CredTrail before issuing it.");
     expect(mockedFinalizeAssertionIssuance).not.toHaveBeenCalled();
   });
 

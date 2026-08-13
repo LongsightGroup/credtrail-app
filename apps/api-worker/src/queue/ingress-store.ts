@@ -28,7 +28,9 @@ export interface QueueIngressCommandStore {
 
 /** Persistence required to authorize a programmatic queue command. */
 export interface QueueIngressAuthorizationStore {
-  findActiveApiKeyByHash(input: FindActiveTenantApiKeyByHashInput): Promise<TenantApiKeyRecord | null>;
+  findActiveApiKeyByHash(
+    input: FindActiveTenantApiKeyByHashInput,
+  ): Promise<TenantApiKeyRecord | null>;
   touchApiKeyLastUsedAt(apiKeyId: string, lastUsedAt: string): Promise<void>;
 }
 

@@ -1,8 +1,5 @@
 import type { JsonObject } from "@credtrail/core-domain";
-import {
-  findTenantSigningRegistrationByDid,
-  listAllLtiIssuerRegistrations,
-} from "@credtrail/db";
+import { findTenantSigningRegistrationByDid, listAllLtiIssuerRegistrations } from "@credtrail/db";
 import { Hono } from "hono";
 import {
   credentialDownloadFilename,

@@ -11,10 +11,7 @@ import {
   type IssuableBadgeArtworkFailure,
 } from "../badges/badge-achievement-snapshot";
 import { issueBadgeQueueJobFromRequest, revokeBadgeQueueJobFromRequest } from "./job-builders";
-import {
-  replayIssueBadgeQueueMessage,
-  replayRevokeBadgeQueueMessage,
-} from "./ingress-replay";
+import { replayIssueBadgeQueueMessage, replayRevokeBadgeQueueMessage } from "./ingress-replay";
 import type { QueueIngressCommandStore } from "./ingress-store";
 
 /** Queue response reconstructed from or persisted for an issuance command. */

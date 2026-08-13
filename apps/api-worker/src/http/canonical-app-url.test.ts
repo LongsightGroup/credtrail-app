@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  canonicalAppOrigin,
-  canonicalAppRequestUrl,
-  canonicalAppUrl,
-} from "./canonical-app-url";
+import { canonicalAppOrigin, canonicalAppRequestUrl, canonicalAppUrl } from "./canonical-app-url";
 
 describe("canonicalAppUrl", () => {
   it("uses the configured public domain for application links", () => {

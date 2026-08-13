@@ -345,7 +345,11 @@ export const registerQueueRoutes = (input: RegisterQueueRoutesInput): void => {
   });
 
   app.post("/v1/programmatic/revoke", async (c) => {
-    const parsed = parseRequest(c, parseProgrammaticRevokeBadgeRequest, await c.req.json<unknown>());
+    const parsed = parseRequest(
+      c,
+      parseProgrammaticRevokeBadgeRequest,
+      await c.req.json<unknown>(),
+    );
 
     if ("response" in parsed) {
       return parsed.response;

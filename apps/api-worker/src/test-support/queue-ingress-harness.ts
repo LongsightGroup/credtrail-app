@@ -19,8 +19,7 @@ export const sampleQueueIngressBadgeTemplate: BadgeTemplateRecord = {
   title: "TypeScript Foundations",
   description: "Awarded for completing TypeScript fundamentals.",
   criteriaUri: "https://example.edu/criteria/typescript-foundations",
-  imageUri:
-    "https://credtrail.test/badges/assets/tenant_123/badge_template_001/asset_typescript",
+  imageUri: "https://credtrail.test/badges/assets/tenant_123/badge_template_001/asset_typescript",
   trustedCredentialMetadataJson: null,
   createdByUserId: "usr_issuer",
   ownerOrgUnitId: "tenant_123:org:institution",

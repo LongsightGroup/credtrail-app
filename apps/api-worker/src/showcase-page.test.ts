@@ -130,9 +130,7 @@ describe("GET /showcase/:tenantId", () => {
     expect(body).toContain(
       '<meta name="description" content="Publicly verified credentials for Sakai 1000+ Commits Contributor."',
     );
-    expect(body).toContain(
-      "https://credtrail.test/badges/a77ab5e5-bd08-40c3-accd-cf29ed1fdbbf",
-    );
+    expect(body).toContain("https://credtrail.test/badges/a77ab5e5-bd08-40c3-accd-cf29ed1fdbbf");
     expect(body).toContain("@ottenhoff");
     expect(body).toContain("Sakai 1000+ Commits Contributor");
     expect(body).toContain("Sakai Distinguished Contributor");
