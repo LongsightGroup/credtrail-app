@@ -119,6 +119,24 @@ interface BadgeTemplateImageGenerationRow {
   completedAt: string | null;
 }
 
+const badgeTemplateImageGenerationSelectColumns = `
+  id,
+  tenant_id AS tenantId,
+  badge_template_id AS badgeTemplateId,
+  status,
+  prompt_text AS promptText,
+  style_preset AS stylePreset,
+  prompt_notes AS promptNotes,
+  accent_color AS accentColor,
+  result_image_uri AS resultImageUri,
+  error_message AS errorMessage,
+  requested_by_user_id AS requestedByUserId,
+  queued_job_id AS queuedJobId,
+  created_at AS createdAt,
+  updated_at AS updatedAt,
+  completed_at AS completedAt
+`;
+
 const mapBadgeTemplateImageRevisionRow = (
   row: BadgeTemplateImageRevisionRow,
 ): BadgeTemplateImageRevisionRecord => {
@@ -369,10 +387,9 @@ export const createBadgeTemplateImageGeneration = async (
 ): Promise<BadgeTemplateImageGenerationRecord> => {
   const id = createPrefixedId("btig");
   const nowIso = new Date().toISOString();
-  const insertStatement = (): Promise<SqlRunResult> =>
-    db
-      .prepare(
-        `
+  const row = await db
+    .prepare(
+      `
         INSERT INTO badge_template_image_generations (
           id,
           tenant_id,
@@ -391,31 +408,29 @@ export const createBadgeTemplateImageGeneration = async (
           completed_at
         )
         VALUES (?, ?, ?, 'queued', ?, ?, ?, ?, NULL, NULL, ?, NULL, ?, ?, NULL)
+        RETURNING
+          ${badgeTemplateImageGenerationSelectColumns}
       `,
-      )
-      .bind(
-        id,
-        input.tenantId,
-        input.badgeTemplateId,
-        input.promptText,
-        input.stylePreset,
-        input.promptNotes ?? null,
-        input.accentColor ?? null,
-        input.requestedByUserId ?? null,
-        nowIso,
-        nowIso,
-      )
-      .run();
+    )
+    .bind(
+      id,
+      input.tenantId,
+      input.badgeTemplateId,
+      input.promptText,
+      input.stylePreset,
+      input.promptNotes ?? null,
+      input.accentColor ?? null,
+      input.requestedByUserId ?? null,
+      nowIso,
+      nowIso,
+    )
+    .first<BadgeTemplateImageGenerationRow>();
 
-  await insertStatement();
-
-  const generation = await findBadgeTemplateImageGenerationById(db, input.tenantId, id);
-
-  if (generation === null) {
+  if (row === null) {
     throw new Error(`Unable to load badge template image generation ${id} after insert`);
   }
 
-  return generation;
+  return mapBadgeTemplateImageGenerationRow(row);
 };
 
 export const updateBadgeTemplateImageGeneration = async (
@@ -455,23 +470,22 @@ export const updateBadgeTemplateImageGeneration = async (
   }
 
   const updatedAt = new Date().toISOString();
-  const updateStatement = (): Promise<SqlRunResult> =>
-    db
-      .prepare(
-        `
+  const row = await db
+    .prepare(
+      `
         UPDATE badge_template_image_generations
         SET ${setClauses.join(", ")},
             updated_at = ?
         WHERE tenant_id = ?
           AND id = ?
+        RETURNING
+          ${badgeTemplateImageGenerationSelectColumns}
       `,
-      )
-      .bind(...params, updatedAt, input.tenantId, input.id)
-      .run();
+    )
+    .bind(...params, updatedAt, input.tenantId, input.id)
+    .first<BadgeTemplateImageGenerationRow>();
 
-  await updateStatement();
-
-  return findBadgeTemplateImageGenerationById(db, input.tenantId, input.id);
+  return row === null ? null : mapBadgeTemplateImageGenerationRow(row);
 };
 
 export const findBadgeTemplateImageGenerationById = async (
@@ -479,38 +493,19 @@ export const findBadgeTemplateImageGenerationById = async (
   tenantId: string,
   generationId: string,
 ): Promise<BadgeTemplateImageGenerationRecord | null> => {
-  const findStatement = (): Promise<BadgeTemplateImageGenerationRow | null> =>
-    db
-      .prepare(
-        `
+  const row = await db
+    .prepare(
+      `
         SELECT
-          id,
-          tenant_id AS tenantId,
-          badge_template_id AS badgeTemplateId,
-          status,
-          prompt_text AS promptText,
-          style_preset AS stylePreset,
-          prompt_notes AS promptNotes,
-          accent_color AS accentColor,
-          result_image_uri AS resultImageUri,
-          error_message AS errorMessage,
-          requested_by_user_id AS requestedByUserId,
-          queued_job_id AS queuedJobId,
-          created_at AS createdAt,
-          updated_at AS updatedAt,
-          completed_at AS completedAt
+          ${badgeTemplateImageGenerationSelectColumns}
         FROM badge_template_image_generations
         WHERE tenant_id = ?
           AND id = ?
         LIMIT 1
       `,
-      )
-      .bind(tenantId, generationId)
-      .first<BadgeTemplateImageGenerationRow>();
-
-  let row: BadgeTemplateImageGenerationRow | null;
-
-  row = await findStatement();
+    )
+    .bind(tenantId, generationId)
+    .first<BadgeTemplateImageGenerationRow>();
 
   return row === null ? null : mapBadgeTemplateImageGenerationRow(row);
 };
