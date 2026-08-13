@@ -55,10 +55,6 @@ export const migrationBatchPathParamsSchema = tenantPathParamsSchema.extend({
   batchId: z.string().trim().min(1).max(128),
 });
 
-export const tenantDedicatedDbProvisioningRequestPathParamsSchema = tenantPathParamsSchema.extend({
-  requestId: resourceIdSchema,
-});
-
 export const credentialPathParamsSchema = z.object({
   credentialId: resourceIdSchema,
 });
@@ -131,10 +127,6 @@ export type TenantAuthProviderPathParams = z.infer<typeof tenantAuthProviderPath
 
 export type LearnerRecordEntryPathParams = z.infer<typeof learnerRecordEntryPathParamsSchema>;
 
-export type TenantDedicatedDbProvisioningRequestPathParams = z.infer<
-  typeof tenantDedicatedDbProvisioningRequestPathParamsSchema
->;
-
 export const parseAssertionPathParams = (input: unknown): AssertionPathParams => {
   return assertionPathParamsSchema.parse(input);
 };
@@ -197,12 +189,6 @@ export const parseTenantApiKeyPathParams = (input: unknown): TenantApiKeyPathPar
 
 export const parseTenantAuthProviderPathParams = (input: unknown): TenantAuthProviderPathParams => {
   return tenantAuthProviderPathParamsSchema.parse(input);
-};
-
-export const parseTenantDedicatedDbProvisioningRequestPathParams = (
-  input: unknown,
-): TenantDedicatedDbProvisioningRequestPathParams => {
-  return tenantDedicatedDbProvisioningRequestPathParamsSchema.parse(input);
 };
 
 export const parseLearnerRecordEntryPathParams = (input: unknown): LearnerRecordEntryPathParams => {

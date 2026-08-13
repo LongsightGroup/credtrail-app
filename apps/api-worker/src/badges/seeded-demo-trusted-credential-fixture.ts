@@ -159,5 +159,3 @@ export const getSeededDemoTrustEdCredentialFixture = (): SeededDemoTrustEdCreden
     readiness: evaluateTrustEdCredentialReadiness(completeTrustEdCredentialMetadata()),
   };
 };
-
-export const seededDemoTrustEdCredentialFixture = getSeededDemoTrustEdCredentialFixture();

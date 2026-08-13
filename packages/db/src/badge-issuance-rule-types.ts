@@ -113,9 +113,6 @@ export type BadgeIssuanceRuleApprovalStepTarget =
       targetApproverGroupId: string;
     };
 
-export type BadgeIssuanceRuleApprovalStepTargetType =
-  BadgeIssuanceRuleApprovalStepTarget["targetType"];
-
 export type BadgeIssuanceRuleApprovalDecision = "approved" | "rejected" | "changes_requested";
 
 export type BadgeIssuanceRuleApprovalEventAction =

@@ -3,12 +3,6 @@ import jsonld from "jsonld";
 import { pinnedJsonLdContexts } from "./pinned-json-ld-contexts";
 export { pinnedJsonLdContextTermSets } from "./pinned-json-ld-contexts";
 
-export type QueueJobType =
-  | "issue_badge"
-  | "revoke_badge"
-  | "rebuild_verification_cache"
-  | "import_migration_batch";
-
 export interface TenantScopedResourceId {
   tenantId: string;
   resourceId: string;

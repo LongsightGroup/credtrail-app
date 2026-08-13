@@ -14,13 +14,6 @@ export const TENANT_MEMBERSHIP_ROLE_RANK: Record<TenantMembershipRole, number> =
   owner: 4,
 };
 
-export const isTenantMembershipRole = (value: unknown): value is TenantMembershipRole => {
-  return (
-    typeof value === "string" &&
-    Object.prototype.hasOwnProperty.call(TENANT_MEMBERSHIP_ROLE_RANK, value)
-  );
-};
-
 export const tenantMembershipRoleSatisfiesMinimumRole = (
   actorRole: TenantMembershipRole,
   requiredRole: TenantMembershipRole,

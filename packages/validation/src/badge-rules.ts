@@ -326,10 +326,6 @@ export const badgeIssuanceRuleAuditLogQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional(),
 });
 
-export const badgeTemplateAuditLogQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(500).optional(),
-});
-
 export const createBadgeIssuanceRuleRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
@@ -527,10 +523,6 @@ export const createBadgeIssuanceRuleValueListRequestSchema = z
     }
   });
 
-export const badgeIssuanceRuleValueListPathParamsSchema = tenantPathParamsSchema.extend({
-  valueListId: resourceIdSchema,
-});
-
 export const badgeIssuanceRuleEvaluationPathParamsSchema = tenantPathParamsSchema.extend({
   evaluationId: resourceIdSchema,
 });
@@ -561,22 +553,6 @@ export const resolveBadgeIssuanceRuleReviewRequestSchema = z.object({
   comment: z.string().trim().min(1).max(2000).optional(),
 });
 
-export const createDedicatedDbProvisioningRequestSchema = z.object({
-  targetRegion: z
-    .string()
-    .trim()
-    .min(2)
-    .max(64)
-    .regex(/^[a-z0-9-]+$/),
-  notes: z.string().trim().min(1).max(2000).optional(),
-});
-
-export const resolveDedicatedDbProvisioningRequestSchema = z.object({
-  status: z.enum(["provisioned", "failed", "canceled"]),
-  dedicatedDatabaseUrl: z.string().url().max(4096).optional(),
-  notes: z.string().trim().min(1).max(2000).optional(),
-  resolvedAt: isoTimestampSchema.optional(),
-});
 // --- inferred types and parsers ---
 export type BadgeIssuanceRulePathParams = z.infer<typeof badgeIssuanceRulePathParamsSchema>;
 
@@ -586,10 +562,6 @@ export type BadgeIssuanceRuleBuilderDraftPathParams = z.infer<
 
 export type BadgeIssuanceRuleVersionPathParams = z.infer<
   typeof badgeIssuanceRuleVersionPathParamsSchema
->;
-
-export type BadgeIssuanceRuleValueListPathParams = z.infer<
-  typeof badgeIssuanceRuleValueListPathParamsSchema
 >;
 
 export type BadgeIssuanceRuleEvaluationPathParams = z.infer<
@@ -602,15 +574,11 @@ export type BadgeIssuanceRuleVersionDiffQuery = z.infer<
 
 export type BadgeIssuanceRuleAuditLogQuery = z.infer<typeof badgeIssuanceRuleAuditLogQuerySchema>;
 
-export type BadgeTemplateAuditLogQuery = z.infer<typeof badgeTemplateAuditLogQuerySchema>;
-
 export type BadgeIssuanceRuleValueListQuery = z.infer<typeof badgeIssuanceRuleValueListQuerySchema>;
 
 export type BadgeIssuanceRuleLmsProviderKind = z.infer<
   typeof badgeIssuanceRuleLmsProviderKindSchema
 >;
-
-export type BadgeIssuanceRuleValueListKind = z.infer<typeof badgeIssuanceRuleValueListKindSchema>;
 
 export type BadgeIssuanceRuleDefinition = z.infer<typeof badgeIssuanceRuleDefinitionSchema>;
 
@@ -622,15 +590,6 @@ export type UpdateBadgeIssuanceRuleDraftRequest = z.infer<
 
 export type SaveBadgeIssuanceRuleBuilderDraftRequest = z.infer<
   typeof saveBadgeIssuanceRuleBuilderDraftRequestSchema
->;
-
-/** Identifies whether builder progress creates a new rule or edits a formal rule. */
-export type BadgeIssuanceRuleBuilderDraftTarget = z.infer<
-  typeof badgeIssuanceRuleBuilderDraftTargetSchema
->;
-
-export type BadgeIssuanceRuleBuilderDraftBuilderState = z.infer<
-  typeof badgeIssuanceRuleBuilderDraftBuilderStateSchema
 >;
 
 export type BadgeIssuanceRuleBuilderDraftPayload = z.infer<
@@ -669,14 +628,6 @@ export type BadgeIssuanceRuleVersionSelectionQuery = z.infer<
 
 export type ResolveBadgeIssuanceRuleReviewRequest = z.infer<
   typeof resolveBadgeIssuanceRuleReviewRequestSchema
->;
-
-export type CreateDedicatedDbProvisioningRequest = z.infer<
-  typeof createDedicatedDbProvisioningRequestSchema
->;
-
-export type ResolveDedicatedDbProvisioningRequest = z.infer<
-  typeof resolveDedicatedDbProvisioningRequestSchema
 >;
 
 export const parseBadgeIssuanceRulePathParams = (input: unknown): BadgeIssuanceRulePathParams => {
@@ -759,20 +710,10 @@ export const parseBadgeIssuanceRuleAuditLogQuery = (
   return badgeIssuanceRuleAuditLogQuerySchema.parse(input);
 };
 
-export const parseBadgeTemplateAuditLogQuery = (input: unknown): BadgeTemplateAuditLogQuery => {
-  return badgeTemplateAuditLogQuerySchema.parse(input);
-};
-
 export const parseCreateBadgeIssuanceRuleValueListRequest = (
   input: unknown,
 ): CreateBadgeIssuanceRuleValueListRequest => {
   return createBadgeIssuanceRuleValueListRequestSchema.parse(input);
-};
-
-export const parseBadgeIssuanceRuleValueListPathParams = (
-  input: unknown,
-): BadgeIssuanceRuleValueListPathParams => {
-  return badgeIssuanceRuleValueListPathParamsSchema.parse(input);
 };
 
 export const parseBadgeIssuanceRuleEvaluationPathParams = (
@@ -872,16 +813,4 @@ export const parseBadgeIssuanceRuleDefinitionJson = (
   }
 
   return parseBadgeIssuanceRuleDefinition(parsed);
-};
-
-export const parseCreateDedicatedDbProvisioningRequest = (
-  input: unknown,
-): CreateDedicatedDbProvisioningRequest => {
-  return createDedicatedDbProvisioningRequestSchema.parse(input);
-};
-
-export const parseResolveDedicatedDbProvisioningRequest = (
-  input: unknown,
-): ResolveDedicatedDbProvisioningRequest => {
-  return resolveDedicatedDbProvisioningRequestSchema.parse(input);
 };

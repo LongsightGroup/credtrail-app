@@ -1,13 +1,5 @@
 import type { OrgUnitType } from "./primitives.js";
 
-export const ORG_UNIT_TYPES = [
-  "institution",
-  "college",
-  "department",
-  "program",
-  "course",
-] as const satisfies readonly OrgUnitType[];
-
 export const ORG_UNIT_HIERARCHY_DEPTH: Record<OrgUnitType, number> = {
   institution: 0,
   college: 1,

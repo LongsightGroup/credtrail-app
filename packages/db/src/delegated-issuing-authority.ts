@@ -973,11 +973,3 @@ export const findActiveDelegatedIssuingAuthorityGrantForAction = async (
     requiredAction: input.requiredAction,
   });
 };
-
-export const hasDelegatedIssuingAuthorityAccess = async (
-  db: SqlDatabase,
-  input: ResolveDelegatedIssuingAuthorityInput,
-): Promise<boolean> => {
-  const grant = await findActiveDelegatedIssuingAuthorityGrantForAction(db, input);
-  return grant !== null;
-};

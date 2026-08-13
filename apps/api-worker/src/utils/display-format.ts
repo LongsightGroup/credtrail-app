@@ -25,15 +25,6 @@ const linkedInIssuedDateFromIso = (
   };
 };
 
-export const escapeHtml = (value: string): string => {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-};
-
 export const formatIsoTimestamp = (timestampIso: string): string => {
   const timestampMs = Date.parse(timestampIso);
 

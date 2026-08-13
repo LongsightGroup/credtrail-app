@@ -11,19 +11,6 @@ export const isValidationParseError = (error: unknown): error is z.ZodError => {
   return error instanceof z.ZodError;
 };
 
-export const queueJobTypeSchema = z.enum([
-  "issue_badge",
-  "revoke_badge",
-  "rebuild_verification_cache",
-  "import_migration_batch",
-  "import_learner_record_batch",
-  "generate_badge_template_image",
-  "process_badge_rule_lifecycle",
-  "process_automated_badge_rule",
-  "send_badge_rule_approval_notification",
-  "process_learner_evidence_change",
-]);
-
 export const idempotencyKeySchema = z.string().min(1).max(128);
 
 export const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(

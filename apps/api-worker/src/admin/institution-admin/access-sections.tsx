@@ -203,8 +203,8 @@ export const renderInstitutionAdminAccessSections = (
     <AdminPanel id="lms-connection-actions">
       <div class="ct-stack">
         <p class="ct-admin__hint">
-          Connect Canvas or Sakai gradebook accounts on a dedicated setup page with optional OAuth
-          and LTI metadata.
+          Connect Canvas or Sakai gradebook accounts on a dedicated setup page with connection
+          credentials and LTI metadata.
         </p>
         {ltiDynamicRegistrationUrl !== null && ltiDynamicRegistrationUrl.length > 0 ? (
           <div class="ct-admin__form ct-stack">

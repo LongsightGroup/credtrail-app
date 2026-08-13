@@ -177,17 +177,6 @@ export const findActiveBadgeIssuanceRuleVersion = async (
   return version;
 };
 
-export const findIssuableActiveBadgeIssuanceRuleVersion = async (
-  db: SqlDatabase,
-  input: {
-    tenantId: string;
-    ruleId: string;
-    nowIso?: string | undefined;
-  },
-): Promise<BadgeIssuanceRuleVersionRecord | null> => {
-  return findActiveBadgeIssuanceRuleVersion(db, input);
-};
-
 const DRAFT_EDITABLE_BADGE_ISSUANCE_RULE_VERSION_STATUSES: ReadonlySet<BadgeIssuanceRuleVersionStatus> =
   new Set(["draft", "rejected"]);
 

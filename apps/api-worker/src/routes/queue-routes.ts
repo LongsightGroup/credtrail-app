@@ -1,9 +1,7 @@
 import {
-  parseIssueBadgeRequest,
   parseProcessQueueRequest,
   parseProgrammaticIssueBadgeRequest,
   parseProgrammaticRevokeBadgeRequest,
-  parseRevokeBadgeRequest,
   type IssueBadgeRequest,
   type ProcessQueueRequest,
   type RevokeBadgeRequest,
@@ -296,32 +294,6 @@ export const registerQueueRoutes = (input: RegisterQueueRoutesInput): void => {
     const request = parseProcessQueueRequest(await input.readJsonBodyOrEmptyObject(c));
     const result = await input.processQueuedJobs(c, input.processQueueInputWithDefaults(request));
     return c.json({ status: "ok", ...result }, 200);
-  });
-
-  app.post("/v1/issue", async (c) => {
-    const authError = authorizeTrustedInternalRequest(c);
-
-    if (authError !== null) {
-      return authError;
-    }
-
-    const parsed = parseRequest(c, parseIssueBadgeRequest, await c.req.json<unknown>());
-    return "response" in parsed
-      ? parsed.response
-      : handleIssueCommand(c, input.resolveQueueIngressStore(c.env), parsed.value);
-  });
-
-  app.post("/v1/revoke", async (c) => {
-    const authError = authorizeTrustedInternalRequest(c);
-
-    if (authError !== null) {
-      return authError;
-    }
-
-    const parsed = parseRequest(c, parseRevokeBadgeRequest, await c.req.json<unknown>());
-    return "response" in parsed
-      ? parsed.response
-      : handleRevokeCommand(c, input.resolveQueueIngressStore(c.env), parsed.value);
   });
 
   app.post("/v1/programmatic/issue", async (c) => {

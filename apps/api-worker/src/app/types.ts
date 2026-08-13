@@ -29,7 +29,6 @@ export interface AppBindings {
   JOB_PROCESSOR_TOKEN?: string;
   LTI_ISSUER_REGISTRY_JSON?: string;
   LTI_STATE_SIGNING_SECRET?: string;
-  CANVAS_OAUTH_STATE_SIGNING_SECRET?: string;
   AI?: BadgeTemplateImageGenerationAiBinding;
   OB3_DISCOVERY_TITLE?: string;
   OB3_TERMS_OF_SERVICE_URL?: string;

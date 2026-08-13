@@ -4,7 +4,6 @@ This document covers the enterprise and programmatic controls added for `badging
 
 - API key management for programmatic queue ingress
 - Enterprise OIDC auth policy and provider management
-- Dedicated database provisioning request workflow
 
 ## 1) Tenant API Keys (Programmatic Access)
 
@@ -25,7 +24,6 @@ Write-request contract:
 
 - `idempotencyKey` is required on all programmatic write requests.
 - Actor attribution is derived from the API key owner, not caller-supplied user IDs.
-- Internal legacy queue ingress routes (`POST /v1/issue`, `POST /v1/revoke`) are not public APIs and require `JOB_PROCESSOR_TOKEN` bearer authentication when enabled.
 
 Key behavior:
 
@@ -52,14 +50,3 @@ Guardrails:
 - Access requires tenant `owner` or `admin` role.
 - Tenant plan must be `enterprise`.
 - Hosted enterprise sign-in supports OIDC providers only.
-
-## 3) Dedicated DB Provisioning Workflow
-
-Dedicated database provisioning remains an operational workflow for enterprise
-tenants. It is not exposed through HTTP admin routes.
-
-Workflow:
-
-- Create request with target region and optional notes.
-- Resolve with status (`provisioned`, `failed`, `canceled`) and optional DB URL.
-- Requests are auditable through `audit_logs` actions.

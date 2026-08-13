@@ -23,10 +23,6 @@ import { renderAppPage } from "../../ui/render-page";
 import type { TenantGovernanceAdminAuth } from "./auth";
 import type { TenantGovernanceAdminPageDataLoaders } from "./page-data";
 
-export type TenantGovernanceTemplateAdminWorkspaces = ReturnType<
-  typeof createTenantGovernanceTemplateAdminWorkspaces
->;
-
 type InstitutionAdminRuleTemplatesPageData = Parameters<
   typeof institutionAdminRuleTemplatesPage
 >[0];

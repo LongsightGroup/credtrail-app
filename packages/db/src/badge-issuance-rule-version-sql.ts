@@ -151,9 +151,6 @@ export const badgeIssuanceRuleVersionSelectColumns = (tableAlias?: string): stri
   }).join(",\n  ");
 };
 
-/** Canonical unqualified SQL projection for persisted badge-rule versions. */
-export const BADGE_ISSUANCE_RULE_VERSION_SELECT_COLUMNS = badgeIssuanceRuleVersionSelectColumns();
-
 /** Parse a database row into a badge-rule version and reject corrupt snapshot state. */
 export const mapBadgeIssuanceRuleVersionRow = (
   row: BadgeIssuanceRuleVersionRow,

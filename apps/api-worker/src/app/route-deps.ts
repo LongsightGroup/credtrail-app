@@ -62,13 +62,3 @@ export type RequireDelegatedIssuingAuthorityPermission = (
   c: AppContext,
   input: DelegatedIssuingAuthorityPermissionInput,
 ) => Promise<Response | null>;
-
-export interface DatabaseRouteDeps {
-  resolveDatabase: ResolveDatabase;
-}
-
-export interface TenantAccessDeps {
-  requireTenantRole: RequireTenantRole;
-  requireScopedOrgUnitPermission: RequireScopedOrgUnitPermission;
-  requireDelegatedIssuingAuthorityPermission: RequireDelegatedIssuingAuthorityPermission;
-}

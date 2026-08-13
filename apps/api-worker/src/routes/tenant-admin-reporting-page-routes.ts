@@ -64,34 +64,4 @@ export const registerTenantAdminReportingPageRoutes = (
       institutionAdminReportingReportsPage,
     );
   });
-
-  app.get("/tenants/:tenantId/admin/reporting/saved", async (c) => {
-    const tenantId = c.req.param("tenantId");
-    return renderReportingWorkspace(
-      c,
-      tenantId,
-      `/tenants/${encodeURIComponent(tenantId)}/admin/reporting/saved`,
-      institutionAdminReportingReportsPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/reporting/custom", async (c) => {
-    const tenantId = c.req.param("tenantId");
-    return renderReportingWorkspace(
-      c,
-      tenantId,
-      `/tenants/${encodeURIComponent(tenantId)}/admin/reporting/custom`,
-      institutionAdminReportingReportsPage,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/reporting/exports", async (c) => {
-    const tenantId = c.req.param("tenantId");
-    return renderReportingWorkspace(
-      c,
-      tenantId,
-      `/tenants/${encodeURIComponent(tenantId)}/admin/reporting/exports`,
-      institutionAdminReportingReportsPage,
-    );
-  });
 };

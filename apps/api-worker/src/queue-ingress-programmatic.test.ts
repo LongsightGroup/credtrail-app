@@ -4,12 +4,29 @@ import {
   createQueueIngressTestHarness,
   sampleQueuedIssueMessage,
   sampleQueueIngressApiKey,
+  sampleQueueIngressBadgeTemplate,
 } from "./test-support/queue-ingress-harness";
 
 const { app, store } = createQueueIngressTestHarness();
 
 beforeEach(() => {
   store.reset();
+});
+
+describe("removed internal queue ingress routes", () => {
+  it.each(["/v1/issue", "/v1/revoke"])("does not register %s", async (path) => {
+    const response = await app.request(
+      path,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      },
+      createQueueIngressTestEnv(),
+    );
+
+    expect(response.status).toBe(404);
+  });
 });
 
 describe("POST /v1/programmatic/issue and /v1/programmatic/revoke", () => {
@@ -28,6 +45,14 @@ describe("POST /v1/programmatic/issue and /v1/programmatic/revoke", () => {
           badgeTemplateId: "badge_template_001",
           recipientIdentity: "learner@example.edu",
           recipientIdentityType: "email",
+          recipientIdentifiers: [
+            {
+              identifierType: "studentId",
+              identifier: "student-123",
+            },
+          ],
+          recipientDisplayName: "Learner Example",
+          issuerImageUri: "https://issuer.example.edu/logo.svg",
           idempotencyKey: "idem_programmatic_issue_123",
         }),
       },
@@ -41,6 +66,122 @@ describe("POST /v1/programmatic/issue and /v1/programmatic/revoke", () => {
     expect(store.touchedApiKeys).toHaveLength(1);
     expect(store.enqueuedInputs[0]).toMatchObject({
       idempotencyKey: "idem_programmatic_issue_123",
+      payload: {
+        requestedByUserId: "usr_admin",
+        recipientIdentifiers: [
+          {
+            identifierType: "studentId",
+            identifier: "student-123",
+          },
+        ],
+        recipientDisplayName: "Learner Example",
+        issuerImageUri: "https://issuer.example.edu/logo.svg",
+      },
+    });
+  });
+
+  it.each([
+    {
+      imageUri: "https://cdn.example/badge.png",
+      error: "Upload this badge's artwork in CredTrail before issuing it.",
+    },
+    {
+      imageUri: null,
+      error: "Upload this badge's approved artwork in CredTrail before issuing it.",
+    },
+  ])("rejects an unissuable artwork reference", async ({ imageUri, error }) => {
+    store.activeApiKey = sampleQueueIngressApiKey();
+    store.badgeTemplate = { ...sampleQueueIngressBadgeTemplate, imageUri };
+    const response = await app.request(
+      "/v1/programmatic/issue",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": "ctak_example_secret",
+        },
+        body: JSON.stringify({
+          tenantId: "tenant_123",
+          badgeTemplateId: "badge_template_001",
+          recipientIdentity: "learner@example.edu",
+          recipientIdentityType: "email",
+          idempotencyKey: "idem_programmatic_issue_123",
+        }),
+      },
+      createQueueIngressTestEnv(),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error });
+    expect(store.enqueuedInputs).toHaveLength(0);
+  });
+
+  it("returns 503 when managed artwork storage cannot be checked", async () => {
+    store.activeApiKey = sampleQueueIngressApiKey();
+    const response = await app.request(
+      "/v1/programmatic/issue",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": "ctak_example_secret",
+        },
+        body: JSON.stringify({
+          tenantId: "tenant_123",
+          badgeTemplateId: "badge_template_001",
+          recipientIdentity: "learner@example.edu",
+          recipientIdentityType: "email",
+          idempotencyKey: "idem_programmatic_issue_123",
+        }),
+      },
+      {
+        ...createQueueIngressTestEnv(),
+        BADGE_OBJECTS: {
+          get: () => Promise.reject(new Error("R2 unavailable")),
+          // SAFETY: this failure fixture exercises only the object-read path.
+        } as unknown as R2Bucket,
+      },
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      error: "CredTrail could not check this badge's artwork right now. Try again shortly.",
+    });
+    expect(store.enqueuedInputs).toHaveLength(0);
+  });
+
+  it("queues revoke requests with the API key owner as actor", async () => {
+    store.activeApiKey = sampleQueueIngressApiKey();
+    const response = await app.request(
+      "/v1/programmatic/revoke",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": "ctak_example_secret",
+        },
+        body: JSON.stringify({
+          tenantId: "tenant_123",
+          assertionId: "tenant_123:assertion_456",
+          reason: "Requested by issuer",
+          idempotencyKey: "idem_programmatic_revoke_123",
+        }),
+      },
+      createQueueIngressTestEnv(),
+    );
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toMatchObject({
+      status: "queued",
+      channel: "programmatic_api_key",
+      jobType: "revoke_badge",
+      assertionId: "tenant_123:assertion_456",
+      idempotencyKey: "idem_programmatic_revoke_123",
+    });
+    expect(store.enqueuedInputs).toHaveLength(1);
+    expect(store.enqueuedInputs[0]).toMatchObject({
+      tenantId: "tenant_123",
+      jobType: "revoke_badge",
       payload: { requestedByUserId: "usr_admin" },
     });
   });

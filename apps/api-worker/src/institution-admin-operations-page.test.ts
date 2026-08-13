@@ -87,32 +87,7 @@ describe("GET /tenants/:tenantId/admin/operations/issue", () => {
   });
 });
 
-describe("POST /tenants/:tenantId/admin/operations/manual-issue", () => {
-  it("accepts legacy manual-issue posts and redirects to the issue page", async () => {
-    const env = createEnv();
-
-    const response = await app.request(
-      "/tenants/tenant_123/admin/operations/manual-issue",
-      {
-        method: "POST",
-        headers: {
-          Origin: "http://localhost",
-          "Content-Type": "application/x-www-form-urlencoded",
-          Cookie: "better-auth.session_token=session-token",
-        },
-        body: new URLSearchParams({
-          badgeTemplateId: "",
-          recipientIdentity: "",
-        }).toString(),
-        redirect: "manual",
-      },
-      env,
-    );
-
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/operations/issue");
-  });
-
+describe("POST /tenants/:tenantId/admin/operations/issue", () => {
   it("redirects successful manual issue posts with public next-step links", async () => {
     const env = createEnv();
     const assertion = sampleLearnerRecordAssertionExport();
@@ -163,7 +138,7 @@ describe("POST /tenants/:tenantId/admin/operations/manual-issue", () => {
     });
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/operations/manual-issue",
+      "/tenants/tenant_123/admin/operations/issue",
       {
         method: "POST",
         headers: {
@@ -225,6 +200,26 @@ describe("POST /tenants/:tenantId/admin/operations/manual-issue", () => {
       "usr_admin",
     );
     expect(mockedIssueBadgeForTenant.mock.calls[0]?.[2]).not.toHaveProperty("badgeTemplateId");
+  });
+});
+
+describe("removed operations route aliases", () => {
+  it("does not register the old manual-issue admin post path", async () => {
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/manual-issue",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams().toString(),
+      },
+      createEnv(),
+    );
+
+    expect(response.status).toBe(404);
   });
 });
 

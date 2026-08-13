@@ -1,16 +1,5 @@
 import type { SqlDatabase, SqlRunResult } from "./tenant-scope";
 
-export interface Ed25519PublicJwkRecord {
-  kty: "OKP";
-  crv: "Ed25519";
-  x: string;
-  kid?: string | undefined;
-}
-
-export interface Ed25519PrivateJwkRecord extends Ed25519PublicJwkRecord {
-  d: string;
-}
-
 export interface TenantSigningRegistrationRecord {
   tenantId: string;
   did: string;

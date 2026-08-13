@@ -380,28 +380,6 @@ export const listLtiIssuerRegistrationsForTenant = async (
   return result.results.map(mapLtiIssuerRegistrationRow);
 };
 
-export const deleteLtiIssuerRegistrationByIssuer = async (
-  db: SqlDatabase,
-  issuer: string,
-): Promise<boolean> => {
-  const normalizedIssuer = normalizeLtiIssuer(issuer);
-
-  const deleteStatement = (): Promise<SqlRunResult> =>
-    db
-      .prepare(
-        `
-        DELETE FROM lti_issuer_registrations
-        WHERE issuer = ?
-      `,
-      )
-      .bind(normalizedIssuer)
-      .run();
-
-  const result = await deleteStatement();
-
-  return (result.meta.rowsWritten ?? 0) > 0;
-};
-
 export const upsertLtiDeployment = async (
   db: SqlDatabase,
   input: UpsertLtiDeploymentInput,

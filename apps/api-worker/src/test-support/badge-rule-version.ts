@@ -2,7 +2,6 @@ import type {
   BadgeIssuanceRuleVersionRecord,
   BadgeIssuanceRuleVersionSnapshot,
 } from "@credtrail/db";
-import type { BadgeAchievementSnapshot } from "@credtrail/validation";
 
 /** Complete immutable rule metadata for application tests that do not vary the snapshot. */
 export const sampleBadgeRuleVersionSnapshot: BadgeIssuanceRuleVersionSnapshot = {
@@ -18,17 +17,6 @@ export const sampleBadgeRuleVersionSnapshot: BadgeIssuanceRuleVersionSnapshot = 
   ownerOrgUnitId: "tenant_123:org:institution",
   lmsProviderKind: "canvas",
   lmsConnectionId: "lms_123",
-};
-
-/** Complete immutable achievement content for issuance-path tests. */
-export const sampleBadgeAchievementSnapshot: BadgeAchievementSnapshot = {
-  badgeTemplateId: sampleBadgeRuleVersionSnapshot.badgeTemplateId,
-  title: sampleBadgeRuleVersionSnapshot.badgeTemplateTitle,
-  description: sampleBadgeRuleVersionSnapshot.badgeTemplateDescription,
-  criteriaUri: sampleBadgeRuleVersionSnapshot.badgeTemplateCriteriaUri,
-  imageUri: sampleBadgeRuleVersionSnapshot.badgeTemplateImageUri,
-  trustedCredentialMetadataJson:
-    sampleBadgeRuleVersionSnapshot.badgeTemplateTrustedCredentialMetadataJson,
 };
 
 /** Partial version fixture input with independently overridable snapshot fields. */

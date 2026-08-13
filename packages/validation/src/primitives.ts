@@ -13,7 +13,6 @@ export const tenantMembershipRoleSchema = z.enum([
   "viewer",
 ]);
 export const tenantLoginModeSchema = z.enum(["local", "hybrid", "sso_required"]);
-export const tenantAuthPolicyEnforceForRolesSchema = z.enum(["all_users", "admins_only"]);
 export const tenantAuthProviderProtocolSchema = z.enum(["oidc"]);
 export const recipientIdentityTypeSchema = z.enum(["email", "email_sha256", "did", "url"]);
 export const learnerRecordTrustLevelSchema = z.enum(["issuer_verified", "learner_supplemental"]);
@@ -135,10 +134,6 @@ export type DelegatedIssuingAuthorityAction = z.infer<typeof delegatedIssuingAut
 
 export type BadgeTemplateOwnershipReasonCode = z.infer<
   typeof badgeTemplateOwnershipReasonCodeSchema
->;
-
-export type BadgeTemplateOwnershipTransferReasonCode = z.infer<
-  typeof badgeTemplateOwnershipTransferReasonCodeSchema
 >;
 
 export const parseBootstrapTenantRequest = (input: unknown): BootstrapTenantRequest => {

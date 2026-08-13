@@ -40,7 +40,6 @@
     "@cloudflare/vite-plugin": "1.40.0",
     "@cloudflare/workers-types": "^4.20260702.1",
     "@playwright/test": "^1.60.0",
-    "@sphereon/oid4vci-client": "^0.20.1",
     "@types/jsonld": "^1.5.15",
     "@types/node": "24.13.2",
     "@types/pg": "^8.20.0",

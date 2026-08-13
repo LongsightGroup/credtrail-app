@@ -46,10 +46,6 @@ import { tenantAssertionListDbInput } from "../assertion-list-query";
 import type { TenantGovernanceAdminAuth } from "./auth";
 import type { TenantGovernanceAdminPageDataLoaders } from "./page-data";
 
-export type TenantGovernanceInstitutionAdminWorkspaces = ReturnType<
-  typeof createTenantGovernanceInstitutionAdminWorkspaces
->;
-
 export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
   resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: TenantGovernanceAdminAuth["resolveInstitutionAdminAdminRole"];

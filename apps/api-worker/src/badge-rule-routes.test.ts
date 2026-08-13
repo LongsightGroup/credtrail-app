@@ -59,7 +59,6 @@ vi.mock("@credtrail/db", async () => {
     listTenantLmsConnections: vi.fn(),
     upsertTenantLmsConnection: vi.fn(),
     updateTenantLmsConnectionTokens: vi.fn(),
-    updateTenantCanvasGradebookIntegrationTokens: vi.fn(),
     listAuditLogs: vi.fn(),
     listIssuedBadgeTemplateIdsForRecipient: vi.fn(),
     findActiveSessionByHash: mockedFindActiveSessionByHash,

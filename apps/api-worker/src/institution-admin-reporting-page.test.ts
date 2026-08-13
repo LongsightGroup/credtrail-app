@@ -328,78 +328,6 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).not.toContain('href="/v1/tenants/tenant_123/assertions/ledger-export.csv"');
   });
 
-  it("renders one reports screen and keeps legacy reporting utility routes compatible", async () => {
-    const env = createEnv();
-
-    const reportsResponse = await app.request(
-      "/tenants/tenant_123/admin/reporting/reports?issuedFrom=2026-03-01&issuedTo=2026-03-31",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const reportsBody = await reportsResponse.text();
-    const savedResponse = await app.request(
-      "/tenants/tenant_123/admin/reporting/saved?issuedFrom=2026-03-01&issuedTo=2026-03-31",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const savedBody = await savedResponse.text();
-    const customResponse = await app.request(
-      "/tenants/tenant_123/admin/reporting/custom?issuedFrom=2026-03-01&issuedTo=2026-03-31",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const customBody = await customResponse.text();
-    const exportsResponse = await app.request(
-      "/tenants/tenant_123/admin/reporting/exports?issuedFrom=2026-03-01&issuedTo=2026-03-31",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const exportsBody = await exportsResponse.text();
-
-    expect(reportsResponse.status).toBe(200);
-    expect(reportsBody).toContain("Report Library");
-    expect(reportsBody).toContain('id="reporting-reports-saved"');
-    expect(reportsBody).toContain('id="reporting-reports-custom"');
-    expect(reportsBody).toContain('id="reporting-reports-exports"');
-    expect(savedResponse.status).toBe(200);
-    expect(savedBody).toContain("Report Library");
-    expect(savedBody).toContain("Saved report shortcuts will live here.");
-    expect(savedBody).toContain("Custom report setup will live here.");
-    expect(savedBody).toContain("Export CSV");
-    expect(savedBody).toContain("Planned");
-    expect(savedBody).toContain('href="/tenants/tenant_123/admin/reporting/explore');
-    expect(savedBody).not.toContain("Reporting Overview");
-    expect(customResponse.status).toBe(200);
-    expect(customBody).toContain("Report Library");
-    expect(customBody).toContain("Custom report setup will live here.");
-    expect(customBody).toContain("Planned");
-    expect(customBody).toContain('href="/tenants/tenant_123/admin/reporting/reports');
-    expect(customBody).not.toContain("Reporting Overview");
-    expect(exportsResponse.status).toBe(200);
-    expect(exportsBody).toContain("Report Library");
-    expect(exportsBody).toContain("Export CSV");
-    expect(exportsBody).toMatch(/class="[^"]*ct-action-group/);
-    expect(exportsBody).toContain("Overview CSV");
-    expect(exportsBody).toMatch(/class="[^"]*ct-admin__button[^"]*ct-action--secondary/);
-    expect(exportsBody).not.toContain("Reporting Overview");
-  });
-
   it("keeps the reporting home distilled with ranked charts behind disclosure", async () => {
     const env = createEnv();
 
@@ -1292,5 +1220,21 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
       body.indexOf("Hierarchy drilldown"),
     );
     expect(body.indexOf("Hierarchy drilldown")).toBeLessThan(body.indexOf("Performer panels"));
+  });
+});
+
+describe("removed reporting route aliases", () => {
+  it.each(["saved", "custom", "exports"])("does not register /reporting/%s", async (path) => {
+    const response = await app.request(
+      `/tenants/tenant_123/admin/reporting/${path}`,
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      createEnv(),
+    );
+
+    expect(response.status).toBe(404);
   });
 });

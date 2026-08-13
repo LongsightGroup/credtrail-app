@@ -214,31 +214,6 @@ export const createTenantBreakGlassAccountRequestSchema = z.object({
   sendEnrollmentEmail: z.boolean().optional(),
 });
 
-export const upsertTenantCanvasGradebookIntegrationRequestSchema = z.object({
-  apiBaseUrl: z.string().url().max(2048),
-  authorizationEndpoint: z.string().url().max(2048),
-  tokenEndpoint: z.string().url().max(2048),
-  clientId: z.string().trim().min(1).max(512),
-  clientSecret: z.string().trim().min(1).max(2048),
-  scope: z.string().trim().min(1).max(2048).optional(),
-});
-
-export const adminCanvasOAuthAuthorizeUrlRequestSchema = z.object({
-  redirectUri: z.string().url().max(2048).optional(),
-});
-
-export const adminCanvasOAuthExchangeRequestSchema = z.object({
-  code: z.string().trim().min(1).max(4096),
-  state: z.string().trim().min(20).max(4096),
-  redirectUri: z.string().url().max(2048).optional(),
-});
-
-export const tenantCanvasGradebookSnapshotQuerySchema = z.object({
-  courseId: z.string().trim().min(1).max(255).optional(),
-  learnerId: z.string().trim().min(1).max(255).optional(),
-  assignmentId: z.string().trim().min(1).max(255).optional(),
-});
-
 export const tenantLmsConnectionProviderKindSchema = z.enum(["canvas", "sakai"]);
 
 export const tenantLmsConnectionPathParamsSchema = tenantPathParamsSchema.extend({
@@ -417,10 +392,6 @@ export type CreateTenantBreakGlassAccountRequest = z.infer<
   typeof createTenantBreakGlassAccountRequestSchema
 >;
 
-export type UpsertTenantCanvasGradebookIntegrationRequest = z.infer<
-  typeof upsertTenantCanvasGradebookIntegrationRequestSchema
->;
-
 export type TenantLmsConnectionProviderKind = z.infer<typeof tenantLmsConnectionProviderKindSchema>;
 
 export type TenantLmsConnectionPathParams = z.infer<typeof tenantLmsConnectionPathParamsSchema>;
@@ -441,21 +412,8 @@ export type TenantLmsConnectionCourseSearchQuery = z.infer<
   typeof tenantLmsConnectionCourseSearchQuerySchema
 >;
 
-export type BadgeRuleRegistrySort = z.infer<typeof badgeRuleRegistrySortSchema>;
-export type BadgeRuleRegistrySortDirection = z.infer<typeof badgeRuleRegistrySortDirectionSchema>;
-export type BadgeRuleRegistryStatus = z.infer<typeof badgeRuleRegistryStatusSchema>;
 export type BadgeRuleRegistryPageQuery = z.infer<typeof badgeRuleRegistryPageQuerySchema>;
 export type BadgeRuleRegistryCursorPayload = z.infer<typeof badgeRuleRegistryCursorPayloadSchema>;
-
-export type AdminCanvasOAuthAuthorizeUrlRequest = z.infer<
-  typeof adminCanvasOAuthAuthorizeUrlRequestSchema
->;
-
-export type AdminCanvasOAuthExchangeRequest = z.infer<typeof adminCanvasOAuthExchangeRequestSchema>;
-
-export type TenantCanvasGradebookSnapshotQuery = z.infer<
-  typeof tenantCanvasGradebookSnapshotQuerySchema
->;
 
 export const parseCreateTenantOrgUnitRequest = (input: unknown): CreateTenantOrgUnitRequest => {
   return createTenantOrgUnitRequestSchema.parse(input);
@@ -549,30 +507,6 @@ export const parseCreateTenantBreakGlassAccountRequest = (
   input: unknown,
 ): CreateTenantBreakGlassAccountRequest => {
   return createTenantBreakGlassAccountRequestSchema.parse(input);
-};
-
-export const parseUpsertTenantCanvasGradebookIntegrationRequest = (
-  input: unknown,
-): UpsertTenantCanvasGradebookIntegrationRequest => {
-  return upsertTenantCanvasGradebookIntegrationRequestSchema.parse(input);
-};
-
-export const parseAdminCanvasOAuthAuthorizeUrlRequest = (
-  input: unknown,
-): AdminCanvasOAuthAuthorizeUrlRequest => {
-  return adminCanvasOAuthAuthorizeUrlRequestSchema.parse(input);
-};
-
-export const parseAdminCanvasOAuthExchangeRequest = (
-  input: unknown,
-): AdminCanvasOAuthExchangeRequest => {
-  return adminCanvasOAuthExchangeRequestSchema.parse(input);
-};
-
-export const parseTenantCanvasGradebookSnapshotQuery = (
-  input: unknown,
-): TenantCanvasGradebookSnapshotQuery => {
-  return tenantCanvasGradebookSnapshotQuerySchema.parse(input);
 };
 
 export const parseTenantLmsConnectionPathParams = (

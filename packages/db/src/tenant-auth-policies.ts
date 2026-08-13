@@ -1,7 +1,6 @@
 import { createPrefixedId } from "./shared-helpers";
 import type { SqlDatabase } from "./tenant-scope";
 export * from "./tenant-break-glass-accounts";
-export * from "./tenant-canvas-gradebook-integrations";
 
 export type TenantLoginMode = "local" | "hybrid" | "sso_required";
 

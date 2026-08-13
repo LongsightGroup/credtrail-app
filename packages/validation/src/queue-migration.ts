@@ -334,10 +334,6 @@ export type IssueBadgeQueueJob = z.infer<typeof issueBadgeQueueJobSchema>;
 
 export type RevokeBadgeQueueJob = z.infer<typeof revokeBadgeQueueJobSchema>;
 
-export type LearnerRecordImportBatchQueueJob = z.infer<
-  typeof learnerRecordImportBatchQueueJobSchema
->;
-
 export type GenerateBadgeTemplateImageQueueJob = z.infer<
   typeof generateBadgeTemplateImageQueueJobSchema
 >;
@@ -352,10 +348,6 @@ export type ProcessAutomatedBadgeRuleQueueJob = z.infer<
 
 export type SendBadgeRuleApprovalNotificationQueueJob = z.infer<
   typeof sendBadgeRuleApprovalNotificationQueueJobSchema
->;
-
-export type ProcessLearnerEvidenceChangeQueueJob = z.infer<
-  typeof processLearnerEvidenceChangeQueueJobSchema
 >;
 
 export const parseQueueJob = (input: unknown): QueueJob => {

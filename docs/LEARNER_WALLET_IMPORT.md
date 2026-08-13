@@ -86,18 +86,17 @@ Target wallets for manual validation:
 
 Date: 2026-02-25
 
-Automated interop coverage now validates `credential_offer_uri` resolution against two independent wallet SDK implementations:
+Automated coverage validates CredTrail's OpenID4VCI discovery, offer, token, and credential
+HTTP contracts. Wallet-specific compatibility remains a manual validation step against the target
+wallets listed above.
 
-- `@sphereon/oid4vci-client` (Sphereon wallet stack)
-- `@animo-id/oid4vci` (Animo/Credo wallet stack)
-
-Validation test: `apps/api-worker/src/public-badge-page.test.ts` (`resolves credential_offer_uri with two wallet implementations`)
+Validation test: `apps/api-worker/src/public-badge-page.test.ts`
 
 What is asserted:
 
 1. Wallet deep link format: `openid-credential-offer://?credential_offer_uri=...`
 2. Offer endpoint resolution over HTTP
-3. Credential offer fields required by both stacks:
+3. Credential offer fields required by the CredTrail contract:
    - `credential_issuer`
    - `credential_configuration_ids` includes `OpenBadgeCredential`
    - `grants` pre-authorized code payload

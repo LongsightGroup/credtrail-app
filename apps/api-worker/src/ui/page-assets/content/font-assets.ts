@@ -4,8 +4,6 @@ export interface FontAssetSource {
   contentType: string;
 }
 
-export const FONT_ASSET_BASE_PATH = "/assets/ui/fonts";
-
 const NEWSREADER_WOFF2_BASE64 = [
   "d09GMgABAAAAAgMIABMAAAADhBwAAgKTAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGoHGDxuD0ngcgig/SFZBUpQzBmA/U1RB",
   "VIFiJzQAhBYvgRoRCAqBmXyBgFkLhA4AMIeUCAE2AiQDiBgEIAWKFAeIClsgdHOGJiLt6FKZj5K3U6KS+7SlBqD7rDfEMSJT",
@@ -1848,21 +1846,3 @@ export const FONT_ASSET_SOURCES = {
     contentType: "font/woff2",
   },
 } as const satisfies Record<string, FontAssetSource>;
-
-export type FontAssetKey = keyof typeof FONT_ASSET_SOURCES;
-
-export const fontAssetPath = (key: FontAssetKey): string => {
-  const asset = FONT_ASSET_SOURCES[key];
-  return `${FONT_ASSET_BASE_PATH}/${asset.filename}`;
-};
-
-export const decodeFontAssetBody = (bodyBase64: string): Uint8Array => {
-  const binary = atob(bodyBase64);
-  const bytes = new Uint8Array(binary.length);
-
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-
-  return bytes;
-};

@@ -45,13 +45,6 @@ export const assertionLifecycleTransitionRequestSchema = z.object({
   transitionedAt: isoTimestampSchema.optional(),
 });
 
-export const assertionIssuanceProvenanceSourceSchema = z.enum([
-  "lti_roster",
-  "rule_evaluate",
-  "manual",
-  "programmatic",
-]);
-
 const manualIssuanceProvenanceInputSchema = z.strictObject({ source: z.literal("manual") });
 const programmaticIssuanceProvenanceInputSchema = z.strictObject({
   source: z.literal("programmatic"),
@@ -144,13 +137,6 @@ export const programmaticIssueBadgeRequestSchema = issueBadgeRequestSchema
   })
   .strict();
 
-export const githubUsernameSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(39)
-  .regex(/^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/);
-
 export const revokeBadgeRequestSchema = z.object({
   tenantId: tenantIdSchema,
   assertionId: resourceIdSchema,
@@ -177,14 +163,6 @@ export type AssertionLifecycleTransitionRequest = z.infer<
 
 export type AssertionIssuanceProvenanceInput = z.infer<
   typeof assertionIssuanceProvenanceInputSchema
->;
-
-export type TemplateSnapshotIssuanceProvenanceInput = z.infer<
-  typeof templateSnapshotIssuanceProvenanceInputSchema
->;
-
-export type RuleBackedIssuanceProvenanceInput = z.infer<
-  typeof ruleBackedIssuanceProvenanceInputSchema
 >;
 
 /** Credential-bearing achievement content fixed at issuance-request time. */
@@ -214,14 +192,6 @@ export const parseAssertionLifecycleTransitionRequest = (
   input: unknown,
 ): AssertionLifecycleTransitionRequest => {
   return assertionLifecycleTransitionRequestSchema.parse(input);
-};
-
-export const parseIssueBadgeRequest = (input: unknown): IssueBadgeRequest => {
-  return issueBadgeRequestSchema.parse(input);
-};
-
-export const parseRevokeBadgeRequest = (input: unknown): RevokeBadgeRequest => {
-  return revokeBadgeRequestSchema.parse(input);
 };
 
 export const parseProgrammaticIssueBadgeRequest = (

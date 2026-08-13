@@ -261,19 +261,6 @@ export const tenantOperationsManualIssuePath = (tenantId: string): string => {
   return buildOperationsManualIssuePath(tenantId);
 };
 
-export const accessGovernancePageUrl = (
-  tenantId: string,
-  extra?: Record<string, string>,
-): string => {
-  const path = buildAccessGovernanceAdminPath(tenantId);
-
-  if (extra === undefined || Object.keys(extra).length === 0) {
-    return path;
-  }
-
-  return `${path}?${new URLSearchParams(extra).toString()}`;
-};
-
 export const accessAuthenticationPageUrl = (
   tenantId: string,
   extra?: Record<string, string>,

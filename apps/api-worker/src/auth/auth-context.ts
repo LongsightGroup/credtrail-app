@@ -13,11 +13,6 @@ export interface RequestedTenantContext {
   authoritative: boolean;
 }
 
-export interface RequestAuthContext {
-  principal: AuthenticatedPrincipal | null;
-  requestedTenant: RequestedTenantContext | null;
-}
-
 export interface AuthContextVariables {
   authenticatedPrincipal: AuthenticatedPrincipal | null | undefined;
   requestedTenantContext: RequestedTenantContext | null | undefined;

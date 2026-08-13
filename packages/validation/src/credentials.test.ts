@@ -2,90 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   parseAssertionLifecycleTransitionRequest,
-  parseIssueBadgeRequest,
   parseManualIssueBadgeRequest,
   parsePresentationCreateRequest,
   parsePresentationVerifyRequest,
   parseProgrammaticIssueBadgeRequest,
   parseProgrammaticRevokeBadgeRequest,
-  parseRevokeBadgeRequest,
 } from "./credentials.js";
 import { parseAssertionPathParams } from "./path-params.js";
 
 describe("issue/revoke request parsers", () => {
-  it("accepts a valid issue request", () => {
-    const request = parseIssueBadgeRequest({
-      tenantId: "tenant_123",
-      badgeTemplateId: "badge_template_001",
-      recipientIdentity: "learner@example.edu",
-      recipientIdentityType: "email",
-    });
-
-    expect(request.tenantId).toBe("tenant_123");
-  });
-
-  it("accepts a valid issue request with recipient identifiers", () => {
-    const request = parseIssueBadgeRequest({
-      tenantId: "tenant_123",
-      badgeTemplateId: "badge_template_001",
-      recipientIdentity: "learner@example.edu",
-      recipientIdentityType: "email",
-      recipientIdentifiers: [
-        {
-          identifierType: "emailAddress",
-          identifier: "learner@example.edu",
-        },
-        {
-          identifierType: "sourcedId",
-          identifier: "canvas-user-44",
-        },
-      ],
-      recipientDisplayName: "Learner Example",
-      issuerImageUri: "https://issuer.example.edu/logo.svg",
-    });
-
-    expect(request.recipientIdentifiers).toHaveLength(2);
-    expect(request.recipientDisplayName).toBe("Learner Example");
-    expect(request.issuerImageUri).toBe("https://issuer.example.edu/logo.svg");
-  });
-
-  it("rejects invalid recipient identifier entries", () => {
-    expect(() => {
-      parseIssueBadgeRequest({
-        tenantId: "tenant_123",
-        badgeTemplateId: "badge_template_001",
-        recipientIdentity: "learner@example.edu",
-        recipientIdentityType: "email",
-        recipientIdentifiers: [
-          {
-            identifierType: "emailAddress",
-            identifier: "",
-          },
-        ],
-      });
-    }).toThrow(/./);
-  });
-
-  it("accepts a valid revoke request", () => {
-    const request = parseRevokeBadgeRequest({
-      tenantId: "tenant_123",
-      assertionId: "assertion_456",
-      reason: "Revoked by issuer",
-    });
-
-    expect(request.assertionId).toBe("assertion_456");
-  });
-
-  it("rejects revoke requests without a reason", () => {
-    expect(() => {
-      parseRevokeBadgeRequest({
-        tenantId: "tenant_123",
-        assertionId: "assertion_456",
-        reason: "",
-      });
-    }).toThrow(/./);
-  });
-
   it("accepts a valid manual issue request", () => {
     const request = parseManualIssueBadgeRequest({
       badgeTemplateId: "badge_template_001",
@@ -113,10 +38,43 @@ describe("issue/revoke request parsers", () => {
       badgeTemplateId: "badge_template_001",
       recipientIdentity: "learner@example.edu",
       recipientIdentityType: "email",
+      recipientIdentifiers: [
+        {
+          identifierType: "emailAddress",
+          identifier: "learner@example.edu",
+        },
+        {
+          identifierType: "sourcedId",
+          identifier: "canvas-user-44",
+        },
+      ],
+      recipientDisplayName: "Learner Example",
+      issuerImageUri: "https://issuer.example.edu/logo.svg",
       idempotencyKey: "idem_issue_123",
     });
 
     expect(request.idempotencyKey).toBe("idem_issue_123");
+    expect(request.recipientIdentifiers).toHaveLength(2);
+    expect(request.recipientDisplayName).toBe("Learner Example");
+    expect(request.issuerImageUri).toBe("https://issuer.example.edu/logo.svg");
+  });
+
+  it("rejects invalid recipient identifier entries", () => {
+    expect(() => {
+      parseProgrammaticIssueBadgeRequest({
+        tenantId: "tenant_123",
+        badgeTemplateId: "badge_template_001",
+        recipientIdentity: "learner@example.edu",
+        recipientIdentityType: "email",
+        recipientIdentifiers: [
+          {
+            identifierType: "emailAddress",
+            identifier: "",
+          },
+        ],
+        idempotencyKey: "idem_issue_123",
+      });
+    }).toThrow(/./);
   });
 
   it("rejects caller-supplied governance provenance for programmatic issuance", () => {
@@ -156,6 +114,17 @@ describe("issue/revoke request parsers", () => {
     });
 
     expect(request.idempotencyKey).toBe("idem_revoke_123");
+  });
+
+  it("rejects programmatic revoke requests without a reason", () => {
+    expect(() => {
+      parseProgrammaticRevokeBadgeRequest({
+        tenantId: "tenant_123",
+        assertionId: "assertion_456",
+        reason: "",
+        idempotencyKey: "idem_revoke_123",
+      });
+    }).toThrow(/./);
   });
 });
 

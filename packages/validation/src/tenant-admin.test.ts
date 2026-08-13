@@ -1,15 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  parseCreateDedicatedDbProvisioningRequest,
-  parseResolveDedicatedDbProvisioningRequest,
-} from "./badge-rules.js";
 import { parseTenantApiKeyListQuery, parseTenantAssertionListQuery } from "./list-queries.js";
-import {
-  parseTenantApiKeyPathParams,
-  parseTenantAuthProviderPathParams,
-  parseTenantDedicatedDbProvisioningRequestPathParams,
-} from "./path-params.js";
+import { parseTenantApiKeyPathParams, parseTenantAuthProviderPathParams } from "./path-params.js";
 import {
   parseTenantAssertionLedgerExportQuery,
   parseTenantExecutiveDashboardQuery,
@@ -18,20 +10,16 @@ import {
   parseTenantReportingTrendQuery,
 } from "./reporting-queries.js";
 import {
-  parseAdminCanvasOAuthAuthorizeUrlRequest,
-  parseAdminCanvasOAuthExchangeRequest,
   parseBadgeRuleRegistryCursorPayload,
   parseBadgeRuleRegistryPageQuery,
   parseCreateTenantApiKeyRequest,
   parseRevokeTenantApiKeyRequest,
-  parseTenantCanvasGradebookSnapshotQuery,
   parseTenantLmsConnectionCoursePathParams,
   parseTenantLmsConnectionCourseSearchQuery,
   parseTenantLmsConnectionGradebookItemPathParams,
   parseTenantLmsConnectionPathParams,
   parseUpsertTenantAuthPolicyRequest,
   parseUpsertTenantAuthProviderRequest,
-  parseUpsertTenantCanvasGradebookIntegrationRequest,
   parseUpsertTenantLmsConnectionRequest,
   parseCreateDelegatedIssuingAuthorityGrantRequest,
   parseCreateTenantMemberRequest,
@@ -80,54 +68,6 @@ describe("badge rule registry query parsers", () => {
         ruleId: "brl_123",
       }),
     ).toThrow(/./);
-  });
-});
-
-describe("canvas gradebook integration parsers", () => {
-  it("accepts valid Canvas integration payloads", () => {
-    const request = parseUpsertTenantCanvasGradebookIntegrationRequest({
-      apiBaseUrl: "https://canvas.example.edu",
-      authorizationEndpoint: "https://canvas.example.edu/login/oauth2/auth",
-      tokenEndpoint: "https://canvas.example.edu/login/oauth2/token",
-      clientId: "canvas-client-id",
-      clientSecret: "canvas-client-secret",
-      scope: "url:GET|/api/v1/courses",
-    });
-
-    expect(request.apiBaseUrl).toBe("https://canvas.example.edu");
-    expect(request.clientId).toBe("canvas-client-id");
-  });
-
-  it("accepts valid OAuth authorize/exchange payloads and snapshot query", () => {
-    const authorize = parseAdminCanvasOAuthAuthorizeUrlRequest({
-      redirectUri: "https://credtrail.example.edu/callback",
-    });
-    const exchange = parseAdminCanvasOAuthExchangeRequest({
-      code: "oauth-code-123",
-      state: "abcdefghijklmnopqrstuvwxyz123456",
-      redirectUri: "https://credtrail.example.edu/callback",
-    });
-    const snapshotQuery = parseTenantCanvasGradebookSnapshotQuery({
-      courseId: "course_123",
-      learnerId: "learner_456",
-      assignmentId: "assignment_789",
-    });
-
-    expect(authorize.redirectUri).toBe("https://credtrail.example.edu/callback");
-    expect(exchange.code).toBe("oauth-code-123");
-    expect(snapshotQuery.assignmentId).toBe("assignment_789");
-  });
-
-  it("rejects invalid Canvas integration URLs", () => {
-    expect(() => {
-      parseUpsertTenantCanvasGradebookIntegrationRequest({
-        apiBaseUrl: "not-a-url",
-        authorizationEndpoint: "https://canvas.example.edu/login/oauth2/auth",
-        tokenEndpoint: "https://canvas.example.edu/login/oauth2/token",
-        clientId: "canvas-client-id",
-        clientSecret: "canvas-client-secret",
-      });
-    }).toThrow(/./);
   });
 });
 
@@ -458,27 +398,6 @@ describe("enterprise governance request parsers", () => {
         configJson: "not-json",
       });
     }).toThrow(/./);
-  });
-
-  it("parses dedicated DB provisioning create/resolve payloads and path params", () => {
-    const pathParams = parseTenantDedicatedDbProvisioningRequestPathParams({
-      tenantId: "tenant_123",
-      requestId: "dpr_123",
-    });
-    const createPayload = parseCreateDedicatedDbProvisioningRequest({
-      targetRegion: "us-east-1",
-      notes: "Enterprise migration window approved",
-    });
-    const resolvePayload = parseResolveDedicatedDbProvisioningRequest({
-      status: "provisioned",
-      dedicatedDatabaseUrl: "postgres://dedicated.example/db",
-      notes: "Provisioned and smoke tested",
-      resolvedAt: "2026-03-16T00:00:00.000Z",
-    });
-
-    expect(pathParams.requestId).toBe("dpr_123");
-    expect(createPayload.targetRegion).toBe("us-east-1");
-    expect(resolvePayload.status).toBe("provisioned");
   });
 });
 

@@ -606,24 +606,6 @@ const findLatestEvaluation = async (
   return row === null ? null : mapLearnerPathwayEvaluationRow(row);
 };
 
-export const listLearnerPathwayEvaluationHistory = async (
-  db: SqlDatabase,
-  input: { tenantId: string; enrollmentId: string },
-): Promise<LearnerPathwayEvaluationRecord[]> => {
-  const result = await db
-    .prepare(
-      `SELECT id, enrollment_id AS enrollmentId, pathway_version_id AS pathwayVersionId,
-        sequence_number AS sequenceNumber, result, requirement_results_json AS requirementResultsJson,
-        qualifying_evidence_ids_json AS qualifyingEvidenceIdsJson, rationale, evaluated_at AS evaluatedAt
-       FROM learner_pathway_evaluations
-       WHERE tenant_id = ? AND enrollment_id = ?
-       ORDER BY sequence_number DESC`,
-    )
-    .bind(input.tenantId, input.enrollmentId)
-    .all<LearnerPathwayEvaluationRow>();
-  return result.results.map(mapLearnerPathwayEvaluationRow);
-};
-
 interface EvaluateLearnerPathwayEnrollmentInput {
   readonly tenantId: string;
   readonly enrollmentId: string;

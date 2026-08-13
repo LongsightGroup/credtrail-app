@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import type { AppBindings, AppEnv } from "./types";
+import type { AppEnv } from "./types";
 import type { AppDeps } from "./app-deps";
 import { registerCommonMiddleware } from "../http/common-middleware";
 import { registerAppPageRenderer } from "../ui/render-page";
@@ -85,5 +85,3 @@ export const registerRoutes = (input: RegisterRoutesInput): void => {
   registerSigningRoutes(routeInput);
   registerQueueRoutes(routeInput);
 };
-
-export type RegisterRoutesBindings = AppBindings;

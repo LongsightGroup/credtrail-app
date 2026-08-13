@@ -9,10 +9,6 @@ import type { RegisterTenantGovernanceRoutesInput } from "../tenant-governance-r
 import type { TenantGovernanceAdminAuth } from "./auth";
 import type { TenantGovernanceAdminPageDataLoaders } from "./page-data";
 
-export type TenantGovernanceReportingAdminWorkspaces = ReturnType<
-  typeof createTenantGovernanceReportingAdminWorkspaces
->;
-
 export const createTenantGovernanceReportingAdminWorkspaces = (input: {
   requireTenantRole: RegisterTenantGovernanceRoutesInput["requireTenantRole"];
   ISSUER_ROLES: RegisterTenantGovernanceRoutesInput["ISSUER_ROLES"];

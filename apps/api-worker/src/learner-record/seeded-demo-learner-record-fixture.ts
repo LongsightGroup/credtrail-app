@@ -28,9 +28,6 @@ const LEARNER_EMAIL = "learner@example.edu";
 const NATIVE_EXPORT_PROFILE = "native_portable_json";
 const STANDARDS_MAPPING_PROFILE = "clr_alignment_json";
 
-export const SEEDED_DEMO_LEARNER_RECORD_VERIFY_COMMAND =
-  "pnpm exec vitest run apps/api-worker/src/learner-record/seeded-demo-learner-record-fixture.test.ts apps/api-worker/src/learner/learner-record-page.test.ts apps/api-worker/src/learner-portal.test.ts apps/api-worker/src/routes/learner-record-export-routes.test.ts apps/api-worker/src/institution-admin-page.test.ts apps/api-worker/src/governance-suite.test.ts";
-
 export interface SeededDemoLearnerRecordRouteFamily {
   learnerRecord: string;
   adminReview: string;

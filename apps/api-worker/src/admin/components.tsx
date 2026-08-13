@@ -24,7 +24,6 @@ export { AdminSidebar, type AdminSidebarFooterLink, type AdminSidebarSection } f
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
-type ButtonType = "button" | "submit" | "reset";
 type FormMethod = "get" | "post";
 type DataAttributes = CtDataAttributes;
 
@@ -663,28 +662,6 @@ export const AdminActionMenuLink = ({
     <a class={className} href={href} target={target} rel={rel} {...(dataAttributes ?? {})}>
       {children}
     </a>
-  );
-};
-
-export const AdminActionMenuButton = ({
-  type = "button",
-  tone,
-  dataAttributes,
-  children,
-}: PropsWithChildren<{
-  type?: ButtonType;
-  tone?: "danger";
-  dataAttributes?: DataAttributes;
-}>): HonoElement => {
-  const className =
-    tone === "danger"
-      ? "ct-admin__action-menu-item ct-admin__action-menu-item--danger"
-      : "ct-admin__action-menu-item";
-
-  return (
-    <button type={type} class={className} {...(dataAttributes ?? {})}>
-      {children}
-    </button>
   );
 };
 

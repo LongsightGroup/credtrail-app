@@ -1,19 +1,3 @@
-export interface TenantQueryContext {
-  tenantId: string;
-}
-
-export interface TenantScopedQuery {
-  sql: string;
-  params: readonly string[];
-}
-
-export const withTenantScope = (sql: string, context: TenantQueryContext): TenantScopedQuery => {
-  return {
-    sql: `${sql} WHERE tenant_id = ?`,
-    params: [context.tenantId],
-  };
-};
-
 export interface SqlExecutionMeta {
   rowsRead?: number | undefined;
   rowsWritten?: number | undefined;

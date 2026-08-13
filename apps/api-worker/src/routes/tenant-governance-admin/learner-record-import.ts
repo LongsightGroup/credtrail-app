@@ -36,10 +36,6 @@ const getOptionalFormValue = (formData: FormData, name: string): string | undefi
   return trimmed.length === 0 ? undefined : trimmed;
 };
 
-export type TenantGovernanceLearnerRecordImportAdmin = ReturnType<
-  typeof createTenantGovernanceLearnerRecordImportAdmin
->;
-
 export const createTenantGovernanceLearnerRecordImportAdmin = (input: {
   resolveDatabase: ResolveDatabase;
   loadInstitutionAdminPageData: TenantGovernanceAdminPageDataLoaders["loadInstitutionAdminPageData"];

@@ -16,15 +16,13 @@ Compatibility validation for Digital Credentials Consortium (DCC) Learner Creden
   - `apps/api-worker/src/public-badge-page.test.ts`
   - test: `returns OpenID4VCI credential offer payload for canonical public badge identifier`
 
-### 2. OpenID4VCI wallet SDK resolution (non-DCC reference stacks)
+### 2. OpenID4VCI HTTP contract coverage
 
-- Validation clients:
-  - `@sphereon/oid4vci-client`
-  - `@animo-id/oid4vci`
-- Result: `credential_offer_uri` resolution succeeds in both clients.
-- Evidence:
-  - `apps/api-worker/src/public-badge-page.test.ts`
-  - test: `resolves credential_offer_uri with two wallet implementations (Sphereon and Animo)`
+- Result: Automated tests cover issuer discovery, credential offers, pre-authorized token exchange,
+  and credential retrieval through CredTrail's HTTP routes.
+- Evidence: `apps/api-worker/src/public-badge-page.test.ts`
+- Limitation: Wallet-SDK-specific compatibility requires manual validation and is not claimed by the
+  automated suite.
 
 ### 3. DCC deep-link invitation payload
 

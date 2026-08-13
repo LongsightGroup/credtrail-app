@@ -40,14 +40,6 @@ interface RegisterTenantOperationsAdminRoutesInput {
   >;
 }
 
-const registerOperationsManualIssuePost = (
-  app: Hono<AppEnv>,
-  path: string,
-  handler: (c: AppContext) => Promise<Response>,
-): void => {
-  app.post(path, handler);
-};
-
 export const registerTenantOperationsAdminRoutes = (
   input: RegisterTenantOperationsAdminRoutesInput,
 ): void => {
@@ -203,14 +195,5 @@ export const registerTenantOperationsAdminRoutes = (
     return c.redirect(buildOperationsManualIssuePath(pathParams.tenantId), 303);
   };
 
-  registerOperationsManualIssuePost(
-    app,
-    "/tenants/:tenantId/admin/operations/issue",
-    handleManualIssuePost,
-  );
-  registerOperationsManualIssuePost(
-    app,
-    "/tenants/:tenantId/admin/operations/manual-issue",
-    handleManualIssuePost,
-  );
+  app.post("/tenants/:tenantId/admin/operations/issue", handleManualIssuePost);
 };

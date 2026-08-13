@@ -16,7 +16,6 @@ export * from "./badge-rule-version-expiration";
 export * from "./badge-rule-approver-groups";
 export * from "./badge-issuance-rule-evaluations";
 export * from "./badge-issuance-rule-value-lists";
-export * from "./dedicated-db-provisioning";
 export * from "./delegated-issuing-authority";
 export * from "./job-queue";
 export * from "./job-queue-enqueue";
